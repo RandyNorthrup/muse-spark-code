@@ -63,3 +63,7 @@ test/fixtures/judgeCalibration/invalid/systemone/loop.stuck/bad.json
 # M111 approved mockup design reference (RLF-M111L0): the owner-approved
 # artifact is kept byte-exact; its CSS/HTML are design sources, not product code.
 docs/design/m111-mockups/
+
+# Lane RLSCHED M115w issue captures: kept byte-exact beside their receipts,
+# whose SHA-256 hashes cover the bodies (test/unit/watchdogCaptures.test.ts).
+test/fixtures/m115w/

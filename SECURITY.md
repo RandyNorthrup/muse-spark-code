@@ -825,6 +825,22 @@ unavailable until approved captures and identity-owning adapters exist. Schedule
 saves, mail and browser destinations likewise require the M115/M109/M110 authorities;
 no unbound destination is presented as delivered.
 
+## Issue watchdog (M115w)
+
+The watchdog reads a repository's issues and posts as your own GitHub
+sign-in, read silently from the credential store only by the commands that
+call GitHub; no token is printed, logged or put in a record. Issue titles,
+bodies and comments are untrusted data: the evidence pack fences them, the
+guard names instruction-like phrases, and no code path takes a command, a
+path, a label or a permission from issue text. Until M109's taint lane
+merges the watchdog is report only and posts the acknowledgement alone; a
+spam verdict closes its record without any post. Every post carries an
+automated note and an invisible marker naming its flow, round and kind; the
+step that reads, posts and records runs under the repository's cross-process
+lock, so a restart or a second window never posts the same thing twice.
+Public posts are English. Its record files hold the policy, each issue's
+stage, findings, a hash of the title and body, and no credential.
+
 ## Multimodal adapter boundary (M105)
 
 Companion media upload is an unmounted M104 integration adapter, not a new

@@ -1,4 +1,5 @@
 import { UI_TEXT } from '../../shared/constants'
+import { wireWordForLog, type CoreLogger } from '../../core/logging'
 import path from 'node:path'
 import { workspaceKey } from '../dataFolder'
 import { acpSchedules, type AcpScheduleContext, type AcpScheduleSession } from '../../acp/schedules'
@@ -13,6 +14,8 @@ import type { ScheduleReportCliPort } from './reportCli'
 import { scheduleLauncherReason, type ScheduleWakeAuthorization } from './registration'
 
 export interface ScheduleRuntimeDeps {
+  /** Failures the person gets as fixed sentences keep their kind here. */
+  readonly log: CoreLogger
   readonly attachSession?: (cwd: string, session: AcpScheduleSession) => () => void
   readonly reportCli?: ScheduleReportCliPort
   /** S supplies a scoped control, with a real close for that invocation. */
@@ -137,7 +140,26 @@ export class ScheduleRuntime implements RuntimeSchedulesBinding {
         : undefined
     try {
       return await settleScheduleCommand(
-        () => runScheduleCommand(options, root, control, this.deps.reportCli),
+        async () => {
+          const settled = await runScheduleCommand(options, root, control, this.deps.reportCli)
+          // A fired wake is spent: re-arm the OS entry for the next wake
+          // before this process exits, or say the re-arm failed.
+          if (options.operation !== 'run-due') return settled
+          try {
+            await this.deps.background.reconcile()
+          } catch (error: unknown) {
+            if (!(error instanceof Error)) throw error
+            // A re-arm failure may name OS paths: the record keeps the
+            // kind, and the person gets the warning.
+            this.deps.log.warn(`The schedule re-arm failed: ${wireWordForLog(error.name)}`)
+            return {
+              ...settled,
+              warning:
+                scheduleLauncherReason(error) ?? UI_TEXT.scheduleV2.runtime.backgroundUnavailable,
+            }
+          }
+          return settled
+        },
         () => (options.operation === 'run-due' ? this.close() : Promise.resolve()),
       )
     } finally {

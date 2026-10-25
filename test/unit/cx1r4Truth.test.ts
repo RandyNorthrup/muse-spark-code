@@ -50,6 +50,7 @@ const WORKING_REPORT_KINDS = [
   'security',
   'estimate',
   'playbook',
+  'issues',
   'schedules',
 ]
 const DORMANT_REPORT_KINDS = REPORT_KINDS.filter(
@@ -128,13 +129,13 @@ describe('CX1R4 F2: previews claim is historical, strict-tool facts stay current
   })
 })
 
-describe('CX1R4 F3: live Help and pickers list only the thirteen working kinds', () => {
-  it('the working set is exactly the thirteen sourced kinds', () => {
+describe('CX1R4 F3: live Help and pickers list only the fourteen working kinds', () => {
+  it('the working set is exactly the fourteen sourced kinds', () => {
     expect([...REPORT_WORKING_KINDS]).toEqual(WORKING_REPORT_KINDS)
-    expect(DORMANT_REPORT_KINDS).toHaveLength(2)
+    expect(DORMANT_REPORT_KINDS).toHaveLength(1)
   })
 
-  it('the real ACP report entry lists the thirteen kinds and none of the dormant two', async () => {
+  it('the real ACP report entry lists the fourteen kinds and none of the dormant one', async () => {
     const { text } = await acpReports().acp.execute('', acpContext)
     for (const kind of WORKING_REPORT_KINDS) expect(text).toContain(`/report ${kind}`)
     for (const kind of DORMANT_REPORT_KINDS) expect(text).not.toContain(`/report ${kind}`)

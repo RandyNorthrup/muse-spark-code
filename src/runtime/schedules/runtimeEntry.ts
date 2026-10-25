@@ -19,12 +19,14 @@ export async function createRuntimeSchedules(
   const [
     table,
     locale,
+    log,
     delivery,
     runtimeDelivery,
     migration,
     scheduleEngine,
     pauseAfterFailures,
     callerSignal,
+    isWorkspaceTrusted,
   ] = args
   // The engine module lives on the ACP side (main.ts installs it); the
   // schedules bundle never loads it from VS Code, so the VSIX need not
@@ -98,9 +100,12 @@ export async function createRuntimeSchedules(
   // Either stop ends an engine wait: the editor delivery's, the caller's, or neither.
   const engineSignal = eitherSignal(delivery?.signal, callerSignal)
   const { runtime } = await createScheduleEngine({
+    log,
     fs: createNodeScheduleFs(root),
     ...(pauseAfterFailures !== undefined && { pauseAfterFailures }),
     ...(engineSignal !== undefined && { signal: engineSignal }),
+    ...(isWorkspaceTrusted !== undefined && { isWorkspaceTrusted }),
+    locale,
     queue: createNodeScheduleQueue(root),
     platform,
     homeDir,

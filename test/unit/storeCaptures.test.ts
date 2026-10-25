@@ -2,16 +2,12 @@
 // every fixture body in test/fixtures/m113/stores/ must match its
 // receipt's SHA-256 and byte count, proving the copy is byte-exact.
 // `.prettierignore` keeps formatters from rewriting the bodies.
-import { createHash } from 'node:crypto'
-import { readFile, readdir } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { expectCaptureFolders, expectReceiptHash } from './helpers/captureReceipts'
 
 const STORES = path.join(__dirname, '..', 'fixtures', 'm113', 'stores')
-
-function byName(left: string, right: string): number {
-  return Number(left > right) - Number(left < right)
-}
 
 const CAPTURES = [
   'marketplace-extensionquery',
@@ -28,13 +24,7 @@ const CAPTURES = [
 
 describe('store capture fixtures', () => {
   it('holds exactly the ten captured folders', async () => {
-    const entries = await readdir(STORES, { withFileTypes: true })
-    expect(
-      entries
-        .filter((entry) => entry.isDirectory())
-        .map((entry) => entry.name)
-        .toSorted(byName),
-    ).toEqual(CAPTURES.toSorted(byName))
+    await expectCaptureFolders(STORES, CAPTURES)
   })
 
   it('reads the latest release from the first page, never a separate shape', async () => {
@@ -51,15 +41,6 @@ describe('store capture fixtures', () => {
   })
 
   it.each(CAPTURES)('matches the receipt hash for %s', async (capture) => {
-    const folder = path.join(STORES, capture)
-    const receipt = JSON.parse(await readFile(path.join(folder, 'receipt.json'), 'utf8')) as {
-      body: { file: string; bytes: number; sha256: string }
-      httpStatus: number
-    }
-    expect(receipt.httpStatus).toBe(200)
-    expect(receipt.body.file).toBe('response.body.json')
-    const body = await readFile(path.join(folder, receipt.body.file))
-    expect(body.byteLength).toBe(receipt.body.bytes)
-    expect(createHash('sha256').update(body).digest('hex')).toBe(receipt.body.sha256)
+    await expectReceiptHash(STORES, capture)
   })
 })

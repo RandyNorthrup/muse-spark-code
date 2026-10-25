@@ -79,6 +79,7 @@ export const ACP_BUNDLES = [
   'maker.js',
   'acpQuestions.js',
   'acpPlaybook.js',
+  'acpWatchdog.js',
   'runtimeQuestions.js',
   'runtimeAccounts.js',
   'packsVerify.js',

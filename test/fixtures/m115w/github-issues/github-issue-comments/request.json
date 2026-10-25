@@ -1,0 +1,14 @@
+{
+  "method": "GET",
+  "url": "https://api.github.com/repos/RandyNorthrup/muse-spark-code/issues/146/comments?per_page=100&page=1",
+  "headers": {
+    "User-Agent": "muse-spark-code-capture/1 (+repository owner capture run)",
+    "Accept": "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+    "Connection": "close"
+  },
+  "body": null,
+  "wireRequestHead": "GET /repos/RandyNorthrup/muse-spark-code/issues/146/comments?per_page=100&page=1 HTTP/1.1\r\nUser-Agent: muse-spark-code-capture/1 (+repository owner capture run)\r\nAccept: application/vnd.github+json\r\nX-GitHub-Api-Version: 2022-11-28\r\nConnection: close\r\nHost: api.github.com\r\n\r\n",
+  "credentials": "none (no Authorization, Cookie, key or token header)",
+  "redirects": "not followed"
+}

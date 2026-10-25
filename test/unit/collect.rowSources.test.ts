@@ -24,9 +24,14 @@ import {
 } from './helpers/reporting/kindFixtures'
 import { playbookSections } from '../../src/core/reporting/collect/playbook'
 import { estimateReportSections } from '../../src/core/reporting/collect/estimate'
+import { issuesSections } from '../../src/core/reporting/collect/issues'
 import { schedulesSections } from '../../src/core/reporting/collect/schedules'
 import { sectionVector } from './helpers/estimator/sectionVectors'
-import { playbookProbeView, schedulesProbeView } from './helpers/reporting/reportKindFixtures'
+import {
+  issuesProbeView,
+  playbookProbeView,
+  schedulesProbeView,
+} from './helpers/reporting/reportKindFixtures'
 import { scratchFolders } from './helpers/playbook/scratchFolders'
 import {
   orderModuleRecord,
@@ -62,7 +67,7 @@ const casesByKind: Record<ReportKind, string> = {
     'index.ts:forward:0 estimate.ts:totals:0 estimate.ts:totals:1 estimate.ts:criticalPath:0 estimate.ts:limitingResource:0 estimate.ts:setups:0 estimate.ts:inputs:0 estimate.ts:calibration:0',
   playbook:
     'index.ts:forward:0 playbook.ts:playbookSections:0 playbook.ts:playbookSections:1 playbook.ts:playbookSections:2 playbook.ts:playbookSections:3 playbook.ts:playbookSections:4',
-  issues: 'index.ts:forward:0',
+  issues: 'index.ts:forward:0 issues.ts:issuesSections:0 issues.ts:issuesSections:1',
   schedules:
     'index.ts:forward:0 schedules.ts:schedulesSections:0 schedules.ts:schedulesSections:1 schedules.ts:schedulesSections:2 schedules.ts:schedulesSections:3 schedules.ts:schedulesSections:4 schedules.ts:schedulesSections:5 schedules.ts:schedulesSections:6',
   keybindings:
@@ -199,9 +204,10 @@ beforeAll(async () => {
         import { collectKeybindingSections } from './src/core/reporting/collect/keybindings';
         import { playbookSections } from './src/core/reporting/collect/playbook';
         import { estimateReportSections } from './src/core/reporting/collect/estimate';
+        import { issuesSections } from './src/core/reporting/collect/issues';
         import { schedulesSections } from './src/core/reporting/collect/schedules';
         import { sectionVector } from './test/unit/helpers/estimator/sectionVectors';
-        import { playbookProbeView, schedulesProbeView } from './test/unit/helpers/reporting/reportKindFixtures';
+        import { issuesProbeView, playbookProbeView, schedulesProbeView } from './test/unit/helpers/reporting/reportKindFixtures';
         export { target, keys } from 'row-probe';
         import { suspend } from 'row-probe';
         export function collectOrdered(kind, options, snapshot, folders) {
@@ -235,6 +241,9 @@ beforeAll(async () => {
             } };
             if (kind === 'schedules') snapshot = { ...snapshot, sources: { ...snapshot.sources,
               schedules: availableSource('schedules', schedulesSections(schedulesProbeView(), full)),
+            } };
+            if (kind === 'issues') snapshot = { ...snapshot, sources: { ...snapshot.sources,
+              issues: availableSource('issues', issuesSections(issuesProbeView(), full)),
             } };
           } finally {
             suspend(false);
@@ -354,7 +363,7 @@ function snapshotFor(source: string, kind: ReportKind) {
         })
     }
   }
-  // The estimate, playbook and schedules kinds run their real section
+  // The estimate, playbook, issues and schedules kinds run their real section
   // builders (as the probe bundle does), so the clean run emits the same
   // section ids the duplicate cases cover.
   const full = reportOptions(kind, { scope: 'fixture-workspace', full: true })
@@ -380,6 +389,14 @@ function snapshotFor(source: string, kind: ReportKind) {
       sources: {
         ...sources,
         schedules: availableSource('schedules', schedulesSections(schedulesProbeView(), full)),
+      },
+    }
+  if (kind === 'issues')
+    return {
+      ...snapshot,
+      sources: {
+        ...sources,
+        issues: availableSource('issues', issuesSections(issuesProbeView(), full)),
       },
     }
   const facets = Object.entries(forwardedFacets).find(([name]) => name === kind)?.[1]

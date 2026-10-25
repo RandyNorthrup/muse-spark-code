@@ -906,6 +906,7 @@
   "referenceExecContract": "Běhy bez rozhraní odmítají důvěru v pracovní prostor a obcházení oprávnění. Bez rozhraní jsou povoleny jen plan nebo acceptEdits. Hostované vyhledávání na webu nemá zaručený limit a je odmítnuto. Generování obrázků vyžaduje acceptEdits. Vyberte právě jeden zdroj pokynu. Pokyn i klíč nemohou současně používat stdin. Model API vyžaduje --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --subscription / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatická komprese běží pouze s --auto-compaction pod --max-budget-usd.",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: Použití, volby a příklady pro jeden příkaz. help --all: Příkazy, nastavení a funkce s popisy a dokumentací.",
   "referenceJudgeUsage": "Použití: {command} judge ask|calibrate|report|mcp [volby] < request.json; {command} judge serve|lint|scan|setup|remove [volby]. Nastavení a odebrání bez --yes nic nezmění. Návratové kódy: 0 hotovo, 2 použití, 4 selhání.",
+  "referenceWatchdog": "Sledování problémů na GitHubu z terminálu: vypsat, stav, pozastavit, obnovit, sondovat, zásady, důkazy, použít, rozhodnout a vyřešit.",
   "referenceKeyStdin": "auth set: Přečte váš klíč v terminálu a uloží ho do úložiště přihlašovacích údajů tohoto počítače. Konverzace se účtují na klíč. exec / scan-secrets --key-stdin: Načtěte klíč z roury, nikoli z terminálu. stdin → memory; prompt stdin + key stdin = Pokyn i klíč nemohou současně používat stdin.",
   "referenceModalKeys": "Zavřít dialog nebo přesunout fokus uvnitř něj.",
   "referenceRenameKeys": "Potvrdit či zrušit přejmenování konverzace.",
@@ -1197,7 +1198,8 @@
       "kind": "Druh zprávy",
       "format": "Formát",
       "args": "Argumenty",
-      "destinations": "Cíle"
+      "destinations": "Cíle",
+      "destinationsPending": "Cíle hlášení ještě nejsou připraveny. Budou k dispozici v pozdější aktualizaci."
     },
     "runtime": {
       "usage": "Použití: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Návratové kódy: 0 úspěch, 1 odmítnutí, 2 nesprávné použití, 3 upozornění na úklid.",
@@ -2403,6 +2405,114 @@
     "deviceFlow": "přihlášení Muse Spark ke GitHubu",
     "ghLogin": "GitHub CLI (gh)"
   },
+  "watchdog": {
+    "title": "Hlídací pes problémů",
+    "ack": {
+      "body": "Děkujeme za hlášení. Nyní je tříděno a každá další reakce bude zveřejněna zde.",
+      "automatedNote": "Tuto zprávu automaticky zveřejnil hlídací pes problémů správce repozitáře."
+    },
+    "reply": {
+      "needsInfo": "Děkujeme. Než bude možné pokračovat, je potřeba trochu více informací:\n\n{questions}\n\nOdpovězte prosím zde; až tak učiníte, bude se problémem znovu zabývat.",
+      "duplicate": "Vypadá to jako duplikát #{duplicate}. Pokud uvedený problém nepokrývá to, co jste nahlásili, napište to sem a bude se jím znovu zabývat.",
+      "alreadyFixed": "Toto bylo opraveno ve verzi {fixedIn}. Aktualizujte prosím, a pokud problém přetrvává, znovu jej otevřete.",
+      "invalid": "V této podobě nelze jednat: {reason}. Otevřete prosím nový problém s chybějícím detailem.",
+      "fixed": "Toto opravuje {pullRequest} a je vydáno ve verzi {version}. Děkujeme za hlášení."
+    },
+    "states": {
+      "seen": "Viděno",
+      "acknowledged": "Potvrzeno",
+      "triaged": "Roztříděno",
+      "awaitingInfo": "Čeká se na informace",
+      "planned": "Naplánováno",
+      "replied": "Odpovězeno",
+      "closed": "Zavřeno"
+    },
+    "waits": {
+      "seen": "Potvrzení ještě nebylo odesláno",
+      "acknowledged": "Čeká na třídění",
+      "triaged": "Čeká na vaše rozhodnutí",
+      "awaitingInfo": "Čeká na odpověď autora hlášení",
+      "planned": "Čeká na opravu a její ověření",
+      "replied": "Nic: odpovězeno",
+      "closed": "Nic: uzavřeno"
+    },
+    "cli": {
+      "empty": "Hlídací pes zatím nesleduje žádný repozitář.",
+      "notWatched": "Tento repozitář není sledován.",
+      "paused": "Hlídací pes pro {repository} pozastaven.",
+      "resumed": "Hlídací pes pro {repository} obnoven.",
+      "alreadyPaused": "Hlídací pes pro {repository} je již pozastaven.",
+      "notPaused": "Hlídací pes pro {repository} není pozastaven.",
+      "invalidRepository": "Zadejte repozitář jako vlastník/název.",
+      "watching": "Sledování {repository}.",
+      "usage": "Použijte `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|policy <repository> [label|template|watch-labels|ignore-authors|posts|close <value>]|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`.",
+      "notSignedIn": "Nejprve se přihlaste k GitHubu a spusťte `auth github`.",
+      "invalidIssue": "Zadejte číslo problému.",
+      "invalidEvidence": "Ověřovací důkaz neměl očekávaný tvar.",
+      "applyNeedsAck": "Tento problém nečeká na roztřídění.",
+      "decideNeedsTriage": "Tento problém nemá žádné roztřídění k rozhodnutí.",
+      "resolveNeedsPlan": "Tento problém nemá žádný plán k vyřešení.",
+      "overdue": "po termínu",
+      "commandFailed": "Příkaz hlídacího psa nelze dokončit.",
+      "unavailable": "Hlídací pes není k dispozici.",
+      "description": "Vypíše, sonduje a rozhodne sledované problémy na GitHubu.",
+      "pausedWord": "Pozastaveno",
+      "issueCount": {
+        "one": "{count} problém",
+        "other": "{count} problémů",
+        "few": "{count} problémy",
+        "many": "{count} problémů"
+      },
+      "noIssues": "Nejsou zaznamenány žádné problémy.",
+      "triagedAs": "Roztříděno jako {verdict}.",
+      "decided": "Rozhodnuto: {outcome}.",
+      "posted": "Zveřejněno.",
+      "closedNote": "Zavřeno.",
+      "notVerified": "Neověřeno: {notes}.",
+      "unknownIssue": "Tento problém není sledován.",
+      "alreadyPosted": "Odpověď je již zveřejněna.",
+      "policyHeading": "Zásady pro {repository}:",
+      "policySet": "Nastaveno {key} pro {repository}.",
+      "policyInvalid": "Tato hodnota není pro {key} povolena. Použijte {allowed}.",
+      "policyUnknownKey": "Neznámý klíč zásad. Použijte label, template, watch-labels, ignore-authors, posts nebo close.",
+      "proposedReply": "Odpověď, kterou by zveřejnil:"
+    },
+    "poll": {
+      "skippedPullRequest": "žádost o stažení, nikoli problém",
+      "skippedLocked": "uzamčeno",
+      "skippedAuthor": "ignorovaný autor",
+      "skippedLabels": "mimo sledované štítky",
+      "alreadyAcked": "již potvrzeno",
+      "ackPosted": "potvrzeno"
+    },
+    "verdicts": {
+      "valid": "Platné",
+      "needsInfo": "Potřebuje informace",
+      "duplicate": "Duplikát",
+      "alreadyFixed": "Již opraveno",
+      "inHand": "V řešení",
+      "invalid": "Neplatné",
+      "spam": "Spam"
+    },
+    "outcomes": {
+      "planEntry": "Záznam plánu",
+      "fixLane": "Opravná dráha"
+    },
+    "planDraft": {
+      "intro": "Koncept plánu hlídacího psa pro {repository}#{number} (verdikt: {verdict}).",
+      "issue": "Problém",
+      "findings": "Zjištění",
+      "questions": "Otevřené otázky"
+    },
+    "triage": {
+      "unreadable": "Triáž se nevrátila jako zjištění."
+    },
+    "refusal": {
+      "spamHeld": "Zadrženo jako podezřelý spam: nic nebylo zveřejněno.",
+      "approvalRequired": "Tento příspěvek nejprve potřebuje vaše schválení.",
+      "reportOnly": "Pouze hlášení: kromě potvrzení se nic nezveřejňuje, dokud nebude hotova bezpečnostní kontrola."
+    }
+  },
   "gitHubSignOut": "Odhlásit se",
   "gitHubSignOutFailed": "Odhlášení z GitHubu se nepodařilo dokončit. Zkuste to znovu.",
   "gitRefresh": "Obnovit",
@@ -2725,7 +2835,7 @@
     "many": "{count} běhu kontroly se nepodařilo přečíst."
   },
   "reportCliUsage": "Vytvořit deterministickou zprávu z pojmenovaných zdrojů bez volání modelu.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
-  "reportCliKinds": "Druhy: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",
+  "reportCliKinds": "Druhy: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, issues [--repo <owner/name>], schedules.\n",
   "reportIssue": "Nahlásit problém…",
   "reportCrashOffer": "Muse Spark Code byl posledně neočekávaně ukončen — nahlásit to?",
   "reportCrashAction": "Nahlásit problém",
@@ -4531,6 +4641,7 @@
     "purposePrompts": "Ukládejte, vypisujte, používejte a sdílejte opakovaně použitelné šablony promptů.",
     "purposeJudge": "Ask Muse Judge for verdicts on standard input.",
     "judgeServeLintNote": "serve and lint take their own flags; the options below belong to ask, calibrate, report and mcp.",
+    "purposeWatchdog": "Sledovat problémy na GitHubu: vypsat, sondovat, roztřídit, rozhodnout a vyřešit.",
     "modelsList": "Modely pro {entry}:",
     "modelsForced": "vynuceno: {reason}",
     "modelsExtra": "U poskytovatele, ale ne v záznamu:",

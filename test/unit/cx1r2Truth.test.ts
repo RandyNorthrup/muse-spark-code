@@ -164,7 +164,7 @@ describe('CX1R3 sibling sweep: dormant features have no published usage', () => 
     )
   })
 
-  it('documents the thirteen working report kinds, never the dormant two', () => {
+  it('documents the fourteen working report kinds, never the dormant one', () => {
     // CX1R4 F3 lists the working kinds the sources serve on every surface;
     // the README teaches exactly those, and no instruction for a dormant one.
     const dormant = REPORT_KINDS.filter(

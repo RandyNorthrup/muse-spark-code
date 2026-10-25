@@ -1,0 +1,48 @@
+{
+  "capturedAtUtc": "2026-10-22T22:01:40.414Z",
+  "id": "github-search-issues",
+  "lane": "RLSCHED",
+  "source": "github-search-issues",
+  "method": "GET",
+  "url": "https://api.github.com/search/issues?q=repo%3ARandyNorthrup%2Fmuse-spark-code+type%3Aissue&per_page=10",
+  "httpStatus": 200,
+  "httpStatusText": "OK",
+  "contentType": "application/json; charset=utf-8",
+  "contentEncodingOnWire": "identity (none requested)",
+  "elapsedMs": 407,
+  "body": {
+    "file": "response.body.json",
+    "bytes": 44633,
+    "sha256": "fd76c0ab99d4cdb45438c8465b0536e2c36b0ffa46b7de8c0bccd8cdcd81d698",
+    "parsesAsJson": true
+  },
+  "tool": "node:https, v24.20.0 on win32 (temp/m115w-capture.cjs, one-off)",
+  "authenticationNeeded": false,
+  "credentialsSent": "none",
+  "scrubbed": {
+    "responseHeaders": "allowlist; values of kept headers scrubbed like the body",
+    "droppedHeaderNames": [
+      "access-control-allow-origin",
+      "access-control-expose-headers",
+      "connection",
+      "content-security-policy",
+      "referrer-policy",
+      "server",
+      "strict-transport-security",
+      "x-content-type-options",
+      "x-frame-options",
+      "x-github-edge-region",
+      "x-github-request-id",
+      "x-xss-protection"
+    ],
+    "keptHeaderValueReplacements": 0,
+    "bodyEmailReplacements": 0,
+    "bodyTokenReplacements": 0,
+    "bodyTokenKinds": [],
+    "markers": {
+      "email": "<email-redacted>",
+      "token": "<token-redacted>"
+    },
+    "otherwise": "byte-exact"
+  }
+}

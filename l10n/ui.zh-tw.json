@@ -894,6 +894,7 @@
   "referenceExecContract": "無介面執行不允許信任工作區或略過權限。 無介面執行僅允許 plan 或 acceptEdits。 託管網頁搜尋沒有可保證的費用上限，因此拒絕使用。 圖片生成需要 acceptEdits。 請選擇且僅選擇一個提示來源。 提示和金鑰不能同時使用 stdin。 Model API 需要 --max-budget-usd。 modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --subscription / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.自動壓縮僅在 --auto-compaction 和 --max-budget-usd 下執行。",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: 單一命令的用法、選項與範例。help --all: 命令、設定和功能，附有說明和文件。",
   "referenceJudgeUsage": "用法:{command} judge ask|calibrate|report|mcp [選項] < request.json;{command} judge serve|lint|scan|setup|remove [選項]。未附加 --yes 時,設定和刪除不做任何變更。結束碼:0 完成、2 用法、4 失敗。",
+  "referenceWatchdog": "從終端機監視 GitHub 問題:列出、狀態、暫停、恢復、輪詢、策略、證據、套用、裁決和解決。",
   "referenceKeyStdin": "auth set: 在終端機中讀取你的金鑰，並保存在這台電腦的認證儲存區中。對話費用會計入該金鑰。 exec / scan-secrets --key-stdin: 請從管線讀取金鑰，而非終端機。 stdin → memory; prompt stdin + key stdin = 提示和金鑰不能同時使用 stdin。",
   "referenceModalKeys": "關閉對話框或在其中移動焦點。",
   "referenceRenameKeys": "確認或取消重新命名此對話。",
@@ -1182,7 +1183,8 @@
       "kind": "報告類型",
       "format": "格式",
       "args": "引數",
-      "destinations": "目的地"
+      "destinations": "目的地",
+      "destinationsPending": "報告目標尚未就緒，將在後續更新中提供。"
     },
     "runtime": {
       "usage": "用法: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] 結束代碼：0 成功，1 拒絕，2 用法錯誤，3 清理警告。",
@@ -2307,6 +2309,111 @@
     "deviceFlow": "Muse Spark 的 GitHub 登入",
     "ghLogin": "GitHub CLI (gh)"
   },
+  "watchdog": {
+    "title": "問題看守",
+    "ack": {
+      "body": "感謝您的回報。該問題現已進入分類流程，後續進展都將發佈在這裡。",
+      "automatedNote": "此訊息由儲存庫維護者的問題看守自動發佈。"
+    },
+    "reply": {
+      "needsInfo": "謝謝。在繼續之前，還需要補充一些資訊：\n\n{questions}\n\n請在此回覆；收到回覆後，該問題將被重新審查。",
+      "duplicate": "這看起來是 #{duplicate} 的重複問題。如果該問題未涵蓋您回報的內容，請在此說明，我們將重新審查。",
+      "alreadyFixed": "此問題已在 {fixedIn} 中修復。請更新；若問題仍然存在，請重新開啟該問題。",
+      "invalid": "按目前描述無法處理：{reason}。請補充缺少的細節後開立新問題。",
+      "fixed": "此問題已由 {pullRequest} 修復，並已隨 {version} 發佈。感謝您的回報。"
+    },
+    "states": {
+      "seen": "已發現",
+      "acknowledged": "已確認",
+      "triaged": "已分類",
+      "awaitingInfo": "等待資訊",
+      "planned": "已計畫",
+      "replied": "已回覆",
+      "closed": "已關閉"
+    },
+    "waits": {
+      "seen": "確認回覆尚未發布",
+      "acknowledged": "等待分類",
+      "triaged": "等待你的決定",
+      "awaitingInfo": "等待回報者的回覆",
+      "planned": "等待修復及其驗證",
+      "replied": "無:已回覆",
+      "closed": "無:已關閉"
+    },
+    "cli": {
+      "empty": "看守尚未監視任何儲存庫。",
+      "notWatched": "此儲存庫未被監視。",
+      "paused": "已暫停 {repository} 的看守。",
+      "resumed": "已恢復 {repository} 的看守。",
+      "alreadyPaused": "{repository} 的看守已處於暫停狀態。",
+      "notPaused": "{repository} 的看守未處於暫停狀態。",
+      "invalidRepository": "請按 擁有者/名稱 的格式指定儲存庫。",
+      "watching": "正在監視 {repository}。",
+      "usage": "請使用 `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|policy <repository> [label|template|watch-labels|ignore-authors|posts|close <value>]|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`。",
+      "notSignedIn": "請先登入 GitHub，然後執行 `auth github`。",
+      "invalidIssue": "請指定問題編號。",
+      "invalidEvidence": "驗證證據的格式不符合預期。",
+      "applyNeedsAck": "此問題未在等待分類。",
+      "decideNeedsTriage": "此問題沒有可裁決的分類結果。",
+      "resolveNeedsPlan": "此問題沒有可解決的計畫。",
+      "overdue": "已逾期",
+      "commandFailed": "無法完成看守命令。",
+      "unavailable": "看守無法使用。",
+      "description": "列出、輪詢和裁決受監視的 GitHub 問題。",
+      "pausedWord": "已暫停",
+      "issueCount": {
+        "other": "{count} 個問題"
+      },
+      "noIssues": "未記錄任何問題。",
+      "triagedAs": "已分類為{verdict}。",
+      "decided": "已裁決:{outcome}。",
+      "posted": "已發佈。",
+      "closedNote": "已關閉。",
+      "notVerified": "未驗證:{notes}。",
+      "unknownIssue": "此問題未被監視。",
+      "alreadyPosted": "回覆已發佈。",
+      "policyHeading": "{repository} 的策略:",
+      "policySet": "已設定 {repository} 的 {key}。",
+      "policyInvalid": "{key} 不允許此值。請使用 {allowed}。",
+      "policyUnknownKey": "未知的策略鍵。請使用 label、template、watch-labels、ignore-authors、posts 或 close。",
+      "proposedReply": "將發布的回覆:"
+    },
+    "poll": {
+      "skippedPullRequest": "是提取請求，而非問題",
+      "skippedLocked": "已鎖定",
+      "skippedAuthor": "已忽略的作者",
+      "skippedLabels": "監視標籤範圍之外",
+      "alreadyAcked": "已確認",
+      "ackPosted": "已確認"
+    },
+    "verdicts": {
+      "valid": "有效",
+      "needsInfo": "需要資訊",
+      "duplicate": "重複",
+      "alreadyFixed": "已修復",
+      "inHand": "處理中",
+      "invalid": "無效",
+      "spam": "垃圾訊息"
+    },
+    "outcomes": {
+      "planEntry": "計畫條目",
+      "fixLane": "修復通道"
+    },
+    "planDraft": {
+      "intro": "針對 {repository}#{number} 的看守計畫草案（結論：{verdict}）。",
+      "issue": "問題",
+      "findings": "調查結果",
+      "questions": "待答問題"
+    },
+    "triage": {
+      "unreadable": "分類未能以調查結果形式返回。"
+    },
+    "refusal": {
+      "spamHeld": "因疑似垃圾訊息已被扣留：未發佈任何內容。",
+      "approvalRequired": "此貼文需要先獲得您的批准。",
+      "reportOnly": "僅回報:在安全審查就緒之前,除確認回覆外不會發布任何內容。"
+    }
+  },
   "gitHubSignOut": "登出",
   "gitHubSignOutFailed": "無法完成 GitHub 登出。請再試一次。",
   "gitRefresh": "重新整理",
@@ -2620,7 +2727,7 @@
     "other": "無法讀取 {count} 次檢查執行。"
   },
   "reportCliUsage": "從具名來源產生確定性報告，不呼叫模型。\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
-  "reportCliKinds": "類型：project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",
+  "reportCliKinds": "類型：project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, issues [--repo <owner/name>], schedules.\n",
   "reportIssue": "回報問題…",
   "reportCrashOffer": "Muse Spark Code 上次意外停止 — 是否回報?",
   "reportCrashAction": "回報問題",
@@ -4288,6 +4395,7 @@
     "purposePrompts": "儲存、列出、使用和分享可重複使用的提示詞範本。",
     "purposeJudge": "Ask Muse Judge for verdicts on standard input.",
     "judgeServeLintNote": "serve and lint take their own flags; the options below belong to ask, calibrate, report and mcp.",
+    "purposeWatchdog": "監視 GitHub 問題:列出、輪詢、分類、裁決和解決。",
     "modelsList": "{entry} 的模型：",
     "modelsForced": "強制加入：{reason}",
     "modelsExtra": "提供者有但項目中沒有：",

@@ -2,6 +2,7 @@
 // one copy of the journal records, store rows and section lookup, so the
 // source, collect, reader and live-CLI suites read the same shapes.
 import type { PlaybookView } from '../../../../src/core/reporting/collect/playbook'
+import type { IssuesView } from '../../../../src/core/reporting/collect/issues'
 import type { SchedulesView } from '../../../../src/core/reporting/collect/schedules'
 import type { ReportSection } from '../../../../src/shared/reportSchema'
 import { scheduleFireRecordSchema, scheduleV2Schema } from '../../../../src/shared/scheduleV2'
@@ -267,6 +268,35 @@ export function schedulesProbeView(): SchedulesView {
         outcomeText: 'Refused',
         scheduleName: 'Morning build',
         occurrenceIso: '1970-01-01T00:00:01.500Z',
+      },
+    ],
+  }
+}
+
+/** An issues view with a decision waiting, a reporter's wait and a closed
+issue, for suites that must run the real section builders (duplicate-source
+coverage). */
+export function issuesProbeView(): IssuesView {
+  const issue = (number: number, rank: number, stage: string): IssuesView['issues'][number] => ({
+    repository: 'owner/name',
+    number,
+    title: `Issue ${String(number)}`,
+    rank,
+    repositoryIndex: 0,
+    stageText: stage,
+    verdictText: rank === 0 ? 'Duplicate' : '',
+    waitsText: 'Waiting',
+    pullRequestNumber: rank === 0 ? 31 : undefined,
+  })
+  return {
+    issues: [issue(1, 0, 'Triaged'), issue(2, 2, 'Waiting for information'), issue(3, 4, 'Closed')],
+    policies: [
+      {
+        repository: 'owner/name',
+        settings: [
+          { name: 'posts', value: 'ask' },
+          { name: 'close', value: 'never' },
+        ],
       },
     ],
   }

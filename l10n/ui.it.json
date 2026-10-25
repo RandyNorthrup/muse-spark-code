@@ -902,6 +902,7 @@
   "referenceExecContract": "Le esecuzioni senza interfaccia rifiutano la fiducia nell’area di lavoro e l’aggiramento dei permessi. Senza interfaccia sono consentiti solo plan o acceptEdits. La ricerca web ospitata non ha un limite garantito e viene rifiutata. La generazione di immagini richiede acceptEdits. Scegli una sola fonte per l’istruzione. L’istruzione e la chiave non possono usare entrambe stdin. La Model API richiede --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --subscription / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. La compattazione automatica viene eseguita solo con --auto-compaction sotto --max-budget-usd.",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: Uso, opzioni ed esempi per un comando. help --all: Comandi, impostazioni e funzionalità, con descrizioni e documentazione.",
   "referenceJudgeUsage": "Uso: {command} judge ask|calibrate|report|mcp [opzioni] < request.json; {command} judge serve|lint|scan|setup|remove [opzioni]. Installazione e rimozione non cambiano nulla senza --yes. Codici di uscita: 0 fatto, 2 uso, 4 non riuscito.",
+  "referenceWatchdog": "Osservare le segnalazioni GitHub dal terminale: elencare, stato, pausa, ripresa, interrogazione, criteri, prove, applicazione, decisione e risoluzione.",
   "referenceKeyStdin": "auth set: Legge la tua chiave in un terminale e la conserva nell’archivio delle credenziali di questo computer. Le conversazioni vengono addebitate alla chiave. exec / scan-secrets --key-stdin: Leggi la chiave da una pipe, non da un terminale. stdin → memory; prompt stdin + key stdin = L’istruzione e la chiave non possono usare entrambe stdin.",
   "referenceModalKeys": "Chiudere la finestra o spostare il focus al suo interno.",
   "referenceRenameKeys": "Confermare o annullare la rinomina di questa conversazione.",
@@ -1192,7 +1193,8 @@
       "kind": "Tipo di resoconto",
       "format": "Formato",
       "args": "Argomenti",
-      "destinations": "Destinazioni"
+      "destinations": "Destinazioni",
+      "destinationsPending": "Le destinazioni dei report non sono ancora pronte. Arriveranno con un aggiornamento successivo."
     },
     "runtime": {
       "usage": "Uso: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Codici di uscita: 0 successo, 1 rifiuto, 2 uso errato, 3 avviso di pulizia.",
@@ -2371,6 +2373,113 @@
     "deviceFlow": "l’accesso a GitHub di Muse Spark",
     "ghLogin": "la CLI di GitHub (gh)"
   },
+  "watchdog": {
+    "title": "Guardiano delle segnalazioni",
+    "ack": {
+      "body": "Grazie per la segnalazione. Ora è in fase di smistamento e ogni seguito sarà pubblicato qui.",
+      "automatedNote": "Questo messaggio è stato pubblicato automaticamente dal guardiano delle segnalazioni del manutentore del repository."
+    },
+    "reply": {
+      "needsInfo": "Grazie. Prima di procedere servono ancora alcune informazioni:\n\n{questions}\n\nRispondi qui; quando lo farai, la segnalazione sarà riesaminata.",
+      "duplicate": "Sembra un duplicato di #{duplicate}. Se quella segnalazione non copre quanto hai segnalato, dillo qui e sarà riesaminata.",
+      "alreadyFixed": "È stato corretto in {fixedIn}. Aggiorna e, se il problema persiste, riapri questa segnalazione.",
+      "invalid": "Così com’è non è possibile intervenire: {reason}. Apri una nuova segnalazione con il dettaglio mancante.",
+      "fixed": "È corretto da {pullRequest} e distribuito in {version}. Grazie per la segnalazione."
+    },
+    "states": {
+      "seen": "Visto",
+      "acknowledged": "Confermato",
+      "triaged": "Smistato",
+      "awaitingInfo": "In attesa di informazioni",
+      "planned": "Pianificato",
+      "replied": "Risposto",
+      "closed": "Chiuso"
+    },
+    "waits": {
+      "seen": "La conferma non è ancora stata pubblicata",
+      "acknowledged": "In attesa del suo triage",
+      "triaged": "In attesa della tua decisione",
+      "awaitingInfo": "In attesa della risposta di chi ha segnalato",
+      "planned": "In attesa della correzione e della sua verifica",
+      "replied": "Niente: risposto",
+      "closed": "Niente: chiuso"
+    },
+    "cli": {
+      "empty": "Il guardiano non sta ancora osservando alcun repository.",
+      "notWatched": "Questo repository non è osservato.",
+      "paused": "Guardiano in pausa per {repository}.",
+      "resumed": "Guardiano ripreso per {repository}.",
+      "alreadyPaused": "Il guardiano per {repository} è già in pausa.",
+      "notPaused": "Il guardiano per {repository} non è in pausa.",
+      "invalidRepository": "Indica un repository come proprietario/nome.",
+      "watching": "Osservo {repository}.",
+      "usage": "Usa `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|policy <repository> [label|template|watch-labels|ignore-authors|posts|close <value>]|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`.",
+      "notSignedIn": "Accedi prima a GitHub, poi esegui `auth github`.",
+      "invalidIssue": "Indica un numero di segnalazione.",
+      "invalidEvidence": "La prova di verifica non aveva la forma prevista.",
+      "applyNeedsAck": "Questa segnalazione non è in attesa di smistamento.",
+      "decideNeedsTriage": "Questa segnalazione non ha alcuno smistamento da decidere.",
+      "resolveNeedsPlan": "Questa segnalazione non ha alcun piano da risolvere.",
+      "overdue": "in ritardo",
+      "commandFailed": "Il comando del guardiano non può essere completato.",
+      "unavailable": "Il guardiano non è disponibile.",
+      "description": "Elenca, interroga e decidi le segnalazioni GitHub osservate.",
+      "pausedWord": "In pausa",
+      "issueCount": {
+        "one": "{count} segnalazione",
+        "other": "{count} segnalazioni",
+        "many": "{count} segnalazioni"
+      },
+      "noIssues": "Nessuna segnalazione registrata.",
+      "triagedAs": "Smistato come {verdict}.",
+      "decided": "Deciso: {outcome}.",
+      "posted": "Pubblicato.",
+      "closedNote": "Chiuso.",
+      "notVerified": "Non verificato: {notes}.",
+      "unknownIssue": "Questa segnalazione non è osservata.",
+      "alreadyPosted": "La risposta è già pubblicata.",
+      "policyHeading": "Criteri per {repository}:",
+      "policySet": "{key} impostato per {repository}.",
+      "policyInvalid": "Questo valore non è consentito per {key}. Usa {allowed}.",
+      "policyUnknownKey": "Chiave dei criteri sconosciuta. Usa label, template, watch-labels, ignore-authors, posts o close.",
+      "proposedReply": "La risposta che pubblicherebbe:"
+    },
+    "poll": {
+      "skippedPullRequest": "una pull request, non una segnalazione",
+      "skippedLocked": "bloccato",
+      "skippedAuthor": "un autore ignorato",
+      "skippedLabels": "fuori dalle etichette osservate",
+      "alreadyAcked": "già confermato",
+      "ackPosted": "confermato"
+    },
+    "verdicts": {
+      "valid": "Valida",
+      "needsInfo": "Servono informazioni",
+      "duplicate": "Duplicato",
+      "alreadyFixed": "Già corretto",
+      "inHand": "In lavorazione",
+      "invalid": "Non valida",
+      "spam": "Spam"
+    },
+    "outcomes": {
+      "planEntry": "Voce di piano",
+      "fixLane": "Corsia di correzione"
+    },
+    "planDraft": {
+      "intro": "Bozza di piano del guardiano per {repository}#{number} (verdetto: {verdict}).",
+      "issue": "Segnalazione",
+      "findings": "Risultati",
+      "questions": "Domande aperte"
+    },
+    "triage": {
+      "unreadable": "Lo smistamento non è tornato come risultati."
+    },
+    "refusal": {
+      "spamHeld": "Trattenuto come possibile spam: non è stato pubblicato nulla.",
+      "approvalRequired": "Questo messaggio richiede prima la tua approvazione.",
+      "reportOnly": "Solo report: finché non arriva la revisione di sicurezza non viene pubblicato altro che la conferma."
+    }
+  },
   "gitHubSignOut": "Disconnetti",
   "gitHubSignOutFailed": "Non è stato possibile completare la disconnessione da GitHub. Riprova.",
   "gitRefresh": "Aggiorna",
@@ -2690,7 +2799,7 @@
     "many": "Impossibile leggere {count} esecuzioni di controlli."
   },
   "reportCliUsage": "Genera un rapporto deterministico da fonti identificate, senza chiamare un modello.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
-  "reportCliKinds": "Tipi: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",
+  "reportCliKinds": "Tipi: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, issues [--repo <owner/name>], schedules.\n",
   "reportIssue": "Segnala un problema…",
   "reportCrashOffer": "Muse Spark Code si è chiuso in modo imprevisto l’ultima volta — segnalarlo?",
   "reportCrashAction": "Segnala un problema",
@@ -4450,6 +4559,7 @@
     "purposePrompts": "Salvare, elencare, usare e condividere modelli di prompt riutilizzabili.",
     "purposeJudge": "Ask Muse Judge for verdicts on standard input.",
     "judgeServeLintNote": "serve and lint take their own flags; the options below belong to ask, calibrate, report and mcp.",
+    "purposeWatchdog": "Osservare le segnalazioni GitHub: elencare, interrogare, smistare, decidere e risolvere.",
     "modelsList": "Modelli di {entry}:",
     "modelsForced": "forzato: {reason}",
     "modelsExtra": "Presso il provider, ma non nella voce:",

@@ -679,7 +679,11 @@ export const scheduleRequestSchema = z.discriminatedUnion('method', [
     range: scheduleHistoryRangeSchema,
   }),
   z.strictObject({
-    method: z.enum(['schedules/backgroundStatus', 'schedules/backgroundRemove']),
+    method: z.enum([
+      'schedules/backgroundStatus',
+      'schedules/backgroundRemove',
+      'schedules/backgroundMaintain',
+    ]),
   }),
 ])
 export type ScheduleRequest = z.infer<typeof scheduleRequestSchema>

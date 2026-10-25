@@ -906,6 +906,7 @@
   "referenceExecContract": "Запуски без интерфейса запрещают доверие рабочей области и обход разрешений. Без интерфейса разрешены только plan и acceptEdits. Серверный веб-поиск не имеет гарантированного ограничения и запрещён. Генерация изображений требует acceptEdits. Выберите ровно один источник запроса. Запрос и ключ не могут одновременно использовать stdin. Model API требует --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --subscription / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Автоматическое сжатие работает только с --auto-compaction при --max-budget-usd.",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: Использование, параметры и примеры одной команды. help --all: Команды, настройки и возможности с описаниями и документацией.",
   "referenceJudgeUsage": "Использование: {command} judge ask|calibrate|report|mcp [параметры] < request.json; {command} judge serve|lint|scan|setup|remove [параметры]. Настройка и удаление без --yes ничего не меняют. Коды выхода: 0 готово, 2 использование, 4 ошибка.",
+  "referenceWatchdog": "Слежение за проблемами GitHub из терминала: показ, состояние, пауза, продолжение, опрос, политика, свидетельства, применение, решение и завершение.",
   "referenceKeyStdin": "auth set: Считывает ваш ключ в терминале и хранит его в хранилище учетных данных этого компьютера. Разговоры оплачиваются по ключу. exec / scan-secrets --key-stdin: Читайте ключ из канала, а не из терминала. stdin → memory; prompt stdin + key stdin = Запрос и ключ не могут одновременно использовать stdin.",
   "referenceModalKeys": "Закрыть диалог или переместить фокус внутри него.",
   "referenceRenameKeys": "Подтвердить или отменить переименование беседы.",
@@ -1197,7 +1198,8 @@
       "kind": "Вид отчёта",
       "format": "Формат",
       "args": "Аргументы",
-      "destinations": "Адресаты"
+      "destinations": "Адресаты",
+      "destinationsPending": "Назначения отчётов пока не готовы. Они появятся в одном из следующих обновлений."
     },
     "runtime": {
       "usage": "Использование: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Коды выхода: 0 успех, 1 отказ, 2 ошибка использования, 3 предупреждение об очистке.",
@@ -2403,6 +2405,114 @@
     "deviceFlow": "вход в GitHub Muse Spark",
     "ghLogin": "GitHub CLI (gh)"
   },
+  "watchdog": {
+    "title": "Сторож проблем",
+    "ack": {
+      "body": "Спасибо за сообщение. Оно сейчас сортируется, и все дальнейшие действия будут опубликованы здесь.",
+      "automatedNote": "Это сообщение автоматически опубликовал сторож проблем сопровождающего репозитория."
+    },
+    "reply": {
+      "needsInfo": "Спасибо. Прежде чем продолжить, нужно немного больше сведений:\n\n{questions}\n\nОтветьте, пожалуйста, здесь; когда вы это сделаете, проблема будет рассмотрена снова.",
+      "duplicate": "Похоже, это дубликат #{duplicate}. Если та проблема не охватывает то, о чём вы сообщили, напишите здесь, и она будет рассмотрена снова.",
+      "alreadyFixed": "Это исправлено в {fixedIn}. Обновитесь и, если проблема сохраняется, откройте её заново.",
+      "invalid": "В таком виде это рассмотреть нельзя: {reason}. Откройте новую проблему с недостающей подробностью.",
+      "fixed": "Это исправлено запросом {pullRequest} и выпущено в {version}. Спасибо за сообщение."
+    },
+    "states": {
+      "seen": "Замечено",
+      "acknowledged": "Подтверждено",
+      "triaged": "Отсортировано",
+      "awaitingInfo": "Ожидает сведений",
+      "planned": "Запланировано",
+      "replied": "Отвечено",
+      "closed": "Закрыто"
+    },
+    "waits": {
+      "seen": "Подтверждение ещё не опубликовано",
+      "acknowledged": "Ждёт сортировки",
+      "triaged": "Ждёт вашего решения",
+      "awaitingInfo": "Ждёт ответа автора сообщения",
+      "planned": "Ждёт исправления и его проверки",
+      "replied": "Ничего: отвечено",
+      "closed": "Ничего: закрыто"
+    },
+    "cli": {
+      "empty": "Сторож пока не следит ни за одним репозиторием.",
+      "notWatched": "Этот репозиторий не отслеживается.",
+      "paused": "Сторож для {repository} приостановлен.",
+      "resumed": "Сторож для {repository} возобновлён.",
+      "alreadyPaused": "Сторож для {repository} уже приостановлен.",
+      "notPaused": "Сторож для {repository} не приостановлен.",
+      "invalidRepository": "Укажите репозиторий как владелец/имя.",
+      "watching": "Отслеживается {repository}.",
+      "usage": "Используйте `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|policy <repository> [label|template|watch-labels|ignore-authors|posts|close <value>]|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`.",
+      "notSignedIn": "Сначала войдите в GitHub, затем выполните `auth github`.",
+      "invalidIssue": "Укажите номер проблемы.",
+      "invalidEvidence": "Доказательство проверки имело неверную форму.",
+      "applyNeedsAck": "Эта проблема не ждёт сортировки.",
+      "decideNeedsTriage": "У этой проблемы нет сортировки для решения.",
+      "resolveNeedsPlan": "У этой проблемы нет плана для завершения.",
+      "overdue": "просрочено",
+      "commandFailed": "Команду сторожа не удалось выполнить.",
+      "unavailable": "Сторож недоступен.",
+      "description": "Показывает, опрашивает и решает отслеживаемые проблемы GitHub.",
+      "pausedWord": "Приостановлен",
+      "issueCount": {
+        "one": "{count} проблема",
+        "other": "{count} проблемы",
+        "few": "{count} проблемы",
+        "many": "{count} проблем"
+      },
+      "noIssues": "Проблемы не записаны.",
+      "triagedAs": "Отсортировано как {verdict}.",
+      "decided": "Решено: {outcome}.",
+      "posted": "Опубликовано.",
+      "closedNote": "Закрыто.",
+      "notVerified": "Не проверено: {notes}.",
+      "unknownIssue": "Эта проблема не отслеживается.",
+      "alreadyPosted": "Ответ уже опубликован.",
+      "policyHeading": "Политика для {repository}:",
+      "policySet": "Параметр {key} для {repository} задан.",
+      "policyInvalid": "Это значение недопустимо для {key}. Используйте {allowed}.",
+      "policyUnknownKey": "Неизвестный ключ политики. Используйте label, template, watch-labels, ignore-authors, posts или close.",
+      "proposedReply": "Ответ, который был бы опубликован:"
+    },
+    "poll": {
+      "skippedPullRequest": "запрос на слияние, а не проблема",
+      "skippedLocked": "заблокирована",
+      "skippedAuthor": "игнорируемый автор",
+      "skippedLabels": "вне отслеживаемых меток",
+      "alreadyAcked": "уже подтверждено",
+      "ackPosted": "подтверждено"
+    },
+    "verdicts": {
+      "valid": "Верно",
+      "needsInfo": "Нужны сведения",
+      "duplicate": "Дубликат",
+      "alreadyFixed": "Уже исправлено",
+      "inHand": "В работе",
+      "invalid": "Неверно",
+      "spam": "Спам"
+    },
+    "outcomes": {
+      "planEntry": "Запись плана",
+      "fixLane": "Дорожка исправления"
+    },
+    "planDraft": {
+      "intro": "Черновик плана сторожа для {repository}#{number} (вердикт: {verdict}).",
+      "issue": "Проблема",
+      "findings": "Выводы",
+      "questions": "Открытые вопросы"
+    },
+    "triage": {
+      "unreadable": "Сортировка не вернулась в виде выводов."
+    },
+    "refusal": {
+      "spamHeld": "Задержано как возможный спам: ничего не опубликовано.",
+      "approvalRequired": "Для этой публикации сначала нужно ваше одобрение.",
+      "reportOnly": "Только отчёт: пока не появится проверка безопасности, публикуется только подтверждение."
+    }
+  },
   "gitHubSignOut": "Выйти",
   "gitHubSignOutFailed": "Не удалось завершить выход из GitHub. Повторите попытку.",
   "gitRefresh": "Обновить",
@@ -2725,7 +2835,7 @@
     "many": "Не удалось прочитать {count} запусков проверки."
   },
   "reportCliUsage": "Создать детерминированный отчёт из указанных источников без вызова модели.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
-  "reportCliKinds": "Виды: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",
+  "reportCliKinds": "Виды: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, issues [--repo <owner/name>], schedules.\n",
   "reportIssue": "Сообщить о проблеме…",
   "reportCrashOffer": "Muse Spark Code в прошлый раз неожиданно завершил работу — сообщить?",
   "reportCrashAction": "Сообщить о проблеме",
@@ -4531,6 +4641,7 @@
     "purposePrompts": "Сохранять, перечислять, использовать и передавать повторно используемые шаблоны промптов.",
     "purposeJudge": "Ask Muse Judge for verdicts on standard input.",
     "judgeServeLintNote": "serve and lint take their own flags; the options below belong to ask, calibrate, report and mcp.",
+    "purposeWatchdog": "Следить за проблемами GitHub: показ, опрос, сортировка, решение и завершение.",
     "modelsList": "Модели {entry}:",
     "modelsForced": "принудительно: {reason}",
     "modelsExtra": "У провайдера, но не в записи:",

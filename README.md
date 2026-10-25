@@ -127,6 +127,7 @@ visible as unavailable.
 | Estimate             | `/report estimate M113`; `--by <date>` sets the deadline, `--fleet minimum` picks the setup |
 | Engineering Playbook | `/report playbook`                                                                          |
 | Schedules            | `/report schedules`                                                                         |
+| Issues               | `/report issues`; `--repo owner/name` picks one watched repository                          |
 
 Each table shows at most ten rows with an omitted-row count; `--full` retains
 all available rows. Next steps follow the plan's declared delivery order and
@@ -4847,7 +4848,7 @@ itself: `muse-spark-code-acp help <command>` (or `<command> --help`) prints that
 command's own usage, options with defaults and bounds, and two examples, for
 `serve`, `login`, `auth`, `providers`, `exec`, `scan-secrets`, `report`, `legal`,
 `fonts`, `playbook`, `setup`, `usage`, `resources`, `share`, `prompts`, `judge`,
-`lsp`, `supervise` and `stop`.
+`lsp`, `supervise`, `stop` and `watchdog`.
 `exec --help`, `report --help` and `scan-secrets --help` print command-local help
 (each command's own options, e.g. the problem report's `--description`,
 `--no-facts` and `--no-events`); `--help` prints concise ACP usage.

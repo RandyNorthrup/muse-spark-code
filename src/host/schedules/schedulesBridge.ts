@@ -39,6 +39,8 @@ export interface SchedulesBridgeDeps {
   // settlement. 0 never pauses a schedule on failures.
   readonly pauseAfterFailures: () => number
   readonly isDeliveryReady?: () => boolean
+  /** The window's combined trust predicate; absent trusts the workspace. */
+  readonly isWorkspaceTrusted?: () => boolean
 }
 
 export type SchedulesBridge = ReturnType<typeof createSchedulesBridge>
@@ -105,6 +107,9 @@ export function createSchedulesBridge(deps: SchedulesBridgeDeps) {
     deps.isDeliveryReady?.() === false ? undefined : deps.migration,
     undefined,
     deps.pauseAfterFailures,
+    deps.isWorkspaceTrusted === undefined
+      ? undefined
+      : (_root: string) => deps.isWorkspaceTrusted?.() ?? false,
   )
   let loaded: RuntimeSchedulesBinding | undefined
   let isClosed = false

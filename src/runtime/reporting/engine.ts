@@ -85,6 +85,7 @@ export interface ReportingContext {
   */
   readonly playbookOrder?: (() => PlaybookReportOrderer) | undefined
   readonly schedules?: LocalReportSourceDeps['schedules']
+  readonly issues?: LocalReportSourceDeps['issues']
   readonly estimate?: LocalReportSourceDeps['estimate']
   readonly networkSources?: Pick<ReportSourcePorts, 'github' | 'stores'>
   readonly network?:
@@ -166,6 +167,7 @@ export function createReportingServices(context: ReportingContext): ReportsServi
               ...(context.security !== undefined && { security: context.security }),
               ...(context.playbook !== undefined && { playbook: context.playbook }),
               ...(context.schedules !== undefined && { schedules: context.schedules }),
+              ...(context.issues !== undefined && { issues: context.issues }),
               ...(context.estimate !== undefined && { estimate: context.estimate }),
             }).sources
       // One signal for the whole generation, the caller's: every source
@@ -199,7 +201,7 @@ export function createReportingServices(context: ReportingContext): ReportsServi
         accounts: local?.accounts ?? unavailable('accounts'),
         estimate: local?.estimate ?? unavailable('estimate'),
         playbook: local?.playbook ?? unavailable('playbook'),
-        issues: unavailable('issues'),
+        issues: local?.issues ?? unavailable('issues'),
         schedules: local?.schedules ?? unavailable('schedules'),
         keybindings:
           context.keybindings === undefined
