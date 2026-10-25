@@ -96,31 +96,6 @@ export function issueCommits(
   return commits.filter((commit) => isIssueCited(commit.message, number))
 }
 
-/** Numeric dotted-version order (`v0.19.0` beats `0.16.0`); undefined
-when either side has no numeric reading, said, never guessed. */
-export function compareVersions(left: string, right: string): -1 | 0 | 1 | undefined {
-  const partsOf = (value: string): readonly number[] | undefined => {
-    const parts = value.replace(/^v/i, '').split('.')
-    const parsed: number[] = []
-    for (const part of parts) {
-      const match = /^(\d+)/.exec(part)
-      if (match?.[1] === undefined) return undefined
-      parsed.push(Number(match[1]))
-    }
-    return parsed
-  }
-  const leftParts = partsOf(left)
-  const rightParts = partsOf(right)
-  if (leftParts === undefined || rightParts === undefined) return undefined
-  const width = Math.max(leftParts.length, rightParts.length)
-  for (let index = 0; index < width; index += 1) {
-    const leftPart = leftParts[index] ?? 0
-    const rightPart = rightParts[index] ?? 0
-    if (leftPart !== rightPart) return leftPart < rightPart ? -1 : 1
-  }
-  return 0
-}
-
 export interface TriagePlanText {
   readonly relativePath: string
   readonly text: string
