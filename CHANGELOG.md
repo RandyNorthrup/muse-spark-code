@@ -28,6 +28,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **`muse-spark-code-acp watchdog` keeps a watch list of GitHub repositories
+  in a terminal.** `watchdog list` and `status` show the watched
+  repositories, `pause` and `resume` stop and restart watching, and `policy`
+  shows or sets a repository's acknowledgement label and template, watched
+  labels, ignored authors, whether posts ask, always or never, and when
+  issues close. Reading and posting on GitHub with your sign-in (`poll` and
+  the commands after it) is built but not yet used against a live
+  repository.
+- **`/report issues`** lists the watched issues with what waits on you first,
+  each one's stage and verdict, its fixing pull request and each
+  repository's own settings; `--repo owner/name` picks one repository.
 - **`playbook run` headless check command** (M116, D219). The ACP agent
   runs one of the workspace's `museSpark.checkCommands` through the same
   admission, journal and record as the panel: a paused resource governor

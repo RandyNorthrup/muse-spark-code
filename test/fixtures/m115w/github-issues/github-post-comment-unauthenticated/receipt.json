@@ -1,0 +1,48 @@
+{
+  "capturedAtUtc": "2026-10-24T19:29:54.688Z",
+  "id": "github-post-comment-unauthenticated",
+  "lane": "RLSCHED",
+  "source": "github-post-comment-unauthenticated",
+  "method": "POST",
+  "url": "https://api.github.com/repos/RandyNorthrup/muse-spark-code/issues/157/comments",
+  "httpStatus": 401,
+  "httpStatusText": "Unauthorized",
+  "contentType": "application/json; charset=utf-8",
+  "contentEncodingOnWire": "identity (none requested)",
+  "elapsedMs": 167,
+  "body": {
+    "file": "response.body.json",
+    "bytes": 120,
+    "sha256": "b7dbd173f33b19650f61b1c528737e2037cf768d90076fdfce5d32541765e29e",
+    "parsesAsJson": true
+  },
+  "tool": "node:https, v24.21.0 on darwin (temp/m115w-capture2.cjs, one-off, recovery rig)",
+  "authenticationNeeded": false,
+  "credentialsSent": "none",
+  "scrubbed": {
+    "responseHeaders": "allowlist; values of kept headers scrubbed like the body",
+    "droppedHeaderNames": [
+      "access-control-allow-origin",
+      "access-control-expose-headers",
+      "connection",
+      "content-security-policy",
+      "referrer-policy",
+      "server",
+      "strict-transport-security",
+      "x-content-type-options",
+      "x-frame-options",
+      "x-github-edge-region",
+      "x-github-request-id",
+      "x-xss-protection"
+    ],
+    "keptHeaderValueReplacements": 0,
+    "bodyEmailReplacements": 0,
+    "bodyTokenReplacements": 0,
+    "bodyTokenKinds": [],
+    "markers": {
+      "email": "<email-redacted>",
+      "token": "<token-redacted>"
+    },
+    "otherwise": "byte-exact"
+  }
+}

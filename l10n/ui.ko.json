@@ -894,6 +894,7 @@
   "referenceExecContract": "헤드리스 실행에서는 작업 영역 신뢰와 권한 우회를 거부합니다. 헤드리스 실행에서는 plan 또는 acceptEdits만 허용합니다. 호스팅 웹 검색에는 보장된 한도가 없어 거부합니다. 이미지 생성에는 acceptEdits가 필요합니다. 프롬프트 입력 소스를 하나만 선택하세요. 프롬프트와 키가 동시에 stdin을 사용할 수 없습니다. Model API에는 --max-budget-usd가 필요합니다. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --subscription / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.자동 압축은 --auto-compaction 및 --max-budget-usd에서만 실행됩니다.",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: 명령별 사용법, 옵션 및 예제. help --all: 명령, 설정, 기능에 대한 설명과 문서입니다.",
   "referenceJudgeUsage": "사용법: {command} judge ask|calibrate|report|mcp [옵션] < request.json; {command} judge serve|lint|scan|setup|remove [옵션]. 설정과 제거는 --yes 없이 아무것도 변경하지 않습니다. 종료 코드: 0 완료, 2 사용법, 4 실패.",
+  "referenceWatchdog": "터미널에서 GitHub 이슈 감시: 나열, 상태, 일시 중지, 다시 시작, 폴링, 정책, 증거, 적용, 결정, 해결.",
   "referenceKeyStdin": "auth set: 터미널에서 키를 읽어 이 컴퓨터의 자격 증명 저장소에 보관합니다. 대화 요금은 이 키로 청구됩니다. exec / scan-secrets --key-stdin: 터미널이 아닌 파이프에서 키를 읽으세요. stdin → memory; prompt stdin + key stdin = 프롬프트와 키가 동시에 stdin을 사용할 수 없습니다.",
   "referenceModalKeys": "대화 상자를 닫거나 내부에서 초점을 이동합니다.",
   "referenceRenameKeys": "이 대화의 이름 변경을 확인하거나 취소합니다.",
@@ -1182,7 +1183,8 @@
       "kind": "보고서 종류",
       "format": "형식",
       "args": "인수",
-      "destinations": "대상"
+      "destinations": "대상",
+      "destinationsPending": "보고서 대상은 아직 준비되지 않았습니다. 이후 업데이트에서 제공됩니다."
     },
     "runtime": {
       "usage": "사용법: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] 종료 코드: 0 성공, 1 거부, 2 사용 오류, 3 정리 경고.",
@@ -2307,6 +2309,111 @@
     "deviceFlow": "Muse Spark의 GitHub 로그인",
     "ghLogin": "GitHub CLI(gh)"
   },
+  "watchdog": {
+    "title": "이슈 와치독",
+    "ack": {
+      "body": "신고해 주셔서 감사합니다. 현재 트리아지 중이며, 후속 조치는 여기에 게시됩니다.",
+      "automatedNote": "이 메시지는 리포지토리 관리자의 이슈 와치독이 자동으로 게시했습니다."
+    },
+    "reply": {
+      "needsInfo": "감사합니다. 계속 진행하려면 추가 정보가 조금 더 필요합니다:\n\n{questions}\n\n여기에 답글을 남겨 주세요. 답글이 달리면 이 이슈를 다시 검토하겠습니다.",
+      "duplicate": "#{duplicate}와(과) 중복된 것으로 보입니다. 해당 이슈가 신고하신 내용을 다루지 않는다면 여기에 알려 주세요. 다시 검토하겠습니다.",
+      "alreadyFixed": "{fixedIn}에서 수정되었습니다. 업데이트하신 뒤에도 문제가 계속되면 이 이슈를 다시 열어 주세요.",
+      "invalid": "현재 내용으로는 조치할 수 없습니다: {reason}. 누락된 세부 내용을 포함해 새 이슈를 열어 주세요.",
+      "fixed": "{pullRequest}에서 수정되었으며 {version}에 포함되었습니다. 신고해 주셔서 감사합니다."
+    },
+    "states": {
+      "seen": "확인됨",
+      "acknowledged": "접수됨",
+      "triaged": "트리아지됨",
+      "awaitingInfo": "정보 대기 중",
+      "planned": "계획됨",
+      "replied": "답변됨",
+      "closed": "종료됨"
+    },
+    "waits": {
+      "seen": "접수 확인이 아직 게시되지 않았습니다",
+      "acknowledged": "분류를 기다리는 중",
+      "triaged": "사용자의 결정을 기다리는 중",
+      "awaitingInfo": "보고자의 답변을 기다리는 중",
+      "planned": "수정과 그 검증을 기다리는 중",
+      "replied": "없음: 답변함",
+      "closed": "없음: 닫힘"
+    },
+    "cli": {
+      "empty": "와치독이 아직 어떤 리포지토리도 감시하지 않습니다.",
+      "notWatched": "이 리포지토리는 감시 대상이 아닙니다.",
+      "paused": "{repository}의 와치독을 일시 중지했습니다.",
+      "resumed": "{repository}의 와치독을 다시 시작했습니다.",
+      "alreadyPaused": "{repository}의 와치독은 이미 일시 중지되어 있습니다.",
+      "notPaused": "{repository}의 와치독은 일시 중지되어 있지 않습니다.",
+      "invalidRepository": "리포지토리를 owner/name 형식으로 지정하세요.",
+      "watching": "{repository} 감시 중.",
+      "usage": "`watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|policy <repository> [label|template|watch-labels|ignore-authors|posts|close <value>]|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`를 사용하세요.",
+      "notSignedIn": "먼저 GitHub에 로그인한 다음 `auth github`을 실행하세요.",
+      "invalidIssue": "이슈 번호를 지정하세요.",
+      "invalidEvidence": "확인 증거의 형식이 예상과 달랐습니다.",
+      "applyNeedsAck": "이 이슈는 트리아지를 기다리고 있지 않습니다.",
+      "decideNeedsTriage": "이 이슈에는 결정할 트리아지가 없습니다.",
+      "resolveNeedsPlan": "이 이슈에는 해결할 계획이 없습니다.",
+      "overdue": "기한 초과",
+      "commandFailed": "와치독 명령을 완료할 수 없습니다.",
+      "unavailable": "와치독을 사용할 수 없습니다.",
+      "description": "감시 중인 GitHub 이슈를 나열하고 폴링하며 결정합니다.",
+      "pausedWord": "일시 중지됨",
+      "issueCount": {
+        "other": "{count}개의 이슈"
+      },
+      "noIssues": "기록된 이슈가 없습니다.",
+      "triagedAs": "{verdict}(으)로 트리아지했습니다.",
+      "decided": "결정됨: {outcome}.",
+      "posted": "게시했습니다.",
+      "closedNote": "종료했습니다.",
+      "notVerified": "확인되지 않음: {notes}.",
+      "unknownIssue": "이 이슈는 감시 대상이 아닙니다.",
+      "alreadyPosted": "답변이 이미 게시되었습니다.",
+      "policyHeading": "{repository}의 정책:",
+      "policySet": "{repository}의 {key}을(를) 설정했습니다.",
+      "policyInvalid": "{key}에는 이 값을 사용할 수 없습니다. {allowed}을(를) 사용하세요.",
+      "policyUnknownKey": "알 수 없는 정책 키입니다. label, template, watch-labels, ignore-authors, posts, close 중 하나를 사용하세요.",
+      "proposedReply": "게시하려는 답변:"
+    },
+    "poll": {
+      "skippedPullRequest": "이슈가 아닌 풀 리퀘스트",
+      "skippedLocked": "잠김",
+      "skippedAuthor": "무시된 작성자",
+      "skippedLabels": "감시 레이블 범위 밖",
+      "alreadyAcked": "이미 접수됨",
+      "ackPosted": "접수됨"
+    },
+    "verdicts": {
+      "valid": "유효",
+      "needsInfo": "정보 필요",
+      "duplicate": "중복",
+      "alreadyFixed": "이미 수정됨",
+      "inHand": "진행 중",
+      "invalid": "무효",
+      "spam": "스팸"
+    },
+    "outcomes": {
+      "planEntry": "계획 항목",
+      "fixLane": "수정 레인"
+    },
+    "planDraft": {
+      "intro": "{repository}#{number}에 대한 와치독 계획 초안(판정: {verdict}).",
+      "issue": "이슈",
+      "findings": "조사 결과",
+      "questions": "미결 질문"
+    },
+    "triage": {
+      "unreadable": "트리아지가 조사 결과로 돌아오지 않았습니다."
+    },
+    "refusal": {
+      "spamHeld": "스팸 의심으로 보류되었습니다. 게시된 내용이 없습니다.",
+      "approvalRequired": "이 게시물은 먼저 승인이 필요합니다.",
+      "reportOnly": "보고 전용: 보안 검토가 적용될 때까지 접수 확인 외에는 아무것도 게시하지 않습니다."
+    }
+  },
   "gitHubSignOut": "로그아웃",
   "gitHubSignOutFailed": "GitHub 로그아웃을 완료하지 못했습니다. 다시 시도하세요.",
   "gitRefresh": "새로 고침",
@@ -2620,7 +2727,7 @@
     "other": "{count}개의 검사 실행을 읽을 수 없습니다."
   },
   "reportCliUsage": "모델을 호출하지 않고 명시된 출처에서 결정론적 보고서를 생성합니다.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
-  "reportCliKinds": "종류: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",
+  "reportCliKinds": "종류: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, issues [--repo <owner/name>], schedules.\n",
   "reportIssue": "문제 보고…",
   "reportCrashOffer": "Muse Spark Code가 지난번에 예기치 않게 종료되었습니다 — 보고하시겠습니까?",
   "reportCrashAction": "문제 보고",
@@ -4288,6 +4395,7 @@
     "purposePrompts": "재사용 가능한 프롬프트 템플릿을 저장, 나열, 사용 및 공유합니다.",
     "purposeJudge": "Ask Muse Judge for verdicts on standard input.",
     "judgeServeLintNote": "serve and lint take their own flags; the options below belong to ask, calibrate, report and mcp.",
+    "purposeWatchdog": "GitHub 이슈 감시: 나열, 폴링, 트리아지, 결정, 해결.",
     "modelsList": "{entry}의 모델:",
     "modelsForced": "강제 추가: {reason}",
     "modelsExtra": "공급자에는 있지만 항목에 없는 모델:",

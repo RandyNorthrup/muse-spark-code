@@ -542,8 +542,9 @@ Headless `exec` takes no MCP servers, so this route needs an ACP client.
   agent cannot set up this way is let go, and the editor's request fails.
 - **Commands**: the session's skills, run as `/name arguments`, plus M112's
   `/questions` and `/answer <n> <text>` (reserved ahead of skills), and
-  M116's `/playbook <status|record|settings ...>`, answered locally with no
-  model turn. The command list (`available_commands_update`) arrives with the
+  M116's `/playbook <status|record|settings ...>` and M115w's
+  `/watchdog <list|status|pause|resume|poll|policy|evidence|apply|decide|resolve ...>`,
+  each answered locally with no model turn. The command list (`available_commands_update`) arrives with the
   new or loaded session, so the editor builds its slash menu before the
   first prompt; a skill that settles later is announced through the
   backend's skill-change event. A slash message that names no local command,
@@ -724,6 +725,37 @@ workers and no CI in reach, a headless run always runs locally. The
 command exits with the check's own exit code, 1 when the run is refused
 or fails, and 2 for misuse. `run` is not part of `/playbook`: the ACP
 surface stays read-only.
+
+## Issue watchdog (M115w)
+
+`/watchdog ...` in an editor and `muse-spark-code-acp watchdog ...` in a
+terminal run the same commands, with no model turn: `list` and `status`
+show the watched repositories and each issue's stage, verdict and what it
+waits for; `pause` and `resume` stop and restart watching; `poll
+<owner/name>` lists the repository's issues and posts the acknowledgement
+on each new one; `policy <owner/name> [key value]` shows or sets the
+acknowledgement label and template, the watched labels, the ignored
+authors, whether posts ask, always or never, and when issues close;
+`evidence <owner/name> <number>` prints the triage charter with the
+fenced issue and the evidence rows; `apply` records the triage's findings
+(`triageFindings` v1, refused unless each verdict carries its evidence);
+`decide` and `resolve` carry the findings to a reply, a plan draft or the
+fixed-reply after a passing verification.
+
+Reading and posting use your own GitHub sign-in (`auth github`), read
+silently and only by the commands that call GitHub. Until M109's taint
+lane merges the watchdog is report only: it posts the acknowledgement (the
+template, the label, an automated note and an invisible marker) and
+nothing else. `decide` and `resolve` show the findings, the plan draft and
+the reply they would post, and say that nothing was posted. Issue text is
+data: the evidence pack fences it and names instruction-like phrases in
+it, and nothing in the watchdog runs a command or opens a path from an
+issue. A reporter's answer or an edit of the issue sends it back to be
+triaged again; each post carries a marker naming its flow, round and kind,
+and the step that reads, posts and records holds the repository's lock, so
+two windows post once. Records live beside the schedules, one file per
+repository, under the agent data folder. `report issues [--repo
+<owner/name>]` lists the watched issues with what waits on you first.
 
 ## Several accounts per provider (M108)
 
@@ -1227,7 +1259,7 @@ limits apply equally to every ACP editor and to headless execution.
 as the editor. `report quality`, `report milestone M113`, `report release
 latest`, `report changes`, `report keybindings`, `report usage`,
 `report session`, `report accounts`, `report security`, `report estimate M113`,
-`report playbook` and `report schedules` select other local reports.
+`report playbook`, `report issues` and `report schedules` select other local reports.
 `report history`
 lists verified, workspace-scoped saved entries. Bare `report`, and `report
 problem`, retain M93's problem report.

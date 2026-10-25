@@ -30,8 +30,10 @@ import { effortNotForModelText } from '../core/unknownModel'
 import type { AcpSchedulePort } from './schedules'
 import path from 'node:path'
 import { type AcpPlaybookBundle, acpPlaybook } from './playbook'
+import { acpWatchdog, type AcpWatchdogBundle } from './watchdog'
 import { signInLossFailure } from './signInLoss'
 import type { PlaybookSurfacePort } from '../runtime/playbook/command'
+import type { WatchdogSurfacePort } from '../runtime/watchdog/command'
 import {
   agent as acpAgent,
   type AgentApp,
@@ -310,6 +312,14 @@ export interface AcpAgentDeps {
   host asks, as a `delegate` round. Absent, the control runs as before.
   */
   readonly subagentAdmission?: SubagentAdmission
+  /** WU binds the watchdog's store, signed-in client and clock. */
+  readonly watchdogFor?: (
+    cwd: string,
+    sessionId: string,
+    isGitHubCalled: boolean,
+  ) => Promise<WatchdogSurfacePort>
+  /** WU binds /watchdog's parsing and running (the watchdog bundle). */
+  readonly watchdogBundle?: () => AcpWatchdogBundle
   /** H-W-SESSION: one profile-owned account service, bound to this backend. */
   readonly accounts?: AccountsSessionPort
   readonly vault?: AcpVault
@@ -1236,6 +1246,15 @@ class AcpSession {
               input: { hint: 'status|record|settings' },
             },
           ]),
+      ...(this.deps.watchdogFor === undefined
+        ? []
+        : [
+            {
+              name: 'watchdog',
+              description: UI_TEXT.watchdog.cli.description,
+              input: { hint: 'list|status|pause|resume|poll|policy|evidence|apply|decide|resolve' },
+            },
+          ]),
       ...(this.deps.schedules === undefined || this.deps.schedules.isAvailable === false
         ? []
         : [
@@ -1291,6 +1310,7 @@ class AcpSession {
             ((this.deps.usage === undefined && this.deps.resources === undefined) ||
               skill.selector !== 'usage') &&
             (this.deps.playbookFor === undefined || skill.selector !== 'playbook') &&
+            (this.deps.watchdogFor === undefined || skill.selector !== 'watchdog') &&
             skill.selector !== 'schedule',
         )
         .map((skill) => ({
@@ -3431,6 +3451,17 @@ class AcpSession {
           if (bundle === undefined) throw new Error(UI_TEXT.playbookUnavailable)
           return bundle
         },
+      )
+      local ??= await acpWatchdog(
+        blocks,
+        async (isGitHubCalled) =>
+          await this.deps.watchdogFor?.(this.cwd, this.sessionId, isGitHubCalled),
+        () => {
+          const bundle = this.deps.watchdogBundle?.()
+          if (bundle === undefined) throw new Error(UI_TEXT.watchdog.cli.unavailable)
+          return bundle
+        },
+        this.deps.log,
       )
       if (local === undefined) await this.announceCommands()
       if (/^\/schedule(?:\s|$)/.test(typed)) {

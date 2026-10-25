@@ -1,5 +1,6 @@
 // One valid schedule and run context for failure-path tests, with the
 // fields each test varies as overrides, so no test repeats the literal.
+import type { ScheduleDeliverySession } from '../../../src/core/schedules/delivery'
 import { scheduleEventRunId } from '../../../src/shared/scheduleEvents'
 import { Usd } from '../../../src/shared/usd'
 import {
@@ -54,6 +55,26 @@ export function quietStoreBase() {
     claim: () => Promise.resolve(true),
     record: () => Promise.resolve(undefined),
     fires: () => Promise.resolve([]),
+  }
+}
+
+/** An idle open session, with the methods each test varies as overrides. */
+export function deliverySessionFixture(
+  overrides: Partial<ScheduleDeliverySession> = {},
+): ScheduleDeliverySession {
+  return {
+    backend: 'modelApi',
+    sessionId: 'session-1',
+    isRunning: () => false,
+    isOpen: () => true,
+    steer: () => Promise.resolve(undefined),
+    cancel: () => Promise.resolve(undefined),
+    queue: () => Promise.resolve('msg-0'),
+    withdraw: () => Promise.resolve(true),
+    send: () => Promise.resolve(undefined),
+    waitUntilIdle: () => Promise.resolve(true),
+    queueWhenIdle: () => Promise.resolve('msg-1'),
+    ...overrides,
   }
 }
 

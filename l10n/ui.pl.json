@@ -906,6 +906,7 @@
   "referenceExecContract": "Uruchomienia bez interfejsu odmawiają zaufania obszarowi roboczemu i omijania uprawnień. Bez interfejsu dozwolone są tylko plan lub acceptEdits. Hostowane wyszukiwanie w sieci nie ma gwarantowanego limitu i jest odrzucane. Generowanie obrazów wymaga acceptEdits. Wybierz dokładnie jedno źródło polecenia. Polecenie i klucz nie mogą jednocześnie używać stdin. Model API wymaga --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --subscription / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatyczna kompresja działa tylko z --auto-compaction w ramach --max-budget-usd.",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: Użycie, opcje i przykłady jednego polecenia. help --all: Polecenia, ustawienia i funkcje wraz z opisami i dokumentacją.",
   "referenceJudgeUsage": "Użycie: {command} judge ask|calibrate|report|mcp [opcje] < request.json; {command} judge serve|lint|scan|setup|remove [opcje]. Konfiguracja i usuwanie bez --yes niczego nie zmieniają. Kody wyjścia: 0 gotowe, 2 użycie, 4 niepowodzenie.",
+  "referenceWatchdog": "Obserwowanie zgłoszeń GitHub z terminala: wyświetlanie, stan, wstrzymanie, wznowienie, sondowanie, zasady, dowody, zastosowanie, rozstrzygnięcie i realizacja.",
   "referenceKeyStdin": "auth set: Odczytuje Twój klucz w terminalu i przechowuje go w magazynie poświadczeń tego komputera. Rozmowy są rozliczane z klucza. exec / scan-secrets --key-stdin: Odczytaj klucz z potoku, nie z terminala. stdin → memory; prompt stdin + key stdin = Polecenie i klucz nie mogą jednocześnie używać stdin.",
   "referenceModalKeys": "Zamknij okno lub przenieś fokus wewnątrz niego.",
   "referenceRenameKeys": "Potwierdź lub anuluj zmianę nazwy tej rozmowy.",
@@ -1197,7 +1198,8 @@
       "kind": "Rodzaj raportu",
       "format": "Format raportu",
       "args": "Argumenty",
-      "destinations": "Cele"
+      "destinations": "Cele",
+      "destinationsPending": "Miejsca docelowe raportów nie są jeszcze gotowe. Pojawią się w późniejszej aktualizacji."
     },
     "runtime": {
       "usage": "Użycie: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Kody wyjścia: 0 sukces, 1 odmowa, 2 błąd użycia, 3 ostrzeżenie o sprzątaniu.",
@@ -2403,6 +2405,114 @@
     "deviceFlow": "logowanie Muse Spark do GitHub",
     "ghLogin": "GitHub CLI (gh)"
   },
+  "watchdog": {
+    "title": "Strażnik zgłoszeń",
+    "ack": {
+      "body": "Dziękujemy za zgłoszenie. Jest ono teraz segregowane, a dalsze działania będą publikowane tutaj.",
+      "automatedNote": "Ta wiadomość została opublikowana automatycznie przez strażnika zgłoszeń opiekuna repozytorium."
+    },
+    "reply": {
+      "needsInfo": "Dziękujemy. Zanim przejdziemy dalej, potrzeba nieco więcej informacji:\n\n{questions}\n\nProsimy o odpowiedź tutaj; gdy to nastąpi, zgłoszenie zostanie ponownie rozpatrzone.",
+      "duplicate": "Wygląda to na duplikat #{duplicate}. Jeśli tamto zgłoszenie nie obejmuje tego, co zgłoszono, prosimy napisać tutaj, a zostanie ponownie rozpatrzone.",
+      "alreadyFixed": "Zostało to naprawione w {fixedIn}. Prosimy zaktualizować, a jeśli problem nadal występuje, ponownie otworzyć zgłoszenie.",
+      "invalid": "W tej postaci nie można tego rozpatrzyć: {reason}. Prosimy otworzyć nowe zgłoszenie z brakującym szczegółem.",
+      "fixed": "Naprawia to {pullRequest}, wydane w {version}. Dziękujemy za zgłoszenie."
+    },
+    "states": {
+      "seen": "Zauważone",
+      "acknowledged": "Potwierdzone",
+      "triaged": "Posegregowane",
+      "awaitingInfo": "Oczekuje na informacje",
+      "planned": "Zaplanowane",
+      "replied": "Z odpowiedzią",
+      "closed": "Zamknięte"
+    },
+    "waits": {
+      "seen": "Potwierdzenie nie zostało jeszcze opublikowane",
+      "acknowledged": "Czeka na segregację",
+      "triaged": "Czeka na Twoją decyzję",
+      "awaitingInfo": "Czeka na odpowiedź zgłaszającego",
+      "planned": "Czeka na poprawkę i jej weryfikację",
+      "replied": "Nic: odpowiedziano",
+      "closed": "Nic: zamknięto"
+    },
+    "cli": {
+      "empty": "Strażnik nie obserwuje jeszcze żadnego repozytorium.",
+      "notWatched": "To repozytorium nie jest obserwowane.",
+      "paused": "Strażnik dla {repository} wstrzymany.",
+      "resumed": "Strażnik dla {repository} wznowiony.",
+      "alreadyPaused": "Strażnik dla {repository} jest już wstrzymany.",
+      "notPaused": "Strażnik dla {repository} nie jest wstrzymany.",
+      "invalidRepository": "Podaj repozytorium jako właściciel/nazwa.",
+      "watching": "Obserwowanie {repository}.",
+      "usage": "Użyj `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|policy <repository> [label|template|watch-labels|ignore-authors|posts|close <value>]|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`.",
+      "notSignedIn": "Najpierw zaloguj się do GitHuba, potem uruchom `auth github`.",
+      "invalidIssue": "Podaj numer zgłoszenia.",
+      "invalidEvidence": "Dowód weryfikacji nie miał oczekiwanego kształtu.",
+      "applyNeedsAck": "To zgłoszenie nie czeka na segregację.",
+      "decideNeedsTriage": "To zgłoszenie nie ma segregacji do rozstrzygnięcia.",
+      "resolveNeedsPlan": "To zgłoszenie nie ma planu do zrealizowania.",
+      "overdue": "zaległe",
+      "commandFailed": "Nie można ukończyć polecenia strażnika.",
+      "unavailable": "Strażnik jest niedostępny.",
+      "description": "Wyświetla, sonduje i rozstrzyga obserwowane zgłoszenia GitHub.",
+      "pausedWord": "Wstrzymany",
+      "issueCount": {
+        "one": "{count} zgłoszenie",
+        "other": "{count} zgłoszenia",
+        "few": "{count} zgłoszenia",
+        "many": "{count} zgłoszeń"
+      },
+      "noIssues": "Brak zapisanych zgłoszeń.",
+      "triagedAs": "Posegregowane jako {verdict}.",
+      "decided": "Rozstrzygnięto: {outcome}.",
+      "posted": "Opublikowano.",
+      "closedNote": "Zamknięte.",
+      "notVerified": "Nie zweryfikowano: {notes}.",
+      "unknownIssue": "To zgłoszenie nie jest obserwowane.",
+      "alreadyPosted": "Odpowiedź jest już opublikowana.",
+      "policyHeading": "Zasady dla {repository}:",
+      "policySet": "Ustawiono {key} dla {repository}.",
+      "policyInvalid": "Ta wartość nie jest dozwolona dla {key}. Użyj: {allowed}.",
+      "policyUnknownKey": "Nieznany klucz zasad. Użyj label, template, watch-labels, ignore-authors, posts lub close.",
+      "proposedReply": "Odpowiedź, którą by opublikował:"
+    },
+    "poll": {
+      "skippedPullRequest": "żądanie ściągnięcia, nie zgłoszenie",
+      "skippedLocked": "zablokowane",
+      "skippedAuthor": "ignorowany autor",
+      "skippedLabels": "poza obserwowanymi etykietami",
+      "alreadyAcked": "już potwierdzone",
+      "ackPosted": "potwierdzone"
+    },
+    "verdicts": {
+      "valid": "Prawidłowe",
+      "needsInfo": "Wymaga informacji",
+      "duplicate": "Duplikat",
+      "alreadyFixed": "Już naprawione",
+      "inHand": "W toku",
+      "invalid": "Nieprawidłowe",
+      "spam": "Spam"
+    },
+    "outcomes": {
+      "planEntry": "Wpis planu",
+      "fixLane": "Tor naprawy"
+    },
+    "planDraft": {
+      "intro": "Szkic planu strażnika dla {repository}#{number} (werdykt: {verdict}).",
+      "issue": "Zgłoszenie",
+      "findings": "Ustalenia",
+      "questions": "Otwarte pytania"
+    },
+    "triage": {
+      "unreadable": "Segregacja nie wróciła jako ustalenia."
+    },
+    "refusal": {
+      "spamHeld": "Wstrzymano jako podejrzany spam: nic nie opublikowano.",
+      "approvalRequired": "Ten wpis wymaga najpierw Twojej zgody.",
+      "reportOnly": "Tylko raport: do czasu przeglądu bezpieczeństwa nie publikuje się nic poza potwierdzeniem."
+    }
+  },
   "gitHubSignOut": "Wyloguj",
   "gitHubSignOutFailed": "Nie udało się dokończyć wylogowania z GitHub. Spróbuj ponownie.",
   "gitRefresh": "Odśwież",
@@ -2725,7 +2835,7 @@
     "many": "Nie można odczytać {count} przebiegów kontroli."
   },
   "reportCliUsage": "Wygeneruj deterministyczny raport z nazwanych źródeł, bez wywołania modelu.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
-  "reportCliKinds": "Rodzaje: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",
+  "reportCliKinds": "Rodzaje: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, issues [--repo <owner/name>], schedules.\n",
   "reportIssue": "Zgłoś problem…",
   "reportCrashOffer": "Muse Spark Code został ostatnio nieoczekiwanie zamknięty — zgłosić to?",
   "reportCrashAction": "Zgłoś problem",
@@ -4531,6 +4641,7 @@
     "purposePrompts": "Zapisuj, wyświetlaj, używaj i udostępniaj szablony promptów wielokrotnego użytku.",
     "purposeJudge": "Ask Muse Judge for verdicts on standard input.",
     "judgeServeLintNote": "serve and lint take their own flags; the options below belong to ask, calibrate, report and mcp.",
+    "purposeWatchdog": "Obserwować zgłoszenia GitHub: wyświetlać, sondować, segregować, rozstrzygać i realizować.",
     "modelsList": "Modele dla {entry}:",
     "modelsForced": "wymuszono: {reason}",
     "modelsExtra": "U dostawcy, ale nie we wpisie:",

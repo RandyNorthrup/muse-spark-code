@@ -5005,6 +5005,7 @@ async function activateWindow(
     isDeliveryReady: () => SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady,
     defaultDelivery: () => currentSettings().scheduleDefaultDelivery,
     pauseAfterFailures: () => currentSettings().schedulePauseAfterFailures,
+    isWorkspaceTrusted: isProjectTrusted,
     ...(scheduleDelivery !== undefined && { delivery: scheduleDelivery }),
     ...(scheduleMigration !== undefined && { migration: scheduleMigration }),
   })

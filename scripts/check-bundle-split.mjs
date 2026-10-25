@@ -1704,6 +1704,13 @@ const TEXT_BLOCKS = [
     readers: ['dist/hookRuntime.js'],
   },
   {
+    block: 'WATCHDOG_MODEL_TEXT',
+    sentinels: ['triageWho', 'triageDescription', 'triageHandBack'],
+    // M115w: only the watchdog bundle reads the triage charter, for the
+    // CLI's evidence verb and the agent's turn; the engine never carries it.
+    readers: ['dist/acpWatchdog.js'],
+  },
+  {
     block: 'LEGAL_EXPLANATION_MODEL_TEXT',
     sentinels: ['legalExplanationInstructions'],
     readers: ['dist/reviewer.js'],

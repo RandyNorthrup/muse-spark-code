@@ -898,6 +898,7 @@
   "referenceExecContract": "Arayüzsüz çalıştırmalar çalışma alanına güvenmeyi ve izinleri atlamayı reddeder. Arayüzsüz çalıştırmalarda yalnızca plan veya acceptEdits kullanılabilir. Barındırılan web aramasının garantili sınırı yoktur ve reddedilir. Görsel üretimi için acceptEdits gerekir. Tam olarak bir istem kaynağı seçin. İstem ve anahtar aynı anda stdin kullanamaz. Model API için --max-budget-usd gerekir. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --subscription / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Otomatik sıkıştırma yalnızca --auto-compaction ile --max-budget-usd altında çalışır.",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: Bir komutun kullanımı, seçenekleri ve örnekleri. help --all: Açıklamalar ve belgelerle birlikte komutlar, ayarlar ve özellikler.",
   "referenceJudgeUsage": "Kullanım: {command} judge ask|calibrate|report|mcp [seçenekler] < request.json; {command} judge serve|lint|scan|setup|remove [seçenekler]. Kurulum ve kaldırma, --yes olmadan hiçbir şeyi değiştirmez. Çıkış kodları: 0 tamam, 2 kullanım, 4 başarısız.",
+  "referenceWatchdog": "Terminalden GitHub sorunlarını izleme: listeleme, durum, duraklatma, sürdürme, yoklama, ilke, kanıt, uygulama, karar ve çözüm.",
   "referenceKeyStdin": "auth set: Anahtarınızı bir terminalde okur ve bu bilgisayarın kimlik bilgisi deposunda saklar. Konuşmalar anahtara faturalandırılır. exec / scan-secrets --key-stdin: Anahtarı terminalden değil borudan okuyun. stdin → memory; prompt stdin + key stdin = İstem ve anahtar aynı anda stdin kullanamaz.",
   "referenceModalKeys": "İletişim kutusunu kapatın veya içinde odağı taşıyın.",
   "referenceRenameKeys": "Bu konuşmanın yeniden adlandırılmasını onaylayın veya iptal edin.",
@@ -1187,7 +1188,8 @@
       "kind": "Rapor türü",
       "format": "Biçim",
       "args": "Bağımsız değişkenler",
-      "destinations": "Hedefler"
+      "destinations": "Hedefler",
+      "destinationsPending": "Rapor hedefleri henüz hazır değil. Daha sonraki bir güncelleştirmeyle gelecekler."
     },
     "runtime": {
       "usage": "Kullanım: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Çıkış kodları: 0 başarı, 1 ret, 2 kullanım hatası, 3 temizlik uyarısı.",
@@ -2339,6 +2341,112 @@
     "deviceFlow": "Muse Spark’ın GitHub oturumu",
     "ghLogin": "GitHub CLI (gh)"
   },
+  "watchdog": {
+    "title": "Sorun bekçisi",
+    "ack": {
+      "body": "Bildiriminiz için teşekkürler. Şu anda triyajda ve sonraki tüm gelişmeler burada yayımlanacak.",
+      "automatedNote": "Bu ileti, depo sorumlusunun sorun bekçisi tarafından otomatik olarak yayımlandı."
+    },
+    "reply": {
+      "needsInfo": "Teşekkürler. Devam etmeden önce biraz daha bilgiye ihtiyaç var:\n\n{questions}\n\nLütfen buradan yanıtlayın; yanıtladığınızda sorun yeniden incelenecek.",
+      "duplicate": "Bu, #{duplicate} kaydının yineleni gibi görünüyor. O kayıt bildirdiğinizi kapsamıyorsa lütfen burada belirtin, yeniden incelenecek.",
+      "alreadyFixed": "Bu, {fixedIn} sürümünde düzeltildi. Lütfen güncelleyin; sorun sürüyorsa bu kaydı yeniden açın.",
+      "invalid": "Bu haliyle işlem yapılamaz: {reason}. Eksik ayrıntıyla yeni bir kayıt açın.",
+      "fixed": "Bu, {pullRequest} ile düzeltildi ve {version} sürümünde yayımlandı. Bildiriminiz için teşekkürler."
+    },
+    "states": {
+      "seen": "Görüldü",
+      "acknowledged": "Onaylandı",
+      "triaged": "Triyajlandı",
+      "awaitingInfo": "Bilgi bekleniyor",
+      "planned": "Planlandı",
+      "replied": "Yanıtlandı",
+      "closed": "Kapatıldı"
+    },
+    "waits": {
+      "seen": "Alındı onayı henüz gönderilmedi",
+      "acknowledged": "Sınıflandırılmasını bekliyor",
+      "triaged": "Kararınızı bekliyor",
+      "awaitingInfo": "Bildiren kişinin yanıtını bekliyor",
+      "planned": "Düzeltmeyi ve doğrulamasını bekliyor",
+      "replied": "Hiçbir şey: yanıtlandı",
+      "closed": "Hiçbir şey: kapatıldı"
+    },
+    "cli": {
+      "empty": "Bekçi henüz hiçbir depoyu izlemiyor.",
+      "notWatched": "Bu depo izlenmiyor.",
+      "paused": "{repository} için bekçi duraklatıldı.",
+      "resumed": "{repository} için bekçi sürdürüldü.",
+      "alreadyPaused": "{repository} bekçisi zaten duraklatılmış.",
+      "notPaused": "{repository} bekçisi duraklatılmamış.",
+      "invalidRepository": "Depoyu sahip/ad biçiminde verin.",
+      "watching": "{repository} izleniyor.",
+      "usage": "`watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|policy <repository> [label|template|watch-labels|ignore-authors|posts|close <value>]|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>` kullanın.",
+      "notSignedIn": "Önce GitHub’da oturum açın, sonra `auth github` çalıştırın.",
+      "invalidIssue": "Bir sorun numarası verin.",
+      "invalidEvidence": "Doğrulama kanıtı beklenen biçimde değildi.",
+      "applyNeedsAck": "Bu sorun triyaj beklemiyor.",
+      "decideNeedsTriage": "Bu sorunun karara bağlanacak triyajı yok.",
+      "resolveNeedsPlan": "Bu sorunun çözülecek planı yok.",
+      "overdue": "gecikmiş",
+      "commandFailed": "Bekçi komutu tamamlanamadı.",
+      "unavailable": "Bekçi kullanılamıyor.",
+      "description": "İzlenen GitHub sorunlarını listeler, yoklar ve karara bağlar.",
+      "pausedWord": "Duraklatıldı",
+      "issueCount": {
+        "one": "{count} sorun",
+        "other": "{count} sorun"
+      },
+      "noIssues": "Kayıtlı sorun yok.",
+      "triagedAs": "{verdict} olarak triyajlandı.",
+      "decided": "Karar verildi: {outcome}.",
+      "posted": "Gönderildi.",
+      "closedNote": "Kapatıldı.",
+      "notVerified": "Doğrulanmadı: {notes}.",
+      "unknownIssue": "Bu sorun izlenmiyor.",
+      "alreadyPosted": "Yanıt zaten gönderildi.",
+      "policyHeading": "{repository} için ilke:",
+      "policySet": "{repository} için {key} ayarlandı.",
+      "policyInvalid": "Bu değer {key} için izin verilmiyor. Şunları kullanın: {allowed}.",
+      "policyUnknownKey": "Bilinmeyen ilke anahtarı. label, template, watch-labels, ignore-authors, posts veya close kullanın.",
+      "proposedReply": "Göndereceği yanıt:"
+    },
+    "poll": {
+      "skippedPullRequest": "sorun değil, çekme isteği",
+      "skippedLocked": "kilitli",
+      "skippedAuthor": "yoksayılan yazar",
+      "skippedLabels": "izlenen etiketlerin dışında",
+      "alreadyAcked": "zaten onaylandı",
+      "ackPosted": "onaylandı"
+    },
+    "verdicts": {
+      "valid": "Geçerli",
+      "needsInfo": "Bilgi gerekli",
+      "duplicate": "Yineleme",
+      "alreadyFixed": "Zaten düzeltildi",
+      "inHand": "Elde",
+      "invalid": "Geçersiz",
+      "spam": "İstenmeyen"
+    },
+    "outcomes": {
+      "planEntry": "Plan girdisi",
+      "fixLane": "Düzeltme şeridi"
+    },
+    "planDraft": {
+      "intro": "{repository}#{number} için bekçi plan taslağı (karar: {verdict}).",
+      "issue": "Sorun",
+      "findings": "Bulgular",
+      "questions": "Açık sorular"
+    },
+    "triage": {
+      "unreadable": "Triyaj bulgu olarak dönmedi."
+    },
+    "refusal": {
+      "spamHeld": "Olası istenmeyen ileti olarak tutuldu: hiçbir şey yayımlanmadı.",
+      "approvalRequired": "Bu gönderi önce onayınızı gerektirir.",
+      "reportOnly": "Yalnızca rapor: güvenlik incelemesi gelene kadar alındı onayı dışında hiçbir şey gönderilmez."
+    }
+  },
   "gitHubSignOut": "Oturumu kapat",
   "gitHubSignOutFailed": "GitHub oturumu kapatılamadı. Yeniden deneyin.",
   "gitRefresh": "Yenile",
@@ -2655,7 +2763,7 @@
     "other": "{count} denetim çalıştırması okunamadı."
   },
   "reportCliUsage": "Model çağrısı yapmadan, adlandırılmış kaynaklardan belirlenimci bir rapor oluşturun.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
-  "reportCliKinds": "Türler: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",
+  "reportCliKinds": "Türler: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, issues [--repo <owner/name>], schedules.\n",
   "reportIssue": "Sorun bildir…",
   "reportCrashOffer": "Muse Spark Code geçen sefer beklenmedik şekilde kapandı — bildirilsin mi?",
   "reportCrashAction": "Sorunu bildir",
@@ -4369,6 +4477,7 @@
     "purposePrompts": "Yeniden kullanılabilir istem şablonlarını kaydet, listele, kullan ve paylaş.",
     "purposeJudge": "Ask Muse Judge for verdicts on standard input.",
     "judgeServeLintNote": "serve and lint take their own flags; the options below belong to ask, calibrate, report and mcp.",
+    "purposeWatchdog": "GitHub sorunlarını izleme: listeleme, yoklama, triyaj, karar ve çözüm.",
     "modelsList": "{entry} modelleri:",
     "modelsForced": "zorla eklendi: {reason}",
     "modelsExtra": "Sağlayıcıda var, girdide yok:",

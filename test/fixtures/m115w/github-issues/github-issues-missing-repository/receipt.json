@@ -1,0 +1,48 @@
+{
+  "capturedAtUtc": "2026-10-24T19:29:54.854Z",
+  "id": "github-issues-missing-repository",
+  "lane": "RLSCHED",
+  "source": "github-issues-missing-repository",
+  "method": "GET",
+  "url": "https://api.github.com/repos/RandyNorthrup/muse-spark-code-no-such-repository/issues?state=all&per_page=100&page=1",
+  "httpStatus": 404,
+  "httpStatusText": "Not Found",
+  "contentType": "application/json; charset=utf-8",
+  "contentEncodingOnWire": "identity (none requested)",
+  "elapsedMs": 163,
+  "body": {
+    "file": "response.body.json",
+    "bytes": 126,
+    "sha256": "b0408139de89eec990b16cf723a1afea435f354daf85e3965b873e0d2309bafa",
+    "parsesAsJson": true
+  },
+  "tool": "node:https, v24.21.0 on darwin (temp/m115w-capture2.cjs, one-off, recovery rig)",
+  "authenticationNeeded": false,
+  "credentialsSent": "none",
+  "scrubbed": {
+    "responseHeaders": "allowlist; values of kept headers scrubbed like the body",
+    "droppedHeaderNames": [
+      "access-control-allow-origin",
+      "access-control-expose-headers",
+      "connection",
+      "content-security-policy",
+      "referrer-policy",
+      "server",
+      "strict-transport-security",
+      "x-content-type-options",
+      "x-frame-options",
+      "x-github-edge-region",
+      "x-github-request-id",
+      "x-xss-protection"
+    ],
+    "keptHeaderValueReplacements": 0,
+    "bodyEmailReplacements": 0,
+    "bodyTokenReplacements": 0,
+    "bodyTokenKinds": [],
+    "markers": {
+      "email": "<email-redacted>",
+      "token": "<token-redacted>"
+    },
+    "otherwise": "byte-exact"
+  }
+}

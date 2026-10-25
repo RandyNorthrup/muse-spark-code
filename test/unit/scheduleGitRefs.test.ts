@@ -3,10 +3,15 @@
 // fails for real below. (A full localGitRefs read needs the resource
 // governor's git spawn, which this sandbox refuses; the lead runs that
 // path outside it.)
+import { execFileSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { statRefRevision } from '../../src/core/schedules/events/git'
+import {
+  localGitRefs,
+  ScheduleGitSource,
+  statRefRevision,
+} from '../../src/core/schedules/events/git'
 import { usingTempDir } from './helpers/temporaryFolders'
 
 describe('git ref revision source', () => {
@@ -35,6 +40,25 @@ describe('git ref revision source', () => {
       await expect(
         statRefRevision(folder, path.join('refs', 'heads', 'main'), () => Promise.reject(failure)),
       ).rejects.toBe(failure)
+    })
+  })
+
+  it('stays unavailable outside a repository and without trust', async () => {
+    await usingTempDir('schedule-git-', async (folder) => {
+      expect(localGitRefs(folder, () => true).capability()).toEqual({
+        available: false,
+        reason: expect.stringContaining('gitRepository'),
+      })
+      execFileSync('git', ['init', '-b', 'main', folder])
+      expect(localGitRefs(folder, () => false).capability()).toEqual({
+        available: false,
+        reason: expect.stringContaining('workspaceTrust'),
+      })
+      const source = new ScheduleGitSource(
+        localGitRefs(folder, () => false),
+        Date.now,
+      )
+      await expect(source.poll(0)).rejects.toThrow('workspaceTrust')
     })
   })
 })

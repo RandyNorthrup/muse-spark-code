@@ -1,21 +1,27 @@
-// GitHub's REST API, the few calls M71 makes (PLAN.md D49): who is signed
+// GitHub's REST API: the calls M71 makes (PLAN.md D49) — who is signed
 // in, a repository's default branch, a pull request, the open pull request
-// for a branch, creating one, and a commit's checks. Every response is
-// parsed with a schema written from the 2026-09-28 capture
-// (test/unit/helpers/githubCapture.ts, docs/certification/m71.md; AGENTS.md
-// rule 13), and only the fields read here are kept. The creation reply is
-// GitHub's `pull-request` object, the same schema as `GET …/pulls/{n}`
-// (docs.github.com/rest/pulls/pulls, API version 2022-11-28).
+// for a branch, creating one, and a commit's checks — and the calls M115w's
+// watchdog makes: an issue, the issue list, an issue's comments, issue
+// search, posting a comment, adding labels and closing an issue. Every
+// response is parsed with a schema written from a capture (the 2026-09-28
+// capture in test/unit/helpers/githubCapture.ts, docs/certification/m71.md,
+// and the 2026-10-22 issue captures in test/fixtures/m115w/github-issues/;
+// AGENTS.md rule 13), and only the fields read here are kept. A creation
+// reply is the same object its GET returns (docs.github.com/rest/pulls and
+// .../rest/issues, API version 2022-11-28): the POST and PATCH answers are
+// parsed with the captured GET schemas, and anything else-shaped refuses
+// out loud rather than corrupting the watchdog's records.
 //
-// The token comes from VS Code's GitHub sign-in for each call and is never
-// logged, stored or returned. Pure: `fetch` is injected (VS Code's
-// proxy-aware one in the extension, a fake GitHub in the tests).
+// The token comes from the person's GitHub sign-in for each call and is
+// never logged, stored or returned. Pure: `fetch` is injected (VS Code's
+// proxy-aware one in the extension, the runtime's in the agent).
 
 import * as z from 'zod/mini'
 import {
   GITHUB_API_BASE_URL,
   GITHUB_API_VERSION,
   GITHUB_CHECKS_PAGE_SIZE,
+  GITHUB_ISSUES_PAGE_SIZE,
   GITHUB_MEDIA_TYPE,
   GITHUB_REQUEST_TIMEOUT_MS,
   UI_TEXT,
@@ -70,6 +76,97 @@ const combinedStatusSchema = z.object({
   statuses: z.array(z.object({ state: z.string(), context: z.string() })),
 })
 
+// M115w's shapes, from the 2026-10-22 captures
+// (test/fixtures/m115w/github-issues/). `body` reads nullable although no
+// capture shows null: GitHub documents it nullable
+// (docs.github.com/rest/issues/issues), and a null body reads as empty,
+// never as a refusal to watch the issue.
+const issueLabelSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  color: z.string(),
+  description: z.nullable(z.string()),
+  default: z.boolean(),
+})
+
+const issueSchema = z.object({
+  id: z.number(),
+  number: z.number(),
+  html_url: z.string(),
+  /** `open` or `closed` as captured; any other word is shown as it came. */
+  state: z.string(),
+  title: z.string(),
+  user: userSchema,
+  labels: z.array(issueLabelSchema),
+  locked: z.boolean(),
+  comments: z.number(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  closed_at: z.nullable(z.string()),
+  body: z.nullable(z.string()),
+  author_association: z.string(),
+  /** Present on pull requests only; the watchdog watches issues, not these. */
+  pull_request: z.optional(z.unknown()),
+})
+
+const issueCommentSchema = z.object({
+  id: z.number(),
+  html_url: z.string(),
+  user: userSchema,
+  created_at: z.string(),
+  updated_at: z.string(),
+  body: z.nullable(z.string()),
+  author_association: z.string(),
+})
+
+const issueSearchSchema = z.object({
+  total_count: z.number(),
+  incomplete_results: z.boolean(),
+  items: z.array(issueSchema),
+})
+
+// The triage's release rows, from the same day's captures. `name`,
+// `published_at` and `body` read nullable although no capture shows
+// null: GitHub documents them nullable for drafts
+// (docs.github.com/rest/releases/releases).
+const releaseSchema = z.object({
+  html_url: z.string(),
+  tag_name: z.string(),
+  target_commitish: z.string(),
+  name: z.nullable(z.string()),
+  draft: z.boolean(),
+  prerelease: z.boolean(),
+  created_at: z.string(),
+  published_at: z.nullable(z.string()),
+  body: z.nullable(z.string()),
+})
+
+const tagSchema = z.object({
+  name: z.string(),
+  commit: z.object({ sha: z.string() }),
+})
+
+// Commit search rows. `author` and `committer` read nullable although
+// no capture shows null: GitHub documents them nullable when the commit
+// author matches no GitHub user (docs.github.com/rest/search/search).
+const commitSearchItemSchema = z.object({
+  sha: z.string(),
+  html_url: z.string(),
+  commit: z.object({
+    message: z.string(),
+    author: z.object({ date: z.string() }),
+  }),
+  author: z.nullable(userSchema),
+  committer: z.nullable(userSchema),
+  score: z.number(),
+})
+
+const commitSearchSchema = z.object({
+  total_count: z.number(),
+  incomplete_results: z.boolean(),
+  items: z.array(commitSearchItemSchema),
+})
+
 const errorSchema = z.object({
   message: z.string(),
   errors: z.optional(
@@ -115,6 +212,81 @@ export interface ChecksSummary {
   readonly failedNames: readonly string[]
   /** Any check in a state the capture did not show, as `name: state` (D36). */
   readonly other: readonly string[]
+}
+
+/** An issue as the watchdog reads it. `body` is empty when GitHub sent null. */
+export interface GitHubIssue {
+  readonly id: number
+  readonly number: number
+  readonly url: string
+  readonly state: string
+  readonly title: string
+  readonly author: GitHubUser
+  readonly labels: readonly string[]
+  readonly isLocked: boolean
+  readonly commentCount: number
+  readonly createdAt: string
+  readonly updatedAt: string
+  readonly closedAt: string | undefined
+  readonly body: string
+  readonly association: string
+  readonly isPullRequest: boolean
+}
+
+export interface GitHubIssueComment {
+  readonly id: number
+  readonly url: string
+  readonly author: GitHubUser
+  readonly createdAt: string
+  readonly updatedAt: string
+  readonly body: string
+  readonly association: string
+}
+
+export interface GitHubIssueLabel {
+  readonly id: number
+  readonly name: string
+  readonly color: string
+  readonly description: string | undefined
+  readonly isDefault: boolean
+}
+
+export interface GitHubIssueSearch {
+  readonly totalCount: number
+  readonly incompleteResults: boolean
+  readonly issues: readonly GitHubIssue[]
+}
+
+export interface GitHubRelease {
+  readonly url: string
+  readonly tag: string
+  readonly target: string
+  readonly name: string | undefined
+  readonly isDraft: boolean
+  readonly isPrerelease: boolean
+  readonly createdAt: string
+  readonly publishedAt: string | undefined
+  readonly body: string
+}
+
+export interface GitHubTag {
+  readonly name: string
+  readonly sha: string
+}
+
+export interface GitHubCommitMatch {
+  readonly sha: string
+  readonly url: string
+  readonly message: string
+  readonly date: string
+  readonly author: string | undefined
+  readonly score: number
+}
+
+export interface GitHubCommitSearch {
+  readonly totalCount: number
+  readonly incompleteResults: boolean
+  readonly commits: readonly GitHubCommitMatch[]
 }
 
 /** A repository's default branch, and for a fork the repository it came from. */
@@ -245,6 +417,38 @@ function errorMessage(body: unknown, status: number): string {
     : `${parsed.data.message}: ${details.join('; ')}`
 }
 
+function toGitHubIssue(raw: z.infer<typeof issueSchema>): GitHubIssue {
+  return {
+    id: raw.id,
+    number: raw.number,
+    url: raw.html_url,
+    state: raw.state,
+    title: raw.title,
+    author: raw.user,
+    labels: raw.labels.map((label) => label.name),
+    isLocked: raw.locked,
+    commentCount: raw.comments,
+    createdAt: raw.created_at,
+    updatedAt: raw.updated_at,
+    closedAt: raw.closed_at ?? undefined,
+    body: raw.body ?? '',
+    association: raw.author_association,
+    isPullRequest: raw.pull_request !== undefined,
+  }
+}
+
+function toGitHubComment(raw: z.infer<typeof issueCommentSchema>): GitHubIssueComment {
+  return {
+    id: raw.id,
+    url: raw.html_url,
+    author: raw.user,
+    createdAt: raw.created_at,
+    updatedAt: raw.updated_at,
+    body: raw.body ?? '',
+    association: raw.author_association,
+  }
+}
+
 function toPullRequest(raw: z.infer<typeof pullRequestSchema>): PullRequest {
   return {
     number: raw.number,
@@ -338,7 +542,7 @@ export class GitHubClient {
   */
   private async request(
     token: string,
-    method: 'GET' | 'POST',
+    method: 'GET' | 'POST' | 'PATCH',
     path: string,
     body?: unknown,
     signal?: AbortSignal,
@@ -394,6 +598,27 @@ export class GitHubClient {
       throw new GitHubError(UI_TEXT.gitHubResponseInvalid, 'response', undefined)
     }
     return parsed.data
+  }
+
+  /** Every page of a `per_page` list until a short one ends it. `extra`
+  holds a call's own filters ahead of the paging pair; `fetchPage` reads
+  one page through the query it is given. */
+  private async pagedList<Mapped>(
+    fetchPage: (query: URLSearchParams) => Promise<readonly Mapped[]>,
+    extra?: Readonly<Record<string, string>>,
+  ): Promise<Mapped[]> {
+    const items: Mapped[] = []
+    for (let page = 1; ; page += 1) {
+      const query = new URLSearchParams({
+        ...extra,
+        per_page: String(GITHUB_ISSUES_PAGE_SIZE),
+        page: String(page),
+      })
+      const found = await fetchPage(query)
+      items.push(...found)
+      if (found.length < GITHUB_ISSUES_PAGE_SIZE) break
+    }
+    return items
   }
 
   public async currentUser(token: string): Promise<GitHubUser> {
@@ -521,5 +746,228 @@ export class GitHubClient {
         break
     }
     return summarizeChecks(runs, statuses)
+  }
+
+  /** One issue by number. Pull requests arrive with `isPullRequest` set. */
+  public async issue(
+    token: string,
+    repository: GitHubRepository,
+    number: number,
+  ): Promise<GitHubIssue> {
+    const raw = await this.request(
+      token,
+      'GET',
+      `${repositoryPath(repository)}/issues/${String(number)}`,
+    )
+    return toGitHubIssue(this.parse(issueSchema, raw, 'issue'))
+  }
+
+  /** Every issue page, newest first, until a short page ends the list. */
+  public async listIssues(
+    token: string,
+    repository: GitHubRepository,
+    signal?: AbortSignal,
+  ): Promise<GitHubIssue[]> {
+    return await this.pagedList(
+      async (query) => {
+        const parsed = this.parse(
+          z.array(issueSchema),
+          await this.request(
+            token,
+            'GET',
+            `${repositoryPath(repository)}/issues?${query.toString()}`,
+            undefined,
+            signal,
+          ),
+          'issue list',
+        )
+        return parsed.map((item) => toGitHubIssue(item))
+      },
+      { state: 'all', sort: 'updated', direction: 'desc' },
+    )
+  }
+
+  /** An issue's comments, oldest first, until a short page ends the list. */
+  public async issueComments(
+    token: string,
+    repository: GitHubRepository,
+    number: number,
+  ): Promise<GitHubIssueComment[]> {
+    return await this.pagedList(async (query) => {
+      const parsed = this.parse(
+        z.array(issueCommentSchema),
+        await this.request(
+          token,
+          'GET',
+          `${repositoryPath(repository)}/issues/${String(number)}/comments?${query.toString()}`,
+        ),
+        'issue comments',
+      )
+      return parsed.map((item) => toGitHubComment(item))
+    })
+  }
+
+  /** The repository's labels, every page until a short one ends the list. */
+  public async issueLabels(
+    token: string,
+    repository: GitHubRepository,
+  ): Promise<GitHubIssueLabel[]> {
+    return await this.pagedList(async (query) => {
+      const parsed = this.parse(
+        z.array(issueLabelSchema),
+        await this.request(
+          token,
+          'GET',
+          `${repositoryPath(repository)}/labels?${query.toString()}`,
+        ),
+        'label list',
+      )
+      return parsed.map((label) => ({
+        id: label.id,
+        name: label.name,
+        color: label.color,
+        description: label.description ?? undefined,
+        isDefault: label.default,
+      }))
+    })
+  }
+
+  /** Issue search, first page. The caller passes the whole `q`. */
+  public async searchIssues(token: string, query: string): Promise<GitHubIssueSearch> {
+    const search = new URLSearchParams({
+      q: query,
+      per_page: String(GITHUB_ISSUES_PAGE_SIZE),
+    })
+    const parsed = this.parse(
+      issueSearchSchema,
+      await this.request(token, 'GET', `/search/issues?${search.toString()}`),
+      'issue search',
+    )
+    return {
+      totalCount: parsed.total_count,
+      incompleteResults: parsed.incomplete_results,
+      issues: parsed.items.map((item) => toGitHubIssue(item)),
+    }
+  }
+
+  /** Posts a comment as the signed-in person. The answer parses as the
+  comment it created (docs.github.com/rest/issues/comments), anything
+  else-shaped refusing out loud. */
+  public async postIssueComment(
+    token: string,
+    repository: GitHubRepository,
+    number: number,
+    body: string,
+  ): Promise<GitHubIssueComment> {
+    const raw = await this.request(
+      token,
+      'POST',
+      `${repositoryPath(repository)}/issues/${String(number)}/comments`,
+      { body },
+    )
+    return toGitHubComment(this.parse(issueCommentSchema, raw, 'new issue comment'))
+  }
+
+  /** Adds labels; GitHub answers the issue's whole label list. */
+  public async addIssueLabels(
+    token: string,
+    repository: GitHubRepository,
+    number: number,
+    labels: readonly string[],
+  ): Promise<readonly string[]> {
+    const parsed = this.parse(
+      z.array(issueLabelSchema),
+      await this.request(
+        token,
+        'POST',
+        `${repositoryPath(repository)}/issues/${String(number)}/labels`,
+        {
+          labels: [...labels],
+        },
+      ),
+      'issue labels',
+    )
+    return parsed.map((label) => label.name)
+  }
+
+  /** Closes an issue. The answer parses as the issue it closed. */
+  public async closeIssue(
+    token: string,
+    repository: GitHubRepository,
+    number: number,
+  ): Promise<GitHubIssue> {
+    const raw = await this.request(
+      token,
+      'PATCH',
+      `${repositoryPath(repository)}/issues/${String(number)}`,
+      { state: 'closed' },
+    )
+    return toGitHubIssue(this.parse(issueSchema, raw, 'closed issue'))
+  }
+
+  /** The repository's releases, newest first, until a short page ends them. */
+  public async listReleases(token: string, repository: GitHubRepository): Promise<GitHubRelease[]> {
+    return await this.pagedList(async (query) => {
+      const parsed = this.parse(
+        z.array(releaseSchema),
+        await this.request(
+          token,
+          'GET',
+          `${repositoryPath(repository)}/releases?${query.toString()}`,
+        ),
+        'release list',
+      )
+      return parsed.map((release) => ({
+        url: release.html_url,
+        tag: release.tag_name,
+        target: release.target_commitish,
+        name: release.name ?? undefined,
+        isDraft: release.draft,
+        isPrerelease: release.prerelease,
+        createdAt: release.created_at,
+        publishedAt: release.published_at ?? undefined,
+        body: release.body ?? '',
+      }))
+    })
+  }
+
+  /** The repository's tags, newest first, until a short page ends them. */
+  public async listTags(token: string, repository: GitHubRepository): Promise<GitHubTag[]> {
+    return await this.pagedList(async (query) => {
+      const parsed = this.parse(
+        z.array(tagSchema),
+        await this.request(token, 'GET', `${repositoryPath(repository)}/tags?${query.toString()}`),
+        'tag list',
+      )
+      return parsed.map((tag) => ({
+        name: tag.name,
+        sha: tag.commit.sha,
+      }))
+    })
+  }
+
+  /** Commit search, first page. The caller passes the whole `q`. */
+  public async searchCommits(token: string, query: string): Promise<GitHubCommitSearch> {
+    const search = new URLSearchParams({
+      q: query,
+      per_page: String(GITHUB_ISSUES_PAGE_SIZE),
+    })
+    const parsed = this.parse(
+      commitSearchSchema,
+      await this.request(token, 'GET', `/search/commits?${search.toString()}`),
+      'commit search',
+    )
+    return {
+      totalCount: parsed.total_count,
+      incompleteResults: parsed.incomplete_results,
+      commits: parsed.items.map((item) => ({
+        sha: item.sha,
+        url: item.html_url,
+        message: item.commit.message,
+        date: item.commit.author.date,
+        author: item.author?.login ?? item.committer?.login,
+        score: item.score,
+      })),
+    }
   }
 }

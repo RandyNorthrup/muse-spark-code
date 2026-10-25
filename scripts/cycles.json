@@ -104,6 +104,7 @@
     "src/core/backends/modelapi/schedulesEntry.ts",
     "src/runtime/schedules/schedulesBundle.ts",
     "src/runtime/playbook/playbookEntry.ts",
+    "src/runtime/watchdog/watchdogEntry.ts",
     "src/host/media/mediaEntry.ts",
     "src/host/media/screenRecordEntry.ts",
     "src/host/vscode/vault/vaultPanelEntry.ts",

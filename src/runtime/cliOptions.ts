@@ -469,6 +469,7 @@ export function formatCommandHelp(table: UiText, command: string, route: string)
       authGitHub: table.referenceAuthGitHub,
       schedule: table.scheduleV2.runtime.usage,
       playbook: table.playbookCommandUsage,
+      watchdog: table.watchdog.cli.usage,
       developer: table.developer.commandUsage,
       'providers accounts': table.accounts.cliUsage,
       chatGptProvider: table.acpChatGpt.usage,

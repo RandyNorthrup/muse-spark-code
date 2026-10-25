@@ -14,3 +14,7 @@ design/fonts/pack/** -text whitespace=cr-at-eol
 test/fixtures/nodeos-boot/** -text whitespace=cr-at-eol
 *.woff2 binary
 src/core/legal/legal-data/** -text whitespace=cr-at-eol
+
+# RLSCHED M115w: recorded GitHub response bodies are pinned bytes, hashed by
+# their receipts (test/unit/watchdogCaptures.test.ts); never normalize them.
+test/fixtures/m115w/** -text

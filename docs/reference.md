@@ -4077,6 +4077,7 @@ These are defaults; editor customizations take precedence.
   muse-spark-code-acp report problem
 
 - `playbook [status|record|settings|run <name>]`: Use `playbook status|record|settings|run <name> [--heavy] [--full-gate]`.
+- `watchdog [list|status|pause|resume|poll|policy|evidence|apply|decide|resolve]`: Watch GitHub issues from the terminal: list, status, pause, resume, poll, policy, evidence, apply, decide and resolve.
 - `fonts install [--from <directory>]`: Usage: muse-spark-code-acp fonts install [--from &lt;directory&gt;]
 - `help reference / help --all`: Commands, settings and features, with descriptions and documentation.
 - `help / --help / -h`: help / --help / -h: ACP / CLI. help &lt;command&gt; / &lt;command&gt; --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.

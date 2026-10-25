@@ -898,6 +898,7 @@
   "referenceExecContract": "Ausführungen ohne Oberfläche verweigern Workspace-Vertrauen und das Umgehen von Berechtigungen. Ohne Oberfläche sind nur plan oder acceptEdits erlaubt. Gehostete Websuche hat keine begrenzte Freigabe und wird verweigert. Bilderzeugung benötigt acceptEdits. Wähle genau eine Prompt-Quelle. Prompt und Schlüssel können nicht beide stdin verwenden. Die Model API benötigt --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --subscription / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Die automatische Komprimierung läuft nur mit --auto-compaction unter --max-budget-usd.",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: Verwendung, Optionen und Beispiele für einen Befehl. help --all: Befehle, Einstellungen und Funktionen mit Beschreibungen und Dokumentation.",
   "referenceJudgeUsage": "Verwendung: {command} judge ask|calibrate|report|mcp [Optionen] < request.json; {command} judge serve|lint|scan|setup|remove [Optionen]. Einrichtung und Entfernung ändern ohne --yes nichts. Exitcodes: 0 fertig, 2 Verwendung, 4 fehlgeschlagen.",
+  "referenceWatchdog": "GitHub-Probleme vom Terminal aus beobachten: auflisten, Status, pausieren, fortsetzen, abfragen, Richtlinie, Beweise, anwenden, entscheiden und auflösen.",
   "referenceKeyStdin": "auth set: Liest Ihren Schlüssel in einem Terminal ein und bewahrt ihn im Anmeldeinformationsspeicher dieses Computers auf. Die Unterhaltungen werden über den Schlüssel abgerechnet. exec / scan-secrets --key-stdin: Lies den Schlüssel aus einer Pipe, nicht aus einem Terminal. stdin → memory; prompt stdin + key stdin = Prompt und Schlüssel können nicht beide stdin verwenden.",
   "referenceModalKeys": "Den Dialog schließen oder den Fokus darin bewegen.",
   "referenceRenameKeys": "Das Umbenennen dieser Unterhaltung bestätigen oder abbrechen.",
@@ -1187,7 +1188,8 @@
       "kind": "Berichtsart",
       "format": "Berichtsformat",
       "args": "Argumente",
-      "destinations": "Ziele"
+      "destinations": "Ziele",
+      "destinationsPending": "Berichtsziele sind noch nicht bereit. Sie kommen mit einem späteren Update."
     },
     "runtime": {
       "usage": "Verwendung: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Exitcodes: 0 Erfolg, 1 Ablehnung, 2 Aufruffehler, 3 Bereinigungswarnung.",
@@ -2339,6 +2341,112 @@
     "deviceFlow": "die GitHub-Anmeldung von Muse Spark",
     "ghLogin": "die GitHub CLI (gh)"
   },
+  "watchdog": {
+    "title": "Issue-Watchdog",
+    "ack": {
+      "body": "Danke für die Meldung. Sie wird jetzt gesichtet, und jede Rückmeldung wird hier veröffentlicht.",
+      "automatedNote": "Diese Nachricht wurde automatisch vom Issue-Watchdog des Repository-Betreuers veröffentlicht."
+    },
+    "reply": {
+      "needsInfo": "Danke. Bevor es weitergehen kann, werden noch einige Informationen benötigt:\n\n{questions}\n\nBitte antworten Sie hier; sobald Sie das tun, wird das Problem erneut angesehen.",
+      "duplicate": "Dies sieht wie ein Duplikat von #{duplicate} aus. Falls jenes Problem nicht abdeckt, was Sie gemeldet haben, sagen Sie bitte hier Bescheid, dann wird es erneut angesehen.",
+      "alreadyFixed": "Dies wurde in {fixedIn} behoben. Bitte aktualisieren Sie, und öffnen Sie das Problem erneut, wenn es weiterhin auftritt.",
+      "invalid": "In dieser Form kann dies nicht bearbeitet werden: {reason}. Bitte öffnen Sie ein neues Problem mit den fehlenden Angaben.",
+      "fixed": "Dies wird durch {pullRequest} behoben und ist in {version} enthalten. Danke für die Meldung."
+    },
+    "states": {
+      "seen": "Gesehen",
+      "acknowledged": "Bestätigt",
+      "triaged": "Gesichtet",
+      "awaitingInfo": "Wartet auf Informationen",
+      "planned": "Geplant",
+      "replied": "Beantwortet",
+      "closed": "Geschlossen"
+    },
+    "waits": {
+      "seen": "Die Bestätigung wurde noch nicht gepostet",
+      "acknowledged": "Wartet auf die Sichtung",
+      "triaged": "Wartet auf Ihre Entscheidung",
+      "awaitingInfo": "Wartet auf die Antwort der meldenden Person",
+      "planned": "Wartet auf die Korrektur und ihre Überprüfung",
+      "replied": "Nichts: beantwortet",
+      "closed": "Nichts: geschlossen"
+    },
+    "cli": {
+      "empty": "Der Watchdog beobachtet noch kein Repository.",
+      "notWatched": "Dieses Repository wird nicht beobachtet.",
+      "paused": "Watchdog für {repository} pausiert.",
+      "resumed": "Watchdog für {repository} fortgesetzt.",
+      "alreadyPaused": "Der Watchdog für {repository} ist bereits pausiert.",
+      "notPaused": "Der Watchdog für {repository} ist nicht pausiert.",
+      "invalidRepository": "Geben Sie ein Repository als Besitzer/Name an.",
+      "watching": "Beobachte {repository}.",
+      "usage": "Verwenden Sie `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|policy <repository> [label|template|watch-labels|ignore-authors|posts|close <value>]|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`.",
+      "notSignedIn": "Melden Sie sich zuerst bei GitHub an und führen Sie `auth github` aus.",
+      "invalidIssue": "Geben Sie eine Problemnummer an.",
+      "invalidEvidence": "Der Verifizierungsnachweis hatte nicht die erwartete Form.",
+      "applyNeedsAck": "Dieses Problem wartet nicht auf die Sichtung.",
+      "decideNeedsTriage": "Dieses Problem hat keine Sichtung zu entscheiden.",
+      "resolveNeedsPlan": "Dieses Problem hat keinen Plan zum Abschließen.",
+      "overdue": "überfällig",
+      "commandFailed": "Der Watchdog-Befehl konnte nicht abgeschlossen werden.",
+      "unavailable": "Der Watchdog ist nicht verfügbar.",
+      "description": "Beobachtete GitHub-Probleme auflisten, abfragen und entscheiden.",
+      "pausedWord": "Pausiert",
+      "issueCount": {
+        "one": "{count} Problem",
+        "other": "{count} Probleme"
+      },
+      "noIssues": "Keine Probleme verzeichnet.",
+      "triagedAs": "Gesichtet als {verdict}.",
+      "decided": "Entschieden: {outcome}.",
+      "posted": "Veröffentlicht.",
+      "closedNote": "Geschlossen.",
+      "notVerified": "Nicht verifiziert: {notes}.",
+      "unknownIssue": "Dieses Problem wird nicht beobachtet.",
+      "alreadyPosted": "Die Antwort ist bereits veröffentlicht.",
+      "policyHeading": "Richtlinie für {repository}:",
+      "policySet": "{key} für {repository} festgelegt.",
+      "policyInvalid": "Dieser Wert ist für {key} nicht erlaubt. Verwenden Sie {allowed}.",
+      "policyUnknownKey": "Unbekannter Richtlinienschlüssel. Verwenden Sie label, template, watch-labels, ignore-authors, posts oder close.",
+      "proposedReply": "Die Antwort, die gepostet würde:"
+    },
+    "poll": {
+      "skippedPullRequest": "ein Pull Request, kein Problem",
+      "skippedLocked": "gesperrt",
+      "skippedAuthor": "ein ignorierter Autor",
+      "skippedLabels": "außerhalb der beobachteten Labels",
+      "alreadyAcked": "bereits bestätigt",
+      "ackPosted": "bestätigt"
+    },
+    "verdicts": {
+      "valid": "Gültig",
+      "needsInfo": "Braucht Informationen",
+      "duplicate": "Duplikat",
+      "alreadyFixed": "Bereits behoben",
+      "inHand": "In Arbeit",
+      "invalid": "Ungültig",
+      "spam": "Spam"
+    },
+    "outcomes": {
+      "planEntry": "Planeintrag",
+      "fixLane": "Fix-Spur"
+    },
+    "planDraft": {
+      "intro": "Watchdog-Planentwurf für {repository}#{number} (Ergebnis: {verdict}).",
+      "issue": "Problem",
+      "findings": "Ergebnisse",
+      "questions": "Offene Fragen"
+    },
+    "triage": {
+      "unreadable": "Die Sichtung kam nicht als Ergebnisse zurück."
+    },
+    "refusal": {
+      "spamHeld": "Als möglicher Spam zurückgehalten: nichts wurde veröffentlicht.",
+      "approvalRequired": "Dieser Beitrag braucht zuerst Ihre Freigabe.",
+      "reportOnly": "Nur Bericht: Bis die Sicherheitsprüfung abgeschlossen ist, wird nichts außer der Bestätigung gepostet."
+    }
+  },
   "gitHubSignOut": "Abmelden",
   "gitHubSignOutFailed": "Die Abmeldung von GitHub konnte nicht abgeschlossen werden. Versuchen Sie es erneut.",
   "gitRefresh": "Aktualisieren",
@@ -2655,7 +2763,7 @@
     "other": "{count} Prüfläufe konnten nicht gelesen werden."
   },
   "reportCliUsage": "Einen deterministischen Bericht aus benannten Quellen ohne Modellaufruf erstellen.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
-  "reportCliKinds": "Arten: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",
+  "reportCliKinds": "Arten: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, issues [--repo <owner/name>], schedules.\n",
   "reportIssue": "Problem melden…",
   "reportCrashOffer": "Muse Spark Code wurde beim letzten Mal unerwartet beendet — Problem melden?",
   "reportCrashAction": "Problem melden",
@@ -4369,6 +4477,7 @@
     "purposePrompts": "Wiederverwendbare Prompt-Vorlagen speichern, auflisten, verwenden und teilen.",
     "purposeJudge": "Ask Muse Judge for verdicts on standard input.",
     "judgeServeLintNote": "serve and lint take their own flags; the options below belong to ask, calibrate, report and mcp.",
+    "purposeWatchdog": "GitHub-Probleme beobachten: auflisten, abfragen, sichten, entscheiden und auflösen.",
     "modelsList": "Modelle für {entry}:",
     "modelsForced": "erzwungen: {reason}",
     "modelsExtra": "Beim Anbieter, aber nicht im Eintrag:",

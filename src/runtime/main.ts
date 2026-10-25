@@ -21,7 +21,6 @@ import { homedir, hostname, tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { Writable } from 'node:stream'
-import { setTimeout as nodeSleep } from 'node:timers/promises'
 import type { SignInMethod } from '../acp/agent'
 import { runtimeQuestionsLoader } from './questions/questionRegistryBundle'
 import { voiceCompanionLoader } from './companion/voiceLoader'
@@ -36,6 +35,7 @@ import {
   PLAN_SNAPSHOT_BUNDLE_FILE,
   RUNTIME_QUESTIONS_BUNDLE_FILE,
   PLAYBOOK_BUNDLE_FILE,
+  WATCHDOG_BUNDLE_FILE,
   RUNTIME_ACCOUNTS_BUNDLE_FILE,
   ACP_AUTH_METHODS,
   EXEC_EXIT,
@@ -88,7 +88,10 @@ import {
   type ServeOptions,
 } from './cliArgs'
 import { parseSharingArgs, type SharingCommand } from './sharing/args'
-import { deviceFlowSource } from './github/deviceFlowSource'
+import { terminalGitHubDeviceFlow } from './github/terminalDeviceFlow'
+import { wireWordForLog } from '../core/logging'
+import type { WatchdogCommand, WatchdogSurfacePort } from './watchdog/command'
+import { watchdogLoader } from './watchdog/watchdogBundle'
 import { runtimeSharingLoader } from './sharing/sharingBundle'
 import { defaultServeOptions, sharingPorts, type SharingPortsDeps } from './sharing/sharingPorts'
 import { acpSharingCommands } from '../acp/sharing'
@@ -960,6 +963,18 @@ function runtimeReports(
             // M113 C-M113-4: the estimate report kind runs the headless
             // estimator for the report's workspace root. Only estimate
             // reports load it; networked reads stay off headless (D65).
+            // M115w WU: the issues kind reads the watchdog's records, which
+            // live under the same agent data folder.
+            issues: {
+              read: (context) =>
+                playbookSchedules()
+                  .createIssuesReportReader(
+                    { agentDataFolder: dataFolder },
+                    l10n.table,
+                    l10n.locale,
+                  )
+                  .read(context),
+            },
             estimate: {
               read: (request, context) =>
                 inputs()
@@ -1365,6 +1380,7 @@ async function serve(
       log,
     )
     const loadPlaybook = playbookLoader(path.join(distDir, PLAYBOOK_BUNDLE_FILE), log)
+    const loadWatchdog = watchdogLoader(path.join(distDir, WATCHDOG_BUNDLE_FILE), log)
     const registries: { flush(): Promise<void>; dispose(): void }[] = []
     const accountServices = options.backend === 'modelApi' ? loadAccounts() : undefined
     const runtime = await runtimeFor(
@@ -1501,6 +1517,21 @@ async function serve(
         holder: createReadingHolder<ResourceStatus>(),
         readResourceStatus: () => resources.status(),
       }),
+      watchdogFor: (_cwd: string, _sessionId: string, isGitHubCalled: boolean) =>
+        loadWatchdog().createWatchdogSurface(
+          {
+            log,
+            dataFolder: agentDataFolder({
+              platform: process.platform,
+              env: process.env,
+              homeDir: homedir(),
+            }),
+            userAgent: `muse-spark-code/${packageVersion()}`,
+            secrets: isGitHubCalled ? secrets : undefined,
+          },
+          UI_TEXT,
+          uiLocale(),
+        ),
       reports: { format: 'md', execute: (args, context) => reports().acp.execute(args, context) },
       // `/report problem` in every editor (lane REPORTFLOW R2, P3-8): the
       // same scrubbed draft the dialog previews and the terminal prints,
@@ -1636,6 +1667,16 @@ async function serve(
           parsePlaybookCommand: (argv: readonly string[]) => bundle.parsePlaybookCommand(argv),
           runPlaybookCommand: (command: PlaybookCommand, port: PlaybookSurfacePort | undefined) =>
             bundle.runPlaybookCommand(command, port, UI_TEXT, uiLocale()),
+        }
+      },
+      watchdogBundle: () => {
+        const bundle = loadWatchdog()
+        return {
+          parseWatchdogCommand: (argv: readonly string[]) => bundle.parseWatchdogCommand(argv),
+          requiresWatchdogGitHub: (command: WatchdogCommand) =>
+            bundle.requiresWatchdogGitHub(command),
+          runWatchdogCommand: (command: WatchdogCommand, port: WatchdogSurfacePort | undefined) =>
+            bundle.runWatchdogCommand(command, port, UI_TEXT, uiLocale()),
         }
       },
       estimate: createRuntimeEstimate({
@@ -2680,31 +2721,7 @@ async function main(processResources: ProcessResources): Promise<number> {
       try {
         const network = globalThis.fetch.bind(globalThis)
         return await authGitHub(command.action, {
-          // The terminal is this sign-in's surface: the code and GitHub's
-          // address are printed; the token never is.
-          source: deviceFlowSource({
-            store: secrets,
-            flow: {
-              fetch: network,
-              now: Date.now,
-              sleep: (ms, signal) => nodeSleep(ms, undefined, { signal }),
-            },
-            present: (prompt) => {
-              writeLine(
-                process.stdout,
-                fill(UI_TEXT.githubSignIn.code, {
-                  url: prompt.verificationUri,
-                  code: prompt.userCode,
-                }),
-              )
-              return Promise.resolve()
-            },
-            openExternal: (url) => {
-              writeLine(process.stdout, fill(UI_TEXT.githubSignIn.signedOut, { url }))
-              return Promise.resolve()
-            },
-            fetch: network,
-          }),
+          source: terminalGitHubDeviceFlow(network, secrets),
           storeName: credentialStoreName(process.platform),
           signal: controller.signal,
           print: (line) => {
@@ -2966,6 +2983,52 @@ async function main(processResources: ProcessResources): Promise<number> {
           printError: (line) => {
             writeLine(process.stderr, line)
           },
+        },
+        UI_TEXT,
+        uiLocale(),
+      )
+    }
+    case 'watchdog': {
+      // No backend, no model startup: the issue watchdog over its store
+      // and the terminal's GitHub sign-in (M115w WU), loaded on first use.
+      // The sign-in is read silently, and only for the verbs that call
+      // GitHub; anything else never touches the credential store.
+      const watchdog = watchdogLoader(path.join(distDir, WATCHDOG_BUNDLE_FILE), log)()
+      const parsed = watchdog.parseWatchdogCommand(command.argv)
+      const isWithGitHub = parsed !== undefined && watchdog.requiresWatchdogGitHub(parsed)
+      let port: WatchdogSurfacePort
+      try {
+        port = await watchdog.createWatchdogSurface(
+          {
+            log,
+            dataFolder: agentDataFolder({
+              platform: process.platform,
+              env: process.env,
+              homeDir: homedir(),
+            }),
+            userAgent: `muse-spark-code/${packageVersion()}`,
+            secrets: isWithGitHub ? secrets : undefined,
+          },
+          UI_TEXT,
+          uiLocale(),
+        )
+      } catch (error: unknown) {
+        if (!(error instanceof Error)) throw error
+        log.warn(`The watchdog surface is unavailable: ${wireWordForLog(error.name)}`)
+        writeLine(process.stderr, UI_TEXT.watchdog.cli.commandFailed)
+        return 1
+      }
+      return await watchdog.runWatchdogCli(
+        command.argv,
+        {
+          port,
+          writeStdout: (text) => {
+            writeLine(process.stdout, text)
+          },
+          printError: (line) => {
+            writeLine(process.stderr, line)
+          },
+          log,
         },
         UI_TEXT,
         uiLocale(),

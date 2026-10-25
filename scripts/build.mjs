@@ -448,6 +448,8 @@ const APPROVAL_MODES_ENTRY = 'src/core/backends/musecode/approvalModesEntry.ts'
 const APPROVAL_MODES_OUTFILE = 'dist/approvalModes.js'
 const PLAYBOOK_ENTRY = 'src/runtime/playbook/playbookEntry.ts'
 const PLAYBOOK_OUTFILE = 'dist/acpPlaybook.js'
+const WATCHDOG_ENTRY = 'src/runtime/watchdog/watchdogEntry.ts'
+const WATCHDOG_OUTFILE = 'dist/acpWatchdog.js'
 const RUNTIME_ACCOUNTS_ENTRY = 'src/runtime/providers/accountsEntry.ts'
 const RUNTIME_ACCOUNTS_OUTFILE = 'dist/runtimeAccounts.js'
 // M110t TP2: the pack index verifier (Sigstore's verification packages),
@@ -609,7 +611,7 @@ const reportInputsOptions = {
   outfile: 'dist/reportInputs.js',
 }
 // C-M113-4: the playbook and schedules inputs (journal replay, schedule
-// store) load on the first playbook or schedules report. They ride their
+// store) load on the first playbook, schedules or issues report. They ride their
 // own chunk because the replay and store machinery would overflow the
 // session/usage chunk's budget, which stays unchanged.
 const playbookSchedulesInputsOptions = {
@@ -1804,6 +1806,11 @@ const playbookOptions = {
   entryPoints: [PLAYBOOK_ENTRY],
   outfile: PLAYBOOK_OUTFILE,
 }
+const watchdogOptions = {
+  ...acpQuestionsOptions,
+  entryPoints: [WATCHDOG_ENTRY],
+  outfile: WATCHDOG_OUTFILE,
+}
 const runtimeAccountsOptions = {
   ...acpQuestionsOptions,
   entryPoints: [RUNTIME_ACCOUNTS_ENTRY],
@@ -2573,6 +2580,7 @@ if (isWatch) {
     ['runtimeQuestions', () => esbuild.build(runtimeQuestionsOptions)],
     ['fontInstall', () => esbuild.build(fontInstallOptions)],
     ['playbook', () => esbuild.build(playbookOptions)],
+    ['watchdog', () => esbuild.build(watchdogOptions)],
     ['runtimeAccounts', () => esbuild.build(runtimeAccountsOptions)],
     ['packsVerify', () => esbuild.build(packsVerifyOptions)],
     ['vaultRuntime', () => esbuild.build(vaultRuntimeOptions)],
@@ -2592,6 +2600,7 @@ if (isWatch) {
   let runtimeQuestions
   let fontInstall
   let playbook
+  let watchdog
   let runtimeAccounts
   let packsVerify
   let vaultRuntime
@@ -2609,6 +2618,7 @@ if (isWatch) {
       runtimeQuestions,
       fontInstall,
       playbook,
+      watchdog,
       runtimeAccounts,
       packsVerify,
       vaultRuntime,
@@ -2647,6 +2657,7 @@ if (isWatch) {
     const { metafile: questionsMetafile } = await acpQuestions
     const { metafile: runtimeQuestionsMetafile } = await runtimeQuestions
     const { metafile: playbookMetafile } = await playbook
+    const { metafile: watchdogMetafile } = await watchdog
     const { metafile: runtimeAccountsMetafile } = await runtimeAccounts
     const { metafile: packsVerifyMetafile } = await packsVerify
     const { metafile: vaultRuntimeMetafile } = await vaultRuntime
@@ -2684,10 +2695,12 @@ if (isWatch) {
     writeFileSync(path.join(ACP_METAFILE_DIR, 'lsp.json'), JSON.stringify(lspMetafile))
     const { metafile: superviseMetafile } = await supervise
     writeFileSync(path.join(ACP_METAFILE_DIR, 'supervise.json'), JSON.stringify(superviseMetafile))
+    writeFileSync(path.join(ACP_METAFILE_DIR, 'acpWatchdog.json'), JSON.stringify(watchdogMetafile))
   }
   console.log('bundle sizes:')
   reportSize(ACP_QUESTIONS_OUTFILE)
   reportSize(PLAYBOOK_OUTFILE)
+  reportSize(WATCHDOG_OUTFILE)
   reportSize(HOST_OUTFILE)
   reportSize(CONVERSATION_OUTFILE)
   reportSize(CONVERSATION_TRANSFER_OUTFILE)

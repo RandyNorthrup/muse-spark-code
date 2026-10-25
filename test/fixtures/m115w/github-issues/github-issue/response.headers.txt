@@ -1,0 +1,16 @@
+HTTP/1.1 200 OK
+date: Thu, 22 Oct 2026 22:01:40 GMT
+content-type: application/json; charset=utf-8
+cache-control: public, max-age=60, s-maxage=60
+vary: Accept,Accept-Encoding, Accept, X-Requested-With
+etag: W/"c26cb185eeeab2a1380e7266655be4d8a3b34e764d6ba110731c059dcee9db44"
+last-modified: Mon, 12 Oct 2026 06:22:12 GMT
+x-github-media-type: github.v3; format=json
+x-github-api-version-selected: 2022-11-28
+accept-ranges: bytes
+x-ratelimit-limit: 60
+x-ratelimit-remaining: 31
+x-ratelimit-used: 29
+x-ratelimit-resource: core
+x-ratelimit-reset: 1792707770
+transfer-encoding: chunked

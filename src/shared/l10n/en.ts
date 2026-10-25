@@ -1108,6 +1108,8 @@ export const EN = {
     'help / --help / -h: ACP / CLI. help <command> / <command> --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.',
   referenceJudgeUsage:
     'Usage: {command} judge ask|calibrate|report|mcp [options] < request.json; {command} judge serve|lint|scan|setup|remove [options]. Setup and removal change nothing without --yes. Exit codes: 0 done, 2 usage, 4 failed.',
+  referenceWatchdog:
+    'Watch GitHub issues from the terminal: list, status, pause, resume, poll, policy, evidence, apply, decide and resolve.',
   referenceKeyStdin:
     'auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.',
   referenceModalKeys: 'Close the dialog or move focus within it.',
@@ -1475,6 +1477,8 @@ export const EN = {
       format: 'Format',
       args: 'Arguments',
       destinations: 'Destinations',
+      destinationsPending:
+        'Report destinations are not ready yet. They arrive with a later update.',
     },
     runtime: {
       usage:
@@ -2883,6 +2887,117 @@ export const EN = {
     deviceFlow: 'Muse Spark’s GitHub sign-in',
     ghLogin: 'the GitHub CLI (gh)',
   },
+  watchdog: {
+    title: 'Issue watchdog',
+    ack: {
+      body: 'Thank you for the report. It is now being triaged, and any follow-up will be posted here.',
+      automatedNote:
+        'This message was posted automatically by the repository maintainer’s issue watchdog.',
+    },
+    reply: {
+      needsInfo:
+        'Thank you. Before this can move forward, a little more information is needed:\n\n{questions}\n\nPlease reply here; this issue will be looked at again when you do.',
+      duplicate:
+        'This looks like a duplicate of #{duplicate}. If that issue does not cover what you reported, please say so here and this will be looked at again.',
+      alreadyFixed:
+        'This was fixed in {fixedIn}. Please update, and reopen this issue if you still see it.',
+      invalid:
+        'This cannot be acted on as written: {reason}. Please open a new issue with the missing detail.',
+      fixed: 'This is fixed by {pullRequest} and shipped in {version}. Thank you for the report.',
+    },
+    states: {
+      seen: 'Seen',
+      acknowledged: 'Acknowledged',
+      triaged: 'Triaged',
+      awaitingInfo: 'Waiting for information',
+      planned: 'Planned',
+      replied: 'Replied',
+      closed: 'Closed',
+    },
+    waits: {
+      seen: 'The acknowledgement has not been posted yet',
+      acknowledged: 'Waiting for its triage',
+      triaged: 'Waiting for your decision',
+      awaitingInfo: 'Waiting for the reporter’s answer',
+      planned: 'Waiting for the fix and its verification',
+      replied: 'Nothing: replied',
+      closed: 'Nothing: closed',
+    },
+    cli: {
+      empty: 'The watchdog is not watching any repository yet.',
+      notWatched: 'This repository is not watched.',
+      paused: 'Watchdog paused for {repository}.',
+      resumed: 'Watchdog resumed for {repository}.',
+      alreadyPaused: 'The watchdog is already paused for {repository}.',
+      notPaused: 'The watchdog is not paused for {repository}.',
+      invalidRepository: 'Give a repository as owner/name.',
+      watching: 'Watching {repository}.',
+      usage:
+        'Use `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|policy <repository> [label|template|watch-labels|ignore-authors|posts|close <value>]|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`.',
+      notSignedIn: 'Sign in to GitHub first, then run `auth github`.',
+      invalidIssue: 'Give an issue number.',
+      invalidEvidence: 'The verification evidence did not have the expected shape.',
+      applyNeedsAck: 'This issue is not waiting for triage.',
+      decideNeedsTriage: 'This issue has no triage to decide.',
+      resolveNeedsPlan: 'This issue has no plan to resolve.',
+      overdue: 'overdue',
+      commandFailed: 'The watchdog command could not be completed.',
+      unavailable: 'The watchdog is unavailable.',
+      description: 'List, poll and decide watched GitHub issues.',
+      pausedWord: 'Paused',
+      issueCount: forms({ one: '{count} issue', other: '{count} issues' }),
+      noIssues: 'No issues recorded.',
+      triagedAs: 'Triaged as {verdict}.',
+      decided: 'Decided: {outcome}.',
+      posted: 'Posted.',
+      closedNote: 'Closed.',
+      notVerified: 'Not verified: {notes}.',
+      unknownIssue: 'This issue is not being watched.',
+      alreadyPosted: 'The reply is already posted.',
+      policyHeading: 'Policy for {repository}:',
+      policySet: 'Set {key} for {repository}.',
+      policyInvalid: 'That value is not allowed for {key}. Use {allowed}.',
+      policyUnknownKey:
+        'Unknown policy key. Use label, template, watch-labels, ignore-authors, posts or close.',
+      proposedReply: 'The reply it would post:',
+    },
+    poll: {
+      skippedPullRequest: 'a pull request, not an issue',
+      skippedLocked: 'locked',
+      skippedAuthor: 'an ignored author',
+      skippedLabels: 'outside the watched labels',
+      alreadyAcked: 'already acknowledged',
+      ackPosted: 'acknowledged',
+    },
+    verdicts: {
+      valid: 'Valid',
+      needsInfo: 'Needs information',
+      duplicate: 'Duplicate',
+      alreadyFixed: 'Already fixed',
+      inHand: 'In hand',
+      invalid: 'Invalid',
+      spam: 'Spam',
+    },
+    outcomes: {
+      planEntry: 'Plan entry',
+      fixLane: 'Fix lane',
+    },
+    planDraft: {
+      intro: 'Watchdog plan draft for {repository}#{number} (verdict: {verdict}).',
+      issue: 'Issue',
+      findings: 'Findings',
+      questions: 'Open questions',
+    },
+    triage: {
+      unreadable: 'The triage did not come back as findings.',
+    },
+    refusal: {
+      spamHeld: 'Held as suspected spam: nothing was posted.',
+      approvalRequired: 'This post needs your approval first.',
+      reportOnly:
+        'Report only: nothing beyond the acknowledgement is posted until the safety review lands.',
+    },
+  },
   gitHubSignOut: 'Sign Out',
   gitHubSignOutFailed: 'GitHub sign-out could not finish. Try again.',
   gitRefresh: 'Refresh',
@@ -3220,7 +3335,7 @@ export const EN = {
   reportCliUsage:
     'Generate a deterministic report from named sources, without a model call.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n',
   reportCliKinds:
-    'Kinds: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n',
+    'Kinds: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, issues [--repo <owner/name>], schedules.\n',
   reportIssue: 'Report an Issue…',
   // Report a problem (M93, PLAN.md D72): the crash offer, the report
   // dialog's labels and actions, and the export outcomes. The preview shows
@@ -5464,6 +5579,7 @@ export const EN = {
     purposeJudge: 'Ask Muse Judge for verdicts on standard input.',
     judgeServeLintNote:
       'serve and lint take their own flags; the options below belong to ask, calibrate, report and mcp.',
+    purposeWatchdog: 'Watch GitHub issues: list, poll, triage, decide and resolve.',
     // {entry}: the provider entry id.
     modelsList: 'Models for {entry}:',
     // {reason}: the user's one-line reason for forcing the model.

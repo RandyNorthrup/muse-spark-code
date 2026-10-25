@@ -25,9 +25,9 @@ export interface RuntimeSchedulesBinding extends AcpSchedulePort {
   close(): Promise<void>
 }
 
-export type CreateRuntimeSchedulesArgs = [
-  table: UiText,
-  locale: string,
+/** The optional tail the args tuple and the binding factory share: one
+list, so the two can never drift apart. */
+type RuntimeSchedulesTail = [
   delivery?: ScheduleEditorDeliveryPorts,
   runtimeDelivery?: RuntimeScheduleDeliveryPorts,
   migration?: { source: ScheduleMigrationSource; zone: string },
@@ -38,6 +38,17 @@ export type CreateRuntimeSchedulesArgs = [
   // The caller's own stop (D121, RLF-NOLIMITS): the CLI binds Ctrl-C here,
   // so store waits end at the person's stop with the abort in words.
   signal?: AbortSignal,
+  // Hosts whose workspace trust can refuse git observation (VS Code).
+  // Absent trusts the process's own machine (the CLI, ACP).
+  isWorkspaceTrusted?: (root: string) => boolean,
+]
+
+export type CreateRuntimeSchedulesArgs = [
+  table: UiText,
+  locale: string,
+  // Failures the person gets as fixed sentences keep their kind here.
+  log: Logger,
+  ...tail: RuntimeSchedulesTail,
 ]
 
 interface RuntimeSchedulesModule {
@@ -57,16 +68,19 @@ export function runtimeSchedulesBinding(
   bundlePath: string,
   log: Logger,
   loadBundle?: (file: string) => unknown,
-  delivery?: ScheduleEditorDeliveryPorts,
-  runtimeDelivery?: RuntimeScheduleDeliveryPorts,
-  migration?: { source: ScheduleMigrationSource; zone: string },
-  scheduleEngine?: RuntimeScheduleEngineModule,
-  // D121: the person's pause-after-failures count (0 never pauses), read
-  // live on every settlement when it is a function. Absent never pauses.
-  pauseAfterFailures?: number | (() => number),
-  // The caller's own stop (D121, RLF-NOLIMITS): the CLI binds Ctrl-C here.
-  signal?: AbortSignal,
+  ...tail: RuntimeSchedulesTail
 ): () => Promise<RuntimeSchedulesBinding> {
+  const [
+    deliveryArg,
+    runtimeDeliveryArg,
+    migration,
+    scheduleEngine,
+    pauseAfterFailures,
+    signal,
+    isWorkspaceTrusted,
+  ] = tail
+  let delivery = deliveryArg
+  let runtimeDelivery = runtimeDeliveryArg
   const load = lazyBundleLoader({
     bundlePath,
     log,
@@ -87,28 +101,33 @@ export function runtimeSchedulesBinding(
           delivery === undefined &&
           migration === undefined &&
           pauseAfterFailures === undefined &&
-          signal === undefined
-            ? load().createRuntimeSchedules(UI_TEXT, uiLocale())
+          signal === undefined &&
+          isWorkspaceTrusted === undefined
+            ? load().createRuntimeSchedules(UI_TEXT, uiLocale(), log)
             : load().createRuntimeSchedules(
                 UI_TEXT,
                 uiLocale(),
+                log,
                 delivery,
                 undefined,
                 migration,
                 scheduleEngine,
                 pauseAfterFailures,
                 signal,
+                isWorkspaceTrusted,
               )
       } else
         binding = load().createRuntimeSchedules(
           UI_TEXT,
           uiLocale(),
+          log,
           delivery,
           runtimeDelivery,
           migration,
           scheduleEngine,
           pauseAfterFailures,
           signal,
+          isWorkspaceTrusted,
         )
     }
     try {

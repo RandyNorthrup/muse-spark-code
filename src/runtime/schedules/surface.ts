@@ -59,7 +59,8 @@ function isResponseFor(
         JSON.stringify(response.range) === JSON.stringify(request.range)
       )
     }
-    case 'schedules/backgroundStatus': {
+    case 'schedules/backgroundStatus':
+    case 'schedules/backgroundMaintain': {
       return response.kind === 'backgroundStatus'
     }
     default: {

@@ -7,7 +7,21 @@ import * as z from 'zod/mini'
 import { createScheduleStore, type ScheduleRunIntent } from '../../core/schedules/store'
 import { createScheduler } from '../../core/schedules/scheduler'
 import { ScheduleDelivery, type ScheduleDeliveryDeps } from '../../core/schedules/delivery'
+import { ScheduleReportActionRunner } from '../../core/schedules/reportAction'
+import { createScheduleReportPort } from '../../core/schedules/reportAdapter'
+import { createReportOccurrencePort } from '../../core/schedules/reportOccurrences'
 import type { ScheduleAuthorityStore } from '../../core/schedules/grantAudit'
+import { ScheduleEventEngine } from '../../core/schedules/events/engine'
+import { createEventClaimStore } from '../../core/schedules/events/claimStore'
+import { ScheduleEventIntake } from '../../core/schedules/events/intake'
+import { hostEventHub } from '../../core/schedules/events/hostHub'
+import { ScheduleEventPrivacy } from '../../core/schedules/events/privacy'
+import { localGitRefs, ScheduleGitSource } from '../../core/schedules/events/git'
+import { ScheduleFilesSource } from '../../core/schedules/events/files'
+import { ScheduleManualSource } from '../../core/schedules/events/signals'
+import { scheduleDependencySources } from '../../core/schedules/events/dependencies'
+import type { ScheduleEventSource } from '../../shared/scheduleEvents'
+import { createNodeFileWatcher } from './fileWatcher'
 import { RuntimeScheduleHost } from './host'
 import { ScheduleRuntime } from './runtime'
 import { ScheduleSurface } from './surface'
@@ -23,6 +37,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { failureForLog } from '../../core/backends/musecode/logText'
+import type { CoreLogger } from '../../core/logging'
 import { fill } from '../../shared/l10n/text'
 import {
   scheduleEventRunId,
@@ -89,6 +104,13 @@ export interface ScheduleEngineOptions {
   readonly uid?: number
   /** Tests substitute the native OS entry; production always uses the real one. */
   readonly backgroundEntry?: ScheduleBackgroundPort
+  /** Hosts whose workspace trust can refuse git observation (VS Code).
+  Absent trusts the process's own machine (the CLI, ACP). */
+  readonly isWorkspaceTrusted?: (root: string) => boolean
+  /** The installed locale for report documents. Absent reads English. */
+  readonly locale?: string
+  /** Failures the person gets as fixed sentences keep their kind here. */
+  readonly log: CoreLogger
 }
 
 /** The conservative failed accounting for a delivery round that produced no
@@ -166,7 +188,7 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
     signal: combined,
     lookupRun: (workspace, runId) => store.lookupRun(workspace, runId),
     monotonicNow: () => performance.now(),
-    deliver: (
+    deliver: async (
       schedule: ScheduleV2,
       context: ScheduleRunContext,
       occurrenceMs: number,
@@ -180,31 +202,72 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
         'backend' in schedule.target &&
         schedule.target.backend === 'modelApi'
       )
-        return Promise.resolve(
-          scheduleFireRecordSchema.parse({
-            runId: context.runId,
-            scheduleId: schedule.id,
-            workspaceKey: schedule.workspaceKey,
-            occurrenceMs,
-            observedAtMs: now(),
-            target: schedule.target,
-            delivery: schedule.delivery,
-            outcome: 'refused',
-            reason: UI_TEXT.schedulePaidOff,
-            refusedActions: [],
-            cost: noScheduleCost(),
-            ...(event !== undefined && { event }),
-          }),
-        )
+        return scheduleFireRecordSchema.parse({
+          runId: context.runId,
+          scheduleId: schedule.id,
+          workspaceKey: schedule.workspaceKey,
+          occurrenceMs,
+          observedAtMs: now(),
+          target: schedule.target,
+          delivery: schedule.delivery,
+          outcome: 'refused',
+          reason: UI_TEXT.schedulePaidOff,
+          refusedActions: [],
+          cost: noScheduleCost(),
+          ...(event !== undefined && { event }),
+        })
       const delivery = late.delivery
       if (delivery === undefined) throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
-      return delivery.deliver(schedule, context, occurrenceMs, event)
+      const result = await delivery.deliver(schedule, context, occurrenceMs, event)
+      // A turn that ran (or failed trying) is observable as an event, so one
+      // schedule can follow another. Refused, missed and skipped fires ran no
+      // turn and publish nothing. A publish failure never fails the delivery.
+      if (result.outcome === 'ran' || result.outcome === 'failed') {
+        const occurrence = scheduleEventSchema.parse({
+          source: 'agents',
+          eventKey: `turn:${result.runId}`,
+          kind: 'turnFinished',
+          fields: { scheduleId: schedule.id, status: result.outcome },
+          observedAt: now(),
+        })
+        try {
+          await intakes.get(schedule.workspaceKey)?.offerPublished(occurrence)
+        } catch (error: unknown) {
+          report(error)
+        }
+        try {
+          hostEventHub(schedule.workspaceKey, 'agents', ['turnFinished']).publish(occurrence)
+        } catch (error: unknown) {
+          report(error)
+        }
+      }
+      return result
     },
+  })
+  // RA's report lane: the delivery runner with M115's authority and
+  // occurrences. M113's backend binds with its lane; until then every
+  // report fire refuses with the pending sentence.
+  const reportRunner = new ScheduleReportActionRunner({
+    store,
+    log: options.log,
+    reports: createScheduleReportPort({
+      store,
+      authorityStore: authority,
+      occurrences: createReportOccurrencePort(options.fs),
+      locale: options.locale ?? 'en',
+      roots: (workspace) => registry.root(workspace),
+    }),
+    audit: (entry) => authority.append(entry),
+    now,
   })
   const delivery = new ScheduleDelivery({
     now,
     monotonicNow: () => performance.now(),
     holds: (workspace: string) => host.holds(workspace),
+    reports: {
+      deliver: (schedule, context, occurrenceMs, event) =>
+        reportRunner.run(schedule, context, occurrenceMs, event),
+    },
     ...((await options.delivery?.(authority)) ??
       runtimeDelivery?.delivery ?? {
         targets: {
@@ -258,33 +321,7 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
     time: { plan: (schedule, clock) => scheduleTimePlan(schedule, clock) },
     failureSettlement: (intent: ScheduleRunIntent, error: unknown) =>
       Promise.resolve(scheduleFailedSettlement(intent, error, now())),
-    deferEvent: async (schedule: ScheduleV2, event: ScheduleEvent) => {
-      const dueMs = nextScheduleTime(
-        {
-          trigger: schedule.trigger,
-          zone: schedule.zone,
-          ...(schedule.end !== undefined && { end: schedule.end }),
-          fireCount: schedule.fireCount,
-        },
-        event.observedAt,
-        event.observedAt,
-      )
-      if (dueMs === undefined) throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
-      if (dueMs <= now()) {
-        await scheduler.fireEvent(schedule.workspaceKey, schedule.id, event, dueMs)
-        return
-      }
-      const pending = await readDeferred()
-      await options.fs.replace(
-        'runtime/deferred-events.json',
-        JSON.stringify([
-          ...pending,
-          { workspaceKey: schedule.workspaceKey, scheduleId: schedule.id, event, dueMs },
-        ]),
-        undefined,
-        { signal: combined },
-      )
-    },
+    deferEvent: (schedule: ScheduleV2, event: ScheduleEvent) => deferComposedEvent(schedule, event),
   })
   const activeDispatches = new Set<Promise<unknown>>()
   const trackDispatch = async <T>(work: Promise<T>): Promise<T> => {
@@ -371,6 +408,94 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
       throw new Error('scheduleStoredJsonInvalid')
     }
   }
+  // E persists a composed event until its time is due; the intake and the
+  // scheduler share this one deferral.
+  const deferComposedEvent = async (schedule: ScheduleV2, event: ScheduleEvent): Promise<void> => {
+    const dueMs = nextScheduleTime(
+      {
+        trigger: schedule.trigger,
+        zone: schedule.zone,
+        ...(schedule.end !== undefined && { end: schedule.end }),
+        fireCount: schedule.fireCount,
+      },
+      event.observedAt,
+      event.observedAt,
+    )
+    if (dueMs === undefined) throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
+    if (dueMs <= now()) {
+      await scheduler.fireEvent(schedule.workspaceKey, schedule.id, event, dueMs)
+      return
+    }
+    const pending = await readDeferred()
+    await options.fs.replace(
+      'runtime/deferred-events.json',
+      JSON.stringify([
+        ...pending,
+        { workspaceKey: schedule.workspaceKey, scheduleId: schedule.id, event, dueMs },
+      ]),
+      undefined,
+      { signal: combined },
+    )
+  }
+  // C-M115-4's production event set per workspace: local git, files, the
+  // agents hub this engine publishes to, and manual. Milestone sources
+  // arrive with their ports; until then each names its owner as the reason.
+  const intakes = new Map<string, ScheduleEventIntake>()
+  const isWorkspaceTrusted = options.isWorkspaceTrusted ?? (() => true)
+  const intakeFor = (cwd: string): ScheduleEventIntake => {
+    const root = path.resolve(cwd)
+    const key = workspaceKey(root)
+    const existing = intakes.get(key)
+    if (existing !== undefined) return existing
+    const rejected = (id: string): void => {
+      report(new Error(`scheduleEventRejected:${id}`))
+    }
+    const sources: ScheduleEventSource[] = [
+      new ScheduleManualSource(key, now),
+      new ScheduleGitSource(
+        localGitRefs(root, () => isWorkspaceTrusted(root)),
+        now,
+      ),
+      new ScheduleFilesSource(['**'], createNodeFileWatcher({ root, now, report }), rejected),
+      hostEventHub(key, 'agents', ['turnFinished']),
+      ...scheduleDependencySources({}, now, rejected),
+    ]
+    const intake = new ScheduleEventIntake({
+      store,
+      workspaceKey: key,
+      sources,
+      engine: new ScheduleEventEngine(
+        now,
+        createEventClaimStore(options.fs, key),
+        new ScheduleEventPrivacy(
+          [root],
+          {
+            // No taint observer is wired here; admission still scrubs before use.
+            mark: (block) => block,
+          },
+          UI_TEXT.scheduleV2.messages.eventUntrusted,
+        ),
+      ),
+      fire: async (schedule, event, occurrenceMs) => {
+        if (schedule.trigger.kind === 'afterEvent') await deferComposedEvent(schedule, event)
+        else await scheduler.fireEvent(schedule.workspaceKey, schedule.id, event, occurrenceMs)
+      },
+      now,
+      report,
+    })
+    intakes.set(key, intake)
+    return intake
+  }
+  const pollIntake = async (workspace: string): Promise<void> => {
+    const held = intakes.get(workspace)
+    if (held !== undefined) {
+      await held.poll()
+      return
+    }
+    const root = await registry.root(workspace)
+    if (root === undefined) return
+    await intakeFor(root).poll()
+  }
   const scanDeferred = async (): Promise<void> => {
     let pending: z.infer<typeof deferredFileSchema>
     try {
@@ -428,6 +553,7 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
       options.runtimeDelivery?.billing !== undefined
     )
       consent = (schedule, caller) => runtimeDelivery.consent(schedule, path.resolve(cwd), caller)
+    const intake = intakeFor(cwd)
     const control = createScheduleControl({
       ...(consent !== undefined && { consent }),
       store,
@@ -440,6 +566,9 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
       workspaces: () => registry.list(),
       onCreate: (createdKey: string) => registry.add(createdKey, path.resolve(cwd)),
       scanDeferred,
+      eventSources: intake.sources(),
+      pollEvents: (workspace) => pollIntake(workspace),
+      discardEvents: (scheduleId) => intake.discard(scheduleId),
     })
     controls.set(key, control)
     return control
@@ -475,6 +604,7 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
       try {
         await scheduler.recover(workspace)
         await scheduler.poll(workspace)
+        await pollIntake(workspace)
       } finally {
         polling.delete(workspace)
       }
@@ -492,6 +622,9 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
     const key = workspaceKey(path.resolve(cwd))
     await registry.add(key, path.resolve(cwd))
     watched.set(key, (watched.get(key) ?? 0) + 1)
+    // The tick below polls this workspace's intake; subscribed sources
+    // stay subscribed while the workspace is watched.
+    intakeFor(cwd)
     if (engineTimer === undefined) {
       const tick = () => {
         for (const workspace of watched.keys()) {
@@ -528,6 +661,7 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
     return release
   }
   const runtime = new ScheduleRuntime({
+    log: options.log,
     controlFor: (cwd, _caller) => controlFor(cwd),
     host,
     surface,
@@ -539,6 +673,7 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
     dueWorkspaces: () => registry.list(),
     close: async () => {
       closeSignal.abort()
+      for (const intake of intakes.values()) intake.close()
       // A throw from one stage never skips the rest of close: every dispatch
       // and tick is still joined before the first error is rethrown. The
       // settled reasons below keep their identity, as in the drain loop.
@@ -546,6 +681,7 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
       await Promise.allSettled(activeDispatches)
       await Promise.allSettled(activeTicks)
       controls.clear()
+      intakes.clear()
       for (const stage of stages) if (stage.status === 'rejected') throw stage.reason
     },
     verifyWake: options.verifyWake ?? (() => Promise.resolve({ scheduledPrompts: false })),

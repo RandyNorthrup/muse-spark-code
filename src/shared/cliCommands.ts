@@ -63,6 +63,18 @@ export function cliCommands(shouldIncludeHeld = false) {
       action,
     ]),
     playbook: ['status', 'record', 'settings', 'run'].map((action) => ['playbook', action]),
+    watchdog: [
+      'list',
+      'status',
+      'pause',
+      'resume',
+      'poll',
+      'policy',
+      'evidence',
+      'apply',
+      'decide',
+      'resolve',
+    ].map((action) => ['watchdog', action]),
     estimate: [['estimate']],
     judgeSetup: [
       ['judge', 'scan'],
@@ -350,6 +362,12 @@ export function cliCommands(shouldIncludeHeld = false) {
       name: 'playbook [status|record|settings|run <name>]',
       description: UI_TEXT.playbookCommandUsage,
       text: { ui: 'playbookCommandUsage' },
+    },
+    {
+      route: 'watchdog',
+      name: 'watchdog [list|status|pause|resume|poll|policy|evidence|apply|decide|resolve]',
+      description: UI_TEXT.referenceWatchdog,
+      text: { ui: 'referenceWatchdog' },
     },
     {
       route: 'fontsInstall',

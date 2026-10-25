@@ -185,7 +185,8 @@
       "judgeSetupCli.planModel",
       "nodeDashboard.sessionWeb",
       "nodeDashboard.sessionEditor",
-      "nodeOs.diskTitle"
+      "nodeOs.diskTitle",
+      "watchdog.verdicts.spam"
     ],
     "tr": [
       "groupModel",
@@ -229,7 +230,8 @@
       "devices.cpuPressure",
       "judgeSetupCli.planModel",
       "nodeDashboard.sessionWeb",
-      "desktop.sessionTerminal"
+      "desktop.sessionTerminal",
+      "watchdog.verdicts.spam"
     ],
     "de": [
       "groupSkills",
@@ -289,7 +291,8 @@
       "desktop.sessionDesktop",
       "desktop.sessionTerminal",
       "desktop.downloadSize",
-      "desktop.details"
+      "desktop.details",
+      "watchdog.verdicts.spam"
     ],
     "es": [
       "hooksItem",
@@ -313,7 +316,8 @@
       "devices.cpuPressure",
       "nodeDashboard.sessionWeb",
       "nodeDashboard.sessionEditor",
-      "desktop.sessionTerminal"
+      "desktop.sessionTerminal",
+      "watchdog.verdicts.spam"
     ],
     "pt-br": [
       "agentTokens",
@@ -335,7 +339,8 @@
       "nodeDashboard.sessionWeb",
       "nodeDashboard.sessionEditor",
       "desktop.sessionTerminal",
-      "desktop.downloadSize"
+      "desktop.downloadSize",
+      "watchdog.verdicts.spam"
     ],
     "fr": [
       "modesTitle",
@@ -380,7 +385,8 @@
       "desktop.sessionTerminal",
       "desktop.notificationsCount.one",
       "desktop.notificationsCount.other",
-      "desktop.notificationsCount.many"
+      "desktop.notificationsCount.many",
+      "watchdog.verdicts.spam"
     ],
     "it": [
       "usageAccount",
@@ -410,7 +416,8 @@
       "nodeDashboard.sessionEditor",
       "desktop.password",
       "desktop.sessionDesktop",
-      "desktop.downloadSize"
+      "desktop.downloadSize",
+      "watchdog.verdicts.spam"
     ],
     "zh-cn": ["toolLabels.shell", "devices.cpuPressure"],
     "zh-tw": ["toolLabels.shell", "devices.cpuPressure"],

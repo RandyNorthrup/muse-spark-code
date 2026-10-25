@@ -1,4 +1,5 @@
 import { UI_TEXT } from '../../shared/constants'
+import { wireWordForLog, type CoreLogger } from '../logging'
 import { isRunContextOf } from './runIdentity'
 import { scheduleEventSchema, type ScheduleEvent } from '../../shared/scheduleEvents'
 import {
@@ -31,6 +32,10 @@ export interface ScheduleReportPort {
     context: ScheduleRunContext,
     asOf: string,
   ): Promise<unknown>
+  /** Absent means available. A production binding reports its M113
+  backend here; the runner refuses with the reason before any audit. */
+  availability?():
+    { readonly available: true } | { readonly available: false; readonly reason: string }
 }
 
 export interface ScheduleReportDeliveryPort {
@@ -46,6 +51,8 @@ export interface ScheduleReportDeps {
   readonly store: ScheduleStoreV2
   readonly reports: ScheduleReportPort
   readonly audit: (entry: ReturnType<typeof scheduleGrantAuditSchema.parse>) => Promise<void>
+  /** Failures the person gets as fixed sentences keep their kind here. */
+  readonly log: CoreLogger
   readonly now: () => number
 }
 
@@ -108,6 +115,9 @@ export class ScheduleReportActionRunner implements ScheduleReportDeliveryPort {
         return settle('refused', UI_TEXT.scheduleV2.reportAction.grantRequired)
       if (s.action.destinations.some((item) => item.kind === 'cloud' || item.kind === 'sms'))
         return settle('refused', UI_TEXT.scheduleV2.messages.plannedDestination)
+      const availability = this.deps.reports.availability?.()
+      if (availability !== undefined && !availability.available)
+        return settle('refused', availability.reason)
       // Audit the admitted use before dispatch; no destination arguments or content.
       for (const destination of s.action.destinations)
         await this.deps.audit(
@@ -142,8 +152,11 @@ export class ScheduleReportActionRunner implements ScheduleReportDeliveryPort {
       return results.some((item) => item.status === 'deferred')
         ? settle('skipped', UI_TEXT.scheduleV2.messages.openWhenBack, report.data)
         : settle('ran', undefined, report.data)
-    } catch {
-      // Report/provider errors may contain paths, recipients or credentials.
+    } catch (error: unknown) {
+      if (!(error instanceof Error)) throw error
+      // Report/provider errors may contain paths, recipients or
+      // credentials: the record keeps the kind, never the words.
+      this.deps.log.warn(`The schedule report run failed: ${wireWordForLog(error.name)}`)
       return settle('failed', UI_TEXT.scheduleV2.reportAction.failed)
     }
   }
@@ -154,8 +167,11 @@ roots and verified recipients), consent, caps, depth and creator lifetime.
 Tool arguments never provide the creator, consent or rescheduling permission. */
 export interface ScheduleReportAgentPort {
   /** Resolve complete targets under the creator's canonical roots and verified
-  recipient/post permissions. Matching an opaque id alone is insufficient. */
-  destinationsAllowed(action: ScheduleReportAction): Promise<boolean>
+  recipient/post permissions. Matching an opaque id alone is insufficient. A
+  reasoned refusal names the fixed sentence the tool reports. */
+  destinationsAllowed(
+    action: ScheduleReportAction,
+  ): Promise<boolean | { readonly allowed: false; readonly reason: string }>
   admit(draft: ScheduleDraft): Promise<unknown>
 }
 
@@ -164,6 +180,7 @@ export function scheduleReportTool(
   port: ScheduleReportAgentPort,
   noEscalation: ScheduleNoEscalation,
   creatorGrant: () => ScheduleGrant,
+  log: CoreLogger,
 ) {
   return {
     name: 'schedule_report',
@@ -175,8 +192,10 @@ export function scheduleReportTool(
         const action = parsed.data.action
         if (action.kind !== 'report')
           return { kind: 'refused', reason: UI_TEXT.scheduleV2.runtime.invalidRequest }
-        if (!(await port.destinationsAllowed(action)))
+        const verdict = await port.destinationsAllowed(action)
+        if (verdict === false)
           return { kind: 'refused', reason: UI_TEXT.scheduleV2.reportAction.grantRequired }
+        if (typeof verdict === 'object') return { kind: 'refused', reason: verdict.reason }
         const draft = parsed.data
         const creator = creatorGrant()
         const bounded = noEscalation.bounded(draft.grant, creator)
@@ -201,7 +220,11 @@ export function scheduleReportTool(
           (response.data.kind === 'accepted' || response.data.kind === 'refused')
           ? response.data
           : { kind: 'refused', reason: UI_TEXT.scheduleV2.runtime.invalidResponse }
-      } catch {
+      } catch (error: unknown) {
+        if (!(error instanceof Error)) throw error
+        // Admission and port errors may name paths or recipients: the
+        // record keeps the kind, never the words.
+        log.warn(`The schedule report tool failed: ${wireWordForLog(error.name)}`)
         return { kind: 'refused', reason: UI_TEXT.scheduleV2.runtime.unavailable }
       }
     },

@@ -894,6 +894,7 @@
   "referenceExecContract": "ヘッドレス実行ではワークスペースの信頼と権限の回避を許可しません。 ヘッドレス実行で許可されるのは plan または acceptEdits のみです。 ホスト型ウェブ検索には保証された上限がないため拒否します。 画像生成には acceptEdits が必要です。 プロンプトの入力元は1つだけ選んでください。 プロンプトとキーに同時に stdin は使えません。 Model API には --max-budget-usd が必要です。 modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --subscription / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.自動圧縮は --auto-compaction と --max-budget-usd の下でのみ実行されます。",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: コマンドごとの使い方、オプション、例。help --all: コマンド、設定、機能の説明とドキュメント。",
   "referenceJudgeUsage": "使い方:{command} judge ask|calibrate|report|mcp [オプション] < request.json;{command} judge serve|lint|scan|setup|remove [オプション]。セットアップと削除は --yes がないと何も変更しません。終了コード:0 完了、2 使い方、4 失敗。",
+  "referenceWatchdog": "ターミナルから GitHub 課題を監視:一覧表示、ステータス、一時停止、再開、ポーリング、ポリシー、証拠、適用、決定、解決。",
   "referenceKeyStdin": "auth set: ターミナルでキーを読み取り、このコンピューターの資格情報ストアに保管します。会話はこのキーに課金されます。 exec / scan-secrets --key-stdin: キーは端末ではなくパイプから読み込んでください。 stdin → memory; prompt stdin + key stdin = プロンプトとキーに同時に stdin は使えません。",
   "referenceModalKeys": "ダイアログを閉じるか、内部のフォーカスを移動します。",
   "referenceRenameKeys": "この会話の名前変更を確定またはキャンセルします。",
@@ -1182,7 +1183,8 @@
       "kind": "レポートの種類",
       "format": "形式",
       "args": "引数",
-      "destinations": "配信先"
+      "destinations": "配信先",
+      "destinationsPending": "レポートの宛先はまだ準備できていません。後のアップデートで利用可能になります。"
     },
     "runtime": {
       "usage": "使用法: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] 終了コード: 0 成功、1 拒否、2 使用方法の誤り、3 後処理の警告。",
@@ -2307,6 +2309,111 @@
     "deviceFlow": "Muse Spark の GitHub サインイン",
     "ghLogin": "GitHub CLI (gh)"
   },
+  "watchdog": {
+    "title": "Issue ウォッチドッグ",
+    "ack": {
+      "body": "ご報告ありがとうございます。現在トリアージ中であり、今後の連絡はすべてこちらに投稿されます。",
+      "automatedNote": "このメッセージは、リポジトリ管理者の Issue ウォッチドッグにより自動的に投稿されました。"
+    },
+    "reply": {
+      "needsInfo": "ありがとうございます。先に進めるには、もう少し情報が必要です:\n\n{questions}\n\nこちらにご返信ください。返信があり次第、この issue を再確認します。",
+      "duplicate": "これは #{duplicate} の重複のようです。その issue がご報告内容をカバーしていない場合は、こちらにお知らせください。再確認します。",
+      "alreadyFixed": "これは {fixedIn} で修正されました。更新していただき、まだ発生する場合はこの issue を再開してください。",
+      "invalid": "現在の内容では対応できません: {reason}。不足している詳細を添えて新しい issue を開いてください。",
+      "fixed": "これは {pullRequest} で修正され、{version} に含まれています。ご報告ありがとうございました。"
+    },
+    "states": {
+      "seen": "確認済み",
+      "acknowledged": "受領済み",
+      "triaged": "トリアージ済み",
+      "awaitingInfo": "情報待ち",
+      "planned": "計画済み",
+      "replied": "返信済み",
+      "closed": "クローズ済み"
+    },
+    "waits": {
+      "seen": "受領の返信はまだ投稿されていません",
+      "acknowledged": "トリアージ待ち",
+      "triaged": "あなたの判断待ち",
+      "awaitingInfo": "報告者の返答待ち",
+      "planned": "修正とその検証待ち",
+      "replied": "なし: 返信済み",
+      "closed": "なし: クローズ済み"
+    },
+    "cli": {
+      "empty": "ウォッチドッグはまだリポジトリを監視していません。",
+      "notWatched": "このリポジトリは監視されていません。",
+      "paused": "{repository} のウォッチドッグを一時停止しました。",
+      "resumed": "{repository} のウォッチドッグを再開しました。",
+      "alreadyPaused": "{repository} のウォッチドッグは既に一時停止しています。",
+      "notPaused": "{repository} のウォッチドッグは一時停止していません。",
+      "invalidRepository": "リポジトリは owner/name 形式で指定してください。",
+      "watching": "{repository} を監視しています。",
+      "usage": "`watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|policy <repository> [label|template|watch-labels|ignore-authors|posts|close <value>]|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>` を使用してください。",
+      "notSignedIn": "最初に GitHub にサインインして、`auth github` を実行してください。",
+      "invalidIssue": "課題番号を指定してください。",
+      "invalidEvidence": "検証証拠の形式が期待通りではありませんでした。",
+      "applyNeedsAck": "この課題はトリアージ待ちではありません。",
+      "decideNeedsTriage": "この課題には決定すべきトリアージがありません。",
+      "resolveNeedsPlan": "この課題には解決すべき計画がありません。",
+      "overdue": "期限超過",
+      "commandFailed": "ウォッチドッグのコマンドを完了できませんでした。",
+      "unavailable": "ウォッチドッグは利用できません。",
+      "description": "監視中の GitHub 課題を一覧表示、ポーリング、決定します。",
+      "pausedWord": "一時停止中",
+      "issueCount": {
+        "other": "{count} 件の課題"
+      },
+      "noIssues": "記録された課題はありません。",
+      "triagedAs": "{verdict} としてトリアージしました。",
+      "decided": "決定:{outcome}。",
+      "posted": "投稿しました。",
+      "closedNote": "クローズしました。",
+      "notVerified": "未検証:{notes}。",
+      "unknownIssue": "この課題は監視されていません。",
+      "alreadyPosted": "返信は投稿済みです。",
+      "policyHeading": "{repository} のポリシー:",
+      "policySet": "{repository} の {key} を設定しました。",
+      "policyInvalid": "{key} にはこの値を使えません。{allowed} を使用してください。",
+      "policyUnknownKey": "不明なポリシーキーです。label、template、watch-labels、ignore-authors、posts、close のいずれかを使用してください。",
+      "proposedReply": "投稿する予定の返信:"
+    },
+    "poll": {
+      "skippedPullRequest": "issue ではなくプルリクエスト",
+      "skippedLocked": "ロック中",
+      "skippedAuthor": "無視する作成者",
+      "skippedLabels": "監視対象ラベル外",
+      "alreadyAcked": "受領済み",
+      "ackPosted": "受領しました"
+    },
+    "verdicts": {
+      "valid": "有効",
+      "needsInfo": "情報が必要",
+      "duplicate": "重複",
+      "alreadyFixed": "修正済み",
+      "inHand": "対応中",
+      "invalid": "無効",
+      "spam": "スパム"
+    },
+    "outcomes": {
+      "planEntry": "計画項目",
+      "fixLane": "修正レーン"
+    },
+    "planDraft": {
+      "intro": "{repository}#{number} のウォッチドッグ計画案（判定: {verdict}）。",
+      "issue": "課題",
+      "findings": "調査結果",
+      "questions": "未解決の質問"
+    },
+    "triage": {
+      "unreadable": "トリアージが調査結果として返ってきませんでした。"
+    },
+    "refusal": {
+      "spamHeld": "スパムの疑いで保留されました: 何も投稿されていません。",
+      "approvalRequired": "この投稿には事前の承認が必要です。",
+      "reportOnly": "レポートのみ:セキュリティレビューが入るまで、受領の返信以外は何も投稿されません。"
+    }
+  },
   "gitHubSignOut": "サインアウト",
   "gitHubSignOutFailed": "GitHub からのサインアウトを完了できませんでした。もう一度お試しください。",
   "gitRefresh": "最新の情報に更新",
@@ -2620,7 +2727,7 @@
     "other": "{count} 件のチェック実行を読み取れませんでした。"
   },
   "reportCliUsage": "名前付きのデータソースから、モデルを呼び出さずに決定的なレポートを生成します。\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
-  "reportCliKinds": "種類: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",
+  "reportCliKinds": "種類: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, issues [--repo <owner/name>], schedules.\n",
   "reportIssue": "問題を報告…",
   "reportCrashOffer": "Muse Spark Code は前回予期せず終了しました — 報告しますか?",
   "reportCrashAction": "問題を報告",
@@ -4288,6 +4395,7 @@
     "purposePrompts": "再利用できるプロンプトテンプレートを保存・一覧・使用・共有します。",
     "purposeJudge": "Ask Muse Judge for verdicts on standard input.",
     "judgeServeLintNote": "serve and lint take their own flags; the options below belong to ask, calibrate, report and mcp.",
+    "purposeWatchdog": "GitHub 課題の監視:一覧表示、ポーリング、トリアージ、決定、解決。",
     "modelsList": "{entry} のモデル:",
     "modelsForced": "強制追加: {reason}",
     "modelsExtra": "プロバイダーにはあるがエントリにないもの:",
