@@ -145,11 +145,17 @@ describe('git in the runtime panel', () => {
     expect(await exit).toBe(0)
   })
 
-  it('does nothing in a workspace the editor does not trust', async () => {
+  it('runs no git in a workspace the editor does not trust, and starts once it does', async () => {
     const { run, git } = repositoryRun()
     writeFileSync(path.join(run.workspace, 'a.txt'), 'a\n')
+    // The user's own runner, watched: what git is asked is what the product asks.
+    const runner = processGitRunner()
+    const asked: (readonly string[])[] = []
     const { host, editor, exit } = await connectedPanel(run, {
-      runGit: processGitRunner(),
+      runGit: (args, cwd) => {
+        asked.push(args)
+        return runner(args, cwd)
+      },
       trusted: false,
     })
     const chat = await editor.nextSurface()
@@ -158,6 +164,15 @@ describe('git in the runtime panel', () => {
     chat.say({ type: 'gitCommit', message: 'Add a', includeUnstaged: true })
     expect(await noticeOf(chat, 'warning')).toMatchObject({ text: UI_TEXT.gitRestricted })
     expect(git.run(run.workspace, 'status', '--porcelain')).toBe('?? a.txt')
+    expect(asked.filter((args) => args.includes('rev-parse'))).toEqual([])
+    // Trusting the workspace rebuilds the conversation, and its Git opens.
+    host.send({ jsonrpc: '2.0', method: 'workspace/didGrantTrust', params: { trusted: true } })
+    const trusted = await editor.nextSurface()
+    trusted.say({ type: 'gitAction', action: 'openCommit' })
+    expect(await trusted.shown('gitCommitForm')).toMatchObject({
+      form: { branch: 'main', files: [{ path: 'a.txt', isStaged: false }] },
+    })
+    expect(asked.some((args) => args.includes('rev-parse'))).toBe(true)
     parseMhpResult('shutdown', await host.request('shutdown', {}))
     expect(await exit).toBe(0)
   })
@@ -169,8 +184,8 @@ describe('git in the runtime panel', () => {
     const first = await connectedPanel(run, { runGit: processGitRunner() })
     const chat = await first.editor.nextSurface()
     chat.say({ type: 'gitAction', action: 'openCommit' })
-    expect(await noticeOf(chat, 'error')).toMatchObject({
-      text: expect.stringContaining(UI_TEXT.gitWorkspaceNotRepository),
+    expect(await noticeOf(chat, 'warning')).toMatchObject({
+      text: UI_TEXT.gitWorkspaceNotRepository,
     })
     parseMhpResult('shutdown', await first.host.request('shutdown', {}))
     expect(await first.exit).toBe(0)
@@ -188,9 +203,7 @@ describe('git in the runtime panel', () => {
       else process.env[variable] = saved
     }
     other.say({ type: 'gitAction', action: 'openCommit' })
-    expect(await noticeOf(other, 'error')).toMatchObject({
-      text: expect.stringContaining(UI_TEXT.gitProgramMissing),
-    })
+    expect(await noticeOf(other, 'warning')).toMatchObject({ text: UI_TEXT.gitProgramMissing })
     parseMhpResult('shutdown', await second.host.request('shutdown', {}))
     expect(await second.exit).toBe(0)
   })

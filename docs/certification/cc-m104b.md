@@ -1,10 +1,89 @@
 # cc/m104b — M104 lane B on int/recovery: the runtime panel
 
-## Handoff (2026-10-24, to the rig continuing on this branch)
+## State at the end of the rig session (2026-10-24, Mac mini)
+
+Everything below is committed on `cc/m104b` (the commits are in the table at
+the end). `panel --stdio` serves an MHP host with int's own conversation
+controller behind chat and tasks surfaces, on the packed product, with: the
+sign-in gate and a session replaced when the backend starts or changes; paid
+use (D48, D208) and "Ask again"; edit review, `/review`, export and import
+through the editor's dialogs; unsaved editor files told to the backend; git and
+pull requests (commit, push with its question, the terminal for a push that
+needs typed credentials, the GitHub sign-in over the device flow and `gh`);
+saved plans; a tool row's output in an editor tab; the tasks tab. Every piece
+has a suite on the real composition and red/green drills (per slice below).
+
+**Not done, and exactly why**
+
+- **Checkpoints** (`store: undefined`). int's ACP and runtime backends run
+  without a checkpoint store on purpose (`src/runtime/backends.ts`, "ACP has no
+  VS Code checkpoint store"). A panel store needs the backend's tool IO to
+  record each turn's writes, the cross-process window presence and lease
+  namespace (D51, D63 are written for VS Code windows) and the shadow-git
+  store; that is a design for the lead, not a port.
+- **Usage history and the Account & usage page in the panel.** `serve` installs
+  the usage recording, account services and the resource governor around the
+  runtime it builds; the panel's `createRuntime` (`runtimeFor`) does not, so
+  calls through the panel are not recorded in the history and `openUsagePage`
+  is refused in words. The daily budget is enforced inside the backend
+  (`createRuntimeDailyBudget`), so D208's limit holds. Fix: extract `serve`'s
+  composition so both entries share it.
+- **The IDE tool server** (diagnostics, code intelligence), the **Model API
+  manager port** (best-of-N, voice budget), **dictation and Muse Voice**, the
+  **session log export** (Muse Code writes it to a path; the editor's dialog
+  hands the runtime text), **Muse Code install**, **Sign out** (said in words
+  with the commands: only the person can end the key or the CLI login from
+  where it is kept) and most **host actions** (settings, keybindings, log,
+  skills, MCP servers, hooks, memory, worktrees, pull request checkout, What's
+  New): each is refused in words, never answered empty.
+- **7b, the other surface kinds** (whatsNew, usage, maker, models, traffic,
+  settings, walkthrough, diff, plans, manager, roles): each needs its page in
+  the editor (lane D's portable webview, not on int) and its host side here.
+- **8, `--companion`** (refused in words): the carrier's routes are lane C's
+  (`/panel/*`, `/host/*` over int's companion server) and the page is lane D's;
+  `fallbackUi.ts`, `portableAssets.ts` and `panelEventId` have no reader in
+  this lane, and this repository's dead-code gate refuses an export with none.
+- **9, ACP sessions seen live in the panel**: the panel and the agent are two
+  processes; a live view needs a shared process or an IPC channel. A session an
+  ACP editor wrote is in the same file session store, so the History dialog
+  lists it and it can be resumed in the panel.
+- **RLM104's 16 conflicting files** were not compared: its branch
+  (`refs/rigs/linuxlt/rec/rlm104`) is not on this rig (`git for-each-ref` and
+  `git ls-remote ~/gates/muse.git` show no such ref). What was done in each
+  file, against int's code, is in "Reconciliation" below.
+
+**Open questions for the lead** (options; my recommendation first)
+
+1. "Ask again" lapses a paid feature's Always in every folder, not only the
+   open one: the grants file keeps one generation per feature, so a
+   per-folder forget needs a new operation on the grants store. Keep it (it
+   is what turning a feature off already does), or add the store operation.
+2. Checkpoints in the panel: leave unavailable until a lane owns checkpoint
+   design for runtime backends (recommended), or build a panel store now.
+3. Usage history for the panel: extract `serve`'s recording, accounts and
+   resources composition into one function both entries call (recommended; a
+   small lane).
+4. CHANGELOG: no entry, because no editor ships a carrier for `panel --stdio`
+   yet and no real-life run through a real editor and model was possible (the
+   Muse allowance is spent until 2026-10-25 17:00 Pacific). Add one when the
+   first editor host ships.
+5. Sign out in the panel: remove the Model API key from the runtime as ACP's
+   `logout` does (needs a suite that may touch the OS credential store), or
+   keep the sentence naming the commands (current).
+
+**Not run**: the VS Code integration suite (`extension.ts`, `gitWindow.ts`,
+`githubSession.ts` and the controller changed; Electron cannot start on this
+rig); a real-life run of the packed product with a real editor host and a
+model call (the Muse allowance); the OS credential-store and vault suites;
+the GitHub device flow and `gh` login (network and credential store). Two
+failures are not this lane's: `runtimeLsp` fails 5 of 9 cases and
+`pathGuardSpawns` fails 1 ("every direct process start is guarded": unreviewed
+starts in seven files under `src/runtime/`), identically on this branch's base
+commit.
+
+## Handoff (2026-10-24, written before the rig session; kept as the record of the plan)
 
 The owner freed this PC; lane B continues on a rig on branch `cc/m104b`.
-Everything is committed (last commit before this record: `097aba7b42`);
-the worktree is clean apart from ignored `temp/`.
 
 ### The brief (as given)
 
@@ -39,18 +118,18 @@ raised, new code in lazy chunks with measured budgets (D6).
 
 ### Slices done
 
-| Slice     | Commit        | What                                                                                                                                                                                                                               | Proof                                                                                                                                       |
-| --------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1         | `c17faa0c2a`  | `src/runtime/settingsStore.ts` over the runtime's own settings files                                                                                                                                                               | `runtimeSettingsStore` 12/12; drills S1–S3 fire, S4 not caught (why below)                                                                  |
-| 2         | `f432fac54d`  | `src/runtime/panel/controllerRegistry.ts`, AgentState delegating; ACP turns untouched                                                                                                                                              | `acpSessionRegistry` 2/2; drills R1, R2 fire; int's ACP suites 228/230 (2 = int's own)                                                      |
-| 3         | `a26bb6a23`   | `panel --stdio` (dist/runtimePanel.js): handshake, settings, storage; wire.js shares the two panel schemas                                                                                                                         | `runtimePanel` 9/9 on the production build; drills P1–P6 fire (below); `wireEntry` 2/2; fixed: a fatal close left the process alive (below) |
-| 4a        | `9d44d6774`   | the conversation bundle loads without the `vscode` module (portable question clock; `questionsForHost(store, deferAfterSeconds)`)                                                                                                  | `runtimePortableBundles` 1/1; drill B1 fires                                                                                                |
-| 4b–5a, 7a | `3c61b9a1a`   | the chat in `panel --stdio`: runtime-to-host requests, surfaces and delivery, `RuntimeConversation`, the shared mapping `composeConversationDeps`, the runtime's ports (auth, files, mentions, editor context), the session bundle | `runtimePanelConversation` 2/2, `runtimePanelSessions` 6/6; drills C1–C8 fire (below)                                                       |
-| 6         | `1081aca0e`   | paid use in the panel: the gate over the runtime's settings, the question through MHP `ui/confirm`, Always in the grants file ACP shares                                                                                           | `runtimePanelSessions` 9/9, `runtimeSettingsStore` 13/13; drills M1–M5 fire                                                                 |
-| 5b        | `728a52409`   | edit review and `/review` over int's review bundle, export and import through the editor's dialogs, unsaved editor files told to the backend                                                                                       | `runtimeReview` 6/6, `runtimeTransfer` 4/4, `runtimePanelSessions` 10/10; drills V1–V5, X1–X4, U1–U2 fire                                   |
-| 5c        | `40106f850`   | git and pull requests in the panel: the native route over the editor's services, in `dist/nativeGit.js`; the GitHub sign-in (device flow, `gh`) shared with VS Code                                                                | `runtimePanelGit` 6/6, `runtimeSettingsStore` 13/13, `pathGuardSpawns` record moved; drills G1–G7 fire                                      |
-| 5d        | `ad7ece8a3`   | Ask again, saved plans, a tool row's output in an editor tab, sign-out said in words                                                                                                                                               | `runtimePanelSessions` 14/14; drills D1–D6 fire                                                                                             |
-| 7b-1      | (this commit) | the tasks tab: a `tasks` surface bound to the conversation's session (`TasksTabPort` over MHP)                                                                                                                                     | `runtimePanelSessions` 15/15; drills T1–T4 fire                                                                                             |
+| Slice     | Commit       | What                                                                                                                                                                                                                               | Proof                                                                                                                                       |
+| --------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1         | `c17faa0c2a` | `src/runtime/settingsStore.ts` over the runtime's own settings files                                                                                                                                                               | `runtimeSettingsStore` 12/12; drills S1–S3 fire, S4 not caught (why below)                                                                  |
+| 2         | `f432fac54d` | `src/runtime/panel/controllerRegistry.ts`, AgentState delegating; ACP turns untouched                                                                                                                                              | `acpSessionRegistry` 2/2; drills R1, R2 fire; int's ACP suites 228/230 (2 = int's own)                                                      |
+| 3         | `a26bb6a23`  | `panel --stdio` (dist/runtimePanel.js): handshake, settings, storage; wire.js shares the two panel schemas                                                                                                                         | `runtimePanel` 9/9 on the production build; drills P1–P6 fire (below); `wireEntry` 2/2; fixed: a fatal close left the process alive (below) |
+| 4a        | `9d44d6774`  | the conversation bundle loads without the `vscode` module (portable question clock; `questionsForHost(store, deferAfterSeconds)`)                                                                                                  | `runtimePortableBundles` 1/1; drill B1 fires                                                                                                |
+| 4b–5a, 7a | `3c61b9a1a`  | the chat in `panel --stdio`: runtime-to-host requests, surfaces and delivery, `RuntimeConversation`, the shared mapping `composeConversationDeps`, the runtime's ports (auth, files, mentions, editor context), the session bundle | `runtimePanelConversation` 2/2, `runtimePanelSessions` 6/6; drills C1–C8 fire (below)                                                       |
+| 6         | `1081aca0e`  | paid use in the panel: the gate over the runtime's settings, the question through MHP `ui/confirm`, Always in the grants file ACP shares                                                                                           | `runtimePanelSessions` 9/9, `runtimeSettingsStore` 13/13; drills M1–M5 fire                                                                 |
+| 5b        | `728a52409`  | edit review and `/review` over int's review bundle, export and import through the editor's dialogs, unsaved editor files told to the backend                                                                                       | `runtimeReview` 6/6, `runtimeTransfer` 4/4, `runtimePanelSessions` 10/10; drills V1–V5, X1–X4, U1–U2 fire                                   |
+| 5c        | `40106f850`  | git and pull requests in the panel: the native route over the editor's services, in `dist/nativeGit.js`; the GitHub sign-in (device flow, `gh`) shared with VS Code                                                                | `runtimePanelGit` 6/6, `runtimeSettingsStore` 13/13, `pathGuardSpawns` record moved; drills G1–G7 fire                                      |
+| 5d        | `ad7ece8a3`  | Ask again, saved plans, a tool row's output in an editor tab, sign-out said in words                                                                                                                                               | `runtimePanelSessions` 14/14; drills D1–D6 fire                                                                                             |
+| 7b-1      | `ac742081e`  | the tasks tab: a `tasks` surface bound to the conversation's session (`TasksTabPort` over MHP)                                                                                                                                     | `runtimePanelSessions` 15/15; drills T1–T4 fire                                                                                             |
 
 ### Next step, exactly
 
@@ -546,10 +625,11 @@ editor first (`ui/confirm`: the remote and its masked URL, the branch and
 its target, the commit count, never a force, that hooks and credential
 helpers run), and a closed question is a no. A push git itself could not
 finish opens the same command in the editor's terminal (`terminal/create`,
-`terminal/show`). A workspace the editor does not trust runs no git (the
-service's own refusal, in words). A workspace in no repository, or a machine
+`terminal/show`). A workspace the editor does not trust runs no git at all (not
+even `rev-parse`; the person is told in words), and it opens once the editor
+trusts the workspace. A workspace in no repository, or a machine
 with no git program on the PATH, says which in the panel (two new strings in
-all fifteen tables) instead of showing VS Code's wording.
+all fifteen tables) instead of showing VS Code's wording (a warning in the panel).
 
 How: `openPanelGit` (`src/runtime/panel/git/panelGit.ts`) lives in the
 existing `dist/nativeGit.js` (97.7 of 125 KiB), loaded by the session through
@@ -574,21 +654,24 @@ the adapter's own suite `nativeGitPullRequests` covers the flow) and
 refactored onto the shared pieces (pure moves; the VS Code integration suite
 was not run here).
 
-Suites: `runtimePanelGit` (6) on real repositories, a bare remote of the
+Suites: `runtimePanelGit` (6; the user's runner is watched to show no git
+runs before trust) on real repositories, a bare remote of the
 suite's own and the real `dist/nativeGit.js`; `runtimeSettingsStore` gains the
 `gh` setting's scope; `pathGuardSpawns`' record names `githubSources.ts` where
 the `gh` start now lives (that suite has one failure that is the same on the
-base: unreviewed starts under `src/runtime/node/`, not this lane's).
+base: unreviewed starts under `src/runtime/`, not this lane's).
 
-| Drill | Break                                                      | Result                                                          |
-| ----- | ---------------------------------------------------------- | --------------------------------------------------------------- |
-| G1    | any answer to the push question pushes                     | exit 1: "asks before it pushes … only on a yes"                 |
-| G2    | the editor's trust is ignored                              | exit 1: "does nothing in a workspace the editor does not trust" |
-| G3    | the repository is the workspace folder, not git's toplevel | exit 1: "works on the repository around a workspace …"          |
-| G4    | git's "not a repository" is not told apart from a failure  | exit 1: "says why there is no Git …"                            |
-| G5    | the terminal is given an environment                       | exit 1: "opens a push git itself could not finish …"            |
-| G6    | the `gh` setting can be set by a workspace                 | exit 1: "keeps a machine-scoped setting the person's alone"     |
-| G7    | the push question leaves out that a force is never made    | exit 1: "asks before it pushes, names every part of the push …" |
+| Drill | Break                                                      | Result                                                           |
+| ----- | ---------------------------------------------------------- | ---------------------------------------------------------------- |
+| G1    | any answer to the push question pushes                     | exit 1: "asks before it pushes … only on a yes"                  |
+| G2    | the editor's trust is ignored                              | exit 1: "does nothing in a workspace the editor does not trust"  |
+| G3    | the repository is the workspace folder, not git's toplevel | exit 1: "works on the repository around a workspace …"           |
+| G4    | git's "not a repository" is not told apart from a failure  | exit 1: "says why there is no Git …"                             |
+| G5    | the terminal is given an environment                       | exit 1: "opens a push git itself could not finish …"             |
+| G6    | the `gh` setting can be set by a workspace                 | exit 1: "keeps a machine-scoped setting the person's alone"      |
+| G7    | the push question leaves out that a force is never made    | exit 1: "asks before it pushes, names every part of the push …"  |
+| G8    | git runs before the editor trusts the workspace            | exit 1: "runs no git in a workspace the editor does not trust …" |
+| G9    | an unavailable Git is never opened again after trust       | exit 1: same case (times out)                                    |
 
 ## Slice 5d — Ask again, saved plans, tool output tabs, sign-out words
 
@@ -651,6 +734,24 @@ model turn, which no suite here makes.
 | T3    | the conversation gives no view to the surface | exit 1: same case (times out)                            |
 | T4    | pressed again, a second tab is requested      | exit 1: same case (times out)                            |
 
+## Reconciliation of RLM104's 16 conflicting files
+
+RLM104's branch is not on this rig, so nothing was compared with it; each file
+was read on int and the panel built against int's code (the brief's rule).
+
+| File                                      | On int, in this lane                                                                                                                                   |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `paidConsent`, `paidFeatures`             | unchanged. The panel composes int's `PaidFeatureGate`, `PaidUsage` and `AcpPaidUse` (D48, D208); `AcpPaidUse.forget` is new. RLM104's path is not used |
+| `conversationController`                  | `onSessionAttached`, `replayHistory`, `selectedModelId`, `startFreshSession` added; ACP's turn hooks (`submitParts`, `useExternalPermissionMode`) not  |
+| `runtime/backends`                        | `unsavedFiles` reaches the tool IO; nothing else of RLM104's panel profile (the panel builds the same backend ACP does)                                |
+| `runtime/main`                            | the `panel` command: `distDir`, `createRuntime`, `runGit`, and the GitHub sign-in's store, network and name                                            |
+| `cliHelp`, `cliOptions`, `cliCommands`    | `panel` added the int way in slice 3 (`cliArgs.ts`, help, the usage error for a missing `--stdio`; `--companion` is refused in words)                  |
+| `resourceGovernorEntry`                   | untouched: the panel runs no governor yet (see "Usage history" above)                                                                                  |
+| `mcpJobLaunch`                            | untouched: lane H's supervised launches landed on int with `cc/m104h`                                                                                  |
+| `modelApiBackendManager`                  | untouched                                                                                                                                              |
+| `judgeBundle`, `judgeEntry`, `judgeUsage` | untouched: no judge in the panel yet                                                                                                                   |
+| `companion/page`, `exec/runExec`          | untouched: lane C and D's, and the exec entry has no panel                                                                                             |
+
 ## Commits
 
 | Commit       | Slice                                                    |
@@ -665,4 +766,4 @@ model turn, which no suite here makes.
 | `728a52409`  | slice 5b: review, export and import, unsaved files       |
 | `40106f850`  | slice 5c: git and pull requests in the panel             |
 | `ad7ece8a3`  | slice 5d: Ask again, plans, output tabs, sign-out words  |
-| (this)       | slice 7b-1: the tasks tab                                |
+| `ac742081e`  | slice 7b-1: the tasks tab                                |
