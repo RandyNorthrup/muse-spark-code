@@ -114,6 +114,8 @@ export async function openPanelGit(
 ): Promise<PanelGit> {
   setUiText(table, locale)
   const { host, signal, log } = ports
+  // Git can run programs a repository's configuration names: none starts in a workspace the editor does not trust.
+  if (!ports.isTrusted()) return unavailablePanelGit(UI_TEXT.gitRestricted, log)
   const gitPath = processGitPath(ports.workspaceRoot)
   if (gitPath === undefined) {
     log.info('MHP_GIT_NOT_FOUND')

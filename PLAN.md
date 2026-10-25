@@ -30343,11 +30343,12 @@ design, is listed in `docs/certification/cc-rlm104.md`.
 Lane H on int (cc/m104h): `lsp` (Tab over LSP through RLF-TAB's consent,
 cap, hooks, eligibility), `supervise`, `stop`; test client vscode-jsonrpc
 9.0.3 (dev); record and remainder: `docs/certification/cc-m104h.md`.
-Lane B on int (cc/m104b, in progress, 2026-10-24): the settings and storage
-store over the runtime's own files, one controller registry (ACP's
-bookkeeping, turns untouched), `panel --stdio` (MHP handshake, settings,
-storage, and the chat: int's conversation controller behind surfaces; its
-suites green on the production build); handoff and remainder:
+Lane B on int (cc/m104b, 2026-10-24): the settings and storage store, one
+controller registry (ACP's turns untouched), `panel --stdio`: the handshake and
+int's conversation controller behind MHP surfaces, with paid use (D48, D208),
+git and pull requests, review, export and import, plans and the tasks tab;
+suites green on the production build. Not done: checkpoints, usage history,
+`--companion` and the other surfaces; handoff and remainder:
 `docs/certification/cc-m104b.md`.
 
 **Warning for the POSIX trusted-path verifier (INT0180, 2026-10-11).** A real

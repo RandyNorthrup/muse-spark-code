@@ -216,40 +216,47 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
     bundlePath: path.join(deps.distDir, NATIVE_GIT_BUNDLE_FILE),
     log,
   })
-  /** The connection's Git: made once the editor can be asked, and again for a conversation if the workspace has since become a repository. */
-  async function ensureGit(): Promise<void> {
-    if (git?.isAvailable === true || ending.signal.aborted) return
-    try {
-      git = await openGit().openPanelGit(
-        {
-          host: connection,
-          workspaceRoot: workspace,
-          runGit: deps.runGit,
-          isTrusted: () => isTrusted,
-          ...deps.github,
-          useGhLogin: () => isGhLoginAllowed,
-          links: {
-            read: async () =>
-              await store.getStorage(WORKSPACE_STATE_KEYS.pullRequestLinks, 'workspace'),
-            write: async (value) => {
-              await store.setStorage(
-                WORKSPACE_STATE_KEYS.pullRequestLinks,
-                jsonValueSchema.parse(value),
-                'workspace',
-              )
+  /** One opening at a time: every conversation of the connection shares one GitHub sign-in. */
+  let opening: Promise<void> | undefined
+  /** The connection's Git: made once the editor can be asked, and again for a conversation if the workspace has since become a repository or been trusted. */
+  function ensureGit(): Promise<void> {
+    if (git?.isAvailable === true || ending.signal.aborted) return Promise.resolve()
+    opening ??= (async () => {
+      try {
+        git = await openGit().openPanelGit(
+          {
+            host: connection,
+            workspaceRoot: workspace,
+            runGit: deps.runGit,
+            isTrusted: () => isTrusted,
+            ...deps.github,
+            useGhLogin: () => isGhLoginAllowed,
+            links: {
+              read: async () =>
+                await store.getStorage(WORKSPACE_STATE_KEYS.pullRequestLinks, 'workspace'),
+              write: async (value) => {
+                await store.setStorage(
+                  WORKSPACE_STATE_KEYS.pullRequestLinks,
+                  jsonValueSchema.parse(value),
+                  'workspace',
+                )
+              },
             },
+            dataFolder: deps.dataFolder,
+            signal: ending.signal,
+            log,
           },
-          dataFolder: deps.dataFolder,
-          signal: ending.signal,
-          log,
-        },
-        deps.table,
-        deps.locale,
-      )
-    } catch (error: unknown) {
-      // REPORTED: a workspace whose Git could not be opened has none; the log has the cause.
-      log.warn(`The panel's Git could not be opened: ${failureForLog(error)}`)
-    }
+          deps.table,
+          deps.locale,
+        )
+      } catch (error: unknown) {
+        // REPORTED: a workspace whose Git could not be opened has none; the log has the cause.
+        log.warn(`The panel's Git could not be opened: ${failureForLog(error)}`)
+      } finally {
+        opening = undefined
+      }
+    })()
+    return opening
   }
 
   const currentSettings = (): ExtensionSettings => {

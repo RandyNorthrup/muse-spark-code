@@ -1,7 +1,7 @@
 // The Git a runtime panel conversation has when there is none to give (M104
 // lane B): no git program, a workspace in no repository, or a bundle that
 // could not be loaded. It shows no Git state, and every action says why in the
-// reason it was made with, so a press is never silent.
+// reason it was made with (a warning in the panel), so a press is never silent.
 import type {
   ConversationGitPort,
   GitSurface,
@@ -17,14 +17,18 @@ export function unavailableGit(
   const showNothing = () => {
     surface.post({ type: 'gitState', state: {} })
   }
-  const refuse = () => Promise.reject(new Error(reason))
+  // A press is answered in the panel in words, as a refusal of the repository's own would be.
+  const say = (): Promise<void> => {
+    surface.notice('warning', reason)
+    return Promise.resolve()
+  }
   return {
     postState: showNothing,
     sessionChanged: showNothing,
-    handleAction: refuse,
-    commit: refuse,
-    createPullRequest: refuse,
-    promptFor: refuse,
+    handleAction: say,
+    commit: say,
+    createPullRequest: say,
+    promptFor: () => Promise.reject(new Error(reason)),
     generationStarting: () => unavailable(),
     isGenerationCurrent: () => false,
     generationSubmitted: showNothing,
