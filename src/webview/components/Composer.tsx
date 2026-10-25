@@ -1276,7 +1276,7 @@ export function Composer(props: ComposerProps) {
             type="button"
             className="pill chat-control"
             title={UI_TEXT.modelPillTitle}
-            aria-label={UI_TEXT.modelPillLabel}
+            aria-label={`${UI_TEXT.modelPillLabel}: ${modelLabel}`}
             onMouseDown={keepMenuFocus}
             onClick={onOpenModelPicker}
           >

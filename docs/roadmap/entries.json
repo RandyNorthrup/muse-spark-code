@@ -1443,6 +1443,12 @@
       "title": "Build and test defects found along the way",
       "summary": "The release build ignores leftover downloads and bundles, the headless subcommands show their own flag words, and the integration suite passes on the oldest supported editor.",
       "area": "platform"
+    },
+    {
+      "id": "RLFA11Y",
+      "title": "Accessibility gates green, sandboxes' axe runs done",
+      "summary": "Fixes the failing axe rules and no-result pages so both a11y gates exit 0, and runs the handed-off axe scenes and the companion look on a browser rig.",
+      "area": "platform"
     }
   ]
 }

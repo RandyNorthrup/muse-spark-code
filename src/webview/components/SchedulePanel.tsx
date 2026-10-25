@@ -75,10 +75,7 @@ export function SchedulePanel({
                   <button
                     type="button"
                     className="tool-more chat-control"
-                    aria-label={fill(
-                      isPaidOn ? UI_TEXT.scheduleRunJob : UI_TEXT.scheduleEnableJob,
-                      { id: job.id },
-                    )}
+                    aria-label={`${isPaidOn ? UI_TEXT.scheduleRun : UI_TEXT.scheduleEnablePaid}: ${job.id}`}
                     onClick={() => {
                       if (isPaidOn) {
                         onRun(job.id, job.nextFireAtMs)
@@ -93,7 +90,7 @@ export function SchedulePanel({
                 <button
                   type="button"
                   className="tool-more chat-control"
-                  aria-label={fill(UI_TEXT.scheduleCancelJob, { id: job.id })}
+                  aria-label={`${UI_TEXT.scheduleCancel}: ${job.id}`}
                   onClick={() => {
                     onCancel(job.id)
                   }}

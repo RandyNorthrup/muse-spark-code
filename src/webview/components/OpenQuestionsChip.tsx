@@ -1,5 +1,6 @@
 import { UI_TEXT } from '../../shared/constants'
 import { plural } from '../../shared/l10n/text'
+import { BackIcon, ForwardIcon } from './icons'
 
 export function OpenQuestionsChip({
   count,
@@ -12,12 +13,7 @@ export function OpenQuestionsChip({
 }) {
   return (
     <div className="open-questions-chip">
-      <button
-        type="button"
-        className="button-secondary chat-control"
-        aria-label={plural(UI_TEXT.openQuestionsCount, count)}
-        onClick={onAnswer}
-      >
+      <button type="button" className="button-secondary chat-control" onClick={onAnswer}>
         {plural(UI_TEXT.openQuestionsCount, count)} · {UI_TEXT.questionAnswer}
       </button>
       <button
@@ -28,7 +24,7 @@ export function OpenQuestionsChip({
           onJump('previous')
         }}
       >
-        ←
+        <BackIcon />
       </button>
       <button
         type="button"
@@ -38,7 +34,7 @@ export function OpenQuestionsChip({
           onJump('next')
         }}
       >
-        →
+        <ForwardIcon />
       </button>
     </div>
   )
