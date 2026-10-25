@@ -776,8 +776,8 @@ table below). Every exit code is the command's own.
 
 Suites. The panel's own: `runtimePanel` 9, `runtimePanelConversation` 2,
 `runtimePanelSessions` 15, `runtimePanelGit` 6, `runtimeReview` 6,
-`runtimeTransfer` 4, `runtimeSettingsStore` 13, `runtimePortableBundles` 6,
-`wireEntry`, the native git suites (`nativeGitAdapter`, `nativeGitService`,
+`runtimeTransfer` 4, `runtimeSettingsStore` 13, `runtimePortableBundles` 4,
+`wireEntry` 2, the native git suites (`nativeGitAdapter`, `nativeGitService`,
 `nativeGitPullRequests`, `nativeCheckout`) and `conversationGitBundle`: all
 green. `npx vitest related` for the 59 `src/` files this branch changed ran
 1,100 test files (the vault and credential-store suites left out: `vault/**`,
