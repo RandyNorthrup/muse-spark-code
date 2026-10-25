@@ -5,6 +5,7 @@ import * as z from 'zod/mini'
 import type { Logger } from '../../logger'
 import type { ModelResolver, ResolvedModel } from '../../../core/backends/modelapi/modelPolicy'
 import type { Usage } from '../../../core/backends/modelapi/schemas'
+import { toEpochMs } from '../../../shared/epochMs'
 import type { UsageRecording } from '../../../core/usage/recording'
 import { Usd, type UsdAmount } from '../../../shared/usd'
 import {
@@ -220,7 +221,7 @@ export function createEditorChat(deps: EditorChatDeps) {
       const timer = setTimeout(() => {
         abort.abort()
       }, MODEL_API_REQUEST_TIMEOUT_MS)
-      const at = deps.now()
+      const at = toEpochMs(deps.now())
       const state = { isDispatched: false, isCompleted: false }
       let usage: Usage | undefined
       let outcome: 'completed' | 'incomplete' | 'failed' | 'cancelled' = 'failed'

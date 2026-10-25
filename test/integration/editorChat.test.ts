@@ -25,6 +25,7 @@ import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
 import { createLogger } from '../../src/host/logger'
 import { createEditorChat } from '../../src/host/vscode/models/lmProvider'
 import { readSettings } from '../../src/host/settings'
+import { epochNow } from '../../src/shared/epochMs'
 import { EDITOR_CHAT_VENDOR, SETTINGS_SECTION, UI_TEXT } from '../../src/shared/constants'
 
 const LOCAL_REF = 'probe-custom/custom-model'
@@ -66,7 +67,7 @@ async function withEditorChat(work: (harness: EditorChatHarness) => Promise<void
   const recording = createUsageRecording({
     client: 'editor-chat-test',
     isEnabled: () => true,
-    now: () => Date.now(),
+    now: epochNow,
     newId: () => 'editor-chat-test-id',
     log,
     writer: (onWriteError) =>
@@ -74,7 +75,7 @@ async function withEditorChat(work: (harness: EditorChatHarness) => Promise<void
         new UsageJournalStore(new NodeUsageFs(directory), {
           writerId: 'editor-chat-test-writer',
           isEnabled: () => true,
-          now: () => Date.now(),
+          now: epochNow,
           sleep: () => Promise.resolve(),
           onWriteError: (_code, error) => {
             onWriteError(error)

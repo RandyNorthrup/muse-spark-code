@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { restampTeamQuota, stampQuotaRow, teamQuotaStash } from '../../src/core/usage/quotaStamp'
 import type { OwnedLimitInput, UsageRecording } from '../../src/core/usage/recording'
 import { ownedRecording } from './helpers/ownedRecording'
+import { toEpochMs } from '../../src/shared/epochMs'
 
 const SCOPE = { accountId: 'account', generation: 'generation-1', backend: 'modelApi' } as const
 
@@ -16,7 +17,7 @@ function limitRow(provider: string): OwnedLimitInput {
     backend: 'modelApi',
     provider,
     source: 'headers',
-    observedAt: 1,
+    observedAt: toEpochMs(1),
     windows: [],
     raw: {},
     observedAccount: RESERVATION,

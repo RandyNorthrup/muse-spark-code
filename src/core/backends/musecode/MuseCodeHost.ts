@@ -162,6 +162,7 @@ import { museCodeLimitWindows } from './usageDeltas'
 import { causeForLog, failureForLog } from './logText'
 import { redactSecrets } from '../../../shared/redact'
 import { PromptLedger } from './promptLedger'
+import { toEpochMs } from '../../../shared/epochMs'
 import {
   NATIVE_FEEDBACK_READER,
   submitMuseFeedback,
@@ -3276,7 +3277,7 @@ export class MuseCodeHost implements AgentHost {
             backend: 'museCode',
             provider: 'museCode',
             source: 'museCode',
-            observedAt: usage.observedAtMs,
+            observedAt: toEpochMs(usage.observedAtMs),
             windows: museCodeLimitWindows(usage),
           })
         }

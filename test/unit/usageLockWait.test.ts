@@ -15,6 +15,7 @@ import {
 } from '../../src/core/usage/journalStore'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
 import { USAGE_ROLLUP_LOCK, USAGE_ROLLUP_LOCK_STALE_MS } from '../../src/shared/constants'
+import { epochNow } from '../../src/shared/epochMs'
 
 const LOCK = `${USAGE_JOURNAL_ROOT}/${USAGE_ROLLUP_LOCK}`
 
@@ -22,7 +23,7 @@ function storeIn(fs: UsageFs, sleep?: (ms: number) => Promise<void>): UsageJourn
   return new UsageJournalStore(fs, {
     writerId: 'test-writer',
     isEnabled: () => true,
-    now: () => Date.now(),
+    now: epochNow,
     onWriteError: () => {
       throw new Error('the lock-wait tests never write')
     },

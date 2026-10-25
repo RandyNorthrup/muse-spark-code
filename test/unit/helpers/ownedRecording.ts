@@ -1,4 +1,5 @@
 import { createUsageRecording, type UsageRecording } from '../../../src/core/usage/recording'
+import { toEpochMs } from '../../../src/shared/epochMs'
 
 export interface OwnedRecordingHarness {
   port: UsageRecording
@@ -9,7 +10,7 @@ export interface OwnedRecordingHarness {
 export function ownedRecording(at: number, onWarn?: () => void): OwnedRecordingHarness {
   const port = createUsageRecording({
     client: 'owned-test',
-    now: () => at,
+    now: () => toEpochMs(at),
     newId: () => 'owned',
     isEnabled: () => false,
     log: {
