@@ -107,6 +107,7 @@ export function createSchedulesBridge(deps: SchedulesBridgeDeps) {
     deps.isDeliveryReady?.() === false ? undefined : deps.migration,
     undefined,
     deps.pauseAfterFailures,
+    undefined,
     deps.isWorkspaceTrusted === undefined
       ? undefined
       : (_root: string) => deps.isWorkspaceTrusted?.() ?? false,

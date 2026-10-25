@@ -14,6 +14,16 @@ import { browserStartupSources } from './browserKeybindings.mjs'
 import { RESOURCE_WEBVIEW_ENTRIES } from './webviewBundles.mjs'
 
 const TABLE = 'src/shared/l10n/en.ts'
+
+/**
+English groups only the Node bundles read (the terminal's and the ACP
+agent's command text). The generated reference names their commands, and a
+command word that equals a group's name ("watchdog") is not a reader of the
+group, so its prose stays out of the browser's closure. Without this the
+issue watchdog's text (RLSCHED, merged by CC-INT2) rode the shared surface
+English: 25.2 KiB against its 25 KiB cap, 23.4 KiB without it.
+*/
+const NODE_ONLY_TEXT_GROUPS = new Set(['watchdog'])
 export const UI_TEXT_REGIONS = [
   { name: 'media', output: 'dist/uiTextMedia.js', keys: /^media$/ },
   {
@@ -317,8 +327,9 @@ export function browserTextKeys(entries, english, eagerSources = new Set(), excl
     readFileSync('src/shared/reference/reference.generated.json', 'utf8'),
   )
   const collect = (value) => {
-    if (typeof value === 'string' && Object.hasOwn(english, value)) keys.add(value)
-    else if (value !== null && typeof value === 'object') {
+    if (typeof value === 'string' && Object.hasOwn(english, value)) {
+      if (!NODE_ONLY_TEXT_GROUPS.has(value)) keys.add(value)
+    } else if (value !== null && typeof value === 'object') {
       if (Object.hasOwn(value, 'cli')) keys.add('referenceCliOptions')
       if (Object.hasOwn(value, 'tip')) keys.add('paletteTips')
       for (const nested of Object.values(value)) collect(nested)
