@@ -4431,7 +4431,7 @@
     "noteLsp": "Sin --tab no se factura nada y nunca se lee el almacén de credenciales. Con él, cada precio nuevo pregunta primero en el editor; Permitir siempre en esta área de trabajo solo se ofrece con --trust-workspace.",
     "purposeSupervise": "Ejecutar otro comando de este agente de forma que stop pueda terminarlo junto con todos los procesos que inició.",
     "purposeStop": "Detener cada ejecución supervisada iniciada en esta carpeta, junto con todos los procesos que inició.",
-    "purposePanel": "Atender al host del panel de Muse de un editor por MHP: la configuración y el almacenamiento de este agente, para la carpeta en la que se inicia.",
+    "purposePanel": "Atender al host del panel de Muse de un editor por MHP: sus conversaciones, y la configuración y el almacenamiento de este agente, para la carpeta en la que se inicia.",
     "notePanel": "Una configuración escrita aquí es la que lee el propio agente: la configuración de usuario permanece en settings.json y resources.json de la carpeta de datos. La configuración que elige qué se ejecuta o qué se factura es solo suya y rechaza el ámbito del área de trabajo. Nunca se guarda ninguna clave ni token.",
     "purposeSetup": "Ejecutar los hooks Setup y salir.",
     "purposeUsage": "Mostrar el uso y coste de todos los modelos.",

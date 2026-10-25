@@ -5445,7 +5445,7 @@
     {
       "route": "panel",
       "name": "panel --stdio [--workspace <directory>]",
-      "description": "Serve an editor’s Muse panel host over MHP: this agent’s settings and storage, for the folder it starts in.",
+      "description": "Serve an editor’s Muse panel host over MHP: its conversations, and this agent’s settings and storage, for the folder it starts in.",
       "invocations": [["panel"]]
     },
     {

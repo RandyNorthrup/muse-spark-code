@@ -752,18 +752,60 @@ was read on int and the panel built against int's code (the brief's rule).
 | `judgeBundle`, `judgeEntry`, `judgeUsage` | untouched: no judge in the panel yet                                                                                                                   |
 | `companion/page`, `exec/runExec`          | untouched: lane C and D's, and the exec entry has no panel                                                                                             |
 
+## Gates (final, 2026-10-24, Mac mini)
+
+Run on this branch's tree at the commit that carries this record (the commit
+table below). Every exit code is the command's own.
+
+| Gate                                                                  | Exit | Note                                                                                                                                                                                                                          |
+| --------------------------------------------------------------------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `prettier --check` on every file this branch touched                  | 0    |                                                                                                                                                                                                                               |
+| `eslint --max-warnings=0` on every touched `.ts`, `.tsx`, `.mjs` file | 0    |                                                                                                                                                                                                                               |
+| `npm run format:check` (the whole repository)                         | 0    |                                                                                                                                                                                                                               |
+| `npm run lint` (js, css, ps)                                          | 0    | the whole repository                                                                                                                                                                                                          |
+| `npm run typecheck` (host, webview, unit, e2e, integration, faults)   | 0    |                                                                                                                                                                                                                               |
+| `node scripts/check-l10n.mjs`                                         | 0    | 14 UI tables, 0 problems (the lane's new strings are in all fifteen tables, and the panel's help line is reworded in all)                                                                                                     |
+| `npm run check:reference`, `check:host-api`, `check:mhp`              | 0    | the host-API record and the reference were regenerated                                                                                                                                                                        |
+| `npm run check:plan`, `check:roadmap`, `check:tokens`                 | 0    |                                                                                                                                                                                                                               |
+| `npm run check:catches`                                               | 0    | no SWALLOW, GENERIC or CLEANUP count rose                                                                                                                                                                                     |
+| `npm run duplication`                                                 | 0    | 0 clones                                                                                                                                                                                                                      |
+| `npm run cycles`, `npm run deadcode`                                  | 0    |                                                                                                                                                                                                                               |
+| `npm run build`                                                       | 0    | every budget holds: `wire.js` 74.4 of 75 KiB (unchanged), `runtimePanel.js` 77.1/100, `runtimePanelSession.js` 115.1/120, `runtimePanelPorts.js` 22.6/30, `nativeGit.js` 97.8/125, `conversation.js` 272.6/300                |
+| `npm run security:sast`                                               | 1    | 6 findings in `os/build.py`, `os/pi/compose.py`, `scripts/build-packs.mjs`, `src/core/backends/modelapi/mcp/headers.ts`, `src/runtime/node/keyStore.ts`: none touched by this branch; the base tree gives the same 6 (exit 1) |
+| `npm run security:audit`                                              | 0    | 6 advisories noted (fast-uri, serialize-javascript), 0 exceptions                                                                                                                                                             |
+
+Suites. The panel's own: `runtimePanel` 9, `runtimePanelConversation` 2,
+`runtimePanelSessions` 15, `runtimePanelGit` 6, `runtimeReview` 6,
+`runtimeTransfer` 4, `runtimeSettingsStore` 13, `runtimePortableBundles` 6,
+`wireEntry`, the native git suites (`nativeGitAdapter`, `nativeGitService`,
+`nativeGitPullRequests`, `nativeCheckout`) and `conversationGitBundle`: all
+green. `npx vitest related` for the 59 `src/` files this branch changed ran
+1,100 test files (the vault and credential-store suites left out: `vault/**`,
+`keystoreOwner`, `keyringParts`, `credentialLease`, `providerHeadersStore`,
+`deviceOwnerVaultUses`, because they write the machine's keychain): 1,045
+passed, 26 skipped, 29 failed. The 29 files fail in 69 tests, and the same 69
+tests (same names) fail on this branch's base commit `acb48b7f3`, run as its
+own repository under `temp/` with the same command (`runtimeLsp` 5,
+`pathGuardSpawns` 1 and `acpServeHandshake` among them); int's own breakage,
+not this lane's. The one failure of this lane's own suite in that run was
+`runtimeSettingsStore`'s 300-write case timing out at 5 s while three workers
+and the build shared the disk (0.3 s alone): it has a named 30 s timeout now.
+Tests ran with the repository's own timeouts; no `--testTimeout` was used.
+
 ## Commits
 
-| Commit       | Slice                                                    |
-| ------------ | -------------------------------------------------------- |
-| `c17faa0c2a` | slice 1: settings and storage store                      |
-| `f432fac54d` | slice 2: the controller registry, ACP over it            |
-| `097aba7b42` | slice 3 (work in progress): `panel --stdio`              |
-| `a26bb6a23`  | slice 3 proven, with the drills                          |
-| `9d44d6774`  | slice 4a: the conversation bundle loads without `vscode` |
-| `3c61b9a1a`  | slices 4b–5a, 7a: the chat in `panel --stdio`            |
-| `1081aca0e`  | slice 6: paid use in the panel                           |
-| `728a52409`  | slice 5b: review, export and import, unsaved files       |
-| `40106f850`  | slice 5c: git and pull requests in the panel             |
-| `ad7ece8a3`  | slice 5d: Ask again, plans, output tabs, sign-out words  |
-| `ac742081e`  | slice 7b-1: the tasks tab                                |
+| Commit       | Slice                                                                          |
+| ------------ | ------------------------------------------------------------------------------ |
+| `c17faa0c2a` | slice 1: settings and storage store                                            |
+| `f432fac54d` | slice 2: the controller registry, ACP over it                                  |
+| `097aba7b42` | slice 3 (work in progress): `panel --stdio`                                    |
+| `a26bb6a23`  | slice 3 proven, with the drills                                                |
+| `9d44d6774`  | slice 4a: the conversation bundle loads without `vscode`                       |
+| `3c61b9a1a`  | slices 4b–5a, 7a: the chat in `panel --stdio`                                  |
+| `1081aca0e`  | slice 6: paid use in the panel                                                 |
+| `728a52409`  | slice 5b: review, export and import, unsaved files                             |
+| `40106f850`  | slice 5c: git and pull requests in the panel                                   |
+| `ad7ece8a3`  | slice 5d: Ask again, plans, output tabs, sign-out words                        |
+| `ac742081e`  | slice 7b-1: the tasks tab                                                      |
+| `78222010d`  | no git before trust; unavailable Git said as a warning; end-of-session records |
+| (this)       | help line, the settings suite's timeout, the final gates                       |

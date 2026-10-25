@@ -4512,7 +4512,7 @@
     "noteLsp": "Bez --tab nic nie jest rozliczane, a magazyn danych logowania nigdy nie jest odczytywany. Z nią każda nowa cena najpierw pyta w edytorze; Zawsze zezwalaj w tym obszarze roboczym jest dostępne tylko z --trust-workspace.",
     "purposeSupervise": "Uruchom inne polecenie tego agenta tak, aby stop mógł je zakończyć razem ze wszystkimi uruchomionymi przez nie procesami.",
     "purposeStop": "Zatrzymaj każde nadzorowane uruchomienie rozpoczęte w tym folderze razem ze wszystkimi uruchomionymi przez nie procesami.",
-    "purposePanel": "Obsługiwać hosta panelu Muse w edytorze przez MHP: ustawienia i magazyn tego agenta dla folderu, w którym się uruchamia.",
+    "purposePanel": "Obsługiwać hosta panelu Muse w edytorze przez MHP: jego rozmowy oraz ustawienia i magazyn tego agenta dla folderu, w którym się uruchamia.",
     "notePanel": "Ustawienie zapisane tutaj to to, które czyta sam agent: ustawienia użytkownika pozostają w plikach settings.json i resources.json w folderze danych. Ustawienia, które decydują, co jest uruchamiane lub co jest rozliczane, należą tylko do Ciebie i odrzucają zakres obszaru roboczego. Żaden klucz ani token nigdy nie jest przechowywany.",
     "purposeSetup": "Uruchom hooki Setup i zakończ.",
     "purposeUsage": "Pokaż użycie i koszty wszystkich modeli.",

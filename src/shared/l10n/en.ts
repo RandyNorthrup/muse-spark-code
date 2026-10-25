@@ -5434,7 +5434,7 @@ export const EN = {
       'Run another command of this agent so that stop can end it, with every process it started.',
     purposeStop: 'Stop every supervised run started in this folder, with every process it started.',
     purposePanel:
-      'Serve an editor’s Muse panel host over MHP: this agent’s settings and storage, for the folder it starts in.',
+      'Serve an editor’s Muse panel host over MHP: its conversations, and this agent’s settings and storage, for the folder it starts in.',
     notePanel:
       'A setting written here is the one this agent itself reads: user settings stay in the data folder’s settings.json and resources.json. Settings that choose what runs or what is billed are yours alone and refuse the workspace scope. No key or token is ever stored.',
     purposeSetup: 'Run the Setup hooks and exit.',

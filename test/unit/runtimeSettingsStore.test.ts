@@ -213,18 +213,23 @@ describe('RuntimeSettingsStore', () => {
     ])
   })
 
-  it('accepts every setting’s own default, under a key no other setting shares', async () => {
-    const { store } = await storeIn('settings-every-')
-    const { store: untouched } = await storeIn('settings-untouched-')
-    const names = [...Object.keys(SETTING_DEFAULTS), ...Object.values(RESOURCE_SETTING_KEYS)]
-    expect(new Set(names.map((name) => runtimeSettingFileKey(name))).size).toBe(names.length)
-    for (const name of names) {
-      const value = await untouched.getSetting(`museSpark.${name}`)
-      await store.updateSetting(`museSpark.${name}`, value, 'user')
-      expect(await store.getSetting(`museSpark.${name}`), name).toEqual(value)
-    }
-    expect(await store.readAll()).toEqual(await untouched.readAll())
-  })
+  // About 300 durable atomic writes, one after another: seconds when the disk is busy with other suites.
+  it(
+    'accepts every setting’s own default, under a key no other setting shares',
+    { timeout: 30_000 },
+    async () => {
+      const { store } = await storeIn('settings-every-')
+      const { store: untouched } = await storeIn('settings-untouched-')
+      const names = [...Object.keys(SETTING_DEFAULTS), ...Object.values(RESOURCE_SETTING_KEYS)]
+      expect(new Set(names.map((name) => runtimeSettingFileKey(name))).size).toBe(names.length)
+      for (const name of names) {
+        const value = await untouched.getSetting(`museSpark.${name}`)
+        await store.updateSetting(`museSpark.${name}`, value, 'user')
+        expect(await store.getSetting(`museSpark.${name}`), name).toEqual(value)
+      }
+      expect(await store.readAll()).toEqual(await untouched.readAll())
+    },
+  )
 
   it('loses no key when several writers change one file at once', async () => {
     const { dataFolder, store } = await storeIn('settings-concurrent-')

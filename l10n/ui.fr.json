@@ -4431,7 +4431,7 @@
     "noteLsp": "Sans --tab, rien n’est facturé et le magasin d’identifiants n’est jamais lu. Avec, chaque nouveau prix est d’abord demandé dans l’éditeur ; Toujours autoriser dans cet espace de travail n’est proposé qu’avec --trust-workspace.",
     "purposeSupervise": "Exécuter une autre commande de cet agent de sorte que stop puisse l’arrêter avec tous les processus qu’elle a lancés.",
     "purposeStop": "Arrêter chaque exécution supervisée lancée dans ce dossier, avec tous les processus qu’elle a lancés.",
-    "purposePanel": "Servir l’hôte du panneau Muse d’un éditeur via MHP : les paramètres et le stockage de cet agent, pour le dossier où il démarre.",
+    "purposePanel": "Servir l’hôte du panneau Muse d’un éditeur via MHP : ses conversations, ainsi que les paramètres et le stockage de cet agent, pour le dossier où il démarre.",
     "notePanel": "Un paramètre écrit ici est celui que cet agent lit lui-même : les paramètres utilisateur restent dans settings.json et resources.json du dossier de données. Les paramètres qui choisissent ce qui s’exécute ou ce qui est facturé ne relèvent que de vous et refusent la portée de l’espace de travail. Aucune clé ni aucun jeton n’est jamais stocké.",
     "purposeSetup": "Exécuter les hooks Setup puis quitter.",
     "purposeUsage": "Afficher l’utilisation et le coût de tous les modèles.",
