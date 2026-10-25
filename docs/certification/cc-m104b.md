@@ -49,7 +49,8 @@ raised, new code in lazy chunks with measured budgets (D6).
 | 6         | `1081aca0e`   | paid use in the panel: the gate over the runtime's settings, the question through MHP `ui/confirm`, Always in the grants file ACP shares                                                                                           | `runtimePanelSessions` 9/9, `runtimeSettingsStore` 13/13; drills M1–M5 fire                                                                 |
 | 5b        | `728a52409`   | edit review and `/review` over int's review bundle, export and import through the editor's dialogs, unsaved editor files told to the backend                                                                                       | `runtimeReview` 6/6, `runtimeTransfer` 4/4, `runtimePanelSessions` 10/10; drills V1–V5, X1–X4, U1–U2 fire                                   |
 | 5c        | `40106f850`   | git and pull requests in the panel: the native route over the editor's services, in `dist/nativeGit.js`; the GitHub sign-in (device flow, `gh`) shared with VS Code                                                                | `runtimePanelGit` 6/6, `runtimeSettingsStore` 13/13, `pathGuardSpawns` record moved; drills G1–G7 fire                                      |
-| 5d        | (this commit) | Ask again, saved plans, a tool row's output in an editor tab, sign-out said in words                                                                                                                                               | `runtimePanelSessions` 14/14; drills D1–D6 fire                                                                                             |
+| 5d        | `ad7ece8a3`   | Ask again, saved plans, a tool row's output in an editor tab, sign-out said in words                                                                                                                                               | `runtimePanelSessions` 14/14; drills D1–D6 fire                                                                                             |
+| 7b-1      | (this commit) | the tasks tab: a `tasks` surface bound to the conversation's session (`TasksTabPort` over MHP)                                                                                                                                     | `runtimePanelSessions` 15/15; drills T1–T4 fire                                                                                             |
 
 ### Next step, exactly
 
@@ -125,10 +126,12 @@ rig-specific facts are in "Rig notes".
    counted, when it closes. `surfaces/open` is asked once the handshake is
    done; a conversation without a backend session yet is bound to an id of
    its own and its surface is replaced when the first session starts (MHP
-   binds a surface to one session for good). Still to do (7b): the other
-   surface kinds (tasks, whatsNew, usage, maker, models, traffic, settings,
+   binds a surface to one session for good). The `tasks` surface is done
+   (7b-1, `src/runtime/panel/tasksTab.ts`). Still to do (7b): the other
+   surface kinds (whatsNew, usage, maker, models, traffic, settings,
    walkthrough, diff, plans, manager, roles), host actions that open them,
-   and `panelEventId` with its readers.
+   and `panelEventId` with its readers; each needs its page's host side in
+   the runtime and the page itself in the editor (lane D's portable webview).
 8. **`--companion`** over int's companion server (`src/runtime/companion/`,
    its launch code and bearer, cc-rlm104 item 4 `/panel/*` routes), with
    `fallbackUi.ts` and `portableAssets.ts` moving in with their first
@@ -623,6 +626,31 @@ would. `runtimePortableBundles` also loads `nativeGit.js`,
 | D5    | the sign-out refusal is the generic failure   | exit 1: "says how to sign out …"                                   |
 | D6    | Ask again does not tell the surfaces          | exit 1: "asks again …" (times out)                                 |
 
+## Slice 7b-1 — the tasks tab
+
+What a person gets: "Open in a Tab" on the task list opens a tab of the
+editor showing the conversation's list (the editor renders the tasks page);
+pressed again it comes forward instead of opening a second one; "Open the
+conversation" on the tab brings the chat of the same session forward. When the
+conversation moves to another session its tab closes with the old session's
+surfaces (an MHP surface is bound to one session for good, so the tab cannot
+stay open showing "ended" as VS Code's does). The tab never offers "move to a
+window": the runtime knows of no editor command for it.
+
+How: `RuntimeTasksTab` is the controller's `TasksTabPort` and the `PanelView`
+of the `tasks` surface; the conversation routes a surface by its kind
+(`RuntimeConversation.view`), the session asks the editor for it
+(`surfaces/open`, placement `tab`) and brings surfaces forward
+(`surfaces/focus`). The list in the suite is empty: a todo list comes from a
+model turn, which no suite here makes.
+
+| Drill | Break                                         | Result                                                   |
+| ----- | --------------------------------------------- | -------------------------------------------------------- |
+| T1    | the tab offers "move to a window"             | exit 1: "opens as a tasks surface of the conversation …" |
+| T2    | "Open the conversation" does nothing          | exit 1: same case (times out)                            |
+| T3    | the conversation gives no view to the surface | exit 1: same case (times out)                            |
+| T4    | pressed again, a second tab is requested      | exit 1: same case (times out)                            |
+
 ## Commits
 
 | Commit       | Slice                                                    |
@@ -636,4 +664,5 @@ would. `runtimePortableBundles` also loads `nativeGit.js`,
 | `1081aca0e`  | slice 6: paid use in the panel                           |
 | `728a52409`  | slice 5b: review, export and import, unsaved files       |
 | `40106f850`  | slice 5c: git and pull requests in the panel             |
-| (this)       | slice 5d: Ask again, plans, output tabs, sign-out words  |
+| `ad7ece8a3`  | slice 5d: Ask again, plans, output tabs, sign-out words  |
+| (this)       | slice 7b-1: the tasks tab                                |

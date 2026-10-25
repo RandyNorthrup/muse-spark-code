@@ -320,6 +320,60 @@ function firstOpened(host: MhpWire): Promise<string> {
   return opened.promise
 }
 
+describe('the tasks tab', () => {
+  it('opens as a tasks surface of the conversation, comes forward when pressed again, brings the chat forward, and closes with its session', async () => {
+    const { host, editor, exit } = await connected()
+    const focused: string[] = []
+    const waiting: (() => void)[] = []
+    host.serve('surfaces/focus', (params) => {
+      focused.push((params as { surfaceId: string }).surfaceId)
+      for (const wake of waiting.splice(0)) wake()
+      return null
+    })
+    /** Resolves once the editor has been asked to bring this many surfaces forward. */
+    const focusedCount = async (count: number): Promise<void> => {
+      while (focused.length < count)
+        await new Promise<void>((resolve) => {
+          waiting.push(resolve)
+        })
+    }
+    const chat = await editor.nextSurface()
+    await chat.shown('sessionInfo')
+    chat.say({ type: 'hostAction', action: 'openTasksTab' })
+    const tasks = await editor.nextSurface({ type: 'tasksReady' })
+    expect(editor.opened.at(-1)).toEqual({
+      kind: 'tasks',
+      placement: 'tab',
+      sessionId: chat.sessionId,
+    })
+    expect(tasks.sessionId).toBe(chat.sessionId)
+    expect(await tasks.shown('tasksState')).toEqual({
+      type: 'tasksState',
+      conversation: UI_TEXT.untitledConversation,
+      items: [],
+      ended: false,
+      canMoveToWindow: false,
+    })
+    // Pressed again, the open tab comes forward: no second tab.
+    const openedSoFar = editor.opened.length
+    chat.say({ type: 'hostAction', action: 'openTasksTab' })
+    await focusedCount(1)
+    expect(focused).toEqual([tasks.surface])
+    expect(editor.opened).toHaveLength(openedSoFar)
+    // "Open the conversation" brings the chat of the same session to the front.
+    tasks.say({ type: 'revealConversation' })
+    await focusedCount(2)
+    expect(focused).toEqual([tasks.surface, chat.surface])
+    // An MHP surface is bound to one session for good: both go when the conversation moves on.
+    chat.say({ type: 'clearConversation' })
+    const next = await editor.nextSurface()
+    expect(next.sessionId).not.toBe(chat.sessionId)
+    expect(editor.closed).toEqual(expect.arrayContaining([chat.surface, tasks.surface]))
+    parseMhpResult('shutdown', await host.request('shutdown', {}))
+    expect(await exit).toBe(0)
+  })
+})
+
 describe('what the person opens from the chat', () => {
   it('shows a tool row’s full output in a tab of the editor, and removes the file with the connection', async () => {
     const { host, editor, exit } = await connected({ offers: ['editor'] })
