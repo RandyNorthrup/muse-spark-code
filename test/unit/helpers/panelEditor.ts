@@ -22,12 +22,19 @@ export interface ChatSurface {
 }
 
 export interface PanelEditor {
-  /** The next surface the runtime asks the editor to open, opened and ready (its webview said `ready`). */
-  nextSurface(): Promise<ChatSurface>
+  /**
+  The next surface the runtime asks the editor to open, opened and ready: its
+  webview says `hello` (a chat's `ready`; another page says its own).
+  */
+  nextSurface(hello?: object): Promise<ChatSurface>
   /** The surfaces the runtime asked the editor to close, by id. */
   readonly closed: readonly string[]
   /** Every `surfaces/open` the runtime made so far. */
-  readonly opened: readonly { readonly kind: unknown; readonly sessionId: string }[]
+  readonly opened: readonly {
+    readonly kind: unknown
+    readonly placement: unknown
+    readonly sessionId: string
+  }[]
 }
 
 interface OpenRequest {
@@ -59,7 +66,7 @@ export function panelEditor(wire: MhpWire): PanelEditor {
   return {
     closed,
     opened,
-    nextSurface: async () => {
+    nextSurface: async (hello?: object) => {
       const request =
         pending.shift() ??
         (await new Promise<OpenRequest & { readonly surface: string }>((resolve) => {
@@ -106,7 +113,7 @@ export function panelEditor(wire: MhpWire): PanelEditor {
           wire.send({ ...frame, event, ...extra })
         },
       }
-      surface.say({ type: 'ready' })
+      surface.say(hello ?? { type: 'ready' })
       return surface
     },
   }

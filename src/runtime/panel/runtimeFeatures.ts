@@ -389,6 +389,7 @@ export async function runtimeConversationDeps(
     createGit: (gitSurface) =>
       ports.git()?.createGit(gitSurface) ??
       unavailableGit(gitSurface, UI_TEXT.hostService.notAvailable, log),
+    tasksTab: context.tasksTab,
     onForegroundTasksChanged: () => {
       log.trace('MHP_FOREGROUND_TASKS_CHANGED')
     },

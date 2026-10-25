@@ -289,16 +289,21 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
   paid.gate.onDidChange(publishPaid)
   paid.usage.onDidChange(publishPaid)
 
-  async function openSurface(sessionId: string): Promise<void> {
+  /** Asks the editor for a surface of `kind` bound to the session; a chat opens beside the editor, a tasks page in a tab. */
+  async function requestSurface(kind: 'chat' | 'tasks', sessionId: string): Promise<void> {
     if (!connection.offers('surfaces')) {
       log.warn('MHP_SURFACES_NOT_OFFERED')
       return
     }
     await connection.request(
       'surfaces/open',
-      { kind: 'chat', placement: 'side', sessionId },
+      { kind, placement: kind === 'chat' ? 'side' : 'tab', sessionId },
       ending.signal,
     )
+  }
+
+  async function openSurface(sessionId: string): Promise<void> {
+    await requestSurface('chat', sessionId)
   }
 
   /** A session's surfaces end here, before its replacement is shown. */
@@ -355,6 +360,15 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
             },
           },
         ),
+      surfaces: {
+        idsOf: (sessionId, kind) => connection.surfaces.idsOf(sessionId, kind),
+        open: async (sessionId, kind) => {
+          await requestSurface(kind, sessionId)
+        },
+        focus: async (surfaceId) => {
+          await connection.request('surfaces/focus', { surfaceId }, ending.signal)
+        },
+      },
       sessionChanged: async (previousId, session, conversation) => {
         await registry.rebind(previousId, session.sessionId, conversation)
         try {

@@ -19,6 +19,7 @@ import type {
 import type { Logger } from '../../host/logger'
 import { composerPlaceholderFor } from '../../host/views/composerPlaceholder'
 import type { ChatSurface } from '../../host/views/chatSurface'
+import type { TasksTabPort } from '../../host/views/tasksTabPort'
 import { MHP_PANEL, UI_TEXT } from '../../shared/constants'
 import type { MhpPanelBinding } from '../../shared/hostApi/panel'
 import { MhpPanelError } from '../../shared/hostApi/panelError'
@@ -34,6 +35,7 @@ import {
 import type { QuestionStore } from '../../shared/questions'
 import type { SessionController } from './controllerRegistry'
 import type { PanelView } from './surfaces'
+import { RuntimeTasksTab } from './tasksTab'
 
 /** What the MHP panel wire carries to a chat view: the shared chat payloads. */
 type PanelHostMessage = z.infer<typeof hostToWebviewMessageSchema>
@@ -50,6 +52,8 @@ export interface ConversationContext {
   readonly controller: () => ConversationController | undefined
   /** The host this conversation's sessions run on (the registry watches it for exit). */
   noteHost(host: AgentHost): void
+  /** The tasks tab the controller opens from "Open in a Tab". */
+  readonly tasksTab: TasksTabPort
   /** A resource the composition acquired: released with the conversation, even when a later step fails. */
   own(dispose: () => Promise<void> | void): void
 }
@@ -69,6 +73,12 @@ export interface RuntimeConversationOptions {
   readonly paidState: () => PaidState
   /** The controller's dependencies, composed for this conversation's surface. */
   readonly compose: (context: ConversationContext) => Promise<ConversationDeps>
+  /** The editor's surfaces of the conversation: which are open, and asking for, focusing and finding them. */
+  readonly surfaces: {
+    idsOf(sessionId: string, kind: 'chat' | 'tasks'): readonly string[]
+    open(sessionId: string, kind: 'tasks'): Promise<void>
+    focus(surfaceId: string): Promise<void>
+  }
   /** The conversation took another session: the registry follows, the host's surfaces are replaced. */
   readonly sessionChanged: (
     previousId: string,
@@ -117,7 +127,24 @@ export class RuntimeConversation implements SessionController, PanelView {
   private isDisposed = false
   private isHostStopped = false
 
-  public constructor(private readonly options: RuntimeConversationOptions) {}
+  private readonly tasksTab: RuntimeTasksTab
+
+  public constructor(private readonly options: RuntimeConversationOptions) {
+    const { surfaces } = options
+    this.tasksTab = new RuntimeTasksTab({
+      openSurfaces: () => surfaces.idsOf(this.currentId, 'tasks'),
+      openSurface: async () => {
+        await surfaces.open(this.currentId, 'tasks')
+      },
+      focusSurface: async (surfaceId) => {
+        await surfaces.focus(surfaceId)
+      },
+      revealConversation: async () => {
+        for (const id of surfaces.idsOf(this.currentId, 'chat')) await surfaces.focus(id)
+      },
+      log: options.log,
+    })
+  }
 
   private ensureLive(): void {
     if (this.isDisposed) throw unknownSurface()
@@ -166,6 +193,7 @@ export class RuntimeConversation implements SessionController, PanelView {
       signal: this.ending.signal,
       sessionId: () => this.currentId,
       controller: () => this.conversation,
+      tasksTab: this.tasksTab,
       noteHost: (host) => {
         this.currentHost = host
       },
@@ -349,7 +377,17 @@ export class RuntimeConversation implements SessionController, PanelView {
   /** Whether the host's surface binding names this conversation's current session. */
   public view(binding: MhpPanelBinding): PanelView | undefined {
     if (this.isDisposed || binding.sessionId !== this.currentId) return undefined
-    return binding.surfaceKind === 'chat' ? this : undefined
+    switch (binding.surfaceKind) {
+      case 'chat': {
+        return this
+      }
+      case 'tasks': {
+        return this.tasksTab
+      }
+      default: {
+        return undefined
+      }
+    }
   }
 
   /** What the person typed; one message at a time, in the order the host sent them. */
@@ -413,6 +451,7 @@ export class RuntimeConversation implements SessionController, PanelView {
     this.isDisposed = true
     this.ending.abort()
     this.listeners.clear()
+    this.tasksTab.dispose()
     this.releasing = this.releaseController()
     return this.releasing
   }

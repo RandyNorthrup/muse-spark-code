@@ -243,6 +243,15 @@ export class PanelSurfaces {
     }
   }
 
+  /** The ids of the open surfaces of `kind` bound to `sessionId`. */
+  public idsOf(sessionId: string, kind: MhpPanelBinding['surfaceKind']): readonly string[] {
+    const found: string[] = []
+    for (const surface of this.surfaces.values())
+      if (surface.binding.sessionId === sessionId && surface.binding.surfaceKind === kind)
+        found.push(surface.binding.surface)
+    return found
+  }
+
   /** Detaches every view; the connection ended or its host stopped. */
   public detach(): void {
     for (const surface of this.surfaces.values()) this.remove(surface)
