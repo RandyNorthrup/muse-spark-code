@@ -81,6 +81,13 @@
   gap: var(--ms-space-12);
 }
 
+.team-editor-secondary {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: var(--ms-space-8);
+}
+
 .team-editor-charter {
   white-space: pre-wrap;
   overflow-wrap: anywhere;

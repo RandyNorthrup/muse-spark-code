@@ -45,6 +45,9 @@ export function teamAction(message: TeamPanelMessage): TeamSurfaceMessage | unde
     case 'agents/merge': {
       return { type: 'decideTeamMerge', taskId: message.taskId, decision: message.decision }
     }
+    case 'agents/moveTask': {
+      return { type: 'moveTeamTask', taskId: message.taskId, role: message.role }
+    }
     default: {
       return undefined
     }
