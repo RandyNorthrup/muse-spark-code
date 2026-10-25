@@ -7423,7 +7423,10 @@ only").
      through the snapshot (an ESLint `no-restricted-syntax` and
      `no-restricted-imports` block on `src/core/reporting/collect/**`).
    - **Stable order.** Every list declares its sort key, compared by code
-     unit, never `localeCompare`.
+     unit, never `localeCompare`. M113-S's RVM113S fixes (2026-10-06) make
+     local-source comparators total: stable record identity or path first,
+     then serialized normalized bytes for ties, including scrub collisions.
+     Exhaustive shuffled-input properties must produce identical source bytes.
    - **Honest sources.** Each section names its sources and their freshness.
      A missing source is an explicit row, "unavailable: {reason}", never
      omitted and never faked.
@@ -27728,6 +27731,15 @@ the lane-level change only; the whole M113 milestone stays planned
 until W integrates and the §6.0 checklist boxes are checked per
 milestone.
 
+M113-S review repair scope, 2026-10-06 (RVM113S): total local-source ordering
+with permutation regression coverage; confined, count/depth-bounded discovery
+of Claude project's main and nested subagent session files, preserving Codex's
+dated layout; complete task-glob matching with suffix and separator constraints.
+No dependency, guard expansion, live call or activation change. Each finding
+gets a named byte-exact red drill in `docs/certification/m113-s-local-sources.md`.
+Shared core/runtime fixes serve every editor; W retains integration wiring and
+the documentation/reference/manifest/host-API/full-quality handoffs.
+
 Lanes P, S, R and V start once lane 0's contracts freeze, which can be as
 soon as M112's lane 0 has published the registry's types (for the session
 kind). The usage kind waits for M102, the native-host rows for M104b–d.
@@ -34497,6 +34509,19 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   in that record remain with their named owners; no live-service claim is
   added. W retains unused manifest-key wiring and host API regeneration,
   public documentation and the lead's full integrated quality run.
+
+- **M113-S-review-RVM113S (2026-10-06).** All three P2 findings are fixed;
+  no review residuals. Local-source sorts use stable identities/normalized
+  paths and normalized byte tie-breakers, including scrub collisions.
+  Runtime discovery includes the already admitted Claude project subagent
+  directory without expanding the accepted file families or read boundary.
+  Quality declarations match task globs the way npm-run-all2 does (int's
+  `matchTaskNames` over Node's glob matcher with the colon and slash roles
+  swapped), preserving suffixes, task separators and literal slashes. The 64-test
+  default-timeout verification and 13 byte-exact red drills are recorded in
+  `docs/certification/m113-s-local-sources.md`. Existing manifest, host-API,
+  documentation/reference, bundle assembly and full-quality integration
+  handoffs remain with W; scoped lane checks do not certify those handoffs.
 
 - **M113-L0-review-RVM113L02 (2026-10-06).** The P2 comparison-capacity
   finding is fixed with no review residuals. Capacity is derived from the
