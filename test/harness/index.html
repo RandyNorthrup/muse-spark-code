@@ -3279,7 +3279,7 @@
             type: 'paidState',
             state: {
               features: [],
-              tally: { webSearches: 0, images: 0, voiceSeconds: 0 },
+              tally: { webSearches: 0, images: 0, voiceSeconds: 0, scheduledRuns: 0 },
               isKeyStored: true,
               alwaysAllowed: [],
             },
@@ -3369,7 +3369,8 @@
           setDraft('/co')
         },
         models: () => {
-          click('Model')
+          // The pill names the current model too (RLF-A11Y), so it is found by class.
+          whenFound('.pill', (pill) => pill.click())
         },
         // --- M95: the picker grouped by provider, pinned first ---
         'models-byo': () => {
@@ -3405,13 +3406,11 @@
               },
             ],
           })
-          click('Model')
+          whenFound('.pill', (pill) => pill.click())
         },
         'pill-toggle': () => {
-          click('Model')
-          whenFound('.palette', () =>
-            whenFound(`button[aria-label="${shown('Model')}"]`, (model) => model.click()),
-          )
+          whenFound('.pill', (pill) => pill.click())
+          whenFound('.palette', () => whenFound('.pill', (pill) => pill.click()))
         },
         mention: () => {
           textarea().focus()
@@ -4144,11 +4143,11 @@
             search.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
           })
         },
-        // --- Prompt sequences (M88): the library from /sequences, two rows ---
+        // --- Prompt sequences (M88): the library from the palette, two rows ---
         sequences: () => {
           click('Commands')
           whenFound('.palette-filter', (filter) => {
-            setValue(filter, HTMLInputElement.prototype, '/sequences')
+            setValue(filter, HTMLInputElement.prototype, 'sequences')
             filter.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
           })
         },
@@ -6227,12 +6226,8 @@
         // --- M71: someone else's pull request, held, with its status and checks ---
         'git-held': () => {
           // The host holds the conversation in Plan until the worktree is trusted.
-          send({
-            type: 'composerState',
-            effort: 'high',
-            isThinkingEnabled: true,
-            permissionMode: 'plan',
-          })
+          composer = { ...composer, permissionMode: 'plan' }
+          send({ type: 'composerState', ...composer })
           send({
             type: 'gitState',
             state: {
