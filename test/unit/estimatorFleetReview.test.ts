@@ -31,6 +31,7 @@ import { resourceSettingsSchema } from '../../src/shared/resources'
 import { type AccountLimitsSnapshot } from '../../src/core/accounts/thresholds'
 import { collectingLogger } from './helpers/collectingLogger'
 import { amount, scheduleLane } from './helpers/estimatorKindScheduleFixtures'
+import { toEpochMs } from '../../src/shared/epochMs'
 
 const AS_OF = '2026-10-06T12:00:00.000Z'
 const NOW = Date.parse(AS_OF)
@@ -107,7 +108,7 @@ describe('RVCM1173C owner constraints', () => {
   it('binds the real usage changed recording on the panel and ACP sources', async () => {
     const recording = createUsageRecording({
       client: 'test',
-      now: () => NOW,
+      now: () => toEpochMs(NOW),
       newId: () => 'test-limit',
       isEnabled: () => false,
       log,
@@ -117,7 +118,7 @@ describe('RVCM1173C owner constraints', () => {
       backend: 'museCode',
       provider: 'museCode',
       source: 'museCode',
-      observedAt: NOW,
+      observedAt: toEpochMs(NOW),
       windows: [{ id: 'window', usedPercent: 100, resetsAt: NOW + 3_600_000, windowMins: 300 }],
     })
     for (const sources of [

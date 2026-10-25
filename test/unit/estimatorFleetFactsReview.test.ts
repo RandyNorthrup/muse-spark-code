@@ -33,6 +33,7 @@ import {
   simulationInputs,
 } from './helpers/estimatorKindScheduleFixtures'
 import type { UsageLimitSnapshot } from '../../src/shared/usageJournal'
+import { toEpochMs } from '../../src/shared/epochMs'
 const AS_OF = '2026-10-06T12:00:00.000Z'
 const NOW = Date.parse(AS_OF)
 const HOST = { platform: 'linux', arch: 'x64', cores: 4, ramGiB: 8 }
@@ -64,7 +65,7 @@ function observation(
     backend: source === 'museCode' ? 'museCode' : 'modelApi',
     provider: source === 'museCode' ? 'museCode' : 'openrouter',
     source,
-    observedAt: NOW,
+    observedAt: toEpochMs(NOW),
     windows: [{ id: 'weekly', usedPercent: 90, resetsAt: NOW + 3_600_000 }],
     ...overrides,
   }
@@ -440,7 +441,7 @@ describe('RVCM1173D structured facts in the real fleet and scheduler', () => {
       ...router,
       provider: 'meta',
       source: 'headers',
-      observedAt: NOW + 1,
+      observedAt: toEpochMs(NOW + 1),
       account: { remainingUsd: usd(100), period: 'month' },
     })
     const lane = scheduleLane('A')

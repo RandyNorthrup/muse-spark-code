@@ -24,6 +24,7 @@ import {
   startLiveHost,
 } from './helpers/museReplay'
 import { legacyUsdSchema, type UsdAmount } from '../../src/shared/usdSchema'
+import { toEpochMs } from '../../src/shared/epochMs'
 
 afterEach(async () => {
   await closeLiveHosts()
@@ -49,7 +50,7 @@ function input(observedAt: number, usedPercent: number): OwnedLimitInput {
     backend: 'museCode',
     provider: 'museCode',
     source: 'museCode',
-    observedAt,
+    observedAt: toEpochMs(observedAt),
     windows: [{ id: 'window', usedPercent, resetsAt: NOW + 3_600_000, windowMins: 60 }],
   }
 }
@@ -63,7 +64,7 @@ async function admitBoundary(ratePerHour: number, hours: number, remainingUsd: U
     backend: 'modelApi',
     provider: 'openrouter',
     source: 'openRouter',
-    observedAt: NOW,
+    observedAt: toEpochMs(NOW),
     windows: [],
   })
   const spending = scheduleLane('A')
@@ -187,7 +188,7 @@ describe('RVCM1173E owned observations', () => {
       backend: 'modelApi',
       provider: 'openrouter',
       source: 'openRouter',
-      observedAt: 100,
+      observedAt: toEpochMs(100),
       windows: [{ id: 'window', usedPercent: 90, resetsAt: 200 }],
     })
     const rows = port.ownedLimits?.() ?? []
@@ -240,7 +241,7 @@ describe('RVCM1173E owned observations', () => {
       backend: 'modelApi',
       provider: 'openrouter',
       source: 'openRouter',
-      observedAt: NOW,
+      observedAt: toEpochMs(NOW),
       windows: [{ id: 'window', usedPercent: 10, resetsAt: NOW + 3_600_000, windowMins: 60 }],
     })
     const live = await headlessFleetSources({
@@ -258,7 +259,7 @@ describe('RVCM1173E owned observations', () => {
     })
     const [fact] = ESTIMATE_FACT_TRANSLATORS.observation({
       owner,
-      observedAt: NOW,
+      observedAt: toEpochMs(NOW),
       snapshot: {
         v: USAGE_JOURNAL_VERSION,
         type: 'limit',
@@ -270,7 +271,7 @@ describe('RVCM1173E owned observations', () => {
         backend: 'modelApi',
         provider: 'openrouter',
         source: 'openRouter',
-        observedAt: NOW,
+        observedAt: toEpochMs(NOW),
         windows: [],
         account: { usedUsd: usd(100), limitUsd: usd(100), remainingUsd: usd(0), period: 'month' },
       },

@@ -32,6 +32,7 @@ export {
   teamBoardTaskSchema,
   teamCapSchema,
   teamModelSettingsSchema,
+  teamPoolEntrySchema,
   teamPrioritySchema,
   teamRoleConfigSchema,
   teamSnapshotSchema,

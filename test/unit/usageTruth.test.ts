@@ -211,7 +211,7 @@ describe('usage says what really happened (F20-F24)', () => {
         root,
         writerId: 'usage-truth-writer',
         client: 'test',
-        now: () => nowMs,
+        now: () => toEpochMs(nowMs),
         newId: () => `id-${String((next += 1))}`,
       },
       warnings,
@@ -220,7 +220,7 @@ describe('usage says what really happened (F20-F24)', () => {
       backend: 'museCode',
       provider: 'museCode',
       source: 'museCode',
-      observedAt: nowMs,
+      observedAt: toEpochMs(nowMs),
       windows: [],
     })
     await recording.flush()
