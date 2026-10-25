@@ -16,9 +16,12 @@ import { mapNotification } from '../../src/core/backends/musecode/mapNotificatio
 import { MuseUsageDeltas, museCodeLimitInput } from '../../src/core/backends/musecode/usageDeltas'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { UsageJournalStore } from '../../src/core/usage/journalStore'
+import { toEpochMs } from '../../src/shared/epochMs'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
+import { readTraceAttemptSummary } from '../../src/runtime/usage/traceLogs'
 import { createTestRecording } from './helpers/testRecording'
-import { createUsageService } from '../../src/core/usage/usageService'
+import { capturedTraceAdmissions, traceHomeWithLines } from './helpers/capturedTraces'
+import { createUsageService, type UsageServiceDeps } from '../../src/core/usage/usageService'
 import { usageText } from '../../src/core/usage/usageText'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
@@ -124,7 +127,7 @@ async function recordedThroughRealJournal(shouldRepeatFirst = false): Promise<{
       root,
       writerId: 'usage-truth-writer',
       client: 'test',
-      now: () => nowMs,
+      now: () => toEpochMs(nowMs),
       newId: (() => {
         let next = 0
         return () => `id-${String((next += 1))}`
@@ -152,7 +155,7 @@ async function recordedThroughRealJournal(shouldRepeatFirst = false): Promise<{
     backend: 'museCode',
     provider: 'museCode',
     source: 'museCode',
-    observedAt: nowMs,
+    observedAt: toEpochMs(nowMs),
     windows: [{ id: 'window', usedPercent: 12, resetsAt: nowMs + 3_600_000, windowMins: 300 }],
     plan: PLAN_NAME,
   })
@@ -162,12 +165,16 @@ async function recordedThroughRealJournal(shouldRepeatFirst = false): Promise<{
   return { records: journal.records, limits: journal.limits }
 }
 
-function serviceFor(records: readonly UsageRecord[], limits: readonly UsageLimitSnapshot[]) {
+function serviceFor(
+  records: readonly UsageRecord[],
+  limits: readonly UsageLimitSnapshot[],
+  overrides?: Partial<Pick<UsageServiceDeps, 'journal' | 'readAttempts'>>,
+) {
   return createUsageService({
     now: () => COMPLETIONS[2].at,
     host: 'linuxlt',
     table: { locale: 'en', table: USAGE_EN },
-    journal: {
+    journal: overrides?.journal ?? {
       read: () =>
         Promise.resolve({
           records,
@@ -183,7 +190,8 @@ function serviceFor(records: readonly UsageRecord[], limits: readonly UsageLimit
     setHistory: () => Promise.resolve(),
     readBudgets: () => Promise.resolve([]),
     readLiveLimits: () => Promise.resolve([]),
-    readAttempts: () => Promise.resolve([]),
+    readAttempts:
+      overrides?.readAttempts ?? (() => Promise.resolve({ attempts: [], stale: false })),
     providerConsoles: () => [],
     exportFile: () => Promise.reject(new Error('unused')),
     saveFile: () => Promise.resolve(true),
@@ -384,7 +392,7 @@ describe('usage says what really happened (F20-F24)', () => {
     const warnings: string[] = []
     const store = new UsageJournalStore(new NodeUsageFs(root), {
       writerId: 'usage-truth-t7',
-      now: () => at,
+      now: () => toEpochMs(at),
       isEnabled: () => true,
       onWriteError: () => {
         warnings.push('usageWriteFailed')
@@ -417,5 +425,42 @@ describe('usage says what really happened (F20-F24)', () => {
     // Today is one day: either a single row, or hour rows that name the hour.
     const bareDayRows = dayRows.filter((line) => !/\d{1,2}:\d{2}/.test(line))
     expect(bareDayRows.length).toBeLessThanOrEqual(1)
+  })
+
+  it('shows traced attempts with the journal notice when the cost history cannot be read', async () => {
+    const home = traceHomeWithLines(roots, capturedTraceAdmissions().lines, 'usagetrue-traces-')
+    const { attempts } = await readTraceAttemptSummary({ homeDir: home })
+    expect(attempts.length).toBeGreaterThan(0)
+    const days = attempts.map((row) => row.day).toSorted((left, right) => left.localeCompare(right))
+    const from = days[0]
+    const to = days.at(-1)
+    if (from === undefined || to === undefined) throw new Error('Missing traced day')
+    const state = await serviceFor([], [], {
+      journal: {
+        read: () => Promise.reject(new Error('journal unreadable')),
+        deleteHistory: () => Promise.resolve(),
+      },
+      readAttempts: () => Promise.resolve({ attempts, stale: false }),
+    }).snapshot({ range: 'custom', from, to, groupBy: 'model', metric: 'cost' })
+    expect(state.journalNotice).toBe('unavailable')
+    expect(state.traceNotice).toBeUndefined()
+    expect(state.attempts).toEqual(attempts)
+    expect(state.totals.records).toBe(0)
+  })
+
+  it('shows totals with the trace notice when the trace read fails or lags', async () => {
+    const { records, limits } = await recordedThroughRealJournal()
+    const failed = await serviceFor(records, limits, {
+      readAttempts: () => Promise.reject(new Error('traces unreadable')),
+    }).snapshot({ range: 'today', groupBy: 'model', metric: 'cost' })
+    expect(failed.traceNotice).toBe('unavailable')
+    expect(failed.journalNotice).toBeUndefined()
+    expect(failed.totals.records).toBe(records.length)
+    const stale = await serviceFor(records, limits, {
+      readAttempts: () => Promise.resolve({ attempts: [], stale: true }),
+    }).snapshot({ range: 'today', groupBy: 'model', metric: 'cost' })
+    expect(stale.traceNotice).toBe('stale')
+    expect(stale.journalNotice).toBeUndefined()
+    expect(stale.totals.records).toBe(records.length)
   })
 })

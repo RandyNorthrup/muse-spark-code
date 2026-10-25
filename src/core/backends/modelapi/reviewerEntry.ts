@@ -1,5 +1,6 @@
 import { isUnsentSideCall } from '../../refusal'
 import { Usd, isPositiveUsd } from '../../../shared/usd'
+import { toEpochMs } from '../../../shared/epochMs'
 import type { ResponseObservation, ConfirmedModelRequest, ResponseAttemptGuard } from './client'
 import { streamRepairAttempt } from './repairAttempt'
 // Paid Auto review execution: loaded only after the paid-use popup allows it.
@@ -246,7 +247,7 @@ async function requestReviewer(
   let usage: Usage | null | undefined
   let directBudget: DirectResponseBudget | undefined
   let wasRefused = false
-  const startedAt = context.deps.now()
+  const startedAt = toEpochMs(context.deps.now())
   let observation: ResponseObservation = {}
   let outcome: 'completed' | 'incomplete' | 'failed' | 'cancelled' = 'failed'
   let served: string | undefined
@@ -312,7 +313,7 @@ async function requestReviewer(
               backend: 'modelApi',
               provider: context.resolved.policy.identity.provider,
               source: 'headers',
-              observedAt: context.deps.now(),
+              observedAt: toEpochMs(context.deps.now()),
               windows: [],
               raw: headers,
               // The account that paid for this response (RVCM963J 7).

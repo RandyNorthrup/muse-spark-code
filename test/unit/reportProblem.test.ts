@@ -53,6 +53,13 @@ describe('report tunables', () => {
       'errorNotice',
       // M125: the fast path's skip audit, which the report recorder keeps.
       'judgeFastSkip',
+      // Lane REPORTFLOW: the pre-conversation facts a signed-out report
+      // needs, so it is not "Recent events (0)".
+      'signInStarted',
+      'signInSucceeded',
+      'signInFailed',
+      'cliProbe',
+      'backendResolved',
     ])
     expect([...REPORT_WEBVIEW_ERROR_KINDS]).toEqual([
       'windowError',

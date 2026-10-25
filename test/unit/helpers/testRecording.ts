@@ -5,12 +5,13 @@
 import { UsageJournalStore } from '../../../src/core/usage/journalStore'
 import { NodeUsageFs } from '../../../src/runtime/usage/nodeUsageFs'
 import { createUsageRecording, type UsageRecording } from '../../../src/core/usage/recording'
+import type { EpochMs } from '../../../src/shared/epochMs'
 
 export interface TestRecordingOptions {
   readonly root: string
   readonly writerId: string
   readonly client: string
-  readonly now: () => number
+  readonly now: () => EpochMs
   readonly newId: () => string
 }
 

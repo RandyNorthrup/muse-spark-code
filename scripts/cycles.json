@@ -85,6 +85,7 @@
     "src/runtime/usage/usageServiceEntry.ts",
     "src/runtime/usage/usageCompanionEntry.ts",
     "src/host/vscode/usage/usagePanelEntry.ts",
+    "src/core/usage/usageExportEntry.ts",
     "src/webview/usage/usage.tsx",
     "src/host/backend/subscriptionsEntry.ts",
     "src/host/backend/configuredProvidersEntry.ts",

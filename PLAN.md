@@ -21285,7 +21285,22 @@ platform receipt remains lead-owned; no gate or Meta fixture was changed.
 
 ### M102 — Usage & cost in every editor (D82)
 
-**Status 2026-10-07: waiting.** Certification metadata remains incomplete; retained requirements and receipts follow.
+**Status 2026-10-22: waiting.** RLUSAGE landed source 01 (the
+usage-trace read) onto 0.19.0: trace snapshots stream complete lines
+through a held descriptor with unchanged-file reuse, no app-owned count,
+byte, age or retry ceiling, and journal and trace reads settle
+independently with their own notices. The export encoders ride new
+`dist/usageExport.js` (36 KiB budget, D6 measured +15%), required on the
+first export; `dist/usageService.js` is 97.9 KiB against its unchanged 100
+KiB. Source 02 (exec usage clock) is landed too: stored times are whole
+milliseconds by construction through the `EpochMs` brand, so the terminal
+agent's turns journal again, and a rejected record names its failing
+fields; the journal schemas ride the shared boundaries chunk, holding
+`dist/reportInputs.js` at 82.8 KiB against its unchanged 100 KiB while
+the service sits at 98.9 KiB. Proven by real-code suites, red/green
+drills and the production build chain. Headless BYO accounting and checklist
+reconciliation remain; packed `usage` ran 2026-10-24 (empty journal). Receipts:
+`docs/certification/rlusage.md`.
 
 **M102INT3 (2026-10-06, Win11).** The rig brief authorizes the no-ff
 merge of M95 round 5 (`5ab3eb2c`), moving usage observations onto its
@@ -21656,7 +21671,7 @@ Acceptance and the exact composed gate receipts live in
 
 ### M93 — Report a problem after a crash or reload (D72, implemented 2026-10-05)
 
-**Status 2026-10-05: built.** Status evidence: `docs/certification/m93.md`.
+**Status 2026-10-24: built.** Report flow landed (RLUSAGE): it always builds, says where the person was, and falls back to the editor; `/report problem` works in ACP. Evidence: `docs/certification/m93.md`, `report-flow.md`.
 
 - **Goal.** A user can prepare and inspect a useful, scrubbed report without
   an active chat, backend or credential, then choose where it goes.
@@ -32570,6 +32585,10 @@ No new escape hatch is introduced.
 | `test/unit/nodeOsAddons.test.ts` (http negatives)    | `eslint-disable-next-line unicorn/prefer-https`, 2 sites | The violations under test: the checkers must refuse non-https terms and snapshot URLs, so the tests feed them http. Inline-reasoned; no rule change.                            | 2026-10-23 |
 | `test/unit/nodeOsAddons.test.ts` (manifest nav)      | `as Record<string, unknown>`, 2 sites                    | Navigation over parsed manifest fixtures the test constructed; each cast follows a throwing shape assertion. Inline-reasoned; no rule change.                                   | 2026-10-23 |
 | `os/addons/lib/checkAddon.mjs` (release unescaper)   | `eslint-disable-next-line unicorn/prefer-string-raw`     | Escape pairs read clearest as escapes in the `\"`/`\\` unescaper. Inline-reasoned; no rule change.                                                                              | 2026-10-23 |
+
+| RLUSAGE location                      | Escape hatch                           | Reason                                                                                                                                                                                                                                 | Added      |
+| ------------------------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/shared/epochMs.ts` (`toEpochMs`) | `Math.round(value) as EpochMs`, 1 site | The single brand constructor: `Math.round` guarantees a whole number the compiler cannot verify, so the brand is attached here and nowhere else; every other site receives `EpochMs` without casting. Inline-reasoned; no rule change. | 2026-10-22 |
 
 ## 9. Security assumptions and accepted residual risk
 

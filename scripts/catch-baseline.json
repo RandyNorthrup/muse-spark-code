@@ -3,13 +3,13 @@
   "counts": {
     "acp": {
       "SWALLOW": 0,
-      "GENERIC": 17,
+      "GENERIC": 16,
       "CLEANUP": 8
     },
     "core": {
-      "SWALLOW": 71,
-      "GENERIC": 248,
-      "CLEANUP": 238
+      "SWALLOW": 67,
+      "GENERIC": 247,
+      "CLEANUP": 237
     },
     "host": {
       "SWALLOW": 18,
@@ -19,12 +19,12 @@
     "root": {
       "SWALLOW": 1,
       "GENERIC": 0,
-      "CLEANUP": 2
+      "CLEANUP": 1
     },
     "runtime": {
-      "SWALLOW": 32,
-      "GENERIC": 185,
-      "CLEANUP": 131
+      "SWALLOW": 30,
+      "GENERIC": 168,
+      "CLEANUP": 130
     },
     "shared": {
       "SWALLOW": 0,
@@ -142,11 +142,6 @@
       "file": "src/acp/questionDeferral.ts",
       "identity": "3df87fb244e92d296e8dadb0c7d5a0490b0a7c35c6c4a99ccbaf1e9454514cbc",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/acp/reports.ts",
-      "identity": "be89ffbcde3c45b9ab8010a8f60a072ca1f5eb0082edd4cfd9eeb56052184722",
-      "class": "GENERIC"
     },
     {
       "file": "src/acp/uploads.ts",
@@ -1899,16 +1894,6 @@
       "class": "CLEANUP"
     },
     {
-      "file": "src/core/resources/admission.ts",
-      "identity": "5faff100671d895c5c1d709c4fad955931ae66bd346bc6ee52df7691061ae72a",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/resources/admission.ts",
-      "identity": "84ed730e1bf945f7702887e42afe9820da0d94987b80251da965db57089c0e70",
-      "class": "SWALLOW"
-    },
-    {
       "file": "src/core/resources/commands.ts",
       "identity": "18f5262bab24b2dc4247c9a0cc3ebd790149c71425517cd04aea102313389bf3",
       "class": "GENERIC"
@@ -1965,23 +1950,8 @@
     },
     {
       "file": "src/core/resources/launchHost.ts",
-      "identity": "ff610b453a3cc03b72a4ba9aa3eaefe043324ea1b176b742498de79a4475e349",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/resources/launchHost.ts",
-      "identity": "8a6ad18eeab72f85281461523fc85cc06a9e13a46321b21bf6428be7fc4019a3",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/resources/launchHost.ts",
       "identity": "6f7ac960544fa23dbb29a1914a9f146f03770ada0f8169286507db15f825742e",
       "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/resources/launchHost.ts",
-      "identity": "c688656c4df31ec42b88f4ba374ddffc83e9a3b20500613a70f89436d6767629",
-      "class": "GENERIC"
     },
     {
       "file": "src/core/resources/launchHost.ts",
@@ -2436,11 +2406,6 @@
     {
       "file": "src/core/usage/journalStore.ts",
       "identity": "0c3a7af65788ebeed16cecbf480b8a2e34e63b2ee271bdf1479ceb15c82f3a7a",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/core/usage/recording.ts",
-      "identity": "591a7c23cb36b0d58264a371e551365f65cadc083583ca11780a6d949fa3099f",
       "class": "CLEANUP"
     },
     {
@@ -2955,11 +2920,6 @@
     },
     {
       "file": "src/extension.ts",
-      "identity": "5b8068b2bfee194fb811c7f8d6ff548002ae8ab5a44812ff2f57553662ba5657",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/extension.ts",
       "identity": "23343f10f541e86d130ca218f037879be902df8670fb0f786a69b180377f8280",
       "class": "CLEANUP"
     },
@@ -3269,21 +3229,6 @@
       "class": "CLEANUP"
     },
     {
-      "file": "src/host/vscode/editor/verifyEditor.ts",
-      "identity": "9bfd8b15646fcc9a91c99bcc6ba71c2fa91589e079db5ee65efbcee5958e2608",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/vscode/editor/verifyEditor.ts",
-      "identity": "c7ded03efa810ecf1db2406b47bbf80c142fbb9247578f9c54a5b4663c565f14",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/vscode/editor/verifyEditor.ts",
-      "identity": "3b4c7c989a3cd36bb39e41525a326dee67d8a451534ded62a69185a21a40121b",
-      "class": "CLEANUP"
-    },
-    {
       "file": "src/host/estimator/planSnapshotBundle.ts",
       "identity": "50bf23bc8ecf3257353514437587b440e1bb8594cc5ede4e0a089dce93070ba2",
       "class": "GENERIC"
@@ -3332,11 +3277,6 @@
       "file": "src/host/git/conversationGit.ts",
       "identity": "dc3b8b78007e645c88462ac1be57350f7eb0b97e77c4729a5637c0068f62c17b",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/host/vscode/git/gitWindow.ts",
-      "identity": "37120fa008e4b88d29ce9bf1b2251ad0283ff313d4ee5bd7298119a6791931b2",
-      "class": "GENERIC"
     },
     {
       "file": "src/host/git/nativeRepository.ts",
@@ -3414,16 +3354,6 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/host/vscode/models/modelsPanel.ts",
-      "identity": "ef977d882dc3d1961b7af278d96d4607b5e00deda726e07fb0b4e317313c1e7b",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/host/vscode/models/modelsPanel.ts",
-      "identity": "5f88f02a5d457dfc176293b2e3136d50bd46fa9565e9eccb484e7d6d91cf74f5",
-      "class": "CLEANUP"
-    },
-    {
       "file": "src/host/networkPosture.ts",
       "identity": "dd0223e2df31e88d6e07dd0ac516416a6358d68b0343652a0777190101fc0e7c",
       "class": "GENERIC"
@@ -3459,33 +3389,8 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/host/vscode/paid/paidDailyBudget.ts",
-      "identity": "66e0d228b1037f29ed61be7dd1246f06407e29481273df857759aecaa83ef866",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/vscode/paid/paidDailyBudget.ts",
-      "identity": "ca4f8191bf9095ab2a9c4a8f51be39d12053f9e6db52ae327d9b23bc8407f6e5",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/vscode/paid/paidDailyBudget.ts",
-      "identity": "5ab008e98ac4feb23327499ee73e7be4787fde1904898b5d982957cd474b5386",
-      "class": "GENERIC"
-    },
-    {
       "file": "src/host/processTree.ts",
       "identity": "5b1c988ed59ddea44fbf0df9ebbf12f487295aa280353b42a77f91d292572e2f",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/host/vscode/providers/chatgptSignIn.ts",
-      "identity": "34b38da4748c26821b2c02611590e55ce5d7f6468fd4ab384a68d5832f10f876",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/host/vscode/providers/copilotClient.ts",
-      "identity": "c26395cb02c58dd27955d037aff98773d54340267b048bfaeab8e3f3f16dc590",
       "class": "CLEANUP"
     },
     {
@@ -3556,16 +3461,6 @@
     {
       "file": "src/host/providers/providerRemoval.ts",
       "identity": "02b00f466b5d69c5d832bdd74ba9f0e1af34a54e77b35cbf1cd19f71acf2404e",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/host/vscode/providers/providersHost.ts",
-      "identity": "9d2e0470782e33fe6d437a03dfe9632994e1fa7acfea7365977deee8035c20ad",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/vscode/providers/subscriptionFeatures.ts",
-      "identity": "ea054d27c830241e40e2ed21bae2da6c282c5f97ac5127ab1897ce1b6dbec8c5",
       "class": "SWALLOW"
     },
     {
@@ -3729,11 +3624,6 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/host/vscode/tab/tabBundle.ts",
-      "identity": "57dcae9fd14a336d144a832ac9ff1420945ba4dcc9f03dc1aa9690be0ab7930b",
-      "class": "GENERIC"
-    },
-    {
       "file": "src/host/tab/tabIgnoreFile.ts",
       "identity": "5d5f136bb55db09cffe9b6623d71b5ae6add76a473cf2b6815bfd69f5428c4e5",
       "class": "GENERIC"
@@ -3741,21 +3631,6 @@
     {
       "file": "src/host/tab/tabLedger.ts",
       "identity": "20f7ef0227efca3107f625aefab9a54097ee6d62caac3b04cb9f2fe034306592",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/host/vscode/tab/tabProvider.ts",
-      "identity": "48c29e3535dd63f4631ac0c17b792071a1a2545ca5f20357d6cfa0fb0b5c75ee",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/host/vscode/tab/tabProvider.ts",
-      "identity": "a1b1fd9387aa4e91becbd8823b3975ca01af33fa0e093ec8a28153e81ec9c38b",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/host/vscode/tab/tabProvider.ts",
-      "identity": "f9152c2869a9a7063858a6c4f412f32c891aa4e6235f296808510709f3287bca",
       "class": "CLEANUP"
     },
     {
@@ -3929,11 +3804,6 @@
       "class": "CLEANUP"
     },
     {
-      "file": "src/host/vscode/vault/vaultPanelEntry.ts",
-      "identity": "9ffa1a923f3c8fffe2301b35e3b551e16c7ad2880ee1acf3620e3a7e30f46b63",
-      "class": "GENERIC"
-    },
-    {
       "file": "src/host/vault/vaultPanelHost.ts",
       "identity": "dce985a2f6f55bd7b3c57915430c15750555980268bf81e00608c465161f645e",
       "class": "CLEANUP"
@@ -3961,6 +3831,96 @@
     {
       "file": "src/host/voice/voiceProcesses.ts",
       "identity": "7386c8bad320594db68d52c2f690074d387a294d4f148c8690c2d63c40b43b70",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/host/vscode/editor/verifyEditor.ts",
+      "identity": "9bfd8b15646fcc9a91c99bcc6ba71c2fa91589e079db5ee65efbcee5958e2608",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/host/vscode/editor/verifyEditor.ts",
+      "identity": "c7ded03efa810ecf1db2406b47bbf80c142fbb9247578f9c54a5b4663c565f14",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/host/vscode/editor/verifyEditor.ts",
+      "identity": "3b4c7c989a3cd36bb39e41525a326dee67d8a451534ded62a69185a21a40121b",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/host/vscode/git/gitWindow.ts",
+      "identity": "37120fa008e4b88d29ce9bf1b2251ad0283ff313d4ee5bd7298119a6791931b2",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/host/vscode/models/modelsPanel.ts",
+      "identity": "ef977d882dc3d1961b7af278d96d4607b5e00deda726e07fb0b4e317313c1e7b",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/host/vscode/models/modelsPanel.ts",
+      "identity": "5f88f02a5d457dfc176293b2e3136d50bd46fa9565e9eccb484e7d6d91cf74f5",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/host/vscode/paid/paidDailyBudget.ts",
+      "identity": "66e0d228b1037f29ed61be7dd1246f06407e29481273df857759aecaa83ef866",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/host/vscode/paid/paidDailyBudget.ts",
+      "identity": "ca4f8191bf9095ab2a9c4a8f51be39d12053f9e6db52ae327d9b23bc8407f6e5",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/host/vscode/paid/paidDailyBudget.ts",
+      "identity": "5ab008e98ac4feb23327499ee73e7be4787fde1904898b5d982957cd474b5386",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/host/vscode/providers/chatgptSignIn.ts",
+      "identity": "34b38da4748c26821b2c02611590e55ce5d7f6468fd4ab384a68d5832f10f876",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/host/vscode/providers/copilotClient.ts",
+      "identity": "c26395cb02c58dd27955d037aff98773d54340267b048bfaeab8e3f3f16dc590",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/host/vscode/providers/providersHost.ts",
+      "identity": "9d2e0470782e33fe6d437a03dfe9632994e1fa7acfea7365977deee8035c20ad",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/host/vscode/providers/subscriptionFeatures.ts",
+      "identity": "ea054d27c830241e40e2ed21bae2da6c282c5f97ac5127ab1897ce1b6dbec8c5",
+      "class": "SWALLOW"
+    },
+    {
+      "file": "src/host/vscode/tab/tabBundle.ts",
+      "identity": "57dcae9fd14a336d144a832ac9ff1420945ba4dcc9f03dc1aa9690be0ab7930b",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/host/vscode/tab/tabProvider.ts",
+      "identity": "48c29e3535dd63f4631ac0c17b792071a1a2545ca5f20357d6cfa0fb0b5c75ee",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/host/vscode/tab/tabProvider.ts",
+      "identity": "a1b1fd9387aa4e91becbd8823b3975ca01af33fa0e093ec8a28153e81ec9c38b",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/host/vscode/tab/tabProvider.ts",
+      "identity": "f9152c2869a9a7063858a6c4f412f32c891aa4e6235f296808510709f3287bca",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/host/vscode/vault/vaultPanelEntry.ts",
+      "identity": "9ffa1a923f3c8fffe2301b35e3b551e16c7ad2880ee1acf3620e3a7e30f46b63",
       "class": "GENERIC"
     },
     {
@@ -4434,31 +4394,6 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/runtime/main.ts",
-      "identity": "412fa9e88534493f4a87fa5d77003f740fea1f73b1dfe88783eec5e30316e09d",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/main.ts",
-      "identity": "ce5d608bb048f78a8ab591108d1277d990be12db9caa14604cce2d07b37baca6",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/runtime/main.ts",
-      "identity": "e83f8d229a89b7ad5d89bdf04774ab0a7482edf130fc657c8540c46ee1dee611",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/main.ts",
-      "identity": "7b7f00d58909b36e7393eac11a52600e49b74c9a71cf34d323bd858e53f9c8e9",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/main.ts",
-      "identity": "3c703f5087f261257e265a3984346eae2d1ef6acc83250f6d09c450512484b01",
-      "class": "GENERIC"
-    },
-    {
       "file": "src/runtime/namedLock.ts",
       "identity": "24d8e6d9ed38343f99dede9d7a4db472c401cf19fd0f12c07b477a7d3841a173",
       "class": "GENERIC"
@@ -4794,21 +4729,6 @@
       "class": "CLEANUP"
     },
     {
-      "file": "src/runtime/reportCommand.ts",
-      "identity": "1bbe6c201386e63bf35542374e77141472b13b7f97250a2d0a34334ee70ef474",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/runtime/reportCommand.ts",
-      "identity": "082a5b7df650e02ccc783b4e4acbaf39d7a78ce25cb40128b15733487acd53d4",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/reportCommand.ts",
-      "identity": "7a60e416e7930cbdc839e85a345a0288393b0a097bdef733f479fff165f6cede",
-      "class": "GENERIC"
-    },
-    {
       "file": "src/runtime/reporting/network.ts",
       "identity": "f66cfd13b70e68a353d6c94d685c73ebe18ac3fedfe852b4d101135a26b44158",
       "class": "GENERIC"
@@ -4900,16 +4820,6 @@
     },
     {
       "file": "src/runtime/reporting/reportsCommand.ts",
-      "identity": "186e263876f19d36f3a63aec3f0b4b74bd38796f53a20d68a578ef2b7caa2f06",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/reporting/reportsCommand.ts",
-      "identity": "f48897626a1c47cc960927d15f7331a72647a20743bfa55b23cbb96a98531fd6",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/reporting/reportsCommand.ts",
       "identity": "e33889680931d070cfb4717ff15ee3352e7ed19cdd980ecd82443d1b3d7511b6",
       "class": "GENERIC"
     },
@@ -4917,51 +4827,6 @@
       "file": "src/runtime/reporting/reportsEntry.ts",
       "identity": "8ecf86b1c917f35815ee660afb35b0364a41589c0389c1e1204c4542ca76d4dd",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/runtime/reporting/reportsEntry.ts",
-      "identity": "16d64d8bac05a3ffe1d903863f8872cfdb44d5012477d8e787a4a9d3f0d8ef84",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/reporting/reportsEntry.ts",
-      "identity": "2aa34a2fee9c99fabcae99da41bbd037286b9788bab0ee9d6f8fef9c1659884f",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/reporting/reportsEntry.ts",
-      "identity": "32fe053df2ab46ad0848f4a2827e54cd72fea19f7a21f84b6f5070017cf7af21",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/reporting/reportsEntry.ts",
-      "identity": "65763e7adef590136426cb706299fb08e572a0f0d0a7a5fe711448c1546dcc04",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/reporting/reportsHost.ts",
-      "identity": "bf314a155827ff0d218b472dbc11fc7885509b84a9764937a6556bfbb0ab878e",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/reporting/reportsHost.ts",
-      "identity": "31923d20f5447a234add2f5676f0bc3e612450a0daaa3ba946bcf23fac706a29",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/reporting/reportsHost.ts",
-      "identity": "b4005097ff057e0b98948a4aeadeb1efa3e7c12683fc85a58cec9fe1c058710e",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/reporting/reportsHost.ts",
-      "identity": "2b8747bc192829ac1c2d2134aef03014ed6ad98bb6348954f7a7cb2c675264d1",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/reporting/reportsHost.ts",
-      "identity": "337b95e7f29f86c04521c81ed8b5ccb2021e7af11dc981448c72b1ab36f762f5",
-      "class": "GENERIC"
     },
     {
       "file": "src/runtime/reporting/selections.ts",
@@ -5191,11 +5056,6 @@
     {
       "file": "src/runtime/usage/nodeUsageFs.ts",
       "identity": "bee2ca71b0a54ab5d5940398df251513ac4c523f9b416ba4c234cb7462c13be9",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/runtime/usage/traceLogs.ts",
-      "identity": "ab63fe7c570e7bf58a0ae2e6a06dd1bb58d396d1565689d43ac9c3e1e2719fa4",
       "class": "CLEANUP"
     },
     {

@@ -27,5 +27,11 @@ it('hands the real load failure over and records nothing', async () => {
   expect(failure instanceof Error && 'code' in failure ? String(failure.code) : undefined).toBe(
     'ENOENT',
   )
-  await expect(recorder.readJournal()).resolves.toEqual({ entries: [], recordingUnavailable: true })
+  // The report says why recording was unavailable: `unknown` until the capture
+  // side names its reason (lane REPORTFLOW R2).
+  await expect(recorder.readJournal()).resolves.toEqual({
+    entries: [],
+    recordingUnavailable: true,
+    unavailableReason: 'unknown',
+  })
 })

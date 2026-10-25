@@ -133,6 +133,7 @@ import {
   SHELL_SANDBOX_SETTING,
   REPORT_ERROR_CODES,
   REPORT_EXIT_CODE,
+  REPORT_SURFACE_READY_TIMEOUT_MS,
   UI_TEXT,
   TEAM_SWITCH_SETTING,
   VSCODE_COMMANDS,
@@ -146,6 +147,7 @@ import {
   BROWSER_RUNTIME_BUNDLE_FILE,
 } from './shared/browserCheckConstants'
 import { Usd, sumUsd, type UsdAmount } from './shared/usd'
+import { epochNow, toEpochMs } from './shared/epochMs'
 
 import { teamLatchRefusal } from './shared/teamConversation'
 import {
@@ -200,6 +202,7 @@ import type { TeamSettingCapabilities } from './core/team/modelSettings'
 import type { KeyUsageSnapshot } from './host/providers/providerPorts'
 import {
   museSettingsPath,
+  readContributorMode,
   readDelegationMode,
   readWorkflowTriggerMode,
 } from './host/backend/museSettings'
@@ -253,9 +256,8 @@ import {
 } from './host/checkpoints/checkpointHost'
 import type * as RecorderBundle from './host/support/recorderEntry'
 import {
-  changedSettingNames,
-  extensionReportFacts,
   manifestSettingNames,
+  readExtensionReportFacts,
   reportScrubContext,
 } from './host/support/reportFacts'
 import type { ChatSurface } from './host/views/chatSurface'
@@ -419,12 +421,18 @@ import { createPlanFiles, createPlanIo } from './host/planFeatures'
 import { planMarkdownLoader } from './host/planMarkdownBundle'
 import { extensionHooksBundle, type ExtensionHooksModule } from './host/extensionHooksBundle'
 import { showPickOne } from './host/vscode/quickPick'
+import { warnResourceUnavailable } from './shared/resourceCause'
 import { createResourceWindow } from './host/resources/resourceWindow'
 import { checkpointStoreLoader } from './host/checkpoints/checkpointStoreBundle'
 import { type CheckpointLocation, checkpointLocation } from './host/checkpoints/checkpointLocation'
 import { isProcessAlive } from './host/checkpoints/windowPresence'
 import { ReportRecorder } from './host/support/reportRecorder'
-import { vscodeReportEditorIo } from './host/vscode/support/reportEditorIo'
+import type * as ReportFallbackBundle from './host/support/reportFallbackEntry'
+import {
+  vscodeReportEditorIo,
+  vscodeReportFallbackWindow,
+} from './host/vscode/support/reportEditorIo'
+import { reportError } from './host/support/reportTimeout'
 import { createLogger, errorDetail, type Logger, logRejection } from './host/logger'
 import { failureForLog } from './core/backends/musecode/logText'
 import {
@@ -893,10 +901,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       // The cause, when there is one: a usage-history write failure once
       // read as an unavailable sampler every 30 seconds.
       onError: (error?: unknown) => {
-        log.warn(
-          error === undefined
-            ? 'Resource tree or sampler reading is unavailable'
-            : `The resource governor carried on after a failure: ${errorDetail(error)}`,
+        warnResourceUnavailable(
+          (message) => {
+            log.warn(message)
+          },
+          UI_TEXT,
+          error,
         )
       },
       windowsJob: async () => {
@@ -910,7 +920,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   })
   const usageRecording = createUsageRecording({
     client: vscode.env.appName,
-    now: Date.now,
+    now: epochNow,
     newId: () => crypto.randomUUID(),
     isEnabled: () =>
       vscode.workspace.getConfiguration(SETTINGS_SECTION).get<boolean>('usageHistory', true),
@@ -925,7 +935,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           homeDir: homedir(),
         }),
         writerId: crypto.randomUUID(),
-        now: Date.now,
+        now: epochNow,
         isEnabled: () =>
           vscode.workspace.getConfiguration(SETTINGS_SECTION).get<boolean>('usageHistory', true),
         onWriteError,
@@ -2340,6 +2350,12 @@ async function activateWindow(
   const loadAuth = (): AuthService =>
     (authInstance ??= authBundle().createAuthService({
       l10n: { table: UI_TEXT, locale: uiLocale() },
+      // The flight recorder runs from activation (lane REPORTFLOW, PLAN.md
+      // M93): sign-in starts and ends, the CLI probe and the backend
+      // resolution land before any conversation exists.
+      report: (kind, code) => {
+        reports.record(kind, code)
+      },
       getPlanAccount: async () =>
         subscriptions === undefined &&
         (await context.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) === undefined &&
@@ -4004,6 +4020,53 @@ async function activateWindow(
   // `Report a Problem` with no conversation open (M93): the dialog opens
   // once the surface it opened is ready to show it.
   let isReportPending = false
+  // The pending open's way out (lane REPORTFLOW R2): a surface that never
+  // becomes ready falls back to the editor itself instead of waiting
+  // forever.
+  let reportFallbackTimer: ReturnType<typeof setTimeout> | undefined
+  function clearReportFallbackTimer(): void {
+    if (reportFallbackTimer === undefined) {
+      return
+    }
+    clearTimeout(reportFallbackTimer)
+    reportFallbackTimer = undefined
+  }
+  /**
+  The editor-native fallback (lane REPORTFLOW R2): the sealed draft
+  behind Copy, Save and the issue page, needing neither the webview nor
+  the report bundle. A fallback that itself fails says so once, in fixed
+  words.
+  */
+  async function runReportFallbackNow(): Promise<void> {
+    try {
+      const bundle: typeof ReportFallbackBundle = await import('./host/support/reportFallbackEntry')
+      if (typeof bundle.createReportFallback !== 'function') {
+        throw new TypeError('The report fallback bundle does not export its factory')
+      }
+      const fallback = bundle.createReportFallback(
+        { source: reportSource, io: vscodeReportEditorIo, window: vscodeReportFallbackWindow, log },
+        UI_TEXT,
+        uiLocale(),
+      )
+      await fallback.run(undefined, undefined)
+    } catch (error: unknown) {
+      reportError(log, 'fallback failed', error)
+      void vscode.window.showErrorMessage(UI_TEXT.actionFailed)
+    }
+  }
+  function armReportFallbackTimer(): void {
+    clearReportFallbackTimer()
+    reportFallbackTimer = setTimeout(() => {
+      reportFallbackTimer = undefined
+      if (!isReportPending) {
+        return
+      }
+      // The surface never became ready: stop waiting for it and offer the
+      // report in the editor itself.
+      isReportPending = false
+      void runReportFallbackNow().catch(logRejection(log, 'the problem report fallback'))
+    }, REPORT_SURFACE_READY_TIMEOUT_MS)
+  }
   let isHelpPending = false
   let isEstimatePending = false
   const referenceBundle = referenceLoader({
@@ -4016,38 +4079,45 @@ async function activateWindow(
   // structure (no `account/read`), the key's presence from the secret store.
   const reportSource: ReportDataSource = {
     readFacts: async () => {
+      // Every fact has its own bounded read (M93, lane REPORTFLOW R2): the
+      // CLI probe, the installed version, the credential file, the key
+      // store (which may prompt), the settings read, the status read and
+      // the command list each answer in REPORT_FACT_TIMEOUT_MS or become
+      // the word `unknown` for their fact. The backend actually running
+      // conversations rides along too. This never throws for a failed
+      // source: the report still opens.
       const settings = currentSettings()
-      const resolution = backend.resolveLaunch()
       const configuration = vscode.workspace.getConfiguration()
-      let serviceStatus
-      if (settings.backend === 'modelApi') {
-        try {
-          serviceStatus = await keyClient().readServiceStatus(
-            AbortSignal.timeout(MODEL_API_STATUS_READ_TIMEOUT_MS),
-          )
-        } catch {
-          // An optional public status read cannot prevent the local report.
-        }
-      }
-      return extensionReportFacts({
-        ...(serviceStatus !== undefined && { serviceStatus }),
+      const gathered = await readExtensionReportFacts({
         extensionVersion: version,
         vscodeVersion: vscode.version,
         nodeVersion: process.versions.node,
         platform: process.platform,
         backend: settings.backend,
         sandbox: settings.shellSandbox,
-        cli: resolution.ok
-          ? { isFound: true, version: backend.installedVersion(resolution.launch.installDir) }
-          : { isFound: false, version: undefined },
-        credentialFileVerdict: backend.credentialFileVerdict(),
-        hasStoredApiKey: (await credentials.getApiKey()) !== undefined,
+        ...(chosenBackend !== undefined && { activeBackend: chosenBackend }),
         hasEnvironmentApiKey: backend.hasEnvironmentKey(),
-        changedSettingNames: changedSettingNames(
-          manifestSettingNames(context.extension.packageJSON),
-          (name) => configuration.inspect(name),
-        ),
+        settingNames: manifestSettingNames(context.extension.packageJSON),
+        inspectSetting: (name) => configuration.inspect(name),
+        probeLaunch: () => {
+          const resolution = backend.resolveLaunch()
+          return resolution.ok
+            ? { isFound: true, installDir: resolution.launch.installDir }
+            : { isFound: false }
+        },
+        readCliVersion: (installDir) => backend.installedVersion(installDir),
+        readContributorMode: () =>
+          readContributorMode({ ...museConfig(), readTextFile: readTextFileSync }),
+        readCredentialVerdict: () => backend.credentialFileVerdict(),
+        readStoredKey: async () => (await credentials.getApiKey()) !== undefined,
+        // An optional public status read cannot prevent the local report.
+        readServiceStatus: () =>
+          settings.backend === 'modelApi'
+            ? keyClient().readServiceStatus(AbortSignal.timeout(MODEL_API_STATUS_READ_TIMEOUT_MS))
+            : Promise.resolve(undefined),
+        readCommands: () => Promise.resolve(vscode.commands.getCommands(true)),
       })
+      return gathered.facts
     },
     readJournal: () => reports.readJournal(),
     readScrub: () =>
@@ -4060,6 +4130,11 @@ async function activateWindow(
         hostName: () => hostname(),
       }),
     nowMs: () => Date.now(),
+    // "Report This" waits for its event's write before the snapshot,
+    // bounded (lane REPORTFLOW R2, P3-7).
+    flushJournal: (timeoutMs) => reports.flushWrites(timeoutMs),
+    // The dialog's snapshot bounds this read and hides the reporter button
+    // when it throws or hangs (lane REPORTFLOW R2).
     canUseVscodeReporter: async () => {
       const commands = await vscode.commands.getCommands(true)
       return commands.includes(VSCODE_COMMANDS.openIssueReporter)
@@ -4068,6 +4143,7 @@ async function activateWindow(
   const conversationReports: ConversationReports = {
     source: reportSource,
     io: vscodeReportEditorIo,
+    window: vscodeReportFallbackWindow,
     recordWebviewError: (error) => {
       reports.recordWebviewError(error)
     },
@@ -5549,6 +5625,7 @@ async function activateWindow(
       // `Report a Problem` opened this surface (M93): its dialog now has a page to show in.
       if (isReportPending) {
         isReportPending = false
+        clearReportFallbackTimer()
         void controller.openReport().catch(logRejection(log, 'the problem report'))
       }
       surface.post({ type: 'editorContext', context: editorContext.summary })
@@ -6125,7 +6202,7 @@ async function activateWindow(
               source: 'openRouter',
               credentialId: snapshot.credentialId,
               observationId: snapshot.observationId,
-              observedAt: Date.now(),
+              observedAt: epochNow(),
               windows: [],
               ...(observedAccount !== undefined && { observedAccount }),
               // OpenRouter's `/key` numbers become exact decimals here (M121).
@@ -6156,7 +6233,7 @@ async function activateWindow(
               backend: 'modelApi',
               provider: 'openrouter',
               source: 'openRouter',
-              observedAt: Date.parse(report.asOf),
+              observedAt: toEpochMs(Date.parse(report.asOf)),
               windows: [],
               account: {
                 usedUsd: Usd.from(report.usedThisMonthUsd).toAmount(),
@@ -6748,7 +6825,11 @@ async function activateWindow(
     registerLoggedCommand(log, COMMAND_IDS.reportProblem, async () => {
       const surface = registry.active
       if (surface === undefined) {
+        // No page yet: open one for the dialog, and bound the wait (lane
+        // REPORTFLOW R2). A surface that never becomes ready offers the
+        // report in the editor itself instead of waiting forever.
         isReportPending = true
+        armReportFallbackTimer()
         await openConversation()
         return
       }

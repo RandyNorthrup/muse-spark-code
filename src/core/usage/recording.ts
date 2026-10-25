@@ -8,12 +8,16 @@ import type { CoreLogger } from '../logging'
 import type { UsageJournalEntry, UsageRecord, UsageLimitSnapshot } from '../../shared/usageJournal'
 import { MODEL_API_CLOSE_SETTLE_MS, USAGE_JOURNAL_VERSION } from '../../shared/constants'
 import { usageFailureForLog } from './failures'
+import { fill, UI_TEXT } from '../../shared/l10n/text'
+import type { EpochMs } from '../../shared/epochMs'
 import { usageLocalDay as localUsageDay } from './localDay'
 
 export type RecordedCall = Omit<
   UsageRecord,
   'v' | 'id' | 'type' | 'at' | 'day' | 'timezoneOffsetMins' | 'client' | 'tokens' | 'cost'
 > & {
+  /** A stored time is whole milliseconds since the epoch, never a bare clock reading. */
+  readonly startedAt: EpochMs
   readonly pricing?: ModelPricing | undefined
   readonly providerCostUsd?: UsdAmount | undefined
   readonly uncertain?: boolean | undefined
@@ -26,7 +30,7 @@ export interface UsageWriter {
     usage: Partial<Usage> | undefined,
     context: RecordedCall & {
       readonly id: string
-      readonly at: number
+      readonly at: EpochMs
       readonly client: string
     },
   ): void
@@ -54,8 +58,10 @@ through `legacyUsdSchema`, so a legacy number never reaches the journal.
 */
 export type OwnedLimitInput = Omit<
   UsageLimitSnapshot,
-  'v' | 'id' | 'at' | 'day' | 'timezoneOffsetMins' | 'client' | 'type' | 'account'
+  'v' | 'id' | 'at' | 'day' | 'timezoneOffsetMins' | 'client' | 'type' | 'account' | 'observedAt'
 > & {
+  /** The epoch clock: a monotonic reading does not satisfy this type. */
+  readonly observedAt: EpochMs
   readonly account?:
     | {
         readonly usedUsd?: UsdAmount | undefined
@@ -112,7 +118,8 @@ export interface UsageRecording {
 
 export interface UsageRecordingOptions {
   readonly client: string | (() => string)
-  readonly now: () => number
+  /** The epoch clock: a monotonic reading does not satisfy this type. */
+  readonly now: () => EpochMs
   readonly newId: () => string
   readonly isEnabled: () => boolean
   readonly writer: (onWriteError: (error: unknown) => void) => Promise<UsageWriter>
@@ -157,12 +164,21 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
     return sequence
   }
   const client = () => (typeof options.client === 'function' ? options.client() : options.client)
-  const report = (error?: unknown) => {
+  const report = (reason: string) => {
     if (hasLogged) return
     hasLogged = true
-    options.log.warn(`Usage history could not be recorded (${usageFailureForLog(error)})`)
+    options.log.warn(fill(UI_TEXT.usageNotRecorded, { reason }))
   }
-  const getWriter = () => (writer ??= options.writer(report))
+  const reportError = (error?: unknown) => {
+    report(usageFailureForLog(error))
+  }
+  let hasLoggedRead = false
+  const reportRead = (error: unknown) => {
+    if (hasLoggedRead) return
+    hasLoggedRead = true
+    options.log.warn(fill(UI_TEXT.usageNotRead, { reason: usageFailureForLog(error) }))
+  }
+  const getWriter = () => (writer ??= options.writer(reportError))
   const queue = (write: (journal: UsageWriter) => void) => {
     if (!options.isEnabled()) return
     const prior = pending
@@ -176,7 +192,7 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
       } catch (error) {
         // A failed journal write is reported once and dropped: the queue
         // stays alive for the next note.
-        report(error)
+        reportError(error)
       }
     })()
   }
@@ -303,8 +319,10 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
         const day = localUsageDay(options.now())
         return records.filter((record) => record.day === day)
       } catch (error) {
-        // The read failed after the report: fixed words carry the failure.
-        report(error)
+        // A failed read is not evidence nothing was recorded: it never says
+        // "not recorded" and never spends the write warning a later real
+        // failure needs. Its own once-per-run word names the cause.
+        reportRead(error)
         throw new Error('Usage history unavailable', { cause: error })
       }
     },
@@ -318,16 +336,16 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
               try {
                 const journal = await writer
                 await journal.flush()
-              } catch {
+              } catch (error) {
                 // A failed flush is reported once and dropped: shutdown
                 // still settles instead of hanging on the journal.
-                report()
+                reportError(error)
               }
             }
           })(),
           new Promise<void>((resolve) => {
             timer = setTimeout(() => {
-              report()
+              report('write timed out')
               resolve()
             }, MODEL_API_CLOSE_SETTLE_MS)
           }),
@@ -415,7 +433,7 @@ export interface UsageWriterBundle {
     readonly dataFolder: string
     readonly writerId: string
     readonly isEnabled: () => boolean
-    readonly now: () => number
+    readonly now: () => EpochMs
     readonly onWriteError: (error: unknown) => void
     /** Reported once when the settings file is invalid and history pauses (EXECPROV E). */
     readonly onInvalidSettings?: () => void

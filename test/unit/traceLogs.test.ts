@@ -1,111 +1,136 @@
-import { chmodSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+// Recorded Muse Code 1.4.4-R5419.1 trace lines, captured 2026-10-10 by
+// docs/certification/m53-captures/win11-1.4.4 (the driver and hashes are
+// recorded in m53.md). All file operations and parsing below are real.
+import { appendFileSync, mkdirSync, renameSync, utimesSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import {
   createInsightsReader,
+  createTraceLineSplitter,
+  readTraceAttemptSummary,
   readTraceLogs,
   readTraceAttempts,
   traceLogDirectory,
 } from '../../src/runtime/usage/traceLogs'
+import { USAGE_INSIGHTS_TTL_MS } from '../../src/shared/constants'
+import { capturedTraceAdmissions, traceHome } from './helpers/capturedTraces'
 import { removeFolder } from './helpers/temporaryFolders'
 
-const home = mkdtempSync(path.join(tmpdir(), 'muse-trace-home-'))
-const directory = traceLogDirectory({ homeDir: home })
-mkdirSync(directory, { recursive: true })
-
-const admission = (at: string, runId: string) =>
-  `${at} INFO tbh.local.model x event="model.attempt.lifecycle" run_id="${runId}" attempt_id="a" task_id="t" phase="admission" outcome="accepted"\n`
-
-afterAll(() => removeFolder(home))
-
-describe('readTraceLogs', () => {
-  it('reads the .log files under the CLI data root and ignores other files', async () => {
-    writeFileSync(path.join(directory, 'cli-a.log'), admission('2026-09-23T03:00:00.000Z', 'r1'))
-    writeFileSync(path.join(directory, 'notes.txt'), 'not a log')
-    const logs = await readTraceLogs({ homeDir: home })
-    expect(logs).toHaveLength(1)
-    expect(logs[0]?.attempts).toHaveLength(1)
-  })
-
-  it('is empty without the directory', async () => {
-    expect(await readTraceLogs({ homeDir: path.join(home, 'nowhere') })).toEqual([])
-  })
-
-  // Refused reads and dangling links need POSIX permission semantics.
-  it.runIf(process.platform !== 'win32')('lets a refused listing keep its kind', async () => {
-    const lockedHome = mkdtempSync(path.join(tmpdir(), 'muse-trace-locked-'))
-    try {
-      const lockedDirectory = traceLogDirectory({ homeDir: lockedHome })
-      mkdirSync(lockedDirectory, { recursive: true })
-      chmodSync(lockedDirectory, 0o000)
-      await expect(readTraceLogs({ homeDir: lockedHome })).rejects.toMatchObject({
-        code: 'EACCES',
-      })
-    } finally {
-      chmodSync(traceLogDirectory({ homeDir: lockedHome }), 0o755)
-      await removeFolder(lockedHome)
-    }
-  })
-
-  it.runIf(process.platform !== 'win32')('skips a log that vanished from the listing', async () => {
-    const ghostHome = mkdtempSync(path.join(tmpdir(), 'muse-trace-ghost-'))
-    try {
-      const ghostDirectory = traceLogDirectory({ homeDir: ghostHome })
-      mkdirSync(ghostDirectory, { recursive: true })
-      symlinkSync(
-        path.join(ghostDirectory, 'missing.log'),
-        path.join(ghostDirectory, 'cli-ghost.log'),
-      )
-      await expect(readTraceLogs({ homeDir: ghostHome })).resolves.toEqual([])
-    } finally {
-      await removeFolder(ghostHome)
-    }
-  })
+const captured = capturedTraceAdmissions()
+const lines = captured.lines
+const text = `${lines.join('\n')}\n`
+const NOW = Date.parse('2026-10-10T17:05:00Z')
+const roots: string[] = []
+function home(): string {
+  return traceHome(roots, 'rlusage-traces-')
+}
+function file(root: string, name = 'cli-captured.log'): string {
+  return path.join(traceLogDirectory({ homeDir: root }), name)
+}
+afterAll(async () => {
+  for (const root of roots) await removeFolder(root)
 })
 
-describe('readTraceAttempts', () => {
-  it('keeps attempts older than a week and distinguishes the captured reminder and subagent origins', async () => {
-    const oldHome = path.join(home, 'old')
-    const oldDirectory = traceLogDirectory({ homeDir: oldHome })
-    mkdirSync(oldDirectory, { recursive: true })
-    writeFileSync(
-      path.join(oldDirectory, 'cli-old.log'),
-      [
-        '2025-01-01T00:00:00.000Z INFO event="tool.surface.registered" run_id=reminder x registered_tool_count=1',
-        '2025-01-01T00:00:00.000Z INFO event="native_subagent.child" x child_run_id=child',
-        admission('2025-01-01T00:01:00.000Z', 'turn'),
-        admission('2025-01-01T00:02:00.000Z', 'reminder'),
-        admission('2025-01-01T00:03:00.000Z', 'child'),
-      ].join('\n'),
-    )
-    const rows = await readTraceAttempts({ homeDir: oldHome })
-    expect(rows.map(({ origin, attempts }) => ({ origin, attempts }))).toEqual([
-      { origin: 'reminder', attempts: 1 },
-      { origin: 'subagent', attempts: 1 },
-      { origin: 'turn', attempts: 1 },
-    ])
+describe('recorded trace snapshots on the real filesystem', () => {
+  it('shares unchanged facts, then counts an appended complete line and a replaced file', async () => {
+    const root = home()
+    const deps = { homeDir: root }
+    writeFileSync(file(root), text)
+    writeFileSync(file(root, 'notes.txt'), text)
+    const first = await readTraceLogs(deps)
+    expect(first).toHaveLength(1)
+    expect(first[0]?.attempts).toHaveLength(captured.admissions)
+    const again = await readTraceLogs(deps)
+    expect(again[0]).toBe(first[0])
+    const line = lines[0]
+    if (line === undefined) throw new Error('Missing captured admission')
+    appendFileSync(file(root), line)
+    const torn = await readTraceLogs(deps)
+    expect(torn[0]?.attempts).toHaveLength(captured.admissions)
+    appendFileSync(file(root), '\n')
+    const complete = await readTraceLogs(deps)
+    expect(complete[0]?.attempts).toHaveLength(captured.admissions + 1)
+    renameSync(file(root), file(root, 'rotated.txt'))
+    writeFileSync(file(root), `${line}\n`)
+    const replaced = await readTraceLogs(deps)
+    expect(replaced[0]?.attempts).toHaveLength(1)
   })
-})
 
-describe('createInsightsReader', () => {
-  it('summarises the day and the week and re-reads only after the TTL', async () => {
-    const now = Date.parse('2026-09-23T04:00:00.000Z')
-    let clock = now
-    const reader = createInsightsReader({ homeDir: home, now: () => clock })
-    const first = await reader.read()
-    expect(first?.day.attempts).toBe(1)
-    writeFileSync(path.join(directory, 'cli-b.log'), admission('2026-09-23T03:30:00.000Z', 'r2'))
-    // Inside the TTL the cached report stands.
+  it('counts every captured byte past the former file-size limit and every old file past 200', async () => {
+    const largeHome = home()
+    const copies = 4000
+    writeFileSync(file(largeHome), text.repeat(copies))
+    expect(Buffer.byteLength(text.repeat(copies))).toBeGreaterThan(8 * 1024 * 1024)
+    const large = await readTraceLogs({ homeDir: largeHome })
+    expect(large[0]?.attempts).toHaveLength(captured.admissions * copies)
+    const manyHome = home()
+    const count = 205
+    for (let index = 0; index < count; index += 1) {
+      const target = file(manyHome, `cli-${String(index)}.log`)
+      writeFileSync(target, text)
+      utimesSync(target, new Date(0), new Date(0))
+    }
+    const rows = await readTraceAttempts({ homeDir: manyHome })
+    expect(rows.reduce((sum, row) => sum + row.attempts, 0)).toBe(count * captured.admissions)
+  })
+
+  it('keeps successful traces and discloses an unreadable entry instead of claiming empty', async () => {
+    const root = home()
+    const deps = { homeDir: root }
+    mkdirSync(file(root, 'cli-directory.log'))
+    await expect(readTraceAttemptSummary(deps)).rejects.toThrow('traceLogsUnavailable')
+    const unavailable = await createInsightsReader({ ...deps, now: () => NOW }).read()
+    expect(unavailable).toEqual({ report: undefined, notice: 'unavailable', empty: false })
+    writeFileSync(file(root), text)
+    const partial = await readTraceAttemptSummary(deps)
+    expect(partial.stale).toBe(true)
+    expect(partial.attempts.reduce((sum, row) => sum + row.attempts, 0)).toBe(captured.admissions)
+    const insights = await createInsightsReader({ ...deps, now: () => NOW }).read()
+    expect(insights.notice).toBe('behind')
+    expect(insights.report?.day.attempts).toBe(captured.admissions)
+  })
+
+  it('distinguishes no files from failure and refreshes insights after the existing cache TTL', async () => {
+    const root = home()
+    let now = NOW
+    const reader = createInsightsReader({ homeDir: root, now: () => now })
+    expect(await reader.read()).toEqual({ report: undefined, notice: undefined, empty: true })
+    writeFileSync(file(root), text)
     const cached = await reader.read()
-    expect(cached?.day.attempts).toBe(1)
-    clock += 60_000
-    const fresh = await reader.read()
-    expect(fresh?.day.attempts).toBe(2)
+    expect(cached.empty).toBe(true)
+    now += USAGE_INSIGHTS_TTL_MS
+    const refreshed = await reader.read()
+    expect(refreshed.empty).toBe(false)
+    expect(refreshed.notice).toBeUndefined()
+    expect(refreshed.report?.day.attempts).toBe(captured.admissions)
   })
 
-  it('reports nothing at all without logs', async () => {
-    const reader = createInsightsReader({ homeDir: path.join(home, 'empty'), now: () => 0 })
-    expect(await reader.read()).toBeUndefined()
+  it('keeps the last good numbers with a stale note when a log turns unreadable', async () => {
+    const root = home()
+    const deps = { homeDir: root }
+    writeFileSync(file(root), text)
+    const first = await readTraceLogs(deps)
+    expect(first).toHaveLength(1)
+    renameSync(file(root), file(root, 'cli-moved-aside.txt'))
+    mkdirSync(file(root))
+    const behind = await readTraceAttemptSummary(deps)
+    expect(behind.stale).toBe(true)
+    expect(behind.attempts.reduce((sum, row) => sum + row.attempts, 0)).toBe(captured.admissions)
+    await expect(readTraceLogs(deps)).rejects.toThrow('traceLogsUnavailable')
+  })
+
+  it('preserves captured lines across every chunk boundary, CRLF, and a torn final line', () => {
+    const line = lines[0]
+    if (line === undefined) throw new Error('Missing captured admission')
+    for (let split = 0; split <= line.length + 2; split += 1) {
+      const seen: string[] = []
+      const splitter = createTraceLineSplitter((value) => {
+        seen.push(value)
+      })
+      const input = `${line}\r\n${line}`
+      splitter.push(input.slice(0, split))
+      splitter.push(input.slice(split))
+      expect(seen).toEqual([line])
+    }
   })
 })

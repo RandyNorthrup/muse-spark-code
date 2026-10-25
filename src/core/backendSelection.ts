@@ -6,7 +6,7 @@
 // key to the CLI (it did until M7, and the CLI prefers `META_API_KEY` over
 // its browser session, which billed the subscription's work to the key).
 
-import type { BackendMode } from '../shared/constants'
+import type { BackendMode, ReportBackendResolution } from '../shared/constants'
 import type { SignInMethod } from '../shared/protocol'
 import type { BackendKind } from './agent/agentBackend'
 
@@ -60,6 +60,35 @@ export async function readBackendChoice(asked: {
     hasCliSession: isCliSignInConsulted(asked.setting) && (await asked.hasCliSession()),
     hasStoredKey: await asked.hasStoredKey(),
   })
+}
+
+/**
+How the backend choice resolved and why (lane REPORTFLOW, PLAN.md M93),
+in the report's fixed words: the same facts `selectBackend` reads, stated
+instead of chosen. The report carries this for the same state on every
+host; the journal's `backendResolved` event records it with the same word.
+*/
+export function describeBackendResolution(facts: BackendFacts): ReportBackendResolution {
+  switch (facts.setting) {
+    case 'museCode': {
+      if (!facts.hasCli) {
+        return 'noneCliMissing'
+      }
+      return facts.hasCliSession ? 'museCodeSetting' : 'noneCliSignedOut'
+    }
+    case 'modelApi': {
+      return facts.hasStoredKey ? 'modelApiSetting' : 'noneNoKey'
+    }
+    case 'auto': {
+      if (facts.hasCli && facts.hasCliSession) {
+        return 'museCodeAuto'
+      }
+      if (facts.hasStoredKey) {
+        return 'modelApiAuto'
+      }
+      return facts.hasCli ? 'noneCliSignedOut' : 'noneCliMissing'
+    }
+  }
 }
 
 export function selectBackend(facts: BackendFacts): BackendChoice {

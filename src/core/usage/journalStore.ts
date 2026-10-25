@@ -37,7 +37,8 @@ import {
   type UsageRecord,
   type UsageLimitSnapshot,
 } from '../../shared/usageJournal'
-import { createUsageRecord, usageLocalDay, type UsageRecordContext } from './journalRecord'
+import type { EpochMs } from '../../shared/epochMs'
+import { tryCreateUsageRecord, usageLocalDay, type UsageRecordContext } from './journalRecord'
 import { acquireJournalLock } from './journalLock'
 import type { Usage } from '../backends/modelapi/schemas'
 import { emptyUsageMeasurements, type UsageAggregateRow } from './aggregate'
@@ -283,7 +284,7 @@ export interface UsageJournalRead {
 export interface UsageJournalOptions {
   readonly writerId: string
   readonly isEnabled: () => boolean
-  readonly now: () => number
+  readonly now: () => EpochMs
   /**
   A fixed diagnostic code, never error text, paths or record content. The
   failure travels with it; the log names it through usageFailureForLog.
@@ -666,21 +667,26 @@ export class UsageJournalStore {
         inexactRecords,
     }
   }
-  /** Keeps normalisation, settlement and validation inside the non-failing tap. */
+  /** A record that fails validation is reported as data; the tap never throws into a model call. */
   public noteUsage(usage: Partial<Usage> | undefined, context: UsageRecordContext): void {
-    try {
-      if (!this.options.isEnabled()) return
-      this.append(createUsageRecord(usage, context))
-    } catch (error) {
-      // Diagnostics cannot fail a model call: the once-only write error stands in.
-      this.report(error)
+    if (!this.options.isEnabled()) return
+    const built = tryCreateUsageRecord(usage, context)
+    if ('cause' in built) {
+      this.report(built.cause)
+      return
     }
+    this.append(built.record)
   }
   /** Fire-and-forget at the model boundary. flush() is for shutdown/tests. */
   public append(input: unknown): void {
+    if (!this.options.isEnabled()) return
+    const parsed = usageJournalEntrySchema.safeParse(input)
+    if (!parsed.success) {
+      this.report(parsed.error)
+      return
+    }
+    const entry = parsed.data
     try {
-      if (!this.options.isEnabled()) return
-      const entry = usageJournalEntrySchema.parse(input)
       const file = `${DAYS_ROOT}/${entry.day}/${this.options.writerId}.jsonl`
       const line = `${JSON.stringify(entry)}\n`
       this.queue = this.write(this.queue, file, line)

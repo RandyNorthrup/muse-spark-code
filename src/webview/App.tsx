@@ -54,6 +54,7 @@ import { parseGoalPrompt, requiresObjective } from '../shared/goalCommand'
 import { parseHandoffPrompt } from '../shared/handoff'
 import { parsePlaybackPrompt } from '../shared/playbackCommand'
 import { parseLoopPrompt } from '../core/backends/modelapi/schedules'
+import { reportPanelStateOf } from '../core/support/reportContext'
 import { fill, formatNumber, plural, templateParts } from '../shared/l10n/text'
 import type { EstimateRequest, EstimateSection } from '../shared/estimate'
 import type { EstimatorPanelPort } from './estimator/EstimatorPanel'
@@ -2411,11 +2412,34 @@ export function App({
   )
   // "Report This" on a recorded failure (M93 lane W): the row's
   // sanitized event reference opens the report workflow, never its text.
+  // Where the person was when the dialog opened (lane REPORTFLOW): the
+  // panel's own state in fixed words, for the report's facts. Every entry
+  // point (rows, notices, palette, crash screen) opens through this.
+  const postOpenReport = useCallback(
+    (ref?: ReportEventRef) => {
+      const last = state.transcript.at(-1)
+      // The dialog opens working while the host gathers (lane REPORTFLOW
+      // R2): bounded by the snapshot's deadline, cleared by the draft or
+      // its failure.
+      dispatch({ type: 'reportOpening' })
+      postMessage({
+        type: 'openReport',
+        ...(ref !== undefined && { ref }),
+        panelState: reportPanelStateOf({
+          status: state.auth.status,
+          isRunning: state.activeTurnId !== undefined,
+          hasWaitingQuestion: state.openQuestions.some((question) => question.state === 'waiting'),
+          lastIsErrorNotice: last?.kind === 'notice' && last.level === 'error',
+        }),
+      })
+    },
+    [dispatch, postMessage, state],
+  )
   const onReportProblem = useCallback(
     (_entryId: string, ref: ReportEventRef) => {
-      postMessage({ type: 'openReport', ref })
+      postOpenReport(ref)
     },
-    [postMessage],
+    [postOpenReport],
   )
   // Retry on a failed turn the backend judged retryable (RLF-ACPTURNS):
   // the failed turn's user card goes again under a fresh id, and the
@@ -2663,7 +2687,7 @@ export function App({
         case 'openReport': {
           // The same dialog every entry point opens (M93): the host builds it.
           closeOverlay()
-          postMessage({ type: 'openReport' })
+          postOpenReport()
           break
         }
         case 'signOut': {
@@ -2813,6 +2837,7 @@ export function App({
       onReview,
       onPlayback,
       openReviewPane,
+      postOpenReport,
       sharingAction,
     ],
   )
@@ -3461,9 +3486,12 @@ export function App({
   // The legal report opens over the transcript when its scan answers, like
   // the handoff brief: it waits while another modal owns the panel (M74),
   // and closes with Escape, the × button or the backdrop (M97 lane W).
+  // The report dialog counts as open while its draft is on its way (lane
+  // REPORTFLOW R2): one modal at a time, working state included.
+  const isReportOpen = state.report !== undefined || state.reportLoading
   const legalReport =
     isOtherModalOpen ||
-    state.report !== undefined ||
+    isReportOpen ||
     state.secretPrompt !== undefined ||
     state.legalReport === undefined ? null : (
       <LegalReport
@@ -3491,7 +3519,7 @@ export function App({
   const handoffDialog =
     isOtherModalOpen ||
     legalReport !== null ||
-    state.report !== undefined ||
+    isReportOpen ||
     state.handoff === undefined ? null : (
       <HandoffDialog
         goal={state.handoff.goal}
@@ -3504,15 +3532,16 @@ export function App({
         onClose={onHandoffCancel}
       />
     )
-  // The report-a-problem preview (M93 lane W): the sealed draft the host
-  // built, shown byte-identical, one modal at a time (above), and over the
-  // crash screen too (main.tsx renders the same host there, so a render
+  // The report-a-problem preview (M93 lane W, lane REPORTFLOW R2): the
+  // working state while the draft is on its way, then the sealed draft the
+  // host built, shown byte-identical, one modal at a time (above), and over
+  // the crash screen too (main.tsx renders the same host there, so a render
   // failure keeps its way on). Keyed by the host's session: a new dialog
   // starts its own count of choices.
   const reportDialog =
-    isOtherModalOpen || state.report === undefined ? null : (
+    isOtherModalOpen || !isReportOpen ? null : (
       <DeferredReportDialog
-        key={state.report.session}
+        key={state.report?.session ?? 'report-loading'}
         report={state.report}
         postMessage={postMessage}
         onClose={onReportClosed}
@@ -3522,7 +3551,7 @@ export function App({
   // dialog does), and holds the composer inert while it shows; it and the
   // report dialog never share the panel either (M93).
   const secretPromptDialog =
-    isOtherModalOpen || state.report !== undefined || state.secretPrompt === undefined ? null : (
+    isOtherModalOpen || isReportOpen || state.secretPrompt === undefined ? null : (
       <SecretPromptDialog
         redactedText={state.secretPrompt.redactedText}
         onSendAnyway={onSecretPromptSendAnyway}
@@ -3538,7 +3567,7 @@ export function App({
     legalReport !== null ||
     state.handoff !== undefined ||
     state.secretPrompt !== undefined ||
-    state.report !== undefined ||
+    isReportOpen ||
     isPlanDialogOpen
 
   return (
@@ -3648,7 +3677,7 @@ export function App({
               providerId={selectedProvider}
               isOtherModalOpen={
                 isOtherModalOpen ||
-                state.report !== undefined ||
+                isReportOpen ||
                 state.secretPrompt !== undefined ||
                 state.handoff !== undefined
               }

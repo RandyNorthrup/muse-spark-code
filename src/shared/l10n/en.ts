@@ -307,6 +307,7 @@ export const EN = {
   resourceRelocationNoTarget:
     'No approved runner route is active. Work stays on this machine. Paired-device relocation is unavailable.',
   resourceUnavailable: 'This reading is unavailable on this machine.',
+  resourceUnavailableWhy: 'This reading is unavailable on this machine: {cause}',
   resourceGovernorOff: 'Resource limits are off on this machine.',
   resourceStatusRefused: 'The latest resource status could not be read, so no readings are shown.',
   resourceTransport: 'Transport Failures',
@@ -3131,6 +3132,11 @@ export const EN = {
     footer: 'Renderer {version}; ICU {icu}; locale {locale}',
     notFound: 'Not found: {id}. Nearest matches: {nearest}',
     generationFailed: 'The report could not be generated.',
+    generationReason: 'The report could not be generated: {reason}',
+    releaseNeedsVersion: 'A release report needs a version.',
+    milestoneNeedsId: 'A milestone report needs a milestone id.',
+    estimateNeedsScope: 'An estimate report needs a scope.',
+    reportKindsHeading: 'Available reports:',
     gitXcodeStub:
       'Git cannot run on this Mac: it resolves to Apple’s Xcode stub, whose developer tools cannot start. Install the Command Line Tools (xcode-select --install), or switch to the installed tools (sudo xcode-select --switch /Library/Developer/CommandLineTools), then try again.',
     noHistory: 'No report history yet.',
@@ -3225,6 +3231,16 @@ export const EN = {
   reportThisAction: 'Report This',
   reportTitle: 'Report a Problem',
   reportDescriptionLabel: 'What were you doing when it happened?',
+  // Report a problem (lane REPORTFLOW): the field asks three short prompts.
+  reportDescriptionHintDid: 'What you did',
+  reportDescriptionHintExpected: 'What you expected',
+  reportDescriptionHintInstead: 'What happened instead',
+  // Shown when nothing can connect (lane REPORTFLOW): one sentence and the
+  // landing screen's own two actions, above the form. It never blocks the report.
+  reportConnectHint:
+    'Nothing can connect yet. Sign in or add a key first — or send the report as is.',
+  reportSignInAction: 'Sign in to Muse Code',
+  reportAddKeyAction: 'Add a Model API key',
   reportIncludeFacts: 'Include Support Facts',
   reportIncludeEvents: 'Include Recent Events',
   reportPreviewLabel: 'Preview',
@@ -3235,11 +3251,18 @@ export const EN = {
   reportCancelAction: 'Cancel',
   reportCopied: 'The report was copied to the clipboard.',
   reportCopyFailed: 'The report could not be copied. Copy it from the preview instead.',
+  // The editor-native fallback has no preview to copy from (lane REPORTFLOW
+  // R2): its copy failure names the other way out instead.
+  reportFallbackCopyFailed: 'The report could not be copied. Save it to a file instead.',
+  // The pick's title says why the dialog is not what opened (lane REPORTFLOW R2).
+  reportFallbackTitle: 'The report window could not open. Choose another way to report.',
   reportSaved: 'The report was saved.',
   reportSaveFailed: 'The report could not be saved.',
   reportBuildFailed: 'The report could not be built.',
+  // The over-long fallback already copied the draft (lane REPORTFLOW R2):
+  // this says what was done, not what was already done.
   reportUrlTooLong:
-    'The report is too long to open in a browser address. Copy it instead, then paste it into the new-issue form.',
+    'The report is too long to open in a browser address. It was copied to the clipboard — paste it into the new-issue form.',
   reportRecordingUnavailable:
     'Event recording was unavailable, so this report has no recent events.',
   reportDescriptionWarning:
@@ -3256,6 +3279,9 @@ export const EN = {
   reportUpdating: 'Updating the preview…',
   reportStaleDraft:
     'The report changed while exporting. The preview below is current — export again.',
+  // A refused rebuild re-posts the last good draft (lane REPORTFLOW R2):
+  // the status line says so beside what stays on screen.
+  reportRebuildFailed: 'The preview could not be updated, so the last good preview is still shown.',
   reportIssueOpened: 'The issue page was opened in the browser.',
   reportIssueOpenFailed: 'The issue page could not be opened. Copy the report instead.',
   reportVscodeReporterOpened: 'The VS Code issue reporter was opened.',
@@ -4748,7 +4774,12 @@ export const EN = {
   usageInsightNone: 'No CLI activity recorded in this window.',
   usageInsightUnavailable: 'Not available on this backend: the Model API has no local trace logs.',
   usageInsightNoLogs: 'No Muse Code trace logs were found on this machine yet.',
+  usageInsightsBehindNote:
+    'These numbers may be behind: a trace log could not be read, so an earlier count stands in.',
+  usageInsightsUnavailableNote: 'The trace logs could not be read, so no CLI activity is shown.',
   usageInsightTotals: '{attempts} across {sessions}',
+  usageNotRecorded: 'Usage for this run was not recorded ({reason}).',
+  usageNotRead: 'Usage history could not be read ({reason}).',
   modelAttemptsCount: forms({
     one: '{count} model attempt',
     other: '{count} model attempts',

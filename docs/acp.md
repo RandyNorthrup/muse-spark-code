@@ -1009,11 +1009,16 @@ network or model call. It reads only the agent's own failure journals and
 gathers local facts: the agent and Node versions, the platform, whether the
 Muse Code CLI was found and is signed in (from the credential file's
 structure only), and whether a Model API key is stored or `META_API_KEY`
-was set (yes or no only). The report goes to stdout, or with `--out` it is
+was set (yes or no only), where the panel was when a dialog opened the
+report, the last notice shown, the last sign-in attempt and how the backend
+choice resolved (fixed words only; the terminal names no panel state). The
+report goes to stdout, or with `--out` it is
 written to `<file>` and nothing goes to stdout. `--no-facts` and
 `--no-events` leave those sections out. `report` creates no activation
-marker and consumes none. Exits: 0 printed or saved, 1 the report could not
-be built or written, 2 bad arguments.
+marker and consumes none. `--description` is optional and never refused;
+`--out` writes the file. An exit-1 failure names the field and the fixed
+reason on stderr and in the log. Exits: 0 printed or saved, 1 the report
+could not be built or written, 2 bad arguments.
 
 Each agent process writes its own journal,
 `<data folder>/reports/journal-<process>.jsonl`, through the extension's own
@@ -1031,7 +1036,8 @@ Linux.
 - Symbolic links, hard links and unexpected files in `reports/` are
   refused.
 - A journal that was never written reads as no recent events. When the
-  folder cannot be used, the report says "event recording was unavailable".
+  folder cannot be used, the report says why its recording was unavailable
+  (a fixed reason, `unknown` until the capture lane names it).
 
 In ACP mode (`muse-spark-code-acp` serving an editor) the agent records its
 own failures there as fixed words (`updateNotSent`, `skillsUnavailable`,
@@ -1043,10 +1049,17 @@ no crash offer.
 
 The standalone report says `vscode: none (standalone agent)`, gives the
 backend and sandbox as `auto`, and lists no setting names. A credential
-store the process cannot read reads as no stored key. Anything typed into
-`--description` is capped at 2,000 characters and scrubbed with the rest of
-the draft, but like shell history it still passes through the terminal, so
-keep secrets out of it.
+store the process cannot read reads as no stored key. The draft carries its
+build time (the events' anchor), the backend actually chosen and the Model
+API sign-in state, and counts the records it left out (invalid, too old,
+over the cap, rate-limited). Anything typed into `--description` is capped
+at 2,000 characters and scrubbed with the rest of the draft, but like shell
+history it still passes through the terminal, so keep secrets out of it.
+
+Inside an ACP editor, `/report problem <what happened>` answers the same
+scrubbed draft in the reply with the issue link: an empty description
+still answers its draft, and a report that cannot be built says so in the
+reply. Nothing leaves the editor: no browser, no model or vendor call.
 
 ## Local prompts and sharing
 

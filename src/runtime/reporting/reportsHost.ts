@@ -1,4 +1,5 @@
 import { reportsMethods, type ReportsHostPort } from '../../shared/hostApi/reports'
+import { fill } from '../../shared/l10n/text'
 import { verifyReport } from '../../core/reporting/render/canonical'
 import { createReportRenderers } from '../../core/reporting/render'
 import { reportScrubber, scrubFields } from '../../core/reporting/render/redaction'
@@ -12,7 +13,21 @@ export function createReportsHost(
     readonly open: (text: string, format: 'md' | 'html' | 'json' | 'text') => Promise<void>
   },
 ): ReportsHostPort {
-  const failed = () => ({ status: 'failed' as const, reason: deps.text.reportUi.generationFailed })
+  const failed = (error: unknown) => {
+    if (deps.signal?.aborted)
+      return { status: 'failed' as const, reason: deps.text.reportUi.generationFailed }
+    const reason =
+      error instanceof Error && error.message !== ''
+        ? reportScrubber(deps.redaction)(error.message)
+        : deps.text.reportUi.generationFailed
+    return {
+      status: 'failed' as const,
+      reason:
+        reason === deps.text.reportUi.generationFailed
+          ? reason
+          : fill(deps.text.reportUi.generationReason, { reason }),
+    }
+  }
   const redacted = (value: object) => {
     // Scrub decoded values, not serialized JSON: escaping introduces
     // backslashes that read as secret shapes around already-safe marks.
@@ -23,14 +38,14 @@ export function createReportsHost(
   const authorized = async (key: string) => {
     deps.signal?.throwIfAborted()
     if (key !== deps.workspaceKey || !(await deps.authorize(key)))
-      throw new Error(deps.text.reportUi.generationFailed)
+      throw new Error('this report history belongs to another workspace')
     deps.signal?.throwIfAborted()
   }
   const saved = async (kind: Parameters<ReportsHostPort['get']>[0]['kind'], id: string) => {
     const history = deps.services.history
-    if (history === undefined) throw new Error(deps.text.reportUi.generationFailed)
+    if (history === undefined) throw new Error('report history is unavailable')
     const document = verifyReport(await history.get(kind, id), deps.redaction)
-    if (document.header.kind !== kind) throw new Error(deps.text.reportUi.generationFailed)
+    if (document.header.kind !== kind) throw new Error('the saved report is not the requested kind')
     return document
   }
   return {
@@ -40,25 +55,27 @@ export function createReportsHost(
         const { workspaceKey, options } = reportsMethods['reports/run'].params.parse(input)
         await authorized(workspaceKey)
         const generate = deps.services.generate
-        if (generate === undefined) return failed()
+        if (generate === undefined) return failed(new Error('report generation is unavailable'))
         const result = await generate(options, deps.signal)
         await authorized(workspaceKey)
-        if (result.status !== 'generated') return failed()
+        if (result.status !== 'generated')
+          return failed(new Error(`the report scope was not found: ${result.id}`))
         const document = verifyReport(result.document, deps.redaction)
         if (
           document.header.kind !== options.kind ||
           document.header.scope !== reportScrubber(deps.redaction)(options.scope) ||
           document.header.asOf !== options.asOf
         )
-          return failed()
+          return failed(new Error('the generated report does not match the request'))
         if (deps.keepHistory) {
-          if (deps.services.history === undefined) return failed()
+          if (deps.services.history === undefined)
+            return failed(new Error('report history is unavailable'))
           await deps.services.history.save(document)
           await authorized(workspaceKey)
         }
         return reportsMethods['reports/run'].result.parse({ status: 'generated', document })
-      } catch {
-        return failed()
+      } catch (error) {
+        return failed(error)
       }
     },
     async history(input) {
@@ -66,7 +83,7 @@ export function createReportsHost(
         const { workspaceKey, kind } = reportsMethods['reports/history'].params.parse(input)
         await authorized(workspaceKey)
         const history = deps.services.history
-        if (history === undefined) return failed()
+        if (history === undefined) return failed(new Error('report history is unavailable'))
         const result = reportsMethods['reports/history'].result.parse({
           status: 'listed',
           entries: await history.list(kind),
@@ -79,11 +96,11 @@ export function createReportsHost(
               !redacted({ ...(!/^[a-f0-9]{64}$/.test(id) && { id }), header }),
           )
         )
-          return failed()
+          return failed(new Error('report history entries do not match the requested kind'))
         await authorized(workspaceKey)
         return result
-      } catch {
-        return failed()
+      } catch (error) {
+        return failed(error)
       }
     },
     async get(input) {
@@ -93,8 +110,8 @@ export function createReportsHost(
         const document = await saved(kind, id)
         await authorized(workspaceKey)
         return reportsMethods['reports/get'].result.parse({ status: 'retrieved', document })
-      } catch {
-        return failed()
+      } catch (error) {
+        return failed(error)
       }
     },
     async compare(input) {
@@ -103,11 +120,12 @@ export function createReportsHost(
           reportsMethods['reports/compare'].params.parse(input)
         await authorized(workspaceKey)
         const compare = deps.services.compare
-        if (compare === undefined) return failed()
+        if (compare === undefined) return failed(new Error('report comparison is unavailable'))
         const before = await saved(kind, fromId)
         await authorized(workspaceKey)
         const after = await saved(kind, toId)
-        if (before.header.scope !== after.header.scope) return failed()
+        if (before.header.scope !== after.header.scope)
+          return failed(new Error('the compared reports are from different scopes'))
         await authorized(workspaceKey)
         const result = reportsMethods['reports/compare'].result.parse({
           status: 'compared',
@@ -117,10 +135,10 @@ export function createReportsHost(
           (JSON.stringify(result.diff.from) !== JSON.stringify(before.header) ||
             JSON.stringify(result.diff.to) !== JSON.stringify(after.header) ||
             !redacted(result.diff.sections))
-          ? failed()
+          ? failed(new Error('the compared report changed during the comparison'))
           : result
-      } catch {
-        return failed()
+      } catch (error) {
+        return failed(error)
       }
     },
     async open(input) {
@@ -136,8 +154,8 @@ export function createReportsHost(
         await authorized(deps.workspaceKey)
         await deps.open(text, format)
         return { status: 'opened' }
-      } catch {
-        return failed()
+      } catch (error) {
+        return failed(error)
       }
     },
   }

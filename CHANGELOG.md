@@ -313,6 +313,55 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The terminal agent's requests were missing from usage history since 0.12.0:
+  every headless turn stamped its usage record with a fractional clock, the
+  journal refused the record, and one warning was all that was left. Stored
+  times are now whole milliseconds by construction, and a record that fails
+  validation says which field failed and why instead of failing silently.
+- The usage page no longer re-reads every trace log on each refresh:
+  unchanged logs are recognised and re-used, so a refresh re-reads only
+  what changed. Numbers for a conversation in progress are complete: a
+  log that is still being written is counted as it stood when the refresh
+  started, and a log that keeps changing keeps its last good numbers with
+  a note saying they may be behind. A trace folder that cannot be read no
+  longer fails the whole page: the cost history still shows, with its own
+  note in the attempts section; and when the cost history itself cannot be
+  read, the attempts still show with their own note.
+- Reports say why when they cannot. A report that fails to generate
+  names its reason (scrubbed) instead of printing one sentence, on the
+  terminal, in a session and over the editor protocol.
+  `report release` (and milestone, estimate) without its scope
+  says what is missing before the usage. `report --help` shows the report
+  command's own help with its kinds. The problem report names the Muse Code
+  CLI version and its contributor mode (unknown when unobserved), reads recent
+  events from the agent's journal, and says when that record is unavailable.
+  Stored records that expired or do not validate are counted aloud on the
+  terminal and in the report dialog. Resource warnings name the failure's
+  cause when the reading gave one.
+- Report flow (M93 round 2, RVAPP-ERRREPORT): the report always builds. Every
+  fact has its own bounded read and the whole snapshot has a deadline; a
+  source that throws or hangs becomes `unknown` with a fixed reason for that
+  fact and the report still opens, while the dialog shows it is working.
+  When the report bundle cannot load or the panel never becomes ready, the
+  editor itself says the report window could not open and offers Copy Report,
+  Save to a File and Open Issue Page, and
+  `Report This` on a recorded row uses the same way out when the dialog
+  cannot open. The draft carries its build time, the backend actually
+  running conversations and the Model API sign-in state, marks the event a
+  `Report This` meant, and counts the records it left out. Reports carry the
+  panel state, the last notice code, the last sign-in attempt and the backend
+  resolution in fixed words, recorded from activation so a signed-out report
+  is not empty. When nothing can connect, the dialog offers signing in to
+  Muse Code and adding a Model API key above the form, without blocking the
+  report. No description is refused anywhere: the dialog's hint list asks
+  what was done, what was expected and what happened instead, and every
+  export stays available. A rebuild failure is shown in the dialog status
+  line with the last draft kept; a terminal report that cannot be built
+  names the field and reason on stderr and in the log. Reports also build on
+  `android` (code-server on Termux), and `/report problem <what happened>`
+  in any ACP editor answers the same scrubbed draft in the reply with the
+  issue link. While the vault is switched off for users, the pattern scrub
+  is the only scrub.
 - The usage page's installed font pack is read only from version folders
   inside the fonts folder: a version folder that is a link (a junction on
   Windows) to somewhere else is skipped, as a linked file already was.

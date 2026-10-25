@@ -22,6 +22,7 @@ import { createAccountsReportReader } from '../../src/runtime/reporting/reportIn
 import { createSecurityReportReader } from '../../src/runtime/reporting/reportInputs'
 import { readUsageReportJournal } from '../../src/runtime/reporting/reportInputs'
 import { UsageJournalStore, USAGE_JOURNAL_ROOT } from '../../src/core/usage/journalStore'
+import { toEpochMs } from '../../src/shared/epochMs'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
 import type {
   AccountsFacts,
@@ -361,7 +362,7 @@ describe('production sources keep good records beside one bad record', () => {
     onTestFinished(() => removeFolder(dataFolder))
     const store = new UsageJournalStore(new NodeUsageFs(dataFolder), {
       writerId: 'writer',
-      now: () => Date.parse(REPORT_FIXTURE_AS_OF),
+      now: () => toEpochMs(Date.parse(REPORT_FIXTURE_AS_OF)),
       isEnabled: () => true,
       onWriteError: () => {
         throw new Error('journal write failed')

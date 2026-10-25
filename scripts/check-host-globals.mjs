@@ -33,6 +33,7 @@ const HOST_BUNDLES = [
   'dist/conversation.js',
   'dist/tab.js',
   'dist/usageService.js',
+  'dist/usageExport.js',
   'dist/usageCompanion.js',
   'dist/usagePanel.js',
   'dist/modelApi.js',

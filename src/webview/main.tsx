@@ -65,12 +65,16 @@ function CrashReportDialog({
   readonly postMessage: (message: WebviewToHostMessage) => void
 }) {
   const report = useSyncExternalStore(store.subscribe, () => store.getState().report)
-  if (report === undefined) {
+  const isReportLoading = useSyncExternalStore(
+    store.subscribe,
+    () => store.getState().reportLoading,
+  )
+  if (report === undefined && !isReportLoading) {
     return null
   }
   return (
     <DeferredReportDialog
-      key={report.session}
+      key={report?.session ?? 'report-loading'}
       report={report}
       postMessage={postMessage}
       onClose={() => {
@@ -214,7 +218,9 @@ function mountChat(element: Element): void {
         crashOverlay={<CrashReportDialog store={store} postMessage={postMessage} />}
         onReportProblem={() => {
           // No row text exists here: the handoff carries no reference, and
-          // the host builds the report from its journal alone.
+          // the host builds the report from its journal alone. The dialog
+          // opens working while the host gathers (lane REPORTFLOW R2).
+          store.dispatch({ type: 'reportOpening' })
           host.post({ type: 'openReport' })
         }}
         onReload={retrySurface}

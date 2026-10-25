@@ -3,6 +3,31 @@ import { finalizeReport } from '../../src/core/reporting/render/canonical'
 import { createReportRenderers } from '../../src/core/reporting/render'
 import type { ReportKind, ReportLabelKey, ReportTheme } from '../../src/shared/reportSchema'
 import { reportDocument } from './helpers/reporting/kindFixtures'
+import type {
+  ReportsCommandDeps,
+  ReportsServices,
+} from '../../src/runtime/reporting/reportsCommand'
+
+/** The terminal report command's deps with both streams captured by the caller. */
+export function reportsCommandDeps(parts: {
+  readonly services: ReportsServices
+  readonly stdout: (text: string) => void
+  readonly stderr: (text: string) => void
+}): ReportsCommandDeps {
+  return {
+    text: EN,
+    services: parts.services,
+    keepHistory: true,
+    locale: 'en',
+    localePort: { textForLocale: () => EN },
+    theme: REPORT_THEME,
+    now: () => '2026-10-14T00:00:00.000Z',
+    readSaved: () => Promise.reject(new Error('unused')),
+    writeOut: () => Promise.resolve(),
+    stdout: parts.stdout,
+    stderr: parts.stderr,
+  }
+}
 
 export const REPORT_THEME: ReportTheme = {
   background: '#ffffff',

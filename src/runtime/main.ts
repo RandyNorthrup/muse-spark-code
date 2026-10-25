@@ -9,6 +9,7 @@ import { abortableSleep } from '../core/backends/modelapi/transport'
 // the log reads goes to stderr, except the sign-in commands' own output.
 // Exercised through the built `dist/acp.js` by the stdio e2e test.
 
+import { redactSecrets } from '../shared/redact'
 import { spawnResourceProcess, handoffResourceFile } from '../core/resources/launcher'
 import { isResourcePaused } from '../core/resources/launch'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
@@ -65,6 +66,7 @@ import {
   CONNECTOR_FOLDER,
   CONNECTOR_STORE_GUARD_BUNDLE_FILE,
   NODE_BUNDLE_FILE,
+  REPORT_ISSUE_NEW_URL,
 } from '../shared/constants'
 import {
   cliEvidenceRoot,
@@ -118,7 +120,9 @@ import { spawnCheckLine } from './playbook/spawnCheck'
 import { createSubagentAdmission } from './playbook/admission'
 import { createReadingHolder } from '../core/orchestration/playbook/readingHolder'
 import type { ResourceStatus } from '../shared/resources'
-import { runReportCommand } from './reportCommand'
+import { runReportCommand, type RunReportDeps } from './reportCommand'
+import { issueLinkForDraft } from '../core/support/problemReport'
+import { isMissingPath } from '../host/canonicalPath'
 import { readSecretLine } from './hiddenInput'
 import {
   credentialStoreName,
@@ -156,6 +160,7 @@ import {
 } from '../core/usage/recording'
 import type { UsageBudgetRead } from '../core/usage/usageService'
 import { USAGE_CLI_CLIENT_ID } from '../shared/usageJournal'
+import { epochNow } from '../shared/epochMs'
 import { requireFile } from '../host/lazyBundle'
 import { isSetupAction } from './judge/args'
 import { judgeFeaturesLoader, setupFeaturesLoader } from './judge/judgeBundle'
@@ -257,6 +262,19 @@ function exitHeadless(code: number, shouldForce = false): never {
 
 function writeLine(stream: NodeJS.WriteStream, line: string): void {
   stream.write(`${line}\n`)
+}
+
+/** A reports run that threw answers its scrubbed reason on stderr and the failure exit. */
+function reportsFailure(error: unknown): number {
+  const reason =
+    error instanceof Error && error.message !== '' ? redactSecrets(error.message) : undefined
+  writeLine(
+    process.stderr,
+    reason === undefined
+      ? UI_TEXT.reportUi.generationFailed
+      : fill(UI_TEXT.reportUi.generationReason, { reason }),
+  )
+  return EXIT_FAILED
 }
 
 // Lane PR225FIX2: a Stop clears the wait's own timer, so an abandoned
@@ -411,6 +429,95 @@ async function reportJournal(log: Logger): Promise<ReportJournal> {
     log,
     isAlive: isProcessAlive,
   })
+}
+
+/**
+One local source a standalone report reads: a path that is not there reads as
+nothing, and so does any other failure, which the log keeps by its class (a
+message can quote a path). The report never fails for one unreadable file.
+*/
+function readLocalSource<T>(log: Logger, read: () => T, absent: T): T {
+  try {
+    return read()
+  } catch (error: unknown) {
+    if (!isMissingPath(error)) {
+      log.warn(`a report source could not be read (${failureForLog(error)})`)
+    }
+    return absent
+  }
+}
+
+/**
+The local facts and journal reads every standalone report builds from
+(lane REPORTFLOW R2): the terminal's `report` and the ACP agent's
+`/report problem` share them, so the two never drift apart.
+*/
+function localReportReads(deps: {
+  log: Logger
+  homeDir: string
+  nowMs: number
+  wasEnvironmentApiKeyPresent: boolean
+}): Pick<
+  RunReportDeps,
+  | 'version'
+  | 'nodeVersion'
+  | 'platform'
+  | 'pathEntries'
+  | 'homeDir'
+  | 'localAppData'
+  | 'xdgConfigHome'
+  | 'museBinaryPath'
+  | 'fileExists'
+  | 'readTextFile'
+  | 'listDirectory'
+  | 'hasEnvironmentApiKey'
+  | 'readStoredKeyPresence'
+  | 'nowMs'
+  | 'readJournal'
+> {
+  const { log, homeDir, nowMs, wasEnvironmentApiKeyPresent } = deps
+  return {
+    version: packageVersion(),
+    nodeVersion: process.version,
+    platform: process.platform,
+    pathEntries: (process.env['PATH'] ?? '').split(path.delimiter),
+    homeDir,
+    localAppData: process.platform === 'win32' ? process.env['LOCALAPPDATA'] : undefined,
+    xdgConfigHome: process.env['XDG_CONFIG_HOME'],
+    museBinaryPath: '',
+    fileExists: (file) => existsSync(file),
+    readTextFile: (file): string | undefined =>
+      readLocalSource(log, () => readFileSync(file, 'utf8'), undefined),
+    listDirectory: (directory) => readLocalSource(log, () => readdirSync(directory), []),
+    // The agent took its credential variables out of its environment at
+    // start (rule 8): presence is read from what it took.
+    hasEnvironmentApiKey: wasEnvironmentApiKeyPresent,
+    readStoredKeyPresence: async () => {
+      try {
+        const stored = await secrets.get(SECRET_KEYS.modelApiKey)
+        return stored !== undefined && stored !== ''
+      } catch (error: unknown) {
+        // A store that cannot be read reads no (documented in docs/acp.md);
+        // the log keeps its class.
+        log.warn(`the key store could not be read for a report (${failureForLog(error)})`)
+        return false
+      }
+    },
+    nowMs,
+    // Reading prunes expired records but sets and consumes no marker.
+    readJournal: async () => {
+      const journal = await reportJournal(log)
+      const merged = await journal.readMerged()
+      const isAvailable = journal.isAvailable
+      return {
+        entries: reportEventsOf(merged.entries, nowMs),
+        recordingUnavailable: !isAvailable,
+        // The capture side owns the real reason code; until it provides one,
+        // unavailable reads unknown (lane REPORTFLOW R2).
+        ...(!isAvailable && { unavailableReason: 'unknown' }),
+      }
+    },
+  }
 }
 
 function authDeps(): AuthCommandDeps {
@@ -1194,7 +1301,7 @@ function runtimeRecording(
 ): UsageRecording {
   return createUsageRecording({
     client,
-    now: Date.now,
+    now: epochNow,
     newId: randomUUID,
     isEnabled,
     log,
@@ -1208,7 +1315,7 @@ function runtimeRecording(
           homeDir: homedir(),
         }),
         writerId: randomUUID(),
-        now: Date.now,
+        now: epochNow,
         isEnabled,
         onWriteError,
         onInvalidSettings: () => {
@@ -1395,6 +1502,41 @@ async function serve(
         readResourceStatus: () => resources.status(),
       }),
       reports: { format: 'md', execute: (args, context) => reports().acp.execute(args, context) },
+      // `/report problem` in every editor (lane REPORTFLOW R2, P3-8): the
+      // same scrubbed draft the dialog previews and the terminal prints,
+      // answered in the reply with the copy text and the issue link. No
+      // backend, model call or network; the journal read prunes expired
+      // records but sets and consumes no marker.
+      problemReport: {
+        execute: async (description) => {
+          const homeDir = homedir()
+          const nowMs = Date.now()
+          let draftText = ''
+          let issueUrl = REPORT_ISSUE_NEW_URL
+          let failure: string | undefined
+          const code = await runReportCommand({
+            options: { description, includeFacts: true, includeEvents: true, out: undefined },
+            onSealedDraft: (draft) => {
+              const link = issueLinkForDraft(draft.title, draft.text)
+              issueUrl = link.kind === 'open' ? link.url : REPORT_ISSUE_NEW_URL
+            },
+            ...localReportReads({ log, homeDir, nowMs, wasEnvironmentApiKeyPresent }),
+            writeStdout: (text) => {
+              draftText = text
+            },
+            writeOutFile: () => Promise.reject(new Error(UI_TEXT.reportUi.generationFailed)),
+            printError: (line) => {
+              failure = line
+            },
+            logError: (line) => {
+              log.error(line)
+            },
+          })
+          return code === EXEC_EXIT.ok
+            ? `${draftText}\n\n${issueUrl}`
+            : (failure ?? UI_TEXT.reportUi.generationFailed)
+        },
+      },
       // The account picker serves Model API sessions (list, current,
       // thresholds). Switching stays refused (no adoption transaction).
       ...(accounts !== undefined && { accounts }),
@@ -1877,6 +2019,11 @@ async function main(processResources: ProcessResources): Promise<number> {
     }
     const stdout = createFdWriter(process.stdout.fd, closed)
     const stderr = createFdWriter(process.stderr.fd, closed)
+    // The headless clock measures spans on a monotonic base anchored at
+    // the epoch, so the timeout counts from the process start and a wall
+    // clock step cannot move a deadline. Stored times derive from it
+    // through the EpochMs boundary where a record is written (runExec);
+    // this clock itself stays fractional and span-typed.
     const now = () => performance.timeOrigin + performance.now()
     // Only `exec` (its own option) and `scan-secrets` (its `--timeout` flag)
     // name a deadline; without one — and the `legal` scan always — the run
@@ -2702,57 +2849,7 @@ async function main(processResources: ProcessResources): Promise<number> {
       const nowMs = Date.now()
       return await runReportCommand({
         options: command.options,
-        version: packageVersion(),
-        nodeVersion: process.version,
-        platform: process.platform,
-        pathEntries: (process.env['PATH'] ?? '').split(path.delimiter),
-        homeDir,
-        localAppData: process.platform === 'win32' ? process.env['LOCALAPPDATA'] : undefined,
-        xdgConfigHome: process.env['XDG_CONFIG_HOME'],
-        museBinaryPath: '',
-        fileExists: (file) => {
-          try {
-            return existsSync(file)
-          } catch {
-            return false
-          }
-        },
-        readTextFile: (file): string | undefined => {
-          try {
-            return readFileSync(file, 'utf8')
-          } catch {
-            return undefined
-          }
-        },
-        listDirectory: (directory) => {
-          try {
-            return readdirSync(directory)
-          } catch {
-            return []
-          }
-        },
-        // The agent took its credential variables out of its environment at
-        // start (rule 8): presence is read from what it took.
-        hasEnvironmentApiKey: wasEnvironmentApiKeyPresent,
-        readStoredKeyPresence: async () => {
-          try {
-            const stored = await secrets.get(SECRET_KEYS.modelApiKey)
-            return stored !== undefined && stored !== ''
-          } catch {
-            // A store that cannot be read reads no (documented in docs/acp.md).
-            return false
-          }
-        },
-        nowMs,
-        // Reading prunes expired records but sets and consumes no marker.
-        readJournal: async () => {
-          const journal = await reportJournal(log)
-          const merged = await journal.readMerged()
-          return {
-            entries: reportEventsOf(merged.entries, nowMs),
-            recordingUnavailable: !journal.isAvailable,
-          }
-        },
+        ...localReportReads({ log, homeDir, nowMs, wasEnvironmentApiKeyPresent }),
         writeStdout: (text) => {
           writeLine(process.stdout, text)
         },
@@ -2761,6 +2858,11 @@ async function main(processResources: ProcessResources): Promise<number> {
         },
         printError: (line) => {
           writeLine(process.stderr, line)
+        },
+        // The terminal says why a report could not be built, and the log
+        // keeps it (lane REPORTFLOW R2).
+        logError: (line) => {
+          log.error(line)
         },
       })
     }
@@ -2778,9 +2880,8 @@ async function main(processResources: ProcessResources): Promise<number> {
         return await runtimeReports(log, undefined, undefined, () =>
           readRuntimeDailyBudget({ dataFolder, now: () => Date.now() }),
         )().run(command.args)
-      } catch {
-        writeLine(process.stderr, UI_TEXT.reportUi.generationFailed)
-        return EXIT_FAILED
+      } catch (error) {
+        return reportsFailure(error)
       }
     }
     case 'version': {
