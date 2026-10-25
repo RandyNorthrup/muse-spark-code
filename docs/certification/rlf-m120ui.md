@@ -63,11 +63,18 @@ labelled buttons above and looked at again.
 
 ## Proof (real code, no stand-ins)
 
-| Suite                                                                           | What it drives                                                                                         |
-| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `test/unit/team/teamPanelPreferences.test.ts` (8)                               | the panel controller over a real store: timers, floor, auto-order, secondary roles, cleanup, import    |
-| `test/unit/teamHostService.test.ts` (Move to…, 2 of its tests)                  | the host service on the real board: move, chain, persisted record, launch under the new role, refusals |
-| `test/unit/teamRolesSection.test.tsx` (lane P describe, plus the Agent-map rig) | the real React editor and tree: seconds, auto-order, drag and keyboard order, Move to… and focus       |
+| Suite                                                                           | What it drives                                                                                      |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `test/unit/team/teamPanelPreferences.test.ts` (8)                               | the panel controller over a real store: timers, floor, auto-order, secondary roles, cleanup, import |
+| `test/unit/teamMoveTask.test.ts` (2; see the note below)                        | the real host service over the real engine ports: move, chain, persisted record, launch, refusals   |
+| `test/unit/teamRolesSection.test.tsx` (lane P describe, plus the Agent-map rig) | the real React editor and tree: seconds, auto-order, drag and keyboard order, Move to… and focus    |
+
+On int/recovery (CC-INT2, 2026-10-24) the Move to… service tests moved: int had
+deleted `test/unit/teamHostService.test.ts` (RLINTFIX item 5: hand-written
+ports), so this lane's two cases there are replaced by
+`test/unit/teamMoveTask.test.ts`, which drives the real
+`createTeamHostService` over the real `createEngineTeamPorts`. Record:
+`docs/certification/cc-int2.md`.
 
 Run on the final tree at the repository's own timeouts (no
 `--testTimeout`): `teamPanelPreferences` 8 passed, `teamHostService` 78
