@@ -2,4 +2,4 @@
 # scanner itself changes only in a reviewed pull request; Dependabot's pip
 # entry proposes each new release (PLAN.md D29). The rules come from
 # `--config auto`, fetched from the Semgrep registry at scan time.
-semgrep==1.180.0
+semgrep==1.182.0
