@@ -2011,7 +2011,7 @@
     "vite": "8.3.4"
   },
   "dependencies": {
-    "@napi-rs/keyring": "2.1.1",
+    "@napi-rs/keyring": "2.1.2",
     "highlight.js": "11.12.0",
     "html-encoding-sniffer": "7.0.0",
     "jpeg-js": "0.4.4",
