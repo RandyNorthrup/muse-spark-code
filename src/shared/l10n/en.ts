@@ -8786,6 +8786,10 @@ export const EN = {
       other: '{count} supervised runs could not be stopped whole.',
     }),
     unavailable: 'Supervision is not available in this installation.',
+    recordsFolderNotPrivate:
+      'Supervision keeps its records in a folder only you can write to, but the agent’s data folder or a folder above it is writable by other users. Remove write access for other users from those folders, then try again.',
+    endpointPathTooLong:
+      'Supervision cannot start because the agent’s data folder path is too long for the control socket this system allows. Move the agent’s data folder to a shorter path, then try again.',
   },
   acpConnector: {
     title: 'Approve connector requests',

@@ -6927,7 +6927,9 @@
       "one": "{count} überwachter Lauf konnte nicht vollständig beendet werden.",
       "other": "{count} überwachte Läufe konnten nicht vollständig beendet werden."
     },
-    "unavailable": "Die Überwachung ist in dieser Installation nicht verfügbar."
+    "unavailable": "Die Überwachung ist in dieser Installation nicht verfügbar.",
+    "recordsFolderNotPrivate": "Die Überwachung bewahrt ihre Aufzeichnungen in einem Ordner auf, in den nur Sie schreiben können. Der Datenordner des Agenten oder ein übergeordneter Ordner ist jedoch für andere Benutzer beschreibbar. Entziehen Sie anderen Benutzern den Schreibzugriff auf diese Ordner und versuchen Sie es erneut.",
+    "endpointPathTooLong": "Die Überwachung kann nicht starten, weil der Pfad zum Datenordner des Agenten für den von diesem System erlaubten Steuerungs-Socket zu lang ist. Verschieben Sie den Datenordner des Agenten an einen kürzeren Pfad und versuchen Sie es erneut."
   },
   "acpConnector": {
     "title": "Konnektor-Anfragen genehmigen",

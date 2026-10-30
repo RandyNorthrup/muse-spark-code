@@ -7281,7 +7281,9 @@
       "few": "{count} nadzorowanych uruchomień nie udało się zatrzymać w całości.",
       "many": "{count} nadzorowanych uruchomień nie udało się zatrzymać w całości."
     },
-    "unavailable": "Nadzór nie jest dostępny w tej instalacji."
+    "unavailable": "Nadzór nie jest dostępny w tej instalacji.",
+    "recordsFolderNotPrivate": "Nadzór przechowuje swoje rekordy w folderze, do którego tylko Ty możesz zapisywać, ale folder danych agenta lub folder powyżej niego jest zapisywalny przez innych użytkowników. Usuń innym użytkownikom prawo zapisu do tych folderów i spróbuj ponownie.",
+    "endpointPathTooLong": "Nadzór nie może się uruchomić, ponieważ ścieżka folderu danych agenta jest zbyt długa dla gniazda sterującego dozwolonego przez ten system. Przenieś folder danych agenta na krótszą ścieżkę i spróbuj ponownie."
   },
   "acpConnector": {
     "title": "Zatwierdź żądania konektora",
