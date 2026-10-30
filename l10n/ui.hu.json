@@ -1318,6 +1318,10 @@
       "targetUnavailable": "Az ütemezés célja nem érhető el ezen a gazdagépen.",
       "targetClosed": "A cél bezárult.",
       "deliveryFailed": "Delivery failed: {reason}",
+      "deferredEventGaveUp": {
+        "one": "A(z) {scheduleId} ütemezett eseménye {count} alkalommal meghiúsult, és nem fut újra: {reason}",
+        "other": "A(z) {scheduleId} ütemezett eseménye {count} alkalommal meghiúsult, és nem fut újra: {reason}"
+      },
       "schedulePaused": "Az ütemezést a kézbesítés előtt szüneteltették.",
       "scheduleDeleted": "Az ütemezést a kézbesítés előtt törölték.",
       "scheduleEdited": "Az ütemezés időzítése, célja vagy kézbesítési módja megváltozott.",

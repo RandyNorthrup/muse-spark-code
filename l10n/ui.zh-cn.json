@@ -1313,6 +1313,9 @@
       "targetUnavailable": "此计划的目标在当前主机上不可用。",
       "targetClosed": "目标已关闭。",
       "deliveryFailed": "Delivery failed: {reason}",
+      "deferredEventGaveUp": {
+        "other": "{scheduleId} 的计划事件失败了 {count} 次，将不再运行：{reason}"
+      },
       "schedulePaused": "计划在发送前已暂停。",
       "scheduleDeleted": "计划在发送前已删除。",
       "scheduleEdited": "计划的时间、目标或发送模式已更改。",

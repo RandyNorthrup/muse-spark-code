@@ -1328,6 +1328,12 @@
       "targetUnavailable": "Cíl tohoto plánu není v tomto hostiteli dostupný.",
       "targetClosed": "Cíl byl zavřen.",
       "deliveryFailed": "Delivery failed: {reason}",
+      "deferredEventGaveUp": {
+        "one": "Naplánovaná událost pro {scheduleId} se {count}krát nezdařila a nebude znovu spuštěna: {reason}",
+        "other": "Naplánovaná událost pro {scheduleId} se {count}krát nezdařila a nebude znovu spuštěna: {reason}",
+        "few": "Naplánovaná událost pro {scheduleId} se {count}krát nezdařila a nebude znovu spuštěna: {reason}",
+        "many": "Naplánovaná událost pro {scheduleId} se {count}krát nezdařila a nebude znovu spuštěna: {reason}"
+      },
       "schedulePaused": "Plán byl před doručením pozastaven.",
       "scheduleDeleted": "Plán byl před doručením odstraněn.",
       "scheduleEdited": "Změnil se čas, cíl nebo režim doručení plánu.",
