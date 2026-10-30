@@ -1,3 +1,4 @@
+import { failureForLog } from '../backends/musecode/logText'
 import { refuseKeySpend } from './teamPaid'
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
@@ -122,6 +123,7 @@ export async function runScheduledDelegate(
       fill(UI_TEXT.teamTasksQueued, { count: String(queued.length) }),
     )
   } catch (error: unknown) {
+    deps.log.warn(failureForLog(error))
     for (const { task } of queued)
       if (
         task.phase === 'queued' &&

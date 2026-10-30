@@ -814,7 +814,8 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         },
         isReviewOnly,
       )
-    } catch {
+    } catch (error: unknown) {
+      deps.log.warn(failureForLog(error))
       result = undefined
     } finally {
       let kind: TeamMergeQueueEvent['kind'] = 'returned'
@@ -1492,7 +1493,9 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       try {
         admitRequest(task)
       } catch (error: unknown) {
-        throw new FinalAdmissionRefusal(error instanceof Error ? error.message : String(error))
+        throw new FinalAdmissionRefusal(error instanceof Error ? error.message : String(error), {
+          cause: error,
+        })
       }
     }
   }
@@ -2506,7 +2509,8 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         admit(record, candidate)
         record.schedulerAttempt = task.currentAttempt
         return true
-      } catch {
+      } catch (error: unknown) {
+        deps.log.warn(failureForLog(error))
         return false
       }
     },
@@ -2738,7 +2742,8 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
             ...task.consented,
             ...candidates.map((entry) => paidScope(entry.agent)),
           ])
-      } catch {
+      } catch (error: unknown) {
+        deps.log.warn(failureForLog(error))
         // A failed renewal leaves the task queued without consent: the
         // admission gates below refuse it until Resume asks again.
       }
@@ -2779,7 +2784,8 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
                 task.owner = { windowInstanceId: myWindowId, released: true }
             try {
               await persist()
-            } catch {
+            } catch (error: unknown) {
+              deps.log.warn(failureForLog(error))
               // Best effort on the way out; the board release below still lands.
             }
             await rawScheduler.releaseOwnership()
@@ -2935,7 +2941,8 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         let isReady = false
         try {
           isReady = await deps.workers.probe(entry.agent)
-        } catch {
+        } catch (error: unknown) {
+          deps.log.warn(failureForLog(error))
           // A failed current probe is unavailable; a stale failure has no owner.
         }
         if (isClosed()) return
@@ -2959,7 +2966,8 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       // Hand the board over cleanly: the next window claims without proof.
       try {
         await scheduler?.releaseOwnership()
-      } catch {
+      } catch (error: unknown) {
+        deps.log.warn(failureForLog(error))
         // Best effort on the way out.
       }
       scheduler?.dispose()

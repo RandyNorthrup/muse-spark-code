@@ -270,7 +270,9 @@ export const runMergeFlow = async (
         status: 'completed',
         teamDecision: task.failure,
       })
-    return api.refusal(task.failure)
+    // The refusal carries the described (redacted) cause itself, the same
+    // words the card and the task record keep.
+    return api.refusal(api.describeError(error))
   } finally {
     if (cancel !== undefined) context.signal.removeEventListener('abort', cancel)
     task.awaiting = undefined

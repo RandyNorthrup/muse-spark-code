@@ -102,6 +102,26 @@ describe('catch-inventory classifier', () => {
       }`),
     ).toEqual(['SWALLOW'])
     expect(
+      classesOf(`try { a() } catch (error: unknown) {
+        this.deps.failure(error)
+      }`),
+    ).toEqual(['REPORTED'])
+    expect(
+      classesOf(`try { a() } catch (error: unknown) {
+        deps.failure(error)
+      }`),
+    ).toEqual(['REPORTED'])
+    expect(
+      classesOf(`try { a() } catch (error: unknown) {
+        worker.failure(error)
+      }`),
+    ).toEqual(['GENERIC'])
+    expect(
+      classesOf(`try { a() } catch (error: unknown) {
+        deps.failure('fixed')
+      }`),
+    ).toEqual(['SWALLOW'])
+    expect(
       classesOf(`try { a() } catch {
         observeError(deps, 'updateNotSent')
         return fallback
