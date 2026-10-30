@@ -680,9 +680,9 @@ export class MuseCodeBackendManager {
   `museSpark.shellSandbox` off after a probe ran reads as not checked.
   */
   public shellSandboxReadiness(): LinuxSandboxReadiness | undefined {
-    return process.platform !== 'linux' || !this.shellSandboxPosture().isSandboxed
-      ? undefined
-      : this.linuxSandboxReadiness
+    return process.platform === 'linux' && this.shellSandboxPosture().isSandboxed
+      ? this.linuxSandboxReadiness
+      : undefined
   }
 
   /**

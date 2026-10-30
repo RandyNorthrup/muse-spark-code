@@ -350,11 +350,8 @@ export async function deleteFileIfUnchanged(
     throw error
   }
   await assertBoundPath(target, options.expectedCanonicalPath, options)
-  if (options.isReplaceable?.() === false) {
-    return 'changed'
-  }
   // Last, so only the owner's word and the removal itself follow it.
-  if (!(await isOwnedFile(target, held))) {
+  if (options.isReplaceable?.() === false || !(await isOwnedFile(target, held))) {
     return 'changed'
   }
   options.assertCanWrite?.()

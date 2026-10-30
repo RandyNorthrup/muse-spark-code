@@ -328,10 +328,10 @@ export function deviceWorkerNative(deps: DeviceWorkerNativeDeps): DeviceWorkerDr
         const isRemoved = await didRemoveTask()
         // The single on-demand run ended in DLL initialization, before any job or child, and its
         // task cannot start again: removing the directory then proves nothing remains.
-        if (isRemoved && startup.isHeap && (await didRemoveHeapDirectory()))
-          return deviceWorkerRefused(error)
         // Preserve evidence; no timer or failed query proves an empty job.
-        return deviceWorkerUncertain(error)
+        return isRemoved && startup.isHeap && (await didRemoveHeapDirectory())
+          ? deviceWorkerRefused(error)
+          : deviceWorkerUncertain(error)
       }
     },
   }

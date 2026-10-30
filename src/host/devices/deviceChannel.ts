@@ -762,9 +762,10 @@ export class PacedDeviceChannels {
       return Promise.reject(new Error('revoked'))
     const existing = this.jobs.get(peer.pairId)
     if (existing !== undefined) {
-      if (existing.peer.peerFingerprint !== peer.peerFingerprint)
-        return Promise.reject(new DeviceChannelDialFailure('authentication'))
-      if (!canRetryAuth(existing.authFailures))
+      if (
+        existing.peer.peerFingerprint !== peer.peerFingerprint ||
+        !canRetryAuth(existing.authFailures)
+      )
         return Promise.reject(new DeviceChannelDialFailure('authentication'))
       if (existing.ready.receiverIncarnationId !== parsed.receiverIncarnationId) {
         // A current incarnation supplied by the authenticated owner may replace

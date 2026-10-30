@@ -6614,10 +6614,7 @@ export class ConversationController implements DeferredSend {
       return undefined
     }
     const { plans } = this.deps
-    if (plans === undefined) {
-      return undefined
-    }
-    if (!this.canUsePlans()) {
+    if (plans === undefined || !this.canUsePlans()) {
       return undefined
     }
     if (this.activeTurnId !== undefined) {
@@ -6654,10 +6651,7 @@ export class ConversationController implements DeferredSend {
       return { saved: { ...known, isNew: false }, text, markdown, isImported: reply.isImported }
     }
     // `.agents/` is a protected path (D24): the save asks, as a protected write does.
-    if (!(await plans.confirmSave())) {
-      return undefined
-    }
-    if (!this.canUsePlans()) {
+    if (!(await plans.confirmSave()) || !this.canUsePlans()) {
       return undefined
     }
     const saved = await plans.save(content, reply.ownerRecorder)
@@ -7584,11 +7578,11 @@ export class ConversationController implements DeferredSend {
       this.notice('info', UI_TEXT.restoreTurnRunning)
       return
     }
-    if (!(await this.checkpoints.confirmRestore(rewind !== undefined))) {
-      return
-    }
     // A turn may have started while the confirmation was open.
-    if (this.session !== session) {
+    if (
+      !(await this.checkpoints.confirmRestore(rewind !== undefined)) ||
+      this.session !== session
+    ) {
       return
     }
     if (this.isTurnRunning()) {
