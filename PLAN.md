@@ -25699,6 +25699,8 @@ or helper-only-access certification.
 
 ### M110 — Muse Node: headless worker and orchestrator host (D90)
 
+**Status 2026-10-30: building.** RLF-MUSESETUP recorded the owner's Q-M110 item 4 ruling as D227 (the install is part of setup) and built it: the first-boot setup offers Meta's CLI from Meta's official installer with Meta's terms shown for acceptance and a `muse --version` check, while the image, add-on and pack gates refuse the CLI anywhere inside (each proven red/green); a first-boot run in the VM installed Muse Code 1.4.14 during setup onto a CLI-free image. Evidence: `docs/certification/rlf-musesetup.md`.
+
 **Status 2026-10-30: building.** RLF-M110OS2's resume put the build in the repository's builder container, pinned the ext4 hash seed, and proved two builds of each image byte-identical, so the pipeline's reproducibility comparison now blocks; both new images boot to the login prompt (x86-64 TCG, aarch64 container QEMU) with an SPDX SBOM each. KVM boots, TPM/MOK/LUKS enrollment on hardware, image signing and OSJ wait, named. Threat-model acceptance stays with the lead. Evidence: `docs/certification/rlf-m110os2.md`.
 
 **Status 2026-10-23: building.** RLF-M110OS2 landed OS3–OS7 on OS1's recipe and OS2, built both images from the 0.19.0 runtime and booted x86-64 under TCG and aarch64 through container QEMU to the login prompt, with an SPDX SBOM per image; two x86-64 builds compared with every divergence root-caused (payload content identical). KVM boots, TPM/MOK/LUKS enrollment on hardware, image signing and OSJ wait, named. Threat-model acceptance stays with the lead. Evidence: `docs/certification/rlf-m110os2.md`.
