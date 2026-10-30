@@ -1392,6 +1392,11 @@
       "area": "security"
     },
     {
+      "id": "RVCRED",
+      "public": false,
+      "note": "review of retired-vault undo, secret-gist publish, and the macOS credential file"
+    },
+    {
       "id": "RLWINFIX",
       "title": "Windows defects found in real use",
       "summary": "Fixes five Windows defects found using 0.19.0 for real: the Resources view, CPU readings, usage history, judge cleanup, and stale helper builds.",
