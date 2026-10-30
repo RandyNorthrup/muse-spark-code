@@ -332,6 +332,11 @@ happened, not what was planned; superseded entries are kept.
   treats that hold as the issue being reopened and triages it again, and
   `watchdog decide` no longer says the issue was closed when nothing was
   posted and the issue is still open.
+- Muse Spark Code now rides Muse Code 1.4.12. If your Muse Code had
+  already updated to 1.4.12, every session start logged a schema
+  fingerprint warning; the versions now match, the warning is gone, and
+  1.4.12's session-protocol fixes come with it. Muse Code 1.4.11 keeps
+  working exactly as before.
 - The terminal agent's requests were missing from usage history since 0.12.0:
   every headless turn stamped its usage record with a fractional clock, the
   journal refused the record, and one warning was all that was left. Stored

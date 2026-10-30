@@ -10889,6 +10889,19 @@ cannot start D-Bus, so the Secret Service proof runs outside it.
 
 ### M127 — Muse Code at its latest release (2026-10-17)
 
+**Status 2026-10-30 (RLF-UPAGENT): building.** The SDK rides 1.4.12
+(published 2026-10-22, past the 7-day window, no override): a 1.4.12
+host matches the pin exactly instead of warning at every start, and a
+1.4.11 host stays on the named-build info line (live echo-serve probe
+in the record). 1.4.13/1.4.14 are surveyed but inside the window;
+rendering their new optional payloads (`cuaCardFacts`,
+`backgroundTerminalCompletion`, `held`, `earlierHistory`) and the
+`muse usage` / `serve --preset` surfaces is briefed (B2) pending
+served captures. The same survey covers ACP, MCP, VS Code and the
+M104 hosts; its one P1 is Marketplace publishing off the retiring
+PAT (B7). Survey: `docs/research/agents-sdks-2026-10-30.md`; record:
+`docs/certification/rlf-upagent.md`.
+
 **Status 2026-10-22 (RLFINISH): building.** The SDK rides 1.4.11
 (installed under a one-shot minimum-age override; `.npmrc` untouched),
 and the remaining wraps landed with capture tests: session/leave,
