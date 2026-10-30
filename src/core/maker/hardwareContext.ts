@@ -47,7 +47,7 @@ it is not proof of hardware. Attach-time fences (resume on an adapter that
 cannot verify targets) refuse on this, so an unscannable or unqualified
 machine does not make every session unresumable.
 */
-function hasPositiveHardwareEvidence(context: HardwareContext): boolean {
+export function hasPositiveHardwareEvidence(context: HardwareContext): boolean {
   return (
     context.isHardwareWorkspace === true ||
     context.isMakerEnabled === true ||
@@ -163,7 +163,11 @@ export class HardwareWorkspace {
   public observe(context: HardwareContext): void {
     const { hardwareSessionLatched: _latched, ...evidence } = context
     this.isLatched ||= hasHardwareEvidence(evidence)
-    this.hasPositiveEvidence ||= hasPositiveHardwareEvidence(evidence)
+    // Positive evidence never counts the latch's own output: current()
+    // publishes isHardwareWorkspace from the latch, and hosts observe that
+    // back in, which must not manufacture proof of hardware.
+    const { isHardwareWorkspace: _workspace, ...positive } = evidence
+    this.hasPositiveEvidence ||= hasPositiveHardwareEvidence(positive)
     this.observation = this.signature(context)
   }
   public current(): HardwareContext {

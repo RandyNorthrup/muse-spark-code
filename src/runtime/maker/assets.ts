@@ -50,8 +50,17 @@ const {makerHostMessageSchema}=await schemas;
 const events=new EventSource('/events');
 events.onmessage=event=>{window.dispatchEvent(new MessageEvent('message',{data:makerHostMessageSchema.parse(JSON.parse(event.data))}));};`
 
+const HTML_ESCAPES: Readonly<Record<string, string>> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+}
+const HTML_UNSAFE = /[&<>"']/g
+
 function escape(text: string): string {
-  return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;')
+  return text.replaceAll(HTML_UNSAFE, (character) => HTML_ESCAPES[character] ?? character)
 }
 /** Enumerate installed build output, excluding maps, paths from a surface and the workspace. */
 export async function companionAssets(distDirectory: string) {
@@ -69,11 +78,14 @@ export async function companionAssets(distDirectory: string) {
     }
   }
   if (!assets.has('/assets/main.js')) throw new Error('maker-shared-panel-unavailable')
-  const title = escape(UI_TEXT.makerTitle)
-  assets.set('/', {
-    body: `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><link rel="stylesheet" href="/assets/main.css"></head><body data-surface="maker"><div id="${WEBVIEW_ROOT_ELEMENT_ID}"></div><script type="application/json" id="${WEBVIEW_L10N_ELEMENT_ID}">${JSON.stringify({ locale: uiLocale(), table: UI_TEXT }).replaceAll('<', String.raw`\u003c`)}</script><script type="module" src="/bridge.js"></script></body></html>`,
-    type: 'text/html',
-  })
+  const head =
+    `<!doctype html><html><head><meta charset="utf-8"><title>${escape(UI_TEXT.makerTitle)}</title>` +
+    '<link rel="stylesheet" href="/assets/main.css"></head>'
+  const body =
+    `<body data-surface="maker"><div id="${WEBVIEW_ROOT_ELEMENT_ID}"></div>` +
+    `<script type="application/json" id="${WEBVIEW_L10N_ELEMENT_ID}">${JSON.stringify({ locale: uiLocale(), table: UI_TEXT }).replaceAll('<', String.raw`\u003c`)}</script>` +
+    '<script type="module" src="/bridge.js"></script></body></html>'
+  assets.set('/', { body: head + body, type: 'text/html' })
   assets.set('/bridge.js', { body: BRIDGE, type: 'text/javascript' })
   return assets
 }

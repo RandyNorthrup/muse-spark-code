@@ -80,10 +80,13 @@ export async function summarizePayload(
     const header = /^\s*(?:N\d+\s*)?([GMT]\d+|\$[^\s]*|[A-Z_][A-Z_0-9]*)/.exec(command)
     const rawHead = header?.[1] ?? ''
     const head = rawHead.replace(/^([GMT])0+(\d+)$/, '$1$2')
-    const parameter = (letter: string) => {
-      const value = new RegExp(String.raw`${letter}\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))`).exec(
-        command,
-      )?.[1]
+    const parameterPatterns = {
+      S: /S\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))/,
+      R: /R\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))/,
+      F: /F\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))/,
+    } as const
+    const parameter = (letter: keyof typeof parameterPatterns) => {
+      const value = parameterPatterns[letter].exec(command)?.[1]
       return value === undefined ? undefined : Number(value)
     }
     const highlight = (reason: PayloadHighlight['reason']) => {
