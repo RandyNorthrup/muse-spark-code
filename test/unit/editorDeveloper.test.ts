@@ -112,4 +112,24 @@ describe('window developer owner', () => {
       live.clean()
     }
   })
+
+  it('unlocks the page surface through seven version clicks, never directly', async () => {
+    const live = setup(true)
+    try {
+      const owner = await live.open()
+      const page = { id: 'panel', isLocal: true, kind: 'page' } as const
+      // The page carries no authority of its own: a direct unlock refuses.
+      const direct = await handleDeveloperRequest(owner, page, { type: 'developer/unlock' })
+      expect(direct).toEqual({ type: 'developer/error', code: 'locked' })
+      // Seven clicks on the version unlock with the confirmation.
+      let reply: unknown
+      for (let click = 0; click < 7; click += 1) {
+        reply = await handleDeveloperRequest(owner, page, { type: 'developer/versionClick' })
+      }
+      expect(reply).toMatchObject({ type: 'developer/state', isUnlocked: true })
+      expect(owner.snapshot().isUnlocked).toBe(true)
+    } finally {
+      live.clean()
+    }
+  })
 })
