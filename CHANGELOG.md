@@ -867,6 +867,16 @@ set|status|clear --provider <id> --admin` stores the separate admin
 
 ### Added
 
+- Node OS images (M110os OS6 on OS1's recipe): both images build from
+  the 0.19.0 Linux runtime with the pinned mkosi, boot in QEMU to the
+  login prompt (x86-64 with KVM on CI and under TCG where KVM is
+  absent, aarch64 emulated), and ship an SPDX SBOM per architecture
+  with the build manifests and input receipts; two builds of each
+  image match byte for byte, and the pipeline refuses a pair that
+  does not. Image signing waits for
+  the owner's key ceremony, and TPM/MOK/LUKS enrollment on hardware
+  and the Ollama add-on stay named as waiting.
+
 - Added a pinned amd64/arm64 base agent toolset layer with offline builds,
   verified artifact staging, bundled skill assets, an unprivileged smoke
   fixture and measured base/compiler-pack budgets. Deployment and native
@@ -922,6 +932,10 @@ set|status|clear --provider <id> --admin` stores the separate admin
 
 ### Fixed
 
+- The production build's lazy-bundle check passes again: the node
+  workspace asset names its served stylesheet instead of a
+  bundle-shaped script path, so the registry no longer reads a phantom
+  agent-side load, and the stale bundle rows are regenerated away.
 - Offline toolset installation now verifies image-owned manifest pins and
   installs only their named Debian packages. Failed installer or bundled-skill
   staging removes the fresh incomplete build context so the command can retry.
