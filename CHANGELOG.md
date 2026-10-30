@@ -15,8 +15,9 @@ happened, not what was planned; superseded entries are kept.
   the 0.19.0 Linux runtime with the pinned mkosi, boot in QEMU to the
   login prompt (x86-64 with KVM on CI and under TCG where KVM is
   absent, aarch64 emulated), and ship an SPDX SBOM per architecture
-  with the build manifests and input receipts; the reproducibility
-  comparison records until two builds match. Image signing waits for
+  with the build manifests and input receipts; two builds of each
+  image match byte for byte, and the pipeline refuses a pair that
+  does not. Image signing waits for
   the owner's key ceremony, and TPM/MOK/LUKS enrollment on hardware
   and the Ollama add-on stay named as waiting.
 
