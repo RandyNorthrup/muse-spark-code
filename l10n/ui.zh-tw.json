@@ -5961,7 +5961,8 @@
     "spendAdminPrompt": "{provider} 的管理員報告金鑰：",
     "spendAdminStored": "{provider} 的管理員報告金鑰已儲存在 {store} 中。",
     "spendAdminCleared": "已清除 {provider} 的管理員報告金鑰。",
-    "spendRefreshWait": "支出報告最多每分鐘重新整理一次；目前顯示快取的報告。"
+    "spendRefreshWait": "支出報告最多每分鐘重新整理一次；目前顯示快取的報告。",
+    "severalSettingsRedirect": "請在「帳戶」頁面中提供者旁開啟多個帳戶，以便先顯示提供者條款確認。"
   },
   "developer": {
     "title": "開發人員選項",

@@ -6291,7 +6291,8 @@
     "spendAdminPrompt": "Chiave di rapporto admin per {provider}: ",
     "spendAdminStored": "Chiave di rapporto admin salvata per {provider} in {store}.",
     "spendAdminCleared": "Chiave di rapporto admin cancellata per {provider}.",
-    "spendRefreshWait": "I rapporti di spesa si aggiornano al massimo una volta al minuto; viene mostrato il rapporto memorizzato."
+    "spendRefreshWait": "I rapporti di spesa si aggiornano al massimo una volta al minuto; viene mostrato il rapporto memorizzato.",
+    "severalSettingsRedirect": "Attiva più account dalla pagina Account, accanto al provider, così la conferma dei termini del provider viene mostrata per prima."
   },
   "developer": {
     "title": "Opzioni sviluppatore",

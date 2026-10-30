@@ -6291,7 +6291,8 @@
     "spendAdminPrompt": "Clé de rapport admin pour {provider} : ",
     "spendAdminStored": "Clé de rapport admin enregistrée pour {provider} dans {store}.",
     "spendAdminCleared": "Clé de rapport admin effacée pour {provider}.",
-    "spendRefreshWait": "Les rapports de dépenses s’actualisent au plus une fois par minute ; affichage du rapport en cache."
+    "spendRefreshWait": "Les rapports de dépenses s’actualisent au plus une fois par minute ; affichage du rapport en cache.",
+    "severalSettingsRedirect": "Activez plusieurs comptes depuis la page Comptes, à côté du fournisseur, pour que la confirmation des conditions du fournisseur s’affiche d’abord."
   },
   "developer": {
     "title": "Options de développement",

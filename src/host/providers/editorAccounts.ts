@@ -7,7 +7,7 @@ import {
 import type { SecretStore } from '../auth/credentialStore'
 import { promptForMetaAccountKey } from '../auth/metaAccountKey'
 import { AccountsPanelHandler } from '../models/accountsHandler'
-import type { AccountPolicy } from '../../core/providers/accountPolicy'
+import { accountPolicyFor, type AccountPolicy } from '../../core/providers/accountPolicy'
 import { accountEventText } from '../../acp/accountText'
 import { ACCOUNT_REQUEST_CERTIFICATION, UI_TEXT } from '../../shared/constants'
 
@@ -18,6 +18,7 @@ export function createEditorAccountServices(deps: {
   readonly settings: () => AccountServicesSettings
   readonly promptForApiKey: () => Promise<string | undefined>
   readonly askPolicy: (row: AccountPolicy) => Promise<unknown>
+  readonly setSeveral: (isEnabled: boolean) => Promise<void>
   readonly notice: (session: string, text: string) => void
 }) {
   const services = createRuntimeAccountServices({
@@ -47,9 +48,22 @@ export function createEditorAccountServices(deps: {
       const port = services.sessions('meta')
       const state = await port.read(session ?? '')
       let selected = state.currentAccount
+      const confirmations = await services.confirmations('meta')
       const handler = new AccountsPanelHandler({
         accounts: services.store,
-        confirmations: await services.confirmations('meta'),
+        confirmations,
+        confirmSeveral: async (provider) => {
+          if (provider !== 'meta') return false
+          const entry = await services.metadata.read(provider)
+          const row =
+            entry === undefined ? undefined : accountPolicyFor(entry.policyProvider, entry.product)
+          if (row === undefined) return false
+          const grant = await confirmations.obtain(row, true)
+          // Only-at-my-own-caps still allows the accounts to exist; the pool
+          // honours the recorded choice at each vendor limit.
+          return grant !== undefined && grant.choice !== 'cancel'
+        },
+        setSeveral: deps.setSeveral,
         provider: (id) => (id === 'meta' ? services.metadata.read(id) : Promise.resolve(undefined)),
         currentAccount: () => selected,
         settings: deps.settings,

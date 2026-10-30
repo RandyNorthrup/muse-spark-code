@@ -6456,7 +6456,8 @@
     "spendAdminPrompt": "Klucz raportów administratora dla {provider}: ",
     "spendAdminStored": "Klucz raportów administratora dla {provider} zapisany w {store}.",
     "spendAdminCleared": "Klucz raportów administratora dla {provider} usunięty.",
-    "spendRefreshWait": "Raporty wydatków odświeżają się co najwyżej raz na minutę; wyświetlany jest raport z pamięci podręcznej."
+    "spendRefreshWait": "Raporty wydatków odświeżają się co najwyżej raz na minutę; wyświetlany jest raport z pamięci podręcznej.",
+    "severalSettingsRedirect": "Włącz wiele kont na stronie Konta, obok dostawcy, aby najpierw wyświetliło się potwierdzenie warunków dostawcy."
   },
   "developer": {
     "title": "Opcje programisty",

@@ -6291,7 +6291,8 @@
     "spendAdminPrompt": "Chave de relatório de administração para {provider}: ",
     "spendAdminStored": "Chave de relatório de administração salva para {provider} em {store}.",
     "spendAdminCleared": "Chave de relatório de administração apagada para {provider}.",
-    "spendRefreshWait": "Os relatórios de gastos atualizam no máximo uma vez por minuto; exibindo o relatório em cache."
+    "spendRefreshWait": "Os relatórios de gastos atualizam no máximo uma vez por minuto; exibindo o relatório em cache.",
+    "severalSettingsRedirect": "Ative várias contas na página Contas, ao lado do provedor, para que a confirmação dos termos do provedor seja mostrada primeiro."
   },
   "developer": {
     "title": "Opções do desenvolvedor",

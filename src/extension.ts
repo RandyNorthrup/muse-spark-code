@@ -1309,6 +1309,11 @@ async function activateWindow(
         >
       >
     | undefined
+  // D88 b2: the Accounts page's several-accounts switch marks its own
+  // confirmed write; a raw Settings flip without the mark is reverted by
+  // the configuration watcher below, so turning it on always shows
+  // decision 6's vendor-terms confirmation first.
+  let hasSeveralConfirmedWrite = false
   const accountServices = () => {
     if (editorAccounts !== undefined) return editorAccounts
     const create = runtimeAccountsLoader({
@@ -1331,6 +1336,12 @@ async function activateWindow(
         severalOnThisDevice: currentSettings()['accounts.severalOnThisDevice'],
       }),
       promptForApiKey,
+      setSeveral: async (enabled) => {
+        if (enabled) hasSeveralConfirmedWrite = true
+        await vscode.workspace
+          .getConfiguration(SETTINGS_SECTION)
+          .update('accounts.severalOnThisDevice', enabled, vscode.ConfigurationTarget.Global)
+      },
       askPolicy: async (row) => {
         const answer = await vscode.window.showWarningMessage(
           fill(UI_TEXT.accounts.confirmWarning, { provider: row.provider }),
@@ -6245,6 +6256,25 @@ async function activateWindow(
       ) {
         for (const controller of controllers.values()) {
           void controller.revokeBypass().catch(logRejection(log, 'Bypass revocation'))
+        }
+      }
+      // D88 b2: several accounts turn on only through the Accounts page's
+      // switch, which shows decision 6's confirmation first. A raw Settings
+      // flip is reverted with a redirect; the page's own write carries the
+      // mark and passes through.
+      if (event.affectsConfiguration(`${SETTINGS_SECTION}.accounts.severalOnThisDevice`)) {
+        if (hasSeveralConfirmedWrite) {
+          hasSeveralConfirmedWrite = false
+        } else if (currentSettings()['accounts.severalOnThisDevice']) {
+          void vscode.workspace
+            .getConfiguration(SETTINGS_SECTION)
+            .update('accounts.severalOnThisDevice', false, vscode.ConfigurationTarget.Global)
+            .then(
+              () => {
+                void vscode.window.showInformationMessage(UI_TEXT.accounts.severalSettingsRedirect)
+              },
+              logRejection(log, 'several-accounts revert'),
+            )
         }
       }
       // A host keeps its sandbox posture, its environment and its binary for

@@ -6126,7 +6126,8 @@
     "spendAdminPrompt": "Admin-Berichtsschlüssel für {provider}: ",
     "spendAdminStored": "Admin-Berichtsschlüssel für {provider} in {store} gespeichert.",
     "spendAdminCleared": "Admin-Berichtsschlüssel für {provider} gelöscht.",
-    "spendRefreshWait": "Verbrauchsberichte werden höchstens einmal pro Minute aktualisiert; der zwischengespeicherte Bericht wird angezeigt."
+    "spendRefreshWait": "Verbrauchsberichte werden höchstens einmal pro Minute aktualisiert; der zwischengespeicherte Bericht wird angezeigt.",
+    "severalSettingsRedirect": "Schalten Sie mehrere Konten auf der Kontenseite neben dem Anbieter ein, damit zuerst die Bestätigung der Anbieterbedingungen angezeigt wird."
   },
   "developer": {
     "title": "Entwickleroptionen",

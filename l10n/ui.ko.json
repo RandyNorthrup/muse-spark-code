@@ -5961,7 +5961,8 @@
     "spendAdminPrompt": "{provider} 관리 보고서 키: ",
     "spendAdminStored": "{provider} 관리 보고서 키를 {store}에 저장했습니다.",
     "spendAdminCleared": "{provider} 관리 보고서 키를 삭제했습니다.",
-    "spendRefreshWait": "지출 보고서는 최대 1분에 한 번씩 새로고침됩니다. 캐시된 보고서를 표시합니다."
+    "spendRefreshWait": "지출 보고서는 최대 1분에 한 번씩 새로고침됩니다. 캐시된 보고서를 표시합니다.",
+    "severalSettingsRedirect": "여러 계정은 제공자 옆의 계정 페이지에서 켜십시오. 먼저 제공자 이용약관 확인이 표시됩니다."
   },
   "developer": {
     "title": "개발자 옵션",

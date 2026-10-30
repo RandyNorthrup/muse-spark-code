@@ -6126,7 +6126,8 @@
     "spendAdminPrompt": "{provider} için yönetici rapor anahtarı: ",
     "spendAdminStored": "{provider} için yönetici rapor anahtarı {store} içine kaydedildi.",
     "spendAdminCleared": "{provider} için yönetici rapor anahtarı temizlendi.",
-    "spendRefreshWait": "Harcama raporları en fazla dakikada bir yenilenir; önbelleğe alınmış rapor gösteriliyor."
+    "spendRefreshWait": "Harcama raporları en fazla dakikada bir yenilenir; önbelleğe alınmış rapor gösteriliyor.",
+    "severalSettingsRedirect": "Birden çok hesabı, sağlayıcının yanındaki Hesaplar sayfasından açın; önce sağlayıcı koşullarının onayı gösterilir."
   },
   "developer": {
     "title": "Geliştirici seçenekleri",

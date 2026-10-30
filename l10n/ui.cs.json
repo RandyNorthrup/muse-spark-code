@@ -6456,7 +6456,8 @@
     "spendAdminPrompt": "Klíč přehledů správce pro {provider}: ",
     "spendAdminStored": "Klíč přehledů správce pro {provider} uložen v {store}.",
     "spendAdminCleared": "Klíč přehledů správce pro {provider} smazán.",
-    "spendRefreshWait": "Přehledy útraty se obnovují nejvýše jednou za minutu; zobrazuje se uložený přehled."
+    "spendRefreshWait": "Přehledy útraty se obnovují nejvýše jednou za minutu; zobrazuje se uložený přehled.",
+    "severalSettingsRedirect": "Více účtů zapněte na stránce Účty vedle poskytovatele, aby se nejprve zobrazilo potvrzení podmínek poskytovatele."
   },
   "developer": {
     "title": "Možnosti pro vývojáře",

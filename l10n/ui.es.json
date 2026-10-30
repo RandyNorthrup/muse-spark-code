@@ -6291,7 +6291,8 @@
     "spendAdminPrompt": "Clave de informe de administración para {provider}: ",
     "spendAdminStored": "Clave de informe de administración guardada para {provider} en {store}.",
     "spendAdminCleared": "Clave de informe de administración eliminada para {provider}.",
-    "spendRefreshWait": "Los informes de gasto se actualizan como máximo una vez por minuto; se muestra el informe en caché."
+    "spendRefreshWait": "Los informes de gasto se actualizan como máximo una vez por minuto; se muestra el informe en caché.",
+    "severalSettingsRedirect": "Active varias cuentas desde la página Cuentas, junto al proveedor, para que primero se muestre la confirmación de los términos del proveedor."
   },
   "developer": {
     "title": "Opciones de desarrollador",

@@ -32,7 +32,15 @@ export interface AccountsPanelHostPort {
   readonly confirmations: AccountConfirmations
   provider(id: string): Promise<AccountProvider | undefined>
   currentAccount(provider: string): string | null
-  settings(): { readonly isSwapOn: boolean; readonly isParallelOn: boolean }
+  settings(): {
+    readonly isSwapOn: boolean
+    readonly isParallelOn: boolean
+    readonly severalOnThisDevice: boolean
+  }
+  /** Decision 6's vendor-terms confirmation for this provider; recorded per machine. */
+  confirmSeveral(provider: string): Promise<boolean>
+  /** Writes the machine-scoped several-accounts setting after confirmation. */
+  setSeveral(isEnabled: boolean): Promise<void>
   capabilities(provider: string): {
     readonly planWindows: readonly string[]
     readonly hasRateHeadroom: boolean
@@ -141,6 +149,13 @@ export class AccountsPanelHandler {
         case 'accounts/revoke': {
           if (request.product !== entry.product) throw new AccountStoreError('invalidAccount')
           await this.port.confirmations.revoke(entry.policyProvider, entry.product)
+          break
+        }
+        case 'accounts/several': {
+          // A denial returns the unchanged snapshot, so the page's switch
+          // restores itself to off; turning off never asks.
+          if (request.enabled && !(await this.port.confirmSeveral(request.provider))) break
+          await this.port.setSeveral(request.enabled)
           break
         }
       }
