@@ -4878,6 +4878,10 @@ export const VAULT_ACTIONS_BUNDLE_FILE = 'vaultActions.js'
 export const VAULT_MIGRATION_BUNDLE_FILE = 'vaultMigration.js'
 // C-M109-1: the CLI, ACP and headless vault (no `vscode`), lead decision 5.
 export const VAULT_RUNTIME_BUNDLE_FILE = 'vaultRuntime.js'
+/** dist/vaultExec.js: the D216 feeder, spawned in place of a command. */
+export const VAULT_EXEC_BUNDLE_FILE = 'vaultExec.js'
+/** dist/vaultPolicy.js: the person vault policy's file half, on first use. */
+export const VAULT_POLICY_BUNDLE_FILE = 'vaultPolicy.js'
 // RLF-M109: the runtime key-store migration's own chunk beside the vault
 // runtime (the controller, the engine and its codecs), loaded on the first
 // unlock edge in the CLI, ACP or headless process only.

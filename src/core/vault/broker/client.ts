@@ -103,6 +103,10 @@ export class VaultBrokerClient {
       throw error
     }
   }
+  /** D216: wrap an already verified feeder socket (feederClient.ts). */
+  static fromFeederSocket(socket: Socket): VaultBrokerClient {
+    return new VaultBrokerClient(socket)
+  }
   private sequence = 0
   private buffer = Buffer.alloc(0)
   private pending: {

@@ -400,10 +400,16 @@ const BUDGETS = [
   // recovery); exactly 15% headroom, rounded to one byte.
   // VAULTPARITY: 168,477 bytes measured on linuxlt with the Windows broker
   // channel, host and file anchor wired in; exactly 15% headroom.
-  { path: 'dist/vaultBroker.js', budgetKiB: 193_749 / 1024 },
+  // RLF-M109 (D216): 194,124 bytes measured on macmini with reported
+  // provenance, delegated redemption and the feeder channel wired in;
+  // exactly 15% headroom, rounded to one byte.
+  { path: 'dist/vaultBroker.js', budgetKiB: 223_243 / 1024 },
   // VAULTPARITY: 33,159 bytes measured on linuxlt with the OS-store/file
   // anchor choice; exactly 15% headroom.
-  { path: 'dist/vaultBrokerBindings.js', budgetKiB: 38_133 / 1024 },
+  // RLF-M109 (D216): 39,796 bytes measured on macmini with the person
+  // ceiling loader, feeder ancestry and the broker TOTP wired in;
+  // exactly 15% headroom, rounded to one byte.
+  { path: 'dist/vaultBrokerBindings.js', budgetKiB: 45_765 / 1024 },
   // MSM109: 58,130 bytes measured on linuxlt after the joined lease/store
   // reviews; exactly 15% headroom, rounded to one byte.
   { path: 'dist/vaultStore.js', budgetKiB: 66_850 / 1024 },
@@ -550,6 +556,14 @@ const BUDGETS = [
   // codecs, first-party reader), loaded by dist/vaultRuntime.js on the
   // first unlock edge only. Measured 60.2 KiB; plus 15%, rounded up.
   { path: 'dist/vaultRuntimeMigration.js', budgetKiB: 70 },
+  // RLF-M109 (D216): the feeder (envelope, delegated redemption client,
+  // scrub streams, the contained command runner), spawned in place of a
+  // command. Measured 127.7 KiB; plus 15%, rounded up.
+  { path: 'dist/vaultExec.js', budgetKiB: 150 },
+  // RLF-M109 (D216): the person vault policy's file half, loaded by the
+  // broker bindings and the vault runtime on first use. Measured
+  // 7.0 KiB; plus 15%, rounded up to the 25 KiB floor.
+  { path: 'dist/vaultPolicy.js', budgetKiB: 25 },
 ]
 
 // DIET1: independently emitted optional surfaces, measured on main, each plus

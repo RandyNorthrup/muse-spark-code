@@ -60,6 +60,7 @@ import {
   USAGE_PAGE_OPEN_TIMEOUT_MS,
   CONNECTOR_FOLDER,
   CONNECTOR_STORE_GUARD_BUNDLE_FILE,
+  VAULT_POLICY_BUNDLE_FILE,
 } from '../shared/constants'
 import {
   cliEvidenceRoot,
@@ -179,9 +180,12 @@ import type {
 } from './providers/runtimeServices'
 import { AcpVault } from '../acp/vault'
 import { runtimeVaultLoader } from './vault/vaultRuntime'
+import { createRequire } from 'node:module'
+import { vaultBrokerDataDir } from './vault/vaultStoreScope'
 import { createMigrationShell } from '../host/vault/migrationShell'
 import { providersFilePath } from './providerPaths'
-import { runVaultCommand, vaultUsage } from './vault/vaultCommand'
+import { runVaultCommand, vaultUsage, type VaultCommandDeps } from './vault/vaultCommand'
+import type * as VaultPolicyModule from './vault/vaultPolicyEntry'
 import { chooseVaultDecision, readVaultLine, readVaultMaterial } from './vault/vaultInput'
 
 const EXIT_FAILED = 1
@@ -208,6 +212,48 @@ const packageRoot = path.dirname(distDir)
 async function openVaultCommands() {
   const binding = await loadVault()
   return await binding.commands()
+}
+
+/**
+D216: `vault policy` reads and replaces the person's policy file
+through its own lazy chunk (dist/vaultPolicy.js), the same one the
+broker reads at registration. The same-build sibling contract is
+validated before use (PLAN §8); no broker connection is needed.
+*/
+function vaultPolicyDeps(): VaultCommandDeps['policy'] {
+  let loaded: typeof VaultPolicyModule | undefined
+  const load = (): typeof VaultPolicyModule => {
+    if (loaded === undefined) {
+      const candidate = createRequire(__filename)(
+        path.join(distDir, VAULT_POLICY_BUNDLE_FILE),
+      ) as typeof VaultPolicyModule
+      if (
+        typeof candidate.readVaultPolicy !== 'function' ||
+        typeof candidate.writeVaultPolicy !== 'function' ||
+        typeof candidate.setUiText !== 'function'
+      )
+        throw new TypeError(UI_TEXT.vault.brokerBlocked)
+      candidate.setUiText(UI_TEXT, uiLocale())
+      loaded = candidate
+    }
+    return loaded
+  }
+  return {
+    read: async () =>
+      await load().readVaultPolicy(
+        vaultBrokerDataDir(
+          agentDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() }),
+        ),
+      ),
+    write: async (policy) => {
+      await load().writeVaultPolicy(
+        vaultBrokerDataDir(
+          agentDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() }),
+        ),
+        policy,
+      )
+    },
+  }
 }
 const acpVault = new AcpVault(openVaultCommands)
 // The vault binding's loader is constructed below, once this process's
@@ -2191,16 +2237,7 @@ async function main(processResources: ProcessResources): Promise<number> {
       try {
         return await runVaultCommand(command.options, {
           open: openVaultCommands,
-          policy: {
-            read: async () => {
-              const binding = await loadVault()
-              return await binding.policy.read()
-            },
-            write: async (policy) => {
-              const binding = await loadVault()
-              await binding.policy.write(policy)
-            },
-          },
+          policy: vaultPolicyDeps(),
           readMaterial: (signal) => readVaultMaterial(process.stdin, process.stderr, signal),
           readLine: (prompt, signal) =>
             readVaultLine(process.stdin, process.stderr, prompt, signal),

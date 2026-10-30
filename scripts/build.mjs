@@ -419,6 +419,8 @@ const VAULT_RUNTIME_ENTRY = 'src/runtime/vault/vaultRuntimeEntry.ts'
 const VAULT_RUNTIME_OUTFILE = 'dist/vaultRuntime.js'
 const VAULT_RUNTIME_MIGRATION_ENTRY = 'src/runtime/vault/vaultRuntimeMigrationEntry.ts'
 const VAULT_RUNTIME_MIGRATION_OUTFILE = 'dist/vaultRuntimeMigration.js'
+const VAULT_POLICY_ENTRY = 'src/runtime/vault/vaultPolicyEntry.ts'
+const VAULT_POLICY_OUTFILE = 'dist/vaultPolicy.js'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
 // M95 (PLAN.md D74): exact catalogue values, with no provider runtime logic.
 // The data module uses the same verified solid archive loader as lazy bundles.
@@ -1651,6 +1653,13 @@ const vaultRuntimeMigrationOptions = {
   entryPoints: [VAULT_RUNTIME_MIGRATION_ENTRY],
   outfile: VAULT_RUNTIME_MIGRATION_OUTFILE,
 }
+// D216: the person vault policy's file half, loaded by the broker
+// bindings and the vault runtime on first use.
+const vaultPolicyOptions = {
+  ...acpQuestionsOptions,
+  entryPoints: [VAULT_POLICY_ENTRY],
+  outfile: VAULT_POLICY_OUTFILE,
+}
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
@@ -1717,6 +1726,13 @@ const vaultBrokerBindingsOptions = {
   ...vaultBrokerOptions,
   entryPoints: ['src/runtime/vault/brokerBindings.ts'],
   outfile: 'dist/vaultBrokerBindings.js',
+}
+
+const vaultExecOptions = {
+  ...modelApiOptions,
+  plugins: [...modelApiOptions.plugins, sharedVaultStore],
+  entryPoints: ['src/runtime/vault/vaultExecEntry.ts'],
+  outfile: 'dist/vaultExec.js',
 }
 
 const vaultBoundariesOptions = {
@@ -2077,6 +2093,7 @@ if (isWatch) {
     esbuild.context(vaultPosixOptions),
     esbuild.context(vaultWindowsOptions),
     esbuild.context(vaultBrokerBindingsOptions),
+    esbuild.context(vaultExecOptions),
     esbuild.context(vaultActionsOptions),
     esbuild.context(vaultMigrationOptions),
     esbuild.context(reportOptions),
@@ -2260,6 +2277,7 @@ if (isWatch) {
     vaultPosix: recorded('vaultPosix', vaultPosixOptions),
     vaultWindows: recorded('vaultWindows', vaultWindowsOptions),
     vaultBrokerBindings: recorded('vaultBrokerBindings', vaultBrokerBindingsOptions),
+    vaultExec: recorded('vaultExec', vaultExecOptions),
     vaultActions: recorded('vaultActions', vaultActionsOptions),
     vaultMigration: recorded('vaultMigration', vaultMigrationOptions),
     report: recorded('report', reportOptions),
@@ -2332,6 +2350,7 @@ if (isWatch) {
     ['runtimeAccounts', () => esbuild.build(runtimeAccountsOptions)],
     ['vaultRuntime', () => esbuild.build(vaultRuntimeOptions)],
     ['vaultRuntimeMigration', () => esbuild.build(vaultRuntimeMigrationOptions)],
+    ['vaultPolicy', () => esbuild.build(vaultPolicyOptions)],
   ]
   if (!isProduction) {
     extraSpecs.push(['integrationTests', () => esbuild.build(integrationTestOptions)])
@@ -2348,6 +2367,7 @@ if (isWatch) {
   let runtimeAccounts
   let vaultRuntime
   let vaultRuntimeMigration
+  let vaultPolicy
   try {
     shipped = await runBuildPool(Object.entries(shippedSpecs), BUILD_POOL_SIZE)
     ;({
@@ -2362,6 +2382,7 @@ if (isWatch) {
       runtimeAccounts,
       vaultRuntime,
       vaultRuntimeMigration,
+      vaultPolicy,
     } = await runBuildPool(extraSpecs, BUILD_POOL_SIZE))
   } catch (error) {
     await esbuild.stop()
@@ -2404,6 +2425,11 @@ if (isWatch) {
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'vaultRuntimeMigration.json'),
       JSON.stringify(vaultRuntimeMigrationMetafile, null, 2),
+    )
+    const { metafile: vaultPolicyMetafile } = await vaultPolicy
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'vaultPolicy.json'),
+      JSON.stringify(vaultPolicyMetafile, null, 2),
     )
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'runtimeQuestions.json'),
@@ -2487,6 +2513,7 @@ if (isWatch) {
   reportSize(VAULT_OUTFILE)
   reportSize('dist/vaultBroker.js')
   reportSize('dist/vaultBrokerBindings.js')
+  reportSize('dist/vaultExec.js')
   reportSize(VAULT_ACTIONS_OUTFILE)
   reportSize(REPORT_OUTFILE)
   reportSize(ESTIMATOR_OUTFILE)
