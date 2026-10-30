@@ -216,6 +216,8 @@ export interface WindowsBrokerPlatform {
   readonly files: VaultPrivateFilesPort
   readonly ownerSid: string
   identify(pid: number): Promise<VaultProcessIdentity | null>
+  /** D216: the parent process's identity, for the feeder ancestry walk. */
+  parentIdentify(pid: number): Promise<VaultProcessIdentity | null>
   isHost(
     runDirectory: string,
     identity: VaultProcessIdentity,
@@ -299,6 +301,18 @@ export async function bumpWindowsVaultEpoch(
   )
 }
 
+/** The relay's process record in the broker's identity shape. */
+function windowsIdentityShape(
+  found: NonNullable<Awaited<ReturnType<typeof windowsProcessIdentity>>>,
+): VaultProcessIdentity {
+  return {
+    processId: found.process.processId,
+    userId: found.process.userId,
+    startedAt: found.process.startedAt,
+    executable: found.process.executable,
+  }
+}
+
 export function windowsBrokerPlatform(
   relay: PipeRelay,
   ownerSid: string,
@@ -308,14 +322,13 @@ export function windowsBrokerPlatform(
   const files: VaultPrivateFilesPort = new WindowsVaultPrivateFiles(guard, helperFile)
   const identify = async (pid: number): Promise<VaultProcessIdentity | null> => {
     const found = await windowsProcessIdentity(relay, pid)
-    return found === null
-      ? null
-      : {
-          processId: found.process.processId,
-          userId: found.process.userId,
-          startedAt: found.process.startedAt,
-          executable: found.process.executable,
-        }
+    return found === null ? null : windowsIdentityShape(found)
+  }
+  const parentIdentify = async (pid: number): Promise<VaultProcessIdentity | null> => {
+    const found = await windowsProcessIdentity(relay, pid)
+    if (found === null || found.process.parentProcessId === 0) return null
+    const parent = await windowsProcessIdentity(relay, found.process.parentProcessId)
+    return parent === null ? null : windowsIdentityShape(parent)
   }
   return {
     relay,
@@ -323,6 +336,7 @@ export function windowsBrokerPlatform(
     files,
     ownerSid,
     identify,
+    parentIdentify,
     isHost: (runDirectory, identity, hostId, hostSession) =>
       isWindowsVaultHost(runDirectory, files, identity, hostId, hostSession),
     withAuditLock: (dataDir, work) =>

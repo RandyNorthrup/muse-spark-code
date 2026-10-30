@@ -24,6 +24,7 @@ import { vaultRefusalSentences } from '../../shared/vaultRefusals'
 import { vaultApprovalText, vaultDecisionChoices } from './vaultApproval'
 import type { VaultImportReport, VaultManagementPort } from '../../core/vault/broker/ports'
 import { vaultWriterRecoveryMessage } from '../../core/vault/broker/manageClient'
+import { vaultPolicySchema, type VaultPolicy } from './vaultPolicy'
 
 const auditFilterSchema = z.strictObject({
   item: z.optional(vaultAuditRecordSchema.shape.handle),
@@ -46,6 +47,7 @@ export type VaultCommandOptions =
   | { command: 'revoke'; grantId: string }
   | { command: 'import'; path: string }
   | { command: 'receipts' }
+  | { command: 'policy'; policy?: VaultPolicy }
 
 /** Trusted local management channel only. Private material never uses the panel/MHP port. */
 export interface VaultCommandPort extends Pick<
@@ -87,10 +89,15 @@ export interface VaultCommandDeps {
   readLine(prompt: string, signal: AbortSignal): Promise<Buffer>
   now(): number
   signal: AbortSignal
+  /** D216: the person's vault policy file, read and replaced whole. */
+  policy: {
+    read(): Promise<VaultPolicy | undefined>
+    write(policy: VaultPolicy): Promise<void>
+  }
 }
 
 export function vaultUsage(): string {
-  return `${UI_TEXT.vault.title}: setup | recover | reset | status | unlock [slot-id] | lock | list | add <metadata-json> | remove <item-id> | grant <grant-json> | revoke <grant-id> | audit [--item <handle>] [--requester <id>] [--kind <kind>] [--outcome <outcome>] | import <path> | receipts | public-key <item-id> | watch`
+  return `${UI_TEXT.vault.title}: setup | recover | reset | status | unlock [slot-id] | lock | list | add <metadata-json> | remove <item-id> | grant <grant-json> | revoke <grant-id> | policy [<policy-json>] | audit [--item <handle>] [--requester <id>] [--kind <kind>] [--outcome <outcome>] | import <path> | receipts | public-key <item-id> | watch`
 }
 
 /** Parse without echoing supplied arguments or JSON errors (they can contain an accidental value). */
@@ -118,6 +125,7 @@ export function parseVaultCommand(args: readonly string[]): VaultCommandOptions 
     if (argument === undefined && read !== undefined) return { command: read }
     // Finish kept or orphaned imports from the terminal (RVAPP-CM1091D5 P2-2).
     if (command === 'receipts' && argument === undefined) return { command: 'receipts' }
+    if (command === 'policy' && argument === undefined) return { command: 'policy' }
     if (command === 'unlock')
       return {
         command,
@@ -131,6 +139,9 @@ export function parseVaultCommand(args: readonly string[]): VaultCommandOptions 
       }
       case 'grant': {
         return { command, grant: vaultGrantSchema.parse(JSON.parse(argument)) }
+      }
+      case 'policy': {
+        return { command, policy: vaultPolicySchema.parse(JSON.parse(argument)) }
       }
       case 'remove':
       case 'public-key': {
@@ -485,6 +496,24 @@ export async function runVaultCommand(
       }
       case 'revoke': {
         await port.revoke(options.grantId)
+        break
+      }
+      case 'policy': {
+        if (options.policy === undefined) {
+          deps.print(JSON.stringify((await deps.policy.read()) ?? { ceilings: [] }))
+          break
+        }
+        const answer = await deps.choose(
+          `${UI_TEXT.vault.policyCeilings}: ${JSON.stringify(options.policy)}`,
+          ['allowOnce', 'deny'],
+          deps.signal,
+        )
+        deps.signal.throwIfAborted()
+        if (answer !== 'allowOnce') {
+          code = 1
+          break
+        }
+        await deps.policy.write(options.policy)
         break
       }
       case 'import': {

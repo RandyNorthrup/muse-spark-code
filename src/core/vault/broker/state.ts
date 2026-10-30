@@ -29,6 +29,7 @@ import {
   type VaultRequesterRegistration,
   type VaultConnectionIdentity,
 } from './ports'
+import { type VaultProcessIdentity } from './peer'
 import { evaluateVaultPolicy, isCeilingCovered, isGrantCovered } from './policy'
 import { vaultUseDigest } from '../useDigest'
 
@@ -87,6 +88,25 @@ export type Command =
       use: VaultUse
       lifetime: VaultUseLifetime
       token?: RegistrationToken
+    }
+  | {
+      // D216: the incarnation-bound host delegates one unredeemed ticket
+      // to one feeder process identity for one command envelope.
+      kind: 'delegate'
+      ticketId: string
+      token: RegistrationToken
+      feeder: { processId: number; startedAt: number }
+      envelopeDigest: string
+    }
+  | {
+      // D216: the feeder redeems on its own connection; `feeder` is the
+      // kernel peer record of that connection, never a frame claim.
+      kind: 'redeemDelegated'
+      ticket: VaultTicket
+      use: VaultUse
+      lifetime: VaultUseLifetime
+      feeder: VaultProcessIdentity
+      envelopeDigest: string
     }
   | {
       kind: 'material'
@@ -160,6 +180,13 @@ interface Admission {
   redeemed?: boolean
   released?: boolean | undefined
 }
+/** D216: one single-use delegation of one ticket to one feeder identity. */
+interface Delegation {
+  token: RegistrationToken
+  processId: number
+  startedAt: number
+  envelopeDigest: string
+}
 interface AuditEntry {
   subject: AuditSubject
   writer: VaultAuditWriter
@@ -183,6 +210,7 @@ export interface BrokerState {
   connections: Map<string, Connection>
   pending: Map<string, Admission>
   tickets: Map<string, Admission>
+  delegations: Map<string, Delegation>
   active: Map<string, Admission>
   buffers: Map<string, { generation: number; resources: Resources }>
   sessions: Map<string, Set<string>>
@@ -264,6 +292,7 @@ export function initialBrokerState(): BrokerState {
     connections: new Map(),
     pending: new Map(),
     tickets: new Map(),
+    delegations: new Map(),
     active: new Map(),
     buffers: new Map(),
     sessions: new Map(),
@@ -391,6 +420,7 @@ export function step(
     connections: new Map(previous.connections),
     pending: new Map(previous.pending),
     tickets: new Map(previous.tickets),
+    delegations: new Map(previous.delegations),
     active: new Map(previous.active),
     buffers: new Map(previous.buffers),
     sessions: new Map(previous.sessions),
@@ -559,6 +589,7 @@ export function step(
     if (op.ticket) {
       const admission = state.active.get(op.ticket.id)
       state.tickets.delete(op.ticket.id)
+      state.delegations.delete(op.ticket.id)
       state.active.delete(op.ticket.id)
       if (admission?.lifetime) terminate(admission, outcome)
     }
@@ -581,7 +612,7 @@ export function step(
       entry.waiting.add(op.id)
       return
     }
-    if (['request', 'answer', 'redeem'].includes(op.command.kind))
+    if (['request', 'answer', 'redeem', 'redeemDelegated'].includes(op.command.kind))
       audit(
         op,
         'deny',
@@ -802,6 +833,8 @@ export function step(
           )
         )
           state.sessions.delete(key)
+    for (const [ticketId, delegation] of state.delegations)
+      if (delegation.token.id === requesterId) state.delegations.delete(ticketId)
     effects.push({ kind: 'invalidate', requesterId, token: registration?.token, grantId })
     const seen = new Set<string>()
     for (const collection of [state.pending, state.tickets, state.active])
@@ -846,6 +879,7 @@ export function step(
         seen.add(admission.request.id)
         terminate(admission, 'locked', op)
       }
+    state.delegations.clear()
     for (const old of state.operations.values())
       if (
         old.id !== op.id &&
@@ -853,7 +887,10 @@ export function step(
         old.command.kind !== 'lock' &&
         !state.draining.has(old.id)
       ) {
-        if (old.request && ['request', 'answer', 'redeem'].includes(old.command.kind))
+        if (
+          old.request &&
+          ['request', 'answer', 'redeem', 'redeemDelegated'].includes(old.command.kind)
+        )
           waiting.add(old.id)
         fail(old, 'locked')
       }
@@ -883,7 +920,10 @@ export function step(
   }
   const start = (op: Operation): void => {
     const command = op.command
-    if (state.disposed && !['dispose', 'lock', 'status', 'tick', 'redeem'].includes(command.kind)) {
+    if (
+      state.disposed &&
+      !['dispose', 'lock', 'status', 'tick', 'redeem', 'redeemDelegated'].includes(command.kind)
+    ) {
       fail(op, 'locked')
       return
     }
@@ -974,6 +1014,7 @@ export function step(
           // A refused or abandoned ticket never reached active: drop it from
           // the unredeemed set too, so it cannot be redeemed afterwards.
           state.tickets.delete(command.ticketId)
+          state.delegations.delete(command.ticketId)
           settle(op)
           return
         }
@@ -1079,6 +1120,55 @@ export function step(
         }
         break
       }
+      case 'delegate': {
+        const admission = state.tickets.get(command.ticketId)
+        if (admission?.token !== command.token || state.delegations.has(command.ticketId)) {
+          settle(op, false)
+          return
+        }
+        state.delegations.set(command.ticketId, {
+          token: admission.token,
+          processId: command.feeder.processId,
+          startedAt: command.feeder.startedAt,
+          envelopeDigest: command.envelopeDigest,
+        })
+        settle(op, true)
+        return
+      }
+      case 'redeemDelegated': {
+        const admission = state.tickets.get(command.ticket.id)
+        const delegation = state.delegations.get(command.ticket.id)
+        // Single-use: the delegation is spent by the attempt, admitted or not.
+        state.delegations.delete(command.ticket.id)
+        if (!admission || !delegation) {
+          settle(op, denied(admission ? 'peer' : 'replay'))
+          return
+        }
+        if (
+          delegation.token !== admission.token ||
+          delegation.processId !== command.feeder.processId ||
+          delegation.startedAt !== command.feeder.startedAt ||
+          delegation.envelopeDigest !== command.envelopeDigest ||
+          command.ticket.requesterId !== admission.token.id ||
+          JSON.stringify(command.ticket) !== JSON.stringify(admission.ticket)
+        ) {
+          settle(op, denied('peer'))
+          return
+        }
+        op.request = admission.request
+        op.authority = admission.authority
+        op.ticket = command.ticket
+        op.token = admission.token
+        if (vaultUseDigest(command.use) !== command.ticket.digest) {
+          fail(op, 'digest')
+          return
+        }
+        const requester = admission.request.requester
+        io(op, 'feeder', async (deps) => ({
+          value: await deps.identity.verifyFeeder(command.feeder, requester),
+        }))
+        return
+      }
       case 'material': {
         const admission = state.active.get(command.ticketId)
         if (
@@ -1145,6 +1235,7 @@ export function step(
             }
 
             collection.delete(id)
+            state.delegations.delete(id)
             terminate(admission, 'expired')
           }
         break
@@ -1163,7 +1254,10 @@ export function step(
   const afterAudit = (op: Operation): void => {
     const reason = invalid(op)
     if (op.reason || op.command.kind === 'finish') {
-      if (op.reason && !['request', 'answer', 'redeem', 'finish'].includes(op.command.kind))
+      if (
+        op.reason &&
+        !['request', 'answer', 'redeem', 'redeemDelegated', 'finish'].includes(op.command.kind)
+      )
         settle(op, undefined, new Error(UI_TEXT.vault.noAccess))
       else settle(op, op.result)
       return
@@ -1181,7 +1275,7 @@ export function step(
     } else if (op.command.kind === 'request' || op.command.kind === 'answer') {
       if (op.request) state.pending.delete(op.request.id)
       makeTicket(op)
-    } else if (op.command.kind === 'redeem') {
+    } else if (op.command.kind === 'redeem' || op.command.kind === 'redeemDelegated') {
       const ticket = requireValue(op.ticket),
         admission = state.active.get(ticket.id)
       if (!admission) {
@@ -1203,7 +1297,11 @@ export function step(
         resources: {},
       }
       state.operations.set(op.id, op)
-      if (['request', 'answer', 'redeem', 'grant'].includes(op.command.kind)) {
+      if (
+        ['request', 'answer', 'redeem', 'redeemDelegated', 'delegate', 'grant'].includes(
+          op.command.kind,
+        )
+      ) {
         state.serial.push(op.id)
         if (state.serial[0] === op.id) start(op)
       } else start(op)
@@ -1222,7 +1320,10 @@ export function step(
             afterAudit(op)
           } else {
             effects.push({ kind: 'failure' })
-            if (op.command.kind === 'redeem' && op.ticket) {
+            if (
+              (op.command.kind === 'redeem' || op.command.kind === 'redeemDelegated') &&
+              op.ticket
+            ) {
               const admission = state.active.get(op.ticket.id)
               state.active.delete(op.ticket.id)
               state.tickets.delete(op.ticket.id)
@@ -1367,6 +1468,22 @@ export function step(
                     })
                   } else if (!state.key && command.kind === 'private') unlock(op)
                   else io(op, 'epoch', async (deps) => ({ value: await deps.epoch.current() }))
+                  break
+                }
+                case 'feeder': {
+                  if (command.kind !== 'redeemDelegated' || result.value !== true) {
+                    fail(op, 'peer')
+                    break
+                  }
+                  const ticket = requireValue(op.ticket)
+                  const admission = state.tickets.get(ticket.id)
+                  if (!admission || admission.token !== op.token) {
+                    fail(op, 'replay')
+                    break
+                  }
+                  state.tickets.delete(ticket.id)
+                  state.active.set(ticket.id, { ...admission, lifetime: command.lifetime })
+                  io(op, 'epoch', async (deps) => ({ value: await deps.epoch.current() }))
                   break
                 }
                 case 'launched': {
@@ -1626,7 +1743,7 @@ export function step(
                     ticketAudit(op)
                     break
                   }
-                  if (command.kind === 'redeem') grants(op)
+                  if (command.kind === 'redeem' || command.kind === 'redeemDelegated') grants(op)
                   break
                 }
                 case 'grants': {
@@ -1662,7 +1779,7 @@ export function step(
                     read(op, requireValue(op.request).item.id)
                     break
                   }
-                  if (command.kind === 'redeem') {
+                  if (command.kind === 'redeem' || command.kind === 'redeemDelegated') {
                     const request = requireValue(op.request)
                     if (request.item.requirePresence || command.use.kind === 'disclosure')
                       presence(op, request.item.id, command.use)

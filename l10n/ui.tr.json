@@ -6329,6 +6329,8 @@
     "brokerBlocked": "Aracı başlatılamıyor. Kendi istemcilerimizin anahtarları çalışır; ajan kullanımları reddedilir. Aracı kurulumunu onarın.",
     "switchedOff": "Kimlik bilgileri kasası ayarlarda kapalıdır. Kullanmak için museSpark.vault.enabled ayarını açın.",
     "noUnattended": "{item}, {use} için gözetimsiz izin gerektirir. Kasada ekleyin veya etkileşimli çalıştırın.",
+    "ceilingNone": "Hiçbir kasa ilkesi bu kullanıma izin vermiyor. Önce kasa ilkesi komutuyla bu çalışma alanı ve rol için bir üst sınır belirleyin.",
+    "policyCeilings": "Kasa İlkesi Üst Sınırları",
     "nopasswd": "NOPASSWD sudo kullanılabilir. Onaylı her komut root yetkisi alabilir; kasa burada ek koruma sağlamaz.",
     "fenceOff": "Sınırı kapatmak ortamınızı ve kimlik bilgisi yollarını ana konuşmaya açar. Çalışan ajanlar korunmaya devam eder.",
     "ambientWarning": "Onaylı bir komut okuyabildiğiniz dosyaları okuyabilir. Kimlik bilgilerini içe aktarmak diğer dosyaları gizlemez.",

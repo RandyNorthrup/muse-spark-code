@@ -6659,6 +6659,8 @@
     "brokerBlocked": "Nie można uruchomić brokera. Klucze własnych klientów działają; użycia agentów są odrzucane. Napraw instalację brokera.",
     "switchedOff": "Magazyn poświadczeń jest wyłączony w ustawieniach. Aby go używać, włącz museSpark.vault.enabled.",
     "noUnattended": "{item} wymaga uprawnienia bez nadzoru do {use}. Dodaj je w sejfie lub uruchom interaktywnie.",
+    "ceilingNone": "Żadne zasady skarbca nie zezwalają na to użycie. Najpierw ustaw limit dla tego obszaru roboczego i roli poleceniem zasad skarbca.",
+    "policyCeilings": "Limity zasad skarbca",
     "nopasswd": "Dostępne jest sudo z NOPASSWD. Każde zatwierdzone polecenie może uzyskać prawa root; sejf nie dodaje tu ochrony.",
     "fenceOff": "Wyłączenie bariery udostępnia środowisko i ścieżki poświadczeń głównej rozmowie. Procesy robocze pozostają chronione.",
     "ambientWarning": "Zatwierdzone polecenie może czytać pliki, które możesz czytać. Import poświadczeń nie ukrywa innych plików.",

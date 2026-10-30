@@ -2191,6 +2191,16 @@ async function main(processResources: ProcessResources): Promise<number> {
       try {
         return await runVaultCommand(command.options, {
           open: openVaultCommands,
+          policy: {
+            read: async () => {
+              const binding = await loadVault()
+              return await binding.policy.read()
+            },
+            write: async (policy) => {
+              const binding = await loadVault()
+              await binding.policy.write(policy)
+            },
+          },
           readMaterial: (signal) => readVaultMaterial(process.stdin, process.stderr, signal),
           readLine: (prompt, signal) =>
             readVaultLine(process.stdin, process.stderr, prompt, signal),
