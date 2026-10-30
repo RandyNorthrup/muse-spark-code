@@ -6,13 +6,15 @@
   "provider": "echo (the CLI’s own local provider; no model call, no sign-in)",
   "commands": [
     "muse serve --provider echo --no-session-log --trust-workspace (child process; initialize, model/list, session/start, skill/list, session/setReasoningEffort, session/setApprovalMode x4, session/setPermissionProfile, task/stopAll, task/list, session/delete, task/stopAll on an unknown session, session/resume, session/read over stdio)",
-    "node temp/caps/cap2.mjs (this script; writes test/fixtures/acphonest/)"
+    "node temp/caps/cap2.mjs (this script; writes test/fixtures/acphonest/)",
+    "node temp/caps/cap3.mjs (supplement; writes session-start-second-1.4.11.json only)"
   ],
   "isolation": "HOME, XDG_CONFIG_HOME and XDG_DATA_HOME pointed at scratch dirs; sessions persisted under the scratch home only (deleted after the run)",
   "scrub": "the scratch workspace path is stored as <capture-workspace>; session and command ids are served verbatim and are consistent within this set (one session)",
   "notes": [
     "session/delete is refused -32601 methodNotFound: 1.4.11 serves no delete (its schema export agrees)",
-    "task/stopAll over no tasks is accepted; over an unknown session it answers its own refusal (see task-stopAll-unknown-session-1.4.11.json)"
+    "task/stopAll over no tasks is accepted; over an unknown session it answers its own refusal (see task-stopAll-unknown-session-1.4.11.json)",
+    "session-start-second-1.4.11.json is a second session/start on the same host shape (2026-10-30T21:29:33Z), for the two-held-sessions close line; its session id is served verbatim and distinct"
   ],
   "modelAttempts": 0,
   "stderr": "(see temp/caps/out/stderr-g1.txt for the run shape)"

@@ -4105,7 +4105,7 @@ export class MuseCodeHost implements AgentHost {
       // host, their background tasks unstopped (RLF-HARVEST H7).
       if (held > 0) {
         this.log.info(
-          `Closing the host releases ${String(held)} held sessions without stopping their background tasks`,
+          `Closing the host releases ${String(held)} held session${held === 1 ? '' : 's'} without stopping their background tasks`,
         )
       }
       for (const session of this.sessions.values()) {

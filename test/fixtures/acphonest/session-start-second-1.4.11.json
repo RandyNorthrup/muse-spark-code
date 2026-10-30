@@ -1,0 +1,38 @@
+{
+  "session": {
+    "sessionId": "01a18eb7-ce6e-7ea3-b396-4f4eb6a99011",
+    "path": "/Users/randy/lanes/RLF-ACPHONEST.app/home/Library/Application Support/Muse Spark Code/resource-created/trees/muse-tree-93e7acec-246d-4a54-ba50-f48ebf548128/acphonest-cap3-home-OLl52l/.local/share/muse/sessions/2026/10/30/01a18eb7-ce6e-7ea3-b396-4f4eb6a99011/session.jsonl",
+    "status": "idle",
+    "activeTurnId": null,
+    "createdAt": "2026-10-30T21:29:33.160284Z",
+    "updatedAt": "2026-10-30T21:29:33.206184Z",
+    "workspaceRoot": "<capture-workspace>",
+    "providerId": "echo",
+    "modelId": "muse-spark-1.3",
+    "turnCount": 0,
+    "forkedFrom": null,
+    "sideFrom": null,
+    "approvalMode": {
+      "mode": "promptUnmatched",
+      "source": "startup",
+      "lastCommandId": null
+    },
+    "createdByClient": {
+      "name": "muse_spark_capture",
+      "version": "0.0.0"
+    },
+    "kind": "root",
+    "permissionState": {
+      "profileId": ":ask-me",
+      "reviewerAuthority": "human",
+      "axes": {
+        "filesystem": "sandboxed",
+        "network": "off",
+        "approval": "onRequest",
+        "reviewer": "human"
+      },
+      "reviewerAttached": true
+    }
+  },
+  "viewCursor": "v4:01a18eb7-ce6e-7ea3-b396-4f4eb6a99011:1"
+}
