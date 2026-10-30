@@ -283,6 +283,22 @@ describe('paid features in the runtime panel', () => {
     expect(await exit).toBe(0)
   })
 
+  it('offers no paid feature the person never set on the Muse Code backend (D78)', async () => {
+    const codeRun = createPanelRun('muse-sessions-code-')
+    codeRun.prepare()
+    try {
+      const { host, editor, exit } = await connectedPanel(codeRun, { backendKind: 'museCode' })
+      const chat = await editor.nextSurface()
+      // Unset, a paid feature is on by default only on the Model API; on
+      // Muse Code it is unavailable until the person sets it (D78).
+      expect(await chat.shown('paidState')).toMatchObject({ state: { features: [] } })
+      parseMhpResult('shutdown', await host.request('shutdown', {}))
+      expect(await exit).toBe(0)
+    } finally {
+      await codeRun.dispose()
+    }
+  })
+
   it('names the limit the person set, and offers no Always where nothing can be kept', async () => {
     const { host, editor, runtimes, exit } = await connected({ trusted: false })
     const { asked } = confirmations(host, [ACP_PAID_OPTIONS.allowOnce, ACP_PAID_OPTIONS.allowOnce])

@@ -19,6 +19,7 @@ import {
   PAID_FEATURE_SETTINGS,
   PAID_FEATURES,
   UI_TEXT,
+  isAutoCompactionEvaluated,
   type AcpPaidFeature,
   type PaidFeature,
 } from '../../shared/constants'
@@ -103,9 +104,12 @@ export function createRuntimePaid(
   let accepted: ReadonlySet<PaidFeature> = new Set()
   const gate = new PaidFeatureGate({
     isSettingOn: (feature) => isActivationPaidSettingOn(feature, deps.settings()),
+    // As VS Code's gate (extension.ts, D78): on Muse Code a feature the
+    // person never set is unavailable; only their own setting offers it.
     isAvailable: (feature) =>
       BILLABLE.includes(feature) &&
-      (deps.backend() === 'modelApi' || !deps.configured().has(PAID_FEATURE_SETTINGS[feature])),
+      (feature !== 'autoCompaction' || isAutoCompactionEvaluated()) &&
+      (deps.backend() === 'modelApi' || deps.configured().has(PAID_FEATURE_SETTINGS[feature])),
     isDefaultOn: (feature) => !deps.configured().has(PAID_FEATURE_SETTINGS[feature]),
     setSetting: async (feature, isOn) => {
       await store.updateSetting(`museSpark.${PAID_FEATURE_SETTINGS[feature]}`, isOn, 'user')
