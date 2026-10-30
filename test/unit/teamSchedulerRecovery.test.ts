@@ -156,7 +156,7 @@ function makeScheduler(
         eligible: () => true,
       },
     ],
-    mode: () => 'copy',
+    mode: () => 'own-branch',
     report: () => '',
     canStart: () => true,
     admit: () => true,

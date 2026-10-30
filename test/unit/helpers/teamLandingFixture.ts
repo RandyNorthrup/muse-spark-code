@@ -107,7 +107,7 @@ export async function makeLandingFixture(taskId: string): Promise<LandingFixture
 export function landingTask(fixture: LandingFixture): Parameters<TeamMergePort['merge']>[0] {
   return {
     taskId: fixture.taskId,
-    role: { role: 'engineering', tools: ['edit'], report: 'summary' },
+    role: { role: 'engineering', pool: [] },
     outcome: {
       report: { status: 'done' as const, summary: 'done' },
       usage: {
