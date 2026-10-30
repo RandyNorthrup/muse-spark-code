@@ -14779,9 +14779,11 @@ loaders, ACP/Muse worker entries (C-M96-5/M96b), the merge planner
 binding, the team MCP server and slot checks (no-guessed-binding rule).
 
 **Status 2026-10-30 (lane RLF-TEAMWIRE): building.** The merge planner
-binding and the team MCP server are wired and drilled
+binding is proven over real git and the team MCP server over real HTTP
 (`docs/certification/rlf-teamwire.md`; int/recovery keeps its own RLM116,
 D218–D221, and took only this lane's work: `docs/certification/cc-int5.md`).
+That the plan runs before the merge card has no real-code test yet: its
+unit proof ran on a fake-driven suite int deleted.
 Roles-file loaders and the ACP/Muse worker entries remain unwired:
 PLAN names no capture or assembly call site for them, so the lane ended
 naming the questions, options and recommendations in that record. Slot
