@@ -10,7 +10,7 @@
 // transport's dependency but `request` never runs, so it is never called.
 
 import { describe, expect, it } from 'vitest'
-import { ModelApiPacing } from '../../src/core/backends/modelapi/pacing'
+import { realRecordingPacer } from './helpers/realPacer'
 import {
   providerRetryReason,
   providerWaitMs,
@@ -144,14 +144,7 @@ describe('a provider-named 429 wait', () => {
     // milliseconds the dispatch itself took, within tolerance.
     const derived = providerWaitMs(new Headers({ 'retry-after-ms': '250' }), Date.now())
     expect(derived).toBe(250)
-    const waits: number[] = []
-    const pacing = new ModelApiPacing({
-      now: () => Date.now(),
-      wait: (ms: number) => {
-        waits.push(ms)
-        return new Promise<void>((done) => setTimeout(done, ms))
-      },
-    })
+    const { pacing, waits } = realRecordingPacer()
     pacing.observe('rogue', undefined, derived)
     const order: string[] = []
     const backgrounded = (async () => {

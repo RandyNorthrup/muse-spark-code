@@ -126,7 +126,11 @@ the run observes the real wire.
 async function withLoopbackUsage<T>(
   file: (origin: string) => ProvidersFile,
   secrets: (origin: string) => Map<string, string>,
-  run: (deps: UsageCaseDeps, endpoint: RecordingLoopbackEndpoint) => T | Promise<T>,
+  run: (
+    deps: UsageCaseDeps,
+    endpoint: RecordingLoopbackEndpoint,
+    filePath: string,
+  ) => T | Promise<T>,
 ): Promise<T> {
   return await usingTempDir('spend-terminal-', async (dir) => {
     const endpoint = await recordingHttpEndpoint((response) => {
@@ -135,7 +139,7 @@ async function withLoopbackUsage<T>(
     try {
       const filePath = path.join(dir, 'providers.json')
       await writeTestFile(filePath, file(endpoint.url))
-      return await run(usageDeps(filePath, secrets(endpoint.url)), endpoint)
+      return await run(usageDeps(filePath, secrets(endpoint.url)), endpoint, filePath)
     } finally {
       await endpoint.close()
     }
@@ -235,14 +239,10 @@ describe('providers usage parsing', () => {
 
 describe('providers usage command', () => {
   it('refuses unknown providers and providers with no report API', async () => {
-    await usingTempDir('spend-terminal-', async (dir) => {
-      const endpoint = await recordingHttpEndpoint((response) => {
-        response.writeHead(404).end()
-      })
-      try {
-        const filePath = path.join(dir, 'providers.json')
-        await writeTestFile(filePath, fileWith([]))
-        const missing = usageDeps(filePath, secretStore([]))
+    await withLoopbackUsage(
+      () => fileWith([]),
+      () => secretStore([]),
+      async (missing, endpoint, filePath) => {
         expect(await providersUsage(missing, { provider: 'groq', days: 30, json: false })).toBe(1)
         expect(missing.errors.join('\n')).toContain('groq')
         await writeTestFile(filePath, loopbackFile('groq', endpoint.url))
@@ -250,10 +250,8 @@ describe('providers usage command', () => {
         expect(await providersUsage(none, { provider: 'groq', days: 30, json: false })).toBe(1)
         expect(none.printed.join('\n')).toContain('no spend report')
         expect(endpoint.hits()).toBe(0)
-      } finally {
-        await endpoint.close()
-      }
-    })
+      },
+    )
   })
 
   it('asks for the admin key when none is stored', async () => {

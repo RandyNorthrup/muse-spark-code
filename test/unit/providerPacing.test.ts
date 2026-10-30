@@ -36,6 +36,7 @@ import { resolveAttemptBillingRoute } from '../../src/core/backends/modelapi/bil
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { haikuRequestBody } from './helpers/haikuRequest'
 import { transportTestDeps } from './helpers/modelApiTransport'
+import { realRecordingPacer } from './helpers/realPacer'
 import {
   AZURE_BURST_WINDOW_LONG_MS,
   AZURE_BURST_WINDOW_SHORT_MS,
@@ -253,14 +254,7 @@ describe('pacing admission', () => {
     // teach the windows (stale under real time, so the buckets stand
     // full), the 2 s pause is fresh, and admitted background work really
     // sleeps it out over real timers while the user's turn never does.
-    const waits: number[] = []
-    const pacing = new ModelApiPacing({
-      now: () => Date.now(),
-      wait: (ms: number) => {
-        waits.push(ms)
-        return new Promise<void>((done) => setTimeout(done, ms))
-      },
-    })
+    const { pacing, waits } = realRecordingPacer()
     pacing.observe('groq', openaiPacingLimits(capturedHeaders.groq), 2000)
     await pacing.acquire('groq', 'subagent', 0, AbortSignal.timeout(5000))
     expect(waits).toHaveLength(1)

@@ -5,6 +5,7 @@
 // directly with a credential-free environment, reserve its private
 // directories, and inspect its finished file with M1's bounded sniffer.
 // Nothing here records on its own.
+import type { ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { realpathSync } from 'node:fs'
 import { lstat, mkdir, open, rm } from 'node:fs/promises'
@@ -98,6 +99,82 @@ export function createHelperLineFramer(
   }
 }
 
+/** The spawned child a recorder port wires: its pipes plus its controls. */
+export type RecorderChild = Pick<ChildProcess, 'stdout' | 'stderr' | 'stdin' | 'on' | 'kill'>
+
+/**
+The wired port over an already-spawned recorder child: buffered lines
+until listeners attach, the product's framer, exit after the handles
+close. Production's launch and the tests' scenario children share it,
+so the driver side is proven against the real assembly.
+*/
+export function assembleRecorderPort(child: RecorderChild): WindowsRecorderProcess {
+  const { stdout, stderr, stdin } = child
+  if (stdout === null || stderr === null || stdin === null) {
+    throw new Error('recorder child pipes missing')
+  }
+  const framer = createHelperLineFramer()
+  let lineListener: ((line: string) => void) | undefined
+  let exitListener: ((code: number | null) => void) | undefined
+  const queuedLines: string[] = []
+  let exitCode: number | null | undefined
+  const exitWaiters: (() => void)[] = []
+  const deliver = (line: string): void => {
+    if (lineListener === undefined) queuedLines.push(line)
+    else lineListener(line)
+  }
+  const finish = (code: number | null): void => {
+    if (exitCode !== undefined) return
+    for (const line of framer.end()) deliver(line)
+    exitCode = code
+    exitListener?.(code)
+    for (const waiter of exitWaiters.splice(0)) waiter()
+  }
+  stdout.on('data', (chunk: Buffer) => {
+    const lines = framer.push(chunk.toString('utf8'))
+    for (const line of lines) deliver(line)
+  })
+  // Drained, never read: diagnostics must not stall the helper on a full pipe.
+  stderr.resume()
+  child.on('error', () => {
+    finish(null)
+  })
+  // 'close', not 'exit': the port settles after the stdio handles close.
+  child.on('close', (code) => {
+    finish(code)
+  })
+  return {
+    onLine: (listener) => {
+      lineListener = listener
+      for (const line of queuedLines.splice(0)) listener(line)
+    },
+    onExit: (listener) => {
+      exitListener = listener
+      if (exitCode !== undefined) listener(exitCode)
+    },
+    send: (command) => {
+      if (exitCode !== undefined) throw new Error('the recorder has exited')
+      if (stdin.destroyed || !stdin.writable) throw new Error('the recorder channel is closed')
+      // The helper's stdin loop reads "stop" literally; anything else,
+      // including "cancel", cancels. A write that fails asynchronously
+      // means the helper is dying; its exit settles the run.
+      stdin.write(`${command}\n`, () => {
+        /* The exit settles the run; there is nothing to send it to. */
+      })
+    },
+    kill: () => {
+      if (exitCode === undefined) {
+        stdin.destroy()
+        child.kill()
+      }
+      return new Promise<void>((resolve) => {
+        if (exitCode === undefined) exitWaiters.push(resolve)
+        else resolve()
+      })
+    },
+  }
+}
+
 /** An exec failure (a failure exit or a spawn fault) carries the run's `code`. */
 function isRunFailure(cause: unknown): boolean {
   return (
@@ -141,68 +218,7 @@ export function createWindowsRecorderDeps(
       stdio: ['pipe', 'pipe', 'pipe'],
       env: childEnv,
     })
-    const framer = createHelperLineFramer()
-    let lineListener: ((line: string) => void) | undefined
-    let exitListener: ((code: number | null) => void) | undefined
-    const queuedLines: string[] = []
-    let exitCode: number | null | undefined
-    const exitWaiters: (() => void)[] = []
-    const deliver = (line: string): void => {
-      if (lineListener === undefined) queuedLines.push(line)
-      else lineListener(line)
-    }
-    const finish = (code: number | null): void => {
-      if (exitCode !== undefined) return
-      for (const line of framer.end()) deliver(line)
-      exitCode = code
-      exitListener?.(code)
-      for (const waiter of exitWaiters.splice(0)) waiter()
-    }
-    child.stdout.on('data', (chunk: Buffer) => {
-      const lines = framer.push(chunk.toString('utf8'))
-      for (const line of lines) deliver(line)
-    })
-    // Drained, never read: diagnostics must not stall the helper on a full pipe.
-    child.stderr.resume()
-    child.on('error', () => {
-      finish(null)
-    })
-    // 'close', not 'exit': the port settles after the stdio handles close.
-    child.on('close', (code) => {
-      finish(code)
-    })
-    const process: WindowsRecorderProcess = {
-      onLine: (listener) => {
-        lineListener = listener
-        for (const line of queuedLines.splice(0)) listener(line)
-      },
-      onExit: (listener) => {
-        exitListener = listener
-        if (exitCode !== undefined) listener(exitCode)
-      },
-      send: (command) => {
-        if (exitCode !== undefined) throw new Error('the recorder has exited')
-        const stdin = child.stdin
-        if (stdin.destroyed || !stdin.writable) throw new Error('the recorder channel is closed')
-        // The helper's stdin loop reads "stop" literally; anything else,
-        // including "cancel", cancels. A write that fails asynchronously
-        // means the helper is dying; its exit settles the run.
-        stdin.write(`${command}\n`, () => {
-          /* The exit settles the run; there is nothing to send it to. */
-        })
-      },
-      kill: () => {
-        if (exitCode === undefined) {
-          child.stdin.destroy()
-          child.kill()
-        }
-        return new Promise<void>((resolve) => {
-          if (exitCode === undefined) exitWaiters.push(resolve)
-          else resolve()
-        })
-      },
-    }
-    return process
+    return assembleRecorderPort(child)
   }
 
   return {

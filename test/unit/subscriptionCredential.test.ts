@@ -5,10 +5,8 @@ import {
 // C-M95-SUB: the host credential wrapper. Real temp auth files and the
 // real CredentialStore; behind it the OS/VS Code secret storage stays a
 // Map, the external no unit test can own. No real auth file is ever read.
-import { mkdir, writeFile } from 'node:fs/promises'
-import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { SubscriptionKeySource } from '../../src/core/backends/modelapi/subscriptionKey'
+import { writeSubscriptionAuthFile } from './helpers/subscriptionAuthFile'
 import { redactSecrets } from '../../src/shared/redact'
 import { SubscriptionCredential } from '../../src/host/auth/subscriptionCredential'
 import { mapSecretsBacked } from './helpers/mapSecrets'
@@ -21,24 +19,13 @@ import { SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
 const SUB = 'opaque subscription value 8e2b4a'
 const PASTED = 'pasted-payg-key'
 
-/** The auth file lands where the wrapper's own resolved path says. */
-async function writeAuthFile(root: string, text: string): Promise<void> {
-  const file = new SubscriptionKeySource({
-    platform: 'linux',
-    homeDir: '/none',
-    xdgConfigHome: root,
-  }).path()
-  await mkdir(path.dirname(file), { recursive: true })
-  await writeFile(file, text)
-}
-
 async function credential(options: {
   root: string
   enabled: boolean
   pasted: string | undefined
   text: string | undefined
 }): Promise<SubscriptionCredential> {
-  if (options.text !== undefined) await writeAuthFile(options.root, options.text)
+  if (options.text !== undefined) await writeSubscriptionAuthFile(options.root, options.text)
   const secrets = new Map<string, string>()
   if (options.pasted !== undefined) secrets.set(SECRET_KEYS.modelApiKey, options.pasted)
   return new SubscriptionCredential({
@@ -54,20 +41,25 @@ function fileText(meta: unknown): string {
   return JSON.stringify({ schema_version: 1, providers: { meta } })
 }
 
+/** An enabled wrapper over the subscription file, serving SUB until rotated. */
+async function subscriptionOn(root: string): Promise<SubscriptionCredential> {
+  return await credential({
+    root,
+    enabled: true,
+    pasted: PASTED,
+    text: fileText({ access_token: SUB }),
+  })
+}
+
 describe('SubscriptionCredential', () => {
   it('freezes a route and refuses instead of replacing it with a pasted key', async () => {
     await usingTempDir('subcred-route-', async (root) => {
-      const wrapper = await credential({
-        root,
-        enabled: true,
-        pasted: PASTED,
-        text: fileText({ access_token: SUB }),
-      })
+      const wrapper = await subscriptionOn(root)
       const route = await wrapper.route()
       expect(Object.isFrozen(route)).toBe(true)
       expect(route?.kind).toBe('museCodePlan')
       expect(route?.accountId).not.toBe(billingKeyDigest(SUB))
-      await writeAuthFile(root, fileText({ api_key: PASTED }))
+      await writeSubscriptionAuthFile(root, fileText({ api_key: PASTED }))
       await expect(wrapper.route()).rejects.toThrow(UI_TEXT.subscriptionKey.signInAgain)
       expect(route?.credential).toBe(SUB)
       await expect(wrapper.route(true)).resolves.toMatchObject({
@@ -103,12 +95,7 @@ describe('SubscriptionCredential', () => {
   })
   it('uses the subscription key while on', async () => {
     await usingTempDir('subcred-on-', async (root) => {
-      const wrapper = await credential({
-        root,
-        enabled: true,
-        pasted: PASTED,
-        text: fileText({ access_token: SUB }),
-      })
+      const wrapper = await subscriptionOn(root)
       await expect(wrapper.getApiKey()).resolves.toBe(SUB)
       await expect(wrapper.isSubscriptionBilling()).resolves.toBe(true)
       await expect(wrapper.hasCredential()).resolves.toBe(true)
@@ -160,26 +147,19 @@ function store(options: { pasted: string | undefined; subscribed: boolean }) {
 describe('SubscriptionCredential redaction', () => {
   it('registers the key it sends, so shared redaction covers it', async () => {
     await usingTempDir('subcred-register-', async (root) => {
-      const wrapper = await credential({
-        root,
-        enabled: true,
-        pasted: PASTED,
-        text: fileText({ access_token: SUB }),
-      })
+      const wrapper = await subscriptionOn(root)
       await wrapper.getApiKey()
       expect(redactSecrets(`saw ${SUB} in a log line`)).not.toContain(SUB)
     })
   })
   it('keeps reporting a rotated-out key alongside the current one', async () => {
     await usingTempDir('subcred-rotated-', async (root) => {
-      const wrapper = await credential({
-        root,
-        enabled: true,
-        pasted: PASTED,
-        text: fileText({ access_token: SUB }),
-      })
+      const wrapper = await subscriptionOn(root)
       await expect(wrapper.getApiKey()).resolves.toBe(SUB)
-      await writeAuthFile(root, fileText({ access_token: 'opaque rotation value b822e1' }))
+      await writeSubscriptionAuthFile(
+        root,
+        fileText({ access_token: 'opaque rotation value b822e1' }),
+      )
       await expect(wrapper.redactionKeys()).resolves.toEqual([
         PASTED,
         'opaque rotation value b822e1',
@@ -189,12 +169,7 @@ describe('SubscriptionCredential redaction', () => {
   })
   it('hands both credentials to persistence boundaries, never throwing', async () => {
     await usingTempDir('subcred-both-', async (root) => {
-      const wrapper = await credential({
-        root,
-        enabled: true,
-        pasted: PASTED,
-        text: fileText({ access_token: SUB }),
-      })
+      const wrapper = await subscriptionOn(root)
       await expect(wrapper.redactionKeys()).resolves.toEqual([PASTED, SUB])
     })
     await usingTempDir('subcred-refusing-', async (root) => {
