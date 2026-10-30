@@ -8,7 +8,7 @@ import type { PlanFiles } from '../../host/conversation/conversationController'
 import type { Logger } from '../../host/logger'
 import { createPlanFiles, createPlanIo } from '../../host/planFeatures'
 import { planMarkdownLoader } from '../../host/planMarkdownBundle'
-import { PLAN_MARKDOWN_BUNDLE_FILE } from '../../shared/constants'
+import { PLAN_MARKDOWN_BUNDLE_FILE, UI_TEXT } from '../../shared/constants'
 import type { HostServices } from '../../shared/hostApi/methods'
 import { editorPick } from './pick'
 
@@ -20,16 +20,33 @@ export interface RuntimePlansDeps {
   readonly distDir: string
   /** A modal; true when the person chose `action`. */
   readonly confirm: (message: string, detail: string, action: string) => Promise<boolean>
+  /** Whether the editor trusts the workspace; read at every write. */
+  readonly isTrusted: () => boolean
   /** Ends with the conversation. */
   readonly signal: AbortSignal
   readonly log: Logger
 }
 
 export function createRuntimePlans(deps: RuntimePlansDeps): PlanFiles {
+  // A save publishes only while the conversation is held and the workspace
+  // still trusted, rechecked at the write as VS Code's workspace-action
+  // guard rechecks its plan writes: trust can go between the person's yes
+  // (which the controller checks) and the publish.
+  const check = (): void => {
+    deps.signal.throwIfAborted()
+    if (!deps.isTrusted()) throw new Error(UI_TEXT.planRestricted)
+  }
   return createPlanFiles({
     workspaceRoot: deps.workspaceRoot,
     platform: deps.platform,
-    io: createPlanIo({ log: deps.log, now: () => Date.now() }),
+    io: createPlanIo({
+      log: deps.log,
+      now: () => Date.now(),
+      edit: async (work) => {
+        check()
+        await work(check)
+      },
+    }),
     pick: editorPick(deps.host, deps.signal),
     confirm: deps.confirm,
     markdown: planMarkdownLoader({

@@ -205,6 +205,7 @@ export async function runtimeConversationDeps(
       platform,
       distDir: ports.distDir,
       confirm: isConfirmed,
+      isTrusted,
       signal: context.signal,
       log,
     },
