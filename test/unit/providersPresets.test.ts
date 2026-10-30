@@ -275,9 +275,14 @@ describe('the preset table', () => {
     // M101 item 24: OpenAI takes strict tool schemas.
     // Lane RETRYLIMITS (review RVRETRYLIMITS): OpenAI's SDK-documented 2 retries.
     // EXECPROVR7: OpenAI documents an exact input-token count for the request.
+    // D217: OpenAI's documented 503 overload code joins the retryable envelope
+    // errors (error-codes: "temporarily overloaded ... wait ... before retrying").
     expect(quirksOf(preset('openai'))).toEqual({
       ...FORMAT_QUIRKS.responses,
-      retry: { ...FORMAT_QUIRKS.responses.retry, errorKinds: ['server_error'] },
+      retry: {
+        ...FORMAT_QUIRKS.responses.retry,
+        errorKinds: ['server_error', 'server_is_overloaded'],
+      },
       supportsStrictTools: true,
       retryLimits: { maxRetries: 2 },
       exactCount: 'responses-input-tokens',

@@ -479,6 +479,41 @@ export function panelNotices(
     }))
 }
 
+/** Every turn end the panel posted, in post order. */
+export function turnCompletions(posted: readonly HostToWebviewMessage[]) {
+  return posted.flatMap((message) =>
+    message.type === 'agentEvent' && message.event.type === 'turnCompleted' ? [message.event] : [],
+  )
+}
+
+/** Every turn acceptance the panel posted, in post order. */
+export function turnAcceptances(posted: readonly HostToWebviewMessage[]) {
+  return posted.flatMap((message) => (message.type === 'turnAccepted' ? [message] : []))
+}
+
+/**
+Waits until the panel has posted `count` collected rows, or fails naming
+what arrived: the posted transcript, so a missing row says what the
+panel showed instead.
+*/
+export async function awaitPosts<T>(
+  panel: PanelRig,
+  collect: (posted: readonly HostToWebviewMessage[]) => readonly T[],
+  count: number,
+  what: string,
+): Promise<readonly T[]> {
+  for (let attempt = 0; attempt < 300; attempt += 1) {
+    const found = collect(panel.posted)
+    if (found.length >= count) {
+      return found
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  }
+  throw new Error(
+    `only ${String(collect(panel.posted).length)} ${what}, wanted ${String(count)}; posted: ${JSON.stringify(panel.posted).slice(0, 2000)}`,
+  )
+}
+
 /**
 Folds every posted message through the webview reducer; each message
 parses, or the suite fails at the unparsable one.

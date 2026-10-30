@@ -45,19 +45,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
-/** The recorded result the CLI sent for a received id. */
-export function recordedResult(id: number): Record<string, unknown> {
-  const frame = capture.frames.find(
-    (row) => row.direction === 'received' && row.frame.id === id && row.frame.result !== undefined,
-  )?.frame
-  if (frame?.result === undefined || !isRecord(frame.result))
-    throw new Error(`the capture serves no result for id ${String(id)}`)
-  return frame.result
-}
-
-export const initializeResult = recordedResult(1)
-export const startResult = recordedResult(3)
-
 /** The recorded result the CLI sent for a received id, in the given frames. */
 export function captureResult(frames: CaptureFrames, id: number): Record<string, unknown> {
   const frame = frames.find(
@@ -67,6 +54,14 @@ export function captureResult(frames: CaptureFrames, id: number): Record<string,
     throw new Error(`the capture serves no result for id ${String(id)}`)
   return frame.result
 }
+
+/** The recorded result the CLI sent for a received id. */
+export function recordedResult(id: number): Record<string, unknown> {
+  return captureResult(capture.frames, id)
+}
+
+export const initializeResult = recordedResult(1)
+export const startResult = recordedResult(3)
 
 /** The recorded broadcast of a method, first of its kind, verbatim. */
 export function captureBroadcast(frames: CaptureFrames, method: string): WireFrame {
