@@ -53,21 +53,21 @@ export function vaultPeerExecutable(installRoot: string): string {
     return path.join(installRoot, 'native', 'linux', process.arch, 'muse-vault-peer')
   throw new Error(UI_TEXT.vault.noAccess)
 }
-export async function vaultProcessIdentity(
+/** One helper probe (`identity` or `parent`): exit 2 proves absence. */
+async function probeVaultIdentity(
   helper: string,
+  mode: 'identity' | 'parent',
   pid: number,
 ): Promise<VaultProcessIdentity | null> {
   z.number().check(z.int(), z.positive()).parse(pid)
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const result = await execResourceFile('probe', helper, ['identity', String(pid)], {
+      const result = await execResourceFile('probe', helper, [mode, String(pid)], {
         env: {},
         timeout: VAULT_BROKER_NATIVE_TIMEOUT_MS,
         maxBuffer: VAULT_LIMITS.text,
       })
-      const parsed = processSchema.parse(JSON.parse(result.stdout))
-      if (parsed.processId !== pid) throw new Error(UI_TEXT.vault.noAccess)
-      return parsed
+      return processSchema.parse(JSON.parse(result.stdout))
     } catch (error: unknown) {
       if (error !== null && typeof error === 'object' && 'code' in error) {
         // Exit 2 proves absence. Exit 1 can be a process vanishing between native reads;
@@ -82,33 +82,24 @@ export async function vaultProcessIdentity(
   throw new Error(UI_TEXT.vault.noAccess)
 }
 
+export async function vaultProcessIdentity(
+  helper: string,
+  pid: number,
+): Promise<VaultProcessIdentity | null> {
+  const parsed = await probeVaultIdentity(helper, 'identity', pid)
+  if (parsed !== null && parsed.processId !== pid) throw new Error(UI_TEXT.vault.noAccess)
+  return parsed
+}
+
 /**
 D216: the parent process's identity (the helper's `parent` mode), or
-null when the process or its parent is proven gone. One fresh probe on
-the vanishing-process exit, exactly as `vaultProcessIdentity`.
+null when the process or its parent is proven gone.
 */
 export async function vaultParentIdentity(
   helper: string,
   pid: number,
 ): Promise<VaultProcessIdentity | null> {
-  z.number().check(z.int(), z.positive()).parse(pid)
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const result = await execResourceFile('probe', helper, ['parent', String(pid)], {
-        env: {},
-        timeout: VAULT_BROKER_NATIVE_TIMEOUT_MS,
-        maxBuffer: VAULT_LIMITS.text,
-      })
-      return processSchema.parse(JSON.parse(result.stdout))
-    } catch (error: unknown) {
-      if (error !== null && typeof error === 'object' && 'code' in error) {
-        if (error.code === 2) return null
-        if (attempt === 0 && error.code === 1) continue
-      }
-      break
-    }
-  }
-  throw new Error(UI_TEXT.vault.noAccess)
+  return await probeVaultIdentity(helper, 'parent', pid)
 }
 
 /** A kernel lock survives broker crashes only until its private stdin reaches EOF. Never unlink it. */

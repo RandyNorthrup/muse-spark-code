@@ -508,11 +508,19 @@ export class VaultChannelServer {
         { ticket: request.ticket, use: request.use },
         signal,
       )
-    } catch {
-      // Admission failed closed in the lease; the feeder gets the fixed
-      // refusal and reports its own failure.
-      await refused()
-      return
+    } catch (error: unknown) {
+      // A vault refusal (or the socket's own cancellation) is the named
+      // outcome: the feeder gets the fixed refusal. Anything else is a
+      // broker fault and keeps propagating to the socket's close path.
+      if (error instanceof VaultError) {
+        await refused()
+        return
+      }
+      if (signal.aborted) {
+        await refused()
+        return
+      }
+      throw error
     }
     leases.set(request.ticket.id, lease)
     try {

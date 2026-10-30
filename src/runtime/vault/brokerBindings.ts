@@ -321,22 +321,20 @@ async function loadVaultPolicyCeiling(
   dataDir: string,
   requester: VaultRequester,
 ): Promise<VaultCeiling> {
-  try {
-    if (policyModule.current === undefined) {
-      const loaded = createRequire(__filename)(
-        path.join(__dirname, VAULT_POLICY_BUNDLE_FILE),
-      ) as typeof VaultPolicyModule
-      if (typeof loaded.vaultPolicyCeiling !== 'function' || typeof loaded.setUiText !== 'function')
-        throw new TypeError(UI_TEXT.vault.brokerBlocked)
-      loaded.setUiText(UI_TEXT, uiLocale())
-      policyModule.current = loaded
-    }
-    return await policyModule.current.vaultPolicyCeiling(dataDir, requester)
-  } catch {
-    // No readable policy, no ceiling: the use refuses in words downstream.
-    process.stderr.write('vault-policy-refused\n')
-    return 'none'
+  // A chunk that cannot load is a broken installation: the failure
+  // propagates and the registration refuses, like every other bindings
+  // failure. A damaged policy FILE is the chunk's own named outcome
+  // ('none', refused in words downstream).
+  if (policyModule.current === undefined) {
+    const loaded = createRequire(__filename)(
+      path.join(__dirname, VAULT_POLICY_BUNDLE_FILE),
+    ) as typeof VaultPolicyModule
+    if (typeof loaded.vaultPolicyCeiling !== 'function' || typeof loaded.setUiText !== 'function')
+      throw new TypeError(UI_TEXT.vault.brokerBlocked)
+    loaded.setUiText(UI_TEXT, uiLocale())
+    policyModule.current = loaded
   }
+  return await policyModule.current.vaultPolicyCeiling(dataDir, requester)
 }
 
 /**
