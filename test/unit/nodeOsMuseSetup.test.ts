@@ -58,7 +58,7 @@ describe('muse install target', () => {
     const home = path.join(root, 'home')
     writeFileSync(home, 'not a directory')
     const env = { ...process.env }
-    delete env.MUSE_INSTALL_DIR
+    delete env['MUSE_INSTALL_DIR']
     const outcome = await installMuseCode({ homeDir: home, timeoutMs: 120_000, env })
     expect(outcome).toEqual({ ok: false, reason: 'install-failed' })
   })

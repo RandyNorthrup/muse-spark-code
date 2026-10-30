@@ -258,6 +258,14 @@ happened, not what was planned; superseded entries are kept.
   the in-flight attempt only, Retry confirms first, and every refusal
   arrives in words; a run paused through the panel offers Resume, since
   the wire reports it running still (M47).
+- **The Muse Node's first-boot setup installs Meta's Muse Code CLI as a
+  step you see.** The node images never contain the CLI: the setup
+  wizard offers to fetch it from Meta's official installer, shows
+  Meta's terms for you to accept, and checks the installed `muse
+  --version` before it finishes. Skipping leaves the node without it.
+- **The Install Muse Code confirmation names Meta's terms.** Where the
+  extension offers to install Muse Code, the confirmation links Meta's
+  terms beside the command before you run it.
 
 ### Changed
 
