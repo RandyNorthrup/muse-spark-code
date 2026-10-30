@@ -35,6 +35,18 @@ happened, not what was planned; superseded entries are kept.
   pooled account keys — is copied into the vault, verified, kept
   mirrored as keys rotate, and read back from the vault once a slot
   retires, exactly as the editor window already did.
+- **Headless runs can use vault secrets in shell commands, behind your
+  ceiling.** `exec --vault` shell calls may name vault items as
+  environment or stdin secrets. Two things of yours gate every use: an
+  unattended grant for the exact command, and your vault policy ceiling
+  for the workspace and the headless role (`vault policy` prints it,
+  `vault policy '<policy-json>'` sets it; no ceiling, the default,
+  refuses in words). The value itself travels from the broker to a
+  dedicated feeder process — admitted by its operating-system identity
+  and its place in the run's process tree under a single-use delegation
+  — and from the feeder into the command, with command output scrubbed;
+  the agent host never receives it. Git, askpass, sudo and SSH uses,
+  and the editor surfaces, follow in later increments.
 - Best-of-N shows each attempt's reported tokens in the side-by-side
   comparison, plus its reported cost where the attempt's usage reports
   carry one, and the take notice names the taken attempt's reported use

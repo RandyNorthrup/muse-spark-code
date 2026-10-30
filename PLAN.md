@@ -30407,6 +30407,36 @@ authentication (lane X), and the headless consumer on top. Claims
 wait for the real broker/feeder proof in
 `docs/certification/rlf-m109.md`; M109 stays open.
 
+**RLF-M109 resume (2026-10-30, macmini): D216 first increment built;
+real broker/feeder proof pending a capable rig.** Lane T ships: the
+`reportProvenance` frame (the broker evaluates taint reported over
+the incarnation-bound connection; a host that has not reported is
+refused), `VaultTaintSession` per headless run, and the person vault
+policy ceiling (`vault-policy.json` beside the vault files,
+`vault policy` to read and set it; default none refuses in words).
+Lane X ships: single-use delegated tickets bound to feeder pid + OS
+start time + envelope digest, broker-owned feeder authentication
+(kernel peer credentials and an ancestry walk to the registered
+requester process — `parent` mode in the POSIX helper, parent pid in
+the Windows pipe helper for hosted CI), material only in private
+frames on the feeder's own connection with an `execFinish`, and
+termination on lock or revoke through the lease lifetime. The
+headless consumer (`exec --vault` shell `secrets`, environment/stdin
+only) is wired runExec → runtime backend → toolIo; `dist/vaultExec.js`
+(the feeder), `dist/vaultPolicy.js` and `dist/vaultExecHost.js` ship
+in the ACP package and the VSIX (packed listing and a `vault policy`
+read drilled through the packed darwin-x64 agent on macmini). The
+real broker/feeder suite (test/unit/vault/vaultExecDelegated.test.ts)
+skips on macmini for the same sandbox blocks that skip the sibling
+broker suites there (`/bin/ps` execution refused, so exact process
+birth cannot be established, at the base commit too); the proof run
+belongs on a rig or hosted job where process listing works, and the
+certification record names the exact blocks. Remains: git/askpass/
+sudo/SSH surfaces, ACP-approval and VS Code consumers, Windows feeder
+containment (the job launcher cannot yet carry the envelope pipe to
+its payload, so Windows refuses in words), lanes S/O, the D89.15
+companion surface, and the real-life receipt. M109 stays open.
+
 **C-M109-1 lead decisions (2026-10-10, lead decision).** In 0.17.0, every
 vault use is refused. The binding layer was never built: the broker process,
 its ports, peer checks, a setup flow, a runtime bundle and a Linux slot are

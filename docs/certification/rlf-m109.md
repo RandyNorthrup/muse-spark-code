@@ -187,3 +187,75 @@ This lane adds no bundle overage: `dist/vaultRuntime.js` 24.4/25 KiB,
 `dist/vaultRuntimeMigration.js` 60.2/70 KiB, `dist/vaultMigration.js`
 43.9/45 KiB. SAST runs as
 `SSL_CERT_FILE=/etc/ssl/cert.pem SEMGREP_ENABLE_VERSION_CHECK=0 npm run security:sast`.
+
+## 6. Resume 2026-10-30 (macmini): D216 first increment
+
+The lead decided T5 (PLAN.md D216, recorded before building): lanes T
+and X, first increment environment/stdin headless; host-side
+redemption rejected. Commits: `da8145a66` (D216 + §9),
+`19c1227d5` (broker owners: provenance frame, person ceiling,
+delegated redemption, ancestry), `e324aa9a7` (feeder
+`dist/vaultExec.js`, delegated client, policy chunk), `37276df60`
+(headless consumer wiring + suites), `f02ffa674` (catch narrowing),
+`e3af2b1d9` (headless exec stack in `dist/vaultExecHost.js`), plus
+this record's commit.
+
+**Proven locally on real parts.** The compiled POSIX helper's new
+`parent` mode, run directly in a shell whose parent is the rig app:
+`identity <shell-pid>` → `{"processId":36998,...,"executable":"/bin/bash"}`,
+`parent <shell-pid>` → the app's pid with its start time, both exit 0. Governed identity probes in-process (governor configured, helper
+compiled by the suite): `vaultProcessIdentity` and
+`vaultParentIdentity` returned this process and its parent exactly.
+Pure suites, green: vaultPersonPolicy (2 — default none, per-workspace
+and per-role matching, damaged-file refusal, owner-only modes),
+vaultExecEnvelopeDigest (2 — host/feeder digest agreement across the
+JSON round trip, separation by command and env names),
+vaultHeadlessDeny (3, unchanged expectations), policy (21),
+vaultExecSpawn (2). The packed darwin-x64 ACP tarball lists
+`package/dist/vaultExec.js`, `vaultExecHost.js` and `vaultPolicy.js`;
+through the packed binary, `vault policy` printed `{"ceilings":[]}`
+with exit 0 under a fresh HOME (no broker opened — the first-run
+order). The built feeder bundle, spawned with a non-envelope on fd 3,
+exited 1 with stdout empty and stderr exactly `vault-exec-refused`.
+
+**Not run here; the named next proof.** The real broker/feeder suite
+(`test/unit/vault/vaultExecDelegated.test.ts`: ceiling refusals in
+words, env/stdin runs with the value's length only, scrubbed echo,
+foreign-identity refusal, tainted denial, requester-socket redemption
+denial, lock termination) skips on macmini through
+`shouldSkipPosixBrokerSuite()`. The blocks, all measured on this rig:
+(1) `/bin/ps` execution is `Operation not permitted` from every
+process in this sandbox, so darwin exact process birth is
+unavailable and any VaultStore writer refuses — the fixture broker
+(and `brokerSession.test.ts`) fails identically (4 failed) at base
+`640d52371` with `TMPDIR=/tmp`; (2) `security create-keychain` is
+refused, so no login keychain exists under the sandbox HOME. No shim
+or workaround was built for either, per the lane rules; the suite is
+written to run where process listing works (capable rigs, hosted
+CI), composing the product's file anchor and OS-store slot so it
+needs no keychain even there. Until that run is recorded green, the
+agent secret-use path is built and type/lint/build-proven but NOT
+real-life proven; README and CHANGELOG say what ships, and this
+record carries the proof status.
+
+**Gates, this resume.** Full typecheck (all five projects) green;
+eslint/prettier clean on every touched file; `check:l10n` green (two
+new keys in all fifteen tables); `check:reference` green;
+bundle-split and lazy-registry green; production build: the same
+eight over-budget bundles as at base, no new one — new bundles
+`dist/vaultExec.js` 127.8/150 KiB, `dist/vaultExecHost.js` 66.3/80 KiB,
+`dist/vaultPolicy.js` 7.0/25 KiB, and `dist/vaultRuntime.js` fell
+from 24.4 to 21.2/25 KiB with the session's move; the exact-byte
+budgets for `dist/vaultBroker.js` (194,124 bytes measured) and
+`dist/vaultBrokerBindings.js` (39,796 bytes) moved with the measured
+bytes plus the standing 15%, reasons in scripts/check-bundle-size.mjs
+and PLAN.md D6. `check:catches` is red at base `640d52371` too
+(measured in a clean worktree: identical pre-existing site/count
+rises, e.g. judge); this resume's new code adds zero SWALLOW/GENERIC
+over that base and three CLEANUP sites with reason comments
+(feeder-lease close on socket death, delegation-failure settle,
+feeder main refusal); the baseline was NOT regenerated. `check:plan`
+is red at base (PLAN.md 3,730,693 bytes before this resume, over the
+3,565,158 hygiene bound); archiving closed history is lead-scale
+editorial work and was not folded into this lane. SAST, accessibility
+and the hosted suites are the lead's gates as before.
