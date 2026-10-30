@@ -1,9 +1,11 @@
 // M110os OS4: the firewall defaults, the sysctl knobs, and the
 // systemd-analyze security threshold gate. nft cannot parse here (it needs
 // netlink and the sandbox answers EPERM, measured 2026-10-23), so the test
-// pins the ruleset's security properties and the OS6 QEMU boot parses the
-// file for real inside the booted image. The threshold gate runs the real
-// systemd-analyze against a planted insecure unit on Linux.
+// pins the ruleset's security properties; the file loads on a real kernel in
+// the pipeline's static job (a container's own network namespace) and
+// nftables.service finishes in the OS6 QEMU boot of the built image. The
+// threshold gate runs the real systemd-analyze against a planted insecure
+// unit on Linux.
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
@@ -54,7 +56,7 @@ function plantedRoot(): { root: string; unit: string } {
 }
 
 describe('firewall defaults', () => {
-  it('drops input and forward with only loopback, established, SSH and setup open', () => {
+  it('drops input and forward with only loopback, established, IPv6 link setup, SSH and setup open', () => {
     const lines = contentLines(NFTABLES)
     const joined = lines.join('\n')
     expect(joined).toContain('chain input')
@@ -67,9 +69,17 @@ describe('firewall defaults', () => {
     expect(setupPort).toBeGreaterThan(0)
     expect(setupPort).toBeLessThanOrEqual(TCP_MAX_PORT)
     const accepts = lines.filter((line) => line.includes('accept') && !line.includes('policy'))
-    expect(accepts).toHaveLength(4)
+    expect(accepts).toHaveLength(6)
     expect(accepts.some((line) => line.includes('iifname "lo"'))).toBe(true)
     expect(accepts.some((line) => line.includes('ct state established,related'))).toBe(true)
+    // Neighbour discovery is the minimum IPv6 needs on a LAN (RFC 4890
+    // section 4.4.1); DHCPv6 replies come from link-local servers to port 546.
+    const neighbour = accepts.find((line) => line.startsWith('icmpv6 type'))
+    expect(neighbour).toBeDefined()
+    for (const type of ['nd-router-advert', 'nd-neighbor-solicit', 'nd-neighbor-advert']) {
+      expect(neighbour).toContain(type)
+    }
+    expect(accepts.some((line) => line.includes('ip6 saddr fe80::/10 udp dport 546'))).toBe(true)
     expect(accepts.some((line) => line.includes('tcp dport 22'))).toBe(true)
     expect(accepts.some((line) => line.includes('tcp dport $setup_port'))).toBe(true)
   })

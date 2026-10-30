@@ -1,14 +1,16 @@
 # The Node OS image pipeline (M110os OS6, on OS1's recipe): both images
-# on each change, built by os/build.py with the pinned mkosi 27.1 and the
-# per-architecture Linux runtime from this commit, the QEMU boot tests
-# (x86-64 with KVM, aarch64 `virt` emulated), the reproducibility
-# comparison, the SPDX SBOM from the build manifests, and the release
-# assets with checksums, signatures and provenance.
+# on each change, built by os/build.py inside the repository's builder
+# container (os/builder/Dockerfile: Debian 13 by digest, mkosi from
+# os/pins.json) with the per-architecture Linux runtime from this commit,
+# the QEMU boot tests (x86-64 with KVM when the runner offers it and TCG
+# otherwise, aarch64 `virt` emulated; each receipt names which), the
+# reproducibility comparison, the SPDX SBOM from the build manifests, and
+# the release assets with checksums, signatures and provenance.
 #
 # Waiting, named: image signing waits for the owner's key ceremony
 # (the publish job warns loudly and records the assets unsigned).
-# The reproducibility comparison starts recorded and blocks once two
-# builds match (REPRO_ENFORCE below).
+# The reproducibility comparison blocks: two builds of each image
+# match byte for byte (measured 2026-10-30, REPRO_ENFORCE below).
 name: Node OS
 
 on:
@@ -56,10 +58,16 @@ concurrency:
   group: node-os-${{ github.event_name == 'push' && github.sha || github.ref }}
   cancel-in-progress: true
 
-# The reproducibility comparison records until two builds match, then
-# this flips to 'true' and the compare step blocks the pipeline.
+# The reproducibility comparison blocks the pipeline: two builds of
+# each image match byte for byte (measured 2026-10-30; flip back to
+# 'false' only with a dated reason if a recipe change breaks that).
 env:
-  REPRO_ENFORCE: 'false'
+  REPRO_ENFORCE: 'true'
+  # The systemd-analyze security gate on the built image's muse-node.service,
+  # in tenths of an exposure point (it fails past this). 84 holds the unit at
+  # the 8.3 it measured when the gate was added: a ratchet, not a claim that
+  # 8.3 is safe. Lower it as the unit is hardened.
+  SECURITY_THRESHOLD: '84'
 
 jobs:
   static:
@@ -73,6 +81,21 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24.18.0
+      - name: image recipe policy
+        shell: bash
+        run: python3 os/check.py
+      - name: firewall defaults load on a real kernel
+        shell: bash
+        # A container's own network namespace: the host's firewall is never
+        # touched. The container is Debian 13, the release the image carries.
+        run: |
+          docker run --rm --cap-add NET_ADMIN -v "$PWD/os/hardening:/h:ro" \
+            debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad sh -ec '
+              apt-get update -qq && apt-get install -y -qq --no-install-recommends nftables
+              nft -c -f /h/nftables.conf
+              nft -f /h/nftables.conf
+              nft list chain inet filter input | grep -q "policy drop"
+              nft list chain inet filter forward | grep -q "policy drop"'
       - name: shell syntax of the OS scripts
         shell: bash
         run: |
@@ -125,27 +148,17 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24.18.0
-      - name: install the image toolchain
+      # The image build runs in the repository's builder container, the same
+      # Debian 13 toolset on every runner (Ubuntu's systemd is older and
+      # splits its packages differently, so a host install is not the tool the
+      # recipe was proven with). gcc and libssl-dev are for the runtime
+      # package's native helpers.
+      - name: install the runtime package's native toolchain
         shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            python3 python3-venv \
-            systemd systemd-boot-efi systemd-boot-tools systemd-container systemd-repart systemd-ukify \
-            cryptsetup-bin dosfstools e2fsprogs mtools kmod cpio gdisk fdisk \
-            squashfs-tools zstd xz-utils ca-certificates debian-archive-keyring \
-            gcc libssl-dev
-      - name: install the pinned mkosi
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gcc libssl-dev
+      - name: build the image builder container
         shell: bash
-        run: |
-          url="$(python3 -c 'import json; print(json.load(open("os/pins.json"))["mkosi"]["url"])')"
-          sha="$(python3 -c 'import json; print(json.load(open("os/pins.json"))["mkosi"]["sha256"])')"
-          curl -fsSL -o "$RUNNER_TEMP/mkosi.tar.gz" "$url"
-          echo "$sha  $RUNNER_TEMP/mkosi.tar.gz" | sha256sum -c -
-          python3 -m venv "$RUNNER_TEMP/mkosi-venv"
-          "$RUNNER_TEMP/mkosi-venv/bin/pip" install "$RUNNER_TEMP/mkosi.tar.gz"
-          "$RUNNER_TEMP/mkosi-venv/bin/mkosi" --version
-          echo "$RUNNER_TEMP/mkosi-venv/bin" >> "$GITHUB_PATH"
+        run: docker build -f os/builder/Dockerfile -t muse-nodeos-builder os
       - run: npm ci --ignore-scripts --no-audit
       - name: production build and the runtime package
         shell: bash
@@ -154,9 +167,9 @@ jobs:
         run: |
           node scripts/build.mjs --production
           node scripts/package-acp.mjs --target "$ACP_TARGET"
-      # mkosi assembles disk images (loop mounts, id-mapped builds), so
-      # the composer runs as root; its out/ tree stays world-readable
-      # for the artifact upload below.
+      # mkosi assembles disk images (loop mounts), so the builder container
+      # runs privileged and its out/ tree is root's, moved by sudo below and
+      # world-readable for the artifact upload.
       - name: first build
         shell: bash
         env:
@@ -165,7 +178,8 @@ jobs:
         run: |
           runtime=(dist/muse-spark-code-acp-"*"-$ACP_TARGET.tgz)
           sha="$(sha256sum "${runtime[0]}" | cut -d' ' -f1)"
-          sudo python3 os/build.py "$TARGET" --runtime "${runtime[0]}" --runtime-sha256 "$sha" --mkosi "$RUNNER_TEMP/mkosi-venv/bin/mkosi"
+          docker run --rm --privileged -v "$PWD:/work" -w /work muse-nodeos-builder \
+            python3 os/build.py "$TARGET" --runtime "/work/${runtime[0]}" --runtime-sha256 "$sha" --mkosi /usr/local/bin/mkosi
           mkdir -p build-a
           sudo mv "out/$TARGET" "build-a/$TARGET"
       - name: second build
@@ -176,9 +190,21 @@ jobs:
         run: |
           runtime=(dist/muse-spark-code-acp-"*"-$ACP_TARGET.tgz)
           sha="$(sha256sum "${runtime[0]}" | cut -d' ' -f1)"
-          sudo python3 os/build.py "$TARGET" --runtime "${runtime[0]}" --runtime-sha256 "$sha" --mkosi "$RUNNER_TEMP/mkosi-venv/bin/mkosi"
+          docker run --rm --privileged -v "$PWD:/work" -w /work muse-nodeos-builder \
+            python3 os/build.py "$TARGET" --runtime "/work/${runtime[0]}" --runtime-sha256 "$sha" --mkosi /usr/local/bin/mkosi
           mkdir -p build-b
           sudo mv "out/$TARGET" "build-b/$TARGET"
+      - name: security-threshold gate on the built image's service unit
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          docker run --rm --privileged -e TARGET -e SECURITY_THRESHOLD -v "$PWD:/work" -w /work muse-nodeos-builder bash -ec '
+            root="$(mktemp -d)"
+            mkdir "$root/usr"
+            mount -o ro,loop "build-a/$TARGET/muse-node-$TARGET.usr-a.raw" "$root/usr"
+            trap "umount $root/usr" EXIT
+            os/hardening/security-threshold.sh --root "$root" --threshold "$SECURITY_THRESHOLD" muse-node.service'
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: node-os-images-${{ matrix.target }}
@@ -197,7 +223,7 @@ jobs:
           - arch: x86-64
             build-target: x86-64
             qemu-arch: x86_64
-            kvm: 'on'
+            kvm: 'auto'
             memory: '2048'
             timeout: '900'
           - arch: aarch64
@@ -221,6 +247,15 @@ jobs:
       - name: install QEMU and the firmware
         shell: bash
         run: sudo apt-get install -y qemu-system-x86 qemu-system-arm ovmf qemu-efi-aarch64
+      # KVM where the runner offers it, TCG where it does not; the driver's
+      # receipt (result.json) names the acceleration the boot ran under.
+      - name: let the runner user open /dev/kvm
+        if: matrix.arch == 'x86-64'
+        shell: bash
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
       - name: boot the first build and wait for the marker
         shell: bash
         env:
@@ -249,6 +284,7 @@ jobs:
           node scripts/os-boot-test.mjs --arch "$QEMU_ARCH" --out "boot-$ARCH" \
             --marker 'localhost login:' --timeout "$TIMEOUT" --memory "$MEMORY" \
             --image "$image" --kvm "$KVM" "${firmware_args[@]}"
+          cat "boot-$ARCH/result.json" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
@@ -307,8 +343,8 @@ jobs:
         shell: bash
         run: |
           mkdir -p sbom
-          node scripts/os-sbom.mjs --manifest build-a/x86-64/muse-node-x86-64.manifest --out sbom/muse-node-x86-64.spdx.json
-          node scripts/os-sbom.mjs --manifest build-a/arm64/muse-node-arm64.manifest --out sbom/muse-node-arm64.spdx.json
+          node scripts/os-sbom.mjs --manifest build-a/x86-64/muse-node-x86-64.manifest --image build-a/x86-64/muse-node-x86-64.raw --out sbom/muse-node-x86-64.spdx.json
+          node scripts/os-sbom.mjs --manifest build-a/arm64/muse-node-arm64.manifest --image build-a/arm64/muse-node-arm64.raw --out sbom/muse-node-arm64.spdx.json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: node-os-sbom
