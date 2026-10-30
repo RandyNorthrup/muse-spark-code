@@ -324,6 +324,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- `muse-spark-code-acp supervise` and `stop` now say why they refuse.
+  When the agent's data folder or a folder above it is writable by other
+  users, or its path is too long for the supervisor's control socket,
+  each command names the problem and what to change instead of failing
+  with a bare error.
 - A pack index is accepted only when the signature covers those exact bytes
   and the signer is the pack workflow on `main`, exactly. A signature for a
   branch whose name merely begins with `main`, or a signed statement that

@@ -31,18 +31,6 @@ export interface SuperviseRuntimeDeps {
   readonly log: Logger
 }
 
-/**
-The sentence for a refusal the person can act on: records that cannot be
-kept private, or a data folder path too long for the control socket.
-Anything else is not a refusal and keeps its own report.
-*/
-function refusalOf(error: unknown): string | undefined {
-  if (error instanceof PrivateRootRefused) return UI_TEXT.supervision.recordsFolderNotPrivate
-  return error instanceof SuperviseEndpointError
-    ? UI_TEXT.supervision.endpointPathTooLong
-    : undefined
-}
-
 async function supervisedRoot(dataFolder: string): Promise<string> {
   // A first command may come before anything made the data folder: made
   // owner-only, so the private folder's ancestor check holds.
@@ -75,10 +63,15 @@ export async function runSupervise(
       log: deps.log,
     })
   } catch (error: unknown) {
-    const refusal = refusalOf(error)
-    if (refusal === undefined) throw error
-    deps.log.error(refusal)
-    return CLI_EXIT.failure
+    if (error instanceof PrivateRootRefused) {
+      deps.log.error(UI_TEXT.supervision.recordsFolderNotPrivate)
+      return CLI_EXIT.failure
+    }
+    if (error instanceof SuperviseEndpointError) {
+      deps.log.error(UI_TEXT.supervision.endpointPathTooLong)
+      return CLI_EXIT.failure
+    }
+    throw error
   }
 }
 
@@ -101,10 +94,15 @@ export async function runStop(
   try {
     outcome = await stopWorkspace(deps)
   } catch (error: unknown) {
-    const refusal = refusalOf(error)
-    if (refusal === undefined) throw error
-    deps.print(refusal)
-    return CLI_EXIT.failure
+    if (error instanceof PrivateRootRefused) {
+      deps.print(UI_TEXT.supervision.recordsFolderNotPrivate)
+      return CLI_EXIT.failure
+    }
+    if (error instanceof SuperviseEndpointError) {
+      deps.print(UI_TEXT.supervision.endpointPathTooLong)
+      return CLI_EXIT.failure
+    }
+    throw error
   }
   const { stopped, failed } = outcome
   if (stopped === 0 && failed === 0) {
