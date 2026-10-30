@@ -26623,6 +26623,24 @@ rig's own `--probe` answers ready, exit 0). No entry point wires it:
 binding, macOS/Linux drivers and owner-device receipts stay lead and
 owner steps. Record: `docs/certification/rlfinish.md`.
 
+**Status 2026-10-30 (RLF-RECORDING): building.** The recording
+command now creates the platform's native recorder on first
+use and keeps one per window: Windows' helper through the R2 factory,
+macOS' signed app through its own signature requirement, and Linux'
+desktop portal through the shipped `muse-portal-record` helper (libc
+only, built per architecture in CI and packed per platform). The
+drivers ship in their own lazy bundle on the first recording start;
+the command bundle keeps the preview and the latest-file discovery.
+Each driver refuses in words where the computer cannot record; the
+refused-permission Settings recovery is wired to the refusal. Proven
+by real-helper suites per OS (the macOS app's own `--probe` as oracle,
+the C helper on a real bus decoded by `dbus-monitor`, the Windows
+real-helper suite), the binding suite, the recording bundles' own
+budgets and the split gate. Owner-device receipts (one real recording
+per OS through the packed product, with the permission recovery run)
+stay owner steps, with the hosted-CI Windows and Linux legs.
+Record: `docs/certification/rlf-recording.md`.
+
 **MSM105 finish lane (2026-10-17, macmini).** Merged the codec-refusal line
 (`cand/MSM105/3`), the production-composition line (`cand/MSM105/2`) and the
 current main (`3d30a7321`) onto C-M105-8; overhaul GO deletions stay

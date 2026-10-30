@@ -28,6 +28,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Screen recording uses this computer's own recorder.** The record
+  command records on Windows, macOS and Linux (through the desktop's
+  screen-cast portal), choosing microphone and system sound for each
+  recording, and previews it before attaching. When the computer
+  cannot record, the command says why instead.
 - Best-of-N shows each attempt's reported tokens in the side-by-side
   comparison, plus its reported cost where the attempt's usage reports
   carry one, and the take notice names the taken attempt's reported use
