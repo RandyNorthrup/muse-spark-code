@@ -362,9 +362,8 @@ export async function superviseRuntime(deps: SuperviseDeps): Promise<number> {
       supervised = await launching
     } catch (error: unknown) {
       // A stop that landed during admission ends the run as stopped.
-      const isStopAbort =
-        stopping !== undefined && error instanceof DOMException && error.name === 'AbortError'
-      if (!isStopAbort) throw error
+      if (stopping === undefined || !(error instanceof DOMException && error.name === 'AbortError'))
+        throw error
     }
     if (supervised === undefined) return Number(!(await stopping))
     const launched = supervised.child
