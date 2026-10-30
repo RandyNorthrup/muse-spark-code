@@ -2098,7 +2098,9 @@ export class ConversationController implements DeferredSend {
   A Muse Code fault (D26), said once per session in plain words with the
   way on: the replay fault refuses every message, so it offers a restart
   (after which the session runs again) and a new conversation; the ledger
-  fault only spoils each decision's reply, so it offers a new conversation.
+  fault only spoils each decision's reply, so it offers a new conversation;
+  the persistence fault spoils one decision's reply while the decision
+  itself took effect, so it needs no way on.
   */
   private noteMuseCodeFault(error: MuseCodeFaultError): void {
     const key = this.faultKey(error.fault)
@@ -2108,6 +2110,7 @@ export class ConversationController implements DeferredSend {
     }
     this.shownFaults.add(key)
     const isReplay = error.fault === 'approvalReplay'
+    const isPersistence = error.fault === 'approvalPersistence'
     let text = UI_TEXT.approvalLedgerFault
     if (this.needsApprovalLedgerUpdate) {
       text = fill(UI_TEXT.approvalLedgerFaultUpdate, {
@@ -2117,9 +2120,15 @@ export class ConversationController implements DeferredSend {
     if (isReplay) {
       text = UI_TEXT.approvalReplayRefused
     }
-    const actions: readonly NoticeAction[] = isReplay
-      ? ['restartMuseCode', 'newConversation']
-      : ['newConversation']
+    if (isPersistence) {
+      text = UI_TEXT.approvalPersistenceFault
+    }
+    let actions: readonly NoticeAction[] = ['newConversation']
+    if (isReplay) {
+      actions = ['restartMuseCode', 'newConversation']
+    } else if (isPersistence) {
+      actions = []
+    }
     const level: NoticeLevel = isReplay ? 'error' : 'warning'
     this.deps.log[isReplay ? 'error' : 'warn'](`${NOTICE_PREFIX}${text}`)
     this.post({ type: 'notice', level, text, actions: [...actions] })
@@ -2805,6 +2814,12 @@ export class ConversationController implements DeferredSend {
         requirementId: event.requirementId,
       })
     } catch (error: unknown) {
+      // A Muse Code fault means the approval took effect while its
+      // reply was spoiled: no card, the session follows the host.
+      if (isMuseCodeFaultError(error)) {
+        this.noteMuseCodeFault(error)
+        return
+      }
       this.autoApproved.delete(event.approvalId)
       this.deps.log.warn(`Edit automatically could not approve: ${failureForLog(error)}`)
       this.forward(event)
@@ -2839,6 +2854,12 @@ export class ConversationController implements DeferredSend {
         requirementId: event.requirementId,
       })
     } catch (error: unknown) {
+      // A Muse Code fault means the refusal took effect while its
+      // reply was spoiled: the policy's refusal stands, with no card.
+      if (isMuseCodeFaultError(error)) {
+        this.noteMuseCodeFault(error)
+        return
+      }
       this.sideRefused.delete(event.approvalId)
       this.deps.log.warn(`The side-chat policy could not refuse: ${describeForLog(error)}`)
       // The session may have ended while the refusal waited: its card does

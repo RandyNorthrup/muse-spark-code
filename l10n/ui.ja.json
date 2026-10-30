@@ -3319,6 +3319,7 @@
   "approvalReplayRefused": "Muse Code はこの会話のすべてのメッセージを拒否しています。複数ステップのコマンドが一部だけ承認された状態でターンが停止し、Muse Code がその承認を再生できません (原因は Muse Code の不具合で、あなたの選択ではありません)。この会話を続けるには Muse Code を再起動するか、新しい会話を始めてください。",
   "approvalLedgerFault": "Muse Code はこの会話での承認を適用していますが、そのたびにエラーを報告します (原因は承認記録の不具合で、あなたの選択ではありません)。各カードは Muse Code の次の動作に従います。新しい会話ではこの不具合は起きません。",
   "approvalLedgerFaultUpdate": "Muse Code は承認を適用しましたが、承認記録を保存できませんでした。{command} で Muse Code を 1.4.3 以降に更新し、Muse Code を再起動してください。各カードは Muse Code の次の動作に従います。新しい会話でもこの不具合を回避できます。",
+  "approvalPersistenceFault": "Muse Code はその決定の保存に時間がかかりすぎてエラーを報告しましたが、決定は有効になりました(あなたの選択ではなく、Muse Code 側の不具合です)。カードは Muse Code の次の動作に従います。",
   "museCodeRestartAsked": "Muse Code を停止しました。次のメッセージで再び起動し、この会話を続行します。",
   "steerUnconfirmed": "Muse Code は、メッセージが実行中のターンに届いたことを確認しませんでした。まだ届く可能性があります。もう一度送信する前に確認してください。",
   "museCodeNotAnswering": "Muse Code が応答していません。「Muse Spark: Muse Code を再起動」で再起動してください。",

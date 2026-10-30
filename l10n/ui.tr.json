@@ -3381,6 +3381,7 @@
   "approvalReplayRefused": "Muse Code bu konuşmadaki her mesajı reddediyor: çok adımlı bir komut yalnızca kısmen onaylanmışken bir tur durdu ve Muse Code bu onayı yeniden oynatamıyor (sorun sizin seçimlerinizde değil, Muse Code’da). Bu konuşmayı sürdürmek için Muse Code’u yeniden başlatın veya yeni bir konuşma başlatın.",
   "approvalLedgerFault": "Muse Code bu konuşmadaki onaylarınızı uyguluyor ancak her biri için bir hata bildiriyor (sorun sizin seçimlerinizde değil, onay kaydında). Her kart Muse Code’un sonraki adımını izler; yeni bir konuşmada bu sorun yoktur.",
   "approvalLedgerFaultUpdate": "Muse Code onayınızı uyguladı ancak onay kaydını kaydedemedi. {command} ile Muse Code’u 1.4.3 veya daha yeni bir sürüme güncelleyin, ardından Muse Code’u yeniden başlatın. Her kart Muse Code’un sonraki adımını izler; yeni bir konuşma da bu sorunu önler.",
+  "approvalPersistenceFault": "Muse Code bu kararı kaydetmekte çok uzun sürdü ve bir hata bildirdi, ancak karar yürürlüğe girdi (bu bir Muse Code kusuru, seçiminiz değil). Kart, Muse Code'un bundan sonra ne yapacağını izler.",
   "museCodeRestartAsked": "Muse Code durduruldu. Sonraki mesajınız onu yeniden başlatır ve bu konuşmayı sürdürür.",
   "steerUnconfirmed": "Muse Code, mesajınızın çalışan tura ulaştığını onaylamadı. Hâlâ ulaşabilir; yeniden göndermeden önce kontrol edin.",
   "museCodeNotAnswering": "Muse Code yanıt vermiyor. “Muse Spark: Muse Code'u Yeniden Başlat” ile yeniden başlatın.",
