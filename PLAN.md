@@ -30934,6 +30934,26 @@ exit codes: `docs/certification/cc-int3.md`.
 
 ---
 
+### RLFNOSTUBS — int's older stub-style test seams, rewritten over real parts (2026-10-30)
+
+**Status 2026-10-30 (lane, CC-INT3 open item 2): built.** The three named
+seams (tabEngine stub streams, the registry poll's injected clock,
+windowsRecording's injected removal) and every same-kind seam the sweep
+found are rewritten where a unit test can own the real part: real
+loopback, real temp files and stores, real time, real processes, real
+spawn failures. Report contents, stalled shares and the down-store case
+move to `docs/real-life/unproven.md` with real-life steps. Deleted
+production seams: the registry poll clock/sleep, subscription
+`readFile`/`stat`, mediaJobRun `statOutput`, `ProvidersDeps.now`,
+`undoWindowMs`. Unownable boundaries stay principled (OS store, editor
+state, person answers, recorded captures, provider-time-bound pacing
+windows). Triaged follow-ups: the home-node doubles, the spend-library
+invented wire bodies, the team-worker errno models, the node bridge
+fetch. Proof: a red/green drill per rewrite and the touched suites.
+Evidence: `docs/certification/rlf-nostubs.md`.
+
+---
+
 ## 7. Gates
 
 **RLM95 plan-archive deferral (2026-10-22, macmini).** `npm run check:plan`
