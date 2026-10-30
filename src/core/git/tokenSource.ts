@@ -188,7 +188,8 @@ export function canAskGistScope(source: GitHubTokenSource): source is GitHubGist
 The `required` scopes a token lacks, from GitHub's `X-OAuth-Scopes`
 header; undefined when the header is absent (a lease's answer, or a
 token type that does not report scopes), so nothing is guessed.
-@unwired M123 missing GitHub scope reader
+M118 phase 2 (D217) reads it to tell a missing gist scope from a real
+404.
 */
 export function missingScopes(
   header: string | null,

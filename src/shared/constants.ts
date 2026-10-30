@@ -2414,7 +2414,8 @@ export const GITHUB_PERMITTED_SCOPES: readonly string[] = ['repo', 'read:org']
 export const GITHUB_GIST_SCOPE = 'gist'
 export const GITHUB_GIST_SCOPES: readonly string[] = ['repo', GITHUB_GIST_SCOPE]
 // GitHub names a token's scopes in this response header (comma-separated).
-/** @unwired M71 read only by tests deleted 2026-10-17 (no fakes) */
+// M118 phase 2 (D217) reads it in `GitHubClient` to tell a missing gist
+// scope from a real 404.
 export const GITHUB_SCOPES_HEADER = 'x-oauth-scopes'
 // The project's OAuth App (Q-M123, registered by the owner 2026-10-08):
 // public, device flow on, expiring user tokens on, no client secret. The
