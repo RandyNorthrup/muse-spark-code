@@ -110,6 +110,8 @@ it('keeps account, developer and help values out of startup and loads them exact
   })
   expect(resourceOnly.length).toBeGreaterThan(0)
   await built.bundle.loadResourceEnglish()
+  // The resource history page reads English of its own group (ResourcesSection).
+  await built.bundle.loadResourceHistoryEnglish()
   expect(() => built.bundle.EN.devices).toThrow('English surface is not loaded: devices')
   await built.bundle.loadDevicesEnglish()
   for (const [key, value] of Object.entries(built.bundle.EN)) expect(value).toEqual(EN[key])
@@ -121,6 +123,7 @@ it('validates deferred slots, keys and plurals before installing a translated ta
   await built.bundle.loadDeferredEnglish()
   built.bundle.installVaultEnglish()
   await built.bundle.loadResourceEnglish()
+  await built.bundle.loadResourceHistoryEnglish()
   await built.bundle.loadDevicesEnglish()
   const german = JSON.parse(readFileSync('l10n/ui.de.json', 'utf8'))
   for (const mutate of [
