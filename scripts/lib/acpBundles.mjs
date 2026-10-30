@@ -82,6 +82,9 @@ export const ACP_BUNDLES = [
   'conversation.js',
   'conversationTransfer.js',
   'report.js',
+  // The problem report's editor-native fallback (REPORTFLOW R2), which the
+  // controller loads on the first report message the dialog cannot open.
+  'reportFallback.js',
   'sessionBoard.js',
   'scheduleSurfaces.js',
   // M104 lane B: edit review and `/review` in the runtime panel (the patch engine, git's material, the Plan hold).
