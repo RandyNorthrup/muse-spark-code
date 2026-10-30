@@ -716,7 +716,9 @@
     "openssl",
     "gpgv",
     "gcc",
-    "gpg"
+    "gpg",
+    // The boot-driver suite watches the guest's command line for a linger check.
+    "pgrep"
   ],
 
   "ignoreExportsUsedInFile": true,

@@ -222,6 +222,25 @@ def extract_selected(archive, destination, prefix, names):
             file.chmod(0o755 if member.mode & 0o111 else 0o644)
 
 
+def install_hardening(overlay):
+    """Ship OS4's firewall and kernel knobs from their one source, hardening/.
+
+    The ruleset is what nftables.service loads at boot; the sysctl file goes
+    to the vendor directory inside the verity-protected /usr.
+    """
+    hardening = ROOT / "hardening"
+    for source, destination in (
+        (hardening / "nftables.conf", overlay / "etc/nftables.conf"),
+        (
+            hardening / "sysctl.d/99-muse-node.conf",
+            overlay / "usr/lib/sysctl.d/99-muse-node.conf",
+        ),
+    ):
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, destination)
+        destination.chmod(0o644)
+
+
 def stage(args):
     check(ROOT)
     if args.target not in TARGETS:
@@ -284,39 +303,53 @@ def stage(args):
         extract_selected(node_archive, node_tree, node_name, ("bin/node", "LICENSE"))
         overlay = workspace / "overlay"
         shutil.copytree(node_tree, overlay / "usr/lib/nodejs")
-        bundles = {
-            "acp.js",
-            "node.js",
-            "modelApi.js",
-            "reviewer.js",
-            "foreignHooks.js",
-            "hookRuntime.js",
-            "recorder.js",
-            "uiText.js",
-            "uiTextRuntime.js",
-            "uiTextHooks.js",
-            "uiTextSurfaces.js",
-            "extensionHooks.js",
-            "validation.js",
-            "wire.js",
-            "searchWorker.js",
-            "pageWorker.js",
+        install_hardening(overlay)
+        # The linux-targeted runtime's admitted shapes (enumerated from the
+        # 0.19.0 linux-x64 tarball; webview chunks carry content hashes, so
+        # churn-tolerant directories admit by suffix while the tarball's
+        # SHA-256 pins the exact bytes). Universal-only members (darwin
+        # bundles, Windows sources) are refused until consciously added.
+        runtime_files = {
+            "package.json",
+            "README.md",
+            "LICENSE",
+            "THIRD_PARTY_NOTICES.txt",
+            "package.nls.json",
+            "dist/legal-data.json.br",
+            "dist/runtime.bundles.json.br",
+            "dist/whatsNew.json",
+            "dist/legal-data/NOTICE.md",
+            "dist/legal-data/provenance.json",
+            "l10n/ui.tables.json.br",
+            "l10n/usage.tables.json.br",
+            "design/fonts/manifest.json",
+            "native/linux/x64/muse-created",
+            "native/linux/x64/muse-vault-peer",
+            "native/linux/arm64/muse-created",
+            "native/linux/arm64/muse-vault-peer",
+            "native/runner/runner-helper.ps1",
+            "native/runner/runner-helper.sh",
         }
 
+        def single_level(name, prefix):
+            return name.startswith(prefix) and "/" not in name[len(prefix) :]
+
         def allowed(name):
-            return (
-                name
-                in {"package.json", "README.md", "LICENSE", "THIRD_PARTY_NOTICES.txt"}
-                or name in {"dist/" + bundle for bundle in bundles}
-                or (name.startswith("l10n/ui.") and name.endswith(".json"))
-                or name.startswith("schemas/exec-")
-                and name.endswith(".schema.json")
-                or name
-                in {
-                    "native/windows/MuseSparkJob.cs",
-                    "native/windows/MuseSparkMcpJob.cs",
-                }
-            )
+            if name in runtime_files:
+                return True
+            if single_level(name, "dist/"):
+                return name.endswith(".js")
+            if name.startswith("dist/webview/"):
+                return name.endswith(".js") or name.endswith(".css")
+            if single_level(name, "schemas/"):
+                return name.endswith(".schema.json")
+            if single_level(name, "ci/lib/"):
+                return name.endswith(".mjs")
+            if single_level(name, "ci/prompts/ci/"):
+                return name.endswith(".md")
+            if single_level(name, "package.nls."):
+                return name.endswith(".json")
+            return False
 
         extract(artifact, overlay / "usr/lib/muse-spark-code", "package", allowed)
         package = json.loads(
@@ -324,7 +357,7 @@ def stage(args):
         )
         if (
             package.get("name") != "muse-spark-code-acp"
-            or package.get("version") != "0.14.0"
+            or package.get("version") != "0.19.0"
         ):
             raise ValueError("OS1 wrong runtime package/version")
         runtime = overlay / "usr/lib/muse-node-os"
