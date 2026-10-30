@@ -384,6 +384,23 @@ export class AcpPaidUse {
       : await routed
   }
 
+  /**
+  The panel's "Ask again" (M58): every feature asks again. What the folder's
+  consent holds is dropped, and each feature's "always" lapses: the grants
+  file keeps one generation per feature, so it lapses in every folder, as
+  turning a feature off does (`forgetUnflagged`).
+  */
+  public async forget(workspaceRoot: string, sessionId: string): Promise<void> {
+    await this.consentFor(workspaceRoot, sessionId).forget()
+    // VS Code's Ask again revokes the folder's account consents with it
+    // (PaidUseConsent.forget's accounts.forget): their durable revocation
+    // epochs advance and their kept grants are cleared, not only lapsed by
+    // the feature generation below. No route is made for a folder that
+    // never billed another account.
+    await this.accountRoutes.get(workspaceRoot)?.forget()
+    await this.deps.grants.forget(ACP_PAID_FEATURES)
+  }
+
   /** A live fence for an admitted use in the folder's conversation. */
   public fence(workspaceRoot: string, sessionId: string, feature: PaidFeature): () => boolean {
     return this.consentFor(workspaceRoot, sessionId).fence(feature)

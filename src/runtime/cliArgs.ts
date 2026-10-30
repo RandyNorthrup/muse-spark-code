@@ -123,6 +123,17 @@ export interface ServeOptions {
 }
 
 /**
+`panel` (M104 lane B, PLAN.md D84): the runtime's side of an editor's Muse
+panel over MHP, bound to one workspace.
+*/
+export interface PanelOptions {
+  /** The workspace root; the folder the runtime starts in unless named. */
+  readonly workspace: string
+  /** `--verbose`: every detail on stderr, the host's log. */
+  readonly isVerbose: boolean
+}
+
+/**
 `lsp` (M104 lane H, PLAN.md D84): Tab served to an LSP editor. Paid use
 waits for `--tab` and, in every request, D48's question; Tab reads files
 only with `--trust-workspace`.
@@ -205,6 +216,7 @@ export type RuntimeCommand =
   | { readonly command: 'lsp'; readonly options: LspOptions }
   | { readonly command: 'supervise'; readonly args: readonly string[] }
   | { readonly command: 'stop' }
+  | { readonly command: 'panel'; readonly options: PanelOptions }
   | {
       readonly command: 'exec'
       readonly options: ExecAttachmentOptions
@@ -592,6 +604,7 @@ export function parseCommandLine<T>(
   if (argv[0] === 'supervise') return parseSupervise(argv.slice(1))
   if (argv[0] === 'lsp') return parseLsp(argv.slice(1))
   if (argv[0] === 'stop') return parseStop(argv.slice(1))
+  if (argv[0] === 'panel') return parsePanel(argv.slice(1))
   if (flags.includes('--help') || flags.includes('-h')) {
     if (argv[0] === 'vault') return { command: 'vaultHelp' }
     // Bare `report --help` is the report command's own help, not the help
@@ -1787,4 +1800,32 @@ function parseStop(argv: readonly string[]): RuntimeCommand {
   } catch (error: unknown) {
     return invalidTopicOption('stop', error)
   }
+}
+
+/**
+`panel` (M104 lane B): standard I/O is its one transport so far, so `--stdio`
+is required; a later transport is its own flag beside it.
+*/
+function parsePanel(argv: readonly string[]): RuntimeCommand {
+  let values: ReturnType<typeof parsePanelArgs>['values']
+  try {
+    ;({ values } = parsePanelArgs(argv))
+  } catch (error: unknown) {
+    return invalidTopicOption('panel', error)
+  }
+  if (values.help === true) return { command: 'helpTopic', topic: 'panel' }
+  if (values.stdio !== true) return refused(UI_TEXT.hostService.needsStdio)
+  return {
+    command: 'panel',
+    options: { workspace: values.workspace ?? '.', isVerbose: values.verbose === true },
+  }
+}
+
+function parsePanelArgs(argv: readonly string[]) {
+  return parseArgs({
+    args: [...argv],
+    allowPositionals: false,
+    strict: true,
+    options: CLI_OPTION_REGISTRY.panel.options,
+  })
 }

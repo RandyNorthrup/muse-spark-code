@@ -240,7 +240,7 @@ const KNOWN_WRAPPER: Record<string, KnownSpawn> = {
     anchor: 'windowsPowerShell',
     reason: 'absolute SystemRoot PowerShell + fixed /bin/ls only',
   },
-  'src/host/vscode/git/githubSession.ts': {
+  'src/runtime/github/githubSources.ts': {
     kind: 'guarded',
     anchor: 'execResourceFile',
     reason:

@@ -305,6 +305,11 @@ export function cliCommands(shouldIncludeHeld = false) {
       description: UI_TEXT.cliHelp.purposeStop,
     },
     {
+      route: 'panel',
+      name: 'panel --stdio [--workspace <directory>]',
+      description: UI_TEXT.cliHelp.purposePanel,
+    },
+    {
       route: 'scan-secrets',
       name: 'scan-secrets',
       description: UI_TEXT.referenceScanSecrets,

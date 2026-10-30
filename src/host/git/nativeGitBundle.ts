@@ -40,3 +40,31 @@ export function nativeGitLoader(deps: {
     unavailable: () => UI_TEXT.gitUnavailable,
   })
 }
+
+/** The runtime panel's side of the same bundle: the connection's Git, made once its editor has answered. */
+export interface PanelGitBundle {
+  readonly openPanelGit: typeof Entry.openPanelGit
+}
+
+export function isPanelGitBundle(value: unknown): value is PanelGitBundle {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'openPanelGit' in value &&
+    typeof value.openPanelGit === 'function'
+  )
+}
+
+/** The bundle for the runtime panel, loaded once; a failure leaves the panel with no Git (the log has the cause). */
+export function panelGitLoader(deps: {
+  readonly bundlePath: string
+  readonly log: Logger
+  readonly loadBundle?: ((file: string) => unknown) | undefined
+}): () => PanelGitBundle {
+  return lazyBundleLoader({
+    ...deps,
+    isBundle: isPanelGitBundle,
+    label: 'native Git bundle',
+    unavailable: () => UI_TEXT.gitUnavailable,
+  })
+}

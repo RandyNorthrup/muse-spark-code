@@ -873,7 +873,8 @@
     "tab-model": "A Tab-kiegészítések által használt modell.",
     "tab-daily-budget-usd": "A Tab leállítása a nap hátralevő részére ennyi amerikai dollárnál; a 0, az alapértelmezés, nem állít be keretet.",
     "tab-max-output-tokens": "Minden Tab-kérés korlátozása ennyi kimeneti tokenre; a 0, az alapértelmezés, a modell saját maximuma.",
-    "tab-trigger": "Tab gépelés közben (automatic) vagy csak kérésre (onInvoke)."
+    "tab-trigger": "Tab gépelés közben (automatic) vagy csak kérésre (onInvoke).",
+    "panel-stdio": "MHP-t beszél a szabványos bemeneten és kimeneten, soronként egy JSON-üzenet."
   },
   "referenceScanSecrets": "Titkokat keres egy UTF-8 javításfájlban, és találat esetén hibával kilép. A --key-stdin a memóriában lévő pontos Model API-kulcsot is keresi; nem tárol kulcsot.",
   "referenceVault": "Dolgozzon a terminálból a felhasználónkénti hitelesítőadat-tárolóval: beállítás, helyreállítás, alaphelyzetbe állítás, állapot, feloldás, zárolás, lista, hozzáadás, engedélyek, naplózás, importálás és figyelés. Az értékek soha nem jelennek meg; a közvetítő őrzi őket. Kifejezett megerősítés után az alaphelyzetbe állítás az ismeretlen tulajdonosú írási zárolást is lecserélheti.",
@@ -2204,6 +2205,9 @@
   "gitExtensionMissing": "A VS Code beépített Git-kiegészítője ebben az ablakban nem érhető el.",
   "gitExtensionDisabled": "A VS Code Git-integrációja ki van kapcsolva (git.enabled).",
   "gitNoRepository": "Ez a munkaterület nincs olyan git-adattárban, amelyet a VS Code Git-integrációja megnyitott.",
+  "gitWorkspaceNotRepository": "Ez a munkaterület nincs git-adattárban.",
+  "gitProgramMissing": "A Git nincs telepítve erre a számítógépre, vagy nincs a PATH-ban.",
+  "signOutInTerminal": "A kijelentkezéshez futtasd egy terminálban a „muse-spark-code-acp auth clear” (Model API) vagy a „muse logout” (Muse Code) parancsot, majd ellenőrizz újra.",
   "gitNothingToCommit": "Nincs mit véglegesíteni.",
   "gitNothingStaged": "Semmi sincs előkészítve. Jelölje be „A nem előkészített módosítások és az új fájlok belefoglalása” lehetőséget, vagy előbb készítsen elő módosításokat.",
   "gitCommitMessageEmpty": "Előbb írjon commitüzenetet.",
@@ -4471,6 +4475,8 @@
     "noteLsp": "A --tab nélkül semmi sem kerül terhelésre, és a hitelesítőadat-tár soha nem kerül olvasásra. Vele minden új ár előbb a szerkesztőben kérdez; az Engedélyezés mindig ezen a munkaterületen csak a --trust-workspace mellett érhető el.",
     "purposeSupervise": "Az ügynök egy másik parancsának futtatása úgy, hogy a stop leállíthassa az általa indított összes folyamattal együtt.",
     "purposeStop": "Az ebben a mappában indított összes felügyelt futás leállítása az általa indított összes folyamattal együtt.",
+    "purposePanel": "Egy szerkesztő Muse-paneljének gazdáját szolgálja ki MHP-n: annak beszélgetéseit, valamint ennek az ügynöknek a beállításait és tárolóját, abban a mappában, ahol elindul.",
+    "notePanel": "Az itt írt beállítás ugyanaz, amelyet maga az ügynök is olvas: a felhasználói beállítások az adatmappa settings.json és resources.json fájljában maradnak. Azok a beállítások, amelyek eldöntik, mi fut vagy mit számláznak, csak az önéi, és elutasítják a munkaterület hatókörét. Kulcsot vagy tokent soha nem tárol.",
     "purposeSetup": "A Setup hookok futtatása, majd kilépés.",
     "purposeUsage": "Az összes modell használatának és költségének megjelenítése.",
     "purposeResources": "A gép terhelésének és az előzményeknek a megjelenítése.",
@@ -6932,6 +6938,11 @@
       "other": "{count} felügyelt futást nem sikerült teljesen leállítani."
     },
     "unavailable": "A felügyelet nem érhető el ebben a telepítésben."
+  },
+  "hostService": {
+    "unavailable": "A futtatókörnyezeti panel ebben a telepítésben nem érhető el.",
+    "needsStdio": "a panelnek --stdio kell: a szerkesztő gazdája a szabványos bemeneten és kimeneten beszél vele.",
+    "notAvailable": "Ez még nem érhető el ebben a szerkesztőben."
   },
   "acpConnector": {
     "title": "Összekötő-kérések jóváhagyása",

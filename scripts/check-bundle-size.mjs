@@ -605,6 +605,19 @@ const BUDGETS = [
   // M104 lane H: `supervise`, `stop` and the server's `muse.stop`: 30.6 KiB
   // measured +15% = 35.2 KiB, rounded up to 25 KiB.
   { path: 'dist/supervise.js', budgetKiB: 50 },
+  // M104 lane B (cc-m104b): the runtime panel, loaded only by `panel`:
+  // 67,782 bytes (66.2 KiB) measured +15% = 76.1 KiB, rounded up to 25 KiB.
+  { path: 'dist/runtimePanel.js', budgetKiB: 100 },
+  // M104 lane B: the panel's conversations, loaded by runtimePanel.js after
+  // the handshake: 75.0 KiB measured (2026-10-24, production build on the
+  // Mac mini) +15% = 86.3 KiB; the editor ports of the lane's next slices
+  // (git, review, checkpoints, paid use) land in this bundle, so the row is
+  // set once at 120 KiB and not raised.
+  { path: 'dist/runtimePanelSession.js', budgetKiB: 120 },
+  // M104 lane B: the panel's heavier ports (saved plans today; the checkpoint
+  // store joins), loaded on first use: 22.6 KiB measured (2026-10-24,
+  // production build on the Mac mini) +15% = 26.0 KiB, rounded up to 30 KiB.
+  { path: 'dist/runtimePanelPorts.js', budgetKiB: 30 },
   // M96b: run-owned team policy with its cleanup ledger, stale-run sweep,
   // denied-merge holds and marker gate, loaded only for --team. Measured
   // 46,823 bytes (45.73 KiB, production build on macbook, 2026-10-22)
