@@ -89,6 +89,113 @@ interface LandingDeps {
   readonly writePaths: readonly string[] | undefined
 }
 
+/** The abort-and-trust admission re-checked after every await before a write. */
+function landingAdmit(deps: Pick<LandingDeps, 'isTrusted'>, signal: AbortSignal): () => void {
+  return () => {
+    signal.throwIfAborted()
+    if (!deps.isTrusted()) throw new Error(UI_TEXT.teamRunners.trustNotice)
+  }
+}
+
+/** The staging copy's git process over the caller's admitted `runGit`. */
+function landingGit(admit: () => void, runGit: TeamGit): GitProcess {
+  return async (args, input) => {
+    admit()
+    const stdin =
+      typeof input.input === 'string' || input.input === undefined
+        ? input.input
+        : new TextDecoder().decode(input.input)
+    return Buffer.from(await runGit(args, input.cwd, stdin, input.env))
+  }
+}
+
+/** A landing journal over the store each record's id resolves to. */
+function storeLandingJournal(storeOf: (id: string) => TeamJournal): LandingJournal {
+  return new LandingJournal({
+    read: async (id) => {
+      const read = await storeOf(id).read(`landing-${id}`, z.unknown())
+      if (read.kind !== 'record') throw new Error(UI_TEXT.teamTrafficDetails.changedSinceOpened)
+      return read.value
+    },
+    write: (record) => storeOf(record.id).write(`landing-${record.id}`, record, z.unknown()),
+  })
+}
+
+/** The repository holder probe and the admitted index-lock lease. */
+function landingLockPorts(input: {
+  readonly root: string
+  readonly gitDirectory: string
+  readonly owner: WindowIdentity
+  readonly policy: TeamLandingPolicy
+  readonly platform: NodeJS.Platform
+  readonly admit: () => void
+}): Pick<ConstructorParameters<typeof TeamLanding>[0], 'knownHolder' | 'takeLock'> {
+  const { root, gitDirectory, owner, policy, platform, admit } = input
+  return {
+    knownHolder: async (_folder, lock) =>
+      await knownRepositoryHolder(
+        root,
+        gitDirectory,
+        owner.instanceId,
+        await policy.hints(),
+        platform,
+        lock,
+      ),
+    takeLock: async (_folder, id) => {
+      admit()
+      const lock = await takeIndexLock(gitDirectory, {
+        landingId: id,
+        windowInstanceId: owner.instanceId,
+      })
+      try {
+        admit()
+        return lock.kind === 'taken' ? lock.lease : null
+      } catch (error) {
+        if (lock.kind === 'taken') await lock.lease.release()
+        throw error
+      }
+    },
+  }
+}
+
+/** The journal and file ports both landing constructions share verbatim. */
+function landingJournalPorts(
+  journal: LandingJournal,
+  access: ReturnType<typeof landingFileAccess>,
+  around: Pick<ConstructorParameters<typeof TeamLanding>[0], 'prepare' | 'close'>,
+): Pick<
+  ConstructorParameters<typeof TeamLanding>[0],
+  'prepare' | 'close' | 'replace' | 'recover' | 'undo'
+> {
+  return {
+    ...around,
+    replace: (_folder, file, canWrite) =>
+      access.replace(file.path, file.before, file.after, canWrite),
+    recover: (intent, canWrite) => journal.recover(intent, access, canWrite),
+    undo: (intent, id, canWrite) => journal.undo(intent, id, access, canWrite),
+  }
+}
+
+/**
+The confirmed takeover shared by both recovery paths: the person accepts
+this exact record, then authority is taken (receipted) before any write.
+The caller has already proven the record is foreign and confirmable.
+*/
+async function hasConfirmedTakeover(input: {
+  readonly admit: () => void
+  readonly policy: TeamLandingPolicy
+  readonly authority: WindowAuthority
+  readonly record: LandingRecord
+  readonly storeOwner: WindowIdentity
+}): Promise<boolean> {
+  const { admit, policy, authority, record, storeOwner } = input
+  if (policy.confirmTakeover === undefined) return false
+  admit()
+  if (!(await policy.confirmTakeover(record))) return false
+  admit()
+  return await authority.takeOver(storeOwner, true)
+}
+
 /** Existing review permission admits staging; no user-tree write precedes checked landing. */
 export async function landTeamTask(
   table: UiText,
@@ -100,10 +207,7 @@ export async function landTeamTask(
 ): ReturnType<TeamMergePort['merge']> {
   setUiText(table, locale)
   const { policy, root, runGit } = deps
-  const admit = () => {
-    signal.throwIfAborted()
-    if (!deps.isTrusted()) throw new Error(UI_TEXT.teamRunners.trustNotice)
-  }
+  const admit = landingAdmit(deps, signal)
   const outcome = task.outcome
   if (
     outcome.head === undefined ||
@@ -114,28 +218,14 @@ export async function landTeamTask(
     throw new Error(UI_TEXT.teamTaskUnknown)
   const branchHead = outcome.head
   const agentsRef = outcome.agentsRef
-  const git: GitProcess = async (args, input) => {
-    admit()
-    const stdin =
-      typeof input.input === 'string' || input.input === undefined
-        ? input.input
-        : new TextDecoder().decode(input.input)
-    return Buffer.from(await runGit(args, input.cwd, stdin, input.env))
-  }
+  const git = landingGit(admit, runGit)
   const scratch = path.join(deps.storage, 'landing')
   await mkdir(scratch, { recursive: true })
   const copy = await mkdtemp(path.join(scratch, 'staging-'))
   const staging = new StagingCopy(git, process.env, scratch)
   const owner = policy.owner
   const { store: journalStore, authority } = createLandingStore(deps.storage, owner, deps.platform)
-  const journal = new LandingJournal({
-    read: async (id) => {
-      const read = await journalStore.read(`landing-${id}`, z.unknown())
-      if (read.kind !== 'record') throw new Error(UI_TEXT.teamTrafficDetails.changedSinceOpened)
-      return read.value
-    },
-    write: (record) => journalStore.write(`landing-${record.id}`, record, z.unknown()),
-  })
+  const journal = storeLandingJournal(() => journalStore)
   const validateTarget = async (file: string) => {
     admit()
     await policy.validateTarget(file)
@@ -236,29 +326,14 @@ export async function landTeamTask(
           },
           z.strictObject({ taskId: z.string(), tree: z.string(), checkIdentity: z.string() }),
         ),
-      knownHolder: async (_folder, lock) =>
-        await knownRepositoryHolder(
-          root,
-          gitDirectory,
-          owner.instanceId,
-          await policy.hints(),
-          deps.platform,
-          lock,
-        ),
-      takeLock: async (_folder, id) => {
-        admit()
-        const lock = await takeIndexLock(gitDirectory, {
-          landingId: id,
-          windowInstanceId: owner.instanceId,
-        })
-        try {
-          admit()
-          return lock.kind === 'taken' ? lock.lease : null
-        } catch (error) {
-          if (lock.kind === 'taken') await lock.lease.release()
-          throw error
-        }
-      },
+      ...landingLockPorts({
+        root,
+        gitDirectory,
+        owner,
+        policy,
+        platform: deps.platform,
+        admit,
+      }),
       defer: async (_folder, item) => {
         admit()
         retention.copy = true
@@ -269,19 +344,17 @@ export async function landTeamTask(
         return Promise.resolve(true)
       },
       confirmWithoutChecks: policy.confirmWithoutChecks,
-      prepare: async (intent) => {
-        admit()
-        retention.copy = true
-        await journal.prepare(intent)
-      },
-      close: async (intent, status, conflicts) => {
-        await journal.close(intent, status, conflicts)
-        retention.copy = false
-      },
-      replace: (_folder, file, canWrite) =>
-        access.replace(file.path, file.before, file.after, canWrite),
-      recover: (intent, canWrite) => journal.recover(intent, access, canWrite),
-      undo: (intent, id, canWrite) => journal.undo(intent, id, access, canWrite),
+      ...landingJournalPorts(journal, access, {
+        prepare: async (intent) => {
+          admit()
+          retention.copy = true
+          await journal.prepare(intent)
+        },
+        close: async (intent, status, conflicts) => {
+          await journal.close(intent, status, conflicts)
+          retention.copy = false
+        },
+      }),
       // Owner-store recovery: this window's own open landing recovers at
       // once; another window's recovers only after the person's confirmed
       // takeover, receipted in this window's store before any write.
@@ -295,10 +368,13 @@ export async function landTeamTask(
         if (entry?.raw.kind !== 'record' || entry.owner.instanceId !== intent.windowInstanceId)
           return false
         const record = parseLandingEntry(entry.name, entry.raw.value)
-        admit()
-        if (!(await policy.confirmTakeover(record))) return false
-        admit()
-        return await authority.takeOver(entry.owner, true)
+        return await hasConfirmedTakeover({
+          admit,
+          policy,
+          authority,
+          record,
+          storeOwner: entry.owner,
+        })
       },
     })
     const landed = await landing.land(root, admission, isWithoutChecks)
@@ -352,10 +428,7 @@ export async function recoverOpenLandings(
 ): Promise<number> {
   setUiText(table, locale)
   const { policy, root, runGit } = deps
-  const admit = () => {
-    signal.throwIfAborted()
-    if (!deps.isTrusted()) throw new Error(UI_TEXT.teamRunners.trustNotice)
-  }
+  const admit = landingAdmit(deps, signal)
   const owner = policy.owner
   const {
     store: journalStore,
@@ -373,14 +446,7 @@ export async function recoverOpenLandings(
       open.push({ record, storeOwner: entry.owner })
   }
   if (open.length === 0) return 0
-  const git: GitProcess = async (args, input) => {
-    admit()
-    const stdin =
-      typeof input.input === 'string' || input.input === undefined
-        ? input.input
-        : new TextDecoder().decode(input.input)
-    return Buffer.from(await runGit(args, input.cwd, stdin, input.env))
-  }
+  const git = landingGit(admit, runGit)
   const scratch = path.join(deps.storage, 'landing')
   const staging = new StagingCopy(git, process.env, scratch)
   // Recovery settles each intent in its owner's store: a recovered copy in
@@ -391,14 +457,7 @@ export async function recoverOpenLandings(
     const found = open.find((item) => item.record.id === id)
     return found === undefined ? journalStore : storeFor(found.storeOwner)
   }
-  const journal = new LandingJournal({
-    read: async (id) => {
-      const read = await ownerStoreOf(id).read(`landing-${id}`, z.unknown())
-      if (read.kind !== 'record') throw new Error(UI_TEXT.teamTrafficDetails.changedSinceOpened)
-      return read.value
-    },
-    write: (record) => ownerStoreOf(record.id).write(`landing-${record.id}`, record, z.unknown()),
-  })
+  const journal = storeLandingJournal(ownerStoreOf)
   const access = landingFileAccess(root, staging, { validateTarget: policy.validateTarget })
   const gitDirectory = await staging.gitDirectory(root)
   const landing = new TeamLanding({
@@ -408,46 +467,37 @@ export async function recoverOpenLandings(
     snapshot: (folder) => staging.snapshot(folder),
     checkIdentity: () => Promise.resolve(checkIdentity(policy.checks())),
     invalidate: () => Promise.resolve(),
-    knownHolder: async (_folder, lock) =>
-      await knownRepositoryHolder(
-        root,
-        gitDirectory,
-        owner.instanceId,
-        await policy.hints(),
-        deps.platform,
-        lock,
-      ),
-    takeLock: async (_folder, id) => {
-      admit()
-      const lock = await takeIndexLock(gitDirectory, {
-        landingId: id,
-        windowInstanceId: owner.instanceId,
-      })
-      return lock.kind === 'taken' ? lock.lease : null
-    },
+    ...landingLockPorts({
+      root,
+      gitDirectory,
+      owner,
+      policy,
+      platform: deps.platform,
+      admit,
+    }),
     defer: () => Promise.reject(new Error(UI_TEXT.teamTrafficDetails.changedSinceOpened)),
     confirmLanding: () => Promise.resolve(false),
     confirmWithoutChecks: policy.confirmWithoutChecks,
-    prepare: async (intent) => {
-      await journal.prepare(intent)
-    },
-    close: async (intent, status, conflicts) => {
-      await journal.close(intent, status, conflicts)
-    },
-    replace: (_folder, file, canWrite) =>
-      access.replace(file.path, file.before, file.after, canWrite),
-    recover: (intent, canWrite) => journal.recover(intent, access, canWrite),
-    undo: (intent, id, canWrite) => journal.undo(intent, id, access, canWrite),
+    ...landingJournalPorts(journal, access, {
+      prepare: async (intent) => {
+        await journal.prepare(intent)
+      },
+      close: async (intent, status, conflicts) => {
+        await journal.close(intent, status, conflicts)
+      },
+    }),
     authorizeRecovery: async (intent) => {
       admit()
       if (intent.windowInstanceId === owner.instanceId) return true
-      if (policy.confirmTakeover === undefined) return false
       const found = open.find((item) => item.record.id === intent.id)
       if (found?.storeOwner.instanceId !== intent.windowInstanceId) return false
-      admit()
-      if (!(await policy.confirmTakeover(found.record))) return false
-      admit()
-      return await authority.takeOver(found.storeOwner, true)
+      return await hasConfirmedTakeover({
+        admit,
+        policy,
+        authority,
+        record: found.record,
+        storeOwner: found.storeOwner,
+      })
     },
   })
   let recovered = 0

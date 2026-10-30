@@ -6,6 +6,7 @@ import { landTeamTask } from '../../src/host/team/teamLandingEntry'
 import { createWindowIdentity } from '../../src/host/team/windowIdentity'
 import { EN } from '../../src/shared/l10n/en'
 import {
+  landingPolicy,
   landingRunGit,
   landingTask,
   makeLandingFixture,
@@ -43,23 +44,13 @@ describe('checked landing (real git)', () => {
         isTrusted: () => true,
         runGit: landingRunGit,
         writePaths: undefined,
-        policy: {
-          owner: createWindowIdentity(Date.now()),
-          checks: () => ({
-            commands: [{ name: 'check', command: 'true', timeoutSeconds: 60 }],
-            platform: process.platform,
-            setupCommand: '',
-            cacheKey: '',
-          }),
+        policy: landingPolicy(createWindowIdentity(Date.now()), {
           runChecks: async () => {
             isCheckStarted = true
             await once(gate, 'release')
             return { passed: true }
           },
-          confirmWithoutChecks: () => Promise.resolve(false),
-          validateTarget: () => Promise.resolve(),
-          hints: () => Promise.resolve([]),
-        },
+        }),
       },
       landingTask(fixture),
       new AbortController().signal,

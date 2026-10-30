@@ -7,6 +7,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { TeamGitError, type TeamGit } from '../../../src/core/team/teamGit'
 import type { TeamMergePort } from '../../../src/core/team/teamHostService'
+import type { TeamLandingPolicy } from '../../../src/host/team/teamLandingEntry'
+import type { WindowIdentity } from '../../../src/host/team/windowIdentity'
 
 export function fixtureGit(cwd: string, args: readonly string[], input?: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -100,6 +102,27 @@ export async function makeLandingFixture(taskId: string): Promise<LandingFixture
       await rm(root, { recursive: true, force: true })
       await rm(storage, { recursive: true, force: true })
     },
+  }
+}
+
+/** One passing `true` workspace check; suites override one port at a time. */
+export function landingPolicy(
+  owner: WindowIdentity,
+  overrides: Partial<TeamLandingPolicy> = {},
+): TeamLandingPolicy {
+  return {
+    owner,
+    checks: () => ({
+      commands: [{ name: 'check', command: 'true', timeoutSeconds: 60 }],
+      platform: process.platform,
+      setupCommand: '',
+      cacheKey: '',
+    }),
+    runChecks: () => Promise.resolve({ passed: true }),
+    confirmWithoutChecks: () => Promise.resolve(false),
+    validateTarget: () => Promise.resolve(),
+    hints: () => Promise.resolve([]),
+    ...overrides,
   }
 }
 
