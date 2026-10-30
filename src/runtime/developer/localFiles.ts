@@ -20,7 +20,14 @@ import {
   type DeveloperState,
 } from '../../shared/developerOptions'
 import type { DeveloperStore } from '../../core/developer/developerOptions'
-import type { LocalProfilePorts } from '../../core/developer/localProfiles'
+import {
+  LocalDeveloperProfiles,
+  profileCredentialSlot,
+  type DeveloperProfileResources,
+  type LocalProfilePorts,
+} from '../../core/developer/localProfiles'
+import type { DeveloperProfile } from '../../shared/developerOptions'
+import * as z from 'zod/mini'
 
 function isMissing(error: unknown): boolean {
   return error instanceof Error && 'code' in error && error.code === 'ENOENT'
@@ -31,9 +38,23 @@ function normalized(value: string): string {
   return process.platform === 'win32' ? result.toLowerCase() : result
 }
 
+// A corrupt file refuses in fixed words, carrying the parse failure as its
+// cause; anything else keeps its kind.
+function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text) as unknown
+  } catch (error: unknown) {
+    if (error instanceof SyntaxError)
+      throw new Error(UI_TEXT.developer.unavailable, { cause: error })
+    throw error
+  }
+}
+
 /** Filesystem operations are serialized by DeveloperOptions' machine owner.
 No independent per-window service may share this root (X-W-OWNER). */
 type ProfileFolders = LocalProfilePorts['folders']
+
+const slotsSchema = z.strictObject({ v: z.literal(1), slots: z.record(z.string(), z.string()) })
 export class DeveloperLocalFiles implements DeveloperStore, ProfileFolders {
   private readonly root: string
   public constructor(root: string) {
@@ -117,6 +138,39 @@ export class DeveloperLocalFiles implements DeveloperStore, ProfileFolders {
     }
   }
 
+  // The local credential-slot registry. Each profile's slot is reserved
+  // here when its resources start and released on remove or failed start,
+  // so a failed start never orphans a reservation and remove/reset always
+  // complete. The broker binding (M109 lane M) adopts these reservations
+  // when it binds each slot to the real credential store; until then no
+  // credential is read, copied or stored here — only the reservation.
+  private async readSlots(): Promise<Record<string, string>> {
+    await this.initialize()
+    const text = await this.readText(
+      path.join(this.root, DEVELOPER_FILES.slots),
+      DEVELOPER_STATE_MAX_BYTES,
+    )
+    return text === undefined ? {} : slotsSchema.parse(parseJson(text)).slots
+  }
+
+  private async writeSlots(slots: Record<string, string>): Promise<void> {
+    const slotsPath = path.join(this.root, DEVELOPER_FILES.slots)
+    await this.regularFile(slotsPath)
+    const temporary = path.join(this.root, `${DEVELOPER_FILES.slots}.${randomUUID()}`)
+    try {
+      const file = await open(temporary, 'wx', DEVELOPER_FILE_MODE)
+      try {
+        await file.writeFile(JSON.stringify(slotsSchema.parse({ v: 1, slots })))
+        await file.sync()
+      } finally {
+        await file.close()
+      }
+      await rename(temporary, slotsPath)
+    } finally {
+      await this.discard(temporary)
+    }
+  }
+
   public async read(): Promise<unknown> {
     await this.initialize()
     const text = await this.readText(
@@ -124,7 +178,7 @@ export class DeveloperLocalFiles implements DeveloperStore, ProfileFolders {
       DEVELOPER_STATE_MAX_BYTES,
     )
     if (text === undefined) return undefined
-    const state = developerStateSchema.parse(JSON.parse(text))
+    const state = developerStateSchema.parse(parseJson(text))
     if (!state.isMultipleAccountsOn) return state
     // A durable revocation wins even if replacing developer.json failed. Never
     // infer an enabled grant from missing/truncated audit history.
@@ -135,7 +189,7 @@ export class DeveloperLocalFiles implements DeveloperStore, ProfileFolders {
       const rows = audit
         .trim()
         .split('\n')
-        .map((row) => developerAuditSchema.parse(JSON.parse(row)))
+        .map((row) => developerAuditSchema.parse(parseJson(row)))
       // `migrate` re-binds the machine identity without granting authority,
       // so it never decides the restored switch (DEVID017B).
       const authority = rows.findLast(
@@ -199,6 +253,49 @@ export class DeveloperLocalFiles implements DeveloperStore, ProfileFolders {
     const target = path.join(parent, id)
     await this.directory(target)
     return target
+  }
+
+  public async prepareSlot(slot: string, profile: DeveloperProfile): Promise<void> {
+    // The slot must be exactly the profile's derived name: anything else is
+    // a confusion the registry refuses rather than records.
+    if (slot !== profileCredentialSlot(profile)) throw new Error(UI_TEXT.developer.unavailable)
+    const slots = await this.readSlots()
+    const kept = slots[slot]
+    if (kept !== undefined && kept !== profile.id) throw new Error(UI_TEXT.developer.unavailable)
+    if (kept === profile.id) return
+    await this.writeSlots({ ...slots, [slot]: profile.id })
+  }
+
+  public async removeSlot(slot: string): Promise<void> {
+    const slots = await this.readSlots()
+    if (slots[slot] === undefined) return
+    const next: Record<string, string> = {}
+    for (const [kept, profile] of Object.entries(slots)) {
+      if (kept !== slot) next[kept] = profile
+    }
+    await this.writeSlots(next)
+  }
+
+  /** The production profile resources over these files: real credential-slot
+  reservations and state folders; the child launch and pool registration
+  refuse until their bindings land (M109 lane M, RLF-DEVICES). Shared by
+  the runtime services and the drills so neither invents its own. */
+  public resources(): DeveloperProfileResources {
+    return new LocalDeveloperProfiles({
+      credentials: {
+        prepare: (slot, profile) => this.prepareSlot(slot, profile),
+        remove: (slot) => this.removeSlot(slot),
+      },
+      folders: this,
+      runtime: {
+        start: () => Promise.reject(new Error(UI_TEXT.developer.unavailable)),
+      },
+      pool: {
+        register: () => {
+          throw new Error(UI_TEXT.developer.unavailable)
+        },
+      },
+    })
   }
 
   /** Only a profile in the owner's persisted ledger may reach this method.

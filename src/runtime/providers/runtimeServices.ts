@@ -292,10 +292,6 @@ class PublishingAccountStore extends AccountStore {
   }
 }
 
-function developerUnavailableProfile(): Promise<void> {
-  return Promise.reject(new Error(UI_TEXT.developer.unavailable))
-}
-
 /** The one mapping point for a refused providers file: every runtime caller
 (exec `--account`, the ACP store, developer multiple-accounts open, the
 CLI account commands) reads through this port, so the brand reaches the
@@ -500,16 +496,7 @@ export function createRuntimeAccountServices(
     now: base.now,
     newProfileId: () => `p${randomBytes(DEVELOPER_PROFILE_ID_BYTES).toString('hex')}`,
     store: base.files,
-    resources: {
-      // Profile processes, credential slots and pool registration need
-      // M109's broker binding. Nothing starts here; the failure names
-      // the missing binding instead of running half a profile. Foreign
-      // reset (DEVID017C) clears the record without this port, so the
-      // unbound stub never blocks recovery.
-      start: developerUnavailableProfile,
-      stop: developerUnavailableProfile,
-      remove: developerUnavailableProfile,
-    },
+    resources: base.files.resources(),
     checkAccount: base.checkAccount,
     confirm: base.confirm,
     changed: base.changed,
