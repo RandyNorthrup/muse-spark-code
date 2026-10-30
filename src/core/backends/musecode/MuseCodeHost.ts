@@ -1977,7 +1977,7 @@ export class MuseSession implements ScheduledAgentSession {
       )
       return error
     }
-    if (await this.isStillWaiting(requirementId)) {
+    if ((await this.isStillWaiting(requirementId)) === true) {
       this.prompts.unmarkDecided(requirementId)
       return new DecisionNotAppliedError(error.message)
     }
@@ -1987,15 +1987,16 @@ export class MuseSession implements ScheduledAgentSession {
   /**
   Whether the host, which answered the decision with a refusal, still
   waits on this very stage: then the decision did not apply and may be
-  made again. A check that fails cannot tell, and the stage stays decided.
+  made again. Undefined when the check itself fails: it cannot tell,
+  and the stage stays decided either way.
   */
-  private async isStillWaiting(requirementId: RequirementRef): Promise<boolean> {
+  private async isStillWaiting(requirementId: RequirementRef): Promise<boolean | undefined> {
     let pending: z.infer<typeof listPendingResultSchema>
     try {
       pending = listPendingResultSchema.parse(await this.command('approval/listPending', {}))
     } catch (error: unknown) {
       this.log.warn(`approval/listPending after a failed decision failed: ${failureForLog(error)}`)
-      return false
+      return undefined
     }
     return pending.approvals.some((params) => {
       const parsed = pendingStageSchema.safeParse(params)
@@ -2024,18 +2025,28 @@ export class MuseSession implements ScheduledAgentSession {
     error: MspError,
   ): Promise<unknown> {
     const { approvalId } = requirementId
-    if (await this.stageAdvanced(requirementId)) {
+    if ((await this.stageAdvanced(requirementId)) === true) {
       this.log.info(
         `Approval ${approvalId} stage ${String(requirementId.sourceIndex)}: Muse Code timed out saving the decision, but applied it`,
       )
       return fault
     }
     await this.waitForStageEvent(approvalId)
-    if (await this.stageAdvanced(requirementId)) {
+    const advanced = await this.stageAdvanced(requirementId)
+    if (advanced === true) {
       this.log.info(
         `Approval ${approvalId} stage ${String(requirementId.sourceIndex)}: Muse Code timed out saving the decision, but its stage update shows it applied`,
       )
       return fault
+    }
+    if (advanced === undefined) {
+      // The pending check itself failed twice: nothing here proves the
+      // decision did not apply, so the stage stays decided (as for a
+      // decision with no answer) and the card follows the host's events.
+      this.log.info(
+        `Approval ${approvalId} stage ${String(requirementId.sourceIndex)}: Muse Code timed out saving the decision and the pending check cannot tell whether it applied; it is not offered again`,
+      )
+      return error
     }
     this.log.info(
       `Approval ${approvalId} stage ${String(requirementId.sourceIndex)}: Muse Code timed out saving the decision and still waits on it; it may be made again`,
@@ -2047,18 +2058,18 @@ export class MuseSession implements ScheduledAgentSession {
   /**
   Whether Muse Code has moved past this stage: the ledger's current
   stage, a closed approval, or `approval/listPending` no longer naming
-  it. A check that fails cannot tell, and reads as not advanced here;
+  it. Undefined when only the host could tell and its check failed;
   `isStillWaiting` logs that check.
   */
-  private async stageAdvanced(requirementId: RequirementRef): Promise<boolean> {
+  private async stageAdvanced(requirementId: RequirementRef): Promise<boolean | undefined> {
     const pending = this.prompts.pending(requirementId.approvalId)
     const hasMovedLocally =
       pending !== undefined && pending.requirementId.sourceIndex !== requirementId.sourceIndex
-    return (
-      hasMovedLocally ||
-      this.prompts.isClosed(requirementId.approvalId) ||
-      !(await this.isStillWaiting(requirementId))
-    )
+    if (hasMovedLocally || this.prompts.isClosed(requirementId.approvalId)) {
+      return true
+    }
+    const waiting = await this.isStillWaiting(requirementId)
+    return waiting === undefined ? undefined : !waiting
   }
 
   /** Told when an approval's stage news lands (the persistence re-check). */
