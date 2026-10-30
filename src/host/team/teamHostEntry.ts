@@ -17,6 +17,7 @@ export function readTeamWindowSettings(state: TeamStatePort): TeamWindowSettings
   return parsed.success ? parsed.data : teamWindowSettingsSchema.parse({})
 }
 import type { TeamHostBundleDeps } from './teamEnginePorts'
+import type * as landingImpl from './teamLandingEntry'
 
 /** The window's team host service over the editor's ports and the engine's. */
 export async function createTeamHost(
@@ -31,8 +32,8 @@ export async function createTeamHost(
   // board through it. A caller may supply its own factory (headless runs).
   let createScheduler = deps.createScheduler
   if (createScheduler === undefined) {
-    const { createTeamSchedulerRuntime } = await import('../../core/team/teamSchedulerEntry')
-    const runtime = createTeamSchedulerRuntime(table, locale)
+    const { createTeamWindowRuntime } = await import('../../core/team/scheduler/teamWindowEntry')
+    const runtime = createTeamWindowRuntime(table, locale)
     createScheduler = (scheduling) => runtime.createWindowTeamScheduler(scheduling)
   }
   const settings =
@@ -66,8 +67,20 @@ export {
 // Headless installs its lifecycle/merge policy around the same engine ports
 // (dist/teamEngine.js, loaded through teamEngineEntry as the editor loads it).
 export { createTeamHostService } from '../../core/team/teamHost'
-// Checked, journalled landing and owner-store recovery (M96c K/I/X2), loaded
-// with the team host bundle; the engine entry binds them to the merges port.
-export { landTeamTask, recoverOpenLandings } from './teamLandingEntry'
+// Checked, journalled landing and owner-store recovery (M96c K/I/X2) load
+// with their own bundle (dist/teamLanding.js) on first use; the engine entry
+// binds them to the merges port.
+export async function landTeamTask(
+  ...args: Parameters<typeof landingImpl.landTeamTask>
+): ReturnType<typeof landingImpl.landTeamTask> {
+  const landing = await import('./teamLandingEntry')
+  return await landing.landTeamTask(...args)
+}
+export async function recoverOpenLandings(
+  ...args: Parameters<typeof landingImpl.recoverOpenLandings>
+): ReturnType<typeof landingImpl.recoverOpenLandings> {
+  const landing = await import('./teamLandingEntry')
+  return await landing.recoverOpenLandings(...args)
+}
 export { setUiText } from '../../shared/l10n/text'
 export { teamProgramFreeGit } from '../../core/team/teamWorkspaces'

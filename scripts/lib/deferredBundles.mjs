@@ -1603,6 +1603,8 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/team/teamPanelEntry.ts'), 'dist/teamPanel.js'],
   [path.resolve('src/core/team/teamEntry.ts'), 'dist/team.js'],
   [path.resolve('src/core/team/teamSchedulerEntry.ts'), 'dist/teamScheduler.js'],
+  [path.resolve('src/core/team/scheduler/teamWindowEntry.ts'), 'dist/teamWindow.js'],
+  [path.resolve('src/host/team/teamLandingEntry.ts'), 'dist/teamLanding.js'],
   [path.resolve('src/host/runners/teamRunnersEntry.ts'), 'dist/teamRunners.js'],
   [path.resolve('src/host/team/teamHostEntry.ts'), 'dist/teamHost.js'],
   [path.resolve('src/host/team/teamEngineEntry.ts'), 'dist/teamEngine.js'],
@@ -1662,6 +1664,36 @@ export const deferredCohort = {
         ? { path: './team.js', external: true }
         : undefined,
     )
+    // RLF-TEAMCORE (M96c): the window scheduler bundle rides the scheduler
+    // bundle's board, slots, pool and write-set code (the M120CAP pattern):
+    // teamHost loads dist/teamWindow.js only for a team workspace, and the
+    // scheduler entry re-exports exactly the members the window binding
+    // imports from those modules.
+    build.onResolve({ filter: /\/(?:board|slots|teamPool)(?:\.[jt]s)?$/ }, (args) => {
+      if (path.resolve(build.initialOptions.outfile ?? '') !== path.resolve('dist/teamWindow.js'))
+        return
+      const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+      const shared = [
+        'src/core/team/scheduler/board.ts',
+        'src/core/team/scheduler/slots.ts',
+        'src/core/team/teamPool.ts',
+      ]
+      return shared.some((file) => source === path.resolve(file))
+        ? { path: './teamScheduler.js', external: true }
+        : undefined
+    })
+    // RLF-TEAMCORE (M96c): the runners bundle's Traffic projection rides the
+    // window bundle's shared-file and write-set matching (pure functions,
+    // no shared state), which the window entry re-exports for it.
+    build.onResolve({ filter: /\/(?:writeSets|sharedFiles)(?:\.[jt]s)?$/ }, (args) => {
+      if (path.resolve(build.initialOptions.outfile ?? '') !== path.resolve('dist/teamRunners.js'))
+        return
+      const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+      const shared = ['src/core/team/writeSets.ts', 'src/core/team/sharedFiles.ts']
+      return shared.some((file) => source === path.resolve(file))
+        ? { path: './teamWindow.js', external: true }
+        : undefined
+    })
     // The shared request/framing implementations stay in the existing backend
     // bundle; providers and ACP require its exported API only when used.
     // The refusal classifier rides the lazy provider bundle: the Model API
@@ -1698,7 +1730,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|providerListEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|modelEffortsEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|modelApiAcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|teamPanelEntry|teamHostEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|execTeamEntry|workerCreateEntry|workerOpsEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|providerListEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|modelEffortsEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|modelApiAcpEntry|teamEntry|teamSchedulerEntry|teamWindowEntry|teamLandingEntry|teamRunnersEntry|teamPanelEntry|teamHostEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|execTeamEntry|workerCreateEntry|workerOpsEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)

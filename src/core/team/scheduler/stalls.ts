@@ -2,7 +2,7 @@ import {
   TEAM_DIVERGE_REPEATS,
   TEAM_DIVERGE_SIZE_FACTOR,
   TEAM_HANDOFF_TOOL_CALLS,
-  TEAM_MODEL_TEXT,
+  TEAM_HANDOFF_MODEL_TEXT,
   TEAM_SCHED_TEXT_MAX_CHARS,
   TEAM_STALL_MS,
   TEAM_STALL_RATE_LIMIT_MS,
@@ -167,13 +167,13 @@ export class StallRecovery {
       }
       if (!this.deps.isCurrent(ref)) return 'stale'
       const handoff: Handoff = {
-        instruction: TEAM_MODEL_TEXT.handoff,
+        instruction: TEAM_HANDOFF_MODEL_TEXT.handoff,
         originalBrief: input.brief,
         checkpoint,
         data: {
           kind: 'untrustedData',
-          open: TEAM_MODEL_TEXT.handoffDataOpen,
-          close: TEAM_MODEL_TEXT.handoffDataClose,
+          open: TEAM_HANDOFF_MODEL_TEXT.handoffDataOpen,
+          close: TEAM_HANDOFF_MODEL_TEXT.handoffDataClose,
           lastMessage: input.lastMessage.slice(0, TEAM_SCHED_TEXT_MAX_CHARS),
           reason,
           toolCalls: input.toolCalls.slice(-TEAM_HANDOFF_TOOL_CALLS).map((call) => ({

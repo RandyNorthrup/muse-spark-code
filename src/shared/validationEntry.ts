@@ -48,6 +48,8 @@ export {
   optional,
   omit,
   partial,
+  // The team journal (host/team/teamJournal) parses its records generically.
+  parse,
   pipe,
   positive,
   prettifyError,
