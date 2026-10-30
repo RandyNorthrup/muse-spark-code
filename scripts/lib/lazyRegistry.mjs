@@ -99,6 +99,12 @@ export const COMPUTED_SOURCE_LOADS = Object.freeze([
     reason:
       'The playbook worker: the caller passes the path, built from the PLAYBOOK_WINDOW_BUNDLE_FILE constant the scan reads.',
   }),
+  Object.freeze({
+    importer: 'src/webview/bridges/moduleLoader.ts',
+    call: 'import(awaitload(path))',
+    reason:
+      'The authenticated browser module loader: every path comes from the built portable manifest, is fetched with credentials omitted, and must match the manifest byte length and SHA-256 before import (moduleLoader.ts materialize). The portable graph is measured by its own budget gates, not by file name here.',
+  }),
 ])
 
 /**
@@ -680,6 +686,16 @@ export const NON_ESBUILD_OUTPUTS = Object.freeze(['dist/providerCatalog.js'])
 // It still carries import edges and input attribution.
 export const isStableBundle = (file) => !file.includes('/chunks/')
 
+// The portable browser graph (dist/webview/portable/, M104 lane D) is
+// never loaded by file name from a Node process either: the authenticated
+// manifest loader serves it to browsers from the built portable manifest,
+// and the portable budget gates measure it. It stays out of the
+// registry's rows and out of candidate matching, so a bare `main.js` or
+// `whatsNew.js` request resolves to the VS Code webview asset the loader
+// names instead of its portable twin.
+export const isFilenameRegistryBundle = (file) =>
+  isStableBundle(file) && !file.includes('webview/portable/')
+
 /**
 Every dist bundle the metafiles in `directory` emit: outputs below dist/
 ending in .js whose file is on disk. A metafile left by another build (a
@@ -741,7 +757,7 @@ walking dist/, so leftovers there never become rows.
 export function knownBundleOutputs(emitted) {
   const known = new Set()
   for (const file of emitted) {
-    if (isStableBundle(file)) known.add(file)
+    if (isFilenameRegistryBundle(file)) known.add(file)
   }
   for (const file of NON_ESBUILD_OUTPUTS) known.add(file)
   return known

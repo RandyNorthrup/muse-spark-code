@@ -6,7 +6,7 @@ import { presentationRequestSchema, presentationMessageSchema } from '../present
 import { tasksHostMessageSchema, tasksWebviewMessageSchema } from '../tasksProtocol'
 import { whatsNewMessageSchema } from '../whatsNewMessages'
 import { offeredCapabilitiesSchema } from './capabilities'
-import { integerSchema, jsonValueSchema, surfaceKindSchema } from './data'
+import { integerSchema, jsonValueSchema, surfaceKindSchema, themeSchema } from './data'
 import { MhpPanelError } from './panelError'
 
 const opaqueId = z.string().check(z.minLength(1))
@@ -23,10 +23,16 @@ export const panelToHostPayloadSchema = z.union([
   whatsNewMessageSchema,
   presentationRequestSchema,
 ])
+/** The host's current theme (M104 lane D): sent after ready and on every change. */
+export const panelThemePayloadSchema = z.strictObject({
+  type: z.literal('theme'),
+  theme: themeSchema,
+})
 export const panelToPanelPayloadSchema = z.union([
   hostToWebviewMessageSchema,
   tasksHostMessageSchema,
   presentationMessageSchema,
+  panelThemePayloadSchema,
 ])
 const envelope = {
   mhp: z.literal(MHP_PANEL.wireVersion),

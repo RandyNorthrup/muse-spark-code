@@ -11,6 +11,7 @@ import {
   webviewStartupOutputs,
   webviewPanelOutputs,
   webviewTeamPanelOutputs,
+  portableWebviewBudgetGroups,
 } from './lib/webviewBundles.mjs'
 
 const BYTES_PER_KIB = 1024
@@ -687,6 +688,23 @@ for (const { path, budgetKiB } of BUDGETS) {
   }
   const label = pageMetafile ? `${path} + static imports` : path
   console.log(`${status} ${label}: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`)
+}
+
+// M104 lane D: the portable graph's startup and total caps, by the static
+// closure accounting in lib/webviewBundles.mjs (measured +15%, PLAN.md D6).
+const portableMeta = JSON.parse(readFileSync('dist/meta/portable.json', 'utf8'))
+for (const { name, budgetKiB, outputs } of portableWebviewBudgetGroups(portableMeta)) {
+  const missing = outputs.filter((file) => !existsSync(file))
+  if (missing.length > 0) {
+    hasFailure = true
+    console.log(`MISS portable ${name}: missing chunks ${missing.join(', ')}`)
+    continue
+  }
+  const bytes = outputs.reduce((sum, file) => sum + statSync(file).size, 0)
+  if (bytes > budgetKiB * BYTES_PER_KIB) hasFailure = true
+  console.log(
+    `${bytes <= budgetKiB * BYTES_PER_KIB ? 'ok  ' : 'OVER'} portable ${name}: ${(bytes / BYTES_PER_KIB).toFixed(1)} KiB (budget ${budgetKiB} KiB)`,
+  )
 }
 
 // TRAIN15C: provider usage loads only for a nonempty provider report; its

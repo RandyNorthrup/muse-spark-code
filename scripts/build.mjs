@@ -69,6 +69,7 @@ import {
   UI_TEXT_REGIONS,
   regionalUiText,
   compressedEnglish,
+  compactBrowserEnglish,
   compactBrowserUiText,
 } from './lib/uiTextRegions.mjs'
 
@@ -88,6 +89,7 @@ import { sharedHighlightGrammar } from './lib/highlightGrammar.mjs'
 import { deferredTeamView } from './lib/deferredTeamView.mjs'
 import { HOST_PLUGINS } from './lib/hostPlugins.mjs'
 import { runBuildPool } from './lib/buildPool.mjs'
+import { writePortableManifest } from './lib/portableModules.mjs'
 import {
   sharedUiText,
   sharedValidation,
@@ -410,7 +412,11 @@ const WEBVIEW_ENTRY = 'src/webview/main.tsx'
 // The Models & Agents panel's own app (M95 lane M), beside the chat.
 const MODELS_WEBVIEW_ENTRY = 'src/webview/models/models.tsx'
 const USAGE_WEBVIEW_ENTRY = 'src/webview/usage/usage.tsx'
+const FALLBACKS_ENTRY = 'src/webview/fallbacks/index.ts'
+const BRIDGE_ENTRY = 'src/webview/bridges/select.ts'
 const WEBVIEW_OUTDIR = 'dist/webview'
+const PORTABLE_ENTRY = 'src/webview/portable.tsx'
+const PORTABLE_OUTDIR = 'dist/webview/portable'
 const JUDGE_P2_ENTRY = 'src/runtime/judge/judgeEntry.ts'
 const JUDGE_P2_OUTFILE = 'dist/judgeP2.js'
 const JUDGE_SOURCES_ENTRY = 'src/runtime/judge/judgeSourcesEntry.ts'
@@ -2076,6 +2082,77 @@ const webviewOptions = {
   jsx: 'automatic',
 }
 
+// Native hosts and the companion load this independent graph (M104 lane D).
+// No portable bridge or fallback can share a static chunk with VS Code's
+// chat entry.
+const portableOptions = {
+  ...webviewOptions,
+  // Its cap counts the whole graph; reuse the parser instead of paying for
+  // VS Code's separate resource-only copy that protects chat's startup cap.
+  plugins: webviewOptions.plugins.filter((plugin) => plugin !== resourceBrowserValidation),
+  metafile: true,
+  entryPoints: {
+    main: PORTABLE_ENTRY,
+    whatsNew: 'src/webview/whatsNew/portable.ts',
+    presentation: 'src/webview/presentation/presentationEntry.ts',
+    fallbacks: FALLBACKS_ENTRY,
+    bridge: BRIDGE_ENTRY,
+  },
+  outdir: PORTABLE_OUTDIR,
+}
+
+async function buildPortable(buildRecord) {
+  const record = (options) => (isProduction ? withCompiledRecording(options, buildRecord) : options)
+  const [graph, loader] = await Promise.all([
+    esbuild.build(record(portableOptions)),
+    esbuild.build(
+      record({
+        ...common,
+        entryPoints: ['src/webview/bridges/moduleLoader.ts'],
+        outfile: `${PORTABLE_OUTDIR}/loader.js`,
+        metafile: true,
+        plugins: isProduction ? [compactBrowserEnglish] : [],
+        charset: 'utf8',
+        platform: 'browser',
+        format: 'iife',
+        target: BROWSER_TARGET,
+      }),
+    ),
+  ])
+  writePortableManifest(graph.metafile, PORTABLE_OUTDIR)
+  return {
+    metafile: {
+      inputs: { ...graph.metafile.inputs, ...loader.metafile.inputs },
+      outputs: { ...graph.metafile.outputs, ...loader.metafile.outputs },
+    },
+  }
+}
+
+const portableWatchOptions = {
+  ...portableOptions,
+  plugins: [
+    ...(portableOptions.plugins ?? []),
+    {
+      name: 'portable-manifest',
+      setup(build) {
+        build.onEnd((result) => {
+          if (result.errors.length === 0) writePortableManifest(result.metafile, PORTABLE_OUTDIR)
+        })
+      },
+    },
+  ],
+}
+const portableLoaderOptions = {
+  ...common,
+  plugins: isProduction ? [compactBrowserEnglish] : [],
+  charset: 'utf8',
+  entryPoints: ['src/webview/bridges/moduleLoader.ts'],
+  outfile: `${PORTABLE_OUTDIR}/loader.js`,
+  platform: 'browser',
+  format: 'iife',
+  target: BROWSER_TARGET,
+}
+
 // M97 CM971-R3: SHA-256 hashes beside each bundle metafile (record
 // version 2), so the legal scanner proves artifact freshness from bytes,
 // never from file names. Every hash comes from the build itself: the
@@ -2161,6 +2238,7 @@ writeFileSync(
   `module.exports=JSON.parse(${JSON.stringify(readFileSync(PROVIDER_CATALOG_OUTFILE, 'utf8'))});\n`,
 )
 // Content-hashed chunks from an earlier build must never enter a package.
+rmSync(PORTABLE_OUTDIR, { recursive: true, force: true })
 const whatsNewContent = writeWhatsNewContent()
 console.log(
   `What's New: ${String(whatsNewContent.releases)} releases from CHANGELOG.md into ${WHATS_NEW_CONTENT_OUTFILE}`,
@@ -2375,6 +2453,8 @@ if (isWatch) {
     esbuild.context(playbookWindowOptions),
     esbuild.context(imageResizeWorkerOptions),
     esbuild.context(webviewOptions),
+    esbuild.context(portableWatchOptions),
+    esbuild.context(portableLoaderOptions),
     esbuild.context(fontInstallOptions),
     esbuild.context(nodeOptions),
     esbuild.context(lspOptions),
@@ -2598,6 +2678,11 @@ if (isWatch) {
     playbook: recorded('playbook', playbookWindowOptions),
     imageResizeWorker: recorded('imageResizeWorker', imageResizeWorkerOptions),
     webview: recorded('webview', webviewOptions),
+    portable: () => {
+      const buildRecord = newBuildRecord()
+      buildRecords.set('portable', buildRecord)
+      return buildPortable(buildRecord)
+    },
   }
   const extraSpecs = [
     ['acp', () => esbuild.build(acpOptions)],
