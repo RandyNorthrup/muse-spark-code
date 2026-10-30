@@ -91,7 +91,7 @@ function isSameSecret(presented: string, expected: string): boolean {
   )
 }
 
-/** @unwired M96 team MCP server */
+/** The window binding constructs one for its Muse Code team conversations. */
 export class TeamMcpServer {
   private server: Server | undefined
   private url: string | undefined

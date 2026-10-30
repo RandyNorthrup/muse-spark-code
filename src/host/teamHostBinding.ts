@@ -8,13 +8,21 @@
 import { UI_TEXT } from '../shared/constants'
 import { failureForLog } from '../core/backends/musecode/logText'
 import { fill } from '../shared/l10n/text'
-import { hasRunnableTeamEntry, isTeamAvailable } from '../shared/teamConversation'
+import {
+  decideTeamConversationMode,
+  hasRunnableTeamEntry,
+  isTeamAvailable,
+  TEAM_WORKSPACE_KEYS,
+  type TeamConversationMode,
+} from '../shared/teamConversation'
 import type { WebviewToHostMessage } from '../shared/protocol'
 import type { TeamTreeData } from '../shared/teamView'
 import type { UiText } from '../shared/l10n/en'
+import type { SessionMcpHttpServer } from '../core/agent/agentBackend'
 import type { TeamHostSeams, TeamHostService } from '../core/team/teamHostService'
 import type { TeamHostBundleDeps } from './team/teamEnginePorts'
 import type { TeamToolResult } from '../core/team/teamSeams'
+import type { TeamMcpServer, TeamSessionBinding } from './team/teamMcpServer'
 
 /**
 D75's availability switch from its raw setting value: on only while
@@ -58,6 +66,19 @@ export interface TeamHostBindingDeps {
       deps: TeamHostBundleDeps,
     ) => TeamHostService | Promise<TeamHostService>
   >
+  /**
+  The `team` MCP server for Muse Code orchestrators (M96 lane T), loaded
+  with dist/teamHost.js on the first team conversation. Absent, Muse Code
+  conversations stay single-model and no endpoint is offered.
+  */
+  readonly loadTeamMcp?:
+    | (() => Promise<{
+        readonly server: TeamMcpServer
+        readonly rosterAnswer: (
+          data: NonNullable<ReturnType<TeamHostSeams['teamRosterData']>>,
+        ) => string
+      }>)
+    | undefined
   readonly uiText: () => UiText
   readonly uiLocale: () => string
   /** The agent kinds this editor has workers for: nothing else loads the team. */
@@ -75,12 +96,22 @@ const unavailable = (tool: string): TeamToolResult => {
   return { output: `Error: ${text}`, visibleOutput: text }
 }
 
+/** One Muse Code conversation's route to the runner; its id lands at `rememberMode`. */
+interface McpConversation extends TeamSessionBinding {
+  sessionId: string | undefined
+}
+
 export class TeamHostBinding implements TeamSurfacePort {
   private readonly treeListeners = new Set<() => void>()
   private service: TeamHostService | undefined
   private loading: Promise<TeamHostService | undefined> | undefined
   private unsubscribe: (() => void) | undefined
   private isDisposed = false
+  private mcpModule:
+    Awaited<ReturnType<NonNullable<TeamHostBindingDeps['loadTeamMcp']>>> | undefined
+  private mcpLoading: Promise<void> | undefined
+  private readonly mcpConversations = new Map<string, McpConversation>()
+  private pendingMcp: McpConversation | undefined
 
   /** The seams every engine takes; each reads the service as it is now. */
   public readonly seams: TeamHostSeams = {
@@ -103,7 +134,161 @@ export class TeamHostBinding implements TeamSurfacePort {
     },
   }
 
+  /**
+  The `team` MCP server's face for the conversation controller (M96 lane
+  T): Muse Code team conversations carry the server in `session/start`;
+  single-model sessions carry today's set byte for byte.
+  */
+  public readonly teamMcp = {
+    modeForNewConversation: (): TeamConversationMode => {
+      if (this.deps.loadTeamMcp === undefined) return 'single-model'
+      const source = this.service?.teamDecisionSource()
+      return source === undefined ? 'single-model' : decideTeamConversationMode(source).mode
+    },
+    modeForSession: (sessionId: string): TeamConversationMode =>
+      this.readModes()[sessionId] ?? 'single-model',
+    rememberMode: async (sessionId: string, mode: TeamConversationMode): Promise<void> => {
+      if (this.pendingMcp !== undefined && this.pendingMcp.sessionId === undefined) {
+        this.pendingMcp.sessionId = sessionId
+        this.mcpConversations.set(sessionId, this.pendingMcp)
+        this.pendingMcp = undefined
+      }
+      await this.deps.ports.state.update(TEAM_WORKSPACE_KEYS.conversationModes, {
+        ...this.readModes(),
+        [sessionId]: mode,
+      })
+    },
+    endpointForConversation: async (
+      sessionId?: string,
+    ): Promise<SessionMcpHttpServer | undefined> => {
+      const service = await this.load()
+      if (service === undefined || this.closed()) return undefined
+      const mcp = await this.loadMcp()
+      if (mcp === undefined || this.closed()) return undefined
+      const conversation =
+        sessionId === undefined
+          ? (this.pendingMcp ??= this.newMcpConversation(undefined))
+          : this.mcpConversation(sessionId)
+      return await mcp.server.endpointForConversation(conversation)
+    },
+  }
+
   public constructor(private readonly deps: TeamHostBindingDeps) {}
+
+  private readModes(): Readonly<Record<string, TeamConversationMode>> {
+    const stored: unknown = this.deps.ports.state.get(TEAM_WORKSPACE_KEYS.conversationModes)
+    return typeof stored !== 'object' || stored === null
+      ? {}
+      : Object.fromEntries(
+          Object.entries(stored).filter(
+            (entry): entry is [string, TeamConversationMode] =>
+              entry[1] === 'team' || entry[1] === 'single-model',
+          ),
+        )
+  }
+
+  private async loadMcp() {
+    if (this.mcpModule !== undefined) return this.mcpModule
+    const load = this.deps.loadTeamMcp
+    if (load === undefined) return
+    this.mcpLoading ??= (async () => {
+      try {
+        const loaded = await load()
+        if (this.isDisposed) loaded.server.close()
+        else this.mcpModule = loaded
+      } catch (error: unknown) {
+        this.deps.ports.log.warn(`The team MCP server could not be loaded: ${failureForLog(error)}`)
+      } finally {
+        this.mcpLoading = undefined
+      }
+    })()
+    await this.mcpLoading
+    return this.mcpModule
+  }
+
+  private mcpConversation(sessionId: string): McpConversation {
+    const existing = this.mcpConversations.get(sessionId)
+    if (existing !== undefined) return existing
+    const created = this.newMcpConversation(sessionId)
+    this.mcpConversations.set(sessionId, created)
+    return created
+  }
+
+  private newMcpConversation(sessionId: string | undefined): McpConversation {
+    const conversation: McpConversation = {
+      sessionId,
+      commandRecords: {
+        load: (): unknown => {
+          if (conversation.sessionId === undefined) return
+          const stored: unknown = this.deps.ports.state.get(TEAM_WORKSPACE_KEYS.commandRecords)
+          const found: unknown =
+            typeof stored === 'object' && stored !== null
+              ? Reflect.get(stored, conversation.sessionId)
+              : undefined
+          return found
+        },
+        save: async (records) => {
+          if (conversation.sessionId === undefined) throw new Error(UI_TEXT.teamTaskUnknown)
+          const stored: unknown = this.deps.ports.state.get(TEAM_WORKSPACE_KEYS.commandRecords)
+          const all = typeof stored === 'object' && stored !== null ? { ...stored } : {}
+          await this.deps.ports.state.update(TEAM_WORKSPACE_KEYS.commandRecords, {
+            ...all,
+            [conversation.sessionId]: records,
+          })
+        },
+      },
+      run: async (tool, args, signal) => {
+        const id = conversation.sessionId
+        const service = this.service
+        if (id === undefined || service === undefined)
+          throw new Error(fill(UI_TEXT.teamRunnerUnavailable, { tool }))
+        if (tool === 'roster') {
+          const data = service.teamRosterData()
+          const mcp = this.mcpModule
+          if (data === undefined || mcp === undefined)
+            throw new Error(fill(UI_TEXT.teamRunnerUnavailable, { tool }))
+          return mcp.rosterAnswer(data)
+        }
+        const context = {
+          sessionId: id,
+          approvalMode: this.deps.ports.orchestrator.approvalMode?.(id) ?? '',
+          signal,
+          orchestratorModelId: this.deps.ports.orchestrator.modelId(),
+        }
+        const runner = service.teamRunner
+        let result: TeamToolResult
+        switch (tool) {
+          case 'delegate': {
+            result = await (args['dry_run'] === true
+              ? runner.preview(args, context)
+              : runner.delegate(args, context))
+
+            break
+          }
+          case 'collect': {
+            result = await runner.collect(args, context)
+
+            break
+          }
+          case 'cancel': {
+            result = await runner.cancel(args, context)
+
+            break
+          }
+          case 'merge': {
+            result = await runner.merge(args, context)
+
+            break
+          }
+          default: {
+            throw new Error(fill(UI_TEXT.teamRunnerUnavailable, { tool }))
+          }
+        }
+        return result.output
+      },
+    }
+    return conversation
+  }
 
   private closed(): boolean {
     return this.isDisposed
@@ -244,6 +429,10 @@ export class TeamHostBinding implements TeamSurfacePort {
 
   public async dispose(): Promise<void> {
     this.isDisposed = true
+    this.mcpModule?.server.close()
+    this.mcpModule = undefined
+    this.mcpConversations.clear()
+    this.pendingMcp = undefined
     this.treeListeners.clear()
     this.unsubscribe?.()
     const service = this.service

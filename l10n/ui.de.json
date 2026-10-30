@@ -4526,6 +4526,8 @@
   "execTeamMergeHeldProtected": "Geschützte Pfade brauchen eine Freigabe, daher wird der Branch unter {ref} gehalten. Geben Sie sie frei und führen Sie den Merge erneut aus, oder entfernen Sie {ref}, um die Arbeit zu verwerfen.",
   "execTeamMergeHeldReview": "Die erforderliche Prüfung ist nicht abgeschlossen, daher wird der Branch unter {ref} gehalten. Holen Sie die Prüfung ein und führen Sie den Merge erneut aus, oder entfernen Sie {ref}, um die Arbeit zu verwerfen.",
   "execTeamMergeBlocked": "Der Merge kann für Task {entry} nicht fortgesetzt werden: {detail}.",
+  "execTeamMergeFailedHeld": "Die Zusammenführung ist fehlgeschlagen: {detail} Der Branch wird unter {ref} gehalten; führen Sie nach der Behebung erneut zusammen oder entfernen Sie {ref}, um die Arbeit zu verwerfen.",
+  "execTeamMergeFailedKept": "Die Zusammenführung ist fehlgeschlagen: {detail} Ihr Branch konnte nicht gehalten werden, daher bleibt die Arbeit in {folder} erhalten. Stellen Sie sie von dort wieder her, bevor der nächste kopflose Lauf alte Läufe bereinigt.",
   "execMuseCodeOnly": "Diese Optionen benötigen das Muse-Code-Backend, den Standard ohne --backend modelApi: {options}.",
   "execModelUnpriced": "Für dieses Modell ist kein Tarif bekannt.",
   "execPromptMissing": "Gib einen nicht leeren Prompt an.",

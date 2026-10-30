@@ -14778,6 +14778,16 @@ record. Evidence: `docs/certification/rlm96.md`,
 loaders, ACP/Muse worker entries (C-M96-5/M96b), the merge planner
 binding, the team MCP server and slot checks (no-guessed-binding rule).
 
+**Status 2026-10-30 (lane RLF-TEAMWIRE): building.** The merge planner
+binding and the team MCP server are wired and drilled
+(`docs/certification/rlf-teamwire.md`; int/recovery keeps its own RLM116,
+D218–D221, and took only this lane's work: `docs/certification/cc-int5.md`).
+Roles-file loaders and the ACP/Muse worker entries remain unwired:
+PLAN names no capture or assembly call site for them, so the lane ended
+naming the questions, options and recommendations in that record. Slot
+checks wait on RLF-TEAMCORE's governed slots. Teams stay behind the
+release latch.
+
 Status detail retained: first parts (role charters, tools, pools, limits)
 shipped in 0.15.0; team creation and worker dispatch remain (no team can be
 created: the teamWorkers paid gate has no production availability). Planned on `feature/m96-agent-roles` from main
@@ -16678,6 +16688,14 @@ budget lowering, real stdio handshake and real-file sweep proofs, catch
 audit to baseline, re-measured team bundle budgets. Receipts in
 `docs/certification/m96b-2.md` ("Recovery landing"); hosted three-OS CI
 and independent lead review remain the release gate.
+
+**Status 2026-10-30 (lane RLF-TEAMWIRE): building.** The three open
+build items are closed: the cross-process ledger file lease, the P2-11
+artifact journal (pre-creation tombstones, kill-safe completion
+records) and finding 5 (preserve the branch on every merge failure, new
+sentences in English and all 14 tables). Receipts and drills:
+`docs/certification/rlf-teamwire.md`. Finding 4 is RLF-TEAMGATE's.
+Headless still refuses non-engine workers by design.
 
 Prerequisite: team integration (M96).
 

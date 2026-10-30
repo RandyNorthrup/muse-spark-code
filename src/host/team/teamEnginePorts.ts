@@ -22,7 +22,7 @@ import {
 import { fill } from '../../shared/l10n/text'
 import { approvalModeFor } from '../../shared/permissionModes'
 import { type UsdAmount } from '../../shared/usd'
-import type { TeamAgentRef, TeamReport, TeamUsage } from '../../shared/team'
+import type { TeamAgentRef, TeamReport, TeamRoleConfig, TeamUsage } from '../../shared/team'
 import { sumUsd } from '../../shared/usd'
 import { canonicalUsd } from '../../shared/usdSchema'
 import type { SubagentUsage } from '../../shared/paid'
@@ -34,7 +34,7 @@ import { validateWorkerSettings, type TeamSettingCapabilities } from '../../core
 import { buildTeamCharter } from '../../core/team/charter'
 import { isSameTeamModel } from '../../core/team/sameModel'
 import { resolveTeamToolset } from '../../core/team/toolsets'
-import { applyTeamMerge } from '../../core/team/teamMerge'
+import { applyTeamMerge, planTeamMerge, type TeamMergeSpec } from '../../core/team/teamMerge'
 import {
   commitTaskBranch,
   publishTaskRef,
@@ -605,43 +605,80 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
     isLimited: (agent: TeamAgentRef) => (limitedUntil.get(agent.agentId) ?? 0) > deps.now(),
   }
 
+  const mergeSpec = async (task: {
+    readonly role: TeamRoleConfig
+    readonly outcome: TeamWorkerOutcome
+  }): Promise<{
+    readonly spec: TeamMergeSpec
+    readonly repositoryRoot: string
+    readonly outcome: TeamWorkerOutcome & {
+      folder: string
+      agentsRef: string
+      baseCommit: string
+      head: string
+    }
+  }> => {
+    const outcome = task.outcome
+    if (
+      outcome.folder === undefined ||
+      outcome.agentsRef === undefined ||
+      outcome.baseCommit === undefined ||
+      outcome.head === undefined
+    ) {
+      throw new Error(TEAM_MODEL_TEXT.hostMergeNotReady)
+    }
+    const repositoryRoot = repository()
+    const builtin = builtinRoles().find((role) => role.id === task.role.role)
+    let actual: string | undefined
+    try {
+      actual = new TextDecoder()
+        .decode(await runGit(['rev-parse', '--verify', outcome.agentsRef], repositoryRoot))
+        .trim()
+    } catch (error: unknown) {
+      // An unknown ref (or unreadable repo) leaves the head unverified;
+      // anything else is loud.
+      if (isTeamGitError(error)) actual = undefined
+      else throw error
+    }
+    const writePaths = task.role.writePaths ?? builtin?.writePaths
+    const ready = {
+      ...outcome,
+      folder: outcome.folder,
+      agentsRef: outcome.agentsRef,
+      baseCommit: outcome.baseCommit,
+      head: outcome.head,
+    }
+    return {
+      repositoryRoot,
+      outcome: ready,
+      spec: {
+        repositoryRoot,
+        baseCommit: outcome.baseCommit,
+        branchHead: outcome.head,
+        ...(writePaths !== undefined && { writePaths }),
+        agentRefs: [{ ref: outcome.agentsRef, expected: outcome.head, actual }],
+        taskFolder: outcome.folder,
+      },
+    }
+  }
+
   const merges: TeamMergePort = {
+    plan: async (task) => {
+      const { spec } = await mergeSpec(task)
+      // The planner's file shape is the port's, field for field.
+      return await planTeamMerge(
+        { runGit, realPath: (candidate) => WORKER_NATIVE_IO.realPath(candidate) },
+        spec,
+        deps.platform,
+      )
+    },
     merge: async (task, signal, options) => {
       signal.throwIfAborted()
-      const outcome = task.outcome
-      if (
-        outcome.folder === undefined ||
-        outcome.agentsRef === undefined ||
-        outcome.baseCommit === undefined ||
-        outcome.head === undefined
-      ) {
-        throw new Error(TEAM_MODEL_TEXT.hostMergeNotReady)
-      }
-      const repositoryRoot = repository()
-      const builtin = builtinRoles().find((role) => role.id === task.role.role)
-      let actual: string | undefined
-      try {
-        actual = new TextDecoder()
-          .decode(await runGit(['rev-parse', '--verify', outcome.agentsRef], repositoryRoot))
-          .trim()
-      } catch (error: unknown) {
-        // An unknown ref (or unreadable repo) leaves the head unverified;
-        // anything else is loud.
-        if (isTeamGitError(error)) actual = undefined
-        else throw error
-      }
-      const writePaths = task.role.writePaths ?? builtin?.writePaths
+      const { spec, repositoryRoot, outcome } = await mergeSpec(task)
       signal.throwIfAborted()
       const result = await applyTeamMerge(
         { runGit, realPath: (candidate) => WORKER_NATIVE_IO.realPath(candidate) },
-        {
-          repositoryRoot,
-          baseCommit: outcome.baseCommit,
-          branchHead: outcome.head,
-          ...(writePaths !== undefined && { writePaths }),
-          agentRefs: [{ ref: outcome.agentsRef, expected: outcome.head, actual }],
-          taskFolder: outcome.folder,
-        },
+        spec,
         // The merge card listed the protected paths; the user's Merge approved them.
         { platform: deps.platform, allowProtected: options.allowProtected },
       )

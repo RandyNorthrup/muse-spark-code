@@ -365,7 +365,7 @@ function areBytesEqual(left: Uint8Array | undefined, right: Uint8Array | undefin
 What the merge would do, without writing: the files, which are binary,
 which need the protected-path approval, and which fall outside
 `write-paths`. Throws for unsafe paths, link escapes and ref breaches.
-@unwired M96 team merge planner
+The merge flow plans through the merge port before its card is shown.
 */
 export async function planTeamMerge(
   io: TeamMergeIo,

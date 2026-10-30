@@ -4610,6 +4610,8 @@
   "execTeamMergeHeldProtected": "Caminhos protegidos precisam de aprovação, por isso o ramo fica retido em {ref}. Aprove-os e mescle novamente, ou remova {ref} para descartar o trabalho.",
   "execTeamMergeHeldReview": "A revisão exigida não está completa, por isso o ramo fica retido em {ref}. Recolha a revisão e mescle novamente, ou remova {ref} para descartar o trabalho.",
   "execTeamMergeBlocked": "A fusão não pode continuar para a tarefa {entry}: {detail}.",
+  "execTeamMergeFailedHeld": "A mesclagem falhou: {detail} O branch fica retido em {ref}; mescle novamente após corrigir ou remova {ref} para descartar o trabalho.",
+  "execTeamMergeFailedKept": "A mesclagem falhou: {detail} Seu branch não pôde ser retido, portanto o trabalho permanece em {folder}. Recupere-o de lá antes que a próxima execução sem interface limpe as execuções antigas.",
   "execMuseCodeOnly": "Estas opções exigem o backend Muse Code, o padrão sem --backend modelApi: {options}.",
   "execModelUnpriced": "Este modelo não tem uma tarifa conhecida.",
   "execPromptMissing": "Forneça um único prompt não vazio.",

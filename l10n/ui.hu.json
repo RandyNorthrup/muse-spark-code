@@ -4526,6 +4526,8 @@
   "execTeamMergeHeldProtected": "A védett útvonalak jóváhagyást igényelnek, ezért az ág itt várakozik: {ref}. Hagyja jóvá őket, és egyesítse újra, vagy a munka elvetéséhez távolítsa el a(z) {ref} elemet.",
   "execTeamMergeHeldReview": "A szükséges lektorálás nincs kész, ezért az ág itt várakozik: {ref}. Gyűjtse be a lektorálást, és egyesítse újra, vagy a munka elvetéséhez távolítsa el a(z) {ref} elemet.",
   "execTeamMergeBlocked": "Az egyesítés nem folytatható a(z) {entry} feladathoz: {detail}.",
+  "execTeamMergeFailedHeld": "Az egyesítés sikertelen: {detail} Az ág a(z) {ref} referenciánál marad; javítás után egyesítsen újra, vagy távolítsa el a(z) {ref} referenciát a munka elvetéséhez.",
+  "execTeamMergeFailedKept": "Az egyesítés sikertelen: {detail} Az ágát nem sikerült megőrizni, ezért a munka a(z) {folder} mappában marad. Állítsa helyre onnan, mielőtt a következő felület nélküli futás kitakarítja a régi futásokat.",
   "execMuseCodeOnly": "Ezekhez a beállításokhoz a Muse Code háttérszolgáltatás szükséges, amely --backend modelApi nélkül az alapértelmezett: {options}.",
   "execModelUnpriced": "Ehhez a modellhez nincs ismert díjszabás.",
   "execPromptMissing": "Adj meg egy nem üres utasítást.",

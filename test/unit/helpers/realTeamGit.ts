@@ -3,14 +3,20 @@
 // (`cat-file --batch` reads its names there; a Buffer, since a string with
 // a Buffer encoding is refused). Shared so the suites cannot drift apart.
 import { execFileSync } from 'node:child_process'
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { onTestFinished } from 'vitest'
 import { TeamGitError, type TeamGit } from '../../../src/core/team/teamGit'
 
-export const realTeamGit: TeamGit = (args, cwd, input) => {
+export const realTeamGit: TeamGit = (args, cwd, input, env) => {
   try {
     const out = execFileSync('git', [...args], {
       cwd,
       encoding: 'buffer',
       ...(input !== undefined && { input: Buffer.from(input, 'utf8') }),
+      // The adapter contract: an explicit environment replaces the inherited one.
+      ...(env !== undefined && { env }),
     })
     return Promise.resolve(new Uint8Array(out))
   } catch (error: unknown) {
@@ -25,4 +31,32 @@ export const realTeamGit: TeamGit = (args, cwd, input) => {
       typeof error === 'object' && error !== null && 'stderr' in error ? String(error.stderr) : ''
     return Promise.reject(new TeamGitError(status, stderr, args.join(' ')))
   }
+}
+
+/**
+A scratch repository with one empty commit on `main`, removed when the test
+finishes. Its root is the path the file system resolves (macOS's temporary
+folder sits behind a link), because the team merge refuses a linked root.
+*/
+export function scratchTeamRepo(prefix: string): string {
+  const root = realpathSync(mkdtempSync(path.join(tmpdir(), prefix)))
+  onTestFinished(() => {
+    rmSync(root, { recursive: true, force: true })
+  })
+  execFileSync('git', ['init', '-b', 'main'], { cwd: root })
+  execFileSync(
+    'git',
+    [
+      '-c',
+      'user.name=Test',
+      '-c',
+      'user.email=test@example.invalid',
+      'commit',
+      '--allow-empty',
+      '-m',
+      'base',
+    ],
+    { cwd: root },
+  )
+  return root
 }

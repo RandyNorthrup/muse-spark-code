@@ -87,17 +87,26 @@ async function readLedger(folder: string): Promise<CleanupLedger | undefined> {
 /**
 One writer queue per run folder (RVCM96B2D P2-6): concurrent ledger
 updates in this process serialize instead of losing records to a shared
-read-modify-write. Cross-process writers still need the file lease
-(PLAN.md section 8): unique temporary names below keep them from
-consuming each other's files.
+read-modify-write. Across processes the same turn runs under the folder's
+fenced file lease (M123's primitive), so a second headless run's sweep or
+recorder can never lose this run's record to a racing read-modify-write
+either; unique temporary names below keep writers from consuming each
+other's files while they wait.
 */
 const ledgerGates = new Map<string, Promise<void>>()
+
+/** One ledger turn under the folder's cross-process lease; busy refuses loudly. */
+async function withLedgerLease<T>(folder: string, work: () => Promise<T>): Promise<T> {
+  // The fenced lease loads on the first ledger turn (dist/execLedgerLease.js).
+  const { withExecLedgerLease } = await import('./execLedgerLeaseEntry')
+  return await withExecLedgerLease(folder, work)
+}
 
 async function withLedgerGate<T>(folder: string, work: () => Promise<T>): Promise<T> {
   const previous = ledgerGates.get(folder) ?? Promise.resolve()
   const current = (async (): Promise<T> => {
     await previous
-    return await work()
+    return await withLedgerLease(folder, work)
   })()
   const quiet = (async (): Promise<void> => {
     try {
@@ -130,6 +139,22 @@ async function writeLedger(folder: string, ledger: CleanupLedger): Promise<void>
     await handle.close()
   }
   await rename(temporary, target)
+  // Kill-safe completion (P2-11): the rename itself must reach disk, or a
+  // power loss can drop the record the file sync just made durable.
+  // Windows cannot sync a directory (the vault store's same rule).
+  if (process.platform === 'win32') return
+  const directory = await open(folder, 'r')
+  try {
+    await directory.sync()
+  } finally {
+    await directory.close()
+  }
+}
+
+/** The hold ref a task's branch is kept under: named before it is created. */
+export function holdRefFor(role: string, taskId: string): string {
+  teamBranchName(role, taskId)
+  return `${EXEC_TEAM_HOLD_REF_PREFIX}${role}/${taskId}`
 }
 
 const MS_PER_SECOND = 1000
@@ -471,10 +496,9 @@ export async function createHoldRef(
   taskId: string,
   head: string,
 ): Promise<string> {
-  // Throws on a bad name before anything is created.
-  teamBranchName(role, taskId)
   if (!HOLD_HEAD_PATTERN.test(head)) throw new Error(`Refused team hold head for task ${taskId}`)
-  const ref = `${EXEC_TEAM_HOLD_REF_PREFIX}${role}/${taskId}`
+  // Throws on a bad name before anything is created.
+  const ref = holdRefFor(role, taskId)
   // The clone is `--shared`: the task commit lives only in the copy, so the
   // ref must fetch the objects, not merely point at them. A later merge of
   // the same task replaces the hold (releaseHoldRef).
@@ -519,6 +543,58 @@ export async function recordHoldRef(folder: string, entry: CleanupEntry): Promis
     if (ledger.holds.some((known) => known.ref === entry.ref && known.repo === entry.repo)) return
     await writeLedger(folder, { ...ledger, holds: [...ledger.holds, entry] })
   })
+}
+
+/** Where a failed merge's work survives: a hold ref in the repo, or in place. */
+export type FailedMergePreservation =
+  { readonly kind: 'held'; readonly ref: string } | { readonly kind: 'kept' }
+
+/**
+Preserve a finished branch whose merge failed for any reason (finding 5):
+hold its head in the repository and record the hold when a run folder
+names the ledger. A git or filesystem failure to hold keeps the work in
+place instead of destroying it; anything else propagates so the caller
+keeps it loudly.
+*/
+export async function preserveFailedMerge(input: {
+  readonly git: TeamGit
+  readonly repo: string
+  readonly runFolder: string | undefined
+  readonly copyFolder: string
+  readonly role: string
+  readonly taskId: string
+  readonly head: string
+}): Promise<FailedMergePreservation> {
+  if (!HOLD_HEAD_PATTERN.test(input.head)) return { kind: 'kept' }
+  // Pre-creation tombstone (P2-11): the ledger names the hold before the
+  // fetch creates it, so a kill between the two never leaves an unrecorded
+  // ref; a tombstone whose fetch then fails names a ref that does not
+  // exist, which the sweep's hold handling already tolerates.
+  const ref = holdRefFor(input.role, input.taskId)
+  if (input.runFolder !== undefined) {
+    await recordHoldRef(input.runFolder, {
+      repo: input.repo,
+      role: input.role,
+      taskId: input.taskId,
+      ref,
+    })
+  }
+  try {
+    await createHoldRef(
+      input.git,
+      input.repo,
+      input.copyFolder,
+      input.role,
+      input.taskId,
+      input.head,
+    )
+  } catch (error: unknown) {
+    // The hold could not be created: the work stays where it is.
+    if (isTeamGitError(error)) return { kind: 'kept' }
+    if (isErrno(error)) return { kind: 'kept' }
+    throw error
+  }
+  return { kind: 'held', ref }
 }
 
 /**

@@ -16,6 +16,7 @@ import { isSameTeamModel } from './sameModel'
 import type {
   TeamCardPort,
   TeamMergeDecision,
+  TeamMergePlanFile,
   TeamMergePort,
   TeamMergeRefusal,
   TeamPaidPort,
@@ -160,8 +161,15 @@ const requireReview = async (
   }
 }
 
-const mergeCard = (task: TeamTaskRecord, outcome: TeamWorkerOutcome) => {
-  const files = outcome.changedFiles ?? []
+const mergeCard = (
+  task: TeamTaskRecord,
+  outcome: TeamWorkerOutcome,
+  planned?: readonly TeamMergePlanFile[],
+) => {
+  // The planner's words when it ran (it throws for unsafe paths before any
+  // card); the outcome's own list only for the failure card a refused plan
+  // leaves behind.
+  const files = planned?.map((file) => file.path) ?? outcome.changedFiles ?? []
   return {
     itemId: `team-merge-${task.taskId}`,
     kind: 'teamMerge' as const,
@@ -172,7 +180,9 @@ const mergeCard = (task: TeamTaskRecord, outcome: TeamWorkerOutcome) => {
       branch: outcome.branch ?? '',
       filesChanged: files.length,
       affectedFiles: files,
-      protectedPaths: files.filter((file) => isProtectedPath(file.toLowerCase())),
+      protectedPaths:
+        planned?.filter((file) => file.isProtected).map((file) => file.path) ??
+        files.filter((file) => isProtectedPath(file.toLowerCase())),
       review: task.review ?? ('not-reviewed' as const),
       ...(task.reviewVerdict !== undefined && { reviewVerdict: task.reviewVerdict }),
       ...(task.reviewSummary !== undefined && {
@@ -213,7 +223,12 @@ export const runMergeFlow = async (
     }
     const outcome = task.outcome
     if (outcome === undefined) throw new Error(api.text.mergeNotReady)
-    const card = mergeCard(task, outcome)
+    // The merge planner binding: what the merge would do, planned before
+    // the card is shown, so unsafe paths and ref breaches refuse here and
+    // the card lists the planner's files and protected paths.
+    const planned = await api.merges.plan({ taskId: task.taskId, role: task.role, outcome })
+    api.checkOwner(task, context)
+    const card = mergeCard(task, outcome, planned)
     const decision = new Promise<TeamMergeDecision | 'cancelled'>((resolve) => {
       task.awaiting = resolve
       cancel = () => {
