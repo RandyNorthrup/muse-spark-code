@@ -1,0 +1,19 @@
+{
+  "capturedAt": "2026-10-30T20:05:04.007Z",
+  "finishedAt": "2026-10-30T20:05:10.960Z",
+  "cli": "Muse Code 1.4.11 (1.4.11-R6667.1)",
+  "sdk": "@muse-code/sdk 1.4.11",
+  "provider": "echo (the CLI’s own local provider; no model call, no sign-in)",
+  "commands": [
+    "muse serve --provider echo --no-session-log --trust-workspace (child process; initialize, model/list, session/start, skill/list, session/setReasoningEffort, session/setApprovalMode x4, session/setPermissionProfile, task/stopAll, task/list, session/delete, task/stopAll on an unknown session, session/resume, session/read over stdio)",
+    "node temp/caps/cap2.mjs (this script; writes test/fixtures/acphonest/)"
+  ],
+  "isolation": "HOME, XDG_CONFIG_HOME and XDG_DATA_HOME pointed at scratch dirs; sessions persisted under the scratch home only (deleted after the run)",
+  "scrub": "the scratch workspace path is stored as <capture-workspace>; session and command ids are served verbatim and are consistent within this set (one session)",
+  "notes": [
+    "session/delete is refused -32601 methodNotFound: 1.4.11 serves no delete (its schema export agrees)",
+    "task/stopAll over no tasks is accepted; over an unknown session it answers its own refusal (see task-stopAll-unknown-session-1.4.11.json)"
+  ],
+  "modelAttempts": 0,
+  "stderr": "(see temp/caps/out/stderr-g1.txt for the run shape)"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "sessionId": "01a18e6a-7b16-7910-81f2-0158d565c3ae",
+    "viewCursor": "v4:01a18e6a-7b16-7910-81f2-0158d565c3ae:1",
+    "sourceRange": {
+      "stream": {
+        "kind": "session",
+        "id": "01a18e6a-7b16-7910-81f2-0158d565c3ae"
+      },
+      "first": {
+        "id": "01a18e6a-7e90-7fd0-b7df-64a5365c507b",
+        "sequence": 7
+      },
+      "last": {
+        "id": "01a18e6a-7e90-7fd0-b7df-64a5365c507b",
+        "sequence": 7
+      }
+    },
+    "mode": "promptUnmatched",
+    "source": "approvalReconfigure",
+    "commandId": "01a18e6a-7a8e-7000-ab6e-cec2019c1cad",
+    "clientName": "muse_spark_capture"
+  }
+]
