@@ -1,37 +1,16 @@
-import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { onTestFinished, describe, expect, it } from 'vitest'
+import { describe, expect, it, onTestFinished } from 'vitest'
 import { publishTaskRef, TeamWorkspaceError } from '../../src/core/team/teamWorkspaces'
 import { TeamGitError } from '../../src/core/team/teamGit'
 import { teamAgentsRef } from '../../src/core/team/refFence'
-import { realTeamGit as realGit } from './helpers/realTeamGit'
+import { realTeamGit as realGit, scratchTeamRepo } from './helpers/realTeamGit'
 
 const BRANCH = 'agents/engineering/task-1'
 
 function scratchRepo(): string {
-  const root = mkdtempSync(path.join(tmpdir(), 'm116w-ref-'))
-  onTestFinished(() => {
-    rmSync(root, { recursive: true, force: true })
-  })
-  execFileSync('git', ['init', '-b', 'main'], { cwd: root })
-  execFileSync(
-    'git',
-    [
-      '-c',
-      'user.name=Test',
-      '-c',
-      'user.email=test@example.invalid',
-      'commit',
-      '--allow-empty',
-      '-m',
-      'base',
-    ],
-    {
-      cwd: root,
-    },
-  )
+  const root = scratchTeamRepo('m116w-ref-')
   mkdirSync(path.join(root, 'clone'), { recursive: true })
   return root
 }
