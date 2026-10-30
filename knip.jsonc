@@ -60,6 +60,9 @@
     // Its loader (M110t TP2): built, pending the ACP pack fetch that
     // calls it (A0/transport); declared, not hidden, not deleted.
     "src/runtime/node/packs/verifyBundle.ts",
+    // The first-boot setup server, built as dist/nodeSetup.js (M110os
+    // RLF-MUSESETUP, D6), loaded when the first boot runs it.
+    "src/runtime/node/firstBoot/setupEntry.ts",
     "src/runtime/usage/usageServiceEntry.ts",
     "src/runtime/usage/usageCompanionEntry.ts",
     "src/host/vscode/usage/usagePanelEntry.ts",

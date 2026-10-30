@@ -29,8 +29,6 @@ import { isMissingFile } from './privateFiles'
 
 // The isolated bundle also exposes the real shared service pieces to the
 // integration binding. These never enter ACP stdio or the extension.
-export { createSetupServer, prepareSetupState } from './firstBoot/server'
-export type { SetupServer, SetupServerOptions } from './firstBoot/server'
 export { NodeService } from './service'
 export { superviseNode } from './supervisor'
 export { NodeProcessToolHost } from './toolHost'
