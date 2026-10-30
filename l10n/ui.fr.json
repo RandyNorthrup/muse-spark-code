@@ -7519,6 +7519,40 @@
       "one": "Installation de {count} paquet",
       "other": "Installation de {count} paquets",
       "many": "Installation de {count} paquets"
-    }
+    },
+    "workbenchChat": "Chat",
+    "workbenchEditor": "Éditeur",
+    "workbenchSidebar": "Barre latérale",
+    "workbenchTerminal": "Terminal",
+    "workbenchProblems": "Problèmes",
+    "workbenchOutput": "Sortie",
+    "workbenchQuickOpen": "Rechercher des fichiers par nom",
+    "workbenchNoFileOpen": "Aucun fichier n’est ouvert. Appuyez sur Ctrl+P pour en ouvrir un.",
+    "workbenchNoProblems": "Aucun problème n’a été trouvé.",
+    "workbenchNoOutput": "Aucune sortie n’a encore été écrite.",
+    "workbenchNewTerminal": "Nouveau terminal",
+    "workbenchCloseTerminal": "Fermer le terminal",
+    "workbenchTerminalExited": "Le terminal s’est terminé avec le code {code}.",
+    "workbenchSave": "Enregistrer",
+    "workbenchUnsaved": "Modifications non enregistrées",
+    "workbenchSetupTitle": "Bienvenue dans Muse Desktop",
+    "workbenchSetupDetail": "Choisissez un dossier de travail. Muse Desktop ouvre une fenêtre par dossier.",
+    "workbenchOpenFolder": "Ouvrir un dossier…",
+    "workbenchBridgeUnavailable": "Le pont de bureau n’est pas disponible. Lancez Muse Desktop depuis son application, pas depuis un navigateur.",
+    "workbenchLayoutUnreadable": "La disposition enregistrée n’a pas pu être lue ; la disposition par défaut est donc utilisée.",
+    "workbenchFileUnreadable": "Ce fichier n’a pas pu être lu comme texte.",
+    "workbenchStatusWorkspace": "Espace de travail : {name}",
+    "workbenchStatusTerminals": {
+      "one": "{count} terminal",
+      "other": "{count} terminaux",
+      "many": "{count} terminaux"
+    },
+    "workbenchToggleSidebar": "Afficher/masquer la barre latérale",
+    "workbenchToggleRail": "Afficher/masquer le rail",
+    "workbenchToggleTerminal": "Afficher/masquer le panneau du terminal",
+    "workbenchDetachTerminal": "Détacher le terminal",
+    "workbenchDockTerminal": "Ancrer le terminal",
+    "workbenchCollapseTerminal": "Réduire dans le pied de page",
+    "workbenchExpandTerminal": "Développer le panneau du terminal"
   }
 }

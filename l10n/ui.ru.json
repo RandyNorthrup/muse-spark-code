@@ -7703,6 +7703,41 @@
       "few": "Установка пакетов: {count}",
       "many": "Установка пакетов: {count}",
       "other": "Установка пакетов: {count}"
-    }
+    },
+    "workbenchChat": "Чат",
+    "workbenchEditor": "Редактор",
+    "workbenchSidebar": "Боковая панель",
+    "workbenchTerminal": "Терминал",
+    "workbenchProblems": "Проблемы",
+    "workbenchOutput": "Вывод",
+    "workbenchQuickOpen": "Поиск файлов по имени",
+    "workbenchNoFileOpen": "Файл не открыт. Нажмите Ctrl+P, чтобы открыть файл.",
+    "workbenchNoProblems": "Проблем не найдено.",
+    "workbenchNoOutput": "Вывод ещё не записан.",
+    "workbenchNewTerminal": "Новый терминал",
+    "workbenchCloseTerminal": "Закрыть терминал",
+    "workbenchTerminalExited": "Терминал завершён с кодом {code}.",
+    "workbenchSave": "Сохранить",
+    "workbenchUnsaved": "Несохранённые изменения",
+    "workbenchSetupTitle": "Добро пожаловать в Muse Desktop",
+    "workbenchSetupDetail": "Выберите папку для работы. Muse Desktop открывает по одному окну для каждой папки.",
+    "workbenchOpenFolder": "Открыть папку…",
+    "workbenchBridgeUnavailable": "Мост рабочего стола недоступен. Запустите Muse Desktop из его приложения, а не из браузера.",
+    "workbenchLayoutUnreadable": "Сохранённую схему не удалось прочитать, поэтому используется схема по умолчанию.",
+    "workbenchFileUnreadable": "Этот файл не удалось прочитать как текст.",
+    "workbenchStatusWorkspace": "Рабочая область: {name}",
+    "workbenchStatusTerminals": {
+      "one": "{count} терминал",
+      "few": "{count} терминала",
+      "many": "{count} терминалов",
+      "other": "{count} терминалов"
+    },
+    "workbenchToggleSidebar": "Переключить боковую панель",
+    "workbenchToggleRail": "Переключить рельсу",
+    "workbenchToggleTerminal": "Переключить панель терминала",
+    "workbenchDetachTerminal": "Отсоединить терминал",
+    "workbenchDockTerminal": "Присоединить терминал",
+    "workbenchCollapseTerminal": "Свернуть в подвал",
+    "workbenchExpandTerminal": "Развернуть панель терминала"
   }
 }

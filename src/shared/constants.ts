@@ -11446,3 +11446,43 @@ export const CONNECTOR_MODEL_TEXT = {
 } as const
 /** U1 exports preserve charter text, model settings and intensity without setup secrets. */
 export const TEAM_PANEL_EXPORT_VERSION = 2
+
+// Muse Desktop (M111, D91.12/13, lane WB): the Electron workbench shell.
+export const DESKTOP_APP_NAME = 'Muse Desktop'
+export const DESKTOP_LAYOUT_FILE = 'workbench-layout.json'
+export const DESKTOP_SETUP_FLAG = '--setup'
+export const DESKTOP_WORKSPACE_FLAG = '--workspace'
+export const DESKTOP_BRIDGE_NAME = 'museDesktop'
+export const DESKTOP_WINDOW_MIN_WIDTH_PX = 720
+export const DESKTOP_WINDOW_MIN_HEIGHT_PX = 480
+export const DESKTOP_WINDOW_DEFAULT_WIDTH_PX = 1440
+export const DESKTOP_WINDOW_DEFAULT_HEIGHT_PX = 900
+export const DESKTOP_COMPOSITOR_WORKSPACE_ENV = 'MUSE_DESKTOP_WORKSPACE'
+export const DESKTOP_FILE_SCAN_IGNORED = [
+  '.git',
+  'node_modules',
+  'dist',
+  'out',
+  'target',
+  '.hg',
+  '.svn',
+] as const
+export const DESKTOP_MODEL_TEXT = {
+  permissionDenied: 'permission denied by the desktop shell',
+  navigationDenied: 'navigation outside the workbench was blocked',
+} as const
+export const DESKTOP_LAYOUT_BOUNDS = {
+  chatWidthMinPx: 200,
+  chatWidthMaxPx: 1200,
+  sidebarWidthMinPx: 160,
+  sidebarWidthMaxPx: 900,
+  terminalHeightMinPx: 80,
+  terminalHeightMaxPx: 1200,
+  terminalDimensionMax: 1000,
+} as const
+export const DESKTOP_QUICK_OPEN_SCORES = {
+  exactName: 1000,
+  namePrefix: 800,
+  nameContains: 600,
+  subsequenceBase: 400,
+} as const

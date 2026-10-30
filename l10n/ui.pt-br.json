@@ -7519,6 +7519,40 @@
       "one": "Instalando {count} pacote",
       "other": "Instalando {count} pacotes",
       "many": "Instalando {count} pacotes"
-    }
+    },
+    "workbenchChat": "Chat",
+    "workbenchEditor": "Editor",
+    "workbenchSidebar": "Barra lateral",
+    "workbenchTerminal": "Terminal",
+    "workbenchProblems": "Problemas",
+    "workbenchOutput": "Saída",
+    "workbenchQuickOpen": "Pesquisar arquivos por nome",
+    "workbenchNoFileOpen": "Nenhum arquivo está aberto. Pressione Ctrl+P para abrir um.",
+    "workbenchNoProblems": "Nenhum problema foi encontrado.",
+    "workbenchNoOutput": "Nada escreveu saída ainda.",
+    "workbenchNewTerminal": "Novo terminal",
+    "workbenchCloseTerminal": "Fechar terminal",
+    "workbenchTerminalExited": "O terminal foi encerrado com código {code}.",
+    "workbenchSave": "Salvar",
+    "workbenchUnsaved": "Alterações não salvas",
+    "workbenchSetupTitle": "Bem-vindo ao Muse Desktop",
+    "workbenchSetupDetail": "Escolha uma pasta para trabalhar. O Muse Desktop abre uma janela por pasta.",
+    "workbenchOpenFolder": "Abrir pasta…",
+    "workbenchBridgeUnavailable": "A ponte da área de trabalho não está disponível. Inicie o Muse Desktop pelo aplicativo, não pelo navegador.",
+    "workbenchLayoutUnreadable": "Não foi possível ler o layout salvo, portanto o layout padrão está em uso.",
+    "workbenchFileUnreadable": "Este arquivo não pôde ser lido como texto.",
+    "workbenchStatusWorkspace": "Espaço de trabalho: {name}",
+    "workbenchStatusTerminals": {
+      "one": "{count} terminal",
+      "other": "{count} terminais",
+      "many": "{count} terminais"
+    },
+    "workbenchToggleSidebar": "Alternar barra lateral",
+    "workbenchToggleRail": "Alternar trilho",
+    "workbenchToggleTerminal": "Alternar painel do terminal",
+    "workbenchDetachTerminal": "Desacoplar terminal",
+    "workbenchDockTerminal": "Acoplar terminal",
+    "workbenchCollapseTerminal": "Recolher no rodapé",
+    "workbenchExpandTerminal": "Expandir painel do terminal"
   }
 }

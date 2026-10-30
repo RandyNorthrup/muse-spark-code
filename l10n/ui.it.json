@@ -7519,6 +7519,40 @@
       "one": "Installazione di {count} pacchetto",
       "other": "Installazione di {count} pacchetti",
       "many": "Installazione di {count} pacchetti"
-    }
+    },
+    "workbenchChat": "Chat",
+    "workbenchEditor": "Editor",
+    "workbenchSidebar": "Barra laterale",
+    "workbenchTerminal": "Terminale",
+    "workbenchProblems": "Problemi",
+    "workbenchOutput": "Output",
+    "workbenchQuickOpen": "Cerca file per nome",
+    "workbenchNoFileOpen": "Nessun file è aperto. Premi Ctrl+P per aprirne uno.",
+    "workbenchNoProblems": "Nessun problema trovato.",
+    "workbenchNoOutput": "Non è stato ancora scritto alcun output.",
+    "workbenchNewTerminal": "Nuovo terminale",
+    "workbenchCloseTerminal": "Chiudi terminale",
+    "workbenchTerminalExited": "Il terminale è terminato con codice {code}.",
+    "workbenchSave": "Salva",
+    "workbenchUnsaved": "Modifiche non salvate",
+    "workbenchSetupTitle": "Benvenuto in Muse Desktop",
+    "workbenchSetupDetail": "Scegli una cartella in cui lavorare. Muse Desktop apre una finestra per cartella.",
+    "workbenchOpenFolder": "Apri cartella…",
+    "workbenchBridgeUnavailable": "Il bridge desktop non è disponibile. Avvia Muse Desktop dalla sua applicazione, non da un browser.",
+    "workbenchLayoutUnreadable": "Impossibile leggere il layout salvato, quindi viene usato il layout predefinito.",
+    "workbenchFileUnreadable": "Questo file non è stato letto come testo.",
+    "workbenchStatusWorkspace": "Area di lavoro: {name}",
+    "workbenchStatusTerminals": {
+      "one": "{count} terminale",
+      "other": "{count} terminali",
+      "many": "{count} terminali"
+    },
+    "workbenchToggleSidebar": "Mostra/nascondi barra laterale",
+    "workbenchToggleRail": "Mostra/nascondi rail",
+    "workbenchToggleTerminal": "Mostra/nascondi pannello terminale",
+    "workbenchDetachTerminal": "Sgancia terminale",
+    "workbenchDockTerminal": "Ancora terminale",
+    "workbenchCollapseTerminal": "Comprimi nel piè di pagina",
+    "workbenchExpandTerminal": "Espandi pannello terminale"
   }
 }

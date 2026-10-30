@@ -7335,6 +7335,39 @@
     "installingPacks": {
       "one": "{count} paket kuruluyor",
       "other": "{count} paket kuruluyor"
-    }
+    },
+    "workbenchChat": "Sohbet",
+    "workbenchEditor": "Düzenleyici",
+    "workbenchSidebar": "Kenar çubuğu",
+    "workbenchTerminal": "Terminal",
+    "workbenchProblems": "Sorunlar",
+    "workbenchOutput": "Çıktı",
+    "workbenchQuickOpen": "Dosyaları ada göre ara",
+    "workbenchNoFileOpen": "Açık dosya yok. Bir dosya açmak için Ctrl+P tuşlarına basın.",
+    "workbenchNoProblems": "Hiç sorun bulunamadı.",
+    "workbenchNoOutput": "Henüz hiçbir çıktı yazılmadı.",
+    "workbenchNewTerminal": "Yeni terminal",
+    "workbenchCloseTerminal": "Terminali kapat",
+    "workbenchTerminalExited": "Terminal {code} koduyla çıkış yaptı.",
+    "workbenchSave": "Kaydet",
+    "workbenchUnsaved": "Kaydedilmemiş değişiklikler",
+    "workbenchSetupTitle": "Muse Desktop’a hoş geldiniz",
+    "workbenchSetupDetail": "Çalışacağınız klasörü seçin. Muse Desktop her klasör için bir pencere açar.",
+    "workbenchOpenFolder": "Klasör aç…",
+    "workbenchBridgeUnavailable": "Masaüstü köprüsü kullanılamıyor. Muse Desktop’ı tarayıcıdan değil, uygulamasından başlatın.",
+    "workbenchLayoutUnreadable": "Kaydedilen düzen okunamadı, bu yüzden varsayılan düzen kullanılıyor.",
+    "workbenchFileUnreadable": "Bu dosya metin olarak okunamadı.",
+    "workbenchStatusWorkspace": "Çalışma alanı: {name}",
+    "workbenchStatusTerminals": {
+      "one": "{count} terminal",
+      "other": "{count} terminal"
+    },
+    "workbenchToggleSidebar": "Kenar çubuğunu aç/kapat",
+    "workbenchToggleRail": "Ray göstergesini aç/kapat",
+    "workbenchToggleTerminal": "Terminal panelini aç/kapat",
+    "workbenchDetachTerminal": "Terminali ayır",
+    "workbenchDockTerminal": "Terminali yerleştir",
+    "workbenchCollapseTerminal": "Alt bilgiye katla",
+    "workbenchExpandTerminal": "Terminal panelini genişlet"
   }
 }

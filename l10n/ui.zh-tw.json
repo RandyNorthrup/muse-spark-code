@@ -7151,6 +7151,38 @@
     "install": "安裝",
     "installingPacks": {
       "other": "正在安裝 {count} 個套件"
-    }
+    },
+    "workbenchChat": "聊天",
+    "workbenchEditor": "編輯器",
+    "workbenchSidebar": "側邊欄",
+    "workbenchTerminal": "終端",
+    "workbenchProblems": "問題",
+    "workbenchOutput": "輸出",
+    "workbenchQuickOpen": "依名稱搜尋檔案",
+    "workbenchNoFileOpen": "尚未開啟任何檔案。按 Ctrl+P 開啟檔案。",
+    "workbenchNoProblems": "未發現任何問題。",
+    "workbenchNoOutput": "尚未寫入任何輸出。",
+    "workbenchNewTerminal": "新建終端",
+    "workbenchCloseTerminal": "關閉終端",
+    "workbenchTerminalExited": "終端已退出，代碼為 {code}。",
+    "workbenchSave": "儲存",
+    "workbenchUnsaved": "未儲存的變更",
+    "workbenchSetupTitle": "歡迎使用 Muse Desktop",
+    "workbenchSetupDetail": "選擇一個工作資料夾。Muse Desktop 每個資料夾開啟一個視窗。",
+    "workbenchOpenFolder": "開啟資料夾…",
+    "workbenchBridgeUnavailable": "桌面橋無法使用。請從 Muse Desktop 應用程式啟動，不要從瀏覽器啟動。",
+    "workbenchLayoutUnreadable": "無法讀取已儲存的版面，所以正在使用預設版面。",
+    "workbenchFileUnreadable": "此檔案無法作為文字讀取。",
+    "workbenchStatusWorkspace": "工作區: {name}",
+    "workbenchStatusTerminals": {
+      "other": "{count} 個終端"
+    },
+    "workbenchToggleSidebar": "切換側邊欄",
+    "workbenchToggleRail": "切換軌道",
+    "workbenchToggleTerminal": "切換終端面板",
+    "workbenchDetachTerminal": "分離終端",
+    "workbenchDockTerminal": "停靠終端",
+    "workbenchCollapseTerminal": "摺疊到頁尾",
+    "workbenchExpandTerminal": "展開終端面板"
   }
 }

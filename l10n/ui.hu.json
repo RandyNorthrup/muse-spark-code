@@ -7335,6 +7335,39 @@
     "installingPacks": {
       "one": "{count} csomag telepítése",
       "other": "{count} csomag telepítése"
-    }
+    },
+    "workbenchChat": "Csevegés",
+    "workbenchEditor": "Szerkesztő",
+    "workbenchSidebar": "Oldalsáv",
+    "workbenchTerminal": "Terminál",
+    "workbenchProblems": "Problémák",
+    "workbenchOutput": "Kimenet",
+    "workbenchQuickOpen": "Fájlok keresése név alapján",
+    "workbenchNoFileOpen": "Nincs megnyitva fájl. Nyomja meg a Ctrl+P billentyűket egy fájl megnyitásához.",
+    "workbenchNoProblems": "Nem található probléma.",
+    "workbenchNoOutput": "Még nem írtak kimenetet.",
+    "workbenchNewTerminal": "Új terminál",
+    "workbenchCloseTerminal": "Terminál bezárása",
+    "workbenchTerminalExited": "A terminál kilépett a(z) {code} kóddal.",
+    "workbenchSave": "Mentés",
+    "workbenchUnsaved": "Nem mentett módosítások",
+    "workbenchSetupTitle": "Üdvözöljük a Muse Desktopban",
+    "workbenchSetupDetail": "Válasszon mappát a munkához. A Muse Desktop mappánként egy ablakot nyit.",
+    "workbenchOpenFolder": "Mappa megnyitása…",
+    "workbenchBridgeUnavailable": "Az asztali híd nem érhető el. Indítsa el a Muse Desktopot az alkalmazásából, ne böngészőből.",
+    "workbenchLayoutUnreadable": "A mentett elrendezést nem sikerült beolvasni, ezért az alapértelmezett elrendezés van használatban.",
+    "workbenchFileUnreadable": "Ez a fájl nem volt olvasható szövegként.",
+    "workbenchStatusWorkspace": "Munkaterület: {name}",
+    "workbenchStatusTerminals": {
+      "one": "{count} terminál",
+      "other": "{count} terminál"
+    },
+    "workbenchToggleSidebar": "Oldalsáv be/ki",
+    "workbenchToggleRail": "Sín be/ki",
+    "workbenchToggleTerminal": "Terminálpanel be/ki",
+    "workbenchDetachTerminal": "Terminál leválasztása",
+    "workbenchDockTerminal": "Terminál dokkolása",
+    "workbenchCollapseTerminal": "Összecsukás a láblécbe",
+    "workbenchExpandTerminal": "Terminálpanel kibontása"
   }
 }
