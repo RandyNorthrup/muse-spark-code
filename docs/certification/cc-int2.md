@@ -368,5 +368,5 @@ Open decisions for the lead (none blocks the merge):
 ## 9. Commits
 
 `9b090e87c` → `c0e5e3f10`, then this record: the five merges and five commits
-named in §1, with the lanes' own commits beneath them (87 commits, 328 files,
-+20,712 / −1,566 against the base).
+named in §1, with the lanes' own commits beneath them (88 commits, 328 files,
++20,710 / −1,566 against the base).
