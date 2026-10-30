@@ -30922,6 +30922,16 @@ are not reverted; the hang-forever risks among them are reported with
 proposals. Proof: a red/green drill per restored limit and the touched
 suites. Evidence: `docs/certification/rlf-safelimits.md`.
 
+**Status 2026-10-30 (integration into int/recovery, CC-INT3): built.**
+The lane's ten restores are on int. Where int had moved on, the safety
+limit kept its cited value inside int's newer code: Tab's ten-minute
+backstop wraps int's per-request stream (the bring-your-own models), and the
+schedule-storage tests keep int's existing-file setup for Windows. Two of the
+lane's tests drove a hand-written stand-in (a hung Tab stream, a never-settling
+fetch for GitHub); both now send the product's own client and the platform's
+fetch to a loopback connection that is accepted and never answered. Proof and
+exit codes: `docs/certification/cc-int3.md`.
+
 ---
 
 ## 7. Gates

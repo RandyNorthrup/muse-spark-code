@@ -341,3 +341,24 @@ Not reverted, per the brief. Hang-forever risks found:
   → unbounded) stay: each wait is provider-governed (Retry-After,
   backoff) and the person's stop ends it — the person's work, not a
   failure loop.
+
+## 7. Integration into int/recovery (CC-INT3, 2026-10-30)
+
+Merged with `git merge --no-ff` (`43f3f805d`); the proof on the merged tree is
+`docs/certification/cc-int3.md`. Three things in this record changed on int:
+
+- **R8's test and R9's test no longer use a stand-in.** The drills in §2 R8 and
+  R9 ran against a hand-written hung stream and a never-settling fetch. On
+  int the same two cases send the product's own `ModelApiClient` (R8) and the
+  platform's `fetch` (R9, only the host rewritten to loopback) to a loopback
+  connection that is accepted and never answered. Drills on int: R8's timer
+  made inert → `tabEngine` runs 5006 ms into the suite's own timeout, exit 1,
+  restored exit 0; R9's signal removed from the lookup request →
+  `releaseReuseTimeout` 5008 ms into the timeout, exit 1, restored exit 0.
+- **R8 keeps int's per-request stream.** The backstop's signal reaches
+  `request.stream ?? deps.stream` (bring-your-own Tab models), which int added
+  after this lane's base.
+- **R1's stop test keeps int's existing-file setup.** Windows reads a missing
+  name under a denied folder as missing, so both the stop case and the bound
+  case read a file that exists; the stop case aborts at 50 ms, inside the five
+  attempts' ~200 ms of backoff.
