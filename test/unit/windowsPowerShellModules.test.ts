@@ -12,15 +12,18 @@
 // the rule (call it, or a guarded-layer function the last test pins to it),
 // or stand on the short reviewed list with its reason. A new powershell.exe
 // start that skips the rule fails the first test; a removed rule fails with
-// its anchor. The real process comes after: the agent's owner-only lockdown
-// in Windows PowerShell 5.1 under pwsh 7's real module path.
+// its anchor. The real processes come after: Get-Acl in Windows PowerShell 5.1
+// under pwsh 7's real module path, with the rule and without it, and the
+// agent's owner-only lockdown from the same terminal.
 import { execFileSync } from 'node:child_process'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
-import { readdirSync, readFileSync } from 'node:fs'
+import { readdirSync, readFileSync, realpathSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import * as ts from 'typescript'
 import { describe, expect, it } from 'vitest'
+import { noWorkspaceChildEnvironment, windowsPowerShell } from '../../src/core/execGuard'
+import { runProgram } from '../../src/host/processTree'
 import { secureOwnerOnly } from '../../src/runtime/tokenFile'
 import { withPowerShell7ModulePath } from './helpers/powerShell7'
 
@@ -197,15 +200,47 @@ describe('WINPSMOD Windows PowerShell 5.1 children', () => {
   })
 })
 
-// The agent's owner-only lockdown (the bearer token's folder, conversion's
-// private folder: runtime/tokenFile.ts) runs Get-Acl and Set-Acl, which
-// Microsoft.PowerShell.Security holds, in Windows PowerShell 5.1. With this
-// process carrying pwsh 7's real module path, as an agent started from a
-// PowerShell 7 terminal has it, the folder is still locked down; without the
-// rule 5.1 cannot load either cmdlet and the lockdown refuses.
+// With this process carrying pwsh 7's real module path, as an agent started
+// from a PowerShell 7 terminal has it: Get-Acl, which Microsoft.PowerShell.
+// Security holds, answers in a 5.1 child that has the rule and fails in one
+// that inherits the path as it stands (measured: "found in the module
+// 'Microsoft.PowerShell.Security', but the module could not be loaded", exit
+// 1); and the agent's owner-only lockdown (the bearer token's folder,
+// conversion's private folder: runtime/tokenFile.ts, which reads and writes
+// the descriptor through the CLR alone) still locks a real folder down.
 describe.runIf(process.platform === 'win32')(
-  'WINPSMOD owner-only lockdown from a PowerShell 7 terminal',
+  'WINPSMOD Windows PowerShell 5.1 from a PowerShell 7 terminal',
   () => {
+    it('gives Get-Acl a working module through the rule, and none without it', async () => {
+      const folder = await mkdtemp(path.join(await realpath(os.tmpdir()), 'winpsmod-'))
+      try {
+        const systemRoot = process.env['SystemRoot'] ?? ''
+        const args = [
+          '-NoLogo',
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          `(Get-Acl -LiteralPath '${folder.replaceAll("'", "''")}').Owner`,
+        ]
+        await withPowerShell7ModulePath(async () => {
+          const shell = windowsPowerShell(systemRoot)
+          const ruled = await runProgram(shell.file, args, shell.env)
+          expect(ruled.trim()).not.toBe('')
+          // The same program and command with the module path as inherited:
+          // Get-Acl is found in its module and the module cannot be loaded.
+          await expect(
+            runProgram(
+              shell.file,
+              args,
+              noWorkspaceChildEnvironment('win32', process.env, realpathSync),
+            ),
+          ).rejects.toThrow()
+        })
+      } finally {
+        await rm(folder, { recursive: true, force: true })
+      }
+    })
+
     it('locks a real folder to its owner through Windows PowerShell 5.1', async () => {
       const folder = await mkdtemp(path.join(await realpath(os.tmpdir()), 'winpsmod-'))
       try {
