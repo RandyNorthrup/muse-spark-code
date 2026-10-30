@@ -6,10 +6,10 @@
 // ends what a finished call left behind.
 import { spawn, spawnSync } from 'node:child_process'
 import { readFileSync, realpathSync } from 'node:fs'
-import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { withoutCredentials } from '../../src/core/credentialEnvironment'
 import {
@@ -23,6 +23,7 @@ import {
   endJobScript,
   windowsArgument,
 } from '../../src/host/playbook/containedJob'
+import { processGitPath } from '../../src/host/git'
 import { runTreeSync } from '../../src/host/processTree'
 import { withoutHostVariables } from '../../src/core/hostVariables'
 import { renamedFiles } from '../../src/core/orchestration/playbook/renamedFiles'
@@ -39,6 +40,21 @@ import { compiledJobAssembly, SYSTEM_ROOT } from './helpers/playbook/jobAssembly
 import { removeFolder } from './helpers/temporaryFolders'
 
 const IS_WINDOWS = process.platform === 'win32'
+/** Whether the machine's git answers: without it the rename proof runs on hosted CI. */
+const IS_GIT_AVAILABLE = spawnSync('git', ['--version'], { stdio: 'ignore' }).status === 0
+/**
+Whether the process supervisor reports real statuses: sandboxes without
+`ps` (this MacBook's lanes) break it, and the rename proof needs it, so
+without it the proof runs on hosted CI.
+*/
+const IS_SUPERVISOR_HEALTHY =
+  runTreeSync('/bin/sh', ['-c', 'exit 3'], {
+    cwd: tmpdir(),
+    env: workspaceChildEnvironment(process.platform, withoutCredentials(process.env), {
+      workspaceRoot: tmpdir(),
+      realpath: realpathSync,
+    }),
+  }).status === 3
 /** What a contained fixture process reports about itself. */
 const seenSchema = z.object({
   cwd: z.string(),
@@ -147,19 +163,24 @@ describe('ContainedJob', () => {
 
   it('fails the call, never runs it uncontained, when the helper cannot be reached', () => {
     const published: string[][] = []
-    const ended: string[] = []
+    // A helper dead before it could serve its pipe: a real process of the
+    // test's own, spawned and reaped, whose pid the open finds gone. (Our
+    // own exited child would stay a zombie under the open's blocked poll,
+    // never looking dead; spawnSync reaps before the open runs.)
+    const grave = spawnSync(process.execPath, ['-e', ''], { stdio: 'ignore' })
     const job = new ContainedJob({
-      end: (name: string): boolean => {
-        ended.push(name)
-        return true
-      },
       assemblyPath: 'missing.dll',
       systemRoot: SYSTEM_ROOT,
       onJob: (names) => {
         published.push([...names])
       },
-      // A helper that never started: no process, no pipe, and so no job.
-      start: () => ({ pid: undefined, unref: () => undefined }),
+      // The requested PowerShell cannot run off Windows; what the open
+      // answers to is the gone helper, not the program. The end by name
+      // never runs (the gone-arm short-circuit), so the default stands:
+      // were it consulted, its verdict would be false and the job
+      // retained, failing the last assertion below.
+      start: () => ({ pid: grave.pid, unref: () => undefined }),
+      connectMs: 50,
     })
     const result = job.run(VERSION, { cwd: process.cwd(), env: {} })
     expect(result.status).toBeNull()
@@ -171,7 +192,6 @@ describe('ContainedJob', () => {
     )
     expect(published[1]).toEqual([])
     // A helper that is gone took its job with it: nothing is left to end by name.
-    expect(ended).toEqual([])
   })
 
   it('never forgets a job whose end it has not seen', () => {
@@ -181,43 +201,49 @@ describe('ContainedJob', () => {
     const recordEnd = (name: string): void => {
       ended.push(name)
     }
-    const job = new ContainedJob({
-      assemblyPath: 'missing.dll',
-      systemRoot: SYSTEM_ROOT,
-      onJob: (names) => {
-        published.push([...names])
-      },
-      // A helper that is alive (this very process) and never serves its pipe.
-      start: () => ({ pid: process.pid, unref: () => undefined }),
-      end: (name: string): boolean => {
-        recordEnd(name)
-        return isEnded
-      },
-      connectMs: 50,
+    // A helper that is alive and never serves its pipe: a real process of
+    // the test's own, sleeping. The 30 s self-end is harness hygiene only:
+    // the test kills it below, and a failure must not leave it behind.
+    const sleeper = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 30000)'], {
+      stdio: 'ignore',
+      windowsHide: true,
     })
-    const first = job.run(VERSION, { cwd: process.cwd(), env: {} })
-    expect(first.status).toBeNull()
-    const [stuck] = published.at(-1) ?? []
-    // It was ended by name, the end was not seen, and its name is still published.
-    expect(ended).toEqual([stuck])
-    expect(published.at(-1)).toEqual([stuck])
-    // The next call fails the same way, and the first job is still not forgotten.
-    expect(job.run(VERSION, { cwd: process.cwd(), env: {} }).status).toBeNull()
-    expect(published.at(-1)).toHaveLength(2)
-    expect(published.at(-1)).toContain(stuck)
-    // Once ending by name is seen to work, every kept name is let go.
-    isEnded = true
-    expect(job.run(VERSION, { cwd: process.cwd(), env: {} }).status).toBeNull()
-    expect(published.at(-1)).toEqual([])
-    expect(ended).toContain(stuck)
+    try {
+      const job = new ContainedJob({
+        assemblyPath: 'missing.dll',
+        systemRoot: SYSTEM_ROOT,
+        onJob: (names) => {
+          published.push([...names])
+        },
+        start: () => sleeper,
+        end: (name: string): boolean => {
+          recordEnd(name)
+          return isEnded
+        },
+        connectMs: 50,
+      })
+      const first = job.run(VERSION, { cwd: process.cwd(), env: {} })
+      expect(first.status).toBeNull()
+      const [stuck] = published.at(-1) ?? []
+      // It was ended by name, the end was not seen, and its name is still published.
+      expect(ended).toEqual([stuck])
+      expect(published.at(-1)).toEqual([stuck])
+      // The next call fails the same way, and the first job is still not forgotten.
+      expect(job.run(VERSION, { cwd: process.cwd(), env: {} }).status).toBeNull()
+      expect(published.at(-1)).toHaveLength(2)
+      expect(published.at(-1)).toContain(stuck)
+      // Once ending by name is seen to work, every kept name is let go.
+      isEnded = true
+      expect(job.run(VERSION, { cwd: process.cwd(), env: {} }).status).toBeNull()
+      expect(published.at(-1)).toEqual([])
+      expect(ended).toContain(stuck)
+    } finally {
+      sleeper.kill()
+    }
   })
 })
 
 describe('the environment of a playbook command', () => {
-  afterEach(() => {
-    vi.unstubAllEnvs()
-  })
-
   it('holds none of the editor host’s own variables, by the shell tools’ one list', () => {
     const kept = { PATH: '/bin', VSCODE_PORTABLE: '/portable' }
     // The five names VS Code's own terminal keeps for the person stay, as for a shell tool.
@@ -241,35 +267,83 @@ describe('the environment of a playbook command', () => {
     ).toEqual(['VSCODE_PORTABLE'])
   })
 
-  it('is what the policy gives git when it looks for moved files, whatever its host holds', async () => {
-    const workspace = await mkdtemp(path.join(tmpdir(), 'muse-playbook-environment-'))
-    try {
-      await mkdir(path.join(workspace, '.git'))
-      // Everything a VS Code extension host's environment was seen to carry.
-      for (const [name, value] of Object.entries(EXTENSION_HOST_VARIABLES)) vi.stubEnv(name, value)
-      const given: NodeJS.ProcessEnv[] = []
-      const nothing = Buffer.alloc(0)
-      renamedFiles(workspace, {
-        admit: () => true,
-        // Stands in for the contained runner on every OS: the call's options are the test.
-        runContained: (_effect, options) => {
-          given.push(options.env ?? {})
-          return {
-            pid: 1,
-            output: [null, nothing, nothing],
-            stdout: nothing,
-            stderr: nothing,
-            status: 0,
-            signal: null,
+  it.each(['linux', 'win32', 'darwin'] as const)(
+    'is what the policy gives git on %s: the stripped host environment, by the one list',
+    async (platform) => {
+      // The exact expression renamedFiles feeds git: the hostile input is
+      // plain data, never the process environment and never a runner.
+      const workspace = await mkdtemp(path.join(tmpdir(), 'muse-playbook-environment-'))
+      try {
+        const given = workspaceChildEnvironment(
+          platform,
+          withoutHostVariables(
+            withoutCredentials({
+              PATH: '/bin',
+              VSCODE_PORTABLE: '/portable',
+              ...EXTENSION_HOST_VARIABLES,
+            }),
+            platform,
+          ),
+          { workspaceRoot: workspace, realpath: realpathSync },
+        )
+        expect(hostNames(given)).toEqual(['VSCODE_PORTABLE'])
+      } finally {
+        await removeFolder(workspace)
+      }
+    },
+  )
+
+  it.runIf(!IS_WINDOWS && IS_GIT_AVAILABLE && IS_SUPERVISOR_HEALTHY)(
+    'finds a real rename with the host variables really present',
+    async () => {
+      // The wiring for real: host variables really in the process
+      // environment, real git in a real repository, no contained runner
+      // (off Windows the policy spawns git directly). Windows needs a
+      // contained runner; its native block proves the real job carries
+      // the environment through.
+      const workspace = await mkdtemp(path.join(tmpdir(), 'muse-playbook-renames-'))
+      try {
+        const git = processGitPath(workspace)
+        if (git === undefined) throw new Error('git is not installed')
+        const runGit = (args: readonly string[]): void => {
+          const result = spawnSync(git, [...args], { cwd: workspace, encoding: 'utf8' })
+          if (result.status !== 0) throw new Error(`git ${args.join(' ')} failed: ${result.stderr}`)
+        }
+        runGit(['-c', 'init.defaultBranch=main', 'init'])
+        await writeFile(path.join(workspace, 'old.txt'), 'moved\n')
+        runGit(['add', 'old.txt'])
+        runGit([
+          '-c',
+          'user.email=playbook@test',
+          '-c',
+          'user.name=playbook',
+          '-c',
+          'commit.gpgsign=false',
+          'commit',
+          '-m',
+          'before the move',
+        ])
+        runGit(['mv', 'old.txt', 'new.txt'])
+        const previous = new Map<string, string | undefined>()
+        for (const [name, value] of Object.entries(EXTENSION_HOST_VARIABLES)) {
+          previous.set(name, process.env[name])
+          process.env[name] = value
+        }
+        try {
+          expect(renamedFiles(workspace, { admit: () => true })).toEqual([
+            { from: 'old.txt', to: 'new.txt' },
+          ])
+        } finally {
+          for (const [name, value] of previous) {
+            if (value === undefined) Reflect.deleteProperty(process.env, name)
+            else process.env[name] = value
           }
-        },
-      })
-      expect(given.length).toBeGreaterThan(0)
-      for (const env of given) expect(hostNames(env)).toEqual([])
-    } finally {
-      await removeFolder(workspace)
-    }
-  })
+        }
+      } finally {
+        await removeFolder(workspace)
+      }
+    },
+  )
 })
 
 describe.runIf(!IS_WINDOWS)('the supervisor’s group sweep on macOS and Linux', () => {
