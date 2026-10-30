@@ -8445,7 +8445,7 @@ export class ConversationController implements DeferredSend {
       readonly localId: string
       readonly resendsUsed: number
     },
-    reportFailure: (error: unknown) => void,
+    report: (error: unknown) => void,
   ): Promise<void> {
     const generation = this.sendInvalidationEpoch
     const isCurrent = () => this.isCurrentSessionAction(session, generation)
@@ -8493,7 +8493,7 @@ export class ConversationController implements DeferredSend {
       )
     } catch (error: unknown) {
       this.checkpoints.dropPending(checkpoint)
-      reportFailure(error)
+      report(error)
     }
   }
 
