@@ -869,7 +869,8 @@
     "tab-model": "Tab 완성이 사용하는 모델입니다.",
     "tab-daily-budget-usd": "이 금액(미국 달러)에 이르면 그날의 Tab을 멈춥니다. 기본값 0은 예산을 정하지 않습니다.",
     "tab-max-output-tokens": "각 Tab 요청의 출력 토큰을 이 수로 제한합니다. 기본값 0은 모델 자체의 최대값입니다.",
-    "tab-trigger": "입력하는 동안 Tab을 제공할지(automatic), 요청할 때만 제공할지(onInvoke) 정합니다."
+    "tab-trigger": "입력하는 동안 Tab을 제공할지(automatic), 요청할 때만 제공할지(onInvoke) 정합니다.",
+    "panel-stdio": "표준 입력과 출력으로 MHP를 주고받습니다. 한 줄에 JSON 메시지 하나입니다."
   },
   "referenceScanSecrets": "UTF-8 패치 파일에서 비밀 정보를 검색하고 발견하면 실패로 종료합니다. --key-stdin은 메모리에 있는 정확한 Model API 키도 검색하며 키를 저장하지 않습니다.",
   "referenceVault": "터미널에서 사용자별 자격 증명 Vault로 작업합니다: 설정, 복구, 재설정, 상태, 잠금 해제, 잠금, 목록, 추가, 부여, 감사, 가져오기 및 감시. 값은 절대 인쇄되지 않으며 브로커가 보관합니다. 명시적으로 확인하면 초기화를 통해 소유자를 알 수 없는 쓰기 잠금도 교체할 수 있습니다.",
@@ -2182,6 +2183,9 @@
   "gitExtensionMissing": "이 창에서는 VS Code의 기본 제공 Git 확장을 사용할 수 없습니다.",
   "gitExtensionDisabled": "VS Code의 Git이 꺼져 있습니다(git.enabled).",
   "gitNoRepository": "이 작업 영역은 VS Code의 Git이 열어 둔 git 리포지토리에 있지 않습니다.",
+  "gitWorkspaceNotRepository": "이 작업 영역은 git 리포지토리에 있지 않습니다.",
+  "gitProgramMissing": "이 컴퓨터에 Git이 설치되어 있지 않거나 PATH에 없습니다.",
+  "signOutInTerminal": "로그아웃하려면 터미널에서 “muse-spark-code-acp auth clear”(Model API) 또는 “muse logout”(Muse Code)을 실행한 다음 다시 확인하세요.",
   "gitNothingToCommit": "커밋할 항목이 없습니다.",
   "gitNothingStaged": "스테이징된 항목이 없습니다. \"스테이징되지 않은 변경 내용 및 새 파일 포함\"을 선택하거나 먼저 일부를 스테이징하세요.",
   "gitCommitMessageEmpty": "먼저 커밋 메시지를 입력하세요.",
@@ -4389,6 +4393,8 @@
     "noteLsp": "--tab이 없으면 아무것도 청구되지 않고 자격 증명 저장소도 읽지 않습니다. 지정하면 새 가격마다 먼저 편집기에서 묻습니다. \"이 작업 영역에서 항상 허용\"은 --trust-workspace를 지정할 때만 제공됩니다.",
     "purposeSupervise": "이 에이전트의 다른 명령을 stop이 시작된 모든 프로세스와 함께 끝낼 수 있도록 실행합니다.",
     "purposeStop": "이 폴더에서 시작한 감독 실행을 시작된 모든 프로세스와 함께 모두 중지합니다.",
+    "purposePanel": "편집기의 Muse 패널 호스트에 MHP로 응답합니다. 시작된 폴더에 대한 대화와 이 에이전트의 설정 및 저장소를 제공합니다.",
+    "notePanel": "여기에 쓴 설정은 이 에이전트가 직접 읽는 설정입니다. 사용자 설정은 데이터 폴더의 settings.json과 resources.json에 남습니다. 무엇을 실행하거나 무엇에 비용을 청구할지 정하는 설정은 사용자만의 것이며 작업 영역 범위를 거부합니다. 키나 토큰은 절대 저장하지 않습니다.",
     "purposeSetup": "Setup 후크를 실행하고 종료합니다.",
     "purposeUsage": "모델별 사용량과 비용을 표시합니다.",
     "purposeResources": "컴퓨터 부하와 최근 기록을 표시합니다.",
@@ -6751,6 +6757,11 @@
       "other": "감독 실행 {count}개를 완전히 중지하지 못했습니다."
     },
     "unavailable": "이 설치에서는 감독 기능을 사용할 수 없습니다."
+  },
+  "hostService": {
+    "unavailable": "이 설치에서는 런타임 패널을 사용할 수 없습니다.",
+    "needsStdio": "panel에는 --stdio가 필요합니다. 편집기의 호스트는 표준 입력과 출력으로 통신합니다.",
+    "notAvailable": "이 기능은 아직 이 편집기에서 사용할 수 없습니다."
   },
   "acpConnector": {
     "title": "커넥터 요청 승인",

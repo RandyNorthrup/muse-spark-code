@@ -877,7 +877,8 @@
     "tab-model": "Il modello usato dai completamenti Tab.",
     "tab-daily-budget-usd": "Ferma Tab per il resto del giorno a questo importo in dollari statunitensi; 0, il valore predefinito, non imposta alcun budget.",
     "tab-max-output-tokens": "Limita ogni richiesta Tab a questo numero di token di output; 0, il valore predefinito, è il massimo proprio del modello.",
-    "tab-trigger": "Serve Tab mentre si digita (automatic) o solo su richiesta (onInvoke)."
+    "tab-trigger": "Serve Tab mentre si digita (automatic) o solo su richiesta (onInvoke).",
+    "panel-stdio": "Parlare MHP su standard input e output, un messaggio JSON per riga."
   },
   "referenceScanSecrets": "Analizza un file patch UTF-8 alla ricerca di segreti e termina con errore se li rileva. --key-stdin cerca anche la chiave Model API esatta in memoria; nessuna chiave viene salvata.",
   "referenceVault": "Lavora con il vault delle credenziali per utente da un terminale: configurazione, recupero, reimpostazione, stato, sblocco, blocco, elenco, aggiunta, concessioni, audit, importazione e osservazione. I valori non vengono mai stampati; li detiene il broker. Dopo una conferma esplicita, il ripristino può anche sostituire un blocco di scrittura di proprietario sconosciuto.",
@@ -2226,6 +2227,9 @@
   "gitExtensionMissing": "L’estensione Git integrata di VS Code non è disponibile in questa finestra.",
   "gitExtensionDisabled": "Git di VS Code è disattivato (git.enabled).",
   "gitNoRepository": "Questa area di lavoro non si trova in un repository git aperto da Git di VS Code.",
+  "gitWorkspaceNotRepository": "Questa area di lavoro non si trova in un repository git.",
+  "gitProgramMissing": "Git non è installato su questo computer oppure non è nel PATH.",
+  "signOutInTerminal": "Per uscire, esegui «muse-spark-code-acp auth clear» (Model API) oppure «muse logout» (Muse Code) in un terminale, poi controlla di nuovo.",
   "gitNothingToCommit": "Non c’è nulla di cui eseguire il commit.",
   "gitNothingStaged": "Nessuna modifica è preparata per il commit. Seleziona “Includi modifiche non preparate e nuovi file” oppure prepara prima alcune modifiche.",
   "gitCommitMessageEmpty": "Scrivi prima un messaggio di commit.",
@@ -4553,6 +4557,8 @@
     "noteLsp": "Senza --tab non viene addebitato nulla e l’archivio delle credenziali non viene mai letto. Con esso, ogni nuovo prezzo chiede prima nell’editor; Consenti sempre in questa area di lavoro è offerto solo con --trust-workspace.",
     "purposeSupervise": "Esegue un altro comando di questo agente in modo che stop possa terminarlo con tutti i processi che ha avviato.",
     "purposeStop": "Ferma ogni esecuzione supervisionata avviata in questa cartella, con tutti i processi che ha avviato.",
+    "purposePanel": "Servire l’host del pannello Muse di un editor tramite MHP: le sue conversazioni, nonché le impostazioni e l’archiviazione di questo agente, per la cartella in cui viene avviato.",
+    "notePanel": "Un’impostazione scritta qui è quella che questo agente legge da sé: le impostazioni utente restano in settings.json e resources.json della cartella dati. Le impostazioni che scelgono cosa viene eseguito o cosa viene addebitato sono solo tue e rifiutano l’ambito dell’area di lavoro. Nessuna chiave né token viene mai salvato.",
     "purposeSetup": "Esegui gli hook Setup ed esci.",
     "purposeUsage": "Mostra l’utilizzo e il costo di tutti i modelli.",
     "purposeResources": "Mostra il carico della macchina e la cronologia recente.",
@@ -7105,6 +7111,11 @@
       "many": "{count} esecuzioni supervisionate non sono state fermate del tutto."
     },
     "unavailable": "La supervisione non è disponibile in questa installazione."
+  },
+  "hostService": {
+    "unavailable": "Il pannello di runtime non è disponibile in questa installazione.",
+    "needsStdio": "panel richiede --stdio: l’host dell’editor gli parla su standard input e output.",
+    "notAvailable": "Questo non è ancora disponibile in questo editor."
   },
   "acpConnector": {
     "title": "Approva le richieste del connettore",

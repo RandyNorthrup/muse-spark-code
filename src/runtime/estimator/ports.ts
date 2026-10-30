@@ -24,7 +24,7 @@ import { planCheckLoader, planSnapshotLoader } from '../../host/estimator/planSn
 import { runEstimateCommand } from './command'
 import { lazyBundleLoader } from '../../host/lazyBundle'
 import type { Logger } from '../../host/logger'
-import { PLAN_SNAPSHOT_BUNDLE_FILE } from '../../shared/constants'
+import { PLAN_SNAPSHOT_BUNDLE_FILE, RUNTIME_RESOURCE_SETTINGS_FILE } from '../../shared/constants'
 import type { resourceMachineStore } from '../resources/settings'
 
 interface ResourceSettingsBundleDeps {
@@ -88,7 +88,7 @@ export function runtimeEstimatorPorts(
   let machine: ReturnType<typeof resourceMachineStore> | undefined
   const readSettings = () => {
     machine ??= settingsBundle().resourceMachineStore({
-      settingsFile: path.join(deps.machineDir, 'resources.json'),
+      settingsFile: path.join(deps.machineDir, RUNTIME_RESOURCE_SETTINGS_FILE),
       resumeFile: path.join(deps.machineDir, 'resource-resume.json'),
       sleep: (ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
     })

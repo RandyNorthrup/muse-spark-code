@@ -881,7 +881,8 @@
     "tab-model": "Model, którego używają uzupełnienia Tab.",
     "tab-daily-budget-usd": "Zatrzymaj Tab do końca dnia przy tej kwocie w dolarach amerykańskich; 0, wartość domyślna, nie ustala budżetu.",
     "tab-max-output-tokens": "Ogranicz każde żądanie Tab do tylu tokenów wyjściowych; 0, wartość domyślna, to własne maksimum modelu.",
-    "tab-trigger": "Obsługuj Tab podczas pisania (automatic) lub tylko na żądanie (onInvoke)."
+    "tab-trigger": "Obsługuj Tab podczas pisania (automatic) lub tylko na żądanie (onInvoke).",
+    "panel-stdio": "Mówić MHP na standardowym wejściu i wyjściu, jedna wiadomość JSON na wiersz."
   },
   "referenceScanSecrets": "Skanuje plik poprawki UTF-8 w poszukiwaniu sekretów i kończy się błędem po wykryciu. --key-stdin sprawdza także dokładny klucz Model API w pamięci; żaden klucz nie jest zapisywany.",
   "referenceVault": "Pracuj z magazynem poświadczeń użytkownika z terminala: konfiguracja, odzyskiwanie, reset, stan, odblokowanie, blokowanie, lista, dodawanie, granty, audyt, import i obserwacja. Wartości nigdy nie są wypisywane; przechowuje je broker. Po wyraźnym potwierdzeniu reset może też zastąpić blokadę zapisu o nieznanym właścicielu.",
@@ -2248,6 +2249,9 @@
   "gitExtensionMissing": "Wbudowane rozszerzenie Git w VS Code nie jest dostępne w tym oknie.",
   "gitExtensionDisabled": "Git w VS Code jest wyłączony (git.enabled).",
   "gitNoRepository": "Ten obszar roboczy nie znajduje się w repozytorium git otwartym przez Git w VS Code.",
+  "gitWorkspaceNotRepository": "Ten obszar roboczy nie znajduje się w repozytorium git.",
+  "gitProgramMissing": "Git nie jest zainstalowany na tym komputerze lub nie ma go w zmiennej PATH.",
+  "signOutInTerminal": "Aby się wylogować, uruchom w terminalu „muse-spark-code-acp auth clear” (Model API) lub „muse logout” (Muse Code), a potem sprawdź ponownie.",
   "gitNothingToCommit": "Nie ma nic do zatwierdzenia.",
   "gitNothingStaged": "Nic nie zostało przygotowane. Zaznacz „Uwzględnij nieprzygotowane zmiany i nowe pliki” albo najpierw przygotuj część zmian.",
   "gitCommitMessageEmpty": "Najpierw napisz komunikat zatwierdzenia.",
@@ -4635,6 +4639,8 @@
     "noteLsp": "Bez --tab nic nie jest rozliczane, a magazyn danych logowania nigdy nie jest odczytywany. Z nią każda nowa cena najpierw pyta w edytorze; Zawsze zezwalaj w tym obszarze roboczym jest dostępne tylko z --trust-workspace.",
     "purposeSupervise": "Uruchom inne polecenie tego agenta tak, aby stop mógł je zakończyć razem ze wszystkimi uruchomionymi przez nie procesami.",
     "purposeStop": "Zatrzymaj każde nadzorowane uruchomienie rozpoczęte w tym folderze razem ze wszystkimi uruchomionymi przez nie procesami.",
+    "purposePanel": "Obsługiwać hosta panelu Muse w edytorze przez MHP: jego rozmowy oraz ustawienia i magazyn tego agenta dla folderu, w którym się uruchamia.",
+    "notePanel": "Ustawienie zapisane tutaj to to, które czyta sam agent: ustawienia użytkownika pozostają w plikach settings.json i resources.json w folderze danych. Ustawienia, które decydują, co jest uruchamiane lub co jest rozliczane, należą tylko do Ciebie i odrzucają zakres obszaru roboczego. Żaden klucz ani token nigdy nie jest przechowywany.",
     "purposeSetup": "Uruchom hooki Setup i zakończ.",
     "purposeUsage": "Pokaż użycie i koszty wszystkich modeli.",
     "purposeResources": "Pokaż obciążenie komputera i ostatnią historię.",
@@ -7282,6 +7288,11 @@
       "many": "{count} nadzorowanych uruchomień nie udało się zatrzymać w całości."
     },
     "unavailable": "Nadzór nie jest dostępny w tej instalacji."
+  },
+  "hostService": {
+    "unavailable": "Panel środowiska uruchomieniowego nie jest dostępny w tej instalacji.",
+    "needsStdio": "panel wymaga --stdio: host edytora rozmawia z nim przez standardowe wejście i wyjście.",
+    "notAvailable": "To nie jest jeszcze dostępne w tym edytorze."
   },
   "acpConnector": {
     "title": "Zatwierdź żądania konektora",

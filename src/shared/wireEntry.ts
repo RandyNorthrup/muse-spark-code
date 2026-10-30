@@ -1,9 +1,9 @@
 // Node consumers share the existing boundary schemas. Browser and integration
 // bundles retain their own copy; no protocol shape or parser is changed.
-// protocol.ts is shared by name: the MHP panel's raw message schemas
-// (`webviewToHostMessageSchema`, `hostToWebviewMessageSchema`, M104 D226)
-// stay out of dist/wire.js until a Node bundle reads them, so the shared
-// bundle does not grow for the native-host JSON Schema generator alone.
+// protocol.ts is shared by name, every export of it: the MHP panel's raw
+// message schemas (`webviewToHostMessageSchema`, `hostToWebviewMessageSchema`,
+// D226) joined when the runtime panel (dist/runtimePanel.js, M104 lane B)
+// became the first Node bundle to read them through src/shared/hostApi/panel.ts.
 // test/unit/wireEntry.test.ts pins this list against protocol.ts.
 export {
   BACKEND_KINDS,
@@ -13,6 +13,7 @@ export {
   SIGN_IN_METHODS,
   bookmarkRecordSchema,
   chatReferenceSchema,
+  hostToWebviewMessageSchema,
   installTeamProtocolSchemas,
   isEstimatorHostMessage,
   isEstimatorWebviewMessage,
@@ -23,6 +24,7 @@ export {
   reportEventRefSchema,
   reportWebviewErrorSchema,
   settingsSnapshotShape,
+  webviewToHostMessageSchema,
 } from './protocol'
 export * from './agentEvents'
 export * from './scheduleProtocol'

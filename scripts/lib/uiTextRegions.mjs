@@ -29,7 +29,7 @@ export const UI_TEXT_REGIONS = [
   {
     name: 'runtime',
     output: 'dist/uiTextRuntime.js',
-    keys: /^(?:acp|exec|scanSecrets|reportUsage$)/,
+    keys: /^(?:acp|exec|scanSecrets|reportUsage$|hostService$|gitWorkspaceNotRepository$|gitProgramMissing$|signOutInTerminal$|supervision$|languageServer$)/,
   },
   {
     name: 'hooks',

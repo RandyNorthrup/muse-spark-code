@@ -873,7 +873,8 @@
     "tab-model": "Tab tamamlamalarının kullandığı model.",
     "tab-daily-budget-usd": "Bu kadar ABD dolarına ulaşınca Tab o gün için durur; varsayılan 0 bütçe belirlemez.",
     "tab-max-output-tokens": "Her Tab isteğini bu kadar çıktı token’ıyla sınırlar; varsayılan 0 modelin kendi üst sınırıdır.",
-    "tab-trigger": "Tab yazarken (automatic) ya da yalnızca istediğinizde (onInvoke) sunulur."
+    "tab-trigger": "Tab yazarken (automatic) ya da yalnızca istediğinizde (onInvoke) sunulur.",
+    "panel-stdio": "Standart giriş ve çıkışta MHP konuşur, satır başına bir JSON iletisi."
   },
   "referenceScanSecrets": "UTF-8 yama dosyasında gizli bilgileri arar ve bulursa başarısız olur. --key-stdin bellekteki Model API anahtarının tam değerini de arar; anahtar saklanmaz.",
   "referenceVault": "Kullanıcı başına kimlik bilgisi kasasıyla bir terminalden çalışın: kurulum, kurtarma, sıfırlama, durum, kilit açma, kilitleme, liste, ekleme, izinler, denetim, içe aktarma ve izleme. Değerler asla yazdırılmaz; aracı tutar. Açık onaydan sonra sıfırlama, sahibi bilinmeyen yazma kilidini de değiştirebilir.",
@@ -2204,6 +2205,9 @@
   "gitExtensionMissing": "VS Code'un yerleşik Git uzantısı bu pencerede kullanılamıyor.",
   "gitExtensionDisabled": "VS Code'un Git'i kapalı (git.enabled).",
   "gitNoRepository": "Bu çalışma alanı, VS Code'un Git'inin açtığı bir git deposunda değil.",
+  "gitWorkspaceNotRepository": "Bu çalışma alanı bir git deposunda değil.",
+  "gitProgramMissing": "Git bu bilgisayarda kurulu değil veya PATH içinde yok.",
+  "signOutInTerminal": "Oturumu kapatmak için bir terminalde “muse-spark-code-acp auth clear” (Model API) veya “muse logout” (Muse Code) komutunu çalıştırın, ardından yeniden denetleyin.",
   "gitNothingToCommit": "İşlenecek bir şey yok.",
   "gitNothingStaged": "Hazırlanmış bir şey yok. “Hazırlanmamış değişiklikleri ve yeni dosyaları dahil et” seçeneğini işaretleyin veya önce bazı değişiklikleri hazırlayın.",
   "gitCommitMessageEmpty": "Önce bir işleme iletisi yazın.",
@@ -4471,6 +4475,8 @@
     "noteLsp": "--tab olmadan hiçbir şey faturalanmaz ve kimlik bilgisi deposu hiç okunmaz. Onunla her yeni fiyat önce düzenleyicide sorar; Bu çalışma alanında her zaman izin ver yalnızca --trust-workspace ile sunulur.",
     "purposeSupervise": "Bu ajanın başka bir komutunu, stop onu başlattığı tüm süreçlerle birlikte sonlandırabilecek şekilde çalıştırır.",
     "purposeStop": "Bu klasörde başlatılan her denetimli çalıştırmayı, başlattığı tüm süreçlerle birlikte durdurur.",
+    "purposePanel": "Bir düzenleyicinin Muse paneli ana bilgisayarına MHP üzerinden hizmet verir: konuşmalarını ve bu aracının, başladığı klasördeki ayarları ile depolamasını.",
+    "notePanel": "Burada yazılan bir ayar, bu aracının kendisinin okuduğu ayardır: kullanıcı ayarları veri klasörünün settings.json ve resources.json dosyalarında kalır. Neyin çalışacağını veya neyin faturalanacağını seçen ayarlar yalnızca sizindir ve çalışma alanı kapsamını reddeder. Hiçbir anahtar veya belirteç asla saklanmaz.",
     "purposeSetup": "Setup kancalarını çalıştırır ve çıkar.",
     "purposeUsage": "Tüm modellerin kullanımını ve maliyetini gösterir.",
     "purposeResources": "Makine yükünü ve son geçmişi gösterir.",
@@ -6928,6 +6934,11 @@
       "other": "{count} denetimli çalıştırma bütünüyle durdurulamadı."
     },
     "unavailable": "Denetim bu kurulumda kullanılamıyor."
+  },
+  "hostService": {
+    "unavailable": "Çalışma zamanı paneli bu kurulumda kullanılamıyor.",
+    "needsStdio": "panel için --stdio gerekir: düzenleyicinin ana bilgisayarı onunla standart giriş ve çıkışta konuşur.",
+    "notAvailable": "Bu özellik bu düzenleyicide henüz kullanılamıyor."
   },
   "acpConnector": {
     "title": "Bağlayıcı isteklerini onayla",
