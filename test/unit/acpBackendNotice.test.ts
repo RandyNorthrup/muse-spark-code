@@ -45,14 +45,21 @@ describe('UpdateTranslator backendNotice', () => {
       level: 'warning',
       text: 'Automatic compaction failed; continuing with the original context.',
     })
-    expect(updates).toEqual([
-      {
-        sessionUpdate: 'agent_message_chunk',
-        content: {
-          type: 'text',
-          text: 'Automatic compaction failed; continuing with the original context.\n\n',
-        },
+    // RLF-ACPTURNS F1: the fallback is its own message, so a client
+    // that groups by id starts a new message instead of folding the
+    // notice into the model's answer.
+    expect(updates).toHaveLength(1)
+    expect(updates[0]).toMatchObject({
+      sessionUpdate: 'agent_message_chunk',
+      content: {
+        type: 'text',
+        text: 'Automatic compaction failed; continuing with the original context.\n\n',
       },
-    ])
+    })
+    const chunk = updates[0]
+    expect(chunk?.sessionUpdate).toBe('agent_message_chunk')
+    expect(
+      typeof (chunk?.sessionUpdate === 'agent_message_chunk' ? chunk.messageId : undefined),
+    ).toBe('string')
   })
 })
