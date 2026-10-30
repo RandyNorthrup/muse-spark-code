@@ -309,6 +309,9 @@ def stage(args):
         # churn-tolerant directories admit by suffix while the tarball's
         # SHA-256 pins the exact bytes). Universal-only members (darwin
         # bundles, Windows sources) are refused until consciously added.
+        # RLF-MUSESETUP adds what int grew since: the judge model catalog
+        # the runtime reads, the Vim client's inert scripts, and the
+        # judge peer's C source (inert on the node; nothing compiles it).
         runtime_files = {
             "package.json",
             "README.md",
@@ -318,15 +321,21 @@ def stage(args):
             "dist/legal-data.json.br",
             "dist/runtime.bundles.json.br",
             "dist/whatsNew.json",
+            "dist/judgeModels.json",
             "dist/legal-data/NOTICE.md",
             "dist/legal-data/provenance.json",
             "l10n/ui.tables.json.br",
             "l10n/usage.tables.json.br",
             "design/fonts/manifest.json",
+            "editors/vim/README.md",
+            "editors/vim/autoload/muse_spark.vim",
+            "editors/vim/doc/muse_spark.txt",
+            "editors/vim/plugin/muse_spark.vim",
             "native/linux/x64/muse-created",
             "native/linux/x64/muse-vault-peer",
             "native/linux/arm64/muse-created",
             "native/linux/arm64/muse-vault-peer",
+            "native/linux/MuseSparkLocalJudgePeer.c",
             "native/runner/runner-helper.ps1",
             "native/runner/runner-helper.sh",
         }
