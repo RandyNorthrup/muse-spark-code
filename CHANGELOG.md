@@ -331,6 +331,9 @@ happened, not what was planned; superseded entries are kept.
   turn open, instead of calling every blocker a check. Starting against
   Muse Code 1.4.7 no longer logs a schema-fingerprint mismatch warning:
   its served schema is a known one, recorded from that build.
+- On macOS, a signed-in Muse Code CLI is recognised from its credential
+  file at start, instead of asking the CLI about its sign-in every time.
+  The start log names `inline` where it said `unrecognized`.
 - The terminal agent's requests were missing from usage history since 0.12.0:
   every headless turn stamped its usage record with a fractional clock, the
   journal refused the record, and one warning was all that was left. Stored
