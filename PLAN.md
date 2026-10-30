@@ -15377,6 +15377,58 @@ page read 2026-10-12, and stay UNVERIFIED until a real editor confirms them
 (capture plan and certification record are linked in the full record). Full
 record: [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
+### D216 — Agent secret use (M109 lanes T and X): reported provenance, a person-set ceiling, delegated feeder redemption (lead decision 2026-10-30)
+
+RLF-M109 measured T5 blocked three times over in the installed broker
+(`docs/certification/rlf-m109.md` section 3: the channel ceiling is
+`none`, its taint dep rejects, `perform` rejects, and redemption
+admission binds a ticket to its registration incarnation by object
+identity, which only the registering connection holds). The lead
+decided on 2026-10-30, and this is the rule in force:
+
+1. **Option 1 with option 2 as its first increment.** Design and build
+   lanes T and X (provenance owner, ceiling owner, feeder redemption
+   transport with feeder authentication). The first increment is
+   environment/stdin secret uses only, headless first; no
+   git/askpass/sudo/SSH surfaces yet. Option 3 (host-side redemption,
+   the harness host receiving material itself) is rejected: it widens
+   the host secret surface and contradicts D89.4 (the feeder is the
+   one way a brokered value reaches a child).
+2. **Feeder peer authentication is owned by the broker:** OS peer
+   credentials (`SO_PEERCRED` on Linux, `getpeereid` on macOS,
+   `GetNamedPipeClientProcessId` on Windows) AND command-tree
+   membership — the feeder's ancestry includes the registered
+   requester process, with process start time checked — per the
+   helper server's `authenticate` contract
+   (`src/core/vault/exec/helpers.ts`).
+3. **Delegated tickets.** The feeder does NOT register as its own
+   requester. The registered host asks for a single-use delegated
+   redemption ticket bound to the feeder identity (pid + process
+   start time + the command envelope digest); the broker admits a
+   redemption on the feeder's own connection only when its peer
+   identity matches that delegation. Object-identity binding stays
+   for the host's own redemptions.
+4. **Provenance owner.** The host reports session taint/provenance
+   over its registered connection with each proposal (a new frame
+   kind); the broker channel evaluates that reported taint, validated
+   against the registration, instead of its own dep. The host
+   constructs `VaultTaintSession` per agent session.
+5. **Ceiling owner.** The person vault policy: a ceiling per
+   workspace and role, set by the person. The default is none, which
+   refuses in words; never a ceiling of ours (D121/D208).
+6. **Material only in private frames on the feeder connection**,
+   never on the requester socket; a finish message; terminate on
+   lock or revoke.
+
+Proof is on real parts: the real broker, a real feeder process, real
+OS peer credentials on macOS (and Linux where reachable); Windows
+legs are written for hosted CI. The undo trigger and vault-reset
+questions are answered on int (D217, RLF-VAULTUNDO); the companion
+vault surface stays open. Numbering note: D216 is the next free
+number on this branch (D215 is the highest in force here); D217 is
+already taken on int by RLF-VAULTUNDO, so a collision found at the
+join renumbers by the usual rule.
+
 ## 3. Open questions (need the owner)
 
 <a id="q-0191-linux-vault"></a>
@@ -30339,6 +30391,16 @@ refusing `secrets` with the broker sentence until those owners land.
 Open questions with options and a recommendation are in the
 certification record. M109 stays open.
 
+**RLF-M109 resume (2026-10-30, macmini): building.** The lead decided
+T5 (D216): lanes T and X with the reduced first increment —
+environment/stdin uses only, headless first; host-side redemption
+rejected. This resume records D216 first, then builds the provenance
+report frame and the person vault policy ceiling (lane T), the
+delegated feeder redemption transport with broker-owned feeder peer
+authentication (lane X), and the headless consumer on top. Claims
+wait for the real broker/feeder proof in
+`docs/certification/rlf-m109.md`; M109 stays open.
+
 **C-M109-1 lead decisions (2026-10-10, lead decision).** In 0.17.0, every
 vault use is refused. The binding layer was never built: the broker process,
 its ports, peer checks, a setup flow, a runtime bundle and a Linux slot are
@@ -38243,7 +38305,12 @@ No new escape hatch is introduced.
   attest against arbitrary hostile same-user code rewriting those files
   (D89.15's residual). Management/private reads are bound; installed agent
   T/X/S/O execution, lifetime and trusted provenance owners remain absent and
-  explicitly refused. Audit checkpoint updates commit the authenticated store
+  explicitly refused. (Superseded in part by D216, lead decision
+  2026-10-30: lanes T and X are designed there — reported provenance, a
+  person-set ceiling, delegated feeder redemption — and RLF-M109 builds
+  their first increment, environment/stdin uses headless first; S/O and
+  the git/askpass/sudo/SSH surfaces stay refused until their own
+  increments land.) Audit checkpoint updates commit the authenticated store
   before the protected checkpoint; interruption between those writes refuses
   reopening rather than guessing an anchor. Joined recovery must certify that
   failure path before availability is enabled. CM109JOINA supplies the writer
