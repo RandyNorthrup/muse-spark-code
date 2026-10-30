@@ -6080,7 +6080,9 @@ what is still open.
 
 The `Vault` command (`museSpark.vault`) opens the vault panel and `Lock vault
 now` (`museSpark.lockVault`, Ctrl+Alt+Shift+L / Cmd+Alt+Shift+L) ends every
-use in every window. The panel host and the native editor ship in
+use in every window. `Undo Retired Vault Entry` (`museSpark.vaultUndoRetired`) brings a retired
+sign-in back as the current value, as does Undo beside it in the vault panel's
+Retired entries. The panel host and the native editor ship in
 `dist/vault.js`, loaded on the first vault command; activation reads no vault
 and starts no broker. The installed POSIX client and broker factory are bound
 behind the reviewed availability switch, and the Models & Agents panel mounts

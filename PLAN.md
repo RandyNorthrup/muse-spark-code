@@ -15487,6 +15487,44 @@ page read 2026-10-12, and stay UNVERIFIED until a real editor confirms them
 (capture plan and certification record are linked in the full record). Full
 record: [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
+### D217 — Undo for a retired vault item; reset deletes retired items too (lane RLF-VAULTUNDO, 2026-10-23; the owner delegated to the lead: "your call on the undo")
+
+RLM109 left two product questions: `engine.undo` exists but nothing
+triggers it, and a vault reset (broker-side) would destroy retired
+slots, their only copies. The owner's call (2026-10-23): "your call on
+the undo". The lead's call:
+
+1. **Undo on each retired item.** The vault panel lists every retired
+   migration slot with its own Undo action; the same undo is a command
+   in the palette (`museSpark.vaultUndoRetired`, picked from the
+   retired entries). Undo restores the retired value as current: the
+   vault bytes are verified against the
+   journal digest and written back to the legacy store byte-exact, and
+   the slot is active again with the retain window restarted —
+   otherwise the next unlock would retire it again at once, making
+   Undo a no-op. It stays available until the person empties the
+   retired slot (the existing sign-out/removal path), after which undo
+   refuses in words. A slot whose legacy copy reappeared with
+   different bytes is never overwritten: undo refuses and keeps the
+   current value. Active-slot undo (abandoning the migration) stays
+   untriggered. The terminal's `vault undo` is not built (open, lead):
+   a retired slot's legacy store is the editor's SecretStorage, which
+   the terminal cannot write, and the terminal's own key store (D61)
+   has no migration bound yet (the T5 follow-up in the M109 record),
+   so it has no retired slot to undo; it follows that binding.
+2. **Reset deletes retired items too.** A vault reset removes retired
+   slots' journal rows and vault copies along with everything else; no
+   host-side restore runs first (reset is broker-side and cannot write
+   the legacy store). Reset is offered only for a vault that cannot be
+   opened, so its entries cannot be listed then: the confirmation says
+   plainly, before the person types RESET, that retired entries are
+   deleted too because the vault holds their only copies.
+
+The two questions never entered §3 (they lived in the M109 status
+line and `docs/certification/rlm109.md`); this decision resolves
+them, and the M109 status line records it. Full record:
+`docs/certification/rlf-vaultundo.md`.
+
 ## 3. Open questions (need the owner)
 
 <a id="q-0191-linux-vault"></a>
@@ -30701,6 +30739,25 @@ design — its launch half has no packaging and every behavior needs
 real runs. Undo trigger, vault-reset restoration of retired slots
 and the companion surface are owner/product questions. macOS and
 Windows proofs stay with the lead and hosted CI.
+
+**RLF-VAULTUNDO (2026-10-24, randy-lt): built; broker proofs wait for hosted CI.**
+D217 settles the two RLM109 product questions. A retired slot lists in
+the vault section with its own Undo, and `Undo Retired Vault Entry`
+(`museSpark.vaultUndoRetired`) does the same from the palette: the
+vault copy is verified against its journal digest, written back to the
+legacy store byte-exact, and the slot returns to active with its
+two-release window restarted; an emptied, still-current, unknown,
+changed or damaged slot refuses in its own sentence in all 14 tables.
+The reset confirmation now says retired entries are deleted with
+everything else. Proven here: the section's Undo posts exactly its
+entry's key (real render, red/green drilled), axe on the new
+`models-vault-retired` scene in four themes, and the usual gates. Not
+run here: the real-broker undo and reset cases (this rig's session
+keyring aborts, and the governed launch pins the real user session), so
+`undoes a retired entry byte-exact...` and `deletes retired entries with
+everything else...` in both broker suites are for hosted CI. The terminal
+`vault undo` is not built (see D217). Receipts:
+`docs/certification/rlf-vaultundo.md`. M109 stays open.
 
 **C-M109-1 lead decisions (2026-10-10, lead decision).** In 0.17.0, every
 vault use is refused. The binding layer was never built: the broker process,

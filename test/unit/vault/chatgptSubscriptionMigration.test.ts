@@ -2,16 +2,19 @@
 // credential store, the migration controller and the authenticated POSIX
 // broker into the encrypted vault: probed or pool-listed (never listed by
 // the providers seam), copied, verified, rotated, locked/unlocked and
-// signed out. A unique service owns only this run's generated entries; no
-// person's key is read, and the generated tokens are never issued or sent
-// anywhere: no sign-in, refresh or provider call runs. No file/Map store,
-// anchor, broker or editor substitute participates.
+// signed out; a retired slot is undone, and a lost vault is reset. A unique
+// service owns only this run's generated entries; no person's key is read,
+// and the generated tokens are never issued or sent anywhere: no sign-in,
+// refresh or provider call runs. No file/Map store, anchor, broker or editor
+// substitute participates.
 import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, it } from 'vitest'
 import { accountSecretMigrationCredential } from '../../../src/core/vault/migrate/accountSecrets'
 import { chatgptSubscriptionMigrationCredential } from '../../../src/core/vault/migrate/chatgptSubscription'
 import { vaultPeerExecutable } from '../../../src/runtime/vault/posixNative'
+import { vaultBrokerDataDir } from '../../../src/runtime/vault/vaultStoreScope'
+import { driveResetCase, driveUndoRetiredCase } from '../helpers/vault/retiredUndoFlow'
 import { shouldSkipPosixBrokerSuite } from '../helpers/vault/socketFit'
 import {
   chatgptSeeds,
@@ -125,6 +128,35 @@ describe.skipIf(shouldSkipPosixBrokerSuite())(
             connect: client.connect,
             lockScope: client.hostId,
             fresh: true,
+          }),
+        )
+      },
+      FLOW_TIMEOUT_MS,
+    )
+
+    it(
+      'undoes a retired entry byte-exact and refuses an emptied or changed one in words',
+      async () => {
+        await withClient('undo', (client) =>
+          driveUndoRetiredCase({
+            connect: client.connect,
+            lockScope: client.hostId,
+            fresh: true,
+          }),
+        )
+      },
+      FLOW_TIMEOUT_MS,
+    )
+
+    it(
+      'deletes retired entries with everything else when a lost vault is reset',
+      async () => {
+        await withClient('reset', (client) =>
+          driveResetCase({
+            connect: client.connect,
+            lockScope: client.hostId,
+            fresh: true,
+            brokerDataDir: vaultBrokerDataDir(client.dataDir),
           }),
         )
       },

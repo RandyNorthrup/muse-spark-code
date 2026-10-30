@@ -405,9 +405,8 @@ export function createWindowVaultControls(
   const broker = deps.service === undefined ? brokerService(deps.distDir, actions) : undefined
   const service = deps.service ?? broker?.service
   if (service === undefined) throw new Error(UI_TEXT.vault.brokerBlocked)
-  const report = async (error: unknown, what: string): Promise<void> => {
+  const refuse = async (error: unknown): Promise<void> => {
     const named = vaultRefusalSentences()
-    deps.log.warn(what)
     await vscode.window.showErrorMessage(
       error instanceof Error && named.includes(error.message)
         ? error.message
@@ -420,7 +419,8 @@ export function createWindowVaultControls(
       try {
         await service.lock()
       } catch (error: unknown) {
-        await report(error, 'Vault lock command failed')
+        deps.log.warn('Vault lock command failed')
+        await refuse(error)
       }
     },
     // D217: the palette's undo — the retired entries to pick from, then
@@ -456,7 +456,8 @@ export function createWindowVaultControls(
         await controller.undoRetired(picked.key)
         await vscode.window.showInformationMessage(UI_TEXT.vault.retiredUndoDone)
       } catch (error: unknown) {
-        await report(error, 'Vault undo retired command failed')
+        deps.log.warn('Vault undo retired command failed')
+        await refuse(error)
       }
     },
     dispose: () => {
