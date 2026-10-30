@@ -53,8 +53,11 @@ try {
   // artifacts are named, not walked (RLF-HYGIENE): VS Code downloads,
   // dev test bundles, harness output, the agent package stage and the
   // report temp folders broke the build's scan on three rigs by blowing
-  // the directory-entry budget. All are gitignored (.gitignore); none is
-  // distribution, and the build records above still admit what ships.
+  // the directory-entry budget. The image recipe's output (RLF-MUSESETUP:
+  // symlinked kernels and the apt partial cache under out/ cannot be
+  // admitted, so the scan stayed incomplete) joins them. All are
+  // gitignored (.gitignore); none is distribution, and the build records
+  // above still admit what ships.
   const { result } = await scanner.runLegalScan({
     workspaceRoot: process.cwd(),
     input: { headerPolicy: 'optional' },
@@ -65,6 +68,7 @@ try {
       'dist/test',
       'dist/traffic-harness',
       'harness-shots',
+      'out',
       'temp',
     ],
   })
