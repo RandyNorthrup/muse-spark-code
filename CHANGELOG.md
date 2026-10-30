@@ -28,6 +28,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Muse Desktop's workbench shell (M111, in development).** The Electron
+  app for Muse Desktop now exists: one window per folder with chat on the
+  left, editors in the middle, a terminal panel and tabbed footer below
+  them, and the rail and sidebar on the right, with quick open (Ctrl+P),
+  VS Code keys and a layout that is remembered per folder. It is built
+  and run on the development machines; the installable desktop arrives
+  with the M111 installer, so nothing about the extension changes yet.
 - **`muse-spark-code-acp watchdog` keeps a watch list of GitHub repositories
   in a terminal.** `watchdog list` and `status` show the watched
   repositories, `pause` and `resume` stop and restart watching, and `policy`

@@ -1,6 +1,19 @@
 /* Muse Desktop (M111, D91.13) lane WB: workbench chrome. Every value is a
    --ms-* token from M114's generated sheet; no raw paint lives here. */
 
+body {
+  margin: 0;
+}
+
+.muse-desktop input {
+  border: 1px solid var(--ms-input-border);
+  border-radius: var(--ms-radius-sm);
+  background: var(--ms-input-surface);
+  color: var(--ms-input-text);
+  padding: var(--ms-space-4) var(--ms-space-8);
+  font: inherit;
+}
+
 .muse-desktop {
   display: flex;
   block-size: 100vh;
@@ -118,6 +131,10 @@
   font-family: var(--ms-font-code);
   font-size: var(--ms-font-small);
   color: var(--ms-muted);
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
+  text-align: center;
+  line-height: var(--ms-line-ui);
 }
 
 .muse-desktop-sidebar {
