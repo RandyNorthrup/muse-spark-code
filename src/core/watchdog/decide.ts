@@ -93,6 +93,20 @@ function triagedRecord(
   return { record, findings: record.findings }
 }
 
+/** A spam verdict closes the record and posts nothing. The GitHub issue
+stays open, so this does not claim it was closed: the command must not
+say "Closed.", and the next poll must keep the hold. */
+export function spamHoldResult(state: WatchdogState, number: number): WatchdogDecision {
+  return {
+    number,
+    outcome: 'spam',
+    state: nextWatchdogState(state, 'closed'),
+    posted: false,
+    closed: false,
+    reason: UI_TEXT.watchdog.refusal.spamHeld,
+  }
+}
+
 /** The comments read and the gate resolved: a reply already out there
 (this flow, this round, this kind) is adopted and posts nothing, and a
 held gate stops the step with its reason. */
@@ -132,19 +146,16 @@ export async function decideWatchdogIssue(
       const { record, findings } = triagedRecord(live, number)
       const outcome = outcomeFor(findings.verdict)
 
-      // Spam holds structurally: no gate overrides the hold.
+      // Spam holds structurally: no gate overrides the hold, and GitHub
+      // is left open.
       if (outcome === 'spam') {
-        const state = nextWatchdogState(record.state, 'closed')
+        const result = spamHoldResult(record.state, number)
         return {
-          data: patchedWatchdogData(live, number, nowMs, { state, outcome }),
-          result: {
-            number,
-            outcome,
-            state,
-            posted: false,
-            closed: true,
-            reason: UI_TEXT.watchdog.refusal.spamHeld,
-          },
+          data: patchedWatchdogData(live, number, nowMs, {
+            state: result.state,
+            outcome: result.outcome,
+          }),
+          result,
         }
       }
 
