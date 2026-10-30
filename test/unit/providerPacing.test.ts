@@ -249,15 +249,25 @@ describe('pacing admission', () => {
   })
 
   it('holds background fan-out on a configured-provider pause while the foreground passes', async () => {
-    // A 429 pause the observation recorded (the captured Groq readers
-    // teach the windows, the 2 s wait stands in for its Retry-After):
-    // admitted background work waits it out, the user's turn never does.
-    const { pacing, waits } = recordingPacer()
+    // A 429 pause the observation recorded: the captured Groq limits
+    // teach the windows (stale under real time, so the buckets stand
+    // full), the 2 s pause is fresh, and admitted background work really
+    // sleeps it out over real timers while the user's turn never does.
+    const waits: number[] = []
+    const pacing = new ModelApiPacing({
+      now: () => Date.now(),
+      wait: (ms: number) => {
+        waits.push(ms)
+        return new Promise<void>((done) => setTimeout(done, ms))
+      },
+    })
     pacing.observe('groq', openaiPacingLimits(capturedHeaders.groq), 2000)
     await pacing.acquire('groq', 'subagent', 0, AbortSignal.timeout(5000))
-    expect(waits).toEqual([2000])
+    expect(waits).toHaveLength(1)
+    expect(waits[0] ?? 0).toBeGreaterThan(1900)
+    expect(waits[0] ?? 0).toBeLessThanOrEqual(2000)
     await pacing.acquire('groq', 'foreground', 0, AbortSignal.timeout(5000))
-    expect(waits).toEqual([2000])
+    expect(waits).toHaveLength(1)
   })
 })
 
