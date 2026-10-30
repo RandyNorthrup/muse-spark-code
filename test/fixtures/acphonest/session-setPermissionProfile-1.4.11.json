@@ -1,0 +1,16 @@
+{
+  "commandId": "01a18e6a-8dfd-7000-8d1e-2e02c84d1ace",
+  "status": "accepted",
+  "applyOutcome": "noop",
+  "permissionState": {
+    "profileId": ":ask-me",
+    "reviewerAuthority": "human",
+    "reviewerAttached": true,
+    "axes": {
+      "filesystem": "sandboxed",
+      "network": "off",
+      "approval": "onRequest",
+      "reviewer": "human"
+    }
+  }
+}

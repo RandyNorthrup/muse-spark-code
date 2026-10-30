@@ -1,0 +1,10 @@
+{
+  "commandId": "01a18e6a-876e-7000-bf20-cf7199e6bd53",
+  "status": "accepted",
+  "applyOutcome": "completed",
+  "effectiveMode": {
+    "mode": "denyUnmatched",
+    "source": "approvalReconfigure",
+    "lastCommandId": "01a18e6a-876e-7000-bf20-cf7199e6bd53"
+  }
+}

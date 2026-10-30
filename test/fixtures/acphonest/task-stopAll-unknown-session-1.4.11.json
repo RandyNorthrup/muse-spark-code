@@ -1,0 +1,11 @@
+{
+  "refused": {
+    "code": -32020,
+    "message": "session 00000000-0000-7000-8000-000000000000 not found",
+    "data": {
+      "kind": "sessionNotFound",
+      "retryable": false,
+      "sessionId": "00000000-0000-7000-8000-000000000000"
+    }
+  }
+}
