@@ -8,7 +8,7 @@ import {
   type TeamSchedulerFields,
 } from '../../../shared/team'
 import type { TeamSchedulingDeps, TeamSchedulingPort } from '../teamScheduling'
-import { TaskBoard } from './board'
+import { BoardRefusal, TaskBoard } from './board'
 import { SchedulerSlots, isResourceSlotAvailable, type SlotRequest } from './slots'
 import { AttemptRetirement } from './retire'
 import { StallRecovery, type HandoffEntry } from './stalls'
@@ -163,7 +163,9 @@ export function createWindowTeamScheduler(deps: TeamSchedulingDeps): TeamSchedul
           error instanceof Error
             ? error
             : new Error(UI_TEXT.teamBudgetUnavailable, { cause: error })
-        throw failure
+        throw error instanceof Error
+          ? error
+          : new Error(UI_TEXT.teamBudgetUnavailable, { cause: error })
       }
     })()
     await writes
@@ -313,8 +315,11 @@ export function createWindowTeamScheduler(deps: TeamSchedulingDeps): TeamSchedul
         try {
           board.cancelUnstarted(task.id, task.currentAttempt)
           await save()
-        } catch {
-          // Not a refundable admission; the scheduler marks it uncertain below.
+        } catch (error: unknown) {
+          // A board refusal names the moved state: not a refundable
+          // admission; the scheduler marks it uncertain below. A journal
+          // failure is not that condition and keeps propagating.
+          if (!(error instanceof BoardRefusal)) throw error
         }
         return 'notStarted'
       }
@@ -339,8 +344,10 @@ export function createWindowTeamScheduler(deps: TeamSchedulingDeps): TeamSchedul
           try {
             board.cancelUnstarted(task.id, task.currentAttempt)
             await save()
-          } catch {
-            // Not refundable after all; uncertain below.
+          } catch (error: unknown) {
+            // A board refusal names the moved state: not refundable after
+            // all; uncertain below. A journal failure keeps propagating.
+            if (!(error instanceof BoardRefusal)) throw error
           }
           return 'notStarted'
         }

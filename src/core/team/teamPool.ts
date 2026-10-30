@@ -860,7 +860,8 @@ export class TeamScheduler {
       if (stall !== 'noProgress') continue
       try {
         await this.deps.onStallDetected({ taskId: task.id, attempt: attempt.number })
-      } catch {
+      } catch (error: unknown) {
+        this.deps.failure(error)
         // Detection is best effort: a failed handoff retries on the next
         // sweep and must never break the drain.
       }
