@@ -385,9 +385,9 @@ Commands: —. Settings: `museSpark.modelApiParallelReads`. [Documentation](http
 
 Retry limit for failed Model API requests, per try after the first (0 never retries). Unset by default: each provider's documented maximum governs (Anthropic 2, OpenAI 2, Gemini 4, Azure 10, xAI 4, Meta 4), and a provider that documents none retries twice, the official SDK default.
 
-Surfaces: vscode:modelApi. Paid: no extra feature charge; model usage still applies.
+Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: —. Settings: `museSpark.modelApiMaxRetries`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
+Commands: —. Settings: `museSpark.modelApiMaxRetries`, `museSpark.museCodeMaxRetries`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
 
 ### Automatic compaction
 
@@ -3666,6 +3666,20 @@ Type: `"number"`. Default: `0`. Scope: `machine`.
 ### museSpark.modelApiMaxRetries
 
 Retry limit for failed Model API requests, per try after the first (0 never retries). Unset by default: each provider's documented maximum governs (Anthropic 2, OpenAI 2, Gemini 4, Azure 10, xAI 4, Meta 4), and a provider that documents none retries twice, the official SDK default.
+
+Type: `["integer","null"]`. Default: `null`. Scope: `machine`.
+
+```json
+{
+  "type": ["integer", "null"],
+  "default": null,
+  "minimum": 0
+}
+```
+
+### museSpark.museCodeMaxRetries
+
+Retry limit for a retryable failed turn on the Muse Code backend: how many times the turn's own message is resent in the same session (0 never resends, Retry stays manual). Unset by default: two resends, the official SDK default.
 
 Type: `["integer","null"]`. Default: `null`. Scope: `machine`.
 

@@ -158,7 +158,9 @@ import {
   HANDOFF_OPEN_TODO_STATUSES,
   IDE_MCP_SERVER_NAME,
   IMAGE_EXTENSIONS,
+  INDUSTRY_RETRY_MAX_RETRIES,
   MEDIA_READ_MAX_BYTES,
+  MODEL_API_RETRY_JITTER_MS,
   PDF_EXTENSION,
   PLAN_BRIEF_LOCAL_ID_PREFIX,
   PLAN_TODO_PENDING_STATUS,
@@ -212,6 +214,7 @@ import {
   type TodoItem,
 } from '../../shared/agentEvents'
 import { fill, plural, uiLocale } from '../../shared/l10n/text'
+import { INDUSTRY_RETRY_LIMITS, retryDelayMs } from '../../shared/retryPolicy'
 import { sessionTitle } from '../../shared/sessions'
 import { bestOfNTakenNotice } from '../../shared/bestOfNAttemptText'
 import type { GitDraftOutputPort } from '../../core/git/gitText'
@@ -701,6 +704,20 @@ export interface ConversationDeps {
   readonly confirmFileAction: (title: string, detail: string, action: string) => Promise<boolean>
   /** Account & usage's "Ask again": every paid feature asks again in this workspace (M58). */
   readonly forgetPaidUse: () => Promise<void>
+  /**
+  The person's Muse Code resend limit (D217), read live per resend
+  decision; undefined leaves the industry default in force. The window
+  reads the setting through it, the rig its own limit.
+  */
+  readonly museCodeMaxRetries?: () => number | undefined
+  /**
+  The resend wait's clock (D217): resolves after the wait unless the
+  signal aborts first. Production sleeps for real; tests record the
+  asked waits and resolve at once.
+  */
+  readonly resendSleep?: (ms: number, signal: AbortSignal) => Promise<void>
+  /** The resend wait's jitter draw, 0 ≤ n < 1 (D217); Math.random in production. */
+  readonly resendRandom?: () => number
   /** Approvals and questions waiting on the user, shared by every surface (M77). */
   readonly pendingPrompts: PendingPrompts
   readonly boardSessions?: () => readonly BoardSession[]
@@ -1420,9 +1437,34 @@ export class ConversationController implements DeferredSend {
       readonly parts: readonly TurnPart[]
       readonly displayText: string | undefined
       readonly shownText: string
+      readonly localId: string
+      readonly resendsUsed: number
       failedRetryable: boolean | undefined
     }
   >()
+  /**
+  A retryable failed turn waiting out its resend (D217): the held
+  failure shows only if the wait ends without resending (Stop, a new
+  turn, the last attempt). One wait per conversation: a new send aborts
+  it, and the error row it leaves keeps Retry. The wait carries its own
+  copies of the resubmission (a crash's drop clears the map meanwhile),
+  and the session id it waits in; at fire time the live session still
+  being that one (or none, the crash's drop) is what admits the resend —
+  never a hold-time epoch, which the crash's own drop already moved.
+  */
+  private resendWait:
+    | {
+        readonly turnId: string
+        readonly held: Extract<AgentEvent, { type: 'turnCompleted' }>
+        readonly localId: string
+        readonly sessionId: string
+        readonly parts: readonly TurnPart[]
+        readonly displayText: string | undefined
+        readonly shownText: string
+        readonly resendsUsed: number
+        readonly abort: AbortController
+      }
+    | undefined
   private modelId: string
   private permissionMode: PermissionMode
   private isSideChat: boolean
@@ -2616,7 +2658,11 @@ export class ConversationController implements DeferredSend {
     // The runner ends the run on it, as on any other end (M88). A later
     // duplicate event for the turn notifies again; the runner drops it.
     this.noteTurnSettled(turnId, terminal)
-    this.forward(event)
+    // D217: a dead host's retryable turn waits out its resend like a
+    // failure the host reported; the resubmit restarts the host on send.
+    if (!this.holdForResend(event)) {
+      this.forward(event)
+    }
     // A draft asked for in this turn (M71) will not come: its form's button comes back.
     this.git.onEvent(event)
   }
@@ -3047,6 +3093,17 @@ export class ConversationController implements DeferredSend {
     // Draft parsing reads the original reply before asynchronous display hooks;
     // its turn can finish while the presentation rewrite is still waiting.
     this.git.onEvent(event)
+    // D217: a new turn started while a resend waited (a fresh send, not
+    // the resend itself): the wait ends, and the held failure shows with
+    // Retry above the new turn's rows. A child's turn is the child's.
+    if (
+      event.type === 'turnStarted' &&
+      this.resendWait !== undefined &&
+      event.turnId !== this.resendWait.turnId &&
+      !this.isChildTurn(event.turnId)
+    ) {
+      this.abortResend()
+    }
     if (event.type === 'itemCompleted' && this.holdForMessageDisplay(event)) {
       return
     }
@@ -3247,6 +3304,12 @@ export class ConversationController implements DeferredSend {
       event.type === 'approvalRequested' || event.type === 'approvalUpdated'
         ? scrubSecretApproval(event)
         : event
+    // D217: a retryable Muse Code failure waits out its resend instead of
+    // showing the error now; the bookkeeping below still runs for it.
+    if (shown.type === 'turnCompleted' && this.holdForResend(shown)) {
+      this.track(shown)
+      return
+    }
     this.forward(shown)
     this.track(shown)
   }
@@ -7975,6 +8038,7 @@ export class ConversationController implements DeferredSend {
           displayText,
           shownText,
           submission,
+          localId,
         )
       }
       isGitSubmitted = true
@@ -8198,12 +8262,277 @@ export class ConversationController implements DeferredSend {
         remembered.displayText,
         remembered.shownText,
         submission,
+        localId,
       )
     } catch (error: unknown) {
       this.checkpoints.dropPending(checkpoint)
       this.deps.log.warn(`Retrying turn ${turnId} failed: ${failureForLog(error)}`)
       this.post({ type: 'sendFailed', localId, reason: describe(error) })
     }
+  }
+
+  /**
+  Whether a failed turn waits out an automatic resend (D217): only a
+  failure the backend judged retryable, on the Muse Code backend (the
+  CLI owns its loop, so our layer resends a continue in the same
+  session), with the send's own parts still remembered and resends left.
+  A duplicate end for the waiting turn is swallowed — it already waits.
+  */
+  private holdForResend(event: Extract<AgentEvent, { type: 'turnCompleted' }>): boolean {
+    if (event.terminal !== 'failed' || event.retryable !== true) {
+      return false
+    }
+    const waiting = this.resendWait
+    if (waiting !== undefined) {
+      return waiting.turnId === event.turnId
+    }
+    if (this.isDisposed || this.sessionKind !== 'museCode') {
+      return false
+    }
+    const remembered = this.retryableTurns.get(event.turnId)
+    if (remembered === undefined) {
+      return false
+    }
+    const maxResends = this.deps.museCodeMaxRetries?.() ?? INDUSTRY_RETRY_MAX_RETRIES
+    if (remembered.resendsUsed >= maxResends) {
+      return false
+    }
+    this.resendWait = {
+      turnId: event.turnId,
+      held: event,
+      localId: remembered.localId,
+      sessionId: remembered.sessionId,
+      parts: remembered.parts,
+      displayText: remembered.displayText,
+      shownText: remembered.shownText,
+      resendsUsed: remembered.resendsUsed,
+      abort: new AbortController(),
+    }
+    void this.runResendWait()
+    return true
+  }
+
+  /** Shows the held failure with Retry; the wait is over without resending. */
+  private finalizeResend(): void {
+    const waiting = this.resendWait
+    this.resendWait = undefined
+    if (waiting === undefined || this.isDisposed) {
+      return
+    }
+    this.forward(waiting.held)
+  }
+
+  /**
+  Stops the resend wait (Stop, a new turn): the waiter shows the held
+  failure with Retry. Past the wait (the resend already firing), the
+  turn's own Stop ends the new turn instead.
+  */
+  private abortResend(): void {
+    this.resendWait?.abort.abort()
+  }
+
+  /**
+  Shows the held failure when the wait ended while the session
+  re-established (Stop, a new turn); nothing is left to show once the
+  controller went away. True when the resend must not fire. Decided here,
+  past the awaits above, so no narrowing crosses them.
+  */
+  private abandonResendIfAborted(waiting: {
+    readonly abort: AbortController
+    readonly held: Extract<AgentEvent, { type: 'turnCompleted' }>
+  }): boolean {
+    if (!waiting.abort.signal.aborted && !this.isDisposed) {
+      return false
+    }
+    if (!this.isDisposed) {
+      this.forward(waiting.held)
+    }
+    return true
+  }
+
+  /**
+  The resend wait: names it ("Retrying in Ns (attempt K of N)"), waits
+  it out, resubmits the turn's own message in the same session, through
+  the same steps as a Retry press. Stop, a new turn, the controller
+  going away, or the last attempt shows the held failure with Retry.
+  */
+  private async runResendWait(): Promise<void> {
+    const waiting = this.resendWait
+    if (waiting === undefined) {
+      return
+    }
+    const maxResends = this.deps.museCodeMaxRetries?.() ?? INDUSTRY_RETRY_MAX_RETRIES
+    const delayMs = retryDelayMs(
+      waiting.resendsUsed,
+      INDUSTRY_RETRY_LIMITS,
+      undefined,
+      (this.deps.resendRandom ?? Math.random)(),
+      MODEL_API_RETRY_JITTER_MS,
+    )
+    this.deps.log.info(
+      `Turn ${waiting.turnId} failed retryably; resending in ${String(delayMs)} ms (attempt ${String(waiting.resendsUsed + 1)} of ${String(maxResends + 1)})`,
+    )
+    this.forward({
+      type: 'turnRetry',
+      turnId: waiting.turnId,
+      attempt: waiting.resendsUsed + 1,
+      maxAttempts: maxResends + 1,
+      nextAttempt: waiting.resendsUsed + 2,
+      retryDelayMs: delayMs,
+      reason: waiting.held.reason ?? waiting.held.errorKind ?? waiting.held.terminal,
+      ...(waiting.held.errorKind !== undefined && { errorKind: waiting.held.errorKind }),
+    })
+    try {
+      await this.resendSleep(delayMs, waiting.abort.signal)
+    } catch (error: unknown) {
+      // The wait ends without resending. An abort (Stop, a new turn, the
+      // controller going away) is the ordinary end; anything else is a
+      // clock fault that must still show the held failure, never swallow
+      // it. NARROW: only a non-abort rejection is reported.
+      if (!waiting.abort.signal.aborted) {
+        this.deps.log.warn(`The resend wait failed: ${failureForLog(error)}`)
+      }
+      if (this.resendWait === waiting) {
+        this.finalizeResend()
+      }
+      return
+    }
+    if (this.resendWait !== waiting) {
+      return
+    }
+    this.resendWait = undefined
+    if (waiting.abort.signal.aborted || this.isDisposed) {
+      if (!this.isDisposed) {
+        this.forward(waiting.held)
+      }
+      return
+    }
+    // The person's limit is live: a change mid-wait refuses the resend
+    // the pre-wait check accepted (lane PR225W1's rule, kept here).
+    const liveMax = this.deps.museCodeMaxRetries?.() ?? INDUSTRY_RETRY_MAX_RETRIES
+    if (waiting.resendsUsed >= liveMax || this.activeTurnId !== undefined) {
+      this.forward(waiting.held)
+      return
+    }
+    // The wait fires only in its own conversation: no session is the
+    // crash's drop (re-established below, restarting the host on send),
+    // while another session means the panel moved on, and the held end
+    // belongs to a transcript nothing shows now — bookkeeping ran at
+    // hold time, so there is nothing left to display.
+    const live = this.session
+    if (live !== undefined && live.sessionId !== waiting.sessionId) {
+      this.deps.log.info(
+        `Turn ${waiting.turnId}'s resend ends with its conversation: the panel moved on`,
+      )
+      return
+    }
+    let session = live
+    if (session === undefined) {
+      // No card to mark: a refusal posts its notice, and the held error
+      // below keeps Retry.
+      session = await this.sessionForAction()
+      if (session === undefined) {
+        this.forward(waiting.held)
+        return
+      }
+    }
+    if (this.abandonResendIfAborted(waiting)) {
+      return
+    }
+    const refusal = retryTurnRefusal({
+      sessionId: session.sessionId,
+      rememberedSessionId: waiting.sessionId,
+      failedRetryable: true,
+      // A turn may have started while the session re-established above,
+      // so the live read is load-bearing; the rule sees only the
+      // pre-await narrowing (PLAN.md §8).
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- activeTurnId is reassigned by concurrent sends across the await above
+      turnRunning: this.activeTurnId !== undefined,
+    })
+    if (refusal !== undefined) {
+      this.forward(waiting.held)
+      return
+    }
+    // Fresh, not held: whatever the wait's own span moved (the crash's
+    // drop above all) is settled by now, and only a move from here —
+    // another conversation, another send — overtakes the resend.
+    const generation = this.sendInvalidationEpoch
+    const isCurrent = () => this.isCurrentSessionAction(session, generation)
+    let checkpoint: PendingMark | undefined
+    try {
+      await this.autosave()
+      if (!isCurrent()) {
+        throw new Error(UI_TEXT.turnStoppedByRestart)
+      }
+      if (!this.isSideChat) {
+        checkpoint = await this.checkpoints.beforeTurn(session.sessionId)
+        if (!isCurrent()) {
+          this.checkpoints.dropPending(checkpoint)
+          throw new Error(UI_TEXT.turnStoppedByRestart)
+        }
+      }
+      const submission = await this.submit(
+        session,
+        waiting.parts,
+        waiting.displayText,
+        false,
+        isCurrent,
+      )
+      if (!isCurrent()) {
+        this.checkpoints.dropPending(checkpoint)
+        throw new Error(UI_TEXT.turnStoppedByRestart)
+      }
+      this.acceptResubmission(
+        session,
+        waiting.localId,
+        waiting.shownText,
+        waiting.parts,
+        submission,
+        checkpoint,
+        this.permissionMode === PLAN_MODE,
+      )
+      // The resend's own turn may fail retryably in its turn: its chain
+      // continues where this one left off.
+      this.rememberRetryableTurn(
+        session.sessionId,
+        waiting.parts,
+        waiting.displayText,
+        waiting.shownText,
+        submission,
+        waiting.localId,
+        waiting.resendsUsed + 1,
+      )
+    } catch (error: unknown) {
+      this.checkpoints.dropPending(checkpoint)
+      this.deps.log.warn(`Resending turn ${waiting.turnId} failed: ${failureForLog(error)}`)
+      this.forward(waiting.held)
+    }
+  }
+
+  /**
+  The resend wait's clock: the injected one in tests, a real abortable
+  wait in production. Waits stay under one timer (8 s ceiling with
+  jitter), so a single timer holds them.
+  */
+  private resendSleep(ms: number, signal: AbortSignal): Promise<void> {
+    if (this.deps.resendSleep !== undefined) {
+      return this.deps.resendSleep(ms, signal)
+    }
+    return new Promise<void>((resolve, reject) => {
+      if (signal.aborted) {
+        reject(new Error(UI_TEXT.turnStoppedByRestart))
+        return
+      }
+      const timer = setTimeout(() => {
+        signal.removeEventListener('abort', onAbort)
+        resolve()
+      }, ms)
+      const onAbort = () => {
+        clearTimeout(timer)
+        reject(new Error(UI_TEXT.turnStoppedByRestart))
+      }
+      signal.addEventListener('abort', onAbort, { once: true })
+    })
   }
 
   /** A brief that failed leaves no todo list behind (M79): its steps were never sent. */
@@ -8219,7 +8548,9 @@ export class ConversationController implements DeferredSend {
   A plain send's parts, kept for Retry (RLF-ACPTURNS): a failed turn the
   backend judged retryable resubmits these. A steer joins another turn,
   so it never replaces that turn's starter; oldest forgotten past the
-  bound.
+  bound. The card's local id and the resends the chain already used ride
+  along for the automatic resend (D217): a manual retry starts its chain
+  over at zero.
   */
   private rememberRetryableTurn(
     sessionId: string,
@@ -8227,6 +8558,8 @@ export class ConversationController implements DeferredSend {
     displayText: string | undefined,
     shownText: string,
     submission: TurnSubmission,
+    localId: string,
+    resendsUsed = 0,
   ): void {
     if (submission.disposition === STEERED_DISPOSITION) {
       return
@@ -8236,6 +8569,8 @@ export class ConversationController implements DeferredSend {
       parts,
       displayText,
       shownText,
+      localId,
+      resendsUsed,
       failedRetryable: undefined,
     })
     if (this.retryableTurns.size <= RETRYABLE_TURNS_KEPT) {
@@ -9651,6 +9986,10 @@ export class ConversationController implements DeferredSend {
 
   private async cancel(): Promise<void> {
     this.legalScanStop?.abort()
+    // D217: Stop ends the resend wait first — even with no session (a
+    // dead host's wait) — and the waiter shows the held failure with
+    // Retry. Past the wait, the turn's own cancel below ends the resend.
+    this.abortResend()
     if (this.session === undefined) {
       return
     }
@@ -13535,6 +13874,9 @@ export class ConversationController implements DeferredSend {
     this.releaseScheduleWorkspace()
     this.pendingIdeCaller?.dispose()
     this.pendingIdeCaller = undefined
+    // D217: a closed chat ends any pending resend wait, leaving nothing
+    // to fire after its session died.
+    this.abortResend()
     this.isDisposed = true
     this.runner.dispose()
     this.bestOfNManager?.dispose()

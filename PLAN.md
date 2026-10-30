@@ -38170,6 +38170,14 @@ recovery gates pass; evidence: `docs/certification/rlm96d.md`.
 
 ## 8. Escape hatches register
 
+RLF-AUTORETRY, 2026-10-23: `// eslint-disable-next-line
+@typescript-eslint/no-unnecessary-condition` on the `turnRunning` read in
+`runResendWait` (`src/host/conversation/conversationController.ts`). A turn
+may start while the wait re-establishes the dropped session, so the live
+`activeTurnId` read after the await is load-bearing; the rule sees only
+the pre-await narrowing. Removal guard: restructure so no narrowing
+crosses the await (e.g. establishment returning the live turn state).
+
 RLF-ACPTURNS, 2026-10-22: `// eslint-disable-next-line
 @typescript-eslint/no-unnecessary-condition` on the `turnRunning` read in
 `retryTurn` (`src/host/conversation/conversationController.ts`). A turn may
