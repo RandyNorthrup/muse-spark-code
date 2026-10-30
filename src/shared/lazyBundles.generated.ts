@@ -29,6 +29,14 @@ export interface LazyBundleRow {
 }
 
 export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
+  {
+    file: 'accountPaid.js',
+    side: 'both',
+    requestedBy: [
+      { importer: 'src/acp/paid.ts', symbol: 'AcpPaidUse.loadAccountService', side: ['acp'] },
+      { importer: 'src/host/paid/paidHost.ts', symbol: 'createPaidFeatures', side: ['vscode'] },
+    ],
+  },
   { file: 'acp.js', side: 'acp', requestedBy: [] },
   {
     file: 'acpPlaybook.js',
@@ -178,6 +186,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       { importer: 'src/runtime/exec/runExec.ts', symbol: 'providerModelRefusal', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'openRouterApi', side: ['acp'] },
       { importer: 'src/runtime/providersCommands.ts', symbol: 'probeWithTransport', side: ['acp'] },
+      { importer: 'src/runtime/providersSpend.ts', symbol: 'spendFetcherFor', side: ['acp'] },
     ],
   },
   {
@@ -837,11 +846,18 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         symbol: 'autoCompactionAdmission',
         side: ['acp', 'vscode'],
       },
+      {
+        importer: 'src/host/providers/providersHost.ts',
+        symbol: 'createProvidersHost',
+        side: ['vscode'],
+      },
       { importer: 'src/host/schedules/paidBinding.ts', symbol: 'quote', side: ['acp', 'vscode'] },
       { importer: 'src/runtime/authCommands.ts', symbol: 'authSetProvider', side: ['acp'] },
       { importer: 'src/runtime/authCommands.ts', symbol: 'providerLabel', side: ['acp'] },
       { importer: 'src/runtime/exec/runExec.ts', symbol: 'providerModelRefusal', side: ['acp'] },
       { importer: 'src/runtime/exec/runExec.ts', symbol: 'runExec', side: ['acp'] },
+      { importer: 'src/runtime/providersSpend.ts', symbol: 'providersUsage', side: ['acp'] },
+      { importer: 'src/runtime/providersSpend.ts', symbol: 'spendStoredKey', side: ['acp'] },
     ],
   },
   {
@@ -1044,12 +1060,12 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   },
   {
     file: 'runtimeAccounts.js',
-    side: 'acp',
+    side: 'both',
     requestedBy: [
       {
         importer: 'src/shared/constants.ts',
         symbol: 'RUNTIME_ACCOUNTS_BUNDLE_FILE',
-        side: ['acp'],
+        side: ['acp', 'vscode'],
       },
     ],
   },
@@ -1194,6 +1210,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       { importer: 'src/runtime/authCommands.ts', symbol: 'authStatusAll', side: ['acp'] },
       { importer: 'src/runtime/authCommands.ts', symbol: 'authStatusProvider', side: ['acp'] },
       { importer: 'src/runtime/backends.ts', symbol: 'chatGptFactory', side: ['acp'] },
+      { importer: 'src/runtime/backends.ts', symbol: 'modelApiReadiness', side: ['acp'] },
       { importer: 'src/runtime/backends.ts', symbol: 'subscriptionClient', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'chatGptDeps', side: ['acp'] },
     ],
@@ -1498,6 +1515,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       { importer: 'src/shared/constants.ts', symbol: 'WEB_FETCH_BUNDLE_FILE', side: ['vscode'] },
     ],
   },
+  { file: 'webview/developerOptions.js', side: 'vscode', requestedBy: [] },
   {
     file: 'webview/main.js',
     side: 'vscode',

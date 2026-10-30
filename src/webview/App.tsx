@@ -54,7 +54,7 @@ import { parseHandoffPrompt } from '../shared/handoff'
 import { parsePlaybackPrompt } from '../shared/playbackCommand'
 import { parseLoopPrompt } from '../core/backends/modelapi/schedules'
 import { fill, formatNumber, plural, templateParts } from '../shared/l10n/text'
-import { developerReplySchema } from '../shared/developerOptions'
+
 import type { EstimateRequest, EstimateSection } from '../shared/estimate'
 import type { EstimatorPanelPort } from './estimator/EstimatorPanel'
 import { isEstimateCommandText } from './estimator/commandPrefix'
@@ -213,13 +213,11 @@ const HistoryDialog = deferred(async () => {
   const module = await import('./components/HistoryDialog')
   return { default: module.HistoryDialog }
 })
-const DeveloperOptionsEntry = deferred(() => import('./developer/DeveloperOptionsEntry'))
-
-/** The header badge reads the pushed snapshot; anything else reads locked. */
-function isDeveloperMode(reply: unknown): boolean {
-  const parsed = developerReplySchema.safeParse(reply)
-  return parsed.success && parsed.data.type === 'developer/state' && parsed.data.isUnlocked
-}
+const DeveloperOptionsEntry = deferred(async () => {
+  // The page reads the deferred developer English, loaded beside it.
+  await loadDeferredEnglish()
+  return await import('./developer/DeveloperOptionsEntry')
+})
 // "Send feedback" on a reply's actions menu (C-M106-3R2): the dialog and its
 // strings load here, on first open, never with first paint.
 const FeedbackDialog = deferred(async () => {
@@ -3518,7 +3516,7 @@ export function App({
             runningTeamTaskCount={
               state.teamTree === undefined ? 0 : teamRunningTaskCount(state.teamTree)
             }
-            isDeveloperMode={isDeveloperMode(state.developerReply?.reply)}
+            developerBadge={state.developerReply?.badge ?? null}
             onOpenAgents={onOpenAgents}
             onOpenSideChat={canOpenSideChat ? onOpenSideChat : undefined}
             isBookmarked={

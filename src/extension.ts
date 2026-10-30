@@ -1442,7 +1442,12 @@ async function activateWindow(
         wasDeveloperUnlocked = snapshot.isUnlocked
         developerUnlockExpiresAt = snapshot.expiresAt
         refreshDeveloperBadge(snapshot)
-        registry.broadcast({ type: 'developerReply', version, reply: snapshot })
+        registry.broadcast({
+          type: 'developerReply',
+          version,
+          badge: developerBadge(snapshot) ?? null,
+          reply: snapshot,
+        })
         if (hasExpired) void vscode.window.showInformationMessage(UI_TEXT.developer.expired)
       },
     }))
@@ -5525,7 +5530,12 @@ async function activateWindow(
               { id: 'panel', isLocal: true, kind: 'page' },
               message.request,
             )
-            surface.post({ type: 'developerReply', version, reply })
+            surface.post({
+              type: 'developerReply',
+              version,
+              badge: developerBadge(owner.snapshot()) ?? null,
+              reply,
+            })
           } catch (error: unknown) {
             // A refused owner answers unavailable, logging only the named
             // failure, never its text.
@@ -5533,6 +5543,7 @@ async function activateWindow(
             surface.post({
               type: 'developerReply',
               version,
+              badge: null,
               reply: { type: 'developer/error', code: 'unavailable' },
             })
           }
