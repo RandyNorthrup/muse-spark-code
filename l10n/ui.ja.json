@@ -5986,7 +5986,8 @@
     "addProfile": "ローカルプロファイルを追加",
     "helpUnlock": "バージョンを7回クリックするか、開発者向けオプションのコマンドでロックを解除します。",
     "helpTerminal": "`developer`でロックを解除します。`developer status`でこの端末のオプションを表示します。",
-    "commandUsage": "使用法: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
+    "commandUsage": "使用法: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]",
+    "versionLine": "バージョン {version}"
   },
   "mcpConnectorTitle": "他のエージェント向け MCP コネクタ",
   "referenceMcpCommand": "Muse Spark Code のツールを MCP 経由で他のエージェント (Codex、Claude Code、Gemini CLI) に提供します。書き込みはすべてあなたの承認を待ちます。",

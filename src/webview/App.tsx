@@ -54,6 +54,7 @@ import { parseHandoffPrompt } from '../shared/handoff'
 import { parsePlaybackPrompt } from '../shared/playbackCommand'
 import { parseLoopPrompt } from '../core/backends/modelapi/schedules'
 import { fill, formatNumber, plural, templateParts } from '../shared/l10n/text'
+import { developerReplySchema } from '../shared/developerOptions'
 import type { EstimateRequest, EstimateSection } from '../shared/estimate'
 import type { EstimatorPanelPort } from './estimator/EstimatorPanel'
 import { isEstimateCommandText } from './estimator/commandPrefix'
@@ -212,6 +213,13 @@ const HistoryDialog = deferred(async () => {
   const module = await import('./components/HistoryDialog')
   return { default: module.HistoryDialog }
 })
+const DeveloperOptionsEntry = deferred(() => import('./developer/DeveloperOptionsEntry'))
+
+/** The header badge reads the pushed snapshot; anything else reads locked. */
+function isDeveloperMode(reply: unknown): boolean {
+  const parsed = developerReplySchema.safeParse(reply)
+  return parsed.success && parsed.data.type === 'developer/state' && parsed.data.isUnlocked
+}
 // "Send feedback" on a reply's actions menu (C-M106-3R2): the dialog and its
 // strings load here, on first open, never with first paint.
 const FeedbackDialog = deferred(async () => {
@@ -400,6 +408,7 @@ type Overlay =
   | 'sequences'
   | 'chatShare'
   | 'help'
+  | 'developer'
 
 // The palette rows that leave it open (a value changes in place); run from
 // the prompt's "/" palette they keep the `/` too, so it stays (M38).
@@ -690,6 +699,9 @@ export function App({
     }
     const stop = isOwnStore ? listenToHost(store, window, now, report) : undefined
     postMessage({ type: 'ready', attachmentEpoch: store.getState().attachmentEpoch })
+    // The header's Developer mode badge reads the pushed snapshot; later
+    // changes arrive unasked.
+    postMessage({ type: 'developerRequest', request: { type: 'developer/read' } })
     return () => {
       stop?.()
     }
@@ -2012,6 +2024,12 @@ export function App({
           postMessage({ type: 'readUsage' })
           break
         }
+        case 'developer': {
+          // Always re-read: the grant expires and other hosts change it
+          // while the page is closed.
+          postMessage({ type: 'developerRequest', request: { type: 'developer/read' } })
+          break
+        }
         default: {
           break
         }
@@ -2830,6 +2848,13 @@ export function App({
     seenHelpRequests.current = helpRequests
     openOverlay('help')
   }, [helpRequests, openOverlay])
+  const developerRequests = state.developerRequests
+  const seenDeveloperRequests = useRef(developerRequests)
+  useEffect(() => {
+    if (developerRequests === seenDeveloperRequests.current) return
+    seenDeveloperRequests.current = developerRequests
+    openOverlay('developer')
+  }, [developerRequests, openOverlay])
   // The prompt's "/" menus (M38). A row chosen there takes the `/` with it,
   // unless it leaves the palette open; a skill becomes `/selector ` for its
   // arguments.
@@ -3222,6 +3247,7 @@ export function App({
     }
     case 'history':
     case 'help':
+    case 'developer':
     case 'usage':
     case 'agents':
     case 'review':
@@ -3371,6 +3397,7 @@ export function App({
     overlay === 'sequences' ||
     overlay === 'chatShare' ||
     overlay === 'help' ||
+    overlay === 'developer' ||
     overlay === 'usage' ||
     overlay === 'agents' ||
     overlay === 'bestOfN' ||
@@ -3491,6 +3518,7 @@ export function App({
             runningTeamTaskCount={
               state.teamTree === undefined ? 0 : teamRunningTaskCount(state.teamTree)
             }
+            isDeveloperMode={isDeveloperMode(state.developerReply?.reply)}
             onOpenAgents={onOpenAgents}
             onOpenSideChat={canOpenSideChat ? onOpenSideChat : undefined}
             isBookmarked={
@@ -3518,6 +3546,16 @@ export function App({
                 postMessage={postMessage}
                 values={state.referenceValues}
                 settings={state.settings}
+                onClose={closeOverlay}
+              />
+            ) : null}
+            {overlay === 'developer' ? (
+              <DeveloperOptionsEntry
+                message={state.developerReply?.reply}
+                version={state.developerReply?.version ?? ''}
+                post={(request) => {
+                  postMessage({ type: 'developerRequest', request })
+                }}
                 onClose={closeOverlay}
               />
             ) : null}

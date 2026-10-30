@@ -6151,7 +6151,8 @@
     "addProfile": "Helyi profil hozzáadása",
     "helpUnlock": "Kattintson hétszer a verzióra, vagy használja a Fejlesztői beállítások parancsot a feloldáshoz.",
     "helpTerminal": "A feloldáshoz futtassa a `developer` parancsot; a `developer status` megjeleníti a gép beállításait.",
-    "commandUsage": "Használat: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
+    "commandUsage": "Használat: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]",
+    "versionLine": "Verzió {version}"
   },
   "mcpConnectorTitle": "MCP-összekötő más ügynökök számára",
   "referenceMcpCommand": "A Muse Spark Code eszközeinek elérhetővé tétele más ügynökök (Codex, Claude Code, Gemini CLI) számára MCP-n keresztül; minden írás az Ön jóváhagyására vár.",

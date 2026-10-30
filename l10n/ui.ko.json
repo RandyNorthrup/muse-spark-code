@@ -5986,7 +5986,8 @@
     "addProfile": "로컬 프로필 추가",
     "helpUnlock": "버전을 일곱 번 클릭하거나 개발자 옵션 명령을 사용하여 잠금을 해제하세요.",
     "helpTerminal": "`developer`로 잠금을 해제하세요. `developer status`는 이 컴퓨터의 옵션을 보여 줍니다.",
-    "commandUsage": "사용법: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
+    "commandUsage": "사용법: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]",
+    "versionLine": "버전 {version}"
   },
   "mcpConnectorTitle": "다른 에이전트용 MCP 커넥터",
   "referenceMcpCommand": "Muse Spark Code의 도구를 MCP를 통해 다른 에이전트(Codex, Claude Code, Gemini CLI)에 제공합니다. 모든 쓰기 작업은 사용자의 승인을 기다립니다.",

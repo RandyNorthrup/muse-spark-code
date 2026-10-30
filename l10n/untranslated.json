@@ -231,7 +231,8 @@
       "gitPullRequestFormLabel",
       "agentsCount.one",
       "openPullRequestRepository",
-      "sessionListsHooks"
+      "sessionListsHooks",
+      "developer.versionLine"
     ],
     "es": [
       "hooksItem",
@@ -301,7 +302,8 @@
       "teamIntensityLevels.minimal",
       "reportLabels.total",
       "sessionListsHooks",
-      "devices.grantQuota"
+      "devices.grantQuota",
+      "developer.versionLine"
     ],
     "it": [
       "usageAccount",

@@ -7806,6 +7806,7 @@ export const EN = {
     helpTerminal: 'Run `developer` to unlock; `developer status` shows this machine’s options.',
     commandUsage:
       'Usage: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]',
+    versionLine: 'Version {version}',
   },
   // M124 (D106): the connector's Help & Reference rows.
   mcpConnectorTitle: 'MCP connector for other agents',
