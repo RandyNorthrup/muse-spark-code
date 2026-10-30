@@ -10733,6 +10733,9 @@ export const MHP_PRESENTATION = {
   maximumDateMs: 8_640_000_000_000_000,
 } as const
 
+/** A presentation action with no acknowledgement by then has failed (M104 lane D). */
+export const PRESENTATION_REQUEST_TIMEOUT_MS = 30_000
+
 export const MHP_PANEL = {
   version: 'mhp/1.5.0',
   wireVersion: '1.5',

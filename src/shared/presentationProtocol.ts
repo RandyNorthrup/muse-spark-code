@@ -96,6 +96,8 @@ export const presentationRequestSchema = z.discriminatedUnion('type', [
   }),
   z.strictObject({ type: z.literal('walkthroughAction'), requestId: id, stepId: id }),
 ])
+export type PresentationState = z.infer<typeof presentationStateSchema>
+export type PresentationRequest = z.infer<typeof presentationRequestSchema>
 export const presentationMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('presentationState'), state: presentationStateSchema }),
   z.strictObject({
