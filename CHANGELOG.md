@@ -199,6 +199,14 @@ happened, not what was planned; superseded entries are kept.
   exec admits a live-but-unfiled model and files it on use.
 - The Models & Agents panel says where provider keys live: the editor's
   secret storage is not the terminal agent's OS credential store.
+- **Secret-gist sharing core (M118 phase 2, D217; no surface offers it
+  yet).** The publish path behind a future **Secret gist** destination is
+  built: the exact scrubbed preview bytes go out as a secret gist through
+  your own GitHub sign-in, the gist permission is asked only at the moment
+  you press Share with words saying what it allows, declining leaves copy,
+  file and browser sharing working, and a gist GitHub did not make secret
+  is deleted and refused. Unpublish deletes the gist again. The live
+  GitHub run stays with the lead.
 
 ### Changed
 

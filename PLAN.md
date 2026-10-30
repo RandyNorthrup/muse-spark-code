@@ -35152,7 +35152,11 @@ cloudInit)`, `status(id)`, `delete(id)`, and nothing else; each adapter's
 
 ### M118 — Prompt and chat sharing (D98)
 
-**Status 2026-10-06: built.**
+**Status 2026-10-06: built.** Status 2026-10-30: phase 2 core built on
+recovery lane RLF-M118 (secret-gist publish/unpublish with Share-time
+gist-scope consent, D217); no surface offers the gist destination yet,
+and the live GitHub capture stays with the lead. Evidence:
+`docs/certification/rlf-m118.md`.
 
 - **Archived.** The record that stood here is in [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 

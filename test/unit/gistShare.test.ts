@@ -84,6 +84,32 @@ function portsFor(options: {
   }
 }
 
+/** Ports where GitHub wrongly answers a public gist, then `onDelete` for the delete. */
+function publicGistPorts(methods: string[], onDelete: () => Response): GistSharePorts {
+  const { log } = recordLog()
+  return {
+    credential: () =>
+      Promise.resolve({
+        source: 'deviceFlow',
+        bearer: 'first-token',
+        fetch: ((_url: string, init?: RequestInit) => {
+          const method = init?.method ?? 'GET'
+          methods.push(method)
+          return Promise.resolve(
+            method === 'DELETE'
+              ? onDelete()
+              : Response.json({ ...CREATED, public: true }, { status: 201 }),
+          )
+        }) as typeof fetch,
+        expiresAt: undefined,
+      }),
+    upgradeToGistScope: () => Promise.reject(new Error('must not upgrade')),
+    confirmScope: () => Promise.resolve(true),
+    userAgent: 'muse-spark-code/test',
+    log,
+  }
+}
+
 // A fake gist id, built at runtime so no secret-shaped literal sits in source.
 const GIST_ID = 'a'.repeat(32)
 const GIST_URL = `https://gist.github.com/someone/${GIST_ID}`
@@ -187,27 +213,7 @@ describe('publishGistShare', () => {
 
   it('deletes and refuses a gist GitHub did not make secret', async () => {
     const methods: string[] = []
-    const { log } = recordLog()
-    const ports: GistSharePorts = {
-      credential: () =>
-        Promise.resolve({
-          source: 'deviceFlow',
-          bearer: 'first-token',
-          fetch: ((_url: string, init?: RequestInit) => {
-            methods.push(init?.method ?? 'GET')
-            return Promise.resolve(
-              methods.length === 1
-                ? Response.json({ ...CREATED, public: true }, { status: 201 })
-                : new Response(null, { status: 204 }),
-            )
-          }) as typeof fetch,
-          expiresAt: undefined,
-        }),
-      upgradeToGistScope: () => Promise.reject(new Error('must not upgrade')),
-      confirmScope: () => Promise.resolve(true),
-      userAgent: 'muse-spark-code/test',
-      log,
-    }
+    const ports = publicGistPorts(methods, () => new Response(null, { status: 204 }))
     let failure: unknown
     try {
       await publishGistShare(GIST, ports, new AbortController().signal)
@@ -219,25 +225,10 @@ describe('publishGistShare', () => {
   })
 
   it('names the link when a public gist cannot be deleted', async () => {
-    const { log } = recordLog()
-    const ports: GistSharePorts = {
-      credential: () =>
-        Promise.resolve({
-          source: 'deviceFlow',
-          bearer: 'first-token',
-          fetch: ((_url: string, init?: RequestInit) =>
-            Promise.resolve(
-              init?.method === 'DELETE'
-                ? Response.json({ message: 'Bad gateway' }, { status: 502 })
-                : Response.json({ ...CREATED, public: true }, { status: 201 }),
-            )) as typeof fetch,
-          expiresAt: undefined,
-        }),
-      upgradeToGistScope: () => Promise.reject(new Error('must not upgrade')),
-      confirmScope: () => Promise.resolve(true),
-      userAgent: 'muse-spark-code/test',
-      log,
-    }
+    const methods: string[] = []
+    const ports = publicGistPorts(methods, () =>
+      Response.json({ message: 'Bad gateway' }, { status: 502 }),
+    )
     let failure: unknown
     try {
       await publishGistShare(GIST, ports, new AbortController().signal)
@@ -247,6 +238,7 @@ describe('publishGistShare', () => {
     expect((failure as Error).message).toBe(
       fill(UI_TEXT.shareGistLeftPublic, { url: CREATED.html_url }),
     )
+    expect(methods).toEqual(['POST', 'DELETE'])
   })
 
   it('publishes a transcript holding a key, a registered value and paths redacted', async () => {
