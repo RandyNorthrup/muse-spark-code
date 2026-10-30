@@ -17421,6 +17421,17 @@ Node's paired-device channel (M110 lane N wires no node server yet), the
 T adapters and shared approval UI from the RLM124 record. Record:
 `docs/certification/rlf-m124ro.md`.
 
+**RVNET review (2026-10-30, branch `rv/net`, fix `a02ebf146`).** Independent
+review of this listener and of Muse Node `serve` at `review/rlf-nodeserve`
+(`79aee4ca8`). One finding, P2: with a tunnel, a client's `X-Forwarded-Host`
+made discovery advertise that host's token, key and revocation addresses
+while `issuer` stayed the public URL; an absolute-form request line did the
+same and named those addresses with `http`. Every authorization-server URL
+is now built from the public URL the person set.
+`test/unit/connectorRemoteIssuer.test.ts` failed on the real server before
+the pin (vitest exit 1) and passes after. Node `serve` had no finding; no
+`rv/nodeserve` branch remains. Record: `docs/certification/rvnet.md`.
+
 **Provenance.** The documentation-only M119PLAN lane planned this on
 2026-10-07 under the numbers D102/M119 (commits `b27ad09a9`, `00e825dfa` and
 `ebcefbb1a` on `plan/m119-connector`, from base `ccce6e6ac`). Main has since
