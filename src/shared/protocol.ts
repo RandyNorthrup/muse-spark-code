@@ -1572,10 +1572,13 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   }),
   // M108 X: the developer owner's answers and pushed snapshots. `version`
   // is the install's own, shown beside the page for the seven-click
-  // unlock; `reply` parses against the developer reply schema.
+  // unlock; `reply` parses against the developer reply schema. `badge`
+  // carries the localized badge text because the header paints from
+  // startup English, which never carries the deferred developer group.
   z.object({
     type: z.literal('developerReply'),
     version: z.string(),
+    badge: z.nullable(z.string()),
     reply: z.unknown(),
   }),
   // M108 X: the palette's Developer options command opens the page.

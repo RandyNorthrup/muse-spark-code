@@ -133,14 +133,23 @@ describe('developer options entry', () => {
 })
 
 describe('developer host messages', () => {
-  it('stores the pushed reply with its version', async () => {
+  it('stores the pushed reply with its version and badge text', async () => {
     const { snapshot: unlocked } = await snapshot(true)
     const next = uiReducer(initialUiState, {
       type: 'hostMessage',
-      message: { type: 'developerReply', version: packageManifest.version, reply: unlocked },
+      message: {
+        type: 'developerReply',
+        version: packageManifest.version,
+        badge: UI_TEXT.developer.badge,
+        reply: unlocked,
+      },
       at: 0,
     })
-    expect(next.developerReply).toEqual({ version: packageManifest.version, reply: unlocked })
+    expect(next.developerReply).toEqual({
+      version: packageManifest.version,
+      badge: UI_TEXT.developer.badge,
+      reply: unlocked,
+    })
   })
 
   it('counts page openings', () => {

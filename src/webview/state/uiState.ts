@@ -387,7 +387,8 @@ export interface UiState {
   /** Incremented per host `openDeveloper`; the Developer options page opens when it changes. */
   readonly developerRequests: number
   /** The latest developer reply with the install's version, for the page and the header badge. */
-  readonly developerReply: { readonly version: string; readonly reply: unknown } | undefined
+  readonly developerReply:
+    { readonly version: string; readonly badge: string | null; readonly reply: unknown } | undefined
   readonly referenceValues:
     | {
         readonly model: string
@@ -2975,7 +2976,10 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       return { ...state, developerRequests: state.developerRequests + 1 }
     }
     case 'developerReply': {
-      return { ...state, developerReply: { version: message.version, reply: message.reply } }
+      return {
+        ...state,
+        developerReply: { version: message.version, badge: message.badge, reply: message.reply },
+      }
     }
     case 'referenceValues': {
       return {

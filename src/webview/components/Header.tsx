@@ -38,8 +38,8 @@ export interface HeaderProps {
   /** M88: the open conversation's bookmark; the star shows with the toggle. */
   readonly isBookmarked?: boolean
   readonly onToggleBookmark?: (() => void) | undefined
-  /** M108 X: the persistent Developer mode badge while unlocked. */
-  readonly isDeveloperMode?: boolean
+  /** M108 X: the host's localized Developer mode badge text while unlocked. */
+  readonly developerBadge?: string | null
 }
 
 /** The pill's words: the agents, the running background tasks, the team tasks, or each (M14, M46, M96). */
@@ -128,7 +128,7 @@ export function Header({
   onShare,
   isBookmarked = false,
   onToggleBookmark,
-  isDeveloperMode = false,
+  developerBadge = null,
 }: HeaderProps) {
   const isPillShown = agentCount > 0 || runningTaskCount > 0 || teamTaskCount > 0
   const isAnyRunning = runningAgentCount > 0 || runningTaskCount > 0 || runningTeamTaskCount > 0
@@ -156,11 +156,11 @@ export function Header({
         )}
         {isFocusView ? <span className="badge">{UI_TEXT.focusViewBadge}</span> : null}
         {isSideChat ? <span className="badge">{UI_TEXT.sideChatTitle}</span> : null}
-        {isDeveloperMode ? (
+        {developerBadge === null ? null : (
           <span className="badge" role="status">
-            {UI_TEXT.developer.badge}
+            {developerBadge}
           </span>
-        ) : null}
+        )}
         {onOpenSideChat === undefined ? null : (
           <button type="button" className="agents-pill" onClick={onOpenSideChat}>
             {UI_TEXT.openSideChat}

@@ -795,7 +795,7 @@
     {
       "id": "M108",
       "title": "Several accounts per provider",
-      "summary": "Accounts pin to devices with headroom routing and Send to {device}; developer options unlock from the palette, the version line or the terminal with a badge, expiry and audit; the several-accounts setting switches per provider with vendor-terms confirmation.",
+      "summary": "Accounts pin to devices with headroom routing and Send to {device}; developer options unlock from the palette, the version line or the terminal with a badge, expiry and audit; the several-accounts setting and profile processes are in progress.",
       "area": "models-providers"
     },
     {
