@@ -3228,3 +3228,41 @@ it measured; nothing in the merged tree replaces its migration claims. The
 schedule own-cap check (`assertScheduleOwnCap`) likewise stays here: no paid
 fire could run while delivery is uncertified
 (`docs/real-life/pr207-2026-10-18.md`).
+
+## Removed when the screen-recording drivers were bound (RLF-RECORDING, 2026-10-24)
+
+The macOS driver's and the Linux driver's tests ran the drivers over a
+scripted helper process and a scripted portal port, hand-written stand-ins
+for the native helpers. They went with the binding; what the real helpers
+prove now is in `test/unit/macosRecorderDeps.test.ts` (the signed helper app,
+real `codesign`, the helper's own `--probe`) and `test/unit/portalRecord.test.ts`
+(the C helper on a real session bus, decoded by a real `dbus-monitor`).
+
+### test/unit/macosRecording.test.ts (whole file)
+
+- `macos driver availability > refuses without a trusted-helper verifier`
+- `macos driver availability > leaves the check inconclusive when spawning fails`
+- `macos driver availability > refuses as probe when the helper answers malformed JSON`
+- `macos driver start > refuses the run when the recorder will not spawn, and removes the directory`
+- `macos driver start > ends the helper when its command channel is dead`
+- `macos driver start > fails the run on a malformed helper frame and waits for the helper to exit`
+- `macos driver start > stops by asking and waiting for the helper, never by killing it`
+- `macos driver start > starts without a suspend subscription and refuses a byte bound outside the helper`
+- `macos driver start > delivers nothing when the helper writes no file`
+
+Unproven until a real macOS recording runs through the packed product: a
+malformed or out-of-order helper frame fails the run and waits for the
+helper's exit; Stop asks and waits and never kills; a dead command channel
+ends the helper; a run whose helper writes no file delivers nothing.
+
+### test/unit/linuxRecording.test.ts (the driver blocks; the latest-recording discovery stays)
+
+- `linux screen driver availability > reports unavailable when the encoder probe fails`
+- `linux screen driver availability > reports remote when there is no local screen`
+- `linux screen driver start > refuses the run when portal setup fails`
+- `linux screen driver start > runs audio through the default daemon with node ids only`
+- `linux screen driver start > refuses video without the portal descriptor`
+
+Unproven until a recording runs on a desktop with xdg-desktop-portal: the
+pipeline the driver builds for sound, the descriptor reaching GStreamer, and
+a setup failure leaving no portal session or file behind.

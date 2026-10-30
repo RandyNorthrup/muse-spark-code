@@ -21,14 +21,13 @@ import type {
 } from './driver'
 
 /**
-Video carries the portal's file descriptor with its node; audio connects to
-the default PipeWire daemon itself (`pipewiresrc path=` with no `fd`), so
-audio sources carry only the node id the port discovered. The portal governs
-no microphone on Linux: the gate for sound is the person's explicit
-per-recording selection.
+The portal's video source: its PipeWire descriptor with the node it names.
+Sound does not come from the portal (it governs no microphone): the audio
+elements connect to the default PipeWire daemon themselves, so the gate for
+sound is the person's explicit per-recording selection.
 */
 const sourceSchema = z.strictObject({
-  fd: z.optional(z.int().check(z.gte(0))),
+  fd: z.int().check(z.gte(0)),
   nodeId: z.int().check(z.gt(0)),
 })
 type PipeWireSource = z.infer<typeof sourceSchema>
@@ -39,8 +38,6 @@ export const LINUX_RECORDING_HELPER_MAX_BYTES = MEDIA_MAX_UPLOAD_MIB * MEDIA_FIL
 interface PortalSession {
   /** D-Bus adapter returns untrusted identities; the driver validates them. */
   readonly video: unknown
-  readonly microphone?: unknown
-  readonly systemAudio?: unknown
   /** Resolves on permission revocation, portal closure or compositor exit. */
   readonly closed: Promise<void>
   readonly close: () => Promise<void>
@@ -74,12 +71,19 @@ export interface LinuxRecordingPort {
     readonly microphone: boolean
     readonly systemAudio: boolean
   }) => Promise<string | undefined>
-  /** A user/OS permission refusal rejects with an Error named NotAllowedError;
-  transport, compositor and other portal failures keep their own identity. */
+  /**
+  Runs the portal flow: the desktop shows its picker and the person answers
+  it. A refusal rejects with an Error named for it: NotAllowedError when
+  the desktop or the person's policy refuses, NotFoundError when there is
+  no screen-cast portal, AbortError when the person ends the picker;
+  anything else keeps its own identity.
+  */
   readonly openPortal: (
     options: ScreenRecordingOptions,
     signal: AbortSignal,
   ) => Promise<PortalSession>
+  /** True when the desktop's portal answers with a ScreenCast interface (no picker, no session). */
+  readonly hasPortal: () => Promise<boolean>
   readonly createPrivateRecording: () => Promise<PrivateRecording>
   /** Verify trusted path at launch; no shell or credentials. Inherit exactly
   these fds, enforce hard output size and lifetime, and kill on parent exit.
@@ -116,13 +120,25 @@ function refused(reason: string): ScreenRecordingRun {
   }
 }
 
-function sourceArgs(source: PipeWireSource): string[] {
+/** The portal's video: its descriptor and the node it names. */
+function videoArgs(source: PipeWireSource): string[] {
   return [
     'pipewiresrc',
-    // Audio connects to the default daemon itself; only video takes the
-    // portal's descriptor.
-    ...(source.fd === undefined ? [] : [`fd=${String(source.fd)}`]),
+    `fd=${String(source.fd)}`,
     `path=${String(source.nodeId)}`,
+    'do-timestamp=true',
+  ]
+}
+
+/**
+Sound connects to the default daemon: no descriptor and no node, so the
+default microphone is the daemon's own default source, and the system's
+sound is the default output's monitor (PipeWire's `stream.capture.sink`).
+*/
+function audioArgs(isSystemAudio: boolean): string[] {
+  return [
+    'pipewiresrc',
+    ...(isSystemAudio ? ['stream-properties="props,stream.capture.sink=true"'] : []),
     'do-timestamp=true',
   ]
 }
@@ -130,17 +146,17 @@ function sourceArgs(source: PipeWireSource): string[] {
 function pipeline(
   output: string,
   video: PipeWireSource,
-  audio: readonly PipeWireSource[],
+  options: ScreenRecordingOptions,
 ): string[] {
   // GStreamer's parser receives quoted properties, even for paths with spaces.
+  // The native helper runs gst-launch-1.0 with -e: its stop is EOS.
   const args = [
-    '-e',
     'mp4mux',
     'name=mux',
     '!',
     'filesink',
     `location=${JSON.stringify(output)}`,
-    ...sourceArgs(video),
+    ...videoArgs(video),
     '!',
     'videoconvert',
     '!',
@@ -152,7 +168,7 @@ function pipeline(
     '!',
     'mux.video_0',
   ]
-  if (audio.length > 0) {
+  if (options.microphone || options.systemAudio) {
     args.push(
       'audiomixer',
       'name=mix',
@@ -167,8 +183,17 @@ function pipeline(
       '!',
       'mux.audio_0',
     )
-    for (const source of audio)
-      args.push(...sourceArgs(source), '!', 'audioconvert', '!', 'audioresample', '!', 'mix.')
+    for (const isSystemAudio of [false, true])
+      if (isSystemAudio ? options.systemAudio : options.microphone)
+        args.push(
+          ...audioArgs(isSystemAudio),
+          '!',
+          'audioconvert',
+          '!',
+          'audioresample',
+          '!',
+          'mix.',
+        )
   }
   return args
 }
@@ -184,9 +209,11 @@ export function linuxRecordingDriver(port: LinuxRecordingPort): ScreenRecordingD
     } catch {
       return { ok: false, reason: unavailable('GStreamer / pipewiresrc') }
     }
-    return command !== undefined && path.posix.isAbsolute(command.replaceAll('\\', '/'))
+    if (command === undefined || !path.posix.isAbsolute(command.replaceAll('\\', '/')))
+      return { ok: false, reason: unavailable('GStreamer / pipewiresrc / H.264 / AAC') }
+    return (await port.hasPortal())
       ? { ok: true }
-      : { ok: false, reason: unavailable('GStreamer / pipewiresrc / H.264 / AAC') }
+      : { ok: false, reason: unavailable('xdg-desktop-portal ScreenCast') }
   }
   return {
     available,
@@ -227,19 +254,19 @@ export function linuxRecordingDriver(port: LinuxRecordingPort): ScreenRecordingD
         } catch (error) {
           if (error instanceof Error && error.name === 'NotAllowedError')
             return refused(UI_TEXT.media.recordingPermissionDenied)
+          if (error instanceof Error && error.name === 'NotFoundError')
+            return refused(unavailable('xdg-desktop-portal ScreenCast'))
+          // The person ended the picker: a cancelled recording, not a failure.
+          if (error instanceof Error && error.name === 'AbortError')
+            return refused(UI_TEXT.execStatus.cancelled)
           throw error
         }
         const closeSetup = () => {
           if (!isHandedOff) abortSetup()
         }
         void session.closed.then(closeSetup).catch(closeSetup)
-        const video = sourceSchema.parse(session.video)
-        // Only video takes the portal's descriptor; without it there is no capture.
-        if (video.fd === undefined) return refused(unavailable('GStreamer / pipewiresrc'))
-        const audio: PipeWireSource[] = []
-        if (options.data.microphone) audio.push(sourceSchema.parse(session.microphone))
-        if (options.data.systemAudio) audio.push(sourceSchema.parse(session.systemAudio))
         if (isAborted()) return refused(UI_TEXT.execStatus.cancelled)
+        const video = sourceSchema.parse(session.video)
         file = await port.createPrivateRecording()
         if (isAborted()) return refused(UI_TEXT.execStatus.cancelled)
         if (
@@ -250,8 +277,8 @@ export function linuxRecordingDriver(port: LinuxRecordingPort): ScreenRecordingD
         }
         const recording = await port.launchVerified({
           command,
-          args: pipeline(file.path, video, audio),
-          sources: [video, ...audio],
+          args: pipeline(file.path, video, options.data),
+          sources: [video],
           output: file.path,
           maxBytes: port.maxBytes,
           maxSeconds: options.data.maxSeconds,

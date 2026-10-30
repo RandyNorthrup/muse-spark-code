@@ -744,7 +744,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: sudo apt-get update && sudo apt-get install -y libssl-dev libpulse-dev cmake g++-14
-      - run: node --input-type=module -e "import { buildLinuxHelper } from './scripts/build-linux-helper.mjs'; import { buildVaultPeer } from './scripts/build-vault-peer.mjs'; buildLinuxHelper(); buildVaultPeer()"
+      - run: node --input-type=module -e "import { buildLinuxHelper } from './scripts/build-linux-helper.mjs'; import { buildPortalRecord } from './scripts/build-portal-record.mjs'; import { buildVaultPeer } from './scripts/build-vault-peer.mjs'; buildLinuxHelper(); buildVaultPeer(); buildPortalRecord()"
       # The dictation build reads its pins from src/shared/constants.ts
       # through esbuild, so the locked dependencies come first.
       - run: npm ci
@@ -761,6 +761,13 @@ jobs:
         with:
           name: muse-vault-peer-linux-${{ matrix.arch }}
           path: native/linux/${{ matrix.arch }}/muse-vault-peer
+          if-no-files-found: error
+      # The Linux screen recorder's native half (M105 R3): packed in the
+      # per-platform .vsix of its architecture, never in a release asset.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: muse-portal-record-linux-${{ matrix.arch }}
+          path: native/linux/${{ matrix.arch }}/muse-portal-record
           if-no-files-found: error
 
   packages:
@@ -829,6 +836,15 @@ jobs:
         with:
           name: muse-vault-peer-darwin
           path: native/darwin
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: muse-portal-record-linux-x64
+          path: native/linux/x64
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: muse-portal-record-linux-arm64
+          path: native/linux/arm64
+      - run: chmod +x native/linux/x64/muse-portal-record native/linux/arm64/muse-portal-record
       - run: chmod +x native/linux/x64/muse-created native/linux/arm64/muse-created
       - run: chmod +x native/linux/x64/muse-vault-peer native/linux/arm64/muse-vault-peer native/darwin/muse-vault-peer-arm64 native/darwin/muse-vault-peer-x64
       - run: chmod +x native/linux/x64/muse-dictate native/linux/arm64/muse-dictate
@@ -921,8 +937,8 @@ jobs:
               win32-*) want="$windows"; reject='extension/native/darwin/ extension/native/linux/ extension/dist/native/darwin/' ;;
               darwin-arm64) want="$darwin_arm64"; reject='extension/native/windows/ extension/native/linux/ muse-dictate-screen-x64.app muse-vault-peer-x64 muse-vault-x64' ;;
               darwin-x64) want="$darwin_x64"; reject='extension/native/windows/ extension/native/linux/ muse-dictate-screen-arm64.app muse-vault-peer-arm64 muse-vault-arm64' ;;
-              linux-x64) want='extension/native/linux/x64/muse-created extension/native/linux/x64/muse-vault-peer'; reject='extension/native/windows/ extension/native/darwin/ extension/dist/native/darwin/ extension/native/linux/arm64/' ;;
-              linux-arm64) want='extension/native/linux/arm64/muse-created extension/native/linux/arm64/muse-vault-peer'; reject='extension/native/windows/ extension/native/darwin/ extension/dist/native/darwin/ extension/native/linux/x64/' ;;
+              linux-x64) want='extension/native/linux/x64/muse-created extension/native/linux/x64/muse-vault-peer extension/native/linux/x64/muse-portal-record'; reject='extension/native/windows/ extension/native/darwin/ extension/dist/native/darwin/ extension/native/linux/arm64/' ;;
+              linux-arm64) want='extension/native/linux/arm64/muse-created extension/native/linux/arm64/muse-vault-peer extension/native/linux/arm64/muse-portal-record'; reject='extension/native/windows/ extension/native/darwin/ extension/dist/native/darwin/ extension/native/linux/x64/' ;;
             esac
             # shellcheck disable=SC2086
             for entry in $common $want; do
@@ -947,7 +963,7 @@ jobs:
           vsix="muse-spark-code-${version}.vsix"
           listing="$(unzip -Z1 "$vsix")"
           # shellcheck disable=SC2086
-          for entry in $common extension/native/linux/x64/muse-created extension/native/linux/x64/muse-vault-peer extension/native/linux/arm64/muse-created extension/native/linux/arm64/muse-vault-peer; do
+          for entry in $common extension/native/linux/x64/muse-created extension/native/linux/x64/muse-vault-peer extension/native/linux/x64/muse-portal-record extension/native/linux/arm64/muse-created extension/native/linux/arm64/muse-vault-peer extension/native/linux/arm64/muse-portal-record; do
             if ! grep -Fxq -- "$entry" <<< "$listing"; then
               echo "::error::$entry is missing from $vsix" >&2
               exit 1

@@ -109,6 +109,8 @@
 !native/linux/arm64/muse-created
 !native/linux/x64/muse-vault-peer
 !native/linux/arm64/muse-vault-peer
+!native/linux/x64/muse-portal-record
+!native/linux/arm64/muse-portal-record
 !native/darwin/muse-vault-peer-arm64
 !native/darwin/muse-vault-peer-x64
 !native/windows/MuseSparkScreenRecord.cs

@@ -9,10 +9,9 @@ import { randomUUID } from 'node:crypto'
 import { realpathSync } from 'node:fs'
 import { lstat, mkdir, rm } from 'node:fs/promises'
 import path from 'node:path'
-import type { WindowsRecorderDeps, WindowsRecorderProcess } from '../../core/media/record/windows'
+import type { WindowsRecorderDeps } from '../../core/media/record/windows'
 import { noWorkspaceChildEnvironment } from '../../core/execGuard'
 import { withoutCredentials } from '../../core/credentialEnvironment'
-import { spawnGuarded } from '../../core/guardedChildProcess'
 import { runProgram, type RunProgram } from '../processTree'
 import { converterTrustedPath } from '../../runtime/converterTrust'
 import { screenRecordExecutable } from '../backend/jobBuild'
@@ -20,10 +19,7 @@ import { jobSourceReader } from '../backend/jobSource'
 import { isStoreErrorCode } from '../backend/storeErrors'
 import type { UiTable } from '../l10n'
 import { inspectRecordingFile } from './recordingInspect'
-import { createHelperLineFramer } from './recordingLineFramer'
-
-export type { HelperLineFramer } from './recordingLineFramer'
-export { createHelperLineFramer } from './recordingLineFramer'
+import { recordingLineProcess, startRecordingHelper } from './recordingHelperProcess'
 
 /** The leaf prefix the helper's CreatePrivate requires: its recording namespace. */
 const RECORDING_NAMESPACE = 'muse-spark-screen-'
@@ -90,75 +86,8 @@ export function createWindowsRecorderDeps(
     realpathSync,
   )
 
-  const launch: WindowsRecorderDeps['launch'] = (executable, args) => {
-    const child = spawnGuarded(executable, args, {
-      windowsHide: true,
-      stdio: ['pipe', 'pipe', 'pipe'],
-      env: childEnv,
-    })
-    const framer = createHelperLineFramer()
-    let lineListener: ((line: string) => void) | undefined
-    let exitListener: ((code: number | null) => void) | undefined
-    const queuedLines: string[] = []
-    let exitCode: number | null | undefined
-    const exitWaiters: (() => void)[] = []
-    const deliver = (line: string): void => {
-      if (lineListener === undefined) queuedLines.push(line)
-      else lineListener(line)
-    }
-    const finish = (code: number | null): void => {
-      if (exitCode !== undefined) return
-      for (const line of framer.end()) deliver(line)
-      exitCode = code
-      exitListener?.(code)
-      for (const waiter of exitWaiters.splice(0)) waiter()
-    }
-    child.stdout.on('data', (chunk: Buffer) => {
-      const lines = framer.push(chunk.toString('utf8'))
-      for (const line of lines) deliver(line)
-    })
-    // Drained, never read: diagnostics must not stall the helper on a full pipe.
-    child.stderr.resume()
-    child.on('error', () => {
-      finish(null)
-    })
-    // 'close', not 'exit': the port settles after the stdio handles close.
-    child.on('close', (code) => {
-      finish(code)
-    })
-    const process: WindowsRecorderProcess = {
-      onLine: (listener) => {
-        lineListener = listener
-        for (const line of queuedLines.splice(0)) listener(line)
-      },
-      onExit: (listener) => {
-        exitListener = listener
-        if (exitCode !== undefined) listener(exitCode)
-      },
-      send: (command) => {
-        if (exitCode !== undefined) throw new Error('the recorder has exited')
-        const stdin = child.stdin
-        if (stdin.destroyed || !stdin.writable) throw new Error('the recorder channel is closed')
-        // The helper's stdin loop reads "stop" literally; anything else,
-        // including "cancel", cancels. A write that fails asynchronously
-        // means the helper is dying; its exit settles the run.
-        stdin.write(`${command}\n`, () => {
-          /* The exit settles the run; there is nothing to send it to. */
-        })
-      },
-      kill: () => {
-        if (exitCode === undefined) {
-          child.stdin.destroy()
-          child.kill()
-        }
-        return new Promise<void>((resolve) => {
-          if (exitCode === undefined) exitWaiters.push(resolve)
-          else resolve()
-        })
-      },
-    }
-    return process
-  }
+  const launch: WindowsRecorderDeps['launch'] = (executable, args) =>
+    recordingLineProcess(startRecordingHelper(executable, args, childEnv))
 
   return {
     prepareHelper: () => prepare(),

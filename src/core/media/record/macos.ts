@@ -19,7 +19,7 @@ import type { ScreenRecordingDriver, ScreenRecordingResult } from './driver'
 import { type GuardedChildEnv } from '../../executables'
 import { noWorkspaceChildEnvironment } from '../../execGuard'
 import { Buffer } from 'node:buffer'
-import { chmod, lstat, mkdtemp, rm } from 'node:fs/promises'
+import { chmod, lstat, mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { StringDecoder } from 'node:string_decoder'
 import { fill } from '../../../shared/l10n/text'
 import { realpathSync } from 'node:fs'
@@ -115,9 +115,7 @@ const probeSchema = z.strictObject({
   encoder: z.enum(['available', 'unavailable']),
 })
 
-/** Called only from the recovery action the user chose.
-@unwired M105 macOS recording permission recovery
-*/
+/** Called only from the recovery action the user chose. */
 export async function openMacosRecordingPermissions(
   permission: Permission,
   openExternal: (uri: string) => Promise<void>,
@@ -207,9 +205,15 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
       return undefined
     }
   }
+  /**
+  The public probe never prompts, and permission is the helper's to ask for
+  at Start (screen first, then the selected microphone), so a Mac that has
+  not been asked yet can still start. Only what no prompt can change
+  refuses early: the display, the encoder, and a microphone the system's
+  policy restricts.
+  */
   const availability = async (
     isMicrophoneSelected: boolean,
-    canRequestPermissions = false,
   ): ReturnType<ScreenRecordingDriver['available']> => {
     if (deps.remoteName !== undefined) return { ok: false, reason: UI_TEXT.media.recordingRemote }
     if (
@@ -217,33 +221,19 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
       !path.isAbsolute(deps.helperPath) ||
       !deps.fileExists(deps.helperPath)
     )
-      // Names the architecture's own signed .app the package ships.
+      // Names the architecture's own signed .app the package ships: the
+      // last .app on the path, since an ancestor folder can end in .app too
+      // (a sandboxed temp root, an installed host).
       return unavailable(
-        `native/darwin/${deps.helperPath.split(/[\\/]/u).find((part) => part.endsWith('.app')) ?? path.basename(deps.helperPath)}`,
+        `native/darwin/${deps.helperPath.split(/[\\/]/u).findLast((part) => part.endsWith('.app')) ?? path.basename(deps.helperPath)}`,
       )
     const helper = await verifiedPath()
     if (!helper) return unavailable('helperIntegrity')
     const output = await readCheck(helper, ['--record-screen', '--probe'])
     try {
       const probe = probeSchema.parse(JSON.parse(output ?? ''))
-      // The public probe never prompts. Explicit Start lets the native helper
-      // request access in its existing screen-first / selected-microphone order.
-      if (
-        !canRequestPermissions &&
-        (probe.screen !== 'authorized' ||
-          (isMicrophoneSelected && probe.microphone !== 'authorized'))
-      ) {
-        deps.onPermissionDenied?.(probe.screen === 'authorized' ? 'microphone' : 'screen')
-        if (probe.screen !== 'authorized')
-          return unavailable(UI_TEXT.media.recordingScreenPermissionRequired)
-        if (probe.microphone === 'notDetermined')
-          return unavailable(UI_TEXT.media.recordingMicrophonePermissionPending)
-        return unavailable(
-          probe.microphone === 'restricted'
-            ? UI_TEXT.media.recordingMicrophonePermissionRestricted
-            : UI_TEXT.media.recordingMicrophonePermissionDenied,
-        )
-      }
+      if (isMicrophoneSelected && probe.microphone === 'restricted')
+        return unavailable(UI_TEXT.media.recordingMicrophonePermissionRestricted)
       if (probe.display !== 'available' || probe.encoder !== 'available')
         return unavailable(probe.display === 'available' ? 'encoder' : 'display')
       return { ok: true }
@@ -251,7 +241,7 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
       return unavailable('probe')
     }
   }
-  const available: ScreenRecordingDriver['available'] = () => availability(true)
+  const available: ScreenRecordingDriver['available'] = () => availability(false)
   return {
     available,
     async start(input, onCountdown) {
@@ -268,7 +258,7 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
           result: Promise.resolve(unavailable('invalidOptions')),
         }
       }
-      const ready = await availability(options.data.microphone, true)
+      const ready = await availability(options.data.microphone)
       if (!ready.ok) {
         return {
           stop: () => Promise.resolve(),
@@ -287,6 +277,7 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
       }
       const subscribeSuspend = deps.onSuspend
       const maxBytes = deps.maxBytes
+      await mkdir(deps.tempRoot, { recursive: true, mode: PRIVATE_DIRECTORY_MODE })
       const folder = await mkdtemp(path.join(deps.tempRoot, 'muse-screen-'))
       const output = path.join(folder, 'recording.mp4')
       const dispose = async () => {
@@ -436,7 +427,11 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
                   fail(frame.code)
                 } else {
                   deps.onPermissionDenied?.(permission)
-                  fail(UI_TEXT.media.recordingPermissionDenied)
+                  fail(
+                    permission === 'screen'
+                      ? UI_TEXT.media.recordingScreenPermissionRequired
+                      : UI_TEXT.media.recordingMicrophonePermissionDenied,
+                  )
                 }
               } else if (frame.type === 'finished') {
                 if (!isRecording || hasFinished) throw new Error('out of order')
