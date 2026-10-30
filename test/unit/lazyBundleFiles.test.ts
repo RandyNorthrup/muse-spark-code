@@ -235,6 +235,40 @@ it('fails a real stray: a lazy import of a file no row covers (R2 drill)', () =>
   expect(outside.map((request) => request.value)).toEqual(['./rogueEntry.js'])
 })
 
+it('matches a relative name by its full path, never its basename', () => {
+  // NODE_WORKSPACE_ASSET = './node/files/main.js' used to fall back to its
+  // basename and resolve to the chat bundle webview/main.js (the same
+  // confusion the estimator walk had, fixed there). A relative name with no
+  // source and no redirect keeps its full subpath, so it matches only the
+  // file it names, or nothing the build emits.
+  const folder = fixtureTree({
+    'consts.ts': `export const NODE_WORKSPACE_ASSET = './node/files/main.js'\n`,
+  })
+  const { requests } = scanRequests(folder, GENERATED)
+  expect(requests).toEqual([
+    {
+      importer: 'src/consts.ts',
+      line: 1,
+      symbol: 'NODE_WORKSPACE_ASSET',
+      value: './node/files/main.js',
+    },
+  ])
+  const request = requests[0]!
+  expect(resolveRequest(folder, DEFERRED_OUTFILES, request)).toEqual({
+    file: 'node/files/main.js',
+  })
+  // The generator's candidate rule, as in the R2 drill above: the
+  // same-basename bundle the production build emits is not a match, while
+  // the file the name spells is, where a build emits it.
+  const distFile = 'node/files/main.js'
+  const candidates = (known: readonly string[]) =>
+    known.filter((file) => file === distFile || file.endsWith(`/${distFile}`))
+  expect(candidates(['webview/main.js'])).toEqual([])
+  expect(candidates(['webview/main.js', 'webview/node/files/main.js'])).toEqual([
+    'webview/node/files/main.js',
+  ])
+})
+
 it('catches the shapes the old scan skipped (P2-2 a, b, c)', () => {
   expect(
     valuesOf({
