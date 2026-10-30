@@ -42,7 +42,7 @@ export function composeQemu(options) {
   if (!Number.isSafeInteger(options.memoryMb) || options.memoryMb <= 0) {
     errors.push('memory must be a positive number of megabytes')
   }
-  if (options.kvm !== 'auto' && options.kvm !== 'on' && options.kvm !== 'off') {
+  if (!['auto', 'on', 'off'].includes(options.kvm)) {
     errors.push('kvm must be auto, on or off')
   }
   const hasImage = typeof options.image === 'string' && options.image !== ''

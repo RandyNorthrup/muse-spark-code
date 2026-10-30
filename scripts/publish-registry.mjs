@@ -378,6 +378,7 @@ if (
   } catch (error) {
     // CLI diagnostics may contain credentials. Print a fixed label only.
     console.error(`${channel}: ${failureReason(error)}; see docs/RELEASING.md`)
+    // eslint-disable-next-line unicorn/no-top-level-side-effects -- the main-guard runs this only when the file is the program, never on import; the rule does not prove reachability (PLAN §8, RLF-UNICORN79).
     process.exitCode = 1
   }
 }

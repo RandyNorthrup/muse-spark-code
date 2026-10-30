@@ -747,7 +747,7 @@ function timeoutMs(value) {
 }
 
 function phaseName(value) {
-  if (value !== 'a' && value !== 'b' && value !== 'all') throw new Error('bad --phase')
+  if (!['a', 'b', 'all'].includes(value)) throw new Error('bad --phase')
   return value
 }
 

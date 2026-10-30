@@ -330,10 +330,11 @@ if (
       const recovery = process.env.RECOVERY_RUN_ID ?? ''
       try {
         if (process.env.GITHUB_REF_NAME !== `v${version}`) throw new Error('tag version mismatch')
-        tree =
+        tree = SHA.parse(
           recovery === ''
-            ? SHA.parse(execute('git', ['rev-parse', 'HEAD^{tree}']).trim())
-            : SHA.parse(process.env.SOURCE_TREE)
+            ? execute('git', ['rev-parse', 'HEAD^{tree}']).trim()
+            : process.env.SOURCE_TREE,
+        )
         verifyBuild(
           directory,
           tree,

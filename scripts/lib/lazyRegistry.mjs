@@ -566,10 +566,11 @@ export function scanRequests(root, generatedFile) {
   // took as a request (`require(path.join(dir, 'x.js'))`, `'./x' + '.js'`) or
   // a bundle-name constant. Anything else is worked out at run time.
   const holdsName = (node) => {
-    if (naming.has(node)) return true
-    return ts.isIdentifier(node) && definitions.has(node.text)
-      ? true
-      : ts.forEachChild(node, (child) => (holdsName(child) ? true : undefined)) === true
+    return (
+      naming.has(node) ||
+      (ts.isIdentifier(node) && definitions.has(node.text)) ||
+      ts.forEachChild(node, (child) => (holdsName(child) ? true : undefined)) === true
+    )
   }
   for (const { argument, ...load } of pending) {
     if (!holdsName(argument)) computed.push(load)
@@ -660,8 +661,8 @@ export function resolveRequest(root, deferredOutfiles, request) {
         return { mapped: output.replace(/^dist\//, '') }
       }
     }
-    if (!value.endsWith('.js')) return { bundled: true }
-    if (existsSync(`${stem}.ts`) || existsSync(`${stem}.tsx`)) return { bundled: true }
+    if (!value.endsWith('.js') || existsSync(`${stem}.ts`) || existsSync(`${stem}.tsx`))
+      return { bundled: true }
     // Full relative paths, never the basename: a subpath matches only the
     // file it spells, and a name that climbs (..) matches nothing, so the
     // check fails closed instead of attributing the wrong bundle.

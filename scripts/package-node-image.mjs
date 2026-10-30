@@ -133,6 +133,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
       message = 'Invalid node package manifest or lock'
     else if (error.status === undefined) message = error.message
     console.error(message)
+    // eslint-disable-next-line unicorn/no-top-level-side-effects -- the main-guard runs this only when the file is the program, never on import; the rule does not prove reachability (PLAN §8, RLF-UNICORN79).
     process.exitCode = 1
   }
 }
