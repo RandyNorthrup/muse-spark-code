@@ -1,4 +1,5 @@
 import type { CoreLogger } from '../../core/logging'
+import { causeForLog } from '../../core/backends/musecode/logText'
 import {
   RESOURCE_SERVICE_PRESSURE_PERCENT,
   RESOURCE_TRANSPORT_FAILURE_PERCENT,
@@ -252,6 +253,17 @@ export function resourceFailureReporter(log: Pick<CoreLogger, 'warn'>): (error: 
     const reading = resourceReadingOf(error)
     if (reported.has(reading)) return
     reported.add(reading)
-    log.warn(`${reading}: ${UI_TEXT.resourceUnavailable}`)
+    // The fault behind our branded wrapper, else the failure itself, named
+    // by its kind and code, never its text (RLF-HARVEST H8: the 0.19.0
+    // reporter dropped the error entirely and said the bare sentence). A
+    // fault whose kind is the sentence itself stays the plain line instead
+    // of repeating it as its own cause.
+    const fault = isResourceReadingError(error) && error.cause !== undefined ? error.cause : error
+    const cause = causeForLog(fault)
+    log.warn(
+      cause === UI_TEXT.resourceUnavailable
+        ? `${reading}: ${UI_TEXT.resourceUnavailable}`
+        : `${reading}: ${fill(UI_TEXT.resourceUnavailableWhy, { cause })}`,
+    )
   }
 }
