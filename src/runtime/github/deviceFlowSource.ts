@@ -380,18 +380,22 @@ export function deviceFlowSource(deps: DeviceFlowSourceDeps): DeviceFlowSource {
       existing.refreshToken !== null &&
       (existing.refreshExpiresAt === null || deps.flow.now() < existing.refreshExpiresAt)
     ) {
+      // Only a sign-in failure keeps a still-unexpired gist grant. Anything
+      // else, including a failure to store the refreshed pair, is thrown.
+      // The token is not logged. A refused refresh drops this slot only.
       try {
         const tokens = await refreshDeviceFlowToken(deps.flow, existing.refreshToken, signal)
         const pair = await publishGist(tokens, start)
         if (pair !== undefined) return { pair, signOuts: began }
       } catch (error: unknown) {
         signal.throwIfAborted()
-        if (!(error instanceof DeviceFlowFailure) || error.reason !== 'refreshRefused') {
+        if (error instanceof DeviceFlowFailure && error.reason !== 'refreshRefused') {
           if (existing.expiresAt !== null && deps.flow.now() < existing.expiresAt) {
             return { pair: existing, signOuts: began }
           }
           throw error
         }
+        if (!(error instanceof DeviceFlowFailure)) throw error
         await serialized(async () => {
           if ((await readGist()) === text) await deps.store.delete(GITHUB_GIST_SHARE_SECRET_KEY)
         })

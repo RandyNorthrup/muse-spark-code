@@ -45,21 +45,47 @@ function ports(fetch: typeof globalThis.fetch): GistSharePorts & { consents: num
   return built
 }
 
+interface Sent {
+  readonly body: string
+  readonly authorization: string | null
+}
+
+/** Records the gist create and then fails the network, so nothing is published. */
+function rejectingGistFetch(calls: Sent[]): typeof globalThis.fetch {
+  return scriptedFetch((url, init) => {
+    const headers = new Headers(init?.headers)
+    calls.push({
+      body: typeof init?.body === 'string' ? init.body : '',
+      authorization: headers.get('Authorization'),
+    })
+    expect(url).toBe('https://api.github.com/gists')
+    return Promise.reject(new TypeError('fetch failed'))
+  })
+}
+
+async function thrownBy(run: () => Promise<unknown>): Promise<unknown> {
+  try {
+    await run()
+  } catch (error: unknown) {
+    return error
+  }
+  return undefined
+}
+
+function expectNetwork(failure: unknown, secret: string): void {
+  expect(failure).toBeInstanceOf(GitHubError)
+  expect((failure as GitHubError).kind).toBe('network')
+  expect((failure as GitHubError).message).not.toContain(secret)
+}
+
+const DRAFT = { description: 'd', fileName: 'share.md', content: 'c' }
+
 describe('gist send boundary', () => {
   it('sends only the scrubbed file, as a secret gist, and keeps the token out of the body and the error', async () => {
-    const calls: { readonly body: string; readonly authorization: string | null }[] = []
-    const fetch = scriptedFetch((url, init) => {
-      const headers = new Headers(init?.headers)
-      calls.push({
-        body: typeof init?.body === 'string' ? init.body : '',
-        authorization: headers.get('Authorization'),
-      })
-      expect(url).toBe('https://api.github.com/gists')
-      return Promise.reject(new TypeError('fetch failed'))
-    })
-    let failure: unknown
-    try {
-      await publishGistShare(
+    const calls: Sent[] = []
+    const fetch = rejectingGistFetch(calls)
+    const failure = await thrownBy(() =>
+      publishGistShare(
         {
           // The account is scrubbed in an identity field and in paths. A bare
           // word is not an account (the share scrub's own rule).
@@ -69,13 +95,9 @@ describe('gist send boundary', () => {
         },
         ports(fetch),
         new AbortController().signal,
-      )
-    } catch (error: unknown) {
-      failure = error
-    }
-    expect(failure).toBeInstanceOf(GitHubError)
-    expect((failure as GitHubError).kind).toBe('network')
-    expect((failure as GitHubError).message).not.toContain(BEARER)
+      ),
+    )
+    expectNetwork(failure, BEARER)
     expect((failure as GitHubError).message).not.toContain(SECRET)
     expect(calls).toHaveLength(1)
     const sent = calls[0]?.body ?? ''
@@ -117,16 +139,9 @@ describe('gist send boundary', () => {
         Promise.resolve(Response.json({ message: 'Not Found' }, { status: 404 })),
       ),
     )
-    let failure: unknown
-    try {
-      await publishGistShare(
-        { description: 'd', fileName: 'share.md', content: 'c' },
-        built,
-        new AbortController().signal,
-      )
-    } catch (error: unknown) {
-      failure = error
-    }
+    const failure = await thrownBy(() =>
+      publishGistShare(DRAFT, built, new AbortController().signal),
+    )
     expect(failure).toBeInstanceOf(GitHubError)
     expect((failure as GitHubError).kind).toBe('notFound')
     expect(built.consents).toBe(0)
@@ -147,16 +162,9 @@ describe('gist send boundary', () => {
             ),
       )
     })
-    let failure: unknown
-    try {
-      await publishGistShare(
-        { description: 'd', fileName: 'share.md', content: 'c' },
-        ports(fetch),
-        new AbortController().signal,
-      )
-    } catch (error: unknown) {
-      failure = error
-    }
+    const failure = await thrownBy(() =>
+      publishGistShare(DRAFT, ports(fetch), new AbortController().signal),
+    )
     expect((failure as Error).message).toBe(UI_TEXT.shareGistNotSecret)
     expect((failure as Error).message).not.toContain('evil.example')
     expect(methods).toEqual(['POST', 'DELETE'])
@@ -168,16 +176,9 @@ describe('gist send boundary', () => {
       methods.push(init?.method ?? 'GET')
       return Promise.resolve(Response.json({ public: true }, { status: 201 }))
     })
-    let failure: unknown
-    try {
-      await publishGistShare(
-        { description: 'd', fileName: 'share.md', content: 'c' },
-        ports(fetch),
-        new AbortController().signal,
-      )
-    } catch (error: unknown) {
-      failure = error
-    }
+    const failure = await thrownBy(() =>
+      publishGistShare(DRAFT, ports(fetch), new AbortController().signal),
+    )
     expect((failure as Error).message).toBe(UI_TEXT.shareGistNotSecret)
     expect(methods).toEqual(['POST'])
   })
@@ -185,21 +186,12 @@ describe('gist send boundary', () => {
   it('sends the stored gist grant and does not call the repository sign-in', async () => {
     const gistBearer = 'gho_gistgranttoken'
     let signIns = 0
-    const calls: { readonly authorization: string | null; readonly body: string }[] = []
-    const fetch = scriptedFetch((url, init) => {
-      const headers = new Headers(init?.headers)
-      calls.push({
-        body: typeof init?.body === 'string' ? init.body : '',
-        authorization: headers.get('Authorization'),
-      })
-      expect(url).toBe('https://api.github.com/gists')
-      return Promise.reject(new TypeError('fetch failed'))
-    })
+    const calls: Sent[] = []
+    const fetch = rejectingGistFetch(calls)
     const built = ports(fetch)
-    let failure: unknown
-    try {
-      await publishGistShare(
-        { description: 'd', fileName: 'share.md', content: 'c' },
+    const failure = await thrownBy(() =>
+      publishGistShare(
+        DRAFT,
         {
           ...built,
           credential: () => {
@@ -215,13 +207,9 @@ describe('gist send boundary', () => {
             }),
         },
         new AbortController().signal,
-      )
-    } catch (error: unknown) {
-      failure = error
-    }
-    expect(failure).toBeInstanceOf(GitHubError)
-    expect((failure as GitHubError).kind).toBe('network')
-    expect((failure as GitHubError).message).not.toContain(gistBearer)
+      ),
+    )
+    expectNetwork(failure, gistBearer)
     expect(signIns).toBe(0)
     expect(calls).toHaveLength(1)
     expect(calls[0]?.authorization).toBe(`Bearer ${gistBearer}`)

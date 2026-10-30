@@ -140,6 +140,32 @@ export class GitHubSignIn {
     this.changed()
   }
 
+  /** One in-flight ask. Cancel from `signal` or from `cancel()` ends it. */
+  private async withAsking<T>(
+    signal: AbortSignal,
+    body: (combined: AbortSignal) => Promise<T>,
+  ): Promise<T> {
+    const own = new AbortController()
+    this.asking.add(own)
+    const combined = AbortSignal.any([signal, own.signal])
+    try {
+      return await body(combined)
+    } finally {
+      this.asking.delete(own)
+      if (this.asking.size === 0 && this.code !== undefined) {
+        this.code = undefined
+        this.changed()
+      }
+    }
+  }
+
+  /** Keep the credential for a later 401, then read the account. Cancel still stops the caller. */
+  private async remember(credential: GitHubCredential, signal: AbortSignal): Promise<void> {
+    this.issued.set(credential.source, credential)
+    await this.noteAccount(credential, signal)
+    signal.throwIfAborted()
+  }
+
   /** The source kinds this window has, in D104's order. */
   public kinds(): readonly GitHubTokenSourceKind[] {
     return this.sources.map((source) => source.kind)
@@ -180,30 +206,16 @@ export class GitHubSignIn {
     if (askWith !== undefined && !this.kinds().includes(askWith)) {
       return undefined
     }
-    const own = new AbortController()
-    this.asking.add(own)
-    const combined = AbortSignal.any([signal, own.signal])
-    try {
+    return await this.withAsking(signal, async (combined) => {
       const credential = await resolveGitHubCredential(this.sources, {
         mode,
         signal: combined,
         now: this.deps.now,
         ...(askWith !== undefined && { askWith }),
       })
-      if (credential !== undefined) {
-        this.issued.set(credential.source, credential)
-        await this.noteAccount(credential, combined)
-        // Cancel during the login read still stops this call.
-        combined.throwIfAborted()
-      }
+      if (credential !== undefined) await this.remember(credential, combined)
       return credential
-    } finally {
-      this.asking.delete(own)
-      if (this.asking.size === 0 && this.code !== undefined) {
-        this.code = undefined
-        this.changed()
-      }
-    }
+    })
   }
 
   /**
@@ -217,24 +229,11 @@ export class GitHubSignIn {
   public async credentialForGistShare(signal: AbortSignal): Promise<GitHubCredential | undefined> {
     const source = this.sources.find(canAskGistScope)
     if (source === undefined) return undefined
-    const own = new AbortController()
-    this.asking.add(own)
-    const combined = AbortSignal.any([signal, own.signal])
-    try {
+    return await this.withAsking(signal, async (combined) => {
       const credential = await source.signInForGistShare(combined)
-      if (credential !== undefined) {
-        this.issued.set(credential.source, credential)
-        await this.noteAccount(credential, combined)
-        combined.throwIfAborted()
-      }
+      if (credential !== undefined) await this.remember(credential, combined)
       return credential
-    } finally {
-      this.asking.delete(own)
-      if (this.asking.size === 0 && this.code !== undefined) {
-        this.code = undefined
-        this.changed()
-      }
-    }
+    })
   }
 
   /**
