@@ -324,6 +324,19 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Editors through the terminal agent now show the approval mode Muse Code
+  actually runs: when the CLI moves on its own (a ceiling, a managed
+  policy), the editor is told the running mode instead of keeping the old
+  one, and the expected echo of your own change is a quiet info line
+  instead of a warning.
+- Closing a conversation stops its background tasks before the session is
+  released, so nothing keeps running behind it; the log says when the host
+  itself is closing instead, and names the kind of any failure rather than
+  a bare `Error`.
+- Resource warnings name the reading that failed and the cause behind it,
+  rather than the bare "unavailable" sentence.
+- A newly started session appears in the session list on its own, without
+  a reload.
 - A conversation no longer repeats "The session's version-control branch
   changed" when Muse Code re-observes the same branch: the notice shows
   once per branch, and again only when the branch actually moves. The
