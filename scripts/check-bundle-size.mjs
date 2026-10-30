@@ -617,6 +617,9 @@ const BUDGETS = [
   { path: 'dist/vaultRuntime.js', budgetKiB: 25 },
   // M110-N: explicit node commands only; measured +15%, rounded to 25 KiB.
   { path: 'dist/node.js', budgetKiB: 75 },
+  // M110os RLF-MUSESETUP: the first-boot setup server, loaded when the
+  // first boot runs it. Measured 143.4 KiB; plus 15%, rounded up to 25 KiB.
+  { path: 'dist/nodeSetup.js', budgetKiB: 175 },
   // M110t TP2: the pack index verifier (Sigstore's verification packages,
   // cc-sigstore), loaded on the first pack fetch. Measured 207.8 KiB; plus
   // 15%, rounded up to 25 KiB.
