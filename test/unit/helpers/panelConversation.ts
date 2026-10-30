@@ -7,7 +7,7 @@
 // locally; no prompt is sent and no network is touched. The credential store
 // is the machine's own and cannot be faked, so these suites hand the runtime
 // one that fails the suite if it is ever read.
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
 import { runPanel } from '../../../src/runtime/panel/panelEntry'
@@ -40,12 +40,30 @@ export interface ConnectedPanelOptions {
   readonly runGit?: PanelRuntimeDeps['runGit']
   /** What the editor offers besides the chat itself (its services the suite answers). */
   readonly offers?: readonly MhpCapability[]
+  /** The backend kind the rig's host reports (the Model API host serves either name here). */
+  readonly backendKind?: 'modelApi' | 'museCode'
+  /** Registers the editor's services before the handshake is sent (a start-up question is never missed). */
+  readonly beforeInitialize?: (host: MhpWire) => void
 }
 
 /** The runtime panel in this process, and the editor's end of its streams. */
 export async function connectedPanel(run: PanelRun, options: ConnectedPanelOptions = {}) {
   const folder = path.join(run.folder, 'sessions')
   mkdirSync(folder, { recursive: true })
+  // The person's settings name the backend the rig reports, as an editor's
+  // would: the panel builds (and flags its paid features) from that name.
+  mkdirSync(run.dataFolder, { recursive: true })
+  const settingsFile = path.join(run.dataFolder, 'settings.json')
+  let existing: Record<string, unknown> = {}
+  try {
+    existing = JSON.parse(readFileSync(settingsFile, 'utf8')) as Record<string, unknown>
+  } catch (error: unknown) {
+    if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
+  }
+  writeFileSync(
+    settingsFile,
+    `${JSON.stringify({ ...existing, backend: options.backendKind ?? 'modelApi' }, null, 2)}\n`,
+  )
   const { configFile, catalogFile } = writeEditorChatProvidersFile(folder)
   const { models } = createEditorChatServices(configFile, catalogFile).client
   const rig = modelApiRig(folder, undefined, undefined, { ...(models !== undefined && { models }) })
@@ -86,7 +104,7 @@ export async function connectedPanel(run: PanelRun, options: ConnectedPanelOptio
         const ready = {
           ...runtime,
           backend: {
-            kind: 'modelApi' as const,
+            kind: options.backendKind ?? ('modelApi' as const),
             readiness: () => Promise.resolve({ state: 'ready' as const }),
             hostFor: () => Promise.resolve(rig.host),
           },
@@ -104,6 +122,7 @@ export async function connectedPanel(run: PanelRun, options: ConnectedPanelOptio
   )
   const host = connectMhpHost(toRuntime, fromRuntime)
   const editor = panelEditor(host)
+  options.beforeInitialize?.(host)
   panelInitializeResultSchema.parse(
     await host.request(
       'initialize',
