@@ -1499,11 +1499,12 @@ export function publishedReference(model, source) {
         (id) => !['museSpark.modelApiAutoCompaction', 'museSpark.vault.agentFence'].includes(id),
       ),
     'museSpark.scheduleAgentCreation',
-    // CM108ACC published the accounts feature; its three settings stay
-    // compatibility-only until swapping, pooling and placement are bound.
+    // CM108ACC published the accounts feature; swap and parallel stay
+    // compatibility-only until their bindings certify. The several-accounts
+    // setting is read, enforced and switched from the Accounts page
+    // (RLF-M108, D88 b2), so it publishes.
     'museSpark.accountSwap',
     'museSpark.accountParallel',
-    'museSpark.accounts.severalOnThisDevice',
   ])
   const hiddenRoutes = new Set([
     'estimate',

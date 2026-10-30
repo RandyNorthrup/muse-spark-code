@@ -410,6 +410,9 @@ export const COMMAND_IDS = {
   attachScreenRecording: 'museSpark.attachScreenRecording',
   attachLatestScreenRecording: 'museSpark.attachLatestScreenRecording',
   deleteUploadedFiles: 'museSpark.deleteUploadedFiles',
+  // M108 X (PLAN.md D88 amendment b): the palette entry that unlocks
+  // machine-local developer options and opens their page.
+  developerOptions: 'museSpark.developerOptions',
 } as const
 
 // M95 lane K (PLAN.md D74): the Models & Agents panel host. The panel's host
@@ -9748,7 +9751,7 @@ export const DEVELOPER_STATE_MAX_BYTES = 16 * 1024
 export const DEVELOPER_UI_BUDGET_BYTES = 25 * 1024
 export const DEVELOPER_DIRECTORY_MODE = 0o700
 export const DEVELOPER_FILE_MODE = 0o600
-export const DEVELOPER_COMMAND_ID = 'museSpark.developerOptions'
+export const DEVELOPER_COMMAND_ID = COMMAND_IDS.developerOptions
 // D88 amendment b2: the visible Settings › Accounts option (machine-scoped,
 // off by default); its accounts run in isolated local profiles like the
 // developer first option, without the developer badge or expiry.

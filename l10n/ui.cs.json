@@ -6472,6 +6472,7 @@
     "differentMachine": "Možnosti pro vývojáře byly nastaveny pod jinou identitou počítače. Obnovením je na tomto počítači začnete používat znovu.",
     "invalidRequest": "Zkontrolujte požadavek na možnosti pro vývojáře.",
     "expires": "Vývojářský režim vyprší {time}.",
+    "expired": "Režim pro vývojáře vypršel a jeho profily se zastavily.",
     "reset": "Obnovit možnosti pro vývojáře",
     "profiles": "Místní profily",
     "profileInfo": "Každý profil má vlastní úložiště přihlašovacích údajů, složku stavu a běhový proces. Vypršení profily zastaví; obnovení je odstraní.",

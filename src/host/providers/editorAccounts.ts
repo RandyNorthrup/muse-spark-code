@@ -36,6 +36,8 @@ export function createEditorAccountServices(deps: {
       options?: Parameters<typeof services.requests>[1],
     ) => services.requests(client, options),
     billing: services.billing,
+    /** The window's own store and metadata, for the developer owner. */
+    commands: services.commands,
     dispose: () => {
       services.dispose()
     },

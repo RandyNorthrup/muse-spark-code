@@ -7794,6 +7794,7 @@ export const EN = {
       'Developer options were set up under a different machine identity. Reset them to start over on this machine.',
     invalidRequest: 'Check the Developer options request.',
     expires: 'Developer mode expires {time}.',
+    expired: 'Developer mode expired and its profiles stopped.',
     reset: 'Reset Developer Options',
     profiles: 'Local Profiles',
     profileInfo:

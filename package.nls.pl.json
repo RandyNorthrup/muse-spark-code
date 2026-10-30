@@ -181,6 +181,7 @@
   "config.judge.engine.enumDescriptions.both": "Używaj osobnego oceniającego i własnego modelu czatu przez zmierzoną kaskadę. Wymaga zweryfikowanego źródła i odpowiednich profili kalibracji.",
   "config.judge.separate.description": "Identyfikator źródła/modelu osobnego oceniającego. Pusta wartość zachowuje obecną konfigurację z jednym modelem. Źródła wymagają własnej weryfikacji i zgody; płatne wywołania pytają raz przed pierwszą opłatą, pokazując cenę i wspólny museSpark.paidDailyBudgetUsd.",
   "command.openHelp.title": "Pomoc i informacje",
+  "command.developerOptions.title": "Otwórz opcje dewelopera",
   "config.shell.passEnvironmentVariables.description": "Nazwy zmiennych środowiskowych przekazywanych do interaktywnych poleceń powłoki głównej sesji, w tym zwykle wykluczanych danych uwierzytelniających. Tylko nazwy, nigdy wartości. Domyślnie: brak. Polecenie może ujawnić te wartości w rozmowie i dostawcy modelu. Weryfikacja/then_run, harmonogramy, pracownicy podrzędni/zespołowi i hooki nigdy nie otrzymują zmiennych uwierzytelniających, nawet jeśli są tu wymienione. Interaktywne polecenie przeniesione do tła zachowuje początkowe środowisko. Nie zmienia środowisk Muse Code ani jawnie skonfigurowanych serwerów MCP.",
   "config.resourceGovernor.description": "Utrzymuje responsywność komputera przez spowalnianie lub odkładanie pracy uruchomionej przez środowisko agenta. Domyślnie włączone.",
   "config.resourceCpuMaxPercent.description": "Ogranicza pracę, gdy użycie procesora przekracza ten procent przez 30 sekund. Bez wartości brak limitu CPU.",

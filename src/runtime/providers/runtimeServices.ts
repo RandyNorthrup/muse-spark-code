@@ -30,7 +30,7 @@ import {
   localPlacementId,
 } from '../../core/accounts/placement'
 import type { AccountPlacements } from '../../core/team/remotePool'
-import { DeveloperOptions } from '../../core/developer/developerOptions'
+import { DeveloperOptions, DeveloperOptionsError } from '../../core/developer/developerOptions'
 import type { DeveloperSnapshot } from '../../shared/developerOptions'
 import { developerMachineIdAliases, loadDeveloperMachineId } from '../../core/developer/machineId'
 import { DeveloperLocalFiles } from '../developer/localFiles'
@@ -346,11 +346,13 @@ export async function checkDeveloperAccount(
     if (isInvalidProvidersFileError(error)) throw error
     throw new Error(UI_TEXT.accounts.unavailable, { cause: error })
   }
+  // Typed refusals: the surface controller maps the code to its sentence,
+  // so a mistyped account reads invalid-request, never unavailable.
   if (entry === undefined || rows.every((row) => row.id !== account))
-    throw new Error(UI_TEXT.developer.invalidRequest)
+    throw new DeveloperOptionsError('invalidRequest')
   const policy = accountPolicyFor(entry.policyProvider, entry.product)
   if (entry.product === 'muse-code' || policy?.pooling === 'notOffered')
-    throw new Error(UI_TEXT.developer.unavailable)
+    throw new DeveloperOptionsError('unavailable')
 }
 
 export function createRuntimeAccountServices(

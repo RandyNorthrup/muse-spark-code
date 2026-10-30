@@ -6307,6 +6307,7 @@
     "differentMachine": "Las opciones de desarrollador se configuraron con otra identidad de máquina. Restablézcalas para empezar de nuevo en esta máquina.",
     "invalidRequest": "Revise la solicitud de opciones de desarrollador.",
     "expires": "El modo de desarrollador caduca {time}.",
+    "expired": "El modo de desarrollador caducó y sus perfiles se detuvieron.",
     "reset": "Restablecer opciones de desarrollador",
     "profiles": "Perfiles locales",
     "profileInfo": "Cada perfil tiene su propio espacio de credenciales, carpeta de estado y proceso de ejecución. La caducidad detiene los perfiles; el restablecimiento los elimina.",

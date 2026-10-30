@@ -6307,6 +6307,7 @@
     "differentMachine": "Le opzioni sviluppatore sono state configurate con un'identità macchina diversa. Reimpostale per ricominciare su questa macchina.",
     "invalidRequest": "Controlla la richiesta delle opzioni sviluppatore.",
     "expires": "La modalità sviluppatore scade {time}.",
+    "expired": "La modalità sviluppatore è scaduta e i suoi profili sono stati fermati.",
     "reset": "Reimposta opzioni sviluppatore",
     "profiles": "Profili locali",
     "profileInfo": "Ogni profilo ha il proprio spazio per le credenziali, cartella di stato e processo di esecuzione. La scadenza arresta i profili; la reimpostazione li elimina.",

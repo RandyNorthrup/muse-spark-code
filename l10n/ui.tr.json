@@ -6142,6 +6142,7 @@
     "differentMachine": "Geliştirici seçenekleri farklı bir makine kimliğiyle ayarlandı. Bu makinede yeniden başlamak için sıfırlayın.",
     "invalidRequest": "Geliştirici seçenekleri isteğini kontrol edin.",
     "expires": "Geliştirici modunun süresi {time} tarihinde dolar.",
+    "expired": "Geliştirici modu sona erdi ve profilleri durduruldu.",
     "reset": "Geliştirici seçeneklerini sıfırla",
     "profiles": "Yerel profiller",
     "profileInfo": "Her profilin kendi kimlik bilgisi alanı, durum klasörü ve çalışma süreci vardır. Süre dolunca profiller durur; sıfırlama onları siler.",

@@ -6307,6 +6307,7 @@
     "differentMachine": "As opções do desenvolvedor foram configuradas com outra identidade de máquina. Redefina-as para começar de novo nesta máquina.",
     "invalidRequest": "Verifique a solicitação de opções do desenvolvedor.",
     "expires": "O modo de desenvolvedor expira {time}.",
+    "expired": "O modo de desenvolvedor expirou e seus perfis foram interrompidos.",
     "reset": "Redefinir opções do desenvolvedor",
     "profiles": "Perfis locais",
     "profileInfo": "Cada perfil tem seu próprio espaço de credenciais, pasta de estado e processo de execução. A expiração interrompe os perfis; a redefinição os exclui.",

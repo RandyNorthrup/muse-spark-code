@@ -6307,6 +6307,7 @@
     "differentMachine": "Les options de développement ont été configurées sous une autre identité de machine. Réinitialisez-les pour repartir sur cette machine.",
     "invalidRequest": "Vérifiez la demande d’options de développement.",
     "expires": "Le mode développeur expire {time}.",
+    "expired": "Le mode développeur a expiré et ses profils ont été arrêtés.",
     "reset": "Réinitialiser les options de développement",
     "profiles": "Profils locaux",
     "profileInfo": "Chaque profil possède son emplacement d’identifiants, son dossier d’état et son processus d’exécution. L’expiration arrête les profils ; la réinitialisation les supprime.",

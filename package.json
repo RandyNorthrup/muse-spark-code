@@ -324,6 +324,11 @@
         "category": "%command.category%"
       },
       {
+        "command": "museSpark.developerOptions",
+        "title": "%command.developerOptions.title%",
+        "category": "%command.category%"
+      },
+      {
         "command": "museSpark.nextOpenQuestion",
         "title": "%command.nextOpenQuestion.title%",
         "category": "%command.category%"
