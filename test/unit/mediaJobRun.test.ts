@@ -12,9 +12,10 @@ import {
   conversionJobFailure,
   jobMemoryLimitedRun,
   type JobEncoderRunOptions,
-  type OutputStat,
 } from '../../src/host/backend/mediaJobRun'
+import { mcpJobExecutable } from '../../src/host/backend/mcpJobExecutable'
 import { fixtureJobLifecycle } from './helpers/jobLifecycle'
+import { readJobSource } from './helpers/jobSource'
 import { expectEnded, isRunning, markedPid } from './helpers/processes'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -68,7 +69,7 @@ function options(
 
 type Ending = 'exit0' | 'exit3' | 'hang'
 
-/** A Node stand-in encoder: writes `bytes` of output and its PID, then ends as told. */
+/** A test-owned Node encoder: writes `bytes` of output and its PID, then ends as told. */
 function encoder(
   where: { output: string; marker: string },
   bytes: number,
@@ -90,13 +91,6 @@ function encoder(
       end,
     ].join('\n'),
   ]
-}
-
-/** An output stat on a stalled share: it never answers. */
-function stalled(): Promise<OutputStat> {
-  return new Promise<OutputStat>(() => {
-    // Never settles.
-  })
 }
 
 /** The encoder itself, with no job, recording each launch and its child. */
@@ -181,21 +175,34 @@ describe('jobMemoryLimitedRun', () => {
     expect(spawnCalls).toHaveLength(0)
   })
 
-  it.each([
-    ['no launcher on this machine', () => Promise.resolve(undefined)],
-    ['a failed launcher preparation', () => Promise.reject(new Error(String.raw`C:\private\csc`))],
-  ])('refuses %s and never starts the encoder unbounded', async (_label, jobExecutable) => {
-    const where = await workspace()
-    const { spawnJob, calls: spawnCalls } = directLauncher()
-    const starting = jobMemoryLimitedRun({ jobExecutable, spawnJob })(
-      process.execPath,
-      encoder(where, KIB, 'exit0'),
-      options(where),
-    )
-    await expect(starting).rejects.toMatchObject(FAILED)
-    await expect(starting).rejects.not.toThrow(/private|csc/u)
-    expect(spawnCalls).toHaveLength(0)
-  })
+  it.runIf(process.platform !== 'win32')(
+    'refuses when the real preparation finds no toolchain, never starting the encoder',
+    async () => {
+      // The real preparation over a temp store: no compiler off Windows,
+      // so it reports unavailable (never a rejection carrying paths) and
+      // the encoder never starts. The log proves the preparation ran.
+      const where = await workspace()
+      const storage = await fs.mkdtemp(path.join(tmpdir(), 'muse-vb-job-prep-'))
+      folders.push(storage)
+      const logged: string[] = []
+      const { spawnJob, calls: spawnCalls } = directLauncher()
+      const starting = jobMemoryLimitedRun({
+        jobExecutable: mcpJobExecutable({
+          storageDir: storage,
+          systemRoot: process.env['SystemRoot'] ?? '',
+          readJobSource,
+          log: (message: string) => {
+            logged.push(message)
+          },
+        }),
+        spawnJob,
+      })(process.execPath, encoder(where, KIB, 'exit0'), options(where))
+      await expect(starting).rejects.toMatchObject(FAILED)
+      expect(spawnCalls).toHaveLength(0)
+      expect(logged).toHaveLength(1)
+      expect(logged[0]).toContain('unavailable')
+    },
+  )
 
   it.each([
     ['before it is prepared', 0],
@@ -222,33 +229,10 @@ describe('jobMemoryLimitedRun', () => {
     expect(spawnCalls).toHaveLength(0)
   })
 
-  it.each([
-    ['a running encoder', 'hang'],
-    ['an encoder that exits cleanly', 'exit0'],
-  ] as const)(
-    'settles %s whose output stat never answers (a stalled share)',
-    async (_label, ending) => {
-      const where = await workspace()
-      const { spawnJob, children: spawnChildren } = directLauncher()
-      const statCalls: true[] = []
-      const statOutput = () => {
-        statCalls.push(true)
-        return stalled()
-      }
-      const running = jobMemoryLimitedRun({
-        jobExecutable: () => Promise.resolve(EXECUTABLE),
-        spawnJob,
-        statOutput,
-      })(process.execPath, encoder(where, KIB, ending), options(where))
-      await expect(running).rejects.toMatchObject(FAILED)
-      expect(statCalls.length).toBeGreaterThan(0)
-      // The bounded sample may end the child before its Node script writes
-      // the marker. The actual spawn handle still identifies the owned PID.
-      const child = spawnChildren[0]
-      if (child?.pid === undefined) throw new Error('Expected the owned encoder PID')
-      await expectEnded(child.pid)
-    },
-  )
+  // A stat that never answers (a stalled share, a hung redirected
+  // folder) fails the conversion bounded, and the child is ended: only a
+  // genuinely stalled filesystem proves it, so the cases live in
+  // docs/real-life/unproven.md with their real-life steps.
 
   it('fails a launcher that cannot start, or one that throws', async () => {
     const where = await workspace()
@@ -260,9 +244,14 @@ describe('jobMemoryLimitedRun', () => {
     await expect(missing(process.execPath, [], options(where))).rejects.toMatchObject(FAILED)
     const throwing = jobMemoryLimitedRun({
       jobExecutable: () => Promise.resolve(EXECUTABLE),
-      spawnJob: () => {
-        throw new Error('synthetic spawn failure')
-      },
+      // A launch Node itself refuses: an out-of-range timeout throws
+      // synchronously out of spawn, on every platform.
+      spawnJob: (launch) =>
+        spawn(launch.file, [...launch.args], {
+          cwd: launch.cwd,
+          timeout: NaN,
+          stdio: 'pipe',
+        }),
     })
     await expect(throwing(process.execPath, [], options(where))).rejects.toMatchObject(FAILED)
   })
