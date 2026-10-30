@@ -635,6 +635,18 @@ happened, not what was planned; superseded entries are kept.
   lists. Nothing turns on yet: teams stay hidden until an enabled team
   really runs, and the README still says the feature remains unavailable
   until its integration is complete.
+- RLF-TEAMWIRE wiring, still behind the latch: a merge is now planned
+  before its decision card (unsafe paths and moved refs refuse first,
+  and the card lists the planned files and protected paths), and a Muse
+  Code orchestrator conversation with a stored team gets its own `team`
+  MCP endpoint (its five tools over HTTP, other tokens refused, retried
+  commands answered once). Headless team runs keep their cleanup ledger
+  under one cross-process file lease, record each artifact before
+  creating it so a killed run leaves nothing unrecorded, and preserve a
+  failed merge's branch as a hold ref in your repository instead of
+  losing the work. Roles from `AGENT.md` files and Muse Code or
+  external workers are not wired yet; the open binding questions are
+  named in `docs/certification/rlf-teamwire.md`.
 
 ### Muse Judge phase 2 (M98)
 
