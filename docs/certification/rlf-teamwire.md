@@ -269,3 +269,24 @@ Muse Code orchestrator delegating through the `team` MCP server, by the
 lead on a GUI host, expected at most 12 calls on
 `muse-spark-1.3-contributor`. No Muse request of any other tier was
 made; no paid provider call was made.
+
+## On int/recovery (CC-INT5, merge 2 of 5, 2026-10-30)
+
+int/recovery kept its own RLM116 (cc/rlm116; decisions D218–D221) and took
+only this lane's nine commits (`c1cbbceb8..127890682`), so the renumbering
+above (D216–D219) does not exist there. Three things in this record do not
+hold on int:
+
+- `teamHostService.test.ts` ("plans before the merge card"), the harness it
+  ran on and `helpers/teamGit.ts` were deleted on int (fake-driven or
+  orphaned). That the plan runs before the card now has no real-code test;
+  the planner's own answer is still proven over real git
+  (`teamMergePlan.test.ts`, on `helpers/realTeamGit.ts`, which took this
+  lane's `env` pass-through and scratch-repository helper).
+- `teamMcpWiring.test.ts` ran on that fake harness. It is rewritten over the
+  real binding, the bundle's real `createTeamHost`, the real engine ports and
+  the real HTTP server (two cases; the retried-command answers are covered
+  only by `teamTools.test.ts`'s registry cases, not through the binding).
+- The "removes the dead run" sweep case fails on int's untouched base too
+  (CC-INT5 §5): the governed contained `git --version` exits 1 with empty
+  stderr.
