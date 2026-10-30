@@ -30540,6 +30540,14 @@ Review RVM104B (2026-10-30): five fixes on lane B (D78 gate parity on Muse
 Code, machine-scoped resource settings, the start review's backend flags, a
 plan save's trust recheck, Ask again's account revocation), each red/green;
 record: `docs/certification/rvm104b.md`.
+Lane D on int (RLF-M104D, 2026-10-30): the portable webview — bridges,
+React fallbacks, presentation pages, chat and Tasks and What's New on the
+bridge, the `chat.tsx`/`selectionQuote.ts` extractions, theme through
+M114 (`panelThemePort` on MHP `theme` frames, never `portableTokens.css`),
+`showWalkthrough`/`showRoles`/`showPlans` with VS Code handlers, and the
+independent portable build with static-closure budgets; startup by static
+closure accounting (the browser timing waits for lane C's carrier).
+Record: `docs/certification/rlf-m104d.md`.
 
 **Warning for the POSIX trusted-path verifier (INT0180, 2026-10-11).** A real
 POSIX verifier that refuses a group-writable unit search directory would

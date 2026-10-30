@@ -27,7 +27,7 @@ export function companionBridge(
   const connected = Promise.withResolvers<boolean>()
   let activeReader: ReadableStreamDefaultReader<Uint8Array> | undefined
 
-  function fail(error: unknown): void {
+  function report(error: unknown): void {
     if (controller.signal.aborted) return
     controller.abort()
     connected.resolve(true)
@@ -61,7 +61,7 @@ export function companionBridge(
         })
         if (!response.ok) throw new Error('EPANEL_POST')
       } catch (error) {
-        fail(error)
+        report(error)
       } finally {
         queuedBytes -= bytes
         queuedMessages--
@@ -136,14 +136,15 @@ export function companionBridge(
       activeReader = undefined
       try {
         await reader.cancel()
-      } catch {
-        /* Abort also cancels the fetch body. */
+      } catch (error: unknown) {
+        // Abort also cancels the fetch body; anything else is the carrier's failure.
+        if (!controller.signal.aborted) report(error)
       }
       reader.releaseLock()
     }
   }
   // Ready and application posts wait until the runtime has subscribed the stream.
-  void stream().catch(fail)
+  void stream().catch(report)
   enqueue(
     { mhp: MHP_PANEL.wireVersion, kind: 'surface', ...binding, event: 'opened' },
     '/panel/surface',
@@ -181,7 +182,7 @@ export function companionBridge(
     dispose: () => {
       controller.abort()
       connected.resolve(false)
-      void activeReader?.cancel().catch(fail)
+      void activeReader?.cancel().catch(report)
     },
   }
 }

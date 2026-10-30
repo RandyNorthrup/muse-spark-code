@@ -5,7 +5,10 @@ import { parseMhpResult } from '../../shared/hostApi/protocol'
 import type * as Fallbacks from '../fallbacks'
 
 /** Native hosts can invoke this same responder with their existing correlated MHP call. */
-export function createUiResponder(ui: ReturnType<typeof Fallbacks.createFallbackUi>) {
+export function createUiResponder(
+  ui: ReturnType<typeof Fallbacks.createFallbackUi>,
+  onError: (error: unknown) => void,
+) {
   const calls = new Map<string | number, AbortController>()
   return {
     async receive(value: unknown): Promise<unknown> {
@@ -23,7 +26,8 @@ export function createUiResponder(ui: ReturnType<typeof Fallbacks.createFallback
         return fallbackUiReplySchema.parse(
           parseMhpResult(frame.method, { jsonrpc: MHP.jsonRpcVersion, id: frame.id, result }),
         )
-      } catch {
+      } catch (error: unknown) {
+        if (!signal.signal.aborted) onError(error)
         return fallbackUiReplySchema.parse({
           jsonrpc: MHP.jsonRpcVersion,
           id: frame.id,

@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
+import { isCarrierFailure } from '../bridges/failure'
 import { formatDateTime } from '../../shared/l10n/text'
 import type { PresentationRole, PresentationTraffic } from '../../shared/presentationRecords'
 import { agentStatusLabel } from '../agentFormat'
@@ -31,7 +32,8 @@ export function RoleTrafficPage({
     setError(false)
     try {
       await onOpenRole(role.id)
-    } catch {
+    } catch (error: unknown) {
+      if (!isCarrierFailure(error)) throw error
       setError(true)
     } finally {
       pending.current = false

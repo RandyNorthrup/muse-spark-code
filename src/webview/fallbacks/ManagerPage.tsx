@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { UI_TEXT } from '../../shared/l10n/text'
+import { isCarrierFailure } from '../bridges/failure'
 
 export type ManagerKind = 'skills' | 'mcp' | 'hooks' | 'memory' | 'worktrees' | 'rules' | 'agents'
 export interface ManagerAction {
@@ -88,7 +89,8 @@ export function ManagerPage({
     setError(false)
     try {
       await action.run()
-    } catch {
+    } catch (error: unknown) {
+      if (!isCarrierFailure(error)) throw error
       setError(true)
     } finally {
       pending.current = false

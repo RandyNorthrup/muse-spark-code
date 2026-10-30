@@ -11,7 +11,7 @@ import {
   type PresentationState,
 } from '../../shared/presentationProtocol'
 import { installEmbeddedTable } from '../installTable'
-import { showBridgeFailure } from '../bridges/failure'
+import { isCarrierFailure, showBridgeFailure } from '../bridges/failure'
 import type { PanelBridge } from '../bridges/types'
 import '../tokens.css'
 import '../styles.css'
@@ -48,7 +48,11 @@ export function mountPresentation(host: PanelBridge, element: Element) {
       } catch (error: unknown) {
         clearTimeout(timer)
         pending.delete(requestId)
-        reject(error instanceof Error ? error : new Error('MHP_PRESENTATION_ACTION_FAILED'))
+        if (isCarrierFailure(error)) reject(error)
+        else {
+          showBridgeFailure(element.ownerDocument)
+          reject(new Error('MHP_PRESENTATION_ACTION_FAILED', { cause: error }))
+        }
       }
     })
   }

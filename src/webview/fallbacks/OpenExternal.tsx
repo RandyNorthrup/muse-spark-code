@@ -29,7 +29,9 @@ export function OpenExternal({
             opened.opener = null
             opened.location.href = uri
             onOpened()
-          } catch {
+          } catch (error: unknown) {
+            // A blocked popup throws a DOMException; anything else keeps its kind.
+            if (!(error instanceof DOMException)) throw error
             try {
               opened?.close()
             } finally {

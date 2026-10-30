@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client'
 import type { FallbackUiMethod } from '../../shared/hostApi/fallbackUi'
+import { showBridgeFailure } from '../bridges/failure'
 import type { MhpParams, MhpResult } from '../../shared/hostApi/methods'
 import { MHP_METHODS } from '../../shared/hostApi/methods'
 import { Fragment, type ReactNode } from 'react'
@@ -113,7 +114,13 @@ export function createFallbackUi(element: Element, onCommand: (id: string) => vo
             await navigator.clipboard.writeText(params.text)
             settle()
           } catch (error: unknown) {
-            settle(error instanceof Error ? error : new Error('MHP_CLIPBOARD_FAILED'))
+            // The browser refuses an unfocused clipboard with a named
+            // DOMException; anything else is the carrier's failure.
+            if (error instanceof DOMException) settle(error)
+            else {
+              showBridgeFailure(element.ownerDocument)
+              settle(new Error('MHP_CLIPBOARD_FAILED', { cause: error }))
+            }
           }
         })()
       })

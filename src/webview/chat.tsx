@@ -64,7 +64,7 @@ function ChatMounted({ onMounted }: { readonly onMounted: () => void }) {
 export function mountChat(
   element: Element,
   host: HostBridge,
-  onFailure?: (error: unknown) => void,
+  onError?: (error: unknown) => void,
   onMounted?: () => void,
 ): void {
   // Exact prices load outside startup (STARTUP017): the mounted surfaces
@@ -78,8 +78,8 @@ export function mountChat(
     try {
       host.post(webviewErrorReport(source, error))
     } catch (error_: unknown) {
-      if (onFailure === undefined) throw error_
-      onFailure(error_)
+      if (onError === undefined) throw error_
+      onError(error_)
     }
   }
   window.addEventListener('error', (event) => {

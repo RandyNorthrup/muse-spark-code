@@ -162,4 +162,6 @@ function reportBridgeFailure(_error: unknown): void {
   showBridgeFailure(document)
 }
 
-void mount().catch(reportBridgeFailure)
+void mount().catch(() => {
+  showBridgeFailure(document)
+})

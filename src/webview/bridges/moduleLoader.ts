@@ -91,15 +91,15 @@ async function boot(): Promise<void> {
 }
 
 function start(): void {
-  void boot().catch(() => {
+  void boot().catch((error: unknown) => {
     document.documentElement.dataset['launch'] = 'failed'
     const alert = document.querySelector<HTMLElement>('#launch-error')
-    if (alert === null) {
-      return
+    if (alert !== null) {
+      alert.hidden = false
+      alert.focus()
     }
-
-    alert.hidden = false
-    alert.focus()
+    // Unhandled on purpose: the page's error reporting keeps the cause.
+    throw error
   })
 }
 if (document.readyState === 'loading')
