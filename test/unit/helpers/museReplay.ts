@@ -11,6 +11,7 @@ import { z } from 'zod'
 import { Connection, type DuplexTransport } from '@muse-code/sdk'
 import {
   MuseCodeHost,
+  type CommandTimeouts,
   type MuseCodeFeaturePorts,
   type MuseSession,
 } from '../../../src/core/backends/musecode/MuseCodeHost'
@@ -193,6 +194,7 @@ export async function closeLiveHosts(): Promise<void> {
 export function startLiveHost(
   answer: (method: string, params: Record<string, unknown>) => Answer | Promise<Answer>,
   features?: MuseCodeFeaturePorts,
+  timeouts?: CommandTimeouts,
 ): LiveHost {
   const wire = new ReplayWire()
   wire.answer = answer
@@ -208,7 +210,7 @@ export function startLiveHost(
       },
     },
     stderrLogger(() => undefined, 'warn'),
-    undefined,
+    timeouts,
     features,
   )
   liveHosts.push({
