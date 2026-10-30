@@ -23,14 +23,7 @@ import { reviewTurnText } from '../../src/core/review/reviewPrompt'
 import { REVIEW_FINDINGS_LANGUAGE } from '../../src/shared/constants'
 import type { Logger } from '../../src/host/logger'
 import { stderrLogger } from '../../src/runtime/stderrLog'
-import {
-  assertLiveContributorModel,
-  countAttempts,
-  liveBackend,
-  liveContributorModelId,
-  sessionLog,
-  sleep,
-} from './liveCli'
+import { countAttempts, liveBackend, liveGuardedModelId, sessionLog, sleep } from './liveCli'
 
 const IS_ENABLED = process.env['MUSE_LIVE_E2E'] === '1'
 const TURN_TIMEOUT_MS = 180_000
@@ -53,12 +46,7 @@ async function runDrill(workspaceRoot: string): Promise<{ sessionId: string; tex
   const events: AgentEvent[] = []
   try {
     const host = await backend.ensureHost()
-    // Refuses before any prompt unless the run's model is contributor-tier
-    // and the session lists it (RLF-SAFEFIX item 1).
-    const modelId = liveContributorModelId()
-    const listed = await host.listModels()
-    const offered = listed.map((model) => model.modelId)
-    assertLiveContributorModel(modelId, offered)
+    const modelId = await liveGuardedModelId(host)
     const session = await host.startSession({
       workspaceRoot,
       modelId,
@@ -142,12 +130,7 @@ async function runReviewDrill(workspaceRoot: string) {
   const restored: PlanModeRestore[] = []
   try {
     const host = await backend.ensureHost()
-    // Refuses before any prompt unless the run's model is contributor-tier
-    // and the session lists it (RLF-SAFEFIX item 1).
-    const modelId = liveContributorModelId()
-    const listed = await host.listModels()
-    const offered = listed.map((model) => model.modelId)
-    assertLiveContributorModel(modelId, offered)
+    const modelId = await liveGuardedModelId(host)
     const session = await host.startSession({
       workspaceRoot,
       modelId,

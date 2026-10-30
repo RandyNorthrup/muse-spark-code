@@ -45,7 +45,7 @@ interface RetryShared {
   readDeferred(): Promise<z.infer<typeof deferredFileReader>>
 }
 
-const sharedBox: { current?: RetryShared } = {}
+const sharedBox: { current?: RetryShared | undefined } = {}
 
 function useShared(): RetryShared {
   if (sharedBox.current === undefined) throw new Error('expected the retry engine')
@@ -75,6 +75,30 @@ async function indexSnapshot(fs: ScheduleFsPort, workspace: string): Promise<str
     }
   }
   throw new Error('expected the index snapshot')
+}
+
+/** Corrupts a workspace index through the real port and defers one event row for it. */
+async function corruptIndexAndDefer(
+  context: RetryShared,
+  scheduleId: string,
+  failures?: number,
+): Promise<void> {
+  const { fs } = context
+  const workspace = workspaceKey(path.resolve(path.join(context.root, scheduleId)))
+  const event = scheduleEventSchema.parse({
+    source: 'agents',
+    eventKey: 'turn:probe',
+    kind: 'turnFinished',
+    fields: {},
+    observedAt: 999_000,
+  })
+  await fs.replace(await indexSnapshot(fs, workspace), 'not json{{{', undefined)
+  const row = { workspaceKey: workspace, scheduleId, event, dueMs: 999_000 }
+  await fs.replace(
+    'runtime/deferred-events.json',
+    JSON.stringify([failures === undefined ? row : { ...row, failures }]),
+    undefined,
+  )
 }
 
 // The backoff waits: the base minute doubling per failure, capped at eight.
@@ -133,26 +157,9 @@ describe('deferred event retry', () => {
 
   it('retries with capped backoff, then stops and says why', async () => {
     const context = useShared()
-    const { engine, fs } = context
-    const workspace = workspaceKey(path.resolve(path.join(context.root, 'sched-deferred-a')))
-    const event = scheduleEventSchema.parse({
-      source: 'agents',
-      eventKey: 'turn:probe',
-      kind: 'turnFinished',
-      fields: {},
-      observedAt: 999_000,
-    })
-    // Corrupt the workspace index through the real port: every fire throws
-    // while loading it.
-    await fs.replace(await indexSnapshot(fs, workspace), 'not json{{{', undefined)
+    const { engine } = context
     // A row written before the bound: no failure count.
-    await fs.replace(
-      'runtime/deferred-events.json',
-      JSON.stringify([
-        { workspaceKey: workspace, scheduleId: 'sched-deferred-a', event, dueMs: 999_000 },
-      ]),
-      undefined,
-    )
+    await corruptIndexAndDefer(context, 'sched-deferred-a')
     const reportedBefore = context.reported.length
     // Five attempts: four requeues with doubling waits, then the drop.
     let current = onlyRow(await context.readDeferred())
@@ -182,29 +189,8 @@ describe('deferred event retry', () => {
 
   it('resumes the count from a persisted row', async () => {
     const context = useShared()
-    const { engine, fs } = context
-    const workspace = workspaceKey(path.resolve(path.join(context.root, 'sched-deferred-b')))
-    const event = scheduleEventSchema.parse({
-      source: 'agents',
-      eventKey: 'turn:probe',
-      kind: 'turnFinished',
-      fields: {},
-      observedAt: 999_000,
-    })
-    await fs.replace(await indexSnapshot(fs, workspace), 'not json{{{', undefined)
-    await fs.replace(
-      'runtime/deferred-events.json',
-      JSON.stringify([
-        {
-          workspaceKey: workspace,
-          scheduleId: 'sched-deferred-b',
-          event,
-          dueMs: 999_000,
-          failures: 4,
-        },
-      ]),
-      undefined,
-    )
+    const { engine } = context
+    await corruptIndexAndDefer(context, 'sched-deferred-b', 4)
     const reportedBefore = context.reported.length
     const row = onlyRow(await context.readDeferred())
     context.setNow(row.dueMs + 1)

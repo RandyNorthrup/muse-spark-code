@@ -32,7 +32,6 @@ import type { ScheduleFsPort } from '../../core/schedules/journal'
 import type { ScheduleQueuePort } from '../../core/schedules/store'
 import {
   SCHEDULE_DEFERRED_EVENT_MAX_ATTEMPTS,
-  SCHEDULE_DEFERRED_EVENT_RETRY_BASE_MS,
   SCHEDULE_DEFERRED_EVENT_RETRY_CAP_MS,
   SCHEDULE_ENGINE_ERROR_MAX,
   SCHEDULE_POLL_INTERVAL_MS,
@@ -164,7 +163,7 @@ doubles per failure, never past the cap (AWS Architecture Blog,
 "Exponential Backoff And Jitter": wait = min(cap, base * 2^failures)). */
 function deferredEventRetryDelayMs(failures: number): number {
   return Math.min(
-    SCHEDULE_DEFERRED_EVENT_RETRY_BASE_MS * 2 ** (failures - 1),
+    SCHEDULE_POLL_INTERVAL_MS * 2 ** (failures - 1),
     SCHEDULE_DEFERRED_EVENT_RETRY_CAP_MS,
   )
 }

@@ -21,13 +21,7 @@ import { museCodeReviewerPort } from '../../src/host/review/museCodeReviewerBund
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { MUSE_CODE_REVIEWER_BUNDLE_FILE } from '../../src/shared/constants'
 import { stderrLogger } from '../../src/runtime/stderrLog'
-import {
-  assertLiveContributorModel,
-  countAttempts,
-  liveBackend,
-  liveContributorModelId,
-  sessionLog,
-} from './liveCli'
+import { countAttempts, liveBackend, liveGuardedModelId, sessionLog } from './liveCli'
 
 const IS_ENABLED = process.env['MUSE_LIVE_REVIEWER'] === '1'
 const DRILL_TIMEOUT_MS = 600_000
@@ -94,12 +88,7 @@ async function runDrill(workspaceRoot: string, reviewerRoot: string): Promise<Dr
   const replies: string[] = []
   try {
     const host = await backend.ensureHost()
-    // Refuses before any prompt unless the run's model is contributor-tier
-    // and the session lists it (RLF-SAFEFIX item 1).
-    const modelId = liveContributorModelId()
-    const listed = await host.listModels()
-    const offered = listed.map((model) => model.modelId)
-    assertLiveContributorModel(modelId, offered)
+    const modelId = await liveGuardedModelId(host)
     const session = await host.startSession({
       workspaceRoot,
       modelId,
