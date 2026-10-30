@@ -265,6 +265,9 @@ export const REFERENCE_ACTION_FEATURES = {
   updateBundledSkills: 'skills',
   declineBundledSkills: 'skills',
   showWhatsNew: 'chat',
+  // M104 portable presentation pages: the walkthrough opens with the chat; roles are the team's.
+  showWalkthrough: 'chat',
+  showRoles: 'team-workers',
 
   readReference: 'support',
   openReferenceSetting: 'support',
