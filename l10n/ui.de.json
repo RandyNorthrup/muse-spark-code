@@ -7335,6 +7335,39 @@
     "installingPacks": {
       "one": "{count} Paket wird installiert",
       "other": "{count} Pakete werden installiert"
-    }
+    },
+    "workbenchChat": "Chat",
+    "workbenchEditor": "Editor",
+    "workbenchSidebar": "Seitenleiste",
+    "workbenchTerminal": "Terminal",
+    "workbenchProblems": "Probleme",
+    "workbenchOutput": "Ausgabe",
+    "workbenchQuickOpen": "Dateien nach Namen suchen",
+    "workbenchNoFileOpen": "Es ist keine Datei geöffnet. Drücken Sie Strg+P, um eine zu öffnen.",
+    "workbenchNoProblems": "Es wurden keine Probleme gefunden.",
+    "workbenchNoOutput": "Es wurde noch nichts ausgegeben.",
+    "workbenchNewTerminal": "Neues Terminal",
+    "workbenchCloseTerminal": "Terminal schließen",
+    "workbenchTerminalExited": "Das Terminal wurde mit Code {code} beendet.",
+    "workbenchSave": "Speichern",
+    "workbenchUnsaved": "Nicht gespeicherte Änderungen",
+    "workbenchSetupTitle": "Willkommen bei Muse Desktop",
+    "workbenchSetupDetail": "Wählen Sie einen Ordner zum Arbeiten. Muse Desktop öffnet für jeden Ordner ein Fenster.",
+    "workbenchOpenFolder": "Ordner öffnen…",
+    "workbenchBridgeUnavailable": "Die Desktop-Brücke ist nicht verfügbar. Starten Sie Muse Desktop über seine Anwendung, nicht über einen Browser.",
+    "workbenchLayoutUnreadable": "Das gespeicherte Layout konnte nicht gelesen werden, daher wird das Standardlayout verwendet.",
+    "workbenchFileUnreadable": "Diese Datei konnte nicht als Text gelesen werden.",
+    "workbenchStatusWorkspace": "Arbeitsbereich: {name}",
+    "workbenchStatusTerminals": {
+      "one": "{count} Terminal",
+      "other": "{count} Terminals"
+    },
+    "workbenchToggleSidebar": "Seitenleiste umschalten",
+    "workbenchToggleRail": "Schiene umschalten",
+    "workbenchToggleTerminal": "Terminalbereich umschalten",
+    "workbenchDetachTerminal": "Terminal abdocken",
+    "workbenchDockTerminal": "Terminal andocken",
+    "workbenchCollapseTerminal": "In Fußzeile einklappen",
+    "workbenchExpandTerminal": "Terminalbereich ausklappen"
   }
 }

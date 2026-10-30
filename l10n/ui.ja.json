@@ -7151,6 +7151,38 @@
     "install": "インストール",
     "installingPacks": {
       "other": "{count} 個のパックをインストール中"
-    }
+    },
+    "workbenchChat": "チャット",
+    "workbenchEditor": "エディタ",
+    "workbenchSidebar": "サイドバー",
+    "workbenchTerminal": "ターミナル",
+    "workbenchProblems": "問題",
+    "workbenchOutput": "出力",
+    "workbenchQuickOpen": "名前でファイルを検索",
+    "workbenchNoFileOpen": "開いているファイルはありません。Ctrl+P を押して開いてください。",
+    "workbenchNoProblems": "問題は見つかりませんでした。",
+    "workbenchNoOutput": "まだ出力は書き込まれていません。",
+    "workbenchNewTerminal": "新しいターミナル",
+    "workbenchCloseTerminal": "ターミナルを閉じる",
+    "workbenchTerminalExited": "ターミナルがコード {code} で終了しました。",
+    "workbenchSave": "保存",
+    "workbenchUnsaved": "保存されていない変更",
+    "workbenchSetupTitle": "Muse Desktop へようこそ",
+    "workbenchSetupDetail": "作業フォルダーを選択してください。Muse Desktop はフォルダーごとにウィンドウを開きます。",
+    "workbenchOpenFolder": "フォルダーを開く…",
+    "workbenchBridgeUnavailable": "デスクトップブリッジが利用できません。ブラウザーではなく Muse Desktop アプリから起動してください。",
+    "workbenchLayoutUnreadable": "保存済みレイアウトを読み取れなかったため、既定のレイアウトを使用しています。",
+    "workbenchFileUnreadable": "このファイルをテキストとして読み取れませんでした。",
+    "workbenchStatusWorkspace": "ワークスペース: {name}",
+    "workbenchStatusTerminals": {
+      "other": "ターミナル {count} 件"
+    },
+    "workbenchToggleSidebar": "サイドバーの表示切り替え",
+    "workbenchToggleRail": "レールの表示切り替え",
+    "workbenchToggleTerminal": "ターミナルパネルの表示切り替え",
+    "workbenchDetachTerminal": "ターミナルを切り離す",
+    "workbenchDockTerminal": "ターミナルをドック",
+    "workbenchCollapseTerminal": "フッターに折りたたむ",
+    "workbenchExpandTerminal": "ターミナルパネルを展開"
   }
 }
