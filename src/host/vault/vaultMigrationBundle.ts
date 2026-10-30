@@ -26,8 +26,8 @@ export interface VaultMigrationFactoryDeps {
   /** The raw SecretStorage; the shell mirrors through the migration, never the reverse. */
   readonly secrets: SecretStore
   /**
-  Bound when present; one-shot callers (the palette and terminal undo)
-  pass none, so they never steal the panel binding's mirror.
+  Bound when present; one-shot callers (the palette undo) pass none,
+  so they never steal the panel binding's mirror.
   */
   readonly shell?: MigrationShell | undefined
   /** Configured provider ids; grok stays with its lane, and the controller adds the ChatGPT slot itself when stored. */

@@ -364,6 +364,29 @@ export async function driveMigratedSlot(deps: {
 }
 
 /**
+A real session with the controller bound at an adjustable minor release:
+19 until the caller moves it, so the retain window can be crossed by
+setting `release.current`. The log is the one its drive asserts stayed quiet.
+*/
+export async function openRetireFlow(deps: {
+  connect: () => Promise<VaultBrokerClient>
+  lockScope: string
+  fresh: boolean
+}) {
+  const opened = await openLoggedSession(deps)
+  const release = { current: 19 }
+  const flow = migrationFlow({
+    secrets: opened.secrets,
+    session: opened.session,
+    reader: opened.reader,
+    log: opened.log,
+    providers: [],
+    minorRelease: () => release.current,
+  })
+  return { ...opened, ...flow, release }
+}
+
+/**
 The retire drive both suites run over the subscription slot: taken on
 unlock at release 19 with its legacy entry kept; at release 21 the next
 unlock retires the legacy entry, and the shell keeps reading the value
@@ -377,16 +400,15 @@ export async function driveRetireCase(deps: {
   lockScope: string
   fresh: boolean
 }): Promise<void> {
-  const { session, secrets, reader, log, logged } = await openLoggedSession(deps)
-  const release = { current: 19 }
-  const { controller: active, shell } = migrationFlow({
-    secrets,
+  const {
     session,
+    secrets,
     reader,
-    log,
-    providers: [],
-    minorRelease: () => release.current,
-  })
+    logged,
+    release,
+    controller: active,
+    shell,
+  } = await openRetireFlow(deps)
   const codec = chatgptSubscriptionMigrationCredential(Date.now)
   const origin = 'https://api.openai.com'
   const migrated = (expected: string, isLegacyPresent: boolean) =>

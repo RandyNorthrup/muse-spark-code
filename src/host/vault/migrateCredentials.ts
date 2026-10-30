@@ -178,7 +178,7 @@ export interface CredentialMigrationDeps {
   readonly label: string
 }
 
-/** A retired slot for the panel, palette and terminal: value-free identity only. */
+/** A retired slot for the panel and palette: value-free identity only. */
 export interface RetiredMigrationEntry {
   readonly key: string
   readonly label: string
@@ -576,25 +576,20 @@ export class CredentialMigrationController implements MigrationMirror {
   and unavailable vaults refuse: an empty list there would pose as "none
   retired". A retired row whose vault copy lost its metadata still lists,
   under its key, so its undo can say why it refuses instead of hiding.
-  Only keys whose journal row the snapshot lists are read, one journal
-  read each; callers ask only while unlocked, so a locked panel never
-  pays it.
+  One journal read per key; callers ask only while unlocked, so a locked
+  panel never pays it.
   */
   async listRetired(): Promise<readonly RetiredMigrationEntry[]> {
     const snapshot = await this.deps.ports.snapshot()
     if (snapshot.status.state !== 'unlocked') throw new Error(UI_TEXT.vault.locked)
-    const { migration, credentials, providerIds, accounts } = await this.engine()
-    const itemIdOf = new Map(credentials.map((entry) => [entry.key, entry.itemId]))
-    const journaled = new Set(snapshot.items.map((entry) => entry.id))
+    const { migration, credentials } = await this.engine()
     const entries: RetiredMigrationEntry[] = []
-    for (const key of listMigrationKeys(providerIds, accounts)) {
-      if (!journaled.has(journalItemId(key)) || (await migration.journalPhase(key)) !== 'retired')
-        continue
-      const itemId = itemIdOf.get(key)
-      entries.push({
-        key,
-        label: snapshot.items.find((entry) => entry.id === itemId)?.label ?? key,
-      })
+    for (const { key, itemId } of credentials) {
+      if ((await migration.journalPhase(key)) === 'retired')
+        entries.push({
+          key,
+          label: snapshot.items.find((entry) => entry.id === itemId)?.label ?? key,
+        })
     }
     return entries
   }
@@ -602,7 +597,7 @@ export class CredentialMigrationController implements MigrationMirror {
   /**
   D217: undo one retired slot — its vault bytes go back to the legacy
   store byte-exact and the slot is active again. Every refusal is a
-  fixed sentence the panel, palette and terminal share (vaultRefusals):
+  fixed sentence the panel and palette share (vaultRefusals):
   a key that never migrated, a slot still current, one already gone, a
   legacy copy that changed since, a damaged vault copy. Anything else
   (a transient store or broker failure) keeps its own failure, and the

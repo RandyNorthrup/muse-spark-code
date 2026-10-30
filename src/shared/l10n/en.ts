@@ -8181,7 +8181,7 @@ export const EN = {
     signInYourself: 'Sign In Yourself',
     moveToVault: 'Move to Vault',
     undoMigration: 'Undo Migration',
-    // D217: a retired slot's value restored as current (panel, palette, terminal).
+    // D217: a retired slot's value restored as current (panel, palette).
     retiredEntries: 'Retired entries',
     retiredUndoDone: 'The retired value is current again.',
     retiredUndoGone: 'This retired entry is already gone. Nothing was restored.',
