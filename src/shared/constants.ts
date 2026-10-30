@@ -9753,7 +9753,11 @@ export const DEVELOPER_COMMAND_ID = 'museSpark.developerOptions'
 // off by default); its accounts run in isolated local profiles like the
 // developer first option, without the developer badge or expiry.
 export const DEVELOPER_SETTING_ID = 'museSpark.accounts.severalOnThisDevice'
-export const DEVELOPER_FILES = { state: 'developer.json', audit: 'developer-audit.jsonl' } as const
+export const DEVELOPER_FILES = {
+  state: 'developer.json',
+  audit: 'developer-audit.jsonl',
+  slots: 'developer-slots.json',
+} as const
 // DEVID017B: the stable machine identity (core/developer/machineId.ts). A
 // random id created once per machine and kept in the machine-scoped data
 // folder every host on this machine shares. It is never derived from the
