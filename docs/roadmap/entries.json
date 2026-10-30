@@ -709,7 +709,7 @@
     {
       "id": "M96c",
       "title": "Team scheduler and traffic",
-      "summary": "Scheduler, merge queue and Traffic run on the team core: window-owned admission, retirement, governor joins and checked landing recovery; teams stay off until a second model is set up.",
+      "summary": "Scheduler, merge queue and Traffic run on the team core: window-owned admission, retirement, governor joins and checked landing recovery; teams stay off until a second model is set up, and certification is in progress.",
       "area": "agents"
     },
     {
