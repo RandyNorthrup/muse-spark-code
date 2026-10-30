@@ -1417,12 +1417,14 @@ for (const [bundle, inputs] of [
       problems.push(`${bundle.output} carries the lazy auth bundle: ${input}`)
   }
 }
-// The lazy auth bundle carries exactly auth, issuance, and the three small
-// node modules they stand on (typed errors, transactions, private files).
+// The lazy auth bundle carries exactly auth, issuance, and the four small
+// node modules they stand on (typed errors, transactions, private files,
+// the committed-pair reader serve shares so issuance is not duplicated).
 const NODE_AUTH_SHARED = new Set([
   'src/runtime/node/listenerGuard.ts',
   'src/runtime/node/transactions.ts',
   'src/runtime/node/privateFiles.ts',
+  'src/runtime/node/committedPair.ts',
 ])
 for (const bundle of SHIPPED) {
   if (bundle.output === NODE_SERVICE.output || bundle.output === NODE_SERVE.output) continue

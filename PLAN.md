@@ -15528,72 +15528,6 @@ the v1.1 file adds panels. A future MHP rev bumps `MHP.version` /
 
 <a id="q-0191-linux-vault"></a>
 
-- **Q-M110 — What M110 needs from the owner (2026-10-05).** Every lane builds
-  and certifies on fakes and the rigs meanwhile; nothing here blocks M110a0's
-  lane 0.
-  1. **Rule 8 on a node.** The runtime's Linux key store is the Secret
-     Service (D61), which a container or a server without a desktop session
-     does not have. **Default:** until M109 merges, M110a0's interim key
-     store (D90.23: a passphrase slot in D89.2's format, sealed at each
-     restart); after it, D89's vault (a passphrase or TPM slot, or D90.9's
-     paired slot). A key enters only through the node's web UI password field
-     on the pinned session after a step-up, or `auth set` on standard input;
-     never an environment variable, an argument or a file, Docker and
-     Kubernetes secret files included. Muse Code's own `META_API_KEY` path is
-     not offered on a node.
-  2. **The home PCs.** Which machines and operating systems M110a0 and Muse
-     Node OS are first installed on ("some pcs around my house"). **Default:**
-     the Windows PC with Docker Desktop, the Kubuntu VM, the Mac mini with
-     Docker Desktop and the Win11 VM, plus whatever he names.
-  3. **A test server and a domain.** Certifying M110d–f on the internet needs
-     a small rented server and a domain name (for ACME and passkeys); both
-     are payments and accounts, so they are his. **Default:** the rigs only (a
-     Kubuntu VM as the "server", the overlay and the relay on the LAN), and
-     internet reach stays Preview until a real server passes.
-  4. **Meta's terms, in writing.** Three readings need Meta's answer or the
-     owner's ruling: the CLI on servers and in containers the user builds; a
-     node relaying one person's own Model API requests (§10.1(i)'s "proxy");
-     and a team node (§3.1, §10.1(i)). **Default:** D90.17: no CLI in images,
-     the relay for one person only, team mode waits.
-  5. **Hardware for the OS matrix.** A Raspberry Pi 4 and a Pi 5 (8 GB, with
-     an SSD), an x86-64 mini PC, an old desktop and an ARM64 UEFI server (or
-     rented ARM64 metal), plus the GTX 1080 Ti VM for NVIDIA. **Default:**
-     QEMU for both architectures on every change, and each missing machine
-     named as waiting. The rig that changed address on 2026-10-05 is the
-     first network-resilience test host (D90.25).
-  6. **Signing keys for Muse Node OS** (D90.24). Two are credentials, so
-     they are his:
-     - **The update-bundle key.** An offline root, and a signing certificate
-       for the release job (an HSM, or the `marketplace` environment).
-       **Default:** until it exists, OS images are published for manual
-       install only, with cosign signatures and checksums, and no
-       over-the-air updates are offered.
-     - **The Secure Boot keys.** Platform keys made offline in a key ceremony
-       only he performs. **Default:** images boot with Secure Boot off; never
-       a platform key in CI.
-  7. **The captures** (no model call; the sign-in is a sign-in, not a turn):
-     bubblewrap inside a rootless container on the Kubuntu VM and on arm64;
-     how a Muse Code subscription signs in on a node with no browser (Meta
-     documents no device-code flow); TPM 2.0 on each rig and an OpenSSL TPM
-     provider under Node's TLS. One capture is a model call: the error frame
-     Muse Code sends when its connection drops mid-turn (D90.25), one short
-     turn on the contributor model in an empty workspace, about one model
-     attempt, counted from the trace log. **Default:** until captured, a
-     node's Muse Code backend is off and says why, and Muse Code turns are not
-     continued automatically.
-  8. **The name.** **Default:** "Muse Spark Code Node (Unofficial)" in public,
-     "Muse Node" as shorthand in the docs, and "Muse Node OS (Unofficial)" for
-     the images.
-  9. **CLI sign-in isolation on the home node (L0 review).** D90.23 runs
-     agent CLIs and repository tools as `muse-tools`, while D90.7 requires
-     an owner-only CLI sign-in home. Directory permissions do not isolate
-     processes with the same UID. N/A1 must qualify how the trusted CLI
-     engine and its own sign-in are isolated from every terminal, check and
-     repository tool (including memory/ptrace), without passing credentials
-     to tools or disabling the CLI sandbox. **Default:** the Muse Code
-     backend remains unavailable under Q-M110.7 until this boundary and the
-     sandbox/sign-in captures pass; no subscription-use claim meanwhile.
-
 - **Q-0191-LINUX-VAULT — the vault in VS Code on Linux (2026-10-20).**
   **Resolved by the owner: ship with the limitation documented, fix in the
   next release** (0.19.1; the release itself is 0.19.0). The .vsix carries no `@napi-rs/keyring` binding (about
@@ -16438,6 +16372,15 @@ observe the named tests fail, restore byte-exact and record the evidence in
   8. **The name.** **Default:** "Muse Spark Code Node (Unofficial)" in public,
      "Muse Node" as shorthand in the docs, and "Muse Node OS (Unofficial)" for
      the images.
+  9. **CLI sign-in isolation on the home node (L0 review).** D90.23 runs
+     agent CLIs and repository tools as `muse-tools`, while D90.7 requires
+     an owner-only CLI sign-in home. Directory permissions do not isolate
+     processes with the same UID. N/A1 must qualify how the trusted CLI
+     engine and its own sign-in are isolated from every terminal, check and
+     repository tool (including memory/ptrace), without passing credentials
+     to tools or disabling the CLI sandbox. **Default:** the Muse Code
+     backend remains unavailable under Q-M110.7 until this boundary and the
+     sandbox/sign-in captures pass; no subscription-use claim meanwhile.
 
   **Owner answer (2026-10-06), items 1–8:** every default, accepted.
   The owner, 2026-10-06: "i accept your recommendations and yes i think to all of the questions." The credentials and purchases in items 3 and 6 stay his
@@ -30492,6 +30435,24 @@ Still open: the full Linux install, the attestation success path, every
 container runbook (Docker Desktop's socket never appeared on macmini), and
 the serve binding (A1/M104).
 
+**Status 2026-10-23 (serve binding built on lane RLF-NODESERVE): building.**
+`serve` boots the service, takes the exclusive lock, loads the A1 verifier
+and the pinned S0 leaf from the lazy `dist/nodeAuth.js` bundle, and listens
+on the interface `init` selected, printing the full SHA-256 fingerprint;
+`stop` signals the recorded supervisor and waits. Privileged routes answer
+401 without a verified bearer; H19/H20 stay as the accepted threat model
+wrote them. Still open: the operator control transport (`lock`/`unlock` and
+live `status` refuse `unavailable`), the `/peek` subscribe route and
+read-only page (no transport on these branches), N-M103-ACTION (RLM103
+running), and the lead's second-PC passkey join. Receipt:
+`docs/certification/rlf-nodeserve.md`.
+
+**Status 2026-10-30 (lane RLF-NODESERVE complete): building.** The
+serve binding serves: fingerprint, bearer [REDACTED] digest-bound proofs and
+`stop` are drilled in the receipt above. Still open and not this lane's:
+the operator control transport, the `/peek` subscribe route and page,
+N-M103-ACTION (RLM103), and the lead's second-PC passkey join.
+
 **Amended by D91 (2026-10-05).** Muse Desktop (M111) is this node's
 graphical host edition. M111's shared lanes TH (theme), IN (languages), AX
 (accessibility) and OB (observability) also cover this milestone's web UI
@@ -38228,6 +38189,10 @@ No new escape hatch is introduced.
 | RLM110B location                                   | Escape hatch                                            | Reason                                                                                                                                                                                                          | Date       |
 | -------------------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `test/unit/nodeWorkspaceGit.test.ts` (refused URL) | `eslint-disable-next-line unicorn/prefer-https`, 1 site | The `http://github.com/…` fixture is the refused case the classifier must reject; the rule's `--fix` silently rewrites it to the accepted `https://` case, inverting the test. Inline-reasoned; no rule change. | 2026-10-22 |
+
+| RLF-NODESERVE location                    | Escape hatch                                  | Reason                                                                                                                                                                                                                                                                                                 | Date       |
+| ----------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| `src/runtime/node/serve.ts` (method port) | `result.parse(result) as NodeMethodResult<M>` | The catalog lookup is generic over M; zod has already parsed the value against the exact method's result schema, so the cast restates what validation proved. Narrowing cannot retain the generic method-to-result correlation. The serve binding tests assert each method's parsed result end to end. | 2026-10-23 |
 
 ## 9. Security assumptions and accepted residual risk
 

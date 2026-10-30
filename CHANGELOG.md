@@ -11,6 +11,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- The home node now serves for real: `node serve` starts the node on the
+  interface setup chose, prints its certificate fingerprint, and answers
+  files, terminal, dashboard and sign-in over HTTPS; `node stop` shuts it
+  down. Locking and unlocking from the command line still wait on the
+  control transport.
+
 - Added a pinned amd64/arm64 base agent toolset layer with offline builds,
   verified artifact staging, bundled skill assets, an unprivileged smoke
   fixture and measured base/compiler-pack budgets. Deployment and native

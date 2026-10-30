@@ -97,5 +97,5 @@ on this rig.
 
 ### Second PC with passkey join
 
-Needs the A1/M104 service binding (`serve` refuses `unavailable` today) and
-two machines. Not attempted.
+The A1/M104 service binding has landed since (`docs/certification/rlf-nodeserve.md`);
+still needs two machines. Not attempted.

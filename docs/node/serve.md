@@ -1,13 +1,16 @@
 # Serving the home node
 
 `serve` starts the node supervisor: it owns the service lock for the node's
-whole life and answers commands until it stops. Today `serve`, `stop`,
-`lock` and `unlock` refuse with `The node feature is unavailable.` — the
-production binding has no supervisor yet, so there is nothing to serve, stop
-or lock, and the binding says so instead of pretending. Enabling those four
-commands is the A1/M104 record, not this guide.
+whole life and answers commands until it stops. The A1/M104 binding serves
+for real: `serve` boots the service, takes the exclusive lock, loads the
+passkey verifier and the pinned TLS leaf, and listens on the interface `init`
+selected, printing the full SHA-256 fingerprint. `stop` signals the serving
+node and waits for it to go. `lock` and `unlock` still refuse with `The node
+feature is unavailable.` — the operator control transport that carries them
+to the running node has yet to land — and the binding says so instead of
+pretending.
 
-## The supervisor's contract (what A1 enables)
+## The supervisor's contract
 
 Serve scans the data root before leading: when the store is empty and no
 `service.lock` exists, it leads straight away. Otherwise it does the two
@@ -29,15 +32,15 @@ guide shows.
 `stop` ends the serving node and releases the lock. `lock` and `unlock` are
 the operator commands on the same lock: `lock` claims a free lock,
 `unlock` releases it, and either refuses loudly when the lock is not in the
-state the command needs. All three ride the same supervisor the binding has
-yet to land, so all three refuse `unavailable` alongside serve today.
+state the command needs. Both ride the control transport to the running
+node, which has yet to land, so both refuse `unavailable` until it does.
 
 ## Status while stopped, and while the lock is held
 
 A stopped node — no `service.lock` in the data root — answers `status` from
 its files without troubling the binding: its id, `running:false`, a sealed
 key store. When the lock exists, status goes to the live service instead;
-with no supervisor that question refuses `unavailable` today. A data root
+until the control transport lands that question refuses `unavailable`. A data root
 with no store at all is routine setup state and answers `notFound`, exit 1;
 anything the CLI cannot name ends with the node's `failed` word on stderr,
 never a traceback.

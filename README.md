@@ -762,17 +762,17 @@ and to a terminal UI on the machine itself. The home node is the first
 deliverable (M110a0); the later phases add bare-metal OS images, packs, an
 orchestrator host and team mode.
 
-Today it is groundwork, not a runnable node: the contracts and threat
-model, the service listener library, the passkey libraries, the terminal
-and dashboard surfaces, the TUI design system, and the installer's LAN
-profile with its operator guides. `serve`, `stop`, `lock` and `unlock`
-refuse with `The node feature is unavailable.` until their service binding
-lands; `init`, `status` and `wipe` run. Nothing listens on any network yet.
+The home node serves: `serve` starts it on the interface setup chose,
+prints its certificate fingerprint, and answers files, terminal, dashboard
+and sign-in over HTTPS; `stop` shuts it down. `lock` and `unlock` refuse
+with `The node feature is unavailable.` until the control transport lands;
+`init`, `status` and `wipe` run. Writes, repository Git, maker actions and
+vault reads answer unavailable until their peers land.
 
 - [Install on a home PC](docs/node/home.md): native Linux and Docker
   Desktop on macOS and Windows, firewall rules, wipe and stale-lock
   recovery.
-- [Serving](docs/node/serve.md): what `serve` will own and what each
+- [Serving](docs/node/serve.md): what `serve` owns and what each
   command refuses today.
 - [The workspace volume and the tool host](docs/node/toolhost.md): what
   `wipe` destroys and the inert tool-host unit.
@@ -6285,20 +6285,26 @@ mode. Resource-tree launchers use its exact kernel start microseconds, parent,
 group and exited state before authorizing process actions; this mode runs
 before any audio or privacy setup. Native tests build and sign the production
 helper in private fixtures, so they work in a clean checkout.
-The home-node service groundwork stays in the lazy `dist/node.js` (75 KiB
-cap). Its HTTPS listener requires an explicitly selected private/loopback
-address, a pinned non-CA certificate and A1's real memory-session verifier;
-unbound privileged routes refuse. HTTP and terminal WebSocket operations use
-the shared method port in every editor, with strict same-origin guards,
-request limits and an action-bound step-up for each physical/maker action.
-Authenticated Stop requires no step-up. This is an internal integration
-library; the runnable home node still awaits the sign-in, certificate,
-controller and deployment bindings and platform receipts listed in
+The home node serves from the lazy `dist/node.js` (75 KiB cap), with
+`serve` in `dist/nodeServe.js` (75 KiB cap): it boots the service, loads
+the passkey verifier and the pinned TLS leaf, and listens on the interface
+setup chose, printing the full certificate fingerprint; `stop` shuts it
+down. Its HTTPS listener requires an explicitly
+selected private/loopback address, a pinned non-CA certificate and A1's real
+memory-session verifier; unbound privileged routes refuse. HTTP and terminal
+WebSocket operations use the shared method port in every editor, with strict
+same-origin guards, request limits and an action-bound step-up for each
+physical/maker action. Authenticated Stop requires no step-up. Locking and
+unlocking from the command line still wait on the control transport, and
+writes, repository Git, maker actions and vault reads answer unavailable
+until their peers land, as listed in
 [the node certification](docs/certification/m110-n-node-service.md#named-listener-handoffs).
 
-The passkey and browser-pairing libraries build separately with
-`npm run build:node-auth`, under unchanged 500/350 KiB server/page caps
-(the page cap includes CSS). Challenges are stateless authenticated tokens,
+The passkey verifier and certificate issuance ship in the lazy
+`dist/nodeAuth.js` (550 KiB cap), built by the production build and loaded
+only when serve starts. The browser-pairing page still builds separately
+with `npm run build:node-auth`, under its unchanged 350 KiB cap (the page
+cap includes CSS). Challenges are stateless authenticated tokens,
 so abandoned sign-ins cannot fill an issuance table. Successful proofs alone
 retain one-use nonces until expiry; proof-work limits apply per source.
 Console recovery still requires a fresh setup code, and refused recovery
@@ -6307,8 +6313,8 @@ publishes the key and certificate together under `node-tls/`; retry after
 a crash discards private uncommitted staging or recovers the same complete
 leaf and fingerprint without overwriting it. Auth audit records distinguish
 `verified` proofs from `allowed` issued access, and record refusal when
-persistence outlasts proof freshness. These libraries still require the
-[A1 integration bindings and platform receipts](docs/certification/m110-a1-passkeys-and-the-pinned-certificate.md#integration-bindings).
+persistence outlasts proof freshness. The page still requires its
+[A1 integration bindings](docs/certification/m110-a1-passkeys-and-the-pinned-certificate.md#integration-bindings).
 
 The session board and best-of-N implementation loads on its first action
 from `dist/sessionBoard.js`. Paid Auto reviewer execution loads only after

@@ -8,21 +8,13 @@
 // M109's vault codec. H19 step-up binding and H20 console recovery are
 // A1's as accepted; this binding adds no approval and no paid call.
 import { statfsSync } from 'node:fs'
-import { lstat, realpath, stat } from 'node:fs/promises'
+import { realpath, stat } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { cpus, freemem, totalmem } from 'node:os'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 import process from 'node:process'
-import {
-  NODE_AUTH_BUNDLE_FILE,
-  NODE_EXECUTABLE_WRITE_MASK,
-  NODE_MAX_AUTH_BYTES,
-  NODE_TLS_CERT_FILE,
-  NODE_TLS_DIRECTORY,
-  NODE_TLS_KEY_FILE,
-  UI_TEXT,
-} from '../../shared/constants'
+import { NODE_AUTH_BUNDLE_FILE, NODE_EXECUTABLE_WRITE_MASK, UI_TEXT } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 import {
@@ -36,14 +28,14 @@ import type { NodeClock, NodeConfig, NodeState, NodeToolHostPort } from '../../s
 import type { NodeSession } from '../../shared/nodeAuth'
 import type { NodePasskeyAuth, NodeAuthOptions } from './auth/service'
 import type { NodeSessionLifecycle } from './auth/sessions'
-import type { NodeCertificate } from './tls/certificate'
 import { NodeListener } from './listener'
 import { NodeListenerError, type NodeListenerErrorCode } from './listenerGuard'
 import type { NodeListenerMethodFactory } from './listenerMethods'
 import type { NodeTerminalSubscription } from './listenerSocket'
 import { NodeService } from './service'
 import type { NodeStateStore } from './state'
-import { isMissingFile, NodePrivateFiles } from './privateFiles'
+import { NodePrivateFiles } from './privateFiles'
+import { readCommittedPair, type NodeCertificate } from './committedPair'
 import type { NodeVaultCodec } from './keyStore'
 import { createNodeFileMethods, type NodeFileWorkspacePort } from './web/files'
 import { createNodeTerminalMethods, type NodeTerminalPagePort } from './web/terminal'
@@ -173,30 +165,10 @@ async function ensureTlsPair(
   now: () => number,
   signal: AbortSignal,
 ): Promise<NodeCertificate> {
-  const committedRoot = files.file(NODE_TLS_DIRECTORY)
-  let hasCommitted = false
-  try {
-    await lstat(committedRoot)
-    hasCommitted = true
-  } catch (error: unknown) {
-    if (!isMissingFile(error)) throw error
-  }
-  if (hasCommitted) {
-    const committed = new NodePrivateFiles(committedRoot)
-    const fingerprint = auth.checkNodeCertificate(
-      await committed.read(NODE_TLS_CERT_FILE, NODE_MAX_AUTH_BYTES),
-      await committed.read(NODE_TLS_KEY_FILE, NODE_MAX_AUTH_BYTES),
-      names,
-      now(),
-    )
-    signal.throwIfAborted()
-    return {
-      root: committedRoot,
-      certificateFile: NODE_TLS_CERT_FILE,
-      privateKeyFile: NODE_TLS_KEY_FILE,
-      fingerprint,
-    }
-  }
+  const committed = await readCommittedPair(files, names, now, signal, (pem, key, checked, at) =>
+    auth.checkNodeCertificate(pem, key, checked, at),
+  )
+  if (committed !== undefined) return committed
   const openssl = await resolveInstalledTool('openssl')
   if (openssl === undefined) throw new Error(UI_TEXT.nodeErrors.unavailable)
   return await auth.issueNodeCertificate(files, names, now, openssl, signal)
