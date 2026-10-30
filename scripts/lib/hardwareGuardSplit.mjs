@@ -34,7 +34,13 @@ const EXPORTS = new Map(
     ],
     [
       'src/core/maker/guard/shellPolicy.ts',
-      ['isHardwareWorkspace', 'hardwareShellNote', 'hardwareApprovalMode', 'prepareHardwareTurn'],
+      [
+        'isHardwareWorkspace',
+        'hardwareShellNote',
+        'hardwareApprovalMode',
+        'prepareHardwareTurn',
+        'isPositivelyHardwareWorkspace',
+      ],
     ],
     ['src/core/maker/guard/shellParse.ts', ['parseShell']],
     ['src/core/maker/ports.ts', ['HardwareApproval']],
@@ -106,7 +112,12 @@ export const hardwareShellSplit = guardSplit(
       )
       .map(([source, names]) => [
         source,
-        names.filter((name) => name !== 'hardwareApprovalMode' && name !== 'prepareHardwareTurn'),
+        names.filter(
+          (name) =>
+            name !== 'hardwareApprovalMode' &&
+            name !== 'prepareHardwareTurn' &&
+            name !== 'isPositivelyHardwareWorkspace',
+        ),
       ]),
   ),
   'hardwareShell.js',
