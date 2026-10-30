@@ -213,6 +213,12 @@ happened, not what was planned; superseded entries are kept.
   died with its host resubmits once the host restarts. Through the
   editor protocol the judgment rides the prompt error's
   `data.retryable`. Nothing resubmits by itself.
+- **A retryable failed turn resends itself.** On the Muse Code backend, a
+  turn the backend judged retryable is resent automatically in the same
+  session — two resends unless `museSpark.museCodeMaxRetries` says
+  otherwise (`0` keeps Retry manual) — showing "Retrying in Ns (attempt
+  K of N)" with Stop in the panel while the wait runs. Stop, a refusal,
+  or the last attempt shows the error with Retry as before.
 
 ### Changed
 

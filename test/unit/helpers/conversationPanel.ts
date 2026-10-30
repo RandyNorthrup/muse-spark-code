@@ -1,14 +1,17 @@
 // The real conversation panel over the product's own Model API host and the
 // real file session store, shared by the suites that drive the panel
-// (`sessionDelete.test.ts`, `resumeFailureSend.test.ts`). What the editor
-// does around the controller is the test operator's part: capturing the
-// posted messages and answering a dialog the way the person would. Every
-// collaborator a suite's path never reaches fails closed: if it ever does
-// reach one, the test fails loudly instead of silently faking it.
+// (`sessionDelete.test.ts`, `resumeFailureSend.test.ts`); a suite that
+// drives the Muse Code backend hands its own live host instead
+// (RLF-AUTORETRY). What the editor does around the controller is the test
+// operator's part: capturing the posted messages and answering a dialog the
+// way the person would. Every collaborator a suite's path never reaches
+// fails closed: if it ever does reach one, the test fails loudly instead of
+// silently faking it.
 
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { expect } from 'vitest'
+import type { AgentHost, BackendKind } from '../../../src/core/agent/agentBackend'
 import { BestOfNCoordinator } from '../../../src/core/bestOfN/bestOfNCoordinator'
 import { PendingPrompts } from '../../../src/core/sessionBoard'
 import type { AuthPort, AuthSnapshot } from '../../../src/host/auth/authService'
@@ -245,6 +248,20 @@ export interface PanelOptions {
   readonly estimator?: EstimatorRun
   /** The credential-identity generation the estimate reads under, when bound. */
   readonly estimatorGeneration?: () => string
+  /**
+  The host the panel runs on (RLF-AUTORETRY): a live replay host for the
+  Muse Code backend instead of `rig`'s Model API host. A suite that moves
+  hosts mid-test (a dead host's replacement) hands a function of its own.
+  */
+  readonly ensureHost?: () => Promise<AgentHost>
+  /** The backend the sign-in gate reports; `modelApi` unless moved. */
+  readonly backend?: BackendKind
+  /** The person's Muse Code resend limit (D217), read live per decision. */
+  readonly museCodeMaxRetries?: () => number | undefined
+  /** The resend wait's clock (D217); the product's real wait absent. */
+  readonly resendSleep?: (ms: number, signal: AbortSignal) => Promise<void>
+  /** The resend wait's jitter draw (D217); Math.random absent. */
+  readonly resendRandom?: () => number
 }
 
 export interface PanelRig {
@@ -277,9 +294,10 @@ export function conversationPanel(options: PanelOptions): PanelRig {
     takeRestoredSessionId: () => undefined,
     dispose: () => undefined,
   }
+  const backend = options.backend ?? 'modelApi'
   const auth: AuthPort = {
-    current: { status: 'signedIn', detail: undefined, backend: 'modelApi' },
-    backend: 'modelApi',
+    current: { status: 'signedIn', detail: undefined, backend },
+    backend,
     admissionGeneration: 0,
     toMessage: unused('auth.toMessage'),
     signIn: unused('auth.signIn'),
@@ -291,7 +309,7 @@ export function conversationPanel(options: PanelOptions): PanelRig {
     markAuthRequired: unused('auth.markAuthRequired'),
     markBackendError: (detail: string): AuthSnapshot => {
       backendErrors.push(detail)
-      return { status: 'signedIn', detail, backend: 'modelApi' }
+      return { status: 'signedIn', detail, backend }
     },
   }
   // No path here drives git: every entry fails closed instead of pretending
@@ -351,7 +369,7 @@ export function conversationPanel(options: PanelOptions): PanelRig {
   const deps: ConversationDeps = {
     surface,
     auth,
-    ensureHost: () => Promise.resolve(options.rig.host),
+    ensureHost: options.ensureHost ?? (() => Promise.resolve(options.rig.host)),
     workspaceRoot: options.directory,
     modelId: options.modelId ?? DEFAULT_MODEL_ID,
     initialPermissionMode: 'manual',
@@ -441,6 +459,11 @@ export function conversationPanel(options: PanelOptions): PanelRig {
     ...(options.estimatorGeneration !== undefined && {
       estimatorGeneration: options.estimatorGeneration,
     }),
+    ...(options.museCodeMaxRetries !== undefined && {
+      museCodeMaxRetries: options.museCodeMaxRetries,
+    }),
+    ...(options.resendSleep !== undefined && { resendSleep: options.resendSleep }),
+    ...(options.resendRandom !== undefined && { resendRandom: options.resendRandom }),
   }
   return { controller: new ConversationController(deps), posted, logged, backendErrors }
 }

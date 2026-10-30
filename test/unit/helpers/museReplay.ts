@@ -20,7 +20,7 @@ const captureSchema = z.object({
   }),
   frames: z.array(captureFrameRow),
 })
-type Capture = z.infer<typeof captureSchema>
+export type Capture = z.infer<typeof captureSchema>
 
 const capture: Capture = captureSchema.parse(
   JSON.parse(
@@ -30,6 +30,16 @@ const capture: Capture = captureSchema.parse(
     ),
   ),
 )
+
+/**
+A capture envelope read for a replay rig: the same schema serves every
+m106 envelope (each keeps its provenance; every row shares the shape).
+*/
+export function readCapture(url: URL): Capture {
+  return captureSchema.parse(JSON.parse(readFileSync(url, 'utf8')))
+}
+
+export type CaptureFrames = Capture['frames']
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -47,6 +57,25 @@ export function recordedResult(id: number): Record<string, unknown> {
 
 export const initializeResult = recordedResult(1)
 export const startResult = recordedResult(3)
+
+/** The recorded result the CLI sent for a received id, in the given frames. */
+export function captureResult(frames: CaptureFrames, id: number): Record<string, unknown> {
+  const frame = frames.find(
+    (row) => row.direction === 'received' && row.frame.id === id && row.frame.result !== undefined,
+  )?.frame
+  if (frame?.result === undefined || !isRecord(frame.result))
+    throw new Error(`the capture serves no result for id ${String(id)}`)
+  return frame.result
+}
+
+/** The recorded broadcast of a method, first of its kind, verbatim. */
+export function captureBroadcast(frames: CaptureFrames, method: string): WireFrame {
+  const frame = frames.find(
+    (row) => row.direction === 'received' && row.frame.method === method,
+  )?.frame
+  if (frame === undefined) throw new Error(`the capture serves no ${method} broadcast`)
+  return frame
+}
 
 /** One recorded wire frame, as the SDK's read loop ingests it. */
 export type WireFrame = z.infer<typeof captureFrameRow>['frame']
@@ -185,9 +214,16 @@ export async function closeLiveHosts(): Promise<void> {
   }
 }
 
+/** The recorded open a live host replays: initialize's result, and the session/start one. */
+export interface ReplayWires {
+  readonly initializeResult: Record<string, unknown>
+  readonly startResult: Record<string, unknown>
+}
+
 /** A real host over the replay wire; the script answers every method the test needs. */
 export function startLiveHost(
   answer: (method: string, params: Record<string, unknown>) => Answer | Promise<Answer>,
+  wires?: ReplayWires,
 ): LiveHost {
   const wire = new ReplayWire()
   wire.answer = answer
@@ -195,7 +231,7 @@ export function startLiveHost(
   const host = new MuseCodeHost(
     {
       connection,
-      initializeResult,
+      initializeResult: wires?.initializeResult ?? initializeResult,
       exited: Promise.withResolvers<{ code: number | null; signal: string | null }>().promise,
       close: async () => {
         wire.finish()
@@ -220,13 +256,18 @@ export interface LiveSession extends LiveHost {
 /** A real host plus its real started session; `session/start` serves the recorded frame. */
 export async function startLiveSession(
   answer: (method: string, params: Record<string, unknown>) => Answer | Promise<Answer>,
+  wires?: ReplayWires & { readonly modelId?: string },
 ): Promise<LiveSession> {
-  const live = startLiveHost((method, params) =>
-    method === 'session/start' ? { result: startResult } : answer(method, params),
+  const live = startLiveHost(
+    (method, params) =>
+      method === 'session/start'
+        ? { result: wires?.startResult ?? startResult }
+        : answer(method, params),
+    wires,
   )
   const session = await live.host.startSession({
     workspaceRoot: '<capture-workspace>',
-    modelId: capture.provenance.model,
+    modelId: wires?.modelId ?? capture.provenance.model,
     approvalMode: 'onRequest',
   })
   return { ...live, session }

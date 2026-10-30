@@ -959,9 +959,13 @@ export const SETTING_DEFAULTS = {
   // Lane RETRYLIMITS (owner's binding rule): the person's retry limit, unset
   // by default (null). Set, it caps every provider's retries; unset, each
   // provider's documented maximum governs, and a provider that documents
-  // none retries unbounded (its own Retry-After waits and stop answers
-  // govern). Machine scoped, since a repository must not set what is billed.
+  // none retries twice, the industry default (D217). Machine scoped, since
+  // a repository must not set what is billed.
   modelApiMaxRetries: null as number | null,
+  // Lane RLF-AUTORETRY (D217): resends of a retryable failed Muse Code
+  // turn, unset by default (null: two resends, the industry default).
+  // Machine scoped like its Model API sibling: it chooses billed retries.
+  museCodeMaxRetries: null as number | null,
   // Restore by the tools' own writes (M86, PLAN.md D63): each Model API turn
   // records what its file tools write, with nothing of the workspace
   // captured, so it is on by default.
@@ -1146,8 +1150,10 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiObservationPacking',
   'modelApiMaxToolOutputBytes',
   // Lane RETRYLIMITS: the person's retry ceiling chooses billed retries, so
-  // a repository must not set it (PLAN.md D15).
+  // a repository must not set it (PLAN.md D15). D217: its Muse Code
+  // sibling chooses billed resends the same way.
   'modelApiMaxRetries',
+  'museCodeMaxRetries',
   'modelApiAutoCompaction',
   'modelApiStrictTools',
   'modelApiParallelReads',

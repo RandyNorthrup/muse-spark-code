@@ -1,0 +1,967 @@
+{
+  "provenance": {
+    "startedAt": "2026-10-23T18:02:51.868Z",
+    "finishedAt": "2026-10-23T18:03:02.082Z",
+    "workspace": "<capture-workspace>",
+    "cli": "1.4.7-R6101.1",
+    "provider": "echo",
+    "model": "muse-wonder-1.0",
+    "modelAttempts": 0,
+    "requestAttempts": 5,
+    "projection": true,
+    "omitted": ["temporary workspace", "user home"],
+    "launchArguments": ["serve", "--provider", "echo"],
+    "captureCommand": "node capture-echo-turn.mjs test/fixtures/m106/msp-1.4.7-echo-turn.json"
+  },
+  "frames": [
+    {
+      "direction": "sent",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "clientInfo": {
+            "name": "muse_spark_capture",
+            "version": "0.1.0"
+          },
+          "capabilities": {
+            "userInputDialogs": true,
+            "requestedCapabilities": ["sessionListStream", "feedback"]
+          },
+          "commandId": "01a169ee-1062-7046-98ae-da377a25ccd1"
+        }
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "serverInfo": {
+            "name": "muse",
+            "version": "1.4.7"
+          },
+          "userAgent": "muse-build/1.4.7 (serve; macos-x86_64; build d8c53d25bd30cda15ab32b18b9bb9961df9c4be0)",
+          "museHome": "<home>/data/muse",
+          "platformFamily": "unix",
+          "platformOs": "macos",
+          "schema": {
+            "version": 1,
+            "fingerprint": "sha256:6de32db08bbbe0deb478d2bfcaba001e9fb490986bc80db3aceb4d996abf7df9"
+          },
+          "grantedCapabilities": ["sessionListStream", "feedback"],
+          "experimentalApi": false,
+          "sessionDurability": "durable",
+          "sandboxAvailability": "unavailable"
+        }
+      }
+    },
+    {
+      "direction": "sent",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "initialized"
+      }
+    },
+    {
+      "direction": "sent",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "model/list",
+        "params": {
+          "commandId": "01a169ee-1113-71b2-855a-6fa4349398d4"
+        }
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": {
+          "providerId": "meta",
+          "profileId": "tbh",
+          "source": "providerCatalog",
+          "models": [
+            {
+              "modelId": "muse-wonder-1.0",
+              "displayLabel": "muse-wonder-1.0",
+              "providerId": "meta",
+              "profileId": "tbh",
+              "releaseDate": "2026-10-12",
+              "description": null,
+              "contextLimit": 1007997,
+              "outputLimit": 128000,
+              "cost": null,
+              "isActive": false,
+              "isDefault": true,
+              "variants": "unknown"
+            },
+            {
+              "modelId": "muse-wonder-full-1.0",
+              "displayLabel": "muse-wonder-full-1.0",
+              "providerId": "meta",
+              "profileId": "tbh",
+              "releaseDate": "2026-10-12",
+              "description": null,
+              "contextLimit": 1007997,
+              "outputLimit": 128000,
+              "cost": null,
+              "isActive": false,
+              "isDefault": false,
+              "variants": "unknown"
+            },
+            {
+              "modelId": "muse-spark-1.3",
+              "displayLabel": "muse-spark-1.3",
+              "providerId": "meta",
+              "profileId": "tbh",
+              "releaseDate": "2026-09-02",
+              "description": null,
+              "contextLimit": 1007997,
+              "outputLimit": 128000,
+              "cost": null,
+              "isActive": false,
+              "isDefault": false,
+              "variants": "unknown"
+            },
+            {
+              "modelId": "muse-spark-1.2",
+              "displayLabel": "muse-spark-1.2",
+              "providerId": "meta",
+              "profileId": "tbh",
+              "releaseDate": "2026-08-05",
+              "description": null,
+              "contextLimit": 1007997,
+              "outputLimit": 128000,
+              "cost": null,
+              "isActive": false,
+              "isDefault": false,
+              "variants": "unknown"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "direction": "sent",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "session/start",
+        "params": {
+          "workspaceRoot": "<capture-workspace>",
+          "modelId": "muse-wonder-1.0",
+          "approvalMode": "onRequest",
+          "commandId": "01a169ee-1114-79f4-9f2c-140e142dac5d"
+        }
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "session/started",
+        "params": {
+          "session": {
+            "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+            "path": "<home>/data/muse/sessions/2026/10/23/01a169ee-14b9-7571-be57-53b28f9f2c87/session.jsonl",
+            "status": "idle",
+            "activeTurnId": null,
+            "createdAt": "2026-10-23T18:02:53.264348Z",
+            "updatedAt": "2026-10-23T18:02:53.264352Z",
+            "workspaceRoot": "<capture-workspace>",
+            "providerId": "echo",
+            "modelId": "muse-wonder-1.0",
+            "turnCount": 0,
+            "forkedFrom": null,
+            "sideFrom": null,
+            "approvalMode": {
+              "mode": "onRequest",
+              "source": "startup",
+              "lastCommandId": null
+            },
+            "createdByClient": {
+              "name": "muse_spark_capture",
+              "version": "0.1.0"
+            },
+            "kind": "root"
+          }
+        },
+        "emittedAtMs": 1792778574255
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "result": {
+          "session": {
+            "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+            "path": "<home>/data/muse/sessions/2026/10/23/01a169ee-14b9-7571-be57-53b28f9f2c87/session.jsonl",
+            "status": "idle",
+            "activeTurnId": null,
+            "createdAt": "2026-10-23T18:02:53.264348Z",
+            "updatedAt": "2026-10-23T18:02:53.264352Z",
+            "workspaceRoot": "<capture-workspace>",
+            "providerId": "echo",
+            "modelId": "muse-wonder-1.0",
+            "turnCount": 0,
+            "forkedFrom": null,
+            "sideFrom": null,
+            "approvalMode": {
+              "mode": "onRequest",
+              "source": "startup",
+              "lastCommandId": null
+            },
+            "createdByClient": {
+              "name": "muse_spark_capture",
+              "version": "0.1.0"
+            },
+            "kind": "root"
+          },
+          "viewCursor": "v:01a169ee-14b9-7571-be57-53b28f9f2c87:1"
+        }
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "session/approvalModeChanged",
+        "params": {
+          "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+          "viewCursor": "v:01a169ee-14b9-7571-be57-53b28f9f2c87:1",
+          "sourceRange": {
+            "stream": {
+              "kind": "session",
+              "id": "01a169ee-14b9-7571-be57-53b28f9f2c87"
+            },
+            "first": {
+              "id": "1d1a7adc-2d90-4b3f-ba8d-60cb9356607c",
+              "sequence": 5
+            },
+            "last": {
+              "id": "1d1a7adc-2d90-4b3f-ba8d-60cb9356607c",
+              "sequence": 5
+            }
+          },
+          "mode": "onRequest",
+          "source": "approvalReconfigure",
+          "commandId": "01a169ee-1114-79f4-9f2c-140e142dac5d",
+          "clientName": "muse_spark_capture"
+        },
+        "emittedAtMs": 1792778574260
+      }
+    },
+    {
+      "direction": "sent",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "method": "turn/start",
+        "params": {
+          "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+          "input": [
+            {
+              "type": "text",
+              "text": "Say the word apricot, then stop."
+            }
+          ],
+          "displayText": "Say the word apricot, then stop.",
+          "commandId": "01a169ee-19b5-7f6b-9b75-7f947c83f4d1"
+        }
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "result": {
+          "commandId": "01a169ee-19b5-7f6b-9b75-7f947c83f4d1",
+          "status": "accepted",
+          "turnId": "01a169ee-19b5-7f6b-9b75-7f947c83f4d1",
+          "startedNewTurn": true,
+          "disposition": "started"
+        }
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "session/statusChanged",
+        "params": {
+          "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+          "status": "running",
+          "viewCursor": "v:01a169ee-14b9-7571-be57-53b28f9f2c87:2"
+        },
+        "emittedAtMs": 1792778574543
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "turn/started",
+        "params": {
+          "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+          "viewCursor": "v:01a169ee-14b9-7571-be57-53b28f9f2c87:2",
+          "sourceRange": {
+            "stream": {
+              "kind": "session",
+              "id": "01a169ee-14b9-7571-be57-53b28f9f2c87"
+            },
+            "first": {
+              "id": "9d789b07-c342-4b56-a2f8-69248636b4a9",
+              "sequence": 14
+            },
+            "last": {
+              "id": "9d789b07-c342-4b56-a2f8-69248636b4a9",
+              "sequence": 14
+            }
+          },
+          "turnId": "01a169ee-19b5-7f6b-9b75-7f947c83f4d1",
+          "commandId": "01a169ee-19b5-7f6b-9b75-7f947c83f4d1"
+        },
+        "emittedAtMs": 1792778574545
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "item/completed",
+        "params": {
+          "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+          "viewCursor": "v:01a169ee-14b9-7571-be57-53b28f9f2c87:3",
+          "sourceRange": {
+            "stream": {
+              "kind": "session",
+              "id": "01a169ee-14b9-7571-be57-53b28f9f2c87"
+            },
+            "first": {
+              "id": "9d789b07-c342-4b56-a2f8-69248636b4a9",
+              "sequence": 14
+            },
+            "last": {
+              "id": "9d789b07-c342-4b56-a2f8-69248636b4a9",
+              "sequence": 14
+            }
+          },
+          "item": {
+            "itemId": "bcf8f207-cac1-476e-a125-cc46dd630e16",
+            "kind": "userMessage",
+            "turnId": "01a169ee-19b5-7f6b-9b75-7f947c83f4d1",
+            "revision": 1,
+            "status": "completed",
+            "recordedAt": "2026-10-23T18:02:54.469459Z",
+            "text": "Say the word apricot, then stop.",
+            "commandId": "01a169ee-19b5-7f6b-9b75-7f947c83f4d1"
+          }
+        },
+        "emittedAtMs": 1792778574545
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "item/started",
+        "params": {
+          "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+          "viewCursor": "v:01a169ee-14b9-7571-be57-53b28f9f2c87:4",
+          "sourceRange": {
+            "stream": {
+              "kind": "session",
+              "id": "01a169ee-14b9-7571-be57-53b28f9f2c87"
+            },
+            "first": {
+              "id": "abb25076-a9ac-42fd-8b2d-93243c8c183e",
+              "sequence": 32
+            },
+            "last": {
+              "id": "abb25076-a9ac-42fd-8b2d-93243c8c183e",
+              "sequence": 32
+            }
+          },
+          "item": {
+            "itemId": "abb25076-a9ac-42fd-8b2d-93243c8c183e",
+            "kind": "reminderChild",
+            "turnId": "01a169ee-19b5-7f6b-9b75-7f947c83f4d1",
+            "revision": 1,
+            "status": "inProgress",
+            "recordedAt": "2026-10-23T18:02:55.766174Z",
+            "fallbackText": "Reminder child session",
+            "childSessionId": "ab98ede4-7e2e-4b35-9c78-2267f5745722",
+            "reminderAgentId": "skill-reminder",
+            "generationId": 1,
+            "taskId": "01a169ee-1e2f-7d72-a312-968dff4babcd"
+          }
+        },
+        "emittedAtMs": 1792778575829
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "item/started",
+        "params": {
+          "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+          "viewCursor": "v:01a169ee-14b9-7571-be57-53b28f9f2c87:4.1",
+          "item": {
+            "itemId": "ec416350-6132-4189-b7f0-a92bdea95f8c",
+            "kind": "agentMessage",
+            "turnId": "01a169ee-19b5-7f6b-9b75-7f947c83f4d1",
+            "revision": 1,
+            "status": "inProgress",
+            "text": ""
+          }
+        },
+        "emittedAtMs": 1792778577931
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "item/delta",
+        "params": {
+          "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+          "viewCursor": "v:01a169ee-14b9-7571-be57-53b28f9f2c87:4.2",
+          "itemId": "ec416350-6132-4189-b7f0-a92bdea95f8c",
+          "field": "text",
+          "delta": "echo: Say the word apricot, then stop."
+        },
+        "emittedAtMs": 1792778577931
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "session/tokenUsage",
+        "params": {
+          "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+          "viewCursor": "v:01a169ee-14b9-7571-be57-53b28f9f2c87:5",
+          "sourceRange": {
+            "stream": {
+              "kind": "session",
+              "id": "01a169ee-14b9-7571-be57-53b28f9f2c87"
+            },
+            "first": {
+              "id": "89b627b6-2e13-498f-93f0-416c4092cd98",
+              "sequence": 44
+            },
+            "last": {
+              "id": "89b627b6-2e13-498f-93f0-416c4092cd98",
+              "sequence": 44
+            }
+          },
+          "turnId": "01a169ee-19b5-7f6b-9b75-7f947c83f4d1",
+          "modelId": "muse-wonder-1.0",
+          "usage": {
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "cachedTokens": 0,
+            "reasoningTokens": 0
+          },
+          "promptTokens": 0,
+          "totalTokens": 0,
+          "durationMs": 132,
+          "cumulative": {
+            "promptTokens": 0,
+            "outputTokens": 0,
+            "totalTokens": 0
+          }
+        },
+        "emittedAtMs": 1792778577931
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "session/contextUsage",
+        "params": {
+          "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+          "viewCursor": "v:01a169ee-14b9-7571-be57-53b28f9f2c87:6",
+          "sourceRange": {
+            "stream": {
+              "kind": "session",
+              "id": "01a169ee-14b9-7571-be57-53b28f9f2c87"
+            },
+            "first": {
+              "id": "89b627b6-2e13-498f-93f0-416c4092cd98",
+              "sequence": 44
+            },
+            "last": {
+              "id": "89b627b6-2e13-498f-93f0-416c4092cd98",
+              "sequence": 44
+            }
+          },
+          "windowTokens": 1007997,
+          "usedTokens": 0,
+          "pressure": "normal"
+        },
+        "emittedAtMs": 1792778577931
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "item/completed",
+        "params": {
+          "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+          "viewCursor": "v:01a169ee-14b9-7571-be57-53b28f9f2c87:7",
+          "sourceRange": {
+            "stream": {
+              "kind": "session",
+              "id": "01a169ee-14b9-7571-be57-53b28f9f2c87"
+            },
+            "first": {
+              "id": "f99d1094-c009-4386-b524-3e7ccaeba1da",
+              "sequence": 46
+            },
+            "last": {
+              "id": "f99d1094-c009-4386-b524-3e7ccaeba1da",
+              "sequence": 46
+            }
+          },
+          "item": {
+            "itemId": "ec416350-6132-4189-b7f0-a92bdea95f8c",
+            "kind": "agentMessage",
+            "turnId": "01a169ee-19b5-7f6b-9b75-7f947c83f4d1",
+            "revision": 2,
+            "status": "completed",
+            "recordedAt": "2026-10-23T18:02:57.395736Z",
+            "text": "echo: Say the word apricot, then stop."
+          }
+        },
+        "emittedAtMs": 1792778577931
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "turn/foregroundCompleted",
+        "params": {
+          "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+          "viewCursor": "v:01a169ee-14b9-7571-be57-53b28f9f2c87:8",
+          "sourceRange": {
+            "stream": {
+              "kind": "session",
+              "id": "01a169ee-14b9-7571-be57-53b28f9f2c87"
+            },
+            "first": {
+              "id": "bf474ece-b809-442e-941e-05fb623aef92",
+              "sequence": 52
+            },
+            "last": {
+              "id": "bf474ece-b809-442e-941e-05fb623aef92",
+              "sequence": 52
+            }
+          },
+          "turnId": "01a169ee-19b5-7f6b-9b75-7f947c83f4d1",
+          "blockingAgents": ["goal-reminder", "verify-reminder"]
+        },
+        "emittedAtMs": 1792778578088
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "item/started",
+        "params": {
+          "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+          "viewCursor": "v:01a169ee-14b9-7571-be57-53b28f9f2c87:9",
+          "sourceRange": {
+            "stream": {
+              "kind": "session",
+              "id": "01a169ee-14b9-7571-be57-53b28f9f2c87"
+            },
+            "first": {
+              "id": "bf474ece-b809-442e-941e-05fb623aef92",
+              "sequence": 52
+            },
+            "last": {
+              "id": "bf474ece-b809-442e-941e-05fb623aef92",
+              "sequence": 52
+            }
+          },
+          "item": {
+            "itemId": "bf474ece-b809-442e-941e-05fb623aef92",
+            "kind": "reminderChild",
+            "turnId": "01a169ee-19b5-7f6b-9b75-7f947c83f4d1",
+            "revision": 1,
+            "status": "inProgress",
+            "recordedAt": "2026-10-23T18:02:58.045517Z",
+            "fallbackText": "Reminder child session",
+            "childSessionId": "a83a932a-24da-4cb2-bdb2-dee2b3aa0b5f",
+            "reminderAgentId": "goal-reminder",
+            "generationId": 1,
+            "taskId": "01a169ee-268c-7423-8d7d-f69c6af41626",
+            "childSessionLogPath": "subagent/a83a932a-24da-4cb2-bdb2-dee2b3aa0b5f/session.jsonl",
+            "blocking": true
+          }
+        },
+        "emittedAtMs": 1792778578088
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "item/started",
+        "params": {
+          "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+          "viewCursor": "v:01a169ee-14b9-7571-be57-53b28f9f2c87:10",
+          "sourceRange": {
+            "stream": {
+              "kind": "session",
+              "id": "01a169ee-14b9-7571-be57-53b28f9f2c87"
+            },
+            "first": {
+              "id": "42743e7f-595b-4e05-9c97-ac8bb44dfcae",
+              "sequence": 59
+            },
+            "last": {
+              "id": "42743e7f-595b-4e05-9c97-ac8bb44dfcae",
+              "sequence": 59
+            }
+          },
+          "item": {
+            "itemId": "42743e7f-595b-4e05-9c97-ac8bb44dfcae",
+            "kind": "reminderChild",
+            "turnId": "01a169ee-19b5-7f6b-9b75-7f947c83f4d1",
+            "revision": 1,
+            "status": "inProgress",
+            "recordedAt": "2026-10-23T18:02:58.624076Z",
+            "fallbackText": "Reminder child session",
+            "childSessionId": "ce4dfdbf-3e62-4d5f-be42-2d28e7a76e97",
+            "reminderAgentId": "verify-reminder",
+            "generationId": 1,
+            "taskId": "01a169ee-2909-7641-89d6-1ae043869f00",
+            "childSessionLogPath": "subagent/ce4dfdbf-3e62-4d5f-be42-2d28e7a76e97/session.jsonl",
+            "blocking": true
+          }
+        },
+        "emittedAtMs": 1792778578749
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "session/listChanged",
+        "params": {
+          "session": {
+            "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+            "path": "<home>/data/muse/sessions/2026/10/23/01a169ee-14b9-7571-be57-53b28f9f2c87/session.jsonl",
+            "status": "running",
+            "activeTurnId": "01a169ee-19b5-7f6b-9b75-7f947c83f4d1",
+            "createdAt": "2026-10-23T18:02:53.264348Z",
+            "updatedAt": "2026-10-23T18:02:54.469459Z",
+            "workspaceRoot": "<capture-workspace>",
+            "providerId": "echo",
+            "modelId": "muse-wonder-1.0",
+            "turnCount": 0,
+            "forkedFrom": null,
+            "sideFrom": null,
+            "kind": "root",
+            "createdByClient": {
+              "name": "muse_spark_capture",
+              "version": "0.1.0"
+            }
+          }
+        },
+        "emittedAtMs": 1792778579764
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "item/completed",
+        "params": {
+          "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+          "viewCursor": "v:01a169ee-14b9-7571-be57-53b28f9f2c87:11",
+          "sourceRange": {
+            "stream": {
+              "kind": "session",
+              "id": "01a169ee-14b9-7571-be57-53b28f9f2c87"
+            },
+            "first": {
+              "id": "abb25076-a9ac-42fd-8b2d-93243c8c183e",
+              "sequence": 32
+            },
+            "last": {
+              "id": "1a2f29f5-7b7c-4bd4-934a-209ab8e76cc4",
+              "sequence": 61
+            }
+          },
+          "item": {
+            "itemId": "abb25076-a9ac-42fd-8b2d-93243c8c183e",
+            "kind": "reminderChild",
+            "turnId": "01a169ee-19b5-7f6b-9b75-7f947c83f4d1",
+            "revision": 2,
+            "status": "completed",
+            "recordedAt": "2026-10-23T18:02:59.764763Z",
+            "fallbackText": "Reminder child session",
+            "childSessionId": "ab98ede4-7e2e-4b35-9c78-2267f5745722",
+            "reminderAgentId": "skill-reminder",
+            "generationId": 1,
+            "taskId": "01a169ee-1e2f-7d72-a312-968dff4babcd"
+          }
+        },
+        "emittedAtMs": 1792778579808
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "item/completed",
+        "params": {
+          "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+          "viewCursor": "v:01a169ee-14b9-7571-be57-53b28f9f2c87:12",
+          "sourceRange": {
+            "stream": {
+              "kind": "session",
+              "id": "01a169ee-14b9-7571-be57-53b28f9f2c87"
+            },
+            "first": {
+              "id": "bf474ece-b809-442e-941e-05fb623aef92",
+              "sequence": 52
+            },
+            "last": {
+              "id": "3867709b-e31a-4ad9-9e3c-891f861530cb",
+              "sequence": 62
+            }
+          },
+          "item": {
+            "itemId": "bf474ece-b809-442e-941e-05fb623aef92",
+            "kind": "reminderChild",
+            "turnId": "01a169ee-19b5-7f6b-9b75-7f947c83f4d1",
+            "revision": 2,
+            "status": "failed",
+            "recordedAt": "2026-10-23T18:02:59.808289Z",
+            "fallbackText": "Reminder child session",
+            "failureReason": "invalid run configuration: provider does not support base instructions",
+            "childSessionId": "a83a932a-24da-4cb2-bdb2-dee2b3aa0b5f",
+            "reminderAgentId": "goal-reminder",
+            "generationId": 1,
+            "taskId": "01a169ee-268c-7423-8d7d-f69c6af41626",
+            "childSessionLogPath": "subagent/a83a932a-24da-4cb2-bdb2-dee2b3aa0b5f/session.jsonl",
+            "blocking": true
+          }
+        },
+        "emittedAtMs": 1792778579865
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "item/completed",
+        "params": {
+          "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+          "viewCursor": "v:01a169ee-14b9-7571-be57-53b28f9f2c87:13",
+          "sourceRange": {
+            "stream": {
+              "kind": "session",
+              "id": "01a169ee-14b9-7571-be57-53b28f9f2c87"
+            },
+            "first": {
+              "id": "42743e7f-595b-4e05-9c97-ac8bb44dfcae",
+              "sequence": 59
+            },
+            "last": {
+              "id": "3b213877-062a-4ed9-9362-27be8358f39b",
+              "sequence": 63
+            }
+          },
+          "item": {
+            "itemId": "42743e7f-595b-4e05-9c97-ac8bb44dfcae",
+            "kind": "reminderChild",
+            "turnId": "01a169ee-19b5-7f6b-9b75-7f947c83f4d1",
+            "revision": 2,
+            "status": "failed",
+            "recordedAt": "2026-10-23T18:02:59.865311Z",
+            "fallbackText": "Reminder child session",
+            "failureReason": "invalid run configuration: provider does not support base instructions",
+            "childSessionId": "ce4dfdbf-3e62-4d5f-be42-2d28e7a76e97",
+            "reminderAgentId": "verify-reminder",
+            "generationId": 1,
+            "taskId": "01a169ee-2909-7641-89d6-1ae043869f00",
+            "childSessionLogPath": "subagent/ce4dfdbf-3e62-4d5f-be42-2d28e7a76e97/session.jsonl",
+            "blocking": true
+          }
+        },
+        "emittedAtMs": 1792778580007
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "session/statusChanged",
+        "params": {
+          "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+          "status": "idle",
+          "viewCursor": "v:01a169ee-14b9-7571-be57-53b28f9f2c87:14"
+        },
+        "emittedAtMs": 1792778580070
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "turn/completed",
+        "params": {
+          "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+          "viewCursor": "v:01a169ee-14b9-7571-be57-53b28f9f2c87:14",
+          "sourceRange": {
+            "stream": {
+              "kind": "session",
+              "id": "01a169ee-14b9-7571-be57-53b28f9f2c87"
+            },
+            "first": {
+              "id": "18eb19a0-b13f-43b2-8688-17ff78bc1b51",
+              "sequence": 64
+            },
+            "last": {
+              "id": "18eb19a0-b13f-43b2-8688-17ff78bc1b51",
+              "sequence": 64
+            }
+          },
+          "turnId": "01a169ee-19b5-7f6b-9b75-7f947c83f4d1",
+          "terminal": "completed",
+          "durationMs": 5538,
+          "timeToFirstTokenMs": 2577
+        },
+        "emittedAtMs": 1792778580072
+      }
+    },
+    {
+      "direction": "sent",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "method": "session/delete",
+        "params": {
+          "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+          "commandId": "01a169ee-3069-7aaa-9892-99524a6664a1"
+        }
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "session/listChanged",
+        "params": {
+          "session": {
+            "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+            "path": "<home>/data/muse/sessions/2026/10/23/01a169ee-14b9-7571-be57-53b28f9f2c87/session.jsonl",
+            "status": "idle",
+            "activeTurnId": null,
+            "createdAt": "2026-10-23T18:02:53.264348Z",
+            "updatedAt": "2026-10-23T18:03:00.007958Z",
+            "workspaceRoot": "<capture-workspace>",
+            "providerId": "echo",
+            "modelId": "muse-wonder-1.0",
+            "turnCount": 1,
+            "forkedFrom": null,
+            "sideFrom": null,
+            "kind": "root",
+            "createdByClient": {
+              "name": "muse_spark_capture",
+              "version": "0.1.0"
+            }
+          }
+        },
+        "emittedAtMs": 1792778580072
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "error": {
+          "code": -32601,
+          "message": "method not found",
+          "data": {
+            "kind": "methodNotFound"
+          }
+        }
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "session/closed",
+        "params": {
+          "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+          "reason": "hostShutdown",
+          "viewCursor": "v:01a169ee-14b9-7571-be57-53b28f9f2c87:14"
+        },
+        "emittedAtMs": 1792778582061
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "session/statusChanged",
+        "params": {
+          "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+          "status": "notLoaded",
+          "viewCursor": "v:01a169ee-14b9-7571-be57-53b28f9f2c87:14"
+        },
+        "emittedAtMs": 1792778582061
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "session/listChanged",
+        "params": {
+          "session": {
+            "sessionId": "01a169ee-14b9-7571-be57-53b28f9f2c87",
+            "path": "<home>/data/muse/sessions/2026/10/23/01a169ee-14b9-7571-be57-53b28f9f2c87/session.jsonl",
+            "status": "notLoaded",
+            "activeTurnId": null,
+            "createdAt": "2026-10-23T18:02:53.264348Z",
+            "updatedAt": "2026-10-23T18:03:00.007958Z",
+            "workspaceRoot": "<capture-workspace>",
+            "providerId": "echo",
+            "modelId": "muse-wonder-1.0",
+            "turnCount": 1,
+            "forkedFrom": null,
+            "sideFrom": null,
+            "kind": "root",
+            "createdByClient": {
+              "name": "muse_spark_capture",
+              "version": "0.1.0"
+            }
+          }
+        },
+        "emittedAtMs": 1792778582061
+      }
+    }
+  ]
+}

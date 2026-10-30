@@ -5125,6 +5125,9 @@ async function activateWindow(
             return museVoiceSetup
           },
           modelApiSessionBudgetUsd: () => currentSettings().modelApiSessionBudgetUsd,
+          // D217: the person's Muse Code resend limit, read per resend
+          // decision; unset leaves the industry default in force.
+          museCodeMaxRetries: () => currentSettings().museCodeMaxRetries ?? undefined,
           // Muse Voice is a Meta service: its account is the stored Meta
           // key's own digest, never the selected conversation provider's,
           // and undefined when no Meta key exists (the press then says why).
