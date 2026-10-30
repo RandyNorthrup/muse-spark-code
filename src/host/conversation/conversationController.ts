@@ -961,11 +961,6 @@ function describe(error: unknown): string {
   return redactSecrets(error instanceof Error ? error.message : String(error))
 }
 
-/** CLI errors are logged by kind/code; their message is for the redacted panel only. */
-function describeForLog(error: unknown): string {
-  return isMspFailure(error) ? failureForLog(error) : describe(error)
-}
-
 // The ledger's explicit deletion failure, read by its fixed name: the ledger
 // rides in another bundle, so instanceof would compare across class copies.
 // fileName carries the file's display name, never its id.
@@ -2861,7 +2856,7 @@ export class ConversationController implements DeferredSend {
         return
       }
       this.sideRefused.delete(event.approvalId)
-      this.deps.log.warn(`The side-chat policy could not refuse: ${describeForLog(error)}`)
+      this.deps.log.warn(`The side-chat policy could not refuse: ${failureForLog(error)}`)
       // The session may have ended while the refusal waited: its card does
       // not belong in whatever conversation this surface shows now.
       if (this.session === session) {
