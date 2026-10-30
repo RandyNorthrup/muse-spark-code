@@ -42,4 +42,8 @@ export function setHardwareText(
   if (readers !== undefined) configureHardwareSecrets(readers)
 }
 
-export { hardwareApprovalMode, prepareHardwareTurn } from './guard/modes'
+export {
+  hardwareApprovalMode,
+  isPositivelyHardwareWorkspace,
+  prepareHardwareTurn,
+} from './guard/modes'
