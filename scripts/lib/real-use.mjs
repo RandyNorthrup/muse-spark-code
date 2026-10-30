@@ -119,7 +119,7 @@ function isStepPath(value) {
     value !== '' &&
     !value.startsWith('/') &&
     !value.includes(':') &&
-    value.split('/').every((part) => part !== '' && part !== '.' && part !== '..')
+    value.split('/').every((part) => !['', '.', '..'].includes(part))
   )
 }
 

@@ -253,11 +253,7 @@ function isRawErrorLog(node, binding) {
   }
   const collect = (current, inside) => {
     if (ts.isIdentifier(current) && current.text === binding) {
-      if (inside) {
-        redacted.add(true)
-      } else {
-        redacted.add(false)
-      }
+      redacted.add(inside)
       return
     }
     if (!inside && ts.isCallExpression(current)) {
@@ -743,8 +739,7 @@ export function checkBaseline(entries, baseline) {
     accepted.set(key, (accepted.get(key) ?? 0) + 1)
   }
   for (const entry of entries) {
-    if (entry.class !== 'SWALLOW' && entry.class !== 'GENERIC' && entry.class !== 'CLEANUP')
-      continue
+    if (!['SWALLOW', 'GENERIC', 'CLEANUP'].includes(entry.class)) continue
     const key = JSON.stringify([entry.file, entry.class, entry.identity])
     const remaining = accepted.get(key) ?? 0
     if (remaining === 0)

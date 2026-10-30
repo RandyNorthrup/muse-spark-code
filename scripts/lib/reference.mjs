@@ -115,8 +115,8 @@ function keyboardDispatch(file, text) {
       errors.push(`Keyboard dispatch bypasses registry: ${file}`)
     if (ts.isCallExpression(node) && node.expression.getText(tree) === 'webviewKey') {
       const context = node.arguments[0]
-      if (!context || !ts.isStringLiteral(context)) errors.push(`Unknown keyboard context: ${file}`)
-      else contexts.add(context.text)
+      if (context && ts.isStringLiteral(context)) contexts.add(context.text)
+      else errors.push(`Unknown keyboard context: ${file}`)
     }
     ts.forEachChild(node, (child) => visit(child, functionName, keyboardParameters))
   }

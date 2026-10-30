@@ -33,6 +33,7 @@ if (
       console.log(`VSIX: ${checkVsixSize(artifact)} bytes (budget ${MAX_VSIX_BYTES})`)
   } catch (error) {
     console.error(error.message)
+    // eslint-disable-next-line unicorn/no-top-level-side-effects -- the main-guard runs this only when the file is the program, never on import; the rule does not prove reachability (PLAN §8, RLF-UNICORN79).
     process.exitCode = 1
   }
 }

@@ -371,6 +371,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
     await main()
   } catch {
     process.stderr.write('M106 capture failed. Use --help or inspect the scrubbed manifest.\n')
+    // eslint-disable-next-line unicorn/no-top-level-side-effects -- the main-guard runs this only when the file is the program, never on import; the rule does not prove reachability (PLAN §8, RLF-UNICORN79).
     process.exitCode = 1
   }
 }

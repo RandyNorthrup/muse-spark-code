@@ -95,6 +95,7 @@ if (
     ensureGithubRelease(tag, notes, artifacts)
   } catch {
     console.error('GitHub Release creation or asset verification failed; see docs/RELEASING.md')
+    // eslint-disable-next-line unicorn/no-top-level-side-effects -- the main-guard runs this only when the file is the program, never on import; the rule does not prove reachability (PLAN §8, RLF-UNICORN79).
     process.exitCode = 1
   }
 }

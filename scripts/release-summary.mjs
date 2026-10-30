@@ -34,5 +34,6 @@ if (
   const summary = releaseSummary(JSON.parse(process.env.RELEASE_NEEDS))
   appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary.markdown)
   appendFileSync(process.env.GITHUB_OUTPUT, `all-published=${String(summary.allPublished)}\n`)
+  // eslint-disable-next-line unicorn/no-top-level-side-effects -- the main-guard runs this only when the file is the program, never on import; the rule does not prove reachability (PLAN §8, RLF-UNICORN79).
   if (summary.failed) process.exitCode = 1
 }

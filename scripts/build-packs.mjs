@@ -930,7 +930,7 @@ function listMembers(file) {
   const members = output
     .split('\n')
     .map((line) => line.trim())
-    .filter((line) => line !== '' && line !== '.' && line !== './')
+    .filter((line) => !['', '.', './'].includes(line))
   for (const member of members) {
     const segments = member.split('/')
     if (member.startsWith('/') || segments.includes('..')) {
@@ -1640,14 +1640,14 @@ async function tarLayer(root, mtime, outFile) {
     let isFinished = false
     const settled = () => {
       if (!isFinished || tarCode === undefined || gzipCode === undefined) return
-      if (tarCode !== 0 || gzipCode !== 0) {
+      if (tarCode === 0 && gzipCode === 0) {
+        resolve()
+      } else {
         reject(
           new Error(
             `tar layer failed (tar ${String(tarCode)}, gzip ${String(gzipCode)}): ${Buffer.concat(stderr).toString('utf8').slice(0, 2000)}`,
           ),
         )
-      } else {
-        resolve()
       }
     }
     tar.on('close', settled)
@@ -2493,7 +2493,7 @@ function chooseAlternative(alternatives, entries, debianArch) {
   for (const alternative of alternatives) {
     const [qualified] = alternative.trim().split(' ', 1)
     const [name, qualifier] = qualified.split(':', 2)
-    if (qualifier !== undefined && qualifier !== debianArch && qualifier !== 'any') {
+    if (![undefined, debianArch, 'any'].includes(qualifier)) {
       throw new Error(`apt clause wants ${qualified}`)
     }
     if (entries.has(name)) return name

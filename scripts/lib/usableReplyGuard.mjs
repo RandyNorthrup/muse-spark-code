@@ -460,7 +460,7 @@ const NON_FUNCTION_NAMES = new Set([
 
 /** A name that never owns a read: keywords, or nothing found. */
 function cleanName(name) {
-  return name !== null && name !== undefined && !NON_FUNCTION_NAMES.has(name) ? name : null
+  return name === null || name === undefined || NON_FUNCTION_NAMES.has(name) ? null : name
 }
 
 /** The nearest named frame's name: an unnamed block (an `if`, a literal, a callback without a name) belongs to the function around it. */
