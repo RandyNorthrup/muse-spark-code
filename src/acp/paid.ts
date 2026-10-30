@@ -392,6 +392,12 @@ export class AcpPaidUse {
   */
   public async forget(workspaceRoot: string, sessionId: string): Promise<void> {
     await this.consentFor(workspaceRoot, sessionId).forget()
+    // VS Code's Ask again revokes the folder's account consents with it
+    // (PaidUseConsent.forget's accounts.forget): their durable revocation
+    // epochs advance and their kept grants are cleared, not only lapsed by
+    // the feature generation below. No route is made for a folder that
+    // never billed another account.
+    await this.accountRoutes.get(workspaceRoot)?.forget()
     await this.deps.grants.forget(ACP_PAID_FEATURES)
   }
 
