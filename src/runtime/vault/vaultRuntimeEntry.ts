@@ -27,7 +27,6 @@ import {
   vaultBrokerEventSchema,
   vaultStatusSchema,
   type VaultBrokerEvent,
-  type VaultBrokerPort,
 } from '../../shared/vaultProtocol'
 import { encodeVaultMaterial } from '../../core/vault/crypto'
 import {
@@ -37,7 +36,12 @@ import {
 } from '../../core/vault/broker/manageClient'
 import { VaultBrokerProcess } from '../../host/vault/brokerProcess'
 import { vaultClientPlatform } from './clientPlatform'
-import { HeadlessVaultSession, type ExecVaultContext, type ExecVaultSession } from './execVault'
+import {
+  HeadlessVaultSession,
+  type ExecVaultContext,
+  type ExecVaultSession,
+  type HeadlessBrokerPort,
+} from './execVault'
 import type { WindowsBrokerPlatform } from './windowsHost'
 import type { VaultCommandPort } from './vaultCommand'
 import type { RuntimeVaultBinding, RuntimeVaultContext } from './vaultRuntime'
@@ -188,7 +192,7 @@ export async function openHeadlessVault(
     // Re-checked after the await: a run cancelled meanwhile gets no session.
     if (isCancelled(context.signal) || registered.kind !== 'ok')
       throw new Error(UI_TEXT.vault.noAccess)
-    const port: VaultBrokerPort = {
+    const port: HeadlessBrokerPort = {
       clock: { now: Date.now },
       status: async () => {
         const response = await client.send({ kind: 'status' })
@@ -204,6 +208,18 @@ export async function openHeadlessVault(
         vaultAuthorizationResultSchema.parse(
           await client.send({ kind: 'requestUse', proposal: { handle, use, taint } }),
         ),
+      reportProvenance: async (taint: VaultTaint) => {
+        const reply = await client.send({ kind: 'reportProvenance', taint })
+        return reply.kind === 'ok'
+      },
+      delegate: async (
+        ticketId: string,
+        feeder: { processId: number; startedAt: number },
+        envelopeDigest: string,
+      ) => {
+        const reply = await client.send({ kind: 'delegate', ticketId, feeder, envelopeDigest })
+        return reply.kind === 'ok'
+      },
       // Headless never answers a card: there is no person to ask (D89.10).
       answer: () => Promise.resolve({ kind: 'denied', reason: 'unattended' }),
       lock: () => Promise.reject(new Error(UI_TEXT.vault.noAccess)),
@@ -367,6 +383,7 @@ export async function createRuntimeVault(
   return {
     commands: () => Promise.resolve(vaultCommandPort(session, ensureMigrated)),
     exec: {
+      dataDir: context.dataDir,
       open: async (execContext) =>
         await openHeadlessVault(connect, execContext, hostId, context.processId),
     },

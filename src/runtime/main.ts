@@ -1890,6 +1890,11 @@ async function main(processResources: ProcessResources): Promise<number> {
             accounts: loadAccounts(log).exec,
           }),
           vault: {
+            dataDir: agentDataFolder({
+              platform: process.platform,
+              env: process.env,
+              homeDir: homedir(),
+            }),
             open: async (context) => {
               const binding = await loadVault()
               return await binding.exec.open(context)
