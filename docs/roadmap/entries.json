@@ -1404,6 +1404,12 @@
       "area": "chat"
     },
     {
+      "id": "RLFAUTORETRY",
+      "title": "Transient failures retry themselves",
+      "summary": "A transiently failed request retries automatically with industry-standard backoff, showing Retrying in Ns with Stop; the per-backend retry maxima are person-settable.",
+      "area": "chat"
+    },
+    {
       "id": "ACPDOG",
       "public": false,
       "note": "implementation complete; dependent validation pending"
