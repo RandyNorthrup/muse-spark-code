@@ -6927,7 +6927,9 @@
       "one": "{count} denetimli çalıştırma bütünüyle durdurulamadı.",
       "other": "{count} denetimli çalıştırma bütünüyle durdurulamadı."
     },
-    "unavailable": "Denetim bu kurulumda kullanılamıyor."
+    "unavailable": "Denetim bu kurulumda kullanılamıyor.",
+    "recordsFolderNotPrivate": "Gözetim, kayıtlarını yalnızca sizin yazabildiğiniz bir klasörde tutar, ancak aracının veri klasörü veya üstündeki bir klasör diğer kullanıcılar tarafından yazılabilir. Diğer kullanıcıların bu klasörlere yazma erişimini kaldırıp yeniden deneyin.",
+    "endpointPathTooLong": "Gözetim başlayamıyor, çünkü aracının veri klasörü yolu bu sistemin izin verdiği denetim soketi için çok uzun. Aracının veri klasörünü daha kısa bir yola taşıyıp yeniden deneyin."
   },
   "acpConnector": {
     "title": "Bağlayıcı isteklerini onayla",

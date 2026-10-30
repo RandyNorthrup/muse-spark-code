@@ -6927,7 +6927,9 @@
       "one": "{count} felügyelt futást nem sikerült teljesen leállítani.",
       "other": "{count} felügyelt futást nem sikerült teljesen leállítani."
     },
-    "unavailable": "A felügyelet nem érhető el ebben a telepítésben."
+    "unavailable": "A felügyelet nem érhető el ebben a telepítésben.",
+    "recordsFolderNotPrivate": "A felügyelet a rekordjait olyan mappában tartja, amelybe csak ön írhat, de az ügynök adatmappájába vagy egy felette lévő mappába más felhasználók is írhatnak. Vegye el a többi felhasználótól az írási hozzáférést ezekhez a mappákhoz, majd próbálja újra.",
+    "endpointPathTooLong": "A felügyelet nem tud elindulni, mert az ügynök adatmappájának elérési útja túl hosszú a rendszer által engedélyezett vezérlő sockethez. Helyezze az ügynök adatmappáját rövidebb elérési útra, majd próbálja újra."
   },
   "acpConnector": {
     "title": "Összekötő-kérések jóváhagyása",

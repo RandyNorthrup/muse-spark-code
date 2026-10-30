@@ -7104,7 +7104,9 @@
       "other": "{count} exécutions supervisées n’ont pas pu être arrêtées entièrement.",
       "many": "{count} d’exécutions supervisées n’ont pas pu être arrêtées entièrement."
     },
-    "unavailable": "La supervision n’est pas disponible dans cette installation."
+    "unavailable": "La supervision n’est pas disponible dans cette installation.",
+    "recordsFolderNotPrivate": "La supervision conserve ses enregistrements dans un dossier dans lequel vous seul pouvez écrire, mais le dossier de données de l’agent ou un dossier parent est accessible en écriture à d’autres utilisateurs. Retirez l’accès en écriture aux autres utilisateurs pour ces dossiers, puis réessayez.",
+    "endpointPathTooLong": "La supervision ne peut pas démarrer, car le chemin du dossier de données de l’agent est trop long pour le socket de contrôle autorisé par ce système. Déplacez le dossier de données de l’agent vers un chemin plus court, puis réessayez."
   },
   "acpConnector": {
     "title": "Approuver les demandes du connecteur",

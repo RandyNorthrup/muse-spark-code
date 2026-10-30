@@ -7104,7 +7104,9 @@
       "other": "{count} execuções supervisionadas não puderam ser paradas por inteiro.",
       "many": "{count} execuções supervisionadas não puderam ser paradas por inteiro."
     },
-    "unavailable": "A supervisão não está disponível nesta instalação."
+    "unavailable": "A supervisão não está disponível nesta instalação.",
+    "recordsFolderNotPrivate": "A supervisão guarda seus registros em uma pasta na qual só você pode escrever, mas a pasta de dados do agente ou uma pasta acima dela pode ser alterada por outros usuários. Remova o acesso de escrita de outros usuários nessas pastas e tente novamente.",
+    "endpointPathTooLong": "A supervisão não pode iniciar porque o caminho da pasta de dados do agente é longo demais para o soquete de controle permitido por este sistema. Mova a pasta de dados do agente para um caminho mais curto e tente novamente."
   },
   "acpConnector": {
     "title": "Aprovar solicitações do conector",
