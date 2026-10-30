@@ -38,13 +38,19 @@ interface Rigged {
 function replayHost(): Rigged {
   const wire = new ReplayWire()
   const stopAllGate = Promise.withResolvers<Answer>()
+  let starts = 0
   wire.answer = (method): Answer | Promise<Answer> => {
     switch (method) {
       case 'model/list': {
         return { result: fixture('model-list-1.4.11.json') }
       }
       case 'session/start': {
-        return { result: fixture('session-start-1.4.11.json') }
+        starts += 1
+        return {
+          result: fixture(
+            starts === 1 ? 'session-start-1.4.11.json' : 'session-start-second-1.4.11.json',
+          ),
+        }
       }
       case 'session/resume': {
         return { result: fixture('session-resume-1.4.11.json') }
@@ -177,6 +183,22 @@ describe('MuseCode session release is orderly', () => {
     expect(wire.sentCount('task/stopAll')).toBe(0)
     expect(stopWarns()).toEqual([])
     expect(abandonInfos()).toHaveLength(1)
+    expect(abandonInfos()[0]?.message).toBe(
+      'Closing the host releases 1 held session without stopping their background tasks',
+    )
+    hosts.pop()
+  })
+
+  it('closing the host with two sessions names the plural', async () => {
+    const { host, wire } = replayHost()
+    await host.startSession({ ...START })
+    await host.startSession({ ...START })
+    await host.close()
+    expect(wire.sentCount('task/stopAll')).toBe(0)
+    expect(abandonInfos()).toHaveLength(1)
+    expect(abandonInfos()[0]?.message).toBe(
+      'Closing the host releases 2 held sessions without stopping their background tasks',
+    )
     hosts.pop()
   })
 
