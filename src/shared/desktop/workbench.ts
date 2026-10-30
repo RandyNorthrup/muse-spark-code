@@ -8,6 +8,7 @@ import {
   workbenchLayoutSchema,
   type DesktopStatusItem,
   type LayoutKey,
+  type TerminalPlacement,
   type WorkbenchLayout,
 } from './bridge'
 
@@ -62,6 +63,12 @@ export function moveTerminal(layout: WorkbenchLayout, move: TerminalMove): Workb
         : layout
     }
   }
+}
+
+// Whether the panel body renders at this placement (footer shows only its
+// tab; hidden keeps the sessions without a surface).
+export function isTerminalPanelVisible(placement: TerminalPlacement): boolean {
+  return ['docked', 'floating'].includes(placement)
 }
 
 export interface TerminalTab {
@@ -134,13 +141,7 @@ export function isDesktopPermissionGranted(permission: string): boolean {
 
 // Only these schemes may leave the app in the person's browser.
 export function isExternalUrlAllowed(url: string): boolean {
-  let parsed: URL
-  try {
-    parsed = new URL(url)
-  } catch {
-    return false
-  }
-  return ['https:', 'http:', 'mailto:'].includes(parsed.protocol)
+  return URL.canParse(url) && ['https:', 'http:', 'mailto:'].includes(new URL(url).protocol)
 }
 
 // Default layout for a workspace that has none stored yet.

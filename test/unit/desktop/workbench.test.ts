@@ -15,6 +15,7 @@ import {
   isExternalUrlAllowed,
   freshLayout,
   isStoredLayout,
+  isTerminalPanelVisible,
   layoutStorageKey,
   moveTerminal,
   nextTerminalAfterClose,
@@ -55,6 +56,10 @@ describe('M111 lane WB workbench logic', () => {
     expect(hidden.terminalPlacement).toBe('hidden')
     expect(moveTerminal(hidden, 'show').terminalPlacement).toBe('docked')
     expect(moveTerminal(freshLayout(), 'show').terminalPlacement).toBe('docked')
+    expect(isTerminalPanelVisible('docked')).toBe(true)
+    expect(isTerminalPanelVisible('floating')).toBe(true)
+    expect(isTerminalPanelVisible('footer')).toBe(false)
+    expect(isTerminalPanelVisible('hidden')).toBe(false)
   })
 
   it('closing the active terminal selects its neighbour', () => {

@@ -22,6 +22,7 @@ import {
 } from '../../shared/desktop/keybindings'
 import {
   freshLayout,
+  isTerminalPanelVisible,
   moveTerminal,
   nextTerminalAfterClose,
   rankQuickOpen,
@@ -90,9 +91,10 @@ export function DesktopApp() {
         let stored: WorkbenchLayout | null = null
         try {
           stored = await bridge.getLayout({ workspaceRoot: current.root })
-        } catch {
-          // The stored record did not parse; the default layout is used
-          // and the notice below says so (REPORTED: shown, not swallowed).
+        } catch (error_: unknown) {
+          // Only a schema refusal means the stored record is unreadable;
+          // anything else is the outer handler's to report.
+          if (!(error_ instanceof Error) || error_.name !== 'ZodError') throw error_
           stored = null
           if (!isAborted()) setLayoutNotice(UI_TEXT.desktop.workbenchLayoutUnreadable)
         }
@@ -100,7 +102,16 @@ export function DesktopApp() {
         setLayout(stored ?? freshLayout())
         setFiles(await bridge.listFiles())
       } catch (error_: unknown) {
-        if (!isAborted()) setError(error_ instanceof Error ? error_.message : String(error_))
+        // Bridge failures arrive as Errors with the refusal as their
+        // message; a schema refusal means the bridge answered nonsense;
+        // anything else is a bug, not a refusal to soften.
+        if (error_ instanceof Error && error_.name === 'ZodError') {
+          if (!isAborted()) setError(UI_TEXT.desktop.workbenchBridgeUnavailable)
+        } else if (error_ instanceof Error && error_.name === 'Error') {
+          if (!isAborted()) setError(error_.message)
+        } else {
+          throw error_
+        }
       }
     })()
     return () => {
@@ -171,8 +182,17 @@ export function DesktopApp() {
           activeFile: result.path,
         }
         await persistLayout(next)
-      } catch {
-        setError(UI_TEXT.desktop.workbenchFileUnreadable)
+      } catch (error_: unknown) {
+        // The main process refuses binary and outside files by name and
+        // the preload refuses malformed answers; both read the same way
+        // here. Anything else is a bug, not an unreadable file.
+        if (error_ instanceof Error && error_.name === 'ZodError') {
+          setError(UI_TEXT.desktop.workbenchBridgeUnavailable)
+        } else if (error_ instanceof Error && error_.name === 'Error') {
+          setError(UI_TEXT.desktop.workbenchFileUnreadable)
+        } else {
+          throw error_
+        }
       }
     },
     [persistLayout],
@@ -386,7 +406,7 @@ export function DesktopApp() {
           )}
         </section>
 
-        {layout.terminalPlacement === 'docked' || layout.terminalPlacement === 'floating' ? (
+        {isTerminalPanelVisible(layout.terminalPlacement) ? (
           <section
             ref={terminalRef}
             tabIndex={-1}

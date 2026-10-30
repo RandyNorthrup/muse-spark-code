@@ -12,49 +12,54 @@ import {
   terminalDataSchema,
   terminalExitSchema,
   workbenchLayoutSchema,
+  type DesktopChannel,
   type MuseDesktopBridge,
 } from '../../src/shared/desktop/bridge'
 import { z } from 'zod'
 
+function invoke(channel: DesktopChannel, ...args: unknown[]): Promise<unknown> {
+  const result: Promise<unknown> = ipcRenderer.invoke(channel, ...args)
+  return result
+}
+function send(channel: DesktopChannel, frame: unknown): void {
+  ipcRenderer.send(channel, frame)
+}
+
 const bridge: MuseDesktopBridge = {
   async workspace() {
-    return desktopWorkspaceSchema.parse(await ipcRenderer.invoke('muse-desktop:workspace'))
+    return desktopWorkspaceSchema.parse(await invoke('muse-desktop:workspace'))
   },
   async getLayout(key) {
-    const raw: unknown = await ipcRenderer.invoke('muse-desktop:layout:get', key)
+    const raw: unknown = await invoke('muse-desktop:layout:get', key)
     return raw === null ? null : workbenchLayoutSchema.parse(raw)
   },
   async setLayout(request) {
-    await ipcRenderer.invoke('muse-desktop:layout:set', request)
+    await invoke('muse-desktop:layout:set', request)
   },
   async listFiles() {
-    const raw: unknown = await ipcRenderer.invoke('muse-desktop:files:list')
+    const raw: unknown = await invoke('muse-desktop:files:list')
     return z.array(fileEntrySchema).parse(raw)
   },
   async readFile(filePath) {
-    return fileReadResultSchema.parse(
-      await ipcRenderer.invoke('muse-desktop:files:read', { path: filePath }),
-    )
+    return fileReadResultSchema.parse(await invoke('muse-desktop:files:read', { path: filePath }))
   },
   async writeFile(filePath, text) {
-    await ipcRenderer.invoke('muse-desktop:files:write', { path: filePath, text })
+    await invoke('muse-desktop:files:write', { path: filePath, text })
   },
   async publishStatus(request) {
-    await ipcRenderer.invoke('muse-desktop:status:publish', request)
+    await invoke('muse-desktop:status:publish', request)
   },
   async createTerminal(request) {
-    return terminalCreatedSchema.parse(
-      await ipcRenderer.invoke('muse-desktop:terminal:create', request),
-    )
+    return terminalCreatedSchema.parse(await invoke('muse-desktop:terminal:create', request))
   },
   writeTerminal(id, data) {
-    ipcRenderer.send('muse-desktop:terminal:write', { id, data })
+    send('muse-desktop:terminal:write', { id, data })
   },
   resizeTerminal(id, cols, rows) {
-    ipcRenderer.send('muse-desktop:terminal:resize', { id, cols, rows })
+    send('muse-desktop:terminal:resize', { id, cols, rows })
   },
   closeTerminal(id) {
-    ipcRenderer.send('muse-desktop:terminal:close', { id })
+    send('muse-desktop:terminal:close', { id })
   },
   onTerminalData(listener) {
     const handler = (_event: unknown, raw: unknown): void => {
@@ -75,13 +80,13 @@ const bridge: MuseDesktopBridge = {
     }
   },
   async openWorkspace(root) {
-    await ipcRenderer.invoke('muse-desktop:window:open-workspace', { root })
+    await invoke('muse-desktop:window:open-workspace', { root })
   },
   async openExternal(url) {
-    await ipcRenderer.invoke('muse-desktop:external:open', { url })
+    await invoke('muse-desktop:external:open', { url })
   },
   async closeWindow() {
-    await ipcRenderer.invoke('muse-desktop:window:close')
+    await invoke('muse-desktop:window:close')
   },
 }
 

@@ -18,7 +18,7 @@ import {
 import {
   DESKTOP_APP_NAME,
   DESKTOP_COMPOSITOR_WORKSPACE_ENV,
-  DESKTOP_MODEL_TEXT,
+  DESKTOP_LOG_TEXT,
   DESKTOP_SETUP_FLAG,
   DESKTOP_WINDOW_DEFAULT_HEIGHT_PX,
   DESKTOP_WINDOW_DEFAULT_WIDTH_PX,
@@ -134,7 +134,7 @@ function openWorkspaceWindow(root: string, isSetupMode: boolean): BrowserWindow 
   })
   window.webContents.on('will-navigate', (event, url) => {
     event.preventDefault()
-    process.stderr.write(`muse-desktop: ${DESKTOP_MODEL_TEXT.navigationDenied} (${url})\n`)
+    process.stderr.write(`muse-desktop: ${DESKTOP_LOG_TEXT.navigationDenied} (${url})\n`)
   })
   window.webContents.setWindowOpenHandler(({ url }) => {
     if (isExternalUrlAllowed(url)) void shell.openExternal(url)
@@ -252,9 +252,7 @@ if (hasSingleInstanceLock) {
     session.defaultSession.setPermissionRequestHandler((_contents, permission, callback) => {
       const isGranted = isDesktopPermissionGranted(permission)
       if (!isGranted) {
-        process.stderr.write(
-          `muse-desktop: ${DESKTOP_MODEL_TEXT.permissionDenied} (${permission})\n`,
-        )
+        process.stderr.write(`muse-desktop: ${DESKTOP_LOG_TEXT.permissionDenied} (${permission})\n`)
       }
       callback(isGranted)
     })
