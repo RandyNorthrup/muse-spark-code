@@ -355,6 +355,9 @@
     // The refresh-lock worker entry: the cross-surface drill bundles it
     // with esbuild, which knip does not trace.
     "test/unit/refreshLockWorkerEntry.ts",
+    // The killed-lander child entry: its suite bundles it with esbuild,
+    // which knip does not trace.
+    "test/unit/teamLandingChild.entry.ts",
     // The GitHub Action's scripts (M80): each composite step runs one by path.
     "action/lib/*.mjs",
     "action/apply/lib/*.mjs",

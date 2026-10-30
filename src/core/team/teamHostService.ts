@@ -13,12 +13,21 @@ import type { UsdAmount } from '../../shared/usd'
 import type { TeamWorkerConfirmation } from '../../shared/paid'
 import type {
   TeamAgentRef,
+  TeamAttempt,
   TeamPoolEntry,
   TeamReport,
   TeamRoleConfig,
+  TeamSharedFile,
   TeamSnapshot,
   TeamUsage,
 } from '../../shared/team'
+import type { TeamCapacityPort } from './scheduler/slots'
+import type {
+  TeamSchedulingFactory,
+  TeamSchedulingOwnerBirth,
+  TeamSchedulingPort,
+  TeamSchedulingProbeOwner,
+} from './teamScheduling'
 import type { TeamTreeData } from '../../shared/teamView'
 import type {
   TeamDecisionSource,
@@ -60,6 +69,16 @@ editor. A refused action throws an `Error` whose message is the user's
 sentence; the surface shows it.
 */
 export interface TeamHostService extends TeamHostSeams {
+  /** The window scheduler (M96c), when the host supplies its factory. */
+  readonly scheduler?: TeamSchedulingPort | undefined
+  readonly landingPaused: () => boolean
+  readonly setLandingPaused: (isPaused: boolean) => Promise<void>
+  /** The last landing refusal for a task in review, if its merge was refused. */
+  readonly mergeRefusal?: ((taskId: string) => TeamMergeRefusal | undefined) | undefined
+  /** The ordered merge queue (review waits for landing, head first). */
+  readonly mergeQueue?: (() => readonly TeamMergeQueueRow[]) | undefined
+  /** The recorded merge-queue transitions backing depth and time-to-merge. */
+  readonly mergeEvents?: (() => readonly TeamMergeQueueEvent[]) | undefined
   /** The Agent map's tree, or undefined when the workspace runs no team. */
   readonly tree: () => TeamTreeData | undefined
   /** Called after every change the tree shows; returns the unsubscribe. */
@@ -74,6 +93,8 @@ export interface TeamHostService extends TeamHostSeams {
   readonly moveTask: (taskId: string, roleId: string) => Promise<void>
   /** Stops every running and queued task; returns how many stopped. */
   readonly stopAllTasks: () => Promise<number>
+  /** Removes landed or discarded tasks' agent branches; returns how many went. */
+  readonly cleanupAgentBranches: (taskId?: string) => Promise<number>
   /** Answers a "waiting for you" card. */
   readonly answerWaiting: (waitingId: string, choice: TeamWaitingChoice) => Promise<void>
   /** Answers a merge card, or merges or discards a finished task from the tree. */
@@ -111,6 +132,14 @@ export interface TeamSettingsPort {
   readonly isTeamWorkersOn: () => boolean
   /** `museSpark.teamMaxWorkers`: workers at once in this window. */
   readonly maxWorkers: () => number
+  /** The workspace's scheduler settings (M96c): the integration flow, stall policy and shared files. */
+  readonly scheduler?:
+    | (() => {
+        readonly integrationFlow: 'full' | 'reviewAutomatically' | 'manual'
+        readonly onStall: 'reassign' | 'ask' | 'stop'
+        readonly sharedFiles: readonly TeamSharedFile[]
+      })
+    | undefined
   /** Restricted Mode: an untrusted workspace starts no worker (acceptance 29). */
   readonly isTrusted: () => boolean
   /**
@@ -174,6 +203,8 @@ export interface TeamTaskSpec {
   readonly role: TeamRoleConfig
   readonly entry: TeamPoolEntry & { readonly agent: TeamAgentRef }
   readonly brief: string
+  /** Done-parent reports the brief must carry; undefined when independent. */
+  readonly parentReports?: readonly { taskId: string; text: string }[] | undefined
   readonly files: readonly string[]
   /** The orchestrator's session, for the worker's own cards (D75). */
   readonly parentSessionId: string
@@ -211,6 +242,8 @@ export interface TeamWorkerPort {
   readonly canRun: (agent: TeamAgentRef) => boolean
   /** The declared setup probe: the agent's model observably loaded. */
   readonly probe: (agent: TeamAgentRef) => Promise<boolean>
+  /** File-only engine loop, or OS containment: absence retains the slot. */
+  readonly retirement?: ((taskId: string) => TeamAttempt['retirement']) | undefined
   readonly run: (spec: TeamTaskSpec, signal: AbortSignal) => Promise<TeamWorkerOutcome>
   /** A rate or usage limit marked the agent until its time (acceptance 8); absent marks nothing. */
   readonly isLimited?: ((agent: TeamAgentRef) => boolean) | undefined
@@ -275,6 +308,30 @@ export interface TeamMergeOutcome {
   readonly status: 'merged' | 'rework'
   readonly written: readonly string[]
   readonly conflicts: readonly string[]
+  readonly refusal?: TeamMergeRefusal | undefined
+}
+/** A landing refusal keeps its reason: stale, busy, denied and branched travel as
+themselves, with the holder or the deferred branch where there is one. A stale
+refusal offers the rebuild action and a busy one the recheck action; both run by
+landing again. */
+export interface TeamMergeRefusal {
+  readonly kind: 'stale' | 'busy' | 'denied' | 'branched'
+  readonly holder?: unknown
+  readonly branch?: string | undefined
+  readonly action?: 'rebuild' | 'recheck' | undefined
+}
+/** One recorded merge-queue transition. The queue is the ordered wait between
+review and landing; depth and time-to-merge are computed from this log. */
+export interface TeamMergeQueueEvent {
+  readonly kind: 'enqueued' | 'landed' | 'returned' | 'withdrawn'
+  readonly taskId: string
+  readonly at: number
+  readonly reason?: string | undefined
+}
+/** One ordered merge-queue row: the task and its 1-based queue position. */
+export interface TeamMergeQueueRow {
+  readonly taskId: string
+  readonly position: number
 }
 
 /** Lane I's integration: the three-way merge into the working tree, and discard. */
@@ -345,6 +402,15 @@ export interface TeamPaidPort {
 
 /** Everything `createTeamHostService` takes. */
 export interface TeamHostServiceDeps {
+  readonly onStall?: ((taskId: string) => Promise<'reassign' | 'stop'>) | undefined
+  readonly capacity?: TeamCapacityPort | undefined
+  readonly createScheduler?: TeamSchedulingFactory | undefined
+  readonly workspaceId?: string | undefined
+  readonly windowInstanceId?: string | undefined
+  /** Forwarded to the window scheduler: this window's birth and process lease. */
+  readonly ownerBirth?: TeamSchedulingOwnerBirth | undefined
+  /** Forwarded to the window scheduler: prove a foreign board owner gone. */
+  readonly probeOwner?: TeamSchedulingProbeOwner | undefined
   readonly hooks?:
     | {
         readonly relativePath: (folder: string) => string | undefined

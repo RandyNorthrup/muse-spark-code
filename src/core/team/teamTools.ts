@@ -116,6 +116,10 @@ const TASK_SCHEMA = {
       maxLength: TEAM_IDENTIFIER_MAX_CHARS,
       description: TEAM_MODEL_TEXT.toolAFinishedTaskIdToReopen,
     },
+    // The scheduler's per-task fields, offered wherever the delegate tool is:
+    // a worker the model places without them cannot be ordered, sized,
+    // fenced or depended on by the scheduler that must run it.
+    ...teamToolSchemas.teamSchedulerFieldsSchema.properties,
   },
   required: ['role', 'brief', 'reason'],
 } as const
@@ -316,6 +320,12 @@ export const delegateArgs = z.object({
   tasks: z
     .array(
       z.object({
+        key: teamSchedulerFieldsSchema.shape.key,
+        depends_on: teamSchedulerFieldsSchema.shape.depends_on,
+        priority: z.optional(teamSchedulerFieldsSchema.shape.priority),
+        size: z.optional(teamSchedulerFieldsSchema.shape.size),
+        writes: teamSchedulerFieldsSchema.shape.writes,
+        overlap: z.optional(teamSchedulerFieldsSchema.shape.overlap),
         role: identifierSchema,
         brief: z.string().check(z.maxLength(TEAM_BRIEF_MAX_CHARS), z.trim(), z.minLength(1)),
         reason: reasonSchema,

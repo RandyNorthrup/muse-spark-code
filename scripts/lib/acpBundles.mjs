@@ -164,6 +164,10 @@ export const ACP_BUNDLES = [
   'execTeam.js',
   'teamRunners.js',
   'teamScheduler.js',
+  // RLF-TEAMCORE (M96c): the window scheduler and checked landing load
+  // through teamHost.js on their first team action.
+  'teamWindow.js',
+  'teamLanding.js',
   'schedules.js',
   'scheduleDelivery.js',
   'foreignHooks.js',

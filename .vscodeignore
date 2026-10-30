@@ -47,6 +47,8 @@
 !dist/teamWorkerOps.js
 !dist/teamMerge.js
 !dist/teamScheduler.js
+!dist/teamWindow.js
+!dist/teamLanding.js
 !dist/schedules.js
 !dist/scheduleDelivery.js
 !dist/scheduleSurfaces.js

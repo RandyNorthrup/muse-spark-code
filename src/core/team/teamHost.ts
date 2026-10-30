@@ -14,6 +14,7 @@ import {
   MILLISECONDS_PER_SECOND,
   stopContinuationLimitFor,
   TEAM_EXHAUSTED_DEFAULT,
+  TEAM_MERGE_PAUSE_STATE_KEY,
   TEAM_MODEL_TEXT,
   TEAM_PLAYBOOK_MODEL_TEXT,
   TEAM_ROLE_TOOLSETS,
@@ -27,6 +28,7 @@ import { usageLocalDay } from '../usage/localDay'
 import { failureForLog } from '../backends/musecode/logText'
 import { redactSecrets } from '../redact'
 import {
+  teamRescheduleSchema,
   teamSnapshotSchema,
   teamUsageSchema,
   type TeamAgentRef,
@@ -72,12 +74,20 @@ import type {
   TeamHostService,
   TeamHostServiceDeps,
   TeamMergeDecision,
+  TeamMergeQueueEvent,
+  TeamMergeRefusal,
   TeamStatePort,
   TeamTaskWorkspace,
   TeamTaskSpec,
   TeamWaitingChoice,
   TeamWorkerOutcome,
 } from './teamHostService'
+import type { TeamSchedulingDeps, TeamSchedulingPort } from './teamScheduling'
+import { runScheduledDelegate } from './scheduledDelegate'
+import { isResourceSlotAvailable } from './scheduler/slots'
+import { randomUUID } from 'node:crypto'
+import { orderMergeQueue, type MergeCandidate } from './mergeQueue'
+import { isProtectedPath } from '../protectedPaths'
 import type * as teamMergeFlow from './teamMergeFlow'
 
 import { TEAM_TASKS_STATE_KEY, storedTasksSchema, type TaskPhase } from './teamTaskState'
@@ -109,7 +119,8 @@ export interface TeamTaskRecord {
   readonly reason: string
   readonly sessionId: string
   readonly startMs: number
-  readonly controller: AbortController
+  /** Replaced on stall recovery: the aborted signal stays with the torn-down run. */
+  controller: AbortController
   /** The entry it runs on; unset while queued. */
   entry: StaffedEntry | undefined
   phase: TaskPhase
@@ -117,12 +128,26 @@ export interface TeamTaskRecord {
   /** Persisted dispatch claims: missing reports retain their maximum liability. */
   claims: {
     ordinal: number
+    attempt?: number | undefined
+    /** The entry that spent it: retries keep each attempt on its own entry. */
+    entryId?: string | undefined
     atMs: number
     usage: TeamUsage
     isSettled: boolean
     reported?: TeamUsage | undefined
+    /** A dispatch marker: one per attempt start, counted by the tasks cap. */
+    isDispatch?: boolean | undefined
   }[]
   ordinal: number
+  selectedEntry?: string | undefined
+  schedulerAttempt?: number | undefined
+  /** The window that owns this task's dispatches; restore never overwrites it. */
+  owner: { windowInstanceId: string; released?: boolean | undefined } | undefined
+  /** The stall detector flagged this run: retire it into the retry pin. */
+  stallReassign: boolean
+  retryFrom?: TeamWorkerOutcome | undefined
+  /** A stall handoff's instruction and data block, prepended once at launch. */
+  handoffBrief?: string | undefined
   isRaised: boolean
   writerModels: string[]
   lease?: { release: () => void } | undefined
@@ -153,7 +178,7 @@ export interface TeamTaskRecord {
 }
 
 /** One planned delegation: refused with its reason, waiting for the user, placed or queued. */
-type PlanStep =
+export type PlanStep =
   | { readonly item: DelegateItem; readonly refused: string }
   | {
       readonly item: DelegateItem
@@ -335,9 +360,12 @@ function userMergeRefusal(reason: string): string {
 }
 
 export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostService {
+  /** One identity for this window's board and task claims, shared with the scheduler. */
+  const myWindowId = deps.windowInstanceId ?? randomUUID()
   let snapshot = readStoredTeam(deps.state)
   let isDisposed = false
   /** Read through a call: an await may have closed the service meanwhile. */
+  const isTaskStopped = (task: TeamTaskRecord): boolean => task.controller.signal.aborted
   const isClosed = (): boolean => isDisposed
   /** Each probed entry's readiness, kept with the agent identity it was probed for. */
   const probes = new Map<string, { readonly identity: string; readonly isReady: boolean }>()
@@ -345,6 +373,8 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
   const tasks = new Map<string, TeamTaskRecord>()
   /** Tasks whose playbook round started, released when the task ends (D218). */
   const openPlaybookWork = new Set<string>()
+  /** Tasks this run restored as interrupted: Resume reconciles them. */
+  const restoredInterrupted = new Set<string>()
   const leases = new Map<string, string>()
   const copyOwners = new Set<string>()
   let ordinal = 0
@@ -360,6 +390,34 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
   const executions = new Map<string, Promise<void>>()
   /** "Waiting for you" cards, by id, until the user answers. */
   const waiting = new Map<string, (choice: TeamWaitingChoice | 'cancelled') => void>()
+  /** The last landing refusal per task, while it sits in review. */
+  const mergeRefusals = new Map<string, TeamMergeRefusal>()
+  /** The merge queue: reviewed tasks waiting for landing, in enqueue order. */
+  const mergeQueueEntries: {
+    taskId: string
+    enqueuedAt: number
+    sessionId: string
+    approvalMode: string
+    onConflict: 'rework' | 'markers'
+    reviewOnly: boolean
+    /** The requester's cancellation: the queued turn stays cancellable. */
+    signal: AbortSignal
+  }[] = []
+  /** The head item the queue processor is landing, if any. */
+  let mergeActive: string | undefined
+  /** Recorded merge-queue transitions backing depth and time-to-merge. */
+  const mergeEventLog: TeamMergeQueueEvent[] = []
+  /** One turn per queued task: card-open and turn-end signals for waiters. */
+  const mergeTurns = new Map<
+    string,
+    {
+      card: Promise<void>
+      cardResolve: () => void
+      end: Promise<TeamToolResult | undefined>
+      endResolve: (result: TeamToolResult | undefined) => void
+    }
+  >()
+  const mergeQueueController = new AbortController()
   /** The last conversation model seen: the orchestrator the tree and Default show. */
   let lastModel: string | undefined
   const orchestratorModel = (): string => lastModel ?? deps.orchestrator.modelId()
@@ -429,10 +487,21 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
   const claimsFor = (entry: StaffedEntry, cap: TeamCap, owner?: TeamTaskRecord) => {
     const since = cap.window === 'day' ? dayStart() : 0
     const reset = resets.get(entry.id) ?? 0
-    return (
-      owner === undefined ? allTasks().filter((task) => task.entry?.id === entry.id) : [owner]
-    )
-      .flatMap((task) => task.claims)
+    // Claims stay on the entry that spent them: a retry that clears or
+    // replaces task.entry must not move earlier attempts to another entry's
+    // caps. Unstamped (pre-migration) claims fall back to the current entry.
+    const owned =
+      owner === undefined
+        ? allTasks().filter(
+            (task) =>
+              task.entry?.id === entry.id ||
+              task.claims.some((claim) => claim.entryId === entry.id),
+          )
+        : [owner]
+    return owned
+      .flatMap((task) =>
+        task.claims.filter((claim) => (claim.entryId ?? task.entry?.id) === entry.id),
+      )
       .filter(
         (claim) =>
           cap.window === 'task' ||
@@ -443,12 +512,55 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
   const capUsed = (entry: StaffedEntry, cap: TeamCap, owner?: TeamTaskRecord): number => {
     if (cap.measure === 'tasks') {
       const since = cap.window === 'day' ? dayStart() : 0
-      return allTasks().filter(
-        (task) =>
-          task.entry?.id === entry.id &&
-          task.ordinal > (resets.get(entry.id) ?? 0) &&
-          task.startMs >= since,
-      ).length
+      const reset = resets.get(entry.id) ?? 0
+      // Attempts, not records: each dispatch stamps one dispatch claim at its
+      // own start, and the cap counts those stamps on the day they ran. Usage
+      // slices are never attempts. A task with no dispatch stamp yet (queued
+      // before this change, or never admitted) keeps the old record rule.
+      const attempts = new Set<string>()
+      const owners = owner === undefined ? allTasks() : [owner]
+      for (const task of owners) {
+        const owned = task.claims.filter((claim) => (claim.entryId ?? task.entry?.id) === entry.id)
+        const stamps = owned.filter((claim) => claim.isDispatch === true)
+        if (stamps.length > 0) {
+          for (const stamp of stamps)
+            if ((stamp.ordinal > reset || !stamp.isSettled) && stamp.atMs >= since)
+              attempts.add(`${task.taskId}#${String(stamp.ordinal)}`)
+          continue
+        }
+        if (owned.length === 0) {
+          // Never admitted: one reservation on its current entry, counted
+          // when it runs (no day gate: it has not run on any day yet).
+          if (task.entry?.id === entry.id && task.ordinal > reset)
+            attempts.add(`task:${task.taskId}`)
+          continue
+        }
+        // Pre-marker usage slices: group by attempt and gate each attempt by
+        // its own earliest stamp, never the original task's start.
+        const slices = new Map<string, { atMs: number; ordinal: number; isSettled: boolean }>()
+        for (const claim of owned) {
+          const key =
+            claim.attempt === undefined
+              ? `task:${task.taskId}`
+              : `task:${task.taskId}#${String(claim.attempt)}`
+          const seen = slices.get(key)
+          if (
+            seen === undefined ||
+            claim.atMs < seen.atMs ||
+            (claim.atMs === seen.atMs && claim.ordinal < seen.ordinal)
+          )
+            slices.set(key, {
+              atMs: claim.atMs,
+              ordinal: claim.ordinal,
+              isSettled: claim.isSettled,
+            })
+          else if (!claim.isSettled)
+            slices.set(key, { atMs: seen.atMs, ordinal: seen.ordinal, isSettled: false })
+        }
+        for (const [key, slice] of slices)
+          if ((slice.ordinal > reset || !slice.isSettled) && slice.atMs >= since) attempts.add(key)
+      }
+      return attempts.size
     }
     return owner !== undefined || cap.window !== 'task'
       ? claimsFor(entry, cap, owner).reduce((sum, claim) => sum + measureOf(claim.usage, cap), 0)
@@ -619,6 +731,226 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       : { spentUsdToday: sumUsd(...spent), budgetUsdToday: sumUsd(...budget) }
   }
 
+  const noteMergeQueueEvent = (
+    kind: TeamMergeQueueEvent['kind'],
+    taskId: string,
+    reason?: string,
+  ): void => {
+    mergeEventLog.push({
+      kind,
+      taskId,
+      at: deps.now(),
+      ...(reason !== undefined && { reason }),
+    })
+  }
+  /** The queue in landing order: dependencies, then priority, then conflicts,
+  then blast radius, then queue arrival, then id (merge/mergeQueue). */
+  const orderedMergeQueue = (): readonly MergeCandidate[] => {
+    const boardById = new Map((scheduler?.snapshot().tasks ?? []).map((task) => [task.id, task]))
+    const queued: {
+      candidate: Omit<MergeCandidate, 'conflictsWith'> & { conflictsWith: string[] }
+      files: Set<string>
+    }[] = []
+    for (const entry of mergeQueueEntries) {
+      const task = tasks.get(entry.taskId)
+      if (task?.outcome === undefined) continue
+      const changedFiles = task.outcome.changedFiles ?? []
+      const boardTask = boardById.get(entry.taskId)
+      queued.push({
+        candidate: {
+          id: entry.taskId,
+          dependsOn: (boardTask?.depends_on ?? [])
+            .filter((edge) => edge.on !== 'done')
+            .map((edge) => edge.task),
+          priority: boardTask?.priority ?? 'normal',
+          conflictsWith: [],
+          // Best available blast radius: file count and protected paths.
+          changedLines: changedFiles.length,
+          files: changedFiles.map((name) => ({
+            shared: false,
+            protected: isProtectedPath(name.toLowerCase()),
+          })),
+          finishedAt: entry.enqueuedAt,
+          onConflict: entry.onConflict,
+        } satisfies MergeCandidate,
+        files: new Set(changedFiles),
+      })
+    }
+    for (const [index, left] of queued.entries()) {
+      const later = queued.slice(index + 1)
+      for (const right of later) {
+        const hasSharedFiles = [...left.files].some((file) => right.files.has(file))
+        if (!hasSharedFiles) continue
+        left.candidate.conflictsWith.push(right.candidate.id)
+        right.candidate.conflictsWith.push(left.candidate.id)
+      }
+    }
+    const merged = new Set(
+      allTasks()
+        .filter((task) => task.phase === 'merged')
+        .map((task) => task.taskId),
+    )
+    return orderMergeQueue(
+      queued.map((entry) => entry.candidate),
+      merged,
+    ).ordered
+  }
+  const queuePosition = (taskId: string): number =>
+    orderedMergeQueue().findIndex((candidate) => candidate.id === taskId) + 1
+  /** Enqueue a reviewed task for landing; answers its 1-based position. */
+  const enqueueMerge = (
+    task: TeamTaskRecord,
+    sessionId: string,
+    approvalMode: string,
+    onConflict: 'rework' | 'markers',
+    isReviewOnly: boolean,
+    signal: AbortSignal,
+  ): number => {
+    const existing = mergeQueueEntries.find((entry) => entry.taskId === task.taskId)
+    if (existing === undefined) {
+      mergeQueueEntries.push({
+        taskId: task.taskId,
+        enqueuedAt: deps.now(),
+        sessionId,
+        approvalMode,
+        onConflict,
+        reviewOnly: isReviewOnly,
+        signal,
+      })
+      noteMergeQueueEvent('enqueued', task.taskId)
+    } else {
+      existing.sessionId = sessionId
+      existing.approvalMode = approvalMode
+      existing.onConflict = onConflict
+      existing.signal = signal
+    }
+    changed()
+    pumpMergeQueue()
+    return queuePosition(task.taskId)
+  }
+  const dequeueMerge = (
+    taskId: string,
+    kind: TeamMergeQueueEvent['kind'],
+    reason?: string,
+  ): void => {
+    const index = mergeQueueEntries.findIndex((entry) => entry.taskId === taskId)
+    if (index === -1) return
+    mergeQueueEntries.splice(index, 1)
+    noteMergeQueueEvent(kind, taskId, reason)
+    changed()
+  }
+  const mergeTurn = (taskId: string) => {
+    const existing = mergeTurns.get(taskId)
+    if (existing !== undefined) return existing
+    // The TypeScript lib stays ES2023, which has no Promise.withResolvers.
+    let cardResolve!: () => void
+    let endResolve!: (result: TeamToolResult | undefined) => void
+    const turn = {
+      // eslint-disable-next-line unicorn/prefer-promise-with-resolvers
+      card: new Promise<void>((resolve) => {
+        cardResolve = resolve
+      }),
+      cardResolve: () => {
+        cardResolve()
+      },
+      // eslint-disable-next-line unicorn/prefer-promise-with-resolvers
+      end: new Promise<TeamToolResult | undefined>((resolve) => {
+        endResolve = resolve
+      }),
+      endResolve: (result: TeamToolResult | undefined) => {
+        endResolve(result)
+      },
+    }
+    mergeTurns.set(taskId, turn)
+    return turn
+  }
+  const settleMergeTurn = (taskId: string, result: TeamToolResult | undefined): void => {
+    mergeTurns.get(taskId)?.endResolve(result)
+    mergeTurns.delete(taskId)
+  }
+  const pumpMergeQueue = (): void => {
+    if (
+      mergeActive !== undefined ||
+      isClosed() ||
+      deps.state.get(TEAM_MERGE_PAUSE_STATE_KEY) === true
+    )
+      return
+    while (mergeActive === undefined) {
+      const head = orderedMergeQueue()[0]
+      if (head === undefined) return
+      const entry = mergeQueueEntries.find((candidate) => candidate.taskId === head.id)
+      const task = tasks.get(head.id)
+      if (entry === undefined || task === undefined) {
+        dequeueMerge(head.id, 'withdrawn')
+        continue
+      }
+      mergeActive = head.id
+      void runQueuedMerge(task, entry.sessionId, entry.approvalMode, entry.reviewOnly, entry.signal)
+    }
+  }
+  const runQueuedMerge = async (
+    task: TeamTaskRecord,
+    sessionId: string,
+    approvalMode: string,
+    isReviewOnly: boolean,
+    signal: AbortSignal,
+  ): Promise<void> => {
+    let result: TeamToolResult | undefined
+    try {
+      result = await beginMerge(
+        task,
+        {
+          sessionId,
+          approvalMode,
+          signal: AbortSignal.any([mergeQueueController.signal, task.controller.signal, signal]),
+        },
+        isReviewOnly,
+      )
+    } catch (error: unknown) {
+      deps.log.warn(failureForLog(error))
+      result = undefined
+    } finally {
+      let kind: TeamMergeQueueEvent['kind'] = 'returned'
+      let reason: string | undefined = mergeRefusals.get(task.taskId)?.kind
+      if (isReviewOnly) {
+        kind = 'withdrawn'
+        reason = undefined
+      } else if (task.phase === 'merged') {
+        kind = 'landed'
+      }
+      dequeueMerge(task.taskId, kind, reason)
+      mergeActive = undefined
+      settleMergeTurn(task.taskId, result)
+      changed()
+      pumpMergeQueue()
+    }
+  }
+  /** A reviewed task whose landing wait can be re-listed after a reload. */
+  const canRequeue = (task: TeamTaskRecord): boolean =>
+    task.phase === 'done' &&
+    task.outcome !== undefined &&
+    (task.mergePhase === 'idle' || task.mergePhase === 'failed') &&
+    hasCopy(task) &&
+    mergeQueueEntries.every((entry) => entry.taskId !== task.taskId)
+  /** Re-list review waits after a reload; only Full resumes landing on its own. */
+  const rebuildMergeQueue = (): void => {
+    for (const task of tasks.values()) {
+      if (!canRequeue(task)) continue
+      mergeQueueEntries.push({
+        taskId: task.taskId,
+        enqueuedAt: deps.now(),
+        sessionId: task.sessionId,
+        approvalMode: modeOf(task) ?? '',
+        onConflict: 'rework',
+        reviewOnly: false,
+        signal: task.controller.signal,
+      })
+      noteMergeQueueEvent('enqueued', task.taskId)
+    }
+    changed()
+    if (deps.settings.scheduler?.().integrationFlow === 'full') pumpMergeQueue()
+  }
+
   const tree = (): TeamTreeData | undefined => {
     if (snapshot === undefined || (!isTeamRunning() && tasks.size === 0)) return undefined
     const all = allTasks()
@@ -701,6 +1033,10 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       failure: task.failure,
       continueFrom: task.continueFrom?.taskId,
       handoff: task.handoff,
+      schedulerAttempt: task.schedulerAttempt,
+      handoffBrief: task.handoffBrief,
+      owner: task.owner,
+      consented: [],
       writerModels: [...task.writerModels],
       reviewedHead: task.reviewedHead,
       review: task.review,
@@ -759,9 +1095,16 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         ...claims.map((claim) => claim.ordinal),
         ...resets.values(),
       )
+      if (wasActive) restoredInterrupted.add(stored.taskId)
       tasks.set(stored.taskId, {
         ...stored,
+        handoffBrief: stored.handoffBrief,
+        owner: stored.owner,
+        // A restored run is never mid-stall: detection starts over.
+        stallReassign: false,
+        schedulerAttempt: stored.schedulerAttempt,
         controller: new AbortController(),
+        // Consent is never restored: Resume renews it at the current price.
         consented: new Set(),
         isBusy: false,
         mergePhase: 'idle',
@@ -857,6 +1200,16 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     if (isClosed() || task.controller.signal.aborted) throw new Error(TEAM_MODEL_TEXT.hostStopped)
     if (saveFailure !== undefined) throw saveFailure
     if (!deps.settings.isTrusted()) throw new Error(TEAM_MODEL_TEXT.hostUntrusted)
+    // One owner per task: a record naming a live foreign window never admits
+    // here; a free or released record is claimed by this window.
+    if (
+      task.owner !== undefined &&
+      task.owner.windowInstanceId !== myWindowId &&
+      task.owner.released !== true
+    )
+      throw new Error(TEAM_MODEL_TEXT.hostStopped)
+    task.owner = { windowInstanceId: myWindowId }
+    task.stallReassign = false
     if (running() >= deps.settings.maxWorkers())
       throw new Error(
         fill(TEAM_MODEL_TEXT.hostMaxWorkers, { max: String(deps.settings.maxWorkers()) }),
@@ -877,6 +1230,20 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       throw new Error(TEAM_MODEL_TEXT.hostContinueNotReady)
     leases.set(task.taskId, entry.id)
     task.entry = entry
+    // Every dispatch owns one zero-liability dispatch claim stamped at its
+    // own start: the tasks cap counts attempts on the day they run, and a
+    // Reset caps boundary counts attempts that start after it, never the
+    // original task's start. Token and spend sums are untouched (zero usage).
+    task.claims.push({
+      ordinal: ++ordinal,
+      attempt: task.schedulerAttempt,
+      entryId: entry.id,
+      atMs: deps.now(),
+      usage: ZERO_USAGE,
+      isSettled: true,
+      reported: ZERO_USAGE,
+      isDispatch: true,
+    })
     task.phase = 'starting'
     if (source !== undefined) {
       copyOwners.add(source.taskId)
@@ -903,6 +1270,28 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     }
     task.lease = lease
     return lease
+  }
+
+  const recordAccounting = async (task: TeamTaskRecord): Promise<void> => {
+    if (task.schedulerAttempt === undefined) return
+    const attempts = new Map<number, TeamUsage>()
+    for (const claim of task.claims) {
+      const number = claim.attempt ?? 1
+      const liability = attempts.get(number) ?? ZERO_USAGE
+      attempts.set(number, {
+        input: liability.input + claim.usage.input,
+        cachedInput: liability.cachedInput + claim.usage.cachedInput,
+        output: liability.output + claim.usage.output,
+        reasoning: liability.reasoning + claim.usage.reasoning,
+        modelCalls: liability.modelCalls + claim.usage.modelCalls,
+        estimated: liability.estimated || !claim.isSettled || claim.usage.estimated,
+        costUsd: Usd.from(liability.costUsd ?? 0)
+          .add(Usd.from(claim.usage.costUsd ?? 0))
+          .toAmount(),
+      })
+    }
+    if (attempts.size === 0) attempts.set(task.schedulerAttempt, task.usage)
+    for (const [number, usage] of attempts) await scheduler?.usage(task.taskId, number, usage)
   }
 
   const reserveRequest = async (task: TeamTaskRecord, maximum: TeamUsage): Promise<number> => {
@@ -935,12 +1324,15 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     const requestOrdinal = ++ordinal
     task.claims.push({
       ordinal: requestOrdinal,
+      attempt: task.schedulerAttempt,
+      entryId: entry.id,
       atMs: deps.now(),
       usage: checked,
       isSettled: false,
     })
     try {
       await persist()
+      await recordAccounting(task)
       admitRequest(task, true)
     } catch (error: unknown) {
       // Dispatch has not been authorized: even revocation during the save costs nothing.
@@ -994,6 +1386,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     }
     task.usage = total
     await persist()
+    await recordAccounting(task)
     changed()
   }
 
@@ -1026,6 +1419,8 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     }
     task.claims.push({
       ordinal: ++ordinal,
+      attempt: task.schedulerAttempt,
+      entryId: task.entry?.id,
       atMs: deps.now(),
       usage: delta,
       reported: delta,
@@ -1033,6 +1428,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     })
     task.usage = reported
     await persist()
+    await recordAccounting(task)
     changed()
   }
 
@@ -1157,7 +1553,50 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     changed()
   }
 
-  const launch = async (task: TeamTaskRecord): Promise<void> => {
+  type LaunchInput = Parameters<TeamSchedulingDeps['launch']>[2]
+  /** A final-admission refusal: the worker was never invoked, so the window
+  refunds the admission instead of marking it uncertain. */
+  class FinalAdmissionRefusal extends Error {
+    readonly code = 'teamFinalAdmissionRefused'
+  }
+  const finalRefusal = (message: string): Error => new FinalAdmissionRefusal(message)
+  /**
+  The only admission that launches a worker. It runs before any await and
+  again after the last one (host persistence): a pause, a lost governor
+  slot, or flipped trust during any await means no launch. Entry headroom
+  counts minus this reservation's own slot and lease.
+  */
+  const finalAdmit = (task: TeamTaskRecord, hasStarted: boolean): void => {
+    if (isClosed() || task.controller.signal.aborted || task.stallReassign)
+      throw finalRefusal(TEAM_MODEL_TEXT.hostStopped)
+    if (!deps.settings.isTrusted()) throw finalRefusal(TEAM_MODEL_TEXT.hostUntrusted)
+    if (saveFailure !== undefined) throw saveFailure
+    const entry = task.entry
+    if (entry === undefined) throw new Error(TEAM_MODEL_TEXT.hostStopped)
+    if (rawScheduler?.snapshot().paused === true)
+      throw finalRefusal(UI_TEXT.teamTrafficNotices.queuePaused)
+    if (running() > deps.settings.maxWorkers())
+      throw finalRefusal(
+        fill(TEAM_MODEL_TEXT.hostMaxWorkers, { max: String(deps.settings.maxWorkers()) }),
+      )
+    if (running(entry.id) > entry.concurrent)
+      throw finalRefusal(fill(TEAM_MODEL_TEXT.hostExhausted, { role: task.role.role }))
+    if (deps.capacity !== undefined && !isResourceSlotAvailable(deps.capacity, 'worker', true))
+      throw finalRefusal(fill(TEAM_MODEL_TEXT.hostExhausted, { role: task.role.role }))
+    // Request admission only once the task runs: reservations admit at launch.
+    // A cap refusal here still precedes the worker, so it refunds as well.
+    if (hasStarted) {
+      try {
+        admitRequest(task)
+      } catch (error: unknown) {
+        throw new FinalAdmissionRefusal(error instanceof Error ? error.message : String(error), {
+          cause: error,
+        })
+      }
+    }
+  }
+  const launch = async (task: TeamTaskRecord, input?: LaunchInput): Promise<void> => {
+    finalAdmit(task, false)
     const entry = task.entry
     if (entry === undefined || task.lease === undefined)
       throw new Error(TEAM_MODEL_TEXT.hostStopped)
@@ -1166,7 +1605,16 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       ...new Set([...(task.continueFrom?.writerModels ?? []), entry.agent.model]),
     ]
     await persist()
-    admitRequest(task)
+    // The world may have moved during persistence: re-admit before launch.
+    // A refusal requeues the unstarted task instead of stranding it running.
+    try {
+      finalAdmit(task, true)
+    } catch (error: unknown) {
+      task.phase = 'queued'
+      await persist()
+      changed()
+      throw error
+    }
     // execute owns the lease until worker teardown and the final durable handoff.
     const execute = async (): Promise<void> => {
       try {
@@ -1183,14 +1631,26 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
           taskId: task.taskId,
           role: task.role,
           entry,
-          brief: task.brief,
+          // A stall handoff rides once, ahead of the original brief.
+          brief:
+            task.handoffBrief === undefined ? task.brief : `${task.handoffBrief}\n${task.brief}`,
+          parentReports: input?.reports.map((report) => ({
+            taskId: report.taskId,
+            text: report.text,
+          })),
           files: task.files,
           parentSessionId: task.sessionId,
-          continueFrom: task.continueFrom?.outcome,
+          continueFrom: task.retryFrom ?? task.continueFrom?.outcome,
           reviewOf: task.reviewOf?.outcome,
           meter: {
             noteSession: (sessionId) => {
               task.childSessionId = sessionId
+              task.handoffBrief = undefined
+              // A started worker is alive: feed the stall detector.
+              rawScheduler?.noteActivity({
+                taskId: task.taskId,
+                attempt: task.schedulerAttempt ?? 0,
+              })
             },
             admitRequest: (hasReservation) => {
               admitRequest(task, hasReservation === true)
@@ -1274,7 +1734,102 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         deps.log.warn(failureForLog(error))
         await finish(task, 'failed', task.capped ?? describeError(error))
       } finally {
-        task.lease?.release()
+        const retirement = deps.workers.retirement?.(task.taskId)
+        const isFailed =
+          !task.controller.signal.aborted &&
+          (task.phase === 'failed' ||
+            task.outcome?.report.status === 'failed' ||
+            task.capped !== undefined)
+        const policy = deps.settings.scheduler?.()
+        if (retirement !== undefined || task.schedulerAttempt === undefined) {
+          task.lease?.release()
+          if (retirement !== undefined && task.schedulerAttempt !== undefined) {
+            let state: 'done' | 'review' | 'failed' | 'cancelled' | 'blocked' = 'cancelled'
+            if (isFailed) state = policy?.onStall === 'stop' ? 'failed' : 'blocked'
+            else if (task.phase === 'done') state = hasCopy(task) ? 'review' : 'done'
+            await scheduler?.finish(task.taskId, state, retirement)
+            // A detector-flagged run retires into the retry pin even when its
+            // teardown was an abort rather than a failure; a run that reached
+            // done is never retried.
+            const shouldReassign = isFailed || (task.stallReassign && task.phase !== 'done')
+            if (shouldReassign && policy?.onStall !== 'stop') {
+              const decision =
+                policy?.onStall === 'reassign'
+                  ? 'reassign'
+                  : ((await deps.onStall?.(task.taskId)) ?? 'stop')
+              if (
+                decision === 'reassign' &&
+                !isClosed() &&
+                deps.settings.isTrusted() &&
+                !isTaskStopped(task)
+              ) {
+                const keyEntries = pool(task.role).filter(
+                  (entry) => entry.agent.pays === 'key' && hasHeadroom(entry),
+                )
+                const context = {
+                  sessionId: task.sessionId,
+                  approvalMode: modeOf(task) ?? '',
+                  signal: task.controller.signal,
+                }
+                const isAllowed =
+                  keyEntries.length === 0 ||
+                  (await deps.paid.allowKeyTasks(
+                    keyEntries.map((entry) => confirmationFor(task.role.role, entry)),
+                    undefined,
+                    context,
+                  ))
+                if (isAllowed && deps.settings.isTrusted() && !isTaskStopped(task)) {
+                  // The popup just quoted every key entry with headroom: its
+                  // grant joins the task, otherwise a key-billed retry could
+                  // never dispatch. The retry pins to a different entry when
+                  // one can run it, so a failed model is not selected again.
+                  const failedId = task.entry?.id
+                  task.consented = new Set([
+                    ...task.consented,
+                    ...keyEntries.map((entry) => paidScope(entry.agent)),
+                  ])
+                  const next = pool(task.role).find(
+                    (candidate) =>
+                      candidate.id !== failedId &&
+                      hasHeadroom(candidate) &&
+                      (candidate.agent.pays !== 'key' ||
+                        keyEntries.some((key) => key.id === candidate.id)),
+                  )
+                  if (next !== undefined) task.selectedEntry = next.id
+                  task.retryFrom = task.outcome
+                  task.phase = 'queued'
+                  task.entry = undefined
+                  task.lease = undefined
+                  delete task.capped
+                  await persist()
+                  if (!(await scheduler?.retry(task.taskId))) {
+                    task.phase = 'failed'
+                    await persist()
+                  }
+                }
+              }
+            }
+          }
+        }
+        const integrate = task.reviewOf ?? task
+        if (
+          !isFailed &&
+          retirement !== undefined &&
+          integrate.phase === 'done' &&
+          policy?.integrationFlow !== undefined &&
+          policy.integrationFlow !== 'manual' &&
+          deps.state.get(TEAM_MERGE_PAUSE_STATE_KEY) !== true &&
+          hasCopy(integrate)
+        ) {
+          enqueueMerge(
+            integrate,
+            integrate.sessionId,
+            modeOf(integrate) ?? '',
+            'rework',
+            policy.integrationFlow === 'reviewAutomatically',
+            integrate.controller.signal,
+          )
+        }
         changed()
       }
     }
@@ -1295,6 +1850,10 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
 
   async function pump(): Promise<void> {
     if (saveFailure !== undefined || isClosed()) return
+    if (scheduler !== undefined) {
+      await scheduler.wake()
+      return
+    }
     for (const task of allTasks()) {
       if (task.phase !== 'queued') continue
       const isConsented = (candidate: StaffedEntry): boolean =>
@@ -1350,6 +1909,8 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       usage: ZERO_USAGE,
       claims: [],
       ordinal: ++ordinal,
+      owner: undefined,
+      stallReassign: false,
       isRaised: false,
       writerModels: [],
       mergePhase: 'idle',
@@ -1544,15 +2105,23 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
             })
       await deps.merges.discard({ taskId: task.taskId, role: task.role, outcome })
       task.phase = 'discarded'
+      dequeueMerge(task.taskId, 'withdrawn')
+      settleMergeTurn(task.taskId, undefined)
+      if (task.schedulerAttempt !== undefined) await scheduler?.landed(task.taskId, 'discarded')
       task.endMs ??= deps.now()
       await persist()
     })
   }
 
   const stop = async (task: TeamTaskRecord): Promise<void> => {
+    dequeueMerge(task.taskId, 'withdrawn')
+    settleMergeTurn(task.taskId, undefined)
     if (isActive(task.phase) || task.phase === 'queued') {
       task.controller.abort()
+      const wasQueued = task.phase === 'queued'
       await finish(task, 'stopped')
+      if (wasQueued && scheduler !== undefined)
+        await scheduler.finish(task.taskId, 'cancelled', { kind: 'userDecision' })
     } else if (SETTLED_PHASES.has(task.phase)) {
       task.controller.abort()
       task.awaiting?.('cancelled')
@@ -1614,7 +2183,11 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
   }
 
   /** Own review admission and exactly one card waiter through final settlement. */
-  const beginMerge = (task: TeamTaskRecord, context: TeamToolContext): Promise<TeamToolResult> => {
+  const beginMerge = (
+    task: TeamTaskRecord,
+    context: TeamToolContext,
+    shouldOnlyReview = false,
+  ): Promise<TeamToolResult> => {
     const refused = mergeRefusal(task, modeOf(task, context.approvalMode))
     if (refused !== undefined) return Promise.resolve(refusal(refused))
     task.mergePhase = 'reviewing'
@@ -1634,6 +2207,39 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       }
       return await runMergeFlow(task, context, {
         record,
+        shouldOnlyReview,
+        landed: async (id, state) => {
+          await scheduler?.landed(id, state)
+        },
+        scheduleReview:
+          scheduler === undefined
+            ? undefined
+            : async (review, reviewer, reviewContext) => {
+                checkMergeOwner(review.reviewOf ?? review, reviewContext)
+                if (
+                  reviewer.agent.pays === 'key' &&
+                  !(await deps.paid.allowKeyTasks(
+                    [confirmationFor(REVIEW_ROLE, reviewer)],
+                    undefined,
+                    reviewContext,
+                  ))
+                )
+                  return false
+                checkMergeOwner(review.reviewOf ?? review, reviewContext)
+                review.phase = 'queued'
+                review.selectedEntry = reviewer.id
+                review.consented = new Set([paidScope(reviewer.agent)])
+                await persist()
+                await scheduler.submit([
+                  {
+                    id: review.taskId,
+                    sessionId: review.sessionId,
+                    roleId: review.role.role,
+                    fields: { priority: 'normal', size: 'M', overlap: 'serialize' },
+                  },
+                ])
+                return true
+              },
         admit,
         launch,
         persist,
@@ -1653,9 +2259,21 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         },
         hasReviewRoom: (entry) => running() < deps.settings.maxWorkers() && hasHeadroom(entry),
         findRunningReview: (of) =>
-          allTasks().find((candidate) => candidate.reviewOf === of && isActive(candidate.phase)),
+          allTasks().find(
+            (candidate) =>
+              candidate.reviewOf === of &&
+              (isActive(candidate.phase) || candidate.phase === 'queued'),
+          ),
         answer,
         refusal,
+        noteMergeRefusal: (taskId, value) => {
+          if (value === undefined) mergeRefusals.delete(taskId)
+          else mergeRefusals.set(taskId, value)
+          changed()
+        },
+        noteCardOpen: (taskId) => {
+          mergeTurns.get(taskId)?.cardResolve()
+        },
         describeError,
         paid: deps.paid,
         cards: deps.cards,
@@ -1682,6 +2300,35 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       if (initial === undefined) return refusal(TEAM_MODEL_TEXT.hostInvalidArguments)
       const settledSteps = await settle(initial, context)
       if (isClosed()) return refusal(TEAM_MODEL_TEXT.hostStopped)
+      if (scheduler !== undefined) {
+        const parsedScheduled = delegateArgs.parse(args)
+        const scheduledGroup = `${context.sessionId}:delegate:${String(++delegateOrdinal)}`
+        const scheduledPipeline = parsedScheduled.pipeline ?? scheduledGroup
+        return await runScheduledDelegate(settledSteps, context, {
+          scheduler,
+          deps,
+          allTasks,
+          pool,
+          isUsable,
+          confirmationFor,
+          isClosed,
+          record: (role, item, sessionId, phase) => {
+            const task = record(role, item, sessionId, phase)
+            task.delegateGroup = scheduledGroup
+            task.pipelineId = scheduledPipeline
+            return task
+          },
+          paidScope,
+          persist,
+          taskView,
+          answer,
+          refusal,
+          describeError,
+          forget: (id) => {
+            tasks.delete(id)
+          },
+        })
+      }
       const placedCount = settledSteps.filter((step) => 'entry' in step).length
       if (running() + placedCount > deps.settings.maxWorkers()) {
         return refusal(
@@ -1858,13 +2505,35 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       }
       return answer({ tasks: results }, '')
     },
-    merge: async (args, context) => {
+    merge: (args, context) => {
       const parsed = mergeArgs.safeParse(args)
-      if (!parsed.success) return refusal(TEAM_MODEL_TEXT.hostInvalidArguments)
+      if (!parsed.success) return Promise.resolve(refusal(TEAM_MODEL_TEXT.hostInvalidArguments))
       const task = ownTask(parsed.data.task_id, context)
-      return task === undefined
-        ? refusal(TEAM_MODEL_TEXT.hostUnknownTask)
-        : await beginMerge(task, context)
+      if (task === undefined) return Promise.resolve(refusal(TEAM_MODEL_TEXT.hostUnknownTask))
+      const mode = modeOf(task, context.approvalMode)
+      const refused = mergeRefusal(task, mode)
+      if (refused !== undefined) return Promise.resolve(refusal(refused))
+      const position = enqueueMerge(
+        task,
+        context.sessionId,
+        mode ?? '',
+        parsed.data.on_conflict ?? 'rework',
+        false,
+        context.signal,
+      )
+      return Promise.resolve(answer({ task_id: task.taskId, position }, ''))
+    },
+    reschedule: async (args, context) => {
+      const parsed = teamRescheduleSchema.safeParse(args)
+      if (!parsed.success) return refusal(TEAM_MODEL_TEXT.hostInvalidArguments)
+      context.signal.throwIfAborted()
+      if (scheduler === undefined) return refusal(UI_TEXT.teamTaskUnknown)
+      try {
+        await scheduler.reschedule(parsed.data)
+      } catch (error: unknown) {
+        return refusal(describeError(error))
+      }
+      return answer({ rescheduled: parsed.data.task_ids }, '')
     },
   }
 
@@ -1874,7 +2543,371 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     return task
   }
 
-  return {
+  /**
+  The stall detector's handoff: a run that stopped emitting while pending
+  is aborted so its teardown retires it with proof, and the teardown
+  reaches the retry pin (with the previous outcome as its checkpoint).
+  Stale reports (the attempt already moved on) are ignored.
+  */
+  const onStallDetected = (ref: { taskId: string; attempt: number }): Promise<void> => {
+    const task = tasks.get(ref.taskId)
+    if (task?.schedulerAttempt !== ref.attempt) return Promise.resolve()
+    if (task.phase !== 'running' && task.phase !== 'starting') return Promise.resolve()
+    task.stallReassign = true
+    task.controller.abort()
+    // The retry needs a live signal: the aborted one stays with the torn-down run.
+    task.controller = new AbortController()
+    return Promise.resolve()
+  }
+  const rawScheduler: TeamSchedulingPort | undefined = deps.createScheduler?.({
+    capacity: deps.capacity,
+    sharedFiles: () => deps.settings.scheduler?.().sharedFiles ?? [],
+    workspaceId: deps.workspaceId ?? 'workspace',
+    windowInstanceId: myWindowId,
+    ...(deps.ownerBirth !== undefined && { ownerBirth: deps.ownerBirth }),
+    ...(deps.probeOwner !== undefined && { probeOwner: deps.probeOwner }),
+    onStallDetected,
+    state: deps.state,
+    now: deps.now,
+    limits: () => ({
+      workers: deps.settings.maxWorkers(),
+      // Process-backed workers share the person's worker ceiling; a separate
+      // zero here would hard-code a limit no provider or setting chose.
+      processWorkers: deps.settings.maxWorkers(),
+      role: () => deps.settings.maxWorkers(),
+      entry: (id) =>
+        roles()
+          .flatMap((role) => pool(role))
+          .find((entry) => entry.id === id)?.concurrent ?? 0,
+      agent: () => deps.settings.maxWorkers(),
+    }),
+    entries: () =>
+      roles().flatMap((role) =>
+        pool(role).map((entry, index) => ({
+          id: entry.id,
+          roleId: role.role,
+          agentProfileId: entry.agent.agentId,
+          modelId: entry.agent.model,
+          kind: entry.agent.kind,
+          poolFit: 1 / (index + 1),
+          remainingDayTokens: Number.MAX_SAFE_INTEGER,
+          eligible: (task) => task.roleId === role.role,
+        })),
+      ),
+    mode: (id) => roleMode(known(id).role),
+    report: (id) => known(id).outcome?.report.summary ?? '',
+    canStart: (task, entry) => {
+      const record = known(task.id)
+      const candidate = pool(record.role).find((item) => item.id === entry.id)
+      return (
+        record.phase === 'queued' &&
+        (record.selectedEntry === undefined || record.selectedEntry === entry.id) &&
+        candidate !== undefined &&
+        hasHeadroom(candidate) &&
+        (candidate.agent.pays !== 'key' || record.consented.has(paidScope(candidate.agent)))
+      )
+    },
+    admit: (task, entry) => {
+      const record = known(task.id)
+      const candidate = pool(record.role).find(
+        (item) => item.id === entry.id && item.agent.model === entry.modelId,
+      )
+      // Consent binds the dispatch, not just the pick: a restored task with
+      // no renewed consent cannot start an attempt on a key-billed entry.
+      if (
+        candidate === undefined ||
+        (candidate.agent.pays === 'key' && !record.consented.has(paidScope(candidate.agent)))
+      )
+        return false
+      try {
+        admit(record, candidate)
+        record.schedulerAttempt = task.currentAttempt
+        return true
+      } catch (error: unknown) {
+        deps.log.warn(failureForLog(error))
+        return false
+      }
+    },
+    refund: (id) => {
+      const task = known(id)
+      task.lease?.release()
+      task.lease = undefined
+      task.phase = 'queued'
+      task.entry = undefined
+    },
+    authorize: (task, entry) =>
+      Promise.resolve(
+        !isClosed() &&
+          deps.settings.isTrusted() &&
+          !known(task.id).controller.signal.aborted &&
+          pool(known(task.id).role).some(
+            (candidate) =>
+              candidate.id === entry.id &&
+              hasHeadroom(candidate) &&
+              (candidate.agent.pays !== 'key' ||
+                known(task.id).consented.has(paidScope(candidate.agent))),
+          ),
+      ),
+    launch: async (task, _entry, input) => {
+      await launch(known(task.id), input)
+    },
+    retirement: {
+      evidence: (ref) => {
+        const task = known(ref.taskId)
+        const boardAttempt = rawScheduler
+          ?.snapshot()
+          .tasks.find((item) => item.id === ref.taskId)
+          ?.attempts.find((attempt) => attempt.number === ref.attempt)
+        const proof = deps.workers.retirement?.(ref.taskId)
+        const isProved = proof?.kind === 'proved'
+        const method = isProved ? proof.method : 'unproved'
+        return {
+          windowInstanceId: myWindowId,
+          ref,
+          kind: boardAttempt?.kind ?? task.entry?.agent.kind ?? 'engine',
+          loopStopped: !executions.has(ref.taskId),
+          turnTerminal: task.outcome !== undefined,
+          itemsTerminal: task.outcome !== undefined,
+          promptAnswered: task.outcome !== undefined,
+          isReadOnlyMuse:
+            (boardAttempt?.kind ?? task.entry?.agent.kind) === 'museCode' &&
+            roleMode(task.role) === 'read-only',
+          hostExited: isProved,
+          processes: [
+            {
+              childExited: !executions.has(ref.taskId),
+              descendantsEnded: isProved,
+              method,
+            },
+          ],
+          containerMethod: method,
+        }
+      },
+      cancel: (ref) => {
+        known(ref.taskId).controller.abort()
+        return Promise.resolve()
+      },
+      changed: (_ref, signal) =>
+        new Promise((resolve) => {
+          if (signal.aborted) {
+            resolve()
+            return
+          }
+          const wake = (): void => {
+            waiters.delete(wake)
+            resolve()
+          }
+          waiters.add(wake)
+          signal.addEventListener(
+            'abort',
+            () => {
+              waiters.delete(wake)
+              resolve()
+            },
+            { once: true },
+          )
+        }),
+      escalate: async (ref) => {
+        const task = known(ref.taskId)
+        task.controller.abort()
+        await executions.get(ref.taskId)
+      },
+      quarantine: async (ref) => {
+        // The copy is never a continue source again; the board keeps the
+        // attempt counted until a decision or proof releases it.
+        copyOwners.add(ref.taskId)
+        await persist()
+      },
+      canQuarantine: (ref) => hasCopy(known(ref.taskId)),
+      restartWorkers: async () => {
+        for (const task of allTasks())
+          if (isActive(task.phase) || task.phase === 'starting') task.controller.abort()
+        await Promise.allSettled(executions.values())
+      },
+      checkpoint: (ref) => {
+        const task = known(ref.taskId)
+        return Promise.resolve({
+          commit: task.outcome?.head ?? task.workspace?.baseCommit ?? '',
+          files: task.outcome?.changedFiles ?? task.files,
+          diffStat: task.outcome?.report.summary ?? '',
+        })
+      },
+      settleUsage: async (ref) => {
+        await recordAccounting(known(ref.taskId))
+      },
+      isKeyEntry: (entryId) =>
+        roles().some((role) =>
+          pool(role).some((entry) => entry.id === entryId && entry.agent.pays === 'key'),
+        ),
+      consentEntry: async (ref, entry) => {
+        const task = known(ref.taskId)
+        const candidate = pool(task.role).find((item) => item.id === entry.id)
+        if (candidate === undefined) return false
+        if (candidate.agent.pays !== 'key') return true
+        return await deps.paid.allowKeyTasks(
+          [confirmationFor(task.role.role, candidate)],
+          undefined,
+          {
+            sessionId: task.sessionId,
+            approvalMode: modeOf(task) ?? '',
+            signal: task.controller.signal,
+          },
+        )
+      },
+      stallBrief: (ref) => {
+        const task = known(ref.taskId)
+        return {
+          brief: task.brief,
+          lastMessage: task.outcome?.report.summary ?? task.failure ?? '',
+          toolCalls: [],
+        }
+      },
+      applyReassignment: async (ref, entry, handoff) => {
+        const task = known(ref.taskId)
+        const candidate = pool(task.role).find((item) => item.id === entry.id)
+        if (candidate === undefined) return false
+        task.selectedEntry = entry.id
+        if (candidate.agent.pays === 'key')
+          task.consented = new Set([...task.consented, paidScope(candidate.agent)])
+        task.retryFrom = task.outcome
+        task.handoffBrief = `${handoff.instruction}\n${handoff.data.open}${handoff.data.lastMessage}${handoff.data.close}`
+        task.phase = 'queued'
+        task.entry = undefined
+        task.lease = undefined
+        delete task.capped
+        await persist()
+        return true
+      },
+      applyReplacement: async (ref, _replacementAttempt, checkpoint) => {
+        const task = known(ref.taskId)
+        if (task.outcome === undefined) return false
+        // A fresh copy from the checkpoint commit; the old copy stays quarantined.
+        task.retryFrom = {
+          ...task.outcome,
+          folder: undefined,
+          branch: undefined,
+          agentsRef: undefined,
+          baseCommit: checkpoint.commit,
+          head: checkpoint.commit,
+        }
+        task.workspace = undefined
+        task.phase = 'queued'
+        task.entry = undefined
+        task.lease = undefined
+        delete task.capped
+        await persist()
+        return true
+      },
+    },
+    changed,
+    failure: (error) => {
+      deps.log.warn(describeError(error))
+    },
+  })
+
+  /**
+  Resume reconciles this run's restored interruptions, renews paid consent
+  with the current price and budget, and only then unpauses the board:
+  nothing restored dispatches on a previous run's consent. Tasks whose
+  restored attempt provably never ran reopen; anything that may have run
+  keeps its interrupted liability.
+  */
+  const reconcileRestored = async (): Promise<void> => {
+    if (rawScheduler === undefined) return
+    for (const id of restoredInterrupted) {
+      const task = tasks.get(id)
+      if (task?.phase !== 'interrupted') continue
+      const boardTask = rawScheduler.snapshot().tasks.find((candidate) => candidate.id === id)
+      if (boardTask === undefined || !(await rawScheduler.reopenInterrupted(id))) continue
+      task.phase = 'queued'
+      task.entry = undefined
+      task.lease = undefined
+      await persist()
+      changed()
+    }
+  }
+
+  /** Renew key-billed consent for queued tasks that may bill, before dispatch. */
+  const renewConsent = async (): Promise<void> => {
+    for (const task of allTasks()) {
+      if (isClosed() || !deps.settings.isTrusted() || task.phase !== 'queued') continue
+      const candidates = pool(task.role).filter(
+        (entry) =>
+          entry.agent.pays === 'key' &&
+          isUsable(entry) &&
+          (task.selectedEntry === undefined || entry.id === task.selectedEntry) &&
+          !task.consented.has(paidScope(entry.agent)),
+      )
+      if (candidates.length === 0) continue
+      const context = {
+        sessionId: task.sessionId,
+        approvalMode: modeOf(task) ?? '',
+        signal: new AbortController().signal,
+      }
+      try {
+        if (
+          await deps.paid.allowKeyTasks(
+            candidates.map((entry) => confirmationFor(task.role.role, entry)),
+            undefined,
+            context,
+          )
+        )
+          task.consented = new Set([
+            ...task.consented,
+            ...candidates.map((entry) => paidScope(entry.agent)),
+          ])
+      } catch (error: unknown) {
+        deps.log.warn(failureForLog(error))
+        // A failed renewal leaves the task queued without consent: the
+        // admission gates below refuse it until Resume asks again.
+      }
+    }
+    await persist()
+    changed()
+  }
+
+  const scheduler: TeamSchedulingPort | undefined =
+    rawScheduler === undefined
+      ? undefined
+      : {
+          ...rawScheduler,
+          resume: async () => {
+            if (!isClosed() && deps.settings.isTrusted()) {
+              // Take the board when its owner is this window, released, or
+              // proven gone. Only the holding window reconciles interruptions
+              // and renews consent: a foreign window never reopens or
+              // requeues a live owner's attempts.
+              if (await rawScheduler.takeoverBoard()) {
+                let isRemapped = false
+                for (const task of allTasks())
+                  if (task.owner?.windowInstanceId !== myWindowId) {
+                    task.owner = { windowInstanceId: myWindowId }
+                    isRemapped = true
+                  }
+                if (isRemapped) await persist()
+                await reconcileRestored()
+                await renewConsent()
+              }
+              if (isClosed()) return
+            }
+            await rawScheduler.resume()
+          },
+          releaseOwnership: async () => {
+            for (const task of allTasks())
+              if (task.owner?.windowInstanceId === myWindowId)
+                task.owner = { windowInstanceId: myWindowId, released: true }
+            try {
+              await persist()
+            } catch (error: unknown) {
+              deps.log.warn(failureForLog(error))
+              // Best effort on the way out; the board release below still lands.
+            }
+            await rawScheduler.releaseOwnership()
+          },
+        }
+
+  const service: TeamHostService = {
+    scheduler,
     teamDecisionSource: decisionSource,
     teamRosterData: () => {
       if (snapshot === undefined) return
@@ -1936,6 +2969,46 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       await persist()
       changed()
     },
+    landingPaused: () => deps.state.get(TEAM_MERGE_PAUSE_STATE_KEY) === true,
+    mergeRefusal: (taskId) => mergeRefusals.get(taskId),
+    mergeQueue: () =>
+      orderedMergeQueue().map((candidate, index) => ({
+        taskId: candidate.id,
+        position: index + 1,
+      })),
+    mergeEvents: () => [...mergeEventLog],
+    setLandingPaused: async (isPaused) => {
+      if (isClosed() || !deps.settings.isTrusted()) throw new Error(UI_TEXT.teamRunners.trustNotice)
+      await deps.state.update(TEAM_MERGE_PAUSE_STATE_KEY, isPaused)
+      changed()
+      if (!isPaused && deps.settings.scheduler?.().integrationFlow !== 'manual') {
+        for (const task of allTasks()) {
+          if (task.phase !== 'done' || task.mergePhase !== 'idle' || !hasCopy(task)) continue
+          enqueueMerge(
+            task,
+            task.sessionId,
+            modeOf(task) ?? '',
+            'rework',
+            deps.settings.scheduler?.().integrationFlow === 'reviewAutomatically',
+            task.controller.signal,
+          )
+        }
+      }
+    },
+    cleanupAgentBranches: async (taskId) => {
+      if (isClosed() || !deps.settings.isTrusted()) throw new Error(UI_TEXT.teamRunners.trustNotice)
+      const candidates = allTasks().filter(
+        (task) =>
+          (taskId === undefined || task.taskId === taskId) &&
+          (task.phase === 'merged' || task.phase === 'discarded'),
+      )
+      for (const task of candidates) {
+        if (isClosed() || !deps.settings.isTrusted())
+          throw new Error(UI_TEXT.teamRunners.trustNotice)
+        await deps.merges.discard({ taskId: task.taskId, role: task.role, outcome: task.outcome })
+      }
+      return candidates.length
+    },
     stopAllTasks: async () => {
       const open = allTasks().filter((task) => isActive(task.phase) || task.phase === 'queued')
       for (const task of open) await stop(task)
@@ -1948,6 +3021,8 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       await Promise.resolve()
     },
     decideMerge: async (taskId, decision) => {
+      if (decision === 'merge' && deps.state.get(TEAM_MERGE_PAUSE_STATE_KEY) === true)
+        throw new Error(UI_TEXT.teamTaskBusy)
       const task = known(taskId)
       if (task.awaiting !== undefined) {
         const completion = task.mergeCompletion
@@ -1965,18 +3040,13 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       const mode = modeOf(task)
       const refused = mergeRefusal(task, mode)
       if (refused !== undefined) throw new Error(userMergeRefusal(refused))
-      const ready = new Promise<void>((resolve) => {
-        task.mergeReady = resolve
-      })
-      const completion = beginMerge(task, {
-        sessionId: task.sessionId,
-        approvalMode: mode ?? '',
-        signal: task.controller.signal,
-      })
-      await ready
+      enqueueMerge(task, task.sessionId, mode ?? '', 'rework', false, task.controller.signal)
+      const turn = mergeTurn(task.taskId)
+      pumpMergeQueue()
+      await Promise.race([turn.card, turn.end])
       if (task.mergePhase === 'awaiting-decision') return
-      const result = await completion
-      if (result.output.startsWith('Error:')) throw new Error(result.visibleOutput)
+      const result = await turn.end
+      if (result?.output.startsWith('Error:')) throw new Error(result.visibleOutput)
     },
 
     taskDiff: async (taskId) => {
@@ -2014,7 +3084,8 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         let isReady = false
         try {
           isReady = await deps.workers.probe(entry.agent)
-        } catch {
+        } catch (error: unknown) {
+          deps.log.warn(failureForLog(error))
           // A failed current probe is unavailable; a stale failure has no owner.
         }
         if (isClosed()) return
@@ -2027,10 +3098,22 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     reload: () => {
       for (const [id, generation] of probeGenerations) probeGenerations.set(id, generation + 1)
       snapshot = readStoredTeam(deps.state)
+      rebuildMergeQueue()
       changed()
     },
     dispose: async (options) => {
       isDisposed = true
+      mergeQueueController.abort()
+      for (const turn of mergeTurns.values()) turn.endResolve(undefined)
+      mergeTurns.clear()
+      // Hand the board over cleanly: the next window claims without proof.
+      try {
+        await scheduler?.releaseOwnership()
+      } catch (error: unknown) {
+        deps.log.warn(failureForLog(error))
+        // Best effort on the way out.
+      }
+      scheduler?.dispose()
       listeners.clear()
       for (const resolve of waiting.values()) resolve('cancelled')
       for (const task of tasks.values()) {
@@ -2048,4 +3131,6 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       await saveQueue
     },
   }
+  rebuildMergeQueue()
+  return service
 }

@@ -17,6 +17,7 @@ import type {
   TeamCardPort,
   TeamMergeDecision,
   TeamMergePort,
+  TeamMergeRefusal,
   TeamPaidPort,
   TeamWorkerOutcome,
 } from './teamHostService'
@@ -37,14 +38,19 @@ export interface TeamMergeFlowText {
 
 /** Everything `runMergeFlow` needs from the host service. */
 export interface TeamMergeFlowApi {
+  readonly shouldOnlyReview?: boolean | undefined
   readonly record: (
     role: TeamRoleConfig,
     item: Pick<DelegateArgs['tasks'][number], 'brief' | 'files' | 'reason'>,
     sessionId: string,
     phase: 'starting',
   ) => TeamTaskRecord
+  readonly scheduleReview?:
+    | ((task: TeamTaskRecord, entry: StaffedEntry, context: TeamToolContext) => Promise<boolean>)
+    | undefined
   readonly admit: (task: TeamTaskRecord, entry: StaffedEntry) => { release: () => void }
   readonly launch: (task: TeamTaskRecord) => Promise<void>
+  readonly landed?: ((taskId: string, state: 'merged' | 'discarded') => Promise<void>) | undefined
   readonly persist: () => Promise<void>
   readonly changed: () => void
   readonly discard: (task: TeamTaskRecord) => Promise<void>
@@ -58,6 +64,10 @@ export interface TeamMergeFlowApi {
   readonly findRunningReview: (of: TeamTaskRecord) => TeamTaskRecord | undefined
   readonly answer: (value: unknown, visible: string) => TeamToolResult
   readonly refusal: (reason: string) => TeamToolResult
+  /** Records the merge outcome's refusal (or its absence) for the Traffic view. */
+  readonly noteMergeRefusal: (taskId: string, refusal: TeamMergeRefusal | undefined) => void
+  /** Wakes the merge queue when this task's landing card opens. */
+  readonly noteCardOpen: (taskId: string) => void
   readonly describeError: (error: unknown) => string
   readonly paid: TeamPaidPort
   readonly cards: TeamCardPort
@@ -112,6 +122,10 @@ const requireReview = async (
   let isLaunched = false
   try {
     context.signal.throwIfAborted()
+    if (api.scheduleReview !== undefined) {
+      isLaunched = await api.scheduleReview(review, reviewer, context)
+      return isLaunched ? api.text.started(review.taskId) : api.text.paidDeclined
+    }
     const lease = api.admit(review, reviewer)
     const cancelReview = (): void => {
       review.controller.abort()
@@ -190,6 +204,13 @@ export const runMergeFlow = async (
       task.mergePhase = 'idle'
       return api.refusal(review)
     }
+    if (api.shouldOnlyReview) {
+      task.mergePhase = 'idle'
+      return api.answer(
+        { task_id: task.taskId, state: task.review ?? 'not-reviewed' },
+        UI_TEXT.teamTaskStates.review,
+      )
+    }
     const outcome = task.outcome
     if (outcome === undefined) throw new Error(api.text.mergeNotReady)
     const card = mergeCard(task, outcome)
@@ -202,6 +223,7 @@ export const runMergeFlow = async (
       task.mergePhase = 'awaiting-decision'
       api.cards.show(task.sessionId, { ...card, status: 'inProgress' })
       task.mergeReady?.()
+      api.noteCardOpen(task.taskId)
       api.changed()
     })
     const chosen = await decision
@@ -224,7 +246,11 @@ export const runMergeFlow = async (
         context.signal,
         { allowProtected: card.teamMerge.protectedPaths.length > 0 },
       )
-      if (result.status === 'merged') task.phase = 'merged'
+      if (result.status === 'merged') {
+        task.phase = 'merged'
+        await api.landed?.(task.taskId, 'merged')
+      }
+      api.noteMergeRefusal(task.taskId, result.status === 'merged' ? undefined : result.refusal)
       await api.persist()
       return result
     })
@@ -237,13 +263,16 @@ export const runMergeFlow = async (
   } catch (error: unknown) {
     task.mergePhase = 'failed'
     task.failure = api.describeError(error)
+    api.noteMergeRefusal(task.taskId, undefined)
     if (task.outcome !== undefined)
       api.cards.show(task.sessionId, {
         ...mergeCard(task, task.outcome),
         status: 'completed',
         teamDecision: task.failure,
       })
-    return api.refusal(task.failure)
+    // The refusal carries the described (redacted) cause itself, the same
+    // words the card and the task record keep.
+    return api.refusal(api.describeError(error))
   } finally {
     if (cancel !== undefined) context.signal.removeEventListener('abort', cancel)
     task.awaiting = undefined

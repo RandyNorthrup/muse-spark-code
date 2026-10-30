@@ -98,6 +98,8 @@ export class TeamHostBinding implements TeamSurfacePort {
         (await this.service?.teamRunner.cancel(args, context)) ?? unavailable('cancel'),
       merge: async (args, context) =>
         (await this.service?.teamRunner.merge(args, context)) ?? unavailable('merge'),
+      reschedule: async (args, context) =>
+        (await this.service?.teamRunner.reschedule(args, context)) ?? unavailable('reschedule'),
     },
   }
 

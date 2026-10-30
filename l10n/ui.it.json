@@ -5256,6 +5256,7 @@
   "teamRunnerUnavailable": "{tool} non è disponibile: il componente di esecuzione del team non è stato caricato in questa finestra.",
   "teamPlanShown": "Piano del team mostrato; non è stato avviato nulla.",
   "teamTasksStarted": "Attività del team avviate: {count}",
+  "teamTasksQueued": "Attività del team in coda: {count}",
   "teamMergeRework": "L’unione ha trovato conflitti: l’attività è tornata in rielaborazione.",
   "teamTaskUnknown": "Questa attività del team non è aperta in questa finestra.",
   "teamWaitingUnknown": "Nulla attende più questa risposta.",

@@ -5367,6 +5367,7 @@
   "teamRunnerUnavailable": "{tool} není k dispozici: v tomto okně se nenačetl modul pro spouštění týmu.",
   "teamPlanShown": "Plán týmu zobrazen; nic se nespustilo.",
   "teamTasksStarted": "Spuštěné úlohy týmu: {count}",
+  "teamTasksQueued": "Úkoly týmu ve frontě: {count}",
   "teamMergeRework": "Sloučení narazilo na konflikty: úloha se vrátila k přepracování.",
   "teamTaskUnknown": "Tato úloha týmu není v tomto okně otevřená.",
   "teamWaitingUnknown": "Na tuto odpověď už nic nečeká.",

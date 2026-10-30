@@ -5034,6 +5034,7 @@
   "teamRunnerUnavailable": "{tool} は利用できません。このウィンドウにチーム実行機能が読み込まれていません。",
   "teamPlanShown": "チームの計画を表示しました。何も開始していません。",
   "teamTasksStarted": "開始したチームタスク: {count}",
+  "teamTasksQueued": "キューに入ったチームタスク: {count}",
   "teamMergeRework": "マージで競合が発生しました。タスクは手直しのために戻されました。",
   "teamTaskUnknown": "そのチームタスクはこのウィンドウで開いていません。",
   "teamWaitingUnknown": "この回答を待っているものはもうありません。",
