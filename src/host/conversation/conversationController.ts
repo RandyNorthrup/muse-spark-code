@@ -8220,6 +8220,40 @@ export class ConversationController implements DeferredSend {
       this.post({ type: 'sendFailed', localId, reason: UI_TEXT.turnRetryBusy })
       return
     }
+    await this.resubmitRememberedTurn(
+      session,
+      {
+        parts: remembered.parts,
+        displayText: remembered.displayText,
+        shownText: remembered.shownText,
+        localId,
+        // A manual retry starts its chain over at zero.
+        resendsUsed: 0,
+      },
+      (error) => {
+        this.deps.log.warn(`Retrying turn ${turnId} failed: ${failureForLog(error)}`)
+        this.post({ type: 'sendFailed', localId, reason: describe(error) })
+      },
+    )
+  }
+
+  /**
+  Resubmits a remembered turn's own message in its session (RLF-ACPTURNS,
+  D217): a Retry press and the automatic resend share these steps, and
+  only their failure answers differ. The resubmission's own turn may
+  fail retryably in its turn, continuing from `resendsUsed`.
+  */
+  private async resubmitRememberedTurn(
+    session: AgentSession,
+    resubmission: {
+      readonly parts: readonly TurnPart[]
+      readonly displayText: string | undefined
+      readonly shownText: string
+      readonly localId: string
+      readonly resendsUsed: number
+    },
+    reportFailure: (error: unknown) => void,
+  ): Promise<void> {
     const generation = this.sendInvalidationEpoch
     const isCurrent = () => this.isCurrentSessionAction(session, generation)
     let checkpoint: PendingMark | undefined
@@ -8237,8 +8271,8 @@ export class ConversationController implements DeferredSend {
       }
       const submission = await this.submit(
         session,
-        remembered.parts,
-        remembered.displayText,
+        resubmission.parts,
+        resubmission.displayText,
         false,
         isCurrent,
       )
@@ -8248,26 +8282,25 @@ export class ConversationController implements DeferredSend {
       }
       this.acceptResubmission(
         session,
-        localId,
-        remembered.shownText,
-        remembered.parts,
+        resubmission.localId,
+        resubmission.shownText,
+        resubmission.parts,
         submission,
         checkpoint,
         this.permissionMode === PLAN_MODE,
       )
-      // The retry's own turn may fail retryably in its turn.
       this.rememberRetryableTurn(
         session.sessionId,
-        remembered.parts,
-        remembered.displayText,
-        remembered.shownText,
+        resubmission.parts,
+        resubmission.displayText,
+        resubmission.shownText,
         submission,
-        localId,
+        resubmission.localId,
+        resubmission.resendsUsed,
       )
     } catch (error: unknown) {
       this.checkpoints.dropPending(checkpoint)
-      this.deps.log.warn(`Retrying turn ${turnId} failed: ${failureForLog(error)}`)
-      this.post({ type: 'sendFailed', localId, reason: describe(error) })
+      reportFailure(error)
     }
   }
 
@@ -8456,57 +8489,22 @@ export class ConversationController implements DeferredSend {
     // Fresh, not held: whatever the wait's own span moved (the crash's
     // drop above all) is settled by now, and only a move from here —
     // another conversation, another send — overtakes the resend.
-    const generation = this.sendInvalidationEpoch
-    const isCurrent = () => this.isCurrentSessionAction(session, generation)
-    let checkpoint: PendingMark | undefined
-    try {
-      await this.autosave()
-      if (!isCurrent()) {
-        throw new Error(UI_TEXT.turnStoppedByRestart)
-      }
-      if (!this.isSideChat) {
-        checkpoint = await this.checkpoints.beforeTurn(session.sessionId)
-        if (!isCurrent()) {
-          this.checkpoints.dropPending(checkpoint)
-          throw new Error(UI_TEXT.turnStoppedByRestart)
-        }
-      }
-      const submission = await this.submit(
-        session,
-        waiting.parts,
-        waiting.displayText,
-        false,
-        isCurrent,
-      )
-      if (!isCurrent()) {
-        this.checkpoints.dropPending(checkpoint)
-        throw new Error(UI_TEXT.turnStoppedByRestart)
-      }
-      this.acceptResubmission(
-        session,
-        waiting.localId,
-        waiting.shownText,
-        waiting.parts,
-        submission,
-        checkpoint,
-        this.permissionMode === PLAN_MODE,
-      )
-      // The resend's own turn may fail retryably in its turn: its chain
-      // continues where this one left off.
-      this.rememberRetryableTurn(
-        session.sessionId,
-        waiting.parts,
-        waiting.displayText,
-        waiting.shownText,
-        submission,
-        waiting.localId,
-        waiting.resendsUsed + 1,
-      )
-    } catch (error: unknown) {
-      this.checkpoints.dropPending(checkpoint)
-      this.deps.log.warn(`Resending turn ${waiting.turnId} failed: ${failureForLog(error)}`)
-      this.forward(waiting.held)
-    }
+    // The resend's own turn may fail retryably in its turn: its chain
+    // continues where this one left off.
+    await this.resubmitRememberedTurn(
+      session,
+      {
+        parts: waiting.parts,
+        displayText: waiting.displayText,
+        shownText: waiting.shownText,
+        localId: waiting.localId,
+        resendsUsed: waiting.resendsUsed + 1,
+      },
+      (error) => {
+        this.deps.log.warn(`Resending turn ${waiting.turnId} failed: ${failureForLog(error)}`)
+        this.forward(waiting.held)
+      },
+    )
   }
 
   /**

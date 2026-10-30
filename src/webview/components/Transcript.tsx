@@ -1078,9 +1078,9 @@ function OtherRow({
           | 'teamReport'
       }
   >
-  readonly onReportProblem?: ((entryId: string, ref: ReportEventRef) => void) | undefined
-  readonly onRetryTurn?: ((entryId: string, turnId: string) => void) | undefined
-  readonly onStopRetry?: ((entryId: string, turnId: string) => void) | undefined
+  readonly onReportProblem?: TranscriptProps['onReportProblem']
+  readonly onRetryTurn?: TranscriptProps['onRetryTurn']
+  readonly onStopRetry?: TranscriptProps['onStopRetry']
   readonly canRetryTurn?: boolean | undefined
   readonly isRetryDisabled?: boolean | undefined
 }) {

@@ -36,7 +36,14 @@ import { z } from 'zod'
 import type { AgentHost, HostExit } from '../../src/core/agent/agentBackend'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
 import { initialUiState, uiReducer } from '../../src/webview/state/uiState'
-import { conversationPanel, modelApiRig, type PanelRig } from './helpers/conversationPanel'
+import {
+  awaitPosts,
+  conversationPanel,
+  modelApiRig,
+  turnAcceptances,
+  turnCompletions,
+  type PanelRig,
+} from './helpers/conversationPanel'
 import {
   captureBroadcast,
   captureResult,
@@ -132,36 +139,8 @@ function turnRetries(posted: readonly HostToWebviewMessage[]) {
   )
 }
 
-function turnCompletions(posted: readonly HostToWebviewMessage[]) {
-  return posted.flatMap((message) =>
-    message.type === 'agentEvent' && message.event.type === 'turnCompleted' ? [message.event] : [],
-  )
-}
-
-function turnAcceptances(posted: readonly HostToWebviewMessage[]) {
-  return posted.flatMap((message) => (message.type === 'turnAccepted' ? [message] : []))
-}
-
 function sendFailures(posted: readonly HostToWebviewMessage[]) {
   return posted.flatMap((message) => (message.type === 'sendFailed' ? [message] : []))
-}
-
-async function awaitPosts<T>(
-  panel: PanelRig,
-  collect: (posted: readonly HostToWebviewMessage[]) => readonly T[],
-  count: number,
-  what: string,
-): Promise<readonly T[]> {
-  for (let attempt = 0; attempt < 300; attempt += 1) {
-    const found = collect(panel.posted)
-    if (found.length >= count) {
-      return found
-    }
-    await new Promise((resolve) => setTimeout(resolve, 10))
-  }
-  throw new Error(
-    `only ${String(collect(panel.posted).length)} ${what}, wanted ${String(count)}; posted: ${JSON.stringify(panel.posted).slice(0, 2000)}`,
-  )
 }
 
 function shownTranscript(panel: PanelRig) {
@@ -266,13 +245,55 @@ function resendPanel(
   return { panel, live, waits, releaseSleep }
 }
 
-async function sendFirst(panel: PanelRig): Promise<void> {
+async function sendAs(panel: PanelRig, localId: string): Promise<void> {
   await panel.controller.handle({
     type: 'sendMessage',
-    localId: 'local-1',
+    localId,
     text: TYPED,
     attachmentIds: [],
   })
+}
+
+async function sendFirst(panel: PanelRig): Promise<void> {
+  await sendAs(panel, 'local-1')
+}
+
+/** The first turn sent, accepted and started on the live wire. */
+async function startFirstTurn(rig: ResendRig): Promise<void> {
+  await sendFirst(rig.panel)
+  await awaitPosts(rig.panel, turnAcceptances, 1, 'turns accepted')
+  rig.live.wire.release(echoStarted)
+}
+
+/** The first turn fails with the recorded end (`middle` rides along first). */
+async function failFirstTurn(
+  rig: ResendRig,
+  end: WireFrame,
+  middle: readonly WireFrame[] = [],
+): Promise<void> {
+  await startFirstTurn(rig)
+  for (const frame of middle) rig.live.wire.release(frame)
+  rig.live.wire.release(end)
+}
+
+/** Lets a named wait fire and awaits the resend's acceptance. */
+async function releaseResend(rig: ResendRig, accepted: number): Promise<void> {
+  rig.releaseSleep()
+  await awaitPosts(rig.panel, turnAcceptances, accepted, 'turns accepted')
+}
+
+/** Nothing waited and nothing resent: the one submit, shown once. */
+function expectNoResend(rig: ResendRig): void {
+  expect(turnRetries(rig.panel.posted)).toHaveLength(0)
+  expect(rig.waits).toHaveLength(0)
+  expect(rig.live.wire.sentCount('turn/start')).toBe(1)
+}
+
+/** The held failure shows with Retry: failed, and still retryable. */
+async function expectFailedEnd(rig: ResendRig): Promise<void> {
+  const [end] = await awaitPosts(rig.panel, turnCompletions, 1, 'turns ended')
+  expect(end?.terminal).toBe('failed')
+  expect(end?.retryable).toBe(true)
 }
 
 describe('Muse Code automatic resend', () => {
@@ -288,11 +309,7 @@ describe('Muse Code automatic resend', () => {
 
   it('retries a retryable failed turn and completes with its rows intact', async () => {
     const rig = resendPanel(directory)
-    await sendFirst(rig.panel)
-    await awaitPosts(rig.panel, turnAcceptances, 1, 'turns accepted')
-    rig.live.wire.release(echoStarted)
-    rig.live.wire.release(echoItem)
-    rig.live.wire.release(m91End(m91Line))
+    await failFirstTurn(rig, m91End(m91Line), [echoItem])
     const [wait] = await awaitPosts(rig.panel, turnRetries, 1, 'resend waits named')
     // The industry wait: 0.5 s doubled zero times, plus the 0.5 jitter
     // draw's 500 ms — the first of two resends.
@@ -300,8 +317,7 @@ describe('Muse Code automatic resend', () => {
     expect(wait?.attempt).toBe(1)
     expect(wait?.maxAttempts).toBe(3)
     expect(wait?.retryDelayMs).toBe(1000)
-    rig.releaseSleep()
-    await awaitPosts(rig.panel, turnAcceptances, 2, 'turns accepted')
+    await releaseResend(rig, 2)
     expect(rig.live.wire.sentCount('turn/start')).toBe(2)
     rig.live.wire.release(echoCompleted)
     const [end] = await awaitPosts(rig.panel, turnCompletions, 1, 'turns ended')
@@ -313,59 +329,40 @@ describe('Muse Code automatic resend', () => {
 
   it('shows a cancelled turn once, without resending', async () => {
     const rig = resendPanel(directory)
-    await sendFirst(rig.panel)
-    await awaitPosts(rig.panel, turnAcceptances, 1, 'turns accepted')
-    rig.live.wire.release(echoStarted)
-    rig.live.wire.release(m91End(m91Cancelled))
+    await failFirstTurn(rig, m91End(m91Cancelled))
     const [end] = await awaitPosts(rig.panel, turnCompletions, 1, 'turns ended')
     expect(end?.terminal).toBe('cancelled')
-    expect(turnRetries(rig.panel.posted)).toHaveLength(0)
-    expect(rig.waits).toHaveLength(0)
-    expect(rig.live.wire.sentCount('turn/start')).toBe(1)
+    expectNoResend(rig)
   })
 
   it('does not resend a refused submit', async () => {
     const rig = resendPanel(directory, { shouldRefuseTurnStart: true })
     await sendFirst(rig.panel)
     await awaitPosts(rig.panel, sendFailures, 1, 'sends refused')
-    expect(turnRetries(rig.panel.posted)).toHaveLength(0)
-    expect(rig.waits).toHaveLength(0)
-    expect(rig.live.wire.sentCount('turn/start')).toBe(1)
+    expectNoResend(rig)
   })
 
   it('stops the wait on Stop and shows the failure with Retry', async () => {
     const rig = resendPanel(directory)
-    await sendFirst(rig.panel)
-    await awaitPosts(rig.panel, turnAcceptances, 1, 'turns accepted')
-    rig.live.wire.release(echoStarted)
-    rig.live.wire.release(m91End(m91Line))
+    await failFirstTurn(rig, m91End(m91Line))
     await awaitPosts(rig.panel, turnRetries, 1, 'resend waits named')
     await rig.panel.controller.handle({ type: 'cancelTurn' })
-    const [end] = await awaitPosts(rig.panel, turnCompletions, 1, 'turns ended')
-    expect(end?.terminal).toBe('failed')
     // The held failure keeps the CLI's retryable judgment: Retry stays armed.
-    expect(end?.retryable).toBe(true)
+    await expectFailedEnd(rig)
     expect(rig.live.wire.sentCount('turn/start')).toBe(1)
     rig.releaseSleep()
   })
 
   it('stops at the default limit: two resends, then the error', async () => {
     const rig = resendPanel(directory)
-    await sendFirst(rig.panel)
-    await awaitPosts(rig.panel, turnAcceptances, 1, 'turns accepted')
-    rig.live.wire.release(echoStarted)
-    rig.live.wire.release(m91End(m91Line))
+    await failFirstTurn(rig, m91End(m91Line))
     await awaitPosts(rig.panel, turnRetries, 1, 'first resend waits named')
-    rig.releaseSleep()
-    await awaitPosts(rig.panel, turnAcceptances, 2, 'turns accepted')
+    await releaseResend(rig, 2)
     rig.live.wire.release(m91End(m91Line))
     await awaitPosts(rig.panel, turnRetries, 2, 'second resend waits named')
-    rig.releaseSleep()
-    await awaitPosts(rig.panel, turnAcceptances, 3, 'turns accepted')
+    await releaseResend(rig, 3)
     rig.live.wire.release(m91End(m91Line))
-    const [end] = await awaitPosts(rig.panel, turnCompletions, 1, 'turns ended')
-    expect(end?.terminal).toBe('failed')
-    expect(end?.retryable).toBe(true)
+    await expectFailedEnd(rig)
     expect(rig.live.wire.sentCount('turn/start')).toBe(3)
     // 0.5 s, then 1 s, each plus the suite's 500 ms jitter draw.
     expect(rig.waits).toEqual([1000, 1500])
@@ -376,14 +373,10 @@ describe('Muse Code automatic resend', () => {
   it('stops at the person-set limit, and 0 disables resending', async () => {
     let limit: number | undefined = 1
     const rig = resendPanel(directory, { maxRetries: () => limit })
-    await sendFirst(rig.panel)
-    await awaitPosts(rig.panel, turnAcceptances, 1, 'turns accepted')
-    rig.live.wire.release(echoStarted)
-    rig.live.wire.release(m91End(m91Line))
+    await failFirstTurn(rig, m91End(m91Line))
     const [wait] = await awaitPosts(rig.panel, turnRetries, 1, 'resend waits named')
     expect(wait?.maxAttempts).toBe(2)
-    rig.releaseSleep()
-    await awaitPosts(rig.panel, turnAcceptances, 2, 'turns accepted')
+    await releaseResend(rig, 2)
     rig.live.wire.release(m91End(m91Line))
     const [end] = await awaitPosts(rig.panel, turnCompletions, 1, 'turns ended')
     expect(end?.terminal).toBe('failed')
@@ -392,12 +385,7 @@ describe('Muse Code automatic resend', () => {
 
     // 0 disables: the next failure shows at once, with no wait.
     limit = 0
-    await rig.panel.controller.handle({
-      type: 'sendMessage',
-      localId: 'local-2',
-      text: TYPED,
-      attachmentIds: [],
-    })
+    await sendAs(rig.panel, 'local-2')
     await awaitPosts(rig.panel, turnAcceptances, 3, 'turns accepted')
     rig.live.wire.release(echoStarted)
     rig.live.wire.release(m91End(m91Line))
@@ -411,10 +399,7 @@ describe('Muse Code automatic resend', () => {
   it('a limit lowered to 0 mid-wait refuses the resend', async () => {
     let limit: number | undefined = 2
     const rig = resendPanel(directory, { maxRetries: () => limit })
-    await sendFirst(rig.panel)
-    await awaitPosts(rig.panel, turnAcceptances, 1, 'turns accepted')
-    rig.live.wire.release(echoStarted)
-    rig.live.wire.release(m91End(m91Line))
+    await failFirstTurn(rig, m91End(m91Line))
     await awaitPosts(rig.panel, turnRetries, 1, 'resend waits named')
     limit = 0
     rig.releaseSleep()
@@ -439,9 +424,7 @@ describe('Muse Code automatic resend', () => {
       live: first,
       ensureHost: () => Promise.resolve(current.host),
     })
-    await sendFirst(rig.panel)
-    await awaitPosts(rig.panel, turnAcceptances, 1, 'turns accepted')
-    rig.live.wire.release(echoStarted)
+    await startFirstTurn(rig)
     current = replacement
     const crash: HostExit = {
       description: 'signal SIGKILL (the suite reports the host dead)',
@@ -451,8 +434,7 @@ describe('Muse Code automatic resend', () => {
     }
     rig.panel.controller.hostExited(crash)
     await awaitPosts(rig.panel, turnRetries, 1, 'resend waits named')
-    rig.releaseSleep()
-    await awaitPosts(rig.panel, turnAcceptances, 2, 'turns accepted')
+    await releaseResend(rig, 2)
     expect(rig.live.wire.sentCount('turn/start')).toBe(1)
     expect(replacement.wire.sentCount('turn/start')).toBe(1)
     replacement.wire.release(echoCompleted)

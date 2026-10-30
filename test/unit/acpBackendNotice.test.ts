@@ -40,19 +40,19 @@ describe('UpdateTranslator backendNotice', () => {
 
   it('surfaces the notice as an agent message when the client did not advertise notices', () => {
     const translator = new UpdateTranslator('/work/acp-notice', false)
-    const updates = translator.updates({
+    const [chunk] = translator.updates({
       type: 'backendNotice',
       level: 'warning',
       text: 'Automatic compaction failed; continuing with the original context.',
     })
-    expect(updates).toEqual([
-      {
-        sessionUpdate: 'agent_message_chunk',
-        content: {
-          type: 'text',
-          text: 'Automatic compaction failed; continuing with the original context.\n\n',
-        },
-      },
-    ])
+    expect(chunk?.sessionUpdate).toBe('agent_message_chunk')
+    if (chunk?.sessionUpdate !== 'agent_message_chunk') throw new Error('no fallback chunk')
+    expect(chunk.content).toEqual({
+      type: 'text',
+      text: 'Automatic compaction failed; continuing with the original context.\n\n',
+    })
+    // RLF-ACPTURNS F1: the one-shot notice carries its own message id,
+    // so the client starts a new message instead of running on.
+    expect(typeof chunk.messageId).toBe('string')
   })
 })
