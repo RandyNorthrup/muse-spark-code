@@ -324,6 +324,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- A pack index is accepted only when the signature covers those exact bytes
+  and the signer is the pack workflow on `main`, exactly. A signature for a
+  branch whose name merely begins with `main`, or a signed statement that
+  does not cover the index, is refused.
+- An issue held as suspected spam stays held. The next check no longer
+  treats that hold as the issue being reopened and triages it again, and
+  `watchdog decide` no longer says the issue was closed when nothing was
+  posted and the issue is still open.
 - The terminal agent's requests were missing from usage history since 0.12.0:
   every headless turn stamped its usage record with a fractional clock, the
   journal refused the record, and one warning was all that was left. Stored
@@ -392,7 +400,7 @@ happened, not what was planned; superseded entries are kept.
   came only from the signing half of `sigstore`, which the pack index
   verifier never used: it now uses Sigstore's verification packages directly
   (`@sigstore/tuf`, `@sigstore/verify`, `@sigstore/bundle`), with the same
-  checks and the same refusals, and `dist/packsVerify.js` shrinks from 1.1 MB
+  trust root, transparency log and timestamp checks, and `dist/packsVerify.js` shrinks from 1.1 MB
   to 213 KB. The notices' header now names every bundle that carries
   third-party code, read from the build, instead of a hand-kept list that had
   fallen behind.
