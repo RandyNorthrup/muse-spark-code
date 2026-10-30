@@ -12,7 +12,8 @@ import type { VaultBrokerBindings, VaultBrokerContext } from './vaultBrokerEntry
 import { randomBytes } from 'node:crypto'
 import { Readable } from 'node:stream'
 import { UI_TEXT, VAULT_LIMITS, VAULT_RUNTIME_MIGRATION_BUNDLE_FILE } from '../../shared/constants'
-import { errorDetail, type Logger } from '../../host/logger'
+import type { Logger } from '../../host/logger'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import type { CredentialMigrationController } from '../../host/vault/migrateCredentials'
 import { setUiText, uiLocale } from '../../shared/l10n/text'
 import {
@@ -247,7 +248,7 @@ function routeBrokerApprovals(
     } catch (error: unknown) {
       // The edge is left for the next event; the failure is reported
       // with fixed words, never the broker's text.
-      log.warn(`Credential migration lock check failed: ${errorDetail(error)}`)
+      log.warn(`Credential migration lock check failed: ${failureForLog(error)}`)
       return
     }
     if (isUnlocked === lastUnlocked) return
@@ -344,7 +345,7 @@ export async function createRuntimeVault(
         })
       })()
     } catch (error: unknown) {
-      context.log.warn(`Credential migration unavailable: ${errorDetail(error)}`)
+      context.log.warn(`Credential migration unavailable: ${failureForLog(error)}`)
       return
     }
     await migrationController.ensureMigrated()
