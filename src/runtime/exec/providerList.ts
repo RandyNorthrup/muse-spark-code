@@ -71,7 +71,7 @@ export async function listProviderModels(
     providerListHeaders(provider),
     `${provider.origin}${providerModelsPath(provider)}`,
   )
-  return !('status' in listed) || listed.status !== HTTP_STATUS.ok
-    ? undefined
-    : listModelIds(listed.body, provider.preset)
+  return 'status' in listed && listed.status === HTTP_STATUS.ok
+    ? listModelIds(listed.body, provider.preset)
+    : undefined
 }

@@ -84,9 +84,9 @@ export function acceptSetupCode(state: SetupState, candidate: string): AcceptCod
   const candidateHash = hashSetupCode(candidate)
   const expected = Buffer.from(state.codeSha256, 'utf8')
   const actual = Buffer.from(candidateHash, 'utf8')
-  return expected.length !== actual.length || !timingSafeEqual(expected, actual)
-    ? { ok: false, reason: 'wrong' }
-    : { ok: true, state: { ...state, codeConsumed: true } }
+  return expected.length === actual.length && timingSafeEqual(expected, actual)
+    ? { ok: true, state: { ...state, codeConsumed: true } }
+    : { ok: false, reason: 'wrong' }
 }
 
 /**

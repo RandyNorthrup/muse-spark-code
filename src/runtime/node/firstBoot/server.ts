@@ -233,7 +233,7 @@ async function handleRequest(
     send(response, HTTP_STATUS.ok, state.completed ? donePage() : codePage(null))
     return
   }
-  if (pathname !== '/code' && pathname !== '/choices' && pathname !== '/complete') {
+  if (!['/code', '/choices', '/complete'].includes(pathname)) {
     send(response, HTTP_STATUS.notFound, failedPage('not-found'))
     return
   }

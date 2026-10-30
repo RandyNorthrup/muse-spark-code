@@ -263,7 +263,7 @@ const relativePath = z.string().check(
       !value.startsWith('/') &&
       !value.includes('\\') &&
       !value.includes(':') &&
-      value.split('/').every((part) => part !== '' && part !== '.' && part !== '..'),
+      value.split('/').every((part) => !['', '.', '..'].includes(part)),
   ),
 )
 const paths = z.array(relativePath).check(z.refine((value) => new Set(value).size === value.length))
@@ -385,10 +385,12 @@ function microUsd(value: UsdAmount): bigint | undefined {
   } catch (error: unknown) {
     // A schema-valid amount meets only these two refusals here; anything
     // else is not this boundary's answer to give.
-    if (error instanceof Error) {
-      if (error.message === 'USD amount is not representable') return undefined
-      if (error.message === 'USD amount must be a finite decimal') return undefined
-    }
+    if (
+      error instanceof Error &&
+      (error.message === 'USD amount is not representable' ||
+        error.message === 'USD amount must be a finite decimal')
+    )
+      return undefined
     throw error
   }
 }
