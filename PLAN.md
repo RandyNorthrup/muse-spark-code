@@ -1749,6 +1749,10 @@ deferred-aggregate and individual caps are unchanged.
 
 **`dist/vaultRuntimeMigration.js` budget rationale.** (RLF-M109: the runtime key-store migration — controller, engine, codecs and the first-party reader — loaded by `dist/vaultRuntime.js` on the first unlock edge only; 60.2 KiB measured plus 15%, rounded up to 70 KiB; shipped in the ACP package and the VSIX beside the vault runtime that names it)
 
+**`dist/vaultExec.js` budget rationale.** (RLF-M109, D216: the feeder — envelope, delegated redemption client, scrub streams and the contained command runner — spawned in place of a command by the host; 127.7 KiB measured plus 15%, rounded up to 150 KiB; shipped in the ACP package and the VSIX beside the vault runtime)
+
+**`dist/vaultPolicy.js` budget rationale.** (RLF-M109, D216: the person vault policy's file half, loaded by the broker bindings at registration and by the vault runtime for `vault policy`; 7.0 KiB measured plus 15%, rounded up to the 25 KiB floor; shipped in the ACP package and the VSIX)
+
 **`dist/resourceAdmission.js` budget rationale.** (M107 W: 1.8 KiB, shared process admission)
 
 **Resource controls/history budget rationale.** ≤ 25 KiB physical entries; ≤ 50 KiB each lazy closure; history CSS included (35.9/42.2 KiB closures); original deferred cap stays 50 KiB

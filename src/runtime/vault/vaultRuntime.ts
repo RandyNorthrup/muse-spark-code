@@ -1,7 +1,6 @@
 import path from 'node:path'
 import { UI_TEXT, VAULT_RUNTIME_BUNDLE_FILE } from '../../shared/constants'
 import type { VaultCommandPort } from './vaultCommand'
-import type { VaultPolicy } from './vaultPolicy'
 import type { ExecVaultPort } from './execVault'
 import { uiLocale } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
@@ -21,11 +20,6 @@ export interface RuntimeVaultBinding {
   first use; never throws.
   */
   ensureMigrated(): Promise<void>
-  /** D216: the person's vault policy file beside the broker's vault files. */
-  policy: {
-    read(): Promise<VaultPolicy | undefined>
-    write(policy: VaultPolicy): Promise<void>
-  }
 }
 /**
 The key-store migration's runtime sources (RLF-M109): the process's
@@ -78,9 +72,7 @@ export function runtimeVaultLoader(
         if (
           typeof binding.commands !== 'function' ||
           typeof binding.exec.open !== 'function' ||
-          typeof binding.ensureMigrated !== 'function' ||
-          typeof binding.policy.read !== 'function' ||
-          typeof binding.policy.write !== 'function'
+          typeof binding.ensureMigrated !== 'function'
         )
           throw new TypeError(UI_TEXT.vault.brokerBlocked)
         return binding

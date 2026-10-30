@@ -959,6 +959,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         symbol: 'main',
         side: ['acp', 'vscode'],
       },
+      { importer: 'src/runtime/vault/vaultExecEntry.ts', symbol: 'main', side: ['acp', 'vscode'] },
     ],
   },
   { file: 'resourceJournal.js', side: 'both', requestedBy: [] },
@@ -1441,6 +1442,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
     ],
   },
+  { file: 'vaultExec.js', side: 'both', requestedBy: [] },
   {
     file: 'vaultMigration.js',
     side: 'vscode',
@@ -1449,6 +1451,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         importer: 'src/shared/constants.ts',
         symbol: 'VAULT_MIGRATION_BUNDLE_FILE',
         side: ['vscode'],
+      },
+    ],
+  },
+  {
+    file: 'vaultPolicy.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'VAULT_POLICY_BUNDLE_FILE',
+        side: ['acp', 'vscode'],
       },
     ],
   },

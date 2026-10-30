@@ -24,7 +24,7 @@ import { vaultRefusalSentences } from '../../shared/vaultRefusals'
 import { vaultApprovalText, vaultDecisionChoices } from './vaultApproval'
 import type { VaultImportReport, VaultManagementPort } from '../../core/vault/broker/ports'
 import { vaultWriterRecoveryMessage } from '../../core/vault/broker/manageClient'
-import { vaultPolicySchema, type VaultPolicy } from './vaultPolicy'
+import { vaultPersonPolicySchema, type VaultPersonPolicy } from '../../shared/vault'
 
 const auditFilterSchema = z.strictObject({
   item: z.optional(vaultAuditRecordSchema.shape.handle),
@@ -47,7 +47,7 @@ export type VaultCommandOptions =
   | { command: 'revoke'; grantId: string }
   | { command: 'import'; path: string }
   | { command: 'receipts' }
-  | { command: 'policy'; policy?: VaultPolicy }
+  | { command: 'policy'; policy?: VaultPersonPolicy }
 
 /** Trusted local management channel only. Private material never uses the panel/MHP port. */
 export interface VaultCommandPort extends Pick<
@@ -91,8 +91,8 @@ export interface VaultCommandDeps {
   signal: AbortSignal
   /** D216: the person's vault policy file, read and replaced whole. */
   policy: {
-    read(): Promise<VaultPolicy | undefined>
-    write(policy: VaultPolicy): Promise<void>
+    read(): Promise<VaultPersonPolicy | undefined>
+    write(policy: VaultPersonPolicy): Promise<void>
   }
 }
 
@@ -141,7 +141,7 @@ export function parseVaultCommand(args: readonly string[]): VaultCommandOptions 
         return { command, grant: vaultGrantSchema.parse(JSON.parse(argument)) }
       }
       case 'policy': {
-        return { command, policy: vaultPolicySchema.parse(JSON.parse(argument)) }
+        return { command, policy: vaultPersonPolicySchema.parse(JSON.parse(argument)) }
       }
       case 'remove':
       case 'public-key': {

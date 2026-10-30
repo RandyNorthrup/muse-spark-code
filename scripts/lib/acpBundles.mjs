@@ -75,6 +75,7 @@ export const ACP_BUNDLES = [
   // RLF-M109: the runtime key-store migration chunk, loaded by
   // vaultRuntime.js on the first unlock edge.
   'vaultRuntimeMigration.js',
+  'vaultPolicy.js',
   'planSnapshot.js',
   'questionNotes.js',
   'approvalModes.js',
@@ -113,6 +114,7 @@ export const ACP_BUNDLES = [
   'vaultActions.js',
   'vaultBroker.js',
   'vaultBrokerBindings.js',
+  'vaultExec.js',
   'estimateContracts.js',
   'legalScan.js',
   'legalFix.js',

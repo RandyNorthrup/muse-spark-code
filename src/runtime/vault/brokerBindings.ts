@@ -18,6 +18,7 @@ import {
   UI_TEXT,
   VAULT_LIMITS,
   VAULT_AUDIT_MAX_BYTES,
+  VAULT_POLICY_BUNDLE_FILE,
 } from '../../shared/constants'
 import type { KeyringEntryFactory } from '../keyStore'
 import type { VaultProcessIdentity } from '../../core/vault/broker/peer'
@@ -40,7 +41,11 @@ import {
   vaultPeerExecutable,
   vaultProcessIdentity,
 } from './posixNative'
-import { vaultPolicyCeiling } from './vaultPolicy'
+import type * as VaultPolicyModule from './vaultPolicyEntry'
+import { createRequire } from 'node:module'
+import { uiLocale } from '../../shared/l10n/text'
+import type { VaultRequester } from '../../shared/vault'
+import type { VaultCeiling } from '../../core/vault/broker/policy'
 import { totpCode } from '../../core/vault/web/totp'
 import type { WindowsBrokerPlatform } from './windowsHost'
 export { setUiText } from '../../shared/l10n/text'
@@ -307,6 +312,33 @@ async function createCredentialManagerKeyring(dataDir: string): Promise<{
   return { keyring: created, anchor: scopedVaultAnchor(created, dataDir) }
 }
 
+// D216: the policy file half is its own lazy chunk (dist/vaultPolicy.js);
+// the same-build sibling contract is validated before use (PLAN §8). A
+// chunk that cannot load refuses every use with the fixed word, exactly
+// like a damaged policy file.
+const policyModule: { current?: typeof VaultPolicyModule } = {}
+async function loadVaultPolicyCeiling(
+  dataDir: string,
+  requester: VaultRequester,
+): Promise<VaultCeiling> {
+  try {
+    if (policyModule.current === undefined) {
+      const loaded = createRequire(__filename)(
+        path.join(__dirname, VAULT_POLICY_BUNDLE_FILE),
+      ) as typeof VaultPolicyModule
+      if (typeof loaded.vaultPolicyCeiling !== 'function' || typeof loaded.setUiText !== 'function')
+        throw new TypeError(UI_TEXT.vault.brokerBlocked)
+      loaded.setUiText(UI_TEXT, uiLocale())
+      policyModule.current = loaded
+    }
+    return await policyModule.current.vaultPolicyCeiling(dataDir, requester)
+  } catch {
+    // No readable policy, no ceiling: the use refuses in words downstream.
+    process.stderr.write('vault-policy-refused\n')
+    return 'none'
+  }
+}
+
 /**
 Management and first-party reads shared by every platform; the factories
 differ only in how a host proves itself and where the audit anchors.
@@ -437,7 +469,7 @@ function baseVaultBrokerBindings(
     // refused in words); provenance arrives per proposal over the
     // registered connection; exec redemption runs on the feeder's own
     // connection under a delegation. S/O surfaces stay unbound.
-    ceiling: async (requester) => await vaultPolicyCeiling(context.dataDir, requester),
+    ceiling: async (requester) => await loadVaultPolicyCeiling(context.dataDir, requester),
     oneTimeCode: (item) => {
       const material = item.material
       if (material.kind !== 'totp') return Promise.reject(new Error(UI_TEXT.vault.noAccess))

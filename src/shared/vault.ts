@@ -333,6 +333,18 @@ export const vaultGrantSchema = z
   .check(z.refine((v) => v.maxUses === null || v.uses <= v.maxUses))
 export type VaultGrant = z.infer<typeof vaultGrantSchema>
 
+/** One person-set ceiling: which handles one workspace and role may use (D216). */
+const vaultPolicyCeilingEntrySchema = z.strictObject({
+  workspaceId: text,
+  role,
+  ceiling: z.union([z.literal('ask'), z.array(handle).check(z.maxLength(VAULT_LIMITS.items))]),
+})
+/** The person vault policy file's shape: ceilings per workspace and role. */
+export const vaultPersonPolicySchema = z.strictObject({
+  ceilings: z.array(vaultPolicyCeilingEntrySchema).check(z.maxLength(VAULT_LIMITS.items)),
+})
+export type VaultPersonPolicy = z.infer<typeof vaultPersonPolicySchema>
+
 const dates = z.strictObject({
   createdAt: time,
   rotatedAt: z.nullable(time),
