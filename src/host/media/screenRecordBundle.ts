@@ -1,11 +1,12 @@
-// Activation carries this loader, never recorder/preview code. W builds
-// previewPanel.ts with R1–R3 into dist/screenRecord.js and budgets that chunk.
+// Activation carries this loader, never recorder/preview code. The preview
+// and the latest-file discovery build into dist/screenRecord.js; the
+// platform drivers build into dist/screenRecordDrivers.js beside it.
 import type {
   ScreenRecordingDriver,
   ScreenRecordingPreview,
   ScreenRecordingResult,
 } from '../../core/media/record/driver'
-import type { LatestRecordingPort } from '../../core/media/record/linux'
+import type { LatestRecordingPort } from '../../core/media/record/latest'
 import type { UiTable } from '../l10n'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
@@ -104,8 +105,13 @@ interface ScreenRecordBundle {
     port: LatestRecordingPort,
     now?: number,
   ) => Promise<ScreenRecordingResult>
-  /** The driver of this platform; undefined where the product records nowhere. */
-  readonly createRecordingDriver: (host: RecordingDriverHost) => ScreenRecordingDriver | undefined
+  /**
+  The driver of this platform; undefined where the product records
+  nowhere. Awaits the drivers bundle on the first recording start.
+  */
+  readonly createRecordingDriver: (
+    host: RecordingDriverHost,
+  ) => Promise<ScreenRecordingDriver | undefined>
   readonly resolveWindowsRecordingFolders: (
     deps?: WindowsVideosDeps,
     platform?: NodeJS.Platform,

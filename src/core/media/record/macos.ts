@@ -16,6 +16,7 @@ import {
 } from '../../../shared/media'
 import type { HelperChild } from '../../voice/dictation'
 import type { ScreenRecordingDriver, ScreenRecordingResult } from './driver'
+import type { MacosRecordingPermission } from './macosPermissions'
 import { type GuardedChildEnv } from '../../executables'
 import { noWorkspaceChildEnvironment } from '../../execGuard'
 import { Buffer } from 'node:buffer'
@@ -28,14 +29,7 @@ const PRIVATE_DIRECTORY_MODE = 0o700
 const PRIVATE_FILE_MODE = 0o600
 /** The native helper's own output bound (`maximumBytes` in ScreenRecord.swift). */
 export const MACOS_RECORDING_HELPER_MAX_BYTES = MEDIA_MAX_UPLOAD_DEFAULT_MIB * BYTES_PER_MIB
-const SCREEN_SETTINGS =
-  'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture'
-const MICROPHONE_SETTINGS =
-  'x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone'
-
-type Permission = 'screen' | 'microphone'
-
-function permissionForCode(code: string): Permission | undefined {
+function permissionForCode(code: string): MacosRecordingPermission | undefined {
   if (code === 'screenPermissionDenied') return 'screen'
   return code === 'microphonePermissionDenied' ? 'microphone' : undefined
 }
@@ -84,7 +78,7 @@ export interface MacosScreenRecordingDeps {
   /** The helper protocol's per-read bound (bytes, never a person's value). */
   readonly maxProtocolChars: number
   /** The editor offers its recovery action; no settings are opened automatically. */
-  readonly onPermissionDenied?: (permission: Permission) => void
+  readonly onPermissionDenied?: (permission: MacosRecordingPermission) => void
 }
 
 const lineSchema = z.discriminatedUnion('type', [
@@ -114,14 +108,6 @@ const probeSchema = z.strictObject({
   display: z.enum(['available', 'unavailable']),
   encoder: z.enum(['available', 'unavailable']),
 })
-
-/** Called only from the recovery action the user chose. */
-export async function openMacosRecordingPermissions(
-  permission: Permission,
-  openExternal: (uri: string) => Promise<void>,
-): Promise<void> {
-  await openExternal(permission === 'screen' ? SCREEN_SETTINGS : MICROPHONE_SETTINGS)
-}
 
 function unavailable(reason: string): ScreenRecordingResult & { readonly ok: false } {
   return { ok: false, reason: fill(UI_TEXT.media.recordingUnavailable, { reason }) }

@@ -745,6 +745,32 @@ export const ON_FIRST_USE = [
       'src/core/media/sniff/mp3.ts',
     ],
   },
+  // M105 RLF-RECORDING: the screen-recording drivers (Windows, macOS,
+  // the Linux portal). The recording command's own bundle carries the
+  // preview and the latest-file discovery; neither it nor activation may
+  // carry a driver file.
+  {
+    output: 'dist/screenRecordDrivers.js',
+    metafile: 'dist/meta/screenRecordDrivers.json',
+    use: 'the first screen recording start',
+    parents: [
+      BUNDLES.activation,
+      { output: 'dist/screenRecord.js', metafile: 'dist/meta/screenRecord.json' },
+    ],
+    files: [
+      'src/host/media/recordingDriverEntry.ts',
+      'src/host/media/recordingDriver.ts',
+      'src/host/media/recordingHelperProcess.ts',
+      'src/host/media/recordingLineFramer.ts',
+      'src/host/media/recordingInspect.ts',
+      'src/host/media/linuxRecorderPort.ts',
+      'src/host/media/macosRecorderDeps.ts',
+      'src/host/media/windowsRecorderDeps.ts',
+      'src/core/media/record/linux.ts',
+      'src/core/media/record/macos.ts',
+      'src/core/media/record/windows.ts',
+    ],
+  },
   {
     output: 'dist/questionNotes.js',
     metafile: 'dist/meta/questionNotes.json',
@@ -1533,6 +1559,7 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/host/backend/configuredProvidersEntry.ts'), 'dist/configuredProviders.js'],
   [path.resolve('src/runtime/chatGptProviderCommands.ts'), 'dist/subscriptions.js'],
   [path.resolve('src/core/media/inspectEntry.ts'), 'dist/media.js'],
+  [path.resolve('src/host/media/recordingDriverEntry.ts'), 'dist/screenRecordDrivers.js'],
   [path.resolve('src/core/questions/deferralEntry.ts'), 'dist/questionNotes.js'],
   [path.resolve('src/host/backend/toolRangeEntry.ts'), 'dist/toolRange.js'],
   [path.resolve('src/core/backends/musecode/approvalModesEntry.ts'), 'dist/approvalModes.js'],
@@ -1647,7 +1674,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|providerListEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|modelEffortsEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|teamPanelEntry|teamHostEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|execTeamEntry|workerCreateEntry|workerOpsEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|providerListEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|modelEffortsEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|teamPanelEntry|teamHostEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|execTeamEntry|workerCreateEntry|workerOpsEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|recordingDriverEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (

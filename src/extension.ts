@@ -4172,6 +4172,9 @@ async function activateWindow(
     },
   })
   let screenRecordingDriver: ScreenRecordingDriver | undefined
+  // The first recording start's in-flight driver creation; concurrent first
+  // commands share it, and a failure clears it so the next command retries.
+  let screenRecordingDriverPromise: Promise<ScreenRecordingDriver | undefined> | undefined
   // The macOS permission the system last refused; the command's refusal takes it once.
   let refusedRecordingPermission: 'screen' | 'microphone' | undefined
   const latestScreenRecording = async (): Promise<ScreenRecordingResult> => {
@@ -4625,24 +4628,39 @@ async function activateWindow(
           // explicitly; latest-file discovery reads the running platform's
           // OS recordings location. The conversation overrides attach with
           // admission.
-          recordingCommandDeps: () => {
+          recordingCommandDeps: async () => {
             const l10n = { table: UI_TEXT, locale: uiLocale() }
-            screenRecordingDriver ??= loadScreenRecord().createRecordingDriver({
-              platform: process.platform,
-              arch: process.arch,
-              extensionPath: context.extensionPath,
-              storageDir: storageRoot,
-              tempRoot: recordingTempRoot,
-              environment: process.env,
-              remoteName: vscode.env.remoteName,
-              l10n,
-              lifetime: recordingLifetime.signal,
-              personMaxBytes: () => currentSettings().mediaMaxUploadMiB * BYTES_PER_MIB,
-              onPermissionDenied: (permission) => {
-                refusedRecordingPermission = permission
-              },
-            })
-            return Promise.resolve({
+            // Awaits the drivers bundle on the first recording start; one
+            // driver per window, so its busy state holds across commands.
+            // Concurrent first commands share the same creation, and a
+            // failure clears it so the next command retries.
+            if (screenRecordingDriverPromise === undefined) {
+              const created = loadScreenRecord().createRecordingDriver({
+                platform: process.platform,
+                arch: process.arch,
+                extensionPath: context.extensionPath,
+                storageDir: storageRoot,
+                tempRoot: recordingTempRoot,
+                environment: process.env,
+                remoteName: vscode.env.remoteName,
+                l10n,
+                lifetime: recordingLifetime.signal,
+                personMaxBytes: () => currentSettings().mediaMaxUploadMiB * BYTES_PER_MIB,
+                onPermissionDenied: (permission) => {
+                  refusedRecordingPermission = permission
+                },
+              })
+              screenRecordingDriverPromise = created
+              try {
+                screenRecordingDriver = await created
+              } catch (error: unknown) {
+                screenRecordingDriverPromise = undefined
+                throw error
+              }
+            } else {
+              screenRecordingDriver ??= await screenRecordingDriverPromise
+            }
+            return {
               l10n,
               log,
               isRemote: vscode.env.remoteName !== undefined,
@@ -4655,7 +4673,7 @@ async function activateWindow(
                 return refused
               },
               attach: () => Promise.resolve(false),
-            })
+            }
           },
           isBypassAllowed: () => currentSettings().allowDangerouslySkipPermissions,
           isRemoteWindow: vscode.env.remoteName !== undefined,

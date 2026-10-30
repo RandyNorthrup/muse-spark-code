@@ -92,6 +92,7 @@
 !dist/mediaHost.js
 !dist/toolRange.js
 !dist/screenRecord.js
+!dist/screenRecordDrivers.js
 !dist/uiTextMedia.js
 !dist/reference.js
 !dist/webview.json.br

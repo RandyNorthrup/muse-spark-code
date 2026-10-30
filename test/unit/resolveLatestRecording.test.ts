@@ -6,7 +6,7 @@ import { mkdir, mkdtemp, rm, stat, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { findLatestRecording } from '../../src/core/media/record/linux'
+import { findLatestRecording } from '../../src/core/media/record/latest'
 import type {
   ScreenRecordingPreview,
   ScreenRecordingResult,

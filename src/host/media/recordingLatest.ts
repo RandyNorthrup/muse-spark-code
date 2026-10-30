@@ -7,9 +7,10 @@ import { execFile } from 'node:child_process'
 import { chmod, copyFile, lstat, mkdir, mkdtemp, open, readdir, rm, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
-import type { LatestRecordingPort } from '../../core/media/record/linux'
+import type { LatestRecordingPort } from '../../core/media/record/latest'
 import type { MediaSource } from '../../core/media/limits'
-import { windowsRecordingPlaces, type ScreenRecordingPreview } from '../../core/media/record/driver'
+import { windowsRecordingPlaces } from '../../core/media/record/latest'
+import type { ScreenRecordingPreview } from '../../core/media/record/driver'
 import {
   UI_TEXT,
   VIDEOS_FOLDER_NAME,

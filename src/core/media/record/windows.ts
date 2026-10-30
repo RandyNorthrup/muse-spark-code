@@ -11,7 +11,7 @@ import {
 import { UI_TEXT, fill } from '../../../shared/l10n/text'
 import { mediaInfoSchema, screenRecordingOptionsSchema } from '../../../shared/media'
 import type { MediaInfo } from '../../../shared/media'
-import { recordingNotFound, windowsRecordingPlaces } from './driver'
+import { recordingNotFound, windowsRecordingPlaces } from './latest'
 import type {
   ScreenRecordingDriver,
   ScreenRecordingOptions,
