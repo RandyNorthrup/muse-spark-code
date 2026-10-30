@@ -91,13 +91,13 @@ export async function startTeamMuseCodeHost(options: {
     options.log.warn('The team Muse Code host wrote to stderr')
   })
   const exited = new Promise<{ code: number | null; signal: string | null }>((resolve, reject) => {
-    if (child.exitCode !== null || child.signalCode !== null)
-      resolve({ code: child.exitCode, signal: child.signalCode })
-    else {
+    if (child.exitCode === null && child.signalCode === null) {
       child.once('exit', (code, signal) => {
         resolve({ code, signal })
       })
       child.once('error', reject)
+    } else {
+      resolve({ code: child.exitCode, signal: child.signalCode })
     }
   })
   void exited.catch(() => {

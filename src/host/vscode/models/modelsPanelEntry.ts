@@ -186,11 +186,11 @@ function storedRemovals(value: unknown): PendingRemoval[] {
     return []
   }
   return value.flatMap((removal) => {
-    return !isRecord(removal) ||
-      !isStoredEntry(removal['entry']) ||
-      typeof removal['removedAt'] !== 'number'
-      ? []
-      : { entry: removal['entry'], removedAt: removal['removedAt'] }
+    return isRecord(removal) &&
+      isStoredEntry(removal['entry']) &&
+      typeof removal['removedAt'] === 'number'
+      ? { entry: removal['entry'], removedAt: removal['removedAt'] }
+      : []
   })
 }
 

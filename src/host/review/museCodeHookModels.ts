@@ -113,11 +113,11 @@ export class MuseCodeHookModels {
     unbuffer()
     const text = await waiting
     if (text === undefined) {
-      if (job.signal.aborted) {
-        this.drop(session, 'the hooked run stopped waiting', true)
-      } else {
-        this.drop(session, 'no reply in time', true)
-      }
+      this.drop(
+        session,
+        job.signal.aborted ? 'the hooked run stopped waiting' : 'no reply in time',
+        true,
+      )
       return undefined
     }
     return text

@@ -111,10 +111,10 @@ export function createScheduleDeliveryBinding(
         !ports.isActive() ||
         ports.signal.aborted ||
         entry.signal.aborted ||
-        entry.schedule.workspaceKey !== workspaceKey(path.resolve(ports.workspaceRoot))
+        entry.schedule.workspaceKey !== workspaceKey(path.resolve(ports.workspaceRoot)) ||
+        agent.sendScheduledTurn === undefined ||
+        agent.steerScheduledTurn === undefined
       )
-        throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable)
-      if (agent.sendScheduledTurn === undefined || agent.steerScheduledTurn === undefined)
         throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable)
       entry.agent = agent
       entry.signal = AbortSignal.any([entry.signal, ports.signalFor?.(agent) ?? ports.signal])
@@ -368,9 +368,9 @@ export function createScheduleDeliveryBinding(
                   : 'failed',
               reason:
                 entry.run?.dispatchRefusal ??
-                (entry.run !== undefined && !entry.run.isActive()
-                  ? UI_TEXT.scheduleV2.messages.changedConsent
-                  : UI_TEXT.scheduleCommandFailed),
+                (entry.run === undefined || entry.run.isActive()
+                  ? UI_TEXT.scheduleCommandFailed
+                  : UI_TEXT.scheduleV2.messages.changedConsent),
               refusedActions: entry.run?.refusedActions ?? [],
             }
         } finally {

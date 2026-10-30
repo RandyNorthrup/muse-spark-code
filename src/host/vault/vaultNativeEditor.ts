@@ -497,9 +497,9 @@ export async function editVaultItem(
           cookies: await requiredBytes(UI_TEXT.vault.session),
           origin: await ask(UI_TEXT.vault.origin, undefined, (answer) => {
             if (answer === '') return UI_TEXT.vault.fieldMissing
-            return !answer.startsWith('https://') || !vaultOriginSchema.safeParse(answer).success
-              ? UI_TEXT.vault.originHttpsInvalid
-              : null
+            return answer.startsWith('https://') && vaultOriginSchema.safeParse(answer).success
+              ? null
+              : UI_TEXT.vault.originHttpsInvalid
           }),
           expiresAt: await readExpiry(null, false),
         }
