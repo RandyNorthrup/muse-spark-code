@@ -1059,22 +1059,21 @@ set|status|clear --provider <id> --admin` stores the separate admin
   grant or report when its folder is not private (revoke and the kill
   switch still work).
 
-### Agent roles and teams (still behind the release latch)
+### Agent roles and teams (no real team run yet)
 
 - The team runtime now ships in the package: the host, engine, panel,
   file-IO, creation, worker-operations and merge chunks with their ship
-  lists. Nothing turns on yet: teams stay hidden until an enabled team
-  really runs, and the README still says the feature remains unavailable
-  until its integration is complete.
+  lists. Teams stay off until a second model is set up beside yours, and
+  no real team run has been made on this build.
 - The team scheduler, merge queue and Traffic work now runs on the team
   core the rest of the team runtime uses (RLF-TEAMCORE, M96c): one launch
   path with a final admission check before any worker starts, the ordered
   merge queue, live Traffic rows whose stop, cancel and reassign actions
   go through attempt retirement, machine-resource joins for picks and
   check runner routing, and checked landing whose interrupted state a
-  later window recovers only after a confirmed takeover. Still behind the
-  release latch; nothing turns on yet.
-- RLF-TEAMWIRE wiring, still behind the latch: the team's merge planner
+  later window recovers only after a confirmed takeover. No real team run
+  has used this yet.
+- RLF-TEAMWIRE wiring: the team's merge planner
   now reads what a merge would change (the files, which of them are
   protected, and a moved branch refused) over your repository's own git
   without writing anything, and a Muse Code orchestrator conversation

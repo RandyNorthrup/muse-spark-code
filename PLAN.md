@@ -14807,8 +14807,8 @@ unit proof ran on a fake-driven suite int deleted.
 Roles-file loaders and the ACP/Muse worker entries remain unwired:
 PLAN names no capture or assembly call site for them, so the lane ended
 naming the questions, options and recommendations in that record. Slot
-checks wait on RLF-TEAMCORE's governed slots. Teams stay behind the
-release latch.
+checks wait on RLF-TEAMCORE's governed slots. Teams stay off until a
+second model is set up (D227).
 
 Status detail retained: first parts (role charters, tools, pools, limits)
 shipped in 0.15.0; team creation and worker dispatch remain (no team can be
@@ -16794,7 +16794,7 @@ Prerequisite: team integration (M96).
 
 ### M96c — Scheduler and traffic (D75)
 
-**Status 2026-10-30 (RLF-TEAMCORE: M96c ported onto RLM96's team core on int/recovery; the section certification checklist below is still open): building.** One launch architecture (the host's `pump()` over the window scheduler's wake, `finalAdmit` before any worker starts), one hook system, the ordered merge queue, Traffic projection/dispatch with the retirement assembly, M107 governor joins and owner-store landing recovery with confirmed takeover, proven by real-process pause-before-rename, killed-lander, crash-recovery and throughput suites (`docs/certification/rlf-teamcore.md`). Teams stay behind the release latch; not in a release yet.
+**Status 2026-10-30 (RLF-TEAMCORE: M96c ported onto RLM96's team core on int/recovery; the section certification checklist below is still open): building.** One launch architecture (the host's `pump()` over the window scheduler's wake, `finalAdmit` before any worker starts), one hook system, the ordered merge queue, Traffic projection/dispatch with the retirement assembly, M107 governor joins and owner-store landing recovery with confirmed takeover, proven by real-process pause-before-rename, killed-lander, crash-recovery and throughput suites (`docs/certification/rlf-teamcore.md`). Teams stay off until a second model is set up (D227); not in a release yet.
 
 **M96CINT round 2 integration (2026-10-05).** Finish the existing partial
 integration by merging reviewed C (`52d04b69`) and then O (`19bb0703`) with

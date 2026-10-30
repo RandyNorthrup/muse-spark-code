@@ -703,13 +703,13 @@
     {
       "id": "M96b",
       "title": "Teams in other editors and headless runs",
-      "summary": "Headless exec and the ACP agent run engine teams behind the availability switch, off until certified, with hard budgets, keyless local workers, denied questions and checked merges, while certification and other editor bindings are in progress.",
+      "summary": "Headless exec and the ACP agent run engine teams, off until a second model is set up, with hard budgets, keyless local workers, denied questions and checked merges, while certification and other editor bindings are in progress.",
       "area": "agents"
     },
     {
       "id": "M96c",
       "title": "Team scheduler and traffic",
-      "summary": "Scheduler, merge queue and Traffic run on the team core: window-owned admission, retirement, governor joins and checked landing recovery, behind the release latch.",
+      "summary": "Scheduler, merge queue and Traffic run on the team core: window-owned admission, retirement, governor joins and checked landing recovery; teams stay off until a second model is set up.",
       "area": "agents"
     },
     {
