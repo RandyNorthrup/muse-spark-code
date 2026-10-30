@@ -324,6 +324,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Every bundled library is current with its upstream fixes: the merge
+  editor's side-by-side alignment, the macOS credential store's signed
+  binaries, the terminal UI's rendering and input fixes, and six
+  security advisories in build-time libraries are in. One moderate
+  advisory (`qs`, build-time only) waits for its fix to clear the
+  seven-day window on 2026-11-03 (`docs/certification/rlf-updeps.md`).
 - The terminal agent's requests were missing from usage history since 0.12.0:
   every headless turn stamped its usage record with a fractional clock, the
   journal refused the record, and one warning was all that was left. Stored
