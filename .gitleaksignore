@@ -21,3 +21,5 @@ test/fixtures/webfetch/wiki-internet.body:generic-api-key:6
 test/unit/nodeSignin.test.ts:generic-api-key:28
 # Example ACME challenge token in a unit test; invented for the test, no credential.
 test/unit/nodeSignin.test.ts:generic-api-key:151
+# M124 remote (D217) test fixture: a throwaway self-signed localhost key made for the HTTPS suites (test/fixtures/connector-remote/manifest.json records how); it protects nothing and no product, person or machine uses it.
+test/fixtures/connector-remote/localhost.key.pem:private-key:1

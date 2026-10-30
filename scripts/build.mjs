@@ -165,6 +165,10 @@ const CONNECTOR_OUTFILE = 'dist/connector.js'
 // the `mcp` command beside the connector bundle.
 const CONNECTOR_STORE_GUARD_ENTRY = 'src/runtime/connector/storageGuard.ts'
 const CONNECTOR_STORE_GUARD_OUTFILE = 'dist/connectorStoreGuard.js'
+// M124 remote (D217): the connector over HTTPS with OAuth, loaded only by
+// `muse-spark-code-acp mcp serve-http` and `mcp client`.
+const CONNECTOR_REMOTE_ENTRY = 'src/runtime/connector/remoteEntry.ts'
+const CONNECTOR_REMOTE_OUTFILE = 'dist/connectorRemote.js'
 const PROMPTS_ENTRY = 'src/host/prompts/promptEntry.ts'
 const PROMPTS_OUTFILE = 'dist/prompts.js'
 const TAB_ENTRY = 'src/host/tab/tabEntry.ts'
@@ -502,6 +506,13 @@ const connectorStoreGuardOptions = {
   ...sharingRuntimeOptions,
   entryPoints: [CONNECTOR_STORE_GUARD_ENTRY],
   outfile: CONNECTOR_STORE_GUARD_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const connectorRemoteOptions = {
+  ...sharingRuntimeOptions,
+  entryPoints: [CONNECTOR_REMOTE_ENTRY],
+  outfile: CONNECTOR_REMOTE_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1966,6 +1977,7 @@ if (isWatch) {
     esbuild.context(sharingRuntimeOptions),
     esbuild.context(connectorOptions),
     esbuild.context(connectorStoreGuardOptions),
+    esbuild.context(connectorRemoteOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(resourceGovernorOptions),
     esbuild.context(resourceProcessOptions),
@@ -2166,6 +2178,7 @@ if (isWatch) {
     sharingRuntime: recorded('sharingRuntime', sharingRuntimeOptions),
     connector: recorded('connector', connectorOptions),
     connectorStoreGuard: recorded('connectorStoreGuard', connectorStoreGuardOptions),
+    connectorRemote: recorded('connectorRemote', connectorRemoteOptions),
     modelApi: recorded('modelApi', modelApiOptions),
     resourceGovernor: recorded('resourceGovernor', resourceGovernorOptions),
     resourceProcess: recorded('resourceProcess', resourceProcessOptions),
