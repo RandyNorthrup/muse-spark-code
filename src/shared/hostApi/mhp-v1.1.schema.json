@@ -10456,6 +10456,9 @@
                             "addModelProvider",
                             "manageModels",
                             "showWhatsNew",
+                            "showWalkthrough",
+                            "showRoles",
+                            "showPlans",
                             "openPlaybook"
                           ]
                         }
@@ -28201,6 +28204,9 @@
                                                   "addModelProvider",
                                                   "manageModels",
                                                   "showWhatsNew",
+                                                  "showWalkthrough",
+                                                  "showRoles",
+                                                  "showPlans",
                                                   "openPlaybook"
                                                 ]
                                               }
@@ -30021,6 +30027,33 @@
                       "additionalProperties": false
                     }
                   ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": { "type": "string", "const": "theme" },
+                    "theme": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": ["light", "dark", "highContrastLight", "highContrastDark"]
+                        },
+                        "tokens": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string",
+                            "pattern": "^--muse-[a-zA-Z][\\w-]*$"
+                          },
+                          "additionalProperties": { "type": "string" }
+                        }
+                      },
+                      "required": ["kind", "tokens"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["type", "theme"],
+                  "additionalProperties": false
                 }
               ]
             }
@@ -33313,6 +33346,9 @@
                       "addModelProvider",
                       "manageModels",
                       "showWhatsNew",
+                      "showWalkthrough",
+                      "showRoles",
+                      "showPlans",
                       "openPlaybook"
                     ]
                   }
@@ -50223,6 +50259,9 @@
                                             "addModelProvider",
                                             "manageModels",
                                             "showWhatsNew",
+                                            "showWalkthrough",
+                                            "showRoles",
+                                            "showPlans",
                                             "openPlaybook"
                                           ]
                                         }
@@ -51828,6 +51867,30 @@
                 "additionalProperties": false
               }
             ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": { "type": "string", "const": "theme" },
+              "theme": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": ["light", "dark", "highContrastLight", "highContrastDark"]
+                  },
+                  "tokens": {
+                    "type": "object",
+                    "propertyNames": { "type": "string", "pattern": "^--muse-[a-zA-Z][\\w-]*$" },
+                    "additionalProperties": { "type": "string" }
+                  }
+                },
+                "required": ["kind", "tokens"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["type", "theme"],
+            "additionalProperties": false
           }
         ]
       },

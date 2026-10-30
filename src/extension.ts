@@ -4402,6 +4402,17 @@ async function activateWindow(
         whatsNew.show()
         break
       }
+      // M104 lane D: the portable presentation pages' openers in VS Code —
+      // the walkthrough and the Models & Agents roles. showPlans is the
+      // conversation controller's own, as the showPlans message is.
+      case 'showWalkthrough': {
+        await vscode.commands.executeCommand(COMMAND_IDS.openWalkthrough)
+        break
+      }
+      case 'showRoles': {
+        await vscode.commands.executeCommand(COMMAND_IDS.modelsAndAgents)
+        break
+      }
     }
   }
 

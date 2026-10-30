@@ -10994,6 +10994,12 @@ export class ConversationController implements DeferredSend {
       this.openTasksTab()
       return
     }
+    if (action === 'showPlans') {
+      // The portable presentation pages' opener (M104 lane D): the same
+      // saved-plans list the showPlans message opens, the controller's own.
+      await this.onePlanAction(() => this.showPlans())
+      return
+    }
     if (action === 'openPlaybook') {
       // A why-note's button (M116): asked and answered in the lazy bundle.
       try {
