@@ -738,8 +738,8 @@ function windowsVaultFileCommandSync(
   if (result.error !== undefined || result.status !== 0) throw pipeRefused()
   const output = result.stdout instanceof Buffer ? result.stdout : Buffer.from(result.stdout)
   try {
-    if (output.length < WINDOWS_VAULT_PIPE_HEADER_BYTES) throw pipeRefused()
     if (
+      output.length < WINDOWS_VAULT_PIPE_HEADER_BYTES ||
       output.readUInt8(0) !== WINDOWS_VAULT_PIPE_FRAME.fileResult ||
       output.readUInt32BE(WINDOWS_VAULT_PIPE_ID_OFFSET) !== 0
     )

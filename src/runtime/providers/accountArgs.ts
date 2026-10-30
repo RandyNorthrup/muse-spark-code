@@ -85,9 +85,12 @@ export function parseAccountsCommand(argv: readonly string[]): AccountsCommand |
   } catch (error) {
     // CLI arguments are boundary input: usage errors, malformed ids and
     // malformed JSON read as no command. Anything else keeps its kind.
-    if (error instanceof TypeError) return undefined
-    if (error instanceof SyntaxError) return undefined
-    if (error instanceof Error && error.name === '$ZodError') return undefined
+    if (
+      error instanceof TypeError ||
+      error instanceof SyntaxError ||
+      (error instanceof Error && error.name === '$ZodError')
+    )
+      return undefined
     throw error
   }
 }

@@ -87,6 +87,7 @@ settings <rule> on|off [<reason...>]; settings patchRoundsMax 0|<positive>
 [<reason...>]; settings fallbackReviewer off. */
 export function parsePlaybookCommand(argv: readonly string[]): PlaybookCommand | undefined {
   const [view = 'status', rule, value, ...words] = argv
+  // eslint-disable-next-line unicorn/prefer-includes-over-repeated-comparisons -- the !== chain narrows string to the view union for { view } below; includes() does not narrow (the rule doc's own exception) (PLAN §8, RLF-UNICORN79).
   if (view !== 'status' && view !== 'record' && view !== 'settings') return undefined
   if (rule === undefined) return { view }
   if (view !== 'settings') return undefined

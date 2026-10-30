@@ -697,7 +697,7 @@ export class CleanupPendingError extends Error {
 }
 
 /** Whether `work` settles, either way, within `ms`. */
-function settlesWithin(work: Promise<unknown>, ms: number): Promise<boolean> {
+function didSettleWithin(work: Promise<unknown>, ms: number): Promise<boolean> {
   return new Promise<boolean>((resolve) => {
     const timer = setTimeout(() => {
       resolve(false)
@@ -930,8 +930,8 @@ export function runBatchChild(
       const hasExited = child.exitCode !== null || child.signalCode !== null
       void (async () => {
         const [, isDrained] = await Promise.all([
-          hasExited ? Promise.resolve(true) : settlesWithin(closed, options.killGraceMs),
-          settlesWithin(writers.drained(), options.drainGraceMs),
+          hasExited ? Promise.resolve(true) : didSettleWithin(closed, options.killGraceMs),
+          didSettleWithin(writers.drained(), options.drainGraceMs),
         ])
         reject(isDrained ? error : new CleanupPendingError(error, writers.drained()))
       })()
@@ -1040,7 +1040,7 @@ export function createNodePullRequestCheckoutGit(
         removeMadeAfter(error.settled, git, cwd, made, gate),
       )
     }
-    await removeMadeFolder(git, cwd, made, gate)
+    await didRemoveMadeFolder(git, cwd, made, gate)
   }
   return {
     fetch: async (cwd, remote, ref, gate) => {
@@ -1136,7 +1136,7 @@ export function createNodePullRequestCheckoutGit(
         throw error
       }
     },
-    removeMade: (cwd, made, gate) => removeMadeFolder(git, cwd, made, gate),
+    removeMade: (cwd, made, gate) => didRemoveMadeFolder(git, cwd, made, gate),
     identityOf: async (made) =>
       (await isMadeFolder(made.folder, made)) ? await folderIdentityOf(made.folder) : undefined,
   }
@@ -1238,7 +1238,7 @@ whole once git added it, else only while empty (anything in it then is
 not this checkout's). Runs once per made folder; asked again, it answers
 the same. True once nothing this checkout made is left. Never throws.
 */
-function removeMadeFolder(
+function didRemoveMadeFolder(
   git: NodeGitRunner,
   cwd: string,
   made: MadeFolder,
@@ -1337,7 +1337,7 @@ async function removeMadeAfter(
   gate: GitGate,
 ): Promise<void> {
   await drained
-  await removeMadeFolder(git, cwd, made, gate)
+  await didRemoveMadeFolder(git, cwd, made, gate)
 }
 
 /**

@@ -191,7 +191,7 @@ export async function superviseRuntime(deps: SuperviseDeps): Promise<number> {
   const file = recordFile(deps.root, deps.cwd, ownerId)
   let launching: Promise<ChildProcessWithoutNullStreams> | undefined
   let stopping: Promise<boolean> | undefined
-  const stop = (): Promise<boolean> => {
+  const didStop = (): Promise<boolean> => {
     stopping ??= (async () => {
       // A stop during the launch waits for the child, then ends it.
       let running: ChildProcessWithoutNullStreams | undefined
@@ -223,7 +223,7 @@ export async function superviseRuntime(deps: SuperviseDeps): Promise<number> {
     })()
     return stopping
   }
-  const server = controlServer(record, stop)
+  const server = controlServer(record, didStop)
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject)
     server.listen(record.endpoint, () => {
@@ -232,7 +232,7 @@ export async function superviseRuntime(deps: SuperviseDeps): Promise<number> {
     })
   })
   const onSignal = () => {
-    void stop()
+    void didStop()
   }
   try {
     await writeRecord(file, record)

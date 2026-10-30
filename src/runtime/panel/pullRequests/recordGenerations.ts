@@ -254,8 +254,7 @@ export async function writeNextGeneration(
     } catch (error: unknown) {
       // EEXIST: the number is taken. ENOENT: the stage was swept under a
       // delayed writer. Either way nothing was published.
-      if (isStoreErrorCode(error, 'EEXIST')) return 'lost'
-      if (isStoreErrorCode(error, 'ENOENT')) return 'lost'
+      if (isStoreErrorCode(error, 'EEXIST') || isStoreErrorCode(error, 'ENOENT')) return 'lost'
       throw error
     }
   } finally {
