@@ -7,6 +7,7 @@ import { landTeamTask, recoverOpenLandings } from '../../src/host/team/teamLandi
 import { createWindowIdentity } from '../../src/host/team/windowIdentity'
 import { EN } from '../../src/shared/l10n/en'
 import {
+  landingPolicy,
   landingRunGit,
   landingTask,
   makeLandingFixture,
@@ -106,20 +107,7 @@ describe('killed lander recovery (real processes)', () => {
       platform: process.platform,
       isTrusted: () => true,
       runGit: landingRunGit,
-      policy: {
-        owner: nextOwner,
-        checks: () => ({
-          commands: [{ name: 'check', command: 'true', timeoutSeconds: 60 }],
-          platform: process.platform,
-          setupCommand: '',
-          cacheKey: '',
-        }),
-        runChecks: () => Promise.resolve({ passed: true }),
-        confirmWithoutChecks: () => Promise.resolve(false),
-        validateTarget: () => Promise.resolve(),
-        hints: () => Promise.resolve([]),
-        confirmTakeover: () => Promise.resolve(true),
-      },
+      policy: landingPolicy(nextOwner, { confirmTakeover: () => Promise.resolve(true) }),
     }
     const signal = new AbortController().signal
 

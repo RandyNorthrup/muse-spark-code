@@ -285,6 +285,13 @@ async function openMergeCard(h: Harness): Promise<void> {
   })
 }
 
+/** Enqueue task-1's merge at position 1 and wait for its card to open. */
+async function mergeToCard(service: TeamHostService, h: Harness): Promise<void> {
+  const merging = service.teamRunner.merge({ task_id: 'task-1' }, context())
+  expect(json(await output(merging))).toMatchObject({ task_id: 'task-1', position: 1 })
+  await openMergeCard(h)
+}
+
 async function delegatedTeam() {
   const h = harness(team([entry('e1', WORKER_MODEL)]))
   const service = createTeamHostService(h.deps)
@@ -696,9 +703,7 @@ describe('the team host service', () => {
     await service.teamRunner.delegate(delegateOne, context())
     h.finish(0)
     await settle()
-    const merging = service.teamRunner.merge({ task_id: 'task-1' }, context())
-    expect(json(await output(merging))).toMatchObject({ task_id: 'task-1', position: 1 })
-    await openMergeCard(h)
+    await mergeToCard(service, h)
     expect(h.cards.at(-1)).toMatchObject({
       sessionId: 's1',
       item: {
@@ -1214,9 +1219,7 @@ describe('RVCM963 review findings', () => {
     expect(h.started[1]?.reviewOf?.head).toBe('b'.repeat(40))
     h.finish(1, { report: { status: 'done', summary: 'looks right' } })
     await settle()
-    const merging = service.teamRunner.merge({ task_id: 'task-1' }, context())
-    expect(json(await output(merging))).toMatchObject({ task_id: 'task-1', position: 1 })
-    await openMergeCard(h)
+    await mergeToCard(service, h)
     expect(h.cards.at(-1)?.item).toMatchObject({
       kind: 'teamMerge',
       teamMerge: { review: 'reviewed', reviewerFindings: ['looks right'] },
@@ -1542,16 +1545,11 @@ describe('RVCM963C ownership redesign', () => {
     'R4-12: a %s review cannot certify the head',
     async (status) => {
       const h = harness(reviewedTeam())
-      const service = await finishedTask(h)
-      await service.teamRunner.merge({ task_id: 'task-1' }, context())
-      await vi.waitFor(() => {
-        expect(h.started).toHaveLength(2)
+      const service = await finishedReview(h, {
+        status,
+        summary: 'unfinished',
+        questions: ['need input'],
       })
-      h.finish(1, {
-        report: { status, summary: 'unfinished', questions: ['need input'] },
-        folder: undefined,
-      })
-      await settle()
       const retry = service.teamRunner.merge({ task_id: 'task-1' }, context())
       await vi.waitFor(() => {
         expect(h.started).toHaveLength(3)

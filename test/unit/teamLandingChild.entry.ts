@@ -8,7 +8,12 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { landTeamTask } from '../../src/host/team/teamLandingEntry'
 import type { WindowIdentity } from '../../src/host/team/windowIdentity'
 import { EN } from '../../src/shared/l10n/en'
-import { landingRunGit, landingTask, type LandingFixture } from './helpers/teamLandingFixture'
+import {
+  landingPolicy,
+  landingRunGit,
+  landingTask,
+  type LandingFixture,
+} from './helpers/teamLandingFixture'
 
 interface ChildPlan {
   readonly root: string
@@ -66,24 +71,14 @@ await landTeamTask(
     isTrusted: () => true,
     runGit: landingRunGit,
     writePaths: undefined,
-    policy: {
-      owner: parsed.owner,
-      checks: () => ({
-        commands: [{ name: 'check', command: 'true', timeoutSeconds: 60 }],
-        platform: process.platform,
-        setupCommand: '',
-        cacheKey: '',
-      }),
-      runChecks: () => Promise.resolve({ passed: true }),
-      confirmWithoutChecks: () => Promise.resolve(false),
+    policy: landingPolicy(parsed.owner, {
       // The kill point: the journal intent is durable and the index lock is
       // held; the first rename has not happened. Never returns.
       validateTarget: async () => {
         await writeFile(parsed.readyFile, 'ready\n')
         await new Promise<never>(() => undefined)
       },
-      hints: () => Promise.resolve([]),
-    },
+    }),
   },
   landingTask(fixture),
   new AbortController().signal,
