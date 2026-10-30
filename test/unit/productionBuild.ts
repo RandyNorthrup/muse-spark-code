@@ -38,6 +38,8 @@ const PRODUCTION_BUILD_SUITES: ReadonlySet<string> = new Set([
   'test/unit/runtimeReview.test.ts',
   // M104 lane B: the bundles the runtime panel loads run without the vscode module.
   'test/unit/runtimePortableBundles.test.ts',
+  // RVM104B: saved plans in the runtime panel load dist/planMarkdown.js.
+  'test/unit/runtimePlans.test.ts',
 ])
 // A hung build fails the run with its output instead of holding it open.
 const PRODUCTION_BUILD_TIMEOUT_MS = 600_000
