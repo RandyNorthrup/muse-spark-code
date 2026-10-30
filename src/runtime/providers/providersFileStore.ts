@@ -115,6 +115,11 @@ export class FileAccountsMetadata implements AccountsMetadataPort {
     return Promise.resolve(this.readNow(provider))
   }
 
+  /** Configured provider ids (placement reads pins across all of them). */
+  public listProviders(): readonly string[] {
+    return Object.keys(this.load().providers)
+  }
+
   public readNow(provider: string): AccountProvider | undefined {
     if (!accountIdSchema.safeParse(provider).success) return undefined
     const loaded = this.load()

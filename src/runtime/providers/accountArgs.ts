@@ -1,6 +1,7 @@
 // Pure account arguments; credentials and command runners load on first use.
 import { parseArgs } from 'node:util'
 import {
+  accountDeviceSchema,
   accountIdSchema,
   accountSchema,
   accountThresholdsSchema,
@@ -23,6 +24,12 @@ export type AccountsCommand =
       readonly account: string
       readonly thresholds: AccountThresholds
     }
+  | {
+      readonly action: 'place'
+      readonly provider: string
+      readonly account: string
+      readonly device: string
+    }
 
 export function parseAccountsCommand(argv: readonly string[]): AccountsCommand | undefined {
   try {
@@ -36,6 +43,7 @@ export function parseAccountsCommand(argv: readonly string[]): AccountsCommand |
         label: { type: 'string' },
         'limit-group': { type: 'string' },
         thresholds: { type: 'string' },
+        device: { type: 'string' },
       },
     })
     const provider = accountIdSchema.parse(values.provider)
@@ -54,6 +62,10 @@ export function parseAccountsCommand(argv: readonly string[]): AccountsCommand |
         allowed = ['provider', 'account']
         break
       }
+      case 'place': {
+        allowed = ['provider', 'device']
+        break
+      }
       default: {
         break
       }
@@ -61,6 +73,15 @@ export function parseAccountsCommand(argv: readonly string[]): AccountsCommand |
     if (Object.keys(values).some((key) => !allowed.includes(key))) return
     if (action === 'order')
       return { action, provider, accounts: ids.map((id) => accountIdSchema.parse(id)) }
+    if (action === 'place') {
+      if (ids.length !== 1 || ids[0] === undefined) return
+      return {
+        action,
+        provider,
+        account: accountIdSchema.parse(ids[0]),
+        device: accountDeviceSchema.parse(values.device),
+      }
+    }
     if (ids.length > 0) return
     if (action === 'list') return { action, provider }
     const account = accountIdSchema.parse(values.account)

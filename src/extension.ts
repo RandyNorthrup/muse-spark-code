@@ -1328,6 +1328,7 @@ async function activateWindow(
       settings: () => ({
         isSwapOn: currentSettings().accountSwap,
         isParallelOn: currentSettings().accountParallel,
+        severalOnThisDevice: currentSettings()['accounts.severalOnThisDevice'],
       }),
       promptForApiKey,
       askPolicy: async (row) => {

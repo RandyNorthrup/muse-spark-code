@@ -149,6 +149,15 @@ export class AccountsPanelHandler {
       // Raw adapter errors may contain a credential. Only fixed bridge codes leave.
       if (isInvalidProvidersFileError(error))
         return { type: 'accounts/error', code: 'providersInvalid' }
+      if (error instanceof AccountStoreError && error.code === 'placementConflict')
+        return {
+          type: 'accounts/error',
+          code: 'placementConflict',
+          ...(error.placement !== undefined && {
+            provider: error.placement.provider,
+            device: error.placement.device,
+          }),
+        }
       return {
         type: 'accounts/error',
         code:

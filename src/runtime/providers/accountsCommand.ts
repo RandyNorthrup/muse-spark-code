@@ -20,10 +20,12 @@ import { isNonTextStdin } from '../hiddenInput'
 
 import type { AccountTarget, AccountsCommand } from './accountArgs'
 export { parseAccountsCommand, type AccountTarget, type AccountsCommand } from './accountArgs'
+import { AccountPlacementError, type AccountPlacements } from '../../core/team/remotePool'
 
 export interface AccountsCommandDeps {
   readonly accounts: AccountStore
   readonly metadata: AccountsMetadataPort
+  readonly placements: AccountPlacements
   readonly print: (text: string) => void
   readonly printError: (text: string) => void
 }
@@ -31,8 +33,13 @@ export interface AccountsCommandDeps {
 export function commandError(error: unknown): string {
   // A refused revocation names its refusal: removing the sign-in never ran.
   if (isRevokeUnsupportedError(error)) return UI_TEXT.accounts.revokeUnsupported
+  // A refused pin names its two ways forward with only opaque ids.
+  if (error instanceof AccountPlacementError) return error.message
   if (error instanceof AccountStoreError) {
     if (error.code === 'notOffered') return UI_TEXT.accounts.notOffered
+    // The placement refusal names its two ways forward with only opaque
+    // ids, so it passes through as thrown.
+    if (error.code === 'placementConflict') return error.message
     if (error.code === 'invalidAccount' || error.code === 'invalidCredential')
       return UI_TEXT.accounts.invalidAccount
     // A refused providers file is not a connection problem: the runtime is
@@ -104,6 +111,14 @@ export async function runAccountsCommand(
       }
       case 'thresholds': {
         await deps.accounts.thresholds(provider, command.account, command.thresholds)
+        break
+      }
+      case 'place': {
+        await deps.placements.pin({
+          provider: command.provider,
+          account: command.account,
+          device: command.device,
+        })
         break
       }
     }
