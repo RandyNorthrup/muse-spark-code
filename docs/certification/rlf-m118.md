@@ -8,6 +8,10 @@ gist scope; the bytes are scrubbed again at the send; a file name with a
 folder, home or account is refused; a create that is not a confirmed
 secret gist at `https://gist.github.com/` is deleted when its id can be
 read. The review record is `docs/certification/rvcred.md` on `rv/cred`.
+A follow-up on this branch keeps a still-unexpired gist grant only when
+the refresh fails as a sign-in failure, and throws any other error, so
+the catch inventory does not gain a generic site. The sign-in ask is one
+helper, and the send tests share theirs, so those files add no clone.
 
 Branch `rec/rlf-m118`, worktree on macbook (the owner's MacBook),
 2026-10-23/2026-10-30. Base: `f53ef168f` (main at 0.19.0 plus 40
