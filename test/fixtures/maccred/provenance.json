@@ -1,0 +1,34 @@
+{
+  "capturedAt": "2026-10-30T18:56:00Z",
+  "cli": "Muse Code 1.4.11 (1.4.11-R6667.1)",
+  "sdk": "@muse-code/sdk 1.4.11",
+  "platform": "darwin (Mac mini, arm64)",
+  "lane": "RLF-MACCRED (RLF-HARVEST brief B4, defect H9)",
+  "commands": [
+    "muse-bin-1.4.11-R6667.1 serve (child process per shape; initialize with experimentalApi, one account/read, close; driven by the lane's gitignored temp/maccred/probe.mjs over @muse-code/sdk 1.4.11)"
+  ],
+  "isolation": "fresh mkdtemp home per shape holding HOME, USERPROFILE and every XDG_*_HOME; META_API_KEY, TBH_CREDENTIAL_BACKEND and MUSE_AUTH_PATH removed; every proxy variable pointed at the dead 127.0.0.1:9; museHome verified inside the throwaway home; the machine's real auth.json only stat'ed (1083 bytes, mtime unchanged before and after every run); every home deleted and checked gone",
+  "modelAttempts": "0 by construction: only initialize and account/read were sent, never session/start or turn/start; no session started, no sign-in or sign-out made, no token read (shapes synthetic with placeholder values; the browser-login key layout was read from the machine's own file as key names only)",
+  "notes": [
+    "muse auth set itself was NOT run on macOS: it may store into the login Keychain, which the lane must never modify. The v1-auth-set shape is the auth-set shape as captured on Windows/Linux (probe-authset-*), given to macOS serve here.",
+    "v1-browser-login.macos.json carries the key layout of this Mac mini's own file (schema 1, meta with access_token, obtained_via, mechanism, api_key, api_base_url, subs_active, user_full_name, user_email, user_avatar_url), values replaced by placeholders. subs_active is new against the September granted capture.",
+    "stderr stayed empty except the browser-login case (startup model-catalog fetch failed against the dead proxy, automated reviewer unavailable); both lines name no path or account."
+  ],
+  "results": {
+    "v1-auth-set.json": {
+      "serve": "starts",
+      "accountRead": { "state": "apiKey", "credentialRequired": true },
+      "verdict": "inline on darwin, linux and win32"
+    },
+    "v1-browser-login.macos.json": {
+      "serve": "starts",
+      "accountRead": { "state": "accountLogin", "credentialRequired": true },
+      "verdict": "inline on darwin, linux and win32"
+    },
+    "v2-empty.json": {
+      "serve": "starts on macOS (unlike the exit 3 off macOS)",
+      "accountRead": { "state": "loggedOut", "credentialRequired": true },
+      "verdict": "unrecognized on darwin (whether a Keychain item could sign it in is uncaptured, so the CLI is still asked); unsupportedHere on linux and win32"
+    }
+  }
+}

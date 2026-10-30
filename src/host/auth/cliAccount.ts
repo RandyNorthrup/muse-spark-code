@@ -3,8 +3,8 @@
 // deleting it, so the file being there says nothing on its own:
 // - No file: signed out on every OS, and no process is started.
 // - A file is read for its structure only (credentialFile.ts); a sign-out's
-//   empty file is signed out, and off macOS a file holding the credential in
-//   a captured shape is signed in.
+//   empty file is signed out, and a file holding the credential in a
+//   captured shape is signed in, on every OS (macOS captured 2026-10-30).
 // - A macOS Keychain pointer, any other file on macOS, and a file the
 //   structure cannot place are asked of the CLI itself (`account/read` on a
 //   short-lived host), and that answer is kept until the file's size or
@@ -230,7 +230,7 @@ export class CliAccount {
 
   /**
   What the credential file settles alone, without asking the CLI (F60):
-  `signedOut` for no file, `signedIn` for an inline credential off macOS,
+  `signedOut` for no file, `signedIn` for an inline credential on every OS,
   undefined when only the CLI can say. Synchronous, so activation can show
   it before a refresh's remaining reads answer.
   */
