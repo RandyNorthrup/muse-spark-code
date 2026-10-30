@@ -169,6 +169,7 @@ function valueAt(args: Readonly<Record<string, unknown>>, path: readonly string[
     if (!isRecord(node) || !Object.hasOwn(node, key)) {
       return undefined
     }
+    // nosemgrep: javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop -- a read-only walk: the loop never assigns, every step is Object.hasOwn-guarded, and header names are `Mcp-Param-` plus a token-validated suffix, so no `__proto__` write exists to pollute (PLAN.md §8)
     node = node[key]
   }
   return node
