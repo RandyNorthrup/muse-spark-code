@@ -1658,7 +1658,7 @@ export class MuseSession implements ScheduledAgentSession {
         throw error
       }
       this.log.info(
-        `Scheduled approval ${event.approvalId}: Muse Code fault ${error.fault}; the decision applied`,
+        `Scheduled approval ${event.approvalId} decision applied while Muse Code faulted: ${failureForLog(error)}`,
       )
     }
   }

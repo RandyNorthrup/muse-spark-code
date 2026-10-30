@@ -13,7 +13,7 @@
     },
     "host": {
       "SWALLOW": 18,
-      "GENERIC": 95,
+      "GENERIC": 94,
       "CLEANUP": 90
     },
     "root": {
@@ -3146,11 +3146,6 @@
     {
       "file": "src/host/commands/museConfigCommands.ts",
       "identity": "a5273301094435a67392f47f75519b215fc436800cca98497943bece948de876",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/conversation/conversationController.ts",
-      "identity": "0950633ad23b6bf0596059084a6fb9c82f3863f95b3ef8d04f55c7402dcdbcca",
       "class": "GENERIC"
     },
     {
