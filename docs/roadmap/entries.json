@@ -1310,6 +1310,11 @@
       "note": "recovery: safety limits the too-broad D121 reading removed, restored"
     },
     {
+      "id": "RLFNOSTUBS",
+      "public": false,
+      "note": "recovery: older stub-style test seams rewritten over real parts"
+    },
+    {
       "id": "SDK142",
       "public": false,
       "note": "Muse Code CLI fingerprint and documentation update"
