@@ -1,8 +1,8 @@
 {
   "source": "https://models.dev/api.json",
   "upstream": "https://github.com/anomalyco/models.dev",
-  "fetchedAt": "2026-10-22",
-  "downloadSha256": "e53f98262797f19766f4c47512cc3256d5113e62e18d09b5f4b56de22e07fb5e",
+  "fetchedAt": "2026-10-30",
+  "downloadSha256": "c26577caf4fee14bf9342ebc1099761a2b204cd79d466fc52e68544163bf501d",
   "providers": [
     "anthropic",
     "azure",
@@ -25,7 +25,7 @@
     },
     {
       "path": "snapshot.json",
-      "sha256": "22d8d1fa3b3a5d2aaa8444b393bd762bc3775e44aa4b35def31e5b3d98e453ef"
+      "sha256": "d8846b1fe9d59a4595125ca1be01d99fa0d38e2027f4e35e964451e12b80d917"
     }
   ]
 }
