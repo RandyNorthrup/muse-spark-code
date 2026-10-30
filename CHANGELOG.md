@@ -28,6 +28,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **The terminal agent and headless runs now move their stored keys into
+  the vault too.** When the vault unlocks in the CLI, the ACP agent or a
+  headless run, every key in the operating system's credential store —
+  the Model API key, each provider's record, the ChatGPT sign-in and
+  pooled account keys — is copied into the vault, verified, kept
+  mirrored as keys rotate, and read back from the vault once a slot
+  retires, exactly as the editor window already did.
 - Best-of-N shows each attempt's reported tokens in the side-by-side
   comparison, plus its reported cost where the attempt's usage reports
   carry one, and the take notice names the taken attempt's reported use
@@ -252,6 +259,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Stored keys are read from the operating system's credential store
+  once per window or process, not on every use.** Reading a key dozens
+  of times in one turn made rare credential-store failures (notably the
+  Linux Secret Service) a certainty; one shared, remembered read per
+  entry makes them rare again. A key replaced elsewhere, a secret the
+  editor reports changed, or a key a provider answers 401 or 403 to is
+  read from the store once more on its next use.
 - **A vault no longer reports itself lost when it was never set up.** The
   vault's rollback record in the operating system's credential store is now
   keyed to the vault it protects, so nothing outside that vault can read

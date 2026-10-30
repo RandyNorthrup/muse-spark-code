@@ -1747,6 +1747,8 @@ deferred-aggregate and individual caps are unchanged.
 
 **`dist/mcpVault.js` budget rationale.** (POSTSPAWN: 13.4 KiB +15%, rounded to 25 KiB; the vault-backed MCP start, off activation)
 
+**`dist/vaultRuntimeMigration.js` budget rationale.** (RLF-M109: the runtime key-store migration — controller, engine, codecs and the first-party reader — loaded by `dist/vaultRuntime.js` on the first unlock edge only; 60.2 KiB measured plus 15%, rounded up to 70 KiB; shipped in the ACP package and the VSIX beside the vault runtime that names it)
+
 **`dist/resourceAdmission.js` budget rationale.** (M107 W: 1.8 KiB, shared process admission)
 
 **Resource controls/history budget rationale.** ≤ 25 KiB physical entries; ≤ 50 KiB each lazy closure; history CSS included (35.9/42.2 KiB closures); original deferred cap stays 50 KiB
@@ -30311,6 +30313,31 @@ design — its launch half has no packaging and every behavior needs
 real runs. Undo trigger, vault-reset restoration of retired slots
 and the companion surface are owner/product questions. macOS and
 Windows proofs stay with the lead and hosted CI.
+
+**RLF-M109 recovery (2026-10-30, macmini): building.** The reconciled
+keystore one-owner wrapper landed (source 07 as RLM109 redesigned it:
+single-flight remembered reads, `forget` on a 401/403 key rejection
+and on the editor's change notice, retained causes, no retry), and
+the runtime key-store migration binding is bound: its own lazy chunk
+(`dist/vaultRuntimeMigration.js`, 60.2/70 KiB; `dist/vaultRuntime.js`
+24.4/25 KiB) loaded on the first unlock edge in the CLI, ACP and
+headless processes, the controller over `migrateKeyStore` with
+providers listed from the person's file and pooled accounts from the
+file-backed pool, and the process's secrets behind the migration
+shell so runtime writes mirror and retired slots read from the vault.
+Both broker suites drive the runtime binding's pooled slot for CI.
+T5 (the engine secret-use consumer) stays blocked on its broker-side
+owners, measured in `docs/certification/rlf-m109.md`: the installed
+broker bindings refuse agent use three times over (`ceiling: 'none'`
+denies every use in policy, the channel's `taint` rejects, and
+`perform` rejects — "T/X/S/O transport owners supply provenance and
+execution before agent use is enabled"), and no feeder redemption
+transport (ticket-to-material over an authenticated feeder channel,
+with feeder peer authentication and lifetime/terminate) is designed
+in the record. No partial wiring shipped: the shell tool keeps
+refusing `secrets` with the broker sentence until those owners land.
+Open questions with options and a recommendation are in the
+certification record. M109 stays open.
 
 **C-M109-1 lead decisions (2026-10-10, lead decision).** In 0.17.0, every
 vault use is refused. The binding layer was never built: the broker process,
