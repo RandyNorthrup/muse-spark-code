@@ -223,3 +223,27 @@ code at b781451b94 and the commits since 2026-10-20, not from lane prose. The
 `--no-session-log`, scratch homes). Nothing here claims a behaviour no line,
 test or capture above shows: H7's person-facing half and H8's emitter are
 marked UNMEASURED/not identified rather than guessed.
+
+## Gates on this lane's final tree (linuxlt, direct)
+
+Exit 0: prettier and `eslint --max-warnings 0` on every touched file,
+`npm run typecheck`, `node scripts/check-l10n.mjs`, `npm run check:reference`,
+`npm run check:host-api`, `npm run check:plan`, `npm run check:roadmap`,
+`npm run check:catches`, `npm run duplication`, `npm run cycles`,
+`npm run deadcode`, `npm run security:audit`, `npm run build` (all budgets).
+Suites: `museCodeLatest` + `mapNotification` 103 passed; `vitest related`
+over `mapNotification.ts` 354 passed (3 skipped) and over `MuseCodeHost.ts`
+160 passed (3 skipped); `sessionTitles` + `m106CaptureFixtures` +
+`acpPermissionAsk` 32 passed. Repository timeouts throughout;
+`--testTimeout` never used.
+
+One gate is red and is not this lane's: `SEMGREP_ENABLE_VERSION_CHECK=0
+npm run security:sast` → exit 1, 6 blocking findings, none in a file this
+lane touched — `os/build.py:79`, `os/pi/compose.py:607,609`,
+`scripts/build-packs.mjs:2432`, `src/core/backends/modelapi/mcp/headers.ts:172`,
+`src/runtime/node/keyStore.ts:86` (identified by a full `--json` scan). The
+same scan over this lane's four touched source/test files finds 0, and
+`git diff b781451b94 HEAD` over the six finding files is empty, so they stand
+on int as they were; the lead owns them. Not run: integration and a11y suites
+(no UI surface changed; the fixes are core notice mapping), vault and OS
+credential-store suites (nothing here touches them).
