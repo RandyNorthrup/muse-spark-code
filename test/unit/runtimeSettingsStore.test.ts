@@ -139,6 +139,13 @@ describe('RuntimeSettingsStore', () => {
     expect(await store.getSetting('museSpark.github.useGhLogin')).toBe(false)
     await store.updateSetting('museSpark.github.useGhLogin', true, 'user')
     expect(await store.getSetting('museSpark.github.useGhLogin')).toBe(true)
+    // The resource governor's settings are machine-scoped in the manifest
+    // (scope: machine) and read from the user's file alone: a workspace-scope
+    // write refuses instead of landing in that file (D15).
+    expect(
+      await refusal(store.updateSetting('museSpark.resourceCpuMaxPercent', 50, 'workspace')),
+    ).toBe('MHP_STATE_MACHINE_SETTING')
+    expect(await store.getSetting('museSpark.resourceCpuMaxPercent')).toBeNull()
   })
 
   it('tells which settings the person has set, and never counts a default', async () => {

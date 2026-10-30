@@ -318,7 +318,11 @@ export class RuntimeSettingsStore {
   */
   public async updateSetting(key: string, value: JsonValue, scope: StateScope): Promise<void> {
     const named = this.named(key)
-    if (scope === 'workspace' && machineNames.has(named.name))
+    // The governor's settings are machine-scoped too (the manifest's
+    // `scope: machine`; `readResourceSettings` reads the user's value alone):
+    // their slot is the user's file in either scope, so a workspace write
+    // refuses instead of landing there.
+    if (scope === 'workspace' && (named.kind === 'resource' || machineNames.has(named.name)))
       throw new RuntimeStateError('machineSetting')
     try {
       validValue(named, value)
