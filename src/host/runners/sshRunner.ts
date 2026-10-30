@@ -140,13 +140,14 @@ export function runnerInvocation(
 ): string {
   const quote = runner.os === 'win32' ? powerShellQuoted : posixQuoted
   const call = `${runner.os === 'win32' ? '&' : 'bash'} ${quote(helper)} ${[action, runner.workFolder, ...args].map((value) => quote(value)).join(' ')}`
-  if (runner.os !== 'win32') return call
   // The helper is a script FILE: a policy that forbids scripts refuses it
   // before its first line. The wrapper relays the error record's category
   // and fully qualified id to stderr behind the fixed marker and rethrows,
   // so the launch reports the refusal instead of a bare failure; the success
-  // path is byte-for-byte the call above, and the helper itself is untouched.
-  return `try { ${call} } catch { [Console]::Error.WriteLine("${RUNNER_EXECUTION_POLICY_MARKER} category=$($_.CategoryInfo.Category) fqid=$($_.FullyQualifiedErrorId)"); throw }`
+  // path is byte-for-byte `call`, and the helper itself is untouched.
+  return runner.os === 'win32'
+    ? `try { ${call} } catch { [Console]::Error.WriteLine("${RUNNER_EXECUTION_POLICY_MARKER} category=$($_.CategoryInfo.Category) fqid=$($_.FullyQualifiedErrorId)"); throw }`
+    : call
 }
 
 function remoteCommand(runner: Runner, script: string): string {
@@ -538,9 +539,12 @@ export class SshRunner {
         if (Buffer.byteLength(encoded, 'base64') > GIT_OUTPUT_MAX_BYTES)
           throw new RunnerTestFailedError()
         const next = Buffer.from(encoded, 'base64')
-        if (next.toString('base64') !== encoded || next.length > GIT_OUTPUT_MAX_BYTES)
-          throw new RunnerTestFailedError()
-        if (next.length < bytes.length || !next.subarray(0, bytes.length).equals(bytes))
+        if (
+          next.toString('base64') !== encoded ||
+          next.length > GIT_OUTPUT_MAX_BYTES ||
+          next.length < bytes.length ||
+          !next.subarray(0, bytes.length).equals(bytes)
+        )
           throw new RunnerTestFailedError()
         const appended = decoder.decode(next.subarray(bytes.length), {
           stream: state.state !== 'ended',
@@ -578,18 +582,21 @@ export class SshRunner {
           return { kind: 'busy', reason: 'executionPolicy' }
         if (error instanceof RunnerUntrustedError) return { kind: 'offline' }
         this.admit(job.signal)
-        if (error instanceof RunnerOfflineError) return { kind: 'offline' }
-        if (error instanceof RunnerTestFailedError) return { kind: 'offline' }
+        if (error instanceof RunnerOfflineError || error instanceof RunnerTestFailedError)
+          return { kind: 'offline' }
         if (!isTransportError(error)) throw error
         return { kind: 'offline' }
       }
       // The start command went onto the wire, or its proof was lost: never
       // local. Only policy, proved protocol sentences, untrusted receivers,
       // transport failures and an unreadable answer read that way.
-      if (error instanceof RunnerPolicyRefusedError) return { kind: 'uncertain' }
-      if (error instanceof RunnerTestFailedError) return { kind: 'uncertain' }
-      if (error instanceof RunnerUntrustedError) return { kind: 'uncertain' }
-      if (error instanceof SyntaxError) return { kind: 'uncertain' }
+      if (
+        error instanceof RunnerPolicyRefusedError ||
+        error instanceof RunnerTestFailedError ||
+        error instanceof RunnerUntrustedError ||
+        error instanceof SyntaxError
+      )
+        return { kind: 'uncertain' }
       if (!isTransportError(error)) throw error
       return { kind: 'uncertain' }
     } finally {

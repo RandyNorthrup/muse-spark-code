@@ -175,9 +175,9 @@ export function createTabLedger(
       return undefined
     }
     const file = ledgerFileSchema.safeParse(parsed)
-    return !file.success || file.data.date !== date || file.data.window !== deps.windowId
-      ? undefined
-      : { reservedUsd: file.data.reservedUsd, reportedUsd: file.data.reportedUsd }
+    return file.success && file.data.date === date && file.data.window === deps.windowId
+      ? { reservedUsd: file.data.reservedUsd, reportedUsd: file.data.reportedUsd }
+      : undefined
   }
 
   const didWriteOwn = async (date: string, file: LedgerFile): Promise<boolean> => {

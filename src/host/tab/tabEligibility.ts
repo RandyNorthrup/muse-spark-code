@@ -149,17 +149,15 @@ export function inferTabPartialAccept(
   tracked: TabTrackedItem,
   change: TabDocumentChange,
 ): string | undefined {
-  if (change.uriString !== tracked.uriString) {
-    return undefined
-  }
-  if (change.startLine !== tracked.line || change.startCharacter !== tracked.character) {
-    return undefined
-  }
-  if (change.endLine !== tracked.line || change.endCharacter !== tracked.character) {
-    // A replacement, not an insertion at the item's position.
-    return undefined
-  }
-  if (change.insertedText.length < 2) {
+  // A replacement, not an insertion at the item's position.
+  if (
+    change.uriString !== tracked.uriString ||
+    change.startLine !== tracked.line ||
+    change.startCharacter !== tracked.character ||
+    change.endLine !== tracked.line ||
+    change.endCharacter !== tracked.character ||
+    change.insertedText.length < 2
+  ) {
     return undefined
   }
   return tracked.rest.startsWith(change.insertedText)
@@ -219,18 +217,15 @@ export async function isTabFileEligible(
   ) {
     return false
   }
-  if (deps.hooks !== undefined) {
-    if (candidate.content === undefined) {
-      // The hook reads the full text; without it the hook cannot run, and
-      // every hook failure fails closed.
-      return false
-    }
-    if (
+  // The hook reads the full text; without it the hook cannot run, and
+  // every hook failure fails closed.
+  if (
+    deps.hooks !== undefined &&
+    (candidate.content === undefined ||
       deps.hookContext === undefined ||
-      !(await deps.hooks.beforeRead(candidate.absolutePath, candidate.content, deps.hookContext))
-    ) {
-      return false
-    }
+      !(await deps.hooks.beforeRead(candidate.absolutePath, candidate.content, deps.hookContext)))
+  ) {
+    return false
   }
   return true
 }

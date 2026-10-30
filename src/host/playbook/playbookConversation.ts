@@ -755,8 +755,7 @@ export function createPlaybookConversation(
       if (prior !== undefined) {
         // A terminal state is final: an arrival older than what was seen is
         // ignored, so a replayed row settles no later round.
-        if (prior.status !== IN_PROGRESS_STATUS) return
-        if (item.status === IN_PROGRESS_STATUS) return
+        if (prior.status !== IN_PROGRESS_STATUS || item.status === IN_PROGRESS_STATUS) return
         seen.set(key, { status: item.status, round: prior.round })
         finished.add(key)
         settle(sessionId, key)

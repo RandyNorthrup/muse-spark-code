@@ -165,10 +165,9 @@ export async function managedConfiguration(
   } catch {
     return { ok: false, reason: 'could not read status' }
   }
-  if (result.exitCode !== 0) {
-    // CLI output is untrusted and may contain managed credentials. The
-    // report needs its exit code, never stderr or partial stdout.
-    return { ok: false, reason: `exit code ${String(result.exitCode)}` }
-  }
-  return { ok: true, text: result.stdout }
+  // CLI output is untrusted and may contain managed credentials. The
+  // report needs its exit code, never stderr or partial stdout.
+  return result.exitCode === 0
+    ? { ok: true, text: result.stdout }
+    : { ok: false, reason: `exit code ${String(result.exitCode)}` }
 }

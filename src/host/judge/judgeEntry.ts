@@ -435,7 +435,7 @@ export function createWindowJudge(
   // action's verdict.
   const selectedBinding = (action: JudgeEntryParts) => {
     const selected = phase2?.binding(action)
-    return selected !== undefined && selected.context.turn !== action.turnId ? undefined : selected
+    return selected === undefined || selected.context.turn === action.turnId ? selected : undefined
   }
   // The window's live trigger identity for one action: what it observes
   // itself (its context, engine and paid-consent grant), never a re-read of

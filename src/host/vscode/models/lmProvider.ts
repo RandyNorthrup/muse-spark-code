@@ -109,8 +109,8 @@ export function createEditorChat(deps: EditorChatDeps) {
         { modal: true },
         UI_TEXT.editorChatEnable,
       )
-      if (answer !== UI_TEXT.editorChatEnable) return fail()
-      if (!deps.allowed() || !model.isCurrent()) return fail()
+      if (answer !== UI_TEXT.editorChatEnable || !deps.allowed() || !model.isCurrent())
+        return fail()
       if (requiresSelected && !selected().includes(ref)) return fail()
       await deps.saveConfirmation(ref, editorChatConfirmationEvidence(model))
       // A removal that lands with the grant write must not leave a revoked
@@ -211,8 +211,13 @@ export function createEditorChat(deps: EditorChatDeps) {
       })
       if (worst === undefined) return fail()
       await confirm(ref, model, true)
-      if (!deps.allowed() || !selected().includes(ref) || !model.isCurrent()) return fail()
-      if (!isConfirmed(ref, model)) return fail()
+      if (
+        !deps.allowed() ||
+        !selected().includes(ref) ||
+        !model.isCurrent() ||
+        !isConfirmed(ref, model)
+      )
+        return fail()
       const abort = new AbortController()
       active.add(abort)
       const subscription = token.onCancellationRequested(() => {
@@ -227,9 +232,14 @@ export function createEditorChat(deps: EditorChatDeps) {
       let outcome: 'completed' | 'incomplete' | 'failed' | 'cancelled' = 'failed'
       const guard = () => {
         abort.signal.throwIfAborted()
-        if (!deps.allowed() || !selected().includes(ref) || !model.isCurrent()) return fail()
-        if (!isConfirmed(ref, model)) return fail()
-        if (state.isDispatched) return fail() // Automatic retries cannot spend twice.
+        if (
+          !deps.allowed() ||
+          !selected().includes(ref) ||
+          !model.isCurrent() ||
+          !isConfirmed(ref, model) ||
+          state.isDispatched
+        )
+          return fail() // Automatic retries cannot spend twice.
       }
       guard.onRequestStarted = () => {
         guard()

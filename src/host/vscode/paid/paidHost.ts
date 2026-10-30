@@ -196,16 +196,15 @@ export async function askPaidUse(
   if (request.feature === 'bestOfN' && modelApiPaidTier(request.modelId) === undefined) {
     return 'deny'
   }
-  if (request.feature === 'tab') {
-    // Tab bills the request's model per token (M94, PLAN.md D73): with no
-    // verified rate, or no usable budget to quote, nothing is asked and the
-    // request is refused before any popup.
-    if (modelApiPaidTier(request.modelId) === undefined) {
-      return 'deny'
-    }
-    if (Usd.from(request.budgetUsd).compare(Usd.from(0)) < 0) {
-      return 'deny'
-    }
+  // Tab bills the request's model per token (M94, PLAN.md D73): with no
+  // verified rate, or no usable budget to quote, nothing is asked and the
+  // request is refused before any popup.
+  if (
+    request.feature === 'tab' &&
+    (modelApiPaidTier(request.modelId) === undefined ||
+      Usd.from(request.budgetUsd).compare(Usd.from(0)) < 0)
+  ) {
+    return 'deny'
   }
   // No verified price, nothing to accept (M48, M78): refused before any popup.
   if (request.feature === 'hookModels' && modelApiPaidTier(request.modelId) === undefined) {
