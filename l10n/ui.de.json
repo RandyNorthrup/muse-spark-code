@@ -6329,6 +6329,8 @@
     "brokerBlocked": "Der Broker kann nicht starten. Eigene Clients können ihre Schlüssel nutzen; Agentennutzungen werden verweigert. Reparieren Sie die Broker-Installation.",
     "switchedOff": "Der Zugangsdaten-Tresor ist in den Einstellungen ausgeschaltet. Zum Verwenden museSpark.vault.enabled einschalten.",
     "noUnattended": "{item} benötigt eine unbeaufsichtigte Berechtigung für {use}. Erstellen Sie sie im Tresor oder führen Sie die Nutzung interaktiv aus.",
+    "ceilingNone": "Keine Tresorrichtlinie erlaubt diese Verwendung. Legen Sie zuerst mit dem Richtlinienbefehl des Tresors eine Obergrenze für diesen Arbeitsbereich und diese Rolle fest.",
+    "policyCeilings": "Obergrenzen der Tresorrichtlinie",
     "nopasswd": "Sudo mit NOPASSWD ist verfügbar. Jeder genehmigte Befehl kann Root-Rechte erhalten; der Tresor bietet hier keinen zusätzlichen Schutz.",
     "fenceOff": "Ohne die Abschirmung erhält die Hauptkonversation Ihre Umgebung und Zugangsrouten. Worker bleiben abgeschirmt.",
     "ambientWarning": "Ein genehmigter Befehl kann Dateien lesen, die Sie lesen können. Der Import von Zugangsdaten verbirgt andere Dateien nicht.",

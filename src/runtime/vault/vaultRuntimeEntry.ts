@@ -41,6 +41,8 @@ import { HeadlessVaultSession, type ExecVaultContext, type ExecVaultSession } fr
 import type { WindowsBrokerPlatform } from './windowsHost'
 import type { VaultCommandPort } from './vaultCommand'
 import type { RuntimeVaultBinding, RuntimeVaultContext } from './vaultRuntime'
+import { readVaultPolicy, writeVaultPolicy } from './vaultPolicy'
+import { vaultBrokerDataDir } from './vaultStoreScope'
 import type { AcpVault } from '../../acp/vault'
 import type { VaultApprovalRequest } from '../../shared/vault'
 
@@ -371,6 +373,12 @@ export async function createRuntimeVault(
         await openHeadlessVault(connect, execContext, hostId, context.processId),
     },
     ensureMigrated,
+    policy: {
+      read: async () => await readVaultPolicy(vaultBrokerDataDir(context.dataDir)),
+      write: async (policy) => {
+        await writeVaultPolicy(vaultBrokerDataDir(context.dataDir), policy)
+      },
+    },
   }
 }
 

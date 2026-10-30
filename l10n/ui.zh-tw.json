@@ -6164,6 +6164,8 @@
     "brokerBlocked": "代理服務無法啟動。內部用戶端的金鑰仍可使用，但代理的使用要求遭拒。請修復服務安裝。",
     "switchedOff": "憑證庫已在設定中關閉。若要使用，請啟用 museSpark.vault.enabled。",
     "noUnattended": "{item} 需要用於 {use} 的無人值守授權。請在憑證庫中新增，或以互動方式執行。",
+    "ceilingNone": "沒有任何保管庫原則允許此使用。請先使用保管庫原則指令為此工作區和角色設定上限。",
+    "policyCeilings": "保管庫原則上限",
     "nopasswd": "可使用 NOPASSWD sudo。任何已核准的命令都可能取得 root 權限；憑證庫在此不提供額外保護。",
     "fenceOff": "關閉隔離會向主要對話公開您的環境和憑證取得途徑。工作代理仍保持隔離。",
     "ambientWarning": "已核准的命令可以讀取您能讀取的檔案。匯入憑證不會隱藏其他檔案。",

@@ -78,6 +78,10 @@ export class HeadlessVaultSession implements ExecVaultSession {
         detail = UI_TEXT.vault.useChanged
         break
       }
+      case 'ceiling': {
+        detail = UI_TEXT.vault.ceilingNone
+        break
+      }
       default: {
         break
       }

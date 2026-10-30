@@ -6659,6 +6659,8 @@
     "brokerBlocked": "Zprostředkovatel se nemůže spustit. Klíče vlastních klientů fungují; použití agenty je odmítnuto. Opravte jeho instalaci.",
     "switchedOff": "Úložiště přihlašovacích údajů je vypnuté v nastaveních. K použití zapněte museSpark.vault.enabled.",
     "noUnattended": "{item} potřebuje bezobslužné oprávnění pro {use}. Přidejte je v trezoru nebo spusťte interaktivně.",
+    "ceilingNone": "Žádné zásady trezoru toto použití nepovolují. Nejprve příkazem pro zásady trezoru nastavte limit pro tento pracovní prostor a roli.",
+    "policyCeilings": "Limity zásad trezoru",
     "nopasswd": "Je dostupné sudo s NOPASSWD. Každý schválený příkaz může získat práva root; trezor zde nepřidává ochranu.",
     "fenceOff": "Vypnutí ochrany zpřístupní prostředí a přihlašovací cesty hlavní konverzaci. Pracovní agenti zůstávají chráněni.",
     "ambientWarning": "Schválený příkaz může číst soubory, které můžete číst vy. Import údajů neskryje ostatní soubory.",

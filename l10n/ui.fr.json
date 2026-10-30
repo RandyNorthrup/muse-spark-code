@@ -6494,6 +6494,8 @@
     "brokerBlocked": "Le courtier ne peut pas démarrer. Les clés des clients internes fonctionnent encore ; les usages des agents sont refusés. Réparez son installation.",
     "switchedOff": "Le coffre d’identifiants est désactivé dans les paramètres. Activez museSpark.vault.enabled pour l’utiliser.",
     "noUnattended": "{item} nécessite une autorisation sans surveillance pour {use}. Ajoutez-la au coffre-fort ou lancez l’opération de manière interactive.",
+    "ceilingNone": "Aucune politique du coffre n'autorise cette utilisation. Définissez d'abord un plafond pour cet espace de travail et ce rôle avec la commande de politique du coffre.",
+    "policyCeilings": "Plafonds de la politique du coffre",
     "nopasswd": "Sudo avec NOPASSWD est disponible. Toute commande approuvée peut obtenir les droits root ; le coffre-fort n’ajoute aucune protection ici.",
     "fenceOff": "Désactiver la barrière expose votre environnement et les accès aux identifiants à la conversation principale. Les agents de travail restent protégés.",
     "ambientWarning": "Une commande approuvée peut lire les fichiers que vous pouvez lire. Importer les identifiants ne masque pas les autres fichiers.",

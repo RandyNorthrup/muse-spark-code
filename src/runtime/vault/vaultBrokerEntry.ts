@@ -122,9 +122,7 @@ export interface VaultBrokerBindings {
   readonly onAuditFailure: VaultBrokerDeps['onAuditFailure']
   readonly identify: VaultChannelDeps['identify']
   readonly ceiling: VaultChannelDeps['ceiling']
-  readonly lifetime: VaultChannelDeps['lifetime']
-  readonly perform: VaultChannelDeps['perform']
-  readonly taint: VaultChannelDeps['taint']
+  readonly oneTimeCode: VaultChannelDeps['oneTimeCode']
   readonly scrub: VaultChannelDeps['scrub']
   /** The user's home: the management side imports only files discovered there. */
   readonly home: string
@@ -319,9 +317,7 @@ export async function buildBrokerChannel(
     brokerId: location.lock.brokerId,
     identify: bindings.identify,
     ceiling: bindings.ceiling,
-    lifetime: bindings.lifetime,
-    perform: bindings.perform,
-    taint: bindings.taint,
+    oneTimeCode: bindings.oneTimeCode,
     scrub: bindings.scrub,
   })
 }

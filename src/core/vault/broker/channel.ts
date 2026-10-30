@@ -12,6 +12,8 @@ import {
 } from '../../../shared/constants'
 import {
   vaultBrokerEventFrameSchema,
+  vaultPrivateExecMaterialSchema,
+  vaultPrivateExecRefusedSchema,
   vaultPrivateMaterialSchema,
   vaultPrivateRecoveryCodeSchema,
   type VaultBrokerRequest,
@@ -20,8 +22,8 @@ import {
 } from '../../../shared/vaultProtocol'
 import {
   vaultItemSchema,
+  type VaultItem,
   type VaultRequester,
-  type VaultUse,
   type VaultTaint,
   type VaultAuditRecord,
 } from '../../../shared/vault'
@@ -40,6 +42,9 @@ import {
   type VaultConnectionIdentity,
 } from './ports'
 import { type RegistrationToken, type ConnectionToken } from './state'
+import { combineVaultTaint } from '../taint'
+import { redeemVaultExecLease } from '../exec/brokerLease'
+import { type VaultExecLease } from '../exec/feeder'
 import { type VaultCeiling } from './policy'
 import { type VaultPeerVerifier, type VaultProcessIdentity } from './peer'
 
@@ -51,8 +56,6 @@ import {
 export type { VaultConnectionIdentity } from './ports'
 export interface VaultChannelDeps {
   listener?: VaultSecuredListenerPort
-  /** T's trusted provenance, including Muse Code's sticky session taint; frame claims cannot clear it. */
-  taint(requester: VaultRequester): Promise<VaultTaint>
   broker: VaultBroker
   peers: VaultPeerVerifier
   bootToken: string
@@ -63,10 +66,10 @@ export interface VaultChannelDeps {
     hostId: string,
     hostSession: string,
   ): Promise<VaultConnectionIdentity>
-  ceiling(requester: VaultRequester): VaultCeiling
-  /** S/X/L/O dispatch only here after redemption. This never returns values on a public frame. */
-  lifetime(requester: VaultRequester, socket: Duplex): VaultUseLifetime
-  perform(requester: VaultRequester, ticketId: string, use: VaultUse, socket: Duplex): Promise<void>
+  /** D216: the person vault policy's ceiling for this workspace and role. */
+  ceiling(requester: VaultRequester): Promise<VaultCeiling>
+  /** L computes in the broker; only the current TOTP code reaches a feeder. */
+  oneTimeCode(item: VaultItem): Promise<Uint8Array>
   scrub(text: string): Promise<string>
   /** Protocol v2's management side; only manage connections reach it. */
   manage: VaultManagementPort
@@ -137,6 +140,8 @@ export class VaultChannelServer {
     Duplex,
     { identity: VaultConnectionIdentity; token?: RegistrationToken }
   >()
+  /** D216 lane T: provenance reported per incarnation-bound connection. */
+  private readonly provenance = new Map<Duplex, VaultTaint>()
   private readonly unsubscribe: () => void
   constructor(private readonly deps: VaultChannelDeps) {
     this.unsubscribe = deps.broker.subscribeInvalidation((requesterId, token) => {
@@ -193,7 +198,7 @@ export class VaultChannelServer {
           const bound = await broker.registerOnConnection(
             identity.peer,
             request.requester,
-            this.deps.ceiling(request.requester),
+            await this.deps.ceiling(request.requester),
             connection,
           )
           identity.requester = structuredClone(request.requester)
@@ -204,7 +209,7 @@ export class VaultChannelServer {
           await broker.register(
             identity.peer,
             request.requester,
-            this.deps.ceiling(request.requester),
+            await this.deps.ceiling(request.requester),
           )
         return { kind: 'ok' }
       }
@@ -218,16 +223,40 @@ export class VaultChannelServer {
           ? { kind: 'items', items: [...(await broker.list(requester, token))] }
           : denied
       }
+      case 'reportProvenance': {
+        // D216 lane T: only the incarnation-bound connection reports, and a
+        // report can only add taint for the rest of the connection's life.
+        if (!requester || !token) return denied
+        const reported = this.provenance.get(socket)
+        this.provenance.set(
+          socket,
+          reported ? combineVaultTaint([reported, request.taint]) : request.taint,
+        )
+        return { kind: 'ok' }
+      }
+      case 'delegate': {
+        if (!requester || !token) return denied
+        const isDelegated = await broker.delegate(
+          request.ticketId,
+          request.feeder,
+          request.envelopeDigest,
+          token,
+        )
+        return isDelegated ? { kind: 'ok' } : denied
+      }
       case 'requestUse': {
         if (!requester) return denied
-        const taint = await this.deps.taint(requester)
-        // Cancellation closes this incarnation's socket, including while provenance is loading.
+        // D216: the reported provenance is evaluated, validated against
+        // this registration; a proposal may add taint, never clear it. A
+        // host that has not reported has no provenance owner: refuse.
+        const reported = this.provenance.get(socket)
+        if (!reported || !token) return denied
         if (socket.destroyed) return denied
         const result = await broker.request(
           requester,
           request.proposal.handle,
           request.proposal.use,
-          taint,
+          combineVaultTaint([reported, request.proposal.taint]),
           token,
         )
         return socket.writable ? result : denied
@@ -278,17 +307,11 @@ export class VaultChannelServer {
           : denied
       }
       case 'redeem': {
-        if (!requester) return denied
-        const result = await broker.redeem(
-          requester.id,
-          request.ticket,
-          request.use,
-          this.deps.lifetime(requester, socket),
-          token,
-        )
-        if (result.kind === 'ticket')
-          await this.deps.perform(requester, result.ticket.id, request.use, socket)
-        return result
+        // D216: material never travels on the requester socket. Exec uses
+        // redeem through a delegation on the feeder's own connection
+        // (private `execRedeem`); the host's own in-process redemptions
+        // keep the broker API's object-identity binding.
+        return denied
       }
       case 'snapshot':
       case 'editMetadata':
@@ -397,6 +420,121 @@ export class VaultChannelServer {
       return refused
     }
   }
+  /**
+  D216 lane X: one feeder frame on a connection that never helloed as a
+  host. `peer` is the kernel record of this socket; admission itself is
+  the broker state's (delegation + ancestry). Material leaves only on
+  this socket, and the lease lives until `execFinish`, a lock or a
+  revoke (the lifetime), or the socket's death.
+  */
+  private async feederFrame(
+    request: Extract<VaultPrivateRequest, { kind: 'execRedeem' | 'execFinish' }>,
+    peer: VaultProcessIdentity,
+    socket: Duplex,
+    sequence: number,
+    write: (frame: unknown) => Promise<void>,
+    leases: Map<string, VaultExecLease>,
+    signal: AbortSignal,
+  ): Promise<void> {
+    if (request.kind === 'execFinish') {
+      const lease = leases.get(request.ticketId)
+      leases.delete(request.ticketId)
+      if (lease) await lease.close(request.succeeded)
+      await write({
+        v: VAULT_PROTOCOL_VERSION,
+        sequence,
+        response: { kind: 'ok' },
+      })
+      return
+    }
+    const refused = async (): Promise<void> => {
+      await write({
+        v: VAULT_PROTOCOL_VERSION,
+        sequence,
+        response: vaultPrivateExecRefusedSchema.parse({
+          v: VAULT_PROTOCOL_VERSION,
+          kind: 'execRefused',
+          ticketId: request.ticket.id,
+        }),
+      })
+    }
+    // First increment (D216.1): environment/stdin uses only on this
+    // transport; git/askpass/sudo/SSH uses refuse here, before any
+    // ticket or delegation is spent.
+    if (request.use.kind !== 'environment' && request.use.kind !== 'stdin') {
+      await refused()
+      return
+    }
+    if (leases.has(request.ticket.id)) {
+      await refused()
+      return
+    }
+    const revoked = new AbortController()
+    const lifetime: VaultUseLifetime & { readonly revoked: AbortSignal } = {
+      // A broker close (lock, revoke, finish) revokes this lease; the
+      // feeder ends its command tree on the revoked signal.
+      close: () => {
+        revoked.abort()
+      },
+      // Termination also cuts the connection: a feeder that ignores the
+      // revoked signal loses its material source and its leases alike.
+      // The broker cannot prove the tree died, so it reports false.
+      terminate: () => {
+        revoked.abort()
+        socket.destroy()
+        return Promise.resolve(false)
+      },
+      revoked: revoked.signal,
+    }
+    const broker = this.deps.broker
+    let lease: VaultExecLease
+    try {
+      lease = await redeemVaultExecLease(
+        {
+          broker: {
+            redeem: (_requesterId, ticket, use, held) =>
+              broker.redeemDelegated(ticket, use, held, peer, request.envelopeDigest),
+            withApprovedMaterial: async (ticketId, requesterId, use, run) => {
+              await broker.withApprovedMaterial(ticketId, requesterId, use, run)
+            },
+            finish: async (ticketId, succeeded) => {
+              await broker.finish(ticketId, succeeded)
+            },
+          },
+          requesterId: request.ticket.requesterId,
+          lifetime: () => lifetime,
+          oneTimeCode: async (item) => await this.deps.oneTimeCode(item),
+        },
+        { ticket: request.ticket, use: request.use },
+        signal,
+      )
+    } catch {
+      // Admission failed closed in the lease; the feeder gets the fixed
+      // refusal and reports its own failure.
+      await refused()
+      return
+    }
+    leases.set(request.ticket.id, lease)
+    try {
+      await write({
+        v: VAULT_PROTOCOL_VERSION,
+        sequence,
+        response: vaultPrivateExecMaterialSchema.parse({
+          v: VAULT_PROTOCOL_VERSION,
+          kind: 'execMaterial',
+          ticketId: request.ticket.id,
+          encoding: 'base64',
+          value: Buffer.from(lease.value).toString('base64'),
+          username: lease.username === null ? null : Buffer.from(lease.username).toString('base64'),
+          expiresAt: lease.expiresAt,
+        }),
+      })
+    } catch (error: unknown) {
+      leases.delete(request.ticket.id)
+      await lease.close(false)
+      throw error
+    }
+  }
   async listen(path: string): Promise<void> {
     if (this.isClosed || this.server || this.securedClose) throw new Error(UI_TEXT.vault.noAccess)
     if (this.deps.listener) {
@@ -432,6 +570,7 @@ export class VaultChannelServer {
     socket.pause()
     const cancellation = new AbortController()
     let identity: VaultConnectionIdentity | null = null
+    const feederLeases = new Map<string, VaultExecLease>()
     let sequence = 0
     let isWatching = false
     let buffer = Buffer.alloc(0)
@@ -504,6 +643,18 @@ export class VaultChannelServer {
           sequence: message.sequence,
           response: { kind: 'hello', brokerId: this.deps.brokerId, lockEpoch: status.lockEpoch },
         })
+        return
+      }
+      if (!identity && (request.kind === 'execRedeem' || request.kind === 'execFinish')) {
+        await this.feederFrame(
+          request,
+          peer,
+          socket,
+          message.sequence,
+          write,
+          feederLeases,
+          cancellation.signal,
+        )
         return
       }
       if (!identity || isWatching) {
@@ -602,7 +753,10 @@ export class VaultChannelServer {
           )
           return
         }
-      } else
+      } else if (request.kind === 'execRedeem' || request.kind === 'execFinish')
+        // Feeder frames on a host connection: material is never served here.
+        response = denied
+      else
         response = await this.dispatch(
           identity,
           request,
@@ -618,7 +772,14 @@ export class VaultChannelServer {
       cancellation.abort()
       clearTimeout(timeout)
       this.identities.delete(socket)
+      this.provenance.delete(socket)
       this.sockets.delete(socket)
+      // A feeder that vanished mid-use finishes every lease as failed.
+      for (const lease of feederLeases.values())
+        void lease.close(false).catch(() => {
+          // The connection is gone; the broker's own finish keeps the record.
+        })
+      feederLeases.clear()
       void this.deps.broker.closeConnection(connection).catch(close)
     })
     socket.on('error', close)

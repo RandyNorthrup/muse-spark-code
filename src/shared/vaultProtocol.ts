@@ -85,6 +85,21 @@ export const vaultBrokerRequestSchema = z.strictObject({
     z.strictObject({ kind: z.literal('lock') }),
     z.strictObject({ kind: z.literal('registerRequester'), requester: vaultRequesterSchema }),
     z.strictObject({ kind: z.literal('endRequester'), requesterId: id }),
+    // D216 lane T: the registered host reports its session provenance over
+    // its incarnation-bound connection; the channel combines it (it can
+    // only add taint) and evaluates it instead of a broker-side dep.
+    z.strictObject({ kind: z.literal('reportProvenance'), taint: vaultTaintSchema }),
+    // D216 lane X: the registered host delegates one ticket to one feeder
+    // process identity for one command envelope; single-use.
+    z.strictObject({
+      kind: z.literal('delegate'),
+      ticketId: id,
+      feeder: z.strictObject({
+        processId: counter.check(z.positive()),
+        startedAt: counter,
+      }),
+      envelopeDigest: digest,
+    }),
     z.strictObject({ kind: z.literal('list') }),
     z.strictObject({ kind: z.literal('requestUse'), proposal: vaultUseProposalSchema }),
     z.strictObject({ kind: z.literal('answer'), answer: vaultApprovalAnswerSchema }),
@@ -330,11 +345,33 @@ export const vaultPrivateRecoverSchema = z.strictObject({
   kind: z.literal('recover'),
   code: recoveryCode,
 })
+/**
+D216 lane X: the feeder's own connection. It never registers and never
+hellos as a host: the broker admits `execRedeem` only when the kernel
+peer identity matches the host's delegation for this ticket and
+envelope, answers material only on this connection, and ends the use
+on `execFinish` (or on lock/revoke, which close the lifetime).
+*/
+export const vaultPrivateExecRedeemSchema = z.strictObject({
+  v: z.literal(VAULT_PROTOCOL_VERSION),
+  kind: z.literal('execRedeem'),
+  ticket: vaultTicketSchema,
+  use: vaultUseSchema,
+  envelopeDigest: digest,
+})
+export const vaultPrivateExecFinishSchema = z.strictObject({
+  v: z.literal(VAULT_PROTOCOL_VERSION),
+  kind: z.literal('execFinish'),
+  ticketId: id,
+  succeeded: z.boolean(),
+})
 export const vaultPrivateRequestSchema = z.discriminatedUnion('kind', [
   vaultPrivateReadSchema,
   vaultPrivateAddSchema,
   vaultPrivateEditSchema,
   vaultPrivateRecoverSchema,
+  vaultPrivateExecRedeemSchema,
+  vaultPrivateExecFinishSchema,
 ])
 export type VaultPrivateRequest = z.infer<typeof vaultPrivateRequestSchema>
 /** The answer to `setup`: shown once, then the vault waits for confirmSetup. */
@@ -344,9 +381,27 @@ export const vaultPrivateRecoveryCodeSchema = z.strictObject({
   setupId: id,
   code: recoveryCode,
 })
+/** D216: one redeemed use's bytes, only ever on the feeder connection. */
+export const vaultPrivateExecMaterialSchema = z.strictObject({
+  v: z.literal(VAULT_PROTOCOL_VERSION),
+  kind: z.literal('execMaterial'),
+  ticketId: id,
+  encoding: z.literal('base64'),
+  value: vaultEncodedSchema,
+  username: z.nullable(vaultEncodedSchema),
+  expiresAt: z.nullable(counter),
+})
+/** D216: a refused feeder redemption; fixed shape, no reason text. */
+export const vaultPrivateExecRefusedSchema = z.strictObject({
+  v: z.literal(VAULT_PROTOCOL_VERSION),
+  kind: z.literal('execRefused'),
+  ticketId: id,
+})
 export const vaultPrivateResponseSchema = z.discriminatedUnion('kind', [
   vaultPrivateMaterialSchema,
   vaultPrivateRecoveryCodeSchema,
+  vaultPrivateExecMaterialSchema,
+  vaultPrivateExecRefusedSchema,
 ])
 
 /** Remote transport cannot express environment, password, items, grants or approvals. */

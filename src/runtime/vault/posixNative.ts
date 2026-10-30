@@ -82,6 +82,35 @@ export async function vaultProcessIdentity(
   throw new Error(UI_TEXT.vault.noAccess)
 }
 
+/**
+D216: the parent process's identity (the helper's `parent` mode), or
+null when the process or its parent is proven gone. One fresh probe on
+the vanishing-process exit, exactly as `vaultProcessIdentity`.
+*/
+export async function vaultParentIdentity(
+  helper: string,
+  pid: number,
+): Promise<VaultProcessIdentity | null> {
+  z.number().check(z.int(), z.positive()).parse(pid)
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const result = await execResourceFile('probe', helper, ['parent', String(pid)], {
+        env: {},
+        timeout: VAULT_BROKER_NATIVE_TIMEOUT_MS,
+        maxBuffer: VAULT_LIMITS.text,
+      })
+      return processSchema.parse(JSON.parse(result.stdout))
+    } catch (error: unknown) {
+      if (error !== null && typeof error === 'object' && 'code' in error) {
+        if (error.code === 2) return null
+        if (attempt === 0 && error.code === 1) continue
+      }
+      break
+    }
+  }
+  throw new Error(UI_TEXT.vault.noAccess)
+}
+
 /** A kernel lock survives broker crashes only until its private stdin reaches EOF. Never unlink it. */
 export async function holdVaultStartupLock(
   helper: string,

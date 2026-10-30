@@ -127,6 +127,8 @@ const vaultPipeProcessSchema = z.strictObject({
   userId: sid,
   startedAt: counter,
   executable: absoluteWindowsPath,
+  /** D216: the kernel's parent pid for the ancestry walk; 0 names none. */
+  parentProcessId: counter,
 })
 
 /** Identify any process natively, for broker discovery liveness (VAULTPARITY). */
