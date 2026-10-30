@@ -7,17 +7,21 @@ import {
   secretStorageAccountVault,
   type AccountSecretsDeps,
 } from '../../host/providers/accountSecrets'
+import type { SecretStore } from '../../host/auth/credentialStore'
 import { keyringSecretStore, type KeyringEntryFactory } from '../keyStore'
 
 export function runtimeAccountStore(deps: {
   readonly metadata: AccountsMetadataPort
   readonly openEntry: KeyringEntryFactory
+  /** The process's one owned secret store, shared where the caller has it. */
+  readonly secrets?: SecretStore | undefined
   readonly revokeSignIn: AccountSecretsDeps['revokeSignIn']
   readonly vault?: AccountCredentialVault | undefined
   readonly registerSecret?: AccountSecretsDeps['registerSecret']
 }): { readonly accounts: AccountStore; readonly dispose: () => void } {
   const credentials = new AccountSecrets({
-    vault: deps.vault ?? secretStorageAccountVault(keyringSecretStore(deps.openEntry)),
+    vault:
+      deps.vault ?? secretStorageAccountVault(deps.secrets ?? keyringSecretStore(deps.openEntry)),
     revokeSignIn: deps.revokeSignIn,
     registerSecret: deps.registerSecret,
   })
