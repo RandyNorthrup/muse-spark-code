@@ -499,6 +499,21 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     if (!policy.isCurrent()) {
       return quiet('policy-changed')
     }
+    const line = document.lineAt(position.line).text
+    const mode = chooseTabMode(
+      line.slice(0, position.character),
+      line.slice(position.character),
+      settings.tabMultiline,
+      isInvoke,
+    )
+    const offset = toOffset(text, position)
+    // A secret spanning the cursor is decided from the document alone, so it
+    // quiets the request before the question: no request can follow, and the
+    // person is never asked to approve a spend that cannot happen.
+    const halves = redactedHalves(text, offset)
+    if (halves === undefined) {
+      return quiet('secret-at-cursor')
+    }
     // The D48 question (Q-M94a, lane L) for the request's own model and
     // price: Deny sends nothing. The shim snoozes the window on
     // `consent-denied`. The grant is bound to its key and read again at
@@ -511,18 +526,6 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     // Consent for a model the settings no longer name is never used (RVM94KR 3).
     if (!policy.isCurrent() || !grant.isCurrent()) {
       return quiet('policy-changed')
-    }
-    const line = document.lineAt(position.line).text
-    const mode = chooseTabMode(
-      line.slice(0, position.character),
-      line.slice(position.character),
-      settings.tabMultiline,
-      isInvoke,
-    )
-    const offset = toOffset(text, position)
-    const halves = redactedHalves(text, offset)
-    if (halves === undefined) {
-      return quiet('secret-at-cursor')
     }
     // The request's window (lane C's anchored prefix and bounded suffix) over
     // the redacted text: a secret reaches the engine only as the mark

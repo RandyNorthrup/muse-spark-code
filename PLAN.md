@@ -18957,6 +18957,10 @@ proven races open in `.lane/RVHOSTID.report.md`, not a partial safety claim.
 
 A4's foreign-path guard test built (`test/unit/subscriptionForeignPaths.test.ts`: no product code names Codex/Claude/Gemini/Copilot storage outside the three reviewed files; drills D1–D2). Editor-chat provider tested for real: pure logic moved to `src/core/providers/editorChat.ts` with 14 unit tests on real resolved models (drills E1–E2), plus `test/integration/editorChat.test.ts` (10 cases over the real editor API; not run on the rig — the sandbox has no GUI session — for the lead's outside run and CI). Record: `docs/certification/rlf-m95b2.md`.
 
+**Status 2026-10-30 (lane CC-WINRUNS, Windows 11, int/recovery 9b090e87c7): built.**
+
+`test/integration/editorChat.test.ts` ran for the first time, in a real VS Code on Windows 11: 10 of 10 pass on stable (1.144.0) and on the minimum (1.99.0). The consent dialog's grant click, the dispatched reply and the Meta thinking-off wire value stay unproven, as RLF-M95B2 said. Record: `docs/certification/cc-winruns.md`.
+
 **Status 2026-10-22 (lane RLM95B, rec/rlm95b on 0.19.0): building.**
 
 Landed 01 (plan-key presets MiniMax/Alibaba/Mistral, Moonshot/Ollama Cloud, Azure refusal, editor-chat opt-in; daily cap removed, D121/D208) and 02 (refusal sentences, `x-codex-*` headers; no fixed table, no output cap). HF OAuth built, closed until the owner registers the app. Acceptance: 1–3, 7–8 built, live proof waits on the owner's sign-in; 4 open on the path-guard test; 5's host cap superseded (D121/D208); 6, 9 built; 10 MET (hook envelope carries the turn's provider; drills D13–D14). Captures missing: MiniMax/Alibaba/Moonshot/Ollama. Record: `docs/certification/rlm95b.md`.
@@ -19112,6 +19116,17 @@ inside `dist/tab.js`; the shim's Tab-attributable bytes fall from
 10.598 KiB to 8.136 KiB with budgets unchanged. The served-path live
 suggestion, the 4 KiB ambition and the live check stay open (B4).
 Record: `docs/certification/rlf-tab.md`.
+
+**Status 2026-10-30 (CC-WINRUNS, Windows 11, int/recovery 9b090e87c7):
+building.** `test/integration/tab.test.ts` ran for the first time, in a
+real VS Code on Windows 11: 18 of 18 pass on stable (1.144.0) and on the
+minimum (1.99.0). The first run failed one case, a product defect: a secret
+under the cursor was found after the paid-use question, so the question was
+asked for a request that could not be sent (acceptance 5 with 11). The
+provider now decides it from the document before asking. The served-path
+live suggestion and the live check stay open (B4); the same order in
+`src/runtime/lsp/lspTab.ts` has no suite and is unchanged. Record:
+`docs/certification/cc-winruns.md`.
 
 **Owner decision 2026-10-23: the Tab status bar stays at startup; the
 4 KiB ambition is dropped.** RLF-TAB moved everything else Tab carried at
