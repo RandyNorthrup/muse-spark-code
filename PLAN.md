@@ -10885,6 +10885,31 @@ cannot start D-Bus, so the Secret Service proof runs outside it.
   them by vault id and keeps reading and writing them; nothing migrates
   and no reset is needed.
 
+### RLFGOVFORK — The governor's per-job fork limit against supervised agents (2026-10-30)
+
+**Status 2026-10-30 (lane RLF-GOVFORK, macmini): built.** The G13
+per-job fork guard is decided under D121/D208 as the owner clarified
+it on 2026-10-23: a runaway-only bound, not an arbitrary cap on the
+person's work — 512 alive processes per job tree (systemd's
+per-service DefaultTasksMax through v230, below the ~1,200-process
+G13 freeze) and 16,384 births per 15 s (OpenShift's per-workload
+maximum), an internal resilience default, never person-set. The stop
+says why at last: the sampler records its cause on the lease, the
+outcome carries it, and the exec boundary throws the typed
+`ResourceForkStopError`. Supervised runs are governed launches now
+(admitted, registered, tree-owned, completed; Windows contained), so
+normal supervised use is never stopped and a real runaway still is.
+Proven by real-process tests (a registered normal run green here; the
+flood/burst/rate/runaway proofs run where ps, /proc or the job object
+is available), three red/green drills, and `related` on every changed
+source with every failure reproduced on the untouched base. Status
+evidence: `docs/certification/cc-govfork.md`.
+
+- **Goal.** Decide the fork limit under D121/D208 with cited
+  industry-standard values, person-settable where that makes sense,
+  saying why when it stops something; register supervised runs with
+  the governor the way other governed launches are.
+
 ### M127 — Muse Code at its latest release (2026-10-17)
 
 **Status 2026-10-22 (RLFINISH): building.** The SDK rides 1.4.11
