@@ -8,13 +8,28 @@ import { hasDesktopBridge } from '../bridges/desktop'
 import { DesktopApp } from './DesktopApp'
 import './desktop.css'
 
-const rootElement = document.querySelector(`#${WEBVIEW_ROOT_ELEMENT_ID}`)
-if (rootElement === null) {
-  throw new Error(`Desktop root element #${WEBVIEW_ROOT_ELEMENT_ID} is missing`)
+// The token sheet keys its palettes off data-ms-theme (M114); the desktop
+// follows the system scheme until the settings app (ST1) owns the override.
+function followSystemScheme(): void {
+  const scheme = window.matchMedia('(prefers-color-scheme: dark)')
+  const applyScheme = (): void => {
+    document.documentElement.dataset['msTheme'] = scheme.matches ? 'dark' : 'light'
+  }
+  applyScheme()
+  scheme.addEventListener('change', applyScheme)
 }
 
-if (hasDesktopBridge()) {
+function mount(): void {
+  const rootElement = document.querySelector(`#${WEBVIEW_ROOT_ELEMENT_ID}`)
+  if (rootElement === null) {
+    throw new Error(`Desktop root element #${WEBVIEW_ROOT_ELEMENT_ID} is missing`)
+  }
+  if (!hasDesktopBridge()) {
+    rootElement.textContent = UI_TEXT.desktop.workbenchBridgeUnavailable
+    return
+  }
   createRoot(rootElement).render(<DesktopApp />)
-} else {
-  rootElement.textContent = UI_TEXT.desktop.workbenchBridgeUnavailable
 }
+
+followSystemScheme()
+mount()

@@ -27,6 +27,7 @@ import {
   rankQuickOpen,
   type TerminalTab,
 } from '../../shared/desktop/workbench'
+import { webviewKey } from '../../shared/keybindings'
 import { desktopBridge } from '../bridges/desktop'
 
 const registry = new KeybindingRegistry()
@@ -523,8 +524,9 @@ export function DesktopApp() {
               setQuickOpenQuery(event.target.value)
             }}
             onKeyDown={(event) => {
-              if (event.key === 'Escape') setQuickOpenVisible(false)
-              if (event.key !== 'Enter' || quickOpenResults[0] === undefined) {
+              const action = webviewKey('desktop.quickOpen', event)
+              if (action === 'close') setQuickOpenVisible(false)
+              if (action !== 'accept' || quickOpenResults[0] === undefined) {
                 return
               }
 
@@ -599,7 +601,7 @@ function TerminalTabs(properties: {
         aria-label={UI_TEXT.desktop.workbenchTerminal}
         dir="ltr"
         onKeyDown={(event) => {
-          if (event.key !== 'Enter') {
+          if (webviewKey('desktop.terminal', event) !== 'submit') {
             return
           }
 

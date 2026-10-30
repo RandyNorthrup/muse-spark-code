@@ -1127,6 +1127,7 @@ export const EN = {
   referenceNodeTreeKeys:
     'Move between files, expand or collapse a folder, or open the active file.',
   referenceNodeEditorKeys: 'Save the open file.',
+  referenceDesktopTerminalKeys: 'Run the typed line in the Muse Desktop terminal.',
   referenceThinking:
     'Choose how much effort Muse puts into each reply. Thinking: On = effort; Off = museCode:none / modelApi:minimal.',
   referenceSandbox:

@@ -799,6 +799,18 @@ lands; `init`, `status` and `wipe` run. Nothing listens on any network yet.
   host runbooks are in
   [the hosts record](docs/certification/m110a0-hosts.md).
 
+## Muse Desktop
+
+Muse Desktop (M111) is Muse Spark Code as its own desktop: a workbench
+window per folder — chat on the left, editors in the centre, a terminal
+panel and tabbed footer below them, and the rail and sidebar on the
+right — inside the Muse shell. The workbench shell (lane WB) is built
+and runs on the development machines: quick open, VS Code keys, a layout
+remembered per folder, and status items published to the shell's bar.
+The installable desktop arrives with the M111 installer; the guide is
+[the desktop guide](docs/desktop/workbench.md) and the proof is
+[the WB certification record](docs/certification/rlf-m111wb.md).
+
 ## MCP connector for other agents (M124)
 
 **In progress: the local phase.** `muse-spark-code-acp mcp` serves Muse
