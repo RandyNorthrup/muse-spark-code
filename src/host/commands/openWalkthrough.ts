@@ -10,12 +10,16 @@ import {
 } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 
+const HTML_ESCAPES: Readonly<Record<string, string>> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+}
+const HTML_UNSAFE = /[&<>"]/g
+
 function escape(text: string): string {
-  return text
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
+  return text.replaceAll(HTML_UNSAFE, (character) => HTML_ESCAPES[character] ?? character)
 }
 
 export async function openWalkthrough(): Promise<vscode.WebviewPanel | undefined> {

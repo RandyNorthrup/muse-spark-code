@@ -35811,6 +35811,14 @@ for the same sixty-request OS operation. All ordinary tests retain the repositor
 default; final runs use no `--testTimeout` flag. The default 200-call proof uses
 memory fixtures, and real ACP delivery uses a three-call caller allowance.
 
+RLM103, 2026-10-30: `# nosemgrep:
+trailofbits.python.tarfile-extractall-traversal.tarfile-extractall-traversal`
+on the `extractall` in `scripts/emulators/prepare.py`. The archive is the
+script's own pinned emulator artifact: its SHA-256 is verified against the
+recorded digest before extraction, and extraction passes `filter='data'`,
+which strips absolute paths, parent traversal and device entries. Removal
+guard: the digest check and the data filter on the same lines.
+
 | Location                                            | Residual / follow-up                                    | Lead decision (2026-10-09)                                                                                                                                                                                                                            |
 | --------------------------------------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | M95 provider panel: `panelSeam.ts`, `wizardSave.ts` | RVPROVWIZ7C P2-1/P2-2; PROVSTORE-LOCKLIB after M123     | Two editor windows saving the same provider at the same moment: last writer wins for fields both changed; no secret is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation onto the shared lease after M123 lands on main. |
