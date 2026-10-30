@@ -11,7 +11,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { countSessionResponses, LIVE_MODEL_ID, sessionJsonlPath } from './liveCli'
+import { countSessionResponses, liveContributorModelId, sessionJsonlPath } from './liveCli'
 
 const IS_ENABLED = process.env['MUSE_LIVE_VIM'] === '1'
 // Three live model turns plus session start and shutdown.
@@ -27,6 +27,7 @@ interface DrillRun {
   transcript: readonly string[]
   sessionId: string
   sessionModel: string
+  expectedModel: string
 }
 
 function vimBinary(): string {
@@ -65,9 +66,14 @@ describe.skipIf(!IS_ENABLED)('classic Vim, live (MUSE_LIVE_VIM=1)', () => {
     transcript: [],
     sessionId: '',
     sessionModel: '',
+    expectedModel: '',
   }
 
   beforeAll(() => {
+    // Refuses before Vim spawns unless the run named a contributor-tier
+    // model (RLF-SAFEFIX item 1); the driver itself refuses the switch and
+    // every prompt unless that model is listed and selected.
+    run.expectedModel = liveContributorModelId()
     requireVim()
     run.root = mkdtempSync(path.join(tmpdir(), 'vim-live-'))
     const installed = unpackTarball(run)
@@ -89,6 +95,7 @@ describe.skipIf(!IS_ENABLED)('classic Vim, live (MUSE_LIVE_VIM=1)', () => {
           VIMLIVE_ACP_JS: path.join(installed, 'dist', 'acp.js'),
           VIMLIVE_CWD: cwd,
           VIMLIVE_TRANSCRIPT: transcriptPath,
+          VIMLIVE_MODEL: run.expectedModel,
         },
         encoding: 'utf8',
         timeout: DRILL_TIMEOUT_MS,
@@ -139,7 +146,7 @@ describe.skipIf(!IS_ENABLED)('classic Vim, live (MUSE_LIVE_VIM=1)', () => {
 
   it('runs the session on the contributor model', () => {
     expect(run.sessionId).not.toBe('')
-    expect(run.sessionModel).toBe(LIVE_MODEL_ID)
+    expect(run.sessionModel).toBe(run.expectedModel)
   })
 
   it('sends at most four model requests', () => {
@@ -152,6 +159,6 @@ describe.skipIf(!IS_ENABLED)('classic Vim, live (MUSE_LIVE_VIM=1)', () => {
     const { responses, models } = countSessionResponses(sessionJsonlPath(run.sessionId))
     expect(responses).toBeGreaterThan(0)
     expect(models.length).toBeGreaterThan(0)
-    for (const model of models) expect(model).toBe(LIVE_MODEL_ID)
+    for (const model of models) expect(model).toBe(run.expectedModel)
   })
 })
