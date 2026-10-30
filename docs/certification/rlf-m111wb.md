@@ -81,6 +81,35 @@ Updated 2026-10-30 (lane RLF-M111WB on linuxlt, base int/recovery dfcb45936).
    cognates) and `check:reference` refused direct `event.key` dispatch in
    DesktopApp until both inputs went through the keyboard registry.
 
+## Gates (2026-10-30, linuxlt; exit 0 unless named)
+
+- `npm run typecheck` (all seven projects incl. new `typecheck:desktop`): 0.
+- eslint `--max-warnings 0` and prettier `--check` on every touched file: 0.
+- `node scripts/check-l10n.mjs`: 0 problems. `npm run check:reference`
+  (after `reference:generate`): current. `npm run check:host-api`: 0
+  problems. `npm run check:plan`: 0 drift. `npm run check:roadmap`:
+  current. `npm run check:catches`: baseline matched (new catches are
+  NARROW). `npm run duplication`: 0 clones. `npm run cycles`: none.
+  `npm run deadcode` (knip): no errors (pre-existing hints only).
+- `npm run build`: green end to end (tokens, production bundles incl.
+  desktop, bundle size/split, lazy registry, host globals, notices,
+  legal records).
+- Suites: desktop (19 tests), keybindings/reference neighbours
+  (keybindingsReportSource, nodeKeybindings, historyBookmarkKey,
+  browserKeybindings, reportForwardAdmission, chatReference,
+  ciReference, cliReference) all pass standalone.
+- `npx vitest related` over the five shared sources (the constants graph,
+  1160 files): 70 tests failed in 22 files, **exit 1, reported as such**.
+  Every failing file was re-run on the untouched base (dfcb45936) in a
+  detached worktree: identical failure counts on both trees
+  (connector/devices/storage/kernel-boundary suites fail in this rig
+  sandbox — loopback, storage and supervisor limits — plus the
+  date-pinned catalogue test; `runtimeLsp`'s three are 240 s supervisor
+  timeouts and its base-worktree run cannot collect). No WB regression:
+  the failing set does not intersect WB's files, and two harness files
+  failing only under mega-run load skip cleanly standalone on both trees.
+  Hosted CI remains the judge for those suites.
+
 ## What is next (not WB)
 
 - SH1 consumes the status snapshot on its layer-shell bar; ED, SB1 and BP
