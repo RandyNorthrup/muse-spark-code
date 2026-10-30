@@ -1,6 +1,9 @@
 // Lazy editor composition over the same request owner as CLI/ACP. The editor
 // supplies SecretStorage and native dialogs; no key enters its webview bridge.
-import { createRuntimeAccountServices } from '../../runtime/providers/runtimeServices'
+import {
+  createRuntimeAccountServices,
+  type AccountServicesSettings,
+} from '../../runtime/providers/runtimeServices'
 import type { SecretStore } from '../auth/credentialStore'
 import { promptForMetaAccountKey } from '../auth/metaAccountKey'
 import { AccountsPanelHandler } from '../models/accountsHandler'
@@ -12,7 +15,7 @@ export function createEditorAccountServices(deps: {
   readonly dataDir: string
   readonly secrets: SecretStore
   readonly session: () => string | undefined
-  readonly settings: () => { isSwapOn: boolean; isParallelOn: boolean }
+  readonly settings: () => AccountServicesSettings
   readonly promptForApiKey: () => Promise<string | undefined>
   readonly askPolicy: (row: AccountPolicy) => Promise<unknown>
   readonly notice: (session: string, text: string) => void

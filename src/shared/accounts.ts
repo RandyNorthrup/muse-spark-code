@@ -42,6 +42,7 @@ export const accountThresholdsSchema = /* @__PURE__ */ z.strictObject({
 })
 export type AccountThresholds = z.infer<typeof accountThresholdsSchema>
 
+export const accountDeviceSchema = /* @__PURE__ */ opaqueId
 export const accountSchema = /* @__PURE__ */ z.strictObject({
   id: accountIdSchema,
   label: z.string().check(
@@ -52,6 +53,9 @@ export const accountSchema = /* @__PURE__ */ z.strictObject({
   order: count,
   limitGroup: z.optional(accountIdSchema),
   credentialRevision: z.optional(z.uuid()),
+  // D88 placement (a): the device holding this account. Absent reads as
+  // this machine (legacy rows predate placement); re-pinning replaces it.
+  device: z.optional(accountDeviceSchema),
   thresholds: accountThresholdsSchema,
 })
 export type Account = z.infer<typeof accountSchema>

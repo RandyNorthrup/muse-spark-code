@@ -111,9 +111,11 @@ export function accountErrorText(error: unknown): string {
       // products keep their sentences. Any other refusal — including one
       // that kept its underlying cause — stays on the fixed unavailable
       // sentence: the cause is raw service text and never crosses the ACP
-      // boundary (PLAN.md FIXM108H).
+      // boundary (PLAN.md FIXM108H). The placement refusal carries only
+      // opaque ids in its two-ways-forward sentence, so it passes through.
       if (refusal.code === 'invalidAccount' || refusal.code === 'invalidCredential')
         return UI_TEXT.accounts.invalidAccount
+      if (refusal.code === 'placementConflict') return current.message
       return refusal.code === 'notOffered'
         ? UI_TEXT.accounts.notOffered
         : UI_TEXT.accounts.unavailable

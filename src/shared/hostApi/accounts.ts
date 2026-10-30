@@ -3,6 +3,7 @@
 import * as z from 'zod/mini'
 import {
   accountSchema,
+  accountDeviceSchema,
   accountIdSchema,
   accountThresholdsSchema,
   accountConfirmationChoiceSchema,
@@ -122,6 +123,7 @@ export const accountsReplySchema = z.union([
   accountsStateSchema,
   z.strictObject({ type: z.literal('accounts/notice'), event: accountEventSchema }),
   // Fixed codes, never raw provider errors that could contain a credential.
+  // A placement conflict carries the opaque ids its sentence fills in.
   z.strictObject({
     type: z.literal('accounts/error'),
     code: z.enum([
@@ -130,7 +132,10 @@ export const accountsReplySchema = z.union([
       'unavailable',
       'consentRequired',
       'providersInvalid',
+      'placementConflict',
     ]),
+    provider: z.optional(accountIdSchema),
+    device: z.optional(accountDeviceSchema),
   }),
 ])
 export type AccountsReply = z.infer<typeof accountsReplySchema>

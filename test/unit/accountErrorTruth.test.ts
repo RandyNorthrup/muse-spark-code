@@ -167,6 +167,7 @@ describe('account errors name their cause', () => {
         {
           accounts: services.store,
           metadata: services.metadata,
+          placements: services.placements,
           print: (line) => {
             lines.push(line)
           },
@@ -186,6 +187,7 @@ describe('account errors name their cause', () => {
         {
           accounts: services.store,
           metadata: services.metadata,
+          placements: services.placements,
           print: () => undefined,
           printError: (line) => {
             errors.push(line)

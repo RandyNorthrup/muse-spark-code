@@ -22,6 +22,11 @@ import {
   fileAccountsMetadata,
   runtimeProvidersFile,
 } from '../../src/runtime/providers/providersFileStore'
+import {
+  createAccountPlacements,
+  localPlacementDeviceMatcher,
+  localPlacementId,
+} from '../../src/core/accounts/placement'
 import { runAccountAuthSet } from '../../src/runtime/providers/accountsCommand'
 
 const URL_KEY = 'https://not-a-key.example/v1'
@@ -201,11 +206,21 @@ function runProviderAuthSet(doubles: ConfirmDoubles, secretsReason: string): Pro
 async function runWorkAccountAuthSet(doubles: ConfirmDoubles): Promise<number> {
   const folder = await openaiWorkFolder()
   const metadata = fileAccountsMetadata(folder)
+  const accounts = new AccountStore(metadata, refusingVault())
+  const localDevice = localPlacementId(folder)
   return await runAccountAuthSet(
     { provider: 'openai', account: 'work' },
     {
-      accounts: new AccountStore(metadata, refusingVault()),
+      accounts,
       metadata,
+      placements: createAccountPlacements({
+        store: accounts,
+        metadata,
+        listProviders: () => metadata.listProviders(),
+        localDevice,
+        isKnownDevice: localPlacementDeviceMatcher(localDevice),
+        isOnePerDevice: () => true,
+      }),
       readSecret: doubles.secrets.readSecret,
       confirmKeyUse: doubles.confirm.confirmKeyUse,
       storeName: 'test store',
