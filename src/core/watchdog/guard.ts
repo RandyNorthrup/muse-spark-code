@@ -2,9 +2,9 @@
 // before it reaches any prompt, and anything in it that reads as an
 // instruction to the watchdog is named, never obeyed. Spam never posts:
 // the hold is structural — a spam verdict closes the record without a
-// post — and the triage verdict comes from the model, never from a
-// threshold of ours. Posts beyond the acknowledgement pass the
-// repository's approval gate.
+// post and leaves the GitHub issue open — and the triage verdict comes
+// from the model, never from a threshold of ours. Posts beyond the
+// acknowledgement pass the repository's approval gate.
 import { fenced } from '../export/transcriptMarkdown'
 import { UI_TEXT } from '../../shared/l10n/text'
 import type { WatchdogPolicy } from '../../shared/watchdog'

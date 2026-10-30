@@ -99,14 +99,18 @@ function flowRecord(
   return isOwed ? undefined : record
 }
 
-function driveEvent(
+/** The event one poll owes this record. A spam hold closed the record
+while the issue stayed open on GitHub: that is not a reopen, or the next
+poll would clear the findings and triage the same spam again. A record
+closed because GitHub closed, then found open, is a reopen. */
+export function watchdogPollEvent(
   record: WatchdogRecord,
   issue: GitHubIssue,
   isAcked: boolean,
   isAnswered: boolean,
 ): WatchdogEvent {
   if (issue.state === 'closed') return record.state === 'closed' ? 'polled' : 'closed'
-  if (record.state === 'closed') return 'reopened'
+  if (record.state === 'closed') return record.outcome === 'spam' ? 'polled' : 'reopened'
   if (isAcked && record.state === 'seen') return 'acknowledged'
   if (isAnswered && record.state === 'awaitingInfo') return 'infoReceived'
   const isEditable = ['acknowledged', 'triaged', 'awaitingInfo', 'replied'].includes(record.state)
@@ -280,7 +284,7 @@ export async function pollWatchdogRepository(
       const isAcked =
         base.ackCommentId !== undefined ||
         (decision.action === 'skip' && decision.note === 'alreadyAcked')
-      const event = driveEvent(base, issue, isAcked, answered.has(issue.number))
+      const event = watchdogPollEvent(base, issue, isAcked, answered.has(issue.number))
       const next = nextWatchdogState(base.state, event)
       let note: WatchdogPollIssue['note']
       if (ack !== undefined) note = 'ackPosted'

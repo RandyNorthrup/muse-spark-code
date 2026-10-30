@@ -328,6 +328,10 @@ happened, not what was planned; superseded entries are kept.
   and the signer is the pack workflow on `main`, exactly. A signature for a
   branch whose name merely begins with `main`, or a signed statement that
   does not cover the index, is refused.
+- An issue held as suspected spam stays held. The next check no longer
+  treats that hold as the issue being reopened and triages it again, and
+  `watchdog decide` no longer says the issue was closed when nothing was
+  posted and the issue is still open.
 - The terminal agent's requests were missing from usage history since 0.12.0:
   every headless turn stamped its usage record with a fractional clock, the
   journal refused the record, and one warning was all that was left. Stored
