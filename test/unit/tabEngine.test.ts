@@ -1,5 +1,4 @@
-import { createServer as createHttpServer, type ServerResponse } from 'node:http'
-import { createServer, type Socket } from 'node:net'
+import type { ServerResponse } from 'node:http'
 import { describe, expect, it } from 'vitest'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import { MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS } from '../../src/shared/constants'
@@ -9,6 +8,7 @@ import {
   type TabEngineRequest,
   type TabStream,
 } from '../../src/core/tab/tabEngine'
+import { closedPort, httpEndpoint, silentPort } from './helpers/loopbackServers'
 import { transportTestDeps } from './helpers/modelApiTransport'
 
 // The engine's send paths (M94 acceptance 7): what a cancelled trigger,
@@ -69,62 +69,10 @@ function streamOf(client: ModelApiClient, entered: () => void): TabStream {
   }
 }
 
-interface HttpEndpoint {
-  readonly url: string
-  readonly hits: () => number
-  readonly close: () => Promise<void>
-}
-
-async function httpEndpoint(handler: (response: ServerResponse) => void): Promise<HttpEndpoint> {
-  let hits = 0
-  const server = createHttpServer((_request, response) => {
-    hits += 1
-    handler(response)
-  })
-  await new Promise<void>((done) => {
-    server.listen(0, '127.0.0.1', done)
-  })
-  const address = server.address()
-  if (typeof address !== 'object' || address === null) {
-    throw new Error('tab test server never bound')
-  }
-  return {
-    url: `http://127.0.0.1:${String(address.port)}`,
-    hits: () => hits,
-    close: async () => {
-      server.closeAllConnections()
-      await new Promise<void>((done) => {
-        server.close(() => {
-          done()
-        })
-      })
-    },
-  }
-}
-
 /** An answer with zero content bytes: an empty event stream, no provider text. */
 function answerEmpty(response: ServerResponse): void {
   response.writeHead(200, { 'content-length': '0', 'content-type': 'text/event-stream' })
   response.end()
-}
-
-/** A port nothing listens on: dialling it refuses for real. */
-async function closedPort(): Promise<number> {
-  const server = createServer()
-  await new Promise<void>((done) => {
-    server.listen(0, '127.0.0.1', done)
-  })
-  const address = server.address()
-  if (typeof address !== 'object' || address === null) {
-    throw new Error('tab test server never bound')
-  }
-  const { port } = address
-  await new Promise<void>((done) => {
-    server.close(() => {
-      done()
-    })
-  })
-  return port
 }
 
 async function sleep(ms: number): Promise<void> {
@@ -264,17 +212,11 @@ describe('createTabEngine send paths (M94 acceptance 7)', () => {
     // no provider bytes anywhere. Unbounded code would wait here past the
     // suite's own timeout; the backstop aborts the send after 200 ms and the
     // trigger fails with its words.
-    const held = new Set<Socket>()
-    const silent = createServer((socket) => {
-      held.add(socket)
-    })
-    await new Promise<void>((done) => {
-      silent.listen(0, '127.0.0.1', done)
-    })
+    const silent = await silentPort()
     try {
       const client = new ModelApiClient({
         ...transportTestDeps({ fetch: globalThis.fetch }),
-        baseUrl: `http://127.0.0.1:${String((silent.address() as { readonly port: number }).port)}`,
+        baseUrl: silent.url,
         apiKey: () => Promise.resolve('tab-backstop-test-key'),
       })
       const stream: TabStream = (body, signal, budget, admit) =>
@@ -282,14 +224,9 @@ describe('createTabEngine send paths (M94 acceptance 7)', () => {
       await expect(engineOf(stream, 200).complete(requestOf(() => false))).rejects.toThrow(
         'timed out waiting for the provider',
       )
-      expect(held.size).toBe(1)
+      expect(silent.hits()).toBe(1)
     } finally {
-      for (const socket of held) socket.destroy()
-      await new Promise<void>((done) => {
-        silent.close(() => {
-          done()
-        })
-      })
+      await silent.close()
     }
   })
 })
