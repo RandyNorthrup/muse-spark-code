@@ -15,7 +15,7 @@ import { uiTextProperties } from '../../scripts/lib/uiTextRegions.mjs'
 // from text.ts, whose tree-shaken backendLabel touches them, and the
 // whole-file check below requires every key an input reaches.
 const properties = uiTextProperties().filter((item) =>
-  /^(?:node|git|shareShowMore$|backendMuseCode$|backendModelApi$)/u.test(item.key),
+  /^(?:node|git|shareShowMore$|backendMuseCode$|backendModelApi$|editorGroup$)/u.test(item.key),
 )
 const keys = new Set(properties.map((item) => item.key))
 const nodeEnglish = {
@@ -61,9 +61,8 @@ export async function buildNodeWorkspace(output = 'dist/webview/node', dependenc
       ? import.meta.url
       : path.resolve(dependencyRoot, '..', 'package.json'),
   )
-  // Both exact pins expose ESM beside their CommonJS resolver entry. Select
-  // ESM so the minimal setup tree-shakes and editor/merge share their modules.
-  const codeMirror = require.resolve('codemirror').replace(/\.cjs$/u, '.js')
+  // The exact pin exposes ESM beside its CommonJS resolver entry. Select
+  // ESM so the editor group and merge tree-shake and share their modules.
   const merge = require.resolve('@codemirror/merge').replace(/\.cjs$/u, '.js')
   const constants = await build({
     stdin: {
@@ -98,7 +97,7 @@ export async function buildNodeWorkspace(output = 'dist/webview/node', dependenc
     jsx: 'automatic',
     define: { 'process.env.NODE_ENV': '"production"' },
     plugins: [nodeEnglish],
-    alias: { codemirror: codeMirror, '@codemirror/merge': merge },
+    alias: { '@codemirror/merge': merge },
     ...(dependencyRoot !== undefined && { nodePaths: [dependencyRoot] }),
   })
   mkdirSync('dist/meta-node', { recursive: true })

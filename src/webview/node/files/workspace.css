@@ -102,8 +102,15 @@
   transform: rotate(90deg);
 }
 
-.node-editor,
-.node-diff,
+/* The shared editor group (M111 lane ED) fills the height the single
+   editor's 480px cap set before it; its own sheet is editor.css. */
+.node-editor-group {
+  display: flex;
+  flex-direction: column;
+  height: 480px;
+  border: 1px solid var(--vscode-panel-border, var(--vscode-foreground));
+}
+
 .node-git-diff {
   max-height: 480px;
   overflow: auto;
@@ -112,17 +119,4 @@
 .node-git-diff pre {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-
-/* CodeMirror owns these case-sensitive class names. */
-.node-diff [class~='cm-mergeView'] {
-  display: block;
-}
-
-.node-diff [class~='cm-mergeViewEditors'] {
-  flex-direction: column;
-}
-
-.node-diff [class~='cm-mergeViewEditor'] {
-  width: 100%;
 }
