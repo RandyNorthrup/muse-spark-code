@@ -247,7 +247,7 @@
   "config.mediaConverterPath.description": "Absolute path to the ffmpeg this machine uses to convert attached audio and video for transcription. Empty by default: only documented install locations are used (Program Files and winget on Windows, Homebrew and MacPorts on macOS, /usr/bin and /usr/local/bin on Linux), never PATH. A path set here is the only candidate: it must pass the trusted-path check, or conversion is refused with the reason. Launcher shims are refused. Only this machine’s setting is used.",
   "config.accountSwap.description": "Swap to the next account with room at the next request boundary after a threshold trip. Each account keeps its own limits. On by default; only this machine’s setting is used.",
   "config.accountParallel.description": "Spread background work across accounts by headroom; each worker sticks to its account. On by default; only this machine’s setting is used.",
-  "config.accounts.severalOnThisDevice.description": "Stored for compatibility; no runtime effect.",
+  "config.accounts.severalOnThisDevice.description": "Allow several accounts of one provider on this PC for testing, each in its own isolated local profile. Turning it on asks the provider’s vendor-terms confirmation first. Off by default; only this machine’s setting is used.",
   "config.github.useGhLogin.description": "Lets pull requests use your existing GitHub CLI sign-in (`gh auth token`), tried last, after the editor's own GitHub sign-in and Muse Spark's. The token is read for one request at a time and never stored. Off by default; user settings only, so a repository cannot turn it on.",
   "command.vault.title": "Vault",
   "command.lockVault.title": "Lock Vault Now",

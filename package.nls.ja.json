@@ -247,7 +247,7 @@
   "config.mediaConverterPath.description": "添付した音声と動画を文字起こし用に変換するため、このマシンが使う ffmpeg の絶対パスです。既定は空で、文書化されたインストール場所だけを使います（Windows は Program Files と winget、macOS は Homebrew と MacPorts、Linux は /usr/bin と /usr/local/bin）。PATH は使いません。ここで設定したパスが唯一の候補になり、信頼できるパスの確認に通らなければ理由を示して変換を拒否します。ランチャーのシムは拒否されます。このマシンの設定だけが使われます。",
   "config.accountSwap.description": "しきい値に達したら次のリクエスト境界で空きのある次のアカウントに切り替えます。各アカウントは独自の制限を保持します。既定でオン。このコンピューターの設定のみを使用します。",
   "config.accountParallel.description": "空き容量に応じてバックグラウンド作業をアカウント間で分散します。各ワーカーは割り当てられたアカウントに留まります。既定でオン。このコンピューターの設定のみを使用します。",
-  "config.accounts.severalOnThisDevice.description": "互換性のために保存されています。この設定はこのビルドでは効果がありません。",
+  "config.accounts.severalOnThisDevice.description": "テスト用に 1 つのプロバイダーの複数アカウントをこの PC で許可し、各アカウントは専用の分離されたローカルプロファイルで実行します。有効化時は最初にプロバイダーの利用規約の確認を求めます。既定でオフ。このコンピューターの設定のみを使用します。",
   "config.github.useGhLogin.description": "プルリクエストで既存の GitHub CLI のサインイン (`gh auth token`) を使えるようにします。エディターの GitHub サインインと Muse Spark のサインインの後、最後に試されます。トークンは 1 回のリクエストごとに読み取られ、保存されません。既定ではオフです。ユーザー設定でのみ有効にでき、リポジトリからはオンにできません。",
   "command.vault.title": "保管庫",
   "command.lockVault.title": "今すぐ保管庫をロック",
