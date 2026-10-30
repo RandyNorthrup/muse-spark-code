@@ -2,7 +2,11 @@
 // really-closed ports, and ports that accept and never answer. Shared so
 // the duplication gate stays silent. Statuses and byte counts are plain
 // input; no provider bytes anywhere.
-import { createServer as createHttpServer, type ServerResponse } from 'node:http'
+import {
+  createServer as createHttpServer,
+  type IncomingMessage,
+  type ServerResponse,
+} from 'node:http'
 import { createServer as createNetServer, type Socket } from 'node:net'
 
 export interface LoopbackEndpoint {
@@ -10,6 +14,24 @@ export interface LoopbackEndpoint {
   readonly port: number
   readonly hits: () => number
   readonly close: () => Promise<void>
+}
+
+/** A request line the recording endpoint saw: its path and its wire headers. */
+export interface RecordedLoopbackRequest {
+  readonly url: string
+  readonly headers: Record<string, string | readonly string[]>
+}
+
+export interface RecordingLoopbackEndpoint extends LoopbackEndpoint {
+  readonly requests: () => readonly RecordedLoopbackRequest[]
+}
+
+function recordedHeaders(request: IncomingMessage): Record<string, string | readonly string[]> {
+  const headers: Record<string, string | readonly string[]> = {}
+  for (const [name, value] of Object.entries(request.headers)) {
+    if (value !== undefined) headers[name] = value
+  }
+  return headers
 }
 
 /** Bind on 127.0.0.1:0 and read back the kernel's port. */
@@ -57,6 +79,40 @@ export async function httpEndpoint(
     url: `http://127.0.0.1:${String(port)}`,
     port,
     hits: () => hits,
+    close: async () => {
+      server.closeAllConnections()
+      await closeServer((done) => {
+        server.close(() => {
+          done()
+        })
+      })
+    },
+  }
+}
+
+/**
+A real HTTP endpoint on 127.0.0.1 that records every request line it saw
+(path and wire headers) before answering through `handler`.
+*/
+export async function recordingHttpEndpoint(
+  handler: (response: ServerResponse) => void,
+): Promise<RecordingLoopbackEndpoint> {
+  const seen: RecordedLoopbackRequest[] = []
+  const server = createHttpServer((request, response) => {
+    seen.push({ url: request.url ?? '', headers: recordedHeaders(request) })
+    handler(response)
+  })
+  const port = await boundPort(
+    (done) => {
+      server.listen(0, '127.0.0.1', done)
+    },
+    () => server.address(),
+  )
+  return {
+    url: `http://127.0.0.1:${String(port)}`,
+    port,
+    hits: () => seen.length,
+    requests: () => [...seen],
     close: async () => {
       server.closeAllConnections()
       await closeServer((done) => {

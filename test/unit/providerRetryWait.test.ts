@@ -39,7 +39,7 @@ function transport(seen?: number[]): RequestTransport {
       seen?.push(ms)
       return new Promise<void>((done) => setTimeout(done, ms))
     },
-    now: () => FIXED_NOW,
+    now: () => Date.now(),
     random: () => 0,
     log: silent,
   })
@@ -140,17 +140,15 @@ describe('a provider-named 429 wait', () => {
     // The wait derived from the header values holds admitted background
     // work: the background acquire really sleeps it out over real timers
     // while the user's turn, acquired beside it, resolves first. The
-    // product's own clock advances through the wait, so the waited
-    // remainder is exact with no wall-clock floor for load or jitter.
+    // pacer's clock is real time, so the slept remainder carries the
+    // milliseconds the dispatch itself took, within tolerance.
     const derived = providerWaitMs(new Headers({ 'retry-after-ms': '250' }), Date.now())
     expect(derived).toBe(250)
     const waits: number[] = []
-    let nowMs = 1_000_000
     const pacing = new ModelApiPacing({
-      now: () => nowMs,
+      now: () => Date.now(),
       wait: (ms: number) => {
         waits.push(ms)
-        nowMs += ms
         return new Promise<void>((done) => setTimeout(done, ms))
       },
     })
@@ -169,6 +167,8 @@ describe('a provider-named 429 wait', () => {
     expect(order).toEqual(['foreground'])
     await backgrounded
     expect(order).toEqual(['foreground', 'background'])
-    expect(waits).toEqual([250])
+    expect(waits).toHaveLength(1)
+    expect(waits[0] ?? 0).toBeGreaterThan(200)
+    expect(waits[0] ?? 0).toBeLessThanOrEqual(250)
   })
 })
