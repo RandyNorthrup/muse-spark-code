@@ -29,6 +29,7 @@ export const modelsAccountsSliceSchema = z
     currentAccount: z.nullable(accountIdSchema),
     isSwapOn: z.boolean(),
     isParallelOn: z.boolean(),
+    severalOnThisDevice: z.boolean(),
     policy: z.nullable(accountsPolicyViewSchema),
     confirmation: z.nullable(accountConfirmationChoiceSchema),
     usageUrl: z.nullable(safePolicyUrl),

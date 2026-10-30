@@ -41,7 +41,9 @@ function port(overrides: Partial<AccountsPanelHostPort>): AccountsPanelHostPort 
     confirmations,
     provider: () => Promise.resolve(undefined),
     currentAccount: () => null,
-    settings: () => ({ isSwapOn: false, isParallelOn: false }),
+    settings: () => ({ isSwapOn: false, isParallelOn: false, severalOnThisDevice: false }),
+    confirmSeveral: () => Promise.resolve(false),
+    setSeveral: () => Promise.resolve(),
     capabilities: () => ({
       planWindows: [],
       hasRateHeadroom: false,
@@ -124,4 +126,113 @@ it('passes the placement conflict through with its opaque ids', async () => {
     provider: 'p1',
     device: 'd1',
   })
+})
+
+function severalEntry() {
+  return {
+    id: 'p1',
+    policyProvider: 'meta',
+    product: 'model-api',
+    auth: 'apiKey' as const,
+    origin: 'https://example.com/',
+    accounts: [{ id: 'a1', label: 'A', order: 0, thresholds: {} }],
+  }
+}
+
+it('writes the setting on when the vendor-terms confirmation accepts', async () => {
+  const writes: boolean[] = []
+  let isSeveralOn = false
+  const handler = new AccountsPanelHandler(
+    port({
+      provider: () => Promise.resolve(severalEntry()),
+      accounts: new AccountStore(
+        {
+          read: () => Promise.resolve(severalEntry()),
+          writeAccounts: () => Promise.resolve(),
+        },
+        {
+          read: () => Promise.resolve(undefined),
+          readForRemoval: () => Promise.resolve(undefined),
+          write: () => Promise.resolve(),
+          remove: () => Promise.resolve(),
+        },
+      ),
+      settings: () => ({ isSwapOn: false, isParallelOn: false, severalOnThisDevice: isSeveralOn }),
+      confirmSeveral: () => Promise.resolve(true),
+      setSeveral: (enabled) => {
+        writes.push(enabled)
+        isSeveralOn = enabled
+        return Promise.resolve()
+      },
+    }),
+  )
+  const reply = await handler.handle({ type: 'accounts/several', provider: 'p1', enabled: true })
+  expect(writes).toEqual([true])
+  expect(reply).toMatchObject({ provider: 'p1', severalOnThisDevice: true })
+})
+
+it('leaves the setting off when the vendor-terms confirmation denies', async () => {
+  const writes: boolean[] = []
+  const handler = new AccountsPanelHandler(
+    port({
+      provider: () => Promise.resolve(severalEntry()),
+      accounts: new AccountStore(
+        {
+          read: () => Promise.resolve(severalEntry()),
+          writeAccounts: () => Promise.resolve(),
+        },
+        {
+          read: () => Promise.resolve(undefined),
+          readForRemoval: () => Promise.resolve(undefined),
+          write: () => Promise.resolve(),
+          remove: () => Promise.resolve(),
+        },
+      ),
+      confirmSeveral: () => Promise.resolve(false),
+      setSeveral: (enabled) => {
+        writes.push(enabled)
+        return Promise.resolve()
+      },
+    }),
+  )
+  const reply = await handler.handle({ type: 'accounts/several', provider: 'p1', enabled: true })
+  expect(writes).toEqual([])
+  expect(reply).toMatchObject({ provider: 'p1', severalOnThisDevice: false })
+})
+
+it('turns the setting off without asking', async () => {
+  const writes: boolean[] = []
+  let wasAsked = false
+  let isSeveralOn = true
+  const handler = new AccountsPanelHandler(
+    port({
+      provider: () => Promise.resolve(severalEntry()),
+      accounts: new AccountStore(
+        {
+          read: () => Promise.resolve(severalEntry()),
+          writeAccounts: () => Promise.resolve(),
+        },
+        {
+          read: () => Promise.resolve(undefined),
+          readForRemoval: () => Promise.resolve(undefined),
+          write: () => Promise.resolve(),
+          remove: () => Promise.resolve(),
+        },
+      ),
+      settings: () => ({ isSwapOn: false, isParallelOn: false, severalOnThisDevice: isSeveralOn }),
+      confirmSeveral: () => {
+        wasAsked = true
+        return Promise.resolve(false)
+      },
+      setSeveral: (enabled) => {
+        writes.push(enabled)
+        isSeveralOn = enabled
+        return Promise.resolve()
+      },
+    }),
+  )
+  const reply = await handler.handle({ type: 'accounts/several', provider: 'p1', enabled: false })
+  expect(wasAsked).toBe(false)
+  expect(writes).toEqual([false])
+  expect(reply).toMatchObject({ provider: 'p1', severalOnThisDevice: false })
 })

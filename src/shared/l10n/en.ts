@@ -7772,6 +7772,8 @@ export const EN = {
     spendAdminStored: 'Admin report key stored for {provider} in {store}.',
     spendAdminCleared: 'Admin report key cleared for {provider}.',
     spendRefreshWait: 'Spend reports refresh at most once a minute; showing the cached report.',
+    severalSettingsRedirect:
+      'Turn on several accounts from the Accounts page, beside the provider, so the vendor-terms confirmation is shown first.',
   },
   // M108 X: machine-local testing options; read after table installation.
   developer: {

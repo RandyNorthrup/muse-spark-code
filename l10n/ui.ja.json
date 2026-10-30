@@ -5961,7 +5961,8 @@
     "spendAdminPrompt": "{provider} の管理レポートキー：",
     "spendAdminStored": "{provider} の管理レポートキーを {store} に保存しました。",
     "spendAdminCleared": "{provider} の管理レポートキーを削除しました。",
-    "spendRefreshWait": "利用レポートは1分に1回まで更新されます。キャッシュされたレポートを表示しています。"
+    "spendRefreshWait": "利用レポートは1分に1回まで更新されます。キャッシュされたレポートを表示しています。",
+    "severalSettingsRedirect": "複数のアカウントは、プロバイダーの横にあるアカウントページからオンにしてください。最初にプロバイダーの利用規約の確認が表示されます。"
   },
   "developer": {
     "title": "開発者向けオプション",

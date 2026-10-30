@@ -5961,7 +5961,8 @@
     "spendAdminPrompt": "{provider} 的管理员报告密钥：",
     "spendAdminStored": "{provider} 的管理员报告密钥已保存在 {store} 中。",
     "spendAdminCleared": "已清除 {provider} 的管理员报告密钥。",
-    "spendRefreshWait": "支出报告最多每分钟刷新一次；当前显示缓存的报告。"
+    "spendRefreshWait": "支出报告最多每分钟刷新一次；当前显示缓存的报告。",
+    "severalSettingsRedirect": "请在“帐户”页面中提供商旁开启多个帐户，以便先显示提供商条款确认。"
   },
   "developer": {
     "title": "开发者选项",

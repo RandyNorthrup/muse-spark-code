@@ -139,6 +139,24 @@ export function AccountsSection({
         {UI_TEXT.accounts.parallel}: {slice.isParallelOn ? UI_TEXT.toggleOn : UI_TEXT.toggleOff}.{' '}
         {UI_TEXT.accounts.parallelDescription}
       </p>
+      <p>
+        <label>
+          <input
+            type="checkbox"
+            checked={slice.severalOnThisDevice}
+            disabled={isPending || isUnavailable}
+            onChange={(event) => {
+              send({
+                type: 'accounts/several',
+                provider: slice.provider,
+                enabled: event.target.checked,
+              })
+            }}
+          />{' '}
+          {UI_TEXT.developer.allowMultiple}:{' '}
+          {slice.severalOnThisDevice ? UI_TEXT.toggleOn : UI_TEXT.toggleOff}.
+        </label>
+      </p>
       {policy === null ? (
         <p role="status">{UI_TEXT.accounts.notOffered}</p>
       ) : (

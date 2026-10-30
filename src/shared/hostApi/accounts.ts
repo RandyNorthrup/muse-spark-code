@@ -99,6 +99,13 @@ export const accountsRequestSchema = z.discriminatedUnion('type', [
     provider: accountIdSchema,
     product: accountIdSchema,
   }),
+  // D88 b2: the visible per-provider several-accounts switch. The host asks
+  // decision 6's vendor-terms confirmation before the first enable.
+  z.strictObject({
+    type: z.literal('accounts/several'),
+    provider: accountIdSchema,
+    enabled: z.boolean(),
+  }),
 ])
 export type AccountsRequest = z.infer<typeof accountsRequestSchema>
 

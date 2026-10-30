@@ -6126,7 +6126,8 @@
     "spendAdminPrompt": "Rendszergazdai jelentéskulcs ehhez: {provider}: ",
     "spendAdminStored": "Rendszergazdai jelentéskulcs mentve ehhez: {provider}, hely: {store}.",
     "spendAdminCleared": "Rendszergazdai jelentéskulcs törölve ehhez: {provider}.",
-    "spendRefreshWait": "A költségjelentések legfeljebb percenként frissülnek; a gyorsítótárazott jelentés látható."
+    "spendRefreshWait": "A költségjelentések legfeljebb percenként frissülnek; a gyorsítótárazott jelentés látható.",
+    "severalSettingsRedirect": "Több fiókot a Fiókok oldalon, a szolgáltató mellett kapcsoljon be, hogy először a szolgáltató feltételeinek megerősítése jelenjen meg."
   },
   "developer": {
     "title": "Fejlesztői beállítások",
