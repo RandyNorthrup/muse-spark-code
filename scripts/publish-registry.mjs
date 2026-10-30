@@ -60,7 +60,7 @@ export function failureReason(error) {
     : (FAILURE_REASONS.find(([pattern]) => pattern.test(text))?.[1] ?? 'publication refused')
 }
 
-export async function retryNetwork(action, sleep = setTimeout) {
+export async function retryNetwork(action) {
   for (let attempt = 0; ; attempt++) {
     try {
       return await action()
@@ -68,7 +68,7 @@ export async function retryNetwork(action, sleep = setTimeout) {
       if (attempt >= BACKOFF_MS.length || !NETWORK_ERROR.test(diagnostic(error))) {
         throw error
       }
-      await sleep(BACKOFF_MS[attempt])
+      await setTimeout(BACKOFF_MS[attempt])
     }
   }
 }
@@ -159,14 +159,12 @@ const MISMATCH_ERROR = /differs from the release|must use HTTPS/
 Poll verify() until the published artifact is visible with matching
 integrity. Resolves true when visible, false on timeout or when the stop
 fires; an integrity mismatch rejects. The stop is honored between polls.
-The clock, sleep, timeout and stop are injectable for tests.
+The timeout and stop are the caller's; the clock and the waits are real.
 */
 export async function pollVisible(verify, deps = {}) {
-  const sleep = deps.sleep ?? setTimeout
-  const now = deps.now ?? Date.now
   const timeout = deps.timeoutMs ?? VISIBILITY_TIMEOUT_MS
-  const deadline = now() + timeout
-  // waitedMs backstops a clock that never advances (skew, suspension, fakes):
+  const deadline = Date.now() + timeout
+  // waitedMs backstops a clock that never advances (skew, suspension):
   // the poll always ends after ~timeout of sleeping, whatever the clock says.
   let waitedMs = 0
   const signal = deps.signal
@@ -179,11 +177,11 @@ export async function pollVisible(verify, deps = {}) {
       if (MISMATCH_ERROR.test(error instanceof Error ? error.message : String(error))) {
         throw error
       }
-      if (now() >= deadline || waitedMs >= timeout) {
+      if (Date.now() >= deadline || waitedMs >= timeout) {
         return false
       }
       const delay = visibilityDelay(attempt)
-      await sleep(delay)
+      await setTimeout(delay)
       waitedMs += delay
       if (signal?.aborted) return false
     }
@@ -232,7 +230,6 @@ version already existed and the local artifact verified against it.
 */
 export async function publishOnce(channel, artifact, manifest, deps = {}) {
   const execute = deps.run ?? run
-  const sleep = deps.sleep ?? setTimeout
   const verify = () => verifyPublished(channel, artifact, manifest, deps)
   const command = publishCommand(channel, artifact)
   if (channel === 'openvsx') {
@@ -246,7 +243,7 @@ export async function publishOnce(channel, artifact, manifest, deps = {}) {
       } else if (!reply.ok) {
         throw new Error(`HTTP ${reply.status} checking Open VSX namespace`)
       }
-    }, sleep)
+    })
   }
   // An existing version is verified at once; only a fresh publish reports
   // back for the later shared visibility poll.
@@ -263,7 +260,7 @@ export async function publishOnce(channel, artifact, manifest, deps = {}) {
       return
     }
     isFreshPublish = true
-  }, sleep)
+  })
   return isFreshPublish
 }
 
@@ -294,15 +291,15 @@ per artifact, and a cancelled job never leaves only some targets
 published: re-running the job re-publishes nothing (the existing-version
 path verifies at once) and re-polls what is still pending. Every round
 tells what is still pending and how long the wait has run. Returns the
-`visible` and `pending` labels; an integrity mismatch rejects. The clock,
-sleep, timeout, stop and teller are injectable for tests.
+`visible` and `pending` labels; an integrity mismatch rejects. The
+timeout, the per-round delay, the stop and the teller are the caller's;
+the clock and the waits are real.
 */
 export async function pollAllVisible(entries, deps = {}) {
-  const sleep = deps.sleep ?? setTimeout
-  const now = deps.now ?? Date.now
   const timeout = deps.timeoutMs ?? VISIBILITY_TIMEOUT_MS
-  const deadline = now() + timeout
-  // waitedMs backstops a clock that never advances (skew, suspension, fakes):
+  const delayMs = deps.delayMs ?? null
+  const deadline = Date.now() + timeout
+  // waitedMs backstops a clock that never advances (skew, suspension):
   // the poll always ends after ~timeout of sleeping, whatever the clock says.
   let waitedMs = 0
   const signal = deps.signal
@@ -311,7 +308,7 @@ export async function pollAllVisible(entries, deps = {}) {
     (() => {
       /* silent unless the caller says the words */
     })
-  const startedAt = now()
+  const startedAt = Date.now()
   const pending = new Map(entries.map(({ label, verify }) => [label, verify]))
   for (let round = 0; pending.size > 0; round++) {
     if (signal?.aborted) break
@@ -325,13 +322,14 @@ export async function pollAllVisible(entries, deps = {}) {
         }
       }
     }
-    if (pending.size === 0 || signal?.aborted || now() >= deadline || waitedMs >= timeout) break
+    if (pending.size === 0 || signal?.aborted || Date.now() >= deadline || waitedMs >= timeout)
+      break
     tell(
       `waiting for registry visibility: ${pending.keys().toArray().join(', ')} ` +
-        `(${formatWaitedMs(now() - startedAt)} elapsed)`,
+        `(${formatWaitedMs(Date.now() - startedAt)} elapsed)`,
     )
-    const delay = visibilityDelay(round)
-    await sleep(delay)
+    const delay = delayMs ?? visibilityDelay(round)
+    await setTimeout(delay)
     waitedMs += delay
   }
   const done = new Set(entries.map(({ label }) => label).filter((label) => !pending.has(label)))
