@@ -50,8 +50,7 @@ const BUDGETS = [
   { path: 'dist/acpPlaybook.js', budgetKiB: 100 },
   // Exact media money no longer enters the registry through locale helpers.
   // Keep M112's original cap; M105's inherited temporary increase is removed.
-  // RLF-M108: 25,964 B measured +15% = 29.2 KiB, rounded up to the KiB.
-  { path: 'dist/runtimeQuestions.js', budgetKiB: 30 },
+  { path: 'dist/runtimeQuestions.js', budgetKiB: 25 },
   { path: 'dist/questionNotes.js', budgetKiB: 25 },
   // PR251FIX3B: the Muse Code approval-mode effect and reviewer-profile sync,
   // off activation; measured 22.88 KiB when split out, +15% rounded up to 27 KiB (PLAN.md D6).
@@ -109,8 +108,7 @@ const BUDGETS = [
   { path: 'dist/connector.js', budgetKiB: 125 },
   // RLM124 (finding 15): the connector's storage guard, 15565 bytes
   // (15.2 KiB) measured +15% = 17.5 KiB, rounded up to the next whole KiB.
-  // RLF-M108: 18,454 B measured +15% = 20.7 KiB, rounded up to the KiB.
-  { path: 'dist/connectorStoreGuard.js', budgetKiB: 21 },
+  { path: 'dist/connectorStoreGuard.js', budgetKiB: 18 },
   // REL0160B combined Model API: 479.2 KiB measured +5%, rounded to 25 KiB;
   // authorized rebuild brief and measurement recorded in PLAN.md (2026-10-07).
   { path: 'dist/modelApi.js', budgetKiB: 525 },
@@ -169,8 +167,7 @@ const BUDGETS = [
   // multiple (PLAN.md D6).
   { path: 'dist/modelsSubscriptions.js', budgetKiB: 50 },
   // M102: independent lazy entries; measured + 15%, rounded up to 25 KiB.
-  // RLF-M108: 102.7 KiB measured +15% = 118.2 KiB, rounded up to 125 KiB.
-  { path: 'dist/usageService.js', budgetKiB: 125 },
+  { path: 'dist/usageService.js', budgetKiB: 100 },
   { path: 'dist/usageCompanion.js', budgetKiB: 50 },
   // CMICCOMP: independent first-use voice page, no chat startup imports.
   { path: 'dist/voiceCompanion.js', budgetKiB: 125 },
@@ -208,8 +205,7 @@ const BUDGETS = [
   // M78b: first board/best-of-N action, 61.0 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/sessionBoard.js', budgetKiB: 75 },
   // M78b: paid Auto review after consent, 55.2 KiB with the same rule.
-  // RLF-M108: 75.1 KiB measured +15% = 86.4 KiB, rounded up to 100 KiB.
-  { path: 'dist/reviewer.js', budgetKiB: 100 },
+  { path: 'dist/reviewer.js', budgetKiB: 75 },
   // M96INT: tools and roster, loaded only for a team conversation. 44.6 KiB
   // measured; plus 15%, rounded up to 25 KiB (the approved D6 rule).
   // U1: new standalone editor, 74.9 KiB measured +15%, rounded to 100 KiB.
@@ -226,11 +222,9 @@ const BUDGETS = [
   // headless team merged, the engine ports stay in dist/teamEngine.js: 103,406
   // bytes (101.0 KiB, Windows 11, int/recovery 2026-10-22).
   { path: 'dist/teamHost.js', budgetKiB: 130 },
-  // RLF-M108: 101.7 KiB measured +15% = 117.0 KiB, rounded up to 125 KiB.
-  { path: 'dist/teamEngine.js', budgetKiB: 125 },
+  { path: 'dist/teamEngine.js', budgetKiB: 100 },
   // R4: first-use file adapter, 8.5 KiB measured +15%, rounded up.
-  // RLF-M108: 11,767 B measured +15% = 13.2 KiB, rounded up to the KiB.
-  { path: 'dist/teamFileIo.js', budgetKiB: 14 },
+  { path: 'dist/teamFileIo.js', budgetKiB: 10 },
   // CM963NF: native creation is its own first-use file-operation chunk.
   // Measured 9,299 bytes (9.1 KiB, production build on Kubuntu, 2026-10-11)
   // x 1.15 = 10,694 bytes (10.5 KiB), rounded up to the KiB (lead,
@@ -242,11 +236,9 @@ const BUDGETS = [
   // dist/teamHost.js keeps its budget. Measured 14,438 bytes (14.1 KiB,
   // production build on Kubuntu, 2026-10-11) x 1.15 = 16,604 bytes
   // (16.3 KiB), rounded up to the KiB (lead, 2026-10-10).
-  // RLF-M108: 20,087 B measured +15% = 22.6 KiB, rounded up to the KiB.
-  { path: 'dist/teamWorkerOps.js', budgetKiB: 23 },
+  { path: 'dist/teamWorkerOps.js', budgetKiB: 17 },
   // R4 follow-up: first-merge flow, 9.6 KiB measured +15%, rounded up.
-  // RLF-M108: 12,398 B measured +15% = 13.9 KiB, rounded up to the KiB.
-  { path: 'dist/teamMerge.js', budgetKiB: 14 },
+  { path: 'dist/teamMerge.js', budgetKiB: 12 },
   // M96c X2: board/scheduler/tools 57.8 KiB; D6's 15%, rounded to 25 KiB.
   // M120CAP (2026-10-10): scheduler 65,533 B after sharing team tools;
   // retain M96c X2's original cap. Receipt: docs/certification/m120-s.md.
@@ -414,13 +406,11 @@ const BUDGETS = [
   { path: 'dist/vaultBroker.js', budgetKiB: 193_749 / 1024 },
   // VAULTPARITY: 33,159 bytes measured on linuxlt with the OS-store/file
   // anchor choice; exactly 15% headroom.
-  // RLF-M108: 40,501 B measured; exactly 15% headroom, rounded to one byte.
-  { path: 'dist/vaultBrokerBindings.js', budgetKiB: 46_576 / 1024 },
+  { path: 'dist/vaultBrokerBindings.js', budgetKiB: 38_133 / 1024 },
   // MSM109: 58,130 bytes measured on linuxlt after the joined lease/store
   // reviews; exactly 15% headroom, rounded to one byte.
   { path: 'dist/vaultStore.js', budgetKiB: 66_850 / 1024 },
-  // RLF-M108: 27,232 B measured +15% = 30.6 KiB, rounded up to the KiB.
-  { path: 'dist/vaultPosix.js', budgetKiB: 31 },
+  { path: 'dist/vaultPosix.js', budgetKiB: 25 },
   // PR247FIX: 40,706 bytes measured on maclt with the Windows vault
   // platform (helper builds, pipe discovery and dial); exactly 15%
   // headroom.
@@ -439,8 +429,7 @@ const BUDGETS = [
   // recommendations, dated prices and the first-wave starter with their
   // shared contracts, plus M117's provision run and price catalogues.
   // 77.1 KiB measured with the run; budget 80 KiB (PLAN.md D6).
-  // RLF-M108: 82,037 B measured +15% = 92.1 KiB, rounded up to the KiB.
-  { path: 'dist/estimator.js', budgetKiB: 93 },
+  { path: 'dist/estimator.js', budgetKiB: 80 },
   // CIFIX161B: the sign-in gate (AuthService and the three-valued
   // credential read), loaded on the first credential, money or consent
   // read. 64.8 KiB when split out, plus 15%, rounded up to 25 KiB
@@ -559,8 +548,7 @@ const BUDGETS = [
   // C-M109-1 (lead decision 5): the vault for the CLI, the ACP agent and
   // headless runs, loaded on the first vault need. Measured 19.8 KiB;
   // plus 15%, rounded up to 25 KiB.
-  // RLF-M108: 26,550 B measured +15% = 29.8 KiB, rounded up to the KiB.
-  { path: 'dist/vaultRuntime.js', budgetKiB: 30 },
+  { path: 'dist/vaultRuntime.js', budgetKiB: 25 },
 ]
 
 // DIET1: independently emitted optional surfaces, measured on main, each plus
