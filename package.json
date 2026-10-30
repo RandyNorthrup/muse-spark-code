@@ -2120,7 +2120,7 @@
   },
   "dependencies": {
     "@codemirror/merge": "6.12.3",
-    "@napi-rs/keyring": "2.1.1",
+    "@napi-rs/keyring": "2.1.2",
     "@sigstore/bundle": "5.0.0",
     "@sigstore/tuf": "5.0.0",
     "@sigstore/verify": "4.1.2",
