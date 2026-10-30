@@ -100,7 +100,9 @@ export function parseEstimateOptions(argv: readonly string[]): ParsedOptions {
   if (
     goal === undefined ||
     (deadlineText !== undefined && deadline === undefined) ||
+    // eslint-disable-next-line unicorn/prefer-includes-over-repeated-comparisons -- the !== chain narrows string to EstimateRequest['fleet'] for options below; includes() does not narrow (the rule doc's own exception) (PLAN §8, RLF-UNICORN79).
     (fleet !== 'current' && fleet !== 'minimum' && fleet !== 'optimum') ||
+    // eslint-disable-next-line unicorn/prefer-includes-over-repeated-comparisons -- the !== chain narrows string to the format union for options below; includes() does not narrow (the rule doc's own exception) (PLAN §8, RLF-UNICORN79).
     (format !== 'md' && format !== 'html' && format !== 'json' && format !== 'text') ||
     (seed !== undefined && !estimateRequestSchema.shape.seed.safeParse(seed).success)
   )

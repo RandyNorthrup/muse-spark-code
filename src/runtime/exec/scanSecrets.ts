@@ -27,8 +27,7 @@ export async function runSecretScan(input: {
     }
     const bytes = await input.readFile(input.file, EXEC_SCAN_MAX_BYTES, input.signal)
     input.signal.throwIfAborted()
-    if (bytes.length > EXEC_SCAN_MAX_BYTES) return EXEC_EXIT.usage
-    if (input.out.isClosed) return EXEC_EXIT.usage
+    if (bytes.length > EXEC_SCAN_MAX_BYTES || input.out.isClosed) return EXEC_EXIT.usage
     const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
     const count = countSecretMatches(text, held.key === undefined ? [] : [held.key])
     // The usage line promises only the number on stdout: scripts read it.

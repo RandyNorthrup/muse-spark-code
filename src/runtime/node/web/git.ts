@@ -9,7 +9,6 @@ import { guardNodeMethod, NodeListenerError } from '../listenerGuard'
 import { nodeNetworkBranchRef } from '../../../shared/node'
 
 type GitMethod = Extract<NodeMethodName, `node/git/${string}`>
-type NetworkMethod = 'node/git/fetch' | 'node/git/pull' | 'node/git/push'
 
 /** N's closed runner supplies structured inspection and publication, always
 using its immutable service-owned gitdir. No shell, raw argv or key crosses
@@ -26,6 +25,7 @@ export interface NodeGitPagePort {
 }
 
 export function createNodeGitMethods(port: NodeGitPagePort) {
+  type NetworkMethod = 'node/git/fetch' | 'node/git/pull' | 'node/git/push'
   const run = async (method: GitMethod, params: unknown, signal: AbortSignal) => {
     signal.throwIfAborted()
     const result = await port.run(method, params, signal)

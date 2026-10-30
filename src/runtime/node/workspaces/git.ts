@@ -190,8 +190,7 @@ export function splitNetworkArgs(
   let index = 0
   while (index < rest.length) {
     const arg = rest[index] ?? ''
-    if (isGloballyDenied(arg)) return { ok: false }
-    if (arg === '-u' || arg.startsWith('-u')) return { ok: false }
+    if (arg === '-u' || arg.startsWith('-u') || isGloballyDenied(arg)) return { ok: false }
     if (arg.startsWith('-')) {
       if (NETWORK_VALUE_FLAGS.has(arg)) {
         index += 2

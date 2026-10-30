@@ -89,9 +89,8 @@ export function parseClientHelloSni(bytes: Uint8Array): SniOutcome {
     at += length
     return { from, length }
   }
-  if (takeVector(1) === undefined) return { kind: 'malformed' }
-  if (takeVector(2) === undefined) return { kind: 'malformed' }
-  if (takeVector(1) === undefined) return { kind: 'malformed' }
+  if (takeVector(1) === undefined || takeVector(2) === undefined || takeVector(1) === undefined)
+    return { kind: 'malformed' }
   const extensions = takeVector(2)
   if (extensions === undefined) return { kind: 'no-sni' }
   let ext = extensions.from

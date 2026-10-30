@@ -1086,7 +1086,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     let key: string | undefined
     try {
       key = await deps.secrets.get(SECRET_KEYS.modelApiKey)
-      metaKeyProbe.state = key !== undefined && key !== '' ? 'key' : 'absent'
+      metaKeyProbe.state = key === undefined || key === '' ? 'absent' : 'key'
     } catch (error: unknown) {
       // A refused providers file is not a keyring outage: the runtime is
       // already on the account service, so its own refusal stands as read

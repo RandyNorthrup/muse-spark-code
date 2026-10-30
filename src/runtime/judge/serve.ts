@@ -58,8 +58,7 @@ async function readRequest(request: IncomingMessage): Promise<JudgeRequest | und
     const parsed = judgeRequestSchema.safeParse(body)
     return parsed.success ? parsed.data : undefined
   } catch (error: unknown) {
-    if (error instanceof SyntaxError) return undefined
-    if (error instanceof TypeError) return undefined
+    if (error instanceof SyntaxError || error instanceof TypeError) return undefined
     throw error
   }
 }

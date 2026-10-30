@@ -115,7 +115,7 @@ export function createExecSink(input: {
   let lastMessage: string | undefined
   let resultExitCode: number | undefined
   const emittedItems = new Set<string>()
-  const checkStall = () => {
+  const didStall = () => {
     if (!isStalled && (input.out.isClosed || input.out.queuedBytes > EXEC_SINK_HIGH_WATER_BYTES)) {
       isStalled = true
       input.onStalled()
@@ -123,10 +123,10 @@ export function createExecSink(input: {
     return isStalled
   }
   const write = (text: string) => {
-    if (checkStall()) return
+    if (didStall()) return
     // String leaves are redacted before serialization; never rewrite JSON bytes.
     input.out.write(text)
-    checkStall()
+    didStall()
   }
   const answerForEgress = (text: string, schema: OutputSchema) => {
     const original = schema.parseAnswer(text)
@@ -248,9 +248,11 @@ export function createExecSink(input: {
     else if (input.format === 'json') write(`${JSON.stringify(redacted)}\n`)
     // A failed run's reason lives in the envelope's error; the withheld
     // placeholder alone never tells the person why nothing came back.
-    else if (redacted.error !== null && redacted.error.message !== '')
+    else if (redacted.error === null || redacted.error.message === '') {
+      write(`${redacted.finalMessage}\n`)
+    } else {
       write(`${redacted.error.message}\n`)
-    else write(`${redacted.finalMessage}\n`)
+    }
     const paid = redacted.usage.paid
     const cost = redacted.usage.costUsd
     const summary = fill(
@@ -299,7 +301,7 @@ export function createExecSink(input: {
       if (!isFinished) finishOnce(result)
     },
     get isStalled() {
-      return checkStall()
+      return didStall()
     },
     get resultExitCode() {
       return resultExitCode

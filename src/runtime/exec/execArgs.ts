@@ -380,9 +380,11 @@ export function parseExec(
   if (typeof promptFile === 'string' && promptFile !== '')
     prompt = { kind: 'file', path: promptFile }
   else if (positionals[0] === '-') prompt = { kind: 'stdin' }
-  else if (positionals[0] !== undefined && positionals[0] !== '')
+  else if (positionals[0] === undefined || positionals[0] === '') {
+    return invalid(UI_TEXT.execPromptMissing)
+  } else {
     prompt = { kind: 'text', text: positionals[0] }
-  else return invalid(UI_TEXT.execPromptMissing)
+  }
   if (prompt.kind === 'stdin' && values['key-stdin'] === true)
     return invalid(UI_TEXT.execStdinTwice)
   if (prompt.kind === 'text' && Buffer.byteLength(prompt.text) > EXEC_PROMPT_MAX_BYTES)

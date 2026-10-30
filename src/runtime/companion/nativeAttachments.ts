@@ -49,8 +49,8 @@ export function nativeAttachments(
   let tail = Promise.resolve()
   return async (raw) => {
     const request = requestSchema.safeParse(raw)
-    if (!request.success) return { ok: false, reason: UI_TEXT.attachmentUnreadable }
-    if (!context.isCurrent()) return { ok: false, reason: UI_TEXT.attachmentUnreadable }
+    if (!request.success || !context.isCurrent())
+      return { ok: false, reason: UI_TEXT.attachmentUnreadable }
     if (!context.isInteractiveUser()) return { ok: false, reason: UI_TEXT.media.recordingUserOnly }
     const execute = async () => {
       if (!context.isCurrent()) throw new Error(UI_TEXT.attachmentUnreadable)

@@ -369,8 +369,8 @@ export function compileOutputSchema(bytes: Uint8Array): OutputSchema {
         // JSON.parse fails only as these; the record copy names its two
         // refusals and the schema parser fails as $ZodError (zod/mini,
         // verified); anything else is not this answer's verdict to give.
-        if (error instanceof SyntaxError) return { ok: false, detail: 'JSON' }
-        if (error instanceof RangeError) return { ok: false, detail: 'JSON' }
+        if (error instanceof SyntaxError || error instanceof RangeError)
+          return { ok: false, detail: 'JSON' }
         if (error instanceof Error) {
           if (error.message === 'forbidden record key')
             return { ok: false, detail: 'forbidden record key' }

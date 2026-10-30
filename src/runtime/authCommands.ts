@@ -148,8 +148,11 @@ export async function authStatusAll(
       // One truth from both (RLTESTDRIVE item 7): a ChatGPT entry with
       // no stored grant reads as not signed in, as `providers status
       // chatgpt` says, not as a missing API key.
-      if (entry.id === 'chatgpt') deps.print(UI_TEXT.acpChatGpt.states['signed-out'])
-      else deps.print(fill(UI_TEXT.providerKeyAbsent, { provider: label }))
+      deps.print(
+        entry.id === 'chatgpt'
+          ? UI_TEXT.acpChatGpt.states['signed-out']
+          : fill(UI_TEXT.providerKeyAbsent, { provider: label }),
+      )
       continue
     }
     let parsed: unknown

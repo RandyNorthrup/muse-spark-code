@@ -236,7 +236,7 @@ export function deviceFlowSource(deps: DeviceFlowSourceDeps): DeviceFlowSource {
   }
 
   /** Refuse: while the slot still holds `text`, note its pair's id, then delete it. Never the generation. */
-  const refuse = (text: string, refused: StoredTokens): Promise<boolean> =>
+  const didRefuse = (text: string, refused: StoredTokens): Promise<boolean> =>
     serialized(async () => {
       if ((await read()) !== text) return false
       await deps.store.store(GITHUB_DEVICE_FLOW_REFUSED_KEY, refused.id)
@@ -298,7 +298,7 @@ export function deviceFlowSource(deps: DeviceFlowSourceDeps): DeviceFlowSource {
       stored.refreshToken === null ||
       (stored.refreshExpiresAt !== null && deps.flow.now() >= stored.refreshExpiresAt)
     ) {
-      await refuse(text, stored)
+      await didRefuse(text, stored)
       return
     }
     let tokens: DeviceFlowTokens
@@ -313,7 +313,7 @@ export function deviceFlowSource(deps: DeviceFlowSourceDeps): DeviceFlowSource {
         if (stored.expiresAt !== null && deps.flow.now() < stored.expiresAt) return issued(stored)
         throw error
       }
-      if (await refuse(text, stored)) return
+      if (await didRefuse(text, stored)) return
       // Another window spent the refresh token first and stored its new
       // pair: that pair, only while this Read's generation stands.
       const { pair: rotated } = await readNow()
@@ -361,7 +361,7 @@ export function deviceFlowSource(deps: DeviceFlowSourceDeps): DeviceFlowSource {
       const text = await read()
       const stored = parseStored(text)
       if (text !== undefined && stored?.accessToken === credential.bearer) {
-        await refuse(text, stored)
+        await didRefuse(text, stored)
       }
     },
     async signOut() {
