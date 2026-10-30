@@ -373,6 +373,11 @@ happened, not what was planned; superseded entries are kept.
   in any ACP editor answers the same scrubbed draft in the reply with the
   issue link. While the vault is switched off for users, the pattern scrub
   is the only scrub.
+- Tab in VS Code no longer asks you to approve a spend for a request that cannot
+  be sent. A secret under the cursor stops Tab's request, but the paid-use
+  question was asked first, and denying it snoozed Tab for the window. The
+  secret now stops the request before the question, so the question comes
+  only with a request that can be sent.
 - The usage page's installed font pack is read only from version folders
   inside the fonts folder: a version folder that is a link (a junction on
   Windows) to somewhere else is skipped, as a linked file already was.
