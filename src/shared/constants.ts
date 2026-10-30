@@ -11066,8 +11066,15 @@ export const RESOURCE_TRANSPORT_FAILURE_PERCENT = 20
 export const RESOURCE_TRANSPORT_MIN_RESULTS = 5
 export const RESOURCE_TRANSPORT_WINDOW_MS = 60_000
 export const RESOURCE_TRANSPORT_MAX_RESULTS = 100
-export const RESOURCE_TREE_PROCESS_CAP = 128
-export const RESOURCE_TREE_SPAWN_CAP = 64
+// D100 G13 per-job fork protection (D121/D208 safety bound, RLF-GOVFORK).
+// 512 alive processes: systemd's per-unit DefaultTasksMax through v230, and
+// below the ~1,200-process freeze that motivated G13. 16,384 births per
+// 15 s: OpenShift's per-workload maximum (podPidsLimit); a job churning it
+// is a flood, not work (docs/certification/cc-govfork.md has the sources
+// and the burst measurements). An internal resilience default, never a
+// person-set threshold.
+export const RESOURCE_TREE_PROCESS_CAP = 512
+export const RESOURCE_TREE_SPAWN_CAP = 16_384
 export const RESOURCE_TREE_SPAWN_WINDOW_MS = 15_000
 // SPAWN017C: an attested Windows job samples its own birth count in process,
 // drains to empty before it reports, and sends one bounded final record.

@@ -2330,6 +2330,7 @@
   "gitMachineBusy": "Git nie mógł zostać uruchomiony, ponieważ komputer jest zajęty. Spróbuj ponownie.",
   "gitResourceUnavailable": "Nie można uruchomić Git, ponieważ przydzielanie zasobów lub pomocnik procesów jest niedostępny.",
   "gitMemoryLimit": "Git został zatrzymany, ponieważ jego drzewo procesów osiągnęło limit pamięci.",
+  "gitForkStopped": "Git został zatrzymany przez ochronę przed forkiem.",
   "gitCommandConsequences": "Git może uruchamiać haki repozytorium, programy podpisujące lub pomocniki poświadczeń. Anulowanie zatrzymuje kolejne kroki; rozpoczęte już wywołanie Git lub GitHub może się zakończyć.",
   "gitCommitting": "Zatwierdzanie…",
   "gitCancel": "Anuluj",
@@ -7280,6 +7281,14 @@
       "other": "{count} nadzorowanego uruchomienia nie udało się zatrzymać w całości.",
       "few": "{count} nadzorowanych uruchomień nie udało się zatrzymać w całości.",
       "many": "{count} nadzorowanych uruchomień nie udało się zatrzymać w całości."
+    },
+    "forkStoppedProcesses": "Nadzorowane uruchomienie zostało zatrzymane przez ochronę przed forkiem: jego drzewo zawierało ponad {bound} procesów naraz.",
+    "forkStoppedSpawns": "Nadzorowane uruchomienie zostało zatrzymane przez ochronę przed forkiem: jego drzewo utworzyło ponad {bound} procesów naraz.",
+    "childrenRefused": {
+      "one": "Ochrona przed forkiem odmówiła nadzorowanemu uruchomieniu {count} procesu potomnego; uruchomienie było kontynuowane.",
+      "other": "Ochrona przed forkiem odmówiła nadzorowanemu uruchomieniu {count} procesu potomnego; uruchomienie było kontynuowane.",
+      "few": "Ochrona przed forkiem odmówiła nadzorowanemu uruchomieniu {count} procesy potomne; uruchomienie było kontynuowane.",
+      "many": "Ochrona przed forkiem odmówiła nadzorowanemu uruchomieniu {count} procesów potomnych; uruchomienie było kontynuowane."
     },
     "unavailable": "Nadzór nie jest dostępny w tej instalacji."
   },

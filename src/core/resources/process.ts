@@ -122,7 +122,12 @@ async function settleAttested(
     resource.failed?.()
     resource.complete(false)
   } else resource.uncertain()
-  return { isRetirementProved: isProved, capRefusals, limits }
+  return {
+    isRetirementProved: isProved,
+    capRefusals,
+    limits,
+    forkStop: record?.ending === 'spawnRate' ? 'spawnRate' : undefined,
+  }
 }
 
 /** Emergency bootstrap termination cannot depend on the helper being compiled. */
@@ -472,6 +477,17 @@ async function spawnPiped(
         resource.failed?.()
         resource.complete(root.pid === undefined)
       })
+      // A fork-protection stop the sampler recorded reads here after the
+      // root's exit; a stop that lands later is not seen (RLF-GOVFORK). A
+      // dispatched kill proves dispatch, never whole-tree retirement.
+      outcome = (): Promise<ResourceTreeOutcome | undefined> => {
+        const forkStop = resource.stoppedForFork?.()
+        let stopped: ResourceTreeOutcome | undefined
+        if (forkStop !== undefined) {
+          stopped = { isRetirementProved: false, capRefusals: 0, limits: [], forkStop }
+        }
+        return Promise.resolve(stopped)
+      }
     } else {
       // Bootstrap retires on close: its result is read only after every pipe ended.
       root.once('exit', (code) => {

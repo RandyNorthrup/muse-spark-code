@@ -2252,6 +2252,7 @@
   "gitMachineBusy": "计算机繁忙，Git 无法运行。请重试。",
   "gitResourceUnavailable": "资源准入功能或进程辅助程序不可用，因此无法运行 Git。",
   "gitMemoryLimit": "Git 的进程树已达到内存上限，因此 Git 已停止。",
+  "gitForkStopped": "Git 已因 fork 保护而停止。",
   "gitCommandConsequences": "Git 可能运行仓库钩子、签名程序或凭据助手。取消会停止后续步骤；已开始的 Git 或 GitHub 调用仍可能完成。",
   "gitCommitting": "正在提交…",
   "gitCancel": "取消",
@@ -6749,6 +6750,11 @@
     },
     "stopFailed": {
       "other": "有 {count} 个受监督运行未能完整停止。"
+    },
+    "forkStoppedProcesses": "受监督的运行已因 fork 保护而停止：其进程树同时容纳了超过 {bound} 个进程。",
+    "forkStoppedSpawns": "受监督的运行已因 fork 保护而停止：其进程树在短时间内生成了超过 {bound} 个进程。",
+    "childrenRefused": {
+      "other": "受监督的运行被 fork 保护拒绝了 {count} 个子进程；运行已继续。"
     },
     "unavailable": "此安装中没有监督功能。"
   },

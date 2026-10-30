@@ -2278,6 +2278,7 @@
   "gitMachineBusy": "Makine meşgul olduğu için Git çalıştırılamadı. Tekrar deneyin.",
   "gitResourceUnavailable": "Kaynak kabulü veya süreç yardımcısı kullanılamadığı için Git çalıştırılamadı.",
   "gitMemoryLimit": "Git süreç ağacı bellek sınırına ulaştığı için durduruldu.",
+  "gitForkStopped": "Git, fork koruması nedeniyle durduruldu.",
   "gitCommandConsequences": "Git depo kancalarını, imzalama programlarını veya kimlik bilgisi yardımcılarını çalıştırabilir. İptal sonraki adımları durdurur; başlamış bir Git veya GitHub çağrısı tamamlanabilir.",
   "gitCommitting": "İşleniyor…",
   "gitCancel": "İptal",
@@ -6926,6 +6927,12 @@
     "stopFailed": {
       "one": "{count} denetimli çalıştırma bütünüyle durdurulamadı.",
       "other": "{count} denetimli çalıştırma bütünüyle durdurulamadı."
+    },
+    "forkStoppedProcesses": "Denetlenen çalıştırma, fork koruması nedeniyle durduruldu: ağacı aynı anda {bound} işlemden fazlasını barındırıyordu.",
+    "forkStoppedSpawns": "Denetlenen çalıştırma, fork koruması nedeniyle durduruldu: ağacı kısa sürede {bound} işlemden fazlasını oluşturdu.",
+    "childrenRefused": {
+      "one": "Fork koruması, denetlenen çalıştırmaya {count} alt işlemi reddetti; çalıştırma devam etti.",
+      "other": "Fork koruması, denetlenen çalıştırmaya {count} alt işlemi reddetti; çalıştırma devam etti."
     },
     "unavailable": "Denetim bu kurulumda kullanılamıyor."
   },

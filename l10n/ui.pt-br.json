@@ -2304,6 +2304,7 @@
   "gitMachineBusy": "O Git não pôde ser executado porque a máquina está ocupada. Tente novamente.",
   "gitResourceUnavailable": "O Git não pôde ser executado porque a admissão de recursos ou o auxiliar de processos está indisponível.",
   "gitMemoryLimit": "O Git foi interrompido porque sua árvore de processos atingiu o limite de memória.",
+  "gitForkStopped": "O Git foi interrompido pela proteção anti-fork.",
   "gitCommandConsequences": "O Git pode executar hooks do repositório, programas de assinatura ou auxiliares de credenciais. Cancelar interrompe as próximas etapas; uma chamada ao Git ou GitHub já iniciada pode terminar.",
   "gitCommitting": "Fazendo commit…",
   "gitCancel": "Cancelar",
@@ -7103,6 +7104,13 @@
       "one": "{count} execução supervisionada não pôde ser parada por inteiro.",
       "other": "{count} execuções supervisionadas não puderam ser paradas por inteiro.",
       "many": "{count} execuções supervisionadas não puderam ser paradas por inteiro."
+    },
+    "forkStoppedProcesses": "A execução supervisionada foi interrompida pela proteção anti-fork: sua árvore continha mais de {bound} processos de uma vez.",
+    "forkStoppedSpawns": "A execução supervisionada foi interrompida pela proteção anti-fork: sua árvore gerou mais de {bound} processos de uma vez.",
+    "childrenRefused": {
+      "one": "A proteção anti-fork negou {count} processo filho à execução supervisionada; a execução continuou.",
+      "other": "A proteção anti-fork negou {count} processos filhos à execução supervisionada; a execução continuou.",
+      "many": "A proteção anti-fork negou {count} processos filhos à execução supervisionada; a execução continuou."
     },
     "unavailable": "A supervisão não está disponível nesta instalação."
   },
