@@ -53,6 +53,16 @@ export interface MuseCodeInstallOptions {
   readonly env?: NodeJS.ProcessEnv
 }
 
+/** An expected install failure, carrying its stable reason. Bugs throw anything else. */
+class MuseSetupFailure extends Error {
+  constructor(
+    readonly reason: MuseCodeInstallReason,
+    options?: ErrorOptions,
+  ) {
+    super(`setup muse ${reason}`, options)
+  }
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -79,14 +89,14 @@ async function followRedirects(first: Response, url: string, deadline: number): 
     const target = redirectTarget(response)
     if (target === undefined) return response
     const next = new URL(target, current)
-    if (next.protocol !== 'https:') throw new Error('setup muse download failed')
+    if (next.protocol !== 'https:') throw new MuseSetupFailure('download-failed')
     current = next.href
     response = await fetch(current, {
       redirect: 'manual',
       signal: AbortSignal.timeout(Math.max(1, deadline - Date.now())),
     })
   }
-  if (redirectTarget(response) !== undefined) throw new Error('setup muse download failed')
+  if (redirectTarget(response) !== undefined) throw new MuseSetupFailure('download-failed')
   return response
 }
 
@@ -100,7 +110,7 @@ async function fetchInstaller(deadline: number): Promise<string> {
   for (let attempt = 1; attempt <= FETCH_ATTEMPTS; attempt += 1) {
     // No attempt starts past the deadline: a spent bound answers
     // timed-out the same way on every machine.
-    if (Date.now() >= deadline) throw new Error('setup muse timed out')
+    if (Date.now() >= deadline) throw new MuseSetupFailure('timed-out')
     const isLastAttempt = attempt === FETCH_ATTEMPTS
     try {
       const response = await followRedirects(
@@ -121,11 +131,11 @@ async function fetchInstaller(deadline: number): Promise<string> {
           await sleep(FETCH_BACKOFF_FIRST_MS * 2 ** (attempt - 1))
           continue
         }
-        throw new Error('setup muse download failed')
+        throw new MuseSetupFailure('download-failed')
       }
       const text = await response.text()
       if (text.length === 0 || text.length > INSTALLER_MAX_BYTES) {
-        throw new Error('setup muse download failed')
+        throw new MuseSetupFailure('download-failed')
       }
       return text
     } catch (error: unknown) {
@@ -135,10 +145,10 @@ async function fetchInstaller(deadline: number): Promise<string> {
         error instanceof Error &&
         (error.name === 'AbortError' || error.name === 'TimeoutError')
       ) {
-        throw new Error('setup muse timed out', { cause: error })
+        throw new MuseSetupFailure('timed-out', { cause: error })
       }
       if (
-        (error instanceof Error && error.message === 'setup muse download failed') ||
+        (error instanceof MuseSetupFailure && error.reason === 'download-failed') ||
         error instanceof TypeError
       ) {
         // Our own download failure, or undici's network failure: both are
@@ -147,12 +157,12 @@ async function fetchInstaller(deadline: number): Promise<string> {
           await sleep(FETCH_BACKOFF_FIRST_MS * 2 ** (attempt - 1))
           continue
         }
-        throw new Error('setup muse download failed', { cause: error })
+        throw new MuseSetupFailure('download-failed', { cause: error })
       }
       throw error
     }
   }
-  throw new Error('setup muse download failed')
+  throw new MuseSetupFailure('download-failed')
 }
 
 /** execFile kills the child on its timeout and reports killed=true. */
@@ -182,15 +192,13 @@ async function runInstaller(
       windowsHide: true,
     })
   } catch (error: unknown) {
-    throw new Error(wasKilled(error) ? 'setup muse timed out' : 'setup muse install failed', {
+    throw new MuseSetupFailure(wasKilled(error) ? 'timed-out' : 'install-failed', {
       cause: error,
     })
   } finally {
-    try {
-      rmSync(dir, { recursive: true, force: true })
-    } catch {
-      // Best effort: the temp dir holds only Meta's fetched script.
-    }
+    // The dir is ours alone (mkdtemp above, the child reaped): a removal
+    // failure here is a genuine IO failure and surfaces as one.
+    rmSync(dir, { recursive: true, force: true })
   }
 }
 
@@ -203,11 +211,11 @@ async function verifyInstall(musePath: string, timeoutMs: number): Promise<strin
       windowsHide: true,
     })
     const first = stdout.split('\n', 1)[0]?.trim() ?? ''
-    if (first === '') throw new Error('setup muse verify failed')
+    if (first === '') throw new MuseSetupFailure('verify-failed')
     return first.slice(0, SHOWN_VERSION_MAX_CHARS)
   } catch (error: unknown) {
-    if (error instanceof Error && error.message === 'setup muse verify failed') throw error
-    throw new Error(wasKilled(error) ? 'setup muse timed out' : 'setup muse verify failed', {
+    if (error instanceof MuseSetupFailure) throw error
+    throw new MuseSetupFailure(wasKilled(error) ? 'timed-out' : 'verify-failed', {
       cause: error,
     })
   }
@@ -237,24 +245,8 @@ export async function installMuseCode(
     const version = await verifyInstall(musePath, remainingAfterInstall)
     return { ok: true, version }
   } catch (error: unknown) {
-    // NARROW: our own fixed setup words become reasons; anything else is a bug.
-    if (!(error instanceof Error)) throw error
-    switch (error.message) {
-      case 'setup muse download failed': {
-        return { ok: false, reason: 'download-failed' }
-      }
-      case 'setup muse install failed': {
-        return { ok: false, reason: 'install-failed' }
-      }
-      case 'setup muse verify failed': {
-        return { ok: false, reason: 'verify-failed' }
-      }
-      case 'setup muse timed out': {
-        return { ok: false, reason: 'timed-out' }
-      }
-      default: {
-        throw error
-      }
-    }
+    // NARROW: our own branded failures become reasons; anything else is a bug.
+    if (error instanceof MuseSetupFailure) return { ok: false, reason: error.reason }
+    throw error
   }
 }
