@@ -31,6 +31,7 @@ export { loadDeferredEnglish } from '${source('src/shared/l10n/deferredEnglish.t
 export { installEmbeddedTable } from '${source('src/webview/installTable.ts')}';
 export { installVaultEnglish } from '${source('src/shared/l10n/vaultEnglish.ts')}';
 export const loadResourceEnglish = () => import('browser-resource-english');
+export const loadResourceHistoryEnglish = () => import('browser-resource-history-english');
 export const loadDevicesEnglish = () => import('browser-devices-english');`,
   )
   const result = await build({
