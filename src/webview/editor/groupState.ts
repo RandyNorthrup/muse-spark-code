@@ -346,13 +346,6 @@ export function setMinimap(state: EditorGroupState, hasMinimap: boolean): Editor
   return { ...state, minimap: hasMinimap }
 }
 
-export function setSplitDirection(
-  state: EditorGroupState,
-  split: 'right' | 'down',
-): EditorGroupState {
-  return { ...state, split }
-}
-
 /** The file path a tab edits, or undefined for a browser preview tab. */
 export function tabFilePath(tab: EditorTab): string | undefined {
   return tab.kind === 'file' ? tab.id.slice('file:'.length) : undefined

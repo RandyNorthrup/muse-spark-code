@@ -12,9 +12,10 @@ import {
   previewViewportSchema,
   type PreviewViewport,
 } from '../../shared/desktopContracts'
+import { webviewKey } from '../../shared/keybindings'
 import { fill } from '../../shared/l10n/text'
 import { useDismiss } from '../useDismiss'
-import type { MountedEditor } from './codemirror.mjs'
+import type { MountedEditor } from './codemirror'
 import { Editor } from './Editor'
 import {
   activatePane,
@@ -104,6 +105,18 @@ function tabLabel(tab: EditorTab, hasUnsavedChanges: boolean): string {
   if (tab.pinned) return fill(text.tabPinned, { title: tab.title })
   if (hasUnsavedChanges) return fill(text.tabUnsaved, { title: tab.title })
   return tab.ephemeral ? fill(text.tabPreview, { title: tab.title }) : tab.title
+}
+
+const PANE_BY_INTENT: Readonly<Record<string, number>> = {
+  group1: 0,
+  group2: 1,
+  group3: 2,
+  group4: 3,
+  group5: 4,
+  group6: 5,
+  group7: 6,
+  group8: 7,
+  group9: 8,
 }
 
 const DEVICE_LABELS = (deviceId: PreviewViewport['deviceId']): string => {
@@ -199,20 +212,20 @@ export function EditorGroup(props: EditorGroupProps) {
     if (active === undefined) return
     const index = pane.tabs.findIndex((tab) => tab.id === active.id)
     let nextIndex: number | undefined
-    switch (event.key) {
-      case 'ArrowRight': {
+    switch (webviewKey('editor.group', event)) {
+      case 'next': {
         nextIndex = (index + 1) % pane.tabs.length
         break
       }
-      case 'ArrowLeft': {
+      case 'previous': {
         nextIndex = (index - 1 + pane.tabs.length) % pane.tabs.length
         break
       }
-      case 'Home': {
+      case 'first': {
         nextIndex = 0
         break
       }
-      case 'End': {
+      case 'last': {
         nextIndex = pane.tabs.length - 1
         break
       }
@@ -229,15 +242,15 @@ export function EditorGroup(props: EditorGroupProps) {
   }
 
   const onGroupKeyDown = (event: ReactKeyboardEvent): void => {
-    if (!event.ctrlKey || event.altKey || event.metaKey) return
-    if (event.key === 'PageDown') {
+    const intent = webviewKey('editor.group', event)
+    if (intent === 'cycleNext') {
       event.preventDefault()
       change(cycleTab(state, 1))
-    } else if (event.key === 'PageUp') {
+    } else if (intent === 'cyclePrevious') {
       event.preventDefault()
       change(cycleTab(state, -1))
-    } else if (/^[1-9]$/u.test(event.key) && state.panes.length > 1) {
-      const pane = state.panes[Number(event.key) - 1]
+    } else if (intent !== undefined && intent.startsWith('group') && state.panes.length > 1) {
+      const pane = state.panes[PANE_BY_INTENT[intent] ?? -1]
       if (pane === undefined) return
       event.preventDefault()
       change(activatePane(state, pane.id))
@@ -283,7 +296,7 @@ export function EditorGroup(props: EditorGroupProps) {
           if (event.button === 1) requestClose(tab)
         }}
         onKeyDown={(event) => {
-          if (!(event.key === 'Enter' || event.key === ' ')) {
+          if (webviewKey('editor.group', event) !== 'accept') {
             return
           }
 
@@ -352,7 +365,7 @@ export function EditorGroup(props: EditorGroupProps) {
           aria-label={text.moreActions}
           className="ms-editor-menu"
           onKeyDown={(event) => {
-            if (event.key === 'Escape') setMenuPaneId(null)
+            if (webviewKey('editor.group', event) === 'close') setMenuPaneId(null)
           }}
           onBlur={onMenuBlur}
         >

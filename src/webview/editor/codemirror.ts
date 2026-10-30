@@ -25,7 +25,7 @@ import {
   search,
   searchKeymap,
 } from '@codemirror/search'
-import { Compartment, EditorState } from '@codemirror/state'
+import { Compartment, EditorState, type Extension } from '@codemirror/state'
 import {
   EditorView,
   ViewPlugin,
@@ -38,9 +38,43 @@ import {
   keymap,
   lineNumbers,
   rectangularSelection,
+  type PluginValue,
+  type ViewUpdate,
 } from '@codemirror/view'
-import { highlightTree, tags as t } from '@lezer/highlight'
-import { EDITOR_MINIMAP_CHAR_WIDTH_PX } from '../../shared/constants'
+import { highlightTree, tags as t, type Highlighter, type Tag } from '@lezer/highlight'
+import {
+  EDITOR_MINIMAP_BLOCK_HEIGHT_FRACTION,
+  EDITOR_MINIMAP_CHAR_WIDTH_PX,
+} from '../../shared/constants'
+
+export interface MountEditorOptions {
+  readonly text: string
+  readonly label: string
+  readonly languageId: string | null
+  readonly readOnly: boolean
+  readonly minimap: boolean
+  readonly phrases: Readonly<Record<string, string>>
+  readonly onChange: (text: string) => void
+  readonly onCursor: (cursor: { readonly line: number; readonly column: number }) => void
+  readonly onLanguageFailed: (languageId: string) => void
+}
+
+export interface MountedEditor {
+  focus(): void
+  destroy(): void
+  getText(): string
+  setMinimap(isEnabled: boolean): void
+  setLanguage(languageId: string | null): void
+  openSearch(): void
+}
+
+export interface MountDiffOptions {
+  readonly originalLabel: string
+  readonly modifiedLabel: string
+  readonly languageId: string | null
+  readonly phrases: Readonly<Record<string, string>>
+  readonly onLanguageFailed: (languageId: string) => void
+}
 
 // Language loaders keyed by the catalog ids in languages.ts. Each is a
 // dynamic import, so every language ships as its own lazy chunk and a
@@ -48,86 +82,86 @@ import { EDITOR_MINIMAP_CHAR_WIDTH_PX } from '../../shared/constants'
 // Literal specifiers throughout: the bundler turns each into its own
 // lazy chunk, which a variable specifier would defeat. The set is
 // the catalog in languages.ts, sized to the node editor budget.
-const LOADERS = {
+const LOADERS: Readonly<Record<string, () => Promise<Extension>>> = {
   javascript: async () => {
     const { javascript } = await import('@codemirror/lang-javascript')
-    return javascript()
+    return javascript().extension
   },
   jsx: async () => {
     const { javascript } = await import('@codemirror/lang-javascript')
-    return javascript({ jsx: true })
+    return javascript({ jsx: true }).extension
   },
   typescript: async () => {
     const { javascript } = await import('@codemirror/lang-javascript')
-    return javascript({ typescript: true })
+    return javascript({ typescript: true }).extension
   },
   tsx: async () => {
     const { javascript } = await import('@codemirror/lang-javascript')
-    return javascript({ typescript: true, jsx: true })
+    return javascript({ typescript: true, jsx: true }).extension
   },
   json: async () => {
     const { json } = await import('@codemirror/lang-json')
-    return json()
+    return json().extension
   },
   python: async () => {
     const { python } = await import('@codemirror/legacy-modes/mode/python')
-    return StreamLanguage.define(python)
+    return StreamLanguage.define(python).extension
   },
   html: async () => {
     const { html } = await import('@codemirror/legacy-modes/mode/xml')
-    return StreamLanguage.define(html)
+    return StreamLanguage.define(html).extension
   },
   css: async () => {
     const { css } = await import('@codemirror/legacy-modes/mode/css')
-    return StreamLanguage.define(css)
+    return StreamLanguage.define(css).extension
   },
   yaml: async () => {
     const { yaml } = await import('@codemirror/legacy-modes/mode/yaml')
-    return StreamLanguage.define(yaml)
+    return StreamLanguage.define(yaml).extension
   },
   xml: async () => {
     const { xml } = await import('@codemirror/legacy-modes/mode/xml')
-    return StreamLanguage.define(xml)
+    return StreamLanguage.define(xml).extension
   },
   rust: async () => {
     const { rust } = await import('@codemirror/legacy-modes/mode/rust')
-    return StreamLanguage.define(rust)
+    return StreamLanguage.define(rust).extension
   },
   go: async () => {
     const { go } = await import('@codemirror/legacy-modes/mode/go')
-    return StreamLanguage.define(go)
+    return StreamLanguage.define(go).extension
   },
   shell: async () => {
     const { shell } = await import('@codemirror/legacy-modes/mode/shell')
-    return StreamLanguage.define(shell)
+    return StreamLanguage.define(shell).extension
   },
   powershell: async () => {
     const { powerShell } = await import('@codemirror/legacy-modes/mode/powershell')
-    return StreamLanguage.define(powerShell)
+    return StreamLanguage.define(powerShell).extension
   },
   toml: async () => {
     const { toml } = await import('@codemirror/legacy-modes/mode/toml')
-    return StreamLanguage.define(toml)
+    return StreamLanguage.define(toml).extension
   },
   dockerfile: async () => {
     const { dockerFile } = await import('@codemirror/legacy-modes/mode/dockerfile')
-    return StreamLanguage.define(dockerFile)
+    return StreamLanguage.define(dockerFile).extension
   },
   cmake: async () => {
     const { cmake } = await import('@codemirror/legacy-modes/mode/cmake')
-    return StreamLanguage.define(cmake)
+    return StreamLanguage.define(cmake).extension
   },
   diff: async () => {
     const { diff } = await import('@codemirror/legacy-modes/mode/diff')
-    return StreamLanguage.define(diff)
+    return StreamLanguage.define(diff).extension
   },
   properties: async () => {
     const { properties } = await import('@codemirror/legacy-modes/mode/properties')
-    return StreamLanguage.define(properties)
+    return StreamLanguage.define(properties).extension
   },
 }
 
-function editorTheme() {
+function editorTheme(): Extension {
   return EditorView.theme({
     '&': {
       color: 'var(--ms-text, var(--vscode-editor-foreground, var(--vscode-foreground)))',
@@ -193,7 +227,7 @@ const syntaxStyle = HighlightStyle.define([
 // colours, resolved from the theme), a viewport overlay, and
 // click-or-drag scrolling. It is decoration over the real editor, so
 // it is hidden from assistive technology; the editor stays the surface.
-const MINIMAP_COLOR_KEYS = {
+const MINIMAP_COLOR_KEYS: Readonly<Record<string, string>> = {
   keyword: '--ms-syntax-keyword',
   string: '--ms-syntax-string',
   number: '--ms-syntax-number',
@@ -201,8 +235,8 @@ const MINIMAP_COLOR_KEYS = {
   comment: '--ms-muted',
   invalid: '--ms-danger',
 }
-const minimapHighlighter = {
-  style: (styleTags) => {
+const minimapHighlighter: Highlighter = {
+  style: (styleTags: readonly Tag[]): string | null => {
     for (const tag of styleTags) {
       if ([t.keyword, t.operatorKeyword, t.modifier, t.controlKeyword].includes(tag)) {
         return 'keyword'
@@ -219,39 +253,45 @@ const minimapHighlighter = {
   },
 }
 
-class MinimapView {
-  constructor(view) {
-    this.view = view
+class MinimapView implements PluginValue {
+  private readonly view: EditorView
+  private readonly dom: HTMLElement
+  private readonly canvas: HTMLCanvasElement
+  private readonly overlay: HTMLElement
+  private readonly resizeObserver: ResizeObserver | null
+  private isDragging = false
+  private readonly onScroll = (): void => {
+    this.positionOverlay()
+  }
+  private readonly onPointerDown = (event: PointerEvent): void => {
+    this.isDragging = true
+    this.dom.setPointerCapture(event.pointerId)
+    this.scrollToPointer(event)
+  }
+  private readonly onPointerMove = (event: PointerEvent): void => {
+    if (this.isDragging) this.scrollToPointer(event)
+  }
+  private readonly onPointerUp = (): void => {
     this.isDragging = false
-    const document = view.dom.ownerDocument
-    this.dom = document.createElement('div')
+  }
+
+  constructor(view: EditorView) {
+    this.view = view
+    const doc = view.dom.ownerDocument
+    this.dom = doc.createElement('div')
     this.dom.className = 'ms-editor-minimap'
     this.dom.setAttribute('aria-hidden', 'true')
-    this.canvas = document.createElement('canvas')
+    this.canvas = doc.createElement('canvas')
     this.canvas.className = 'ms-editor-minimap-canvas'
-    this.overlay = document.createElement('div')
+    this.overlay = doc.createElement('div')
     this.overlay.className = 'ms-editor-minimap-viewport'
     this.dom.append(this.canvas, this.overlay)
     view.dom.append(this.dom)
-    this.onScroll = () => {
-      this.positionOverlay()
-    }
     view.scrollDOM.addEventListener('scroll', this.onScroll, { passive: true })
-    this.onPointerDown = (event) => {
-      this.isDragging = true
-      this.dom.setPointerCapture(event.pointerId)
-      this.scrollToPointer(event)
-    }
-    this.onPointerMove = (event) => {
-      if (this.isDragging) this.scrollToPointer(event)
-    }
-    this.onPointerUp = () => {
-      this.isDragging = false
-    }
     this.dom.addEventListener('pointerdown', this.onPointerDown)
     this.dom.addEventListener('pointermove', this.onPointerMove)
     this.dom.addEventListener('pointerup', this.onPointerUp)
-    const Observer = view.dom.ownerDocument.defaultView?.ResizeObserver
+    const Observer = doc.defaultView?.ResizeObserver
     this.resizeObserver =
       Observer === undefined
         ? null
@@ -262,20 +302,7 @@ class MinimapView {
     this.draw()
   }
 
-  update(update) {
-    if (update.docChanged || update.viewportChanged || update.geometryChanged) this.draw()
-  }
-
-  destroy() {
-    this.resizeObserver?.disconnect()
-    this.view.scrollDOM.removeEventListener('scroll', this.onScroll)
-    this.dom.removeEventListener('pointerdown', this.onPointerDown)
-    this.dom.removeEventListener('pointermove', this.onPointerMove)
-    this.dom.removeEventListener('pointerup', this.onPointerUp)
-    this.dom.remove()
-  }
-
-  scrollToPointer(event) {
+  private scrollToPointer(event: PointerEvent): void {
     const rect = this.dom.getBoundingClientRect()
     if (rect.height === 0) return
     const fraction = Math.min(Math.max((event.clientY - rect.top) / rect.height, 0), 1)
@@ -284,7 +311,7 @@ class MinimapView {
     this.view.dispatch({ effects: EditorView.scrollIntoView(line.from, { y: 'center' }) })
   }
 
-  positionOverlay() {
+  private positionOverlay(): void {
     const scroller = this.view.scrollDOM
     if (scroller.scrollHeight === 0 || this.dom.clientHeight === 0) return
     const heightFraction = scroller.clientHeight / scroller.scrollHeight
@@ -293,7 +320,7 @@ class MinimapView {
     this.overlay.style.top = `${String(topFraction * 100)}%`
   }
 
-  draw() {
+  private draw(): void {
     this.positionOverlay()
     const width = this.dom.clientWidth
     const height = this.dom.clientHeight
@@ -307,12 +334,13 @@ class MinimapView {
     if (context === null) return
     context.scale(ratio, ratio)
     const style = this.view.dom.ownerDocument.defaultView?.getComputedStyle(this.dom)
-    const resolveColor = (variable, fallbackVariable) => {
+    const resolveColor = (variable: string, fallbackVariable: string): string => {
+      const primary = style?.getPropertyValue(variable).trim() ?? ''
       const value =
-        style?.getPropertyValue(variable).trim() || style?.getPropertyValue(fallbackVariable).trim()
-      return value === '' || value === undefined ? (style?.color ?? 'currentColor') : value
+        primary === '' ? (style?.getPropertyValue(fallbackVariable).trim() ?? '') : primary
+      return value === '' ? (style?.color ?? 'currentColor') : value
     }
-    const colors = {
+    const colors: { default: string; [key: string]: string } = {
       default: resolveColor('--ms-text', '--vscode-editor-foreground'),
     }
     for (const [key, variable] of Object.entries(MINIMAP_COLOR_KEYS)) {
@@ -320,8 +348,8 @@ class MinimapView {
     }
     const { doc } = this.view.state
     const lineHeight = height / doc.lines
-    const blockHeight = Math.max(1, lineHeight * 0.7)
-    const spans = []
+    const blockHeight = Math.max(1, lineHeight * EDITOR_MINIMAP_BLOCK_HEIGHT_FRACTION)
+    const spans: { from: number; to: number; color: string }[] = []
     highlightTree(syntaxTree(this.view.state), minimapHighlighter, (from, to, classes) => {
       spans.push({ from, to, color: colors[classes] ?? colors.default })
     })
@@ -330,7 +358,7 @@ class MinimapView {
       const line = doc.line(number)
       const y = (number - 1) * lineHeight
       let cursor = line.from
-      const drawRun = (from, to, color) => {
+      const drawRun = (from: number, to: number, color: string): void => {
         const text = doc.sliceString(from, to)
         let column = from - line.from
         for (const run of text.split(/(\s+)/u)) {
@@ -352,27 +380,42 @@ class MinimapView {
       let probe = spanIndex
       while (probe < spans.length && (spans[probe]?.from ?? Infinity) < line.to) {
         const span = spans[probe]
-        const from = Math.max(span.from, line.from)
-        const to = Math.min(span.to, line.to)
-        if (cursor < from) drawRun(cursor, from, colors.default)
-        if (from < to) drawRun(from, to, span.color)
-        cursor = Math.max(cursor, to)
+        if (span !== undefined) {
+          const from = Math.max(span.from, line.from)
+          const to = Math.min(span.to, line.to)
+          if (cursor < from) drawRun(cursor, from, colors.default)
+          if (from < to) drawRun(from, to, span.color)
+          cursor = Math.max(cursor, to)
+        }
         probe += 1
       }
       if (cursor < line.to) drawRun(cursor, line.to, colors.default)
     }
   }
+
+  update(update: ViewUpdate): void {
+    if (update.docChanged || update.viewportChanged || update.geometryChanged) this.draw()
+  }
+
+  destroy(): void {
+    this.resizeObserver?.disconnect()
+    this.view.scrollDOM.removeEventListener('scroll', this.onScroll)
+    this.dom.removeEventListener('pointerdown', this.onPointerDown)
+    this.dom.removeEventListener('pointermove', this.onPointerMove)
+    this.dom.removeEventListener('pointerup', this.onPointerUp)
+    this.dom.remove()
+  }
 }
 
 const minimapExtension = ViewPlugin.fromClass(MinimapView)
 
-function cursorOf(state) {
+function cursorOf(state: EditorState): { line: number; column: number } {
   const head = state.selection.main.head
   const line = state.doc.lineAt(head)
   return { line: line.number, column: head - line.from + 1 }
 }
 
-export function mountEditor(parent, options) {
+export function mountEditor(parent: HTMLElement, options: MountEditorOptions): MountedEditor {
   const languageCompartment = new Compartment()
   const minimapCompartment = new Compartment()
   let isDisposed = false
@@ -408,7 +451,7 @@ export function mountEditor(parent, options) {
           ...foldKeymap,
           indentWithTab,
         ]),
-        EditorState.phrases.of(options.phrases),
+        EditorState.phrases.of({ ...options.phrases }),
         editorTheme(),
         EditorView.contentAttributes.of({ 'aria-label': options.label }),
         EditorState.readOnly.of(options.readOnly),
@@ -423,7 +466,7 @@ export function mountEditor(parent, options) {
     }),
   })
 
-  async function applyLanguage(languageId) {
+  async function applyLanguage(languageId: string | null): Promise<void> {
     if (languageId === null) {
       languageGeneration += 1
       if (!isDisposed) view.dispatch({ effects: languageCompartment.reconfigure([]) })
@@ -452,32 +495,38 @@ export function mountEditor(parent, options) {
   options.onCursor(cursorOf(view.state))
 
   return {
-    focus: () => {
+    focus: (): void => {
       view.focus()
     },
-    destroy: () => {
+    destroy: (): void => {
       isDisposed = true
       view.destroy()
     },
-    getText: () => view.state.doc.toString(),
-    setMinimap: (on) => {
-      view.dispatch({ effects: minimapCompartment.reconfigure(on ? minimapExtension : []) })
+    getText: (): string => view.state.doc.toString(),
+    setMinimap: (isEnabled: boolean): void => {
+      view.dispatch({
+        effects: minimapCompartment.reconfigure(isEnabled ? minimapExtension : []),
+      })
     },
-    setLanguage: (languageId) => {
+    setLanguage: (languageId: string | null): void => {
       void applyLanguage(languageId)
     },
-    openSearch: () => {
+    openSearch: (): void => {
       openSearchPanel(view)
     },
   }
 }
 
-function diffExtensions(label, languageCompartment, phrases) {
+function diffExtensions(
+  label: string,
+  languageCompartment: Compartment,
+  phrases: Readonly<Record<string, string>>,
+): Extension[] {
   return [
     lineNumbers(),
     highlightSpecialChars(),
     syntaxHighlighting(syntaxStyle, { fallback: true }),
-    EditorState.phrases.of(phrases),
+    EditorState.phrases.of({ ...phrases }),
     editorTheme(),
     EditorState.readOnly.of(true),
     EditorView.editable.of(false),
@@ -486,7 +535,12 @@ function diffExtensions(label, languageCompartment, phrases) {
   ]
 }
 
-export function mountDiff(parent, original, modified, options) {
+export function mountDiff(
+  parent: HTMLElement,
+  original: string,
+  modified: string,
+  options: MountDiffOptions,
+): { destroy(): void } {
   const originalLanguage = new Compartment()
   const modifiedLanguage = new Compartment()
   const view = new MergeView({
@@ -500,28 +554,29 @@ export function mountDiff(parent, original, modified, options) {
       extensions: diffExtensions(options.modifiedLabel, modifiedLanguage, options.phrases),
     },
   })
-  let isDisposed = false
+  const lifecycle = { isDisposed: false }
   if (options.languageId !== null) {
-    const loader = LOADERS[options.languageId]
+    const languageId = options.languageId
+    const loader = LOADERS[languageId]
     if (loader === undefined) {
-      options.onLanguageFailed(options.languageId)
+      options.onLanguageFailed(languageId)
     } else {
-      void (async () => {
+      void (async (): Promise<void> => {
         try {
           const support = await loader()
-          if (isDisposed) return
+          if (lifecycle.isDisposed) return
           view.a.dispatch({ effects: originalLanguage.reconfigure(support) })
           view.b.dispatch({ effects: modifiedLanguage.reconfigure(support) })
         } catch {
           // REPORTED as in mountEditor: plain-text diff, host notified.
-          if (!isDisposed) options.onLanguageFailed(options.languageId)
+          if (!lifecycle.isDisposed) options.onLanguageFailed(languageId)
         }
       })()
     }
   }
   return {
-    destroy: () => {
-      isDisposed = true
+    destroy: (): void => {
+      lifecycle.isDisposed = true
       view.destroy()
     },
   }
