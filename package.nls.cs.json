@@ -181,6 +181,7 @@
   "config.judge.engine.enumDescriptions.both": "Používat samostatného hodnotitele a vlastní model chatu prostřednictvím změřené kaskády. Vyžaduje ověřený zdroj a vhodné kalibrační profily.",
   "config.judge.separate.description": "Identifikátor zdroje/modelu samostatného hodnotitele. Prázdná hodnota zachová současné nastavení s jedním modelem. Zdroje vyžadují vlastní ověření a souhlas; placená volání se před první platbou jednou zeptají a zobrazí cenu a sdílený museSpark.paidDailyBudgetUsd.",
   "command.openHelp.title": "Nápověda a reference",
+  "command.developerOptions.title": "Otevřít možnosti pro vývojáře",
   "config.shell.passEnvironmentVariables.description": "Názvy proměnných prostředí předávaných interaktivním příkazům shellu hlavní relace, včetně proměnných s přihlašovacími údaji, které jsou běžně skryté. Pouze názvy, nikdy hodnoty. Výchozí: žádné. Příkaz může tyto hodnoty odhalit v konverzaci a poskytovateli modelu. Ověřování/then_run, plány, podřízení/týmoví pracovníci a hooky nikdy nedostávají proměnné s přihlašovacími údaji, ani když jsou zde uvedené. Interaktivní příkaz přesunutý na pozadí si ponechá počáteční prostředí. Nemění prostředí Muse Code ani explicitně nakonfigurovaných serverů MCP.",
   "config.resourceGovernor.description": "Udržuje odezvu počítače zpomalením nebo odložením práce spuštěné prostředím agenta. Ve výchozím nastavení zapnuto.",
   "config.resourceCpuMaxPercent.description": "Omezí práci, když využití procesoru překračuje toto procento po dobu 30 sekund. Bez hodnoty se CPU neomezuje.",

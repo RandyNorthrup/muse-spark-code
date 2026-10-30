@@ -6142,6 +6142,7 @@
     "differentMachine": "A fejlesztői beállításokat egy másik gépazonosítóval állították be. Állítsa vissza őket, hogy ezen a gépen újra kezdhesse.",
     "invalidRequest": "Ellenőrizze a fejlesztői beállítások kérését.",
     "expires": "A fejlesztői mód ekkor jár le: {time}.",
+    "expired": "A fejlesztői mód lejárt, és profiljai leálltak.",
     "reset": "Fejlesztői beállítások visszaállítása",
     "profiles": "Helyi profilok",
     "profileInfo": "Minden profilnak saját hitelesítőadat-helye, állapotmappája és futtatási folyamata van. A lejárat leállítja a profilokat; a visszaállítás törli őket.",

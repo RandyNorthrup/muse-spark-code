@@ -17,7 +17,7 @@ differs from the source. Do not edit it by hand.
 | `capabilities.untrustedWorkspaces` | `limited`                                                                                                                     |
 | `enabledApiProposals`              | none                                                                                                                          |
 | `activationEvents`                 | `onWebviewPanel:museSpark.chatPanel`, `onStartupFinished`                                                                     |
-| `contributes`                      | `commands` (72), `configuration` (2), `keybindings` (11), `menus` (4), `views` (1), `viewsContainers` (1), `walkthroughs` (1) |
+| `contributes`                      | `commands` (73), `configuration` (2), `keybindings` (11), `menus` (4), `views` (1), `viewsContainers` (1), `walkthroughs` (1) |
 
 ## Build targets
 
@@ -33,7 +33,7 @@ The VS Code adapter: 52 files. Everything else reaches VS Code only through them
 
 | File                                               | VS Code APIs used |
 | -------------------------------------------------- | ----------------- |
-| `src/extension.ts`                                 | 201               |
+| `src/extension.ts`                                 | 202               |
 | `src/host/agentImportHost.ts`                      | 28                |
 | `src/host/browser/browserCheckConfirm.ts`          | 5                 |
 | `src/host/browser/runtimeCommand.ts`               | 9                 |
@@ -302,7 +302,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `StatusBarItem.backgroundColor`                                                      | `src/host/tab/tabBundle.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `StatusBarItem.command`                                                              | `src/extension.ts`, `src/host/media/previewPanel.ts`, `src/host/tab/tabBundle.ts`, `src/host/vault/vaultPanelEntry.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `StatusBarItem.dispose`                                                              | `src/host/media/previewPanel.ts`, `src/host/tab/tabBundle.ts`, `src/host/vault/vaultPanelEntry.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `StatusBarItem.hide`                                                                 | `src/host/tab/tabBundle.ts`, `src/host/vault/vaultPanelEntry.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `StatusBarItem.hide`                                                                 | `src/extension.ts`, `src/host/tab/tabBundle.ts`, `src/host/vault/vaultPanelEntry.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `StatusBarItem.show`                                                                 | `src/extension.ts`, `src/host/media/previewPanel.ts`, `src/host/tab/tabBundle.ts`, `src/host/vault/vaultPanelEntry.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `StatusBarItem.text`                                                                 | `src/extension.ts`, `src/host/media/previewPanel.ts`, `src/host/tab/tabBundle.ts`, `src/host/vault/vaultPanelEntry.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `StatusBarItem.tooltip`                                                              | `src/extension.ts`, `src/host/media/previewPanel.ts`, `src/host/tab/tabBundle.ts`, `src/host/vault/vaultPanelEntry.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -508,19 +508,19 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:async_hooks`       | 7     |
 | `node:buffer`            | 79    |
 | `node:child_process`     | 44    |
-| `node:crypto`            | 257   |
+| `node:crypto`            | 260   |
 | `node:dgram`             | 2     |
 | `node:dns`               | 1     |
 | `node:dns/promises`      | 9     |
 | `node:events`            | 5     |
 | `node:fs`                | 150   |
-| `node:fs/promises`       | 178   |
+| `node:fs/promises`       | 179   |
 | `node:http`              | 20    |
 | `node:https`             | 3     |
 | `node:module`            | 5     |
 | `node:net`               | 34    |
-| `node:os`                | 54    |
-| `node:path`              | 304   |
+| `node:os`                | 55    |
+| `node:path`              | 305   |
 | `node:perf_hooks`        | 4     |
 | `node:process`           | 30    |
 | `node:readline`          | 3     |

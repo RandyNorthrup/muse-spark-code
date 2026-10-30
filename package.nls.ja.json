@@ -181,6 +181,7 @@
   "config.judge.engine.enumDescriptions.both": "測定済みのカスケードを通じて、別の評価モデルと自分のチャットモデルを使用します。検証済みのソースと適切な較正プロファイルが必要です。",
   "config.judge.separate.description": "別の評価モデルのソース／モデル識別子。空欄の場合は現在の単一モデル設定を維持します。各ソースには独自の検証と同意が必要です。有料の呼び出しは初回の課金前に一度確認し、価格と共有のmuseSpark.paidDailyBudgetUsdを表示します。",
   "command.openHelp.title": "ヘルプとリファレンス",
+  "command.developerOptions.title": "開発者向けオプションを開く",
   "config.shell.passEnvironmentVariables.description": "メインセッションの対話型シェルコマンドに渡す環境変数の名前。通常は除外される認証情報の変数も含みます。値ではなく名前のみを指定します。既定では何も渡しません。コマンドはこれらの値を会話やモデルプロバイダーに公開する可能性があります。検証/then_run、スケジュール、子エージェント/チームワーカー、フックには、ここに名前を指定しても認証情報の変数を渡しません。バックグラウンドに移動した対話型コマンドは起動時の環境を保持します。Muse Codeや明示的に設定したMCPサーバーの環境は変更しません。",
   "config.resourceGovernor.description": "エージェント実行環境が開始した処理を遅くするか延期して、このマシンの応答性を保ちます。既定で有効です。",
   "config.resourceCpuMaxPercent.description": "マシンの CPU 使用率がこの割合を30秒間超えた場合、処理を抑制します。 未設定の場合はCPUに上限を設けません。",

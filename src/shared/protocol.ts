@@ -1026,6 +1026,10 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('reportWebviewError'),
     ...reportWebviewErrorSchema.shape,
   }),
+  // M108 X: the Developer options page's requests. The host validates the
+  // payload against the developer request schema; the page carries no
+  // authority of its own.
+  z.strictObject({ type: z.literal('developerRequest'), request: z.unknown() }),
 ])
 
 export type WebviewToHostMessage =
@@ -1566,6 +1570,16 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     accountId: z.optional(stringSchema),
     generation: z.optional(numberSchema),
   }),
+  // M108 X: the developer owner's answers and pushed snapshots. `version`
+  // is the install's own, shown beside the page for the seven-click
+  // unlock; `reply` parses against the developer reply schema.
+  z.object({
+    type: z.literal('developerReply'),
+    version: z.string(),
+    reply: z.unknown(),
+  }),
+  // M108 X: the palette's Developer options command opens the page.
+  z.object({ type: z.literal('openDeveloper') }),
 ])
 
 export type HostToWebviewMessage =

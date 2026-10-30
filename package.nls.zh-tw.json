@@ -181,6 +181,7 @@
   "config.judge.engine.enumDescriptions.both": "透過經測量的級聯使用單獨的評判模型和您自己的聊天模型。需要經驗證的來源和合適的校準設定。",
   "config.judge.separate.description": "單獨評判模型的來源／模型識別碼。留空會保留目前的單模型設定。每個來源都需要各自的驗證和同意；付費呼叫在首次收費前詢問一次，顯示價格和共用的museSpark.paidDailyBudgetUsd。",
   "command.openHelp.title": "說明與參考",
+  "command.developerOptions.title": "開啟開發者選項",
   "config.shell.passEnvironmentVariables.description": "傳遞給主工作階段互動式 shell 命令的環境變數名稱，包括通常被排除的憑證變數。僅填寫名稱，不填寫值。預設不傳遞。命令可能在對話中以及向模型供應商揭露這些值。驗證/then_run、排程、子代理/團隊工作者和掛鉤永遠不會接收憑證變數，即使在此列出名稱。移至背景的互動式命令保留啟動時的環境。不會變更 Muse Code 或明確設定的 MCP 伺服器環境。",
   "config.resourceGovernor.description": "透過減慢或延後代理程式執行環境啟動的工作，保持此電腦回應順暢。預設開啟。",
   "config.resourceCpuMaxPercent.description": "當電腦的 CPU 使用率持續30秒超過此百分比時降速。 未設定時不限制 CPU。",

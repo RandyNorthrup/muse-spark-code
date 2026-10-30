@@ -384,6 +384,10 @@ export interface UiState {
   /** Incremented per host `openEstimator`; the composer takes `/estimate ` when it changes (M117). */
   readonly estimatorRequests: number
   readonly helpRequests: number
+  /** Incremented per host `openDeveloper`; the Developer options page opens when it changes. */
+  readonly developerRequests: number
+  /** The latest developer reply with the install's version, for the page and the header badge. */
+  readonly developerReply: { readonly version: string; readonly reply: unknown } | undefined
   readonly referenceValues:
     | {
         readonly model: string
@@ -762,6 +766,8 @@ export const initialUiState: UiState = {
   usageRequests: 0,
   estimatorRequests: 0,
   helpRequests: 0,
+  developerRequests: 0,
+  developerReply: undefined,
   resourceStatus: undefined,
   resourceOffer: undefined,
   referenceValues: undefined,
@@ -2964,6 +2970,12 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     }
     case 'openHelp': {
       return { ...state, helpRequests: state.helpRequests + 1 }
+    }
+    case 'openDeveloper': {
+      return { ...state, developerRequests: state.developerRequests + 1 }
+    }
+    case 'developerReply': {
+      return { ...state, developerReply: { version: message.version, reply: message.reply } }
     }
     case 'referenceValues': {
       return {

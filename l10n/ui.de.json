@@ -6142,6 +6142,7 @@
     "differentMachine": "Die Entwickleroptionen wurden unter einer anderen Rechneridentität eingerichtet. Setzen Sie sie zurück, um auf diesem Rechner neu zu beginnen.",
     "invalidRequest": "Prüfen Sie die Anfrage für Entwickleroptionen.",
     "expires": "Der Entwicklermodus läuft {time} ab.",
+    "expired": "Der Entwicklermodus ist abgelaufen und seine Profile wurden gestoppt.",
     "reset": "Entwickleroptionen zurücksetzen",
     "profiles": "Lokale Profile",
     "profileInfo": "Jedes Profil hat einen eigenen Zugangsdatenplatz, Zustandsordner und Laufzeitprozess. Bei Ablauf werden Profile beendet; Zurücksetzen löscht sie.",
