@@ -68,6 +68,38 @@ function fixtureSysfs(root: string): string {
   return sys
 }
 
+/** The choices POST both Muse Code tests walk: install chosen, all else plain. */
+async function chooseMuseInstall(url: string, code: string) {
+  return await postForm(`${url}choices`, {
+    code,
+    networkKind: 'dhcp',
+    diskTarget: '/dev/sda',
+    encryption: 'none',
+    sshKey: '',
+    chrome: 'skip',
+    nvidia: 'skip',
+    museCode: 'install',
+  })
+}
+
+/**
+A serving setup with a scratch Muse home past the code gate, for the
+Muse Code tests. The caller owns root's removal.
+*/
+async function serveMuseInstall(root: string, timeoutMs: number) {
+  const stateDir = path.join(root, 'state')
+  const bootDir = path.join(root, 'boot')
+  mkdirSync(bootDir, { recursive: true })
+  const home = path.join(root, 'home')
+  mkdirSync(home, { recursive: true })
+  const { server, code } = await prepareAndServe(root, stateDir, bootDir, {
+    home,
+    timeoutMs,
+  })
+  await postForm(`${server.url}code`, { code })
+  return { home, server, code }
+}
+
 /** Fresh setup state plus its serving server, closed by the afterEach. */
 async function prepareAndServe(
   root: string,
@@ -373,26 +405,8 @@ describe('setup server', () => {
     const root = scratch('node-os-server-muse-fail-')
     try {
       const text = UI_TEXT.nodeOs
-      const stateDir = path.join(root, 'state')
-      const bootDir = path.join(root, 'boot')
-      mkdirSync(bootDir, { recursive: true })
-      const home = path.join(root, 'home')
-      mkdirSync(home, { recursive: true })
-      const { server, code } = await prepareAndServe(root, stateDir, bootDir, {
-        home,
-        timeoutMs: 1,
-      })
-      await postForm(`${server.url}code`, { code })
-      const review = await postForm(`${server.url}choices`, {
-        code,
-        networkKind: 'dhcp',
-        diskTarget: '/dev/sda',
-        encryption: 'none',
-        sshKey: '',
-        chrome: 'skip',
-        nvidia: 'skip',
-        museCode: 'install',
-      })
+      const { server, code } = await serveMuseInstall(root, 1)
+      const review = await chooseMuseInstall(server.url, code)
       expect(review.text).toContain(text.summaryTitle)
       // A spent bound fails the step: the wizard comes back with its
       // reason, nothing completes, and the person retries or skips.
@@ -415,26 +429,8 @@ describe('setup server', () => {
       const root = scratch('node-os-server-muse-live-')
       try {
         const text = UI_TEXT.nodeOs
-        const stateDir = path.join(root, 'state')
-        const bootDir = path.join(root, 'boot')
-        mkdirSync(bootDir, { recursive: true })
-        const home = path.join(root, 'home')
-        mkdirSync(home, { recursive: true })
-        const { server, code } = await prepareAndServe(root, stateDir, bootDir, {
-          home,
-          timeoutMs: 240_000,
-        })
-        await postForm(`${server.url}code`, { code })
-        await postForm(`${server.url}choices`, {
-          code,
-          networkKind: 'dhcp',
-          diskTarget: '/dev/sda',
-          encryption: 'none',
-          sshKey: '',
-          chrome: 'skip',
-          nvidia: 'skip',
-          museCode: 'install',
-        })
+        const { home, server, code } = await serveMuseInstall(root, 240_000)
+        await chooseMuseInstall(server.url, code)
         const done = await postForm(`${server.url}complete`, { code })
         expect(done.text).toContain(text.setupDone)
         // The installed binary answers for itself, from the install dir.
