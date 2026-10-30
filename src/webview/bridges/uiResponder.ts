@@ -1,5 +1,5 @@
 import { MHP, MHP_ERROR_CODES } from '../../shared/constants'
-import { fallbackUiCallSchema } from '../../shared/hostApi/fallbackUi'
+import { fallbackUiCallSchema, fallbackUiReplySchema } from '../../shared/hostApi/fallbackUi'
 import { MHP_METHODS } from '../../shared/hostApi/methods'
 import { parseMhpResult } from '../../shared/hostApi/protocol'
 import type * as Fallbacks from '../fallbacks'
@@ -20,9 +20,11 @@ export function createUiResponder(ui: ReturnType<typeof Fallbacks.createFallback
       try {
         const params = MHP_METHODS[frame.method].params.parse(frame.params)
         const result = await ui.request(frame.method, params, signal.signal)
-        return parseMhpResult(frame.method, { jsonrpc: MHP.jsonRpcVersion, id: frame.id, result })
+        return fallbackUiReplySchema.parse(
+          parseMhpResult(frame.method, { jsonrpc: MHP.jsonRpcVersion, id: frame.id, result }),
+        )
       } catch {
-        return {
+        return fallbackUiReplySchema.parse({
           jsonrpc: MHP.jsonRpcVersion,
           id: frame.id,
           error: {
@@ -31,7 +33,7 @@ export function createUiResponder(ui: ReturnType<typeof Fallbacks.createFallback
               : MHP_ERROR_CODES.unsupportedCapability,
             message: 'MHP_UI_FAILED',
           },
-        }
+        })
       } finally {
         calls.delete(frame.id)
       }

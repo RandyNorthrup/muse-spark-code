@@ -1,4 +1,5 @@
 import { createRoot } from 'react-dom/client'
+import type { FallbackUiMethod } from '../../shared/hostApi/fallbackUi'
 import type { MhpParams, MhpResult } from '../../shared/hostApi/methods'
 import { MHP_METHODS } from '../../shared/hostApi/methods'
 import { Fragment, type ReactNode } from 'react'
@@ -10,17 +11,11 @@ import { StatusStrip } from './StatusStrip'
 import { OpenExternal } from './OpenExternal'
 import './fallbacks.css'
 
-type UiMethod =
-  | 'ui/confirm'
-  | 'ui/pick'
-  | 'ui/input'
-  | 'ui/notify'
-  | 'ui/status'
-  | 'ui/progress'
-  | 'ui/clipboard'
-  | 'ui/openExternal'
 type Handlers = {
-  readonly [M in UiMethod]: (params: MhpParams<M>, signal?: AbortSignal) => Promise<MhpResult<M>>
+  readonly [M in FallbackUiMethod]: (
+    params: MhpParams<M>,
+    signal?: AbortSignal,
+  ) => Promise<MhpResult<M>>
 }
 
 /** Browser-side HostServices adapter. The carrier owns RPC and result delivery. */
@@ -164,7 +159,7 @@ export function createFallbackUi(element: Element, onCommand: (id: string) => vo
     },
   }
   return {
-    async request<M extends UiMethod>(
+    async request<M extends FallbackUiMethod>(
       method: M,
       params: MhpParams<M>,
       signal?: AbortSignal,
