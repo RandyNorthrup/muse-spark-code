@@ -11,6 +11,9 @@ import { removeFolder } from './temporaryFolders'
 const BUILT =
   /(?:^|[/\\])(?:muse-dictate(?:-screen(?:-(?:arm64|x64))?\.app|-screen(?:-(?:arm64|x64))?\.tgz)?|muse-vault-peer(?:-(?:arm64|x64))?)$/u
 
+/** build.sh compiles and signs both architectures' apps with the full Swift toolchain: cold, that outlasts two minutes on a loaded Mac. */
+const BUILD_TIMEOUT_MS = 240_000
+
 /** Build/sign the production sources in a private fixture, including on a clean Mac checkout. */
 export async function darwinProcessHelper(): Promise<{
   helperPath: string
@@ -50,7 +53,7 @@ export async function darwinProcessHelper(): Promise<{
     await promisify(execFile)('/bin/bash', [path.join(native, 'build.sh')], {
       // build.sh runs `node` for the bundle's localized Info.plist.
       env: { PATH: `${path.dirname(process.execPath)}:/usr/bin:/bin`, LC_ALL: 'C' },
-      timeout: 120_000,
+      timeout: BUILD_TIMEOUT_MS,
     })
     // One thin signed .app per Mac architecture (D209): this Mac runs its own.
     const app =
