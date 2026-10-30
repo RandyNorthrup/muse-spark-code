@@ -3,10 +3,10 @@
 // Real temp auth files, the real CredentialStore and the real file
 // session store; only the OS/VS Code secret storage behind the store
 // stays a Map, the external no unit test can own.
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { SubscriptionKeySource } from '../../src/core/backends/modelapi/subscriptionKey'
+import { writeSubscriptionAuthFile } from './helpers/subscriptionAuthFile'
 import { redactSecrets } from '../../src/shared/redact'
 import { withCredentialRedaction } from '../../src/runtime/backends'
 import type { SessionStore, StoredSession } from '../../src/core/backends/modelapi/sessionStore'
@@ -23,19 +23,8 @@ import { usingTempDir } from './helpers/temporaryFolders'
 const SUB = 'opaque subscription value 9d4e1a'
 const PASTED = 'opaque pasted value 3b7c2e'
 
-/** The auth file lands where the wrapper's own resolved path says. */
-async function writeAuthFile(root: string, text: string): Promise<void> {
-  const file = new SubscriptionKeySource({
-    platform: 'linux',
-    homeDir: '/none',
-    xdgConfigHome: root,
-  }).path()
-  await mkdir(path.dirname(file), { recursive: true })
-  await writeFile(file, text)
-}
-
 async function credential(root: string, text: string | undefined): Promise<SubscriptionCredential> {
-  if (text !== undefined) await writeAuthFile(root, text)
+  if (text !== undefined) await writeSubscriptionAuthFile(root, text)
   const secrets = new Map<string, string>([[SECRET_KEYS.modelApiKey, PASTED]])
   return new SubscriptionCredential({
     credentials: new CredentialStore(mapSecretsBacked(secrets), () => undefined),
@@ -119,7 +108,7 @@ describe('headless credential redaction', () => {
         const snapshot = transcript()
         await writer.save(snapshot)
         const rotated = 'opaque rotation value a173d9'
-        await writeAuthFile(root, fileText(rotated))
+        await writeSubscriptionAuthFile(root, fileText(rotated))
         await keys.getApiKey()
         await writer.save(snapshot)
         const loaded = await storeIn(directory).load('redaction-session')

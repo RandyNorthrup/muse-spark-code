@@ -34,6 +34,70 @@ function recordedHeaders(request: IncomingMessage): Record<string, string | read
   return headers
 }
 
+/** A bound loopback server: the kernel's port and its closer. */
+interface BoundLoopbackServer {
+  readonly port: number
+  readonly close: () => Promise<void>
+}
+
+function loopbackEndpoint(
+  port: number,
+  hits: () => number,
+  close: () => Promise<void>,
+): LoopbackEndpoint {
+  return {
+    url: `http://127.0.0.1:${String(port)}`,
+    port,
+    hits,
+    close,
+  }
+}
+
+async function bindHttpServer(
+  onRequest: (request: IncomingMessage, response: ServerResponse) => void,
+): Promise<BoundLoopbackServer> {
+  const server = createHttpServer(onRequest)
+  const port = await boundPort(
+    (done) => {
+      server.listen(0, '127.0.0.1', done)
+    },
+    () => server.address(),
+  )
+  return {
+    port,
+    close: async () => {
+      server.closeAllConnections()
+      await closeServer((done) => {
+        server.close(() => {
+          done()
+        })
+      })
+    },
+  }
+}
+
+async function bindNetServer(
+  onConnection?: (socket: Socket) => void,
+): Promise<BoundLoopbackServer> {
+  const server = onConnection === undefined ? createNetServer() : createNetServer(onConnection)
+  const port = await boundPort(
+    (done) => {
+      server.listen(0, '127.0.0.1', done)
+    },
+    () => server.address(),
+  )
+  return {
+    port,
+    close: async () => {
+      await closeServer((done) => {
+        server.close(() => {
+          done()
+        })
+      })
+    },
+  }
+}
+
 /** Bind on 127.0.0.1:0 and read back the kernel's port. */
 async function boundPort(
   bind: (done: () => void) => void,
@@ -65,29 +129,11 @@ export async function httpEndpoint(
   handler: (response: ServerResponse) => void,
 ): Promise<LoopbackEndpoint> {
   let hits = 0
-  const server = createHttpServer((_request, response) => {
+  const bound = await bindHttpServer((_request, response) => {
     hits += 1
     handler(response)
   })
-  const port = await boundPort(
-    (done) => {
-      server.listen(0, '127.0.0.1', done)
-    },
-    () => server.address(),
-  )
-  return {
-    url: `http://127.0.0.1:${String(port)}`,
-    port,
-    hits: () => hits,
-    close: async () => {
-      server.closeAllConnections()
-      await closeServer((done) => {
-        server.close(() => {
-          done()
-        })
-      })
-    },
-  }
+  return loopbackEndpoint(bound.port, () => hits, bound.close)
 }
 
 /**
@@ -98,74 +144,37 @@ export async function recordingHttpEndpoint(
   handler: (response: ServerResponse) => void,
 ): Promise<RecordingLoopbackEndpoint> {
   const seen: RecordedLoopbackRequest[] = []
-  const server = createHttpServer((request, response) => {
+  const bound = await bindHttpServer((request, response) => {
     seen.push({ url: request.url ?? '', headers: recordedHeaders(request) })
     handler(response)
   })
-  const port = await boundPort(
-    (done) => {
-      server.listen(0, '127.0.0.1', done)
-    },
-    () => server.address(),
-  )
   return {
-    url: `http://127.0.0.1:${String(port)}`,
-    port,
-    hits: () => seen.length,
+    ...loopbackEndpoint(bound.port, () => seen.length, bound.close),
     requests: () => [...seen],
-    close: async () => {
-      server.closeAllConnections()
-      await closeServer((done) => {
-        server.close(() => {
-          done()
-        })
-      })
-    },
   }
 }
 
 /** A port nothing listens on: dialling it refuses for real. */
 export async function closedPort(): Promise<number> {
-  const server = createNetServer()
-  const port = await boundPort(
-    (done) => {
-      server.listen(0, '127.0.0.1', done)
-    },
-    () => server.address(),
-  )
-  await closeServer((done) => {
-    server.close(() => {
-      done()
-    })
-  })
-  return port
+  const bound = await bindNetServer()
+  await bound.close()
+  return bound.port
 }
 
 /** A port that accepts and never answers: a hung peer, held sockets and all. */
 export async function silentPort(): Promise<LoopbackEndpoint> {
   let hits = 0
   const held = new Set<Socket>()
-  const server = createNetServer((socket) => {
+  const bound = await bindNetServer((socket) => {
     hits += 1
     held.add(socket)
   })
-  const port = await boundPort(
-    (done) => {
-      server.listen(0, '127.0.0.1', done)
-    },
-    () => server.address(),
-  )
-  return {
-    url: `http://127.0.0.1:${String(port)}`,
-    port,
-    hits: () => hits,
-    close: async () => {
+  return loopbackEndpoint(
+    bound.port,
+    () => hits,
+    async () => {
       for (const socket of held) socket.destroy()
-      await closeServer((done) => {
-        server.close(() => {
-          done()
-        })
-      })
+      await bound.close()
     },
-  }
+  )
 }

@@ -22,11 +22,10 @@ import {
   isRemoveRetriable,
   windowsScreenRecorder,
   type WindowsRecorderDeps,
-  type WindowsRecorderProcess,
 } from '../../src/core/media/record/windows'
 import type { ScreenRecordingRun } from '../../src/core/media/record/driver'
 import {
-  createHelperLineFramer,
+  assembleRecorderPort,
   createWindowsRecorderDeps,
   type WindowsRecorderMechanicalDeps,
 } from '../../src/host/media/windowsRecorderDeps'
@@ -195,11 +194,9 @@ setTimeout(() => {
 `
 
 /**
-The test's launch port over a real child: the owned binary runs the
-scenario script, and the port mirrors the product's own (buffered lines
-until listeners attach, the product's framer, exit after the handles
-close). The port assembly itself is proven natively; what these tests
-prove is the driver's side of it.
+The test's launch over a real child: the owned binary runs the scenario
+script, and the product's own port assembly wires it, so the driver
+side is proven against the real assembly.
 */
 function scriptLaunch(
   script: string,
@@ -211,72 +208,7 @@ function scriptLaunch(
     const child: ChildProcess = spawn(node, [script, ...args], {
       stdio: ['pipe', 'pipe', 'pipe'],
     })
-    if (child.stdout === null || child.stderr === null || child.stdin === null) {
-      throw new Error('test child pipes missing')
-    }
-    const pipes = {
-      stdout: child.stdout,
-      stderr: child.stderr,
-      stdin: child.stdin,
-    }
-    const framer = createHelperLineFramer()
-    let lineListener: ((line: string) => void) | undefined
-    let exitListener: ((code: number | null) => void) | undefined
-    const queuedLines: string[] = []
-    let exitCode: number | null | undefined
-    const exitWaiters: (() => void)[] = []
-    const deliver = (line: string): void => {
-      if (lineListener === undefined) queuedLines.push(line)
-      else lineListener(line)
-    }
-    const finish = (code: number | null): void => {
-      if (exitCode !== undefined) return
-      for (const line of framer.end()) deliver(line)
-      exitCode = code
-      exitListener?.(code)
-      for (const waiter of exitWaiters.splice(0)) waiter()
-    }
-    pipes.stdout.on('data', (chunk: Buffer) => {
-      const lines = framer.push(chunk.toString('utf8'))
-      for (const line of lines) deliver(line)
-    })
-    pipes.stderr.resume()
-    child.on('error', () => {
-      finish(null)
-    })
-    child.on('close', (code) => {
-      finish(code)
-    })
-    const port: WindowsRecorderProcess = {
-      onLine: (listener) => {
-        lineListener = listener
-        for (const line of queuedLines.splice(0)) listener(line)
-      },
-      onExit: (listener) => {
-        exitListener = listener
-        if (exitCode !== undefined) listener(exitCode)
-      },
-      send: (command) => {
-        if (exitCode !== undefined) throw new Error('the recorder has exited')
-        if (pipes.stdin.destroyed || !pipes.stdin.writable) {
-          throw new Error('the recorder channel is closed')
-        }
-        pipes.stdin.write(`${command}\n`, () => {
-          /* The exit settles the run; there is nothing to send it to. */
-        })
-      },
-      kill: () => {
-        if (exitCode === undefined) {
-          pipes.stdin.destroy()
-          child.kill()
-        }
-        return new Promise<void>((resolve) => {
-          if (exitCode === undefined) exitWaiters.push(resolve)
-          else resolve()
-        })
-      },
-    }
-    return port
+    return assembleRecorderPort(child)
   }
 }
 
@@ -329,6 +261,26 @@ async function ownedRecorder(
   return { recorder, launched, reserved }
 }
 
+/**
+A started recording against the exit-locked scenario, met on the
+filesystem so a lock can hold it.
+*/
+async function startLockedRun(
+  folder: string,
+  base: WindowsRecorderMechanicalDeps,
+): Promise<ScreenRecordingRun> {
+  const { recorder, reserved } = await ownedRecorder(
+    folder,
+    base,
+    'exit-locked.mjs',
+    EXIT_LOCKED_SCRIPT,
+  )
+  const run = await recorder.start(recordOptions, noopCountdown)
+  expect(reserved).toHaveLength(1)
+  await mkdir(reserved[0] ?? '', { recursive: true })
+  return run
+}
+
 describe('windows screen recorder removal', () => {
   it('resolves when the directory is already gone instead of burning retries', async () => {
     await usingTempDir('win-record-', async (folder) => {
@@ -357,15 +309,7 @@ describe('windows screen recorder removal', () => {
       const { base, attempts } = mechanical(folder, async (count) => {
         if (count === 1) await restoreOnce()
       })
-      const { recorder, reserved } = await ownedRecorder(
-        folder,
-        base,
-        'exit-locked.mjs',
-        EXIT_LOCKED_SCRIPT,
-      )
-      const run = await recorder.start(recordOptions, noopCountdown)
-      expect(reserved).toHaveLength(1)
-      await mkdir(reserved[0] ?? '', { recursive: true })
+      const run = await startLockedRun(folder, base)
       lock.restore = await denyWrites(path.join(folder, 'temp'))
       try {
         await expect(run.result).resolves.toEqual({ ok: false, reason: expect.any(String) })
@@ -379,15 +323,7 @@ describe('windows screen recorder removal', () => {
   it('stops a never-clearing scanner lock after three attempts, keeping its kind', async () => {
     await usingTempDir('win-record-', async (folder) => {
       const { base, attempts } = mechanical(folder)
-      const { recorder, reserved } = await ownedRecorder(
-        folder,
-        base,
-        'exit-locked.mjs',
-        EXIT_LOCKED_SCRIPT,
-      )
-      const run = await recorder.start(recordOptions, noopCountdown)
-      expect(reserved).toHaveLength(1)
-      await mkdir(reserved[0] ?? '', { recursive: true })
+      const run = await startLockedRun(folder, base)
       const restore = await denyWrites(path.join(folder, 'temp'))
       try {
         // Unbounded code would retry here past the suite's own timeout; the
