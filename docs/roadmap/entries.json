@@ -1305,6 +1305,11 @@
       "note": "one refresh lock for the editor and the CLI (ChatGPT and Grok)"
     },
     {
+      "id": "RLFNOTICES",
+      "public": false,
+      "note": "recovery: every shipped dependency in the notices, the release read grants reviewed"
+    },
+    {
       "id": "SDK142",
       "public": false,
       "note": "Muse Code CLI fingerprint and documentation update"

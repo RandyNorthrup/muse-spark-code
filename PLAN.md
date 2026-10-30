@@ -344,11 +344,13 @@ temp/planfix0190/d2-summary.txt Full record:
 
 **`smol-toml`** — Codex `config.toml` for the import from other agents (M83): a TOML 1.0 parser with no dependencies, BSD-3-Clause, bundled only in the lazily loaded `dist/agentImport.js`. No peer dependencies; `npm audit` clean; 1.9.0 was inside the seven-day release window, and 1.8.0 was already in the lockfile through knip. A hand-written subset (the first draft) misread sub-tables such as `[mcp_servers.x.env]` and multi-line arrays, both in real Codex files.
 
-**`@xterm/xterm` / `@xterm/addon-fit` / `@xterm/headless`** — M110a0 U2: the node workspace's terminal tabs render a real emulator (xterm.js 6 with `screenReaderMode`, fitted by `addon-fit`); the session suite drives the headless build as its emulator. MIT; no dependencies; no peers; `npm audit` clean. Only the terminal's lazy chunk carries them (343.9 KiB of its 400 KiB budget); the workspace startup holds none.
+**`@xterm/xterm` / `@xterm/addon-fit` / `@xterm/headless`** — M110a0 U2: the node workspace's terminal tabs render a real emulator (xterm.js 6 with `screenReaderMode`, fitted by `addon-fit`); the session suite drives the headless build as its emulator. MIT; no dependencies; no peers; `npm audit` clean. Only the terminal's lazy chunk carries them (343.9 KiB of its 400 KiB budget); the workspace startup holds none. Dev-only since RLF-NOTICES (2026-10-30, `docs/certification/cc-notices.md`): no shipped bundle's metafile lists them — the workspace build that carries them runs only in tests — so they left `dependencies`; the workspace's own notices still travel with that build.
 
-**`string-width` / `wrap-ansi`** — M110a0 TD: cell widths and word-wrap with the same libraries Ink itself uses (sindresorhus, MIT; no peers; `npm audit` clean), so components clip on real cell boundaries instead of a hand-rolled width table. `string-width` ships (the components and the art sizer import it); `wrap-ansi` is dev-only (the harness wraps one log line the way callers wrap theirs).
+**`codemirror` / `@codemirror/merge`** — M110a0 U1: the node workspace's editor and diff views (CodeMirror 6, MIT; no peers; `npm audit` clean). Dev-only (RLF-NOTICES, 2026-10-30, `docs/certification/cc-notices.md`): RLM110A0 added them to `dependencies` without a D3 record; no shipped bundle's metafile lists them — only the test-run workspace build — so they moved to `devDependencies` with the `@xterm/*` packages.
 
-**`ink` / `ink-testing-library`** — M110a0 TD: the TUI components render through real Ink 6 (Vadim Demedes, MIT; peers `react>=19` and `@types/react>=19` satisfied by the direct 19.3.0 pins, `react-devtools-core` satisfied through the tree; `npm audit` clean), and the golden harness renders through Ink's own testing library, so the goldens pin the same bytes — and the same Yoga layout — production draws. A hand-rolled tree-walking renderer (the first draft) was deleted: it reimplemented Yoga and Chalk, a stand-in the no-fakes rule forbids. `ink` ships with the agent; `ink-testing-library` is dev-only.
+**`string-width` / `wrap-ansi`** — M110a0 TD: cell widths and word-wrap with the same libraries Ink itself uses (sindresorhus, MIT; no peers; `npm audit` clean), so components clip on real cell boundaries instead of a hand-rolled width table. `string-width` is dev-only since RLF-NOTICES (2026-10-30, `docs/certification/cc-notices.md`): no shipped bundle's metafile lists it — the TUI design modules that import it run only in tests and the harness, and no build entry reaches them; `wrap-ansi` is dev-only (the harness wraps one log line the way callers wrap theirs).
+
+**`ink` / `ink-testing-library`** — M110a0 TD: the TUI components render through real Ink 6 (Vadim Demedes, MIT; peers `react>=19` and `@types/react>=19` satisfied by the direct 19.3.0 pins, `react-devtools-core` satisfied through the tree; `npm audit` clean), and the golden harness renders through Ink's own testing library, so the goldens pin the same bytes — and the same Yoga layout — production draws. A hand-rolled tree-walking renderer (the first draft) was deleted: it reimplemented Yoga and Chalk, a stand-in the no-fakes rule forbids. `ink` is dev-only since RLF-NOTICES (2026-10-30, `docs/certification/cc-notices.md`): only the golden harness imports it and no shipped bundle's metafile lists it; `ink-testing-library` is dev-only.
 
 **`@sigstore/tuf`, `@sigstore/verify`, `@sigstore/bundle`** — Pack index signatures (M110t TP1/TP2, D90.27): verify the cosign keyless bundles the pack CI signs over each index, the same infrastructure npm provenance uses; a hand-rolled verifier would be the half-cocked plan. `src/runtime/node/packs/verify.ts` composes them exactly as `sigstore.verify` does (`sigstore/dist/sigstore.js`, `createVerifier`): `getTrustedRoot` from Sigstore's TUF repository at its own defaults, `toTrustMaterial`, `Verifier`, `bundleFromJSON`, `toSignedEntity` and the policy `{ subjectAlternativeName, extensions: { issuer } }`. They replace the umbrella `sigstore@5.0.0` (cc-sigstore, 2026-10-24): the node only verifies, and the umbrella's signer (`@sigstore/sign` → make-fetch-happen → `@npmcli/agent` → `proxy-agent-negotiate`) bundled two packages that publish no licence text ([Q-CC-LICENCE](#q-cc-licence), resolved). `dist/packsVerify.js` went from 1,126,983 to 212,784 bytes and from 53 to 15 package directories; the old and new verifiers gave the same verdicts, word for word, on a real cosign bundle and its tampered, mis-signed and unknown-root variants (`docs/certification/cc-sigstore.md`). Apache-2.0, bundled only in the lazily loaded `dist/packsVerify.js` (the ACP agent loads it on the first pack fetch). The exact pins 5.0.0, 4.1.2 and 5.0.0 are each package's latest release (2026-06-01, 2026-08-04, 2026-06-01), past the seven-day window; no peer dependencies; `npm audit` reports nothing in their tree (2026-10-24). Licence review (cc-licence, 2026-10-24, `docs/certification/cc-licence.md`): of the six BlueOak-1.0.0 entries it recorded, only minimatch (through `@tufjs/models`) is still bundled, and the notices gate allow-lists the licence; `@sigstore/verify` ships no licence file, so upstream's root LICENSE travels from `vendor/@sigstore/verify/`.
 
@@ -30749,6 +30751,25 @@ keeping every tree, stage and manifest inside it with no new words in
 the working folder. No product behaviour changed: there was no
 splitting site to fix. Evidence:
 `docs/certification/rlf-macpath.md`.
+
+### RLFNOTICES — Every shipped dependency in the notices, and the release workflow's read grants (2026-10-30)
+
+**Status 2026-10-30: built.** Lane `rec/rlf-notices` on rig `macmini`,
+base `int/recovery` (`9b090e87c`): the manifest suite's two left-failing
+cases (`docs/certification/cc-tests.md`) are green, 41 of 41. Seven
+dependencies ship in no bundle's metafile and moved to `devDependencies`
+(the node workspace's `codemirror`, `@codemirror/merge` and `@xterm/*`,
+which only the test-run workspace build carries, plus `ink` and
+`string-width`, which only the suites and the golden harness import);
+the lockfile is regenerated with no version change. The three
+`@sigstore/*` packages ship only in the ACP agent's `dist/packsVerify.js`,
+so the extension-notices case exempts them as it exempts keyring, guarded
+on their carrier still shipping there; their licence texts travel in the
+ACP package's own notices. The RELFAST pin moves 7 to 8: the eighth
+`actions: read` grant is the node-image caller's (M110-C), least privilege
+for `node-image.yml`'s artifact download. `THIRD_PARTY_NOTICES.txt` is
+unchanged (a fresh `npm run notices` regenerates it byte-identical).
+Evidence: `docs/certification/cc-notices.md`.
 
 ---
 
