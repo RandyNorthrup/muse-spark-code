@@ -66,7 +66,11 @@ import {
   filePhase2EvidenceStore,
   type Phase2EvidenceStore,
 } from '../core/judge/evidencePaths'
-import type { SecretStore } from '../host/auth/credentialStore'
+import {
+  createSingleFlightSecretStore,
+  type SecretStore,
+  type SingleFlightSecretStore,
+} from '../host/auth/credentialStore'
 import { fill, uiLocale, UI_TEXT as referenceTable } from '../shared/l10n/text'
 import { setUiText as setProviderPolicyText } from '../host/backend/providerPolicyEntry'
 import { authClear, type AuthCommandDeps, authSet, login } from './authCommands'
@@ -308,7 +312,7 @@ async function loadSecrets(): Promise<SecretStore> {
     throw new StoreUnavailableError({ cause: error })
   }
 }
-const secrets: SecretStore = {
+const delegatingSecrets: SecretStore = {
   async get(name) {
     const store = await loadSecrets()
     return await store.get(name)
@@ -322,6 +326,14 @@ const secrets: SecretStore = {
     await store.delete(name)
   },
 }
+/**
+This process's one owner of secret reads (the reconciled keystore
+wrapper): every runtime credential path below shares it, so each entry
+is read from the OS store once per process until a provider rejection
+or a write forgets it. `loadSecrets` stays the raw store for the vault
+migration's verifying re-reads.
+*/
+const secrets: SingleFlightSecretStore = createSingleFlightSecretStore(delegatingSecrets)
 
 /**
 A held regular-file descriptor bounds both stat size and growth while
@@ -1528,6 +1540,7 @@ async function main(processResources: ProcessResources): Promise<number> {
       homeDir: homedir(),
     }),
     openEntry: openKeyringEntry,
+    secrets,
   }
   let cachedBundle: RuntimeAccountsBundle | undefined
   const loadAccountsBundle = (log: Logger): RuntimeAccountsBundle => {

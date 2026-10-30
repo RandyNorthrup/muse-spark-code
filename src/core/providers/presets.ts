@@ -86,7 +86,13 @@ export type KeyProbeOutcome =
       /** The listed ids, where the check read a models list (F85). */
       readonly modelIds?: readonly string[] | undefined
     }
-  | { readonly ok: false; readonly paid: boolean; readonly reason: string }
+  | {
+      readonly ok: false
+      readonly paid: boolean
+      readonly reason: string
+      /** The HTTP status the provider answered with, where it answered at all. */
+      readonly status?: number | undefined
+    }
 
 /** The same free-check contract for panel and CLI; callbacks own pinned I/O. */
 export async function runProviderKeyTest(

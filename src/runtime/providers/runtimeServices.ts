@@ -52,6 +52,13 @@ export function runtimeRevokeSignIn(): Promise<void> {
 export interface RuntimeAccountServicesInput {
   readonly dataDir: string
   readonly openEntry: KeyringEntryFactory
+  /**
+  The process's one owned secret store (the single-flight wrapper over
+  the OS store), shared so account reads dedupe with every other
+  credential read in the process. Absent, a raw store is built from
+  `openEntry` as before.
+  */
+  readonly secrets?: SecretStore | undefined
   readonly registerSecret?: AccountSecretsDeps['registerSecret']
   readonly now?: () => number
 }
@@ -284,7 +291,7 @@ export function createRuntimeAccountServices(
 ): RuntimeAccountServices {
   const metadata = withProvidersFileRefusal(fileAccountsMetadata(input.dataDir))
   const credentials = new AccountSecrets({
-    vault: secretStorageAccountVault(keyringSecretStore(input.openEntry)),
+    vault: secretStorageAccountVault(input.secrets ?? keyringSecretStore(input.openEntry)),
     revokeSignIn: runtimeRevokeSignIn,
     registerSecret: input.registerSecret,
   })

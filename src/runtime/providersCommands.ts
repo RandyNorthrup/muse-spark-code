@@ -50,6 +50,7 @@ import { isNonTextStdin } from './hiddenInput'
 import {
   formatStoredProviderSecret,
   isStoreUnavailable,
+  noteKeyRejectedStatus,
   parseStoredProviderSecret,
   providerSecretAccount,
   StoreUnavailableError,
@@ -559,6 +560,7 @@ async function probeWithTransport(
             ok: false,
             paid: false,
             reason: checked.refusal ?? `HTTP ${String(checked.status)}`,
+            status: checked.status,
           }
     },
     async () => {
@@ -569,6 +571,7 @@ async function probeWithTransport(
           ok: false,
           paid: false,
           reason: listed.refusal ?? `HTTP ${String(listed.status)}`,
+          status: listed.status,
         }
       const ids = listModelIds(listed.body, provider.preset)
       return ids === undefined
@@ -1050,6 +1053,12 @@ async function probeCommandProvider(
       ? await probeProvider(provider, stored.key, deps.resolveHost)
       : await probeProvider(fetch, provider, stored.key, deps.resolveHost)
   if (!probe.ok) {
+    // A 401/403 refused the stored entry's key: forget exactly that entry
+    // in this process's read owner, so a key replaced elsewhere is read
+    // from the OS store once more instead of the remembered copy.
+    const rejectedAccount = providerSecretAccount(provider.entry.id)
+    if (rejectedAccount !== undefined)
+      noteKeyRejectedStatus(deps.secrets, rejectedAccount, probe.status)
     failed(
       deps,
       probe.paid
