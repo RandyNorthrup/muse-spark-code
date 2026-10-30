@@ -79,8 +79,6 @@ export function usageFailureForLog(error: unknown): string {
   if (current instanceof Error) {
     const rejected = rejectedFields(current)
     if (rejected !== undefined) return rejected
-  }
-  if (current instanceof Error) {
     const code = codeOf(current)
     if (code !== undefined) return wireWordForLog(code)
   }
