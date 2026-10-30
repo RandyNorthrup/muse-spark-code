@@ -62,6 +62,7 @@ export { installVaultEnglish } from '${vault}';
 export async function loadPalette() { return await import('../../src/shared/paletteRegistry') }
 export async function loadHelp() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english'), import('browser-schedule-english'), import('browser-playbook-english'), import('browser-chatgpt-english'), import('browser-runners-english')]) }
 export async function loadResources() { await import('browser-resource-english') }
+export async function loadResourceHistory() { await import('browser-resource-history-english') }
 export async function loadAccounts() { await import('../../src/webview/models/sections/accounts/accountsEntry') }
 export async function loadVault() { await import('../../src/webview/models/sections/vault/VaultSurface') }
 export async function loadDeveloper() { await import('../../src/webview/developer/DeveloperOptionsPage') }
@@ -187,6 +188,7 @@ describe('the production browser English and full-table contract', () => {
       loadDevices,
       loadPalette,
       loadResources,
+      loadResourceHistory,
       installVaultEnglish,
     } = fixture.browser
     expect(Object.keys(EN).toSorted(byText)).toEqual([...fixture.keys].toSorted(byText))
@@ -238,6 +240,7 @@ describe('the production browser English and full-table contract', () => {
     expect(EN.referenceSearch).toEqual(canonical.referenceSearch)
     expect(() => EN.resourceShow).toThrow('English surface is not loaded')
     await loadResources()
+    await loadResourceHistory()
     for (const key of resourceKeys) expect(EN[key], key).toEqual(canonical[key])
     // The vault group's English is installed by the vault surface alone; the
     // shared surface English never carries it a second time.

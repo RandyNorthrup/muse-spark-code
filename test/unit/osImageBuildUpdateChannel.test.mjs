@@ -6,6 +6,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { opensslOnPath } from './helpers/opensslOnPath.mjs'
 
 const channel = fileURLToPath(new URL('../../os/update/channel.py', import.meta.url))
 const interpreter = process.platform === 'win32' ? 'python' : 'python3'
@@ -19,7 +20,9 @@ function directory() {
 afterEach(() => {
   for (const dir of temporary.splice(0)) rmSync(dir, { recursive: true, force: true })
 })
+const pathGuard = { restore: () => undefined }
 afterAll(() => {
+  pathGuard.restore()
   for (const dir of shared.splice(0)) rmSync(dir, { recursive: true, force: true })
 })
 
@@ -57,7 +60,9 @@ const keys = {}
 beforeAll(() => {
   // Throwaway keys come from openssl, never from fixtures. Absence, and
   // an openssl that cannot do PSS (LibreSSL silently ignores -sigopt),
-  // is a loud failure, never a silent skip.
+  // is a loud failure, never a silent skip. A Windows shell outside Git Bash
+  // has no openssl on PATH: Git for Windows' own is put there for this file.
+  pathGuard.restore = opensslOnPath()
   const probe = spawnSync('openssl', ['version'], { encoding: 'utf8' })
   if (probe.status !== 0) throw new Error('M110-OS2 needs openssl on PATH for TUF tests')
   // The key pool lives for the whole file: per-test cleanup must not eat it.

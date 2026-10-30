@@ -86,11 +86,13 @@ const aclReadingSchema = z.strictObject({
   ),
 })
 
-// Get-Acl only: the owner, the current user and every grant, inherited or not.
+// A read only, through the CLR (the call Get-Acl makes, without loading its
+// module): the owner, the current user and every grant, inherited or not, of a
+// directory.
 const WINDOWS_ACL_READ_SCRIPT = `
 $ErrorActionPreference = 'Stop'
 $sid = [System.Security.Principal.SecurityIdentifier]
-$acl = Get-Acl -LiteralPath $inputPath.path
+$acl = [System.IO.Directory]::GetAccessControl($inputPath.path)
 $rules = @($acl.GetAccessRules($true, $true, $sid) | ForEach-Object { @{ sid = $_.IdentityReference.Value; allow = $_.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow; rights = [int64]$_.FileSystemRights } })
 @{ ownerSid = $acl.GetOwner($sid).Value; currentSid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value; rules = $rules } | ConvertTo-Json -Compress -Depth 4
 `

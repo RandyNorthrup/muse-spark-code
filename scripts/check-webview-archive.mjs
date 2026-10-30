@@ -4,8 +4,9 @@
 // webview member beside it. The stage check in scripts/package-vsix.mjs
 // already proves every emitted script joined the archive; this proves the
 // artifact kept the archive and dropped the loose files.
-import { execFileSync } from 'node:child_process'
+import { readZip } from '@vscode/vsce/out/zip.js'
 import { assertArchiveMembers } from './lib/solidTextArchive.mjs'
+import { realpathSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import path from 'node:path'
 
@@ -26,29 +27,39 @@ const REQUIRED_MEMBERS = [
 const LOOSE_PREFIX = 'extension/dist/webview/'
 const ARCHIVE_ENTRY = 'extension/dist/webview.json.br'
 
-function listed(vsix) {
-  return execFileSync('unzip', ['-Z1', vsix], { encoding: 'utf8' }).split('\n')
+// The .vsix is read with the packager's own ZIP reader, so no `unzip` program
+// has to be on PATH (a Windows shell outside Git Bash has none). The reader
+// names every entry in lower case and reads only the one the filter accepts.
+async function readVsix(vsix) {
+  const entries = []
+  const read = await readZip(vsix, (name) => {
+    entries.push(name)
+    return name === ARCHIVE_ENTRY
+  })
+  return { entries, packed: read.get(ARCHIVE_ENTRY) }
 }
 
-function main() {
+async function main() {
   const vsix = process.argv[2]
   if (vsix === undefined) throw new Error('Usage: node scripts/check-webview-archive.mjs <vsix>')
-  const entries = listed(vsix)
+  const { entries, packed } = await readVsix(vsix)
   const loose = entries.filter((entry) => entry.startsWith(LOOSE_PREFIX) && entry !== LOOSE_PREFIX)
   if (loose.length > 0)
     throw new Error(`Loose webview members ship in ${vsix}: ${loose.slice(0, 5).join(', ')}`)
-  if (!entries.includes(ARCHIVE_ENTRY)) throw new Error(`Webview archive missing in ${vsix}`)
-  const packed = execFileSync('unzip', ['-p', vsix, ARCHIVE_ENTRY], { maxBuffer: 16 * 1024 * 1024 })
+  if (packed === undefined) throw new Error(`Webview archive missing in ${vsix}`)
   const members = assertArchiveMembers(packed, REQUIRED_MEMBERS, 4_000_000, 1, true)
   console.log(`webview archive: ${String(members)} members, every panel file present in ${vsix}`)
 }
 
+// Node names the module by its real path, so the start path is resolved through
+// its links too: started through a symlinked or junctioned directory the check
+// still runs, instead of ending without a word and a zero exit.
 if (
   process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
+  import.meta.url === pathToFileURL(realpathSync(path.resolve(process.argv[1]))).href
 ) {
   try {
-    main()
+    await main()
   } catch (error) {
     console.error(error instanceof Error ? error.message : error)
     process.exitCode = 1
