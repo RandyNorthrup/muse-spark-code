@@ -33,6 +33,7 @@ import {
   ModelApiHost,
   type ModelApiHostDeps,
 } from '../../../src/core/backends/modelapi/ModelApiHost'
+import type { ModelResolver } from '../../../src/core/backends/modelapi/modelPolicy'
 import { ModelApiClient } from '../../../src/core/backends/modelapi/client'
 import type { ExtensionHookDefinition } from '../../../src/core/backends/modelapi/extensionHooks'
 import { resolveShellSandbox } from '../../../src/core/backends/musecode/sandbox'
@@ -93,7 +94,11 @@ export function modelApiRig(
   directory: string,
   loadExtensionHooks?: () => Promise<readonly ExtensionHookDefinition[]>,
   hasHookShell?: boolean,
-  options?: { apiKey?: () => Promise<string | undefined> },
+  options?: {
+    apiKey?: () => Promise<string | undefined>
+    /** Configured providers' models (a real providers file), listed with no Meta key. */
+    models?: ModelResolver
+  },
 ): ModelApiRig {
   let ids = 0
   const warnings: string[] = []
@@ -164,6 +169,7 @@ export function modelApiRig(
     hasMetaCredential: () => false,
     store,
     ...(loadExtensionHooks !== undefined && { loadExtensionHooks }),
+    ...(options?.models !== undefined && { models: options.models }),
   }
   return { host: new ModelApiHost(deps), store, warnings, errors }
 }

@@ -47,12 +47,24 @@ export function workspaceKey(workspaceRoot: string): string {
   return createHash('sha256').update(workspaceRoot).digest('hex').slice(0, ACP_WORKSPACE_HASH_CHARS)
 }
 
+function workspaceFolderIn(
+  pathModule: path.PlatformPath,
+  dataFolder: string,
+  workspaceRoot: string,
+): string {
+  return pathModule.join(dataFolder, ACP_SESSIONS_SUBFOLDER, workspaceKey(workspaceRoot))
+}
+
+/** One workspace's own folder of the agent data folder `dataFolder`. */
+export function workspaceDataFolder(dataFolder: string, workspaceRoot: string): string {
+  return workspaceFolderIn(path, dataFolder, workspaceRoot)
+}
+
 /** The Model API sessions of one workspace. */
 export function workspaceSessionsFolder(input: DataFolderInput, workspaceRoot: string): string {
-  return pathModuleFor(input).join(
-    agentDataFolder(input),
-    ACP_SESSIONS_SUBFOLDER,
-    workspaceKey(workspaceRoot),
+  const pathModule = pathModuleFor(input)
+  return pathModule.join(
+    workspaceFolderIn(pathModule, agentDataFolder(input), workspaceRoot),
     MODEL_API_SESSIONS_DIR,
   )
 }

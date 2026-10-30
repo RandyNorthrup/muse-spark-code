@@ -210,6 +210,15 @@ const LSP_OPTIONS = {
   help: { type: 'boolean', short: 'h' },
 } as const satisfies CliParserOptions
 
+// M104 lane B: the runtime panel's own flags. Standard I/O is the one
+// transport so far; the workspace is named as exec names it.
+const PANEL_OPTIONS = {
+  stdio: { type: 'boolean' },
+  workspace: { type: 'string' },
+  verbose: { type: 'boolean' },
+  help: { type: 'boolean', short: 'h' },
+} as const satisfies CliParserOptions
+
 export const CLI_OPTION_REGISTRY = {
   providersAdd: { options: PROVIDER_OPTIONS },
   providersModels: {
@@ -273,6 +282,7 @@ export const CLI_OPTION_REGISTRY = {
     text: { workspace: 'cwd', 'trust-workspace': 'lsp-trust-workspace' },
   },
   stop: { options: { help: { type: 'boolean', short: 'h' } } },
+  panel: { options: PANEL_OPTIONS, text: { workspace: 'cwd', stdio: 'panel-stdio' } },
   estimate: { options: ESTIMATE_OPTIONS, text: { by: 'estimate-by', format: 'estimate-format' } },
   // The judge's one help screen: the ask-family flags its strict parser
   // accepts (serve and lint take their own surface flags instead).
@@ -421,6 +431,7 @@ export const CLI_OPTION_TEXT = {
     | keyof typeof CLI_OPTION_REGISTRY.providersModels.options
     | keyof typeof FONTS_OPTIONS
     | keyof typeof LSP_OPTIONS
+    | keyof typeof PANEL_OPTIONS
     | keyof typeof ESTIMATE_OPTIONS
     | keyof typeof CLI_OPTION_REGISTRY.judge.options
     | keyof typeof CLI_OPTION_REGISTRY.share.options

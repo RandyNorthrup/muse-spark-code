@@ -4,7 +4,7 @@
 // on, and an explicit `--no-auto-compaction` start lapses it too — even
 // when `--auto-compaction` was passed beside it (RVMSM101). The real
 // file-backed grant store runs in a temporary folder.
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -12,6 +12,7 @@ import { AcpPaidUse } from '../../src/acp/paid'
 import type { CoreLogger } from '../../src/core/logging'
 import { paidGrantFile } from '../../src/runtime/paidGrants'
 import { ACP_PAID_FEATURES } from '../../src/shared/constants'
+import { Usd } from '../../src/shared/usd'
 
 const folder = mkdtempSync(path.join(tmpdir(), 'acp-paid-grants-'))
 afterAll(() => {
@@ -58,6 +59,55 @@ describe('ACP paid grants lapse with the start flags', () => {
     })
     await paid.forgetUnflagged()
     expect(grants.read(workspace).has('autoCompaction')).toBe(false)
+  })
+})
+
+describe('Ask again for a use billed to another account', () => {
+  it('revokes the account consent: its durable epoch advances and the next use asks again', async () => {
+    const accountFolder = path.join(folder, 'account-consent')
+    const paid = new AcpPaidUse({
+      flagged: ['imageGeneration'],
+      canRemember: () => true,
+      grants: store('account.json'),
+      log,
+      billing: () => ({ provider: 'meta', account: 'second-account' }),
+      accountFolder: () => accountFolder,
+      dailyBudgetUsd: () => Usd.from(0).toAmount(),
+      sleep: noSleep,
+    })
+    const answers = ['always', 'once'] as const
+    let asked = 0
+    paid.attach(() => {
+      const answer = answers[asked] ?? 'deny'
+      asked += 1
+      return Promise.resolve(answer)
+    })
+    const use = () =>
+      paid.allows(
+        workspace,
+        'session-1',
+        {
+          feature: 'imageGeneration',
+          kind: 'generate',
+          path: 'out.png',
+          sources: [],
+          prompt: 'a cat',
+        },
+        false,
+      )
+    const epochs = () =>
+      readdirSync(accountFolder, { recursive: true }).filter(
+        (name) => typeof name === 'string' && /^epoch-[1-9]/u.test(path.basename(name)),
+      )
+    expect(await use()).toBe(true)
+    expect(await use()).toBe(true)
+    expect(asked).toBe(1)
+    await paid.forget(workspace, 'session-1')
+    // The revocation the account store fences on (its epoch marker), not
+    // only the feature generation: VS Code's Ask again revokes it too.
+    expect(epochs()).toHaveLength(1)
+    expect(await use()).toBe(true)
+    expect(asked).toBe(2)
   })
 })
 

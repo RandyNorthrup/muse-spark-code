@@ -72,6 +72,27 @@ export const ACP_BUNDLES = [
   // `supervise`, `stop` and the server's `muse.stop`.
   'lsp.js',
   'supervise.js',
+  // M104 lane B: the runtime panel, loaded by `panel`.
+  'runtimePanel.js',
+  'runtimePanelSession.js',
+  // M104 lane B: the runtime panel runs the editor's conversation controller
+  // (conversation.js) in the agent, and the chunks the controller loads on
+  // use: a session export or import, the problem report, the session board
+  // and the schedule surfaces.
+  'conversation.js',
+  'conversationTransfer.js',
+  'report.js',
+  'reportFallback.js',
+  'sessionBoard.js',
+  'scheduleSurfaces.js',
+  // M104 lane B: edit review and `/review` in the runtime panel (the patch engine, git's material, the Plan hold).
+  'review.js',
+  // M104 lane B: the panel's Git and pull requests (the native route, over the editor's services).
+  'nativeGit.js',
+  // M104 lane B: saved plans in the runtime panel (their port, the Markdown reader, and the Plans… list in the commands chunk).
+  'runtimePanelPorts.js',
+  'planMarkdown.js',
+  'commands.js',
   // Lazy shared method factory; receiver qualification still refuses headless hosts.
   'devices.js',
   // RLF-DEVICES: beside devices.js, which the agent never loads; the maker

@@ -47,6 +47,7 @@ import {
   SEARCH_WORKER_FILE,
   SECRET_KEYS,
   EXEC_STOP_GRACE_MS,
+  EXTENSION_NAME,
   USAGE_ERROR_LOCALE_MS,
   LEGAL_EXIT,
   LEGAL_SCAN_BUNDLE_FILE,
@@ -59,6 +60,7 @@ import {
   SCHEDULE_STORE_SUBFOLDER,
   CONNECTOR_BUNDLE_FILE,
   LSP_BUNDLE_FILE,
+  RUNTIME_PANEL_BUNDLE_FILE,
   MODEL_API_BASE_URL,
   MODEL_API_BUNDLE_FILE,
   SUPERVISE_BUNDLE_FILE,
@@ -185,6 +187,7 @@ import type { createRuntimeReports } from './reporting/reportsEntry'
 import { runtimeSchedulesBinding, type RuntimeSchedulesBinding } from './schedules/binding'
 import { connectorLoader } from './connector/connectorBundle'
 import { lspLoader } from './lsp/lspBundle'
+import { panelLoader } from './panel/panelBundle'
 import { superviseLoader } from './supervise/superviseBundle'
 import { storageGuardLoader } from './connector/storageGuardBundle'
 import type { ScheduleWakeAuthorization } from './schedules/registration'
@@ -683,6 +686,7 @@ async function runtimeFor(
   log: Logger,
   questions?: { remove(sessionId: string): Promise<void> },
   accounts?: RuntimeAccountServices,
+  unsavedFiles?: () => readonly string[],
 ) {
   const engine = await import('./runtimeEngineEntry')
   engine.setUiText(UI_TEXT, uiLocale())
@@ -700,6 +704,7 @@ async function runtimeFor(
     sleep,
     log,
     ...(questions !== undefined && { questions }),
+    ...(unsavedFiles !== undefined && { unsavedFiles }),
     ...(accounts !== undefined && {
       accountRequests: (client) => accounts.requests(client),
       accountBilling: accounts.billing,
@@ -1825,7 +1830,8 @@ function runtimeDictation(
 }
 
 function logLevel(command: RuntimeCommand | SharingCommand): LogLevel {
-  if (command.command === 'lsp') return command.options.isVerbose ? 'trace' : 'warn'
+  if (command.command === 'lsp' || command.command === 'panel')
+    return command.options.isVerbose ? 'trace' : 'warn'
   if (command.command !== 'serve') {
     return 'warn'
   }
@@ -2596,6 +2602,33 @@ async function main(processResources: ProcessResources): Promise<number> {
     }
     case 'lsp': {
       return await runLanguageServer(command.options, log)
+    }
+    case 'panel': {
+      // M104 lane B: dist/runtimePanel.js serves one MHP host on standard I/O.
+      return await panelLoader(path.join(distDir, RUNTIME_PANEL_BUNDLE_FILE), log)().runPanel(
+        command.options,
+        {
+          stdin: process.stdin,
+          stdout: process.stdout,
+          table: UI_TEXT,
+          locale: uiLocale(),
+          log,
+          dataFolder: agentDataFolder({
+            platform: process.platform,
+            env: process.env,
+            homeDir: homedir(),
+          }),
+          distDir,
+          createRuntime: (serveOptions, questions, unsavedFiles) =>
+            runtimeFor(serveOptions, log, questions, undefined, unsavedFiles),
+          runGit: processGitRunner(),
+          github: {
+            secrets,
+            fetch: globalThis.fetch.bind(globalThis),
+            userAgent: `${EXTENSION_NAME}/${packageVersion()}`,
+          },
+        },
+      )
     }
     case 'supervise': {
       return await superviseLoader(path.join(distDir, SUPERVISE_BUNDLE_FILE), log)().runSupervise(

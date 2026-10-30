@@ -16,11 +16,12 @@ import {
   UI_TEXT,
 } from '../../../shared/constants'
 import { withoutCredentials } from '../../../core/credentialEnvironment'
-import { fill, plural } from '../../../shared/l10n/text'
+import { fill } from '../../../shared/l10n/text'
 import { signInFailureText } from '../../../core/git/deviceFlow'
 import { GitHubClient, GitHubError, type GitHubClientDeps } from '../../../core/git/github'
 import type { GitHubSignIn } from '../../../core/git/githubSignIn'
 import { newFileDiff } from '../../../core/git/gitText'
+import { pushConfirmationText } from '../../../core/git/pushConfirmation'
 import type { RuntimeGitDeps } from '../../../core/git/runtimeGit'
 import { processGitPath, type GitProcess } from '../../git'
 import type { SecretStore } from '../../auth/credentialStore'
@@ -29,7 +30,11 @@ import { loggedPopups } from '../popups'
 import { newWindowActions } from '../worktreeFeatures'
 import { windowGitHubSignIn } from './githubSession'
 import { createHeldCheckout } from '../../git/heldCheckout'
-import { type LinkMemento, PullRequestLinks } from '../../git/pullRequestLinks'
+import {
+  type LinkMemento,
+  PullRequestLinks,
+  pullRequestLinkStoreOf,
+} from '../../git/pullRequestLinks'
 import { untrustedGitRunner } from '../../git/untrustedGit'
 import {
   windowWorktreeState,
@@ -269,23 +274,8 @@ async function isModalConfirmed(message: string, detail: string, action: string)
 
 /** Every part of a push, in the modal that asks for it; never a force. */
 async function isPushConfirmed(confirmation: PushConfirmation): Promise<boolean> {
-  const detail = [
-    fill(UI_TEXT.gitPushRemoteLine, {
-      remote: confirmation.remote,
-      url: confirmation.remoteUrl ?? UI_TEXT.gitPushNoUrl,
-    }),
-    fill(UI_TEXT.gitPushBranchLine, { branch: confirmation.branch, target: confirmation.target }),
-    confirmation.commits === undefined
-      ? UI_TEXT.gitPushFirstPush
-      : plural(UI_TEXT.gitPushCommits, confirmation.commits),
-    UI_TEXT.gitPushNeverForce,
-    UI_TEXT.gitCommandConsequences,
-  ].join('\n')
-  return await isModalConfirmed(
-    fill(UI_TEXT.gitPushConfirm, { branch: confirmation.branch, remote: confirmation.remote }),
-    detail,
-    UI_TEXT.gitPushAction,
-  )
+  const { message, detail } = pushConfirmationText(confirmation)
+  return await isModalConfirmed(message, detail, UI_TEXT.gitPushAction)
 }
 
 async function isCommitConfirmed(confirmation: CommitConfirmation): Promise<boolean> {
@@ -356,10 +346,7 @@ function nativeGitDeps(deps: GitWindowDeps, window: GitWindow): RuntimeGitDeps |
     gitPath,
     // The same sign-in as the Git extension route: one card, one account.
     github: deps.githubSignIn,
-    links: {
-      get: (_root, sessionId) => Promise.resolve(deps.links.get(sessionId)),
-      set: (_root, sessionId, link) => deps.links.set(sessionId, link),
-    },
+    links: pullRequestLinkStoreOf(deps.links),
     isTrusted: () => window.isWorkspaceTrusted() && deps.hold.current === undefined,
     // The same card and worktree line as the Git extension route.
     worktreeState: () => windowWorktreeState(window),

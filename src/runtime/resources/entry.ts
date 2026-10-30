@@ -2,7 +2,11 @@ import path from 'node:path'
 import { createMachineResourceSampler } from '../../core/resources/sampler/system'
 import type { ResourceLaunchHost } from '../../core/resources/launchHost'
 import type { ResourceRunningWork } from '../../core/resources/queue'
-import { BOUNDED_FILE_READ_CHUNK_BYTES, RESOURCE_SAMPLE_MS } from '../../shared/constants'
+import {
+  BOUNDED_FILE_READ_CHUNK_BYTES,
+  RESOURCE_SAMPLE_MS,
+  RUNTIME_RESOURCE_SETTINGS_FILE,
+} from '../../shared/constants'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import {
@@ -65,7 +69,7 @@ export async function createResources(
   const machine =
     options.machine ??
     resourceMachineStore({
-      settingsFile: path.join(options.machineDir, 'resources.json'),
+      settingsFile: path.join(options.machineDir, RUNTIME_RESOURCE_SETTINGS_FILE),
       resumeFile: path.join(options.machineDir, 'resource-resume.json'),
       sleep: options.sleep,
     })

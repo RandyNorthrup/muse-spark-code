@@ -30529,6 +30529,17 @@ design, is listed in `docs/certification/cc-rlm104.md`.
 Lane H on int (cc/m104h): `lsp` (Tab over LSP through RLF-TAB's consent,
 cap, hooks, eligibility), `supervise`, `stop`; test client vscode-jsonrpc
 9.0.3 (dev); record and remainder: `docs/certification/cc-m104h.md`.
+Lane B on int (cc/m104b, 2026-10-24): the settings and storage store, one
+controller registry (ACP's turns untouched), `panel --stdio`: the handshake and
+int's conversation controller behind MHP surfaces, with paid use (D48, D208),
+git and pull requests, review, export and import, plans and the tasks tab;
+suites green on the production build. Not done: checkpoints, usage history,
+`--companion` and the other surfaces; handoff and remainder:
+`docs/certification/cc-m104b.md`.
+Review RVM104B (2026-10-30): five fixes on lane B (D78 gate parity on Muse
+Code, machine-scoped resource settings, the start review's backend flags, a
+plan save's trust recheck, Ask again's account revocation), each red/green;
+record: `docs/certification/rvm104b.md`.
 
 **Warning for the POSIX trusted-path verifier (INT0180, 2026-10-11).** A real
 POSIX verifier that refuses a group-writable unit search directory would
