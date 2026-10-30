@@ -496,9 +496,9 @@ a configured user or managed source says it waits for trust, as the project
 source does. Muse Code applies its own rules, so its view is unchanged.
 */
 function withTrustNote(deps: MuseConfigDeps, detail: string): string {
-  return deps.modelApiHooks !== undefined && !deps.isWorkspaceTrusted()
-    ? `${detail} · ${UI_TEXT.hooksProjectUntrusted}`
-    : detail
+  return deps.modelApiHooks === undefined || deps.isWorkspaceTrusted()
+    ? detail
+    : `${detail} · ${UI_TEXT.hooksProjectUntrusted}`
 }
 
 export async function showHooks(deps: MuseConfigDeps): Promise<void> {

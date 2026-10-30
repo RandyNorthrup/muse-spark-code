@@ -99,10 +99,10 @@ async function searchableText(
 ): Promise<string | undefined> {
   try {
     const real = await realpath(absolute)
-    if (!isInside(realRoot, real)) {
-      return undefined
-    }
-    if (isDenied([path.relative(realRoot, real).split(path.sep).join('/')])) {
+    if (
+      !isInside(realRoot, real) ||
+      isDenied([path.relative(realRoot, real).split(path.sep).join('/')])
+    ) {
       return undefined
     }
     const info = await stat(absolute)

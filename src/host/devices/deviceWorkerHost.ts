@@ -19,7 +19,6 @@ import type {
   DeviceReceiverExecution,
 } from './deviceReceiver'
 
-type Retirement = Awaited<DeviceLocalAttempt['retirement']>
 type Power = 'ac' | 'battery' | 'unknown'
 const contextSchema = z.strictObject({
   session: z.int().check(z.gte(0)),
@@ -264,6 +263,7 @@ function environment(input: NodeJS.ProcessEnv, platform: NodeJS.Platform): Recor
 
 // Node 20 hosts do not have Promise.withResolvers (the supported editor floor).
 function retirementWait() {
+  type Retirement = Awaited<DeviceLocalAttempt['retirement']>
   let settle: { resolve(value: Retirement): void; reject(error: unknown): void } | undefined
   const promise = new Promise<Retirement>((resolve, reject) => {
     settle = { resolve, reject }

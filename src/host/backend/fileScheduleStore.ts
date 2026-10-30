@@ -53,7 +53,7 @@ export function createFileScheduleStore(deps: FileScheduleStoreDeps): ScheduleSt
   }
   const receiptPath = (id: string, occurrenceMs: number) =>
     path.join(deps.directory, claimName(id, occurrenceMs))
-  const migrationSealed = (id: string) => isMigrationSealed(deps.directory, id)
+  const isMigrationSealedFor = (id: string) => isMigrationSealed(deps.directory, id)
 
   const readJob = async (id: string): Promise<ScheduledPrompt | undefined> => {
     let raw: unknown
@@ -153,7 +153,7 @@ export function createFileScheduleStore(deps: FileScheduleStoreDeps): ScheduleSt
     const jobs: ScheduledPrompt[] = []
     for (const name of names) {
       if (name.endsWith(CLAIM_FILE)) {
-        if (await migrationSealed(name.split('.', 1)[0] ?? '')) continue
+        if (await isMigrationSealedFor(name.split('.', 1)[0] ?? '')) continue
         const file = path.join(deps.directory, name)
         try {
           const fileStat = await stat(file)
@@ -171,7 +171,7 @@ export function createFileScheduleStore(deps: FileScheduleStoreDeps): ScheduleSt
         continue
       }
       const id = name.slice(0, -JOB_FILE.length)
-      if (!ID.test(id) || (await migrationSealed(id))) continue
+      if (!ID.test(id) || (await isMigrationSealedFor(id))) continue
       const stored = await readJob(id)
       if (stored === undefined) {
         continue
@@ -238,7 +238,7 @@ export function createFileScheduleStore(deps: FileScheduleStoreDeps): ScheduleSt
         stillStored.workspaceRoot === job.workspaceRoot &&
         stillStored.accountId === job.accountId &&
         stillStored.prompt === job.prompt &&
-        !(await migrationSealed(job.id)) &&
+        !(await isMigrationSealedFor(job.id)) &&
         deps.now() < stillStored.expiresAtMs
       )
     },

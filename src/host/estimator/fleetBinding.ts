@@ -320,10 +320,15 @@ function fleetAccountFromFacts(
       if (reset === null) refuse(`fleet-account-blocked: ${label} reset unknown`)
       if (Date.parse(reset) > nowMs) resets.push(reset)
     }
-    if (reset === null || fact.unit === null || fact.remaining === null) continue
     // Money never becomes a numeric window: usd facts carry exact decimal
     // strings and no reset, and admit on the schedule's fact-direct path.
-    if (typeof fact.remaining !== 'number') continue
+    if (
+      reset === null ||
+      fact.unit === null ||
+      fact.remaining === null ||
+      typeof fact.remaining !== 'number'
+    )
+      continue
     const allowance = typeof fact.limit === 'number' ? fact.limit : fact.remaining
     windows.push({
       id: `${accountId}-${

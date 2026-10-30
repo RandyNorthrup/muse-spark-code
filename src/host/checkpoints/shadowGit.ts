@@ -298,10 +298,7 @@ export class ShadowGit {
       } catch (error: unknown) {
         // The rename lost a race another window won: its HEAD is there,
         // and this window uses its shadow. Anything else keeps its failure.
-        if (!(await isPresent(path.join(this.shadowDir, 'HEAD')))) {
-          throw error
-        }
-        if (!isRenameRace(error)) {
+        if (!(await isPresent(path.join(this.shadowDir, 'HEAD'))) || !isRenameRace(error)) {
           throw error
         }
       }

@@ -700,10 +700,10 @@ export class CheckpointStore {
       // A path git cannot use, or storage and workspace holding one
       // another: every window meets the same refusal, so the turn goes
       // ahead with no record. Any other failure still stops it.
-      if (error instanceof ShadowPathTooLongError) {
-        return undefined
-      }
-      if (error instanceof ShadowStorageInWorkspaceError) {
+      if (
+        error instanceof ShadowPathTooLongError ||
+        error instanceof ShadowStorageInWorkspaceError
+      ) {
         return undefined
       }
       throw error

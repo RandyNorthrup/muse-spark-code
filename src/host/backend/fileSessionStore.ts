@@ -103,7 +103,6 @@ const uploadIntentSchema = z.strictObject({
   accountId: z.string().check(z.regex(MEDIA_SHA256_PATTERN)),
   operation: z.enum(['save', 'remove']),
 })
-type UploadIntent = z.infer<typeof uploadIntentSchema>
 // Store instances in one process share a writer. The ledger's storage lock
 // extends the transaction across processes/windows for account-owned sessions.
 const sessionWriters = new Map<
@@ -211,6 +210,7 @@ const storedSessionOwnershipShape = z.object({
 })
 
 export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore {
+  type UploadIntent = z.infer<typeof uploadIntentSchema>
   const fileFor = (sessionId: string) => path.join(deps.directory, `${sessionId}${FILE_EXTENSION}`)
   // Each window's own base for the running spend total (D208): what this
   // store instance last loaded or saved for the session. A save adds only

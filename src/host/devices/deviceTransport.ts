@@ -237,8 +237,11 @@ export class DeviceTransport {
             wallNow < wallStartedAt
           )
             failed()
-          else if (!pair.isActive() || !pair.isOffered()) cancel()
-          else finish()
+          else if (pair.isActive() && pair.isOffered()) {
+            finish()
+          } else {
+            cancel()
+          }
         }
         const timer = setTimeout(failed, DEVICE_LIMITS.handshakeDeadlineMs)
         this.pending.set(cancel, pair.pairId)
