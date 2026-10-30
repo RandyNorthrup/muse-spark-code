@@ -7,7 +7,7 @@ import { mkdtemp, readdir, rm, stat, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it, onTestFinished } from 'vitest'
-import { findLatestRecording } from '../../src/core/media/record/linux'
+import { findLatestRecording } from '../../src/core/media/record/latest'
 
 const HOUR_MS = 60 * 60 * 1000
 /** The person's name for a test root, as the not-found sentence shows it. */
