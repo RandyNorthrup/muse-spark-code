@@ -639,9 +639,12 @@ export function computedLoadFailures(computed, listed = COMPUTED_SOURCE_LOADS) {
 
 /**
 What one request loads: { mapped } for a redirect-map target, { file }
-for a dist basename, { bundled: true } for an import the bundler inlines
-(an entry-relative name whose source exists and the map does not cover).
-dist/ prefixes and bare basenames always name dist files.
+for a dist-relative path, { bundled: true } for an import the bundler
+inlines (an entry-relative name whose source exists and the map does not
+cover). dist/ prefixes and bare basenames always name dist files. A
+relative name with no source and no redirect keeps its full subpath, never
+its basename: ./node/files/main.js is node/files/main.js, which matches
+only that file where a build emits it, and never webview/main.js.
 @param {string} root repository root
 @param {Map<string, string>} deferredOutfiles absolute source entry to dist output
 @param {LazyRequest} request
@@ -658,9 +661,11 @@ export function resolveRequest(root, deferredOutfiles, request) {
       }
     }
     if (!value.endsWith('.js')) return { bundled: true }
-    return existsSync(`${stem}.ts`) || existsSync(`${stem}.tsx`)
-      ? { bundled: true }
-      : { file: value.split('/').pop() ?? value }
+    if (existsSync(`${stem}.ts`) || existsSync(`${stem}.tsx`)) return { bundled: true }
+    // Full relative paths, never the basename: a subpath matches only the
+    // file it spells, and a name that climbs (..) matches nothing, so the
+    // check fails closed instead of attributing the wrong bundle.
+    return { file: value.startsWith('./') ? value.slice(2) : value }
   }
   return { file: value.split('/').pop() ?? value }
 }
