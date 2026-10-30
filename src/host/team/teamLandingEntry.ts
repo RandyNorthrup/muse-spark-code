@@ -52,7 +52,13 @@ function createLandingStore(
   storage: string,
   owner: WindowIdentity,
   platform: NodeJS.Platform,
-): { readonly store: TeamJournal; readonly authority: WindowAuthority } {
+): {
+  readonly store: TeamJournal
+  readonly authority: WindowAuthority
+  /** The journal store a record's own window writes: recovery settles the
+  owner's record there, never a copy in the recovering window's store. */
+  readonly storeFor: (recordOwner: WindowIdentity) => TeamJournal
+} {
   const holder: { store?: TeamJournal } = {}
   const authority = createWindowAuthority(owner, async (foreign) => {
     if (holder.store === undefined) throw new Error(UI_TEXT.teamTrafficDetails.changedSinceOpened)
@@ -62,14 +68,16 @@ function createLandingStore(
       takeoverReceiptSchema,
     )
   })
-  holder.store = createTeamJournal({
-    storageDirectory: storage,
-    owner,
-    authority,
-    maxRecordBytes: HOOK_CONFIG_MAX_BYTES,
-    platform,
-  })
-  return { store: holder.store, authority }
+  const storeFor = (recordOwner: WindowIdentity): TeamJournal =>
+    createTeamJournal({
+      storageDirectory: storage,
+      owner: recordOwner,
+      authority,
+      maxRecordBytes: HOOK_CONFIG_MAX_BYTES,
+      platform,
+    })
+  holder.store = storeFor(owner)
+  return { store: holder.store, authority, storeFor }
 }
 interface LandingDeps {
   readonly root: string
@@ -349,7 +357,11 @@ export async function recoverOpenLandings(
     if (!deps.isTrusted()) throw new Error(UI_TEXT.teamRunners.trustNotice)
   }
   const owner = policy.owner
-  const { store: journalStore, authority } = createLandingStore(deps.storage, owner, deps.platform)
+  const {
+    store: journalStore,
+    authority,
+    storeFor,
+  } = createLandingStore(deps.storage, owner, deps.platform)
   const scanned = await scanLandingEntries(journalStore)
   if (scanned.blocked) return 0
   const canonical = await canonicalPath(root)
@@ -371,13 +383,21 @@ export async function recoverOpenLandings(
   }
   const scratch = path.join(deps.storage, 'landing')
   const staging = new StagingCopy(git, process.env, scratch)
+  // Recovery settles each intent in its owner's store: a recovered copy in
+  // this window's store would leave the owner's open intent blocking every
+  // later landing. The takeover in authorizeRecovery runs first, so the
+  // owner's store accepts the write.
+  const ownerStoreOf = (id: string): TeamJournal => {
+    const found = open.find((item) => item.record.id === id)
+    return found === undefined ? journalStore : storeFor(found.storeOwner)
+  }
   const journal = new LandingJournal({
     read: async (id) => {
-      const read = await journalStore.read(`landing-${id}`, z.unknown())
+      const read = await ownerStoreOf(id).read(`landing-${id}`, z.unknown())
       if (read.kind !== 'record') throw new Error(UI_TEXT.teamTrafficDetails.changedSinceOpened)
       return read.value
     },
-    write: (record) => journalStore.write(`landing-${record.id}`, record, z.unknown()),
+    write: (record) => ownerStoreOf(record.id).write(`landing-${record.id}`, record, z.unknown()),
   })
   const access = landingFileAccess(root, staging, { validateTarget: policy.validateTarget })
   const gitDirectory = await staging.gitDirectory(root)
