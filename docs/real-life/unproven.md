@@ -3244,3 +3244,8 @@ live dependency proves. Per-item record: `docs/certification/rlf-nostubs.md`.
   run that saves sessions, then stop secret-service so key reads fail
   while the run continues; the saves succeed and the persisted session
   files carry no pasted-key literal.
+
+### test/unit/mediaJobRun.test.ts (the stalled-share sample cases; the rest stays over real runs)
+
+- `settles a running encoder whose output stat never answers (a stalled share)`: the bounded sample fails the conversion instead of hanging, and the encoder is ended. The old case injected a never-settling `statOutput`; only a genuinely stalled filesystem proves it: on a Windows machine, map a network share, start a media conversion whose output lands on the share, then stall the share mid-conversion (disconnect the network or suspend the server); the conversion fails bounded with the job failure and no encoder process is left behind.
+- `settles an encoder that exits cleanly whose output stat never answers (a stalled share)`: same stall with an encoder that exits 0; the conversion still fails bounded. Same real-life steps with a conversion that finishes while the share is stalled.
