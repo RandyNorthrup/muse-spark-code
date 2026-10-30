@@ -6,10 +6,15 @@
 // wire; every frame is the recorded 1.4.11 echo capture
 // (test/fixtures/acphonest/), zero model calls.
 import { readFileSync } from 'node:fs'
-import { Connection } from '@muse-code/sdk'
 import { afterEach, describe, expect, it } from 'vitest'
-import { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
-import { type Answer, refuseUnscripted, ReplayWire } from './helpers/museReplay'
+import type { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
+import {
+  type Answer,
+  closeLiveHosts,
+  refuseUnscripted,
+  type ReplayWire,
+  startLiveHost,
+} from './helpers/museReplay'
 import { levelLogger, type LoggedMessage } from './helpers/collectingLogger'
 
 function fixture(name: string): unknown {
@@ -18,67 +23,50 @@ function fixture(name: string): unknown {
 
 const logged: LoggedMessage[] = []
 const log = levelLogger(logged)
-const hosts: { host: MuseCodeHost; wire: ReplayWire }[] = []
 afterEach(async () => {
-  for (const { host, wire } of hosts.splice(0)) {
-    wire.finish()
-    await host.close()
-  }
+  await closeLiveHosts()
   logged.length = 0
 })
 
 interface Rigged {
   host: MuseCodeHost
   wire: ReplayWire
-  connection: Connection
   stopAllGate: PromiseWithResolvers<Answer>
 }
 
 /** The real host over the replay wire; the stop's answer is held by the test. */
 function replayHost(): Rigged {
-  const wire = new ReplayWire()
   const stopAllGate = Promise.withResolvers<Answer>()
   let starts = 0
-  wire.answer = (method): Answer | Promise<Answer> => {
-    switch (method) {
-      case 'model/list': {
-        return { result: fixture('model-list-1.4.11.json') }
-      }
-      case 'session/start': {
-        starts += 1
-        return {
-          result: fixture(
-            starts === 1 ? 'session-start-1.4.11.json' : 'session-start-second-1.4.11.json',
-          ),
+  const { host, wire } = startLiveHost(
+    (method): Answer | Promise<Answer> => {
+      switch (method) {
+        case 'model/list': {
+          return { result: fixture('model-list-1.4.11.json') }
+        }
+        case 'session/start': {
+          starts += 1
+          return {
+            result: fixture(
+              starts === 1 ? 'session-start-1.4.11.json' : 'session-start-second-1.4.11.json',
+            ),
+          }
+        }
+        case 'session/resume': {
+          return { result: fixture('session-resume-1.4.11.json') }
+        }
+        case 'task/stopAll': {
+          return stopAllGate.promise
+        }
+        default: {
+          return refuseUnscripted(method)
         }
       }
-      case 'session/resume': {
-        return { result: fixture('session-resume-1.4.11.json') }
-      }
-      case 'task/stopAll': {
-        return stopAllGate.promise
-      }
-      default: {
-        return refuseUnscripted(method)
-      }
-    }
-  }
-  const connection = new Connection(wire.transport())
-  const host = new MuseCodeHost(
-    {
-      connection,
-      initializeResult: fixture('initialize-1.4.11.json'),
-      exited: Promise.withResolvers<{ code: number | null; signal: string | null }>().promise,
-      close: async () => {
-        wire.finish()
-        await connection.close()
-      },
     },
-    log,
+    undefined,
+    { initializeResult: fixture('initialize-1.4.11.json'), log },
   )
-  const live = { host, wire, connection, stopAllGate }
-  hosts.push({ host, wire })
-  return live
+  return { host, wire, stopAllGate }
 }
 
 const START = {
@@ -118,9 +106,6 @@ describe('MuseCode session release is orderly', () => {
     const again = await host.resumeSession(session.sessionId, 'muse-spark-1.3')
     expect(again.session).toBe(resumed.session)
     expect(stopWarns()).toEqual([])
-    wire.finish()
-    await host.close()
-    hosts.pop()
   })
 
   it('a failed stop names its kind and still forgets the handle', async () => {
@@ -140,9 +125,6 @@ describe('MuseCode session release is orderly', () => {
     expect(warns[0]?.message).toContain('-32020')
     const resumed = await host.resumeSession(session.sessionId, 'muse-spark-1.3')
     expect(resumed.session).not.toBe(session)
-    wire.finish()
-    await host.close()
-    hosts.pop()
   })
 
   it('a release on a dead host says so once and sends nothing', async () => {
@@ -173,7 +155,6 @@ describe('MuseCode session release is orderly', () => {
     // Already untracked: the close says nothing about held sessions.
     await host.close()
     expect(abandonInfos()).toHaveLength(1)
-    hosts.pop()
   })
 
   it('closing the host says the abandonment once and sends no stop', async () => {
@@ -186,7 +167,6 @@ describe('MuseCode session release is orderly', () => {
     expect(abandonInfos()[0]?.message).toBe(
       'Closing the host releases 1 held session without stopping their background tasks',
     )
-    hosts.pop()
   })
 
   it('closing the host with two sessions names the plural', async () => {
@@ -199,7 +179,6 @@ describe('MuseCode session release is orderly', () => {
     expect(abandonInfos()[0]?.message).toBe(
       'Closing the host releases 2 held sessions without stopping their background tasks',
     )
-    hosts.pop()
   })
 
   it('a close during the settling stop stays quiet', async () => {
@@ -211,7 +190,6 @@ describe('MuseCode session release is orderly', () => {
     await host.close()
     expect(stopWarns()).toEqual([])
     expect(abandonInfos()).toHaveLength(1)
-    hosts.pop()
   })
 
   it('a second surface still shares the live handle', async () => {
@@ -225,8 +203,5 @@ describe('MuseCode session release is orderly', () => {
     second.session.dispose()
     await tick()
     expect(wire.sentCount('task/stopAll')).toBe(1)
-    wire.finish()
-    await host.close()
-    hosts.pop()
   })
 })

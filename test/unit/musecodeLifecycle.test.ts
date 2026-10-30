@@ -8,10 +8,9 @@
 // by name; deleteSession refuses without sending while the admission
 // parser is absent.
 import { readFileSync } from 'node:fs'
-import { Connection } from '@muse-code/sdk'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { SessionListEvent } from '../../src/core/agent/agentBackend'
-import { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
+import type { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
 import {
   isDeleteCapableReader,
   LifecycleDeleteUnreadableError,
@@ -20,7 +19,13 @@ import {
 } from '../../src/core/backends/musecode/lifecycle'
 import { EN } from '../../src/shared/l10n/en'
 import { fill } from '../../src/shared/l10n/text'
-import { type Answer, refuseUnscripted, ReplayWire } from './helpers/museReplay'
+import { flushReplayBackend } from './helpers/acpReplayRig'
+import {
+  closeLiveHosts,
+  refuseUnscripted,
+  type ReplayWire,
+  startLiveHost,
+} from './helpers/museReplay'
 import { levelLogger, type LoggedMessage } from './helpers/collectingLogger'
 
 function acpFixture(name: string): unknown {
@@ -37,53 +42,39 @@ function noteParams(fixture: unknown): Record<string, unknown> {
 
 const logged: LoggedMessage[] = []
 const log = levelLogger(logged)
-const hosts: { host: MuseCodeHost; wire: ReplayWire }[] = []
 afterEach(async () => {
-  for (const { host, wire } of hosts.splice(0)) {
-    wire.finish()
-    await host.close()
-  }
+  await closeLiveHosts()
   logged.length = 0
 })
 
 /** The real host over the replay wire, with the native reader bound. */
 function lifecycleHost(): { host: MuseCodeHost; wire: ReplayWire } {
-  const wire = new ReplayWire()
-  wire.answer = (method): Answer => {
-    switch (method) {
-      case 'model/list': {
-        return { result: acpFixture('model-list-1.4.11.json') }
+  return startLiveHost(
+    (method) => {
+      switch (method) {
+        case 'model/list': {
+          return { result: acpFixture('model-list-1.4.11.json') }
+        }
+        case 'session/start': {
+          return { result: acpFixture('session-start-1.4.11.json') }
+        }
+        default: {
+          return refuseUnscripted(method)
+        }
       }
-      case 'session/start': {
-        return { result: acpFixture('session-start-1.4.11.json') }
-      }
-      default: {
-        return refuseUnscripted(method)
-      }
-    }
-  }
-  const connection = new Connection(wire.transport())
-  const host = new MuseCodeHost(
-    {
-      connection,
-      initializeResult: acpFixture('initialize-1.4.11.json'),
-      exited: Promise.withResolvers<{ code: number | null; signal: string | null }>().promise,
-      close: async () => {
-        wire.finish()
-        await connection.close()
-      },
     },
-    log,
-    undefined,
     { lifecycle: NATIVE_LIFECYCLE_READER },
+    { initializeResult: acpFixture('initialize-1.4.11.json'), log },
   )
-  hosts.push({ host, wire })
-  return { host, wire }
 }
 
-/** A released broadcast is answered in order, so a backend round trip after it proves it was handled. */
-async function flushBackend(host: MuseCodeHost): Promise<void> {
-  await host.listModels()
+/** The host's session-list events in arrival order. */
+function collectListEvents(host: MuseCodeHost): SessionListEvent[] {
+  const seen: SessionListEvent[] = []
+  host.onSessionListEvent((event) => {
+    seen.push(event)
+  })
+  return seen
 }
 
 describe('MuseCode lifecycle reader', () => {
@@ -131,16 +122,13 @@ describe('MuseCode lifecycle reader', () => {
 
   it('delivers a started session to the list without a re-list', async () => {
     const { host, wire } = lifecycleHost()
-    const seen: SessionListEvent[] = []
-    host.onSessionListEvent((event) => {
-      seen.push(event)
-    })
+    const seen = collectListEvents(host)
     wire.release({
       jsonrpc: '2.0',
       method: 'session/started',
       params: noteParams(acpFixture('note-session-started-1.4.11.json')),
     })
-    await flushBackend(host)
+    await flushReplayBackend(host)
     expect(seen).toHaveLength(1)
     expect(seen[0]?.type).toBe('changed')
     if (seen[0]?.type !== 'changed') return
@@ -148,25 +136,17 @@ describe('MuseCode lifecycle reader', () => {
     // No re-list, and the notice is shown now, not "not shown".
     expect(wire.sentCount('session/list')).toBe(0)
     expect(logged.filter((entry) => entry.message.includes('session/started'))).toEqual([])
-    wire.finish()
-    await host.close()
-    hosts.pop()
   })
 
   it('reports an unreadable delete terminal by name and delivers nothing', async () => {
     const { host, wire } = lifecycleHost()
-    const seen: SessionListEvent[] = []
-    host.onSessionListEvent((event) => {
-      seen.push(event)
-    })
+    const seen = collectListEvents(host)
     wire.release({ jsonrpc: '2.0', method: 'session/deleteCompleted', params: {} })
-    await flushBackend(host)
+    await flushReplayBackend(host)
     expect(seen).toEqual([])
     const errors = logged.filter((entry) => entry.level === 'error')
     expect(errors).toHaveLength(1)
     expect(errors[0]?.message).toContain('LifecycleDeleteUnreadableError')
-    await host.close()
-    hosts.pop()
   })
 
   it('refuses deleteSession without sending while the admission parser is absent', async () => {
@@ -178,7 +158,5 @@ describe('MuseCode lifecycle reader', () => {
       fill(EN.sessionDeleteUnsupported, { version: initialize.serverInfo.version }),
     )
     expect(wire.sentCount('session/delete')).toBe(0)
-    await host.close()
-    hosts.pop()
   })
 })
