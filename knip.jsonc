@@ -468,6 +468,12 @@
     // scheduler chunk's `teamTools` import to it, so the barrel is that
     // chunk's API surface too, which knip cannot trace.
     "src/core/team/teamEntry.ts",
+    // The scheduler chunk (dist/teamScheduler.js) and the window chunk
+    // (dist/teamWindow.js): the build plugin resolves the window chunk's
+    // board, slots and pool imports, and the runners chunk's write-set
+    // imports, to these barrels' re-exports, which knip cannot trace.
+    "src/core/team/teamSchedulerEntry.ts",
+    "src/core/team/scheduler/teamWindowEntry.ts",
     //
     // M115 (Scheduled prompts v2, D95): the v2 engine, grant, event-source
     // and editor pieces ahead of their schedule-use wiring. Wiring: the
