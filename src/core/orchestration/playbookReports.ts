@@ -177,7 +177,6 @@ export function collectResidualRegister(
 }
 
 /** M113 supplies its current rows, including its residual register and Needs you facts.
-@unwired M116 playbook report rows
 The integration preserves their payloads and applies the same ordering in all editors. */
 export function collectPlaybookReport<T extends PlaybookReportItem>(
   policy: Pick<PlaybookPolicy, 'orderReport'> & { getRecord(): readonly PlaybookRecord[] },
