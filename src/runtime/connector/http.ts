@@ -31,7 +31,7 @@ import { messageSchema } from '../../core/mcp'
 import { ConnectorProtocol } from '../../core/connector/protocol'
 import type { AuthorityPort, ConnectorRegistry } from '../../core/connector/registry'
 import type { ConnectorScope } from '../../shared/connector'
-import { listenHttpServer } from '../httpServer'
+import { listenHttpServer, readBoundedBody } from '../httpServer'
 import type { ConnectorRegistryHost } from './registryHost'
 import { scopedAuthority } from './registryHost'
 import type { ConnectorOAuth } from './oauth/server'
@@ -86,19 +86,6 @@ function hostnameOf(header: string | undefined): string | undefined {
 function singleHeader(request: IncomingMessage, name: string): string | undefined {
   const value = request.headers[name]
   return typeof value === 'string' ? value : undefined
-}
-
-/** The whole body as text, or undefined when it passed the bound. */
-async function readBody(request: IncomingMessage, maxBytes: number): Promise<string | undefined> {
-  const chunks: Buffer[] = []
-  let size = 0
-  for await (const chunk of request) {
-    const bytes = Buffer.from(chunk as Uint8Array)
-    size += bytes.length
-    if (size > maxBytes) return undefined
-    chunks.push(bytes)
-  }
-  return Buffer.concat(chunks).toString('utf8')
 }
 
 function send(
@@ -224,7 +211,7 @@ export async function startConnectorHttp(
       )
       return
     }
-    const body = await readBody(request, CONNECTOR_LIMITS.frameBytes)
+    const body = await readBoundedBody(request, CONNECTOR_LIMITS.frameBytes)
     if (body === undefined) {
       sendJson(
         response,

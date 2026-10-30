@@ -837,7 +837,7 @@ credentials. Production mounting waits for M104's guarded launch exchange and
 private storage; provider consumption waits for captured capability, consent,
 exact budget and Files ledger bindings. Missing ports refuse explicitly.
 
-## MCP connector boundary (M124 local phase, PLAN D106)
+## MCP connector boundary (M124, PLAN D106 and D217)
 
 - **Authority stays here.** A connection grant (workspaces, scope
   families, content, user library) is created only with a typed
@@ -871,3 +871,15 @@ exact budget and Files ledger bindings. Missing ports refuse explicitly.
 - **Child processes.** The runtime removes credential variables from its
   environment before the connector loads; the only process the connector
   starts is the fixed OS opener with the checked loopback URL.
+- **The HTTPS endpoint is the person's own (D217).** `mcp serve-http`
+  binds loopback unless the person names a wider address, serves plain
+  HTTP only on loopback behind a tunnel of theirs, and runs no service,
+  domain or account of ours. Its authorization server is the PC itself
+  (`oidc-provider`): authorization code with PKCE S256, tokens bound to
+  this one resource and verified on every request, rotating refresh
+  tokens whose reuse ends the sign-in, and consent that needs an owner
+  code printed only in the connector's terminal. Tokens are stored as
+  digests in the same owner-only folder; revoking the grant or removing
+  a client ends its tokens at once. A sign-in grants no authority beyond
+  the connection grant above, and no token becomes a provider key or
+  reaches a child process.

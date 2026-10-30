@@ -689,6 +689,14 @@ set|status|clear --provider <id> --admin` stores the separate admin
 
 ### MCP connector
 
+- Your connector can now be reached over HTTPS from your own PC:
+  `muse-spark-code-acp mcp serve-http` serves the grant you made, with an
+  OAuth sign-in your PC runs itself (no server, domain or account of
+  ours). It listens on this PC only unless you name a wider address, uses
+  your own certificate or your own tunnel, connects only clients you
+  registered with `mcp client add`, and asks for an owner code printed in
+  the connector's terminal before a client signs in. Revoking the grant
+  or removing a client ends its sign-ins at once (D217).
 - The connector's grants and audit trail are now private to your account
   on every platform: what it creates carries an explicit owner-only lock
   on Windows and 0600/0700 on macOS and Linux, and it refuses to start,

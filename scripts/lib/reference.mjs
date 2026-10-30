@@ -1075,7 +1075,7 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     // M124: the MCP connector parses its own words in its lazy bundle.
     {
       route: 'mcp',
-      name: 'mcp [--connection ID] | mcp <grant|revoke|kill|resume|status ...>',
+      name: 'mcp [--connection ID] | mcp <grant|revoke|kill|resume|status|serve-http|client ...>',
       description: source.EN.referenceMcpCommand,
       text: { ui: 'referenceMcpCommand' },
     },
