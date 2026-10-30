@@ -10915,6 +10915,17 @@ person-settable (`0` disables). Record:
 ACP-agent-internal resend, a panel control and a headless flag stay
 open for the lead (items in the record).
 
+**Status 2026-10-30 (integration into int/recovery, CC-INT5): built.** On
+int the lane's retry policy sits in int's refactored retry loops
+(`isStreamRetried`, `isStreamResent`): the limit is a number everywhere (the
+person's, else the provider's documented one, else the SDK default), and an
+ambiguous send is resent only within an explicit bound. The Muse Code resend
+and the shared `resubmitRememberedTurn` ride int's conversation deps through
+`composeConversationDeps`. `museCodeAutoResend` (a recorded exchange),
+`providerRetryLimits` (real refused sends), `turnRetryCeiling`,
+`turnRetryResubmit` and `acpTranslate` pass on the merged tree; no provider
+request was made. Record: `docs/certification/cc-int5.md`.
+
 ### TOOLROUNDS — Preserve answers at the model-call turn limit (D109)
 
 **Status 2026-10-11: building.** Typed translated stop first; tools-disabled
@@ -14857,6 +14868,16 @@ naming the questions, options and recommendations in that record. Slot
 checks wait on RLF-TEAMCORE's governed slots. Teams stay off until a
 second model is set up (D227).
 
+**Status 2026-10-30 (CC-INT5, D75's caps): built.** The three bounds D75's
+2026-10-17 amendments removed are out of the code: the command-slot count,
+the shared-server default limit (a shared resource has the limit its person
+set, else none) and the hard depth ceiling. Delegation depth guards runaway
+recursion, so it keeps a bound that the person's setting replaces:
+`TEAM_DEFAULT_MAX_DEPTH` = 3, Claude Code's documented default
+(code.claude.com/docs/en/sub-agents, read 2026-10-30). No setting names it
+yet and no code path starts a depth-2 task, so the bound has no reader in
+the product until worker delegation is wired.
+
 Status detail retained: first parts (role charters, tools, pools, limits)
 shipped in 0.15.0; team creation and worker dispatch remain (no team can be
 created: the teamWorkers paid gate has no production availability). Planned on `feature/m96-agent-roles` from main
@@ -16842,6 +16863,24 @@ Prerequisite: team integration (M96).
 ### M96c — Scheduler and traffic (D75)
 
 **Status 2026-10-30 (RLF-TEAMCORE: M96c ported onto RLM96's team core on int/recovery; the section certification checklist below is still open): building.** One launch architecture (the host's `pump()` over the window scheduler's wake, `finalAdmit` before any worker starts), one hook system, the ordered merge queue, Traffic projection/dispatch with the retirement assembly, M107 governor joins and owner-store landing recovery with confirmed takeover, proven by real-process pause-before-rename, killed-lander, crash-recovery and throughput suites (`docs/certification/rlf-teamcore.md`). Teams stay off until a second model is set up (D227); not in a release yet.
+
+**Status 2026-10-30 (integration into int/recovery, CC-INT5): building.**
+RLF-TEAMCORE, RLF-TEAMWIRE (its own nine commits only; int keeps its RLM116,
+D218–D221) and RLF-TEAMGATE (D227) are merged on int. The real-process
+suites pass on the merged tree (`teamLandingPause`, `teamLandingKilled`,
+`teamSchedulerRecovery`, `teamMergePlan`, `teamMcpWiring` over real HTTP,
+`teamAvailability`). The release latch is gone (D227), so teams are
+available on any machine with a second model set up, and no real team run
+has been made through the packed product. `npm run build` is red on the
+merged tree: `dist/teamHost.js` is 140.2 of 130 KiB (the merge of
+RLF-TEAMWIRE's MCP server onto RLF-TEAMCORE's host binding: 107.6 on int's
+base, 129.6 after RLF-TEAMCORE), `dist/teamRunners.js` 78.4 of 75 and
+`dist/teamScheduler.js` 76.5 of 75 (both RLF-TEAMCORE: +11.7 and +4.5 KiB over
+int's base), `dist/uiText.js` 125.3 of 125 (124.9 on the base); no budget was
+raised. The
+deleted fake-driven `teamHostService` suite leaves the final admission, the
+merge queue and the plan-before-card order without a unit proof; the real-process
+suites above cover landing and recovery. Record: `docs/certification/cc-int5.md`.
 
 **M96CINT round 2 integration (2026-10-05).** Finish the existing partial
 integration by merging reviewed C (`52d04b69`) and then O (`19bb0703`) with
@@ -30691,6 +30730,15 @@ Review RVM104B (2026-10-30): five fixes on lane B (D78 gate parity on Muse
 Code, machine-scoped resource settings, the start review's backend flags, a
 plan save's trust recheck, Ask again's account revocation), each red/green;
 record: `docs/certification/rvm104b.md`.
+Lane B and its review on int/recovery (CC-INT5, 2026-10-30): `panel --stdio`
+runs int's conversation controller behind MHP, with autoretry's
+`museCodeMaxRetries` mapped through the shared conversation deps and the
+panel's usage page saying in words that it reads no trace logs. The panel
+suites pass on the production build (`runtimePanel*`, `runtimeReview`,
+`runtimeSettingsStore`, `runtimeTransfer`, `runtimePlans`, `wireEntry`,
+`acpPaidGrants`); no editor host carries it and no model call has gone
+through it. The agent package carries `reportFallback.js` for the controller.
+Record: `docs/certification/cc-int5.md`.
 
 **Warning for the POSIX trusted-path verifier (INT0180, 2026-10-11).** A real
 POSIX verifier that refuses a group-writable unit search directory would
