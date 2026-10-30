@@ -17,10 +17,21 @@ function failedTurn(retryTurnId: string | undefined): TranscriptEntry {
   }
 }
 
+function retryWait(retryingTurnId: string | undefined): TranscriptEntry {
+  return {
+    kind: 'notice',
+    id: 'retry:t1',
+    level: 'warning',
+    text: 'Retrying in 5 s (attempt 1 of 3).',
+    ...(retryingTurnId !== undefined && { retryingTurnId }),
+  }
+}
+
 function renderRows(
   entries: readonly TranscriptEntry[],
   options?: {
     onRetryTurn?: (entryId: string, turnId: string) => void
+    onStopRetry?: (entryId: string, turnId: string) => void
     resendableTurnIds?: ReadonlySet<string>
     activeTurnId?: string
   },
@@ -53,6 +64,7 @@ function renderRows(
       onOpenFile={noop}
       showReplyUsage={false}
       onRetryTurn={options?.onRetryTurn}
+      onStopRetry={options?.onStopRetry}
       resendableTurnIds={options?.resendableTurnIds}
       activeTurnId={options?.activeTurnId}
     />,
@@ -97,5 +109,26 @@ describe('turn retry button', () => {
       activeTurnId: 't2',
     })
     expect(screen.getByRole('button', { name: 'Retry' })).toBeDisabled()
+  })
+})
+
+describe('retry wait stop button', () => {
+  it('offers Stop on a retry wait, which names the waiting turn', () => {
+    const presses: [string, string][] = []
+    renderRows([retryWait('t1')], {
+      onStopRetry: (entryId, turnId) => {
+        presses.push([entryId, turnId])
+      },
+    })
+    const stop = screen.getByRole('button', { name: 'Stop' })
+    fireEvent.click(stop)
+    expect(presses).toEqual([['retry:t1', 't1']])
+  })
+
+  it('offers no Stop on a plain notice', () => {
+    renderRows([retryWait(undefined)], {
+      onStopRetry: () => undefined,
+    })
+    expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull()
   })
 })

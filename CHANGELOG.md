@@ -9,6 +9,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Highlights
 
+- **Retries follow the industry standard, and say so.**
+  Only connection errors, timeouts, 408, 409, 429, 5xx and overload signals
+  retry — never a refusal, an auth error or a bad request — with exponential
+  backoff, jitter and full `retry-after` / `retry-after-ms` waits. Where a
+  provider documents no retry bounds, the official SDK default governs (2
+  retries, 0.5 s doubling to 8 s); `museSpark.modelApiMaxRetries` still
+  decides when set. Every wait shows "Retrying in Ns (attempt K of N)" with
+  Stop, in the panel and through ACP.
 - **Big files open a window at a time.** `read_file` and `edit_file` take
   `byteOffset` and `byteLength` for files past the whole-read size: one
   byte window is shown, edits land inside the window that was read, and a
@@ -262,6 +270,12 @@ happened, not what was planned; superseded entries are kept.
   the in-flight attempt only, Retry confirms first, and every refusal
   arrives in words; a run paused through the panel offers Resume, since
   the wire reports it running still (M47).
+- **A retryable failed turn resends itself.** On the Muse Code backend, a
+  turn the backend judged retryable is resent automatically in the same
+  session — two resends unless `museSpark.museCodeMaxRetries` says
+  otherwise (`0` keeps Retry manual) — showing "Retrying in Ns (attempt
+  K of N)" with Stop in the panel while the wait runs. Stop, a refusal,
+  or the last attempt shows the error with Retry as before.
 
 ### Changed
 

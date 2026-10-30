@@ -347,7 +347,7 @@ import {
 import { canRetryWithinBudget } from './transport'
 import { scrubRefusalLeak } from './providerRefusal'
 import { isPersonRetryCap } from '../../../shared/retryPolicy'
-import { UNBOUNDED_RETRIES, noRetryBudget } from './transport'
+import { noRetryBudget } from './transport'
 import {
   type GoalContext,
   goalInstructions,
@@ -7610,8 +7610,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       typeof error === 'object' &&
       error !== null &&
       !signal.aborted &&
-      budget.retriesUsed <=
-        (this.selectedModel().client.maxRetries(this.modelId) ?? UNBOUNDED_RETRIES) &&
+      budget.retriesUsed <= this.selectedModel().client.maxRetries(this.modelId) &&
       this.deps.accountRequests !== undefined &&
       'code' in error &&
       error.code === 'accountRequestBoundary'
@@ -7640,13 +7639,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
     // Lane RETRYLIMITS: the selected model's own retry limit (the
     // provider's documented maximum, or the person's setting when set;
-    // unbounded when neither sets one, so the provider governs). A
+    // the industry-standard default (D228) when neither sets one). A
     // failure to resolve the model here (it can be the very failure
     // being handled, before any send) must never mask the original
     // error, so that error stands, and the log names this one's kind
     // (review RVRETRYLIMITS).
     let client: ResolvedModel['client']
-    let allowed: number | undefined
+    let allowed: number
     try {
       client = this.selectedModel().client
       // Lane PR225W1: an aggregate client answers for the model that
@@ -7663,7 +7662,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       !signal.aborted &&
       this.media !== undefined &&
       canRetryWithinBudget(budget, budget.retriesUsed) &&
-      budget.retriesUsed < (allowed ?? UNBOUNDED_RETRIES) &&
+      budget.retriesUsed < allowed &&
       (await this.media.recover(
         error,
         this.replay.map((entry) => entry.item),
@@ -7679,7 +7678,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       (!canFailOverAccount && !(error instanceof RetryableStreamError)) ||
       signal.aborted ||
       !canRetryWithinBudget(budget, budget.retriesUsed) ||
-      budget.retriesUsed >= (allowed ?? UNBOUNDED_RETRIES)
+      budget.retriesUsed >= allowed
     ) {
       this.notifyRetryCap(error, signal, client.personCap(), allowed)
       return false
@@ -7692,7 +7691,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       type: 'turnRetry',
       turnId,
       attempt: attempt + 1,
-      maxAttempts: allowed === undefined ? undefined : allowed + 1,
+      maxAttempts: allowed + 1,
       retryDelayMs: delayMs,
       reason: `${failureCode}: ${error.message}`,
     })
@@ -7703,7 +7702,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     // Lane PR225W1: the person's limit is live — a change mid-wait (to
     // 0 during a long wait) refuses the dispatch the check above had
     // accepted, instead of sending one request past the new ceiling.
-    return budget.retriesUsed <= (client.maxRetries(this.modelId) ?? UNBOUNDED_RETRIES)
+    return budget.retriesUsed <= client.maxRetries(this.modelId)
   }
 
   private recordContent(
@@ -17583,7 +17582,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           signal.aborted ||
           (!wasBudgetLimited && this.goal?.status === GOAL_STATUS.budgetLimited) ||
           !canRetryWithinBudget(budget, budget.retriesUsed) ||
-          budget.retriesUsed >= (allowed ?? UNBOUNDED_RETRIES)
+          budget.retriesUsed >= allowed
         ) {
           this.notifyRetryCap(error, signal, retryClient.personCap(), allowed)
           throw error
@@ -17595,14 +17594,14 @@ export class ModelApiSession implements ScheduledAgentSession {
           type: 'turnRetry',
           turnId,
           attempt: retry + 1,
-          maxAttempts: allowed === undefined ? undefined : allowed + 1,
+          maxAttempts: allowed + 1,
           retryDelayMs: delayMs,
           reason: `${error.code}: ${error.message}`,
         })
         await unlessStopped(retryClient.waitBeforeRetry(delayMs, signal), signal)
         // Lane PR225W1: the person's limit is live — a change mid-wait
         // refuses the dispatch the check above had accepted.
-        if (budget.retriesUsed > (retryClient.maxRetries(attemptModel) ?? UNBOUNDED_RETRIES)) {
+        if (budget.retriesUsed > retryClient.maxRetries(attemptModel)) {
           throw error
         }
       }

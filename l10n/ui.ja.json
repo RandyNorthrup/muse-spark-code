@@ -4711,8 +4711,8 @@
   "turnRetryAction": "再試行",
   "turnRetryUnavailable": "そのターンはもう再試行できません。メッセージをもう一度送信してください。",
   "turnRetryBusy": "再試行する前に、応答の完了を待つか、停止してください。",
-  "turnRetrying": "試行 {attempt}/{maxAttempts} が失敗しました ({reason})。{seconds} 秒後に再試行します。",
-  "turnRetryingUncapped": "試行 {attempt} が失敗しました ({reason})。{seconds} 秒後に再試行します（再試行の上限なし）。",
+  "turnRetrying": "{seconds} 秒後に再試行します（試行 {attempt}/{maxAttempts}）。",
+  "turnRetryingUncapped": "{seconds} 秒後に再試行します（試行 {attempt}）。",
   "modelApiProviderRetryWait": "{reason}；プロバイダーが{time}まで待機するよう求めています。ターンはいつでも停止できます。",
   "usageWindowHours": {
     "other": "{count} 時間枠"
