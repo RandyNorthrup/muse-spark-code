@@ -7,10 +7,13 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import type * as BrokerBindingsModule from './brokerBindings'
+import type * as RuntimeMigrationModule from './vaultRuntimeMigrationEntry'
 import type { VaultBrokerBindings, VaultBrokerContext } from './vaultBrokerEntry'
 import { randomBytes } from 'node:crypto'
 import { Readable } from 'node:stream'
-import { UI_TEXT, VAULT_LIMITS } from '../../shared/constants'
+import { UI_TEXT, VAULT_LIMITS, VAULT_RUNTIME_MIGRATION_BUNDLE_FILE } from '../../shared/constants'
+import { errorDetail, type Logger } from '../../host/logger'
+import type { CredentialMigrationController } from '../../host/vault/migrateCredentials'
 import { setUiText, uiLocale } from '../../shared/l10n/text'
 import {
   vaultRequesterSchema,
@@ -66,8 +69,17 @@ async function* watchEvents(
   for await (const event of stream) yield vaultBrokerEventSchema.parse(event)
 }
 
-/** The CLI's manage port over v2; each call is its own authenticated connection. */
-export function vaultCommandPort(session: VaultManageSession): VaultCommandPort {
+/**
+The CLI's manage port over v2; each call is its own authenticated
+connection. `onUnlocked` is awaited after a command leaves the vault
+unlocked (an unlock, a confirmed setup, a recovery): the key-store
+migration's unlock edge in a one-shot process, where no broker watch
+runs and the process would otherwise exit before the copy finished.
+*/
+export function vaultCommandPort(
+  session: VaultManageSession,
+  onUnlocked?: () => Promise<void>,
+): VaultCommandPort {
   const metadataOf = async (itemId: string) => {
     const snapshot = await session.snapshot()
     const item = snapshot.items.find((entry) => entry.id === itemId)
@@ -90,6 +102,7 @@ export function vaultCommandPort(session: VaultManageSession): VaultCommandPort 
     audit: async () => await session.audit(),
     unlock: async (slotId) => {
       await session.unlock(slotId)
+      await onUnlocked?.()
     },
     add: async (item) => {
       await session.write(item, false)
@@ -128,12 +141,14 @@ export function vaultCommandPort(session: VaultManageSession): VaultCommandPort 
     setup: async () => await session.setup(),
     confirmSetup: async (setupId) => {
       await session.confirmSetup(setupId)
+      await onUnlocked?.()
     },
     cancelSetup: async (setupId) => {
       await session.cancelSetup(setupId)
     },
     recover: async (code) => {
       await session.recover(code)
+      await onUnlocked?.()
     },
     close: () => Promise.resolve(),
   }
@@ -215,9 +230,30 @@ function routeBrokerApprovals(
   session: VaultManageSession,
   acp: AcpVault,
   signal: AbortSignal,
+  onUnlockEdge: () => void,
+  log: Logger,
 ): void {
   const pending: VaultApprovalRequest[] = []
   let isPumping = false
+  // The key-store migration's unlock edge in a serving process: broker
+  // events carry no "unlocked" kind, so a change re-reads the status
+  // and only a transition into unlocked fires (the panel host's rule).
+  let lastUnlocked: boolean | undefined
+  const checkLockEdge = async (): Promise<void> => {
+    let isUnlocked: boolean
+    try {
+      const snapshot = await session.snapshot()
+      isUnlocked = snapshot.status.state === 'unlocked'
+    } catch (error: unknown) {
+      // The edge is left for the next event; the failure is reported
+      // with fixed words, never the broker's text.
+      log.warn(`Credential migration lock check failed: ${errorDetail(error)}`)
+      return
+    }
+    if (isUnlocked === lastUnlocked) return
+    lastUnlocked = isUnlocked
+    if (isUnlocked) onUnlockEdge()
+  }
   const pump = async (): Promise<void> => {
     if (isPumping) return
     isPumping = true
@@ -248,6 +284,7 @@ function routeBrokerApprovals(
   void session
     .watch((event) => {
       if (event.kind === 'approval') onApproval(event.request)
+      else if (event.kind === 'changed' || event.kind === 'locked') void checkLockEdge()
     }, signal)
     .catch(() => {
       // A broken watch ends approval routing; commands open their own
@@ -268,21 +305,71 @@ export async function createRuntimeVault(
     hostSession,
   })
   const broker = new VaultBrokerProcess(platform.discovery, platform.process)
-  const connect: VaultConnect = async () =>
+  const connectBroker = async () =>
     await broker.connect(hostId, hostSession, platform.peers, platform.dial)
+  const connect: VaultConnect = connectBroker
   const session = new VaultManageSession(connect, encodeVaultMaterial)
+  // The key-store migration (RLF-M109) loads its own chunk on the first
+  // unlock edge only, like the window's; a chunk that cannot load is
+  // retried at the next unlock, and the keys keep working in the OS
+  // store meanwhile. The controller's own run never throws.
+  let migrationController: CredentialMigrationController | undefined
+  const ensureMigrated = async (): Promise<void> => {
+    const source = context.migration
+    if (source === undefined) return
+    try {
+      migrationController ??= (() => {
+        // Same-build installed sibling contract; check the factory before calling (PLAN §8).
+        const module = createRequire(__filename)(
+          path.join(__dirname, VAULT_RUNTIME_MIGRATION_BUNDLE_FILE),
+        ) as Partial<typeof RuntimeMigrationModule>
+        if (
+          typeof module.bindRuntimeCredentialMigration !== 'function' ||
+          typeof module.setUiText !== 'function'
+        )
+          throw new TypeError(UI_TEXT.vault.brokerBlocked)
+        module.setUiText(UI_TEXT, uiLocale())
+        return module.bindRuntimeCredentialMigration({
+          session,
+          connect: connectBroker,
+          openEntry: source.openEntry,
+          rawSecrets: source.rawSecrets,
+          shell: source.shell,
+          dataDir: context.dataDir,
+          providersFile: source.providersFile,
+          minorRelease: source.minorRelease,
+          now: Date.now,
+          log: context.log,
+          label: UI_TEXT.vault.secret,
+        })
+      })()
+    } catch (error: unknown) {
+      context.log.warn(`Credential migration unavailable: ${errorDetail(error)}`)
+      return
+    }
+    await migrationController.ensureMigrated()
+  }
   // Process lifetime: the runtime binding owns no close, so routing runs
   // until the broker or the process goes away. One-shot CLI commands never
   // attach an asker, so they start no watch and exit once done.
   context.acp.onAttach(() => {
-    routeBrokerApprovals(session, context.acp, new AbortController().signal)
+    routeBrokerApprovals(
+      session,
+      context.acp,
+      new AbortController().signal,
+      () => {
+        void ensureMigrated()
+      },
+      context.log,
+    )
   })
   return {
-    commands: () => Promise.resolve(vaultCommandPort(session)),
+    commands: () => Promise.resolve(vaultCommandPort(session, ensureMigrated)),
     exec: {
       open: async (execContext) =>
         await openHeadlessVault(connect, execContext, hostId, context.processId),
     },
+    ensureMigrated,
   }
 }
 

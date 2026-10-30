@@ -417,6 +417,8 @@ const RUNTIME_ACCOUNTS_OUTFILE = 'dist/runtimeAccounts.js'
 // headless runs, loaded on the first vault need; no `vscode` import.
 const VAULT_RUNTIME_ENTRY = 'src/runtime/vault/vaultRuntimeEntry.ts'
 const VAULT_RUNTIME_OUTFILE = 'dist/vaultRuntime.js'
+const VAULT_RUNTIME_MIGRATION_ENTRY = 'src/runtime/vault/vaultRuntimeMigrationEntry.ts'
+const VAULT_RUNTIME_MIGRATION_OUTFILE = 'dist/vaultRuntimeMigration.js'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
 // M95 (PLAN.md D74): exact catalogue values, with no provider runtime logic.
 // The data module uses the same verified solid archive loader as lazy bundles.
@@ -1641,6 +1643,14 @@ const vaultRuntimeOptions = {
   entryPoints: [VAULT_RUNTIME_ENTRY],
   outfile: VAULT_RUNTIME_OUTFILE,
 }
+// RLF-M109: the runtime key-store migration's own chunk, loaded by the
+// vault runtime on the first unlock edge; same ACP-side options (no
+// `vscode` external, so a stray editor import fails this build).
+const vaultRuntimeMigrationOptions = {
+  ...acpQuestionsOptions,
+  entryPoints: [VAULT_RUNTIME_MIGRATION_ENTRY],
+  outfile: VAULT_RUNTIME_MIGRATION_OUTFILE,
+}
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
@@ -2321,6 +2331,7 @@ if (isWatch) {
     ['playbook', () => esbuild.build(playbookOptions)],
     ['runtimeAccounts', () => esbuild.build(runtimeAccountsOptions)],
     ['vaultRuntime', () => esbuild.build(vaultRuntimeOptions)],
+    ['vaultRuntimeMigration', () => esbuild.build(vaultRuntimeMigrationOptions)],
   ]
   if (!isProduction) {
     extraSpecs.push(['integrationTests', () => esbuild.build(integrationTestOptions)])
@@ -2336,6 +2347,7 @@ if (isWatch) {
   let playbook
   let runtimeAccounts
   let vaultRuntime
+  let vaultRuntimeMigration
   try {
     shipped = await runBuildPool(Object.entries(shippedSpecs), BUILD_POOL_SIZE)
     ;({
@@ -2349,6 +2361,7 @@ if (isWatch) {
       playbook,
       runtimeAccounts,
       vaultRuntime,
+      vaultRuntimeMigration,
     } = await runBuildPool(extraSpecs, BUILD_POOL_SIZE))
   } catch (error) {
     await esbuild.stop()
@@ -2386,6 +2399,11 @@ if (isWatch) {
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'vaultRuntime.json'),
       JSON.stringify(vaultRuntimeMetafile, null, 2),
+    )
+    const { metafile: vaultRuntimeMigrationMetafile } = await vaultRuntimeMigration
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'vaultRuntimeMigration.json'),
+      JSON.stringify(vaultRuntimeMigrationMetafile, null, 2),
     )
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'runtimeQuestions.json'),

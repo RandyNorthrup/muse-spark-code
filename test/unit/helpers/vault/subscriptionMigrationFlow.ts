@@ -18,12 +18,17 @@ import { keyringSecretStore } from '../../../../src/runtime/keyStore'
 import { FileAccountsMetadata } from '../../../../src/runtime/providers/providersFileStore'
 import { eraseItem } from '../../../../src/core/vault/migrate/material'
 import type { MigrationCredential } from '../../../../src/core/vault/migrate/ports'
-import { CredentialMigrationController } from '../../../../src/host/vault/migrateCredentials'
+import {
+  CredentialMigrationController,
+  credentialMigrationPorts,
+} from '../../../../src/host/vault/migrateCredentials'
 import {
   createMigrationShell,
   type MigrationShell,
 } from '../../../../src/host/vault/migrationShell'
+import { createSingleFlightSecretStore } from '../../../../src/host/auth/credentialStore'
 import type { SecretStore } from '../../../../src/host/auth/credentialStore'
+import { bindRuntimeCredentialMigration } from '../../../../src/runtime/vault/vaultRuntimeMigrationEntry'
 import type { Logger } from '../../../../src/host/logger'
 import { UI_TEXT, VAULT_PROTOCOL_VERSION } from '../../../../src/shared/constants'
 
@@ -131,12 +136,7 @@ export function migrationFlow(deps: {
     secrets: deps.secrets,
     listProviderIds: () => Promise.resolve(deps.providers),
     ...(deps.listAccounts !== undefined && { listAccounts: deps.listAccounts }),
-    ports: {
-      snapshot: () => deps.session.snapshot(),
-      write: (...args) => deps.session.write(...args),
-      remove: (...args) => deps.session.remove(...args),
-      firstPartyRead: (...args) => deps.reader.read(...args),
-    },
+    ports: credentialMigrationPorts(deps.session, deps.reader),
     minorRelease: deps.minorRelease ?? (() => 19),
     now: Date.now,
     log: deps.log,
@@ -465,5 +465,85 @@ export async function driveSlotCase(deps: {
     initial: deps.initial,
     rotated: deps.rotated,
     ...(deps.extra !== undefined && { extra: deps.extra }),
+  })
+}
+
+/**
+The runtime binding's slot drive (RLF-M109): the real
+`bindRuntimeCredentialMigration` over the real session, the real
+keyring store (one unique service behind both the raw reads and the
+engine's `migrateKeyStore` legacy port, as production wires them), the
+real account-pool file and the real user providers file. The slot
+migrates only if the binding lists the provider from the file and the
+account from the pool, so the drive proves both seams end to end.
+*/
+export async function driveRuntimeSlotCase(deps: {
+  connect: () => Promise<VaultBrokerClient>
+  lockScope: string
+  fresh: boolean
+  codec: MigrationCredential
+  origin: string
+  dataDir: string
+  providersFile: string
+  provider: string
+  accounts: readonly string[]
+  initial: () => string
+  rotated: () => string
+}): Promise<void> {
+  const { session, reader, log, logged } = await openLoggedSession(deps)
+  writeAccountPool(
+    path.join(deps.dataDir, 'providers.json'),
+    deps.provider,
+    deps.origin,
+    deps.accounts,
+  )
+  mkdirSync(path.dirname(deps.providersFile), { recursive: true })
+  writeFileSync(
+    deps.providersFile,
+    `${JSON.stringify({
+      v: 1,
+      providers: [
+        {
+          id: deps.provider,
+          preset: deps.provider,
+          address: deps.origin,
+          auth: 'apiKey',
+          models: [],
+        },
+      ],
+    })}\n`,
+    'utf8',
+  )
+  // One unique real service behind every store this case touches, in the
+  // production order: raw store under the process's single-flight owner
+  // under the migration shell; the engine's legacy port opens entries
+  // on the same service through its own factory.
+  const service = `Muse RLF-M109 ${randomBytes(16).toString('hex')}`
+  const openEntry = (_service: string, account: string) => new AsyncEntry(service, account)
+  const rawSecrets = keyringSecretStore(openEntry, { lockScope: deps.lockScope })
+  const shell = createMigrationShell(createSingleFlightSecretStore(rawSecrets))
+  const controller = bindRuntimeCredentialMigration({
+    session,
+    connect: deps.connect,
+    openEntry,
+    rawSecrets,
+    shell,
+    dataDir: deps.dataDir,
+    providersFile: deps.providersFile,
+    minorRelease: () => 19,
+    now: Date.now,
+    log,
+    label: UI_TEXT.vault.secret,
+  })
+  await driveMigratedSlot({
+    flow: { controller, shell },
+    secrets: rawSecrets,
+    session,
+    reader,
+    logged,
+    codec: deps.codec,
+    origin: deps.origin,
+    initial: deps.initial,
+    rotated: deps.rotated,
   })
 }

@@ -16,6 +16,10 @@ export const BUNDLES = {
 }
 export const SUBSCRIPTION_ONLY = [
   'src/core/providers/subscriptions/chatgpt.ts',
+  // RLM109 increment 2: the installed record's schema leaf, which the
+  // sign-in core imports and re-exports; the migration chunks carry it
+  // beside their codecs through their own declared exceptions.
+  'src/core/providers/subscriptions/chatgptRecord.ts',
   'src/core/providers/subscriptions/chatgptHostId.ts',
   // D207 (2026-10-17): the Copilot adapter's failure rides with the
   // subscription dispatch, like ChatGptSignInError rides in chatgpt.ts. The

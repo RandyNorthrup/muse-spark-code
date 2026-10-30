@@ -546,6 +546,10 @@ const BUDGETS = [
   // headless runs, loaded on the first vault need. Measured 19.8 KiB;
   // plus 15%, rounded up to 25 KiB.
   { path: 'dist/vaultRuntime.js', budgetKiB: 25 },
+  // RLF-M109: the runtime key-store migration chunk (controller, engine,
+  // codecs, first-party reader), loaded by dist/vaultRuntime.js on the
+  // first unlock edge only. Measured 60.2 KiB; plus 15%, rounded up.
+  { path: 'dist/vaultRuntimeMigration.js', budgetKiB: 70 },
 ]
 
 // DIET1: independently emitted optional surfaces, measured on main, each plus

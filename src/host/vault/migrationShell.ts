@@ -5,7 +5,7 @@
 // slot is active. This module carries no vault import, so activation keeps
 // its bundle shape; the lazy migration controller binds later.
 import { AsyncLocalStorage } from 'node:async_hooks'
-import type { SecretStore } from '../auth/credentialStore'
+import type { SecretStore, SingleFlightSecretStore } from '../auth/credentialStore'
 
 /**
 The one serialization all migration work shares, across every controller
@@ -84,9 +84,11 @@ export interface MigrationShell {
   /**
   The store every host credential path shares. A present legacy copy
   reads straight through; only an absent one consults the mirror, which
-  serves retired slots from the vault.
+  serves retired slots from the vault. `forget` reaches the wrapped
+  store's read owner where it has one (the single-flight wrapper), so a
+  rejected or replaced key is re-read on its next use.
   */
-  readonly store: SecretStore
+  readonly store: SingleFlightSecretStore
   /**
   Bound when a vault binding builds; a newer binding replaces the older
   one (the panel rebuilds its binding while its tab lives). A disposed
@@ -95,10 +97,17 @@ export interface MigrationShell {
   bind(mirror: MigrationMirror): void
 }
 
-export function createMigrationShell(secrets: SecretStore): MigrationShell {
+export function createMigrationShell(
+  secrets: SecretStore & Partial<Pick<SingleFlightSecretStore, 'forget'>>,
+): MigrationShell {
   let mirror: MigrationMirror | null = null
   return {
     store: {
+      // The wrapped read owner's memory, where it has one; a plain store
+      // remembers nothing, so there is nothing to drop.
+      forget: (key) => {
+        secrets.forget?.(key)
+      },
       get: async (key) => {
         const value = await secrets.get(key)
         const candidate = mirror

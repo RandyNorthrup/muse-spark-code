@@ -79,6 +79,9 @@
     "src/runtime/vault/vaultRuntimeEntry.ts",
     // Installed lazy vault siblings, loaded by their same-build runtime paths.
     "src/runtime/vault/brokerBindings.ts",
+    // RLF-M109: the runtime key-store migration chunk, required by path
+    // from the vault runtime on the first unlock edge.
+    "src/runtime/vault/vaultRuntimeMigrationEntry.ts",
     "src/runtime/vault/posixEntry.ts",
     "src/runtime/vault/windowsEntry.ts",
     "src/runtime/vault/storeEntry.ts",

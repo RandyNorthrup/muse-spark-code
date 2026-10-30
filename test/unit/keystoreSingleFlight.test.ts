@@ -15,6 +15,7 @@ import {
 } from '../../src/runtime/keyStore'
 import { createSingleFlightSecretStore } from '../../src/host/auth/credentialStore'
 import { HTTP_STATUS, KEYRING_SERVICE } from '../../src/shared/constants'
+import { deleteAllServiceEntries } from './helpers/keyringCleanup'
 
 // The OS backends on macOS/Linux require native qualification on those rigs
 // (as in keyringParts.test.ts), so the suite runs on Windows in hosted CI;
@@ -48,10 +49,7 @@ describe.runIf(process.platform === 'win32')('keystore single-flight owner', () 
       expect(await owned.get(account)).toBeUndefined()
       expect(await findCredentialsAsync(service)).toEqual([])
     } finally {
-      const remaining = await findCredentialsAsync(service)
-      for (const entry of remaining) {
-        await new AsyncEntry(service, entry.account).deletePassword()
-      }
+      await deleteAllServiceEntries(service)
     }
   })
 
@@ -102,10 +100,7 @@ describe.runIf(process.platform === 'win32')('keystore single-flight owner', () 
       await owned.delete(account)
       expect(await findCredentialsAsync(service)).toEqual([])
     } finally {
-      const remaining = await findCredentialsAsync(service)
-      for (const entry of remaining) {
-        await new AsyncEntry(service, entry.account).deletePassword()
-      }
+      await deleteAllServiceEntries(service)
     }
   })
 
@@ -132,10 +127,7 @@ describe.runIf(process.platform === 'win32')('keystore single-flight owner', () 
       await owned.delete(account)
       expect(await findCredentialsAsync(service)).toEqual([])
     } finally {
-      const remaining = await findCredentialsAsync(service)
-      for (const entry of remaining) {
-        await new AsyncEntry(service, entry.account).deletePassword()
-      }
+      await deleteAllServiceEntries(service)
     }
   })
 })

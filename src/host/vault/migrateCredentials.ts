@@ -43,6 +43,8 @@ import { providerSecretKey } from '../providers/credentialRecords'
 import { secretStorageLegacyPort } from './migrateSecretStorage'
 import type { SecretStore } from '../auth/credentialStore'
 import type { Logger } from '../logger'
+import type { VaultFirstPartyReader } from '../../core/vault/broker/firstParty'
+import type { VaultManageSession } from '../../core/vault/broker/manageClient'
 import { withMigrationLock, type MigrationMirror } from './migrationShell'
 
 /**
@@ -157,9 +159,37 @@ export interface CredentialMigrationPorts {
   firstPartyRead(request: ReturnType<typeof vaultPrivateReadSchema.parse>): Promise<Buffer>
 }
 
+/** The session and its reader as the controller's ports; every binding composes them so. */
+export function credentialMigrationPorts(
+  session: VaultManageSession,
+  reader: VaultFirstPartyReader,
+): CredentialMigrationPorts {
+  return {
+    snapshot: () => session.snapshot(),
+    write: (...args) => session.write(...args),
+    remove: (...args) => session.remove(...args),
+    firstPartyRead: (...args) => reader.read(...args),
+  }
+}
+
 export interface CredentialMigrationDeps {
-  /** The raw SecretStorage; the mirroring shell wraps it separately. */
+  /**
+  The raw legacy store; the mirroring shell wraps it separately. The
+  controller reads it directly for the subscription-slot probe and as
+  the source of truth when a copy diverged, so it is never the shell.
+  */
   readonly secrets: SecretStore
+  /**
+  Build the migration engine over a legacy store this controller does
+  not hold (the runtime's OS keyring, through `migrateKeyStore`).
+  Absent, the engine reads `secrets` through the SecretStorage port.
+  */
+  readonly createMigration?:
+    | ((
+        deps: Omit<MigrationDeps, 'legacy'>,
+        credentials: readonly MigrationCredential[],
+      ) => VaultMigration)
+    | undefined
   /** Configured provider ids (the seam's store list). */
   readonly listProviderIds: () => Promise<readonly string[]>
   /**
@@ -391,12 +421,8 @@ export class CredentialMigrationController implements MigrationMirror {
     }
     const credentials = buildMigrationCredentials(providerIds, this.deps.now, accounts)
     const now = this.deps.now()
-    const deps: MigrationDeps = {
+    const deps: Omit<MigrationDeps, 'legacy'> = {
       vault: this.vaultPorts(credentials),
-      legacy: secretStorageLegacyPort(
-        this.deps.secrets,
-        credentials.map((entry) => entry.key),
-      ),
       journal: this.journal(now),
       owner: this.owner,
       minorRelease: this.deps.minorRelease,
@@ -406,8 +432,20 @@ export class CredentialMigrationController implements MigrationMirror {
         this.deps.log.info(`Credential migration retired the legacy entry for ${key}`)
       },
     }
+    const migration =
+      this.deps.createMigration?.(deps, credentials) ??
+      new VaultMigration(
+        {
+          ...deps,
+          legacy: secretStorageLegacyPort(
+            this.deps.secrets,
+            credentials.map((entry) => entry.key),
+          ),
+        },
+        credentials,
+      )
     return {
-      migration: new VaultMigration(deps, credentials),
+      migration,
       credentials,
       providerIds,
       accounts,
