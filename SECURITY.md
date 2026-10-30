@@ -878,7 +878,10 @@ exact budget and Files ledger bindings. Missing ports refuse explicitly.
   (`oidc-provider`): authorization code with PKCE S256, tokens bound to
   this one resource and verified on every request, rotating refresh
   tokens whose reuse ends the sign-in, and consent that needs an owner
-  code printed only in the connector's terminal. Tokens are stored as
+  code printed only in the connector's terminal. Discovery and the
+  sign-in redirect use only the public URL the person set, so a
+  forwarded host or an absolute-form request line cannot point the
+  token, key or revocation address somewhere else. Tokens are stored as
   digests in the same owner-only folder; revoking the grant or removing
   a client ends its tokens at once. A sign-in grants no authority beyond
   the connection grant above, and no token becomes a provider key or
