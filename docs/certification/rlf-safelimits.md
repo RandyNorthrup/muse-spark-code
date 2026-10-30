@@ -304,7 +304,6 @@ clean-HEAD worktree or sits in a file this lane never touched):
   `deviceWorkerHost.ts`, a file this lane never touched.
 - `resourceNoLimits`, `resourceQueueUnknownOccupancy` (governor
   `pause` vs `throttle` on live rig readings): base fails the same 2.
-- (Final batch: constants + en.)
 
 ## 5. Earlier removals (2026-10-21 order): report-only
 
