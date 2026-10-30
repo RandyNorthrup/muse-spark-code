@@ -352,7 +352,7 @@ temp/planfix0190/d2-summary.txt Full record:
 
 **`ink` / `ink-testing-library`** — M110a0 TD: the TUI components render through real Ink 6 (Vadim Demedes, MIT; peers `react>=19` and `@types/react>=19` satisfied by the direct 19.3.0 pins, `react-devtools-core` satisfied through the tree; `npm audit` clean), and the golden harness renders through Ink's own testing library, so the goldens pin the same bytes — and the same Yoga layout — production draws. A hand-rolled tree-walking renderer (the first draft) was deleted: it reimplemented Yoga and Chalk, a stand-in the no-fakes rule forbids. `ink` is dev-only since RLF-NOTICES (2026-10-30, `docs/certification/cc-notices.md`): only the golden harness imports it and no shipped bundle's metafile lists it; `ink-testing-library` is dev-only.
 
-**`@sigstore/tuf`, `@sigstore/verify`, `@sigstore/bundle`** — Pack index signatures (M110t TP1/TP2, D90.27): verify the cosign keyless bundles the pack CI signs over each index, the same infrastructure npm provenance uses; a hand-rolled verifier would be the half-cocked plan. `src/runtime/node/packs/verify.ts` composes them exactly as `sigstore.verify` does (`sigstore/dist/sigstore.js`, `createVerifier`): `getTrustedRoot` from Sigstore's TUF repository at its own defaults, `toTrustMaterial`, `Verifier`, `bundleFromJSON`, `toSignedEntity` and the policy `{ subjectAlternativeName, extensions: { issuer } }`. They replace the umbrella `sigstore@5.0.0` (cc-sigstore, 2026-10-24): the node only verifies, and the umbrella's signer (`@sigstore/sign` → make-fetch-happen → `@npmcli/agent` → `proxy-agent-negotiate`) bundled two packages that publish no licence text ([Q-CC-LICENCE](#q-cc-licence), resolved). `dist/packsVerify.js` went from 1,126,983 to 212,784 bytes and from 53 to 15 package directories; the old and new verifiers gave the same verdicts, word for word, on a real cosign bundle and its tampered, mis-signed and unknown-root variants (`docs/certification/cc-sigstore.md`). Apache-2.0, bundled only in the lazily loaded `dist/packsVerify.js` (the ACP agent loads it on the first pack fetch). The exact pins 5.0.0, 4.1.2 and 5.0.0 are each package's latest release (2026-06-01, 2026-08-04, 2026-06-01), past the seven-day window; no peer dependencies; `npm audit` reports nothing in their tree (2026-10-24). Licence review (cc-licence, 2026-10-24, `docs/certification/cc-licence.md`): of the six BlueOak-1.0.0 entries it recorded, only minimatch (through `@tufjs/models`) is still bundled, and the notices gate allow-lists the licence; `@sigstore/verify` ships no licence file, so upstream's root LICENSE travels from `vendor/@sigstore/verify/`.
+**`@sigstore/tuf`, `@sigstore/verify`, `@sigstore/bundle`** — Pack index signatures (M110t TP1/TP2, D90.27): verify the cosign keyless bundles the pack CI signs over each index, the same infrastructure npm provenance uses; a hand-rolled verifier would be the half-cocked plan. `src/runtime/node/packs/verify.ts` composes them exactly as `sigstore.verify` does (`sigstore/dist/sigstore.js`, `createVerifier`): `getTrustedRoot` from Sigstore's TUF repository at its own defaults, `toTrustMaterial`, `Verifier`, `bundleFromJSON`, `toSignedEntity` and the policy `{ subjectAlternativeName, extensions: { issuer } }`. They replace the umbrella `sigstore@5.0.0` (cc-sigstore, 2026-10-24): the node only verifies, and the umbrella's signer (`@sigstore/sign` → make-fetch-happen → `@npmcli/agent` → `proxy-agent-negotiate`) bundled two packages that publish no licence text ([Q-CC-LICENCE](#q-cc-licence), resolved). `dist/packsVerify.js` went from 1,126,983 to 212,784 bytes and from 53 to 15 package directories; the old and new verifiers gave the same verdicts, word for word, on a real cosign bundle and its tampered, mis-signed and unknown-root variants (`docs/certification/cc-sigstore.md`). Apache-2.0, bundled only in the lazily loaded `dist/packsVerify.js` (the ACP agent loads it on the first pack fetch). The exact pins 5.0.0, 4.1.2 and 5.0.0 are each package's latest release (2026-06-01, 2026-08-04, 2026-06-01), past the seven-day window; no peer dependencies; `npm audit` reports nothing in their tree (2026-10-24). Licence review (cc-licence, 2026-10-24, `docs/certification/cc-licence.md`): of the six BlueOak-1.0.0 entries it recorded, only minimatch (through `@tufjs/models`) is still bundled, and the notices gate allow-lists the licence; `@sigstore/verify` ships no licence file, so upstream's root LICENSE travels from `vendor/@sigstore/verify/`. RVINT5 (2026-10-30; merged by CC-INT4): the signer identity is matched anchored and escaped, so a longer branch name or a lookalike host no longer matches, and a bundle that is not a message signature is refused as `unsupported-bundle` before the trust-root fetch, so only a signature over the index bytes can verify; `test/unit/nodePacksVerify.test.ts` drives that refusal, and no captured bundle has been verified against the live TUF mirror by it (`docs/certification/rvint5.md`).
 
 **`@types/jsdom`** — PR #227 lane (2026-10-18): the approval-page double-decision suite drives the real shipped page script in a real jsdom DOM; the pinned jsdom 30.1.1 ships no types, so the suite imports untyped without it. MIT; no peers; a dev dependency, never bundled.
 **`@napi-rs/keyring`** — The vault's OS store (D61, D89): Secret Service on Linux and login Keychain on macOS, loaded at runtime by the broker child, the ACP agent and headless runs alike. MIT; no peer dependencies (its per-OS/arch binaries are same-version optional dependencies); `npm audit` clean. Moved from devDependencies to dependencies (PR216FIX T1): a runtime load declared dev-only hid the VSIX gap. Staging its platform binaries in the universal VSIX stays a lead follow-up: the six VS Code platforms measure 4,716,310 bytes compressed (`npm pack` tarballs, 2026-10-17) against ~0.9 MB of size-budget headroom, so shipping them needs per-platform packaging or a re-set cap, never a raised one here.
@@ -10902,6 +10902,14 @@ M104 hosts; its one P1 is Marketplace publishing off the retiring
 PAT (B7). Survey: `docs/research/agents-sdks-2026-10-30.md`; record:
 `docs/certification/rlf-upagent.md`.
 
+**Status 2026-10-30 (integration into int/recovery, CC-INT4): building.**
+The 1.4.12 pin is on int: `package.json` and the lockfile name `@muse-code/sdk`
+1.4.12 (`npm ci` installs it, and `npm install --package-lock-only`
+changes nothing); `museCodeLatest`, `museCodeDecisions` and
+`mapNotification` pass on the merged tree. The served 1.4.12 fingerprint
+was not captured on this rig (no Muse request, no Muse Code at 1.4.12).
+Record: `docs/certification/cc-int4.md`.
+
 **Status 2026-10-22 (RLFINISH): building.** The SDK rides 1.4.11
 (installed under a one-shot minimum-age override; `.npmrc` untouched),
 and the remaining wraps landed with capture tests: session/leave,
@@ -18452,6 +18460,15 @@ is deferred; all five fix drills fired and restored SHA-256-exact source.
 **Status 2026-10-23 (lane RLF-PROVLIMITS, macmini): the three RLM95 gaps it named and left unencoded are encoded on `rec/rlf-provlimits`; lead integration pending.** DeepSeek's documented account concurrency (2500 deepseek-flash, 500 deepseek-v4-pro) gates pacer admission per model with slots held to response completion; Azure's documented 1 s and 10 s burst-evaluation sub-windows spread observed per-minute limits across trailing shares; Anthropic's documented many-image tightening (2000 px per side past 20 images) and 32 MB Messages cap are refused in words before sending. Each limit names its provider source and read date in code and says in words which provider limit applied; live 429 handling is untouched. Proven by 29 real-code tests over the real pacer and codec plus four red/green drills; no provider call. The Azure burst gate stays dormant until Azure's own capture lands its header reader (RLM95's waiting state stands). Evidence: `docs/certification/rlf-provlimits.md`.
 
 **Status 2026-10-30 (lane RLF-UPPROV, linuxlt): built.** Every shipped provider re-checked against upstream on `rec/rlf-upprov`; lead integration pending. The models.dev catalogue is re-synced to 2026-10-30 (GPT-6.1 Terra in, Mistral's and OpenRouter's retired ids out, DeepSeek V4 and Mistral Large 4 repriced) and now also carries Moonshot and Ollama Cloud, whose presets declared catalogue pricing with no section. Two P1s fixed: DeepSeek's catalogue rates are its off-peak column, so the price card now carries the documented peak (exactly double) and a capped session never under-reserves at peak; Anthropic raised the Messages request cap to 128 MB on 2026-10-28 and our refusal now matches it (the RLF-PROVLIMITS 32 MB line above is superseded on this branch). Larger gaps (OpenAI `shutdown_date`, Anthropic's Analytics spend API, audio-token pricing, SDK bumps, the Bedrock design refresh) are written as dispatchable briefs. No paid or live model call. Evidence: `docs/certification/rlf-upprov.md`, findings in `docs/research/providers-2026-10-30.md`.
+
+**Status 2026-10-30 (integration into int/recovery, CC-INT4): built.** The
+lane's changes are on int: the re-synced catalogue (Moonshot and Ollama Cloud
+included) is sealed (`node scripts/sync-provider-catalog.mjs --check`
+exits 0 on the merged tree), DeepSeek's price card carries the peak
+rates, and Anthropic's request cap is 128 MB, which supersedes the
+RLF-PROVLIMITS 32 MB line above on int. None of this was checked against a
+live provider: the live calls the lane listed for the lead's real-life run
+are still to be made. Record: `docs/certification/cc-int4.md`.
 
 Status detail retained: planned on `feature/m95-byo-providers` from main
 `1e93c67c`; research in `docs/certification/m95-research.md`. Step 13's
@@ -28753,6 +28770,17 @@ are therefore proven only by a real run with the person's GitHub sign-in,
 which has not been made; the CHANGELOG describes none of them. Record:
 `docs/certification/cc-int2.md`.
 
+**Integration 2026-10-30 (CC-INT4).** The independent review's hold fix
+(RVINT5) is on int/recovery: an issue held as suspected spam stays held,
+the next poll no longer reads the hold as a reopening, and `watchdog
+decide` no longer says it closed an issue it left open. The lane's
+`test/unit/watchdogSteps.test.ts` runs the real poll event,
+acknowledgement, reporter-answer, verification, matching and approval
+code on values it builds, with no stand-in for GitHub; listing, posting,
+closing and the lock around those calls are still proven only by a real
+run with the person's GitHub sign-in, which has not been made. Records:
+`docs/certification/rvint5.md`, `docs/certification/cc-int4.md`.
+
 - **Goal.** A user, or an orchestrating agent within the user's limits,
   schedules any number of prompts to fire once, repeatedly, on a cron
   expression or on an event (a pull request merged, a milestone certified),
@@ -30965,6 +30993,14 @@ ACP package's own notices. The RELFAST pin moves 7 to 8: the eighth
 for `node-image.yml`'s artifact download. `THIRD_PARTY_NOTICES.txt` is
 unchanged (a fresh `npm run notices` regenerates it byte-identical).
 Evidence: `docs/certification/cc-notices.md`.
+
+**Status 2026-10-30 (integration into int/recovery, CC-INT4): built.** The
+lane's changes are on int: the seven dependency moves and the RELFAST pin merged
+without a conflict in `package.json` or the lockfile, beside the SDK pin
+(`npm ci` exits 0, and `npm install --package-lock-only` changes nothing);
+`manifest.test.ts` passes 41 of 41 and `npm run build`'s notices check
+passes against the committed `THIRD_PARTY_NOTICES.txt` (93 notices). Record:
+`docs/certification/cc-int4.md`.
 
 ---
 
