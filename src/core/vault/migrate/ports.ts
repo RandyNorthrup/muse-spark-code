@@ -21,6 +21,12 @@ export const migrationRecordSchema = z
     // watched retire from a possibly raced external deletion. Cleared when
     // `store` re-seeds the row or `delete` records the confirmed delete.
     retireNote: z.optional(z.string().check(z.minLength(1), z.maxLength(VAULT_LIMITS.text))),
+    // Set while `undoRetired` runs, before it restores the legacy copy, and
+    // advanced to `written` only after that copy has been read back. A crash
+    // between the two resumes the restore; `written` plus a missing copy is
+    // a removal after the restore was saved, and is never rewritten. Only a
+    // `retired` row may carry it. Cleared when the undo commits or refuses.
+    undoIntent: z.optional(z.enum(['pending', 'written'])),
     phase: z.enum(['copying', 'active', 'writing', 'deleting', 'deleted', 'undone', 'retired']),
     digest: z.nullable(z.string().check(z.regex(/^[a-f0-9]{64}$/u))),
     previous: z.optional(
@@ -35,6 +41,7 @@ export const migrationRecordSchema = z
     z.refine((row) => (row.phase === 'deleted') === (row.digest === null)),
     z.refine((row) => row.phase !== 'retired' || !row.retainLegacy),
     z.refine((row) => row.previous === undefined || row.phase === 'writing'),
+    z.refine((row) => row.undoIntent === undefined || row.phase === 'retired'),
   )
 export type MigrationRecord = z.infer<typeof migrationRecordSchema>
 

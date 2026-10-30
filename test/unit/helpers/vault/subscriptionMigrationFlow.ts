@@ -166,6 +166,8 @@ export async function openMigrationSession(deps: {
   connect: () => Promise<VaultBrokerClient>
   lockScope: string
   fresh: boolean
+  /** A store this run already opened. Absent: a new uniquely named native store. */
+  secrets?: SecretStore
 }): Promise<{ session: VaultManageSession; secrets: SecretStore; reader: VaultFirstPartyReader }> {
   const session = new VaultManageSession(deps.connect, encodeVaultMaterial)
   if (deps.fresh) {
@@ -178,7 +180,7 @@ export async function openMigrationSession(deps: {
   }
   return {
     session,
-    secrets: uniqueKeyringStore(deps.lockScope),
+    secrets: deps.secrets ?? uniqueKeyringStore(deps.lockScope),
     reader: new VaultFirstPartyReader(deps.connect),
   }
 }
@@ -188,6 +190,7 @@ export async function openLoggedSession(deps: {
   connect: () => Promise<VaultBrokerClient>
   lockScope: string
   fresh: boolean
+  secrets?: SecretStore
 }): Promise<{
   session: VaultManageSession
   secrets: SecretStore
@@ -200,12 +203,20 @@ export async function openLoggedSession(deps: {
   return { ...opened, log, logged }
 }
 
+/** Service name for one run's native store. Not the product keychain service. */
+export function migrationKeyringService(): string {
+  return `Muse RLM109 ${randomBytes(16).toString('hex')}`
+}
+
 /**
 A uniquely named real native store, owning only this run's generated
-entries; no person's key is read.
+entries; no person's key is read. Pass `service` when another process must
+open the same entries.
 */
-export function uniqueKeyringStore(lockScope: string): SecretStore {
-  const service = `Muse RLM109 ${randomBytes(16).toString('hex')}`
+export function uniqueKeyringStore(
+  lockScope: string,
+  service = migrationKeyringService(),
+): SecretStore {
   return keyringSecretStore((_service, account) => new AsyncEntry(service, account), {
     lockScope,
   })
@@ -372,6 +383,7 @@ export async function openRetireFlow(deps: {
   connect: () => Promise<VaultBrokerClient>
   lockScope: string
   fresh: boolean
+  secrets?: SecretStore
 }) {
   const opened = await openLoggedSession(deps)
   const release = { current: 19 }

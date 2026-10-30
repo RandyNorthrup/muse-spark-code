@@ -371,16 +371,31 @@ export class CredentialMigrationController implements MigrationMirror {
       providerIds = []
     }
     // The ChatGPT subscription is a sign-in, not a providers-file row, so
-    // the seam never lists it: probe its slot and take it when stored. The
-    // probe reads the sealed store for presence only, the way `hasMetaKey`
-    // probes do; the value is never kept.
+    // the seam never lists it. Take the slot when SecretStorage holds it,
+    // or when its journal row is already in the vault: a retired slot's
+    // only copy is the vault, and the probe would otherwise drop it the
+    // moment retire removed the legacy copy. The probe is presence only
+    // (the way `hasMetaKey` probes are); the value is never kept, and a
+    // slot that was never migrated has no journal row and stays out.
     if (!providerIds.includes(CHATGPT_SUBSCRIPTION_PROVIDER_ID)) {
-      const stored = await this.deps.secrets.get(
-        providerSecretKey(CHATGPT_SUBSCRIPTION_PROVIDER_ID),
-      )
-      if (stored !== undefined && stored !== '') {
-        providerIds = [...providerIds, CHATGPT_SUBSCRIPTION_PROVIDER_ID]
+      const key = providerSecretKey(CHATGPT_SUBSCRIPTION_PROVIDER_ID)
+      const stored = await this.deps.secrets.get(key)
+      const isStored = stored !== undefined && stored !== ''
+      let hasJournal = false
+      if (!isStored) {
+        // A vault that cannot be read must not stop every other key. The
+        // retired slot stays out of this run and the warning says so; the
+        // next unlock tries again. The value was never read here.
+        try {
+          const snapshot = await this.deps.ports.snapshot()
+          hasJournal = snapshot.items.some((entry) => entry.id === journalItemId(key))
+        } catch {
+          this.deps.log.warn(
+            `Credential migration could not read the vault for ${key}; its retired slot waits for the next unlock`,
+          )
+        }
       }
+      if (isStored || hasJournal) providerIds = [...providerIds, CHATGPT_SUBSCRIPTION_PROVIDER_ID]
     }
     // Pooled accounts ride their provider's metadata pool; a pool that
     // cannot be read narrows that provider to its default slot, said once.
