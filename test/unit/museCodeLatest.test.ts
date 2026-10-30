@@ -10,6 +10,10 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import type { TurnModelRetryScheduledParams } from '@muse-code/sdk/dist/src/msp.js'
 import {
+  EXPECTED_SCHEMA_FINGERPRINT,
+  checkServedFingerprint,
+} from '@muse-code/sdk/dist/src/fingerprint.js'
+import {
   backgroundTaskListResultSchema,
   claimLeaveSettlement,
   claimRecapSettlement,
@@ -41,6 +45,7 @@ import { readSettings, type SettingsSource } from '../../src/host/settings'
 import { warningLogger } from './helpers/collectingLogger'
 import {
   HOOK_MAX_RUNNING_COMMANDS,
+  MSP_KNOWN_SCHEMA_FINGERPRINTS,
   SETTING_DEFAULTS,
   SUBAGENT_CAPACITY,
   museCodeLoadedSessionCeiling,
@@ -929,5 +934,42 @@ describe('hook and subagent setting defaults', () => {
     expect(
       readSettings(settingSource({ hooksMaxStopContinuations: 3 }), log).hooksMaxStopContinuations,
     ).toBe(3)
+  })
+})
+
+// RLF-UPAGENT (M127 currency, 2026-10-30): the SDK rides 1.4.12
+// (published 2026-10-22; the fingerprint below is the published
+// tarball's own `EXPECTED_SCHEMA_FINGERPRINT`, read 2026-10-30). A
+// 1.4.12 host then matches the pin exactly and logs nothing, and a
+// 1.4.11 host still resolves to its build name through
+// MSP_KNOWN_SCHEMA_FINGERPRINTS, which is the info line
+// `logFingerprint` prints instead of the mismatch warning. The served
+// 1.4.11 fingerprint is the map's own captured value
+// (test/fixtures/session-titles/msp-1.4.11-echo-titles.json); a served
+// 1.4.12 capture joins the map when the lead's 1.4.12+ capture exists.
+describe('schema fingerprint at SDK 1.4.12 (RLF-UPAGENT)', () => {
+  const SDK_1_4_12_FINGERPRINT =
+    'sha256:cfdb6d2525601b9bac76584ccb0610ab3a5539b5e4f51141f079b99b39fcb4e0'
+
+  it('pins the 1.4.12 schema, so a 1.4.12 host is silent', () => {
+    expect(EXPECTED_SCHEMA_FINGERPRINT).toBe(SDK_1_4_12_FINGERPRINT)
+    expect(checkServedFingerprint(SDK_1_4_12_FINGERPRINT)).toBeUndefined()
+  })
+
+  it('needs no known-build name of its own while it is the pin', () => {
+    expect(MSP_KNOWN_SCHEMA_FINGERPRINTS[EXPECTED_SCHEMA_FINGERPRINT]).toBeUndefined()
+  })
+
+  it('keeps the 1.4.11 host on the named-build info line, not the warning', () => {
+    const entry = Object.entries(MSP_KNOWN_SCHEMA_FINGERPRINTS).find(([, name]) =>
+      name.startsWith('1.4.11-'),
+    )
+    if (entry === undefined) {
+      throw new Error('MSP_KNOWN_SCHEMA_FINGERPRINTS names no 1.4.11 build')
+    }
+    const [served] = entry
+    const warning = checkServedFingerprint(served)
+    expect(warning?.served).toBe(served)
+    expect(warning?.pinned).toBe(EXPECTED_SCHEMA_FINGERPRINT)
   })
 })
