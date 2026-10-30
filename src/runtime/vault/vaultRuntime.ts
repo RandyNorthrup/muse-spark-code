@@ -5,11 +5,35 @@ import type { ExecVaultPort } from './execVault'
 import { uiLocale } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 import type { AcpVault } from '../../acp/vault'
+import type { MigrationShell } from '../../host/vault/migrationShell'
+import type { SecretStore } from '../../host/auth/credentialStore'
+import type { Logger } from '../../host/logger'
+import type { KeyringEntryFactory } from '../keyStore'
 
 /** dist/vaultRuntime.js's factory (vaultRuntimeEntry.ts, lead decision 5). */
 export interface RuntimeVaultBinding {
   commands(): Promise<VaultCommandPort>
   exec: ExecVaultPort
+  /**
+  Copy every stored key-store key into the vault (idempotent; the vault
+  runtime runs it on each unlock edge). Loads the migration chunk on
+  first use; never throws.
+  */
+  ensureMigrated(): Promise<void>
+}
+/**
+The key-store migration's runtime sources (RLF-M109): the process's
+migration shell over its one owned secret store, the raw OS-store entry
+access the engine's legacy port reads, and where the configured
+providers and the account pool live.
+*/
+export interface RuntimeVaultMigrationContext {
+  readonly shell: MigrationShell
+  readonly openEntry: KeyringEntryFactory
+  readonly rawSecrets: SecretStore
+  readonly providersFile: string
+  /** The installed release's minor ordinal; patches do not advance it. */
+  readonly minorRelease: () => number
 }
 export interface RuntimeVaultContext {
   readonly uiText: UiText
@@ -18,6 +42,8 @@ export interface RuntimeVaultContext {
   readonly distDir: string
   readonly processId: number
   readonly acp: AcpVault
+  readonly log: Logger
+  readonly migration?: RuntimeVaultMigrationContext | undefined
 }
 interface RuntimeVaultModule {
   createRuntimeVault(context: RuntimeVaultContext): Promise<RuntimeVaultBinding>
@@ -43,7 +69,11 @@ export function runtimeVaultLoader(
           uiText: UI_TEXT,
           locale: uiLocale(),
         })
-        if (typeof binding.commands !== 'function' || typeof binding.exec.open !== 'function')
+        if (
+          typeof binding.commands !== 'function' ||
+          typeof binding.exec.open !== 'function' ||
+          typeof binding.ensureMigrated !== 'function'
+        )
           throw new TypeError(UI_TEXT.vault.brokerBlocked)
         return binding
       } catch (error: unknown) {

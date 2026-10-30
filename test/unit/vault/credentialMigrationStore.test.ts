@@ -18,6 +18,7 @@ import {
   assertMigratedSlot,
   chatgptSeeds,
   driveRetireCase,
+  driveRuntimeSlotCase,
   driveSlotCase,
   expectOriginRefused,
   openMigrationSession,
@@ -218,6 +219,26 @@ describe.skipIf(process.platform !== 'win32')(
           connect: current.connect,
           lockScope: current.hostId,
           fresh: false,
+        })
+      },
+      FLOW_TIMEOUT_MS,
+    )
+
+    it(
+      'migrates the pooled slot through the runtime binding and its file seams',
+      async () => {
+        const current = currentFixture()
+        await driveRuntimeSlotCase({
+          connect: current.connect,
+          lockScope: current.hostId,
+          fresh: false,
+          codec: accountSecretMigrationCredential(PROVIDER, POOLED_ACCOUNT, Date.now),
+          origin: ORIGIN,
+          dataDir: path.join(current.root, 'runtime-migration', 'data'),
+          providersFile: path.join(current.root, 'runtime-migration', 'user-providers.json'),
+          provider: PROVIDER,
+          accounts: ['default', POOLED_ACCOUNT],
+          ...pooledAccountSeeds(PROVIDER, POOLED_ACCOUNT, ORIGIN),
         })
       },
       FLOW_TIMEOUT_MS,

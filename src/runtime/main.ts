@@ -179,6 +179,8 @@ import type {
 } from './providers/runtimeServices'
 import { AcpVault } from '../acp/vault'
 import { runtimeVaultLoader } from './vault/vaultRuntime'
+import { createMigrationShell } from '../host/vault/migrationShell'
+import { providersFilePath } from './providerPaths'
 import { runVaultCommand, vaultUsage } from './vault/vaultCommand'
 import { chooseVaultDecision, readVaultLine, readVaultMaterial } from './vault/vaultInput'
 
@@ -208,12 +210,8 @@ async function openVaultCommands() {
   return await binding.commands()
 }
 const acpVault = new AcpVault(openVaultCommands)
-const loadVault = runtimeVaultLoader({
-  dataDir: agentDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() }),
-  distDir,
-  processId: process.pid,
-  acp: acpVault,
-})
+// The vault binding's loader is constructed below, once this process's
+// secret stores and its migration shell exist (the binding carries both).
 
 function loadDisplayLanguage(log: Logger) {
   return loadUiTable({
@@ -330,10 +328,51 @@ const delegatingSecrets: SecretStore = {
 This process's one owner of secret reads (the reconciled keystore
 wrapper): every runtime credential path below shares it, so each entry
 is read from the OS store once per process until a provider rejection
-or a write forgets it. `loadSecrets` stays the raw store for the vault
-migration's verifying re-reads.
+or a write forgets it. `delegatingSecrets` stays the raw store for the
+vault migration's verifying re-reads.
 */
-const secrets: SingleFlightSecretStore = createSingleFlightSecretStore(delegatingSecrets)
+const ownedSecrets: SingleFlightSecretStore = createSingleFlightSecretStore(delegatingSecrets)
+/**
+The key-store migration's shell (RLF-M109): every runtime credential
+path below shares this store instead of the owned store directly.
+Reads always pass through, so a vault-less process behaves exactly as
+before; writes mirror into the vault and retired slots read from it
+once the vault binding binds the migration after an unlock.
+*/
+const migrationShell = createMigrationShell(ownedSecrets)
+const secrets: SingleFlightSecretStore = migrationShell.store
+
+/** The installed release's minor ordinal, as the window computes it for the migration. */
+function migrationMinorRelease(): number {
+  // A damaged manifest ordinal refuses the migration (the engine records
+  // it as storage failure and the keys keep working in the OS store).
+  const minor = Number(packageVersion().split('.', 2)[1])
+  if (!Number.isSafeInteger(minor) || minor < 0) throw new Error('Invalid installed version')
+  return minor
+}
+
+const loadVault = runtimeVaultLoader({
+  dataDir: agentDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() }),
+  distDir,
+  processId: process.pid,
+  acp: acpVault,
+  // The binding's own log: migration runs behind unlock edges in any
+  // command, so it reports on stderr at serving level like the agent.
+  log: stderrLogger((line) => {
+    writeLine(process.stderr, line)
+  }, 'info'),
+  migration: {
+    shell: migrationShell,
+    openEntry: openKeyringEntry,
+    rawSecrets: delegatingSecrets,
+    providersFile: providersFilePath({
+      platform: process.platform,
+      homeDir: homedir(),
+      xdgConfigHome: process.env['XDG_CONFIG_HOME'],
+    }),
+    minorRelease: migrationMinorRelease,
+  },
+})
 
 /**
 A held regular-file descriptor bounds both stat size and growth while

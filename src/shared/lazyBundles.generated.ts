@@ -1465,6 +1465,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       { importer: 'src/shared/constants.ts', symbol: 'VAULT_RUNTIME_BUNDLE_FILE', side: ['acp'] },
     ],
   },
+  {
+    file: 'vaultRuntimeMigration.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'VAULT_RUNTIME_MIGRATION_BUNDLE_FILE',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
   { file: 'vaultStore.js', side: 'both', requestedBy: [] },
   { file: 'vaultWindows.js', side: 'both', requestedBy: [] },
   {
