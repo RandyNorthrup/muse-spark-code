@@ -485,6 +485,14 @@ happened, not what was planned; superseded entries are kept.
   lists. Nothing turns on yet: teams stay hidden until an enabled team
   really runs, and the README still says the feature remains unavailable
   until its integration is complete.
+- The team scheduler, merge queue and Traffic work now runs on the team
+  core the rest of the team runtime uses (RLF-TEAMCORE, M96c): one launch
+  path with a final admission check before any worker starts, the ordered
+  merge queue, live Traffic rows whose stop, cancel and reassign actions
+  go through attempt retirement, machine-resource joins for picks and
+  check runner routing, and checked landing whose interrupted state a
+  later window recovers only after a confirmed takeover. Still behind the
+  release latch; nothing turns on yet.
 
 ### Muse Judge phase 2 (M98)
 

@@ -709,7 +709,7 @@
     {
       "id": "M96c",
       "title": "Team scheduler and traffic",
-      "summary": "Team scheduling and traffic integration is in progress.",
+      "summary": "Scheduler, merge queue and Traffic run on the team core: window-owned admission, retirement, governor joins and checked landing recovery, behind the release latch.",
       "area": "agents"
     },
     {
