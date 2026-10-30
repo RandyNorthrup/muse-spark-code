@@ -1,4 +1,6 @@
+import { createServer, type Socket } from 'node:net'
 import { describe, expect, it } from 'vitest'
+import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import type { StreamEvent } from '../../src/core/backends/modelapi/schemas'
 import { MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS } from '../../src/shared/constants'
 import {
@@ -7,6 +9,7 @@ import {
   type TabEngineRequest,
   type TabStream,
 } from '../../src/core/tab/tabEngine'
+import { transportTestDeps } from './helpers/modelApiTransport'
 
 // The engine's send paths (M94 acceptance 7): what a cancelled trigger,
 // a failed transport, an empty answer and a mid-flight cancellation do.
@@ -24,24 +27,6 @@ const throwingStream: TabStream = () => {
 }
 
 const silentStream: TabStream = () => emptyStream()
-
-// The transport's shape only: a stream that yields nothing and ends when
-// aborted, as the key client does on its signal.
-const hungStream: TabStream = (_body, signal) => {
-  const hung = (async function* (): AsyncGenerator<StreamEvent> {
-    await new Promise<never>((_resolve, reject) => {
-      signal.addEventListener(
-        'abort',
-        () => {
-          reject(new Error('The hung stream ended on abort'))
-        },
-        { once: true },
-      )
-    })
-    yield* []
-  })()
-  return hung
-}
 
 function requestOf(isCancelled: () => boolean): TabEngineRequest {
   return {
@@ -147,11 +132,41 @@ describe('createTabEngine send paths (M94 acceptance 7)', () => {
   })
 
   it('ends a hung request at the backstop with words (safety limit, RLF-SAFELIMITS)', async () => {
-    // The engine's own settlement — the trigger fails with words — is
-    // the assertion. Unbounded code would wait here past the suite's own
-    // timeout; the backstop fails the trigger after 200 ms with its words.
-    await expect(engineOf(hungStream, 200).complete(requestOf(() => false))).rejects.toThrow(
-      'timed out waiting for the provider',
-    )
+    // The product's own client and platform fetch send to a loopback
+    // connection that is accepted and never answered: a hung provider, with
+    // no provider bytes anywhere. Unbounded code would wait here past the
+    // suite's own timeout; the backstop aborts the send after 200 ms and the
+    // trigger fails with its words.
+    const held = new Set<Socket>()
+    const silent = createServer((socket) => {
+      held.add(socket)
+    })
+    await new Promise<void>((done) => {
+      silent.listen(0, '127.0.0.1', done)
+    })
+    try {
+      const client = new ModelApiClient({
+        ...transportTestDeps({
+          fetch: globalThis.fetch,
+          sleep: () => Promise.resolve(),
+          random: () => 0,
+        }),
+        baseUrl: `http://127.0.0.1:${String((silent.address() as { readonly port: number }).port)}`,
+        apiKey: () => Promise.resolve('tab-backstop-test-key'),
+      })
+      const stream: TabStream = (body, signal, budget, admit) =>
+        client.streamResponse(body, signal, undefined, budget, admit)
+      await expect(engineOf(stream, 200).complete(requestOf(() => false))).rejects.toThrow(
+        'timed out waiting for the provider',
+      )
+      expect(held.size).toBe(1)
+    } finally {
+      for (const socket of held) socket.destroy()
+      await new Promise<void>((done) => {
+        silent.close(() => {
+          done()
+        })
+      })
+    }
   })
 })
