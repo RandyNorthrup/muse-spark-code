@@ -156,7 +156,8 @@
       "referenceNodeEditorKeys",
       "nodeOs.netWifi",
       "desktop.greeterTitle",
-      "desktop.pin"
+      "desktop.pin",
+      "referenceEditorGroupKeys"
     ],
     "cs": [
       "groupModel",

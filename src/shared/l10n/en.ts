@@ -1127,6 +1127,8 @@ export const EN = {
   referenceNodeTreeKeys:
     'Move between files, expand or collapse a folder, or open the active file.',
   referenceNodeEditorKeys: 'Save the open file.',
+  referenceEditorGroupKeys:
+    'Move between tabs, cycle tabs, focus a group by number, or close the menu.',
   referenceThinking:
     'Choose how much effort Muse puts into each reply. Thinking: On = effort; Off = museCode:none / modelApi:minimal.',
   referenceSandbox:

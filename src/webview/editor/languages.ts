@@ -1,6 +1,6 @@
 // The editor group's language catalog (M111 lane ED, D91.14): which
 // CodeMirror language a file gets, by name and extension. The loaders
-// live in codemirror.mjs behind dynamic imports, so each language is its
+// live in codemirror.ts behind dynamic imports, so each language is its
 // own lazy chunk and a surface pays only for the languages it opens.
 // Language names are the languages' own names, shown as data (like a
 // file name); everything around them is UI text.
@@ -16,7 +16,7 @@
 // Markdown opens as plain text here. Muse Desktop's workbench bundle
 // (lane WB) carries its own new-bundle budget and widens this catalog
 // there; widening is a catalog edit here plus a loader in
-// codemirror.mjs.
+// codemirror.ts.
 
 import { fileTitle } from './groupState'
 

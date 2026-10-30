@@ -909,6 +909,7 @@
   "referenceSendKeys": "useCtrlEnterToSendで選択された操作で下書きを送信します。",
   "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
   "referenceNodeEditorKeys": "Save the open file.",
+  "referenceEditorGroupKeys": "Move between tabs, cycle tabs, focus a group by number, or close the menu.",
   "referenceThinking": "各回答に Muse がかける手間を選びます。 思考: オン = effort; オフ = museCode:none / modelApi:minimal.",
   "referenceSandbox": "WindowsでこのウィンドウがMuse Codeシェルサンドボックスを使用する場合、管理者の承認で設定し、新しい会話を開始してください。shellSandbox=\"off\" では設定は不要です。",
   "referenceSetup": "信頼されたワークスペースで spark-hooks.json の init 用 Setup フックを実行します。",

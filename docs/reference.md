@@ -4017,6 +4017,7 @@ These are defaults; editor customizations take precedence.
 - `devices.unlink`: `Escape`; when `devices.unlink`; Close the dialog or move focus within it.
 - `node.tree`: `ArrowDown / ArrowUp / Home / End / Enter / Space / ArrowRight / ArrowLeft`; when `node.tree`; Move between files, expand or collapse a folder, or open the active file.
 - `node.editor`: `Ctrl+S / Cmd+S`; when `node.editor`; Save the open file.
+- `editor.group`: `ArrowRight / ArrowLeft / Home / End / Enter / Space / Escape / Ctrl+PageDown / Cmd+PageDown / Ctrl+PageUp / Cmd+PageUp / Ctrl+1 / Cmd+1 / Ctrl+2 / Cmd+2 / Ctrl+3 / Cmd+3 / Ctrl+4 / Cmd+4 / Ctrl+5 / Cmd+5 / Ctrl+6 / Cmd+6 / Ctrl+7 / Cmd+7 / Ctrl+8 / Cmd+8 / Ctrl+9 / Cmd+9`; when `editor.group`; Move between editor tabs, cycle tabs, focus an editor group by number, or close the tab menu.
 
 ## ACP / CLI commands
 

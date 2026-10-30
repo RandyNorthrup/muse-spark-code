@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { UI_TEXT } from '../../shared/constants'
-import { mountDiff, mountEditor, type MountedEditor } from './codemirror.mjs'
+import { mountDiff, mountEditor, type MountedEditor } from './codemirror'
 
 /** CodeMirror's own panel words, in the display language (D33). Read at
 mount time, never at module load, so the installed table is the one used. */

@@ -6438,13 +6438,33 @@ gui|tui`, an item in the bar's mark menu, and one in the TUI's menu.
       - **The TUI** has page tabs at the top of its sidebar, with the same
         keys.
 14. **The editor is CodeMirror 6, as on the node** (D90.12; research §5),
-    one editor on every surface. The minimap is `@replit/codemirror-minimap`
-    (MIT), pinned and forked into our tree if it stops matching CodeMirror's
-    releases; diffs are `@codemirror/merge`; code intelligence comes from the
+    one editor on every surface. The minimap is ours, a CodeMirror view
+    plugin in `src/webview/editor/codemirror.ts` (lane ED, 2026-10-30):
+    `@replit/codemirror-minimap` was the first choice here, but its tarball
+    and its repository ship no licence text to reproduce in the notices, so
+    under this decision's own fork clause the minimap lives in our tree
+    (syntax-coloured blocks, the viewport overlay, click-or-drag
+    scrolling); diffs are `@codemirror/merge`; code intelligence comes from the
     LSP broker in M110g. Monaco has a built-in minimap but a 4.2 MB main
     chunk, workers, and no phone support; two editors would mean two of
     everything. **Preview tabs** open in the editor group as browser views
-    (decision 23), beside or below the code.
+    (decision 23), beside or below the code. Lane ED's pins (rule 9, audit
+    clean for the new set on 2026-10-30): `@codemirror/state` 6.7.6,
+    `@codemirror/view` 6.43.15, `@codemirror/language` 6.13.1,
+    `@codemirror/commands` 6.11.1, `@codemirror/search` 6.7.2,
+    `@codemirror/autocomplete` 6.20.4 (bracket closing only; no completion
+    source until the LSP broker), `@codemirror/lang-javascript` 6.2.5,
+    `@codemirror/lang-json` 6.0.2, `@codemirror/legacy-modes` 6.5.5 and
+    `@lezer/highlight` 1.2.5, each language its own lazy chunk. The
+    catalog is sized to the node's existing 600 KiB editor budget
+    (562.9 KiB measured): `@codemirror/language-data` measured ~1.1 MiB of
+    language chunks and `@codemirror/lang-markdown` ~99 KiB with its HTML
+    and CSS parsers, so the catalog is Lezer JavaScript/TypeScript + JSON
+    plus legacy modes, Markdown opens as plain text, and lane WB widens
+    the catalog under the desktop bundle's own D6 budget. Lane 0's
+    contracts (`src/shared/desktopContracts.ts`) read `zod/mini` since
+    lane ED, like every browser-facing shared schema (classic zod measured
+    +402 KiB in the node's startup graph).
 15. **Windows tile, and workspaces are desktops.**
     - **Every window fills the space by itself:** dwindle by default, master
       and scrolling offered, our own Lua layouts later; gaps and ratios from
@@ -26560,6 +26580,16 @@ security` threshold; the OS images' QEMU boot test and their reproducibility
         live or paid call without CLAUDE.md's count first
 
 ### M111 — Muse Desktop: the host edition's own shell (D91)
+
+**Status 2026-10-30 (RLF-M111ED): building.** Lane ED is built: the shared editor group
+(`src/webview/editor/**`) replaces the node's single-file editor: tabbed
+panes (pinned, the preview-editor slot, dirty), split right or down,
+breadcrumbs, find and replace, per-language lazy packs, the minimap,
+diffs, and the browser-preview tab's slot against lane 0's
+`PREVIEW_DEVICES` contract (the browser views themselves are lanes WP and
+WB). The node's files page runs on it today, every open file in its own
+buffer and tab; the evidence and the budget measurements are in
+`docs/certification/rlf-m111ed.md`. No other build lane has started.
 
 **Status 2026-10-23 (RLF-M111L0): planned.** Mockups approved; lane 0 landed. The
 owner approved the lead's 18-screen mockups on 2026-10-23 ("looks great"),

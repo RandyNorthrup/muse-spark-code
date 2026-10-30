@@ -8805,6 +8805,12 @@
       "key": "Ctrl+S / Cmd+S",
       "when": "node.editor",
       "text": { "ui": "referenceNodeEditorKeys" }
+    },
+    {
+      "command": "editor.group",
+      "key": "ArrowRight / ArrowLeft / Home / End / Enter / Space / Escape / Ctrl+PageDown / Cmd+PageDown / Ctrl+PageUp / Cmd+PageUp / Ctrl+1 / Cmd+1 / Ctrl+2 / Cmd+2 / Ctrl+3 / Cmd+3 / Ctrl+4 / Cmd+4 / Ctrl+5 / Cmd+5 / Ctrl+6 / Cmd+6 / Ctrl+7 / Cmd+7 / Ctrl+8 / Cmd+8 / Ctrl+9 / Cmd+9",
+      "when": "editor.group",
+      "text": { "ui": "referenceEditorGroupKeys" }
     }
   ]
 }

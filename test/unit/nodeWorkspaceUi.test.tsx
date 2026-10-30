@@ -18,36 +18,9 @@ import { EN } from '../../src/shared/l10n/en'
 import { fill } from '../../src/shared/l10n/text'
 import { scripted } from './helpers/recordCalls'
 import { cleanupNodeUi, mountNodeUi } from './helpers/nodeUi'
+import { installCodeMirrorDom } from './helpers/codemirrorDom'
 
-// The tests drive the real CodeMirror editor, whose view needs the layout
-// primitives jsdom leaves out. These complete the environment (as jsdom
-// itself does for the rest of the DOM); they stand in for no product code.
-if (!('ResizeObserver' in globalThis)) {
-  Object.defineProperty(globalThis, 'ResizeObserver', {
-    value: class {
-      observe(): void {
-        /* jsdom has no layout to observe */
-      }
-      unobserve(): void {
-        /* jsdom has no layout to observe */
-      }
-      disconnect(): void {
-        /* jsdom has no layout to observe */
-      }
-    },
-    configurable: true,
-    writable: true,
-  })
-}
-for (const key of ['getClientRects', 'getBoundingClientRect'] as const) {
-  if (typeof Range.prototype[key] !== 'function') {
-    Object.defineProperty(Range.prototype, key, {
-      value: key === 'getClientRects' ? () => [] : () => new DOMRect(),
-      configurable: true,
-      writable: true,
-    })
-  }
-}
+installCodeMirrorDom()
 
 // Temporary interposition on real objects, never a module stand-in: jsdom
 // leaves out URL.createObjectURL, and the memory-only test must observe

@@ -258,7 +258,11 @@ function NodeWorkspace({ port, auth, workspaceId, connectTerminal }: NodeWorkspa
   const activeBuffer = activePath === undefined ? undefined : buffers[activePath]
   const hasTabs = group.panes.some((pane) => pane.tabs.length > 0)
   const openFile = (name: string, isEphemeral: boolean) => {
-    if (buffers[name] !== undefined) {
+    const existing = buffers[name]
+    // A preview open (the tree) focuses the tab already holding the
+    // file; an explicit open (the path form) re-reads it, as before —
+    // unless its buffer has unsaved edits, which are never clobbered.
+    if (existing !== undefined && (isEphemeral || existing.text !== existing.savedText)) {
       setGroup((current) => openFileTab(current, name, { ephemeral: isEphemeral }))
       setPath(name)
       setReview(false)
@@ -270,7 +274,12 @@ function NodeWorkspace({ port, auth, workspaceId, connectTerminal }: NodeWorkspa
       if (signal.aborted) return
       setBuffers((current) => ({
         ...current,
-        [file.path]: { text: file.text, savedText: file.text, digest: file.digest, revision: 0 },
+        [file.path]: {
+          text: file.text,
+          savedText: file.text,
+          digest: file.digest,
+          revision: (current[file.path]?.revision ?? -1) + 1,
+        },
       }))
       setGroup((current) => openFileTab(current, file.path, { ephemeral: isEphemeral }))
       setPath(file.path)
