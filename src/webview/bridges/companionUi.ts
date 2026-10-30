@@ -6,7 +6,7 @@ import { webviewToHostMessageSchema } from '../../shared/protocol'
 /** A distinct bearer-bound MHP channel keeps RPC outside the frozen panel payloads. */
 export async function connectCompanionUi(
   host: PanelBridge,
-  onFailure: (error: unknown) => void,
+  onError: (error: unknown) => void,
 ): Promise<() => void> {
   const signal = new AbortController()
   let responder: ReturnType<typeof createUiResponder> | undefined
@@ -21,6 +21,7 @@ export async function connectCompanionUi(
       fallbacks.createFallbackUi(root, (id) => {
         host.post(webviewToHostMessageSchema.parse({ type: 'hostAction', action: id }))
       }),
+      onError,
     )
     return responder
   }
@@ -87,14 +88,14 @@ export async function connectCompanionUi(
           if (data !== '')
             void receive(JSON.parse(data)).catch((error: unknown) => {
               stop()
-              onFailure(error)
+              onError(error)
             })
         }
       }
     } catch (error: unknown) {
       if (!signal.signal.aborted) {
         stop()
-        onFailure(error)
+        onError(error)
       }
     } finally {
       reader.releaseLock()

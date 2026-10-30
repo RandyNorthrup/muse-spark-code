@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MhpParams } from '../../shared/hostApi/methods'
 import { UI_TEXT } from '../../shared/l10n/text'
+import { isCarrierFailure } from '../bridges/failure'
 
 type Hunk = MhpParams<'diff/review'>['hunks'][number]
 type Decision = MhpParams<'diff/didDecide'>['decision']
@@ -29,7 +30,8 @@ function HunkReview({
       await decide(hunk.id, value)
       completed.current = true
       setDecision(value)
-    } catch {
+    } catch (error: unknown) {
+      if (!isCarrierFailure(error)) throw error
       setError(true)
     } finally {
       pending.current = false

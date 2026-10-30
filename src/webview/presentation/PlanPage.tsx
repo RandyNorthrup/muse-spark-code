@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
+import { isCarrierFailure } from '../bridges/failure'
 import type { PresentationPlan } from '../../shared/presentationRecords'
 import { plural } from '../../shared/l10n/text'
 
@@ -39,7 +40,8 @@ export function PlanPage({ plans, onRead, onOpen, onImplement }: PlanPageProps) 
     try {
       const text = await onRead(plan.fileName)
       if (ticket === generation.current) setSelection({ fileName: plan.fileName, text })
-    } catch {
+    } catch (error: unknown) {
+      if (!isCarrierFailure(error)) throw error
       if (ticket === generation.current) setError(true)
     } finally {
       if (ticket === generation.current) setReading(false)
@@ -54,7 +56,8 @@ export function PlanPage({ plans, onRead, onOpen, onImplement }: PlanPageProps) 
     setError(false)
     try {
       await operation(selected.fileName)
-    } catch {
+    } catch (error: unknown) {
+      if (!isCarrierFailure(error)) throw error
       if (ticket === generation.current) setError(true)
     } finally {
       action.current = false

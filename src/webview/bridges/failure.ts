@@ -1,6 +1,15 @@
 import { UI_TEXT } from '../../shared/l10n/text'
 import { installEmbeddedTable } from '../installTable'
 
+/**
+A carrier rejection the page may answer inline: the bridges and the
+presentation call layer reject only with fixed MHP code words as the
+message, never with text of anyone's choosing.
+*/
+export function isCarrierFailure(error: unknown): error is Error {
+  return error instanceof Error && /^MHP_[A-Z_]+$/u.test(error.message)
+}
+
 /** An unavailable carrier cannot receive its own error report. Show reopen guidance. */
 export function showBridgeFailure(page: Document): void {
   if (page.querySelector('#muse-bridge-error') !== null) return

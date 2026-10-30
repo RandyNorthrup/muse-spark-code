@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import type { HostServices, MhpParams } from '../../shared/hostApi/methods'
 import { UI_TEXT } from '../../shared/l10n/text'
+import { isCarrierFailure } from '../bridges/failure'
 
 type SettingValue = string | number | boolean
 export interface SettingEntry {
@@ -75,7 +76,8 @@ export function SettingsPage({
           return next
         })
       }
-    } catch {
+    } catch (error: unknown) {
+      if (!isCarrierFailure(error)) throw error
       setError(true)
     } finally {
       setSaving(false)
