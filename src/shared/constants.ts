@@ -11486,3 +11486,5 @@ export const DESKTOP_QUICK_OPEN_SCORES = {
   nameContains: 600,
   subsequenceBase: 400,
 } as const
+export const DESKTOP_QUICK_OPEN_MAX_RESULTS = 20
+export const DESKTOP_STATUS_HASH_CHARS = 16
