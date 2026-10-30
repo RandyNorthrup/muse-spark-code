@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createHardwareContexts, readHardwareInventory } from '../../src/core/maker/hardwareContext'
+import { hardwareApprovalMode, prepareHardwareTurn } from '../../src/core/maker/guard/modes'
 import { SessionHardwareGuard } from '../../src/core/maker/sessionGuard'
 import type { HardwareContext } from '../../src/core/maker/guard/httpCommands'
 import { UI_TEXT } from '../../src/shared/constants'
@@ -86,6 +87,31 @@ describe('single composition-root hardware owner', () => {
     const marked = createHardwareContexts(() => ({}))(markedRoot)
     expect(marked.current().isHardwareWorkspace).toBe(true)
     expect(marked.isPositivelyHardware()).toBe(true)
+  })
+  it('approval modes are rewritten only on positive hardware evidence', async () => {
+    // Latched-but-unproven (unscannable root): the person's mode is kept and
+    // no turn preparation reaches the wire; commands stay fail-safe through
+    // the guard table itself.
+    const missing = createHardwareContexts(() => ({}))(path.join(workspace(), 'missing'))
+    expect(missing.current().isHardwareWorkspace).toBe(true)
+    expect(hardwareApprovalMode('denyUnmatched', missing.current())).toBe('denyUnmatched')
+    let prepared = 0
+    await prepareHardwareTurn(missing.current(), () => {
+      prepared += 1
+      return Promise.resolve()
+    })
+    expect(prepared).toBe(0)
+
+    const markedRoot = workspace()
+    writeFileSync(path.join(markedRoot, 'sketch.ino'), 'void setup() {}')
+    const marked = createHardwareContexts(() => ({}))(markedRoot)
+    expect(hardwareApprovalMode('denyUnmatched', marked.current())).toBe('promptUnmatched')
+    await prepareHardwareTurn(marked.current(), (mode) => {
+      expect(mode).toBe('promptUnmatched')
+      prepared += 1
+      return Promise.resolve()
+    })
+    expect(prepared).toBe(1)
   })
   it('Windows separators share one owner instead of separate latches', () => {
     const contexts = createHardwareContexts(() => ({ hardwareSessionLatched: false }))

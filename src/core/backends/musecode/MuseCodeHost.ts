@@ -20,7 +20,7 @@ import { isHardwareStop, hardwareStop, type HardwareStop } from '../../maker/gua
 import {
   hardwareApprovalMode,
   prepareHardwareTurn,
-  isHardwareWorkspace,
+  isPositivelyHardwareWorkspace,
 } from '../../maker/guard/shellPolicy'
 import type { HardwareContext } from '../../maker/guard/httpCommands'
 import { observeAgentItem, observeChildReceipt } from '../../agent/agentObservation'
@@ -1629,7 +1629,7 @@ export class MuseSession implements ScheduledAgentSession {
               'userInput/answer',
               'userInput/clarify',
             ].includes(method) &&
-            isHardwareWorkspace(this.hardwareGuard.current())
+            isPositivelyHardwareWorkspace(this.hardwareGuard.current())
           )
             throw new Error(UI_TEXT.hardwareBindingUnavailable)
           if (method !== 'approval/decide' || typeof params['approvalId'] !== 'string') return
@@ -2199,7 +2199,7 @@ export class MuseSession implements ScheduledAgentSession {
       throw new Error(this.owner.quarantineCause ?? UI_TEXT.permissionReviewerMissing)
     if (scheduledOwner !== undefined) await scheduledOwner.checkParts(parts)
     if (!this.owner.start(token, scheduledOwner)) throw new Error(UI_TEXT.scheduleBusy)
-    if (isHardwareWorkspace(this.hardwareGuard.current()))
+    if (isPositivelyHardwareWorkspace(this.hardwareGuard.current()))
       throw new Error(UI_TEXT.hardwareBindingUnavailable)
     await prepareHardwareTurn(this.hardwareGuard.current(), (mode) => this.setApprovalMode(mode))
     let ack: unknown
