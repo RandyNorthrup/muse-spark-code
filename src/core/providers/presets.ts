@@ -492,8 +492,12 @@ const OPENAI_PRESET: ProviderPreset = {
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/v1/models', priceSource: 'catalogue' },
   quirks: {
-    // OpenAI's documented retryable envelope error, past the format's statuses.
-    retry: { ...RETRY_TABLES.responses, errorKinds: ['server_error'] },
+    // OpenAI's documented retryable envelope errors, past the format's
+    // statuses: `server_error` (OPENAI-G20), and the 503 overload code
+    // `server_is_overloaded` (D228; developers.openai.com/api/docs/guides/
+    // error-codes, read 2026-10-23: "The requested model is temporarily
+    // overloaded ... wait ... before retrying").
+    retry: { ...RETRY_TABLES.responses, errorKinds: ['server_error', 'server_is_overloaded'] },
     // OpenAI's constrained decoding takes strict tool schemas.
     supportsStrictTools: true,
     // Lane RETRYLIMITS review: OpenAI's API docs name no count ("limit

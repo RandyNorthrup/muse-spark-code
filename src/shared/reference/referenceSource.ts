@@ -79,8 +79,9 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['argument-preview', ['vscode:modelApi', 'acp:modelApi']],
   ...['service-status'].map((id): [string, readonly string[]] => [id, ['vscode:modelApi']]),
   // Lane RETRYLIMITS: the person's retry limit is a VS Code setting; the
-  // documented per-provider bounds apply on every surface.
-  ['retry-limits', ['vscode:modelApi']],
+  // documented per-provider bounds apply on every surface. D228: the
+  // retry limits span both backends (the CLI flag carries them headless).
+  ['retry-limits', ['vscode:museCode', 'vscode:modelApi']],
   ['native-deletion', ['vscode:museCode']],
   // C-M106-3: the note-only feedback dialog and the served effort tiers,
   // bound in the VS Code window (Muse Code backend).

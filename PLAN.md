@@ -9451,6 +9451,40 @@ silent single-model parity for explicit team entry points: an explicit
 silently; unasked conversations still stay single-model by the same
 count. Proof: [docs/certification/rlf-teamgate.md](docs/certification/rlf-teamgate.md).
 
+### D228 — A transiently failed request retries itself, the industry-standard way (lane RLF-AUTORETRY, owner decision 2026-10-23; numbered D217 on its branch until the int/recovery join of 2026-10-30, when that number was found shared with the judge fast path's `stat`)
+
+The owner: "auto resend we should follow the industry standard", and "no
+limits mean the limits we set it does not mean dont put any limits
+obviously there needs to be limits for things like fail retries". One
+retry loop per request path: the Model API backend retries the failed
+model request inside the turn, keeping the conversation and every tool
+result; the Muse Code backend, where the CLI owns the loop, resends a
+continue in the same session from the send site (the panel controller,
+the ACP agent), never re-running tools that already ran. Only transient
+failures retry — connection errors and timeouts, 408, 409, 429, 5xx and
+overload signals — never a refusal, an auth error or a bad request.
+Backoff is exponential with jitter and honours `retry-after` /
+`retry-after-ms` whole. Each provider's documented maximum and backoff
+ceiling govern where documented; where a provider documents none, the
+SDK default governs (2 retries, 0.5 s doubling to 8 s: `DEFAULT_MAX_RETRIES`,
+`INITIAL_RETRY_DELAY`, `MAX_RETRY_DELAY` in openai-python and
+anthropic-sdk-python `_constants.py`, read 2026-10-23; "twice by default,
+honoring the retry-after header when present",
+platform.claude.com/docs/en/api/errors; "use exponential backoff with
+jitter and limit the number of retries",
+developers.openai.com/api/docs/guides/error-codes). The maximum is
+person-settable (setting, panel, CLI flag); 0 disables. During a wait
+the person sees "Retrying in Ns (attempt K of N)" with Stop, in the
+panel and through ACP; Stop, a non-transient error, or the last attempt
+ends it and shows the error with the Retry action (RLF-ACPTURNS). Full
+record: `docs/certification/rlf-autoretry.md`. Lane scope, 2026-10-30: this
+lane ships the panel-controller resend and the per-backend settings
+(`museSpark.modelApiMaxRetries`, `museSpark.museCodeMaxRetries`). The
+ACP agent keeps RLF-ACPTURNS's client-side retry (`data.retryable`); a
+panel control and a headless flag for the maximum stay unbuilt (no
+setting in the product is set from the panel today, and `exec` does
+not retry). Open items with recommendations: the record above.
+
 ## 3. Open questions (need the owner)
 
 <a id="q-cc-licence"></a>
@@ -10867,6 +10901,19 @@ listing's `ttlMs` lapses into a re-read on its next offer; each server's
 era verdict is kept across restarts (no probe for a known server, probed
 again when it no longer answers so). Legacy bytes unchanged. Record:
 `docs/certification/cc-mcp2.md`.
+
+### RLFAUTORETRY — Automatic retry of a transiently failed request, the industry-standard way (D228)
+
+**Status 2026-10-30: built.** The Model API backend retries the failed
+model request inside the turn and the Muse Code backend resends a
+retryable failed turn in the same session, transient failures only,
+with industry backoff and full retry-after waits; every wait shows
+"Retrying in Ns (attempt K of N)" with Stop in the panel (Model API
+waits also through ACP), and the per-backend maxima are
+person-settable (`0` disables). Record:
+`docs/certification/rlf-autoretry.md`. The forwarding-proxy proof, an
+ACP-agent-internal resend, a panel control and a headless flag stay
+open for the lead (items in the record).
 
 ### TOOLROUNDS — Preserve answers at the model-call turn limit (D109)
 
@@ -31077,6 +31124,12 @@ file, and this rig holds 1,171 branches with no open/stale record, so a
 lane-side move risks modify/delete conflicts on work the lane cannot see.
 No threshold or rule is changed.
 
+**RLF-AUTORETRY plan-archive addition (2026-10-30, macmini).** This lane
+adds 1,515 bytes (§6 status, D228 scope note, this entry) to the same
+deferred overage: 3,774,016 bytes on its tree vs 3,772,501 on its base,
+both over the 3,565,158 tripwire. Same disposition as above: the archive
+stays with the lead at integration. No threshold or rule is changed.
+
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
   **CM1073 inherited integration-size hold (2026-10-11, Kubuntu).** The scoped
   runner build emits its concrete bindings within existing caps: teamRunners
@@ -32249,6 +32302,14 @@ theirs touched). Shrinking them belongs to their owning lanes; the lead
 assigns. Evidence: `docs/certification/rlf-hosts2.md`.
 
 ## 8. Escape hatches register
+
+RLF-AUTORETRY, 2026-10-23: `// eslint-disable-next-line
+@typescript-eslint/no-unnecessary-condition` on the `turnRunning` read in
+`runResendWait` (`src/host/conversation/conversationController.ts`). A turn
+may start while the wait re-establishes the dropped session, so the live
+`activeTurnId` read after the await is load-bearing; the rule sees only
+the pre-await narrowing. Removal guard: restructure so no narrowing
+crosses the await (e.g. establishment returning the live turn state).
 
 RLF-ACPTURNS, 2026-10-22: `// eslint-disable-next-line
 @typescript-eslint/no-unnecessary-condition` on the `turnRunning` read in

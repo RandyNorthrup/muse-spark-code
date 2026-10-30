@@ -4999,8 +4999,8 @@
   "turnRetryAction": "Ponów",
   "turnRetryUnavailable": "Tej tury nie można już ponowić. Wyślij swoją wiadomość ponownie.",
   "turnRetryBusy": "Poczekaj na koniec odpowiedzi albo ją zatrzymaj, zanim ponowisz.",
-  "turnRetrying": "Próba {attempt}/{maxAttempts} nie powiodła się ({reason}); ponowienie za {seconds} s.",
-  "turnRetryingUncapped": "Próba {attempt} nie powiodła się ({reason}); ponowienie za {seconds} s (nie ustawiono limitu ponowień).",
+  "turnRetrying": "Ponawienie za {seconds} s (próba {attempt} z {maxAttempts}).",
+  "turnRetryingUncapped": "Ponawienie za {seconds} s (próba {attempt}).",
   "modelApiProviderRetryWait": "{reason}; dostawca poprosił o odczekanie do {time}. Turę możesz zatrzymać w dowolnym momencie.",
   "usageWindowHours": {
     "one": "Okno {count}-godzinne",

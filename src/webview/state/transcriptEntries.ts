@@ -470,6 +470,12 @@ const noticeEntrySchema = z.object({
   repeats are this one row. Optional, so a snapshot saved before it reads.
   */
   repeatCount: z.optional(z.number()),
+  /**
+  A retry wait's turn (D228): this notice is the "Retrying in Ns" row for
+  that turn, replaced in place by each further attempt and cleared when
+  the turn speaks or ends. Present, the row offers Stop.
+  */
+  retryingTurnId: z.optional(z.string()),
 })
 
 export const transcriptEntrySchema = z.discriminatedUnion('kind', [

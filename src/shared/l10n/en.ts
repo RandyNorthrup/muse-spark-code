@@ -6099,11 +6099,10 @@ export const EN = {
   // A retry pressed while a turn runs: the row's button is disabled
   // then, so this answers only the race.
   turnRetryBusy: 'Wait for the reply to finish, or stop it, before retrying.',
-  turnRetrying: 'Attempt {attempt}/{maxAttempts} failed ({reason}); retrying in {seconds} s.',
-  // A retry notice with no retry limit (lane RETRYLIMITS): neither the
-  // provider nor the person sets one, so the provider governs.
-  turnRetryingUncapped:
-    'Attempt {attempt} failed ({reason}); retrying in {seconds} s (no retry limit set).',
+  turnRetrying: 'Retrying in {seconds} s (attempt {attempt} of {maxAttempts}).',
+  // A retry notice with no stated ceiling (an older CLI's own retry
+  // loop, which names none): the wait and the attempt still show.
+  turnRetryingUncapped: 'Retrying in {seconds} s (attempt {attempt}).',
   // A 429 retry names the provider's own wait and when it ends, so a long
   // provider wait never reads as a silent stall; Stop ends it at any time.
   modelApiProviderRetryWait:

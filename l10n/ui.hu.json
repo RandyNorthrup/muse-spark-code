@@ -4807,8 +4807,8 @@
   "turnRetryAction": "Újrapróbálás",
   "turnRetryUnavailable": "Ez a kör már nem próbálható újra. Küldje el újra az üzenetet.",
   "turnRetryBusy": "Várja meg a válasz végét, vagy állítsa le, mielőtt újrapróbálná.",
-  "turnRetrying": "{attempt}/{maxAttempts}. kísérlet sikertelen ({reason}); újrapróbálás {seconds} mp múlva.",
-  "turnRetryingUncapped": "{attempt}. kísérlet sikertelen ({reason}); újrapróbálás {seconds} mp múlva (nincs beállítva újrapróbálkozási korlát).",
+  "turnRetrying": "Újrapróbálás {seconds} mp múlva ({attempt}. kísérlet a {maxAttempts} közül).",
+  "turnRetryingUncapped": "Újrapróbálás {seconds} mp múlva ({attempt}. kísérlet).",
   "modelApiProviderRetryWait": "{reason}; a szolgáltató arra kért, hogy várj {time} időpontig. A menetet bármikor leállíthatod.",
   "usageWindowHours": {
     "one": "{count} órás időablak",

@@ -175,6 +175,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly webSearchMaxPerRequest: number
   /** Lane RETRYLIMITS: the person's retry limit; null leaves the providers' own maxima in force. */
   readonly modelApiMaxRetries: number | null
+  /** Lane RLF-AUTORETRY (D228): resends of a retryable failed Muse Code turn; null is the industry default (2). */
+  readonly museCodeMaxRetries: number | null
   /** Stop-hook continuations in a row (M127, D121: 0 is no limit of ours). */
   readonly hooksMaxStopContinuations: number
   /** Running hook commands at once; 0 starts them all (M127, as Muse Code). */
@@ -348,6 +350,8 @@ const settingSchemas = {
   webSearchMaxPerRequest: z.number().check(z.int(), z.gte(0)),
   // Lane RETRYLIMITS: null (unset) is the default; 0 never retries.
   modelApiMaxRetries: z.nullable(z.int().check(z.gte(0))),
+  // Lane RLF-AUTORETRY (D228): null (unset) resends twice, the industry default; 0 never resends.
+  museCodeMaxRetries: z.nullable(z.int().check(z.gte(0))),
   // D121: 0 is no limit of ours (the default); a set whole count governs as
   // set (NOLIMITSSET: the removed 8 was ours — no provider documents one).
   // Anything else refuses with the setting named, never clamped silently.
@@ -514,6 +518,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiParallelReads: readSetting(config, 'modelApiParallelReads', log),
     webSearchMaxPerRequest: readSetting(config, 'webSearchMaxPerRequest', log),
     modelApiMaxRetries: readSetting(config, 'modelApiMaxRetries', log),
+    museCodeMaxRetries: readSetting(config, 'museCodeMaxRetries', log),
     hooksMaxStopContinuations: readSetting(config, 'hooksMaxStopContinuations', log),
     hooksMaxRunningCommands: readSetting(config, 'hooksMaxRunningCommands', log),
     subagentMaxConcurrent: readSetting(config, 'subagentMaxConcurrent', log),

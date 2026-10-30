@@ -392,6 +392,44 @@ describe('UpdateTranslator', () => {
       hidden.updates({ type: 'contextUsage', usedTokens: 15, windowTokens: 100, pressure: 'ok' }),
     ).toEqual([{ sessionUpdate: 'usage_update', used: 15, size: 100 }])
   })
+
+  it('says a retry wait in the panel’s words, as a notice or its own message', () => {
+    // D228: "Retrying in Ns (attempt K of N)" through ACP, matching the
+    // panel's row. A client without notices gets the sanctioned agent
+    // message with its own id, never folded into the model's answer.
+    const notices = new UpdateTranslator(CWD, false, 'museCode', true)
+    expect(
+      notices.updates({
+        type: 'turnRetry',
+        turnId: 't1',
+        attempt: 1,
+        maxAttempts: 3,
+        retryDelayMs: 5000,
+        reason: 'rate limited',
+      }),
+    ).toEqual([
+      {
+        sessionUpdate: 'notice',
+        severity: 'warning',
+        title: 'Retrying in 5 s (attempt 1 of 3).',
+      },
+    ])
+    const fallback = new UpdateTranslator(CWD, false, 'museCode', false)
+    const [chunk] = fallback.updates({
+      type: 'turnRetry',
+      turnId: 't1',
+      attempt: 2,
+      retryDelayMs: 500,
+      reason: 'rate limited',
+    })
+    expect(chunk?.sessionUpdate).toBe('agent_message_chunk')
+    if (chunk?.sessionUpdate !== 'agent_message_chunk') throw new Error('no fallback chunk')
+    expect(chunk.content).toEqual({
+      type: 'text',
+      text: 'Retrying in 1 s (attempt 2).\n\n',
+    })
+    expect(typeof chunk.messageId).toBe('string')
+  })
 })
 
 describe('tool names and kinds', () => {

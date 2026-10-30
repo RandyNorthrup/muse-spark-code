@@ -17,9 +17,12 @@ import type { HostToWebviewMessage } from '../../src/shared/protocol'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { initialUiState, uiReducer } from '../../src/webview/state/uiState'
 import {
+  awaitPosts,
   conversationPanel,
   modelApiRig,
   savedSession,
+  turnAcceptances,
+  turnCompletions,
   type PanelRig,
 } from './helpers/conversationPanel'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -102,36 +105,8 @@ function retryRefusals(panel: PanelRig): string[] {
     .map((refusal) => refusal.reason)
 }
 
-function turnCompletions(posted: readonly HostToWebviewMessage[]) {
-  return posted.flatMap((message) =>
-    message.type === 'agentEvent' && message.event.type === 'turnCompleted' ? [message.event] : [],
-  )
-}
-
-function turnAcceptances(posted: readonly HostToWebviewMessage[]) {
-  return posted.flatMap((message) => (message.type === 'turnAccepted' ? [message] : []))
-}
-
 function sessionInfos(posted: readonly HostToWebviewMessage[]) {
   return posted.flatMap((message) => (message.type === 'sessionInfo' ? [message] : []))
-}
-
-async function awaitPosts<T>(
-  panel: PanelRig,
-  collect: (posted: readonly HostToWebviewMessage[]) => readonly T[],
-  count: number,
-  what: string,
-): Promise<readonly T[]> {
-  for (let attempt = 0; attempt < 300; attempt += 1) {
-    const found = collect(panel.posted)
-    if (found.length >= count) {
-      return found
-    }
-    await new Promise((resolve) => setTimeout(resolve, 10))
-  }
-  throw new Error(
-    `only ${String(collect(panel.posted).length)} ${what}, wanted ${String(count)}; posted: ${JSON.stringify(panel.posted).slice(0, 2000)}`,
-  )
 }
 
 type TurnCompleted = Extract<AgentEvent, { type: 'turnCompleted' }>

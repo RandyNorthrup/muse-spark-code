@@ -8,6 +8,7 @@ import {
   IDE_CONTEXT_TAGS,
   IMAGE_MAKING_TOOLS,
   MEDIA_READ_MAX_BYTES,
+  MILLISECONDS_PER_SECOND,
   PDF_MEDIA_TYPE,
   MODEL_API_WEB_SEARCH_TOOL,
   SHELL_TOOLS,
@@ -493,35 +494,25 @@ export class UpdateTranslator {
             ]
       }
       case 'backendNotice': {
-        // A backend notice is the app's own words, never the model's: it
-        // goes out as its own `notice` update where the client can show
-        // one, and only then falls back to an agent message (the
-        // protocol's sanctioned fallback for clients without notices).
+        // A backend notice is the app's own words, never the model's.
         // An empty notice has no title and no words: drop it, never send
         // blank model text.
-        if (event.text.trim() === '') return []
-        if (this.areNoticesSupported) {
-          return [
-            {
-              sessionUpdate: 'notice',
-              severity: event.level,
-              title: event.text,
-            },
-          ]
-        }
-        // A client renders agent chunks as one text: after the model's
-        // words the notice opens its own paragraph instead of running on
-        // ("Canberra.The turn finished…"). A one-shot notice names no
-        // item, so it carries a fresh message id of its own, which starts a
-        // new message where the client groups by one (RLF-ACPTURNS F1).
-        const opening = this.isAgentLineOpen ? PART_SEPARATOR : ''
-        return [
-          {
-            sessionUpdate: 'agent_message_chunk',
-            messageId: noticeMessageId(),
-            content: { type: 'text', text: `${opening}${event.text}${PART_SEPARATOR}` },
-          },
-        ]
+        return event.text.trim() === '' ? [] : this.noticeUpdates(event.text, event.level)
+      }
+      case 'turnRetry': {
+        // D228: the wait shows through ACP as it does in the panel, in
+        // the same words: "Retrying in Ns (attempt K of N)".
+        const seconds = Math.max(1, Math.round(event.retryDelayMs / MILLISECONDS_PER_SECOND))
+        return this.noticeUpdates(
+          event.maxAttempts === undefined
+            ? fill(UI_TEXT.turnRetryingUncapped, { attempt: event.attempt, seconds })
+            : fill(UI_TEXT.turnRetrying, {
+                attempt: event.attempt,
+                maxAttempts: event.maxAttempts,
+                seconds,
+              }),
+          'warning',
+        )
       }
       case 'messageAdmitted': {
         // Nothing to send (M87): an ACP prompt is never queued behind
@@ -532,6 +523,34 @@ export class UpdateTranslator {
         return []
       }
     }
+  }
+
+  /**
+  Our own words (never the model's) as their own `notice` update where
+  the client can show one, else the protocol's sanctioned agent-message
+  fallback. A client renders agent chunks as one text: after the model's
+  words the notice opens its own paragraph instead of running on
+  ("Canberra.The turn finished…"). Its own message id starts a new
+  message where the client groups by one (RLF-ACPTURNS F1).
+  */
+  private noticeUpdates(
+    text: string,
+    level: Extract<AgentEvent, { type: 'backendNotice' }>['level'],
+  ): SessionUpdate[] {
+    const opening = this.isAgentLineOpen ? PART_SEPARATOR : ''
+    return [
+      this.areNoticesSupported
+        ? {
+            sessionUpdate: 'notice',
+            severity: level,
+            title: text,
+          }
+        : {
+            sessionUpdate: 'agent_message_chunk',
+            messageId: noticeMessageId(),
+            content: { type: 'text', text: `${opening}${text}${PART_SEPARATOR}` },
+          },
+    ]
   }
 
   public updates(event: AgentEvent): SessionUpdate[] {

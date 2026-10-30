@@ -3194,6 +3194,7 @@ export function App({
           onNoticeAction={onNoticeAction}
           onReportProblem={onReportProblem}
           onRetryTurn={state.isImported || state.sessionId === undefined ? undefined : onRetryTurn}
+          onStopRetry={state.isImported || state.sessionId === undefined ? undefined : onStop}
           resendableTurnIds={resendableTurnIds}
           restoreNote={restoreNoteOf(state)}
           conversationNote={
