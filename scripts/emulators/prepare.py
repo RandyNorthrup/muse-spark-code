@@ -51,6 +51,10 @@ def download():
             temporary.replace(file)
         print('verified', asset['file'], flush=True)
         if file.name.endswith(('.tar.xz', '.tar.gz')):
+            # The archive's SHA-256 is verified against the pinned digest
+            # above and extraction uses the data filter, which strips
+            # absolute and parent paths (PLAN.md section 8).
+            # nosemgrep: trailofbits.python.tarfile-extractall-traversal.tarfile-extractall-traversal
             with tarfile.open(file) as archive:
                 archive.extractall(ROOT / 'tools', filter='data')
 
