@@ -209,7 +209,7 @@ const relativePath = nonEmptyText.check(
   z.refine(
     (value) =>
       !/[\\:]|\p{Cc}|\p{Zl}|\p{Zp}/u.test(value) &&
-      value.split('/').every((part) => part !== '' && part !== '.' && part !== '..'),
+      value.split('/').every((part) => !['', '.', '..'].includes(part)),
   ),
 )
 const attempt = z.strictObject({

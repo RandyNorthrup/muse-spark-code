@@ -309,10 +309,12 @@ function skillItems(skills: readonly SkillOption[] | undefined): readonly Palett
   return skills
     .filter(
       (skill) =>
-        skill.selector !== SLASH_COMMAND_NAMES.help &&
-        skill.selector !== SLASH_COMMAND_NAMES.estimate &&
-        skill.selector !== SLASH_COMMAND_NAMES.playback &&
-        skill.selector !== 'schedule',
+        ![
+          SLASH_COMMAND_NAMES.help,
+          SLASH_COMMAND_NAMES.estimate,
+          SLASH_COMMAND_NAMES.playback,
+          'schedule',
+        ].includes(skill.selector),
     )
     .map((skill) => ({
       id: `skill:${skill.selector}`,

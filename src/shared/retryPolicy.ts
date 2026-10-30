@@ -184,9 +184,9 @@ export function effectiveMaxRetries(
   documented: RetryLimits | undefined,
 ): number | undefined {
   const providerMaxRetries = documented?.maxRetries
-  return personCap !== undefined && providerMaxRetries !== undefined
-    ? Math.min(personCap, providerMaxRetries)
-    : (personCap ?? providerMaxRetries)
+  return personCap === undefined || providerMaxRetries === undefined
+    ? (personCap ?? providerMaxRetries)
+    : Math.min(personCap, providerMaxRetries)
 }
 
 /**
@@ -271,10 +271,7 @@ export function classifyRetry(tables: RetryTables, failure: RetryFailure): Retry
   ) {
     return { retry: true }
   }
-  if (failure.status === HTTP_PAYMENT_REQUIRED) {
-    return { retry: false, reason: 'quota' }
-  }
-  if (QUOTA_MESSAGE.test(failure.message)) {
+  if (failure.status === HTTP_PAYMENT_REQUIRED || QUOTA_MESSAGE.test(failure.message)) {
     return { retry: false, reason: 'quota' }
   }
   return tables.statuses.includes(failure.status)

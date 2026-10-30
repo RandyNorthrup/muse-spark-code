@@ -136,8 +136,6 @@ interface UploadedFilesView {
   }[]
 }
 
-type InsightWindow = 'day' | 'week'
-
 function percentLabel(usedPercent: number): string {
   return fill(UI_TEXT.usagePercentUsed, { percent: formatPercent(usedPercent) })
 }
@@ -280,9 +278,9 @@ function TokensSection({
   const cost = costUsd ?? (pricing === 'local' ? Usd.from(0).toAmount() : undefined)
   const contextValue = contextValueOf(context)
   const savings =
-    usage !== undefined && cost !== undefined && modelId !== undefined && costUsd !== undefined
-      ? cacheSavings(usage, cost, modelId)
-      : undefined
+    usage === undefined || cost === undefined || modelId === undefined || costUsd === undefined
+      ? undefined
+      : cacheSavings(usage, cost, modelId)
   return (
     <>
       <dl className="usage-facts">
@@ -366,6 +364,7 @@ function InsightsSection({
 }: {
   readonly insights: { readonly day: UsageInsights; readonly week: UsageInsights }
 }) {
+  type InsightWindow = 'day' | 'week'
   const [window, setWindow] = useState<InsightWindow>('day')
   const chosen = insights[window]
   return (

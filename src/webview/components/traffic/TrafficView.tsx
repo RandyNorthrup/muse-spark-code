@@ -7,7 +7,6 @@ export interface TrafficSurfaceProps {
   postMessage: (message: TrafficMessage) => void
   announce?: (text: string) => void
 }
-type TrafficViewProps = { mode: 'singleModel' } | (TrafficSurfaceProps & { mode: 'team' })
 /** Called once by each panel's registry, outside React render. The injected
 loader imports the separate browser bundle; the IIFE startup build cannot
 accidentally inline it. Single-model mode never invokes the loader.
@@ -15,6 +14,7 @@ accidentally inline it. Single-model mode never invokes the loader.
 export function createTrafficView(
   loadSurface: () => Promise<{ default: ComponentType<TrafficSurfaceProps> }>,
 ) {
+  type TrafficViewProps = { mode: 'singleModel' } | (TrafficSurfaceProps & { mode: 'team' })
   const TrafficSurface = lazy(loadSurface)
   return function TrafficView(props: TrafficViewProps) {
     if (props.mode === 'singleModel') return null

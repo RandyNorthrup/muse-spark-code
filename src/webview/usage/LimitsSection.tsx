@@ -336,7 +336,7 @@ export function LimitsSection({
               {USAGE_TEXT.providerConsole}
             </a>
           ) : null}
-          {row.consoleUrl !== undefined && state.capabilities?.external !== false ? (
+          {row.consoleUrl === undefined || state.capabilities?.external === false ? null : (
             <button
               type="button"
               onClick={() => {
@@ -346,7 +346,7 @@ export function LimitsSection({
             >
               {USAGE_TEXT.providerConsole}
             </button>
-          ) : null}
+          )}
         </p>
       ))}
       {chartProviders.map((provider) => (

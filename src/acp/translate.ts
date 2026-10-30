@@ -823,9 +823,9 @@ async function blockPart(
       }
       const image = readImageInfo(bytes)
       if (image !== undefined) {
-        return resource.mimeType != null && resource.mimeType !== image.mediaType
-          ? fill(UI_TEXT.media.attachmentUnknownType, { type: resource.mimeType })
-          : imagePart(resource.blob)
+        return resource.mimeType == null || resource.mimeType === image.mediaType
+          ? imagePart(resource.blob)
+          : fill(UI_TEXT.media.attachmentUnknownType, { type: resource.mimeType })
       }
       return media === undefined
         ? fill(UI_TEXT.media.attachmentUnknownType, { type: resource.mimeType ?? 'blob' })
@@ -848,8 +848,8 @@ export function resourceName(uri: string): string {
   } catch (error: unknown) {
     // Only a malformed URL or escape keeps the raw name: anything else keeps
     // its kind past the display-name boundary.
-    if (error instanceof TypeError) return path.posix.basename(uri.replaceAll('\\', '/'))
-    if (error instanceof URIError) return path.posix.basename(uri.replaceAll('\\', '/'))
+    if (error instanceof TypeError || error instanceof URIError)
+      return path.posix.basename(uri.replaceAll('\\', '/'))
     throw error
   }
 }

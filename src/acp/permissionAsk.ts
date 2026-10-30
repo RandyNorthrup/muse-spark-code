@@ -33,14 +33,14 @@ function matchingChoice(
   // Matched by meaning, not by id: the CLI mints new choice ids per stage.
   // A persistent choice id can name a different rule on the next stage.
   // Without a rule identity it cannot be safely reused; ask again instead.
-  return answer.scope !== 'once' && !answer.rulePreview
-    ? undefined
-    : available.find(
+  return answer.scope === 'once' || answer.rulePreview
+    ? available.find(
         (choice) =>
           choice.decision === answer.decision &&
           choice.scope === answer.scope &&
           choice.rulePreview === answer.rulePreview,
       )
+    : undefined
 }
 
 /**

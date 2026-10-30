@@ -1058,9 +1058,9 @@ export function Composer(props: ComposerProps) {
     ...(hasDraftText && props.onSharePrompt !== undefined
       ? [{ id: 'share', label: UI_TEXT.sharePrompt }]
       : []),
-    ...(props.promptLibrary !== undefined || props.onUseSavedPrompt !== undefined
-      ? [{ id: 'use', label: UI_TEXT.promptUseSaved }]
-      : []),
+    ...(props.promptLibrary === undefined && props.onUseSavedPrompt === undefined
+      ? []
+      : [{ id: 'use', label: UI_TEXT.promptUseSaved }]),
   ]
   const closePromptMenu = () => {
     setPromptMenuOpen(false)

@@ -3,8 +3,6 @@ import type { UiStore } from '../state/store'
 import { createResourceSurfaceLoader } from './resourceLoader'
 import type { ResourceSurfaceLoader } from './resourcePort'
 
-type ResourceAction = Extract<WebviewToHostMessage, { type: 'resourceAction' }>['action']
-
 /**
 M107 U–C1: the chat window's chip source over the store's bounded status
 text. Created once in mountChat, outside render; the deferred chip imports
@@ -14,6 +12,7 @@ export function windowResourceLoader(
   store: UiStore,
   post: (message: WebviewToHostMessage) => void,
 ): ResourceSurfaceLoader {
+  type ResourceAction = Extract<WebviewToHostMessage, { type: 'resourceAction' }>['action']
   const action = (name: ResourceAction) => () => {
     post({ type: 'resourceAction', action: name })
   }

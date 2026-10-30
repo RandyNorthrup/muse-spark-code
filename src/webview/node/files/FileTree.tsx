@@ -204,6 +204,10 @@ export function FileTree({
     ([directory, page]) =>
       page.nextCursor !== null && (directory === '' || expanded.has(directory)),
   )
+  // Named so neither the negated-condition rule (which would invert it) nor
+  // the optional-chain rule (whose `?.` suggestion flips the undefined case)
+  // rewrites it: defined results with a cursor page the search further.
+  const shouldShowSearchMore = results !== undefined && results.nextCursor !== null
   return (
     <section aria-label={UI_TEXT.nodeLabels.files}>
       <form
@@ -319,7 +323,7 @@ export function FileTree({
         </div>
       </div>
       {rows.length === 0 && <p>{UI_TEXT.nodeWorkspace.noFiles}</p>}
-      {results !== undefined && results.nextCursor !== null ? (
+      {shouldShowSearchMore ? (
         <button
           type="button"
           disabled={busyKinds.has('search')}
