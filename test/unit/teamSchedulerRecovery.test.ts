@@ -12,6 +12,7 @@ import type {
   TeamSchedulingPort,
 } from '../../src/core/team/teamScheduling'
 import type { TeamStatePort } from '../../src/core/team/teamHostService'
+import { fixtureGit } from './helpers/teamLandingFixture'
 
 // Real-process recovery proofs (M96c): every worker below is a real child
 // process, the board journal is a real JSON file on disk, and a "crash" is a
@@ -44,8 +45,12 @@ function stateFile(file: string): TeamStatePort {
   }
 }
 
-function launchChild(taskId: string): ChildProcess {
-  const child = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 600000)'], {
+function launchChild(
+  taskId: string,
+  script = 'setTimeout(() => {}, 600000)',
+  args: readonly string[] = [],
+): ChildProcess {
+  const child = spawn(process.execPath, ['-e', script, '--', ...args], {
     stdio: 'ignore',
   })
   const record = { child, exited: false }
@@ -117,6 +122,7 @@ function makeScheduler(
     kind?: 'engine' | 'external'
     processStart?: string
     onLaunch?: (taskId: string) => void
+    childFor?: (taskId: string) => { script: string; args: readonly string[] }
   } = {},
 ): TeamSchedulingPort {
   const deps: TeamSchedulingDeps = {
@@ -159,7 +165,8 @@ function makeScheduler(
     // The launch contract is start-only: resolve once the worker process exists.
     launch: (task) => {
       options.onLaunch?.(task.id)
-      launchChild(task.id)
+      const child = options.childFor?.(task.id)
+      launchChild(task.id, child?.script, child?.args)
       return Promise.resolve()
     },
     changed: () => undefined,
@@ -272,4 +279,78 @@ describe('window scheduler crash recovery (real processes)', () => {
     // Two real TEAM_RETIRE_WAIT_MS bounds (cancel, then escalate) elapse
     // before an unprovable retirement may settle as uncertain.
   }, 90_000)
+})
+
+describe('window scheduler throughput (real worktrees)', () => {
+  it('fills every lane, never exceeds it, and lands real commits in each copy', async () => {
+    const root = rootHolder.root
+    const source = path.join(root, 'throughput-source')
+    await fixtureGit(root, ['init', '-b', 'main', source])
+    await writeFile(path.join(source, 'base.txt'), 'base\n')
+    await fixtureGit(source, ['add', '-A'])
+    await fixtureGit(source, ['commit', '-m', 'base'])
+
+    const taskIds = Array.from({ length: 8 }, (_unused, index) => `tp-${String(index + 1)}`)
+    const launchedHere: string[] = []
+    let maxActive = 0
+    const scheduler = makeScheduler(stateFile(path.join(root, 'throughput.json')), {
+      onLaunch: (id) => {
+        launchedHere.push(id)
+        const exited = launchedHere.filter((item) => children.get(item)?.exited === true).length
+        maxActive = Math.max(maxActive, launchedHere.length - exited)
+      },
+      childFor: (taskId) => {
+        const dest = path.join(root, `copy-${taskId}`)
+        const name = `work-${taskId}.txt`
+        // A real worker copy: clone, write and commit with the real git.
+        const script = [
+          "const { execFileSync } = require('node:child_process')",
+          "const { writeFileSync } = require('node:fs')",
+          "const path = require('node:path')",
+          `const source = ${JSON.stringify(source)}`,
+          `const dest = ${JSON.stringify(dest)}`,
+          `const name = ${JSON.stringify(name)}`,
+          "const git = (cwd, args) => execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', ...args], { cwd })",
+          "git(path.dirname(dest), ['clone', '--no-hardlinks', source, dest])",
+          String.raw`writeFileSync(path.join(dest, name), name + '\n')`,
+          "git(dest, ['add', '-A'])",
+          "git(dest, ['commit', '-m', name])",
+        ].join('\n')
+        return { script, args: [] }
+      },
+    })
+    await start(scheduler)
+    await scheduler.submit(taskIds.map((id) => submission(id)))
+    await scheduler.wake()
+
+    const finished = new Set<string>()
+    const deadline = Date.now() + 90_000
+    while (finished.size < taskIds.length && Date.now() < deadline) {
+      let isProgressed = false
+      for (const id of taskIds) {
+        if (finished.has(id) || children.get(id)?.exited !== true) {
+          continue
+        }
+
+        finished.add(id)
+        await scheduler.finish(id, 'done', { kind: 'userDecision' })
+        isProgressed = true
+      }
+      if (isProgressed) await scheduler.wake()
+      else await new Promise((resolve) => setTimeout(resolve, 25))
+    }
+    expect(finished.size).toBe(taskIds.length)
+    // The person's four-worker lane count is the ceiling and it is used.
+    expect(maxActive).toBe(4)
+    const board = scheduler.snapshot()
+    for (const id of taskIds) {
+      const task = board.tasks.find((item) => item.id === id)
+      expect(task?.state).toBe('done')
+      const name = `work-${id}.txt`
+      const shown = await fixtureGit(path.join(root, `copy-${id}`), ['show', `HEAD:${name}`])
+      expect(shown).toBe(`${name}\n`)
+    }
+    scheduler.dispose()
+    // Eight real clones and commits through four lanes exceed the 5 s default.
+  }, 120_000)
 })
