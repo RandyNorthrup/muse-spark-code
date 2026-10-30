@@ -24,7 +24,7 @@ import {
   fileRecordEntries,
   vaultAnchorFile,
 } from '../../../src/runtime/vault/fileAnchor'
-import { openHeadlessVault } from '../../../src/runtime/vault/vaultRuntimeEntry'
+import { openHeadlessVault } from '../../../src/runtime/vault/headlessSession'
 import { createHeadlessVaultExecService } from '../../../src/runtime/vault/vaultExecHost'
 import { writeVaultPolicy } from '../../../src/runtime/vault/vaultPolicy'
 import { vaultBrokerDataDir } from '../../../src/runtime/vault/vaultStoreScope'
@@ -446,6 +446,7 @@ describe.skipIf(shouldSkipBroker)(
       const ticket = await inner.authorize(
         'secret://service-key',
         countUse(),
+        { tainted: false, reasons: [] },
         state.controller.signal,
       )
       if (ticket.kind !== 'ticket') throw new Error('missing ticket')

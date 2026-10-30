@@ -96,6 +96,24 @@ import type { ExecBudgetRefusal } from './execProtocol'
 import { observeBackend, type SessionTap } from './sessionTap'
 import { readUntrustedInputs } from './untrustedInput'
 import type { ExecVaultPort, ExecVaultSession } from '../vault/execVault'
+import type { VaultExecService } from '../../core/vault/exec/service'
+import type * as VaultExecHostModule from '../vault/vaultExecHostEntry'
+import { createRequire } from 'node:module'
+import { VAULT_EXEC_HOST_BUNDLE_FILE } from '../../shared/constants'
+
+/** The headless exec host stack, its own lazy chunk (PLAN §8 validation). */
+function loadVaultExecHost(distDir: string): typeof VaultExecHostModule {
+  const loaded = createRequire(__filename)(
+    path.join(distDir, VAULT_EXEC_HOST_BUNDLE_FILE),
+  ) as typeof VaultExecHostModule
+  if (
+    typeof loaded.createHeadlessVaultExecService !== 'function' ||
+    typeof loaded.setUiText !== 'function'
+  )
+    throw new TypeError(UI_TEXT.vault.brokerBlocked)
+  loaded.setUiText(UI_TEXT, uiLocale())
+  return loaded
+}
 import { failureForLog } from '../../core/backends/musecode/logText'
 import { metaSideCallFormats } from '../../core/backends/modelapi/modelCapabilities'
 import { compileOutputSchema, type OutputSchema } from './outputSchema'
@@ -445,6 +463,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let tap: SessionTap | undefined
   let transport: ExecTransport | undefined
   let vaultSession: ExecVaultSession | undefined
+  let vaultExecService: { session: ExecVaultSession; service: VaultExecService } | undefined
   let vaultDenial: string | undefined
   const setup: { sessionId: string | null; isUsageError: boolean } = {
     sessionId: null,
@@ -1084,12 +1103,16 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           // only called by a tool run, which is later still.
           ...(options.vault &&
             deps.vault !== undefined && {
-              vaultExec: async () => {
+              vaultExec: () => {
                 const vaultPort = deps.vault
                 if (vaultPort === undefined) throw new Error(UI_TEXT.vault.noAccess)
                 if (vaultSession === undefined) throw new Error(UI_TEXT.vault.noAccess)
-                const { createHeadlessVaultExecService } = await import('../vault/vaultExecHost.js')
-                return createHeadlessVaultExecService({
+                // One service per run session: its provenance session
+                // must outlive a single command (D216 lane T).
+                if (vaultExecService?.session === vaultSession)
+                  return Promise.resolve(vaultExecService.service)
+                const { createHeadlessVaultExecService } = loadVaultExecHost(deps.distDir)
+                const service = createHeadlessVaultExecService({
                   broker: vaultSession.execBroker(),
                   distDir: deps.distDir,
                   dataDir: vaultPort.dataDir,
@@ -1097,6 +1120,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                   env: deps.env,
                   platform: deps.platform,
                 })
+                vaultExecService = { session: vaultSession, service }
+                return Promise.resolve(service)
               },
             }),
           headlessPaid: (request, requiresAsking) => {

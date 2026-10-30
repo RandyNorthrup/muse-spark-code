@@ -76,6 +76,7 @@ export const ACP_BUNDLES = [
   // vaultRuntime.js on the first unlock edge.
   'vaultRuntimeMigration.js',
   'vaultPolicy.js',
+  'vaultExecHost.js',
   'planSnapshot.js',
   'questionNotes.js',
   'approvalModes.js',

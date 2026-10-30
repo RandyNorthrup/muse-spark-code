@@ -1753,6 +1753,8 @@ deferred-aggregate and individual caps are unchanged.
 
 **`dist/vaultPolicy.js` budget rationale.** (RLF-M109, D216: the person vault policy's file half, loaded by the broker bindings at registration and by the vault runtime for `vault policy`; 7.0 KiB measured plus 15%, rounded up to the 25 KiB floor; shipped in the ACP package and the VSIX)
 
+**`dist/vaultExecHost.js` budget rationale.** (RLF-M109, D216: the headless registration/session and the feeder host port, loaded by the vault runtime binding on the first headless `--vault` open and by the exec entry for `vault_run`; 66.3 KiB measured plus 15%, rounded up to 80 KiB; shipped in the ACP package and the VSIX. Moving the session here also returned `dist/vaultRuntime.js` from 24.4 to 21.2 KiB)
+
 **`dist/resourceAdmission.js` budget rationale.** (M107 W: 1.8 KiB, shared process admission)
 
 **Resource controls/history budget rationale.** ≤ 25 KiB physical entries; ≤ 50 KiB each lazy closure; history CSS included (35.9/42.2 KiB closures); original deferred cap stays 50 KiB

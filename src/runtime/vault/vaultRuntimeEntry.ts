@@ -11,23 +11,17 @@ import type * as RuntimeMigrationModule from './vaultRuntimeMigrationEntry'
 import type { VaultBrokerBindings, VaultBrokerContext } from './vaultBrokerEntry'
 import { randomBytes } from 'node:crypto'
 import { Readable } from 'node:stream'
-import { UI_TEXT, VAULT_LIMITS, VAULT_RUNTIME_MIGRATION_BUNDLE_FILE } from '../../shared/constants'
+import {
+  UI_TEXT,
+  VAULT_LIMITS,
+  VAULT_EXEC_HOST_BUNDLE_FILE,
+  VAULT_RUNTIME_MIGRATION_BUNDLE_FILE,
+} from '../../shared/constants'
 import type { Logger } from '../../host/logger'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import type { CredentialMigrationController } from '../../host/vault/migrateCredentials'
 import { setUiText, uiLocale } from '../../shared/l10n/text'
-import {
-  vaultRequesterSchema,
-  type VaultRequester,
-  type VaultTaint,
-  type VaultUse,
-} from '../../shared/vault'
-import {
-  vaultAuthorizationResultSchema,
-  vaultBrokerEventSchema,
-  vaultStatusSchema,
-  type VaultBrokerEvent,
-} from '../../shared/vaultProtocol'
+import { vaultBrokerEventSchema, type VaultBrokerEvent } from '../../shared/vaultProtocol'
 import { encodeVaultMaterial } from '../../core/vault/crypto'
 import {
   isCancelled,
@@ -36,12 +30,7 @@ import {
 } from '../../core/vault/broker/manageClient'
 import { VaultBrokerProcess } from '../../host/vault/brokerProcess'
 import { vaultClientPlatform } from './clientPlatform'
-import {
-  HeadlessVaultSession,
-  type ExecVaultContext,
-  type ExecVaultSession,
-  type HeadlessBrokerPort,
-} from './execVault'
+import type * as VaultExecHostModule from './vaultExecHostEntry'
 import type { WindowsBrokerPlatform } from './windowsHost'
 import type { VaultCommandPort } from './vaultCommand'
 import type { RuntimeVaultBinding, RuntimeVaultContext } from './vaultRuntime'
@@ -156,83 +145,6 @@ export function vaultCommandPort(
       await onUnlocked?.()
     },
     close: () => Promise.resolve(),
-  }
-}
-
-/** Headless `--vault`: one requester connection, registered as unattended and headless. */
-export async function openHeadlessVault(
-  connect: VaultConnect,
-  context: ExecVaultContext,
-  hostId: string,
-  processId: number,
-): Promise<ExecVaultSession> {
-  const client = await connect()
-  // Cancellation during any later await closes this connection at once (RVCM1091A2 P3).
-  const abort = () => {
-    client.close()
-  }
-  context.signal.addEventListener('abort', abort, { once: true })
-  try {
-    // Cancelled while connecting: the late connection is closed, never registered (F8).
-    if (context.signal.aborted) throw new Error(UI_TEXT.vault.noAccess)
-    const requester: VaultRequester = vaultRequesterSchema.parse({
-      id: newId(),
-      hostId,
-      conversationId: context.sessionId,
-      taskId: null,
-      role: { kind: 'headless' },
-      workspaceId: context.cwd,
-      deviceId: null,
-      peerProcessId: processId,
-      sessionId: null,
-      unattended: true,
-      source: 'headless',
-    })
-    const registered = await client.send({ kind: 'registerRequester', requester })
-    // Re-checked after the await: a run cancelled meanwhile gets no session.
-    if (isCancelled(context.signal) || registered.kind !== 'ok')
-      throw new Error(UI_TEXT.vault.noAccess)
-    const port: HeadlessBrokerPort = {
-      clock: { now: Date.now },
-      status: async () => {
-        const response = await client.send({ kind: 'status' })
-        if (response.kind !== 'status') throw new Error(UI_TEXT.vault.noAccess)
-        return vaultStatusSchema.parse(response.status)
-      },
-      list: async () => {
-        const response = await client.send({ kind: 'list' })
-        if (response.kind !== 'items') throw new Error(UI_TEXT.vault.noAccess)
-        return response.items
-      },
-      request: async (_requester, handle: string, use: VaultUse, taint: VaultTaint) =>
-        vaultAuthorizationResultSchema.parse(
-          await client.send({ kind: 'requestUse', proposal: { handle, use, taint } }),
-        ),
-      reportProvenance: async (taint: VaultTaint) => {
-        const reply = await client.send({ kind: 'reportProvenance', taint })
-        return reply.kind === 'ok'
-      },
-      delegate: async (
-        ticketId: string,
-        feeder: { processId: number; startedAt: number },
-        envelopeDigest: string,
-      ) => {
-        const reply = await client.send({ kind: 'delegate', ticketId, feeder, envelopeDigest })
-        return reply.kind === 'ok'
-      },
-      // Headless never answers a card: there is no person to ask (D89.10).
-      answer: () => Promise.resolve({ kind: 'denied', reason: 'unattended' }),
-      lock: () => Promise.reject(new Error(UI_TEXT.vault.noAccess)),
-    }
-    return new HeadlessVaultSession(requester, port, context, () => {
-      client.close()
-      return Promise.resolve()
-    })
-  } catch (error: unknown) {
-    client.close()
-    throw error
-  } finally {
-    context.signal.removeEventListener('abort', abort)
   }
 }
 
@@ -380,12 +292,33 @@ export async function createRuntimeVault(
       context.log,
     )
   })
+  // D216: the headless exec stack is its own lazy chunk
+  // (dist/vaultExecHost.js); the same-build sibling contract is
+  // validated before use (PLAN §8).
+  let execHostModule: typeof VaultExecHostModule | undefined
+  const loadVaultExecHost = (): typeof VaultExecHostModule => {
+    if (execHostModule === undefined) {
+      const loaded = createRequire(__filename)(
+        path.join(__dirname, VAULT_EXEC_HOST_BUNDLE_FILE),
+      ) as typeof VaultExecHostModule
+      if (typeof loaded.openHeadlessVault !== 'function' || typeof loaded.setUiText !== 'function')
+        throw new TypeError(UI_TEXT.vault.brokerBlocked)
+      loaded.setUiText(UI_TEXT, uiLocale())
+      execHostModule = loaded
+    }
+    return execHostModule
+  }
   return {
     commands: () => Promise.resolve(vaultCommandPort(session, ensureMigrated)),
     exec: {
       dataDir: context.dataDir,
       open: async (execContext) =>
-        await openHeadlessVault(connect, execContext, hostId, context.processId),
+        await loadVaultExecHost().openHeadlessVault(
+          connect,
+          execContext,
+          hostId,
+          context.processId,
+        ),
     },
     ensureMigrated,
   }
