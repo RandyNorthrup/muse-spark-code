@@ -120,16 +120,25 @@ through the real billing route and transport is byte-identical except
   `check:reference`, `check:host-api` (0, record regenerated),
   `check:roadmap` (after §10/record updates): green.
 - `npm run build`: this lane's chunk 3.3 KiB JS + 0.8 KiB CSS
-  (budget 25 each). The lane's shared growth flips 12 budgets;
-  each moves per the D6 measured+15% rule with its reason in
-  `scripts/check-bundle-size.mjs`. Nine bundles already over at the
-  base (`modelApi`, `modelsPanel`, `reportInputs`,
-  `reportingPanel`, `resourceGovernor`, `resourceAdmission`,
-  `estimateContracts`, `vaultActions`, `wire`) stay untouched and
-  red; `check:catches` is red at the base across core/host/runtime
-  (baseline predates the RLM108 merge) and this lane adds no new
-  SWALLOW/GENERIC site of its own (its catches classify
-  NARROW/REPORTED).
+  (budget 25 each, holding). The recovery rule forbids raising a
+  budget, so the lane reports instead of re-baselining: 12 budgets
+  flip on this branch from its shared growth (connectorStoreGuard
+  18.0/18, estimator 80.1/80, reviewer 75.1/75, runtimeQuestions
+  25.4/25, teamEngine 101.7/100, teamFileIo 11.5/10, teamMerge
+  12.1/12, teamWorkerOps 19.6/17, usageService 102.7/100,
+  vaultBrokerBindings 39.6/37.24, vaultPosix 26.6/25, vaultRuntime
+  25.9/25 KiB), and 9 were already over at the merge base
+  (`modelApi` 546.5/525, `modelsPanel` 154.8/150, `reportInputs`
+  104.2/101, `reportingPanel` 53.3/50, `resourceGovernor`
+  126.9/125, `resourceAdmission` 28.1/25, `estimateContracts`
+  28.0/25, `vaultActions` 28.0/25, `wire` 79.0/75 KiB). Only the
+  two entries the lane's own chunk requires were added; every
+  other budget file line is untouched. The lead re-baselines once
+  at integration. `check:catches` is likewise red at the base
+  across core/host/runtime (baseline predates the RLM108 merge);
+  this lane adds no new SWALLOW/GENERIC site of its own (its
+  catches classify NARROW/REPORTED) and does not touch the
+  baseline.
 
 ### Could not run here (brief §Proof)
 

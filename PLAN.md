@@ -29838,13 +29838,14 @@ developer owner in the shared machine folder; the palette entry; the
 Developer options page as its own 25 KiB-capped chunk with the
 seven-click version unlock; the status-bar and header **Developer
 Mode** badge; expiry with notice; Reset; the audit file; `/help`
-rows; the cross-profile wire golden. The setting's isolated-profile
+rows; the cross-profile wire golden. Red/green drills throughout;
+twelve budgets flip from the lane's shared growth and are reported
+with measurements, never raised (recovery rule); base-red gates
+(nine budgets, catches, one `judge` help assertion) stay reported,
+not retouched. The setting's isolated-profile
 _effect_ stays held for M109's broker (C-M108-7/C-M126-INT):
 `runtime.start`/`pool.register` refuse honestly until it binds, so no
-profile runs or registers silently. Red/green drills throughout; the
-twelve budgets this lane's shared growth flips move per D6; base-red
-gates (nine budgets, catches, one `judge` help assertion) stay
-reported, not retouched. Record:
+profile runs or registers silently. Record:
 `docs/certification/rlf-m108.md`. Still waiting: Q-M108 captures,
 RLF-DEVICES live transport, M95 foreign joins, D93 audit display.
 
