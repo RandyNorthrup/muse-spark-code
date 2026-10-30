@@ -6275,10 +6275,10 @@ export const SCHEDULE_FENCE_GRACE_MS = 8 * MILLISECONDS_PER_DAY
 // with capped exponential backoff — wait = min(cap, base * 2^failures)
 // (AWS Architecture Blog, "Exponential Backoff And Jitter") — at most 5
 // fire attempts including the first (gRPC's MaxRetryAttempts default),
-// then stops and says why. The schedules settings carry no retry knobs,
-// so no setting tunes this.
+// then stops and says why. The base is one poll interval: a wait shorter
+// than the scan period could never fire sooner. The schedules settings
+// carry no retry knobs, so no setting tunes this.
 export const SCHEDULE_DEFERRED_EVENT_MAX_ATTEMPTS = 5
-export const SCHEDULE_DEFERRED_EVENT_RETRY_BASE_MS = SCHEDULE_POLL_INTERVAL_MS
 export const SCHEDULE_DEFERRED_EVENT_RETRY_CAP_MS = 8 * SCHEDULE_POLL_INTERVAL_MS
 export const SCHEDULE_AUDIT_MAX_PER_SCHEDULE = 100
 export const SCHEDULE_AUDIT_MAX_AGE_MS = 30 * MILLISECONDS_PER_DAY

@@ -5,6 +5,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
+import type { AgentHost } from '../../src/core/agent/agentBackend'
 import { MuseCodeBackendManager } from '../../src/host/backend/museCodeBackendManager'
 import {
   CONTRIBUTOR_MODEL_SUFFIX,
@@ -61,6 +62,21 @@ export function assertLiveContributorModel(modelId: string, offered: readonly st
       `refusing the live turn: the session offers no ${modelId} (offered: ${offered.join(', ') || 'none'}); start the agent with --allow-contributor-models so the contributor tier is listed`,
     )
   }
+}
+
+/**
+Resolves the run's model and refuses unless this host lists it. Every
+live Muse drill awaits this after `ensureHost` and before `startSession`,
+so a tap that cannot offer the contributor tier refuses before any prompt.
+*/
+export async function liveGuardedModelId(host: Pick<AgentHost, 'listModels'>): Promise<string> {
+  const modelId = liveContributorModelId()
+  const listed = await host.listModels()
+  assertLiveContributorModel(
+    modelId,
+    listed.map((model) => model.modelId),
+  )
+  return modelId
 }
 
 export function sleep(ms: number): Promise<void> {

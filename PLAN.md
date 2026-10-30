@@ -28693,6 +28693,18 @@ are therefore proven only by a real run with the person's GitHub sign-in,
 which has not been made; the CHANGELOG describes none of them. Record:
 `docs/certification/cc-int2.md`.
 
+**Status 2026-10-30 (recovery lane RLF-SAFEFIX): building.** Three
+safety fixes landed with real-code suites: a failed deferred schedule
+event retries
+with capped exponential backoff, at most 5 fire attempts, then stops and
+says why (English plus all 14 tables; rows written before the bound read
+as a first attempt); the scheduler close reconciles before its own abort
+instead of throwing on every close; a reporter quoting the watchdog's
+acknowledgement marker counts as answering while the bot's own post
+never does; every live Muse drill refuses before any prompt unless the
+run's model is contributor-tier and listed. Record:
+`docs/certification/rlf-safefix.md`.
+
 - **Goal.** A user, or an orchestrating agent within the user's limits,
   schedules any number of prompts to fire once, repeatedly, on a cron
   expression or on an event (a pull request merged, a milestone certified),
