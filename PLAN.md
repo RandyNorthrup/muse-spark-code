@@ -15513,7 +15513,13 @@ person-settable (setting, panel, CLI flag); 0 disables. During a wait
 the person sees "Retrying in Ns (attempt K of N)" with Stop, in the
 panel and through ACP; Stop, a non-transient error, or the last attempt
 ends it and shows the error with the Retry action (RLF-ACPTURNS). Full
-record: `docs/certification/rlf-autoretry.md`.
+record: `docs/certification/rlf-autoretry.md`. Lane scope, 2026-10-30: this
+lane ships the panel-controller resend and the per-backend settings
+(`museSpark.modelApiMaxRetries`, `museSpark.museCodeMaxRetries`). The
+ACP agent keeps RLF-ACPTURNS's client-side retry (`data.retryable`); a
+panel control and a headless flag for the maximum stay unbuilt (no
+setting in the product is set from the panel today, and `exec` does
+not retry). Open items with recommendations: the record above.
 
 ## 3. Open questions (need the owner)
 
@@ -16851,6 +16857,19 @@ MCP client probes `server/discover` and falls back to `initialize`, and
 carries the version on every request to a modern server, on stdio and
 streamable HTTP (D213). The connector stays legacy-only (D213). Record:
 `docs/certification/rlmcpera.md`.
+
+### RLFAUTORETRY — Automatic retry of a transiently failed request, the industry-standard way (D217)
+
+**Status 2026-10-30: built.** The Model API backend retries the failed
+model request inside the turn and the Muse Code backend resends a
+retryable failed turn in the same session, transient failures only,
+with industry backoff and full retry-after waits; every wait shows
+"Retrying in Ns (attempt K of N)" with Stop in the panel (Model API
+waits also through ACP), and the per-backend maxima are
+person-settable (`0` disables). Record:
+`docs/certification/rlf-autoretry.md`. The forwarding-proxy proof, an
+ACP-agent-internal resend, a panel control and a headless flag stay
+open for the lead (items in the record).
 
 ### TOOLROUNDS — Preserve answers at the model-call turn limit (D109)
 
@@ -36261,6 +36280,12 @@ need every open branch's PLAN.md diff and a merge of each onto the new
 file, and this rig holds 1,171 branches with no open/stale record, so a
 lane-side move risks modify/delete conflicts on work the lane cannot see.
 No threshold or rule is changed.
+
+**RLF-AUTORETRY plan-archive addition (2026-10-30, macmini).** This lane
+adds 1,515 bytes (§6 status, D217 scope note, this entry) to the same
+deferred overage: 3,774,016 bytes on its tree vs 3,772,501 on its base,
+both over the 3,565,158 tripwire. Same disposition as above: the archive
+stays with the lead at integration. No threshold or rule is changed.
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
   **CM1073 inherited integration-size hold (2026-10-11, Kubuntu).** The scoped
