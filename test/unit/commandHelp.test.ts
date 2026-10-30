@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
+import { helpTopicNamed, renderTopicHelp } from '../../src/runtime/cliHelp'
 import { CLI_OPTION_REGISTRY, formatCommandHelp } from '../../src/runtime/cliOptions'
 import { cliCommands } from '../../src/shared/cliCommands'
 import { EN } from '../../src/shared/l10n/en'
@@ -75,7 +76,18 @@ describe('deep command help', () => {
         const command = parseCommandLine([...argv, '--help'])
         // The home node answers its own --help through its dispatcher (A3),
         // like the vault's own screen and the reports command's own usage.
-        expect(['help', 'vaultHelp', 'node']).toContain(command.command)
+        // lsp, supervise and stop answer with their own help topic (M104
+        // lane H): the screen the command prints is checked here too.
+        expect(['help', 'helpTopic', 'vaultHelp', 'node']).toContain(command.command)
+        if (command.command === 'helpTopic') {
+          const topic = helpTopicNamed(command.topic)
+          if (topic === undefined) throw new Error(`${argv.join(' ')}: no help topic`)
+          const screen = renderTopicHelp(EN, 'muse-spark-code-acp', topic)
+          expect(screen, argv.join(' ')).toContain(`muse-spark-code-acp ${topic.name}`)
+          expect(screen, argv.join(' ')).not.toContain('museSpark.')
+          expect(screen.split('\n').length, argv.join(' ')).toBeGreaterThan(2)
+          continue
+        }
         if (command.command !== 'help') continue
         const help = formatCommandHelp(EN, 'muse-spark-code-acp', command.route ?? '')
         expect(help, argv.join(' ')).toContain('--help')
