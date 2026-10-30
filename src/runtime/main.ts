@@ -57,6 +57,7 @@ import {
   BOUNDED_FILE_READ_CHUNK_BYTES,
   SCHEDULE_STORE_SUBFOLDER,
   CONNECTOR_BUNDLE_FILE,
+  CONNECTOR_REMOTE_BUNDLE_FILE,
   USAGE_PAGE_OPEN_TIMEOUT_MS,
   CONNECTOR_FOLDER,
   CONNECTOR_STORE_GUARD_BUNDLE_FILE,
@@ -155,6 +156,7 @@ import { playbookSchedulesInputsLoader } from './reporting/playbookSchedulesInpu
 import type { createRuntimeReports } from './reporting/reportsEntry'
 import { runtimeSchedulesBinding, type RuntimeSchedulesBinding } from './schedules/binding'
 import { connectorLoader } from './connector/connectorBundle'
+import { connectorRemoteLoader } from './connector/remoteBundle'
 import { storageGuardLoader } from './connector/storageGuardBundle'
 import type { ScheduleWakeAuthorization } from './schedules/registration'
 import { runtimeScheduleSessionFactory } from './schedules/sessionFactory'
@@ -2593,44 +2595,49 @@ async function main(processResources: ProcessResources): Promise<number> {
         path.join(distDir, CONNECTOR_STORE_GUARD_BUNDLE_FILE),
         log,
       )().connectorStorageGuard(path.join(dataFolder, CONNECTOR_FOLDER))
+      // D217: the HTTPS words load the remote bundle; stdio keeps its own.
+      const firstWord = command.argv[0]
+      const run =
+        firstWord === 'serve-http' || firstWord === 'client'
+          ? connectorRemoteLoader(path.join(distDir, CONNECTOR_REMOTE_BUNDLE_FILE), log)()
+              .runConnectorRemote
+          : connectorLoader(path.join(distDir, CONNECTOR_BUNDLE_FILE), log)().runConnector
       try {
-        return await connectorLoader(path.join(distDir, CONNECTOR_BUNDLE_FILE), log)().runConnector(
-          {
-            argv: command.argv,
-            table: UI_TEXT,
-            locale: uiLocale(),
-            dataFolder,
-            homeDir: homedir(),
-            version: packageVersion(),
-            stdin: process.stdin,
-            stdout: process.stdout,
-            stderr: process.stderr,
-            isInteractive: process.stdin.isTTY,
-            registered: () => sharingCredentials.map((variable) => variable.value),
-            openBrowser: openUsageBrowser,
-            schedules: {
-              list: (root) => scheduleAnswer(root, { operation: 'list', isJson: true }),
-              pause: (root, id) => scheduleAnswer(root, { operation: 'pause', id, isJson: true }),
-            },
-            storageGuard,
-            reports: {
-              generate: async (root, kind, subjectId, signal) => {
-                // M113's own grammar: a positional subject, except playbook's --milestone.
-                let subject: string[] = []
-                if (subjectId !== undefined)
-                  subject = kind === 'playbook' ? ['--milestone', subjectId] : [subjectId]
-                const result = await reports().acp.execute([kind, ...subject].join(' '), {
-                  cwd: root,
-                  sessionId: 'connector',
-                  format: 'md',
-                  signal,
-                })
-                if (result.code !== 0) throw new Error(UI_TEXT.reportUi.generationFailed)
-                return result.text
-              },
+        return await run({
+          argv: command.argv,
+          table: UI_TEXT,
+          locale: uiLocale(),
+          dataFolder,
+          homeDir: homedir(),
+          version: packageVersion(),
+          stdin: process.stdin,
+          stdout: process.stdout,
+          stderr: process.stderr,
+          isInteractive: process.stdin.isTTY,
+          registered: () => sharingCredentials.map((variable) => variable.value),
+          openBrowser: openUsageBrowser,
+          schedules: {
+            list: (root) => scheduleAnswer(root, { operation: 'list', isJson: true }),
+            pause: (root, id) => scheduleAnswer(root, { operation: 'pause', id, isJson: true }),
+          },
+          storageGuard,
+          reports: {
+            generate: async (root, kind, subjectId, signal) => {
+              // M113's own grammar: a positional subject, except playbook's --milestone.
+              let subject: string[] = []
+              if (subjectId !== undefined)
+                subject = kind === 'playbook' ? ['--milestone', subjectId] : [subjectId]
+              const result = await reports().acp.execute([kind, ...subject].join(' '), {
+                cwd: root,
+                sessionId: 'connector',
+                format: 'md',
+                signal,
+              })
+              if (result.code !== 0) throw new Error(UI_TEXT.reportUi.generationFailed)
+              return result.text
             },
           },
-        )
+        })
       } finally {
         await schedules?.close()
       }

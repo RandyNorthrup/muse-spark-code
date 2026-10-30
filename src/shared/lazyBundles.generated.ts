@@ -197,6 +197,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'connectorRemote.js',
+    side: 'acp',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'CONNECTOR_REMOTE_BUNDLE_FILE',
+        side: ['acp'],
+      },
+    ],
+  },
+  {
     file: 'connectorStoreGuard.js',
     side: 'acp',
     requestedBy: [

@@ -1,7 +1,8 @@
 import type { Server } from 'node:http'
+import type { Server as HttpsServer } from 'node:https'
 
 export async function listenHttpServer(
-  server: Server,
+  server: Server | HttpsServer,
   host: string,
   port: number,
   errorCode: string,
