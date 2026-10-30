@@ -15522,8 +15522,15 @@ the undo". The lead's call:
 
 The two questions never entered §3 (they lived in the M109 status
 line and `docs/certification/rlm109.md`); this decision resolves
-them, and the M109 status line records it. Full record:
-`docs/certification/rlf-vaultundo.md`.
+them, and the M109 status line records it. An undo killed between
+its steps resumes at the next unlock (RVCRED, 2026-10-30): the
+journal marks the restore pending before the legacy write and
+written only after that write reads back the same bytes. A newer
+legacy value is never overwritten. A copy removed after the write
+was saved is not written again. A retired ChatGPT sign-in stays
+listed after its legacy copy is gone, because the journal row is
+what names it. Full record: `docs/certification/rlf-vaultundo.md`,
+and the review record `docs/certification/rvcred.md`.
 
 ## 3. Open questions (need the owner)
 
@@ -16839,6 +16846,10 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### RVCRED — Review of retired-vault undo, secret-gist publish, and the macOS credential file (2026-10-30)
+
+**Status 2026-10-30: vault undo crash window closed in the engine; the broker drill did not run on this rig.** The session keyring refuses a write with "User interaction is not allowed" (the same abort the RLF-VAULTUNDO record names), so neither the existing retired-undo case nor the new killed-undo case ran here. Both stay with hosted CI. The engine journals an undo as pending before the legacy write and written only after that write reads back; a newer value is not overwritten, and a copy removed after the write was saved is not written again. A retired ChatGPT sign-in stays in the credential set when its journal row is in the vault. Record: `docs/certification/rvcred.md` (written when the other two branches' commits exist).
 
 ### RLWINFIX — Windows defects found by using 0.19.0 for real (2026-10-22)
 
@@ -30758,6 +30769,8 @@ keyring aborts, and the governed launch pins the real user session), so
 everything else...` in both broker suites are for hosted CI. The terminal
 `vault undo` is not built (see D217). Receipts:
 `docs/certification/rlf-vaultundo.md`. M109 stays open.
+
+**RVCRED (2026-10-30, macmini): the retired-undo crash window is closed in the engine.** A killed undo now resumes from a journal mark (pending before the legacy write, written only after that write reads back). A newer legacy value is not overwritten, and a copy removed after the write was saved is not written again. A retired ChatGPT sign-in stays listed from its journal row. Not run here: the broker cases, including the new killed-undo case in both broker suites. This session's keyring still aborts with "User interaction is not allowed", the same limit the 2026-10-24 record names. Hosted CI owns that proof. No changelog line until that run exists.
 
 **C-M109-1 lead decisions (2026-10-10, lead decision).** In 0.17.0, every
 vault use is refused. The binding layer was never built: the broker process,

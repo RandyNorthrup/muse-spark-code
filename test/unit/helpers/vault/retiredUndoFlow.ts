@@ -5,8 +5,12 @@
 // native store; nothing here substitutes for one. Seeds are installed-shape
 // records with generated test-only values, never issued or sent, and the
 // legacy slot is always cleaned up.
-import { writeFile } from 'node:fs/promises'
+import { spawn, type ChildProcess } from 'node:child_process'
+import { once } from 'node:events'
+import { mkdir, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
+import { build } from 'esbuild'
 import { expect } from 'vitest'
 import type { VaultBrokerClient } from '../../../../src/core/vault/broker/client'
 import { chatgptSubscriptionMigrationCredential } from '../../../../src/core/vault/migrate/chatgptSubscription'
@@ -18,7 +22,9 @@ import {
   assertSignedOut,
   confirmBrokerSetup,
   installedChatGptRecord,
+  migrationKeyringService,
   openRetireFlow,
+  uniqueKeyringStore,
 } from './subscriptionMigrationFlow'
 
 const ORIGIN = 'https://api.openai.com'
@@ -208,6 +214,185 @@ export async function driveResetCase(deps: {
     expect(logged.filter((line) => line.startsWith('warn:') || line.startsWith('error:'))).toEqual(
       [],
     )
+  } finally {
+    await secrets.delete(codec.key)
+  }
+}
+
+/** One bundled child, rebuilt into the worktree's gitignored temp. */
+async function undoCrashBundle(): Promise<string> {
+  const directory = path.resolve('temp/undo-crash')
+  await mkdir(directory, { recursive: true })
+  const file = path.join(directory, 'child.cjs')
+  await build({
+    entryPoints: ['test/unit/helpers/vault/undoCrashChild.ts'],
+    outfile: file,
+    bundle: true,
+    platform: 'node',
+    format: 'cjs',
+    external: ['@napi-rs/keyring'],
+  })
+  return file
+}
+
+function isMissingFile(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT'
+}
+
+/** The child reached its hang, or it ended / the deadline passed. */
+async function waitForCrashPoint(file: string, child: ChildProcess): Promise<void> {
+  // One undo against an already-open broker. The suite's flow deadline
+  // covers this wait; the product has no timeout of its own here.
+  const deadline = Date.now() + 90_000
+  for (;;) {
+    try {
+      await stat(file)
+      return
+    } catch (error: unknown) {
+      if (!isMissingFile(error)) throw error
+    }
+    if (child.exitCode !== null || child.signalCode !== null)
+      throw new Error('the undo child ended before the crash point')
+    if (Date.now() >= deadline) throw new Error('the undo child did not reach the crash point')
+    await delay(50)
+  }
+}
+
+/**
+Run a real undo in a child connected to this broker and SIGKILL it after
+the named durable step. `legacy` is after the native store write and
+before that write is marked observed. `written` is after the mark and
+before the slot returns to active. `pending` is after the intent is
+journaled and before the native store write.
+*/
+async function killUndoAt(deps: {
+  bundle: string
+  dataDir: string
+  installRoot: string
+  service: string
+  lockScope: string
+  stop: 'legacy' | 'written' | 'pending'
+}): Promise<void> {
+  const sentinel = path.join(deps.dataDir, `undo-stop-${deps.stop}`)
+  await rm(sentinel, { force: true })
+  const child = spawn(
+    process.execPath,
+    [
+      deps.bundle,
+      deps.dataDir,
+      deps.installRoot,
+      deps.service,
+      deps.lockScope,
+      deps.stop,
+      sentinel,
+    ],
+    { cwd: process.cwd(), env: process.env, stdio: ['ignore', 'pipe', 'pipe'] },
+  )
+  child.stdout.resume()
+  child.stderr.resume()
+  const exited = once(child, 'exit')
+  try {
+    await waitForCrashPoint(sentinel, child)
+  } finally {
+    if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
+  }
+  const [, signal] = await exited
+  expect(signal).toBe('SIGKILL')
+}
+
+/**
+A retired undo killed between its steps, on the real broker and a uniquely
+named native store. The next unlock finishes a restore whose legacy write
+landed, does not put a secret back after that write was saved and the
+person then removed it, and a delete of the slot removes a restore that
+had not written yet. Assertions are booleans.
+*/
+export async function driveUndoCrashCase(deps: {
+  connect: () => Promise<VaultBrokerClient>
+  lockScope: string
+  fresh: boolean
+  dataDir: string
+  installRoot: string
+}): Promise<void> {
+  const service = migrationKeyringService()
+  const secrets = uniqueKeyringStore(deps.lockScope, service)
+  const { session, reader, logged, release, controller, shell } = await openRetireFlow({
+    connect: deps.connect,
+    lockScope: deps.lockScope,
+    fresh: deps.fresh,
+    secrets,
+  })
+  const codec = chatgptSubscriptionMigrationCredential(Date.now)
+  const bundle = await undoCrashBundle()
+  const signedIn = JSON.stringify(installedChatGptRecord())
+  const migrated = (isLegacyPresent: boolean) =>
+    assertMigratedSlot({
+      reader,
+      session,
+      codec,
+      secrets,
+      shell,
+      origin: ORIGIN,
+      expected: signedIn,
+      isLegacyPresent,
+    })
+  const retiredKeys = async () => {
+    const entries = await controller.listRetired()
+    return entries.map((entry) => entry.key)
+  }
+  const crash = (stop: 'legacy' | 'written' | 'pending') =>
+    killUndoAt({
+      bundle,
+      dataDir: deps.dataDir,
+      installRoot: deps.installRoot,
+      service,
+      lockScope: deps.lockScope,
+      stop,
+    })
+  const warnings = () =>
+    logged.filter((line) => line.startsWith('warn:') || line.startsWith('error:'))
+  try {
+    await secrets.store(codec.key, signedIn)
+    await controller.ensureMigrated()
+    release.current = RETIRING_RELEASE
+    await controller.ensureMigrated()
+    await migrated(false)
+    expect(await retiredKeys()).toEqual([codec.key])
+
+    // The legacy write has landed and the journal still says retired.
+    await crash('legacy')
+    expect(await retiredKeys()).toEqual([codec.key])
+    expect((await secrets.get(codec.key)) === signedIn).toBe(true)
+    await controller.ensureMigrated()
+    expect(await retiredKeys()).toEqual([])
+    expect((await secrets.get(codec.key)) === signedIn).toBe(true)
+    await migrated(true)
+
+    // Retire once more. Kill after the restore is marked observed, then
+    // remove that copy. The next unlock must leave it removed.
+    await shell.store.delete(codec.key)
+    await secrets.store(codec.key, signedIn)
+    release.current = RETIRING_RELEASE
+    await controller.ensureMigrated()
+    release.current = RETIRING_RELEASE + 2
+    await controller.ensureMigrated()
+    await migrated(false)
+    await crash('written')
+    expect((await secrets.get(codec.key)) === signedIn).toBe(true)
+    await secrets.delete(codec.key)
+    await controller.ensureMigrated()
+    expect((await secrets.get(codec.key)) === undefined).toBe(true)
+    expect(await retiredKeys()).toEqual([codec.key])
+
+    // Kill before any legacy write, then delete the slot. Nothing comes back.
+    await crash('pending')
+    expect((await secrets.get(codec.key)) === undefined).toBe(true)
+    expect(await retiredKeys()).toEqual([codec.key])
+    await shell.store.delete(codec.key)
+    await controller.ensureMigrated()
+    expect(await retiredKeys()).toEqual([])
+    expect((await secrets.get(codec.key)) === undefined).toBe(true)
+    expect(warnings()).toEqual([])
   } finally {
     await secrets.delete(codec.key)
   }

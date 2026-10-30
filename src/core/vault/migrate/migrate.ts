@@ -203,11 +203,19 @@ export class VaultMigration {
       eraseItem(item)
     }
   }
-  private async verifyLegacy(
+  /**
+  How the legacy copy compares with the vault copy this row journals.
+  `absent` is a missing copy (a finished retire, or a delete that landed
+  before a journal commit). `same` is the vault bytes. `conflict` is
+  different bytes, which a later write must not overwrite. A vault copy
+  that fails its digest still throws `verification`; a legacy copy that
+  does not decode still throws the codec's fault.
+  */
+  private async legacyRelation(
     entry: MigrationCredential,
     row: MigrationRecord,
     lease: MigrationLease,
-  ): Promise<void> {
+  ): Promise<'absent' | 'same' | 'conflict'> {
     let item: VaultItem | undefined
     let legacyItem: VaultItem | undefined
     let source: Uint8Array | null = null
@@ -220,13 +228,12 @@ export class VaultMigration {
       if (itemDigest(item) !== row.digest) throw new VaultMigrationFault('verification')
       source = await this.deps.legacy.read(entry.key)
       lease.assertCurrent()
-      // A previously completed delete may precede a crashed journal commit.
-      if (source === null) return
+      if (source === null) return 'absent'
       legacyItem = entry.decode(source)
       validateMigrationItem(legacyItem, entry.itemId)
       current = entry.encode(item)
       old = entry.encode(legacyItem)
-      if (!areSameBytes(current, old)) throw new VaultMigrationFault('conflict')
+      return areSameBytes(current, old) ? 'same' : 'conflict'
     } finally {
       old?.fill(0)
       current?.fill(0)
@@ -234,6 +241,16 @@ export class VaultMigration {
       eraseItem(legacyItem)
       eraseItem(item)
     }
+  }
+  private async verifyLegacy(
+    entry: MigrationCredential,
+    row: MigrationRecord,
+    lease: MigrationLease,
+  ): Promise<void> {
+    // A previously completed delete may precede a crashed journal commit,
+    // so an absent copy is not a conflict. Different bytes are.
+    if ((await this.legacyRelation(entry, row, lease)) === 'conflict')
+      throw new VaultMigrationFault('conflict')
   }
   /**
   Whether the legacy copy is absent while the slot still retains it. Only
@@ -256,6 +273,7 @@ export class VaultMigration {
   ): Promise<void> {
     const base = { ...row }
     delete base.retireIntent
+    delete base.undoIntent
     if (await this.legacyAbsent(entry, lease)) {
       await this.verified(row, lease)
       base.retireNote = RETIRE_RESUMED_WITHOUT_COPY_NOTE
@@ -469,6 +487,7 @@ export class VaultMigration {
     delete base.previous
     delete base.retireIntent
     delete base.retireNote
+    delete base.undoIntent
     await this.save({ ...base, phase: 'deleted', digest: null }, lease)
   }
   private async finishInterruptedDelete(
@@ -502,6 +521,75 @@ export class VaultMigration {
     } finally {
       live?.fill(0)
     }
+  }
+  /**
+  Drop an undo mark without leaving `retired`. A refusal has already
+  decided not to write; clearing the mark stops the next unlock from
+  retrying that decision.
+  */
+  private async clearUndoIntent(row: MigrationRecord, lease: MigrationLease): Promise<void> {
+    if (row.undoIntent === undefined) return
+    const base = { ...row }
+    delete base.undoIntent
+    await this.save(base, lease)
+  }
+  /**
+  Finish a retired undo, including one whose legacy write landed and whose
+  process then died. The mark is `pending` before the legacy write and
+  `written` only after that write has been read back. A different legacy
+  copy is never overwritten. `written` with the copy now gone means the
+  person removed it after the restore was saved, and it is not written
+  again. `pending` with the copy gone means the write itself never became
+  visible, so the restore finishes. The active row, with the retain window
+  restarted, is committed only when the copy then reads back the same.
+  One residual remains: a kill in the gap after the bytes land and before
+  the `written` mark, if the copy is also gone before resume reads it,
+  looks like `pending` with nothing there and the restore runs again.
+  */
+  private async finishUndo(
+    entry: MigrationCredential,
+    row: MigrationRecord,
+    lease: MigrationLease,
+  ): Promise<void> {
+    if (row.phase !== 'retired') throw new VaultMigrationFault('window')
+    let current = row
+    const seen = await this.legacyRelation(entry, current, lease)
+    if (seen === 'conflict' || (seen === 'absent' && current.undoIntent === 'written')) {
+      await this.clearUndoIntent(current, lease)
+      throw new VaultMigrationFault('conflict')
+    }
+    if (current.undoIntent !== 'written') {
+      if (current.undoIntent !== 'pending') {
+        current = { ...current, undoIntent: 'pending' }
+        await this.save(current, lease)
+      }
+      // Read again immediately before the write. The migration lock is
+      // in-process; SecretStorage has no compare-and-swap, so this is the
+      // same re-check `store` uses, not a cross-process claim. A conflict
+      // already returned above, so what remains is absent or the same bytes.
+      const again = await this.legacyRelation(entry, current, lease)
+      if (again === 'conflict') {
+        await this.clearUndoIntent(current, lease)
+        throw new VaultMigrationFault('conflict')
+      }
+      await this.mirror(entry, current, lease)
+      current = { ...current, undoIntent: 'written' }
+      await this.save(current, lease)
+    }
+    const after = await this.legacyRelation(entry, current, lease)
+    if (after !== 'same') {
+      await this.clearUndoIntent(current, lease)
+      throw new VaultMigrationFault('conflict')
+    }
+    const base = { ...current }
+    delete base.undoIntent
+    delete base.retireIntent
+    delete base.retireNote
+    delete base.retirementNoticePending
+    await this.save(
+      { ...base, retainLegacy: true, phase: 'active', startedRelease: this.currentRelease() },
+      lease,
+    )
   }
   /** The journal's phase for a key, or null before its first copy. */
   async journalPhase(key: string): Promise<MigrationRecord['phase'] | null> {
@@ -692,16 +780,7 @@ export class VaultMigration {
     await this.run(async (lease) => {
       const row = await this.record(entry, lease)
       if (row?.phase !== 'retired') throw new VaultMigrationFault('window')
-      await this.verifyLegacy(entry, row, lease)
-      await this.mirror(entry, row, lease)
-      const base = { ...row }
-      delete base.retireIntent
-      delete base.retireNote
-      delete base.retirementNoticePending
-      await this.save(
-        { ...base, retainLegacy: true, phase: 'active', startedRelease: this.currentRelease() },
-        lease,
-      )
+      await this.finishUndo(entry, row, lease)
     })
   }
   async retire(key: string): Promise<boolean> {
@@ -780,7 +859,9 @@ export class VaultMigration {
         )
           throw new VaultMigrationFault('conflict')
       }
-      await this.save({ ...row, previous: undefined, phase: 'deleting' }, lease)
+      const deleting = { ...row, previous: undefined, phase: 'deleting' as const }
+      delete deleting.undoIntent
+      await this.save(deleting, lease)
       lease.assertCurrent()
       await this.deps.vault.remove(entry.itemId, () => {
         lease.assertCurrent()
@@ -795,6 +876,7 @@ export class VaultMigration {
       delete base.previous
       delete base.retireIntent
       delete base.retireNote
+      delete base.undoIntent
       await this.save({ ...base, phase: 'deleted', digest: null }, lease)
     })
   }
@@ -824,6 +906,23 @@ export class VaultMigration {
         const row = await this.record(entry, lease)
         if (row?.phase !== 'active' || row.retireIntent !== true) return
         await this.finishOneIntent(entry, row, lease)
+      })
+      return
+    }
+    // An undo killed after its legacy write is still `retired`, with the
+    // mark saying how far the write got. Finishing it here is what the
+    // next unlock does. A conflict was already refused and the mark
+    // cleared inside `finishUndo`; startup must not warn or retry it.
+    if (phase === 'retired') {
+      await this.run(async (lease) => {
+        const row = await this.record(entry, lease)
+        if (row?.phase !== 'retired' || row.undoIntent === undefined) return
+        try {
+          await this.finishUndo(entry, row, lease)
+        } catch (error: unknown) {
+          if (error instanceof VaultMigrationFault && error.code === 'conflict') return
+          throw error
+        }
       })
       return
     }

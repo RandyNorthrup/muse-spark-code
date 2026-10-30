@@ -15,7 +15,11 @@ import { secretStorageAccountVault } from '../../../src/host/providers/accountSe
 import { vaultBrokerDataDir } from '../../../src/runtime/vault/vaultStoreScope'
 import { UI_TEXT } from '../../../src/shared/constants'
 import { recordingLogger } from '../helpers/recordingLogger'
-import { driveResetCase, driveUndoRetiredCase } from '../helpers/vault/retiredUndoFlow'
+import {
+  driveResetCase,
+  driveUndoCrashCase,
+  driveUndoRetiredCase,
+} from '../helpers/vault/retiredUndoFlow'
 import {
   assertMigratedSlot,
   chatgptSeeds,
@@ -235,6 +239,22 @@ describe.skipIf(process.platform !== 'win32')(
           fresh: false,
         })
       },
+      FLOW_TIMEOUT_MS,
+    )
+
+    it(
+      'finishes a retired undo that was killed between its steps',
+      async () => {
+        const current = currentFixture()
+        await driveUndoCrashCase({
+          connect: current.connect,
+          lockScope: current.hostId,
+          fresh: false,
+          dataDir: current.dataDir,
+          installRoot: current.root,
+        })
+      },
+      // Broker, native store and a killed child: the suite's own flow deadline.
       FLOW_TIMEOUT_MS,
     )
 

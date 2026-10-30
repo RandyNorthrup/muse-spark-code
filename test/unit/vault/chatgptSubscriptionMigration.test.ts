@@ -14,7 +14,11 @@ import { accountSecretMigrationCredential } from '../../../src/core/vault/migrat
 import { chatgptSubscriptionMigrationCredential } from '../../../src/core/vault/migrate/chatgptSubscription'
 import { vaultPeerExecutable } from '../../../src/runtime/vault/posixNative'
 import { vaultBrokerDataDir } from '../../../src/runtime/vault/vaultStoreScope'
-import { driveResetCase, driveUndoRetiredCase } from '../helpers/vault/retiredUndoFlow'
+import {
+  driveResetCase,
+  driveUndoCrashCase,
+  driveUndoRetiredCase,
+} from '../helpers/vault/retiredUndoFlow'
 import { shouldSkipPosixBrokerSuite } from '../helpers/vault/socketFit'
 import {
   chatgptSeeds,
@@ -145,6 +149,23 @@ describe.skipIf(shouldSkipPosixBrokerSuite())(
           }),
         )
       },
+      FLOW_TIMEOUT_MS,
+    )
+
+    it(
+      'finishes a retired undo that was killed between its steps',
+      async () => {
+        await withClient('undo-crash', (client, root) =>
+          driveUndoCrashCase({
+            connect: client.connect,
+            lockScope: client.hostId,
+            fresh: true,
+            dataDir: client.dataDir,
+            installRoot: root,
+          }),
+        )
+      },
+      // Broker, native store and a killed child: the suite's own flow deadline.
       FLOW_TIMEOUT_MS,
     )
 
