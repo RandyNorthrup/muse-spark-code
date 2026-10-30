@@ -240,6 +240,9 @@ export const ACCOUNT_REQUEST_CERTIFICATION = { isComplete: true }
 export const ACCOUNT_HEADROOM_ZERO = 0n
 export const ACCOUNT_HEADROOM_ONE = 1n
 export const ACCOUNT_HEADROOM_SCALE = 1_000_000
+// M108 D: the offer bucket reads ample at this fraction of room left (a
+// routing preference only; the person's own caps live in the thresholds).
+export const ACCOUNT_HEADROOM_AMPLE_DIVISOR = 2n
 export const ACCOUNT_REQUEST_STORE = {
   directory: 'account-requests',
   // Covers current local month/week, including UTC bucket boundaries.

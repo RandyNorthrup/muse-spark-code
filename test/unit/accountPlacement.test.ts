@@ -30,7 +30,8 @@ import {
   runtimeProvidersFile,
 } from '../../src/runtime/providers/providersFileStore'
 import { FileRemoteLimitStore } from '../../src/runtime/providers/accountRemoteLimits'
-import { MODEL_API_BASE_URL, UI_TEXT } from '../../src/shared/constants'
+import { accountHeadroomBucket } from '../../src/core/accounts/headroomBucket'
+import { ACCOUNT_HEADROOM_SCALE, MODEL_API_BASE_URL, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import type { Account } from '../../src/shared/accounts'
 
@@ -368,6 +369,20 @@ describe('M108 D account placement', () => {
     if (missing === undefined) throw new Error('the missing place command did not parse')
     expect(await runAccountsCommand(missing, harness.commands)).toBe(1)
     expect(harness.errors).toEqual([UI_TEXT.accounts.invalidAccount])
+  })
+})
+
+describe('M108 D offer headroom buckets', () => {
+  it('maps journal capacity to the advertised bucket', () => {
+    const scale = BigInt(ACCOUNT_HEADROOM_SCALE)
+    expect(accountHeadroomBucket(scale, false)).toBe('ample')
+    expect(accountHeadroomBucket(scale / 2n, false)).toBe('ample')
+    expect(accountHeadroomBucket(scale / 2n - 1n, false)).toBe('some')
+    expect(accountHeadroomBucket(1n, false)).toBe('some')
+    expect(accountHeadroomBucket(0n, false)).toBe('none')
+    expect(accountHeadroomBucket(-1n, false)).toBe('none')
+    // A blocked account offers nothing, however much room its meters show.
+    expect(accountHeadroomBucket(scale, true)).toBe('none')
   })
 })
 
