@@ -114,7 +114,15 @@ lane's HEAD):
   policy (`evaluateVaultPolicy`, `src/core/vault/broker/policy.ts:148`),
   the channel's `taint` rejects before any request is evaluated
   (`src/core/vault/broker/channel.ts:221`), and `perform` rejects
-  after redemption (`channel.ts:280`).
+  after redemption (`channel.ts:280`). None has a recorded owner
+  design to build against: the channel ignores the proposal's taint
+  and asks its own dep (`channel.ts:223-232`), no wire route reports
+  session provenance to the broker process, and `VaultTaintSession`
+  (`src/core/vault/taint.ts`) is constructed nowhere; no record maps
+  a requester to a ceiling; and the channel awaits `perform` on the
+  requester's socket before it answers a redemption
+  (`channel.ts:289-291`), with no private material frame kinds for
+  redemption and no finish message on the wire.
 - No feeder redemption transport is designed in the record: the
   feeder (`dist/vaultExec.js`, lane X) does not exist, and how a
   ticket becomes material in the feeder — feeder peer authentication
