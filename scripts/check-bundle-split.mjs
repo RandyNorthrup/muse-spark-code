@@ -1494,6 +1494,13 @@ const TEXT_BLOCKS = [
     readers: ['dist/team.js', 'dist/teamHost.js', 'dist/teamPanel.js', 'dist/teamEngine.js'],
   },
   {
+    block: 'TEAM_HANDOFF_MODEL_TEXT',
+    sentinels: ['handoffDataOpen'],
+    // RLF-TEAMCORE: the stall handoff's three strings, split from
+    // TEAM_MODEL_TEXT so the window scheduler's bundle carries only them.
+    readers: ['dist/teamWindow.js', 'dist/teamEngine.js'],
+  },
+  {
     block: 'TEAM_BOOTSTRAP_MODEL_TEXT',
     sentinels: ['undeclaredTool'],
     readers: ['dist/modelApiBoundaries.js'],

@@ -219,6 +219,13 @@ const TEAM_WORKER_OPS_ENTRY = 'src/core/team/workers/workerOpsEntry.ts'
 const TEAM_WORKER_OPS_OUTFILE = 'dist/teamWorkerOps.js'
 const TEAM_MERGE_ENTRY = 'src/core/team/teamMergeFlow.ts'
 const TEAM_MERGE_OUTFILE = 'dist/teamMerge.js'
+// RLF-TEAMCORE (M96c): the window-owned scheduler binding and the checked
+// landing load on their first team action, out of the scheduler-tools and
+// team-host bundles whose budgets they broke.
+const TEAM_WINDOW_ENTRY = 'src/core/team/scheduler/teamWindowEntry.ts'
+const TEAM_WINDOW_OUTFILE = 'dist/teamWindow.js'
+const TEAM_LANDING_ENTRY = 'src/host/team/teamLandingEntry.ts'
+const TEAM_LANDING_OUTFILE = 'dist/teamLanding.js'
 // M115 W: v1's Model API schedules re-exported beside the v2 runtime binding.
 const SCHEDULES_ENTRY = 'src/runtime/schedules/schedulesBundle.ts'
 const SCHEDULES_OUTFILE = 'dist/schedules.js'
@@ -667,6 +674,18 @@ const teamSchedulerOptions = {
   ...teamOptions,
   entryPoints: [TEAM_SCHEDULER_ENTRY],
   outfile: TEAM_SCHEDULER_OUTFILE,
+}
+
+const teamWindowOptions = {
+  ...teamOptions,
+  entryPoints: [TEAM_WINDOW_ENTRY],
+  outfile: TEAM_WINDOW_OUTFILE,
+}
+
+const teamLandingOptions = {
+  ...teamOptions,
+  entryPoints: [TEAM_LANDING_ENTRY],
+  outfile: TEAM_LANDING_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1963,6 +1982,8 @@ if (isWatch) {
     esbuild.context(teamWorkerOpsOptions),
     esbuild.context(teamMergeOptions),
     esbuild.context(teamSchedulerOptions),
+    esbuild.context(teamWindowOptions),
+    esbuild.context(teamLandingOptions),
     esbuild.context(museCodeOptions),
     esbuild.context(foreignHooksOptions),
     esbuild.context({
@@ -2166,6 +2187,8 @@ if (isWatch) {
     execTeam: recorded('execTeam', execTeamOptions),
     teamMerge: recorded('teamMerge', teamMergeOptions),
     teamScheduler: recorded('teamScheduler', teamSchedulerOptions),
+    teamWindow: recorded('teamWindow', teamWindowOptions),
+    teamLanding: recorded('teamLanding', teamLandingOptions),
     foreignHooks: recorded('foreignHooks', foreignHooksOptions),
     modelApiHooks: recorded('modelApiHooks', {
       ...modelApiOptions,
