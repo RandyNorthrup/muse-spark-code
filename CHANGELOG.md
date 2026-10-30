@@ -324,6 +324,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Approving a multi-step command no longer errors as if your choice had
+  not been taken when Muse Code is slow to save the decision. Muse Code
+  sometimes answers an approval with its own "approval persistence timed
+  out" error and then applies the decision anyway; the approval card now
+  waits for Muse Code's own next-step update, confirms the decision took
+  effect, and says so once, instead of asking you to choose again a step
+  that already moved on. A decision Muse Code still has not applied
+  after that check is offered again as before.
 - A conversation no longer repeats "The session's version-control branch
   changed" when Muse Code re-observes the same branch: the notice shows
   once per branch, and again only when the branch actually moves. The
