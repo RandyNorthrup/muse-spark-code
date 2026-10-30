@@ -324,6 +324,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The watchdog no longer mistakes a reporter quoting its acknowledgement for
+  its own post: a reply that quotes the marker counts as the reporter's
+  answer again, and a quoted marker no longer stops the acknowledgement from
+  being posted.
 - The terminal agent's requests were missing from usage history since 0.12.0:
   every headless turn stamped its usage record with a fractional clock, the
   journal refused the record, and one warning was all that was left. Stored
