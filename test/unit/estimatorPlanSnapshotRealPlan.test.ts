@@ -22,7 +22,7 @@ function readPlanText(): string {
 
 const planText = readPlanText()
 
-// The reviewed fixture covers all 398 declarations, independently expanded
+// The reviewed fixture covers all 415 declarations, independently expanded
 // from Starts. Supply test-only hours/state so missing estimates or historical
 // completion cannot conceal the real plan's declared prerequisite edges.
 const prerequisites = z
