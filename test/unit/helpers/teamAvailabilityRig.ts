@@ -88,6 +88,22 @@ export function availabilityBinding(
   return { bound, factoryCalls }
 }
 
+/**
+The binding with its Roles-open calls recorded: the unit and
+integration availability proofs share this instead of duplicating it.
+*/
+export function availabilityBindingWithOpenRoles(isTeamOn: boolean) {
+  const openRolesCalls: unknown[][] = []
+  const { bound, factoryCalls } = availabilityBinding(isTeamOn, {
+    openRoles: () => {
+      openRolesCalls.push([])
+      return Promise.resolve()
+    },
+    showDiff: () => Promise.resolve(),
+  })
+  return { bound, factoryCalls, openRolesCalls }
+}
+
 function availabilityPorts(
   isTeamOn: boolean,
   store: Map<string, unknown>,

@@ -33,6 +33,8 @@ import { previewDraft, previewCostLabel, previewSwitchLabel } from './preview'
 import { Usd, type UsdAmount } from '../../shared/usd'
 import type { TeamModelSettings } from '../../shared/team'
 import type { TeamDraft } from './templates'
+import { checkTeamAvailability } from '../../shared/teamAvailability'
+import { isSameTeamModel } from './sameModel'
 
 function asTemplateDraft(
   document: TeamEditorDocument,
@@ -376,6 +378,30 @@ export function deriveTeamPanel(
     if (offer === undefined) issues.push(UI_TEXT.teamEntryMissing)
     else if (offer.agent.kind === 'external') issues.push(UI_TEXT.teamEditor.invalid)
     else issues.push(...settingIssues(offer, document.orchestrator?.settings))
+  }
+  // D227: a delegating draft needs a lead plus a worker. Offers are usable
+  // by construction (tool-calling models with limits and a worker kind),
+  // so a draft that delegates but offers no second model beside the
+  // orchestrator's says how to enable teams instead of saving an
+  // unrunnable team. Solo delegates nothing and needs no second model.
+  // Key-billed offers count here: paid consent gates runs, not the draft.
+  if (document.template !== 'solo') {
+    const leadModel =
+      document.orchestrator?.agent?.model ??
+      offers.find((offer) => offer.ref === defaultRef)?.agent.model ??
+      defaultRef.slice(defaultRef.indexOf(':') + 1)
+    const availability = checkTeamAvailability({
+      isSwitchedOff: false,
+      leadModelId: leadModel,
+      candidates: offers.map((offer) => ({
+        modelId: offer.agent.model,
+        billsKey: offer.agent.pays === 'key',
+        isAvailable: true,
+      })),
+      isSameModel: isSameTeamModel,
+      teamWorkersOn: true,
+    })
+    if (!availability.isAvailable) issues.push(UI_TEXT.teamNeedsSecondModel)
   }
   return {
     document,

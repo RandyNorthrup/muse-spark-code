@@ -25,12 +25,13 @@ import type { TeamToolResult } from '../core/team/teamSeams'
 import type { TeamMcpServer, TeamSessionBinding } from './team/teamMcpServer'
 
 /**
-D75's availability switch from its raw setting value: on only while
-explicitly set true. Hidden means hidden: an absent setting counts as
-off, never as on (RVCM963J 1).
+D75's availability switch from its raw setting value, under D227: off
+only while explicitly set false. An absent setting counts as on: the
+two-model rule, not a default, keeps teams off until a second model is
+set up.
 */
 export function isTeamSwitchOn(setting: unknown): boolean {
-  return setting === true
+  return setting !== false
 }
 
 /** The tree's and cards' messages the service answers. */
@@ -358,9 +359,13 @@ export class TeamHostBinding implements TeamSurfacePort {
 
   public async handle(message: TeamSurfaceMessage): Promise<void> {
     if (message.type === 'openTeamRoles') {
-      // Hidden means hidden: with the team switched off the Roles section is
-      // not reachable by command either, not only by panel.
-      if (!this.canConfigure()) throw new Error(UI_TEXT.teamTaskUnknown)
+      // A switched-off team says so, with the way back; any other closed
+      // gate (untrusted workspace, no engine worker) keeps its own error.
+      if (!this.canConfigure()) {
+        if (!isTeamAvailable(this.deps.ports.settings.isTeamOn()))
+          throw new Error(UI_TEXT.teamSwitchedOff)
+        throw new Error(UI_TEXT.teamTaskUnknown)
+      }
       await this.deps.openRoles(message.roleId)
       return
     }

@@ -9,13 +9,13 @@
 // the team off sends nothing for the team at any time.
 
 import * as z from 'zod/mini'
-import {
-  OPTIONAL_RUNTIME_AVAILABILITY,
-  TEAM_BOOTSTRAP_MODEL_TEXT,
-  UI_TEXT,
-  VERIFY_TOOLS,
-} from './constants'
+import { TEAM_BOOTSTRAP_MODEL_TEXT, VERIFY_TOOLS } from './constants'
 export { TEAM_BOOTSTRAP_MODEL_TEXT } from './constants'
+import {
+  isSameTeamModelId,
+  partitionTeamCandidates,
+  type TeamAvailabilityCandidate,
+} from './teamAvailability'
 
 import type { TeamDecisionSource } from '../core/team/teamSeams'
 
@@ -39,28 +39,14 @@ export interface TeamConversationDecision {
 }
 
 /**
-Decides a conversation's mode when it starts, from the latest probe
-results already known. An entry counts only when it is both a different
-model from the orchestrator slot's (after `sameModel` dedupe) and
-observably loaded in this window. Key-billed entries need `teamWorkers`
-on; unavailable or unready entries never count.
-The one availability decision (RVCM963JB P2-1): the release latch AND the
-raw setting. Every entry point (canConfigure, the Roles, Agents and Try
-bindings, loading a saved runnable team, dispatch) asks this function, so
-a true setting with a closed latch opens nothing.
+The person's own switch (D227): teams are off only while explicitly set
+`false`. An absent setting counts as on: the two-model rule, not a
+default, keeps teams off until a second model is set up. Every entry
+point asks this function and the shared availability rule together, so an
+explicit off opens nothing on any surface.
 */
 export function isTeamAvailable(setting: unknown): boolean {
-  return OPTIONAL_RUNTIME_AVAILABILITY.team && setting === true
-}
-
-/**
-The refusal an entry point reports when the release latch closes it
-(P3-1): the latch, never the budget sentence. Undefined while the latch
-is open; a setting switched off or an untrusted workspace keeps its own
-error at each site.
-*/
-export function teamLatchRefusal(): string | undefined {
-  return OPTIONAL_RUNTIME_AVAILABILITY.team ? undefined : UI_TEXT.teamNotReleased
+  return setting !== false
 }
 
 /**
@@ -80,18 +66,17 @@ export function decideTeamConversationMode(source: TeamDecisionSource): TeamConv
   if (source.customEntries.length === 0) {
     return { mode: 'single-model', reason: 'nothing-configured' }
   }
-  const distinct = source.customEntries.filter(
-    (entry) => !source.isSameModel(entry.modelId, source.orchestratorModelId),
-  )
+  const { distinct, runnable } = partitionTeamCandidates(source.customEntries, {
+    leadModelId: source.orchestratorModelId,
+    isSameModel: source.isSameModel,
+    teamWorkersOn: source.teamWorkersOn,
+  })
   if (distinct.length === 0) {
     return { mode: 'single-model', reason: 'duplicate-models' }
   }
   if (distinct.every((entry) => entry.billsKey) && !source.teamWorkersOn) {
     return { mode: 'single-model', reason: 'key-entries-off' }
   }
-  const runnable = distinct.filter(
-    (entry) => entry.isAvailable && (!entry.billsKey || source.teamWorkersOn),
-  )
   if (runnable.length === 0) {
     return { mode: 'single-model', reason: 'unavailable' }
   }
@@ -145,11 +130,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /**
 Whether the stored team names an entry that could make a conversation a
-team one: an agent this editor runs, a model other than the orchestrator's
-(model ids compared trimmed, lane R's `sameModel`), and, when it bills a
-key, `teamWorkers` on. Read in the activation bundle from workspace state
-alone: without such an entry nothing loads and nothing is probed (Solo,
+team one: an agent this surface runs, a model other than the
+orchestrator's (model ids compared trimmed, lane R's `sameModel`), and,
+when it bills a key, `teamWorkers` on. The stored-state form of the one
+availability rule: read in the activation bundle from workspace state
+alone, without such an entry nothing loads and nothing is probed (Solo,
 single-model, key entries with `teamWorkers` off; acceptance 1 and 47).
+`canRunAgent` narrows `canRunKind` where dispatch looks past the kind
+(headless refuses subscription workers); absent, the kind alone decides.
 */
 export function hasRunnableTeamEntry(
   state: TeamWorkspaceStateReader,
@@ -157,28 +145,36 @@ export function hasRunnableTeamEntry(
     readonly orchestratorModelId: string
     readonly isTeamWorkersOn: boolean
     readonly canRunKind: (kind: string) => boolean
+    readonly canRunAgent?: (agent: { readonly kind: string; readonly pays: unknown }) => boolean
   },
 ): boolean {
   const stored: unknown = state.get(TEAM_WORKSPACE_KEYS.team)
-  if (!isRecord(stored) || stored['template'] === 'Solo' || !Array.isArray(stored['roles']))
-    return false
-  const orchestrator = options.orchestratorModelId.trim()
-  return stored['roles'].some(
-    (role: unknown) =>
-      isRecord(role) &&
-      Array.isArray(role['pool']) &&
-      role['pool'].some((entry: unknown) => {
-        const agent = isRecord(entry) ? entry['agent'] : undefined
-        if (!isRecord(agent)) return false
-        const { kind, model, pays } = agent
-        return (
-          typeof kind === 'string' &&
-          typeof model === 'string' &&
-          options.canRunKind(kind) &&
-          model.trim() !== orchestrator &&
-          (pays !== 'key' || options.isTeamWorkersOn)
-        )
-      }),
+  if (!isRecord(stored) || stored['template'] === 'Solo') return false
+  const roles: unknown = stored['roles']
+  if (!Array.isArray(roles)) return false
+  const candidates: TeamAvailabilityCandidate[] = []
+  for (const role of roles) {
+    if (!isRecord(role)) continue
+    const pool: unknown = role['pool']
+    if (!Array.isArray(pool)) continue
+    for (const entry of pool) {
+      const agent = isRecord(entry) ? entry['agent'] : undefined
+      if (!isRecord(agent)) continue
+      const { kind, model, pays } = agent
+      if (typeof kind !== 'string' || typeof model !== 'string') continue
+      candidates.push({
+        modelId: model,
+        billsKey: pays === 'key',
+        isAvailable: options.canRunAgent?.({ kind, pays }) ?? options.canRunKind(kind),
+      })
+    }
+  }
+  return (
+    partitionTeamCandidates(candidates, {
+      leadModelId: options.orchestratorModelId,
+      isSameModel: isSameTeamModelId,
+      teamWorkersOn: options.isTeamWorkersOn,
+    }).runnable.length > 0
   )
 }
 

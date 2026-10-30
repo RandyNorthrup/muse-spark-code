@@ -987,3 +987,26 @@ describe('M96 U1 localized role labels', () => {
     }
   })
 })
+
+async function pairSliceWithOneOffer() {
+  const rig = panelRig({ offers: () => Promise.resolve(teamOffers().slice(0, 1)) })
+  await rig.read()
+  await rig.controller.handle({ type: 'roles/template', template: 'pair' })
+  return await rig.read()
+}
+
+describe('the second-model requirement (D227)', () => {
+  it('says how to enable teams and disables Save with one usable model', async () => {
+    const slice = await pairSliceWithOneOffer()
+    render(<RolesSection {...sectionProps(slice)} />)
+    expect(screen.getByText(UI_TEXT.teamNeedsSecondModel)).toBeDefined()
+    const save = screen.getByRole('button', { name: UI_TEXT.teamEditor.save })
+    expect(save).toBeDisabled()
+  })
+
+  it('shows no requirement once two models are offered', async () => {
+    const { slice } = await pairSlice()
+    render(<RolesSection {...sectionProps(slice)} />)
+    expect(screen.queryByText(UI_TEXT.teamNeedsSecondModel)).toBeNull()
+  })
+})

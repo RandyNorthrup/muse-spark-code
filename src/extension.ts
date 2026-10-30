@@ -149,7 +149,11 @@ import {
 import { Usd, sumUsd, type UsdAmount } from './shared/usd'
 import { epochNow, toEpochMs } from './shared/epochMs'
 
-import { teamLatchRefusal } from './shared/teamConversation'
+import {
+  checkTeamAvailability,
+  isSameTeamModelId,
+  type TeamAvailabilityCandidate,
+} from './shared/teamAvailability'
 import {
   createUsageRecording,
   currentOwnedLimitSnapshots,
@@ -3418,9 +3422,9 @@ async function activateWindow(
         },
       },
       settings: {
-        // Hidden means hidden: the team stays off until an explicit `true`
-        // flips it on (withheld public activation, PLAN.md D33/qualification).
-        // An absent setting counts as off, never as on.
+        // D227: the team stays off only while explicitly set `false`; an
+        // absent setting counts as on, and the two-model rule keeps teams
+        // off until a second model is set up.
         isTeamOn: () =>
           isTeamSwitchOn(
             vscode.workspace.getConfiguration(SETTINGS_SECTION).get<unknown>(TEAM_SWITCH_SETTING),
@@ -3475,11 +3479,9 @@ async function activateWindow(
           fenceIo,
           settings,
         }) => {
-          // Dispatch asks the one availability function too: a worker never
-          // starts while the latch is closed, even with a true setting. A
-          // dispatch the latch refuses says the latch, not the budget.
-          const latchRefusal = teamLatchRefusal()
-          if (latchRefusal !== undefined) throw new Error(latchRefusal)
+          // D227: the service loads only while teams are available, so a
+          // dispatch re-asks configuration, not a latch; the budget check
+          // follows. The two-model rule gated the load itself.
           if (!teamHost.canConfigure()) throw new Error(UI_TEXT.teamBudgetUnavailable)
           let budgetScope
           try {
@@ -6087,9 +6089,6 @@ async function activateWindow(
             dryRun: {
               cost: () => paidFeaturePrice('teamWorkers'),
               run: async (document, sample, signal) => {
-                // A preview the latch refuses says the latch, not the budget.
-                const latchRefusal = teamLatchRefusal()
-                if (latchRefusal !== undefined) throw new Error(latchRefusal)
                 if (
                   workspaceRoot === undefined ||
                   !teamHost.canConfigure() ||
@@ -6105,6 +6104,31 @@ async function activateWindow(
                   document.orchestrator.agent.kind !== 'engine'
                 )
                   throw new Error(UI_TEXT.teamBudgetUnavailable)
+                // D227: Try runs a worker, so the draft needs a second
+                // usable model beside the orchestrator's. Default entries
+                // resolve to the orchestrator and never count; staffed
+                // entries were picked from offers and count as available,
+                // and the paid gate above already passed, so key entries
+                // count. The comparison is lane R's shared mirror:
+                // activation carries no team runtime module.
+                const candidates: TeamAvailabilityCandidate[] = []
+                for (const role of document.roles)
+                  for (const entry of role.pool) {
+                    if (entry.agent === undefined) continue
+                    candidates.push({
+                      modelId: entry.agent.model,
+                      billsKey: entry.agent.pays === 'key',
+                      isAvailable: true,
+                    })
+                  }
+                const draftAvailability = checkTeamAvailability({
+                  isSwitchedOff: false,
+                  leadModelId: modelId,
+                  candidates,
+                  isSameModel: isSameTeamModelId,
+                  teamWorkersOn: true,
+                })
+                if (!draftAvailability.isAvailable) throw new Error(UI_TEXT.teamNeedsSecondModel)
                 const previewHost = await modelApi.ensureHost()
                 const models = await previewHost.listModels()
                 const model = models.find((row) => row.modelId === modelId)

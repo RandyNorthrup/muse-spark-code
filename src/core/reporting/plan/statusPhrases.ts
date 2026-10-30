@@ -87,4 +87,5 @@ export const STATUS_PHRASES: Readonly<Record<string, PlanMilestone['status'] | u
   'recovery (RLM110C)': 'building',
   'the three RLM95 gaps it named and left unencoded are encoded on `rec/rlf-provlimits`; lead integration pending':
     'built',
+  'recovery (RLF-TEAMGATE)': 'building',
 }
