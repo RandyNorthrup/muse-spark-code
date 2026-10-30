@@ -33,6 +33,7 @@ import {
 import { ResourceTreeRegistry, RESOURCE_MEMBERSHIP_UNPROVEN } from './trees/registry'
 import type {
   ResourceAdmissionPort,
+  ResourceForkStop,
   ResourceLease,
   ResourceProcessLaunch,
   ResourceTreeBinding,
@@ -85,6 +86,8 @@ interface Work {
   members: Set<string>
   births: number[]
   limited: boolean
+  /** Why fork protection stopped this tree, set before the stop is sent. */
+  stopCause: ResourceForkStop | undefined
   /** The last verified tree reading, reused by J's history (no extra OS query). */
   usage: ResourceTreeUsage | undefined
   /** Fixed cause of the latest sampler failure; read by the installed receipt. */
@@ -129,6 +132,18 @@ export interface ResourceLaunchHostOptions {
   runtime's queue reads this host's occupancy again.
   */
   readonly onWorkChanged?: (() => void) | undefined
+  /**
+  RLF-GOVFORK: the per-job fork bounds this host enforces (D100 G13).
+  Production hosts leave this unset and enforce the shared constants;
+  narrowed only to prove the mechanism fires (tests, drills).
+  */
+  readonly forkCaps?:
+    | {
+        readonly processCap: number
+        readonly spawnCap: number
+        readonly spawnWindowMs: number
+      }
+    | undefined
 }
 
 /** C1: admission reservations plus OS-proved registry entries, shared by the window. */
@@ -350,16 +365,18 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
         const current = new Set(
           members.map((member) => `${String(member.pid)}:${member.startTime}`),
         )
-        work.births = work.births.filter((atMs) => now - atMs < RESOURCE_TREE_SPAWN_WINDOW_MS)
+        const caps = this.options.forkCaps
+        const processCap = caps?.processCap ?? RESOURCE_TREE_PROCESS_CAP
+        const spawnCap = caps?.spawnCap ?? RESOURCE_TREE_SPAWN_CAP
+        const spawnWindowMs = caps?.spawnWindowMs ?? RESOURCE_TREE_SPAWN_WINDOW_MS
+        work.births = work.births.filter((atMs) => now - atMs < spawnWindowMs)
         for (const key of current) if (!work.members.has(key)) work.births.push(now)
         work.members = current
-        if (
-          current.size > RESOURCE_TREE_PROCESS_CAP ||
-          work.births.length > RESOURCE_TREE_SPAWN_CAP
-        ) {
+        if (current.size > processCap || work.births.length > spawnCap) {
           // D100 G13 is an independent offending-job stop, never a machine-wide actuator.
           work.failed = true
           work.ended = true
+          work.stopCause = current.size > processCap ? 'activeProcess' : 'spawnRate'
           const result = await work.registry?.kill(work.ticket)
           work.limited = result?.status === 'done'
           if (!work.limited) {
@@ -619,6 +636,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       members: new Set(),
       births: [],
       limited: false,
+      stopCause: undefined,
       usage: undefined,
       samplerCause: undefined,
     }
@@ -700,6 +718,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
           void this.refreshTrees()
         }
       },
+      stoppedForFork: () => work.stopCause,
       background: () => {
         if (!this.work.has(work)) return
         if (work.ticket !== undefined) work.registry?.unregister(work.ticket)

@@ -2278,6 +2278,7 @@
   "gitMachineBusy": "Git konnte nicht laufen, weil das Gerät ausgelastet ist. Versuch es erneut.",
   "gitResourceUnavailable": "Git konnte nicht ausgeführt werden, weil die Ressourcenfreigabe oder der Prozesshelfer nicht verfügbar ist.",
   "gitMemoryLimit": "Git wurde angehalten, weil sein Prozessbaum die Speichergrenze erreicht hat.",
+  "gitForkStopped": "Git wurde zum Fork-Schutz angehalten.",
   "gitCommandConsequences": "Git kann Repository-Hooks, Signierprogramme oder Anmeldehelfer ausführen. Abbrechen stoppt spätere Schritte; ein bereits gestarteter Git- oder GitHub-Aufruf kann noch abgeschlossen werden.",
   "gitCommitting": "Wird committet…",
   "gitCancel": "Abbrechen",
@@ -6926,6 +6927,12 @@
     "stopFailed": {
       "one": "{count} überwachter Lauf konnte nicht vollständig beendet werden.",
       "other": "{count} überwachte Läufe konnten nicht vollständig beendet werden."
+    },
+    "forkStoppedProcesses": "Der überwachte Lauf wurde zum Fork-Schutz angehalten: sein Baum hielt mehr als {bound} Prozesse gleichzeitig.",
+    "forkStoppedSpawns": "Der überwachte Lauf wurde zum Fork-Schutz angehalten: sein Baum hat mehr als {bound} Prozesse auf einmal erzeugt.",
+    "childrenRefused": {
+      "one": "Dem überwachten Lauf wurde {count} Kindprozess durch den Fork-Schutz verweigert; der Lauf wurde fortgesetzt.",
+      "other": "Dem überwachten Lauf wurden {count} Kindprozesse durch den Fork-Schutz verweigert; der Lauf wurde fortgesetzt."
     },
     "unavailable": "Die Überwachung ist in dieser Installation nicht verfügbar."
   },

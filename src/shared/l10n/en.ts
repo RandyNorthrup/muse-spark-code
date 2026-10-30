@@ -2833,6 +2833,7 @@ export const EN = {
   gitResourceUnavailable:
     'Git could not run because resource admission or the process helper is unavailable.',
   gitMemoryLimit: 'Git was stopped because its process tree reached the memory limit.',
+  gitForkStopped: 'Git was stopped for fork protection.',
   gitCommandConsequences:
     'Git may run repository hooks, signing programs or credential helpers. Cancellation stops later steps; a Git or GitHub call already started may finish.',
   gitCommitting: 'Committing…',
@@ -8784,6 +8785,15 @@ export const EN = {
     stopFailed: forms({
       one: '{count} supervised run could not be stopped whole.',
       other: '{count} supervised runs could not be stopped whole.',
+    }),
+    forkStoppedProcesses:
+      'The supervised run was stopped for fork protection: its tree held more than {bound} processes at once.',
+    forkStoppedSpawns:
+      'The supervised run was stopped for fork protection: its tree spawned more than {bound} processes in a burst.',
+    childrenRefused: forms({
+      one: 'The supervised run was refused {count} child process by fork protection; the run continued.',
+      other:
+        'The supervised run was refused {count} child processes by fork protection; the run continued.',
     }),
     unavailable: 'Supervision is not available in this installation.',
   },

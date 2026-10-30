@@ -2304,6 +2304,7 @@
   "gitMachineBusy": "Git n’a pas pu s’exécuter car la machine est occupée. Réessayez.",
   "gitResourceUnavailable": "Git n’a pas pu s’exécuter, car l’admission des ressources ou l’assistant de processus est indisponible.",
   "gitMemoryLimit": "Git a été arrêté, car son arborescence de processus a atteint la limite de mémoire.",
+  "gitForkStopped": "Git a été arrêté par la protection anti-fork.",
   "gitCommandConsequences": "Git peut exécuter des hooks du dépôt, des programmes de signature ou des gestionnaires d’identifiants. Annuler arrête les étapes suivantes ; un appel Git ou GitHub déjà lancé peut se terminer.",
   "gitCommitting": "Validation…",
   "gitCancel": "Annuler",
@@ -7103,6 +7104,13 @@
       "one": "{count} exécution supervisée n’a pas pu être arrêtée entièrement.",
       "other": "{count} exécutions supervisées n’ont pas pu être arrêtées entièrement.",
       "many": "{count} d’exécutions supervisées n’ont pas pu être arrêtées entièrement."
+    },
+    "forkStoppedProcesses": "L’exécution supervisée a été arrêtée par la protection anti-fork : son arborescence contenait plus de {bound} processus à la fois.",
+    "forkStoppedSpawns": "L’exécution supervisée a été arrêtée par la protection anti-fork : son arborescence a engendré plus de {bound} processus en rafale.",
+    "childrenRefused": {
+      "one": "La protection anti-fork a refusé {count} processus enfant à l’exécution supervisée ; l’exécution a continué.",
+      "other": "La protection anti-fork a refusé {count} processus enfants à l’exécution supervisée ; l’exécution a continué.",
+      "many": "La protection anti-fork a refusé {count} processus enfants à l’exécution supervisée ; l’exécution a continué."
     },
     "unavailable": "La supervision n’est pas disponible dans cette installation."
   },
