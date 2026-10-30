@@ -13,7 +13,11 @@ import tls from 'node:tls'
 import { expect } from 'vitest'
 import { CONNECTOR_FOLDER } from '../../../src/shared/constants'
 import { EN } from '../../../src/shared/l10n/en'
-import { parseConnectorCommand, runConnectorCommand } from '../../../src/runtime/connector/command'
+import {
+  parseConnectorCommand,
+  runConnectorCommand,
+  type CommandIo,
+} from '../../../src/runtime/connector/command'
 import type { ConnectorRuntimeDeps } from '../../../src/runtime/connector/entry'
 import { runConnectorRemote } from '../../../src/runtime/connector/remoteEntry'
 import { connectorStorageGuard } from '../../../src/runtime/connector/storageGuard'
@@ -70,21 +74,24 @@ export function storeFor(data: string): ConnectorStore {
 
 const unbound = () => Promise.reject(new Error('not bound in this suite'))
 
+/** The person in their own terminal, confirming: the command IO every owner-command suite shares. */
+export const OWNER_COMMAND_IO: CommandIo = {
+  isInteractive: true,
+  now: Date.now,
+  print: () => undefined,
+  printError: (line) => {
+    throw new Error(line)
+  },
+  confirm: () => Promise.resolve(true),
+}
+
 /** The owner's own grant or revoke command, confirmed as the person in their terminal. */
 export async function ownerCommand(data: string, argv: readonly string[]): Promise<number> {
   const command = parseConnectorCommand(argv)
   if (command?.kind !== 'grant' && command?.kind !== 'revoke') {
     throw new Error('not an owner grant or revoke command')
   }
-  return await runConnectorCommand(storeFor(data), command, {
-    isInteractive: true,
-    now: Date.now,
-    print: () => undefined,
-    printError: (line) => {
-      throw new Error(line)
-    },
-    confirm: () => Promise.resolve(true),
-  })
+  return await runConnectorCommand(storeFor(data), command, OWNER_COMMAND_IO)
 }
 
 export async function grantUserLibrary(data: string, scopes: readonly string[]): Promise<void> {

@@ -16,7 +16,7 @@ import { ConnectorProtocol } from '../../core/connector/protocol'
 import type { ReportsPort } from '../../core/connector/registry'
 import type { SchedulesPort } from '../../core/connector/tools/schedules'
 import { isRemoteCommand, parseConnectorCommand, runConnectorCommand } from './command'
-import { ConnectorRegistryHost } from './registryHost'
+import { registryHostFor } from './registryHost'
 import { serveStdio } from './stdio'
 import { ConnectorStore } from './store'
 import { isStorageRefused, type ConnectorStorageGuard } from './storageGuardPort'
@@ -101,17 +101,7 @@ export async function runConnector(deps: ConnectorRuntimeDeps): Promise<number> 
         }
       },
     })
-  const host = new ConnectorRegistryHost({
-    connectionId: command.connectionId,
-    dataFolder: deps.dataFolder,
-    homeDir: deps.homeDir,
-    version: deps.version,
-    registered: deps.registered,
-    openBrowser: deps.openBrowser,
-    schedules: deps.schedules,
-    reports: deps.reports,
-    store,
-  })
+  const host = registryHostFor(deps, command.connectionId, store)
   const registry = host.create(store.authority(command.connectionId))
   try {
     await serveStdio({ input: deps.stdin, output: deps.stdout }, new ConnectorProtocol(registry))

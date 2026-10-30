@@ -770,8 +770,12 @@ deterministic report, within what you grant. A write (for now, saving a new
 prompt) waits for **you** to approve it on Muse Spark Code's own approval
 page in your browser; the other agent's Allow, Auto or Bypass cannot
 approve it. Stop never asks. Fleet status, agent outcomes, lanes, teams and
-new schedules answer `unavailable` until their owners expose them. The
-hosted connector for ChatGPT and claude.ai is not built.
+new schedules answer `unavailable` until their owners expose them.
+`muse-spark-code-acp mcp serve-http` serves the same grant from your own PC
+over HTTPS with OAuth sign-in (nothing runs on a server of ours): loopback
+unless you name a wider address, your own certificate or your own tunnel,
+clients you register with `mcp client add`, and an owner code printed in
+the connector's terminal before anything connects.
 
 If the approval page closes on idle, the next save request opens a fresh
 page. A browser opener failure refuses that request and closes its page;

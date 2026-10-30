@@ -37,6 +37,25 @@ export interface ConnectorRegistryHostDeps {
   readonly store: ConnectorStore
 }
 
+/** The registry host for one connection, from the runtime's own dependencies. */
+export function registryHostFor(
+  deps: Omit<ConnectorRegistryHostDeps, 'connectionId' | 'store'>,
+  connectionId: string,
+  store: ConnectorStore,
+): ConnectorRegistryHost {
+  return new ConnectorRegistryHost({
+    connectionId,
+    dataFolder: deps.dataFolder,
+    homeDir: deps.homeDir,
+    version: deps.version,
+    registered: deps.registered,
+    openBrowser: deps.openBrowser,
+    schedules: deps.schedules,
+    reports: deps.reports,
+    store,
+  })
+}
+
 type PageLifecycle =
   | { readonly kind: 'none' | 'closed'; readonly page: undefined }
   | { readonly kind: 'starting'; readonly page: Promise<ApprovalPage> }

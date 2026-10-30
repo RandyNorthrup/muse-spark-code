@@ -26,7 +26,7 @@ import type { ConnectorRuntimeDeps } from './entry'
 import { startConnectorHttp } from './http'
 import { addOwnerClient, endClient, ownerClients } from './oauth/clients'
 import { ConnectorOAuth } from './oauth/server'
-import { ConnectorRegistryHost, sharedWatchAuthority } from './registryHost'
+import { registryHostFor, sharedWatchAuthority } from './registryHost'
 import { ConnectorStore, isOAuthStateUnreadable } from './store'
 import { isStorageRefused } from './storageGuardPort'
 
@@ -102,6 +102,20 @@ function reachOf(command: ServeHttp, host: string): ReachVerdict {
   }
   const named = isIP(host) === IP_VERSION_6 ? `[${host}]` : host
   return { kind: 'ok', reach: { host, issuer: `https://${named}:${String(command.port)}` } }
+}
+
+/** A filesystem failure with its OS code: the person's file to fix, not ours. */
+function isFileError(error: unknown): boolean {
+  return error instanceof Error && 'code' in error && typeof error.code === 'string'
+}
+
+/** The listen failures the person can fix: a taken port, a denied or absent address. */
+const LISTEN_ERRORS: ReadonlySet<string> = new Set(['EADDRINUSE', 'EACCES', 'EADDRNOTAVAIL'])
+
+/** The OS refusing the listen itself: a taken port, a denied or absent address. */
+function isListenError(error: unknown): boolean {
+  const code = error instanceof Error && 'code' in error ? error.code : undefined
+  return typeof code === 'string' && LISTEN_ERRORS.has(code)
 }
 
 /** A stored string field; anything else reads as empty. */
@@ -247,8 +261,7 @@ async function runServe(
       }
     } catch (error: unknown) {
       // A file that is missing or unreadable is the person's to fix.
-      if (!(error instanceof Error && 'code' in error && typeof error.code === 'string'))
-        throw error
+      if (!isFileError(error)) throw error
       line(fill(text.tlsUnreadable, { file: command.tlsCert }))
       return EXIT_FAILED
     }
@@ -276,17 +289,7 @@ async function runServe(
       line(fill(text.ownerCodeLine, { code }))
     },
   })
-  const host = new ConnectorRegistryHost({
-    connectionId: command.connectionId,
-    dataFolder: deps.dataFolder,
-    homeDir: deps.homeDir,
-    version: deps.version,
-    registered: deps.registered,
-    openBrowser: deps.openBrowser,
-    schedules: deps.schedules,
-    reports: deps.reports,
-    store,
-  })
+  const host = registryHostFor(deps, command.connectionId, store)
   let server
   try {
     server = await startConnectorHttp({
@@ -303,8 +306,7 @@ async function runServe(
     })
   } catch (error: unknown) {
     // Only a port or address the OS refuses is the person's to fix.
-    const code = error instanceof Error && 'code' in error ? error.code : undefined
-    if (code !== 'EADDRINUSE' && code !== 'EACCES' && code !== 'EADDRNOTAVAIL') throw error
+    if (!isListenError(error)) throw error
     line(fill(text.listenFailed, { bind: command.bind, port: String(command.port) }))
     return EXIT_FAILED
   }

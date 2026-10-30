@@ -35,6 +35,7 @@ import {
 import { isAllowedRedirectUri, isLoopbackHost } from '../../../shared/connectorRemote'
 import type { AuthorityPort } from '../../../core/connector/registry'
 import { fill, UI_TEXT } from '../../../shared/l10n/text'
+import { readBoundedBody } from '../../httpServer'
 import { OAuthStateUnreadable, type ConnectorStore } from '../store'
 import { connectorAdapter } from './adapter'
 import { PAGE_HEADERS, renderConsentPage, renderMessagePage } from './consent'
@@ -86,6 +87,14 @@ function newSigningJwk(): Record<string, unknown> {
   return { ...privateKey.export({ format: 'jwk' }), kid: randomUUID(), use: 'sig', alg: 'ES256' }
 }
 
+/** node:crypto's own refusal of a malformed key, as opposed to a real failure. */
+function isInvalidJwkRefusal(error: unknown): boolean {
+  const code = error instanceof Error && 'code' in error ? error.code : undefined
+  return (
+    typeof code === 'string' && (code === 'ERR_CRYPTO_INVALID_JWK' || code.startsWith('ERR_OSSL_'))
+  )
+}
+
 /** True when the stored JWK is a usable private P-256 key; node:crypto judges it. */
 function isUsableSigningJwk(jwk: Record<string, unknown>): boolean {
   try {
@@ -93,13 +102,7 @@ function isUsableSigningJwk(jwk: Record<string, unknown>): boolean {
     return key.asymmetricKeyType === 'ec' && typeof jwk['kid'] === 'string'
   } catch (error: unknown) {
     // Only node:crypto's own refusal of a malformed key means "not usable".
-    const code = error instanceof Error && 'code' in error ? error.code : undefined
-    if (
-      typeof code === 'string' &&
-      (code === 'ERR_CRYPTO_INVALID_JWK' || code.startsWith('ERR_OSSL_'))
-    ) {
-      return false
-    }
+    if (isInvalidJwkRefusal(error)) return false
     throw error
   }
 }
@@ -120,15 +123,8 @@ async function readForm(
 ): Promise<URLSearchParams | undefined> {
   const type = (request.headers['content-type'] ?? '').split(';', 1)[0]?.trim()
   if (type !== FORM_TYPE) return undefined
-  const chunks: Buffer[] = []
-  let size = 0
-  for await (const chunk of request) {
-    const bytes = Buffer.from(chunk as Uint8Array)
-    size += bytes.length
-    if (size > maxBytes) return undefined
-    chunks.push(bytes)
-  }
-  return new URLSearchParams(Buffer.concat(chunks).toString('utf8'))
+  const body = await readBoundedBody(request, maxBytes)
+  return body === undefined ? undefined : new URLSearchParams(body)
 }
 
 function sendPage(response: ServerResponse, status: number, html: string): void {

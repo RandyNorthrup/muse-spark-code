@@ -140,6 +140,11 @@ const VENDORED_LICENCES = new Map([
   // copyright holder is also named in the shipped dist/qrcode.mjs); the
   // manifest's MIT declaration is still checked.
   ['qrcode-generator', { licence: 'MIT', file: 'vendor/qrcode-generator/LICENSE' }],
+  // M124 remote (D217): koa-compose@4.1.0 (via oidc-provider's koa) declares
+  // MIT but its tarball ships no licence file. The text below is upstream's
+  // LICENSE verbatim from koajs/compose; the manifest's MIT declaration is
+  // still checked.
+  ['koa-compose', { licence: 'MIT', file: 'vendor/koa-compose/LICENSE' }],
 ])
 
 function describePackage(dir, problems) {

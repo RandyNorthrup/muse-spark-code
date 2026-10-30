@@ -41,8 +41,11 @@ function isMissing(error: unknown): boolean {
 
 /** The stored OAuth state exists but cannot be read (D217): serve nothing. */
 export class OAuthStateUnreadable extends Error {
-  public constructor(cause?: unknown) {
-    super('connector OAuth state unreadable', cause === undefined ? undefined : { cause })
+  public constructor(options?: { readonly cause?: unknown }) {
+    super(
+      'connector OAuth state unreadable',
+      options?.cause === undefined ? undefined : { cause: options.cause },
+    )
     this.name = 'OAuthStateUnreadable'
   }
 }
@@ -122,12 +125,12 @@ export class ConnectorStore {
       text = await readFile(file, 'utf8')
     } catch (error: unknown) {
       if (isMissing(error)) return undefined
-      throw new OAuthStateUnreadable(error)
+      throw new OAuthStateUnreadable({ cause: error })
     }
     try {
       return JSON.parse(text)
     } catch (error: unknown) {
-      throw new OAuthStateUnreadable(error)
+      throw new OAuthStateUnreadable({ cause: error })
     }
   }
 
