@@ -24,9 +24,12 @@ export function runtimeReportsPlanMaxBytes(dataFolder: string): number {
     // NARROW: a missing settings file (the default), malformed text or a
     // misshapen record reads as no limit; anything else is not this file's
     // answer to give.
-    if (isStoreErrorCode(error, 'ENOENT')) return 0
-    if (error instanceof SyntaxError) return 0
-    if (error instanceof Error && error.name === '$ZodError') return 0
+    if (
+      isStoreErrorCode(error, 'ENOENT') ||
+      error instanceof SyntaxError ||
+      (error instanceof Error && error.name === '$ZodError')
+    )
+      return 0
     throw error
   }
 }

@@ -725,11 +725,11 @@ export class RuntimeGit implements ConversationGitPort {
       return
     }
     const target = await this.pullRequestTarget(operation)
-    if (target === undefined) {
-      return
-    }
     // GitHub's own sign-in first: the form names where it opens.
-    if (!(await this.signedIn('ask', operation.signal ?? this.lifetime.signal))) {
+    if (
+      target === undefined ||
+      !(await this.signedIn('ask', operation.signal ?? this.lifetime.signal))
+    ) {
       return
     }
     this.checkCurrent()

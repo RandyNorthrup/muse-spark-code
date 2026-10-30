@@ -272,10 +272,10 @@ export async function verifyScheduleWake(
   if (
     record.id !== registrationId ||
     !isSamePath(record.executable, launcher) ||
-    !isSamePath(record.agentFile, script)
+    !isSamePath(record.agentFile, script) ||
+    record.disabledAtMs !== undefined
   )
     throw unsafeScheduleLauncher(recordFile)
-  if (record.disabledAtMs !== undefined) throw unsafeScheduleLauncher(recordFile)
   const definitions = backgroundDefinitionPaths(io.platform, homeDir, dataDir)
   const effective = await effectiveBackgroundDefinition({
     platform: io.platform,

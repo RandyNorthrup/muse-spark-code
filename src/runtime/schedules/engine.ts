@@ -176,9 +176,9 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
     signal: combined,
   })
   const runtimeDelivery =
-    options.runtimeDelivery !== undefined && options.runtimeDeliveryFactory !== undefined
-      ? options.runtimeDeliveryFactory(options.runtimeDelivery, authority, registry)
-      : undefined
+    options.runtimeDelivery === undefined || options.runtimeDeliveryFactory === undefined
+      ? undefined
+      : options.runtimeDeliveryFactory(options.runtimeDelivery, authority, registry)
   if (runtimeDelivery === undefined && options.runtimeDelivery !== undefined)
     throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
   const late: { delivery?: ScheduleDelivery } = {}

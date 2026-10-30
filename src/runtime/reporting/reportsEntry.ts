@@ -237,8 +237,7 @@ export function createRuntimeReports(input: RuntimeReportsInput) {
         // Refuse unsupported formats before any source/history access or paid/model dispatch.
         if (
           request.out !== undefined ||
-          (format !== 'text' && format !== 'md') ||
-          (format !== 'text' && context.format === 'text')
+          (format !== 'text' && (format !== 'md' || context.format === 'text'))
         )
           return {
             code: REPORT_EXIT_CODES.usage,

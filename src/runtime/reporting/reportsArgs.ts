@@ -87,8 +87,7 @@ export function parseReportsArguments(argv: readonly string[]): ReportsRequest {
       help: { type: 'boolean', short: 'h' },
     },
   })
-  if (values.help === true) throw new Error(reportsUsage())
-  if (Object.values(values).includes('')) throw new Error(reportsUsage())
+  if (values.help === true || Object.values(values).includes('')) throw new Error(reportsUsage())
   const [verb, ...args] = positionals
   const isHistory = verb === 'history'
   const selected = isHistory ? args.shift() : verb

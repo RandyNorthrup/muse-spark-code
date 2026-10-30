@@ -622,7 +622,7 @@ export class PanelGovernor {
           moduleId: context.module.id,
           moduleKey: context.module.key,
           prior: conversation.prior,
-          design: design !== undefined && design.outcome !== 'impossible' ? design : undefined,
+          design: design === undefined || design.outcome === 'impossible' ? undefined : design,
         })
       }
     } catch (error: unknown) {

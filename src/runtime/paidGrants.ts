@@ -44,9 +44,8 @@ const EEXIST = 'EEXIST'
 const GENERATION_FILE = 'generation.json'
 const generationSchema = z.object({ id: z.uuid(), isInitial: z.boolean() })
 const grantSchema = z.uuid()
-type Generation = z.infer<typeof generationSchema>
-
 export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
+  type Generation = z.infer<typeof generationSchema>
   const featureFolder = (feature: PaidFeature) => path.join(`${deps.file}.d`, feature)
   const generationFile = (feature: PaidFeature) =>
     path.join(featureFolder(feature), GENERATION_FILE)
@@ -253,6 +252,7 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
         PAID_FEATURES.filter((feature) => {
           const file = generationFile(feature)
           const before = read(file, generationSchema)
+          // eslint-disable-next-line unicorn/prefer-ternary -- merging the revocation guard into the return inverts its 3 clauses into a double negation; the guard form keeps each refusal auditable (PLAN §8, RLF-UNICORN79).
           if (
             before === undefined ||
             (!(feature === 'webSearch' && readQuotes(workspaceRoot, before.id).length > 0) &&

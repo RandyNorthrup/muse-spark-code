@@ -82,8 +82,8 @@ export function checkOsStoreProviderDeps(
   deps: { readonly dataDir: string; readonly platform?: NodeJS.Platform },
   platform: NodeJS.Platform,
 ): void {
-  if ((deps.platform ?? process.platform) !== platform) throw new VaultError('invalid')
-  if (deps.dataDir === '') throw new VaultError('invalid')
+  if ((deps.platform ?? process.platform) !== platform || deps.dataDir === '')
+    throw new VaultError('invalid')
 }
 
 /** An OS-store slot of this platform's provider opened from its record, else null. */
@@ -94,9 +94,9 @@ export function openPlatformOsStoreSlot(
   open: OpenOsStoreEntry | undefined,
   scope: string,
 ): OsStoreVaultSlot | null {
-  return record.tier !== 'osStore' || record.provider !== provider
-    ? null
-    : openOsStoreSlot(record, platform, open, scope)
+  return record.tier === 'osStore' && record.provider === provider
+    ? openOsStoreSlot(record, platform, open, scope)
+    : null
 }
 
 /**

@@ -251,8 +251,7 @@ export class RuntimePullRequests {
       this.checkTrust()
     } catch (error: unknown) {
       // Ownership loss stops linking, never changes success.
-      if (error instanceof PullRequestServiceError) return
-      if (isAbortError(error)) return
+      if (error instanceof PullRequestServiceError || isAbortError(error)) return
       throw error
     }
     try {

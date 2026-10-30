@@ -42,9 +42,9 @@ export async function windowsProcessIdentity(
     // An unprovable process is no host: identity needs proof, never a guess.
     return null
   }
-  return answer.result !== 'ok' || answer.process?.userId !== answer.ownerSid
-    ? null
-    : { process: answer.process, ownerSid: answer.ownerSid }
+  return answer.result === 'ok' && answer.process?.userId === answer.ownerSid
+    ? { process: answer.process, ownerSid: answer.ownerSid }
+    : null
 }
 
 /** This process's own native identity, shaped like the POSIX peer answer. */

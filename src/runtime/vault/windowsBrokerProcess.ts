@@ -105,8 +105,11 @@ function assertWindowsBrokerOptions(options: {
   readonly runDirectory: string
   readonly dataDir: string
 }): void {
-  if (process.platform !== 'win32') throw new Error(UI_TEXT.vault.noAccess)
-  if (!path.isAbsolute(options.runDirectory) || !path.isAbsolute(options.dataDir))
+  if (
+    process.platform !== 'win32' ||
+    !path.isAbsolute(options.runDirectory) ||
+    !path.isAbsolute(options.dataDir)
+  )
     throw new Error(UI_TEXT.vault.noAccess)
 }
 

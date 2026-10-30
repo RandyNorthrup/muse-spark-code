@@ -237,7 +237,7 @@ export function createScheduleLeaseLock(fs: ScheduleFsPort): ScheduleFsPort['loc
     const folder = `leaseFences/${scheduleStorageHash(key)}`
     const rawDeadline = options?.deadlineMs
     const deadlineMs =
-      rawDeadline !== undefined && !Number.isNaN(rawDeadline) ? rawDeadline : undefined
+      rawDeadline === undefined || Number.isNaN(rawDeadline) ? undefined : rawDeadline
     let isAcquired = false
     const check = () => {
       if (!isAcquired && deadlineMs !== undefined && Date.now() >= deadlineMs)
@@ -265,7 +265,7 @@ export function createScheduleLeaseLock(fs: ScheduleFsPort): ScheduleFsPort['loc
         return lease
       }
       const observations = new Map<string, { content: string; atMs: number }>()
-      const expired = (content: string, heartbeatMs: number) => {
+      const isExpired = (content: string, heartbeatMs: number) => {
         const now = performance.now()
         const observed = observations.get('owner')
         if (observed?.content !== content) observations.set('owner', { content, atMs: now })
@@ -317,7 +317,7 @@ export function createScheduleLeaseLock(fs: ScheduleFsPort): ScheduleFsPort['loc
             if (
               released === undefined &&
               isScheduleProcessAlive(previous.lease.pid) &&
-              !expired(pulse, refreshed.heartbeat)
+              !isExpired(pulse, refreshed.heartbeat)
             ) {
               const remaining =
                 deadlineMs === undefined ? SCHEDULE_LEASE_POLL_MS : deadlineMs - Date.now()

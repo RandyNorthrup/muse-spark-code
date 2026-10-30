@@ -667,11 +667,8 @@ function addAddressCandidate(
       return address ?? `http://127.0.0.1:${String(preset.origin.defaultPort)}`
     }
     case 'azure-resource': {
-      if (address === undefined) {
-        return undefined
-      }
       // A resource name builds its URL; a URL passes through to the parse below.
-      return azureOrigin(address) ?? address
+      return address === undefined ? undefined : (azureOrigin(address) ?? address)
     }
     default: {
       return address
