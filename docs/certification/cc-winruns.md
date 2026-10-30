@@ -75,3 +75,32 @@ No fix was needed. The unproven items RLF-M95B2 named stay unproven: the
 consent dialog's grant click (a modal no harness answers), the dispatched
 reply (needs a live model) and the Meta thinking-off wire value (needs the
 Meta backend).
+
+## 3. RLPROVSYNC: the local looks (`npm run ui:look`)
+
+Headless Chrome from `C:\Program Files\Google\Chrome` in its own throwaway
+profile under `temp/tmp` (the owner's Chrome was not touched), after the dev
+bundle above. One small look each, light and dark, two pictures per scene;
+no baseline and no comparison:
+
+- `npm run ui:look -- models`, exit 0: the chat view with its model picker
+  open, both themes render and read cleanly
+  ([light](cc-winruns-models-light.png), [dark](cc-winruns-models-dark.png)).
+- `npm run ui:look -- usage-page-one-provider`, exit 0: Account & usage's
+  totals now carry the `1h Cache Writes` and `12h Cache Writes` tiles
+  between `Cache Writes` and `Reasoning Tokens`
+  ([light](cc-winruns-usage-light.png), [dark](cc-winruns-usage-dark.png)).
+  The fixture holds no cache-write counts, so both tiles read `Unknown`,
+  which is what the page says for an absent count.
+- Also looked at, not recorded as pictures: `usage-page-narrow` (320 px,
+  exit 0; the viewport shows only the first tiles) and the same scene with
+  `--lang=de` (exit 0): `12h Cache-Schreibvorgänge` fits its tile with no
+  overflow.
+
+What the look cannot show, said plainly: RLPROVSYNC's new setting row
+`museSpark.modelApiPromptCacheTtl` is a row VS Code draws itself from
+`package.json` in its Settings editor, so no harness scene renders it, and
+the webview has no wizard field for the cache lifetime on int (no webview
+source names the setting; the 12-hour surfaces are the usage page's tiles
+and the model detail's price row). Those two stay unlooked-at here, not
+claimed.
