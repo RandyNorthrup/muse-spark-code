@@ -6349,7 +6349,7 @@
     "revokeUnsupported": "Odebrání tohoto přihlášení není v tomto běhovém prostředí podporováno.",
     "providersInvalid": "Soubor poskytovatelů je neplatný, proto byly jeho položky odmítnuty a soubor zůstal nezměněn.",
     "poolUnavailable": "Sdružování účtů není v tomto běhovém prostředí dostupné: vyžaduje vázaného vlastníka prostředků. Spusťte znovu bez --account-pool.",
-    "cliUsage": "Účty: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [seřazená ID]. Přihlašovací údaje: {command} auth set --provider <id> --account <id> (pouze standardní vstup).",
+    "cliUsage": "Účty: {command} providers accounts list|add|remove|order|thresholds|place --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [--device <id>] [seřazená ID|ID účtu]. Přihlašovací údaje: {command} auth set --provider <id> --account <id> (pouze standardní vstup).",
     "slashDescription": "Vypsat účty, zobrazit prahové hodnoty nebo vybrat účet.",
     "title": "Účty",
     "defaultLabel": "Výchozí účet",

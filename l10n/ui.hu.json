@@ -6021,7 +6021,7 @@
     "revokeUnsupported": "A bejelentkezés eltávolítása ebben a futtatókörnyezetben nem támogatott.",
     "providersInvalid": "A szolgáltatófájl érvénytelen, ezért bejegyzéseit elutasítottuk, és a fájlt változatlanul hagytuk.",
     "poolUnavailable": "A fiók-összevonás ebben a futtatókörnyezetben nem érhető el: kötött erőforrás-tulajdonos szükséges hozzá. Futtassa újra a --account-pool kapcsoló nélkül.",
-    "cliUsage": "Fiókok: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [rendezett azonosítók]. Hitelesítő adatok: {command} auth set --provider <id> --account <id> (csak szabványos bemenetről).",
+    "cliUsage": "Fiókok: {command} providers accounts list|add|remove|order|thresholds|place --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [--device <id>] [rendezett azonosítók|fiókazonosító]. Hitelesítő adatok: {command} auth set --provider <id> --account <id> (csak szabványos bemenetről).",
     "slashDescription": "Fiókok listázása, küszöbértékek megtekintése vagy fiók kiválasztása.",
     "title": "Fiókok",
     "defaultLabel": "Alapértelmezett fiók",

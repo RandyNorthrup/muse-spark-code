@@ -6021,7 +6021,7 @@
     "revokeUnsupported": "Bu oturumun kaldırılması bu çalışma ortamında desteklenmiyor.",
     "providersInvalid": "Sağlayıcı dosyası geçersiz olduğundan girişleri reddedildi ve dosya değiştirilmeden bırakıldı.",
     "poolUnavailable": "Bu çalışma ortamında hesap havuzu kullanılamıyor: bağlı bir kaynak sahibi gerekiyor. --account-pool olmadan yeniden çalıştırın.",
-    "cliUsage": "Hesaplar: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [sıralı kimlikler]. Kimlik bilgileri: {command} auth set --provider <id> --account <id> (yalnızca standart girdi).",
+    "cliUsage": "Hesaplar: {command} providers accounts list|add|remove|order|thresholds|place --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [--device <id>] [sıralı kimlikler|hesap kimliği]. Kimlik bilgileri: {command} auth set --provider <id> --account <id> (yalnızca standart girdi).",
     "slashDescription": "Hesapları listeleyin, eşikleri görüntüleyin veya bir hesap seçin.",
     "title": "Hesaplar",
     "defaultLabel": "Varsayılan hesap",

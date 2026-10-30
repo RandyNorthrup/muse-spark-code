@@ -7652,7 +7652,7 @@ export const EN = {
     poolUnavailable:
       'Account pooling is unavailable in this runtime: it needs a bound resource owner. Run again without --account-pool.',
     cliUsage:
-      'Accounts: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [ordered ids]. Credentials: {command} auth set --provider <id> --account <id> (standard input only).',
+      'Accounts: {command} providers accounts list|add|remove|order|thresholds|place --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [--device <id>] [ordered ids|account id]. Credentials: {command} auth set --provider <id> --account <id> (standard input only).',
     slashDescription: 'List accounts, view thresholds, or choose an account.',
     title: 'Accounts',
     defaultLabel: 'Default Account',

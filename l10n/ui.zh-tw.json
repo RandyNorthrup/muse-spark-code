@@ -5857,7 +5857,7 @@
     "revokeUnsupported": "此執行環境不支援移除此登入。",
     "providersInvalid": "提供者檔案無效，其項目已被拒絕，檔案保持不變。",
     "poolUnavailable": "此執行環境不支援帳戶集區：需要繫結的資源擁有者。請移除 --account-pool 後重新執行。",
-    "cliUsage": "帳戶：{command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [依序排列的ID]。憑證：{command} auth set --provider <id> --account <id>（僅限標準輸入）。",
+    "cliUsage": "帳戶：{command} providers accounts list|add|remove|order|thresholds|place --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [--device <id>] [依序排列的ID|帳戶ID]。憑證：{command} auth set --provider <id> --account <id>（僅限標準輸入）。",
     "slashDescription": "列出帳戶、查看閾值或選擇帳戶。",
     "title": "帳戶",
     "defaultLabel": "預設帳戶",

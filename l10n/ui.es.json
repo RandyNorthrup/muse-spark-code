@@ -6185,7 +6185,7 @@
     "revokeUnsupported": "Quitar este inicio de sesión no es compatible con este entorno.",
     "providersInvalid": "El archivo de proveedores no es válido, por lo que sus entradas fueron rechazadas y el archivo se dejó sin cambios.",
     "poolUnavailable": "La agrupación de cuentas no está disponible en este entorno de ejecución: necesita un propietario de recursos vinculado. Vuelva a ejecutar sin --account-pool.",
-    "cliUsage": "Cuentas: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [ids ordenados]. Credenciales: {command} auth set --provider <id> --account <id> (solo entrada estándar).",
+    "cliUsage": "Cuentas: {command} providers accounts list|add|remove|order|thresholds|place --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [--device <id>] [ids ordenados|id de cuenta]. Credenciales: {command} auth set --provider <id> --account <id> (solo entrada estándar).",
     "slashDescription": "Mostrar cuentas, consultar umbrales o elegir una cuenta.",
     "title": "Cuentas",
     "defaultLabel": "Cuenta predeterminada",

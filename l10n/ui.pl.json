@@ -6349,7 +6349,7 @@
     "revokeUnsupported": "Usunięcie tego logowania nie jest obsługiwane w tym środowisku.",
     "providersInvalid": "Plik dostawców jest nieprawidłowy, więc jego wpisy zostały odrzucone, a plik pozostawiono bez zmian.",
     "poolUnavailable": "Łączenie kont jest niedostępne w tym środowisku wykonawczym: wymaga powiązanego właściciela zasobów. Uruchom ponownie bez --account-pool.",
-    "cliUsage": "Konta: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [uporządkowane identyfikatory]. Dane uwierzytelniające: {command} auth set --provider <id> --account <id> (tylko standardowe wejście).",
+    "cliUsage": "Konta: {command} providers accounts list|add|remove|order|thresholds|place --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [--device <id>] [uporządkowane identyfikatory|identyfikator konta]. Dane uwierzytelniające: {command} auth set --provider <id> --account <id> (tylko standardowe wejście).",
     "slashDescription": "Wyświetl konta, sprawdź progi lub wybierz konto.",
     "title": "Konta",
     "defaultLabel": "Konto domyślne",

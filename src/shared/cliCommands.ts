@@ -48,7 +48,7 @@ export function cliCommands(shouldIncludeHeld = false) {
       ['schedule', 'background', 'off'],
       ['schedule', 'background', 'status'],
     ],
-    accounts: ['list', 'add', 'remove', 'order', 'thresholds'].map((action) => [
+    accounts: ['list', 'add', 'remove', 'order', 'thresholds', 'place'].map((action) => [
       'providers',
       'accounts',
       action,

@@ -5857,7 +5857,7 @@
     "revokeUnsupported": "このランタイムではこのサインインの削除はサポートされていません。",
     "providersInvalid": "プロバイダーファイルが無効なため、そのエントリは拒否され、ファイルは変更されませんでした。",
     "poolUnavailable": "このランタイムではアカウントのプール利用はできません。バインドされたリソース所有者が必要です。--account-pool なしでもう一度実行してください。",
-    "cliUsage": "アカウント: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [順序付きID]。認証情報: {command} auth set --provider <id> --account <id>（標準入力のみ）。",
+    "cliUsage": "アカウント: {command} providers accounts list|add|remove|order|thresholds|place --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [--device <id>] [順序付きID|アカウントID]。認証情報: {command} auth set --provider <id> --account <id>（標準入力のみ）。",
     "slashDescription": "アカウントを一覧表示し、しきい値を確認するか、アカウントを選択します。",
     "title": "アカウント",
     "defaultLabel": "既定のアカウント",

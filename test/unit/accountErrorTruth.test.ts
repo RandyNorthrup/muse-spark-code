@@ -139,6 +139,18 @@ describe('account errors name their cause', () => {
     expect(accountErrorText(new AccountStoreError('originMismatch'))).toBe(CONNECTION)
   })
 
+  it('passes the placement refusal through with only opaque ids', () => {
+    const sentence = fill(UI_TEXT.accounts.placementConflict, {
+      provider: 'meta',
+      device: 'peer-1',
+    })
+    const conflict = new AccountStoreError('placementConflict', sentence, {
+      placement: { provider: 'meta', device: 'peer-1' },
+    })
+    expect(accountErrorText(conflict)).toBe(sentence)
+    expect(commandError(conflict)).toBe(sentence)
+  })
+
   it('tells the terminal the real failure', async () => {
     expect(commandError(new AccountStoreError('invalidProvidersFile'))).toBe(
       UI_TEXT.accounts.providersInvalid,
