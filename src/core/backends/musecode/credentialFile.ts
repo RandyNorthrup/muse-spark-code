@@ -17,8 +17,9 @@
 //   `api_key` beside `access_token` (the granted capture, still
 //   `accountLogin` on 1.4.10). An `access_token` without `api_key`
 //   exits 3 on 1.4.10 ("malformed auth file"), so it is the CLI's to
-//   place (Windows and Linux). On macOS nobody captured whether any
-//   1.4.x reads or migrates such a file, so the CLI is asked.
+//   place. On macOS 1.4.11-R6667.1 starts with both shapes as well
+//   (`apiKey`, `accountLogin`; isolated homes, 2026-10-30, RLF-MACCRED),
+//   so they are the sign-in there too.
 // - Only `providers.meta` speaks for the sign-in: 1.4.0-R4302.1's bundled
 //   Slack connector reads its own `providers.slack_connector`, so a file
 //   naming other providers alone is left to the CLI, as is a `meta` entry in
@@ -29,7 +30,9 @@
 //   one included ("unsupported auth schema version 2"), and with a version-1
 //   `meta` whose storage is the Keychain ("keychain item for meta is
 //   unreadable"); with META_API_KEY set it starts with each of the three.
-//   An empty version-2 file on macOS was not captured: the CLI is asked.
+//   An empty version-2 file on macOS starts 1.4.11, which answers
+//   `loggedOut` — but whether a Keychain item could sign such a file in
+//   was not captured, so the CLI is still asked (RLF-MACCRED).
 
 import * as z from 'zod/mini'
 import {
@@ -42,7 +45,8 @@ import {
 
 /**
 - `empty`: a version-1 file naming no provider; the file a sign-out leaves.
-- `inline`: holds the credential itself, in a captured shape (off macOS).
+- `inline`: holds the credential itself, in a captured shape (on every OS;
+  macOS captured 2026-10-30, RLF-MACCRED).
 - `keychain`: points to the macOS Keychain (on macOS).
 - `unsupportedHere`: a macOS file on Windows or Linux (version 2, or the
   Keychain lane), where `muse serve` cannot start with it.
@@ -94,13 +98,15 @@ const credentialFileSchema = z.object({
 type ProviderEntry = z.infer<typeof credentialFileSchema>['providers'][string]
 
 /**
-The shapes `muse serve` starts with (F94): no `storage` lane, and an
-`api_key` string. `muse auth set` writes `api_key` alone (captured on
-1.4.0, still starting on 1.4.10-R6427.1, 2026-10-17); a browser
-sign-in carries `api_key` beside `access_token` (the granted capture
-of 2026-09-27, still `accountLogin` on 1.4.10). An `access_token`
-without `api_key` is NOT enough: 1.4.10 exits 3 on it ("malformed
-auth file"), so it is the CLI's to place, like any other `meta` entry.
+The shapes `muse serve` starts with (F94, RLF-MACCRED): no `storage`
+lane, and an `api_key` string. `muse auth set` writes `api_key` alone
+(captured on 1.4.0, still starting on 1.4.10-R6427.1, 2026-10-17, and
+on macOS 1.4.11-R6667.1, 2026-10-30); a browser sign-in carries
+`api_key` beside `access_token` (the granted capture of 2026-09-27,
+still `accountLogin` on 1.4.10, and on macOS 1.4.11 with the
+`subs_active` key that build writes). An `access_token` without
+`api_key` is NOT enough: 1.4.10 exits 3 on it ("malformed auth file"),
+so it is the CLI's to place, like any other `meta` entry.
 */
 function isCapturedInlineEntry(entry: ProviderEntry): boolean {
   return entry.storage === undefined && entry.api_key === true
@@ -141,7 +147,8 @@ export function credentialFileVerdict(
   if (muse === undefined) {
     // A version-1 file naming no provider is what a sign-out leaves, on every
     // OS. Another provider alone (a connector's token), or an empty
-    // version-2 file on macOS (never captured), is the CLI's to say.
+    // version-2 file on macOS (serve starts with it, but the Keychain
+    // case is uncaptured: RLF-MACCRED), is the CLI's to say.
     const isSignOutShell =
       version === MUSE_CREDENTIAL_INLINE_SCHEMA && Object.keys(providers).length === 0
     return isSignOutShell ? 'empty' : 'unrecognized'
@@ -152,9 +159,10 @@ export function credentialFileVerdict(
   ) {
     return isMacOs ? 'keychain' : 'unsupportedHere'
   }
-  // Whether macOS 1.4.0 reads or migrates a version-1 file holding the
-  // credential was never captured: there the CLI says (the review of PR #49).
-  return !isMacOs && isCapturedInlineEntry(muse) ? 'inline' : 'unrecognized'
+  // macOS 1.4.11 starts with a version-1 file holding the credential and
+  // answers `apiKey` / `accountLogin` for it, as other systems' builds do
+  // (RLF-MACCRED, 2026-10-30), so it is the sign-in on every OS now.
+  return isCapturedInlineEntry(muse) ? 'inline' : 'unrecognized'
 }
 
 /**

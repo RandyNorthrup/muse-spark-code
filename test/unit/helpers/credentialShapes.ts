@@ -27,21 +27,6 @@ export const SLACK_CONNECTOR_ONLY = JSON.stringify({
 })
 
 /**
-What the structural read makes of the captured inline shapes
-(`AUTH_SET_FILE`, `DEVICE_LOGIN_FILE`) on `platform`: held in the file on
-Windows and Linux, where they were captured; on macOS, where no such file
-was captured, left to the CLI (the review of PR #49). Tests that read a
-real file on the host OS expect this, and `credentialFile.test.ts` pins it
-for every OS, so a macOS-only expectation is caught on any runner.
-*/
-export function capturedInlineVerdict(platform: NodeJS.Platform): 'inline' | 'unrecognized' {
-  return platform === 'darwin' ? 'unrecognized' : 'inline'
-}
-
-/** The OSes the extension ships for, each with its own reading of the file. */
-export const SHIPPED_PLATFORMS = ['win32', 'linux', 'darwin'] as const
-
-/**
 A browser (device-code) sign-in as the granted capture left it (1.4.0-R4302.1,
 Windows, 2026-09-27; 1062 bytes): schema 1, `meta` with these keys in this
 order; `obtained_via` and `mechanism` are the captured values.
