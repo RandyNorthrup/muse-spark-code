@@ -41,6 +41,7 @@ import {
   AZURE_BURST_WINDOW_SHORT_MS,
   DEEPSEEK_CONCURRENCY_DEEPSEEK_FLASH,
   DEEPSEEK_CONCURRENCY_DEEPSEEK_V4_PRO,
+  MODEL_API_RETRY_JITTER_MS,
   MODEL_API_RETRY_MAX_MS,
   UI_TEXT,
 } from '../../src/shared/constants'
@@ -348,8 +349,6 @@ describe('provider waits are honoured whole', () => {
               headers: frame.response.headers,
             }),
           ),
-        sleep: () => Promise.resolve(),
-        random: () => 0,
         baseUrl: 'https://api.anthropic.com',
         apiKey: () => Promise.resolve('test-key'),
         pacing,
@@ -410,13 +409,17 @@ describe('provider waits are honoured whole', () => {
     const transport = new RequestTransport({
       fetch,
       baseUrl: 'https://example.invalid',
-      sleep: () => Promise.resolve(),
-      now: () => 0,
-      random: () => 0,
+      now: () => Date.now(),
+      random: () => Math.random(),
       log: silent,
     })
-    expect(transport.backoffMs(0, 99_999_999_999_999)).toBe(99_999_999_999_999)
-    expect(transport.backoffMs(0, 1500)).toBe(1500)
+    // The jitter is real randomness: each named wait lands whole
+    // beneath it, inside one jitter window.
+    for (const named of [99_999_999_999_999, 1500]) {
+      const wait = transport.backoffMs(0, named)
+      expect(wait).toBeGreaterThanOrEqual(named)
+      expect(wait).toBeLessThanOrEqual(named + MODEL_API_RETRY_JITTER_MS)
+    }
     expect(transport.backoffMs(0, undefined)).toBeLessThanOrEqual(MODEL_API_RETRY_MAX_MS)
   })
 })
