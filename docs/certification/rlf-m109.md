@@ -127,7 +127,14 @@ lane's HEAD):
   feeder (`dist/vaultExec.js`, lane X) does not exist, and how a
   ticket becomes material in the feeder — feeder peer authentication
   against the ticket's requester, private material frames, lifetime
-  close/terminate on lock or revoke — has no wire shape. Lane
+  close/terminate on lock or revoke — has no wire shape. D89.4 has
+  the feeder prove the ticket to the broker itself, but redemption
+  admission binds a ticket to its registration incarnation token by
+  object identity (`src/core/vault/broker/state.ts`, `case 'redeem'`),
+  which only the registering connection holds; no rule yet admits a
+  feeder's own connection. PLAN §9 records the same state:
+  "installed agent T/X/S/O execution, lifetime and trusted
+  provenance owners remain absent and explicitly refused." Lane
   primitives exist (envelope/schema/feeder core in
   `src/core/vault/exec/**`, `spawnVaultFeeder` in
   `src/host/vault/vaultExecSpawn.ts`, `redeemVaultExecLease` in
