@@ -520,12 +520,25 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
       signal.throwIfAborted()
     },
     initialized: () => {
-      // A paid setting found on without its price accepted asks for it once, in the editor (D30).
-      void paid.gate.review().catch((error: unknown) => {
-        // REPORTED: a price that could not be asked is logged; the feature stays as it was.
-        log.warn(`Paid features could not be reviewed: ${failureForLog(error)}`)
-      })
-      void openInitialSurface().catch((error: unknown) => {
+      void (async () => {
+        // A paid setting found on without its price accepted asks for it once, in the editor (D30).
+        try {
+          await paid.gate.review()
+        } catch (error: unknown) {
+          // REPORTED: a price that could not be asked is logged; the feature stays as it was.
+          log.warn(`Paid features could not be reviewed: ${failureForLog(error)}`)
+        }
+        if (ending.signal.aborted) return
+        // An acceptance at the review flags the feature on the backend that
+        // bills it, as a settings change does: no conversation exists yet,
+        // so the backend is rebuilt before the first surface opens.
+        if (paid.flagged().join(',') !== flaggedAtBuild.join(',')) {
+          const old = runtime
+          await old?.close()
+          await createBackend()
+        }
+        await openInitialSurface()
+      })().catch((error: unknown) => {
         // REPORTED: the host is told the conversation could not start.
         log.error(`The panel could not start: ${failureForLog(error)}`)
         void connection

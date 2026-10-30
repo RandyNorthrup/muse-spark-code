@@ -3,7 +3,7 @@
 // session a ready backend starts, the surface bound to it, a replacement when
 // the conversation moves, settings and trust that rebuild it, unsaved files,
 // and the paid features. No prompt is sent and no network is touched.
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
@@ -281,6 +281,55 @@ describe('paid features in the runtime panel', () => {
     expect(asked).toHaveLength(2)
     parseMhpResult('shutdown', await host.request('shutdown', {}))
     expect(await exit).toBe(0)
+  })
+
+  it('flags on the backend a feature whose price the person accepts at the start review', async () => {
+    const reviewRun = createPanelRun('muse-sessions-review-')
+    reviewRun.prepare()
+    // The person set the feature on in their settings file, but its price
+    // was never accepted: the start review asks, as VS Code's does (D30).
+    mkdirSync(reviewRun.dataFolder, { recursive: true })
+    writeFileSync(
+      path.join(reviewRun.dataFolder, 'settings.json'),
+      `${JSON.stringify({ modelApiWebSearch: true }, null, 2)}\n`,
+    )
+    try {
+      let questions: ReturnType<typeof confirmations> | undefined
+      const { host, editor, runtimes, exit } = await connectedPanel(reviewRun, {
+        beforeInitialize: (wire) => {
+          questions = confirmations(wire, [1, ACP_PAID_OPTIONS.allowOnce])
+        },
+      })
+      const chat = await editor.nextSurface()
+      expect(questions?.asked[0]).toMatchObject({
+        title: fill(UI_TEXT.paidConfirmTitle, { feature: paidFeatureName('webSearch') }),
+      })
+      expect(await chat.shown('paidState')).toMatchObject({
+        state: { features: ['autoCompaction', 'webSearch', 'imageGeneration', 'voice'] },
+      })
+      // The backend the conversation bills through has the feature flagged:
+      // an accepted price at the review is not left showing on but denied.
+      const runtime = runtimes.at(-1)
+      expect(runtime?.paid.isOn('webSearch')).toBe(true)
+      expect(
+        await runtime?.paid.allows(
+          reviewRun.workspace,
+          chat.sessionId,
+          {
+            feature: 'imageGeneration',
+            kind: 'generate',
+            path: 'out.png',
+            sources: [],
+            prompt: 'a cat',
+          },
+          false,
+        ),
+      ).toBe(true)
+      parseMhpResult('shutdown', await host.request('shutdown', {}))
+      expect(await exit).toBe(0)
+    } finally {
+      await reviewRun.dispose()
+    }
   })
 
   it('offers no paid feature the person never set on the Muse Code backend (D78)', async () => {
