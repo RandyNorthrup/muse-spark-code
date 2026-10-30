@@ -130,6 +130,8 @@ with ZipFile(sys.argv[1], 'w') as z:
         { encoding: 'utf8' },
       )
       expect(run.status, `${run.stdout}\n${run.stderr}`).toBe(0)
+      // It ran: a zero exit alone is also what a check that never started gives.
+      expect(run.stdout).toContain('every panel file present')
     } finally {
       rmSync(linked, { recursive: true, force: true })
     }
