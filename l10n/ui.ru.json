@@ -6349,7 +6349,7 @@
     "revokeUnsupported": "Удаление этого входа не поддерживается в этой среде выполнения.",
     "providersInvalid": "Файл поставщиков недействителен, поэтому его записи отклонены, а файл оставлен без изменений.",
     "poolUnavailable": "Объединение аккаунтов недоступно в этой среде выполнения: ему нужен привязанный владелец ресурсов. Повторите запуск без --account-pool.",
-    "cliUsage": "Учётные записи: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [упорядоченные идентификаторы]. Данные для входа: {command} auth set --provider <id> --account <id> (только стандартный ввод).",
+    "cliUsage": "Учётные записи: {command} providers accounts list|add|remove|order|thresholds|place --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [--device <id>] [упорядоченные идентификаторы|идентификатор учётной записи]. Данные для входа: {command} auth set --provider <id> --account <id> (только стандартный ввод).",
     "slashDescription": "Показать учётные записи, посмотреть пороги или выбрать учётную запись.",
     "title": "Аккаунты",
     "defaultLabel": "Аккаунт по умолчанию",

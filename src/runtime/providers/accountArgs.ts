@@ -51,7 +51,7 @@ export function parseAccountsCommand(argv: readonly string[]): AccountsCommand |
     let allowed = ['provider']
     switch (action) {
       case 'add': {
-        allowed = ['provider', 'account', 'label', 'limit-group']
+        allowed = ['provider', 'account', 'label', 'limit-group', 'device']
         break
       }
       case 'thresholds': {
@@ -100,6 +100,7 @@ export function parseAccountsCommand(argv: readonly string[]): AccountsCommand |
           order: 0,
           thresholds: {},
           ...(values['limit-group'] !== undefined && { limitGroup: values['limit-group'] }),
+          ...(values.device !== undefined && { device: values.device }),
         }),
       }
     return

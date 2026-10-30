@@ -6185,7 +6185,7 @@
     "revokeUnsupported": "A remoção deste login não é suportada neste ambiente.",
     "providersInvalid": "O arquivo de provedores é inválido, por isso suas entradas foram recusadas e o arquivo foi mantido inalterado.",
     "poolUnavailable": "O agrupamento de contas não está disponível neste runtime: ele precisa de um proprietário de recursos vinculado. Execute novamente sem --account-pool.",
-    "cliUsage": "Contas: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [ids ordenados]. Credenciais: {command} auth set --provider <id> --account <id> (somente entrada padrão).",
+    "cliUsage": "Contas: {command} providers accounts list|add|remove|order|thresholds|place --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [--device <id>] [ids ordenados|id de conta]. Credenciais: {command} auth set --provider <id> --account <id> (somente entrada padrão).",
     "slashDescription": "Listar contas, ver limites ou escolher uma conta.",
     "title": "Contas",
     "defaultLabel": "Conta padrão",

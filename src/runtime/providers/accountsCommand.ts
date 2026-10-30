@@ -35,6 +35,11 @@ export function commandError(error: unknown): string {
   if (isRevokeUnsupportedError(error)) return UI_TEXT.accounts.revokeUnsupported
   // A refused pin names its two ways forward with only opaque ids.
   if (error instanceof AccountPlacementError) return error.message
+  // The routing layer's fixed sentence (an unknown device at add time, a
+  // pin that cannot route) passes through verbatim: wrapping it would lie
+  // about a connection the terminal already has.
+  if (error instanceof Error && error.message === UI_TEXT.accounts.routeUnavailable)
+    return error.message
   if (error instanceof AccountStoreError) {
     if (error.code === 'notOffered') return UI_TEXT.accounts.notOffered
     // The placement refusal names its two ways forward with only opaque
@@ -98,7 +103,22 @@ export async function runAccountsCommand(
         for (const row of rows) {
           order = Math.max(order, row.order + 1)
         }
-        await deps.accounts.add(provider, { ...command.account, order })
+        const addition = await deps.accounts.add(provider, { ...command.account, order })
+        // A pin the routing layer cannot place (an unknown device) refuses
+        // with nothing stored: the addition token rolls the row back, so a
+        // concurrent replacement keeps its own row and credential.
+        if (command.account.device !== undefined) {
+          try {
+            await deps.placements.pin({
+              provider,
+              account: command.account.id,
+              device: command.account.device,
+            })
+          } catch (error: unknown) {
+            await deps.accounts.remove(provider, command.account.id, addition)
+            throw error
+          }
+        }
         break
       }
       case 'remove': {
@@ -114,6 +134,11 @@ export async function runAccountsCommand(
         break
       }
       case 'place': {
+        // The routing layer refuses every unknown placement opaquely; the
+        // terminal names a mistyped account before asking it to pin.
+        const rows = await deps.accounts.list(command.provider)
+        if (rows.every((row) => row.id !== command.account))
+          throw new AccountStoreError('invalidAccount')
         await deps.placements.pin({
           provider: command.provider,
           account: command.account,

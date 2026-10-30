@@ -5317,7 +5317,8 @@
         ["providers", "accounts", "add"],
         ["providers", "accounts", "remove"],
         ["providers", "accounts", "order"],
-        ["providers", "accounts", "thresholds"]
+        ["providers", "accounts", "thresholds"],
+        ["providers", "accounts", "place"]
       ]
     },
     {

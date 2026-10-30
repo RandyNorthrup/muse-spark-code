@@ -6185,7 +6185,7 @@
     "revokeUnsupported": "La suppression de cette connexion n'est pas prise en charge dans cet environnement.",
     "providersInvalid": "Le fichier des fournisseurs est invalide : ses entrées ont été refusées et le fichier est resté inchangé.",
     "poolUnavailable": "Le regroupement de comptes est indisponible dans ce runtime : il nécessite un propriétaire de ressources lié. Relancez sans --account-pool.",
-    "cliUsage": "Comptes : {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [identifiants ordonnés]. Identifiants : {command} auth set --provider <id> --account <id> (entrée standard uniquement).",
+    "cliUsage": "Comptes : {command} providers accounts list|add|remove|order|thresholds|place --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [--device <id>] [identifiants ordonnés|identifiant de compte]. Identifiants : {command} auth set --provider <id> --account <id> (entrée standard uniquement).",
     "slashDescription": "Lister les comptes, consulter les seuils ou choisir un compte.",
     "title": "Comptes",
     "defaultLabel": "Compte par défaut",

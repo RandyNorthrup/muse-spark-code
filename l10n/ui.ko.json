@@ -5857,7 +5857,7 @@
     "revokeUnsupported": "이 런타임에서는 이 로그인 제거가 지원되지 않습니다.",
     "providersInvalid": "제공자 파일이 유효하지 않아 해당 항목이 거부되고 파일은 변경되지 않았습니다.",
     "poolUnavailable": "이 런타임에서는 계정 풀링을 사용할 수 없습니다. 바인딩된 리소스 소유자가 필요합니다. --account-pool 없이 다시 실행하세요.",
-    "cliUsage": "계정: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [정렬된 ID]. 인증 정보: {command} auth set --provider <id> --account <id> (표준 입력만).",
+    "cliUsage": "계정: {command} providers accounts list|add|remove|order|thresholds|place --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [--device <id>] [정렬된 ID|계정 ID]. 인증 정보: {command} auth set --provider <id> --account <id> (표준 입력만).",
     "slashDescription": "계정 목록을 표시하거나 임계값을 확인하거나 계정을 선택합니다.",
     "title": "계정",
     "defaultLabel": "기본 계정",

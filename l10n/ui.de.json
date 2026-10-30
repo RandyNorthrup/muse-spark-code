@@ -6021,7 +6021,7 @@
     "revokeUnsupported": "Das Entfernen dieser Anmeldung wird in dieser Laufzeit nicht unterstützt.",
     "providersInvalid": "Die Anbieterdatei ist ungültig, daher wurden ihre Einträge abgelehnt und die Datei unverändert gelassen.",
     "poolUnavailable": "Die Kontobündelung ist in dieser Runtime nicht verfügbar: Sie benötigt einen gebundenen Ressourceninhaber. Führen Sie den Befehl ohne --account-pool erneut aus.",
-    "cliUsage": "Konten: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [geordnete IDs]. Zugangsdaten: {command} auth set --provider <id> --account <id> (nur Standardeingabe).",
+    "cliUsage": "Konten: {command} providers accounts list|add|remove|order|thresholds|place --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [--device <id>] [geordnete IDs|Konto-ID]. Zugangsdaten: {command} auth set --provider <id> --account <id> (nur Standardeingabe).",
     "slashDescription": "Konten auflisten, Schwellenwerte anzeigen oder ein Konto auswählen.",
     "title": "Konten",
     "defaultLabel": "Standardkonto",
