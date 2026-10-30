@@ -3228,3 +3228,19 @@ it measured; nothing in the merged tree replaces its migration claims. The
 schedule own-cap check (`assertScheduleOwnCap`) likewise stays here: no paid
 fire could run while delivery is uncertified
 (`docs/real-life/pr207-2026-10-18.md`).
+
+## Lane RLF-NOSTUBS (2026-10-30, branch rec/rlf-nostubs)
+
+Cases the 2026-10-17 real-code-only rule moved off stand-ins that only a
+live dependency proves. Per-item record: `docs/certification/rlf-nostubs.md`.
+
+### test/unit/subscriptionCredential.test.ts (the down-store redaction case; the rest stays over real temp files)
+
+- `redactionKeys()` contributes no pasted literal when the OS secret store
+  is down (`StoreUnavailableError`), instead of breaking the save. The old
+  case rejected a hand-written `getApiKey`; no unit test can fail the real
+  OS store, so real use proves it: on a Linux machine, sign the packed
+  agent in (the Model API key stored in secret-service), start a headless
+  run that saves sessions, then stop secret-service so key reads fail
+  while the run continues; the saves succeed and the persisted session
+  files carry no pasted-key literal.
