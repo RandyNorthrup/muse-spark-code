@@ -437,6 +437,33 @@ export class ConnectorOAuth {
     )
   }
 
+  /**
+  The library builds every endpoint URL from this request. The configured
+  issuer is that base: a tunnel copies a client's `X-Forwarded-Host` (Koa
+  prefers its first value once `proxy` is on) and an absolute-form request
+  line is the whole URL, so neither may rename the token, key or revocation
+  address.
+  */
+  private pinIssuer(request: IncomingMessage): boolean {
+    const issuer = new URL(this.options.issuer)
+    request.headers.host = issuer.host
+    delete request.headers['x-forwarded-port']
+    delete request.headers.forwarded
+    if (this.options.isBehindTls) {
+      request.headers['x-forwarded-proto'] = 'https'
+      request.headers['x-forwarded-host'] = issuer.host
+    } else {
+      delete request.headers['x-forwarded-host']
+      delete request.headers['x-forwarded-proto']
+    }
+    const target = request.url
+    if (typeof target !== 'string' || !/^https?:\/\//iu.test(target)) return true
+    if (!URL.canParse(target)) return false
+    const absolute = new URL(target)
+    request.url = `${absolute.pathname}${absolute.search}`
+    return true
+  }
+
   public get resource(): string {
     return `${this.options.issuer}${CONNECTOR_REMOTE_PATHS.mcp}`
   }
@@ -509,9 +536,10 @@ export class ConnectorOAuth {
         request.url = `${url.pathname}${url.search}`
       }
     }
-    // The library builds its URLs from the request: the issuer is the one name.
-    request.headers.host = new URL(this.options.issuer).host
-    if (this.options.isBehindTls) request.headers['x-forwarded-proto'] = 'https'
+    if (!this.pinIssuer(request)) {
+      sendJson(response, HTTP_STATUS.badRequest, { error: 'invalid_request' })
+      return
+    }
     try {
       await this.provider.callback()(request, response)
     } catch (error: unknown) {

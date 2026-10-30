@@ -252,6 +252,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The connector's sign-in addresses stay the public URL you set. A request
+  that names a different host, including one a tunnel forwards, no longer
+  changes the sign-in, token or key address.
 - **A vault no longer reports itself lost when it was never set up.** The
   vault's rollback record in the operating system's credential store is now
   keyed to the vault it protects, so nothing outside that vault can read
