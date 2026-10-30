@@ -106,6 +106,8 @@ export const TEAM_WORKSPACE_KEYS = {
   /** The workspace team (lanes R/A own the shape): template, roles and pools. */
   team: 'museSpark.team.config',
   conversationModes: 'museSpark.team.conversations',
+  /** Durable `command_id` answers per Muse Code conversation (the `team` MCP server's retries). */
+  commandRecords: 'museSpark.team.commandRecords',
 } as const
 
 /** The narrowest workspace-state read: `get` only, never `update`. */

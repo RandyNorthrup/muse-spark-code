@@ -467,6 +467,11 @@ export const DEFERRED = [
     files: ['src/runtime/exec/execTeamEntry.ts'],
   },
   {
+    output: 'dist/execLedgerLease.js',
+    metafile: 'dist/meta/execLedgerLease.json',
+    files: ['src/runtime/exec/execLedgerLeaseEntry.ts'],
+  },
+  {
     output: 'dist/headless.js',
     metafile: 'dist/meta-acp/headless.json',
     files: ['src/runtime/exec/runExec.ts'],
@@ -1865,6 +1870,7 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/backends/modelapi/modelApiAcpEntry.ts'), 'dist/modelApiAcp.js'],
   [path.resolve('src/runtime/exec/runExec.ts'), 'dist/headless.js'],
   [path.resolve('src/runtime/exec/execTeamEntry.ts'), 'dist/execTeam.js'],
+  [path.resolve('src/runtime/exec/execLedgerLeaseEntry.ts'), 'dist/execLedgerLease.js'],
   [path.resolve('src/runtime/usage/usageAcp.ts'), 'dist/usageService.js'],
   [path.resolve('src/core/usage/usageExportEntry.ts'), 'dist/usageExport.js'],
   [path.resolve('src/host/backend/providersEntry.ts'), 'dist/providers.js'],
@@ -2039,7 +2045,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|providerListEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|accountPaidEntry|modelEffortsEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|modelApiB1Entry|modelApiToolRunEntry|modelApiFastEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|reportFallbackEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|modelApiAcpEntry|teamEntry|teamSchedulerEntry|teamWindowEntry|teamLandingEntry|teamRunnersEntry|teamPanelEntry|teamHostEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|execTeamEntry|workerCreateEntry|workerOpsEntry|usageAcp|usageExportEntry|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|subscriptionCommandsEntry|configuredProvidersEntry|chatGptProviderCommands|grokProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry|estimateActionsEntry|windowsEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|providerListEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|accountPaidEntry|modelEffortsEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|modelApiB1Entry|modelApiToolRunEntry|modelApiFastEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|reportFallbackEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|modelApiAcpEntry|teamEntry|teamSchedulerEntry|teamWindowEntry|teamLandingEntry|teamRunnersEntry|teamPanelEntry|teamHostEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|execTeamEntry|execLedgerLeaseEntry|workerCreateEntry|workerOpsEntry|usageAcp|usageExportEntry|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|subscriptionCommandsEntry|configuredProvidersEntry|chatGptProviderCommands|grokProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry|estimateActionsEntry|windowsEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)

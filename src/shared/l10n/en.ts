@@ -5643,6 +5643,10 @@ export const EN = {
   execTeamMergeHeldReview:
     'The required review is not complete, so the branch is held at {ref}. Collect the review and merge again, or remove {ref} to discard the work.',
   execTeamMergeBlocked: 'The merge cannot proceed for task {entry}: {detail}.',
+  execTeamMergeFailedHeld:
+    'The merge failed: {detail} The branch is held at {ref}; merge again once fixed, or remove {ref} to discard the work.',
+  execTeamMergeFailedKept:
+    'The merge failed: {detail} Its branch could not be held, so the work is kept in {folder}. Recover it from there before the next headless run cleans stale runs.',
   // {options}: the refused command-line options as typed, joined by commas.
   execMuseCodeOnly:
     'These options require the Muse Code backend, the default without --backend modelApi: {options}.',

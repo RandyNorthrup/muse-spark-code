@@ -802,6 +802,12 @@ const execTeamOptions = {
   outfile: 'dist/execTeam.js',
 }
 
+const execLedgerLeaseOptions = {
+  ...teamOptions,
+  entryPoints: ['src/runtime/exec/execLedgerLeaseEntry.ts'],
+  outfile: 'dist/execLedgerLease.js',
+}
+
 const teamFileIoOptions = {
   ...teamOptions,
   entryPoints: [TEAM_FILE_IO_ENTRY],
@@ -2219,6 +2225,7 @@ if (isWatch) {
     esbuild.context(teamHostOptions),
     esbuild.context(teamEngineOptions),
     esbuild.context(execTeamOptions),
+    esbuild.context(execLedgerLeaseOptions),
     esbuild.context(teamFileIoOptions),
     esbuild.context(teamCreateOptions),
     esbuild.context(teamWorkerOpsOptions),
@@ -2446,6 +2453,7 @@ if (isWatch) {
     teamCreate: recorded('teamCreate', teamCreateOptions),
     teamWorkerOps: recorded('teamWorkerOps', teamWorkerOpsOptions),
     execTeam: recorded('execTeam', execTeamOptions),
+    execLedgerLease: recorded('execLedgerLease', execLedgerLeaseOptions),
     teamMerge: recorded('teamMerge', teamMergeOptions),
     teamScheduler: recorded('teamScheduler', teamSchedulerOptions),
     teamWindow: recorded('teamWindow', teamWindowOptions),

@@ -4442,6 +4442,8 @@
   "execTeamMergeHeldProtected": "受保护路径需要批准，因此分支暂存于 {ref}。批准后重新合并，或删除 {ref} 以丢弃该工作。",
   "execTeamMergeHeldReview": "所需的评审尚未完成，因此分支暂存于 {ref}。收集评审后重新合并，或删除 {ref} 以丢弃该工作。",
   "execTeamMergeBlocked": "任务 {entry} 的合并无法继续:{detail}。",
+  "execTeamMergeFailedHeld": "合并失败: {detail} 分支已保留在 {ref}；请修复后重新合并，或删除 {ref} 以放弃这项工作。",
+  "execTeamMergeFailedKept": "合并失败: {detail} 其分支无法保留，因此工作保留在 {folder} 中。请在下一次无界面运行清理旧运行之前从那里恢复。",
   "execMuseCodeOnly": "这些选项需要 Muse Code 后端（不加 --backend modelApi 时的默认后端）：{options}。",
   "execModelUnpriced": "此模型没有已知费率。",
   "execPromptMissing": "请提供一个非空提示。",

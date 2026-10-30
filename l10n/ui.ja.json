@@ -4442,6 +4442,8 @@
   "execTeamMergeHeldProtected": "保護されたパスには承認が必要なため、ブランチは {ref} に保持されています。承認してから再度マージするか、作業を破棄するには {ref} を削除してください。",
   "execTeamMergeHeldReview": "必要なレビューが完了していないため、ブランチは {ref} に保持されています。レビューを収集してから再度マージするか、作業を破棄するには {ref} を削除してください。",
   "execTeamMergeBlocked": "タスク {entry} のマージを続行できません: {detail}。",
+  "execTeamMergeFailedHeld": "マージに失敗しました: {detail} ブランチは {ref} に保持されています。修正後に再度マージするか、{ref} を削除して作業を破棄してください。",
+  "execTeamMergeFailedKept": "マージに失敗しました: {detail} ブランチを保持できなかったため、作業は {folder} に残されています。次のヘッドレス実行が古い実行を整理する前に、そこから復旧してください。",
   "execMuseCodeOnly": "これらのオプションには Muse Code バックエンド (--backend modelApi を付けない場合の既定) が必要です: {options}。",
   "execModelUnpriced": "このモデルの料金は不明です。",
   "execPromptMissing": "空でないプロンプトを1つ指定してください。",

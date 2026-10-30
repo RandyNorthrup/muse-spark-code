@@ -4694,6 +4694,8 @@
   "execTeamMergeHeldProtected": "Chronione ścieżki wymagają zatwierdzenia, więc gałąź jest przetrzymana w {ref}. Zatwierdź je i scal ponownie albo usuń {ref}, aby odrzucić pracę.",
   "execTeamMergeHeldReview": "Wymagana recenzja nie jest ukończona, więc gałąź jest przetrzymana w {ref}. Zbierz recenzję i scal ponownie albo usuń {ref}, aby odrzucić pracę.",
   "execTeamMergeBlocked": "Scalanie dla zadania {entry} nie może być kontynuowane: {detail}.",
+  "execTeamMergeFailedHeld": "Scalenie nie powiodło się: {detail} Gałąź jest zachowana w {ref}; po naprawie scal ponownie albo usuń {ref}, aby odrzucić pracę.",
+  "execTeamMergeFailedKept": "Scalenie nie powiodło się: {detail} Jego gałęzi nie udało się zachować, więc praca pozostaje w {folder}. Odzyskaj ją stamtąd, zanim następne uruchomienie bez interfejsu posprząta stare uruchomienia.",
   "execMuseCodeOnly": "Te opcje wymagają backendu Muse Code, domyślnego bez --backend modelApi: {options}.",
   "execModelUnpriced": "Ten model nie ma znanej taryfy.",
   "execPromptMissing": "Podaj jedno niepuste polecenie.",

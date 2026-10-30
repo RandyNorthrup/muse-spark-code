@@ -303,6 +303,15 @@ export interface TeamCardPort {
   readonly show: (sessionId: string, item: TeamCardItem) => void
 }
 
+/** One file a merge would touch, as the merge card lists it (the planner's words). */
+export interface TeamMergePlanFile {
+  readonly path: string
+  readonly change: 'added' | 'deleted' | 'modified'
+  readonly isBinary: boolean
+  readonly isProtected: boolean
+  readonly outsideWritePaths: boolean
+}
+
 /** What a merge did, in the words the model and the user read. */
 export interface TeamMergeOutcome {
   readonly status: 'merged' | 'rework'
@@ -346,6 +355,17 @@ export interface TeamMergePort {
     /** The user approved the protected paths the merge card listed. */
     options: { readonly allowProtected: boolean },
   ) => Promise<TeamMergeOutcome>
+  /**
+  What the merge would do, without writing (the merge planner binding):
+  the files, which are binary, which need the protected-path approval and
+  which fall outside `write-paths`. Throws for unsafe paths, link escapes
+  and ref breaches, before any card is shown.
+  */
+  readonly plan: (task: {
+    readonly taskId: string
+    readonly role: TeamRoleConfig
+    readonly outcome: TeamWorkerOutcome
+  }) => Promise<readonly TeamMergePlanFile[]>
   readonly discard: (task: {
     readonly taskId: string
     readonly role: TeamRoleConfig
