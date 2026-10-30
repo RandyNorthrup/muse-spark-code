@@ -7,7 +7,7 @@ import { isProtectedPath } from '../../core/protectedPaths'
 import type { EditorContext } from '../../core/editorContext'
 import { selectionSchema } from '../../shared/hostApi/data'
 
-/** A validated editor excerpt is shared only for a trusted, indexed workspace file. */
+/** A validated editor excerpt is shared only for an indexed, unprotected workspace file (as VS Code shares it). */
 export function runtimeEditorContext(
   value: unknown,
   workspaceRoot: string,

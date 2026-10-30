@@ -30350,6 +30350,10 @@ git and pull requests, review, export and import, plans and the tasks tab;
 suites green on the production build. Not done: checkpoints, usage history,
 `--companion` and the other surfaces; handoff and remainder:
 `docs/certification/cc-m104b.md`.
+Review RVM104B (2026-10-30): five fixes on lane B (D78 gate parity on Muse
+Code, machine-scoped resource settings, the start review's backend flags, a
+plan save's trust recheck, Ask again's account revocation), each red/green;
+record: `docs/certification/rvm104b.md`.
 
 **Warning for the POSIX trusted-path verifier (INT0180, 2026-10-11).** A real
 POSIX verifier that refuses a group-writable unit search directory would
