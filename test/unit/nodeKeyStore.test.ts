@@ -74,6 +74,21 @@ describe('M110-N interim item encryption and slot handoff', () => {
       expect(reported.calls).toHaveLength(5)
     },
   )
+  nodeNativeTest('H15 refuses a truncated GCM tag instead of decrypting the item', async () => {
+    const { store, dir, codec, reported } = await setup()
+    await store.unlock('test passphrase')
+    await store.store(SECRET_KEYS.modelApiKey, 'synthetic-provider-canary')
+    store.seal()
+    const file = path.join(dir, NODE_KEYS_FILE)
+    const record = codec.parse(await readFile(file, 'utf8'))
+    const tag = record.items[0]!.tag
+    record.items[0]!.tag = tag.subarray(0, 4)
+    await writeFile(file, codec.serialize(record))
+    await expect(store.unlock('test passphrase')).rejects.toThrow()
+    expect(store.isSealed).toBe(true)
+    await expect(store.get(SECRET_KEYS.modelApiKey)).rejects.toThrow()
+    expect(reported.calls).toHaveLength(1)
+  })
   nodeNativeTest(
     'H08 lock during a slow unlock cannot unseal when it eventually returns',
     async () => {
