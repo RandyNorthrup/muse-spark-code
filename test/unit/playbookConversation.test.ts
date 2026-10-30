@@ -10,22 +10,14 @@
 // conversation controller's own; the child sessions' own items and VS Code's
 // pickers exist only in real use, so the cases that need them left for
 // docs/real-life/unproven.md.
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
-import { mkdtemp } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import type { AgentEvent, ItemSnapshot } from '../../src/shared/agentEvents'
 import type { BestOfNRun } from '../../src/shared/bestOfN'
 import { bestOfNRunSchema } from '../../src/shared/bestOfN'
-import {
-  PLAYBOOK_RECORD_FOLDER,
-  PLAYBOOK_RECORD_MAX,
-  PLAYBOOK_REFUSAL_MODEL_TEXT,
-} from '../../src/shared/constants'
+import { PLAYBOOK_RECORD_MAX, PLAYBOOK_REFUSAL_MODEL_TEXT } from '../../src/shared/constants'
 import { fill, UI_TEXT } from '../../src/shared/l10n/text'
 import type { PlaybookRecord } from '../../src/shared/playbook'
-import type { ReviewFinding } from '../../src/shared/reviewFindings'
 import type { TurnPart } from '../../src/core/agent/agentBackend'
 import {
   FilePlaybookJournal,
@@ -33,13 +25,11 @@ import {
 } from '../../src/core/orchestration/playbook/journal'
 import type { PanelChild } from '../../src/core/orchestration/panelLanes'
 import {
-  createPlaybookWindow,
   type PlaybookConversationEvents,
   type PlaybookDispatch,
   type PlaybookWindow,
   type PlaybookWindowDeps,
 } from '../../src/host/playbook/playbookWindow'
-import { servePlaybook } from '../../src/host/playbook/playbookWorker'
 import {
   createPlaybookConversation,
   playbookAdmission,
@@ -47,25 +37,30 @@ import {
   type PlaybookPick,
   type PlaybookUi,
 } from '../../src/host/playbook/playbookConversation'
-import { playbookSnapshotSchema } from '../../src/runtime/playbook/command'
 import type { PanelModuleSummary } from '../../src/runtime/playbook/governor'
 import { playbookNoteText } from '../../src/runtime/playbook/text'
-import { compiledJobAssembly, SYSTEM_ROOT } from './helpers/playbook/jobAssembly'
 import { keepCalls } from './helpers/playbook/keepCalls'
-import { thread } from './helpers/playbook/workerThread'
+import {
+  answeredReview,
+  eventually,
+  journalFolder,
+  liveScene,
+  recordedLog,
+  refusalOf,
+  releasePlaybookScene,
+  reviewedChild,
+  sceneLeases,
+  setupPlaybookScene,
+  teardownPlaybookScene,
+} from './helpers/playbook/playbookScene'
 import {
   coveredReview,
   GOVERNED_ROUND_TIMEOUT_MS,
   PANEL_FILES,
-  panelRepository,
-  panelRepositoryTemplate,
   reviewReply,
   turnEnd,
-  type PanelRepository,
 } from './helpers/playbook/panelRepository'
-import { removeFolder } from './helpers/temporaryFolders'
 
-const IS_WINDOWS = process.platform === 'win32'
 const SESSION = 'session-1'
 const CHILD_SESSION = 'child-1'
 const AGENT = 'subagent-1'
@@ -94,49 +89,18 @@ const CHILD2: PanelChild = {
   files: [PANEL_FILES.panel],
 }
 
-const shared: {
-  template?: ReturnType<typeof panelRepositoryTemplate>
-  storage?: string
-  assembly?: string
-} = {}
-const open: { remove(): void }[] = []
-const windows: { dispose(): void }[] = []
 const conversations: PlaybookConversation[] = []
 
 beforeAll(async () => {
-  shared.template = panelRepositoryTemplate()
-  if (!IS_WINDOWS) return
-  shared.storage = await mkdtemp(path.join(tmpdir(), 'muse-playbook-conversation-'))
-  shared.assembly = await compiledJobAssembly(shared.storage)
+  await setupPlaybookScene()
 })
 afterEach(() => {
   for (const conversation of conversations.splice(0)) conversation.dispose()
-  for (const window of windows.splice(0)) window.dispose()
-  for (const repository of open.splice(0)) repository.remove()
+  releasePlaybookScene()
 })
 afterAll(async () => {
-  shared.template?.remove()
-  if (shared.storage !== undefined) await removeFolder(shared.storage)
+  await teardownPlaybookScene()
 })
-
-function recordedLog() {
-  const lines: string[] = []
-  const keep = (level: string) => (message: string) => {
-    lines.push(`${level}: ${message}`)
-  }
-  return {
-    lines,
-    log: { trace: keep('trace'), info: keep('info'), warn: keep('warn'), error: keep('error') },
-  }
-}
-
-/**
-Waits out real decisions: each is real git processes, and on Windows a
-job helper's start as well, which is seconds when PowerShell starts cold.
-*/
-async function eventually(assertion: () => void | Promise<void>): Promise<void> {
-  await vi.waitFor(assertion, { timeout: GOVERNED_ROUND_TIMEOUT_MS / 2 })
-}
 
 /** Whether a promise has settled by now, without waiting for it. */
 async function isSettled(promise: Promise<unknown>): Promise<boolean> {
@@ -153,16 +117,6 @@ function aTurn(): Promise<void> {
   return new Promise((resolve) => {
     setImmediate(resolve)
   })
-}
-
-/** What a request was refused with; undefined when it was not refused. */
-async function refusalOf(request: Promise<unknown>): Promise<unknown> {
-  try {
-    await request
-  } catch (error) {
-    return error
-  }
-  return undefined
 }
 
 /** A dispatch the conversation asked the window for, and the completion it was owed. */
@@ -217,35 +171,7 @@ interface Told {
 
 /** A window over the real worker code, and the conversation the scene drives on it. */
 function live(overrides: Partial<PlaybookWindowDeps> = {}) {
-  if (shared.template === undefined) throw new Error('The repository template was not made')
-  const repository: PanelRepository = panelRepository(shared.template.directory)
-  open.push(repository)
-  const recorded = recordedLog()
-  const threads: ReturnType<typeof thread>[] = []
-  const startWorker = keepCalls<
-    Parameters<PlaybookWindowDeps['startWorker']>,
-    ReturnType<PlaybookWindowDeps['startWorker']>
-  >((_file, data) => {
-    const boundary = thread()
-    threads.push(boundary)
-    servePlaybook(boundary.port, structuredClone(data))
-    return boundary.handle
-  })
-  const window = createPlaybookWindow({
-    bundlePath: 'dist/playbook.js',
-    startWorker,
-    agentDataFolder: repository.dataFolder,
-    workspaceRoot: repository.workspace,
-    isWorkspaceTrusted: () => true,
-    platform: process.platform,
-    systemRoot: IS_WINDOWS ? SYSTEM_ROOT : undefined,
-    shellJobAssembly: IS_WINDOWS ? () => Promise.resolve(shared.assembly) : undefined,
-    reviewCharter: (targets) =>
-      `charter for ${targets.map((target) => target.moduleKey).join(', ')}`,
-    log: recorded.log,
-    ...overrides,
-  })
-  windows.push(window)
+  const { repository, window, startWorker, threads, lines } = liveScene(SESSION, overrides)
   // The window as the conversation drives it: every call runs the real
   // method, and what it was asked is kept beside it.
   const dispatches: CompletionEntry[] = []
@@ -300,7 +226,7 @@ function live(overrides: Partial<PlaybookWindowDeps> = {}) {
     startWorker,
     threads,
     spawn,
-    ...recorded,
+    lines,
   }
 }
 
@@ -370,64 +296,12 @@ function bothWordings(reason: string, shown: string): string {
 }
 
 /** One whole counted review through the window, as the controller drives it. */
-async function reviewedChild(
-  setup: Live,
-  turnId: string,
-  child: PanelChild,
-  files: readonly string[],
-  race: ReviewFinding,
-): Promise<readonly PanelModuleSummary[]> {
-  const rounds: PanelModuleSummary[][] = []
-  const stop = setup.window.subscribe(SESSION, {
-    note: () => undefined,
-    offer: () => undefined,
-    rounds: (counted) => {
-      rounds.push([...counted])
-    },
-    hookOutput: () => undefined,
-    failure: () => undefined,
-  })
-  try {
-    const ticket = await setup.window.openReview(SESSION, files, [child])
-    if (ticket === undefined) throw new Error('A playbook review was expected')
-    ticket.observe(reviewReply(turnId, coveredReview([race])))
-    ticket.observe(turnEnd(turnId))
-    ticket.bind(turnId)
-    await eventually(() => {
-      expect(rounds.length).toBeGreaterThan(0)
-    })
-    expect(ticket.isClosed).toBe(true)
-    return rounds.at(-1) ?? []
-  } finally {
-    stop()
-  }
-}
-
 async function reviewed(setup: Live, turnId: string): Promise<readonly PanelModuleSummary[]> {
-  return await reviewedChild(setup, turnId, CHILD, [STORE], RACE)
+  return await reviewedChild(setup, SESSION, turnId, CHILD, [STORE], RACE)
 }
 
 async function answered(setup: Live, rounds: readonly PanelModuleSummary[]): Promise<void> {
-  for (const round of rounds)
-    await expect(
-      setup.window.answer(
-        SESSION,
-        round.moduleId,
-        round.findings.map((finding) => ({ findingId: finding.id, status: 'fixed' as const })),
-      ),
-    ).resolves.toBe(true)
-}
-
-/** A data folder that already holds journals, so a dispatch is asked about. */
-function journalFolder(): string {
-  const folder = mkdtempSync(path.join(tmpdir(), 'muse-playbook-conversation-'))
-  mkdirSync(path.join(folder, PLAYBOOK_RECORD_FOLDER), { recursive: true })
-  open.push({
-    remove: () => {
-      rmSync(folder, { recursive: true, force: true })
-    },
-  })
-  return folder
+  await answeredReview(setup, SESSION, rounds)
 }
 
 /** The completion the window owes a round: every governed dispatch gets one. */
@@ -447,11 +321,22 @@ async function settled(completion: Promise<void>): Promise<void> {
   })
 }
 
-async function leases(setup: Live): Promise<readonly string[]> {
-  const snapshot = playbookSnapshotSchema.parse(await setup.window.surface.read())
-  return snapshot.records
-    .filter((record) => record.kind === 'lease')
-    .map((record) => record.value.status)
+/** The completion owed to the latest dispatch the conversation asked for. */
+async function latestDone(setup: Live): Promise<{ readonly done: Promise<void> }> {
+  const [entry] = setup.dispatches.slice(-1)
+  if (entry === undefined) throw new Error('The round never reached the window')
+  return await completionOf(entry)
+}
+
+/** The first dispatch the conversation asked for, and the completion owed to it. */
+async function firstDone(setup: Live): Promise<{
+  readonly done: Promise<void>
+  readonly request: PlaybookDispatch
+}> {
+  const [entry] = setup.dispatches
+  if (entry === undefined) throw new Error('The dispatch never reached the window')
+  const { done } = await completionOf(entry)
+  return { done, request: entry.request }
 }
 
 /**
@@ -460,7 +345,7 @@ is append-only, so intermediate holds stay held; the last record wins.
 */
 async function releasedAll(setup: Live): Promise<void> {
   await eventually(async () => {
-    const statuses = await leases(setup)
+    const statuses = await sceneLeases(setup)
     expect(statuses.length).toBeGreaterThan(0)
     expect(statuses.at(-1)).toBe('released')
   })
@@ -469,7 +354,7 @@ async function releasedAll(setup: Live): Promise<void> {
 /** At least `count` releases are journaled: the rounds before it are over. */
 async function releasedCount(setup: Live, count: number): Promise<void> {
   await eventually(async () => {
-    const statuses = await leases(setup)
+    const statuses = await sceneLeases(setup)
     expect(statuses.filter((status) => status === 'released').length).toBeGreaterThanOrEqual(count)
   })
 }
@@ -708,9 +593,7 @@ describe('a review carried to its end', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, 
     // Work the worker dies on cannot be certified: its conversation is told so.
     const effect = keepCalls(() => Promise.resolve('sent'))
     await expect(conversation.dispatch('delegate', SESSION, AGENT, effect)).resolves.toBe('sent')
-    const [round] = setup.dispatches
-    if (round === undefined) throw new Error('The dispatch never reached the window')
-    await completionOf(round)
+    await firstDone(setup)
     boundary.crash()
     await aTurn()
     expect(told.map((notice) => [notice.level, notice.hasAction])).toEqual([
@@ -734,10 +617,8 @@ describe('governed rounds', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () => {
     await reviewed(setup, 'turn-1')
     const sent = keepCalls(() => Promise.resolve('sent-1'))
     await expect(conversation.dispatch('delegate', SESSION, AGENT, sent)).resolves.toBe('sent-1')
-    const [first] = setup.dispatches
-    if (first === undefined) throw new Error('The dispatch never reached the window')
-    expect(first.request).toEqual({ kind: 'delegate', sessionId: SESSION, targetId: AGENT })
-    const { done: firstEnd } = await completionOf(first)
+    const { done: firstEnd, request: firstRequest } = await firstDone(setup)
+    expect(firstRequest).toEqual({ kind: 'delegate', sessionId: SESSION, targetId: AGENT })
     // Another child's end is not this round's.
     conversation.ended(SESSION, 'subagent-2')
     expect(await isSettled(firstEnd)).toBe(false)
@@ -748,9 +629,7 @@ describe('governed rounds', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () => {
     // so each round ends before the next begins.
     const run = keepCalls(() => Promise.resolve('run'))
     await expect(conversation.dispatch('bestOfN', SESSION, undefined, run)).resolves.toBe('run')
-    const [bestOfNEntry] = setup.dispatches.slice(-1)
-    if (bestOfNEntry === undefined) throw new Error('A round never reached the window')
-    const { done: bestOfNEnd } = await completionOf(bestOfNEntry)
+    const { done: bestOfNEnd } = await latestDone(setup)
     conversation.ended(SESSION, undefined)
     await settled(bestOfNEnd)
     await releasedAll(setup)
@@ -759,9 +638,7 @@ describe('governed rounds', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () => {
     await expect(conversation.dispatch('delegate', SESSION, AGENT, followUp)).resolves.toBe(
       'sent-2',
     )
-    const [delegateEntry] = setup.dispatches.slice(-1)
-    if (delegateEntry === undefined) throw new Error('A round never reached the window')
-    const { done: delegateEnd } = await completionOf(delegateEntry)
+    const { done: delegateEnd } = await latestDone(setup)
     const submit = keepCalls((_parts: readonly TurnPart[]) => Promise.resolve({ turnId: 'turn-2' }))
     await conversation.review(request(submit).review)
     expect(submit.calls[0]?.[0]).toBe(PARTS)
@@ -781,9 +658,7 @@ describe('governed rounds', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () => {
     await expect(
       conversation.dispatch('delegate', SESSION, AGENT, () => Promise.resolve('x'), waitedEnd),
     ).resolves.toBe('x')
-    const [aborted] = setup.dispatches.slice(-1)
-    if (aborted === undefined) throw new Error('The dispatch never reached the window')
-    const { done: abortedEnd } = await completionOf(aborted)
+    const { done: abortedEnd } = await latestDone(setup)
     expect(waited).toHaveLength(1)
     expect(waited[0]?.[0]).toBe('x')
     expect(waited[0]?.[1]).toBeInstanceOf(AbortSignal)
@@ -809,10 +684,8 @@ describe('governed rounds', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () => {
     await expect(
       admit('delegate', SESSION, AGENT, () => Promise.resolve('sent'), isOver, bothWordings),
     ).resolves.toBe('sent')
-    const [first] = setup.dispatches
-    if (first === undefined) throw new Error('The dispatch never reached the window')
-    expect(first.request).toEqual({ kind: 'delegate', sessionId: SESSION, targetId: AGENT })
-    const { done: firstEnd } = await completionOf(first)
+    const { done: firstEnd, request } = await firstDone(setup)
+    expect(request).toEqual({ kind: 'delegate', sessionId: SESSION, targetId: AGENT })
     // Asked as the wait began: the child is still at work.
     expect(isOver.calls).toHaveLength(1)
     // A change that is not the end changes nothing; the end does.
@@ -832,9 +705,7 @@ describe('governed rounds', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () => {
     await expect(
       admit('delegate', SESSION, AGENT, () => Promise.resolve('sent-2'), isOverAgain, bothWordings),
     ).resolves.toBe('sent-2')
-    const [second] = setup.dispatches.slice(-1)
-    if (second === undefined) throw new Error('The dispatch never reached the window')
-    const { done: secondEnd } = await completionOf(second)
+    const { done: secondEnd } = await latestDone(setup)
     expect(waiters.size).toBe(1)
     expect(isOverAgain.calls).toHaveLength(1)
     setup.window.dispose()
@@ -924,10 +795,8 @@ describe('governed rounds', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () => {
     await reviewed(setup, 'turn-1')
     const row = observedRow()
     await conversation.observed(SESSION, row)
-    const [first] = setup.dispatches
-    if (first === undefined) throw new Error('The row never reached the window')
-    expect(first.request).toEqual({ kind: 'subagent', sessionId: SESSION, targetId: AGENT })
-    const { done: firstEnd } = await completionOf(first)
+    const { done: firstEnd, request } = await firstDone(setup)
+    expect(request).toEqual({ kind: 'subagent', sessionId: SESSION, targetId: AGENT })
     await conversation.observed(SESSION, { ...row, childSessionId: CHILD_SESSION })
     expect(setup.dispatches).toHaveLength(1)
     // A row that is not this round's ends nothing; its own round is refused
@@ -953,10 +822,8 @@ describe('governed rounds', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () => {
     for (const [index, status] of ['completed', 'failed', 'cancelled'].entries()) {
       const itemId = `terminal-${String(index)}`
       await conversation.observed(SESSION, observedRow(AGENT, itemId))
-      const [entry] = setup.dispatches.slice(-1)
-      if (entry === undefined) throw new Error('The row never reached the window')
       await conversation.observed(SESSION, observedRow(AGENT, itemId, status))
-      const { done } = await completionOf(entry)
+      const { done } = await latestDone(setup)
       await settled(done)
       await releasedAll(setup)
     }
@@ -971,18 +838,14 @@ describe('governed rounds', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () => {
     const { conversation, told } = setup.spawn()
     await reviewed(setup, 'turn-1')
     await conversation.observed(SESSION, observedRow())
-    const [first] = setup.dispatches
-    if (first === undefined) throw new Error('The row never reached the window')
-    const { done: firstEnd } = await completionOf(first)
+    const { done: firstEnd } = await firstDone(setup)
     const submit = keepCalls((_parts: readonly TurnPart[]) => Promise.resolve({ turnId: 'turn-2' }))
     await conversation.review(request(submit).review)
     expect(submit.calls[0]?.[0]).toBe(PARTS)
     await settled(firstEnd)
     await releasedAll(setup)
     await conversation.observed(SESSION, observedRow(AGENT, 'row-2'))
-    const [second] = setup.dispatches.slice(-1)
-    if (second === undefined) throw new Error('The row never reached the window')
-    const { done: secondEnd } = await completionOf(second)
+    const { done: secondEnd } = await latestDone(setup)
     conversation.dispose()
     await settled(secondEnd)
     expect(setup.subscriptions.count).toBe(0)
@@ -1005,27 +868,21 @@ describe('governed rounds', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () => {
     const work = conversation.observed(SESSION, row)
     await conversation.observed(SESSION, { ...row, status: 'completed' })
     await work
-    const [early] = setup.dispatches
-    if (early === undefined) throw new Error('The row never reached the window')
-    const { done: earlyEnd } = await completionOf(early)
+    const { done: earlyEnd } = await firstDone(setup)
     await settled(earlyEnd)
     await releasedAll(setup)
     // A repeated completion does not close a later follow-up.
     const followUpRow = observedRow(AGENT, 'row-2')
     await conversation.observed(SESSION, followUpRow)
-    const [second] = setup.dispatches.slice(-1)
-    if (second === undefined) throw new Error('The row never reached the window')
     await conversation.observed(SESSION, { ...followUpRow, status: 'completed' })
-    const { done: rowEnd } = await completionOf(second)
+    const { done: rowEnd } = await latestDone(setup)
     await settled(rowEnd)
     await releasedAll(setup)
     const followUp = keepCalls(() => Promise.resolve('follow-up'))
     await expect(conversation.dispatch('delegate', SESSION, AGENT, followUp)).resolves.toBe(
       'follow-up',
     )
-    const [third] = setup.dispatches.slice(-1)
-    if (third === undefined) throw new Error('The dispatch never reached the window')
-    const { done: followUpEnd } = await completionOf(third)
+    const { done: followUpEnd } = await latestDone(setup)
     await conversation.observed(SESSION, { ...followUpRow, status: 'completed' })
     expect(await isSettled(followUpEnd)).toBe(false)
     // The old row arrives again, running then completed: its round is over,
@@ -1039,16 +896,12 @@ describe('governed rounds', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () => {
     // A replayed row after a new round leaves the new round waiter pending.
     const replayed = observedRow(AGENT, 'row-3')
     await conversation.observed(SESSION, replayed)
-    const [fourth] = setup.dispatches.slice(-1)
-    if (fourth === undefined) throw new Error('The row never reached the window')
     await conversation.observed(SESSION, { ...replayed, status: 'completed' })
-    const { done: replayEnd } = await completionOf(fourth)
+    const { done: replayEnd } = await latestDone(setup)
     await settled(replayEnd)
     await releasedAll(setup)
     await conversation.dispatch('delegate', SESSION, AGENT, () => Promise.resolve())
-    const [fifth] = setup.dispatches.slice(-1)
-    if (fifth === undefined) throw new Error('The dispatch never reached the window')
-    const { done: replayedEnd } = await completionOf(fifth)
+    const { done: replayedEnd } = await latestDone(setup)
     expect(setup.dispatches).toHaveLength(5)
     expect(setup.dispatches.slice(-2).map((entry) => entry.request.kind)).toEqual([
       'subagent',
@@ -1068,7 +921,7 @@ describe('governed rounds', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () => {
     const setup = live()
     const { conversation } = setup.spawn()
     await answered(setup, await reviewed(setup, 'turn-1'))
-    await reviewedChild(setup, 'turn-2', CHILD2, [PANEL_FILES.panel], RACE2)
+    await reviewedChild(setup, SESSION, 'turn-2', CHILD2, [PANEL_FILES.panel], RACE2)
     // The ticket is on the store module; the dispatch fixes the panel, whose
     // lease it holds: one held lease per module, so each holds its own.
     const submit = keepCalls(() => Promise.resolve({ turnId: 'turn-9' }))
@@ -1077,10 +930,8 @@ describe('governed rounds', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () => {
     expect(sent.listeners.size).toBe(1)
     expect(setup.subscriptions.count).toBe(1)
     await conversation.dispatch('delegate', SESSION, AGENT2, () => Promise.resolve())
-    const [round] = setup.dispatches
-    if (round === undefined) throw new Error('The dispatch never reached the window')
-    expect(round.request).toEqual({ kind: 'delegate', sessionId: SESSION, targetId: AGENT2 })
-    const { done: roundEnd } = await completionOf(round)
+    const { done: roundEnd, request: roundRequest } = await firstDone(setup)
+    expect(roundRequest).toEqual({ kind: 'delegate', sessionId: SESSION, targetId: AGENT2 })
     conversation.dispose()
     expect(setup.subscriptions.count).toBe(0)
     expect(sent.listeners.size).toBe(0)
