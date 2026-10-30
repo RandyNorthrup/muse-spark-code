@@ -147,7 +147,7 @@ function isRelativePath(value) {
     !value.startsWith('/') &&
     !value.includes('\\') &&
     !value.includes(':') &&
-    value.split('/').every((part) => part !== '' && part !== '.' && part !== '..')
+    value.split('/').every((part) => !['', '.', '..'].includes(part))
   )
 }
 

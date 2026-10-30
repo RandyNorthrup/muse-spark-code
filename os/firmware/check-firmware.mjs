@@ -28,7 +28,7 @@ function args() {
       values.json = true
       continue
     }
-    if (flag !== '--firmware' && flag !== '--snapshot-base' && flag !== '--transcript-dir') {
+    if (!['--firmware', '--snapshot-base', '--transcript-dir'].includes(flag)) {
       return { error: `unknown flag: ${flag ?? '(missing)'}` }
     }
     const value = flags[index + 1]
@@ -98,8 +98,8 @@ for (const name of firmwareFile.names) {
     first: found.versions[0],
   }
 }
-if (json === true) {
-  console.log(JSON.stringify(resolved, null, 2))
-} else {
-  console.log(`check-firmware: all ${String(firmwareFile.names.length)} packages resolve`)
-}
+console.log(
+  json === true
+    ? JSON.stringify(resolved, null, 2)
+    : `check-firmware: all ${String(firmwareFile.names.length)} packages resolve`,
+)
