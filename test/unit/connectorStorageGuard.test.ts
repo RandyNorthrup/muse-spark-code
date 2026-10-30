@@ -11,6 +11,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { PassThrough } from 'node:stream'
 import { describe, expect, it } from 'vitest'
+import { windowsPowerShell } from '../../src/core/execGuard'
 import { CONNECTOR_FOLDER } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { parseConnectorCommand, runConnectorCommand } from '../../src/runtime/connector/command'
@@ -20,9 +21,9 @@ import { connectorStorageGuard } from '../../src/runtime/connector/storageGuard'
 import { isStorageRefused } from '../../src/runtime/connector/storageGuardPort'
 import { usingPrivateDir } from './helpers/temporaryFolders'
 
-function run(file: string, args: readonly string[]): Promise<string> {
+function run(file: string, args: readonly string[], env?: NodeJS.ProcessEnv): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile(file, [...args], { windowsHide: true }, (failure, stdout) => {
+    execFile(file, [...args], { windowsHide: true, env }, (failure, stdout) => {
       if (failure === null) resolve(stdout)
       else reject(new Error('privacy probe failed', { cause: failure }))
     })
@@ -32,28 +33,39 @@ function run(file: string, args: readonly string[]): Promise<string> {
 const unbound = () => Promise.reject(new Error('not bound in this suite'))
 
 /**
-An independent read of one path's privacy on Windows: the Get-Acl cmdlet
-(a different road than the guard's CLR scan) answers whether protection is
-on, the owner is the current user and no other account holds any grant.
+An independent read of each path's privacy on Windows, all in one start: the
+Get-Acl cmdlet (a different road than the guard's CLR scan) answers whether
+protection is on, the owner is the current user and no other account holds
+any grant. It runs in the shared Windows PowerShell 5.1 launch, whose module
+path is its own: a pwsh 7 module path inherited from the terminal that
+started the suite makes 5.1 load pwsh 7's Microsoft.PowerShell.Security, and
+Get-Acl then returns an object with no owner and no protection flag.
 */
-async function isWindowsPrivate(file: string): Promise<boolean> {
+async function windowsPrivacy(files: readonly string[]): Promise<boolean[]> {
   const systemRoot = process.env['SystemRoot'] ?? process.env['windir']
   if (systemRoot === undefined) throw new Error('no system root')
-  const literal = file.replaceAll("'", "''")
+  const literals = files.map((file) => `'${file.replaceAll("'", "''")}'`).join(',')
+  const shell = windowsPowerShell(systemRoot)
   const stdout = await run(
-    path.win32.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'),
+    shell.file,
     [
       '-NoLogo',
       '-NoProfile',
       '-NonInteractive',
       '-Command',
-      `$me = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value; $acl = Get-Acl -LiteralPath '${literal}'; [bool]($acl.AreAccessRulesProtected -and ($acl.GetOwner([Security.Principal.SecurityIdentifier]).Value -eq $me) -and (@($acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]) | Where-Object { $_.IdentityReference.Value -ne $me }).Count -eq 0))`,
+      `$me = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value; foreach ($file in @(${literals})) { $acl = Get-Acl -LiteralPath $file; [bool]($acl.AreAccessRulesProtected -and ($acl.GetOwner([Security.Principal.SecurityIdentifier]).Value -eq $me) -and (@($acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]) | Where-Object { $_.IdentityReference.Value -ne $me }).Count -eq 0)) }`,
     ],
+    shell.env,
   )
-  return stdout.trim() === 'True'
+  return stdout
+    .trim()
+    .split(/\r?\n/u)
+    .map((line) => line === 'True')
 }
 
-async function isPosixPrivate(file: string, mode: number): Promise<boolean> {
+async function isPosixPrivate(file: string): Promise<boolean> {
+  const link = await lstat(file)
+  const mode = link.isDirectory() ? 0o700 : 0o600
   const info = await stat(file)
   return (
     !info.isSymbolicLink() &&
@@ -63,13 +75,18 @@ async function isPosixPrivate(file: string, mode: number): Promise<boolean> {
   )
 }
 
-async function expectPrivate(file: string): Promise<void> {
-  if (process.platform === 'win32') {
-    expect(await isWindowsPrivate(file)).toBe(true)
-    return
-  }
-  const info = await lstat(file)
-  expect(await isPosixPrivate(file, info.isDirectory() ? 0o700 : 0o600)).toBe(true)
+async function privacyOf(files: readonly string[]): Promise<boolean[]> {
+  return process.platform === 'win32'
+    ? await windowsPrivacy(files)
+    : await Promise.all(files.map((file) => isPosixPrivate(file)))
+}
+
+/** Every path private to this account; a failure names the paths that are not. */
+async function expectPrivate(files: readonly string[]): Promise<void> {
+  const flags = await privacyOf(files)
+  expect(Object.fromEntries(files.map((file, index) => [file, flags[index]]))).toEqual(
+    Object.fromEntries(files.map((file) => [file, true])),
+  )
 }
 
 /** The owner's own grant command against the given store, confirmed in person. */
@@ -155,12 +172,14 @@ describe('M124 connector storage guard', () => {
       expect(key).toHaveLength(32)
       await audit.append('{"a":1}\n')
       await guard.verify()
-      await expectPrivate(path.join(root, 'grants', 'default.json'))
-      await expectPrivate(path.join(root, 'kill-switch.json'))
-      await expectPrivate(path.join(root, 'audit.key'))
-      await expectPrivate(path.join(root, 'audit', 'default.jsonl'))
-      await expectPrivate(path.join(root, 'grants'))
-      await expectPrivate(root)
+      await expectPrivate([
+        path.join(root, 'grants', 'default.json'),
+        path.join(root, 'kill-switch.json'),
+        path.join(root, 'audit.key'),
+        path.join(root, 'audit', 'default.jsonl'),
+        path.join(root, 'grants'),
+        root,
+      ])
     })
   })
 
