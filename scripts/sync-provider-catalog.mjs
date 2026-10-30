@@ -63,6 +63,8 @@ export const CATALOG_PRESETS = [
   { catalog: 'zai', preset: 'zai' },
   { catalog: 'anthropic', preset: 'anthropic' },
   { catalog: 'google', preset: 'gemini' },
+  { catalog: 'moonshotai', preset: 'moonshot' },
+  { catalog: 'ollama-cloud', preset: 'ollama-cloud' },
 ]
 
 // The model fields the snapshot keeps (m95-research.md §2.10): the identity,

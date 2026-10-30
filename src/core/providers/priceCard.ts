@@ -395,7 +395,52 @@ tokens", read 2026-10-12). Anything the block does not give stays absent.
 export function cataloguePriceCard(preset: string, cost: unknown): PriceCard | undefined {
   const parsed = catalogueCostSchema.safeParse(cost)
   if (!parsed.success) return undefined
-  const data = parsed.data
+  // DeepSeek's catalogue rates are its off-peak rates; its documented peak
+  // rates are exactly double (below), and a reservation takes the worst
+  // case, so the card carries peak. Every rate scales, tiers included.
+  const data =
+    preset === 'deepseek'
+      ? {
+          ...parsed.data,
+          input: parsed.data.input * DEEPSEEK_PEAK_MULTIPLE,
+          output: parsed.data.output * DEEPSEEK_PEAK_MULTIPLE,
+          ...(parsed.data.cache_read !== undefined && {
+            cache_read: parsed.data.cache_read * DEEPSEEK_PEAK_MULTIPLE,
+          }),
+          ...(parsed.data.cache_write !== undefined && {
+            cache_write: parsed.data.cache_write * DEEPSEEK_PEAK_MULTIPLE,
+          }),
+          ...(parsed.data.reasoning !== undefined && {
+            reasoning: parsed.data.reasoning * DEEPSEEK_PEAK_MULTIPLE,
+          }),
+          ...(parsed.data.context_over_200k !== undefined && {
+            context_over_200k: {
+              ...parsed.data.context_over_200k,
+              input: parsed.data.context_over_200k.input * DEEPSEEK_PEAK_MULTIPLE,
+              output: parsed.data.context_over_200k.output * DEEPSEEK_PEAK_MULTIPLE,
+              ...(parsed.data.context_over_200k.cache_read !== undefined && {
+                cache_read: parsed.data.context_over_200k.cache_read * DEEPSEEK_PEAK_MULTIPLE,
+              }),
+              ...(parsed.data.context_over_200k.cache_write !== undefined && {
+                cache_write: parsed.data.context_over_200k.cache_write * DEEPSEEK_PEAK_MULTIPLE,
+              }),
+            },
+          }),
+          ...(parsed.data.tiers !== undefined && {
+            tiers: parsed.data.tiers.map((row) => ({
+              ...row,
+              input: row.input * DEEPSEEK_PEAK_MULTIPLE,
+              output: row.output * DEEPSEEK_PEAK_MULTIPLE,
+              ...(row.cache_read !== undefined && {
+                cache_read: row.cache_read * DEEPSEEK_PEAK_MULTIPLE,
+              }),
+              ...(row.cache_write !== undefined && {
+                cache_write: row.cache_write * DEEPSEEK_PEAK_MULTIPLE,
+              }),
+            })),
+          }),
+        }
+      : parsed.data
   const contextTier = data.tiers?.find((row) => row.tier.type === 'context')
   // The tier entry's own size wins (OpenAI reprices from 272k); without one,
   // `context_over_200k` starts past 200k prompts.
@@ -446,6 +491,17 @@ catalogue lists none (console.groq.com/docs/prompt-caching, read
 receipt has not confirmed its application per model (capture GQ-C1).
 */
 const GROQ_CACHED_INPUT_FRACTION = 0.5
+
+/**
+DeepSeek's peak rates as a multiple of its off-peak catalogue rates
+(api-docs.deepseek.com/quick_start/pricing, read 2026-10-30: "Off-peak
+rates are half of the peak rates. Peak hours are 01:00 - 04:00 and
+06:00 - 10:00 UTC, Monday through Friday, excluding Chinese public
+holidays"). The holiday calendar is not published as data, so the card
+carries peak at all hours: a budget never under-reserves, and off-peak
+settlement reads high rather than low.
+*/
+const DEEPSEEK_PEAK_MULTIPLE = 2
 
 /** xAI's integer unit: ticks of 1e-10 USD per token. */
 const XAI_TICKS_PER_USD = 1e10

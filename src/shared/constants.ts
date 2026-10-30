@@ -2247,9 +2247,10 @@ export const ANTHROPIC_IMAGE_200K_WINDOW_TOKENS = 200_000
 export const ANTHROPIC_MANY_IMAGES_THRESHOLD = 20
 export const ANTHROPIC_MANY_IMAGES_MAX_DIMENSION_PX = 2000
 // Documented Anthropic request size cap for the Messages endpoint
-// (platform.claude.com/docs/en/api/overview, "Request size limits", read
-// 2026-10-23): 32 MB; past it answers 413 request_too_large.
-export const ANTHROPIC_MAX_REQUEST_BYTES = 32_000_000
+// (platform.claude.com/docs/en/release-notes/overview, October 28, 2026,
+// read 2026-10-30: raised from 32 MB to 128 MB on the first-party API);
+// past it answers 413 request_too_large.
+export const ANTHROPIC_MAX_REQUEST_BYTES = 128_000_000
 // Documented xAI image-understanding bounds: jpg/jpeg or png only, 20 MiB
 // (docs.x.ai image-understanding, "Image input general limits", read
 // 2026-10-13; XAI-G11). Anything else is refused before sending.

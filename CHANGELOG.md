@@ -337,6 +337,15 @@ happened, not what was planned; superseded entries are kept.
   fingerprint warning; the versions now match, the warning is gone, and
   1.4.12's session-protocol fixes come with it. Muse Code 1.4.11 keeps
   working exactly as before.
+- Provider models and prices are current again (checked 2026-10-30):
+  GPT-6.1 Terra is listed, retired Mistral and OpenRouter models are
+  gone, and changed prices (Mistral Large 4 halved, DeepSeek V4)
+  match the providers. DeepSeek budgets now reserve its peak-hour
+  price — double the off-peak price the catalogue lists — so a
+  spending cap holds at peak hours too. Anthropic requests are
+  allowed up to its new 128 MB limit instead of the old 32 MB.
+  Moonshot and Ollama Cloud models now carry catalogue prices
+  instead of showing as unpriced.
 - The terminal agent's requests were missing from usage history since 0.12.0:
   every headless turn stamped its usage record with a fractional clock, the
   journal refused the record, and one warning was all that was left. Stored
