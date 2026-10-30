@@ -312,6 +312,48 @@ describe('the repository file', () => {
   })
 })
 
+describe('a shared resource without a limit the person set', () => {
+  it('admits every call at once: no default cap of ours', async () => {
+    // A held call waits at most TIMED_MS; one the cap turned away would answer busy.
+    const registry = new ResourceRegistry({
+      windowId: 'test-window',
+      waitMs: TIMED_MS,
+      idleMs: 120_000,
+    })
+    registry.declare({ name: 'notes', kind: 'shared' })
+    expect(registry.list()[0]?.sharedLimit).toBeUndefined()
+    const calls: CallToken[] = []
+    for (let index = 0; index < 12; index += 1) {
+      const outcome = await registry.acquireCall(
+        'notes',
+        RESEARCHER,
+        'client',
+        `call-${String(index)}`,
+        new AbortController().signal,
+      )
+      if (outcome.status !== 'held') throw new Error(`call ${String(index)}: ${outcome.status}`)
+      calls.push(outcome.call)
+    }
+    expect(calls).toHaveLength(12)
+  })
+
+  it('lets a repository set a limit on an unlimited resource, never raise it again', () => {
+    const { registry } = drivenRegistry()
+    registry.declare({ name: 'notes', kind: 'shared' })
+    expect(registry.applyRepositoryResources([{ name: 'notes', sharedLimit: 3 }])).toEqual({
+      accepted: ['notes'],
+      refused: [],
+    })
+    expect(registry.list()[0]?.sharedLimit).toBe(3)
+    const raised = registry.applyRepositoryResources([{ name: 'notes', sharedLimit: 9 }])
+    expect(raised.accepted).toEqual([])
+    expect(raised.refused.map((entry) => entry.reason)).toEqual([
+      'a repository cannot raise a limit',
+    ])
+    expect(registry.list()[0]?.sharedLimit).toBe(3)
+  })
+})
+
 describe('roles and kinds', () => {
   it.each([
     { changed: 'server', patch: { server: 'notes' } },
