@@ -19117,8 +19117,8 @@ inside `dist/tab.js`; the shim's Tab-attributable bytes fall from
 suggestion, the 4 KiB ambition and the live check stay open (B4).
 Record: `docs/certification/rlf-tab.md`.
 
-**Status 2026-10-30 (CC-WINRUNS, Windows 11, int/recovery 9b090e87c7):
-building.** `test/integration/tab.test.ts` ran for the first time, in a
+**Status 2026-10-30 (CC-WINRUNS, Windows 11, int/recovery 9b090e87c7): building.**
+`test/integration/tab.test.ts` ran for the first time, in a
 real VS Code on Windows 11: 18 of 18 pass on stable (1.144.0) and on the
 minimum (1.99.0). The first run failed one case, a product defect: a secret
 under the cursor was found after the paid-use question, so the question was
@@ -24037,6 +24037,21 @@ Mac platform facts, editor rows re-verified; C2 rides RLF-TEAMCORE and R
 rides RLF-DEVICES; Kubuntu/Win11 rows and the GUI second-window row stay
 pending. Records: `docs/certification/rlf-m107.md` and the RLF-M107
 section of `docs/certification/m107.md`. No product change.
+
+**CC-WINRUNS — the Windows job row (2026-10-30, Windows 11 Pro 10.0.26200,
+the owner's PC, int/recovery 9b090e87c7).** The earlier
+`actuatorsWindows.test.ts` went with the fake-driven suites, so the row had
+no test. `test/unit/actuatorsWindowsNative.test.ts` (new, 2 cases) drives the
+production Windows actuator over a real owned job and child, without
+elevation (a medium-integrity token): throttle puts the job's CPU rate control
+at flags 5 (enable and hard cap), rate 5000 (50%) and the job and child at
+below normal; pause puts them at idle; retirement restores flags 0, rate 0 and
+the original priorities exactly. Each state is read back from the operating
+system (QueryInformationJobObject and .NET's Process), not from the actuator's
+answer, and a ticket with a wrong birth changes nothing. 2 of 2 pass, three red
+drills exit 1 and the restored tree is green. The full all-cores owner case was
+not run on this PC (the owner's rule), and the GUI second-window row and the
+Kubuntu cgroup row stay pending. Record: `docs/certification/cc-winruns.md`.
 
 ---
 
@@ -32138,6 +32153,7 @@ INT0170B, 2026-10-07: `READER_BRAND_COMPILE_TIMEOUT_MS` = 20,000 ms in `test/uni
 | `vitest.config.ts` (Windows)                                                                                                                                                                   | `WINDOWS_TEST_TIMEOUT_MS` (15 s) and `WINDOWS_HOOK_TIMEOUT_MS` (30 s) as the Windows defaults                                                                                | Windows runs test files one at a time, and its real-OS cases start PowerShell, icacls or job helpers as cold processes. Hosted Windows shards varied from 456 s to 727 s between runs (2026-10-07); `tokenFile` real ACL ownership passed 5 s in one run and not the next, after the same happened to `teamHintsAndLoad` and `vsixCompression`. Assertions are unchanged; explicit per-case deadlines still apply. | Return to the default when a hosted Windows run measures every case under 2.5 s, or when the PowerShell-backed helpers are precompiled once per run.      |
 | `test/unit/deviceProductionWiring.test.ts` (`fakeBundle`)                                                                                                                                      | One `as unknown as DeviceProductionBundle` on the structural fake bundle                                                                                                     | The fakes prove the production binding (directories, secrets, owner, helper release) without touching the real filesystem stores, whose ownership check the sandbox refuses; the real bundle satisfies the same structural interface and is exercised through the real built bundle in `deviceBundle.test.ts`.                                                                                                     | Remove when a rig without the ownership refusal runs the builder against the real bundle.                                                                 |
 | `test/unit/treesWindows.test.ts`, `test/unit/actuatorsWindows.test.ts`, `test/unit/resourceWindowsLaunch.test.ts`                                                                              | `REAL_WINDOWS_JOB_TIMEOUT_MS` (60 s) per-suite deadline                                                                                                                      | These suites compile and drive the real Windows job helper (C#) and real child processes. In PR #140 run 2 (0.16.0) they passed the 15 s Windows default on hosted runners, while the Win11 rig ran them in a few seconds. Assertions unchanged.                                                                                                                                                                   | Precompile the job helper once per run into the content-addressed assembly cache, then return to the Windows default.                                     |
+| `test/unit/actuatorsWindowsNative.test.ts`                                                                                                                                                     | `REAL_WINDOWS_JOB_TIMEOUT_MS` (120 s) per-suite deadline                                                                                                                     | The suite drives the production Windows actuator over a real owned job and child: every control call is a cold Windows PowerShell start and a throttle, a pause and a retirement make dozens (9 s warm, 22 s cold on the owner's PC, 2026-10-30; hosted Windows runners ran the sibling suites several times slower than the Win11 rig). Assertions unchanged.                                                     | Precompile the job helper once per run into the content-addressed assembly cache, then return to the Windows default.                                     |
 | `test/unit/helpers/fixtureBudget.ts`; `test/unit/scheduleMigrate.test.ts`; the fixture hooks of `test/e2e` (`acpStdio`, `estimator`, `reports`, `schedulesStdio`)                              | `FIXTURE_HOOK_TIMEOUT_MS` (120 s) for a hook that builds bundles or starts real processes                                                                                    | Building fixtures is work that grows with the product, not a wait for readiness. Under the 10 s default `acpStdio`'s hook (seven bundle builds, the created-path helper) failed three of four hosted macOS attempts of 0.17.1's pull request before any assertion ran; the Mac mini built it in 1.3 to 2.2 s at load 26 to 64. Lead's ruling (2026-10-11); `REAL_GIT_TIMEOUT_MS`'s value; assertions unchanged.    | The train applies it to the other 98 such hooks and adds a guard against an unbudgeted one; shorten it when hosted macOS measures these hooks.            |
 
 | REL0144 location                                                | Escape hatch                                                                                                  | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |

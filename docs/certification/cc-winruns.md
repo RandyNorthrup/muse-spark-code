@@ -104,3 +104,101 @@ the webview has no wizard field for the cache lifetime on int (no webview
 source names the setting; the 12-hour surfaces are the usage page's tiles
 and the model detail's price row). Those two stay unlooked-at here, not
 claimed.
+
+## 4. RLF-M107: the Windows job CPU-rate and priority row
+
+The pending row is the Win11 one of `m107-platform.md` and `rlf-m107.md`: an
+owned finite child in an owned job, the CPU rate control set to a 50% hard
+cap (5000 in Windows' hundredths of a percent), read back, restored and read
+back, with the job's below-normal and idle priority classes and their
+recovery, without elevation. The row's old proof, `actuatorsWindows.test.ts`,
+was deleted with the fake-driven unit suites (`f2b00c0947`), so nothing on int
+proved it. The full-scale owner case was **not** run (it saturates this PC,
+by the owner's rule); `scripts/m107-owner-case.mjs` is a governor measurement
+for acceptance 15 and has no Windows job mode, so the smallest scale that
+proves this row is the job itself.
+
+**New suite:** `test/unit/actuatorsWindowsNative.test.ts` (two cases, Windows
+only, modelled on `windowsTreeReader.test.ts`). It builds the real shell-job
+assembly through the product's builder, starts one owned child (Windows
+PowerShell that joins a fresh named job through `joinStatement` and sleeps),
+and drives the production `WindowsResourceActuator` behind
+`ResourceActuators` with the production `WindowsResourceTreeReader`. Nothing
+is stood in. Every state is read back from the operating system by a path the
+actuator does not use for its own answer: the job's CPU rate control and
+priority class from `QueryInformationJobObject` (the helper's Read calls) and
+the child's priority class from .NET's `Process.PriorityClass`.
+
+- Case 1, throttle, pause, retire: before, the fresh job reads flags 0, rate 0. Throttle answers `jobPriority applied, jobCpuRate applied`; the job then
+  reads flags 5 and rate 5000 (`RESOURCE_JOB_CPU_RATE_PERCENT` 50% times 100),
+  priority `belowNormal` for the job and the child, and .NET reads
+  `BelowNormal`. Pause reads job and child `idle` (`Idle`) with the rate still 5000. Retirement answers `retired: true` and the job reads flags 0, rate 0,
+  its original priority record and the original .NET class again, exactly.
+- Case 2, reused birth: a ticket whose root has the right pid and a wrong
+  start time answers `[{ control: null, status: 'unknown' }]` and the job's
+  rate, priority record and the child's class are unchanged.
+
+The session was not elevated: `IsInRole(Administrator)` False, mandatory
+level Medium (S-1-16-8192). Result: 2 passed, exit 0 (first run 77 s with the
+helper compile; later runs 23 to 47 s for the file, 9 s and 1.4 s for the two
+cases when warm). The repository's
+`--maxWorkers` was 1 and no other suite ran beside it. The case deadline is a
+named constant, `REAL_WINDOWS_JOB_TIMEOUT_MS` (120 s), with a PLAN.md §8 row.
+
+**Drills** (each breaks production code, runs the whole file, restores the
+file from a byte copy; `git diff` of the three files is empty afterwards):
+
+| Drill | Break                                                                              | Result                                                                                                              | Exit |
+| ----- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ---- |
+| D1    | `windows.ts`: the cap computed as `* 10` instead of `* 100`                        | case 1 fails: the job reads `{ flags: 5, rate: 500 }`, not rate 5000                                                | 1    |
+| D2    | `actuators/index.ts`: recovery writes the lowered value, not the original          | case 1 fails at retirement: the job still reads the capped values, not the original `{ flags: 0, rate: 0 }`         | 1    |
+| D3    | `trees/windows.ts`: the tree reader accepts a root whose birth is not the member's | case 2 fails: the wrong-birth ticket is acted on (`jobPriority applied`, `jobCpuRate applied`, not the one refusal) | 1    |
+| -     | all three restored                                                                 | 2 passed                                                                                                            | 0    |
+
+**Still pending for M107, and why:** the full all-cores owner case at CPU
+threshold 60 (not run: it saturates this PC, by the owner's rule; one command
+on a bare rig, `node scripts/m107-owner-case.mjs`), the GUI second-window
+activation row (part of that case) and the Kubuntu cgroup row (this is a
+Windows machine).
+
+## Gates
+
+All on the final tree, exit codes as the shell returned them:
+
+| Gate                                                                                            | Exit |
+| ----------------------------------------------------------------------------------------------- | ---- |
+| `prettier --check` on the touched source, test, CHANGELOG, PLAN and records                     | 0    |
+| `eslint --max-warnings 0` on `tabProvider.ts` and `actuatorsWindowsNative.test.ts`              | 0    |
+| `npm run typecheck` (all five projects)                                                         | 0    |
+| `node scripts/check-l10n.mjs` (14 UI tables, 14 usage tables, 283 manifest strings; 0 problems) | 0    |
+| `npm run check:host-api` (392 VS Code APIs, 0 problems; no record change)                       | 0    |
+| `npm run check:plan` (240 milestones, 0 drift)                                                  | 0    |
+| `npm run check:roadmap` (240 entries; ROADMAP.md current, no regeneration needed)               | 0    |
+| `npm run check:catches` (counts match the baseline; the new test adds none)                     | 0    |
+| `npm run duplication` (0 clones)                                                                | 0    |
+| `npm run deadcode`                                                                              | 0    |
+| `npm run build` (production build, bundle size and split gates, legal build records 0 problems) | 0    |
+| `test/unit/actuatorsWindowsNative.test.ts`, repository timeouts, `--maxWorkers` 1 (2 passed)    | 0    |
+| `npx vscode-test` Tab and editor chat, stable and minimum (section 1 and 2)                     | 0    |
+
+Two gates were red once on the way and fixed at the cause: `check:plan` read
+the first M94 status line as malformed (the bold ran over a line break; now
+one line), and `duplication` found two clones inside the new test (the
+repeated readbacks became one `snapshot` helper). The test was edited after
+its first green run, so the drills above ran against its final text.
+
+## Not run, and why
+
+- The full all-cores M107 owner case, its GUI second-window row and the
+  Kubuntu cgroup row: see section 4.
+- The vault suites and the real credential-store suites (`keyringParts`,
+  `keystoreOwner`, `credentialLease`, `providerHeadersStore`): they write the
+  owner's Credential Manager.
+- The whole unit suite: hosted CI owns it; only the suite this lane added and
+  the unit files that import `tabProvider.ts` (none) ran.
+- `security:sast`, `security:secrets`, `test:a11y` and the real-life run:
+  outside this lane's list. The commit hook's gitleaks scan ran clean on each
+  commit.
+- `.vscode-test/` (1.5 GB: VS Code 1.144.0 and 1.99.0) is still in this
+  worktree, gitignored; delete it with the worktree. The production build ran
+  with it present and the legal repository scan reported 0 blockers.
