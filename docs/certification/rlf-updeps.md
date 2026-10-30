@@ -196,3 +196,17 @@ prettier on touched files, eslint slice, full `typecheck`,
 `build`, `security:audit`, SAST, per-bump related suites above, and
 `node scripts/package-vsix.mjs --target linux-x64`. Whole-repo lint and
 the full unit battery stay with hosted CI, per the shared rules.
+
+One gate is red, and it is not this lane's doing: SAST
+(`SEMGREP_ENABLE_VERSION_CHECK=0 npm run security:sast`) exits 1 with
+6 blocking findings, identical across two runs — `os/build.py`
+(dynamic urllib), `os/pi/compose.py` (`0o755` chmod ×2),
+`scripts/build-packs.mjs` (non-literal RegExp),
+`src/core/backends/modelapi/mcp/headers.ts` (prototype-pollution
+loop), `src/runtime/node/keyStore.ts` (GCM without explicit tag
+length). Every flagged file is byte-identical to the base
+(`git diff b781451b9..HEAD` over those paths is empty; this lane
+changed no source file), so the findings pre-date the lane — the
+`auto` ruleset is fetched from the registry and has moved since the
+base was last green. They need their own fix-or-suppress review
+(PLAN.md §8); nothing was suppressed or weakened here.
