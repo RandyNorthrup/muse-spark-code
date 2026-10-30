@@ -3505,6 +3505,7 @@
   "approvalReplayRefused": "Muse Code odrzuca każdą wiadomość w tej rozmowie: tura zatrzymała się, gdy wieloetapowe polecenie było zatwierdzone tylko częściowo, a Muse Code nie potrafi odtworzyć tego zatwierdzenia (to usterka Muse Code, nie Twoich wyborów). Uruchom ponownie Muse Code, aby kontynuować tę rozmowę, lub rozpocznij nową.",
   "approvalLedgerFault": "Muse Code stosuje Twoje zatwierdzenia w tej rozmowie, ale przy każdym zgłasza błąd (to usterka jego rejestru zatwierdzeń, nie Twoich wyborów). Każda karta podąża za tym, co Muse Code zrobi dalej; nowa rozmowa nie ma tej usterki.",
   "approvalLedgerFaultUpdate": "Muse Code zastosował Twoje zatwierdzenie, ale nie mógł zapisać rejestru zatwierdzeń. Zaktualizuj Muse Code do wersji 1.4.3 lub nowszej poleceniem {command}, a następnie uruchom Muse Code ponownie. Każda karta podąża za kolejnym działaniem Muse Code; nowa rozmowa również pozwala uniknąć tej usterki.",
+  "approvalPersistenceFault": "Muse Code zbyt długo zapisywał tę decyzję i zgłosił błąd, ale decyzja weszła w życie (to usterka Muse Code, a nie Twój wybór). Karta podąża za tym, co Muse Code zrobi dalej.",
   "museCodeRestartAsked": "Muse Code został zatrzymany. Następna wiadomość uruchomi go ponownie i będzie kontynuować tę rozmowę.",
   "steerUnconfirmed": "Muse Code nie potwierdził, że Twoja wiadomość dotarła do trwającej tury. Może jeszcze dotrzeć; sprawdź, zanim wyślesz ją ponownie.",
   "museCodeNotAnswering": "Muse Code nie odpowiada. Uruchom go ponownie poleceniem „Muse Spark: Uruchom ponownie Muse Code”.",

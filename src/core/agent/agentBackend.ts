@@ -174,12 +174,20 @@ captured live 2026-10-02 on Muse Code 1.4.2):
   "approval decide settlement failed: approval ledger durability fence…"
   (meta-models/muse-code-sdk#29); after the replay fault it does so for
   every decision of that session.
+- `approvalPersistence` (RLF-HARVEST H1, captured live 2026-10-30 on
+  Muse Code 1.4.7): `approval/decide` answers -32603 `internal` with
+  "approval persistence timed out; the decision may still apply…" after
+  about ten seconds, while Muse Code goes on to settle it `accepted`.
+  The host returns this fault only once its own stage news confirms the
+  decision applied; a stage still waiting after the settle window is a
+  `DecisionNotAppliedError` instead.
 */
-export type MuseCodeFault = 'approvalReplay' | 'approvalLedger'
+export type MuseCodeFault = 'approvalReplay' | 'approvalLedger' | 'approvalPersistence'
 
 const MUSE_CODE_FAULTS: readonly unknown[] = [
   'approvalReplay',
   'approvalLedger',
+  'approvalPersistence',
 ] satisfies readonly MuseCodeFault[]
 
 export class MuseCodeFaultError extends Error {

@@ -3505,6 +3505,7 @@
   "approvalReplayRefused": "Muse Code odmítá každou zprávu v této konverzaci: tah se zastavil ve chvíli, kdy byl vícekrokový příkaz schválen jen zčásti, a Muse Code toto schválení nedokáže přehrát (chyba v Muse Code, ne ve vašich volbách). Restartujte Muse Code, abyste v této konverzaci pokračovali, nebo začněte novou.",
   "approvalLedgerFault": "Muse Code v této konverzaci vaše schválení provádí, ale u každého ohlásí chybu (chyba v jeho záznamu schválení, ne ve vašich volbách). Každá karta se řídí tím, co Muse Code udělá dál; nová konverzace tuto chybu nemá.",
   "approvalLedgerFaultUpdate": "Muse Code vaše schválení provedl, ale nemohl uložit záznam schválení. Pomocí {command} aktualizujte Muse Code na verzi 1.4.3 nebo novější a poté Muse Code restartujte. Každá karta se řídí tím, co Muse Code udělá dál; nová konverzace se této chybě také vyhne.",
+  "approvalPersistenceFault": "Muse Code ukládal toto rozhodnutí příliš dlouho a nahlásil chybu, ale rozhodnutí nabylo účinnosti (jde o závadu Muse Code, nikoli vaší volby). Karta sleduje, co Muse Code udělá dál.",
   "museCodeRestartAsked": "Muse Code byl zastaven. Vaše další zpráva ho znovu spustí a v této konverzaci se bude pokračovat.",
   "steerUnconfirmed": "Muse Code nepotvrdil, že vaše zpráva dorazila do probíhajícího tahu. Může ještě dorazit; než ji pošlete znovu, zkontrolujte to.",
   "museCodeNotAnswering": "Muse Code neodpovídá. Restartujte ho příkazem „Muse Spark: Restartovat Muse Code“.",

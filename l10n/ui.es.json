@@ -3443,6 +3443,7 @@
   "approvalReplayRefused": "Muse Code rechaza todos los mensajes de esta conversación: un turno se detuvo cuando un comando de varios pasos estaba aprobado solo en parte, y Muse Code no puede reproducir esa aprobación (un fallo de Muse Code, no de sus elecciones). Reinicie Muse Code para continuar esta conversación o inicie una nueva.",
   "approvalLedgerFault": "Muse Code aplica sus aprobaciones en esta conversación, pero notifica un error en cada una (un fallo en su registro de aprobaciones, no en sus elecciones). Cada tarjeta sigue lo que Muse Code haga a continuación; una conversación nueva no tiene este fallo.",
   "approvalLedgerFaultUpdate": "Muse Code aplicó su aprobación, pero no pudo guardar el registro de aprobación. Actualice Muse Code a la versión 1.4.3 o posterior con {command} y después reinicie Muse Code. Cada tarjeta sigue lo que Muse Code hace a continuación; una conversación nueva también evita este fallo.",
+  "approvalPersistenceFault": "Muse Code tardó demasiado en guardar esa decisión e informó de un error, pero la decisión sí surtió efecto (un fallo de Muse Code, no de su elección). La tarjeta sigue lo que Muse Code haga a continuación.",
   "museCodeRestartAsked": "Muse Code se detuvo. Su próximo mensaje lo vuelve a iniciar y continúa esta conversación.",
   "steerUnconfirmed": "Muse Code no confirmó que su mensaje llegara al turno en curso. Aún puede llegar; compruébelo antes de volver a enviarlo.",
   "museCodeNotAnswering": "Muse Code no responde. Reinícielo con \"Muse Spark: Reiniciar Muse Code\".",
