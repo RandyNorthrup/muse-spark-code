@@ -11467,7 +11467,7 @@ export const DESKTOP_FILE_SCAN_IGNORED = [
   '.hg',
   '.svn',
 ] as const
-export const DESKTOP_MODEL_TEXT = {
+export const DESKTOP_LOG_TEXT = {
   permissionDenied: 'permission denied by the desktop shell',
   navigationDenied: 'navigation outside the workbench was blocked',
 } as const

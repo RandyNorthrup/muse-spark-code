@@ -3,6 +3,9 @@
 
 body {
   margin: 0;
+  background-color: var(--ms-surface);
+  color: var(--ms-text);
+  font: var(--ms-font-size) / var(--ms-line-ui) var(--ms-font-ui);
 }
 
 .muse-desktop input {
@@ -17,11 +20,6 @@ body {
 .muse-desktop {
   display: flex;
   block-size: 100vh;
-  background: var(--ms-surface);
-  color: var(--ms-text);
-  font-family: var(--ms-font-ui);
-  font-size: var(--ms-font-size);
-  line-height: var(--ms-line-ui);
 }
 
 .muse-desktop-chat {
