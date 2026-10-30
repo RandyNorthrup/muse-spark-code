@@ -5,20 +5,13 @@
 // throughout: the binding, the bundle's `createTeamHost`, the engine ports
 // and the HTTP server; the workspace state is the memory-backed map the
 // availability rig shares. No worker runs: the roster call never reaches one.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { TeamHostBinding } from '../../src/host/teamHostBinding'
 import { TeamMcpServer } from '../../src/host/team/teamMcpServer'
 import { createTeamHost, teamRosterAnswer } from '../../src/host/team/teamHostEntry'
-import { OPTIONAL_RUNTIME_AVAILABILITY, UI_TEXT } from '../../src/shared/constants'
+import { UI_TEXT } from '../../src/shared/constants'
 import { TEAM_WORKSPACE_KEYS } from '../../src/shared/teamConversation'
 import { availabilityState } from './helpers/teamAvailabilityRig'
-
-beforeAll(() => {
-  OPTIONAL_RUNTIME_AVAILABILITY.team = true
-})
-afterAll(() => {
-  OPTIONAL_RUNTIME_AVAILABILITY.team = false
-})
 
 const silent = {
   trace: () => undefined,

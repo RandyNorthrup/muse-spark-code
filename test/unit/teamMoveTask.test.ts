@@ -11,7 +11,7 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vitest'
+import { describe, expect, it, onTestFinished } from 'vitest'
 import { createTeamHostService } from '../../src/core/team/teamHost'
 import type {
   TeamHostService,
@@ -21,7 +21,7 @@ import type {
 import { TEAM_TASKS_STATE_KEY, storedTasksSchema } from '../../src/core/team/teamTaskState'
 import type { TeamToolContext } from '../../src/core/team/teamSeams'
 import { createEngineTeamPorts } from '../../src/host/team/teamEnginePorts'
-import { OPTIONAL_RUNTIME_AVAILABILITY, TEAM_MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
+import { TEAM_MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import type { TeamRoleConfig, TeamSnapshot } from '../../src/shared/team'
 import { TEAM_WORKSPACE_KEYS } from '../../src/shared/teamConversation'
@@ -29,14 +29,6 @@ import { silentCoreLog } from './helpers/memoryLogs'
 import { realTeamGit } from './helpers/realTeamGit'
 
 const ORCHESTRATOR = 'muse-spark-1.3'
-
-// The feature's own suites run with the release latch open; it ships closed.
-beforeAll(() => {
-  OPTIONAL_RUNTIME_AVAILABILITY.team = true
-})
-afterAll(() => {
-  OPTIONAL_RUNTIME_AVAILABILITY.team = false
-})
 
 function tripwireError(name: string): Error {
   return new Error(`test: the ports never call ${name} here`)
