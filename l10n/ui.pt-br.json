@@ -271,6 +271,7 @@
   "shareGistDeleteConfirm": "Excluir este gist secreto? Isso não pode ser desfeito.",
   "shareGistDelete": "Excluir",
   "shareGistInvalid": "Isso não é um ID de gist nem um link de gist.",
+  "shareGistFileUnsafe": "Esse nome de arquivo não pode ser compartilhado. Use um só nome, sem pasta, início ou conta.",
   "shareGistCopyLink": "Copiar link",
   "shareGistOpen": "Abrir no navegador",
   "shareGistUnpublish": "Despublicar",

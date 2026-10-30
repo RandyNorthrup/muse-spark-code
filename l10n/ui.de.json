@@ -269,6 +269,7 @@
   "shareGistDeleteConfirm": "Dieses geheime Gist löschen? Dies kann nicht rückgängig gemacht werden.",
   "shareGistDelete": "Löschen",
   "shareGistInvalid": "Das ist keine Gist-ID und kein Gist-Link.",
+  "shareGistFileUnsafe": "Dieser Dateiname kann nicht geteilt werden. Verwenden Sie einen Namen ohne Ordner, Home oder Konto.",
   "shareGistCopyLink": "Link kopieren",
   "shareGistOpen": "Im Browser öffnen",
   "shareGistUnpublish": "Freigabe aufheben",

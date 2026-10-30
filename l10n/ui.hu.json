@@ -269,6 +269,7 @@
   "shareGistDeleteConfirm": "Törli ezt a titkos gistet? Ez nem vonható vissza.",
   "shareGistDelete": "Törlés",
   "shareGistInvalid": "Ez nem gist-azonosító és nem gist-hivatkozás.",
+  "shareGistFileUnsafe": "Ezt a fájlnevet nem lehet megosztani. Használjon egy nevet mappa, kezdőkönyvtár és fiók nélkül.",
   "shareGistCopyLink": "Hivatkozás másolása",
   "shareGistOpen": "Megnyitás böngészőben",
   "shareGistUnpublish": "Megosztás visszavonása",

@@ -273,6 +273,7 @@
   "shareGistDeleteConfirm": "Usunąć ten tajny gist? Tej operacji nie można cofnąć.",
   "shareGistDelete": "Usuń",
   "shareGistInvalid": "To nie jest identyfikator gist ani link do gist.",
+  "shareGistFileUnsafe": "Tej nazwy pliku nie można udostępnić. Użyj jednej nazwy, bez folderu, katalogu domowego i konta.",
   "shareGistCopyLink": "Kopiuj link",
   "shareGistOpen": "Otwórz w przeglądarce",
   "shareGistUnpublish": "Cofnij publikację",

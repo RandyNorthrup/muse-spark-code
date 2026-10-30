@@ -155,10 +155,10 @@ export function assertPermittedScopes(scopes: readonly string[]): void {
 }
 
 /**
-D217's one exception: Share asks for the gist scope only at the moment the
-person presses Share to a secret gist, never at sign-in. The set is exact —
-`repo` beside `gist`, so the grant keeps serving the Git calls — and no
-other caller may pass it.
+D218's one exception: Share asks for the gist scope only at the moment the
+person presses Share to a secret gist, never at sign-in. The set is exact
+— `gist` alone — and no other caller may pass it. The repository sign-in
+is a different grant and is not widened here.
 */
 export function assertGistShareScopes(scopes: readonly string[]): void {
   const wanted = new Set(scopes)
@@ -171,13 +171,18 @@ export function assertGistShareScopes(scopes: readonly string[]): void {
 }
 
 /**
-A source that can run D217's Share-time sign-in: a fresh grant carrying
-the gist scope, stored like any sign-in of that source. Only the
+A source that can run D218's Share-time sign-in: a fresh grant carrying
+`gist` alone, stored apart from the repository sign-in. Only the
 device-flow source implements this; the editor's session and `gh` keep
 theirs, so a Share-time grant never widens them.
 */
 export interface GitHubGistScopeSource extends GitHubTokenSource {
   signInForGistShare(signal: AbortSignal): Promise<GitHubCredential | undefined>
+  /**
+  The stored gist grant, or undefined when there is none still fresh.
+  Never starts a device flow and never reads the repository slot.
+  */
+  storedGistGrant(signal: AbortSignal): Promise<GitHubCredential | undefined>
 }
 
 export function canAskGistScope(source: GitHubTokenSource): source is GitHubGistScopeSource {
@@ -188,7 +193,7 @@ export function canAskGistScope(source: GitHubTokenSource): source is GitHubGist
 The `required` scopes a token lacks, from GitHub's `X-OAuth-Scopes`
 header; undefined when the header is absent (a lease's answer, or a
 token type that does not report scopes), so nothing is guessed.
-M118 phase 2 (D217) reads it to tell a missing gist scope from a real
+M118 phase 2 (D218) reads it to tell a missing gist scope from a real
 404.
 */
 export function missingScopes(

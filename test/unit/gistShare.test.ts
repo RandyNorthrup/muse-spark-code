@@ -1,4 +1,4 @@
-// M118 phase 2 (D217): Share to a secret gist asks for the gist scope only
+// M118 phase 2 (D218): Share to a secret gist asks for the gist scope only
 // at Share time, publishes only scrubbed bytes, and unpublishes. The
 // GitHub client and the share builders below are real; only the `fetch`
 // transport and the sign-in/consent ports are injected, as designed.
@@ -17,6 +17,7 @@ import {
 } from '../../src/core/sharing/gistShare'
 import { createChatSharePrivacy } from '../../src/core/sharing/privacy'
 import { UI_TEXT } from '../../src/shared/constants'
+import type { SharePrivacyPort } from '../../src/shared/share'
 import { fill } from '../../src/shared/l10n/text'
 import { redactSecrets } from '../../src/shared/redact'
 import { recordLog } from './helpers/recordLog'
@@ -25,6 +26,13 @@ interface ScriptedCall {
   readonly authorization: string | undefined
   readonly body: unknown
 }
+
+const privacy: SharePrivacyPort = createChatSharePrivacy({
+  workspaceRoots: [],
+  home: '/Users/does-not-appear',
+  userName: 'does-not-appear',
+  redactRegisteredSecrets: (text) => text,
+})
 
 function credential(
   bearer: string,
@@ -73,6 +81,8 @@ function portsFor(options: {
       consents += 1
       return Promise.resolve(options.consent)
     },
+    privacy,
+    userName: 'does-not-appear',
     userAgent: 'muse-spark-code/test',
     log,
   }
@@ -105,6 +115,8 @@ function publicGistPorts(methods: string[], onDelete: () => Response): GistShare
       }),
     upgradeToGistScope: () => Promise.reject(new Error('must not upgrade')),
     confirmScope: () => Promise.resolve(true),
+    privacy,
+    userName: 'does-not-appear',
     userAgent: 'muse-spark-code/test',
     log,
   }
@@ -197,6 +209,8 @@ describe('publishGistShare', () => {
         seen.push('consent')
         return Promise.resolve(true)
       },
+      privacy,
+      userName: 'does-not-appear',
       userAgent: 'muse-spark-code/test',
       log,
     }

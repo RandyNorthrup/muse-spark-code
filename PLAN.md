@@ -16134,7 +16134,7 @@ scheduled command released after its turn ends. Deliberately break each fix,
 observe the named tests fail, restore byte-exact and record the evidence in
 `docs/certification/envfence.md`. No new dependency or broader exception.
 
-### D217 — Share asks for the gist scope only at Share time (M118 phase 2, owner 2026-10-23)
+### D218 — Share asks for the gist scope only at Share time (M118 phase 2, owner 2026-10-23)
 
 M118 phase 2 (a secret gist for a prompt or a chat) was blocked: it needs
 GitHub's `gist` scope, and D104 says that scope is "never asked for". The
@@ -16146,6 +16146,18 @@ person presses Share to a secret gist — incremental consent at that moment,
 with words saying what it allows — never at sign-in and never otherwise;
 declining keeps every other share route working. (Lane RLF-M118; no §3
 question matched, so none is resolved by this.)
+
+**RVCRED (2026-10-30): the Share-time grant is `gist` alone, numbered D218.**
+D217 on the vault-undo branch is the retired-item undo, so this decision
+moves. GitHub issues a gist-only authorization as its own token and does
+not revoke an earlier `repo` token (docs.github.com, "Creating multiple
+tokens for OAuth apps", read 2026-10-30: revocation of an old token happens
+only past ten tokens of the same user, application and scope). The gist
+grant is stored apart from the repository sign-in. A missing
+`X-OAuth-Scopes` header is not treated as a missing gist scope. The bytes
+are scrubbed again at the send, a file name with a folder, home or account
+is refused, and a create that is not confirmed `public: false` at
+`https://gist.github.com/` is deleted when its id can be read.
 
 - **Q-M101IMAGE-DIMENSIONS (2026-10-06).** Which checked-in provider capture or
   authorized documentation supplies each vision model's maximum width/height?
@@ -35153,10 +35165,12 @@ cloudInit)`, `status(id)`, `delete(id)`, and nothing else; each adapter's
 ### M118 — Prompt and chat sharing (D98)
 
 **Status 2026-10-06: built.** Status 2026-10-30: phase 2 core built on
-recovery lane RLF-M118 (secret-gist publish/unpublish with Share-time
-gist-scope consent, D217); no surface offers the gist destination yet,
-and the live GitHub capture stays with the lead. Evidence:
-`docs/certification/rlf-m118.md`.
+recovery lane RLF-M118 and reviewed by RVCRED (secret-gist publish and
+unpublish; Share-time consent asks for `gist` alone, D218, and that grant
+is stored apart from the repository sign-in). No surface offers the gist
+destination yet, and the live GitHub capture stays with the lead. Evidence:
+`docs/certification/rlf-m118.md`. The review record is
+`docs/certification/rvcred.md` on the review branch.
 
 - **Archived.** The record that stood here is in [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
