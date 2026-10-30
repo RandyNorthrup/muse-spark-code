@@ -1,5 +1,13 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdtempSync, cpSync, rmSync, writeFileSync, readFileSync, readdirSync } from 'node:fs'
+import {
+  mkdtempSync,
+  cpSync,
+  mkdirSync,
+  rmSync,
+  writeFileSync,
+  readFileSync,
+  readdirSync,
+} from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
 import crypto from 'node:crypto'
@@ -537,6 +545,8 @@ describe('M110-OS1 immutable image inputs', () => {
       ' muse-node.service',
       'firewall enablement',
     ],
+    ['mkosi.conf', '         curl\n', '', 'setup download tool'],
+    ['mkosi.conf', '         nftables\n', '         nftables muse-code\n', 'no Muse Code package'],
   ])('refuses a weakened %s guard (%s)', (file, before, after, reason) => {
     const dir = directory()
     cpSync(root, dir, { recursive: true })
@@ -549,6 +559,27 @@ describe('M110-OS1 immutable image inputs', () => {
     expect(result.status).toBe(1)
     expect(result.stderr).toContain(reason)
   })
+  it.each(['muse', 'muse.cmd', 'muse-bin-1.4.10', '.muse-version', '.muse-launcher.ps1', 'muse/'])(
+    'refuses a staged Muse Code CLI %s',
+    (shape) => {
+      // D227: the CLI installs at setup, never from the image. Each of
+      // Meta's installed names (a trailing slash plants a directory: the
+      // Windows install folder itself) fails the recipe.
+      const dir = directory()
+      cpSync(root, dir, { recursive: true })
+      const target = path.join(dir, 'overlay', 'usr', 'local', 'bin', shape)
+      if (shape.endsWith('/')) mkdirSync(target, { recursive: true })
+      else {
+        mkdirSync(path.dirname(target), { recursive: true })
+        writeFileSync(target, '#!/bin/sh\n')
+      }
+      const result = spawnSync(interpreter, [path.join(root, 'check.py'), dir], {
+        encoding: 'utf8',
+      })
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('no staged Muse Code CLI')
+    },
+  )
   it('refuses a tree without the kernel hardening knobs', () => {
     const dir = directory()
     cpSync(root, dir, { recursive: true })
@@ -803,11 +834,31 @@ except ValueError as error:
     print('refused the intruder')
 else:
     raise AssertionError('admitted dist/evil.sh')
+build.OUT = base / 'out-cli'
+smuggled = base / 'smuggled.tar'
+with tarfile.open(smuggled, 'w') as output:
+    package = json.dumps({'name': 'muse-spark-code-acp', 'version': '0.19.0'}).encode()
+    for name, body in (('package.json', package), ('dist/muse', b'x'),
+                       ('muse-bin-1.4.10', b'x')):
+        member = tarfile.TarInfo('package/' + name)
+        member.size = len(body)
+        output.addfile(member, io.BytesIO(body))
+args = SimpleNamespace(target='x86-64', installer=False, runtime=smuggled,
+    runtime_sha256=build.digest(smuggled), binding=None, binding_sha256=None,
+    mkosi=base / 'fake-mkosi', pi_keyring=None, pi_keyring_sha256=None)
+try:
+    build.stage(args)
+except ValueError as error:
+    assert 'unexpected archive member' in str(error)
+    print('refused the smuggled CLI')
+else:
+    raise AssertionError('admitted a Muse Code CLI member')
 print('verified runtime member shapes')
 `)
     expect(result.status).toBe(0)
     expect(result.stdout).toContain('verified runtime member shapes')
     expect(result.stdout).toContain('refused the intruder')
+    expect(result.stdout).toContain('refused the smuggled CLI')
   })
   it.each([
     ['x86-64', ['--binding', 'test-only.mjs'], 'supplied together'],

@@ -26,6 +26,10 @@ const PACKAGE_PATTERN = /^[a-z0-9][a-z0-9+.~-]*$/
 const VERSION_PATTERN = /^[A-Za-z0-9][A-Za-z0-9.+~:-]*$/
 const SHA256_PATTERN = /^[0-9a-f]{64}$/
 const DEB_ARCHITECTURES = new Set(['amd64', 'arm64'])
+/** D227: the CLI installs at setup, so no add-on name or package wears these. */
+const CLI_NAMES = new Set(['muse', 'muse-code', 'muse-code-cli'])
+/** D227: Meta's installer and launcher hosts; no add-on fetches from them. */
+const META_INSTALLER_HOSTS = new Set(['dev.meta.ai', 'api.meta.ai'])
 /** uname/ConditionArchitecture names to the manifest's Debian names. */
 const ARCHITECTURE_MAP = new Map([
   ['x86-64', 'amd64'],
@@ -65,6 +69,8 @@ export function validateManifest(manifest, manifestDir) {
     errors.push('name must look like chrome or nvidia')
   } else if (path.basename(manifestDir) !== name) {
     errors.push(`manifest directory ${manifestDir} does not match name ${name}`)
+  } else if (CLI_NAMES.has(name)) {
+    errors.push('an add-on never stages the Muse Code CLI')
   }
   if (manifest.kind !== 'sysext' && manifest.kind !== 'confext') {
     errors.push('kind must be sysext or confext')
@@ -178,6 +184,8 @@ function validateAptSource(apt, where) {
     apt.packages.some((name) => typeof name !== 'string' || !PACKAGE_PATTERN.test(name))
   ) {
     errors.push(`${where}.apt.packages must be a unique non-empty list of package names`)
+  } else if (apt.packages.some((name) => CLI_NAMES.has(name))) {
+    errors.push('an add-on never stages the Muse Code CLI')
   }
   if (
     apt.version !== undefined &&
@@ -198,6 +206,9 @@ function validateVendorRunSource(vendorRun, where) {
     ),
   ]
   if (!isHttpsUrl(vendorRun.url)) errors.push(`${where}.vendorRun.url must be an https URL`)
+  else if (META_INSTALLER_HOSTS.has(new URL(vendorRun.url).hostname)) {
+    errors.push('an add-on never stages the Muse Code CLI')
+  }
   if (typeof vendorRun.sha256 !== 'string' || !SHA256_PATTERN.test(vendorRun.sha256)) {
     errors.push(`${where}.vendorRun.sha256 must be 64 lowercase hex digits`)
   }
