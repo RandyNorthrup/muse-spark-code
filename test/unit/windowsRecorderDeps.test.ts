@@ -12,8 +12,8 @@ import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { noWorkspaceChildEnvironment } from '../../src/core/execGuard'
 import { windowsScreenRecorder } from '../../src/core/media/record/windows'
+import { createHelperLineFramer } from '../../src/host/media/recordingLineFramer'
 import {
-  createHelperLineFramer,
   createWindowsRecorderDeps,
   type WindowsRecorderMechanicalDeps,
 } from '../../src/host/media/windowsRecorderDeps'

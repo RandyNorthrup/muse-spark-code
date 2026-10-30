@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { buildLinuxHelper } from './build-linux-helper.mjs'
+import { buildPortalRecord } from './build-portal-record.mjs'
 import { buildVaultPeer } from './build-vault-peer.mjs'
 import {
   resourceBrowserValidation,
@@ -133,6 +134,7 @@ cpSync('src/core/legal/legal-data', 'dist/legal-data', { recursive: true, force:
 const args = new Set(process.argv.slice(2))
 buildLinuxHelper()
 buildVaultPeer()
+buildPortalRecord()
 
 const isProduction = args.has('--production')
 const isWatch = args.has('--watch')

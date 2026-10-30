@@ -10,6 +10,7 @@ import type { UiTable } from '../l10n'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 import { UI_TEXT } from '../../shared/constants'
+import type { RecordingDriverHost } from './recordingDriver'
 import type {
   LatestRecordingPlatformHost,
   WindowsPrivateDirectoryDeps,
@@ -31,7 +32,7 @@ export interface RecordingPreviewDeps {
 
 export interface RecordingCommandDeps extends RecordingPreviewDeps {
   readonly isRemote: boolean
-  /** R1–R3's native binding. Absence is an explicit refusal. */
+  /** The platform's native recorder. Absence is an explicit refusal. */
   readonly driver?: ScreenRecordingDriver
   readonly maxSeconds: number
   /**
@@ -39,6 +40,12 @@ export interface RecordingCommandDeps extends RecordingPreviewDeps {
   folders, or the refusal that names where it looked (or why the copy failed).
   */
   readonly latest: () => Promise<ScreenRecordingResult>
+  /**
+  macOS: the permission the system refused during this command, once, so
+  the refusal that says so can offer that Settings pane. Absent where no
+  permission recovery exists.
+  */
+  readonly takeRefusedPermission?: () => 'screen' | 'microphone' | undefined
   /**
   False once the conversation that started the recording cleared or
   closed: the bundle cancels the run instead of previewing it (M105 E1
@@ -97,6 +104,8 @@ interface ScreenRecordBundle {
     port: LatestRecordingPort,
     now?: number,
   ) => Promise<ScreenRecordingResult>
+  /** The driver of this platform; undefined where the product records nowhere. */
+  readonly createRecordingDriver: (host: RecordingDriverHost) => ScreenRecordingDriver | undefined
   readonly resolveWindowsRecordingFolders: (
     deps?: WindowsVideosDeps,
     platform?: NodeJS.Platform,
@@ -120,6 +129,8 @@ function isScreenRecordBundle(value: unknown): value is ScreenRecordBundle {
     typeof value.createLatestRecordingPort === 'function' &&
     'findLatestRecording' in value &&
     typeof value.findLatestRecording === 'function' &&
+    'createRecordingDriver' in value &&
+    typeof value.createRecordingDriver === 'function' &&
     'resolveWindowsRecordingFolders' in value &&
     typeof value.resolveWindowsRecordingFolders === 'function' &&
     'createWindowsPrivateDirectory' in value &&

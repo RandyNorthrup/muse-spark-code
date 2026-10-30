@@ -97,6 +97,7 @@ import {
   GLOBAL_STATE_KEYS,
   MACOS_KEYCHAIN_LOOKUP_ARGS,
   MACOS_KEYCHAIN_LOOKUP_TIMEOUT_MS,
+  BYTES_PER_MIB,
   MACOS_SECURITY_TOOL,
   MENTION_INDEX_LIMIT,
   MENTION_INDEX_TTL_MS,
@@ -397,7 +398,7 @@ import type { AttachedMedia } from './core/media/attachedMedia'
 import { lazyAttachedMedia } from './core/media/attachedMediaPort'
 import { mediaBundleLoader, mediaHostBundleLoader } from './host/media/mediaBundle'
 import { RECORDING_COMMAND_IDS, screenRecordLoader } from './host/media/screenRecordBundle'
-import type { ScreenRecordingResult } from './core/media/record/driver'
+import type { ScreenRecordingDriver, ScreenRecordingResult } from './core/media/record/driver'
 import { registerVaultCommands, vaultBundleLoader } from './host/vault/vaultPanelBundle'
 import { createMigrationShell, type MigrationShell } from './host/vault/migrationShell'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
@@ -4162,6 +4163,17 @@ async function activateWindow(
     path.join(context.extensionPath, 'dist', 'screenRecord.js'),
     log,
   )
+  // The window's screen recorder: one driver per window, so its busy state
+  // holds across commands; the window closing ends a picker and any run.
+  const recordingLifetime = new AbortController()
+  context.subscriptions.push({
+    dispose: () => {
+      recordingLifetime.abort()
+    },
+  })
+  let screenRecordingDriver: ScreenRecordingDriver | undefined
+  // The macOS permission the system last refused; the command's refusal takes it once.
+  let refusedRecordingPermission: 'screen' | 'microphone' | undefined
   const latestScreenRecording = async (): Promise<ScreenRecordingResult> => {
     const bundle = loadScreenRecord()
     const folders =
@@ -4606,22 +4618,45 @@ async function activateWindow(
             )
           },
           // M105 W (E1-recording-host-binding): the recording command's deps.
-          // No native driver binds in this round: macOS needs its signed
-          // helper, Windows direct capture is unavailable here, and Linux
-          // needs a D-Bus portal transport (lead-owned; see m105.md). The
-          // absent driver refuses explicitly; latest-file discovery reads
-          // the running platform's OS recordings location. The
-          // conversation overrides attach with admission.
-          recordingCommandDeps: () =>
-            Promise.resolve({
-              l10n: { table: UI_TEXT, locale: uiLocale() },
+          // The platform's native recorder binds here (RLF-RECORDING):
+          // Windows' helper, macOS' signed app and Linux' desktop portal,
+          // each saying in words when this computer cannot record. A
+          // platform without one leaves the driver absent, which refuses
+          // explicitly; latest-file discovery reads the running platform's
+          // OS recordings location. The conversation overrides attach with
+          // admission.
+          recordingCommandDeps: () => {
+            const l10n = { table: UI_TEXT, locale: uiLocale() }
+            screenRecordingDriver ??= loadScreenRecord().createRecordingDriver({
+              platform: process.platform,
+              arch: process.arch,
+              extensionPath: context.extensionPath,
+              storageDir: storageRoot,
+              tempRoot: recordingTempRoot,
+              environment: process.env,
+              remoteName: vscode.env.remoteName,
+              l10n,
+              lifetime: recordingLifetime.signal,
+              personMaxBytes: () => currentSettings().mediaMaxUploadMiB * BYTES_PER_MIB,
+              onPermissionDenied: (permission) => {
+                refusedRecordingPermission = permission
+              },
+            })
+            return Promise.resolve({
+              l10n,
               log,
               isRemote: vscode.env.remoteName !== undefined,
-              // No driver key: unbound this round (see above); absence refuses.
+              ...(screenRecordingDriver !== undefined && { driver: screenRecordingDriver }),
               maxSeconds: currentSettings().screenRecordingMaxSeconds,
               latest: latestScreenRecording,
+              takeRefusedPermission: () => {
+                const refused = refusedRecordingPermission
+                refusedRecordingPermission = undefined
+                return refused
+              },
               attach: () => Promise.resolve(false),
-            }),
+            })
+          },
           isBypassAllowed: () => currentSettings().allowDangerouslySkipPermissions,
           isRemoteWindow: vscode.env.remoteName !== undefined,
           confirmRemoteBypass: async () =>
