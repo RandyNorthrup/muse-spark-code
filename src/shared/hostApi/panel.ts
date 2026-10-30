@@ -180,7 +180,13 @@ export function parseMhpPanelEnvelope(
         parsed.data.direction === 'toHost' ? webviewToHostMessageSchema : hostToWebviewMessageSchema
     }
   }
-  return payloadSchema.safeParse(parsed.data.payload).success
+  // A theme frame (M104 lane D) may ride toPanel on any surface that
+  // takes host messages at all; What's New takes none.
+  const isTheme =
+    parsed.data.direction === 'toPanel' &&
+    surfaceKind !== 'whatsNew' &&
+    panelThemePayloadSchema.safeParse(parsed.data.payload).success
+  return isTheme || payloadSchema.safeParse(parsed.data.payload).success
     ? parsed.data
     : refuse('MHP_PANEL_INVALID_PAYLOAD')
 }
