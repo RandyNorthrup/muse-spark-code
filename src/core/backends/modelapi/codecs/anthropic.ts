@@ -527,8 +527,8 @@ function assertManyImagesFit(images: readonly AnthropicImageBlock[]): void {
 }
 
 /**
-Refuses a request past Anthropic's 32 MB Messages cap ("Request size
-limits", read 2026-10-23), measured as the encoded JSON body the
+Refuses a request past Anthropic's 128 MB Messages cap (release notes,
+October 28, 2026), measured as the encoded JSON body the
 transport sends, before it goes out as a 413.
 */
 function assertRequestFits(body: AnthropicRequestBody): void {

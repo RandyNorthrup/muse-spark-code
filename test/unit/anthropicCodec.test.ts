@@ -2170,18 +2170,28 @@ describe('Anthropic many-image dimensions', () => {
 })
 
 describe('Anthropic request size', () => {
-  it('refuses a request past the documented 32 MB, naming the cap', () => {
-    // platform.claude.com/docs/en/api/overview, "Request size limits",
-    // read 2026-10-23: the Messages endpoint allows 32 MB; past it
-    // answers 413 request_too_large. Twenty 1.7 MB images stay at the
-    // dimension threshold, isolating the size refusal.
-    expect(ANTHROPIC_MAX_REQUEST_BYTES).toBe(32_000_000)
+  // Encoding a body past 128 MB is the long operation this timeout names.
+  it('refuses a request past the documented 128 MB, naming the cap', () => {
+    // platform.claude.com/docs/en/release-notes/overview, October 28,
+    // 2026 (read 2026-10-30): the maximum request size for the Messages
+    // API rose from 32 MB to 128 MB on the first-party API; past it
+    // answers 413 request_too_large. Two 70 MB images isolate the size
+    // refusal from the many-images dimension rule.
+    expect(ANTHROPIC_MAX_REQUEST_BYTES).toBe(128_000_000)
     const body = canonicalBody({
-      input: [imagePartsMessage(imageParts(20, 10, 10, 1_700_000))],
+      input: [imagePartsMessage(imageParts(2, 10, 10, 70_000_000))],
     })
     expect(() => encodeAnthropicRequest(body, BASE_OPTIONS)).toThrow(
       `up to ${formatBytes(ANTHROPIC_MAX_REQUEST_BYTES)}`,
     )
+  }, 60_000)
+
+  it('admits a request past the old 32 MB cap', () => {
+    // Twenty 1.7 MB images (~34 MB encoded) refused under the old cap.
+    const body = canonicalBody({
+      input: [imagePartsMessage(imageParts(20, 10, 10, 1_700_000))],
+    })
+    expect(encodeImageCount(body)).toBe(20)
   })
 
   it('admits a request under the cap', () => {
