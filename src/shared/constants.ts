@@ -7396,6 +7396,19 @@ export const MUSE_INSTALL_COMMANDS = {
 } as const
 export const MUSE_INSTALL_POLL_INTERVAL_MS = 2000
 export const MUSE_INSTALL_TIMEOUT_MS = 5 * 60 * 1000
+// D227: the first-boot setup installs the CLI from Meta's official
+// installer (verified live 2026-10-30, HTTP 200), never from our images.
+// The script requires bash, curl and mktemp; it installs into
+// $HOME/.local/bin unless MUSE_INSTALL_DIR is set, verifies its launcher
+// against the x-content-sha256 header when advertised, and honours
+// MUSE_NO_MODIFY_PATH=1 (the setup passes it: the node manages PATH).
+export const MUSE_INSTALL_SCRIPT_URL = 'https://dev.meta.ai/install.sh'
+// Meta's terms of service (verified live 2026-10-30, HTTP 200; last
+// updated October 9, 2026): shown for the person to accept before any
+// setup surface installs the CLI.
+export const MUSE_TERMS_URL = 'https://dev.meta.ai/legal/terms-of-service'
+export const MUSE_INSTALL_DIR_VARIABLE = 'MUSE_INSTALL_DIR'
+export const MUSE_NO_MODIFY_PATH_VARIABLE = 'MUSE_NO_MODIFY_PATH'
 export const MUSE_DEVICE_SIGN_IN_URL_ORIGIN = 'https://auth.meta.com'
 export const MUSE_ACCOUNT_LOGIN_START = 'account/loginStart'
 export const MUSE_ACCOUNT_LOGIN_CANCEL = 'account/loginCancel'

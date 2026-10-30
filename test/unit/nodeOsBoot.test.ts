@@ -11,7 +11,14 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
-import { type NodeOsRun, runNodeScript, scratch, sha256File } from './helpers/nodeOs'
+import {
+  canReachUrl,
+  hasTool,
+  type NodeOsRun,
+  runNodeScript,
+  scratch,
+  sha256File,
+} from './helpers/nodeOs'
 import { scanTranscript } from '../../scripts/lib/osBootTest.mjs'
 
 const BOOT_TEST = fileURLToPath(new URL('../../scripts/os-boot-test.mjs', import.meta.url))
@@ -41,35 +48,10 @@ int main(void) {
 }
 `
 
-function hasTool(command: string, args: string[]): boolean {
-  try {
-    execFileSync(command, args, { stdio: 'ignore' })
-    return true
-  } catch {
-    return false
-  }
-}
-
-function hasKernelNet(): boolean {
-  try {
-    execFileSync(
-      process.execPath,
-      [
-        '--eval',
-        `fetch(${JSON.stringify(KERNEL_URL)}, { method: 'HEAD' }).then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))`,
-      ],
-      { stdio: 'ignore', timeout: PROBE_TIMEOUT_MS },
-    )
-    return true
-  } catch {
-    return false
-  }
-}
-
 const HAS_QEMU = hasTool('qemu-system-x86_64', ['--version'])
 const HAS_PGREP = process.platform === 'linux' && hasTool('pgrep', ['--version'])
 const HAS_GCC = hasTool('gcc', ['--version'])
-const HAS_KERNEL_NET = hasKernelNet()
+const HAS_KERNEL_NET = await canReachUrl(KERNEL_URL, PROBE_TIMEOUT_MS)
 const CAN_BOOT = HAS_QEMU && HAS_GCC && HAS_KERNEL_NET
 
 /** Whether a QEMU process whose command line carries the token still runs. */

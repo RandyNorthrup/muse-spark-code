@@ -2,8 +2,9 @@
 // runNodeScript (Node scripts) and runCommand (executables); scratch
 // directories come from scratch and leave through cleanup; sha256File
 // hashes a file. Every runner returns the exit status with the joined
-// output the tests assert on.
-import { spawnSync } from 'node:child_process'
+// output the tests assert on. hasTool and canReachUrl gate the suites that
+// need a real tool or the real network.
+import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -59,4 +60,27 @@ export function scratch(prefix: string): string {
 /** A scratch directory gone, whatever it holds. */
 export function cleanup(dir: string): void {
   rmSync(dir, { recursive: true, force: true })
+}
+
+/** Whether a real tool answers (gates the suites that need it). */
+export function hasTool(command: string, args: readonly string[]): boolean {
+  try {
+    execFileSync(command, [...args], { stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Whether a URL answers HEAD ok within the bound (gates live downloads). */
+export async function canReachUrl(url: string, timeoutMs: number): Promise<boolean> {
+  try {
+    const response = await fetch(url, {
+      method: 'HEAD',
+      signal: AbortSignal.timeout(timeoutMs),
+    })
+    return response.ok
+  } catch {
+    return false
+  }
 }

@@ -143,13 +143,19 @@ describe('setup store', () => {
         sshKey: '',
         chrome: 'skip' as const,
         nvidia: 'skip' as const,
+        museCode: 'skip' as const,
       }
-      const done = completeSetup(recordChoices(accepted.state, choices))
+      const done = completeSetup(recordChoices(accepted.state, choices), {
+        ok: true,
+        version: '1.4.10',
+      })
       expect(done.completed).toBe(true)
       expect(done.codeSha256).toBeNull()
+      expect(done.museCodeInstall).toEqual({ ok: true, version: '1.4.10' })
       expect(acceptSetupCode(done, code)).toEqual({ ok: false, reason: 'completed' })
       saveSetupState(dir, done)
       expect(loadSetupState(dir)?.completed).toBe(true)
+      expect(loadSetupState(dir)?.museCodeInstall).toEqual({ ok: true, version: '1.4.10' })
     } finally {
       cleanup(dir)
     }
@@ -163,9 +169,10 @@ describe('setup store', () => {
       sshKey: '',
       chrome: 'skip' as const,
       nvidia: 'skip' as const,
+      museCode: 'skip' as const,
     }
     expect(() => recordChoices(state, choices)).toThrow('setup code not accepted')
-    expect(() => completeSetup(state)).toThrow('setup has no choices')
+    expect(() => completeSetup(state, null)).toThrow('setup has no choices')
   })
 
   it('holds the code past the gate until completion', () => {
