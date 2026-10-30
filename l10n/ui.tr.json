@@ -4417,7 +4417,8 @@
     "refused": "sistem yardımcısı kaydetmeyi reddetti",
     "unsafe": "kaydedilen kayıt defterinin güvenlik denetimi başarısız oldu",
     "invalid": "kaydedilen kayıt defteri geçersiz",
-    "io": "kayıt yazılamadı"
+    "io": "kayıt yazılamadı",
+    "contended": "çalışan başka bir kopya sürekli önce kaydetti; yeniden deneyin"
   },
   "acpQuestionFormMessage": "Muse'un size bir sorusu var.",
   "acpQuestionAsked": "Muse'un bir sorusu var; bu düzenleyici soruyu form olarak gösteremiyor, bu yüzden bir sonraki iletinizde yanıtlayın:",

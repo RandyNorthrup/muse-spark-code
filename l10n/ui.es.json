@@ -4499,7 +4499,8 @@
     "refused": "el ayudante del sistema rechazó el guardado",
     "unsafe": "una comprobación de seguridad del registro guardado falló",
     "invalid": "el registro guardado no es válido",
-    "io": "el guardado no se pudo escribir"
+    "io": "el guardado no se pudo escribir",
+    "contended": "otra copia en ejecución siguió guardando primero; inténtelo de nuevo"
   },
   "acpQuestionFormMessage": "Muse tiene una pregunta para usted.",
   "acpQuestionAsked": "Muse tiene una pregunta; este editor no puede mostrarla como formulario, así que responda en su próximo mensaje:",

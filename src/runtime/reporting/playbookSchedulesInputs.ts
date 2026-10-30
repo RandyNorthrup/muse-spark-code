@@ -12,7 +12,7 @@ import {
   PlaybookHistoryLostError,
   validatedRecords,
 } from '../../core/orchestration/playbook/journal'
-import { PLAYBOOK_PANEL_TEAM } from '../../shared/constants'
+import { PLAYBOOK_PANEL_TEAM, SCHEDULE_FS_RETRY_ATTEMPTS } from '../../shared/constants'
 import {
   comparePlaybookReportItems,
   playbookOrderReportNote,
@@ -169,10 +169,12 @@ export function createSchedulesReportReader(input: {
       const { signal } = context
       const fs = createNodeScheduleFs(input.storeRoot)
       const store = createScheduleStore(fs, { signal })
-      // No attempt count of ours (D121): the snapshot loop re-reads until a
-      // list/fires/list triple agrees, another writer's churn settling, or
-      // the person's cancel stops the read.
-      for (;;) {
+      // Safety limit (D121 clarification, RLF-SAFELIMITS): the snapshot
+      // loop re-reads until a list/fires/list triple agrees, another
+      // writer's churn settling, the person's cancel stopping the read, or
+      // the attempts running out — then the source reports busy instead of
+      // spinning on churn that never settles.
+      for (let attempt = 0; attempt < SCHEDULE_FS_RETRY_ATTEMPTS; attempt += 1) {
         signal.throwIfAborted()
         try {
           const schedules = await store.list(input.workspaceKey)
@@ -194,6 +196,7 @@ export function createSchedulesReportReader(input: {
           throw new LocalSourceError(failure)
         }
       }
+      throw new LocalSourceError('busy')
     },
   }
 }

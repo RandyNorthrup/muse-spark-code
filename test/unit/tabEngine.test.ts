@@ -25,6 +25,24 @@ const throwingStream: TabStream = () => {
 
 const silentStream: TabStream = () => emptyStream()
 
+// The transport's shape only: a stream that yields nothing and ends when
+// aborted, as the key client does on its signal.
+const hungStream: TabStream = (_body, signal) => {
+  const hung = (async function* (): AsyncGenerator<StreamEvent> {
+    await new Promise<never>((_resolve, reject) => {
+      signal.addEventListener(
+        'abort',
+        () => {
+          reject(new Error('The hung stream ended on abort'))
+        },
+        { once: true },
+      )
+    })
+    yield* []
+  })()
+  return hung
+}
+
 function requestOf(isCancelled: () => boolean): TabEngineRequest {
   return {
     model: 'muse-spark-1.3',
@@ -44,11 +62,12 @@ function requestOf(isCancelled: () => boolean): TabEngineRequest {
   }
 }
 
-function engineOf(stream: TabStream): TabEngine {
+function engineOf(stream: TabStream, requestTimeoutMs?: number): TabEngine {
   return createTabEngine({
     stream,
     onSent: () => undefined,
     onUsage: () => undefined,
+    ...(requestTimeoutMs !== undefined && { requestTimeoutMs }),
   })
 }
 
@@ -125,5 +144,14 @@ describe('createTabEngine send paths (M94 acceptance 7)', () => {
     // the usage rejects for want of usage rather than failing abandoned.
     expect(answer.completion).toBeUndefined()
     await expect(answer.usage).rejects.toThrow('reported no usage')
+  })
+
+  it('ends a hung request at the backstop with words (safety limit, RLF-SAFELIMITS)', async () => {
+    // The engine's own settlement — the trigger fails with words — is
+    // the assertion. Unbounded code would wait here past the suite's own
+    // timeout; the backstop fails the trigger after 200 ms with its words.
+    await expect(engineOf(hungStream, 200).complete(requestOf(() => false))).rejects.toThrow(
+      'timed out waiting for the provider',
+    )
   })
 })

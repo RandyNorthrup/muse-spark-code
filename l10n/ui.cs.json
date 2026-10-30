@@ -4581,7 +4581,8 @@
     "refused": "systémový pomocník uložení odmítl",
     "unsafe": "bezpečnostní kontrola uloženého registru selhala",
     "invalid": "uložený registr je neplatný",
-    "io": "uložení se nezdařilo zapsat"
+    "io": "uložení se nezdařilo zapsat",
+    "contended": "jiná spuštěná kopie stále ukládala jako první; zkuste to znovu"
   },
   "acpQuestionFormMessage": "Muse má na vás otázku.",
   "acpQuestionAsked": "Muse má otázku; tento editor ji neumí zobrazit jako formulář, odpovězte proto v další zprávě:",

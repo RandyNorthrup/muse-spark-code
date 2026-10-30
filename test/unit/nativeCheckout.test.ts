@@ -293,8 +293,12 @@ function batchAnswers(): BlobAnswers {
   return new BlobAnswers([], ignoreWrite, () => new Error('unreadable answers'))
 }
 
-function batchOptions(signal?: AbortSignal): Parameters<typeof runBatchChild>[2] {
+function batchOptions(
+  signal?: AbortSignal,
+  deadlineMs = 10_000,
+): Parameters<typeof runBatchChild>[2] {
   return {
+    deadlineMs,
     killGraceMs: 2000,
     drainGraceMs: 2000,
     platform: process.platform,
@@ -342,9 +346,19 @@ describe('runBatchChild', () => {
     ).rejects.toThrow('refused at Windows GO for the test batch')
   })
 
-  // No deadline of ours (D121, RLF-NOLIMITS): a batch child slower than
-  // any bound still runs its course — no deadline fails it mid-wait.
-  it('waits for a slow batch child past any removed deadline', async () => {
+  // Safety limit (D121 clarification, RLF-SAFELIMITS): a batch child
+  // slower than its own deadline ends the checkout with words instead of
+  // running until Cancel, while a child inside its deadline runs free.
+  it('ends a batch child slower than its own deadline with words', async () => {
+    const child = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 30000)'], {
+      stdio: 'pipe',
+    })
+    await expect(
+      runBatchChild(child, batchAnswers(), batchOptions(undefined, 500)),
+    ).rejects.toThrow(UI_TEXT.openPullRequestUnreadable)
+  })
+
+  it('runs a batch child inside its deadline to its end', async () => {
     const child = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 300)'], {
       stdio: 'pipe',
     })

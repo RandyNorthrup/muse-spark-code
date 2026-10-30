@@ -35,6 +35,7 @@ import { powerShellQuoted } from '../core/shellQuote'
 import { describeStoreError } from './backend/storeErrors'
 import {
   GIT_OUTPUT_MAX_BYTES,
+  ORPHAN_SWEEP_ROUNDS,
   POSIX_TREE_EXIT_POLL_MS,
   POSIX_TREE_EXIT_WAIT_MS,
   SHELL_JOB_TYPE_NAME,
@@ -195,11 +196,12 @@ async function sweepOrphans(
   deps: ProcessTreeDeps,
   signal?: AbortSignal,
 ): Promise<void> {
-  // No round count of ours (D121, RLF-NOLIMITS): the sweep reaps until no
-  // orphan remains, no kill confirms, or the stop fires. A fired stop ends
-  // the sweep instead of spending another round behind it — pool close
-  // aborts before it awaits the kills, so a shutdown sweep always sees a
-  // fired stop and stops; the tree kill itself still ran.
+  // Safety limit (D121 clarification, RLF-SAFELIMITS): the sweep reaps
+  // until no orphan remains, no kill confirms, the stop fires, or the
+  // rounds run out. A fired stop ends the sweep instead of spending
+  // another round behind it — pool close aborts before it awaits the
+  // kills, so a shutdown sweep always sees a fired stop and stops; the
+  // tree kill itself still ran.
   if (signal?.aborted) {
     logSweepStoppedBeforeFirstRound(shellPid, deps.log)
     return
@@ -209,7 +211,7 @@ async function sweepOrphans(
   const script = (body: string) =>
     run(powershell.file, [...WINDOWS_POWERSHELL_COMMAND_ARGS, body], powershell.env)
   const ancestors = new Map([[shellPid, diedAt]])
-  for (let round = 0; ; round += 1) {
+  for (let round = 0; round < ORPHAN_SWEEP_ROUNDS; round += 1) {
     let orphans: readonly ProcessRow[]
     let killed: ReadonlySet<number>
     try {
@@ -258,6 +260,9 @@ async function sweepOrphans(
       return
     }
   }
+  deps.log(
+    `children of ${String(shellPid)} kept appearing for ${String(ORPHAN_SWEEP_ROUNDS)} rounds after its tree kill`,
+  )
 }
 
 /**

@@ -424,6 +424,11 @@ happened, not what was planned; superseded entries are kept.
 - **Tab's paid badge no longer blanks the chat.** Pricing the badge before
   any usage surface opened crashed the panel; the prices load their
   wording first.
+- **Failure retries stop with words again.** A storage failure that never
+  clears, a scanner lock that never releases, a registry another running
+  copy keeps saving first ("try again"), and a hung Tab, git, hand-off or
+  schedule wait now end after a bounded wait instead of retrying until
+  cancelled; ordinary slow operations are unaffected.
 - **A vault no longer reports itself lost when it was never set up.** The
   vault's rollback record in the operating system's credential store is now
   keyed to the vault it protects, so nothing outside that vault can read

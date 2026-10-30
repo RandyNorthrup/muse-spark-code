@@ -4,6 +4,7 @@ import { link, mkdir, open, readdir, readFile, realpath, rmdir, unlink } from 'n
 import path from 'node:path'
 import * as z from 'zod/mini'
 import {
+  CREATED_REGISTRY_SAVE_ATTEMPTS,
   RESOURCE_BIGINT_ZERO,
   RESOURCE_PRIVATE_DIR_MODE,
   RESOURCE_PRIVATE_FILE_MODE,
@@ -449,19 +450,21 @@ export class CreatedRegistry {
   }
 
   private async save(): Promise<void> {
-    // No attempt limit of ours (D121): a lost compare-and-swap re-reads the
-    // live manifest, merges this process's entries into it, and publishes
-    // again until it lands. Concurrent instances (VS Code windows, ACP
-    // agents, the CLI) share the registry: a save never drops another
-    // process's entries, and a lost swap never fails a session. Only a
-    // genuine failure throws, typed for the caller's words.
-    for (;;) {
+    // Safety limit (D121 clarification, RLF-SAFELIMITS): a lost
+    // compare-and-swap re-reads the live manifest, merges this process's
+    // entries into it, and publishes again, at most
+    // CREATED_REGISTRY_SAVE_ATTEMPTS times — then the save throws
+    // `contended` with words instead of republishing forever. Concurrent
+    // instances (VS Code windows, ACP agents, the CLI) share the registry:
+    // a save never drops another process's entries. Only a genuine failure
+    // throws otherwise, typed for the caller's words.
+    for (let attempt = 1; ; attempt += 1) {
       const live = await this.readLiveForSave()
       const merged = this.mergeLiveChecked(live)
       if (areSnapshotsEqual(merged, this.synced)) return
       const stage = await this.writeStageChecked(merged)
-      const attempt = await this.tryPublishChecked(live, stage)
-      if (!('refusal' in attempt)) {
+      const published = await this.tryPublishChecked(live, stage)
+      if (!('refusal' in published)) {
         this.entries.clear()
         for (const [id, entry] of merged) this.entries.set(id, entry)
         this.synced = snapshotEntries(merged)
@@ -483,7 +486,9 @@ export class CreatedRegistry {
       // first, so merge again and publish again.
       const current = await this.readLiveForSave()
       if (current.previous === live.previous)
-        throw new CreatedRegistrySaveError('refused', { cause: attempt.refusal })
+        throw new CreatedRegistrySaveError('refused', { cause: published.refusal })
+      if (attempt >= CREATED_REGISTRY_SAVE_ATTEMPTS)
+        throw new CreatedRegistrySaveError('contended', { cause: published.refusal })
     }
   }
 

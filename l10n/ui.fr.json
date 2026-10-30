@@ -4499,7 +4499,8 @@
     "refused": "l’assistant système a refusé l’enregistrement",
     "unsafe": "un contrôle de sécurité du registre enregistré a échoué",
     "invalid": "le registre enregistré est invalide",
-    "io": "l’enregistrement n’a pas pu être écrit"
+    "io": "l’enregistrement n’a pas pu être écrit",
+    "contended": "une autre copie en cours a enregistré en premier à chaque fois ; réessayez"
   },
   "acpQuestionFormMessage": "Muse a une question pour vous.",
   "acpQuestionAsked": "Muse a une question ; cet éditeur ne peut pas l’afficher sous forme de formulaire, répondez donc dans votre prochain message :",
