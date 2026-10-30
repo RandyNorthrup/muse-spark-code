@@ -1318,6 +1318,10 @@
       "targetUnavailable": "Das Ziel dieses Zeitplans ist auf diesem Host nicht verfügbar.",
       "targetClosed": "Das Ziel wurde geschlossen.",
       "deliveryFailed": "Delivery failed: {reason}",
+      "deferredEventGaveUp": {
+        "one": "Das geplante Ereignis für {scheduleId} ist {count} Mal fehlgeschlagen und wird nicht erneut ausgeführt: {reason}",
+        "other": "Das geplante Ereignis für {scheduleId} ist {count} Mal fehlgeschlagen und wird nicht erneut ausgeführt: {reason}"
+      },
       "schedulePaused": "Der Zeitplan wurde vor der Zustellung pausiert.",
       "scheduleDeleted": "Der Zeitplan wurde vor der Zustellung gelöscht.",
       "scheduleEdited": "Zeitpunkt, Ziel oder Zustellungsmodus des Zeitplans wurden geändert.",

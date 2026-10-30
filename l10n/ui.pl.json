@@ -1328,6 +1328,12 @@
       "targetUnavailable": "Cel tego harmonogramu jest niedostępny na tym hoście.",
       "targetClosed": "Cel został zamknięty.",
       "deliveryFailed": "Delivery failed: {reason}",
+      "deferredEventGaveUp": {
+        "one": "Zaplanowane zdarzenie dla {scheduleId} nie powiodło się {count} raz i nie zostanie uruchomione ponownie: {reason}",
+        "other": "Zaplanowane zdarzenie dla {scheduleId} nie powiodło się {count} razy i nie zostanie uruchomione ponownie: {reason}",
+        "few": "Zaplanowane zdarzenie dla {scheduleId} nie powiodło się {count} razy i nie zostanie uruchomione ponownie: {reason}",
+        "many": "Zaplanowane zdarzenie dla {scheduleId} nie powiodło się {count} razy i nie zostanie uruchomione ponownie: {reason}"
+      },
       "schedulePaused": "Harmonogram został wstrzymany przed dostarczeniem.",
       "scheduleDeleted": "Harmonogram został usunięty przed dostarczeniem.",
       "scheduleEdited": "Zmieniono czas, cel lub tryb dostarczenia harmonogramu.",

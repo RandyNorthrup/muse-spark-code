@@ -1313,6 +1313,9 @@
       "targetUnavailable": "이 일정의 대상은 이 호스트에서 사용할 수 없습니다.",
       "targetClosed": "대상이 닫혔습니다.",
       "deliveryFailed": "Delivery failed: {reason}",
+      "deferredEventGaveUp": {
+        "other": "{scheduleId}의 예약된 이벤트가 {count}번 실패하여 다시 실행되지 않습니다: {reason}"
+      },
       "schedulePaused": "전달 전에 일정이 일시 중지되었습니다.",
       "scheduleDeleted": "전달 전에 일정이 삭제되었습니다.",
       "scheduleEdited": "일정의 시간, 대상 또는 전달 모드가 변경되었습니다.",

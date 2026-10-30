@@ -1323,6 +1323,11 @@
       "targetUnavailable": "El destino de esta programación no está disponible en este anfitrión.",
       "targetClosed": "El destino se cerró.",
       "deliveryFailed": "Delivery failed: {reason}",
+      "deferredEventGaveUp": {
+        "one": "El evento programado para {scheduleId} falló {count} vez y no se volverá a ejecutar: {reason}",
+        "other": "El evento programado para {scheduleId} falló {count} veces y no se volverá a ejecutar: {reason}",
+        "many": "El evento programado para {scheduleId} falló {count} veces y no se volverá a ejecutar: {reason}"
+      },
       "schedulePaused": "La programación se pausó antes de la entrega.",
       "scheduleDeleted": "La programación se eliminó antes de la entrega.",
       "scheduleEdited": "Cambió el horario, el destino o el modo de entrega de la programación.",
