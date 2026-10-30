@@ -509,6 +509,34 @@ describe('M110-OS1 immutable image inputs', () => {
       'User=root',
       'non-root service',
     ],
+    [
+      'mkosi.conf',
+      'hash_seed=8821992e-4707-4882-96ce-a8b16b671a09',
+      'hash_seed=random',
+      'ext4 hash seed pin',
+    ],
+    ['mkosi.conf', '\n            /var/cache/ldconfig/aux-cache', '', 'ldconfig cache removal'],
+    ['mkosi.conf', 'firmware-mediatek', 'firmware-other', 'base firmware packages'],
+    ['mkosi.conf', '         nftables\n', '', 'firewall package'],
+    ['mkosi.conf', '-/drivers/gpu/', '-/drivers/net/', 'initrd firmware exclusions'],
+    [
+      'hardening/nftables.conf',
+      'type filter hook input priority 0; policy drop;',
+      'type filter hook input priority 0; policy accept;',
+      'default-drop firewall',
+    ],
+    [
+      'hardening/nftables.conf',
+      'type filter hook forward priority 0; policy drop;',
+      'type filter hook forward priority 0; policy accept;',
+      'default-drop firewall',
+    ],
+    [
+      'mkosi.postinst',
+      ' muse-node.service nftables.service',
+      ' muse-node.service',
+      'firewall enablement',
+    ],
   ])('refuses a weakened %s guard (%s)', (file, before, after, reason) => {
     const dir = directory()
     cpSync(root, dir, { recursive: true })
@@ -520,6 +548,35 @@ describe('M110-OS1 immutable image inputs', () => {
     const result = spawnSync(interpreter, [path.join(root, 'check.py'), dir], { encoding: 'utf8' })
     expect(result.status).toBe(1)
     expect(result.stderr).toContain(reason)
+  })
+  it('refuses a tree without the kernel hardening knobs', () => {
+    const dir = directory()
+    cpSync(root, dir, { recursive: true })
+    rmSync(path.join(dir, 'hardening', 'sysctl.d', '99-muse-node.conf'))
+    const result = spawnSync(interpreter, [path.join(root, 'check.py'), dir], { encoding: 'utf8' })
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('kernel hardening knobs')
+  })
+  it('ships the firewall and the kernel knobs from their one source with the right modes', () => {
+    const dir = directory()
+    const result = python(`
+import sys
+from pathlib import Path
+sys.path.insert(0, ${JSON.stringify(root)})
+import build
+overlay = Path(${JSON.stringify(path.join(dir, 'overlay'))})
+build.install_hardening(overlay)
+for source, shipped in (
+    ('hardening/nftables.conf', 'etc/nftables.conf'),
+    ('hardening/sysctl.d/99-muse-node.conf', 'usr/lib/sysctl.d/99-muse-node.conf'),
+):
+    copy = overlay / shipped
+    assert copy.read_bytes() == (build.ROOT / source).read_bytes(), shipped
+    assert copy.stat().st_mode & 0o777 == 0o644, shipped
+print('hardening shipped')
+`)
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('hardening shipped')
   })
   it.each(['package/../outside', String.raw`package\outside`, '/absolute', 'package/key'])(
     'rejects untrusted archive path %s before extraction',

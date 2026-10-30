@@ -222,6 +222,25 @@ def extract_selected(archive, destination, prefix, names):
             file.chmod(0o755 if member.mode & 0o111 else 0o644)
 
 
+def install_hardening(overlay):
+    """Ship OS4's firewall and kernel knobs from their one source, hardening/.
+
+    The ruleset is what nftables.service loads at boot; the sysctl file goes
+    to the vendor directory inside the verity-protected /usr.
+    """
+    hardening = ROOT / "hardening"
+    for source, destination in (
+        (hardening / "nftables.conf", overlay / "etc/nftables.conf"),
+        (
+            hardening / "sysctl.d/99-muse-node.conf",
+            overlay / "usr/lib/sysctl.d/99-muse-node.conf",
+        ),
+    ):
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, destination)
+        destination.chmod(0o644)
+
+
 def stage(args):
     check(ROOT)
     if args.target not in TARGETS:
@@ -284,6 +303,7 @@ def stage(args):
         extract_selected(node_archive, node_tree, node_name, ("bin/node", "LICENSE"))
         overlay = workspace / "overlay"
         shutil.copytree(node_tree, overlay / "usr/lib/nodejs")
+        install_hardening(overlay)
         # The linux-targeted runtime's admitted shapes (enumerated from the
         # 0.19.0 linux-x64 tarball; webview chunks carry content hashes, so
         # churn-tolerant directories admit by suffix while the tarball's

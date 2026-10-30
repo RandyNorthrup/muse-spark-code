@@ -28,6 +28,8 @@ const KERNEL_SHA256 = '17fbd3efd16f2e7cb1b945f06423b37399ba7d5ac8cdd3665e7f13f36
 const PROBE_TIMEOUT_MS = 30_000
 const GUEST_TIMEOUT_MS = 180_000
 const BOOT_TIMEOUT_MS = 120_000
+const GUEST_STOP_WAIT_MS = 10_000
+const GUEST_STOP_POLL_MS = 250
 
 const PROVING_INIT_C = String.raw`#include <stdio.h>
 #include <unistd.h>
@@ -65,9 +67,15 @@ function hasKernelNet(): boolean {
 }
 
 const HAS_QEMU = hasTool('qemu-system-x86_64', ['--version'])
+const HAS_PGREP = process.platform === 'linux' && hasTool('pgrep', ['--version'])
 const HAS_GCC = hasTool('gcc', ['--version'])
 const HAS_KERNEL_NET = hasKernelNet()
 const CAN_BOOT = HAS_QEMU && HAS_GCC && HAS_KERNEL_NET
+
+/** Whether a QEMU process whose command line carries the token still runs. */
+function isGuestRunning(token: string): boolean {
+  return spawnSync('pgrep', ['-f', `qemu-system.*guest-token=${token}`]).status === 0
+}
 
 function run(args: string[], script: string = BOOT_TEST): NodeOsRun {
   return runNodeScript(script, args)
@@ -458,9 +466,55 @@ describe.runIf(CAN_BOOT)('proving guest boots', () => {
       '--kvm',
       'off',
     ])
-    expect(result.status).toBe(0)
+    expect(result.status, result.out).toBe(0)
     expect(readFileSync(path.join(out, 'serial.log'), 'utf8')).toContain(PROVING_MARKER)
+    // The receipt names the acceleration it ran under: --kvm off is TCG.
+    const receipt = z
+      .object({ ok: z.literal(true), accel: z.literal('tcg') })
+      .parse(JSON.parse(readFileSync(path.join(out, 'result.json'), 'utf8')))
+    expect(receipt.accel).toBe('tcg')
+    expect(result.out).toContain('under tcg')
   })
+
+  // Named timeout: a one-time 12 MB kernel download plus an emulated QEMU boot.
+  it.runIf(HAS_PGREP)(
+    'leaves no guest running once the marker is seen',
+    { timeout: GUEST_TIMEOUT_MS },
+    async () => {
+      const guest = await provingGuest()
+      const out = path.join(scratch('node-os-boot-stop-'), 'out')
+      const result = run([
+        '--arch',
+        'x86_64',
+        '--out',
+        out,
+        '--marker',
+        PROVING_MARKER,
+        '--timeout',
+        '240',
+        '--memory',
+        '512',
+        '--kernel',
+        guest.kernel,
+        '--initrd',
+        guest.initrd,
+        '--append',
+        `console=ttyS0 rdinit=/init guest-token=${path.basename(path.dirname(out))}`,
+        '--kvm',
+        'off',
+      ])
+      expect(result.status, result.out).toBe(0)
+      // The driver asks the guest to stop with SIGTERM; it must be gone
+      // within the driver's own grace, or a container client would leave
+      // its guest running after the verdict.
+      const token = path.basename(path.dirname(out))
+      const deadline = Date.now() + GUEST_STOP_WAIT_MS
+      while (isGuestRunning(token) && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, GUEST_STOP_POLL_MS))
+      }
+      expect(isGuestRunning(token)).toBe(false)
+    },
+  )
 
   // Named timeout: waits out the guest's own 20 s timeout plus boot time.
   it('times out on a marker that never prints', { timeout: BOOT_TIMEOUT_MS }, async () => {
