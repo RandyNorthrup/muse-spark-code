@@ -76,6 +76,7 @@ def download(url, expected, dest):
         return
     partial = dest.with_suffix(".partial")
     try:
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected -- every URL is repo-pinned (os/pins.json, or the Pi manifest pi_manifest validates) and every fetch is digest- or signature-verified; no outside input reaches urlopen (PLAN.md §8)
         with urllib.request.urlopen(url, timeout=60) as source, partial.open(
             "wb"
         ) as output:

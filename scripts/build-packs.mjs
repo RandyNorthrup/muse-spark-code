@@ -2429,6 +2429,7 @@ async function pypiWheel(name, version, arch, pythonVersion) {
   // that way); anything else compiled must match or be abi3. A wheel
   // for the wrong interpreter can only fail the install, so it never
   // wins over the sdist. Multi-cp tags join with dots (cp313.cp314).
+  // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp -- the tag is the pack definition's pinned uvPython version (deploy/packs/*.json, e.g. "3.15.1" -> cp315), a fixed linear `cp<digits>[.-]` with no quantifier or alternation to backtrack; filenames only select among sha256-verified downloads (PLAN.md §8)
   const tagMatcher = tag === undefined ? undefined : new RegExp(`${tag.replaceAll('.', '[.]')}[.-]`)
   const candidates = [
     files.find(
