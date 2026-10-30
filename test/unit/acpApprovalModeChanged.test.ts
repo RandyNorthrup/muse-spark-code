@@ -9,13 +9,17 @@
 // broadcast the CLI emitted for a set: the bytes are served verbatim and only
 // the precondition (the client holds acceptEdits) is the test's, which is
 // exactly what a ceiling or managed policy produces.
-import * as acp from '@agentclientprotocol/sdk/unstable'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { SessionUpdate } from '@agentclientprotocol/sdk/unstable'
-import type { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
 import type { LoggedMessage } from './helpers/collectingLogger'
 import type { ReplayWire, WireFrame } from './helpers/museReplay'
-import { acpNoteParams, closeAcpReplayRigs, startAcpReplayRig } from './helpers/acpReplayRig'
+import {
+  acpNoteParams,
+  closeAcpReplayRigs,
+  flushReplayBackend,
+  startAcpReplayRig,
+  withReplayEditorSession,
+} from './helpers/acpReplayRig'
 
 afterEach(closeAcpReplayRigs)
 
@@ -24,11 +28,6 @@ function releaseNotes(wire: ReplayWire, name: string): void {
     const frame: WireFrame = { jsonrpc: '2.0', method: 'session/approvalModeChanged', params }
     wire.release(frame)
   }
-}
-
-/** A released broadcast is answered in order, so a backend round trip after it proves it was handled. */
-async function flushBackend(host: MuseCodeHost): Promise<void> {
-  await host.listModels()
 }
 
 /** The client's mode updates in arrival order. */
@@ -73,18 +72,12 @@ describe('ACP approvalModeChanged tells the truth', () => {
   it('logs the set echo once at info and never warns it', async () => {
     const { host, wire, folder, agent, logged } = startAcpReplayRig()
     const seen: SessionUpdate[] = []
-    await acp
-      .client({ name: 'acp-mode-echo' })
-      .onNotification('session/update', (context) => {
-        seen.push(context.params.update)
-      })
-      .connectWith(agent, async (editor) => {
-        await editor.request('initialize', {
-          protocolVersion: acp.PROTOCOL_VERSION,
-          clientCapabilities: {},
-        })
-        const created = await editor.request('session/new', { cwd: folder, mcpServers: [] })
-        const sessionId = created.sessionId
+    await withReplayEditorSession(
+      agent,
+      folder,
+      seen,
+      'acp-mode-echo',
+      async (editor, sessionId) => {
         // The start's own broadcast: the CLI runs what the client set.
         releaseNotes(wire, 'note-approvalModeChanged-initial-1.4.11.json')
         await editor.request('session/set_mode', { sessionId, modeId: 'acceptEdits' })
@@ -93,8 +86,9 @@ describe('ACP approvalModeChanged tells the truth', () => {
         await editor.request('session/set_mode', { sessionId, modeId: 'plan' })
         // The plan set's own echo.
         releaseNotes(wire, 'note-approvalModeChanged-denyUnmatched-1.4.11.json')
-        await flushBackend(host)
-      })
+        await flushReplayBackend(host)
+      },
+    )
     // Only the sets' own acknowledgements: no echo ever moved the editor.
     expect(modeUpdates(seen)).toEqual(['acceptEdits', 'plan'])
     expect(approvalLines(logged).filter((entry) => entry.level === 'warn')).toEqual([])
@@ -113,25 +107,20 @@ describe('ACP approvalModeChanged tells the truth', () => {
   it('tells the editor the mode when the CLI moved on its own', async () => {
     const { wire, folder, agent, logged } = startAcpReplayRig()
     const seen: SessionUpdate[] = []
-    await acp
-      .client({ name: 'acp-mode-moved' })
-      .onNotification('session/update', (context) => {
-        seen.push(context.params.update)
-      })
-      .connectWith(agent, async (editor) => {
-        await editor.request('initialize', {
-          protocolVersion: acp.PROTOCOL_VERSION,
-          clientCapabilities: {},
-        })
-        const created = await editor.request('session/new', { cwd: folder, mcpServers: [] })
-        const sessionId = created.sessionId
+    await withReplayEditorSession(
+      agent,
+      folder,
+      seen,
+      'acp-mode-moved',
+      async (editor, sessionId) => {
         await editor.request('session/set_mode', { sessionId, modeId: 'acceptEdits' })
         // The CLI moved while the client holds acceptEdits: the recorded
         // onRequest word selects Auto, not the client's mode.
         releaseNotes(wire, 'note-approvalModeChanged-onRequest-1.4.11.json')
         await untilModeUpdate(seen, 'auto')
         await untilConfigRefresh(seen)
-      })
+      },
+    )
     expect(modeUpdates(seen)).toEqual(['acceptEdits', 'auto'])
     const lines = approvalLines(logged)
     expect(lines.filter((entry) => entry.level === 'warn')).toHaveLength(1)
