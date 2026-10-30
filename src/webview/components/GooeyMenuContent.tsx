@@ -81,7 +81,7 @@ function watchMenuGeometry(place: () => void): () => void {
 }
 
 /** Intersect every clipping ancestor, so scrolling inside a panel can dismiss too. */
-function anchorIsVisible(
+function isAnchorVisible(
   anchor: HTMLElement,
   rect: DOMRect,
   viewport: ReturnType<typeof viewportNow>,
@@ -170,7 +170,7 @@ export function GooeyMenuContent({ items, label, origin, onClose }: GooeyMenuPro
         anchor !== undefined &&
         anchor !== null &&
         rect !== undefined &&
-        !anchorIsVisible(anchor, rect, viewport)
+        !isAnchorVisible(anchor, rect, viewport)
       ) {
         dismissAnchor()
         return
@@ -183,12 +183,12 @@ export function GooeyMenuContent({ items, label, origin, onClose }: GooeyMenuPro
         : GOOEY_MENU.gap
       // An element's centre: the pills burst from the "…" itself.
       const point =
-        origin !== undefined && !(origin instanceof HTMLElement)
-          ? origin
-          : {
+        origin === undefined || origin instanceof HTMLElement
+          ? {
               x: rect === undefined ? 0 : rect.left + rect.width / 2,
               y: rect === undefined ? 0 : rect.top + rect.height / 2,
             }
+          : origin
       setFrame((current) =>
         current.point.x === point.x &&
         current.point.y === point.y &&

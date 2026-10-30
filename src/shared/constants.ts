@@ -2657,7 +2657,7 @@ export const GIT_FILTER_NAMES_ARGS = [
   '--name-only',
   '--get-regexp',
   // A plain string so the args stay droppable (String.raw is a call).
-  // eslint-disable-next-line unicorn/prefer-string-raw -- droppability beats readability here; test/unit/bundleDiet pins it.
+
   '^filter\\..*\\.(clean|process|required)$',
 ] as const
 export const GIT_FILTER_NAMES_MAX = 200
@@ -3109,10 +3109,10 @@ export const PLAYBOOK_MODULE_DIRECTORY_DEPTH = 3
 // and terminates the job when the decision's pipe closes. Plain strings: the
 // same characters String.raw would give, without the call, so bundles that
 // never contain a playbook job drop them.
-// eslint-disable-next-line unicorn/prefer-string-raw -- droppability beats readability here; test/unit/bundleDiet pins it.
+
 export const PLAYBOOK_JOB_NAME_PREFIX = 'Local\\MuseSparkPlaybook-'
 export const PLAYBOOK_JOB_PIPE_PREFIX = 'muse-spark-playbook-'
-// eslint-disable-next-line unicorn/prefer-string-raw -- droppability beats readability here; test/unit/bundleDiet pins it.
+
 export const PLAYBOOK_JOB_PIPE_ROOT = '\\\\.\\pipe'
 // A helper that has exited is noticed at once; this bounds only a live one
 // that is slow to start (Windows PowerShell starting cold takes seconds).
@@ -5992,9 +5992,9 @@ export const SHELL_JOB_FOLDER = 'shell-job'
 // available on every supported Windows architecture and emits AnyCPU IL.
 // Plain strings: same characters String.raw would give, without the call,
 // so bundles that never spawn a shell job drop them.
-// eslint-disable-next-line unicorn/prefer-string-raw -- droppability beats readability here; test/unit/bundleDiet pins it.
+
 export const WINDOWS_FRAMEWORK_RELATIVE_PATH = 'Microsoft.NET\\Framework\\v4.0.30319'
-// eslint-disable-next-line unicorn/prefer-string-raw -- as above.
+
 export const SHELL_JOB_NAME_PREFIX = 'Local\\MuseSparkShell-'
 export const TREE_EXIT_WAIT_MS = 10_000
 // Safety limit (D121 clarification, RLF-SAFELIMITS): the orphan sweep
@@ -8092,7 +8092,7 @@ export const MUSE_BIN_PREFIX = 'muse-bin-'
 export const MUSE_WINDOWS_EXE_SUFFIX = '.exe'
 export const MUSE_CREDENTIAL_FILE_SEGMENTS = ['muse', 'auth.json'] as const
 // A plain string: the same characters String.raw would give, without the call.
-// eslint-disable-next-line unicorn/prefer-string-raw -- droppability beats readability here; test/unit/bundleDiet pins it.
+
 export const WINDOWS_POWERSHELL_RELATIVE_PATH = 'System32\\WindowsPowerShell\\v1.0\\powershell.exe'
 // Windows PowerShell 5.1 writes a redirected stdout in the OEM code page
 // ("héllo ✓" came back "h�llo ?", probed 2026-09-23 under Node's
@@ -10234,7 +10234,6 @@ export const WEBVIEW_L10N_ELEMENT_ID = 'muse-l10n'
 // `createTerminal({ shellPath })` when running `muse login` / `muse logout`.
 // A plain string: the same characters String.raw would give, without the call.
 export const WINDOWS_POWERSHELL_TERMINAL_PATH =
-  // eslint-disable-next-line unicorn/prefer-string-raw -- droppability beats readability here; test/unit/bundleDiet pins it.
   '\\System32\\WindowsPowerShell\\v1.0\\powershell.exe'
 // The login / TUI terminal's shell off Windows (PLAN.md D25): POSIX syntax, always there.
 export const POSIX_TERMINAL_SHELL = '/bin/sh'

@@ -124,10 +124,7 @@ export function readTeamWorkspaceHint(state: TeamWorkspaceStateReader): {
   readonly hasStoredTeam: boolean
 } {
   const stored: unknown = state.get(TEAM_WORKSPACE_KEYS.team)
-  if (stored === undefined || stored === null) {
-    return { soloTemplate: false, hasStoredTeam: false }
-  }
-  if (typeof stored !== 'object') {
+  if (stored === undefined || stored === null || typeof stored !== 'object') {
     return { soloTemplate: false, hasStoredTeam: false }
   }
   const template: unknown = 'template' in stored ? stored.template : undefined

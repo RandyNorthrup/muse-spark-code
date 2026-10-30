@@ -2703,7 +2703,7 @@ async function activateWindow(
     log,
     pageConverter(vscode.Uri.joinPath(context.extensionUri, 'dist', PAGE_WORKER_FILE).fsPath, log),
   )
-  const askWebFetch = oneQuestionPerUrl(isWebFetchAllowed)
+  const isWebFetchAllowedOnce = oneQuestionPerUrl(isWebFetchAllowed)
   // The browser check (M81 A1, PLAN.md D49): the Model API backend's
   // `browser_check` and Muse Code's `mcp__ide__browserCheck`, on the pinned
   // headless shell the runtime bundle downloads after the user's consent
@@ -2752,7 +2752,7 @@ async function activateWindow(
       await downloadBrowserRuntime(browserChecks, isIdeBrowserCheckOffered)
     }),
   )
-  const askBrowserCheck = oneQuestionPerUrl(isBrowserCheckAllowed, browserScopeKey)
+  const isBrowserCheckAllowedOnce = oneQuestionPerUrl(isBrowserCheckAllowed, browserScopeKey)
   // Code intelligence over VS Code's language services (M67, PLAN.md D49):
   // native tools on the Model API backend, `ide` tools for Muse Code. Only
   // with a folder open, since every path is the workspace's.
@@ -2854,7 +2854,7 @@ async function activateWindow(
         isOffered: () => isIdeWebFetchOffered(isProjectTrusted(), currentSettings().sandboxNetwork),
         checkUrl: lazyPageUrlCheck(webFetchBundle),
         fetchPage: webFetch,
-        confirm: askWebFetch,
+        confirm: isWebFetchAllowedOnce,
         log,
       }),
       // The same rule for the browser check, text only for Muse Code (M81),
@@ -2862,7 +2862,7 @@ async function activateWindow(
       ...ideBrowserCheckTools({
         isOffered: isIdeBrowserCheckOffered,
         extraHosts: browserCheck.extraHosts,
-        confirm: askBrowserCheck,
+        confirm: isBrowserCheckAllowedOnce,
         check: browserCheck.check,
         log,
       }),

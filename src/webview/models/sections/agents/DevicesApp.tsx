@@ -186,9 +186,9 @@ export function DevicesSurface({
       messages={messages}
       draft={draft}
       {...(qr === 'failed' ? { isQrUnavailable: true } : {})}
-      {...(qr !== 'loading' && qr !== 'failed'
-        ? { qrEncoder: qr.encoder, qrFigure: qr.figure }
-        : {})}
+      {...(qr === 'loading' || qr === 'failed'
+        ? {}
+        : { qrEncoder: qr.encoder, qrFigure: qr.figure })}
       postMessage={postMessage}
     />
   )
@@ -285,7 +285,7 @@ function DevicesDocument({
     }
     return { port, pending, views }
   }, [postMessage])
-  const accept = (response: DeviceHostMessage, source: DeviceViewSource) => {
+  const didAccept = (response: DeviceHostMessage, source: DeviceViewSource) => {
     if (
       source.signal.aborted ||
       response.setup?.viewId !== source.viewId ||
@@ -354,7 +354,7 @@ function DevicesDocument({
         <DevicesView
           message={message}
           port={bridge.port}
-          onState={accept}
+          onState={didAccept}
           explicitSetup
           renderQr={renderQr}
         />

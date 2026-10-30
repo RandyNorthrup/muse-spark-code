@@ -446,8 +446,6 @@ interface PendingPrompt {
   answerCommit?: Promise<void>
 }
 
-type PromptOutcome = { readonly reason: StopReason } | { readonly error: unknown }
-
 interface PreparingPrompt {
   isCancelled: boolean
   readonly abort: AbortController
@@ -707,14 +705,16 @@ export function dedupeSkillSelectors(skills: readonly SkillSummary[]): readonly 
     const separator = skill.selector.indexOf(':')
     if (separator === -1) return true
     const plugin = skill.selector.slice(0, separator)
-    if (skill.selector.slice(separator + 1) !== plugin) return true
     // A self-qualified pair reads once when its bare form reads the same.
-    return kept.every(
-      (other) =>
-        other === skill ||
-        other.selector !== plugin ||
-        other.description !== skill.description ||
-        (other.argumentHint ?? '') !== (skill.argumentHint ?? ''),
+    return (
+      skill.selector.slice(separator + 1) !== plugin ||
+      kept.every(
+        (other) =>
+          other === skill ||
+          other.selector !== plugin ||
+          other.description !== skill.description ||
+          (other.argumentHint ?? '') !== (skill.argumentHint ?? ''),
+      )
     )
   })
 }
@@ -3122,6 +3122,7 @@ class AcpSession {
     blocks: readonly ContentBlock[],
     onAccepted?: () => void,
   ): Promise<StopReason> {
+    type PromptOutcome = { readonly reason: StopReason } | { readonly error: unknown }
     this.ensureHeld()
     if (this.deps.resources !== undefined) {
       // A rejected reading reaches `respond` below, which reports it once
@@ -3309,11 +3310,11 @@ class AcpSession {
           if ('error' in preparing) throw preparing.error
           if (this.wasEstimateCancelled(preparing)) return 'cancelled'
           let text =
-            this.deps.estimate !== undefined &&
-            this.deps.estimate.isAvailable !== false &&
-            parsed.parts.length !== 1
-              ? UI_TEXT.estimateUsage
-              : UI_TEXT.estimateRuntimeUnavailable
+            this.deps.estimate === undefined ||
+            this.deps.estimate.isAvailable === false ||
+            parsed.parts.length === 1
+              ? UI_TEXT.estimateRuntimeUnavailable
+              : UI_TEXT.estimateUsage
           if (
             this.deps.estimate !== undefined &&
             this.deps.estimate.isAvailable !== false &&

@@ -386,23 +386,6 @@ const ScheduleSurfaceView = deferred(async () => {
   return { default: ScheduleSurfaceView }
 })
 
-/** What floats above the composer: a palette view, a menu, the History dialog or a modal. */
-type Overlay =
-  | PaletteView
-  | 'modes'
-  | 'attach'
-  | 'history'
-  | 'board'
-  | 'sessionLists'
-  | 'bestOfN'
-  | 'usage'
-  | 'agents'
-  | 'review'
-  | 'prompts'
-  | 'sequences'
-  | 'chatShare'
-  | 'help'
-
 // The palette rows that leave it open (a value changes in place); run from
 // the prompt's "/" palette they keep the `/` too, so it stays (M38).
 const KEEPS_PALETTE_OPEN: ReadonlySet<PaletteAction['type']> = new Set([
@@ -584,6 +567,22 @@ export function App({
   resources,
   planNoticePort,
 }: AppProps) {
+  /** What floats above the composer: a palette view, a menu, the History dialog or a modal. */
+  type Overlay =
+    | PaletteView
+    | 'modes'
+    | 'attach'
+    | 'history'
+    | 'board'
+    | 'sessionLists'
+    | 'bestOfN'
+    | 'usage'
+    | 'agents'
+    | 'review'
+    | 'prompts'
+    | 'sequences'
+    | 'chatShare'
+    | 'help'
   const resourceSnapshot = resources?.port.getSnapshot()
   // Callbacks read the store's current state when they run instead of
   // closing over it, so they keep their identity across renders and the
@@ -1159,6 +1158,7 @@ export function App({
   }, [store, dispatch, estimatorRequests])
   // `/review …` and the palette's review rows (M70): the card first, then the
   // host's word on it, as for a message. False when the request is refused here.
+  // eslint-disable-next-line unicorn/consistent-boolean-name -- on* event-handler convention (cf. onClick); the boolean is an incidental submitted flag, not a predicate (PLAN §8, RLF-UNICORN79).
   const onReview = useCallback(
     (request: ReviewRequest, text: string): boolean => {
       const parsed = reviewRequestSchema.safeParse(request)
@@ -1181,6 +1181,7 @@ export function App({
   // `/playback` and the palette's playback row (D203): the card first, then
   // the host's word on it, as for a message. The turn answers from working
   // memory only, with no tools.
+  // eslint-disable-next-line unicorn/consistent-boolean-name -- on* event-handler convention (cf. onClick); the boolean is an incidental submitted flag, not a predicate (PLAN §8, RLF-UNICORN79).
   const onPlayback = useCallback((): boolean => {
     const text = `/${SLASH_COMMAND_NAMES.playback}`
     const localId = newLocalId()
@@ -1193,6 +1194,7 @@ export function App({
   // deterministic scan and answers with the report (lane W renders it), so
   // no card is submitted. The parse is total over the schema, so the input
   // always posts as parsed.
+  // eslint-disable-next-line unicorn/consistent-boolean-name -- on* event-handler convention (cf. onClick); the boolean is an incidental submitted flag, not a predicate (PLAN §8, RLF-UNICORN79).
   const onLegalScan = useCallback(
     (text: string): boolean => {
       if (!isLegalPrompt(text)) return false
@@ -3036,6 +3038,7 @@ export function App({
   // through the one shared function (RVCM1063D cause 1).
   const effortLevels = servedEffortLevels(state.models, state.model?.modelId, state.auth.backend)
   const fastTier = state.models.find((model) => model.modelId === state.model?.modelId)?.fastTier
+  // eslint-disable-next-line unicorn/consistent-boolean-name -- on* event-handler convention (cf. onClick); the boolean is an incidental stepped flag, not a predicate (PLAN §8, RLF-UNICORN79).
   const onStepEffort = useCallback(
     (direction: -1 | 1) => {
       if (effortLevels.length === 0) return false
@@ -3197,9 +3200,9 @@ export function App({
           resendableTurnIds={resendableTurnIds}
           restoreNote={restoreNoteOf(state)}
           conversationNote={
-            state.sessionId !== undefined && !state.canEditSessions
-              ? UI_TEXT.conversationRewindUnavailable
-              : undefined
+            state.sessionId === undefined || state.canEditSessions
+              ? undefined
+              : UI_TEXT.conversationRewindUnavailable
           }
           onReply={onReply}
           onSendFeedback={

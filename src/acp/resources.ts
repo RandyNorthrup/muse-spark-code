@@ -34,6 +34,7 @@ export async function acpResourceCommand(
   const action = isHistory ? 'history' : (words[1] ?? 'status')
   if (blocks.length !== 1 || words.length > 2 || !['status', 'history', 'resume'].includes(action))
     throw RequestError.invalidParams(undefined, UI_TEXT.resourceGovernorDescription)
+  // eslint-disable-next-line unicorn/prefer-includes-over-repeated-comparisons -- the !== chain narrows string to ResourceCommandAction for command() below; includes() does not narrow (the rule doc's own exception) (PLAN §8, RLF-UNICORN79).
   if (action !== 'status' && action !== 'history' && action !== 'resume') return undefined
   return {
     sessionUpdate: 'agent_message_chunk',

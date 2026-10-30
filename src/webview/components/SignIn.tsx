@@ -187,12 +187,12 @@ export function SignIn({
     return (
       <section className={withTranscript ? 'gate gate-with-transcript' : 'gate'} aria-live="polite">
         <p className="gate-detail">{detail ?? UI_TEXT.deviceCodeWaiting}</p>
-        {verificationUrl !== undefined && userCode !== undefined ? (
+        {verificationUrl === undefined || userCode === undefined ? null : (
           <>
             <p className="gate-detail">{UI_TEXT.deviceCodePrompt}</p>
             <code className="gate-device-code">{userCode}</code>
           </>
-        ) : null}
+        )}
         <div className="gate-actions">
           {verificationUrl === undefined || userCode === undefined ? null : (
             <button

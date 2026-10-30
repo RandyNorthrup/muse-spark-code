@@ -1012,7 +1012,7 @@ export function hasLandedEdits(entry: {
 
 /** Whether a tool status is an outcome the row shows as a failure (not running, done or cut off). */
 export function isFailedStatus(status: string): boolean {
-  return status !== IN_PROGRESS && status !== COMPLETED && status !== TOOL_STATUS_INTERRUPTED
+  return ![IN_PROGRESS, COMPLETED, TOOL_STATUS_INTERRUPTED].includes(status)
 }
 
 /** "Rejected", "Stopped" (M46) or "Failed": how a row that did not complete ended. */
@@ -1555,9 +1555,9 @@ function settleEntry(entry: TranscriptEntry, at: number): TranscriptEntry {
         argumentPreview: undefined,
         approval: undefined,
         question:
-          entry.question?.state !== undefined && entry.question.state !== 'waiting'
-            ? entry.question
-            : undefined,
+          entry.question?.state === undefined || entry.question.state === 'waiting'
+            ? undefined
+            : entry.question,
         elicitation: undefined,
         // A Move to background the turn's end overtook asks nothing any more (M46).
         taskRequest: isCutOff ? undefined : entry.taskRequest,
@@ -3936,9 +3936,9 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       )
     }
     case 'legalFixPreview': {
-      return message.requestId !== undefined && message.requestId !== state.legalFixRequestId
-        ? state
-        : { ...state, legalFixPreview: message }
+      return message.requestId === undefined || message.requestId === state.legalFixRequestId
+        ? { ...state, legalFixPreview: message }
+        : state
     }
     case 'legalFixResult': {
       return { ...state, legalFixResult: message }

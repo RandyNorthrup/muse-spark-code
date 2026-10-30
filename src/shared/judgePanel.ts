@@ -61,9 +61,9 @@ function capabilityFor(facts: JudgePanelFacts): JudgePanelCapability | undefined
   if (facts.modelId !== undefined && capability.model !== facts.modelId) {
     return undefined
   }
-  return facts.providerId !== undefined && capability.providerId !== facts.providerId
-    ? undefined
-    : capability
+  return facts.providerId === undefined || capability.providerId === facts.providerId
+    ? capability
+    : undefined
 }
 
 /** The claimed technique stands only when this model's record can honour it. */

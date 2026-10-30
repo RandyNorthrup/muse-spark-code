@@ -165,8 +165,8 @@ export class AcpMedia implements AcpMediaPort {
       this.deps.platform,
       this.deps.io,
     )
-    if (!confined.ok) throw new MediaRefusal(UI_TEXT.textFilePrivate)
     if (
+      !confined.ok ||
       [confined.relative, confined.canonical].some(
         (name) => isProtectedPath(name) || isPrivateFileName(name),
       )
