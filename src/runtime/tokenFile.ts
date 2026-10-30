@@ -50,13 +50,17 @@ export interface TokenAclReceipt {
   readonly windows?: z.infer<typeof windowsReceiptSchema>
 }
 
-// Get-Acl reads the Windows security descriptor. Remove inherited and explicit
-// grants, install only the current SID, then read the effective DACL again.
-// Only the path is encoded into the fixed script; no bearer reaches this child.
+// The CLR reads and writes the Windows security descriptor, through the calls
+// Get-Acl and Set-Acl make. The cmdlets live in Microsoft.PowerShell.Security,
+// whose load on first use made each start about 0.2 s longer on a quiet PC and
+// over 15 s once on a hosted runner (CIFIX017W2, as windowsTrustedPath.ts).
+// Remove inherited and explicit grants, install only the current SID, then
+// read the effective DACL again. Only the path is encoded into the fixed
+// script; no bearer reaches this child.
 const WINDOWS_ACL_SCRIPT = `
 $ErrorActionPreference = 'Stop'
 $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
-$acl = Get-Acl -LiteralPath $inputPath.path
+if ($inputPath.directory) { $acl = [System.IO.Directory]::GetAccessControl($inputPath.path) } else { $acl = [System.IO.File]::GetAccessControl($inputPath.path) }
 $acl.SetAccessRuleProtection($true, $false)
 foreach ($rule in $acl.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier])) { [void]$acl.RemoveAccessRuleSpecific($rule) }
 $acl.SetOwner($sid)
@@ -64,8 +68,7 @@ $inheritance = [System.Security.AccessControl.InheritanceFlags]::None
 if ($inputPath.directory) { $inheritance = [System.Security.AccessControl.InheritanceFlags]'ContainerInherit, ObjectInherit' }
 $rule = [System.Security.AccessControl.FileSystemAccessRule]::new($sid, [System.Security.AccessControl.FileSystemRights]::FullControl, $inheritance, [System.Security.AccessControl.PropagationFlags]::None, [System.Security.AccessControl.AccessControlType]::Allow)
 $acl.AddAccessRule($rule)
-Set-Acl -LiteralPath $inputPath.path -AclObject $acl
-$verified = Get-Acl -LiteralPath $inputPath.path
+if ($inputPath.directory) { [System.IO.Directory]::SetAccessControl($inputPath.path, $acl); $verified = [System.IO.Directory]::GetAccessControl($inputPath.path) } else { [System.IO.File]::SetAccessControl($inputPath.path, $acl); $verified = [System.IO.File]::GetAccessControl($inputPath.path) }
 $rules = @($verified.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier]) | ForEach-Object { @{ sid = $_.IdentityReference.Value; inherited = $_.IsInherited; allow = $_.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow; fullControl = $_.FileSystemRights -eq [System.Security.AccessControl.FileSystemRights]::FullControl } })
 @{ ownerSid = $verified.GetOwner([System.Security.Principal.SecurityIdentifier]).Value; currentSid = $sid.Value; protected = $verified.AreAccessRulesProtected; rules = $rules } | ConvertTo-Json -Compress -Depth 4
 `
