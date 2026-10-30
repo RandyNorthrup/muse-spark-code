@@ -247,7 +247,7 @@
   "config.mediaConverterPath.description": "本機將附加的音訊和影片轉換以供轉寫時所用 ffmpeg 的絕對路徑。預設為空：只使用文件列出的安裝位置（Windows 上為 Program Files 和 winget，macOS 上為 Homebrew 和 MacPorts，Linux 上為 /usr/bin 和 /usr/local/bin），從不使用 PATH。在此設定的路徑是唯一候選：它必須通過可信路徑檢查，否則會拒絕轉換並說明原因。啟動器 shim 會被拒絕。只使用本機的設定。",
   "config.accountSwap.description": "達到閾值時在下一個請求邊界切換到有餘量的下一個帳號。每個帳號保留各自的限額。預設開啟；僅使用本機的設定。",
   "config.accountParallel.description": "按餘量將背景工作分散到各帳號；每個工作器固定在其帳號上。預設開啟；僅使用本機的設定。",
-  "config.accounts.severalOnThisDevice.description": "為相容性保留；此偏好設定在此組建中不起作用。",
+  "config.accounts.severalOnThisDevice.description": "允許同一提供者的多個帳號在本機上用於測試，每個帳號執行在各自獨立的本機設定檔中。開啟時先請求確認該提供者的條款。預設關閉；僅使用本機的設定。",
   "config.github.useGhLogin.description": "允許提取要求使用你現有的 GitHub CLI 登入（`gh auth token`），在編輯器的 GitHub 登入和 Muse Spark 的登入之後最後嘗試。權杖每次只為一個要求讀取，絕不儲存。預設關閉；僅限使用者設定，因此存放庫無法將其開啟。",
   "command.vault.title": "憑證庫",
   "command.lockVault.title": "立即鎖定憑證庫",

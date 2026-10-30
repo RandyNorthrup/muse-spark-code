@@ -1755,8 +1755,7 @@
           "type": "boolean",
           "default": false,
           "description": "%config.accounts.severalOnThisDevice.description%",
-          "scope": "machine",
-          "deprecationMessage": "%config.accounts.severalOnThisDevice.description%"
+          "scope": "machine"
         },
         "museSpark.github.useGhLogin": {
           "type": "boolean",
