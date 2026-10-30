@@ -6,6 +6,7 @@ import {
   MEDIA_MAX_UPLOAD_MIB,
   MEDIA_FILE_ID_MIN_BYTES,
   MILLISECONDS_PER_SECOND,
+  SCREEN_RECORDING_REMOVE_ATTEMPTS,
   SCREEN_RECORDING_REMOVE_RETRY_MS,
 } from '../../../shared/constants'
 import { UI_TEXT, fill } from '../../../shared/l10n/text'
@@ -100,16 +101,23 @@ function isErrno(error: unknown, code: string): boolean {
 export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenRecorder {
   let active: ScreenRecordingRun | undefined
   const remove = async (directory: string, isCancelled: () => boolean) => {
-    for (;;) {
+    for (let attempt = 1; ; attempt += 1) {
       try {
         await deps.removeDirectory(directory)
         return
       } catch (error: unknown) {
         // Already removed is done. A scanner's lock retries until the
-        // person's cancel ends the wait (D121: no attempt count of ours);
-        // any other failure surfaces at once with its cause.
+        // directory is gone, the person's cancel ends the wait, or the
+        // attempts run out (safety limit, D121 clarification,
+        // RLF-SAFELIMITS); then the real error surfaces with its kind.
+        // Any other failure surfaces at once with its cause.
         if (isErrno(error, 'ENOENT')) return
-        if (!isRemoveRetriable(error) || isCancelled()) throw error
+        if (
+          !isRemoveRetriable(error) ||
+          isCancelled() ||
+          attempt >= SCREEN_RECORDING_REMOVE_ATTEMPTS
+        )
+          throw error
         await new Promise<void>((resolve) => setTimeout(resolve, SCREEN_RECORDING_REMOVE_RETRY_MS))
       }
     }

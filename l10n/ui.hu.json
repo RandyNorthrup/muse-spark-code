@@ -4417,7 +4417,8 @@
     "refused": "a rendszer-segéd elutasította a mentést",
     "unsafe": "a mentett nyilvántartás biztonsági ellenőrzése sikertelen volt",
     "invalid": "a mentett nyilvántartás érvénytelen",
-    "io": "a mentést nem sikerült kiírni"
+    "io": "a mentést nem sikerült kiírni",
+    "contended": "egy másik futó példány mindig előbb mentett; próbálja újra"
   },
   "acpQuestionFormMessage": "Muse-nak kérdése van Önhöz.",
   "acpQuestionAsked": "Muse-nak kérdése van; ez a szerkesztő nem tudja űrlapként megjeleníteni, ezért a következő üzenetében válaszoljon:",

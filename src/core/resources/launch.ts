@@ -40,8 +40,10 @@ export type ResourceProcessOptions = Omit<
   /** Hand-off only: when the adapter counts as launched (see ResourceHandoffUntil). */
   readonly handoffUntil?: ResourceHandoffUntil | undefined
   /**
-  Hand-off only: a deadline the caller passes (D121). Without one the wait
-  for the adapter ends at its exit, its start, or the caller's cancel.
+  Hand-off only: a deadline the caller passes (D121). Without one the
+  safety default (RESOURCE_HANDOFF_TIMEOUT_MS) still ends the wait,
+  counting the adapter as launched; the adapter's exit, its start, or
+  the caller's cancel ends it sooner.
   */
   readonly handoffTimeoutMs?: number | undefined
 }

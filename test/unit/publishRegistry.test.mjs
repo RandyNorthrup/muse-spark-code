@@ -6,9 +6,10 @@ async function neverVisible() {
 }
 
 // The release publishes every artifact first and only then polls for
-// visibility under one shared stop (PLAN.md D209): a slow registry
-// delays the job once instead of once per artifact, and an unfinished
-// target is re-checked in the same job rather than left unpublished.
+// visibility under one shared deadline (PLAN.md D209): a slow registry
+// delays the job once instead of once per artifact, an unfinished target
+// is re-checked in the same job rather than left unpublished, and a
+// still-pending target warns instead of failing the job.
 describe('shared visibility poll', () => {
   it('re-checks unfinished artifacts until every one is visible', async () => {
     const calls = { a: 0, b: 0, c: 0 }
@@ -35,19 +36,49 @@ describe('shared visibility poll', () => {
     expect(sleeps).toEqual([30_000, 60_000])
   })
 
-  // No timeout of ours (D121, RLF-NOLIMITS): a registry slower than the
-  // removed 30-minute budget still resolves visible instead of pending.
-  it('waits past the removed 30-minute budget until every one is visible', async () => {
+  // Safety limit (D121 clarification, RLF-SAFELIMITS): a registry that
+  // never shows the artifacts pends every one after the shared 30-minute
+  // budget instead of polling until the job's own timeout fails it, and
+  // every round names the still-pending labels.
+  it('pends a never-visible registry after the shared 30-minute budget', async () => {
+    let slept = 0
+    let now = 0
+    const lines = []
+    const result = await pollAllVisible(
+      [
+        { label: 'a', verify: neverVisible },
+        { label: 'b', verify: neverVisible },
+      ],
+      {
+        sleep: async (ms) => {
+          slept += ms
+          now += ms
+        },
+        now: () => now,
+        tell: (line) => {
+          lines.push(line)
+        },
+      },
+    )
+    expect(result).toEqual({ visible: [], pending: ['a', 'b'] })
+    expect(slept).toBeGreaterThanOrEqual(30 * 60_000)
+    expect(lines.length).toBeGreaterThan(0)
+    for (const line of lines) {
+      expect(line).toContain('a')
+      expect(line).toContain('b')
+    }
+  })
+
+  it('still resolves a registry visible inside the budget, like npm at 19 minutes', async () => {
     let slept = 0
     let now = 0
     const slow = async () => {
-      if (slept < 45 * 60_000) throw new Error('HTTP 404 while checking published artifact')
+      if (slept < 19 * 60_000) throw new Error('HTTP 404 while checking published artifact')
     }
     const result = await pollAllVisible(
       [
         { label: 'a', verify: slow },
         { label: 'b', verify: slow },
-        { label: 'c', verify: slow },
       ],
       {
         sleep: async (ms) => {
@@ -57,8 +88,8 @@ describe('shared visibility poll', () => {
         now: () => now,
       },
     )
-    expect(result).toEqual({ visible: ['a', 'b', 'c'], pending: [] })
-    expect(slept).toBeGreaterThanOrEqual(45 * 60_000)
+    expect(result).toEqual({ visible: ['a', 'b'], pending: [] })
+    expect(slept).toBeGreaterThanOrEqual(19 * 60_000)
   })
 
   it('shares one stop across artifacts instead of one per artifact', async () => {

@@ -109,6 +109,27 @@ function noopCountdown(): void {
   // Countdown display is the host's.
 }
 
+/**
+Starts with an unverifiable helper against a removal that always fails
+with `failure`; returns what surfaced and the attempts it took.
+*/
+async function startFailingRemoval(
+  failure: Error,
+): Promise<{ surfaced: unknown; attempts: string[] }> {
+  const attempts: string[] = []
+  let surfaced: unknown
+  try {
+    const run = await startWithUnverifiableHelper((directory) => {
+      attempts.push(directory)
+      return Promise.reject(failure)
+    })
+    await run.result
+  } catch (error: unknown) {
+    surfaced = error
+  }
+  return { surfaced, attempts }
+}
+
 /** A recorder whose helper launches are kept with their argument arrays. */
 function launchRecording(): {
   deps: WindowsRecorderDeps
@@ -137,16 +158,25 @@ describe('windows screen recorder removal', () => {
     expect(removed).toHaveLength(1)
   })
 
-  it('retries a scanner lock past any count of ours, then removes', async () => {
+  it('removes once a brief scanner lock clears inside the attempts', async () => {
     const attempts: string[] = []
     const run = await startWithUnverifiableHelper((directory) => {
       attempts.push(directory)
-      return attempts.length < 6
+      return attempts.length < 2
         ? Promise.reject(codedError('EPERM: locked by scanner', 'EPERM'))
         : rm(directory, { recursive: true, force: true })
     })
     await expect(run.result).resolves.toEqual({ ok: false, reason: expect.any(String) })
-    expect(attempts).toHaveLength(6)
+    expect(attempts).toHaveLength(2)
+  })
+
+  it('stops a never-clearing scanner lock after three attempts, keeping its kind', async () => {
+    const failure = codedError('EPERM: locked by scanner', 'EPERM')
+    // Unbounded code would retry here past the suite's own timeout; the
+    // bound surfaces the lock error after three attempts (~400 ms).
+    const { surfaced, attempts } = await startFailingRemoval(failure)
+    expect(surfaced).toBe(failure)
+    expect(attempts).toHaveLength(3)
   })
 
   it('stops retrying a scanner lock at the person cancel, surfacing the lock error', async () => {
@@ -170,18 +200,8 @@ describe('windows screen recorder removal', () => {
   })
 
   it('surfaces a failure no scanner explains at once, with its cause', async () => {
-    const attempts: string[] = []
     const failure = codedError('EIO: disk fault', 'EIO')
-    let surfaced: unknown
-    try {
-      const run = await startWithUnverifiableHelper((directory) => {
-        attempts.push(directory)
-        return Promise.reject(failure)
-      })
-      await run.result
-    } catch (error: unknown) {
-      surfaced = error
-    }
+    const { surfaced, attempts } = await startFailingRemoval(failure)
     expect(surfaced).toBe(failure)
     expect(attempts).toHaveLength(1)
   })

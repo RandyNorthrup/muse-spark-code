@@ -5,7 +5,9 @@
 // helper is reached, so no helper build is needed. A genuine helper
 // refusal (refused: the helper said no and the live manifest is unchanged)
 // is not deterministically reachable with real parts and stays covered by
-// review plus the race suite's green.
+// review plus the race suite's green, as does the republish bound's
+// `contended` (five lost races in one save; RLF-SAFELIMITS proves it fires
+// in docs/certification/rlf-safelimits.md's drill R5).
 import { mkdtemp, rm, writeFile, chmod } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'

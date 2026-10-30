@@ -1305,6 +1305,11 @@
       "note": "one refresh lock for the editor and the CLI (ChatGPT and Grok)"
     },
     {
+      "id": "RLFSAFELIMITS",
+      "public": false,
+      "note": "recovery: safety limits the too-broad D121 reading removed, restored"
+    },
+    {
       "id": "SDK142",
       "public": false,
       "note": "Muse Code CLI fingerprint and documentation update"

@@ -4,13 +4,14 @@
 // request body goes to the injected key-client stream. The suggestion is
 // published as soon as the closing tag arrives, while the request runs on
 // to its end so its usage settles the reservation (the probe: text at
-// 2.9 s, usage at 15 s). A sent request is never aborted, by the editor
-// or by a timeout of ours (acceptance 7); it runs to the provider's
-// answer or failure. A request that ends without usage reports none, and
-// its reservation stands (M82).
+// 2.9 s, usage at 15 s). A sent request is never aborted by the editor
+// (acceptance 7); it runs to the provider's answer or failure, or to the
+// request backstop with words when the provider hangs. A request that
+// ends without usage reports none, and its reservation stands (M82).
 // Pure: no `vscode` import. The stream is the activation bundle's key
 // client, handed across the bundle boundary (PLAN.md D6).
 
+import { TAB_REQUEST_TIMEOUT_MS } from '../../shared/constants'
 import type { ResponseAttemptGuard, RetryBudget } from '../backends/modelapi/client'
 import { noRetryBudget } from '../backends/modelapi/transport'
 import type { CreateResponseBody, StreamEvent, Usage } from '../backends/modelapi/schemas'
@@ -92,6 +93,8 @@ export interface TabEngineDeps {
   readonly onSent: (model: string) => void
   /** A request reported its usage (PaidUsage prices it). */
   readonly onUsage: (model: string, usage: TabEngineUsage) => void
+  /** The request backstop: TAB_REQUEST_TIMEOUT_MS unless a test shortens it. */
+  readonly requestTimeoutMs?: number
 }
 
 export interface TabEngine {
@@ -222,22 +225,38 @@ export function createTabEngine(deps: TabEngineDeps): TabEngine {
     answer and a settled one its usage.
     */
     const readStream = async (): Promise<{ ok: true } | { ok: false; cause: unknown }> => {
-      // Acceptance 7: no timeout of ours — the request runs until the
-      // stream ends. The signal never aborts; only the provider's answer,
-      // a network failure, or the usage settling below ends the read.
-      const neverAborted = AbortSignal.any([])
+      // Safety limit (D121 clarification, RLF-SAFELIMITS): a backstop
+      // only — the editor never aborts a sent request, but one the
+      // provider neither answers nor fails (a hung connection) ends here
+      // with words instead of hanging the trigger forever. Whatever the
+      // stream throws on the abort, the failure says it timed out.
+      const timeout = new AbortController()
+      // Only this timer aborts the controller, so an aborted signal below
+      // means the backstop fired.
+      const timer = setTimeout(() => {
+        timeout.abort()
+      }, deps.requestTimeoutMs ?? TAB_REQUEST_TIMEOUT_MS)
       try {
         // One HTTP attempt: the reservation prices one, so the client's
         // retries are spent before the first try (RVM94LC).
         const budget: RetryBudget = noRetryBudget()
         const stream = request.stream ?? deps.stream
-        for await (const event of stream(body, neverAborted, budget, admit)) {
+        for await (const event of stream(body, timeout.signal, budget, admit)) {
           if (shouldStopAt(event)) {
             break
           }
         }
       } catch (error: unknown) {
-        return { ok: false, cause: error }
+        // The backstop's failure keeps the abort's own reason as its
+        // cause; the sentence stays fixed either way.
+        return {
+          ok: false,
+          cause: timeout.signal.aborted
+            ? new Error('The Tab request timed out waiting for the provider', { cause: error })
+            : error,
+        }
+      } finally {
+        clearTimeout(timer)
       }
       return { ok: true }
     }

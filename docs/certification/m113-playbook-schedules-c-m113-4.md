@@ -537,10 +537,10 @@ PYHASH
 
 <!-- CM1134AR6 port SHA-256: 0a8062bc336a7f918b2fe7e4237ef473c75fa9aea5a6af55d47c7701b6e113ff -->
 <!-- CM1134AR7 port SHA-256: 5fae331fdc1d00fd1c779c6e5c166ac2485a002815f3402c16f4b592259bea42 -->
-<!-- CM1134AR8 port SHA-256: 7b76e9dcf40c07aab9de828dfde26098770b0c9fa6ed5bddaa424b604bac6991 -->
+<!-- CM1134AR8 port SHA-256: 9d5b4b49506e96b9d89f218121d46f81f0198e2dcf7afea2e1f091d63c610dee -->
 
 `nodeScheduleFs.ts` markers: AR6 `0a8062bc…`, AR7 `5fae331f…`, AR8
-`7b76e9dcf40c07aab9de828dfde26098770b0c9fa6ed5bddaa424b604bac6991`
+`9d5b4b49506e96b9d89f218121d46f81f0198e2dcf7afea2e1f091d63c610dee`
 (re-marked 2026-10-19: the unicorn 77 comment reflow changed only `/**`
 asterisk prefixes, no code; re-marked 2026-10-20 from `7486edbf…`: the
 parent walk keeps walking past a missing parent, so on Windows, which
@@ -550,6 +550,9 @@ proved by playbookSchedulesInputs 'reads scheduleStorageLinkRefused as
 failed' on Windows; re-marked 2026-10-22 from `e62d5346…` (RLF-NOLIMITS):
 every port method takes the call's stop, and the transient retry waits
 until the stop fires instead of ending after five attempts; proved by
+scheduleFsRetryStop's red/green drill; re-marked 2026-10-23 from
+`7b76e9dc…` (RLF-SAFELIMITS): the transient retry ends after five
+attempts again, the stop still ending it early; proved by
 scheduleFsRetryStop's red/green drill).
 The lifecycle suite compares the AR8 marker against the actual source; a
 stale certification fails. (Correction 2026-10-12: this line named only the

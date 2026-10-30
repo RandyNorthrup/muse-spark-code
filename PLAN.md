@@ -8980,6 +8980,21 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
   end and exit line kept), hook input preview bounds (hook contract, not the
   model path), and every display/row clip. Record:
   `docs/certification/nolimits-all.md` (this lane's section).
+- **Clarification (owner 2026-10-23, lane RLF-SAFELIMITS).** The owner,
+  verbatim: "no limits mean the limits we set it does not mean dont put any
+  limits obviously there needs to be limits for things like fail retries".
+  The removals above keep their force for arbitrary caps of ours on the
+  person's work (usage, resource, output, round, request, subagent, size or
+  spend caps the person did not set): those stay removed, and only a
+  provider's documented limit or a value the person set may stop that work.
+  But a safety limit — a retry after a failure, a compare-and-swap or
+  republish loop, a sweep round, a wait that exists to survive an error, a
+  guard against an endless hang — keeps a sensible industry-standard value
+  (cited where it is kept), is person-settable where a person would want to
+  change it, and stops with words after the last attempt. A lane that
+  removed one restores it; no lane removes one again. D208 (spend checks)
+  says nothing of the same and is unchanged. Evidence:
+  `docs/certification/rlf-safelimits.md`.
 
 ### D123 — The provider judges a key; no key is refused for its shape (lane PROVKEYS, 2026-10-12; numbered D108 until the 2026-10-17 merge with main, where D108 is the test overhaul)
 
@@ -30843,6 +30858,39 @@ keeping every tree, stage and manifest inside it with no new words in
 the working folder. No product behaviour changed: there was no
 splitting site to fix. Evidence:
 `docs/certification/rlf-macpath.md`.
+
+### RLFSAFELIMITS — Safety limits the too-broad D121 reading removed, restored (2026-10-23)
+
+**Status 2026-10-23: built.** Lane `rec/rlf-safelimits` on rig
+`macmini`, all restores committed with drills and suites green (the two
+known rig-load flakes reproduce on clean HEAD). The owner clarified D121 on 2026-10-23 ("no limits
+mean the limits we set it does not mean dont put any limits obviously
+there needs to be limits for things like fail retries", recorded under
+D121 in §2): arbitrary caps of ours on the person's work stay removed,
+and every safety limit a lane removed is restored at a cited
+industry-standard value, stopping with words after the last attempt.
+Restored: `SCHEDULE_FS_RETRY_ATTEMPTS` (5, schedule storage transient
+retries; the RLF-NOLIMITS stop threading stays) and the schedules report
+reader's snapshot bound on the same count; `ORPHAN_SWEEP_ROUNDS` (5, MCP
+exit cleanup); `VISIBILITY_TIMEOUT_MS` (30 minutes, warn-and-continue);
+`GIT_WORKTREE_TIMEOUT_MS` (5 minutes, npm's fetch-timeout default: the
+session board, the forced worktree remove, the held checkout listing and
+the native checkout's runs, listing and batch child); the created
+registry's compare-and-swap republish bound (5, Kubernetes client-go
+`DefaultRetry` for multi-client conflicts, new `contended` reason);
+`SCREEN_RECORDING_REMOVE_ATTEMPTS` (3, rimraf's bounded held-file-retry
+shape); the resource hand-off safety default (10 s detach, caller's own
+deadline wins); `TAB_REQUEST_TIMEOUT_MS` (10 minutes, the OpenAI and
+Anthropic SDK request-timeout default); and the CI reuse lookup bound
+(120 s, whole lookup, falling back to a full rebuild). Stays removed as
+arbitrary caps: the editor-chat daily cap, the turn-call default, Tab
+pacing/output counts, damaged-session retention, the reuse page walk
+bound, the settle graces, the device-limits triage and the hand-off
+caller-deadline design. The 2026-10-21 time-limit removals
+(`REPORT_SOURCE_TIMEOUT_MS`, `PROCESS_TABLE_TIMEOUT_MS`, test timeouts)
+are not reverted; the hang-forever risks among them are reported with
+proposals. Proof: a red/green drill per restored limit and the touched
+suites. Evidence: `docs/certification/rlf-safelimits.md`.
 
 ---
 

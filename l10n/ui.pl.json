@@ -4581,7 +4581,8 @@
     "refused": "pomocnik systemowy odmówił zapisu",
     "unsafe": "kontrola bezpieczeństwa zapisanego rejestru nie powiodła się",
     "invalid": "zapisany rejestr jest nieprawidłowy",
-    "io": "nie można zapisać zapisu"
+    "io": "nie można zapisać zapisu",
+    "contended": "inna uruchomiona kopia wciąż zapisywała jako pierwsza; spróbuj ponownie"
   },
   "acpQuestionFormMessage": "Muse ma do Ciebie pytanie.",
   "acpQuestionAsked": "Muse ma pytanie; ten edytor nie może go pokazać jako formularza, więc odpowiedz w następnej wiadomości:",

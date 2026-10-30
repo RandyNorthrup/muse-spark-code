@@ -26,7 +26,13 @@ function turn(detail: string): string {
 
 describe('startFailureText', () => {
   it('names a refused registry save and why, on either site', () => {
-    const reasons: readonly CreatedRegistrySaveReason[] = ['refused', 'unsafe', 'invalid', 'io']
+    const reasons: readonly CreatedRegistrySaveReason[] = [
+      'refused',
+      'unsafe',
+      'invalid',
+      'io',
+      'contended',
+    ]
     for (const reason of reasons) {
       const expected = fill(UI_TEXT.createdRegistrySave.failed, {
         reason: UI_TEXT.createdRegistrySave[reason],

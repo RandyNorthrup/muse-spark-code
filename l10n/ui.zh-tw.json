@@ -4335,7 +4335,8 @@
     "refused": "系統小幫手拒絕了此次儲存",
     "unsafe": "已儲存登錄的安全性檢查失敗",
     "invalid": "已儲存的登錄無效",
-    "io": "儲存內容無法寫入"
+    "io": "儲存內容無法寫入",
+    "contended": "另一個正在執行的副本一直在搶先儲存；請重試"
   },
   "acpQuestionFormMessage": "Muse 有個問題要問你。",
   "acpQuestionAsked": "Muse 有個問題；此編輯器無法以表單顯示，請在下一則訊息中回答：",

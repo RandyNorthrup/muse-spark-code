@@ -33,6 +33,15 @@ export const RESOURCE_TEMP_MARKER = '.muse-owner.json'
 export const RESOURCE_TEMP_TOKEN_BYTES = 16
 /** Internal I/O batching for retiring retained registry names; not a user limit. */
 export const RESOURCE_RETIRED_SWEEP_WIDTH = 128
+// Safety limit (D121 clarification, RLF-SAFELIMITS): a created-registry
+// save that loses its compare-and-swap republishes this many times, then
+// throws `contended` with words. Five is Kubernetes client-go's
+// DefaultRetry ("the recommended retry for a conflict where multiple
+// clients are making changes to the same resource",
+// k8s.io/client-go/util/retry): concurrent instances are exactly such
+// clients, and each attempt already spaces itself on disk I/O and the
+// publish helper's spawn.
+export const CREATED_REGISTRY_SAVE_ATTEMPTS = 5
 export const RESOURCE_DISK_READ_TIMEOUT_MS = 1000
 export const RESOURCE_BIGINT_ZERO = 0n
 export const RESOURCE_TREE_SAMPLE_MS = 15_000
@@ -2434,6 +2443,14 @@ Screen Recordings, Xbox Game Bar in Captures. Attach Latest searches both.
 export const VIDEOS_FOLDER_NAME = 'Videos'
 export const WINDOWS_SCREEN_RECORDINGS_FOLDER = 'Screen Recordings'
 export const WINDOWS_CAPTURES_FOLDER = 'Captures'
+// Safety limit (D121 clarification, RLF-SAFELIMITS): a held-file failure
+// while removing the preview directory retries this many times, then the
+// real error surfaces. Bounded held-file retries are rimraf's shape (npm's
+// standard remover retries EBUSY/EMFILE/ENFILE at most MAXRETRIES=10;
+// ours waits 200 ms between attempts, as JUDGE_TEMP_REMOVE_ATTEMPTS does
+// for the same failure class), so a never-clearing scanner lock ends the
+// cleanup with words instead of retrying until cancel.
+export const SCREEN_RECORDING_REMOVE_ATTEMPTS = 3
 export const SCREEN_RECORDING_REMOVE_RETRY_MS = 200
 // The recorder launch port's per-line bound (M105 R2): the helper's frames
 // are short JSON lines, and a line past this is corruption — the port stops
@@ -2604,6 +2621,14 @@ export const GIT_OUTPUT_MAX_BYTES = 64 * 1024 * 1024
 export const GIT_TIMEOUT_MS = 15_000
 /** Boolean fsmonitor=false is supported from Git 2.36. */
 export const UNTRUSTED_CHECKOUT_MIN_GIT_MINOR = 36
+// Safety limit (D121 clarification, RLF-SAFELIMITS): `git worktree add`
+// checks a whole tree out, and `remove` deletes one (M32); a held
+// checkout's listing, index and writes share the same bound (M71), as do
+// the native checkout's git runs (M123). Five minutes is npm's own
+// fetch-timeout default (`npm config get fetch-timeout` is 300000): the
+// standard wait for an answer that may legitimately take a while, after
+// which a wedged git ends with words instead of hanging the wait.
+export const GIT_WORKTREE_TIMEOUT_MS = 5 * 60 * 1000
 // What a failed git call's error keeps of its stderr (M72's process runner).
 export const GIT_STDERR_MAX_CHARS = 4096
 // Apple's Xcode stub exits with this code while naming xcodebuild when its
@@ -3832,6 +3857,14 @@ export const TAB_DEBOUNCE_MS = 350
 export const TAB_CACHE_ENTRIES = 64
 // The latency gate: a slower median first text defaults the trigger to onInvoke.
 export const TAB_AUTOMATIC_LATENCY_CEILING_MS = 1500
+// Safety limit (D121 clarification, RLF-SAFELIMITS): a sent Tab request's
+// backstop. A request no provider answers or fails (a hung connection,
+// neither answer nor failure) ends here with words, its reservation
+// standing — Tab's own signal never aborts, so nothing else would end
+// it. Ten minutes is the OpenAI and Anthropic SDKs' default request
+// timeout (600000), far past any healthy answer (the probe: usage at
+// 15 s), so it fires only on a true hang.
+export const TAB_REQUEST_TIMEOUT_MS = 600_000
 // Tab's own cache-key prefix, never a conversation's (SoL-Pi, A7).
 export const TAB_PROMPT_CACHE_KEY_PREFIX = 'muse-spark-tab-'
 // The fixed hole marker in the user message (Continue's hole-filler, L8).
@@ -5948,10 +5981,10 @@ export const POSIX_TREE_EXIT_POLL_MS = 20
 // is compiled once into the extension's storage. Where no job is possible,
 // the shell is given this long to exit after taskkill, and then its orphans
 // are looked up by their dead parent's id and killed, one generation per
-// round, until none remains or the stop fires (D121, RLF-NOLIMITS: no round
-// count of ours). A helper run itself (PowerShell, the process table,
-// taskkill) has no deadline of ours: Windows PowerShell's first start on a
-// slow machine outlasted the old 20 s and was killed.
+// round, until none remains, the stop fires, or the rounds below run out.
+// A helper run itself (PowerShell, the process table, taskkill) has no
+// deadline of ours: Windows PowerShell's first start on a slow machine
+// outlasted the old 20 s and was killed.
 export const SHELL_JOB_TYPE_NAME = 'MuseSparkJob'
 export const SHELL_JOB_FOLDER = 'shell-job'
 // .NET Framework ships with Windows PowerShell 5.1; its x86 compiler is
@@ -5963,10 +5996,24 @@ export const WINDOWS_FRAMEWORK_RELATIVE_PATH = 'Microsoft.NET\\Framework\\v4.0.3
 // eslint-disable-next-line unicorn/prefer-string-raw -- as above.
 export const SHELL_JOB_NAME_PREFIX = 'Local\\MuseSparkShell-'
 export const TREE_EXIT_WAIT_MS = 10_000
+// Safety limit (D121 clarification, RLF-SAFELIMITS): the orphan sweep
+// reaps at most this many generations. taskkill /T itself makes a single
+// enumeration pass (Microsoft Learn, "taskkill"); five identity-checked
+// generations already exceed the platform tool and every spawn chain the
+// 0.6.0 gate observed, and a respawning child ends the sweep with words
+// instead of sweeping forever.
+export const ORPHAN_SWEEP_ROUNDS = 5
+// Safety limit (D121 clarification, RLF-SAFELIMITS): an OS hand-off with
+// no caller deadline stops waiting after this and counts the adapter as
+// launched (detached, never killed). OS hand-off adapters (opener,
+// clipboard) return promptly once started; Windows PowerShell's cold
+// start for Set-Clipboard (seconds) sets the bound, and the deadline
+// covers admission plus the adapter run.
+export const RESOURCE_HANDOFF_TIMEOUT_MS = 10_000
 /**
 The usage-page opener's own wait bound (D121): the terminal must not wait on
-a stuck OS opener past this; the page, once handed off, is the OS's. Every
-other hand-off waits for its adapter's exit, start, or the caller's cancel.
+a stuck OS opener past this; the page, once handed off, is the OS's. Other
+hand-offs name their own deadline, or the safety default above applies.
 */
 export const USAGE_PAGE_OPEN_TIMEOUT_MS = 10_000
 export const OUTPUT_REF_PREFIX = 'tool_patch-'
@@ -6274,6 +6321,13 @@ export const SCHEDULE_FENCE_GRACE_MS = 8 * MILLISECONDS_PER_DAY
 export const SCHEDULE_AUDIT_MAX_PER_SCHEDULE = 100
 export const SCHEDULE_AUDIT_MAX_AGE_MS = 30 * MILLISECONDS_PER_DAY
 export const SCHEDULE_FENCE_SEGMENT_CHARS = 2
+// Safety limit (D121 clarification, RLF-SAFELIMITS): a transient-coded
+// schedule storage failure (a held Windows handle) retries this many times,
+// then the last error surfaces. Bounded transient retries are the industry
+// shape (the OpenAI and Anthropic SDKs retry twice by default; AWS SDKs
+// attempt three times); five attempts over 200 ms of backoff rides out a
+// scanner lock without waiting on a never-clearing denial.
+export const SCHEDULE_FS_RETRY_ATTEMPTS = 5
 export const SCHEDULE_FS_RETRY_BACKOFF_MS = 20
 export const SCHEDULE_LEASE_HEARTBEAT_MS = 2000
 export const SCHEDULE_LEASE_EXPIRES_MS = 10_000

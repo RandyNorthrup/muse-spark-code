@@ -5447,6 +5447,7 @@ export const EN = {
     unsafe: 'a safety check on the saved registry failed',
     invalid: 'the saved registry was invalid',
     io: 'the save could not be written',
+    contended: 'another running copy kept saving first; try again',
   },
   acpQuestionFormMessage: 'Muse has a question for you.',
   acpQuestionAsked:
