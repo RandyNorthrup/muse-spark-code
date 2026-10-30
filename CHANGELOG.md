@@ -1099,6 +1099,11 @@ set|status|clear --provider <id> --admin` stores the separate admin
   instead of losing the work. Roles from `AGENT.md` files and Muse Code
   or external workers are not wired yet; the open binding questions are
   named in `docs/certification/rlf-teamwire.md`.
+- A shared tool server a team uses is no longer held to two calls at once:
+  it takes as many as you send unless you set a limit on it. Delegation
+  depth keeps a guard against a worker spawning workers without end, at
+  three layers by default (Claude Code's documented default), and a depth
+  you set replaces it.
 
 ### Muse Judge fast path (M125)
 

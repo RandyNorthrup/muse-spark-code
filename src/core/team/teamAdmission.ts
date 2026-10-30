@@ -1,5 +1,5 @@
 // Team admission slots (M96 lane A, PLAN.md D75): per-entry, per-agent,
-// per-role, global, process, depth and shell-command slots.
+// per-role, global, process and depth slots.
 //
 // The check and the increment are one synchronous step, so twenty tasks made
 // ready at once never pass a cap together inside a window (lane K's race
@@ -7,12 +7,10 @@
 // through the claim journal.
 // No `vscode` here.
 
-import { TEAM_MAX_DEPTH } from '../../shared/constants'
 import type { TeamAgentKind } from './teamPool'
 
 /** Which slot refused: each limit refuses with its own reason. */
-export type TeamAdmissionReason =
-  'entry' | 'agent' | 'role' | 'global' | 'process' | 'depth' | 'shell'
+export type TeamAdmissionReason = 'entry' | 'agent' | 'role' | 'global' | 'process' | 'depth'
 
 /** Child exit and group shutdown do not prove detached descendants retired. */
 export type TeamRetirement =
@@ -28,9 +26,10 @@ export interface TeamAdmissionLimits {
   readonly globalLimit: number
   /** `museSpark.teamMaxProcessWorkers`: Muse Code and external workers at once. */
   readonly processLimit: number
-  /** Engine workers' shell commands at once (`TEAM_MAX_CONCURRENT_COMMANDS`). */
-  readonly shellLimit: number
-  /** Delegation depth, never more than `TEAM_MAX_DEPTH`. */
+  /**
+  Delegation depth: the person's own setting, else `TEAM_DEFAULT_MAX_DEPTH`
+  (the industry default). It guards a runaway recursion, not the person's work.
+  */
   readonly maxDepth: number
   /** Per-agent running caps: each agent's ceiling, lowered where the user did. */
   readonly agentLimit: (agentKey: string) => number
@@ -38,11 +37,6 @@ export interface TeamAdmissionLimits {
   readonly entryLimit: (entryId: string) => number
   /** Per-role running caps, from the intensity level (custom roles keep theirs). */
   readonly roleLimit: (roleId: string) => number
-}
-
-/** Engine workers' shell commands at once: half the logical CPUs, at least 1 (D75). */
-export function teamShellCommandSlots(cpuCount: number): number {
-  return Math.max(1, Math.floor(cpuCount / 2))
 }
 
 /**
@@ -68,7 +62,6 @@ export class TeamAdmission {
   private readonly roleRunning = new Map<string, number>()
   private globalRunning = 0
   private processRunning = 0
-  private shellRunning = 0
 
   public constructor(private readonly limits: TeamAdmissionLimits) {}
 
@@ -102,11 +95,7 @@ export class TeamAdmission {
     /** 1 for the orchestrator's tasks, 2 for a delegating worker's. */
     readonly depth: number
   }): TeamAdmissionResult {
-    if (
-      !Number.isSafeInteger(task.depth) ||
-      task.depth < 1 ||
-      task.depth > Math.min(this.limits.maxDepth, TEAM_MAX_DEPTH)
-    ) {
+    if (!Number.isSafeInteger(task.depth) || task.depth < 1 || task.depth > this.limits.maxDepth) {
       return { admitted: false, reason: 'depth' }
     }
     if (this.globalRunning >= this.limits.globalLimit) {
@@ -146,29 +135,6 @@ export class TeamAdmission {
         if (task.agentKind !== 'engine') {
           this.processRunning -= 1
         }
-        return true
-      },
-    }
-  }
-
-  /**
-  One engine shell command's slot. Commands past the limit wait for a
-  slot (lane K); admission here only says whether one is free now.
-  */
-  public acquireShell(): TeamAdmissionResult {
-    if (this.shellRunning >= this.limits.shellLimit) {
-      return { admitted: false, reason: 'shell' }
-    }
-    this.shellRunning += 1
-    let isReleased = false
-    return {
-      admitted: true,
-      release: (retirement) => {
-        if (isReleased || !canRetire(retirement, false)) {
-          return false
-        }
-        isReleased = true
-        this.shellRunning -= 1
         return true
       },
     }

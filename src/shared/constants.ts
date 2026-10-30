@@ -10201,8 +10201,6 @@ export const WORKER_ACP_MAX_PERMISSION_PATHS = 50
 export const WORKER_BRIEF_FILES_MAX_BYTES = 64 * 1024
 /** An `unstructured` report's summary clip (acceptance 18). */
 export const WORKER_UNSTRUCTURED_SUMMARY_MAX_CHARS = 2000
-/** Depth 1, or 2 through `delegates`, never more (D75's `TEAM_MAX_DEPTH`). */
-export const WORKER_MAX_DEPTH = 2
 /** Bounded grace for a flushed ACP cancellation before the child is killed. */
 export const WORKER_CANCEL_GRACE_MS = 100
 export const WORKER_FILE_PATH_TIMEOUT_MS = 5000
@@ -10521,10 +10519,18 @@ export const TEAM_THROTTLE_RECOVER_MS = 60_000
 // until this passes (D75).
 export const TEAM_USAGE_LIMIT_COOLDOWN_MS = 1_800_000
 
-// Delegation depth: 1, or 2 through a role's `delegates`, never more (D75).
-// A delegating worker never gets `merge`: its sub-tasks' changes are merged
-// by the orchestrator.
-export const TEAM_MAX_DEPTH = 2
+// Delegation depth, a guard against runaway recursive spawning (D75's
+// amendment of 2026-10-17 removed the depth limit of ours; the owner's
+// clarification of 2026-10-23 keeps a bound that only guards a runaway
+// failure). The industry-standard value: Claude Code lets a subagent spawn
+// subagents of its own "up to three layers below the main conversation" by
+// default, and a person changes it with `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`
+// (code.claude.com/docs/en/sub-agents, section "Let subagents spawn their
+// own subagents", read 2026-10-30). The orchestrator's tasks are depth 1.
+// The person's own setting decides when set; this is the value in force
+// when none is. A delegating worker never gets `merge`: its sub-tasks'
+// changes are merged by the orchestrator.
+export const TEAM_DEFAULT_MAX_DEPTH = 3
 // One `delegate` call starts any number of tasks behind one approval
 // (D75, D121: the removed at-most-6 count was invented).
 export const TEAM_MCP_SERVER_NAME = 'team'
@@ -10588,12 +10594,6 @@ export const TEAM_LEDGER_RETRY_MAX_MS = 60_000
 // has exited, never on idleness.
 export const TEAM_LEASE_WAIT_MS = 300_000
 export const TEAM_LEASE_IDLE_MS = 120_000
-// Unknown servers are shared, with a per-role limit the user sets (D75).
-export const TEAM_SHARED_RESOURCE_DEFAULT_LIMIT = 2
-// Engine workers' shell commands that run at once, per window (D75): half
-// the logical CPUs, at least this. Lane K applies the formula; this floor
-// is the constant part.
-export const TEAM_MAX_CONCURRENT_COMMANDS = 1
 // Every worker of one role and entry shares this cache-key prefix, which no
 // conversation ever uses (D75, SoL-Pi rule 1).
 export const TEAM_PROMPT_CACHE_KEY_PREFIX = 'muse-team'

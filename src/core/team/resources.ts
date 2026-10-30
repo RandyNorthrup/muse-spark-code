@@ -24,12 +24,7 @@
 // time, never at module load.
 //
 import * as z from 'zod/mini'
-import {
-  TEAM_LEASE_IDLE_MS,
-  TEAM_LEASE_WAIT_MS,
-  TEAM_SHARED_RESOURCE_DEFAULT_LIMIT,
-  UI_TEXT,
-} from '../../shared/constants'
+import { TEAM_LEASE_IDLE_MS, TEAM_LEASE_WAIT_MS, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 
 export type ResourceKind = 'exclusive' | 'shared' | 'free'
@@ -310,9 +305,8 @@ export class ResourceRegistry {
     if (declaration.kind === 'free') {
       return Infinity
     }
-    return declaration.kind === 'exclusive'
-      ? 1
-      : (declaration.sharedLimit ?? TEAM_SHARED_RESOURCE_DEFAULT_LIMIT)
+    // A shared resource has the limit its person set, else none (D75, 2026-10-17).
+    return declaration.kind === 'exclusive' ? 1 : (declaration.sharedLimit ?? Infinity)
   }
 
   private isRetired(holder: LeaseHolder): boolean {
@@ -563,14 +557,14 @@ export class ResourceRegistry {
     if (init.name === '') {
       throw new Error('A resource needs a name')
     }
-    const sharedLimit = init.sharedLimit ?? TEAM_SHARED_RESOURCE_DEFAULT_LIMIT
-    if (!sharedLimitSchema.safeParse(sharedLimit).success) {
+    const { sharedLimit } = init
+    if (sharedLimit !== undefined && !sharedLimitSchema.safeParse(sharedLimit).success) {
       throw new Error(`A shared resource's limit is at least 1: ${init.name}`)
     }
     const declaration: ResourceDeclaration = {
       name: init.name,
       kind: init.kind,
-      sharedLimit,
+      ...(sharedLimit !== undefined && { sharedLimit }),
       idleRelease: init.idleRelease ?? true,
       commandPatterns: [...(init.commandPatterns ?? [])],
       assignedRoles: [...(init.assignedRoles ?? [])],
@@ -682,14 +676,21 @@ export class ResourceRegistry {
         })
         continue
       }
-      const nextLimit =
-        entry.sharedLimit ?? current.sharedLimit ?? TEAM_SHARED_RESOURCE_DEFAULT_LIMIT
-      const currentLimit = current.sharedLimit ?? TEAM_SHARED_RESOURCE_DEFAULT_LIMIT
-      if (nextLimit > currentLimit) {
+      // No limit is the widest; a limit only ever narrows it, never the reverse.
+      if (
+        entry.sharedLimit !== undefined &&
+        current.sharedLimit !== undefined &&
+        entry.sharedLimit > current.sharedLimit
+      ) {
         refused.push({ name: entry.name, reason: 'a repository cannot raise a limit' })
         continue
       }
-      live.declaration = { ...current, kind: nextKind, sharedLimit: nextLimit }
+      const nextLimit = entry.sharedLimit ?? current.sharedLimit
+      live.declaration = {
+        ...current,
+        kind: nextKind,
+        ...(nextLimit !== undefined && { sharedLimit: nextLimit }),
+      }
       accepted.push(entry.name)
     }
     return { accepted, refused }

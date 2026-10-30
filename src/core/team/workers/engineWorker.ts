@@ -3,7 +3,7 @@ import {
   HTTP_TOO_MANY_REQUESTS,
   WORKER_BRIEF_FILES_MAX_BYTES,
   WORKER_BRIEF_MAX_CHARS,
-  WORKER_MAX_DEPTH,
+  TEAM_DEFAULT_MAX_DEPTH,
   WORKER_MODEL_TEXT,
 } from '../../../shared/constants'
 import { retryAfterMs } from '../../backends/modelapi/client'
@@ -398,11 +398,16 @@ export async function runEngineWorker(deps: EngineWorkerDeps): Promise<EngineWor
   }
 }
 
-/** Guards M48's child loop shape: depth past `delegates` never starts.
+/** Guards M48's child loop shape: depth past `delegates`, or past the depth bound, never starts.
+The bound is the person's setting when set, else `TEAM_DEFAULT_MAX_DEPTH`.
 @unwired M96 worker child-loop depth guard
 */
-export function checkWorkerDepth(depth: number, role: WorkerRolePolicy): void {
-  if (depth > WORKER_MAX_DEPTH || (depth > 1 && (role.delegates ?? []).length === 0)) {
+export function checkWorkerDepth(
+  depth: number,
+  role: WorkerRolePolicy,
+  maxDepth: number = TEAM_DEFAULT_MAX_DEPTH,
+): void {
+  if (depth > maxDepth || (depth > 1 && (role.delegates ?? []).length === 0)) {
     throw new WorkerDepthError()
   }
 }

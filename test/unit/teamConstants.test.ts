@@ -35,8 +35,7 @@ import {
   TEAM_LOAD_FREE_MEMORY_MIN,
   TEAM_LOAD_SAMPLE_MS,
   TEAM_LOAD_WINDOW_MS,
-  TEAM_MAX_CONCURRENT_COMMANDS,
-  TEAM_MAX_DEPTH,
+  TEAM_DEFAULT_MAX_DEPTH,
   TEAM_MAX_PROCESS_WORKERS,
   TEAM_META_CONTRIBUTOR_RPM,
   TEAM_META_CONTRIBUTOR_TPM,
@@ -242,7 +241,7 @@ describe('team caps, intensity and machine values', () => {
   })
 
   it('bounds delegation depth and per-role defaults (D121: no delegate count)', () => {
-    expect(TEAM_MAX_DEPTH).toBe(2)
+    expect(TEAM_DEFAULT_MAX_DEPTH).toBe(3)
     expect(TEAM_TASKS_PER_TURN_DEFAULT).toBe(6)
     expect(TEAM_TASK_MINUTES_DEFAULT).toBe(30)
     const policies: readonly TeamExhaustedPolicy[] = TEAM_EXHAUSTED_POLICIES
@@ -265,7 +264,6 @@ describe('team caps, intensity and machine values', () => {
     expect(TEAM_UNMERGED_NOTICE_DAYS).toBe(7)
     expect(TEAM_LEASE_WAIT_MS).toBe(300_000)
     expect(TEAM_LEASE_IDLE_MS).toBe(120_000)
-    expect(TEAM_MAX_CONCURRENT_COMMANDS).toBe(1)
     expect(TEAM_PROMPT_CACHE_KEY_PREFIX).toBe('muse-team')
     expect(TEAM_BRANCH_PREFIX).toBe('agents/')
     expect(TEAM_REPORT_FENCE).toBe('muse-team-report')
