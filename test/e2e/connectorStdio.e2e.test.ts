@@ -80,6 +80,19 @@ beforeAll(async () => {
     entryPoints: [path.resolve('src/runtime/reporting/reportsEntry.ts')],
     outfile: path.join(directory, 'dist', 'reporting.js'),
   })
+  // The engine's inputs ride two chunks of their own (the runtime loads them
+  // beside reporting.js). Unstaged, the first milestone or playbook report
+  // fails in the registry's owner and is refused as unavailable.
+  await build({
+    ...common,
+    entryPoints: [path.resolve('src/runtime/reporting/reportInputsEntry.ts')],
+    outfile: path.join(directory, 'dist', 'reportInputs.js'),
+  })
+  await build({
+    ...common,
+    entryPoints: [path.resolve('src/runtime/reporting/playbookSchedulesInputsEntry.ts')],
+    outfile: path.join(directory, 'dist', 'playbookSchedulesInputs.js'),
+  })
   await writeFile(path.join(directory, 'package.json'), JSON.stringify({ version: '0.0.0-test' }))
   await cp(path.resolve('l10n'), path.join(directory, 'l10n'), { recursive: true })
 })
