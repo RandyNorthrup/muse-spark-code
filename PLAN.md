@@ -9431,6 +9431,26 @@ older route, tag, schema or test survives. Both legacy-named snapshots and
 locks advertise 1.5.0; a new revision regenerates every schema, lock and
 host together. Record: `docs/certification/cc-rlm104.md`.
 
+### D227 — Teams stay off until the person sets up a second model (RLF-TEAMGATE, 2026-10-23; numbered D217 on its branch until the int/recovery join of 2026-10-30, when that number was found shared with the judge fast path's `stat`)
+
+Owner decision, verbatim: "the teams cant work with only one agent so by
+that logic it should be off until a user sets up additional models".
+Teams are available only while the person has at least two usable models
+configured — a lead plus at least one worker the team engine can really
+dispatch to, counted across backends and providers, never a raw settings
+count — and the person has not switched them off. With fewer, every team
+entry point refuses in words and the UI says how to enable teams (set up
+another model). Nothing else is a second switch: the editor latch and the
+headless certification flag are gone, and an absent `museSpark.team`
+counts as on; only an explicit `false` still turns teams off. The rule is
+one shared module (`src/shared/teamAvailability.ts`) used by the editor
+host, the ACP agent, headless exec and the webview. Resolves M96b review
+finding 4 (the single availability gate). It supersedes M96b/D208's
+silent single-model parity for explicit team entry points: an explicit
+`--team` without a second runnable model refuses instead of running on
+silently; unasked conversations still stay single-model by the same
+count. Proof: [docs/certification/rlf-teamgate.md](docs/certification/rlf-teamgate.md).
+
 ## 3. Open questions (need the owner)
 
 <a id="q-cc-licence"></a>
@@ -16699,6 +16719,20 @@ sentences in English and all 14 tables). Receipts and drills:
 `docs/certification/rlf-teamwire.md`. Finding 4 is RLF-TEAMGATE's.
 Headless still refuses non-engine workers by design.
 
+**Status 2026-10-23 (RLF-TEAMGATE): recovery (RLF-TEAMGATE).**
+
+Review finding 4 resolved by owner decision D227 (§2): one availability
+rule — teams are offered only while the person has at least two usable
+models configured, on the editor host, the ACP agent, headless exec and
+the webview. The editor latch and the headless certification flag are
+gone; with fewer than two models every team entry point refuses in words
+and the Roles draft says how to enable teams; only an explicit
+`museSpark.team: false` still turns teams off. An explicit `--team`
+without a second runnable model refuses instead of running on as
+single-model (this supersedes D208's silent parity for explicit entry
+points). Proof in
+[docs/certification/rlf-teamgate.md](docs/certification/rlf-teamgate.md).
+
 Prerequisite: team integration (M96).
 
 - **Goal.** The same team, roles, pools and caps work in the ACP agent (D62)
@@ -16742,6 +16776,9 @@ Prerequisite: team integration (M96).
   - **Single-model mode.** With `--team` but no custom entry that is a
     second, loaded model, the ACP agent and `exec` behave exactly as
     without `--team`, by the same golden comparison and zero-traffic spy.
+    Superseded for explicit team entry points by D227 (2026-10-23): an
+    explicit `--team` without a second runnable model refuses in words;
+    unasked conversations still stay single-model by the same count.
   - **The ACP agent** runs its own scheduler, as a window does, with its own
     journal, process-lifetime container and hint file. Its board, its
     write-set leases and its merge queue work as in the panel, and its

@@ -350,6 +350,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       { name: 'attach', shape: '<file>' },
       { name: 'account', shape: '<id>' },
       { name: 'account-pool', shape: '' },
+      { name: 'team', shape: '' },
       { name: 'allow-contributor-models', shape: '' },
       { name: 'muse-binary', shape: '<path>' },
       { name: 'shell-sandbox', shape: '', fact: factFor('shell-sandbox') },
@@ -1018,10 +1019,6 @@ export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> 
     // Parsed and reference-documented, but off the one screen: the setting
     // text carries the guard/spill/removal description (lane TOOLCAP).
     'max-tool-output-bytes',
-    // Parsed for headless teams (M96b), which stay behind the team
-    // availability switch until certified: off the help screen while
-    // dormant, as no usage of a dormant feature is published (CX1R3).
-    'team',
   ],
   // PROVSPEND: `auth set|clear --admin` is shown on the auth topic, not here.
   providersAdd: ['admin'],

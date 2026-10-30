@@ -432,15 +432,18 @@ export async function createExecTeam(
                     }),
                   )
               }
+          if (service !== undefined) return
+          // D227: an explicit `--team` without a second runnable engine
+          // model refuses in words; it never runs on silently as single-model.
           if (
-            service !== undefined ||
             !hasRunnableTeamEntry(state, {
               orchestratorModelId: modelId,
               isTeamWorkersOn: true,
               canRunKind: (kind) => kind === 'engine',
+              canRunAgent: (agent) => agent.kind === 'engine' && agent.pays !== 'subscription',
             })
           )
-            return
+            throw new Error(UI_TEXT.teamNeedsSecondModel)
           const {
             createTeamHostService,
             teamProgramFreeGit,

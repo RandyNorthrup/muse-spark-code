@@ -35,7 +35,7 @@ import type { PaidUseRequest } from '../../shared/paid'
 
 /** No remaining run budget in the ledger's units: headless compaction needs some. */
 const NO_REMAINING_UNITS = 0n
-import { areHeadlessTeamsAvailable, teamExecAdmission } from '../../acp/teamAdmission'
+import { teamExecAdmission } from '../../acp/teamAdmission'
 
 export type ExecMode = 'plan' | 'acceptEdits'
 export type ExecOutput = 'text' | 'json' | 'jsonl'
@@ -404,10 +404,8 @@ export function parseExec(
     return invalid(unknownProviderModelText(rawModel, provider, listModelsRemedy()))
   }
   // Team admission follows the prompt, provider and hard-budget checks.
-  // Behind the agent-teams availability switch the flag is unknown: the
-  // parser answers as if `--team` did not exist.
-  if (values['team'] === true && !areHeadlessTeamsAvailable())
-    return invalid(fill(UI_TEXT.acpUnknownArgument, { argument: '--team' }))
+  // D227: no availability switch stands before it; the two-model rule at
+  // run start refuses a team run without a second runnable model.
   if (values['team'] === true) {
     const admission = teamExecAdmission({ mode, backend })
     if (!admission.ok) return invalid(admission.reason)

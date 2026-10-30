@@ -60,18 +60,18 @@ muse-spark-code-acp scan-secrets fix.patch
 | --muse-binary, --shell-sandbox      | serve defaults         | Muse Code only.                                                                                                                                                                                                                                                                                                |
 | --account <id>                      | default                | Pin one run to one account; refused with --key-stdin in CI.                                                                                                                                                                                                                                                    |
 | --account-pool                      | off                    | Opt into native Meta stored-key pooling at request boundaries; account caps and shared budgets bind. Refused with --key-stdin.                                                                                                                                                                                 |
-| --team                              | off                    | Behind the agent-teams availability switch (off until certified): needs Model API, acceptEdits and --max-budget-usd; runs in-process engine workers, including keyless local models. Every request/retry reserves against the shared run cap; questions deny and ordinary merges land in the run working tree. |
+| --team                              | off                    | Needs Model API, acceptEdits and --max-budget-usd, plus a second runnable engine model staffed beside the run's own; runs in-process engine workers, including keyless local models. Every request/retry reserves against the shared run cap; questions deny and ordinary merges land in the run working tree. |
 | --verbose                           | off                    | Trace on redacted stderr.                                                                                                                                                                                                                                                                                      |
 
-With `--team` (behind the agent-teams availability switch, off until
-certified), the workspace snapshot is `team.json` under
+With `--team`, the workspace snapshot is `team.json` under
 `<agent data folder>/acp/<workspaceKey>/` (`workspaceKey` is the first 16
 hex characters of SHA-256 of the resolved workspace path). Its shape is
 `TeamSnapshot`: `roles` with ordered `pool` entries and `intensity`.
 Each custom entry names an `engine` agent, its model/provider, `pays`
 (`key` or `local`), concurrency and caps. Default follows this exec run's
-provider and model. A missing snapshot, Solo or no distinct runnable loaded
-model keeps the ordinary single-model request. Muse Code, external and
+provider and model. A missing snapshot, Solo, or no second runnable engine
+model refuses the run in words: `exec --team` names the two-model rule
+instead of running on as single-model. Muse Code, external and
 subscription workers are refused with a reason; no CLI sign-in is attempted.
 
 The repository's `.muse/team.json` only lowers existing role caps/concurrency,

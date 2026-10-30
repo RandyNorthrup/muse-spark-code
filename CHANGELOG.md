@@ -25,6 +25,10 @@ happened, not what was planned; superseded entries are kept.
   message you had written is still there as a draft after the restore.
 - **Damage markers are never trimmed.** Every conversation-damage marker
   is kept, so none of the record is silently sliced away.
+- **Agent teams need two models.** Teams stay off until a second model is
+  set up beside your own: with one model every team entry point says so
+  and the Roles section says how to enable teams. Setting
+  `museSpark.team` to false still turns teams off.
 
 ### Added
 
