@@ -483,9 +483,19 @@ describe('packaging (M26)', () => {
     // @napi-rs/keyring is a dependency but not a bundled one: the build
     // keeps it external and only the ACP agent ships it, so the extension's
     // notices never list it (scripts/build.mjs).
+    // The @sigstore/* packages are bundled, but only in dist/packsVerify.js,
+    // which ships only in the ACP agent: their licence texts travel in that
+    // package's own notices, generated from the same metafiles at package
+    // time (scripts/third-party-notices.mjs --acp), so the extension's
+    // notices never list them either. The exemption holds only while their
+    // carrier still ships there (docs/certification/cc-notices.md).
+    const ACP_ONLY = new Set(['@sigstore/bundle', '@sigstore/tuf', '@sigstore/verify'])
+    expect(read('scripts', 'lib', 'acpBundles.mjs')).toContain("'packsVerify.js'")
     const notices = read('THIRD_PARTY_NOTICES.txt')
     expect(notices.startsWith('THIRD-PARTY SOFTWARE NOTICES\n')).toBe(true)
-    const bundled = Object.keys(manifest.dependencies).filter((name) => name !== '@napi-rs/keyring')
+    const bundled = Object.keys(manifest.dependencies).filter(
+      (name) => name !== '@napi-rs/keyring' && !ACP_ONLY.has(name),
+    )
     for (const name of [...bundled, 'react', 'zod', '@muse-code/sdk']) {
       expect(notices, name).toContain(`\n${name} (`)
     }
@@ -570,8 +580,11 @@ describe('packaging (M26)', () => {
     expect(reuse).toContain('needs: verify')
     expect(reuse).toContain('actions: read')
     // Rule 2 adds two: the verify job reads other runs, and the build
-    // caller grants what build.yml's first-attempt job asks.
-    expect(count(release, /^ {6}actions: read$/gm)).toBe(7)
+    // caller grants what build.yml's first-attempt job asks. M110-C's
+    // node-image caller grants what node-image.yml's build job asks (its
+    // ACP-artifact download): least privilege, one grant per need
+    // (docs/certification/cc-notices.md).
+    expect(count(release, /^ {6}actions: read$/gm)).toBe(8)
     expect(reuse).toContain('FORCE_REBUILD: ${{ vars.RELEASE_FORCE_REBUILD }}')
     // D140: the reuse job also downloads the two Linux helper builds, so
     // every per-download count moves from four to six.
