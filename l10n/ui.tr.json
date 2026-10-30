@@ -269,6 +269,7 @@
   "shareGistDeleteConfirm": "Bu gizli gist silinsin mi? Bu işlem geri alınamaz.",
   "shareGistDelete": "Sil",
   "shareGistInvalid": "Bu bir gist kimliği veya gist bağlantısı değil.",
+  "shareGistFileUnsafe": "Bu dosya adı paylaşılamaz. Klasör, ev veya hesap içermeyen tek bir ad kullanın.",
   "shareGistCopyLink": "Bağlantıyı kopyala",
   "shareGistOpen": "Tarayıcıda aç",
   "shareGistUnpublish": "Yayından kaldır",

@@ -271,6 +271,7 @@
   "shareGistDeleteConfirm": "Eliminare questo gist segreto? L’operazione non può essere annullata.",
   "shareGistDelete": "Elimina",
   "shareGistInvalid": "Non è un ID gist né un link a un gist.",
+  "shareGistFileUnsafe": "Quel nome di file non può essere condiviso. Usa un solo nome, senza cartella, home o account.",
   "shareGistCopyLink": "Copia link",
   "shareGistOpen": "Apri nel browser",
   "shareGistUnpublish": "Annulla pubblicazione",

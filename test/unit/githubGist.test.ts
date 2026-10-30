@@ -1,4 +1,4 @@
-// M118 phase 2 (D217): the gist calls on the GitHub REST client, and the
+// M118 phase 2 (D218): the gist calls on the GitHub REST client, and the
 // scopes each sign-in path may ask. The client is real; only its `fetch`
 // transport is injected, as the client's own tests do. Reply shapes follow
 // GitHub's documented gist schemas (docs/certification/rlf-m118.md names
@@ -159,16 +159,14 @@ describe('gist scope guards', () => {
     expect(() => {
       assertGistShareScopes([...GITHUB_GIST_SCOPES])
     }).not.toThrow()
-    expect(() => {
-      assertGistShareScopes(['gist', 'repo'])
-    }).not.toThrow()
-    for (const scopes of [['gist'], ['repo'], ['repo', 'gist', 'workflow'], []]) {
+    expect(GITHUB_GIST_SCOPES).toEqual(['gist'])
+    for (const scopes of [['gist', 'repo'], ['repo'], ['repo', 'gist', 'workflow'], []]) {
       expect(() => {
         assertGistShareScopes(scopes)
       }).toThrow(GitHubTokenSourceError)
     }
     try {
-      assertGistShareScopes(['gist'])
+      assertGistShareScopes(['repo', 'gist'])
       expect.unreachable()
     } catch (error: unknown) {
       expect((error as GitHubTokenSourceError).reason).toBe('scopeRefused')
@@ -191,7 +189,8 @@ describe('gist scope guards', () => {
       signInWithDeviceFlowForGistShare(deps, failingPresent, new AbortController().signal),
     ).rejects.toThrow('network')
     expect(bodies[0]).toBe(new URL(GITHUB_DEVICE_CODE_URL).pathname)
-    expect(bodies[1]).toContain('scope=repo+gist')
+    expect(bodies[1]).toContain('scope=gist')
+    expect(bodies[1]).not.toContain('repo')
   })
 
   it('refuses gist on the sign-in device flow without calling GitHub', async () => {

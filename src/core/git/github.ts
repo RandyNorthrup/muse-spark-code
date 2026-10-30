@@ -84,7 +84,7 @@ const errorSchema = z.object({
   ),
 })
 
-// M118 phase 2 (D217): the `POST /gists` 201 reply's fields Share reads.
+// M118 phase 2 (D218): the `POST /gists` 201 reply's fields Share reads.
 // Written from GitHub's documented response schema ("Create a gist",
 // docs.github.com/en/rest/gists/gists, read 2026-10-23), not a capture:
 // the lane has no GitHub token with the gist scope (see
@@ -152,12 +152,13 @@ export interface NewGist {
   readonly content: string
 }
 
-/** The created gist GitHub names back: its id and the link the person gets. */
+/** The created gist GitHub names back. An unconfirmed reply may omit fields. */
 export interface Gist {
+  /** Empty when the reply had no id we can safely delete. */
   readonly id: string
-  readonly url: string
-  /** As GitHub answered it; Share refuses anything but a secret gist. */
-  readonly isPublic: boolean
+  readonly url: string | undefined
+  /** As GitHub answered it; undefined when the reply did not say. */
+  readonly isPublic: boolean | undefined
 }
 
 export type GitHubFailureKind =
@@ -359,6 +360,22 @@ function summarizeChecks(
   }
 }
 
+/** The fields Share needs off a create reply, or as many of them as are safe to keep. */
+function readGistReply(raw: unknown): Gist {
+  const id =
+    typeof raw === 'object' &&
+    raw !== null &&
+    'id' in raw &&
+    typeof raw.id === 'string' &&
+    /^[A-Za-z0-9]+$/u.test(raw.id)
+      ? raw.id
+      : ''
+  const parsed = gistSchema.safeParse(raw)
+  return !parsed.success || parsed.data.id !== id
+    ? { id, url: undefined, isPublic: undefined }
+    : { id, url: parsed.data.html_url, isPublic: parsed.data.public }
+}
+
 export class GitHubClient {
   public constructor(private readonly deps: GitHubClientDeps) {}
 
@@ -524,8 +541,10 @@ export class GitHubClient {
       },
       signal,
     )
-    const parsed = this.parse(gistSchema, raw, 'new gist')
-    return { id: parsed.id, url: parsed.html_url, isPublic: parsed.public }
+    // A 201 that is not the documented secret-gist shape still returns,
+    // so the caller can delete it when an id can be read. Nothing here
+    // is logged: the body can hold the share.
+    return readGistReply(raw)
   }
 
   /** Delete a gist (`DELETE /gists/{id}`, 204 with no body). */

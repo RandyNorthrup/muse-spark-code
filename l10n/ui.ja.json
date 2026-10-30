@@ -267,6 +267,7 @@
   "shareGistDeleteConfirm": "このシークレットgistを削除しますか？この操作は取り消せません。",
   "shareGistDelete": "削除",
   "shareGistInvalid": "gistのIDまたはリンクではありません。",
+  "shareGistFileUnsafe": "そのファイル名は共有できません。フォルダ、ホーム、アカウントを含まない一つの名前にしてください。",
   "shareGistCopyLink": "リンクをコピー",
   "shareGistOpen": "ブラウザーで開く",
   "shareGistUnpublish": "共有を取り消す",

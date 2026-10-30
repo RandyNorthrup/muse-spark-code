@@ -353,7 +353,7 @@ export const EN = {
   shareTooLarge: 'This share exceeds the file size or transcript limit.',
   shareAttachmentUnavailable: 'Selected attachment content is unavailable in this range.',
   sharePreviewExpired: 'The preview changed or expired. Preview again before sharing.',
-  // M118 phase 2 (D217): the secret gist destination. The gist scope is
+  // M118 phase 2 (D218): the secret gist destination. The gist scope is
   // asked only at Share time, with `shareGistScopeConsent` saying what it
   // allows; declining refuses only the gist route (`shareGistDeclined`).
   shareGist: 'Secret gist',
@@ -374,6 +374,8 @@ export const EN = {
   shareGistDeleteConfirm: 'Delete this secret gist? This cannot be undone.',
   shareGistDelete: 'Delete',
   shareGistInvalid: 'That is not a gist id or a gist link.',
+  shareGistFileUnsafe:
+    'That file name cannot be shared. Use one name, with no folder, home or account in it.',
   shareGistCopyLink: 'Copy link',
   shareGistOpen: 'Open in Browser',
   shareGistUnpublish: 'Unpublish',

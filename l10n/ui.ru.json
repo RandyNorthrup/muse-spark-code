@@ -273,6 +273,7 @@
   "shareGistDeleteConfirm": "Удалить этот секретный gist? Это действие нельзя отменить.",
   "shareGistDelete": "Удалить",
   "shareGistInvalid": "Это не id gist и не ссылка на gist.",
+  "shareGistFileUnsafe": "Это имя файла нельзя отправить. Используйте одно имя без папки, домашнего каталога и учётной записи.",
   "shareGistCopyLink": "Копировать ссылку",
   "shareGistOpen": "Открыть в браузере",
   "shareGistUnpublish": "Отменить публикацию",

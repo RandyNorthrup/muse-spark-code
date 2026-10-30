@@ -267,6 +267,7 @@
   "shareGistDeleteConfirm": "删除此私密 gist？此操作无法撤销。",
   "shareGistDelete": "删除",
   "shareGistInvalid": "这不是 gist ID 或 gist 链接。",
+  "shareGistFileUnsafe": "该文件名无法分享。请使用不含文件夹、主目录或账户的单个名称。",
   "shareGistCopyLink": "复制链接",
   "shareGistOpen": "在浏览器中打开",
   "shareGistUnpublish": "取消发布",

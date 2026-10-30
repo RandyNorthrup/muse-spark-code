@@ -73,10 +73,11 @@ function tolerant(source: GitHubTokenSource, log: CoreLogger): GitHubTokenSource
         return
       }
     },
-    // D217's Share-time grant rides through the same wrapper, unasked: an
+    // D218's Share-time grant rides through the same wrapper, unasked: an
     // asked sign-in's failure is the user's to see, as `credential` says.
     ...(canAskGistScope(source) && {
       signInForGistShare: (signal: AbortSignal) => source.signInForGistShare(signal),
+      storedGistGrant: (signal: AbortSignal) => source.storedGistGrant(signal),
     }),
     rejected: (credential) => source.rejected(credential),
     signOut: () => source.signOut(),
@@ -206,11 +207,12 @@ export class GitHubSignIn {
   }
 
   /**
-  D217's Share-time grant: a fresh device-flow sign-in carrying the gist
-  scope, run only after the person consented at Share time. The device-flow
+  D218's Share-time grant: a fresh device-flow sign-in carrying `gist`
+  alone, run only after the person consented at Share time. The device-flow
   source is the only one that can ask; without it there is no upgrade to
   run. Cancel stops it like any sign-in, and the account line follows the
-  new credential as usual.
+  new credential as usual. The grant is stored apart from the repository
+  sign-in.
   */
   public async credentialForGistShare(signal: AbortSignal): Promise<GitHubCredential | undefined> {
     const source = this.sources.find(canAskGistScope)
@@ -233,6 +235,16 @@ export class GitHubSignIn {
         this.changed()
       }
     }
+  }
+
+  /**
+  The gist grant already stored, or undefined. Never starts a device flow
+  and never reads the repository sign-in. Share sends this token, and no
+  other, once it is present.
+  */
+  public async storedGistGrant(signal: AbortSignal): Promise<GitHubCredential | undefined> {
+    const source = this.sources.find(canAskGistScope)
+    return source === undefined ? undefined : await source.storedGistGrant(signal)
   }
 
   /** GitHub answered 401 to `credential`: its source drops it, so the user signs in again. */

@@ -1,9 +1,18 @@
 # RLF-M118 — M118 phase 2: secret-gist share core, recovery lane record
 
+RVCRED (2026-10-30) renumbered the decision below to D218, because D217
+on the vault-undo branch is the retired-item undo. On `rv/m118` the
+Share-time grant is `gist` alone and is stored apart from the repository
+sign-in; a missing `X-OAuth-Scopes` header is not treated as a missing
+gist scope; the bytes are scrubbed again at the send; a file name with a
+folder, home or account is refused; a create that is not a confirmed
+secret gist at `https://gist.github.com/` is deleted when its id can be
+read. The review record is `docs/certification/rvcred.md` on `rv/cred`.
+
 Branch `rec/rlf-m118`, worktree on macbook (the owner's MacBook),
 2026-10-23/2026-10-30. Base: `f53ef168f` (main at 0.19.0 plus 40
 merged lanes). The brief: record the owner's gist-scope decision
-(D217) and build M118 phase 2 from its acceptance rows — the secret
+(D218; the source lane wrote D217) and build M118 phase 2 from its acceptance rows — the secret
 gist publish, its redaction, the link shown to the person, and
 unpublish — wiring RLM124's T share-publish adapter if its seam is
 present.
@@ -16,7 +25,7 @@ the lead (see Open).
 
 ## What landed
 
-- **D217 (PLAN.md §2).** The owner's 2026-10-23 answer ("sure on the
+- **D218 (PLAN.md §2).** The owner's 2026-10-23 answer ("sure on the
   gists", option a): the `gist` scope is requested only when the
   person presses Share to a secret gist — incremental consent at
   that moment, with words saying what it allows — never at sign-in
@@ -97,7 +106,7 @@ identical-or-absent on the untouched base, see each):
 - `npm run check:plan`: 1 — PLAN.md is 3,770,787 bytes, over 85%
   (3,565,158) of the archived-plan budget. Measured on the
   untouched base (`f53ef168f:PLAN.md`): 3,769,703 bytes, over the
-  same budget; this lane adds ~1 KiB (D217 plus the status line).
+  same budget; this lane adds ~1 KiB (D218 plus the status line).
   The archive step is the lead's integration step, not this
   lane's.
 - `npm run check:roadmap`: 0 (ROADMAP.md current; the status line

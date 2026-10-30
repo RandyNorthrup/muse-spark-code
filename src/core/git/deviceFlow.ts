@@ -193,8 +193,9 @@ export async function signInWithDeviceFlow(
 }
 
 /**
-D217's Share-time sign-in: the same flow, asking for the gist scope beside
-`repo`, and only callable from Share's consent. Sign-in itself never asks.
+D218's Share-time sign-in: the same flow, asking for `gist` alone, and
+only callable from Share's consent. Sign-in itself never asks, and this
+grant does not replace the repository token.
 */
 export async function signInWithDeviceFlowForGistShare(
   deps: DeviceFlowDeps,

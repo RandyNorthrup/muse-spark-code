@@ -267,6 +267,7 @@
   "shareGistDeleteConfirm": "이 비밀 gist를 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.",
   "shareGistDelete": "삭제",
   "shareGistInvalid": "gist ID 또는 gist 링크가 아닙니다.",
+  "shareGistFileUnsafe": "그 파일 이름은 공유할 수 없습니다. 폴더, 홈, 계정이 없는 이름 하나만 사용하세요.",
   "shareGistCopyLink": "링크 복사",
   "shareGistOpen": "브라우저에서 열기",
   "shareGistUnpublish": "공유 취소",

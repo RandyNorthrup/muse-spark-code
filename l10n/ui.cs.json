@@ -273,6 +273,7 @@
   "shareGistDeleteConfirm": "Smazat tento tajný gist? Tuto akci nelze vrátit.",
   "shareGistDelete": "Smazat",
   "shareGistInvalid": "To není ID gist ani odkaz na gist.",
+  "shareGistFileUnsafe": "Tento název souboru nelze sdílet. Použijte jeden název bez složky, domovského adresáře a účtu.",
   "shareGistCopyLink": "Kopírovat odkaz",
   "shareGistOpen": "Otevřít v prohlížeči",
   "shareGistUnpublish": "Zrušit sdílení",
