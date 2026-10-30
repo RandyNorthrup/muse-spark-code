@@ -171,6 +171,7 @@ import {
   type FeedbackOutcomeReader,
   type FeedbackRequest,
 } from './feedback'
+import { isDeleteCapableReader, NATIVE_LIFECYCLE_READER } from './lifecycle'
 import {
   historyOutcome,
   sessionClosedSchema,
@@ -306,17 +307,21 @@ export interface MuseCodeFeaturePorts {
   readonly fastDecisionPin?: FastDecisionPin | undefined
 }
 
-// The captured-frame reader every backend construction binds (C-M106-3R2):
+// The captured-frame readers every backend construction binds (C-M106-3R2):
 // the note-only `feedback/submit` receipt
-// (test/fixtures/m106/msp-1.4.4-host-feedback.json). The 1.4.4 `model/list`
-// effort reader binds the same way, but the manager preloads its module on
-// first spawn (see `MuseCodeBackendManager`), so it stays out of the
-// activation bundle (lane K budget) while every spawn reads the same
-// catalogue. No lifecycle reader: 1.4.4 sends no delete frames, so deletion
-// stays refused with sessionDeleteUnsupported and History stays
-// archive-only.
+// (test/fixtures/m106/msp-1.4.4-host-feedback.json) and the
+// `session/started` notice (test/fixtures/m127/note-session-started-1.4.9.json,
+// test/fixtures/acphonest/note-session-started-1.4.11.json), so externally
+// started sessions reach the session list. The 1.4.4 `model/list` effort
+// reader binds the same way, but the manager preloads its module on first
+// spawn (see `MuseCodeBackendManager`), so it stays out of the activation
+// bundle (lane K budget) while every spawn reads the same catalogue. The
+// lifecycle reader is started-only: no CLI serves the delete frames (gone
+// from 1.4.4 on), so deletion stays refused with sessionDeleteUnsupported
+// and History stays archive-only.
 export const NATIVE_MUSE_CODE_FEATURE_PORTS: MuseCodeFeaturePorts = {
   feedback: NATIVE_FEEDBACK_READER,
+  lifecycle: NATIVE_LIFECYCLE_READER,
 }
 
 const SESSION_LIST_CHANGED = 'session/listChanged'
@@ -3785,8 +3790,11 @@ export class MuseCodeHost implements AgentHost {
   uses the terminal return, so this resolves `void`.)
   */
   public async deleteSession(sessionId: string): Promise<void> {
+    // A started-only reader (the native one: no delete frame was ever
+    // captured from a served CLI) refuses like no reader at all, before
+    // anything is sent that the CLI cannot answer.
     const reader = this.features.lifecycle
-    if (reader === undefined)
+    if (!isDeleteCapableReader(reader))
       throw new Error(fill(UI_TEXT.sessionDeleteUnsupported, { version: this.info.serverVersion }))
     const signal = this.deletionStopped.signal
     signal.throwIfAborted()
