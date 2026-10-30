@@ -450,6 +450,23 @@ export async function runVaultCommand(
   let code = 0
   try {
     deps.signal.throwIfAborted()
+    // D216: the person sets ceilings before any broker exists (the
+    // first-run order), so `vault policy` never opens one.
+    if (options.command === 'policy') {
+      if (options.policy === undefined) {
+        deps.print(JSON.stringify((await deps.policy.read()) ?? { ceilings: [] }))
+        return 0
+      }
+      const answer = await deps.choose(
+        `${UI_TEXT.vault.policyCeilings}: ${JSON.stringify(options.policy)}`,
+        ['allowOnce', 'deny'],
+        deps.signal,
+      )
+      deps.signal.throwIfAborted()
+      if (answer !== 'allowOnce') return 1
+      await deps.policy.write(options.policy)
+      return 0
+    }
     port = await deps.open()
     deps.signal.throwIfAborted()
     switch (options.command) {
@@ -496,24 +513,6 @@ export async function runVaultCommand(
       }
       case 'revoke': {
         await port.revoke(options.grantId)
-        break
-      }
-      case 'policy': {
-        if (options.policy === undefined) {
-          deps.print(JSON.stringify((await deps.policy.read()) ?? { ceilings: [] }))
-          break
-        }
-        const answer = await deps.choose(
-          `${UI_TEXT.vault.policyCeilings}: ${JSON.stringify(options.policy)}`,
-          ['allowOnce', 'deny'],
-          deps.signal,
-        )
-        deps.signal.throwIfAborted()
-        if (answer !== 'allowOnce') {
-          code = 1
-          break
-        }
-        await deps.policy.write(options.policy)
         break
       }
       case 'import': {

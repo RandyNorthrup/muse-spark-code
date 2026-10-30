@@ -1442,7 +1442,28 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
     ],
   },
-  { file: 'vaultExec.js', side: 'both', requestedBy: [] },
+  {
+    file: 'vaultExec.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'VAULT_EXEC_BUNDLE_FILE',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
+    file: 'vaultExecHost.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'VAULT_EXEC_HOST_BUNDLE_FILE',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
   {
     file: 'vaultMigration.js',
     side: 'vscode',

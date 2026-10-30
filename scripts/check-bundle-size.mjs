@@ -564,6 +564,10 @@ const BUDGETS = [
   // broker bindings and the vault runtime on first use. Measured
   // 7.0 KiB; plus 15%, rounded up to the 25 KiB floor.
   { path: 'dist/vaultPolicy.js', budgetKiB: 25 },
+  // RLF-M109 (D216): the headless registration/session and the feeder
+  // host port, loaded on the first headless vault use. Measured
+  // 66.3 KiB; plus 15%, rounded up.
+  { path: 'dist/vaultExecHost.js', budgetKiB: 80 },
 ]
 
 // DIET1: independently emitted optional surfaces, measured on main, each plus

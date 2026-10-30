@@ -421,6 +421,8 @@ const VAULT_RUNTIME_MIGRATION_ENTRY = 'src/runtime/vault/vaultRuntimeMigrationEn
 const VAULT_RUNTIME_MIGRATION_OUTFILE = 'dist/vaultRuntimeMigration.js'
 const VAULT_POLICY_ENTRY = 'src/runtime/vault/vaultPolicyEntry.ts'
 const VAULT_POLICY_OUTFILE = 'dist/vaultPolicy.js'
+const VAULT_EXEC_HOST_ENTRY = 'src/runtime/vault/vaultExecHostEntry.ts'
+const VAULT_EXEC_HOST_OUTFILE = 'dist/vaultExecHost.js'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
 // M95 (PLAN.md D74): exact catalogue values, with no provider runtime logic.
 // The data module uses the same verified solid archive loader as lazy bundles.
@@ -1660,6 +1662,13 @@ const vaultPolicyOptions = {
   entryPoints: [VAULT_POLICY_ENTRY],
   outfile: VAULT_POLICY_OUTFILE,
 }
+// D216: the headless registration and feeder host port, loaded by the
+// vault runtime binding and the exec entry on first vault use.
+const vaultExecHostOptions = {
+  ...acpQuestionsOptions,
+  entryPoints: [VAULT_EXEC_HOST_ENTRY],
+  outfile: VAULT_EXEC_HOST_OUTFILE,
+}
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
@@ -2351,6 +2360,7 @@ if (isWatch) {
     ['vaultRuntime', () => esbuild.build(vaultRuntimeOptions)],
     ['vaultRuntimeMigration', () => esbuild.build(vaultRuntimeMigrationOptions)],
     ['vaultPolicy', () => esbuild.build(vaultPolicyOptions)],
+    ['vaultExecHost', () => esbuild.build(vaultExecHostOptions)],
   ]
   if (!isProduction) {
     extraSpecs.push(['integrationTests', () => esbuild.build(integrationTestOptions)])
@@ -2368,6 +2378,7 @@ if (isWatch) {
   let vaultRuntime
   let vaultRuntimeMigration
   let vaultPolicy
+  let vaultExecHost
   try {
     shipped = await runBuildPool(Object.entries(shippedSpecs), BUILD_POOL_SIZE)
     ;({
@@ -2383,6 +2394,7 @@ if (isWatch) {
       vaultRuntime,
       vaultRuntimeMigration,
       vaultPolicy,
+      vaultExecHost,
     } = await runBuildPool(extraSpecs, BUILD_POOL_SIZE))
   } catch (error) {
     await esbuild.stop()
@@ -2430,6 +2442,11 @@ if (isWatch) {
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'vaultPolicy.json'),
       JSON.stringify(vaultPolicyMetafile, null, 2),
+    )
+    const { metafile: vaultExecHostMetafile } = await vaultExecHost
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'vaultExecHost.json'),
+      JSON.stringify(vaultExecHostMetafile, null, 2),
     )
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'runtimeQuestions.json'),

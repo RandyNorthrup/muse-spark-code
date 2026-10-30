@@ -4882,6 +4882,8 @@ export const VAULT_RUNTIME_BUNDLE_FILE = 'vaultRuntime.js'
 export const VAULT_EXEC_BUNDLE_FILE = 'vaultExec.js'
 /** dist/vaultPolicy.js: the person vault policy's file half, on first use. */
 export const VAULT_POLICY_BUNDLE_FILE = 'vaultPolicy.js'
+/** dist/vaultExecHost.js: the headless registration and feeder host port. */
+export const VAULT_EXEC_HOST_BUNDLE_FILE = 'vaultExecHost.js'
 // RLF-M109: the runtime key-store migration's own chunk beside the vault
 // runtime (the controller, the engine and its codecs), loaded on the first
 // unlock edge in the CLI, ACP or headless process only.

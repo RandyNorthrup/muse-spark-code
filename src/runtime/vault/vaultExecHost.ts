@@ -12,6 +12,7 @@ import { spawnGuarded } from '../../core/guardedChildProcess'
 import { probeChildEnvironment } from '../../core/executables'
 import { VaultExecService, type VaultExecHostPort } from '../../core/vault/exec/service'
 import { vaultExecEnvelopeDigest } from '../../core/vault/exec/envelopeDigest'
+import { VaultTaintSession } from '../../core/vault/taint'
 import { spawnVaultFeeder } from '../../host/vault/vaultExecSpawn'
 import { killTree, treeSpawnOptions, type ProcessTreeDeps } from '../../host/processTree'
 import { type HeadlessVaultBroker } from './execVault'
@@ -31,6 +32,12 @@ export interface HeadlessVaultExecDeps {
 
 /** One VaultExecService over the run's headless registration. */
 export function createHeadlessVaultExecService(deps: HeadlessVaultExecDeps): VaultExecService {
+  // D216 lane T: one provenance session per agent session (this service
+  // is built once per exec run and cached by its factory). The workspace
+  // is the operator's own chosen folder for the run, so it starts
+  // trusted; observations only ever add taint from there.
+  const taints = new VaultTaintSession('modelApi')
+  taints.beginRequest([], true)
   const tree: ProcessTreeDeps = {
     platform: deps.platform,
     systemRoot: deps.env['SystemRoot'],
@@ -45,7 +52,7 @@ export function createHeadlessVaultExecService(deps: HeadlessVaultExecDeps): Vau
       // git/askpass/sudo/SSH surfaces refuse here, before any ticket.
       if (use.kind !== 'environment' && use.kind !== 'stdin')
         throw new Error(UI_TEXT.vault.noAccess)
-      const result = await deps.broker.authorize(handle, use, signal)
+      const result = await deps.broker.authorize(handle, use, taints.current(), signal)
       if (result.kind !== 'ticket') throw new Error(UI_TEXT.vault.noAccess)
       return result.ticket
     },
