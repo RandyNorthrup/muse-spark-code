@@ -1,5 +1,13 @@
 # RLF-MACCRED: the macOS Muse credential file reads as recognised (RLF-HARVEST B4/H9)
 
+RVCRED (2026-10-30): a symlink is not that file. `readCredentialFile`
+now `lstat`s first and opens with `O_NOFOLLOW` where the flag exists,
+then reads only that descriptor. A link, including one whose target is
+a real inline credential file, stays `unrecognized` and the link is not
+followed. The size cap is the descriptor's size. The review record is
+`docs/certification/rvcred.md` on `rv/cred`. The empty version-2
+keychain-sign-in case on darwin stays uncaptured, as this record says.
+
 Base `lanes/rlf-harvest` 0eaf17293 (contains `int/recovery` tip
 dfd8865a9). Lane branch `rec/rlf-maccred`. Machine: the Mac mini
 (`Macmini.ivettnet`, darwin arm64). Date: 2026-10-30.
