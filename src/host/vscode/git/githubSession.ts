@@ -16,8 +16,6 @@
 //   on in user or machine settings (src/runtime/github/ghLoginSource.ts),
 //   read through the governed launcher for one call.
 
-import { existsSync, realpathSync } from 'node:fs'
-import { setTimeout as abortableSleep } from 'node:timers/promises'
 import * as vscode from 'vscode'
 import {
   SETTINGS_SECTION,
@@ -25,14 +23,9 @@ import {
   GITHUB_AUTH_PROVIDER,
   GITHUB_AUTH_SCOPES,
 } from '../../../shared/constants'
-import { NO_WORKSPACE } from '../../../core/executables'
-import { resolveExecutable } from '../../../core/execGuard'
-import { GitHubClient } from '../../../core/git/github'
 import { GitHubSignIn } from '../../../core/git/githubSignIn'
 import type { GitHubTokenSource, SettingInspection } from '../../../core/git/tokenSource'
-import { execResourceFile } from '../../../core/resources/launcher'
-import { deviceFlowSource } from '../../../runtime/github/deviceFlowSource'
-import { ghLoginSource } from '../../../runtime/github/ghLoginSource'
+import { githubAccountLogin, runtimeGitHubSources } from '../../../runtime/github/githubSources'
 import type { SecretStore } from '../../auth/credentialStore'
 import type { Logger } from '../../logger'
 
@@ -85,47 +78,24 @@ export function windowGitHubSignIn(deps: WindowGitHubSignInDeps): GitHubSignIn {
   return new GitHubSignIn({
     sources: (present) => [
       ...(hasEditorSignIn ? [vscodeSessionSource(deps.log, deps.fetch)] : []),
-      deviceFlowSource({
-        store: deps.secrets,
-        flow: {
+      ...runtimeGitHubSources(
+        {
+          store: deps.secrets,
           fetch: deps.fetch,
-          now: Date.now,
-          sleep: (ms, signal) => abortableSleep(ms, undefined, { signal }),
+          // Only the app's page on GitHub, where the grant is revoked.
+          openExternal: async (url) => {
+            await vscode.env.openExternal(vscode.Uri.parse(url))
+          },
+          setting: (): SettingInspection | undefined =>
+            vscode.workspace
+              .getConfiguration(SETTINGS_SECTION)
+              .inspect<boolean>('github.useGhLogin'),
         },
         present,
-        // Only the app's page on GitHub, where the grant is revoked.
-        openExternal: async (url) => {
-          await vscode.env.openExternal(vscode.Uri.parse(url))
-        },
-        fetch: deps.fetch,
-      }),
-      ghLoginSource({
-        setting: (): SettingInspection | undefined =>
-          vscode.workspace.getConfiguration(SETTINGS_SECTION).inspect<boolean>('github.useGhLogin'),
-        gh: () => {
-          const command = resolveExecutable('gh', {
-            platform: process.platform,
-            pathVariable: process.env['PATH'],
-            fileExists: existsSync,
-            scope: { noWorkspace: NO_WORKSPACE, realpath: realpathSync },
-          })
-          return command === undefined ? undefined : { command, args: [] }
-        },
-        run: (file, args, options) => execResourceFile('probe', file, args, options),
-        environment: () => process.env,
-        fetch: deps.fetch,
-      }),
+      ),
     ],
     now: Date.now,
-    login: async (credential) => {
-      const client = new GitHubClient({
-        fetch: credential.fetch,
-        userAgent: deps.userAgent,
-        log: deps.log,
-      })
-      const user = await client.currentUser(credential.bearer)
-      return user.login
-    },
+    login: githubAccountLogin(deps),
     log: deps.log,
   })
 }

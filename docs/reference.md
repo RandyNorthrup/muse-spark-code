@@ -4062,6 +4062,7 @@ These are defaults; editor customizations take precedence.
 - `lsp [--trust-workspace] [--tab] [options]`: Serve Tab completions to an editor over the Language Server Protocol on stdin and stdout.
 - `supervise [<command> [options]]`: Run another command of this agent so that stop can end it, with every process it started.
 - `stop`: Stop every supervised run started in this folder, with every process it started.
+- `panel --stdio [--workspace <directory>]`: Serve an editor’s Muse panel host over MHP: its conversations, and this agent’s settings and storage, for the folder it starts in.
 - `scan-secrets`: Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.
 - `providers accounts`: Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid uses billed to the default account keep this workspace’s consent; another account’s first paid use asks for that account, naming its price and the shared daily budget.
 - `developer`: Show or unlock machine-local developer options. Profile operations require a connected resource owner.
@@ -4382,6 +4383,10 @@ These are defaults; editor customizations take precedence.
 - `lsp: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
 - `lsp: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `stop: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
+- `panel: --stdio`: Speak MHP on standard input and output, one JSON message per line. `{"type":"boolean","repeatable":false,"route":"usage serve","protocol":"usageCompanion","default":false}`
+- `panel: --workspace <value>`: Use this directory as the workspace. `{"type":"string","repeatable":false}`
+- `panel: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
+- `panel: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `judge: --engine <value>`: Which judge answers: auto, same, separate or both. `{"type":"string","repeatable":false}`
 - `judge: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":false}`
 - `judge: --separate <value>`: The separate source id, without a credential. `{"type":"string","repeatable":false}`

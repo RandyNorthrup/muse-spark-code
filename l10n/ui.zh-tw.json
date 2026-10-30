@@ -869,7 +869,8 @@
     "tab-model": "Tab 補全使用的模型。",
     "tab-daily-budget-usd": "當天花費達到此美元金額時停止 Tab；預設值 0 表示不設預算。",
     "tab-max-output-tokens": "將每個 Tab 要求的輸出權杖限制為此數量；預設值 0 表示模型本身的上限。",
-    "tab-trigger": "在輸入時提供 Tab（automatic），或僅在要求時提供（onInvoke）。"
+    "tab-trigger": "在輸入時提供 Tab（automatic），或僅在要求時提供（onInvoke）。",
+    "panel-stdio": "透過標準輸入與輸出使用 MHP 通訊，每行一則 JSON 訊息。"
   },
   "referenceScanSecrets": "掃描 UTF-8 修補檔案中的秘密資訊，偵測到時以失敗結束。--key-stdin 也會檢查記憶體中的 Model API 金鑰原值；不儲存金鑰。",
   "referenceVault": "從終端機使用按使用者 credential 保管庫：設定、復原、重設、狀態、解鎖、鎖定、清單、新增、授權、稽核、匯入和監視。值永遠不會列印；由代理持有。 明確確認後，重設也可替換擁有者未知的寫入鎖。",
@@ -2182,6 +2183,9 @@
   "gitExtensionMissing": "此視窗中無法使用 VS Code 內建的 Git 延伸模組。",
   "gitExtensionDisabled": "VS Code 的 Git 已關閉（git.enabled）。",
   "gitNoRepository": "此工作區不在 VS Code 的 Git 已開啟的 git 存放庫中。",
+  "gitWorkspaceNotRepository": "此工作區不在 git 存放庫中。",
+  "gitProgramMissing": "此電腦上未安裝 Git，或它不在 PATH 中。",
+  "signOutInTerminal": "若要登出，請在終端機中執行「muse-spark-code-acp auth clear」(Model API) 或「muse logout」(Muse Code)，然後重新檢查。",
   "gitNothingToCommit": "沒有要認可的內容。",
   "gitNothingStaged": "沒有暫存任何內容。請勾選「包含未暫存的變更和新檔案」，或先暫存一些變更。",
   "gitCommitMessageEmpty": "請先撰寫認可訊息。",
@@ -4389,6 +4393,8 @@
     "noteLsp": "不使用 --tab 時不會計費，也絕不讀取認證存放區。使用它時，每個新價格都會先在編輯器中詢問；僅在使用 --trust-workspace 時才提供「在此工作區中一律允許」。",
     "purposeSupervise": "執行此代理程式的另一個命令，讓 stop 能連同其啟動的所有程序一起結束它。",
     "purposeStop": "停止在此資料夾中啟動的每個受監督執行，連同其啟動的所有程序。",
+    "purposePanel": "透過 MHP 為編輯器的 Muse 面板主機提供服務：其對話，以及此代理程式在其啟動資料夾中的設定與儲存空間。",
+    "notePanel": "在這裡寫入的設定就是此代理程式自己讀取的設定：使用者設定保存在資料資料夾的 settings.json 與 resources.json 中。決定執行什麼或計費什麼的設定只屬於你，並拒絕工作區範圍。從不儲存任何金鑰或權杖。",
     "purposeSetup": "執行 Setup 鉤子並結束。",
     "purposeUsage": "顯示各模型的用量與費用。",
     "purposeResources": "顯示電腦負載與最近歷程紀錄。",
@@ -6755,6 +6761,11 @@
       "other": "有 {count} 個受監督執行未能完整停止。"
     },
     "unavailable": "此安裝中沒有監督功能。"
+  },
+  "hostService": {
+    "unavailable": "此安裝中無法使用執行階段面板。",
+    "needsStdio": "panel 需要 --stdio：編輯器的主機透過標準輸入與輸出與它通訊。",
+    "notAvailable": "此功能在此編輯器中暫時無法使用。"
   },
   "acpConnector": {
     "title": "核准連接器要求",

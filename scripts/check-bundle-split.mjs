@@ -1175,6 +1175,7 @@ for (const file of MODEL_API_SESSIONS_ONLY) {
 // conversation Git bundle keeps its checked loader and the route's types.
 const NATIVE_GIT_ONLY = [
   'src/runtime/panel/git/nativeGitEntry.ts',
+  'src/runtime/panel/git/panelGit.ts',
   'src/runtime/panel/git/adapter.ts',
   'src/runtime/panel/git/service.ts',
   'src/runtime/panel/git/transaction.ts',

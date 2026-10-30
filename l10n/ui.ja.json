@@ -869,7 +869,8 @@
     "tab-model": "Tab 補完が使用するモデルです。",
     "tab-daily-budget-usd": "この金額 (米ドル) に達したらその日の Tab を停止します。既定の 0 は予算を設定しません。",
     "tab-max-output-tokens": "各 Tab リクエストの出力トークン数をこの値に制限します。既定の 0 はモデル自身の上限です。",
-    "tab-trigger": "入力中に Tab を提供する (automatic) か、要求したときだけ提供する (onInvoke) かを選びます。"
+    "tab-trigger": "入力中に Tab を提供する (automatic) か、要求したときだけ提供する (onInvoke) かを選びます。",
+    "panel-stdio": "標準入力と標準出力で MHP を話します。1 行に 1 つの JSON メッセージです。"
   },
   "referenceScanSecrets": "UTF-8 のパッチファイルから秘密情報を検出し、見つかった場合は失敗終了します。--key-stdin はメモリ内の Model API キーそのものも検索します。キーは保存されません。",
   "referenceVault": "ターミナルからユーザーごとの資格情報 Vault を操作します: 設定、復旧、リセット、状態、ロック解除、ロック、一覧、追加、付与、監査、インポート、監視。値は決して表示されません。ブローカーが保持します。 明示的に確認すると、リセットで所有者不明の書き込みロックも置き換えられます。",
@@ -2182,6 +2183,9 @@
   "gitExtensionMissing": "このウィンドウでは VS Code の組み込み Git 拡張機能を使用できません。",
   "gitExtensionDisabled": "VS Code の Git はオフになっています (git.enabled)。",
   "gitNoRepository": "このワークスペースは、VS Code の Git が開いている git リポジトリ内にありません。",
+  "gitWorkspaceNotRepository": "このワークスペースは git リポジトリ内にありません。",
+  "gitProgramMissing": "このコンピューターに Git がインストールされていないか、PATH に含まれていません。",
+  "signOutInTerminal": "サインアウトするには、ターミナルで「muse-spark-code-acp auth clear」(Model API)または「muse logout」(Muse Code)を実行してから、もう一度確認してください。",
   "gitNothingToCommit": "コミットするものはありません。",
   "gitNothingStaged": "ステージされている変更はありません。「ステージされていない変更と新しいファイルを含める」をオンにするか、先に変更をステージしてください。",
   "gitCommitMessageEmpty": "先にコミット メッセージを入力してください。",
@@ -4389,6 +4393,8 @@
     "noteLsp": "--tab がない場合は何も請求されず、資格情報ストアも読み取りません。指定した場合、新しい価格ごとに最初にエディターで確認します。「このワークスペースでは常に許可」は --trust-workspace を指定したときだけ表示されます。",
     "purposeSupervise": "このエージェントの別のコマンドを、stop で起動したすべてのプロセスごと終了できるように実行します。",
     "purposeStop": "このフォルダーで開始した監督付きの実行を、起動したすべてのプロセスごと停止します。",
+    "purposePanel": "エディターの Muse パネルのホストに MHP で応答します。起動したフォルダーについて、会話と、このエージェントの設定およびストレージを提供します。",
+    "notePanel": "ここで書き込んだ設定は、このエージェント自身が読む設定です。ユーザー設定はデータフォルダーの settings.json と resources.json に保存されます。何を実行するか、何に課金するかを決める設定はあなただけのもので、ワークスペースのスコープは拒否されます。キーやトークンは決して保存されません。",
     "purposeSetup": "Setup フックを実行して終了します。",
     "purposeUsage": "モデル全体の使用量と費用を表示します。",
     "purposeResources": "マシンの負荷と最近の履歴を表示します。",
@@ -6755,6 +6761,11 @@
       "other": "監督付きの実行 {count} 件を完全には停止できませんでした。"
     },
     "unavailable": "このインストールでは監督機能を利用できません。"
+  },
+  "hostService": {
+    "unavailable": "このインストールではランタイム パネルを使用できません。",
+    "needsStdio": "panel には --stdio が必要です。エディターのホストは標準入力と標準出力で通信します。",
+    "notAvailable": "この機能は、このエディターではまだ利用できません。"
   },
   "acpConnector": {
     "title": "コネクターの要求を承認",

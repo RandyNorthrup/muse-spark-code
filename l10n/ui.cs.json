@@ -881,7 +881,8 @@
     "tab-model": "Model, který doplňování Tab používá.",
     "tab-daily-budget-usd": "Zastavit Tab na zbytek dne při této částce v amerických dolarech; 0, výchozí hodnota, žádný rozpočet nenastavuje.",
     "tab-max-output-tokens": "Omezit každý požadavek Tab na tento počet výstupních tokenů; 0, výchozí hodnota, je vlastní maximum modelu.",
-    "tab-trigger": "Poskytovat Tab během psaní (automatic) nebo jen na vyžádání (onInvoke)."
+    "tab-trigger": "Poskytovat Tab během psaní (automatic) nebo jen na vyžádání (onInvoke).",
+    "panel-stdio": "Mluvit MHP na standardním vstupu a výstupu, jedna zpráva JSON na řádek."
   },
   "referenceScanSecrets": "Prohledejte soubor opravy v UTF-8 na tajné údaje; při nálezu skončí příkaz chybou. --key-stdin také hledá přesný klíč Model API držený v paměti; klíč se neukládá.",
   "referenceVault": "Pracujte s trezorem pověření pro jednotlivé uživatele z terminálu: nastavení, obnova, obnovení výchozího stavu, stav, odemknutí, uzamknutí, seznam, přidání, granty, audit, import a sledování. Hodnoty se nikdy netisknou; drží je zprostředkovatel. Reset může po výslovném potvrzení také nahradit neznámou vlastnickou blokaci zápisu.",
@@ -2248,6 +2249,9 @@
   "gitExtensionMissing": "Vestavěné rozšíření Git ve VS Code není v tomto okně k dispozici.",
   "gitExtensionDisabled": "Git ve VS Code je vypnutý (git.enabled).",
   "gitNoRepository": "Tento pracovní prostor není v úložišti git, které má Git ve VS Code otevřené.",
+  "gitWorkspaceNotRepository": "Tento pracovní prostor není v úložišti git.",
+  "gitProgramMissing": "Git není v tomto počítači nainstalován nebo není v proměnné PATH.",
+  "signOutInTerminal": "Pro odhlášení spusťte v terminálu „muse-spark-code-acp auth clear“ (Model API) nebo „muse logout“ (Muse Code) a poté zkontrolujte znovu.",
   "gitNothingToCommit": "Není co potvrdit.",
   "gitNothingStaged": "Nic není připravené. Zaškrtněte „Zahrnout nepřipravené změny a nové soubory“, nebo nejdříve nějaké změny připravte.",
   "gitCommitMessageEmpty": "Nejdříve napište zprávu potvrzení.",
@@ -4635,6 +4639,8 @@
     "noteLsp": "Bez --tab se nic neúčtuje a úložiště přihlašovacích údajů se nikdy nečte. S ním se každá nová cena nejprve zeptá v editoru; Vždy povolit v tomto pracovním prostoru se nabízí jen s --trust-workspace.",
     "purposeSupervise": "Spustí jiný příkaz tohoto agenta tak, aby ho stop mohl ukončit se všemi procesy, které spustil.",
     "purposeStop": "Zastaví každý dohlížený běh spuštěný v této složce se všemi procesy, které spustil.",
+    "purposePanel": "Obsluhovat hostitele panelu Muse v editoru přes MHP: jeho konverzace a také nastavení a úložiště tohoto agenta pro složku, ve které se spustí.",
+    "notePanel": "Nastavení zapsané zde je to, které čte sám tento agent: uživatelská nastavení zůstávají v souborech settings.json a resources.json v datové složce. Nastavení, která určují, co se spouští nebo co se účtuje, patří jen vám a rozsah pracovního prostoru odmítají. Žádný klíč ani token se nikdy neukládá.",
     "purposeSetup": "Spustí hooky Setup a skončí.",
     "purposeUsage": "Zobrazit využití a náklady všech modelů.",
     "purposeResources": "Zobrazit zatížení počítače a nedávnou historii.",
@@ -7286,6 +7292,11 @@
       "many": "{count} dohlíženého běhu se nepodařilo zastavit celé."
     },
     "unavailable": "Dohled není v této instalaci k dispozici."
+  },
+  "hostService": {
+    "unavailable": "Běhový panel není v této instalaci k dispozici.",
+    "needsStdio": "panel potřebuje --stdio: hostitel editoru s ním mluví na standardním vstupu a výstupu.",
+    "notAvailable": "Tato funkce zatím není v tomto editoru dostupná."
   },
   "acpConnector": {
     "title": "Schválit požadavky konektoru",

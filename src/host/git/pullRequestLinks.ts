@@ -4,6 +4,7 @@
 // the pull request only; its status is read from GitHub each time.
 
 import { WORKSPACE_STATE_KEYS } from '../../shared/constants'
+import type { PullRequestLinkStore } from '../../core/git/runtimeGit'
 import {
   parsePullRequestLinkRecords,
   prunePullRequestLinks,
@@ -54,5 +55,13 @@ export class PullRequestLinks {
     // A failed caller still receives its rejection; later saves can retry.
     this.pendingWrite = settled(write)
     return write
+  }
+}
+
+/** The runtime Git adapter's link store over a window's links (the repository root names the window). */
+export function pullRequestLinkStoreOf(links: PullRequestLinks): PullRequestLinkStore {
+  return {
+    get: (_root, sessionId) => Promise.resolve(links.get(sessionId)),
+    set: (_root, sessionId, link) => links.set(sessionId, link),
   }
 }

@@ -1469,6 +1469,40 @@ export const PAID_DAILY_BUDGET = {
   stopDirectory: 'stopped',
 } as const
 export const RUNTIME_SETTINGS_FILE = 'settings.json'
+// The resource governor's machine settings, beside settings.json (M107).
+export const RUNTIME_RESOURCE_SETTINGS_FILE = 'resources.json'
+// M104 lane B: the runtime panel's state. User settings stay in the two
+// files above; a workspace's own settings and both storage scopes are these
+// files, the workspace's in its folder of the agent data folder.
+export const RUNTIME_PANEL_STATE = {
+  workspaceSettingsFile: 'settings.json',
+  storageFile: 'panel-storage.json',
+  fileMode: 0o600,
+  // One writer per file across processes: the runtime's named lock (a pipe
+  // on Windows, a socket in this folder under /tmp elsewhere), one name per
+  // file from the start of its path's SHA-256.
+  lockPipe: 'muse-spark-panel-state',
+  lockFolder: 'muse-spark-panel-state',
+  lockIdChars: 16,
+} as const
+// The settings a runtime panel's backend is built from (M104 lane B): a change
+// to one ends the conversations on the old backend and starts them on a new one.
+export const RUNTIME_PANEL_RECONFIGURE_SETTINGS: readonly string[] = [
+  'museSpark.backend',
+  'museSpark.museBinaryPath',
+  'museSpark.shellSandbox',
+  'museSpark.environmentVariables',
+  'museSpark.shell.passEnvironmentVariables',
+  'museSpark.sandboxNetwork',
+  'museSpark.confidentialWorkspace',
+  'museSpark.modelApiHooks',
+  'museSpark.modelApiCommandRules',
+  'museSpark.modelApiPermissionProfiles',
+  'museSpark.modelApiPermissionProfile',
+  'museSpark.modelApiRepositoryRules',
+  'museSpark.modelApiRepoMap',
+  'museSpark.modelApiObservationPacking',
+]
 // D208: each process's running total for a day lives in this folder of the day's scope.
 export const DAILY_SPEND_FOLDER = 'spent'
 export const SPEND_LEDGER_ESTIMATE_MARGIN_PERCENT = 25
@@ -11296,6 +11330,12 @@ export const VAULT_TOTP_PERIOD_SECONDS = 30
 // documents, requests or runs.
 export const LSP_BUNDLE_FILE = 'lsp.js'
 export const SUPERVISE_BUNDLE_FILE = 'supervise.js'
+// M104 lane B: the runtime panel, loaded only by `panel`.
+export const RUNTIME_PANEL_BUNDLE_FILE = 'runtimePanel.js'
+// Its conversations (the controller's host, the backend and the editor's ports), loaded when the handshake is done.
+export const RUNTIME_PANEL_SESSION_BUNDLE_FILE = 'runtimePanelSession.js'
+// Its heavier ports (saved plans), required the first time one is used.
+export const RUNTIME_PANEL_PORTS_BUNDLE_FILE = 'runtimePanelPorts.js'
 /** Each workspace's keyed Tab Always record (RVM94KR2), in the agent's data folder. */
 export const LSP_TAB_CONSENT_FOLDER = 'tab-consent'
 /** A header block past this is malformed input (the common 8 KiB HTTP header bound). */

@@ -74,18 +74,23 @@ export interface ResourceSettingOrigin {
   readonly workspaceFolderValue?: unknown
 }
 export type ResourceSettingsReader = (key: string) => ResourceSettingOrigin | undefined
+/**
+Each governor field's setting. The runtime keeps these in its own machine
+file (`resources.json`), apart from its other settings, so its settings
+store routes exactly these names there (M104 lane B).
+*/
+export const RESOURCE_SETTING_KEYS = {
+  enabled: 'resourceGovernor',
+  cpuMaxPercent: 'resourceCpuMaxPercent',
+  memoryMaxPercent: 'resourceMemoryMaxPercent',
+  memoryMinFreeGiB: 'resourceMemoryMinFreeGiB',
+  gpuMaxPercent: 'resourceGpuMaxPercent',
+  diskBusyMaxPercent: 'resourceDiskBusyMaxPercent',
+  diskMinFreeGiB: 'resourceDiskMinFreeGiB',
+  relocate: 'resourceRelocate',
+} as const
 export function readResourceSettings(inspect: ResourceSettingsReader): ResourceSettings {
-  const keys = {
-    enabled: 'resourceGovernor',
-    cpuMaxPercent: 'resourceCpuMaxPercent',
-    memoryMaxPercent: 'resourceMemoryMaxPercent',
-    memoryMinFreeGiB: 'resourceMemoryMinFreeGiB',
-    gpuMaxPercent: 'resourceGpuMaxPercent',
-    diskBusyMaxPercent: 'resourceDiskBusyMaxPercent',
-    diskMinFreeGiB: 'resourceDiskMinFreeGiB',
-    relocate: 'resourceRelocate',
-  }
-  const entries = Object.entries(keys).map(([field, key]) => {
+  const entries = Object.entries(RESOURCE_SETTING_KEYS).map(([field, key]) => {
     const origin = inspect(key)
     return [field, origin?.globalValue === undefined ? origin?.defaultValue : origin.globalValue]
   })
