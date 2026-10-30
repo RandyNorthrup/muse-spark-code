@@ -29,7 +29,12 @@ import {
   toSkillSummary,
   workflowControlResultSchema,
 } from '../../src/core/backends/musecode/MuseCodeHost'
-import { mapNotification, UNKNOWN_METHOD } from '../../src/core/backends/musecode/mapNotification'
+import {
+  BranchObservationFilter,
+  branchObservationOf,
+  mapNotification,
+  UNKNOWN_METHOD,
+} from '../../src/core/backends/musecode/mapNotification'
 import { sessionClosedSchema } from '../../src/core/backends/musecode/sessionRecords'
 import {
   acquireHookProcessSlot,
@@ -45,7 +50,7 @@ import {
   SUBAGENT_CAPACITY,
   museCodeLoadedSessionCeiling,
 } from '../../src/shared/constants'
-import { UI_TEXT } from '../../src/shared/constants'
+import { MSP_KNOWN_SCHEMA_FINGERPRINTS, UI_TEXT } from '../../src/shared/constants'
 import type { ShellResult } from '../../src/core/shellResult'
 
 function fixture(name: string): unknown {
@@ -158,6 +163,17 @@ describe('recorded initialize', () => {
     // Requested but not granted by this host: rename stays behind the
     // platform gate, never assumed from the request.
     expect(init.grantedCapabilities).not.toContain('sessionRename')
+  })
+  it('knows the 1.4.7 schema the harvest lanes served, so its start is no warning', () => {
+    // Recorded 2026-10-30 from the pinned 1.4.7-R6101.1 binary over the echo
+    // provider (provenance.json `harvest147`); the same fingerprint is the
+    // `served` half of the mismatch warning in 156 harvest lane logs.
+    const init = fixture('initialize-1.4.7.json') as {
+      serverInfo: { version: string }
+      schema: { fingerprint: string }
+    }
+    expect(init.serverInfo.version).toBe('1.4.7')
+    expect(MSP_KNOWN_SCHEMA_FINGERPRINTS[init.schema.fingerprint]).toBe('1.4.7-R6101.1')
   })
 })
 
@@ -312,6 +328,34 @@ describe('new notifications', () => {
       event: { type: 'backendNotice', level: 'info', text: UI_TEXT.sessionBranchChanged },
     })
   })
+  it('shows a branch once per change, not once per observation', () => {
+    // The two recorded frames observe the same branch at sequences 4 and 12:
+    // the second is no change, so a person is told once (RLF-HARVEST: lane
+    // finals repeated "branch changed" for the branch they already named).
+    const frames = fixture('note-session-branchChanged-1.4.9.json') as Record<string, unknown>[]
+    const filter = new BranchObservationFilter()
+    const shown = frames.filter((params) => {
+      const observation = branchObservationOf({ method: 'session/branchChanged', params })
+      return (
+        observation !== undefined && filter.shouldShow(observation.sessionId, observation.branch)
+      )
+    })
+    expect(shown).toHaveLength(1)
+    const id = (frames[0] as { sessionId: string }).sessionId
+    expect(filter.shouldShow(id, 'other-branch')).toBe(true)
+    expect(filter.shouldShow(id, 'other-branch')).toBe(false)
+    expect(filter.shouldShow(id, null)).toBe(true)
+    expect(filter.shouldShow(id, null)).toBe(false)
+    expect(filter.shouldShow('another-session', null)).toBe(true)
+    filter.forget(id)
+    expect(filter.shouldShow(id, null)).toBe(true)
+    expect(
+      branchObservationOf({ method: 'turn/started', params: { sessionId: id } }),
+    ).toBeUndefined()
+    expect(
+      branchObservationOf({ method: 'session/branchChanged', params: { sessionId: id } }),
+    ).toBeUndefined()
+  })
   it('shows view-health moves with the served word', () => {
     expect(
       mapNotification({
@@ -344,14 +388,20 @@ describe('new notifications', () => {
       },
     })
   })
-  it('says why the turn indicator keeps spinning', () => {
+  it('says why the turn indicator keeps spinning, naming who blocks it', () => {
+    // The recorded frame is held open by `goal-reminder`, not by checks:
+    // the notice names the blockers the wire sent (RLF-HARVEST).
     for (const params of fixture('note-turn-foregroundCompleted-1.4.9.json') as Record<
       string,
       unknown
     >[]) {
       expect(mapNotification({ method: 'turn/foregroundCompleted', params })).toEqual({
         sessionId: (params as { sessionId: string }).sessionId,
-        event: { type: 'backendNotice', level: 'info', text: UI_TEXT.turnForegroundCompleted },
+        event: {
+          type: 'backendNotice',
+          level: 'info',
+          text: `${UI_TEXT.turnForegroundCompleted} (goal-reminder)`,
+        },
       })
     }
   })

@@ -524,9 +524,22 @@ function rawNotification(notification: WireNotification): MapOutcome {
       }
     }
     case 'turn/foregroundCompleted': {
+      const { sessionId, blockingAgents } = params as z.infer<
+        (typeof schemas)['turn/foregroundCompleted']
+      >
       return {
-        sessionId: params.sessionId,
-        event: { type: 'backendNotice', level: 'info', text: UI_TEXT.turnForegroundCompleted },
+        sessionId,
+        event: {
+          type: 'backendNotice',
+          level: 'info',
+          // The wire names who still holds the turn open (recorded:
+          // `goal-reminder`); the notice names them instead of calling
+          // every blocker a check (RLF-HARVEST).
+          text:
+            blockingAgents.length === 0
+              ? UI_TEXT.turnForegroundCompleted
+              : `${UI_TEXT.turnForegroundCompleted} (${blockingAgents.join(', ')})`,
+        },
       }
     }
     case 'session/closed': {
@@ -754,6 +767,43 @@ export function mapNotification(notification: WireNotification): MapOutcome {
   return typeof mapped === 'string' || !('event' in mapped)
     ? mapped
     : { ...mapped, event: redactDiagnosticEvent(mapped.event) }
+}
+
+/** A parsed `session/branchChanged` observation; undefined for any other frame or shape. */
+export function branchObservationOf(
+  notification: WireNotification,
+): { readonly sessionId: string; readonly branch: string | null } | undefined {
+  if (notification.method !== 'session/branchChanged') {
+    return undefined
+  }
+  const parsed = schemas['session/branchChanged'].safeParse(notification.params)
+  return parsed.success
+    ? { sessionId: parsed.data.sessionId, branch: parsed.data.branch }
+    : undefined
+}
+
+/**
+Muse Code re-observes a session's branch without it moving (recorded
+1.4.9: the same branch at sequences 4 and 12), so the change notice shows
+once per branch per session, never once per observation (RLF-HARVEST:
+finals repeated "branch changed" naming the branch already shown).
+*/
+export class BranchObservationFilter {
+  private readonly shown = new Map<string, string | null>()
+
+  /** True the first time a session's branch reads `branch`; a repeat says nothing new. */
+  public shouldShow(sessionId: string, branch: string | null): boolean {
+    if (this.shown.has(sessionId) && this.shown.get(sessionId) === branch) {
+      return false
+    }
+    this.shown.set(sessionId, branch)
+    return true
+  }
+
+  /** The session is gone: a later session under the same id starts unread. */
+  public forget(sessionId: string): void {
+    this.shown.delete(sessionId)
+  }
 }
 
 /** Only a harness-deferred id changes M46's captured clarified outcome. Future words pass through. */

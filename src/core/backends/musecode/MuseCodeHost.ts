@@ -149,6 +149,8 @@ import type { CoreLogger } from '../../logging'
 import { wireWordForLog } from '../../logging'
 import { notify } from '../../events/notify'
 import {
+  BranchObservationFilter,
+  branchObservationOf,
   MALFORMED_PARAMS,
   mapNotification,
   type MappedNotification,
@@ -2975,6 +2977,8 @@ export class MuseCodeHost implements AgentHost {
   private readonly unclaimed = new Map<string, MappedNotification[]>()
   /** Methods already logged as unshown or malformed: one line each per host (D26). */
   private readonly loggedMethods = new Set<string>()
+  /** Branch observations already shown, per session (RLF-HARVEST). */
+  private readonly branchObservations = new BranchObservationFilter()
   /** Told once each time Muse Code stops answering (the watchdog, CLI recovery). */
   private readonly unresponsiveListeners = new Set<() => void>()
   /** The deadlines, log and watchdog every command on this connection shares. */
@@ -3120,6 +3124,15 @@ export class MuseCodeHost implements AgentHost {
 
   /** A session's notification to its handle; false when nothing can show it. */
   private deliver(notification: WireNotification, isReplay = false): boolean {
+    // A branch re-observation is handled by not repeating the notice; a
+    // malformed one falls through to the mapper, which reports its shape.
+    const branch = branchObservationOf(notification)
+    if (
+      branch !== undefined &&
+      !this.branchObservations.shouldShow(branch.sessionId, branch.branch)
+    ) {
+      return true
+    }
     const mapped = mapNotification(notification)
     if (mapped === UNKNOWN_METHOD || mapped === MALFORMED_PARAMS) {
       this.noteUnmapped(notification.method, mapped)
@@ -3368,6 +3381,7 @@ export class MuseCodeHost implements AgentHost {
       this.channel,
       () => {
         this.sessions.delete(record.sessionId)
+        this.branchObservations.forget(record.sessionId)
       },
       this.info.grantedCapabilities.includes(MSP_USER_SHELL_CAPABILITY),
       this.usageRecording === undefined
