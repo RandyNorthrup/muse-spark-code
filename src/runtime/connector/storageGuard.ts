@@ -82,7 +82,9 @@ function windowsShell(): { readonly file: string; readonly env: GuardedChildEnv 
 // The single path arrives as base64 JSON in $inputPath; no caller text is
 // ever interpolated into the script. Protection on, every grant removed,
 // the current user set as owner with full control, then the live descriptor
-// is read back. A reparse point is reported, never secured.
+// is read back. A reparse point is reported, never secured. It uses the CLR
+// alone, like the tree read below: the Get-Acl and Set-Acl cmdlets load their
+// module on first use, about 0.2 s of every start.
 const WINDOWS_SECURE_SCRIPT = `
 $ErrorActionPreference = 'Stop'
 $me = [Security.Principal.WindowsIdentity]::GetCurrent().User
@@ -91,7 +93,7 @@ if (($seen -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
   @{ reparse = $true } | ConvertTo-Json -Compress
   return
 }
-$acl = Get-Acl -LiteralPath $inputPath.path
+if ($inputPath.directory) { $acl = [IO.Directory]::GetAccessControl($inputPath.path) } else { $acl = [IO.File]::GetAccessControl($inputPath.path) }
 $acl.SetAccessRuleProtection($true, $false)
 foreach ($rule in @($acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]))) { [void]$acl.RemoveAccessRuleSpecific($rule) }
 $acl.SetOwner($me)
@@ -99,8 +101,7 @@ $inherit = [Security.AccessControl.InheritanceFlags]::None
 if ($inputPath.directory) { $inherit = [Security.AccessControl.InheritanceFlags]'ContainerInherit, ObjectInherit' }
 $grant = [Security.AccessControl.FileSystemAccessRule]::new($me, [Security.AccessControl.FileSystemRights]::FullControl, $inherit, [Security.AccessControl.PropagationFlags]::None, [Security.AccessControl.AccessControlType]::Allow)
 $acl.AddAccessRule($grant)
-Set-Acl -LiteralPath $inputPath.path -AclObject $acl
-$read = Get-Acl -LiteralPath $inputPath.path
+if ($inputPath.directory) { [IO.Directory]::SetAccessControl($inputPath.path, $acl); $read = [IO.Directory]::GetAccessControl($inputPath.path) } else { [IO.File]::SetAccessControl($inputPath.path, $acl); $read = [IO.File]::GetAccessControl($inputPath.path) }
 $grants = @($read.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]) | ForEach-Object { @{ sid = $_.IdentityReference.Value; inherited = $_.IsInherited; allow = ($_.AccessControlType -eq 'Allow'); full = ($_.FileSystemRights -eq 'FullControl'); rights = [int]$_.FileSystemRights } })
 @{ reparse = $false; owner = $read.GetOwner([Security.Principal.SecurityIdentifier]).Value; me = $me.Value; locked = $read.AreAccessRulesProtected; grants = $grants } | ConvertTo-Json -Compress -Depth 5
 `

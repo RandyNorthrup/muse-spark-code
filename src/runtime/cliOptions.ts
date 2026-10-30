@@ -457,13 +457,18 @@ export function formatCommandHelp(table: UiText, command: string, route: string)
     authGitHub: 'auth github login|logout|status',
   }
   const lines = [`${command} ${localUsage[route] ?? name}`]
-  if (definition === undefined) {
+  // A route whose options table holds only --help (its grammar is positional)
+  // lists nothing below its first line, so the table's usage sentence says it.
+  const isHelpOnly =
+    definition !== undefined && Object.keys(definition.options).every((flag) => flag === 'help')
+  if (definition === undefined || isHelpOnly) {
     const usage: Readonly<Record<string, string>> = {
       providersList: table.referenceProviders,
       providersTest: table.referenceProviders,
       providersRefresh: table.referenceProviders,
       providersRemove: table.referenceProviders,
       providersUsage: table.referenceProvidersUsage,
+      providersHeaders: table.providerHeaders.usage,
       openRouterConnect: table.providerOpenRouterServices,
       helpTopic: table.referenceBriefHelp,
       authGitHub: table.referenceAuthGitHub,

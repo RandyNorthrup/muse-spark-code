@@ -386,6 +386,10 @@ happened, not what was planned; superseded entries are kept.
   question was asked first, and denying it snoozed Tab for the window. The
   secret now stops the request before the question, so the question comes
   only with a request that can be sent.
+- `providers headers --help` says how to use the command. Its help screen
+  listed only its own name and `--help`; it now also gives the usage line
+  (`providers headers <id> [set|unset <name>]`, a value read from standard
+  input).
 - The usage page's installed font pack is read only from version folders
   inside the fonts folder: a version folder that is a link (a junction on
   Windows) to somewhere else is skipped, as a linked file already was.

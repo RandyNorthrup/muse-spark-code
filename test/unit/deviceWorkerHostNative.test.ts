@@ -23,6 +23,7 @@ import { deviceCheck, deviceGrant } from './helpers/deviceFixtures'
 import { launchedJob } from './helpers/deviceWorkerReceiver'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
+import { setTimeout as delay } from 'node:timers/promises'
 import { createInterface } from 'node:readline'
 import { build } from 'esbuild'
 import { deviceWorkerLinux } from '../../src/host/backend/deviceWorkerLinux'
@@ -77,6 +78,21 @@ async function isPresent(file: string): Promise<boolean> {
     return true
   } catch {
     return false
+  }
+}
+const PRESENT_POLL_MS = 50
+/**
+Waits until a job's child has written its marker. The scheduler starts that
+process: about 0.1 s on an idle machine, as long as the machine needs on a
+loaded one. The wait has no bound of its own (expect.poll gives up after one
+second): the case's deadline ends it, through the abort signal vitest raises
+when the case times out, so a slow start is waited for and a process that
+never starts still fails the case.
+*/
+async function untilPresent(file: string, signal: AbortSignal): Promise<void> {
+  while (!(await isPresent(file))) {
+    signal.throwIfAborted()
+    await delay(PRESENT_POLL_MS)
   }
 }
 // Reads the OS job itself (JOBOBJECT_EXTENDED_LIMIT_INFORMATION), not the helper's request file.
@@ -252,14 +268,16 @@ describe.skipIf(process.platform !== 'win32')('M100/H real Windows scheduled wor
       await job.remove()
     }
   })
-  it('keeps the helper awake, samples the whole job, and cancels descendants as a job', async () => {
+  it('keeps the helper awake, samples the whole job, and cancels descendants as a job', async ({
+    signal,
+  }) => {
     const native = driver()
     const marker = path.join(scratch.directory, 'running-tree')
     const script = `require('node:child_process').spawn(process.execPath,['-e','setInterval(()=>{},100)'],{stdio:'ignore',detached:true}).unref();require('node:fs').writeFileSync(${JSON.stringify(marker)},'ready');setInterval(()=>{},100)`
     const job = await launchScript(native, script)
     try {
       await job.activate()
-      await expect.poll(() => isPresent(marker)).toBe(true)
+      await untilPresent(marker, signal)
       expect(await native.query()).toMatchObject({
         sleepInhibited: true,
         activeProcesses: expect.any(Number),
