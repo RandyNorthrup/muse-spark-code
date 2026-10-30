@@ -104,6 +104,47 @@ through the real billing route and transport is byte-identical except
 `Authorization` and the record's per-request ids. Keys
 `test-only-golden-key-a/b` never leave the test file.
 
+### Related run (`vitest related`, 37 changed sources, repo default timeouts)
+
+950 files, 25,234 tests: 906 files / 24,725 tests passed, 44 files /
+83 tests failed. Triage, every file accounted for:
+
+- Fixed by this lane (3): `browserEnglish` (the header read
+  `UI_TEXT.developer.badge` from startup English, which must never
+  carry the deferred developer group — `developerReply` now carries
+  the host's localized badge text, and the page loader awaits the
+  deferred English it reads), `packagedBundles` (lazy registry
+  regenerated for `webview/developerOptions.js` by the documented
+  process, absorbing five already-stale foreign rows),
+  `cx1r2Truth` (the M108 roadmap row keeps its in-progress form).
+- Failing identically at the merge base `d4761ac59`, verified file
+  by file in a scratch worktree (16): `commandHelp` (`judge` help),
+  `sessionDelete`, `bookmarkPanel`, `acpServeHandshake`,
+  `connectorStorageGuard`, `crashMarker`, `createdRegistryRace`,
+  `execTeamSweep`, `pathGuard`, `resourceCreatedSweep`,
+  `resourceHandoffDeadline`, `resourceStatusCpu`,
+  `reviewMaterialProbes`, `scheduleFireFailures`, `teamStartup`,
+  `playbookSchedulesInputs`.
+- Environmental on this Mac (no browser, clang/xcrun EPERM, `ps`
+  denied, no Windows, no pinned zopfli, sandbox process semantics)
+  (11): `devicesPhase2Harness`, `feedbackBrowser`,
+  `teamModelsFirstPaint`, `judgeLocalDarwin`, `teamWorkerCreate`,
+  `treesLifecycleNative`, `pathGuardRound4`, `macRss`,
+  `windowsPowerShellModules`, `vsixCompression`,
+  `vault/writerCrashPosix`.
+- Foreign drift in other lanes' code and text (14): the four
+  estimator suites, `judgeLocalConfig`, `judgePanel`, `judgeTable`,
+  `judgeUsage`, `manifest`, `planReader`, and four vault suites
+  (socket directory, credential migration, panel build, store
+  scope). None touches this lane's files.
+- The run pulled `credentialLease` in (11 passed, 2 skipped): it
+  writes only a throwaway keychain service
+  (`KEYRING_SERVICE.test.*`) and deletes its entries in cleanup;
+  no owner credential was touched. `keyringParts` and
+  `keystoreOwner` skipped themselves on this machine;
+  `providerHeadersStore` did not run. RLVAULTANCHOR has landed
+  (`69101ccbc`), so the vault suites' run was permitted.
+
 ### Suites (this rig, repo default timeouts, ≤3 files/run)
 
 - `accountPlacement` (10), `accountsHandlerErrors` (6),
