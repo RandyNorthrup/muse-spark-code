@@ -3,14 +3,16 @@
 // notes, the Chrome and NVIDIA choices), the review with the recovery key
 // shown once, and the done page. Every interpolated value is escaped;
 // secrets are never echoed back, only their presence.
+import { MUSE_TERMS_URL } from '../../../shared/constants'
 import { fill, formatBytes, uiLocale, UI_TEXT } from '../../../shared/l10n/text'
 import type { DiskCandidate } from './disks'
-import type { SetupChoices } from './schemas'
+import type { MuseCodeInstalled, SetupChoices } from './schemas'
 import type { SetupState } from './setupStore'
 
 /**
 Vendor terms, verified live 2026-10-23 (HTTP 200; titles in the OS7 cert
-record). The URLs themselves are the link text, so no language needs a
+record), Meta's 2026-10-30 (HTTP 200; "Legal", last updated October 9,
+2026). The URLs themselves are the link text, so no language needs a
 new word for them.
 */
 const CHROME_TERMS_URL = 'https://www.google.com/chrome/terms/'
@@ -67,6 +69,7 @@ export interface WizardPrefill {
   readonly sshKey: string
   readonly chrome: string
   readonly nvidia: string
+  readonly museCode: string
 }
 
 /** Prefill a fresh wizard from the consumed seed. */
@@ -80,6 +83,7 @@ export function seedPrefill(state: SetupState): WizardPrefill {
     sshKey: state.seedSshKeys.join('\n'),
     chrome: 'skip',
     nvidia: 'skip',
+    museCode: 'skip',
   }
 }
 
@@ -91,6 +95,8 @@ export interface WizardInput {
   readonly prefill: WizardPrefill
   readonly sshError: boolean
   readonly formError: string | null
+  /** A failed Muse Code install names its stable reason; the person retries or skips. */
+  readonly installError: string | null
 }
 
 function checked(isChecked: boolean): string {
@@ -111,6 +117,10 @@ export function wizardPage(input: WizardInput): string {
     input.formError === null
       ? ''
       : `<p role="alert">${escapeHtml(fill(text.setupFailed, { reason: input.formError }))}</p>`
+  const installError =
+    input.installError === null
+      ? ''
+      : `<p role="alert">${escapeHtml(fill(text.museCodeFailed, { reason: input.installError }))}</p>`
   const sshError = input.sshError ? `<p role="alert">${escapeHtml(text.sshKeyInvalid)}</p>` : ''
   const options = input.disks
     .map(
@@ -120,7 +130,7 @@ export function wizardPage(input: WizardInput): string {
     .join('')
   return document(
     text.setupTitle,
-    `<h1>${escapeHtml(text.setupTitle)}</h1>${error}${seedNote}` +
+    `<h1>${escapeHtml(text.setupTitle)}</h1>${error}${installError}${seedNote}` +
       `<form method="post" action="/choices">` +
       `<input type="hidden" name="code" value="${escapeHtml(input.code)}">` +
       `<section><h2>${escapeHtml(text.netTitle)}</h2>` +
@@ -161,6 +171,12 @@ export function wizardPage(input: WizardInput): string {
       `${escapeHtml(text.nvidiaAccept)}</label>` +
       `<label><input type="radio" name="nvidia" value="skip"${checked(prefill.nvidia !== 'install')}> ` +
       `${escapeHtml(text.skipStep)}</label></section>` +
+      `<section><h2>${escapeHtml(text.museCodeTitle)}</h2><p>${escapeHtml(text.museCodeTerms)} ${termsLink(MUSE_TERMS_URL)}</p>` +
+      `<p>${escapeHtml(text.museCodeLocation)}</p>` +
+      `<label><input type="radio" name="museCode" value="install"${checked(prefill.museCode === 'install')}> ` +
+      `${escapeHtml(text.museCodeAccept)}</label>` +
+      `<label><input type="radio" name="museCode" value="skip"${checked(prefill.museCode !== 'install')}> ` +
+      `${escapeHtml(text.skipStep)}</label></section>` +
       `<button type="submit">${escapeHtml(text.continueButton)}</button></form>`,
   )
 }
@@ -193,6 +209,7 @@ export function reviewPage(input: ReviewInput): string {
   const encryption = encryptionLabels[input.choices.disk.encryption]
   const chrome = input.choices.chrome === 'install' ? text.chromeAccept : text.skipStep
   const nvidia = input.choices.nvidia === 'install' ? text.nvidiaAccept : text.skipStep
+  const museCode = input.choices.museCode === 'install' ? text.museCodeAccept : text.skipStep
   const sshLines = input.choices.sshKey
     .split('\n')
     .map((line) => line.trim())
@@ -207,7 +224,8 @@ export function reviewPage(input: ReviewInput): string {
       `<dt>${escapeHtml(text.diskTpmPin)}</dt><dd>${escapeHtml(input.tpmPinSet ? MASKED_VALUE : text.skipStep)}</dd>` +
       `<dt>${escapeHtml(text.sshTitle)}</dt><dd>${ssh}</dd>` +
       `<dt>${escapeHtml(text.chromeTitle)}</dt><dd>${escapeHtml(chrome)}</dd>` +
-      `<dt>${escapeHtml(text.nvidiaTitle)}</dt><dd>${escapeHtml(nvidia)}</dd></dl>` +
+      `<dt>${escapeHtml(text.nvidiaTitle)}</dt><dd>${escapeHtml(nvidia)}</dd>` +
+      `<dt>${escapeHtml(text.museCodeTitle)}</dt><dd>${escapeHtml(museCode)}</dd></dl>` +
       `<p>${escapeHtml(encryption)}</p>` +
       `<section><h2>${escapeHtml(text.recoveryKeyTitle)}</h2>` +
       `<p>${escapeHtml(text.recoveryKeyWarning)}</p><pre>${escapeHtml(input.recoveryKey)}</pre></section>` +
@@ -217,12 +235,19 @@ export function reviewPage(input: ReviewInput): string {
   )
 }
 
-/** The done page: setup is complete and the code is dead. */
-export function donePage(): string {
+/**
+The done page: setup is complete and the code is dead. The installed Muse
+Code version rides along when the step ran; a skipped step reports nothing.
+*/
+export function donePage(museCodeInstall: MuseCodeInstalled | null = null): string {
   const text = UI_TEXT.nodeOs
+  const report =
+    museCodeInstall === null
+      ? ''
+      : `<p>${escapeHtml(fill(text.museCodeInstalled, { version: museCodeInstall.version }))}</p>`
   return document(
     text.setupTitle,
-    `<h1>${escapeHtml(text.setupTitle)}</h1><p>${escapeHtml(text.setupDone)}</p>`,
+    `<h1>${escapeHtml(text.setupTitle)}</h1><p>${escapeHtml(text.setupDone)}</p>${report}`,
   )
 }
 

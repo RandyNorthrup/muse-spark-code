@@ -7,6 +7,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import path from 'node:path'
 import { HTTP_STATUS } from '../../../shared/constants'
 import { listDisks } from './disks'
+import { installMuseCode } from './installMuseCode'
 import {
   codePage,
   donePage,
@@ -42,6 +43,10 @@ export interface SetupServerOptions {
   /** Deployment-set bound on POST bodies (companionUpload's maxBytes precedent). */
   readonly maxBodyBytes: number
   readonly sysfsRoot: string
+  /** The home the Muse Code step installs into (Meta's $HOME/.local/bin default). */
+  readonly museCodeHome: string
+  /** Deployment-set bound on the whole Muse Code step. */
+  readonly museCodeTimeoutMs: number
 }
 
 export interface SetupServer {
@@ -75,9 +80,12 @@ export async function createSetupServer(options: SetupServerOptions): Promise<Se
     options.port > TCP_MAX_PORT ||
     !Number.isSafeInteger(options.maxBodyBytes) ||
     options.maxBodyBytes <= 0 ||
+    !Number.isSafeInteger(options.museCodeTimeoutMs) ||
+    options.museCodeTimeoutMs <= 0 ||
     !path.isAbsolute(options.stateDir) ||
     !path.isAbsolute(options.bootDir) ||
-    !path.isAbsolute(options.sysfsRoot)
+    !path.isAbsolute(options.sysfsRoot) ||
+    !path.isAbsolute(options.museCodeHome)
   ) {
     throw new Error('Invalid setup server configuration')
   }
@@ -174,6 +182,7 @@ function fieldsOf(body: URLSearchParams): ChoiceFields {
     sshKey: body.get('sshKey') ?? '',
     chrome: body.get('chrome') ?? 'skip',
     nvidia: body.get('nvidia') ?? 'skip',
+    museCode: body.get('museCode') ?? 'skip',
   }
 }
 
@@ -202,6 +211,7 @@ function choicesOf(fields: ChoiceFields): ChoicesResult {
     sshKey: sshLines.join('\n'),
     chrome: fields.chrome,
     nvidia: fields.nvidia,
+    museCode: fields.museCode,
   })
   if (!checked.success) {
     const path = checked.error.issues[0]?.path.join('-') ?? 'choices'
@@ -230,7 +240,11 @@ async function handleRequest(
       send(response, HTTP_STATUS.internalServerError, failedPage('setup-state'))
       return
     }
-    send(response, HTTP_STATUS.ok, state.completed ? donePage() : codePage(null))
+    send(
+      response,
+      HTTP_STATUS.ok,
+      state.completed ? donePage(state.museCodeInstall) : codePage(null),
+    )
     return
   }
   if (pathname !== '/code' && pathname !== '/choices' && pathname !== '/complete') {
@@ -254,14 +268,14 @@ async function handleRequest(
     return
   }
   if (state.completed) {
-    send(response, HTTP_STATUS.ok, donePage())
+    send(response, HTTP_STATUS.ok, donePage(state.museCodeInstall))
     return
   }
   if (pathname === '/code') {
     const accepted = acceptSetupCode(state, fields.code)
     if (!accepted.ok) {
       if (accepted.reason === 'completed') {
-        send(response, HTTP_STATUS.ok, donePage())
+        send(response, HTTP_STATUS.ok, donePage(state.museCodeInstall))
         return
       }
       send(response, HTTP_STATUS.ok, codePage(accepted.reason))
@@ -278,6 +292,7 @@ async function handleRequest(
         prefill: seedPrefill(accepted.state),
         sshError: false,
         formError: null,
+        installError: null,
       }),
     )
     return
@@ -298,11 +313,50 @@ async function handleRequest(
           prefill: seedPrefill(state),
           sshError: false,
           formError: null,
+          installError: null,
         }),
       )
       return
     }
-    saveSetupState(options.stateDir, completeSetup(state))
+    // D227: the chosen CLI installs now, while the person watches for its
+    // report. A failure re-renders the wizard with its reason (nothing is
+    // recorded and the code still opens the setup), so the person retries
+    // the step or skips it; only an installed CLI completes.
+    if (state.choices.museCode === 'install') {
+      const installed = await installMuseCode({
+        homeDir: options.museCodeHome,
+        timeoutMs: options.museCodeTimeoutMs,
+      })
+      if (!installed.ok) {
+        send(
+          response,
+          HTTP_STATUS.ok,
+          wizardPage({
+            state,
+            code: fields.code,
+            disks: listDisks(options.sysfsRoot),
+            prefill: {
+              networkKind: state.choices.network.kind,
+              ssid: state.choices.network.kind === 'wifi' ? state.choices.network.ssid : '',
+              diskTarget: state.choices.disk.target,
+              encryption: state.choices.disk.encryption,
+              sshKey: state.choices.sshKey,
+              chrome: state.choices.chrome,
+              nvidia: state.choices.nvidia,
+              museCode: state.choices.museCode,
+            },
+            sshError: false,
+            formError: null,
+            installError: installed.reason,
+          }),
+        )
+        return
+      }
+      saveSetupState(options.stateDir, completeSetup(state, installed))
+      send(response, HTTP_STATUS.ok, donePage(installed))
+      return
+    }
+    saveSetupState(options.stateDir, completeSetup(state, null))
     send(response, HTTP_STATUS.ok, donePage())
     return
   }
@@ -323,9 +377,11 @@ async function handleRequest(
           sshKey: fields.sshKey,
           chrome: fields.chrome,
           nvidia: fields.nvidia,
+          museCode: fields.museCode,
         },
         sshError: result.reason === 'ssh-key',
         formError: result.reason === 'ssh-key' ? null : result.reason,
+        installError: null,
       }),
     )
     return
