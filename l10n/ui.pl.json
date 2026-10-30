@@ -5367,6 +5367,7 @@
   "teamRunnerUnavailable": "Narzędzie {tool} jest niedostępne: moduł wykonawczy zespołu nie został załadowany w tym oknie.",
   "teamPlanShown": "Pokazano plan zespołu; nic nie uruchomiono.",
   "teamTasksStarted": "Uruchomione zadania zespołu: {count}",
+  "teamTasksQueued": "Zadania zespołu w kolejce: {count}",
   "teamMergeRework": "Scalanie napotkało konflikty: zadanie wróciło do poprawki.",
   "teamTaskUnknown": "To zadanie zespołu nie jest otwarte w tym oknie.",
   "teamWaitingUnknown": "Nic już nie czeka na tę odpowiedź.",

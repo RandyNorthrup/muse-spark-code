@@ -6,6 +6,41 @@ import {
   type TeamSchedulerEvent,
   type TeamTrafficMetrics,
 } from '../../shared/team'
+import type { TeamMergeQueueEvent } from './teamHostService'
+
+/** Merge-queue transitions as scheduler/accounting events: enqueue waits as
+`ready` (so depth counts the review-to-landing wait), recorded landings
+replace worker end times, returns count as `candidateReturned`, and
+withdrawals close the wait as `finished`. Attempt numbers below 1 are
+reported as the first attempt; the engine drops events for unknown tasks. */
+export function mergeQueueMetricEvents(
+  log: readonly TeamMergeQueueEvent[],
+  input: { workspaceId: string; attemptOf: (taskId: string) => number },
+): TrafficMetricSource['events'] {
+  return log.map((entry) => {
+    const attempt = Math.max(1, input.attemptOf(entry.taskId))
+    const base = {
+      workspaceId: input.workspaceId,
+      taskId: entry.taskId,
+      attempt,
+      at: entry.at,
+    }
+    switch (entry.kind) {
+      case 'enqueued': {
+        return { ...base, kind: 'ready' as const }
+      }
+      case 'landed': {
+        return { ...base, kind: 'landed' as const }
+      }
+      case 'returned': {
+        return { ...base, kind: 'candidateReturned' as const, reason: entry.reason ?? 'rework' }
+      }
+      case 'withdrawn': {
+        return { ...base, kind: 'finished' as const }
+      }
+    }
+  })
+}
 
 /** Final ledger rows, including every attempt and review charged to a change.
 Ledger adapters deduplicate append-only updates by task/attempt before use.

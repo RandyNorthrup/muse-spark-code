@@ -147,9 +147,30 @@ function calleeName(expression) {
   return ts.isPropertyAccessExpression(target) ? target.name.text : undefined
 }
 
+/**
+The team scheduler's failure port, verified by reading its production
+binding: `SchedulerDependencies.failure` (teamPool.ts) and
+`TeamSchedulingDeps.failure` (teamScheduling.ts) are bound in teamHost.ts
+to `deps.log.warn(describeError(error))`, and describeError passes the
+message through redactSecrets. Scoped to `deps`/`this.deps` receivers with
+the error itself passed, the same bar as the other sinks, so an unrelated
+`failure()` cannot bless a handler.
+*/
+function isFailurePortCall(node, binding) {
+  if (!ts.isCallExpression(node)) return false
+  const target = unparen(node.expression)
+  if (!ts.isPropertyAccessExpression(target) || target.name.text !== 'failure') return false
+  const receiver = unparen(target.expression)
+  const isDepsReceiver =
+    (ts.isIdentifier(receiver) && receiver.text === 'deps') ||
+    (ts.isPropertyAccessExpression(receiver) && receiver.name.text === 'deps')
+  return isDepsReceiver && node.arguments.some((argument) => carriesCause(argument, binding))
+}
+
 /** A call that funnels the error into a sink: `report(kind, error)`. */
 function isErrorSinkCall(node, binding) {
   if (!ts.isCallExpression(node)) return false
+  if (isFailurePortCall(node, binding)) return true
   const name = calleeName(node.expression)
   if (name === undefined) return false
   if (ERROR_SINK_FNS.has(name))

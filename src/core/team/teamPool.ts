@@ -8,6 +8,7 @@ import type {
 } from '../../shared/teamPreference'
 import { Usd, type UsdAmount } from '../../shared/usd'
 import { UI_TEXT, TEAM_SCHED_TICK_MS } from '../../shared/constants'
+import { detectStall } from './scheduler/stalls'
 import { fill, formatNumber } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
 import { type TeamAttempt, type TeamBoard, type TeamBoardTask } from '../../shared/team'
@@ -724,6 +725,20 @@ export interface SchedulerDependencies {
   authorize(task: TeamBoardTask, entry: SchedulerEntry): Promise<boolean>
   journal(board: TeamBoard): Promise<void>
   /**
+  A running attempt stopped emitting activity: the owner aborts and
+  retires it through the normal teardown, which reaches the retry pin.
+  Best effort; a throw never breaks the drain.
+  */
+  onStallDetected?(ref: { readonly taskId: string; readonly attempt: number }): Promise<void>
+  /**
+  The durable compare-and-set before launch: the stored board must still
+  name this window's ownership claim. Two windows that read the same state
+  cannot both start the same attempt number: the loser journals second,
+  sees the winner's claim, and closes without launching. Absent means the
+  window owns its board alone.
+  */
+  verifyOwnership?(task: TeamBoardTask): Promise<boolean>
+  /**
   Resolve on launch admission, not on the worker's eventual completion.
   A host that passes role policies for cross-role steals runs a
   stolen task under the carried policy, never under either role alone.
@@ -764,6 +779,8 @@ interface DrainWaiter {
 export class TeamScheduler {
   private readonly picker = new TaskPicker()
   private readonly leases = new Map<string, { release(): void }>()
+  /** Last real activity per attempt: starts, usage reports, heartbeats. */
+  private readonly activity = new Map<string, number>()
   private sweep: (() => void) | undefined
   /** Present while one drain owns the board: the wakes that joined it. */
   private draining: DrainWaiter[] | undefined
@@ -811,10 +828,50 @@ export class TeamScheduler {
     const task = this.board.task(ref.taskId)
     return (
       this.canDispatch() &&
+      !task.held &&
       task.state === 'running' &&
       task.currentAttempt === ref.attempt &&
       task.attempts.at(-1)?.state === 'running'
     )
+  }
+
+  /**
+  Feed the stall detector from real activity. Only the no-progress rule
+  applies here: the scheduler knows model-call counts but not the
+  worker's step budget, and crash detection stays with native lifetime.
+  */
+  private async detectStalls(): Promise<void> {
+    if (this.deps.onStallDetected === undefined) return
+    const now = this.deps.now()
+    for (const task of this.board.snapshot().tasks) {
+      if (task.state !== 'running') continue
+      const attempt = task.attempts.at(-1)
+      if (attempt?.state !== 'running') continue
+      const key = this.key({ taskId: task.id, attempt: attempt.number })
+      const lastEventAt = Math.max(attempt.startedAt, this.activity.get(key) ?? attempt.startedAt)
+      const stall = detectStall(
+        {
+          lastEventAt,
+          isWorkLeft: true,
+          requestCount: attempt.usage.modelCalls,
+          requestCeiling: Number.MAX_SAFE_INTEGER,
+          isOwnStepLimit: false,
+          isUsageLimited: false,
+          isRetryBudgetSpent: false,
+          isProcessExited: false,
+          hasReport: false,
+        },
+        now,
+      )
+      if (stall !== 'noProgress') continue
+      try {
+        await this.deps.onStallDetected({ taskId: task.id, attempt: attempt.number })
+      } catch (error: unknown) {
+        this.deps.failure(error)
+        // Detection is best effort: a failed handoff retries on the next
+        // sweep and must never break the drain.
+      }
+    }
   }
 
   private isActive(ref: SlotRequest): boolean {
@@ -915,11 +972,47 @@ export class TeamScheduler {
   }
 
   /**
+  Settle this launch's counted admission when it ends before the worker is
+  invoked. A live attempt closes as notStarted and is refunded once; an
+  attempt `restore` interrupted while the launch journal was pending closes
+  the same way, and its "slots remain counted" notice goes with it; an
+  attempt the owner already closed is refunded once. Anything else is left
+  for the caller: the launch gate keeps its uncertain liability there, and
+  a throwing journal rethrows untouched. `closed` means the caller must
+  clear its counted flag; `retired` leaves the gate's release to run.
+  */
+  private settleUnspawned(taskId: string, ref: SlotRequest): 'closed' | 'retired' | 'open' {
+    const live = this.board.task(taskId)
+    const last = live.attempts.at(-1)
+    if (last?.number !== ref.attempt || live.currentAttempt !== ref.attempt) return 'open'
+    if (live.state === 'running' && last.state === 'running') {
+      this.board.cancelUnstarted(taskId, ref.attempt)
+      return 'closed'
+    }
+    if (live.state === 'blocked' && last.state === 'interrupted') {
+      this.board.cancelInterrupted(taskId, ref.attempt)
+      return 'closed'
+    }
+    if (last.state === 'retired') {
+      this.board.refundUnspawned(taskId, ref.attempt)
+      return 'retired'
+    }
+    return 'open'
+  }
+
+  /**
   Admission, then the final gate. After consent, one synchronous step ranks
   the task against live facts and counts the attempt; after the launch
   journal, the gate only validates what that step reserved and starts the
   worker with no await between them. A refused reservation is closed and
-  refunded exactly; the slot and lease go back with it.
+  refunded exactly; the slot and lease go back with it. Pause, Stop, an
+  owner hold, an owner close or a restore during the journal never spawns:
+  a live attempt closes as notStarted and is refunded once, a
+  restore-interrupted one closes the same way with its notice, and an
+  owner-closed one is refunded once; any other state keeps the existing
+  uncertain liability. A journal write that throws ends the same way, with
+  no uncertain liability, and rethrows. A hold arriving after the worker
+  starts is the spawned-work path, never this refund.
   */
   private async launch(
     reservation: LaunchReservation,
@@ -978,27 +1071,65 @@ export class TeamScheduler {
           accuracy: 'reported',
         },
       }
-      if (!this.board.begin(current.id, attempt)) return
+      // A ready task whose prior attempt is uncertain reached ready only
+      // through a quarantined replacement (prepareNext): begin it as one.
+      if (!this.board.begin(current.id, attempt, current.attempts.at(-1)?.state === 'uncertain'))
+        return
       isCounted = true
+      this.noteActivity({ taskId: current.id, attempt: ref.attempt })
       const loan = this.board.task(current.id).loan
       if (loan?.attempt === ref.attempt && loan.candidateId === entry.id) reservation.loan = loan
       this.borrowing?.started(current, entry, attempt.startedAt)
-      await this.deps.journal(this.board.snapshot())
-      // Pause or Stop while journalling must still prevent a launch.
+      try {
+        await this.deps.journal(this.board.snapshot())
+      } catch (error) {
+        // The launch never left the journal await, so the worker was never
+        // invoked: a failed write carries no uncertain liability. Settle the
+        // admission exactly as a refused launch would, then rethrow. The
+        // closing write is skipped: the journal just failed, and the next
+        // wake journals fresh when it re-admits.
+        if (this.settleUnspawned(current.id, ref) === 'closed') isCounted = false
+        throw error
+      }
+      // Every transition that starts an attempt is a compare-and-set on the
+      // attempt number made under the ownership lease: re-read the stored
+      // claim after journalling, and close without launching when another
+      // window won it. A refused reservation is refunded exactly.
+      if (this.deps.verifyOwnership !== undefined && !(await this.deps.verifyOwnership(current))) {
+        if (this.settleUnspawned(current.id, ref) === 'closed') isCounted = false
+        // Otherwise not a closable unspawned admission; the attempt stays
+        // for explicit recovery.
+        await this.deps.journal(this.board.snapshot())
+        return
+      }
+      // Pause, Stop, an owner hold, an owner close or a restore while
+      // journalling must still prevent a launch. The worker was never
+      // invoked, so a live attempt closes as notStarted and is refunded once,
+      // a restore-interrupted one closes the same way with its notice, and an
+      // owner-closed one is refunded once; the slot and lease go back
+      // through the release below. Any other state keeps the existing
+      // uncertain liability.
       if (!this.canLaunch(ref)) {
-        if (this.board.task(current.id).attempts.at(-1)?.state === 'running') {
-          isHeld = false
-          this.slots.mark(ref, 'uncertain')
-          this.leases.set(this.key(ref), lease)
-          this.board.finishAttempt(current.id, ref.attempt, { state: 'uncertain' })
-          this.board.transition(
-            current.id,
-            ref.attempt,
-            'blocked',
-            this.deps.now(),
-            UI_TEXT.teamTrafficNotices.queuePaused,
-          )
-          await this.deps.uncertain(ref)
+        const settled = this.settleUnspawned(current.id, ref)
+        if (settled === 'closed') {
+          isCounted = false
+        } else if (settled === 'open') {
+          const live = this.board.task(current.id)
+          const last = live.attempts.at(-1)
+          if (last?.state === 'running') {
+            isHeld = false
+            this.slots.mark(ref, 'uncertain')
+            this.leases.set(this.key(ref), lease)
+            this.board.finishAttempt(current.id, ref.attempt, { state: 'uncertain' })
+            this.board.transition(
+              current.id,
+              ref.attempt,
+              'blocked',
+              this.deps.now(),
+              UI_TEXT.teamTrafficNotices.queuePaused,
+            )
+            await this.deps.uncertain(ref)
+          }
         }
         await this.deps.journal(this.board.snapshot())
         return
@@ -1102,6 +1233,25 @@ export class TeamScheduler {
     this.draining = []
     await this.drain()
     await this.borrowing?.deliver()
+    // The sweep feeds the stall detector through every drain: a worker that
+    // stops emitting while its run is pending is noticed here. It runs after
+    // the drain (never before the join) so concurrent wakes keep one owner.
+    await this.detectStalls()
+  }
+
+  /**
+  Register a restored write lease in the same release table new
+  reservations use: retirement releases recovered slots, so one table
+  owns every held lease.
+  */
+  adoptLease(ref: Pick<SlotRequest, 'taskId' | 'attempt'>, lease: { release(): void }): void {
+    const key = this.key(ref)
+    if (!this.leases.has(key)) this.leases.set(key, lease)
+  }
+
+  /** Real worker activity for the stall detector: starts, usage, heartbeats. */
+  noteActivity(ref: Pick<SlotRequest, 'taskId' | 'attempt'>): void {
+    this.activity.set(this.key(ref), this.deps.now())
   }
 
   async retired(ref: Pick<SlotRequest, 'taskId' | 'attempt'>): Promise<void> {
@@ -1111,6 +1261,7 @@ export class TeamScheduler {
     this.slots.release(ref, 'retired')
     this.leases.get(this.key(ref))?.release()
     this.leases.delete(this.key(ref))
+    this.activity.delete(this.key(ref))
     await this.deps.journal(this.board.snapshot())
     await this.wake()
   }

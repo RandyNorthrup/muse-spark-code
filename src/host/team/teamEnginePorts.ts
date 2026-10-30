@@ -10,6 +10,7 @@ import { mkdir, realpath } from 'node:fs/promises'
 import {
   UI_TEXT,
   PERMISSION_MODES,
+  TEAM_HANDOFF_MODEL_TEXT,
   TEAM_MODEL_TEXT,
   TEAM_ROLE_TOOLSETS,
   TEAM_TASK_MAX_REQUESTS_DEFAULT,
@@ -464,7 +465,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
         const handoff =
           handoffData === undefined
             ? ''
-            : `\n\n${TEAM_MODEL_TEXT.handoffDataOpen}\n${JSON.stringify(handoffData)}\n${TEAM_MODEL_TEXT.handoffDataClose}`
+            : `\n\n${TEAM_HANDOFF_MODEL_TEXT.handoffDataOpen}\n${JSON.stringify(handoffData)}\n${TEAM_HANDOFF_MODEL_TEXT.handoffDataClose}`
         result = await runEngineWorker({
           task: {
             taskId: spec.taskId,

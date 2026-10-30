@@ -14,6 +14,7 @@ import {
 } from '../../core/resources/admission'
 import { UI_TEXT } from '../../shared/constants'
 import { handleTrafficMessage, handleRunnersMessage } from '../modelsPanelTraffic'
+import { dispatchTeamTraffic, readTeamTraffic } from '../team/teamTrafficDispatch'
 import { setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 
@@ -44,5 +45,7 @@ export function createTeamRunnersRuntime(table: UiText, locale: string) {
     },
     handleTrafficMessage,
     handleRunnersMessage,
+    readTeamTraffic,
+    dispatchTeamTraffic,
   }
 }

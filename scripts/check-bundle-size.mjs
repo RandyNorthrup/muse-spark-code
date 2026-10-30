@@ -270,6 +270,16 @@ const BUDGETS = [
   // M120CAP (2026-10-10): scheduler 65,533 B after sharing team tools;
   // retain M96c X2's original cap. Receipt: docs/certification/m120-s.md.
   { path: 'dist/teamScheduler.js', budgetKiB: 75 },
+  // RLF-TEAMCORE (M96c): the window-owned scheduler binding split out of
+  // dist/teamScheduler.js, first window-scheduler action. Measured 49,841
+  // bytes (48.7 KiB, production build on macmini, 2026-10-30) x 1.15 =
+  // 56.0 KiB, rounded up to the next 25 KiB multiple (PLAN.md D6).
+  { path: 'dist/teamWindow.js', budgetKiB: 75 },
+  // RLF-TEAMCORE (M96c): checked, journalled landing and owner-store
+  // recovery split out of dist/teamHost.js, first landing action. Measured
+  // 61,885 bytes (60.4 KiB, production build on macmini, 2026-10-30) x 1.15
+  // = 69.5 KiB, rounded up to the next 25 KiB multiple (PLAN.md D6).
+  { path: 'dist/teamLanding.js', budgetKiB: 75 },
   // M91 lane W: the imported hooks' adapters (lane P's contracts and engine),
   // loaded the first time a session holding one runs a hook: 64.9 KiB when
   // split out (2026-10-04). 85.7 KiB once the imported records' reader moved

@@ -5256,6 +5256,7 @@
   "teamRunnerUnavailable": "{tool} n’est pas disponible : le moteur d’exécution de l’équipe n’a pas été chargé dans cette fenêtre.",
   "teamPlanShown": "Plan de l’équipe affiché ; rien n’a démarré.",
   "teamTasksStarted": "Tâches d’équipe démarrées : {count}",
+  "teamTasksQueued": "Tâches d’équipe en file d’attente : {count}",
   "teamMergeRework": "La fusion a rencontré des conflits : la tâche est renvoyée pour reprise.",
   "teamTaskUnknown": "Cette tâche d’équipe n’est pas ouverte dans cette fenêtre.",
   "teamWaitingUnknown": "Plus rien n’attend cette réponse.",

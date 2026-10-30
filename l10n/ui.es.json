@@ -5256,6 +5256,7 @@
   "teamRunnerUnavailable": "{tool} no está disponible: el ejecutor del equipo no se ha cargado en esta ventana.",
   "teamPlanShown": "Plan del equipo mostrado; no se inició nada.",
   "teamTasksStarted": "Tareas del equipo iniciadas: {count}",
+  "teamTasksQueued": "Tareas del equipo en cola: {count}",
   "teamMergeRework": "La fusión encontró conflictos: la tarea volvió para rehacerse.",
   "teamTaskUnknown": "Esa tarea del equipo no está abierta en esta ventana.",
   "teamWaitingUnknown": "Ya no hay nada esperando esta respuesta.",

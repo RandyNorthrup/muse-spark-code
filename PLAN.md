@@ -1259,6 +1259,10 @@ deferred-aggregate and individual caps are unchanged.
 
 **`dist/teamScheduler.js` budget rationale.** (M96c: first scheduler action; original 57.8 KiB measured by the same rule)
 
+**`dist/teamWindow.js` budget rationale.** (RLF-TEAMCORE, M96c: first window-scheduler action; 48.7 KiB measured by the same rule)
+
+**`dist/teamLanding.js` budget rationale.** (RLF-TEAMCORE, M96c: first checked landing; 60.4 KiB measured by the same rule)
+
 **`dist/review.js` budget rationale.** (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)
 
 **`dist/pageWorker.js` budget rationale.** (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)
@@ -16733,7 +16737,7 @@ Prerequisite: team integration (M96).
 
 ### M96c — Scheduler and traffic (D75)
 
-**Status 2026-10-10 (corrects 2026-10-09: the section certification checklist below is still open): building.** Scheduler, scheduler-tool, merge-queue, Traffic-view, runner, collision and orchestration lanes integrated with their review repairs and lazy package adapters; complete integration certified on macmini. Not in a release yet.
+**Status 2026-10-30 (RLF-TEAMCORE: M96c ported onto RLM96's team core on int/recovery; the section certification checklist below is still open): building.** One launch architecture (the host's `pump()` over the window scheduler's wake, `finalAdmit` before any worker starts), one hook system, the ordered merge queue, Traffic projection/dispatch with the retirement assembly, M107 governor joins and owner-store landing recovery with confirmed takeover, proven by real-process pause-before-rename, killed-lander, crash-recovery and throughput suites (`docs/certification/rlf-teamcore.md`). Teams stay behind the release latch; not in a release yet.
 
 **M96CINT round 2 integration (2026-10-05).** Finish the existing partial
 integration by merging reviewed C (`52d04b69`) and then O (`19bb0703`) with

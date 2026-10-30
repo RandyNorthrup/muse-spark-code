@@ -1,8 +1,11 @@
+import type { TeamPaidPort } from './teamHostService'
+import type { TeamToolContext } from './teamSeams'
 import type { UsdAmount } from '../../shared/usd'
 // Paid team pricing and grant scopes load with the team runtime (M96, D6).
 import {
   MODEL_API_PRICES_PER_MILLION,
   MODEL_API_PRICE_DECIMALS,
+  TEAM_MODEL_TEXT,
   UI_TEXT,
 } from '../../shared/constants'
 import { fill, formatNumber } from '../../shared/l10n/text'
@@ -138,4 +141,30 @@ export function teamWorkerScopes(tasks: readonly TeamWorkerConfirmation[]): read
       tier === undefined ? null : MODEL_API_PRICES_PER_MILLION[tier],
     ])
   })
+}
+
+/** Both dispatch paths use the same pre-consent cancellation boundary. */
+export async function hasTeamTaskConsent(
+  paid: TeamPaidPort,
+  confirmations: readonly TeamWorkerConfirmation[],
+  context: TeamToolContext,
+): Promise<boolean> {
+  context.signal.throwIfAborted()
+  return confirmations.length === 0 || (await paid.allowKeyTasks(confirmations, undefined, context))
+}
+
+/**
+Both dispatch paths refuse key-paid work the same way: no consent, no
+dispatch, and a close, abort or trust lapse while confirming stops too.
+Returns the refusal text, or undefined when the quoted spend may start.
+*/
+export async function refuseKeySpend(
+  paid: TeamPaidPort,
+  confirmations: readonly TeamWorkerConfirmation[],
+  context: TeamToolContext,
+  isStopped: () => boolean,
+): Promise<string | undefined> {
+  if (!(await hasTeamTaskConsent(paid, confirmations, context)))
+    return TEAM_MODEL_TEXT.hostPaidDeclined
+  return isStopped() ? TEAM_MODEL_TEXT.hostStopped : undefined
 }

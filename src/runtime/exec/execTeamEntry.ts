@@ -404,6 +404,8 @@ export async function createExecTeam(
         (await service?.teamRunner.cancel(args, context)) ?? unavailable('cancel'),
       merge: async (args, context) =>
         (await service?.teamRunner.merge(args, context)) ?? unavailable('merge'),
+      reschedule: async (args, context) =>
+        (await service?.teamRunner.reschedule(args, context)) ?? unavailable('reschedule'),
     },
     prepare: (model) =>
       track(

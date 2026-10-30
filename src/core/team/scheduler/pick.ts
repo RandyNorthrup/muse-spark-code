@@ -3,9 +3,7 @@ import { isDependencySatisfied } from './dependencies'
 import { stealPolicy, type StolenPolicy } from './steal'
 import type { RoleDefinition } from '../roles'
 
-/** Input is M96c's already eligible, fairly ordered local work; keep that order.
-@unwired M96c scheduler ready-work picker
-*/
+/** Input is M96c's already eligible, fairly ordered local work; keep that order. */
 export function pickResourceReady<T extends { readonly kind: 'worker' | 'check' }>(
   ordered: readonly T[],
   capacity: TeamCapacityPort,
@@ -41,6 +39,9 @@ export interface SchedulerEntry {
   eligible(task: TeamBoardTask): boolean
 }
 export interface PickContext {
+  /** The person's machine-resource governor (M107): picks keep their fair
+  order, but only resource-ready work starts. Absent, nothing is gated. */
+  capacity?: TeamCapacityPort | undefined
   /** Lane W supplies the installed facts; absent keeps D75 ranking unchanged. */
   selection?(task: TeamBoardTask): TeamSelectionSnapshot
   selected?(task: TeamBoardTask, selection: TeamSelection): void
@@ -255,8 +256,13 @@ export class TaskPicker {
 
   pick(tasks: readonly TeamBoardTask[], context: PickContext): ScoredPick | undefined {
     const ranked = this.rank(tasks, context)
+    // The governor join (M107): fair order stands, but a pick the machine
+    // cannot resource right now waits for the next sweep instead of starting.
+    const isReady = (item: ScoredPick): boolean =>
+      context.capacity === undefined ||
+      pickResourceReady([{ ...item, kind: 'worker' as const }], context.capacity) !== undefined
     const starved = ranked.find((item) => item.starved)
-    if (starved) return starved
+    if (starved && isReady(starved)) return starved
     const sessions = new Set(ranked.map((item) => item.task.parentSessionId))
     let chosen: string | undefined
     let best = -Infinity
@@ -278,6 +284,12 @@ export class TaskPicker {
     this.credits.set(chosen, best - total)
     for (const session of this.credits.keys())
       if (!sessions.has(session)) this.credits.delete(session)
-    return ranked.find((item) => item.task.parentSessionId === chosen)
+    const sessionPicks = ranked.filter((item) => item.task.parentSessionId === chosen)
+    return context.capacity === undefined
+      ? sessionPicks[0]
+      : pickResourceReady(
+          sessionPicks.map((item) => ({ ...item, kind: 'worker' as const })),
+          context.capacity,
+        )
   }
 }
