@@ -6151,7 +6151,8 @@
     "addProfile": "Lokales Profil hinzufügen",
     "helpUnlock": "Klicken Sie siebenmal auf die Version oder verwenden Sie den Befehl Entwickleroptionen zum Entsperren.",
     "helpTerminal": "Führen Sie `developer` zum Entsperren aus; `developer status` zeigt die Optionen dieses Rechners.",
-    "commandUsage": "Aufruf: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
+    "commandUsage": "Aufruf: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]",
+    "versionLine": "Version {version}"
   },
   "mcpConnectorTitle": "MCP-Connector für andere Agenten",
   "referenceMcpCommand": "Die Tools von Muse Spark Code über MCP für andere Agents (Codex, Claude Code, Gemini CLI) bereitstellen; jeder Schreibvorgang wartet auf Ihre Genehmigung.",

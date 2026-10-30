@@ -6151,7 +6151,8 @@
     "addProfile": "Yerel profil ekle",
     "helpUnlock": "Kilidi açmak için sürüme yedi kez tıklayın veya Geliştirici seçenekleri komutunu kullanın.",
     "helpTerminal": "Kilidi açmak için `developer` çalıştırın; `developer status` bu makinenin seçeneklerini gösterir.",
-    "commandUsage": "Kullanım: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
+    "commandUsage": "Kullanım: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]",
+    "versionLine": "Sürüm {version}"
   },
   "mcpConnectorTitle": "Diğer ajanlar için MCP bağlayıcısı",
   "referenceMcpCommand": "Muse Spark Code araçlarını MCP üzerinden diğer aracılara (Codex, Claude Code, Gemini CLI) sunar; her yazma işlemi onayınızı bekler.",

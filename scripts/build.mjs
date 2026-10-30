@@ -1815,6 +1815,7 @@ const webviewOptions = {
     [WHATS_NEW_PAGE_NAME]: WHATS_NEW_PAGE_ENTRY,
     reportingPage: 'src/webview/reporting/main.tsx',
     reportingDestinations: 'src/webview/reporting/destinations/DestinationPicker.tsx',
+    developerOptions: 'src/webview/developer/DeveloperOptionsEntry.tsx',
   },
   outdir: WEBVIEW_OUTDIR,
   platform: 'browser',
@@ -1869,6 +1870,7 @@ function writeWebviewMetafiles(metafile, buildRecord) {
     resourceHistory: 'dist/webview/resourceHistory.js',
     reportingPageWebview: 'dist/webview/reportingPage.js',
     reportingDestinationsWebview: 'dist/webview/reportingDestinations.js',
+    developerOptionsWebview: 'dist/webview/developerOptions.js',
   }
   for (const [page, entry] of Object.entries(pages)) {
     const pageMetafile = webviewEntryMetafile(
@@ -1880,6 +1882,7 @@ function writeWebviewMetafiles(metafile, buildRecord) {
             'dist/webview/reportingDestinations.js',
             'dist/webview/resourceSurface.js',
             'dist/webview/resourceHistory.js',
+            'dist/webview/developerOptions.js',
           ]
         : [],
     )

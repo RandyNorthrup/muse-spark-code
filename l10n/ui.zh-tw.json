@@ -5986,7 +5986,8 @@
     "addProfile": "新增本機設定檔",
     "helpUnlock": "點擊版本號七次，或使用開發人員選項命令解鎖。",
     "helpTerminal": "執行 `developer` 解鎖；`developer status` 顯示本機的選項。",
-    "commandUsage": "用法：developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
+    "commandUsage": "用法：developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]",
+    "versionLine": "版本 {version}"
   },
   "mcpConnectorTitle": "供其他代理使用的 MCP 連接器",
   "referenceMcpCommand": "透過 MCP 將 Muse Spark Code 的工具提供給其他代理（Codex、Claude Code、Gemini CLI）；每次寫入都會等待您的核准。",

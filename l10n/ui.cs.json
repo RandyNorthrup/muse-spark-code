@@ -6481,7 +6481,8 @@
     "addProfile": "Přidat místní profil",
     "helpUnlock": "Klikněte sedmkrát na verzi nebo použijte příkaz Možnosti pro vývojáře k odemknutí.",
     "helpTerminal": "Spusťte `developer` pro odemknutí; `developer status` zobrazí možnosti tohoto počítače.",
-    "commandUsage": "Použití: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
+    "commandUsage": "Použití: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]",
+    "versionLine": "Verze {version}"
   },
   "mcpConnectorTitle": "MCP konektor pro další agenty",
   "referenceMcpCommand": "Zpřístupní nástroje Muse Spark Code jiným agentům (Codex, Claude Code, Gemini CLI) přes MCP; každý zápis čeká na vaše schválení.",
