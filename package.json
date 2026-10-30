@@ -2057,7 +2057,7 @@
     "@agentclientprotocol/sdk": "2.0.1",
     "@codemirror/merge": "6.12.2",
     "@eslint/js": "10.0.1",
-    "@muse-code/sdk": "1.4.11",
+    "@muse-code/sdk": "1.4.12",
     "@simplewebauthn/browser": "14.0.0",
     "@simplewebauthn/server": "14.0.3",
     "@testing-library/dom": "10.4.2",
