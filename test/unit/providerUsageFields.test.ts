@@ -57,22 +57,26 @@ function chatBody(): CreateResponseBody {
 
 describe('DS-G03: catalogue cost.reasoning reaches the price card', () => {
   // vendor/models-dev/snapshot.json deepseek/deepseek-flash, read 2026-10-12.
+  // The snapshot carries DeepSeek's off-peak rates; the card carries the
+  // documented peak rates, exactly double (api-docs.deepseek.com
+  // /quick_start/pricing, read 2026-10-30: "Off-peak rates are half of the
+  // peak rates"), so a reservation never under-reserves at peak.
   const flash = { input: 0.15, output: 0.6, cache_read: 0.003, reasoning: 0.6 }
 
   it('maps reasoning per-token alongside input/output/cache_read', () => {
     const card = cataloguePriceCard('deepseek', flash)
     expect(card).toMatchObject({
-      input: 0.15 / 1_000_000,
-      output: 0.6 / 1_000_000,
-      cachedInput: 0.003 / 1_000_000,
-      reasoning: 0.6 / 1_000_000,
+      input: 0.3 / 1_000_000,
+      output: 1.2 / 1_000_000,
+      cachedInput: 0.006 / 1_000_000,
+      reasoning: 1.2 / 1_000_000,
       source: 'catalogue',
     })
     expect(card !== undefined && isValidPriceCard(card)).toBe(true)
   })
 
   it('settles reasoning tokens at the reasoning rate, the rest at output', () => {
-    const card = cataloguePriceCard('deepseek', {
+    const card = cataloguePriceCard('together', {
       input: 0.3,
       output: 1.2,
       reasoning: 2.4,
@@ -103,7 +107,7 @@ describe('DS-G03: catalogue cost.reasoning reaches the price card', () => {
   })
 
   it('reserves output at the dearer reasoning rate', () => {
-    const card = cataloguePriceCard('deepseek', {
+    const card = cataloguePriceCard('together', {
       input: 0.3,
       output: 1.2,
       reasoning: 2.4,

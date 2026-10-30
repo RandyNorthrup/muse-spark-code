@@ -12,6 +12,8 @@
     "groq",
     "huggingface",
     "mistral",
+    "moonshotai",
+    "ollama-cloud",
     "openai",
     "openrouter",
     "togetherai",
@@ -25,7 +27,7 @@
     },
     {
       "path": "snapshot.json",
-      "sha256": "d8846b1fe9d59a4595125ca1be01d99fa0d38e2027f4e35e964451e12b80d917"
+      "sha256": "96876fd0ddfcdf98c59955fc12ed6d2783d00955db877ff7b4277377c9f73f81"
     }
   ]
 }
