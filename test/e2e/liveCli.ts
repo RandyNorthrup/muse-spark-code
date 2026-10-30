@@ -22,6 +22,47 @@ const LOG_POLL_MS = 250
 // throwaway content only.
 export const LIVE_MODEL_ID = `${DEFAULT_MODEL_ID}${CONTRIBUTOR_MODEL_SUFFIX}`
 
+/**
+The run names its live Muse model here. RLF-MACLIVE's live Neovim test
+sent one request on the default `muse-wonder-1.0` because its tap omitted
+`--allow-contributor-models`, so the contributor model was not listed and
+the client fell back. Every live drill below refuses before any prompt
+unless the resolved id is contributor-tier and the session lists it.
+*/
+export const LIVE_MODEL_ENVIRONMENT = 'MUSE_LIVE_MODEL'
+
+/** The live model's id: the run's MUSE_LIVE_MODEL, or the default
+contributor id. Anything not contributor-tier is refused, in words. */
+export function liveContributorModelId(environment: NodeJS.ProcessEnv = process.env): string {
+  const named = environment[LIVE_MODEL_ENVIRONMENT]
+  const modelId = named === undefined || named === '' ? LIVE_MODEL_ID : named
+  if (!modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX)) {
+    throw new Error(
+      `refusing the live drill: ${modelId} is not a contributor-tier model id (one ends in ${CONTRIBUTOR_MODEL_SUFFIX}); name one in ${LIVE_MODEL_ENVIRONMENT}`,
+    )
+  }
+  return modelId
+}
+
+/**
+Refuses the live turn unless the model is contributor-tier and the
+session's offered models include it, saying which, in words. A tap that
+omits `--allow-contributor-models` lists no contributor model, so the
+turn is refused instead of falling back to a tier nobody named.
+*/
+export function assertLiveContributorModel(modelId: string, offered: readonly string[]): void {
+  if (!modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX)) {
+    throw new Error(
+      `refusing the live turn: ${modelId} is not a contributor-tier model id (one ends in ${CONTRIBUTOR_MODEL_SUFFIX})`,
+    )
+  }
+  if (!offered.includes(modelId)) {
+    throw new Error(
+      `refusing the live turn: the session offers no ${modelId} (offered: ${offered.join(', ') || 'none'}); start the agent with --allow-contributor-models so the contributor tier is listed`,
+    )
+  }
+}
+
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms)
