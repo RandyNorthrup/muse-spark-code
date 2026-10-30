@@ -4,16 +4,13 @@ import {
   RequestTransport,
   type TransportDeps,
 } from '../../src/core/backends/modelapi/transport'
-import { TIMER_MAX_DELAY_MS } from '../../src/shared/constants'
+import { MODEL_API_RETRY_JITTER_MS, TIMER_MAX_DELAY_MS } from '../../src/shared/constants'
 import { transportTestDeps } from './helpers/modelApiTransport'
 
 function deps(
   overrides: Partial<TransportDeps> & { fetch: TransportDeps['fetch'] },
 ): TransportDeps {
   return transportTestDeps({
-    // No waiting between attempts: the test counts tries, not time.
-    sleep: () => Promise.resolve(),
-    random: () => 0,
     apiKey: () => Promise.resolve('test-key'),
     ...overrides,
   })
@@ -28,10 +25,17 @@ describe('model API retries without a count of their own (NOLIMITS2 C1)', () => 
   // step. What remains is pure through the real module.
   it('honours a provider-named wait whole instead of capping it at the fallback ceiling', () => {
     const transport = new RequestTransport(deps({ fetch: globalThis.fetch }))
-    expect(transport.backoffMs(0, 300_000)).toBe(300_000)
+    // The jitter is real randomness: the named wait lands whole beneath
+    // it, inside one jitter window.
+    const named = transport.backoffMs(0, 300_000)
+    expect(named).toBeGreaterThanOrEqual(300_000)
+    expect(named).toBeLessThanOrEqual(300_000 + MODEL_API_RETRY_JITTER_MS)
     // Lane RETRYLIMITS: no provider documents a maximum wait here, so the
-    // unnamed backoff grows unbounded (base 1 s, doubling, no jitter here).
-    expect(transport.backoffMs(10, undefined)).toBe(1000 * 2 ** 10)
+    // unnamed backoff grows unbounded (base 1 s, doubling) under the same
+    // jitter window.
+    const unnamed = transport.backoffMs(10, undefined)
+    expect(unnamed).toBeGreaterThanOrEqual(1000 * 2 ** 10)
+    expect(unnamed).toBeLessThanOrEqual(1000 * 2 ** 10 + MODEL_API_RETRY_JITTER_MS)
   })
 
   it('an unnamed budget never counts a retry out; a named one stops at its count', () => {
