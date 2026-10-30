@@ -1079,6 +1079,26 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               },
             }),
           streamIdleMs: EXEC_STREAM_IDLE_MS,
+          // D216: `vault_run` over this run's headless registration. The
+          // session opens after the ACP session exists; the factory is
+          // only called by a tool run, which is later still.
+          ...(options.vault &&
+            deps.vault !== undefined && {
+              vaultExec: async () => {
+                const vaultPort = deps.vault
+                if (vaultPort === undefined) throw new Error(UI_TEXT.vault.noAccess)
+                if (vaultSession === undefined) throw new Error(UI_TEXT.vault.noAccess)
+                const { createHeadlessVaultExecService } = await import('../vault/vaultExecHost.js')
+                return createHeadlessVaultExecService({
+                  broker: vaultSession.execBroker(),
+                  distDir: deps.distDir,
+                  dataDir: vaultPort.dataDir,
+                  nodePath: process.execPath,
+                  env: deps.env,
+                  platform: deps.platform,
+                })
+              },
+            }),
           headlessPaid: (request, requiresAsking) => {
             // The summary request rides the same ledger-bound transport as
             // any request; this gate only decides whether it may be asked.
