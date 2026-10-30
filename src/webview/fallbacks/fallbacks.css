@@ -1,0 +1,111 @@
+.fallback-page,
+.fallback-status,
+.fallback-toasts {
+  color: var(--ms-foreground);
+  background: var(--ms-side-bar-background);
+}
+
+.fallback-page {
+  box-sizing: border-box;
+  max-width: var(--ms-column-max-width);
+  margin: 0 auto;
+  padding: calc(var(--ms-gap) * 2);
+}
+
+.fallback-page h1 {
+  font-size: 1.3em;
+}
+
+.fallback-text,
+.fallback-page p,
+.fallback-page label,
+.fallback-page h1,
+.fallback-page h2 {
+  overflow-wrap: anywhere;
+}
+
+.fallback-actions,
+.fallback-status,
+.fallback-toast {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ms-gap);
+  margin-block: var(--ms-gap);
+}
+
+.fallback-actions button,
+.fallback-toast button,
+.fallback-status button,
+.fallback-page button {
+  min-height: var(--ms-button-height);
+}
+
+.fallback-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-gap);
+  max-height: 50vh;
+  margin-block: var(--ms-gap);
+  overflow: auto;
+  border: 1px solid var(--ms-panel-border);
+}
+
+.fallback-options label {
+  display: flex;
+  align-items: center;
+  gap: var(--ms-gap);
+  min-height: var(--ms-button-height);
+}
+
+.fallback-dialog input,
+.fallback-page input,
+.fallback-page textarea,
+.fallback-page select {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.fallback-status,
+.fallback-toasts {
+  padding: var(--ms-gap);
+}
+
+.fallback-toast {
+  padding: var(--ms-gap);
+  border: 1px solid var(--ms-widget-border);
+}
+
+.fallback-toast p {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.fallback-setting,
+.fallback-manager-row {
+  display: grid;
+  gap: var(--ms-gap);
+  margin-block: calc(var(--ms-gap) * 2);
+}
+
+.fallback-diff pre,
+.fallback-terminal,
+.presentation-document {
+  max-height: 60vh;
+  padding: var(--ms-gap);
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--ms-text-code-block-background);
+}
+
+.fallback-diff del {
+  color: var(--ms-foreground);
+  background: var(--ms-diff-editor-removed-line-background);
+}
+
+.fallback-diff ins {
+  color: var(--ms-foreground);
+  background: var(--ms-diff-editor-inserted-line-background);
+}
