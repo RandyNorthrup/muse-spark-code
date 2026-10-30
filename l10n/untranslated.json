@@ -186,7 +186,8 @@
       "nodeDashboard.sessionWeb",
       "nodeDashboard.sessionEditor",
       "nodeOs.diskTitle",
-      "watchdog.verdicts.spam"
+      "watchdog.verdicts.spam",
+      "editorGroup.deviceTablet"
     ],
     "tr": [
       "groupModel",
@@ -204,7 +205,8 @@
       "judgeSetupCli.planModel",
       "nodeDashboard.sessionWeb",
       "nodeOs.diskTitle",
-      "desktop.sessionTerminal"
+      "desktop.sessionTerminal",
+      "editorGroup.deviceTablet"
     ],
     "pl": [
       "groupModel",
@@ -231,7 +233,9 @@
       "judgeSetupCli.planModel",
       "nodeDashboard.sessionWeb",
       "desktop.sessionTerminal",
-      "watchdog.verdicts.spam"
+      "watchdog.verdicts.spam",
+      "editorGroup.deviceTablet",
+      "editorGroup.deviceLaptop"
     ],
     "de": [
       "groupSkills",
@@ -292,7 +296,10 @@
       "desktop.sessionTerminal",
       "desktop.downloadSize",
       "desktop.details",
-      "watchdog.verdicts.spam"
+      "watchdog.verdicts.spam",
+      "editorGroup.deviceTablet",
+      "editorGroup.deviceLaptop",
+      "editorGroup.deviceDesktop"
     ],
     "es": [
       "hooksItem",
@@ -340,7 +347,8 @@
       "nodeDashboard.sessionEditor",
       "desktop.sessionTerminal",
       "desktop.downloadSize",
-      "watchdog.verdicts.spam"
+      "watchdog.verdicts.spam",
+      "editorGroup.deviceTablet"
     ],
     "fr": [
       "modesTitle",
@@ -417,7 +425,9 @@
       "desktop.password",
       "desktop.sessionDesktop",
       "desktop.downloadSize",
-      "watchdog.verdicts.spam"
+      "watchdog.verdicts.spam",
+      "editorGroup.deviceTablet",
+      "editorGroup.deviceDesktop"
     ],
     "zh-cn": ["toolLabels.shell", "devices.cpuPressure"],
     "zh-tw": ["toolLabels.shell", "devices.cpuPressure"],
@@ -431,7 +441,8 @@
       "teamIntensityLevels.max",
       "teamCapabilityWarning",
       "devices.cpuPressure",
-      "nodeDashboard.sessionWeb"
+      "nodeDashboard.sessionWeb",
+      "editorGroup.deviceLaptop"
     ],
     "ko": ["gitChangeCounts", "teamCapabilityWarning", "devices.cpuPressure"],
     "ru": ["gitChangeCounts", "teamCapabilityWarning", "devices.cpuPressure"]

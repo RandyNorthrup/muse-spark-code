@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import * as z from 'zod/mini'
 import {
   AUTH_FACTORS,
   BAR_POPOVERS,
@@ -83,7 +84,7 @@ describe('M111 lane 0 desktop contracts', () => {
   })
 
   it('schemas accept the mockups shapes and reject unknown fields', () => {
-    const result: LauncherResult = launcherResultSchema.parse({
+    const result: LauncherResult = z.parse(launcherResultSchema, {
       kind: 'calculation',
       id: 'calc-1',
       title: '7.456 mi',
@@ -91,9 +92,9 @@ describe('M111 lane 0 desktop contracts', () => {
     const kind: LauncherResultKind = result.kind
     expect(kind).toBe('calculation')
     expect(() =>
-      launcherResultSchema.parse({ kind: 'app', id: 'a', title: 'A', extra: 1 }),
+      z.parse(launcherResultSchema, { kind: 'app', id: 'a', title: 'A', extra: 1 }),
     ).toThrow()
-    expect(() => launcherResultSchema.parse({ kind: 'nope', id: 'a', title: 'A' })).toThrow()
+    expect(() => z.parse(launcherResultSchema, { kind: 'nope', id: 'a', title: 'A' })).toThrow()
     const pack: OnboardingPack = {
       id: 'web',
       name: 'Web development',
@@ -103,11 +104,11 @@ describe('M111 lane 0 desktop contracts', () => {
       licences: ['MIT'],
       recommended: true,
     }
-    expect(onboardingPackSchema.parse(pack)).toEqual(pack)
-    expect(() => onboardingPackSchema.parse({ ...pack, downloadBytes: -1 })).toThrow()
+    expect(z.parse(onboardingPackSchema, pack)).toEqual(pack)
+    expect(() => z.parse(onboardingPackSchema, { ...pack, downloadBytes: -1 })).toThrow()
     for (const device of PREVIEW_DEVICES) {
       const preset: PreviewDevice = device
-      const viewport: PreviewViewport = previewViewportSchema.parse({
+      const viewport: PreviewViewport = z.parse(previewViewportSchema, {
         deviceId: preset.id,
         widthPx: preset.widthPx,
         heightPx: preset.heightPx,
