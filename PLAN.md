@@ -33656,7 +33656,7 @@ Final evidence is recorded in `docs/certification/macslow.md`.
 
 ### M103 — Makers: boards, firmware and machines (D83)
 
-**Status 2026-10-10 (corrects 2026-10-09: the document-epoch redesign is still in review with checklist items open): building.** Document-epoch redesign in review.
+**Status 2026-10-23 (recovery lane RLM103 on `rec/rlm103`, landed on 0.19.0; not yet released): building.** Both source branches (`01-m103-port-0171`, `02-m103-th-pack`) are merged with the fake-driven suites deleted or rebuilt on real code; `docs/certification/rlm103.md` carries the suite and gate receipts. Still open: two bundle budgets are over (`dist/modelApi.js` by 0.5 KiB, `dist/runtimeMaker.js` by 2.1 KiB; caps not raised), the lease/serial suites blocked on the macmini rig (`/bin/ps` and socat unavailable there), the installed Arduino IDE 2 run, lane E's one counted live call (needs the packed product), and the owner's Pi and ESP32 session.
 
 **Q-M103a–h resolved 2026-10-05 (lead, under the owner's standing
 authorization: "any recommendation you come up with you are authorized").**
