@@ -8,7 +8,6 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { createHash, createSign, randomBytes, X509Certificate } from 'node:crypto'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
-import { request as httpsRequest } from 'node:https'
 import path from 'node:path'
 import process from 'node:process'
 import type { Duplex } from 'node:stream'
@@ -31,16 +30,17 @@ import {
   type NodeAuthChallenge,
 } from '../../src/shared/nodeAuth'
 import { nodeDashboardSchema } from '../../src/shared/node'
-import { productionNodeBinding } from '../../src/runtime/node/binding'
+import { productionNodeBinding, type NodeServiceBinding } from '../../src/runtime/node/binding'
 import { nodeActionDigest } from '../../src/runtime/node/listenerMethods'
 import { parseNodeArgs } from '../../src/runtime/node/args'
-import { runNodeCommand } from '../../src/runtime/node/main'
+import { runNodeCommand, type NodeCommandDeps } from '../../src/runtime/node/main'
 import { NodeStateStore } from '../../src/runtime/node/state'
 import { stopNode } from '../../src/runtime/node/stop'
 import { NodePrivateFiles } from '../../src/runtime/node/privateFiles'
 import * as nodeAuthEntry from '../../src/runtime/node/auth/entry'
 import * as nodeServeEntry from '../../src/runtime/node/serveEntry'
 import { maskedFrame } from './helpers/node/listener'
+import { loopbackHeaders, loopbackPost, loopbackTerminalSocket } from './helpers/node/loopback'
 import { nodeSigningKey } from './helpers/node/authenticator'
 import { isMissingFile } from '../../src/runtime/node/privateFiles'
 import { nodeNativeTest, nodeTempRoot, testPackageVersion, vacantPort } from './helpers/nodeNative'
@@ -156,29 +156,8 @@ async function startServe(): Promise<LiveServe> {
   await mkdir(workspaceRoot, { recursive: true })
   const lines: string[] = []
   const port = await vacantPort()
-  const setup = {
-    root,
-    signal: new AbortController().signal,
-    now: Date.now,
-    print: (line: string) => {
-      lines.push(line)
-    },
-    readSecret: () => Promise.resolve(''),
-  }
-  const initArgs = [
-    'init',
-    '--label',
-    'Home',
-    '--name',
-    'home.local',
-    '--workspace-root',
-    workspaceRoot,
-    '--listen',
-    '127.0.0.1',
-    '--port',
-    String(port),
-  ]
-  expect(await runNodeCommand(parseNodeArgs(initArgs), setup)).toBe(0)
+  const setup = makeSetup(root, lines)
+  expect(await runNodeCommand(parseNodeArgs(nodeInitArgs(workspaceRoot, port)), setup)).toBe(0)
   const store = new NodeStateStore(root, () => undefined)
   await store.load()
   const state = store.read()
@@ -196,14 +175,7 @@ async function startServe(): Promise<LiveServe> {
   }))
   await mkdir(path.join(workspaceRoot, 'workspace-1'), { recursive: true })
   const controller = new AbortController()
-  const binding = productionNodeBinding({
-    print: (line: string) => {
-      lines.push(line)
-    },
-    version: testPackageVersion,
-    loadServeBundle: () => nodeServeEntry,
-    loadAuthBundle: () => nodeAuthEntry,
-  })
+  const binding = testBinding(lines)
   const serving = binding.serve(store, controller.signal)
   const serve: LiveServe = {
     root,
@@ -215,48 +187,15 @@ async function startServe(): Promise<LiveServe> {
     serving,
     version: testPackageVersion(),
     post: async (route, body = '{}', headers = {}) => {
-      const certificate = await readFile(
-        path.join(root, NODE_TLS_DIRECTORY, NODE_TLS_CERT_FILE),
-        'utf8',
-      )
-      return await new Promise<{ status: number; body: string }>((resolve, reject) => {
-        const actual = Object.fromEntries(
-          Object.entries<string | undefined>({
-            Host: `home.local:${String(port)}`,
-            Origin: `https://home.local:${String(port)}`,
-            'Sec-Fetch-Site': 'same-origin',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Dest': 'empty',
-            'Content-Type': 'application/json',
-            ...headers,
-          }).filter(([, value]) => value !== undefined),
-        )
-        const req = httpsRequest(
-          {
-            host: '127.0.0.1',
-            port,
-            servername: 'home.local',
-            ca: certificate,
-            path: route,
-            method: 'POST',
-            headers: actual,
-            agent: false,
-          },
-          (response) => {
-            let text = ''
-            response.setEncoding('utf8')
-            response.on('data', (part: string) => {
-              text += part
-            })
-            response.on('end', () => {
-              resolve({ status: response.statusCode ?? 0, body: text })
-            })
-            response.on('error', reject)
-          },
-        )
-        req.on('error', reject)
-        req.end(body)
+      const answered = await loopbackPost({
+        port,
+        certificate: await serveCertificate(root),
+        route,
+        method: 'POST',
+        body,
+        headers: loopbackHeaders(port, headers),
       })
+      return { status: answered.status, body: answered.body }
     },
     close: async () => {
       controller.abort()
@@ -357,15 +296,70 @@ function pendingDigest(
   })
 }
 
+/** The owner's session on a running serve, with its bearer header. */
+async function enrolledServe(serve: LiveServe): Promise<{
+  authentication: NodeAuthentication
+  key: ReturnType<typeof drillAuthenticator>
+  auth: { Authorization: string }
+}> {
+  const { authentication, key } = await enrollOwner(serve, setupCodeFrom(serve.lines))
+  return { authentication, key, auth: { Authorization: `Bearer ${authentication.bearer}` } }
+}
+
+/** A command setup printing into the test's lines. */
+function makeSetup(root: string, lines: string[]): NodeCommandDeps {
+  return {
+    root,
+    signal: new AbortController().signal,
+    now: Date.now,
+    print: (line: string) => {
+      lines.push(line)
+    },
+    readSecret: () => Promise.resolve(''),
+  }
+}
+
+/** The home init arguments, listening when a port is given. */
+function nodeInitArgs(workspaceRoot: string, port?: number): string[] {
+  return [
+    'init',
+    '--label',
+    'Home',
+    '--name',
+    'home.local',
+    '--workspace-root',
+    workspaceRoot,
+    ...(port === undefined ? [] : ['--listen', '127.0.0.1', '--port', String(port)]),
+  ]
+}
+
+/** The production binding with the serve and auth entries handed in. */
+function testBinding(
+  lines: string[],
+  loadAuthBundle: () => unknown = () => nodeAuthEntry,
+): NodeServiceBinding {
+  return productionNodeBinding({
+    print: (line: string) => {
+      lines.push(line)
+    },
+    version: testPackageVersion,
+    loadServeBundle: () => nodeServeEntry,
+    loadAuthBundle,
+  })
+}
+
+/** The leaf serve presents, read from the test root. */
+async function serveCertificate(root: string): Promise<string> {
+  return await readFile(path.join(root, NODE_TLS_DIRECTORY, NODE_TLS_CERT_FILE), 'utf8')
+}
+
 nodeNativeTest('serve prints the full fingerprint and answers the public challenge', async () => {
   const serve = await startServe()
   try {
     const line = await waitForFingerprint(serve.lines, serve.serving)
     const printed = line.slice('Certificate fingerprint: '.length)
     expect(printed).toMatch(/^([0-9A-F]{2}:){31}[0-9A-F]{2}$/)
-    const served = new X509Certificate(
-      await readFile(path.join(serve.root, NODE_TLS_DIRECTORY, NODE_TLS_CERT_FILE), 'utf8'),
-    )
+    const served = new X509Certificate(await serveCertificate(serve.root))
     expect(`Certificate fingerprint: ${served.fingerprint256}`).toBe(line)
     const begun = await serve.post(
       '/node/auth/begin',
@@ -382,14 +376,25 @@ nodeNativeTest('a missing or wrong bearer refuses a privileged route', async () 
   const serve = await startServe()
   try {
     await waitForFingerprint(serve.lines, serve.serving)
+    const unauthenticated = '{"code":"unauthenticated"}'
     const missing = await serve.post('/node/dashboard/read', '{}', { Authorization: undefined })
     expect(missing.status).toBe(401)
-    expect(missing.body).toBe('{"code":"unauthenticated"}')
-    const wrong = await serve.post('/node/dashboard/read', '{}', {
-      Authorization: `Bearer ${randomBytes(32).toString('base64url')}`,
+    expect(missing.body).toBe(unauthenticated)
+    // A real session now exists: only its own bearer opens the route.
+    const { authentication } = await enrolledServe(serve)
+    const valid = authentication.bearer
+    const flipped = `${valid.slice(0, -1)}${valid.endsWith('A') ? 'B' : 'A'}`
+    for (const wrong of [randomBytes(32).toString('base64url'), flipped]) {
+      const refused = await serve.post('/node/dashboard/read', '{}', {
+        Authorization: `Bearer ${wrong}`,
+      })
+      expect(refused.status).toBe(401)
+      expect(refused.body).toBe(unauthenticated)
+    }
+    const opened = await serve.post('/node/dashboard/read', '{}', {
+      Authorization: `Bearer ${valid}`,
     })
-    expect(wrong.status).toBe(401)
-    expect(wrong.body).toBe('{"code":"unauthenticated"}')
+    expect(opened.status).toBe(200)
   } finally {
     await serve.close()
   }
@@ -399,7 +404,7 @@ nodeNativeTest('enroll, dashboard and audit run end to end', async () => {
   const serve = await startServe()
   try {
     await waitForFingerprint(serve.lines, serve.serving)
-    const { authentication } = await enrollOwner(serve, setupCodeFrom(serve.lines))
+    const { authentication } = await enrolledServe(serve)
     const dashboard = await serve.post('/node/dashboard/read', '{}', {
       Authorization: `Bearer ${authentication.bearer}`,
     })
@@ -438,8 +443,7 @@ nodeNativeTest('files list and read serve real bytes; writes say unavailable', a
       path.join(serve.workspaceRoot, 'workspace-1', 'hello.ts'),
       'export const answer = 42\n',
     )
-    const { authentication } = await enrollOwner(serve, setupCodeFrom(serve.lines))
-    const auth = { Authorization: `Bearer ${authentication.bearer}` }
+    const { auth } = await enrolledServe(serve)
     const listed = await serve.post(
       '/node/files/list',
       JSON.stringify({ workspaceId: 'workspace-1', directory: null, cursor: null }),
@@ -479,8 +483,7 @@ nodeNativeTest('git and maker routes say unavailable without their peers', async
   const serve = await startServe()
   try {
     await waitForFingerprint(serve.lines, serve.serving)
-    const { authentication, key } = await enrollOwner(serve, setupCodeFrom(serve.lines))
-    const auth = { Authorization: `Bearer ${authentication.bearer}` }
+    const { authentication, key, auth } = await enrolledServe(serve)
     const status = await serve.post(
       '/node/git/status',
       JSON.stringify({ workspaceId: 'workspace-1', cursor: null }),
@@ -511,8 +514,7 @@ nodeNativeTest('an action proof bound to a different digest refuses', async () =
   const serve = await startServe()
   try {
     await waitForFingerprint(serve.lines, serve.serving)
-    const { authentication, key } = await enrollOwner(serve, setupCodeFrom(serve.lines))
-    const auth = { Authorization: `Bearer ${authentication.bearer}` }
+    const { authentication, key, auth } = await enrolledServe(serve)
     const other = pendingDigest('node/maker/action', {
       deviceId: 'device-1',
       operation: 'ping',
@@ -545,8 +547,7 @@ nodeNativeTest('terminal open says unavailable; the socket closes unknown termin
   const serve = await startServe()
   try {
     await waitForFingerprint(serve.lines, serve.serving)
-    const { authentication, key } = await enrollOwner(serve, setupCodeFrom(serve.lines))
-    const auth = { Authorization: `Bearer ${authentication.bearer}` }
+    const { authentication, key, auth } = await enrolledServe(serve)
     const params = {
       workspaceId: 'workspace-1',
       size: { cols: 80, rows: 24 },
@@ -560,35 +561,10 @@ nodeNativeTest('terminal open says unavailable; the socket closes unknown termin
     )
     expect(opened.status).toBe(503)
     expect(opened.body).toBe('{"code":"unavailable"}')
-    const certificate = await readFile(
-      path.join(serve.root, NODE_TLS_DIRECTORY, NODE_TLS_CERT_FILE),
-      'utf8',
-    )
-    const socket: Duplex = await new Promise<Duplex>((resolve, reject) => {
-      const req = httpsRequest({
-        host: '127.0.0.1',
-        port: serve.port,
-        servername: 'home.local',
-        ca: certificate,
-        path: '/node/terminal/stream',
-        agent: false,
-        headers: {
-          Host: `home.local:${String(serve.port)}`,
-          Origin: serve.origin,
-          'Sec-Fetch-Site': 'same-origin',
-          'Sec-Fetch-Mode': 'websocket',
-          'Sec-Fetch-Dest': 'websocket',
-          Upgrade: 'websocket',
-          Connection: 'Upgrade',
-          'Sec-WebSocket-Version': '13',
-          'Sec-WebSocket-Key': Buffer.alloc(16).toString('base64'),
-        },
-      })
-      req.once('upgrade', (_response, upgraded) => {
-        resolve(upgraded)
-      })
-      req.once('error', reject)
-      req.end()
+    const socket: Duplex = await loopbackTerminalSocket({
+      port: serve.port,
+      certificate: await serveCertificate(serve.root),
+      origin: serve.origin,
     })
     try {
       const closed = new Promise<void>((resolve) => {
@@ -614,8 +590,7 @@ nodeNativeTest('stop and lock run through the service; the lock ends sessions', 
   const serve = await startServe()
   try {
     await waitForFingerprint(serve.lines, serve.serving)
-    const { authentication } = await enrollOwner(serve, setupCodeFrom(serve.lines))
-    const auth = { Authorization: `Bearer ${authentication.bearer}` }
+    const { auth } = await enrolledServe(serve)
     const stopped = await serve.post('/node/stop', '{}', auth)
     expect(stopped.status).toBe(200)
     expect(stopped.body).toBe('{"done":true}')
@@ -634,7 +609,7 @@ nodeNativeTest('wipe destroys keys and identity but keeps the listener up', asyn
   const serve = await startServe()
   try {
     await waitForFingerprint(serve.lines, serve.serving)
-    const { authentication, key } = await enrollOwner(serve, setupCodeFrom(serve.lines))
+    const { authentication, key } = await enrolledServe(serve)
     const digest = pendingDigest('node/wipe', {})
     const proof = await stepUpFor(serve, authentication.bearer, key, 'node.wipe', digest)
     const wiped = await serve.post(
@@ -657,39 +632,11 @@ nodeNativeTest('serve without a chosen interface refuses', async () => {
   const root = await nodeTempRoot('node-serve-nolisten')
   try {
     const lines: string[] = []
-    const setup = {
-      root,
-      signal: new AbortController().signal,
-      now: Date.now,
-      print: (line: string) => {
-        lines.push(line)
-      },
-      readSecret: () => Promise.resolve(''),
-    }
-    expect(
-      await runNodeCommand(
-        parseNodeArgs([
-          'init',
-          '--label',
-          'Home',
-          '--name',
-          'home.local',
-          '--workspace-root',
-          root,
-        ]),
-        setup,
-      ),
-    ).toBe(0)
+    const setup = makeSetup(root, lines)
+    expect(await runNodeCommand(parseNodeArgs(nodeInitArgs(root)), setup)).toBe(0)
     const bound = {
       ...setup,
-      binding: productionNodeBinding({
-        print: (line: string) => {
-          lines.push(line)
-        },
-        version: testPackageVersion,
-        loadServeBundle: () => nodeServeEntry,
-        loadAuthBundle: () => nodeAuthEntry,
-      }),
+      binding: testBinding(lines),
     }
     await expect(runNodeCommand(parseNodeArgs(['serve']), bound)).rejects.toThrow(
       UI_TEXT.nodeErrors.unavailable,
@@ -706,45 +653,13 @@ nodeNativeTest('a second serve reuses the committed pair and fingerprint', async
     await mkdir(workspaceRoot, { recursive: true })
     const port = await vacantPort()
     const lines: string[] = []
-    const setup = {
-      root,
-      signal: new AbortController().signal,
-      now: Date.now,
-      print: (line: string) => {
-        lines.push(line)
-      },
-      readSecret: () => Promise.resolve(''),
-    }
-    expect(
-      await runNodeCommand(
-        parseNodeArgs([
-          'init',
-          '--label',
-          'Home',
-          '--name',
-          'home.local',
-          '--workspace-root',
-          workspaceRoot,
-          '--listen',
-          '127.0.0.1',
-          '--port',
-          String(port),
-        ]),
-        setup,
-      ),
-    ).toBe(0)
+    const setup = makeSetup(root, lines)
+    expect(await runNodeCommand(parseNodeArgs(nodeInitArgs(workspaceRoot, port)), setup)).toBe(0)
     const fingerprints: string[] = []
     for (let round = 0; round < 2; round += 1) {
       const store = new NodeStateStore(root, () => undefined)
       await store.load()
-      const binding = productionNodeBinding({
-        print: (line: string) => {
-          lines.push(line)
-        },
-        version: testPackageVersion,
-        loadServeBundle: () => nodeServeEntry,
-        loadAuthBundle: () => nodeAuthEntry,
-      })
+      const binding = testBinding(lines)
       const controller = new AbortController()
       const serving = binding.serve(store, controller.signal)
       fingerprints.push(await waitForFingerprint(lines, serving, lines.length))
@@ -817,57 +732,20 @@ nodeNativeTest('serve without the auth bundle refuses after a fixed sentence', a
     const workspaceRoot = path.join(root, 'workspaces')
     await mkdir(workspaceRoot, { recursive: true })
     const lines: string[] = []
-    const setup = {
-      root,
-      signal: new AbortController().signal,
-      now: Date.now,
-      print: (line: string) => {
-        lines.push(line)
-      },
-      readSecret: () => Promise.resolve(''),
-    }
+    const setup = makeSetup(root, lines)
     expect(
-      await runNodeCommand(
-        parseNodeArgs([
-          'init',
-          '--label',
-          'Home',
-          '--name',
-          'home.local',
-          '--workspace-root',
-          workspaceRoot,
-          '--listen',
-          '127.0.0.1',
-          '--port',
-          String(await vacantPort()),
-        ]),
-        setup,
-      ),
+      await runNodeCommand(parseNodeArgs(nodeInitArgs(workspaceRoot, await vacantPort())), setup),
     ).toBe(0)
     const store = new NodeStateStore(root, () => undefined)
     await store.load()
-    const binding = productionNodeBinding({
-      print: (line: string) => {
-        lines.push(line)
-      },
-      version: testPackageVersion,
-      loadServeBundle: () => nodeServeEntry,
-      loadAuthBundle: () => {
-        throw new Error('missing bundle')
-      },
+    const binding = testBinding(lines, () => {
+      throw new Error('missing bundle')
     })
     await expect(binding.serve(store, new AbortController().signal)).rejects.toThrow(
       UI_TEXT.nodeErrors.unavailable,
     )
     expect(lines).toContain(UI_TEXT.nodeMessages.unexpectedFailure)
-    const shaped = productionNodeBinding({
-      print: (line: string) => {
-        lines.push(line)
-      },
-      version: testPackageVersion,
-      loadServeBundle: () => nodeServeEntry,
-      loadAuthBundle: () => ({}),
-    })
+    const shaped = testBinding(lines, () => ({}))
     await expect(shaped.serve(store, new AbortController().signal)).rejects.toThrow(
       UI_TEXT.nodeErrors.unavailable,
     )

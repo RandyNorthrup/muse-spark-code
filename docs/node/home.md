@@ -4,10 +4,10 @@ The home node is one person's Muse Spark Code on their own machine: the node
 holds their workspaces and serves them over the home LAN. This guide installs
 it two ways: natively on Linux, or in Docker Desktop on macOS and Windows.
 
-What the node does today: `init`, `status` and `wipe` run; `serve` refuses
-explicitly until the service binding lands (A1/M104), and the tool host unit
-stays inert until a release ships its bundle. Nothing here starts a serving
-node yet. Each procedure below names its proof in
+What the node does today: `init`, `serve`, `stop`, `status` and `wipe`
+run; `lock` and `unlock` refuse explicitly until the operator control
+transport lands, and the tool host unit stays inert until a release ships
+its bundle. Each procedure below names its proof in
 `docs/certification/m110a0-hosts.md`: steps proven on this rig say **proven**,
 steps awaiting a Linux PC, Docker or the network say **lead-run**.
 
@@ -83,9 +83,10 @@ sudo -u muse-node node /opt/muse/dist/node.js status \
 **Lead-run:** `systemctl` needs Linux. `status` itself is proven: a stopped
 node answers its id, `running:false` and a sealed key store, exit 0.
 
-`serve` starts when the units do and currently refuses with `The node
-feature is unavailable.` while the service binding is open; the refusal is
-the documented handoff, not a failure. **Proven.**
+`serve` starts when the units do: it boots the service and listens on
+the interface `init` selected, printing the certificate fingerprint
+([Serving](serve.md)). **Lead-run:** `systemctl` needs Linux; serve itself
+is proven on the rig (`docs/certification/rlf-nodeserve.md`).
 
 ## Docker Desktop on macOS
 
@@ -162,11 +163,11 @@ container kept. **Lead-run:** needs the container run above.
 
 ## Troubleshooting
 
-| Symptom                                                                   | Meaning                                                                                  |
-| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `The node feature is unavailable.` on `serve`, `stop`, `lock` or `unlock` | The service binding is still open (A1/M104). Nothing is broken.                          |
-| `The node is running. Stop it before wiping.`                             | A supervisor holds the lock, or a crash left it stale; see above.                        |
-| `toolhost bundle absent` at install                                       | The release predates the tool host bundle; the toolhost unit stays inert.                |
-| `attestation rejected`                                                    | The tarball is not the release's: re-download both files, never `--bundle` a stranger's. |
-| `already installed`                                                       | Upgrades are a later lane: wipe and remove `/opt/muse` first, deliberately.              |
-| `re-run as root`                                                          | Users and systemd need root; `--root` stages a layout for inspection only.               |
+| Symptom                                                  | Meaning                                                                                  |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `The node feature is unavailable.` on `lock` or `unlock` | The operator control transport has yet to land. Nothing is broken.                       |
+| `The node is running. Stop it before wiping.`            | A supervisor holds the lock, or a crash left it stale; see above.                        |
+| `toolhost bundle absent` at install                      | The release predates the tool host bundle; the toolhost unit stays inert.                |
+| `attestation rejected`                                   | The tarball is not the release's: re-download both files, never `--bundle` a stranger's. |
+| `already installed`                                      | Upgrades are a later lane: wipe and remove `/opt/muse` first, deliberately.              |
+| `re-run as root`                                         | Users and systemd need root; `--root` stages a layout for inspection only.               |
