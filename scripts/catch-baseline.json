@@ -13,7 +13,7 @@
     },
     "host": {
       "SWALLOW": 18,
-      "GENERIC": 95,
+      "GENERIC": 94,
       "CLEANUP": 90
     },
     "root": {
@@ -2915,12 +2915,7 @@
     },
     {
       "file": "src/host/auth/cliAccount.ts",
-      "identity": "187129f0df8aadc4b15f264cda6a2b05b053a12fb9e3ab2d9df834ca893293bb",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/auth/cliAccount.ts",
-      "identity": "fa913f8b33df00c67d5408bf7dd33e9f4cd33a4a8601aab24129c11eb3495c02",
+      "identity": "26f0f8c21579df815b5629460a381d6e5f1d8dc0512184a38e2d688cddd1b63d",
       "class": "GENERIC"
     },
     {

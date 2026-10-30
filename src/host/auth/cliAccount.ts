@@ -12,7 +12,13 @@
 // - On macOS the question waits for a user action (a click in the panel), so
 //   a Keychain prompt never appears just because VS Code opened.
 
-import { readFileSync, statSync } from 'node:fs'
+import { closeSync, constants, openSync, readSync } from 'node:fs'
+import {
+  fileIdentityKey,
+  handleIdentitySync,
+  lstatIdentitySync,
+  sameFile,
+} from '../../core/fs/fileIdentity'
 import {
   type CliSignIn,
   type CredentialFileVerdict,
@@ -34,40 +40,67 @@ export interface CredentialFileReading {
 }
 
 // A path that is not there, as opposed to one that is there and unreadable.
-const MISSING_CODES: ReadonlySet<string> = new Set(['ENOENT', 'ENOTDIR'])
 const UNREADABLE_SIGNATURE = 'unreadable'
+// Windows has no O_NOFOLLOW. Where the flag exists it is the open's own
+// refusal of a symlink; the id check below is what refuses one everywhere.
+const NO_FOLLOW_FLAG = ((): number => {
+  const flag: unknown = Reflect.get(constants, 'O_NOFOLLOW')
+  return typeof flag === 'number' ? flag : 0
+})()
 
-function errorCode(error: unknown): string {
-  return error instanceof Error && 'code' in error ? String(error.code) : ''
+function isMissingPath(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    (error.code === 'ENOENT' || error.code === 'ENOTDIR')
+  )
 }
 
-/** The credential file's structure, or undefined when there is no file. Never a value from it. */
+/**
+The credential file's structure, or undefined when there is no file.
+Never a value from it. A symlink, or anything that is not the regular
+file named here, is unrecognised and is not opened: the read must not
+follow a link onto some other file and call that a sign-in.
+*/
 export function readCredentialFile(
   filePath: string,
   platform: NodeJS.Platform,
 ): CredentialFileReading | undefined {
-  let size: number
-  let modifiedAt: number
+  let descriptor: number | undefined
   try {
-    const stats = statSync(filePath)
-    if (!stats.isFile()) {
+    const named = lstatIdentitySync(filePath)
+    if (named.isSymbolicLink() || !named.isFile()) {
       return { signature: UNREADABLE_SIGNATURE, verdict: 'unrecognized' }
     }
-    size = stats.size
-    modifiedAt = stats.mtimeMs
+    descriptor = openSync(filePath, constants.O_RDONLY | NO_FOLLOW_FLAG)
+    const held = handleIdentitySync(descriptor)
+    const namedId = fileIdentityKey(named)
+    const heldId = fileIdentityKey(held)
+    // The bytes come from this descriptor only. Its id has to be the file
+    // lstat named, and a usable id: on Windows an open can follow a reparse
+    // point, and an id of zero cannot prove it did not.
+    if (namedId === undefined || heldId === undefined || !held.isFile() || !sameFile(named, held)) {
+      return { signature: UNREADABLE_SIGNATURE, verdict: 'unrecognized' }
+    }
+    const size = Number(held.size)
+    const signature = `${String(size)}:${String(held.mtimeMs)}`
+    if (held.size > BigInt(MUSE_CREDENTIAL_FILE_MAX_BYTES)) {
+      return { signature, verdict: 'unrecognized' }
+    }
+    const buffer = Buffer.alloc(size)
+    let offset = 0
+    while (offset < size) {
+      const count = readSync(descriptor, buffer, offset, size - offset, offset)
+      if (count === 0) return { signature, verdict: 'unrecognized' }
+      offset += count
+    }
+    return { signature, verdict: credentialFileVerdict(buffer.toString('utf8'), platform) }
   } catch (error: unknown) {
-    return MISSING_CODES.has(errorCode(error))
+    return isMissingPath(error)
       ? undefined
       : { signature: UNREADABLE_SIGNATURE, verdict: 'unrecognized' }
-  }
-  const signature = `${String(size)}:${String(modifiedAt)}`
-  if (size > MUSE_CREDENTIAL_FILE_MAX_BYTES) {
-    return { signature, verdict: 'unrecognized' }
-  }
-  try {
-    return { signature, verdict: credentialFileVerdict(readFileSync(filePath, 'utf8'), platform) }
-  } catch {
-    return { signature, verdict: 'unrecognized' }
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor)
   }
 }
 
