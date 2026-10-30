@@ -8,6 +8,7 @@ import {
   type VaultRequester,
 } from '../../shared/vault'
 import { type VaultCeiling } from '../../core/vault/broker/policy'
+import { VaultError } from '../../core/vault/crypto'
 import { isVaultFileMissing, vaultPrivateDirectory } from '../../core/vault/broker/files'
 
 /**
@@ -48,11 +49,24 @@ export async function vaultPolicyCeiling(
   let policy: VaultPersonPolicy | undefined
   try {
     policy = await readVaultPolicy(dataDir)
-  } catch {
-    // A damaged policy refuses every use rather than guessing a ceiling;
-    // the fixed word on the broker's stderr is the record.
-    process.stderr.write('vault-policy-refused\n')
-    return 'none'
+  } catch (error: unknown) {
+    // A damaged policy (unparseable, schema-invalid or oversize) refuses
+    // every use rather than guessing a ceiling; the fixed word on the
+    // broker's stderr is the record. Any other failure (an unreadable
+    // folder) is not a policy outcome and keeps propagating.
+    if (error instanceof SyntaxError) {
+      process.stderr.write('vault-policy-refused\n')
+      return 'none'
+    }
+    if (error instanceof VaultError) {
+      process.stderr.write('vault-policy-refused\n')
+      return 'none'
+    }
+    if (error instanceof Error && error.name === '$ZodError') {
+      process.stderr.write('vault-policy-refused\n')
+      return 'none'
+    }
+    throw error
   }
   const entry = policy?.ceilings.find(
     (candidate) =>
