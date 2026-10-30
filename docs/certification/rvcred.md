@@ -16,7 +16,9 @@ messages point here.
 | macOS credential file | `rv/maccred`            | `221f501971e22bd5baa9241e12a58392b6147879` |
 
 Shared history for the three feature deltas is int/recovery at
-`f53ef168f`. There is no branch named `int/recovery`.
+`f53ef168f`. There is no branch named `int/recovery`. The gist branch
+has a follow-up, `7a88f5806`, that narrows the refresh catch and
+removes the clones the first fix had added. It is on `rv/m118` only.
 
 ## Vault undo (`rv/cred`, D217)
 
@@ -351,5 +353,72 @@ it was not used as a substitute for them.
 | npm run security:audit                                         | 1    | Pre-existing highs: `@azure/msal-node` GHSA-xcx6-jx8p-x3h5, `undici` GHSA-xjj6-f33q-929c, GHSA-4w7w-5xrc-9h26, GHSA-2m5v-pch6-74hx, GHSA-qrxm-fqhp-jwvm, `zod` GHSA-mrhx-c7xc-m3w5. Not introduced here                                                                                                                                                                                                                                                                            |
 | npm run security:sast                                          | 1    | 5 blocking findings, all `detect-replaceall-sanitization` in `src/host/backend/deviceWorkerDarwin.ts`, a file this review does not touch. Semgrep also timed out three rules on `ModelApiHost.ts` and continued                                                                                                                                                                                                                                                                    |
 
-The `rv/m118` and `rv/maccred` gate exits are recorded below when those
-trees are measured. They are not merged into this branch.
+## Gates on `rv/m118`
+
+Head after the follow-up is `7a88f5806` (parent `a0e8785b7`). The
+follow-up is the catch and the clones below. Repository timeouts.
+`gistShare` 21 passed, `gistShareSend` 6, `githubGist` 6,
+`gistGrantStore` 4, all exit 0.
+
+The first pass of `a0e8785b7` had two regressions this review had
+added. `check:catches` named a new GENERIC site at
+`src/runtime/github/deviceFlowSource.ts` (runtime GENERIC 185 to 200).
+The gist refresh catch returned the stored grant for every error.
+`7a88f5806` keeps that grant only for a `DeviceFlowFailure` that is
+not a refused refresh, and throws anything else. The re-run lists no
+site in that file, and runtime GENERIC is 185 to 199, the same
+pre-existing rise as this branch. `duplication` found 11 clones, four
+of them in `githubSignIn.ts` and `gistShareSend.test.ts`. The same
+commit shares the sign-in ask and the send-test helpers. The re-run
+is 7 clones, none in those files.
+
+| Gate                        | Exit | Note                                                                                                                                                                                                                                                                                                                                                               |
+| --------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| prettier, eslint            | 0    | touched files, including the follow-up                                                                                                                                                                                                                                                                                                                             |
+| npm run typecheck           | 0    | before and after the follow-up                                                                                                                                                                                                                                                                                                                                     |
+| node scripts/check-l10n.mjs | 0    | 0 problems, including after the follow-up                                                                                                                                                                                                                                                                                                                          |
+| npm run check:reference     | 0    |                                                                                                                                                                                                                                                                                                                                                                    |
+| npm run check:host-api      | 0    |                                                                                                                                                                                                                                                                                                                                                                    |
+| npm run check:plan          | 1    | PLAN.md is 3,771,739 bytes, over the 3,565,158-byte archive bound. Pre-existing. Not archived                                                                                                                                                                                                                                                                      |
+| npm run check:roadmap       | 0    |                                                                                                                                                                                                                                                                                                                                                                    |
+| npm run check:catches       | 1    | Pre-existing rises only, after the follow-up. Baseline not regenerated                                                                                                                                                                                                                                                                                             |
+| npm run duplication         | 1    | 7 pre-existing clones after the follow-up                                                                                                                                                                                                                                                                                                                          |
+| npm run cycles              | 0    | before and after the follow-up                                                                                                                                                                                                                                                                                                                                     |
+| npm run deadcode            | 1    | Pre-existing only (`judgeApprovalFixtures.ts`, `MAY_HOLD_SECRET`, `paidAvailability`, `JudgeLintOptions`, knip hints, four tags)                                                                                                                                                                                                                                   |
+| npm run build               | 1    | Ten overs, none new: `reportingPanel.js` 50.6/50, `resourceGovernor.js` 126.9/125, `resourceAdmission.js` 25.5/25, `modelApi.js` 544.3/525, `modelsPanel.js` 155.0/150, `usageService.js` 100.8/100, `teamScheduler.js` 75.3/75, `vaultActions.js` 25.1/25, `estimateContracts.js` 25.1/25, `wire.js` 76.2/75. Budgets not raised. Re-measured after the follow-up |
+| npm run security:audit      | 1    | The same pre-existing highs as this branch                                                                                                                                                                                                                                                                                                                         |
+| npm run security:sast       | 1    | On `7a88f5806`: 5 blocking findings, all in `deviceWorkerDarwin.ts`. None in the gist files                                                                                                                                                                                                                                                                        |
+
+## Gates on `rv/maccred`
+
+Head `221f50197`. Repository timeouts. `cliCredentialFile` 6 passed,
+`authFastSignIn` 4, `cliPeek` 3, exit 0. `providerHeadersStore` was
+not run: it uses the login keychain and fails here with no default
+keychain.
+
+The worktree's `node_modules` had been installed from another branch,
+so the first typecheck and build exited 1 on missing
+`@simplewebauthn/server`, `@sigstore/bundle`, `@sigstore/tuf`, and
+`@sigstore/verify`. Those are in this branch's `package.json`. After
+`npm ci --ignore-scripts` from this branch's lockfile, typecheck
+exited 0 and build exited 0. Budgets held. `dist/vaultMigration.js`
+is 38.3 KiB. No budget was raised.
+
+| Gate                        | Exit | Note                                                                                                                                                                                                                                                                                |
+| --------------------------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| prettier, eslint            | 0    | the five touched files                                                                                                                                                                                                                                                              |
+| npm run typecheck           | 0    | after the lockfile install. The earlier exit 1 was the missing packages                                                                                                                                                                                                             |
+| node scripts/check-l10n.mjs | 0    | no new sentence                                                                                                                                                                                                                                                                     |
+| npm run check:reference     | 0    |                                                                                                                                                                                                                                                                                     |
+| npm run check:host-api      | 0    |                                                                                                                                                                                                                                                                                     |
+| npm run check:plan          | 0    |                                                                                                                                                                                                                                                                                     |
+| npm run check:roadmap       | 0    |                                                                                                                                                                                                                                                                                     |
+| npm run check:catches       | 0    | host GENERIC 95 to 94, baseline regenerated in `221f50197`                                                                                                                                                                                                                          |
+| npm run duplication         | 0    | 0 clones                                                                                                                                                                                                                                                                            |
+| npm run cycles              | 0    |                                                                                                                                                                                                                                                                                     |
+| npm run deadcode            | 0    |                                                                                                                                                                                                                                                                                     |
+| npm run build               | 0    | after the lockfile install                                                                                                                                                                                                                                                          |
+| npm run security:audit      | 0    |                                                                                                                                                                                                                                                                                     |
+| npm run security:sast       | 1    | 6 blocking findings, none in `cliAccount.ts`: `os/build.py`, `os/pi/compose.py`, `scripts/build-packs.mjs`, `src/core/backends/modelapi/mcp/headers.ts`, `src/runtime/node/keyStore.ts`. Semgrep timed out rules on `ModelApiHost.ts` and `conversationController.ts` and continued |
+
+The three branches are not merged together.
