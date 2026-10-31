@@ -7900,11 +7900,18 @@ How a source checkout builds the native helpers its platform starts, and the
 file that tells a checkout from an installed product (the build script is not
 shipped). Windows compiles its job helper on first use: nothing to build by hand.
 */
-export const NATIVE_HELPER_BUILD: Readonly<
-  Partial<Record<string, { readonly script: string; readonly command: string }>>
-> = {
+export interface NativeHelperBuild {
+  readonly script: string
+  readonly command: string
+}
+export const NATIVE_HELPER_BUILD: Readonly<Partial<Record<string, NativeHelperBuild>>> = {
   darwin: { script: 'native/darwin/build.sh', command: 'bash native/darwin/build.sh' },
   linux: { script: 'scripts/build.mjs', command: 'npm run build:dev' },
+}
+/** The macOS local judge peer is its own build output, made by its own script. */
+export const LOCAL_JUDGE_PEER_BUILD: NativeHelperBuild = {
+  script: 'native/darwin/build-local-judge.sh',
+  command: 'bash native/darwin/build-local-judge.sh',
 }
 /**
 The exit statuses of the shell that starts `muse serve` on POSIX: 126 for a

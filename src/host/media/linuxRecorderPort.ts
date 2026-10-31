@@ -8,12 +8,14 @@
 // helper's JSON-line protocol, an owner-only recording folder, and M1's
 // bounded sniffer. Nothing here records on its own: `--probe` only asks the
 // bus whether the portal carries ScreenCast.
-import { realpathSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import type { LinuxRecordingPort } from '../../core/media/record/linux'
 import { noWorkspaceChildEnvironment } from '../../core/execGuard'
+import { nativeHelperError, runNativeHelper } from '../../core/nativeHelper'
+import { isNativeHelperError } from '../../shared/nativeHelperError'
 import { posixTrustedPathVerifier } from '../../runtime/trustedPath'
 import { runProgram, type RunProgram } from '../processTree'
 import type { UiTable } from '../l10n'
@@ -157,9 +159,16 @@ export function createLinuxRecorderPort(host: LinuxRecorderHost): LinuxRecording
   let boundEncoder: string | undefined
   let active: ActiveRun | undefined
 
-  const trustedHelper = async (): Promise<string | undefined> => {
+  /**
+  The portal helper's trusted path. One that is not shipped, or that the
+  trusted-path walk refuses, is said as a helper that is missing or cannot be
+  run, never read as a desktop with no portal.
+  */
+  const trustedHelper = async (): Promise<string> => {
+    if (!existsSync(helperPath)) throw nativeHelperError('missing', helperPath, 'linux')
     const verdict = await trust.verify(helperPath, { leafKind: 'file' })
-    return 'ok' in verdict ? verdict.path : undefined
+    if ('ok' in verdict) return verdict.path
+    throw nativeHelperError('unloadable', helperPath, 'linux')
   }
 
   return {
@@ -199,13 +208,14 @@ export function createLinuxRecorderPort(host: LinuxRecorderHost): LinuxRecording
     },
     hasPortal: async () => {
       const helper = await trustedHelper()
-      if (helper === undefined) return false
       try {
-        await run(helper, ['--probe'], environment)
+        await runNativeHelper(helper, () => run(helper, ['--probe'], environment), 'linux')
         return true
       } catch (error: unknown) {
-        // The helper answered no (a failure exit) or could not start: the
-        // portal is not there to use. Anything else is a bug in the probe.
+        // A helper the system will not start is said by its own sentence.
+        if (isNativeHelperError(error)) throw error
+        // The helper answered no (a failure exit): the portal is not there
+        // to use. Anything else is a bug in the probe.
         if (error instanceof Error && isRunFailure(error.cause)) return false
         throw error
       }
@@ -214,7 +224,7 @@ export function createLinuxRecorderPort(host: LinuxRecorderHost): LinuxRecording
       active = undefined
       const encoder = boundEncoder
       const helperFile = await trustedHelper()
-      if (encoder === undefined || helperFile === undefined) throw portalFailure('unavailable')
+      if (encoder === undefined) throw portalFailure('unavailable')
       const helper = recordingLineProcess(
         startRecordingHelper(
           helperFile,

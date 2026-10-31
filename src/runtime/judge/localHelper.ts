@@ -5,15 +5,30 @@ import path from 'node:path'
 import {
   LOCAL_JUDGE_MAX_RESPONSE_BYTES,
   LOCAL_JUDGE_HELPER_MODE,
+  LOCAL_JUDGE_PEER_BUILD,
   LOCAL_JUDGE_TIMEOUT_MS,
   WINDOWS_FRAMEWORK_RELATIVE_PATH,
 } from '../../shared/constants'
+import { isErrno } from '../../core/fs/errno'
 import { executeGuarded } from '../../core/judge/local/guardedExec'
+import { nativeHelperError } from '../../core/nativeHelper'
 
 const execute = executeGuarded
+/** How far down a failure's causes the exit status is looked for: wrappers are shallow. */
+const HELPER_CAUSE_DEPTH = 8
 export interface LocalJudgeHelperPaths {
   readonly packageRoot: string
   readonly storageRoot: string
+}
+
+/** Whether a guarded run failed by the program's own failing exit status (its cause carries a numeric `code`). */
+function hasFailureExit(error: unknown): boolean {
+  let current: unknown = error
+  for (let depth = 0; depth < HELPER_CAUSE_DEPTH && current instanceof Error; depth++) {
+    if ('code' in current && typeof current.code === 'number') return true
+    current = current.cause
+  }
+  return false
 }
 
 /** Same-build native sources; callers never supply source or compiler arguments. */
@@ -36,7 +51,17 @@ export async function prepareLocalJudgeHelper(
       ? 'muse-local-judge-peer'
       : `MuseSparkLocalJudgePeer.${platform === 'win32' ? 'cs' : 'c'}`,
   )
-  const sourceStat = await stat(source)
+  // The macOS peer is a build output (build-local-judge.sh) that a source
+  // checkout does not have until it is built: said with the command, as every
+  // other shipped helper is. The sources the other platforms compile ship.
+  let sourceStat
+  try {
+    sourceStat = await stat(source)
+  } catch (error: unknown) {
+    if (platform === 'darwin' && isErrno(error) && error.code === 'ENOENT')
+      throw nativeHelperError('missing', source, platform, error, LOCAL_JUDGE_PEER_BUILD)
+    throw error
+  }
   if ((await realpath(source)) !== source || !sourceStat.isFile())
     throw new Error('unverified-helper-path')
   const options = {
@@ -47,7 +72,15 @@ export async function prepareLocalJudgeHelper(
     env: platform === 'win32' ? { SystemRoot: process.env['SystemRoot'] } : {},
   }
   if (platform === 'darwin') {
-    await run('/usr/bin/codesign', ['--verify', '--strict', source], options)
+    try {
+      await run('/usr/bin/codesign', ['--verify', '--strict', source], options)
+    } catch (error: unknown) {
+      // codesign ran and refused the peer's signature (a failure exit): the
+      // peer is there but this Mac will not trust it. Anything else (codesign
+      // not starting, a stop) is not the peer's fault.
+      if (signal.aborted || !hasFailureExit(error)) throw error
+      throw nativeHelperError('unloadable', source, platform, error, LOCAL_JUDGE_PEER_BUILD)
+    }
     return source
   }
   const contents = await readFile(source)
