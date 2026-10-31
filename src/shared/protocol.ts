@@ -299,6 +299,15 @@ export const HOST_ACTIONS = [
   /** The palette's "What's New" (M99, PLAN.md D79): this version's release notes in an editor tab. */
   'showWhatsNew',
   /**
+  The portable presentation pages' openers (M104 lane D): in VS Code the
+  walkthrough, the Models & Agents roles and the saved plans; through the
+  panel wire, their presentation surfaces. The conversation controller
+  answers showPlans itself, as it answers the showPlans message.
+  */
+  'showWalkthrough',
+  'showRoles',
+  'showPlans',
+  /**
   A why-note's button (M116): what the conversation owes its playbook, asked
   in VS Code's own pickers. The conversation controller answers it itself.
   */

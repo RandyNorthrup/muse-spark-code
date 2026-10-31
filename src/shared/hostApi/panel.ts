@@ -6,7 +6,7 @@ import { presentationRequestSchema, presentationMessageSchema } from '../present
 import { tasksHostMessageSchema, tasksWebviewMessageSchema } from '../tasksProtocol'
 import { whatsNewMessageSchema } from '../whatsNewMessages'
 import { offeredCapabilitiesSchema } from './capabilities'
-import { integerSchema, jsonValueSchema, surfaceKindSchema } from './data'
+import { integerSchema, jsonValueSchema, surfaceKindSchema, themeSchema } from './data'
 import { MhpPanelError } from './panelError'
 
 const opaqueId = z.string().check(z.minLength(1))
@@ -23,10 +23,16 @@ export const panelToHostPayloadSchema = z.union([
   whatsNewMessageSchema,
   presentationRequestSchema,
 ])
+/** The host's current theme (M104 lane D): sent after ready and on every change. */
+export const panelThemePayloadSchema = z.strictObject({
+  type: z.literal('theme'),
+  theme: themeSchema,
+})
 export const panelToPanelPayloadSchema = z.union([
   hostToWebviewMessageSchema,
   tasksHostMessageSchema,
   presentationMessageSchema,
+  panelThemePayloadSchema,
 ])
 const envelope = {
   mhp: z.literal(MHP_PANEL.wireVersion),
@@ -174,7 +180,13 @@ export function parseMhpPanelEnvelope(
         parsed.data.direction === 'toHost' ? webviewToHostMessageSchema : hostToWebviewMessageSchema
     }
   }
-  return payloadSchema.safeParse(parsed.data.payload).success
+  // A theme frame (M104 lane D) may ride toPanel on any surface that
+  // takes host messages at all; What's New takes none.
+  const isTheme =
+    parsed.data.direction === 'toPanel' &&
+    surfaceKind !== 'whatsNew' &&
+    panelThemePayloadSchema.safeParse(parsed.data.payload).success
+  return isTheme || payloadSchema.safeParse(parsed.data.payload).success
     ? parsed.data
     : refuse('MHP_PANEL_INVALID_PAYLOAD')
 }
