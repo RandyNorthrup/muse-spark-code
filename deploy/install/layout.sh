@@ -77,6 +77,7 @@ echo "$members" | grep -q -x -F 'package/THIRD_PARTY_NOTICES.txt' || die 'tarbal
 # cannot start or cannot serve.
 SERVE_MEMBERS='package/dist/nodeServe.js package/dist/nodeAuth.js package/dist/uiText.js'
 SERVE_MEMBERS="$SERVE_MEMBERS package/dist/resourceAdmission.js package/dist/resourceGovernor.js"
+SERVE_MEMBERS="$SERVE_MEMBERS package/dist/resourceGovernorWindows.js"
 SERVE_MEMBERS="$SERVE_MEMBERS package/dist/resourceJournal.js package/dist/resourceProcess.js"
 SERVE_MEMBERS="$SERVE_MEMBERS package/dist/execGuard.js package/dist/vaultBoundaries.js"
 SERVE_MEMBERS="$SERVE_MEMBERS package/dist/uiTextHooks.js package/dist/uiTextMedia.js"
