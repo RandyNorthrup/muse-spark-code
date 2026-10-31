@@ -11,8 +11,11 @@
 
 import { existsSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
+import { availableParallelism } from 'node:os'
+import path from 'node:path'
 import {
   HOOK_CONFIG_MAX_BYTES,
+  TEAM_CHECK_INSTALL_PATHS,
   TEAM_KILL_GRACE_MS,
   TEAM_LOAD_CPU_HIGH,
   TEAM_LOAD_FREE_MEMORY_MIN,
@@ -21,12 +24,17 @@ import {
   TEAM_MODEL_TEXT,
   TEAM_READ_ONLY_COMMANDS,
   TEAM_TOOL_GROUP_TOOLS,
+  UI_TEXT,
+  WINDOWS_POWERSHELL_COMMAND_ARGS,
+  WINDOWS_POWERSHELL_UTF8_PREAMBLE,
+  type CheckCommandSetting,
 } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
+import { fill, uiLocale } from '../../shared/l10n/text'
 import type { TeamAgentRef, TeamAttempt, TeamReport, TeamUsage } from '../../shared/team'
 import type { AgentEvent } from '../../shared/agentEvents'
 import type { CoreLogger } from '../../core/logging'
 import { failureForLog } from '../../core/backends/musecode/logText'
+import { windowsPowerShell } from '../../core/execGuard'
 import type { MuseCodeHost, MuseSession } from '../../core/backends/musecode/MuseCodeHost'
 import type { ShellDialect } from '../../core/backends/modelapi/shellSyntax'
 import type { TeamGit } from '../../core/team/teamGit'
@@ -72,6 +80,8 @@ import {
   spawnAcpAgent,
   type TeamChildLauncher,
 } from './acpProcess'
+import { checkProcessOver, proofOf } from './checkProcess'
+import type { CheckSlots } from './checkSlots'
 import { createLoadGuard } from './loadGuard'
 import {
   startNativeTeamLifetime,
@@ -79,6 +89,7 @@ import {
   type TeamProcessLifetime,
 } from './processLifetime'
 import { createTeamJournal } from './teamJournal'
+import { createWorkerChecks } from './workerChecks'
 import { createWindowAuthority, createWindowIdentity } from './windowIdentity'
 import {
   beginTaskCopy,
@@ -125,6 +136,10 @@ export interface TeamProcessWorkersDeps {
   /** Windows only: the job assembly the native lifetime contains children in. */
   readonly windows?: ShellJobDeps | undefined
   readonly runGit: TeamGit
+  /** `museSpark.checkCommands`: the person's own checks, which a worker's `run_checks` runs. */
+  readonly checks: () => readonly CheckCommandSetting[]
+  /** The workspace's check-slot setup as the Roles section saved it; read when the slots are first built. */
+  readonly checkSetup: () => { readonly setupCommand: string; readonly cacheKey: string }
   /** The external agents' preset table; absent, the captured presets (`ACP_PRESETS`). */
   readonly presets?: Readonly<Record<AcpPresetId, AcpPreset>> | undefined
   readonly now: () => number
@@ -345,16 +360,20 @@ function museSessionPort(session: MuseSession, context: MuseTaskContext): MuseWo
   }
 }
 
-/** The proof a contained child's retirement gives the board: only a real OS container proves it. */
-function proofOf(
-  confirmed: { readonly container: string },
-  end: { readonly descendants: string },
-): TeamAttempt['retirement'] {
-  if (end.descendants !== 'proved') return undefined
-  if (confirmed.container === 'windowsJob') return { kind: 'proved', method: 'windowsJob' }
-  return confirmed.container === 'linuxScope'
-    ? { kind: 'proved', method: 'linuxCgroup' }
-    : undefined
+/** The shell a check runs in: the POSIX shell, or Windows PowerShell where the window found it. */
+function checkShell(deps: Pick<TeamProcessWorkersDeps, 'platform' | 'windows' | 'baseEnv'>): {
+  readonly file: string
+  readonly args: (command: string) => readonly string[]
+} {
+  if (deps.platform !== 'win32') return { file: '/bin/sh', args: (command) => ['-c', command] }
+  if (deps.windows === undefined) throw new Error(TEAM_MODEL_TEXT.hostChecksNoShell)
+  return {
+    file: windowsPowerShell(deps.windows.systemRoot, deps.baseEnv()).file,
+    args: (command) => [
+      ...WINDOWS_POWERSHELL_COMMAND_ARGS,
+      WINDOWS_POWERSHELL_UTF8_PREAMBLE + command,
+    ],
+  }
 }
 
 /** The Muse Code and external worker ports over one workspace's repository. */
@@ -416,6 +435,51 @@ export function createProcessTeamPorts(deps: TeamProcessWorkersDeps): ProcessTea
   }
   const ensureLifetime = async (): Promise<TeamProcessLifetime> =>
     await (lifetime ??= startLifetime())
+
+  // The heavy checks of Muse Code workers (M96c): the governed local slots are
+  // built on the first `run_checks`, through the runners runtime, over this
+  // team's own process lifetime. The setup is read once, when they are built.
+  let checkSlots: Promise<CheckSlots> | undefined
+  const buildCheckSlots = async (): Promise<CheckSlots> => {
+    try {
+      const shell = checkShell(deps)
+      const { createTeamRuntime } = await import('../../core/team/teamEntry')
+      const runners = await createTeamRuntime(UI_TEXT, uiLocale()).loadRunners()
+      const setup = deps.checkSetup()
+      return await runners.createGovernedCheckSlots({
+        file: 'git',
+        run: checkProcessOver(await ensureLifetime()),
+        env: deps.baseEnv(),
+        root: path.join(await storage(), 'check-slots'),
+        repositoryRoot: requireRepository(deps),
+        platform: deps.platform,
+        // Folders are made on use; the machine's own parallelism is the most that can run.
+        count: availableParallelism(),
+        setupCommand: setup.setupCommand,
+        cacheKey: setup.cacheKey,
+        installPaths: TEAM_CHECK_INSTALL_PATHS,
+        shell: shell.file,
+        shellArgs: shell.args,
+        isTrusted: deps.isTrusted,
+        isHostBusy: () => loadGuard?.isHostBusy() ?? false,
+      })
+    } catch (error: unknown) {
+      // A build that failed is tried again by the next check.
+      checkSlots = undefined
+      throw error
+    }
+  }
+  const workerChecks = createWorkerChecks({
+    platform: deps.platform,
+    isTrusted: deps.isTrusted,
+    checks: deps.checks,
+    localSlot: async (job) => {
+      const slots = await (checkSlots ??= buildCheckSlots())
+      return await slots.run(job)
+    },
+    runGit: deps.runGit,
+    log: deps.log,
+  })
 
   // The team's own Muse Code hosts, one per kind, made on first use.
   const hosts = new Map<MuseWorkerHostKind, Promise<MuseCodeHost>>()
@@ -501,30 +565,40 @@ export function createProcessTeamPorts(deps: TeamProcessWorkersDeps): ProcessTea
       copy.repositoryRoot,
     )
     const usage = { current: EMPTY_USAGE }
-    const result = await runMuseCodeWorker({
-      task: plan.task,
-      role: plan.role,
-      prompt,
-      modelId: spec.entry.agent.model,
-      workspaceRoot: copy.repositoryRoot,
-      platform: deps.platform,
-      io: WORKER_NATIVE_IO,
-      exclusiveUserServers: [],
-      isTrusted: deps.isTrusted(),
-      bridgeServers: {},
-      hosts: providerFor(
-        {
-          spec,
-          role: plan.role,
-          folder: plan.task.folder,
-          workspaceRoot: copy.repositoryRoot,
-          platform: deps.platform,
-          log: deps.log,
-        },
-        usage,
-      ),
-      signal,
-    })
+    // A role with the checks group gets `run_checks` as a tool of its own session.
+    const checks = await workerChecks.serve(
+      { folder: plan.task.folder, workspaceRoot: copy.repositoryRoot, role: plan.role },
+      () => !signal.aborted,
+    )
+    let result: Awaited<ReturnType<typeof runMuseCodeWorker>>
+    try {
+      result = await runMuseCodeWorker({
+        task: plan.task,
+        role: plan.role,
+        prompt,
+        modelId: spec.entry.agent.model,
+        workspaceRoot: copy.repositoryRoot,
+        platform: deps.platform,
+        io: WORKER_NATIVE_IO,
+        exclusiveUserServers: [],
+        isTrusted: deps.isTrusted(),
+        bridgeServers: checks?.servers ?? {},
+        hosts: providerFor(
+          {
+            spec,
+            role: plan.role,
+            folder: plan.task.folder,
+            workspaceRoot: copy.repositoryRoot,
+            platform: deps.platform,
+            log: deps.log,
+          },
+          usage,
+        ),
+        signal,
+      })
+    } finally {
+      checks?.close()
+    }
     return { report: result.report, usage: usage.current }
   }
 
@@ -739,6 +813,7 @@ export function createProcessTeamPorts(deps: TeamProcessWorkersDeps): ProcessTea
       hosts.clear()
       await Promise.allSettled(closing)
       await Promise.allSettled(launches)
+      await workerChecks.close()
       if (started !== undefined) {
         const native = await started
         await native.dispose()

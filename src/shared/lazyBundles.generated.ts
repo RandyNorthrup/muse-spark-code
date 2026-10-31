@@ -1454,6 +1454,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         symbol: 'ConversationController.openSession',
         side: ['acp', 'vscode'],
       },
+      {
+        importer: 'src/host/team/teamProcessWorkers.ts',
+        symbol: 'buildCheckSlots',
+        side: ['acp', 'vscode'],
+      },
       { importer: 'src/host/teamViewBundle.ts', symbol: 'schemas', side: ['acp', 'vscode'] },
     ],
   },

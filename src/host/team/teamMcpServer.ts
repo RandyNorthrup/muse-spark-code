@@ -22,6 +22,7 @@ import {
   CLI_OUTPUT_MAX_BYTES,
 } from '../../shared/constants'
 import { type Logger } from '../logger'
+import { answerMcp } from '../mcpLoopback'
 // The `team` MCP server Muse Code orchestrators reach from each session
 // (PLAN.md M96 lane T, D75 "Muse Code as the orchestrator"): MCP over
 // streamable HTTP on a loopback port, with a Bearer [REDACTED] minted per
@@ -58,7 +59,6 @@ export interface TeamSessionBinding {
 
 const AUTHORIZATION_HEADER = 'authorization'
 const BEARER_PREFIX = 'Bearer '
-const JSON_CONTENT_TYPE = 'application/json'
 const POST = 'POST'
 const TEAM_SERVER_INFO = { name: 'muse_spark_team', version: '1' } as const
 
@@ -227,13 +227,7 @@ export class TeamMcpServer {
     const flightKey = keys.request === undefined ? undefined : flightKeyOf(keys.request)
     const outcome = await this.handleInFlight(body, found.binding, found.token, flightKey, response)
     if (response.destroyed) return
-    const reply = outcome.kind === 'response' ? JSON.stringify(outcome.body) : undefined
-    response
-      .writeHead(
-        reply === undefined ? HTTP_STATUS.accepted : HTTP_STATUS.ok,
-        reply === undefined ? {} : { 'content-type': JSON_CONTENT_TYPE },
-      )
-      .end(reply)
+    answerMcp(response, outcome)
   }
 
   /** `handle`, with a failure answered 500 instead of left as an unhandled rejection (D25). */

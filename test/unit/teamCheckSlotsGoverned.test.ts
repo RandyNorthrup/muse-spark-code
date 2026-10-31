@@ -5,7 +5,6 @@
 // the process and treats a clean exit as the container's proof that nothing
 // else is left running (the checks are leaf programs); one command names an
 // exit without that proof.
-import { execFile, type ExecFileException } from 'node:child_process'
 import { appendFile, mkdtemp, readFile, rm, statfs } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -28,6 +27,7 @@ import { RESOURCE_GIB_BYTES } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import { resolveGitBinary } from './helpers/realGit'
+import { checkProcessProvedByExit } from './helpers/checkProcessProvedByExit'
 import { launchHostOver } from './helpers/resourceRig'
 import { manualClock } from './resourceHarness'
 import { initRigFolders } from './helpers/teamRealRig'
@@ -44,28 +44,9 @@ const CHECK_RUNS_MS = 700
 /** How long "not started" is watched: well past a check's own start-up. */
 const WATCH_MS = 1500
 
-function exitCodeOf(error: ExecFileException | null): number {
-  if (error === null) return 0
-  return typeof error.code === 'number' ? error.code : 1
-}
-
-const run: CheckProcess = (request) =>
-  new Promise((resolve) => {
-    const isUnproved = request.args.some((argument) => argument.includes(UNPROVED))
-    execFile(
-      request.file,
-      [...request.args],
-      { cwd: request.cwd, env: request.env, timeout: request.timeoutMs },
-      (error: ExecFileException | null, stdout: string, stderr: string) => {
-        resolve({
-          exitCode: exitCodeOf(error),
-          output: stdout,
-          descendantsEnded: !isUnproved,
-          stderr,
-        })
-      },
-    )
-  })
+const run: CheckProcess = checkProcessProvedByExit((request) =>
+  request.args.some((argument) => argument.includes(UNPROVED)),
+)
 
 interface Governed {
   readonly host: ResourceLaunchHost

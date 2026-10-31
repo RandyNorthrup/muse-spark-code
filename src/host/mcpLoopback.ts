@@ -6,8 +6,9 @@
 import { Buffer } from 'node:buffer'
 import { timingSafeEqual } from 'node:crypto'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
+import type { McpOutcome } from '../core/mcp'
 import { redactSecrets } from '../core/redact'
-import { IDE_MCP_LOOPBACK_HOST } from '../shared/constants'
+import { HTTP_STATUS, IDE_MCP_LOOPBACK_HOST } from '../shared/constants'
 import type { Logger } from './logger'
 
 /** Reads the request body, or undefined when it is too large or unreadable. */
@@ -85,4 +86,15 @@ export async function listenLoopback(
     throw new Error(`${service} has no TCP address`)
   }
   return { server, port: address.port }
+}
+
+/** Answers one MCP message: the JSON-RPC response, or 202 for a notification nobody answers. */
+export function answerMcp(response: ServerResponse, outcome: McpOutcome): void {
+  const reply = outcome.kind === 'response' ? JSON.stringify(outcome.body) : undefined
+  response
+    .writeHead(
+      reply === undefined ? HTTP_STATUS.accepted : HTTP_STATUS.ok,
+      reply === undefined ? {} : { 'content-type': 'application/json' },
+    )
+    .end(reply)
 }
