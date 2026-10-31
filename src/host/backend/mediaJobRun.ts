@@ -39,14 +39,6 @@ export interface JobEncoderRunDeps {
   readonly jobExecutable: () => Promise<string | undefined>
   /** The launcher's spawn (tests); production uses `spawnMcpJob`. */
   readonly spawnJob?: (launch: McpJobLaunch) => ChildProcessWithoutNullStreams
-  /** The output's stat (tests); production uses `lstat`. */
-  readonly statOutput?: (file: string) => Promise<OutputStat>
-}
-
-/** What the output check reads of the encoder's output file. */
-export interface OutputStat {
-  isFile(): boolean
-  readonly size: number
 }
 
 /** The limits the M109 attested launcher's RESULT record names as enforced. */
@@ -113,10 +105,7 @@ One output check, bounded like conversion's resource samples: a stat that
 does not answer in time (a stalled share, a hung redirected folder) is a
 failed check, so cancellation, the deadline and close always settle.
 */
-async function isOutputWithinCap(
-  options: JobEncoderRunOptions,
-  statOutput: (file: string) => Promise<OutputStat>,
-): Promise<boolean> {
+async function isOutputWithinCap(options: JobEncoderRunOptions): Promise<boolean> {
   let timer: ReturnType<typeof setTimeout> | undefined
   const late = new Promise<false>((settle) => {
     timer = setTimeout(() => {
@@ -125,7 +114,7 @@ async function isOutputWithinCap(
   })
   const read = (async () => {
     try {
-      const output = await statOutput(options.outputPath)
+      const output = await lstat(options.outputPath)
       return output.isFile() && output.size <= options.maxOutputBytes
     } catch {
       return false
@@ -141,7 +130,7 @@ async function isOutputWithinCap(
 function runInJob(
   launch: McpJobLaunch,
   options: JobEncoderRunOptions,
-  deps: Required<Pick<JobEncoderRunDeps, 'spawnJob' | 'statOutput'>>,
+  deps: Required<Pick<JobEncoderRunDeps, 'spawnJob'>>,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     let child: ChildProcessWithoutNullStreams
@@ -161,7 +150,7 @@ function runInJob(
       // The launcher's end closes the job, and kill-on-close ends the encoder's tree.
       if (!hasClosed) child.kill()
     }
-    const checkOutput = () => isOutputWithinCap(options, deps.statOutput)
+    const checkOutput = () => isOutputWithinCap(options)
     const requestCheck = () => {
       if (check !== undefined || hasClosed || hasFailed) return
       check = (async () => {
@@ -222,7 +211,6 @@ export function jobMemoryLimitedRun(
 ): (command: string, args: readonly string[], options: JobEncoderRunOptions) => Promise<void> {
   const launcher = {
     spawnJob: deps.spawnJob ?? spawnMcpJob,
-    statOutput: deps.statOutput ?? lstat,
   }
   return async (command, args, options) => {
     if (!isLaunchable(command, options) || isAborted(options.signal))

@@ -314,7 +314,7 @@ export async function providersUsage(
     return EXIT_FAILED
   }
   if (!(await isEndpointSafe(deps, provider))) return EXIT_FAILED
-  const now = (deps.now ?? Date.now)()
+  const now = Date.now()
   const start = now - options.days * ACCOUNT_DAY_MS
   const startingAt = new Date(start).toISOString()
   const endingAt = new Date(now).toISOString()

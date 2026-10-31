@@ -21,14 +21,20 @@ import {
 /** The only hosts this fetch ever dials (brackets stripped: see below). */
 const LOOPBACK_HOSTS: ReadonlySet<string> = new Set(['127.0.0.1', '::1'])
 
-/** Why a loopback fetch was refused before any connection. */
+/**
+Why a loopback fetch was refused before any connection. A `TypeError`,
+as `fetch` rejects its own failures, so the probe reads it as
+unanswered rather than a failure of the fetch itself.
+*/
 function refuse(what: string): Promise<never> {
-  return Promise.reject(new Error(`loopback fetch refuses ${what}`))
+  return Promise.reject(new TypeError(`loopback fetch refuses ${what}`))
 }
 
 /**
 A `fetch` for the local-server probe: GETs an `http:` loopback URL over
 `node:http` with no proxy, no redirect following and no credentials.
+Transport failures reject as `TypeError`, as `fetch` does, with the
+`node:http` error as the cause; the probe reads those as unanswered.
 */
 export function fetchLoopback(
   input: string | URL | Request,
@@ -83,7 +89,7 @@ export function fetchLoopback(
     const fail = (error: Error): void => {
       settle(() => {
         request.destroy()
-        reject(error)
+        reject(error instanceof TypeError ? error : new TypeError(error.message, { cause: error }))
       })
     }
     const request = httpRequest(

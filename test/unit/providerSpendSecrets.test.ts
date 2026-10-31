@@ -4,6 +4,7 @@
 // nothing but read-only report requests, and removed with its provider.
 
 import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   deleteProviderAdminCredential,
@@ -18,16 +19,22 @@ import {
 } from '../../src/host/providers/credentialRecords'
 import {
   createProviderRemoval,
+  systemRemovalClock,
   type PendingRemoval,
 } from '../../src/host/providers/providerRemoval'
-import { mapSecrets } from './helpers/mapSecrets'
+import { mapSecrets, mapSecretsBacked } from './helpers/mapSecrets'
+import { usingTempDir } from './helpers/temporaryFolders'
 import type { ProviderEntry, ProvidersStore } from '../../src/host/providers/providerPorts'
-import { providerEntrySchema } from '../../src/core/providers/providersFile'
+import {
+  providerEntrySchema,
+  readProvidersFile,
+  writeProvidersFileAtomic,
+} from '../../src/core/providers/providersFile'
 import { parseModelRef } from '../../src/shared/modelRef'
 import { providerAdminSecretAccount, providerSecretAccount } from '../../src/runtime/keyStore'
-import { providersRemove } from '../../src/runtime/providersCommands'
-import type { ProvidersFile } from '../../src/core/providers/providersFile'
+import { providersRemove, userFileIo } from '../../src/runtime/providersCommands'
 import type { ProvidersDeps } from '../../src/runtime/providersCommands'
+import { resolveEndpointHost } from '../../src/runtime/providerPaths'
 
 /**
 A list-backed providers store for the removal test: entries validate
@@ -124,7 +131,6 @@ describe('admin report key separation', () => {
     const secrets = mapSecrets({})
     await saveProviderCredential(secrets, 'anthropic', INFERENCE_RECORD)
     await saveProviderAdminCredential(secrets, 'anthropic', ADMIN_RECORD)
-    const scheduled: (() => void)[] = []
     let pending: PendingRemoval[] = []
     const removal = createProviderRemoval({
       providers: listProvidersStore([
@@ -144,67 +150,59 @@ describe('admin report key separation', () => {
           return Promise.resolve()
         },
       },
-      clock: {
-        now: () => 0,
-        schedule: (_ms, run) => {
-          scheduled.push(run)
-          return { cancel: () => undefined }
-        },
-      },
+      clock: systemRemovalClock(),
     })
     await removal.remove('anthropic')
-    // The Undo window keeps both secrets; its end deletes both.
+    // The Undo window keeps both secrets; the next start deletes both.
     expect(await readProviderCredential(secrets, 'anthropic')).toEqual(INFERENCE_RECORD)
-    for (const run of scheduled) run()
+    expect(await readProviderAdminCredential(secrets, 'anthropic')).toEqual(ADMIN_RECORD)
     await removal.completePending()
     expect(await readProviderCredential(secrets, 'anthropic')).toBeUndefined()
     expect(await readProviderAdminCredential(secrets, 'anthropic')).toBeUndefined()
   })
 
   it('deletes the admin key with the provider on the terminal side', async () => {
-    const store = new Map<string, string>([
-      ['museSpark.provider.anthropic', JSON.stringify({ secret: 'x' })],
-      ['museSpark.providerAdmin.anthropic', JSON.stringify({ secret: 'y' })],
-    ])
-    const file: ProvidersFile = {
-      v: 1,
-      providers: [
-        {
-          id: 'anthropic',
-          preset: 'anthropic',
-          address: 'https://api.anthropic.com',
-          auth: 'apiKey',
-          models: [],
+    await usingTempDir('spend-secrets-', async (dir) => {
+      const store = new Map<string, string>([
+        ['museSpark.provider.anthropic', JSON.stringify({ secret: 'x' })],
+        ['museSpark.providerAdmin.anthropic', JSON.stringify({ secret: 'y' })],
+      ])
+      const filePath = path.join(dir, 'providers.json')
+      const written = await writeProvidersFileAtomic(filePath, {
+        v: 1,
+        providers: [
+          {
+            id: 'anthropic',
+            preset: 'anthropic',
+            address: 'https://api.anthropic.com',
+            auth: 'apiKey',
+            models: [],
+          },
+        ],
+      })
+      expect(written.ok).toBe(true)
+      const printed: string[] = []
+      const deps: ProvidersDeps = {
+        ...userFileIo(filePath),
+        secrets: mapSecretsBacked(store),
+        resolveHost: resolveEndpointHost,
+        fetch: globalThis.fetch.bind(globalThis),
+        readSecret: () => Promise.reject(new Error('spend secrets test asks no key-use question')),
+        print: (line) => {
+          printed.push(line)
         },
-      ],
-    }
-    const printed: string[] = []
-    const deps: ProvidersDeps = {
-      readUserFile: () => Promise.resolve({ ok: true as const, file }),
-      writeUserFile: () => Promise.resolve(true),
-      secrets: {
-        get: (key) => Promise.resolve(store.get(key)),
-        store: (key, value) => {
-          store.set(key, value)
-          return Promise.resolve()
-        },
-        delete: (key) => {
-          store.delete(key)
-          return Promise.resolve()
-        },
-      },
-      resolveHost: () => Promise.resolve([]),
-      fetch: globalThis.fetch.bind(globalThis),
-      readSecret: () => Promise.resolve(''),
-      print: (line) => {
-        printed.push(line)
-      },
-      printError: () => undefined,
-    }
-    expect(await providersRemove(deps, 'anthropic')).toBe(0)
-    expect(store.has('museSpark.provider.anthropic')).toBe(false)
-    expect(store.has('museSpark.providerAdmin.anthropic')).toBe(false)
-    expect(printed.length).toBeGreaterThan(0)
+        printError: () => undefined,
+      }
+      expect(await providersRemove(deps, 'anthropic')).toBe(0)
+      expect(store.has('museSpark.provider.anthropic')).toBe(false)
+      expect(store.has('museSpark.providerAdmin.anthropic')).toBe(false)
+      expect(printed.length).toBeGreaterThan(0)
+      // The entry is gone from the real file too.
+      expect(await readProvidersFile(filePath)).toMatchObject({
+        ok: true,
+        file: { providers: [] },
+      })
+    })
   })
 
   it('never lets an inference auth path name the admin account', () => {

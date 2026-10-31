@@ -36,11 +36,13 @@ import { resolveAttemptBillingRoute } from '../../src/core/backends/modelapi/bil
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { haikuRequestBody } from './helpers/haikuRequest'
 import { transportTestDeps } from './helpers/modelApiTransport'
+import { realRecordingPacer } from './helpers/realPacer'
 import {
   AZURE_BURST_WINDOW_LONG_MS,
   AZURE_BURST_WINDOW_SHORT_MS,
   DEEPSEEK_CONCURRENCY_DEEPSEEK_FLASH,
   DEEPSEEK_CONCURRENCY_DEEPSEEK_V4_PRO,
+  MODEL_API_RETRY_JITTER_MS,
   MODEL_API_RETRY_MAX_MS,
   UI_TEXT,
 } from '../../src/shared/constants'
@@ -248,15 +250,18 @@ describe('pacing admission', () => {
   })
 
   it('holds background fan-out on a configured-provider pause while the foreground passes', async () => {
-    // A 429 pause the observation recorded (the captured Groq readers
-    // teach the windows, the 2 s wait stands in for its Retry-After):
-    // admitted background work waits it out, the user's turn never does.
-    const { pacing, waits } = recordingPacer()
+    // A 429 pause the observation recorded: the captured Groq limits
+    // teach the windows (stale under real time, so the buckets stand
+    // full), the 2 s pause is fresh, and admitted background work really
+    // sleeps it out over real timers while the user's turn never does.
+    const { pacing, waits } = realRecordingPacer()
     pacing.observe('groq', openaiPacingLimits(capturedHeaders.groq), 2000)
     await pacing.acquire('groq', 'subagent', 0, AbortSignal.timeout(5000))
-    expect(waits).toEqual([2000])
+    expect(waits).toHaveLength(1)
+    expect(waits[0] ?? 0).toBeGreaterThan(1900)
+    expect(waits[0] ?? 0).toBeLessThanOrEqual(2000)
     await pacing.acquire('groq', 'foreground', 0, AbortSignal.timeout(5000))
-    expect(waits).toEqual([2000])
+    expect(waits).toHaveLength(1)
   })
 })
 
@@ -348,8 +353,6 @@ describe('provider waits are honoured whole', () => {
               headers: frame.response.headers,
             }),
           ),
-        sleep: () => Promise.resolve(),
-        random: () => 0,
         baseUrl: 'https://api.anthropic.com',
         apiKey: () => Promise.resolve('test-key'),
         pacing,
@@ -410,13 +413,17 @@ describe('provider waits are honoured whole', () => {
     const transport = new RequestTransport({
       fetch,
       baseUrl: 'https://example.invalid',
-      sleep: () => Promise.resolve(),
-      now: () => 0,
-      random: () => 0,
+      now: () => Date.now(),
+      random: () => Math.random(),
       log: silent,
     })
-    expect(transport.backoffMs(0, 99_999_999_999_999)).toBe(99_999_999_999_999)
-    expect(transport.backoffMs(0, 1500)).toBe(1500)
+    // The jitter is real randomness: each named wait lands whole
+    // beneath it, inside one jitter window.
+    for (const named of [99_999_999_999_999, 1500]) {
+      const wait = transport.backoffMs(0, named)
+      expect(wait).toBeGreaterThanOrEqual(named)
+      expect(wait).toBeLessThanOrEqual(named + MODEL_API_RETRY_JITTER_MS)
+    }
     expect(transport.backoffMs(0, undefined)).toBeLessThanOrEqual(MODEL_API_RETRY_MAX_MS)
   })
 })

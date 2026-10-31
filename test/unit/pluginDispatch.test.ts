@@ -5,7 +5,7 @@
 // and arguments included. Real children run under this node (OpenCode's bun
 // stood in for), each in its own process group; no model is called.
 
-import { existsSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -860,22 +860,25 @@ describe.runIf(IS_REAL)('person-set plugin bounds (D121)', () => {
   })
 
   it('a refused probe start reads as an absent runtime', async () => {
-    // The start refusal the OS reports (a runtime removed between the PATH
-    // lookup and the spawn) keeps the absent-runtime answer.
+    // A runtime the OS refuses to start (found on PATH but not
+    // executable) reads as not installed, not as a probe failure: real
+    // lookup, the default probe spawning for real, a real start refusal.
     const dir = mkdtempSync(path.join(tmpdir(), 'm91b-node-'))
-    writeFileSync(path.join(dir, 'node'), '#!/bin/sh\nexit 0\n', { mode: 0o755 })
-    const refusal = Object.assign(new Error('spawn /x/node ENOENT'), { code: 'ENOENT' })
-    const resolution = await resolvePluginRuntime('amp', {
-      env: { PATH: `${dir}:/usr/bin:/bin` },
-      platform: 'linux',
-      workspaceRoot: ROOT,
-      realpath: realpathSync,
-      runVersion: () => Promise.reject(refusal),
-    })
-    expect(resolution).toEqual({
-      ok: false,
-      reason: 'amp: the system node runtime is not installed',
-    })
+    try {
+      writeFileSync(path.join(dir, 'node'), '#!/bin/sh\nexit 0\n', { mode: 0o644 })
+      const resolution = await resolvePluginRuntime('amp', {
+        env: { PATH: `${dir}:/usr/bin:/bin` },
+        platform: 'linux',
+        workspaceRoot: ROOT,
+        realpath: realpathSync,
+      })
+      expect(resolution).toEqual({
+        ok: false,
+        reason: 'amp: the system node runtime is not installed',
+      })
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 
   it('a set memory ceiling caps the node heap, and none leaves the default', async () => {
