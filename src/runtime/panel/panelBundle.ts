@@ -4,6 +4,7 @@
 import { lazyBundleLoader } from '../../host/lazyBundle'
 import type { Logger } from '../../host/logger'
 import { UI_TEXT } from '../../shared/constants'
+import type * as CompanionEntry from './companionEntry'
 import type * as Entry from './panelEntry'
 import type * as SessionEntry from './sessionEntry'
 
@@ -52,6 +53,31 @@ export function panelSessionLoader(bundlePath: string, log: Logger): () => Panel
     log,
     isBundle: isPanelSessionBundle,
     label: 'runtime panel session',
+    unavailable: () => UI_TEXT.hostService.unavailable,
+  })
+}
+
+interface PanelCompanionBundle {
+  readonly runPanelCompanion: typeof CompanionEntry.runPanelCompanion
+}
+
+/** Same-build signature, trusted after checking the exported function (PLAN §8). */
+function isPanelCompanionBundle(value: unknown): value is PanelCompanionBundle {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'runPanelCompanion' in value &&
+    typeof value.runPanelCompanion === 'function'
+  )
+}
+
+/** The loopback browser companion, loaded by `panel --companion` alone. */
+export function panelCompanionLoader(bundlePath: string, log: Logger): () => PanelCompanionBundle {
+  return lazyBundleLoader({
+    bundlePath,
+    log,
+    isBundle: isPanelCompanionBundle,
+    label: 'runtime panel companion',
     unavailable: () => UI_TEXT.hostService.unavailable,
   })
 }

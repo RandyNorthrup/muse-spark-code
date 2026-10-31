@@ -6,6 +6,7 @@ const NONCE_PATTERN = /^[a-f\d]{32,}$/
 const STYLESHEET_PATTERN = /^\/[A-Za-z\d._-]+(?:\/[A-Za-z\d._-]+)*\.css$/
 const MODULE_PATTERN = /^\/[A-Za-z\d._-]+(?:\/[A-Za-z\d._-]+)*\.js$/
 const SPECIFIER_PATTERN = /^[\w@./-]+$/
+const SURFACE_PATTERN = /^[a-zA-Z][a-zA-Z\d]*$/
 
 /** M114 C-M114-1: the companion's themed page assembly. Every boundary is validated; a violation throws, never an unthemed or half-escaped page. */
 export interface CompanionPageContent {
@@ -25,6 +26,24 @@ export interface CompanionPageContent {
   /** Embedded JSON documents, stringified and escaped here. */
   readonly uiTable: unknown
   readonly usageTable: unknown
+  /** M104 lane C: the portable panel window. Absent on every other companion page. */
+  readonly panel?: CompanionPanelPage
+}
+
+/**
+M104 lane C: what the portable panel window boots from. The bridge reads
+the binding, the loader reads the manifest and imports the entry; both
+parse and validate their document before use.
+*/
+export interface CompanionPanelPage {
+  /** The window's surface binding (surface, sessionId, surfaceKind). */
+  readonly binding: unknown
+  /** The loader's module manifest (paths, bytes, hashes, imports). */
+  readonly manifest: unknown
+  /** The boot entry the loader imports, an exact served module path. */
+  readonly entry: string
+  /** The surface the entry mounts, as the body's dataset. */
+  readonly surface: string
 }
 
 function embeddedJson(value: unknown): string {
@@ -52,13 +71,34 @@ export function renderCompanionPage(nonce: string, content: CompanionPageContent
     )
       throw new Error('EPANEL_PAGE')
   }
+  const panel = content.panel
+  if (panel !== undefined) {
+    if (!MODULE_PATTERN.test(panel.entry)) throw new Error('EPANEL_PAGE')
+    if (!SURFACE_PATTERN.test(panel.surface)) throw new Error('EPANEL_PAGE')
+  }
   const links = content.stylesheets
     .map((sheet) => `<link rel="stylesheet" href="${sheet}">`)
     .join('')
   const scripts = content.modules
     .map((module) => `<script type="module" nonce="${nonce}" src="${module}"></script>`)
     .join('')
-  return `<!doctype html><html lang="${escapeHtml(content.locale)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(content.title)}</title>${links}<script nonce="${nonce}" type="importmap">${embeddedJson({ imports: content.imports })}</script><script nonce="${nonce}" id="${WEBVIEW_L10N_ELEMENT_ID}" type="application/json">${embeddedJson(content.uiTable)}</script><script nonce="${nonce}" id="muse-usage-l10n" type="application/json">${embeddedJson(content.usageTable)}</script></head><body data-host-bridge="http"><div id="root" data-theme-nonce="${nonce}"></div>${scripts}</body></html>`
+  const embedded =
+    `<script nonce="${nonce}" id="${WEBVIEW_L10N_ELEMENT_ID}" type="application/json">${embeddedJson(content.uiTable)}</script>` +
+    `<script nonce="${nonce}" id="muse-usage-l10n" type="application/json">${embeddedJson(content.usageTable)}</script>` +
+    (panel === undefined
+      ? ''
+      : `<script nonce="${nonce}" id="muse-panel" type="application/json">${embeddedJson(panel.binding)}</script>` +
+        `<script nonce="${nonce}" id="muse-modules" type="application/json">${embeddedJson(panel.manifest)}</script>`)
+  // The panel entry carries no src: the launch bootstrap would inline it
+  // and break its imports. The loader fetches it authenticated instead,
+  // checks it against the manifest, and replaces this element to run it.
+  const entry =
+    panel === undefined
+      ? ''
+      : `<p id="launch-error" role="alert" tabindex="-1" hidden>${escapeHtml(UI_TEXT.companionLaunchFailed)}</p><script type="module" nonce="${nonce}" data-muse-entry="${panel.entry}"></script>`
+  const datasets =
+    panel === undefined ? '' : ` data-bridge="companion" data-surface="${panel.surface}"`
+  return `<!doctype html><html lang="${escapeHtml(content.locale)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(content.title)}</title>${links}<script nonce="${nonce}" type="importmap">${embeddedJson({ imports: content.imports })}</script>${embedded}</head><body data-host-bridge="http"${datasets}><div id="root" data-theme-nonce="${nonce}"></div>${scripts}${entry}</body></html>`
 }
 
 /** The bearer stays in this page's fetch closure, including after installing the trusted UI. */

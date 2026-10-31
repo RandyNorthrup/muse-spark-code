@@ -3,7 +3,7 @@ import type { CreateElicitationRequest } from '@agentclientprotocol/sdk/unstable
 import type { CoreLogger } from '../../core/logging'
 import { UI_TEXT } from '../../shared/constants'
 import type { UsageAdapter } from './usageAdapter'
-import { usageCompanionUrl } from './usageAdapter'
+import { companionLaunchUrl } from '../companion/launchUrl'
 export { setUiText } from '../../shared/l10n/text'
 
 /** The command's rendering and URL elicitation load on the first /usage. */
@@ -22,7 +22,7 @@ export async function replyAcpUsage(input: {
   const state = await access.read({ range: '30d', groupBy: 'provider', metric: 'cost' })
   if (!input.canReply()) return
   input.send(access.usageText(state, 'markdown', 'summary'))
-  const url = usageCompanionUrl(await input.usage.openPage())
+  const url = companionLaunchUrl(await input.usage.openPage())
   if (!input.canReply()) return
   if (input.canElicitUrl) {
     const cancellation = new AbortController()

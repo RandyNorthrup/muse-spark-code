@@ -306,7 +306,7 @@ export function cliCommands(shouldIncludeHeld = false) {
     },
     {
       route: 'panel',
-      name: 'panel --stdio [--workspace <directory>]',
+      name: 'panel (--stdio | --companion) [--workspace <directory>]',
       description: UI_TEXT.cliHelp.purposePanel,
     },
     {
