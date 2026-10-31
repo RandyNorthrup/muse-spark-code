@@ -3612,7 +3612,7 @@ Type: `"string"`. Default: `"paired"`. Scope: `machine`.
 
 ### museSpark.questions.deferAfterSeconds
 
-Seconds before an unanswered question is deferred so Muse can keep working. 60 by default; 0 means never; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used.
+Seconds before an unanswered question is deferred so Muse can keep working. No limit unless you set one: 0 (the default) means never; any other whole number of seconds is used as set. The question stays open and can be answered later. Only this machine’s setting is used.
 
 Type: `"integer"`. Default: `0`. Scope: `machine`.
 
