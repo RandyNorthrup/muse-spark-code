@@ -243,6 +243,13 @@ const TEAM_WINDOW_ENTRY = 'src/core/team/scheduler/teamWindowEntry.ts'
 const TEAM_WINDOW_OUTFILE = 'dist/teamWindow.js'
 const TEAM_LANDING_ENTRY = 'src/host/team/teamLandingEntry.ts'
 const TEAM_LANDING_OUTFILE = 'dist/teamLanding.js'
+// D250: an external ACP agent as orchestrator (its client host) and the
+// stdio bridge it spawns for HTTP MCP servers; each loads only for a
+// conversation the stored pick leads there.
+const EXTERNAL_ORCHESTRATOR_ENTRY = 'src/host/team/externalOrchestratorEntry.ts'
+const EXTERNAL_ORCHESTRATOR_OUTFILE = 'dist/externalOrchestrator.js'
+const TEAM_HTTP_BRIDGE_ENTRY = 'src/host/team/teamHttpBridgeEntry.ts'
+const TEAM_HTTP_BRIDGE_OUTFILE = 'dist/teamHttpBridge.js'
 // M115 W: v1's Model API schedules re-exported beside the v2 runtime binding.
 const SCHEDULES_ENTRY = 'src/runtime/schedules/schedulesBundle.ts'
 const SCHEDULES_OUTFILE = 'dist/schedules.js'
@@ -764,6 +771,18 @@ const teamLandingOptions = {
   ...teamOptions,
   entryPoints: [TEAM_LANDING_ENTRY],
   outfile: TEAM_LANDING_OUTFILE,
+}
+
+const externalOrchestratorOptions = {
+  ...teamOptions,
+  entryPoints: [EXTERNAL_ORCHESTRATOR_ENTRY],
+  outfile: EXTERNAL_ORCHESTRATOR_OUTFILE,
+}
+
+const teamHttpBridgeOptions = {
+  ...teamOptions,
+  entryPoints: [TEAM_HTTP_BRIDGE_ENTRY],
+  outfile: TEAM_HTTP_BRIDGE_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -2258,6 +2277,8 @@ if (isWatch) {
     esbuild.context(teamSchedulerOptions),
     esbuild.context(teamWindowOptions),
     esbuild.context(teamLandingOptions),
+    esbuild.context(externalOrchestratorOptions),
+    esbuild.context(teamHttpBridgeOptions),
     esbuild.context(museCodeOptions),
     esbuild.context(foreignHooksOptions),
     esbuild.context({
@@ -2486,6 +2507,8 @@ if (isWatch) {
     teamScheduler: recorded('teamScheduler', teamSchedulerOptions),
     teamWindow: recorded('teamWindow', teamWindowOptions),
     teamLanding: recorded('teamLanding', teamLandingOptions),
+    externalOrchestrator: recorded('externalOrchestrator', externalOrchestratorOptions),
+    teamHttpBridge: recorded('teamHttpBridge', teamHttpBridgeOptions),
     foreignHooks: recorded('foreignHooks', foreignHooksOptions),
     modelApiHooks: recorded('modelApiHooks', {
       ...modelApiOptions,

@@ -7,8 +7,8 @@
 // and speaking ACP to it live in the host; no credential file is ever read
 // here.
 
-import * as z from 'zod/mini'
-import { teamAgentPaysSchema, type TeamAgentPays, type TeamAgentRef } from '../../shared/team'
+import type { TeamAgentPays, TeamAgentRef } from '../../shared/team'
+import { teamExternalAgentSettingSchema } from '../../shared/externalAgentSetting'
 
 /** An external agent preset (D75's list, D250's offers). */
 export type ExternalPresetId = 'claude' | 'codex' | 'gemini' | 'copilot' | 'own'
@@ -97,14 +97,10 @@ export function externalAgentPresets(): readonly ExternalAgent[] {
   })
 }
 
-/** One `museSpark.teamExternalAgents` entry, as the person wrote it. */
-const customAgentSchema = z.object({
-  name: z.string().check(z.minLength(1)),
-  command: z.string().check(z.minLength(1)),
-  args: z.optional(z.array(z.string())),
-  model: z.optional(z.string().check(z.minLength(1))),
-  pays: z.optional(teamAgentPaysSchema),
-})
+export {
+  teamExternalAgentSettingSchema,
+  type TeamExternalAgentSetting,
+} from '../../shared/externalAgentSetting'
 
 /**
 The person's own agents from the raw setting value: an entry that does not
@@ -117,7 +113,7 @@ export function customExternalAgents(raw: unknown): readonly ExternalAgent[] {
   const taken = new Set<string>(Object.keys(EXTERNAL_PRESET_LAUNCH))
   const agents: ExternalAgent[] = []
   for (const entry of raw) {
-    const parsed = customAgentSchema.safeParse(entry)
+    const parsed = teamExternalAgentSettingSchema.safeParse(entry)
     if (!parsed.success || taken.has(parsed.data.name)) continue
     taken.add(parsed.data.name)
     agents.push({

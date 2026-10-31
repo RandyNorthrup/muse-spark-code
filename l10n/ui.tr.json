@@ -6247,6 +6247,7 @@
   "teamExternalGone": "Bu çalışma alanını yönetmek için seçilen ajan artık yapılandırılmış değil. Roller bölümünde başka bir ajan seçin veya düzenleyiciyi varsayılana sıfırlayın.",
   "teamExternalModelRefused": "{agent}, {model} modelini onaylamadı. Mesaj gönderilmedi.",
   "teamExternalSwitchNotice": "Bu çalışma alanındaki yeni konuşmaları, ACP üzerinden kendisi olarak çalışan bir dış ajan olan {agent} yönetecek. Ödeme, o ajanın ödeme biçimine göre yapılır: kendi planı veya anahtarı.",
+  "teamExternalMediaUnsupported": "Bu ajan bir mesajda ekli medya alamaz. Eki kaldırıp tekrar gönderin.",
   "teamIncludeTranscripts": "Transkriptleri dahil et",
   "teamEntryRateLimited": "{time} saatine kadar hız limitli.",
   "teamEntryUsageLimited": "{time} saatine kadar kullanım limitinde.",

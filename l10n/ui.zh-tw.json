@@ -6111,6 +6111,7 @@
   "teamExternalGone": "所選用於帶領此工作區的代理已不再設定。請在「角色」區段選擇其他代理,或將協調者恢復預設。",
   "teamExternalModelRefused": "{agent}未確認模型 {model}。未傳送任何訊息。",
   "teamExternalSwitchNotice": "此工作區中的新對話將由{agent}帶領,它是一個透過 ACP 以自身方式執行的外部代理。其付費方式與該代理的付費方式相同:它自己的方案或金鑰。",
+  "teamExternalMediaUnsupported": "此代理無法在訊息中接收附加的媒體。請移除附件後重新傳送。",
   "teamIncludeTranscripts": "包含筆錄",
   "teamEntryRateLimited": "限流至 {time}。",
   "teamEntryUsageLimited": "已達用量上限至 {time}。",

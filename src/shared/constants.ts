@@ -1344,6 +1344,9 @@ export const SETTING_DEFAULTS = {
   // M81 (PLAN.md D49): the hosts beyond loopback the browser check may open
   // and reach. Empty: loopback only, unless a card widens one call.
   browserCheckExtraHosts: [] as readonly string[],
+  // D250: external ACP agents the person added by command, offered beside
+  // the presets as team workers and as orchestrator. Empty: presets only.
+  teamExternalAgents: [] as readonly unknown[],
   // M81 A1: ask before the browser check's runtime is downloaded.
   browserCheckRuntime: 'ask' as BrowserRuntimeMode,
   // M89 (PLAN.md D68): the skills that ship with the extension, a skill
@@ -1575,6 +1578,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   'turnCheckpoints',
   'browserCheckExtraHosts',
   'browserCheckRuntime',
+  // D250: agent commands a repository must never add (they choose what executes).
+  'teamExternalAgents',
   'bundledSkills',
   'modelApiSessionBudgetUsd',
   'paidDailyBudgetUsd',
@@ -2001,6 +2006,9 @@ export const JUDGE_MIN_CACHED_PREFIX_TOKENS = 1024
 // written to disk.
 export const JUDGE_RESULT_CACHE_MAX = 64
 export const JUDGE_BUNDLE_FILE = 'judge.js'
+// The external orchestrator's stdio-to-HTTP bridge bundle (D250): an ACP
+// agent without HTTP MCP transport spawns it to reach the team endpoint.
+export const TEAM_HTTP_BRIDGE_BUNDLE_FILE = 'teamHttpBridge.js'
 // The Auto risk advisory's judged family and wording versions (M98 P2B).
 // Fitted profiles and adoption receipts are recorded against exactly these,
 // so a measurement taken under other wording cannot enable a mode.

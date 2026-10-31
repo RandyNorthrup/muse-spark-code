@@ -223,7 +223,7 @@
         ]
       },
       "commands": ["museSpark.modelsAndAgents"],
-      "settings": [],
+      "settings": ["museSpark.teamExternalAgents"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#team-configuration",
       "backends": ["modelApi", "museCode"],
       "paid": false,
@@ -4119,6 +4119,31 @@
       "scope": "machine",
       "refinements": ["valid:host"],
       "schema": { "type": "array", "default": [], "items": { "type": "string" } }
+    },
+    {
+      "id": "museSpark.teamExternalAgents",
+      "name": "museSpark.teamExternalAgents",
+      "description": "External ACP agents of your own, offered beside the built-in presets (Claude Code, Codex, Gemini CLI, Copilot and Muse Spark Code) as team agents and as the orchestrator. Each entry names the agent (name) and the command that starts it speaking ACP (command, with optional args); model names the model it should run where you choose one, and pays says who pays for it: key, subscription or local. An agent runs as itself, with its own sign-in: this app never signs in for it and never reads its credentials. Only you can add these, never the model, and a repository’s settings cannot.",
+      "descriptionKey": "config.teamExternalAgents.description",
+      "type": "array",
+      "default": [],
+      "scope": "machine",
+      "refinements": [],
+      "schema": {
+        "type": "array",
+        "default": [],
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "command": { "type": "string" },
+            "args": { "type": "array", "items": { "type": "string" } },
+            "model": { "type": "string" },
+            "pays": { "type": "string", "enum": ["key", "subscription", "local"] }
+          },
+          "required": ["name", "command"]
+        }
+      }
     },
     {
       "id": "museSpark.browserCheckRuntime",

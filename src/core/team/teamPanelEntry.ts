@@ -20,3 +20,4 @@ export {
 export { tryTeam, teamTryConfirmation } from './teamTry'
 
 export { buildTeamModelOffers } from './teamModelRegistry'
+export { allExternalAgents, resolveExternalAgent } from './externalAgents'

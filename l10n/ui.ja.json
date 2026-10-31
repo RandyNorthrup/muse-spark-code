@@ -6111,6 +6111,7 @@
   "teamExternalGone": "このワークスペースを率いるために選ばれたエージェントは、もう設定されていません。「ロール」セクションで別のエージェントを選ぶか、オーケストレーターをデフォルトに戻してください。",
   "teamExternalModelRefused": "{agent}はモデル{model}を確認しませんでした。メッセージは送信されていません。",
   "teamExternalSwitchNotice": "このワークスペースの新しい会話は、ACP経由でそのまま実行される外部エージェント{agent}が率います。支払いはそのエージェントの支払い方法に従います:そのエージェント自体のプランまたはキーです。",
+  "teamExternalMediaUnsupported": "このエージェントはメッセージに添付されたメディアを受け取れません。添付を外して再送信してください。",
   "teamIncludeTranscripts": "トランスクリプトを含める",
   "teamEntryRateLimited": "{time} までレート制限中。",
   "teamEntryUsageLimited": "{time} まで使用量上限中。",

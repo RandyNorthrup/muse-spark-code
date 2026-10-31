@@ -6383,6 +6383,7 @@
   "teamExternalGone": "L’agente scelto per guidare quest’area di lavoro non è più configurato. Scegli un altro agente nella sezione Ruoli, oppure ripristina l’orchestratore al predefinito.",
   "teamExternalModelRefused": "{agent} non ha confermato il modello {model}. Nessun messaggio è stato inviato.",
   "teamExternalSwitchNotice": "Le nuove conversazioni in quest’area di lavoro saranno guidate da {agent}, un agente esterno in esecuzione come sé stesso tramite ACP. Il pagamento segue quello dell’agente: il suo piano o la sua chiave.",
+  "teamExternalMediaUnsupported": "Questo agente non può ricevere media allegati in un messaggio. Rimuovi l’allegato e invia di nuovo.",
   "teamIncludeTranscripts": "Includi trascrizioni",
   "teamEntryRateLimited": "Con limite di frequenza fino a {time}.",
   "teamEntryUsageLimited": "Al limite di utilizzo fino a {time}.",

@@ -6111,6 +6111,7 @@
   "teamExternalGone": "所选用于带领此工作区的智能体已不再配置。请在“角色”部分选择其他智能体,或将编排者恢复默认。",
   "teamExternalModelRefused": "{agent}未确认模型 {model}。未发送任何消息。",
   "teamExternalSwitchNotice": "此工作区中的新对话将由{agent}带领,它是一个通过 ACP 以自身方式运行的外部智能体。其付费方式与该智能体的付费方式相同:其自己的套餐或密钥。",
+  "teamExternalMediaUnsupported": "此智能体无法在消息中接收附加的媒体。请移除附件后重新发送。",
   "teamIncludeTranscripts": "包含笔录",
   "teamEntryRateLimited": "限流至 {time}。",
   "teamEntryUsageLimited": "已达用量上限至 {time}。",

@@ -6111,6 +6111,7 @@
   "teamExternalGone": "이 작업 영역을 이끌도록 선택한 에이전트가 더 이상 구성되어 있지 않습니다. 역할 섹션에서 다른 에이전트를 선택하거나 지휘자를 기본값으로 재설정하세요.",
   "teamExternalModelRefused": "{agent}이(가) {model} 모델을 확인하지 않았습니다. 메시지가 전송되지 않았습니다.",
   "teamExternalSwitchNotice": "이 작업 영역의 새 대화는 ACP를 통해 그 자체로 실행되는 외부 에이전트 {agent}이(가) 이끕니다. 비용은 해당 에이전트의 지불 방식을 따릅니다: 자체 요금제 또는 키입니다.",
+  "teamExternalMediaUnsupported": "이 에이전트는 메시지에 첨부된 미디어를 받을 수 없습니다. 첨부를 제거하고 다시 보내세요.",
   "teamIncludeTranscripts": "스크립트 포함",
   "teamEntryRateLimited": "{time}까지 속도 제한 중.",
   "teamEntryUsageLimited": "{time}까지 사용량 한도 중.",

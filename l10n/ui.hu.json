@@ -6247,6 +6247,7 @@
   "teamExternalGone": "A munkaterület vezetésére kiválasztott ügynök már nincs beállítva. Válasszon másik ügynököt a Szerepek szakaszban, vagy állítsa vissza az irányítót az alapértelmezettre.",
   "teamExternalModelRefused": "{agent} nem erősítette meg a(z) {model} modellt. Nem küldött üzenetet.",
   "teamExternalSwitchNotice": "Ennek a munkaterületnek az új beszélgetéseit {agent} vezeti, egy külső ügynök, amely önmagaként fut ACP-n keresztül. A fizetés úgy történik, ahogy az adott ügynöké: saját csomaggal vagy kulccsal.",
+  "teamExternalMediaUnsupported": "Ez az ügynök nem fogad csatolt médiát üzenetben. Távolítsa el a csatolmányt, és küldje el újra.",
   "teamIncludeTranscripts": "Átiratokkal együtt",
   "teamEntryRateLimited": "Sebességlimit {time} időpontig.",
   "teamEntryUsageLimited": "Használati limiten {time} időpontig.",

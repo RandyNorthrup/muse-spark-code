@@ -8,6 +8,10 @@ import * as z from 'zod/mini'
 import { widenedHost } from '../core/browser/browserPolicy'
 import { checkCommandsSchema } from '../core/verify/checkCommands'
 import {
+  teamExternalAgentSettingSchema,
+  type TeamExternalAgentSetting,
+} from '../shared/externalAgentSetting'
+import {
   BACKEND_MODES,
   HOOK_RUNNING_COMMANDS_MIN,
   MEDIA_UPLOAD_EXPIRY_DAY_MIN,
@@ -195,6 +199,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly turnCheckpoints: boolean
   /** The hosts beyond loopback the browser check may open and reach (M81, PLAN.md D49). */
   readonly browserCheckExtraHosts: readonly string[]
+  /** External ACP agents added by command, beside the presets (D250). */
+  readonly teamExternalAgents: readonly TeamExternalAgentSetting[]
   /** Whether the browser check's runtime is asked for, downloaded or off (M81 A1). */
   readonly browserCheckRuntime: BrowserRuntimeMode
   /** The skills that ship with the extension (M89, PLAN.md D68). */
@@ -374,6 +380,9 @@ const settingSchemas = {
   browserCheckExtraHosts: z.array(
     z.string().check(z.refine((entry) => widenedHost(entry) !== undefined)),
   ),
+  // One malformed entry refuses the whole list (the read warns once and the
+  // default stands): a silently dropped agent would vanish from the panel.
+  teamExternalAgents: z.array(teamExternalAgentSettingSchema),
   browserCheckRuntime: z.enum(BROWSER_RUNTIME_MODES),
   bundledSkills: z.boolean(),
   showWhatsNewOnUpdate: z.boolean(),
@@ -541,6 +550,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     pluginMaxFailures: readSetting(config, 'pluginMaxFailures', log),
     turnCheckpoints: readSetting(config, 'turnCheckpoints', log),
     browserCheckExtraHosts: readSetting(config, 'browserCheckExtraHosts', log),
+    teamExternalAgents: readSetting(config, 'teamExternalAgents', log),
     browserCheckRuntime: readSetting(config, 'browserCheckRuntime', log),
     bundledSkills: readSetting(config, 'bundledSkills', log),
     showWhatsNewOnUpdate: readSetting(config, 'showWhatsNewOnUpdate', log),

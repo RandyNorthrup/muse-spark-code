@@ -6519,6 +6519,7 @@
   "teamExternalGone": "Agent vybraný pro vedení tohoto pracovního prostoru už není nastaven. Vyberte jiného agenta v části Role, nebo obnovte orchestrátor na výchozí.",
   "teamExternalModelRefused": "{agent} nepotvrdil model {model}. Žádná zpráva nebyla odeslána.",
   "teamExternalSwitchNotice": "Nové konverzace v tomto pracovním prostoru povede {agent}, externí agent běžící sám za sebe přes ACP. Platí se tak, jak se platí tento agent: vlastním plánem nebo klíčem.",
+  "teamExternalMediaUnsupported": "Tento agent nemůže v jedné zprávě přijmout přiložená média. Odeberte přílohu a pošlete zprávu znovu.",
   "teamIncludeTranscripts": "Včetně přepisů",
   "teamEntryRateLimited": "Omezená rychlost do {time}.",
   "teamEntryUsageLimited": "Na limitu využití do {time}.",

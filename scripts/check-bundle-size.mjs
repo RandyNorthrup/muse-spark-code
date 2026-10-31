@@ -280,6 +280,17 @@ const BUDGETS = [
   // 61,885 bytes (60.4 KiB, production build on macmini, 2026-10-30) x 1.15
   // = 69.5 KiB, rounded up to the next 25 KiB multiple (PLAN.md D6).
   { path: 'dist/teamLanding.js', budgetKiB: 75 },
+  // RLF-ORCHEXT (D250): an external ACP agent's client host (the ACP SDK,
+  // lane W's connection, the conversation translation), loaded only for a
+  // conversation an external pick leads. Measured 213,718 bytes (208.7 KiB,
+  // production build on macmini, 2026-10-30) x 1.15 = 240 KiB, rounded up
+  // to the next 25 KiB multiple (PLAN.md D6).
+  { path: 'dist/externalOrchestrator.js', budgetKiB: 250 },
+  // RLF-ORCHEXT (D250): the stdio bridge an ACP agent spawns to reach the
+  // team MCP endpoint when it has no HTTP transport. Measured 1,973 bytes
+  // (1.9 KiB, production build on macmini, 2026-10-30) x 1.15, rounded up
+  // to the next 25 KiB multiple (PLAN.md D6).
+  { path: 'dist/teamHttpBridge.js', budgetKiB: 25 },
   // M91 lane W: the imported hooks' adapters (lane P's contracts and engine),
   // loaded the first time a session holding one runs a hook: 64.9 KiB when
   // split out (2026-10-04). 85.7 KiB once the imported records' reader moved

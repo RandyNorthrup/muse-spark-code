@@ -1365,6 +1365,44 @@
           "description": "%config.browserCheckExtraHosts.description%",
           "scope": "machine"
         },
+        "museSpark.teamExternalAgents": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "command": {
+                "type": "string"
+              },
+              "args": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "model": {
+                "type": "string"
+              },
+              "pays": {
+                "type": "string",
+                "enum": [
+                  "key",
+                  "subscription",
+                  "local"
+                ]
+              }
+            },
+            "required": [
+              "name",
+              "command"
+            ]
+          },
+          "description": "%config.teamExternalAgents.description%",
+          "scope": "machine"
+        },
         "museSpark.browserCheckRuntime": {
           "type": "string",
           "enum": [
