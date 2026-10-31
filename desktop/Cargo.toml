@@ -1,0 +1,3 @@
+[workspace]
+members = ["crates/tokens", "crates/compositor"]
+resolver = "2"
