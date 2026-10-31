@@ -1,3 +1,5 @@
+import { setTimeout as delay } from 'node:timers/promises'
+import { RESOURCE_LAUNCH_POLL_MS } from '../../../shared/constants'
 import type { ResourceGovernor } from '../../resources/governor'
 import type {
   ResourceLaunchRequest,
@@ -33,28 +35,34 @@ export function isResourceSlotAvailable(
   return running !== null && Math.max(occupied, running) < limit
 }
 
-interface SchedulerSlot {
+export interface SchedulerSlot {
   /** Withdraw unstarted reservations; otherwise require proved retirement. */
   release(): void
 }
 
-/** M96c supplies its existing child reservation/preflight and slot queue. */
-export interface SchedulerSlotPort {
+/**
+M96c supplies its existing child reservation/preflight and slot queue. The
+slot it hands back may carry more than `release` (the check slots hand over
+the folder they reserved), and the caller gets that same object.
+*/
+export interface SchedulerSlotPort<Slot extends SchedulerSlot = SchedulerSlot> {
   preflight(request: ResourceLaunchRequest): void
-  acquire(request: ResourceLaunchRequest, signal: AbortSignal): Promise<SchedulerSlot>
+  acquire(request: ResourceLaunchRequest, signal: AbortSignal): Promise<Slot>
 }
 
-export interface GovernedTeamSlot {
+export interface GovernedTeamSlot<Slot extends SchedulerSlot = SchedulerSlot> {
   /** Preserve the queue's exact object as the child's parent permit. */
   readonly permit: ResourcePermit
+  /** The scheduler's own slot, admitted together with the permit. */
+  readonly slot: Slot
   release(): void
 }
 
 /** Adds G's limit to M96c's slots without changing their caps or retirement authority. */
-export class GovernedTeamSlots {
+export class GovernedTeamSlots<Slot extends SchedulerSlot = SchedulerSlot> {
   constructor(
     private readonly queue: Pick<ResourceQueue, 'request'>,
-    private readonly slots: SchedulerSlotPort,
+    private readonly slots: SchedulerSlotPort<Slot>,
     private readonly capacity: TeamCapacityPort,
   ) {}
 
@@ -65,10 +73,10 @@ export class GovernedTeamSlots {
     const stop = new AbortController()
     const combined = signal === undefined ? stop.signal : AbortSignal.any([signal, stop.signal])
     let admission = this.queue.request(copy, combined)
-    const acquire = async (): Promise<GovernedTeamSlot> => {
+    const acquire = async (): Promise<GovernedTeamSlot<Slot>> => {
       for (;;) {
         const permit = await admission.ready
-        let slot: SchedulerSlot | undefined
+        let slot: Slot | undefined
         let isAdmitted = false
         try {
           combined.throwIfAborted()
@@ -81,6 +89,7 @@ export class GovernedTeamSlots {
             isAdmitted = true
             return {
               permit,
+              slot: acquired,
               release: () => {
                 if (isReleased) return
                 isReleased = true
@@ -102,6 +111,10 @@ export class GovernedTeamSlots {
           }
         }
         // Withdraw unstarted reservations before waiting again on the live governor.
+        // The queue may grant while the scheduler's own count still says full (an
+        // unproved tree reads unknown to this port and as none to the queue): asking
+        // again at once would answer itself in microtasks and starve the process.
+        await delay(RESOURCE_LAUNCH_POLL_MS, undefined, { signal: combined })
         admission = this.queue.request(copy, combined)
       }
     }

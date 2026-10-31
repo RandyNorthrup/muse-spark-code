@@ -2,7 +2,7 @@
 // read and dispatch load with their own bundle (dist/teamTraffic.js) on
 // the first Traffic use, behind the same runtime members (RLF-TEAMFIT).
 import { SshRunner } from './sshRunner'
-import { CheckSlots } from '../team/checkSlots'
+import { CheckSlots, type CheckSlotDeps } from '../team/checkSlots'
 import { readRunnerConfig, runnerEnvironment } from '../../core/runners/runnerConfig'
 import {
   routeChecks,
@@ -28,6 +28,16 @@ export function createTeamRunnersRuntime(table: UiText, locale: string) {
     readRunnerConfig,
     runnerEnvironment,
     routeChecks,
+    /**
+    Heavy checks under the machine governor (the M96c join): the window's
+    queue, `check` capacity and running count, lent by the loaded governor
+    host, so a check waits for its capacity before it takes a folder.
+    */
+    async createGovernedCheckSlots(deps: Omit<CheckSlotDeps, 'governor'>) {
+      const window = await loadResourceWindow()
+      if (window === undefined) throw new Error(UI_TEXT.resourceUnavailable)
+      return new CheckSlots({ ...deps, governor: window.port.teamSlotPorts() })
+    },
     /** M96c supplies its exact conversation/attempt and surface ports. */
     async createResourceRouting(options: Omit<ResourceRunnerRouteOptions, 'port'>) {
       // The scheduler/surface ports landed with this binding (M100-R): the

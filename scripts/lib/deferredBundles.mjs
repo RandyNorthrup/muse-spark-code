@@ -2058,15 +2058,22 @@ export const deferredCohort = {
     // teamHost loads dist/teamWindow.js only for a team workspace, and the
     // scheduler entry re-exports exactly the members the window binding
     // imports from those modules.
+    // RLF-TEAMWORKERS2 (M96c join): the heavy-check slots build their governed
+    // queue from the same slots module, so the runners bundle reads it there
+    // too, never a second copy.
     build.onResolve({ filter: /\/(?:board|slots|teamPool)(?:\.[jt]s)?$/ }, (args) => {
-      if (path.resolve(build.initialOptions.outfile ?? '') !== path.resolve('dist/teamWindow.js'))
-        return
+      const outfile = path.resolve(build.initialOptions.outfile ?? '')
       const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
-      const shared = [
-        'src/core/team/scheduler/board.ts',
-        'src/core/team/scheduler/slots.ts',
-        'src/core/team/teamPool.ts',
-      ]
+      const shared =
+        outfile === path.resolve('dist/teamWindow.js')
+          ? [
+              'src/core/team/scheduler/board.ts',
+              'src/core/team/scheduler/slots.ts',
+              'src/core/team/teamPool.ts',
+            ]
+          : outfile === path.resolve('dist/teamRunners.js')
+            ? ['src/core/team/scheduler/slots.ts']
+            : []
       return shared.some((file) => source === path.resolve(file))
         ? { path: './teamScheduler.js', external: true }
         : undefined
