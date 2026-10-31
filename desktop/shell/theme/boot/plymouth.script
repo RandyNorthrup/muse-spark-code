@@ -3,33 +3,41 @@
 Window.SetBackgroundTopColor (0.0941, 0.0941, 0.0941);
 Window.SetBackgroundBottomColor (0.1412, 0.1569, 0.1961);
 
-progressBox.image = Image.Rectangle (Window.GetWidth () / 4, 6, 0.1882, 0.2118, 0.2588);
-progressBox.sprite = Sprite (progressBox.image);
-progressBox.x = Window.GetX () + Window.GetWidth () / 2 - progressBox.image.GetWidth () / 2;
-progressBox.y = Window.GetY () + Window.GetHeight () * 0.72;
-progressBox.sprite.SetPosition (progressBox.x, progressBox.y, 0);
+barWidth = Window.GetWidth () / 4;
+barX = Window.GetX () + Window.GetWidth () / 2 - barWidth / 2;
+barY = Window.GetY () + Window.GetHeight () * 0.72;
 
-progressBar.originalWidth = progressBox.image.GetWidth ();
-progressBar.image = Image.Rectangle (progressBar.originalWidth, 6, 0.2392, 0.5451, 1.0000);
-progressBar.sprite = Sprite (progressBar.image);
-progressBar.sprite.SetClip (0, 0, 0, 6);
-progressBar.sprite.SetPosition (progressBox.x, progressBox.y, 1);
+trackImage = Image ("progress-track.png");
+trackImage = trackImage.Scale (barWidth, 8);
+trackSprite = Sprite (trackImage);
+trackSprite.SetX (barX);
+trackSprite.SetY (barY);
+trackSprite.SetZ (0);
 
-message.image = Image.Text ("", 0.8941, 0.9059, 0.9294, "Sans 12");
-message.sprite = Sprite (message.image);
-message.sprite.SetPosition (progressBox.x, progressBox.y + 24, 0);
+fillSource = Image ("progress-fill.png");
+fillSource = fillSource.Scale (barWidth, 8);
+fillSprite = Sprite ();
+fillSprite.SetX (barX);
+fillSprite.SetY (barY);
+fillSprite.SetZ (1);
+
+messageSprite = Sprite ();
+messageSprite.SetX (barX);
+messageSprite.SetY (barY + 24);
+messageSprite.SetZ (0);
 
 fun progress_callback (duration, progress) {
   if (progress > 1)
     progress = 1;
-  progressBar.sprite.SetClip (0, 0, progressBar.originalWidth * progress, 6);
+  fillWidth = barWidth * progress;
+  if (fillWidth < 1)
+    fillWidth = 1;
+  fillSprite.SetImage (fillSource.Crop (0, 0, Math.Int (fillWidth), 8));
 }
 
 fun message_callback (text) {
-  message.image = Image.Text (text, 0.8941, 0.9059, 0.9294, "Sans 12");
-  message.sprite.SetImage (message.image);
-  message.sprite.SetPosition (progressBox.x, progressBox.y + 24, 0);
+  messageSprite.SetImage (Image.Text (text, 0.8941, 0.9059, 0.9294, 1, "Inter 13"));
 }
 
 Plymouth.SetBootProgressFunction (progress_callback);
-Plymouth.SetMessageFunction (message_callback);
+Plymouth.SetDisplayMessageFunction (message_callback);

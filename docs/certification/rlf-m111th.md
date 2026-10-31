@@ -9,8 +9,9 @@ A consumer of M114's token source (`design/tokens/muse.tokens.json` via
 `scripts/build-tokens-desktop.mjs` generates every desktop output; nothing is
 edited by hand afterwards:
 
-- `desktop/shell/theme/MuseTheme.qml` (+ `qmldir`): the Qt shell's theme
-  singleton, all four modes, portal + override resolution as bindings.
+- `desktop/shell/theme/MuseTheme/` (`MuseTheme.qml` + `qmldir`): the Qt
+  shell's theme singleton module, all four modes, portal + override
+  resolution as bindings, viewport geometry as functions.
 - `desktop/shell/theme/palette-<mode>.css`: per-mode resolved desktop palette
   (concrete values, no `var()` chains, no VS Code fallbacks); the native layer
   loads the file matching the resolved appearance.
@@ -27,9 +28,11 @@ edited by hand afterwards:
   icon builds read.
 - `desktop/shell/theme/wallpapers.json`: per-mode wallpaper recipe (base,
   brand gradient, glow, rule) AR renders.
-- `desktop/shell/theme/boot/`: `boot.json` values plus the complete asset-free
-  `plymouth.script` and `grub-theme.txt`; AR packages them with PNG assets and
-  fonts under `os/desktop/`.
+- `desktop/shell/theme/boot/`: `boot.json` values, the `plymouth.script`
+  (verified against Plymouth's own script-lib sources; progress over two
+  generated 1px token PNGs) and `grub-theme.txt` (verified against shipped
+  theme.txt files); AR packages them with background art and fonts under
+  `os/desktop/`.
 - Appearance: portal `org.freedesktop.appearance` color-scheme + contrast
   (D91.18/research §8) with the `desktop.json` override; default dark
   (matches M114's unthemed root). Resolution table is the contract, mirrored
@@ -44,8 +47,10 @@ edited by hand afterwards:
 - [x] Generator `scripts/build-tokens-desktop.mjs` (`9f8320d3f`).
 - [x] Generated outputs committed.
 - [x] Rust crate + `cargo test` (4 passed, clippy + fmt clean).
-- [x] Vitest suite green (16 passed).
-- [ ] Rig drills (qmllint, qmltestrunner, LuaJIT, Chromium look).
+- [x] Vitest suite green (20 passed).
+- [x] Rig drills: qmllint clean, qmltestrunner 10/10, LuaJIT load OK,
+      qmlformat-stable emission, Plymouth/GRUB API verified.
+- [ ] Chromium look.
 - [ ] package.json scripts, README, CHANGELOG, PLAN, ROADMAP.
 - [ ] All gates + LANE DONE.
 
@@ -73,9 +78,19 @@ edited by hand afterwards:
 5. **D-Bus subscription** lives in the shell process entry (SH/SY own it via
    QtDBus); TH provides the resolution contract + QML bindings + Rust
    resolver. The `desktop.json` schema is ST's; TH documents the value set.
-6. **Hyprland Lua** is a pure data table (no Hyprland API calls): the 0.55 Lua
+6. **Viewport-relative tokens** (column inset/gutter) ship as QML functions
+   and Rust `const fn`s over the shell width, with the generator asserting
+   M114's formula shapes (a shape change fails the build loudly). The static
+   0 the DTCG value carries is never emitted alone.
+7. **Plymouth progress** needs images (the script API has no rectangles):
+   the two 1px PNGs are generated token colours (hand-rolled stored-deflate
+   encoder, bit-deterministic, decoded back with node:zlib in the tests).
+   The script uses only calls verified in Plymouth's own sources
+   (`script-lib-image.c`, `script-lib-sprite.c`): no `SetPosition`,
+   `SetClip`, `Image.Rectangle`, or the wrong `SetMessageFunction`.
+8. **Hyprland Lua** is a pure data table (no Hyprland API calls): the 0.55 Lua
    API is not verifiable on this rig, so CP maps values to syntax at build.
-7. **Cross-lane touch (needs the lead's ack at merge):** `.stylelintrc.json`
+9. **Cross-lane touch (needs the lead's ack at merge):** `.stylelintrc.json`
    gains TH's four palette CSS files in the raw-colour overrides (additive,
    exact-file, M114's pattern). The pre-commit hook lints every staged CSS
    file, so the plan-mandated palette CSS cannot land without it; AGENTS.md

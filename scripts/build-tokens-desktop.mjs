@@ -15,6 +15,7 @@
 //
 // Design record: docs/certification/rlf-m111th.md.
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { Buffer } from 'node:buffer'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import * as z from 'zod'
@@ -26,9 +27,13 @@ const REPO_ROOT = path.resolve(import.meta.dirname, '..')
 export const DESKTOP_CONSUMERS = 'design/tokens/generated/consumers.json'
 export const DESKTOP_CONSUMER_VERSION = 1
 export const DESKTOP_MODES = ['light', 'dark', 'hc-light', 'hc-dark']
+export const DESKTOP_BINARY_OUTPUTS = new Set([
+  'desktop/shell/theme/boot/progress-track.png',
+  'desktop/shell/theme/boot/progress-fill.png',
+])
 export const DESKTOP_OUTPUTS = [
-  'desktop/shell/theme/MuseTheme.qml',
-  'desktop/shell/theme/qmldir',
+  'desktop/shell/theme/MuseTheme/MuseTheme.qml',
+  'desktop/shell/theme/MuseTheme/qmldir',
   'desktop/shell/theme/palette-light.css',
   'desktop/shell/theme/palette-dark.css',
   'desktop/shell/theme/palette-hc-light.css',
@@ -49,6 +54,7 @@ export const DESKTOP_OUTPUTS = [
   'desktop/shell/theme/boot/boot.json',
   'desktop/shell/theme/boot/plymouth.script',
   'desktop/shell/theme/boot/grub-theme.txt',
+  ...DESKTOP_BINARY_OUTPUTS,
 ]
 
 // The ANSI derivation (cert record decision 1). Anchors are the QR tokens,
@@ -597,7 +603,17 @@ function modeVarying(consumers) {
   )
 }
 
-function qmlScalar(consumers, mode, name) {
+// Multi-line object emission, matching qmlformat's wrapping (inner fields
+// eight past the key, the close four past it).
+function qmlObject(fields, indent) {
+  const pad = ' '.repeat(indent)
+  const lines = fields.map(
+    (field, index) => `${pad}        ${field}${index === fields.length - 1 ? '' : ','}`,
+  )
+  return ['({', ...lines, `${pad}    })`].join('\n')
+}
+
+function qmlScalar(consumers, mode, name, indent = 0) {
   const entry = entryAt(consumers, mode, name)
   switch (entry.type) {
     case 'color': {
@@ -607,7 +623,7 @@ function qmlScalar(consumers, mode, name) {
       const dimension = dimensionAt(consumers, mode, name)
       return dimension.unit === 'px'
         ? String(dimension.value)
-        : `({ value: ${dimension.value}, unit: ${jsString(dimension.unit)} })`
+        : qmlObject([`value: ${dimension.value}`, `unit: ${jsString(dimension.unit)}`], indent)
     }
     case 'duration': {
       return String(durationMsAt(consumers, mode, name))
@@ -628,7 +644,16 @@ function qmlScalar(consumers, mode, name) {
       const shadows = shadowAt(consumers, mode, name)
       if (shadows.length === 0) return 'null'
       const [first] = shadows
-      return `({ color: ${jsString(emitHex(first.color))}, x: ${first.offsetX.value}, y: ${first.offsetY.value}, blur: ${first.blur.value}, spread: ${first.spread.value} })`
+      return qmlObject(
+        [
+          `color: ${jsString(emitHex(first.color))}`,
+          `x: ${first.offsetX.value}`,
+          `y: ${first.offsetY.value}`,
+          `blur: ${first.blur.value}`,
+          `spread: ${first.spread.value}`,
+        ],
+        indent,
+      )
     }
     default: {
       throw new Error(`Unsupported token type for QML: ${name} (${entry.type})`)
@@ -661,9 +686,32 @@ function shadowAt(consumers, mode, name) {
     }))
 }
 
+// The viewport-relative layout tokens are formulas over the shell's own
+// width, not static values: the generator asserts their CSS shapes and
+// emits functions, so an M114 formula change fails loudly instead of
+// silently shipping a stale shape.
+const VIEWPORT_FORMULAS = {
+  'layout.column-inset': 'max(0px, (100cqw - var(--ms-column-max-width)) / 2)',
+  'layout.column-gutter': 'calc(var(--ms-column-inset) + var(--ms-gap))',
+}
+
+function assertViewportFormulas(consumers) {
+  const formulas = Object.entries(VIEWPORT_FORMULAS)
+  for (const mode of DESKTOP_MODES) {
+    for (const [name, formula] of formulas) {
+      if (entryAt(consumers, mode, name).css !== formula) {
+        throw new Error(`Viewport formula changed shape: ${name} in ${mode}`)
+      }
+    }
+  }
+}
+
 export function renderQml(consumers) {
-  const names = Object.keys(consumers.modes[DESKTOP_MODES[0]])
+  const names = Object.keys(consumers.modes[DESKTOP_MODES[0]]).filter(
+    (name) => VIEWPORT_FORMULAS[name] === undefined,
+  )
   const varying = modeVarying(consumers)
+  assertViewportFormulas(consumers)
   for (const motion of ['motion.fast', 'motion.base', 'motion.slow', 'motion.flip']) {
     if (varying.has(motion)) throw new Error(`QML motion must be mode-invariant: ${motion}`)
   }
@@ -673,19 +721,20 @@ export function renderQml(consumers) {
     if (seen.has(property)) throw new Error(`QML property collision: ${property}`)
     seen.add(property)
   }
-  const table = (mode) =>
-    names
-      .filter((name) => varying.has(name))
-      .map(
-        (name) =>
-          `            ${camel(entryAt(consumers, mode, name).variable)}: ${qmlScalar(consumers, mode, name)},`,
-      )
+  const table = (mode) => {
+    const entries = names.filter((name) => varying.has(name))
+    return entries
+      .map((name, index) => {
+        const comma = index === entries.length - 1 ? '' : ','
+        return `                ${camel(entryAt(consumers, mode, name).variable)}: ${qmlScalar(consumers, mode, name, 16)}${comma}`
+      })
       .join('\n')
+  }
   const statics = names
     .filter((name) => !varying.has(name))
     .map((name) => {
       const property = camel(entryAt(consumers, DESKTOP_MODES[0], name).variable)
-      const scalar = qmlScalar(consumers, DESKTOP_MODES[0], name)
+      const scalar = qmlScalar(consumers, DESKTOP_MODES[0], name, 4)
       const type = entryAt(consumers, DESKTOP_MODES[0], name).type === 'color' ? 'color' : 'var'
       return `    readonly property ${type} ${property}: ${scalar}`
     })
@@ -706,22 +755,32 @@ QtObject {
     // The appearance contract (mirrors resolveAppearance and the Rust
     // crate): a concrete override wins, otherwise the portal decides.
     function resolveMode(scheme, contrast, override) {
-        if (override !== "system"
-                && ["light", "dark", "hc-light", "hc-dark"].indexOf(override) >= 0)
-            return override
+        if (override !== "system" && ["light", "dark", "hc-light", "hc-dark"].indexOf(override) >= 0)
+            return override;
         if (contrast === 1)
-            return scheme === 2 ? "hc-light" : "hc-dark"
-        return scheme === 2 ? "light" : "dark"
+            return scheme === 2 ? "hc-light" : "hc-dark";
+        return scheme === 2 ? "light" : "dark";
     }
     readonly property string resolvedMode: resolveMode(portalColorScheme, portalContrast, appearanceOverride)
 
     // Colours are hex strings; QML converts them where a color is needed.
     readonly property var palettes: ({
-${DESKTOP_MODES.map((mode) => `        ${jsString(mode)}: {\n${table(mode)}\n        },`).join('\n')}
-    })
+${DESKTOP_MODES.map(
+  (mode, index) =>
+    `            ${jsString(mode)}: {\n${table(mode)}\n            }${index === DESKTOP_MODES.length - 1 ? '' : ','}`,
+).join('\n')}
+        })
     readonly property var palette: palettes[resolvedMode]
 
 ${statics}
+
+    // The viewport-relative column geometry, computed from the shell width.
+    function columnInsetFor(width) {
+        return Math.max(0, (width - columnMaxWidth) / 2);
+    }
+    function columnGutterFor(width) {
+        return columnInsetFor(width) + gap;
+    }
 
     // Motion under the reduced-motion setting, as the CSS media query does.
     readonly property real motionScale: reducedMotion ? 0 : 1
@@ -855,8 +914,11 @@ function rustLines(consumers, name, entry, at, constant) {
 }
 
 export function renderRust(consumers) {
-  const names = Object.keys(consumers.modes[DESKTOP_MODES[0]])
+  const names = Object.keys(consumers.modes[DESKTOP_MODES[0]]).filter(
+    (name) => VIEWPORT_FORMULAS[name] === undefined,
+  )
   const varying = modeVarying(consumers)
+  assertViewportFormulas(consumers)
   const lines = []
   for (const name of names) {
     const entry = entryAt(consumers, DESKTOP_MODES[0], name)
@@ -879,6 +941,19 @@ pub struct Shadow {
     pub blur: f32,
     /// Spread in pixels.
     pub spread: f32,
+}
+
+/// The column inset for a viewport width: half the overflow past the
+/// column, or zero. Mirrors the CSS max() formula over the viewport.
+#[must_use]
+pub const fn column_inset(viewport_px: u32) -> u32 {
+    viewport_px.saturating_sub(COLUMN_MAX_WIDTH) / 2
+}
+
+/// The column gutter for a viewport width: the inset plus the gap.
+#[must_use]
+pub const fn column_gutter(viewport_px: u32) -> u32 {
+    column_inset(viewport_px) + GAP
 }
 
 ${lines.join('\n')}
@@ -1013,6 +1088,78 @@ export function renderBootJson(consumers) {
   return JSON.stringify({ version: DESKTOP_CONSUMER_VERSION, dark: bootModel(consumers) })
 }
 
+// A minimal deterministic 1x1 RGB PNG encoder: the Plymouth script API
+// draws only images and text, so the progress bar's solid colours ship as
+// single-pixel PNGs. Hand-rolled stored deflate (no compression decisions)
+// keeps the bytes identical on every machine and zlib.
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+
+function crc32(bytes) {
+  let table = crc32.table
+  if (table === undefined) {
+    table = []
+    for (let n = 0; n < 256; n += 1) {
+      let c = n
+      for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xed_b8_83_20 ^ (c >>> 1) : c >>> 1
+      table.push(c >>> 0)
+    }
+    crc32.table = table
+  }
+  let crc = 0xff_ff_ff_ff
+  for (const byte of bytes) crc = table[(crc ^ byte) & 0xff] ^ (crc >>> 8)
+  return (crc ^ 0xff_ff_ff_ff) >>> 0
+}
+
+function adler32(bytes) {
+  let a = 1
+  let b = 0
+  for (const byte of bytes) {
+    a = (a + byte) % 65_521
+    b = (b + a) % 65_521
+  }
+  return ((b << 16) | a) >>> 0
+}
+
+function pngChunk(type, data) {
+  const chunk = [
+    (data.length >>> 24) & 0xff,
+    (data.length >>> 16) & 0xff,
+    (data.length >>> 8) & 0xff,
+    data.length & 0xff,
+    ...type,
+    ...data,
+  ]
+  const crc = crc32([...type, ...data])
+  chunk.push((crc >>> 24) & 0xff, (crc >>> 16) & 0xff, (crc >>> 8) & 0xff, crc & 0xff)
+  return chunk
+}
+
+export function pngPixel(red, green, blue) {
+  const pixel = [0, red, green, blue]
+  const adler = adler32(pixel)
+  const ihdr = [0, 0, 0, 1, 0, 0, 0, 1, 8, 2, 0, 0, 0]
+  const idat = [
+    0x78,
+    0x01,
+    0x01,
+    0x04,
+    0x00,
+    0xfb,
+    0xff,
+    ...pixel,
+    (adler >>> 24) & 0xff,
+    (adler >>> 16) & 0xff,
+    (adler >>> 8) & 0xff,
+    adler & 0xff,
+  ]
+  return Buffer.from([
+    ...PNG_SIGNATURE,
+    ...pngChunk([0x49, 0x48, 0x44, 0x52], ihdr),
+    ...pngChunk([0x49, 0x44, 0x41, 0x54], idat),
+    ...pngChunk([0x49, 0x45, 0x4e, 0x44], []),
+  ])
+}
+
 const SCRIPT_BANNER =
   '# Generated by scripts/build-tokens-desktop.mjs from\n# design/tokens/generated/consumers.json. Do not edit.\n'
 
@@ -1023,45 +1170,59 @@ function plymouthFloat(colour) {
 }
 
 // The Plymouth splash script: the fixed dark brand look, a background
-// gradient, the progress bar and the message line. Asset-free: no images.
-// Prompt handling (the LUKS passphrase) stays in AR/IM's boot path, which
-// proves the splash on a real boot; this script draws the themed frame.
+// gradient, the progress bar and the message line, using only the script
+// plugin's verified API (Plymouth's own script-lib sources): SetX/SetY/SetZ
+// positioning, Scale/Crop progress over the generated 1px PNGs, and
+// Image.Text with its alpha argument. The passphrase prompt stays in AR/IM's
+// boot path, which proves the splash on a real boot.
 export function renderPlymouth(consumers) {
-  const boot = bootModel(consumers)
+  const parsed = parseConsumers(consumers)
+  const boot = bootModel(parsed)
   const at = (role) => literalColour(boot[role].value)
+  const barHeight = dimensionAt(parsed, 'dark', 'spacing.8').value
+  const messageGap = dimensionAt(parsed, 'dark', 'layout.status-height').value
+  const font = `${familyAt(parsed, 'dark', 'typography.font-ui')[0]} ${dimensionAt(parsed, 'dark', 'typography.font-size').value}`
   return `${SCRIPT_BANNER}Window.SetBackgroundTopColor (${plymouthFloat(at('backgroundTop'))});
 Window.SetBackgroundBottomColor (${plymouthFloat(at('backgroundBottom'))});
 
-progressBox.image = Image.Rectangle (Window.GetWidth () / 4, 6, ${plymouthFloat(at('progressTrack'))});
-progressBox.sprite = Sprite (progressBox.image);
-progressBox.x = Window.GetX () + Window.GetWidth () / 2 - progressBox.image.GetWidth () / 2;
-progressBox.y = Window.GetY () + Window.GetHeight () * 0.72;
-progressBox.sprite.SetPosition (progressBox.x, progressBox.y, 0);
+barWidth = Window.GetWidth () / 4;
+barX = Window.GetX () + Window.GetWidth () / 2 - barWidth / 2;
+barY = Window.GetY () + Window.GetHeight () * 0.72;
 
-progressBar.originalWidth = progressBox.image.GetWidth ();
-progressBar.image = Image.Rectangle (progressBar.originalWidth, 6, ${plymouthFloat(at('progressFill'))});
-progressBar.sprite = Sprite (progressBar.image);
-progressBar.sprite.SetClip (0, 0, 0, 6);
-progressBar.sprite.SetPosition (progressBox.x, progressBox.y, 1);
+trackImage = Image ("progress-track.png");
+trackImage = trackImage.Scale (barWidth, ${barHeight});
+trackSprite = Sprite (trackImage);
+trackSprite.SetX (barX);
+trackSprite.SetY (barY);
+trackSprite.SetZ (0);
 
-message.image = Image.Text ("", ${plymouthFloat(at('message'))}, "Sans 12");
-message.sprite = Sprite (message.image);
-message.sprite.SetPosition (progressBox.x, progressBox.y + 24, 0);
+fillSource = Image ("progress-fill.png");
+fillSource = fillSource.Scale (barWidth, ${barHeight});
+fillSprite = Sprite ();
+fillSprite.SetX (barX);
+fillSprite.SetY (barY);
+fillSprite.SetZ (1);
+
+messageSprite = Sprite ();
+messageSprite.SetX (barX);
+messageSprite.SetY (barY + ${messageGap});
+messageSprite.SetZ (0);
 
 fun progress_callback (duration, progress) {
   if (progress > 1)
     progress = 1;
-  progressBar.sprite.SetClip (0, 0, progressBar.originalWidth * progress, 6);
+  fillWidth = barWidth * progress;
+  if (fillWidth < 1)
+    fillWidth = 1;
+  fillSprite.SetImage (fillSource.Crop (0, 0, Math.Int (fillWidth), ${barHeight}));
 }
 
 fun message_callback (text) {
-  message.image = Image.Text (text, ${plymouthFloat(at('message'))}, "Sans 12");
-  message.sprite.SetImage (message.image);
-  message.sprite.SetPosition (progressBox.x, progressBox.y + 24, 0);
+  messageSprite.SetImage (Image.Text (text, ${plymouthFloat(at('message'))}, 1, ${JSON.stringify(font)}));
 }
 
 Plymouth.SetBootProgressFunction (progress_callback);
-Plymouth.SetMessageFunction (message_callback);
+Plymouth.SetDisplayMessageFunction (message_callback);
 `
 }
 
@@ -1126,11 +1287,22 @@ async function formatOutput(file, content) {
   return prettier.format(content, options)
 }
 
+function bootPng(consumers, role) {
+  const hex = bootModel(consumers)[role].value
+  if (!/^#[0-9a-f]{6}$/.test(hex))
+    throw new Error(`Boot PNG colour must be opaque: ${role} (${hex})`)
+  return pngPixel(
+    Number.parseInt(hex.slice(1, 3), 16),
+    Number.parseInt(hex.slice(3, 5), 16),
+    Number.parseInt(hex.slice(5, 7), 16),
+  )
+}
+
 export async function renderDesktop(consumers) {
   const parsed = parseConsumers(consumers)
   const outputs = {
-    'desktop/shell/theme/MuseTheme.qml': renderQml(parsed),
-    'desktop/shell/theme/qmldir': renderQmldir(),
+    'desktop/shell/theme/MuseTheme/MuseTheme.qml': renderQml(parsed),
+    'desktop/shell/theme/MuseTheme/qmldir': renderQmldir(),
     'desktop/crates/tokens/src/palette.rs': renderRust(parsed),
     'desktop/shell/theme/hyprland-theme.lua': renderLua(parsed),
     'desktop/shell/theme/pointer.json': renderPointer(parsed),
@@ -1139,6 +1311,8 @@ export async function renderDesktop(consumers) {
     'desktop/shell/theme/boot/boot.json': renderBootJson(parsed),
     'desktop/shell/theme/boot/plymouth.script': renderPlymouth(parsed),
     'desktop/shell/theme/boot/grub-theme.txt': renderGrub(parsed),
+    'desktop/shell/theme/boot/progress-track.png': bootPng(parsed, 'progressTrack'),
+    'desktop/shell/theme/boot/progress-fill.png': bootPng(parsed, 'progressFill'),
   }
   for (const mode of DESKTOP_MODES) {
     outputs[`desktop/shell/theme/palette-${mode}.css`] = renderPaletteCss(parsed, mode)
@@ -1152,14 +1326,11 @@ export async function renderDesktop(consumers) {
   ) {
     throw new Error('Desktop output list drifted from DESKTOP_OUTPUTS')
   }
-  return Object.fromEntries(
-    await Promise.all(
-      Object.entries(outputs).map(async ([file, content]) => [
-        file,
-        await formatOutput(file, content),
-      ]),
-    ),
-  )
+  const formatted = {}
+  for (const [file, content] of Object.entries(outputs)) {
+    formatted[file] = Buffer.isBuffer(content) ? content : await formatOutput(file, content)
+  }
+  return formatted
 }
 
 function hexColour(text) {
@@ -1246,11 +1417,14 @@ export async function checkDesktop(root = process.cwd()) {
   for (const [file, expected] of Object.entries(outputs)) {
     let actual
     try {
-      actual = await readFile(path.join(root, file), 'utf8')
+      actual = await readFile(path.join(root, file))
     } catch (error) {
       if (error.code !== 'ENOENT') throw error
     }
-    if (actual !== expected)
+    const fresh = Buffer.isBuffer(expected)
+      ? actual !== undefined && actual.equals(expected)
+      : actual?.toString('utf8') === expected
+    if (!fresh)
       problems.push(`Stale desktop token output: ${file}; run npm run build:tokens:desktop`)
   }
   return problems
