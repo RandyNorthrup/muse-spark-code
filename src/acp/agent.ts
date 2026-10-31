@@ -4899,25 +4899,40 @@ const SDK_MESSAGE_PREFIXES = [
 ]
 
 /**
-Templates whose filled sentence may leave. One slot echoes the user's own
-command word in an error about that word (`Unknown argument: /share`);
-the other names a spent subscription window's reset instant in an error
-about that reset (D252). Each template is fixed translated text read
-from the installed table at use time; the values travel only as the
-command word and the Intl-rendered instant, never prompt, blob or key
-content. A raw planted secret carries no template prefix and stays
-generic.
+Templates whose filled sentence may leave. The one slot echoes the user's
+own command word in an error about that word (`Unknown argument: /share`).
+The template is fixed translated text read from the installed table at use
+time; the value travels only as that command word, never prompt, blob or
+key content. A raw planted secret carries no template prefix and stays
+generic. A spent window's sentence is not a template: `quotaOutboundSentence`
+accepts only the sentence built from the structured reset instant (D252),
+so a request id placed where the time goes cannot leave.
 */
 function outboundTemplates(): readonly { readonly prefix: string; readonly suffix: string }[] {
   const templates: { readonly prefix: string; readonly suffix: string }[] = []
-  for (const [text, slot] of [
-    [UI_TEXT.acpUnknownArgument, '{argument}'],
-    [UI_TEXT.subscriptionQuotaExhausted, '{resetTime}'],
-  ] as const) {
+  for (const [text, slot] of [[UI_TEXT.acpUnknownArgument, '{argument}']] as const) {
     const [prefix = '', suffix = ''] = text.split(slot, 2)
     if (prefix.length > 0) templates.push({ prefix, suffix })
   }
   return templates
+}
+
+/**
+The quota sentence may leave only when it is the one `quotaTurnFailureText`
+builds from the structured reset instant. Anything else in that shape,
+including the observed provider line with its request id, stays generic.
+*/
+function quotaOutboundSentence(message: string, resetsAt: string | undefined): string | undefined {
+  if (resetsAt === undefined) return undefined
+  const resetsAtMs = Date.parse(resetsAt)
+  if (!Number.isFinite(resetsAtMs)) return undefined
+  const expected = quotaTurnFailureText({ quota: { resetsAtMs } })
+  if (expected === undefined) return undefined
+  if (message === expected) return message
+  for (const prefix of SDK_MESSAGE_PREFIXES) {
+    if (message.startsWith(prefix) && message.slice(prefix.length) === expected) return message
+  }
+  return undefined
 }
 
 /** The allow-listed sentence a message carries, past the SDK's own prefix. */
@@ -4978,7 +4993,10 @@ export function outboundError(failure: OutboundFailure): RequestError {
     failure.data.kind === 'resource_reading' &&
     isResourceReadingName(failure.data.reading) &&
     failure.message === `${failure.data.reading}: ${UI_TEXT.resourceUnavailable}`
-  const sentence = isNamedReading ? failure.message : outboundSentence(failure.message)
+  const sentence = isNamedReading
+    ? failure.message
+    : (quotaOutboundSentence(failure.message, failure.data.resetsAt) ??
+      outboundSentence(failure.message))
   const message = sentence !== undefined && code === failure.code ? sentence : UI_TEXT.actionFailed
   const kind = (OUTBOUND_ERROR_KINDS as readonly string[]).includes(failure.data.kind)
     ? failure.data.kind
