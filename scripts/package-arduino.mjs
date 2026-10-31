@@ -3,10 +3,10 @@
 import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { pack } from '@vscode/vsce/out/package.js'
 import { stageVsix } from './package-vsix.mjs'
 import { requireArduinoBuild } from './lib/arduinoBuild.mjs'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 export async function stageArduinoVsix(root) {
   const record = JSON.parse(readFileSync(path.join(root, 'dist/build-profile.json'), 'utf8'))
@@ -44,9 +44,6 @@ async function main() {
   execFileSync(process.execPath, ['scripts/check-vsix-size.mjs', archive], { stdio: 'inherit' })
 }
 
-if (
-  process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
-) {
+if (isEntryPoint(import.meta.url)) {
   await main()
 }

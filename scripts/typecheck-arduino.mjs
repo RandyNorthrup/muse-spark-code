@@ -3,8 +3,8 @@
 import { execFileSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import ts from 'typescript'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 export function arduinoCompilerOptions(options, declarations) {
   return {
@@ -65,9 +65,6 @@ function main() {
   }
 }
 
-if (
-  process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
-) {
+if (isEntryPoint(import.meta.url)) {
   main()
 }
