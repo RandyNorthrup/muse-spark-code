@@ -18,8 +18,8 @@ the person turns it on (D91.22). The local receiver binds loopback only.
 
 - [x] Core `src/core/o11y/**`: signals, ring store, rollups, crash records, export gate, readiness, Electron wiring
 - [x] Strings in English + 14 tables, constants (`O11Y_*`), §8 rows
-- [ ] Runtime `src/runtime/o11y/**`: OTLP receiver, diagnostics method, crash hook, TLS exporter
-- [ ] `src/runtime/node/health.ts`: desktop readiness components (with N's owner)
+- [x] Runtime `src/runtime/o11y/**`: OTLP receiver, diagnostics method, crash hook, TLS exporter
+- [x] `src/runtime/node/health.ts`: desktop readiness components (with N's owner)
 - [ ] Diagnostics page `src/webview/diagnostics/**` + node web UI page (app mount waits for WB)
 - [ ] M93 bundle desktop files (with M93's owner)
 - [ ] `desktop/crates/otel/**` Rust wiring
@@ -44,8 +44,19 @@ entries, §8 rows for the two TS-lib disables. Suites:
 
 ## What is next
 
-Runtime: the OTLP receiver, file store, diagnostics method, crash hook
-and TLS exporter with real-socket tests.
+The Diagnostics page (`src/webview/diagnostics/**` + the node web UI
+page), then M93's bundle desktop files, then the Rust crate.
+
+## Part 2 (runtime)
+
+File-backed ring store over `NodePrivateFiles` (new `append`/`list`/
+`remove`, with N's owner), the loopback-only OTLP receiver,
+`node/diagnostics/read`, desktop readiness in `nodeHealth`, the Node
+crash hook and the opt-in TLS exporter. Suites: `store`, `receiver`,
+`health`, `diagnostics`, `crashHook` (real dying children), `exporter`
+(real TLS against an openssl-minted collector, retry/refused/gave-up/
+unverified paths). Typecheck, eslint, prettier green; neighbours
+(`nodeLifecycle`, `nodeOps`, `nodeKeyStore`) green.
 
 ## Decisions and dependencies
 

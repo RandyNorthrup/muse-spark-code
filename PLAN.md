@@ -32979,6 +32979,7 @@ No new escape hatch is introduced.
 | --------------------------------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
 | `src/core/o11y/export.ts` (`groupByComponent`)      | `eslint-disable-next-line unicorn/prefer-group-by`, 1 site  | `Map.groupBy` does not resolve under this repo's TS lib (as RLM96D records for `advisories.ts`); the explicit grouping loop stays. Inline-reasoned.               | A TS lib that resolves `Map.groupBy`.      |
 | `src/core/o11y/ringStore.ts` (map spreads, 2 sites) | `eslint-disable-next-line unicorn/prefer-iterator-to-array` | `Iterator.toArray` does not resolve under this repo's TS lib (as RLM96D records); the spreads stay (`Array.from` trips `prefer-spread` instead). Inline-reasoned. | A TS lib that resolves `Iterator.toArray`. |
+| `src/runtime/o11y/store.ts` (`groupRecordsBy`)      | `eslint-disable-next-line unicorn/prefer-group-by`, 1 site  | `Map.groupBy` does not resolve under this repo's TS lib (as `src/core/o11y/export.ts` records); the explicit grouping loop stays. Inline-reasoned.                | A TS lib that resolves `Map.groupBy`.      |
 
 ## 9. Security assumptions and accepted residual risk
 
