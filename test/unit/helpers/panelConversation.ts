@@ -11,6 +11,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
 import { runPanel } from '../../../src/runtime/panel/panelEntry'
+import { agentVersion } from './agentVersion'
 import type { RuntimeBackend } from '../../../src/runtime/backends'
 import { createRuntimeBackend } from '../../../src/runtime/runtimeEngineEntry'
 import { stderrLogger } from '../../../src/runtime/stderrLog'
@@ -73,7 +74,7 @@ export async function connectedPanel(run: PanelRun, options: ConnectedPanelOptio
   const fromRuntime = new PassThrough()
   const runGit = options.runGit ?? (() => Promise.reject(new Error('this suite has no git')))
   const exit = runPanel(
-    { workspace: run.workspace, isVerbose: false },
+    { workspace: run.workspace, isVerbose: false, transport: 'stdio' },
     {
       stdin: toRuntime,
       stdout: fromRuntime,
@@ -82,6 +83,8 @@ export async function connectedPanel(run: PanelRun, options: ConnectedPanelOptio
       log,
       dataFolder: run.dataFolder,
       distDir: path.join(ROOT, 'dist'),
+      openBrowser: () => Promise.reject(new Error('this suite has no browser')),
+      version: agentVersion(new URL('../../../package.json', import.meta.url)),
       // The product's own runtime; only the backend is the rig's host, reported ready.
       createRuntime: (serveOptions, questions, unsavedFiles) => {
         unsaved.push(unsavedFiles)

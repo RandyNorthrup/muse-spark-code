@@ -9,7 +9,7 @@
 // window is live at a time.
 import { randomBytes } from 'node:crypto'
 import * as z from 'zod/mini'
-import { IDE_MCP_TOKEN_BYTES, MHP, MHP_ERROR_CODES, MHP_PANEL } from '../../shared/constants'
+import { IDE_MCP_TOKEN_BYTES, MHP, MHP_ERROR_CODES } from '../../shared/constants'
 import {
   fallbackUiCallSchema,
   fallbackUiMethodSchema,
@@ -66,8 +66,10 @@ export function createPanelCompanionTransport(
   let binding: MhpPanelBinding | undefined
   let panelEmit: ((message: unknown, complete?: () => void) => void) | undefined
   let uiEmit: ((message: unknown, complete?: () => void) => void) | undefined
-  let uiQueuedBytes = 0
-  const uiQueue: { frame: unknown; complete?: () => void }[] = []
+  // Calls the window has not subscribed for yet. Every queued call holds
+  // the delivery's budget behind it, so the queue carries no second bound;
+  // a cancelled call leaves the queue, so a late window never replays it.
+  const uiQueue: { id: string | number; frame: unknown; complete?: () => void }[] = []
   // The runtime's ui/* calls awaiting the window's reply, by their MHP id.
   const pendingUi = new Set<string | number>()
 
@@ -134,16 +136,7 @@ export function createPanelCompanionTransport(
     pendingUi.add(id)
     const emit = uiEmit
     if (emit === undefined) {
-      const bytes = Buffer.byteLength(JSON.stringify(frame))
-      if (
-        uiQueue.length >= MHP_PANEL.maximumQueuedMessages ||
-        uiQueuedBytes + bytes > MHP_PANEL.maximumQueuedBytes
-      ) {
-        refuse(id, MHP_ERROR_CODES.internalError, 'MHP_PANEL_BACKPRESSURE')
-      } else {
-        uiQueue.push({ frame })
-        uiQueuedBytes += bytes
-      }
+      uiQueue.push({ id, frame })
       complete()
       return
     }
@@ -182,8 +175,11 @@ export function createPanelCompanionTransport(
       const params = 'params' in frame ? frame.params : undefined
       const cancelled =
         typeof params === 'object' && params !== null && 'id' in params ? params.id : undefined
-      if (typeof cancelled === 'string' || typeof cancelled === 'number')
+      if (typeof cancelled === 'string' || typeof cancelled === 'number') {
         pendingUi.delete(cancelled)
+        const queued = uiQueue.findIndex((entry) => entry.id === cancelled)
+        if (queued !== -1) uiQueue.splice(queued, 1)
+      }
       const emit = uiEmit
       if (emit === undefined) {
         complete()
@@ -286,7 +282,6 @@ export function createPanelCompanionTransport(
       subscribe: (_sessionId, emit) => {
         uiEmit = emit
         const queued = uiQueue.splice(0)
-        uiQueuedBytes = 0
         for (const { frame, complete } of queued) emit(frame, complete)
         return () => {
           if (uiEmit === emit) uiEmit = undefined
