@@ -11775,6 +11775,21 @@ PATHGUARD inventory; stand-in tests not carried. No production importer
 yet: lane L, panel routes, Q receipts and missingScopes remain. Record:
 `docs/certification/rlm123.md`.
 
+**Status 2026-10-30: building.** RLF-M123 built the runtime half of lane
+L on int's panel route: the editor's GitHub session by lease
+(`src/runtime/panel/nativeGitHub.ts`, D104's source (a)) over the frozen
+MHP rows, offered only where the editor offers `auth`, proved through
+`panel --stdio` with M71's recorded captures and the exact client
+requests asserted; and the panel push/fetch environment now restores the
+Git routes the agent's entry kept at start. `leaseExpiresAt` and
+`runtimeGitUserEnvironment` are wired; `githubLeaseResultSchema` waits
+for a versioned MHP revision (D226). Still open: per-editor lease
+providers and Q receipts (wait for the hostsland merge), `missingScopes`
+(waits for the lead's `X-OAuth-Scopes` capture), the runtime held
+checkout with its trust card, and lane U's bridges. No host offers
+`auth` yet, so nothing person-reachable changed. Record:
+`docs/certification/rlf-m123.md`.
+
 - **MSM71M123 (2026-10-16 and 17, host Claude, `ms/msm71m123`).** Main
   already held lanes 0, G and P (merged through `int/train-1011` and
   rewritten by the identity rewrite), so the lane joined main and then
