@@ -348,6 +348,8 @@ temp/planfix0190/d2-summary.txt Full record:
 
 **`codemirror` / `@codemirror/merge`** — M110a0 U1: the node workspace's editor and diff views (CodeMirror 6, MIT; no peers; `npm audit` clean). Dev-only (RLF-NOTICES, 2026-10-30, `docs/certification/cc-notices.md`): RLM110A0 added them to `dependencies` without a D3 record; no shipped bundle's metafile lists them — only the test-run workspace build — so they moved to `devDependencies` with the `@xterm/*` packages.
 
+**`@codemirror/state` / `@codemirror/language` / `@lezer/highlight`** — RLF-M111TH (2026-10-31): the desktop theme suite drives the real CodeMirror parse-and-highlight pipeline (`EditorState`, `StreamLanguage`, `HighlightStyle`, `highlightTree`, the `tags`) against the generated editor themes; the packages were already in the tree as transitive dependencies of `codemirror`, promoted to direct `devDependencies` at their in-tree versions (6.7.6 / 6.13.1 / 1.2.5, past the seven-day window). MIT; no peers; `npm audit` implicates none of them; never bundled (test-only).
+
 **`string-width` / `wrap-ansi`** — M110a0 TD: cell widths and word-wrap with the same libraries Ink itself uses (sindresorhus, MIT; no peers; `npm audit` clean), so components clip on real cell boundaries instead of a hand-rolled width table. `string-width` is dev-only since RLF-NOTICES (2026-10-30, `docs/certification/cc-notices.md`): no shipped bundle's metafile lists it — the TUI design modules that import it run only in tests and the harness, and no build entry reaches them; `wrap-ansi` is dev-only (the harness wraps one log line the way callers wrap theirs).
 
 **`ink` / `ink-testing-library`** — M110a0 TD: the TUI components render through real Ink 6 (Vadim Demedes, MIT; peers `react>=19` and `@types/react>=19` satisfied by the direct 19.3.0 pins, `react-devtools-core` satisfied through the tree; `npm audit` clean), and the golden harness renders through Ink's own testing library, so the goldens pin the same bytes — and the same Yoga layout — production draws. A hand-rolled tree-walking renderer (the first draft) was deleted: it reimplemented Yoga and Chalk, a stand-in the no-fakes rule forbids. `ink` is dev-only since RLF-NOTICES (2026-10-30, `docs/certification/cc-notices.md`): only the golden harness imports it and no shipped bundle's metafile lists it; `ink-testing-library` is dev-only.
@@ -27781,6 +27783,16 @@ diffs, and the browser-preview tab's slot against lane 0's
 WB). The node's files page runs on it today, every open file in its own
 buffer and tab; the evidence and the budget measurements are in
 `docs/certification/rlf-m111ed.md`. No other build lane has started.
+
+**Status 2026-10-31 (RLF-M111TH): planned.** Lane TH landed: the desktop
+theme generates from M114's resolved tokens (`scripts/build-tokens-desktop.mjs`;
+`npm run check:tokens` proves the desktop pairs in all four modes): the QML
+theme module, per-mode palette CSS, Rust constants with the appearance
+resolver, the Hyprland Lua table, xterm.js and CodeMirror themes, pointer
+and icon palettes, the wallpaper recipe and the boot values. WB and ED
+consume the app themes at merge; AR consumes the palettes, recipe and boot
+values; CP consumes the Hyprland table; PT serves the portal appearance and
+ST the override TH follows.
 
 **Status 2026-10-23 (RLF-M111L0): planned.** Mockups approved; lane 0 landed. The
 owner approved the lead's 18-screen mockups on 2026-10-23 ("looks great"),
