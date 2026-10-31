@@ -2303,6 +2303,7 @@
   "gitMachineBusy": "A Git nem futott le, mert a gép leterhelt. Próbálja újra.",
   "gitResourceUnavailable": "A Git nem futtatható, mert az erőforrás-engedélyezés vagy a folyamatsegéd nem érhető el.",
   "gitMemoryLimit": "A Git leállt, mert a folyamatfája elérte a memóriakorlátot.",
+  "gitForkStopped": "A Git le lett állítva fork-védelem miatt.",
   "gitCommandConsequences": "A Git tárolóhookokat, aláíróprogramokat vagy hitelesítési segédprogramokat futtathat. A megszakítás leállítja a későbbi lépéseket; egy már elindított Git- vagy GitHub-hívás még befejeződhet.",
   "gitCommitting": "Véglegesítés folyamatban…",
   "gitCancel": "Mégse",
@@ -6958,6 +6959,12 @@
     "stopFailed": {
       "one": "{count} felügyelt futást nem sikerült teljesen leállítani.",
       "other": "{count} felügyelt futást nem sikerült teljesen leállítani."
+    },
+    "forkStoppedProcesses": "A felügyelt futás le lett állítva fork-védelem miatt: fája {bound} folyamatnál többet tartalmazott egyszerre.",
+    "forkStoppedSpawns": "A felügyelt futás le lett állítva fork-védelem miatt: fája {bound} folyamatnál többet hozott létre egyszerre.",
+    "childrenRefused": {
+      "one": "A fork-védelem {count} gyermekfolyamatot tagadott meg a felügyelt futástól; a futás folytatódott.",
+      "other": "A fork-védelem {count} gyermekfolyamatot tagadott meg a felügyelt futástól; a futás folytatódott."
     },
     "unavailable": "A felügyelet nem érhető el ebben a telepítésben."
   },
