@@ -5750,28 +5750,28 @@
       "name": "hardware enable|disable|status",
       "description": "Enable hardware for this workspace",
       "text": { "ui": "makerEnableHardware" },
-      "invocations": [["hardware"], ["machines"], ["stop-machine"], ["panel"]]
+      "invocations": [["hardware"], ["machines"], ["stop-machine"]]
     },
     {
       "route": "maker",
       "name": "machines list|add|remove",
       "description": "Devices and machines",
       "text": { "ui": "makerDevicesTitle" },
-      "invocations": [["hardware"], ["machines"], ["stop-machine"], ["panel"]]
+      "invocations": [["hardware"], ["machines"], ["stop-machine"]]
     },
     {
       "route": "maker",
       "name": "stop-machine [id|--all]",
       "description": "A software stop does not replace the machine’s physical emergency stop.",
       "text": { "ui": "makerSoftwareStopWarning" },
-      "invocations": [["hardware"], ["machines"], ["stop-machine"], ["panel"]]
+      "invocations": [["hardware"], ["machines"], ["stop-machine"]]
     },
     {
       "route": "maker",
-      "name": "panel",
+      "name": "machines panel",
       "description": "Open panel",
       "text": { "ui": "makerLaunchConnect" },
-      "invocations": [["hardware"], ["machines"], ["stop-machine"], ["panel"]]
+      "invocations": [["hardware"], ["machines"], ["stop-machine"]]
     },
     {
       "route": "providersAdd",

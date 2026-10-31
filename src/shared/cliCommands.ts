@@ -75,7 +75,7 @@ export function cliCommands(shouldIncludeHeld = false) {
       'decide',
       'resolve',
     ].map((action) => ['watchdog', action]),
-    maker: [['hardware'], ['machines'], ['stop-machine'], ['panel']],
+    maker: [['hardware'], ['machines'], ['stop-machine']],
     estimate: [['estimate']],
     judgeSetup: [
       ['judge', 'scan'],
@@ -474,7 +474,7 @@ export function cliCommands(shouldIncludeHeld = false) {
     },
     {
       route: 'maker',
-      name: 'panel',
+      name: 'machines panel',
       description: UI_TEXT.makerLaunchConnect,
       text: { ui: 'makerLaunchConnect' },
     },

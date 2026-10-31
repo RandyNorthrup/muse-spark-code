@@ -14,7 +14,10 @@ export interface MakerCommand {
   readonly trusted: boolean
 }
 export function parseMakerCommand(argv: readonly string[]): MakerCommand | undefined {
-  const action = argv[0]
+  const [word, ...rest] = argv
+  // A bare `panel` is the MHP host's (M104 lane B, D84); the maker's page is `machines panel`.
+  const isPanel = word === 'machines' && rest[0] === 'panel'
+  const action = isPanel ? 'panel' : word
   if (
     action !== 'hardware' &&
     action !== 'machines' &&
@@ -23,7 +26,7 @@ export function parseMakerCommand(argv: readonly string[]): MakerCommand | undef
   )
     return undefined
   const { values, positionals } = parseArgs({
-    args: argv.slice(1),
+    args: isPanel ? rest.slice(1) : rest,
     strict: true,
     allowPositionals: true,
     options: {

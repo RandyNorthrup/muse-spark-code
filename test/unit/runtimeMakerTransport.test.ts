@@ -821,7 +821,8 @@ describe('runtime maker arguments', () => {
     ['machines', 'add', '--registration', '{}', '--key-stdin'],
     ['stop-machine', '--all'],
     ['stop-machine', 'printer'],
-    ['panel'],
+    ['machines', 'panel'],
+    // A bare panel is the MHP host's (M104 lane B), never the maker's.
   ])('parses %j', (...args) => {
     expect(parseCommandLine(args)).toMatchObject({ command: 'maker' })
   })
@@ -832,7 +833,7 @@ describe('runtime maker arguments', () => {
     ['machines', 'add', '--key', 'never'],
     ['stop-machine', 'printer', '--all'],
     ['hardware', 'status', '--key-stdin'],
-    ['panel', 'extra'],
+    ['machines', 'panel', 'extra'],
   ])('rejects %j', (...args) => {
     expect(parseCommandLine(args)).toMatchObject({ command: 'invalid' })
   })

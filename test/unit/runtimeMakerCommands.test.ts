@@ -114,7 +114,7 @@ describe('runtime maker command execution without a credential store or device',
       fixture.presenceState.result = 'denied'
       const args =
         action === 'panel'
-          ? ['panel', '--trust-workspace']
+          ? ['machines', 'panel', '--trust-workspace']
           : [
               'machines',
               'add',
@@ -203,7 +203,7 @@ describe('runtime maker command execution without a credential store or device',
   })
   it('opens the panel with OS presence and an out-of-band capability, with no stdout credential', async () => {
     const fixture = await commands(false)
-    expect(await fixture.run(['panel'])).toBe(0)
+    expect(await fixture.run(['machines', 'panel'])).toBe(0)
     expect(fixture.output).toEqual([])
     expect(fixture.opened).toHaveLength(1)
     expect(fixture.opened[0]).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/$/)
@@ -345,7 +345,7 @@ describe('runtime maker command execution without a credential store or device',
   it.each([
     ['hardware', 'enable', '--reason', 'bench', '--trust-workspace'],
     ['machines', 'add', '--registration', JSON.stringify(registration), '--trust-workspace'],
-    ['panel', '--trust-workspace'],
+    ['machines', 'panel', '--trust-workspace'],
   ])('refuses unattended maker privilege %j without printing a credential', async (...args) => {
     const fixture = await commands(true, false)
     await expect(fixture.run(args)).rejects.toThrow(UI_TEXT.makerUnattendedDenied)
