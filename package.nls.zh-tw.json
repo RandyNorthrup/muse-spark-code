@@ -137,6 +137,7 @@
   "config.museCodeAutoReviewer.description": "預設開啟。在 Muse Code 的自動模式下，只有目前回合中沒有規則作出決定的核准請求才符合審查條件：在隱藏的規劃工作階段中使用您的訂閱進行一次簡短的 Muse Code 回合。受保護的寫入、付費呼叫、子工作、提問、重播或升級的請求、未知對象、沒有僅允許一次選項的請求，以及多個面板共用的工作階段都不會被審查。成功的審查可以允許一次；拒絕、失敗、工作階段忙碌、逾時或斷路器觸發時會顯示核准卡片。主程序結束後會重新建立輔助工作階段。",
   "command.downloadBrowserCheckRuntime.title": "下載瀏覽器檢查執行階段",
   "config.browserCheckExtraHosts.description": "瀏覽器檢查可以開啟和連線的本電腦以外主機，以不含連接埠、路徑或萬用字元的一般主機名稱或 IP 位址表示；列出回送名稱還會允許本機頁面使用 https 和 WebSocket。空白表示僅限一般 http 的本機頁面，除非你在卡片或確認中針對該次檢查允許某個主機。傳往清單中主機的 https 和 WebSocket 流量經過加密且不受檢查，該網站可能會以此電腦的帳戶代你登入（尤其是在 Windows 上）。只有你可以擴大此範圍，模型不能，存放庫的設定也不能。",
+  "config.teamExternalAgents.description": "您自己的外部 ACP 代理，與內建預設（Claude Code、Codex、Gemini CLI、Copilot 和 Muse Spark Code）並列，作為團隊代理和協調器提供。每個項目指出代理（name）以及以 ACP 啟動它的命令（command，可帶選用的 args）；model 指出在您選擇模型時它應執行的模型，pays 指出由誰付費：key、subscription 或 local。代理以其自身身分執行，使用它自己的登入：本應用程式絕不會代它登入，也絕不會讀取它的憑證。只有您可以新增這些項目，模型不能，存放庫的設定也不能。",
   "config.browserCheckRuntime.description": "瀏覽器檢查取得瀏覽器的方式：Google 的 Chrome for Testing headless shell，固定為此延伸模組版本，從 storage.googleapis.com 下載到延伸模組的儲存空間（每個固定版本約 100 到 120 MB）。只有你可以變更此項，存放庫的設定不能。",
   "config.browserCheckRuntime.enumDescriptions.ask": "下載前詢問。",
   "config.browserCheckRuntime.enumDescriptions.download": "檢查需要時直接下載而不詢問，現在以及之後每個固定的版本都是如此。",
