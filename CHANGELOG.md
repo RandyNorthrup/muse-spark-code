@@ -40,6 +40,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Agent teams run in ACP sessions** (M96b). Starting the ACP agent
+  with `--team` offers the stored team in its own sessions on either
+  backend, admitted on the two-model rule in words; the session shows
+  its team state as a fixed-at-start config option, tasks ride the
+  plan and task tool calls with their reports and diffs, merges ask in
+  the editor carrying the diff (no answer discards; Bypass shows the
+  completed call), and cancel and close stop the session's workers.
+  See "Teams in ACP sessions" in the ACP guide.
 - **`muse-spark-code-acp watchdog` keeps a watch list of GitHub repositories
   in a terminal.** `watchdog list` and `status` show the watched
   repositories, `pause` and `resume` stop and restart watching, and `policy`

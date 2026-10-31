@@ -16859,6 +16859,29 @@ Prerequisite: team integration (M96).
     Its merge queue's checks run locally, because CI has no user SSH
     configuration for runners, and its result is M80's exact patch.
 - **Gates, security, docs.** As M96, plus `docs/acp.md` and `docs/ci.md`.
+- **Status 2026-10-30 (RLF-ACPTEAM): building.** Lane
+  `rec/rlf-acpteam` on rig `linuxlt` lands `serve --team` on int's team
+  core (never a parallel path): `teamSessionAdmission` has its
+  production caller at `session/new` (D227's refusal in words), one
+  `TeamHostBinding` per workspace folder over the stored team (the one
+  reader headless runs share), the Model API orchestrator's per-folder
+  seams, the Muse Code orchestrator's `team` MCP endpoint in its
+  session start, the fixed-at-start Team config option, the tree as the
+  `plan` plus one tool call per task (its report as content, its change
+  as whole-file diffs through the new `taskDiffFiles` core read), the
+  waiting and merge cards as the editor's permission requests (Bypass
+  shows the completed call), the paid question per delegate (D62), and
+  cancel/close stopping the session's workers (`stopSessionTasks`, a
+  shared core addition RLF-ORCHEXT can use for external orchestrators).
+  New code loads as `dist/acpTeam.js` under `--team` only (55.0 KiB
+  measured, budget 75). Proof: `test/unit/acpTeamSession.test.ts` (the
+  real ACP client, host, team entry and git) and
+  `test/unit/acpTeamServe.test.ts` (the staged agent process over
+  stdio), five red/green drills, and the packed-agent refusal measured
+  over stdio; the live contributor-model run's state is in
+  `docs/certification/rlf-acpteam.md`. Headless support still awaits
+  its live receipts (M80), and the ACP package contract suite is
+  CC-M96CERT's, not this lane's.
 
 ### M96c — Scheduler and traffic (D75)
 

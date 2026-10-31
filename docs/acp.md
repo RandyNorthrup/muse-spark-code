@@ -515,6 +515,7 @@ Headless `exec` takes no MCP servers, so this route needs an ACP client.
 | `--questions-defer-after <seconds>`    | M112: 60 by default; 0 waits indefinitely; 1–9 become 10; maximum 3600. Clients without forms defer immediately.        |
 | `--allow-dangerously-skip-permissions` | Offer the Bypass permissions mode                                                                                       |
 | `--allow-contributor-models`           | List contributor-tier models, whose content Meta may train on; they are hidden otherwise                                |
+| `--team`                               | Offer the stored team in ACP sessions: the orchestrator can delegate to its workers, and merges ask in the editor       |
 | `--web-search`                         | Offer paid web search (Model API backend only); each prompt asks in the editor first, naming the price                  |
 | `--image-generation`                   | Offer paid image generation (Model API backend only); each image asks in the editor first, naming the price             |
 | `--verbose`                            | Log every detail to stderr (the editor's agent log)                                                                     |
@@ -834,6 +835,55 @@ that schedule. Workspace grants do not authorize scheduled spending. Changes to
 payer, model, key, tariff or shared budget require renewal. The running runtime
 neither asks this candidate question nor reserves its caps while delivery is
 uncertified. Headless exec cannot create or host schedules.
+
+## Teams in ACP sessions
+
+With `--team`, a session runs as the VS Code panel's orchestrator does
+(on either backend): it can delegate briefs to the stored team's
+workers, collect their reports, and merge a finished task's branch
+with your approval. Without the flag there is no team in ACP sessions
+at all.
+
+The team is the stored one: `team.json` under `acp/<workspace hash>/`
+in the agent's data folder (the same file headless `exec --team`
+reads), lowered by the repository's own `team.json`. Set the team up
+in the VS Code panel's Roles section, or edit that file; the editor
+has no Roles section. The board (tasks, conversation modes, the
+scheduler's records) is `team-board.json` beside it, and task copies
+live under its `team/` folder.
+
+- A new session is admitted on the two-model rule: the session's
+  model plus at least one stored entry on a different usable model.
+  With nothing stored, or only the session's own model, `session/new`
+  refuses with "Agent teams need a second model" rather than running
+  on silently. Entries this agent cannot dispatch (anything but
+  engine entries) do not count.
+- On the Model API backend the orchestrator is offered the team tools
+  natively; on the Muse Code backend its session start carries the
+  `team` MCP endpoint, as in the panel. Workers are engine
+  conversations in their own copies either way. A worker starts only
+  in a trusted workspace (`--trust-workspace`). A key-billed entry
+  asks the paid question in the editor before each delegate, like the
+  other paid features.
+- The session shows its team state as a **Team** config option
+  (`on`/`off`). It is chosen when the session starts, because its
+  tools are declared then: asking to change it mid-session refuses in
+  words, and a new session is how you change it. A stored team
+  conversation you load again keeps its stored mode; if its team is
+  no longer admissible it resumes single-model and says why in the
+  session.
+- Running tasks ride the session's `plan`, and each task is one tool
+  call titled `role · agent: brief`; its report is the call's content
+  when it finishes, with its change as whole-file diffs (a task that
+  ends without a copy still closes its call). A task waiting on
+  admission asks through the editor's permission prompt with its four
+  answers by name (Queue It, Raise a Limit…, Main Agent Does It,
+  Cancel). A merge asks the same way in every mode, carrying the
+  diff: **Merge** lands it, anything else discards it, and no answer
+  discards it too. In Bypass the merge is shown as a completed call
+  and lands without asking.
+- `session/cancel` and closing the session stop every worker that
+  session delegated; ending the agent stops every workspace's team.
 
 ## Networks and proxies
 
