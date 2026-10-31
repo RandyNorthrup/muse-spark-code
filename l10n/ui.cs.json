@@ -2357,6 +2357,7 @@
   "gitMachineBusy": "Git se nespustil, protože je počítač zaneprázdněný. Zkuste to znovu.",
   "gitResourceUnavailable": "Git nelze spustit, protože přidělování prostředků nebo pomocný proces není k dispozici.",
   "gitMemoryLimit": "Git byl zastaven, protože jeho strom procesů dosáhl limitu paměti.",
+  "gitForkStopped": "Git byl zastaven kvůli ochraně proti forku.",
   "gitCommandConsequences": "Git může spustit háčky repozitáře, podpisové programy nebo pomocníky přihlašovacích údajů. Zrušení zastaví další kroky; již zahájené volání Gitu nebo GitHubu může doběhnout.",
   "gitCommitting": "Potvrzuje se…",
   "gitCancel": "Zrušit",
@@ -7314,6 +7315,14 @@
       "other": "{count} dohlížených běhů se nepodařilo zastavit celé.",
       "few": "{count} dohlížené běhy se nepodařilo zastavit celé.",
       "many": "{count} dohlíženého běhu se nepodařilo zastavit celé."
+    },
+    "forkStoppedProcesses": "Dohlížený běh byl zastaven kvůli ochraně proti forku: jeho strom držel více než {bound} procesů najednou.",
+    "forkStoppedSpawns": "Dohlížený běh byl zastaven kvůli ochraně proti forku: jeho strom vytvořil více než {bound} procesů naráz.",
+    "childrenRefused": {
+      "one": "Ochrana proti forku odepřela dohlíženému běhu {count} podřízený proces; běh pokračoval.",
+      "other": "Ochrana proti forku odepřela dohlíženému běhu {count} podřízených procesů; běh pokračoval.",
+      "few": "Ochrana proti forku odepřela dohlíženému běhu {count} podřízené procesy; běh pokračoval.",
+      "many": "Ochrana proti forku odepřela dohlíženému běhu {count} podřízeného procesu; běh pokračoval."
     },
     "unavailable": "Dohled není v této instalaci k dispozici."
   },

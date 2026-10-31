@@ -2276,6 +2276,7 @@
   "gitMachineBusy": "電腦忙碌中，Git 無法執行。請重試。",
   "gitResourceUnavailable": "資源准入功能或程序輔助程式無法使用，因此無法執行 Git。",
   "gitMemoryLimit": "Git 的程序樹已達到記憶體上限，因此 Git 已停止。",
+  "gitForkStopped": "Git 已因 fork 保護而停止。",
   "gitCommandConsequences": "Git 可能執行儲存庫掛鉤、簽署程式或認證助手。取消會停止後續步驟；已開始的 Git 或 GitHub 呼叫仍可能完成。",
   "gitCommitting": "正在認可…",
   "gitCancel": "取消",
@@ -6780,6 +6781,11 @@
     },
     "stopFailed": {
       "other": "有 {count} 個受監督執行未能完整停止。"
+    },
+    "forkStoppedProcesses": "受監督的執行已因 fork 保護而停止：其處理程序樹同時容納了超過 {bound} 個處理程序。",
+    "forkStoppedSpawns": "受監督的執行已因 fork 保護而停止：其處理程序樹在短時間內產生了超過 {bound} 個處理程序。",
+    "childrenRefused": {
+      "other": "受監督的執行被 fork 保護拒絕了 {count} 個子處理程序；執行已繼續。"
     },
     "unavailable": "此安裝中沒有監督功能。"
   },

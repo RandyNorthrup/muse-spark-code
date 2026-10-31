@@ -2276,6 +2276,7 @@
   "gitMachineBusy": "マシンがビジー状態のため、Git を実行できませんでした。もう一度お試しください。",
   "gitResourceUnavailable": "リソースの実行許可機能またはプロセスヘルパーが利用できないため、Git を実行できませんでした。",
   "gitMemoryLimit": "Git のプロセスツリーがメモリ上限に達したため、Git を停止しました。",
+  "gitForkStopped": "Git は fork 保護のために停止しました。",
   "gitCommandConsequences": "Git はリポジトリのフック、署名プログラム、認証情報ヘルパーを実行することがあります。キャンセルすると後続の手順は停止しますが、開始済みの Git または GitHub の呼び出しは完了する場合があります。",
   "gitCommitting": "コミット中…",
   "gitCancel": "キャンセル",
@@ -6780,6 +6781,11 @@
     },
     "stopFailed": {
       "other": "監督付きの実行 {count} 件を完全には停止できませんでした。"
+    },
+    "forkStoppedProcesses": "監督付きの実行は fork 保護のために停止しました。ツリーが一度に {bound} を超えるプロセスを保持していました。",
+    "forkStoppedSpawns": "監督付きの実行は fork 保護のために停止しました。ツリーが短時間に {bound} を超えるプロセスを生成しました。",
+    "childrenRefused": {
+      "other": "監督付きの実行は fork 保護により {count} 件の子プロセスを拒否されました。実行は続行しました。"
     },
     "unavailable": "このインストールでは監督機能を利用できません。"
   },

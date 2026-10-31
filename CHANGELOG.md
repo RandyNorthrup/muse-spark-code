@@ -727,6 +727,10 @@ happened, not what was planned; superseded entries are kept.
 - One-shot product notices in editor sessions no longer fold into the
   model's answer: where the editor shows no notices they go out as
   their own message with their own id.
+- A runaway job the resource governor stops now says why: the run ends
+  with which bound fired and its number instead of dying silently, and
+  supervised runs are governed like every other launch, so ordinary
+  supervised use is never stopped.
 ### Added
 
 - **Model API on the Muse Code subscription** (C-M95-SUB). The Model API
