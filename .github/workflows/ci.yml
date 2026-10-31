@@ -98,3 +98,17 @@ jobs:
       # `on` (CONTRIBUTING.md, "CI tiers"), every PR keeps the full tier.
       fast: ${{ github.event_name == 'pull_request' && vars.CI_MERGE_QUEUE == 'on' }}
       part: ${{ needs.route.outputs.part }}
+
+  # The M111 desktop harness smoke tier (lane QA): the harness suites on
+  # amd64 and arm64. Not one of the seven required names; desktop.yml's
+  # full legs run on their paths, nightly, and on demand. Making it a
+  # required check is the workflow owner's call.
+  desktop:
+    name: desktop
+    needs: route
+    if: needs.route.outputs.part != 'org'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/desktop.yml
+    with:
+      mode: smoke

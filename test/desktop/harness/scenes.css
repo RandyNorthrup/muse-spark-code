@@ -69,7 +69,8 @@ body {
   padding: var(--ms-space-8);
 }
 
-.ds-region {
+.ds-region,
+.ds-window {
   border: 1px solid var(--ms-border);
   border-radius: var(--ms-radius-lg);
   background: var(--ms-raised);
@@ -167,13 +168,6 @@ body {
   grid-template-columns: 2fr 1fr;
   grid-template-rows: 1fr 1fr;
   gap: var(--ms-space-4);
-  padding: var(--ms-space-8);
-}
-
-.ds-window {
-  border: 1px solid var(--ms-border);
-  border-radius: var(--ms-radius-lg);
-  background: var(--ms-raised);
   padding: var(--ms-space-8);
 }
 

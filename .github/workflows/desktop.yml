@@ -1,0 +1,340 @@
+# Muse Desktop's test rig in CI (M111 lane QA, PLAN.md §6 M111a0): the
+# harness unit suites, the Rust virtual-input driver, the Electron
+# driver against its real fixture, the compositor config check, the
+# review screenshots (for people to look at, never compared), and the
+# QEMU boot legs on amd64 and arm64. `ci.yml` calls this with
+# mode: smoke for every pull request; the full tiers run on the paths
+# below, on demand, and nightly (review shots in all 15 languages).
+#
+# The compositor legs need a KMS device for aquamarine's allocator, so
+# they run inside a virtio-gpu guest through scripts/qemu-desktop-test.mjs
+# (the way upstream Hyprland tests itself). The guest session downloads
+# the current Debian 13 cloud image and installs Hyprland from
+# trixie-backports; M111os images take that place when OS1 lands.
+
+name: Desktop
+
+on:
+  workflow_call:
+    inputs:
+      mode:
+        description: smoke (harness suites) or full (every leg)
+        type: string
+        default: full
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: smoke (harness suites) or full (every leg)
+        type: choice
+        options: [full, smoke]
+        default: full
+  pull_request:
+    paths:
+      - 'test/desktop/**'
+      - 'test/unit/desktop/**'
+      - 'scripts/desktop-harness.mjs'
+      - 'scripts/qemu-desktop-test.mjs'
+      - 'scripts/lib/harnessServer.mjs'
+      - 'scripts/readme-shots.mjs'
+      - 'src/shared/desktopContracts.ts'
+      - 'src/shared/l10n/**'
+      - 'l10n/**'
+      - 'design/tokens/**'
+      - '.github/workflows/desktop.yml'
+  schedule:
+    # Nightly: full legs and review shots in every language.
+    - cron: '41 3 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    name: harness suites (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            os: ubuntu-latest
+          - arch: arm64
+            os: ubuntu-24.04-arm
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: D-Bus test tools
+        run: sudo apt-get install -y --no-install-recommends dbus python3-gi libglib2.0-bin
+      - run: npm ci
+      - name: harness suites
+        run: >-
+          npx vitest run
+          test/unit/desktop/contracts.test.ts
+          test/unit/desktop/harnessScenes.test.mjs
+          test/unit/desktop/harnessCompositor.test.mjs
+          test/unit/desktop/harnessDbus.test.mjs
+          test/unit/desktop/harnessQemu.test.mjs
+          test/unit/desktop/harnessInput.test.mjs
+          test/unit/desktop/harnessElectron.test.mjs
+          --maxWorkers=3
+      - name: tool report
+        run: node scripts/desktop-harness.mjs check --json || true
+
+  rust:
+    name: virtual-input driver (${{ matrix.arch }})
+    if: inputs.mode == 'full' || github.event_name != 'workflow_call'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            os: ubuntu-latest
+          - arch: arm64
+            os: ubuntu-24.04-arm
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: test/desktop/harness/virtual-input
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: rustfmt and clippy components
+        run: rustup component add rustfmt clippy
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+      - run: cargo build --release
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: muse-virtual-input-${{ matrix.arch }}
+          path: test/desktop/harness/virtual-input/target/release/muse-virtual-input
+          retention-days: 30
+
+  rust-supply-chain:
+    name: rust supply chain
+    if: inputs.mode == 'full' || github.event_name != 'workflow_call'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: test/desktop/harness/virtual-input
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/bin/cargo-deny
+            ~/.cargo/bin/cargo-audit
+            ~/.cargo/registry
+            ~/.cargo/advisory-db
+          key: cargo-deny-audit-${{ runner.os }}-${{ hashFiles('test/desktop/harness/virtual-input/Cargo.lock') }}
+      - name: install the auditors when uncached
+        run: |
+          if [ ! -x ~/.cargo/bin/cargo-deny ] || [ ! -x ~/.cargo/bin/cargo-audit ]; then
+            cargo install cargo-deny cargo-audit --locked
+          fi
+      - run: cargo deny check
+      - run: cargo audit
+
+  electron:
+    name: electron driver fixture
+    if: inputs.mode == 'full' || github.event_name != 'workflow_call'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: fixture Electron
+        working-directory: test/desktop/harness/electron-fixture
+        run: npm ci --no-audit --no-fund
+      - name: driver suite under Xvfb
+        run: xvfb-run -a npx vitest run test/unit/desktop/harnessElectron.test.mjs --maxWorkers=3
+      - name: driver CLI smoke
+        run: xvfb-run -a node scripts/desktop-harness.mjs electron --expect-title "Electron fixture"
+
+  compositor-config:
+    name: compositor config verifies
+    if: inputs.mode == 'full' || github.event_name != 'workflow_call'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Hyprland from trixie-backports, in the Debian 13 container
+        run: |
+          docker run --rm -v "$PWD:/repo" -w /repo debian:trixie sh -c '
+            printf "Types: deb\nURIs: http://deb.debian.org/debian\nSuites: trixie-backports\nComponents: main\n" > /etc/apt/sources.list.d/bp.sources
+            apt-get update -qq
+            apt-get install -y -qq --no-install-recommends -t trixie-backports hyprland nodejs >/dev/null
+            useradd -m qa
+            su qa -s /bin/sh -c "export HOME=/home/qa; cd /repo && node scripts/desktop-harness.mjs check --for compositor || true; node scripts/desktop-harness.mjs verify-config --out /tmp/hyprland.lua"
+          '
+
+  review-shots:
+    name: review screenshots
+    if: inputs.mode == 'full' || github.event_name != 'workflow_call'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: capture (all 15 languages nightly, the plan subset otherwise)
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            node scripts/readme-shots.mjs --desktop --languages='*' --out temp/desktop-review
+          else
+            node scripts/readme-shots.mjs --desktop --out temp/desktop-review
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: desktop-review-shots
+          # Review material only: uploaded for a person to look at and
+          # never compared by any gate (D91; owner no-comparison rule).
+          path: temp/desktop-review
+          retention-days: 30
+
+  qemu-firmware:
+    name: qemu firmware boot (${{ matrix.arch }})
+    if: inputs.mode == 'full' || github.event_name != 'workflow_call'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            os: ubuntu-latest
+            qemu_package: qemu-system-x86
+            firmware_package: ovmf
+          - arch: aarch64
+            os: ubuntu-24.04-arm
+            qemu_package: qemu-system-arm
+            firmware_package: qemu-efi-aarch64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: QEMU, swtpm and firmware in the Debian 13 container
+        run: |
+          docker run --rm -v "$PWD:/repo" -w /repo debian:trixie sh -c '
+            apt-get update -qq
+            apt-get install -y -qq --no-install-recommends ${{ matrix.qemu_package }} swtpm nodejs ${{ matrix.firmware_package }} >/dev/null
+            node scripts/qemu-desktop-test.mjs --arch ${{ matrix.arch }} --out /tmp/qemu-fw --timeout 120 --memory 1024 --firmware-only
+            cat /tmp/qemu-fw/result.json
+          '
+
+  qemu-kernel:
+    name: qemu kernel marker boot (x86_64)
+    if: inputs.mode == 'full' || github.event_name != 'workflow_call'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: proof guest boot in the Debian 13 container
+        run: |
+          docker run --rm -v "$PWD:/repo" -w /repo debian:trixie sh -c '
+            apt-get update -qq
+            apt-get install -y -qq --no-install-recommends qemu-system-x86 swtpm nodejs linux-image-amd64 busybox-static cpio >/dev/null
+            sh test/desktop/harness/guest/build-proof-guest.sh /tmp/guest
+            node scripts/qemu-desktop-test.mjs --arch x86_64 --out /tmp/qemu-os --timeout 180 --memory 1024 --kernel /tmp/guest/vmlinuz --initrd /tmp/guest/initramfs.cpio.gz --append "console=tty0 console=ttyS0 panic=-1" --marker M111QA-GUEST-OK
+            cat /tmp/qemu-os/result.json
+          '
+
+  qemu-guest-session:
+    name: compositor session in guest (x86_64)
+    # The long leg: a Debian cloud guest installs the pinned compositor
+    # and runs a real harness session on virtio-gpu. Manual and nightly;
+    # pull requests get every cheaper leg above.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    needs: rust
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: muse-virtual-input-amd64
+          path: temp/virtual-input
+      - name: guest session in the Debian 13 container
+        run: |
+          docker run --rm -v "$PWD:/repo" -w /repo debian:trixie sh -c '
+            apt-get update -qq
+            apt-get install -y -qq --no-install-recommends qemu-system-x86 swtpm nodejs curl e2fsprogs genisoimage qemu-utils >/dev/null
+            curl -sL -o /tmp/cloud.qcow2 https://cloud.debian.org/images/cloud/trixie/latest/debian-13-genericcloud-amd64.qcow2
+            sh test/desktop/harness/guest/build-session-share.sh /repo /tmp/share /repo/temp/virtual-input/muse-virtual-input
+            cp /tmp/cloud.qcow2 /tmp/cloud-run.qcow2
+            qemu-img resize /tmp/cloud-run.qcow2 12G
+            node scripts/qemu-desktop-test.mjs --arch x86_64 --out /repo/temp/guest-boot --timeout 1500 --memory 3072 --cpus 2 --image /tmp/cloud-run.qcow2 --target /tmp/share/share.img --seed /tmp/share/seed.iso --marker M111QA-SESSION-OK
+            cat /repo/temp/guest-boot/result.json
+          '
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: desktop-guest-session
+          path: temp/guest-boot
+          retention-days: 30
+
+  desktop:
+    name: Desktop
+    if: ${{ !cancelled() }}
+    needs:
+      - unit
+      - rust
+      - rust-supply-chain
+      - electron
+      - compositor-config
+      - review-shots
+      - qemu-firmware
+      - qemu-kernel
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: report the desktop legs
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "desktop legs: $RESULTS"
+          case " $RESULTS " in
+            *" failure "*|*" cancelled "*) exit 1 ;;
+            *) echo "no required desktop leg failed (skipped legs are the mode's shape)" ;;
+          esac
