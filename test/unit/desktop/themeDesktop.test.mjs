@@ -27,6 +27,7 @@ import {
   contrastRatio,
   emitHex,
   hyprModel,
+  hyprThemeData,
   parseConsumers,
   pngPixel,
   renderCodeMirror,
@@ -367,6 +368,24 @@ describe('M111 TH desktop theme', () => {
     const lua = renderLua(parsed)
     expect(lua).toContain('detachedTerminal = "floating"')
     expect(lua).toContain('innerGap = 4')
+  })
+
+  it('keeps the Hyprland JSON twin identical to the Lua table', async () => {
+    const parsed = parseConsumers(consumers)
+    const twin = JSON.parse(await readTheme('hyprland-theme.json'))
+    expect(twin).toEqual(hyprThemeData(parsed))
+    for (const mode of DESKTOP_MODES) {
+      const model = hyprModel(parsed, mode)
+      expect(twin.modes[mode].innerGap).toBe(model.innerGapPx)
+      expect(twin.modes[mode].focusedBorder.hex).toBe(model.focusedBorder)
+      expect(twin.modes[mode].bezierStandard).toEqual(model.bezierStandard)
+      expect(twin.modes[mode].durationBaseMs).toBe(model.durationBaseMs)
+    }
+    const lua = renderLua(parsed)
+    for (const mode of DESKTOP_MODES) {
+      expect(lua).toContain(`${mode.replaceAll('-', '_')} = {`)
+      expect(lua).toContain(`innerGap = ${twin.modes[mode].innerGap}`)
+    }
   })
 
   it('emits the viewport geometry as functions, never a silent zero', () => {
