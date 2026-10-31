@@ -1,0 +1,29 @@
+{
+  "provenance": {
+    "observedBy": "the lead, in real use",
+    "observedAt": "2026-10-30",
+    "product": "the published 0.19.0 ACP agent (muse-spark-code-acp) driven over ACP",
+    "scope": "every Muse lane at once: each turn ended with this JSON-RPC error",
+    "recordedBy": "lane RLF-QUOTA, 2026-10-31; nothing new was captured (a usage window is never exhausted to prove it)",
+    "record": "docs/certification/rlf-quota.md"
+  },
+  "observedAcpError": {
+    "code": -32603,
+    "message": "Internal error: API error 429 [request_id=e7eccfac-6e60-4252-8972-babf4e1d672e]: Subscription quota exhausted. Your usage window resets at 2026-10-30T19:42:18Z. (rate_limit_error)"
+  },
+  "providerFacts": {
+    "message": "API error 429 [request_id=e7eccfac-6e60-4252-8972-babf4e1d672e]: Subscription quota exhausted. Your usage window resets at 2026-10-30T19:42:18Z. (rate_limit_error)",
+    "httpStatus": 429,
+    "requestId": "e7eccfac-6e60-4252-8972-babf4e1d672e",
+    "envelopeType": "rate_limit_error",
+    "resetsAt": "2026-10-30T19:42:18Z",
+    "resetsAtMs": 1793389338000
+  },
+  "wireDerivation": {
+    "reason": "The 0.19.0 agent showed the failed turn's reason verbatim as the -32603 message (src/acp/agent.ts at 0.19.0: `event.reason ?? event.errorKind ?? event.terminal`), so the CLI's `turn/completed` carried this text as `reason`; the m91 capture shows `reason` mirrors `error.message`. Tests use the message above byte for byte in both members.",
+    "quota": "The CLI's typed quota detail (TurnError.quota: QuotaDetail{limitKind, resetsAtMs}, ADR 50047 D2/D3, verified in CLI 1.4.10's offline export via `muse schema generate-json-schema --out <dir>` on 2026-10-31): present iff the stopping failure was the quota class. Tests carry limitKind `tierLimit` with the observed reset instant above.",
+    "kind": "`modelError`: the recorded model-failure kind (docs/certification/m91-captures/05-linux-msp-failure/turn-completed.jsonl, 2026-10-04). The product never branches on it; it rides along as the typed kind.",
+    "retryable": "Not known from this observation. The CLI's judgment for a quota failure is unrecorded, so tests cover both `true` and `false`: the quota outcome is identical either way, and neither resends before the reset.",
+    "sessionRecord": "The same TurnError is restated as `LastTurn.error` on `session/resume` and `session/read` (CLI 1.4.10 schema export, ADR 36635 D2/D3). No surface re-announces a resumed session's last turn, so the product reads the live `turn/completed` only; the record shape is noted here, not parsed."
+  }
+}

@@ -4810,11 +4810,13 @@
   "announceApprovalFor": "{tool} için onay gerekiyor",
   "turnFailed": "Tur başarısız oldu.",
   "turnTransientFailed": "Muse hizmeti turu tamamlayamadı. Tur çalışmasını korudu; devam etmek için iletiyi yeniden gönderin.",
+  "subscriptionQuotaExhausted": "Abonelik kotası tükendi. Kullanım pencereniz {resetTime} tarihinde sıfırlanacak.",
   "turnRetryAction": "Yeniden dene",
   "turnRetryUnavailable": "Bu tur artık yeniden denenemez. İletinizi tekrar gönderin.",
   "turnRetryBusy": "Yeniden denemeden önce yanıtın bitmesini bekleyin ya da durdurun.",
   "turnRetrying": "{seconds} sn içinde yeniden deneniyor (deneme {attempt}/{maxAttempts}).",
   "turnRetryingUncapped": "{seconds} sn içinde yeniden deneniyor (deneme {attempt}).",
+  "turnQuotaWaiting": "Kullanım pencereniz {resetTime} tarihinde sıfırlanacak; tur o zaman devam edecek. Turu istediğiniz zaman durdurabilirsiniz.",
   "modelApiProviderRetryWait": "{reason}; sağlayıcı {time} tarihine kadar beklemeyi istedi. Turu istediğiniz zaman durdurabilirsiniz.",
   "usageWindowHours": {
     "one": "{count} saatlik pencere",
