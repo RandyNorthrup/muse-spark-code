@@ -3247,3 +3247,9 @@ editor run proves it:
   `runtime-fixture.test.mjs`).
 - Visual Studio: runtime start/stop and packaging against `fake-runtime.mjs`
   (`RuntimeAndPackageTests`); the whole host waits for the Windows machine.
+- Emacs: xwidget/browser preference, agent-shell client sanitization at
+  creation, and stop/cancellation isolation were proven only against
+  `cl-letf` stand-ins for the outside agent-shell/acp.el libraries; those
+  tests are deleted and the behaviours wait for a run with the real
+  libraries installed. URL validation, credential stripping and real-child
+  cleanup stay proven by the remaining ERT tests.
