@@ -1,7 +1,6 @@
 import path from 'node:path'
 import * as z from 'zod/mini'
-import { powerShellQuoted } from '../../shellQuote'
-import { RESOURCE_JOB_CPU_RATE_PERCENT, SHELL_JOB_TYPE_NAME } from '../../../shared/constants'
+import { RESOURCE_JOB_CPU_RATE_PERCENT } from '../../../shared/constants'
 import {
   resourceProcessIdentitySchema,
   type ResourceProcessIdentity,
@@ -43,16 +42,19 @@ export class WindowsResourceActuator implements ResourceActuatorPort {
     this.run = deps.run ?? runTreeProgram
   }
 
-  private async call(body: string): Promise<unknown> {
-    return await callWindowsJobHelper(this.deps, this.run, body)
+  private async call(command: readonly [string, ...string[]]): Promise<unknown> {
+    return await callWindowsJobHelper(this.deps, this.run, command)
   }
 
   controls(ticket: ResourceTicket): Promise<readonly ResourceControl[]> {
     if (ticket.scope.type !== 'job')
       return Promise.reject(new Error('Windows resource scope must be a job'))
-    const name = powerShellQuoted(ticket.scope.name)
-    const target = (identity: ResourceProcessIdentity) =>
-      `${name}, ${String(identity.pid)}, ${powerShellQuoted(identity.startTime)}`
+    const { name } = ticket.scope
+    const target = (identity: ResourceProcessIdentity): [string, string, string] => [
+      name,
+      String(identity.pid),
+      identity.startTime,
+    ]
     let originalPriority: string | null = null
     const controls: ResourceControl[] = [
       {
@@ -62,9 +64,7 @@ export class WindowsResourceActuator implements ResourceActuatorPort {
         reversible: true,
         minimumLevel: 'throttle',
         read: async (identity) => {
-          const raw = await this.call(
-            `[${SHELL_JOB_TYPE_NAME}]::ReadResourcePriority(${target(identity)})`,
-          )
+          const raw = await this.call(['read-priority', ...target(identity)])
           if (raw === null) return null
           originalPriority = JSON.stringify(jobPrioritySchema.parse(raw))
           return originalPriority
@@ -80,9 +80,7 @@ export class WindowsResourceActuator implements ResourceActuatorPort {
           const isRestoring = value === originalPriority
           if (isRestoring) {
             const live = jobPrioritySchema.parse(
-              await this.call(
-                `[${SHELL_JOB_TYPE_NAME}]::ReadResourcePriority(${target(identity)})`,
-              ),
+              await this.call(['read-priority', ...target(identity)]),
             )
             for (const member of live.processes) {
               if (
@@ -100,9 +98,13 @@ export class WindowsResourceActuator implements ResourceActuatorPort {
           const baselines = desired.processes
             .map((item) => `${String(item.pid)}/${item.startTime}/${item.priority}`)
             .join(';')
-          const raw = await this.call(
-            `if ([${SHELL_JOB_TYPE_NAME}]::SetResourcePriority(${target(identity)}, ${powerShellQuoted(desired.priority)}, ${powerShellQuoted(baselines)}, $${String(isRestoring)})) { 'true' } else { 'false' }`,
-          )
+          const raw = await this.call([
+            'set-priority',
+            ...target(identity),
+            desired.priority,
+            baselines,
+            String(isRestoring),
+          ])
           return z.boolean().parse(raw) ? value : null
         },
         close: () => Promise.resolve(),
@@ -116,9 +118,7 @@ export class WindowsResourceActuator implements ResourceActuatorPort {
         reversible: true,
         minimumLevel: 'throttle',
         read: async (identity) => {
-          const raw = await this.call(
-            `[${SHELL_JOB_TYPE_NAME}]::ReadResourceRate(${target(identity)})`,
-          )
+          const raw = await this.call(['read-rate', ...target(identity)])
           return raw === null ? null : JSON.stringify(rateSchema.parse(raw))
         },
         lower: (_level, original) => {
@@ -136,9 +136,12 @@ export class WindowsResourceActuator implements ResourceActuatorPort {
         },
         write: async (value, identity) => {
           const desired = rateSchema.parse(JSON.parse(value))
-          const raw = await this.call(
-            `[${SHELL_JOB_TYPE_NAME}]::SetResourceRate(${target(identity)}, ${String(desired.flags)}, ${String(desired.rate)})`,
-          )
+          const raw = await this.call([
+            'set-rate',
+            ...target(identity),
+            String(desired.flags),
+            String(desired.rate),
+          ])
           return raw === null ? null : JSON.stringify(rateSchema.parse(raw))
         },
         close: () => Promise.resolve(),

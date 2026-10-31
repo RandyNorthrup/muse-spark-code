@@ -19346,6 +19346,15 @@ live suggestion and the live check stay open (B4); the same order in
 `src/runtime/lsp/lspTab.ts` has no suite and is unchanged. Record:
 `docs/certification/cc-winruns.md`.
 
+**Status 2026-10-30 (CC-WINHOOK, Windows 11, int/recovery dfcb45936f): building.**
+The same order in `src/runtime/lsp/lspTab.ts` is reordered: a secret under
+the cursor is decided from the document right after the policy check, before
+the stored key is read and before D48's question, so Tab over LSP never asks
+for a request that cannot be sent. `test/unit/runtimeLsp.test.ts` proves it
+through the real server under the official client, which now records every
+question the server asks (the old order fails it with `Tab quiet (no-key)`).
+Record: `docs/certification/cc-winhook.md`.
+
 **Owner decision 2026-10-23: the Tab status bar stays at startup; the
 4 KiB ambition is dropped.** RLF-TAB moved everything else Tab carried at
 activation into `dist/tab.js` (Tab's share of `dist/extension.js` fell
@@ -30739,6 +30748,15 @@ suites pass on the production build (`runtimePanel*`, `runtimeReview`,
 `acpPaidGrants`); no editor host carries it and no model call has gone
 through it. The agent package carries `reportFallback.js` for the controller.
 Record: `docs/certification/cc-int5.md`.
+Lane H, Tab hooks on a busy Windows PC (CC-WINHOOK, 2026-10-30): a hook
+launch starts no Windows PowerShell. The governor's tree reads, job holder
+and created-path registry run the job helper as a program of its own
+(`MuseSparkJobHost`, `windowsJobHost`), and a governed hook starts through the
+native job launcher; measured on the owner's PC the launch fell from 8 to 14
+PowerShell starts and about 0.9 s to none and about 0.27 s, and
+`test/unit/runtimeLsp.test.ts`'s two hook cases pass under two CPUs and six
+busy loops where the old launch never ran the hook. The 1.5 s bound is
+unchanged. Record and open questions: `docs/certification/cc-winhook.md`.
 
 **Warning for the POSIX trusted-path verifier (INT0180, 2026-10-11).** A real
 POSIX verifier that refuses a group-writable unit search directory would
@@ -32778,7 +32796,7 @@ before a repaired one loads (2026-09-30).
 
 | File                                      | Construct                                                                     | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Added      |
 | ----------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/host/resources/resourceJobHolder.ts` | `nosemgrep` on `spawn` (`detect-child-process`)                               | M107 C1's absolute Windows PowerShell runs only the verified packaged job DLL's fixed Hold entry and a fresh generated job name, in the projected helper environment. No model/workspace command or credential; it holds a query handle until owned job membership is empty. It is sampling infrastructure outside the governed job, and never sets limits or kills work.                                                                                                                                                                                                                                                         | 2026-10-05 |
+| `src/host/resources/resourceJobHolder.ts` | `nosemgrep` on `spawn` (`detect-child-process`)                               | M107 C1's packaged, digest-named job helper (the same file PowerShell loads as the job type) runs only its fixed `hold` command by absolute path and a fresh generated job name, in the projected helper environment (SystemRoot only); no PowerShell is started for it (CC-WINHOOK, 2026-10-30). No model/workspace command or credential; it holds a query handle until owned job membership is empty. It is sampling infrastructure outside the governed job, and never sets limits or kills work.                                                                                                                             | 2026-10-05 |
 | `src/host/backend/toolIo.ts`              | `nosemgrep` on `spawn`, in `startProcess` (`detect-child-process`)            | The command line is the tool's payload by design: the user approved it on a card, and it runs through PowerShell / bash as an argument array, never a shell string. The comment moved with the call into `startProcess` (M72, 2026-09-30), which catches `spawn`'s synchronous throw and reports an unstarted shell; no suppression was added.                                                                                                                                                                                                                                                                                    | 2026-09-22 |
 | `src/host/backend/searchWorker.ts`        | `nosemgrep` on `new RegExp(pattern)` (`detect-non-literal-regexp`)            | The model's search pattern is evaluated on a worker thread that `toolIo.searchOnWorker` terminates at `SEARCH_TIMEOUT_MS`, and the pattern is capped at `SEARCH_PATTERN_MAX_LENGTH`; a runaway match cannot hang the host.                                                                                                                                                                                                                                                                                                                                                                                                        | 2026-09-22 |
 | `knip.jsonc`                              | Named system-binary declarations for `cmake`, `strip`, `readelf`, `cc`, `c++` | CM9LNX builds precompiled native helpers with installed CMake/strip and compiles fake-engine/hostile-plugin fixtures with the system compiler; readelf verifies each produced ELF loader path. None is an npm dependency. Dead-code rules and thresholds remain unchanged.                                                                                                                                                                                                                                                                                                                                                        | 2026-10-10 |
