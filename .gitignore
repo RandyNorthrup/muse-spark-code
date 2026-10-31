@@ -36,3 +36,7 @@ test/harness/l10n/
 
 # Linux created-path helpers, compiled from the reviewed native source.
 native/linux/
+
+# Rust build output (M111 desktop harness)
+test/desktop/harness/virtual-input/target/
+test/desktop/harness/electron-fixture/node_modules/

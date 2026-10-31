@@ -3,7 +3,7 @@
 // compositor session end to end. Parsing and dispatch live here so the
 // script stays a thin entry and the tests drive the same code.
 
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { findChrome } from '../../../../scripts/lib/chrome.mjs'
@@ -15,6 +15,8 @@ import {
   verifyHyprlandConfig,
 } from './compositor.mjs'
 import { callBus, startTestBus } from './dbusBus.mjs'
+import { FIXTURE_DIR, launchElectronApp } from './electronDriver.mjs'
+import { findVirtualInputBinary, runVirtualInputScript } from './virtualInput.mjs'
 import { captureReviewShots } from './reviewShots.mjs'
 import { DESKTOP_SCENES, desktopScene } from './scenes.mjs'
 import { serveDesktopScenes } from './sceneServer.mjs'
@@ -37,15 +39,21 @@ export const HARNESS_USAGE = `Usage: desktop-harness <command> [options]
   shot <scene> [--theme dark|light|hc-dark|hc-light] [--lang en] [--out dir]
       Capture one review screenshot with Chrome. Never compared by a test.
   session --out <dir> [--outputs HEADLESS-1:1920x1080,HEADLESS-2:1280x800]
-          [--nest-display wayland-0] [-- <client command...>]
+          [--nest-display wayland-0] [--input <script file>]
+          [-- <client command...>]
       Start headless Hyprland on llvmpipe, create the outputs, run the
-      client, screenshot every output into <dir>, stop everything.
+      client, drive it with the virtual-input script when given,
+      screenshot every output into <dir>, stop everything.
   verify-config [--out file] [--outputs ...]
       Write the generated harness config and check it with
       Hyprland --verify-config (the same gate CP's product config passes).
   bus [--out dir]
       Start the private D-Bus test bus and its canary services, round-trip
       a ping and a notification over it, print the records, stop.
+  electron [--app dir] [--out dir] [--expect-title text] [--ozone-headless]
+      Launch an Electron app under Playwright's driver (the harness
+      fixture when --app is omitted), print the first window's title,
+      screenshot it, close it. Exit 1 when --expect-title does not match.
 
 Options after -- belong to the client command. Timeouts are operational
 bounds for a test rig (session ready 30 s, client window 15 s by default);
@@ -109,6 +117,22 @@ function applyFlag(options, rest, index) {
     case '--client-ms': {
       options.clientMs = Number(takeValue(rest, index, arg))
       return index + 1
+    }
+    case '--input': {
+      options.input = takeValue(rest, index, arg)
+      return index + 1
+    }
+    case '--app': {
+      options.app = takeValue(rest, index, arg)
+      return index + 1
+    }
+    case '--expect-title': {
+      options.expectTitle = takeValue(rest, index, arg)
+      return index + 1
+    }
+    case '--ozone-headless': {
+      options.isOzoneHeadless = true
+      return index
     }
     default: {
       throw new Error(`unknown option ${arg}\n${HARNESS_USAGE}`)
@@ -231,10 +255,23 @@ async function runSession(options, { repoRoot, log, env }) {
     if (options.client !== undefined && options.client.length > 0) {
       const [command, ...args] = options.client
       const shot = path.join(outDir, `${first.name}.png`)
+      const beforeScreenshot =
+        options.input === undefined
+          ? undefined
+          : async () => {
+              const binary = await findVirtualInputBinary({ repoRoot, env })
+              const script = await readFile(path.resolve(repoRoot, options.input), 'utf8')
+              const driven = await runVirtualInputScript(binary, {
+                env: session.clientEnv(),
+                script,
+              })
+              log(`virtual input: ${String(driven.acknowledged)} commands acknowledged`)
+            }
       const ran = await runSceneClient(session, command, args, {
         output: first.name,
         screenshotFile: shot,
         readyTimeoutMs: options.clientMs,
+        beforeScreenshot,
       })
       summary = { ...summary, clients: ran.clients, screenshots: [shot] }
       log(`client ${command}: ${path.relative(repoRoot, shot)}`)
@@ -302,6 +339,34 @@ async function runBus(options, { repoRoot, log, env }) {
   return 0
 }
 
+async function runElectron(options, { repoRoot, log, env }) {
+  const appDir = options.app === undefined ? FIXTURE_DIR : path.resolve(repoRoot, options.app)
+  const { app, window, electronPath } = await launchElectronApp({
+    repoRoot,
+    appDir,
+    env,
+    headlessOzone: options.isOzoneHeadless === true,
+  })
+  try {
+    const title = await window.title()
+    log(`electron: ${electronPath}`)
+    log(`app: ${path.relative(repoRoot, appDir)}`)
+    log(`window title: ${title}`)
+    const outDir = path.resolve(repoRoot, options.out ?? 'temp/desktop-electron')
+    await mkdir(outDir, { recursive: true })
+    const shot = path.join(outDir, 'first-window.png')
+    await window.screenshot({ path: shot })
+    log(`screenshot: ${path.relative(repoRoot, shot)}`)
+    if (options.expectTitle !== undefined && !title.includes(options.expectTitle)) {
+      log(`expected the title to contain ${JSON.stringify(options.expectTitle)}`)
+      return 1
+    }
+    return 0
+  } finally {
+    await app.close()
+  }
+}
+
 /** Runs one harness command; resolves with its process exit code. */
 export async function runHarnessCli(argv, { repoRoot, log = console.log, env = process.env }) {
   const options = parseHarnessArgs(argv)
@@ -331,6 +396,9 @@ export async function runHarnessCli(argv, { repoRoot, log = console.log, env = p
     }
     case 'bus': {
       return runBus(options, context)
+    }
+    case 'electron': {
+      return runElectron(options, context)
     }
     default: {
       throw new Error(`unknown command ${options.command}\n${HARNESS_USAGE}`)

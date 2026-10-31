@@ -1,0 +1,25 @@
+# cargo-deny policy for the M111 harness's only Rust crate (lane QA).
+# Checked in the desktop workflow beside cargo audit. No copyleft, no
+# unknown licenses, no duplicate crate versions, sources crates.io only.
+
+[advisories]
+yanked = "deny"
+
+[licenses]
+allow = [
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-3-Clause",
+  "ISC",
+  "MIT",
+  "Unicode-DFS-2016",
+  "Unicode-3.0",
+]
+confidence-threshold = 0.93
+
+[bans]
+multiple-versions = "deny"
+wildcards = "deny"
+
+[sources]
+allow-git = []
