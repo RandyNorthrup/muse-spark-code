@@ -301,7 +301,8 @@
       "watchdog.verdicts.spam",
       "desktop.workbenchChat",
       "desktop.workbenchEditor",
-      "desktop.workbenchTerminal"
+      "desktop.workbenchTerminal",
+      "desktop.panelSeverity.information"
     ],
     "es": [
       "hooksItem",
@@ -330,7 +331,8 @@
       "desktop.workbenchChat",
       "desktop.workbenchEditor",
       "desktop.workbenchTerminal",
-      "desktop.workbenchStatusTerminals.one"
+      "desktop.workbenchStatusTerminals.one",
+      "desktop.panelSeverity.error"
     ],
     "pt-br": [
       "agentTokens",
@@ -406,7 +408,8 @@
       "watchdog.verdicts.spam",
       "desktop.workbenchChat",
       "desktop.workbenchTerminal",
-      "desktop.workbenchStatusTerminals.one"
+      "desktop.workbenchStatusTerminals.one",
+      "desktop.panelSeverity.information"
     ],
     "it": [
       "usageAccount",

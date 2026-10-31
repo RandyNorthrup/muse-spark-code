@@ -910,6 +910,7 @@
   "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
   "referenceNodeEditorKeys": "Save the open file.",
   "referenceDesktopTerminalKeys": "Muse Desktop ターミナルで入力した行を実行します。",
+  "referenceDesktopResizeKeys": "パネルを高くまたは低くします。",
   "referenceThinking": "各回答に Muse がかける手間を選びます。 思考: オン = effort; オフ = museCode:none / modelApi:minimal.",
   "referenceSandbox": "WindowsでこのウィンドウがMuse Codeシェルサンドボックスを使用する場合、管理者の承認で設定し、新しい会話を開始してください。shellSandbox=\"off\" では設定は不要です。",
   "referenceSetup": "信頼されたワークスペースで spark-hooks.json の init 用 Setup フックを実行します。",
@@ -7184,6 +7185,43 @@
     "workbenchDetachTerminal": "ターミナルを切り離す",
     "workbenchDockTerminal": "ターミナルをドック",
     "workbenchCollapseTerminal": "フッターに折りたたむ",
-    "workbenchExpandTerminal": "ターミナルパネルを展開"
+    "workbenchExpandTerminal": "ターミナルパネルを展開",
+    "panelTerminals": "ターミナル",
+    "panelCollapsedPanels": "折りたたまれたパネル",
+    "panelViews": "パネルビュー",
+    "panelSplitTerminal": "ターミナルを分割",
+    "panelPin": "パネルを固定",
+    "panelHide": "パネルを非表示",
+    "panelStop": "停止",
+    "panelReadOnly": "読み取り専用",
+    "panelFind": "ターミナル内を検索",
+    "panelFindPlaceholder": "検索",
+    "panelFindNext": "次の一致",
+    "panelFindPrevious": "前の一致",
+    "panelFindClose": "検索を閉じる",
+    "panelFindCount": "{current} / {total}",
+    "panelFindNoResults": "結果がありません",
+    "panelCloseRunning": "このターミナルではコマンドが実行中の可能性があります。それでも閉じますか?",
+    "panelCancel": "キャンセル",
+    "panelRetry": "再試行",
+    "panelProblemLabel": "{severity}: {path} の {line} 行目の {message}",
+    "panelOutputChannel": "出力チャンネル",
+    "panelClearOutput": "出力をクリア",
+    "panelOutputTruncated": {
+      "other": "{count} 文字が切り捨てられました"
+    },
+    "panelRegion": "下部パネル",
+    "panelFloating": "フローティングパネル",
+    "panelResizeHandle": "パネルのサイズを変更",
+    "panelTerminalLoading": "ターミナルを読み込み中…",
+    "panelTerminalFailed": "ターミナルを読み込めませんでした。",
+    "panelTerminalCreateFailed": "ターミナルを起動できませんでした。",
+    "panelTabExited": "{title}、コード {code} で終了しました",
+    "panelSeverity": {
+      "error": "エラー",
+      "warning": "警告",
+      "information": "情報",
+      "hint": "ヒント"
+    }
   }
 }

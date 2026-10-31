@@ -910,6 +910,7 @@
   "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
   "referenceNodeEditorKeys": "Save the open file.",
   "referenceDesktopTerminalKeys": "在 Muse Desktop 终端中运行输入的行。",
+  "referenceDesktopResizeKeys": "将面板调高或调低。",
   "referenceThinking": "选择 Muse 在每条回答上投入的工作量。 思考: 开 = effort; 关 = museCode:none / modelApi:minimal.",
   "referenceSandbox": "在Windows上，当此窗口使用Muse Code命令行沙箱时，请通过一次管理员批准完成设置，然后开始新对话。shellSandbox=\"off\" 无需设置。",
   "referenceSetup": "在受信任的工作区中运行 spark-hooks.json 中 init 的 Setup 钩子。",
@@ -7184,6 +7185,43 @@
     "workbenchDetachTerminal": "分离终端",
     "workbenchDockTerminal": "停靠终端",
     "workbenchCollapseTerminal": "折叠到底部",
-    "workbenchExpandTerminal": "展开终端面板"
+    "workbenchExpandTerminal": "展开终端面板",
+    "panelTerminals": "终端",
+    "panelCollapsedPanels": "已折叠的面板",
+    "panelViews": "面板视图",
+    "panelSplitTerminal": "拆分终端",
+    "panelPin": "固定面板",
+    "panelHide": "隐藏面板",
+    "panelStop": "停止",
+    "panelReadOnly": "只读",
+    "panelFind": "在终端中查找",
+    "panelFindPlaceholder": "查找",
+    "panelFindNext": "下一个匹配项",
+    "panelFindPrevious": "上一个匹配项",
+    "panelFindClose": "关闭查找",
+    "panelFindCount": "{current} / {total}",
+    "panelFindNoResults": "没有结果",
+    "panelCloseRunning": "此终端可能仍在运行命令。仍要关闭吗?",
+    "panelCancel": "取消",
+    "panelRetry": "重试",
+    "panelProblemLabel": "{severity}:{path}第{line}行的{message}",
+    "panelOutputChannel": "输出通道",
+    "panelClearOutput": "清除输出",
+    "panelOutputTruncated": {
+      "other": "已截断 {count} 个字符"
+    },
+    "panelRegion": "底部面板",
+    "panelFloating": "浮动面板",
+    "panelResizeHandle": "调整面板大小",
+    "panelTerminalLoading": "正在加载终端…",
+    "panelTerminalFailed": "终端加载失败。",
+    "panelTerminalCreateFailed": "无法启动终端。",
+    "panelTabExited": "{title}，已退出，代码为 {code}",
+    "panelSeverity": {
+      "error": "错误",
+      "warning": "警告",
+      "information": "信息",
+      "hint": "提示"
+    }
   }
 }

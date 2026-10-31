@@ -914,6 +914,7 @@
   "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
   "referenceNodeEditorKeys": "Save the open file.",
   "referenceDesktopTerminalKeys": "Futtatja a beírt sort a Muse Desktop termináljában.",
+  "referenceDesktopResizeKeys": "A panel magasabb vagy alacsonyabb legyen.",
   "referenceThinking": "Válassza ki, mennyi erőfeszítést tegyen a Muse az egyes válaszokba. Gondolkodás: Be = effort; Ki = museCode:none / modelApi:minimal.",
   "referenceSandbox": "Windows alatt, ha az ablak a Muse Code shell-homokozóját használja, állítsa be egy rendszergazdai jóváhagyással, majd indítson új beszélgetést. shellSandbox=\"off\" esetén nincs szükség beállításra.",
   "referenceSetup": "A spark-hooks.json init eseményhez tartozó Setup hookjainak futtatása megbízható munkaterületen.",
@@ -7369,6 +7370,44 @@
     "workbenchDetachTerminal": "Terminál leválasztása",
     "workbenchDockTerminal": "Terminál dokkolása",
     "workbenchCollapseTerminal": "Összecsukás a láblécbe",
-    "workbenchExpandTerminal": "Terminálpanel kibontása"
+    "workbenchExpandTerminal": "Terminálpanel kibontása",
+    "panelTerminals": "Terminálok",
+    "panelCollapsedPanels": "Összecsukott panelek",
+    "panelViews": "Panelnézetek",
+    "panelSplitTerminal": "Terminál felosztása",
+    "panelPin": "Panel rögzítése",
+    "panelHide": "Panel elrejtése",
+    "panelStop": "Leállítás",
+    "panelReadOnly": "csak olvasható",
+    "panelFind": "Keresés a terminálban",
+    "panelFindPlaceholder": "Keresés",
+    "panelFindNext": "Következő találat",
+    "panelFindPrevious": "Előző találat",
+    "panelFindClose": "Keresés bezárása",
+    "panelFindCount": "{current} / {total}",
+    "panelFindNoResults": "Nincs találat",
+    "panelCloseRunning": "Lehet, hogy ez a terminál még futtat egy parancsot. Bezárja ennek ellenére?",
+    "panelCancel": "Mégse",
+    "panelRetry": "Újra",
+    "panelProblemLabel": "{severity}: {message} itt: {path}, {line}. sor",
+    "panelOutputChannel": "Kimeneti csatorna",
+    "panelClearOutput": "Kimenet törlése",
+    "panelOutputTruncated": {
+      "one": "{count} karakter levágva",
+      "other": "{count} karakter levágva"
+    },
+    "panelRegion": "Alsó panel",
+    "panelFloating": "Lebegő panel",
+    "panelResizeHandle": "Panel átméretezése",
+    "panelTerminalLoading": "Terminál betöltése…",
+    "panelTerminalFailed": "A terminál betöltése sikertelen.",
+    "panelTerminalCreateFailed": "A terminált nem sikerült elindítani.",
+    "panelTabExited": "{title}, kilépési kód: {code}",
+    "panelSeverity": {
+      "error": "Hiba",
+      "warning": "Figyelmeztetés",
+      "information": "Információ",
+      "hint": "Tipp"
+    }
   }
 }

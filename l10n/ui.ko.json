@@ -910,6 +910,7 @@
   "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
   "referenceNodeEditorKeys": "Save the open file.",
   "referenceDesktopTerminalKeys": "Muse Desktop 터미널에서 입력한 줄을 실행합니다.",
+  "referenceDesktopResizeKeys": "패널을 높이거나 낮추기.",
   "referenceThinking": "각 답변에 Muse가 들이는 노력을 선택합니다. 생각: 켜기 = effort; 끄기 = museCode:none / modelApi:minimal.",
   "referenceSandbox": "Windows에서 이 창이 Muse Code 셸 샌드박스를 사용할 때는 관리자 승인으로 설정한 후 새 대화를 시작하세요. shellSandbox=\"off\"는 설정이 필요하지 않습니다.",
   "referenceSetup": "신뢰할 수 있는 작업 영역에서 spark-hooks.json의 init Setup 훅을 실행합니다.",
@@ -7184,6 +7185,43 @@
     "workbenchDetachTerminal": "터미널 분리",
     "workbenchDockTerminal": "터미널 도킹",
     "workbenchCollapseTerminal": "푸터로 접기",
-    "workbenchExpandTerminal": "터미널 패널 펼치기"
+    "workbenchExpandTerminal": "터미널 패널 펼치기",
+    "panelTerminals": "터미널",
+    "panelCollapsedPanels": "접힌 패널",
+    "panelViews": "패널 보기",
+    "panelSplitTerminal": "터미널 분할",
+    "panelPin": "패널 고정",
+    "panelHide": "패널 숨기기",
+    "panelStop": "중지",
+    "panelReadOnly": "읽기 전용",
+    "panelFind": "터미널에서 찾기",
+    "panelFindPlaceholder": "찾기",
+    "panelFindNext": "다음 일치 항목",
+    "panelFindPrevious": "이전 일치 항목",
+    "panelFindClose": "찾기 닫기",
+    "panelFindCount": "{current} / {total}",
+    "panelFindNoResults": "결과 없음",
+    "panelCloseRunning": "이 터미널에서 명령이 아직 실행 중일 수 있습니다. 그래도 닫으시겠습니까?",
+    "panelCancel": "취소",
+    "panelRetry": "다시 시도",
+    "panelProblemLabel": "{severity}: {path}의 {line}번째 줄, {message}",
+    "panelOutputChannel": "출력 채널",
+    "panelClearOutput": "출력 지우기",
+    "panelOutputTruncated": {
+      "other": "{count}자를 잘랐습니다"
+    },
+    "panelRegion": "하단 패널",
+    "panelFloating": "플로팅 패널",
+    "panelResizeHandle": "패널 크기 조정",
+    "panelTerminalLoading": "터미널을 불러오는 중…",
+    "panelTerminalFailed": "터미널을 불러오지 못했습니다.",
+    "panelTerminalCreateFailed": "터미널을 시작할 수 없습니다.",
+    "panelTabExited": "{title}, 코드 {code}(으)로 종료됨",
+    "panelSeverity": {
+      "error": "오류",
+      "warning": "경고",
+      "information": "정보",
+      "hint": "힌트"
+    }
   }
 }
