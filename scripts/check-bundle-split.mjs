@@ -1600,6 +1600,25 @@ const NODE_SERVICE_CHUNKS = new Map([
     'dist/packsVerify.js',
     new Set(['src/runtime/node/packs/verify.ts', 'src/runtime/node/packs/verifyEntry.ts']),
   ],
+  // M110os RLF-MUSESETUP: the first-boot setup server is the node
+  // service's own lazy chunk (firstBoot/setupEntry.ts, loaded when the
+  // first boot runs it), so it may carry exactly the setup and nothing
+  // else of the node service.
+  [
+    'dist/nodeSetup.js',
+    new Set([
+      'src/runtime/node/firstBoot/disks.ts',
+      'src/runtime/node/firstBoot/installMuseCode.ts',
+      'src/runtime/node/firstBoot/pages.ts',
+      'src/runtime/node/firstBoot/schemas.ts',
+      'src/runtime/node/firstBoot/seed.ts',
+      'src/runtime/node/firstBoot/server.ts',
+      'src/runtime/node/firstBoot/setupCode.ts',
+      'src/runtime/node/firstBoot/setupEntry.ts',
+      'src/runtime/node/firstBoot/setupStore.ts',
+      'src/runtime/node/ownerStore.ts',
+    ]),
+  ],
 ])
 for (const bundle of SHIPPED) {
   if (bundle.output === NODE_SERVICE.output) continue

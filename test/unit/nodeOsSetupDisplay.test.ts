@@ -141,6 +141,7 @@ describe('page helpers', () => {
       sshKey: 'ssh-ed25519 AAAA seed',
       chrome: 'skip',
       nvidia: 'skip',
+      museCode: 'skip',
     })
     expect(state.seedHostname).toBe('seedbox')
   })

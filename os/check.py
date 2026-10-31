@@ -36,6 +36,16 @@ def hex_lower(value, length):
     )
 
 
+# D229: Meta's CLI ships only through the setup step, never in an image.
+# The basenames are the installer's verified layout (launch.ts): the posix
+# launcher, the Windows command and versioned binaries, the version file
+# and the PowerShell launcher. The Windows install folder itself is a
+# directory wearing one, so directories count too.
+CLI_BASENAMES = frozenset({"muse", "muse.cmd", ".muse-version", ".muse-launcher.ps1"})
+CLI_BASENAME_PREFIX = "muse-bin-"
+CLI_PACKAGES = frozenset({"muse", "muse-code", "muse-code-cli"})
+
+
 def pi_manifest(manifest, require_https=True):
     """Fail closed unless the manifest pins a verifiable signed Packages index.
 
@@ -250,6 +260,18 @@ def check(root):
         "nftables.service" in (root / "mkosi.postinst").read_text(),
         "firewall enablement",
     )
+    # D229: no staged file or directory may wear the CLI's names, and no
+    # Debian package from that set may be listed.
+    staged = sorted(
+        str(entry.relative_to(root))
+        for entry in root.rglob("*")
+        if entry.name in CLI_BASENAMES or entry.name.startswith(CLI_BASENAME_PREFIX)
+    )
+    require(not staged, "no staged Muse Code CLI")
+    require(not (CLI_PACKAGES & packages), "no Muse Code package")
+    # Meta's installer requires curl (read 2026-10-30); the setup step
+    # cannot download without it.
+    require("curl" in packages, "setup download tool")
     resolver = config(
         root / "overlay/usr/lib/systemd/system/systemd-resolved.service.d/muse-var.conf"
     )

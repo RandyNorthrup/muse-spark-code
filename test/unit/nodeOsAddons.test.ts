@@ -218,6 +218,34 @@ describe('check-addon', () => {
         },
         anchor: 'at least one of open and proprietary',
       },
+      {
+        name: 'muse-code',
+        mutate: (manifest) => {
+          manifest['name'] = 'muse-code'
+        },
+        anchor: 'an add-on never stages the Muse Code CLI',
+      },
+      {
+        name: 'nvidia',
+        mutate: (manifest) => {
+          const apt = childOf(childOf(childOf(manifest, 'sources'), 'amd64'), 'apt')
+          apt['packages'] = ['muse-code']
+        },
+        anchor: 'an add-on never stages the Muse Code CLI',
+      },
+      {
+        name: 'nvidia',
+        mutate: (manifest) => {
+          const sources = childOf(manifest, 'sources')
+          sources['amd64'] = {
+            vendorRun: {
+              url: 'https://dev.meta.ai/install.sh',
+              sha256: '0'.repeat(64),
+            },
+          }
+        },
+        anchor: 'an add-on never stages the Muse Code CLI',
+      },
     ]
     for (const { name, mutate, anchor } of cases) {
       const manifestPath = writeManifest(dir, name, mutate)

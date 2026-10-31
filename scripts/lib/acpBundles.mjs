@@ -106,6 +106,9 @@ export const ACP_BUNDLES = [
   'runtimeQuestions.js',
   'runtimeAccounts.js',
   'packsVerify.js',
+  // M110os RLF-MUSESETUP: the first-boot setup server, loaded when the
+  // first boot runs it.
+  'nodeSetup.js',
   'vaultRuntime.js',
   'planSnapshot.js',
   'accountPaid.js',

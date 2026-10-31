@@ -2,7 +2,7 @@
 // is missing (with the Model API key as the other way in), the sign-in paths
 // the backend selection offers otherwise, and error / waiting states.
 
-import { MUSE_INSTALL_URL, UI_TEXT } from '../../shared/constants'
+import { MUSE_INSTALL_URL, MUSE_TERMS_URL, UI_TEXT } from '../../shared/constants'
 import type { AuthStatus, SignInMethod } from '../../shared/protocol'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -123,6 +123,18 @@ export function SignIn({
                 <div className="gate-install-confirm">
                   <p>{UI_TEXT.installConfirmDetail}</p>
                   <code className="gate-install-command">{installCommand}</code>
+                  <p>
+                    {UI_TEXT.installTermsNote}{' '}
+                    <button
+                      type="button"
+                      className="usage-link"
+                      onClick={() => {
+                        onOpenExternal(MUSE_TERMS_URL)
+                      }}
+                    >
+                      {UI_TEXT.installTermsAction}
+                    </button>
+                  </p>
                   <div className="gate-actions">
                     <button
                       type="button"

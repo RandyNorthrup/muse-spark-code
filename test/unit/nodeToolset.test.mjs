@@ -140,6 +140,7 @@ describe('base toolset pins', () => {
     'archive',
     'wrongNode',
     'pack',
+    'cliTool',
   ])('refuses %s manifest pins', (kind) => {
     const raw = structuredClone(shipped)
     const artifacts = raw.architectures.amd64.artifacts
@@ -210,6 +211,18 @@ describe('base toolset pins', () => {
       }
       case 'pack': {
         artifacts.find((item) => item.name === 'git').pack = 'build'
+        break
+      }
+      case 'cliTool': {
+        // D229: the tool list is closed; Meta's CLI installs at setup,
+        // never as a pack tool.
+        raw.tools.push({
+          name: 'muse-code',
+          package: 'muse-code',
+          pack: 'base',
+          command: 'muse',
+          args: ['--version'],
+        })
         break
       }
     }

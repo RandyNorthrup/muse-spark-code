@@ -5,7 +5,13 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
 import * as z from 'zod/mini'
 import { loadOwnerJson, saveOwnerJson } from '../ownerStore'
-import { setupChoicesSchema, setupNetworkSchema, type SetupChoices } from './schemas'
+import {
+  museCodeInstalledSchema,
+  setupChoicesSchema,
+  setupNetworkSchema,
+  type MuseCodeInstalled,
+  type SetupChoices,
+} from './schemas'
 import { issueRecoveryKey, normalizeSetupCode } from './setupCode'
 import type { SeedOutcome } from './seed'
 
@@ -14,6 +20,7 @@ const setupStateSchema = z.strictObject({
   codeSha256: z.nullable(z.string()),
   codeConsumed: z.boolean(),
   choices: z.nullable(setupChoicesSchema),
+  museCodeInstall: z.nullable(museCodeInstalledSchema),
   completed: z.boolean(),
   seedHostname: z.nullable(z.string()),
   seedNetwork: z.nullable(setupNetworkSchema),
@@ -40,6 +47,7 @@ export function createSetupState(code: string): SetupState {
     codeSha256: hashSetupCode(code),
     codeConsumed: false,
     choices: null,
+    museCodeInstall: null,
     completed: false,
     seedHostname: null,
     seedNetwork: null,
@@ -107,9 +115,15 @@ export function isCodeHolder(state: SetupState, candidate: string): boolean {
   return expected.length === actual.length && timingSafeEqual(expected, actual)
 }
 
-/** Finish the setup: the code hash is wiped and never verified again. */
-export function completeSetup(state: SetupState): SetupState {
+/**
+Finish the setup with the Muse Code step's outcome (null when skipped):
+the code hash is wiped and never verified again.
+*/
+export function completeSetup(
+  state: SetupState,
+  museCodeInstall: MuseCodeInstalled | null,
+): SetupState {
   if (state.completed) throw new Error('setup is already complete')
   if (state.choices === null) throw new Error('setup has no choices')
-  return { ...state, choices: state.choices, completed: true, codeSha256: null }
+  return { ...state, choices: state.choices, museCodeInstall, completed: true, codeSha256: null }
 }

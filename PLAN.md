@@ -359,8 +359,6 @@ temp/planfix0190/d2-summary.txt Full record:
 
 **`zopfli`** — VSIXFIT B (D6): the `.vsix` recompressor (`scripts/compress-vsix.py`) writes Zopfli raw-deflate members (stored for already-brotli members), about 1.2% smaller than zlib level 9 (44,904 bytes measured on the 0.19.0 linux-x64 package). A build tool, never shipped: it runs in the `packages` steps only, from the pinned `.github/vsix-compress/requirements.txt`. 0.4.3; Apache-2.0; no dependencies; `zopfli.zlib.compress(data, numiterations=15)` minus its 2-byte header and 4-byte trailer, written as raw deflate with correct CRC and sizes. Without it packaging fails with a named requirements file, never silently falling back to level 9.
 
-**`qrcode-generator`** — RLF-M110OS2 (2026-10-23): the first-boot console screen (`src/runtime/node/firstBoot/display.ts`, landed from RLF-M110OS) draws the setup code as block-character QR rows with `qrcode(0, 'M')`/`addData`/`make`/`isDark`. 2.0.4, the registry latest, published 2025-08-07 (past `.npmrc`'s seven-day rule); MIT; no dependencies; no peer dependencies; `npm audit` clean (see the lane's gate exits). Its tarball ships no licence file, so the notices script reads upstream's LICENSE verbatim from `vendor/qrcode-generator/LICENSE` (byte-identical to the upstream repository, verified 2026-10-23) while still checking the manifest's MIT declaration. A runtime dependency: the ACP package's node bundles carry it.
-
 DEP138 dependency review (2026-10-07): PR #138 proposes ACP SDK 1.5.1,
 Vitest and V8 coverage 5.0.3 together, jscpd 5.4.0, knip 6.39.0 and
 typescript-eslint 8.71.0. Their exact registry peers accept the existing
@@ -9487,6 +9485,34 @@ panel control and a headless flag for the maximum stay unbuilt (no
 setting in the product is set from the panel today, and `exec` does
 not retry). Open items with recommendations: the record above.
 
+### D229 — Meta's Muse Code CLI installs at setup, never in our images (owner, 2026-10-23; lane RLF-MUSESETUP, closing Q-M110 item 4; numbered D227 on its branch until the int/recovery join of 2026-10-30, when that number was found shared with the teams switch)
+
+The owner, verbatim: "for the meta term just make the install part of the
+setup process."
+
+Q-M110 item 4 (Meta's terms) had three readings: the Muse Code CLI inside
+our images, a relay for one person's own requests, and a team node. The
+ruling: our OS images, packs and the desktop never contain Meta's CLI; the
+first-boot setup (and the desktop onboarding, and the extension's own setup
+where it offers Muse Code) installs it from Meta's official source as a
+step the person sees, with Meta's terms shown for the person to accept, and
+verifies what it installed. The relay stays for the one person who owns the
+subscription; team mode keeps waiting on Meta (D90.17 otherwise unchanged).
+
+Rule in force: no OS image, pack, add-on or desktop build stages, bundles
+or preinstalls the Muse Code CLI (its launcher, binaries, version file or
+Meta's installer); the image recipe gate (`os/check.py`) and the add-on
+manifest check refuse one, and the composer refuses unexpected tarball
+members. Every setup surface that offers the CLI shows Meta's terms for the
+person to accept, runs Meta's official installer visibly, and verifies the
+install (`muse --version`) before saying it is installed; a failure is
+said, never silent. Meta's infrastructure is trusted for availability only:
+the install is fetched over TLS from Meta's official host and verified
+after install. The image carries `curl` because Meta's installer needs it
+(read 2026-10-30: the script requires `curl` and `mktemp`, installs into
+`$HOME/.local/bin` unless `MUSE_INSTALL_DIR` is set, and honours
+`MUSE_NO_MODIFY_PATH=1`). Record: `docs/certification/rlf-musesetup.md`.
+
 ## 3. Open questions (need the owner)
 
 <a id="q-cc-licence"></a>
@@ -10325,6 +10351,16 @@ observe the named tests fail, restore byte-exact and record the evidence in
       lives in the `marketplace`-style environment.
     - Until the ceremony, item 6's defaults hold: manual-install images with
       cosign signatures, no over-the-air updates, and Secure Boot off.
+
+  **Owner answer (2026-10-23), item 4:** the install is part of setup. The
+  owner: "for the meta term just make the install part of the setup
+  process". Our OS images, packs and the desktop never contain Meta's CLI;
+  the first-boot setup (and the desktop onboarding, and the extension's own
+  setup where it offers Muse Code) installs it from Meta's official source
+  as a step the person sees, with Meta's terms shown for the person to
+  accept, and verifies what it installed. The relay stays for the one
+  person who owns the subscription; team mode keeps waiting on Meta. Rule:
+  D229; D90.17 otherwise unchanged. Item closed.
 
 - **Q-M111 — What Muse Desktop needs from the owner (2026-10-05).** Every lane
   builds and certifies real code on QEMU and the rigs meanwhile; nothing here
@@ -25912,6 +25948,8 @@ or helper-only-access certification.
 ### M110 — Muse Node: headless worker and orchestrator host (D90)
 
 **Status 2026-10-23: building.** RLF-M110OS built OS3–OS7, in review; OS1, OS2, A1 and M110a still open; threat-model acceptance, the signing ceremony and owner hardware waiting.
+
+**Status 2026-10-30: building.** RLF-MUSESETUP recorded the owner's Q-M110 item 4 ruling as D229 (the install is part of setup) and built it: the first-boot setup offers Meta's CLI from Meta's official installer with Meta's terms shown for acceptance and a `muse --version` check, while the image, add-on and pack gates refuse the CLI anywhere inside (each proven red/green); a first-boot run in the VM installed Muse Code 1.4.14 during setup onto a CLI-free image. Evidence: `docs/certification/rlf-musesetup.md`.
 
 **Status 2026-10-30: building.** RLF-M110OS2's resume put the build in the repository's builder container, pinned the ext4 hash seed, and proved two builds of each image byte-identical, so the pipeline's reproducibility comparison now blocks; both new images boot to the login prompt (x86-64 TCG, aarch64 container QEMU) with an SPDX SBOM each. KVM boots, TPM/MOK/LUKS enrollment on hardware, image signing and OSJ wait, named. Threat-model acceptance stays with the lead. Evidence: `docs/certification/rlf-m110os2.md`.
 
