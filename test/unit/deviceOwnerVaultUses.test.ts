@@ -401,7 +401,7 @@ describe.runIf(process.platform === 'linux' || process.platform === 'darwin')(
       return serving
     }
 
-    function consumeUse(
+    function didConsumeUse(
       requesterSide: DeviceOwnerChannel,
       request: ReturnType<typeof totpRequest>,
       deliver: VaultRemoteConsumerPorts['deliver'],
@@ -444,7 +444,7 @@ describe.runIf(process.platform === 'linux' || process.platform === 'darwin')(
       const serving = trackServes(ownerSide, audit)
       const delivered: Uint8Array[] = []
       const before = { ...userCalls }
-      const isConsumed = await consumeUse(
+      const isConsumed = await didConsumeUse(
         requesterSide,
         totpRequest(OWNER_DEVICE, hexId(201)),
         (_kind, bytes) => {
@@ -517,7 +517,7 @@ describe.runIf(process.platform === 'linux' || process.platform === 'darwin')(
       const deliver = () => Promise.resolve()
       const signal = new AbortController().signal
       for (let attempt = 0; attempt < 2; attempt += 1) {
-        await expect(consumeUse(requesterSide, request, deliver, signal, audit)).resolves.toBe(
+        await expect(didConsumeUse(requesterSide, request, deliver, signal, audit)).resolves.toBe(
           false,
         )
       }

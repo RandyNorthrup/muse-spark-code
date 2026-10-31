@@ -13,8 +13,8 @@ const binding = vaultPrivateReadSchema.parse({
   origin: 'https://example.test',
   client: 'model',
 })
-type Binding = typeof binding
 function setup() {
+  type Binding = typeof binding
   const source = Buffer.from(randomBytes(32).toString('hex'))
   const readCalls: Binding[] = []
   const deletedKeys: string[] = []

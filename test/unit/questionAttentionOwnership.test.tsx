@@ -183,7 +183,7 @@ describe('async arrivals keep the keyboard where it is (D116)', () => {
     // viewport) and this dialog's modal takes focus on open, so the test pins
     // the window-focus bit itself and restores it afterwards; every component
     // stays the real one and every focus call stays real.
-    const ownedQuery = document.hasFocus
+    const hasFocusOriginal = document.hasFocus
     Object.defineProperty(document, 'hasFocus', { configurable: true, value: () => false })
     try {
       const view = render(report(undefined, undefined))
@@ -203,7 +203,7 @@ describe('async arrivals keep the keyboard where it is (D116)', () => {
       expect(document.hasFocus()).toBe(false)
       expect(document.activeElement).toBe(before)
     } finally {
-      Object.defineProperty(document, 'hasFocus', { configurable: true, value: ownedQuery })
+      Object.defineProperty(document, 'hasFocus', { configurable: true, value: hasFocusOriginal })
     }
   })
 

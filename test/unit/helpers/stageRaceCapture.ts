@@ -22,7 +22,7 @@ const STAGE_ARGV: readonly (readonly string[])[] = [
 
 /** "Always allow in this workspace: <first words> ..." as 1.4.2 labels a stage's rule. */
 function prefixOf(argv: readonly string[]): readonly string[] {
-  return argv[0] === 'git' ? argv.slice(0, 2) : argv.slice(0, 1)
+  return argv.slice(0, argv[0] === 'git' ? 2 : 1)
 }
 export function prefixLabel(sourceIndex: number): string {
   return `Always allow in this workspace: ${prefixOf(STAGE_ARGV[sourceIndex] ?? []).join(' ')} ...`

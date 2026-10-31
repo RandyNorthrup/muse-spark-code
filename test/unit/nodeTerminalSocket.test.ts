@@ -10,10 +10,9 @@ import { scripted } from './helpers/recordCalls'
 
 const BEARER = 'b'.repeat(43)
 
-type RawListener = (event: { readonly data?: unknown }) => void
-
 /** A scripted WebSocket: the test fires its events and reads its frames. */
 function fakeSocket() {
+  type RawListener = (event: { readonly data?: unknown }) => void
   const listeners = new Map<string, Set<RawListener>>()
   const sent: string[] = []
   let closed = 0

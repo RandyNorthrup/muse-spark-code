@@ -244,8 +244,8 @@ function scene(given: Scene = {}) {
     Parameters<PlaybookWindow['openReview']>,
     ReturnType<PlaybookWindow['openReview']>
   >(() => refused() ?? Promise.resolve(given.ticket))
-  const answer = keepCalls(() => Promise.resolve(true))
-  const recordDesign = keepCalls(() => Promise.resolve(true))
+  const didAnswer = keepCalls(() => Promise.resolve(true))
+  const didRecordDesign = keepCalls(() => Promise.resolve(true))
   const window: PlaybookWindow = {
     surface: {
       read: keepCalls((): Promise<unknown> => Promise.resolve(undefined)),
@@ -266,8 +266,8 @@ function scene(given: Scene = {}) {
       ends.push(completion(submission, stop.signal))
       return submission
     },
-    answer,
-    recordDesign,
+    answer: didAnswer,
+    recordDesign: didRecordDesign,
     subscribe: (sessionId, conversation) => {
       events.set(sessionId, conversation)
       return () => {
@@ -303,7 +303,7 @@ function scene(given: Scene = {}) {
     conversation,
     // The window with its recorded stubs visible: the conversation took the
     // plain port, and the tests read what it was asked.
-    window: Object.assign(window, { openReview, answer, recordDesign }),
+    window: Object.assign(window, { openReview, answer: didAnswer, recordDesign: didRecordDesign }),
     told,
     events,
     dispatched,
