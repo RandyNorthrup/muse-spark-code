@@ -10,6 +10,7 @@ import { afterEach } from 'vitest'
 import { mapNotification } from '../../../src/core/backends/musecode/mapNotification'
 import { MuseUsageDeltas } from '../../../src/core/backends/musecode/usageDeltas'
 import { createUsageRecording, type UsageRecording } from '../../../src/core/usage/recording'
+import { toEpochMs } from '../../../src/shared/epochMs'
 import { UsageJournalStore } from '../../../src/core/usage/journalStore'
 import type { UsageRecord } from '../../../src/shared/usageJournal'
 import { NodeUsageFs } from '../../../src/runtime/usage/nodeUsageFs'
@@ -72,12 +73,12 @@ export async function createMuseJournalRig(
   const store = new UsageJournalStore(new NodeUsageFs(dataFolder, () => MUSE_JOURNAL_NOW), {
     writerId,
     isEnabled: () => true,
-    now: () => MUSE_JOURNAL_NOW,
+    now: () => toEpochMs(MUSE_JOURNAL_NOW),
     onWriteError: () => undefined,
   })
   const recording = createUsageRecording({
     client: 'test',
-    now: () => MUSE_JOURNAL_NOW,
+    now: () => toEpochMs(MUSE_JOURNAL_NOW),
     newId: () => `note-${String((ids += 1))}`,
     isEnabled: () => true,
     writer: () => Promise.resolve(store),
