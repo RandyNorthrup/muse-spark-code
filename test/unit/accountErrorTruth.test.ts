@@ -1,7 +1,7 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { AcpAccounts, type AccountsSessionPort } from '../../src/acp/accounts'
 import {
   accountErrorText,
@@ -23,6 +23,7 @@ import {
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { captureLog } from './helpers/captureLog'
+import { useScratchFolders } from './helpers/scratchFolders'
 
 const CONNECTION = UI_TEXT.accounts.unavailable
 
@@ -33,16 +34,7 @@ function missingAccountsEntry(provider: string): string {
   })
 }
 
-const folders: string[] = []
-afterEach(async () => {
-  for (const folder of folders.splice(0)) await rm(folder, { recursive: true, force: true })
-})
-
-async function scratch(): Promise<string> {
-  const folder = await mkdtemp(path.join(tmpdir(), 'truthaccounts-'))
-  folders.push(folder)
-  return folder
-}
+const scratch = useScratchFolders(tmpdir(), 'truthaccounts-')
 
 /** A real unreadable providers file: a directory where providers.json
 belongs, so the metadata read fails through real filesystem I/O. */

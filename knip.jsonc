@@ -255,6 +255,8 @@
     "src/runtime/main.ts",
     // M110-N's standalone bundle, required only by an explicit node command.
     "src/runtime/node/main.ts",
+    // RLF-NODESERVE: `serve` and its sign-in, lazy bundles node.js requires beside itself.
+    "src/runtime/node/serveEntry.ts",
     // M110 A3's node-auth bundles (scripts/build-node-auth.mjs): the service
     // entry and the pairing page, each an esbuild entry knip does not trace.
     "src/runtime/node/auth/entry.ts",

@@ -44,6 +44,7 @@ import {
 } from '../../src/shared/devices'
 import type { DeviceTlsIdentity } from '../unit/helpers/deviceTls'
 import { pacedReadyFor, pinnedConnect, pinnedServer } from '../unit/helpers/devicePacedSockets'
+import { rigArg } from './driverArgs'
 
 const PAIR_ID = 'ab'.repeat(16)
 const POLL_MS = 50
@@ -75,13 +76,6 @@ const log: Logger = {
   error: (message: string): void => {
     process.stderr.write(`[error] ${message}\n`)
   },
-}
-
-function arg(name: string): string {
-  const index = process.argv.indexOf(`--${name}`)
-  const value = index === -1 ? undefined : process.argv[index + 1]
-  if (value === undefined || value === '') throw new Error(`missing --${name}`)
-  return value
 }
 
 function opt(name: string): string | undefined {
@@ -248,14 +242,14 @@ function acceptOne(server: Server): Promise<TLSSocket> {
 }
 
 async function run(): Promise<void> {
-  const role = arg('role')
-  const port = Number(arg('port'))
+  const role = rigArg('role')
+  const port = Number(rigArg('port'))
   if ((role !== 'listen' && role !== 'dial') || !Number.isSafeInteger(port) || port < 1) {
     throw new Error('bad arguments')
   }
-  const dir = arg('dir')
-  const ownPath = arg('own')
-  const peerPath = arg('peer')
+  const dir = rigArg('dir')
+  const ownPath = rigArg('own')
+  const peerPath = rigArg('peer')
   mkdirSync(dir, { recursive: true })
   const deviceId = randomBytes(DEVICE_LIMITS.idChars / 2).toString('hex')
   const now = Date.now()
@@ -278,7 +272,7 @@ async function run(): Promise<void> {
       privateKeyPem,
       peer,
       peerPath,
-      role === 'dial' ? arg('ready') : undefined,
+      role === 'dial' ? rigArg('ready') : undefined,
     )
     return
   }
@@ -320,7 +314,7 @@ async function run(): Promise<void> {
         unlisten()
       }
     } else {
-      await waitForFile(arg('ready'), 'listener not ready')
+      await waitForFile(rigArg('ready'), 'listener not ready')
       const channel = await transport.connect(
         transportPair,
         '127.0.0.1',

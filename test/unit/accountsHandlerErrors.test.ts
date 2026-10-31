@@ -12,6 +12,7 @@ import {
 } from '../../src/host/models/accountsHandler'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
+import { accountSettings, emptyVault } from './helpers/accountFixtures'
 
 const SECRET_MARKER = 'synthetic-credential-marker'
 
@@ -20,12 +21,7 @@ function port(overrides: Partial<AccountsPanelHostPort>): AccountsPanelHostPort 
     read: () => Promise.resolve(undefined),
     writeAccounts: () => Promise.resolve(),
   }
-  const vault = {
-    read: () => Promise.resolve(undefined),
-    readForRemoval: () => Promise.resolve(undefined),
-    write: () => Promise.resolve(),
-    remove: () => Promise.resolve(),
-  }
+  const vault = emptyVault()
   const confirmations = new AccountConfirmations({
     machineId: 'test-machine',
     store: {
@@ -41,7 +37,7 @@ function port(overrides: Partial<AccountsPanelHostPort>): AccountsPanelHostPort 
     confirmations,
     provider: () => Promise.resolve(undefined),
     currentAccount: () => null,
-    settings: () => ({ isSwapOn: false, isParallelOn: false, severalOnThisDevice: false }),
+    settings: () => accountSettings(false),
     confirmSeveral: () => Promise.resolve(false),
     setSeveral: () => Promise.resolve(),
     capabilities: () => ({
@@ -100,12 +96,7 @@ it('passes the placement conflict through with its opaque ids', async () => {
     origin: 'https://example.com/',
     accounts: [{ id: 'a1', label: 'A', order: 0, thresholds: {} }],
   }
-  const vault = {
-    read: () => Promise.resolve(undefined),
-    readForRemoval: () => Promise.resolve(undefined),
-    write: () => Promise.resolve(),
-    remove: () => Promise.resolve(),
-  }
+  const vault = emptyVault()
   const handler = new AccountsPanelHandler(
     port({
       provider: () => Promise.resolve(entry),
@@ -128,6 +119,13 @@ it('passes the placement conflict through with its opaque ids', async () => {
   })
 })
 
+function severalAccounts(): AccountStore {
+  return new AccountStore(
+    { read: () => Promise.resolve(severalEntry()), writeAccounts: () => Promise.resolve() },
+    emptyVault(),
+  )
+}
+
 function severalEntry() {
   return {
     id: 'p1',
@@ -145,19 +143,8 @@ it('writes the setting on when the vendor-terms confirmation accepts', async () 
   const handler = new AccountsPanelHandler(
     port({
       provider: () => Promise.resolve(severalEntry()),
-      accounts: new AccountStore(
-        {
-          read: () => Promise.resolve(severalEntry()),
-          writeAccounts: () => Promise.resolve(),
-        },
-        {
-          read: () => Promise.resolve(undefined),
-          readForRemoval: () => Promise.resolve(undefined),
-          write: () => Promise.resolve(),
-          remove: () => Promise.resolve(),
-        },
-      ),
-      settings: () => ({ isSwapOn: false, isParallelOn: false, severalOnThisDevice: isSeveralOn }),
+      accounts: severalAccounts(),
+      settings: () => accountSettings(isSeveralOn),
       confirmSeveral: () => Promise.resolve(true),
       setSeveral: (enabled) => {
         writes.push(enabled)
@@ -176,18 +163,7 @@ it('leaves the setting off when the vendor-terms confirmation denies', async () 
   const handler = new AccountsPanelHandler(
     port({
       provider: () => Promise.resolve(severalEntry()),
-      accounts: new AccountStore(
-        {
-          read: () => Promise.resolve(severalEntry()),
-          writeAccounts: () => Promise.resolve(),
-        },
-        {
-          read: () => Promise.resolve(undefined),
-          readForRemoval: () => Promise.resolve(undefined),
-          write: () => Promise.resolve(),
-          remove: () => Promise.resolve(),
-        },
-      ),
+      accounts: severalAccounts(),
       confirmSeveral: () => Promise.resolve(false),
       setSeveral: (enabled) => {
         writes.push(enabled)
@@ -207,19 +183,8 @@ it('turns the setting off without asking', async () => {
   const handler = new AccountsPanelHandler(
     port({
       provider: () => Promise.resolve(severalEntry()),
-      accounts: new AccountStore(
-        {
-          read: () => Promise.resolve(severalEntry()),
-          writeAccounts: () => Promise.resolve(),
-        },
-        {
-          read: () => Promise.resolve(undefined),
-          readForRemoval: () => Promise.resolve(undefined),
-          write: () => Promise.resolve(),
-          remove: () => Promise.resolve(),
-        },
-      ),
-      settings: () => ({ isSwapOn: false, isParallelOn: false, severalOnThisDevice: isSeveralOn }),
+      accounts: severalAccounts(),
+      settings: () => accountSettings(isSeveralOn),
       confirmSeveral: () => {
         wasAsked = true
         return Promise.resolve(false)
