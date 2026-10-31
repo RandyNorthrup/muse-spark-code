@@ -70,11 +70,11 @@ function readGoModDirectives(text: string): {
     if (name === '' || name === ')') {
       return
     }
-    if (block === 'require') {
-      requirements.push({ name, version: parts[1], scope: 'production' })
-    } else {
-      requirements.push({ name, version: undefined, scope: 'development' })
-    }
+    requirements.push(
+      block === 'require'
+        ? { name, version: parts[1], scope: 'production' }
+        : { name, version: undefined, scope: 'development' },
+    )
   }
 
   const listed1 = text.split('\n')

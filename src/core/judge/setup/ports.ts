@@ -125,10 +125,7 @@ async function fetchText(url: string, signal: AbortSignal): Promise<string | und
     return response.ok ? await response.text() : undefined
   } catch (error: unknown) {
     // NARROW: refused or aborted reads as missing; anything else is not ours.
-    if (error instanceof TypeError) {
-      return undefined
-    }
-    if (error instanceof DOMException) {
+    if (error instanceof TypeError || error instanceof DOMException) {
       return undefined
     }
     throw error

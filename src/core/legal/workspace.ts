@@ -149,8 +149,7 @@ export function readPinnedLegalData(
     // RangeError, which carries a code). Anything else is a programming
     // error the guards above already exclude, and it keeps its kind past
     // the read.
-    if (error instanceof SyntaxError) return undefined
-    if (isCodedError(error)) return undefined
+    if (error instanceof SyntaxError || isCodedError(error)) return undefined
     throw error
   }
 }
@@ -477,12 +476,9 @@ export async function createLegalSnapshot(
       } catch (error: unknown) {
         checkCancellation()
         // Undecodable bytes read absent.
-        if (error instanceof TypeError) {
-          return undefined
-        }
         // A shaped store failure reads absent; anything else keeps its kind
         // past the read.
-        if (isCodedError(error)) {
+        if (error instanceof TypeError || isCodedError(error)) {
           return undefined
         }
         throw error

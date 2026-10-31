@@ -26,16 +26,20 @@ export function systemOneNanoUsd(
   outputTokens: number,
   rates: SystemOneRates,
 ): bigint {
-  if (!Number.isSafeInteger(inputTokens) || inputTokens < 0) {
+  if (
+    !Number.isSafeInteger(inputTokens) ||
+    inputTokens < 0 ||
+    !Number.isSafeInteger(outputTokens) ||
+    outputTokens < 0
+  ) {
     throw new TypeError('systemone-tokens')
   }
-  if (!Number.isSafeInteger(outputTokens) || outputTokens < 0) {
-    throw new TypeError('systemone-tokens')
-  }
-  if (!Number.isFinite(rates.inputUsdPerMillion) || rates.inputUsdPerMillion < 0) {
-    throw new TypeError('systemone-rate')
-  }
-  if (!Number.isFinite(rates.outputUsdPerMillion) || rates.outputUsdPerMillion < 0) {
+  if (
+    !Number.isFinite(rates.inputUsdPerMillion) ||
+    rates.inputUsdPerMillion < 0 ||
+    !Number.isFinite(rates.outputUsdPerMillion) ||
+    rates.outputUsdPerMillion < 0
+  ) {
     throw new TypeError('systemone-rate')
   }
   return Usd.from(rates.inputUsdPerMillion)
