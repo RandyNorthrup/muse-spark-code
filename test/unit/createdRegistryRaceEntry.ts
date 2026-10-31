@@ -9,17 +9,16 @@
 // the esbuild bundle, so this file is a declared entry in knip.jsonc.
 import { setTimeout as delay } from 'node:timers/promises'
 import { CreatedRegistry } from '../../src/core/resources/createdRegistry'
-import { createdPathCommands } from '../../src/core/resources/resourceGovernorEntry'
 import { configureResources } from '../../src/core/resources/admission'
 import { runtimeWindowsJob } from '../../src/runtime/resources/jobs'
 import { createdRegistryProof } from './helpers/resources/registryProof'
+import {
+  createdChildSession,
+  isCreatedChildPlan,
+  type CreatedChildPlan,
+} from './helpers/resources/createdChild'
 
-interface RacePlan {
-  readonly manifest: string
-  readonly base: string
-  readonly storageDir: string
-  readonly packageRoot: string
-  readonly nativeRoot: string
+interface RacePlan extends CreatedChildPlan {
   readonly rounds: number
   readonly creates: number
   readonly startAt: number
@@ -31,11 +30,7 @@ function isRacePlan(value: unknown): value is RacePlan {
   if (typeof value !== 'object' || value === null) return false
   const plan = value as Record<string, unknown>
   return (
-    typeof plan['manifest'] === 'string' &&
-    typeof plan['base'] === 'string' &&
-    typeof plan['storageDir'] === 'string' &&
-    typeof plan['packageRoot'] === 'string' &&
-    typeof plan['nativeRoot'] === 'string' &&
+    isCreatedChildPlan(plan) &&
     typeof plan['rounds'] === 'number' &&
     typeof plan['creates'] === 'number' &&
     typeof plan['startAt'] === 'number' &&
@@ -71,17 +66,9 @@ export async function runWorker(planJson: string): Promise<string> {
   try {
     const plan: unknown = JSON.parse(planJson)
     if (!isRacePlan(plan)) throw new Error('the race plan did not parse')
-    // As the product wires it: Linux's helper answers files only; macOS and
-    // Windows answer directories through the same commands.
-    const windowsJob = runtimeWindowsJob(plan.storageDir, plan.packageRoot)
-    const disposeAdmission = configureResources({
-      inspect: () => ({}),
-      onError: () => undefined,
-      windowsJob,
-    })
+    const session = createdChildSession(plan)
     try {
-      const commands = createdPathCommands(plan.nativeRoot, windowsJob)
-      const proof = createdRegistryProof((args) => commands(args))
+      const proof = createdRegistryProof(session.commands)
       const registry = await CreatedRegistry.open(plan.manifest, Date.now, proof, plan.base)
       for (let round = 0; round < plan.rounds; round += 1) {
         const wait = plan.startAt + round * plan.gapMs - Date.now()
@@ -98,7 +85,7 @@ export async function runWorker(planJson: string): Promise<string> {
         }
       }
     } finally {
-      disposeAdmission()
+      session.dispose()
     }
   } catch (error: unknown) {
     failures.push(error instanceof Error ? `${error.name}: ${error.message}` : String(error))

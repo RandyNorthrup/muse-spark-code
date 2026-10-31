@@ -998,18 +998,16 @@ export class CreatedRegistry {
         cause: failure.reason,
       })
     return await this.serial(async () => {
-      // The sweep visits every entry the live manifest holds, including
-      // ones other processes recorded after this instance opened: within
-      // the queue every local change is already saved, so reloading can
-      // only add what they wrote. A manifest that is not there yet (no
-      // save ever landed) leaves this instance's view as it is.
+      // The sweep visits every entry the live manifest holds, as it now
+      // stands, including what other processes recorded or finished
+      // since this instance opened; a local change whose save failed is
+      // re-decided from the manifest. A manifest that is not there yet
+      // (no save ever landed) leaves the view as it is.
       try {
         const loaded = this.parseManifest(await this.checkManifest())
-        for (const [id, entry] of loaded) {
-          if (this.entries.has(id)) continue
-          this.entries.set(id, entry)
-          this.synced.set(id, JSON.stringify(entry))
-        }
+        this.entries.clear()
+        for (const [id, entry] of loaded) this.entries.set(id, entry)
+        this.synced = snapshotEntries(this.entries)
       } catch (error: unknown) {
         if (!isMissing(error)) throw error
       }
