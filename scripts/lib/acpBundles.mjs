@@ -98,6 +98,8 @@ export const ACP_BUNDLES = [
   'runtimePanelPorts.js',
   'planMarkdown.js',
   'commands.js',
+  // M124 remote (D240): the HTTPS endpoint and its OAuth server, loaded by `mcp serve-http` and `mcp client`.
+  'connectorRemote.js',
   // Lazy shared method factory; receiver qualification still refuses headless hosts.
   'devices.js',
   // RLF-DEVICES: beside devices.js, which the agent never loads; the maker
@@ -113,6 +115,11 @@ export const ACP_BUNDLES = [
   // first boot runs it.
   'nodeSetup.js',
   'vaultRuntime.js',
+  // RLF-M109: the runtime key-store migration chunk, loaded by
+  // vaultRuntime.js on the first unlock edge.
+  'vaultRuntimeMigration.js',
+  'vaultPolicy.js',
+  'vaultExecHost.js',
   'planSnapshot.js',
   'accountPaid.js',
   'questionNotes.js',
@@ -160,6 +167,7 @@ export const ACP_BUNDLES = [
   'vaultActions.js',
   'vaultBroker.js',
   'vaultBrokerBindings.js',
+  'vaultExec.js',
   'estimateContracts.js',
   'legalScan.js',
   'legalFix.js',

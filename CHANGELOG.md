@@ -121,6 +121,25 @@ happened, not what was planned; superseded entries are kept.
   screen-cast portal), choosing microphone and system sound for each
   recording, and previews it before attaching. When the computer
   cannot record, the command says why instead.
+- **The terminal agent and headless runs now move their stored keys into
+  the vault too.** When the vault unlocks in the CLI, the ACP agent or a
+  headless run, every key in the operating system's credential store —
+  the Model API key, each provider's record, the ChatGPT sign-in and
+  pooled account keys — is copied into the vault, verified, kept
+  mirrored as keys rotate, and read back from the vault once a slot
+  retires, exactly as the editor window already did.
+- **Headless runs can use vault secrets in shell commands, behind your
+  ceiling.** `exec --vault` shell calls may name vault items as
+  environment or stdin secrets. Two things of yours gate every use: an
+  unattended grant for the exact command, and your vault policy ceiling
+  for the workspace and the headless role (`vault policy` prints it,
+  `vault policy '<policy-json>'` sets it; no ceiling, the default,
+  refuses in words). The value itself travels from the broker to a
+  dedicated feeder process — admitted by its operating-system identity
+  and its place in the run's process tree under a single-use delegation
+  — and from the feeder into the command, with command output scrubbed;
+  the agent host never receives it. Git, askpass, sudo and SSH uses,
+  and the editor surfaces, follow in later increments.
 - Best-of-N shows each attempt's reported tokens in the side-by-side
   comparison, plus its reported cost where the attempt's usage reports
   carry one, and the take notice names the taken attempt's reported use
@@ -320,6 +339,17 @@ happened, not what was planned; superseded entries are kept.
 - **The Install Muse Code confirmation names Meta's terms.** Where the
   extension offers to install Muse Code, the confirmation links Meta's
   terms beside the command before you run it.
+- **Secret-gist sharing core (M118 phase 2, D242; no surface offers it
+  yet).** The publish path behind a future **Secret gist** destination is
+  built. Sharing asks only for the gist permission, and only at the moment
+  you press Share, with words saying what it allows. That grant is kept
+  apart from the GitHub sign-in used for repositories. The preview is
+  scrubbed again as it is sent, and a file name that contains a folder,
+  a home or an account is refused. Declining leaves copy, file and browser
+  sharing working. A gist GitHub did not confirm as secret is deleted and
+  refused; when the delete of a public gist fails, the message names that
+  gist so you can delete it. Unpublish deletes the gist again. The live
+  GitHub run stays with the lead.
 
 ### Changed
 
@@ -386,6 +416,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- `muse-spark-code-acp supervise` and `stop` now say why they refuse.
+  When the agent's data folder or a folder above it is writable by other
+  users, or its path is too long for the supervisor's control socket,
+  each command names the problem and what to change instead of failing
+  with a bare error.
 - A pack index is accepted only when the signature covers those exact bytes
   and the signer is the pack workflow on `main`, exactly. A signature for a
   branch whose name merely begins with `main`, or a signed statement that
@@ -414,6 +449,14 @@ happened, not what was planned; superseded entries are kept.
   security advisories in build-time libraries are in. One moderate
   advisory (`qs`, build-time only) waits for its fix to clear the
   seven-day window on 2026-11-03 (`docs/certification/rlf-updeps.md`).
+- Approving a multi-step command no longer errors as if your choice had
+  not been taken when Muse Code is slow to save the decision. Muse Code
+  sometimes answers an approval with its own "approval persistence timed
+  out" error and then applies the decision anyway; the approval card now
+  waits for Muse Code's own next-step update, confirms the decision took
+  effect, and says so once, instead of asking you to choose again a step
+  that already moved on. A decision Muse Code still has not applied
+  after that check is offered again as before.
 - A conversation no longer repeats "The session's version-control branch
   changed" when Muse Code re-observes the same branch: the notice shows
   once per branch, and again only when the branch actually moves. The
@@ -421,6 +464,21 @@ happened, not what was planned; superseded entries are kept.
   turn open, instead of calling every blocker a check. Starting against
   Muse Code 1.4.7 no longer logs a schema-fingerprint mismatch warning:
   its served schema is a known one, recorded from that build.
+- On macOS, a signed-in Muse Code CLI is recognised from its credential
+  file at start, instead of asking the CLI about its sign-in every time.
+  The start log names `inline` where it said `unrecognized`. A link put
+  in place of that file is not treated as a sign-in: Muse reads the file
+  itself, and a link stays unrecognised.
+- A scheduled event whose trigger keeps failing no longer retries forever:
+  after 5 attempts with doubling waits it stops and says why.
+- Closing the scheduler no longer fails its own cleanup: the background
+  re-arm now runs before shutdown instead of after it, so a scheduled run
+  ends cleanly instead of reporting a cleanup warning.
+- The watchdog no longer mistakes a reporter quoting its acknowledgement for
+  its own post: a reply that quotes the marker counts as the reporter's
+  answer again, and a quoted marker no longer stops the acknowledgement from
+  being posted.
+- A refused provider connection during the editor's model-list probe no longer kills the whole scan: transport failures read as unanswered, as the fetch contract says, and a foreign-hook probe that the platform refuses reports the refusal instead of dropping it.
 - The terminal agent's requests were missing from usage history since 0.12.0:
   every headless turn stamped its usage record with a fractional clock, the
   journal refused the record, and one warning was all that was left. Stored
@@ -535,6 +593,16 @@ happened, not what was planned; superseded entries are kept.
   copy keeps saving first ("try again"), and a hung Tab, git, hand-off or
   schedule wait now end after a bounded wait instead of retrying until
   cancelled; ordinary slow operations are unaffected.
+- The connector's sign-in addresses stay the public URL you set. A request
+  that names a different host, including one a tunnel forwards, no longer
+  changes the sign-in, token or key address.
+- **Stored keys are read from the operating system's credential store
+  once per window or process, not on every use.** Reading a key dozens
+  of times in one turn made rare credential-store failures (notably the
+  Linux Secret Service) a certainty; one shared, remembered read per
+  entry makes them rare again. A key replaced elsewhere, a secret the
+  editor reports changed, or a key a provider answers 401 or 403 to is
+  read from the store once more on its next use.
 - **A vault no longer reports itself lost when it was never set up.** The
   vault's rollback record in the operating system's credential store is now
   keyed to the vault it protects, so nothing outside that vault can read
@@ -715,6 +783,10 @@ happened, not what was planned; superseded entries are kept.
 - One-shot product notices in editor sessions no longer fold into the
   model's answer: where the editor shows no notices they go out as
   their own message with their own id.
+- A runaway job the resource governor stops now says why: the run ends
+  with which bound fired and its number instead of dying silently, and
+  supervised runs are governed like every other launch, so ordinary
+  supervised use is never stopped.
 ### Added
 
 - **Model API on the Muse Code subscription** (C-M95-SUB). The Model API
@@ -930,6 +1002,17 @@ set|status|clear --provider <id> --admin` stores the separate admin
 - Past the retain window a migrated slot's legacy entry retires and
   the slot keeps reading from the vault, including across lock and
   sign-out.
+- **Undo a retired sign-in.** When a stored sign-in's old copy has
+  retired and only the vault holds it, the vault panel lists it under
+  Retired entries with an Undo button, and `Undo Retired Vault Entry` in
+  the Command Palette does the same. Undo puts the exact stored value back
+  as the current one and starts the two-release wait again. It says why
+  it cannot when the entry is already gone, is still current, was never
+  migrated, changed since it retired (your newer value is kept) or is
+  damaged.
+- **Resetting a lost vault now says what it deletes.** Its confirmation
+  states that retired entries are deleted too, because the vault holds
+  their only copies, before you type RESET.
 ### Team scheduler
 
 - **Stacked dependencies.** A task with `on: stacked` starts from its
@@ -1143,6 +1226,14 @@ set|status|clear --provider <id> --admin` stores the separate admin
 
 ### MCP connector
 
+- Your connector can now be reached over HTTPS from your own PC:
+  `muse-spark-code-acp mcp serve-http` serves the grant you made, with an
+  OAuth sign-in your PC runs itself (no server, domain or account of
+  ours). It listens on this PC only unless you name a wider address, uses
+  your own certificate or your own tunnel, connects only clients you
+  registered with `mcp client add`, and asks for an owner code printed in
+  the connector's terminal before a client signs in. Revoking the grant
+  or removing a client ends its sign-ins at once (D240).
 - The connector's grants and audit trail are now private to your account
   on every platform: what it creates carries an explicit owner-only lock
   on Windows and 0600/0700 on macOS and Linux, and it refuses to start,

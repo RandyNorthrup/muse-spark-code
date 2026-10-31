@@ -90,12 +90,14 @@ if s:wait_for('^\[session .*', 90) ==# ''
   call writefile(['LIVE-FAIL no session'] + s:chat(), $VIMLIVE_TRANSCRIPT)
   cquit
 endif
-MuseSparkModel muse-spark-1.3-contributor
-if s:wait_for('^\[model: muse-spark-1.3-contributor\]$', 60) ==# ''
+" The run's contributor model (RLF-SAFEFIX item 1): the switch is refused
+" unless the agent lists it, and no prompt is sent on any other model.
+execute 'MuseSparkModel ' . $VIMLIVE_MODEL
+if s:wait_for('^\[model: ' . escape($VIMLIVE_MODEL, '.') . '\]$', 60) ==# ''
   call writefile(['LIVE-FAIL model switch refused'] + s:chat(), $VIMLIVE_TRANSCRIPT)
   cquit
 endif
-if s:chat()[0] !~# '^# Muse Spark — muse-spark-1.3-contributor'
+if stridx(s:chat()[0], '# Muse Spark — ' . $VIMLIVE_MODEL) != 0
   call writefile(['LIVE-FAIL model is not the contributor: ' . s:chat()[0]] + s:chat(), $VIMLIVE_TRANSCRIPT)
   cquit
 endif

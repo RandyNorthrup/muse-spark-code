@@ -50,6 +50,11 @@ const REFUSAL_SENTENCE_KEYS = [
   'useChanged', // a guard below
   'approvalExpired', // a guard below
   'editConflict', // the panel's draft guard: a change landed after the draft
+  'retiredUndoUnknown', // D241: undo names a key that never migrated
+  'retiredUndoCurrent', // D241: undo names a slot that is still current
+  'retiredUndoGone', // D241: undo names a slot that is already gone
+  'retiredUndoChanged', // D241: undo keeps a legacy copy that changed since
+  'retiredUndoDamaged', // D241: undo finds the retired value damaged
 ] as const
 
 /** Every named vault refusal's own sentence. */

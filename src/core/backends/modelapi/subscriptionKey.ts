@@ -34,8 +34,6 @@ export interface SubscriptionKeySourceDeps {
   readonly platform: NodeJS.Platform
   readonly homeDir: string
   readonly xdgConfigHome: string | undefined
-  readonly readFile?: (path: string) => Promise<string>
-  readonly stat?: (path: string) => Promise<{ readonly size: number }>
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -135,18 +133,7 @@ export function isFsError(error: unknown): boolean {
 
 /** The subscription key, read fresh on every call: nothing is retained. */
 export class SubscriptionKeySource {
-  private readonly readFile: (path: string) => Promise<string>
-  private readonly stat: (path: string) => Promise<{ readonly size: number }>
-
-  public constructor(private readonly deps: SubscriptionKeySourceDeps) {
-    this.readFile = deps.readFile ?? ((file: string) => readFile(file, 'utf8'))
-    this.stat =
-      deps.stat ??
-      (async (file: string) => {
-        const info = await stat(file)
-        return { size: info.size }
-      })
-  }
+  public constructor(private readonly deps: SubscriptionKeySourceDeps) {}
 
   /**
   The CLI's auth file on this OS: `XDG_CONFIG_HOME` honoured on every
@@ -165,7 +152,7 @@ export class SubscriptionKeySource {
     const file = this.path()
     let size: number
     try {
-      const info = await this.stat(file)
+      const info = await stat(file)
       size = info.size
     } catch (error: unknown) {
       // Only a file that is not there reads as missing; one that cannot
@@ -179,7 +166,7 @@ export class SubscriptionKeySource {
     }
     let text: string
     try {
-      text = await this.readFile(file)
+      text = await readFile(file, 'utf8')
     } catch (error: unknown) {
       if (isMissing(error)) return { status: 'missing', key: undefined }
       if (!isFsError(error)) throw error

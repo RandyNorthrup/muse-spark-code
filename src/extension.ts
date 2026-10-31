@@ -336,7 +336,11 @@ import { keychainItemPresence } from './core/backends/musecode/credentialFile'
 import { AccountHosts, connectAccountSession } from './host/auth/accountHost'
 import { CliAccount, isCliSignedIn } from './host/auth/cliAccount'
 import { runDeviceSignIn } from './host/auth/deviceSignIn'
-import { isValidModelApiKey } from './host/auth/credentialStore'
+import {
+  createSingleFlightSecretStore,
+  isValidModelApiKey,
+  watchSecretChanges,
+} from './host/auth/credentialStore'
 import type { DamagedChoiceNotice } from './runtime/resources/history'
 import { ModelApiBackendManager } from './host/backend/modelApiBackendManager'
 import {
@@ -1260,12 +1264,21 @@ async function activateWindow(
       .fsPath,
     log,
   })
+  // This window's one owner of secret reads (the reconciled keystore
+  // wrapper): one single-flight, remembered store over VS Code's secret
+  // storage, so each entry is read from the OS store once per window
+  // until forgotten. A change notice from the editor forgets that entry,
+  // so the next use reads the store once more; the migration's raw
+  // legacy port below keeps reading SecretStorage directly, and its
+  // writes arrive here as change notices like any other.
+  const ownedSecrets = createSingleFlightSecretStore(context.secrets)
+  context.subscriptions.push(watchSecretChanges(context.secrets, ownedSecrets))
   // The key-store migration's shell (D89.14, lane M): every host
   // credential path below shares this store instead of SecretStorage
   // directly. Reads always pass through, so activation and a vault-less
   // window behave exactly as now; writes mirror into the vault once the
   // Models & Agents binding binds the migration after an unlock.
-  const migrationShell: MigrationShell = createMigrationShell(context.secrets)
+  const migrationShell: MigrationShell = createMigrationShell(ownedSecrets)
   const secrets = migrationShell.store
   const migrationMinorRelease = (): number => {
     // A damaged manifest ordinal refuses the migration (the engine records
@@ -6465,6 +6478,16 @@ async function activateWindow(
               return Promise.resolve()
             },
             log,
+            // D241: the palette undo's one-shot sources — the raw store,
+            // the seam's provider ids and the installed minor ordinal.
+            migrationSources: {
+              secrets: context.secrets,
+              listProviderIds: async () => {
+                const entries = await providersSeamBundle().store.list()
+                return entries.map((entry) => entry.id)
+              },
+              minorRelease: migrationMinorRelease,
+            },
           },
           UI_TEXT,
           uiLocale(),

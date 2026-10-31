@@ -1,11 +1,13 @@
 # Muse Spark Code as an MCP server for other agents (M124)
 
-**Status (2026-10-09): local stdio phase, in progress.** Decision D106 and
-milestone M124 in [PLAN.md](../PLAN.md); design in
-[design/mcp-connector.md](design/mcp-connector.md). The hosted phase for
-ChatGPT and claude.ai (OAuth over HTTPS) is not built; it waits for M110's
-home node, an orchestrator-link contract and the owner's domain and OAuth
-choice (PLAN Q-M124).
+**Status (2026-10-09; remote phase 2026-10-30): local stdio, plus HTTPS
+from your own PC.** Decisions D106 and D240 and milestone M124 in
+[PLAN.md](../PLAN.md); design in
+[design/mcp-connector.md](design/mcp-connector.md). There is no hosted
+connector and no server of ours: the owner decided on 2026-10-23 that the
+remote endpoint runs on your PC (D240, closing PLAN Q-M124.1). A client on
+another machine — or a hosted chat that can reach an address you publish —
+connects to the connector you serve yourself, below.
 
 `muse-spark-code-acp mcp` lets another agent on your machine (Codex, Claude
 Code, Gemini CLI) read what you grant it and ask for changes that **you**
@@ -134,6 +136,44 @@ your client cannot start `muse-spark-code-acp` on Windows, name
 `muse-spark-code-acp.cmd` as the command. No client has been qualified
 against this server yet (PLAN M124's platform rows).
 
+## Serve it from your PC over HTTPS (D240)
+
+Grant first (step 1 above), then serve. Nothing listens anywhere until you
+start this command, and it stops with Ctrl+C.
+
+```sh
+muse-spark-code-acp mcp serve-http --tls-cert cert.pem --tls-key key.pem
+```
+
+- **Where it listens is yours.** Loopback (this PC only) unless you pass
+  `--bind lan` or one IP address of this PC; a wider address also needs
+  `--public-url https://…`, the address clients use to reach this PC, and
+  the connector says so in the terminal when it starts. For internet or
+  cloud clients, put your own tunnel in front (for example a Cloudflare
+  Tunnel you configure) and run with `--tunnel --public-url https://…`:
+  the connector then serves plain HTTP on loopback behind your tunnel,
+  which supplies the HTTPS. No tunnel, domain or account of ours is
+  involved, ever.
+- **TLS is your own certificate.** Any certificate valid for the name in
+  `--public-url` (or for `localhost` when you stay on this PC) works, from
+  your CA, your router, or a public issuer such as Let's Encrypt.
+- **Who may sign in is yours.** Register each client yourself:
+  `muse-spark-code-acp mcp client add --name "…" --redirect-uri <the client's callback>`,
+  confirmed in your terminal; the command prints its `client_id` to give
+  the client. `mcp client list` shows them; `mcp client remove
+--client-id …` ends that client's sign-ins at once, even while serving.
+  Clients that can publish a Client ID Metadata Document are also
+  accepted. Only with `--open-registration` may unknown clients register
+  themselves; they still get nothing until you approve them, below.
+- **You approve every sign-in.** The connector prints an owner code in
+  its terminal; the browser consent page asks for it together with your
+  Allow. The code changes after every approval and after five wrong
+  tries. Sign-ins are bound to this one connector address and expire
+  (`--token-minutes`, `--sign-in-days` are yours to set); revoking the
+  grant (`mcp revoke`) ends every sign-in at once. Your grant, the
+  per-write approvals, Stop, the limits and the audit below are exactly
+  the local connector's — the sign-in adds no authority of its own.
+
 ## Control it
 
 | Command                                            | Effect                                                                                      |
@@ -142,6 +182,7 @@ against this server yet (PLAN M124's platform rows).
 | `muse-spark-code-acp mcp revoke [--connection ID]` | Revokes a grant at once; the next call refuses                                              |
 | `muse-spark-code-acp mcp kill`                     | Switches the connector off: new effects refuse, pending approvals are cancelled, Stop works |
 | `muse-spark-code-acp mcp resume`                   | Switches it on again; needs your typed confirmation in a terminal                           |
+| `muse-spark-code-acp mcp client add/list/remove`   | The HTTPS clients you registered; removing one ends its sign-ins at once                    |
 
 ## Limits
 

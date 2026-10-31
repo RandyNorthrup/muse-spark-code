@@ -18,6 +18,7 @@
 
 import * as z from 'zod/mini'
 import {
+  GITHUB_GIST_SCOPES,
   GITHUB_LEASE_TTL_MS,
   GITHUB_OAUTH_CLIENT_ID,
   GITHUB_PERMITTED_SCOPES,
@@ -154,10 +155,46 @@ export function assertPermittedScopes(scopes: readonly string[]): void {
 }
 
 /**
+D242's one exception: Share asks for the gist scope only at the moment the
+person presses Share to a secret gist, never at sign-in. The set is exact
+— `gist` alone — and no other caller may pass it. The repository sign-in
+is a different grant and is not widened here.
+*/
+export function assertGistShareScopes(scopes: readonly string[]): void {
+  const wanted = new Set(scopes)
+  if (
+    wanted.size !== GITHUB_GIST_SCOPES.length ||
+    GITHUB_GIST_SCOPES.some((scope) => !wanted.has(scope))
+  ) {
+    throw new GitHubTokenSourceError('scopeRefused')
+  }
+}
+
+/**
+A source that can run D242's Share-time sign-in: a fresh grant carrying
+`gist` alone, stored apart from the repository sign-in. Only the
+device-flow source implements this; the editor's session and `gh` keep
+theirs, so a Share-time grant never widens them.
+*/
+export interface GitHubGistScopeSource extends GitHubTokenSource {
+  signInForGistShare(signal: AbortSignal): Promise<GitHubCredential | undefined>
+  /**
+  The stored gist grant, or undefined when there is none still fresh.
+  Never starts a device flow and never reads the repository slot.
+  */
+  storedGistGrant(signal: AbortSignal): Promise<GitHubCredential | undefined>
+}
+
+export function canAskGistScope(source: GitHubTokenSource): source is GitHubGistScopeSource {
+  return 'signInForGistShare' in source && typeof source.signInForGistShare === 'function'
+}
+
+/**
 The `required` scopes a token lacks, from GitHub's `X-OAuth-Scopes`
 header; undefined when the header is absent (a lease's answer, or a
 token type that does not report scopes), so nothing is guessed.
-@unwired M123 missing GitHub scope reader
+M118 phase 2 (D242) reads it to tell a missing gist scope from a real
+404.
 */
 export function missingScopes(
   header: string | null,

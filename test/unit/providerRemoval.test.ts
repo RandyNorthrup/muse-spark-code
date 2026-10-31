@@ -2,17 +2,46 @@
 // already reached its caller never breaks the chain behind it; a secret
 // the window's end cannot delete stays pending for the next start; the
 // next start attempts every pending secret and throws naming the ids
-// that survived.
-import { describe, expect, it } from 'vitest'
+// that survived. The clock is the real process clock: expired windows are
+// backdated pendings, and the live ten seconds wait for real. The
+// providers and pending stores stay list-backed (VS Code global state in
+// production) and secrets stay Map-backed (the OS store is unownable).
+import { describe, expect, it, vi } from 'vitest'
 import {
   createProviderRemoval,
+  systemRemovalClock,
   type PendingRemoval,
   type ProviderRemovalDeps,
-  type RemovalClock,
   type RemovalStore,
 } from '../../src/host/providers/providerRemoval'
 import type { ProviderEntry, ProvidersStore } from '../../src/host/providers/providerPorts'
-import type { RecordStore } from '../../src/host/providers/credentialRecords'
+import {
+  readProviderAdminCredential,
+  readProviderCredential,
+  saveProviderAdminCredential,
+  saveProviderCredential,
+  type CredentialRecord,
+  type RecordStore,
+} from '../../src/host/providers/credentialRecords'
+import { PROVIDER_UNDO_WINDOW_MS } from '../../src/shared/constants'
+
+// The live-window test waits out the production ten-second Undo window
+// for real: twice the window covers a loaded rig without hiding a timer
+// that never finishes.
+const LIVE_WINDOW_TIMEOUT_MS = 2 * PROVIDER_UNDO_WINDOW_MS
+
+const INFERENCE_RECORD: CredentialRecord = {
+  v: 1,
+  auth: 'apiKey',
+  origin: 'https://api.anthropic.com',
+  secret: 'TEST-INFERENCE-KEY',
+}
+const ADMIN_RECORD: CredentialRecord = {
+  v: 1,
+  auth: 'apiKey',
+  origin: 'https://api.anthropic.com',
+  secret: 'TEST-ADMIN-KEY',
+}
 
 function entry(id: string): ProviderEntry {
   return { id, preset: 'preset', address: 'http://127.0.0.1:1/', auth: 'none', models: [] }
@@ -67,26 +96,22 @@ function stores() {
       return Promise.resolve()
     },
   }
-  const scheduled: (() => void)[] = []
-  const clock: RemovalClock = {
-    now: () => 0,
-    schedule: (_ms, run) => {
-      scheduled.push(run)
-      return { cancel: () => undefined }
-    },
-  }
+  const clock = systemRemovalClock()
   const deps: ProviderRemovalDeps = {
     providers,
     secrets: recordStore,
     pending: removalStore,
     clock,
-    undoWindowMs: 1000,
   }
   return {
     deps,
-    scheduled,
     attempts,
     pending: () => pending,
+    backdate: (id: string, removedAt: number) => {
+      pending = pending.map((removal) =>
+        removal.entry.id === id ? { ...removal, removedAt } : removal,
+      )
+    },
     failRemovals: (shouldFail: boolean) => {
       shouldFailRemove = shouldFail
     },
@@ -112,16 +137,52 @@ describe('createProviderRemoval', () => {
     const harness = stores()
     const removal = createProviderRemoval(harness.deps)
     await removal.remove('a')
-    expect(harness.scheduled).toHaveLength(1)
     harness.failSecretDelete('a')
-    harness.scheduled[0]?.()
-    // The window end's failure is the pending the next start retries.
+    // The next start's retry keeps the secret it cannot delete.
     await expect(removal.completePending()).rejects.toThrow('a')
     expect(harness.pending().map((removal) => removal.entry.id)).toEqual(['a'])
     harness.failSecretDelete(undefined)
     await removal.completePending()
     expect(harness.pending()).toEqual([])
   })
+
+  it('restores a removed provider while its window is open', async () => {
+    const harness = stores()
+    const removal = createProviderRemoval(harness.deps)
+    await removal.remove('a')
+    expect(await removal.undo('a')).toBe(true)
+    expect(harness.pending()).toEqual([])
+  })
+
+  it('refuses to restore once the window has passed', async () => {
+    const harness = stores()
+    const removal = createProviderRemoval(harness.deps)
+    await removal.remove('a')
+    harness.backdate('a', Date.now() - 2 * PROVIDER_UNDO_WINDOW_MS)
+    expect(await removal.undo('a')).toBe(false)
+    expect(harness.pending().map((removal) => removal.entry.id)).toEqual(['a'])
+  })
+
+  it(
+    'deletes both secrets when the live window ends',
+    { timeout: LIVE_WINDOW_TIMEOUT_MS },
+    async () => {
+      const harness = stores()
+      const removal = createProviderRemoval(harness.deps)
+      await saveProviderCredential(harness.deps.secrets, 'a', INFERENCE_RECORD)
+      await saveProviderAdminCredential(harness.deps.secrets, 'a', ADMIN_RECORD)
+      await removal.remove('a')
+      expect(await readProviderCredential(harness.deps.secrets, 'a')).toEqual(INFERENCE_RECORD)
+      await vi.waitFor(
+        async () => {
+          expect(await readProviderCredential(harness.deps.secrets, 'a')).toBeUndefined()
+        },
+        { timeout: LIVE_WINDOW_TIMEOUT_MS, interval: 100 },
+      )
+      expect(await readProviderAdminCredential(harness.deps.secrets, 'a')).toBeUndefined()
+      expect(harness.pending()).toEqual([])
+    },
+  )
 
   it('attempts every pending secret and throws naming the survivors', async () => {
     const harness = stores()

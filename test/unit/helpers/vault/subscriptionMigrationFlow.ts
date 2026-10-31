@@ -18,12 +18,17 @@ import { keyringSecretStore } from '../../../../src/runtime/keyStore'
 import { FileAccountsMetadata } from '../../../../src/runtime/providers/providersFileStore'
 import { eraseItem } from '../../../../src/core/vault/migrate/material'
 import type { MigrationCredential } from '../../../../src/core/vault/migrate/ports'
-import { CredentialMigrationController } from '../../../../src/host/vault/migrateCredentials'
+import {
+  CredentialMigrationController,
+  credentialMigrationPorts,
+} from '../../../../src/host/vault/migrateCredentials'
 import {
   createMigrationShell,
   type MigrationShell,
 } from '../../../../src/host/vault/migrationShell'
+import { createSingleFlightSecretStore } from '../../../../src/host/auth/credentialStore'
 import type { SecretStore } from '../../../../src/host/auth/credentialStore'
+import { bindRuntimeCredentialMigration } from '../../../../src/runtime/vault/vaultRuntimeMigrationEntry'
 import type { Logger } from '../../../../src/host/logger'
 import { UI_TEXT, VAULT_PROTOCOL_VERSION } from '../../../../src/shared/constants'
 
@@ -131,12 +136,7 @@ export function migrationFlow(deps: {
     secrets: deps.secrets,
     listProviderIds: () => Promise.resolve(deps.providers),
     ...(deps.listAccounts !== undefined && { listAccounts: deps.listAccounts }),
-    ports: {
-      snapshot: () => deps.session.snapshot(),
-      write: (...args) => deps.session.write(...args),
-      remove: (...args) => deps.session.remove(...args),
-      firstPartyRead: (...args) => deps.reader.read(...args),
-    },
+    ports: credentialMigrationPorts(deps.session, deps.reader),
     minorRelease: deps.minorRelease ?? (() => 19),
     now: Date.now,
     log: deps.log,
@@ -166,6 +166,8 @@ export async function openMigrationSession(deps: {
   connect: () => Promise<VaultBrokerClient>
   lockScope: string
   fresh: boolean
+  /** A store this run already opened. Absent: a new uniquely named native store. */
+  secrets?: SecretStore
 }): Promise<{ session: VaultManageSession; secrets: SecretStore; reader: VaultFirstPartyReader }> {
   const session = new VaultManageSession(deps.connect, encodeVaultMaterial)
   if (deps.fresh) {
@@ -178,7 +180,7 @@ export async function openMigrationSession(deps: {
   }
   return {
     session,
-    secrets: uniqueKeyringStore(deps.lockScope),
+    secrets: deps.secrets ?? uniqueKeyringStore(deps.lockScope),
     reader: new VaultFirstPartyReader(deps.connect),
   }
 }
@@ -188,6 +190,7 @@ export async function openLoggedSession(deps: {
   connect: () => Promise<VaultBrokerClient>
   lockScope: string
   fresh: boolean
+  secrets?: SecretStore
 }): Promise<{
   session: VaultManageSession
   secrets: SecretStore
@@ -200,12 +203,20 @@ export async function openLoggedSession(deps: {
   return { ...opened, log, logged }
 }
 
+/** Service name for one run's native store. Not the product keychain service. */
+export function migrationKeyringService(): string {
+  return `Muse RLM109 ${randomBytes(16).toString('hex')}`
+}
+
 /**
 A uniquely named real native store, owning only this run's generated
-entries; no person's key is read.
+entries; no person's key is read. Pass `service` when another process must
+open the same entries.
 */
-export function uniqueKeyringStore(lockScope: string): SecretStore {
-  const service = `Muse RLM109 ${randomBytes(16).toString('hex')}`
+export function uniqueKeyringStore(
+  lockScope: string,
+  service = migrationKeyringService(),
+): SecretStore {
   return keyringSecretStore((_service, account) => new AsyncEntry(service, account), {
     lockScope,
   })
@@ -364,6 +375,30 @@ export async function driveMigratedSlot(deps: {
 }
 
 /**
+A real session with the controller bound at an adjustable minor release:
+19 until the caller moves it, so the retain window can be crossed by
+setting `release.current`. The log is the one its drive asserts stayed quiet.
+*/
+export async function openRetireFlow(deps: {
+  connect: () => Promise<VaultBrokerClient>
+  lockScope: string
+  fresh: boolean
+  secrets?: SecretStore
+}) {
+  const opened = await openLoggedSession(deps)
+  const release = { current: 19 }
+  const flow = migrationFlow({
+    secrets: opened.secrets,
+    session: opened.session,
+    reader: opened.reader,
+    log: opened.log,
+    providers: [],
+    minorRelease: () => release.current,
+  })
+  return { ...opened, ...flow, release }
+}
+
+/**
 The retire drive both suites run over the subscription slot: taken on
 unlock at release 19 with its legacy entry kept; at release 21 the next
 unlock retires the legacy entry, and the shell keeps reading the value
@@ -377,16 +412,15 @@ export async function driveRetireCase(deps: {
   lockScope: string
   fresh: boolean
 }): Promise<void> {
-  const { session, secrets, reader, log, logged } = await openLoggedSession(deps)
-  const release = { current: 19 }
-  const { controller: active, shell } = migrationFlow({
-    secrets,
+  const {
     session,
+    secrets,
     reader,
-    log,
-    providers: [],
-    minorRelease: () => release.current,
-  })
+    logged,
+    release,
+    controller: active,
+    shell,
+  } = await openRetireFlow(deps)
   const codec = chatgptSubscriptionMigrationCredential(Date.now)
   const origin = 'https://api.openai.com'
   const migrated = (expected: string, isLegacyPresent: boolean) =>
@@ -465,5 +499,85 @@ export async function driveSlotCase(deps: {
     initial: deps.initial,
     rotated: deps.rotated,
     ...(deps.extra !== undefined && { extra: deps.extra }),
+  })
+}
+
+/**
+The runtime binding's slot drive (RLF-M109): the real
+`bindRuntimeCredentialMigration` over the real session, the real
+keyring store (one unique service behind both the raw reads and the
+engine's `migrateKeyStore` legacy port, as production wires them), the
+real account-pool file and the real user providers file. The slot
+migrates only if the binding lists the provider from the file and the
+account from the pool, so the drive proves both seams end to end.
+*/
+export async function driveRuntimeSlotCase(deps: {
+  connect: () => Promise<VaultBrokerClient>
+  lockScope: string
+  fresh: boolean
+  codec: MigrationCredential
+  origin: string
+  dataDir: string
+  providersFile: string
+  provider: string
+  accounts: readonly string[]
+  initial: () => string
+  rotated: () => string
+}): Promise<void> {
+  const { session, reader, log, logged } = await openLoggedSession(deps)
+  writeAccountPool(
+    path.join(deps.dataDir, 'providers.json'),
+    deps.provider,
+    deps.origin,
+    deps.accounts,
+  )
+  mkdirSync(path.dirname(deps.providersFile), { recursive: true })
+  writeFileSync(
+    deps.providersFile,
+    `${JSON.stringify({
+      v: 1,
+      providers: [
+        {
+          id: deps.provider,
+          preset: deps.provider,
+          address: deps.origin,
+          auth: 'apiKey',
+          models: [],
+        },
+      ],
+    })}\n`,
+    'utf8',
+  )
+  // One unique real service behind every store this case touches, in the
+  // production order: raw store under the process's single-flight owner
+  // under the migration shell; the engine's legacy port opens entries
+  // on the same service through its own factory.
+  const service = `Muse RLF-M109 ${randomBytes(16).toString('hex')}`
+  const openEntry = (_service: string, account: string) => new AsyncEntry(service, account)
+  const rawSecrets = keyringSecretStore(openEntry, { lockScope: deps.lockScope })
+  const shell = createMigrationShell(createSingleFlightSecretStore(rawSecrets))
+  const controller = bindRuntimeCredentialMigration({
+    session,
+    connect: deps.connect,
+    openEntry,
+    rawSecrets,
+    shell,
+    dataDir: deps.dataDir,
+    providersFile: deps.providersFile,
+    minorRelease: () => 19,
+    now: Date.now,
+    log,
+    label: UI_TEXT.vault.secret,
+  })
+  await driveMigratedSlot({
+    flow: { controller, shell },
+    secrets: rawSecrets,
+    session,
+    reader,
+    logged,
+    codec: deps.codec,
+    origin: deps.origin,
+    initial: deps.initial,
+    rotated: deps.rotated,
   })
 }

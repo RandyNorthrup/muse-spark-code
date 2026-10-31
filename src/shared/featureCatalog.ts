@@ -395,6 +395,7 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   // Reset detects impossible public framing/anchor state, needs a terminal, and retires the exact anchor.
   vault: { description: { ui: 'referenceVaultPanel' }, canRun: true },
   lockVault: { description: { ui: 'referenceVaultLock' }, canRun: true },
+  vaultUndoRetired: { description: { ui: 'referenceVaultUndoRetired' }, canRun: true },
 }
 
 function feature(
@@ -1584,7 +1585,7 @@ export function featureCatalog(): readonly Feature[] {
       'vault',
       { command: COMMAND_IDS.vault },
       { ui: 'referenceVaultPanel' },
-      ['vault', 'lockVault'],
+      ['vault', 'lockVault', 'vaultUndoRetired'],
       [
         'vault.enabled',
         'vault.protection',

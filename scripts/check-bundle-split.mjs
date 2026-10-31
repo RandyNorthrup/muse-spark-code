@@ -536,6 +536,24 @@ for (const source of [
     if (inputsOf(bundle).has(source))
       problems.push(`${bundle.output} carries lazy connector implementation ${source}`)
 }
+// M124 remote (D240): the HTTPS endpoint and its OAuth server load only on
+// `mcp serve-http` and `mcp client`; neither the stdio connector nor any
+// other bundle carries them.
+const CONNECTOR_REMOTE = {
+  output: 'dist/connectorRemote.js',
+  metafile: 'dist/meta/connectorRemote.json',
+}
+for (const source of [
+  'src/runtime/connector/remoteEntry.ts',
+  'src/runtime/connector/http.ts',
+  'src/runtime/connector/oauth/server.ts',
+]) {
+  if (!inputsOf(CONNECTOR_REMOTE).has(source))
+    problems.push(`${CONNECTOR_REMOTE.output} no longer carries ${source}`)
+  for (const bundle of [BUNDLES.activation, BUNDLES.acp, BUNDLES.modelApi, CONNECTOR])
+    if (inputsOf(bundle).has(source))
+      problems.push(`${bundle.output} carries lazy remote connector implementation ${source}`)
+}
 const promptInputs = inputsOf(PROMPTS)
 for (const source of [
   'src/host/vscode/prompts/promptEntry.ts',
@@ -928,6 +946,7 @@ for (const bundle of [
   PROMPTS,
   SHARING_RUNTIME,
   CONNECTOR,
+  CONNECTOR_REMOTE,
   REVIEW,
   JUDGE,
   ...JUDGE_CHILDREN,
@@ -1489,18 +1508,24 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
             !(
               input === 'src/core/providers/configured.ts' && output === BUNDLES.configured.output
             ) &&
-            // D89.14 lane M: the migration codecs parse the installed
-            // provider records, so the migration chunk carries their
-            // schemas beside the engine.
+            // D89.14 lane M / RLF-M109: the migration codecs parse the
+            // installed provider records, so both migration chunks (the
+            // window's and the runtime's) carry their schemas beside the
+            // engine; the runtime chunk also reads the person's
+            // providers file through its real reader to list what
+            // migrates, and that reader carries the capability record.
             !(
-              input === 'src/core/providers/accountCredentialRecord.ts' &&
-              output === VAULT_MIGRATION.output
+              (output === 'dist/vaultRuntimeMigration.js' || output === VAULT_MIGRATION.output) &&
+              (input === 'src/core/providers/subscriptions/chatgptRecord.ts' ||
+                ['modelRef.ts', 'accountCredentialRecord.ts'].some(
+                  (file) => input === `src/core/providers/${file}`,
+                ))
             ) &&
-            // RLM109: the ChatGPT slot's migration codec parses the stored
-            // grant with the record schema leaf, so the chunk carries it.
             !(
-              input === 'src/core/providers/subscriptions/chatgptRecord.ts' &&
-              output === VAULT_MIGRATION.output
+              output === 'dist/vaultRuntimeMigration.js' &&
+              ['providersFile.ts', 'capabilityRecord.ts'].some(
+                (file) => input === `src/core/providers/${file}`,
+              )
             ) &&
             !(input === 'src/core/providers/priceCard.ts' && output === 'dist/usageService.js') &&
             // C-M113-2: the session and usage inputs read M102's journal
@@ -1872,6 +1897,7 @@ const TEXT_BLOCKS = [
       SHARING_RUNTIME.output,
       // M124's prompt share preview reuses M118's share contract with it.
       CONNECTOR.output,
+      CONNECTOR_REMOTE.output,
       'dist/conversation.js',
       // CONVBUDGET: the session-transfer flows read the export redactions.
       'dist/conversationTransfer.js',
@@ -2081,7 +2107,7 @@ const TEXT_BLOCKS = [
   {
     block: 'CONNECTOR_MODEL_TEXT',
     sentinels: ['reasonNoFleetStore', 'reasonScheduleGrant'],
-    readers: [CONNECTOR.output],
+    readers: [CONNECTOR.output, CONNECTOR_REMOTE.output],
   },
 ].map((entry) => ({
   ...entry,

@@ -34,3 +34,5 @@ docs/certification/m125-f1-linux.json:generic-api-key:131
 # Public X.509 kernel-module-signing key ID printed by the kernel at boot in the recorded QEMU transcripts; a public cert identifier, no credential.
 test/fixtures/nodeos-boot/serial-proving.txt:generic-api-key:298
 test/fixtures/nodeos-boot/serial-panic.txt:generic-api-key:298
+# M124 remote (D240) test fixture: a throwaway self-signed localhost key made for the HTTPS suites (test/fixtures/connector-remote/manifest.json records how); it protects nothing and no product, person or machine uses it.
+test/fixtures/connector-remote/localhost.key.pem:private-key:1

@@ -260,6 +260,7 @@
   "config.github.useGhLogin.description": "끌어오기 요청에서 기존 GitHub CLI 로그인(`gh auth token`)을 사용할 수 있게 합니다. 편집기의 GitHub 로그인과 Muse Spark 로그인 다음에 마지막으로 시도됩니다. 토큰은 요청 하나마다 읽히며 저장되지 않습니다. 기본값은 꺼짐이며, 사용자 설정에서만 켤 수 있으므로 저장소가 켤 수 없습니다.",
   "command.vault.title": "보관함",
   "command.lockVault.title": "지금 보관함 잠그기",
+  "command.vaultUndoRetired.title": "퇴역한 보관함 항목 실행 취소",
   "config.vault.enabled.description": "사용자별 자격 증명 보관함을 켜거나 끕니다. 저장된 레거시 museSpark.vault 값은 이 설정이 구성될 때까지 적용됩니다.",
   "config.vault.protection.description": "호환성을 위해 저장됩니다. 이 설정은 이 빌드에서 효과가 없습니다.",
   "config.vault.agentFence.description": "대화형 Model API 셸 명령의 자격 증명 보호를 제어합니다. 검증, 일정, 워커 및 훅은 보호된 상태를 유지합니다.",

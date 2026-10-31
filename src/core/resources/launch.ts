@@ -66,6 +66,9 @@ export interface ResourceHandoffProcess extends ResourceInteractiveProcess {
   /** Resolves once the adapter counts as launched; rejects when it failed or was cancelled. */
   handedOff: Promise<void>
 }
+/** Why fork protection stopped a tree: too many alive at once, or a spawn flood. */
+export type ResourceForkStop = 'activeProcess' | 'spawnRate'
+
 /** How a governed tree ended, as far as its platform can prove (SPAWN017C). */
 export interface ResourceTreeOutcome {
   /** True only when the whole tree's exit was observed (Windows: an emptied record). */
@@ -74,6 +77,12 @@ export interface ResourceTreeOutcome {
   readonly capRefusals: number
   /** The job limits the kernel enforced against this tree (process cap, memory). */
   readonly limits: readonly ResourceJobLimit[]
+  /**
+  Set when fork protection stopped this tree (RLF-GOVFORK): the Windows
+  helper ended it for its spawn rate, or the POSIX sampler killed it for
+  its process count or spawn rate. Absent on calm trees.
+  */
+  readonly forkStop?: ResourceForkStop | undefined
 }
 export type ResourceJobLimit = 'activeProcess' | 'jobMemory' | 'processMemory'
 
@@ -125,6 +134,16 @@ export class ResourceMemoryLimitError extends Error {
   }
 }
 
+/** Fork protection stopped this tree: a runaway, never a quota (RLF-GOVFORK). */
+export class ResourceForkStopError extends Error {
+  readonly code = 'forkStop'
+
+  constructor(readonly stop: ResourceForkStop) {
+    super('A governed tree was stopped for fork protection')
+    this.name = 'ResourceForkStopError'
+  }
+}
+
 /** Structural, not instanceof: the launcher and its callers live in different bundles.
 @unwired M107 resource cap refusal guard
 */
@@ -147,6 +166,16 @@ export function isResourceMemoryLimit(error: unknown): error is ResourceMemoryLi
   )
 }
 
+/** Structural, not instanceof: the launcher and its callers live in different bundles. */
+export function isResourceForkStop(error: unknown): error is ResourceForkStopError {
+  return (
+    error instanceof Error &&
+    error.name === 'ResourceForkStopError' &&
+    'code' in error &&
+    error.code === 'forkStop'
+  )
+}
+
 /** Admission or containment was unavailable; codes cross the lazy bundle boundary. */
 export class ResourceUnavailableError extends Error {
   constructor(readonly code: 'admissionUnavailable' | 'launchUnavailable') {
@@ -165,6 +194,7 @@ export function isGovernedRefusal(error: unknown): boolean {
     isResourcePaused(error) ||
     isResourceCapRefused(error) ||
     isResourceMemoryLimit(error) ||
+    isResourceForkStop(error) ||
     (error instanceof Error &&
       error.name === 'ResourceUnavailableError' &&
       'code' in error &&
@@ -216,7 +246,11 @@ export function isGovernedCommandExit(
 }
 
 export interface ResourcePipedProcess extends ResourceInteractiveProcess {
-  /** Settles after exit; undefined where the platform attests nothing (POSIX, bootstrap). */
+  /**
+  Settles after exit: the attested record on Windows, a fork-protection
+  stop on POSIX when the sampler stopped this tree, otherwise undefined
+  (a calm POSIX tree, bootstrap).
+  */
   outcome: () => Promise<ResourceTreeOutcome | undefined>
   child: ChildProcess & {
     stdin: NonNullable<ChildProcess['stdin']>
@@ -282,6 +316,12 @@ export interface ResourceLease {
   register(process: ResourceProcessLaunch): void
   /** true requires failed spawn, logical completion, or proved whole-tree retirement. */
   complete(isTreeGone: boolean): void
+  /**
+  Why fork protection stopped this lease's tree, once the sampler did
+  (RLF-GOVFORK). Read after the root's exit; a stop that lands later is
+  not seen here. Absent on leases whose host never samples trees.
+  */
+  stoppedForFork?: (() => ResourceForkStop | undefined) | undefined
   /** An attested launch's final usage, before complete; history reads it. */
   settle?: ((settlement: ResourceSettlement) => void) | undefined
   /**

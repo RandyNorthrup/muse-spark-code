@@ -102,6 +102,15 @@
     "src/runtime/vault/vaultRuntimeEntry.ts",
     // Installed lazy vault siblings, loaded by their same-build runtime paths.
     "src/runtime/vault/brokerBindings.ts",
+    // RLF-M109: the runtime key-store migration chunk, required by path
+    // from the vault runtime on the first unlock edge.
+    "src/runtime/vault/vaultRuntimeMigrationEntry.ts",
+    // RLF-M109 (D243): the feeder, spawned in place of a command; the headless
+    // exec stack and the person vault policy's file half, each required by
+    // path from the vault runtime and the broker bindings on first use.
+    "src/runtime/vault/vaultExecEntry.ts",
+    "src/runtime/vault/vaultExecHostEntry.ts",
+    "src/runtime/vault/vaultPolicyEntry.ts",
     "src/runtime/vault/posixEntry.ts",
     "src/runtime/vault/windowsEntry.ts",
     "src/runtime/vault/storeEntry.ts",
@@ -336,8 +345,13 @@
     "test/e2e/**/*.test.ts",
     "test/unit/helpers/vault/sessionClientChild.ts",
     "test/unit/helpers/vault/sessionBrokerChild.ts",
+    // Built by vaultExecDelegated.test.ts as the fixture install root's broker and launched by path.
+    "test/unit/helpers/vault/execBrokerChild.ts",
     // Built once by writerCrashPosix.test.ts; a real generated-only SIGKILL child.
     "test/unit/helpers/vault/writerCrashChild.ts",
+    // Built by retiredUndoFlow.ts and launched by path; knip does not trace
+    // esbuild entryPoints. The killed-undo broker case hangs here for SIGKILL.
+    "test/unit/helpers/vault/undoCrashChild.ts",
     // Pipe-relay fixture child, bundled by windowsPipeRelay.test.ts and launched
     // by path; knip does not trace esbuild entryPoints.
     "test/unit/helpers/vault/windowsPipeRelayChild.ts",

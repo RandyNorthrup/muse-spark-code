@@ -260,6 +260,7 @@
   "config.github.useGhLogin.description": "允许拉取请求使用你现有的 GitHub CLI 登录（`gh auth token`），在编辑器的 GitHub 登录和 Muse Spark 的登录之后最后尝试。令牌每次只为一个请求读取，从不保存。默认关闭；仅限用户设置，因此仓库无法将其打开。",
   "command.vault.title": "凭据库",
   "command.lockVault.title": "立即锁定凭据库",
+  "command.vaultUndoRetired.title": "撤消已退役的凭据库条目",
   "config.vault.enabled.description": "打开或关闭按用户的凭据库。在配置此设置之前，沿用已存储的旧版 museSpark.vault 值。",
   "config.vault.protection.description": "为兼容性保留；此偏好设置在此构建中不起作用。",
   "config.vault.agentFence.description": "控制交互式 Model API shell 命令的凭据隔离。验证、计划、工作进程和钩子始终保持隔离。",

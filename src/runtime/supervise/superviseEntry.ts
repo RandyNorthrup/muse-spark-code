@@ -14,9 +14,9 @@ import {
 } from '../../shared/constants'
 import type { UiText } from '../../shared/l10n/en'
 import { plural, setUiText } from '../../shared/l10n/text'
-import { openPrivateRoot } from '../privateDirectory'
+import { openPrivateRoot, PrivateRootRefused } from '../privateDirectory'
 import { stopSupervised, type StopOutcome } from './stop'
-import { superviseRuntime } from './supervisor'
+import { SuperviseEndpointError, superviseRuntime } from './supervisor'
 
 const OWNER_DIRECTORY_MODE = 0o700
 
@@ -50,17 +50,29 @@ export async function runSupervise(
   },
 ): Promise<number> {
   setUiText(deps.table, deps.locale)
-  return await superviseRuntime({
-    args,
-    entry: deps.entry,
-    cwd: deps.cwd,
-    env: deps.env,
-    root: await supervisedRoot(deps.dataFolder),
-    stdin: deps.stdin,
-    stdout: deps.stdout,
-    stderr: deps.stderr,
-    log: deps.log,
-  })
+  try {
+    return await superviseRuntime({
+      args,
+      entry: deps.entry,
+      cwd: deps.cwd,
+      env: deps.env,
+      root: await supervisedRoot(deps.dataFolder),
+      stdin: deps.stdin,
+      stdout: deps.stdout,
+      stderr: deps.stderr,
+      log: deps.log,
+    })
+  } catch (error: unknown) {
+    if (error instanceof PrivateRootRefused) {
+      deps.log.error(UI_TEXT.supervision.recordsFolderNotPrivate)
+      return CLI_EXIT.failure
+    }
+    if (error instanceof SuperviseEndpointError) {
+      deps.log.error(UI_TEXT.supervision.endpointPathTooLong)
+      return CLI_EXIT.failure
+    }
+    throw error
+  }
 }
 
 /** Stops every supervised run started in the folder; the caller's own last. */
@@ -78,7 +90,21 @@ export async function stopWorkspace(deps: SuperviseRuntimeDeps): Promise<StopOut
 export async function runStop(
   deps: SuperviseRuntimeDeps & { readonly print: (line: string) => void },
 ): Promise<number> {
-  const { stopped, failed } = await stopWorkspace(deps)
+  let outcome: StopOutcome
+  try {
+    outcome = await stopWorkspace(deps)
+  } catch (error: unknown) {
+    if (error instanceof PrivateRootRefused) {
+      deps.print(UI_TEXT.supervision.recordsFolderNotPrivate)
+      return CLI_EXIT.failure
+    }
+    if (error instanceof SuperviseEndpointError) {
+      deps.print(UI_TEXT.supervision.endpointPathTooLong)
+      return CLI_EXIT.failure
+    }
+    throw error
+  }
+  const { stopped, failed } = outcome
   if (stopped === 0 && failed === 0) {
     deps.print(UI_TEXT.supervision.stopNone)
     return CLI_EXIT.failure

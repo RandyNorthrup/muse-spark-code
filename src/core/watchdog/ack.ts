@@ -32,9 +32,21 @@ export function watchdogReplyMarker(
   return `${WATCHDOG_REPLY_MARKER_PREFIX} run=${record.runId} round=${String(record.triageRound)} kind=${kind} -->`
 }
 
-/** Any post of ours: an acknowledgement, or a reply (which proves it). */
+/** The body without its quoted lines. GitHub's quote-reply prefixes each
+quoted line with `>`, so a reporter quoting one of our posts never reads
+as one of ours. Our own posts never quote: the marker stands unquoted. */
+function unquotedBody(body: string): string {
+  return body
+    .split('\n')
+    .filter((line) => !/^\s*>/.test(line))
+    .join('\n')
+}
+
+/** Any post of ours: an acknowledgement, or a reply (which proves it). A
+quoted marker is a reporter quoting us, never our post. */
 export function isWatchdogPost(body: string): boolean {
-  return body.includes(WATCHDOG_ACK_MARKER) || body.includes(WATCHDOG_REPLY_MARKER_PREFIX)
+  const unquoted = unquotedBody(body)
+  return unquoted.includes(WATCHDOG_ACK_MARKER) || unquoted.includes(WATCHDOG_REPLY_MARKER_PREFIX)
 }
 
 /** Whether this very reply (flow, round, kind) is already out there. */

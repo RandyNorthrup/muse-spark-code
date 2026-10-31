@@ -43,15 +43,37 @@ export class VaultBrokerClient {
     peers: VaultPeerVerifier,
     dial?: VaultPipeDialPort,
   ): Promise<VaultBrokerClient> {
-    // The client verifies the socket owner before it speaks (RVCM109JE P2-3):
-    // no hello reaches a socket this user does not own.
+    return await this.connectVerified(location, peers, dial, async (client) => {
+      const hello = await client.send({
+        kind: 'hello',
+        bootToken: location.bootToken,
+        hostId,
+        hostSession,
+      })
+      // The claim file binds the pipe name and the hello binds the broker.
+      if (hello.kind !== 'hello' || hello.brokerId !== location.lock.brokerId)
+        throw new Error(UI_TEXT.vault.noAccess)
+    })
+  }
+  /**
+  The one verified connection every client opens (RVCM109JE P2-3): the
+  socket owner is verified before anything is spoken, then the lock's
+  process over kernel peer credentials (on Windows the dialer verifies the
+  pipe's owner through the files-mode helper; the lock's process names the
+  broker node for staleness, never the pipe-owning helper, so no pid
+  equality applies there). `greet` is the first frame the caller sends once
+  the broker is verified: the host sends `hello`; the feeder (D243) sends
+  none, as it never registers as a host or a requester, and its first frame
+  is a private `execRedeem`. A failure anywhere closes the client.
+  */
+  static async connectVerified(
+    location: VaultBrokerLocation,
+    peers: VaultPeerVerifier,
+    dial?: VaultPipeDialPort,
+    greet?: (client: VaultBrokerClient) => Promise<void>,
+  ): Promise<VaultBrokerClient> {
     if (process.platform !== 'win32') await verifyVaultSocketFile(location.lock.socket)
     if (process.platform === 'win32') {
-      // A raw pipe socket carries no inspectable server end: the dialer
-      // verifies the pipe's owner through the files-mode helper first.
-      // The claim file binds the pipe name and the hello below binds the
-      // broker; the lock's process names the broker node for staleness,
-      // never the pipe-owning helper, so no pid equality applies here.
       if (!dial) throw new Error(UI_TEXT.vault.brokerBlocked)
       const pipe = windowsVaultPipeNameSchema.parse(location.lock.socket)
       await dial.verifyPipe(pipe)
@@ -62,14 +84,7 @@ export class VaultBrokerClient {
           pipeSocket.once('connect', resolve)
           pipeSocket.once('error', reject)
         })
-        const hello = await pipeClient.send({
-          kind: 'hello',
-          bootToken: location.bootToken,
-          hostId,
-          hostSession,
-        })
-        if (hello.kind !== 'hello' || hello.brokerId !== location.lock.brokerId)
-          throw new Error(UI_TEXT.vault.noAccess)
+        await greet?.(pipeClient)
         return pipeClient
       } catch (error: unknown) {
         pipeClient.close()
@@ -89,14 +104,7 @@ export class VaultBrokerClient {
         identity.startedAt !== location.lock.startedAt
       )
         throw new Error(UI_TEXT.vault.noAccess)
-      const hello = await client.send({
-        kind: 'hello',
-        bootToken: location.bootToken,
-        hostId,
-        hostSession,
-      })
-      if (hello.kind !== 'hello' || hello.brokerId !== location.lock.brokerId)
-        throw new Error(UI_TEXT.vault.noAccess)
+      await greet?.(client)
       return client
     } catch (error: unknown) {
       client.close()

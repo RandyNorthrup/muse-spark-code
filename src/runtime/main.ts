@@ -64,18 +64,24 @@ import {
   MODEL_API_BASE_URL,
   MODEL_API_BUNDLE_FILE,
   SUPERVISE_BUNDLE_FILE,
+  CONNECTOR_REMOTE_BUNDLE_FILE,
   USAGE_PAGE_OPEN_TIMEOUT_MS,
   CONNECTOR_FOLDER,
   CONNECTOR_STORE_GUARD_BUNDLE_FILE,
   NODE_BUNDLE_FILE,
   REPORT_ISSUE_NEW_URL,
+  VAULT_POLICY_BUNDLE_FILE,
 } from '../shared/constants'
 import {
   cliEvidenceRoot,
   filePhase2EvidenceStore,
   type Phase2EvidenceStore,
 } from '../core/judge/evidencePaths'
-import type { SecretStore } from '../host/auth/credentialStore'
+import {
+  createSingleFlightSecretStore,
+  type SecretStore,
+  type SingleFlightSecretStore,
+} from '../host/auth/credentialStore'
 import { fill, uiLocale, UI_TEXT as referenceTable } from '../shared/l10n/text'
 import { Usd } from '../shared/usd'
 import { setUiText as setProviderPolicyText } from '../host/backend/providerPolicyEntry'
@@ -191,6 +197,7 @@ import { connectorLoader } from './connector/connectorBundle'
 import { lspLoader } from './lsp/lspBundle'
 import { panelLoader } from './panel/panelBundle'
 import { superviseLoader } from './supervise/superviseBundle'
+import { connectorRemoteLoader } from './connector/remoteBundle'
 import { storageGuardLoader } from './connector/storageGuardBundle'
 import type { ScheduleWakeAuthorization } from './schedules/registration'
 import { runtimeScheduleSessionFactory } from './schedules/sessionFactory'
@@ -212,7 +219,12 @@ import type {
 } from './providers/runtimeServices'
 import { AcpVault } from '../acp/vault'
 import { runtimeVaultLoader } from './vault/vaultRuntime'
-import { runVaultCommand, vaultUsage } from './vault/vaultCommand'
+import { createRequire } from 'node:module'
+import { vaultBrokerDataDir } from './vault/vaultStoreScope'
+import { createMigrationShell } from '../host/vault/migrationShell'
+import { providersFilePath } from './providerPaths'
+import { runVaultCommand, vaultUsage, type VaultCommandDeps } from './vault/vaultCommand'
+import type * as VaultPolicyModule from './vault/vaultPolicyEntry'
 import { chooseVaultDecision, readVaultLine, readVaultMaterial } from './vault/vaultInput'
 
 const EXIT_FAILED = 1
@@ -240,13 +252,51 @@ async function openVaultCommands() {
   const binding = await loadVault()
   return await binding.commands()
 }
+
+/**
+D243: `vault policy` reads and replaces the person's policy file
+through its own lazy chunk (dist/vaultPolicy.js), the same one the
+broker reads at registration. The same-build sibling contract is
+validated before use (PLAN §8); no broker connection is needed.
+*/
+function vaultPolicyDeps(): VaultCommandDeps['policy'] {
+  let loaded: typeof VaultPolicyModule | undefined
+  const load = (): typeof VaultPolicyModule => {
+    if (loaded === undefined) {
+      const candidate = createRequire(__filename)(
+        path.join(distDir, VAULT_POLICY_BUNDLE_FILE),
+      ) as typeof VaultPolicyModule
+      if (
+        typeof candidate.readVaultPolicy !== 'function' ||
+        typeof candidate.writeVaultPolicy !== 'function' ||
+        typeof candidate.setUiText !== 'function'
+      )
+        throw new TypeError(UI_TEXT.vault.brokerBlocked)
+      candidate.setUiText(UI_TEXT, uiLocale())
+      loaded = candidate
+    }
+    return loaded
+  }
+  return {
+    read: async () =>
+      await load().readVaultPolicy(
+        vaultBrokerDataDir(
+          agentDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() }),
+        ),
+      ),
+    write: async (policy) => {
+      await load().writeVaultPolicy(
+        vaultBrokerDataDir(
+          agentDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() }),
+        ),
+        policy,
+      )
+    },
+  }
+}
 const acpVault = new AcpVault(openVaultCommands)
-const loadVault = runtimeVaultLoader({
-  dataDir: agentDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() }),
-  distDir,
-  processId: process.pid,
-  acp: acpVault,
-})
+// The vault binding's loader is constructed below, once this process's
+// secret stores and its migration shell exist (the binding carries both).
 
 function loadDisplayLanguage(log: Logger) {
   return loadUiTable({
@@ -358,7 +408,7 @@ async function loadSecrets(): Promise<SecretStore> {
     throw new StoreUnavailableError({ cause: error })
   }
 }
-const secrets: SecretStore = {
+const delegatingSecrets: SecretStore = {
   async get(name) {
     const store = await loadSecrets()
     return await store.get(name)
@@ -372,6 +422,55 @@ const secrets: SecretStore = {
     await store.delete(name)
   },
 }
+/**
+This process's one owner of secret reads (the reconciled keystore
+wrapper): every runtime credential path below shares it, so each entry
+is read from the OS store once per process until a provider rejection
+or a write forgets it. `delegatingSecrets` stays the raw store for the
+vault migration's verifying re-reads.
+*/
+const ownedSecrets: SingleFlightSecretStore = createSingleFlightSecretStore(delegatingSecrets)
+/**
+The key-store migration's shell (RLF-M109): every runtime credential
+path below shares this store instead of the owned store directly.
+Reads always pass through, so a vault-less process behaves exactly as
+before; writes mirror into the vault and retired slots read from it
+once the vault binding binds the migration after an unlock.
+*/
+const migrationShell = createMigrationShell(ownedSecrets)
+const secrets: SingleFlightSecretStore = migrationShell.store
+
+/** The installed release's minor ordinal, as the window computes it for the migration. */
+function migrationMinorRelease(): number {
+  // A damaged manifest ordinal refuses the migration (the engine records
+  // it as storage failure and the keys keep working in the OS store).
+  const minor = Number(packageVersion().split('.', 2)[1])
+  if (!Number.isSafeInteger(minor) || minor < 0) throw new Error('Invalid installed version')
+  return minor
+}
+
+const loadVault = runtimeVaultLoader({
+  dataDir: agentDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() }),
+  distDir,
+  processId: process.pid,
+  acp: acpVault,
+  // The binding's own log: migration runs behind unlock edges in any
+  // command, so it reports on stderr at serving level like the agent.
+  log: stderrLogger((line) => {
+    writeLine(process.stderr, line)
+  }, 'info'),
+  migration: {
+    shell: migrationShell,
+    openEntry: openKeyringEntry,
+    rawSecrets: delegatingSecrets,
+    providersFile: providersFilePath({
+      platform: process.platform,
+      homeDir: homedir(),
+      xdgConfigHome: process.env['XDG_CONFIG_HOME'],
+    }),
+    minorRelease: migrationMinorRelease,
+  },
+})
 const makerSecrets = {
   get: async (name: string) => await secrets.get(name),
   store: async (name: string, value: string) => {
@@ -1909,7 +2008,7 @@ async function main(processResources: ProcessResources): Promise<number> {
   })
   const servicesInput = (log: Logger): RuntimeAccountServicesInput => ({
     dataDir: accountsDataDir,
-    openEntry: openKeyringEntry,
+    secrets,
     log,
   })
   let cachedBundle: RuntimeAccountsBundle | undefined
@@ -2242,6 +2341,11 @@ async function main(processResources: ProcessResources): Promise<number> {
             accounts: loadAccounts(log).exec,
           }),
           vault: {
+            dataDir: agentDataFolder({
+              platform: process.platform,
+              env: process.env,
+              homeDir: homedir(),
+            }),
             open: async (context) => {
               const binding = await loadVault()
               return await binding.exec.open(context)
@@ -2670,6 +2774,7 @@ async function main(processResources: ProcessResources): Promise<number> {
       try {
         return await runVaultCommand(command.options, {
           open: openVaultCommands,
+          policy: vaultPolicyDeps(),
           readMaterial: (signal) => readVaultMaterial(process.stdin, process.stderr, signal),
           readLine: (prompt, signal) =>
             readVaultLine(process.stdin, process.stderr, prompt, signal),
@@ -3189,44 +3294,49 @@ async function main(processResources: ProcessResources): Promise<number> {
         path.join(distDir, CONNECTOR_STORE_GUARD_BUNDLE_FILE),
         log,
       )().connectorStorageGuard(path.join(dataFolder, CONNECTOR_FOLDER))
+      // D240: the HTTPS words load the remote bundle; stdio keeps its own.
+      const firstWord = command.argv[0]
+      const run =
+        firstWord === 'serve-http' || firstWord === 'client'
+          ? connectorRemoteLoader(path.join(distDir, CONNECTOR_REMOTE_BUNDLE_FILE), log)()
+              .runConnectorRemote
+          : connectorLoader(path.join(distDir, CONNECTOR_BUNDLE_FILE), log)().runConnector
       try {
-        return await connectorLoader(path.join(distDir, CONNECTOR_BUNDLE_FILE), log)().runConnector(
-          {
-            argv: command.argv,
-            table: UI_TEXT,
-            locale: uiLocale(),
-            dataFolder,
-            homeDir: homedir(),
-            version: packageVersion(),
-            stdin: process.stdin,
-            stdout: process.stdout,
-            stderr: process.stderr,
-            isInteractive: process.stdin.isTTY,
-            registered: () => sharingCredentials.map((variable) => variable.value),
-            openBrowser: openUsageBrowser,
-            schedules: {
-              list: (root) => scheduleAnswer(root, { operation: 'list', isJson: true }),
-              pause: (root, id) => scheduleAnswer(root, { operation: 'pause', id, isJson: true }),
-            },
-            storageGuard,
-            reports: {
-              generate: async (root, kind, subjectId, signal) => {
-                // M113's own grammar: a positional subject, except playbook's --milestone.
-                let subject: string[] = []
-                if (subjectId !== undefined)
-                  subject = kind === 'playbook' ? ['--milestone', subjectId] : [subjectId]
-                const result = await reports().acp.execute([kind, ...subject].join(' '), {
-                  cwd: root,
-                  sessionId: 'connector',
-                  format: 'md',
-                  signal,
-                })
-                if (result.code !== 0) throw new Error(UI_TEXT.reportUi.generationFailed)
-                return result.text
-              },
+        return await run({
+          argv: command.argv,
+          table: UI_TEXT,
+          locale: uiLocale(),
+          dataFolder,
+          homeDir: homedir(),
+          version: packageVersion(),
+          stdin: process.stdin,
+          stdout: process.stdout,
+          stderr: process.stderr,
+          isInteractive: process.stdin.isTTY,
+          registered: () => sharingCredentials.map((variable) => variable.value),
+          openBrowser: openUsageBrowser,
+          schedules: {
+            list: (root) => scheduleAnswer(root, { operation: 'list', isJson: true }),
+            pause: (root, id) => scheduleAnswer(root, { operation: 'pause', id, isJson: true }),
+          },
+          storageGuard,
+          reports: {
+            generate: async (root, kind, subjectId, signal) => {
+              // M113's own grammar: a positional subject, except playbook's --milestone.
+              let subject: string[] = []
+              if (subjectId !== undefined)
+                subject = kind === 'playbook' ? ['--milestone', subjectId] : [subjectId]
+              const result = await reports().acp.execute([kind, ...subject].join(' '), {
+                cwd: root,
+                sessionId: 'connector',
+                format: 'md',
+                signal,
+              })
+              if (result.code !== 0) throw new Error(UI_TEXT.reportUi.generationFailed)
+              return result.text
             },
           },
-        )
+        })
       } finally {
         await schedules?.close()
       }

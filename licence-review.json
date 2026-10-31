@@ -5,5 +5,26 @@
     "sha256": "433fc9dfe659dbfb1e91eed8351f13651e97bfa3ac6d03394c3d63f61d4bbc80",
     "spdx": "MIT",
     "reason": "MIT terms are unchanged; the copyright notice names the lowercase holder pieroxy."
+  },
+  {
+    "package": "deep-equal",
+    "version": "1.0.1",
+    "sha256": "435a6722c786b0a56fbe7387028f1d9d3f3a2d0fb615bb8fee118727c3f59b7b",
+    "spdx": "MIT",
+    "reason": "MIT terms are unchanged; the file opens with a one-line release statement instead of a copyright line. Read in full for D240 (via oidc-provider's koa)."
+  },
+  {
+    "package": "inherits",
+    "version": "2.0.4",
+    "sha256": "5ffe28e7ade7d8f10d85d5337a73fd793dac5c462fb9a28fbf8c5046c7fbca3b",
+    "spdx": "ISC",
+    "reason": "ISC terms are unchanged; the copyright notice names the holder Isaac Z. Schlueter. Read in full for D240 (via http-errors)."
+  },
+  {
+    "package": "negotiator",
+    "version": "0.6.3",
+    "sha256": "553d4d20029a24e315b428a1a54a9e109eaa340f2e958a4f50a92362c2c4070b",
+    "spdx": "MIT",
+    "reason": "MIT terms are unchanged; the title is parenthesised, three holders are named, and quotes are single. Read in full for D240 (via oidc-provider's koa)."
   }
 ]

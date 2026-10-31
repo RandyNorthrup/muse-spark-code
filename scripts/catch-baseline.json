@@ -13,7 +13,7 @@
     },
     "host": {
       "SWALLOW": 18,
-      "GENERIC": 94,
+      "GENERIC": 92,
       "CLEANUP": 90
     },
     "root": {
@@ -22,7 +22,7 @@
       "CLEANUP": 1
     },
     "runtime": {
-      "SWALLOW": 30,
+      "SWALLOW": 29,
       "GENERIC": 168,
       "CLEANUP": 130
     },
@@ -2640,7 +2640,7 @@
     },
     {
       "file": "src/core/vault/broker/state.ts",
-      "identity": "552e55401784f1b77b921b9d1bcde0e534e6ecafbeccec64f20d4c98c16cdec9",
+      "identity": "b38a60447b47bf61383045741f7fdc389bd3a23c3f856e3716d96c6170bf142a",
       "class": "GENERIC"
     },
     {
@@ -2875,12 +2875,7 @@
     },
     {
       "file": "src/host/auth/cliAccount.ts",
-      "identity": "187129f0df8aadc4b15f264cda6a2b05b053a12fb9e3ab2d9df834ca893293bb",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/auth/cliAccount.ts",
-      "identity": "fa913f8b33df00c67d5408bf7dd33e9f4cd33a4a8601aab24129c11eb3495c02",
+      "identity": "26f0f8c21579df815b5629460a381d6e5f1d8dc0512184a38e2d688cddd1b63d",
       "class": "GENERIC"
     },
     {
@@ -2950,7 +2945,7 @@
     },
     {
       "file": "src/host/backend/mediaJobRun.ts",
-      "identity": "03cd020d230f030b41fbed7ba6b5d0102769cc53494dbbb5c26122765ff9b26f",
+      "identity": "b3498b45d0e32a2834a03affec884abf4ba2ac3a3b551cd7de0fb335cb8f903a",
       "class": "GENERIC"
     },
     {
@@ -3101,11 +3096,6 @@
     {
       "file": "src/host/commands/museConfigCommands.ts",
       "identity": "a5273301094435a67392f47f75519b215fc436800cca98497943bece948de876",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/conversation/conversationController.ts",
-      "identity": "0950633ad23b6bf0596059084a6fb9c82f3863f95b3ef8d04f55c7402dcdbcca",
       "class": "GENERIC"
     },
     {
@@ -3735,7 +3725,7 @@
     },
     {
       "file": "src/host/vault/vaultExecSpawn.ts",
-      "identity": "81bd6ed2050d5e5afb0c02926a30eaeecf54223b9d79b2991aa5e87ab033873d",
+      "identity": "423251feedcee893732b6ec4601cfad043fd7fdf9613e0db75ebbc89a756a923",
       "class": "GENERIC"
     },
     {
@@ -3865,7 +3855,7 @@
     },
     {
       "file": "src/host/vscode/vault/vaultPanelEntry.ts",
-      "identity": "9ffa1a923f3c8fffe2301b35e3b551e16c7ad2880ee1acf3620e3a7e30f46b63",
+      "identity": "963ad12695d697829187945f33f9a6d323ace63ce84880e27244c4403369c201",
       "class": "GENERIC"
     },
     {
@@ -4005,7 +3995,7 @@
     },
     {
       "file": "src/runtime/connector/command.ts",
-      "identity": "460022e7fb3d469c5f64cf7c177f4d4d4004bf3a083811f53d683ab32b07f7b6",
+      "identity": "9644480a9d2f3a13abbfcbe76e0fa7dd380a28a25023048e74cb5deb8bcd06eb",
       "class": "CLEANUP"
     },
     {
@@ -4015,17 +4005,17 @@
     },
     {
       "file": "src/runtime/connector/entry.ts",
-      "identity": "567ecfdf2edb14f863509c87229cad474d685a4501af88b1009c71ccdda8866d",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/runtime/connector/entry.ts",
       "identity": "838fc71582d9d8fdc309ead42f9a167b5c1ae7a2b1f86553d5df13161612db9a",
       "class": "GENERIC"
     },
     {
-      "file": "src/runtime/connector/entry.ts",
-      "identity": "3139dc37904ba8f051b417fd6557e55733eb3a3a4dfa3a2e428038cbcec05787",
+      "file": "src/runtime/connector/registryHost.ts",
+      "identity": "567ecfdf2edb14f863509c87229cad474d685a4501af88b1009c71ccdda8866d",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/runtime/connector/registryHost.ts",
+      "identity": "537d62a2100be8923bd0c0818dcab920cc3fa3f906dac4a422b445082bd7078c",
       "class": "GENERIC"
     },
     {
@@ -4855,13 +4845,8 @@
     },
     {
       "file": "src/runtime/schedules/engine.ts",
-      "identity": "1c24efce6f82fad14eb4ea8ec1e534db927bd5a38c2dfde63811dcbbb4a04abc",
+      "identity": "4c7f3f1df71e52ef0b916eea1532f1394f81cd0fa0a92a7c8d5be06f7930fb50",
       "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/schedules/engine.ts",
-      "identity": "1e99e1460120f8fae1e8b2016bc877194cd82df06337c2ba5dff48eab77a5437",
-      "class": "SWALLOW"
     },
     {
       "file": "src/runtime/schedules/nodeScheduleFs.ts",
@@ -5089,11 +5074,6 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/runtime/vault/execVault.ts",
-      "identity": "ce149bbf1efa7f7d944cb8037c645ac486a201bf71158ad0f4680875c793cacc",
-      "class": "GENERIC"
-    },
-    {
       "file": "src/runtime/vault/fileAnchor.ts",
       "identity": "6d0ddd42d0135279022f2bef8f7a6036ecca8d55a3bebd4e42e1a762e49cf8b7",
       "class": "GENERIC"
@@ -5106,6 +5086,11 @@
     {
       "file": "src/runtime/vault/fileAnchor.ts",
       "identity": "3697c02b930f459d52d1ee9913b7b1f27bf2eb51ca8b1c8676fb976c4efc8740",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/runtime/vault/headlessSession.ts",
+      "identity": "ce149bbf1efa7f7d944cb8037c645ac486a201bf71158ad0f4680875c793cacc",
       "class": "GENERIC"
     },
     {
@@ -5140,7 +5125,7 @@
     },
     {
       "file": "src/runtime/vault/posixNative.ts",
-      "identity": "39d44bf2f55bb2b4df8cd5906932c8c61554ecac775ee0aa6d615f1380c8fc12",
+      "identity": "b273c4665730d1f735bd2b37cc8244ea44b6c401a24e314aa376663636b25e69",
       "class": "GENERIC"
     },
     {
@@ -5285,7 +5270,7 @@
     },
     {
       "file": "src/runtime/vault/vaultCommand.ts",
-      "identity": "818a1c136ec5522cf06bdb0550206ab689703bd51bf31b1f9195ab480ec9b629",
+      "identity": "09064dad30c11dbf4ef951d32e168efdc5142b36e3eee94b3952288691476cd2",
       "class": "CLEANUP"
     },
     {
@@ -5330,7 +5315,7 @@
     },
     {
       "file": "src/runtime/vault/vaultCommand.ts",
-      "identity": "49d6fc876b20ab9443106a9b5e686634b9845ba20dc91e5f6ced008ecfb81691",
+      "identity": "e4db3b7b841913429286dd8875cd3f67be371c6ea12ccb75878f72d09c6c0ae4",
       "class": "GENERIC"
     },
     {
@@ -5370,7 +5355,7 @@
     },
     {
       "file": "src/runtime/vault/vaultRuntimeEntry.ts",
-      "identity": "7fb8d379cee61371dd0ce5d62b60539a067a67e9fb571b48f5d6ef4d485a931b",
+      "identity": "1dfb526912e7fce32c2cb2a4e183b147f0536f6c1bf8e21a694cb7c2b4dbfff5",
       "class": "CLEANUP"
     },
     {

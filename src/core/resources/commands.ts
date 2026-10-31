@@ -5,6 +5,7 @@ import {
   GOVERNED_COMMAND_FAILED,
   GOVERNED_COMMAND_UNAVAILABLE,
   ResourceCapRefusedError,
+  ResourceForkStopError,
   ResourceMemoryLimitError,
   type ResourceHandoffUntil,
   type ResourcePipedProcess,
@@ -291,6 +292,7 @@ export async function execResourceFile(
         // A refused child or an enforced memory cap is a typed failure, even after exit 0.
         const memory = outcome?.limits.find((limit) => limit !== 'activeProcess')
         if (memory !== undefined) throw new ResourceMemoryLimitError(memory)
+        if (outcome?.forkStop !== undefined) throw new ResourceForkStopError(outcome.forkStop)
         if (outcome !== undefined && outcome.capRefusals > 0)
           throw new ResourceCapRefusedError(outcome.capRefusals)
         const result = {
@@ -373,6 +375,7 @@ export async function execResourceFileBytes(
           }
           const memory = report?.limits.find((limit) => limit !== 'activeProcess')
           if (memory !== undefined) throw new ResourceMemoryLimitError(memory)
+          if (report?.forkStop !== undefined) throw new ResourceForkStopError(report.forkStop)
           if (report !== undefined && report.capRefusals > 0)
             throw new ResourceCapRefusedError(report.capRefusals)
           const result = {

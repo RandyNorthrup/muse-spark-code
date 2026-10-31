@@ -162,6 +162,11 @@ const VENDORED_LICENCES = new Map([
   // gitHead (769a53d8), git blob e9e7c167, the same blob every sibling
   // @sigstore package ships.
   ['@sigstore/verify', { licence: 'Apache-2.0', file: 'vendor/@sigstore/verify/LICENSE' }],
+  // M124 remote (D240): koa-compose@4.1.0 (via oidc-provider's koa) declares
+  // MIT but its tarball ships no licence file. The text below is upstream's
+  // LICENSE verbatim from koajs/compose; the manifest's MIT declaration is
+  // still checked.
+  ['koa-compose', { licence: 'MIT', file: 'vendor/koa-compose/LICENSE' }],
 ])
 
 function describePackage(dir, problems) {

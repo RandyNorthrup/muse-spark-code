@@ -103,7 +103,17 @@ export function isScheduleConsentCurrent(
 export function scheduleConsentFailure(
   schedule: ScheduleV2,
   identity: SchedulePaidIdentity,
-): keyof typeof UI_TEXT.scheduleV2.messages | undefined {
+):
+  | 'paidUnavailable'
+  | 'changedConsent'
+  | 'changedPayer'
+  | 'changedModel'
+  | 'changedKey'
+  | 'changedTariff'
+  | 'capReached'
+  | 'changedSharedCap'
+  | 'changedGrant'
+  | undefined {
   if (schedule.action.kind !== 'prompt') return 'paidUnavailable'
   const consent = schedule.paidConsent
   if (consent === undefined) return 'changedConsent'
@@ -219,7 +229,9 @@ export function createSchedulePaidScope(deps: {
     signal: AbortSignal,
   ) => Promise<SpendClaim>
 }) {
-  const refusal = (feature: PaidFeature): keyof typeof UI_TEXT.scheduleV2.messages | undefined => {
+  const refusal = (
+    feature: PaidFeature,
+  ): ReturnType<typeof scheduleConsentFailure> | 'changedRevision' | 'lostOnceClaim' => {
     if (!deps.isCurrent()) return 'changedRevision'
     const failure = scheduleConsentFailure(deps.schedule, deps.currentIdentity())
     if (failure !== undefined) return failure

@@ -33,6 +33,7 @@ import { validateMigrationItem } from '../../core/vault/migrate/material'
 import { type VaultItem, type VaultItemMetadata } from '../../shared/vault'
 import {
   ACCOUNT_DEFAULT_ID,
+  UI_TEXT,
   VAULT_KEY_BYTES,
   VAULT_PROTOCOL_VERSION,
   SECRET_KEYS,
@@ -43,6 +44,8 @@ import { providerSecretKey } from '../providers/credentialRecords'
 import { secretStorageLegacyPort } from './migrateSecretStorage'
 import type { SecretStore } from '../auth/credentialStore'
 import type { Logger } from '../logger'
+import type { VaultFirstPartyReader } from '../../core/vault/broker/firstParty'
+import type { VaultManageSession } from '../../core/vault/broker/manageClient'
 import { withMigrationLock, type MigrationMirror } from './migrationShell'
 
 /**
@@ -157,9 +160,37 @@ export interface CredentialMigrationPorts {
   firstPartyRead(request: ReturnType<typeof vaultPrivateReadSchema.parse>): Promise<Buffer>
 }
 
+/** The session and its reader as the controller's ports; every binding composes them so. */
+export function credentialMigrationPorts(
+  session: VaultManageSession,
+  reader: VaultFirstPartyReader,
+): CredentialMigrationPorts {
+  return {
+    snapshot: () => session.snapshot(),
+    write: (...args) => session.write(...args),
+    remove: (...args) => session.remove(...args),
+    firstPartyRead: (...args) => reader.read(...args),
+  }
+}
+
 export interface CredentialMigrationDeps {
-  /** The raw SecretStorage; the mirroring shell wraps it separately. */
+  /**
+  The raw legacy store; the mirroring shell wraps it separately. The
+  controller reads it directly for the subscription-slot probe and as
+  the source of truth when a copy diverged, so it is never the shell.
+  */
   readonly secrets: SecretStore
+  /**
+  Build the migration engine over a legacy store this controller does
+  not hold (the runtime's OS keyring, through `migrateKeyStore`).
+  Absent, the engine reads `secrets` through the SecretStorage port.
+  */
+  readonly createMigration?:
+    | ((
+        deps: Omit<MigrationDeps, 'legacy'>,
+        credentials: readonly MigrationCredential[],
+      ) => VaultMigration)
+    | undefined
   /** Configured provider ids (the seam's store list). */
   readonly listProviderIds: () => Promise<readonly string[]>
   /**
@@ -174,6 +205,12 @@ export interface CredentialMigrationDeps {
   readonly now: () => number
   readonly log: Logger
   /** The journal rows' label, read from the installed table by the caller. */
+  readonly label: string
+}
+
+/** A retired slot for the panel and palette: value-free identity only. */
+export interface RetiredMigrationEntry {
+  readonly key: string
   readonly label: string
 }
 
@@ -364,16 +401,31 @@ export class CredentialMigrationController implements MigrationMirror {
       providerIds = []
     }
     // The ChatGPT subscription is a sign-in, not a providers-file row, so
-    // the seam never lists it: probe its slot and take it when stored. The
-    // probe reads the sealed store for presence only, the way `hasMetaKey`
-    // probes do; the value is never kept.
+    // the seam never lists it. Take the slot when SecretStorage holds it,
+    // or when its journal row is already in the vault: a retired slot's
+    // only copy is the vault, and the probe would otherwise drop it the
+    // moment retire removed the legacy copy. The probe is presence only
+    // (the way `hasMetaKey` probes are); the value is never kept, and a
+    // slot that was never migrated has no journal row and stays out.
     if (!providerIds.includes(CHATGPT_SUBSCRIPTION_PROVIDER_ID)) {
-      const stored = await this.deps.secrets.get(
-        providerSecretKey(CHATGPT_SUBSCRIPTION_PROVIDER_ID),
-      )
-      if (stored !== undefined && stored !== '') {
-        providerIds = [...providerIds, CHATGPT_SUBSCRIPTION_PROVIDER_ID]
+      const key = providerSecretKey(CHATGPT_SUBSCRIPTION_PROVIDER_ID)
+      const stored = await this.deps.secrets.get(key)
+      const isStored = stored !== undefined && stored !== ''
+      let hasJournal = false
+      if (!isStored) {
+        // A vault that cannot be read must not stop every other key. The
+        // retired slot stays out of this run and the warning says so; the
+        // next unlock tries again. The value was never read here.
+        try {
+          const snapshot = await this.deps.ports.snapshot()
+          hasJournal = snapshot.items.some((entry) => entry.id === journalItemId(key))
+        } catch {
+          this.deps.log.warn(
+            `Credential migration could not read the vault for ${key}; its retired slot waits for the next unlock`,
+          )
+        }
       }
+      if (isStored || hasJournal) providerIds = [...providerIds, CHATGPT_SUBSCRIPTION_PROVIDER_ID]
     }
     // Pooled accounts ride their provider's metadata pool; a pool that
     // cannot be read narrows that provider to its default slot, said once.
@@ -391,12 +443,8 @@ export class CredentialMigrationController implements MigrationMirror {
     }
     const credentials = buildMigrationCredentials(providerIds, this.deps.now, accounts)
     const now = this.deps.now()
-    const deps: MigrationDeps = {
+    const deps: Omit<MigrationDeps, 'legacy'> = {
       vault: this.vaultPorts(credentials),
-      legacy: secretStorageLegacyPort(
-        this.deps.secrets,
-        credentials.map((entry) => entry.key),
-      ),
       journal: this.journal(now),
       owner: this.owner,
       minorRelease: this.deps.minorRelease,
@@ -406,8 +454,20 @@ export class CredentialMigrationController implements MigrationMirror {
         this.deps.log.info(`Credential migration retired the legacy entry for ${key}`)
       },
     }
+    const migration =
+      this.deps.createMigration?.(deps, credentials) ??
+      new VaultMigration(
+        {
+          ...deps,
+          legacy: secretStorageLegacyPort(
+            this.deps.secrets,
+            credentials.map((entry) => entry.key),
+          ),
+        },
+        credentials,
+      )
     return {
-      migration: new VaultMigration(deps, credentials),
+      migration,
       credentials,
       providerIds,
       accounts,
@@ -562,5 +622,68 @@ export class CredentialMigrationController implements MigrationMirror {
     if (phase === null || phase === 'deleted') return false
     await migration.delete(key, { destroyLastCopyConfirmed: true, legacyDeletionConfirmed: true })
     return true
+  }
+
+  /**
+  D241: every retired slot, oldest migration key first. Locked, uncreated
+  and unavailable vaults refuse: an empty list there would pose as "none
+  retired". A retired row whose vault copy lost its metadata still lists,
+  under its key, so its undo can say why it refuses instead of hiding.
+  One journal read per key; callers ask only while unlocked, so a locked
+  panel never pays it.
+  */
+  async listRetired(): Promise<readonly RetiredMigrationEntry[]> {
+    const snapshot = await this.deps.ports.snapshot()
+    if (snapshot.status.state !== 'unlocked') throw new Error(UI_TEXT.vault.locked)
+    const { migration, credentials } = await this.engine()
+    const entries: RetiredMigrationEntry[] = []
+    for (const { key, itemId } of credentials) {
+      if ((await migration.journalPhase(key)) === 'retired')
+        entries.push({
+          key,
+          label: snapshot.items.find((entry) => entry.id === itemId)?.label ?? key,
+        })
+    }
+    return entries
+  }
+
+  /**
+  D241: undo one retired slot — its vault bytes go back to the legacy
+  store byte-exact and the slot is active again. Every refusal is a
+  fixed sentence the panel and palette share (vaultRefusals):
+  a key that never migrated, a slot still current, one already gone, a
+  legacy copy that changed since, a damaged vault copy. Anything else
+  (a transient store or broker failure) keeps its own failure, and the
+  panel and terminal map it the way they map every unnamed one.
+  */
+  async undoRetired(key: string): Promise<void> {
+    const snapshot = await this.deps.ports.snapshot()
+    if (snapshot.status.state !== 'unlocked') throw new Error(UI_TEXT.vault.locked)
+    const { migration, credentials } = await this.engine()
+    // Only retired rows undo: a slot still being migrated or still current
+    // stays current (the active-slot abandon path stays untriggered), and a
+    // deleted or abandoned one is already gone. The engine re-checks inside
+    // its lease; a phase that moved under the call is refused there as an
+    // ordinary failure, and trying again then says the new truth.
+    const phase = credentials.some((entry) => entry.key === key)
+      ? await migration.journalPhase(key)
+      : null
+    if (phase === null) throw new Error(UI_TEXT.vault.retiredUndoUnknown)
+    if (phase !== 'retired')
+      throw new Error(
+        ['deleting', 'deleted', 'undone'].includes(phase)
+          ? UI_TEXT.vault.retiredUndoGone
+          : UI_TEXT.vault.retiredUndoCurrent,
+      )
+    try {
+      await migration.undoRetired(key)
+    } catch (error: unknown) {
+      if (!(error instanceof VaultMigrationFault)) throw error
+      if (error.code === 'conflict')
+        throw new Error(UI_TEXT.vault.retiredUndoChanged, { cause: error })
+      if (error.code === 'verification' || error.code === 'invalid')
+        throw new Error(UI_TEXT.vault.retiredUndoDamaged, { cause: error })
+      throw error
+    }
   }
 }

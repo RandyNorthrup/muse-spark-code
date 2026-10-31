@@ -28,11 +28,8 @@ import { promisify } from 'node:util'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { z } from 'zod/mini'
-import {
-  CONTRIBUTOR_MODEL_SUFFIX,
-  DEFAULT_MODEL_ID,
-  type TeamToolGroup,
-} from '../../src/shared/constants'
+import { DEFAULT_MODEL_ID, type TeamToolGroup } from '../../src/shared/constants'
+import { assertLiveContributorModel, liveContributorModelId } from './liveCli'
 import type { TeamAgentRef } from '../../src/shared/team'
 import { TEAM_WORKSPACE_KEYS } from '../../src/shared/teamConversation'
 import { createTeamHostService } from '../../src/core/team/teamHost'
@@ -64,7 +61,6 @@ import type { TeamToolContext } from '../../src/core/team/teamSeams'
 import { availabilityState } from '../unit/helpers/teamAvailabilityRig'
 
 const isLiveEnabled = process.env['MUSE_LIVE_E2E'] === '1'
-const LIVE_MODEL_ID = `${DEFAULT_MODEL_ID}${CONTRIBUTOR_MODEL_SUFFIX}`
 const DICTATED_BYTES = 'team-live-drill-ok'
 const DRILL_TIMEOUT_MS = 300_000
 // A genuinely long operation: one contributor-model turn plus git, the
@@ -103,6 +99,22 @@ function context(): TeamToolContext {
 
 function note(text: string): void {
   process.stderr.write(`[team-live-drill] ${text}\n`)
+}
+
+/**
+Whether the worker model resolves, by the CLI's free local check: no
+model call, no billing. The model itself when it resolves, nothing when
+it does not, so the contributor guard below says which.
+*/
+async function offeredWorkerModels(modelId: string): Promise<readonly string[]> {
+  try {
+    await execFileAsync('muse', ['model-profile', 'show', modelId], {
+      maxBuffer: 4 * 1024 * 1024,
+    })
+    return [modelId]
+  } catch {
+    return []
+  }
 }
 
 /** Model-call audit for one exec session: trace inspect first, provider lines second. */
@@ -206,14 +218,8 @@ function makeService(args: {
     canRun: (agent: TeamAgentRef) => agent.kind === 'museCode',
     probe: async (agent: TeamAgentRef) => {
       // Free model-resolution check: no model call, no billing.
-      try {
-        await execFileAsync('muse', ['model-profile', 'show', agent.model], {
-          maxBuffer: 4 * 1024 * 1024,
-        })
-        return true
-      } catch {
-        return false
-      }
+      const offered = await offeredWorkerModels(agent.model)
+      return offered.length > 0
     },
     run: async (spec: TeamTaskSpec, signal: AbortSignal) => {
       const builtin = builtinRoles().find((role) => role.id === spec.role.role)
@@ -283,6 +289,12 @@ function makeService(args: {
               return Promise.resolve({
                 sessionId,
                 sendPrompt: async (text: string) => {
+                  // Refuses before any prompt unless the worker model is
+                  // contributor-tier and resolves (RLF-SAFEFIX item 1).
+                  assertLiveContributorModel(
+                    options.modelId,
+                    await offeredWorkerModels(options.modelId),
+                  )
                   await writeFile(promptFile, text, 'utf8')
                   const done = new Promise<{ code: number | null; stdout: string; stderr: string }>(
                     (resolve, reject) => {
@@ -451,7 +463,9 @@ function makeService(args: {
             agent: {
               kind: 'museCode',
               agentId: 'museCode',
-              model: LIVE_MODEL_ID,
+              // The run's contributor model; anything else is refused here,
+              // before the worker spawns (RLF-SAFEFIX item 1).
+              model: liveContributorModelId(),
               pays: 'subscription',
             },
           },

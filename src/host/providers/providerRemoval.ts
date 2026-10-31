@@ -24,10 +24,29 @@ export interface RemovalStore {
   save(pending: readonly PendingRemoval[]): Promise<void>
 }
 
-/** The clock, injected so tests own the ten seconds. */
+/**
+Time for the Undo window: the process clock in production and tests
+alike. Tests that need a closed window backdate the pending's
+`removedAt` instead of owning the clock.
+*/
 export interface RemovalClock {
   now(): number
   schedule(ms: number, run: () => void): { cancel(): void }
+}
+
+/** The process clock: real time and real timers. */
+export function systemRemovalClock(): RemovalClock {
+  return {
+    now: () => Date.now(),
+    schedule: (ms, run) => {
+      const timer = setTimeout(run, ms)
+      return {
+        cancel: () => {
+          clearTimeout(timer)
+        },
+      }
+    },
+  }
 }
 
 export interface ProviderRemovalDeps {
@@ -35,7 +54,6 @@ export interface ProviderRemovalDeps {
   readonly secrets: RecordStore
   readonly pending: RemovalStore
   readonly clock: RemovalClock
-  readonly undoWindowMs?: number | undefined
   readonly serialize?: <T>(run: () => Promise<T>) => Promise<T>
 }
 
@@ -56,7 +74,7 @@ export interface ProviderRemoval {
 }
 
 export function createProviderRemoval(deps: ProviderRemovalDeps): ProviderRemoval {
-  const undoWindowMs = deps.undoWindowMs ?? PROVIDER_UNDO_WINDOW_MS
+  const undoWindowMs = PROVIDER_UNDO_WINDOW_MS
   const timers = new Map<string, { cancel(): void }>()
   let operations = Promise.resolve()
   const serialize =

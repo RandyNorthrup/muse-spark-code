@@ -137,6 +137,9 @@ const BUDGETS = [
   // RLM124 (finding 15): the connector's storage guard, 15565 bytes
   // (15.2 KiB) measured +15% = 17.5 KiB, rounded up to the next whole KiB.
   { path: 'dist/connectorStoreGuard.js', budgetKiB: 18 },
+  // M124 remote (D240): the HTTPS endpoint with its OAuth server (oidc-provider and the koa it
+  // runs on) and the registry it serves: 962.0 KiB measured +15%, rounded up to 25 KiB.
+  { path: 'dist/connectorRemote.js', budgetKiB: 1125 },
   // REL0160B combined Model API: 479.2 KiB measured +5%, rounded to 25 KiB;
   // authorized rebuild brief and measurement recorded in PLAN.md (2026-10-07).
   { path: 'dist/modelApi.js', budgetKiB: 525 },
@@ -688,6 +691,22 @@ const BUDGETS = [
   // cc-sigstore), loaded on the first pack fetch. Measured 207.8 KiB; plus
   // 15%, rounded up to 25 KiB.
   { path: 'dist/packsVerify.js', budgetKiB: 250 },
+  // RLF-M109: the runtime key-store migration chunk (controller, engine,
+  // codecs, first-party reader), loaded by dist/vaultRuntime.js on the
+  // first unlock edge only. Measured 60.2 KiB; plus 15%, rounded up.
+  { path: 'dist/vaultRuntimeMigration.js', budgetKiB: 70 },
+  // RLF-M109 (D243): the feeder (envelope, delegated redemption client,
+  // scrub streams, the contained command runner), spawned in place of a
+  // command. Measured 94.3 KiB; plus 15%, rounded up.
+  { path: 'dist/vaultExec.js', budgetKiB: 110 },
+  // RLF-M109 (D243): the person vault policy's file half, loaded by the
+  // broker bindings and the vault runtime on first use. Measured
+  // 7.0 KiB; plus 15%, rounded up to the 25 KiB floor.
+  { path: 'dist/vaultPolicy.js', budgetKiB: 25 },
+  // RLF-M109 (D243): the headless registration/session and the feeder
+  // host port, loaded on the first headless vault use. Measured
+  // 34.0 KiB; plus 15%, rounded up.
+  { path: 'dist/vaultExecHost.js', budgetKiB: 40 },
 ]
 
 // DIET1: independently emitted optional surfaces, measured on main, each plus

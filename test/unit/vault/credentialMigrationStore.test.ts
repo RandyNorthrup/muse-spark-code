@@ -12,12 +12,19 @@ import { CredentialMigrationController } from '../../../src/host/vault/migrateCr
 import { createMigrationShell } from '../../../src/host/vault/migrationShell'
 import { saveProviderCredential } from '../../../src/host/providers/credentialRecords'
 import { secretStorageAccountVault } from '../../../src/host/providers/accountSecrets'
+import { vaultBrokerDataDir } from '../../../src/runtime/vault/vaultStoreScope'
 import { UI_TEXT } from '../../../src/shared/constants'
 import { recordingLogger } from '../helpers/recordingLogger'
+import {
+  driveResetCase,
+  driveUndoCrashCase,
+  driveUndoRetiredCase,
+} from '../helpers/vault/retiredUndoFlow'
 import {
   assertMigratedSlot,
   chatgptSeeds,
   driveRetireCase,
+  driveRuntimeSlotCase,
   driveSlotCase,
   expectOriginRefused,
   openMigrationSession,
@@ -218,6 +225,70 @@ describe.skipIf(process.platform !== 'win32')(
           connect: current.connect,
           lockScope: current.hostId,
           fresh: false,
+        })
+      },
+      FLOW_TIMEOUT_MS,
+    )
+
+    it(
+      'migrates the pooled slot through the runtime binding and its file seams',
+      async () => {
+        const current = currentFixture()
+        await driveRuntimeSlotCase({
+          connect: current.connect,
+          lockScope: current.hostId,
+          fresh: false,
+          codec: accountSecretMigrationCredential(PROVIDER, POOLED_ACCOUNT, Date.now),
+          origin: ORIGIN,
+          dataDir: path.join(current.root, 'runtime-migration', 'data'),
+          providersFile: path.join(current.root, 'runtime-migration', 'user-providers.json'),
+          provider: PROVIDER,
+          accounts: ['default', POOLED_ACCOUNT],
+          ...pooledAccountSeeds(PROVIDER, POOLED_ACCOUNT, ORIGIN),
+        })
+      },
+      FLOW_TIMEOUT_MS,
+    )
+
+    it(
+      'undoes a retired entry byte-exact and refuses an emptied or changed one in words',
+      async () => {
+        const current = currentFixture()
+        await driveUndoRetiredCase({
+          connect: current.connect,
+          lockScope: current.hostId,
+          fresh: false,
+        })
+      },
+      FLOW_TIMEOUT_MS,
+    )
+
+    it(
+      'finishes a retired undo that was killed between its steps',
+      async () => {
+        const current = currentFixture()
+        await driveUndoCrashCase({
+          connect: current.connect,
+          lockScope: current.hostId,
+          fresh: false,
+          dataDir: current.dataDir,
+          installRoot: current.root,
+        })
+      },
+      // Broker, native store and a killed child: the suite's own flow deadline.
+      FLOW_TIMEOUT_MS,
+    )
+
+    // Last: it resets the shared vault and leaves a fresh one behind.
+    it(
+      'deletes retired entries with everything else when a lost vault is reset',
+      async () => {
+        const current = currentFixture()
+        await driveResetCase({
+          connect: current.connect,
+          lockScope: current.hostId,
+          fresh: false,
+          brokerDataDir: vaultBrokerDataDir(current.dataDir),
         })
       },
       FLOW_TIMEOUT_MS,

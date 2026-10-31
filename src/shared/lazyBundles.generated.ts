@@ -212,6 +212,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'connectorRemote.js',
+    side: 'acp',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'CONNECTOR_REMOTE_BUNDLE_FILE',
+        side: ['acp'],
+      },
+    ],
+  },
+  {
     file: 'connectorStoreGuard.js',
     side: 'acp',
     requestedBy: [
@@ -1157,6 +1168,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         symbol: 'main',
         side: ['acp', 'vscode'],
       },
+      { importer: 'src/runtime/vault/vaultExecEntry.ts', symbol: 'main', side: ['acp', 'vscode'] },
     ],
   },
   {
@@ -1752,6 +1764,28 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'vaultExec.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'VAULT_EXEC_BUNDLE_FILE',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
+    file: 'vaultExecHost.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'VAULT_EXEC_HOST_BUNDLE_FILE',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
     file: 'vaultMigration.js',
     side: 'vscode',
     requestedBy: [
@@ -1759,6 +1793,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         importer: 'src/shared/constants.ts',
         symbol: 'VAULT_MIGRATION_BUNDLE_FILE',
         side: ['vscode'],
+      },
+    ],
+  },
+  {
+    file: 'vaultPolicy.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'VAULT_POLICY_BUNDLE_FILE',
+        side: ['acp', 'vscode'],
       },
     ],
   },
@@ -1773,6 +1818,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         side: ['acp', 'vscode'],
       },
       { importer: 'src/shared/constants.ts', symbol: 'VAULT_RUNTIME_BUNDLE_FILE', side: ['acp'] },
+    ],
+  },
+  {
+    file: 'vaultRuntimeMigration.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'VAULT_RUNTIME_MIGRATION_BUNDLE_FILE',
+        side: ['acp', 'vscode'],
+      },
     ],
   },
   { file: 'vaultStore.js', side: 'both', requestedBy: [] },

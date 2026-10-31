@@ -17,9 +17,15 @@ import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { GitHubSignIn } from '../../src/core/git/githubSignIn'
 import { createMemoryPullRequestLinkStore } from '../../src/core/git/pullRequestLinksStore'
+import { spawnSync } from 'node:child_process'
 import type { RuntimeGitDeps } from '../../src/core/git/runtimeGit'
-import type { GitProcess } from '../../src/host/git'
-import { NativeGitRefusalError, NativeGitService } from '../../src/runtime/panel/git/service'
+import { spawnGuarded } from '../../src/core/guardedChildProcess'
+import { type GitProcess, createGitProcess } from '../../src/host/git'
+import {
+  NativeGitRefusalError,
+  NativeGitService,
+  fixedGitLocator,
+} from '../../src/runtime/panel/git/service'
 import { neverCalled, silentLogger, testGit } from './helpers/nativeGitHarness'
 
 // The canonical root: the service binds and reports the real path, so the
@@ -29,6 +35,8 @@ import { neverCalled, silentLogger, testGit } from './helpers/nativeGitHarness'
 const root = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'm123-native-service-')))
 const dataFolder = mkdtempSync(path.join(root, 'data-'))
 const git = testGit(root)
+/** Whether the machine's git answers: without it the rethrow proof runs on hosted CI. */
+const IS_GIT_AVAILABLE = spawnSync('git', ['--version'], { stdio: 'ignore' }).status === 0
 
 function makeRepository(): string {
   return git.makeRepository().repo
@@ -191,16 +199,46 @@ describe('NativeGitService runner failures', () => {
     throw new Error('the aborted run did not refuse')
   })
 
-  it('rethrows the runner failure itself when nothing was cancelled', async () => {
-    const repo = makeRepository()
-    const failure = Object.assign(new Error('spawn git ENOENT'), { code: 'ENOENT' })
-    const run: GitProcess = () => Promise.reject(failure)
-    let seen: unknown
-    try {
-      await serviceFor(repo, run).resolveRoot()
-    } catch (error: unknown) {
-      seen = error
-    }
-    expect(seen).toBe(failure)
-  })
+  it.runIf(IS_GIT_AVAILABLE)(
+    'rethrows the runner failure itself when nothing was cancelled',
+    async () => {
+      // The runner's git located but refused at spawn: the service hands
+      // the failure back itself, unwrapped. A twin direct run proves the
+      // shape is the runner's own.
+      const repo = makeRepository()
+      const dir = mkdtempSync(path.join(tmpdir(), 'm123-nativegit-broken-'))
+      try {
+        const broken = path.join(dir, process.platform === 'win32' ? 'git.exe' : 'git')
+        writeFileSync(broken, 'not a program', { mode: 0o644 })
+        const run: GitProcess = createGitProcess({
+          platform: process.platform,
+          env: process.env,
+          fileExists: existsSync,
+          realpath: realpathSync,
+          spawn: spawnGuarded,
+          locate: fixedGitLocator(process.platform, broken, {
+            workspaceRoot: repo,
+            realpath: realpathSync,
+          }),
+        })
+        let twin: unknown
+        try {
+          await run(['--version'], { cwd: repo, env: process.env })
+          twin = 'spawned'
+        } catch (error: unknown) {
+          twin = error
+        }
+        let seen: unknown
+        try {
+          await serviceFor(repo, run).resolveRoot()
+        } catch (error: unknown) {
+          seen = error
+        }
+        expect(String(seen)).toBe(String(twin))
+        expect(seen).not.toBeInstanceOf(NativeGitRefusalError)
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    },
+  )
 })

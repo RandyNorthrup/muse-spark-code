@@ -41,11 +41,12 @@ import {
   DeviceFlowFailure,
   refreshDeviceFlowToken,
   signInWithDeviceFlow,
+  signInWithDeviceFlowForGistShare,
   type DeviceCodePrompt,
   type DeviceFlowDeps,
   type DeviceFlowTokens,
 } from '../../core/git/deviceFlow'
-import type { GitHubCredential, GitHubTokenSource } from '../../core/git/tokenSource'
+import type { GitHubCredential, GitHubGistScopeSource } from '../../core/git/tokenSource'
 import { randomUUID } from 'node:crypto'
 import * as z from 'zod/mini'
 import {
@@ -54,6 +55,7 @@ import {
   GITHUB_DEVICE_FLOW_SECRET_KEY,
   GITHUB_DEVICE_FLOW_GENERATION_KEY,
   GITHUB_DEVICE_FLOW_REFUSED_KEY,
+  GITHUB_GIST_SHARE_SECRET_KEY,
   GITHUB_STORED_TOKEN_VERSION,
   GITHUB_TOKEN_REFRESH_MARGIN_MS,
 } from '../../shared/constants'
@@ -118,7 +120,7 @@ interface RotatedFrom {
   readonly id: string
 }
 
-export interface DeviceFlowSource extends GitHubTokenSource {
+export interface DeviceFlowSource extends GitHubGistScopeSource {
   /** Whether a token is stored (for `auth github status`); never the token. */
   isSignedIn(): Promise<boolean>
 }
@@ -206,6 +208,9 @@ export function deviceFlowSource(deps: DeviceFlowSourceDeps): DeviceFlowSource {
   }
   const read = async (): Promise<string | undefined> =>
     await deps.store.get(GITHUB_DEVICE_FLOW_SECRET_KEY)
+  /** The Share-time gist grant. Never the repository sign-in slot. */
+  const readGist = async (): Promise<string | undefined> =>
+    await deps.store.get(GITHUB_GIST_SHARE_SECRET_KEY)
   /** The logout barrier, in one read. */
   const generation = async (): Promise<Generation> => {
     const value = await deps.store.get(GITHUB_DEVICE_FLOW_GENERATION_KEY)
@@ -275,6 +280,26 @@ export function deviceFlowSource(deps: DeviceFlowSourceDeps): DeviceFlowSource {
       }
       return after === text ? stored : readable(after, start)
     })
+  /**
+  Store a gist grant under its own key. The repository slot is not read
+  or written. The same generation barrier as a sign-in: a Sign out that
+  lands during the write takes the grant back.
+  */
+  const publishGist = (
+    tokens: DeviceFlowTokens,
+    start: Generation,
+  ): Promise<StoredTokens | undefined> =>
+    serialized(async () => {
+      if ((await generation()) !== start) return
+      const stored = remember(storedOf(tokens, start))
+      const text = JSON.stringify(stored)
+      await deps.store.store(GITHUB_GIST_SHARE_SECRET_KEY, text)
+      if ((await generation()) !== start) {
+        if ((await readGist()) === text) await deps.store.delete(GITHUB_GIST_SHARE_SECRET_KEY)
+        return
+      }
+      return (await readGist()) === text ? stored : undefined
+    })
 
   const credentialOf = (stored: StoredTokens): GitHubCredential => ({
     source: 'deviceFlow',
@@ -330,6 +355,74 @@ export function deviceFlowSource(deps: DeviceFlowSourceDeps): DeviceFlowSource {
     return pair === undefined ? undefined : { pair, signOuts: began }
   }, era)
 
+  /** The gist slot and the generation it must name, in one read each. */
+  const readGistNow = async (): Promise<{
+    readonly text: string | undefined
+    readonly start: Generation
+    readonly existing: StoredTokens | undefined
+  }> => {
+    const start = await generation()
+    const text = await readGist()
+    return { text, start, existing: readable(text, start) }
+  }
+
+  // D242's Share-time grant: its own slot, `gist` alone. A fresh stored
+  // grant is served without asking again. An expiring one is refreshed
+  // into that same slot. A new device flow runs only when there is no
+  // usable grant, and it never writes the repository sign-in.
+  const signInGist = shared(async (signal): Promise<Issued | undefined> => {
+    const began = signOuts
+    const { text, start, existing } = await readGistNow()
+    if (existing !== undefined && isFresh(existing)) return { pair: existing, signOuts: began }
+    if (
+      existing !== undefined &&
+      text !== undefined &&
+      existing.refreshToken !== null &&
+      (existing.refreshExpiresAt === null || deps.flow.now() < existing.refreshExpiresAt)
+    ) {
+      // Only a sign-in failure keeps a still-unexpired gist grant. Anything
+      // else, including a failure to store the refreshed pair, is thrown.
+      // The token is not logged. A refused refresh drops this slot only.
+      try {
+        const tokens = await refreshDeviceFlowToken(deps.flow, existing.refreshToken, signal)
+        const pair = await publishGist(tokens, start)
+        if (pair !== undefined) return { pair, signOuts: began }
+      } catch (error: unknown) {
+        signal.throwIfAborted()
+        if (error instanceof DeviceFlowFailure && error.reason !== 'refreshRefused') {
+          if (existing.expiresAt !== null && deps.flow.now() < existing.expiresAt) {
+            return { pair: existing, signOuts: began }
+          }
+          throw error
+        }
+        if (!(error instanceof DeviceFlowFailure)) throw error
+        await serialized(async () => {
+          if ((await readGist()) === text) await deps.store.delete(GITHUB_GIST_SHARE_SECRET_KEY)
+        })
+      }
+    }
+    const tokens = await signInWithDeviceFlowForGistShare(deps.flow, deps.present, signal)
+    const pair = await publishGist(tokens, start)
+    return pair === undefined ? undefined : { pair, signOuts: began }
+  }, era)
+
+  // Serve: whichever path gave the pair (a shared run, a cached pair
+  // during an outage), only while its generation is current, while no
+  // Sign out of this source has come since its operation began, and
+  // while this caller still waits. The final read races this caller's
+  // signal; no await follows the check.
+  const serve = async (
+    issued: Issued | undefined,
+    signal: AbortSignal,
+  ): Promise<GitHubCredential | undefined> => {
+    if (issued === undefined) return
+    signal.throwIfAborted()
+    const now = await untilAborted(generation(), signal)
+    signal.throwIfAborted()
+    if (issued.pair.generation !== now || issued.signOuts !== signOuts) return
+    return credentialOf(issued.pair)
+  }
+
   return {
     kind: 'deviceFlow',
     async credential(mode, signal) {
@@ -344,20 +437,30 @@ export function deviceFlowSource(deps: DeviceFlowSourceDeps): DeviceFlowSource {
         if (mode !== 'ask' || signal.aborted) throw error
         stored = undefined
       }
-      const issued = stored ?? (mode === 'ask' ? await signIn(signal) : undefined)
-      // Serve: whichever path gave the pair (a shared run, a cached pair
-      // during an outage), only while its generation is current, while no
-      // Sign out of this source has come since its operation began, and
-      // while this caller still waits. The final read races this caller's
-      // signal; no await follows the check.
-      if (issued === undefined) return
-      signal.throwIfAborted()
-      const now = await untilAborted(generation(), signal)
-      signal.throwIfAborted()
-      if (issued.pair.generation !== now || issued.signOuts !== signOuts) return
-      return credentialOf(issued.pair)
+      return await serve(stored ?? (mode === 'ask' ? await signIn(signal) : undefined), signal)
+    },
+    // D242: only Share calls this, after the person's consent. Serves the
+    // gist grant when one is stored, and never the repository sign-in.
+    async signInForGistShare(signal) {
+      return await serve(await signInGist(signal), signal)
+    },
+    // A stored gist grant with no device flow. Absent or expiring: undefined,
+    // so Share can still try the repository sign-in and ask.
+    async storedGistGrant(signal) {
+      const began = signOuts
+      const { existing } = await readGistNow()
+      if (existing === undefined || !isFresh(existing)) return
+      return await serve({ pair: existing, signOuts: began }, signal)
     },
     async rejected(credential) {
+      const gistText = await readGist()
+      const gist = parseStored(gistText)
+      if (gistText !== undefined && gist?.accessToken === credential.bearer) {
+        await serialized(async () => {
+          if ((await readGist()) === gistText) await deps.store.delete(GITHUB_GIST_SHARE_SECRET_KEY)
+        })
+        return
+      }
       const text = await read()
       const stored = parseStored(text)
       if (text !== undefined && stored?.accessToken === credential.bearer) {
@@ -374,6 +477,7 @@ export function deviceFlowSource(deps: DeviceFlowSourceDeps): DeviceFlowSource {
           signOuts += 1
         }
         await deps.store.delete(GITHUB_DEVICE_FLOW_SECRET_KEY)
+        await deps.store.delete(GITHUB_GIST_SHARE_SECRET_KEY)
       })
       await deps.openExternal(GITHUB_AUTHORIZED_APP_URL)
     },

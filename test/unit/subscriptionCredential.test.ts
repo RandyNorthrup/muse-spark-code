@@ -2,40 +2,38 @@ import {
   subscriptionAccountId,
   billingKeyDigest,
 } from '../../src/core/backends/modelapi/billingRoute'
-// C-M95-SUB: the host credential wrapper. Fakes only: an in-memory pasted
-// key and an in-memory CLI auth file. No real auth file is ever read here.
+// C-M95-SUB: the host credential wrapper. Real temp auth files and the
+// real CredentialStore; behind it the OS/VS Code secret storage stays a
+// Map, the external no unit test can own. No real auth file is ever read.
 import { describe, expect, it } from 'vitest'
+import { writeSubscriptionAuthFile } from './helpers/subscriptionAuthFile'
 import { redactSecrets } from '../../src/shared/redact'
 import { SubscriptionCredential } from '../../src/host/auth/subscriptionCredential'
-import { memorySubscriptionFile } from './helpers/subscriptionFile'
 import { mapSecretsBacked } from './helpers/mapSecrets'
+import { usingTempDir } from './helpers/temporaryFolders'
 import { CredentialStore } from '../../src/host/auth/credentialStore'
-import { StoreUnavailableError } from '../../src/runtime/keyStore'
-import { UI_TEXT } from '../../src/shared/constants'
+import { SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
 
 // Opaque values no shape pattern matches: only the exact tracked literal
 // can scrub them.
 const SUB = 'opaque subscription value 8e2b4a'
 const PASTED = 'pasted-payg-key'
 
-function sourceFor(text: string | undefined) {
-  const file = memorySubscriptionFile()
-  if (text !== undefined) file.writeText(text)
-  return file.source
-}
-
-function credential(options: {
+async function credential(options: {
+  root: string
   enabled: boolean
   pasted: string | undefined
   text: string | undefined
-}) {
+}): Promise<SubscriptionCredential> {
+  if (options.text !== undefined) await writeSubscriptionAuthFile(options.root, options.text)
+  const secrets = new Map<string, string>()
+  if (options.pasted !== undefined) secrets.set(SECRET_KEYS.modelApiKey, options.pasted)
   return new SubscriptionCredential({
-    credentials: { getApiKey: () => Promise.resolve(options.pasted) },
+    credentials: new CredentialStore(mapSecretsBacked(secrets), () => undefined),
     isEnabled: () => options.enabled,
     platform: 'linux',
-    homeDir: '/home/u',
-    xdgConfigHome: undefined,
-    source: sourceFor(options.text),
+    homeDir: '/none',
+    xdgConfigHome: options.root,
   })
 }
 
@@ -43,28 +41,31 @@ function fileText(meta: unknown): string {
   return JSON.stringify({ schema_version: 1, providers: { meta } })
 }
 
+/** An enabled wrapper over the subscription file, serving SUB until rotated. */
+async function subscriptionOn(root: string): Promise<SubscriptionCredential> {
+  return await credential({
+    root,
+    enabled: true,
+    pasted: PASTED,
+    text: fileText({ access_token: SUB }),
+  })
+}
+
 describe('SubscriptionCredential', () => {
   it('freezes a route and refuses instead of replacing it with a pasted key', async () => {
-    const file = memorySubscriptionFile()
-    file.writeAccessToken(SUB)
-    const wrapper = new SubscriptionCredential({
-      credentials: { getApiKey: () => Promise.resolve(PASTED) },
-      isEnabled: () => true,
-      platform: 'linux',
-      homeDir: '/home/u',
-      xdgConfigHome: undefined,
-      source: file.source,
-    })
-    const route = await wrapper.route()
-    expect(Object.isFrozen(route)).toBe(true)
-    expect(route?.kind).toBe('museCodePlan')
-    expect(route?.accountId).not.toBe(billingKeyDigest(SUB))
-    file.writeText(fileText({ api_key: PASTED }))
-    await expect(wrapper.route()).rejects.toThrow(UI_TEXT.subscriptionKey.signInAgain)
-    expect(route?.credential).toBe(SUB)
-    await expect(wrapper.route(true)).resolves.toMatchObject({
-      kind: 'payAsYouGo',
-      credential: PASTED,
+    await usingTempDir('subcred-route-', async (root) => {
+      const wrapper = await subscriptionOn(root)
+      const route = await wrapper.route()
+      expect(Object.isFrozen(route)).toBe(true)
+      expect(route?.kind).toBe('museCodePlan')
+      expect(route?.accountId).not.toBe(billingKeyDigest(SUB))
+      await writeSubscriptionAuthFile(root, fileText({ api_key: PASTED }))
+      await expect(wrapper.route()).rejects.toThrow(UI_TEXT.subscriptionKey.signInAgain)
+      expect(route?.credential).toBe(SUB)
+      await expect(wrapper.route(true)).resolves.toMatchObject({
+        kind: 'payAsYouGo',
+        credential: PASTED,
+      })
     })
   })
   it('normalizes Windows separators for the stable subscription identity', () => {
@@ -73,55 +74,67 @@ describe('SubscriptionCredential', () => {
     )
   })
   it('uses the pasted key while the opt-in is off', async () => {
-    const wrapper = credential({ enabled: false, pasted: PASTED, text: fileText({ api_key: SUB }) })
-    await expect(wrapper.getApiKey()).resolves.toBe(PASTED)
-    await expect(wrapper.isSubscriptionBilling()).resolves.toBe(false)
-    await expect(wrapper.hasCredential()).resolves.toBe(true)
+    await usingTempDir('subcred-off-', async (root) => {
+      const wrapper = await credential({
+        root,
+        enabled: false,
+        pasted: PASTED,
+        text: fileText({ api_key: SUB }),
+      })
+      await expect(wrapper.getApiKey()).resolves.toBe(PASTED)
+      await expect(wrapper.isSubscriptionBilling()).resolves.toBe(false)
+      await expect(wrapper.hasCredential()).resolves.toBe(true)
+    })
   })
   it('reports no credential while off with nothing stored', async () => {
-    const wrapper = credential({ enabled: false, pasted: undefined, text: undefined })
-    await expect(wrapper.getApiKey()).resolves.toBeUndefined()
-    await expect(wrapper.hasCredential()).resolves.toBe(false)
+    await usingTempDir('subcred-none-', async (root) => {
+      const wrapper = await credential({ root, enabled: false, pasted: undefined, text: undefined })
+      await expect(wrapper.getApiKey()).resolves.toBeUndefined()
+      await expect(wrapper.hasCredential()).resolves.toBe(false)
+    })
   })
   it('uses the subscription key while on', async () => {
-    const wrapper = credential({
-      enabled: true,
-      pasted: PASTED,
-      text: fileText({ access_token: SUB }),
+    await usingTempDir('subcred-on-', async (root) => {
+      const wrapper = await subscriptionOn(root)
+      await expect(wrapper.getApiKey()).resolves.toBe(SUB)
+      await expect(wrapper.isSubscriptionBilling()).resolves.toBe(true)
+      await expect(wrapper.hasCredential()).resolves.toBe(true)
     })
-    await expect(wrapper.getApiKey()).resolves.toBe(SUB)
-    await expect(wrapper.isSubscriptionBilling()).resolves.toBe(true)
-    await expect(wrapper.hasCredential()).resolves.toBe(true)
   })
   it('refuses a pay-as-you-go file while on, even with a pasted key stored', async () => {
-    const wrapper = credential({
-      enabled: true,
-      pasted: PASTED,
-      text: fileText({ api_key: SUB }),
+    await usingTempDir('subcred-payg-', async (root) => {
+      const wrapper = await credential({
+        root,
+        enabled: true,
+        pasted: PASTED,
+        text: fileText({ api_key: SUB }),
+      })
+      await expect(wrapper.getApiKey()).rejects.toThrow(UI_TEXT.subscriptionKey.signInAgain)
+      await expect(wrapper.isSubscriptionBilling()).resolves.toBe(false)
+      await expect(wrapper.hasCredential()).resolves.toBe(false)
     })
-    await expect(wrapper.getApiKey()).rejects.toThrow(UI_TEXT.subscriptionKey.signInAgain)
-    await expect(wrapper.isSubscriptionBilling()).resolves.toBe(false)
-    await expect(wrapper.hasCredential()).resolves.toBe(false)
   })
   it('throws the refusal, without the key, while on and signed out', async () => {
-    const wrapper = credential({ enabled: true, pasted: PASTED, text: undefined })
-    let failure = 'resolved'
-    try {
-      await wrapper.getApiKey()
-    } catch (error: unknown) {
-      failure = String(error)
-    }
-    expect(failure).toBe(`SubscriptionKeyError: ${UI_TEXT.subscriptionKey.signInAgain}`)
-    expect(failure).not.toContain(SUB)
-    expect(failure).not.toContain(PASTED)
-    await expect(wrapper.isSubscriptionBilling()).resolves.toBe(false)
-    await expect(wrapper.hasCredential()).resolves.toBe(false)
+    await usingTempDir('subcred-signedout-', async (root) => {
+      const wrapper = await credential({ root, enabled: true, pasted: PASTED, text: undefined })
+      let failure = 'resolved'
+      try {
+        await wrapper.getApiKey()
+      } catch (error: unknown) {
+        failure = String(error)
+      }
+      expect(failure).toBe(`SubscriptionKeyError: ${UI_TEXT.subscriptionKey.signInAgain}`)
+      expect(failure).not.toContain(SUB)
+      expect(failure).not.toContain(PASTED)
+      await expect(wrapper.isSubscriptionBilling()).resolves.toBe(false)
+      await expect(wrapper.hasCredential()).resolves.toBe(false)
+    })
   })
 })
 
 function store(options: { pasted: string | undefined; subscribed: boolean }) {
   const secrets = new Map<string, string>()
-  if (options.pasted !== undefined) secrets.set('museSpark.modelApiKey', options.pasted)
+  if (options.pasted !== undefined) secrets.set(SECRET_KEYS.modelApiKey, options.pasted)
   return new CredentialStore(
     mapSecretsBacked(secrets),
     () => undefined,
@@ -133,34 +146,39 @@ function store(options: { pasted: string | undefined; subscribed: boolean }) {
 
 describe('SubscriptionCredential redaction', () => {
   it('registers the key it sends, so shared redaction covers it', async () => {
-    const wrapper = credential({
-      enabled: true,
-      pasted: PASTED,
-      text: fileText({ access_token: SUB }),
+    await usingTempDir('subcred-register-', async (root) => {
+      const wrapper = await subscriptionOn(root)
+      await wrapper.getApiKey()
+      expect(redactSecrets(`saw ${SUB} in a log line`)).not.toContain(SUB)
     })
-    await wrapper.getApiKey()
-    expect(redactSecrets(`saw ${SUB} in a log line`)).not.toContain(SUB)
+  })
+  it('keeps reporting a rotated-out key alongside the current one', async () => {
+    await usingTempDir('subcred-rotated-', async (root) => {
+      const wrapper = await subscriptionOn(root)
+      await expect(wrapper.getApiKey()).resolves.toBe(SUB)
+      await writeSubscriptionAuthFile(
+        root,
+        fileText({ access_token: 'opaque rotation value b822e1' }),
+      )
+      await expect(wrapper.redactionKeys()).resolves.toEqual([
+        PASTED,
+        'opaque rotation value b822e1',
+        SUB,
+      ])
+    })
   })
   it('hands both credentials to persistence boundaries, never throwing', async () => {
-    const wrapper = credential({
-      enabled: true,
-      pasted: PASTED,
-      text: fileText({ access_token: SUB }),
+    await usingTempDir('subcred-both-', async (root) => {
+      const wrapper = await subscriptionOn(root)
+      await expect(wrapper.redactionKeys()).resolves.toEqual([PASTED, SUB])
     })
-    await expect(wrapper.redactionKeys()).resolves.toEqual([PASTED, SUB])
-    const refusing = credential({ enabled: true, pasted: PASTED, text: undefined })
-    await expect(refusing.redactionKeys()).resolves.toEqual([PASTED])
-    const failing = new SubscriptionCredential({
-      credentials: {
-        getApiKey: () => Promise.reject(new StoreUnavailableError()),
-      },
-      isEnabled: () => true,
-      platform: 'linux',
-      homeDir: '/home/u',
-      xdgConfigHome: undefined,
-      source: sourceFor(undefined),
+    await usingTempDir('subcred-refusing-', async (root) => {
+      const refusing = await credential({ root, enabled: true, pasted: PASTED, text: undefined })
+      await expect(refusing.redactionKeys()).resolves.toEqual([PASTED])
     })
-    await expect(failing.redactionKeys()).resolves.toEqual([])
+    // A store that is down (StoreUnavailableError) contributes no literal:
+    // only a genuinely unavailable OS store proves it, so the case lives
+    // in docs/real-life/unproven.md with its real-life steps.
   })
 })
 

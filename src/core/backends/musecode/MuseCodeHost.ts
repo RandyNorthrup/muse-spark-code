@@ -56,6 +56,7 @@ import {
   type SessionGoal,
 } from '../../../shared/agentEvents'
 import {
+  APPROVAL_PERSISTENCE_SETTLE_MS,
   APPROVAL_REJECT_ATTEMPTS,
   APPROVAL_REJECT_DEADLINE_MS,
   CLARIFICATION_FORMAT,
@@ -79,6 +80,7 @@ import {
   STILL_WAITING_NOTICE_MS,
   MSP_USER_SHELL_CAPABILITY,
   MUSE_APPROVAL_LEDGER_FAULT,
+  MUSE_APPROVAL_PERSISTENCE_FAULT,
   MUSE_APPROVAL_REPLAY_FAULT,
   MUSE_AUTO_REVIEW_PROFILE,
   MUSE_EVENT_LOG_FAULT,
@@ -146,6 +148,7 @@ import {
   type WorkflowChildControl,
   DecisionNotAppliedError,
   GoalRefusedError,
+  isMuseCodeFaultError,
   isPromptSettledError,
   MuseCodeFaultError,
   PromptSettledError,
@@ -920,6 +923,7 @@ function settledOr(error: unknown): unknown {
 const FAULT_MARKERS: Readonly<Record<MuseCodeFault, string>> = {
   approvalReplay: MUSE_APPROVAL_REPLAY_FAULT,
   approvalLedger: MUSE_APPROVAL_LEDGER_FAULT,
+  approvalPersistence: MUSE_APPROVAL_PERSISTENCE_FAULT,
 }
 
 /** Muse Code's own approval fault as a `MuseCodeFaultError`; anything else unchanged. */
@@ -989,6 +993,8 @@ export interface CommandTimeouts {
   readonly longMs?: number | undefined
   /** The watchdog's silence (`MSP_UNRESPONSIVE_SILENCE_MS` unless a test shortens it). */
   readonly unresponsiveSilenceMs?: number
+  /** The persistence re-check window (`APPROVAL_PERSISTENCE_SETTLE_MS` unless a test shortens it). */
+  readonly approvalPersistenceSettleMs?: number
 }
 
 export const DEFAULT_COMMAND_TIMEOUTS: CommandTimeouts = {}
@@ -1507,6 +1513,8 @@ export class MuseSession implements ScheduledAgentSession {
   /** A stage's callers share its eventual result, and Stop waits for it. */
   private readonly decisionsInFlight = new Map<string, Promise<void>>()
   private readonly hardwareGuard: SessionHardwareGuard
+  /** Told when an approval's stage news lands (the persistence re-check). */
+  private readonly stageWaiters = new Map<string, Set<() => void>>()
   /**
   What arrived before anyone listened (D26): the events right after
   `session/resume` (the re-issued prompts, a running turn's stream) land
@@ -1664,12 +1672,23 @@ export class MuseSession implements ScheduledAgentSession {
         : candidate.decision === 'abort',
     )
     if (choice === undefined) throw new Error('No safe scheduled approval choice')
-    await this.decideApproval({
-      approvalId: event.approvalId,
-      requirementId: event.requirementId,
-      choiceId: choice.choiceId,
-      ...(reason !== undefined && { feedback: reason }),
-    })
+    try {
+      await this.decideApproval({
+        approvalId: event.approvalId,
+        requirementId: event.requirementId,
+        choiceId: choice.choiceId,
+        ...(reason !== undefined && { feedback: reason }),
+      })
+    } catch (error: unknown) {
+      // A Muse Code fault means the decision applied while its reply
+      // was spoiled: the scheduled run goes on with the host's events.
+      if (!isMuseCodeFaultError(error)) {
+        throw error
+      }
+      this.log.info(
+        `Scheduled approval ${event.approvalId} decision applied while Muse Code faulted: ${failureForLog(error)}`,
+      )
+    }
   }
 
   private async admitScheduled(
@@ -1998,6 +2017,10 @@ export class MuseSession implements ScheduledAgentSession {
       // fault); the card follows the host's resolve.
       return fault
     }
+    const persistence = faultOr(error, 'approvalPersistence')
+    if (persistence !== error && error instanceof MspError) {
+      return await this.persistenceOutcome(requirementId, persistence, error)
+    }
     // No answer (the deadline, a closed connection): the command may still
     // be queued in a busy Muse Code and apply later. On 2026-10-02 one sent
     // at 23:49:40 was taken in at 23:52:33, after two more for the same
@@ -2009,7 +2032,7 @@ export class MuseSession implements ScheduledAgentSession {
       )
       return error
     }
-    if (await this.isStillWaiting(requirementId)) {
+    if ((await this.isStillWaiting(requirementId)) === true) {
       this.prompts.unmarkDecided(requirementId)
       return new DecisionNotAppliedError(error.message)
     }
@@ -2019,15 +2042,16 @@ export class MuseSession implements ScheduledAgentSession {
   /**
   Whether the host, which answered the decision with a refusal, still
   waits on this very stage: then the decision did not apply and may be
-  made again. A check that fails cannot tell, and the stage stays decided.
+  made again. Undefined when the check itself fails: it cannot tell,
+  and the stage stays decided either way.
   */
-  private async isStillWaiting(requirementId: RequirementRef): Promise<boolean> {
+  private async isStillWaiting(requirementId: RequirementRef): Promise<boolean | undefined> {
     let pending: z.infer<typeof listPendingResultSchema>
     try {
       pending = listPendingResultSchema.parse(await this.command('approval/listPending', {}))
     } catch (error: unknown) {
       this.log.warn(`approval/listPending after a failed decision failed: ${failureForLog(error)}`)
-      return false
+      return undefined
     }
     return pending.approvals.some((params) => {
       const parsed = pendingStageSchema.safeParse(params)
@@ -2037,6 +2061,116 @@ export class MuseSession implements ScheduledAgentSession {
         parsed.data.currentRequirementId.sourceIndex === requirementId.sourceIndex
       )
     })
+  }
+
+  /**
+  What the worded persistence timeout means (RLF-HARVEST H1, captured
+  2026-10-30): Muse Code answers "the decision may still apply", and an
+  immediate `approval/listPending` can still name the decided stage
+  moments before its own stage update shows it applied. The fault is
+  returned only once the stage is seen advanced; while it still reads
+  waiting, the host's own stage event gets the last word, and only a
+  stage still waiting after that (or after the settle window) is
+  offered again as not applied. Never by the -32603 code alone: the
+  wording names this condition.
+  */
+  private async persistenceOutcome(
+    requirementId: RequirementRef,
+    fault: unknown,
+    error: MspError,
+  ): Promise<unknown> {
+    const { approvalId } = requirementId
+    if ((await this.stageAdvanced(requirementId)) === true) {
+      this.log.info(
+        `Approval ${approvalId} stage ${String(requirementId.sourceIndex)}: Muse Code timed out saving the decision, but applied it`,
+      )
+      return fault
+    }
+    await this.waitForStageEvent(approvalId)
+    const advanced = await this.stageAdvanced(requirementId)
+    if (advanced === true) {
+      this.log.info(
+        `Approval ${approvalId} stage ${String(requirementId.sourceIndex)}: Muse Code timed out saving the decision, but its stage update shows it applied`,
+      )
+      return fault
+    }
+    if (advanced === undefined) {
+      // The pending check itself failed twice: nothing here proves the
+      // decision did not apply, so the stage stays decided (as for a
+      // decision with no answer) and the card follows the host's events.
+      this.log.info(
+        `Approval ${approvalId} stage ${String(requirementId.sourceIndex)}: Muse Code timed out saving the decision and the pending check cannot tell whether it applied; it is not offered again`,
+      )
+      return error
+    }
+    this.log.info(
+      `Approval ${approvalId} stage ${String(requirementId.sourceIndex)}: Muse Code timed out saving the decision and still waits on it; it may be made again`,
+    )
+    this.prompts.unmarkDecided(requirementId)
+    return new DecisionNotAppliedError(error.message)
+  }
+
+  /**
+  Whether Muse Code has moved past this stage: the ledger's current
+  stage, a closed approval, or `approval/listPending` no longer naming
+  it. Undefined when only the host could tell and its check failed;
+  `isStillWaiting` logs that check.
+  */
+  private async stageAdvanced(requirementId: RequirementRef): Promise<boolean | undefined> {
+    const pending = this.prompts.pending(requirementId.approvalId)
+    const hasMovedLocally =
+      pending !== undefined && pending.requirementId.sourceIndex !== requirementId.sourceIndex
+    if (hasMovedLocally || this.prompts.isClosed(requirementId.approvalId)) {
+      return true
+    }
+    const waiting = await this.isStillWaiting(requirementId)
+    return waiting === undefined ? undefined : !waiting
+  }
+
+  /** Told when an approval's stage news lands (the persistence re-check). */
+  private noteStageEvent(approvalId: string): void {
+    const waiters = this.stageWaiters.get(approvalId)
+    if (waiters === undefined) {
+      return
+    }
+    this.stageWaiters.delete(approvalId)
+    for (const settle of waiters) {
+      settle()
+    }
+  }
+
+  /**
+  Wait for the host's next stage news on this approval, at most the
+  settle window (`APPROVAL_PERSISTENCE_SETTLE_MS`): expiry is not an
+  error here, it just sends the caller to its final pending read.
+  */
+  private async waitForStageEvent(approvalId: string): Promise<void> {
+    let settle!: () => void
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- Node 20 (VS Code 1.99's host) lacks Promise.withResolvers (PLAN.md §8); the executor assigns the resolver synchronously, so the settlement always has one.
+    const settled = new Promise<void>((resolve) => {
+      settle = resolve
+    })
+    const waiters = this.stageWaiters.get(approvalId) ?? new Set<() => void>()
+    waiters.add(settle)
+    this.stageWaiters.set(approvalId, waiters)
+    const settleMs =
+      this.channel.timeouts.approvalPersistenceSettleMs ?? APPROVAL_PERSISTENCE_SETTLE_MS
+    try {
+      await withDeadline(
+        settled,
+        settleMs,
+        `no stage news for approval ${approvalId} within ${String(settleMs)} ms`,
+      )
+    } catch (error: unknown) {
+      if (!(error instanceof DeadlineError)) {
+        throw error
+      }
+    } finally {
+      waiters.delete(settle)
+      if (waiters.size === 0) {
+        this.stageWaiters.delete(approvalId)
+      }
+    }
   }
 
   /**
@@ -2225,6 +2359,7 @@ export class MuseSession implements ScheduledAgentSession {
   public receive(mapped: MappedNotification, isReplay = false): void {
     if ('closedApprovalId' in mapped) {
       this.prompts.close(mapped.closedApprovalId)
+      this.noteStageEvent(mapped.closedApprovalId)
       return
     }
     this.usageDeltas?.receive(mapped.event, isReplay)
@@ -2341,6 +2476,7 @@ export class MuseSession implements ScheduledAgentSession {
     switch (admitted.type) {
       case 'approvalRequested':
       case 'approvalUpdated': {
+        this.noteStageEvent(admitted.approvalId)
         const ownership =
           admitted.type === 'approvalRequested'
             ? (this.scheduledItems.get(admitted.itemId) ?? fire)
@@ -2389,6 +2525,7 @@ export class MuseSession implements ScheduledAgentSession {
         break
       }
       case 'approvalResolved': {
+        this.noteStageEvent(admitted.approvalId)
         this.scheduledApprovals.delete(admitted.approvalId)
         break
       }

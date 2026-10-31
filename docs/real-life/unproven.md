@@ -3370,3 +3370,34 @@ ends the helper; a run whose helper writes no file delivers nothing.
 Unproven until a recording runs on a desktop with xdg-desktop-portal: the
 pipeline the driver builds for sound, the descriptor reaching GStreamer, and
 a setup failure leaving no portal session or file behind.
+
+## Lane RLF-NOSTUBS (2026-10-30, branch rec/rlf-nostubs)
+
+Cases the 2026-10-17 real-code-only rule moved off stand-ins that only a
+live dependency proves. Per-item record: `docs/certification/rlf-nostubs.md`.
+
+### test/unit/subscriptionCredential.test.ts (the down-store redaction case; the rest stays over real temp files)
+
+- `redactionKeys()` contributes no pasted literal when the OS secret store
+  is down (`StoreUnavailableError`), instead of breaking the save. The old
+  case rejected a hand-written `getApiKey`; no unit test can fail the real
+  OS store, so real use proves it: on a Linux machine, sign the packed
+  agent in (the Model API key stored in secret-service), start a headless
+  run that saves sessions, then stop secret-service so key reads fail
+  while the run continues; the saves succeed and the persisted session
+  files carry no pasted-key literal.
+
+### test/unit/mediaJobRun.test.ts (the stalled-share sample cases; the rest stays over real runs)
+
+- `settles a running encoder whose output stat never answers (a stalled share)`: the bounded sample fails the conversion instead of hanging, and the encoder is ended. The old case injected a never-settling `statOutput`; only a genuinely stalled filesystem proves it: on a Windows machine, map a network share, start a media conversion whose output lands on the share, then stall the share mid-conversion (disconnect the network or suspend the server); the conversion fails bounded with the job failure and no encoder process is left behind.
+- `settles an encoder that exits cleanly whose output stat never answers (a stalled share)`: same stall with an encoder that exits 0; the conversion still fails bounded. Same real-life steps with a conversion that finishes while the share is stalled.
+
+### test/unit/providerSpendTerminal.test.ts (the report-content cases; refusals, key isolation, windows and auth stay over the real temp file and loopback)
+
+The old cases scripted provider answers the suite invented (`ANTHROPIC_USAGE`, `ANTHROPIC_COST`, DeepSeek and OpenRouter bodies) for request shapes `src/core/providers/providerSpend.ts` marks UNVERIFIED (documentation research, never a live capture). Only the live APIs prove the shapes and the rendering; the live run below also verifies each request shape, and a capture from it is what a future content test must be written from (AGENTS.md rule 14).
+
+- `shows the provider figures next to our estimate and the difference`: the Anthropic usage and cost reports render beside the journal's estimate with the difference, and both report requests carry the admin key alone. Real use proves it: sign the packed agent in, store an Anthropic admin key (`auth set --provider anthropic --admin`) and an inference key (`auth set --provider anthropic`), make some metered Model API use so the journal holds an estimate, then run `providers usage anthropic --days 9`; the report shows Anthropic's figures with `Our estimate` and the difference, and a capture of the two report requests shows the admin key on both and the inference key on neither.
+- `emits machine-readable JSON on request`: `providers usage anthropic --days 30 --output json` prints the provider, the report's total and the estimate as JSON. Same setup as above; the printed JSON carries the live report total and the journal estimate.
+- `shows provider figures alone when the journal recorded nothing`: with no journal spend for the provider the report shows alone, never against a zero. Same setup with a fresh journal (no metered use yet); the report shows with no `Our estimate` line.
+- `shows the DeepSeek balance with no comparison`: the DeepSeek balance renders with no estimate comparison. Store a DeepSeek key (`auth set --provider deepseek`), then run `providers usage deepseek --days 30`; the balance and currency show with no difference line.
+- `shows OpenRouter key usage from the captured fields`: the OpenRouter key report renders. Store an OpenRouter key (`auth set --provider openrouter`), then run `providers usage openrouter --days 30`; the key usage shows.

@@ -49,7 +49,11 @@ import {
 } from '../../models/sessionBudget'
 import { createProvidersHost, type ProvidersHost } from '../providers/providersHost'
 import type { ModelScan, ScanStore } from '../../providers/modelScans'
-import type { PendingRemoval, RemovalStore } from '../../providers/providerRemoval'
+import {
+  systemRemovalClock,
+  type PendingRemoval,
+  type RemovalStore,
+} from '../../providers/providerRemoval'
 import type {
   ModelsPanelSeam,
   ProviderEntry,
@@ -394,17 +398,7 @@ export function createModelsPanelFeatures(
     scanStore: scanStoreOver(host.globalState),
     removalStore: removalStoreOver(host.globalState),
     startLoopback: (state) => startOAuthLoopback(state),
-    clock: {
-      now: () => Date.now(),
-      schedule: (ms, run) => {
-        const timer = setTimeout(run, ms)
-        return {
-          cancel: () => {
-            clearTimeout(timer)
-          },
-        }
-      },
-    },
+    clock: systemRemovalClock(),
     // M95 step 1: the probe never uses VS Code's patched fetch (it honors
     // the user's proxy, and loopback needs no proxy at all).
     loopbackFetch: fetchLoopback,

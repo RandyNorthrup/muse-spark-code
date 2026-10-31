@@ -1,5 +1,6 @@
 import { Duplex } from 'node:stream'
 import { spawnSync } from 'node:child_process'
+import { connect } from 'node:net'
 import {
   constants,
   openSync,
@@ -34,6 +35,7 @@ import {
   WINDOWS_VAULT_PIPE_RELAY_VERSION,
   windowsVaultPipeClientSchema,
   windowsVaultPipeFaultSchema,
+  isVaultPipeServerTrusted,
   windowsVaultPipeNameSchema,
   windowsVaultPipeReadySchema,
   windowsVaultPipeServerResultSchema,
@@ -41,6 +43,7 @@ import {
   type WindowsVaultPipeClient,
   type WindowsVaultPipeHelper,
 } from '../../core/vault/broker/windowsPipe'
+import type { VaultPipeDialPort } from '../../core/vault/broker/peer'
 import type { VaultPrivateFilesPort, VaultFileWriter } from '../../core/vault/broker/files'
 import { isVaultFileMissing, privateFileWriter } from '../../core/vault/broker/files'
 import { drainSlotStderr, watchSlotChildErrors } from './slots/slotChild'
@@ -513,6 +516,28 @@ export async function inspectWindowsPipeServer(
       pipe,
     }),
   )
+}
+
+/**
+The dialer a Windows client verifies a broker's pipe with: the pipe server's
+owner, read natively through the files-mode helper, then the pipe socket
+(RVCM1091A F9). The host's client and the feeder dial the same way.
+*/
+export function windowsVaultPipeDial(relay: PipeRelay, ownerSid: string): VaultPipeDialPort {
+  return {
+    verifyPipe: async (pipe) => {
+      const answer = await inspectWindowsPipeServer(relay, pipe)
+      if (!isVaultPipeServerTrusted(answer, ownerSid) || answer.server === null)
+        throw new Error(UI_TEXT.vault.noAccess)
+      return {
+        processId: answer.server.processId,
+        userId: answer.server.userId,
+        startedAt: answer.server.startedAt,
+        executable: answer.server.executable,
+      }
+    },
+    connectPipe: (pipe) => connect(pipe),
+  }
 }
 
 /** Natively identify any process, for broker discovery liveness on Windows. */
