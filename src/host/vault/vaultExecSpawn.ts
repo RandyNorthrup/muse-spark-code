@@ -15,6 +15,21 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises'
 import type { ShellTimeLimit } from '../../core/backends/modelapi/tools'
 import { type ShellResult, unstartedShell, refusedShellEntry } from '../../core/shellResult'
 import { vaultFenceEnvironment } from '../../core/vault/exec/fence'
+
+/**
+The feeder's own environment. The command fence drops `XDG_RUNTIME_DIR`
+so a command cannot see the per-user runtime directory; on Linux that is
+also where the broker binds its socket. The feeder has to keep the
+directory to recognize that socket, and the command is fenced again from
+the feeder's environment, so the command still does not receive it.
+*/
+export function feederProcessEnvironment(source: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const env = vaultFenceEnvironment(source)
+  const runtimeDir = source['XDG_RUNTIME_DIR']
+  if (runtimeDir !== undefined && path.posix.isAbsolute(runtimeDir))
+    env['XDG_RUNTIME_DIR'] = runtimeDir
+  return env
+}
 import { type VaultExecFeederPort } from '../../core/vault/exec/feeder'
 import { setLongTimeout } from '../../core/timeouts'
 import { realpathSync } from 'node:fs'
@@ -70,7 +85,7 @@ export async function spawnVaultFeeder(
     bytes.fill(0)
     return unstartedShell(UI_TEXT.vault.noAccess)
   }
-  const env = vaultFenceEnvironment(deps.env())
+  const env = feederProcessEnvironment(deps.env())
   if (deps.runAsNode) env['ELECTRON_RUN_AS_NODE'] = '1'
   let child: ChildProcess
   const startedAt = Date.now()
