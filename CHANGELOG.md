@@ -40,6 +40,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Editor hosts for JetBrains IDEs and Eclipse, plus shims for Emacs,
+  Neovim, Zed and Qt Creator.** The JetBrains and Eclipse plugins carry
+  the panel in the editor over the real runtime; their conformance
+  suites pass 9 checks each (diff hunks, diagnostics, settings, panel
+  order, checkpoints), with live-conversation checks still to run. The
+  Emacs, Neovim, Zed and Qt Creator shims launch the agent with
+  credentials stripped. Sublime Text, Visual Studio and Xcode hosts
+  are in the tree but not yet run in their editors.
 - **`muse-spark-code-acp watchdog` keeps a watch list of GitHub repositories
   in a terminal.** `watchdog list` and `status` show the watched
   repositories, `pause` and `resume` stop and restart watching, and `policy`
