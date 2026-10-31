@@ -9425,11 +9425,12 @@ written. Record: `docs/certification/cc-rlm116.md`.
 
 ### D226 — One MHP version in every native host (lead, lane RLM104, 2026-10-22; numbered D212 on its branch until the cc/rlm104 re-land of 2026-10-24)
 
-Every native host negotiates `MHP.version` (`mhp/1.5.0`, wire `1.5`, range
+Every native host negotiates `MHP.version` (`mhp/1.5.1`, wire `1.5`, range
 to exclusive `mhp/1.6.0`) or refuses with `MHP_INCOMPATIBLE_VERSION`; no
 older route, tag, schema or test survives. Both legacy-named snapshots and
-locks advertise 1.5.0; a new revision regenerates every schema, lock and
-host together. Record: `docs/certification/cc-rlm104.md`.
+locks advertise 1.5.1; a new revision regenerates every schema, lock and
+host together. 1.5.1 (lane RLF-QUOTA, D229) carries the quota detail on
+`turnCompleted` and `turnRetry`. Record: `docs/certification/cc-rlm104.md`.
 
 ### D227 — Teams stay off until the person sets up a second model (RLF-TEAMGATE, 2026-10-23; numbered D217 on its branch until the int/recovery join of 2026-10-30, when that number was found shared with the judge fast path's `stat`)
 

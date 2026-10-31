@@ -1,6 +1,6 @@
 {
-  "protocol": "mhp/1.5.0",
-  "range": { "minimum": "mhp/1.5.0", "maximumExclusive": "mhp/1.6.0" },
+  "protocol": "mhp/1.5.1",
+  "range": { "minimum": "mhp/1.5.1", "maximumExclusive": "mhp/1.6.0" },
   "capabilities": [
     "lifecycle",
     "workspace",
@@ -279,7 +279,7 @@
           "result": {
             "type": "object",
             "properties": {
-              "protocolVersion": { "type": "string", "const": "mhp/1.5.0" },
+              "protocolVersion": { "type": "string", "const": "mhp/1.5.1" },
               "capabilities": {
                 "type": "array",
                 "items": {
@@ -10270,7 +10270,8 @@
                                       "type": "string",
                                       "enum": [
                                         "schedules/backgroundStatus",
-                                        "schedules/backgroundRemove"
+                                        "schedules/backgroundRemove",
+                                        "schedules/backgroundMaintain"
                                       ]
                                     }
                                   },
@@ -10753,6 +10754,16 @@
                       "type": "object",
                       "properties": { "type": { "type": "string", "const": "stopAllTeamTasks" } },
                       "required": ["type"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "moveTeamTask" },
+                        "taskId": { "type": "string" },
+                        "role": { "type": "string" }
+                      },
+                      "required": ["type", "taskId", "role"],
                       "additionalProperties": false
                     },
                     {
@@ -11650,7 +11661,12 @@
                                 "unhandledRejection",
                                 "reactBoundary",
                                 "errorNotice",
-                                "judgeFastSkip"
+                                "judgeFastSkip",
+                                "signInStarted",
+                                "signInSucceeded",
+                                "signInFailed",
+                                "cliProbe",
+                                "backendResolved"
                               ]
                             },
                             "entryIndex": {
@@ -11661,6 +11677,21 @@
                           },
                           "required": ["kind", "entryIndex"],
                           "additionalProperties": false
+                        },
+                        "panelState": {
+                          "type": "string",
+                          "enum": [
+                            "starting",
+                            "landingNoCli",
+                            "landingInstalling",
+                            "landingSignedOut",
+                            "landingSigningIn",
+                            "landingError",
+                            "ready",
+                            "turnRunning",
+                            "turnFailed",
+                            "questionWaiting"
+                          ]
                         }
                       },
                       "required": ["type"],
@@ -13711,6 +13742,10 @@
                           },
                           "required": ["day", "week"],
                           "additionalProperties": false
+                        },
+                        "insightsState": {
+                          "type": "string",
+                          "enum": ["empty", "behind", "unavailable"]
                         },
                         "providers": {
                           "type": "array",
@@ -19021,7 +19056,16 @@
                                 "reason": { "type": "string" },
                                 "errorKind": { "type": "string" },
                                 "retryable": { "type": "boolean" },
-                                "durationMs": { "type": "number" }
+                                "durationMs": { "type": "number" },
+                                "quota": {
+                                  "type": "object",
+                                  "properties": {
+                                    "limitKind": { "type": "string" },
+                                    "resetsAtMs": { "type": "number" }
+                                  },
+                                  "required": ["limitKind", "resetsAtMs"],
+                                  "additionalProperties": false
+                                }
                               },
                               "required": ["type", "turnId", "terminal"],
                               "additionalProperties": false
@@ -19038,7 +19082,16 @@
                                 "nextAttempt": { "type": "number" },
                                 "system": { "type": "string" },
                                 "errorKind": { "type": "string" },
-                                "httpStatus": { "type": "number" }
+                                "httpStatus": { "type": "number" },
+                                "quota": {
+                                  "type": "object",
+                                  "properties": {
+                                    "limitKind": { "type": "string" },
+                                    "resetsAtMs": { "type": "number" }
+                                  },
+                                  "required": ["limitKind", "resetsAtMs"],
+                                  "additionalProperties": false
+                                }
                               },
                               "required": ["type", "turnId", "attempt", "retryDelayMs", "reason"],
                               "additionalProperties": false
@@ -19889,7 +19942,12 @@
                                 "unhandledRejection",
                                 "reactBoundary",
                                 "errorNotice",
-                                "judgeFastSkip"
+                                "judgeFastSkip",
+                                "signInStarted",
+                                "signInSucceeded",
+                                "signInFailed",
+                                "cliProbe",
+                                "backendResolved"
                               ]
                             },
                             "entryIndex": {
@@ -23620,7 +23678,12 @@
                                 "unhandledRejection",
                                 "reactBoundary",
                                 "errorNotice",
-                                "judgeFastSkip"
+                                "judgeFastSkip",
+                                "signInStarted",
+                                "signInSucceeded",
+                                "signInFailed",
+                                "cliProbe",
+                                "backendResolved"
                               ]
                             },
                             "entryIndex": {
@@ -24041,7 +24104,9 @@
                         "text": { "type": "string" },
                         "hash": { "type": "string", "minLength": 64, "maxLength": 64 },
                         "canUseVscodeReporter": { "type": "boolean" },
-                        "recordingUnavailable": { "type": "boolean" }
+                        "recordingUnavailable": { "type": "boolean" },
+                        "connectHint": { "type": "boolean" },
+                        "rebuildFailed": { "type": "boolean" }
                       },
                       "required": [
                         "type",
@@ -24055,8 +24120,15 @@
                         "text",
                         "hash",
                         "canUseVscodeReporter",
-                        "recordingUnavailable"
+                        "recordingUnavailable",
+                        "connectHint"
                       ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": { "type": { "type": "string", "const": "reportFailed" } },
+                      "required": ["type"],
                       "additionalProperties": false
                     },
                     {
@@ -27894,7 +27966,8 @@
                                                             "type": "string",
                                                             "enum": [
                                                               "schedules/backgroundStatus",
-                                                              "schedules/backgroundRemove"
+                                                              "schedules/backgroundRemove",
+                                                              "schedules/backgroundMaintain"
                                                             ]
                                                           }
                                                         },
@@ -28581,6 +28654,16 @@
                                               }
                                             },
                                             "required": ["type"],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "type": { "type": "string", "const": "moveTeamTask" },
+                                              "taskId": { "type": "string" },
+                                              "role": { "type": "string" }
+                                            },
+                                            "required": ["type", "taskId", "role"],
                                             "additionalProperties": false
                                           },
                                           {
@@ -29742,7 +29825,12 @@
                                                       "unhandledRejection",
                                                       "reactBoundary",
                                                       "errorNotice",
-                                                      "judgeFastSkip"
+                                                      "judgeFastSkip",
+                                                      "signInStarted",
+                                                      "signInSucceeded",
+                                                      "signInFailed",
+                                                      "cliProbe",
+                                                      "backendResolved"
                                                     ]
                                                   },
                                                   "entryIndex": {
@@ -29753,6 +29841,21 @@
                                                 },
                                                 "required": ["kind", "entryIndex"],
                                                 "additionalProperties": false
+                                              },
+                                              "panelState": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "starting",
+                                                  "landingNoCli",
+                                                  "landingInstalling",
+                                                  "landingSignedOut",
+                                                  "landingSigningIn",
+                                                  "landingError",
+                                                  "ready",
+                                                  "turnRunning",
+                                                  "turnFailed",
+                                                  "questionWaiting"
+                                                ]
                                               }
                                             },
                                             "required": ["type"],
@@ -33040,7 +33143,11 @@
                             "properties": {
                               "method": {
                                 "type": "string",
-                                "enum": ["schedules/backgroundStatus", "schedules/backgroundRemove"]
+                                "enum": [
+                                  "schedules/backgroundStatus",
+                                  "schedules/backgroundRemove",
+                                  "schedules/backgroundMaintain"
+                                ]
                               }
                             },
                             "required": ["method"],
@@ -33522,6 +33629,16 @@
                 "type": "object",
                 "properties": { "type": { "type": "string", "const": "stopAllTeamTasks" } },
                 "required": ["type"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "moveTeamTask" },
+                  "taskId": { "type": "string" },
+                  "role": { "type": "string" }
+                },
+                "required": ["type", "taskId", "role"],
                 "additionalProperties": false
               },
               {
@@ -34357,13 +34474,33 @@
                           "unhandledRejection",
                           "reactBoundary",
                           "errorNotice",
-                          "judgeFastSkip"
+                          "judgeFastSkip",
+                          "signInStarted",
+                          "signInSucceeded",
+                          "signInFailed",
+                          "cliProbe",
+                          "backendResolved"
                         ]
                       },
                       "entryIndex": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
                     },
                     "required": ["kind", "entryIndex"],
                     "additionalProperties": false
+                  },
+                  "panelState": {
+                    "type": "string",
+                    "enum": [
+                      "starting",
+                      "landingNoCli",
+                      "landingInstalling",
+                      "landingSignedOut",
+                      "landingSigningIn",
+                      "landingError",
+                      "ready",
+                      "turnRunning",
+                      "turnFailed",
+                      "questionWaiting"
+                    ]
                   }
                 },
                 "required": ["type"],
@@ -36327,6 +36464,7 @@
                     "required": ["day", "week"],
                     "additionalProperties": false
                   },
+                  "insightsState": { "type": "string", "enum": ["empty", "behind", "unavailable"] },
                   "providers": {
                     "type": "array",
                     "items": {
@@ -41479,7 +41617,16 @@
                           "reason": { "type": "string" },
                           "errorKind": { "type": "string" },
                           "retryable": { "type": "boolean" },
-                          "durationMs": { "type": "number" }
+                          "durationMs": { "type": "number" },
+                          "quota": {
+                            "type": "object",
+                            "properties": {
+                              "limitKind": { "type": "string" },
+                              "resetsAtMs": { "type": "number" }
+                            },
+                            "required": ["limitKind", "resetsAtMs"],
+                            "additionalProperties": false
+                          }
                         },
                         "required": ["type", "turnId", "terminal"],
                         "additionalProperties": false
@@ -41496,7 +41643,16 @@
                           "nextAttempt": { "type": "number" },
                           "system": { "type": "string" },
                           "errorKind": { "type": "string" },
-                          "httpStatus": { "type": "number" }
+                          "httpStatus": { "type": "number" },
+                          "quota": {
+                            "type": "object",
+                            "properties": {
+                              "limitKind": { "type": "string" },
+                              "resetsAtMs": { "type": "number" }
+                            },
+                            "required": ["limitKind", "resetsAtMs"],
+                            "additionalProperties": false
+                          }
                         },
                         "required": ["type", "turnId", "attempt", "retryDelayMs", "reason"],
                         "additionalProperties": false
@@ -42282,7 +42438,12 @@
                           "unhandledRejection",
                           "reactBoundary",
                           "errorNotice",
-                          "judgeFastSkip"
+                          "judgeFastSkip",
+                          "signInStarted",
+                          "signInSucceeded",
+                          "signInFailed",
+                          "cliProbe",
+                          "backendResolved"
                         ]
                       },
                       "entryIndex": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
@@ -45819,7 +45980,12 @@
                           "unhandledRejection",
                           "reactBoundary",
                           "errorNotice",
-                          "judgeFastSkip"
+                          "judgeFastSkip",
+                          "signInStarted",
+                          "signInSucceeded",
+                          "signInFailed",
+                          "cliProbe",
+                          "backendResolved"
                         ]
                       },
                       "entryIndex": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
@@ -46215,7 +46381,9 @@
                   "text": { "type": "string" },
                   "hash": { "type": "string", "minLength": 64, "maxLength": 64 },
                   "canUseVscodeReporter": { "type": "boolean" },
-                  "recordingUnavailable": { "type": "boolean" }
+                  "recordingUnavailable": { "type": "boolean" },
+                  "connectHint": { "type": "boolean" },
+                  "rebuildFailed": { "type": "boolean" }
                 },
                 "required": [
                   "type",
@@ -46229,8 +46397,15 @@
                   "text",
                   "hash",
                   "canUseVscodeReporter",
-                  "recordingUnavailable"
+                  "recordingUnavailable",
+                  "connectHint"
                 ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": { "type": { "type": "string", "const": "reportFailed" } },
+                "required": ["type"],
                 "additionalProperties": false
               },
               {
@@ -49857,7 +50032,8 @@
                                                       "type": "string",
                                                       "enum": [
                                                         "schedules/backgroundStatus",
-                                                        "schedules/backgroundRemove"
+                                                        "schedules/backgroundRemove",
+                                                        "schedules/backgroundMaintain"
                                                       ]
                                                     }
                                                   },
@@ -50456,6 +50632,16 @@
                                         "type": { "type": "string", "const": "stopAllTeamTasks" }
                                       },
                                       "required": ["type"],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": { "type": "string", "const": "moveTeamTask" },
+                                        "taskId": { "type": "string" },
+                                        "role": { "type": "string" }
+                                      },
+                                      "required": ["type", "taskId", "role"],
                                       "additionalProperties": false
                                     },
                                     {
@@ -51484,7 +51670,12 @@
                                                 "unhandledRejection",
                                                 "reactBoundary",
                                                 "errorNotice",
-                                                "judgeFastSkip"
+                                                "judgeFastSkip",
+                                                "signInStarted",
+                                                "signInSucceeded",
+                                                "signInFailed",
+                                                "cliProbe",
+                                                "backendResolved"
                                               ]
                                             },
                                             "entryIndex": {
@@ -51495,6 +51686,21 @@
                                           },
                                           "required": ["kind", "entryIndex"],
                                           "additionalProperties": false
+                                        },
+                                        "panelState": {
+                                          "type": "string",
+                                          "enum": [
+                                            "starting",
+                                            "landingNoCli",
+                                            "landingInstalling",
+                                            "landingSignedOut",
+                                            "landingSigningIn",
+                                            "landingError",
+                                            "ready",
+                                            "turnRunning",
+                                            "turnFailed",
+                                            "questionWaiting"
+                                          ]
                                         }
                                       },
                                       "required": ["type"],

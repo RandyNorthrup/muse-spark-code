@@ -10752,8 +10752,10 @@ export const HANDOFF_NOTE =
 // credential is a protocol value.
 export const MHP_ZERO_VERSION_COMPONENT = 0n
 export const MHP = {
-  version: 'mhp/1.5.0',
-  minimumVersion: 'mhp/1.5.0',
+  // RLF-QUOTA (D229): 1.5.1 carries the quota detail on turnCompleted and
+  // turnRetry; one version everywhere (D226), so the minimum moves with it.
+  version: 'mhp/1.5.1',
+  minimumVersion: 'mhp/1.5.1',
   maximumVersionExclusive: 'mhp/1.6.0',
   jsonRpcVersion: '2.0',
   // Number.MAX_SAFE_INTEGER as a literal: a property read on a global keeps
@@ -10786,9 +10788,9 @@ export const MHP_PRESENTATION = {
 } as const
 
 export const MHP_PANEL = {
-  version: 'mhp/1.5.0',
+  version: 'mhp/1.5.1',
   wireVersion: '1.5',
-  minimumVersion: 'mhp/1.5.0',
+  minimumVersion: 'mhp/1.5.1',
   maximumVersionExclusive: 'mhp/1.6.0',
   maximumEnvelopeBytes: 16_777_216,
   maximumQueuedBytes: 33_554_432,
