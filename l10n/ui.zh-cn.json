@@ -4370,7 +4370,9 @@
     "macos": "macOS 钥匙串",
     "linux": "Secret Service 密钥环"
   },
-  "acpNoModels": "后端没有提供此代理可用的模型。",
+  "acpNoModels": "后端没有提供此代理可用的模型。请检查是否已登录或已保存密钥，以及此计算机能否连接到提供商的服务器，然后重试。",
+  "acpFolderNotAbsolute": "编辑器必须以完整路径给出要打开的文件夹。",
+  "acpFolderMissing": "无法使用要打开的文件夹：它不存在、不是文件夹，或此帐户无权打开。请检查路径后重新打开。",
   "acpPromptBusy": "此会话中已有一个提示正在运行。",
   "acpSessionStartFailed": "会话无法启动（{detail}）。详细信息见 Muse Spark 日志。",
   "acpTurnStartFailed": "本轮无法启动（{detail}）。详细信息见 Muse Spark 日志。",
@@ -4389,6 +4391,12 @@
     "unloadableSource": "原生辅助程序 {helper} 已构建，但此计算机无法运行它（它可能已损坏、被系统阻止，或是为其他处理器构建的），因此无法启动。请用“{command}”重新构建它，然后重试。",
     "unsupported": "Muse Spark Code 未提供适用于 {arch} 上 {platform} 的原生辅助程序，因此无法启动。",
     "windowsJob": "无法准备 Windows 作业辅助程序，因此无法启动。Muse Spark Code 会在首次使用时用 Windows PowerShell 5.1 从其 native/windows 文件夹中的文件编译它：请重新安装 Muse Spark Code，并检查 Windows PowerShell 能否启动、安全软件是否阻止了它。"
+  },
+  "museStart": {
+    "authFile": "Muse Code 无法读取其登录文件（其配置文件夹中的 muse/auth.json），因此未启动。请修复或删除该文件，然后重新登录。",
+    "authSchema": "Muse Code 的登录文件格式（版本 {version}）不受此 Muse Code 支持，因此未启动。请删除该文件（其配置文件夹中的 muse/auth.json）并重新登录，或更新 Muse Code。",
+    "cannotRun": "此计算机未运行 Muse Code（退出状态 {code}），因此无法启动。请检查该文件是否为 Muse Code 程序以及您是否有权运行它，或重新安装。",
+    "exited": "Muse Code 在启动时停止（退出状态 {code}），因此无法启动。详细信息在 Muse Spark 日志中；在终端运行“muse serve”可查看 Muse Code 的输出。"
   },
   "acpQuestionFormMessage": "Muse 有一个问题要问你。",
   "acpQuestionAsked": "Muse 有一个问题；此编辑器无法以表单形式显示，请在下一条消息中回答：",

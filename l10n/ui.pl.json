@@ -4619,7 +4619,9 @@
     "macos": "Pęk kluczy macOS",
     "linux": "pęk kluczy usługi Secret Service"
   },
-  "acpNoModels": "Backend nie oferuje żadnego modelu, którego ten agent może użyć.",
+  "acpNoModels": "Backend nie oferuje żadnego modelu, którego ten agent może użyć. Sprawdź, czy jesteś zalogowany lub masz zapisany klucz oraz czy ten komputer może połączyć się z serwerem dostawcy, a następnie spróbuj ponownie.",
+  "acpFolderNotAbsolute": "Edytor musi podać folder do otwarcia jako pełną ścieżkę.",
+  "acpFolderMissing": "Folderu do otwarcia nie można użyć: nie istnieje, nie jest folderem albo to konto nie może go otworzyć. Sprawdź ścieżkę i otwórz go ponownie.",
   "acpPromptBusy": "W tej sesji jest już uruchomiony prompt.",
   "acpSessionStartFailed": "Nie udało się uruchomić sesji ({detail}). Szczegóły w dzienniku Muse Spark.",
   "acpTurnStartFailed": "Nie udało się uruchomić tury ({detail}). Szczegóły w dzienniku Muse Spark.",
@@ -4638,6 +4640,12 @@
     "unloadableSource": "Natywny pomocnik {helper} jest zbudowany, ale ten komputer nie może go uruchomić (może być uszkodzony, zablokowany przez system lub zbudowany dla innego procesora), więc nie udało się tego uruchomić. Zbuduj go ponownie poleceniem „{command}” i spróbuj ponownie.",
     "unsupported": "Muse Spark Code nie zawiera natywnego pomocnika dla systemu {platform} na architekturze {arch}, więc nie udało się tego uruchomić.",
     "windowsJob": "Nie udało się przygotować pomocnika zadań systemu Windows, więc nie udało się tego uruchomić. Muse Spark Code kompiluje go przy pierwszym użyciu w Windows PowerShell 5.1 z plików w swoim folderze native/windows: zainstaluj Muse Spark Code ponownie i sprawdź, czy Windows PowerShell się uruchamia i czy oprogramowanie zabezpieczające go nie blokuje."
+  },
+  "museStart": {
+    "authFile": "Muse Code nie mógł odczytać swojego pliku logowania (muse/auth.json w swoim folderze konfiguracji), więc się nie uruchomił. Napraw lub usuń ten plik, a potem zaloguj się ponownie.",
+    "authSchema": "Plik logowania Muse Code ma format, którego ten Muse Code nie obsługuje (wersja {version}), więc się nie uruchomił. Usuń plik (muse/auth.json w jego folderze konfiguracji) i zaloguj się ponownie albo zaktualizuj Muse Code.",
+    "cannotRun": "Ten komputer nie uruchomił Muse Code (kod zakończenia {code}), więc nie udało się tego uruchomić. Sprawdź, czy plik to program Muse Code i czy wolno ci go uruchomić, lub zainstaluj go ponownie.",
+    "exited": "Muse Code zatrzymał się podczas uruchamiania (kod zakończenia {code}), więc nie udało się tego uruchomić. Szczegóły są w dzienniku Muse Spark; uruchomienie „muse serve” w terminalu pokaże, co mówi Muse Code."
   },
   "acpQuestionFormMessage": "Muse ma do Ciebie pytanie.",
   "acpQuestionAsked": "Muse ma pytanie; ten edytor nie może go pokazać jako formularza, więc odpowiedz w następnej wiadomości:",

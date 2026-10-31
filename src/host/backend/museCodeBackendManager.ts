@@ -78,6 +78,13 @@ import { resourceEnvironment, type ResourceLease } from '../../core/resources/la
 import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { failureForLog, stderrForLog } from '../../core/backends/musecode/logText'
+import {
+  museExitOf,
+  museStartFailure,
+  stderrStartFault,
+  type MuseExit,
+  type StderrStartFault,
+} from '../../core/backends/musecode/startFault'
 import { clipForLog } from '../../core/logging'
 import { isSamePath } from '../../core/paths'
 import { resolveWorkspacePath } from '../../core/workspacePath'
@@ -324,12 +331,19 @@ export class MuseCodeBackendManager {
     )
   }
 
-  /** A process that never finished its handshake is ended, not left behind. */
-  private async closeUnstarted(handshake: { close(): Promise<unknown> }): Promise<void> {
+  /**
+  A process that never finished its handshake is ended, not left behind. The
+  exit the close observed rides back, so a start that failed because the host
+  ended on its own can say how.
+  */
+  private async closeUnstarted(handshake: {
+    close(): Promise<unknown>
+  }): Promise<MuseExit | undefined> {
     try {
-      await handshake.close()
+      return museExitOf(await handshake.close())
     } catch (closeError: unknown) {
       this.deps.log.warn(`Closing the unstarted muse serve failed: ${failureForLog(closeError)}`)
+      return undefined
     }
   }
 
@@ -413,12 +427,16 @@ export class MuseCodeBackendManager {
     this.deps.log.info(`Spawning ${launch.command} ${launch.args.join(' ')}`)
     // Spawn to handshake, for the log (M39).
     const spawnedAt = Date.now()
+    // What the CLI was captured writing as it refused to start, kept to say
+    // why the handshake failed (its own text is never shown).
+    let refusal: StderrStartFault | undefined
     const spawnOptions = {
       command: launch.command,
       args: [...launch.args],
       ...(this.deps.workspaceRoot !== undefined && { cwd: this.deps.workspaceRoot }),
       env,
       onStderr: (chunk: string) => {
+        refusal ??= stderrStartFault(chunk)
         // A chatty or looping CLI must not flood the log (PLAN.md D24), and
         // its free text is named in fixed words (the review of PR #49).
         this.deps.log.warn(`muse serve stderr: ${clipForLog(stderrForLog(chunk))}`)
@@ -470,8 +488,8 @@ export class MuseCodeBackendManager {
         },
       )
     } catch (error: unknown) {
-      await this.closeUnstarted(handshake)
-      throw error
+      const exit = await this.closeUnstarted(handshake)
+      throw museStartFailure(error, refusal, exit)
     }
     this.logFingerprint(spawned.fingerprintWarning)
     const mspHost: MspHost = {

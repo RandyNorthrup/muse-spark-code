@@ -4536,7 +4536,9 @@
     "macos": "Portachiavi di macOS",
     "linux": "portachiavi Secret Service"
   },
-  "acpNoModels": "Il backend non offre alcun modello che questo agente possa usare.",
+  "acpNoModels": "Il backend non offre alcun modello che questo agente possa usare. Verifica di aver effettuato l’accesso o di aver salvato una chiave, e che questo computer riesca a raggiungere il server del provider, quindi riprova.",
+  "acpFolderNotAbsolute": "L’editor deve indicare la cartella da aprire come percorso completo.",
+  "acpFolderMissing": "La cartella da aprire non è utilizzabile: non esiste, non è una cartella oppure questo account non può aprirla. Controlla il percorso e aprila di nuovo.",
   "acpPromptBusy": "In questa sessione è già in corso un prompt.",
   "acpSessionStartFailed": "Non è stato possibile avviare la sessione ({detail}). I dettagli sono nel log di Muse Spark.",
   "acpTurnStartFailed": "Non è stato possibile avviare il turno ({detail}). I dettagli sono nel log di Muse Spark.",
@@ -4555,6 +4557,12 @@
     "unloadableSource": "L’assistente nativo {helper} è compilato, ma questo computer non riesce a eseguirlo (potrebbe essere danneggiato, bloccato dal sistema o compilato per un altro processore), quindi non è stato possibile avviarlo. Ricompilalo con «{command}» e riprova.",
     "unsupported": "Muse Spark Code non fornisce alcun assistente nativo per {platform} su {arch}, quindi non è stato possibile avviarlo.",
     "windowsJob": "Non è stato possibile preparare l’assistente dei job di Windows, quindi non è stato possibile avviarlo. Muse Spark Code lo compila al primo utilizzo con Windows PowerShell 5.1 dai file della sua cartella native/windows: reinstalla Muse Spark Code e verifica che Windows PowerShell si avvii e che nessun software di sicurezza lo blocchi."
+  },
+  "museStart": {
+    "authFile": "Muse Code non è riuscito a leggere il proprio file di accesso (muse/auth.json nella sua cartella di configurazione), quindi non si è avviato. Ripara o elimina quel file, poi accedi di nuovo.",
+    "authSchema": "Il file di accesso di Muse Code ha un formato che questo Muse Code non supporta (versione {version}), quindi non si è avviato. Elimina il file (muse/auth.json nella sua cartella di configurazione) e accedi di nuovo, oppure aggiorna Muse Code.",
+    "cannotRun": "Questo computer non ha voluto eseguire Muse Code (stato di uscita {code}), quindi non è stato possibile avviarlo. Verifica che il file sia il programma Muse Code e che tu possa eseguirlo, oppure reinstallalo.",
+    "exited": "Muse Code si è fermato durante l’avvio (stato di uscita {code}), quindi non è stato possibile avviarlo. Il log di Muse Spark contiene i dettagli; eseguire «muse serve» in un terminale mostra cosa dice Muse Code."
   },
   "acpQuestionFormMessage": "Muse ha una domanda per te.",
   "acpQuestionAsked": "Muse ha una domanda; questo editor non può mostrarla come modulo, quindi rispondi nel prossimo messaggio:",

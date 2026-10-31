@@ -4453,7 +4453,9 @@
     "macos": "macOS Kulcskarika",
     "linux": "Secret Service kulcstartó"
   },
-  "acpNoModels": "A háttérrendszer nem kínál olyan modellt, amelyet ez az ügynök használhat.",
+  "acpNoModels": "A háttérrendszer nem kínál olyan modellt, amelyet ez az ügynök használhat. Ellenőrizze, hogy be van-e jelentkezve vagy van-e tárolt kulcsa, és hogy ez a számítógép eléri-e a szolgáltató szerverét, majd próbálja újra.",
+  "acpFolderNotAbsolute": "A szerkesztőnek a megnyitandó mappát teljes elérési útként kell megadnia.",
+  "acpFolderMissing": "A megnyitandó mappa nem használható: nem létezik, nem mappa, vagy ez a fiók nem nyithatja meg. Ellenőrizze az elérési utat, és nyissa meg újra.",
   "acpPromptBusy": "Ebben a munkamenetben már fut egy prompt.",
   "acpSessionStartFailed": "A munkamenetet nem sikerült elindítani ({detail}). A részletek a Muse Spark naplójában vannak.",
   "acpTurnStartFailed": "A kört nem sikerült elindítani ({detail}). A részletek a Muse Spark naplójában vannak.",
@@ -4472,6 +4474,12 @@
     "unloadableSource": "A(z) {helper} natív segéd le van fordítva, de ez a számítógép nem tudja futtatni (lehet, hogy sérült, a rendszer blokkolja, vagy másik processzorra készült), ezért ez nem indulhatott el. Fordítsa le újra a „{command}” paranccsal, majd próbálja újra.",
     "unsupported": "A Muse Spark Code nem tartalmaz natív segédet a(z) {platform} rendszerhez {arch} architektúrán, ezért ez nem indulhatott el.",
     "windowsJob": "A Windows-feladatsegédet nem sikerült előkészíteni, ezért ez nem indulhatott el. A Muse Spark Code az első használatkor fordítja le a Windows PowerShell 5.1-gyel a native/windows mappájában lévő fájlokból: telepítse újra a Muse Spark Code-ot, és ellenőrizze, hogy a Windows PowerShell elindul, és hogy biztonsági szoftver nem blokkolja."
+  },
+  "museStart": {
+    "authFile": "A Muse Code nem tudta beolvasni a bejelentkezési fájlját (muse/auth.json a konfigurációs mappájában), ezért nem indult el. Javítsa vagy törölje a fájlt, majd jelentkezzen be újra.",
+    "authSchema": "A Muse Code bejelentkezési fájlja olyan formátumú, amelyet ez a Muse Code nem támogat ({version}. verzió), ezért nem indult el. Törölje a fájlt (muse/auth.json a konfigurációs mappájában), és jelentkezzen be újra, vagy frissítse a Muse Code-ot.",
+    "cannotRun": "Ez a számítógép nem futtatta a Muse Code-ot (kilépési állapot: {code}), ezért ez nem indulhatott el. Ellenőrizze, hogy a fájl a Muse Code program-e, és hogy futtathatja-e, vagy telepítse újra.",
+    "exited": "A Muse Code leállt az indítás közben (kilépési állapot: {code}), ezért ez nem indulhatott el. A részletek a Muse Spark naplójában vannak; a „muse serve” terminálban való futtatása megmutatja, mit mond a Muse Code."
   },
   "acpQuestionFormMessage": "Muse-nak kérdése van Önhöz.",
   "acpQuestionAsked": "Muse-nak kérdése van; ez a szerkesztő nem tudja űrlapként megjeleníteni, ezért a következő üzenetében válaszoljon:",

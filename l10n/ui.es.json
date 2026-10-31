@@ -4536,7 +4536,9 @@
     "macos": "Llavero de macOS",
     "linux": "llavero de Secret Service"
   },
-  "acpNoModels": "El backend no ofrece ningún modelo que este agente pueda usar.",
+  "acpNoModels": "El backend no ofrece ningún modelo que este agente pueda usar. Compruebe que ha iniciado sesión o que ha guardado una clave, y que este equipo puede llegar al servidor del proveedor; después vuelva a intentarlo.",
+  "acpFolderNotAbsolute": "El editor debe indicar la carpeta que se va a abrir como una ruta completa.",
+  "acpFolderMissing": "No se puede usar la carpeta que se va a abrir: no existe, no es una carpeta o esta cuenta no puede abrirla. Compruebe la ruta y ábrala de nuevo.",
   "acpPromptBusy": "Ya hay un prompt en curso en esta sesión.",
   "acpSessionStartFailed": "La sesión no se pudo iniciar ({detail}). El registro de Muse Spark tiene los detalles.",
   "acpTurnStartFailed": "El turno no se pudo iniciar ({detail}). El registro de Muse Spark tiene los detalles.",
@@ -4555,6 +4557,12 @@
     "unloadableSource": "El asistente nativo {helper} está compilado, pero este equipo no puede ejecutarlo (puede estar dañado, bloqueado por el sistema o compilado para otro procesador), por lo que no se pudo iniciar. Vuelva a compilarlo con «{command}» e inténtelo de nuevo.",
     "unsupported": "Muse Spark Code no incluye ningún asistente nativo para {platform} en {arch}, por lo que no se pudo iniciar.",
     "windowsJob": "No se pudo preparar el asistente de trabajos de Windows, por lo que no se pudo iniciar. Muse Spark Code lo compila en el primer uso con Windows PowerShell 5.1 a partir de los archivos de su carpeta native/windows: reinstale Muse Spark Code y compruebe que Windows PowerShell se inicia y que ningún software de seguridad lo bloquea."
+  },
+  "museStart": {
+    "authFile": "Muse Code no pudo leer su archivo de inicio de sesión (muse/auth.json en su carpeta de configuración), por lo que no se inició. Repare o elimine ese archivo y vuelva a iniciar sesión.",
+    "authSchema": "El archivo de inicio de sesión de Muse Code tiene un formato que este Muse Code no admite (versión {version}), por lo que no se inició. Elimine el archivo (muse/auth.json en su carpeta de configuración) y vuelva a iniciar sesión, o actualice Muse Code.",
+    "cannotRun": "Este equipo no quiso ejecutar Muse Code (estado de salida {code}), por lo que no se pudo iniciar. Compruebe que el archivo es el programa de Muse Code y que tiene permiso para ejecutarlo, o reinstálelo.",
+    "exited": "Muse Code se detuvo mientras se iniciaba (estado de salida {code}), por lo que no se pudo iniciar. El registro de Muse Spark tiene los detalles; ejecutar «muse serve» en un terminal muestra lo que dice Muse Code."
   },
   "acpQuestionFormMessage": "Muse tiene una pregunta para usted.",
   "acpQuestionAsked": "Muse tiene una pregunta; este editor no puede mostrarla como formulario, así que responda en su próximo mensaje:",
