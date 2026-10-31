@@ -506,20 +506,20 @@ Headless `exec` takes no MCP servers, so this route needs an ACP client.
 
 ## Interactive ACP options
 
-| Argument                               | Effect                                                                                                                  |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `--backend museCode\|modelApi`         | Which backend, and so who pays (default `museCode`)                                                                     |
-| `--trust-workspace`                    | Load the folder's rules, skills and memory, as Muse Code's own flag does. Without it the folder is treated as untrusted |
-| `--muse-binary <path>`                 | The Muse Code CLI to run; by default the agent looks where the VS Code extension looks                                  |
-| `--shell-sandbox auto\|muse\|off`      | Muse Code's shell sandbox, as the extension's `museSpark.shellSandbox` setting                                          |
-| `--questions-defer-after <seconds>`    | M112: 60 by default; 0 waits indefinitely; 1–9 become 10; maximum 3600. Clients without forms defer immediately.        |
-| `--allow-dangerously-skip-permissions` | Offer the Bypass permissions mode                                                                                       |
-| `--allow-contributor-models`           | List contributor-tier models, whose content Meta may train on; they are hidden otherwise                                |
-| `--web-search`                         | Offer paid web search (Model API backend only); each prompt asks in the editor first, naming the price                  |
-| `--image-generation`                   | Offer paid image generation (Model API backend only); each image asks in the editor first, naming the price             |
-| `--verbose`                            | Log every detail to stderr (the editor's agent log)                                                                     |
-| `--auto-compaction`                    | Accepted; automatic compaction is already on by default once evaluated, so the flag changes nothing on its own          |
-| `--no-auto-compaction`                 | Turn the default-on automatic compaction off (also accepted by exec, where it wins over `--auto-compaction`)            |
+| Argument                               | Effect                                                                                                                                                |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--backend museCode\|modelApi`         | Which backend, and so who pays (default `museCode`)                                                                                                   |
+| `--trust-workspace`                    | Load the folder's rules, skills and memory, as Muse Code's own flag does. Without it the folder is treated as untrusted                               |
+| `--muse-binary <path>`                 | The Muse Code CLI to run; by default the agent looks where the VS Code extension looks                                                                |
+| `--shell-sandbox auto\|muse\|off`      | Muse Code's shell sandbox, as the extension's `museSpark.shellSandbox` setting                                                                        |
+| `--questions-defer-after <seconds>`    | M112: no limit unless you set one (0, the default, waits indefinitely; any other whole seconds used as set). Clients without forms defer immediately. |
+| `--allow-dangerously-skip-permissions` | Offer the Bypass permissions mode                                                                                                                     |
+| `--allow-contributor-models`           | List contributor-tier models, whose content Meta may train on; they are hidden otherwise                                                              |
+| `--web-search`                         | Offer paid web search (Model API backend only); each prompt asks in the editor first, naming the price                                                |
+| `--image-generation`                   | Offer paid image generation (Model API backend only); each image asks in the editor first, naming the price                                           |
+| `--verbose`                            | Log every detail to stderr (the editor's agent log)                                                                                                   |
+| `--auto-compaction`                    | Accepted; automatic compaction is already on by default once evaluated, so the flag changes nothing on its own                                        |
+| `--no-auto-compaction`                 | Turn the default-on automatic compaction off (also accepted by exec, where it wins over `--auto-compaction`)                                          |
 
 ## What the editor sees
 
@@ -673,9 +673,9 @@ the sent notice follows its admission with the next prompt. The next prompt
 bills as usual.
 
 Add `--questions-defer-after` and its seconds value to the editor's configured
-agent arguments. The default is 60; 0 disables the interactive deadline;
-1–9 are read as 10; values above 3600, negatives, fractions and nonnumeric
-values are refused. This does not change immediate deferral without forms,
+agent arguments. The default is 0 (never defers the interactive deadline);
+any whole number of seconds at or above zero is used as set, while negatives,
+fractions and nonnumeric values are refused. This does not change immediate deferral without forms,
 immediate scheduled/unattended deferral, or `exec`'s immediate decline.
 Open questions are bounded to 20 per session by the shared registry and are
 kept in owner-only storage, removed with their session and excluded from
