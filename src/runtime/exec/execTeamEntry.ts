@@ -3,7 +3,6 @@ import { randomUUID } from 'node:crypto'
 import { availableParallelism, tmpdir } from 'node:os'
 import { mkdtemp, rename, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import * as z from 'zod/mini'
 import type {
   TeamHostSeams,
   TeamHostService,
@@ -16,16 +15,11 @@ import type { TeamGit } from '../../core/team/teamGit'
 import type { TeamToolResult } from '../../core/team/teamSeams'
 import { isProtectedPath } from '../../core/protectedPaths'
 import { redactSecrets } from '../../core/redact'
-import { isErrno } from '../../core/fs/errno'
 import { failureForLog } from '../../core/backends/musecode/logText'
-import { teamSnapshotSchema, type TeamSnapshot } from '../../shared/team'
+import { teamSnapshotSchema } from '../../shared/team'
 import { TEAM_WORKSPACE_KEYS, hasRunnableTeamEntry } from '../../shared/teamConversation'
-import { lowerTeamWithJson, parseTeamJson, teamJsonPath } from '../../core/team/teamConfig'
 import {
-  ACP_SESSIONS_SUBFOLDER,
-  EXEC_PROMPT_MAX_BYTES,
   EXEC_TEAM_GIT_OUTPUT_BYTES,
-  EXEC_TEAM_STATE_FILE,
   EXEC_TEAM_RUN_PREFIX,
   EXEC_TEAM_BOARD_FILE,
   EXEC_TEAM_FILE_MODE,
@@ -33,8 +27,8 @@ import {
 } from '../../shared/constants'
 import { fill, setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
-import { Usd, type UsdAmount } from '../../shared/usd'
-import { workspaceKey } from '../dataFolder'
+import type { UsdAmount } from '../../shared/usd'
+import { readStoredTeamSnapshot } from '../teamSnapshotFile'
 import type { CoreLogger } from '../../core/logging'
 import {
   createHoldRef,
@@ -75,123 +69,6 @@ export interface ExecTeam extends TeamHostSeams {
   /** Called after exec has resolved/validated its selected provider and model. */
   readonly prepare: (model: string) => Promise<void>
   readonly close: () => Promise<void>
-}
-
-async function optionalText(deps: ExecTeamDeps, file: string): Promise<string | undefined> {
-  try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(
-      await deps.readFile(file, EXEC_PROMPT_MAX_BYTES, deps.signal),
-    )
-  } catch (error: unknown) {
-    if (isErrno(error) && error.code === 'ENOENT') return undefined
-    throw error
-  }
-}
-
-function invalid(reason: string): Error {
-  return new Error(fill(UI_TEXT.execTeamConfigInvalid, { reason }))
-}
-
-/**
-RVCM96B2 P3-9: team.json failures reach the user through the translated
-table keys, never as raw zod or JSON text. The entry path (a key the user
-wrote) is spliced as the technical detail.
-*/
-function configRefusal(reason: string): Error {
-  if (reason === 'team.json is not JSON') return new Error(UI_TEXT.execTeamConfigNotJson)
-  if (reason === 'team.json holds an object') return new Error(UI_TEXT.execTeamConfigNotObject)
-  if (reason === 'team.json holds an invalid sharedFiles')
-    return new Error(fill(UI_TEXT.execTeamConfigBadEntry, { entry: 'sharedFiles' }))
-  const separator = reason.indexOf(': ')
-  const entry =
-    separator === -1
-      ? reason.replace(/^team\.json (adds an? |raises |holds an (unknown key|invalid) )/, '')
-      : reason.slice(separator + 2).trim()
-  if (reason.includes(' adds ') || reason.includes(' raises '))
-    return new Error(fill(UI_TEXT.execTeamConfigLowersOnly, { entry }))
-  return entry === reason
-    ? invalid(reason)
-    : new Error(fill(UI_TEXT.execTeamConfigBadEntry, { entry }))
-}
-
-/** Lower only the snapshot's existing caps; repository text cannot add agents. */
-async function lowerSnapshot(
-  deps: ExecTeamDeps,
-  snapshot: TeamSnapshot,
-  requireReviews: (roles: readonly string[]) => void,
-): Promise<TeamSnapshot> {
-  const raw = await optionalText(deps, teamJsonPath(deps.cwd, deps.platform))
-  if (raw === undefined) return snapshot
-  const parsed = parseTeamJson(raw)
-  if (!parsed.ok) throw configRefusal(parsed.reason)
-  const roles = Object.fromEntries(
-    snapshot.roles.map((role) => {
-      const measures = new Set(role.pool.flatMap((entry) => entry.caps.map((cap) => cap.measure)))
-      const caps: Record<string, number> = {
-        concurrent: Math.min(...role.pool.map((entry) => entry.concurrent)),
-      }
-      for (const measure of measures) {
-        const values = role.pool.map((entry) => entry.caps.filter((cap) => cap.measure === measure))
-        if (values.every((value) => value.length > 0))
-          caps[measure] = Math.min(...values.flat().map((cap) => cap.amount))
-      }
-      return [role.role, { caps }]
-    }),
-  )
-  const lowering = lowerTeamWithJson({ roles, budgets: { spendUsd: deps.budgetUsd } }, parsed.file)
-  if (!lowering.ok) throw configRefusal(lowering.reason)
-  const budget = lowering.lowered.budgets['spendUsd']
-  if (budget !== undefined) {
-    // The file's number enters the exact decimal type directly; more than
-    // six decimals is refused in the translated table key, not in English.
-    try {
-      deps.lowerWorkerCap(Usd.from(budget).toAmount())
-    } catch (error: unknown) {
-      throw new Error(fill(UI_TEXT.execTeamConfigBadEntry, { entry: 'budgets.spendUsd' }), {
-        cause: error,
-      })
-    }
-  }
-  // This host's review role is code-review. Refuse a different requirement rather than ignore it.
-  const unsupportedReviewer = Object.entries(lowering.lowered.reviewers).find(
-    ([, reviewer]) => reviewer !== 'code-review',
-  )
-  if (
-    unsupportedReviewer !== undefined ||
-    (Object.keys(lowering.lowered.reviewers).length > 0 &&
-      snapshot.roles.every((role) => !(role.role === 'code-review' && role.pool.length > 0)))
-  )
-    throw new Error(
-      fill(UI_TEXT.execTeamReviewerUnsupported, {
-        entry:
-          unsupportedReviewer === undefined
-            ? 'code-review'
-            : `roles.${unsupportedReviewer[0]}.reviewer`,
-      }),
-    )
-  requireReviews(Object.keys(lowering.lowered.reviewers))
-  return {
-    ...snapshot,
-    roles: snapshot.roles
-      .filter((role) => !lowering.lowered.offRoles.includes(role.role))
-      .map((role) => ({
-        ...role,
-        pool: role.pool.map((entry) => ({
-          ...entry,
-          concurrent: Math.min(
-            entry.concurrent,
-            lowering.lowered.caps[role.role]?.['concurrent'] ?? entry.concurrent,
-          ),
-          caps: entry.caps.map((cap) => ({
-            ...cap,
-            amount: Math.min(
-              cap.amount,
-              lowering.lowered.caps[role.role]?.[cap.measure] ?? cap.amount,
-            ),
-          })),
-        })),
-      })),
-  }
 }
 
 function unavailable(tool: string): TeamToolResult {
@@ -256,38 +133,26 @@ export async function createExecTeam(
 ): Promise<ExecTeam> {
   setUiText(table, locale)
   deps.signal.throwIfAborted()
-  const file = path.join(
-    deps.dataFolder,
-    ACP_SESSIONS_SUBFOLDER,
-    workspaceKey(deps.cwd),
-    EXEC_TEAM_STATE_FILE,
-  )
-  const raw = await optionalText(deps, file)
   const stateData: Record<string, unknown> = {}
   let requiredReviews: ReadonlySet<string> = new Set()
-  if (raw !== undefined) {
-    // RVCM96B2 P3-9: the stored file is user data; a malformed one is
-    // refused in the translated key, never as a raw JSON or zod dump.
-    let document: unknown
-    try {
-      document = JSON.parse(raw) as unknown
-    } catch (error: unknown) {
-      // JSON.parse on text throws only for malformed content.
-      if (error instanceof SyntaxError)
-        throw new Error(UI_TEXT.execTeamStateUnreadable, { cause: error })
-      throw error
-    }
-    const parsed = teamSnapshotSchema.safeParse(document)
-    if (!parsed.success) throw new Error(UI_TEXT.execTeamStateUnreadable)
-    const metadata = z.object({ template: z.optional(z.string()) }).safeParse(document)
-    if (!metadata.success) throw new Error(UI_TEXT.execTeamStateUnreadable)
+  const stored = await readStoredTeamSnapshot({
+    dataFolder: deps.dataFolder,
+    cwd: deps.cwd,
+    platform: deps.platform,
+    signal: deps.signal,
+    readFile: deps.readFile,
+    budgetUsd: deps.budgetUsd,
+    onLoweredBudget: (cap) => {
+      deps.lowerWorkerCap(cap)
+    },
+    onRequireReviews: (roles) => {
+      requiredReviews = new Set(roles)
+    },
+  })
+  if (stored !== undefined) {
     stateData[TEAM_WORKSPACE_KEYS.team] = {
-      ...teamSnapshotSchema.parse(
-        await lowerSnapshot(deps, parsed.data, (roles) => {
-          requiredReviews = new Set(roles)
-        }),
-      ),
-      ...(metadata.data.template !== undefined && { template: metadata.data.template }),
+      ...stored.snapshot,
+      ...(stored.template !== undefined && { template: stored.template }),
     }
   }
   let service: TeamHostService | undefined

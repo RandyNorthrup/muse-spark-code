@@ -19,7 +19,7 @@ import type { WebviewToHostMessage } from '../shared/protocol'
 import type { TeamTreeData } from '../shared/teamView'
 import type { UiText } from '../shared/l10n/en'
 import type { SessionMcpHttpServer } from '../core/agent/agentBackend'
-import type { TeamHostSeams, TeamHostService } from '../core/team/teamHostService'
+import type { TeamDiffFile, TeamHostSeams, TeamHostService } from '../core/team/teamHostService'
 import type { TeamHostBundleDeps } from './team/teamEnginePorts'
 import type { TeamToolResult } from '../core/team/teamSeams'
 import type { TeamMcpServer, TeamSessionBinding } from './team/teamMcpServer'
@@ -355,6 +355,18 @@ export class TeamHostBinding implements TeamSurfacePort {
   /** The tree to show when a surface opens; undefined is today's map. */
   public tree(): TeamTreeData | undefined {
     return this.service?.tree()
+  }
+
+  /** A finished task's change as whole files (RLF-ACPTEAM: ACP's `diff` content). */
+  public async taskDiffFiles(taskId: string): Promise<readonly TeamDiffFile[]> {
+    const service = this.service
+    if (service?.taskDiffFiles === undefined) throw new Error(UI_TEXT.teamTaskUnknown)
+    return await service.taskDiffFiles(taskId)
+  }
+
+  /** Stops every task one conversation delegated (RLF-ACPTEAM: cancel and close). */
+  public async stopSessionTasks(sessionId: string): Promise<number> {
+    return (await this.service?.stopSessionTasks?.(sessionId)) ?? 0
   }
 
   public async handle(message: TeamSurfaceMessage): Promise<void> {
