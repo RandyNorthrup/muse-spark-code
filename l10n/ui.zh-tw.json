@@ -910,6 +910,7 @@
   "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
   "referenceNodeEditorKeys": "Save the open file.",
   "referenceDesktopTerminalKeys": "在 Muse Desktop 終端中執行輸入的行。",
+  "referenceDesktopResizeKeys": "將面板調高或調低。",
   "referenceThinking": "選擇 Muse 在每則回答上投入的心力。 思考: 開啟 = effort; 關閉 = museCode:none / modelApi:minimal.",
   "referenceSandbox": "在Windows上，當此視窗使用Muse Code命令列沙箱時，請透過一次管理員核准完成設定，然後開始新對話。shellSandbox=\"off\" 無需設定。",
   "referenceSetup": "在受信任的工作區中執行 spark-hooks.json 中 init 的 Setup hook。",
@@ -7184,6 +7185,43 @@
     "workbenchDetachTerminal": "分離終端",
     "workbenchDockTerminal": "停靠終端",
     "workbenchCollapseTerminal": "摺疊到頁尾",
-    "workbenchExpandTerminal": "展開終端面板"
+    "workbenchExpandTerminal": "展開終端面板",
+    "panelTerminals": "終端機",
+    "panelCollapsedPanels": "已摺疊的面板",
+    "panelViews": "面板檢視",
+    "panelSplitTerminal": "分割終端機",
+    "panelPin": "固定面板",
+    "panelHide": "隱藏面板",
+    "panelStop": "停止",
+    "panelReadOnly": "唯讀",
+    "panelFind": "在終端機中尋找",
+    "panelFindPlaceholder": "尋找",
+    "panelFindNext": "下一個相符項",
+    "panelFindPrevious": "上一個相符項",
+    "panelFindClose": "關閉尋找",
+    "panelFindCount": "{current} / {total}",
+    "panelFindNoResults": "沒有結果",
+    "panelCloseRunning": "此終端機可能仍在執行命令。仍要關閉嗎?",
+    "panelCancel": "取消",
+    "panelRetry": "重試",
+    "panelProblemLabel": "{severity}:{path}第{line}行的{message}",
+    "panelOutputChannel": "輸出通道",
+    "panelClearOutput": "清除輸出",
+    "panelOutputTruncated": {
+      "other": "已截斷 {count} 個字元"
+    },
+    "panelRegion": "底部面板",
+    "panelFloating": "浮動面板",
+    "panelResizeHandle": "調整面板大小",
+    "panelTerminalLoading": "正在載入終端機…",
+    "panelTerminalFailed": "終端機載入失敗。",
+    "panelTerminalCreateFailed": "無法啟動終端機。",
+    "panelTabExited": "{title}，已結束，代碼為 {code}",
+    "panelSeverity": {
+      "error": "錯誤",
+      "warning": "警告",
+      "information": "資訊",
+      "hint": "提示"
+    }
   }
 }

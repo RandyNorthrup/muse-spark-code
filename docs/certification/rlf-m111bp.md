@@ -40,7 +40,19 @@ slots and bridge; never a second layout.
 
 ## What is next
 
-Strings → renderer panel → PTY staging → real-Electron proof → drills and gates.
+Renderer panel → PTY staging → real-Electron proof → drills and gates.
+
+## Landed: strings (2026-10-31)
+
+35 new strings in English and all 14 tables (`check:l10n` 0 problems):
+the panel's labels, toolbar, find widget, exit question, Problems and
+Output labels, the region/dialog/resize names, terminal loading and
+failure sentences, the exited-tab label, the severity group, and
+`referenceDesktopResizeKeys`. Three genuine cognates allowed in
+`untranslated.json` (de/fr information, es error). WB's
+`desktop.terminal` context and `referenceDesktopTerminalKeys` stay until
+the renderer rewrite retires the textarea: removing the key regenerates
+the reference schema, which needs the new contexts' handlers first.
 
 ## Landed: shared model, bridge, PTY sessions, stores (2026-10-31)
 

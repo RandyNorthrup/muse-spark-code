@@ -914,6 +914,7 @@
   "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
   "referenceNodeEditorKeys": "Save the open file.",
   "referenceDesktopTerminalKeys": "Die eingegebene Zeile im Muse-Desktop-Terminal ausführen.",
+  "referenceDesktopResizeKeys": "Den Bereich höher oder niedriger machen.",
   "referenceThinking": "Wählen, wie viel Mühe Muse in jede Antwort steckt. Nachdenken: Ein = effort; Aus = museCode:none / modelApi:minimal.",
   "referenceSandbox": "Unter Windows, wenn dieses Fenster die Muse Code Shell-Sandbox nutzt, richten Sie sie mit einer Administratorbestätigung ein und starten eine neue Unterhaltung. shellSandbox=\"off\" erfordert keine Einrichtung.",
   "referenceSetup": "Setup-Hooks für init aus spark-hooks.json in einem vertrauenswürdigen Arbeitsbereich ausführen.",
@@ -7369,6 +7370,44 @@
     "workbenchDetachTerminal": "Terminal abdocken",
     "workbenchDockTerminal": "Terminal andocken",
     "workbenchCollapseTerminal": "In Fußzeile einklappen",
-    "workbenchExpandTerminal": "Terminalbereich ausklappen"
+    "workbenchExpandTerminal": "Terminalbereich ausklappen",
+    "panelTerminals": "Terminale",
+    "panelCollapsedPanels": "Eingeklappte Bereiche",
+    "panelViews": "Bereichsansichten",
+    "panelSplitTerminal": "Terminal teilen",
+    "panelPin": "Bereich anheften",
+    "panelHide": "Bereich ausblenden",
+    "panelStop": "Stoppen",
+    "panelReadOnly": "schreibgeschützt",
+    "panelFind": "Im Terminal suchen",
+    "panelFindPlaceholder": "Suchen",
+    "panelFindNext": "Nächste Übereinstimmung",
+    "panelFindPrevious": "Vorherige Übereinstimmung",
+    "panelFindClose": "Suche schließen",
+    "panelFindCount": "{current} von {total}",
+    "panelFindNoResults": "Keine Ergebnisse",
+    "panelCloseRunning": "In diesem Terminal läuft möglicherweise noch ein Befehl. Trotzdem schließen?",
+    "panelCancel": "Abbrechen",
+    "panelRetry": "Wiederholen",
+    "panelProblemLabel": "{severity}: {message} in {path} in Zeile {line}",
+    "panelOutputChannel": "Ausgabekanal",
+    "panelClearOutput": "Ausgabe löschen",
+    "panelOutputTruncated": {
+      "one": "{count} Zeichen abgeschnitten",
+      "other": "{count} Zeichen abgeschnitten"
+    },
+    "panelRegion": "Unterer Bereich",
+    "panelFloating": "Schwebender Bereich",
+    "panelResizeHandle": "Bereichsgröße ändern",
+    "panelTerminalLoading": "Terminal wird geladen…",
+    "panelTerminalFailed": "Das Terminal konnte nicht geladen werden.",
+    "panelTerminalCreateFailed": "Das Terminal konnte nicht gestartet werden.",
+    "panelTabExited": "{title}, beendet mit Code {code}",
+    "panelSeverity": {
+      "error": "Fehler",
+      "warning": "Warnung",
+      "information": "Information",
+      "hint": "Hinweis"
+    }
   }
 }

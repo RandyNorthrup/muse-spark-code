@@ -914,6 +914,7 @@
   "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
   "referenceNodeEditorKeys": "Save the open file.",
   "referenceDesktopTerminalKeys": "Yazılan satırı Muse Desktop terminalinde çalıştırır.",
+  "referenceDesktopResizeKeys": "Paneli daha uzun veya daha kısa yap.",
   "referenceThinking": "Muse'un her yanıta ayırdığı çabayı seçin. Düşünme: Açık = effort; Kapalı = museCode:none / modelApi:minimal.",
   "referenceSandbox": "Windows’ta bu pencere Muse Code kabuk korumalı alanını kullanıyorsa bir yönetici onayıyla kurun ve yeni konuşma başlatın. shellSandbox=\"off\" kurulum gerektirmez.",
   "referenceSetup": "Güvenilen çalışma alanında spark-hooks.json dosyasından init için Setup kancalarını çalıştırın.",
@@ -7369,6 +7370,44 @@
     "workbenchDetachTerminal": "Terminali ayır",
     "workbenchDockTerminal": "Terminali yerleştir",
     "workbenchCollapseTerminal": "Alt bilgiye katla",
-    "workbenchExpandTerminal": "Terminal panelini genişlet"
+    "workbenchExpandTerminal": "Terminal panelini genişlet",
+    "panelTerminals": "Terminaller",
+    "panelCollapsedPanels": "Daraltılmış paneller",
+    "panelViews": "Panel görünümleri",
+    "panelSplitTerminal": "Terminali böl",
+    "panelPin": "Paneli sabitle",
+    "panelHide": "Paneli gizle",
+    "panelStop": "Durdur",
+    "panelReadOnly": "salt okunur",
+    "panelFind": "Terminalde bul",
+    "panelFindPlaceholder": "Bul",
+    "panelFindNext": "Sonraki eşleşme",
+    "panelFindPrevious": "Önceki eşleşme",
+    "panelFindClose": "Bulmayı kapat",
+    "panelFindCount": "{current} / {total}",
+    "panelFindNoResults": "Sonuç yok",
+    "panelCloseRunning": "Bu terminal hâlâ bir komut çalıştırıyor olabilir. Yine de kapatılsın mı?",
+    "panelCancel": "İptal",
+    "panelRetry": "Yeniden dene",
+    "panelProblemLabel": "{severity}: {path} içinde, {line}. satırda {message}",
+    "panelOutputChannel": "Çıktı kanalı",
+    "panelClearOutput": "Çıktıyı temizle",
+    "panelOutputTruncated": {
+      "one": "{count} karakter kırpıldı",
+      "other": "{count} karakter kırpıldı"
+    },
+    "panelRegion": "Alt panel",
+    "panelFloating": "Kayan panel",
+    "panelResizeHandle": "Paneli yeniden boyutlandır",
+    "panelTerminalLoading": "Terminal yükleniyor…",
+    "panelTerminalFailed": "Terminal yüklenemedi.",
+    "panelTerminalCreateFailed": "Terminal başlatılamadı.",
+    "panelTabExited": "{title}, {code} koduyla çıktı",
+    "panelSeverity": {
+      "error": "Hata",
+      "warning": "Uyarı",
+      "information": "Bilgi",
+      "hint": "İpucu"
+    }
   }
 }
