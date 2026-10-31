@@ -21,6 +21,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
+import type { TranscriptEntry } from '../../src/webview/state/transcriptEntries'
 import { initialUiState, uiReducer } from '../../src/webview/state/uiState'
 import {
   MALFORMED_PARAMS,
@@ -30,6 +31,7 @@ import {
 import { MILLISECONDS_PER_SECOND, UI_TEXT } from '../../src/shared/constants'
 import { fill, formatDateTime } from '../../src/shared/l10n/text'
 import { quotaTurnFailureText, quotaWaitText } from '../../src/shared/turnFailure'
+import { execQuotaOutcome } from '../../src/runtime/exec/runExec'
 import {
   QUOTA_MESSAGE,
   QUOTA_RESETS_AT_MS,
@@ -64,14 +66,13 @@ function mappedQuotaTurn(isRetryable: boolean) {
   })
   if (mapped === MALFORMED_PARAMS || mapped === UNKNOWN_METHOD || !('event' in mapped))
     throw new Error('the quota end refused to map')
+  if (mapped.event.type !== 'turnCompleted') throw new Error('the quota end mapped past its turn')
   return mapped.event
 }
 
 describe('subscription quota mapping', () => {
   it.each([true, false])('carries the typed quota detail with retryable %s', (retryable) => {
     const event = mappedQuotaTurn(retryable)
-    expect(event.type).toBe('turnCompleted')
-    if (event.type !== 'turnCompleted') return
     expect(event.terminal).toBe('failed')
     expect(event.reason).toBe(QUOTA_MESSAGE)
     expect(event.retryable).toBe(retryable)
@@ -336,9 +337,12 @@ describe('subscription quota on the panel', () => {
     expect(wait?.retryDelayMs).toBe(minuteMs)
     expect(wait?.quota).toEqual({ limitKind: 'tierLimit', resetsAtMs: QUOTA_RESETS_AT_MS })
     // The row names the reset with Stop, not a seconds count.
-    const waiting = shownTranscript(rig.panel).find((entry) => entry.id === `retry:${LIVE_TURN_ID}`)
+    const waiting = shownTranscript(rig.panel).find(
+      (entry): entry is Extract<TranscriptEntry, { kind: 'notice' }> =>
+        entry.kind === 'notice' && entry.id === `retry:${LIVE_TURN_ID}`,
+    )
     expect(waiting?.text).toBe(quotaWaitText({ resetsAtMs: QUOTA_RESETS_AT_MS }))
-    expect(waiting !== undefined && 'retryingTurnId' in waiting).toBe(true)
+    expect(waiting?.retryingTurnId).toBe(LIVE_TURN_ID)
     rig.releaseSleep()
     await awaitPosts(rig.panel, turnAcceptances, 2, 'turns accepted')
     expect(rig.live.wire.sentCount('turn/start')).toBe(2)
@@ -394,5 +398,22 @@ describe('subscription quota on the panel', () => {
     expect(end?.terminal).toBe('failed')
     expect(rig.live.wire.sentCount('turn/start')).toBe(1)
     expect(turnRetries(rig.panel.posted)).toHaveLength(1)
+  })
+})
+
+describe('subscription quota headless outcome', () => {
+  it('types a quota turn with the reset in words', () => {
+    const outcome = execQuotaOutcome(mappedQuotaTurn(true))
+    expect(outcome?.kind).toBe('quota_exhausted')
+    expect(outcome?.message).toBe(
+      quotaTurnFailureText({ quota: { resetsAtMs: QUOTA_RESETS_AT_MS } }),
+    )
+    expect(outcome?.message).toContain(formatDateTime(QUOTA_RESETS_AT_MS))
+    expect(outcome?.message).not.toContain('request_id')
+  })
+
+  it('answers undefined without the typed detail', () => {
+    expect(execQuotaOutcome({})).toBeUndefined()
+    expect(execQuotaOutcome({ quota: undefined })).toBeUndefined()
   })
 })
