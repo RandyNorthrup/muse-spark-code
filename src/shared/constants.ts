@@ -11446,3 +11446,11 @@ export const CONNECTOR_MODEL_TEXT = {
 } as const
 /** U1 exports preserve charter text, model settings and intensity without setup secrets. */
 export const TEAM_PANEL_EXPORT_VERSION = 2
+// M111 lane CP (D91.15): live desktop thumbnails capture at most this often,
+// and pause unless the M107 governor reports normal pressure. Mirrors
+// THUMBNAIL_FPS in desktop/crates/compositor/src/port.rs; the desktop suite
+// fails if the two drift apart.
+export const DESKTOP_THUMBNAIL_FPS = 10
+// M111 lane CP (D91.15): where a headed app opens when the person never
+// chose (`desktop.placement`): a new desktop of its own.
+export const DESKTOP_PLACEMENT_DEFAULT = 'new-desktop'
