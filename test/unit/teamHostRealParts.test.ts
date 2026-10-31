@@ -14,7 +14,7 @@
 // (test/e2e/team.live.e2e.test.ts).
 import { execFile, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -229,7 +229,8 @@ async function makeRig(
     readonly onStateUpdate?: (rig: RealRig, key: string, value: unknown) => void
   } = {},
 ): Promise<RealRig> {
-  const root = await mkdtemp(path.join(tmpdir(), 'muse-teamfit-'))
+  // Resolved: the team copy must be inside canonical storage, and macOS's /var is a link.
+  const root = await realpath(await mkdtemp(path.join(tmpdir(), 'muse-teamfit-')))
   const repo = path.join(root, 'repo')
   const storage = path.join(root, 'storage')
   await mkdir(storage, { recursive: true })
