@@ -173,6 +173,23 @@ export async function runTerminalSignIn(input: {
   return await input.terminal.runInteractive(input.command, input.args)
 }
 
+/**
+The `session/new` request: the working copy, the bridge's servers and, for an
+agent whose switch for leaving out the person's own MCP servers is a session
+option, the preset's `_meta`.
+*/
+export function sessionNewRequest(params: {
+  readonly cwd: string
+  readonly mcpServers: readonly acp.McpServer[]
+  readonly meta?: Readonly<Record<string, unknown>> | undefined
+}) {
+  return {
+    cwd: params.cwd,
+    mcpServers: [...params.mcpServers],
+    ...(params.meta !== undefined && { _meta: structuredClone(params.meta) }),
+  }
+}
+
 /** The client side of one spawned agent, bound to lane W's policy handlers. */
 export interface AcpClientHandlers {
   readonly onPermissionRequest: (
@@ -588,10 +605,7 @@ export function connectAcpAgent(input: {
     sessionNew: async (params) => {
       const response = await requesting(
         'session/new',
-        agent.request('session/new', {
-          cwd: params.cwd,
-          mcpServers: [...params.mcpServers],
-        }),
+        agent.request('session/new', sessionNewRequest(params)),
       )
       const parsed = sessionResponse.parse(response)
       sessionGrants.set(parsed.sessionId, params.grant)
