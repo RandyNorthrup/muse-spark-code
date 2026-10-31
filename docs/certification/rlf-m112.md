@@ -185,8 +185,8 @@ Observed and deliberately not changed:
 
 ## 5. Gates and suites (final tree, honest exit codes)
 
-Kept question suites (repo timeouts, `--maxWorkers=3`):
-`questionKey` + `questionContracts` + `questionManifest` green;
+Kept question suites (repo timeouts, `--maxWorkers=3`): `questionKey` +
+`questionContracts` 17/17; `questionManifest` 3/3 (with the new case);
 `questionUiState` + `questionAttentionOwnership` + `questionDeferLongWait`
 20/20; `questionExpiryNotice` + `acpElicitation` + `elicitationHookSeam`
 23/23; `elicitationTimeoutNotice` 1/1; `questionManifest` +
@@ -222,4 +222,4 @@ browser suites and `ui:look`, the vault and OS credential-store suites
   translations already do (README, `docs/acp.md`, `package.nls.json`,
   the `questionManifest` guard + drill)
 - `58d657827` docs(reference): regenerate for the D121 deferral description
-- (this record, the CHANGELOG entry and the PLAN status line follow)
+- `479d0b927` docs(m112): RLF-M112 audit record, changelog and plan status
