@@ -4153,6 +4153,8 @@ export const EN = {
     'Muse Code applies your approvals in this conversation but reports an error for each one (a fault in its approval record, not in your choices). Each card follows what Muse Code does next; a new conversation does not have the fault.',
   approvalLedgerFaultUpdate:
     'Muse Code applied your approval but could not save its approval record. Update Muse Code to 1.4.3 or later with {command}, then restart Muse Code. Each card follows what Muse Code does next; a new conversation also avoids the fault.',
+  approvalPersistenceFault:
+    'Muse Code took too long to save that decision and reported an error, but the decision took effect (a fault in Muse Code, not in your choice). The card follows what Muse Code does next.',
   museCodeRestartAsked:
     'Muse Code was stopped. Your next message starts it again and continues this conversation.',
   // CLI recovery (2026-10-03): a steer whose answer never came may still reach the turn.

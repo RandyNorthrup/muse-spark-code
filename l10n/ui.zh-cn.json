@@ -3340,6 +3340,7 @@
   "approvalReplayRefused": "Muse Code 拒绝此对话中的每条消息：一个多步命令只获得部分批准时回合停止了，Muse Code 无法重放该批准（这是 Muse Code 的故障，而非你的选择所致）。重启 Muse Code 以继续此对话，或开始新对话。",
   "approvalLedgerFault": "Muse Code 会执行你在此对话中的批准，但每次都会报告错误（这是其批准记录的故障，而非你的选择所致）。每张卡片都会跟随 Muse Code 的下一步操作；新对话没有此故障。",
   "approvalLedgerFaultUpdate": "Muse Code 已执行你的批准，但无法保存批准记录。请通过 {command} 将 Muse Code 更新到 1.4.3 或更高版本，然后重启 Muse Code。每张卡片都会跟随 Muse Code 的下一步操作；新对话也能避免此故障。",
+  "approvalPersistenceFault": "Muse Code 保存该决定耗时过长并报告了错误,但决定已生效(这是 Muse Code 的故障,不是您的选择有问题)。卡片会跟随 Muse Code 接下来的操作。",
   "museCodeRestartAsked": "Muse Code 已停止。你的下一条消息会重新启动它并继续此对话。",
   "steerUnconfirmed": "Muse Code 未确认你的消息已送达正在运行的回合。它可能仍会送达；再次发送前请先确认。",
   "museCodeNotAnswering": "Muse Code 没有响应。请使用“Muse Spark: 重启 Muse Code”重启它。",

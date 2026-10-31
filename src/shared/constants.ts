@@ -7035,6 +7035,20 @@ export const MSP_LONG_COMMANDS: ReadonlySet<string> = new Set([
 // Windows now and then since 1.3.0, meta-models/muse-code-sdk#29).
 export const MUSE_APPROVAL_REPLAY_FAULT = 'approval replay failed'
 export const MUSE_APPROVAL_LEDGER_FAULT = 'approval ledger durability fence'
+// The persistence timeout of that family (RLF-HARVEST H1, captured live
+// 2026-10-30 on Muse Code 1.4.7): `approval/decide` answers -32603
+// `internal` with this wording after about ten seconds, while the
+// decision goes on to settle `accepted` in Muse Code's own record.
+export const MUSE_APPROVAL_PERSISTENCE_FAULT = 'approval persistence timed out'
+// How long a persistence-timeout decision waits for Muse Code's own
+// stage news (or a last `approval/listPending` read) before the stage is
+// offered again: in the capture the stage update landed 16 ms after the
+// immediate read still named the old stage, and in linuxlt RLM125's
+// session record every such decision settled within about five seconds
+// of the error reply, so ten covers it with margin. This bounds a
+// failure-recovery re-check (the CLI's own "re-open the approval to
+// verify"), never a person's work: after it, the check answers honestly.
+export const APPROVAL_PERSISTENCE_SETTLE_MS = 10_000
 // Upstream's #29 fix floor; the owner-authorized live probe accepted a
 // decision without the ledger fault (docs/certification/muse143.md).
 export const MUSE_APPROVAL_LEDGER_FIXED_VERSION = '1.4.3'
