@@ -45,7 +45,7 @@ export async function callWindowsJobHelper(
   command: readonly [string, ...string[]],
 ): Promise<unknown> {
   const host = windowsJobHost(deps.assemblyPath, deps.systemRoot)
-  const text = await run(host.file, command, host.env)
+  const text = await run(host.file, command, host.env, host.cwd)
   const value: unknown = JSON.parse(text)
   return value
 }

@@ -9,6 +9,7 @@
 // compared with what PowerShell prints for the same call on the same file
 // (the type PowerShell loads), because that text is what the readers parse.
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
@@ -49,6 +50,9 @@ const LIBUV_REQUIRED_VARIABLES = [
   'USERPROFILE',
   'WINDIR',
 ]
+// `PATH` is given empty, so libuv keeps the empty value rather than copying
+// this process's; the rest it adds from this process when the given set lacks them.
+const LIBUV_ADDED_VARIABLES = LIBUV_REQUIRED_VARIABLES.filter((name) => name !== 'PATH')
 
 describe.runIf(process.platform === 'win32')('the job helper run as a program', () => {
   const systemRoot = process.env['SystemRoot'] ?? ''
@@ -217,33 +221,45 @@ describe.runIf(process.platform === 'win32')('the job helper run as a program', 
   )
 
   it(
-    'is given SystemRoot and the guard variable, and Node adds only what Windows requires',
+    'is given SystemRoot, the guard variable and an empty PATH, works in its own folder, and Node adds only what Windows requires',
     async () => {
       const host = windowsJobHost(assembly, systemRoot)
       expect(Object.keys(host.env).toSorted(byName)).toEqual([
         'NoDefaultCurrentDirectoryInExePath',
+        'PATH',
         'SystemRoot',
       ])
+      // PATH is present and empty, so neither the helper's program lookup nor
+      // its DLL search has a PATH folder to reach.
+      expect(host.env['PATH']).toBe('')
+      // Its working folder is the helper's own folder, never this process's.
+      expect(host.cwd).toBe(path.win32.dirname(assembly))
       // A variable only this process has, which no helper should see.
       process.env['MUSE_JOB_HOST_PARENT_ONLY'] = 'this process only'
       try {
         // Node's process start is the same for any program: a Node probe
-        // started with the helper's environment reports what the helper gets.
+        // started with the helper's environment, in its folder, reports what
+        // the helper gets and where it runs.
         const seen = z
           .record(z.string(), z.string())
           .parse(
             JSON.parse(
               await runTreeProgram(
                 process.execPath,
-                ['-e', 'process.stdout.write(JSON.stringify(process.env))'],
+                [
+                  '-e',
+                  'process.stdout.write(JSON.stringify({ ...process.env, __cwd: process.cwd() }))',
+                ],
                 host.env,
+                host.cwd,
               ),
             ),
           )
         const present = new Set(Object.keys(process.env).map((name) => name.toUpperCase()))
         const expected = [
           ...Object.keys(host.env),
-          ...LIBUV_REQUIRED_VARIABLES.filter((name) => present.has(name)),
+          ...LIBUV_ADDED_VARIABLES.filter((name) => present.has(name)),
+          '__CWD',
         ].map((name) => name.toUpperCase())
         expect(
           Object.keys(seen)
@@ -252,8 +268,11 @@ describe.runIf(process.platform === 'win32')('the job helper run as a program', 
         ).toEqual([...new Set(expected)].toSorted(byName))
         expect(seen['SystemRoot']).toBe(systemRoot)
         expect(seen['NoDefaultCurrentDirectoryInExePath']).toBe('1')
-        // The required ones carry this process's own values: its whole PATH.
-        expect(seen['PATH']).toBe(process.env['PATH'])
+        // PATH arrives empty (given, not copied from this process).
+        expect(seen['PATH']).toBe('')
+        expect(seen['__cwd']?.toLowerCase()).toBe(path.win32.dirname(assembly).toLowerCase())
+        // A variable only this process has never reaches the helper.
+        expect(seen['MUSE_JOB_HOST_PARENT_ONLY']).toBeUndefined()
       } finally {
         delete process.env['MUSE_JOB_HOST_PARENT_ONLY']
       }

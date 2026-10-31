@@ -1058,8 +1058,7 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
       // the POSIX launch uses, so nothing the payload starts by bare name
       // resolves to a program planted in the workspace. The executable
       // itself is resolved outside the workspace first: `RunTeam` passes it
-      // as `lpApplicationName`, which `CreateProcessW` would otherwise
-      // complete from the helper's working directory (the workspace).
+      // as `lpApplicationName`, and refuses one that is not fully qualified.
       const environment = windowsTeamPayloadEnvironment(request.env, request.cwd)
       const target = resolveWindowsTeamCommand(
         request.command,
@@ -1075,7 +1074,9 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
       // The job helper run as a program of its own (`run-team`, no
       // PowerShell start), whose exit code is the payload's: each value is
       // one argument (Node quotes each for the C runtime), so no shell or
-      // script reads a name, an argument or an environment entry.
+      // script reads a name, an argument or an environment entry. The helper
+      // works in its own folder; the payload's folder is an argument, which
+      // `CreateProcessW` gives the payload alone.
       const host = windowsJobHost(assembly, systemRoot)
       const args = runTeamArgs(target, request, environment, {
         ownerPipe,
@@ -1084,7 +1085,7 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
         group,
       })
       const child = spawnGuarded(host.file, args, {
-        cwd: request.cwd,
+        cwd: host.cwd,
         env: host.env,
         windowsHide: true,
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -1100,7 +1101,8 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
           /* Caller receives confirmation failure. */
         })
       // END proves the job's descendants ended; the helper can still hold
-      // its cwd and stdio. Disposal must also wait for those handles to close.
+      // its own folder (its working folder, its loaded file) and stdio.
+      // Disposal must also wait for those handles to close.
       const closed = new Promise<void>((resolve) => {
         child.once('close', () => {
           clearTimeout(timeout)
@@ -1133,7 +1135,8 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
           if (send === undefined) {
             // This is our own spawned helper, still awaiting the control gate.
             // Kill-on-close ends its job, but without END no proof is invented.
-            // Await close before its caller removes the cwd or loaded assembly.
+            // Await close before its caller removes the payload's folder or
+            // the helper's.
             child.kill()
             await withDeadline(closed, NATIVE_CONFIRM_MS, 'TEAM_WINDOWS_RETIREMENT_TIMEOUT')
             return await ended

@@ -10,15 +10,10 @@ import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { withoutCredentials } from '../../src/core/credentialEnvironment'
-import {
-  PlaybookOutcomes,
-  type PlaybookHookAdmission,
-  type PlaybookHookEffect,
-} from '../../src/core/orchestration/playbook/outcomes'
+import { PlaybookOutcomes } from '../../src/core/orchestration/playbook/outcomes'
 import { processGitPath } from '../../src/host/git'
 import { ContainedJob } from '../../src/host/playbook/containedJob'
-import { gitWorkspace } from './helpers/playbook/gitWorkspace'
+import { baselineHead, recordingHeadAdmission } from './helpers/playbook/headRepo'
 import { compiledJobAssembly, SYSTEM_ROOT } from './helpers/playbook/jobAssembly'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -33,18 +28,7 @@ describe('the playbook dispatch head', () => {
     state.root = realpathSync(await mkdtemp(path.join(tmpdir(), 'muse-playbook-head-')))
     state.workspace = path.join(state.root, 'workspace')
     mkdirSync(state.workspace)
-    const { git } = gitWorkspace(state.workspace, {
-      ...withoutCredentials(process.env),
-      GIT_AUTHOR_NAME: 'Fixture',
-      GIT_AUTHOR_EMAIL: 'fixture@example.invalid',
-      GIT_COMMITTER_NAME: 'Fixture',
-      GIT_COMMITTER_EMAIL: 'fixture@example.invalid',
-    })
-    git(['init', '--initial-branch=main'])
-    writeFileSync(path.join(state.workspace, 'notes.md'), 'the head\n')
-    git(['add', '.'])
-    git(['commit', '-m', 'baseline'])
-    state.commit = git(['rev-parse', 'HEAD'])
+    state.commit = baselineHead(state.workspace)
     // A program named git inside the workspace, first on this process's PATH:
     // a bare `git` finds it wherever a lookup reads that PATH.
     const planted = path.join(state.workspace, 'bin')
@@ -73,12 +57,8 @@ describe('the playbook dispatch head', () => {
     const resolved = processGitPath(state.workspace)
     expect(resolved).toBeDefined()
     expect(resolved?.toLowerCase().startsWith(state.workspace.toLowerCase())).toBe(false)
-    const admitted: PlaybookHookEffect[] = []
-    // Every effect is admitted, and kept to see what each one spawns.
-    const isAdmitted = (effect: PlaybookHookEffect): boolean => {
-      admitted.push(effect)
-      return true
-    }
+    // On Windows the real contained job runs each effect; on POSIX the dispatch
+    // runs them directly. Either way every effect is kept to see what it spawns.
     const contained = IS_WINDOWS
       ? new ContainedJob({
           assemblyPath: state.assembly,
@@ -86,15 +66,9 @@ describe('the playbook dispatch head', () => {
           onJob: () => undefined,
         })
       : undefined
-    const admission: PlaybookHookAdmission =
-      contained === undefined
-        ? { admit: isAdmitted }
-        : {
-            admit: isAdmitted,
-            runContained: (effect, options) => contained.run(effect, options),
-          }
+    const recorder = recordingHeadAdmission(contained)
     try {
-      expect(new PlaybookOutcomes(state.workspace, admission).head()).toEqual({
+      expect(new PlaybookOutcomes(state.workspace, recorder.admission).head()).toEqual({
         ref: 'refs/heads/main',
         commit: state.commit,
       })
@@ -102,6 +76,6 @@ describe('the playbook dispatch head', () => {
       contained?.close()
     }
     // The admission approves the absolute path each call spawns.
-    expect(admitted.map((effect) => effect.command)).toEqual([resolved, resolved])
+    expect(recorder.admitted.map((effect) => effect.command)).toEqual([resolved, resolved])
   })
 })

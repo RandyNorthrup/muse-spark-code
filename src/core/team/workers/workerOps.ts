@@ -82,6 +82,7 @@ export async function nativeOperation(proof: WorkerCreateProof, op: string, iden
   let command: readonly string[] = args
   let env: NodeJS.ProcessEnv = { LC_ALL: 'C' }
   let workspaceRoot: string | undefined
+  let cwd: string | undefined
   if (process.platform === 'win32') {
     const job = await resourceWindowsJob()
     const systemRoot = process.env['SystemRoot'] ?? process.env['SYSTEMROOT']
@@ -90,13 +91,16 @@ export async function nativeOperation(proof: WorkerCreateProof, op: string, iden
       // remapping it to the generic proof failure.
       throw markTyped(new Error(UI_TEXT.teamFileHelperMissing))
     await job.verify()
-    // The job helper as a program of its own (no PowerShell start): its
-    // environment holds SystemRoot only. It is a file the product built in
-    // its own storage, so the launch guards it against the working copy it
-    // acts in, never against whatever folder this process happens to run in.
+    // The job helper as a program of its own (no PowerShell start), working
+    // in its own folder, with no folder to look a name up in (the governed
+    // launch drops the empty PATH, so the helper's block has none). It is a
+    // file the product built in its own storage, so the launch guards it
+    // against the working copy it acts in, never against whatever folder
+    // this process happens to run in.
     const host = windowsJobHost(job.assemblyPath, systemRoot)
     file = host.file
     env = host.env
+    cwd = host.cwd
     command = workerHostCommand(args)
     workspaceRoot = proof.root
   } else if (process.platform === 'darwin') {
@@ -111,6 +115,7 @@ export async function nativeOperation(proof: WorkerCreateProof, op: string, iden
       timeout: WORKER_FILE_PATH_TIMEOUT_MS,
       maxBuffer: WORKER_NATIVE_REPLY_MAX_BYTES,
       windowsHide: true,
+      ...(cwd !== undefined && { cwd }),
       ...(workspaceRoot !== undefined && { workspaceRoot }),
     })
     return receipt.parse(JSON.parse(stdout))

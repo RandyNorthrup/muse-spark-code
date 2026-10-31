@@ -16,6 +16,7 @@ export async function holdResourceJob(
   // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the packaged, digest-named job helper by absolute path and a fresh generated job name only; the holder never receives a model/workspace command or credentials (M107 C1, PLAN.md §8).
   const child = spawnGuarded(host.file, ['hold', job.name], {
     env: host.env,
+    cwd: host.cwd,
     windowsHide: true,
     stdio: ['pipe', 'pipe', 'pipe'],
   })

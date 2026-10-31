@@ -171,7 +171,7 @@ export function createdPathCommands(
     if (systemRoot === undefined || job === undefined || platform !== 'win32')
       throw new Error('Native creation directory helper is required')
     const host = windowsJobHost(job.assemblyPath, systemRoot)
-    return await runTreeProgram(host.file, ['created', ...args], host.env)
+    return await runTreeProgram(host.file, ['created', ...args], host.env, host.cwd)
   }
 }
 

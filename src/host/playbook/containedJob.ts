@@ -93,11 +93,12 @@ export function windowsArgument(argument: string): string {
   return `${quoted}${'\\'.repeat(slashes * 2)}"`
 }
 
-/** The helper as this module starts it; a test stands in a process of its own. */
+/** The helper as this module starts it, in its own folder; a test stands in a process of its own. */
 export type StartContainedHelper = (
   file: string,
   args: readonly string[],
   env: NodeJS.ProcessEnv,
+  cwd: string,
 ) => { readonly pid?: number | undefined; unref(): void }
 
 export interface ContainedJobDeps {
@@ -127,8 +128,8 @@ interface Session {
   readonly pid: number | undefined
 }
 
-const startHelper: StartContainedHelper = (file, args, env) => {
-  const helper = spawnProcess(file, [...args], { env, stdio: 'ignore', windowsHide: true })
+const startHelper: StartContainedHelper = (file, args, env, cwd) => {
+  const helper = spawnProcess(file, [...args], { env, cwd, stdio: 'ignore', windowsHide: true })
   helper.once('error', () => {
     // A helper that could not start has no process: the open below sees no
     // pipe and no process, and fails the call closed.
@@ -229,6 +230,7 @@ export class ContainedJob {
     const host = windowsJobHost(this.deps.assemblyPath, this.deps.systemRoot)
     const ended = spawnSync(host.file, [...endJobArgs(name)], {
       env: host.env,
+      cwd: host.cwd,
       stdio: 'ignore',
       windowsHide: true,
       timeout: PLAYBOOK_JOB_CONNECT_MS,
@@ -266,7 +268,12 @@ export class ContainedJob {
     this.publish()
     let helper: ReturnType<StartContainedHelper>
     try {
-      helper = (this.deps.start ?? startHelper)(host.file, serveArgs(name, pipe), host.env)
+      helper = (this.deps.start ?? startHelper)(
+        host.file,
+        serveArgs(name, pipe),
+        host.env,
+        host.cwd,
+      )
     } catch (error: unknown) {
       // The system refused to start the helper at all (a file that is not a
       // program): no process ever existed, so no job did, and its name goes.

@@ -11,9 +11,14 @@ import { readJobSource } from './jobSource'
 import { removeFolder } from './temporaryFolders'
 import { windowsCreatedVariant } from './createdNativeWindows'
 
-function run(file: string, args: readonly string[], env: NodeJS.ProcessEnv = {}): Promise<string> {
+function run(
+  file: string,
+  args: readonly string[],
+  env: NodeJS.ProcessEnv = {},
+  cwd?: string,
+): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile(file, [...args], { env, windowsHide: true }, (error, stdout) => {
+    execFile(file, [...args], { env, cwd, windowsHide: true }, (error, stdout) => {
       if (error === null) resolve(stdout)
       else reject(new Error(error.message, { cause: error }))
     })
@@ -63,7 +68,7 @@ export function useCreatedNative(): void {
       const call = (assemblyPath: string, args: readonly string[]) => {
         if (args[0]?.startsWith('worker-') === true) {
           const host = windowsJobHost(assemblyPath, systemRoot)
-          return run(host.file, workerHostCommand(args), host.env)
+          return run(host.file, workerHostCommand(args), host.env, host.cwd)
         }
         return run(
           powershell,

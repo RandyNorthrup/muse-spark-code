@@ -35,6 +35,29 @@ export async function markedPid(marker: string, timeout = 15_000): Promise<numbe
   return Number(readFileSync(marker, 'utf8'))
 }
 
+/** Kills any launched child still running and waits for its close, then empties the list. */
+export async function killLaunched(
+  launched: {
+    child: {
+      exitCode: number | null
+      signalCode: NodeJS.Signals | null
+      kill(): boolean
+      once(event: 'close', listener: () => void): unknown
+    }
+  }[],
+): Promise<void> {
+  for (const launch of launched.splice(0)) {
+    if (launch.child.exitCode !== null || launch.child.signalCode !== null) continue
+    const closed = new Promise<void>((resolve) => {
+      launch.child.once('close', () => {
+        resolve()
+      })
+    })
+    launch.child.kill()
+    await closed
+  }
+}
+
 /** Waits until `pid` has ended. */
 export async function expectEnded(pid: number, timeout = 5000): Promise<void> {
   await vi.waitFor(
