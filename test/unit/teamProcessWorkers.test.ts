@@ -317,6 +317,16 @@ function ownOnPackedAgent(agentPath: string): AcpPreset {
   return { ...ACP_PRESETS.own, command: path.basename(process.execPath), defaultArgs: [agentPath] }
 }
 
+/** A rig whose external agent is the real packed agent, started the way the product starts `own`. */
+function packedAgentRig(): Promise<Rig> {
+  const agentPath = path.join(staged.directory, 'dist', 'acp.js')
+  return makeRig({
+    agent: OWN_AGENT,
+    presets: { ...ACP_PRESETS, own: ownOnPackedAgent(agentPath) },
+    pathEntries: [path.dirname(process.execPath)],
+  })
+}
+
 describe('one worker port over every kind a surface runs', () => {
   it('claims each kind through the first port that runs it, and leaves an unclaimed kind unavailable', async () => {
     const rig = await makeRig({ agent: MUSE_AGENT, withoutMuse: true })
@@ -512,12 +522,7 @@ describe.skipIf(process.platform === 'win32')('external agent workers', () => {
   it(
     'refuses the real agent’s session in words while the person’s Muse settings turn an MCP server on',
     async () => {
-      const agentPath = path.join(staged.directory, 'dist', 'acp.js')
-      const rig = await makeRig({
-        agent: OWN_AGENT,
-        presets: { ...ACP_PRESETS, own: ownOnPackedAgent(agentPath) },
-        pathEntries: [path.dirname(process.execPath)],
-      })
+      const rig = await packedAgentRig()
       // The worker's environment keeps HOME and drops XDG_CONFIG_HOME: the agent reads ~/.config/muse.
       const configured = path.join(path.dirname(rig.repo), 'home', '.config', 'muse')
       await mkdir(configured, { recursive: true })
@@ -537,12 +542,7 @@ describe.skipIf(process.platform === 'win32')('external agent workers', () => {
   it(
     'tells the person to sign in with the agent’s own CLI when the real agent has no sign-in',
     async () => {
-      const agentPath = path.join(staged.directory, 'dist', 'acp.js')
-      const rig = await makeRig({
-        agent: OWN_AGENT,
-        presets: { ...ACP_PRESETS, own: ownOnPackedAgent(agentPath) },
-        pathEntries: [path.dirname(process.execPath)],
-      })
+      const rig = await packedAgentRig()
       const task = await delegate(rig, 'engineering', 'any work')
       const end = await settled(rig, task)
       expect(end).toEqual({ phase: 'failed', failure: TEAM_MODEL_TEXT.hostExternalNotSignedIn })
