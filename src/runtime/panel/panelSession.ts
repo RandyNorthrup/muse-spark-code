@@ -231,6 +231,7 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
             isTrusted: () => isTrusted,
             ...deps.github,
             useGhLogin: () => isGhLoginAllowed,
+            editorLeaseOffered: connection.offers('auth'),
             links: {
               read: async () =>
                 await store.getStorage(WORKSPACE_STATE_KEYS.pullRequestLinks, 'workspace'),
