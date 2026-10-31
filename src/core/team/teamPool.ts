@@ -1145,7 +1145,18 @@ export class TeamScheduler {
       this.leases.set(this.key(ref), lease)
       const outcome = await this.deps.start(this.board.task(current.id), entry, input, stolenPolicy)
       this.picker.started(entry, this.deps.now())
-      if (outcome !== 'started' && this.isActive(ref)) {
+      if (outcome === 'notStarted' && !this.isActive(ref)) {
+        // The launch gate closed this admission before invoking the worker
+        // (a final-admission refusal, D229): the attempt is off the board
+        // and refunded, so the slot and lease go back with it, exactly as
+        // a retired attempt releases them. Without this the held slot
+        // keys the same attempt number forever and the refunded task can
+        // never be picked again.
+        this.slots.release(ref, 'retired')
+        this.leases.get(this.key(ref))?.release()
+        this.leases.delete(this.key(ref))
+        this.activity.delete(this.key(ref))
+      } else if (outcome !== 'started' && this.isActive(ref)) {
         this.slots.mark(ref, 'uncertain')
         this.board.finishAttempt(current.id, ref.attempt, { state: 'uncertain' })
         this.board.transition(

@@ -2092,7 +2092,26 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     }
   }
 
+  /**
+  The person's recorded landing decision retires a finished attempt whose
+  end containment cannot prove (D229, T18's "otherwise the user's
+  decision"): without it the board keeps the attempt counted and landing
+  refuses as busy, because no worker port supplies a proof for a loop
+  that simply ended. A proved retirement already recorded stands (the
+  scheduler's finish is a no-op then), and the retained admission slot
+  releases with it, as it does on a proved finish.
+  */
+  const retireAttemptByDecision = async (task: TeamTaskRecord): Promise<void> => {
+    if (scheduler === undefined || task.schedulerAttempt === undefined) return
+    await scheduler.finish(task.taskId, hasCopy(task) ? 'review' : 'done', {
+      kind: 'userDecision',
+    })
+    task.lease?.release()
+    task.lease = undefined
+  }
+
   const discard = async (task: TeamTaskRecord): Promise<void> => {
+    await retireAttemptByDecision(task)
     await exclusive(task, async () => {
       const outcome =
         task.outcome ??
@@ -3026,6 +3045,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       const task = known(taskId)
       if (task.awaiting !== undefined) {
         const completion = task.mergeCompletion
+        await retireAttemptByDecision(task)
         task.awaiting(decision)
         const result = await completion
         if (result?.output.startsWith('Error:')) throw new Error(result.visibleOutput)
@@ -3040,6 +3060,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       const mode = modeOf(task)
       const refused = mergeRefusal(task, mode)
       if (refused !== undefined) throw new Error(userMergeRefusal(refused))
+      await retireAttemptByDecision(task)
       enqueueMerge(task, task.sessionId, mode ?? '', 'rework', false, task.controller.signal)
       const turn = mergeTurn(task.taskId)
       pumpMergeQueue()
