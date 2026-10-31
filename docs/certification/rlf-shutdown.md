@@ -316,6 +316,9 @@ rig's keychain is UNMEASURED and was not looked at (no keychain command was run)
 
 ## 8. Commits
 
-`4e6a7140c` to the commit carrying this record: `5a8a1f3a7` (the fixes and the
-real-process suite) and the commit with the `waitForAnswer` unit case, the comment
-on the constant, the docs, CHANGELOG, PLAN, roadmap and this record.
+`4e6a7140c` to the commit carrying the last edit of this record: `5a8a1f3a7` (the
+fixes, the real-process suite, the catch baseline), `52bee4eb4` (the
+`waitForAnswer` unit case, the one leave helper, the constant's sources),
+`948134811` (this record, CHANGELOG, PLAN, roadmap, ACP guide), and the commit that
+moves the suite's folder and hooks inside its POSIX-only block (nothing is made on
+a platform where it is skipped) and names these commits.
