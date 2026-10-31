@@ -11,7 +11,7 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { createServer } from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { TEAM_MODEL_TEXT } from '../../../src/shared/constants'
+import { TEAM_MCP_MODEL_TEXT } from '../../../src/shared/constants'
 import { openExternalLeadBinding } from '../helpers/teamMcpBinding'
 import type { TeamHostBinding } from '../../../src/host/teamHostBinding'
 import { assertCurrentProductionBuild } from '../productionBuild'
@@ -87,7 +87,7 @@ describe('the team HTTP bridge', () => {
         params: { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 't' } },
       })
       const result = initialized['result'] as Record<string, unknown>
-      expect(result['instructions']).toBe(TEAM_MODEL_TEXT.mcpInstructions)
+      expect(result['instructions']).toBe(TEAM_MCP_MODEL_TEXT.mcpInstructions)
       expect(result['instructions']).toContain('roster')
 
       const listed = await bridge.ask({ jsonrpc: '2.0', id: 2, method: 'tools/list' })

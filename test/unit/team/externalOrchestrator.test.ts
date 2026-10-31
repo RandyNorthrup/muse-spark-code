@@ -20,7 +20,7 @@ import {
 import type { TeamHostBinding } from '../../../src/host/teamHostBinding'
 import type { ExternalAgent } from '../../../src/core/team/externalAgents'
 import type { AgentEvent } from '../../../src/shared/agentEvents'
-import { TEAM_MODEL_TEXT } from '../../../src/shared/constants'
+import { TEAM_MCP_MODEL_TEXT } from '../../../src/shared/constants'
 import { openExternalLeadBinding, silentLog } from '../helpers/teamMcpBinding'
 import { assertCurrentProductionBuild } from '../productionBuild'
 
@@ -226,7 +226,7 @@ describe('an external ACP agent as orchestrator', () => {
         // MCP client: the instructions we ship, the five tools, the roster.
         expect(read).toMatchObject({
           transport,
-          instructions: TEAM_MODEL_TEXT.mcpInstructions,
+          instructions: TEAM_MCP_MODEL_TEXT.mcpInstructions,
           tools: ['roster', 'delegate', 'collect', 'cancel', 'merge'],
         })
         expect(String(read?.['roster'])).toContain('engineering')

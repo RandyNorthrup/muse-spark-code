@@ -22,6 +22,7 @@ import {
   TEAM_LOAD_SAMPLE_MS,
   TEAM_LOAD_WINDOW_MS,
   TEAM_MODEL_TEXT,
+  TEAM_PROCESS_MODEL_TEXT,
   TEAM_READ_ONLY_COMMANDS,
   TEAM_TOOL_GROUP_TOOLS,
   UI_TEXT,
@@ -275,7 +276,7 @@ function museSessionPort(session: MuseSession, context: MuseTaskContext): MuseWo
             ? candidate.decision === 'approved' && candidate.scope === 'once'
             : candidate.decision === 'abort',
         )
-        if (choice === undefined) throw new Error(TEAM_MODEL_TEXT.hostNoApprovalChoice)
+        if (choice === undefined) throw new Error(TEAM_PROCESS_MODEL_TEXT.hostNoApprovalChoice)
         await session.decideApproval({
           approvalId: event.approvalId,
           choiceId: choice.choiceId,
@@ -367,7 +368,7 @@ function checkShell(deps: Pick<TeamProcessWorkersDeps, 'platform' | 'windows' | 
   readonly args: (command: string) => readonly string[]
 } {
   if (deps.platform !== 'win32') return { file: '/bin/sh', args: (command) => ['-c', command] }
-  if (deps.windows === undefined) throw new Error(TEAM_MODEL_TEXT.hostChecksNoShell)
+  if (deps.windows === undefined) throw new Error(TEAM_PROCESS_MODEL_TEXT.hostChecksNoShell)
   return {
     file: windowsPowerShell(deps.windows.systemRoot, deps.baseEnv()).file,
     args: (command) => [
@@ -394,7 +395,7 @@ export function createProcessTeamPorts(deps: TeamProcessWorkersDeps): ProcessTea
       const identity = createWindowIdentity(deps.now())
       const authority = createWindowAuthority(identity, () =>
         // This window only ever writes its own journal: no foreign owner is taken over here.
-        Promise.reject(new Error(TEAM_MODEL_TEXT.hostJournalForeign)),
+        Promise.reject(new Error(TEAM_PROCESS_MODEL_TEXT.hostJournalForeign)),
       )
       const journal = createTeamJournal({
         storageDirectory: deps.journalStorageDirectory,
@@ -487,7 +488,7 @@ export function createProcessTeamPorts(deps: TeamProcessWorkersDeps): ProcessTea
   const startMuseHost = async (kind: MuseWorkerHostKind): Promise<MuseCodeHost> => {
     try {
       const launch = deps.resolveMuseServe()
-      if (launch === undefined) throw new Error(TEAM_MODEL_TEXT.hostMuseNotFound)
+      if (launch === undefined) throw new Error(TEAM_PROCESS_MODEL_TEXT.hostMuseNotFound)
       const root = requireRepository(deps)
       return await startTeamMuseCodeHost({
         lifetime: await ensureLifetime(),
@@ -657,7 +658,9 @@ export function createProcessTeamPorts(deps: TeamProcessWorkersDeps): ProcessTea
       throw new Error(fill(TEAM_MODEL_TEXT.hostKindNotOffered, { kind: spec.entry.agent.kind }))
     const command = findAcpPresetCommand(preset, deps.platform, deps.pathEntries(), existsSync)
     if (command === undefined)
-      throw new Error(fill(TEAM_MODEL_TEXT.hostExternalNotFound, { command: preset.command }))
+      throw new Error(
+        fill(TEAM_PROCESS_MODEL_TEXT.hostExternalNotFound, { command: preset.command }),
+      )
     const plan = planWorkerTask(spec, copy, [])
     try {
       const child = await spawnAcpAgent({
@@ -733,14 +736,20 @@ export function createProcessTeamPorts(deps: TeamProcessWorkersDeps): ProcessTea
       return { report: result.report, usage: EMPTY_USAGE }
     } catch (error: unknown) {
       if (error instanceof AcpAuthRequiredError)
-        throw new Error(TEAM_MODEL_TEXT.hostExternalNotSignedIn, { cause: error })
+        throw new Error(TEAM_PROCESS_MODEL_TEXT.hostExternalNotSignedIn, { cause: error })
       if (error instanceof AcpUserServersSwitchError)
-        throw new Error(fill(TEAM_MODEL_TEXT.hostExternalNoSwitch, { agent: error.preset }), {
-          cause: error,
-        })
+        throw new Error(
+          fill(TEAM_PROCESS_MODEL_TEXT.hostExternalNoSwitch, { agent: error.preset }),
+          {
+            cause: error,
+          },
+        )
       if (error instanceof AcpModeError)
         throw new Error(
-          fill(TEAM_MODEL_TEXT.hostExternalNoMode, { agent: error.preset, shape: error.shape }),
+          fill(TEAM_PROCESS_MODEL_TEXT.hostExternalNoMode, {
+            agent: error.preset,
+            shape: error.shape,
+          }),
           { cause: error },
         )
       throw error

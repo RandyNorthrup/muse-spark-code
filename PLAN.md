@@ -15472,10 +15472,13 @@ process, the real endpoint over real HTTP and the real team host, with
 five red/green drills (`docs/certification/rlf-orchext.md`). Not yet used
 for real: the packed-product run on Muse models waits on Muse's weekly
 allowance (resets 2026-11-02) and the Claude Code check is the lead's;
-external agents lead but cannot run as workers. Four bundle budgets
-(`teamHost.js`, `teamRunners.js`, `teamScheduler.js`, `uiText.js`) were
-over on the base and still are; this lane added +0.8, +0.1, 0 and
-+0.5 KiB to them (same record).
+external agents lead but cannot run as workers. The four bundle budgets
+the lane's own base was over (`teamHost.js`, `teamRunners.js`,
+`teamScheduler.js`, `uiText.js`) hold on int since RLF-TEAMFIT; joined with
+it, the server's instructions are a model-text block of their own read by
+`dist/teamMcp.js` (7.9 of 25 KiB) and the process workers' words another
+read by `dist/teamProcess.js`, so `dist/teamPanel.js` is 99.3 of 100 KiB
+(`docs/certification/cc-int9.md`).
 
 **Status 2026-10-30 (CC-INT5, D75's caps): built.** The three bounds D75's
 2026-10-17 amendments removed are out of the code: the command-slot count,
