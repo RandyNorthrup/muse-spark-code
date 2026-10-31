@@ -272,6 +272,10 @@ export interface PanelOptions {
   readonly resendSleep?: (ms: number, signal: AbortSignal) => Promise<void>
   /** The resend wait's jitter draw (D228); Math.random absent. */
   readonly resendRandom?: () => number
+  /** The person's quota-continue opt-in (D229); absent or false shows quota failures at once. */
+  readonly museCodeQuotaContinue?: () => boolean
+  /** The controller's clock; Date.now absent. A suite pins it to read a recorded instant. */
+  readonly now?: () => number
 }
 
 export interface PanelRig {
@@ -463,7 +467,7 @@ export function conversationPanel(options: PanelOptions): PanelRig {
     buildAttemptHost: unused('buildAttemptHost'),
     realPath: unused('realPath'),
     notifyAttention: () => undefined,
-    now: () => Date.now(),
+    now: options.now ?? (() => Date.now()),
     log: { trace: record, info: record, warn: record, error: record },
     ...(options.estimator !== undefined && { estimator: options.estimator }),
     ...(options.estimatorGeneration !== undefined && {
@@ -474,6 +478,9 @@ export function conversationPanel(options: PanelOptions): PanelRig {
     }),
     ...(options.resendSleep !== undefined && { resendSleep: options.resendSleep }),
     ...(options.resendRandom !== undefined && { resendRandom: options.resendRandom }),
+    ...(options.museCodeQuotaContinue !== undefined && {
+      museCodeQuotaContinue: options.museCodeQuotaContinue,
+    }),
   }
   return { controller: new ConversationController(deps), posted, logged, backendErrors }
 }

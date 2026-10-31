@@ -387,7 +387,7 @@ Retry limit for failed Model API requests, per try after the first (0 never retr
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: —. Settings: `museSpark.modelApiMaxRetries`, `museSpark.museCodeMaxRetries`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
+Commands: —. Settings: `museSpark.modelApiMaxRetries`, `museSpark.museCodeMaxRetries`, `museSpark.museCodeQuotaContinue`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
 
 ### Automatic compaction
 
@@ -3728,6 +3728,19 @@ Type: `["integer","null"]`. Default: `null`. Scope: `machine`.
   "type": ["integer", "null"],
   "default": null,
   "minimum": 0
+}
+```
+
+### museSpark.museCodeQuotaContinue
+
+Continue a Muse Code turn after its subscription usage window resets: a quota-exhausted turn waits out the provider's reset instant, however long, then resends its message, with Stop. Off by default: quota failures show with Retry instead, and automatic resends never fire before the reset.
+
+Type: `"boolean"`. Default: `false`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": false
 }
 ```
 

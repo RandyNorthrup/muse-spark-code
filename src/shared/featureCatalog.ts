@@ -761,7 +761,7 @@ export function featureCatalog(): readonly Feature[] {
       { setting: 'modelApiMaxRetries' },
       { setting: 'modelApiMaxRetries' },
       [],
-      ['modelApiMaxRetries', 'museCodeMaxRetries'],
+      ['modelApiMaxRetries', 'museCodeMaxRetries', 'museCodeQuotaContinue'],
       'agent-loop-guarantees',
       ['museCode', 'modelApi'],
       false,

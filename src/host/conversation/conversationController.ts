@@ -750,6 +750,12 @@ export interface ConversationDeps {
   */
   readonly museCodeMaxRetries?: () => number | undefined
   /**
+  The person's quota-continue opt-in (D229), read live per continue
+  decision; absent or false shows a quota failure at once with Retry.
+  The window reads the setting through it, the rig its own flag.
+  */
+  readonly museCodeQuotaContinue?: () => boolean
+  /**
   The resend wait's clock (D228): resolves after the wait unless the
   signal aborts first. Production sleeps for real; tests record the
   asked waits and resolve at once.
@@ -8533,8 +8539,14 @@ export class ConversationController implements DeferredSend {
   CLI owns its loop, so our layer resends a continue in the same
   session), with the send's own parts still remembered and resends left.
   A duplicate end for the waiting turn is swallowed — it already waits.
+  A spent subscription window (D229) never resends this way: it waits
+  only for the reset, only with the person's opt-in, in
+  `holdForQuotaReset` below.
   */
   private holdForResend(event: Extract<AgentEvent, { type: 'turnCompleted' }>): boolean {
+    if (event.quota !== undefined) {
+      return this.holdForQuotaReset(event)
+    }
     if (event.terminal !== 'failed' || event.retryable !== true) {
       return false
     }
@@ -8547,6 +8559,53 @@ export class ConversationController implements DeferredSend {
     }
     const remembered = this.retryableTurns.get(event.turnId)
     if (remembered === undefined) {
+      return false
+    }
+    const maxResends = this.deps.museCodeMaxRetries?.() ?? INDUSTRY_RETRY_MAX_RETRIES
+    if (remembered.resendsUsed >= maxResends) {
+      return false
+    }
+    this.resendWait = {
+      turnId: event.turnId,
+      held: event,
+      localId: remembered.localId,
+      sessionId: remembered.sessionId,
+      parts: remembered.parts,
+      displayText: remembered.displayText,
+      shownText: remembered.shownText,
+      resendsUsed: remembered.resendsUsed,
+      abort: new AbortController(),
+    }
+    void this.runResendWait()
+    return true
+  }
+
+  /**
+  Whether a quota-exhausted turn waits until the window resets (D229):
+  only with the person's opt-in (`museCodeQuotaContinue`), on the Muse
+  Code backend, with the send's own parts still remembered and resends
+  left. The wait honours the provider's reset instant whole, however
+  long; the resend count still bounds the chain (D228, D121). Off by
+  default, and never before the reset: without the opt-in the failure
+  shows at once with Retry.
+  */
+  private holdForQuotaReset(event: Extract<AgentEvent, { type: 'turnCompleted' }>): boolean {
+    if (event.terminal !== 'failed' || event.quota === undefined) {
+      return false
+    }
+    const waiting = this.resendWait
+    if (waiting !== undefined) {
+      return waiting.turnId === event.turnId
+    }
+    if (this.isDisposed || this.sessionKind !== 'museCode') {
+      return false
+    }
+    const remembered = this.retryableTurns.get(event.turnId)
+    if (remembered === undefined) {
+      return false
+    }
+    // Off by default: without the opt-in the failure shows at once.
+    if (this.deps.museCodeQuotaContinue?.() !== true) {
       return false
     }
     const maxResends = this.deps.museCodeMaxRetries?.() ?? INDUSTRY_RETRY_MAX_RETRIES
@@ -8617,16 +8676,25 @@ export class ConversationController implements DeferredSend {
     if (waiting === undefined) {
       return
     }
+    const quota = waiting.held.quota
     const maxResends = this.deps.museCodeMaxRetries?.() ?? INDUSTRY_RETRY_MAX_RETRIES
-    const delayMs = retryDelayMs(
-      waiting.resendsUsed,
-      INDUSTRY_RETRY_LIMITS,
-      undefined,
-      (this.deps.resendRandom ?? Math.random)(),
-      MODEL_API_RETRY_JITTER_MS,
-    )
+    // A quota wait honours the provider's reset instant whole, however
+    // long (D229): no wait of ours refuses it, as with Retry-After. A
+    // reset already past resubmits at once.
+    const delayMs =
+      quota === undefined
+        ? retryDelayMs(
+            waiting.resendsUsed,
+            INDUSTRY_RETRY_LIMITS,
+            undefined,
+            (this.deps.resendRandom ?? Math.random)(),
+            MODEL_API_RETRY_JITTER_MS,
+          )
+        : Math.max(0, quota.resetsAtMs - this.deps.now())
     this.deps.log.info(
-      `Turn ${waiting.turnId} failed retryably; resending in ${String(delayMs)} ms (attempt ${String(waiting.resendsUsed + 1)} of ${String(maxResends + 1)})`,
+      quota === undefined
+        ? `Turn ${waiting.turnId} failed retryably; resending in ${String(delayMs)} ms (attempt ${String(waiting.resendsUsed + 1)} of ${String(maxResends + 1)})`
+        : `Turn ${waiting.turnId} hit a spent subscription window; continuing at the reset (${new Date(quota.resetsAtMs).toISOString()})`,
     )
     this.forward({
       type: 'turnRetry',
@@ -8637,6 +8705,7 @@ export class ConversationController implements DeferredSend {
       retryDelayMs: delayMs,
       reason: waiting.held.reason ?? waiting.held.errorKind ?? waiting.held.terminal,
       ...(waiting.held.errorKind !== undefined && { errorKind: waiting.held.errorKind }),
+      ...(quota !== undefined && { quota }),
     })
     try {
       await this.resendSleep(delayMs, waiting.abort.signal)
@@ -8670,6 +8739,12 @@ export class ConversationController implements DeferredSend {
       this.forward(waiting.held)
       return
     }
+    // The quota opt-in is live too: turned off mid-wait, the held
+    // failure shows instead of continuing at the reset (D229).
+    if (quota !== undefined && this.deps.museCodeQuotaContinue?.() !== true) {
+      this.forward(waiting.held)
+      return
+    }
     // The wait fires only in its own conversation: no session is the
     // crash's drop (re-established below, restarting the host on send),
     // while another session means the panel moved on, and the held end
@@ -8698,6 +8773,8 @@ export class ConversationController implements DeferredSend {
     const refusal = retryTurnRefusal({
       sessionId: session.sessionId,
       rememberedSessionId: waiting.sessionId,
+      // At the reset the quota cause cleared, so the resubmit is
+      // admitted whatever the failure's own judgment said (D229).
       failedRetryable: true,
       // A turn may have started while the session re-established above,
       // so the live read is load-bearing; the rule sees only the
