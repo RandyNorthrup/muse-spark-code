@@ -13,10 +13,18 @@ internal object PresentedHtml {
     Regex("(?i)<meta\\b[^>]*http-equiv\\s*=\\s*[\"']?content-security-policy[\"']?[^>]*>")
   private val refresh =
     Regex("(?i)<meta\\b[^>]*http-equiv\\s*=\\s*[\"']?refresh[\"']?[^>]*>")
-  private val framed = Regex("(?is)<(?:iframe|object|embed|base)\\b[^>]*(?:>.*?</(?:iframe|object|embed|base)\\s*>|/?>)")
+  private val framed =
+    Regex(
+      "(?is)<(?:iframe|object|embed|base)\\b[^>]*" +
+        "(?:>.*?</(?:iframe|object|embed|base)\\s*>|/?>)",
+    )
   private val link = Regex("(?is)<link\\b[^>]*>")
   private val handler = Regex("(?i)\\s+on[a-z]+\\s*=\\s*(?:\"[^\"]*\"|'[^']*'|[^\\s>]+)")
-  private val scriptUrl = Regex("(?i)(\\s(?:href|src|action)\\s*=\\s*)(?:([\"'])\\s*javascript:[^\"']*\\2|javascript:[^\\s>]*)")
+  private val scriptUrl =
+    Regex(
+      "(?i)(\\s(?:href|src|action)\\s*=\\s*)" +
+        "(?:([\"'])\\s*javascript:[^\"']*\\2|javascript:[^\\s>]*)",
+    )
 
   fun admit(html: String): String {
     var document = script.replace(html, "")
