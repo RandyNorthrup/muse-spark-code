@@ -259,6 +259,8 @@
   "resourceRelocationNoTarget": "Nincs aktív útvonal jóváhagyott futtatóhoz. A munka ezen a gépen marad. A párosított eszközökre történő áthelyezés nem érhető el.",
   "resourceUnavailable": "Ez a mérési adat ezen a gépen nem érhető el.",
   "resourceUnavailableWhy": "Ez a mérési adat ezen a gépen nem érhető el: {cause}",
+  "resourceCleanupRemoved": "A korábbi munkamenetekből hátramaradt ideiglenes mappák törölve lettek.",
+  "resourceCleanupRefused": "Néhány hátramaradt ideiglenes mappát nem sikerült ellenőrizni, ezért a helyükön maradtak.",
   "resourceGovernorOff": "Az erőforrás-korlátok ki vannak kapcsolva ezen a gépen.",
   "resourceStatusRefused": "A legutóbbi erőforrás-állapot nem olvasható, ezért nem jelennek meg mért értékek.",
   "resourceTransport": "Átviteli hibák",

@@ -18,9 +18,26 @@ import {
 import { fileIdentityKey, lstatIdentity } from '../fs/fileIdentity'
 import { CreatedRegistrySaveError } from '../../shared/createdRegistrySaveError'
 
+/**
+The process that created an entry, as the system recorded it: its host,
+its id and its birth (clock ticks since boot on Linux, with `bootId`;
+epoch milliseconds elsewhere). A later start proves the creator exited
+from this alone, so a tree whose host was killed, crashed or lost power
+is reclaimable instead of leaking forever (RLF-TEMPLEAK). Entries a
+build before this field wrote carry none and are never ended by a sweep:
+their exit cannot be proven.
+*/
+const creatorSchema = z.strictObject({
+  host: z.string().check(z.minLength(1)),
+  pid: z.number().check(z.int(), z.gt(0)),
+  processStart: z.number().check(z.gte(0)),
+  bootId: z.optional(z.string().check(z.minLength(1))),
+})
+export type CreatedCreator = z.infer<typeof creatorSchema>
 const entrySchema = z.strictObject({
   id: z.string().check(z.regex(/^[\da-f-]+$/u)),
   owner: z.string().check(z.minLength(1)),
+  creator: z.optional(creatorSchema),
   path: z.string().check(z.minLength(1)),
   identity: z.optional(z.nullable(z.string().check(z.minLength(1)))),
   tokenHash: z.optional(z.nullable(z.string().check(z.regex(/^[\da-f]{64}$/u)))),
@@ -42,6 +59,14 @@ function isUuidText(text: string | undefined): boolean {
 export interface CreatedPathProof {
   /** Exact birth-bound whole-tree completion; absence of a PID is never proof. */
   exited(owner: string): Promise<boolean>
+  /** This process as entries it creates will name it; undefined when the system cannot say. */
+  creator(): Promise<CreatedCreator | undefined>
+  /**
+  Whether a recorded creator is provably gone on this host: no process
+  has its id, or the process that has it was born at another time.
+  Anything unreadable is never proof.
+  */
+  creatorExited(creator: CreatedCreator): Promise<boolean>
   createdByTree?: ((file: string, owner: string) => Promise<boolean>) | undefined
   archivedAndClean(file: string): Promise<boolean>
   freeBytes(file: string): Promise<number | null>
@@ -730,8 +755,20 @@ export class CreatedRegistry {
       throw new Error('Created path has no stored identity or marker hash: report only')
     const storedIdentity = entry.identity
     // Loaded timestamps are retention hints, never evidence that a previous tree exited.
-    if (!this.finished.has(entry.owner) && !(await this.proof.exited(entry.owner))) return false
-    if (entry.endedAtMs === null && entry.state !== 'pending') return false
+    const isGone =
+      this.finished.has(entry.owner) ||
+      (await this.proof.exited(entry.owner)) ||
+      (entry.creator !== undefined && (await this.proof.creatorExited(entry.creator)))
+    if (!isGone) return false
+    if (entry.endedAtMs === null && entry.state !== 'pending') {
+      // Nobody reported an end: the creator was killed, crashed or lost
+      // power before finish() could land. This proof ends the entry now,
+      // as failed, so a temp tree is still kept RESOURCE_TEMP_KEEP_MS for
+      // diagnosis from here and then removed (RLF-TEMPLEAK).
+      entry.endedAtMs = this.now()
+      entry.failed = true
+      await this.save()
+    }
     if (
       entry.kind === 'temp' &&
       entry.failed &&
@@ -814,9 +851,11 @@ export class CreatedRegistry {
   createTemp(owner: string): Promise<{ id: string; root: string }> {
     return this.serial(async () => {
       const token = randomBytes(RESOURCE_TEMP_TOKEN_BYTES).toString('hex')
+      const creator = await this.proof.creator()
       const entry = entrySchema.parse({
         id: randomUUID(),
         owner,
+        ...(creator !== undefined && { creator }),
         kind: 'temp',
         path: path.join(this.base, `${RESOURCE_TEMP_PREFIX}${randomUUID()}`),
         identity: null,
@@ -959,6 +998,21 @@ export class CreatedRegistry {
         cause: failure.reason,
       })
     return await this.serial(async () => {
+      // The sweep visits every entry the live manifest holds, including
+      // ones other processes recorded after this instance opened: within
+      // the queue every local change is already saved, so reloading can
+      // only add what they wrote. A manifest that is not there yet (no
+      // save ever landed) leaves this instance's view as it is.
+      try {
+        const loaded = this.parseManifest(await this.checkManifest())
+        for (const [id, entry] of loaded) {
+          if (this.entries.has(id)) continue
+          this.entries.set(id, entry)
+          this.synced.set(id, JSON.stringify(entry))
+        }
+      } catch (error: unknown) {
+        if (!isMissing(error)) throw error
+      }
       let removed = 0
       let freedBytes: number | null = 0
       for (const entry of this.entries.values()) {

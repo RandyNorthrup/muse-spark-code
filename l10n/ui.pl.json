@@ -259,6 +259,8 @@
   "resourceRelocationNoTarget": "Nie ma aktywnej trasy do zatwierdzonego wykonawcy. Praca pozostaje na tym komputerze. Przenoszenie na sparowane urządzenia jest niedostępne.",
   "resourceUnavailable": "Ten odczyt jest niedostępny na tym komputerze.",
   "resourceUnavailableWhy": "Ten odczyt jest niedostępny na tym komputerze: {cause}",
+  "resourceCleanupRemoved": "Pozostałe foldery tymczasowe z wcześniejszych sesji zostały usunięte.",
+  "resourceCleanupRefused": "Niektórych pozostałych folderów tymczasowych nie udało się zweryfikować, więc zostały pozostawione w miejscu.",
   "resourceGovernorOff": "Limity zasobów są wyłączone na tym komputerze.",
   "resourceStatusRefused": "Nie udało się odczytać najnowszego stanu zasobów, więc nie są wyświetlane żadne odczyty.",
   "resourceTransport": "Błędy transportu",

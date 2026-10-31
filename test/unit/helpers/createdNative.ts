@@ -10,6 +10,12 @@ import { readJobSource } from './jobSource'
 import { removeFolder } from './temporaryFolders'
 import { windowsCreatedVariant } from './createdNativeWindows'
 
+/** A Mac with only the Command Line Tools names them for the /usr/bin shims. */
+function developerDir(): NodeJS.ProcessEnv {
+  const dir = process.env['DEVELOPER_DIR']
+  return dir === undefined ? {} : { DEVELOPER_DIR: dir }
+}
+
 function run(file: string, args: readonly string[], env: NodeJS.ProcessEnv = {}): Promise<string> {
   return new Promise((resolve, reject) => {
     execFile(file, [...args], { env, windowsHide: true }, (error, stdout) => {
@@ -88,7 +94,7 @@ export function useCreatedNative(): void {
           '-o',
           binary,
         ],
-        { PATH: '/usr/bin:/bin', TMPDIR: scratch },
+        { PATH: '/usr/bin:/bin', TMPDIR: scratch, ...developerDir() },
       )
       state.call = (args) => run(binary, args)
     }
@@ -149,7 +155,7 @@ export async function compileCreatedVariant(
       '-o',
       binary,
     ],
-    { PATH: '/usr/bin:/bin', TMPDIR: state.scratch },
+    { PATH: '/usr/bin:/bin', TMPDIR: state.scratch, ...developerDir() },
   )
   return (args) => run(binary, args)
 }
