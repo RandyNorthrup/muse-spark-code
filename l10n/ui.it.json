@@ -7145,7 +7145,9 @@
       "other": "La protezione anti-fork ha negato {count} processi figli all’esecuzione supervisionata; l’esecuzione è continuata.",
       "many": "La protezione anti-fork ha negato {count} processi figli all’esecuzione supervisionata; l’esecuzione è continuata."
     },
-    "unavailable": "La supervisione non è disponibile in questa installazione."
+    "unavailable": "La supervisione non è disponibile in questa installazione.",
+    "recordsFolderNotPrivate": "La supervisione conserva i propri record in una cartella in cui solo tu puoi scrivere, ma la cartella dati dell’agente o una cartella superiore è scrivibile da altri utenti. Rimuovi l’accesso in scrittura per gli altri utenti da quelle cartelle e riprova.",
+    "endpointPathTooLong": "La supervisione non può avviarsi perché il percorso della cartella dati dell’agente è troppo lungo per il socket di controllo consentito da questo sistema. Sposta la cartella dati dell’agente in un percorso più breve e riprova."
   },
   "hostService": {
     "unavailable": "Il pannello di runtime non è disponibile in questa installazione.",

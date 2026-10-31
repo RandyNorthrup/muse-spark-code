@@ -6966,7 +6966,9 @@
       "one": "A fork-védelem {count} gyermekfolyamatot tagadott meg a felügyelt futástól; a futás folytatódott.",
       "other": "A fork-védelem {count} gyermekfolyamatot tagadott meg a felügyelt futástól; a futás folytatódott."
     },
-    "unavailable": "A felügyelet nem érhető el ebben a telepítésben."
+    "unavailable": "A felügyelet nem érhető el ebben a telepítésben.",
+    "recordsFolderNotPrivate": "A felügyelet a rekordjait olyan mappában tartja, amelybe csak ön írhat, de az ügynök adatmappájába vagy egy felette lévő mappába más felhasználók is írhatnak. Vegye el a többi felhasználótól az írási hozzáférést ezekhez a mappákhoz, majd próbálja újra.",
+    "endpointPathTooLong": "A felügyelet nem tud elindulni, mert az ügynök adatmappájának elérési útja túl hosszú a rendszer által engedélyezett vezérlő sockethez. Helyezze az ügynök adatmappáját rövidebb elérési útra, majd próbálja újra."
   },
   "hostService": {
     "unavailable": "A futtatókörnyezeti panel ebben a telepítésben nem érhető el.",

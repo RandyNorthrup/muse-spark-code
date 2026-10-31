@@ -7324,7 +7324,9 @@
       "few": "Ochrana proti forku odepřela dohlíženému běhu {count} podřízené procesy; běh pokračoval.",
       "many": "Ochrana proti forku odepřela dohlíženému běhu {count} podřízeného procesu; běh pokračoval."
     },
-    "unavailable": "Dohled není v této instalaci k dispozici."
+    "unavailable": "Dohled není v této instalaci k dispozici.",
+    "recordsFolderNotPrivate": "Dohled ukládá své záznamy do složky, do které můžete zapisovat jen vy, ale do datové složky agenta nebo některé nadřazené složky mohou zapisovat i jiní uživatelé. Odeberte ostatním uživatelům přístup pro zápis do těchto složek a zkuste to znovu.",
+    "endpointPathTooLong": "Dohled se nemůže spustit, protože cesta k datové složce agenta je pro řídicí soket povolený tímto systémem příliš dlouhá. Přesuňte datovou složku agenta na kratší cestu a zkuste to znovu."
   },
   "hostService": {
     "unavailable": "Běhový panel není v této instalaci k dispozici.",
