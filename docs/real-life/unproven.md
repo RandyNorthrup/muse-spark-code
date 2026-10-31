@@ -7,7 +7,7 @@ A test was deleted when it:
 - used a stand-in or invented data: `vi.fn`/`vi.spyOn`/`vi.stubGlobal` returning made-up answers, the hand-written `vscode` module (`test/unit/mocks/vscode.ts`), the fake Muse Code CLI (`test/e2e/fake-muse/`), the Action's fake agent and scripted transport (`test/action/`), a fake Model API, Git, GitHub or MCP server, or a helper built on one of those;
 - or only checked that some text, key, name or file exists (in source, config, a workflow, docs, a manifest, a build output or a list the test pinned itself).
 
-Counts: 187 test files deleted (1943 test titles), 99 tests removed from 31 files that keep real tests, and 74 helpers, fixtures and fake-suite scripts deleted with them.
+Counts: 187 test files deleted (1943 test titles), 119 tests removed from 32 files that keep real tests, and 74 helpers, fixtures and fake-suite scripts deleted with them.
 
 ## Deleted test files
 
@@ -3228,3 +3228,107 @@ it measured; nothing in the merged tree replaces its migration claims. The
 schedule own-cap check (`assertScheduleOwnCap`) likewise stays here: no paid
 fire could run while delivery is uncertified
 (`docs/real-life/pr207-2026-10-18.md`).
+
+## Rewritten on lane RLF-PLAYBOOK (2026-10-30)
+
+`test/unit/playbookConversation.test.ts` (52 cases) drove the conversation
+over a scripted window, scripted pickers and a scripted backend. 32 cases
+moved onto the real composition in the same file (the real conversation over
+the real window, worker, journal and git repository): ordinary and over-bound
+reviews, the taken best-of-N attempt as a child, the review ticket's charter,
+bind, watch and cancel paths, dispatch and admission rounds and their ends,
+lease-exclusion refusals in the policy's own words, live rows, replays,
+conversation end, and the notice paths that need no picker. The rest leave
+the unit suite: only a real model turn makes a real child session, with its
+own items and stored patches, and VS Code's pickers exist only in a real VS
+Code. Each entry below names the exact real-life steps a person follows in
+the packed product. All of them start the same way: install the packed
+extension in VS Code, open a git workspace with the playbook enabled, and
+work on the Model API backend unless the entry says otherwise.
+
+### test/unit/playbookConversation.test.ts (20 titles leave; the offer and hook-output slivers of one moved case leave with them)
+
+- `a review turn > gives the window the files the host saw each child change, and nothing a model said`
+  1. Delegate a small edit of one tracked file to a subagent and let it finish.
+  2. Review that file: expect a playbook review — the round is counted and told (`Orchestrator Playbook: <module> …`), and the journal records the child and its file.
+  3. In the same conversation, review a tracked file no child changed: expect an ordinary review — sent exactly as written, no counted round, no journal records.
+- `a review turn > reads a child’s stored patch for the files it changed, from the child’s own session`
+  1. Delegate an edit to a child whose rows keep the edit only as a stored patch (an older or resumed session whose rows carry a stored output but no changed-files list).
+  2. Review the edited file: expect a playbook review counted with the stored patch's files; the journal names the child's file.
+- `a review turn > reads a stored patch whole, however many pages it takes`
+  1. Have a child make an edit whose stored patch is larger than one 256 KiB page, kept as in the previous entry.
+  2. Review the edited files: expect every file the patch names to be counted — paging never drops a file.
+- `a review turn > reports a stored patch that never ends, or that does not read as one, and reviews on`
+  1. Back up the child's `<sessionId>.json` in the backend's session directory, then garble its stored patch bytes (truncate the document mid-way, or replace it with text that is not a patch document).
+  2. Review the file: expect the warning `Playbook finding for <child>: the contribution could not be read. This child’s round was counted.`, and the review to proceed.
+  3. Restore the backup.
+- `a review turn > takes a child whose own items say it changed nothing for no child at all`
+  1. Delegate a question the child answers without editing anything.
+  2. Review: expect an ordinary review — no charter, no counted round, no playbook notices at all.
+- `a review turn > reports a child whose session cannot be read, and reviews on`
+  1. Delegate an edit to a child and let it finish.
+  2. Move the child's `<sessionId>.json` out of the backend's session directory (keep it, to restore).
+  3. Review the file: expect the `the contribution could not be read` finding for that child, and the review to proceed.
+  4. Restore the session file.
+- `a review turn > reports a child that changed more files than the journal can hold, and cuts nothing to fit`
+  1. Have a child create 5,001 small files (a script writing numbered files).
+  2. Review: expect the warning naming the child with `changed-file count: 5,001; bound: 5,000`, the child reported blocked with no files, and nothing cut to fit.
+- `a review turn > opens two children’s rounds that work unasked, owing nothing for it`
+  1. Delegate two independent edits to two children.
+  2. Review both files: expect one counted round per child, no warnings, and no amounts owed — unasked work is reviewed, not billed.
+- `a review turn > reports a %s contribution against its child and lets a clean second child proceed` (%s = nameWithheld)
+  1. Have one child edit a file whose name reads as a secret (a token-like string of 24 or more characters in the name), and a second child edit an ordinary file.
+  2. Review both: expect the warning `Playbook finding for <child>: a file whose name is withheld reads as a secret. This child’s round was counted.` — naming the child but never the filename — beside the clean child's counted round.
+  3. Review again without new work: expect the same blocked marker re-sent, and still only one warning.
+- `a review turn > reports a %s contribution against its child and lets a clean second child proceed` (%s = patchTooLarge)
+  1. Have one child make an edit whose stored patch is larger than 2,097,152 bytes, kept as a stored patch only, and a second child edit an ordinary file.
+  2. Review both: expect the warning `Playbook finding for <child>: the patch is <size>, above the 2,097,152 bound. This child’s round was counted.` beside the clean child's round.
+  3. Review again without new work: expect the same blocked marker re-sent, and still only one warning.
+- `a review turn > reports a %s contribution against its child and lets a clean second child proceed` (%s = patchUnreadable)
+  1. Back up the first child's `<sessionId>.json`, garble its stored patch bytes as above, and have a second child edit an ordinary file.
+  2. Review both: expect the `the contribution could not be read` finding for the first child beside the clean child's round.
+  3. Review again without new work: expect the same blocked marker re-sent, and still only one warning.
+  4. Restore the session file.
+- `a review turn > reports a %s contribution against its child and lets a clean second child proceed` (%s = identityUnreadable)
+  1. Have one child edit a file, then delete that file (or revoke read permission) before the review, so its identity cannot be told; have a second child edit an ordinary file.
+  2. Review both: expect the `the contribution could not be read` finding for the first child beside the clean child's round.
+  3. Review again without new work: expect the same blocked marker re-sent, and still only one warning.
+- `a review turn > reports a %s contribution against its child and lets a clean second child proceed` (%s = tooManyFiles)
+  1. Have one child create 5,001 small files and a second child edit an ordinary file.
+  2. Review: expect the `changed-file count: 5,001; bound: 5,000` finding for the first child beside the clean child's round.
+  3. Review again without new work: expect the same blocked marker re-sent, and still only one warning.
+- `a review turn > reads a blocked contribution again after a new round for that child`
+  1. Reach a blocked child as in any entry above (for example an unreadable session).
+  2. Delegate a new round of work to the same child.
+  3. Review: expect the contribution read fresh — a new finding id — and told again, with a second warning.
+- `a review turn > reads a blocked contribution again after the child’s first live row`
+  1. Reach a blocked child as in any entry above.
+  2. Start the child on new live work, so a fresh subagent row appears.
+  3. Review: expect the contribution read fresh and told again.
+- `the notice’s button > records disputed and residual answers as the person gave them, and asks nothing about an answered finding`
+  1. Run a counted review that leaves three open findings on one module, with a fourth finding already answered.
+  2. Press the playbook button on the rounds notice: a quick pick lists the open findings, each ticked as fixed.
+  3. Untick every finding: each is asked about in turn. Answer one `Disputed` with the reason `  It is intended.  ` (padded on purpose); answer the next `Named Residual` with a name, a why-safe and a follow-up; dispute the last.
+  4. Expect the journal to record the answers exactly as given — the disputed reason trimmed to `It is intended.` — the answered finding never asked about, and the notice `Playbook checks passed.`
+- `the notice’s button > takes every finding left ticked as fixed`
+  1. Run a counted review that leaves two open findings.
+  2. Press the playbook button and leave both findings ticked: expect both recorded fixed.
+- `the notice’s button > writes nothing when a picker is dismissed half way`
+  1. Run a counted review that leaves two open findings.
+  2. Press the playbook button, untick both, answer the first finding, then dismiss the second finding's picker (Esc).
+  3. Expect no answers recorded at all — a dismissed picker writes no half record.
+- `the notice’s button > records the design decision’s four fields when a redesign is due`
+  1. Set the team's patch-rounds maximum low and run counted reviews past it, until the module's standing calls for a redesign.
+  2. Press the playbook button: four input boxes ask, in order, `Class of Failure`, `Why the patches did not end it`, `Structural Change That Removes the Failure`, and `Decision in the Plan`.
+  3. Fill all four: expect the design decision recorded with the four fields as given.
+- `the notice’s button > asks which module when more than one is open`
+  1. Run counted reviews that leave two modules with open findings.
+  2. Press the playbook button: a quick pick titled `Orchestrator Playbook` lists the two modules.
+  3. Pick one, then dismiss its first question: expect nothing recorded — the picked module was the one asked about.
+- `what a followed conversation is told > shows each why-note, offer and counted round with the playbook’s button` (the offer sliver; the why-note, rounds and failure fan-out moved into the suite)
+  1. Set the team's patch-rounds maximum low and run counted reviews past it.
+  2. Expect the redesign offer as a warning notice with the playbook button: `Playbook: write a design decision for <module> before dispatching its redesign.`
+- `what a followed conversation is told > shows each why-note, offer and counted round with the playbook’s button` (the hook-output sliver)
+  1. Add a repository hook that prints a marker line (for example a `pre-commit` hook that echoes a fixed sentence).
+  2. Run a review and let its round verify.
+  3. Expect a warning notice without the button, carrying the hook's marker output.
