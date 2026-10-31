@@ -194,6 +194,10 @@ export class ConnectorOAuth {
 
   /** Ends every sign-in made under a grant that has since changed or been withdrawn. */
   private async reconcile(): Promise<void> {
+    // The grant is read from the store again, as the registry does before every
+    // call: a revoke from another terminal ends the sign-ins now, not whenever
+    // a file watcher gets to it (macOS delivers those late).
+    await this.options.authority.refresh()
     await this.records.rebind(liveGrant(this.options.authority)?.generation)
   }
 
