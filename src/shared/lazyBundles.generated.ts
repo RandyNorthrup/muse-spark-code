@@ -1542,6 +1542,13 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'teamProcess.js',
+    side: 'both',
+    requestedBy: [
+      { importer: 'src/host/team/teamHostEntry.ts', symbol: 'load', side: ['acp', 'vscode'] },
+    ],
+  },
+  {
     file: 'teamRunners.js',
     side: 'both',
     requestedBy: [

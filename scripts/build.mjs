@@ -236,6 +236,10 @@ const TEAM_TRAFFIC_ENTRY = 'src/host/team/teamTrafficEntry.ts'
 const TEAM_TRAFFIC_OUTFILE = 'dist/teamTraffic.js'
 const TEAM_MCP_ENTRY = 'src/host/team/teamMcpEntry.ts'
 const TEAM_MCP_OUTFILE = 'dist/teamMcp.js'
+// RLF-TEAMWORKERS: the Muse Code and external-agent worker ports load on the
+// first such task, out of the team host bundle.
+const TEAM_PROCESS_ENTRY = 'src/host/team/teamProcessEntry.ts'
+const TEAM_PROCESS_OUTFILE = 'dist/teamProcess.js'
 const TEAM_FILE_IO_ENTRY = 'src/core/team/workers/workerToolIoEntry.ts'
 const TEAM_FILE_IO_OUTFILE = 'dist/teamFileIo.js'
 const TEAM_WORKER_OPS_ENTRY = 'src/core/team/workers/workerOpsEntry.ts'
@@ -808,6 +812,13 @@ const teamMcpOptions = {
   ...teamOptions,
   entryPoints: [TEAM_MCP_ENTRY],
   outfile: TEAM_MCP_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const teamProcessOptions = {
+  ...teamOptions,
+  entryPoints: [TEAM_PROCESS_ENTRY],
+  outfile: TEAM_PROCESS_OUTFILE,
 }
 
 const teamEngineOptions = {
@@ -2270,6 +2281,7 @@ if (isWatch) {
     esbuild.context(teamTrafficOptions),
     esbuild.context(teamHostOptions),
     esbuild.context(teamMcpOptions),
+    esbuild.context(teamProcessOptions),
     esbuild.context(teamEngineOptions),
     esbuild.context(execTeamOptions),
     esbuild.context(execLedgerLeaseOptions),
@@ -2500,6 +2512,7 @@ if (isWatch) {
     teamTraffic: recorded('teamTraffic', teamTrafficOptions),
     teamHost: recorded('teamHost', teamHostOptions),
     teamMcp: recorded('teamMcp', teamMcpOptions),
+    teamProcess: recorded('teamProcess', teamProcessOptions),
     teamEngine: recorded('teamEngine', teamEngineOptions),
     teamFileIo: recorded('teamFileIo', teamFileIoOptions),
     teamCreate: recorded('teamCreate', teamCreateOptions),
@@ -2835,6 +2848,7 @@ if (isWatch) {
   reportSize(TEAM_TRAFFIC_OUTFILE)
   reportSize(TEAM_HOST_OUTFILE)
   reportSize(TEAM_MCP_OUTFILE)
+  reportSize(TEAM_PROCESS_OUTFILE)
   reportSize(TEAM_SCHEDULER_OUTFILE)
   reportSize(FOREIGN_HOOKS_OUTFILE)
   reportSize(HOOK_RUNTIME_OUTFILE)

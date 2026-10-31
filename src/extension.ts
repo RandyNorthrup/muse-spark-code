@@ -12,7 +12,12 @@ import { isChildTurn } from './shared/agentEvents'
 import { unlessAborted } from './core/timeouts'
 import { formatDate } from './shared/l10n/text'
 import { runtimeAccountsLoader } from './runtime/providers/accountsBundle'
-import { ACCOUNT_REQUEST_CERTIFICATION, RUNTIME_ACCOUNTS_BUNDLE_FILE } from './shared/constants'
+import {
+  ACCOUNT_REQUEST_CERTIFICATION,
+  MUSE_DISABLE_SANDBOX_ARG,
+  MUSE_SANDBOX_NETWORK_ARG,
+  RUNTIME_ACCOUNTS_BUNDLE_FILE,
+} from './shared/constants'
 import {
   ACCOUNT_DEFAULT_ID,
   ACCOUNT_PAID_STORE,
@@ -3513,6 +3518,49 @@ async function activateWindow(
         now: () => Date.now(),
         log,
       },
+      // Muse Code and external-agent workers (RLF-TEAMWORKERS): the lazy
+      // team bundle starts the team's own Muse Code host on the first one.
+      processWorkers: {
+        repositoryRoot: () => workspaceRoot,
+        storageRoot: path.join(context.storageUri?.fsPath ?? storageRoot, 'team'),
+        journalStorageDirectory: context.storageUri?.fsPath ?? storageRoot,
+        platform: process.platform,
+        isTrusted: () => vscode.workspace.isTrusted,
+        extensionVersion: version,
+        resolveMuseServe: () => {
+          const resolution = backend.resolveLaunch()
+          if (!resolution.ok) return
+          const { launch } = resolution
+          return {
+            command: launch.command,
+            prefixArgs: launch.args.slice(0, launch.args.length - launch.serveArgs.length),
+            // The editor's sandbox posture, as its own host runs it.
+            postureArgs: launch.serveArgs.filter(
+              (argument, index, all) =>
+                argument === MUSE_DISABLE_SANDBOX_ARG ||
+                argument === MUSE_SANDBOX_NETWORK_ARG ||
+                all[index - 1] === MUSE_SANDBOX_NETWORK_ARG,
+            ),
+            env: backend.childEnvironment(),
+          }
+        },
+        isContributorMode: () => backend.contributorModeEnabled(),
+        baseEnv: () => process.env,
+        pathEntries: () => (process.env['PATH'] ?? '').split(path.delimiter),
+        ...(process.platform === 'win32' &&
+          process.env['SystemRoot'] !== undefined && {
+            windows: {
+              storageDir: storageRoot,
+              systemRoot: process.env['SystemRoot'],
+              readJobSource,
+              log: (message: string) => {
+                log.warn(message)
+              },
+            },
+          }),
+        now: () => Date.now(),
+        log,
+      },
       cards: {
         show: (sessionId, item) => {
           for (const controller of controllers.values()) controller.showTeamCard(sessionId, item)
@@ -3530,8 +3578,9 @@ async function activateWindow(
       now: () => Date.now(),
       log,
     },
-    // VS Code runs engine workers; Muse Code and external agents come with C-M96-4 and lane W.
-    canRunKind: (kind) => kind === 'engine',
+    // VS Code runs all three kinds: engine workers in this window, Muse Code
+    // and external agents as processes the team's lazy bundle starts.
+    canRunKind: (kind) => ['engine', 'museCode', 'external'].includes(kind),
     loadFactory: async () => {
       const { createTeamHost } = await import('./host/team/teamHostEntry')
       return createTeamHost
