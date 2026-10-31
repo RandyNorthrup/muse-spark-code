@@ -145,6 +145,9 @@ export function RolesSection({ panelState, post, highlightedItem }: SectionProps
             {orchestratorOffer?.label ??
               fill(UI_TEXT.teamDefaultResolves, { model: slice.defaultRef })}
           </p>
+          {orchestratorOffer?.agent.kind === 'external' ? (
+            <p>{fill(UI_TEXT.teamExternalLeaderNotice, { agent: orchestratorOffer.label })}</p>
+          ) : null}
           <SearchableSelect
             label={UI_TEXT.teamOrchestratorSlot}
             placeholder={UI_TEXT.groupModel}

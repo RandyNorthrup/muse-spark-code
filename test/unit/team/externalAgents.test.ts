@@ -14,6 +14,7 @@ import { buildTeamModelOffers } from '../../../src/core/team/teamModelRegistry'
 import { deriveTeamPanel } from '../../../src/core/team/teamPanelViews'
 import { teamOffers } from '../helpers/teamPanelOffers'
 import { ACP_PRESETS } from '../../../src/core/team/workers/acpWorker'
+import { UI_TEXT } from '../../../src/shared/constants'
 
 describe('external agent presets', () => {
   it('offers the five presets with lane W’s captured launch facts', () => {
@@ -170,5 +171,7 @@ describe('the panel’s reading of an external lead', () => {
     // The lead stands; the pool entry on the same agent refuses, naming it.
     expect(slice.issues.some((line) => line.includes('Claude Code'))).toBe(true)
     expect(slice.issues.some((line) => line.includes('second model'))).toBe(false)
+    // And the lead itself is accepted: no "invalid" for the external pick.
+    expect(slice.issues).not.toContain(UI_TEXT.teamEditor.invalid)
   })
 })
