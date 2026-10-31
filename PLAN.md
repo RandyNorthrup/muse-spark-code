@@ -19199,6 +19199,15 @@ live suggestion and the live check stay open (B4); the same order in
 `src/runtime/lsp/lspTab.ts` has no suite and is unchanged. Record:
 `docs/certification/cc-winruns.md`.
 
+**Status 2026-10-30 (CC-WINHOOK, Windows 11, int/recovery dfcb45936f):
+building.** The same order in `src/runtime/lsp/lspTab.ts` is reordered: a
+secret under the cursor is decided from the document right after the policy
+check, before the stored key is read and before D48's question, so Tab over
+LSP never asks for a request that cannot be sent. `test/unit/runtimeLsp.test.ts`
+proves it through the real server under the official client, which now records
+every question the server asks (the old order fails it with `Tab quiet
+(no-key)`). Record: `docs/certification/cc-winhook.md`.
+
 **Owner decision 2026-10-23: the Tab status bar stays at startup; the
 4 KiB ambition is dropped.** RLF-TAB moved everything else Tab carried at
 activation into `dist/tab.js` (Tab's share of `dist/extension.js` fell

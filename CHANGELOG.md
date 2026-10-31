@@ -324,6 +324,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Tab over the language server (`muse-spark-code-acp lsp`) no longer asks you
+  to approve a spend for a request that cannot be sent. A secret under the
+  cursor is now found before the stored key is read and before the paid-use
+  question, so the question comes only with a request that can be sent.
 - A pack index is accepted only when the signature covers those exact bytes
   and the signer is the pack workflow on `main`, exactly. A signature for a
   branch whose name merely begins with `main`, or a signed statement that
