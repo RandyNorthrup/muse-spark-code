@@ -40,6 +40,7 @@ export const DESKTOP_OUTPUTS = [
   'desktop/shell/theme/palette-hc-dark.css',
   'desktop/crates/tokens/src/palette.rs',
   'desktop/shell/theme/hyprland-theme.lua',
+  'desktop/shell/theme/hyprland-theme.json',
   'desktop/shell/theme/xterm-light.json',
   'desktop/shell/theme/xterm-dark.json',
   'desktop/shell/theme/xterm-hc-light.json',
@@ -970,47 +971,99 @@ function luaScalar(value) {
   throw new Error(`Unsupported Lua value: ${typeof value}`)
 }
 
-function luaColour(colour) {
+function hyprColourData(colour) {
   const bytes = srgbBytes(oklchToSrgb(colour))
   const full = colour.alpha === 1 ? [255, ...bytes] : [bytes[3], bytes[0], bytes[1], bytes[2]]
-  const hex = full.map((n) => n.toString(16).padStart(2, '0')).join('')
-  return `{ hex = ${JSON.stringify(emitHex(colour))}, argb = 0x${hex} }`
+  return {
+    hex: emitHex(colour),
+    argb: full[0] * 0x01_00_00_00 + full[1] * 0x00_01_00_00 + full[2] * 0x00_00_01_00 + full[3],
+  }
+}
+
+// The Hyprland theme as plain data: the one model both the Lua table and
+// its JSON twin (CP's config generator reads the JSON) serialize. Mode
+// keys are the DESKTOP_MODES names; the Lua renderer maps them to Lua
+// identifiers.
+export function hyprThemeData(consumers) {
+  const modes = {}
+  for (const mode of DESKTOP_MODES) {
+    const model = hyprModel(consumers, mode)
+    modes[mode] = {
+      unfocusedBorder: hyprColourData(colourOf(consumers, mode, 'unfocusedBorder')),
+      focusedBorder: hyprColourData(colourOf(consumers, mode, 'focusedBorder')),
+      selection: hyprColourData(colourOf(consumers, mode, 'selection')),
+      shadow: hyprColourData(colourOf(consumers, mode, 'shadow')),
+      dimBackground: hyprColourData(colourOf(consumers, mode, 'dimBackground')),
+      innerGap: model.innerGapPx,
+      outerGap: model.outerGapPx,
+      rounding: model.roundingPx,
+      borderWidth: model.borderWidthPx,
+      bezierStandard: model.bezierStandard,
+      bezierEmphasised: model.bezierEmphasised,
+      durationFastMs: model.durationFastMs,
+      durationBaseMs: model.durationBaseMs,
+      durationSlowMs: model.durationSlowMs,
+      durationFlipMs: model.durationFlipMs,
+      blur: model.blurPx,
+    }
+  }
+  return {
+    version: DESKTOP_CONSUMER_VERSION,
+    modes,
+    tiling: {
+      smartGapsAlone: true,
+      detachedTerminal: 'floating',
+    },
+    reducedMotion: {
+      animationsEnabled: false,
+    },
+  }
 }
 
 export function renderLua(consumers) {
+  const data = hyprThemeData(consumers)
   const section = (mode) => {
-    const model = hyprModel(consumers, mode)
+    const entry = data.modes[mode]
     const colours = ['unfocusedBorder', 'focusedBorder', 'selection', 'shadow', 'dimBackground']
     const entries = [
-      ...colours.map((role) => `      ${role} = ${luaColour(colourOf(consumers, mode, role))},`),
-      `      innerGap = ${model.innerGapPx},`,
-      `      outerGap = ${model.outerGapPx},`,
-      `      rounding = ${model.roundingPx},`,
-      `      borderWidth = ${model.borderWidthPx},`,
-      `      bezierStandard = ${luaScalar(model.bezierStandard)},`,
-      `      bezierEmphasised = ${luaScalar(model.bezierEmphasised)},`,
-      `      durationFastMs = ${model.durationFastMs},`,
-      `      durationBaseMs = ${model.durationBaseMs},`,
-      `      durationSlowMs = ${model.durationSlowMs},`,
-      `      durationFlipMs = ${model.durationFlipMs},`,
-      `      blur = ${model.blurPx},`,
+      ...colours.map(
+        (role) =>
+          `      ${role} = { hex = ${JSON.stringify(entry[role].hex)}, argb = 0x${entry[role].argb.toString(16).padStart(8, '0')} },`,
+      ),
+      `      innerGap = ${entry.innerGap},`,
+      `      outerGap = ${entry.outerGap},`,
+      `      rounding = ${entry.rounding},`,
+      `      borderWidth = ${entry.borderWidth},`,
+      `      bezierStandard = ${luaScalar(entry.bezierStandard)},`,
+      `      bezierEmphasised = ${luaScalar(entry.bezierEmphasised)},`,
+      `      durationFastMs = ${entry.durationFastMs},`,
+      `      durationBaseMs = ${entry.durationBaseMs},`,
+      `      durationSlowMs = ${entry.durationSlowMs},`,
+      `      durationFlipMs = ${entry.durationFlipMs},`,
+      `      blur = ${entry.blur},`,
     ]
     return `    ${mode.replaceAll('-', '_')} = {\n${entries.join('\n')}\n    },`
   }
   return `${LUA_BANNER}return {
-  version = 1,
+  version = ${data.version},
   modes = {
 ${DESKTOP_MODES.map((mode) => section(mode)).join('\n')}
   },
   tiling = {
-    smartGapsAlone = true,
-    detachedTerminal = "floating",
+    smartGapsAlone = ${data.tiling.smartGapsAlone},
+    detachedTerminal = ${JSON.stringify(data.tiling.detachedTerminal)},
   },
   reducedMotion = {
-    animationsEnabled = false,
+    animationsEnabled = ${data.reducedMotion.animationsEnabled},
   },
 }
 `
+}
+
+// The JSON twin of the Lua table above, byte for byte the same data: CP's
+// Hyprland config generator reads this file, never the tokens twice.
+export function renderHyprJson(consumers) {
+  return JSON.stringify(hyprThemeData(consumers))
 }
 
 function colourOf(consumers, mode, role) {
@@ -1305,6 +1358,7 @@ export async function renderDesktop(consumers) {
     'desktop/shell/theme/MuseTheme/qmldir': renderQmldir(),
     'desktop/crates/tokens/src/palette.rs': renderRust(parsed),
     'desktop/shell/theme/hyprland-theme.lua': renderLua(parsed),
+    'desktop/shell/theme/hyprland-theme.json': renderHyprJson(parsed),
     'desktop/shell/theme/pointer.json': renderPointer(parsed),
     'desktop/shell/theme/icons.json': renderIcons(parsed),
     'desktop/shell/theme/wallpapers.json': renderWallpapers(parsed),
