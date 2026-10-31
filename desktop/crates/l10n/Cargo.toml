@@ -1,0 +1,26 @@
+[package]
+name = "muse-desktop-l10n"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+license = "MIT OR Apache-2.0"
+description = "Muse Desktop (M111, D91.20) lane IN: the fifteen UI tables for native Rust, read through ui_text!, with ICU4X locale formatting"
+
+[dependencies]
+icu_calendar = "=2.4.0"
+icu_datetime = "=2.4.0"
+icu_decimal = "=2.4.0"
+icu_locale = "=2.4.0"
+fixed_decimal = { version = "=0.7.3", features = ["ryu"] }
+
+[features]
+default = ["compiled_data"]
+compiled_data = [
+  "icu_calendar/compiled_data",
+  "icu_datetime/compiled_data",
+  "icu_decimal/compiled_data",
+  "icu_locale/compiled_data",
+]
+
+[lints.rust]
+unexpected_cfgs = "deny"
