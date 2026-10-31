@@ -68,9 +68,10 @@ happened, not what was planned; superseded entries are kept.
   Thonny's menu through Thonny's own connection. Arduino IDE qualification
   in the installed IDE is not complete yet.
 - **`museSpark.museCodeQuotaContinue` continues a turn when the subscription
-  window resets.** Off by default: a turn that ran out of subscription quota
-  waits until the provider's reset instant, however long, then resends its
-  message, with Stop. Without it, quota failures show with Retry instead.
+  window resets.** Off by default. With it on, a turn that ran out of
+  subscription quota waits until the provider's reset instant, however long,
+  then resends its message, with Stop. Without it, the failure shows at once,
+  with Retry when that turn can be retried.
 - **`muse-spark-code-acp watchdog` keeps a watch list of GitHub repositories
   in a terminal.** `watchdog list` and `status` show the watched
   repositories, `pause` and `resume` stop and restart watching, and `policy`
@@ -156,19 +157,6 @@ happened, not what was planned; superseded entries are kept.
   board, worker copies and task refs are tracked in the run's cleanup ledger
   and removed at shutdown; a later run sweeps what a dead run left.
   `modelApiSessions` are not installed in the runner.
-- **Team contracts for other editors and headless runs (M96b, behind the
-  agent-teams availability switch, off until certified).** The ACP agent maps
-  team tools, questions and merge approvals onto engine workers with the same
-  admission, settlement and cleanup as the editor; billable headless work
-  stays exact and refusals stay typed.
-- **ACP agent teams (M96b, behind the agent-teams availability switch,
-  off until certified).** `--team` in the ACP agent: a worker's approval
-  arrives as the editor's labelled `session/request_permission`, a task
-  shows as a `tool_call` with its updates and diff, the merge asks as a
-  permission request carrying the diff, and the Agent map is sent as a
-  `plan`. The agent runs its own scheduler with its own journal,
-  process-lifetime container and paid ledger, and shares the editor's
-  single-model behaviour when no second model is configured.
 - M120's shared team selector uses ordered candidates, live availability and
   capability checks with skip reasons, and excludes authors and their engines
   through handoff and borrow chains. Scheduler ticks apply timed secondary-role
