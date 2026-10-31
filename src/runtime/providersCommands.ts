@@ -106,8 +106,6 @@ export interface ProvidersDeps {
   unreadable) in tests: add/test/list skip the warnings, never fail.
   */
   readonly readCatalog?: () => Promise<unknown>
-  /** The clock, injected so tests own the report period. */
-  readonly now?: () => number
   /**
   Our own estimate for the period, from the usage journal (PROVSPEND).
   Undefined when the journal recorded no spend for the provider: the

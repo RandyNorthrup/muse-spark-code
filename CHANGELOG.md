@@ -423,6 +423,7 @@ happened, not what was planned; superseded entries are kept.
   its own post: a reply that quotes the marker counts as the reporter's
   answer again, and a quoted marker no longer stops the acknowledgement from
   being posted.
+- A refused provider connection during the editor's model-list probe no longer kills the whole scan: transport failures read as unanswered, as the fetch contract says, and a foreign-hook probe that the platform refuses reports the refusal instead of dropping it.
 - The terminal agent's requests were missing from usage history since 0.12.0:
   every headless turn stamped its usage record with a fractional clock, the
   journal refused the record, and one warning was all that was left. Stored

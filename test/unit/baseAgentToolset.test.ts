@@ -2,24 +2,27 @@ import { describe, expect, it } from 'vitest'
 import { createBaseAgentToolset } from '../../src/core/context/baseAgentToolset'
 import type { RuntimePrepareRequest, RuntimePreparation } from '../../src/core/browser/runtimeTypes'
 import { createLifetime } from '../../src/core/browser/workLifetime'
-import { scripted } from './helpers/recordCalls'
+import { recordCalls, scripted } from './helpers/recordCalls'
 
 function setup() {
-  const consent = scripted(
-    (_version: string, _bytes: number, _signal: AbortSignal): Promise<'decline' | 'download'> =>
-      Promise.resolve('decline'),
-  )
+  // The person's answer belongs to the preparation (proven against the
+  // real one in runtimeStore.test.ts): the toolset under test only threads
+  // the request through, so its consent double records and must stay empty.
+  const consent = recordCalls<[string, number, AbortSignal]>()
   const request: RuntimePrepareRequest = {
     storageDir: '/node/tools/storage',
     lifetime: createLifetime(10_000, [], 100),
     admissionStillValid: () => true,
-    consent,
-  }
-  const prepareRuntime = scripted(
-    async (input: RuntimePrepareRequest): Promise<RuntimePreparation> => {
-      const answer = await input.consent('154.0.8037.92', 120_477_194, input.lifetime.signal)
-      return { ok: false, reason: answer === 'decline' ? 'runtimeDeclined' : 'runtimeMissing' }
+    consent: (...args): Promise<'decline' | 'download'> => {
+      consent.fn(...args)
+      throw new Error('the toolset must never ask consent itself')
     },
+  }
+  // An arranged preparation result, as input to the wiring: the toolset
+  // passes results through and gates calls on the flags; the preparation
+  // itself is the runtime store's, proven there.
+  const prepareRuntime = scripted((): Promise<RuntimePreparation> =>
+    Promise.resolve({ ok: false, reason: 'runtimeDeclined' }),
   )
   const deps = {
     packageRoot: '/package',
@@ -45,7 +48,7 @@ describe('base agent first-boot preparation', () => {
       browser: { ok: false, reason: 'runtimeDeclined' },
     })
     expect(test.prepareRuntime.calls).toEqual([[test.request]])
-    expect(test.consent.calls).toHaveLength(1)
+    expect(test.consent.calls).toEqual([])
     test.request.lifetime.end()
   })
 

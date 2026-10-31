@@ -1315,6 +1315,11 @@
       "note": "recovery: every shipped dependency in the notices, the release read grants reviewed"
     },
     {
+      "id": "RLFNOSTUBS",
+      "public": false,
+      "note": "recovery: older stub-style test seams rewritten over real parts"
+    },
+    {
       "id": "SDK142",
       "public": false,
       "note": "Muse Code CLI fingerprint and documentation update"
