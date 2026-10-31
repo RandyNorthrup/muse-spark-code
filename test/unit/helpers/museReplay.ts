@@ -9,6 +9,7 @@
 import { readFileSync } from 'node:fs'
 import { z } from 'zod'
 import { Connection, type DuplexTransport } from '@muse-code/sdk'
+import type { CoreLogger } from '../../../src/core/logging'
 import {
   MuseCodeHost,
   type CommandTimeouts,
@@ -220,11 +221,22 @@ export interface ReplayWires {
   readonly startResult: Record<string, unknown>
 }
 
-/** A real host over the replay wire; the script answers every method the test needs. */
+/** A real host over the replay wire, with a scripted capture instead of the pinned one. */
+export interface LiveHostOptions {
+  readonly initializeResult?: unknown
+  readonly startResult?: Record<string, unknown>
+  readonly log?: CoreLogger
+}
+
+/**
+A real host over the replay wire; the script answers every method the test
+needs. Defaults serve the pinned capture to the stderr log; a suite with
+its own capture passes both, and the shared registry still closes them.
+*/
 export function startLiveHost(
   answer: (method: string, params: Record<string, unknown>) => Answer | Promise<Answer>,
   features?: MuseCodeFeaturePorts,
-  wires?: ReplayWires,
+  options?: LiveHostOptions,
   timeouts?: CommandTimeouts,
 ): LiveHost {
   const wire = new ReplayWire()
@@ -233,14 +245,14 @@ export function startLiveHost(
   const host = new MuseCodeHost(
     {
       connection,
-      initializeResult: wires?.initializeResult ?? initializeResult,
+      initializeResult: options?.initializeResult ?? initializeResult,
       exited: Promise.withResolvers<{ code: number | null; signal: string | null }>().promise,
       close: async () => {
         wire.finish()
         await connection.close()
       },
     },
-    stderrLogger(() => undefined, 'warn'),
+    options?.log ?? stderrLogger(() => undefined, 'warn'),
     timeouts,
     features,
   )

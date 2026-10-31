@@ -1487,6 +1487,12 @@
       "title": "The governor's per-job fork limit against supervised agents",
       "summary": "Decides the runaway-only fork bound with cited industry values that say why when they stop something, and governs supervised runs like every other launch.",
       "area": "platform"
+    },
+    {
+      "id": "RLFACPHONEST",
+      "title": "What the agent tells editors is true",
+      "summary": "Editors hear the approval mode the CLI runs, closing a conversation stops its background tasks first, and started sessions appear in the list.",
+      "area": "editors"
     }
   ]
 }

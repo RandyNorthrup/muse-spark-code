@@ -183,6 +183,7 @@ import {
   type FeedbackOutcomeReader,
   type FeedbackRequest,
 } from './feedback'
+import { isDeleteCapableReader, NATIVE_LIFECYCLE_READER } from './lifecycle'
 import {
   historyOutcome,
   sessionClosedSchema,
@@ -318,17 +319,21 @@ export interface MuseCodeFeaturePorts {
   readonly fastDecisionPin?: FastDecisionPin | undefined
 }
 
-// The captured-frame reader every backend construction binds (C-M106-3R2):
+// The captured-frame readers every backend construction binds (C-M106-3R2):
 // the note-only `feedback/submit` receipt
-// (test/fixtures/m106/msp-1.4.4-host-feedback.json). The 1.4.4 `model/list`
-// effort reader binds the same way, but the manager preloads its module on
-// first spawn (see `MuseCodeBackendManager`), so it stays out of the
-// activation bundle (lane K budget) while every spawn reads the same
-// catalogue. No lifecycle reader: 1.4.4 sends no delete frames, so deletion
-// stays refused with sessionDeleteUnsupported and History stays
-// archive-only.
+// (test/fixtures/m106/msp-1.4.4-host-feedback.json) and the
+// `session/started` notice (test/fixtures/m127/note-session-started-1.4.9.json,
+// test/fixtures/acphonest/note-session-started-1.4.11.json), so externally
+// started sessions reach the session list. The 1.4.4 `model/list` effort
+// reader binds the same way, but the manager preloads its module on first
+// spawn (see `MuseCodeBackendManager`), so it stays out of the activation
+// bundle (lane K budget) while every spawn reads the same catalogue. The
+// lifecycle reader is started-only: no CLI serves the delete frames (gone
+// from 1.4.4 on), so deletion stays refused with sessionDeleteUnsupported
+// and History stays archive-only.
 export const NATIVE_MUSE_CODE_FEATURE_PORTS: MuseCodeFeaturePorts = {
   feedback: NATIVE_FEEDBACK_READER,
+  lifecycle: NATIVE_LIFECYCLE_READER,
 }
 
 const SESSION_LIST_CHANGED = 'session/listChanged'
@@ -1525,6 +1530,8 @@ export class MuseSession implements ScheduledAgentSession {
   /** The surfaces holding this handle (PLAN.md D25): the last release disposes it. */
   private holders = 1
   private isDisposed = false
+  /** A last release started: the stop is settling, or the host is already gone. */
+  private releaseStarted = false
   /** Told when Muse Code reports this session's event log failed (CLI recovery). */
   private readonly logDamagedListeners = new Set<() => void>()
   /**
@@ -1899,6 +1906,9 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   private finishDispose(): void {
+    if (this.isDisposed) {
+      return
+    }
     this.scheduledQueue.clear()
     this.hardwareGuard.dispose()
     this.isDisposed = true
@@ -2322,6 +2332,11 @@ export class MuseSession implements ScheduledAgentSession {
   /** One more surface holds this handle (a second panel resumed the same session). */
   public retain(): void {
     this.holders += 1
+  }
+
+  /** @internal A last release started: `track` hands a re-adopt to a fresh handle. */
+  public get isReleasing(): boolean {
+    return this.releaseStarted
   }
 
   /**
@@ -3153,21 +3168,53 @@ export class MuseSession implements ScheduledAgentSession {
 
   /** Releases this surface's hold; the last one forgets the session (D25). */
   public dispose(): void {
-    if (this.isDisposed) {
+    if (this.isDisposed || this.releaseStarted) {
       return
     }
     this.holders -= 1
     if (this.holders > 0) {
       return
     }
-    // The CLI process can outlive this handle. Stop its work while the
-    // connection is still open, even when the turn that started it has ended.
-    void this.stopAllTasks().catch((error: unknown) => {
-      this.log.warn(
-        `task/stopAll before releasing session ${this.sessionId} failed: ${causeForLog(error)}`,
+    this.releaseStarted = true
+    if (this.channel.signal.aborted) {
+      // The host is gone or going (its close aborts this signal first), so
+      // there is nothing to stop on it. Said once, then forgotten.
+      this.log.info(
+        `session ${this.sessionId} released with its closing host without stopping its background tasks`,
       )
-    })
-    this.finishDispose()
+      this.finishDispose()
+      return
+    }
+    // The CLI process can outlive this handle. Its work stops while the
+    // connection is still open, even when the turn that started it has
+    // ended — and the stop settles before the handle is forgotten, so a
+    // surface re-adopted in between never shares a dying handle. Deafened
+    // at once, as before; only the forgetting waits for the stop.
+    this.listeners.clear()
+    this.logDamagedListeners.clear()
+    void this.stopAllTasks()
+      .then(() => {
+        this.finishDispose()
+      })
+      .catch((error: unknown) => {
+        // A close that won the race already said its line, as did a revoke
+        // the host replacement closes behind; the trace keeps the
+        // bookkeeping for a finished handle. Anything else names the
+        // failure's kind: causeForLog carries the kind, plus a machine code
+        // or one of our own sentences — never less than the kind, so a
+        // coded transport failure is not a bare name.
+        if (this.isDisposed || this.channel.signal.aborted) {
+          this.log.trace(
+            `task/stopAll settled after session ${this.sessionId} was already forgotten`,
+          )
+          this.finishDispose()
+          return
+        }
+        this.log.warn(
+          `task/stopAll before releasing session ${this.sessionId} failed: ${causeForLog(error)}`,
+        )
+        this.finishDispose()
+      })
   }
 
   /** The host is closing: the handle goes whoever still holds it. */
@@ -3175,7 +3222,10 @@ export class MuseSession implements ScheduledAgentSession {
     if (this.isDisposed) {
       return
     }
-    // The process has already closed, so there is no session command to send.
+    // The process has already closed, so there is no session command to
+    // send. Runs even while a release's stop is settling: the sync flip
+    // keeps that stop's failure quiet, since the closing was already said.
+    this.releaseStarted = true
     this.holders = 0
     this.finishDispose()
   }
@@ -3648,17 +3698,23 @@ export class MuseCodeHost implements AgentHost {
     hardwareContext?: () => HardwareContext,
   ): MuseSession {
     const existing = this.sessions.get(record.sessionId)
-    if (existing !== undefined) {
+    if (existing !== undefined && !existing.isReleasing) {
       // A second surface on the same session: closing one must not deafen the other.
       existing.retain()
       return existing
     }
+    // A release settles its stop before the handle is forgotten; a surface
+    // re-adopted in that window gets a fresh handle, and the dying handle's
+    // untrack must not evict it.
+    const untracking: { current: MuseSession | undefined } = { current: undefined }
     const handle = new MuseSession(
       record.sessionId,
       modelId,
       this.channel,
       () => {
-        this.sessions.delete(record.sessionId)
+        if (this.sessions.get(record.sessionId) === untracking.current) {
+          this.sessions.delete(record.sessionId)
+        }
         this.branchObservations.forget(record.sessionId)
       },
       this.info.grantedCapabilities.includes(MSP_USER_SHELL_CAPABILITY),
@@ -3675,6 +3731,7 @@ export class MuseCodeHost implements AgentHost {
       hardwareContext ?? (() => this.hardwareOwner(record.workspaceRoot ?? undefined).current()),
       this.runHardwareStop,
     )
+    untracking.current = handle
     this.sessions.set(record.sessionId, handle)
     const waiting = this.unclaimed.get(record.sessionId) ?? []
     for (const mapped of waiting) {
@@ -4013,8 +4070,11 @@ export class MuseCodeHost implements AgentHost {
   uses the terminal return, so this resolves `void`.)
   */
   public async deleteSession(sessionId: string): Promise<void> {
+    // A started-only reader (the native one: no delete frame was ever
+    // captured from a served CLI) refuses like no reader at all, before
+    // anything is sent that the CLI cannot answer.
     const reader = this.features.lifecycle
-    if (reader === undefined)
+    if (!isDeleteCapableReader(reader))
       throw new Error(fill(UI_TEXT.sessionDeleteUnsupported, { version: this.info.serverVersion }))
     const signal = this.deletionStopped.signal
     signal.throwIfAborted()
@@ -4346,6 +4406,9 @@ export class MuseCodeHost implements AgentHost {
   public async close(): Promise<void> {
     // The exit that follows is the extension's own (D25).
     this.isClosing = true
+    // Decided before the aborts below: a release settling its stop untracks
+    // itself while the process closes, and the abandonment is still said.
+    const held = this.sessions.size
     this.deletionStopped.abort(new Error(UI_TEXT.sessionDeleteHostClosed))
     this.commandOwner.close()
     // Close the process first: the host emits session/statusChanged for every
@@ -4353,6 +4416,13 @@ export class MuseCodeHost implements AgentHost {
     try {
       await this.host.close()
     } finally {
+      // One line for the abandonment: held sessions go with the closing
+      // host, their background tasks unstopped (RLF-HARVEST H7).
+      if (held > 0) {
+        this.log.info(
+          `Closing the host releases ${String(held)} held session${held === 1 ? '' : 's'} without stopping their background tasks`,
+        )
+      }
       for (const session of this.sessions.values()) {
         session.disposeAll()
       }

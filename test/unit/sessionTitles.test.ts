@@ -11,19 +11,23 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as acp from '@agentclientprotocol/sdk/unstable'
-import { Connection } from '@muse-code/sdk'
 import { afterEach, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
-import { createAcpAgent } from '../../src/acp/agent'
 import type { SessionListEvent, SessionRecord } from '../../src/core/agent/agentBackend'
 import { toSessionRow } from '../../src/core/agent/sessionRows'
-import { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
+import type { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
 import { sessionEnvelopeSchema } from '../../src/core/backends/musecode/sessionRecords'
 import { buildSessionBoard } from '../../src/core/sessionBoard'
 import { stderrLogger } from '../../src/runtime/stderrLog'
 import { MSP_KNOWN_SCHEMA_FINGERPRINTS, UI_TEXT } from '../../src/shared/constants'
-import { acpLocalAgentDeps } from './helpers/acpLocalAgentDeps'
-import { type Answer, refuseUnscripted, ReplayWire } from './helpers/museReplay'
+import { createReplayAgent } from './helpers/acpReplayRig'
+import {
+  type Answer,
+  closeLiveHosts,
+  refuseUnscripted,
+  type ReplayWire,
+  startLiveHost,
+} from './helpers/museReplay'
 import { titleCapture as capture, recordedAnswer as recorded } from './helpers/sessionTitleCapture'
 
 const LONG_TURN = capture.frames.find(
@@ -51,45 +55,28 @@ const labelOf = (sessionId: string) =>
 const initializeSchema = z.object({ schema: z.object({ fingerprint: z.string() }) })
 
 const log = stderrLogger(() => undefined, 'warn')
-const hosts: { host: MuseCodeHost; wire: ReplayWire }[] = []
 const folders: string[] = []
 afterEach(async () => {
-  for (const { host, wire } of hosts.splice(0)) {
-    wire.finish()
-    await host.close()
-  }
+  await closeLiveHosts()
   for (const folder of folders.splice(0)) rmSync(folder, { recursive: true, force: true })
 })
 
 /** The real host over the replay transport: recorded answers only, anything else refused loudly. */
 function replayHost(): { host: MuseCodeHost; wire: ReplayWire } {
-  const wire = new ReplayWire()
   const served: Readonly<Record<string, Record<string, unknown>>> = {
     'model/list': recorded('model/list'),
     'session/list': recorded('session/list'),
     'session/read': recorded('session/read'),
     'session/resume': recorded('session/resume'),
   }
-  wire.answer = (method): Answer => {
-    const result = served[method]
-    return result === undefined ? refuseUnscripted(method) : { result }
-  }
-  const connection = new Connection(wire.transport())
-  const host = new MuseCodeHost(
-    {
-      connection,
-      initializeResult: recorded('initialize'),
-      exited: Promise.withResolvers<{ code: number | null; signal: string | null }>().promise,
-      close: async () => {
-        wire.finish()
-        await connection.close()
-      },
+  return startLiveHost(
+    (method): Answer => {
+      const result = served[method]
+      return result === undefined ? refuseUnscripted(method) : { result }
     },
-    log,
+    undefined,
+    { initializeResult: recorded('initialize'), log },
   )
-  const live = { host, wire }
-  hosts.push(live)
-  return live
 }
 
 const byName = (left: string, right: string) => left.localeCompare(right)
@@ -159,23 +146,7 @@ describe('Muse Code session titles, end to end', () => {
     const { host } = replayHost()
     const folder = mkdtempSync(path.join(tmpdir(), 'session-titles-'))
     folders.push(folder)
-    const agent = createAcpAgent({
-      backend: {
-        kind: 'museCode',
-        readiness: () => Promise.resolve({ state: 'ready' }),
-        hostFor: () => Promise.resolve(host),
-      },
-      version: '0.19.0',
-      options: { canBypass: false, allowsContributorModels: false, initialMode: 'manual' },
-      signIn: {
-        id: 'login',
-        name: 'Muse Code',
-        description: 'Muse Code',
-        args: [],
-        command: 'muse login',
-      },
-      ...acpLocalAgentDeps(folder, log),
-    })
+    const agent = createReplayAgent({ host, folder, log })
     const listed = await acp
       .client({ name: 'session-titles' })
       .connectWith(agent, async (editor) => {

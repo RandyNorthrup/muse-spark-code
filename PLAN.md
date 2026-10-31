@@ -11182,6 +11182,23 @@ is in `docs/certification/cc-int2.md`. Record:
 
 **Status 2026-10-30: built, pending integration.** The vault undo crash window is closed in the engine on this branch (`5c0e4ec1c`); the broker drill did not run on this rig. The session keyring refuses a write with "User interaction is not allowed" (the same abort the RLF-VAULTUNDO record names), so neither the existing retired-undo case nor the new killed-undo case ran here. Both stay with hosted CI. The engine journals an undo as pending before the legacy write and written only after that write reads back; a newer value is not overwritten, and a copy removed after the write was saved is not written again. A retired ChatGPT sign-in stays in the credential set when its journal row is in the vault. The secret-gist review is `rv/m118` at `a0e8785b7` (D242, gist alone, grant stored apart from the repository sign-in). The macOS credential-file review is `rv/maccred` at `221f50197` (a symlink is not read as the file). Record: `docs/certification/rvcred.md`.
 
+### RLFACPHONEST — What the ACP agent tells editors is true, RLF-HARVEST B2, B3, B5 (2026-10-30)
+
+**Status 2026-10-30: built.** The `approvalModeChanged` echo is one info
+line while a CLI move warns and sends `current_mode_update` with fresh
+config options; session release settles `task/stopAll` first (a dead
+host says one info line and sends nothing, failures name their kind,
+the host close counts its sessions); the resource reporter names the
+reading and the cause; the started lifecycle reader delivers started
+sessions to the list with no re-list while delete stays refused without
+sending (no delete frame is served on CLI 1.4.11). Proven by real-code
+red/green suites and packed-product drills before and after on 5
+`muse-spark-1.3-contributor` requests (the brief's 4 plus the lead's
+approved +1 for the after-bits one-turn drill, `task-stopped`); the
+brief's second-client drill and end-to-end delete are impossible on CLI
+1.4.11 (single-client stdio, no delete served), measured in the record.
+Record: `docs/certification/rlf-acphonest.md`.
+
 ### RLWINFIX — Windows defects found by using 0.19.0 for real (2026-10-22)
 
 **Status 2026-10-22: built.** All five items fixed, each with a real-code

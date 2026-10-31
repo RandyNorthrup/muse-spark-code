@@ -13,8 +13,9 @@ const BUILD_LABEL_SUFFIX = /-R\d+\.\d+$/
 
 /**
 Whether History may offer Delete on a Muse Code host: its CLI serves
-`session/delete` (new in 1.4.0, gone from 1.4.4 on, PLAN.md D26) and the
-lifecycle reader that waits for its terminal notification is injected.
+`session/delete` (new in 1.4.0, gone from 1.4.4 on, PLAN.md D26) and a
+delete-capable lifecycle reader (one that implements
+`parseDeleteAdmission`, which no served capture yet allows) is injected.
 Unknown versions stay refused: nothing is sent that the CLI cannot answer.
 */
 export function canDeleteMuseSession(serverVersion: string, hasLifecycleReader: boolean): boolean {

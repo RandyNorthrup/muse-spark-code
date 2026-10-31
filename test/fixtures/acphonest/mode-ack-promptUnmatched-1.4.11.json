@@ -1,0 +1,10 @@
+{
+  "commandId": "01a18e6a-8ba8-7000-bad2-92bafd68899f",
+  "status": "accepted",
+  "applyOutcome": "completed",
+  "effectiveMode": {
+    "mode": "promptUnmatched",
+    "source": "approvalReconfigure",
+    "lastCommandId": "01a18e6a-8ba8-7000-bad2-92bafd68899f"
+  }
+}
