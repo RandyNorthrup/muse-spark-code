@@ -15,8 +15,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { UI_TEXT, VAULT_PROTOCOL_VERSION } from '../../shared/constants'
 import { errorNameForLog } from '../../core/logging'
-import { type VaultBrokerClient } from '../../core/vault/broker/client'
-import { openVaultFeederClient } from '../../core/vault/broker/feederClient'
+import { VaultBrokerClient } from '../../core/vault/broker/client'
 import { VaultBrokerDiscovery } from '../../core/vault/broker/discovery'
 import { UnixVaultPeerVerifier } from '../../core/vault/broker/peer'
 import {
@@ -57,10 +56,9 @@ async function discoverFeederBroker(
     // no pipe and registers no host. Written for hosted CI, as D243
     // records; the helpers are the installed ones, built by first use.
     const { windowsPipeExecutable } = await import('../../host/vault/slots/windowsVaultBuild')
-    const { startWindowsPipeFiles, inspectWindowsPipeServer } = await import('./windowsPipeRelay')
+    const { startWindowsPipeFiles, windowsVaultPipeDial } = await import('./windowsPipeRelay')
     const { windowsProcessIdentity } = await import('./windowsHost')
     const { readFile } = await import('node:fs/promises')
-    const { connect } = await import('node:net')
     const { isVaultPipeServerTrusted, windowsVaultPipeNameSchema } =
       await import('../../core/vault/broker/windowsPipe')
     const { WindowsVaultPeerVerifier } = await import('../../core/vault/broker/peer')
@@ -98,20 +96,7 @@ async function discoverFeederBroker(
       const pipe = windowsVaultPipeNameSchema.parse(location.lock.socket)
       const server = await pipeFiles.inspectServer(pipe)
       if (!isVaultPipeServerTrusted(server, ownerSid)) throw new Error(UI_TEXT.vault.noAccess)
-      const dial = {
-        verifyPipe: async (name: string) => {
-          const answer = await inspectWindowsPipeServer(pipeFiles.relay, name)
-          if (!isVaultPipeServerTrusted(answer, ownerSid) || answer.server === null)
-            throw new Error(UI_TEXT.vault.noAccess)
-          return {
-            processId: answer.server.processId,
-            userId: answer.server.userId,
-            startedAt: answer.server.startedAt,
-            executable: answer.server.executable,
-          }
-        },
-        connectPipe: (name: string) => connect(name),
-      }
+      const dial = windowsVaultPipeDial(pipeFiles.relay, ownerSid)
       const peers = new WindowsVaultPeerVerifier(
         {
           inspect: () => {
@@ -120,7 +105,7 @@ async function discoverFeederBroker(
         },
         ownerSid,
       )
-      const client = await openVaultFeederClient(location, peers, dial)
+      const client = await VaultBrokerClient.connectVerified(location, peers, dial)
       return {
         client,
         close: async () => {
@@ -160,7 +145,7 @@ async function discoverFeederBroker(
     },
     vaultSocketDescriptors,
   )
-  const client = await openVaultFeederClient(location, peers)
+  const client = await VaultBrokerClient.connectVerified(location, peers)
   return {
     client,
     close: () => {

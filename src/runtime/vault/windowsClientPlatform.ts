@@ -1,15 +1,10 @@
-import { connect } from 'node:net'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { setTimeout as delay } from 'node:timers/promises'
 import { isVaultFileMissing } from '../../core/vault/broker/files'
 import { VaultBrokerDiscovery } from '../../core/vault/broker/discovery'
-import {
-  WindowsVaultPeerVerifier,
-  type VaultPipeDialPort,
-  type VaultProcessIdentity,
-} from '../../core/vault/broker/peer'
+import { WindowsVaultPeerVerifier, type VaultProcessIdentity } from '../../core/vault/broker/peer'
 import {
   isVaultPipeServerTrusted,
   windowsVaultPipeNameSchema,
@@ -21,7 +16,7 @@ import {
   windowsPipeExecutable,
   windowsVaultExecutable,
 } from '../../host/vault/slots/windowsVaultBuild'
-import { inspectWindowsPipeServer, startWindowsPipeFiles, type PipeRelay } from './windowsPipeRelay'
+import { startWindowsPipeFiles, windowsVaultPipeDial, type PipeRelay } from './windowsPipeRelay'
 import { registerWindowsVaultHost, windowsProcessIdentity } from './windowsHost'
 import { vaultBrokerDataDir } from './vaultStoreScope'
 
@@ -155,20 +150,7 @@ export async function windowsVaultClientPlatform(
     context.hostId,
     context.hostSession,
   )
-  const dial: VaultPipeDialPort = {
-    verifyPipe: async (pipe) => {
-      const answer = await inspectWindowsPipeServer(relay, pipe)
-      if (!isVaultPipeServerTrusted(answer, ownerSid) || answer.server === null)
-        throw new Error(UI_TEXT.vault.noAccess)
-      return {
-        processId: answer.server.processId,
-        userId: answer.server.userId,
-        startedAt: answer.server.startedAt,
-        executable: answer.server.executable,
-      }
-    },
-    connectPipe: (pipe) => connect(pipe),
-  }
+  const dial = windowsVaultPipeDial(relay, ownerSid)
   return {
     dispose: () => {
       removeHost()
