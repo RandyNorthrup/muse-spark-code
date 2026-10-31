@@ -15350,6 +15350,71 @@ naming the questions, options and recommendations in that record. Slot
 checks wait on RLF-TEAMCORE's governed slots. Teams stay off until a
 second model is set up (D227).
 
+**Status 2026-10-31 (lane RLF-TEAMWORKERS3, Claude Code; the lead's brief): building.**
+Our own agent lists contributor-tier models when a pool entry names one the
+product's model table lists: `acpSpawnArgs` adds `--allow-contributor-models` for
+that model id alone, every other entry gets none and any other extra argument is
+still refused. A Muse Code worker whose role has the checks group gets
+`run_checks` as a session MCP server of its own: a loopback endpoint with a token
+per task, whose call is the bridge's `bridgeRunChecks` routed by
+`routeWorkerCheck` to the governed check slots. The slots are built on the first
+check through the runners runtime (`loadRunners`) over the window governor and the
+team's own process lifetime, so a check waits for the machine's `check` capacity
+and a free folder, runs against a snapshot of the task's copy and gives both back.
+That is proved over the MCP protocol with the real governor, real git and real
+processes, and a real `muse serve` reads the endpoint; no model turn has called
+it, and the tool name Muse Code reports in its approval is not captured. The
+governed slots' wait between asks has its own suite. Not on this route: runners
+over SSH, external agents, the per-copy install and a process proof on macOS (a
+bare process group proves nothing, so a folder stays held after a check there).
+`docs/certification/rlf-teamworkers3.md`. Teams stay off until a second model is
+set up (D227); not in a release yet.
+
+**Status 2026-10-31 (lane RLF-TEAMWORKERS2, Claude Code; the lead's brief): building.**
+Heavy team checks wait for the machine governor: the governor host lends
+its queue, `check` capacity and running count through
+`ResourceLaunchHost.teamSlotPorts` (and nothing wider), `CheckSlots` builds
+`GovernedTeamSlots` over them (a check takes its permit, then a folder; a
+folder whose processes are not proved ended keeps both) and `requestCheckSlot`
+has its caller; `dist/resourceGovernor.js` is 120.4 of its 125 KiB. The check
+path itself (`loadRunners`, `run_checks`) still has no caller in the product,
+so no live check has waited on the governor. External agents start where a
+switch for leaving out the person's own MCP servers was captured from the
+published package: Claude (`session/new` `_meta.claudeCode.options.strictMcpConfig`,
+adapter 0.99.1) and Gemini (`--allowed-mcp-server-names`, 0.66.0); Codex and
+Copilot have only per-server switches and keep refusing in words. Our own
+agent takes `--no-user-mcp-servers`: Muse Code 1.4.14 refuses
+`-c mcpServers.<name>.enabled=false` for a name the settings hold, so the
+flag refuses to open a session, in words, while the person's Muse settings
+turn an MCP server on. Proven on real parts, with no model turn and no other
+vendor's agent run (`docs/certification/rlf-teamworkers2.md`). The roles
+snapshot (Q1) still waits for the Roles panel's file roles. Teams stay off
+until a second model is set up (D227); not in a release yet.
+
+**Status 2026-10-31 (lane RLF-TEAMWORKERS, finished in Claude Code after Muse's weekly allowance ran out; decisions by the lead in the lane brief): building.**
+TEAMWIRE's open question 2 is decided and built: the team host binding in the
+lazy team bundle owns the assembly. A composite worker port sits beside the
+engine port (`compositeWorkerPort.ts`); its Muse Code and external-agent half
+loads in `dist/teamProcess.js` (budget 375 KiB, measured 313.0) on the first
+such task. The first Muse Code worker starts the team's own host through
+`startTeamMuseCodeHost` over `startNativeTeamLifetime` (a read-only role gets
+the second host Muse Code itself keeps from writes and the shell), and both
+stop with the team; an external agent runs as a held ACP session per task
+through `acpProcess.ts`, its permission requests answered by the role's
+policy and its sign-in report turned into words telling the person to sign in
+with that agent's CLI. `canRun` accepts all three kinds in the editor;
+headless `exec --team` keeps its engine-only port (M96b). Proven on real
+parts (`docs/certification/rlf-teamworkers.md`): the POSIX launch drivers, a
+real `muse serve` on Muse Code's echo provider and the real packed ACP agent
+with no sign-in; no model turn has run through either kind (Muse's allowance
+is out until 2026-11-02T00:00:00Z; the exact run is in that record). Not built,
+decided by the lead and left open there with reasons: the roles-file snapshot
+(Q1, option a) and the governed check slots (Q3). No external preset has a
+captured switch for leaving out the person's own MCP servers, so every
+external agent refuses with words until one is captured (the record names the
+Muse Code switch this lane measured). Teams stay off until a second model is
+set up (D227); not in a release yet.
+
 **Status 2026-10-30 (CC-INT5, D75's caps): built.** The three bounds D75's
 2026-10-17 amendments removed are out of the code: the command-slot count,
 the shared-server default limit (a shared resource has the limit its person

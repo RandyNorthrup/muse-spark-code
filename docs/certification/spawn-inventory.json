@@ -462,20 +462,18 @@
   },
   {
     "site": "src/host/team/processLifetime.ts#call:spawn:1",
-    "profile": "test-only",
-    "reason": "Native team lifetime driver: reachable only from startNativeTeamLifetime, which only tests call (proved by the guard).",
-    "testOnly": "createNativeTeamProcessDriver"
+    "profile": "contained",
+    "reason": "Native team lifetime driver: the only start of the team's Muse Code hosts and external agents (startNativeTeamLifetime, called by the team process-worker ports); admission, journal intent and OS containment (job object, systemd scope or process group) precede the command."
   },
   {
     "site": "src/host/team/processLifetime.ts#call:spawn:2",
-    "profile": "test-only",
-    "reason": "Native team lifetime driver: reachable only from startNativeTeamLifetime, which only tests call (proved by the guard).",
-    "testOnly": "windowsTeamDriver"
+    "profile": "contained",
+    "reason": "Native team lifetime driver: the only start of the team's Muse Code hosts and external agents (startNativeTeamLifetime, called by the team process-worker ports); admission, journal intent and OS containment (job object, systemd scope or process group) precede the command."
   },
   {
     "site": "src/host/team/processLifetime.ts#import:1",
-    "profile": "test-only",
-    "reason": "Native team lifetime driver: reachable only from startNativeTeamLifetime, which only tests call (proved by the guard)."
+    "profile": "contained",
+    "reason": "Native team lifetime driver: the only start of the team's Muse Code hosts and external agents (startNativeTeamLifetime, called by the team process-worker ports); admission, journal intent and OS containment (job object, systemd scope or process group) precede the command."
   },
   {
     "site": "src/host/vault/slots/windowsVaultBuild.ts#call:runBootstrap:1",

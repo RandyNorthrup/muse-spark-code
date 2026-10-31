@@ -217,6 +217,9 @@ export const ACP_BUNDLES = [
   // use. The `team` MCP server is the editor window's alone (VS Code), so
   // teamMcp.js is not carried here.
   'teamTraffic.js',
+  // RLF-TEAMWORKERS: the Muse Code and external-agent worker ports load through
+  // the team host on the first such task (an ACP team binds them with its host).
+  'teamProcess.js',
   'schedules.js',
   'scheduleDelivery.js',
   'foreignHooks.js',

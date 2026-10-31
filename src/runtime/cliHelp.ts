@@ -240,6 +240,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       { name: 'subscription', shape: '' },
       { name: 'scheduled-prompts', shape: '' },
       { name: 'hardware', shape: '' },
+      { name: 'no-user-mcp-servers', shape: '' },
       { name: 'help', shape: '' },
       { name: 'version', shape: '' },
     ],

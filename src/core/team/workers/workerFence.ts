@@ -10,6 +10,9 @@ import type { WorkerCreateProof } from './workerCreateEntry'
 /** A handle with another name is an alias outside the grant: only one link admits. */
 const SINGLE_LINK_COUNT = 1
 import {
+  CONTRIBUTOR_MODEL_SUFFIX,
+  MODEL_EFFORT_LEVELS,
+  TEAM_CHECKS_SERVER,
   WORKER_ACP_MAX_PERMISSION_PATHS,
   WORKER_FILE_PATH_TIMEOUT_MS,
   UI_TEXT,
@@ -871,7 +874,6 @@ outside `write-paths`, an `execute` for a role without the shell, a git
 command the ref guard refuses, a `fetch` for a role without the network,
 and for a `read-only` role any edit and any command off the read-only
 list. Everything else becomes the user's card.
-@unwired M96 ACP permission answer
 */
 export async function answerAcpPermission(
   input: AcpPermissionInput,
@@ -950,7 +952,6 @@ function commandTextOf(rawInput: unknown): string | undefined {
     : undefined
 }
 
-/** @unwired M96 worker approval classifier */
 export async function classifyMuseWorkerApproval(input: {
   readonly role: WorkerRolePolicy
   readonly request: MuseWorkerApprovalRequest
@@ -973,7 +974,12 @@ export async function classifyMuseWorkerApproval(input: {
       ? 'askUser'
       : 'deny'
   }
-  return 'deny'
+  // The team's own `run_checks` runs the person's configured commands, on the server
+  // only this team starts (Muse Code refuses a server of that name in the person's
+  // settings), and only for a role that has the checks group.
+  return input.role.toolGroups.includes('checks') && request.tool.includes(TEAM_CHECKS_SERVER)
+    ? 'allow'
+    : 'deny'
 }
 
 /** Step 1 has not shown how a session switches a user server off. */
@@ -1008,20 +1014,45 @@ export function requireAcpNativeIsolation(isExcluded: boolean): void {
   if (!isExcluded) throw new AcpNativeServersError()
 }
 
-/** Step 1 has not captured the preset's switch for leaving out the user's MCP servers. */
+/** Step 1 has no switch for leaving out the user's MCP servers for this preset. */
 export class AcpUserServersSwitchError extends Error {
   public constructor(readonly preset: AcpPresetId) {
-    super(`Starting ${preset} without the user's servers waits on the step 1 capture`)
+    super(`Starting ${preset} without the user's servers has no captured switch`)
     this.name = 'AcpUserServersSwitchError'
   }
 }
 
+/**
+Whether a model id is a contributor-tier id the product's model table lists
+(`MODEL_EFFORT_LEVELS`, the exact row): the tier's suffix alone, on an id the
+table does not know, never counts.
+*/
+export function isListedContributorModel(modelId: string): boolean {
+  return modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX) && Object.hasOwn(MODEL_EFFORT_LEVELS, modelId)
+}
+
+/**
+The arguments an agent starts with: its defaults, its captured switch and,
+for an agent that lists contributor-tier models only on request, the switch
+that does so exactly when the pool entry names a listed contributor-tier model
+(the person's own pick of that model is the opt-in). A preset with neither
+spawn switch nor `session/new` meta refuses, and so does any caller's extra
+argument, which could undo the switch.
+*/
 export function acpSpawnArgs(input: {
   readonly preset: AcpPreset
+  /** The model id the pool entry names. */
+  readonly modelId?: string
   readonly extraArgs?: readonly string[]
 }): readonly string[] {
-  const presetSwitch = input.preset.withoutUserServersSwitch
-  if (presetSwitch === undefined || presetSwitch.length === 0 || (input.extraArgs?.length ?? 0) > 0)
+  const { withoutUserServersSwitch: presetSwitch, withoutUserServersMeta: presetMeta } =
+    input.preset
+  const hasSwitch = presetSwitch !== undefined && presetSwitch.length > 0
+  if ((!hasSwitch && presetMeta === undefined) || (input.extraArgs?.length ?? 0) > 0)
     throw new AcpUserServersSwitchError(input.preset.id)
-  return [...input.preset.defaultArgs, ...presetSwitch]
+  const contributorSwitch =
+    input.modelId !== undefined && isListedContributorModel(input.modelId)
+      ? (input.preset.contributorModelsSwitch ?? [])
+      : []
+  return [...input.preset.defaultArgs, ...(hasSwitch ? presetSwitch : []), ...contributorSwitch]
 }

@@ -1803,7 +1803,13 @@ const TEXT_BLOCKS = [
     block: 'TEAM_MODEL_TEXT',
     sentinels: ['toolTheRoleToRunEG'],
     // M120CAP: the scheduler reads team.js's teamTools, so it no longer carries the block.
-    readers: ['dist/team.js', 'dist/teamHost.js', 'dist/teamPanel.js', 'dist/teamEngine.js'],
+    readers: [
+      'dist/team.js',
+      'dist/teamHost.js',
+      'dist/teamPanel.js',
+      'dist/teamEngine.js',
+      'dist/teamProcess.js',
+    ],
   },
   // M116 (D218): the team runner's playbook refusals, worded by the team
   // service alone.
@@ -1817,7 +1823,7 @@ const TEXT_BLOCKS = [
     sentinels: ['handoffDataOpen'],
     // RLF-TEAMCORE: the stall handoff's three strings, split from
     // TEAM_MODEL_TEXT so the window scheduler's bundle carries only them.
-    readers: ['dist/teamWindow.js', 'dist/teamEngine.js'],
+    readers: ['dist/teamWindow.js', 'dist/teamEngine.js', 'dist/teamProcess.js'],
   },
   {
     block: 'TEAM_BOOTSTRAP_MODEL_TEXT',
@@ -1847,7 +1853,7 @@ const TEXT_BLOCKS = [
   {
     block: 'WORKER_MODEL_TEXT',
     sentinels: ['boundedExcerpt'],
-    readers: ['dist/teamEngine.js', 'dist/teamFileIo.js'],
+    readers: ['dist/teamEngine.js', 'dist/teamFileIo.js', 'dist/teamProcess.js'],
   },
   {
     block: 'DEVICE_MODEL_TEXT',
@@ -1953,6 +1959,10 @@ const TEXT_BLOCKS = [
       // The file and shell tools' execution reads its refusal keys, so the
       // tool-run chunk carries the block whole too.
       'dist/modelApiToolRun.js',
+      // RLF-TEAMWORKERS3: a worker's `run_checks` (the bridge's lane O function)
+      // answers in this block's own sentences, so the process-worker bundle
+      // carries it whole (18.5 KiB).
+      'dist/teamProcess.js',
     ],
   },
   // The verify loop's own words (M68): the loop, its ledger and the
@@ -2492,6 +2502,10 @@ nodeMetafiles.push(
 const CLASSIC_ZOD_CARRIERS = new Set([
   'dist/meta/structuredSchema.json',
   'dist/meta/runtimeEngine.json',
+  // RLF-TEAMWORKERS: the external-agent workers' ACP client (the same SDK
+  // the ACP engine carries) imports classic zod; it loads only on the first
+  // external task.
+  'dist/meta/teamProcess.json',
   // RLM98P2: JSON Schema conversion loads only on explicit MCP tool listing;
   // its entry re-exports toJSONSchema from zod/v4/core by design.
   'dist/meta/validationSchema.json',

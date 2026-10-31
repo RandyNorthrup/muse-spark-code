@@ -54,14 +54,17 @@ capture, research §4.7), so Muse Code itself refuses that worker's file
 writes and shell. A trusted workspace loads its rules and skills.
 `isContributorMode` is the person's own Muse Code settings
 (`contributor_mode_enabled`); absent reads as off, never defaulted on.
+`postureArgs` are the editor's own sandbox flags, placed after `serve`.
 */
 export function workerServeArgs(
   kind: MuseWorkerHostKind,
   isTrusted: boolean,
   isContributorMode = false,
+  postureArgs: readonly string[] = [],
 ): readonly string[] {
   return [
     ...MUSE_SERVE_ARGS,
+    ...postureArgs,
     ...(kind === 'readOnly' ? [MUSE_DISABLE_WRITE_ARG, MUSE_DISABLE_SHELL_ARG] : []),
     ...(isContributorMode ? [MUSE_CONTRIBUTOR_MODE_ARG, MUSE_CONTRIBUTOR_MODE_ON] : []),
     isTrusted ? MUSE_TRUST_WORKSPACE_ARG : MUSE_DISABLE_SHELL_ARG,
@@ -166,8 +169,12 @@ export type MuseWorkerApprovalRequest =
   | { readonly kind: 'writeFile'; readonly path: string }
   | { readonly kind: 'other'; readonly tool: string }
 
-/** `deny` is answered without asking; `askUser` becomes the user's labelled card. */
-export type MuseWorkerApprovalAnswer = 'deny' | 'askUser'
+/**
+`deny` is answered without asking; `askUser` becomes the user's labelled card;
+`allow` is the team's own `run_checks`, the person's configured commands, answered
+yes once without asking.
+*/
+export type MuseWorkerApprovalAnswer = 'deny' | 'askUser' | 'allow'
 
 export interface MuseCodeWorkerDeps {
   readonly task: WorkerTask

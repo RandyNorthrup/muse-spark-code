@@ -24,7 +24,7 @@ import {
 } from '../../src/core/resources/admission'
 import { ResourceEvents } from '../../src/core/resources/events'
 import { ResourceGovernor } from '../../src/core/resources/governor'
-import { ResourceLaunchHost } from '../../src/core/resources/launchHost'
+import type { ResourceLaunchHost } from '../../src/core/resources/launchHost'
 import { createMachineResourceSampler } from '../../src/core/resources/sampler/system'
 import { createTeamRunnersRuntime } from '../../src/host/runners/teamRunnersEntry'
 import { deviceOfferSchema, type DeviceOffer } from '../../src/shared/devices'
@@ -33,6 +33,7 @@ import { resourceSettingsSchema, type ResourceSettings } from '../../src/shared/
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import { manualClock } from './resourceHarness'
+import { launchHostOver } from './helpers/resourceRig'
 
 setUiText(EN, 'en')
 
@@ -202,12 +203,11 @@ async function pressuredHost(
       errors.push(error)
     },
   })
-  const host = new ResourceLaunchHost({
+  const host = launchHostOver({
     governor,
     events,
     clock,
-    settings: () => settings,
-    bindTree: () => Promise.resolve(null),
+    settings,
     onError: (error) => {
       errors.push(error)
     },

@@ -4222,6 +4222,7 @@ These are defaults; editor customizations take precedence.
 - `serve: --hardware`: --hardware Allow maker hardware tools (the workspace must also enable hardware) `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
+- `serve: --no-user-mcp-servers`: --no-user-mcp-servers Serve only while your Muse Code settings turn on no MCP server (a team worker never inherits them) `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --subscription`: --subscription Drive the Model API backend with the Muse Code subscription instead of a key (its calls count against the plan) `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --max-budget-usd <value>`: Set the spending reservation limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"decimals":6,"required":"modelApi","unit":"USD"}`
 - `login: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"refused":true}`
