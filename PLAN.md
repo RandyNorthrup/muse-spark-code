@@ -14878,6 +14878,16 @@ recursion, so it keeps a bound that the person's setting replaces:
 yet and no code path starts a depth-2 task, so the bound has no reader in
 the product until worker delegation is wired.
 
+**Status 2026-10-30 (RLF-M96CERT): building.** Certification pass on
+int/recovery: no box of the certification checklist below closes on the
+evidence on int (each is named with what it waits for in
+`docs/certification/rlf-m96cert.md`). The packed `exec --team` run on
+`muse-spark-1.3-contributor` with a `muse-wonder-full-1.0-contributor`
+worker stopped at the OS credential store on the lane rig (0 requests,
+$0 settled), so no real team run has been made on this build. One defect
+fixed: the `--team` Model-API-only refusal names the option instead of
+an unfilled `{options}` (`4e9f04878`).
+
 Status detail retained: first parts (role charters, tools, pools, limits)
 shipped in 0.15.0; team creation and worker dispatch remain (no team can be
 created: the teamWorkers paid gate has no production availability). Planned on `feature/m96-agent-roles` from main
@@ -16801,6 +16811,15 @@ single-model (this supersedes D208's silent parity for explicit entry
 points). Proof in
 [docs/certification/rlf-teamgate.md](docs/certification/rlf-teamgate.md).
 
+**Status 2026-10-30 (RLF-M96CERT): building.** On int/recovery the
+headless half is the only team surface in the packed product: `serve`
+rejects `--team` as an unknown option and `teamSessionAdmission` has no
+production caller, so the ACP half below remains unwired. The packed
+`exec --team` run on the two contributor models stopped at the
+credential store on the lane rig (0 requests, $0 settled); the refusal
+wording it exposed is fixed (`4e9f04878`). Record:
+[docs/certification/rlf-m96cert.md](docs/certification/rlf-m96cert.md).
+
 Prerequisite: team integration (M96).
 
 - **Goal.** The same team, roles, pools and caps work in the ACP agent (D62)
@@ -16881,6 +16900,15 @@ raised. The
 deleted fake-driven `teamHostService` suite leaves the final admission, the
 merge queue and the plan-before-card order without a unit proof; the real-process
 suites above cover landing and recovery. Record: `docs/certification/cc-int5.md`.
+
+**Status 2026-10-30 (RLF-M96CERT): building.** Certification pass on
+int/recovery: no box of the certification checklist below closes (each
+is named with what it waits for in `docs/certification/rlf-m96cert.md`).
+The landing and recovery suites pass on Linux here as on macOS in
+CC-INT5; Windows has no run on int. The four golden-frame fixtures have
+no consumer in any suite, and no test joins the single-model check to
+the golden request bytes (both measured in that record). The build
+stays red on this milestone's three bundles.
 
 **M96CINT round 2 integration (2026-10-05).** Finish the existing partial
 integration by merging reviewed C (`52d04b69`) and then O (`19bb0703`) with
