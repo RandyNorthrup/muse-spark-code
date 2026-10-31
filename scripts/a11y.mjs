@@ -52,6 +52,7 @@ const NODE_CASES = [
   'node-terminal',
   'node-dashboard',
   'node-audit',
+  'node-diagnostics',
   'node-help',
   'node-whatsnew',
 ]

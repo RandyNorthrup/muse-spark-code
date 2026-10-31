@@ -196,6 +196,57 @@
             ].includes(method)
           )
             return { head: status.head, changed: true }
+          if (method === 'node/diagnostics/read') {
+            const now = Date.UTC(2026, 9, 30, 12, 0, 0)
+            const buckets = []
+            for (let index = 0; index < 12; index += 1) {
+              buckets.push({
+                minute: now - (11 - index) * 60_000,
+                count: 4,
+                avg: 30 + index * 2,
+                min: 20 + index,
+                max: 40 + index * 3,
+              })
+            }
+            return {
+              health: [
+                { component: 'node', ready: true, detail: 'ready' },
+                { component: 'desktop', ready: false, detail: 'starting' },
+              ],
+              export: { on: true, endpoint: 'https://otel.example:4318' },
+              dropped: 3,
+              unreadable: 1,
+              metrics: [{ component: 'node', name: 'cpu.time', unit: 'ms', buckets }],
+              logs: [
+                { at: now, component: 'node', severity: 9, message: 'listening on 127.0.0.1' },
+                { at: now, component: 'node', severity: 13, message: 'slow read: 900ms' },
+                { at: now, component: 'desktop', severity: 17, message: 'renderer hung' },
+              ],
+              traces: [
+                {
+                  traceId: 'abc123',
+                  spans: [
+                    {
+                      spanId: 'root',
+                      name: 'GET /health',
+                      startMs: now,
+                      endMs: now + 40,
+                      error: false,
+                    },
+                    {
+                      spanId: 'child',
+                      parentSpanId: 'root',
+                      name: 'read store',
+                      startMs: now + 5,
+                      endMs: now + 30,
+                      error: true,
+                    },
+                  ],
+                },
+              ],
+              crashes: [{ at: now, component: 'node', kind: 'signal', code: 'SIGTERM' }],
+            }
+          }
           throw new Error('unexpected fixture method')
         },
       }
@@ -310,12 +361,16 @@
           document.querySelector('nav button:nth-child(5)').click()
           await find('section li')
         }
-        if (scenario === 'node-help') {
+        if (scenario === 'node-diagnostics') {
           document.querySelector('nav button:nth-child(6)').click()
+          await find('.diagnostics-page')
+        }
+        if (scenario === 'node-help') {
+          document.querySelector('nav button:nth-child(7)').click()
           await find('h3')
         }
         if (scenario === 'node-whatsnew') {
-          document.querySelector('nav button:nth-child(7)').click()
+          document.querySelector('nav button:nth-child(8)').click()
           await find('section li')
         }
         document.body.dataset['nodeReady'] = 'true'
