@@ -72,7 +72,10 @@ are ever chosen; `allow_always` is never forwarded.
   for any name (exit 0); `-c 'mcpServers.<name>.disabled=true'` refuses
   "unknown key". The switch for leaving out a user's MCP server on Muse Code is
   therefore `-c mcpServers.<name>.enabled=false` per server name. No product code
-  reads those names yet (§6).
+  reads those names yet (§6). **Corrected by RLF-TEAMWORKERS2:** that held only for
+  names the settings do not hold; on 1.4.14 a configured name is refused ("the
+  server name is reserved"), so the switch never left a configured server out
+  (`rlf-teamworkers2.md` §3).
 - `muse serve --provider echo` answers a turn with the prompt echoed; the suites
   hand the worker a brief that carries a `muse-team-report` block, so the real
   host, session and turn produce a report the real parser reads.
@@ -199,30 +202,25 @@ both on the untouched base and on this tree, and all pass with a canonical
   Recommendation: build it as that lane, keeping the lead's staleness rule (a
   running service keeps the snapshot it was created with; the next service
   creation reads the latest).
-- **Q3 — governed check slots.** Built nothing. `requestCheckSlot` needs a
-  `GovernedTeamSlots`, which needs the M107 governor's queue, its `capacity(kind)`
-  and its running-work count; `ResourceLaunchHost` keeps all three private and
-  `ResourceWindowHost` exposes none of them to the team bundles, and no editor
-  code passes a `TeamCapacityPort` to the team host. The join is an accessor on
-  `ResourceLaunchHost` and the window host (the governor bundle is 120.0 of its
-  125 KiB budget, which may not be raised), the scheduler's slot adapter
-  (`SchedulerSlotPort`, which `TeamSlots` does not implement) and a caller in the
-  heavy-check path (`CheckSlots`). Recommendation: one lane that first measures
-  the governor bundle's headroom for the accessor, then builds the adapter.
+- **Q3 — governed check slots.** Not built in this lane. `requestCheckSlot`
+  needs a `GovernedTeamSlots`, which needs the M107 governor's queue, its
+  `capacity(kind)` and its running-work count; `ResourceLaunchHost` kept all
+  three private. **Built by RLF-TEAMWORKERS2** (`rlf-teamworkers2.md` §4): the
+  host lends exactly those three through `teamSlotPorts`, `CheckSlots` builds
+  the governed slots and calls `requestCheckSlot`, and `dist/resourceGovernor.js`
+  stayed within its 125 KiB (120.4). The check route above `CheckSlots` still has
+  no caller in the product.
 - **External agents cannot start yet.** `acpSpawnArgs` refuses any preset whose
   switch for leaving out the person's own MCP servers is not captured, by design
-  (M96 step 1). None of `claude`, `codex`, `gemini`, `copilot` or `own` has one,
-  so every external worker fails with `hostExternalNoSwitch` and starts nothing.
-  Our agent has no such flag and the Muse Code switch measured above needs the
-  person's server names. Options: (a) add `--no-user-mcp-servers` to
-  `muse-spark-code-acp`, which reads the names from the person's Muse settings
-  and starts its `muse serve` with `-c mcpServers.<name>.enabled=false` for each
-  (recommended: it is ours, the switch is measured, and it makes `own` runnable
-  for the live run); (b) capture each vendor's own switch in step 1; (c) accept
-  the server inventory as the person's responsibility (rejected: it is the
-  guarantee the fence exists to give). Until (a) or (b), the external half of the
-  live run cannot start. The test-only preset that names `--verbose` as its
-  switch reaches the code past the check; the product's `own` preset does not.
+  (M96 step 1). When this lane ended none of `claude`, `codex`, `gemini`,
+  `copilot` or `own` had one, so every external worker failed with
+  `hostExternalNoSwitch`. **Superseded by RLF-TEAMWORKERS2**
+  (`rlf-teamworkers2.md` §2 and §3): `claude` (a `session/new` option) and
+  `gemini` (an allow-list flag) have a captured switch, `codex` and `copilot`
+  still refuse, and `own` takes `--no-user-mcp-servers`. The option (a) this
+  section recommended does not work as written: Muse Code 1.4.14 refuses
+  `-c mcpServers.<name>.enabled=false` for any name the settings hold, so the
+  flag refuses to open a session while the settings turn a server on.
 - **No real model turn through either kind.** Muse's allowance is out until
   2026-11-02T00:00:00Z. The report parse, session, approval, usage and host
   paths run on the real echo host; the model's own tool use (an approval the
@@ -238,11 +236,24 @@ both on the untouched base and on this tree, and all pass with a canonical
 
 ## 7. The live run for the lead, after the reset (not run here)
 
+Updated by RLF-TEAMWORKERS2 (2026-10-31): the external half now starts, with the
+conditions below; nothing here has run.
+
 Prerequisites: a build of this branch (`npm run build`; `node
 scripts/package-vsix.mjs --target <platform>`), Muse Code signed in with
-contributor mode on in its own settings, the lead's choice on the external
-agents' switch (§6, option a) for the second half, an **empty workspace** that
-is a git repository with one commit.
+contributor mode on in its own settings, and an **empty workspace** that is a git
+repository with one commit. For the external half also:
+
+- **The Muse settings the agent reads turn on no MCP server.** `own` is started
+  with `--no-user-mcp-servers`, which refuses every session while
+  `~/.config/muse/settings.json` (a worker's environment drops `XDG_CONFIG_HOME`)
+  names a server not set `enabled: false`. Use a profile with none, or set them
+  `enabled: false` for the run.
+- **The lead's answer on a contributor-tier model for `own`**
+  (`rlf-teamworkers2.md` §7, item 2): the agent lists contributor models only with
+  `--allow-contributor-models`, which the `own` preset does not pass, so the entry
+  below cannot select `muse-wonder-full-1.0-contributor` until the lead decides.
+  Without that answer run the Muse Code half only (steps 1–5 with one entry).
 
 State first: **at most 12 requests**, all contributor tier, named explicitly:
 orchestrator `muse-spark-1.3-contributor`; the Muse Code worker on
@@ -252,7 +263,7 @@ Never any other Muse id in any session started here (an unknown tier is refused)
 
 1. Install the VSIX in a clean VS Code profile; open the empty workspace; in
    Models & Agents add two pool entries on role `engineering`: kind Muse Code,
-   model `muse-spark-1.3-contributor`; and (after the switch exists) external
+   model `muse-spark-1.3-contributor`; and (with the answers above) external
    agent `own`, model `muse-wonder-full-1.0-contributor`. Set the role's
    permission mode to Accept edits (the worker's file edits then answer yes;
    shell commands and everything else still answer no).
@@ -262,7 +273,10 @@ Never any other Muse id in any session started here (an unknown tier is refused)
 3. Watch the Agent map: each task runs on its own copy and branch; the first
    Muse Code task starts one `muse serve` (one launch record `muse-host-team`
    under `<storage>/team/journal/<window>/`), the external task one
-   `muse-spark-code-acp` child. Collect both; merge each through the merge card.
+   `muse-spark-code-acp` child, whose arguments (`ps -o args=`) end in
+   `--no-user-mcp-servers`. With a server turned on in the settings the external
+   task must instead fail with the sentence that names the flag. Collect both;
+   merge each through the merge card.
 4. Close the window: both children must be gone (`ps`).
 5. Count: the requests of each session from Muse Code's session records
    (`~/.local/share/muse/sessions/<year>/<month>/<day>/<session id>`, the

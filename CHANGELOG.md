@@ -40,6 +40,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **`muse-spark-code-acp --no-user-mcp-servers` serves only while your Muse
+  Code settings turn on no MCP server.** Muse Code has no switch that leaves
+  a configured server out for one run, so a session that would open beside a
+  server your settings turn on is refused, saying how to turn it off, and so
+  is one whose settings file cannot be read; a missing file holds none. Agent
+  teams start their own agent with it.
 - **`muse-spark-code-acp watchdog` keeps a watch list of GitHub repositories
   in a terminal.** `watchdog list` and `status` show the watched
   repositories, `pause` and `resume` stop and restart watching, and `policy`
