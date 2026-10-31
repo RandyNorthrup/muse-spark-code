@@ -4,8 +4,7 @@
 // so each request is validated on both sides exactly as in the extension.
 // Workers that crash, stall or lie prove that nothing is allowed when the
 // worker cannot be believed.
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
-import { mkdtemp } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -15,29 +14,37 @@ import type { PanelChild } from '../../src/core/orchestration/panelLanes'
 import {
   createPlaybookWindow,
   PlaybookRefusal,
-  type PlaybookConversationEvents,
   type PlaybookWindow,
   type PlaybookWindowDeps,
 } from '../../src/host/playbook/playbookWindow'
 import { servePlaybook } from '../../src/host/playbook/playbookWorker'
 import { playbookSnapshotSchema } from '../../src/runtime/playbook/command'
 import type { PanelModuleSummary } from '../../src/runtime/playbook/governor'
-import { compiledJobAssembly, SYSTEM_ROOT } from './helpers/playbook/jobAssembly'
 import { keepCalls } from './helpers/playbook/keepCalls'
+import {
+  answeredReview,
+  eventually,
+  journalFolder,
+  liveScene,
+  recordedLog,
+  refusalOf,
+  releasePlaybookScene,
+  reviewedChild,
+  sceneLeases,
+  setupPlaybookScene,
+  subscriber,
+  teardownPlaybookScene,
+  trackWindow,
+} from './helpers/playbook/playbookScene'
 import { thread } from './helpers/playbook/workerThread'
 import {
   coveredReview,
   GOVERNED_ROUND_TIMEOUT_MS,
   PANEL_FILES,
-  panelRepository,
-  panelRepositoryTemplate,
   reviewReply,
   turnEnd,
-  type PanelRepository,
 } from './helpers/playbook/panelRepository'
-import { removeFolder } from './helpers/temporaryFolders'
 
-const IS_WINDOWS = process.platform === 'win32'
 const SESSION = 'conversation-1'
 const CHILD: PanelChild = {
   agentId: 'subagent-1',
@@ -52,161 +59,30 @@ const RACE = {
   class: 'concurrency',
 }
 
-const shared: {
-  template?: ReturnType<typeof panelRepositoryTemplate>
-  storage?: string
-  assembly?: string
-} = {}
-const open: { remove(): void }[] = []
-const windows: { dispose(): void }[] = []
-
 beforeAll(async () => {
-  shared.template = panelRepositoryTemplate()
-  if (!IS_WINDOWS) return
-  shared.storage = await mkdtemp(path.join(tmpdir(), 'muse-playbook-window-'))
-  shared.assembly = await compiledJobAssembly(shared.storage)
+  await setupPlaybookScene()
 })
 afterEach(() => {
-  for (const window of windows.splice(0)) window.dispose()
-  for (const repository of open.splice(0)) repository.remove()
+  releasePlaybookScene()
 })
 afterAll(async () => {
-  shared.template?.remove()
-  if (shared.storage !== undefined) await removeFolder(shared.storage)
+  await teardownPlaybookScene()
 })
-
-function recordedLog() {
-  const lines: string[] = []
-  const keep = (level: string) => (message: string) => {
-    lines.push(`${level}: ${message}`)
-  }
-  return {
-    lines,
-    log: { trace: keep('trace'), info: keep('info'), warn: keep('warn'), error: keep('error') },
-  }
-}
-
-/**
-Waits out real decisions: each is real git processes, and on Windows a
-job helper's start as well, which is seconds when PowerShell starts cold.
-*/
-async function eventually(assertion: () => void | Promise<void>): Promise<void> {
-  await vi.waitFor(assertion, { timeout: GOVERNED_ROUND_TIMEOUT_MS / 2 })
-}
-
-/** What a request was refused with; undefined when it was not refused. */
-async function refusalOf(request: Promise<unknown>): Promise<unknown> {
-  try {
-    await request
-  } catch (error) {
-    return error
-  }
-  return undefined
-}
-
-function subscriber(): {
-  [K in keyof PlaybookConversationEvents]: PlaybookConversationEvents[K] & {
-    calls: Parameters<PlaybookConversationEvents[K]>[]
-  }
-} {
-  return {
-    note: keepCalls<
-      Parameters<PlaybookConversationEvents['note']>,
-      ReturnType<PlaybookConversationEvents['note']>
-    >(() => undefined),
-    offer: keepCalls<
-      Parameters<PlaybookConversationEvents['offer']>,
-      ReturnType<PlaybookConversationEvents['offer']>
-    >(() => undefined),
-    rounds: keepCalls<
-      Parameters<PlaybookConversationEvents['rounds']>,
-      ReturnType<PlaybookConversationEvents['rounds']>
-    >(() => undefined),
-    hookOutput: keepCalls<
-      Parameters<PlaybookConversationEvents['hookOutput']>,
-      ReturnType<PlaybookConversationEvents['hookOutput']>
-    >(() => undefined),
-    failure: keepCalls<
-      Parameters<PlaybookConversationEvents['failure']>,
-      ReturnType<PlaybookConversationEvents['failure']>
-    >(() => undefined),
-  }
-}
 
 /** A window over the real worker code, a real journal and a real repository. */
 function live(overrides: Partial<PlaybookWindowDeps> = {}) {
-  if (shared.template === undefined) throw new Error('The repository template was not made')
-  const repository: PanelRepository = panelRepository(shared.template.directory)
-  open.push(repository)
-  const recorded = recordedLog()
-  const threads: ReturnType<typeof thread>[] = []
-  const startWorker = keepCalls<
-    Parameters<PlaybookWindowDeps['startWorker']>,
-    ReturnType<PlaybookWindowDeps['startWorker']>
-  >((_file, data) => {
-    const boundary = thread()
-    threads.push(boundary)
-    servePlaybook(boundary.port, structuredClone(data))
-    return boundary.handle
-  })
-  const window = createPlaybookWindow({
-    bundlePath: 'dist/playbook.js',
-    startWorker,
-    agentDataFolder: repository.dataFolder,
-    workspaceRoot: repository.workspace,
-    isWorkspaceTrusted: () => true,
-    platform: process.platform,
-    systemRoot: IS_WINDOWS ? SYSTEM_ROOT : undefined,
-    shellJobAssembly: IS_WINDOWS ? () => Promise.resolve(shared.assembly) : undefined,
-    reviewCharter: (targets) =>
-      `charter for ${targets.map((target) => target.moduleKey).join(', ')}`,
-    log: recorded.log,
-    ...overrides,
-  })
-  windows.push(window)
-  const events = subscriber()
-  window.subscribe(SESSION, events)
-  return { repository, window, startWorker, threads, events, ...recorded }
+  return liveScene(SESSION, overrides)
 }
 
 type Live = ReturnType<typeof live>
 
 /** One whole counted review through the window, as the controller drives it. */
 async function reviewed(setup: Live, turnId: string): Promise<readonly PanelModuleSummary[]> {
-  const before = setup.events.rounds.calls.length
-  const ticket = await setup.window.openReview(SESSION, [PANEL_FILES.store], [CHILD])
-  if (ticket === undefined) throw new Error('A playbook review was expected')
-  ticket.observe(reviewReply(turnId, coveredReview([RACE])))
-  ticket.observe(turnEnd(turnId))
-  ticket.bind(turnId)
-  await eventually(() => {
-    expect(setup.events.rounds.calls.length).toBeGreaterThan(before)
-  })
-  expect(ticket.isClosed).toBe(true)
-  return setup.events.rounds.calls.at(-1)?.[0] ?? []
+  return await reviewedChild(setup, SESSION, turnId, CHILD, [PANEL_FILES.store], RACE)
 }
 
 async function answered(setup: Live, rounds: readonly PanelModuleSummary[]): Promise<void> {
-  for (const round of rounds)
-    await expect(
-      setup.window.answer(
-        SESSION,
-        round.moduleId,
-        round.findings.map((finding) => ({ findingId: finding.id, status: 'fixed' as const })),
-      ),
-    ).resolves.toBe(true)
-}
-
-/** A data folder that already holds journals, so a dispatch is asked about. */
-function journalFolder(): string {
-  const folder = mkdtempSync(path.join(tmpdir(), 'muse-playbook-journals-'))
-  mkdirSync(path.join(folder, PLAYBOOK_RECORD_FOLDER), { recursive: true })
-  open.push({
-    remove: () => {
-      rmSync(folder, { recursive: true, force: true })
-    },
-  })
-  return folder
+  await answeredReview(setup, SESSION, rounds)
 }
 
 /** A follow-up dispatch that must be refused as unavailable: the work it would have started. */
@@ -265,7 +141,7 @@ function standIn(
     endJob,
     ...overrides,
   })
-  windows.push(window)
+  trackWindow(window)
   const events = subscriber()
   window.subscribe(SESSION, events)
   return { window, startWorker, threads, endJob, events, ...recorded }
@@ -511,12 +387,7 @@ describe('a window and its worker', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () =
     await eventually(() => {
       expect(completion.calls).toHaveLength(1)
     })
-    const leases = async () => {
-      const snapshot = playbookSnapshotSchema.parse(await setup.window.surface.read())
-      return snapshot.records
-        .filter((record) => record.kind === 'lease')
-        .map((record) => record.value.status)
-    }
+    const leases = () => sceneLeases(setup)
     await expect(leases()).resolves.toSatisfy(
       (statuses: readonly string[]) => statuses.at(-1) === 'held',
     )
