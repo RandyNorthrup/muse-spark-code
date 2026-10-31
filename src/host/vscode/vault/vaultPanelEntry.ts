@@ -222,7 +222,7 @@ function serviceAndStatus(deps: {
   readonly distDir: string
   readonly service?: VaultPanelService | undefined
   readonly actions: () => VaultActionsBundle
-  /** D217: the migration surface getter the broker-backed service lists retired entries with. */
+  /** D241: the migration surface getter the broker-backed service lists retired entries with. */
   readonly migration?: () => VaultRetiredUndoPort | undefined
 }): {
   service: VaultPanelService
@@ -299,7 +299,7 @@ export function createModelsVaultBinding(
   locale: string,
 ): ModelsVaultBinding {
   const actions = switchedOnActions(deps, table, locale)
-  // D217: the migration controller once the first unlock edge binds it;
+  // D241: the migration controller once the first unlock edge binds it;
   // the service lists retired entries through it from the next snapshot.
   let migrationController: CredentialMigrationController | undefined
   const { service, statusItem, status, disposeBroker, session, connect } = serviceAndStatus({
@@ -379,7 +379,7 @@ export interface WindowVaultControlsDeps {
   /** A test's actions module; the window's own is required from dist. */
   readonly loadActionsBundle?: ((file: string) => unknown) | undefined
   /**
-  D217: the one-shot undo's legacy sources — the raw store (never the
+  D241: the one-shot undo's legacy sources — the raw store (never the
   shell, which would deadlock the migration), the seam's provider ids
   and the installed minor ordinal.
   */
@@ -426,7 +426,7 @@ export function createWindowVaultControls(
         await refuse(error)
       }
     },
-    // D217: the palette's undo — the retired entries to pick from, then
+    // D241: the palette's undo — the retired entries to pick from, then
     // the same restore the panel's per-item action runs. One-shot: the
     // chunk loads here, binds no shell, and never steals the panel's.
     undoRetired: async () => {

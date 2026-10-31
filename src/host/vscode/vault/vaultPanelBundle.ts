@@ -20,7 +20,7 @@ export const VAULT_COMMANDS = {
 export interface VaultWindowControls {
   open(): Promise<void>
   lock(): Promise<void>
-  /** D217: undo one retired migration slot, chosen from the retired entries. */
+  /** D241: undo one retired migration slot, chosen from the retired entries. */
   undoRetired(): Promise<void>
   dispose(): void
 }
