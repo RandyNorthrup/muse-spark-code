@@ -8,7 +8,12 @@
 // on. Pure: workspace state arrives structurally (core never imports
 // `vscode`), and the backend switch itself stays with M95's lane U.
 
-import { teamSnapshotSchema, type TeamAgentPays, type TeamModelSettings } from '../../shared/team'
+import {
+  teamSnapshotSchema,
+  type TeamAgentKind,
+  type TeamAgentPays,
+  type TeamModelSettings,
+} from '../../shared/team'
 import { TEAM_WORKSPACE_KEYS } from '../../shared/teamConversation'
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
@@ -31,6 +36,13 @@ export interface OrchestratorSlotState {
   update(key: string, value: unknown): unknown
 }
 
+/** The backend each stored agent kind runs on (an external agent is its own host). */
+const BACKEND_OF_KIND = {
+  engine: 'modelApi',
+  museCode: 'musecode',
+  external: 'external',
+} as const satisfies Record<TeamAgentKind, OrchestratorOverride['backend']>
+
 /** The workspace's override, if the user set one; anything else stored reads as none. */
 export function readOrchestratorOverride(
   state: Pick<OrchestratorSlotState, 'get'>,
@@ -40,8 +52,7 @@ export function readOrchestratorOverride(
   if (agent === undefined) return
   return {
     modelId: agent.model,
-    backend:
-      agent.kind === 'engine' ? 'modelApi' : agent.kind === 'external' ? 'external' : 'musecode',
+    backend: BACKEND_OF_KIND[agent.kind],
     agentId: agent.agentId,
     pays: agent.pays,
     ...(result.success &&
