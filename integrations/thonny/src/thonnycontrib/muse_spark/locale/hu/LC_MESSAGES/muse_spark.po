@@ -1,0 +1,48 @@
+# Muse Spark Code (Unofficial), MIT.
+msgid ""
+msgstr "Language: hu\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\n"
+
+msgid "Open Muse Spark"
+msgstr "Muse Spark megnyitása"
+
+msgid "Stop machine"
+msgstr "Gép leállítása"
+
+msgid "Stop"
+msgstr "Leállítás"
+
+msgid "Cannot start Muse Spark"
+msgstr "A Muse Spark nem indítható el"
+
+msgid "Cannot reach Muse Spark"
+msgstr "A Muse Spark nem érhető el"
+
+msgid "Cannot open Muse Spark"
+msgstr "A Muse Spark nem nyitható meg"
+
+msgid "Stop machine failed"
+msgstr "A gép leállítása sikertelen"
+
+msgid "The runtime could not start. Check its installation and try again."
+msgstr "A futtatókörnyezet nem indult el. Ellenőrizze a telepítését, és próbálja újra."
+
+msgid "The local provider connection failed. Close Muse Spark and try again."
+msgstr "A helyi szolgáltatóhoz való csatlakozás sikertelen. Zárja be a Muse Sparkot, és próbálja újra."
+
+msgid "The system browser could not open the companion page."
+msgstr "A rendszer böngészője nem tudta megnyitni a kísérőoldalt."
+
+msgid "The stop command failed. Use the machine's physical emergency stop if needed."
+msgstr "A leállítási parancs sikertelen. Szükség esetén használja a gép fizikai vészleállítóját."
+
+msgid "Hand the port to Muse Spark"
+msgstr "Port átadása a Muse Sparknak"
+
+msgid "Give the port back to Thonny"
+msgstr "Port visszaadása a Thonnynak"
+
+msgid "Cannot transfer the port"
+msgstr "A port nem adható át"
+
+msgid "Port ownership was not confirmed. Select an explicit serial port, open Muse Spark, and try again. Thonny stays disconnected after an uncertain transfer."
+msgstr "A port birtoklását nem sikerült megerősíteni. Válasszon konkrét soros portot, nyissa meg a Muse Sparkot, és próbálja újra. Bizonytalan átadás után a Thonny leválasztva marad."

@@ -5,7 +5,7 @@
 // and its diff read.
 
 import * as assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as vscode from 'vscode'
 import type { CodeIntelDeps } from '../../src/core/codeIntel/codeIntelQuery'
@@ -77,17 +77,61 @@ async function answerOnce(
 
 suite('code intelligence over TypeScript (M67)', () => {
   let deps: CodeIntelDeps
+  let hasTypeScript = true
+
+  async function assertUnavailable(
+    tool: CodeIntelReadTool,
+    args: Record<string, unknown>,
+  ): Promise<void> {
+    const answer = await answerCodeIntel(tool, args, deps)
+    assert.equal(answer.ok, false)
+    assert.match(answer.reason, /no language service answered.*language plaintext/)
+    assert.match(answer.reason, /use search and read_file instead/)
+    assert.match(answer.visibleReason, /search and read_file/)
+  }
 
   suiteSetup(async () => {
     const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
     assert.ok(root, 'the fixture workspace is open')
     deps = depsFor(root)
+    const capturePath = process.env['MUSE_HOST_CAPTURE']
+    if (capturePath !== undefined) {
+      const availableCommands = await vscode.commands.getCommands(false)
+      await writeFile(
+        capturePath,
+        JSON.stringify(
+          {
+            vscode: vscode.version,
+            commands: availableCommands.filter((command) => /rename/i.test(command)),
+          },
+          null,
+          2,
+        ),
+      )
+    }
+    const languages = await vscode.languages.getLanguages()
+    hasTypeScript = languages.includes('typescript')
+    // Arduino ships no TS provider. Its explicit host expectation is an
+    // actionable refusal, never invented semantic results or a skipped case.
+    if (!hasTypeScript) assert.ok(vscode.extensions.getExtension('dankeboy36.vscode-arduino-api'))
     // TypeScript loads a project for an open file; workspace symbols need one.
     const main = vscode.Uri.file(path.join(root, FIXTURE, 'main.ts'))
     await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(main))
   })
 
   test('finds a definition across files, and leaves the library out, counted', async () => {
+    if (!hasTypeScript) {
+      await assertUnavailable('findDefinition', {
+        path: `${FIXTURE}/main.ts`,
+        line: 7,
+        symbol: 'greet',
+      })
+      await assertUnavailable('findDefinition', {
+        path: `${FIXTURE}/main.ts`,
+        symbol: 'toUpperCase',
+      })
+      return
+    }
     const own = await answerOnce(
       deps,
       'findDefinition',
@@ -108,6 +152,10 @@ suite('code intelligence over TypeScript (M67)', () => {
   }).timeout(TEST_TIMEOUT_MS)
 
   test('finds every reference, the declaration included, in place order', async () => {
+    if (!hasTypeScript) {
+      await assertUnavailable('findReferences', { path: `${FIXTURE}/greet.ts`, symbol: 'greet' })
+      return
+    }
     const text = await answerOnce(
       deps,
       'findReferences',
@@ -127,6 +175,16 @@ suite('code intelligence over TypeScript (M67)', () => {
   }).timeout(TEST_TIMEOUT_MS)
 
   test('outlines, hovers, finds symbols and callers', async () => {
+    if (!hasTypeScript) {
+      await assertUnavailable('documentSymbols', { path: `${FIXTURE}/greet.ts` })
+      await assertUnavailable('hover', { path: `${FIXTURE}/greet.ts`, symbol: 'greet' })
+      await assertUnavailable('hover', { path: `${FIXTURE}/main.ts`, symbol: 'toUpperCase' })
+      await assertUnavailable('callHierarchy', { path: `${FIXTURE}/greet.ts`, symbol: 'greet' })
+      const symbols = await answerCodeIntel('workspaceSymbols', { query: 'greet' }, deps)
+      assert.equal(symbols.ok, true)
+      assert.match(symbols.text, /No workspace symbols match/)
+      return
+    }
     assert.match(
       await answerOnce(deps, 'documentSymbols', { path: `${FIXTURE}/greet.ts` }, (text) =>
         text.includes('greet'),
@@ -182,6 +240,13 @@ suite('code intelligence over TypeScript (M67)', () => {
       { path: `${FIXTURE}/greet.ts`, symbol: 'greet', new_name: 'welcome' },
       deps,
     )
+    if (!hasTypeScript) {
+      assert.equal(planned.ok, false)
+      assert.match(planned.reason, /no language service answered/)
+      assert.match(planned.visibleReason, /search and read_file/)
+      assert.equal(await readText(path.join(deps.workspaceRoot, FIXTURE, 'main.ts')), before)
+      return
+    }
     assert.ok(planned.ok, planned.ok ? '' : planned.reason)
     assert.deepEqual(
       planned.plan.files.map((file) => file.relative),

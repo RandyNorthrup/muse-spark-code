@@ -444,6 +444,10 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       Model API code intelligence and MCP pools
                       (dist/modelApiCodeIntel.js and dist/mcpPool.js),
                       with its status item in the activation shim,
+                      the maker host adapter (maker/, dist/makerHost.js,
+                      loaded on the first maker UI or device tool) and its
+                      preview host (dist/makerPreviewHost.js, loaded on the
+                      first maker preview),
                       media attachments (dist/media.js: the attach port, the
                       recording picker and the uploaded-files list, loaded on
                       the first attach or recording action; M105), the
@@ -502,7 +506,12 @@ src/core/**           backend-agnostic logic; must not import `vscode`
                       restore plan, the paired efficiency evaluation,
                       observation packing, Tab's context windows, requests,
                       filters, typing-through cache, scheduler and spend, the flight recorder policy
-                      and problem report builder and second scrub)
+                      and problem report builder and second scrub,
+                      makers (maker/: ports, lease, session guard, approval
+                      and shell guards in guard/, serial sessions; the guard
+                      split's dist/hardwareGuard.js, loaded on the first
+                      guarded hardware action, and dist/hardwareShell.js,
+                      loaded on the first shell classification))
 src/core/resources/** portable machine sampler, governor, queue, registered-tree
                       accounting/actions, disk and created-root policy;
                       dist/resourceGovernor.js loads on first governed use,
@@ -550,6 +559,9 @@ src/runtime/**        the agent's process: arguments, backends outside VS Code,
                       with its ACP `/playbook` surface (M116); the schedule command and settle path
                       (schedules/), and the native background scheduler entry
                       (dist/scheduleBackground.js, run by the OS launcher)
+                      the maker runtime (maker/, dist/runtimeMaker.js: serial,
+                      machines, Stop, companion servers; loaded for maker work
+                      only, never at activation)
 src/shared/**         constants + zod protocol shared by host and webview
 src/shared/l10n/**    the English table (en.ts), fill/plural/Intl helpers, the
                       table checks and the list of translated languages

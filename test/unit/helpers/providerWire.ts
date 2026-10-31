@@ -21,6 +21,7 @@ import type { CreateResponseBody } from '../../../src/core/backends/modelapi/sch
 import type { providerEntrySchema } from '../../../src/core/providers/providersFile'
 import { memorySecretStoreFor } from '../../../src/runtime/exec/keyInput'
 import { PROVIDERS_FILE_VERSION } from '../../../src/shared/constants'
+import { listenOnLoopback } from './loopbackPort'
 
 /** One request as it reached the socket (Node lowercases header names). */
 export interface WireRequest {
@@ -62,14 +63,9 @@ export async function recordingSocket(): Promise<RecordingSocket> {
       response.socket?.destroy()
     })
   })
-  await new Promise<void>((resolve) => {
-    server.listen(0, '127.0.0.1', resolve)
-  })
-  const address = server.address()
-  if (address === null || typeof address === 'string')
-    throw new Error('No TCP address to record on')
+  const port = await listenOnLoopback(server)
   return {
-    origin: `http://127.0.0.1:${String(address.port)}`,
+    origin: `http://127.0.0.1:${String(port)}`,
     requests,
     close: () =>
       new Promise<void>((resolve, reject) => {

@@ -1,0 +1,5 @@
+
+> muse-spark-code@0.14.1 check:l10n
+> node scripts/check-l10n.mjs
+
+l10n: 14 tables, 165 manifest strings, 651 source files; 0 problems

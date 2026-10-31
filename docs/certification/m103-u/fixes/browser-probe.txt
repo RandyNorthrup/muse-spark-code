@@ -1,0 +1,73 @@
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import path from 'node:path'
+import assert from 'node:assert/strict'
+import { chromium } from 'playwright-core'
+import { serveRepo } from '../scripts/lib/harnessServer.mjs'
+import { findChrome } from '../scripts/lib/chrome.mjs'
+
+const meta = JSON.parse(readFileSync('dist/meta/webview.json','utf8'))
+const output = name => Object.entries(meta.outputs).find(([,o])=>o.entryPoint===`src/webview/maker/${name}.tsx`)[0]
+const surface = output('MakerSurface')
+const devices = output('DevicePanel')
+const theme = JSON.parse(readFileSync('test/harness/themes/light.json','utf8'))
+const variables = Object.entries(theme.variables).map(([k,v])=>`${k}:${v}`).join(';')
+const html = `<!doctype html><html><head><link rel="stylesheet" href="/dist/webview/main.css"><link rel="stylesheet" href="/src/webview/maker/maker.css"><style>:root{${variables};--vscode-font-family:Arial;--vscode-font-size:13px;--ms-radius:4px}body{margin:0}</style></head><body><div id="root"></div><div id="maker"></div><script type="module">
+import{mountMaker}from'/${surface}';
+const messages=[];const listeners=new EventTarget();const bridge={post:m=>messages.push(m),messages:listeners,savedState:()=>undefined,saveState:()=>{}};
+const ui=mountMaker(document.querySelector('#maker'),bridge);const id='2b4a9acb-2dc5-4f46-aeb8-40aee71bb875';
+const target={kind:'machine',registrationId:id,id:'printer',name:'Bench printer',endpoint:'http://192.168.1.5',identity:'Klipper'};
+const state={v:1,type:'makerState',isTrusted:true,hardwareEnabled:true,isInteractive:true,machines:[{registrationId:id,id:'printer',name:'Bench printer',kind:'moonraker',category:'printer',endpoint:target.endpoint,limits:{extruder:200}}],ports:[{kind:'serial',port:'COM7'}]};ui.receive(state);
+Object.assign(window,{messages,receive:ui.receive,serialOnly:()=>ui.receive({...state,machines:[]}),ask:async(count)=>{const payload=Array.from({length:count},()=> 'G1 X1').join('\\n');const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(payload));const digest=[...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('');ui.receive({v:1,type:'makerApproval',request:{kind:'machine',id,digest,expiresAt:Date.now()+120000,action:'actuate',target,payload,analysis:{classes:['actuate'],maxFeedMmMin:100,temperatures:{},unknown:[],refused:[],hasMotion:true}}});return digest}});
+</script></body></html>`
+writeFileSync('temp/browser.html',html)
+writeFileSync('temp/preview.html',`<!doctype html><html><head><link rel="stylesheet" href="/src/webview/maker/preview.css"><style>:root{${variables}}</style></head><body data-artifact-id="2b4a9acb-2dc5-4f46-aeb8-40aee71bb875"><h1>Maker preview</h1><p>A software stop is not an emergency stop.</p><div class="maker-preview-controls"><button data-maker-stop="">Stop all machines</button></div><canvas id="maker-canvas" aria-label="Preview"></canvas><p id="maker-preview-unavailable" role="alert" hidden>Unavailable</p><script>window.messages=[];window.acquireVsCodeApi=()=>({postMessage:m=>messages.push(m)})</script><script type="module" src="/dist/webview/makerPreview.js"></script></body></html>`)
+mkdirSync('docs/certification/m103-u/fixes',{recursive:true})
+const { server, port } = await serveRepo(path.resolve('.'))
+const browser = await chromium.launch({executablePath:findChrome(),headless:true})
+const results=[]
+try {
+ const page = await browser.newPage({viewport:{width:320,height:760}})
+ page.setDefaultTimeout(15000)
+ for (const count of [30,6000]) {
+  await page.goto(`http://127.0.0.1:${port}/temp/browser.html`)
+  await page.waitForFunction(()=>typeof window.ask==='function')
+  const digest=await page.evaluate(count=>window.ask(count),count)
+  await page.getByRole('dialog').waitFor()
+  await page.waitForFunction(()=>window.messages.some(m=>m.type==='makerPreviewRendered'))
+  const send=page.getByRole('button',{name:'Send once',exact:true});const close=page.getByRole('button',{name:'Close',exact:true})
+  assert.equal(await send.isEnabled(),false)
+  await close.focus();await page.keyboard.press('Shift+Tab');await page.keyboard.press('Enter')
+  assert.equal(await page.evaluate(()=>window.messages.filter(m=>m.type==='makerAnswer').length),0)
+  assert.equal(await page.evaluate(()=>document.activeElement.classList.contains('maker-payload')),true)
+  const pre=page.locator('.maker-payload');await pre.scrollIntoViewIfNeeded();await pre.evaluate(node=>{const body=document.querySelector('.modal-body');body.scrollTop+=node.getBoundingClientRect().top-body.getBoundingClientRect().top-64;node.scrollTop=0});await page.waitForTimeout(40)
+  for(let offset=0;;offset+=200) {
+   const limit=await pre.evaluate((node,offset)=>{node.scrollTop=offset;return node.scrollHeight-node.clientHeight},offset)
+   await page.waitForTimeout(20)
+   if(offset>=limit)break
+  }
+  console.log('progress',count,await pre.evaluate(node=>({scrollTop:node.scrollTop,status:document.querySelector('[role=status]').textContent,pre:node.getBoundingClientRect().toJSON(),body:document.querySelector('.modal-body').getBoundingClientRect().toJSON(),first:node.firstElementChild.getBoundingClientRect().toJSON(),last:node.lastElementChild.getBoundingClientRect().toJSON()})));
+  await page.waitForFunction(()=>!document.querySelector('.maker-approval-actions button:last-child').disabled)
+  await send.scrollIntoViewIfNeeded()
+  const choices=await page.locator('.maker-approval-actions button').evaluateAll(nodes=>nodes.map(n=>({rect:{width:n.getBoundingClientRect().width,height:n.getBoundingClientRect().height,y:n.getBoundingClientRect().y},color:getComputedStyle(n).color,background:getComputedStyle(n).backgroundColor})))
+  assert.equal(choices[0].rect.width,choices[1].rect.width);assert.equal(choices[0].rect.height,choices[1].rect.height);assert.equal(choices[0].rect.y,choices[1].rect.y);assert.equal(choices[0].background,choices[1].background)
+  await page.screenshot({path:`docs/certification/m103-u/fixes/approval-${count}.png`})
+  await send.click();assert.equal(await page.evaluate(()=>window.messages.filter(m=>m.type==='makerAnswer').at(-1).answer.decision),'allow_once')
+  results.push({scenario:`approval-${count}`,digest,unreviewedEnterAnswers:0,allLinesGate:true,equalChoices:choices})
+ }
+ await page.goto(`http://127.0.0.1:${port}/temp/browser.html`);await page.waitForFunction(()=>typeof window.serialOnly==='function');await page.evaluate(()=>window.serialOnly());assert.equal(await page.getByRole('button',{name:'Stop all machines',exact:true}).isVisible(),true)
+ await page.route(`**/${devices.split('/').at(-1)}`,route=>route.fulfill({status:404,body:'missing'}));await page.getByRole('button',{name:'Devices and machines',exact:true}).click();await page.getByRole('alert').waitFor();await page.getByRole('button',{name:'Retry',exact:true}).waitFor();const stop=page.getByRole('button',{name:'Stop all machines',exact:true}).last();await stop.click();assert.equal(await page.evaluate(()=>window.messages.at(-1).type),'makerStop');results.push({scenario:'serial-and-rejected-chunk',stopSurvives:true,retryVisible:true})
+ const preview=await browser.newPage({viewport:{width:690,height:400}})
+ await preview.goto(`http://127.0.0.1:${port}/temp/preview.html`);await preview.waitForFunction(()=>window.messages.some(m=>m.type==='makerReady'))
+ await preview.evaluate(()=>window.postMessage({v:1,type:'makerMesh',artifactId:document.body.dataset.artifactId,positions:[0,0,0,1,0,0,0,1,0]},'*'))
+ await preview.waitForFunction(()=>document.querySelector('canvas').dataset.rendered==='true')
+ for(const size of [{width:690,height:400},{width:320,height:200}]){
+  await preview.setViewportSize(size);await preview.evaluate(()=>window.scrollTo(0,document.body.scrollHeight));const bounds=await preview.getByRole('button',{name:'Stop all machines'}).boundingBox();assert(bounds.y>=0&&bounds.y+bounds.height<=size.height);results.push({scenario:'preview-stop',size,bounds})
+ }
+ await preview.evaluate(()=>window.postMessage({v:1,type:'makerMesh',artifactId:document.body.dataset.artifactId,positions:[0]},'*'))
+ await preview.waitForFunction(()=>document.querySelector('canvas').dataset.rendered==='false');assert.equal(await preview.getByRole('alert').isVisible(),true)
+ const latency=await preview.evaluate(async()=>{const start=performance.now();window.postMessage({v:1,type:'makerMesh',artifactId:document.body.dataset.artifactId,positions:Array(1800000).fill(0)},'*');await new Promise(resolve=>setTimeout(resolve,0));document.querySelector('[data-maker-stop]').click();return performance.now()-start})
+ assert(latency<250);assert.equal(await preview.evaluate(()=>window.messages.at(-1).type),'makerStop');results.push({scenario:'oversized-stop',latencyMs:latency,boundMs:250})
+ await preview.screenshot({path:'docs/certification/m103-u/fixes/preview-short.png'})
+ writeFileSync('docs/certification/m103-u/fixes/browser.json',JSON.stringify(results,null,2)+'\n');console.log(JSON.stringify(results))
+} finally { await browser.close();await new Promise(resolve=>server.close(resolve)) }
+

@@ -41,6 +41,21 @@ describe('buildWebviewHtml', () => {
   }
   const html = buildWebviewHtml(options)
 
+  it('renders localized Stop in the static shell before executable scripts, allowing only blob workers', () => {
+    const built = buildWebviewHtml({
+      ...options,
+      l10n: { locale: 'de', table: { ...EN, makerStopAll: '<Stop & machines>' } },
+    })
+    expect(built).toContain('<button type="button">&lt;Stop &amp; machines&gt;</button>')
+    expect(built.indexOf('id="maker-stop-shell"')).toBeLessThan(
+      built.indexOf(`src="${options.scriptUri}"`),
+    )
+    expect(built).toContain('worker-src blob:')
+    const tasks = buildWebviewHtml({ ...options, surface: 'tasks' })
+    expect(tasks).not.toContain('maker-stop-shell')
+    expect(tasks).not.toContain('worker-src')
+  })
+
   it('locks scripts to the nonce and forbids everything else by default', () => {
     expect(html).toContain("default-src 'none'")
     expect(html).toContain("script-src 'nonce-NONCE123'")

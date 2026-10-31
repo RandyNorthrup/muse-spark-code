@@ -29,7 +29,9 @@ export const UI_TEXT_REGIONS = [
   {
     name: 'runtime',
     output: 'dist/uiTextRuntime.js',
-    keys: /^(?:acp|exec|scanSecrets|reportUsage$)/,
+    // The maker tools' words (M103) are read by the hardware guard, the maker
+    // commands and the ACP approval, never at a bundle's start.
+    keys: /^(?:acp|exec|scanSecrets|reportUsage$|maker|hardware|approvalHardwareNote$)/,
   },
   {
     name: 'hooks',
@@ -130,19 +132,33 @@ export function compressedEnglish(file, isProduction, compressionQuality) {
             .filter(([, property]) => Object.hasOwn(property, 'value'))
             .map(([key, property]) => [key, property.value]),
         )
-        const packed = brotliCompressSync(JSON.stringify(data), {
-          params: { [zlibConstants.BROTLI_PARAM_QUALITY]: compressionQuality },
-        }).toString('base64')
-        const getters =
-          path.basename(file) === 'uiText.js'
-            ? UI_TEXT_REGIONS.map((region) => {
-                const keys = uiTextProperties()
-                  .filter((property) => property.region === region.name)
-                  .map((property) => property.key)
-                return `for(const key of ${JSON.stringify(keys)})Object.defineProperty(exports.EN,key,{enumerable:true,configurable:true,get(){return require('./${path.basename(region.output)}').EN[key]}});`
-              }).join('\n')
-            : ''
-        const code = `exports.EN=JSON.parse(require("node:zlib").brotliDecompressSync(Buffer.from("${packed}","base64")).toString("utf8"));\n${getters}\n`
+        // The main table also carries each region's key list inside the packed
+        // payload: as plain JSON beside the code the lists were 13 KB of the
+        // 125 KiB cap. The region files are still required by literal path.
+        const isMain = path.basename(file) === 'uiText.js'
+        const regionKeys = isMain
+          ? UI_TEXT_REGIONS.map((region) =>
+              uiTextProperties()
+                .filter((property) => property.region === region.name)
+                .map((property) => property.key),
+            )
+          : []
+        const packed = brotliCompressSync(
+          JSON.stringify(isMain ? { v: data, l: regionKeys } : data),
+          {
+            params: { [zlibConstants.BROTLI_PARAM_QUALITY]: compressionQuality },
+          },
+        ).toString('base64')
+        const unpack = `JSON.parse(require("node:zlib").brotliDecompressSync(Buffer.from("${packed}","base64")).toString("utf8"))`
+        const getters = isMain
+          ? UI_TEXT_REGIONS.map(
+              (region, index) =>
+                `for(const key of P.l[${index}])Object.defineProperty(exports.EN,key,{enumerable:true,configurable:true,get(){return require('./${path.basename(region.output)}').EN[key]}});`,
+            ).join('\n')
+          : ''
+        const code = isMain
+          ? `const P=${unpack};exports.EN=P.v;\n${getters}\n`
+          : `exports.EN=${unpack};\n`
         if (outputFile === undefined) writeFileSync(file, code)
         else outputFile.contents = Buffer.from(code)
         const output = result.metafile?.outputs[file]
@@ -219,10 +235,28 @@ keys.forEach((key,index)=>{if(readers[index]==='2')Object.defineProperty(EN,key,
 }`
 }
 
+/** Maker review carries its own values and never enumerates deferred getters. */
+function makerBrowserEnglish(build) {
+  build.onLoad({ filter: /[/\\]l10n[/\\]makerEnglish\.ts$/ }, async (args) => {
+    const { EN, L10N_BROWSER_COMPRESSION_LEVEL, L10N_BROWSER_COMPRESSION_MEMORY_LEVEL } =
+      await loadL10n(process.cwd())
+    return {
+      contents: inlineBrowserTable(
+        Object.fromEntries(Object.entries(EN).filter(([key]) => key.startsWith('maker'))),
+        L10N_BROWSER_COMPRESSION_LEVEL,
+        L10N_BROWSER_COMPRESSION_MEMORY_LEVEL,
+      ).replace('export const EN=', 'export const MAKER_EN='),
+      loader: 'js',
+      watchFiles: [args.path, TABLE],
+    }
+  })
+}
+
 /** The standalone browser fallback retains the entire canonical table. */
 export const compactBrowserEnglish = {
   name: 'compact-browser-english',
   setup(build) {
+    makerBrowserEnglish(build)
     build.onLoad({ filter: /[/\\]l10n[/\\]en\.ts$/ }, async (args) => {
       if (path.resolve(args.path) !== path.resolve(TABLE)) return
       const { EN, L10N_BROWSER_COMPRESSION_LEVEL, L10N_BROWSER_COMPRESSION_MEMORY_LEVEL } =
@@ -366,6 +400,7 @@ function deviceLimitsDeclaration(source) {
 export const compactBrowserUiText = {
   name: 'compact-browser-ui-text',
   setup(build) {
+    makerBrowserEnglish(build)
     let data
     build.onStart(async () => {
       const { EN, L10N_BROWSER_COMPRESSION_LEVEL, L10N_BROWSER_COMPRESSION_MEMORY_LEVEL } =
@@ -565,6 +600,7 @@ export const compactBrowserUiText = {
           !playbookKeys.includes(key) &&
           !chatGptKeys.includes(key) &&
           !runnersKeys.includes(key) &&
+          !key.startsWith('maker') &&
           key !== 'vault' &&
           key !== 'devices' &&
           nonResourceKeys.has(key),

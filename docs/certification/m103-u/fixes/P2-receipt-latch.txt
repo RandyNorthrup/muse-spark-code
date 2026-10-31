@@ -1,0 +1,36 @@
+
+ RUN  v5.0.2 C:/lanes/M103U
+
+ ❯ test/unit/makerPayloadReview.test.tsx (8 tests | 1 failed) 2683ms
+   × the A to B receipt sequence irrevocably rejects a pending approval 16ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 7 passed (8)
+   Start at  09:32:17
+   Duration  5.26s (tests 53%, environment 24%, transform 9%, import 9%, setup 5%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/makerPayloadReview.test.tsx > the A to B receipt sequence irrevocably rejects a pending approval
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ test/unit/makerPayloadReview.test.tsx:123:50
+    121|   store.previewRendered(request.id, hash(payload.replaceAll('X1', 'X20…
+    122|   store.previewRendered(request.id, request.digest)
+    123|   expect(store.answer(request.id, 'allow_once')).toBe(false)
+       |                                                  ^
+    124|   expect(post).toHaveBeenCalledWith(
+    125|     expect.objectContaining({
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

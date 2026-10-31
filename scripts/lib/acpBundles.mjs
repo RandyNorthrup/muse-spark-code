@@ -111,6 +111,12 @@ export const ACP_BUNDLES = [
   'accountPaid.js',
   'questionNotes.js',
   'approvalModes.js',
+  // M103 (D83): the runtime maker host, its hardware guard and shell, and
+  // the shared maker schemas the companion page validates with.
+  'runtimeMaker.js',
+  'hardwareGuard.js',
+  'makerContracts.js',
+  'hardwareShell.js',
   'mcpPool.js',
   'exec.js',
   // RLTESTDRIVE item 5: the live list read headless refresh on use loads.
@@ -131,6 +137,7 @@ export const ACP_BUNDLES = [
   'modelApiHooks.js',
   'modelApiMcp.js',
   'modelApiAcp.js',
+  'modelApiShell.js',
   'productionMedia.js',
   'productionAudio.js',
   'runtimeMedia.js',

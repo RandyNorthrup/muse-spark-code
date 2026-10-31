@@ -1,0 +1,325 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "v": { "type": "number", "const": 1 },
+        "type": { "type": "string", "const": "makerPayloadReviewed" },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "isComplete": { "type": "boolean" }
+      },
+      "required": ["v", "type", "id", "digest", "isComplete"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "v": { "type": "number", "const": 1 },
+        "type": { "type": "string", "const": "makerPreviewRendered" },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "required": ["v", "type", "id", "digest"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "v": { "type": "number", "const": 1 },
+        "type": { "type": "string", "const": "makerReady" }
+      },
+      "required": ["v", "type"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "v": { "type": "number", "const": 1 },
+        "type": { "type": "string", "const": "makerAnswer" },
+        "answer": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+            "target": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": { "type": "string", "const": "serial" },
+                    "port": { "type": "string", "minLength": 1, "maxLength": 256 },
+                    "vid": { "type": "string", "pattern": "^[a-f0-9]{4}$" },
+                    "pid": { "type": "string", "pattern": "^[a-f0-9]{4}$" },
+                    "serialNumber": { "type": "string", "minLength": 1, "maxLength": 256 },
+                    "description": { "type": "string", "maxLength": 1048576 },
+                    "stablePath": { "type": "string", "minLength": 1, "maxLength": 256 }
+                  },
+                  "required": ["kind", "port"],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": { "type": "string", "const": "machine" },
+                    "registrationId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "id": { "type": "string", "minLength": 1, "maxLength": 256 },
+                    "name": { "type": "string", "minLength": 1, "maxLength": 256 },
+                    "endpoint": { "type": "string", "minLength": 1, "maxLength": 256 },
+                    "identity": { "type": "string", "minLength": 1, "maxLength": 256 }
+                  },
+                  "required": ["kind", "registrationId", "id", "name", "endpoint", "identity"],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": { "type": "string", "const": "workspace" },
+                    "workspace": { "type": "string", "minLength": 1, "maxLength": 256 }
+                  },
+                  "required": ["kind", "workspace"],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "decision": { "type": "string", "enum": ["allow_once", "reject_once"] }
+          },
+          "required": ["id", "digest", "target", "decision"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["v", "type", "answer"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "v": { "type": "number", "const": 1 },
+        "type": { "type": "string", "const": "makerStop" },
+        "machineId": { "type": "string", "minLength": 1, "maxLength": 256 }
+      },
+      "required": ["v", "type"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "v": { "type": "number", "const": 1 },
+        "type": { "type": "string", "const": "makerHardware" },
+        "enabled": { "type": "boolean" },
+        "reason": { "type": "string", "minLength": 1, "maxLength": 256 }
+      },
+      "required": ["v", "type", "enabled"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "v": { "type": "number", "const": 1 },
+        "type": { "type": "string", "const": "makerStatus" },
+        "machineId": { "type": "string", "minLength": 1, "maxLength": 256 }
+      },
+      "required": ["v", "type", "machineId"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "v": { "type": "number", "const": 1 },
+        "type": { "type": "string", "const": "makerSend" },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "machineId": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "payload": { "type": "string", "maxLength": 1048576 }
+      },
+      "required": ["v", "type", "id", "machineId", "payload"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "v": { "type": "number", "const": 1 },
+        "type": { "type": "string", "const": "makerSerial" },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "operation": { "type": "string", "enum": ["read", "write"] },
+        "target": {
+          "type": "object",
+          "properties": {
+            "kind": { "type": "string", "const": "serial" },
+            "port": { "type": "string", "minLength": 1, "maxLength": 256 },
+            "vid": { "type": "string", "pattern": "^[a-f0-9]{4}$" },
+            "pid": { "type": "string", "pattern": "^[a-f0-9]{4}$" },
+            "serialNumber": { "type": "string", "minLength": 1, "maxLength": 256 },
+            "description": { "type": "string", "maxLength": 1048576 },
+            "stablePath": { "type": "string", "minLength": 1, "maxLength": 256 }
+          },
+          "required": ["kind", "port"],
+          "additionalProperties": false
+        },
+        "baud": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+        "durationMs": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+        "dtr": { "type": "boolean" },
+        "rts": { "type": "boolean" },
+        "payloadHex": { "type": "string", "maxLength": 1048576, "pattern": "^(?:[a-f0-9]{2})*$" }
+      },
+      "required": [
+        "v",
+        "type",
+        "id",
+        "operation",
+        "target",
+        "baud",
+        "durationMs",
+        "dtr",
+        "rts",
+        "payloadHex"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "v": { "type": "number", "const": 1 },
+        "type": { "type": "string", "const": "makerOpenLog" }
+      },
+      "required": ["v", "type"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "v": { "type": "number", "const": 1 },
+        "type": { "type": "string", "const": "makerAddMachine" },
+        "machine": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string", "minLength": 1, "maxLength": 256 },
+            "name": { "type": "string", "minLength": 1, "maxLength": 256 },
+            "kind": {
+              "type": "string",
+              "enum": ["moonraker", "octoprint", "prusalink", "grbl", "fluidnc", "marlin"]
+            },
+            "category": { "type": "string", "enum": ["printer", "cnc", "laser", "robot"] },
+            "endpoint": { "type": "string", "minLength": 1, "maxLength": 256 },
+            "limits": {
+              "type": "object",
+              "properties": {
+                "travel": {
+                  "type": "object",
+                  "properties": {
+                    "min": {
+                      "type": "object",
+                      "properties": {
+                        "x": { "type": "number" },
+                        "y": { "type": "number" },
+                        "z": { "type": "number" }
+                      },
+                      "required": ["x", "y", "z"],
+                      "additionalProperties": false
+                    },
+                    "max": {
+                      "type": "object",
+                      "properties": {
+                        "x": { "type": "number" },
+                        "y": { "type": "number" },
+                        "z": { "type": "number" }
+                      },
+                      "required": ["x", "y", "z"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["min", "max"],
+                  "additionalProperties": false
+                },
+                "feedMmMin": { "type": "number", "exclusiveMinimum": 0 },
+                "extruder": { "type": "number", "minimum": 0 },
+                "bed": { "type": "number", "minimum": 0 }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": ["id", "name", "kind", "category", "endpoint", "limits"],
+          "additionalProperties": false
+        },
+        "allowPlainHttp": { "type": "boolean" }
+      },
+      "required": ["v", "type", "machine", "allowPlainHttp"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "v": { "type": "number", "const": 1 },
+        "type": { "type": "string", "const": "makerRemoveMachine" },
+        "registrationId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "machineId": { "type": "string", "minLength": 1, "maxLength": 256 }
+      },
+      "required": ["v", "type", "registrationId", "machineId"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "v": { "type": "number", "const": 1 },
+        "type": { "type": "string", "const": "makerChoosePreset" },
+        "presetId": { "type": "string", "minLength": 1, "maxLength": 256 }
+      },
+      "required": ["v", "type", "presetId"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "v": { "type": "number", "const": 1 },
+        "type": { "type": "string", "const": "makerOpenPreview" },
+        "artifactId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        }
+      },
+      "required": ["v", "type", "artifactId"],
+      "additionalProperties": false
+    }
+  ],
+  "x-runtime-invariants": [
+    "Engine approval ids and SHA-256 digests bind frozen payload and target snapshots; only the matching host-UI answer before expiry can create a binding.",
+    "An answer and its binding are single-use. A forged clone is not the engine binding. Admission is checked at answer and final synchronous spawn/write.",
+    "The adapter re-reads the live target immediately before the final spawn/write. Identity or registration-generation changes refuse dispatch.",
+    "Travel bounds require min <= max on every axis. Preset paths are relative, contain no parent segments, option/response-file prefix or control characters.",
+    "Host state, limits, keys and permission are engine/host authority. A surface message alone never enables hardware or approves a send.",
+    "Enabling hardware requires a nonblank user reason. Disabling hardware needs no reason.",
+    "New machine registration input cannot supply the engine-owned generation UUID. Host summaries, approval targets and stale removals retain it.",
+    "Stop is dispatched independently of approval, trust, hardware enablement, active turns and ordinary queues.",
+    "Device log entries are user-requested and scrubbed before crossing the surface boundary; keys never cross this protocol.",
+    "Maker preview geometry is bounded by coordinate and triangle count, has complete triangles, and is rendered only by the page for its matching host-owned artifact UUID. It has no file, URL or hardware loader."
+  ]
+}

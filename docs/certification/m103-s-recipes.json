@@ -1,0 +1,154 @@
+{
+  "recipes": [
+    {
+      "id": "pio-build",
+      "command": "pio run",
+      "actionClass": "offline",
+      "evidence": "pending-toolchain"
+    },
+    {
+      "id": "pio-native-test",
+      "command": "pio test -e native",
+      "actionClass": "offline",
+      "evidence": "pending-toolchain"
+    },
+    {
+      "id": "pio-check",
+      "command": "pio check --json-output --fail-on-defect",
+      "actionClass": "offline",
+      "evidence": "pending-toolchain"
+    },
+    {
+      "id": "pio-list",
+      "command": "pio device list --json-output",
+      "actionClass": "observe",
+      "evidence": "pending-toolchain"
+    },
+    {
+      "id": "arduino-list",
+      "command": "arduino-cli board list --json",
+      "actionClass": "observe",
+      "evidence": "pending-toolchain"
+    },
+    {
+      "id": "arduino-compile",
+      "command": "arduino-cli compile --fqbn FQBN SKETCH",
+      "actionClass": "offline",
+      "evidence": "pending-toolchain"
+    },
+    {
+      "id": "idf-build",
+      "command": "idf.py build",
+      "actionClass": "offline",
+      "evidence": "pending-toolchain"
+    },
+    {
+      "id": "esphome-build",
+      "command": "esphome compile device.yaml",
+      "actionClass": "offline",
+      "evidence": "pending-toolchain"
+    },
+    {
+      "id": "pico-configure",
+      "command": "cmake -S . -B build",
+      "actionClass": "offline",
+      "evidence": "rig-command"
+    },
+    {
+      "id": "pico-build",
+      "command": "cmake --build build",
+      "actionClass": "offline",
+      "evidence": "rig-command"
+    },
+    {
+      "id": "zephyr-build",
+      "command": "west build -b BOARD APP",
+      "actionClass": "offline",
+      "evidence": "pending-toolchain"
+    },
+    {
+      "id": "mpremote-list",
+      "command": "mpremote connect list",
+      "actionClass": "observe",
+      "evidence": "pending-toolchain"
+    },
+    {
+      "id": "pi-throttle",
+      "command": "vcgencmd get_throttled",
+      "actionClass": "observe",
+      "evidence": "pending-toolchain"
+    },
+    {
+      "id": "pi-gpioinfo",
+      "command": "gpioinfo",
+      "actionClass": "observe",
+      "evidence": "pending-toolchain"
+    },
+    {
+      "id": "camotics",
+      "command": "camsim input.gcode stock.stl",
+      "actionClass": "offline",
+      "evidence": "pending-toolchain"
+    },
+    {
+      "id": "ros-build",
+      "command": "colcon build",
+      "actionClass": "offline",
+      "evidence": "pending-toolchain"
+    },
+    {
+      "id": "ros-test",
+      "command": "colcon test",
+      "actionClass": "offline",
+      "evidence": "pending-toolchain"
+    },
+    {
+      "id": "ros-report",
+      "command": "colcon test-result --verbose",
+      "actionClass": "offline",
+      "evidence": "pending-toolchain"
+    },
+    {
+      "id": "ros-doctor",
+      "command": "ros2 doctor --report",
+      "actionClass": "observe",
+      "evidence": "pending-toolchain"
+    },
+    {
+      "id": "ros-bag",
+      "command": "ros2 bag info recording.mcap",
+      "actionClass": "offline",
+      "evidence": "pending-toolchain"
+    },
+    {
+      "id": "openscad-stl",
+      "command": "openscad -o model.stl model.scad",
+      "actionClass": "offline",
+      "evidence": "pending-toolchain"
+    },
+    {
+      "id": "kicad-erc",
+      "command": "kicad-cli sch erc --format json --exit-code-violations -o erc.json board.kicad_sch",
+      "actionClass": "offline",
+      "evidence": "pending-toolchain"
+    },
+    {
+      "id": "kicad-drc",
+      "command": "kicad-cli pcb drc --format json --schematic-parity --exit-code-violations -o drc.json board.kicad_pcb",
+      "actionClass": "offline",
+      "evidence": "pending-toolchain"
+    },
+    {
+      "id": "renode-test",
+      "command": "renode-test tests.robot",
+      "actionClass": "offline",
+      "evidence": "pending-toolchain"
+    },
+    {
+      "id": "wokwi-run",
+      "command": "wokwi-cli --timeout 10000 --expect-text \"ALL TESTS PASSED\" .",
+      "actionClass": "offline",
+      "evidence": "pending-user-cloud-opt-in"
+    }
+  ]
+}

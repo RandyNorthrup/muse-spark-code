@@ -1,0 +1,371 @@
+{
+  "rig": "Kubuntu Linux",
+  "defaultTestTimeout": true,
+  "modelAttempts": 0,
+  "drills": [
+    {
+      "drill": "presence-bypass",
+      "file": "src/runtime/maker/runtimeMakerHost.ts",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/runtimeMakerHost.test.ts",
+        "test/unit/runtimeMakerAttendance.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > terminal spoofing never supplies physical authority > remote SSH peer cannot enable hardware",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > terminal spoofing never supplies physical authority > LD_PRELOAD forged ps cannot enable hardware",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > terminal spoofing never supplies physical authority > subst fake SystemRoot cannot enable hardware",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > terminal spoofing never supplies physical authority > AppleScript driving Terminal cannot enable hardware",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > terminal spoofing never supplies physical authority > multiplexer capture-pane cannot enable hardware",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > terminal spoofing never supplies physical authority > denied presence sends no payload even if an ACP client automatically answers allow_once",
+        "FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > OS presence denied cannot authorize a send or enable hardware",
+        "FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > OS presence unavailable cannot authorize a send or enable hardware"
+      ],
+      "sha256Before": "bdf08aff984cc3a28d1221c8e381234f98c750cdda87fca4f8e738e0aae8e1f6",
+      "sha256Restored": "bdf08aff984cc3a28d1221c8e381234f98c750cdda87fca4f8e738e0aae8e1f6",
+      "seconds": 2.35
+    },
+    {
+      "drill": "different-digest",
+      "file": "src/runtime/maker/runtimeMakerHost.ts",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/runtimeMakerHost.test.ts",
+        "test/unit/runtimeMakerTransport.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > presence for payload A cannot approve payload B or a changed target"
+      ],
+      "sha256Before": "bdf08aff984cc3a28d1221c8e381234f98c750cdda87fca4f8e738e0aae8e1f6",
+      "sha256Restored": "bdf08aff984cc3a28d1221c8e381234f98c750cdda87fca4f8e738e0aae8e1f6",
+      "seconds": 2.58
+    },
+    {
+      "drill": "grant-replay",
+      "file": "src/runtime/maker/runtimeMakerHost.ts",
+      "command": ["npx", "vitest", "run", "test/unit/runtimeMakerHost.test.ts", "--maxWorkers=3"],
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > passes a presence-approved once answer and consumes only the live target"
+      ],
+      "sha256Before": "bdf08aff984cc3a28d1221c8e381234f98c750cdda87fca4f8e738e0aae8e1f6",
+      "sha256Restored": "bdf08aff984cc3a28d1221c8e381234f98c750cdda87fca4f8e738e0aae8e1f6",
+      "seconds": 1.85
+    },
+    {
+      "drill": "enable-revocation",
+      "file": "src/runtime/maker/runtimeMakerHost.ts",
+      "command": ["npx", "vitest", "run", "test/unit/runtimeMakerHost.test.ts", "--maxWorkers=3"],
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > hardware disable during OS authentication revokes the pending enable"
+      ],
+      "sha256Before": "bdf08aff984cc3a28d1221c8e381234f98c750cdda87fca4f8e738e0aae8e1f6",
+      "sha256Restored": "bdf08aff984cc3a28d1221c8e381234f98c750cdda87fca4f8e738e0aae8e1f6",
+      "seconds": 1.83
+    },
+    {
+      "drill": "grant-expiry",
+      "file": "src/runtime/maker/runtimeMakerHost.ts",
+      "command": ["npx", "vitest", "run", "test/unit/runtimeMakerHost.test.ts", "--maxWorkers=3"],
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > refuses an expired OS presence grant"
+      ],
+      "sha256Before": "bdf08aff984cc3a28d1221c8e381234f98c750cdda87fca4f8e738e0aae8e1f6",
+      "sha256Restored": "bdf08aff984cc3a28d1221c8e381234f98c750cdda87fca4f8e738e0aae8e1f6",
+      "seconds": 1.78
+    },
+    {
+      "drill": "grant-target",
+      "file": "src/runtime/maker/runtimeMakerHost.ts",
+      "command": ["npx", "vitest", "run", "test/unit/runtimeMakerHost.test.ts", "--maxWorkers=3"],
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > presence for payload A cannot approve payload B or a changed target"
+      ],
+      "sha256Before": "bdf08aff984cc3a28d1221c8e381234f98c750cdda87fca4f8e738e0aae8e1f6",
+      "sha256Restored": "bdf08aff984cc3a28d1221c8e381234f98c750cdda87fca4f8e738e0aae8e1f6",
+      "seconds": 1.78
+    },
+    {
+      "drill": "competing-grant",
+      "file": "src/runtime/maker/runtimeMakerHost.ts",
+      "command": ["npx", "vitest", "run", "test/unit/runtimeMakerHost.test.ts", "--maxWorkers=3"],
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > a competing presence reply cannot mint a second grant for the same approval"
+      ],
+      "sha256Before": "bdf08aff984cc3a28d1221c8e381234f98c750cdda87fca4f8e738e0aae8e1f6",
+      "sha256Restored": "bdf08aff984cc3a28d1221c8e381234f98c750cdda87fca4f8e738e0aae8e1f6",
+      "seconds": 1.86
+    },
+    {
+      "drill": "policy-pin",
+      "file": "src/runtime/maker/userPresence.ts",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/runtimeUserPresence.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeUserPresence.test.ts > Linux OS user presence > refuses a changed policy before starting authentication",
+        "FAIL  test/unit/runtimeUserPresence.test.ts > Linux OS user presence > refuses a other-user policy before starting authentication"
+      ],
+      "sha256Before": "6255176318e7af411a2e4c248b444cc9ed955ed610361bebe76db5ca40b74e39",
+      "sha256Restored": "6255176318e7af411a2e4c248b444cc9ed955ed610361bebe76db5ca40b74e39",
+      "seconds": 1.84
+    },
+    {
+      "drill": "policy-owner",
+      "file": "src/runtime/maker/userPresence.ts",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/runtimeUserPresence.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeUserPresence.test.ts > Linux OS user presence > refuses a foreign policy before starting authentication"
+      ],
+      "sha256Before": "6255176318e7af411a2e4c248b444cc9ed955ed610361bebe76db5ca40b74e39",
+      "sha256Restored": "6255176318e7af411a2e4c248b444cc9ed955ed610361bebe76db5ca40b74e39",
+      "seconds": 1.98
+    },
+    {
+      "drill": "policy-mode",
+      "file": "src/runtime/maker/userPresence.ts",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/runtimeUserPresence.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeUserPresence.test.ts > Linux OS user presence > refuses a writable policy before starting authentication"
+      ],
+      "sha256Before": "6255176318e7af411a2e4c248b444cc9ed955ed610361bebe76db5ca40b74e39",
+      "sha256Restored": "6255176318e7af411a2e4c248b444cc9ed955ed610361bebe76db5ca40b74e39",
+      "seconds": 2.05
+    },
+    {
+      "drill": "pkcheck-environment",
+      "file": "src/runtime/maker/userPresence.ts",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/runtimeUserPresence.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeUserPresence.test.ts > Linux OS user presence > checks a fixed system binary with no inherited environment and the exact action details"
+      ],
+      "sha256Before": "6255176318e7af411a2e4c248b444cc9ed955ed610361bebe76db5ca40b74e39",
+      "sha256Restored": "6255176318e7af411a2e4c248b444cc9ed955ed610361bebe76db5ca40b74e39",
+      "seconds": 1.96
+    },
+    {
+      "drill": "loopback-relay",
+      "file": "src/core/browser/checkProxy.ts",
+      "command": ["npx", "vitest", "run", "test/unit/checkProxy.test.ts", "--maxWorkers=3"],
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/checkProxy.test.ts > the browser check\u2019s proxy (M81 A1) > refuses a widened DNS name resolving to loopback and a relay on a second port"
+      ],
+      "sha256Before": "ed807d7f2db5ee56dd686c0a9da1b8ca25d818ce6b48724a7125a8735a5b71fb",
+      "sha256Restored": "ed807d7f2db5ee56dd686c0a9da1b8ca25d818ce6b48724a7125a8735a5b71fb",
+      "seconds": 12.08
+    },
+    {
+      "drill": "companion-reservation",
+      "file": "src/core/browser/browserPolicy.ts",
+      "command": ["npx", "vitest", "run", "test/unit/browserPolicy.test.ts", "--maxWorkers=3"],
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/browserPolicy.test.ts > the browser check address rule (M81) > allows only the exact configured dev origin and never a companion origin"
+      ],
+      "sha256Before": "8066bcb6d6d4951fa0cfa2c2af12a5e4a04f9245ba86fb2eb21293fc664ca0c6",
+      "sha256Restored": "8066bcb6d6d4951fa0cfa2c2af12a5e4a04f9245ba86fb2eb21293fc664ca0c6",
+      "seconds": 1.52
+    },
+    {
+      "drill": "probe-revoke",
+      "file": "src/core/browser/checkProxy.ts",
+      "command": ["npx", "vitest", "run", "test/unit/checkProxy.test.ts", "--maxWorkers=3"],
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/checkProxy.test.ts > the browser check\u2019s proxy (M81 A1) > canary allowance is confined to its own nonce path and revoked before page traffic"
+      ],
+      "sha256Before": "ed807d7f2db5ee56dd686c0a9da1b8ca25d818ce6b48724a7125a8735a5b71fb",
+      "sha256Restored": "ed807d7f2db5ee56dd686c0a9da1b8ca25d818ce6b48724a7125a8735a5b71fb",
+      "seconds": 11.67
+    },
+    {
+      "drill": "fixture-frame",
+      "file": "src/core/browser/pageCheck.ts",
+      "command": ["npx", "vitest", "run", "test/unit/browserRun.test.ts", "--maxWorkers=3"],
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/browserRun.test.ts > a browser check on the verified runtime (M81 A1) > admits only the active fixture nonce for its challenge iframe and revokes it before the model page"
+      ],
+      "sha256Before": "28fd32f2e3aa2ceae01af21041e2a3f0b0b7832491be2bbd2a0d24ed7caafb6d",
+      "sha256Restored": "28fd32f2e3aa2ceae01af21041e2a3f0b0b7832491be2bbd2a0d24ed7caafb6d",
+      "seconds": 11.96
+    },
+    {
+      "drill": "pkcheck-owner",
+      "file": "src/runtime/maker/userPresence.ts",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/runtimeUserPresence.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeUserPresence.test.ts > Linux OS user presence > refuses an unsafe pkcheck owner 1000 and mode 420"
+      ],
+      "sha256Before": "6255176318e7af411a2e4c248b444cc9ed955ed610361bebe76db5ca40b74e39",
+      "sha256Restored": "6255176318e7af411a2e4c248b444cc9ed955ed610361bebe76db5ca40b74e39",
+      "seconds": 1.6
+    },
+    {
+      "drill": "pkcheck-mode",
+      "file": "src/runtime/maker/userPresence.ts",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/runtimeUserPresence.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeUserPresence.test.ts > Linux OS user presence > refuses an unsafe pkcheck owner 0 and mode 438"
+      ],
+      "sha256Before": "6255176318e7af411a2e4c248b444cc9ed955ed610361bebe76db5ca40b74e39",
+      "sha256Restored": "6255176318e7af411a2e4c248b444cc9ed955ed610361bebe76db5ca40b74e39",
+      "seconds": 1.47
+    },
+    {
+      "drill": "root-execution",
+      "file": "src/runtime/maker/userPresence.ts",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/runtimeUserPresence.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeUserPresence.test.ts > Linux OS user presence > refuses root execution before authentication even with a matching root-owned policy"
+      ],
+      "sha256Before": "6255176318e7af411a2e4c248b444cc9ed955ed610361bebe76db5ca40b74e39",
+      "sha256Restored": "6255176318e7af411a2e4c248b444cc9ed955ed610361bebe76db5ca40b74e39",
+      "seconds": 1.47
+    },
+    {
+      "drill": "kernel-subject",
+      "file": "src/runtime/maker/userPresence.ts",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/runtimeUserPresence.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeUserPresence.test.ts > Linux OS user presence > refuses malformed kernel start metadata before invoking pkcheck"
+      ],
+      "sha256Before": "6255176318e7af411a2e4c248b444cc9ed955ed610361bebe76db5ca40b74e39",
+      "sha256Restored": "6255176318e7af411a2e4c248b444cc9ed955ed610361bebe76db5ca40b74e39",
+      "seconds": 1.57
+    },
+    {
+      "drill": "workspace-origins",
+      "file": "src/shared/constants.ts",
+      "command": ["npx", "vitest", "run", "test/unit/settings.test.ts", "--maxWorkers=3"],
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/settings.test.ts > readSettings > reads exact dev origins from workspace settings rather than the machine-only lane"
+      ],
+      "sha256Before": "a54be18b29d10149f2ad9e2f640b41a6f256b4ab72987be8272667d979a30cf7",
+      "sha256Restored": "a54be18b29d10149f2ad9e2f640b41a6f256b4ab72987be8272667d979a30cf7",
+      "seconds": 1.88
+    },
+    {
+      "drill": "command-machine-presence",
+      "file": "src/runtime/maker/commands.ts",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/runtimeMakerCommands.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeMakerCommands.test.ts > runtime maker command execution without a credential store or device > denied presence blocks machines-add before credentials or OS browser launch"
+      ],
+      "sha256Before": "46669c1962cacb3b8641c3005b4a2ab881ac264bf0510562f3312d4e8f6b90da",
+      "sha256Restored": "46669c1962cacb3b8641c3005b4a2ab881ac264bf0510562f3312d4e8f6b90da",
+      "seconds": 2.87
+    },
+    {
+      "drill": "surface-machine-presence",
+      "file": "src/runtime/maker/service.ts",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/runtimeMakerCommands.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeMakerCommands.test.ts > runtime maker command execution without a credential store or device > denied presence blocks surface machine registration before its registry mutates"
+      ],
+      "sha256Before": "89416d37146392b68d414d8d15b60a4cfaed4e65ae3608cbec70664b0efddd93",
+      "sha256Restored": "89416d37146392b68d414d8d15b60a4cfaed4e65ae3608cbec70664b0efddd93",
+      "seconds": 3.06
+    },
+    {
+      "drill": "panel-presence",
+      "file": "src/runtime/maker/companionServer.ts",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/runtimeMakerCommands.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeMakerCommands.test.ts > runtime maker command execution without a credential store or device > denied presence blocks panel before credentials or OS browser launch"
+      ],
+      "sha256Before": "277557b8b097f1be7841172aa21ee5480cc73efce862c9a96e01eaa1fdd38426",
+      "sha256Restored": "277557b8b097f1be7841172aa21ee5480cc73efce862c9a96e01eaa1fdd38426",
+      "seconds": 3.04
+    }
+  ]
+}

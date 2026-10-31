@@ -1,0 +1,77 @@
+[
+  {
+    "file": "tools/qemu-riscv32-softmmu-esp_develop_9.2.2_20260417-x86_64-linux-gnu.tar.xz",
+    "url": "https://github.com/espressif/qemu/releases/download/esp-develop-9.2.2-20260417/qemu-riscv32-softmmu-esp_develop_9.2.2_20260417-x86_64-linux-gnu.tar.xz",
+    "sha256": "547f03e04701a92cbb699f7f7d015adc1f5b5ef93cbb94c0dd9b7107e2d84e77"
+  },
+  {
+    "file": "tools/qemu-xtensa-softmmu-esp_develop_9.2.2_20260417-x86_64-linux-gnu.tar.xz",
+    "url": "https://github.com/espressif/qemu/releases/download/esp-develop-9.2.2-20260417/qemu-xtensa-softmmu-esp_develop_9.2.2_20260417-x86_64-linux-gnu.tar.xz",
+    "sha256": "0eecb2a34a5586c0e59110f77b9343b7b336e82fdb0e1a30e1dc1bab8a547e35"
+  },
+  {
+    "file": "tools/renode-1.17.0.linux-portable.tar.gz",
+    "url": "https://github.com/renode/renode/releases/download/v1.17.0/renode-1.17.0.linux-portable.tar.gz",
+    "sha256": "4ba7c68b59e2447f188ef4b4b112fcccd2802582c460beedceb63b84e5605a5f"
+  },
+  {
+    "file": "images/pi.img.xz",
+    "url": "https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2026-09-15/2026-09-15-raspios-trixie-arm64-lite.img.xz",
+    "sha256": "cdf4f3bfac35ae947b46e4e767f935453810549779ac3290e05a6754aee627e5"
+  },
+  {
+    "file": "images/esp32.bin",
+    "url": "https://micropython.org/resources/firmware/ESP32_GENERIC-20250415-v1.25.0.bin",
+    "sha256": "1eb1a88473e32aa6a4d45dc1b5b6ad40bc1f06128e7aa8548e438cfa4633da1b"
+  },
+  {
+    "file": "images/esp32c3.bin",
+    "url": "https://micropython.org/resources/firmware/ESP32_GENERIC_C3-20250415-v1.25.0.bin",
+    "sha256": "4dd82c4bc8b90d4a8f303eedc1bf2b87ace1827daad3a855c6ce3209482f46f3"
+  },
+  {
+    "file": "images/pico.uf2",
+    "url": "https://micropython.org/resources/firmware/RPI_PICO-20230426-v1.20.0.uf2",
+    "sha256": "d9d97d8b495da476006125e73dc203a428ce7b6be27a5a76eda1dd85b2efe99d"
+  },
+  {
+    "file": "images/uno-boot.hex",
+    "url": "https://raw.githubusercontent.com/arduino/ArduinoCore-avr/1.8.6/bootloaders/atmega/ATmegaBOOT_168_atmega328.hex",
+    "sha256": "947270356140fc43db70e0bf86dee020df5f2117d8fc0c303fbae76dff957876"
+  },
+  {
+    "file": "images/mega-boot.hex",
+    "url": "https://raw.githubusercontent.com/arduino/ArduinoCore-avr/1.8.6/bootloaders/stk500v2/stk500boot_v2_mega2560.hex",
+    "sha256": "081bd53f385df747b03bdafe7e154c1f72589f490be8138f3c4cc5517c93253b"
+  },
+  {
+    "file": "images/nrf52.elf",
+    "url": "https://dl.antmicro.com/projects/renode/renode-nrf52840-zephyr_shell_module.elf-gf8d05cf-s_1310072-c00fbffd6b65c6238877c4fe52e8228c2a38bf1f",
+    "sha256": "596906f502af17463c02c57e5a6ba526d4b0ea29e68463d5a046e1edda5a19cb"
+  },
+  {
+    "file": "rp2040/bootrom.ts",
+    "url": "https://raw.githubusercontent.com/wokwi/rp2040js/v1.4.0/demo/bootrom.ts",
+    "sha256": "99f8a1f813ce3aa9415884de3fb6c5b962d3c6fa0394b05413ad3c7b3c39ec62"
+  },
+  {
+    "file": "linux-image-612.deb",
+    "url": "https://deb.debian.org/debian/pool/main/l/linux-signed-arm64/linux-image-6.12.94+deb13-rt-arm64_6.12.94-1_arm64.deb",
+    "sha256": "d995905f1cf6f0ac4d3b40a068bb1324ebbcbea8bba0efdb25bf50f9687af329"
+  },
+  {
+    "file": "busybox-static.deb",
+    "url": "https://deb.debian.org/debian/pool/main/b/busybox/busybox-static_1.37.0-6+b9_arm64.deb",
+    "sha256": "c833be48abfa16bc19c4966ec93e289ff1ce5d2f1476cad3a57bd105378cd15c"
+  },
+  {
+    "file": "images/NRF52840.svd.gz",
+    "url": "https://dl.antmicro.com/projects/renode/svd/NRF52840.svd.gz",
+    "sha256": "e5249c6a4a4bc66adbf644b97cff3b497cfdb9727eac0b3f77be576d2edd7db4"
+  },
+  {
+    "file": "images/STM32F40x.svd.gz",
+    "url": "https://dl.antmicro.com/projects/renode/svd/STM32F40x.svd.gz",
+    "sha256": "d71b3e11c870ec83346eb994e98a57c5eacdf0082d2949ed495d7a3828bf41ec"
+  }
+]

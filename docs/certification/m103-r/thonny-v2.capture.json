@@ -1,0 +1,91 @@
+{
+  "workspace": "C:/lanes/M103R",
+  "platform": "win11",
+  "producer": "REDM103T ProviderClient + BridgeEngine, fake displayed shell and fake lease owner",
+  "modelAttempts": 0,
+  "frames": [
+    {
+      "direction": "thonny-to-runtime",
+      "frame": {
+        "v": 2,
+        "type": "hello",
+        "provider": "thonny",
+        "token": "[private-launch-capability]"
+      }
+    },
+    {
+      "direction": "runtime-to-thonny",
+      "frame": {
+        "v": 2,
+        "type": "welcome",
+        "ok": true
+      }
+    },
+    {
+      "direction": "thonny-to-runtime",
+      "frame": {
+        "v": 2,
+        "type": "port_request",
+        "id": "3c01f76315854aef91ded9d22d17d081",
+        "op": "acquire",
+        "port": "COM7"
+      }
+    },
+    {
+      "direction": "runtime-to-thonny",
+      "frame": {
+        "v": 2,
+        "type": "port_response",
+        "id": "3c01f76315854aef91ded9d22d17d081",
+        "op": "acquire",
+        "port": "COM7",
+        "ok": true,
+        "owner": "runtime"
+      }
+    },
+    {
+      "direction": "thonny-to-runtime",
+      "frame": {
+        "v": 2,
+        "type": "port_request",
+        "id": "3390eda4a4be4f498f3b8c8ec18d775e",
+        "op": "release",
+        "port": "COM7"
+      }
+    },
+    {
+      "direction": "runtime-to-thonny",
+      "frame": {
+        "v": 2,
+        "type": "port_response",
+        "id": "3390eda4a4be4f498f3b8c8ec18d775e",
+        "op": "release",
+        "port": "COM7",
+        "ok": true,
+        "owner": "released"
+      }
+    },
+    {
+      "direction": "runtime-to-thonny",
+      "frame": {
+        "v": 2,
+        "type": "device_request",
+        "id": "b7aab4390a5a6d0027d59db493f16503a0833fa297966e55487315a80d3edc3f",
+        "op": "context"
+      }
+    },
+    {
+      "direction": "thonny-to-runtime",
+      "frame": {
+        "v": 2,
+        "type": "device_response",
+        "id": "b7aab4390a5a6d0027d59db493f16503a0833fa297966e55487315a80d3edc3f",
+        "ok": true,
+        "result": {
+          "text": "fake shell ready\n",
+          "source": "thonny_shell"
+        }
+      }
+    }
+  ]
+}

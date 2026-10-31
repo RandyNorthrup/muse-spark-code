@@ -1,3 +1,4 @@
+import { failureForLog } from '../musecode/logText'
 import { isRequestNotSent } from '../../refusal'
 import { UserRefusalError } from '../../refusal'
 import { isPaidStop } from '../../refusal'
@@ -12,10 +13,22 @@ import {
   type PayerCredential,
   type ConversationOwner,
 } from './billingRoute'
-import { failureForLog } from '../musecode/logText'
 import type { AccountRequestPort, AccountRequestLease } from '../../accounts/requestWriter'
 import { parseUsd as accountUsd } from '../../../shared/accountUsd'
 import { rateLimitResetAt } from '../../../shared/retryPolicy'
+import type { HardwareStop } from '../../maker/guard/hardwareCommands'
+import { createHardwareContexts } from '../../maker/hardwareContext'
+import { HardwareApproval } from '../../maker/ports'
+import { SessionHardwareGuard, type HardwareBinding } from '../../maker/sessionGuard'
+import {
+  hardwareAction,
+  hardwareTargets,
+  isHardwareStop,
+  hardwareStop,
+} from '../../maker/guard/hardwareCommands'
+import { isHardwareWorkspace, hardwareShellNote } from '../../maker/guard/shellPolicy'
+import { parseShell } from '../../maker/guard/shellParse'
+import type { HardwareContext } from '../../maker/guard/httpCommands'
 import { StorageRefusalError } from '../../checkpoints/storageRefusal'
 import type { GitDraftOutputPort } from '../../git/gitText'
 import type * as CodeIntelEntry from './codeIntelEntry'
@@ -174,6 +187,7 @@ import {
   QUESTION_OUTCOME_CLARIFIED,
   QUESTION_OUTCOME_DEFERRED,
   REPO_MAP_PROMPT_TRIES,
+  MAKER_STOP_DEADLINE_MS,
   WEB_SEARCH_MAX_PER_REQUEST,
   webSearchMaxCallsFor,
   SKILL_FILE_NAME,
@@ -809,6 +823,9 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   readonly personalAgentsRoot: string | undefined
   /** VS Code workspace trust: gates rules, skills, memory and the shell (D13). */
   readonly isWorkspaceTrusted: () => boolean
+  /** Host-owned unattended context (headless, workers, candidates and remote lanes). */
+  readonly isUnattended?: () => boolean
+  readonly hardwareContext?: () => HardwareContext
   /** `museSpark.confidentialWorkspace`: contributor-tier agent models are blocked. */
   readonly isConfidentialWorkspace: () => boolean
   /** One explicit yes before a contributor-tier agent model is used (M76). */
@@ -1005,6 +1022,8 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   `mcp__ide__<tool>`, the names Muse Code sessions see them by (M50).
   */
   readonly ideTools?: readonly McpTool[] | undefined
+  /** Runtime hardware revocation changes the catalogue at the next request. Workers never receive it. */
+  readonly getIdeTools?: (() => readonly McpTool[]) | undefined
   /**
   Muse Code's memory (M49, PLAN.md D41): the memory tools and the
   session-start snapshot; undefined leaves them out.
@@ -1348,6 +1367,7 @@ export interface ActiveTurn {
   by the request's own retry notices.
   */
   lastRetryRateLimited?: boolean | undefined
+  readonly isGoalWake: boolean
   /** The prompt's answer to the web search popup (M58); false until it is asked. */
   isWebSearchAllowed: boolean
   /** Run as the Reviewer (M70): its prompt, and only the tools that read. */
@@ -1497,6 +1517,7 @@ interface Admission {
   readonly isTrusted: boolean
   /** The file policy's revision then (`filePolicyRevision`), for an outcome that cannot name its files. */
   readonly revision: string
+  readonly hardwareBinding?: HardwareBinding
 }
 
 /**
@@ -1602,6 +1623,7 @@ interface ApprovalOutcome {
   /** An image spending question deferred to its lease carries this call's
   forced-ask flag with the approval, never on a shared session field. */
   readonly requiresImageAsking?: boolean
+  readonly hardwareBinding?: HardwareBinding
 }
 
 /** One wait in a child task's admission (a question, a hook, a popup): its refusal, if any. */
@@ -1973,6 +1995,22 @@ function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+function isHardwareBindingRefusal(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.message === UI_TEXT.hardwareExpired || error.message === UI_TEXT.hardwareUnattended)
+  )
+}
+
+function isShellEntryFailure(error: unknown): boolean {
+  return (
+    error instanceof ShellEntryError ||
+    (error instanceof Error &&
+      (('code' in error && typeof error.code === 'string') ||
+        error.message === UI_TEXT.hardwareUnattended))
+  )
+}
+
 // Incomplete reasons the wire may carry, as the log names them (RVM105B
 // P2-1): the provider's free text never reaches the log. The Responses API
 // documents `max_output_tokens` and `content_filter`; the bundled codecs map
@@ -2336,6 +2374,7 @@ interface B1SkipOutput {
 
 /** Why a card asks beyond the mode, as the card says under the command (M78). */
 function cardNote(judgement: PermissionJudgement | undefined): string | undefined {
+  if (judgement?.settledBy === 'hardwareDetected') return UI_TEXT.approvalHardwareNote
   if (judgement?.settledBy === 'profile') {
     return UI_TEXT.approvalProfileNote
   }
@@ -2886,6 +2925,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   /** The real last turn summarized by an accepted compaction, not inferred from replay gaps. */
   private compactedThroughTurnId: string | undefined
   private readonly outputs = new Map<string, string>()
+  private readonly hardwareGuard: SessionHardwareGuard
   private readonly sessionPermissions: PermissionEngine
   private readonly owner: SessionOwner
   /** The command rules and permission profile as the settings stand (M78). */
@@ -3424,6 +3464,36 @@ export class ModelApiSession implements ScheduledAgentSession {
     // The verify ledger registers with the shared workspace edits on its
     // first load (ensureVerify), never here: the chunk is not loaded yet.
     this.modelId = modelId
+    this.sessionPermissions = new PermissionEngine(
+      approvalMode === 'allowAll' && isHardwareWorkspace(deps.hardwareContext?.())
+        ? 'promptUnmatched'
+        : approvalMode,
+    )
+    this.hardwareGuard = new SessionHardwareGuard(
+      () => ({
+        ...deps.hardwareContext?.(),
+        workspaceRoot: deps.workspaceRoot,
+        isCommandActive: this.active !== undefined || this.userShells.size > 0,
+        isUnattended:
+          deps.hardwareContext?.().isUnattended === true ||
+          this.isSubagent ||
+          deps.isUnattended?.() === true ||
+          this.active?.confirmedRequest !== undefined ||
+          this.active?.isGoalWake === true,
+      }),
+      (id) => this.pendingApprovalEvents.get(id),
+      (id) => {
+        const request = this.pendingApprovalEvents.get(id)
+        if (request !== undefined)
+          this.pendingApprovals.get(id)?.resolve({
+            approvalId: id,
+            requirementId: request.requirementId,
+            choiceId: APPROVAL_CHOICE_IDS.abort,
+          })
+      },
+    )
+    if (parentSession !== undefined && isHardwareWorkspace(parentSession.hardwareGuard.current()))
+      this.hardwareGuard.observe({ isHardwareWorkspace: true })
     this.searchMaxPerRequest = deps.webSearchMaxPerRequest?.() ?? WEB_SEARCH_MAX_PER_REQUEST
     // The hook and subagent counts as settings (M127), captured once for
     // the session like the search count above. D121: 0 is no limit of ours;
@@ -4306,6 +4376,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     shouldReplayContext = true,
     shouldShowMessages = true,
     foreignContext?: ForeignDispatchContext,
+    shouldSkip = false,
   ): Promise<HookDispatch> {
     const runHook = this.deps.io.runHook?.bind(this.deps.io)
     const hooks = this.enabledHooks()
@@ -4325,7 +4396,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       : undefined
     const runHookHttp = this.deps.io.runHookHttp?.bind(this.deps.io)
     const result = await dispatchHooks(
-      hooks,
+      shouldSkip ? [] : hooks,
       event,
       this.hookPayload(event, turnId, fields),
       matcher,
@@ -4334,8 +4405,22 @@ export class ModelApiSession implements ScheduledAgentSession {
         ? {}
         : {
             runHook: async (...args: Parameters<typeof runHook>) => {
+              if (isHardwareWorkspace(this.hardwareGuard.current()))
+                throw new Error(UI_TEXT.hardwareUnattended)
               this.noteProcessRan()
-              return await runHook(...args)
+              const [command, payload, cwd, timeoutMs, hookSignal, extraEnvNames] = args
+              return await runHook(
+                command,
+                payload,
+                cwd,
+                timeoutMs,
+                hookSignal,
+                extraEnvNames,
+                () => {
+                  if (isHardwareWorkspace(this.hardwareGuard.current()))
+                    throw new Error(UI_TEXT.hardwareUnattended)
+                },
+              )
             },
           },
       signal,
@@ -5983,8 +6068,17 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /** The extension's own IDE tools, as the model calls them (M50). */
+  private liveIdeTools(): readonly McpTool[] {
+    const isRuntimeDenied =
+      this.isSubagent ||
+      this.isSideChat ||
+      this.isReviewing() ||
+      this.permissions.currentMode === 'denyUnmatched' ||
+      this.active?.confirmedRequest !== undefined
+    return isRuntimeDenied ? [] : (this.deps.getIdeTools?.() ?? this.deps.ideTools ?? [])
+  }
   private ideDefinitions(): readonly FunctionToolDefinition[] {
-    return (this.deps.ideTools ?? []).map(
+    return this.liveIdeTools().map(
       (tool) => mcpFunctionDefinition(ideFunctionName(tool), tool).definition,
     )
   }
@@ -6169,7 +6263,7 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   /** The IDE tool or MCP server tool a function name is, when it is one (M50). */
   private externalTool(name: string): ExternalTool | undefined {
-    const tool = this.deps.ideTools?.find((candidate) => ideFunctionName(candidate) === name)
+    const tool = this.liveIdeTools().find((candidate) => ideFunctionName(candidate) === name)
     if (tool !== undefined) {
       return { kind: 'ide', tool }
     }
@@ -8513,6 +8607,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       return { isApproved: false, feedback: hook.blockedReason, deniedByHook: true }
     }
     signal.throwIfAborted()
+    query = {
+      ...query,
+      hardware: this.hardwareGuard.current(),
+    }
     judgement = this.judgementWithHook(query, requiresUserApproval)
     if (!canReview) judgement = { ...judgement, isReviewable: false }
     if (
@@ -8549,7 +8647,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     // take: the card asks with the value redacted.
     const isSettledAsk =
       judgement.settledBy !== undefined &&
-      ['askRule', 'profile', 'complexCommand', 'secretDetected'].includes(judgement.settledBy)
+      ['askRule', 'profile', 'complexCommand', 'secretDetected', 'hardwareDetected'].includes(
+        judgement.settledBy,
+      )
     if (
       !requiresUserApproval &&
       !isSettledAsk &&
@@ -8620,8 +8720,33 @@ export class ModelApiSession implements ScheduledAgentSession {
         return { isApproved: true, feedback: undefined }
       }
     }
-    const note = cardNote(judgement) ?? (review?.decision === 'ask' ? review.note : undefined)
+    const note =
+      judgement.settledBy === 'hardwareDetected' &&
+      query.toolClass === 'shell' &&
+      isHardwareWorkspace(query.hardware)
+        ? hardwareShellNote(
+            hardwareAction(query.command ?? '', query.dialect, query.hardware),
+            hardwareTargets(query.command ?? '', query.dialect, query.hardware),
+          )
+        : (cardNote(judgement) ?? (review?.decision === 'ask' ? review.note : undefined))
     const approvalId = this.deps.newId()
+    const hardware =
+      judgement.settledBy === 'hardwareDetected'
+        ? new HardwareApproval(
+            approvalId,
+            call.arguments,
+            hardwareTargets(
+              query.command ?? question.card.target ?? question.card.host ?? query.toolName,
+              query.dialect,
+              query.hardware,
+            ),
+            query.toolClass === 'shell' && isHardwareWorkspace(query.hardware)
+              ? 'actuate'
+              : (hardwareAction(query.command ?? '', query.dialect, query.hardware) ?? 'actuate'),
+            this.deps.now(),
+            JSON.stringify(parseShell(query.command ?? '', query.dialect ?? 'bash')),
+          )
+        : undefined
     const request: Extract<AgentEvent, { type: 'approvalRequested' }> = {
       type: 'approvalRequested',
       approvalId,
@@ -8642,10 +8767,23 @@ export class ModelApiSession implements ScheduledAgentSession {
     let decision: ApprovalDecision
     const stopNotifying = this.notifyWhileAsking(call, signal)
     let caution: JudgeFence | undefined
+    let hardwareTimer: ReturnType<typeof setTimeout> | undefined
     try {
       decision = await waitFor<ApprovalDecision>(signal, (pending) => {
         this.pendingApprovals.set(approvalId, pending)
         this.pendingApprovalEvents.set(approvalId, request)
+        if (hardware !== undefined) {
+          hardwareTimer = setTimeout(
+            () => {
+              pending.resolve({
+                approvalId,
+                requirementId: request.requirementId,
+                choiceId: APPROVAL_CHOICE_IDS.abort,
+              })
+            },
+            Math.max(0, hardware.request.expiresAt - this.deps.now()),
+          )
+        }
         this.emit(request)
         if (review !== undefined) {
           return
@@ -8670,6 +8808,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       caution?.discard()
       this.judgeCardFences.delete(approvalId)
+      clearTimeout(hardwareTimer)
       this.pendingApprovalEvents.delete(approvalId)
       this.pendingApprovals.delete(approvalId)
       stopNotifying()
@@ -8678,9 +8817,16 @@ export class ModelApiSession implements ScheduledAgentSession {
       (choice) => choice.choiceId === decision.choiceId,
     )
     signal.throwIfAborted()
-    const fresh = this.permissions.judge(query, this.policy())
+    const fresh = this.permissions.judge(
+      {
+        ...query,
+        hardware: this.hardwareGuard.current(),
+      },
+      this.policy(),
+    )
     const isStillPermitted =
       fresh.verdict !== 'deny' &&
+      (fresh.settledBy !== 'hardwareDetected' || hardware !== undefined) &&
       ((query.toolClass !== 'shell' && query.toolClass !== 'mcp') || this.deps.isWorkspaceTrusted())
     if (
       isStillPermitted &&
@@ -8692,9 +8838,28 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.permissions.allowForSession(query.toolName, query.command)
     }
     // Only the two allow choices this card offered approve; anything else refuses.
+    const hardwareBinding =
+      hardware !== undefined && isStillPermitted && isOffered
+        ? this.hardwareGuard.authorize(
+            hardware,
+            {
+              id: approvalId,
+              digest: hardware.request.digest,
+              decision: decision.choiceId === APPROVAL_CHOICE_IDS.allowOnce ? 'sendOnce' : 'reject',
+            },
+            () =>
+              hardwareTargets(
+                query.command ?? question.card.target ?? question.card.host ?? query.toolName,
+                query.dialect,
+                this.hardwareGuard.current(),
+              ),
+            this.deps.now,
+          )
+        : undefined
     const isApproved =
       isStillPermitted &&
       isOffered &&
+      (hardware === undefined || hardwareBinding !== undefined) &&
       (decision.choiceId === APPROVAL_CHOICE_IDS.allowOnce ||
         decision.choiceId === APPROVAL_CHOICE_IDS.allowSession)
     this.emit({
@@ -8713,7 +8878,11 @@ export class ModelApiSession implements ScheduledAgentSession {
         signal,
       )
     }
-    return { isApproved, feedback: decision.feedback }
+    return {
+      isApproved,
+      feedback: decision.feedback,
+      ...(hardwareBinding !== undefined && { hardwareBinding }),
+    }
   }
 
   /**
@@ -10596,11 +10765,25 @@ export class ModelApiSession implements ScheduledAgentSession {
             throw new AbortedError()
           refusal ??= this.policyRefusal(admission)
           if (refusal !== undefined) throw new AbortedError()
+          try {
+            admission.hardwareBinding?.assertCanStart()
+          } catch (error: unknown) {
+            if (!isHardwareBindingRefusal(error)) throw error
+            refusal = toolFailure(MODEL_API_MODEL_TEXT.hardwareRefused, describe(error))
+            throw new AbortedError()
+          }
         },
       })
       return refusal ?? (await this.endShellDirectory(tracking, outcome))
     }
-    const running = run()
+    const releaseHardwareCommand = this.hardwareGuard.beginCommand()
+    const running = (async () => {
+      try {
+        return await run()
+      } finally {
+        releaseHardwareCommand()
+      }
+    })()
     // Not `Promise.withResolvers`: VS Code 1.99 and 1.100 run Node 20 (PLAN.md M62).
     const moved = new Promise<undefined>((resolve) => {
       this.foregroundShells.set(itemId, () => {
@@ -11118,7 +11301,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     external: ExternalTool,
     call: FunctionCallItem,
     signal: AbortSignal,
+    admission: Admission,
   ): Promise<ToolOutcome> {
+    // Existing MCP/IDE call ports cannot carry a binding to their native spawn.
+    // Physical adapters must provide that contract before they can actuate.
+    if (admission.hardwareBinding !== undefined)
+      return toolFailure(MODEL_API_MODEL_TEXT.hardwareRefused, UI_TEXT.hardwareBindingUnavailable)
     if (external.kind === 'ide') {
       // D121: no trimming of ours — the IDE tool's answer rides whole; the
       // host's one bound cuts it with a spill where it enters the turn.
@@ -12617,7 +12805,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     const external = this.externalTool(call.name)
     if (external !== undefined) {
-      return { outcome: await this.performExternal(itemId, external, call, signal) }
+      return { outcome: await this.performExternal(itemId, external, call, signal, admission) }
     }
     if (isSubagentTool(call.name)) {
       return { outcome: await this.runSubagentTool(call, signal, childGrant) }
@@ -12841,6 +13029,13 @@ export class ModelApiSession implements ScheduledAgentSession {
       toolClass: 'shell',
       command: request.ruleCommand,
       dialect: this.deps.platform === 'win32' ? 'powershell' : 'bash',
+      hardware: this.hardwareGuard.current(),
+      isUnattended:
+        isHardwareWorkspace(this.hardwareGuard.current()) ||
+        this.isSubagent ||
+        this.deps.isUnattended?.() === true ||
+        this.active?.confirmedRequest !== undefined ||
+        this.active?.isGoalWake === true,
     }
     let judgement = this.permissions.judge(query, policy)
     // Standing policy judges the actual expanded line; check-session grants keep their separate base key.
@@ -12850,9 +13045,13 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.changesWhatRunsNow(request.ruleCommand) && judgement.settledBy === undefined
         ? verdictFor(this.permissions.currentMode, 'shell')
         : judgement.verdict
+    if (isHardwareStop(request.line, query.dialect, query.hardware)) return undefined
     const verdict = permitted === 'allow' && request.isForced ? 'ask' : permitted
     if (verdict === 'deny') {
-      return { skip: 'refused' }
+      return {
+        skip: 'refused',
+        ...(judgement.settledBy === 'hardwareDetected' && { detail: UI_TEXT.hardwareUnattended }),
+      }
     }
     if (verdict === 'allow') {
       return undefined
@@ -12868,7 +13067,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       itemId,
       call,
       signal,
-      query,
+      judgement.settledBy === 'hardwareDetected' ? { ...query, command: request.line } : query,
       { card: { kind: 'shell', command: request.line } },
       request.isForced || this.changesWhatRunsNow(request.ruleCommand),
       { ...judgement, verdict, isReviewable: false },
@@ -13189,11 +13388,20 @@ export class ModelApiSession implements ScheduledAgentSession {
         timeoutMs,
         signal,
         undefined,
-        assertCanRun,
+        () => {
+          assertCanRun?.()
+          const hardware = this.hardwareGuard.current()
+          if (
+            isHardwareWorkspace(hardware) &&
+            !isHardwareStop(line, this.deps.platform === 'win32' ? 'powershell' : 'bash', hardware)
+          )
+            throw new Error(UI_TEXT.hardwareUnattended)
+        },
         false,
         'check',
       )
     } catch (error: unknown) {
+      if (!isShellEntryFailure(error)) throw error
       return {
         stdout: '',
         stderr: describe(error),
@@ -13476,7 +13684,15 @@ export class ModelApiSession implements ScheduledAgentSession {
     extraRoot?: string,
   ): ToolOutcome | undefined {
     const policy = this.policy()
-    const now = this.permissions.judge(admission.query, policy)
+    const hardware = this.hardwareGuard.current()
+    const now = this.permissions.judge(
+      {
+        ...admission.query,
+        hardware,
+        isUnattended: admission.query.isUnattended === true || hardware.isUnattended === true,
+      },
+      policy,
+    )
     const was = admission.judgement
     const isAdmitted =
       now.verdict === 'allow' ||
@@ -13494,12 +13710,17 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /** What let a call in, captured at its admission for the fences that judge it again (M78). */
-  private admitted(query: PermissionQuery, judgement: PermissionJudgement): Admission {
+  private admitted(
+    query: PermissionQuery,
+    judgement: PermissionJudgement,
+    hardwareBinding?: HardwareBinding,
+  ): Admission {
     return {
       query,
       judgement,
       isTrusted: this.deps.isWorkspaceTrusted(),
       revision: this.filePolicyRevision(),
+      ...(hardwareBinding !== undefined && { hardwareBinding }),
     }
   }
 
@@ -13580,16 +13801,43 @@ export class ModelApiSession implements ScheduledAgentSession {
     policy: PermissionPolicy = this.policy(),
   ): PermissionJudgement {
     const judged = this.permissions.judge(query, policy)
+    if (
+      query.command !== undefined &&
+      isHardwareStop(query.command, query.dialect, this.hardwareGuard.current())
+    )
+      return judged
     if (!shouldForceApproval) {
       return judged
     }
+    if (
+      judged.verdict === 'allow' &&
+      query.toolClass === 'shell' &&
+      isHardwareWorkspace(query.hardware)
+    )
+      return {
+        verdict: 'ask',
+        settledBy: 'hardwareDetected',
+        isReviewable: false,
+        hasSessionChoice: false,
+      }
     return judged.verdict === 'allow'
       ? { verdict: 'ask', isReviewable: false, hasSessionChoice: true }
       : { ...judged, isReviewable: false }
   }
 
-  /** A forbid rule's or the mode's outcome for a refused call (M78). */
+  /** A forbid rule's, the mode's, or the hardware guard's outcome for a refused call (M78). */
   private denialOutcome(call: FunctionCallItem, judgement: PermissionJudgement): ToolOutcome {
+    if (judgement.settledBy === 'hardwareDetected')
+      return toolFailure(
+        MODEL_API_MODEL_TEXT.hardwareRefused,
+        this.isSubagent ||
+          this.deps.isUnattended?.() === true ||
+          this.deps.hardwareContext?.().isUnattended === true ||
+          this.active?.confirmedRequest !== undefined ||
+          this.active?.isGoalWake === true
+          ? UI_TEXT.hardwareUnattended
+          : UI_TEXT.hardwareRefused,
+      )
     return judgement.settledBy === 'forbidRule'
       ? refusedByRule(call, judgement)
       : this.refusedByMode(call).outcome
@@ -14480,7 +14728,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     const query: PermissionQuery = {
       toolName: call.name,
       toolClass: childTask === undefined ? toolClass : 'spawn',
+      isUnattended:
+        this.isSubagent ||
+        this.deps.isUnattended?.() === true ||
+        this.active?.confirmedRequest !== undefined ||
+        this.active?.isGoalWake === true,
       command: toolClass === 'shell' ? pick(argumentsOf(call), 'command') : undefined,
+      hardware: this.hardwareGuard.current(),
       // The shell tool runs the platform's shell, whatever the call is named.
       dialect: this.deps.platform === 'win32' ? 'powershell' : 'bash',
       isProtected:
@@ -14506,6 +14760,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const { verdict } = judgement
     let childGrant: ChildTaskGrant | undefined
     let requiresImageAsking = false
+    let hardwareBinding: HardwareBinding | undefined
     if (childTask !== undefined) {
       // The same order as a spawn's (RV70x): the gates, then each wait
       // followed by a recheck. Only a spawn asks the contributor yes every
@@ -14551,6 +14806,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       // An image spending question deferred to its lease carries this call's
       // forced-ask flag to dispatch with the approval, never shared.
       requiresImageAsking = approval.requiresImageAsking ?? false
+      hardwareBinding = approval.hardwareBinding
     }
     // A child task's grant was rechecked after its last wait (consentToChildTask).
     signal.throwIfAborted()
@@ -14584,7 +14840,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       return { outcome: denied, isRejected: true }
     }
     // What the call's side effects and the dispatcher's fence judge again.
-    const admission = this.admitted(query, currentJudgement)
+    const admission = this.admitted(query, currentJudgement, hardwareBinding)
     slot.admission = admission
     // Every live session hears the names before perform can write or format.
     // Completion advances their state again, including on a failed write.
@@ -15080,6 +15336,37 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.emit({ type: 'backendNotice', level: 'info', text: UI_TEXT.hookOutputReplaced })
   }
 
+  private registeredStop(call: FunctionCallItem): HardwareStop | undefined {
+    const command = pick(argumentsOf(call), 'command')
+    return command !== undefined && classifyTool(call.name) === 'shell'
+      ? hardwareStop(
+          command,
+          this.deps.platform === 'win32' ? 'powershell' : 'bash',
+          this.hardwareGuard.current(),
+        )
+      : undefined
+  }
+
+  private async executeHardwareStop(stop: HardwareStop): Promise<ToolOutcome> {
+    const [attempt] = await Promise.allSettled([
+      (async () => {
+        if (this.deps.io.runHardwareStop === undefined) throw new Error(UI_TEXT.hardwareRefused)
+        return await this.deps.io.runHardwareStop(stop)
+      })(),
+    ])
+    if (attempt.status === 'fulfilled') {
+      const outcome = shellOutcome(attempt.value, MAKER_STOP_DEADLINE_MS)
+      if (attempt.value.exitCode === 0 && outcome.failureReason === undefined) return outcome
+      this.emit({ type: 'backendNotice', level: 'error', text: UI_TEXT.hardwareStopUnconfirmed })
+      return { ...outcome, failureReason: UI_TEXT.hardwareStopUnconfirmed }
+    }
+    this.emit({ type: 'backendNotice', level: 'error', text: UI_TEXT.hardwareStopUnconfirmed })
+    return {
+      ...toolFailure(describe(attempt.reason)),
+      failureReason: UI_TEXT.hardwareStopUnconfirmed,
+    }
+  }
+
   /** A serial call, including corrections and then_run, takes the same staged path. */
   private async runCall(
     turnId: string,
@@ -15145,6 +15432,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     // no PreToolUse dispatch — a hook handler must neither observe nor shape
     // a call the turn refuses. The refusal itself still answers the model.
     const isPlaybackRefusal = this.isPlaybackTurn()
+    const canonicalStop = this.registeredStop(call)
     const pre: HookDispatch =
       selectionReason === undefined && !isPlaybackRefusal
         ? await this.runHooks(
@@ -15158,6 +15446,9 @@ export class ModelApiSession implements ScheduledAgentSession {
             toolMatcherNames(call.name),
             signal,
             false,
+            true,
+            undefined,
+            canonicalStop !== undefined,
           )
         : {
             blockedReason: isPlaybackRefusal ? undefined : selectionReason,
@@ -15279,6 +15570,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     isParallelExecution = false,
   ): Promise<ExecutedToolCall> {
     const { effectiveCall, pre, started } = prepared
+    const canonicalStop = this.registeredStop(effectiveCall)
     const itemId = started.itemId
     const slot: AdmissionSlot = {}
     let reads: RecordingScope | undefined
@@ -15311,7 +15603,9 @@ export class ModelApiSession implements ScheduledAgentSession {
           })
         }
       }
-      if (pre.blockedReason === undefined) {
+      if (canonicalStop !== undefined) {
+        result = { outcome: await this.executeHardwareStop(canonicalStop), isRejected: false }
+      } else if (pre.blockedReason === undefined) {
         const recorded = await this.contentReads.run(recordOperation, {
           kind: 'tool',
           session: this,
@@ -15334,12 +15628,16 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
     } catch (error: unknown) {
       prepared.provisionalSeen.clear()
-      if (error instanceof AbortedError || signal.aborted) {
+      if (error instanceof AbortedError) {
+        throw new AbortedError()
+      }
+      if (signal.aborted) {
         throw new AbortedError()
       }
       // A tool that threw (a disk error, a directory for a file, an MCP
       // server's error or deadline) is a failed call the model is told
       // about, not the end of the turn.
+      this.deps.log.warn(`Model API tool call failed: ${failureForLog(error)}`)
       result = { outcome: thrownToolOutcome(error), isRejected: false }
     }
     if (result.outcome.refusalCode !== undefined) result = { ...result, isRejected: true }
@@ -16850,6 +17148,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       modelCallLimit: this.callerModelCallsLeft() ?? Infinity,
       modelFailure: undefined,
       goalWakePending: false,
+      isGoalWake: queued.isGoalWake,
       isWebSearchAllowed: false,
       isReview: queued.isReview === true,
       isPlayback: queued.isPlayback === true,
@@ -19425,6 +19724,8 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   public setApprovalMode(mode: string): Promise<void> {
+    if (mode === 'allowAll' && isHardwareWorkspace(this.hardwareGuard.current()))
+      return Promise.reject(new Error(UI_TEXT.hardwareBypassNotice))
     if (this.owner.run() !== undefined) return Promise.reject(new Error(UI_TEXT.scheduleBusy))
     if (mode !== 'denyUnmatched' && this.isSideChat) {
       return Promise.reject(new Error(UI_TEXT.sideChatPlanOnly))
@@ -19931,6 +20232,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         )
       })
     }
+    this.hardwareGuard.dispose()
     // The ledger registers on its first load; a session that never verified
     // has nothing to remove.
     if (this.verifyLoaded !== undefined) this.workspaceEdits.delete(this.verifyLoaded.ledger)
@@ -20622,6 +20924,10 @@ export class ModelApiHost implements AgentHost {
   }
 
   public constructor(private deps: ModelApiHostDeps) {
+    if (deps.hardwareContext?.().hardwareOwner === undefined) {
+      const owner = createHardwareContexts(deps.hardwareContext)(deps.workspaceRoot)
+      this.deps = { ...deps, hardwareContext: () => owner.current() }
+    }
     this.workspaceEdits = deps.workspaceEdits ?? new WorkspaceEdits()
     // Elicitations outside any tool call have no session to ask: they are
     // declined, and the pool declares the capability while this stands
@@ -21398,6 +21704,9 @@ export class ModelApiHost implements AgentHost {
   }
 
   public async startSession(options: StartSessionOptions): Promise<AgentSession> {
+    this.deps.hardwareContext?.().hardwareOwner?.startSession()
+    if (options.approvalMode === 'allowAll' && isHardwareWorkspace(this.deps.hardwareContext?.()))
+      throw new Error(UI_TEXT.hardwareBypassNotice)
     if (!(APPROVAL_MODES as readonly string[]).includes(options.approvalMode)) {
       throw new Error(`unknown approval mode ${options.approvalMode}`)
     }

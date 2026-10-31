@@ -12,6 +12,7 @@ import { isHostOnlyVariable } from './hostVariables'
 import { vaultFenceEnvironment, type VaultFenceOptions } from './vault/exec/fence'
 import {
   HOOK_FORBIDDEN_ENV_NAMES,
+  RUNTIME_MAKER_AGENT_SHELL,
   WINDOWS_POWERSHELL_RELATIVE_PATH,
   WINDOWS_PSMODULEPATH_SEGMENTS,
   WINDOWS_PSMODULEPATH_VARIABLE,
@@ -207,6 +208,8 @@ export function buildChildEnvironment(input: ChildEnvironmentInput): GuardedChil
   for (const variable of input.extraVariables) {
     setEnvironmentVariable(env, input.platform, variable.name, variable.value)
   }
+  // Muse Code's shell descendants, including subagents, never start person-only maker commands.
+  setEnvironmentVariable(env, input.platform, RUNTIME_MAKER_AGENT_SHELL, '1')
   if (input.accountHome !== undefined) {
     input.accountHome.assertCurrent()
   }

@@ -48,8 +48,8 @@ export {
   nullable,
   number,
   object,
-  optional,
   omit,
+  optional,
   partial,
   // The team journal (host/team/teamJournal) parses its records generically.
   parse,

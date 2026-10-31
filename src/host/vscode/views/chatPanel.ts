@@ -38,6 +38,7 @@ function attachChatPanel(
   const surface = configureWebview(panel.webview, context, {
     id: surfaceId,
     restoredSessionId,
+    isVisible: () => panel.visible,
     isSideChat,
     reveal: () => {
       panel.reveal(undefined, false)

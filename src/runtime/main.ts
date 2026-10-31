@@ -179,6 +179,8 @@ import { museSettingsPath } from '../host/backend/museSettings'
 import { walkFiles } from './fileWalk'
 import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
+import type { AcpMakerRuntime } from '../acp/makerTools'
+import { runtimeMakerBundle } from './makerBundle'
 import { reportsLoader } from './reporting/reportsLoader'
 import { reportInputsLoader } from './reporting/reportInputsLoader'
 import { runtimeReportsPlanMaxBytes } from './runtimeReportsPlan'
@@ -368,6 +370,15 @@ const secrets: SecretStore = {
   async delete(name) {
     const store = await loadSecrets()
     await store.delete(name)
+  },
+}
+const makerSecrets = {
+  get: async (name: string) => await secrets.get(name),
+  store: async (name: string, value: string) => {
+    await secrets.store(name, value)
+  },
+  delete: async (name: string) => {
+    await secrets.delete(name)
   },
 }
 
@@ -687,11 +698,13 @@ async function runtimeFor(
   questions?: { remove(sessionId: string): Promise<void> },
   accounts?: RuntimeAccountServices,
   unsavedFiles?: () => readonly string[],
+  maker?: AcpMakerRuntime,
 ) {
   const engine = await import('./runtimeEngineEntry')
   engine.setUiText(UI_TEXT, uiLocale())
   return engine.createRuntimeBackend({
     hostKind: questions === undefined ? 'cli' : 'acp',
+    ...(maker !== undefined && { makerTools: (cwd: string) => maker.toolsFor(cwd) }),
     options,
     version: packageVersion(),
     distDir,
@@ -1360,6 +1373,31 @@ async function serve(
     () => clientName,
     () => options.usageHistory ?? true,
   )
+  const maker =
+    options.hardware === true
+      ? runtimeMakerBundle(distDir).runtimeMakerAcp(
+          {
+            dataDirectory: agentDataFolder({
+              platform: process.platform,
+              env: process.env,
+              homeDir: homedir(),
+            }),
+            distDirectory: distDir,
+            workspace: process.cwd(),
+            platform: process.platform,
+            env: process.env,
+            secrets: makerSecrets,
+            readSecret: () => Promise.resolve(undefined),
+            print: (_line) => {
+              /* ACP stdout is protocol-only. */
+            },
+            done: new AbortController().signal,
+            table: UI_TEXT,
+            locale: uiLocale(),
+          },
+          options.trustWorkspace,
+        )
+      : undefined
   const engine = await import('./runtimeEngineEntry')
   engine.setUiText(UI_TEXT, uiLocale())
   let limitGeneration = randomUUID()
@@ -1395,6 +1433,8 @@ async function serve(
         remove: (id) => loadQuestions().removeRuntimeQuestions(directory, id, UI_TEXT, uiLocale()),
       },
       accountServices,
+      undefined,
+      maker,
     )
     const isUsageHistoryOn = options.usageHistory ?? true
     // H–C1: the process's one governor records the agent's samples and launches.
@@ -1629,9 +1669,11 @@ async function serve(
       ...(runtime.media !== undefined && { media: runtime.media }),
       // M105 lane F: /uploads over the runtime's account ledger.
       ...(runtime.uploads !== undefined && { uploads: runtime.uploads }),
+      isHardwareWorkspace: runtime.isHardwareWorkspace,
+      ...(maker !== undefined && { maker }),
       version: packageVersion(),
       options: {
-        canBypass: options.canBypass,
+        canBypass: maker === undefined && options.canBypass,
         allowsContributorModels: options.allowsContributorModels,
         initialMode: SETTING_DEFAULTS.initialPermissionMode,
         ...(options.initialModelId !== undefined && { initialModelId: options.initialModelId }),
@@ -1786,6 +1828,7 @@ async function serve(
     return 0
   } finally {
     await recording.flush()
+    await maker?.close()
     restoreRecording()
   }
 }
@@ -2257,6 +2300,52 @@ async function main(processResources: ProcessResources): Promise<number> {
   })
   setProviderPolicyText(UI_TEXT, uiLocale())
   switch (command.command) {
+    case 'maker': {
+      const done = new AbortController()
+      const stop = () => {
+        done.abort()
+      }
+      process.once('SIGINT', stop)
+      process.once('SIGTERM', stop)
+      try {
+        return await runtimeMakerBundle(distDir).runRuntimeMaker(command, {
+          dataDirectory: agentDataFolder({
+            platform: process.platform,
+            env: process.env,
+            homeDir: homedir(),
+          }),
+          distDirectory: distDir,
+          workspace: path.resolve(command.cwd ?? process.cwd()),
+          platform: process.platform,
+          env: process.env,
+          secrets: makerSecrets,
+          readSecret: () => readSecretLine(UI_TEXT.makerAddMachine, process.stdin, process.stderr),
+          print: (line) => {
+            writeLine(process.stdout, line)
+          },
+          reportFailure: (line) => {
+            log.error(line)
+          },
+          done: done.signal,
+          table: UI_TEXT,
+          locale: uiLocale(),
+        })
+      } catch (error: unknown) {
+        // A malformed registration/key-store error can echo pasted input; never log it.
+        log.error(failureForLog(error))
+        log.error(
+          command.action === 'panel' ||
+            (command.action === 'hardware' && command.operation === 'enable') ||
+            (command.action === 'machines' && command.operation === 'add')
+            ? UI_TEXT.makerUnattendedDenied
+            : UI_TEXT.makerDevicesTitle,
+        )
+        return 1
+      } finally {
+        process.off('SIGINT', stop)
+        process.off('SIGTERM', stop)
+      }
+    }
     case 'dictate': {
       const recording = runtimeRecording(
         log,

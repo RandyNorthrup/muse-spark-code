@@ -1,0 +1,68 @@
+{
+  "stats": {
+    "suites": 8,
+    "tests": 34,
+    "passes": 21,
+    "pending": 0,
+    "failures": 13,
+    "start": "2026-10-06T00:27:10.128Z",
+    "end": "2026-10-06T00:29:23.739Z",
+    "duration": 133611
+  },
+  "failures": [
+    {
+      "title": "code intelligence over TypeScript (M67) finds a definition across files, and leaves the library out, counted",
+      "error": "findDefinition never answered as expected; last answer: refused: no language service answered for code-intel/main.ts (language plaintext): VS Code has no provider of this kind for it here, or the file declares no symbols; use search and read_file instead"
+    },
+    {
+      "title": "code intelligence over TypeScript (M67) finds every reference, the declaration included, in place order",
+      "error": "findReferences never answered as expected; last answer: refused: no language service answered for code-intel/greet.ts (language plaintext): VS Code has no provider of this kind for it here, or the file declares no symbols; use search and read_file instead"
+    },
+    {
+      "title": "code intelligence over TypeScript (M67) outlines, hovers, finds symbols and callers",
+      "error": "The input did not match the regular expression /5:17 function greet/. Input:\n\n'refused: no language service answered for code-intel/greet.ts (language plaintext): VS Code has no provider of this kind for it here, or the file declares no symbols; use search and read_file instead'\n"
+    },
+    {
+      "title": "code intelligence over TypeScript (M67) plans a rename across both files and writes nothing",
+      "error": "Command with id 'vscode.prepareRename' is not registered."
+    },
+    {
+      "title": "activation exposes every setting with its documented default",
+      "error": "default for allowDangerouslySkipPermissions"
+    },
+    {
+      "title": "activation opens an Untitled chat panel in a new tab",
+      "error": "no matching tab appeared within 5000 ms; open: workspace.ino, README.md, main.ts"
+    },
+    {
+      "title": "activation a workspace cannot set the machine-scoped settings but sets the others (D15)",
+      "error": "Expected values to be strictly equal:\n\ntrue !== false\n"
+    },
+    {
+      "title": "activation creates AGENTS.md in the workspace root and opens it (D15)",
+      "error": "Expected values to be strictly equal:\n+ actual - expected\n\n+ '/Users/randy/lanes/M103A/temp/arduino-check-5/home/Arduino/workspace/code-intel/main.ts'\n- '/Users/randy/lanes/M103A/temp/arduino-check-5/home/Arduino/workspace/AGENTS.md'"
+    },
+    {
+      "title": "activation New Conversation clears the active surface in place (D15)",
+      "error": "a chat panel from the earlier test is open"
+    },
+    {
+      "title": "activation opens the walkthrough (D15)",
+      "error": "no matching tab appeared within 5000 ms; open: workspace.ino, README.md, main.ts, Untitled"
+    },
+    {
+      "title": "verify loop in VS Code (M68) shows edited files no editor showed, and reads what their servers report",
+      "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n+   [],\n+   []\n-   [\n-     \"Type 'string' is not assignable to type 'number'.\"\n-   ],\n-   [\n-     'Expected comma'\n-   ]\n  ]"
+    },
+    {
+      "title": "verify loop in VS Code (M68) settles one file for the diagnostics tool, read before its tab closes",
+      "error": "nothing reported for the file the tool named"
+    },
+    {
+      "title": "verify loop in VS Code (M68) formats a JSON file the tool wrote with the built-in formatter",
+      "error": "Invalid argument"
+    }
+  ],
+  "vscode": "1.96.0",
+  "node": "20.14.0"
+}

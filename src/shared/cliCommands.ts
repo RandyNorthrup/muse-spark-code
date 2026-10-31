@@ -75,6 +75,7 @@ export function cliCommands(shouldIncludeHeld = false) {
       'decide',
       'resolve',
     ].map((action) => ['watchdog', action]),
+    maker: [['hardware'], ['machines'], ['stop-machine'], ['panel']],
     estimate: [['estimate']],
     judgeSetup: [
       ['judge', 'scan'],
@@ -452,6 +453,30 @@ export function cliCommands(shouldIncludeHeld = false) {
       name: '--version / -v',
       description: UI_TEXT.referenceVersion,
       text: { ui: 'referenceVersion' },
+    },
+    {
+      route: 'maker',
+      name: 'hardware enable|disable|status',
+      description: UI_TEXT.makerEnableHardware,
+      text: { ui: 'makerEnableHardware' },
+    },
+    {
+      route: 'maker',
+      name: 'machines list|add|remove',
+      description: UI_TEXT.makerDevicesTitle,
+      text: { ui: 'makerDevicesTitle' },
+    },
+    {
+      route: 'maker',
+      name: 'stop-machine [id|--all]',
+      description: UI_TEXT.makerSoftwareStopWarning,
+      text: { ui: 'makerSoftwareStopWarning' },
+    },
+    {
+      route: 'maker',
+      name: 'panel',
+      description: UI_TEXT.makerLaunchConnect,
+      text: { ui: 'makerLaunchConnect' },
     },
     {
       route: 'vault',

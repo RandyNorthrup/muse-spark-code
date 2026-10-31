@@ -136,7 +136,7 @@
   "config.modelApiAutoReviewer.description": "Auto 模式下，付费审查会判断尚未解决的高风险操作；不能绕过禁止命令、受保护的写入或必须询问的要求。 在 Model API 上默认可用。收费前会显示价格和共享每日预算，并询问：允许一次／在此工作区始终允许／拒绝。显式 false 会关闭此功能。",
   "config.museCodeAutoReviewer.description": "默认开启。在 Muse Code 的自动模式下，只有当前轮次中没有规则作出决定的批准请求才符合审查条件：在隐藏的规划会话中使用您的订阅进行一次简短的 Muse Code 轮次。受保护的写入、付费调用、子任务、提问、重放或升级的请求、未知对象、没有仅允许一次选项的请求以及多个面板共享的会话都不会被审查。成功的审查可以允许一次；拒绝、失败、会话繁忙、超时或熔断器触发时会显示批准卡片。宿主进程退出后会重新创建辅助会话。",
   "command.downloadBrowserCheckRuntime.title": "下载浏览器检查运行时",
-  "config.browserCheckExtraHosts.description": "浏览器检查可以打开和访问的本计算机以外的主机，以不含端口、路径或通配符的普通主机名或 IP 地址表示；列出回环名称还会允许本地页面使用 https 和 WebSocket。为空表示仅限普通 http 的本地页面，除非你在卡片或确认中针对该次检查允许某个主机。发往列表中主机的 https 和 WebSocket 流量经过加密且不受检查，该站点可能会以此计算机的帐户替你登录（尤其是在 Windows 上）。只有你可以扩大此范围，模型不能，存储库的设置也不能。",
+  "config.browserCheckExtraHosts.description": "仅限用户设置：公共主机名或开发服务器的精确 http(s) 源。修改设置后，非环回源需要单独确认地址。已注册的机器主机和已知的打印机/CNC 界面始终被拒绝，Bypass 也不例外。私有 Web/机器端口和加密私有隧道会被拒绝。移除源即可撤销权限。空列表不允许本地服务器。",
   "config.browserCheckRuntime.description": "浏览器检查获取浏览器的方式：Google 的 Chrome for Testing headless shell，固定为此扩展版本，从 storage.googleapis.com 下载到扩展的存储中（每个固定版本约 100 到 120 MB）。只有你可以更改此项，存储库的设置不能。",
   "config.browserCheckRuntime.enumDescriptions.ask": "下载前询问。",
   "config.browserCheckRuntime.enumDescriptions.download": "检查需要时直接下载而不询问，现在以及之后每个固定的版本都是如此。",

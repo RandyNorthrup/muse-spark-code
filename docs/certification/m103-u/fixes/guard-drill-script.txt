@@ -1,0 +1,34 @@
+import {readFileSync,writeFileSync,mkdirSync} from 'node:fs'
+import {createHash} from 'node:crypto'
+import {spawnSync} from 'node:child_process'
+const hash=bytes=>createHash('sha256').update(bytes).digest('hex')
+const records=process.argv.length>2?JSON.parse(readFileSync('docs/certification/m103-u/fixes/drills.json','utf8')):[]
+const cases=[
+ ['P1-review','src/webview/maker/ApprovalDialog.tsx','test/unit/makerPayloadReview.test.tsx','keyboard focus wrap cannot approve unseen lines',s=>s.replace('disabled={!reviewed || digest !== request.digest}','disabled={false}').replace("if (reviewed && digest === request.digest) onAnswer('allow_once')","onAnswer('allow_once')")],
+ ['P2-rendered-digest','src/webview/maker/PayloadReview.tsx','test/unit/makerPayloadReview.test.tsx','receipts bind DOM bytes',s=>s.replace('new TextEncoder().encode(text)',"new TextEncoder().encode('corrupt')")],
+ ['P2-receipt-latch','src/webview/maker/store.ts','test/unit/makerPayloadReview.test.tsx','the A to B receipt sequence',s=>s.replace('digest !== request.digest','false')],
+ ['P2-serial-stop','src/webview/maker/StopChip.tsx','test/unit/makerFailures.test.tsx','a failed optional view preserves Stop',s=>s.replace('  return (','  if (machines.length === 0) return null\n  return (')],
+ ['P2-boundary','src/webview/maker/MakerBoundary.tsx','test/unit/makerFailures.test.tsx','a failed optional view preserves Stop',s=>s.replace('return { failed: true }','return { failed: false }')],
+ ['P2-loader-retry','src/webview/makerEntry.ts','test/unit/makerEntryLoading.test.ts','initial load failure preserves Stop',s=>s.replace('fallback?.append(retry)','retry.remove()')],
+ ['P2-invalid-geometry','src/webview/maker/previewPage.ts','test/unit/makerPreview.test.ts','invalid matching geometry clears the preview',s=>s.replace('    clearTimeout(timer)\n    fail()','    clearTimeout(timer)')],
+ ['P2-size-before-parse','src/webview/maker/previewPage.ts','test/unit/makerPreview.test.ts','a twice-oversized mesh reads zero components',s=>s.replace('      raw.positions.length > MAKER_PREVIEW_MAX_TRIANGLES * MAKER_TRIANGLE_COMPONENTS ||\n','')],
+ ['P2-validation-yield','src/webview/maker/previewPage.ts','test/unit/makerPreview.test.ts','large accepted input yields',s=>s.replace('timer = setTimeout(step, 0)','step()')],
+ ['P2-validation-deadline','src/webview/maker/previewPage.ts','test/unit/makerPreview.test.ts','validation has a deadline',s=>s.replace('performance.now() >= deadline','false')],
+ ['P3-category-labels','src/webview/maker/MachineWizard.tsx','test/unit/makerPayloadReview.test.tsx','translated categories keep their original wire values',s=>s.replace("field.label === UI_TEXT.makerCategory ? categoryLabels[value] : value",'value')],
+]
+mkdirSync('temp/drill-logs',{recursive:true})
+cases.push(['P1-occlusion','src/webview/maker/PayloadReview.tsx','test/unit/makerPayloadReview.test.tsx','covered payload lines do not count as reviewed',s=>s.replace('if (!node.contains(document.elementFromPoint(x + 1, y + 1))) continue','void x; void y')])
+for(const [name,file,suite,test,mutate]of cases.filter(c=>process.argv.length<3||process.argv.slice(2).includes(c[0]))){
+ const before=readFileSync(file);const source=before.toString('utf8').replace(/\r\n/g,'\n');const changed=mutate(source)
+ if(changed===source)throw new Error(`Mutation missing: ${name}`)
+ let result
+ try{
+  writeFileSync(file,changed)
+  result=spawnSync(process.execPath,['node_modules/vitest/vitest.mjs','run',suite,'--maxWorkers=3'],{encoding:'utf8',timeout:60000,maxBuffer:1024*1024*8})
+  const log=result.stdout+result.stderr;writeFileSync(`temp/drill-logs/${name}.txt`,log)
+  if(result.status===0||!log.includes(test))throw new Error(`Drill did not fire: ${name}, status=${result.status}`)
+  records.push({name,file,suite,test,status:result.status,before:hash(before),restored:null,summary:log.match(/Tests\s+[^\n]+/)?.[0]})
+ }finally{writeFileSync(file,before);if(hash(readFileSync(file))!==hash(before))throw new Error(`Restore mismatch: ${name}`)}
+ records.at(-1).restored=hash(readFileSync(file));console.log(name,records.at(-1).summary)
+ writeFileSync('docs/certification/m103-u/fixes/drills.json',JSON.stringify(records,null,2)+'\n')
+}

@@ -45,6 +45,11 @@ describe('approvalModeFor', () => {
 })
 
 describe('availablePermissionModes', () => {
+  it('F10: hardware cap is conditional; ordinary opted-in Bypass survives', () => {
+    expect(availablePermissionModes(true, true)).not.toContain('bypassPermissions')
+    expect(availablePermissionModes(true, false)).toContain('bypassPermissions')
+    expect(approvalModeFor('bypassPermissions', true, true)).toBe('promptUnmatched')
+  })
   it('lists Bypass permissions only when the setting allows it', () => {
     expect(availablePermissionModes(true)).toEqual(PERMISSION_MODES)
     expect(availablePermissionModes(false)).toEqual(['manual', 'acceptEdits', 'plan', 'auto'])

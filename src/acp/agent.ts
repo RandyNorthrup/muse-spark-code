@@ -181,6 +181,12 @@ import {
 } from './questionDeferralBundle'
 import type { QuestionClock } from '../shared/questions'
 import {
+  parseMakerSlashCommand,
+  acpMakerAsker,
+  type AcpMakerRuntime,
+  type AcpMakerSession,
+} from './makerTools'
+import {
   approvalToolCall,
   decidedChoice,
   isMediaLink,
@@ -286,7 +292,7 @@ export interface SignInMethod {
 
 export interface AcpAgentDeps {
   readonly accounting?: AcpAccounting
-
+  readonly makerTools?: AcpMakerRuntime
   readonly legalScan?:
     | ((
         cwd: string,
@@ -339,6 +345,7 @@ export interface AcpAgentDeps {
   readonly signOut?: () => Promise<void>
   /** The folder a `session/list` without one lists (the agent's own). */
   readonly defaultCwd: string
+  readonly isHardwareWorkspace?: (cwd: string) => boolean
   /** The flagged paid features; the agent asks before each use (M63c, M58). */
   readonly paid: AcpPaidUse
   /** The exact-payload approval before a maker send; the agent asks every time. */
@@ -870,6 +877,7 @@ class AcpSession {
     private modelId: string,
     private activeTurnId: string | undefined,
     private readonly noteChoice: () => void,
+    private readonly makerTools?: AcpMakerSession,
   ) {
     this.sessionId = session.sessionId
     this.peekTap = new PeekTap(createPeekScrubHook(deps.scrubService))
@@ -892,6 +900,9 @@ class AcpSession {
               this.questionNotice(text)
             },
           })
+    if (makerTools !== undefined && this.mode === 'bypassPermissions') this.mode = 'manual'
+    if (this.mode === 'bypassPermissions' && deps.isHardwareWorkspace?.(cwd) === true)
+      this.mode = 'auto'
     this.translator = new UpdateTranslator(
       cwd,
       false,
@@ -1319,6 +1330,25 @@ class AcpSession {
         : [
             { name: 'answer', description: UI_TEXT.acpAnswerHelp, input: { hint: '<n> <text>' } },
             { name: 'questions', description: UI_TEXT.acpQuestionsHelp, input: null },
+          ]),
+      ...(this.makerTools === undefined
+        ? []
+        : [
+            {
+              name: 'hardware',
+              description: UI_TEXT.makerEnableHardware,
+              input: { hint: 'enable <reason> | disable | status' },
+            },
+            {
+              name: 'machines',
+              description: UI_TEXT.makerDevicesTitle,
+              input: { hint: 'list | add <makerAddMachine JSON> | remove <id>' },
+            },
+            {
+              name: 'stop-machine',
+              description: UI_TEXT.makerSoftwareStopWarning,
+              input: { hint: '[id | --all]' },
+            },
           ]),
     ]
   }
@@ -2043,6 +2073,12 @@ class AcpSession {
     }
   }
 
+  private async makerReply(text: string): Promise<StopReason> {
+    this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+    await this.outbox
+    return 'end_turn'
+  }
+
   private async runLegalScan(
     scan: NonNullable<AcpAgentDeps['legalScan']>,
     isRegistryOn: boolean,
@@ -2764,7 +2800,10 @@ class AcpSession {
   public modes(): SessionModeState {
     return {
       currentModeId: this.mode,
-      availableModes: availablePermissionModes(this.deps.options.canBypass).map((mode) => ({
+      availableModes: availablePermissionModes(
+        this.deps.options.canBypass,
+        this.deps.isHardwareWorkspace?.(this.cwd) === true,
+      ).map((mode) => ({
         id: mode,
         name: UI_TEXT.permissionModes[mode],
         description: permissionModeDetail(mode, this.deps.backend.kind),
@@ -2925,9 +2964,12 @@ class AcpSession {
   }
 
   public async setMode(modeId: string): Promise<void> {
-    const mode = availablePermissionModes(this.deps.options.canBypass).find(
-      (candidate) => candidate === modeId,
-    )
+    if (modeId === 'bypassPermissions' && this.makerTools !== undefined)
+      throw RequestError.invalidParams(undefined, modeId)
+    const mode = availablePermissionModes(
+      this.deps.options.canBypass,
+      this.deps.isHardwareWorkspace?.(this.cwd) === true,
+    ).find((candidate) => candidate === modeId)
     if (mode === undefined) {
       throw RequestError.invalidParams(undefined, modeId)
     }
@@ -2943,6 +2985,7 @@ class AcpSession {
         throw error
       }
       this.mode = mode
+      this.makerTools?.setInteractive(this.pending !== undefined && mode !== 'plan')
     })
     // The set took: tell the editor, which otherwise keeps showing the old
     // mode (it learns it only from new/load responses and this notice).
@@ -3164,6 +3207,15 @@ class AcpSession {
       await this.outbox
       return 'end_turn'
     }
+    if (
+      this.makerTools !== undefined &&
+      blocks.length === 1 &&
+      first?.type === 'text' &&
+      parseMakerSlashCommand(first.text)?.name === 'stop-machine'
+    ) {
+      const result = await this.makerTools.command(first.text)
+      if (result !== undefined) return await this.makerReply(result)
+    }
     const slash = first?.type === 'text' ? vaultSlash(first.text) : undefined
     if (slash !== 'lock' && (this.pending !== undefined || this.preparing !== undefined)) {
       throw RequestError.invalidRequest(undefined, UI_TEXT.acpPromptBusy)
@@ -3293,6 +3345,19 @@ class AcpSession {
         preparing.abort.signal,
       )
       if (!parsed.ok) throw RequestError.invalidParams(undefined, parsed.reason)
+      if (
+        this.makerTools !== undefined &&
+        parseMakerSlashCommand(parsed.displayText) !== undefined
+      ) {
+        this.makerTools.setInteractive(this.mode !== 'plan')
+        const result = await this.makerTools.command(parsed.displayText)
+        if (result !== undefined) {
+          this.makerTools.setInteractive(false)
+          await this.announceCommands()
+          if ('error' in preparing) throw preparing.error
+          return preparing.isCancelled ? 'cancelled' : await this.makerReply(result)
+        }
+      }
       // Every local command below is decided on this one text, the same one
       // the skill parser reads (withSkill). Matching the text as sent let
       // " /schedule list" pass the schedule refusal and still run a workspace
@@ -3585,6 +3650,10 @@ class AcpSession {
       if (!isUsage && !isCompact && !isPlayback && local === undefined)
         lease = await this.questionRegistry?.peekQueued()
     } catch (error: unknown) {
+      this.makerTools?.setInteractive(false)
+      this.deps.log.warn(
+        `ACP session ${this.sessionId}: turn preparation failed: ${failureForLog(error)}`,
+      )
       // Peeking is the try's last step, so no answer lease is held here.
       if ('error' in preparing) throw preparing.error
       if (!preparing.isCancelled) throw error
@@ -3598,6 +3667,7 @@ class AcpSession {
       throw preparing.error
     }
     if (preparing.isCancelled) {
+      this.makerTools?.setInteractive(false)
       if (lease !== undefined) await this.questionRegistry?.releaseQueued(lease.token)
       await this.outbox
       return 'cancelled'
@@ -3654,6 +3724,7 @@ class AcpSession {
         })
         this.finishCompaction(outcome.status)
       } else {
+        this.makerTools?.setInteractive(this.mode !== 'plan')
         // No answer lease is peeked for a playback: a queued answer stays
         // queued. No media rides one either: it answers from memory only.
         // The sandbox note rides an ordinary turn's tail only (F91), as on
@@ -3717,6 +3788,10 @@ class AcpSession {
         if (!isAccepted) throw refusalError(UI_TEXT.answerNotAccepted)
       }
     } catch (error: unknown) {
+      this.makerTools?.setInteractive(false)
+      this.deps.log.warn(
+        `ACP session ${this.sessionId}: turn start failed: ${failureForLog(error)}`,
+      )
       await this.releaseAnswers(pending)
       if (this.pending === pending) this.pending = undefined
       if (this.isDisposed) {
@@ -3725,6 +3800,7 @@ class AcpSession {
         // anything else propagates like the undisposed path below.
         if (!(error instanceof DOMException && error.name === 'AbortError')) throw error
         const outcome = await finished
+        this.makerTools?.setInteractive(false)
         if ('error' in outcome) {
           throw outcome.error
         }
@@ -3746,6 +3822,7 @@ class AcpSession {
     }
     const outcome = await finished
     this.clientStop = undefined
+    this.makerTools?.setInteractive(false)
     await pending.answerCommit
     if ('error' in outcome) {
       throw outcome.error
@@ -3777,6 +3854,7 @@ class AcpSession {
   }
 
   public async cancel(): Promise<void> {
+    await this.makerTools?.cancel()
     this.legalStop?.abort()
     this.clientStop?.abort()
     this.cancelVaultRequests()
@@ -3883,6 +3961,10 @@ class AcpSession {
     const releasingAnswers = this.releaseAnswers()
     this.questions?.dispose()
     if (this.questions === undefined) this.questionRegistry?.dispose()
+    await this.makerTools?.close()
+    if (this.preparing !== undefined) {
+      this.preparing.isCancelled = true
+    }
     this.accounts?.dispose()
     this.cancelVaultRequests()
     this.cancelPreparing()
@@ -4058,6 +4140,7 @@ class AgentState {
     prepare: (acp: AcpSession) => Promise<void>,
     isImported = false,
     activeTurnId?: string,
+    makerTools?: AcpMakerSession,
   ): Promise<AcpSession> {
     // A session loaded again replaces the one held, and one still being set
     // up by an earlier load, before anything runs on it: both hosts hand
@@ -4088,6 +4171,7 @@ class AgentState {
               this.choices.set(sessionId, acp.currentChoice())
             }
           },
+          makerTools,
         )
         return acp
       },
@@ -4197,6 +4281,11 @@ class AgentState {
     client: AgentContext,
     additionalDirectories?: readonly string[],
   ) {
+    let makerSessionId = ''
+    const makerTools = await this.deps.makerTools?.session(
+      cwd,
+      acpMakerAsker(client, () => makerSessionId),
+    )
     try {
       const roots = parseAdditionalDirectories(additionalDirectories)
       const { host, models } = await this.openHost(cwd)
@@ -4205,10 +4294,18 @@ class AgentState {
         this.deps.options.initialModelId,
         this.deps.backend.kind === 'modelApi',
       )
-      const mcpServers = this.forwardedMcp(host, requestedMcp)
+      const forwarded = this.forwardedMcp(host, requestedMcp)
+      const mcpServers =
+        makerTools === undefined ? forwarded : { ...forwarded, muse_spark_maker: makerTools.server }
       // The start carries no account identity: a step that needs a stored key
       // refuses then, in the one store sentence, never at the open.
-      const approvalMode = approvalModeFor(this.deps.options.initialMode, true)
+      const approvalMode = approvalModeFor(
+        makerTools !== undefined && this.deps.options.initialMode === 'bypassPermissions'
+          ? 'manual'
+          : this.deps.options.initialMode,
+        true,
+        this.deps.isHardwareWorkspace?.(cwd) === true,
+      )
       // Manual asks the person because the session reviews with `:ask-me`
       // instead of Muse Code's judge (Muse Code 1.4.7); Auto keeps the judge
       // its words describe. Omitted profiles keep the host default, which is
@@ -4224,11 +4321,21 @@ class AgentState {
         ...(permissionProfile !== undefined && { permissionProfile }),
         ...(mcpServers !== undefined && { mcpServers }),
       })
+      makerSessionId = session.sessionId
       // The mode and model went with the start; the effort is set here. A
       // plan model starts on its catalogue default unless the person chose one.
       const claim = this.registry.claim(session.sessionId)
-      const acp = await this.adopt(host, session, cwd, client, models, claim, (started) =>
-        started.applyEffort(startingEffort(models, modelId, this.deps.backend.kind)),
+      const acp = await this.adopt(
+        host,
+        session,
+        cwd,
+        client,
+        models,
+        claim,
+        (started) => started.applyEffort(startingEffort(models, modelId, this.deps.backend.kind)),
+        false,
+        undefined,
+        makerTools,
       )
       // Keep what the editor is shown, including backend events during setup.
       this.choices.set(session.sessionId, acp.currentChoice())
@@ -4239,6 +4346,7 @@ class AgentState {
         configOptions: acp.configOptions(),
       }
     } catch (error: unknown) {
+      await makerTools?.close()
       this.deps.log.warn(`ACP session/new failed: ${causeForLog(error)}`)
       throw startRequestError(error, 'session')
     }
@@ -4258,6 +4366,10 @@ class AgentState {
     // A non-empty list replaces the session's whole extra-root list, as the
     // protocol says; omitted or empty keeps it rootless.
     const roots = parseAdditionalDirectories(additionalDirectories)
+    const makerTools = await this.deps.makerTools?.session(
+      cwd,
+      acpMakerAsker(client, () => sessionId),
+    )
     try {
       const { host, models } = await this.openHost(cwd)
       this.registry.ensureClaim(claim, host)
@@ -4268,7 +4380,9 @@ class AgentState {
           this.deps.options.initialModelId,
           this.deps.backend.kind === 'modelApi',
         ),
-        this.forwardedMcp(host, requestedMcp),
+        makerTools === undefined
+          ? this.forwardedMcp(host, requestedMcp)
+          : { ...this.forwardedMcp(host, requestedMcp), muse_spark_maker: makerTools.server },
       )
       // A session resumes on the approval mode, model and effort it last had,
       // which may differ from what the editor is told (a more permissive mode,
@@ -4303,11 +4417,13 @@ class AgentState {
         },
         loaded.record.imported === true,
         loaded.activeTurnId,
+        makerTools,
       )
       this.choices.set(sessionId, acp.currentChoice())
       this.additionalRoots.set(sessionId, [...roots])
       return { modes: acp.modes(), configOptions: acp.configOptions() }
     } catch (error: unknown) {
+      await makerTools?.close()
       this.registry.abandon(claim)
       // An id no host holds loads nothing: the same resource-not-found a
       // prompt on an unknown session answers, never an internal error.

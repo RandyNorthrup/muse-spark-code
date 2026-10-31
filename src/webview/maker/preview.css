@@ -1,0 +1,67 @@
+body {
+  margin: 16px;
+  color: var(--vscode-foreground);
+  background: var(--vscode-editorWidget-background);
+  font-family: var(--vscode-font-family);
+  padding-bottom: 48px;
+}
+
+.maker-stop-stack.maker-preview-controls {
+  position: fixed;
+  bottom: 8px;
+  right: 8px;
+  z-index: 1;
+  max-width: calc(100vw - 16px);
+  display: flex;
+  flex-flow: column nowrap;
+  gap: 4px;
+  background: var(--vscode-editorWidget-background);
+  max-height: min(120px, 40dvh);
+  overflow: hidden;
+  min-height: 28px;
+}
+
+.maker-stop-stack > [data-maker-stop] {
+  flex-shrink: 0;
+}
+
+.maker-stop-stack .maker-stop-list {
+  display: grid;
+  gap: 2px;
+  overflow: auto;
+  min-height: 0;
+}
+
+.maker-stop-stack [data-maker-stop] {
+  min-width: 44px;
+  min-height: 28px;
+}
+
+[id='maker-canvas'] {
+  display: block;
+  width: min(100%, 640px);
+  aspect-ratio: 1;
+  margin: auto;
+}
+
+[id='maker-canvas'][data-rendered='false'] {
+  visibility: hidden;
+}
+
+.maker-preview-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.maker-preview-controls button {
+  min-height: 28px;
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+  border: 1px solid var(--vscode-input-border);
+}
+
+.maker-preview-controls button:focus-visible {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}

@@ -931,6 +931,7 @@ export const EN = {
   referenceCliOptions: {
     'context-window':
       '--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.',
+    hardware: '--hardware  Allow maker hardware tools (the workspace must also enable hardware)',
     'resource-governor':
       '--resource-governor on|off: Keep this machine responsive by throttling or deferring harness work. On by default.',
     'cpu-max': '--cpu-max <percent>: Throttle when CPU stays above this percentage for 30 seconds.',
@@ -3505,7 +3506,7 @@ export const EN = {
   // the extension for; the second sentence when the host is beyond loopback.
   browserCheckConfirmTitle: 'Muse Code wants to open {url} in a headless browser',
   browserCheckConfirmDetail:
-    'The page loads in a fresh private browser profile that is deleted afterwards. All its traffic goes through the extension’s own proxy, which lets through only plain http to this computer and the hosts in museSpark.browserCheckExtraHosts.',
+    'The browser uses a temporary private profile and a proxy. Private addresses require an exact dev-server origin in museSpark.browserCheckExtraHosts. Maker companion origins are always refused.',
   browserCheckConfirmDetailWiden:
     '{host} is not this computer. Allowing lets this one check reach it, over https and WebSockets too. That traffic is encrypted, so the extension cannot inspect it, and a site there may sign in as you with this computer’s account (on Windows in particular).',
   // M81 A1: the question before the browser check's runtime is downloaded,
@@ -3528,12 +3529,12 @@ export const EN = {
     other: '{count} failed requests',
   }),
   browserCheckBlockedRequests: forms({
-    one: '{count} request blocked beyond this computer',
-    other: '{count} requests blocked beyond this computer',
+    one: '{count} request blocked',
+    other: '{count} requests blocked',
   }),
   // Why a check did not happen or did not finish.
   browserCheckUrlRefused:
-    'Only an http:// or https:// address with a plain host name or IP address, and no user name or password, can be opened.',
+    'This address cannot be opened. Private addresses require an exact dev-server origin in museSpark.browserCheckExtraHosts; maker companion origins are always refused.',
   browserCheckInvalidArguments:
     'The browser check was asked for with arguments that are not valid, so nothing was opened.',
   // The runtime's preparation (M81 A1): why no verified browser was ready.
@@ -3659,7 +3660,8 @@ export const EN = {
     other: '{files} and {count} more files',
   }),
   // M67: the code intelligence rows when VS Code's language services cannot answer.
-  codeIntelNoService: 'No language service answered for {path}, or it declares no symbols.',
+  codeIntelNoService:
+    'No language service answered for {path}, or it declares no symbols. Use search and read_file instead.',
   codeIntelTimedOut: 'The language service did not answer within {seconds} seconds.',
   repoMapNoService: 'No language service answered for the workspace’s symbols.',
   // The paid-use popup before an image, on either backend (M34, M44, M58).
@@ -7104,6 +7106,40 @@ export const EN = {
     other:
       'The checks still failed after {count} rounds of fixes in a row, so they will not run again automatically until your next message.',
   }),
+  // M103-G: the always-on physical-action guard.
+  approvalHardwareNote:
+    'Physical device action. Opening a serial port may reset the board. Review the exact command and target; approval applies once and expires after two minutes.',
+
+  hardwareShellNote:
+    'Hardware workspace: review this exact shell command. Approval applies once and expires after two minutes. Use maker tools for device actions. {warning}',
+
+  hardwareProgramWarning: 'This looks like it programs a board.',
+
+  hardwareConnectWarning: 'This looks like it opens a device port; the board may reset.',
+
+  hardwareActuateWarning: 'This looks like it writes to a port or sends a machine command.',
+
+  hardwareIrreversibleWarning: 'This looks like an irreversible fuse, eFuse or lock-bit write.',
+
+  hardwareTargetNote: 'Target binding: {targets}',
+
+  hardwareRefused:
+    'This device operation is refused. Review and run the command yourself in your own terminal.',
+
+  hardwareUnattended:
+    'Shell commands in hardware workspaces and physical device actions are refused in unattended runs.',
+
+  hardwareStopUnconfirmed:
+    'Stop delivery could not be confirmed. Check the machine and use its physical E-stop.',
+
+  hardwarePresenceRequired:
+    'Focus the visible conversation panel before approving a hardware command.',
+
+  hardwareExpired: 'The device approval expired. Nothing was sent.',
+
+  hardwareBypassNotice:
+    'Bypass permissions are unavailable in hardware workspaces. Use Auto or Manual and approve each device action once.',
+
   exportThenRunLabel: 'Then ran:',
   // {command}: the then_run command; {outcome}: why it did not run.
   exportThenRunSkipped: 'then_run `{command}`: {outcome}',
@@ -9300,6 +9336,283 @@ export const EN = {
     install: 'Install',
     installingPacks: forms({ one: 'Installing {count} pack', other: 'Installing {count} packs' }),
   },
+
+  // M103 maker surfaces and guard: deferred readers retain the accepted wording.
+
+  referenceMakers:
+    'Review the exact payload behind one SHA-256 digest, then Send once or Reject. Enabling hardware needs the OS account check; Stop never does.',
+
+  // M103 Makers: detection, per-action approval and the shared editor/runtime surfaces.
+  makerDetectBuild: 'Build {target}',
+
+  makerDetectCheck: 'Check {target}',
+
+  makerDetectSimulate: 'Simulate {target}',
+
+  makerDetectPython: 'Check Python syntax',
+
+  makerDetectPresetsTitle: 'Suggested checks for this maker project',
+
+  makerDetectCloud: 'Wokwi uploads firmware to its cloud and requires your own token.',
+
+  makerDetectCircuitPy:
+    'This workspace is on a CIRCUITPY drive. Saving code can restart the board.',
+
+  makerDetectMachineConfig:
+    'Machine configuration detected. Review heater and travel limits before deploying changes.',
+
+  makerDetectBoardRequired: 'Choose a board target before adding an Arduino or Zephyr build check.',
+
+  makerTitle: 'Makers',
+
+  makerStopMachine: 'Stop machine',
+
+  makerMachineKeyPrompt: 'Machine API key (optional; stored only in SecretStorage)',
+
+  makerUnavailable: 'The maker host is unavailable. Check the local extension log.',
+
+  makerCompanionUnavailable:
+    'The maker panel cannot bind its reserved local ports. Close another maker panel and retry; Stop is still available.',
+
+  makerLaunchConnect: 'Open panel',
+
+  makerApprovalTitle: 'Approve hardware action',
+
+  makerSendOnce: 'Send once',
+
+  makerReject: 'Reject',
+
+  makerApprovalExpired: 'This approval expired. Request the action again.',
+
+  makerApprovalTargetChanged: 'The target changed. Review a new approval.',
+
+  makerPresenceReason: '{machine}: {action} (payload {digest})',
+
+  makerPresenceDenied: 'OS authentication was denied. Nothing was sent.',
+
+  makerPresenceUnavailable:
+    'OS authentication is unavailable. macOS and Windows need the native presence helper integration; Linux needs the maker polkit policy and a session agent. Stop remains available.',
+
+  makerPresenceConnect: 'Connect to device',
+
+  makerPresenceProgram: 'Program device',
+
+  makerPresenceActuate: 'Move, heat or power machine',
+
+  makerUnattendedDenied: 'Hardware requires an eligible interactive session and OS authentication.',
+
+  makerStopFailed: 'Stop failed — use the machine’s physical emergency stop now: {machine}.',
+
+  makerStopPhysicalRequired:
+    'Machine {machine} requires its physical emergency stop; software Stop is unavailable.',
+
+  makerTrustRequired: 'Trust this workspace before enabling hardware.',
+
+  makerEnableHardware: 'Enable hardware for this workspace',
+  makerCliUsage:
+    'Maker hardware from the terminal: enable or disable hardware for a workspace, register and list machines, stop a machine, or open the maker panel. Machines add reads --registration and, with --key-stdin, the machine key from standard input. Physical actions ask for your operating-system sign-in and never run unattended.',
+
+  makerDisableHardware: 'Disable hardware for this workspace',
+
+  makerHardwareReason: 'Enter a reason for enabling hardware.',
+
+  makerSoftwareStopWarning:
+    'A software stop does not replace the machine’s physical emergency stop.',
+
+  makerResetWarning: 'Opening this port may reset the board.',
+
+  makerIdentityUnknown: 'Unknown device identity',
+
+  makerTargetLabel: 'Target',
+
+  makerPayloadLabel: 'Exact payload',
+
+  makerAnalysisLabel: 'Analysis',
+
+  makerDevicesTitle: 'Devices and machines',
+
+  makerAddMachine: 'Add machine',
+
+  makerRemoveMachine: 'Remove machine',
+
+  makerPlainHttpWarning: 'HTTP sends the machine key over the LAN without encryption.',
+
+  makerLimitsUnavailable: 'No safe limits are available. Only status and Stop work.',
+
+  makerNotHomed: 'Home the machine in its own controls before proposing motion.',
+
+  makerPhysicalStopRequired: 'Use the machine’s physical switch for an immediate stop.',
+
+  makerStartupMotion: 'The machine’s startup commands may cause motion.',
+
+  makerCncActuationDenied: 'CNC, laser and robot motion is unavailable. Read status or use Stop.',
+
+  makerBusy: 'This target is held by {holder}.',
+
+  makerOpenDeviceLog: 'Open device log',
+
+  makerDeviceLogPrivacy: 'The device log stays on this machine until you choose to share it.',
+
+  makerAuditUnrecorded: 'The action completed, but its device log could not be saved.',
+
+  makerSentOutcomeUnknown: 'The machine may have acted. Read its status before sending again.',
+
+  makerPreviewTitle: 'Maker preview',
+
+  makerPreviewWithdrawn: 'Preview changed — approval withdrawn; ask again',
+
+  makerMaximumTemperature: 'Maximum temperature: {temperature}',
+
+  makerMaximumFeed: 'Maximum feed: {feed}',
+
+  makerHardwareEnabled: 'Hardware enabled',
+
+  makerHardwareDisabled: 'Hardware disabled',
+
+  makerStopAll: 'Stop all machines',
+
+  makerStatusLabel: 'Status',
+
+  makerName: 'Name',
+
+  makerMachineId: 'Machine ID',
+
+  makerKind: 'Machine type',
+
+  makerCategory: 'Category',
+
+  makerReadPayload: 'Read payload',
+
+  makerCanonicalLegend: String.raw`Control pictures show control bytes; \xNN shows an escaped byte and \\ a literal backslash.`,
+
+  makerPayloadSearch: 'Search canonical payload',
+
+  makerFindNext: 'Find next',
+
+  makerClearSearch: 'Clear search',
+
+  makerLongSearch: forms({
+    one: 'Showing {shown} of {count} search character. Clear to edit; search uses the whole query.',
+    other:
+      'Showing the first {shown} of {count} search characters. Clear to edit; search uses the whole query.',
+  }),
+
+  makerNextHighlight: 'Next highlight',
+
+  makerHighlightPosition: 'Highlight {current} of {count}',
+
+  makerHighlightLine: 'Line {line}',
+
+  makerAcknowledgeDangers: 'I acknowledge all highlighted dangers.',
+
+  makerConfirmSummaryDigest: 'I confirm the summary and this exact payload digest.',
+
+  makerPayloadEndReached: 'Payload end reached.',
+
+  makerScrollPayloadEnd: 'Scroll the payload to its end before approving.',
+
+  makerSummaryUnknown: 'Not known',
+
+  makerTemperatureSettings: forms({
+    one: 'Temperature setting ({shown}/{count}): {temperatures}. Maximum: {maximum}.',
+    other:
+      'Temperature settings (first {shown} of {count} distinct): {temperatures}. Maximum: {maximum}.',
+  }),
+
+  makerDangerTemperature: 'A temperature exceeds a safe limit, or its limit is unknown.',
+
+  makerDangerTravel: 'Motion exceeds travel limits, or its bounds are unknown.',
+
+  makerDangerSafety: 'A command disables a safety check.',
+
+  makerDangerUnknown: 'A command or its effects could not be fully analysed.',
+
+  makerPayloadSize: 'Outgoing size: {size}; lines: {lines}',
+
+  makerDigestLabel: 'Payload SHA-256',
+
+  makerEntryPoint: 'Entry point',
+
+  makerFirmwareSizeNotice:
+    'This size covers outgoing bytes. A command referring to a firmware file does not reveal that file’s size or entry point.',
+
+  makerFan: 'Maximum fan setting',
+
+  makerEstimatedTime: 'Estimated time',
+
+  makerTravelSummary: 'Travel extents (mm)',
+
+  makerLoadFailed: 'Maker view could not load. Stop remains available.',
+
+  makerRetry: 'Retry',
+
+  makerCategoryPrinter: '3D printer',
+
+  makerCategoryCnc: 'CNC machine',
+
+  makerCategoryLaser: 'Laser machine',
+
+  makerCategoryRobot: 'Robot',
+
+  makerEndpoint: 'Address or port',
+
+  makerLimitsTitle: 'User limits',
+
+  makerTravelMin: 'Minimum {axis} (mm)',
+
+  makerTravelMax: 'Maximum {axis} (mm)',
+
+  makerFeed: 'Feed limit (mm/min)',
+
+  makerExtruder: 'Extruder limit (°C)',
+
+  makerBed: 'Bed limit (°C)',
+
+  makerInvalidInput: 'Check the entries and required limits.',
+
+  makerBaud: 'Baud rate',
+
+  makerDuration: 'Read duration (ms)',
+
+  makerPayloadHex: 'Bytes (hex)',
+
+  makerReadSerial: 'Request serial read',
+
+  makerWriteSerial: 'Request serial write',
+
+  makerEmptyLog: 'No device actions recorded.',
+
+  makerPreviewUnavailable: 'Preview unavailable. Check the artifact and WebGL support.',
+
+  makerRotateLeft: 'Rotate left',
+
+  makerRotateRight: 'Rotate right',
+
+  makerZoomIn: 'Zoom in',
+
+  makerZoomOut: 'Zoom out',
+
+  makerResetView: 'Reset view',
+
+  makerDeviceCount: forms({ one: '{count} device', other: '{count} devices' }),
+
+  // Local editor verification (M103 A).
+  jsonExpectedComma: 'Expected comma',
+
+  jsonInvalidSyntax: 'Invalid JSON syntax',
+
+  jsonInvalidSetting: 'Invalid value for {setting}',
+
+  jsonVerificationUnavailable: 'Editor verification is unavailable.',
+
+  browserDevOriginAllow: 'Allow this dev origin',
+
+  browserDevOriginConsent:
+    'Allow browser checks to reach {origin}? Confirm only a development server you control. Printer and CNC interfaces are always refused. This permission stays on this machine until you remove the origin from your user settings.',
+
+  // Shared with the hardware Muse Code Modes menu; retain in browser fallback.
+  hardwareBindingUnavailable:
+    'This device adapter cannot verify the approved target at process start. Nothing was sent. Use the Model API backend for hardware commands.',
 }
 
 /** The shape every table has: English's keys, with any language's plural forms. */

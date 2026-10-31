@@ -127,6 +127,12 @@ try {
   for (const bundle of BUNDLES) {
     copyFileSync(path.join('dist', bundle), path.join(STAGE, 'dist', bundle))
   }
+  // M103 (D83.16): the maker companion page is the shared panel, served by
+  // the runtime from its own dist/webview, so the package carries it.
+  cpSync('dist/webview', path.join(STAGE, 'dist', 'webview'), {
+    recursive: true,
+    filter: (source) => !source.endsWith('.map'),
+  })
   cpSync('dist/legal-data', path.join(STAGE, 'dist', 'legal-data'), { recursive: true })
   stageCiLauncher(process.cwd(), STAGE, CI_LAUNCHER_SOURCES)
   for (const source of pageAssets) {
@@ -138,6 +144,10 @@ try {
     mkdirSync(path.join(STAGE, path.dirname(source)), { recursive: true })
     copyFileSync(source, path.join(STAGE, source))
   }
+  // M103: the Linux polkit policy the maker's OS authentication installs.
+  const polkitPolicy = path.join('native', 'linux', 'org.muse-spark-code.maker.policy')
+  mkdirSync(path.join(STAGE, path.dirname(polkitPolicy)), { recursive: true })
+  copyFileSync(polkitPolicy, path.join(STAGE, polkitPolicy))
   // The darwin app bundles and vault helpers ship only where darwin pieces
   // do: the universal package (both architectures, like the Linux helpers)
   // and the darwin targets (their own architecture only). Their absence

@@ -40,6 +40,33 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Maker tools with a person at every physical action.** Shell commands
+  that flash a board, open a device or move a machine ask every time, in
+  every permission mode, and no remembered rule, hook or automatic reviewer
+  can answer for you; commands that cannot be undone (burning fuses,
+  one-time-programmable writes and their like) are refused with the
+  run-it-yourself reply. Stop commands are never blocked or asked about.
+  Nothing physical runs from a subagent, a scheduled run or headless use.
+- **Maker projects are recognised, and the right help is offered.**
+  PlatformIO, ESP-IDF, Arduino, MicroPython, CircuitPython, Pico, Zephyr,
+  ESPHome, ROS 2, printer and CAD workspaces are detected from their files,
+  with matching skills and check presets; a workspace without a marker is
+  unchanged.
+- **Devices and machines, read first.** Serial ports are listed with their
+  board identity without opening anything. Printer and CNC status reads
+  need no approval; sending G-code is analysed against the machine's limits
+  and asks once for exactly those bytes, and every answer is single-use and
+  expires. OpenSCAD and KiCad checks and an STL preview are included.
+- **The same maker tools in a terminal.** `hardware`, `machines` and
+  `stop-machine` commands and `--hardware` sessions in
+  `muse-spark-code-acp`, with the companion page for approvals where the
+  editor has no dialog of its own. Machine keys stay in the operating
+  system's credential store.
+- **An Arduino IDE 2 build and a Thonny plug-in.** The same product builds
+  for Arduino IDE 2.3.x (VS Code API 1.96) with its own typecheck, and the
+  `thonny-muse-spark` plug-in package opens the companion and its Stop from
+  Thonny's menu through Thonny's own connection. Arduino IDE qualification
+  in the installed IDE is not complete yet.
 - **`muse-spark-code-acp watchdog` keeps a watch list of GitHub repositories
   in a terminal.** `watchdog list` and `status` show the watched
   repositories, `pause` and `resume` stop and restart watching, and `policy`

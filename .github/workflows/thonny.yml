@@ -1,0 +1,62 @@
+# The Thonny plugin's gate (M103 lane T): pytest on every hosted OS and the
+# oldest and newest supported Pythons, plus a packaging check (sdist +
+# wheel build and `twine check`) so the PyPI release job only ever ships a
+# valid distribution. No secret is used; nothing is published here.
+name: Thonny plugin
+
+on:
+  pull_request:
+    paths:
+      - 'integrations/thonny/**'
+      - '.github/workflows/thonny.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: thonny-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    name: pytest (py${{ matrix.python }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ['3.10', '3.14']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: pytest, no third-party dependencies
+        run: |
+          python -m pip install --upgrade pip pytest
+          python -m pytest integrations/thonny
+
+  package:
+    name: sdist and wheel build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+      - run: |
+          python -m pip install --upgrade pip build twine
+          python -m build --outdir dist/thonny integrations/thonny
+          twine check dist/thonny/*
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: thonny-dist
+          path: dist/thonny/*
+          retention-days: 14

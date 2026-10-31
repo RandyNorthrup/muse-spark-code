@@ -419,6 +419,8 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
     ],
   },
+  { file: 'hardwareGuard.js', side: 'both', requestedBy: [] },
+  { file: 'hardwareShell.js', side: 'both', requestedBy: [] },
   { file: 'headless.js', side: 'acp', requestedBy: [] },
   {
     file: 'hookRuntime.js',
@@ -583,6 +585,19 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       { importer: 'src/shared/constants.ts', symbol: 'MAKER_BUNDLE_FILE', side: ['acp', 'vscode'] },
     ],
   },
+  { file: 'makerContracts.js', side: 'both', requestedBy: [] },
+  { file: 'makerHost.js', side: 'vscode', requestedBy: [] },
+  {
+    file: 'makerPreviewHost.js',
+    side: 'vscode',
+    requestedBy: [
+      {
+        importer: 'src/host/maker/makerEntry.ts',
+        symbol: 'createMakerPreviewPanel',
+        side: ['vscode'],
+      },
+    ],
+  },
   { file: 'mcpPool.js', side: 'both', requestedBy: [] },
   {
     file: 'mcpVault.js',
@@ -738,6 +753,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
     ],
   },
+  { file: 'modelApiShell.js', side: 'both', requestedBy: [] },
   {
     file: 'modelApiToolRun.js',
     side: 'both',
@@ -1252,6 +1268,13 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'runtimeMaker.js',
+    side: 'acp',
+    requestedBy: [
+      { importer: 'src/shared/constants.ts', symbol: 'RUNTIME_MAKER_BUNDLE_FILE', side: ['acp'] },
+    ],
+  },
+  {
     file: 'runtimeMedia.js',
     side: 'acp',
     requestedBy: [
@@ -1740,6 +1763,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   { file: 'vaultStore.js', side: 'both', requestedBy: [] },
   { file: 'vaultWindows.js', side: 'both', requestedBy: [] },
   {
+    file: 'verifyEditor.js',
+    side: 'vscode',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'VERIFY_EDITOR_BUNDLE_FILE',
+        side: ['vscode'],
+      },
+    ],
+  },
+  {
     file: 'voice.js',
     side: 'vscode',
     requestedBy: [
@@ -1793,6 +1827,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     side: 'vscode',
     requestedBy: [
       { importer: 'src/shared/constants.ts', symbol: 'WEBVIEW_SCRIPT_FILE', side: ['vscode'] },
+    ],
+  },
+  {
+    file: 'webview/makerPreview.js',
+    side: 'vscode',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'MAKER_PREVIEW_SCRIPT_FILE',
+        side: ['vscode'],
+      },
     ],
   },
   {

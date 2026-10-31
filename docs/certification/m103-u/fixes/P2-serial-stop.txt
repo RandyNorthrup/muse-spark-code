@@ -1,0 +1,104 @@
+
+ RUN  v5.0.2 C:/lanes/M103U
+
+ ❯ test/unit/makerFailures.test.tsx (1 test | 1 failed) 545ms
+   × a failed optional view preserves Stop and Retry remounts it 543ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  09:32:24
+   Duration  3.09s (environment 43%, tests 19%, transform 16%, import 15%, setup 7%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/makerFailures.test.tsx > a failed optional view preserves Stop and Retry remounts it
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Stop all machines"
+
+Here are the accessible roles:
+
+  button:
+
+  Name "Devices and machines":
+  [36m<button[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Open device log":
+  [36m<button[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Retry":
+  [36m<button[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  alert:
+
+  Name "":
+  [36m<div[39m
+    [33mrole[39m=[32m"alert"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  paragraph:
+
+  Name "":
+  [36m<p />[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"maker-surface"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"maker-toolbar"[39m
+        [33minert[39m=[32m""[39m
+      [36m>[39m
+        [36m<button[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mDevices and machines[0m
+        [36m</button>[39m
+        [36m<button[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mOpen device log[0m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mrole[39m=[32m"alert"[39m
+      [36m>[39m
+        [36m<p>[39m
+          [0mMaker view could not load. Stop remains available.[0m
+        [36m</p>[39m
+        [36m<button[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mRetry[0m
+        [36m</button>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:109:15
+ ❯ test/unit/makerFailures.test.tsx:28:12
+     26|   expect(document.querySelector('.maker-toolbar')).toBeInTheDocument()
+     27|   fireEvent.click(
+     28|     screen.getAllByRole('button', { name: UI_TEXT.makerStopAll }).at(-…
+       |            ^
+     29|   )
+     30|   expect(post).toHaveBeenLastCalledWith({ v: 1, type: 'makerStop' })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

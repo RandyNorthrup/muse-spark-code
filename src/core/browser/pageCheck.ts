@@ -194,6 +194,7 @@ function consoleArgText(argument: unknown): string {
 interface ProbeBinding {
   readonly frameId: string
   readonly urls: ReadonlySet<string>
+  readonly fixtureUrls?: ReadonlySet<string>
 }
 
 export interface PageCheckOptions {
@@ -349,7 +350,7 @@ export class PageCheck {
     }
   }
 
-  /** Every paused request: on to loopback, an approved host or a bound probe URL; failed otherwise. */
+  /** Every paused request: an approved origin or a bound probe/fixture URL; failed otherwise. */
   #gate(event: CdpEvent): void {
     const paused = pausedSchema.safeParse(event.params)
     if (!paused.success) {
@@ -359,7 +360,11 @@ export class PageCheck {
     const binding = this.#binding
     const isProbe =
       binding !== undefined && frameId === binding.frameId && binding.urls.has(request.url)
-    if (isProbe || isAllowedRequest(request.url, this.#allowed)) {
+    if (
+      isProbe ||
+      binding?.fixtureUrls?.has(request.url) === true ||
+      isAllowedRequest(request.url, this.#allowed)
+    ) {
       void this.#connection
         .send('Fetch.continueRequest', { requestId }, event.sessionId)
         .catch(ignore)
@@ -508,7 +513,11 @@ export class PageCheck {
 
   /** A network URL to a host the check may not reach. */
   #isBeyondAllowed(url: string): boolean {
-    return isNetworkUrl(url) && !isAllowedRequest(url, this.#allowed)
+    return (
+      isNetworkUrl(url) &&
+      this.#binding?.fixtureUrls?.has(url) !== true &&
+      !isAllowedRequest(url, this.#allowed)
+    )
   }
 
   #wakeWaiters(): void {

@@ -1,0 +1,5 @@
+
+> muse-spark-code@0.14.1 check:host-api
+> node scripts/check-host-api.mjs
+
+host-api: 342 VS Code APIs, 33 files importing vscode, 26 Node built-ins, 61 theme variables; 0 problem(s)

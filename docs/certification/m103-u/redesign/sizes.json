@@ -1,0 +1,96 @@
+{
+  "platform": "win32",
+  "node": "v24.21.0",
+  "startup": {
+    "bytes": 814434,
+    "baselineBytes": 813602,
+    "growthBytes": 832,
+    "budgetBytes": 921600,
+    "outputs": [
+      "dist/webview/main.js",
+      "dist/webview/chunks/OIEHQGY3.js",
+      "dist/webview/chunks/R4SLIWUW.js",
+      "dist/webview/chunks/ZXQBZBPZ.js",
+      "dist/webview/chunks/SU2JFAPY.js",
+      "dist/webview/chunks/6H6HIFU7.js",
+      "dist/webview/chunks/Z6XHWV4O.js",
+      "dist/webview/chunks/2TEO5AI5.js",
+      "dist/webview/chunks/X4V56C6X.js",
+      "dist/webview/chunks/MULS5XY6.js",
+      "dist/webview/chunks/FJTK5XAJ.js",
+      "dist/webview/chunks/X7JDNFRR.js",
+      "dist/webview/chunks/O7J4OUWC.js",
+      "dist/webview/chunks/VY5EH2SA.js",
+      "dist/webview/chunks/TGWQRIFP.js",
+      "dist/webview/chunks/WYUKJ7XV.js",
+      "dist/webview/chunks/KG2WOB3E.js",
+      "dist/webview/chunks/VJJSJOPQ.js",
+      "dist/webview/chunks/JQ236KUS.js",
+      "dist/webview/chunks/YQNNZ3T7.js",
+      "dist/webview/chunks/AMSPULKF.js",
+      "dist/webview/chunks/DGJHN5SV.js",
+      "dist/webview/chunks/2HVEACRS.js",
+      "dist/webview/chunks/WQV5QLOK.js",
+      "dist/webview/chunks/L7JIE677.js",
+      "dist/webview/chunks/MQEIEY3K.js"
+    ]
+  },
+  "groups": [
+    {
+      "name": "deferred JS",
+      "bytes": 50891,
+      "budgetBytes": 51200,
+      "outputs": [
+        "dist/webview/chunks/ICNZFHLI.js",
+        "dist/webview/chunks/QUKYA2GW.js",
+        "dist/webview/chunks/37Z4VDW2.js",
+        "dist/webview/chunks/CD5PIKGA.js",
+        "dist/webview/chunks/MBVVXJ3N.js",
+        "dist/webview/chunks/SBJE3WD7.js",
+        "dist/webview/chunks/MKQVDEDU.js"
+      ]
+    },
+    {
+      "name": "maker surfaces",
+      "bytes": 10612,
+      "budgetBytes": 25600,
+      "outputs": [
+        "dist/webview/chunks/NALONROS.js",
+        "dist/webview/chunks/NZ6AVF7P.js",
+        "dist/webview/chunks/E5INAYYW.js"
+      ]
+    },
+    {
+      "name": "maker review",
+      "bytes": 55392,
+      "budgetBytes": 76800,
+      "outputs": ["dist/webview/chunks/U4MEYDC4.js"]
+    },
+    {
+      "name": "code highlighting",
+      "bytes": 95366,
+      "budgetBytes": 128000,
+      "outputs": ["dist/webview/chunks/BFLAA6JG.js"]
+    },
+    {
+      "name": "action dialogs",
+      "bytes": 9360,
+      "budgetBytes": 25600,
+      "outputs": [
+        "dist/webview/chunks/QSSE6WEK.js",
+        "dist/webview/chunks/M3DFZQMX.js",
+        "dist/webview/chunks/VDFJYQ5U.js",
+        "dist/webview/chunks/BEQVUSVU.js"
+      ]
+    },
+    {
+      "name": "tasks tab",
+      "bytes": 1375,
+      "budgetBytes": 25600,
+      "outputs": ["dist/webview/chunks/BD62OPKI.js"]
+    }
+  ],
+  "standalonePreviewBytes": 23466,
+  "activationBytes": 444457,
+  "modelApiBytes": 457781
+}

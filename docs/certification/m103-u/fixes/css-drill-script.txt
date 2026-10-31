@@ -1,0 +1,26 @@
+import {readFileSync,writeFileSync} from 'node:fs'
+import {createHash} from 'node:crypto'
+import path from 'node:path'
+import {chromium} from 'playwright-core'
+import {serveRepo} from '../scripts/lib/harnessServer.mjs'
+import {findChrome} from '../scripts/lib/chrome.mjs'
+const hash=x=>createHash('sha256').update(x).digest('hex')
+const {server,port}=await serveRepo(path.resolve('.'))
+const browser=await chromium.launch({executablePath:findChrome(),headless:true})
+const records=[]
+try{
+ for(const [name,file,mutate,probe] of [
+ ['P2-fixed-preview-stop','src/webview/maker/preview.css',s=>s.replace('position: fixed','position: static'),async page=>{await page.goto(`http://127.0.0.1:${port}/temp/preview.html`);await page.evaluate(()=>window.scrollTo(0,document.body.scrollHeight));const b=await page.locator('[data-maker-stop]').boundingBox();return b.y>=0&&b.y+b.height<=400}],
+ ['P3-equal-choices','src/webview/maker/maker.css',s=>s.replace('  display: grid;','  display: flex;'),async page=>{await page.goto(`http://127.0.0.1:${port}/temp/browser.html`);await page.waitForFunction(()=>typeof window.ask==='function');await page.evaluate(()=>window.ask(30));const buttons=page.locator('.maker-approval-actions button');await buttons.first().waitFor();const sizes=await buttons.evaluateAll(ns=>ns.map(n=>n.getBoundingClientRect().width));return sizes[0]===sizes[1]}]
+ ]){
+ const page=await browser.newPage({viewport:{width:690,height:400}})
+ if(!await probe(page))throw Error(`${name} baseline failed`)
+ const bytes=readFileSync(file)
+ try{writeFileSync(file,mutate(bytes.toString()));if(await probe(page))throw Error(`${name} negative control passed`)}finally{writeFileSync(file,bytes)}
+ if(hash(bytes)!==hash(readFileSync(file)))throw Error('restore mismatch')
+ records.push({name,file,before:hash(bytes),restored:hash(readFileSync(file)),baseline:'pass',mutation:'expected assertion failed'})
+ await page.close()
+ }
+ writeFileSync('docs/certification/m103-u/fixes/css-drills.json',JSON.stringify(records,null,2)+'\n')
+ console.log(records)
+}finally{await browser.close();await new Promise(r=>server.close(r))}

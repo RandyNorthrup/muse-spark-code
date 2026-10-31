@@ -173,6 +173,8 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   // D203: /playback runs on every surface on the Model API backend, answering
   // from memory only; on Muse Code it is refused, which has no zero-tool turn.
   ['playback', ['vscode:modelApi', 'acp:modelApi']],
+  // M103: per-action hardware approval and ungated Stop in the panel and ACP.
+  ['makers', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['reports', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   // M99: ACP answers /whatsnew locally with the same release notes.
   ['support', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],

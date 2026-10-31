@@ -3,17 +3,17 @@
   "counts": {
     "acp": {
       "SWALLOW": 0,
-      "GENERIC": 16,
+      "GENERIC": 15,
       "CLEANUP": 8
     },
     "core": {
-      "SWALLOW": 67,
-      "GENERIC": 243,
+      "SWALLOW": 65,
+      "GENERIC": 241,
       "CLEANUP": 236
     },
     "host": {
       "SWALLOW": 18,
-      "GENERIC": 95,
+      "GENERIC": 94,
       "CLEANUP": 90
     },
     "root": {
@@ -81,11 +81,6 @@
     {
       "file": "src/acp/agent.ts",
       "identity": "8049ab3b80a7bf828421e8582be8f079ffe0f674b94811e47bab47d2c0ae5be2",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/acp/agent.ts",
-      "identity": "913dc0fcf36cab571e3949a34aeaa0a23ba9953d0f915ee1ed537d41cb29fa55",
       "class": "GENERIC"
     },
     {
@@ -435,11 +430,6 @@
     },
     {
       "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "7d7b6221c4c96e15e9918cabbf70b52097102613efe039f959e2d5a169c4eb4b",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/ModelApiHost.ts",
       "identity": "6c12fdcd8e0bcbaf18ccb61c0d28bd4eb1a18cdf1636f52a6da408fc053b1213",
       "class": "GENERIC"
     },
@@ -462,11 +452,6 @@
       "file": "src/core/backends/modelapi/ModelApiHost.ts",
       "identity": "488862103a7c11aba83cd6b1f6c94230c76701fff8f575c7c22d808d9456b08e",
       "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "18b7d6d6f910e23a06997c0711b5352dbcd53540e391c5a1b8a1d992f2f087da",
-      "class": "GENERIC"
     },
     {
       "file": "src/core/backends/modelapi/ModelApiHost.ts",
@@ -712,16 +697,6 @@
       "file": "src/core/browser/checkProxy.ts",
       "identity": "b64d2563cd86ae07e7b3c40b7791fd0a50f16aa8a60e767b05f8d363bc8462ca",
       "class": "GENERIC"
-    },
-    {
-      "file": "src/core/browser/checkProxy.ts",
-      "identity": "d2b0380a2b62e05a222e0c20cdeab8292f00cf6835f5c971b3bbf7439702bba4",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/browser/checkProxy.ts",
-      "identity": "bb9d5e3fb0a32f43e2975c84b747bd3902748d05f4ec5c5817424da78a1d00bd",
-      "class": "SWALLOW"
     },
     {
       "file": "src/core/browser/pageCheck.ts",
@@ -3027,11 +3002,6 @@
       "file": "src/host/backend/toolIo.ts",
       "identity": "5510d6469bc2f3bb1ad1eab4d42723377d38f671dd7b151c7c944062981c52c4",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/host/backend/toolIo.ts",
-      "identity": "5fcb3d2abc2dcabecd21f1272932465906249ec281c62a416675e48d2a694fa9",
-      "class": "GENERIC"
     },
     {
       "file": "src/host/backend/toolIo.ts",
