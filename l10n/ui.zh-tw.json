@@ -7237,6 +7237,7 @@
   "makerStopFailed": "停止失敗 — 請立即使用機器 {machine} 的實體緊急停止裝置。",
   "makerStopPhysicalRequired": "機器 {machine} 需要實體緊急停止；軟體停止無法使用。",
   "makerTrustRequired": "啟用硬體前，請信任此工作區。",
+  "makerSerialPythonMissing": "序列存取需要附有 pyserial 套件的 Python 3（python3），但在此工作區以外的 PATH 中找不到 python3。請安裝 Python 3，執行「python3 -m pip install pyserial」，然後再試一次。",
   "makerEnableHardware": "為此工作區啟用硬體",
   "makerCliUsage": "從終端使用創客硬體: 為工作區啟用或停用硬體、註冊和列出機器、停止機器或開啟創客面板。machines add 讀取 --registration，並在使用 --key-stdin 時從標準輸入讀取機器金鑰。實體操作會要求您登入作業系統，且絕不在無人值守時執行。",
   "makerDisableHardware": "為此工作區停用硬體",

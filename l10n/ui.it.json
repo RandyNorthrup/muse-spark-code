@@ -7605,6 +7605,7 @@
   "makerStopFailed": "Arresto non riuscito — usare subito l’arresto di emergenza fisico della macchina {machine}.",
   "makerStopPhysicalRequired": "La macchina {machine} richiede l’arresto di emergenza fisico; l’arresto software non è disponibile.",
   "makerTrustRequired": "Considera attendibile questo spazio di lavoro prima di abilitare l’hardware.",
+  "makerSerialPythonMissing": "L’accesso seriale richiede Python 3 (python3) con il pacchetto pyserial, e nessun python3 è stato trovato nel PATH al di fuori di questo spazio di lavoro. Installa Python 3, esegui «python3 -m pip install pyserial» e riprova.",
   "makerEnableHardware": "Abilita l’hardware per questo spazio di lavoro",
   "makerCliUsage": "Hardware maker dal terminale: attiva o disattiva l’hardware per uno spazio di lavoro, registra ed elenca le macchine, arresta una macchina o apri il pannello maker. machines add legge --registration e, con --key-stdin, la chiave della macchina dall’input standard. Le azioni fisiche richiedono l’accesso al sistema operativo e non vengono mai eseguite senza supervisione.",
   "makerDisableHardware": "Disabilita l’hardware per questo spazio di lavoro",

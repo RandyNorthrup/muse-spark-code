@@ -7237,6 +7237,7 @@
   "makerStopFailed": "停止に失敗しました — 今すぐ機械 {machine} の物理的な非常停止装置を使用してください。",
   "makerStopPhysicalRequired": "機械 {machine} は物理的な非常停止が必要です。ソフトウェアによる停止は利用できません。",
   "makerTrustRequired": "ハードウェアを有効にする前に、このワークスペースを信頼してください。",
+  "makerSerialPythonMissing": "シリアルアクセスには pyserial パッケージ付きの Python 3 (python3) が必要ですが、このワークスペースの外にある PATH 上に python3 が見つかりませんでした。Python 3 をインストールし、「python3 -m pip install pyserial」を実行してから、もう一度お試しください。",
   "makerEnableHardware": "このワークスペースでハードウェアを有効にする",
   "makerCliUsage": "ターミナルからのメーカーハードウェア: ワークスペースのハードウェアを有効化または無効化し、マシンを登録・一覧表示し、マシンを停止するか、メーカーパネルを開きます。machines add は --registration と、--key-stdin 指定時は標準入力からマシンキーを読み取ります。物理的な操作ではオペレーティングシステムへのサインインを求め、無人では決して実行しません。",
   "makerDisableHardware": "このワークスペースでハードウェアを無効にする",

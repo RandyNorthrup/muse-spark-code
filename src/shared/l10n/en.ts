@@ -9434,6 +9434,9 @@ export const EN = {
 
   makerTrustRequired: 'Trust this workspace before enabling hardware.',
 
+  makerSerialPythonMissing:
+    'Serial access needs Python 3 (python3) with the pyserial package, and no python3 was found on your PATH outside this workspace. Install Python 3 and run “python3 -m pip install pyserial”, then try again.',
+
   makerEnableHardware: 'Enable hardware for this workspace',
   makerCliUsage:
     'Maker hardware from the terminal: enable or disable hardware for a workspace, register and list machines, stop a machine, or open the maker panel. Machines add reads --registration and, with --key-stdin, the machine key from standard input. Physical actions ask for your operating-system sign-in and never run unattended.',
