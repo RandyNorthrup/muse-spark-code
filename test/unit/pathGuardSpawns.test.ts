@@ -109,9 +109,9 @@ const KNOWN: Record<string, KnownSpawn> = {
   },
   'src/host/playbook/containedJob.ts': {
     kind: 'reviewed',
-    anchor: 'windowsPowerShell',
+    anchor: 'windowsJobHost',
     reason:
-      "the C# helper starts and jobs end by name through the absolute System32 powershell only (windowsPowerShell: guarded, credential-free, 5.1's own module path), no shell, hidden window, ignored stdio",
+      'the C# helper serves and jobs end by name through the packaged, digest-named job helper by absolute path only (windowsJobHost: SystemRoot-only guarded env), fixed arguments, no shell, hidden window, ignored stdio',
   },
   'src/runtime/converterTrust.ts': {
     kind: 'reviewed',
@@ -217,7 +217,7 @@ const KNOWN_WRAPPER: Record<string, KnownSpawn> = {
     kind: 'reviewed',
     anchor: 'scrubWorkerEnv',
     reason:
-      "the worker file helper by absolute path only (the packaged native helper, or the system root's PowerShell 5.1 with windowsPowerShellEnvironment), the scrubbed worker env, through the governed contained launcher (M96)",
+      'the worker file helper by absolute path only (the packaged native helper, or the packaged job helper through windowsJobHost, guarded against the working copy it acts in), the scrubbed worker env, through the governed contained launcher (M96)',
   },
   'src/host/team/windowHints.ts': {
     kind: 'reviewed',
@@ -231,9 +231,9 @@ const KNOWN_WRAPPER: Record<string, KnownSpawn> = {
   },
   'src/host/playbook/playbookWindow.ts': {
     kind: 'reviewed',
-    anchor: 'windowsPowerShell',
+    anchor: 'windowsJobHost',
     reason:
-      "a job left by a stopped worker ends by name through the absolute System32 powershell only (windowsPowerShell: guarded, credential-free, 5.1's own module path) with the branded child env, no shell",
+      'a job left by a stopped worker ends by name through the packaged, digest-named job helper by absolute path only (windowsJobHost: SystemRoot-only guarded env) with the branded child env, no shell',
   },
   'src/runtime/tokenFile.ts': {
     kind: 'reviewed',

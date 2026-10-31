@@ -2,8 +2,9 @@
 // D96.15 and §9 FIXM116P3-Windows-job-binding). The policy is synchronous and
 // asks for each call's whole tree to have ended before the call returns.
 //
-// One helper process serves one decision. It joins a fresh named job (the
-// shipped MuseSparkJob type), so everything a call starts belongs to that job
+// One helper process serves one decision: the shipped job helper run as a
+// program of its own (MuseSparkJobHost's `contained`, no PowerShell start).
+// It joins a fresh named job, so everything a call starts belongs to that job
 // from its creation. After each call it ends every other member of the job,
 // each checked by its start identity, and answers only once it is the job's
 // only member; a tree it cannot end within the bound fails the call and ends
@@ -33,157 +34,46 @@ import {
   GIT_TIMEOUT_MS,
   PLAYBOOK_JOB_CONNECT_MS,
   PLAYBOOK_JOB_CONNECT_POLL_MS,
-  PLAYBOOK_JOB_ENVIRONMENT,
   PLAYBOOK_JOB_FLAGS,
   PLAYBOOK_JOB_FRAME_HEADER_BYTES,
   PLAYBOOK_JOB_IDLE_MS,
-  PLAYBOOK_JOB_KILL_ON_CLOSE,
   PLAYBOOK_JOB_NAME_PREFIX,
   PLAYBOOK_JOB_PIPE_PREFIX,
   PLAYBOOK_JOB_PIPE_ROOT,
   PLAYBOOK_JOB_SWEEP_MS,
   POSIX_TREE_EXIT_POLL_MS,
-  SHELL_JOB_TYPE_NAME,
-  WINDOWS_POWERSHELL_COMMAND_ARGS,
 } from '../../shared/constants'
 import type { PlaybookHookEffect } from '../../core/orchestration/playbook/outcomes'
-import { powerShellQuoted } from '../../core/shellQuote'
-import { loadJobAssembly } from '../processTree'
-import { windowsPowerShell } from '../../core/execGuard'
+import { windowsJobHost } from '../../core/execGuard'
 
-const ENV = PLAYBOOK_JOB_ENVIRONMENT
 const FLAGS = PLAYBOOK_JOB_FLAGS
-const LIMIT = PLAYBOOK_JOB_KILL_ON_CLOSE
-const MARSHAL = '[Runtime.InteropServices.Marshal]'
 const NEWLINE = 10
 const SEPARATOR = '\n'
 
 /**
-The helper's script. It names no cmdlet outside the engine's own (module
-auto-loading can take a minute without an analysis cache, M51), and every
-value it is given arrives in its environment or over the pipe, never in
-its text.
+The job helper's arguments to serve one decision (MuseSparkJobHost's
+`contained` in native/windows/MuseSparkJob.cs): the job's name, the pipe's,
+and the bounds it serves by. Every value a call needs arrives over the pipe.
 */
-export function containedJobScript(): string {
-  const job = SHELL_JOB_TYPE_NAME
+function serveArgs(name: string, pipe: string): readonly string[] {
   return [
-    "$ErrorActionPreference = 'Stop'",
-    `$j = $env:${ENV.job}`,
-    'try {',
-    `  [void][Reflection.Assembly]::LoadFrom($env:${ENV.assembly})`,
-    `  [${job}]::Join($j)`,
-    // Kill-on-close, on the one handle to the job, which this process holds: the
-    // job cannot outlive it. Set through the loaded type's own Win32 binding;
-    // a type without it fails here, before any pipe exists to serve a call on.
-    '  $own = [Reflection.BindingFlags]::NonPublic -bor [Reflection.BindingFlags]::Static',
-    `  $held = [${job}].GetField('held', $own).GetValue($null)`,
-    `  $size = ${String(LIMIT.bytes32)}; if ([IntPtr]::Size -eq 8) { $size = ${String(LIMIT.bytes64)} }`,
-    `  $info = ${MARSHAL}::AllocHGlobal($size)`,
-    `  for ($i = 0; $i -lt $size; $i++) { ${MARSHAL}::WriteByte($info, $i, 0) }`,
-    `  ${MARSHAL}::WriteInt32($info, ${String(LIMIT.flagOffset)}, ${String(LIMIT.flag)})`,
-    `  $set = [${job}].GetMethod('SetInformationJobObject', $own, $null, [Type[]]@([IntPtr], [int], [IntPtr], [uint32]), $null)`,
-    `  if (-not $set.Invoke($null, [object[]]@($held, ${String(LIMIT.informationClass)}, $info, [uint32]$size))) { throw 'limit' }`,
-    `  ${MARSHAL}::FreeHGlobal($info)`,
-    '  $self = [uint32][Diagnostics.Process]::GetCurrentProcess().Id',
-    `  $idle = [int]$env:${ENV.idleMs}; $sweepMs = [int]$env:${ENV.sweepMs}`,
-    `  $pipe = [IO.Pipes.NamedPipeServerStream]::new($env:${ENV.pipe}, [IO.Pipes.PipeDirection]::InOut, 1, [IO.Pipes.PipeTransmissionMode]::Byte, [IO.Pipes.PipeOptions]::Asynchronous)`,
-    ...Object.values(ENV).map((name) => `  $env:${name} = $null`),
-    '  $wait = $pipe.BeginWaitForConnection($null, $null)',
-    "  if (-not $wait.AsyncWaitHandle.WaitOne($idle)) { throw 'no caller' }",
-    '  $pipe.EndWaitForConnection($wait)',
-    '  $utf8 = [Text.UTF8Encoding]::new($false)',
-    '  $exact = {',
-    '    param([int]$count)',
-    '    $buffer = [byte[]]::new($count); $done = 0',
-    '    while ($done -lt $count) {',
-    '      $task = $pipe.ReadAsync($buffer, $done, $count - $done)',
-    "      if (-not $task.Wait($idle)) { throw 'idle' }",
-    '      if ($task.Result -le 0) { return $null }',
-    '      $done += $task.Result',
-    '    }',
-    '    return ,$buffer',
-    '  }',
-    '  $text = { param([string]$value) $utf8.GetString([Convert]::FromBase64String($value)) }',
-    '  while ($true) {',
-    `    $head = & $exact ${String(PLAYBOOK_JOB_FRAME_HEADER_BYTES)}`,
-    '    if ($null -eq $head) { break }',
-    '    $body = & $exact ([BitConverter]::ToInt32($head, 0))',
-    '    if ($null -eq $body) { break }',
-    `    $lines = $utf8.GetString($body).Split([char]${String(NEWLINE)})`,
-    '    $psi = [Diagnostics.ProcessStartInfo]::new()',
-    '    $psi.FileName = & $text $lines[0]',
-    '    $psi.Arguments = & $text $lines[1]',
-    '    $psi.WorkingDirectory = & $text $lines[2]',
-    '    $limit = [int]$lines[3]; $max = [long]$lines[4]',
-    '    $psi.UseShellExecute = $false; $psi.CreateNoWindow = $true',
-    '    $psi.RedirectStandardOutput = $true; $psi.RedirectStandardError = $true; $psi.RedirectStandardInput = $true',
-    '    $psi.Environment.Clear()',
-    '    for ($i = 5; $i -lt $lines.Length; $i++) {',
-    '      if ($lines[$i].Length -eq 0) { continue }',
-    "      $pair = & $text $lines[$i]; $cut = $pair.IndexOf('=', 1)",
-    '      $psi.Environment[$pair.Substring(0, $cut)] = $pair.Substring($cut + 1)',
-    '    }',
-    '    $flags = 0; $status = -1',
-    '    $out = [IO.MemoryStream]::new(); $err = [IO.MemoryStream]::new()',
-    '    $copies = @()',
-    '    try {',
-    '      $process = [Diagnostics.Process]::Start($psi)',
-    '      $process.StandardInput.Close()',
-    '      $copies = @($process.StandardOutput.BaseStream.CopyToAsync($out), $process.StandardError.BaseStream.CopyToAsync($err))',
-    '      $clock = [Diagnostics.Stopwatch]::StartNew()',
-    `      while (-not $process.WaitForExit(${String(POSIX_TREE_EXIT_POLL_MS)})) {`,
-    `        if ($clock.ElapsedMilliseconds -ge $limit) { $flags = $flags -bor ${String(FLAGS.timedOut)}; break }`,
-    `        if ($out.Length -gt $max -or $err.Length -gt $max) { $flags = $flags -bor ${String(FLAGS.overflowed)}; break }`,
-    '      }',
-    '      if ($flags -eq 0) { $process.WaitForExit(); $status = $process.ExitCode }',
-    `    } catch { $flags = $flags -bor ${String(FLAGS.unstarted)} }`,
-    '    $sweep = [Diagnostics.Stopwatch]::StartNew()',
-    '    while ($true) {',
-    '      $others = 0',
-    String.raw`      foreach ($member in [regex]::Matches([${job}]::Query($j), '\{"pid":(\d+),"startTime":"(\d+)"\}')) {`,
-    '        $id = [uint32]$member.Groups[1].Value',
-    '        if ($id -eq $self) { continue }',
-    '        $others++',
-    `        [void][${job}]::Signal($j, $id, $member.Groups[2].Value, $true)`,
-    '      }',
-    '      if ($others -eq 0) { break }',
-    `      if ($sweep.ElapsedMilliseconds -ge $sweepMs) { $flags = $flags -bor ${String(FLAGS.uncertain)}; break }`,
-    `      [Threading.Thread]::Sleep(${String(PLAYBOOK_JOB_CONNECT_POLL_MS)})`,
-    '    }',
-    `    foreach ($copy in $copies) { if (-not $copy.Wait($sweepMs)) { $flags = $flags -bor ${String(FLAGS.uncertain)} } }`,
-    `    if ($out.Length -gt $max -or $err.Length -gt $max) { $flags = $flags -bor ${String(FLAGS.overflowed)} }`,
-    '    [byte[]]$outBytes = [byte[]]::new(0); [byte[]]$errBytes = [byte[]]::new(0)',
-    `    if (($flags -band ${String(FLAGS.overflowed)}) -eq 0) { $outBytes = $out.ToArray(); $errBytes = $err.ToArray() }`,
-    `    $header = $utf8.GetBytes("$status $flags $($outBytes.Length) $($errBytes.Length)" + [char]${String(NEWLINE)})`,
-    '    $pipe.Write($header, 0, $header.Length)',
-    '    $pipe.Write($outBytes, 0, $outBytes.Length)',
-    '    $pipe.Write($errBytes, 0, $errBytes.Length)',
-    '    $pipe.Flush()',
-    `    if (($flags -band ${String(FLAGS.uncertain)}) -ne 0) { break }`,
-    '  }',
-    '} catch { }',
-    `[void][${job}]::Terminate($j, 0)`,
-  ].join(SEPARATOR)
+    'contained',
+    name,
+    pipe,
+    String(PLAYBOOK_JOB_IDLE_MS),
+    String(PLAYBOOK_JOB_SWEEP_MS),
+    String(POSIX_TREE_EXIT_POLL_MS),
+    String(PLAYBOOK_JOB_CONNECT_POLL_MS),
+  ]
 }
 
 /**
-Ends a job by its name and exits 0 only once it has no member left (or no
-longer exists). For a job whose helper cannot be asked any more.
+The job helper's arguments to end a job by its name (`end-job`): it exits 0
+only once the job has no member left, or no longer exists. For a job whose
+helper cannot be asked any more.
 */
-export function endJobScript(assemblyPath: string, name: string): string {
-  const job = `[${SHELL_JOB_TYPE_NAME}]`
-  const quoted = powerShellQuoted(name)
-  return [
-    "$ErrorActionPreference = 'Stop'",
-    loadJobAssembly(assemblyPath),
-    `try { [void]${job}::Terminate(${quoted}, 1) } catch { }`,
-    '$clock = [Diagnostics.Stopwatch]::StartNew()',
-    `while (${job}::Query(${quoted}) -match '"pid":') {`,
-    `  if ($clock.ElapsedMilliseconds -ge ${String(PLAYBOOK_JOB_SWEEP_MS)}) { exit 1 }`,
-    `  [Threading.Thread]::Sleep(${String(PLAYBOOK_JOB_CONNECT_POLL_MS)})`,
-    '}',
-    'exit 0',
-  ].join(SEPARATOR)
+export function endJobArgs(name: string): readonly string[] {
+  return ['end-job', name, String(PLAYBOOK_JOB_SWEEP_MS), String(PLAYBOOK_JOB_CONNECT_POLL_MS)]
 }
 
 /** One argument as the Microsoft C runtime (and git) reads a command line. */
@@ -211,7 +101,7 @@ export type StartContainedHelper = (
 ) => { readonly pid?: number | undefined; unref(): void }
 
 export interface ContainedJobDeps {
-  /** The compiled MuseSparkJob assembly (`shellJob.ts`), prepared by the window. */
+  /** The compiled job helper (`shellJob.ts`), prepared by the window: an absolute path. */
   readonly assemblyPath: string
   readonly systemRoot: string
   /**
@@ -224,13 +114,11 @@ export interface ContainedJobDeps {
   readonly start?: StartContainedHelper
   /**
   Ends a job by name; true only when it was seen empty or gone. A test
-  stands in its own; by default a Windows PowerShell runs `endJobScript`.
+  stands in its own; by default the job helper's `end-job` runs.
   */
   readonly end?: (name: string) => boolean
   /** How long a live helper may take to serve its pipe; a test shortens it. */
   readonly connectMs?: number
-  /** The base environment the helper itself runs in (credentials are scrubbed). */
-  readonly env?: NodeJS.ProcessEnv
 }
 
 interface Session {
@@ -239,8 +127,14 @@ interface Session {
   readonly pid: number | undefined
 }
 
-const startHelper: StartContainedHelper = (file, args, env) =>
-  spawnProcess(file, [...args], { env, stdio: 'ignore', windowsHide: true })
+const startHelper: StartContainedHelper = (file, args, env) => {
+  const helper = spawnProcess(file, [...args], { env, stdio: 'ignore', windowsHide: true })
+  helper.once('error', () => {
+    // A helper that could not start has no process: the open below sees no
+    // pipe and no process, and fails the call closed.
+  })
+  return helper
+}
 
 function pause(ms: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT)), 0, 0, ms)
@@ -332,12 +226,13 @@ export class ContainedJob {
   /** Ends a job by name and says whether its end was seen. */
   private endByName(name: string): boolean {
     if (this.deps.end !== undefined) return this.deps.end(name)
-    const powershell = windowsPowerShell(this.deps.systemRoot, this.deps.env)
-    const ended = spawnSync(
-      powershell.file,
-      [...WINDOWS_POWERSHELL_COMMAND_ARGS, endJobScript(this.deps.assemblyPath, name)],
-      { env: powershell.env, stdio: 'ignore', windowsHide: true, timeout: PLAYBOOK_JOB_CONNECT_MS },
-    )
+    const host = windowsJobHost(this.deps.assemblyPath, this.deps.systemRoot)
+    const ended = spawnSync(host.file, [...endJobArgs(name)], {
+      env: host.env,
+      stdio: 'ignore',
+      windowsHide: true,
+      timeout: PLAYBOOK_JOB_CONNECT_MS,
+    })
     return ended.status === 0
   }
 
@@ -366,21 +261,19 @@ export class ContainedJob {
     const id = randomUUID()
     const name = `${PLAYBOOK_JOB_NAME_PREFIX}${id}`
     const pipe = `${PLAYBOOK_JOB_PIPE_PREFIX}${id}`
-    const powershell = windowsPowerShell(this.deps.systemRoot, this.deps.env)
+    const host = windowsJobHost(this.deps.assemblyPath, this.deps.systemRoot)
     this.unended.add(name)
     this.publish()
-    const helper = (this.deps.start ?? startHelper)(
-      powershell.file,
-      [...WINDOWS_POWERSHELL_COMMAND_ARGS, containedJobScript()],
-      {
-        ...powershell.env,
-        [ENV.job]: name,
-        [ENV.assembly]: this.deps.assemblyPath,
-        [ENV.pipe]: pipe,
-        [ENV.idleMs]: String(PLAYBOOK_JOB_IDLE_MS),
-        [ENV.sweepMs]: String(PLAYBOOK_JOB_SWEEP_MS),
-      },
-    )
+    let helper: ReturnType<StartContainedHelper>
+    try {
+      helper = (this.deps.start ?? startHelper)(host.file, serveArgs(name, pipe), host.env)
+    } catch (error: unknown) {
+      // The system refused to start the helper at all (a file that is not a
+      // program): no process ever existed, so no job did, and its name goes.
+      this.unended.delete(name)
+      this.publish()
+      throw error
+    }
     helper.unref()
     const deadline = Date.now() + (this.deps.connectMs ?? PLAYBOOK_JOB_CONNECT_MS)
     for (;;) {
