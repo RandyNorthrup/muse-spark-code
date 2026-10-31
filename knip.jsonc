@@ -694,8 +694,11 @@
   // through @types/vscode. @vscode/test-electron is imported by
   // scripts/capture-themes.mjs (M37), so knip sees it. axe-core is loaded by
   // the harness page with a <script src> (test/harness/index.html, M37), which
-  // knip does not read, so its use is invisible to it.
-  "ignoreDependencies": ["axe-core"],
+  // knip does not read, so its use is invisible to it. electron is the M111
+  // QA fixture's own devDependency (test/desktop/harness/electron-fixture/
+  // package.json), installed in that folder by the desktop workflow; the
+  // root package never depends on it, so knip cannot list it.
+  "ignoreDependencies": ["axe-core", "electron"],
 
   // gitleaks (winget/brew) is a system binary, not an npm package: the
   // pre-commit hook and security:secrets call it. semgrep (pip) is started by

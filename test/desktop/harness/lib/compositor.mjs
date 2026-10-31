@@ -131,8 +131,14 @@ export async function startCompositorSession({
   delete env.HYPRLAND_INSTANCE_SIGNATURE
   env.XDG_RUNTIME_DIR = runtimeDir
   env.HOME = homeDir
-  env.LIBGL_ALWAYS_SOFTWARE = '1'
-  env.GALLIUM_DRIVER = 'llvmpipe'
+  // Software rendering by default, but a caller that sets either
+  // variable (to '' to clear it) wins: on a virtio-gpu KMS device,
+  // forcing llvmpipe breaks aquamarine's EGL-device matching, and the
+  // right driver there is Mesa's own kms_swrast choice.
+  env.LIBGL_ALWAYS_SOFTWARE = parentEnv.LIBGL_ALWAYS_SOFTWARE ?? '1'
+  env.GALLIUM_DRIVER = parentEnv.GALLIUM_DRIVER ?? 'llvmpipe'
+  if (env.LIBGL_ALWAYS_SOFTWARE === '') delete env.LIBGL_ALWAYS_SOFTWARE
+  if (env.GALLIUM_DRIVER === '') delete env.GALLIUM_DRIVER
   env.HYPRLAND_NO_CRASHREPORTER = '1'
   env.HYPRLAND_NO_SD_VARS = '1'
   if (nestDisplay === undefined) {
@@ -164,6 +170,27 @@ export async function startCompositorSession({
   const fail = async (error) => {
     try {
       await stopProcessGroup(child)
+      // Hyprland's own per-instance log file is unbuffered where its
+      // stdout pipe is not; keep it beside the piped log before the
+      // runtime directory goes away.
+      const instanceRoot = path.join(runtimeDir, 'hypr')
+      let instanceNames = []
+      try {
+        instanceNames = await readdir(instanceRoot)
+      } catch {
+        // No instance directory was created; there is no log to keep.
+      }
+      for (const name of instanceNames) {
+        let instanceLog = ''
+        try {
+          instanceLog = await readFile(path.join(instanceRoot, name, 'hyprland.log'), 'utf8')
+        } catch {
+          // This instance wrote no log file; keep looking at the rest.
+        }
+        if (instanceLog !== '') {
+          await writeFile(path.join(workDir, 'hyprland-instance.log'), instanceLog)
+        }
+      }
       await rm(runtimeDir, { recursive: true, force: true })
     } catch {
       // Already failing with the startup error; the log tail below says more.
@@ -227,15 +254,26 @@ export async function startCompositorSession({
     }
     await waitFor(
       async () => {
-        const monitors = await session.monitors()
-        return outputs.every((output) =>
-          monitors.some(
-            (monitor) =>
-              monitor.name === output.name &&
-              monitor.width === output.width &&
-              monitor.height === output.height,
-          ),
-        )
+        if (exitInfo !== undefined) {
+          throw new Error(
+            `Hyprland exited during startup (code ${String(exitInfo.code)}, signal ${String(exitInfo.signal)})`,
+          )
+        }
+        try {
+          const monitors = await session.monitors()
+          return outputs.every((output) =>
+            monitors.some(
+              (monitor) =>
+                monitor.name === output.name &&
+                monitor.width === output.width &&
+                monitor.height === output.height,
+            ),
+          )
+        } catch {
+          // IPC can drop a reply while outputs come and go; only the
+          // deadline (or the process exiting above) ends the wait.
+          return false
+        }
       },
       { timeoutMs: readyTimeoutMs, description: 'the headless outputs at their sizes' },
     )

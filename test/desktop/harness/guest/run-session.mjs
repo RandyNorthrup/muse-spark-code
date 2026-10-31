@@ -35,7 +35,11 @@ async function announce(line) {
 try {
   const session = await startCompositorSession({
     workDir: path.join(outDir, 'state'),
-    readyTimeoutMs: 120_000,
+    // Emulated CPUs start compositors slowly; this bounds a hang, not work.
+    readyTimeoutMs: 300_000,
+    // The guest's virtio-gpu is a KMS device: Mesa's kms_swrast is the
+    // software renderer aquamarine can match to it (see compositor.mjs).
+    env: { ...process.env, LIBGL_ALWAYS_SOFTWARE: '', GALLIUM_DRIVER: '' },
   })
   try {
     const monitors = await session.monitors()
