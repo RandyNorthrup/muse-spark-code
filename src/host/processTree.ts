@@ -59,12 +59,15 @@ one), so a raw `process.env` does not type-check here. `timeoutMs` is the
 caller's own deadline; without one the program runs until it exits (no
 deadline of ours: Windows PowerShell's first start on a slow machine can
 take longer than any bound, and killing it failed the work it served).
+`cwd` is the working folder, this process's when absent (the job helper is
+given its own, `windowsJobHost`).
 */
 export type RunProgram = (
   file: string,
   args: readonly string[],
   env: GuardedChildEnv,
   timeoutMs?: number,
+  cwd?: string,
 ) => Promise<string>
 
 export interface ProcessTreeDeps {
@@ -99,7 +102,7 @@ export function treeSpawnOptions(platform: NodeJS.Platform): { readonly detached
   return { detached: platform !== 'win32' }
 }
 
-export const runProgram: RunProgram = (file, args, env, timeoutMs) =>
+export const runProgram: RunProgram = (file, args, env, timeoutMs, cwd) =>
   new Promise((resolve, reject) => {
     execFile(
       file,
@@ -107,6 +110,7 @@ export const runProgram: RunProgram = (file, args, env, timeoutMs) =>
       {
         windowsHide: true,
         ...(timeoutMs !== undefined && { timeout: timeoutMs }),
+        ...(cwd !== undefined && { cwd }),
         env: withoutCredentials(env),
       },
       (error, stdout) => {
@@ -346,6 +350,8 @@ async function didTerminateJob(
       host.file,
       ['terminate', job.name, String(KILLED_EXIT_CODE)],
       host.env,
+      undefined,
+      host.cwd,
     )
     const answer = output.trim()
     if (answer === TERMINATED) {

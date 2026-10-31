@@ -1022,16 +1022,24 @@ the same file as the type a command joins its job with; a call that only
 needs the type costs one native start (about 40 ms) where a Windows
 PowerShell start costs 200 ms and more, seconds on a busy machine. The helper
 is a digest-named file the build put in the extension's storage: the path
-must be absolute. The environment given is `SystemRoot` and the guard's
-`NoDefaultCurrentDirectoryInExePath=1`: no credential, no module path. Node's
-process start on Windows (libuv) then copies, from this process, each of
-`HOMEDRIVE`, `HOMEPATH`, `LOGONSERVER`, `PATH`, `SYSTEMDRIVE`, `TEMP`,
-`USERDOMAIN`, `USERNAME`, `USERPROFILE` and `WINDIR` that this process has:
-it adds them to any environment that lacks them, and a variable can be
-emptied but not left out. None is a credential. `PATH` is this process's
-whole PATH, which is why a program the helper starts for a caller is named
-by its absolute path (the playbook's git is `processGitPath`'s);
-test/unit/jobHostNative.test.ts reads the set back.
+must be absolute.
+
+The environment given is `SystemRoot`, the guard's
+`NoDefaultCurrentDirectoryInExePath=1` and `PATH` present and empty: no
+credential, no module path, no folder to look a name up in. Node's process
+start on Windows (libuv) copies, from this process, each of `HOMEDRIVE`,
+`HOMEPATH`, `LOGONSERVER`, `PATH`, `SYSTEMDRIVE`, `TEMP`, `USERDOMAIN`,
+`USERNAME`, `USERPROFILE` and `WINDIR` that the given environment lacks: a
+variable can be emptied but not left out, so `PATH` is given empty and
+arrives empty, and the other nine arrive with this process's values (none is
+a credential). The working folder is the helper's own folder (`cwd`, which
+every caller passes), never this process's or the workspace: whatever the
+payload works in reaches the helper as an argument. So neither Windows'
+program lookup nor its DLL search (CreateProcess and the loader both read the
+current folder and `PATH`) can reach a folder anyone but the product writes;
+the helper itself starts only fully qualified programs and restricts its own
+later DLL loads to its folder and System32 (MuseSparkJob.cs).
+test/unit/jobHostNative.test.ts reads the set and the folder back.
 */
 export function windowsJobHost(
   assemblyPath: string,
@@ -1039,11 +1047,15 @@ export function windowsJobHost(
 ): {
   readonly file: string
   readonly env: GuardedChildEnv
+  readonly cwd: string
 } {
   if (!path.win32.isAbsolute(assemblyPath) || !path.win32.isAbsolute(systemRoot))
     throw new Error('Resource helper paths must be absolute')
+  const guarded = noWorkspaceChildEnvironment('win32', { SystemRoot: systemRoot }, realpathSync)
   return {
     file: assemblyPath,
-    env: noWorkspaceChildEnvironment('win32', { SystemRoot: systemRoot }, realpathSync),
+    // The guard deletes a PATH with nothing left; this one is empty on purpose.
+    env: brandGuarded({ ...guarded, PATH: '' }),
+    cwd: path.win32.dirname(assemblyPath),
   }
 }

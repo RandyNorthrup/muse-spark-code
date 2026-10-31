@@ -187,7 +187,7 @@ interface DispatchHandlers {
 /** Ends a job by name through the job helper; rejects unless it was seen empty or gone. */
 async function endJobByName(name: string, assembly: string, systemRoot: string): Promise<void> {
   const host = windowsJobHost(assembly, systemRoot)
-  await runProgram(host.file, endJobArgs(name), host.env)
+  await runProgram(host.file, endJobArgs(name), host.env, undefined, host.cwd)
 }
 
 /** Whether a failed look at a folder says the folder is not there, and nothing else. */

@@ -25,7 +25,7 @@ import {
   type TeamProcessDriver,
 } from '../../src/host/team/processLifetime'
 import { readJobSource } from './helpers/jobSource'
-import { expectEnded, isRunning, markedPid } from './helpers/processes'
+import { expectEnded, isRunning, killLaunched, markedPid } from './helpers/processes'
 import { buildShellJobHelper } from './helpers/shellJobBuild'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -114,12 +114,7 @@ describe.runIf(process.platform === 'win32')('a team worker launch on Windows', 
   afterEach(async () => {
     // Nothing a case started outlives it: a helper still there is killed,
     // and its kill-on-close job takes the rest.
-    for (const launch of launched.splice(0)) {
-      if (launch.child.exitCode !== null || launch.child.signalCode !== null) continue
-      const closed = new Promise((resolve) => launch.child.once('close', resolve))
-      launch.child.kill()
-      await closed
-    }
+    await killLaunched(launched)
   })
 
   afterAll(async () => {

@@ -5,7 +5,8 @@
 // workers' file commands and their process launches, the playbook's contained
 // job, the legacy shell stop) runs it as the program MuseSparkJobHost at the
 // end, starting no PowerShell. The class name is SHELL_JOB_TYPE_NAME in src/shared/constants.ts;
-// test/unit/jobSource.test.ts holds them together.
+// test/unit/jobHostNative.test.ts holds them together (it calls the type by
+// that name in Windows PowerShell, as the shell tool's commands do).
 // C# 5, which the .NET Framework compiler compiles. The shell keeps its
 // handle for its whole life: a job's name lasts as long as a handle to it,
 // and the Stop opens the job by that name.
@@ -21,6 +22,12 @@ using System.Security.Cryptography;
 using System.Security.Principal;
 using System.Text.RegularExpressions;
 using Microsoft.Win32.SafeHandles;
+// Every platform invoke in this file and in the shared half loads its DLL
+// from System32 alone (LoadLibraryEx with LOAD_LIBRARY_SEARCH_SYSTEM32),
+// never from the working folder or PATH, whether the shell tool's PowerShell
+// loads the type or MuseSparkJobHost runs it. Microsoft Learn,
+// DefaultDllImportSearchPathsAttribute.
+[assembly: DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
 public static class MuseSparkJob {
   [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
   static extern IntPtr CreateJobObjectW(IntPtr attributes, string name);
@@ -483,6 +490,21 @@ public static class MuseSparkJob {
     }
   }
 
+  /**
+  A drive-absolute (`C:\...`) or UNC (`\\server\share\...`) path: never a
+  bare name, a relative or a drive-relative path, which Windows would
+  complete from a search path or from this helper's working folder. Every
+  program this helper starts, and the folder it starts it in, is one; any
+  other is refused before anything starts.
+  */
+  internal static bool IsFullyQualified(string path) {
+    if (String.IsNullOrEmpty(path) || path.Length < 3) return false;
+    char first = path[0];
+    bool separated = path[2] == '\\' || path[2] == '/';
+    if (path[1] == ':') return separated && ((first >= 'A' && first <= 'Z') || (first >= 'a' && first <= 'z'));
+    return (first == '\\' || first == '/') && (path[1] == '\\' || path[1] == '/');
+  }
+
   // The playbook's contained job (M116, PLAN.md D96.15 and section 9
   // FIXM116P3-Windows-job-binding; src/host/playbook/containedJob.ts). One
   // helper serves one decision: it joins a fresh named job, so everything a
@@ -564,6 +586,9 @@ public static class MuseSparkJob {
     System.Diagnostics.Process process = null;
     try {
       try {
+        // Never a name for Windows to look up, nor a folder relative to this one.
+        if (!IsFullyQualified(start.FileName) || !IsFullyQualified(start.WorkingDirectory))
+          throw new ArgumentException("program");
         process = System.Diagnostics.Process.Start(start);
         process.StandardInput.Close();
         streams.Add(new ContainedStream(process.StandardOutput.BaseStream, max));
@@ -661,6 +686,9 @@ public static class MuseSparkJob {
   public static int RunTeam(string executable, string[] arguments, string cwd,
     uint parentPid, string[] environment, string ownerPipe, string nonce,
     string statusPipe, string jobName, bool belowNormal, bool verbatimArguments) {
+    // `lpApplicationName` and `lpCurrentDirectory` exactly as given: a name
+    // or a relative path is refused before any job exists.
+    if (!IsFullyQualified(executable) || !IsFullyQualified(cwd)) throw new ArgumentException("executable");
     IntPtr job = CreateJobObjectW(IntPtr.Zero, jobName);
     if (job == IntPtr.Zero) throw new Win32Exception();
     IntPtr limitsBuffer = IntPtr.Zero;
@@ -1151,9 +1179,29 @@ tool's commands, which run in PowerShell, join their job with it) and this
 program. Every answer is the text the matching PowerShell call printed; a call
 that fails prints nothing and exits 1, as the scripts' `catch { exit 1 }` did.
 The worker file commands keep their own failure lines (`Worker` below).
+
+It starts in its own folder with PATH empty (`windowsJobHost`), so the
+loader's search for the DLLs it needs while it starts reaches no folder but
+its own and the system's. Its first act restricts every later DLL load in the
+process to its own folder and System32 (`RestrictDllSearch`): no working
+folder, no PATH, whatever a caller gave it.
 */
 public static class MuseSparkJobHost {
   static readonly System.Globalization.CultureInfo Invariant = System.Globalization.CultureInfo.InvariantCulture;
+  // LOAD_LIBRARY_SEARCH_APPLICATION_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32
+  // (Microsoft Learn: SetDefaultDllDirectories; Dynamic-link library search order).
+  const uint DllSearchApplicationAndSystem32 = 0x00000200 | 0x00000800;
+  [DllImport("kernel32.dll", SetLastError = true)]
+  static extern bool SetDefaultDllDirectories(uint directoryFlags);
+  /**
+  The process DLL search path, for the life of this process: a library
+  loaded without a full path, or a dependency of one, is looked for in this
+  program's folder and in System32 alone. A system that refuses fails the
+  call closed.
+  */
+  static void RestrictDllSearch() {
+    if (!SetDefaultDllDirectories(DllSearchApplicationAndSystem32)) throw new Win32Exception();
+  }
   // WORKER_REFUSAL_PREFIX and WORKER_HELPER_FAILED_PREFIX in
   // src/core/team/workers/workerOps.ts.
   const string WorkerRefused = "worker file helper refused: ";
@@ -1221,6 +1269,7 @@ public static class MuseSparkJobHost {
   */
   static int Worker(string[] args) {
     try {
+      RestrictDllSearch();
       if (args.Length < 2 || !args[1].StartsWith("worker-", StringComparison.Ordinal))
         throw new ArgumentException("operation");
       Console.Out.WriteLine(MuseSparkCreated.Execute(Rest(args)));
@@ -1249,6 +1298,7 @@ public static class MuseSparkJobHost {
   */
   static int Team(string[] args) {
     try {
+      RestrictDllSearch();
       if (args.Length < TeamFixedArguments) throw new ArgumentException("arguments");
       int count = int.Parse(args[TeamFixedArguments - 1], System.Globalization.NumberStyles.None, Invariant);
       if (count > args.Length - TeamFixedArguments) throw new ArgumentException("arguments");
@@ -1266,6 +1316,7 @@ public static class MuseSparkJobHost {
     if (args.Length > 0 && args[0] == "worker") return Worker(args);
     if (args.Length > 0 && args[0] == "run-team") return Team(args);
     try {
+      RestrictDllSearch();
       if (args.Length == 1 && args[0] == "--self-test") {
         Console.Out.WriteLine("muse-spark-job-host-ready");
         return 0;
