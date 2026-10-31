@@ -489,6 +489,16 @@ happened, not what was planned; superseded entries are kept.
   sign-in or key and that this computer can reach the provider. Any other
   start failure now arrives as "The session could not be started (…)" with its
   fixed cause, and the Muse Spark log has the details.
+- **Three more missing helpers are said, not hidden.** On Linux, screen
+  recording used to say "xdg-desktop-portal ScreenCast" is unavailable when its
+  own helper (`muse-portal-record`) was not installed or could not run; it now
+  says the helper is missing or cannot run and to reinstall (or, in a source
+  checkout, to run `npm run build:dev`). On a Mac, the check that lets a tool
+  in a folder your own group can write be trusted (a media converter, for
+  example) used to refuse with "group/other writable ancestor" when the Mac
+  helper it asks was missing; it now says the helper is missing. The local
+  judge on a Mac whose `muse-local-judge-peer` is not built or not signed now
+  reads as an unverified local endpoint, not as an engine failure.
 - A pack index is accepted only when the signature covers those exact bytes
   and the signer is the pack workflow on `main`, exactly. A signature for a
   branch whose name merely begins with `main`, or a signed statement that

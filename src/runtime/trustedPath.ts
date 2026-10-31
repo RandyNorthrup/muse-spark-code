@@ -8,11 +8,9 @@ import { noWorkspaceChildEnvironment } from '../core/execGuard'
 import { runProgram } from '../host/processTree'
 import { withoutCredentials, withoutKeyringRoutes } from './credentialVariables'
 import { handleIdentity, lstatIdentity, sameFile } from '../core/fs/fileIdentity'
-import {
-  LSP_LIMITS,
-  WORKSPACE_IDENTITY_ZERO,
-  darwinDictationHelperSegments,
-} from '../shared/constants'
+import { LSP_LIMITS, WORKSPACE_IDENTITY_ZERO } from '../shared/constants'
+import { createdHelperFile, runNativeHelper } from '../core/nativeHelper'
+import { isNativeHelperError } from '../shared/nativeHelperError'
 import type { TrustedPathVerifier } from './trustedPathPort'
 
 /** System lookups only: never infer exclusive membership from a matching name. */
@@ -28,10 +26,12 @@ async function isUserPrivateGroup(gid: bigint, packageRoot: string): Promise<boo
   )
   try {
     if (process.platform === 'darwin') {
-      const output = await runProgram(
-        path.join(packageRoot, 'native', ...darwinDictationHelperSegments(process.arch)),
-        ['private-group', String(gid)],
-        env,
+      const helper = createdHelperFile(path.join(packageRoot, 'native'), 'darwin', process.arch)
+      if (helper === undefined) return false
+      // A helper that is not there, or that this Mac will not start, is said
+      // (below), never read as a group that is not private.
+      const output = await runNativeHelper(helper, () =>
+        runProgram(helper, ['private-group', String(gid)], env),
       )
       return z.strictObject({ private: z.boolean() }).parse(JSON.parse(output)).private
     }
@@ -89,8 +89,10 @@ async function isUserPrivateGroup(gid: bigint, packageRoot: string): Promise<boo
         return false
     }
     return true
-  } catch {
-    // Failed NSS/native lookup cannot prove exclusive membership.
+  } catch (error: unknown) {
+    // The shipped helper's own absence is the caller's to say; any other
+    // failed NSS/native lookup cannot prove exclusive membership.
+    if (isNativeHelperError(error)) throw error
     return false
   }
 }
@@ -255,6 +257,9 @@ export async function verifyTrustedExecutable(
     }
     return { ok: true, path: canonical }
   } catch (error: unknown) {
+    // The helper's sentence (what is missing, what to do) is the reason; the
+    // walk's own refusals carry theirs as the cause.
+    if (isNativeHelperError(error)) return executableRefusal(component, error.message)
     const cause = error instanceof Error && error.cause instanceof Error ? error.cause : undefined
     return executableRefusal(component, cause?.message ?? 'path or identity query failed')
   }

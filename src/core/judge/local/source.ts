@@ -8,6 +8,7 @@ import {
 } from '../../../shared/constants'
 import type { JudgeRuntime } from '../engine'
 import { redactSecrets } from '../../redact'
+import { isNativeHelperError } from '../../../shared/nativeHelperError'
 import {
   isZodParseError,
   judgeCapabilitySchema,
@@ -84,11 +85,17 @@ function isLocalTimeout(deadline: AbortSignal, error: unknown): boolean {
   return deadline.aborted || (error instanceof Error && error.message === 'local-timeout')
 }
 
-/** An untrusted peer, installation, model or changed configuration. */
+/**
+An untrusted peer, installation, model or changed configuration, or a peer
+helper that is not there or that this computer will not run (its own sentence
+is the native helper error's message; the judge's refusal vocabulary is fixed,
+so the answer is the unverified one, not an engine failure).
+*/
 function isLocalUnverified(error: unknown): boolean {
   return (
-    error instanceof Error &&
-    (error.message.startsWith('unverified-') || error.message === 'local-configuration-changed')
+    isNativeHelperError(error) ||
+    (error instanceof Error &&
+      (error.message.startsWith('unverified-') || error.message === 'local-configuration-changed'))
   )
 }
 

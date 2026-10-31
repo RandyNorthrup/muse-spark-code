@@ -9,7 +9,12 @@
 
 import { existsSync } from 'node:fs'
 import path from 'node:path'
-import { NATIVE_HELPER_BUILD, UI_TEXT, darwinDictationHelperSegments } from '../shared/constants'
+import {
+  NATIVE_HELPER_BUILD,
+  UI_TEXT,
+  darwinDictationHelperSegments,
+  type NativeHelperBuild,
+} from '../shared/constants'
 import { fill } from '../shared/l10n/text'
 import { NativeHelperError, type NativeHelperFault } from '../shared/nativeHelperError'
 import { isFilledSentence } from './filledSentence'
@@ -44,8 +49,8 @@ export function nativeHelperError(
   file: string,
   platform: NodeJS.Platform = process.platform,
   cause?: unknown,
+  build: NativeHelperBuild | undefined = NATIVE_HELPER_BUILD[platform],
 ): NativeHelperError {
-  const build = NATIVE_HELPER_BUILD[platform]
   const root = productRoot(file)
   const isSource =
     build !== undefined && root !== undefined && existsSync(`${root}/${build.script}`)
