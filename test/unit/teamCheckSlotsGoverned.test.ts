@@ -28,6 +28,8 @@ import { RESOURCE_GIB_BYTES } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import { resolveGitBinary } from './helpers/realGit'
+import { launchHostOver } from './helpers/resourceRig'
+import { manualClock } from './resourceHarness'
 import { initRigFolders } from './helpers/teamRealRig'
 import { fixtureGit } from './helpers/teamLandingFixture'
 import { fixtureGitEnvironment } from './helpers/fixtureGit'
@@ -77,18 +79,7 @@ async function throttledHost(
   errors: unknown[],
   samples: number,
 ): Promise<Governed> {
-  const timers = new Set<ReturnType<typeof setTimeout>>()
-  const clock: ResourceClock = {
-    now: () => Date.now(),
-    setTimeout: (callback, delayMs) => {
-      const timer = setTimeout(callback, delayMs)
-      timers.add(timer)
-      return () => {
-        clearTimeout(timer)
-        timers.delete(timer)
-      }
-    },
-  }
+  const { clock, clear } = manualClock()
   const events = new ResourceEvents((error) => {
     errors.push(error)
   })
@@ -106,12 +97,11 @@ async function throttledHost(
       errors.push(error)
     },
   })
-  const host = new ResourceLaunchHost({
+  const host = launchHostOver({
     governor,
     events,
     clock,
-    settings: () => settings,
-    bindTree: () => Promise.resolve(null),
+    settings,
     onError: (error) => {
       errors.push(error)
     },
@@ -122,9 +112,20 @@ async function throttledHost(
     governor,
     dispose: () => {
       host.dispose()
-      for (const timer of timers) clearTimeout(timer)
+      clear()
     },
   }
+}
+
+/** The person's disk floor sits above the free space here: the governor holds disk-heavy work. */
+async function diskHeldHost(errors: unknown[]): Promise<Governed> {
+  const stats = await statfs(process.cwd(), { bigint: true })
+  const freeGiB = Number(stats.bsize * stats.bavail) / RESOURCE_GIB_BYTES
+  return await throttledHost(
+    resourceSettingsSchema.parse({ diskMinFreeGiB: Math.ceil(freeGiB) + 10 }),
+    errors,
+    1,
+  )
 }
 
 /** A check that logs when it starts and when it ends, with a pause between. */
@@ -262,14 +263,8 @@ describe('heavy team checks under the machine governor', () => {
   it(
     'a disk hold from the person’s floor keeps a check waiting until it is lifted',
     async () => {
-      const stats = await statfs(process.cwd(), { bigint: true })
-      const freeGiB = Number(stats.bsize * stats.bavail) / RESOURCE_GIB_BYTES
       const errors: unknown[] = []
-      const governed = await throttledHost(
-        resourceSettingsSchema.parse({ diskMinFreeGiB: Math.ceil(freeGiB) + 10 }),
-        errors,
-        1,
-      )
+      const governed = await diskHeldHost(errors)
       try {
         expect(governed.governor.diskBlocked()).toBe(true)
         const log = path.join(root, 'held.log')
@@ -291,14 +286,8 @@ describe('heavy team checks under the machine governor', () => {
   it(
     'a check stopped while it waits for the governor never starts',
     async () => {
-      const stats = await statfs(process.cwd(), { bigint: true })
-      const freeGiB = Number(stats.bsize * stats.bavail) / RESOURCE_GIB_BYTES
       const errors: unknown[] = []
-      const governed = await throttledHost(
-        resourceSettingsSchema.parse({ diskMinFreeGiB: Math.ceil(freeGiB) + 10 }),
-        errors,
-        1,
-      )
+      const governed = await diskHeldHost(errors)
       try {
         const log = path.join(root, 'stopped.log')
         await appendFile(log, '')
