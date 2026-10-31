@@ -699,7 +699,8 @@ help / --help / -h: ACP / CLI. help &lt;command&gt; / &lt;command&gt; --help: Us
     "fast": "fast",
     "account": "account",
     "mode": "mode",
-    "paidAllowAlways": "paidAllowAlways"
+    "paidAllowAlways": "paidAllowAlways",
+    "team": "team"
   },
   "permissionModes": ["manual", "acceptEdits", "plan", "auto", "bypassPermissions"],
   "bypassFlag": "--allow-dangerously-skip-permissions",
@@ -4172,6 +4173,7 @@ These are defaults; editor customizations take precedence.
 - `serve: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --subscription`: --subscription Drive the Model API backend with the Muse Code subscription instead of a key (its calls count against the plan) `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --max-budget-usd <value>`: Set the spending reservation limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"decimals":6,"required":"modelApi","unit":"USD"}`
+- `serve: --team`: --team: Offer the stored team in ACP sessions: the orchestrator can delegate to its workers, and merges ask in the editor. `{"type":"boolean","repeatable":false,"default":false}`
 - `login: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"refused":true}`
 - `login: --as <value>`: --as: Provider `{"type":"string","repeatable":false,"refused":true}`
 - `login: --address <value>`: --address: Address `{"type":"string","repeatable":false,"refused":true}`
