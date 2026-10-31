@@ -5831,6 +5831,12 @@ provider/model, and `.muse/team.json` can only lower limits. Muse Code and
 external workers cannot run headlessly. See [the headless contract](docs/ci.md)
 for snapshot fields, billing and cleanup.
 
+The same stored team runs in the ACP agent's own sessions with
+`muse-spark-code-acp --team` (either backend): a session is admitted on the
+same two-model rule, its tasks ride the plan and task tool calls, and merges
+ask in the editor carrying the diff. See
+[Teams in ACP sessions](docs/acp.md#teams-in-acp-sessions).
+
 ### Other CI systems
 
 Templates for GitLab, Azure, Jenkins and Bitbucket live under

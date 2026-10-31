@@ -703,7 +703,7 @@
     {
       "id": "M96b",
       "title": "Teams in other editors and headless runs",
-      "summary": "Headless exec and the ACP agent run engine teams, off until a second model is set up, with hard budgets, keyless local workers, denied questions and checked merges, while certification and other editor bindings are in progress.",
+      "summary": "Headless exec runs engine teams with hard budgets and checked merges; the ACP agent serves the stored team in its own sessions behind --team on the two-model rule, while headless certification is still in progress.",
       "area": "agents"
     },
     {
