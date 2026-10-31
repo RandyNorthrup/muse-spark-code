@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "rows": [
+    {
+      "mods": ["SUPER"],
+      "key": "1..9",
+      "action": "desktop.switch",
+      "command": "hl.dsp.focus({ workspace = \"$n\" })"
+    },
+    {
+      "mods": ["SUPER", "SHIFT"],
+      "key": "1..9",
+      "action": "desktop.send",
+      "command": "hl.dsp.window.move({ workspace = \"$n\", follow = true })"
+    },
+    {
+      "mods": ["SUPER", "CTRL"],
+      "key": "1..9",
+      "action": "desktop.preview",
+      "command": "hl.dsp.event(\"muse:preview-desktop:$n\")"
+    },
+    {
+      "mods": ["SUPER"],
+      "key": "Tab",
+      "action": "desktops.overlay",
+      "command": "hl.dsp.event(\"muse:all-desktops\")"
+    },
+    {
+      "mods": ["SUPER", "ALT"],
+      "key": "1..9",
+      "action": "desktop.merge",
+      "command": "function() muse_merge_desktop($n) end"
+    },
+    {
+      "mods": ["SUPER", "ALT"],
+      "key": "M",
+      "action": "desktops.merge-picker",
+      "command": "hl.dsp.event(\"muse:merge-picker\")"
+    },
+    {
+      "mods": ["SUPER", "SHIFT"],
+      "key": "N",
+      "action": "desktop.send-new",
+      "command": "function() muse_send_new() end"
+    },
+    {
+      "mods": ["SUPER"],
+      "key": "bracketleft",
+      "action": "desktop.previous",
+      "command": "hl.dsp.focus({ workspace = \"m-1\" })"
+    },
+    {
+      "mods": ["SUPER"],
+      "key": "bracketright",
+      "action": "desktop.next",
+      "command": "hl.dsp.focus({ workspace = \"m+1\" })"
+    },
+    {
+      "mods": ["ALT"],
+      "key": "Tab",
+      "action": "window.cycle-next",
+      "command": "function() hl.dispatch(hl.dsp.window.cycle_next()) end"
+    },
+    {
+      "mods": ["ALT", "SHIFT"],
+      "key": "Tab",
+      "action": "window.cycle-previous",
+      "command": "function() hl.dispatch(hl.dsp.window.cycle_next({ next = false })) end"
+    },
+    {
+      "mods": ["SUPER"],
+      "key": "B",
+      "action": "bar.focus",
+      "command": "hl.dsp.event(\"muse:focus-bar\")"
+    }
+  ]
+}
