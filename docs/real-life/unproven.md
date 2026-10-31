@@ -3438,3 +3438,68 @@ the steps that release them:
   the session records). Unproven until that run is made.
 - The worker leg (a delegated task on a contributor-tier worker) is not part of
   these sentences: external agents lead but are not workers.
+
+## Native hosts re-landed without their scripted runtimes (RLF-HOSTSLAND, 2026-10-30)
+
+The M104 native hosts landed on int with every hand-written runtime deleted
+(`hosts/jetbrains/test/fixtures/*.py`, `hosts/eclipse/tests/fixtures/runtime.py`,
+`hosts/visualstudio/Test/fake-runtime.mjs`; the Xcode fake died in RLF-M104GX).
+The suites that only made sense against a scripted peer are deleted with them;
+what they claimed stays unproven until a real `panel --stdio` run or a real
+editor run proves it:
+
+- JetBrains: panel delivery order and approval round-trips through JCEF
+  (`NativePanelFixture`, `panel-runtime.test.mjs`), Tab completion against a
+  scripted runtime (`NativeTabTest`), lifecycle and process-tree teardown
+  timing (`NativeLifecycleTest`, `RuntimeProcessTest`, `RuntimeStressTest`),
+  and the embedded browser surface (`NativeBrowserTest`).
+- Eclipse: MHP version negotiation against a scripted peer (`SessionTest`,
+  `runtime-fixture.test.mjs`).
+- Visual Studio: runtime start/stop and packaging against `fake-runtime.mjs`
+  (`RuntimeAndPackageTests`); the whole host waits for the Windows machine.
+- Emacs: xwidget/browser preference, agent-shell client sanitization at
+  creation, and stop/cancellation isolation were proven only against
+  `cl-letf` stand-ins for the outside agent-shell/acp.el libraries; those
+  tests are deleted and the behaviours wait for a run with the real
+  libraries installed. URL validation, credential stripping and real-child
+  cleanup stay proven by the remaining ERT tests.
+- Zed: the Rust extension (hosts/zed/src/lib.rs) is unbuilt on this rig (no
+  Rust toolchain); register.py/launch.py are proven by their real-subprocess
+  tests. The mocked-exec tests are deleted.
+- Sublime: the whole suite ran on a hand-written `sublime` module double;
+  deleted. The plugin waits for a run inside Sublime Text.
+- Qt Creator: mocked-exec tests deleted; the launch bootstrap and Lua shim
+  are proven headless. The in-IDE run waits for Qt Creator.
+- Visual Studio: ProtocolTests (a hand-written FakeHost) and
+  RuntimeAndPackageTests (fake-runtime.mjs) are deleted. The remaining
+  suites compile on Linux but run only on Windows (net48); the host waits
+  for the lead's Windows PC.
+- Xcode: ported from RLF-M104GX (its fake runtime already deleted there);
+  every leg waits for the Mac mini.
+- Native release plumbing: the GX lineage's `hosts-native.yml` workflow and
+  its release.yml fences (`test/hostApi/workflow.test.mjs`) are not landed;
+  they assert a release pipeline shape int does not have. A distribution
+  lane must port them against int's release workflow.
+
+### Still unproven after the independent check (RVHOSTS, 2026-10-30)
+
+- Emacs, Neovim, Zed and Qt Creator harnesses do not start
+  `dist/acp.js panel --stdio`. They check launch arguments. A green run
+  is not a panel-protocol proof.
+- The Neovim harness command fails on Neovim 0.10.4 (`-i NONE` does not
+  write ShaDa, so the following history assertion fails). It passes on
+  the pinned 0.12.6, which the Neovim README requires.
+- Sublime Text Build 4200 starts on linuxlt. It does not need another
+  machine, and an unregistered copy starts without a purchased licence.
+  Nothing has driven the package inside the editor. The README no longer
+  points at the deleted `hosts/sublime/test` suite.
+- Eclipse browser tests still need WebKitGTK, which is not installed here.
+- Visual Studio's net48 suites need the lead's Windows PC. Xcode's XCTest
+  target needs the Mac mini. Zed's Rust extension is unbuilt (no Rust
+  toolchain on this rig). Live conversation, approval, session-reload and
+  tab-completion legs were not run.
+- MHP on this branch is 1.5.0. Lane B's 1.6 theme message and its extra
+  editors (`hosts/mhp-python`, Jupyter, NetBeans, Spyder, RStudio) are
+  not on this branch. Lane C's `attachments/*` methods are not on the
+  native hosts. Lane A's `src/runtime/panel/git/gitEntry.ts` is not on
+  this branch.

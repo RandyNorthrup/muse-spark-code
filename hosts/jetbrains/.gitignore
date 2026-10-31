@@ -1,0 +1,6 @@
+.gradle/
+.intellijPlatform/
+build/
+.kotlin/
+conformance-contract.json
+conformance-observations.json

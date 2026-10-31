@@ -1,0 +1,12 @@
+{
+  "artifacts": [
+    "muse_spark.py",
+    "Default.sublime-commands",
+    "MuseSpark.sublime-settings",
+    "LSP-muse-spark.sublime-settings",
+    "README.md"
+  ],
+  "build": [{ "args": ["-m", "unittest", "discover", "-s", "test", "-v"], "command": "python3" }],
+  "conformance": { "args": ["run.mjs"], "command": "node" },
+  "mhp": "mhp/1.5.0"
+}

@@ -31856,6 +31856,28 @@ passed its 4,000,000-byte bound with it). `chat.tsx` is the lane's mount with
 int's reload flush, and the MHP v1.1 panel lock is re-frozen on the merged
 tree. Record: `docs/certification/cc-int6.md`.
 
+Native hosts on int (RLF-HOSTSLAND, 2026-10-30): all nine editor hosts
+(JetBrains, Eclipse, Emacs, Neovim, Zed, Sublime, Qt Creator, Visual
+Studio, Xcode) re-landed from the RLM104 lineage on the real
+`panel --stdio`; every hand-written fake runtime is deleted and its
+claims recorded in `docs/real-life/unproven.md`. JetBrains and
+Eclipse validate 9 conformance legs each against the production
+runtime (13 legs wait for live model calls or unbuilt per-document
+versions); Emacs, Neovim, Zed and Qt Creator are excepted shims with
+green real harnesses; Sublime, Visual Studio and Xcode wait for their
+machines. Record: `docs/certification/rlf-hostsland.md`; matrix:
+`docs/ide-compatibility/matrix.md`.
+Independent check (RVHOSTS, 2026-10-30): JetBrains and Eclipse
+conformance were re-run on linuxlt against this tree's `dist/acp.js
+panel --stdio` (9 legs each, 13 waiting, both runners exit 0). Emacs
+ERT is 3/3. Neovim's harness is 19 PASS on the pinned 0.12.6 (the
+rig's 0.10.4 fails that command). Zed's 6 tests and Qt Creator's Lua
+harness plus 4 tests are green; those shim suites do not start
+`panel --stdio`. Sublime Text Build 4200 starts on this machine and
+still has no in-editor harness. Peer HTML shown by JetBrains or
+Eclipse is sealed to the host page policy. Record:
+`docs/certification/rvhosts.md`.
+
 **Warning for the POSIX trusted-path verifier (INT0180, 2026-10-11).** A real
 POSIX verifier that refuses a group-writable unit search directory would
 refuse registration on stock Ubuntu with umask 0002. The native schedule

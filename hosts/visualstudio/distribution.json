@@ -1,0 +1,11 @@
+{
+  "artifacts": ["bin/Release/net48/MuseSpark.VisualStudio.vsix"],
+  "build": [
+    {
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "build.ps1"],
+      "command": "powershell.exe"
+    }
+  ],
+  "conformance": { "args": ["run.mjs"], "command": "node" },
+  "mhp": "mhp/1.5.0"
+}

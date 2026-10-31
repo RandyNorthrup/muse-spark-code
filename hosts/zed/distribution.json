@@ -1,0 +1,10 @@
+{
+  "artifacts": ["target/wasm32-wasip1/release/muse_spark_code.wasm", "extension.toml"],
+  "build": [
+    { "args": ["build", "--release", "--target", "wasm32-wasip1"], "command": "cargo" },
+    { "args": ["test"], "command": "cargo" },
+    { "args": ["-m", "unittest", "discover", "-s", "test", "-v"], "command": "python3" }
+  ],
+  "conformance": { "args": ["run.mjs"], "command": "node" },
+  "mhp": "mhp/1.5.0"
+}
