@@ -214,6 +214,7 @@
   "config.webSearchMaxPerRequest.description": "回答あたりのサービス側ウェブ検索回数の上限。設定しない限り無制限：既定値の0は上限を送らずプロバイダーが決め、設定した数は設定どおりに適用されます。初回の課金前に料金と共有の1日予算が表示されます。",
   "config.modelApiMaxRetries.description": "失敗したモデルAPIリクエストの再試行上限（初回以降の試行ごと、0は再試行しない）。既定では未設定です。各プロバイダーの文書化された上限が適用され（Anthropic 2、OpenAI 2、Gemini 4、Azure 10、xAI 4、Meta 4）、上限を文書化していないプロバイダーは2回再試行します（公式SDKの既定値）。",
   "config.museCodeMaxRetries.description": "Muse Codeバックエンドで再試行可能な失敗ターンの再試行上限。同じセッションでターン自身のメッセージを再送する回数です（0は再送しない、手動の再試行のみ）。既定では未設定です。2回の再送、公式SDKの既定値です。",
+  "config.museCodeQuotaContinue.description": "サブスクリプションの利用枠がリセットされたらMuse Codeターンを続行します。クォータを使い果たしたターンは、どれほど長くてもプロバイダーのリセット時刻まで待機し、その後メッセージを再送します。停止もできます。既定ではオフです。クォータ切れは代わりに再試行付きで表示され、リセット前の自動再送は行われません。",
   "config.hooksMaxStopContinuations.description": "終了したターンをStopフックが連続して継続できる回数。設定しない限り無制限：既定値の0はターンが自然に終了するまで継続し、設定した回数は設定どおりに適用されます。",
   "config.hooksMaxRunningCommands.description": "フックコマンドを同時に実行する数（最小0）。0はMuse Codeと同様にすべてを一度に開始します。",
   "config.subagentMaxConcurrent.description": "同時に動作するサブエージェントの数。設定しない限り無制限：既定値の0ですべてのサブエージェントを同時に開始し、設定した数は設定どおりに適用されます。残りはキューに入ります。",

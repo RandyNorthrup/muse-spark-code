@@ -12,7 +12,11 @@ import { workflowChildSchema } from '../../shared/workflowChild'
 import * as z from 'zod/mini'
 import { reportCommandArguments } from '../../shared/reportCommand'
 import { redactSecrets } from '../../shared/redact'
-import { transientTurnFailureText } from '../../shared/turnFailure'
+import {
+  quotaTurnFailureText,
+  quotaWaitText,
+  transientTurnFailureText,
+} from '../../shared/turnFailure'
 import {
   type AgentEvent,
   type ItemSnapshot,
@@ -966,15 +970,22 @@ What the live region says when a turn ends. It is the only live region
 (M25): the rows themselves carry no alert roles, so a failure's reason is
 read out here.
 */
-function turnAnnouncement(terminal: string, reason: string | undefined): string | undefined {
-  switch (terminal) {
+function turnAnnouncement(event: {
+  readonly terminal: string
+  readonly reason?: string | undefined
+  readonly quota?: { readonly resetsAtMs: number } | undefined
+}): string | undefined {
+  switch (event.terminal) {
     case COMPLETED: {
       return UI_TEXT.announceTurnCompleted
     }
     case 'failed': {
-      return reason === undefined
+      // A spent window is announced with its reset, never as raw text (D229).
+      const quota = quotaTurnFailureText(event)
+      if (quota !== undefined) return `${UI_TEXT.announceTurnFailed}: ${quota}`
+      return event.reason === undefined
         ? UI_TEXT.announceTurnFailed
-        : `${UI_TEXT.announceTurnFailed}: ${reason}`
+        : `${UI_TEXT.announceTurnFailed}: ${event.reason}`
     }
     case 'cancelled': {
       return UI_TEXT.announceTurnCancelled
@@ -2064,6 +2075,7 @@ function completeTurn(
             kind: 'error',
             id: `error:${event.turnId}`,
             text:
+              quotaTurnFailureText(event) ??
               transientTurnFailureText(event) ??
               event.reason ??
               event.errorKind ??
@@ -2092,7 +2104,7 @@ function completeTurn(
         ...failure,
       ],
     },
-    turnAnnouncement(event.terminal, event.reason),
+    turnAnnouncement(event),
   )
 }
 
@@ -2190,9 +2202,11 @@ function applyAgentEvent(
     case 'turnRetry': {
       // D228: one "Retrying in Ns (attempt K of N)" row per turn, replaced
       // in place by each further attempt (never a row per wait), offering
-      // Stop. It clears when the turn speaks or ends (below).
+      // Stop. It clears when the turn speaks or ends (below). A wait
+      // until the subscription window resets (D229) names the reset
+      // instead of a seconds count; the row still offers Stop.
       const seconds = Math.max(1, Math.round(event.retryDelayMs / MILLISECONDS_PER_SECOND))
-      const text =
+      const retrying =
         event.maxAttempts === undefined
           ? fill(UI_TEXT.turnRetryingUncapped, { attempt: event.attempt, seconds })
           : fill(UI_TEXT.turnRetrying, {
@@ -2200,6 +2214,7 @@ function applyAgentEvent(
               maxAttempts: event.maxAttempts,
               seconds,
             })
+      const text = event.quota === undefined ? retrying : quotaWaitText(event.quota)
       const id = `retry:${event.turnId}`
       const entry: TranscriptEntry = {
         kind: 'notice',

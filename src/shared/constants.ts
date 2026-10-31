@@ -1337,6 +1337,10 @@ export const SETTING_DEFAULTS = {
   // turn, unset by default (null: two resends, the industry default).
   // Machine scoped like its Model API sibling: it chooses billed retries.
   museCodeMaxRetries: null as number | null,
+  // Lane RLF-QUOTA (D229): continue a quota-exhausted Muse Code turn
+  // when the usage window resets, off by default. Machine scoped like
+  // the resend limit: the continue resends a billed turn.
+  museCodeQuotaContinue: false,
   // Restore by the tools' own writes (M86, PLAN.md D63): each Model API turn
   // records what its file tools write, with nothing of the workspace
   // captured, so it is on by default.
@@ -1565,6 +1569,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   // sibling chooses billed resends the same way.
   'modelApiMaxRetries',
   'museCodeMaxRetries',
+  'museCodeQuotaContinue',
   'modelApiAutoCompaction',
   'modelApiStrictTools',
   'modelApiParallelReads',
