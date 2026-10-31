@@ -12,11 +12,13 @@ import { isEntryPoint } from '../../scripts/lib/entryPoint.mjs'
 // This independent surface keeps its own inline English fallback. Its factory
 // projects the installed table onto these keys before the existing table check;
 // the ordinary chat/integration fallback and its validation are untouched.
-// backendMuseCode/backendModelApi ride along: the workspace imports `fill`
-// from text.ts, whose tree-shaken backendLabel touches them, and the
-// whole-file check below requires every key an input reaches.
+// backendMuseCode/backendModelApi/backendExternal ride along: the workspace
+// imports `fill` from text.ts, whose tree-shaken backendLabel touches them, and
+// the whole-file check below requires every key an input reaches.
 const properties = uiTextProperties().filter((item) =>
-  /^(?:node|git|shareShowMore$|backendMuseCode$|backendModelApi$|editorGroup$)/u.test(item.key),
+  /^(?:node|git|shareShowMore$|backendMuseCode$|backendModelApi$|backendExternal$|editorGroup$)/u.test(
+    item.key,
+  ),
 )
 const keys = new Set(properties.map((item) => item.key))
 const nodeEnglish = {
