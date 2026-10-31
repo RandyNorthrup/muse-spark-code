@@ -1465,6 +1465,12 @@
       "title": "Accessibility gates green, sandboxes' axe runs done",
       "summary": "Fixes the failing axe rules and no-result pages so both a11y gates exit 0, and runs the handed-off axe scenes and the companion look on a browser rig.",
       "area": "platform"
+    },
+    {
+      "id": "RLFSMALLFIX1",
+      "title": "A missing native helper says what is missing; the serial helper starts a python3 found by its full path",
+      "summary": "A shipped helper that is missing or will not run is named with the way out (reinstall, or the build command), and serial access no longer runs a python3 planted in the project.",
+      "area": "platform"
     }
   ]
 }
