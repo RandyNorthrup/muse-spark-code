@@ -19,7 +19,10 @@ import {
   type LiveHost,
   type WireFrame,
 } from './helpers/museReplay'
+import { temporaryTracker } from './helpers/temporaryFolders'
 import { captureFrameRow } from './helpers/wireCapture'
+
+const workspaces = temporaryTracker()
 
 const captureSchema = z.object({
   provenance: z.object({ model: z.string() }),
@@ -82,8 +85,10 @@ async function startCaptureSession(
   const live = startLiveHost(answer, undefined, undefined, {
     approvalPersistenceSettleMs: settleMs,
   })
+  // A real, empty workspace: the hardware guard cannot read an invented path,
+  // and an unreadable workspace is treated as hardware (the fail-safe).
   const session = await live.host.startSession({
-    workspaceRoot: '<capture-workspace>',
+    workspaceRoot: await workspaces.make('approval-persistence-'),
     modelId: String(sessionRecord['modelId']),
     approvalMode: 'promptUnmatched',
   })
@@ -131,6 +136,7 @@ async function failureOf(decision: Promise<void>): Promise<unknown> {
 
 afterEach(async () => {
   await closeLiveHosts()
+  await workspaces.cleanup()
 })
 
 describe('approval/decide persistence timeout (captured 2026-10-30)', () => {
