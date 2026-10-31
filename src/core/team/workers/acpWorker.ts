@@ -67,7 +67,6 @@ export interface AcpPreset {
 The preset table. Claude's and Codex's rows are the research (§4.2, §4.3:
 Claude's `default` asks before every edit, Codex's `workspace-write` is
 confined to its `cwd`); the rest wait on step 1's `initialize` records.
-@unwired M96 external agent preset table
 */
 export const ACP_PRESETS: Readonly<Record<AcpPresetId, AcpPreset>> = {
   claude: {
@@ -171,7 +170,6 @@ export interface AcpPermissionOption {
 /**
 Picks the once option for the verdict. `allow_always` is never forwarded:
 the agent must never store an "always" the extension cannot see.
-@unwired M96 ACP once-option picker
 */
 export function pickOnceOption(
   options: readonly AcpPermissionOption[],
@@ -363,7 +361,6 @@ working copy as `cwd` and the bridge's servers, the preset's captured mode
 for the role's shape, then the prompt. A terminal sign-in surfaces as
 `AcpAuthRequiredError` for the host's terminal flow; no vendor credential
 file is ever read.
-@unwired M96 ACP worker runner
 */
 export async function runAcpWorker(deps: AcpWorkerDeps): Promise<{
   readonly sessionId: string

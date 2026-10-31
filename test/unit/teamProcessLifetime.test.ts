@@ -16,6 +16,7 @@ import { startNativeTeamLifetime } from '../../src/host/team/processLifetime'
 import { createTeamJournal } from '../../src/host/team/teamJournal'
 import { createWindowAuthority, createWindowIdentity } from '../../src/host/team/windowIdentity'
 import { HOOK_CONFIG_MAX_BYTES } from '../../src/shared/constants'
+import { isProcessAlive } from './helpers/teamRealRig'
 
 // A genuinely long operation: the first launch runs the OS identity probes
 // (`ps`, and on Linux the scope probes) before and after each child starts.
@@ -54,18 +55,8 @@ const READY_CHILD = [String.raw`process.stdout.write('ready\n')`, 'process.stdin
   ';',
 )
 
-function isAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error: unknown) {
-    if (error instanceof Error && 'code' in error && error.code === 'ESRCH') return false
-    throw error
-  }
-}
-
 async function untilGone(pid: number): Promise<void> {
-  await expect.poll(() => isAlive(pid), { timeout: 4000 }).toBe(false)
+  await expect.poll(() => isProcessAlive(pid), { timeout: 4000 }).toBe(false)
 }
 
 async function firstLine(stream: NodeJS.ReadableStream): Promise<string> {
@@ -169,7 +160,7 @@ describe.skipIf(process.platform === 'win32')(
         const first = await started.lifetime.launch({ ...request, taskId: 'task-1' })
         const second = await started.lifetime.launch({ ...request, taskId: 'task-2' })
         const pids = [first, second].map((child) => child.child.pid ?? 0)
-        expect(pids.every((pid) => isAlive(pid))).toBe(true)
+        expect(pids.every((pid) => isProcessAlive(pid))).toBe(true)
 
         await started.lifetime.dispose()
         for (const pid of pids) await untilGone(pid)
@@ -213,7 +204,7 @@ describe.skipIf(process.platform === 'win32')(
         expect(orphan === undefined ? 'missing' : await next.recovery.stop(orphan, false)).toBe(
           'kept',
         )
-        expect(isAlive(confirmation.pid)).toBe(true)
+        expect(isProcessAlive(confirmation.pid)).toBe(true)
         // With it, the recorded identity is checked again and the child stops.
         if (orphan !== undefined) expect(await next.recovery.stop(orphan, true)).toBe('stopped')
         await untilGone(confirmation.pid)

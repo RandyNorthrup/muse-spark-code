@@ -14,7 +14,7 @@
 // (test/e2e/team.live.e2e.test.ts).
 import { execFile, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -23,24 +23,27 @@ import type {
   TeamCardItem,
   TeamHostService,
   TeamHostServiceDeps,
-  TeamStatePort,
   TeamTaskSpec,
   TeamWorkerOutcome,
   TeamWorkerPort,
 } from '../../src/core/team/teamHostService'
-import { createWindowTeamScheduler } from '../../src/core/team/scheduler/window'
-import { TEAM_TASKS_STATE_KEY, storedTasksSchema } from '../../src/core/team/teamTaskState'
+import { TEAM_TASKS_STATE_KEY } from '../../src/core/team/teamTaskState'
 import {
   commitTaskBranch,
   publishTaskRef,
   resolveBaseCommit,
   startTeamWorkspace,
 } from '../../src/core/team/teamWorkspaces'
-import type { TeamToolContext } from '../../src/core/team/teamSeams'
 import type { TeamSnapshot } from '../../src/shared/team'
 import { TEAM_WORKSPACE_KEYS } from '../../src/shared/teamConversation'
-import { silentCoreLog } from './helpers/memoryLogs'
 import { fixtureGit } from './helpers/teamLandingFixture'
+import {
+  fileState,
+  initRigFolders,
+  realServiceDeps,
+  storedTaskOf,
+  toolContext,
+} from './helpers/teamRealRig'
 import { enginePortsWithoutWorker, realTeamGit, tripwireError } from './helpers/realTeamGit'
 
 const ORCHESTRATOR = 'orchestrator-model'
@@ -207,36 +210,13 @@ function processWorkers(rig: {
   }
 }
 
-/** A real JSON state file behind the state port, as the ACP agent keeps one. */
-function fileState(
-  file: string,
-  seed: Map<string, unknown>,
-  onUpdate?: (key: string, value: unknown) => void,
-): TeamStatePort {
-  return {
-    get: (key) => seed.get(key),
-    update: async (key, value) => {
-      if (value === undefined) seed.delete(key)
-      else seed.set(key, value)
-      onUpdate?.(key, value)
-      await writeFile(file, JSON.stringify(Object.fromEntries(seed)))
-    },
-  }
-}
-
 async function makeRig(
   options: {
     readonly onStateUpdate?: (rig: RealRig, key: string, value: unknown) => void
   } = {},
 ): Promise<RealRig> {
   const root = await mkdtemp(path.join(tmpdir(), 'muse-teamfit-'))
-  const repo = path.join(root, 'repo')
-  const storage = path.join(root, 'storage')
-  await mkdir(storage, { recursive: true })
-  await fixtureGit(root, ['init', '-b', 'main', repo])
-  await writeFile(path.join(repo, 'file.txt'), 'before\n')
-  await fixtureGit(repo, ['add', '-A'])
-  await fixtureGit(repo, ['commit', '-m', 'base'])
+  const { repo, storage } = await initRigFolders(root)
   const stateValues = new Map<string, unknown>([[TEAM_WORKSPACE_KEYS.team, storedTeam()]])
   const cards: TeamCardItem[] = []
   const started: string[] = []
@@ -261,38 +241,18 @@ async function makeRig(
     storageRoot: storage,
     isTrusted: () => rig.trusted,
   })
-  let counter = 0
   const deps: TeamHostServiceDeps = {
-    state: fileState(path.join(root, 'state.json'), stateValues, (key, value) => {
-      options.onStateUpdate?.(rig, key, value)
-    }),
-    settings: {
-      isTeamOn: () => true,
-      isTeamWorkersOn: () => true,
-      maxWorkers: () => 4,
+    ...realServiceDeps({
+      orchestrator: ORCHESTRATOR,
       isTrusted: () => rig.trusted,
-      scheduler: () => ({ integrationFlow: 'manual', onStall: 'stop', sharedFiles: [] }),
-    },
-    orchestrator: { modelId: () => ORCHESTRATOR, backend: () => 'modelApi' },
+      cards,
+      state: fileState(path.join(root, 'state.json'), stateValues, (key, value) => {
+        options.onStateUpdate?.(rig, key, value)
+      }),
+    }),
     workers: processWorkers({ repo, storage, plans, started }),
     merges: engine.merges,
     paid: { allowKeyTasks: () => Promise.reject(tripwireError('paid.allowKeyTasks')) },
-    cards: {
-      show: (_sessionId, item) => {
-        cards.push(item)
-      },
-    },
-    createScheduler: (scheduling) => createWindowTeamScheduler(scheduling),
-    workspaceId: 'ws',
-    windowInstanceId: 'window-a',
-    ownerBirth: { windowStartedAt: Date.now(), pid: process.pid, processStart: 'teamfit-start' },
-    probeOwner: () => Promise.resolve(false),
-    newId: () => {
-      counter += 1
-      return `task-${String(counter)}`
-    },
-    now: () => Date.now(),
-    log: silentCoreLog(),
   }
   rigs.push(rig)
   const service = createTeamHostService(deps)
@@ -301,15 +261,6 @@ async function makeRig(
   // entry is usable only once its runtime observably starts.
   await service.probeEntries()
   return rig
-}
-
-function context(): TeamToolContext {
-  return {
-    sessionId: 's1',
-    approvalMode: 'manual',
-    signal: new AbortController().signal,
-    orchestratorModelId: ORCHESTRATOR,
-  }
 }
 
 /** Delegates the given briefs to engineering; returns the minted task ids. */
@@ -326,7 +277,7 @@ async function delegate(
         reason: { code: 'parallel', detail: 'independent work' },
       })),
     },
-    context(),
+    toolContext(ORCHESTRATOR),
   )
   const answer = JSON.parse(result.output) as { tasks?: { task_id?: string }[] }
   const ids = (answer.tasks ?? []).map((task) => task.task_id)
@@ -336,9 +287,7 @@ async function delegate(
 }
 
 function storedTask(rig: RealRig, taskId: string) {
-  const saved = storedTasksSchema.parse(rig.stateValues.get(TEAM_TASKS_STATE_KEY))
-  const tasks = Array.isArray(saved) ? saved : saved.tasks
-  return tasks.find((task) => task.taskId === taskId)
+  return storedTaskOf(rig.stateValues, taskId)
 }
 
 function storedPhase(rig: RealRig, taskId: string): string | undefined {
@@ -433,8 +382,8 @@ describe('the ordered merge queue (real host, real git)', () => {
 
     // Hold landing, enqueue low first: the queue still orders high ahead.
     await rig.service.setLandingPaused(true)
-    await rig.service.teamRunner.merge({ task_id: low }, context())
-    const second = await rig.service.teamRunner.merge({ task_id: high }, context())
+    await rig.service.teamRunner.merge({ task_id: low }, toolContext(ORCHESTRATOR))
+    const second = await rig.service.teamRunner.merge({ task_id: high }, toolContext(ORCHESTRATOR))
     expect(JSON.parse(second.output)).toMatchObject({ task_id: high, position: 1 })
     expect(rig.service.mergeQueue?.()).toEqual([
       { taskId: high, position: 1 },
@@ -444,7 +393,7 @@ describe('the ordered merge queue (real host, real git)', () => {
 
     // Release: the head's card opens first, alone.
     await rig.service.setLandingPaused(false)
-    await rig.service.teamRunner.merge({ task_id: low }, context())
+    await rig.service.teamRunner.merge({ task_id: low }, toolContext(ORCHESTRATOR))
     await expect.poll(() => openMergeCards(rig).length, { timeout: 30_000 }).toBe(1)
     expect(openMergeCards(rig)[0]?.teamMerge.taskId).toBe(high)
     await rig.service.decideMerge(high, 'merge')
@@ -486,7 +435,7 @@ describe('plan before card (real host, real planner, real git)', () => {
     const [plannedTask] = await delegate(rig, [{ brief: 'planned work' }])
     if (plannedTask === undefined) throw new Error('delegation minted no id')
     await waitDone(rig, plannedTask)
-    await rig.service.teamRunner.merge({ task_id: plannedTask }, context())
+    await rig.service.teamRunner.merge({ task_id: plannedTask }, toolContext(ORCHESTRATOR))
     await expect.poll(() => openMergeCards(rig).length, { timeout: 30_000 }).toBe(1)
     const card = openMergeCards(rig)[0]
     expect(card?.teamMerge.affectedFiles?.toSorted((a, b) => a.localeCompare(b))).toEqual([
@@ -509,7 +458,7 @@ describe('plan before card (real host, real planner, real git)', () => {
     if (agentsRef === undefined) throw new Error(`no agents ref recorded for ${movedTask}`)
     await fixtureGit(rig.repo, ['update-ref', agentsRef, base])
     const before = openMergeCards(rig).length
-    await rig.service.teamRunner.merge({ task_id: movedTask }, context())
+    await rig.service.teamRunner.merge({ task_id: movedTask }, toolContext(ORCHESTRATOR))
     await expect
       .poll(
         () =>

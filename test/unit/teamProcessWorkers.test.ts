@@ -9,7 +9,7 @@
 // worker kind is the lead's live run (docs/certification/rlf-teamworkers.md).
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
-import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm, symlink } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -17,14 +17,10 @@ import { createTeamHostService } from '../../src/core/team/teamHost'
 import type {
   TeamCardItem,
   TeamHostService,
-  TeamStatePort,
   TeamWorkerPort,
 } from '../../src/core/team/teamHostService'
-import { createWindowTeamScheduler } from '../../src/core/team/scheduler/window'
 import { createCompositeTeamWorkerPort } from '../../src/core/team/workers/compositeWorkerPort'
 import { ACP_PRESETS, type AcpPreset } from '../../src/core/team/workers/acpWorker'
-import { TEAM_TASKS_STATE_KEY, storedTasksSchema } from '../../src/core/team/teamTaskState'
-import type { TeamToolContext } from '../../src/core/team/teamSeams'
 import { resolveMuseLaunch } from '../../src/core/backends/musecode/launch'
 import {
   createProcessTeamPorts,
@@ -36,7 +32,14 @@ import { fill } from '../../src/shared/l10n/text'
 import type { TeamAgentRef, TeamSnapshot } from '../../src/shared/team'
 import { TEAM_WORKSPACE_KEYS } from '../../src/shared/teamConversation'
 import { silentCoreLog } from './helpers/memoryLogs'
-import { fixtureGit } from './helpers/teamLandingFixture'
+import {
+  fileState,
+  initRigFolders,
+  isProcessAlive,
+  realServiceDeps,
+  storedTaskOf,
+  toolContext,
+} from './helpers/teamRealRig'
 import { enginePortsWithoutWorker, realTeamGit } from './helpers/realTeamGit'
 import { isolatedRuntimeEnvironment } from './helpers/isolatedRuntimeEnvironment'
 import { stageAgentBundle } from './helpers/stageAgentBundle'
@@ -128,17 +131,6 @@ function storedTeam(agent: TeamAgentRef): TeamSnapshot {
   }
 }
 
-function fileState(file: string, seed: Map<string, unknown>): TeamStatePort {
-  return {
-    get: (key) => seed.get(key),
-    update: async (key, value) => {
-      if (value === undefined) seed.delete(key)
-      else seed.set(key, value)
-      await writeFile(file, JSON.stringify(Object.fromEntries(seed)))
-    },
-  }
-}
-
 async function makeRig(options: {
   readonly agent: TeamAgentRef
   readonly presets?: Readonly<Record<'own' | 'claude' | 'codex' | 'gemini' | 'copilot', AcpPreset>>
@@ -147,15 +139,9 @@ async function makeRig(options: {
 }): Promise<Rig> {
   const root = await realpath(await mkdtemp(path.join(tmpdir(), 'muse-team-process-')))
   roots.push(root)
-  const repo = path.join(root, 'repo')
-  const storage = path.join(root, 'storage')
+  const { repo, storage } = await initRigFolders(root)
   const home = path.join(root, 'home')
-  await mkdir(storage, { recursive: true })
   await mkdir(home, { recursive: true })
-  await fixtureGit(root, ['init', '-b', 'main', repo])
-  await writeFile(path.join(repo, 'file.txt'), 'before\n')
-  await fixtureGit(repo, ['add', '-A'])
-  await fixtureGit(repo, ['commit', '-m', 'base'])
   const stateValues = new Map<string, unknown>([
     [TEAM_WORKSPACE_KEYS.team, storedTeam(options.agent)],
   ])
@@ -196,36 +182,16 @@ async function makeRig(options: {
     isTrusted: () => isTrusted,
   })
   const workers = createCompositeTeamWorkerPort([engine.workers, processPorts.workers])
-  let counter = 0
   const service = createTeamHostService({
-    state: fileState(path.join(root, 'state.json'), stateValues),
-    settings: {
-      isTeamOn: () => true,
-      isTeamWorkersOn: () => true,
-      maxWorkers: () => 4,
+    ...realServiceDeps({
+      orchestrator: ORCHESTRATOR,
       isTrusted: () => isTrusted,
-      scheduler: () => ({ integrationFlow: 'manual', onStall: 'stop', sharedFiles: [] }),
-    },
-    orchestrator: { modelId: () => ORCHESTRATOR, backend: () => 'modelApi' },
+      cards,
+      state: fileState(path.join(root, 'state.json'), stateValues),
+    }),
     workers,
     merges: engine.merges,
     paid: { allowKeyTasks: () => Promise.resolve(true) },
-    cards: {
-      show: (_sessionId, item) => {
-        cards.push(item)
-      },
-    },
-    createScheduler: (scheduling) => createWindowTeamScheduler(scheduling),
-    workspaceId: 'ws',
-    windowInstanceId: 'window-a',
-    ownerBirth: { windowStartedAt: Date.now(), pid: process.pid, processStart: 'process-start' },
-    probeOwner: () => Promise.resolve(false),
-    newId: () => {
-      counter += 1
-      return `task-${String(counter)}`
-    },
-    now: () => Date.now(),
-    log: silentCoreLog(),
   })
   const rig: Rig = {
     service,
@@ -259,19 +225,10 @@ async function makeRig(options: {
   return rig
 }
 
-function context(): TeamToolContext {
-  return {
-    sessionId: 's1',
-    approvalMode: 'manual',
-    signal: new AbortController().signal,
-    orchestratorModelId: ORCHESTRATOR,
-  }
-}
-
 async function delegate(rig: Rig, role: string, brief: string): Promise<string> {
   const result = await rig.service.teamRunner.delegate(
     { tasks: [{ role, brief, reason: { code: 'parallel', detail: 'independent work' } }] },
-    context(),
+    toolContext(ORCHESTRATOR),
   )
   const answer = JSON.parse(result.output) as { tasks?: { task_id?: string }[] }
   const id = answer.tasks?.[0]?.task_id
@@ -280,9 +237,7 @@ async function delegate(rig: Rig, role: string, brief: string): Promise<string> 
 }
 
 function storedTask(rig: Rig, taskId: string) {
-  const saved = storedTasksSchema.parse(rig.stateValues.get(TEAM_TASKS_STATE_KEY))
-  const tasks = Array.isArray(saved) ? saved : saved.tasks
-  return tasks.find((task) => task.taskId === taskId)
+  return storedTaskOf(rig.stateValues, taskId)
 }
 
 /** The task's final phase: `done` or `failed` with the person's sentence. */
@@ -317,16 +272,6 @@ function launchRecords(rig: Rig): { taskId: string; pid: number | undefined; com
         }
       }),
   )
-}
-
-function isAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error: unknown) {
-    if (error instanceof Error && 'code' in error && error.code === 'ESRCH') return false
-    throw error
-  }
 }
 
 function processArguments(pid: number): string {
@@ -384,11 +329,11 @@ describe('one worker port over every kind a surface runs', () => {
       const hosts = launchRecords(rig).filter((record) => record.taskId === 'muse-host-team')
       expect(hosts).toHaveLength(1)
       const pid = hosts[0]?.pid ?? 0
-      expect(isAlive(pid)).toBe(true)
+      expect(isProcessAlive(pid)).toBe(true)
 
       await rig.service.dispose()
       await rig.processPorts.dispose()
-      await expect.poll(() => isAlive(pid), { timeout: 10_000 }).toBe(false)
+      await expect.poll(() => isProcessAlive(pid), { timeout: 10_000 }).toBe(false)
     },
     WORKER_TEST_TIMEOUT_MS,
   )
@@ -432,16 +377,21 @@ describe('one worker port over every kind a surface runs', () => {
   })
 })
 
+/** The captured `own` preset with Node standing on the PATH as its command: found, but with no captured switch. */
+function nodeAsOwnAgent(): Parameters<typeof makeRig>[0] {
+  return {
+    agent: OWN_AGENT,
+    presets: {
+      ...ACP_PRESETS,
+      own: { ...ACP_PRESETS.own, command: path.basename(process.execPath) },
+    },
+    pathEntries: [path.dirname(process.execPath)],
+  }
+}
+
 describe.skipIf(process.platform === 'win32')('external agent workers', () => {
   it('does not start an agent whose switch for leaving out the person’s MCP servers is not captured', async () => {
-    const rig = await makeRig({
-      agent: OWN_AGENT,
-      presets: {
-        ...ACP_PRESETS,
-        own: { ...ACP_PRESETS.own, command: path.basename(process.execPath) },
-      },
-      pathEntries: [path.dirname(process.execPath)],
-    })
+    const rig = await makeRig(nodeAsOwnAgent())
     // The captured preset has no switch yet: the command is found, nothing starts.
     const refused = await delegate(rig, 'engineering', 'any work')
     const refusal = await settled(rig, refused)
@@ -451,14 +401,7 @@ describe.skipIf(process.platform === 'win32')('external agent workers', () => {
   })
 
   it('names the command it did not find on the PATH once it is gone', async () => {
-    const rig = await makeRig({
-      agent: OWN_AGENT,
-      presets: {
-        ...ACP_PRESETS,
-        own: { ...ACP_PRESETS.own, command: path.basename(process.execPath) },
-      },
-      pathEntries: [path.dirname(process.execPath)],
-    })
+    const rig = await makeRig(nodeAsOwnAgent())
     expect(await rig.workers.probe(OWN_AGENT)).toBe(true)
     rig.pathEntries = []
     const task = await delegate(rig, 'engineering', 'any work')
@@ -484,7 +427,9 @@ describe.skipIf(process.platform === 'win32')('external agent workers', () => {
       // The agent was a real contained child, and it is gone with its task.
       const children = launchRecords(rig).filter((record) => record.taskId === task)
       expect(children).toHaveLength(1)
-      await expect.poll(() => isAlive(children[0]?.pid ?? 0), { timeout: 10_000 }).toBe(false)
+      await expect
+        .poll(() => isProcessAlive(children[0]?.pid ?? 0), { timeout: 10_000 })
+        .toBe(false)
     },
     WORKER_TEST_TIMEOUT_MS,
   )
