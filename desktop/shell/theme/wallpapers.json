@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "modes": {
+    "light": {
+      "base": { "token": "colour.surface", "value": "#ffffff" },
+      "deep": { "token": "colour.raised", "value": "#f3f5f8" },
+      "gradientFrom": { "token": "colour.brand-mark", "value": "#0a5cff" },
+      "gradientTo": { "token": "colour.brand-mark-light", "value": "#0a5cff" },
+      "glow": { "token": "colour.brand-mark", "value": "#0a5cff" },
+      "rule": { "token": "colour.focus", "value": "#0a5cff" }
+    },
+    "dark": {
+      "base": { "token": "colour.surface", "value": "#181818" },
+      "deep": { "token": "colour.raised", "value": "#242832" },
+      "gradientFrom": { "token": "colour.brand-mark", "value": "#3d8bff" },
+      "gradientTo": { "token": "colour.brand-mark-light", "value": "#0a5cff" },
+      "glow": { "token": "colour.brand-mark", "value": "#3d8bff" },
+      "rule": { "token": "colour.focus", "value": "#7fb2ff" }
+    },
+    "hc-light": {
+      "base": { "token": "colour.surface", "value": "#ffffff" },
+      "deep": { "token": "colour.raised", "value": "#ffffff" },
+      "gradientFrom": { "token": "colour.brand-mark", "value": "#000000" },
+      "gradientTo": { "token": "colour.brand-mark-light", "value": "#000000" },
+      "glow": { "token": "colour.brand-mark", "value": "#000000" },
+      "rule": { "token": "colour.focus", "value": "#000000" }
+    },
+    "hc-dark": {
+      "base": { "token": "colour.surface", "value": "#000000" },
+      "deep": { "token": "colour.raised", "value": "#000000" },
+      "gradientFrom": { "token": "colour.brand-mark", "value": "#ffffff" },
+      "gradientTo": { "token": "colour.brand-mark-light", "value": "#ffffff" },
+      "glow": { "token": "colour.brand-mark", "value": "#ffffff" },
+      "rule": { "token": "colour.focus", "value": "#ffffff" }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "dark": {
+    "backgroundTop": { "token": "colour.surface", "value": "#181818" },
+    "backgroundBottom": { "token": "colour.raised", "value": "#242832" },
+    "message": { "token": "colour.text", "value": "#e4e7ed" },
+    "progressTrack": { "token": "colour.hover", "value": "#303642" },
+    "progressFill": { "token": "colour.brand-mark", "value": "#3d8bff" },
+    "item": { "token": "colour.text", "value": "#e4e7ed" },
+    "itemDisabled": { "token": "colour.muted", "value": "#aeb6c4" },
+    "selectedBackground": { "token": "colour.selection", "value": "#064e8a" },
+    "selectedItem": { "token": "colour.on-selection", "value": "#ffffff" },
+    "border": { "token": "colour.border", "value": "#858b98" },
+    "brandFrom": { "token": "colour.brand-mark", "value": "#3d8bff" },
+    "brandTo": { "token": "colour.brand-mark-light", "value": "#0a5cff" }
+  }
+}

@@ -1,0 +1,10 @@
+[package]
+name = "muse-tokens"
+version = "0.1.0"
+edition = "2021"
+description = "Muse Desktop theme constants and appearance resolution (M111 lane TH)"
+license = "MIT"
+
+[lib]
+name = "muse_tokens"
+path = "src/lib.rs"
