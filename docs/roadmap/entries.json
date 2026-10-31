@@ -801,7 +801,7 @@
     {
       "id": "M109",
       "title": "Credential vault for agents",
-      "summary": "A credential vault gives agents approved, logged uses through POSIX brokers: setup, imports and confirmed reset with damaged-document retention, a crash-recoverable writer lease and a mounted panel with window commands; key-store migration is in progress.",
+      "summary": "A credential vault gives agents approved, logged uses through POSIX brokers: setup, imports, confirmed reset, a crash-recoverable writer lease and a mounted panel; key-store migration runs in every host on unlock; agent secret use is in progress.",
       "area": "security"
     },
     {
@@ -1315,6 +1315,11 @@
       "note": "recovery: every shipped dependency in the notices, the release read grants reviewed"
     },
     {
+      "id": "RLFNOSTUBS",
+      "public": false,
+      "note": "recovery: older stub-style test seams rewritten over real parts"
+    },
+    {
       "id": "SDK142",
       "public": false,
       "note": "Muse Code CLI fingerprint and documentation update"
@@ -1427,6 +1432,11 @@
       "area": "security"
     },
     {
+      "id": "RVCRED",
+      "public": false,
+      "note": "review of retired-vault undo, secret-gist publish, and the macOS credential file"
+    },
+    {
       "id": "RLWINFIX",
       "title": "Windows defects found in real use",
       "summary": "Fixes five Windows defects found using 0.19.0 for real: the Resources view, CPU readings, usage history, judge cleanup, and stale helper builds.",
@@ -1464,6 +1474,12 @@
       "id": "RLFA11Y",
       "title": "Accessibility gates green, sandboxes' axe runs done",
       "summary": "Fixes the failing axe rules and no-result pages so both a11y gates exit 0, and runs the handed-off axe scenes and the companion look on a browser rig.",
+      "area": "platform"
+    },
+    {
+      "id": "RLFGOVFORK",
+      "title": "The governor's per-job fork limit against supervised agents",
+      "summary": "Decides the runaway-only fork bound with cited industry values that say why when they stop something, and governs supervised runs like every other launch.",
       "area": "platform"
     }
   ]

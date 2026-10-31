@@ -7,24 +7,21 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import type * as BrokerBindingsModule from './brokerBindings'
+import type * as RuntimeMigrationModule from './vaultRuntimeMigrationEntry'
 import type { VaultBrokerBindings, VaultBrokerContext } from './vaultBrokerEntry'
 import { randomBytes } from 'node:crypto'
 import { Readable } from 'node:stream'
-import { UI_TEXT, VAULT_LIMITS } from '../../shared/constants'
+import {
+  UI_TEXT,
+  VAULT_LIMITS,
+  VAULT_EXEC_HOST_BUNDLE_FILE,
+  VAULT_RUNTIME_MIGRATION_BUNDLE_FILE,
+} from '../../shared/constants'
+import type { Logger } from '../../host/logger'
+import { failureForLog } from '../../core/backends/musecode/logText'
+import type { CredentialMigrationController } from '../../host/vault/migrateCredentials'
 import { setUiText, uiLocale } from '../../shared/l10n/text'
-import {
-  vaultRequesterSchema,
-  type VaultRequester,
-  type VaultTaint,
-  type VaultUse,
-} from '../../shared/vault'
-import {
-  vaultAuthorizationResultSchema,
-  vaultBrokerEventSchema,
-  vaultStatusSchema,
-  type VaultBrokerEvent,
-  type VaultBrokerPort,
-} from '../../shared/vaultProtocol'
+import { vaultBrokerEventSchema, type VaultBrokerEvent } from '../../shared/vaultProtocol'
 import { encodeVaultMaterial } from '../../core/vault/crypto'
 import {
   isCancelled,
@@ -33,7 +30,7 @@ import {
 } from '../../core/vault/broker/manageClient'
 import { VaultBrokerProcess } from '../../host/vault/brokerProcess'
 import { vaultClientPlatform } from './clientPlatform'
-import { HeadlessVaultSession, type ExecVaultContext, type ExecVaultSession } from './execVault'
+import type * as VaultExecHostModule from './vaultExecHostEntry'
 import type { WindowsBrokerPlatform } from './windowsHost'
 import type { VaultCommandPort } from './vaultCommand'
 import type { RuntimeVaultBinding, RuntimeVaultContext } from './vaultRuntime'
@@ -66,8 +63,17 @@ async function* watchEvents(
   for await (const event of stream) yield vaultBrokerEventSchema.parse(event)
 }
 
-/** The CLI's manage port over v2; each call is its own authenticated connection. */
-export function vaultCommandPort(session: VaultManageSession): VaultCommandPort {
+/**
+The CLI's manage port over v2; each call is its own authenticated
+connection. `onUnlocked` is awaited after a command leaves the vault
+unlocked (an unlock, a confirmed setup, a recovery): the key-store
+migration's unlock edge in a one-shot process, where no broker watch
+runs and the process would otherwise exit before the copy finished.
+*/
+export function vaultCommandPort(
+  session: VaultManageSession,
+  onUnlocked?: () => Promise<void>,
+): VaultCommandPort {
   const metadataOf = async (itemId: string) => {
     const snapshot = await session.snapshot()
     const item = snapshot.items.find((entry) => entry.id === itemId)
@@ -90,6 +96,7 @@ export function vaultCommandPort(session: VaultManageSession): VaultCommandPort 
     audit: async () => await session.audit(),
     unlock: async (slotId) => {
       await session.unlock(slotId)
+      await onUnlocked?.()
     },
     add: async (item) => {
       await session.write(item, false)
@@ -128,79 +135,16 @@ export function vaultCommandPort(session: VaultManageSession): VaultCommandPort 
     setup: async () => await session.setup(),
     confirmSetup: async (setupId) => {
       await session.confirmSetup(setupId)
+      await onUnlocked?.()
     },
     cancelSetup: async (setupId) => {
       await session.cancelSetup(setupId)
     },
     recover: async (code) => {
       await session.recover(code)
+      await onUnlocked?.()
     },
     close: () => Promise.resolve(),
-  }
-}
-
-/** Headless `--vault`: one requester connection, registered as unattended and headless. */
-export async function openHeadlessVault(
-  connect: VaultConnect,
-  context: ExecVaultContext,
-  hostId: string,
-  processId: number,
-): Promise<ExecVaultSession> {
-  const client = await connect()
-  // Cancellation during any later await closes this connection at once (RVCM1091A2 P3).
-  const abort = () => {
-    client.close()
-  }
-  context.signal.addEventListener('abort', abort, { once: true })
-  try {
-    // Cancelled while connecting: the late connection is closed, never registered (F8).
-    if (context.signal.aborted) throw new Error(UI_TEXT.vault.noAccess)
-    const requester: VaultRequester = vaultRequesterSchema.parse({
-      id: newId(),
-      hostId,
-      conversationId: context.sessionId,
-      taskId: null,
-      role: { kind: 'headless' },
-      workspaceId: context.cwd,
-      deviceId: null,
-      peerProcessId: processId,
-      sessionId: null,
-      unattended: true,
-      source: 'headless',
-    })
-    const registered = await client.send({ kind: 'registerRequester', requester })
-    // Re-checked after the await: a run cancelled meanwhile gets no session.
-    if (isCancelled(context.signal) || registered.kind !== 'ok')
-      throw new Error(UI_TEXT.vault.noAccess)
-    const port: VaultBrokerPort = {
-      clock: { now: Date.now },
-      status: async () => {
-        const response = await client.send({ kind: 'status' })
-        if (response.kind !== 'status') throw new Error(UI_TEXT.vault.noAccess)
-        return vaultStatusSchema.parse(response.status)
-      },
-      list: async () => {
-        const response = await client.send({ kind: 'list' })
-        if (response.kind !== 'items') throw new Error(UI_TEXT.vault.noAccess)
-        return response.items
-      },
-      request: async (_requester, handle: string, use: VaultUse, taint: VaultTaint) =>
-        vaultAuthorizationResultSchema.parse(
-          await client.send({ kind: 'requestUse', proposal: { handle, use, taint } }),
-        ),
-      // Headless never answers a card: there is no person to ask (D89.10).
-      answer: () => Promise.resolve({ kind: 'denied', reason: 'unattended' }),
-      lock: () => Promise.reject(new Error(UI_TEXT.vault.noAccess)),
-    }
-    return new HeadlessVaultSession(requester, port, context, () => {
-      client.close()
-      return Promise.resolve()
-    })
-  } catch (error: unknown) {
-    client.close()
-    throw error
-  } finally {
-    context.signal.removeEventListener('abort', abort)
   }
 }
 
@@ -215,9 +159,30 @@ function routeBrokerApprovals(
   session: VaultManageSession,
   acp: AcpVault,
   signal: AbortSignal,
+  onUnlockEdge: () => void,
+  log: Logger,
 ): void {
   const pending: VaultApprovalRequest[] = []
   let isPumping = false
+  // The key-store migration's unlock edge in a serving process: broker
+  // events carry no "unlocked" kind, so a change re-reads the status
+  // and only a transition into unlocked fires (the panel host's rule).
+  let lastUnlocked: boolean | undefined
+  const checkLockEdge = async (): Promise<void> => {
+    let isUnlocked: boolean
+    try {
+      const snapshot = await session.snapshot()
+      isUnlocked = snapshot.status.state === 'unlocked'
+    } catch (error: unknown) {
+      // The edge is left for the next event; the failure is reported
+      // with fixed words, never the broker's text.
+      log.warn(`Credential migration lock check failed: ${failureForLog(error)}`)
+      return
+    }
+    if (isUnlocked === lastUnlocked) return
+    lastUnlocked = isUnlocked
+    if (isUnlocked) onUnlockEdge()
+  }
   const pump = async (): Promise<void> => {
     if (isPumping) return
     isPumping = true
@@ -248,6 +213,7 @@ function routeBrokerApprovals(
   void session
     .watch((event) => {
       if (event.kind === 'approval') onApproval(event.request)
+      else if (event.kind === 'changed' || event.kind === 'locked') void checkLockEdge()
     }, signal)
     .catch(() => {
       // A broken watch ends approval routing; commands open their own
@@ -268,21 +234,93 @@ export async function createRuntimeVault(
     hostSession,
   })
   const broker = new VaultBrokerProcess(platform.discovery, platform.process)
-  const connect: VaultConnect = async () =>
+  const connectBroker = async () =>
     await broker.connect(hostId, hostSession, platform.peers, platform.dial)
+  const connect: VaultConnect = connectBroker
   const session = new VaultManageSession(connect, encodeVaultMaterial)
+  // The key-store migration (RLF-M109) loads its own chunk on the first
+  // unlock edge only, like the window's; a chunk that cannot load is
+  // retried at the next unlock, and the keys keep working in the OS
+  // store meanwhile. The controller's own run never throws.
+  let migrationController: CredentialMigrationController | undefined
+  const ensureMigrated = async (): Promise<void> => {
+    const source = context.migration
+    if (source === undefined) return
+    try {
+      migrationController ??= (() => {
+        // Same-build installed sibling contract; check the factory before calling (PLAN §8).
+        const module = createRequire(__filename)(
+          path.join(__dirname, VAULT_RUNTIME_MIGRATION_BUNDLE_FILE),
+        ) as Partial<typeof RuntimeMigrationModule>
+        if (
+          typeof module.bindRuntimeCredentialMigration !== 'function' ||
+          typeof module.setUiText !== 'function'
+        )
+          throw new TypeError(UI_TEXT.vault.brokerBlocked)
+        module.setUiText(UI_TEXT, uiLocale())
+        return module.bindRuntimeCredentialMigration({
+          session,
+          connect: connectBroker,
+          openEntry: source.openEntry,
+          rawSecrets: source.rawSecrets,
+          shell: source.shell,
+          dataDir: context.dataDir,
+          providersFile: source.providersFile,
+          minorRelease: source.minorRelease,
+          now: Date.now,
+          log: context.log,
+          label: UI_TEXT.vault.secret,
+        })
+      })()
+    } catch (error: unknown) {
+      context.log.warn(`Credential migration unavailable: ${failureForLog(error)}`)
+      return
+    }
+    await migrationController.ensureMigrated()
+  }
   // Process lifetime: the runtime binding owns no close, so routing runs
   // until the broker or the process goes away. One-shot CLI commands never
   // attach an asker, so they start no watch and exit once done.
   context.acp.onAttach(() => {
-    routeBrokerApprovals(session, context.acp, new AbortController().signal)
+    routeBrokerApprovals(
+      session,
+      context.acp,
+      new AbortController().signal,
+      () => {
+        void ensureMigrated()
+      },
+      context.log,
+    )
   })
+  // D243: the headless exec stack is its own lazy chunk
+  // (dist/vaultExecHost.js); the same-build sibling contract is
+  // validated before use (PLAN §8).
+  let execHostModule: typeof VaultExecHostModule | undefined
+  const loadVaultExecHost = (): typeof VaultExecHostModule => {
+    if (execHostModule === undefined) {
+      const loaded = createRequire(__filename)(
+        path.join(__dirname, VAULT_EXEC_HOST_BUNDLE_FILE),
+      ) as typeof VaultExecHostModule
+      if (typeof loaded.openHeadlessVault !== 'function' || typeof loaded.setUiText !== 'function')
+        throw new TypeError(UI_TEXT.vault.brokerBlocked)
+      loaded.setUiText(UI_TEXT, uiLocale())
+      execHostModule = loaded
+    }
+    return execHostModule
+  }
   return {
-    commands: () => Promise.resolve(vaultCommandPort(session)),
+    commands: () => Promise.resolve(vaultCommandPort(session, ensureMigrated)),
     exec: {
+      dataDir: context.dataDir,
       open: async (execContext) =>
-        await openHeadlessVault(connect, execContext, hostId, context.processId),
+        await loadVaultExecHost().openHeadlessVault(
+          connect,
+          execContext,
+          hostId,
+          context.processId,
+        ),
     },
+    ensureMigrated,
   }
 }
 

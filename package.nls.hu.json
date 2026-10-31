@@ -260,6 +260,7 @@
   "config.github.useGhLogin.description": "Lehetővé teszi, hogy a pull requestek a meglévő GitHub CLI-bejelentkezést (`gh auth token`) használják, utolsóként, a szerkesztő GitHub-bejelentkezése és a Muse Spark bejelentkezése után. A tokent egyszerre csak egy kéréshez olvassa be, és sosem tárolja. Alapértelmezés szerint ki; csak felhasználói beállítás, így egy tároló nem kapcsolhatja be.",
   "command.vault.title": "Tároló",
   "command.lockVault.title": "Tároló zárolása most",
+  "command.vaultUndoRetired.title": "Kivont tárolóbejegyzés visszaállítása",
   "config.vault.enabled.description": "Be- vagy kikapcsolja a felhasználó hitelesítőadat-tárolóját. A tárolt régi museSpark.vault érték addig érvényes, amíg ez a beállítás nincs konfigurálva.",
   "config.vault.protection.description": "Kompatibilitási célból tárolva; ez a beállítás ebben a verzióban nincs hatással a működésre.",
   "config.vault.agentFence.description": "Az interaktív Model API shellparancsok hitelesítőadat-védelmét szabályozza. Az ellenőrzések, ütemezések, munkások és hookok védettek maradnak.",

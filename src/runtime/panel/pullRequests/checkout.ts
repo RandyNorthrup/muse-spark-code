@@ -32,9 +32,11 @@ import { execResourceFile, spawnResourceProcess } from '../../../core/resources/
 import { loadResourceWindow } from '../../../core/resources/admission'
 import {
   isGovernedRefusal,
+  isResourceForkStop,
   isResourceMemoryLimit,
   isResourcePaused,
   resourcePausedText,
+  ResourceForkStopError,
   ResourceMemoryLimitError,
   ResourceCapRefusedError,
   type ResourcePipedProcess,
@@ -341,6 +343,7 @@ function isAdmissionUnavailable(error: unknown): boolean {
 
 function gitProcessFailure(error: unknown): Error {
   if (isResourceMemoryLimit(error)) return new PullRequestServiceError(UI_TEXT.gitMemoryLimit)
+  if (isResourceForkStop(error)) return new PullRequestServiceError(UI_TEXT.gitForkStopped)
   if (
     error instanceof Error &&
     error.name === 'ResourceUnavailableError' &&
@@ -407,6 +410,7 @@ export const nodeGitProcesses: GitProcessPort = {
             for (const limit of limits) {
               if (limit !== 'activeProcess') throw new ResourceMemoryLimitError(limit)
             }
+            if (outcome?.forkStop !== undefined) throw new ResourceForkStopError(outcome.forkStop)
             if (outcome !== undefined && outcome.capRefusals > 0)
               throw new ResourceCapRefusedError(outcome.capRefusals)
             return outcome

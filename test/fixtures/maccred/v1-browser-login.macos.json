@@ -1,0 +1,16 @@
+{
+  "providers": {
+    "meta": {
+      "access_token": "<placeholder>",
+      "api_base_url": "<placeholder>",
+      "api_key": "<placeholder>",
+      "mechanism": "oauth",
+      "obtained_via": "device_code",
+      "subs_active": true,
+      "user_avatar_url": "<placeholder>",
+      "user_email": "<placeholder>",
+      "user_full_name": "<placeholder>"
+    }
+  },
+  "schema_version": 1
+}

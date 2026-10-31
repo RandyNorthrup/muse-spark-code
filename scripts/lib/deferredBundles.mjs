@@ -16,6 +16,10 @@ export const BUNDLES = {
 }
 export const SUBSCRIPTION_ONLY = [
   'src/core/providers/subscriptions/chatgpt.ts',
+  // RLM109 increment 2: the installed record's schema leaf, which the
+  // sign-in core imports and re-exports; the migration chunks carry it
+  // beside their codecs through their own declared exceptions.
+  'src/core/providers/subscriptions/chatgptRecord.ts',
   'src/core/providers/subscriptions/chatgptHostId.ts',
   // RLM109: the stored ChatGPT record schema, re-exported by chatgpt.ts
   // beside it so one copy serves the subscription dispatch.

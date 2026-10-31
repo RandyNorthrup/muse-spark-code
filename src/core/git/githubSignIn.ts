@@ -25,6 +25,7 @@ import { fill } from '../../shared/l10n/text'
 import type { CoreLogger } from '../logging'
 import { signInFailureText, type DeviceCodePrompt } from './deviceFlow'
 import {
+  canAskGistScope,
   isCredentialLive,
   orderedSources,
   resolveGitHubCredential,
@@ -72,6 +73,12 @@ function tolerant(source: GitHubTokenSource, log: CoreLogger): GitHubTokenSource
         return
       }
     },
+    // D242's Share-time grant rides through the same wrapper, unasked: an
+    // asked sign-in's failure is the user's to see, as `credential` says.
+    ...(canAskGistScope(source) && {
+      signInForGistShare: (signal: AbortSignal) => source.signInForGistShare(signal),
+      storedGistGrant: (signal: AbortSignal) => source.storedGistGrant(signal),
+    }),
     rejected: (credential) => source.rejected(credential),
     signOut: () => source.signOut(),
   }
@@ -133,6 +140,32 @@ export class GitHubSignIn {
     this.changed()
   }
 
+  /** One in-flight ask. Cancel from `signal` or from `cancel()` ends it. */
+  private async withAsking<T>(
+    signal: AbortSignal,
+    body: (combined: AbortSignal) => Promise<T>,
+  ): Promise<T> {
+    const own = new AbortController()
+    this.asking.add(own)
+    const combined = AbortSignal.any([signal, own.signal])
+    try {
+      return await body(combined)
+    } finally {
+      this.asking.delete(own)
+      if (this.asking.size === 0 && this.code !== undefined) {
+        this.code = undefined
+        this.changed()
+      }
+    }
+  }
+
+  /** Keep the credential for a later 401, then read the account. Cancel still stops the caller. */
+  private async remember(credential: GitHubCredential, signal: AbortSignal): Promise<void> {
+    this.issued.set(credential.source, credential)
+    await this.noteAccount(credential, signal)
+    signal.throwIfAborted()
+  }
+
   /** The source kinds this window has, in D104's order. */
   public kinds(): readonly GitHubTokenSourceKind[] {
     return this.sources.map((source) => source.kind)
@@ -173,30 +206,44 @@ export class GitHubSignIn {
     if (askWith !== undefined && !this.kinds().includes(askWith)) {
       return undefined
     }
-    const own = new AbortController()
-    this.asking.add(own)
-    const combined = AbortSignal.any([signal, own.signal])
-    try {
+    return await this.withAsking(signal, async (combined) => {
       const credential = await resolveGitHubCredential(this.sources, {
         mode,
         signal: combined,
         now: this.deps.now,
         ...(askWith !== undefined && { askWith }),
       })
-      if (credential !== undefined) {
-        this.issued.set(credential.source, credential)
-        await this.noteAccount(credential, combined)
-        // Cancel during the login read still stops this call.
-        combined.throwIfAborted()
-      }
+      if (credential !== undefined) await this.remember(credential, combined)
       return credential
-    } finally {
-      this.asking.delete(own)
-      if (this.asking.size === 0 && this.code !== undefined) {
-        this.code = undefined
-        this.changed()
-      }
-    }
+    })
+  }
+
+  /**
+  D242's Share-time grant: a fresh device-flow sign-in carrying `gist`
+  alone, run only after the person consented at Share time. The device-flow
+  source is the only one that can ask; without it there is no upgrade to
+  run. Cancel stops it like any sign-in, and the account line follows the
+  new credential as usual. The grant is stored apart from the repository
+  sign-in.
+  */
+  public async credentialForGistShare(signal: AbortSignal): Promise<GitHubCredential | undefined> {
+    const source = this.sources.find(canAskGistScope)
+    if (source === undefined) return undefined
+    return await this.withAsking(signal, async (combined) => {
+      const credential = await source.signInForGistShare(combined)
+      if (credential !== undefined) await this.remember(credential, combined)
+      return credential
+    })
+  }
+
+  /**
+  The gist grant already stored, or undefined. Never starts a device flow
+  and never reads the repository sign-in. Share sends this token, and no
+  other, once it is present.
+  */
+  public async storedGistGrant(signal: AbortSignal): Promise<GitHubCredential | undefined> {
+    const source = this.sources.find(canAskGistScope)
+    return source === undefined ? undefined : await source.storedGistGrant(signal)
   }
 
   /** GitHub answered 401 to `credential`: its source drops it, so the user signs in again. */

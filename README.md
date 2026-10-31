@@ -873,8 +873,12 @@ deterministic report, within what you grant. A write (for now, saving a new
 prompt) waits for **you** to approve it on Muse Spark Code's own approval
 page in your browser; the other agent's Allow, Auto or Bypass cannot
 approve it. Stop never asks. Fleet status, agent outcomes, lanes, teams and
-new schedules answer `unavailable` until their owners expose them. The
-hosted connector for ChatGPT and claude.ai is not built.
+new schedules answer `unavailable` until their owners expose them.
+`muse-spark-code-acp mcp serve-http` serves the same grant from your own PC
+over HTTPS with OAuth sign-in (nothing runs on a server of ours): loopback
+unless you name a wider address, your own certificate or your own tunnel,
+clients you register with `mcp client add`, and an owner code printed in
+the connector's terminal before anything connects.
 
 If the approval page closes on idle, the next save request opens a fresh
 page. A browser opener failure refuses that request and closes its page;
@@ -6284,7 +6288,9 @@ what is still open.
 
 The `Vault` command (`museSpark.vault`) opens the vault panel and `Lock vault
 now` (`museSpark.lockVault`, Ctrl+Alt+Shift+L / Cmd+Alt+Shift+L) ends every
-use in every window. The panel host and the native editor ship in
+use in every window. `Undo Retired Vault Entry` (`museSpark.vaultUndoRetired`) brings a retired
+sign-in back as the current value, as does Undo beside it in the vault panel's
+Retired entries. The panel host and the native editor ship in
 `dist/vault.js`, loaded on the first vault command; activation reads no vault
 and starts no broker. The installed POSIX client and broker factory are bound
 behind the reviewed availability switch, and the Models & Agents panel mounts
@@ -6417,12 +6423,21 @@ fence. Approved environment injection cannot restore loader or startup
 variables.
 
 Local headless `exec --vault` requires existing unattended grants and never
-prompts. Missing grants, presence, taint, unavailable bindings or a failed
-vault use end the run with `denied` (exit 7), independently of
-`--fail-on-denial`. `--key-stdin` and CI cannot enable the vault. Ordinary
-headless behavior without the flag is unchanged. Companion and native panel
-routes carry only public state and bound answers; add/edit opens the host's
-local terminal and never sends a value through the bridge.
+prompts. It also requires your vault policy ceiling for the workspace and
+the headless role: `muse-spark-code-acp vault policy` prints the policy,
+and `vault policy '<policy-json>'` sets it (a ceiling per workspace and
+role — the handles it may use, or `ask`); with none set, which is the
+default, the run refuses and the denial says so. The first secret-use
+increment serves environment and stdin uses: the value travels from the
+broker to a dedicated feeder process under a single-use delegation bound
+to that feeder's identity, and from the feeder into the command — never
+through the agent host. Missing grants, presence, taint, unavailable
+bindings or a failed vault use end the run with `denied` (exit 7),
+independently of `--fail-on-denial`. `--key-stdin` and CI cannot enable
+the vault. Ordinary headless behavior without the flag is unchanged.
+Companion and native panel routes carry only public state and bound
+answers; add/edit opens the host's local terminal and never sends a value
+through the bridge.
 
 ## Development
 

@@ -2,20 +2,28 @@
 // credential store, the migration controller and the authenticated POSIX
 // broker into the encrypted vault: probed or pool-listed (never listed by
 // the providers seam), copied, verified, rotated, locked/unlocked and
-// signed out. A unique service owns only this run's generated entries; no
-// person's key is read, and the generated tokens are never issued or sent
-// anywhere: no sign-in, refresh or provider call runs. No file/Map store,
-// anchor, broker or editor substitute participates.
+// signed out; a retired slot is undone, and a lost vault is reset. A unique
+// service owns only this run's generated entries; no person's key is read,
+// and the generated tokens are never issued or sent anywhere: no sign-in,
+// refresh or provider call runs. No file/Map store, anchor, broker or editor
+// substitute participates.
 import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, it } from 'vitest'
 import { accountSecretMigrationCredential } from '../../../src/core/vault/migrate/accountSecrets'
 import { chatgptSubscriptionMigrationCredential } from '../../../src/core/vault/migrate/chatgptSubscription'
 import { vaultPeerExecutable } from '../../../src/runtime/vault/posixNative'
+import { vaultBrokerDataDir } from '../../../src/runtime/vault/vaultStoreScope'
+import {
+  driveResetCase,
+  driveUndoCrashCase,
+  driveUndoRetiredCase,
+} from '../helpers/vault/retiredUndoFlow'
 import { shouldSkipPosixBrokerSuite } from '../helpers/vault/socketFit'
 import {
   chatgptSeeds,
   driveRetireCase,
+  driveRuntimeSlotCase,
   driveSlotCase,
   expectOriginRefused,
   pooledAccountSeeds,
@@ -125,6 +133,73 @@ describe.skipIf(shouldSkipPosixBrokerSuite())(
             connect: client.connect,
             lockScope: client.hostId,
             fresh: true,
+          }),
+        )
+      },
+      FLOW_TIMEOUT_MS,
+    )
+
+    it(
+      'migrates the pooled slot through the runtime binding and its file seams',
+      async () => {
+        await withClient('runtime-migration', (client, root) =>
+          driveRuntimeSlotCase({
+            connect: client.connect,
+            lockScope: client.hostId,
+            fresh: true,
+            codec: accountSecretMigrationCredential(POOLED_PROVIDER, POOLED_ACCOUNT, Date.now),
+            origin: POOLED_ORIGIN,
+            dataDir: path.join(root, 'runtime-migration', 'data'),
+            providersFile: path.join(root, 'runtime-migration', 'user-providers.json'),
+            provider: POOLED_PROVIDER,
+            accounts: ['default', POOLED_ACCOUNT],
+            ...pooledAccountSeeds(POOLED_PROVIDER, POOLED_ACCOUNT, POOLED_ORIGIN),
+          }),
+        )
+      },
+      FLOW_TIMEOUT_MS,
+    )
+
+    it(
+      'undoes a retired entry byte-exact and refuses an emptied or changed one in words',
+      async () => {
+        await withClient('undo', (client) =>
+          driveUndoRetiredCase({
+            connect: client.connect,
+            lockScope: client.hostId,
+            fresh: true,
+          }),
+        )
+      },
+      FLOW_TIMEOUT_MS,
+    )
+
+    it(
+      'finishes a retired undo that was killed between its steps',
+      async () => {
+        await withClient('undo-crash', (client, root) =>
+          driveUndoCrashCase({
+            connect: client.connect,
+            lockScope: client.hostId,
+            fresh: true,
+            dataDir: client.dataDir,
+            installRoot: root,
+          }),
+        )
+      },
+      // Broker, native store and a killed child: the suite's own flow deadline.
+      FLOW_TIMEOUT_MS,
+    )
+
+    it(
+      'deletes retired entries with everything else when a lost vault is reset',
+      async () => {
+        await withClient('reset', (client) =>
+          driveResetCase({
+            connect: client.connect,
+            lockScope: client.hostId,
+            fresh: true,
+            brokerDataDir: vaultBrokerDataDir(client.dataDir),
           }),
         )
       },

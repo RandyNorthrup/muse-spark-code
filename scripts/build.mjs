@@ -195,6 +195,10 @@ const CONNECTOR_OUTFILE = 'dist/connector.js'
 // the `mcp` command beside the connector bundle.
 const CONNECTOR_STORE_GUARD_ENTRY = 'src/runtime/connector/storageGuard.ts'
 const CONNECTOR_STORE_GUARD_OUTFILE = 'dist/connectorStoreGuard.js'
+// M124 remote (D240): the connector over HTTPS with OAuth, loaded only by
+// `muse-spark-code-acp mcp serve-http` and `mcp client`.
+const CONNECTOR_REMOTE_ENTRY = 'src/runtime/connector/remoteEntry.ts'
+const CONNECTOR_REMOTE_OUTFILE = 'dist/connectorRemote.js'
 const PROMPTS_ENTRY = 'src/host/vscode/prompts/promptEntry.ts'
 const PROMPTS_OUTFILE = 'dist/prompts.js'
 const TAB_ENTRY = 'src/host/tab/tabEntry.ts'
@@ -507,6 +511,12 @@ const PACKS_VERIFY_OUTFILE = 'dist/packsVerify.js'
 // headless runs, loaded on the first vault need; no `vscode` import.
 const VAULT_RUNTIME_ENTRY = 'src/runtime/vault/vaultRuntimeEntry.ts'
 const VAULT_RUNTIME_OUTFILE = 'dist/vaultRuntime.js'
+const VAULT_RUNTIME_MIGRATION_ENTRY = 'src/runtime/vault/vaultRuntimeMigrationEntry.ts'
+const VAULT_RUNTIME_MIGRATION_OUTFILE = 'dist/vaultRuntimeMigration.js'
+const VAULT_POLICY_ENTRY = 'src/runtime/vault/vaultPolicyEntry.ts'
+const VAULT_POLICY_OUTFILE = 'dist/vaultPolicy.js'
+const VAULT_EXEC_HOST_ENTRY = 'src/runtime/vault/vaultExecHostEntry.ts'
+const VAULT_EXEC_HOST_OUTFILE = 'dist/vaultExecHost.js'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
 // M95 (PLAN.md D74): exact catalogue values, with no provider runtime logic.
 // The data module uses the same verified solid archive loader as lazy bundles.
@@ -609,6 +619,13 @@ const connectorStoreGuardOptions = {
   ...sharingRuntimeOptions,
   entryPoints: [CONNECTOR_STORE_GUARD_ENTRY],
   outfile: CONNECTOR_STORE_GUARD_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const connectorRemoteOptions = {
+  ...sharingRuntimeOptions,
+  entryPoints: [CONNECTOR_REMOTE_ENTRY],
+  outfile: CONNECTOR_REMOTE_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -2066,6 +2083,28 @@ const runtimePanelPortsOptions = {
   outfile: RUNTIME_PANEL_PORTS_OUTFILE,
   banner: {},
 }
+// RLF-M109: the runtime key-store migration's own chunk, loaded by the
+// vault runtime on the first unlock edge; same ACP-side options (no
+// `vscode` external, so a stray editor import fails this build).
+const vaultRuntimeMigrationOptions = {
+  ...acpQuestionsOptions,
+  entryPoints: [VAULT_RUNTIME_MIGRATION_ENTRY],
+  outfile: VAULT_RUNTIME_MIGRATION_OUTFILE,
+}
+// D243: the person vault policy's file half, loaded by the broker
+// bindings and the vault runtime on first use.
+const vaultPolicyOptions = {
+  ...acpQuestionsOptions,
+  entryPoints: [VAULT_POLICY_ENTRY],
+  outfile: VAULT_POLICY_OUTFILE,
+}
+// D243: the headless registration and feeder host port, loaded by the
+// vault runtime binding and the exec entry on first vault use.
+const vaultExecHostOptions = {
+  ...acpQuestionsOptions,
+  entryPoints: [VAULT_EXEC_HOST_ENTRY],
+  outfile: VAULT_EXEC_HOST_OUTFILE,
+}
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
@@ -2132,6 +2171,13 @@ const vaultBrokerBindingsOptions = {
   ...vaultBrokerOptions,
   entryPoints: ['src/runtime/vault/brokerBindings.ts'],
   outfile: 'dist/vaultBrokerBindings.js',
+}
+
+const vaultExecOptions = {
+  ...modelApiOptions,
+  plugins: [...modelApiOptions.plugins, sharedVaultStore],
+  entryPoints: ['src/runtime/vault/vaultExecEntry.ts'],
+  outfile: 'dist/vaultExec.js',
 }
 
 const vaultBoundariesOptions = {
@@ -2481,6 +2527,7 @@ if (isWatch) {
     esbuild.context(sharingRuntimeOptions),
     esbuild.context(connectorOptions),
     esbuild.context(connectorStoreGuardOptions),
+    esbuild.context(connectorRemoteOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(resourceGovernorOptions),
     esbuild.context(resourceGovernorWindowsOptions),
@@ -2620,6 +2667,7 @@ if (isWatch) {
     esbuild.context(vaultPosixOptions),
     esbuild.context(vaultWindowsOptions),
     esbuild.context(vaultBrokerBindingsOptions),
+    esbuild.context(vaultExecOptions),
     esbuild.context(vaultActionsOptions),
     esbuild.context(vaultMigrationOptions),
     esbuild.context(reportOptions),
@@ -2732,6 +2780,7 @@ if (isWatch) {
     sharingRuntime: recorded('sharingRuntime', sharingRuntimeOptions),
     connector: recorded('connector', connectorOptions),
     connectorStoreGuard: recorded('connectorStoreGuard', connectorStoreGuardOptions),
+    connectorRemote: recorded('connectorRemote', connectorRemoteOptions),
     modelApi: recorded('modelApi', modelApiOptions),
     resourceGovernor: recorded('resourceGovernor', resourceGovernorOptions),
     resourceGovernorWindows: recorded('resourceGovernorWindows', resourceGovernorWindowsOptions),
@@ -2854,6 +2903,7 @@ if (isWatch) {
     vaultPosix: recorded('vaultPosix', vaultPosixOptions),
     vaultWindows: recorded('vaultWindows', vaultWindowsOptions),
     vaultBrokerBindings: recorded('vaultBrokerBindings', vaultBrokerBindingsOptions),
+    vaultExec: recorded('vaultExec', vaultExecOptions),
     vaultActions: recorded('vaultActions', vaultActionsOptions),
     vaultMigration: recorded('vaultMigration', vaultMigrationOptions),
     report: recorded('report', reportOptions),
@@ -2946,6 +2996,9 @@ if (isWatch) {
     ['runtimePanelPorts', () => esbuild.build(runtimePanelPortsOptions)],
     ['nodeServe', () => esbuild.build(nodeServeOptions)],
     ['nodeAuth', () => esbuild.build(nodeAuthOptions)],
+    ['vaultRuntimeMigration', () => esbuild.build(vaultRuntimeMigrationOptions)],
+    ['vaultPolicy', () => esbuild.build(vaultPolicyOptions)],
+    ['vaultExecHost', () => esbuild.build(vaultExecHostOptions)],
   ]
   if (!isProduction || isWithIntegrationTests) {
     extraSpecs.push(['integrationTests', () => esbuild.build(integrationTestOptions)])
@@ -2972,6 +3025,9 @@ if (isWatch) {
   let runtimePanelPorts
   let nodeServe
   let nodeAuth
+  let vaultRuntimeMigration
+  let vaultPolicy
+  let vaultExecHost
   try {
     shipped = await runBuildPool(Object.entries(shippedSpecs), BUILD_POOL_SIZE)
     ;({
@@ -2996,6 +3052,9 @@ if (isWatch) {
       runtimePanelPorts,
       nodeServe,
       nodeAuth,
+      vaultRuntimeMigration,
+      vaultPolicy,
+      vaultExecHost,
     } = await runBuildPool(extraSpecs, BUILD_POOL_SIZE))
   } catch (error) {
     await esbuild.stop()
@@ -3035,6 +3094,21 @@ if (isWatch) {
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'vaultRuntime.json'),
       JSON.stringify(vaultRuntimeMetafile, null, 2),
+    )
+    const { metafile: vaultRuntimeMigrationMetafile } = await vaultRuntimeMigration
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'vaultRuntimeMigration.json'),
+      JSON.stringify(vaultRuntimeMigrationMetafile, null, 2),
+    )
+    const { metafile: vaultPolicyMetafile } = await vaultPolicy
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'vaultPolicy.json'),
+      JSON.stringify(vaultPolicyMetafile, null, 2),
+    )
+    const { metafile: vaultExecHostMetafile } = await vaultExecHost
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'vaultExecHost.json'),
+      JSON.stringify(vaultExecHostMetafile, null, 2),
     )
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'runtimeQuestions.json'),
@@ -3158,6 +3232,7 @@ if (isWatch) {
   reportSize(VAULT_OUTFILE)
   reportSize('dist/vaultBroker.js')
   reportSize('dist/vaultBrokerBindings.js')
+  reportSize('dist/vaultExec.js')
   reportSize(VAULT_ACTIONS_OUTFILE)
   reportSize(REPORT_OUTFILE)
   reportSize(REPORT_FALLBACK_OUTFILE)

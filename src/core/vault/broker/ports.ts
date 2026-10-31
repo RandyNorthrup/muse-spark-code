@@ -19,6 +19,7 @@ import {
   type VaultResetChallenge,
 } from '../../../shared/vaultProtocol'
 import { type VaultCeiling } from './policy'
+import { type VaultProcessIdentity } from './peer'
 import { type Duplex } from 'node:stream'
 
 export interface VaultSecuredListenerPort {
@@ -84,6 +85,13 @@ export interface VaultIdentityPort {
     peer: VaultAuthenticatedPeer,
     registration: VaultRequesterRegistration,
   ): Promise<boolean>
+  /**
+  D243: the feeder belongs to the registered requester's command tree:
+  its OS ancestry includes the requester process, start times checked
+  against live OS records. The feeder identity itself is the kernel
+  peer record of its own connection, never a frame claim.
+  */
+  verifyFeeder(feeder: VaultProcessIdentity, requester: VaultRequester): Promise<boolean>
 }
 export interface VaultUseLifetime {
   close(): void

@@ -707,6 +707,8 @@ export const COMMAND_IDS = {
   // M109 (PLAN.md D89): the per-user credential vault panel and its lock.
   vault: 'museSpark.vault',
   lockVault: 'museSpark.lockVault',
+  // D241: undo one retired migration slot, restoring its value as current.
+  vaultUndoRetired: 'museSpark.vaultUndoRetired',
   // M117 (PLAN.md D97): open the capacity estimator for a goal.
   estimate: 'museSpark.estimate',
   // M112 (PLAN.md D92): cycle the focused chat's open question cards.
@@ -3062,10 +3064,21 @@ export const GITHUB_ISSUES_PAGE_SIZE = 100
 // lease, (b) the runtime's device-flow sign-in, (c) the user's `gh` login.
 export const GITHUB_TOKEN_SOURCE_ORDER = ['editorLease', 'deviceFlow', 'ghLogin'] as const
 // The scopes any source may ask for: `repo` (M71's), and `read:org` only
-// once a lane proves a call needs it. Nothing else is ever requested.
+// once a lane proves a call needs it. Nothing else is ever requested,
+// except D242's one Share-time exception below.
 export const GITHUB_PERMITTED_SCOPES: readonly string[] = ['repo', 'read:org']
+// M118 phase 2 (D242): the scope asked only when the person presses Share
+// to a secret gist, never at sign-in. `gist` alone. GitHub issues that
+// authorization as its own token and does not revoke an earlier `repo`
+// token (docs.github.com, "Creating multiple tokens for OAuth apps",
+// read 2026-10-30). The repository sign-in stays in its own slot.
+export const GITHUB_GIST_SCOPE = 'gist'
+export const GITHUB_GIST_SCOPES: readonly string[] = [GITHUB_GIST_SCOPE]
+// The Share-time gist grant, beside the repository sign-in, never in it.
+export const GITHUB_GIST_SHARE_SECRET_KEY = 'museSpark.github.gistShare'
 // GitHub names a token's scopes in this response header (comma-separated).
-/** @unwired M71 read only by tests deleted 2026-10-17 (no fakes) */
+// M118 phase 2 (D242) reads it in `GitHubClient` to tell a missing gist
+// scope from a real 404.
 export const GITHUB_SCOPES_HEADER = 'x-oauth-scopes'
 // The project's OAuth App (Q-M123, registered by the owner 2026-10-08):
 // public, device flow on, expiring user tokens on, no client secret. The
@@ -5788,6 +5801,16 @@ export const VAULT_ACTIONS_BUNDLE_FILE = 'vaultActions.js'
 export const VAULT_MIGRATION_BUNDLE_FILE = 'vaultMigration.js'
 // C-M109-1: the CLI, ACP and headless vault (no `vscode`), lead decision 5.
 export const VAULT_RUNTIME_BUNDLE_FILE = 'vaultRuntime.js'
+/** dist/vaultExec.js: the D243 feeder, spawned in place of a command. */
+export const VAULT_EXEC_BUNDLE_FILE = 'vaultExec.js'
+/** dist/vaultPolicy.js: the person vault policy's file half, on first use. */
+export const VAULT_POLICY_BUNDLE_FILE = 'vaultPolicy.js'
+/** dist/vaultExecHost.js: the headless registration and feeder host port. */
+export const VAULT_EXEC_HOST_BUNDLE_FILE = 'vaultExecHost.js'
+// RLF-M109: the runtime key-store migration's own chunk beside the vault
+// runtime (the controller, the engine and its codecs), loaded on the first
+// unlock edge in the CLI, ACP or headless process only.
+export const VAULT_RUNTIME_MIGRATION_BUNDLE_FILE = 'vaultRuntimeMigration.js'
 // The empty folder under the extension's global storage the reviewer's side
 // session runs in: outside every workspace, so no History lists it, and
 // with no rules, skills or files of the user's to read.
@@ -6596,6 +6619,15 @@ export const SCHEDULE_JOURNAL_SEAL_MAX_BYTES = 256
 export const SCHEDULE_OUTBOX_MAX_PENDING = 1024
 export const SCHEDULE_RECONCILE_MAX_RUNS = 32
 export const SCHEDULE_FENCE_GRACE_MS = 8 * MILLISECONDS_PER_DAY
+// RLF-SAFEFIX (D121, RVINT5 P3): a failed deferred schedule event retries
+// with capped exponential backoff — wait = min(cap, base * 2^failures)
+// (AWS Architecture Blog, "Exponential Backoff And Jitter") — at most 5
+// fire attempts including the first (gRPC's MaxRetryAttempts default),
+// then stops and says why. The base is one poll interval: a wait shorter
+// than the scan period could never fire sooner. The schedules settings
+// carry no retry knobs, so no setting tunes this.
+export const SCHEDULE_DEFERRED_EVENT_MAX_ATTEMPTS = 5
+export const SCHEDULE_DEFERRED_EVENT_RETRY_CAP_MS = 8 * SCHEDULE_POLL_INTERVAL_MS
 export const SCHEDULE_AUDIT_MAX_PER_SCHEDULE = 100
 export const SCHEDULE_AUDIT_MAX_AGE_MS = 30 * MILLISECONDS_PER_DAY
 export const SCHEDULE_FENCE_SEGMENT_CHARS = 2
@@ -7220,6 +7252,20 @@ export const MSP_LONG_COMMANDS: ReadonlySet<string> = new Set([
 // Windows now and then since 1.3.0, meta-models/muse-code-sdk#29).
 export const MUSE_APPROVAL_REPLAY_FAULT = 'approval replay failed'
 export const MUSE_APPROVAL_LEDGER_FAULT = 'approval ledger durability fence'
+// The persistence timeout of that family (RLF-HARVEST H1, captured live
+// 2026-10-30 on Muse Code 1.4.7): `approval/decide` answers -32603
+// `internal` with this wording after about ten seconds, while the
+// decision goes on to settle `accepted` in Muse Code's own record.
+export const MUSE_APPROVAL_PERSISTENCE_FAULT = 'approval persistence timed out'
+// How long a persistence-timeout decision waits for Muse Code's own
+// stage news (or a last `approval/listPending` read) before the stage is
+// offered again: in the capture the stage update landed 16 ms after the
+// immediate read still named the old stage, and in linuxlt RLM125's
+// session record every such decision settled within about five seconds
+// of the error reply, so ten covers it with margin. This bounds a
+// failure-recovery re-check (the CLI's own "re-open the approval to
+// verify"), never a person's work: after it, the check answers honestly.
+export const APPROVAL_PERSISTENCE_SETTLE_MS = 10_000
 // Upstream's #29 fix floor; the owner-authorized live probe accepted a
 // decision without the ledger fault (docs/certification/muse143.md).
 export const MUSE_APPROVAL_LEDGER_FIXED_VERSION = '1.4.3'
@@ -7680,8 +7726,10 @@ export const HTTP_STATUS = {
   notFound: 404,
   methodNotAllowed: 405,
   requestTooLarge: 413,
+  unsupportedMediaType: 415,
   unprocessable: 422,
   internalServerError: 500,
+  serviceUnavailable: 503,
 } as const
 
 // Initial HTTP validation/auth/quota refusals precede generation. Timeout and
@@ -8330,6 +8378,10 @@ export const SHARE_DESTINATIONS = [
   'email',
 ] as const
 export const SHARE_LOCAL_DESTINATIONS = ['copy', 'file', 'browser'] as const
+// M118 phase 2 (D242): the destinations past the machine. Only the secret
+// gist exists; nodeLink, team and email stay reserved names in
+// SHARE_DESTINATIONS until their phases land.
+export const SHARE_NETWORK_DESTINATIONS = ['gist'] as const
 // NOLIMITS1FIX: the removed 16 MiB file ceiling and the 20,000-item ceiling
 // were both invented — files write and read back at any byte size and any
 // item count. A long agentic session has a few thousand items.
@@ -11378,8 +11430,15 @@ export const RESOURCE_TRANSPORT_FAILURE_PERCENT = 20
 export const RESOURCE_TRANSPORT_MIN_RESULTS = 5
 export const RESOURCE_TRANSPORT_WINDOW_MS = 60_000
 export const RESOURCE_TRANSPORT_MAX_RESULTS = 100
-export const RESOURCE_TREE_PROCESS_CAP = 128
-export const RESOURCE_TREE_SPAWN_CAP = 64
+// D100 G13 per-job fork protection (D121/D208 safety bound, RLF-GOVFORK).
+// 512 alive processes: systemd's per-unit DefaultTasksMax through v230, and
+// below the ~1,200-process freeze that motivated G13. 16,384 births per
+// 15 s: OpenShift's per-workload maximum (podPidsLimit); a job churning it
+// is a flood, not work (docs/certification/cc-govfork.md has the sources
+// and the burst measurements). An internal resilience default, never a
+// person-set threshold.
+export const RESOURCE_TREE_PROCESS_CAP = 512
+export const RESOURCE_TREE_SPAWN_CAP = 16_384
 export const RESOURCE_TREE_SPAWN_WINDOW_MS = 15_000
 // SPAWN017C: an attested Windows job samples its own birth count in process,
 // drains to empty before it reports, and sends one bounded final record.
@@ -11686,6 +11745,61 @@ export const CONNECTOR_COMPANION_LIMITS = {
   sessionTtlMs: 1_800_000,
   maxSessions: 2,
 } as const
+// M124 remote (D240): the connector over HTTPS Streamable HTTP with the
+// MCP authorization profile (OAuth 2.1 + PKCE), served by the person's
+// own PC. Loaded only by `muse-spark-code-acp mcp serve-http` and
+// `mcp client …`.
+export const CONNECTOR_REMOTE_BUNDLE_FILE = 'connectorRemote.js'
+export const CONNECTOR_REMOTE_DEFAULT_PORT = 9443
+/**
+Limits of the remote endpoint. None caps the person's work: the first
+group is protocol timing (an authorization code is short-lived, an access
+token is short-lived by the profile's own words), the second protects the
+PC from strangers before anyone has been admitted (state an unauthenticated
+caller can create), and the token and grant lifetimes are the person's to
+set on the command.
+*/
+export const CONNECTOR_REMOTE_LIMITS = {
+  /** An authorization code: OAuth 2.1 draft-13 §4.1.2 asks for a short life; Keycloak and Okta default to 60 s. */
+  codeTtlSeconds: 60,
+  /** Access tokens: one hour (the profile asks for short-lived ones); `--token-minutes` sets it. */
+  accessTokenSeconds: 3600,
+  /** How long a sign-in lasts before the client signs in again; `--sign-in-days` sets it. 30 days. */
+  grantTtlSeconds: 2_592_000,
+  /** A consent page left open: Keycloak's login timeout default is 30 minutes; ten here, the owner is at the PC. */
+  interactionTtlSeconds: 600,
+  /** The owner's browser session on the consent page. */
+  sessionTtlSeconds: 3600,
+  /** The form bodies the owner's consent page and the OAuth endpoints read. 16 KiB. */
+  formBodyBytes: 16_384,
+  /** Open registrations by unknown clients kept at once: Keycloak's anonymous "Max Clients" default. */
+  openClientsMax: 200,
+  /** An open registration nobody approved lapses after an hour. */
+  openClientTtlMs: 3_600_000,
+  /** Consent pages waiting at once; for one owner at one PC. */
+  interactionsMax: 100,
+  /** Wrong owner codes before the code is replaced and printed again (NIST SP 800-63B §5.2.2 allows 100). */
+  ownerCodeFailuresMax: 5,
+  /** Characters of the owner code: 12 of base32 is 60 bits. */
+  ownerCodeChars: 12,
+  /** Random bytes of the secret that signs the consent page's cookies. */
+  cookieKeyBytes: 32,
+} as const
+export const CONNECTOR_REMOTE_PATHS = {
+  mcp: '/mcp',
+  authorize: '/authorize',
+  token: '/token',
+  register: '/register',
+  revoke: '/revoke',
+  jwks: '/jwks.json',
+  interaction: '/interaction',
+  protectedResource: '/.well-known/oauth-protected-resource',
+  authorizationServer: '/.well-known/oauth-authorization-server',
+  openidConfiguration: '/.well-known/openid-configuration',
+} as const
+/** The one account every sign-in belongs to: the person at this PC. */
+export const CONNECTOR_REMOTE_OWNER_ACCOUNT = 'owner'
+
 export const CONNECTOR_FOLDER = 'connector'
 export const CONNECTOR_FILE_MODE = 0o600
 export const CONNECTOR_FOLDER_MODE = 0o700

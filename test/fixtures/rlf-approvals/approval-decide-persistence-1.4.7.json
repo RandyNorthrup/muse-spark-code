@@ -1,0 +1,4483 @@
+{
+  "provenance": {
+    "capturedAt": "2026-10-30T18:52:00Z",
+    "cli": "Muse Code 1.4.7 (1.4.7-R6101.1), pinned rig binary muse-bin",
+    "provider": "meta (subscription sign-in of the CLI itself)",
+    "model": "muse-spark-1.3-contributor (by that explicit name; session/start refused to send the turn otherwise)",
+    "modelAttempts": 2,
+    "captureCommand": "node temp/capture-approvals/capture-decide2.mjs <muse-bin 1.4.7-R6101.1> <empty workspace> <out> (direct MSP over stdio; one turn asking for one 120-stage compound shell command)",
+    "induction": "The serve process was paused with SIGSTOP for 12 s after the stage-0 decision intake record landed and resumed with SIGCONT, so the CLI crossed its own approval-persistence timeout (in real use this crossing happens in large busy sessions: linuxlt RLM125 measured every failed stage settled accepted after 11,270-15,131 ms while successes stayed under 9,985 ms; docs/certification/rlf-approvals.md). The frames are the CLI verbatim replies.",
+    "timingMsFromDecideSent": {
+      "errorReply": 12062,
+      "listPendingAfter1Stage0": 12074,
+      "approvalUpdatedStage1": 12090,
+      "listPendingAfter2Stage1": 15096
+    },
+    "scrubbed": ["capture workspace path", "muse home path"],
+    "projection": true,
+    "omitted": [
+      "approval/listPending approval rows projected to approvalId, availableChoices and currentRequirementId (the fields the pending-stage check reads); every other frame is verbatim"
+    ]
+  },
+  "frames": [
+    {
+      "direction": "received",
+      "frame": {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "result": {
+          "experimentalApi": false,
+          "grantedCapabilities": [],
+          "museHome": "<muse-home>",
+          "platformFamily": "unix",
+          "platformOs": "linux",
+          "sandboxAvailability": "available",
+          "schema": {
+            "fingerprint": "sha256:6de32db08bbbe0deb478d2bfcaba001e9fb490986bc80db3aceb4d996abf7df9",
+            "version": 1
+          },
+          "serverInfo": {
+            "name": "muse",
+            "version": "1.4.7"
+          },
+          "sessionDurability": "durable",
+          "userAgent": "muse-build/1.4.7 (serve; linux-x86_64; build d8c53d25bd30cda15ab32b18b9bb9961df9c4be0)"
+        }
+      }
+    },
+    {
+      "direction": "sent",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "session/start",
+        "params": {
+          "commandId": "01a18e27-6a27-7698-a53e-923d960cda33",
+          "workspaceRoot": "<capture-workspace>",
+          "modelId": "muse-spark-1.3-contributor",
+          "approvalMode": "promptUnmatched"
+        }
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "id": 2,
+        "jsonrpc": "2.0",
+        "result": {
+          "session": {
+            "activeTurnId": null,
+            "approvalMode": {
+              "lastCommandId": null,
+              "mode": "promptUnmatched",
+              "source": "startup"
+            },
+            "createdAt": "2026-10-30T18:51:51.012168Z",
+            "createdByClient": {
+              "name": "capture",
+              "version": "1"
+            },
+            "forkedFrom": null,
+            "kind": "root",
+            "modelId": "muse-spark-1.3-contributor",
+            "path": "<muse-home>/sessions/2026/10/30/01a18e27-6d5b-7030-b2f7-52ac653c5448/session.jsonl",
+            "providerId": "meta",
+            "sessionId": "01a18e27-6d5b-7030-b2f7-52ac653c5448",
+            "sideFrom": null,
+            "status": "idle",
+            "turnCount": 0,
+            "updatedAt": "2026-10-30T18:51:51.012173Z",
+            "workspaceRoot": "<capture-workspace>"
+          },
+          "viewCursor": "v:01a18e27-6d5b-7030-b2f7-52ac653c5448:2"
+        }
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "emittedAtMs": 1793386316922,
+        "jsonrpc": "2.0",
+        "method": "approval/requested",
+        "params": {
+          "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+          "availableChoices": [
+            {
+              "choiceId": "allow_once",
+              "decision": "approved",
+              "label": "Allow once",
+              "scope": "once"
+            },
+            {
+              "choiceId": "allow_local_prefix",
+              "decision": "approvedPolicyAmendment",
+              "label": "Always allow in this workspace: echo ...",
+              "rulePreview": "Always allow in this workspace: echo ...",
+              "scope": "localPersistent"
+            },
+            {
+              "acceptsFeedback": true,
+              "choiceId": "abort",
+              "decision": "abort",
+              "label": "Reject",
+              "scope": "once"
+            }
+          ],
+          "currentRequirementId": {
+            "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+            "sourceIndex": 0
+          },
+          "itemId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+          "judgeEscalated": false,
+          "protectedWrite": false,
+          "rawArgs": "{\"command\":\"echo cap-0 && echo cap-1 && echo cap-2 && echo cap-3 && echo cap-4 && echo cap-5 && echo cap-6 && echo cap-7 && echo cap-8 && echo cap-9 && echo cap-10 && echo cap-11 && echo cap-12 && echo cap-13 && echo cap-14 && echo cap-15 && echo cap-16 && echo cap-17 && echo cap-18 && echo cap-19 && echo cap-20 && echo cap-21 && echo cap-22 && echo cap-23 && echo cap-24 && echo cap-25 && echo cap-26 && echo cap-27 && echo cap-28 && echo cap-29 && echo cap-30 && echo cap-31 && echo cap-32 && echo cap-33 && echo cap-34 && echo cap-35 && echo cap-36 && echo cap-37 && echo cap-38 && echo cap-39 && echo cap-40 && echo cap-41 && echo cap-42 && echo cap-43 && echo cap-44 && echo cap-45 && echo cap-46 && echo cap-47 && echo cap-48 && echo cap-49 && echo cap-50 && echo cap-51 && echo cap-52 && echo cap-53 && echo cap-54 && echo cap-55 && echo cap-56 && echo cap-57 && echo cap-58 && echo cap-59 && echo cap-60 && echo cap-61 && echo cap-62 && echo cap-63 && echo cap-64 && echo cap-65 && echo cap-66 && echo cap-67 && echo cap-68 && echo cap-69 && echo cap-70 && echo cap-71 && echo cap-72 && echo cap-73 && echo cap-74 && echo cap-75 && echo cap-76 && echo cap-77 && echo cap-78 && echo cap-79 && echo cap-80 && echo cap-81 && echo cap-82 && echo cap-83 && echo cap-84 && echo cap-85 && echo cap-86 && echo cap-87 && echo cap-88 && echo cap-89 && echo cap-90 && echo cap-91 && echo cap-92 && echo cap-93 && echo cap-94 && echo cap-95 && echo cap-96 && echo cap-97 && echo cap-98 && echo cap-99 && echo cap-100 && echo cap-101 && echo cap-102 && echo cap-103 && echo cap-104 && echo cap-105 && echo cap-106 && echo cap-107 && echo cap-108 && echo cap-109 && echo cap-110 && echo cap-111 && echo cap-112 && echo cap-113 && echo cap-114 && echo cap-115 && echo cap-116 && echo cap-117 && echo cap-118 && echo cap-119\",\"description\":\"Run requested echo sequence\"}",
+          "sessionId": "01a18e27-6d5b-7030-b2f7-52ac653c5448",
+          "sourceRange": {
+            "first": {
+              "id": "754331fc-91b9-4dcc-a9d8-41fab5d7754c",
+              "sequence": 56
+            },
+            "last": {
+              "id": "754331fc-91b9-4dcc-a9d8-41fab5d7754c",
+              "sequence": 56
+            },
+            "stream": {
+              "id": "01a18e27-6d5b-7030-b2f7-52ac653c5448",
+              "kind": "session"
+            }
+          },
+          "subject": {
+            "command": "echo cap-0 && echo cap-1 && echo cap-2 && echo cap-3 && echo cap-4 && echo cap-5 && echo cap-6 && echo cap-7 && echo cap-8 && echo cap-9 && echo cap-10 && echo cap-11 && echo cap-12 && echo cap-13 && echo cap-14 && echo cap-15 && echo cap-16 && echo cap-17 && echo cap-18 && echo cap-19 && echo cap-20 && echo cap-21 && echo cap-22 && echo cap-23 && echo cap-24 && echo cap-25 && echo cap-26 && echo cap-27 && echo cap-28 && echo cap-29 && echo cap-30 && echo cap-31 && echo cap-32 && echo cap-33 && echo cap-34 && echo cap-35 && echo cap-36 && echo cap-37 && echo cap-38 && echo cap-39 && echo cap-40 && echo cap-41 && echo cap-42 && echo cap-43 && echo cap-44 && echo cap-45 && echo cap-46 && echo cap-47 && echo cap-48 && echo cap-49 && echo cap-50 && echo cap-51 && echo cap-52 && echo cap-53 && echo cap-54 && echo cap-55 && echo cap-56 && echo cap-57 && echo cap-58 && echo cap-59 && echo cap-60 && echo cap-61 && echo cap-62 && echo cap-63 && echo cap-64 && echo cap-65 && echo cap-66 && echo cap-67 && echo cap-68 && echo cap-69 && echo cap-70 && echo cap-71 && echo cap-72 && echo cap-73 && echo cap-74 && echo cap-75 && echo cap-76 && echo cap-77 && echo cap-78 && echo cap-79 && echo cap-80 && echo cap-81 && echo cap-82 && echo cap-83 && echo cap-84 && echo cap-85 && echo cap-86 && echo cap-87 && echo cap-88 && echo cap-89 && echo cap-90 && echo cap-91 && echo cap-92 && echo cap-93 && echo cap-94 && echo cap-95 && echo cap-96 && echo cap-97 && echo cap-98 && echo cap-99 && echo cap-100 && echo cap-101 && echo cap-102 && echo cap-103 && echo cap-104 && echo cap-105 && echo cap-106 && echo cap-107 && echo cap-108 && echo cap-109 && echo cap-110 && echo cap-111 && echo cap-112 && echo cap-113 && echo cap-114 && echo cap-115 && echo cap-116 && echo cap-117 && echo cap-118 && echo cap-119",
+            "kind": "shell",
+            "stages": [
+              {
+                "argv": ["echo", "cap-0"],
+                "argvComplete": true,
+                "position": 1,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 0
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-1"],
+                "argvComplete": true,
+                "position": 2,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 1
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-2"],
+                "argvComplete": true,
+                "position": 3,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 2
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-3"],
+                "argvComplete": true,
+                "position": 4,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 3
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-4"],
+                "argvComplete": true,
+                "position": 5,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 4
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-5"],
+                "argvComplete": true,
+                "position": 6,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 5
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-6"],
+                "argvComplete": true,
+                "position": 7,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 6
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-7"],
+                "argvComplete": true,
+                "position": 8,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 7
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-8"],
+                "argvComplete": true,
+                "position": 9,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 8
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-9"],
+                "argvComplete": true,
+                "position": 10,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 9
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-10"],
+                "argvComplete": true,
+                "position": 11,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 10
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-11"],
+                "argvComplete": true,
+                "position": 12,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 11
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-12"],
+                "argvComplete": true,
+                "position": 13,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 12
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-13"],
+                "argvComplete": true,
+                "position": 14,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 13
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-14"],
+                "argvComplete": true,
+                "position": 15,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 14
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-15"],
+                "argvComplete": true,
+                "position": 16,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 15
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-16"],
+                "argvComplete": true,
+                "position": 17,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 16
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-17"],
+                "argvComplete": true,
+                "position": 18,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 17
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-18"],
+                "argvComplete": true,
+                "position": 19,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 18
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-19"],
+                "argvComplete": true,
+                "position": 20,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 19
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-20"],
+                "argvComplete": true,
+                "position": 21,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 20
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-21"],
+                "argvComplete": true,
+                "position": 22,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 21
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-22"],
+                "argvComplete": true,
+                "position": 23,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 22
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-23"],
+                "argvComplete": true,
+                "position": 24,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 23
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-24"],
+                "argvComplete": true,
+                "position": 25,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 24
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-25"],
+                "argvComplete": true,
+                "position": 26,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 25
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-26"],
+                "argvComplete": true,
+                "position": 27,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 26
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-27"],
+                "argvComplete": true,
+                "position": 28,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 27
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-28"],
+                "argvComplete": true,
+                "position": 29,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 28
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-29"],
+                "argvComplete": true,
+                "position": 30,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 29
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-30"],
+                "argvComplete": true,
+                "position": 31,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 30
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-31"],
+                "argvComplete": true,
+                "position": 32,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 31
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-32"],
+                "argvComplete": true,
+                "position": 33,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 32
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-33"],
+                "argvComplete": true,
+                "position": 34,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 33
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-34"],
+                "argvComplete": true,
+                "position": 35,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 34
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-35"],
+                "argvComplete": true,
+                "position": 36,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 35
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-36"],
+                "argvComplete": true,
+                "position": 37,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 36
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-37"],
+                "argvComplete": true,
+                "position": 38,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 37
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-38"],
+                "argvComplete": true,
+                "position": 39,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 38
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-39"],
+                "argvComplete": true,
+                "position": 40,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 39
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-40"],
+                "argvComplete": true,
+                "position": 41,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 40
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-41"],
+                "argvComplete": true,
+                "position": 42,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 41
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-42"],
+                "argvComplete": true,
+                "position": 43,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 42
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-43"],
+                "argvComplete": true,
+                "position": 44,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 43
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-44"],
+                "argvComplete": true,
+                "position": 45,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 44
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-45"],
+                "argvComplete": true,
+                "position": 46,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 45
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-46"],
+                "argvComplete": true,
+                "position": 47,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 46
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-47"],
+                "argvComplete": true,
+                "position": 48,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 47
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-48"],
+                "argvComplete": true,
+                "position": 49,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 48
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-49"],
+                "argvComplete": true,
+                "position": 50,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 49
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-50"],
+                "argvComplete": true,
+                "position": 51,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 50
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-51"],
+                "argvComplete": true,
+                "position": 52,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 51
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-52"],
+                "argvComplete": true,
+                "position": 53,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 52
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-53"],
+                "argvComplete": true,
+                "position": 54,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 53
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-54"],
+                "argvComplete": true,
+                "position": 55,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 54
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-55"],
+                "argvComplete": true,
+                "position": 56,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 55
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-56"],
+                "argvComplete": true,
+                "position": 57,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 56
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-57"],
+                "argvComplete": true,
+                "position": 58,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 57
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-58"],
+                "argvComplete": true,
+                "position": 59,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 58
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-59"],
+                "argvComplete": true,
+                "position": 60,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 59
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-60"],
+                "argvComplete": true,
+                "position": 61,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 60
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-61"],
+                "argvComplete": true,
+                "position": 62,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 61
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-62"],
+                "argvComplete": true,
+                "position": 63,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 62
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-63"],
+                "argvComplete": true,
+                "position": 64,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 63
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-64"],
+                "argvComplete": true,
+                "position": 65,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 64
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-65"],
+                "argvComplete": true,
+                "position": 66,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 65
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-66"],
+                "argvComplete": true,
+                "position": 67,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 66
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-67"],
+                "argvComplete": true,
+                "position": 68,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 67
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-68"],
+                "argvComplete": true,
+                "position": 69,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 68
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-69"],
+                "argvComplete": true,
+                "position": 70,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 69
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-70"],
+                "argvComplete": true,
+                "position": 71,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 70
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-71"],
+                "argvComplete": true,
+                "position": 72,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 71
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-72"],
+                "argvComplete": true,
+                "position": 73,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 72
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-73"],
+                "argvComplete": true,
+                "position": 74,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 73
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-74"],
+                "argvComplete": true,
+                "position": 75,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 74
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-75"],
+                "argvComplete": true,
+                "position": 76,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 75
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-76"],
+                "argvComplete": true,
+                "position": 77,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 76
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-77"],
+                "argvComplete": true,
+                "position": 78,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 77
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-78"],
+                "argvComplete": true,
+                "position": 79,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 78
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-79"],
+                "argvComplete": true,
+                "position": 80,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 79
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-80"],
+                "argvComplete": true,
+                "position": 81,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 80
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-81"],
+                "argvComplete": true,
+                "position": 82,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 81
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-82"],
+                "argvComplete": true,
+                "position": 83,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 82
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-83"],
+                "argvComplete": true,
+                "position": 84,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 83
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-84"],
+                "argvComplete": true,
+                "position": 85,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 84
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-85"],
+                "argvComplete": true,
+                "position": 86,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 85
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-86"],
+                "argvComplete": true,
+                "position": 87,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 86
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-87"],
+                "argvComplete": true,
+                "position": 88,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 87
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-88"],
+                "argvComplete": true,
+                "position": 89,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 88
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-89"],
+                "argvComplete": true,
+                "position": 90,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 89
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-90"],
+                "argvComplete": true,
+                "position": 91,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 90
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-91"],
+                "argvComplete": true,
+                "position": 92,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 91
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-92"],
+                "argvComplete": true,
+                "position": 93,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 92
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-93"],
+                "argvComplete": true,
+                "position": 94,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 93
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-94"],
+                "argvComplete": true,
+                "position": 95,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 94
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-95"],
+                "argvComplete": true,
+                "position": 96,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 95
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-96"],
+                "argvComplete": true,
+                "position": 97,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 96
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-97"],
+                "argvComplete": true,
+                "position": 98,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 97
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-98"],
+                "argvComplete": true,
+                "position": 99,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 98
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-99"],
+                "argvComplete": true,
+                "position": 100,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 99
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-100"],
+                "argvComplete": true,
+                "position": 101,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 100
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-101"],
+                "argvComplete": true,
+                "position": 102,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 101
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-102"],
+                "argvComplete": true,
+                "position": 103,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 102
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-103"],
+                "argvComplete": true,
+                "position": 104,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 103
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-104"],
+                "argvComplete": true,
+                "position": 105,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 104
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-105"],
+                "argvComplete": true,
+                "position": 106,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 105
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-106"],
+                "argvComplete": true,
+                "position": 107,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 106
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-107"],
+                "argvComplete": true,
+                "position": 108,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 107
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-108"],
+                "argvComplete": true,
+                "position": 109,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 108
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-109"],
+                "argvComplete": true,
+                "position": 110,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 109
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-110"],
+                "argvComplete": true,
+                "position": 111,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 110
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-111"],
+                "argvComplete": true,
+                "position": 112,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 111
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-112"],
+                "argvComplete": true,
+                "position": 113,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 112
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-113"],
+                "argvComplete": true,
+                "position": 114,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 113
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-114"],
+                "argvComplete": true,
+                "position": 115,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 114
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-115"],
+                "argvComplete": true,
+                "position": 116,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 115
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-116"],
+                "argvComplete": true,
+                "position": 117,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 116
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-117"],
+                "argvComplete": true,
+                "position": 118,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 117
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-118"],
+                "argvComplete": true,
+                "position": 119,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 118
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-119"],
+                "argvComplete": true,
+                "position": 120,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 119
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              }
+            ],
+            "workspaceRoot": "<capture-workspace>"
+          },
+          "taskId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+          "toolCallId": "call_01a18e2779b072c08ecdca491726c5a3",
+          "toolName": "bash",
+          "turnId": "01a18e27-6dbc-7c1b-98b9-01fc7a0547be",
+          "viewCursor": "v:01a18e27-6d5b-7030-b2f7-52ac653c5448:9"
+        }
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "id": 16,
+        "jsonrpc": "2.0",
+        "result": {
+          "approvals": [
+            {
+              "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+              "availableChoices": [
+                {
+                  "choiceId": "allow_once",
+                  "decision": "approved",
+                  "label": "Allow once",
+                  "scope": "once"
+                },
+                {
+                  "choiceId": "allow_local_prefix",
+                  "decision": "approvedPolicyAmendment",
+                  "label": "Always allow in this workspace: echo ...",
+                  "rulePreview": "Always allow in this workspace: echo ...",
+                  "scope": "localPersistent"
+                },
+                {
+                  "acceptsFeedback": true,
+                  "choiceId": "abort",
+                  "decision": "abort",
+                  "label": "Reject",
+                  "scope": "once"
+                }
+              ],
+              "currentRequirementId": {
+                "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                "sourceIndex": 0
+              }
+            }
+          ],
+          "userInputs": []
+        }
+      }
+    },
+    {
+      "direction": "sent",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 19,
+        "method": "approval/decide",
+        "params": {
+          "commandId": "01a18e27-8641-78d7-9c3c-a385e86e5f2c",
+          "sessionId": "01a18e27-6d5b-7030-b2f7-52ac653c5448",
+          "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+          "choiceId": "allow_once",
+          "requirementId": {
+            "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+            "sourceIndex": 0
+          }
+        }
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "error": {
+          "code": -32603,
+          "data": {
+            "kind": "internal",
+            "retryable": true
+          },
+          "message": "approval persistence timed out; the decision may still apply and an always-allow rule may still be saved \u2014 re-open the approval to verify"
+        },
+        "id": 19,
+        "jsonrpc": "2.0"
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "id": 20,
+        "jsonrpc": "2.0",
+        "result": {
+          "approvals": [
+            {
+              "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+              "availableChoices": [
+                {
+                  "choiceId": "allow_once",
+                  "decision": "approved",
+                  "label": "Allow once",
+                  "scope": "once"
+                },
+                {
+                  "choiceId": "allow_local_prefix",
+                  "decision": "approvedPolicyAmendment",
+                  "label": "Always allow in this workspace: echo ...",
+                  "rulePreview": "Always allow in this workspace: echo ...",
+                  "scope": "localPersistent"
+                },
+                {
+                  "acceptsFeedback": true,
+                  "choiceId": "abort",
+                  "decision": "abort",
+                  "label": "Reject",
+                  "scope": "once"
+                }
+              ],
+              "currentRequirementId": {
+                "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                "sourceIndex": 0
+              }
+            }
+          ],
+          "userInputs": []
+        }
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "emittedAtMs": 1793386329458,
+        "jsonrpc": "2.0",
+        "method": "approval/updated",
+        "params": {
+          "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+          "availableChoices": [
+            {
+              "choiceId": "allow_once",
+              "decision": "approved",
+              "label": "Allow once",
+              "scope": "once"
+            },
+            {
+              "choiceId": "allow_local_prefix",
+              "decision": "approvedPolicyAmendment",
+              "label": "Always allow in this workspace: echo ...",
+              "rulePreview": "Always allow in this workspace: echo ...",
+              "scope": "localPersistent"
+            },
+            {
+              "acceptsFeedback": true,
+              "choiceId": "abort",
+              "decision": "abort",
+              "label": "Reject",
+              "scope": "once"
+            }
+          ],
+          "change": {
+            "choiceId": "allow_once",
+            "decision": "approved",
+            "kind": "stageResolved",
+            "requirementId": {
+              "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+              "sourceIndex": 0
+            }
+          },
+          "currentRequirementId": {
+            "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+            "sourceIndex": 1
+          },
+          "sessionId": "01a18e27-6d5b-7030-b2f7-52ac653c5448",
+          "sourceRange": {
+            "first": {
+              "id": "86b15b9d-68fc-4807-bddb-12cb98b17a97",
+              "sequence": 59
+            },
+            "last": {
+              "id": "86b15b9d-68fc-4807-bddb-12cb98b17a97",
+              "sequence": 59
+            },
+            "stream": {
+              "id": "01a18e27-6d5b-7030-b2f7-52ac653c5448",
+              "kind": "session"
+            }
+          },
+          "subject": {
+            "command": "echo cap-0 && echo cap-1 && echo cap-2 && echo cap-3 && echo cap-4 && echo cap-5 && echo cap-6 && echo cap-7 && echo cap-8 && echo cap-9 && echo cap-10 && echo cap-11 && echo cap-12 && echo cap-13 && echo cap-14 && echo cap-15 && echo cap-16 && echo cap-17 && echo cap-18 && echo cap-19 && echo cap-20 && echo cap-21 && echo cap-22 && echo cap-23 && echo cap-24 && echo cap-25 && echo cap-26 && echo cap-27 && echo cap-28 && echo cap-29 && echo cap-30 && echo cap-31 && echo cap-32 && echo cap-33 && echo cap-34 && echo cap-35 && echo cap-36 && echo cap-37 && echo cap-38 && echo cap-39 && echo cap-40 && echo cap-41 && echo cap-42 && echo cap-43 && echo cap-44 && echo cap-45 && echo cap-46 && echo cap-47 && echo cap-48 && echo cap-49 && echo cap-50 && echo cap-51 && echo cap-52 && echo cap-53 && echo cap-54 && echo cap-55 && echo cap-56 && echo cap-57 && echo cap-58 && echo cap-59 && echo cap-60 && echo cap-61 && echo cap-62 && echo cap-63 && echo cap-64 && echo cap-65 && echo cap-66 && echo cap-67 && echo cap-68 && echo cap-69 && echo cap-70 && echo cap-71 && echo cap-72 && echo cap-73 && echo cap-74 && echo cap-75 && echo cap-76 && echo cap-77 && echo cap-78 && echo cap-79 && echo cap-80 && echo cap-81 && echo cap-82 && echo cap-83 && echo cap-84 && echo cap-85 && echo cap-86 && echo cap-87 && echo cap-88 && echo cap-89 && echo cap-90 && echo cap-91 && echo cap-92 && echo cap-93 && echo cap-94 && echo cap-95 && echo cap-96 && echo cap-97 && echo cap-98 && echo cap-99 && echo cap-100 && echo cap-101 && echo cap-102 && echo cap-103 && echo cap-104 && echo cap-105 && echo cap-106 && echo cap-107 && echo cap-108 && echo cap-109 && echo cap-110 && echo cap-111 && echo cap-112 && echo cap-113 && echo cap-114 && echo cap-115 && echo cap-116 && echo cap-117 && echo cap-118 && echo cap-119",
+            "kind": "shell",
+            "stages": [
+              {
+                "argv": ["echo", "cap-0"],
+                "argvComplete": true,
+                "position": 1,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 0
+                },
+                "resolution": {
+                  "kind": "allowOnce"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-1"],
+                "argvComplete": true,
+                "position": 2,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 1
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-2"],
+                "argvComplete": true,
+                "position": 3,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 2
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-3"],
+                "argvComplete": true,
+                "position": 4,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 3
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-4"],
+                "argvComplete": true,
+                "position": 5,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 4
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-5"],
+                "argvComplete": true,
+                "position": 6,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 5
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-6"],
+                "argvComplete": true,
+                "position": 7,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 6
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-7"],
+                "argvComplete": true,
+                "position": 8,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 7
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-8"],
+                "argvComplete": true,
+                "position": 9,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 8
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-9"],
+                "argvComplete": true,
+                "position": 10,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 9
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-10"],
+                "argvComplete": true,
+                "position": 11,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 10
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-11"],
+                "argvComplete": true,
+                "position": 12,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 11
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-12"],
+                "argvComplete": true,
+                "position": 13,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 12
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-13"],
+                "argvComplete": true,
+                "position": 14,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 13
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-14"],
+                "argvComplete": true,
+                "position": 15,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 14
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-15"],
+                "argvComplete": true,
+                "position": 16,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 15
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-16"],
+                "argvComplete": true,
+                "position": 17,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 16
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-17"],
+                "argvComplete": true,
+                "position": 18,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 17
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-18"],
+                "argvComplete": true,
+                "position": 19,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 18
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-19"],
+                "argvComplete": true,
+                "position": 20,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 19
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-20"],
+                "argvComplete": true,
+                "position": 21,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 20
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-21"],
+                "argvComplete": true,
+                "position": 22,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 21
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-22"],
+                "argvComplete": true,
+                "position": 23,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 22
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-23"],
+                "argvComplete": true,
+                "position": 24,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 23
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-24"],
+                "argvComplete": true,
+                "position": 25,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 24
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-25"],
+                "argvComplete": true,
+                "position": 26,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 25
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-26"],
+                "argvComplete": true,
+                "position": 27,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 26
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-27"],
+                "argvComplete": true,
+                "position": 28,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 27
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-28"],
+                "argvComplete": true,
+                "position": 29,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 28
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-29"],
+                "argvComplete": true,
+                "position": 30,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 29
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-30"],
+                "argvComplete": true,
+                "position": 31,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 30
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-31"],
+                "argvComplete": true,
+                "position": 32,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 31
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-32"],
+                "argvComplete": true,
+                "position": 33,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 32
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-33"],
+                "argvComplete": true,
+                "position": 34,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 33
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-34"],
+                "argvComplete": true,
+                "position": 35,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 34
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-35"],
+                "argvComplete": true,
+                "position": 36,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 35
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-36"],
+                "argvComplete": true,
+                "position": 37,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 36
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-37"],
+                "argvComplete": true,
+                "position": 38,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 37
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-38"],
+                "argvComplete": true,
+                "position": 39,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 38
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-39"],
+                "argvComplete": true,
+                "position": 40,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 39
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-40"],
+                "argvComplete": true,
+                "position": 41,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 40
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-41"],
+                "argvComplete": true,
+                "position": 42,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 41
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-42"],
+                "argvComplete": true,
+                "position": 43,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 42
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-43"],
+                "argvComplete": true,
+                "position": 44,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 43
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-44"],
+                "argvComplete": true,
+                "position": 45,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 44
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-45"],
+                "argvComplete": true,
+                "position": 46,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 45
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-46"],
+                "argvComplete": true,
+                "position": 47,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 46
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-47"],
+                "argvComplete": true,
+                "position": 48,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 47
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-48"],
+                "argvComplete": true,
+                "position": 49,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 48
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-49"],
+                "argvComplete": true,
+                "position": 50,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 49
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-50"],
+                "argvComplete": true,
+                "position": 51,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 50
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-51"],
+                "argvComplete": true,
+                "position": 52,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 51
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-52"],
+                "argvComplete": true,
+                "position": 53,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 52
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-53"],
+                "argvComplete": true,
+                "position": 54,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 53
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-54"],
+                "argvComplete": true,
+                "position": 55,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 54
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-55"],
+                "argvComplete": true,
+                "position": 56,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 55
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-56"],
+                "argvComplete": true,
+                "position": 57,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 56
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-57"],
+                "argvComplete": true,
+                "position": 58,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 57
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-58"],
+                "argvComplete": true,
+                "position": 59,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 58
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-59"],
+                "argvComplete": true,
+                "position": 60,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 59
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-60"],
+                "argvComplete": true,
+                "position": 61,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 60
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-61"],
+                "argvComplete": true,
+                "position": 62,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 61
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-62"],
+                "argvComplete": true,
+                "position": 63,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 62
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-63"],
+                "argvComplete": true,
+                "position": 64,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 63
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-64"],
+                "argvComplete": true,
+                "position": 65,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 64
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-65"],
+                "argvComplete": true,
+                "position": 66,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 65
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-66"],
+                "argvComplete": true,
+                "position": 67,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 66
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-67"],
+                "argvComplete": true,
+                "position": 68,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 67
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-68"],
+                "argvComplete": true,
+                "position": 69,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 68
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-69"],
+                "argvComplete": true,
+                "position": 70,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 69
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-70"],
+                "argvComplete": true,
+                "position": 71,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 70
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-71"],
+                "argvComplete": true,
+                "position": 72,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 71
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-72"],
+                "argvComplete": true,
+                "position": 73,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 72
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-73"],
+                "argvComplete": true,
+                "position": 74,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 73
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-74"],
+                "argvComplete": true,
+                "position": 75,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 74
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-75"],
+                "argvComplete": true,
+                "position": 76,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 75
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-76"],
+                "argvComplete": true,
+                "position": 77,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 76
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-77"],
+                "argvComplete": true,
+                "position": 78,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 77
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-78"],
+                "argvComplete": true,
+                "position": 79,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 78
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-79"],
+                "argvComplete": true,
+                "position": 80,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 79
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-80"],
+                "argvComplete": true,
+                "position": 81,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 80
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-81"],
+                "argvComplete": true,
+                "position": 82,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 81
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-82"],
+                "argvComplete": true,
+                "position": 83,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 82
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-83"],
+                "argvComplete": true,
+                "position": 84,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 83
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-84"],
+                "argvComplete": true,
+                "position": 85,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 84
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-85"],
+                "argvComplete": true,
+                "position": 86,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 85
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-86"],
+                "argvComplete": true,
+                "position": 87,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 86
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-87"],
+                "argvComplete": true,
+                "position": 88,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 87
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-88"],
+                "argvComplete": true,
+                "position": 89,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 88
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-89"],
+                "argvComplete": true,
+                "position": 90,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 89
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-90"],
+                "argvComplete": true,
+                "position": 91,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 90
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-91"],
+                "argvComplete": true,
+                "position": 92,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 91
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-92"],
+                "argvComplete": true,
+                "position": 93,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 92
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-93"],
+                "argvComplete": true,
+                "position": 94,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 93
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-94"],
+                "argvComplete": true,
+                "position": 95,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 94
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-95"],
+                "argvComplete": true,
+                "position": 96,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 95
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-96"],
+                "argvComplete": true,
+                "position": 97,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 96
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-97"],
+                "argvComplete": true,
+                "position": 98,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 97
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-98"],
+                "argvComplete": true,
+                "position": 99,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 98
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-99"],
+                "argvComplete": true,
+                "position": 100,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 99
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-100"],
+                "argvComplete": true,
+                "position": 101,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 100
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-101"],
+                "argvComplete": true,
+                "position": 102,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 101
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-102"],
+                "argvComplete": true,
+                "position": 103,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 102
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-103"],
+                "argvComplete": true,
+                "position": 104,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 103
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-104"],
+                "argvComplete": true,
+                "position": 105,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 104
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-105"],
+                "argvComplete": true,
+                "position": 106,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 105
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-106"],
+                "argvComplete": true,
+                "position": 107,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 106
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-107"],
+                "argvComplete": true,
+                "position": 108,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 107
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-108"],
+                "argvComplete": true,
+                "position": 109,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 108
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-109"],
+                "argvComplete": true,
+                "position": 110,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 109
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-110"],
+                "argvComplete": true,
+                "position": 111,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 110
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-111"],
+                "argvComplete": true,
+                "position": 112,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 111
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-112"],
+                "argvComplete": true,
+                "position": 113,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 112
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-113"],
+                "argvComplete": true,
+                "position": 114,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 113
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-114"],
+                "argvComplete": true,
+                "position": 115,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 114
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-115"],
+                "argvComplete": true,
+                "position": 116,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 115
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-116"],
+                "argvComplete": true,
+                "position": 117,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 116
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-117"],
+                "argvComplete": true,
+                "position": 118,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 117
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-118"],
+                "argvComplete": true,
+                "position": 119,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 118
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              },
+              {
+                "argv": ["echo", "cap-119"],
+                "argvComplete": true,
+                "position": 120,
+                "requirementId": {
+                  "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                  "sourceIndex": 119
+                },
+                "resolution": {
+                  "kind": "unresolved"
+                },
+                "suggestedPrefix": {
+                  "argvPrefix": ["echo"],
+                  "label": "Always allow in this workspace: echo ..."
+                },
+                "totalStages": 120
+              }
+            ],
+            "workspaceRoot": "<capture-workspace>"
+          },
+          "viewCursor": "v:01a18e27-6d5b-7030-b2f7-52ac653c5448:10"
+        }
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "id": 21,
+        "jsonrpc": "2.0",
+        "result": {
+          "approvals": [
+            {
+              "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+              "availableChoices": [
+                {
+                  "choiceId": "allow_once",
+                  "decision": "approved",
+                  "label": "Allow once",
+                  "scope": "once"
+                },
+                {
+                  "choiceId": "allow_local_prefix",
+                  "decision": "approvedPolicyAmendment",
+                  "label": "Always allow in this workspace: echo ...",
+                  "rulePreview": "Always allow in this workspace: echo ...",
+                  "scope": "localPersistent"
+                },
+                {
+                  "acceptsFeedback": true,
+                  "choiceId": "abort",
+                  "decision": "abort",
+                  "label": "Reject",
+                  "scope": "once"
+                }
+              ],
+              "currentRequirementId": {
+                "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+                "sourceIndex": 1
+              }
+            }
+          ],
+          "userInputs": []
+        }
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "id": 23,
+        "jsonrpc": "2.0",
+        "result": {
+          "approvalId": "01a18e27-8457-7f93-ab02-eb20c1a2b009",
+          "commandId": "01a18e27-c140-7030-94a2-434932056285",
+          "status": "accepted",
+          "terminal": false
+        }
+      }
+    }
+  ]
+}

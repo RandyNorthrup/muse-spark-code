@@ -1,6 +1,5 @@
-// C-M95-SUB: the subscription key source. Fakes only: every fixture is
-// built in a temp dir or an in-memory file map. No real CLI auth file is
-// ever read here.
+// C-M95-SUB: the subscription key source. Every fixture is a real file
+// in a real temp dir; no real CLI auth file is ever read here.
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -11,14 +10,12 @@ import {
   subscriptionKeyRefusal,
   SubscriptionKeyError,
   SubscriptionKeySource,
-  type SubscriptionKeySourceDeps,
 } from '../../src/core/backends/modelapi/subscriptionKey'
 import { redactSecrets } from '../../src/shared/redact'
-import { UI_TEXT } from '../../src/shared/constants'
+import { MUSE_CREDENTIAL_FILE_MAX_BYTES, UI_TEXT } from '../../src/shared/constants'
 import { AUTH_SET_FILE, DEVICE_LOGIN_FILE } from './helpers/credentialShapes'
-
-/** What the fake `stat` resolves: the size guard's only input. */
-type FakeStat = Awaited<ReturnType<NonNullable<SubscriptionKeySourceDeps['stat']>>>
+import { denyAccess } from './helpers/deniedAccess'
+import { usingTempDir } from './helpers/temporaryFolders'
 
 const CANARY = 'LLM_SUBSCRIPTION_CANARY_9f8e7d6c5b4a'
 const OTHER = 'LLM_SUBSCRIPTION_OTHER_1a2b3c4d5e6f'
@@ -30,55 +27,22 @@ function fileText(meta: unknown, version = 1): string {
   return JSON.stringify({ schema_version: version, providers: { meta } })
 }
 
-function memoryDeps(files: Map<string, string>, states: Map<string, FakeStat>) {
-  let reads = 0
-  const deps: SubscriptionKeySourceDeps = {
-    platform: 'linux',
-    homeDir: '/home/user',
-    xdgConfigHome: undefined,
-    readFile: (file: string) => {
-      reads += 1
-      const text = files.get(file)
-      return text === undefined
-        ? Promise.reject(Object.assign(new Error('gone'), { code: 'ENOENT' }))
-        : Promise.resolve(text)
-    },
-    stat: (file: string) => {
-      const state = states.get(file)
-      return state === undefined
-        ? Promise.reject(Object.assign(new Error('gone'), { code: 'ENOENT' }))
-        : Promise.resolve(state)
-    },
-  }
-  return { deps, reads: () => reads }
-}
-
 /** Separators differ by OS; every path comparison in this file goes through here. */
 function normalisePath(value: string): string {
   return value.replaceAll('\\', '/')
 }
 
-function seed(files: Map<string, string>, states: Map<string, FakeStat>) {
-  return {
-    write(file: string, text: string, state: FakeStat) {
-      files.set(file, text)
-      states.set(file, state)
-    },
-  }
+/** A source over an empty temp config home: nothing of the person's is read. */
+function tempSource(root: string): SubscriptionKeySource {
+  return new SubscriptionKeySource({ platform: 'linux', homeDir: '/none', xdgConfigHome: root })
 }
 
-/** A source whose resolved auth file holds `text`. */
-function seededSource(text: string): {
-  source: SubscriptionKeySource
-  files: Map<string, string>
-  states: Map<string, FakeStat>
-} {
-  const files = new Map<string, string>()
-  const states = new Map<string, FakeStat>()
-  const { deps } = memoryDeps(files, states)
-  const source = new SubscriptionKeySource(deps)
-  seed(files, states).write(source.path(), text, { size: 10 })
-  return { source, files, states }
+/** The auth file lands where the resolved path says, on every OS. */
+async function writeAuthFile(source: SubscriptionKeySource, text: string): Promise<string> {
+  const file = source.path()
+  await mkdir(path.dirname(file), { recursive: true })
+  await writeFile(file, text)
+  return file
 }
 
 describe('readSubscriptionKeyText', () => {
@@ -180,54 +144,66 @@ describe('SubscriptionKeySource', () => {
       await rm(root, { recursive: true, force: true })
     }
   })
-  it.each([
-    ['ENOENT', 'missing'],
-    ['ENOTDIR', 'missing'],
-    ['EACCES', 'unreadable'],
-    ['EPERM', 'unreadable'],
-  ] as const)('reads %s from stat as %s', async (code, status) => {
-    const files = new Map<string, string>()
-    const states = new Map<string, FakeStat>()
-    const { deps } = memoryDeps(files, states)
-    const source = new SubscriptionKeySource({
-      ...deps,
-      stat: () => Promise.reject(Object.assign(new Error('denied'), { code })),
+  it('reads a missing auth file as missing', async () => {
+    await usingTempDir('subkey-missing-', async (root) => {
+      const source = tempSource(root)
+      expect(await source.read()).toEqual({ status: 'missing', key: undefined })
     })
-    expect(await source.read()).toEqual({ status, key: undefined })
   })
-  it('reports missing without touching the reader', async () => {
-    const { deps, reads } = memoryDeps(new Map(), new Map())
-    const source = new SubscriptionKeySource(deps)
-    expect(await source.read()).toEqual({ status: 'missing', key: undefined })
-    expect(reads()).toBe(0)
+  it('reads a file blocking the config dir as missing', async () => {
+    // ENOTDIR on POSIX, ENOENT on Windows: either way the file is not there.
+    await usingTempDir('subkey-notdir-', async (root) => {
+      const source = tempSource(root)
+      const dir = path.dirname(source.path())
+      await mkdir(path.dirname(dir), { recursive: true })
+      await writeFile(dir, 'a file where the muse dir belongs')
+      expect(await source.read()).toEqual({ status: 'missing', key: undefined })
+    })
+  })
+  it('reads an unreadable auth file as unreadable', async () => {
+    // EACCES on POSIX, EPERM on Windows (deniedAccess): either way a coded
+    // failure, never missing.
+    await usingTempDir('subkey-denied-', async (root) => {
+      const source = tempSource(root)
+      await writeAuthFile(source, fileText({ access_token: CANARY }))
+      const restore = await denyAccess(path.dirname(source.path()))
+      try {
+        expect(await source.read()).toEqual({ status: 'unreadable', key: undefined })
+      } finally {
+        await restore()
+      }
+    })
   })
   it('reads fresh on every call, so a rotation shows at once', async () => {
-    const files = new Map<string, string>()
-    const states = new Map<string, FakeStat>()
-    const { deps } = memoryDeps(files, states)
-    const { write } = seed(files, states)
-    const source = new SubscriptionKeySource({ ...deps, homeDir: '/home/u' })
-    const file = source.path()
-    write(file, fileText({ access_token: CANARY }), { size: 10 })
-    expect(await source.read()).toEqual({ status: 'ready', key: CANARY })
-    write(file, fileText({ access_token: OTHER }), { size: 10 })
-    expect(await source.read()).toEqual({ status: 'ready', key: OTHER })
+    await usingTempDir('subkey-rotation-', async (root) => {
+      const source = tempSource(root)
+      await writeAuthFile(source, fileText({ access_token: CANARY }))
+      expect(await source.read()).toEqual({ status: 'ready', key: CANARY })
+      await writeAuthFile(source, fileText({ access_token: OTHER }))
+      expect(await source.read()).toEqual({ status: 'ready', key: OTHER })
+    })
   })
-  it('refuses an oversized file without reading it', async () => {
-    const files = new Map<string, string>()
-    const states = new Map<string, FakeStat>()
-    const { deps, reads } = memoryDeps(files, states)
-    const source = new SubscriptionKeySource(deps)
-    states.set(source.path(), { size: 64 * 1024 + 1 })
-    expect(await source.read()).toEqual({ status: 'unreadable', key: undefined })
-    expect(reads()).toBe(0)
+  it('refuses an oversized file even when its text would parse', async () => {
+    // The text would read ready if the parse decided: only the size guard
+    // can refuse it. Repetition is size mechanics, not content.
+    await usingTempDir('subkey-oversized-', async (root) => {
+      const source = tempSource(root)
+      const text = fileText({
+        access_token: `${CANARY}${'x'.repeat(MUSE_CREDENTIAL_FILE_MAX_BYTES)}`,
+      })
+      expect(text.length).toBeGreaterThan(MUSE_CREDENTIAL_FILE_MAX_BYTES)
+      await writeAuthFile(source, text)
+      expect(await source.read()).toEqual({ status: 'unreadable', key: undefined })
+    })
   })
   it('retains nothing between reads', async () => {
-    const { source, files, states } = seededSource(fileText({ access_token: CANARY }))
-    expect(await source.read()).toEqual({ status: 'ready', key: CANARY })
-    files.delete(source.path())
-    states.delete(source.path())
-    expect(await source.read()).toEqual({ status: 'missing', key: undefined })
+    await usingTempDir('subkey-noretain-', async (root) => {
+      const source = tempSource(root)
+      const file = await writeAuthFile(source, fileText({ access_token: CANARY }))
+      expect(await source.read()).toEqual({ status: 'ready', key: CANARY })
+      await rm(file)
+      expect(await source.read()).toEqual({ status: 'missing', key: undefined })
+    })
   })
 })
 
@@ -236,17 +212,14 @@ function resolver(options: {
   pasted: string | undefined
   text: string | undefined
 }) {
-  const files = new Map<string, string>()
-  const states = new Map<string, FakeStat>()
-  const { deps } = memoryDeps(files, states)
-  const source = new SubscriptionKeySource(deps)
-  if (options.text !== undefined) {
-    seed(files, states).write(source.path(), options.text, { size: 9 })
-  }
-  return resolveModelApiCredential({
-    readPastedKey: () => Promise.resolve(options.pasted),
-    isSubscriptionEnabled: () => options.enabled,
-    subscription: source,
+  return usingTempDir('subkey-resolver-', async (root) => {
+    const source = tempSource(root)
+    if (options.text !== undefined) await writeAuthFile(source, options.text)
+    return await resolveModelApiCredential({
+      readPastedKey: () => Promise.resolve(options.pasted),
+      isSubscriptionEnabled: () => options.enabled,
+      subscription: source,
+    })
   })
 }
 
@@ -296,8 +269,11 @@ describe('refusals carry no key material', () => {
     // P3: the canary stays in the values under test — nothing is replaced
     // with a placeholder before scanning. Refusals must never carry it;
     // persisted text scrubbed with the key actually read must not keep it.
-    const { source } = seededSource(fileText({ access_token: CANARY }))
-    const read = await source.read()
+    const read = await usingTempDir('subkey-scan-', async (root) => {
+      const source = tempSource(root)
+      await writeAuthFile(source, fileText({ access_token: CANARY }))
+      return await source.read()
+    })
     if (read.status !== 'ready') throw new Error('fixture did not read ready')
     const outputs = [
       subscriptionKeyRefusal('missing'),
@@ -310,8 +286,11 @@ describe('refusals carry no key material', () => {
     for (const output of outputs) {
       expect(output).not.toContain(CANARY)
     }
-    const opaque = seededSource(fileText({ access_token: OPAQUE }))
-    const opaqueRead = await opaque.source.read()
+    const opaqueRead = await usingTempDir('subkey-opaque-', async (root) => {
+      const source = tempSource(root)
+      await writeAuthFile(source, fileText({ access_token: OPAQUE }))
+      return await source.read()
+    })
     if (opaqueRead.status !== 'ready') throw new Error('opaque fixture did not read ready')
     const transcript = JSON.stringify({
       messages: [

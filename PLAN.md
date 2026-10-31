@@ -449,6 +449,18 @@ is not added for the MCP connector (D106): the existing pure MCP server core
 of our own cover stdio. A later phase that needs a package records it here
 first, after the peer, pin and audit checks of AGENTS.md rule 9.
 
+Added, M124 remote (D240, 2026-10-24): `oidc-provider` 9.12.2 (MIT;
+certified OAuth 2.0 / OpenID Connect implementation by the author of
+`jose`), with `@types/oidc-provider` 9.12.1, bundled only into
+`dist/connectorRemote.js`; and `@modelcontextprotocol/sdk` 1.32.1 (MIT)
+as a test-only client for `test/unit/connectorRemote.test.ts` (no shipped
+bundle imports it; the connector's server stays our own core). Exact
+pins; the SDK's transitive `body-parser` is lock-bumped to the fixed
+2.4.0 (GHSA-27r3-jxmh-p828, within `express`'s `^2.3.0` range), so the
+new packages add no high advisory. Newer releases (SDK 1.32.2,
+2026-10-23; oidc-provider 9.13.3, 2026-10-29) wait for `.npmrc`'s
+seven-day release-age rule like the SDK142 pin above.
+
 DEP138 dependency review (2026-10-07): PR #138 proposes ACP SDK 1.5.1,
 Vitest and V8 coverage 5.0.3 together, jscpd 5.4.0, knip 6.39.0 and
 typescript-eslint 8.71.0. Their exact registry peers accept the existing
@@ -1342,6 +1354,14 @@ deferred-aggregate and individual caps are unchanged.
 **`dist/resourceProcess.js` budget rationale.** (POSTSPAWN: 35.6 KiB +15%, rounded to 25 KiB; the governed launcher and Windows helper preparation, split from the governor so its 125 KiB cap holds policy alone)
 
 **`dist/mcpVault.js` budget rationale.** (POSTSPAWN: 13.4 KiB +15%, rounded to 25 KiB; the vault-backed MCP start, off activation)
+
+**`dist/vaultRuntimeMigration.js` budget rationale.** (RLF-M109: the runtime key-store migration — controller, engine, codecs and the first-party reader — loaded by `dist/vaultRuntime.js` on the first unlock edge only; 60.2 KiB measured plus 15%, rounded up to 70 KiB; shipped in the ACP package and the VSIX beside the vault runtime that names it)
+
+**`dist/vaultExec.js` budget rationale.** (RLF-M109, D243: the feeder — envelope, delegated redemption client, scrub streams and the contained command runner — spawned in place of a command by the host; 94.3 KiB measured plus 15%, rounded up to 110 KiB; shipped in the ACP package and the VSIX beside the vault runtime)
+
+**`dist/vaultPolicy.js` budget rationale.** (RLF-M109, D243: the person vault policy's file half, loaded by the broker bindings at registration and by the vault runtime for `vault policy`; 7.0 KiB measured plus 15%, rounded up to the 25 KiB floor; shipped in the ACP package and the VSIX)
+
+**`dist/vaultExecHost.js` budget rationale.** (RLF-M109, D243: the headless registration/session and the feeder host port, loaded by the vault runtime binding on the first headless `--vault` open and by the exec entry for `vault_run`; 34.0 KiB measured plus 15%, rounded up to 40 KiB; shipped in the ACP package and the VSIX. Moving the session here also returned `dist/vaultRuntime.js` from 24.4 to 21.8 KiB)
 
 **`dist/resourceAdmission.js` budget rationale.** (M107 W: 1.8 KiB, shared process admission)
 
@@ -9513,6 +9533,152 @@ after install. The image carries `curl` because Meta's installer needs it
 `$HOME/.local/bin` unless `MUSE_INSTALL_DIR` is set, and honours
 `MUSE_NO_MODIFY_PATH=1`). Record: `docs/certification/rlf-musesetup.md`.
 
+### D240 — The connector's remote endpoint runs on the person's own PC (M124 phases R and O, owner 2026-10-23, lane RLF-M124RO; numbered D217 on its branch until the int/recovery join of 2026-10-30, when that number was found shared with the judge fast path's `stat`)
+
+The owner answered Q-M124.1 on 2026-10-23, verbatim: "the remote mcp
+should not be something on a vps this is for the user so it should be on
+their pc". So there is no hosted connector service of ours, no VPS, and no
+domain or OAuth operator of ours: `muse-spark-code-acp mcp serve-http`
+serves the connector's registry from the person's own PC (the same command
+can run on their Muse Node home node when M110 lane N wires a node server;
+nothing here invents that link, D106.3's contract stays M110's). This
+supersedes D106.3's "remote waits for the home node" and D106.4's hosted
+framing; D106's grant, approval, Stop, disclosure and audit rules are
+unchanged. M110d–f, which waited on the same answer, get it too: their
+remote reach likewise ends on the person's own machines, never on a
+service of ours.
+
+- **Reach is the person's to widen.** The listener binds loopback unless
+  the person names a wider address (`--bind lan` or one IP of the PC), and
+  a wider address needs `--public-url`, the name clients use. Plain HTTP
+  exists only on loopback behind a tunnel the person configures
+  (`--tunnel`, for example their own Cloudflare Tunnel), off by default;
+  otherwise the person supplies their own TLS certificate.
+- **Authorization is the PC's own, from an established implementation.**
+  The MCP authorization profile (specification 2025-11-25, read with
+  2026-07-28 and D213's dual-era record) runs on `oidc-provider`
+  9.12.2 (certified OAuth 2.0 / OpenID Connect; §2 D3 records the pin):
+  authorization code with PKCE S256 only, RFC 8707 resource binding to
+  this one MCP resource, rotating refresh tokens (a spent one ends the
+  sign-in), RFC 9728 Protected Resource Metadata, RFC 8414 metadata,
+  RFC 9207 `iss`, RFC 7009 revocation, Client ID Metadata Documents, and
+  RFC 7591 registration only with `--open-registration`. No crypto is
+  hand-rolled; ours is the consent page (an owner code printed in the
+  connector's own terminal, never sent over the network; replaced after
+  five wrong tries and after every approval), the protected-resource
+  challenge, and the binding of every sign-in to the live connection
+  grant: revoking the grant or removing a client (`mcp client remove`)
+  ends its tokens at once. Tokens are stored as digests in the
+  owner-only connector folder (RLM124's guard), never leave the PC as
+  anything else, and never become a Model API key or a child-process
+  credential. Clients the owner registers are named with
+  `mcp client add` (typed confirmation, grant-bounded scopes).
+- **Eras stay D213's.** The HTTP transport speaks the connector's legacy
+  revisions with `Mcp-Session-Id` sessions; a dual-era client falls back
+  to `initialize` exactly as D213 describes. Token lifetimes are the
+  person's flags (`--token-minutes`, `--sign-in-days`); the protocol
+  timings and pre-admission bounds in `CONNECTOR_REMOTE_LIMITS` cite
+  their industry defaults inline and cap no work of the person's.
+- Full record, citations, drills and what is still unproven:
+  `docs/certification/rlf-m124ro.md`.
+
+### D241 — Undo for a retired vault item; reset deletes retired items too (lane RLF-VAULTUNDO, 2026-10-23; the owner delegated to the lead: "your call on the undo"; numbered D217 on its branch until the int/recovery join of 2026-10-30, when that number was found shared with the judge fast path's `stat`)
+
+RLM109 left two product questions: `engine.undo` exists but nothing
+triggers it, and a vault reset (broker-side) would destroy retired
+slots, their only copies. The owner's call (2026-10-23): "your call on
+the undo". The lead's call:
+
+1. **Undo on each retired item.** The vault panel lists every retired
+   migration slot with its own Undo action; the same undo is a command
+   in the palette (`museSpark.vaultUndoRetired`, picked from the
+   retired entries). Undo restores the retired value as current: the
+   vault bytes are verified against the
+   journal digest and written back to the legacy store byte-exact, and
+   the slot is active again with the retain window restarted —
+   otherwise the next unlock would retire it again at once, making
+   Undo a no-op. It stays available until the person empties the
+   retired slot (the existing sign-out/removal path), after which undo
+   refuses in words. A slot whose legacy copy reappeared with
+   different bytes is never overwritten: undo refuses and keeps the
+   current value. Active-slot undo (abandoning the migration) stays
+   untriggered. The terminal's `vault undo` is not built (open, lead):
+   a retired slot's legacy store is the editor's SecretStorage, which
+   the terminal cannot write, and the terminal's own key store (D61)
+   has no migration bound yet (the T5 follow-up in the M109 record),
+   so it has no retired slot to undo; it follows that binding.
+2. **Reset deletes retired items too.** A vault reset removes retired
+   slots' journal rows and vault copies along with everything else; no
+   host-side restore runs first (reset is broker-side and cannot write
+   the legacy store). Reset is offered only for a vault that cannot be
+   opened, so its entries cannot be listed then: the confirmation says
+   plainly, before the person types RESET, that retired entries are
+   deleted too because the vault holds their only copies.
+
+The two questions never entered §3 (they lived in the M109 status
+line and `docs/certification/rlm109.md`); this decision resolves
+them, and the M109 status line records it. An undo killed between
+its steps resumes at the next unlock (RVCRED, 2026-10-30): the
+journal marks the restore pending before the legacy write and
+written only after that write reads back the same bytes. A newer
+legacy value is never overwritten. A copy removed after the write
+was saved is not written again. A retired ChatGPT sign-in stays
+listed after its legacy copy is gone, because the journal row is
+what names it. Full record: `docs/certification/rlf-vaultundo.md`,
+and the review record `docs/certification/rvcred.md`.
+
+### D243 — Agent secret use (M109 lanes T and X): reported provenance, a person-set ceiling, delegated feeder redemption (lead decision 2026-10-30; numbered D216 on its branch until the int/recovery join of 2026-10-30, when that number was found shared with the Model API backend on the Muse Code subscription)
+
+RLF-M109 measured T5 blocked three times over in the installed broker
+(`docs/certification/rlf-m109.md` section 3: the channel ceiling is
+`none`, its taint dep rejects, `perform` rejects, and redemption
+admission binds a ticket to its registration incarnation by object
+identity, which only the registering connection holds). The lead
+decided on 2026-10-30, and this is the rule in force:
+
+1. **Option 1 with option 2 as its first increment.** Design and build
+   lanes T and X (provenance owner, ceiling owner, feeder redemption
+   transport with feeder authentication). The first increment is
+   environment/stdin secret uses only, headless first; no
+   git/askpass/sudo/SSH surfaces yet. Option 3 (host-side redemption,
+   the harness host receiving material itself) is rejected: it widens
+   the host secret surface and contradicts D89.4 (the feeder is the
+   one way a brokered value reaches a child).
+2. **Feeder peer authentication is owned by the broker:** OS peer
+   credentials (`SO_PEERCRED` on Linux, `getpeereid` on macOS,
+   `GetNamedPipeClientProcessId` on Windows) AND command-tree
+   membership — the feeder's ancestry includes the registered
+   requester process, with process start time checked — per the
+   helper server's `authenticate` contract
+   (`src/core/vault/exec/helpers.ts`).
+3. **Delegated tickets.** The feeder does NOT register as its own
+   requester. The registered host asks for a single-use delegated
+   redemption ticket bound to the feeder identity (pid + process
+   start time + the command envelope digest); the broker admits a
+   redemption on the feeder's own connection only when its peer
+   identity matches that delegation. Object-identity binding stays
+   for the host's own redemptions.
+4. **Provenance owner.** The host reports session taint/provenance
+   over its registered connection with each proposal (a new frame
+   kind); the broker channel evaluates that reported taint, validated
+   against the registration, instead of its own dep. The host
+   constructs `VaultTaintSession` per agent session.
+5. **Ceiling owner.** The person vault policy: a ceiling per
+   workspace and role, set by the person. The default is none, which
+   refuses in words; never a ceiling of ours (D121/D208).
+6. **Material only in private frames on the feeder connection**,
+   never on the requester socket; a finish message; terminate on
+   lock or revoke.
+
+Proof is on real parts: the real broker, a real feeder process, real
+OS peer credentials on macOS (and Linux where reachable); Windows
+legs are written for hosted CI. The undo trigger and vault-reset
+questions are answered on int (D241, RLF-VAULTUNDO); the companion
+vault surface stays open. Numbering note: this decision was D216 on its
+branch (D215 was the highest in force there); D216 was already taken on
+int by the Model API backend on the Muse Code subscription, so it is
+D243 here by the usual rule.
+
 ## 3. Open questions (need the owner)
 
 <a id="q-cc-licence"></a>
@@ -9558,12 +9724,15 @@ after install. The image carries `curl` because Meta's installer needs it
   These questions do not block contracts, fake-only qualification or the
   local stdio phase. The owner did not change the defaults on 2026-10-09, so
   the four defaults stand as the working answers; they are not consent to
-  expose data, register accounts or spend money. Only question 1 still needs
-  the owner, and it blocks only the hosted phase.
-  1. **Remote domain and OAuth operator (still needs the owner; blocks only
-     the hosted phase):** which HTTPS domain and identity provider should the
-     home node use? **Working default:** an owner-operated endpoint on M110's
-     home node and an established OAuth implementation; no new paid service.
+  expose data, register accounts or spend money. Question 1 was answered
+  by the owner on 2026-10-23 and is closed by D240 (below).
+  1. **Remote domain and OAuth operator — answered by the owner
+     2026-10-23, closed by D240.** Verbatim: "the remote mcp should not be
+     something on a vps this is for the user so it should be on their pc".
+     There is no domain or OAuth operator of ours: the endpoint and its
+     authorization server run on the person's own PC (or their Muse Node
+     home node), with their own certificate or their own tunnel. Built by
+     RLF-M124RO (D240); M110d–f get the same answer.
   2. **Initial clients:** which platforms should qualify first? **Working
      answer:** Codex/Claude Code/Gemini CLI locally first, then
      ChatGPT/claude.ai remotely; Gemini Apps/Enterprise next, Meta AI after
@@ -10185,6 +10354,36 @@ real shell, ACP startup removal, safe-name preservation, and a backgrounded
 scheduled command released after its turn ends. Deliberately break each fix,
 observe the named tests fail, restore byte-exact and record the evidence in
 `docs/certification/envfence.md`. No new dependency or broader exception.
+
+### D242 — Share asks for the gist scope only at Share time (M118 phase 2, owner 2026-10-23; numbered D217, then D218 on its branch until the int/recovery join of 2026-10-30, when D218 was found shared with the team runner's playbook board)
+
+M118 phase 2 (a secret gist for a prompt or a chat) was blocked: it needs
+GitHub's `gist` scope, and D104 says that scope is "never asked for". The
+lead put it to the owner: "(a) ask for that permission only at the moment
+you press Share ... or (b) never ask". The owner answered (2026-10-23):
+"sure on the gists" (option a). So D104 stands for every other path, and
+Share is the one exception: the `gist` scope is requested only when the
+person presses Share to a secret gist — incremental consent at that moment,
+with words saying what it allows — never at sign-in and never otherwise;
+declining keeps every other share route working. (Lane RLF-M118; no §3
+question matched, so none is resolved by this.)
+
+**RVCRED (2026-10-30): the Share-time grant is `gist` alone.**
+D217 on the vault-undo branch was the retired-item undo, so this decision
+moved to D218 on its branch; it is D242 on int. GitHub issues a gist-only authorization as its own token and does
+not revoke an earlier `repo` token (docs.github.com, "Creating multiple
+tokens for OAuth apps", read 2026-10-30: revocation of an old token happens
+only past ten tokens of the same user, application and scope). The gist
+grant is stored apart from the repository sign-in. A missing
+`X-OAuth-Scopes` header is not treated as a missing gist scope. The bytes
+are scrubbed again at the send, a file name with a folder, home or account
+is refused, and a create that is not confirmed `public: false` at
+`https://gist.github.com/` is deleted when its id can be read.
+
+**Status 2026-10-30 (integration into int/recovery, CC-INT7): built.** The
+secret-gist core with RVCRED's two fixes is merged on int (D242 here, D218 on
+its branch). `gistShare`, `githubGist` and `gistGrantStore` pass (31 cases).
+No surface offers it and no live GitHub publish has been made.
 
 - **Q-M101IMAGE-DIMENSIONS (2026-10-06).** Which checked-in provider capture or
   authorized documentation supplies each vision model's maximum width/height?
@@ -10910,6 +11109,10 @@ three high dependency advisories); what holds on the merged int/recovery
 is in `docs/certification/cc-int2.md`. Record:
 `docs/certification/rlf-a11y.md`.
 
+### RVCRED — Review of retired-vault undo, secret-gist publish, and the macOS credential file (2026-10-30)
+
+**Status 2026-10-30: built, pending integration.** The vault undo crash window is closed in the engine on this branch (`5c0e4ec1c`); the broker drill did not run on this rig. The session keyring refuses a write with "User interaction is not allowed" (the same abort the RLF-VAULTUNDO record names), so neither the existing retired-undo case nor the new killed-undo case ran here. Both stay with hosted CI. The engine journals an undo as pending before the legacy write and written only after that write reads back; a newer value is not overwritten, and a copy removed after the write was saved is not written again. A retired ChatGPT sign-in stays in the credential set when its journal row is in the vault. The secret-gist review is `rv/m118` at `a0e8785b7` (D242, gist alone, grant stored apart from the repository sign-in). The macOS credential-file review is `rv/maccred` at `221f50197` (a symlink is not read as the file). Record: `docs/certification/rvcred.md`.
+
 ### RLWINFIX — Windows defects found by using 0.19.0 for real (2026-10-22)
 
 **Status 2026-10-22: built.** All five items fixed, each with a real-code
@@ -11006,6 +11209,36 @@ cannot start D-Bus, so the Secret Service proof runs outside it.
 - **Compatibility.** A vault that wrote its records before scoping adopts
   them by vault id and keeps reading and writing them; nothing migrates
   and no reset is needed.
+
+### RLFGOVFORK — The governor's per-job fork limit against supervised agents (2026-10-30)
+
+**Status 2026-10-30 (lane RLF-GOVFORK, macmini): built.** The G13
+per-job fork guard is decided under D121/D208 as the owner clarified
+it on 2026-10-23: a runaway-only bound, not an arbitrary cap on the
+person's work — 512 alive processes per job tree (systemd's
+per-service DefaultTasksMax through v230, below the ~1,200-process
+G13 freeze) and 16,384 births per 15 s (OpenShift's per-workload
+maximum), an internal resilience default, never person-set. The stop
+says why at last: the sampler records its cause on the lease, the
+outcome carries it, and the exec boundary throws the typed
+`ResourceForkStopError`. Supervised runs are governed launches now
+(admitted, registered, tree-owned, completed; Windows contained), so
+normal supervised use is never stopped and a real runaway still is.
+Proven by real-process tests (a registered normal run green here; the
+flood/burst/rate/runaway proofs run where ps, /proc or the job object
+is available), three red/green drills, and `related` on every changed
+source with every failure reproduced on the untouched base. Status
+evidence: `docs/certification/cc-govfork.md`.
+
+**Status 2026-10-30 (integration into int/recovery, CC-INT7): built.** Merged
+on int. On a ps-capable Mac the four POSIX fork-protection cases run and pass
+(the 521-process flood takes 6 to 8 s, so it carries a named 30 s timeout), and
+`superviseGoverned` passes. Record: `docs/certification/cc-int7.md`.
+
+- **Goal.** Decide the fork limit under D121/D208 with cited
+  industry-standard values, person-settable where that makes sense,
+  saying why when it stops something; register supervised runs with
+  the governor the way other governed launches are.
 
 ### M127 — Muse Code at its latest release (2026-10-17)
 
@@ -11527,6 +11760,47 @@ sinks), the shared approval UI (M104 waiting), R and O (no M110 home
 node, orchestrator-link contract or Q-M124.1 domain and operator answer),
 and authenticated-session tool calls through the three clients (needs the
 owner's accounts). Record: `docs/certification/rlm124.md`.
+
+**RLF-M124RO record (2026-10-30, branch `rec/rlf-m124ro`).** Phases R and
+O built under D240 from the owner's 2026-10-23 answer: `mcp serve-http`
+serves the registry over Streamable HTTP from the person's own PC
+(loopback by default; `--bind`/`--public-url` widen; `--tunnel` for their
+own tunnel; their own TLS certificate otherwise), and the PC is its own
+authorization server through `oidc-provider` (PKCE S256, resource-bound
+rotating tokens, PRM, owner-code consent, `mcp client add/list/remove`).
+`test/unit/connectorRemote.test.ts` drives it with the official MCP SDK
+client over real HTTPS (discovery and 401, sign-in and tool call, deny and
+wrong code, refresh reuse, foreign-resource token, grant revoke, client
+removal, opt-in registration, reach and startup refusals). Still with the
+lead: the packed-product run and the Inspector/RLMCPERA-client pass (this
+lane's app sandbox cannot pass RLM124's storage guard — its `/` is owned
+by `nobody`, measured identical on the untouched guard suite), Muse
+Node's paired-device channel (M110 lane N wires no node server yet), the
+T adapters and shared approval UI from the RLM124 record. Record:
+`docs/certification/rlf-m124ro.md`.
+
+**RVNET review (2026-10-30, branch `rv/net`, fix `a02ebf146`).** Independent
+review of this listener and of Muse Node `serve` at `review/rlf-nodeserve`
+(`79aee4ca8`). One finding, P2: with a tunnel, a client's `X-Forwarded-Host`
+made discovery advertise that host's token, key and revocation addresses
+while `issuer` stayed the public URL; an absolute-form request line did the
+same and named those addresses with `http`. Every authorization-server URL
+is now built from the public URL the person set.
+`test/unit/connectorRemoteIssuer.test.ts` failed on the real server before
+the pin (vitest exit 1) and passes after. Node `serve` had no finding; no
+`rv/nodeserve` branch remains. Record: `docs/certification/rvnet.md`.
+
+**Status 2026-10-30 (integration into int/recovery, CC-INT7): built.**
+RLF-M124RO and RVNET's fix are merged on int (the decision is D240 here, D217
+on the branch). `connectorRemote` (13 cases over a real localhost certificate
+and the official MCP client) and `connectorRemoteIssuer` (3) pass on the merged
+tree on a Mac mini. The first showed a token still answered 200 for a moment
+after `mcp revoke` from another terminal, because the running endpoint learned
+of the new grant only when a file watcher fired and macOS delivers those late
+(4 of 8 runs failed): every token check now reads the grant afresh, as the
+registry does before each call (0 of 8 failed). Not run: the packed product,
+the MCP Inspector, the dual-era client against `serve-http`, hosted CI's
+Windows legs. Record: `docs/certification/cc-int7.md`.
 
 **Provenance.** The documentation-only M119PLAN lane planned this on
 2026-10-07 under the numbers D102/M119 (commits `b27ad09a9`, `00e825dfa` and
@@ -25162,6 +25436,111 @@ the retire path (no secret in logs, errors, usage or panel state; no
 loss or duplication found). Evidence: `docs/certification/rvsec.md`.
 M109 stays open.
 
+**RLF-VAULTUNDO (2026-10-24, randy-lt): built; broker proofs wait for hosted CI.**
+D241 settles the two RLM109 product questions. A retired slot lists in
+the vault section with its own Undo, and `Undo Retired Vault Entry`
+(`museSpark.vaultUndoRetired`) does the same from the palette: the
+vault copy is verified against its journal digest, written back to the
+legacy store byte-exact, and the slot returns to active with its
+two-release window restarted; an emptied, still-current, unknown,
+changed or damaged slot refuses in its own sentence in all 14 tables.
+The reset confirmation now says retired entries are deleted with
+everything else. Proven here: the section's Undo posts exactly its
+entry's key (real render, red/green drilled), axe on the new
+`models-vault-retired` scene in four themes, and the usual gates. Not
+run here: the real-broker undo and reset cases (this rig's session
+keyring aborts, and the governed launch pins the real user session), so
+`undoes a retired entry byte-exact...` and `deletes retired entries with
+everything else...` in both broker suites are for hosted CI. The terminal
+`vault undo` is not built (see D241). Receipts:
+`docs/certification/rlf-vaultundo.md`. M109 stays open.
+
+**RVCRED (2026-10-30, macmini): the retired-undo crash window is closed in the engine.** A killed undo now resumes from a journal mark (pending before the legacy write, written only after that write reads back). A newer legacy value is not overwritten, and a copy removed after the write was saved is not written again. A retired ChatGPT sign-in stays listed from its journal row. Not run here: the broker cases, including the new killed-undo case in both broker suites. This session's keyring still aborts with "User interaction is not allowed", the same limit the 2026-10-24 record names. Hosted CI owns that proof. No changelog line until that run exists.
+
+**RLF-M109 recovery (2026-10-30, macmini): building.** The reconciled
+keystore one-owner wrapper landed (source 07 as RLM109 redesigned it:
+single-flight remembered reads, `forget` on a 401/403 key rejection
+and on the editor's change notice, retained causes, no retry), and
+the runtime key-store migration binding is bound: its own lazy chunk
+(`dist/vaultRuntimeMigration.js`, 60.2/70 KiB; `dist/vaultRuntime.js`
+24.4/25 KiB) loaded on the first unlock edge in the CLI, ACP and
+headless processes, the controller over `migrateKeyStore` with
+providers listed from the person's file and pooled accounts from the
+file-backed pool, and the process's secrets behind the migration
+shell so runtime writes mirror and retired slots read from the vault.
+Both broker suites drive the runtime binding's pooled slot for CI.
+T5 (the engine secret-use consumer) stays blocked on its broker-side
+owners, measured in `docs/certification/rlf-m109.md`: the installed
+broker bindings refuse agent use three times over (`ceiling: 'none'`
+denies every use in policy, the channel's `taint` rejects, and
+`perform` rejects — "T/X/S/O transport owners supply provenance and
+execution before agent use is enabled"), and no feeder redemption
+transport (ticket-to-material over an authenticated feeder channel,
+with feeder peer authentication and lifetime/terminate) is designed
+in the record. No partial wiring shipped: the shell tool keeps
+refusing `secrets` with the broker sentence until those owners land.
+Open questions with options and a recommendation are in the
+certification record. M109 stays open.
+
+**RLF-M109 resume (2026-10-30, macmini): building.** The lead decided
+T5 (D243): lanes T and X with the reduced first increment —
+environment/stdin uses only, headless first; host-side redemption
+rejected. This resume records D243 first, then builds the provenance
+report frame and the person vault policy ceiling (lane T), the
+delegated feeder redemption transport with broker-owned feeder peer
+authentication (lane X), and the headless consumer on top. Claims
+wait for the real broker/feeder proof in
+`docs/certification/rlf-m109.md`; M109 stays open.
+
+**RLF-M109 resume (2026-10-30, macmini): D243 first increment built;
+real broker/feeder proof pending a capable rig.** Lane T ships: the
+`reportProvenance` frame (the broker evaluates taint reported over
+the incarnation-bound connection; a host that has not reported is
+refused), `VaultTaintSession` per headless run, and the person vault
+policy ceiling (`vault-policy.json` beside the vault files,
+`vault policy` to read and set it; default none refuses in words).
+Lane X ships: single-use delegated tickets bound to feeder pid + OS
+start time + envelope digest, broker-owned feeder authentication
+(kernel peer credentials and an ancestry walk to the registered
+requester process — `parent` mode in the POSIX helper, parent pid in
+the Windows pipe helper for hosted CI), material only in private
+frames on the feeder's own connection with an `execFinish`, and
+termination on lock or revoke through the lease lifetime. The
+headless consumer (`exec --vault` shell `secrets`, environment/stdin
+only) is wired runExec → runtime backend → toolIo; `dist/vaultExec.js`
+(the feeder), `dist/vaultPolicy.js` and `dist/vaultExecHost.js` ship
+in the ACP package and the VSIX (packed listing and a `vault policy`
+read drilled through the packed darwin-x64 agent on macmini). The
+real broker/feeder suite (test/unit/vault/vaultExecDelegated.test.ts)
+skips on macmini for the same sandbox blocks that skip the sibling
+broker suites there (`/bin/ps` execution refused, so exact process
+birth cannot be established, at the base commit too); the proof run
+belongs on a rig or hosted job where process listing works, and the
+certification record names the exact blocks. Remains: git/askpass/
+sudo/SSH surfaces, ACP-approval and VS Code consumers, Windows feeder
+containment (the job launcher cannot yet carry the envelope pipe to
+its payload, so Windows refuses in words), lanes S/O, the D89.15
+companion surface, and the real-life receipt. M109 stays open.
+
+**Status 2026-10-30 (integration into int/recovery, CC-INT7): built.**
+RLF-M109 (D243 here, D216 on its branch), RLF-VAULTUNDO with RVCRED's journal
+fix (D241 here, D217 on its branch) and RLF-MACCRED are merged; the real broker
+and feeder have run on a Mac, not through the packed product. The lane's
+`vaultExecDelegated` suite could not run on a ps-capable Mac as shipped (the
+broker ran in the test process, where the created-directory helper is looked
+for under `src/core/native`; the person's ceiling is read once at registration
+and the suite wrote it afterwards; the lock landed while the command was still
+being authorized). The broker is now a bundled fixture child over the
+product's file anchor (no keychain), and its three cases pass in three runs
+in a row on a Mac mini (darwin x64): ceiling refusals in words, environment and
+stdin runs through the feeder with only the value's length and a redacted
+echo reaching the host, a foreign-identity delegation, a tainted use and a
+redemption on the requester socket all refused, and a lock ending the running
+command. The feeder bundles shrank to 94.3 and 34.0 KiB when a type-only
+import stopped pulling in the Model API tools. Not run: the vault suites that
+write the OS credential store (hosted CI), the Windows and Linux legs,
+`exec --vault` through the packed product. M109 stays open.
+
 **C-M109-1 lead decisions (2026-10-10, lead decision).** In 0.17.0, every
 vault use is refused. The binding layer was never built: the broker process,
 its ports, peer checks, a setup flow, a runtime bundle and a Linux slot are
@@ -29073,6 +29452,22 @@ closing and the lock around those calls are still proven only by a real
 run with the person's GitHub sign-in, which has not been made. Records:
 `docs/certification/rvint5.md`, `docs/certification/cc-int4.md`.
 
+**Status 2026-10-30 (recovery lane RLF-SAFEFIX): building.** Three
+safety fixes landed with real-code suites: a failed deferred schedule
+event retries
+with capped exponential backoff, at most 5 fire attempts, then stops and
+says why (English plus all 14 tables; rows written before the bound read
+as a first attempt); the scheduler close reconciles before its own abort
+instead of throwing on every close; a reporter quoting the watchdog's
+acknowledgement marker counts as answering while the bot's own post
+never does; every live Muse drill refuses before any prompt unless the
+run's model is contributor-tier and listed. Record:
+`docs/certification/rlf-safefix.md`.
+
+**Status 2026-10-30 (integration into int/recovery, CC-INT7): built.** Merged
+on int; `scheduleDeferredRetry`, `watchdogQuotedAck`, the watchdog suites and
+`contributorGuard` pass on the merged tree.
+
 - **Goal.** A user, or an orchestrating agent within the user's limits,
   schedules any number of prompts to fire once, repeatedly, on a cron
   expression or on an event (a pull request merged, a milestone certified),
@@ -30044,7 +30439,13 @@ cloudInit)`, `status(id)`, `delete(id)`, and nothing else; each adapter's
 
 ### M118 — Prompt and chat sharing (D98)
 
-**Status 2026-10-06: built.**
+**Status 2026-10-06: built.** Status 2026-10-30: phase 2 core built on
+recovery lane RLF-M118 and reviewed by RVCRED (secret-gist publish and
+unpublish; Share-time consent asks for `gist` alone, D242, and that grant
+is stored apart from the repository sign-in). No surface offers the gist
+destination yet, and the live GitHub capture stays with the lead. Evidence:
+`docs/certification/rlf-m118.md`. The review record is
+`docs/certification/rvcred.md` on the review branch.
 
 - **Archived.** The record that stood here is in [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
@@ -31342,6 +31743,31 @@ passes against the committed `THIRD_PARTY_NOTICES.txt` (93 notices). Record:
 
 ---
 
+### RLFNOSTUBS — int's older stub-style test seams, rewritten over real parts (2026-10-30)
+
+**Status 2026-10-30 (lane, CC-INT3 open item 2): built.** The three named
+seams (tabEngine stub streams, the registry poll's injected clock,
+windowsRecording's injected removal) and every same-kind seam the sweep
+found are rewritten where a unit test can own the real part: real
+loopback, real temp files and stores, real time, real processes, real
+spawn failures. Report contents, stalled shares and the down-store case
+move to `docs/real-life/unproven.md` with real-life steps. Deleted
+production seams: the registry poll clock/sleep, subscription
+`readFile`/`stat`, mediaJobRun `statOutput`, `ProvidersDeps.now`,
+`undoWindowMs`. Unownable boundaries stay principled (OS store, editor
+state, person answers, recorded captures, provider-time-bound pacing
+windows). Triaged follow-ups: the home-node doubles, the spend-library
+invented wire bodies, the team-worker errno models, the node bridge
+fetch. Proof: a red/green drill per rewrite and the touched suites.
+Evidence: `docs/certification/rlf-nostubs.md`.
+
+**Status 2026-10-30 (integration into int/recovery, CC-INT7): built.** Merged
+on int; its 18 suites pass on the merged tree (249 passed, 20 skipped), with
+`modelApiRetryNoCount` taking int's D228 values (0.5 s base, 8 s ceiling) inside
+the lane's real jitter window.
+
+---
+
 ## 7. Gates
 
 **RLM95 plan-archive deferral (2026-10-22, macmini).** `npm run check:plan`
@@ -32624,6 +33050,10 @@ recorded digest before extraction, and extraction passes `filter='data'`,
 which strips absolute paths, parent traversal and device entries. Removal
 guard: the digest check and the data filter on the same lines.
 
+| RLF-M124RO location                       | Escape hatch                     | Reason                                                                                                                                                                                                                                                                                    |
+| ----------------------------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/unit/helpers/connectorSdkClient.ts` | `newTransport(...) as Transport` | The MCP SDK's own `StreamableHTTPClientTransport.sessionId` getter is `string \| undefined` where its `Transport` interface declares `sessionId?: string`; `exactOptionalPropertyTypes` will not assign the SDK's class to its own interface. Test-only; remove when the SDK types agree. |
+
 | RLM123 location                      | Escape hatch                             | Reason                                                                                                                                                                                                                                   |
 | ------------------------------------ | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `unconfiguredGit.ts` (M123 checkout) | Two raw git launches, nosemgrep'd inline | Direct route only when resource admission is absent (the shared-runner rule); the caller gate runs synchronously before each bounded no-shell launch. In the PATHGUARD record and the spawn inventory (test-only with nodeGitProcesses). |
@@ -32907,11 +33337,12 @@ Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemg
 | `src/runtime/main.ts`, `exitHeadless`                        | `eslint-disable-next-line unicorn/no-process-exit`   | A standalone headless command owns its process. It must end within the deadline/grace/force bounds even if a pipe or late backend setup never closes, including usage errors. Writes remain async and bounded before exit.                                                                                                                                                                                                                                                                                                                                             | 2026-10-02 |
 | `src/runtime/exec/execClient.ts`, constructor session router | Reflection of SDK 1.4.0's private `builder.handlers` | The SDK's constructor-installed session router validates a closed union before custom notification parsers, dropping future variants. This headless instance uses `request()` and no active-session helpers; remove only its single constructor handler after validating the exact descriptor `client-session-update-router`. The SDK's original builder and public handler/request/connection APIs remain in use. Structural checking fails closed if this pinned seam changes; real JSON-RPC and real-engine tests cover it. No dependency or SDK source is patched. | 2026-10-02 |
 
-| M108 lane X location                                                | Escape hatch                                                     | Reason                                                                                                                                                                                                                                                                    | Date       |
-| ------------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/core/developer/developerOptions.ts`, `serialize`               | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers` | The extension host runs Node 20 (VS Code 1.99), which lacks `Promise.withResolvers`; the deferred gate uses `new Promise` with a synchronously assigned resolver instead. Every other lane (M62 pattern) does the same. Remove if the minimum host gains `withResolvers`. | 2026-10-06 |
-| `src/core/backends/musecode/MuseCodeHost.ts`, `requestSessionRecap` | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers` | The extension host runs Node 20 (VS Code 1.99), which lacks `Promise.withResolvers`; the recap waiter uses `new Promise` with a synchronously assigned resolver instead (M62 pattern). Remove if the minimum host gains `withResolvers`.                                  | 2026-10-17 |
-| `src/core/backends/musecode/MuseCodeHost.ts`, `leaveSession`        | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers` | The extension host runs Node 20 (VS Code 1.99), which lacks `Promise.withResolvers`; the leave waiter uses `new Promise` with a synchronously assigned resolver instead (M62 pattern, as in `requestSessionRecap`). Remove if the minimum host gains `withResolvers`.     | 2026-10-22 |
+| M108 lane X location                                                | Escape hatch                                                     | Reason                                                                                                                                                                                                                                                                      | Date       |
+| ------------------------------------------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/core/developer/developerOptions.ts`, `serialize`               | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers` | The extension host runs Node 20 (VS Code 1.99), which lacks `Promise.withResolvers`; the deferred gate uses `new Promise` with a synchronously assigned resolver instead. Every other lane (M62 pattern) does the same. Remove if the minimum host gains `withResolvers`.   | 2026-10-06 |
+| `src/core/backends/musecode/MuseCodeHost.ts`, `requestSessionRecap` | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers` | The extension host runs Node 20 (VS Code 1.99), which lacks `Promise.withResolvers`; the recap waiter uses `new Promise` with a synchronously assigned resolver instead (M62 pattern). Remove if the minimum host gains `withResolvers`.                                    | 2026-10-17 |
+| `src/core/backends/musecode/MuseCodeHost.ts`, `leaveSession`        | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers` | The extension host runs Node 20 (VS Code 1.99), which lacks `Promise.withResolvers`; the leave waiter uses `new Promise` with a synchronously assigned resolver instead (M62 pattern, as in `requestSessionRecap`). Remove if the minimum host gains `withResolvers`.       | 2026-10-22 |
+| `src/core/backends/musecode/MuseCodeHost.ts`, `waitForStageEvent`   | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers` | The extension host runs Node 20 (VS Code 1.99), which lacks `Promise.withResolvers`; the stage-event waiter uses `new Promise` with a synchronously assigned resolver instead (M62 pattern, as in `requestSessionRecap`). Remove if the minimum host gains `withResolvers`. | 2026-10-30 |
 
 **INT0170 chat startup ratchet (lead decision, 2026-10-08).** The FIXDIET1
 review ratchet in `test/unit/webviewBundle.test.mjs` moves from 733.8 KiB
@@ -33224,7 +33655,12 @@ No new escape hatch is introduced.
   attest against arbitrary hostile same-user code rewriting those files
   (D89.15's residual). Management/private reads are bound; installed agent
   T/X/S/O execution, lifetime and trusted provenance owners remain absent and
-  explicitly refused. Audit checkpoint updates commit the authenticated store
+  explicitly refused. (Superseded in part by D243, lead decision
+  2026-10-30: lanes T and X are designed there — reported provenance, a
+  person-set ceiling, delegated feeder redemption — and RLF-M109 builds
+  their first increment, environment/stdin uses headless first; S/O and
+  the git/askpass/sudo/SSH surfaces stay refused until their own
+  increments land.) Audit checkpoint updates commit the authenticated store
   before the protected checkpoint; interruption between those writes refuses
   reopening rather than guessing an anchor. Joined recovery must certify that
   failure path before availability is enabled. CM109JOINA supplies the writer

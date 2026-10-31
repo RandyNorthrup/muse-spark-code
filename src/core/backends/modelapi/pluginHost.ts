@@ -85,8 +85,12 @@ export interface PluginChildHandle {
   write(text: string): void
   onStdout(listener: (chunk: Buffer) => void): void
   onClose(listener: (code?: number | null) => void): void
-  /** A spawn error, or a stdin error such as EPIPE. */
-  onError(listener: () => void): void
+  /**
+  A spawn error, or a stdin error such as EPIPE. The error reaches the
+  listener when the platform reports one, so a start refusal keeps its
+  code; a write with no stdin to fail has none to report.
+  */
+  onError(listener: (error?: Error) => void): void
 }
 
 /**
@@ -273,8 +277,8 @@ async function defaultRunVersion(
       deps.notice?.(stillWaitingText({ key: 'pluginHook' }, elapsedMs))
     }, deps.noticeMs ?? STILL_WAITING_NOTICE_MS)
     signal?.addEventListener('abort', abort, { once: true })
-    child.onError(() => {
-      finish(new Error('Plugin runtime probe failed'))
+    child.onError((error) => {
+      finish(error ?? new Error('Plugin runtime probe failed'))
     })
     child.onClose((code) => {
       finish(
@@ -477,9 +481,9 @@ function boundedBun(
 
 /** Wraps a Node child: the request goes in once, and stderr is drained unread. */
 export function nodeChildHandle(child: ChildProcess): PluginChildHandle {
-  const errors: (() => void)[] = []
-  const failed = (): void => {
-    for (const listener of errors) listener()
+  const errors: ((error?: Error) => void)[] = []
+  const failed = (error?: Error): void => {
+    for (const listener of errors) listener(error)
   }
   child.on('error', failed)
   // An EPIPE arrives after write() returns: without this it would be uncaught.
@@ -507,7 +511,7 @@ export function nodeChildHandle(child: ChildProcess): PluginChildHandle {
       // A child that ended before it was handed over (its close and error
       // already past) has a destroyed stdin: the write's callback says so.
       stdin.write(text, (error) => {
-        if (error !== null && error !== undefined) failed()
+        if (error !== null && error !== undefined) failed(error)
       })
       stdin.end()
     },

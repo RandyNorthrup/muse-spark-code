@@ -1,5 +1,6 @@
 // M104 binds these value-free messages to its authenticated host bridge.
 import * as z from 'zod/mini'
+import { VAULT_LIMITS } from '../constants'
 import { vaultApprovalAnswerSchema, vaultGrantSchema } from '../vault'
 import { vaultPanelStateSchema } from '../vaultPanel'
 
@@ -48,6 +49,11 @@ export const vaultClientMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('vaultPublicKey'),
     itemId: z.string().check(z.regex(/^[a-f0-9]{32}$/u)),
+  }),
+  // D241: undo one retired migration slot, restoring its value as current.
+  z.strictObject({
+    type: z.literal('vaultUndoRetired'),
+    key: z.string().check(z.minLength(1), z.maxLength(VAULT_LIMITS.text)),
   }),
 ])
 /** What the vault section posts to the host (C-M109-1 P1 mount). */

@@ -31,6 +31,8 @@ import { nodeBackgroundFiles, backgroundProcessRunner } from './nodeBackgroundIo
 import type { ScheduleFsPort } from '../../core/schedules/journal'
 import type { ScheduleQueuePort } from '../../core/schedules/store'
 import {
+  SCHEDULE_DEFERRED_EVENT_MAX_ATTEMPTS,
+  SCHEDULE_DEFERRED_EVENT_RETRY_CAP_MS,
   SCHEDULE_ENGINE_ERROR_MAX,
   SCHEDULE_POLL_INTERVAL_MS,
   SCHEDULE_RULE_MAX_CHARS,
@@ -38,7 +40,7 @@ import {
 } from '../../shared/constants'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import type { CoreLogger } from '../../core/logging'
-import { fill } from '../../shared/l10n/text'
+import { fill, plural } from '../../shared/l10n/text'
 import {
   scheduleEventRunId,
   scheduleEventSchema,
@@ -148,8 +150,23 @@ const deferredEventSchema = z.strictObject({
   scheduleId: z.string(),
   event: scheduleEventSchema,
   dueMs: z.int(),
+  // Rows written before the bounded retry carry no count and read as a first attempt.
+  failures: z.optional(z.int().check(z.gte(0))),
 })
 const deferredFileSchema = z.array(deferredEventSchema)
+type DeferredEvent = Omit<z.infer<typeof deferredEventSchema>, 'failures'> & {
+  readonly failures: number
+}
+
+/** Capped exponential backoff after a failed deferred event: the base
+doubles per failure, never past the cap (AWS Architecture Blog,
+"Exponential Backoff And Jitter": wait = min(cap, base * 2^failures)). */
+function deferredEventRetryDelayMs(failures: number): number {
+  return Math.min(
+    SCHEDULE_POLL_INTERVAL_MS * 2 ** (failures - 1),
+    SCHEDULE_DEFERRED_EVENT_RETRY_CAP_MS,
+  )
+}
 
 function unavailableTarget(): Promise<never> {
   throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable)
@@ -399,11 +416,14 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
     },
   })
   const controls = new Map<string, ScheduleControlPort>()
-  const readDeferred = async (): Promise<z.infer<typeof deferredFileSchema>> => {
+  const readDeferred = async (): Promise<DeferredEvent[]> => {
     const raw = await options.fs.read('runtime/deferred-events.json', { signal: combined })
     if (raw === undefined) return []
     try {
-      return deferredFileSchema.parse(JSON.parse(raw))
+      return deferredFileSchema.parse(JSON.parse(raw)).map((entry) => ({
+        ...entry,
+        failures: entry.failures ?? 0,
+      }))
     } catch {
       throw new Error('scheduleStoredJsonInvalid')
     }
@@ -431,7 +451,7 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
       'runtime/deferred-events.json',
       JSON.stringify([
         ...pending,
-        { workspaceKey: schedule.workspaceKey, scheduleId: schedule.id, event, dueMs },
+        { workspaceKey: schedule.workspaceKey, scheduleId: schedule.id, event, dueMs, failures: 0 },
       ]),
       undefined,
       { signal: combined },
@@ -497,7 +517,7 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
     await intakeFor(root).poll()
   }
   const scanDeferred = async (): Promise<void> => {
-    let pending: z.infer<typeof deferredFileSchema>
+    let pending: DeferredEvent[]
     try {
       pending = await readDeferred()
     } catch (error: unknown) {
@@ -506,7 +526,7 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
       report(error)
       return
     }
-    const remaining: z.infer<typeof deferredFileSchema> = []
+    const remaining: DeferredEvent[] = []
     let isChanged = false
     for (const deferred of pending) {
       if (deferred.dueMs > now()) {
@@ -521,8 +541,27 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
           deferred.event,
           deferred.dueMs,
         )
-      } catch {
-        remaining.push(deferred)
+      } catch (error: unknown) {
+        // Every failure lands in the host record; the bounded retry below
+        // requeues with backoff, and the last attempt stops and says why.
+        report(error)
+        const failures = deferred.failures + 1
+        if (failures < SCHEDULE_DEFERRED_EVENT_MAX_ATTEMPTS) {
+          remaining.push({
+            ...deferred,
+            failures,
+            dueMs: now() + deferredEventRetryDelayMs(failures),
+          })
+          continue
+        }
+        report(
+          new Error(
+            plural(UI_TEXT.scheduleV2.messages.deferredEventGaveUp, failures, {
+              scheduleId: deferred.scheduleId,
+              reason: failureForLog(error),
+            }).slice(0, SCHEDULE_RULE_MAX_CHARS),
+          ),
+        )
       }
     }
     if (isChanged)

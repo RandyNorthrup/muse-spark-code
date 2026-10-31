@@ -456,6 +456,11 @@
         "category": "%command.category%"
       },
       {
+        "command": "museSpark.vaultUndoRetired",
+        "title": "%command.vaultUndoRetired.title%",
+        "category": "%command.category%"
+      },
+      {
         "command": "museSpark.estimate",
         "title": "%command.estimate.title%",
         "category": "%command.category%"
@@ -2071,6 +2076,7 @@
     "@agentclientprotocol/sdk": "2.0.1",
     "@codemirror/merge": "6.12.3",
     "@eslint/js": "10.0.1",
+    "@modelcontextprotocol/sdk": "1.32.1",
     "@muse-code/sdk": "1.4.12",
     "@simplewebauthn/browser": "14.0.0",
     "@simplewebauthn/server": "14.0.3",
@@ -2080,6 +2086,7 @@
     "@types/jsdom": "30.0.0",
     "@types/mocha": "10.0.10",
     "@types/node": "22.20.5",
+    "@types/oidc-provider": "9.12.1",
     "@types/pngjs": "6.0.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
@@ -2119,7 +2126,7 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.72.0",
     "vitest": "5.0.5",
-    "vscode-jsonrpc": "9.0.3",
+    "vscode-jsonrpc": "10.0.0",
     "wrap-ansi": "10.0.2",
     "yaml": "2.9.1",
     "zod": "4.6.7"
@@ -2152,6 +2159,7 @@
     "mdast-util-gfm": "3.1.0",
     "mdast-util-to-markdown": "2.2.0",
     "micromark-extension-gfm": "3.0.0",
+    "oidc-provider": "9.12.2",
     "parse5": "8.0.1",
     "pngjs": "7.0.0",
     "qrcode-generator": "2.0.4",

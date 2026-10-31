@@ -25,8 +25,12 @@ export interface VaultMigrationFactoryDeps {
   readonly connect: () => Promise<VaultBrokerClient>
   /** The raw SecretStorage; the shell mirrors through the migration, never the reverse. */
   readonly secrets: SecretStore
-  readonly shell: MigrationShell
-  /** Configured provider ids; grok stays with its lane, and the controller adds the ChatGPT slot itself when stored. */
+  /**
+  Bound when present; one-shot callers (the palette undo) pass none,
+  so they never steal the panel binding's mirror.
+  */
+  readonly shell?: MigrationShell | undefined
+  /** Configured provider ids; the controller adds the ChatGPT slot itself when stored, and grok stays with its own lane. */
   readonly listProviderIds: () => Promise<readonly string[]>
   /**
   Pooled account ids per provider, from the host's account metadata.

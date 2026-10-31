@@ -222,10 +222,13 @@ export class ScheduleRuntime implements RuntimeSchedulesBinding {
         if (results.some((result) => result.status === 'rejected'))
           throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
       } finally {
+        // The re-arm reads the consent store bound to the engine's signal,
+        // so it runs before the engine close aborts it; the engine close
+        // still runs when the re-arm fails.
         try {
-          await this.deps.close()
-        } finally {
           if (!this.isMacWake) await this.deps.background.reconcile()
+        } finally {
+          await this.deps.close()
         }
       }
     })()
