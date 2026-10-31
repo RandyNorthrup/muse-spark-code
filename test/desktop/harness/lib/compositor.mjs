@@ -12,7 +12,7 @@
 
 import { spawn } from 'node:child_process'
 import { createWriteStream } from 'node:fs'
-import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { runCapture, sleep, stopProcessGroup, waitFor } from './proc.mjs'
 import { findExecutable, findKmsDevices } from './tools.mjs'
@@ -117,9 +117,12 @@ export async function startCompositorSession({
     )
   }
 
-  const runtimeDir = path.join(workDir, 'runtime')
+  // The runtime directory stays short and outside workDir on purpose:
+  // Hyprland's IPC socket lives at $XDG_RUNTIME_DIR/hypr/<signature>/…,
+  // and a long work path pushes it past the AF_UNIX limit (Hyprland
+  // then runs with IPC dead and hyprctl can never answer).
+  const runtimeDir = await mkdtemp('/tmp/mqa-')
   const homeDir = path.join(workDir, 'home')
-  await mkdir(runtimeDir, { recursive: true, mode: 0o700 })
   await mkdir(homeDir, { recursive: true })
   const configFile = path.join(workDir, 'hyprland.lua')
   await writeFile(configFile, hyprlandConfig(outputs))
@@ -161,6 +164,7 @@ export async function startCompositorSession({
   const fail = async (error) => {
     try {
       await stopProcessGroup(child)
+      await rm(runtimeDir, { recursive: true, force: true })
     } catch {
       // Already failing with the startup error; the log tail below says more.
     }
@@ -273,6 +277,7 @@ export async function startCompositorSession({
       // Hyprland may already be gone; the group stop below is the guarantee.
     }
     await stopProcessGroup(child)
+    await rm(runtimeDir, { recursive: true, force: true })
   }
   return session
 }

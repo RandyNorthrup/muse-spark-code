@@ -119,3 +119,44 @@ Part A done (604be0c20); Part B done (this commit); Parts C–G next.
   `desktop-harness session` refuses with the allocator reason and the
   VM directions; the full session proof runs inside the QEMU guest in
   Part F, the way upstream Hyprland tests itself.
+
+### Part C proof (D-Bus test bus)
+
+- `test/unit/desktop/harnessDbus.test.mjs` (5 tests, green on this
+  host): canary ping round-trips and counts, the named failure error,
+  notification ids and records with `CloseNotification` semantics, a
+  bus whose policy denies the canary its name refuses to start (the
+  drill is a test), and no daemon survives `stop()`. `desktop-harness
+bus` round-trips the same path by hand; its records show sender,
+  summary and id as the real client sent them.
+
+### Parts D+E proof (virtual input, Electron)
+
+- Rust driver: `cargo test` 4 passed, `cargo fmt --check` and
+  `cargo clippy -- -D warnings` clean, `cargo deny check` and
+  `cargo audit` exit 0 (26 crates; rust:1-bookworm container,
+  rustc 1.99.1). The binary refuses a missing Wayland socket by name.
+  Its in-session run is the Part F guest proof.
+- Electron driver: `test/unit/desktop/harnessElectron.test.mjs`
+  3 passed under Xvfb — the real Electron 45 fixture opens, is typed
+  into through its page, and reports back; resolution refuses with
+  every place searched when no Electron exists. The CLI smoke
+  (`desktop-harness electron --expect-title "Electron fixture"`)
+  prints the title and wrote `temp/desktop-electron/first-window.png`.
+
+### Part F proof (QEMU runner) so far
+
+- `test/unit/desktop/harnessQemu.test.mjs` (8 tests, green):
+  composition per arch (two outputs, the right TPM device each time),
+  refusals, transcript scanning, the script as a child process.
+- Real boots in a Debian 13 container (QEMU 10.0.13, swtpm 0.7.1):
+  x86_64 firmware-only passed (OVMF live frame; the captured head
+  shows the UEFI interactive shell), aarch64 firmware-only passed
+  (`UEFI firmware (version 2025.02…)` on the serial line), and a real
+  Debian kernel with the proof guest reached its marker in 17 s with
+  the kernel console on the virtio frame buffer and both heads
+  captured. On this host directly, QEMU dies at the TPM handshake
+  (`Failed to send CMD_SET_DATAFD` — fd passing is blocked in the lane
+  sandbox), so host-side QEMU runs through the container, exactly as
+  CI does; the failure is the sandbox's, recorded here, not worked
+  around.
