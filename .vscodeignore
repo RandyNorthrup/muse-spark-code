@@ -125,12 +125,6 @@
 !dist/reference.js
 !dist/webview.json.br
 !dist/providerCatalog.js
-!dist/webview/usage.js
-!dist/webview/usage.css
-!dist/webview/whatsNew.js
-!dist/webview/whatsNew.css
-!dist/webview/makerPreview.js
-!dist/webview/makerPreview.css
 !media/icon.svg
 !media/icon.png
 !resources/walkthrough/**

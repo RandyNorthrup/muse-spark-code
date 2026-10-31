@@ -6,7 +6,6 @@ import {
   MAKER_PREVIEW_STYLE_FILE,
   MAKER_PREVIEW_VIEW_TYPE,
   MAKER_PROTOCOL_VERSION,
-  WEBVIEW_DIST_SEGMENTS,
   UI_TEXT,
 } from '../../../shared/constants'
 import {
@@ -17,13 +16,18 @@ import {
   type MakerPreview,
   type ApprovalRequest,
 } from '../../../shared/makerProtocol'
+import { failureForLog } from '../../../core/backends/musecode/logText'
 import { buildWebviewHtml, createNonce } from '../../html'
 import type { UiTable } from '../../l10n'
 import type { Logger } from '../../logger'
 import { MakerApprovalReceipt } from '../../maker/makerApprovalReceipt'
+import { webviewBundleErrorHtml } from '../../views/webviewBundle'
+import { resolveWebviewBundleDir, WebviewBundleError } from '../../views/webviewBundleRoot'
 
 export interface MakerPreviewPanelDeps {
   readonly extensionUri: vscode.Uri
+  /** Where the packed webview archive is extracted (VSIXWEB), as the other panels do. */
+  readonly globalStoragePath: string
   readonly l10n: UiTable
   readonly log: Logger
   readonly stop: (machineId?: string) => Promise<void>
@@ -54,7 +58,29 @@ export class MakerPreviewPanel implements vscode.Disposable {
   constructor(private readonly deps: MakerPreviewPanelDeps) {}
 
   private createPanel(title: string): vscode.WebviewPanel {
-    const bundleRoot = vscode.Uri.joinPath(this.deps.extensionUri, ...WEBVIEW_DIST_SEGMENTS)
+    let bundleRoot: vscode.Uri
+    try {
+      bundleRoot = vscode.Uri.file(
+        resolveWebviewBundleDir({
+          extensionPath: this.deps.extensionUri.fsPath,
+          globalStoragePath: this.deps.globalStoragePath,
+        }),
+      )
+    } catch (error: unknown) {
+      if (!(error instanceof WebviewBundleError)) throw error
+      this.deps.log.error(`Maker preview webview bundle failed: ${failureForLog(error)}`)
+      const failed = vscode.window.createWebviewPanel(
+        MAKER_PREVIEW_VIEW_TYPE,
+        title,
+        vscode.ViewColumn.Beside,
+        { enableScripts: false, enableCommandUris: false, localResourceRoots: [] },
+      )
+      failed.webview.html = webviewBundleErrorHtml(
+        UI_TEXT.webviewBundleUnavailable,
+        this.deps.l10n.locale,
+      )
+      return failed
+    }
     const panel = vscode.window.createWebviewPanel(
       MAKER_PREVIEW_VIEW_TYPE,
       title,
