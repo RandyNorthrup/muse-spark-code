@@ -1445,6 +1445,12 @@
       "area": "chat"
     },
     {
+      "id": "RLFQUOTA",
+      "title": "A spent subscription window is said with its reset time",
+      "summary": "A subscription window that ran out ends the turn as its own outcome, never an internal error, with the reset time in words on every surface; continuing at the reset is the person's opt-in.",
+      "area": "chat"
+    },
+    {
       "id": "ACPDOG",
       "public": false,
       "note": "implementation complete; dependent validation pending"
