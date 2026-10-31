@@ -1,6 +1,7 @@
 // M96b: keep CLI/headless admission independent of ACP mapping schemas.
 import * as z from 'zod/mini'
 import { UI_TEXT } from '../shared/constants'
+import { fill } from '../shared/l10n/text'
 import { checkTeamAvailability, type TeamAvailabilityCandidate } from '../shared/teamAvailability'
 
 /** A caller value cannot be represented by the frozen team contract. */
@@ -40,7 +41,8 @@ export function teamExecAdmission(input: {
   readonly backend: string
 }): { readonly ok: true } | { readonly ok: false; readonly reason: string } {
   const parsed = parseInput(teamExecAdmissionInputSchema, input, 'team exec admission')
-  if (parsed.backend !== 'modelApi') return { ok: false, reason: UI_TEXT.execModelApiOnly }
+  if (parsed.backend !== 'modelApi')
+    return { ok: false, reason: fill(UI_TEXT.execModelApiOnly, { options: '--team' }) }
   return parsed.mode === 'acceptEdits'
     ? { ok: true }
     : { ok: false, reason: UI_TEXT.execTeamNeedsEdits }

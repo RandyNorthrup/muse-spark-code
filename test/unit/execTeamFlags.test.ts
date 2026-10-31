@@ -20,13 +20,13 @@ describe('M96b exec --team flags', () => {
     expect(parsed.options.team).toBe(false)
   })
   it('refuses --team off the Model API backend', () => {
-    expect(parseExec({ team: true }, ['task'])).toEqual({
-      ok: false,
-      reason: UI_TEXT.execModelApiOnly,
-    })
+    // The refusal names the option as typed; the unfilled template reached
+    // people through the packed agent (RLF-M96CERT, 2026-10-30).
+    const reason = fill(UI_TEXT.execModelApiOnly, { options: '--team' })
+    expect(parseExec({ team: true }, ['task'])).toEqual({ ok: false, reason })
     expect(
       parseExec({ team: true, backend: 'museCode', 'permission-mode': 'acceptEdits' }, ['task']),
-    ).toEqual({ ok: false, reason: UI_TEXT.execModelApiOnly })
+    ).toEqual({ ok: false, reason })
   })
   it('refuses --team without acceptEdits', () => {
     expect(parseExec({ ...BUDGET, team: true }, ['task'])).toEqual({

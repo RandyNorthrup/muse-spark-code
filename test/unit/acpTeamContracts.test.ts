@@ -32,6 +32,7 @@ import {
   type TeamPlanTask,
 } from '../../src/acp/teamContracts'
 import { UI_TEXT } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 
 const DIFF = teamDiff({ path: '/repo/a.ts', oldText: 'a', newText: 'b' })
 const OPTIONS: PermissionOption[] = [{ optionId: 'yes', name: 'Yes', kind: 'allow_once' }]
@@ -1540,7 +1541,7 @@ describe('M96b exec --team admission', () => {
   it('needs the Model API backend and acceptEdits after exec budget validation', () => {
     expect(teamExecAdmission({ mode: 'acceptEdits', backend: 'museCode' })).toEqual({
       ok: false,
-      reason: UI_TEXT.execModelApiOnly,
+      reason: fill(UI_TEXT.execModelApiOnly, { options: '--team' }),
     })
     expect(teamExecAdmission({ mode: 'plan', backend: 'modelApi' })).toEqual({
       ok: false,
