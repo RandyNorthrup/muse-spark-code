@@ -31,32 +31,42 @@
     </script>
     <script>
       // `?lang=<id>` renders the panel in l10n/ui.<id>.json, and
-      // `?lang=pseudo` in the pseudo-locale table scripts/pseudo-l10n.mjs
-      // writes (PLAN.md D33). The table goes into the page as the host puts
-      // it into a webview's HTML: a JSON <script id="muse-l10n"> holding
-      // `{ locale, table }`, with <html lang> set. The bundle reads it on
-      // its first run, so it is fetched synchronously, before the bundle's
-      // <script> below; without `?lang` nothing here runs. A table that
-      // cannot be read, or that the webview refuses, fails the page
-      // (harnessErrors, further down).
+      // `?lang=pseudo` or `?lang=pseudo-rtl` in the pseudo-locale tables
+      // scripts/pseudo-l10n.mjs writes (PLAN.md D33, M111 D91.20). The
+      // table goes into the page as the host puts it into a webview's
+      // HTML: a JSON <script id="muse-l10n"> holding `{ locale, table }`,
+      // with <html lang> set. The bundle reads it on its first run, so it
+      // is fetched synchronously, before the bundle's <script> below;
+      // without `?lang` nothing here runs. A table that cannot be read, or
+      // that the webview refuses, fails the page (harnessErrors, further
+      // down). The pseudo-RTL table also flips the page direction, so the
+      // mirrored layout renders.
       const harnessL10n = (() => {
         const lang = new URLSearchParams(location.search).get('lang')
         if (lang === null) {
           return {}
         }
         try {
-          const isPseudo = lang === 'pseudo'
+          const pseudoUi = {
+            pseudo: 'l10n/ui.pseudo.json',
+            'pseudo-rtl': 'l10n/ui.pseudo-rtl.json',
+          }[lang]
+          const pseudoUsage = {
+            pseudo: 'l10n/usage.pseudo.json',
+            'pseudo-rtl': 'l10n/usage.pseudo-rtl.json',
+          }[lang]
+          const isPseudo = pseudoUi !== undefined
           if (!isPseudo && !/^[a-z]{2,3}(?:-[a-z\d]+)*$/.test(lang)) {
             throw new Error('not a VS Code language id')
           }
-          const url = isPseudo ? 'l10n/ui.pseudo.json' : `../../l10n/ui.${lang}.json`
+          const url = pseudoUi ?? `../../l10n/ui.${lang}.json`
           const request = new XMLHttpRequest()
           request.open('GET', url, false)
           request.send()
           if (request.status !== 200) {
             throw new Error(`${url}: HTTP ${String(request.status)}`)
           }
-          // The pseudo table is English underneath: its plural rules apply.
+          // A pseudo table is English underneath: its plural rules apply.
           const locale = isPseudo ? 'en' : lang
           const table = JSON.parse(request.responseText)
           const element = document.createElement('script')
@@ -65,7 +75,7 @@
           element.textContent = JSON.stringify({ locale, table })
           document.head.append(element)
           if (harnessBundle === 'usage') {
-            const usageUrl = isPseudo ? 'l10n/usage.pseudo.json' : `../../l10n/usage.${lang}.json`
+            const usageUrl = pseudoUsage ?? `../../l10n/usage.${lang}.json`
             const usageRequest = new XMLHttpRequest()
             usageRequest.open('GET', usageUrl, false)
             usageRequest.send()
@@ -82,6 +92,9 @@
             document.head.append(usageElement)
           }
           document.documentElement.lang = locale
+          if (lang === 'pseudo-rtl') {
+            document.documentElement.dir = 'rtl'
+          }
           return { lang, table }
         } catch (error) {
           return { lang, error: `?lang=${lang}: ${String(error)}` }
@@ -964,7 +977,9 @@
                     response.json(),
                   ),
                   fetch(
-                    harnessL10n.lang === undefined || harnessL10n.lang === 'pseudo'
+                    harnessL10n.lang === undefined ||
+                      harnessL10n.lang === 'pseudo' ||
+                      harnessL10n.lang === 'pseudo-rtl'
                       ? '../../package.nls.json'
                       : `../../package.nls.${harnessL10n.lang}.json`,
                   ).then((response) => response.json()),

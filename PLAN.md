@@ -249,6 +249,7 @@ temp/planfix0190/d2-summary.txt Full record:
 | `knip`                                                                                               | 6.39.0                            |
 | `prettier`                                                                                           | 3.9.9                             |
 | `stylelint` + `stylelint-config-standard`                                                            | 17.15.0 / 40.0.0                  |
+| `stylelint-use-logical`                                                                              | 2.1.3                             |
 | `vitest` + `@vitest/coverage-v8`                                                                     | 5.0.3                             |
 | `jsdom`                                                                                              | 30.1.1                            |
 | `@types/jsdom`                                                                                       | 30.0.0                            |
@@ -297,6 +298,8 @@ temp/planfix0190/d2-summary.txt Full record:
 **`prettier`** — Formatter.
 
 **`stylelint` + `stylelint-config-standard`** — Webview CSS gate (`--max-warnings=0`).
+
+**`stylelint-use-logical`** — M111 lane IN (D91.20): the logical-properties rule that keeps new desktop surfaces RTL-ready (`csstools/use-logical`, always, scoped by path to `src/webview/desktop`, `src/webview/editor`, `src/webview/node` and `desktop/**/*.css`; block-axis and size properties excepted, since right-to-left never moves them). csstools' rule, not a hand-written one: it covers properties and `float`/`clear`/`text-align` values, honours `:dir(ltr)` for content that stays left-to-right, and autofixes. No dependencies; peer `stylelint >=11 <18` accepts 17.16.0; `npm audit` clean for it (2026-10-30, the 28 advisories are pre-existing). 2.1.3 published 2026-02-04, past the seven-day window.
 
 **`vitest` + `@vitest/coverage-v8`** — Unit tests (node env for extension code, jsdom for webview). Peer `@types/node ^22                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |     | >=24` satisfied.
 
@@ -27793,6 +27796,19 @@ and icon palettes, the wallpaper recipe and the boot values. WB and ED
 consume the app themes at merge; AR consumes the palettes, recipe and boot
 values; CP consumes the Hyprland table; PT serves the portal appearance and
 ST the override TH follows.
+
+**Status 2026-10-30 (RLF-M111IN): planned.** Lane IN (Languages, D91.20)
+built on `rec/rlf-m111in`, ready for integration: the generated Rust
+(`ui_text!`, ICU4X 2.4.0 dates/numbers) and QML singleton tables from the
+same fifteen tables; `check:l10n` covering Rust, QML, generated-table
+freshness and desktop TypeScript (WB/ED's real files verified clean by
+path rule); the pseudo-RTL table with mirrored-layout looks;
+stylelint-use-logical on new desktop CSS; the HarfBuzz font-coverage
+gate (13 faces, 2646 codepoints, 0 problems); fcitx5 with four engines
+and the Noto fonts in `os/desktop/packages.conf`; the Electron 45.0.0
+IME flags captured under Xvfb. Proof: `docs/certification/rlf-m111in.md`
+with red/green drills. Text-input-v3 behaviour under Hyprland with
+fcitx5 and the desktop CI wiring belong to M111os IM/QA.
 
 **Status 2026-10-23 (RLF-M111L0): planned.** Mockups approved; lane 0 landed. The
 owner approved the lead's 18-screen mockups on 2026-10-23 ("looks great"),

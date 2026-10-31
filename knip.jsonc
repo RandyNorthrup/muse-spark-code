@@ -429,6 +429,10 @@
     // scripts/lib/faultRig.mjs; the namespace responder is spawned by path.
     "test/faults/scenarios/*.ts",
     "test/faults/lib/nsResponder.mjs",
+    // M111 IN (D91.20): the desktop language checks, run by hand or from the
+    // desktop CI (real Qt, real Electron), which knip does not trace.
+    "test/desktop/l10n/qml-check.mjs",
+    "test/desktop/l10n/ime-flags.mjs",
     "scripts/**/*.mjs",
     ".vscode-test.mjs",
 
@@ -810,7 +814,9 @@
     "gcc",
     "gpg",
     // The boot-driver suite watches the guest's command line for a linger check.
-    "pgrep"
+    "pgrep",
+    // M111 IN (D91.20): qml-check.mjs locates the Qt 6 tools through it.
+    "qtpaths6"
   ],
 
   "ignoreExportsUsedInFile": true,
