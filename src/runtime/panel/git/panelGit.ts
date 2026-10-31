@@ -5,8 +5,9 @@
 // terminal for a push that needs typed credentials and GitHub's pages are
 // MHP requests (`ui/confirm`, `ui/pick`, `terminal/create`, `ui/openExternal`),
 // so a person answers them in their editor. The GitHub sign-in is one object
-// for the connection, over the device flow and the opt-in `gh` login (there is
-// no editor session to borrow), so every conversation's card shows one account.
+// for the connection: the editor's own session by lease where it offers
+// `auth` (D104's source (a)), else the device flow and the opt-in `gh`
+// login, so every conversation's card shows one account.
 //
 // - No `git` on the absolute entries of PATH, or a workspace in no
 //   repository, is no Git for the panel: it shows none, and each press says why.
@@ -22,7 +23,6 @@
 
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { withoutCredentials } from '../../../core/credentialEnvironment'
 import { GitHubSignIn } from '../../../core/git/githubSignIn'
 import { pushConfirmationText } from '../../../core/git/pushConfirmation'
 import type { RuntimeGitDeps } from '../../../core/git/runtimeGit'
@@ -39,11 +39,13 @@ import {
   type LinkMemento,
 } from '../../../host/git/pullRequestLinks'
 import type { Logger } from '../../../host/logger'
-import { GIT_PUSH_CREDENTIAL_VARIABLES, UI_TEXT } from '../../../shared/constants'
+import { UI_TEXT } from '../../../shared/constants'
 import type { HostServices } from '../../../shared/hostApi/methods'
 import type { UiText } from '../../../shared/l10n/en'
 import { setUiText } from '../../../shared/l10n/text'
+import { runtimeGitUserEnvironment } from '../../gitUserEnvironment'
 import { githubAccountLogin, runtimeGitHubSources } from '../../github/githubSources'
+import { editorLeaseSource } from '../nativeGitHub'
 import { unavailableGit } from '../../features/unavailableGit'
 import { createRuntimeGit } from './adapter'
 
@@ -60,6 +62,8 @@ export interface PanelGitPorts {
   readonly userAgent: string
   /** `museSpark.github.useGhLogin` as the person set it in their own settings, as last read. */
   readonly useGhLogin: () => boolean
+  /** The editor offers MHP `auth`: the sign-in borrows its GitHub session by lease (D104's source (a)). */
+  readonly editorLeaseOffered: boolean
   /** The workspace storage the pull request links are kept in. */
   readonly links: {
     read(): Promise<unknown>
@@ -130,8 +134,18 @@ export async function openPanelGit(
     await host.request('ui/openExternal', { uri: url }, signal)
   }
   const github = new GitHubSignIn({
-    sources: (present) =>
-      runtimeGitHubSources(
+    sources: (present) => [
+      // D104's order: the editor's session first, where it offers one.
+      ...(ports.editorLeaseOffered
+        ? [
+            editorLeaseSource({
+              host,
+              workspaceUri: pathToFileURL(ports.workspaceRoot).href,
+              now: Date.now,
+            }),
+          ]
+        : []),
+      ...runtimeGitHubSources(
         {
           store: ports.secrets,
           fetch: ports.fetch,
@@ -141,6 +155,7 @@ export async function openPanelGit(
         },
         present,
       ),
+    ],
     now: Date.now,
     login: githubAccountLogin(ports),
     log,
@@ -154,7 +169,11 @@ export async function openPanelGit(
     },
   }
   const links = pullRequestLinkStoreOf(new PullRequestLinks(memento))
-  const userEnvironment = withoutCredentials(process.env, GIT_PUSH_CREDENTIAL_VARIABLES)
+  // D104's named exception: the Git routes the agent's entry kept at start,
+  // before it took credentials out of its own environment. Reading the bare
+  // process environment here would lose them, and a push that authenticates
+  // over `GH_TOKEN` would fail.
+  const userEnvironment = runtimeGitUserEnvironment()
   /** An explicit yes in the editor; a dismissed question is a no. */
   const isConfirmed = async (title: string, message: string, action: string): Promise<boolean> => {
     const accept = 1
