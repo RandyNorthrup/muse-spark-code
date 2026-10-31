@@ -359,6 +359,8 @@ temp/planfix0190/d2-summary.txt Full record:
 
 **`zopfli`** — VSIXFIT B (D6): the `.vsix` recompressor (`scripts/compress-vsix.py`) writes Zopfli raw-deflate members (stored for already-brotli members), about 1.2% smaller than zlib level 9 (44,904 bytes measured on the 0.19.0 linux-x64 package). A build tool, never shipped: it runs in the `packages` steps only, from the pinned `.github/vsix-compress/requirements.txt`. 0.4.3; Apache-2.0; no dependencies; `zopfli.zlib.compress(data, numiterations=15)` minus its 2-byte header and 4-byte trailer, written as raw deflate with correct CRC and sizes. Without it packaging fails with a named requirements file, never silently falling back to level 9.
 
+**`qrcode-generator`** — RLF-M110OS2 (2026-10-23): the first-boot console screen (`src/runtime/node/firstBoot/display.ts`, landed from RLF-M110OS) draws the setup code as block-character QR rows with `qrcode(0, 'M')`/`addData`/`make`/`isDark`. 2.0.4, the registry latest, published 2025-08-07 (past `.npmrc`'s seven-day rule); MIT; no dependencies; no peer dependencies; `npm audit` clean (see the lane's gate exits). Its tarball ships no licence file, so the notices script reads upstream's LICENSE verbatim from `vendor/qrcode-generator/LICENSE` (byte-identical to the upstream repository, verified 2026-10-23) while still checking the manifest's MIT declaration. A runtime dependency: the ACP package's node bundles carry it.
+
 DEP138 dependency review (2026-10-07): PR #138 proposes ACP SDK 1.5.1,
 Vitest and V8 coverage 5.0.3 together, jscpd 5.4.0, knip 6.39.0 and
 typescript-eslint 8.71.0. Their exact registry peers accept the existing
@@ -25911,6 +25913,10 @@ or helper-only-access certification.
 
 **Status 2026-10-23: building.** RLF-M110OS built OS3–OS7, in review; OS1, OS2, A1 and M110a still open; threat-model acceptance, the signing ceremony and owner hardware waiting.
 
+**Status 2026-10-30: building.** RLF-M110OS2's resume put the build in the repository's builder container, pinned the ext4 hash seed, and proved two builds of each image byte-identical, so the pipeline's reproducibility comparison now blocks; both new images boot to the login prompt (x86-64 TCG, aarch64 container QEMU) with an SPDX SBOM each. KVM boots, TPM/MOK/LUKS enrollment on hardware, image signing and OSJ wait, named. Threat-model acceptance stays with the lead. Evidence: `docs/certification/rlf-m110os2.md`.
+
+**Status 2026-10-23: building.** RLF-M110OS2 landed OS3–OS7 on OS1's recipe and OS2, built both images from the 0.19.0 runtime and booted x86-64 under TCG and aarch64 through container QEMU to the login prompt, with an SPDX SBOM per image; two x86-64 builds compared with every divergence root-caused (payload content identical). KVM boots, TPM/MOK/LUKS enrollment on hardware, image signing and OSJ wait, named. Threat-model acceptance stays with the lead. Evidence: `docs/certification/rlf-m110os2.md`.
+
 **Status 2026-10-09: building.** Lanes N, OS1, OS2 and A1 built, in review; hardware qualification open.
 
 **Status 2026-10-22: recovery (RLM110C).** Phases c-h landed as ready
@@ -32413,6 +32419,8 @@ rewrite the file every recovery lane edits, so the lead archives at
 integration. No threshold is changed. Evidence:
 `docs/certification/rlf-maclive.md`.
 
+**RLF-M110OS2 plan-budget deferral (2026-10-23, linuxlt, open).** `npm run check:plan` fails: PLAN.md is 3,602,059 bytes, past 85% (3,565,158) of the 4 MiB plan-reader bound, so closed history must move to `docs/plan-archive/` before more is added. Measured pre-existing: pristine `5ae946464` is 3,601,912 bytes (also over; its run stops earlier at the Q-M110 duplicate this lane united). This lane is net +147 bytes on the file (nearly size-neutral: the duplicate removal offsets its own additions). Archiving is lead-coordinated (every recovery lane holds PLAN.md diffs; the procedure's open-branch proof needs them all), so this lane defers it: `check:roadmap` is green (the duplicate fix unblocked it) and `check:plan` stays red on the budget alone. Clearance: the lead archives per CONTRIBUTING.md; this row is removed then. Evidence: `docs/certification/rlf-m110os2.md`.
+
 ## 8. Escape hatches register
 
 RLF-AUTORETRY, 2026-10-23: `// eslint-disable-next-line
@@ -33042,6 +33050,13 @@ No new escape hatch is introduced.
 | `os/pi/compose.py` (directory chmod, 2 sites)           | `nosemgrep` on `os.chmod` (`insecure-file-permissions`)       | Directories need the execute bit to traverse; `0o755` grants no write outside the owner, and the rule's suggested `0o644` would break every directory. The mode is correct as written.                                                                                                                                                                                                                                                                                                                                                     | 2026-10-30 |
 | `scripts/build-packs.mjs` (`pypiWheel`)                 | `nosemgrep` on `new RegExp` (`detect-non-literal-regexp`)     | The tag is the pack definition's pinned uvPython version (`deploy/packs/*.json`, e.g. "3.15.1" giving `cp315`): the pattern is a fixed linear `cp<digits>[.-]` with no quantifier or alternation, so it cannot backtrack. Filenames only select among downloads whose sha256 is verified.                                                                                                                                                                                                                                                  | 2026-10-30 |
 | `src/core/backends/modelapi/mcp/headers.ts` (`valueAt`) | `nosemgrep` on the property walk (`prototype-pollution-loop`) | A read-only walk: the loop never assigns, and `Object.hasOwn` refuses inherited keys. The keys are the tool schema's property names, which an MCP server chooses, not the header token. A read cannot pollute `Object.prototype`. RVSAST corrected the earlier reason, which treated those keys as the token-checked header name.                                                                                                                                                                                                          | 2026-10-30 |
+
+| RLF-M110OS location                                  | Escape hatch                                             | Reason                                                                                                                                                                          | Date       |
+| ---------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/nodeOsCrypt.test.ts` (Tang URLs, 4 sites) | `eslint-disable-next-line unicorn/prefer-https`, 4 sites | Tang serves HTTP by design; the thumbprint check is the trust anchor, not TLS, and the validator must accept the http shape the tests feed it. Inline-reasoned; no rule change. | 2026-10-23 |
+| `test/unit/nodeOsAddons.test.ts` (http negatives)    | `eslint-disable-next-line unicorn/prefer-https`, 2 sites | The violations under test: the checkers must refuse non-https terms and snapshot URLs, so the tests feed them http. Inline-reasoned; no rule change.                            | 2026-10-23 |
+| `test/unit/nodeOsAddons.test.ts` (manifest nav)      | `as Record<string, unknown>`, 2 sites                    | Navigation over parsed manifest fixtures the test constructed; each cast follows a throwing shape assertion. Inline-reasoned; no rule change.                                   | 2026-10-23 |
+| `os/addons/lib/checkAddon.mjs` (release unescaper)   | `eslint-disable-next-line unicorn/prefer-string-raw`     | Escape pairs read clearest as escapes in the `\"`/`\\` unescaper. Inline-reasoned; no rule change.                                                                              | 2026-10-23 |
 
 ## 9. Security assumptions and accepted residual risk
 

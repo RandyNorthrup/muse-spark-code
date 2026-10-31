@@ -3,7 +3,7 @@ set -eu
 root=$BUILDROOT
 systemd-sysusers --root="$root"
 systemd-tmpfiles --root="$root" --create
-systemctl --root="$root" enable systemd-networkd.service systemd-resolved.service systemd-timesyncd.service muse-node.service
+systemctl --root="$root" enable systemd-networkd.service systemd-resolved.service systemd-timesyncd.service muse-node.service nftables.service
 ln -sfn /run/systemd/resolve/stub-resolv.conf "$root/etc/resolv.conf"
 # A shared machine-id would share DHCP identity across installations (D90.25).
 : > "$root/etc/machine-id"
@@ -13,3 +13,8 @@ ln -s /etc/machine-id "$root/var/lib/dbus/machine-id"
 test ! -e "$root/var/lib/muse-spark-code-node/state.v1.json"
 test ! -e "$root/usr/bin/muse"
 test ! -e "$root/usr/bin/google-chrome"
+# OS4's firewall defaults and OS5's firmware are part of the image, not a promise.
+test -s "$root/etc/nftables.conf"
+test -s "$root/usr/lib/sysctl.d/99-muse-node.conf"
+test -d "$root/usr/lib/firmware/amdgpu"
+ls "$root"/usr/lib/firmware/iwlwifi-* >/dev/null

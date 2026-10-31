@@ -17,8 +17,16 @@ Run the local input-policy gate with `python3 os/check.py`. This command has
 been run on the Kubuntu rig. `build.py --help` lists the composer inputs; it
 requires mkosi 27.1 and the SHA-256 of the ACP package produced from this tag.
 Installer builds additionally need systemd-repart 261 or newer for El Torito.
-The build host needs `qemu-user`/binfmt for ARM builds, `systemd-ukify`,
-`cryptsetup-bin`, `dosfstools`, `mtools` and `depmod`. The Pi
+The build host is the container `builder/Dockerfile` describes: Debian 13
+by digest with the systemd suite, veritysetup, the FAT/ext4 tools, the
+Debian keyring and the mkosi release pinned in `pins.json` (its SHA-256 is
+checked before it installs); the Dockerfile's header gives the two commands
+that build and run it, privileged because mkosi assembles disks with loop
+mounts. Cross-architecture builds also need the host's `qemu-aarch64`
+binfmt entry registered with the fixed-binary flag. A host install is not
+the supported route: Ubuntu 24.04 (the hosted runner) has no
+`systemd-boot-tools` and no `systemd-repart` package candidate (measured
+2026-10-24), and its systemd is 255 where the recipe was proven on 257. The Pi
 composer extracts pinned packages without executing their installation scripts.
 Pi builds additionally need host `gpgv`, Python 3.14 or newer (the stdlib
 `compression.zstd` decodes zstd data members; older interpreters refuse

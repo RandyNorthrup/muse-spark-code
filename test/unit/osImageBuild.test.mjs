@@ -509,6 +509,34 @@ describe('M110-OS1 immutable image inputs', () => {
       'User=root',
       'non-root service',
     ],
+    [
+      'mkosi.conf',
+      'hash_seed=8821992e-4707-4882-96ce-a8b16b671a09',
+      'hash_seed=random',
+      'ext4 hash seed pin',
+    ],
+    ['mkosi.conf', '\n            /var/cache/ldconfig/aux-cache', '', 'ldconfig cache removal'],
+    ['mkosi.conf', 'firmware-mediatek', 'firmware-other', 'base firmware packages'],
+    ['mkosi.conf', '         nftables\n', '', 'firewall package'],
+    ['mkosi.conf', '-/drivers/gpu/', '-/drivers/net/', 'initrd firmware exclusions'],
+    [
+      'hardening/nftables.conf',
+      'type filter hook input priority 0; policy drop;',
+      'type filter hook input priority 0; policy accept;',
+      'default-drop firewall',
+    ],
+    [
+      'hardening/nftables.conf',
+      'type filter hook forward priority 0; policy drop;',
+      'type filter hook forward priority 0; policy accept;',
+      'default-drop firewall',
+    ],
+    [
+      'mkosi.postinst',
+      ' muse-node.service nftables.service',
+      ' muse-node.service',
+      'firewall enablement',
+    ],
   ])('refuses a weakened %s guard (%s)', (file, before, after, reason) => {
     const dir = directory()
     cpSync(root, dir, { recursive: true })
@@ -520,6 +548,35 @@ describe('M110-OS1 immutable image inputs', () => {
     const result = spawnSync(interpreter, [path.join(root, 'check.py'), dir], { encoding: 'utf8' })
     expect(result.status).toBe(1)
     expect(result.stderr).toContain(reason)
+  })
+  it('refuses a tree without the kernel hardening knobs', () => {
+    const dir = directory()
+    cpSync(root, dir, { recursive: true })
+    rmSync(path.join(dir, 'hardening', 'sysctl.d', '99-muse-node.conf'))
+    const result = spawnSync(interpreter, [path.join(root, 'check.py'), dir], { encoding: 'utf8' })
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('kernel hardening knobs')
+  })
+  it('ships the firewall and the kernel knobs from their one source with the right modes', () => {
+    const dir = directory()
+    const result = python(`
+import sys
+from pathlib import Path
+sys.path.insert(0, ${JSON.stringify(root)})
+import build
+overlay = Path(${JSON.stringify(path.join(dir, 'overlay'))})
+build.install_hardening(overlay)
+for source, shipped in (
+    ('hardening/nftables.conf', 'etc/nftables.conf'),
+    ('hardening/sysctl.d/99-muse-node.conf', 'usr/lib/sysctl.d/99-muse-node.conf'),
+):
+    copy = overlay / shipped
+    assert copy.read_bytes() == (build.ROOT / source).read_bytes(), shipped
+    assert copy.stat().st_mode & 0o777 == 0o644, shipped
+print('hardening shipped')
+`)
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('hardening shipped')
   })
   it.each(['package/../outside', String.raw`package\outside`, '/absolute', 'package/key'])(
     'rejects untrusted archive path %s before extraction',
@@ -659,7 +716,7 @@ with tarfile.open(node, 'w') as output:
 build.download = lambda url, expected, dest: shutil.copyfile(node, dest)
 runtime = base / 'runtime.tar'
 with tarfile.open(runtime, 'w') as output:
-    package = json.dumps({'name': 'muse-spark-code-acp', 'version': 'wrong' if kind == 'package' else '0.14.0'}).encode()
+    package = json.dumps({'name': 'muse-spark-code-acp', 'version': 'wrong' if kind == 'package' else '0.19.0'}).encode()
     member = tarfile.TarInfo('package/package.json')
     member.size = len(package)
     output.addfile(member, io.BytesIO(package))
@@ -685,6 +742,72 @@ print('verified staging result')
 `)
     expect(result.status).toBe(0)
     expect(result.stdout).toContain('verified staging result')
+  })
+  it('admits the linux runtime member shapes and refuses an intruder', () => {
+    const dir = directory()
+    const result = python(`
+import sys, tarfile, io, json, shutil
+from pathlib import Path
+from types import SimpleNamespace
+sys.path.insert(0, ${JSON.stringify(root)})
+import build
+base = Path(${JSON.stringify(dir)})
+build.OUT = base / 'out'
+build.subprocess.run = lambda cmd, **kw: SimpleNamespace(
+    stdout='mkosi 27.1', stderr='', returncode=0)
+node = base / 'node.tar'
+with tarfile.open(node, 'w') as output:
+    for name in ('bin/node', 'LICENSE'):
+        member = tarfile.TarInfo('node-v24.18.0-linux-x64/' + name)
+        member.size = 1
+        output.addfile(member, io.BytesIO(b'x'))
+build.download = lambda url, expected, dest: shutil.copyfile(node, dest)
+# One member per admitted shape of the linux-targeted runtime tarball.
+shaped = base / 'shaped.tar'
+with tarfile.open(shaped, 'w') as output:
+    package = json.dumps({'name': 'muse-spark-code-acp', 'version': '0.19.0'}).encode()
+    members = {'package.json': package}
+    for name in ('dist/node.js', 'dist/webview/chunks/DEADBEEF.js',
+                 'dist/webview/usage.css', 'dist/legal-data.json.br',
+                 'dist/legal-data/NOTICE.md', 'l10n/ui.tables.json.br',
+                 'schemas/exec-result-v1.schema.json',
+                 'native/linux/x64/muse-created', 'native/runner/runner-helper.sh',
+                 'ci/lib/ci-entry.mjs', 'ci/prompts/ci/review.md',
+                 'design/fonts/manifest.json', 'package.nls.de.json'):
+        members[name] = b'x'
+    for name, body in members.items():
+        member = tarfile.TarInfo('package/' + name)
+        member.size = len(body)
+        output.addfile(member, io.BytesIO(body))
+args = SimpleNamespace(target='x86-64', installer=False, runtime=shaped,
+    runtime_sha256=build.digest(shaped), binding=None, binding_sha256=None,
+    mkosi=base / 'fake-mkosi', pi_keyring=None, pi_keyring_sha256=None)
+workspace = build.stage(args)
+assert (workspace / 'overlay/usr/lib/muse-spark-code/dist/node.js').exists()
+assert (workspace / 'overlay/usr/lib/muse-spark-code/dist/webview/chunks/DEADBEEF.js').exists()
+build.OUT = base / 'out-intruder'
+intruder = base / 'intruder.tar'
+with tarfile.open(intruder, 'w') as output:
+    package = json.dumps({'name': 'muse-spark-code-acp', 'version': '0.19.0'}).encode()
+    for name, body in (('package.json', package), ('dist/evil.sh', b'x')):
+        member = tarfile.TarInfo('package/' + name)
+        member.size = len(body)
+        output.addfile(member, io.BytesIO(body))
+args = SimpleNamespace(target='x86-64', installer=False, runtime=intruder,
+    runtime_sha256=build.digest(intruder), binding=None, binding_sha256=None,
+    mkosi=base / 'fake-mkosi', pi_keyring=None, pi_keyring_sha256=None)
+try:
+    build.stage(args)
+except ValueError as error:
+    assert 'unexpected archive member' in str(error)
+    print('refused the intruder')
+else:
+    raise AssertionError('admitted dist/evil.sh')
+print('verified runtime member shapes')
+`)
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('verified runtime member shapes')
+    expect(result.stdout).toContain('refused the intruder')
   })
   it.each([
     ['x86-64', ['--binding', 'test-only.mjs'], 'supplied together'],
