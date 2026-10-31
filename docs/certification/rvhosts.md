@@ -165,5 +165,30 @@ over-claims.
 
 ## Gates
 
-Filled in after the final run on this tree. A failing gate stays failing
-in that table.
+Final tree `5968fa747` plus this gate table. Prettier on the Markdown this
+lane wrote is exit 0. Prettier on the Java and Kotlin files exits 2 because
+those extensions have no parser here; ktlint's main source set is clean.
+No JavaScript or TypeScript file changed, so eslint had nothing to check.
+`npx vitest related` on the changed Kotlin and Java sources found no test
+files and exited 0. Deadcode, the production build, SAST and the audit fail
+on the base, not on a file this lane edited. No budget was raised.
+
+| Gate                                                               | Exit | Note                                                                                                                                 |
+| ------------------------------------------------------------------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| prettier `--check` (Markdown this lane wrote)                      | 0    |                                                                                                                                      |
+| prettier `--check` including Java and Kotlin                       | 2    | no parser for `.java` or `.kt`                                                                                                       |
+| eslint `--max-warnings 0`                                          | n/a  | no JS or TS in the diff                                                                                                              |
+| `npm run typecheck`                                                | 0    |                                                                                                                                      |
+| `node scripts/check-l10n.mjs`                                      | 0    | 0 problems                                                                                                                           |
+| `npm run check:reference`                                          | 0    |                                                                                                                                      |
+| `npm run check:host-api`                                           | 0    |                                                                                                                                      |
+| `npm run check:plan`                                               | 0    | 244 milestones, 0 drift                                                                                                              |
+| `npm run check:roadmap`                                            | 0    | current                                                                                                                              |
+| `npm run check:catches`                                            | 0    | baseline match                                                                                                                       |
+| `npm run duplication`                                              | 0    | 0 clones                                                                                                                             |
+| `npm run cycles`                                                   | 0    |                                                                                                                                      |
+| `npm run deadcode`                                                 | 1    | base unused exports (`XCODE_HOST`, `XCODE_MODEL_TEXT`, `conformHost`); those files were not edited                                   |
+| `npm run build`                                                    | 1    | only the base's three team bundles: `teamRunners.js` 78.4 KiB over 75, `teamHost.js` 140.2 over 130, `teamScheduler.js` 76.5 over 75 |
+| `npx vitest related` on the changed sources `--run --maxWorkers=2` | 0    | no Vitest files                                                                                                                      |
+| `SEMGREP_ENABLE_VERSION_CHECK=0 npm run security:sast`             | 1    | 6 blocking findings, none under `hosts/`                                                                                             |
+| `npm run security:audit`                                           | 1    | 10 advisories, 0 exceptions; no dependency changed                                                                                   |
