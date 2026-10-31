@@ -20,7 +20,6 @@ import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { HostToWebviewMessage } from '../../src/shared/protocol'
 import type { TranscriptEntry } from '../../src/webview/state/transcriptEntries'
 import { initialUiState, uiReducer } from '../../src/webview/state/uiState'
 import {
@@ -40,23 +39,23 @@ import {
 } from './helpers/musecodeQuota'
 import {
   awaitPosts,
-  conversationPanel,
-  modelApiRig,
   turnAcceptances,
   turnCompletions,
   type PanelRig,
 } from './helpers/conversationPanel'
 import {
-  captureBroadcast,
-  captureResult,
-  closeLiveHosts,
-  readCapture,
-  refuseUnscripted,
-  startLiveHost,
-  type Answer,
-  type LiveHost,
-  type WireFrame,
-} from './helpers/museReplay'
+  expectCompletedTurn,
+  LIVE_SESSION_ID,
+  LIVE_TURN_ID,
+  liveTurnPanel,
+  liveTurnScript,
+  releaseResend,
+  shownTranscript,
+  startFirstTurn,
+  turnRetries,
+  type LiveTurnRig,
+} from './helpers/museLiveTurn'
+import { closeLiveHosts, type WireFrame } from './helpers/museReplay'
 import { removeFolder } from './helpers/temporaryFolders'
 
 function mappedQuotaTurn(isRetryable: boolean) {
@@ -125,63 +124,12 @@ describe('subscription quota words', () => {
   })
 })
 
-const echo = readCapture(new URL('../fixtures/m106/msp-1.4.7-echo-turn.json', import.meta.url))
-const echoInit = captureResult(echo.frames, 1)
-const echoModels = captureResult(echo.frames, 2)
-const echoStart = captureResult(echo.frames, 3)
-const echoTurnAck = captureResult(echo.frames, 4)
-const echoStarted = captureBroadcast(echo.frames, 'turn/started')
-const echoCompleted = captureBroadcast(echo.frames, 'turn/completed')
-const lifecycle = readCapture(
-  new URL('../fixtures/m106/msp-1.4.4-session-lifecycle.json', import.meta.url),
-)
-const effortAck = captureResult(lifecycle.frames, 4)
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
-
-function liveString(record: Record<string, unknown>, key: string, what: string): string {
-  const value = record[key]
-  if (typeof value !== 'string') throw new TypeError(`the capture serves no ${what}`)
-  return value
-}
-
-const startSession = echoStart['session']
-if (!isRecord(startSession)) throw new Error('the capture serves no session/start session')
-const LIVE_SESSION_ID = liveString(startSession, 'sessionId', 'session id')
-const LIVE_TURN_ID = liveString(echoTurnAck, 'turnId', 'turn id')
-
-const TYPED = 'Say the word apricot, then stop.'
-
 function quotaEnd(isRetryable: boolean): WireFrame {
   return quotaTurnCompleted({
     sessionId: LIVE_SESSION_ID,
     turnId: LIVE_TURN_ID,
     retryable: isRetryable,
   })
-}
-
-function turnRetries(posted: readonly HostToWebviewMessage[]) {
-  return posted.flatMap((message) =>
-    message.type === 'agentEvent' && message.event.type === 'turnRetry' ? [message.event] : [],
-  )
-}
-
-/** The transcript the panel's posted messages reduce to, through the real reducer. */
-function shownTranscript(panel: PanelRig) {
-  let state = initialUiState
-  state = uiReducer(state, {
-    type: 'submitted',
-    localId: 'local-1',
-    text: TYPED,
-    attachments: [],
-    contextLabel: undefined,
-  })
-  for (const message of panel.posted) {
-    state = uiReducer(state, { type: 'hostMessage', message, at: 0 })
-  }
-  return state.transcript
 }
 
 /** The live region's last announcement after the posted messages, through the real reducer. */
@@ -193,98 +141,43 @@ function lastAnnouncement(panel: PanelRig): string | undefined {
   return state.announcement?.text
 }
 
-interface QuotaRig {
-  readonly panel: PanelRig
-  readonly live: LiveHost
-  readonly waits: number[]
-  readonly releaseSleep: () => void
-}
-
 function quotaPanel(
   directory: string,
   options?: {
     readonly quotaContinue?: () => boolean
     readonly now?: () => number
   },
-): QuotaRig {
-  const script = (method: string): Answer => {
-    switch (method) {
-      case 'session/start': {
-        return { result: echoStart }
-      }
-      case 'model/list': {
-        return { result: echoModels }
-      }
-      case 'session/setReasoningEffort': {
-        return { result: effortAck }
-      }
-      case 'turn/start': {
-        return { result: echoTurnAck }
-      }
-      default: {
-        return refuseUnscripted(method)
-      }
-    }
-  }
-  const live = startLiveHost(script, undefined, {
-    initializeResult: echoInit,
-    startResult: echoStart,
-  })
-  const rig = modelApiRig(directory)
-  const waits: number[] = []
-  const gate = Promise.withResolvers<undefined>()
-  const resendSleep = (ms: number, signal: AbortSignal): Promise<void> => {
-    waits.push(ms)
-    return new Promise<void>((resolve, reject) => {
-      if (signal.aborted) {
-        reject(new Error('the resend wait was already stopped'))
-        return
-      }
-      signal.addEventListener(
-        'abort',
-        () => {
-          reject(new Error('the resend wait stopped'))
-        },
-        { once: true },
-      )
-      void gate.promise.then(resolve)
-    })
-  }
-  const panel = conversationPanel({
-    rig,
-    directory,
-    isNamespaceKnown: true,
-    backend: 'museCode',
+): LiveTurnRig {
+  return liveTurnPanel(directory, {
     modelId: 'muse-spark-1.3-contributor',
-    ensureHost: () => Promise.resolve(live.host),
-    resendSleep,
-    resendRandom: () => 0.5,
+    script: liveTurnScript(),
     ...(options?.quotaContinue !== undefined && { museCodeQuotaContinue: options.quotaContinue }),
     ...(options?.now !== undefined && { now: options.now }),
   })
-  return {
-    panel,
-    live,
-    waits,
-    releaseSleep: () => {
-      gate.resolve(undefined)
-    },
-  }
 }
 
-async function sendFirst(panel: PanelRig): Promise<void> {
-  await panel.controller.handle({
-    type: 'sendMessage',
-    localId: 'local-1',
-    text: TYPED,
-    attachmentIds: [],
+/** The error row states the reset; the raw 429 line is gone. */
+function expectQuotaErrorRow(rig: LiveTurnRig): void {
+  const row = shownTranscript(rig.panel).find((entry) => entry.kind === 'error')
+  expect(row?.text).toBe(quotaTurnFailureText({ quota: { resetsAtMs: QUOTA_RESETS_AT_MS } }))
+}
+
+/** A minute to the reset, the unit the wait tests pin the clock with. */
+const QUOTA_WAIT_MINUTE_MS = 60 * MILLISECONDS_PER_SECOND
+
+/** The opt-in rig with its first turn failed into a named quota wait. */
+async function startNamedQuotaWait(
+  directory: string,
+  shouldContinueQuota: () => boolean,
+): Promise<LiveTurnRig> {
+  const rig = quotaPanel(directory, {
+    quotaContinue: shouldContinueQuota,
+    now: () => QUOTA_RESETS_AT_MS - QUOTA_WAIT_MINUTE_MS,
   })
-}
-
-async function startFirstTurn(rig: QuotaRig): Promise<void> {
-  await sendFirst(rig.panel)
-  await awaitPosts(rig.panel, turnAcceptances, 1, 'turns accepted')
-  rig.live.wire.release(echoStarted)
+  await startFirstTurn(rig)
+  rig.live.wire.release(quotaEnd(true))
+  await awaitPosts(rig.panel, turnRetries, 1, 'quota waits named')
+  return rig
 }
 
 describe('subscription quota on the panel', () => {
@@ -311,9 +204,8 @@ describe('subscription quota on the panel', () => {
       expect(turnRetries(rig.panel.posted)).toHaveLength(0)
       expect(rig.waits).toHaveLength(0)
       expect(rig.live.wire.sentCount('turn/start')).toBe(1)
-      // The error row states the reset; the raw 429 line is gone.
+      expectQuotaErrorRow(rig)
       const row = shownTranscript(rig.panel).find((entry) => entry.kind === 'error')
-      expect(row?.text).toBe(quotaTurnFailureText({ quota: { resetsAtMs: QUOTA_RESETS_AT_MS } }))
       expect(row?.text).toContain(formatDateTime(QUOTA_RESETS_AT_MS))
       expect(row?.text).not.toContain('request_id')
       // Manual Retry follows the CLI's own judgment, as on any failure.
@@ -324,17 +216,11 @@ describe('subscription quota on the panel', () => {
   )
 
   it('waits until the reset and continues with the opt-in', async () => {
-    const minuteMs = 60 * MILLISECONDS_PER_SECOND
-    const rig = quotaPanel(directory, {
-      quotaContinue: () => true,
-      now: () => QUOTA_RESETS_AT_MS - minuteMs,
-    })
-    await startFirstTurn(rig)
-    rig.live.wire.release(quotaEnd(true))
-    const [wait] = await awaitPosts(rig.panel, turnRetries, 1, 'quota waits named')
+    const rig = await startNamedQuotaWait(directory, () => true)
+    const [wait] = turnRetries(rig.panel.posted)
     // The provider's own wait, honoured whole: a minute to the reset.
-    expect(rig.waits).toEqual([minuteMs])
-    expect(wait?.retryDelayMs).toBe(minuteMs)
+    expect(rig.waits).toEqual([QUOTA_WAIT_MINUTE_MS])
+    expect(wait?.retryDelayMs).toBe(QUOTA_WAIT_MINUTE_MS)
     expect(wait?.quota).toEqual({ limitKind: 'tierLimit', resetsAtMs: QUOTA_RESETS_AT_MS })
     // The row names the reset with Stop, not a seconds count.
     const waiting = shownTranscript(rig.panel).find(
@@ -343,12 +229,8 @@ describe('subscription quota on the panel', () => {
     )
     expect(waiting?.text).toBe(quotaWaitText({ resetsAtMs: QUOTA_RESETS_AT_MS }))
     expect(waiting?.retryingTurnId).toBe(LIVE_TURN_ID)
-    rig.releaseSleep()
-    await awaitPosts(rig.panel, turnAcceptances, 2, 'turns accepted')
-    expect(rig.live.wire.sentCount('turn/start')).toBe(2)
-    rig.live.wire.release(echoCompleted)
-    const [end] = await awaitPosts(rig.panel, turnCompletions, 1, 'turns ended')
-    expect(end?.terminal).toBe('completed')
+    await releaseResend(rig, 2)
+    await expectCompletedTurn(rig)
   })
 
   it('resubmits at once when the reset already passed', async () => {
@@ -364,34 +246,19 @@ describe('subscription quota on the panel', () => {
   })
 
   it('stops the quota wait on Stop and shows the failure with its reset', async () => {
-    const minuteMs = 60 * MILLISECONDS_PER_SECOND
-    const rig = quotaPanel(directory, {
-      quotaContinue: () => true,
-      now: () => QUOTA_RESETS_AT_MS - minuteMs,
-    })
-    await startFirstTurn(rig)
-    rig.live.wire.release(quotaEnd(true))
-    await awaitPosts(rig.panel, turnRetries, 1, 'quota waits named')
+    const rig = await startNamedQuotaWait(directory, () => true)
     await rig.panel.controller.handle({ type: 'cancelTurn' })
     const [end] = await awaitPosts(rig.panel, turnCompletions, 1, 'turns ended')
     expect(end?.terminal).toBe('failed')
     expect(end?.quota).toEqual({ limitKind: 'tierLimit', resetsAtMs: QUOTA_RESETS_AT_MS })
     expect(rig.live.wire.sentCount('turn/start')).toBe(1)
-    const row = shownTranscript(rig.panel).find((entry) => entry.kind === 'error')
-    expect(row?.text).toBe(quotaTurnFailureText({ quota: { resetsAtMs: QUOTA_RESETS_AT_MS } }))
+    expectQuotaErrorRow(rig)
     rig.releaseSleep()
   })
 
   it('shows the failure when the opt-in turns off mid-wait', async () => {
     let isOn = true
-    const minuteMs = 60 * MILLISECONDS_PER_SECOND
-    const rig = quotaPanel(directory, {
-      quotaContinue: () => isOn,
-      now: () => QUOTA_RESETS_AT_MS - minuteMs,
-    })
-    await startFirstTurn(rig)
-    rig.live.wire.release(quotaEnd(true))
-    await awaitPosts(rig.panel, turnRetries, 1, 'quota waits named')
+    const rig = await startNamedQuotaWait(directory, () => isOn)
     isOn = false
     rig.releaseSleep()
     const [end] = await awaitPosts(rig.panel, turnCompletions, 1, 'turns ended')
