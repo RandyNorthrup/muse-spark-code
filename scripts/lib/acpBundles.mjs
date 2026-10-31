@@ -185,6 +185,8 @@ export const ACP_BUNDLES = [
   'teamWorkerOps.js',
   'teamMerge.js',
   'execTeam.js',
+  // RLF-ACPTEAM (M96b): the ACP sessions' team binding, loaded by serve --team.
+  'acpTeam.js',
   'execLedgerLease.js',
   'teamRunners.js',
   'teamScheduler.js',

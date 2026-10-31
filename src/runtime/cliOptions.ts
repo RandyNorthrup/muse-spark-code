@@ -128,6 +128,8 @@ const SERVE_OPTIONS = {
   'scheduled-prompts': { type: 'boolean' },
   subscription: { type: 'boolean' },
   'max-budget-usd': { type: 'string' },
+  // M96b (RLF-ACPTEAM): the stored team in ACP sessions, off without it.
+  team: { type: 'boolean' },
 } as const satisfies CliParserOptions
 
 const EXEC_OPTIONS = {
@@ -265,7 +267,7 @@ export const CLI_OPTION_REGISTRY = {
       help: { type: 'boolean', short: 'h' },
     },
   },
-  serve: { options: SERVE_OPTIONS },
+  serve: { options: SERVE_OPTIONS, text: { team: 'serve-team' } },
   login: { options: COMMON_OPTIONS },
   setup: { options: COMMON_OPTIONS },
   authSet: { options: COMMON_OPTIONS },

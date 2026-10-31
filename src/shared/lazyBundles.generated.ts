@@ -57,6 +57,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'acpTeam.js',
+    side: 'acp',
+    requestedBy: [{ importer: 'src/runtime/main.ts', symbol: 'serve', side: ['acp'] }],
+  },
+  {
     file: 'acpWatchdog.js',
     side: 'acp',
     requestedBy: [
@@ -1495,6 +1500,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     file: 'teamHost.js',
     side: 'both',
     requestedBy: [
+      { importer: 'src/acp/acpTeamEntry.ts', symbol: 'WorkspaceTeam.constructor', side: ['acp'] },
       { importer: 'src/extension.ts', symbol: 'activateWindow', side: ['vscode'] },
       { importer: 'src/runtime/exec/execTeamEntry.ts', symbol: 'createExecTeam', side: ['acp'] },
     ],

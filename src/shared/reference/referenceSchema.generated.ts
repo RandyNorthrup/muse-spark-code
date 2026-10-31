@@ -366,6 +366,7 @@ export const textKeys = [
   'output',
   'max-budget-usd',
   'team',
+  'serve-team',
   'max-requests',
   'max-tool-output-bytes',
   'max-output-tokens',
@@ -528,6 +529,7 @@ const plainTextSchema = z.union([
       textKeys[410],
       textKeys[411],
       textKeys[412],
+      textKeys[413],
     ]),
   }),
   z.object({

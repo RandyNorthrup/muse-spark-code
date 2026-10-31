@@ -802,6 +802,14 @@ const execTeamOptions = {
   outfile: 'dist/execTeam.js',
 }
 
+// RLF-ACPTEAM (M96b): the team in the ACP agent's own sessions, loaded by
+// `serve --team` only; the team host and engine stay in their own chunks.
+const acpTeamOptions = {
+  ...teamOptions,
+  entryPoints: ['src/acp/acpTeamEntry.ts'],
+  outfile: 'dist/acpTeam.js',
+}
+
 const execLedgerLeaseOptions = {
   ...teamOptions,
   entryPoints: ['src/runtime/exec/execLedgerLeaseEntry.ts'],
@@ -2250,6 +2258,7 @@ if (isWatch) {
     esbuild.context(teamHostOptions),
     esbuild.context(teamEngineOptions),
     esbuild.context(execTeamOptions),
+    esbuild.context(acpTeamOptions),
     esbuild.context(execLedgerLeaseOptions),
     esbuild.context(teamFileIoOptions),
     esbuild.context(teamCreateOptions),
@@ -2481,6 +2490,7 @@ if (isWatch) {
     teamCreate: recorded('teamCreate', teamCreateOptions),
     teamWorkerOps: recorded('teamWorkerOps', teamWorkerOpsOptions),
     execTeam: recorded('execTeam', execTeamOptions),
+    acpTeam: recorded('acpTeam', acpTeamOptions),
     execLedgerLease: recorded('execLedgerLease', execLedgerLeaseOptions),
     teamMerge: recorded('teamMerge', teamMergeOptions),
     teamScheduler: recorded('teamScheduler', teamSchedulerOptions),

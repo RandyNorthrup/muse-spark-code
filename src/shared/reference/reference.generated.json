@@ -963,7 +963,8 @@
           "fast": "fast",
           "account": "account",
           "mode": "mode",
-          "paidAllowAlways": "paidAllowAlways"
+          "paidAllowAlways": "paidAllowAlways",
+          "team": "team"
         },
         "permissionModes": ["manual", "acceptEdits", "plan", "auto", "bypassPermissions"],
         "bypassFlag": "--allow-dangerously-skip-permissions",
@@ -6245,6 +6246,13 @@
         "required": "modelApi",
         "unit": "USD"
       }
+    },
+    {
+      "route": "serve",
+      "name": "serve: --team",
+      "description": "--team: Offer the stored team in ACP sessions: the orchestrator can delegate to its workers, and merges ask in the editor.",
+      "text": { "cli": "serve-team" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
     },
     {
       "route": "login",

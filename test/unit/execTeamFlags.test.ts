@@ -22,11 +22,11 @@ describe('M96b exec --team flags', () => {
   it('refuses --team off the Model API backend', () => {
     expect(parseExec({ team: true }, ['task'])).toEqual({
       ok: false,
-      reason: UI_TEXT.execModelApiOnly,
+      reason: fill(UI_TEXT.execModelApiOnly, { options: '--team' }),
     })
     expect(
       parseExec({ team: true, backend: 'museCode', 'permission-mode': 'acceptEdits' }, ['task']),
-    ).toEqual({ ok: false, reason: UI_TEXT.execModelApiOnly })
+    ).toEqual({ ok: false, reason: fill(UI_TEXT.execModelApiOnly, { options: '--team' }) })
   })
   it('refuses --team without acceptEdits', () => {
     expect(parseExec({ ...BUDGET, team: true }, ['task'])).toEqual({

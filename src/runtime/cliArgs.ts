@@ -118,6 +118,8 @@ export interface ServeOptions {
   readonly autoCompaction?: boolean | undefined
   readonly scheduledPrompts?: boolean
   readonly maxBudgetUsd?: UsdAmount
+  /** M96b (RLF-ACPTEAM): `--team` offers the stored team in ACP sessions. */
+  readonly team?: boolean
   /** TOOLCAP: the run's per-tool-result byte guard, if raised for one run. */
   readonly maxToolOutputBytes?: number | undefined
 }
@@ -924,12 +926,16 @@ export function parseCommandLine<T>(
     }),
     ...(values.subscription === true && { subscription: true }),
     ...(budget !== undefined && { maxBudgetUsd: budget }),
+    ...(values.team === true && { team: true }),
   }
   const [first, second, ...rest] = positionals
   // A refused flag is named, never folded into the positionals.
   const refusedServeFlag = NON_SERVE_OPTIONS.find((name) => values[name] !== undefined)
   if (values.account !== undefined && (first !== 'auth' || second !== 'set' || rest.length > 0))
     return invalid('--account')
+  // `--team` is the serve route's alone (M96b): login, setup, auth and
+  // providers refuse it by name instead of silently ignoring it.
+  if (first !== undefined && values.team === true) return invalid('--team')
   if (first === 'setup' && second === undefined) {
     if (values.provider !== undefined) return invalid('--provider')
     return options.trustWorkspace

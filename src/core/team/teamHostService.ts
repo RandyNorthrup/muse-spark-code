@@ -113,6 +113,12 @@ export interface TeamHostService extends TeamHostSeams {
   its team, as a panel conversation's end should).
   */
   readonly stopSessionTasks?: ((sessionId: string) => Promise<number>) | undefined
+  /**
+  A finished task's report (RLF-ACPTEAM: a task's ACP tool call carries its
+  report as content, which the tree does not). Undefined while the task
+  has no outcome yet or is unknown.
+  */
+  readonly taskReport?: ((taskId: string) => TeamReport | undefined) | undefined
   /** Clears one entry's meters; the ledger keeps the record (acceptance 11). */
   readonly resetEntry: (entryId: string) => Promise<void>
   /**
