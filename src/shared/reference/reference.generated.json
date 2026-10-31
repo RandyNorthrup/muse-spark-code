@@ -572,7 +572,11 @@
       "summary": { "setting": "modelApiMaxRetries" },
       "description": { "setting": "modelApiMaxRetries" },
       "commands": [],
-      "settings": ["museSpark.modelApiMaxRetries", "museSpark.museCodeMaxRetries"],
+      "settings": [
+        "museSpark.modelApiMaxRetries",
+        "museSpark.museCodeMaxRetries",
+        "museSpark.museCodeQuotaContinue"
+      ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
       "backends": ["museCode", "modelApi"],
       "paid": false,
@@ -4694,6 +4698,17 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": ["integer", "null"], "default": null, "minimum": 0 }
+    },
+    {
+      "id": "museSpark.museCodeQuotaContinue",
+      "name": "museSpark.museCodeQuotaContinue",
+      "description": "Continue a Muse Code turn after its subscription usage window resets: a quota-exhausted turn waits out the provider's reset instant, however long, then resends its message, with Stop. Off by default: quota failures show with Retry instead, and automatic resends never fire before the reset.",
+      "descriptionKey": "config.museCodeQuotaContinue.description",
+      "type": "boolean",
+      "default": false,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": false }
     },
     {
       "id": "museSpark.usageHistory",

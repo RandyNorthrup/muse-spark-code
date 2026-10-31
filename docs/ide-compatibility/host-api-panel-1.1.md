@@ -1,4 +1,4 @@
-# MHP 1.5.0 panel carrier
+# MHP 1.5.1 panel carrier
 
 MHP 1.5 restores the native closed-shape policy after the 1.4 input export.
 Named object shapes refuse unknown fields before dispatch; records and
@@ -16,17 +16,17 @@ required; this document does not promote editor support.
 ## Compatibility and negotiation
 
 Both legacy-named native build inputs, `mhp-v1.schema.json` and
-`mhp-v1.1.schema.json`, now advertise `mhp/1.5.0` and range
-`[mhp/1.5.0, mhp/1.6.0)`. Their locks pin the current shared payloads as a
+`mhp-v1.1.schema.json`, now advertise `mhp/1.5.1` and range
+`[mhp/1.5.1, mhp/1.6.0)`. Their locks pin the current shared payloads as a
 reviewed version change. The first exports editor methods; the second also
 exports panel/bridge/lifecycle schemas. The filenames retain native build
 references; their headers and validators do not retain 1.0/1.1/1.2/1.3/1.4.
 
 The editor spawns the runtime and sends `initialize` with its host id/version,
 locale, theme tokens, folders, trust and supported capability groups. The
-runtime answers with `protocolVersion: "mhp/1.5.0"` and its capabilities.
+runtime answers with `protocolVersion: "mhp/1.5.1"` and its capabilities.
 `shutdown` is also host-to-runtime; cancellation is bidirectional. A range
-containing 1.5.0 selects only that version. Every incompatible range receives
+containing 1.5.1 selects only that version. Every incompatible range receives
 `MHP_INCOMPATIBLE_VERSION`; 1.0/1.1/1.2/1.3/1.4 and speculative future versions are refused.
 The earlier runtime-initiated hostMetadata/surfaceHtml proposals are dropped.
 

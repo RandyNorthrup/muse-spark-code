@@ -4754,11 +4754,13 @@
   "announceApprovalFor": "{tool} 需要核准",
   "turnFailed": "此回合失敗。",
   "turnTransientFailed": "Muse 服務未能完成本輪。本輪保留了已完成的工作；請重新傳送訊息以繼續。",
+  "subscriptionQuotaExhausted": "訂閱配額已用盡。您的使用窗口將於 {resetTime} 重設。",
   "turnRetryAction": "重試",
   "turnRetryUnavailable": "該回合無法重試。請重新傳送您的訊息。",
   "turnRetryBusy": "重試之前，請先等待回覆完成或將其停止。",
   "turnRetrying": "{seconds} 秒後重試（第 {attempt} 次，共 {maxAttempts} 次）。",
   "turnRetryingUncapped": "{seconds} 秒後重試（第 {attempt} 次）。",
+  "turnQuotaWaiting": "您的使用窗口將於 {resetTime} 重設；屆時本輪將繼續。您可以隨時停止本輪。",
   "modelApiProviderRetryWait": "{reason}；提供者要求等到{time}再重試。您可以隨時停止本輪。",
   "usageWindowHours": {
     "other": "{count} 小時時段"

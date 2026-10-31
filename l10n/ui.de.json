@@ -4851,11 +4851,13 @@
   "announceApprovalFor": "Genehmigung erforderlich für {tool}",
   "turnFailed": "Der Durchgang ist fehlgeschlagen.",
   "turnTransientFailed": "Der Dienst von Muse konnte den Durchgang nicht beenden. Der Durchgang hat seine Arbeit behalten; senden Sie die Nachricht erneut, um fortzufahren.",
+  "subscriptionQuotaExhausted": "Das Abonnement-Kontingent ist erschöpft. Ihr Nutzungsfenster wird am {resetTime} zurückgesetzt.",
   "turnRetryAction": "Erneut versuchen",
   "turnRetryUnavailable": "Dieser Durchgang kann nicht mehr wiederholt werden. Senden Sie Ihre Nachricht erneut.",
   "turnRetryBusy": "Warten Sie erst auf das Ende der Antwort oder halten Sie sie an, bevor Sie es erneut versuchen.",
   "turnRetrying": "Neuer Versuch in {seconds} s (Versuch {attempt} von {maxAttempts}).",
   "turnRetryingUncapped": "Neuer Versuch in {seconds} s (Versuch {attempt}).",
+  "turnQuotaWaiting": "Ihr Nutzungsfenster wird am {resetTime} zurückgesetzt; der Durchgang wird dann fortgesetzt. Sie können den Durchgang jederzeit stoppen.",
   "modelApiProviderRetryWait": "{reason}; der Anbieter hat gebeten, bis {time} zu warten. Sie können den Durchgang jederzeit stoppen.",
   "usageWindowHours": {
     "one": "{count}-Stunden-Zeitfenster",

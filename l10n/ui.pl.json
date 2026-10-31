@@ -5045,11 +5045,13 @@
   "announceApprovalFor": "Wymagane zatwierdzenie dla {tool}",
   "turnFailed": "Tura nie powiodła się.",
   "turnTransientFailed": "Usługa Muse nie mogła ukończyć tury. Tura zachowała swoją pracę; wyślij wiadomość ponownie, aby kontynuować.",
+  "subscriptionQuotaExhausted": "Limit subskrypcji został wyczerpany. Twoje okno wykorzystania odnowi się {resetTime}.",
   "turnRetryAction": "Ponów",
   "turnRetryUnavailable": "Tej tury nie można już ponowić. Wyślij swoją wiadomość ponownie.",
   "turnRetryBusy": "Poczekaj na koniec odpowiedzi albo ją zatrzymaj, zanim ponowisz.",
   "turnRetrying": "Ponawienie za {seconds} s (próba {attempt} z {maxAttempts}).",
   "turnRetryingUncapped": "Ponawienie za {seconds} s (próba {attempt}).",
+  "turnQuotaWaiting": "Twoje okno wykorzystania odnowi się {resetTime}; tura będzie wtedy kontynuowana. Turę możesz zatrzymać w dowolnym momencie.",
   "modelApiProviderRetryWait": "{reason}; dostawca poprosił o odczekanie do {time}. Turę możesz zatrzymać w dowolnym momencie.",
   "usageWindowHours": {
     "one": "Okno {count}-godzinne",

@@ -45,7 +45,7 @@ describe('MHP 1.5 replacement panel contract', () => {
   it('documents replacement of 1.1 and current 1.5 schemas behind legacy filenames', async () => {
     const readme = await readFile('README.md', 'utf8')
     const guide = readme
-      .split('The replacement MHP 1.5.0 contract', 2)[1]
+      .split('The replacement MHP 1.5.1 contract', 2)[1]
       ?.split('Regenerate with', 1)[0]
       ?.replaceAll(/\s+/gu, ' ')
     expect(guide).toContain('MHP 1.5 replaces 1.1 and 1.2, and supersedes 1.3 and 1.4')
@@ -86,9 +86,9 @@ describe('MHP 1.5 replacement panel contract', () => {
     ['mhp/1.0.0', 'mhp/1.1.0', undefined],
     ['mhp/1.1.0', 'mhp/1.5.0', undefined],
     ['mhp/1.4.0', 'mhp/1.5.0', undefined],
-    ['mhp/1.5.0', 'mhp/1.6.0', 'mhp/1.5.0'],
-    ['mhp/1.0.0', 'mhp/2.0.0', 'mhp/1.5.0'],
-    ['mhp/1.5.1', 'mhp/1.6.0', undefined],
+    ['mhp/1.5.0', 'mhp/1.6.0', 'mhp/1.5.1'],
+    ['mhp/1.0.0', 'mhp/2.0.0', 'mhp/1.5.1'],
+    ['mhp/1.5.1', 'mhp/1.6.0', 'mhp/1.5.1'],
     ['mhp/2.0.0', 'mhp/3.0.0', undefined],
     ['mhp/01.0.0', 'mhp/2.0.0', undefined],
   ])('selects only an implemented version in [%s, %s)', (minimum, maximumExclusive, selected) => {
