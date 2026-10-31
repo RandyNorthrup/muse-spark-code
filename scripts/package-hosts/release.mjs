@@ -13,7 +13,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { isEntryPoint } from '../lib/entryPoint.mjs'
 import * as z from 'zod/mini'
 import { buildEnvironment, HOSTS, hostManifest, inside, MHP_VERSION } from './manifest.mjs'
 
@@ -262,7 +262,7 @@ export function nativeSummary(root, directory) {
   }
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isEntryPoint(import.meta.url)) {
   try {
     const [mode, host, directory] = process.argv.slice(2)
     if (mode === 'stage') {
