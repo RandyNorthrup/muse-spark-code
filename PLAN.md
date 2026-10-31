@@ -14912,6 +14912,24 @@ naming the questions, options and recommendations in that record. Slot
 checks wait on RLF-TEAMCORE's governed slots. Teams stay off until a
 second model is set up (D227).
 
+**Status 2026-10-31 (lane RLF-ORCHEXT, D250): building.** The Orchestrator
+slot offers every available agent, external ACP agents included. An
+external orchestrator runs as itself over ACP from a lazy bundle
+(`dist/externalOrchestrator.js`, 209.2 of 250 KiB; the stdio bridge
+`dist/teamHttpBridge.js`, 2.2 of 25) and receives the conversation's `team`
+MCP server with its instructions, over HTTP where it advertises it and
+through the shipped bridge otherwise; its messages, tool calls, plans and
+permission requests stream in the panel, Stop reaches it as
+`session/cancel`, and Roles names who pays. Proven over a real ACP agent
+process, the real endpoint over real HTTP and the real team host, with
+five red/green drills (`docs/certification/rlf-orchext.md`). Not yet used
+for real: the packed-product run on Muse models waits on Muse's weekly
+allowance (resets 2026-11-02) and the Claude Code check is the lead's;
+external agents lead but cannot run as workers. Four bundle budgets
+(`teamHost.js`, `teamRunners.js`, `teamScheduler.js`, `uiText.js`) were
+over on the base and still are; this lane added +0.8, +0.1, 0 and
++0.5 KiB to them (same record).
+
 **Status 2026-10-30 (CC-INT5, D75's caps): built.** The three bounds D75's
 2026-10-17 amendments removed are out of the code: the command-slot count,
 the shared-server default limit (a shared resource has the limit its person

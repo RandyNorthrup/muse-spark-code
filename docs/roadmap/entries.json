@@ -697,7 +697,7 @@
     {
       "id": "M96",
       "title": "Agent roles and teams",
-      "summary": "Hidden Roles and Agents bind saved charters, conversation overrides, paid Try, engine discovery, lifecycle hooks and native worker file creation, while the scheduler, advanced controls and VS Code certification are in progress.",
+      "summary": "Hidden Roles and Agents bind charters, overrides (any agent, external ACP agents included, can lead), paid Try, engine discovery, hooks and native worker file creation; the scheduler, advanced controls and certification are in progress.",
       "area": "agents"
     },
     {
