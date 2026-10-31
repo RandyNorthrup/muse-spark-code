@@ -52,6 +52,7 @@ import {
   MODEL_API_STATUS_READ_TIMEOUT_MS,
   REVIEW_BUNDLE_FILE,
   PLAN_MARKDOWN_BUNDLE_FILE,
+  TEAM_HTTP_BRIDGE_BUNDLE_FILE,
   AGENT_IMPORT_BUNDLE_FILE,
   CONVERSATION_GIT_BUNDLE_FILE,
   CONVERSATION_BUNDLE_FILE,
@@ -580,6 +581,9 @@ function signInMethodFor(
   hasCliSession: boolean,
   hasKey: boolean,
 ): AccountFacts['signInMethod'] {
+  // An external orchestrator (D250) signs in with its own CLI, never here:
+  // no method of ours names its account in the panel.
+  if (kind === 'external') return 'none'
   if (kind === 'museCode') {
     return hasCliSession ? 'cli' : 'none'
   }
@@ -3361,6 +3365,15 @@ async function activateWindow(
     return surface === undefined ? undefined : controllers.get(surface.id)?.teamComposerModel()
   }
   const teamModelRates = new Map<string, { input: number; output: number }>()
+  // D250: one external orchestrator host per picked agent in this window;
+  // its agent process lives and dies with the window.
+  const externalHosts = new Map<string, AgentHost>()
+  context.subscriptions.push({
+    dispose: () => {
+      for (const externalHost of externalHosts.values()) void externalHost.close()
+      externalHosts.clear()
+    },
+  })
   // An entry model's current capability record for pre-dispatch and
   // new-conversation validation (P2-5), qualified provider ids included:
   // Meta's known families resolve locally, anything else from today's
@@ -5144,6 +5157,69 @@ async function activateWindow(
                   : undefined,
               )
               if (unsupported !== undefined) throw new Error(unsupported)
+              if (override.backend === 'external') {
+                // D250: the agent runs as itself over ACP. An output cap
+                // has no ACP surface to land on, so it refuses here in
+                // the same words as any unserved setting, never dropped.
+                if (override.settings?.outputCap !== undefined)
+                  throw new Error(
+                    fill(UI_TEXT.teamSettingUnsupported, {
+                      setting: 'outputCap',
+                      value: String(override.settings.outputCap),
+                      model: override.modelId,
+                    }),
+                  )
+                const { resolveExternalAgent } = await import('./core/team/teamPanelEntry')
+                const picked =
+                  override.agentId === undefined
+                    ? undefined
+                    : resolveExternalAgent(
+                        { agentId: override.agentId, model: override.modelId },
+                        currentSettings().teamExternalAgents,
+                      )
+                if (picked === undefined) throw new Error(UI_TEXT.teamExternalGone)
+                if (
+                  host.info.kind !== 'external' &&
+                  (await vscode.window.showWarningMessage(
+                    fill(UI_TEXT.teamExternalSwitchNotice, { agent: picked.label }),
+                    { modal: true },
+                    UI_TEXT.wizardContinue,
+                    UI_TEXT.wizardCancel,
+                  )) !== UI_TEXT.wizardContinue
+                )
+                  return
+                const cacheKey = `${picked.agentId}\n${picked.model}`
+                let externalHost = externalHosts.get(cacheKey)
+                if (externalHost === undefined) {
+                  const { createExternalOrchestrator } =
+                    await import('./host/team/externalOrchestratorEntry')
+                  externalHost = createExternalOrchestrator(l10n.table, l10n.locale, {
+                    agent: picked,
+                    bridge: {
+                      command: process.execPath,
+                      args: [
+                        vscode.Uri.joinPath(
+                          context.extensionUri,
+                          'dist',
+                          TEAM_HTTP_BRIDGE_BUNDLE_FILE,
+                        ).fsPath,
+                      ],
+                      env: [{ name: 'ELECTRON_RUN_AS_NODE', value: '1' }],
+                    },
+                    log,
+                    platform: process.platform,
+                    baseEnv: process.env,
+                    newId: () => crypto.randomUUID(),
+                    now: () => Date.now(),
+                  })
+                  externalHosts.set(cacheKey, externalHost)
+                }
+                return {
+                  host: externalHost,
+                  modelId: override.modelId,
+                  settings: override.settings,
+                }
+              }
               const kind = override.backend === 'modelApi' ? 'modelApi' : 'museCode'
               if (
                 host.info.kind !== kind &&
@@ -5912,7 +5988,10 @@ async function activateWindow(
           team: {
             configuration: {
               offers: async () => {
-                const { buildTeamModelOffers } = await import('./core/team/teamPanelEntry')
+                const { buildTeamModelOffers, allExternalAgents } =
+                  await import('./core/team/teamPanelEntry')
+                const { isExternalAgentInstalled } =
+                  await import('./host/team/externalOrchestratorEntry')
                 const engineHost = await modelApi.ensureHost()
                 const models = await engineHost.listModels()
                 const configured = await subscriptionFeatures().teamDiscovery()
@@ -5959,12 +6038,24 @@ async function activateWindow(
                   currentAccountOf: (provider) => identities.get(provider),
                   engine,
                   museCode,
+                  // D250: the presets and the person's own agents by
+                  // command, offered to the slot exactly as to the pools;
+                  // an agent whose command is not on this machine is not
+                  // offered (its absence is recorded, never hidden).
+                  external: allExternalAgents(currentSettings().teamExternalAgents),
+                  isExternalInstalled: (agent) =>
+                    isExternalAgentInstalled(agent, process.platform, process.env),
                   limits,
                   // The machine side (D121): the machine's own parallelism,
                   // never a ceiling of ours. Engines are further bound by
                   // the provider's documented limits and live throttling.
                   maxWorkers: availableParallelism(),
                   canRunKind: (kind) => kind === 'engine',
+                  // Any offered kind can lead here: the engine on the
+                  // Model API host, Muse Code on its backend (offered
+                  // only while signed in there), an external agent on
+                  // its own ACP host (D250).
+                  canLeadKind: () => true,
                 })
                 return discovered.offers
               },
@@ -5972,6 +6063,32 @@ async function activateWindow(
               maxWorkers: () => availableParallelism(),
               confirmOrchestrator: async (ref) => {
                 if (ref === undefined) return
+                if (ref.startsWith('external:')) {
+                  // D250: who pays is confirmed where the pick is made,
+                  // with the agent named; its sign-in stays its own.
+                  const { resolveExternalAgent } = await import('./core/team/teamPanelEntry')
+                  const picked = resolveExternalAgent(
+                    {
+                      agentId: ref.slice('external:'.length),
+                      model: ref.slice('external:'.length),
+                    },
+                    currentSettings().teamExternalAgents,
+                  )
+                  if (picked === undefined) throw new Error(UI_TEXT.teamEditor.invalid)
+                  if (
+                    (await vscode.window.showWarningMessage(
+                      fill(UI_TEXT.teamExternalSwitchNotice, { agent: picked.label }),
+                      { modal: true },
+                      UI_TEXT.wizardContinue,
+                      UI_TEXT.wizardCancel,
+                    )) !== UI_TEXT.wizardContinue
+                  )
+                    throw new Error(UI_TEXT.teamTryDenied)
+                  return
+                }
+                // A Muse Code pick is offered only while signed in there:
+                // same backend, nothing switches, nothing to confirm.
+                if (ref.startsWith('museCode:')) return
                 if (!ref.startsWith('engine:')) throw new Error(UI_TEXT.teamEditor.invalid)
                 if (
                   (teamComposerModel()?.backend ?? auth.backend) !== 'modelApi' &&

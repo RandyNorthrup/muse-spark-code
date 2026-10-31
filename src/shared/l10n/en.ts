@@ -8002,6 +8002,8 @@ export const EN = {
   teamExternalModelRefused: '{agent} did not confirm the model {model}. No message was sent.',
   teamExternalSwitchNotice:
     'New conversations in this workspace will be led by {agent}, an external agent running as itself over ACP. It is paid however that agent is paid: its own plan or key.',
+  teamExternalMediaUnsupported:
+    'This agent cannot take attached media in a message. Remove the attachment and send again.',
   teamIncludeTranscripts: 'Include Transcripts',
   // The tree's states (D75). Entry states with a time or reason ride in the
   // templates below.

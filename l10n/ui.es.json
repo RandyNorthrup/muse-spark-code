@@ -6383,6 +6383,7 @@
   "teamExternalGone": "El agente elegido para liderar este espacio de trabajo ya no está configurado. Elija otro agente en la sección Roles o restablezca el orquestador al predeterminado.",
   "teamExternalModelRefused": "{agent} no confirmó el modelo {model}. No se envió ningún mensaje.",
   "teamExternalSwitchNotice": "Las nuevas conversaciones de este espacio de trabajo las liderará {agent}, un agente externo que se ejecuta como sí mismo mediante ACP. Se paga como se pague ese agente: su propio plan o clave.",
+  "teamExternalMediaUnsupported": "Este agente no puede recibir medios adjuntos en un mensaje. Retire el adjunto y envíe de nuevo.",
   "teamIncludeTranscripts": "Incluir transcripciones",
   "teamEntryRateLimited": "Con límite de frecuencia hasta {time}.",
   "teamEntryUsageLimited": "En su límite de uso hasta {time}.",
