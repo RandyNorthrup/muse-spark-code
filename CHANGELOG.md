@@ -67,6 +67,10 @@ happened, not what was planned; superseded entries are kept.
   `thonny-muse-spark` plug-in package opens the companion and its Stop from
   Thonny's menu through Thonny's own connection. Arduino IDE qualification
   in the installed IDE is not complete yet.
+- **`museSpark.museCodeQuotaContinue` continues a turn when the subscription
+  window resets.** Off by default: a turn that ran out of subscription quota
+  waits until the provider's reset instant, however long, then resends its
+  message, with Stop. Without it, quota failures show with Retry instead.
 - **`muse-spark-code-acp watchdog` keeps a watch list of GitHub repositories
   in a terminal.** `watchdog list` and `status` show the watched
   repositories, `pause` and `resume` stop and restart watching, and `policy`
@@ -439,6 +443,11 @@ happened, not what was planned; superseded entries are kept.
   finishes removing that folder the next time Muse Spark Code starts. A
   different folder left in that place is left alone, and the record of the
   original folder stays until the folder can be verified.
+- A subscription window that runs out is said honestly, with its reset time.
+  The panel, ACP errors and headless runs say the usage window ran out and
+  name when it resets, instead of an internal error with the reset buried in
+  text. Automatic retries never fire before the reset; ACP clients get the
+  reset instant and a not-retryable flag to wait on.
 - A pack index is accepted only when the signature covers those exact bytes
   and the signer is the pack workflow on `main`, exactly. A signature for a
   branch whose name merely begins with `main`, or a signed statement that

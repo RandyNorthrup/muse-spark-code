@@ -1658,6 +1658,12 @@
           "description": "%config.museCodeMaxRetries.description%",
           "minimum": 0
         },
+        "museSpark.museCodeQuotaContinue": {
+          "type": "boolean",
+          "default": false,
+          "scope": "machine",
+          "description": "%config.museCodeQuotaContinue.description%"
+        },
         "museSpark.modelApiTeamWorkers": {
           "type": "boolean",
           "default": true,

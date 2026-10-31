@@ -9449,11 +9449,12 @@ written. Record: `docs/certification/cc-rlm116.md`.
 
 ### D226 — One MHP version in every native host (lead, lane RLM104, 2026-10-22; numbered D212 on its branch until the cc/rlm104 re-land of 2026-10-24)
 
-Every native host negotiates `MHP.version` (`mhp/1.5.0`, wire `1.5`, range
+Every native host negotiates `MHP.version` (`mhp/1.5.1`, wire `1.5`, range
 to exclusive `mhp/1.6.0`) or refuses with `MHP_INCOMPATIBLE_VERSION`; no
 older route, tag, schema or test survives. Both legacy-named snapshots and
-locks advertise 1.5.0; a new revision regenerates every schema, lock and
-host together. Record: `docs/certification/cc-rlm104.md`.
+locks advertise 1.5.1; a new revision regenerates every schema, lock and
+host together. 1.5.1 (lane RLF-QUOTA, D252) carries the quota detail on
+`turnCompleted` and `turnRetry`. Record: `docs/certification/cc-rlm104.md`.
 
 ### D227 — Teams stay off until the person sets up a second model (RLF-TEAMGATE, 2026-10-23; numbered D217 on its branch until the int/recovery join of 2026-10-30, when that number was found shared with the judge fast path's `stat`)
 
@@ -9707,6 +9708,40 @@ slot or lease, so the refunded task could never be picked again);
 reports `notStarted` with the attempt off the board, mirroring
 `retired()`. A worker port that can prove containment (Windows job,
 Linux cgroup) still retires by proof at finish, before any decision.
+
+### D252 — A spent subscription window is its own turn outcome, said with its reset time (lane RLF-QUOTA, found by the lead in real use, 2026-10-30; numbered D229 on its branch until the int/recovery join of 2026-10-31)
+
+The lead, 2026-10-30: every Muse lane's turn ended with the JSON-RPC
+error `Internal error: API error 429 [request_id=e7eccfac-...]: Subscription
+quota exhausted. Your usage window resets at 2026-10-30T19:42:18Z.
+(rate_limit_error)` — a known, timed condition answered as an internal
+error, the reset buried in text. The CLI reports this class in band:
+`TurnError.quota` (`QuotaDetail{limitKind, resetsAtMs}`, ADR 50047 D2/D3,
+verified in CLI 1.4.10's offline schema export): "present iff the stopping
+failure was the quota class. Clients branch on presence, never by parsing
+`message`." The product does exactly that: `turn/completed` carries the
+detail onto the `turnCompleted` event iff it parses with a usable reset
+instant, and a quota turn is never "internal" (ACP code -32014, kind
+`quota_exhausted`) and never transient. Every surface states it in words
+with the reset in the person's local time: the panel's error row and turn
+announcement, the ACP prompt error, exec's stderr line and result envelope,
+and the MHP event detail for future hosts; the TUI shows no turn errors
+and is unchanged. The ACP error's data carries the kind, the reset instant
+and `retryable: false`, so a client can wait; the agent never waits by
+itself (D228's client-side rule), and the outbound gate passes
+`data.retryable` through again for every prompt error (it dropped the
+flag RLF-ACPTURNS proved on the wire). Automatic resend never fires
+before the reset. Continuing when the window resets is the person's
+opt-in (`museSpark.museCodeQuotaContinue`, off by default): when on, a
+quota turn on the Muse Code backend waits until the provider's reset
+instant — honoured whole however long, with Stop — then resubmits once
+through the resend path, still bounded by the resend count (D228, D121).
+A 429 without the typed detail stays what it is today. The Model API
+backend's quota/usage-limit refusals, Copilot's quota and the ChatGPT plan
+limit already say their own sentences with correct retry judgments and are
+unchanged. Fixture:
+`test/fixtures/musecode-quota/observed-acp-error.json`. Full record:
+`docs/certification/rlf-quota.md`.
 
 ## 3. Open questions (need the owner)
 
@@ -11200,6 +11235,24 @@ and the shared `resubmitRememberedTurn` ride int's conversation deps through
 `providerRetryLimits` (real refused sends), `turnRetryCeiling`,
 `turnRetryResubmit` and `acpTranslate` pass on the merged tree; no provider
 request was made. Record: `docs/certification/cc-int5.md`.
+
+### RLFQUOTA — A spent subscription window is said honestly, with its reset time (D252)
+
+**Status 2026-10-31 (lane RLF-QUOTA): built and certified.** A spent window is its own
+turn outcome on every surface (panel, CLI, ACP, headless) in English +
+14 tables, with the reset in local time; ACP carries
+`{kind: quota_exhausted, resetsAt, retryable: false}` on -32014;
+auto-resend never fires before the reset and the continue opt-in
+(`museCodeQuotaContinue`, off by default) waits the whole provider
+interval. Proven by real-code tests over the observed fixture (6
+red/green drills) and one packed-ACP turn on
+`muse-spark-1.3-contributor` (stated 1 request, spent 1). Two gates
+stay red and are reported, not raised: `build` (5 budgets OVER —
+3 pre-existing, `wire.js` +82 B of honest schema tips it 19 B over,
+`uiText.js` +96 B of build-shape noise) and the two widest
+`vitest related` runs (65/64 environmental failures: sandbox denials
+and base-tree issues, zero in this lane's area). Record:
+`docs/certification/rlf-quota.md`.
 
 ### TOOLROUNDS — Preserve answers at the model-call turn limit (D109)
 

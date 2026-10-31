@@ -5045,11 +5045,13 @@
   "announceApprovalFor": "Je vyžadováno schválení pro {tool}",
   "turnFailed": "Kolo selhalo.",
   "turnTransientFailed": "Služba Muse kolo nedokončila. Kolo si zachovalo svou práci; zprávu odešlete znovu a pokračujte.",
+  "subscriptionQuotaExhausted": "Kvóta předplatného je vyčerpána. Okno využití se obnoví v {resetTime}.",
   "turnRetryAction": "Zkusit znovu",
   "turnRetryUnavailable": "Toto kolo už nelze zkusit znovu. Odešlete zprávu znovu.",
   "turnRetryBusy": "Než to zkusíte znovu, počkejte na dokončení odpovědi, nebo ji zastavte.",
   "turnRetrying": "Nový pokus za {seconds} s (pokus {attempt} z {maxAttempts}).",
   "turnRetryingUncapped": "Nový pokus za {seconds} s (pokus {attempt}).",
+  "turnQuotaWaiting": "Okno využití se obnoví v {resetTime}; tah pak bude pokračovat. Tah můžete kdykoli zastavit.",
   "modelApiProviderRetryWait": "{reason}; poskytovatel požádal o čekání do {time}. Tah můžete kdykoli zastavit.",
   "usageWindowHours": {
     "one": "{count}hodinové okno",

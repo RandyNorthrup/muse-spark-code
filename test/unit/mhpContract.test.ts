@@ -315,7 +315,7 @@ describe('MHP 1.5 boundary and native export', () => {
     await expect(
       promisify(execFile)(
         process.execPath,
-        ['scripts/mhp-schema.mjs', '--adopt-version=mhp/1.5.0'],
+        ['scripts/mhp-schema.mjs', '--adopt-version=mhp/1.5.1'],
         { cwd: process.cwd() },
       ),
     ).rejects.toThrow('MHP_VERSION_ALREADY_ADOPTED')
@@ -332,7 +332,7 @@ describe('MHP 1.5 boundary and native export', () => {
     expect(stdout).toContain('MHP schemas match.')
     const snapshot = JSON.parse(await readFile('src/shared/hostApi/mhp-v1.schema.json', 'utf8'))
     expect(snapshot).toMatchObject({
-      protocol: 'mhp/1.5.0',
+      protocol: 'mhp/1.5.1',
       methods: {
         initialize: {
           call: {

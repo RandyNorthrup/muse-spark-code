@@ -4948,11 +4948,13 @@
   "announceApprovalFor": "Approvazione necessaria per {tool}",
   "turnFailed": "Il turno non è riuscito.",
   "turnTransientFailed": "Il servizio di Muse non è riuscito a completare il turno. Il turno ha conservato il suo lavoro; invia di nuovo il messaggio per continuare.",
+  "subscriptionQuotaExhausted": "La quota dell’abbonamento è esaurita. La tua finestra di utilizzo si reimposta il {resetTime}.",
   "turnRetryAction": "Riprova",
   "turnRetryUnavailable": "Quel turno non può più essere ripetuto. Invia di nuovo il messaggio.",
   "turnRetryBusy": "Attendi la fine della risposta, oppure interrompila, prima di riprovare.",
   "turnRetrying": "Nuovo tentativo tra {seconds} s (tentativo {attempt} di {maxAttempts}).",
   "turnRetryingUncapped": "Nuovo tentativo tra {seconds} s (tentativo {attempt}).",
+  "turnQuotaWaiting": "La tua finestra di utilizzo si reimposta il {resetTime}; il turno continuerà allora. Puoi interrompere il turno in qualsiasi momento.",
   "modelApiProviderRetryWait": "{reason}; il provider ha chiesto di attendere fino a {time}. Puoi interrompere il turno in qualsiasi momento.",
   "usageWindowHours": {
     "one": "finestra di {count} ora",

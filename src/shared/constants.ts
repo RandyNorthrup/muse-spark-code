@@ -1543,6 +1543,10 @@ export const SETTING_DEFAULTS = {
   // turn, unset by default (null: two resends, the industry default).
   // Machine scoped like its Model API sibling: it chooses billed retries.
   museCodeMaxRetries: null as number | null,
+  // Lane RLF-QUOTA (D229): continue a quota-exhausted Muse Code turn
+  // when the usage window resets, off by default. Machine scoped like
+  // the resend limit: the continue resends a billed turn.
+  museCodeQuotaContinue: false,
   // Restore by the tools' own writes (M86, PLAN.md D63): each Model API turn
   // records what its file tools write, with nothing of the workspace
   // captured, so it is on by default.
@@ -1771,6 +1775,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   // sibling chooses billed resends the same way.
   'modelApiMaxRetries',
   'museCodeMaxRetries',
+  'museCodeQuotaContinue',
   'modelApiAutoCompaction',
   'modelApiStrictTools',
   'modelApiParallelReads',
@@ -4030,6 +4035,8 @@ export const ACP_ERROR_CODES = {
   turnFailed: -32_011,
   unavailable: -32_012,
   refused: -32_013,
+  // A spent subscription window (D229): its own outcome, never internal.
+  quotaExhausted: -32_014,
 } as const
 
 // The reasoning effort sent while the Thinking toggle is off (`none` is a 400).
@@ -11027,8 +11034,10 @@ export const HANDOFF_NOTE =
 // credential is a protocol value.
 export const MHP_ZERO_VERSION_COMPONENT = 0n
 export const MHP = {
-  version: 'mhp/1.5.0',
-  minimumVersion: 'mhp/1.5.0',
+  // RLF-QUOTA (D229): 1.5.1 carries the quota detail on turnCompleted and
+  // turnRetry; one version everywhere (D226), so the minimum moves with it.
+  version: 'mhp/1.5.1',
+  minimumVersion: 'mhp/1.5.1',
   maximumVersionExclusive: 'mhp/1.6.0',
   jsonRpcVersion: '2.0',
   // Number.MAX_SAFE_INTEGER as a literal: a property read on a global keeps
@@ -11064,9 +11073,9 @@ export const MHP_PRESENTATION = {
 export const PRESENTATION_REQUEST_TIMEOUT_MS = 30_000
 
 export const MHP_PANEL = {
-  version: 'mhp/1.5.0',
+  version: 'mhp/1.5.1',
   wireVersion: '1.5',
-  minimumVersion: 'mhp/1.5.0',
+  minimumVersion: 'mhp/1.5.1',
   maximumVersionExclusive: 'mhp/1.6.0',
   maximumEnvelopeBytes: 16_777_216,
   maximumQueuedBytes: 33_554_432,

@@ -1,6 +1,6 @@
 {
-  "protocol": "mhp/1.5.0",
-  "range": { "minimum": "mhp/1.5.0", "maximumExclusive": "mhp/1.6.0" },
+  "protocol": "mhp/1.5.1",
+  "range": { "minimum": "mhp/1.5.1", "maximumExclusive": "mhp/1.6.0" },
   "capabilities": [
     "lifecycle",
     "workspace",
@@ -279,7 +279,7 @@
           "result": {
             "type": "object",
             "properties": {
-              "protocolVersion": { "type": "string", "const": "mhp/1.5.0" },
+              "protocolVersion": { "type": "string", "const": "mhp/1.5.1" },
               "capabilities": {
                 "type": "array",
                 "items": {
@@ -19071,7 +19071,16 @@
                                 "reason": { "type": "string" },
                                 "errorKind": { "type": "string" },
                                 "retryable": { "type": "boolean" },
-                                "durationMs": { "type": "number" }
+                                "durationMs": { "type": "number" },
+                                "quota": {
+                                  "type": "object",
+                                  "properties": {
+                                    "limitKind": { "type": "string" },
+                                    "resetsAtMs": { "type": "number" }
+                                  },
+                                  "required": ["limitKind", "resetsAtMs"],
+                                  "additionalProperties": false
+                                }
                               },
                               "required": ["type", "turnId", "terminal"],
                               "additionalProperties": false
@@ -19088,7 +19097,16 @@
                                 "nextAttempt": { "type": "number" },
                                 "system": { "type": "string" },
                                 "errorKind": { "type": "string" },
-                                "httpStatus": { "type": "number" }
+                                "httpStatus": { "type": "number" },
+                                "quota": {
+                                  "type": "object",
+                                  "properties": {
+                                    "limitKind": { "type": "string" },
+                                    "resetsAtMs": { "type": "number" }
+                                  },
+                                  "required": ["limitKind", "resetsAtMs"],
+                                  "additionalProperties": false
+                                }
                               },
                               "required": ["type", "turnId", "attempt", "retryDelayMs", "reason"],
                               "additionalProperties": false
@@ -41690,7 +41708,16 @@
                           "reason": { "type": "string" },
                           "errorKind": { "type": "string" },
                           "retryable": { "type": "boolean" },
-                          "durationMs": { "type": "number" }
+                          "durationMs": { "type": "number" },
+                          "quota": {
+                            "type": "object",
+                            "properties": {
+                              "limitKind": { "type": "string" },
+                              "resetsAtMs": { "type": "number" }
+                            },
+                            "required": ["limitKind", "resetsAtMs"],
+                            "additionalProperties": false
+                          }
                         },
                         "required": ["type", "turnId", "terminal"],
                         "additionalProperties": false
@@ -41707,7 +41734,16 @@
                           "nextAttempt": { "type": "number" },
                           "system": { "type": "string" },
                           "errorKind": { "type": "string" },
-                          "httpStatus": { "type": "number" }
+                          "httpStatus": { "type": "number" },
+                          "quota": {
+                            "type": "object",
+                            "properties": {
+                              "limitKind": { "type": "string" },
+                              "resetsAtMs": { "type": "number" }
+                            },
+                            "required": ["limitKind", "resetsAtMs"],
+                            "additionalProperties": false
+                          }
                         },
                         "required": ["type", "turnId", "attempt", "retryDelayMs", "reason"],
                         "additionalProperties": false
