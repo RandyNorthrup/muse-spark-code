@@ -2858,10 +2858,21 @@ export const GITHUB_ISSUES_PAGE_SIZE = 100
 // lease, (b) the runtime's device-flow sign-in, (c) the user's `gh` login.
 export const GITHUB_TOKEN_SOURCE_ORDER = ['editorLease', 'deviceFlow', 'ghLogin'] as const
 // The scopes any source may ask for: `repo` (M71's), and `read:org` only
-// once a lane proves a call needs it. Nothing else is ever requested.
+// once a lane proves a call needs it. Nothing else is ever requested,
+// except D242's one Share-time exception below.
 export const GITHUB_PERMITTED_SCOPES: readonly string[] = ['repo', 'read:org']
+// M118 phase 2 (D242): the scope asked only when the person presses Share
+// to a secret gist, never at sign-in. `gist` alone. GitHub issues that
+// authorization as its own token and does not revoke an earlier `repo`
+// token (docs.github.com, "Creating multiple tokens for OAuth apps",
+// read 2026-10-30). The repository sign-in stays in its own slot.
+export const GITHUB_GIST_SCOPE = 'gist'
+export const GITHUB_GIST_SCOPES: readonly string[] = [GITHUB_GIST_SCOPE]
+// The Share-time gist grant, beside the repository sign-in, never in it.
+export const GITHUB_GIST_SHARE_SECRET_KEY = 'museSpark.github.gistShare'
 // GitHub names a token's scopes in this response header (comma-separated).
-/** @unwired M71 read only by tests deleted 2026-10-17 (no fakes) */
+// M118 phase 2 (D242) reads it in `GitHubClient` to tell a missing gist
+// scope from a real 404.
 export const GITHUB_SCOPES_HEADER = 'x-oauth-scopes'
 // The project's OAuth App (Q-M123, registered by the owner 2026-10-08):
 // public, device flow on, expiring user tokens on, no client secret. The
@@ -8107,6 +8118,10 @@ export const SHARE_DESTINATIONS = [
   'email',
 ] as const
 export const SHARE_LOCAL_DESTINATIONS = ['copy', 'file', 'browser'] as const
+// M118 phase 2 (D242): the destinations past the machine. Only the secret
+// gist exists; nodeLink, team and email stay reserved names in
+// SHARE_DESTINATIONS until their phases land.
+export const SHARE_NETWORK_DESTINATIONS = ['gist'] as const
 // NOLIMITS1FIX: the removed 16 MiB file ceiling and the 20,000-item ceiling
 // were both invented — files write and read back at any byte size and any
 // item count. A long agentic session has a few thousand items.

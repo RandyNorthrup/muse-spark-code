@@ -74,7 +74,17 @@ describe('share boundaries', () => {
       expect(() => admitShareRelease(confirmed, () => true)).toThrow('confidential')
     },
   )
-  it.each(SHARE_DESTINATIONS.filter((d) => !['copy', 'file', 'browser'].includes(d)))(
+  it('admits the secret gist once the final button confirms it', () => {
+    const confirmed = {
+      step: 'confirmed',
+      previewId: 'preview-1',
+      request: { ...request, destination: 'gist' },
+    }
+    expect(admitShareRelease(confirmed, () => false).request.destination).toBe('gist')
+    expect(() => admitShareRelease(confirmed, () => true)).toThrow('confidential')
+    expect(() => admitShareRelease(confirmed, () => undefined)).toThrow('confidential')
+  })
+  it.each(SHARE_DESTINATIONS.filter((d) => !['copy', 'file', 'browser', 'gist'].includes(d)))(
     'reserves %s without permitting release',
     (destination) => {
       const pending = { ...request, destination }

@@ -598,6 +598,32 @@ export const EN = {
   shareTooLarge: 'This share exceeds the file size or transcript limit.',
   shareAttachmentUnavailable: 'Selected attachment content is unavailable in this range.',
   sharePreviewExpired: 'The preview changed or expired. Preview again before sharing.',
+  // M118 phase 2 (D242): the secret gist destination. The gist scope is
+  // asked only at Share time, with `shareGistScopeConsent` saying what it
+  // allows; declining refuses only the gist route (`shareGistDeclined`).
+  shareGist: 'Secret gist',
+  shareGistScopeConsent:
+    'Sharing to a secret gist needs the gist permission, which lets Muse Spark Code create and delete secret gists on your GitHub account. Copy, file and browser sharing need no permission.',
+  shareGistAllow: 'Allow',
+  shareGistDeny: 'Deny',
+  shareGistDeclined:
+    'Secret gist sharing needs the gist permission, which was declined. Copy, file and browser sharing still work.',
+  // {url}: the new secret gist's link, shown to the person.
+  shareGistPublished: 'Secret gist created: {url}',
+  shareGistUnpublished: 'The secret gist was deleted.',
+  shareGistNotSecret: 'GitHub did not make a secret gist, so nothing was shared.',
+  // {url}: a gist GitHub made public against the request, for the person
+  // to delete by hand after the automatic delete failed.
+  shareGistLeftPublic:
+    'GitHub made a public gist instead of a secret one, and it could not be deleted. Delete it at {url}.',
+  shareGistDeleteConfirm: 'Delete this secret gist? This cannot be undone.',
+  shareGistDelete: 'Delete',
+  shareGistInvalid: 'That is not a gist id or a gist link.',
+  shareGistFileUnsafe:
+    'That file name cannot be shared. Use one name, with no folder, home or account in it.',
+  shareGistCopyLink: 'Copy link',
+  shareGistOpen: 'Open in Browser',
+  shareGistUnpublish: 'Unpublish',
   // M100/D80: lazy Devices setup, observations and recovery.
   devices: {
     desktopHeap:
