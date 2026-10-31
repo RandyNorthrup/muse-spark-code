@@ -25420,6 +25420,8 @@ containment (the job launcher cannot yet carry the envelope pipe to
 its payload, so Windows refuses in words), lanes S/O, the D89.15
 companion surface, and the real-life receipt. M109 stays open.
 
+**Status 2026-10-31 (RVM109, linuxlt): built.** Independent review of D243's first increment as merged by CC-INT7. Two defects fixed on `rv/m109`: a linked, shared, or second-named person policy is refused instead of honored, and a planted next-name link is not followed when the policy is saved; the Linux feeder keeps `XDG_RUNTIME_DIR` so it can see the broker socket, while the command is still fenced off that directory. The real broker and feeder suite passed here (3 cases, file anchor, no keychain). Record: `docs/certification/rvm109.md`. M109 stays open. Git, askpass, sudo, SSH, the editor surfaces, and Windows feeder containment stay open.
+
 **Status 2026-10-30 (integration into int/recovery, CC-INT7): built.**
 RLF-M109 (D243 here, D216 on its branch), RLF-VAULTUNDO with RVCRED's journal
 fix (D241 here, D217 on its branch) and RLF-MACCRED are merged; the real broker
