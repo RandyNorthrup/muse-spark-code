@@ -40,8 +40,41 @@ slots and bridge; never a second layout.
 
 ## What is next
 
-Shared panel model → main-process PTY/stores → strings → renderer panel →
-PTY staging → real-Electron proof → drills and gates.
+Strings → renderer panel → PTY staging → real-Electron proof → drills and gates.
+
+## Landed: shared model, bridge, PTY sessions, stores (2026-10-31)
+
+- `src/shared/desktop/panel.ts`: tabs with dock/window/footer slots,
+  split trees with size renormalization, the read-only rule for agents'
+  tabs, the exit-confirm rule, keyboard-resize clamps, Problems badge
+  counts, the Output clip both sides apply.
+- `src/shared/desktop/bridge.ts`: the persisted layout's version 2 with
+  v1 migration, split/floating/tab-slot shapes, agent-tab shapes,
+  Problems/Output shapes, and the new channels (list, children, opened,
+  problems get/changed, output get/clear/appended/cleared).
+- `src/shared/desktop/keybindings.ts`: split (Ctrl+Shift+5, VS Code's),
+  detach (Ctrl+Alt+D), collapse, panel taller/shorter, terminal search
+  (Ctrl+F, terminal focus only), kill/dock/pin/focus-Problems/focus-Output
+  registered for the launcher; the chord reader prefers `code` (Shift+5
+  reports `%` in `key`, so VS Code's digit chords only match through
+  `code`); the dispatcher honours `when`.
+- `desktop/app/terminals.ts`: WB's pipe spawn replaced by node-pty on the
+  same interface and bridge channels; resize applies; read-only sessions
+  refuse writes (H13); credential stripping kept. Probed: resize after
+  exit throws `ioctl(2) failed, EBADF` (NARROW catch), write and kill
+  after exit are silent no-ops.
+- `desktop/app/processTree.ts`: the exit question's probe — pgrep on
+  Unix, CIM on Windows, unknown answers ask.
+- `desktop/app/problems.ts`, `desktop/app/output.ts`: main-side stores
+  (M68 shapes, 200-entry bound, 1 MiB per channel oldest-first with
+  surrogate-safe clip, overlong names/chunks refused by name).
+- `desktop/app/main.ts`, `preload.ts`, `layoutStore.ts`, `files.ts`:
+  channel wiring, workspace-confined cwd, v1→v2 migration on load.
+- Suites: `panel.test.ts` (12), `panelSessions.test.ts` (7, real PTY:
+  resize via stty, read-only refusal vs echo, child probe, close kills
+  the command, credential stripping end to end, headless render of
+  captured bytes), `panelStores.test.ts` (3). WB's `shell`/`workbench`
+  suites migrated to the new shapes, same assertions.
 
 ## Proof
 

@@ -13,7 +13,7 @@ import {
   type DesktopWorkspace,
   type FileEntry,
   type FooterTab,
-  type WorkbenchLayout,
+  type WorkbenchLayoutV2,
 } from '../../shared/desktop/bridge'
 import {
   KeybindingRegistry,
@@ -40,16 +40,22 @@ interface OpenFile {
 }
 
 function footerTabLabel(tab: FooterTab): string {
-  return tab === 'terminal'
-    ? UI_TEXT.desktop.workbenchTerminal
-    : tab === 'problems'
-      ? UI_TEXT.desktop.workbenchProblems
-      : UI_TEXT.desktop.workbenchOutput
+  switch (tab) {
+    case 'terminal': {
+      return UI_TEXT.desktop.workbenchTerminal
+    }
+    case 'problems': {
+      return UI_TEXT.desktop.workbenchProblems
+    }
+    case 'output': {
+      return UI_TEXT.desktop.workbenchOutput
+    }
+  }
 }
 
 export function DesktopApp() {
   const [workspace, setWorkspace] = useState<DesktopWorkspace | null>(null)
-  const [layout, setLayout] = useState<WorkbenchLayout>(freshLayout)
+  const [layout, setLayout] = useState<WorkbenchLayoutV2>(freshLayout)
   const [layoutNotice, setLayoutNotice] = useState<string | null>(null)
   const [files, setFiles] = useState<readonly FileEntry[]>([])
   const [openFiles, setOpenFiles] = useState<readonly OpenFile[]>([])
@@ -68,7 +74,7 @@ export function DesktopApp() {
   }, [layout])
 
   const persistLayout = useCallback(
-    async (next: WorkbenchLayout) => {
+    async (next: WorkbenchLayoutV2) => {
       setLayout(next)
       if (workspace === null) return
       await desktopBridge().setLayout({
@@ -88,7 +94,7 @@ export function DesktopApp() {
         const current = await bridge.workspace()
         if (isAborted()) return
         setWorkspace(current)
-        let stored: WorkbenchLayout | null = null
+        let stored: WorkbenchLayoutV2 | null = null
         try {
           stored = await bridge.getLayout({ workspaceRoot: current.root })
         } catch (error_: unknown) {
@@ -176,7 +182,7 @@ export function DesktopApp() {
           ...previous.filter((file) => file.path !== result.path),
           { path: result.path, text: result.text, savedText: result.text },
         ])
-        const next: WorkbenchLayout = {
+        const next: WorkbenchLayoutV2 = {
           ...layoutRef.current,
           openFiles: [...new Set([...layoutRef.current.openFiles, result.path])],
           activeFile: result.path,
@@ -206,7 +212,7 @@ export function DesktopApp() {
       rows: 24,
     })
     setTerminals((previous) => [...previous, created])
-    const next: WorkbenchLayout = {
+    const next: WorkbenchLayoutV2 = {
       ...layoutRef.current,
       terminalPlacement:
         layoutRef.current.terminalPlacement === 'hidden'
@@ -459,12 +465,12 @@ export function DesktopApp() {
               <button
                 key={tab}
                 role="tab"
-                aria-selected={layout.activeFooterTab === tab}
+                aria-selected={layout.panelView === tab}
                 onClick={() => {
                   if (tab === 'terminal' && layout.terminalPlacement === 'footer') {
-                    void persistLayout(moveTerminal({ ...layout, activeFooterTab: tab }, 'expand'))
+                    void persistLayout(moveTerminal({ ...layout, panelView: tab }, 'expand'))
                   } else {
-                    void persistLayout({ ...layout, activeFooterTab: tab })
+                    void persistLayout({ ...layout, panelView: tab })
                   }
                 }}
               >
@@ -472,11 +478,9 @@ export function DesktopApp() {
               </button>
             ))}
           </div>
-          {layout.activeFooterTab === 'problems' ? (
-            <p>{UI_TEXT.desktop.workbenchNoProblems}</p>
-          ) : null}
-          {layout.activeFooterTab === 'output' ? <p>{UI_TEXT.desktop.workbenchNoOutput}</p> : null}
-          {layout.activeFooterTab === 'terminal' && layout.terminalPlacement === 'footer' ? (
+          {layout.panelView === 'problems' ? <p>{UI_TEXT.desktop.workbenchNoProblems}</p> : null}
+          {layout.panelView === 'output' ? <p>{UI_TEXT.desktop.workbenchNoOutput}</p> : null}
+          {layout.panelView === 'terminal' && layout.terminalPlacement === 'footer' ? (
             <button onClick={() => void persistLayout(moveTerminal(layout, 'expand'))}>
               {UI_TEXT.desktop.workbenchExpandTerminal}
             </button>

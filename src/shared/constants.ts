@@ -11488,3 +11488,17 @@ export const DESKTOP_QUICK_OPEN_SCORES = {
 } as const
 export const DESKTOP_QUICK_OPEN_MAX_RESULTS = 20
 export const DESKTOP_STATUS_HASH_CHARS = 16
+// Muse Desktop (M111, D91.13) lane BP: the bottom panel's tunables and wire
+// bounds. The output bounds cite D95's per-stream 1 MiB precedent (the threat
+// model keeps at most 1 MiB per stream, discards and counts the rest); the
+// request bound matches D95's 64 KiB frame.
+export const DESKTOP_PANEL_KEYBOARD_RESIZE_PX = 40
+export const DESKTOP_FLOATING_DEFAULT_WIDTH_PX = 720
+export const DESKTOP_FLOATING_MIN_WIDTH_PX = 320
+export const DESKTOP_FLOATING_MIN_HEIGHT_PX = 160
+export const DESKTOP_TERMINAL_LABEL_MAX_CHARS = 120
+export const DESKTOP_TERMINAL_COMMAND_MAX_CHARS = 500
+export const DESKTOP_OUTPUT_CHANNEL_NAME_MAX_CHARS = 80
+export const DESKTOP_OUTPUT_APPEND_MAX_CHARS = 65_536
+export const DESKTOP_OUTPUT_CHANNEL_MAX_CHARS = 1_048_576
+export const DESKTOP_PROCESS_TREE_TIMEOUT_MS = 5000
