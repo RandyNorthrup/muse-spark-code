@@ -12,6 +12,13 @@ import { buildTrafficHarness } from '../../test/harness/buildTraffic.mjs'
 import { build } from 'esbuild'
 import { buildScheduleHarness } from '../../test/harness/build-schedules.mjs'
 import { SCHEDULE_SCENES } from '../../test/harness/scheduleScenes.mjs'
+import { desktopSceneResponse } from '../../test/desktop/harness/lib/sceneServer.mjs'
+import {
+  DESKTOP_SCENES as DESKTOP_SCENE_LIST,
+  SCENE_READY,
+} from '../../test/desktop/harness/lib/scenes.mjs'
+
+export { DESKTOP_SCENES } from '../../test/desktop/harness/lib/scenes.mjs'
 
 export const LOOPBACK = '127.0.0.1'
 export const HARNESS_PATH = 'test/harness/index.html'
@@ -24,6 +31,12 @@ export function bundleFor(scenario) {
 }
 // Real time for one page; a hung browser fails rather than producing an empty result.
 export const PAGE_TIMEOUT_MS = 120_000
+// M111 lane QA: the desktop scenes live at /desktop-scene/<id> (their own
+// pages, not ?scenario= ones); each is captured at its contract size once
+// the scene marks itself ready. The registry is test/desktop/harness/.
+export const DESKTOP_SIZED_SCENARIOS = Object.fromEntries(
+  DESKTOP_SCENE_LIST.map((scene) => [scene.id, { width: scene.width, ready: SCENE_READY }]),
+)
 // Every `?scenario=` test/harness/index.html plays.
 export const TRAFFIC_SCENARIOS = [
   'team-traffic',
@@ -401,6 +414,12 @@ export async function serveRepo(repoRoot) {
   let scheduleBuild
   const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? '/', `http://${LOOPBACK}`)
+    const desktopScene = await desktopSceneResponse(repoRoot, url)
+    if (desktopScene !== undefined) {
+      response.writeHead(desktopScene.status, { 'content-type': 'text/html; charset=utf-8' })
+      response.end(desktopScene.body)
+      return
+    }
     if (url.pathname === '/usage-harness.js') {
       response.writeHead(200, { 'content-type': 'text/javascript' })
       response.end(fixture.outputFiles[0].contents)

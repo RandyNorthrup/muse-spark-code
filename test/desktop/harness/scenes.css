@@ -1,0 +1,219 @@
+/* Desktop harness scene shells (M111 lane QA). Every colour, size, radius
+   and gap is an M114 token (design/tokens/generated/muse.css); the compact
+   pane sizes arrive as inline custom properties from lane 0's contracts. */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--ms-surface);
+  color: var(--ms-text);
+  font-family: sans-serif;
+}
+
+.ds-bar {
+  height: var(--ms-bar-height);
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: var(--ms-space-8);
+  background: var(--ms-raised);
+  border-block-end: 1px solid var(--ms-border);
+}
+
+.ds-bar-items {
+  display: flex;
+  gap: var(--ms-space-8);
+}
+
+.ds-bar-item,
+.ds-region-name,
+.ds-kind,
+.ds-annotation {
+  color: var(--ms-muted);
+}
+
+.ds-brand {
+  color: var(--ms-brand-mark);
+  font-weight: bold;
+}
+
+.ds-status {
+  height: var(--ms-status-height);
+  flex: none;
+  display: flex;
+  align-items: center;
+  padding-inline: var(--ms-space-8);
+  background: var(--ms-raised);
+  border-block-start: 1px solid var(--ms-border);
+}
+
+.ds-workbench {
+  flex: 1;
+  display: grid;
+  grid-template:
+    'chat editor sidebar rail' 1fr
+    'chat bottom-panel sidebar rail' 240px
+    / 420px 1fr 320px var(--ms-rail-width);
+  gap: var(--ms-space-4);
+  padding: var(--ms-space-8);
+}
+
+.ds-region {
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-lg);
+  background: var(--ms-raised);
+  padding: var(--ms-space-8);
+}
+
+.ds-region-rail {
+  grid-area: rail;
+}
+
+.ds-region-chat {
+  grid-area: chat;
+}
+
+.ds-region-editor {
+  grid-area: editor;
+  background: var(--ms-editor-surface);
+}
+
+.ds-region-sidebar {
+  grid-area: sidebar;
+}
+
+.ds-region-bottom-panel {
+  grid-area: bottom-panel;
+}
+
+.ds-centre {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: var(--ms-space-8);
+}
+
+.ds-cards {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--ms-space-8);
+  padding: var(--ms-space-8);
+  align-content: start;
+}
+
+.ds-card,
+.ds-launcher,
+.ds-greeter,
+.ds-lock,
+.ds-onboarding,
+.ds-rtl {
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-lg);
+  background: var(--ms-overlay);
+  padding: var(--ms-space-8);
+  min-inline-size: 320px;
+}
+
+.ds-launcher {
+  inline-size: 640px;
+  max-inline-size: 90vw;
+}
+
+.ds-modes,
+.ds-factors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ms-space-4);
+}
+
+.ds-chip {
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-lg);
+  padding-inline: var(--ms-space-4);
+  color: var(--ms-muted);
+}
+
+.ds-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ds-results li {
+  padding-block: var(--ms-space-4);
+  border-block-end: 1px solid var(--ms-divider);
+}
+
+.ds-note,
+.ds-secure {
+  color: var(--ms-muted);
+}
+
+.ds-tiled {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: var(--ms-space-4);
+  padding: var(--ms-space-8);
+}
+
+.ds-window {
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-lg);
+  background: var(--ms-raised);
+  padding: var(--ms-space-8);
+}
+
+.ds-window.ds-focused {
+  border-color: var(--ms-focus);
+  border-width: var(--ms-focus-width);
+  grid-row: span 2;
+}
+
+.ds-devices {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ms-space-8);
+  padding: var(--ms-space-8);
+  align-content: start;
+}
+
+.ds-device {
+  margin: 0;
+}
+
+.ds-viewport {
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-lg);
+  background: var(--ms-editor-surface);
+}
+
+.ds-annotation {
+  flex: none;
+  align-self: flex-end;
+  padding: var(--ms-space-4);
+  font-size: small;
+}
+
+button,
+input {
+  background: var(--ms-input-surface);
+  color: var(--ms-text);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-lg);
+  padding: var(--ms-space-4) var(--ms-space-8);
+}
