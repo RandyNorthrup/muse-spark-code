@@ -1516,7 +1516,11 @@ async function serve(
       accounting: createAcpAccounting({
         recording,
         runtime,
-        isEnabled: () => isUsageHistoryOn && options.backend === 'modelApi',
+        // Both backends journal: the Muse Code session writers record
+        // token counts with plan pricing, and the snapshot counts plan
+        // requests instead of settling dollars for them (RLF-MACLIVE F2).
+        // Only disabled history refuses the read.
+        isEnabled: () => isUsageHistoryOn,
         dataFolder: agentDataFolder({
           platform: process.platform,
           env: process.env,
