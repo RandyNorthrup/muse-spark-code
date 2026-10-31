@@ -2,8 +2,8 @@ import { createHash } from 'node:crypto'
 import { Buffer } from 'node:buffer'
 import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import ts from 'typescript'
+import { isEntryPoint } from './entryPoint.mjs'
 
 // Parse the emitted JavaScript: string searches would also rewrite user/model
 // text. UTF-16 source offsets are identical in the browser's fetched string.
@@ -65,5 +65,5 @@ export function writePortableManifest(meta, directory) {
 }
 
 // The fake-only process suites build the same graph into an isolated package.
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)
+if (isEntryPoint(import.meta.url))
   writePortableManifest(JSON.parse(readFileSync(process.argv[2], 'utf8')), process.argv[3])
