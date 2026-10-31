@@ -3301,6 +3301,10 @@ every fact, is `docs/certification/m96-research.md`.
     - **The user can fill it with any configured model** (a Muse model on
       either backend, or an M95 model), per workspace, in the Roles
       section. **Reset to Default** restores the picker's behaviour.
+      Amended by D250 (2026-10-30): the slot offers every available agent,
+      external ACP agents included, exactly as the team agents are offered;
+      an external orchestrator runs as itself over ACP with the team tools
+      and their instructions, its own sign-in and its own payer.
       - The override is kept in workspace state, and new conversations in
         that workspace start on it.
       - The composer's model pill keeps working as it does now, and shows
@@ -9563,6 +9567,46 @@ redistribution decision remains separate from deterministic matching.
 **LEDGER cancellation billing (2026-10-12). Resolved 2026-10-17 by D208:**
 the owner chose not to count an unresolved reservation at all; a response
 without its usage is cost unknown. The original question follows. The requested received-output cancellation bound is not provable: Anthropic explicitly bills client disconnects, and OpenAI counts non-visible generated tokens. Keep the full unresolved reservation as liability, never display it as spend; settle a provider-reported final usage even on an incomplete/cancelled response. A received-output estimate must not release unknown provider liability. Billing research and real-use steps: `docs/certification/spend-ledger.md`.
+
+### D250 — The orchestrator can be any available agent, external agents included (owner, 2026-10-30; amends D75)
+
+The owner, verbatim: "the orchistrator needs to be able to be and available
+provider same as the team agents ... we dont [modify the agent behaviors] we
+just provide the agent with tools and the instruction on how they can be
+used". D75 kept the orchestrator slot to engine and Muse Code agents; this
+decision removes that keep. The slot offers exactly what the team agents
+offer (`teamPool`/`teamModelRegistry` offers): engine agents, Muse Code
+agents and external ACP agents — the presets Claude's
+`@agentclientprotocol/claude-agent-acp`, `codex-acp`, `gemini --acp`,
+`copilot --acp`, our own `muse-spark-code-acp`, and any agent the person
+added by command (`museSpark.teamExternalAgents`).
+
+An external orchestrator runs as itself over ACP, the extension as its
+client: its loop, its system prompt and its sign-in are never changed. We
+give it tools and instructions only: the conversation's own `team` MCP
+endpoint (the five tools, the per-conversation token, durable `command_id`
+answers) in `session/new` `mcpServers` — HTTP transport where the agent
+advertises it in `mcpCapabilities`, otherwise a shipped stdio bridge that
+forwards to the same endpoint, never a second implementation of the tools —
+and the instructions through the MCP server's `instructions` and the tools'
+descriptions (and only where the agent's ACP surface documents a way to add
+context without replacing its own prompt, that way).
+
+Sign-in stays the agent's: the app never shows a login of its own for
+another vendor's account, never reads or copies an agent's credential files
+or tokens, and never routes requests through another vendor's plan
+credentials itself. When the agent reports it is not signed in (ACP
+`authMethods` or an auth error), the panel says so and tells the person to
+sign in with that agent's own CLI (for Claude Code: run `claude` and sign
+in); an ACP `authenticate` the agent itself offers may be passed through
+only as the agent's own flow. The panel says who pays for the orchestrator
+(D75's words), the conversation streams in the panel like any ACP
+conversation (messages, tool calls, plans, permission requests answered by
+the person), and Stop and cancel reach the agent (`session/cancel`). Every
+team rule stays: two-model availability (D227), ceilings, the merge queue,
+consent. The new code lives outside `dist/teamHost.js`, in its own lazy
+bundle with a D6 budget. Proof:
+[docs/certification/rlf-orchext.md](docs/certification/rlf-orchext.md).
 
 ### D203 — `/playback`: the agent plays back its understanding, from memory only (owner, 2026-10-17)
 
