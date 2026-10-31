@@ -40,6 +40,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Any available agent can lead the team.** The Orchestrator slot in Roles
+  now offers external ACP agents beside your Muse Code and Model API
+  models: Claude Code, Codex, Gemini CLI, Copilot, Muse Spark Code's own
+  agent, and any agent you add by command in `museSpark.teamExternalAgents`.
+  An external agent that leads runs as itself, with its own sign-in and its
+  own payer, which Roles and the switch confirmation name; it is given the
+  team tools and the instructions for using them and nothing else changes.
+  Its messages, tool calls, plans and permission requests stream in the
+  panel, and Stop cancels its turn. When it is not signed in, the panel names
+  that agent's own sign-in command. External agents can lead but cannot yet
+  run as workers.
 - **`muse-spark-code-acp watchdog` keeps a watch list of GitHub repositories
   in a terminal.** `watchdog list` and `status` show the watched
   repositories, `pause` and `resume` stop and restart watching, and `policy`
