@@ -1,11 +1,11 @@
 // D94: this generator is also TH/TD's input contract. It never reads a host's
 // settings, downloads a theme or introduces JavaScript into a shipped surface.
 import { readFile, writeFile } from 'node:fs/promises'
-import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import * as z from 'zod'
 import prettier from 'prettier'
 import stylelint from 'stylelint'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 const REPO_ROOT = path.resolve(import.meta.dirname, '..')
 
@@ -407,10 +407,7 @@ export async function renderTokens(input) {
   )
 }
 
-if (
-  process.argv[1] !== undefined &&
-  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-) {
+if (isEntryPoint(import.meta.url)) {
   const outputs = await renderTokens(JSON.parse(await readFile(TOKEN_SOURCE, 'utf8')))
   for (const [file, content] of Object.entries(outputs)) await writeFile(file, content)
   console.log(`tokens: generated ${TOKEN_OUTPUTS.length} outputs`)

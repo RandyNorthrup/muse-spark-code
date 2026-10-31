@@ -21,7 +21,6 @@ import { mkdir, mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
-import { pathToFileURL } from 'node:url'
 import { findChrome } from './lib/chrome.mjs'
 import { langQuery, prepareLang } from './lib/harnessLang.mjs'
 import {
@@ -31,6 +30,7 @@ import {
   serveRepo,
   withSizedPage,
 } from './lib/harnessServer.mjs'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 export const SHOT_LIST_FILE = 'scripts/readme-shots.json'
 export const README_FILE = 'README.md'
@@ -332,9 +332,6 @@ async function main() {
   await shootShots(list, args)
 }
 
-if (
-  process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
-) {
+if (isEntryPoint(import.meta.url)) {
   await main()
 }

@@ -7,11 +7,11 @@ import { tmpdir } from 'node:os'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import process from 'node:process'
-import { fileURLToPath } from 'node:url'
 import { build } from 'esbuild'
 import { format, resolveConfig } from 'prettier'
 import { renderDeviceReference } from './lib/deviceReference.mjs'
 import { generateReference } from './lib/reference.mjs'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 const OUTPUT = 'docs/devices-reference.md'
 
@@ -86,8 +86,4 @@ async function main() {
   await checkDevicesReference(isCheck)
   await checkSharingReference()
 }
-if (
-  process.argv[1] !== undefined &&
-  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-)
-  await main()
+if (isEntryPoint(import.meta.url)) await main()

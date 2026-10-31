@@ -18,7 +18,6 @@
 // slash-commands race, docs/certification/a11y-focus.md).
 
 import { existsSync } from 'node:fs'
-import { pathToFileURL } from 'node:url'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { availableParallelism, tmpdir } from 'node:os'
 import path from 'node:path'
@@ -39,6 +38,7 @@ import {
   serveRepo,
   withSizedPage,
 } from './lib/harnessServer.mjs'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 const THEMES = ['light', 'dark', 'hc-dark', 'hc-light']
 const BUNDLE_PATH = 'dist/webview/main.js'
@@ -305,8 +305,4 @@ async function main() {
   }
 }
 
-if (
-  process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
-)
-  await main()
+if (isEntryPoint(import.meta.url)) await main()

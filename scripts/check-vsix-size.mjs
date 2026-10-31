@@ -5,8 +5,7 @@
 // +15%"): the win32-x64 VSIX measured 4,273,804 bytes on cc/vsixsize;
 // 4,273,804 x 1.15 rounded up to 25 KiB = 4800 KiB (4,915,200 bytes).
 import { statSync } from 'node:fs'
-import path from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 export const MAX_VSIX_BYTES = 4800 * 1024
 
@@ -20,10 +19,7 @@ export function checkVsixSize(file) {
   return size
 }
 
-if (
-  process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
-) {
+if (isEntryPoint(import.meta.url)) {
   try {
     // One package per platform (PLAN.md D209): every target meets the
     // same budget, so every artifact is checked, not just one.

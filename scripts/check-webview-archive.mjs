@@ -6,9 +6,7 @@
 // artifact kept the archive and dropped the loose files.
 import { readZip } from '@vscode/vsce/out/zip.js'
 import { assertArchiveMembers } from './lib/solidTextArchive.mjs'
-import { realpathSync } from 'node:fs'
-import { pathToFileURL } from 'node:url'
-import path from 'node:path'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 // One entry per document a panel builds: the chat and tasks (main),
 // Models & Agents (models), usage, What's New and reporting.
@@ -51,13 +49,7 @@ async function main() {
   console.log(`webview archive: ${String(members)} members, every panel file present in ${vsix}`)
 }
 
-// Node names the module by its real path, so the start path is resolved through
-// its links too: started through a symlinked or junctioned directory the check
-// still runs, instead of ending without a word and a zero exit.
-if (
-  process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(realpathSync(path.resolve(process.argv[1]))).href
-) {
+if (isEntryPoint(import.meta.url)) {
   try {
     await main()
   } catch (error) {

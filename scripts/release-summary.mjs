@@ -1,6 +1,5 @@
 import { appendFileSync } from 'node:fs'
-import path from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 /** Missing/blocked/cancelled jobs are failures, never silently skipped channels. */
 export function releaseSummary(needs) {
@@ -27,10 +26,7 @@ export function releaseSummary(needs) {
   }
 }
 
-if (
-  process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
-) {
+if (isEntryPoint(import.meta.url)) {
   const summary = releaseSummary(JSON.parse(process.env.RELEASE_NEEDS))
   appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary.markdown)
   appendFileSync(process.env.GITHUB_OUTPUT, `all-published=${String(summary.allPublished)}\n`)

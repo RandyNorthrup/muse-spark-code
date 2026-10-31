@@ -1,10 +1,9 @@
 // Release-only, public requests. Cache refresh failures never undo publication.
 import { readFileSync } from 'node:fs'
-import path from 'node:path'
 import { setTimeout } from 'node:timers/promises'
-import { pathToFileURL } from 'node:url'
 import { z } from 'zod'
 import { isBadgeUrl, readmeImageUrls } from './check-badges.mjs'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 const POLL_MS = 30_000
 const PROPAGATION_MS = 15 * 60_000
@@ -220,10 +219,7 @@ export async function refreshReadmeBadges(manifest, readme, repository, deps = {
   }
 }
 
-if (
-  process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
-) {
+if (isEntryPoint(import.meta.url)) {
   try {
     await refreshReadmeBadges(
       JSON.parse(readFileSync('package.json', 'utf8')),

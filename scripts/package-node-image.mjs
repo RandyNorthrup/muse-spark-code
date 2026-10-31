@@ -4,8 +4,8 @@ import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { cpSync, lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { z } from 'zod'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 const ROOT = path.resolve(import.meta.dirname, '..')
 const POLICY = JSON.parse(readFileSync(path.join(ROOT, 'deploy/container/policy.json'), 'utf8'))
@@ -100,7 +100,7 @@ export function stageNodeImage(runtime, stage) {
   return receipt
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+if (isEntryPoint(import.meta.url)) {
   try {
     const [runtime, stage] = process.argv.slice(2)
     if (!runtime || !stage || process.argv.length !== 4) {
