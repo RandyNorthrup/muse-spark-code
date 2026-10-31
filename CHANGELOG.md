@@ -324,6 +324,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Tab hooks work on a busy Windows PC. Starting a hook used to start about
+  eleven Windows PowerShell processes (the resource governor's job, tree and
+  registry calls each started one), about 0.9 seconds on a quiet PC and far
+  more under load, against Tab's 1.5-second bound for a hook, so under load
+  a Tab read waited for a hook that did not answer in time. A hook now
+  starts through the native job launcher and the governor's calls run as
+  short native programs: no PowerShell is started for a hook, and a launch
+  takes about a quarter of a second on a quiet PC. A Windows hook that exits
+  2 now blocks its event, as it does everywhere else (PowerShell used to
+  report every failure as exit 1).
 - Tab over the language server (`muse-spark-code-acp lsp`) no longer asks you
   to approve a spend for a request that cannot be sent. A secret under the
   cursor is now found before the stored key is read and before the paid-use
