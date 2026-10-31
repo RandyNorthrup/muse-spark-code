@@ -1,0 +1,10 @@
+{
+  "purpose": "A real certificate and key for localhost, so the connector's HTTPS suites can serve and a real client can verify it. It protects nothing: it is public, it is only ever trusted by the test process, and it is valid for 100 years so no run depends on the date.",
+  "made": "2026-10-24T18:11:29Z",
+  "tool": "OpenSSL 3.5.3 16 Sep 2025",
+  "command": "openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -keyout localhost.key.pem -out localhost.cert.pem -days 36500 -sha256 -subj \"/CN=localhost\" -addext \"subjectAltName=DNS:localhost,IP:127.0.0.1,IP:::1\" -addext \"basicConstraints=critical,CA:TRUE\" -addext \"keyUsage=critical,digitalSignature,keyCertSign\"",
+  "files": {
+    "localhost.cert.pem": "the certificate (self-signed; the client trusts it as its own authority)",
+    "localhost.key.pem": "its private key (a throwaway: no product, person or machine ever uses it)"
+  }
+}

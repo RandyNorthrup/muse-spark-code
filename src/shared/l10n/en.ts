@@ -8853,7 +8853,51 @@ export const EN = {
       'The connector folder is not private to your account ({folder}), so nothing was done. Make it private to your account (or delete it and grant again) and try again.',
     unavailable: 'The connector could not start.',
     usage:
-      'muse-spark-code-acp mcp [--connection ID]\nmuse-spark-code-acp mcp grant [--connection ID] --workspace FOLDER… [--scope SCOPE…] [--content] [--user-library]\nmuse-spark-code-acp mcp revoke [--connection ID]\nmuse-spark-code-acp mcp kill | resume | status',
+      'muse-spark-code-acp mcp [--connection ID]\nmuse-spark-code-acp mcp grant [--connection ID] --workspace FOLDER… [--scope SCOPE…] [--content] [--user-library]\nmuse-spark-code-acp mcp revoke [--connection ID]\nmuse-spark-code-acp mcp kill | resume | status\nmuse-spark-code-acp mcp serve-http [--connection ID] (--tls-cert FILE --tls-key FILE | --tunnel) [--port N] [--bind loopback|lan|ADDRESS] [--public-url URL] [--open-registration] [--token-minutes N] [--sign-in-days N]\nmuse-spark-code-acp mcp client add [--connection ID] --redirect-uri URI… [--name NAME] [--scope SCOPE…]\nmuse-spark-code-acp mcp client list [--connection ID]\nmuse-spark-code-acp mcp client remove [--connection ID] --client-id ID',
+  },
+  acpConnectorRemote: {
+    consentTitle: 'Connect another agent to this PC',
+    consentIntro:
+      '{client} asks to connect to Muse Spark Code on this PC. Nothing connects until you allow it here.',
+    consentClientAddress: 'The client’s own address: {address}',
+    consentReturnsTo: 'Your browser goes back to {address} once you decide.',
+    consentLocalWarning:
+      'That address is on the computer running the client. Allow this only if you just started the connection from that computer yourself.',
+    consentScopesHeading: 'It asks for these permissions',
+    consentOwnerCode: 'Owner code, printed in the terminal where the connector runs',
+    consentAllow: 'Allow this connection',
+    consentWrongCode:
+      'That owner code is not right. Read it again in the terminal where the connector runs.',
+    consentNoGrant:
+      'Nothing can be allowed: this connection has no active grant, or the client asks for nothing the grant covers. Create the grant with the mcp grant command first.',
+    consentExpired:
+      'This request has expired or was already answered. Start the connection again from the other agent.',
+    errorTitle: 'The connection did not complete',
+    errorBody: 'The request failed ({error}). Start the connection again from the other agent.',
+    ownerCodeLine: 'Owner code for allowing a new connection: {code}',
+    listening: 'Connector listening at {url} (Ctrl+C stops it)',
+    reachNotice:
+      'This connector can be reached from beyond this PC ({bind}). A client can only sign in with your owner code, and every write still needs your approval on this PC.',
+    needsPublicUrl:
+      'A wider address needs --public-url, the address clients use to reach this PC. Nothing was started.',
+    needsHttps:
+      'Give --tls-cert and --tls-key, or --tunnel with --public-url when your own tunnel supplies the HTTPS. Nothing was started.',
+    tunnelNeedsLoopback:
+      '--tunnel serves plain HTTP behind your tunnel, so it can only listen on this PC’s own loopback address. Nothing was started.',
+    tlsUnreadable: 'The TLS file could not be read: {file}. Nothing was started.',
+    listenFailed: 'The connector could not listen on {bind} port {port}. Nothing was started.',
+    requestFailed: 'A request to the connector failed ({cause}).',
+    stateUnreadable:
+      'The saved sign-in state for this connection could not be read, so nothing was started. Delete its oauth file in the connector folder to start over; every client will need to sign in again.',
+    noClients: 'No clients are registered.',
+    clientRow: '{clientId}: {name} ({kind}) — returns to: {redirects} — permissions: {scopes}',
+    clientKindOwner: 'registered by you',
+    clientKindOpen: 'registered by the client itself',
+    clientConfirm: 'Register client {name} that returns to {redirects}? (y/N)',
+    clientSaved: 'Client registered. Its client_id is {clientId}',
+    clientRemoved: 'Client {clientId} removed; its sign-ins have ended.',
+    clientNotFound: 'No client {clientId} is registered.',
+    clientInvalid: 'The client could not be registered: {reason}',
   },
   // M109: read each key through UI_TEXT.vault at use time.
   vault: {

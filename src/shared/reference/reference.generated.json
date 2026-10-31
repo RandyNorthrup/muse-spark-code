@@ -8610,7 +8610,7 @@
     },
     {
       "route": "mcp",
-      "name": "mcp [--connection ID] | mcp <grant|revoke|kill|resume|status ...>",
+      "name": "mcp [--connection ID] | mcp <grant|revoke|kill|resume|status|serve-http|client ...>",
       "description": "Serve Muse Spark Code’s tools to other agents (Codex, Claude Code, Gemini CLI) over MCP; every write waits for your approval.",
       "text": { "ui": "referenceMcpCommand" }
     }

@@ -449,6 +449,18 @@ is not added for the MCP connector (D106): the existing pure MCP server core
 of our own cover stdio. A later phase that needs a package records it here
 first, after the peer, pin and audit checks of AGENTS.md rule 9.
 
+Added, M124 remote (D240, 2026-10-24): `oidc-provider` 9.12.2 (MIT;
+certified OAuth 2.0 / OpenID Connect implementation by the author of
+`jose`), with `@types/oidc-provider` 9.12.1, bundled only into
+`dist/connectorRemote.js`; and `@modelcontextprotocol/sdk` 1.32.1 (MIT)
+as a test-only client for `test/unit/connectorRemote.test.ts` (no shipped
+bundle imports it; the connector's server stays our own core). Exact
+pins; the SDK's transitive `body-parser` is lock-bumped to the fixed
+2.4.0 (GHSA-27r3-jxmh-p828, within `express`'s `^2.3.0` range), so the
+new packages add no high advisory. Newer releases (SDK 1.32.2,
+2026-10-23; oidc-provider 9.13.3, 2026-10-29) wait for `.npmrc`'s
+seven-day release-age rule like the SDK142 pin above.
+
 DEP138 dependency review (2026-10-07): PR #138 proposes ACP SDK 1.5.1,
 Vitest and V8 coverage 5.0.3 together, jscpd 5.4.0, knip 6.39.0 and
 typescript-eslint 8.71.0. Their exact registry peers accept the existing
@@ -9485,6 +9497,55 @@ panel control and a headless flag for the maximum stay unbuilt (no
 setting in the product is set from the panel today, and `exec` does
 not retry). Open items with recommendations: the record above.
 
+### D240 — The connector's remote endpoint runs on the person's own PC (M124 phases R and O, owner 2026-10-23, lane RLF-M124RO; numbered D217 on its branch until the int/recovery join of 2026-10-30, when that number was found shared with the judge fast path's `stat`)
+
+The owner answered Q-M124.1 on 2026-10-23, verbatim: "the remote mcp
+should not be something on a vps this is for the user so it should be on
+their pc". So there is no hosted connector service of ours, no VPS, and no
+domain or OAuth operator of ours: `muse-spark-code-acp mcp serve-http`
+serves the connector's registry from the person's own PC (the same command
+can run on their Muse Node home node when M110 lane N wires a node server;
+nothing here invents that link, D106.3's contract stays M110's). This
+supersedes D106.3's "remote waits for the home node" and D106.4's hosted
+framing; D106's grant, approval, Stop, disclosure and audit rules are
+unchanged. M110d–f, which waited on the same answer, get it too: their
+remote reach likewise ends on the person's own machines, never on a
+service of ours.
+
+- **Reach is the person's to widen.** The listener binds loopback unless
+  the person names a wider address (`--bind lan` or one IP of the PC), and
+  a wider address needs `--public-url`, the name clients use. Plain HTTP
+  exists only on loopback behind a tunnel the person configures
+  (`--tunnel`, for example their own Cloudflare Tunnel), off by default;
+  otherwise the person supplies their own TLS certificate.
+- **Authorization is the PC's own, from an established implementation.**
+  The MCP authorization profile (specification 2025-11-25, read with
+  2026-07-28 and D213's dual-era record) runs on `oidc-provider`
+  9.12.2 (certified OAuth 2.0 / OpenID Connect; §2 D3 records the pin):
+  authorization code with PKCE S256 only, RFC 8707 resource binding to
+  this one MCP resource, rotating refresh tokens (a spent one ends the
+  sign-in), RFC 9728 Protected Resource Metadata, RFC 8414 metadata,
+  RFC 9207 `iss`, RFC 7009 revocation, Client ID Metadata Documents, and
+  RFC 7591 registration only with `--open-registration`. No crypto is
+  hand-rolled; ours is the consent page (an owner code printed in the
+  connector's own terminal, never sent over the network; replaced after
+  five wrong tries and after every approval), the protected-resource
+  challenge, and the binding of every sign-in to the live connection
+  grant: revoking the grant or removing a client (`mcp client remove`)
+  ends its tokens at once. Tokens are stored as digests in the
+  owner-only connector folder (RLM124's guard), never leave the PC as
+  anything else, and never become a Model API key or a child-process
+  credential. Clients the owner registers are named with
+  `mcp client add` (typed confirmation, grant-bounded scopes).
+- **Eras stay D213's.** The HTTP transport speaks the connector's legacy
+  revisions with `Mcp-Session-Id` sessions; a dual-era client falls back
+  to `initialize` exactly as D213 describes. Token lifetimes are the
+  person's flags (`--token-minutes`, `--sign-in-days`); the protocol
+  timings and pre-admission bounds in `CONNECTOR_REMOTE_LIMITS` cite
+  their industry defaults inline and cap no work of the person's.
+- Full record, citations, drills and what is still unproven:
+  `docs/certification/rlf-m124ro.md`.
+
 ## 3. Open questions (need the owner)
 
 <a id="q-cc-licence"></a>
@@ -9530,12 +9591,15 @@ not retry). Open items with recommendations: the record above.
   These questions do not block contracts, fake-only qualification or the
   local stdio phase. The owner did not change the defaults on 2026-10-09, so
   the four defaults stand as the working answers; they are not consent to
-  expose data, register accounts or spend money. Only question 1 still needs
-  the owner, and it blocks only the hosted phase.
-  1. **Remote domain and OAuth operator (still needs the owner; blocks only
-     the hosted phase):** which HTTPS domain and identity provider should the
-     home node use? **Working default:** an owner-operated endpoint on M110's
-     home node and an established OAuth implementation; no new paid service.
+  expose data, register accounts or spend money. Question 1 was answered
+  by the owner on 2026-10-23 and is closed by D240 (below).
+  1. **Remote domain and OAuth operator — answered by the owner
+     2026-10-23, closed by D240.** Verbatim: "the remote mcp should not be
+     something on a vps this is for the user so it should be on their pc".
+     There is no domain or OAuth operator of ours: the endpoint and its
+     authorization server run on the person's own PC (or their Muse Node
+     home node), with their own certificate or their own tunnel. Built by
+     RLF-M124RO (D240); M110d–f get the same answer.
   2. **Initial clients:** which platforms should qualify first? **Working
      answer:** Codex/Claude Code/Gemini CLI locally first, then
      ChatGPT/claude.ai remotely; Gemini Apps/Enterprise next, Meta AI after
@@ -11489,6 +11553,35 @@ sinks), the shared approval UI (M104 waiting), R and O (no M110 home
 node, orchestrator-link contract or Q-M124.1 domain and operator answer),
 and authenticated-session tool calls through the three clients (needs the
 owner's accounts). Record: `docs/certification/rlm124.md`.
+
+**RLF-M124RO record (2026-10-30, branch `rec/rlf-m124ro`).** Phases R and
+O built under D240 from the owner's 2026-10-23 answer: `mcp serve-http`
+serves the registry over Streamable HTTP from the person's own PC
+(loopback by default; `--bind`/`--public-url` widen; `--tunnel` for their
+own tunnel; their own TLS certificate otherwise), and the PC is its own
+authorization server through `oidc-provider` (PKCE S256, resource-bound
+rotating tokens, PRM, owner-code consent, `mcp client add/list/remove`).
+`test/unit/connectorRemote.test.ts` drives it with the official MCP SDK
+client over real HTTPS (discovery and 401, sign-in and tool call, deny and
+wrong code, refresh reuse, foreign-resource token, grant revoke, client
+removal, opt-in registration, reach and startup refusals). Still with the
+lead: the packed-product run and the Inspector/RLMCPERA-client pass (this
+lane's app sandbox cannot pass RLM124's storage guard — its `/` is owned
+by `nobody`, measured identical on the untouched guard suite), Muse
+Node's paired-device channel (M110 lane N wires no node server yet), the
+T adapters and shared approval UI from the RLM124 record. Record:
+`docs/certification/rlf-m124ro.md`.
+
+**RVNET review (2026-10-30, branch `rv/net`, fix `a02ebf146`).** Independent
+review of this listener and of Muse Node `serve` at `review/rlf-nodeserve`
+(`79aee4ca8`). One finding, P2: with a tunnel, a client's `X-Forwarded-Host`
+made discovery advertise that host's token, key and revocation addresses
+while `issuer` stayed the public URL; an absolute-form request line did the
+same and named those addresses with `http`. Every authorization-server URL
+is now built from the public URL the person set.
+`test/unit/connectorRemoteIssuer.test.ts` failed on the real server before
+the pin (vitest exit 1) and passes after. Node `serve` had no finding; no
+`rv/nodeserve` branch remains. Record: `docs/certification/rvnet.md`.
 
 **Provenance.** The documentation-only M119PLAN lane planned this on
 2026-10-07 under the numbers D102/M119 (commits `b27ad09a9`, `00e825dfa` and
@@ -32413,6 +32506,10 @@ The two matching packaged-process rows reuse their existing `TIMEOUT` (30,000 ms
 for the same sixty-request OS operation. All ordinary tests retain the repository
 default; final runs use no `--testTimeout` flag. The default 200-call proof uses
 memory fixtures, and real ACP delivery uses a three-call caller allowance.
+
+| RLF-M124RO location                       | Escape hatch                     | Reason                                                                                                                                                                                                                                                                                    |
+| ----------------------------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/unit/helpers/connectorSdkClient.ts` | `newTransport(...) as Transport` | The MCP SDK's own `StreamableHTTPClientTransport.sessionId` getter is `string \| undefined` where its `Transport` interface declares `sessionId?: string`; `exactOptionalPropertyTypes` will not assign the SDK's class to its own interface. Test-only; remove when the SDK types agree. |
 
 | RLM123 location                      | Escape hatch                             | Reason                                                                                                                                                                                                                                   |
 | ------------------------------------ | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

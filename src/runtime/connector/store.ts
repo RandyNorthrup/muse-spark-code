@@ -19,6 +19,12 @@ import {
   connectorKillSwitchSchema,
   type ConnectorGrant,
 } from '../../shared/connector'
+import {
+  connectorOAuthStateSchema,
+  connectorOwnerClientsSchema,
+  type ConnectorOAuthState,
+  type ConnectorOwnerClients,
+} from '../../shared/connectorRemote'
 import type { AuditPort } from '../../core/connector/audit'
 import type { AuthorityPort, AuthorityState } from '../../core/connector/registry'
 import type { ConnectorStorageGuard } from './storageGuardPort'
@@ -31,6 +37,21 @@ function codeOf(error: unknown): unknown {
 
 function isMissing(error: unknown): boolean {
   return codeOf(error) === 'ENOENT'
+}
+
+/** The stored OAuth state exists but cannot be read (D240): serve nothing. */
+export class OAuthStateUnreadable extends Error {
+  public constructor(options?: { readonly cause?: unknown }) {
+    super(
+      'connector OAuth state unreadable',
+      options?.cause === undefined ? undefined : { cause: options.cause },
+    )
+    this.name = 'OAuthStateUnreadable'
+  }
+}
+
+export function isOAuthStateUnreadable(error: unknown): error is OAuthStateUnreadable {
+  return error instanceof OAuthStateUnreadable
 }
 
 export class ConnectorStore {
@@ -77,6 +98,46 @@ export class ConnectorStore {
     return path.join(this.root, 'grants', `${connectionId}.json`)
   }
 
+  /** Written whole (temporary file, then rename), owner-only. */
+  private async saveJson(folder: string, target: string, value: unknown): Promise<void> {
+    await this.folder(folder)
+    const temp = `${target}.${randomBytes(CONNECTOR_LIMITS.idBytes).toString('hex')}.tmp`
+    try {
+      await writeFile(temp, `${JSON.stringify(value, undefined, 2)}\n`, {
+        mode: CONNECTOR_FILE_MODE,
+        flag: 'wx',
+      })
+      await this.guard?.secure(temp, 'file')
+      await rename(temp, target)
+    } finally {
+      await rm(temp, { force: true })
+    }
+  }
+
+  private oauthFile(connectionId: string): string {
+    return path.join(this.root, 'oauth', `${connectionId}.json`)
+  }
+
+  /** A stored JSON file's value; undefined when there is none, `OAuthStateUnreadable` when it cannot be read. */
+  private async readStored(file: string): Promise<unknown> {
+    let text: string
+    try {
+      text = await readFile(file, 'utf8')
+    } catch (error: unknown) {
+      if (isMissing(error)) return undefined
+      throw new OAuthStateUnreadable({ cause: error })
+    }
+    try {
+      return JSON.parse(text)
+    } catch (error: unknown) {
+      throw new OAuthStateUnreadable({ cause: error })
+    }
+  }
+
+  private ownerClientsFile(connectionId: string): string {
+    return path.join(this.root, 'oauth', `${connectionId}.clients.json`)
+  }
+
   /** The current grant, or undefined: missing, malformed or unreadable grants grant nothing. */
   public async grant(connectionId: string): Promise<ConnectorGrant | undefined> {
     try {
@@ -107,19 +168,49 @@ export class ConnectorStore {
   /** Written whole (temporary file, then rename), owner-only. */
   public async saveGrant(grant: ConnectorGrant): Promise<void> {
     const parsed = connectorGrantSchema.parse(grant)
-    await this.folder('grants')
-    const target = this.grantFile(parsed.connectionId)
-    const temp = `${target}.${randomBytes(CONNECTOR_LIMITS.idBytes).toString('hex')}.tmp`
-    try {
-      await writeFile(temp, `${JSON.stringify(parsed, undefined, 2)}\n`, {
-        mode: CONNECTOR_FILE_MODE,
-        flag: 'wx',
-      })
-      await this.guard?.secure(temp, 'file')
-      await rename(temp, target)
-    } finally {
-      await rm(temp, { force: true })
+    await this.saveJson('grants', this.grantFile(parsed.connectionId), parsed)
+  }
+
+  /**
+  The connection's OAuth state (D240), or undefined when none was ever
+  saved. A file that exists but cannot be parsed throws
+  `OAuthStateUnreadable`: silently minting a fresh signing key would
+  drop every registered client without the owner being told.
+  */
+  public async oauthState(connectionId: string): Promise<ConnectorOAuthState | undefined> {
+    const value = await this.readStored(this.oauthFile(connectionId))
+    if (value === undefined) return undefined
+    const parsed = connectorOAuthStateSchema.safeParse(value)
+    if (!parsed.success || parsed.data.connectionId !== connectionId) {
+      throw new OAuthStateUnreadable()
     }
+    return parsed.data
+  }
+
+  public async saveOAuthState(state: ConnectorOAuthState): Promise<void> {
+    const parsed = connectorOAuthStateSchema.parse(state)
+    await this.saveJson('oauth', this.oauthFile(parsed.connectionId), parsed)
+  }
+
+  /**
+  The owner's registered clients and revocations (D240), or undefined when
+  the owner never registered or revoked one. A file that exists but cannot
+  be read throws `OAuthStateUnreadable`: serving without it would let a
+  client the owner ended sign in again.
+  */
+  public async ownerClients(connectionId: string): Promise<ConnectorOwnerClients | undefined> {
+    const value = await this.readStored(this.ownerClientsFile(connectionId))
+    if (value === undefined) return undefined
+    const parsed = connectorOwnerClientsSchema.safeParse(value)
+    if (!parsed.success || parsed.data.connectionId !== connectionId) {
+      throw new OAuthStateUnreadable()
+    }
+    return parsed.data
+  }
+
+  public async saveOwnerClients(state: ConnectorOwnerClients): Promise<void> {
+    const parsed = connectorOwnerClientsSchema.parse(state)
+    await this.saveJson('oauth', this.ownerClientsFile(parsed.connectionId), parsed)
   }
 
   /**

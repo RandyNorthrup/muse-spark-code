@@ -10,6 +10,7 @@ import path from 'node:path'
 import { parseArgs } from 'node:util'
 import {
   CONNECTOR_DEFAULT_CONNECTION,
+  CONNECTOR_REMOTE_DEFAULT_PORT,
   CONNECTOR_SCHEMA_VERSION,
   UI_TEXT,
 } from '../../shared/constants'
@@ -51,8 +52,37 @@ async function controlReceipt(
   })
 }
 
+/** The HTTPS serving command (D240); run by the remote bundle alone. */
+export interface ServeHttpCommand {
+  readonly kind: 'serveHttp'
+  readonly connectionId: string
+  readonly port: number
+  /** `loopback` (default), `lan` (every interface), or one IP address of this PC. */
+  readonly bind: string
+  readonly tlsCert: string | undefined
+  readonly tlsKey: string | undefined
+  /** The person's own tunnel or proxy ends TLS in front: plain HTTP on loopback behind it. */
+  readonly isTunnel: boolean
+  /** How clients name this PC (a tunnel or proxy in front); the issuer. */
+  readonly publicUrl: string | undefined
+  /** Clients may register themselves (RFC 7591); off unless the person asks. */
+  readonly allowOpenRegistration: boolean
+  readonly accessTokenMinutes: number | undefined
+  readonly signInDays: number | undefined
+}
+
 export type ConnectorCommand =
+  | ServeHttpCommand
   | { readonly kind: 'serve'; readonly connectionId: string }
+  | {
+      readonly kind: 'clientAdd'
+      readonly connectionId: string
+      readonly name: string
+      readonly redirectUris: readonly string[]
+      readonly scopes: readonly string[]
+    }
+  | { readonly kind: 'clientList'; readonly connectionId: string }
+  | { readonly kind: 'clientRemove'; readonly connectionId: string; readonly clientId: string }
   | {
       readonly kind: 'grant'
       readonly connectionId: string
@@ -73,12 +103,71 @@ const DEFAULT_SCOPES: readonly ConnectorScope[] = [
   'control:stop',
 ]
 
+const PORT_MAX = 65_535
+
+function portOf(text: string | undefined): number | undefined {
+  if (text === undefined) return CONNECTOR_REMOTE_DEFAULT_PORT
+  const port = Number(text)
+  return Number.isSafeInteger(port) && port >= 1 && port <= PORT_MAX ? port : undefined
+}
+
+/** A whole number of at least one, or undefined for absent or malformed. */
+function wholeOf(text: string | undefined): number | undefined {
+  if (text === undefined) return undefined
+  const value = Number(text)
+  return Number.isSafeInteger(value) && value >= 1 ? value : undefined
+}
+
+/** The word that names the command, and the arguments after it. */
+function actionOf(argv: readonly string[]): { action: string; args: readonly string[] } {
+  const [first, second = '', ...tail] = argv
+  if (first === 'client') return { action: `client-${second}`, args: tail }
+  return first === undefined || first.startsWith('--')
+    ? { action: 'serve', args: argv }
+    : { action: first, args: argv.slice(1) }
+}
+
+/** Which commands read each option: an option on any other command is a usage error. */
+const OPTION_COMMANDS: Readonly<Record<string, readonly string[]>> = {
+  workspace: ['grant'],
+  content: ['grant'],
+  'user-library': ['grant'],
+  scope: ['grant', 'client-add'],
+  port: ['serve-http'],
+  bind: ['serve-http'],
+  'tls-cert': ['serve-http'],
+  'tls-key': ['serve-http'],
+  'public-url': ['serve-http'],
+  tunnel: ['serve-http'],
+  'open-registration': ['serve-http'],
+  'token-minutes': ['serve-http'],
+  'sign-in-days': ['serve-http'],
+  name: ['client-add'],
+  'redirect-uri': ['client-add'],
+  'client-id': ['client-remove'],
+}
+
+const REMOTE_KINDS: ReadonlySet<string> = new Set([
+  'serveHttp',
+  'clientAdd',
+  'clientList',
+  'clientRemove',
+])
+
+/** The commands the remote bundle runs; the stdio bundle refuses them with usage. */
+export function isRemoteCommand(
+  command: ConnectorCommand,
+): command is Extract<
+  ConnectorCommand,
+  { kind: 'serveHttp' | 'clientAdd' | 'clientList' | 'clientRemove' }
+> {
+  return REMOTE_KINDS.has(command.kind)
+}
+
 export function parseConnectorCommand(argv: readonly string[]): ConnectorCommand | undefined {
   // Asking for help is never a usage error, wherever the word sits.
   if (argv.includes('--help') || argv.includes('-h')) return { kind: 'usage' }
-  const [first, ...rest] = argv
-  const action = first === undefined || first.startsWith('--') ? 'serve' : first
-  const args = action === 'serve' ? argv : rest
+  const { action, args } = actionOf(argv)
   try {
     const { values } = parseArgs({
       args: [...args],
@@ -90,20 +179,74 @@ export function parseConnectorCommand(argv: readonly string[]): ConnectorCommand
         scope: { type: 'string', multiple: true },
         content: { type: 'boolean' },
         'user-library': { type: 'boolean' },
+        port: { type: 'string' },
+        bind: { type: 'string' },
+        'tls-cert': { type: 'string' },
+        'tls-key': { type: 'string' },
+        'public-url': { type: 'string' },
+        tunnel: { type: 'boolean' },
+        'open-registration': { type: 'boolean' },
+        'token-minutes': { type: 'string' },
+        'sign-in-days': { type: 'string' },
+        name: { type: 'string' },
+        'redirect-uri': { type: 'string', multiple: true },
+        'client-id': { type: 'string' },
       },
     })
-    const hasGrantOptions =
-      values.workspace !== undefined ||
-      values.scope !== undefined ||
-      values.content !== undefined ||
-      values['user-library'] !== undefined
-    if (hasGrantOptions && action !== 'grant') return undefined
+    const isMisplaced = Object.keys(values).some(
+      (name) => OPTION_COMMANDS[name] !== undefined && !OPTION_COMMANDS[name].includes(action),
+    )
+    if (isMisplaced) return undefined
     const connectionId = values.connection ?? CONNECTOR_DEFAULT_CONNECTION
     // The name becomes file paths in the store; nothing else may reach them.
     if (!connectorConnectionIdSchema.safeParse(connectionId).success) return undefined
     switch (action) {
       case 'serve': {
         return { kind: 'serve', connectionId }
+      }
+      case 'serve-http': {
+        const port = portOf(values.port)
+        const minutes = wholeOf(values['token-minutes'])
+        const days = wholeOf(values['sign-in-days'])
+        if (
+          port === undefined ||
+          (minutes === undefined && values['token-minutes'] !== undefined) ||
+          (days === undefined && values['sign-in-days'] !== undefined)
+        ) {
+          return undefined
+        }
+        return {
+          kind: 'serveHttp',
+          connectionId,
+          port,
+          bind: values.bind ?? 'loopback',
+          tlsCert: values['tls-cert'],
+          tlsKey: values['tls-key'],
+          isTunnel: values.tunnel === true,
+          publicUrl: values['public-url'],
+          allowOpenRegistration: values['open-registration'] === true,
+          accessTokenMinutes: minutes,
+          signInDays: days,
+        }
+      }
+      case 'client-add': {
+        const redirectUris = values['redirect-uri'] ?? []
+        if (redirectUris.length === 0) return undefined
+        return {
+          kind: 'clientAdd',
+          connectionId,
+          name: values.name ?? '',
+          redirectUris,
+          scopes: values.scope ?? [],
+        }
+      }
+      case 'client-list': {
+        return { kind: 'clientList', connectionId }
+      }
+      case 'client-remove': {
+        return values['client-id'] === undefined
+          ? undefined
+          : { kind: 'clientRemove', connectionId, clientId: values['client-id'] }
       }
       case 'grant': {
         const workspaces = values.workspace ?? []
@@ -235,10 +378,15 @@ async function grant(
   return 0
 }
 
-/** The owner's commands; `serve` belongs to the entry. */
+/** The local owner's commands; serving and the OAuth commands have their own entries. */
+export type LocalConnectorCommand = Exclude<
+  ConnectorCommand,
+  { kind: 'serve' | 'serveHttp' | 'clientAdd' | 'clientList' | 'clientRemove' }
+>
+
 export async function runConnectorCommand(
   store: ConnectorStore,
-  command: Exclude<ConnectorCommand, { kind: 'serve' }>,
+  command: LocalConnectorCommand,
   io: CommandIo,
 ): Promise<number> {
   switch (command.kind) {

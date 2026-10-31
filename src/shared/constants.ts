@@ -7466,8 +7466,10 @@ export const HTTP_STATUS = {
   notFound: 404,
   methodNotAllowed: 405,
   requestTooLarge: 413,
+  unsupportedMediaType: 415,
   unprocessable: 422,
   internalServerError: 500,
+  serviceUnavailable: 503,
 } as const
 
 // Initial HTTP validation/auth/quota refusals precede generation. Timeout and
@@ -11449,6 +11451,61 @@ export const CONNECTOR_COMPANION_LIMITS = {
   sessionTtlMs: 1_800_000,
   maxSessions: 2,
 } as const
+// M124 remote (D240): the connector over HTTPS Streamable HTTP with the
+// MCP authorization profile (OAuth 2.1 + PKCE), served by the person's
+// own PC. Loaded only by `muse-spark-code-acp mcp serve-http` and
+// `mcp client …`.
+export const CONNECTOR_REMOTE_BUNDLE_FILE = 'connectorRemote.js'
+export const CONNECTOR_REMOTE_DEFAULT_PORT = 9443
+/**
+Limits of the remote endpoint. None caps the person's work: the first
+group is protocol timing (an authorization code is short-lived, an access
+token is short-lived by the profile's own words), the second protects the
+PC from strangers before anyone has been admitted (state an unauthenticated
+caller can create), and the token and grant lifetimes are the person's to
+set on the command.
+*/
+export const CONNECTOR_REMOTE_LIMITS = {
+  /** An authorization code: OAuth 2.1 draft-13 §4.1.2 asks for a short life; Keycloak and Okta default to 60 s. */
+  codeTtlSeconds: 60,
+  /** Access tokens: one hour (the profile asks for short-lived ones); `--token-minutes` sets it. */
+  accessTokenSeconds: 3600,
+  /** How long a sign-in lasts before the client signs in again; `--sign-in-days` sets it. 30 days. */
+  grantTtlSeconds: 2_592_000,
+  /** A consent page left open: Keycloak's login timeout default is 30 minutes; ten here, the owner is at the PC. */
+  interactionTtlSeconds: 600,
+  /** The owner's browser session on the consent page. */
+  sessionTtlSeconds: 3600,
+  /** The form bodies the owner's consent page and the OAuth endpoints read. 16 KiB. */
+  formBodyBytes: 16_384,
+  /** Open registrations by unknown clients kept at once: Keycloak's anonymous "Max Clients" default. */
+  openClientsMax: 200,
+  /** An open registration nobody approved lapses after an hour. */
+  openClientTtlMs: 3_600_000,
+  /** Consent pages waiting at once; for one owner at one PC. */
+  interactionsMax: 100,
+  /** Wrong owner codes before the code is replaced and printed again (NIST SP 800-63B §5.2.2 allows 100). */
+  ownerCodeFailuresMax: 5,
+  /** Characters of the owner code: 12 of base32 is 60 bits. */
+  ownerCodeChars: 12,
+  /** Random bytes of the secret that signs the consent page's cookies. */
+  cookieKeyBytes: 32,
+} as const
+export const CONNECTOR_REMOTE_PATHS = {
+  mcp: '/mcp',
+  authorize: '/authorize',
+  token: '/token',
+  register: '/register',
+  revoke: '/revoke',
+  jwks: '/jwks.json',
+  interaction: '/interaction',
+  protectedResource: '/.well-known/oauth-protected-resource',
+  authorizationServer: '/.well-known/oauth-authorization-server',
+  openidConfiguration: '/.well-known/openid-configuration',
+} as const
+/** The one account every sign-in belongs to: the person at this PC. */
+export const CONNECTOR_REMOTE_OWNER_ACCOUNT = 'owner'
+
 export const CONNECTOR_FOLDER = 'connector'
 export const CONNECTOR_FILE_MODE = 0o600
 export const CONNECTOR_FOLDER_MODE = 0o700

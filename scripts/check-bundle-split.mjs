@@ -533,6 +533,24 @@ for (const source of [
     if (inputsOf(bundle).has(source))
       problems.push(`${bundle.output} carries lazy connector implementation ${source}`)
 }
+// M124 remote (D240): the HTTPS endpoint and its OAuth server load only on
+// `mcp serve-http` and `mcp client`; neither the stdio connector nor any
+// other bundle carries them.
+const CONNECTOR_REMOTE = {
+  output: 'dist/connectorRemote.js',
+  metafile: 'dist/meta/connectorRemote.json',
+}
+for (const source of [
+  'src/runtime/connector/remoteEntry.ts',
+  'src/runtime/connector/http.ts',
+  'src/runtime/connector/oauth/server.ts',
+]) {
+  if (!inputsOf(CONNECTOR_REMOTE).has(source))
+    problems.push(`${CONNECTOR_REMOTE.output} no longer carries ${source}`)
+  for (const bundle of [BUNDLES.activation, BUNDLES.acp, BUNDLES.modelApi, CONNECTOR])
+    if (inputsOf(bundle).has(source))
+      problems.push(`${bundle.output} carries lazy remote connector implementation ${source}`)
+}
 const promptInputs = inputsOf(PROMPTS)
 for (const source of [
   'src/host/vscode/prompts/promptEntry.ts',
@@ -863,6 +881,7 @@ for (const bundle of [
   PROMPTS,
   SHARING_RUNTIME,
   CONNECTOR,
+  CONNECTOR_REMOTE,
   REVIEW,
   JUDGE,
   ...JUDGE_CHILDREN,
@@ -1689,6 +1708,7 @@ const TEXT_BLOCKS = [
       SHARING_RUNTIME.output,
       // M124's prompt share preview reuses M118's share contract with it.
       CONNECTOR.output,
+      CONNECTOR_REMOTE.output,
       'dist/conversation.js',
       // CONVBUDGET: the session-transfer flows read the export redactions.
       'dist/conversationTransfer.js',
@@ -1898,7 +1918,7 @@ const TEXT_BLOCKS = [
   {
     block: 'CONNECTOR_MODEL_TEXT',
     sentinels: ['reasonNoFleetStore', 'reasonScheduleGrant'],
-    readers: [CONNECTOR.output],
+    readers: [CONNECTOR.output, CONNECTOR_REMOTE.output],
   },
 ].map((entry) => ({
   ...entry,
