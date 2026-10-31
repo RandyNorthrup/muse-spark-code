@@ -678,6 +678,18 @@ happened, not what was planned; superseded entries are kept.
 - One-shot product notices in editor sessions no longer fold into the
   model's answer: where the editor shows no notices they go out as
   their own message with their own id.
+
+### Security
+
+- **The native Windows job helper no longer reads the workspace or `PATH`
+  for programs or DLLs.** The compiled helper the resource governor runs on
+  Windows (its tree reads and created-directory registry, proven in a packed
+  `lsp --tab` run) now starts in its own folder with an empty `PATH`, so
+  neither Windows' program lookup nor its DLL search reaches the workspace or
+  a folder on the inherited `PATH`; it starts only fully qualified programs
+  and restricts its DLL loads to its own folder and the system folder. A
+  program or DLL planted under a trusted name on `PATH` or in the workspace
+  is never run or loaded.
 ### Added
 
 - **Model API on the Muse Code subscription** (C-M95-SUB). The Model API

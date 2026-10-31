@@ -24327,6 +24327,27 @@ launch has no product caller yet (`startNativeTeamLifetime`), so nothing is
 claimed until a real team run goes through a packed build. Record:
 `docs/certification/cc-winrunteam.md`.
 
+**CC-WINPATH — the job helper's PATH, working folder and DLL search, closed
+for every native caller (2026-10-30, Windows 11, cc/winrunteam 57e6126ca9).**
+CC-WINRUNTEAM's decisions 1 and 4, accepted as a security hardening.
+`windowsJobHost` now passes `PATH` present and empty and the helper's own
+folder as the working folder; every native caller (`workerOps.ts`,
+`containedJob.ts`, `playbookWindow.ts`, `processTree.ts`,
+`resourceJobHolder.ts`, the governor's tree reads and created-path registry,
+and `windowsTeamDriver`'s `run-team`) passes that folder as `cwd` while the
+payload still gets the folder it is meant to work in. In the C#,
+`MuseSparkJobHost` restricts the process DLL search to the application folder
+and System32 (`SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_APPLICATION_DIR |
+LOAD_LIBRARY_SEARCH_SYSTEM32)`; `[assembly: DefaultDllImportSearchPaths(System32)]`
+for every platform invoke), and `RunTeam` and the contained call refuse any
+program or working folder that is not fully qualified. A planted `whoami.exe`
+under a program name (`git.exe`) or a DLL name, first on the parent's PATH and
+in the workspace, is never run or loaded by any caller (loader traces and
+real-process drills). Decision 4: `MuseSparkJob.cs` and
+`MuseSparkMcpLauncher.cs` now cite the real suites (`jobHostNative.test.ts`,
+`mcpJobRetire.test.ts`), not the absent `jobSource.test.ts`. Record:
+`docs/certification/cc-winpath.md`.
+
 ---
 
 ### M108 — Several accounts per provider, with use thresholds (D88)

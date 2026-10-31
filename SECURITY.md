@@ -219,6 +219,21 @@ Releases and npm.
   Code CLI are found by absolute path only: an empty or relative `PATH`
   entry (which means the working directory, the workspace) is never
   searched, and `museBinaryPath` must be absolute.
+- **The native Windows job helper.** On Windows the resource governor, the
+  team workers' file commands and launches, the playbook's contained job and
+  the legacy shell stop run one compiled helper
+  (`native/windows/MuseSparkJob.cs`) as a program of its own. It is started
+  by its absolute path, in its own folder, with `PATH` given empty, so
+  neither Windows' program lookup nor its DLL search reaches the workspace
+  (the current folder) or a folder on the parent's `PATH`; the payload still
+  gets the working folder it is meant to have, as an argument. The helper
+  starts only fully qualified programs (a bare name or a relative path is
+  refused before anything starts) and restricts its own DLL loads to its
+  folder and `%windows%\system32`
+  (`SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_APPLICATION_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32)`;
+  `DefaultDllImportSearchPaths(System32)` on every platform invoke). A
+  program or DLL planted under a trusted name, first on the parent's `PATH`
+  and in the workspace, is never run or loaded.
 - **Turn checkpoints.** They live in a git repository of the extension's
   own in a canonical-root namespace under extension global storage, never
   in the workspace's `.git` (no object,
