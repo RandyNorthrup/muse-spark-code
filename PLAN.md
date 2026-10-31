@@ -27742,6 +27742,16 @@ security` threshold; the OS images' QEMU boot test and their reproducibility
 
 ### M111 — Muse Desktop: the host edition's own shell (D91)
 
+**Status 2026-10-30 (RLF-M111WB): building.** Lane WB landed. The Electron
+workbench shell is built and proven on linuxlt: single instance, one window
+per workspace, the sandboxed bridge, the D91.13 layout with the terminal
+panel and tabbed footer, status items published for SH1's bar, quick open,
+the keybinding registry and per-workspace layout persistence. Electron
+45.0.0 is pinned (45.2.0 was inside the 7-day `min-release-age` window).
+The record, the red/green drills and the light/dark looks are in
+`docs/certification/rlf-m111wb.md`. SH1, SH2, ED, SB1, BP and the settings
+lanes have not started; nothing is installable yet (M111i owns that).
+
 **Status 2026-10-23 (RLF-M111L0): planned.** Mockups approved; lane 0 landed. The
 owner approved the lead's 18-screen mockups on 2026-10-23 ("looks great"),
 closing Q-M111 item 6 and unblocking lanes SH1, SH2, WB and ST. The sources

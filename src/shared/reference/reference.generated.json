@@ -9044,6 +9044,18 @@
       "key": "Ctrl+S / Cmd+S",
       "when": "node.editor",
       "text": { "ui": "referenceNodeEditorKeys" }
+    },
+    {
+      "command": "desktop.quickOpen",
+      "key": "Enter / Escape",
+      "when": "desktop.quickOpen",
+      "text": { "ui": "referenceMenuKeys" }
+    },
+    {
+      "command": "desktop.terminal",
+      "key": "Enter",
+      "when": "desktop.terminal",
+      "text": { "ui": "referenceDesktopTerminalKeys" }
     }
   ]
 }

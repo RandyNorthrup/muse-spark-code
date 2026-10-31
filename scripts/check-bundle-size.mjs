@@ -70,6 +70,15 @@ const BUDGETS = [
   { path: 'dist/runtimeMaker.js', budgetKiB: 126 },
   // PORTM103: shared first-use maker schemas; 12.6 KiB plus 15%, rounded to 25 KiB.
   { path: 'dist/makerContracts.js', budgetKiB: 25 },
+  // M111 WB (D91.12): the Electron workbench bundles. New bundles, measured
+  // +15% rounded to the next 25 KiB (D6): main 892.9 KiB, preload 880.9 KiB,
+  // renderer 1112.0 KiB, renderer.css 4.1 KiB. They carry the full English
+  // table through constants.ts's UI_TEXT re-export; regionalising desktop
+  // text like the Node bundles' uiText regions is TH/J follow-up work.
+  { path: 'dist/desktop/main.mjs', budgetKiB: 1050 },
+  { path: 'dist/desktop/preload.cjs', budgetKiB: 1025 },
+  { path: 'dist/desktop/renderer.js', budgetKiB: 1300 },
+  { path: 'dist/desktop/renderer.css', budgetKiB: 25 },
   { path: 'dist/extension.js', budgetKiB: 600 },
   // M100: measured 74.8 KiB + 15%, rounded to the next 25 KiB (D6). Re-measured
   // with the Windows storage binding (P-I-WINDOWS-STORAGE, its C# shipped

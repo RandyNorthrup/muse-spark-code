@@ -186,7 +186,9 @@
       "nodeDashboard.sessionWeb",
       "nodeDashboard.sessionEditor",
       "nodeOs.diskTitle",
-      "watchdog.verdicts.spam"
+      "watchdog.verdicts.spam",
+      "desktop.workbenchChat",
+      "desktop.workbenchEditor"
     ],
     "tr": [
       "groupModel",
@@ -204,7 +206,9 @@
       "judgeSetupCli.planModel",
       "nodeDashboard.sessionWeb",
       "nodeOs.diskTitle",
-      "desktop.sessionTerminal"
+      "desktop.sessionTerminal",
+      "desktop.workbenchTerminal",
+      "desktop.workbenchStatusTerminals.one"
     ],
     "pl": [
       "groupModel",
@@ -231,7 +235,9 @@
       "judgeSetupCli.planModel",
       "nodeDashboard.sessionWeb",
       "desktop.sessionTerminal",
-      "watchdog.verdicts.spam"
+      "watchdog.verdicts.spam",
+      "desktop.workbenchTerminal",
+      "desktop.workbenchStatusTerminals.one"
     ],
     "de": [
       "groupSkills",
@@ -293,7 +299,10 @@
       "desktop.downloadSize",
       "desktop.details",
       "watchdog.verdicts.spam",
-      "developer.versionLine"
+      "developer.versionLine",
+      "desktop.workbenchChat",
+      "desktop.workbenchEditor",
+      "desktop.workbenchTerminal"
     ],
     "es": [
       "hooksItem",
@@ -318,7 +327,11 @@
       "nodeDashboard.sessionWeb",
       "nodeDashboard.sessionEditor",
       "desktop.sessionTerminal",
-      "watchdog.verdicts.spam"
+      "watchdog.verdicts.spam",
+      "desktop.workbenchChat",
+      "desktop.workbenchEditor",
+      "desktop.workbenchTerminal",
+      "desktop.workbenchStatusTerminals.one"
     ],
     "pt-br": [
       "agentTokens",
@@ -341,7 +354,11 @@
       "nodeDashboard.sessionEditor",
       "desktop.sessionTerminal",
       "desktop.downloadSize",
-      "watchdog.verdicts.spam"
+      "watchdog.verdicts.spam",
+      "desktop.workbenchChat",
+      "desktop.workbenchEditor",
+      "desktop.workbenchTerminal",
+      "desktop.workbenchStatusTerminals.one"
     ],
     "fr": [
       "modesTitle",
@@ -388,7 +405,10 @@
       "desktop.notificationsCount.other",
       "desktop.notificationsCount.many",
       "watchdog.verdicts.spam",
-      "developer.versionLine"
+      "developer.versionLine",
+      "desktop.workbenchChat",
+      "desktop.workbenchTerminal",
+      "desktop.workbenchStatusTerminals.one"
     ],
     "it": [
       "usageAccount",
@@ -419,7 +439,10 @@
       "desktop.password",
       "desktop.sessionDesktop",
       "desktop.downloadSize",
-      "watchdog.verdicts.spam"
+      "watchdog.verdicts.spam",
+      "desktop.workbenchChat",
+      "desktop.workbenchEditor",
+      "desktop.workbenchOutput"
     ],
     "zh-cn": ["toolLabels.shell", "devices.cpuPressure"],
     "zh-tw": ["toolLabels.shell", "devices.cpuPressure"],

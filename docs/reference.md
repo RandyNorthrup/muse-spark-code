@@ -4116,6 +4116,8 @@ These are defaults; editor customizations take precedence.
 - `devices.unlink`: `Escape`; when `devices.unlink`; Close the dialog or move focus within it.
 - `node.tree`: `ArrowDown / ArrowUp / Home / End / Enter / Space / ArrowRight / ArrowLeft`; when `node.tree`; Move between files, expand or collapse a folder, or open the active file.
 - `node.editor`: `Ctrl+S / Cmd+S`; when `node.editor`; Save the open file.
+- `desktop.quickOpen`: `Enter / Escape`; when `desktop.quickOpen`; Navigate items, choose or complete a selection, or close the list.
+- `desktop.terminal`: `Enter`; when `desktop.terminal`; Run the typed line in the Muse Desktop terminal.
 
 ## ACP / CLI commands
 
