@@ -360,11 +360,15 @@ export class MuseCodeBackendManager {
       throw new Error(`${resolution.reason} Searched: ${resolution.searched.join(', ')}`)
     }
     const launch: MuseLaunch = resolution.launch
+    // `dispose` aborts this signal and then replaces it: the attempt keeps the
+    // one it started under, so a dispose that lands while the process is
+    // launching still ends the wait for its answer (RLF-SHUTDOWN).
+    const stop = this.resourceStop.signal
     await this.admitWorkspaceHost()
     // Loaded before the lease is taken: a bundle that will not load must
     // refuse without holding resource admission.
     const backend = this.loadBackend()
-    const resource = await admitResource('museServe', this.resourceStop.signal)
+    const resource = await admitResource('museServe', stop)
     if (this.generation !== generation) {
       resource?.complete(true)
       throw new Error(UI_TEXT.questionCancelled)
@@ -463,7 +467,7 @@ export class MuseCodeBackendManager {
             experimentalApi: true,
           },
         }),
-        this.resourceStop.signal,
+        stop,
         () => new Error(UI_TEXT.questionCancelled),
         (elapsedMs) => {
           this.deps.log.info(stillWaitingText({ key: 'museServeStarting' }, elapsedMs))

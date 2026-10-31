@@ -30,6 +30,8 @@ const PRODUCTION_BUILD_SUITES: ReadonlySet<string> = new Set([
   'test/unit/judgeP2RedesignSides.test.ts',
   // M104 lane H: the language server and supervision run from dist/acp.js.
   'test/unit/runtimeLsp.test.ts',
+  // RLF-SHUTDOWN: the served agent's endings run from dist/acp.js and its lazy backend bundles.
+  'test/unit/acpShutdown.test.ts',
   // M104 lane B: the runtime panel runs from dist/acp.js and dist/runtimePanel.js.
   'test/unit/runtimePanel.test.ts',
   // M104 lane B: the chat in the runtime panel runs the conversation controller from dist/acp.js.

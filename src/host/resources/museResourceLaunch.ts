@@ -8,12 +8,14 @@ import type { spawnMspConnection } from '@muse-code/sdk/dist/src/connection/spaw
 import { posixQuoted } from '../../core/shellQuote'
 import { resourceWindowsJob } from '../../core/resources/admission'
 import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
+import { isErrno } from '../../core/fs/errno'
 import {
   RESOURCE_ID_MAX_LENGTH,
   RESOURCE_SAMPLE_MS,
   RESOURCE_LAUNCH_POLL_MS,
   RESOURCE_MUSE_SHUTDOWN_MS,
   RESOURCE_MUSE_CLOSE_GRACE_MS,
+  RESOURCE_MUSE_TERMINATE_GRACE_MS,
   RESOURCE_TIMER_MAX_MS,
 } from '../../shared/constants'
 import { prepareMcpJobLaunch } from '../backend/mcpJobLaunch'
@@ -42,6 +44,8 @@ async function museResourceLaunch(
     register(): Promise<void>
     dispose(): Promise<void>
     complete(isTreeGone: boolean): void
+    /** POSIX: the pid the wrapper wrote, which is the SDK's process group (after `register`). */
+    group?: () => number | undefined
   }
 > {
   const unchanged = {
@@ -96,12 +100,14 @@ async function museResourceLaunch(
   // A private side file contains only the generated wrapper's PID, never CLI output.
   const folder = await mkdtemp(path.join(resource.temp?.root ?? tmpdir(), 'muse-resource-'))
   const file = path.join(folder, 'root')
+  let group: number | undefined
   return {
     command: '/bin/sh',
     env: resourceEnvironment(launch.env, resource),
     complete: (isTreeGone) => {
       resource.complete(isTreeGone)
     },
+    group: () => group,
     args: [
       '-c',
       `umask 077; printf '%s' "$$" > ${posixQuoted(file)}; exec ${posixQuoted(launch.command)} ${launch.args.map((arg) => posixQuoted(arg)).join(' ')}`,
@@ -115,6 +121,7 @@ async function museResourceLaunch(
           const pid = Number(text)
           if (!Number.isSafeInteger(pid) || pid <= 0) break
           resource.register({ pid, group: true, parentPid: process.pid })
+          group = pid
           return
         } catch {
           // The pid file is not there yet; wait for the next poll.
@@ -126,6 +133,32 @@ async function museResourceLaunch(
     dispose: async () => {
       await rm(folder, { recursive: true, force: true })
     },
+  }
+}
+
+/**
+SIGTERM or SIGKILL to the whole group the SDK made for the child (FR-017b):
+a group already gone is the goal reached; any other refusal stays loud.
+*/
+function signalGroup(group: number, signal: 'SIGTERM' | 'SIGKILL'): void {
+  try {
+    process.kill(-group, signal)
+  } catch (error: unknown) {
+    if (!isErrno(error) || error.code !== 'ESRCH') throw error
+  }
+}
+
+/** Whether `exited` settles within `ms`; the timer never outlives the answer. */
+async function didExitWithin(exited: Promise<unknown>, ms: number): Promise<boolean> {
+  const stop = new AbortController()
+  const hasSettled = async (): Promise<boolean> => {
+    await exited
+    return true
+  }
+  try {
+    return await Promise.race([hasSettled(), delay(ms, false, { signal: stop.signal })])
+  } finally {
+    stop.abort()
   }
 }
 
@@ -187,9 +220,33 @@ async function spawnGovernedMuseConnection<T extends ResourceHandshake>(
         resource !== undefined && process.platform === 'win32' ? closeBoundMs : drainMs,
       env: launch.env,
     })
+    // The exit seen: a group signal after it could meet a recycled id.
+    let hasExited = false
+    const isGone = () => hasExited
+    // RLF-SHUTDOWN: until `initialize` answers there is no session to drain, so
+    // a close ends the process at once instead of giving it the SDK's drain
+    // window: SIGTERM to its group, a short grace, then SIGKILL (POSIX); the
+    // job helper's stop (Windows). Without a known group the SDK's own ladder
+    // still ends it.
+    let hasAnswered = false
+    const exited = handshake.exited
+    const abandon = async (): Promise<void> => {
+      if (isGone()) return
+      const group = launch?.group?.()
+      if (group !== undefined) {
+        signalGroup(group, 'SIGTERM')
+        if (!(await didExitWithin(exited, RESOURCE_MUSE_TERMINATE_GRACE_MS)) && !isGone())
+          signalGroup(group, 'SIGKILL')
+      } else if (process.platform === 'win32') {
+        await resource?.kill?.()
+      }
+    }
     // All SDK close surfaces retain their actual exit evidence. A failed native
     // proof or pipes that remain open reject within the bound, never report success.
-    const bounded = <T>(action: () => Promise<T>): (() => Promise<T>) => {
+    const bounded = <T>(
+      action: () => Promise<T>,
+      isUnanswered?: () => boolean,
+    ): (() => Promise<T>) => {
       let pending: Promise<T> | undefined
       return () =>
         (pending ??= (async () => {
@@ -215,6 +272,7 @@ async function spawnGovernedMuseConnection<T extends ResourceHandshake>(
             const closing = async () => {
               let result: T
               try {
+                if (isUnanswered?.() === true) await abandon()
                 result = await action()
               } catch (error: unknown) {
                 await force()
@@ -241,13 +299,15 @@ async function spawnGovernedMuseConnection<T extends ResourceHandshake>(
           }
         })())
     }
-    handshake.close = bounded(handshake.close.bind(handshake))
+    const isUnanswered = () => !hasAnswered
+    handshake.close = bounded(handshake.close.bind(handshake), isUnanswered)
     if (handshake.child !== undefined)
-      handshake.child.close = bounded(handshake.child.close.bind(handshake.child))
+      handshake.child.close = bounded(handshake.child.close.bind(handshake.child), isUnanswered)
     const initialize = handshake.initialize.bind(handshake)
     handshake.initialize = async (params) => {
       try {
         const spawned = await initialize(params)
+        hasAnswered = true
         spawned.close = bounded(spawned.close.bind(spawned))
         return spawned
       } catch (error: unknown) {
@@ -256,6 +316,7 @@ async function spawnGovernedMuseConnection<T extends ResourceHandshake>(
       }
     }
     const ended = () => {
+      hasExited = true
       launch?.complete(false)
     }
     void handshake.exited

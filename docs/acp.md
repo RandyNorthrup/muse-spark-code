@@ -530,6 +530,17 @@ Headless `exec` takes no MCP servers, so this route needs an ACP client.
 | `--auto-compaction`                    | Accepted; automatic compaction is already on by default once evaluated, so the flag changes nothing on its own                                        |
 | `--no-auto-compaction`                 | Turn the default-on automatic compaction off (also accepted by exec, where it wins over `--auto-compaction`)                                          |
 
+## When the editor leaves
+
+The agent ends when its editor leaves, whichever way it goes: it closes the
+agent's input, it stops the agent (SIGTERM, SIGINT or SIGHUP), or it crashes
+and its pipes close. The agent first stops the Muse Code it started, even
+while that is still starting, and then exits with code 0. A Muse Code that
+never answered is stopped at once: SIGTERM to its process group (macOS and
+Linux), two seconds to exit, then SIGKILL. A Muse Code that answered is closed
+as before: it is given time to finish what it is doing before it is stopped. A
+Muse Code another program started is never touched.
+
 ## What the editor sees
 
 - **Modes**: Manual, Edit automatically, Plan, Auto (and Bypass permissions

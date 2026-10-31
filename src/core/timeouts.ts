@@ -95,13 +95,16 @@ export async function waitForAnswer<T>(
   tell: (elapsedMs: number) => void,
   everyMs: number = STILL_WAITING_NOTICE_MS,
 ): Promise<T> {
-  if (signal.aborted) throw stopError()
   let onAbort: (() => void) | undefined
   const stopped = new Promise<never>((_resolve, reject) => {
     onAbort = () => {
       reject(stopError())
     }
-    signal.addEventListener('abort', onAbort, { once: true })
+    // A signal already aborted stops the wait at once, but through the race
+    // below: `answer` is still read there, so its later failure (a process
+    // that died after its stop) is never an unhandled rejection.
+    if (signal.aborted) onAbort()
+    else signal.addEventListener('abort', onAbort, { once: true })
   })
   const stopNoticing = startStillWaiting(tell, everyMs)
   try {
