@@ -192,6 +192,10 @@ export const ACP_BUNDLES = [
   // through teamHost.js on their first team action.
   'teamWindow.js',
   'teamLanding.js',
+  // RLF-TEAMFIT: Traffic loads through the runners runtime on its first
+  // use. The `team` MCP server is the editor window's alone (VS Code), so
+  // teamMcp.js is not carried here.
+  'teamTraffic.js',
   'schedules.js',
   'scheduleDelivery.js',
   'foreignHooks.js',

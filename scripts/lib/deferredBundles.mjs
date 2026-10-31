@@ -412,7 +412,19 @@ export const DEFERRED = [
       'src/host/runners/teamRunnersEntry.ts',
       'src/host/runners/sshRunner.ts',
       'src/host/team/checkSlots.ts',
+    ],
+  },
+  {
+    // RLF-TEAMFIT: the Traffic read and dispatch, split out of the runners
+    // bundle so its transports fit their budget; first Traffic use.
+    output: 'dist/teamTraffic.js',
+    metafile: 'dist/meta/teamTraffic.json',
+    entry: 'src/host/team/teamTrafficEntry.ts',
+    files: [
+      'src/host/team/teamTrafficEntry.ts',
       'src/host/modelsPanelTraffic.ts',
+      'src/host/team/teamTrafficDispatch.ts',
+      'src/host/team/teamTrafficProjection.ts',
     ],
   },
   {
@@ -439,6 +451,14 @@ export const DEFERRED = [
     output: 'dist/teamHost.js',
     metafile: 'dist/meta/teamHost.json',
     files: ['src/host/team/teamHostEntry.ts', 'src/core/team/teamHost.ts'],
+  },
+  {
+    // RLF-TEAMFIT: the `team` MCP server, split out of the team host bundle
+    // so the host service fits its budget; first team endpoint request.
+    output: 'dist/teamMcp.js',
+    metafile: 'dist/meta/teamMcp.json',
+    entry: 'src/host/team/teamMcpEntry.ts',
+    files: ['src/host/team/teamMcpEntry.ts', 'src/host/team/teamMcpServer.ts'],
   },
   {
     output: 'dist/teamEngine.js',
@@ -1905,7 +1925,9 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/team/scheduler/teamWindowEntry.ts'), 'dist/teamWindow.js'],
   [path.resolve('src/host/team/teamLandingEntry.ts'), 'dist/teamLanding.js'],
   [path.resolve('src/host/runners/teamRunnersEntry.ts'), 'dist/teamRunners.js'],
+  [path.resolve('src/host/team/teamTrafficEntry.ts'), 'dist/teamTraffic.js'],
   [path.resolve('src/host/team/teamHostEntry.ts'), 'dist/teamHost.js'],
+  [path.resolve('src/host/team/teamMcpEntry.ts'), 'dist/teamMcp.js'],
   [path.resolve('src/host/team/teamEngineEntry.ts'), 'dist/teamEngine.js'],
   [path.resolve('src/core/team/workers/workerToolIoEntry.ts'), 'dist/teamFileIo.js'],
   [path.resolve('src/core/team/workers/workerCreateEntry.ts'), 'dist/teamCreate.js'],
@@ -1966,6 +1988,27 @@ export const deferredCohort = {
         ? { path: './team.js', external: true }
         : undefined,
     )
+    // RLF-TEAMFIT: the MCP server and the team host service read the same
+    // tool definitions, argument parsers and roster text from team.js,
+    // which already carries them for the Model API team's tools; the MCP
+    // server reads the pure JSON-RPC handler there too. The team entry
+    // re-exports exactly the members they import.
+    build.onResolve({ filter: /\/(?:teamTools|roster|mcp)(?:\.[jt]s)?$/ }, (args) => {
+      const outfile = path.resolve(build.initialOptions.outfile ?? '')
+      if (
+        outfile !== path.resolve('dist/teamMcp.js') &&
+        outfile !== path.resolve('dist/teamHost.js')
+      )
+        return
+      const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+      const shared =
+        outfile === path.resolve('dist/teamMcp.js')
+          ? ['src/core/team/teamTools.ts', 'src/core/team/roster.ts', 'src/core/mcp.ts']
+          : ['src/core/team/teamTools.ts', 'src/core/team/roster.ts']
+      return shared.some((file) => source === path.resolve(file))
+        ? { path: './team.js', external: true }
+        : undefined
+    })
     // The runners and the scheduler load only through their team runtime,
     // so those builds read the shared team schemas from the already-loaded
     // team.js instead of carrying second copies. Only those builds rewrite:
@@ -1974,7 +2017,8 @@ export const deferredCohort = {
       const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
       const outfile = path.resolve(build.initialOptions.outfile ?? '')
       return (outfile === path.resolve('dist/teamRunners.js') ||
-        outfile === path.resolve('dist/teamScheduler.js')) &&
+        outfile === path.resolve('dist/teamScheduler.js') ||
+        outfile === path.resolve('dist/teamTraffic.js')) &&
         (source === path.resolve('src/shared/team.ts') ||
           source === path.resolve('src/shared/teamView.ts'))
         ? { path: './team.js', external: true }
@@ -1998,11 +2042,12 @@ export const deferredCohort = {
         ? { path: './teamScheduler.js', external: true }
         : undefined
     })
-    // RLF-TEAMCORE (M96c): the runners bundle's Traffic projection rides the
-    // window bundle's shared-file and write-set matching (pure functions,
-    // no shared state), which the window entry re-exports for it.
+    // RLF-TEAMCORE (M96c): the Traffic projection rides the window bundle's
+    // shared-file and write-set matching (pure functions, no shared state),
+    // which the window entry re-exports for it. The projection loads with
+    // the Traffic bundle (RLF-TEAMFIT; it rode the runners bundle before).
     build.onResolve({ filter: /\/(?:writeSets|sharedFiles)(?:\.[jt]s)?$/ }, (args) => {
-      if (path.resolve(build.initialOptions.outfile ?? '') !== path.resolve('dist/teamRunners.js'))
+      if (path.resolve(build.initialOptions.outfile ?? '') !== path.resolve('dist/teamTraffic.js'))
         return
       const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
       const shared = ['src/core/team/writeSets.ts', 'src/core/team/sharedFiles.ts']
@@ -2046,7 +2091,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|providerListEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|accountPaidEntry|modelEffortsEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|modelApiB1Entry|modelApiToolRunEntry|modelApiFastEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|reportFallbackEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|modelApiAcpEntry|teamEntry|teamSchedulerEntry|teamWindowEntry|teamLandingEntry|teamRunnersEntry|teamPanelEntry|teamHostEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|execTeamEntry|execLedgerLeaseEntry|workerCreateEntry|workerOpsEntry|usageAcp|usageExportEntry|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|subscriptionCommandsEntry|configuredProvidersEntry|chatGptProviderCommands|grokProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry|estimateActionsEntry|windowsEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|providerListEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|accountPaidEntry|modelEffortsEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|modelApiB1Entry|modelApiToolRunEntry|modelApiFastEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|reportFallbackEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|modelApiAcpEntry|teamEntry|teamSchedulerEntry|teamWindowEntry|teamLandingEntry|teamRunnersEntry|teamTrafficEntry|teamPanelEntry|teamHostEntry|teamMcpEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|execTeamEntry|execLedgerLeaseEntry|workerCreateEntry|workerOpsEntry|usageAcp|usageExportEntry|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|subscriptionCommandsEntry|configuredProvidersEntry|chatGptProviderCommands|grokProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry|estimateActionsEntry|windowsEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)

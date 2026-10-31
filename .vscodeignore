@@ -49,6 +49,8 @@
 !dist/teamScheduler.js
 !dist/teamWindow.js
 !dist/teamLanding.js
+!dist/teamTraffic.js
+!dist/teamMcp.js
 !dist/schedules.js
 !dist/scheduleDelivery.js
 !dist/scheduleSurfaces.js

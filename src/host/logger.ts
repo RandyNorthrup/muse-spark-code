@@ -3,7 +3,7 @@
 // through the channel or `console` directly. The channel is taken by its
 // shape, so the modules that log stay free of `vscode` (M61, PLAN.md D60).
 
-import { redactSecrets } from '../core/redact'
+import { redactSecrets } from '../shared/redact'
 
 export interface Logger {
   /** Shown only when the channel's level is Trace (M39). */

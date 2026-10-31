@@ -19,6 +19,29 @@ import { teamTreeSchema, teamUsageSchema, teamItemFields } from '../../shared/te
 // definitions and model text (M120CAP). No scheduler dispatch occurs here.
 export { createSchedulerTeamTools } from './teamTools'
 
+// The `team` MCP server (dist/teamMcp.js) and the team host service
+// (dist/teamHost.js) read the same tool definitions, argument parsers and
+// roster text from this bundle instead of carrying second copies
+// (RLF-TEAMFIT); the build externalises their teamTools and roster imports
+// to dist/team.js. No MCP or host dispatch occurs here.
+export {
+  TeamCommandRegistry,
+  cancelArgs,
+  clampCollectWait,
+  collectArgs,
+  delegateArgs,
+  isTeamTool,
+  mergeArgs,
+  parseTeamArgs,
+  teamCommandRecordsSchema,
+  teamMcpToolList,
+} from './teamTools'
+export { buildRosterLive, buildStableRosterSection } from './roster'
+// The MCP server's JSON-RPC handling rides the same way: the pure handler
+// this bundle's tool definitions already type against, read by
+// dist/teamMcp.js instead of a second copy.
+export { handleMcpMessage, mcpRequestKeys } from '../mcp'
+
 // The runners and the scheduler load only through their team runtime, so
 // they read these schemas from this bundle instead of carrying second
 // copies of them (the build externalises shared/team and shared/teamView
