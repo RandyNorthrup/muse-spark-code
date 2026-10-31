@@ -10055,6 +10055,10 @@ export const O11Y_DIAGNOSTICS_MAX_SERIES = 20
 export const O11Y_DIAGNOSTICS_MAX_POINTS = 300
 // The Diagnostics page's metric window: the trailing day, rolled to minutes.
 export const O11Y_DIAGNOSTICS_WINDOW_MS = MILLISECONDS_PER_DAY
+// OpenTelemetry's severity numbers run 1-24 in bands of four (TRACE,
+// DEBUG, INFO, WARN, ERROR, FATAL); the Diagnostics page maps a number to
+// its band word and shows any other number raw.
+export const O11Y_SEVERITY_BAND = 4
 // --- Paired efficiency evaluation (M75, PLAN.md D49) ---
 
 // The paired runs answer on this model only (D49's live-spend rules: the

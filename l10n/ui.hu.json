@@ -196,7 +196,29 @@
     "unavailable": "A diagnosztika nem érhető el: {reason}",
     "refresh": "Frissítés",
     "retry": "Újra",
-    "chunkFailed": "A diagnosztikai oldalt nem sikerült betölteni."
+    "chunkFailed": "A diagnosztikai oldalt nem sikerült betölteni.",
+    "chartKeyboard": "A nyílbillentyűkkel lépkedhet az időintervallumok között.",
+    "chartBucket": "{date}: {values}",
+    "chartEmpty": "Nincsenek pontok ebben a tartományban.",
+    "showDataTable": "Diagramadatok megjelenítése",
+    "metricSummary": "{series} {from} és {to} között",
+    "traceError": "Hiba",
+    "traceSpans": {
+      "one": "{count} span",
+      "other": "{count} span"
+    },
+    "unreadable": {
+      "one": "{count} olvashatatlan fájl",
+      "other": "{count} olvashatatlan fájl"
+    },
+    "logTrace": "Nyomkövetés",
+    "logDebug": "Hibakeresés",
+    "logInfo": "Információ",
+    "logWarn": "Figyelmeztetés",
+    "logFatal": "Végzetes",
+    "statMin": "Min",
+    "statAvg": "Átlag",
+    "statMax": "Max"
   },
   "nodeHelp": {
     "title": "Csomóponti súgó",

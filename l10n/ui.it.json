@@ -197,7 +197,31 @@
     "unavailable": "La diagnostica non è disponibile: {reason}",
     "refresh": "Aggiorna",
     "retry": "Riprova",
-    "chunkFailed": "Non è stato possibile caricare la pagina di diagnostica."
+    "chunkFailed": "Non è stato possibile caricare la pagina di diagnostica.",
+    "chartKeyboard": "Usa le frecce per spostarti tra gli intervalli di tempo.",
+    "chartBucket": "{date}: {values}",
+    "chartEmpty": "Nessun punto in questo intervallo.",
+    "showDataTable": "Mostra i dati del grafico",
+    "metricSummary": "{series} da {from} a {to}",
+    "traceError": "Errore",
+    "traceSpans": {
+      "one": "{count} segmento",
+      "other": "{count} segmenti",
+      "many": "{count} segmenti"
+    },
+    "unreadable": {
+      "one": "{count} file illeggibile",
+      "other": "{count} file illeggibili",
+      "many": "{count} file illeggibili"
+    },
+    "logTrace": "Traccia",
+    "logDebug": "Debug",
+    "logInfo": "Info",
+    "logWarn": "Avviso",
+    "logFatal": "Fatale",
+    "statMin": "Min",
+    "statAvg": "Media",
+    "statMax": "Max"
   },
   "nodeHelp": {
     "title": "Guida del nodo",

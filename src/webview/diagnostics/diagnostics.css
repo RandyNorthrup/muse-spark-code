@@ -1,0 +1,99 @@
+@import url('../tokens.css');
+@import url('../charts/chart.css');
+
+/* Diagnostics page: health and log tables, trace waterfalls. Chart figures
+   reuse the shared chart frame; only the waterfall's geometry is new. */
+.diagnostics-page,
+.diagnostics-page * {
+  box-sizing: border-box;
+}
+
+.diagnostics-page {
+  max-width: 1200px;
+  min-width: 0;
+  margin: 0 auto;
+  padding: 16px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  color: var(--ms-foreground);
+  background: var(--ms-background);
+  font-family: var(--vscode-font-family, system-ui, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+}
+
+.diagnostics-page table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0 16px;
+}
+
+.diagnostics-page th,
+.diagnostics-page td {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--ms-input-background);
+  vertical-align: top;
+}
+
+.diagnostics-page section {
+  margin-bottom: 24px;
+}
+
+.diagnostics-traces {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+}
+
+.diagnostics-traces > li {
+  margin-bottom: 8px;
+}
+
+.diagnostics-traces button {
+  font: inherit;
+  color: var(--ms-foreground);
+  background: var(--ms-input-background);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.diagnostics-traces button:hover {
+  border-color: var(--ms-foreground);
+}
+
+.diagnostics-waterfall,
+.diagnostics-waterfall ul {
+  list-style: none;
+  margin: 4px 0;
+  padding: 0;
+}
+
+.diagnostics-waterfall ul {
+  margin-left: 16px;
+}
+
+.diagnostics-waterfall > li,
+.diagnostics-waterfall ul > li {
+  margin-bottom: 4px;
+}
+
+.diagnostics-span-head {
+  font-size: 12px;
+}
+
+.diagnostics-span-track {
+  position: relative;
+  height: 10px;
+  background: var(--ms-input-background);
+  border-radius: 2px;
+}
+
+.diagnostics-span-bar {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  border-radius: 2px;
+  min-width: 2px;
+}

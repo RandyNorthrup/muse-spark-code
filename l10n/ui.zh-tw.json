@@ -195,7 +195,27 @@
     "unavailable": "診斷無法使用：{reason}",
     "refresh": "重新整理",
     "retry": "重試",
-    "chunkFailed": "無法載入診斷頁面。"
+    "chunkFailed": "無法載入診斷頁面。",
+    "chartKeyboard": "使用方向鍵在時間桶之間移動。",
+    "chartBucket": "{date}：{values}",
+    "chartEmpty": "此範圍內沒有資料點。",
+    "showDataTable": "顯示圖表資料",
+    "metricSummary": "{from} 至 {to} 的 {series}",
+    "traceError": "錯誤",
+    "traceSpans": {
+      "other": "{count} 個跨度"
+    },
+    "unreadable": {
+      "other": "{count} 個檔案無法讀取"
+    },
+    "logTrace": "追蹤",
+    "logDebug": "偵錯",
+    "logInfo": "資訊",
+    "logWarn": "警告",
+    "logFatal": "致命",
+    "statMin": "最小",
+    "statAvg": "平均",
+    "statMax": "最大"
   },
   "nodeHelp": {
     "title": "節點說明",

@@ -157,7 +157,8 @@
       "nodeOs.netWifi",
       "desktop.greeterTitle",
       "desktop.pin",
-      "nodeDiagnostics.traceName"
+      "nodeDiagnostics.traceName",
+      "nodeDiagnostics.chartBucket"
     ],
     "cs": [
       "groupModel",
@@ -187,7 +188,10 @@
       "nodeDashboard.sessionWeb",
       "nodeDashboard.sessionEditor",
       "nodeOs.diskTitle",
-      "watchdog.verdicts.spam"
+      "watchdog.verdicts.spam",
+      "nodeDiagnostics.statMin",
+      "nodeDiagnostics.statMax",
+      "nodeDiagnostics.traceSpans.one"
     ],
     "tr": [
       "groupModel",
@@ -205,7 +209,9 @@
       "judgeSetupCli.planModel",
       "nodeDashboard.sessionWeb",
       "nodeOs.diskTitle",
-      "desktop.sessionTerminal"
+      "desktop.sessionTerminal",
+      "nodeDiagnostics.statMin",
+      "nodeDiagnostics.traceSpans.one"
     ],
     "pl": [
       "groupModel",
@@ -232,7 +238,9 @@
       "judgeSetupCli.planModel",
       "nodeDashboard.sessionWeb",
       "desktop.sessionTerminal",
-      "watchdog.verdicts.spam"
+      "watchdog.verdicts.spam",
+      "nodeDiagnostics.statMin",
+      "nodeDiagnostics.traceSpans.one"
     ],
     "de": [
       "groupSkills",
@@ -297,7 +305,13 @@
       "nodeDiagnostics.healthStatus",
       "nodeDiagnostics.healthDetail",
       "nodeDiagnostics.traceStatus",
-      "nodeDiagnostics.crashSignal"
+      "nodeDiagnostics.crashSignal",
+      "nodeDiagnostics.statMin",
+      "nodeDiagnostics.statMax",
+      "nodeDiagnostics.logTrace",
+      "nodeDiagnostics.logInfo",
+      "nodeDiagnostics.logFatal",
+      "nodeDiagnostics.logDebug"
     ],
     "es": [
       "hooksItem",
@@ -322,7 +336,9 @@
       "nodeDashboard.sessionWeb",
       "nodeDashboard.sessionEditor",
       "desktop.sessionTerminal",
-      "watchdog.verdicts.spam"
+      "watchdog.verdicts.spam",
+      "nodeDiagnostics.traceError",
+      "nodeDiagnostics.logFatal"
     ],
     "pt-br": [
       "agentTokens",
@@ -345,7 +361,8 @@
       "nodeDashboard.sessionEditor",
       "desktop.sessionTerminal",
       "desktop.downloadSize",
-      "watchdog.verdicts.spam"
+      "watchdog.verdicts.spam",
+      "nodeDiagnostics.logFatal"
     ],
     "fr": [
       "modesTitle",
@@ -396,7 +413,12 @@
       "nodeDiagnostics.title",
       "nodeDiagnostics.tracesTitle",
       "nodeDiagnostics.logMessage",
-      "nodeDiagnostics.crashSignal"
+      "nodeDiagnostics.crashSignal",
+      "nodeDiagnostics.statMin",
+      "nodeDiagnostics.statMax",
+      "nodeDiagnostics.logTrace",
+      "nodeDiagnostics.logInfo",
+      "nodeDiagnostics.logFatal"
     ],
     "it": [
       "usageAccount",
@@ -427,7 +449,11 @@
       "desktop.password",
       "desktop.sessionDesktop",
       "desktop.downloadSize",
-      "watchdog.verdicts.spam"
+      "watchdog.verdicts.spam",
+      "nodeDiagnostics.statMin",
+      "nodeDiagnostics.statMax",
+      "nodeDiagnostics.logDebug",
+      "nodeDiagnostics.logInfo"
     ],
     "zh-cn": ["toolLabels.shell", "devices.cpuPressure"],
     "zh-tw": ["toolLabels.shell", "devices.cpuPressure"],
@@ -441,7 +467,10 @@
       "teamIntensityLevels.max",
       "teamCapabilityWarning",
       "devices.cpuPressure",
-      "nodeDashboard.sessionWeb"
+      "nodeDashboard.sessionWeb",
+      "nodeDiagnostics.statMin",
+      "nodeDiagnostics.statMax",
+      "nodeDiagnostics.traceSpans.one"
     ],
     "ko": ["gitChangeCounts", "teamCapabilityWarning", "devices.cpuPressure"],
     "ru": ["gitChangeCounts", "teamCapabilityWarning", "devices.cpuPressure"]

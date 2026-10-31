@@ -196,7 +196,29 @@
     "unavailable": "Die Diagnose ist nicht verfügbar: {reason}",
     "refresh": "Aktualisieren",
     "retry": "Wiederholen",
-    "chunkFailed": "Die Diagnoseseite konnte nicht geladen werden."
+    "chunkFailed": "Die Diagnoseseite konnte nicht geladen werden.",
+    "chartKeyboard": "Mit den Pfeiltasten zwischen Zeitabschnitten wechseln.",
+    "chartBucket": "{date}: {values}",
+    "chartEmpty": "Keine Punkte in diesem Bereich.",
+    "showDataTable": "Diagrammdaten anzeigen",
+    "metricSummary": "{series} von {from} bis {to}",
+    "traceError": "Fehler",
+    "traceSpans": {
+      "one": "{count} Span",
+      "other": "{count} Spans"
+    },
+    "unreadable": {
+      "one": "{count} unlesbare Datei",
+      "other": "{count} unlesbare Dateien"
+    },
+    "logTrace": "Trace",
+    "logDebug": "Debug",
+    "logInfo": "Info",
+    "logWarn": "Warnung",
+    "logFatal": "Fatal",
+    "statMin": "Min",
+    "statAvg": "Mittel",
+    "statMax": "Max"
   },
   "nodeHelp": {
     "title": "Knoten-Hilfe",

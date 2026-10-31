@@ -198,7 +198,33 @@
     "unavailable": "Diagnostika není dostupná: {reason}",
     "refresh": "Obnovit",
     "retry": "Opakovat",
-    "chunkFailed": "Stránku diagnostiky se nepodařilo načíst."
+    "chunkFailed": "Stránku diagnostiky se nepodařilo načíst.",
+    "chartKeyboard": "Mezi časovými intervaly se pohybujte pomocí šipek.",
+    "chartBucket": "{date}: {values}",
+    "chartEmpty": "V tomto rozsahu nejsou žádné body.",
+    "showDataTable": "Zobrazit data grafu",
+    "metricSummary": "{series} od {from} do {to}",
+    "traceError": "Chyba",
+    "traceSpans": {
+      "one": "{count} span",
+      "few": "{count} spany",
+      "many": "{count} spanů",
+      "other": "{count} spanů"
+    },
+    "unreadable": {
+      "one": "{count} nečitelný soubor",
+      "few": "{count} nečitelné soubory",
+      "many": "{count} nečitelných souborů",
+      "other": "{count} nečitelných souborů"
+    },
+    "logTrace": "Trasování",
+    "logDebug": "Ladění",
+    "logInfo": "Informace",
+    "logWarn": "Varování",
+    "logFatal": "Fatální",
+    "statMin": "Min",
+    "statAvg": "Průměr",
+    "statMax": "Max"
   },
   "nodeHelp": {
     "title": "Nápověda uzlu",

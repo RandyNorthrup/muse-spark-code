@@ -43,14 +43,24 @@ export function ColumnBucket({
   )
 }
 
+/** The frame's own sentences; usage callers leave the default. */
+export interface ChartFrameText {
+  readonly keyboard: string
+  readonly emptyRange: string
+  readonly showDataTable: string
+  readonly rowHeading: string
+  bucket(date: string, values: string): string
+}
+
 export function ChartFrame({
   title,
   summary,
   series,
   legend = series,
-  rowHeading = USAGE_TEXT.dateColumn,
+  rowHeading,
   points,
   format,
+  text,
   children,
 }: {
   readonly title: string
@@ -60,8 +70,19 @@ export function ChartFrame({
   readonly rowHeading?: string
   readonly points: readonly ChartPoint[]
   readonly format: (value: number | undefined) => string
+  readonly text?: ChartFrameText
   readonly children: (active: number, pattern: (colour: string) => string) => ReactNode
 }) {
+  // The frame's sentences are read when it renders, never at module load,
+  // so the installed table is the one shown — whichever surface mounts it.
+  const frameText: ChartFrameText = text ?? {
+    keyboard: USAGE_TEXT.chartKeyboard,
+    emptyRange: USAGE_TEXT.emptyRange,
+    showDataTable: USAGE_TEXT.showDataTable,
+    rowHeading: USAGE_TEXT.dateColumn,
+    bucket: (date: string, values: string) => fill(USAGE_TEXT.chartBucket, { date, values }),
+  }
+  const heading = rowHeading ?? frameText.rowHeading
   const id = useId()
   const patterns = {
     blue: 'M0 2H4',
@@ -77,21 +98,21 @@ export function ChartFrame({
   const point = points[active]
   const description =
     point === undefined
-      ? USAGE_TEXT.emptyRange
-      : fill(USAGE_TEXT.chartBucket, {
-          date: point.label,
-          values: formatList(
+      ? frameText.emptyRange
+      : frameText.bucket(
+          point.label,
+          formatList(
             series.map(
               (item, index) =>
                 `${item.label}: ${point.texts?.[index] ?? format(point.values[index])}`,
             ),
           ),
-        })
+        )
   return (
     <figure className="usage-chart">
       <figcaption id={`${id}-caption`}>{title}</figcaption>
       <p id={`${id}-summary`}>{summary}</p>
-      <p id={`${id}-keyboard`}>{USAGE_TEXT.chartKeyboard}</p>
+      <p id={`${id}-keyboard`}>{frameText.keyboard}</p>
       <svg
         viewBox="0 0 100 100"
         preserveAspectRatio="none"
@@ -156,13 +177,13 @@ export function ChartFrame({
         ))}
       </ul>
       <details>
-        <summary>{USAGE_TEXT.showDataTable}</summary>
+        <summary>{frameText.showDataTable}</summary>
         <div className="usage-table-scroll" tabIndex={0} role="region" aria-label={title}>
           <table>
             <caption>{title}</caption>
             <thead>
               <tr>
-                <th scope="col">{rowHeading}</th>
+                <th scope="col">{heading}</th>
                 {series.map((item) => (
                   <th key={item.id} scope="col">
                     {item.label}
