@@ -50,6 +50,10 @@ class EmbeddedPanel(
     query = JBCefJSQuery.create(queryBrowser)
     query.addHandler { text ->
       try {
+        if (!policy.navigationAllowed(browser.cefBrowser.url ?: "")) {
+          diagnostic("MHP_PANEL_BRIDGE_REFUSED")
+          return@addHandler JBCefJSQuery.Response(null, 1, "MHP_PANEL_BRIDGE_REFUSED")
+        }
         require(text.toByteArray(Charsets.UTF_8).size <= boundary.maximumFrameBytes) { "MHP_PANEL_TOO_LARGE" }
         val request = JsonBoundary.parse(text).asJsonObject
         require(request.keySet() == setOf("operation", "value")) { "MHP_INVALID_REQUEST" }
@@ -120,6 +124,7 @@ class EmbeddedPanel(
   }
 
   fun present(html: String) {
+    require(html.toByteArray(Charsets.UTF_8).size <= boundary.maximumFrameBytes) { "MHP_PANEL_TOO_LARGE" }
     browser.loadHTML(prepareHtml(html), policy.page)
   }
 
@@ -142,7 +147,7 @@ class EmbeddedPanel(
 
   private fun prepareHtml(source: String? = null): String {
     val kind = if (surface.kind in setOf("tasks", "whatsNew")) surface.kind else "chat"
-    val html = source ?: JsonBoundary.resource("/pages/$kind.$locale.html")
+    val html = if (source == null) JsonBoundary.resource("/pages/$kind.$locale.html") else PresentedHtml.admit(source)
     val envelope = boundary.panel.getAsJsonObject("envelope")
     val payloads =
       envelope.getAsJsonArray("oneOf").map {
@@ -190,9 +195,9 @@ class EmbeddedPanel(
         } else {
           page.replace("</head>", "<script nonce=\"$nonce\">$safeScript</script></head>")
         }
-      }.replace(Regex("nonce=\"[^\"]*\""), "nonce=\"$nonce\"")
-      .replace("<body", "<body data-host=\"embedded\"")
+      }.replace("<body", "<body data-host=\"embedded\"")
       .let { inlineAssets(it, kind) }
+      .let { PresentedHtml.seal(it, policy.csp(nonce)) }
       .let { html ->
         if (html.contains("data-surface=")) html else html.replace("<body", "<body data-surface=\"${surface.kind}\"")
       }
@@ -222,22 +227,33 @@ class EmbeddedPanel(
         JsonBoundary.resource("/pages/$entry.inline.js").replace("</script", "<\\/script", ignoreCase = true)
       }
     val style = JsonBoundary.resource(if (entry == "main") "/webview/portable/main.css" else "/webview/$entry.css")
-    return html
-      .replace(
-        Regex("<meta http-equiv=\"Content-Security-Policy\"[^>]*>"),
-        { "<meta http-equiv=\"Content-Security-Policy\" content=\"${policy.csp(nonce)}\">" },
-      ).replace(Regex("<link[^>]*rel=\"stylesheet\"[^>]*>"), { "<style nonce=\"$nonce\">$style</style>" })
-      .replace(Regex("<script[^>]*src=\"([^\"]+)\"[^>]*></script>"), { match ->
-        // The native module bridge loads chat/Tasks. What's New's entry is inline;
-        // its companion loader must not run a second copy or fetch native URLs.
-        if (entry == "whatsNew" &&
-          match.groupValues[1].endsWith("/whatsNew.js")
-        ) {
-          "<script nonce=\"$nonce\">$script</script>"
-        } else {
-          ""
-        }
-      })
+    var inlinedWhatsNew = false
+    val replaced =
+      html
+        .replace(Regex("<link[^>]*rel=\"stylesheet\"[^>]*>"), { "<style nonce=\"$nonce\">$style</style>" })
+        .replace(Regex("<script[^>]*src=\"([^\"]+)\"[^>]*></script>"), { match ->
+          // The native module bridge loads chat/Tasks. What's New's entry is inline;
+          // its companion loader must not run a second copy or fetch native URLs.
+          if (entry == "whatsNew" &&
+            match.groupValues[1].endsWith("/whatsNew.js")
+          ) {
+            inlinedWhatsNew = true
+            "<script nonce=\"$nonce\">$script</script>"
+          } else {
+            ""
+          }
+        })
+    val withStyle =
+      if (replaced.contains("<style nonce=\"$nonce\">")) {
+        replaced
+      } else {
+        replaced.replace("</head>", "<style nonce=\"$nonce\">$style</style></head>")
+      }
+    return if (entry == "whatsNew" && !inlinedWhatsNew) {
+      withStyle.replace("</head>", "<script nonce=\"$nonce\">$script</script></head>")
+    } else {
+      withStyle
+    }
   }
 
   private fun installGuards() {

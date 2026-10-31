@@ -135,6 +135,29 @@ class MhpBoundaryTest {
   }
 
   @Test
+  fun presentedHtmlCannotRunAPeerScriptOrKeepAForeignPolicy() {
+    val peer =
+      """
+      <!DOCTYPE html><html><head>
+      <meta http-equiv="Content-Security-Policy" content="script-src 'unsafe-inline' https:">
+      <script nonce="__MUSE_NONCE__">evil()</script>
+      <iframe src="file:///etc/passwd"></iframe>
+      <a href="javascript:evil()">x</a>
+      </head><body onload="evil()">shown</body></html>
+      """.trimIndent()
+    val sealed = PresentedHtml.seal(PresentedHtml.admit(peer), "default-src 'none'; script-src 'nonce-abc'")
+    assertFalse(sealed.contains("evil()"))
+    assertFalse(sealed.contains("unsafe-inline"))
+    assertFalse(sealed.contains("<iframe"))
+    assertFalse(sealed.contains("javascript:"))
+    assertFalse(sealed.contains("onload"))
+    assertTrue(sealed.contains("shown"))
+    assertTrue(sealed.contains("script-src 'nonce-abc'"))
+    assertEquals(1, Regex("(?i)content-security-policy").findAll(sealed).count())
+    assertThrows(IllegalArgumentException::class.java) { PresentedHtml.admit("<html><script>evil()</script>") }
+  }
+
+  @Test
   fun stripsEveryCredentialVariableBeforeStartingAnyChild() {
     val values =
       mapOf(

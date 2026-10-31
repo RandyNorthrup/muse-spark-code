@@ -18,7 +18,7 @@ public class BrowserTest {
         Path page = Path.of("/tmp/panel/page.html");
         assertTrue(Assets.navigationAllowed(page, page.toUri().toString()));
         assertTrue(Assets.navigationAllowed(page, page.toUri() + "#fragment"));
-        for (String target : List.of("https://example.com", "http://127.0.0.1:99", "javascript:alert(1)", "file:///tmp/panel/other.html", "file:///tmp/panel/../secret", "about:blank")) assertFalse(Assets.navigationAllowed(page, target));
+        for (String target : List.of("https://example.com", "http://127.0.0.1:99", "javascript:alert(1)", "file:///tmp/panel/other.html", "file:///tmp/panel/../secret", "about:blank", page.toUri() + "?next=1")) assertFalse(Assets.navigationAllowed(page, target));
         assertEquals("de", Assets.locale("de-DE")); assertEquals("pt-br", Assets.locale("pt_BR")); assertEquals("en", Assets.locale("unavailable"));
         assertThrows(IllegalArgumentException.class, () -> Assets.html(page.getParent(), "en", "whatsNew", null, new JsonObject()));
         String html = Assets.html(page.getParent(), "de", "chat", Json.object("draft", "</script>"), new JsonObject());

@@ -28,6 +28,7 @@ public final class MuseView extends ViewPart {
     private BrowserFunction function;
     private org.eclipse.swt.widgets.Menu menu;
     private Path page;
+    private Path assets;
     private String restoredSession;
     private JsonElement restoredState;
     private String kind = "chat";
@@ -83,6 +84,7 @@ public final class MuseView extends ViewPart {
             function = new BrowserFunction(browser, "museNative", true, new String[0]) {
                 @Override public Object function(Object[] arguments) {
                     try {
+                        if (page == null || browser.getUrl() == null || !Assets.navigationAllowed(page, browser.getUrl())) throw new IllegalArgumentException("MHP_PANEL_BRIDGE_REFUSED");
                         if (arguments.length != 2 || !(arguments[0] instanceof String operation) || !(arguments[1] instanceof String value)) throw new IllegalArgumentException("MHP_INVALID_REQUEST");
                         if (value.getBytes(StandardCharsets.UTF_8).length > session.contract.frameCap) throw new IllegalArgumentException("MHP_PANEL_TOO_LARGE");
                         JsonElement payload = Json.parse(value);
@@ -117,7 +119,7 @@ public final class MuseView extends ViewPart {
     }
     private void loadPage() throws IOException {
         if (session.isClosed()) return;
-        Path assets = Assets.extract(MusePlugin.get().getBundle(), MusePlugin.get().getStateLocation().toFile().toPath().resolve("assets").resolve(MusePlugin.get().getBundle().getVersion().toString()));
+        assets = Assets.extract(MusePlugin.get().getBundle(), MusePlugin.get().getStateLocation().toFile().toPath().resolve("assets").resolve(MusePlugin.get().getBundle().getVersion().toString()));
         Path directory = MusePlugin.get().getStateLocation().toFile().toPath().resolve("pages"); Files.createDirectories(directory);
         page = directory.resolve(binding.id + ".html");
         if (kind.equals("whatsNew")) {
@@ -138,8 +140,12 @@ public final class MuseView extends ViewPart {
         if (!browser.setUrl(page.toUri().toASCIIString())) throw new IOException("MHP_PAGE_FAILURE");
     }
     public void presentHtml(String html) throws IOException {
-        if (page == null || browser == null || browser.isDisposed()) throw new IllegalStateException("MHP_PANEL_NOT_READY");
-        Files.writeString(page, html, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+        if (page == null || assets == null || browser == null || browser.isDisposed() || binding == null) throw new IllegalStateException("MHP_PANEL_NOT_READY");
+        if (html.getBytes(StandardCharsets.UTF_8).length > session.contract.frameCap) throw new IllegalArgumentException("MHP_PANEL_TOO_LARGE");
+        Assets.Parts parts = Assets.parts(assets, Platform.getNL(), kind, binding.state(), WindowSession.tokens());
+        String document = PresentedDocument.compose(html, PresentedDocument.strictCsp(parts.nonce()), parts.bootstrap(), parts.nonce());
+        Files.writeString(page, document, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+        loaded = false;
         if (!browser.setUrl(page.toUri().toASCIIString())) throw new IOException("MHP_PAGE_FAILURE");
     }
     public void deliverPayload(JsonElement payload) {
