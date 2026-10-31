@@ -72,9 +72,27 @@ async function post(
 function requestIdOf(line: string): string | number | null | undefined {
   try {
     return requestIdSchema.parse(JSON.parse(line) as unknown).id
-  } catch {
-    return undefined
+  } catch (error: unknown) {
+    // A line that is not JSON carries no id to answer to; anything else is
+    // a bridge fault and keeps its kind.
+    if (error instanceof SyntaxError) return undefined
+    throw error
   }
+}
+
+// The errno words of a loopback endpoint that is down, gone or unreachable.
+const TRANSPORT_FAILURES: ReadonlySet<string> = new Set([
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'ECONNABORTED',
+  'EPIPE',
+  'ETIMEDOUT',
+  'EHOSTUNREACH',
+  'ENETUNREACH',
+])
+
+function isTransportFailure(error: unknown): error is Error & { readonly code: string } {
+  return error instanceof Error && 'code' in error && TRANSPORT_FAILURES.has(String(error.code))
 }
 
 // JSON-RPC's internal-error code, for a refusal the endpoint made at HTTP.
@@ -94,8 +112,14 @@ async function forward(line: string): Promise<string | undefined> {
   let answer: { readonly status: number; readonly text: string }
   try {
     answer = await post(url, headers, line)
-  } catch {
-    return id === undefined ? undefined : errorLine(id, 'the team endpoint is unreachable')
+  } catch (error: unknown) {
+    // A named transport failure is the refusal the client reads, by its
+    // errno word. Anything else is a bridge fault and keeps its kind.
+    if (!isTransportFailure(error)) throw error
+    process.stderr.write(`team bridge: endpoint ${error.code}\n`)
+    return id === undefined
+      ? undefined
+      : errorLine(id, `the team endpoint is unreachable (${error.code})`)
   }
   if (answer.status >= HTTP_OK_FLOOR && answer.status < HTTP_OK_CEILING) {
     return answer.text === '' ? undefined : answer.text
