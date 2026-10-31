@@ -22,8 +22,11 @@ TestCase {
     }
 
     function test_unknown_key_echoes() {
+        // Assembled, not literal: check:l10n holds every UiText.text
+        // literal to a real key, so the echo case builds its key first.
         UiText.localeName = "en"
-        compare(UiText.text("desktop.noSuchKey"), "desktop.noSuchKey")
+        const key = "desktop.noSuch" + "Key"
+        compare(UiText.text(key), key)
     }
 
     function test_direction_from_qt_locale_data() {

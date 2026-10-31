@@ -100,7 +100,7 @@ pub fn text(key: &str) -> &str {
 }
 
 /// Reads the fifteen UI tables like the extension's `UI_TEXT` reads them:
-/// `ui_text!("agents.stopAll")` is the current locale's template.
+/// `ui_text!("desktop.orSignInWith")` is the current locale's template.
 #[macro_export]
 macro_rules! ui_text {
     ($key:literal) => {
@@ -174,9 +174,12 @@ mod tests {
 
     #[test]
     fn unknown_keys_echo_the_key() {
+        // Through text(), not the macro: check:l10n holds every ui_text!
+        // literal to a real key, so only the function can be asked for one
+        // that does not exist.
         let _guard = SERIAL.lock().expect("test lock");
         reset();
-        assert_eq!(ui_text!("desktop.noSuchKey"), "desktop.noSuchKey");
+        assert_eq!(text("desktop.noSuchKey"), "desktop.noSuchKey");
     }
 
     #[test]
