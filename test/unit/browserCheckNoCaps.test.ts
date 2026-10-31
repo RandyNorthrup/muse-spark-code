@@ -11,9 +11,10 @@ function nineClicks(): readonly { kind: 'click'; selector: string }[] {
 
 describe('browser check without invented caps (NOLIMITS2 A34)', () => {
   it('takes more steps than the old 8-action cap allowed', () => {
+    // Loopback is reached only by an exact dev origin the user configured (M103).
     const placed = placeBrowserCall(
       { url: 'http://localhost:3000/', actions: nineClicks() },
-      new Set(),
+      new Set(['http://localhost:3000']),
     )
     expect(placed.ok).toBe(true)
     if (placed.ok) expect(placed.actions).toHaveLength(9)

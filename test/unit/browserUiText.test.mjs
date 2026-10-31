@@ -49,6 +49,7 @@ beforeAll(async () => {
   const text = path.resolve('src/shared/l10n/text.ts').replaceAll('\\', '/')
   const installer = path.resolve('src/webview/installTable.ts').replaceAll('\\', '/')
   const vault = path.resolve('src/shared/l10n/vaultEnglish.ts').replaceAll('\\', '/')
+  const maker = path.resolve('src/shared/l10n/makerEnglish.ts').replaceAll('\\', '/')
   const probe = path.join(fixture.folder, 'probe.ts')
   writeFileSync(
     probe,
@@ -59,6 +60,7 @@ export { EN, EN_SHAPE } from '${english}';
 export { UI_TEXT, setUiText, uiLocale } from '${text}';
 export { installEmbeddedTable } from '${installer}';
 export { installVaultEnglish } from '${vault}';
+export { MAKER_EN } from '${maker}';
 export async function loadPalette() { return await import('../../src/shared/paletteRegistry') }
 export async function loadHelp() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english'), import('browser-schedule-english'), import('browser-playbook-english'), import('browser-chatgpt-english'), import('browser-runners-english')]) }
 export async function loadResources() { await import('browser-resource-english') }
@@ -190,6 +192,7 @@ describe('the production browser English and full-table contract', () => {
       loadResources,
       loadResourceHistory,
       installVaultEnglish,
+      MAKER_EN,
     } = fixture.browser
     expect(Object.keys(EN).toSorted(byText)).toEqual([...fixture.keys].toSorted(byText))
     // C-X-1: Help does not name the vault. CM108ACC: Help lists accounts
@@ -248,6 +251,9 @@ describe('the production browser English and full-table contract', () => {
     installVaultEnglish()
     expect(EN.vault).toEqual(canonical.vault)
     expect(UI_TEXT.vault).toEqual(german.vault)
+    // The maker surface installs its own words (installMakerTable defines these
+    // descriptors on EN before any deferred maker label is read).
+    Object.defineProperties(EN, Object.getOwnPropertyDescriptors(MAKER_EN))
     expect(UI_TEXT.resourceTitle).toBe(german.resourceTitle)
     for (const key of fixture.keys) expect(EN[key], key).toEqual(canonical[key])
     expect(UI_TEXT.referenceSearch).toBe(german.referenceSearch)
