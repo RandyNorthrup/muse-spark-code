@@ -11090,7 +11090,10 @@
                       "type": "object",
                       "properties": {
                         "type": { "type": "string", "const": "bookmarkSet" },
-                        "backend": { "type": "string", "enum": ["museCode", "modelApi"] },
+                        "backend": {
+                          "type": "string",
+                          "enum": ["museCode", "modelApi", "external"]
+                        },
                         "sessionId": { "type": "string" },
                         "title": { "type": "string" },
                         "isBookmarked": { "type": "boolean" }
@@ -11329,7 +11332,10 @@
                       "properties": {
                         "type": { "type": "string", "const": "activateBoardSession" },
                         "sessionId": { "type": "string" },
-                        "backend": { "type": "string", "enum": ["museCode", "modelApi"] }
+                        "backend": {
+                          "type": "string",
+                          "enum": ["museCode", "modelApi", "external"]
+                        }
                       },
                       "required": ["type", "sessionId", "backend"],
                       "additionalProperties": false
@@ -12323,7 +12329,10 @@
                           ]
                         },
                         "detail": { "type": "string" },
-                        "backend": { "type": "string", "enum": ["museCode", "modelApi"] },
+                        "backend": {
+                          "type": "string",
+                          "enum": ["museCode", "modelApi", "external"]
+                        },
                         "methods": {
                           "type": "array",
                           "items": { "type": "string", "enum": ["browser", "apiKey", "byo"] }
@@ -12402,7 +12411,10 @@
                             "properties": {
                               "sessionId": { "type": "string" },
                               "title": { "type": "string" },
-                              "backend": { "type": "string", "enum": ["museCode", "modelApi"] },
+                              "backend": {
+                                "type": "string",
+                                "enum": ["museCode", "modelApi", "external"]
+                              },
                               "status": { "type": "string", "enum": ["running", "idle"] },
                               "branch": { "type": "string" },
                               "worktreePath": { "type": "string" },
@@ -12920,7 +12932,10 @@
                               "sessionId": { "type": "string" },
                               "title": { "type": "string" },
                               "bookmarkedAtMs": { "type": "number" },
-                              "backend": { "type": "string", "enum": ["museCode", "modelApi"] }
+                              "backend": {
+                                "type": "string",
+                                "enum": ["museCode", "modelApi", "external"]
+                              }
                             },
                             "required": ["sessionId", "title", "bookmarkedAtMs", "backend"],
                             "additionalProperties": false
@@ -13675,7 +13690,10 @@
                           ],
                           "additionalProperties": false
                         },
-                        "backend": { "type": "string", "enum": ["museCode", "modelApi"] },
+                        "backend": {
+                          "type": "string",
+                          "enum": ["museCode", "modelApi", "external"]
+                        },
                         "subscription": {
                           "type": "object",
                           "properties": {
@@ -15043,7 +15061,10 @@
                         "type": { "type": "string", "const": "sharePreview" },
                         "title": { "type": "string" },
                         "exportedAt": { "type": "string" },
-                        "sourceBackend": { "type": "string", "enum": ["museCode", "modelApi"] },
+                        "sourceBackend": {
+                          "type": "string",
+                          "enum": ["museCode", "modelApi", "external"]
+                        },
                         "modelId": { "type": "string" },
                         "redacted": { "type": "boolean" },
                         "items": {
@@ -29090,7 +29111,7 @@
                                               "type": { "type": "string", "const": "bookmarkSet" },
                                               "backend": {
                                                 "type": "string",
-                                                "enum": ["museCode", "modelApi"]
+                                                "enum": ["museCode", "modelApi", "external"]
                                               },
                                               "sessionId": { "type": "string" },
                                               "title": { "type": "string" },
@@ -29431,7 +29452,7 @@
                                               "sessionId": { "type": "string" },
                                               "backend": {
                                                 "type": "string",
-                                                "enum": ["museCode", "modelApi"]
+                                                "enum": ["museCode", "modelApi", "external"]
                                               }
                                             },
                                             "required": ["type", "sessionId", "backend"],
@@ -34022,7 +34043,7 @@
                 "type": "object",
                 "properties": {
                   "type": { "type": "string", "const": "bookmarkSet" },
-                  "backend": { "type": "string", "enum": ["museCode", "modelApi"] },
+                  "backend": { "type": "string", "enum": ["museCode", "modelApi", "external"] },
                   "sessionId": { "type": "string" },
                   "title": { "type": "string" },
                   "isBookmarked": { "type": "boolean" }
@@ -34222,7 +34243,7 @@
                 "properties": {
                   "type": { "type": "string", "const": "activateBoardSession" },
                   "sessionId": { "type": "string" },
-                  "backend": { "type": "string", "enum": ["museCode", "modelApi"] }
+                  "backend": { "type": "string", "enum": ["museCode", "modelApi", "external"] }
                 },
                 "required": ["type", "sessionId", "backend"],
                 "additionalProperties": false
@@ -35168,7 +35189,7 @@
                     ]
                   },
                   "detail": { "type": "string" },
-                  "backend": { "type": "string", "enum": ["museCode", "modelApi"] },
+                  "backend": { "type": "string", "enum": ["museCode", "modelApi", "external"] },
                   "methods": {
                     "type": "array",
                     "items": { "type": "string", "enum": ["browser", "apiKey", "byo"] }
@@ -35247,7 +35268,10 @@
                       "properties": {
                         "sessionId": { "type": "string" },
                         "title": { "type": "string" },
-                        "backend": { "type": "string", "enum": ["museCode", "modelApi"] },
+                        "backend": {
+                          "type": "string",
+                          "enum": ["museCode", "modelApi", "external"]
+                        },
                         "status": { "type": "string", "enum": ["running", "idle"] },
                         "branch": { "type": "string" },
                         "worktreePath": { "type": "string" },
@@ -35741,7 +35765,10 @@
                         "sessionId": { "type": "string" },
                         "title": { "type": "string" },
                         "bookmarkedAtMs": { "type": "number" },
-                        "backend": { "type": "string", "enum": ["museCode", "modelApi"] }
+                        "backend": {
+                          "type": "string",
+                          "enum": ["museCode", "modelApi", "external"]
+                        }
                       },
                       "required": ["sessionId", "title", "bookmarkedAtMs", "backend"],
                       "additionalProperties": false
@@ -36472,7 +36499,7 @@
                     ],
                     "additionalProperties": false
                   },
-                  "backend": { "type": "string", "enum": ["museCode", "modelApi"] },
+                  "backend": { "type": "string", "enum": ["museCode", "modelApi", "external"] },
                   "subscription": {
                     "type": "object",
                     "properties": {
@@ -37809,7 +37836,10 @@
                   "type": { "type": "string", "const": "sharePreview" },
                   "title": { "type": "string" },
                   "exportedAt": { "type": "string" },
-                  "sourceBackend": { "type": "string", "enum": ["museCode", "modelApi"] },
+                  "sourceBackend": {
+                    "type": "string",
+                    "enum": ["museCode", "modelApi", "external"]
+                  },
                   "modelId": { "type": "string" },
                   "redacted": { "type": "boolean" },
                   "items": {
@@ -51103,7 +51133,7 @@
                                         "type": { "type": "string", "const": "bookmarkSet" },
                                         "backend": {
                                           "type": "string",
-                                          "enum": ["museCode", "modelApi"]
+                                          "enum": ["museCode", "modelApi", "external"]
                                         },
                                         "sessionId": { "type": "string" },
                                         "title": { "type": "string" },
@@ -51420,7 +51450,7 @@
                                         "sessionId": { "type": "string" },
                                         "backend": {
                                           "type": "string",
-                                          "enum": ["museCode", "modelApi"]
+                                          "enum": ["museCode", "modelApi", "external"]
                                         }
                                       },
                                       "required": ["type", "sessionId", "backend"],
