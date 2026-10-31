@@ -1484,7 +1484,9 @@ client tool row with `_meta["museSpark.refusal"]` containing its code and
 localized reason. Explicit permission-profile extra read roots retain their
 existing read-only semantics; they do not authorize writes.
 
-Accounting metadata requires Model API journal records. Muse Code and disabled
-or unavailable history report `available: false`; retained history can be
-pruned, so session figures describe retained records. Clients requiring a
-complete lifetime total must treat that limit as unavailable evidence.
+Accounting metadata reads the session's journal records on both backends;
+Muse Code records carry plan pricing, so their requests count as plan
+requests instead of settling dollars. Disabled or unavailable history
+reports `available: false`; retained history can be pruned, so session
+figures describe retained records. Clients requiring a complete lifetime
+total must treat that limit as unavailable evidence.

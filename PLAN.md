@@ -12744,6 +12744,12 @@ waits on RLM104; M66 assessed; `docs/certification/rlhosts.md`).
 so no Xcode session is possible here;
 `docs/certification/rlf-hosts2.md`).
 
+**Status 2026-10-23 (RLF-MACLIVE): built**
+(F2: the ACP usage read is offered on Muse Code, live-proved in
+Neovim and Emacs with zero usage/accounting stderr lines; the
+RLF-HOSTS2 Vim live drill is green live, 4/4;
+`docs/certification/rlf-maclive.md`).
+
 | Milestone | Phase | What it delivers                                                                                                                                             |
 | --------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | M60       | A     | The host API inventory: every VS Code API, Node built-in, webview host call and theme variable the extension uses, recorded and gated; the `vscode` boundary |
@@ -32377,6 +32383,35 @@ with identical byte counts: the overages predate this lane, which
 changes no file those bundles contain (no budget is raised, no code of
 theirs touched). Shrinking them belongs to their owning lanes; the lead
 assigns. Evidence: `docs/certification/rlf-hosts2.md`.
+
+**RLF-MACLIVE catch-inventory deferral (2026-10-23, macmini, open).**
+`npm run check:catches` exits 1: net rises of 64 on the untouched
+base `d057bf203` and 63 on this tree (base `core GENERIC … to
+284`, tree `… to 283`; every other rise line identical). A
+site-level diff of the two inventories shows zero debt sites added
+and one removed. The RLF-ACPTURNS merge re-identified one Model
+API turn-failure catch; it is narrowed to REPORTED on this tree,
+so the lane adds zero catch debt. The stale baseline is the lead's
+integration work.
+Evidence: `docs/certification/rlf-maclive.md`.
+
+**RLF-MACLIVE bundle-size deferral (2026-10-23, macmini, open).** `npm
+run build` exits 1 on eight bundle budgets, identical before and after
+(reportInputs, reportingPanel, resourceGovernor, resourceAdmission,
+modelApi, vaultActions, estimateContracts, wire): the lane's delta is
++0.2 KiB on `modelApi.js` and +0.1 KiB on `wire.js`; no budget is
+raised. Shrinking the over-budget bundles belongs to their owning
+lanes; the lead assigns. Evidence:
+`docs/certification/rlf-maclive.md`.
+
+**RLF-MACLIVE plan-size deferral (2026-10-23, macmini, open).** `npm
+run check:plan` exits 1: PLAN.md is 3,725,714 bytes on the untouched
+base `d057bf203`, past 85% of the 4-MiB archived-plan budget
+(3,565,158 bytes). The overage predates this lane, which adds its
+status line and three §7 deferrals only. Archiving mid-recovery would
+rewrite the file every recovery lane edits, so the lead archives at
+integration. No threshold is changed. Evidence:
+`docs/certification/rlf-maclive.md`.
 
 ## 8. Escape hatches register
 

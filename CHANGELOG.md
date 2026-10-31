@@ -85,6 +85,10 @@ happened, not what was planned; superseded entries are kept.
   follows the outcome line either way. The command exits with the check's
   own exit code. `/playbook` stays read-only.
 
+- Editor sessions on the Muse Code backend now report their usage. The
+  turn accounting metadata carries the session's journaled token counts
+  with plan-priced requests instead of answering unavailable, and the
+  agent log stays silent about it.
 - Classic Vim gets its own chat plugin. The agent package carries a
   pure-Vimscript ACP client (`editors/vim`, Vim 8.1+): `:MuseSpark` opens
   the chat, `:MuseSparkSend` sends the prompt, permission prompts answer
