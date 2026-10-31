@@ -1,0 +1,16 @@
+{
+  "host": "zed",
+  "outcome": "excepted",
+  "editorVersion": "Python 3.13.7",
+  "reason": "no MHP surface: the shim is excepted from MHP scenarios and qualifies via its own harness",
+  "harness": {
+    "command": "python3 -m unittest discover -s hosts/zed/test",
+    "exitCode": 0,
+    "summary": "6 tests OK"
+  },
+  "provenance": {
+    "observedAt": "2026-10-31T01:35:53.155Z",
+    "observedOn": "randy-lt (linux)",
+    "command": "python3 -m unittest discover -s hosts/zed/test"
+  }
+}

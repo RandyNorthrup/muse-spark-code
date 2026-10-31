@@ -1,0 +1,18 @@
+{
+  "artifacts": [
+    "musespark/init.lua",
+    "musespark/config.lua",
+    "musespark/launch.py",
+    "musespark/musespark.lua",
+    "README.md"
+  ],
+  "build": [
+    {
+      "args": ["--headless", "-i", "NONE", "-u", "NONE", "-l", "test/check.lua"],
+      "command": "nvim"
+    },
+    { "args": ["-m", "unittest", "discover", "-s", "test", "-v"], "command": "python3" }
+  ],
+  "conformance": { "args": ["run.mjs"], "command": "node" },
+  "mhp": "mhp/1.5.0"
+}

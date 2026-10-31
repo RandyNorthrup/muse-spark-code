@@ -1,0 +1,21 @@
+{
+  "artifacts": ["build/distributions/muse-spark-code-jetbrains-0.19.0.zip"],
+  "build": [
+    {
+      "args": ["-p", ".", "test", "detekt", "ktlintCheck", "buildPlugin", "--no-daemon"],
+      "command": "./gradlew"
+    },
+    {
+      "args": [
+        "--test",
+        "test/embedded.test.mjs",
+        "test/bundle-size.test.mjs",
+        "test/panel-runtime.test.mjs",
+        "test/listing.test.mjs"
+      ],
+      "command": "node"
+    }
+  ],
+  "conformance": { "args": ["run.mjs"], "command": "node" },
+  "mhp": "mhp/1.5.0"
+}

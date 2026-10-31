@@ -1,0 +1,170 @@
+{
+  "host": "jetbrains",
+  "outcome": "waiting",
+  "editorVersion": "",
+  "report": {
+    "protocol": "mhp/1.5.0",
+    "host": "jetbrains",
+    "results": [
+      {
+        "backend": "musecode",
+        "scenario": "diff-hunks",
+        "observations": {
+          "hunks": {
+            "one": "accept",
+            "two": "reject"
+          },
+          "text": "l1c\nl2\nl3\n"
+        },
+        "skipped": false
+      },
+      {
+        "backend": "musecode",
+        "scenario": "diagnostics",
+        "observations": {
+          "verifyErrors": ["fixture error"]
+        },
+        "skipped": false
+      },
+      {
+        "backend": "musecode",
+        "scenario": "settings",
+        "observations": {
+          "settingValue": 5
+        },
+        "skipped": false
+      },
+      {
+        "backend": "musecode",
+        "scenario": "panel-order",
+        "observations": {
+          "deliveredSequences": [1, 2],
+          "refusals": ["MHP_PANEL_OUT_OF_ORDER", "MHP_PANEL_OUT_OF_ORDER"]
+        },
+        "skipped": false
+      },
+      {
+        "backend": "modelapi",
+        "scenario": "diff-hunks",
+        "observations": {
+          "hunks": {
+            "one": "accept",
+            "two": "reject"
+          },
+          "text": "l1c\nl2\nl3\n"
+        },
+        "skipped": false
+      },
+      {
+        "backend": "modelapi",
+        "scenario": "diagnostics",
+        "observations": {
+          "verifyErrors": ["fixture error"]
+        },
+        "skipped": false
+      },
+      {
+        "backend": "modelapi",
+        "scenario": "checkpoint",
+        "observations": {
+          "text": "original",
+          "checkpoints": 1
+        },
+        "skipped": false
+      },
+      {
+        "backend": "modelapi",
+        "scenario": "settings",
+        "observations": {
+          "settingValue": 5
+        },
+        "skipped": false
+      },
+      {
+        "backend": "modelapi",
+        "scenario": "panel-order",
+        "observations": {
+          "deliveredSequences": [1, 2],
+          "refusals": ["MHP_PANEL_OUT_OF_ORDER", "MHP_PANEL_OUT_OF_ORDER"]
+        },
+        "skipped": false
+      }
+    ]
+  },
+  "waiting": [
+    {
+      "backend": "musecode",
+      "scenario": "conversation",
+      "need": "lead-authorized live model calls with a named model and call count"
+    },
+    {
+      "backend": "modelapi",
+      "scenario": "conversation",
+      "need": "Meta Model API key (C2) and lead-authorized live model calls"
+    },
+    {
+      "backend": "musecode",
+      "scenario": "approval",
+      "need": "lead-authorized live model calls with a named model and call count"
+    },
+    {
+      "backend": "modelapi",
+      "scenario": "approval",
+      "need": "Meta Model API key (C2) and lead-authorized live model calls"
+    },
+    {
+      "backend": "musecode",
+      "scenario": "session-reload",
+      "need": "lead-authorized live model calls with a named model and call count"
+    },
+    {
+      "backend": "modelapi",
+      "scenario": "session-reload",
+      "need": "Meta Model API key (C2) and lead-authorized live model calls"
+    },
+    {
+      "backend": "musecode",
+      "scenario": "tab-completion",
+      "need": "lead-authorized live Tab generation with a named model and call count"
+    },
+    {
+      "backend": "modelapi",
+      "scenario": "tab-completion",
+      "need": "Meta Model API key (C2) and lead-authorized live Tab generation"
+    },
+    {
+      "backend": "musecode",
+      "scenario": "checkpoint",
+      "need": "Model-API-only checkpoint restore (the product refuses a Muse Code restore)"
+    },
+    {
+      "backend": "musecode",
+      "scenario": "dirty-buffer",
+      "hosts": ["jetbrains", "eclipse"],
+      "need": "per-document 1-based versions (unbuilt; the natives report platform modification stamps)"
+    },
+    {
+      "backend": "modelapi",
+      "scenario": "dirty-buffer",
+      "hosts": ["jetbrains", "eclipse"],
+      "need": "per-document 1-based versions (unbuilt; the natives report platform modification stamps)"
+    },
+    {
+      "backend": "musecode",
+      "scenario": "atomic-edit",
+      "hosts": ["jetbrains", "eclipse"],
+      "need": "per-document 1-based versions (unbuilt; the natives report platform modification stamps)"
+    },
+    {
+      "backend": "modelapi",
+      "scenario": "atomic-edit",
+      "hosts": ["jetbrains", "eclipse"],
+      "need": "per-document 1-based versions (unbuilt; the natives report platform modification stamps)"
+    }
+  ],
+  "provenance": {
+    "observedAt": "2026-10-31T01:35:52.411Z",
+    "observedOn": "randy-lt (linux)",
+    "command": "node test/hostApi/run.mjs jetbrains"
+  }
+}

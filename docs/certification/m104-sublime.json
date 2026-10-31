@@ -1,0 +1,11 @@
+{
+  "host": "sublime",
+  "outcome": "pending",
+  "editorVersion": "",
+  "need": "MHP_CONFORMANCE_PENDING: a run inside Sublime Text (the offline suite used a module double and is deleted)",
+  "provenance": {
+    "observedAt": "2026-10-31T01:35:53.155Z",
+    "observedOn": "randy-lt (linux)",
+    "command": ""
+  }
+}

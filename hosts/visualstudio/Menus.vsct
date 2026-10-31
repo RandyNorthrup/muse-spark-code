@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable">
+  <Extern href="stdidcmd.h" />
+  <Extern href="vsshlids.h" />
+  <Commands package="guidMusePackage">
+    <Groups>
+      <Group guid="guidMuseCommands" id="MuseGroup" priority="0x0600"><Parent guid="guidSHLMainMenu" id="IDG_VS_WNDO_OTRWNDWS1" /></Group>
+    </Groups>
+    <Buttons>
+      <Button guid="guidMuseCommands" id="MuseOpen" priority="0x0100" type="Button">
+        <Parent guid="guidMuseCommands" id="MuseGroup" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings><ButtonText>Muse Spark Code (Unofficial)</ButtonText></Strings>
+      </Button>
+    </Buttons>
+  </Commands>
+  <Symbols>
+    <GuidSymbol name="guidMusePackage" value="{640cd42d-9e16-4d8c-9bd5-b48b640e1b7c}" />
+    <GuidSymbol name="guidMuseCommands" value="{c8bb17e8-cf85-48a4-9f28-b0f4c83a9e06}">
+      <IDSymbol name="MuseGroup" value="0x1020" /><IDSymbol name="MuseOpen" value="0x0100" />
+    </GuidSymbol>
+  </Symbols>
+</CommandTable>

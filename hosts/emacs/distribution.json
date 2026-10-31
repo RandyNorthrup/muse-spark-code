@@ -1,0 +1,20 @@
+{
+  "artifacts": ["muse-spark.el", "README.md"],
+  "build": [
+    {
+      "args": [
+        "--batch",
+        "-Q",
+        "-L",
+        ".",
+        "-l",
+        "test/muse-spark-test.el",
+        "-f",
+        "ert-run-tests-batch-and-exit"
+      ],
+      "command": "emacs"
+    }
+  ],
+  "conformance": { "args": ["run.mjs"], "command": "node" },
+  "mhp": "mhp/1.5.0"
+}

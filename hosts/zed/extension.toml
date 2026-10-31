@@ -1,0 +1,11 @@
+id = "muse-spark-code"
+name = "Muse Spark Code (Unofficial)"
+version = "0.1.0"
+schema_version = 1
+authors = ["Randy Northrup"]
+description = "Invoked completions, a workspace broker and Stop through the shared LSP runtime."
+repository = "https://github.com/RandyNorthrup/muse-spark-code"
+
+[language_servers.muse_spark]
+name = "Muse Spark Code (Unofficial)"
+languages = ["C", "C++", "CSS", "Go", "HTML", "Java", "JavaScript", "JSON", "Python", "Ruby", "Rust", "TypeScript", "TSX"]

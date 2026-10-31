@@ -1,0 +1,11 @@
+{
+  "host": "vscode",
+  "outcome": "pending",
+  "editorVersion": "",
+  "need": "MHP_CONFORMANCE_PENDING: vscode observations are absent; run the vscode leg first",
+  "provenance": {
+    "observedAt": "2026-10-31T01:31:17.787Z",
+    "observedOn": "randy-lt (linux)",
+    "command": "npx vscode-test --grep M104g (labels stable and minimum)"
+  }
+}
