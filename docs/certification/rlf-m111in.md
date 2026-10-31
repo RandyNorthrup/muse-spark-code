@@ -32,6 +32,15 @@ desktop:l10n`), the Rust crate (`muse-desktop-l10n` 0.1.0, ICU4X 2.4.0,
   `rlf-m111in-rtl.light/dark.png` (mirrored, message text stays LTR per
   lane 0); classic `--lang=pseudo` re-verified. Logical-rule drill: 3
   errors, exit 2, restored green.
+- 2026-10-30: `os/desktop/packages.conf` (fcitx5 + Pinyin, Chewing, Mozc,
+  Hangul; Noto core/CJK/emoji; all nine names verified in trixie) and the
+  font-coverage gate (`npm run check:font-coverage`, HarfBuzz 10.2.0,
+  union coverage over 13 faces with TTC indexes, marks isolated).
+  Live: 13 fonts, 2646 codepoints, 0 problems. Red drill: planted
+  U+1F774 (proven missing in all fonts) → exit 1 with exact
+  attribution. `fontCoverage` 7/7 (recorded hb-shape outputs, exit-2
+  paths, symlink parity). Not in `quality:gates`: needs Linux with the
+  image fonts + hb-shape; desktop CI runs it.
 
 ## Next
 
