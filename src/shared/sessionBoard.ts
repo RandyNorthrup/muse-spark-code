@@ -4,9 +4,10 @@
 
 import * as z from 'zod/mini'
 
-// The backend pair, repeated here instead of imported from protocol.ts: that
+// The backend kinds, repeated here instead of imported from protocol.ts: that
 // module carries these rows, so importing it would cycle (the dpdm gate).
-export const BOARD_BACKENDS = ['museCode', 'modelApi'] as const
+// `external` (D250) is an ACP agent leading as orchestrator, never a sign-in.
+export const BOARD_BACKENDS = ['museCode', 'modelApi', 'external'] as const
 
 /** What the board shows for one conversation. */
 export const boardRowSchema = z.object({

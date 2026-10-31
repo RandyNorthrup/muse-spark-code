@@ -962,13 +962,14 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         .filter((task) => task.role.role === role.role && isKept(task))
         .map((task) => workerNode(task))
     // The conversation's real slot: a stored override is not Default, and the
-    // stored snapshot carries it across the new-conversation boundary.
+    // stored snapshot carries it across the new-conversation boundary. An
+    // external agent in the slot (D250) is an override like any other.
     const override = snapshot.orchestrator?.agent
     return {
       orchestrator: {
         model: orchestratorModel(),
         backend: deps.orchestrator.backend(),
-        slot: override !== undefined && override.kind !== 'external' ? 'override' : 'default',
+        slot: override === undefined ? 'default' : 'override',
       },
       ...todayTally(all),
       roles: roles().map((role) => ({

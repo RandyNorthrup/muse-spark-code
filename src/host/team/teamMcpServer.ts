@@ -20,6 +20,7 @@ import {
   IDE_MCP_LOOPBACK_HOST,
   IDE_MCP_PATH,
   CLI_OUTPUT_MAX_BYTES,
+  TEAM_MODEL_TEXT,
 } from '../../shared/constants'
 import { type Logger } from '../logger'
 import { answerMcp } from '../mcpLoopback'
@@ -60,7 +61,11 @@ export interface TeamSessionBinding {
 const AUTHORIZATION_HEADER = 'authorization'
 const BEARER_PREFIX = 'Bearer '
 const POST = 'POST'
-const TEAM_SERVER_INFO = { name: 'muse_spark_team', version: '1' } as const
+const TEAM_SERVER_INFO = {
+  name: 'muse_spark_team',
+  version: '1',
+  instructions: TEAM_MODEL_TEXT.mcpInstructions,
+} as const
 
 async function readBody(request: IncomingMessage, maxBytes: number): Promise<string | undefined> {
   const chunks: Buffer[] = []

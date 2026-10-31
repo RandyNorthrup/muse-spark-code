@@ -302,7 +302,7 @@ hosts. The controller posts every `onUpdate` run to its surface.
 */
 export class BestOfNManager {
   private readonly runner: BestOfNRunner
-  private backendKind: 'museCode' | 'modelApi' = 'modelApi'
+  private backendKind: 'museCode' | 'modelApi' | 'external' = 'modelApi'
 
   public constructor(private readonly deps: BestOfNManagerDeps) {
     // The parent's snapshot fires the run's extension hooks (M91 lane E):
@@ -392,7 +392,7 @@ export class BestOfNManager {
   /** Starts a run on the given backend; anything but the Model API is refused. */
   public async start(
     request: Omit<BestOfNStart, 'modelId' | 'approvalMode' | 'isCurrent'>,
-    backendKind: 'museCode' | 'modelApi',
+    backendKind: 'museCode' | 'modelApi' | 'external',
   ): Promise<BestOfNRun> {
     this.backendKind = backendKind
     const contextId = this.deps.contextId()

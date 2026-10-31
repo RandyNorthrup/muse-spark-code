@@ -17,6 +17,10 @@ import path from 'node:path'
 // build's folder, to the suites that stage one (the devices harness among
 // them); this proof is only the generation of the root's dist/.
 const PRODUCTION_BUILD_SUITES: ReadonlySet<string> = new Set([
+  // D250: the bridge suite spawns dist/teamHttpBridge.js itself, and so
+  // does the external orchestrator's, where its agent has no HTTP transport.
+  'test/unit/team/teamHttpBridge.test.ts',
+  'test/unit/team/externalOrchestrator.test.ts',
   'test/unit/teamHarness.test.mjs',
   // M98 phase 2 (RVM98P2R2 10): the delivery suite verifies dist/ itself.
   'test/unit/judgeP2Delivery.test.ts',

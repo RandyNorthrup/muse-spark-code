@@ -4249,6 +4249,7 @@ export const EN = {
   backendDetail: 'Which engine runs this conversation: automatic, Muse Code, or the Model API.',
   backendMuseCode: 'Muse Code (Your Muse Subscription)',
   backendModelApi: 'Meta Model API (Your Key, Pay as You Go)',
+  backendExternal: 'External Agent (Its Own Plan or Key)',
   modelApiBackendNotice:
     'This conversation runs on the Meta Model API with the extension’s own tools (read, edit, write, search, list, shell). Its sessions are kept in this workspace’s extension storage.',
   installOrKeyDetail:
@@ -8095,6 +8096,32 @@ export const EN = {
   teamTryWithOrchestrator: 'Try With the Orchestrator ({cost})',
   teamImportDraft: 'Opened as a draft: entries you lack show as missing.',
   teamEntryMissing: 'Missing: map it to one of your agents or remove it.',
+  // {agent}: the offered agent's label (D250: lead-only in this build).
+  teamWorkerLeadOnly: '{agent} can lead the team, but cannot run as a worker.',
+  // The external orchestrator's who-pays notice (D250). {agent}: its label.
+  teamExternalLeaderNotice:
+    'Led by {agent}, running as itself over ACP. It is paid however that agent is paid: its own plan or key.',
+  // {agent}: its label; {command}: the agent's own sign-in command (D250).
+  teamExternalSignIn:
+    '{agent} is not signed in. Sign in with its own command: run {command} in a terminal, then send your message again.',
+  teamExternalNotInstalled:
+    '{agent} is not installed: the command {command} was not found. Install it, then send your message again.',
+  teamExternalGone:
+    'The agent picked to lead this workspace is no longer configured. Pick another agent in the Roles section, or reset the orchestrator to Default.',
+  // {agent}: its label; {model}: the model the stored pick names (D250).
+  teamExternalModelRefused: '{agent} did not confirm the model {model}. No message was sent.',
+  teamExternalSwitchNotice:
+    'New conversations in this workspace will be led by {agent}, an external agent running as itself over ACP. It is paid however that agent is paid: its own plan or key.',
+  teamExternalMediaUnsupported:
+    'This agent cannot take attached media in a message. Remove the attachment and send again.',
+  // {agent}: its label; what the panel cannot take over from it (D250).
+  teamExternalDoesItself: '{agent} does this itself; the panel cannot do it for it.',
+  // {agent}: its label; the process ended under the session (D250).
+  teamExternalStopped: '{agent} stopped. Send your message again to start it.',
+  // {agent}: its label; the panel's permission mode has no counterpart (D250).
+  teamExternalModeKept: '{agent} does not offer this permission mode and keeps its own.',
+  // {agent}: its label; {effort}: the tier the panel asked for (D250).
+  teamExternalEffortRefused: '{agent} does not offer the reasoning effort {effort}.',
   teamIncludeTranscripts: 'Include Transcripts',
   // The tree's states (D75). Entry states with a time or reason ride in the
   // templates below.

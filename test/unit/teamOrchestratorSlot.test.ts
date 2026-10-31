@@ -45,7 +45,12 @@ describe('readOrchestratorOverride', () => {
       intensity: 'minimal',
       orchestrator: { agent: { kind: 'engine', agentId: 'key', model: 'opus-5.5', pays: 'key' } },
     })
-    expect(readOrchestratorOverride(state)).toEqual({ modelId: 'opus-5.5', backend: 'modelApi' })
+    expect(readOrchestratorOverride(state)).toEqual({
+      modelId: 'opus-5.5',
+      backend: 'modelApi',
+      agentId: 'key',
+      pays: 'key',
+    })
   })
 
   it('reads anything else stored as none', () => {
@@ -105,18 +110,28 @@ describe('canonical Roles storage', () => {
       },
     })
     await state.update('museSpark.team.orchestrator', { modelId: 'obsolete', backend: 'modelApi' })
-    expect(readOrchestratorOverride(state)).toEqual({ modelId: 'model', backend: 'musecode' })
+    expect(readOrchestratorOverride(state)).toEqual({
+      modelId: 'model',
+      backend: 'musecode',
+      agentId: 'subscription',
+      pays: 'subscription',
+    })
     await resetOrchestratorSlot(state)
     expect(state.get(TEAM_WORKSPACE_KEYS.team)).toEqual({ roles, intensity: 'balanced' })
     expect(readOrchestratorOverride(state)).toBeUndefined()
   })
-  it('refuses an external orchestrator instead of silently changing backend', () => {
+  it('reads an external orchestrator as itself, never as another backend (D250)', () => {
     const state = memoryState({
       roles: [],
       intensity: 'minimal',
       orchestrator: { agent: { kind: 'external', agentId: 'cli', model: 'model', pays: 'key' } },
     })
-    expect(readOrchestratorOverride(state)).toBeUndefined()
+    expect(readOrchestratorOverride(state)).toEqual({
+      modelId: 'model',
+      backend: 'external',
+      agentId: 'cli',
+      pays: 'key',
+    })
   })
 })
 

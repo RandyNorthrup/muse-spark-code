@@ -13,6 +13,7 @@ import type { TeamPanelOffer, TeamSettingControl } from '../../shared/teamPanel'
 import type { UsageLimitSnapshot } from '../../shared/usageJournal'
 import { computeTeamCeiling, metaTeamLimits } from './teamCeilings'
 import { modelApiPaidTier } from '../../shared/paid'
+import { externalAgentRef, externalOfferRef, type ExternalAgent } from './externalAgents'
 
 export interface TeamEngineModel {
   readonly model: ModelSummary
@@ -93,9 +94,20 @@ export function teamControls(record: ModelCapabilityRecord): TeamSettingControl[
 export function buildTeamModelOffers(input: {
   readonly engine: readonly TeamEngineModel[]
   readonly museCode: readonly MuseCodeModelSummary[]
+  /** External ACP agents on offer (D250): the presets and the person's own. */
+  readonly external?: readonly ExternalAgent[]
+  /** Whether an external agent's command was found; absent offers it and lets the start refuse in words. */
+  readonly isExternalInstalled?: (agent: ExternalAgent) => boolean
   readonly limits: readonly UsageLimitSnapshot[]
   readonly maxWorkers: number
+  /** This editor can run the kind as a worker. */
   readonly canRunKind: (kind: 'engine' | 'museCode' | 'external') => boolean
+  /**
+  This editor can run the kind as the orchestrator (D250): an offer stands
+  when either answer allows it, and carries `worker: false` when only the
+  lead can run it. Absent, the worker answer decides both.
+  */
+  readonly canLeadKind?: (kind: 'engine' | 'museCode' | 'external') => boolean
   /**
   The credential identity spending today, by provider. A known identity
   drops an observation stamped for another account, and an unstamped one
@@ -109,9 +121,10 @@ export function buildTeamModelOffers(input: {
 }): { readonly offers: TeamPanelOffer[]; readonly absent: TeamDiscoveryAbsence[] } {
   const offers: TeamPanelOffer[] = []
   const absent: TeamDiscoveryAbsence[] = []
+  const canLead = input.canLeadKind ?? input.canRunKind
   for (const { model, record, preset } of input.engine) {
     const provider = model.providerId ?? 'meta'
-    if (!input.canRunKind('engine')) {
+    if (!input.canRunKind('engine') && !canLead('engine')) {
       absent.push({ provider, reason: 'worker' })
       continue
     }
@@ -174,6 +187,7 @@ export function buildTeamModelOffers(input: {
         model: model.modelId,
         pays: billing,
       },
+      worker: input.canRunKind('engine'),
       toolCalling: true,
       contextWindow: model.contextLimit,
       imageInput: record.modalities.image.state === 'yes',
@@ -189,7 +203,7 @@ export function buildTeamModelOffers(input: {
     })
   }
   for (const model of input.museCode) {
-    if (!input.canRunKind('museCode')) {
+    if (!input.canRunKind('museCode') && !canLead('museCode')) {
       absent.push({ provider: 'museCode', reason: 'worker' })
       continue
     }
@@ -202,6 +216,7 @@ export function buildTeamModelOffers(input: {
       ref: `museCode:${model.modelId}`,
       label: model.displayLabel,
       agent: { kind: 'museCode', agentId: 'museCode', model: model.modelId, pays: 'subscription' },
+      worker: input.canRunKind('museCode'),
       toolCalling: true,
       contextWindow: model.contextLimit,
       ceiling: computeTeamCeiling({
@@ -224,6 +239,41 @@ export function buildTeamModelOffers(input: {
                 choices,
               },
             ],
+    })
+  }
+  const externalAgents = input.external ?? []
+  for (const agent of externalAgents) {
+    if (!input.canRunKind('external') && !canLead('external')) {
+      absent.push({ provider: agent.agentId, reason: 'worker' })
+      continue
+    }
+    if (input.isExternalInstalled !== undefined && !input.isExternalInstalled(agent)) {
+      absent.push({ provider: agent.agentId, reason: 'unavailable' })
+      continue
+    }
+    const ceiling = computeTeamCeiling({
+      kind: 'external',
+      providerRpm: undefined,
+      providerTpm: undefined,
+      workerRpm: undefined,
+      workerTpm: undefined,
+      machineLimit: input.maxWorkers,
+    })
+    if (ceiling < 1) {
+      absent.push({ provider: agent.agentId, reason: 'limits' })
+      continue
+    }
+    // An ACP coding agent runs its own tools; its window and prices are its
+    // own and stay unknown here, never guessed. Its settings are its own
+    // too: no stored team setting reaches it (D250).
+    offers.push({
+      ref: externalOfferRef(agent.agentId),
+      label: agent.label,
+      agent: externalAgentRef(agent),
+      worker: input.canRunKind('external'),
+      toolCalling: true,
+      ceiling,
+      controls: [],
     })
   }
   return { offers, absent }

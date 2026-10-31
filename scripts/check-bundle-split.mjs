@@ -2498,7 +2498,10 @@ nodeMetafiles.push(
 // dist/extension.js carried 444 KiB of it with its `navigator` sniff
 // (extension.ts -> host/paid/paidHost.ts -> core/paid/paidConsent.ts).
 // dist/structuredSchema.js shares zod/v4/core by design; the ACP engine
-// carries the ACP SDK's classic zod (englishZodLocales trims its locales).
+// carries the ACP SDK's classic zod (englishZodLocales trims its locales),
+// and so does the external orchestrator's bundle (D250): it is the ACP
+// client of an outside agent, loads on the first external pick only, and
+// its wire schemas are the SDK's own.
 const CLASSIC_ZOD_CARRIERS = new Set([
   'dist/meta/structuredSchema.json',
   'dist/meta/runtimeEngine.json',
@@ -2506,6 +2509,7 @@ const CLASSIC_ZOD_CARRIERS = new Set([
   // the ACP engine carries) imports classic zod; it loads only on the first
   // external task.
   'dist/meta/teamProcess.json',
+  'dist/meta/externalOrchestrator.json',
   // RLM98P2: JSON Schema conversion loads only on explicit MCP tool listing;
   // its entry re-exports toJSONSchema from zod/v4/core by design.
   'dist/meta/validationSchema.json',

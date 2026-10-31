@@ -378,6 +378,9 @@
     "test/unit/reportKindRenderFixtures.ts",
     // Tab's configured hook flow starts this real fake-hook process by path.
     "test/fixtures/tabHooks/completion.mjs",
+    // D250: the external orchestrator suite starts this real ACP agent
+    // process by path.
+    "test/fixtures/external-orchestrator/agent.mjs",
     // M116 playbook scenes: the axe runner (an npm script knip already sees)
     // bundles this scene file with esbuild, which knip does not trace.
     "test/harness/playbook.mjs",
@@ -510,6 +513,10 @@
     // scripts/build.mjs; the barrel is the chunk's API surface for the
     // engine chunk's dynamic reads, which knip cannot trace.
     "src/host/team/teamHostEntry.ts",
+    // The stdio-to-HTTP bridge an external orchestrator's agent spawns
+    // (dist/teamHttpBridge.js), bundled by path in scripts/build.mjs; the
+    // agent's process runs it, so nothing imports it.
+    "src/host/team/teamHttpBridgeEntry.ts",
     // The team chunk (dist/team.js): M120CAP's build plugin resolves the
     // scheduler chunk's `teamTools` import to it, so the barrel is that
     // chunk's API surface too, which knip cannot trace.

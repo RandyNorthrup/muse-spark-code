@@ -41,6 +41,11 @@ const VSIX_TEAM_ENTRIES = [
   'dist/teamPanel.js',
   'dist/teamScheduler.js',
 ]
+// A team bundle no chunk imports, because a process runs it: the stdio
+// bridge an external orchestrator's agent spawns by path (D250,
+// `externalOrchestrator.test.ts` spawns this very file through the real
+// host). Everything else under dist/team*.js still has to be reached.
+const SPAWNED_TEAM_BUNDLES = new Set(['dist/teamHttpBridge.js'])
 // M96b: headless --team enters through dist/execTeam.js, which reaches the
 // team host and its engine, create, file and merge chunks.
 const ACP_TEAM_ENTRIES = [
@@ -126,7 +131,11 @@ describe('team chunk packaging by construction', () => {
     const shipped = vsixShipped()
     const reachable = closure(VSIX_TEAM_ENTRIES, state.reachable)
     for (const file of shipped) {
-      if (/^dist\/team.*\.js$/.test(file) && !VSIX_TEAM_ENTRIES.includes(file))
+      if (
+        /^dist\/team.*\.js$/.test(file) &&
+        !VSIX_TEAM_ENTRIES.includes(file) &&
+        !SPAWNED_TEAM_BUNDLES.has(file)
+      )
         expect(reachable.has(file), `${file} is shipped but unreachable`).toBe(true)
     }
   })

@@ -14831,3 +14831,13 @@ serve` and every worker session in it, after a confirmation that
     tokens is shown apart in Account & usage (SoL-Pi rule 6).
 
 <!-- plan-archive:end id="decisions-de0c671a2-5964" -->
+
+**Amendment (2026-10-30, outside the sealed blocks above):** D250 in
+PLAN.md §2 amends this record's orchestrator keep. The slot is no longer
+kept to engine and Muse Code agents: it offers every available agent,
+external ACP agents included, exactly as the team agents are offered. An
+external orchestrator runs as itself over ACP with the `team` MCP tools and
+their instructions only — its loop, prompt and sign-in unchanged, its own
+payer named in the panel. The sealed text above stands as written; where it
+says the slot takes a model on either of today's backends, read D250 with
+it.

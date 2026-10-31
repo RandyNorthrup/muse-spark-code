@@ -6,86 +6,19 @@
 // and the HTTP server; the workspace state is the memory-backed map the
 // availability rig shares. No worker runs: the roster call never reaches one.
 import { describe, expect, it } from 'vitest'
-import { TeamHostBinding } from '../../src/host/teamHostBinding'
-import { TeamMcpServer } from '../../src/host/team/teamMcpServer'
-import { teamRosterAnswer } from '../../src/host/team/teamMcpEntry'
-import { createTeamHost } from '../../src/host/team/teamHostEntry'
-import { UI_TEXT } from '../../src/shared/constants'
-import { TEAM_WORKSPACE_KEYS } from '../../src/shared/teamConversation'
-import { availabilityState } from './helpers/teamAvailabilityRig'
-
-const silent = {
-  trace: () => undefined,
-  info: () => undefined,
-  warn: () => undefined,
-  error: () => undefined,
-}
-
-const STORED_TEAM = {
-  roles: [
-    {
-      role: 'engineering',
-      workspace: 'own-branch',
-      pool: [
-        {
-          id: 'e1',
-          concurrent: 2,
-          caps: [],
-          agent: { kind: 'engine', agentId: 'agent-e1', model: 'other-model-7', pays: 'local' },
-        },
-      ],
-    },
-  ],
-  intensity: 'balanced',
-}
+import { makeTeamBinding, STORED_ENGINE_TEAM } from './helpers/teamMcpBinding'
 
 /** The window binding over the bundle's real factory and the real MCP server. */
-function makeBinding(stored: unknown): TeamHostBinding {
-  const store = new Map<string, unknown>()
-  if (stored !== undefined) store.set(TEAM_WORKSPACE_KEYS.team, stored)
-  return new TeamHostBinding({
-    ports: {
-      state: availabilityState(store),
-      settings: {
-        isTeamOn: () => true,
-        isTeamWorkersOn: () => true,
-        maxWorkers: () => 2,
-        isTrusted: () => true,
-      },
-      orchestrator: { modelId: () => 'muse-spark-1.3', backend: () => 'museCode' },
-      paid: { allowKeyTasks: () => Promise.resolve(false) },
-      cards: { show: () => undefined },
-      newId: () => 'id-1',
-      now: () => 0,
-      log: silent,
-      engine: {
-        repositoryRoot: () => undefined,
-        storageRoot: '',
-        platform: process.platform,
-        isTrusted: () => true,
-        // The declared setup probe finds the stored entry's model served.
-        listModels: () => Promise.resolve(['other-model-7']),
-        // No worker is wanted here: a start is the failure the roster call must not cause.
-        startWorker: () => Promise.reject(new Error('the roster call must not start a worker')),
-        now: () => 0,
-        log: silent,
-      },
-    },
-    canRunKind: (kind) => kind === 'engine',
-    loadFactory: () => Promise.resolve(createTeamHost),
-    loadTeamMcp: () =>
-      Promise.resolve({ server: new TeamMcpServer(silent), rosterAnswer: teamRosterAnswer }),
-    uiText: () => UI_TEXT,
-    uiLocale: () => 'en',
-    showTree: () => undefined,
-    openRoles: () => Promise.resolve(),
-    showDiff: () => Promise.resolve(),
+function makeBinding(stored: unknown) {
+  return makeTeamBinding({
+    stored,
+    orchestrator: { modelId: 'muse-spark-1.3', backend: 'museCode' },
   })
 }
 
 describe('the team MCP server binding', () => {
   it('serves the five tools to its own conversation over real HTTP and refuses other tokens', async () => {
-    const bound = makeBinding(STORED_TEAM)
+    const bound = makeBinding(STORED_ENGINE_TEAM)
     try {
       await bound.open()
       expect(bound.teamMcp.modeForNewConversation()).toBe('team')

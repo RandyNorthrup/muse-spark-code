@@ -269,6 +269,7 @@ export function backendLabel(kind: BackendKind): string {
   const labels: Readonly<Record<BackendKind, string>> = {
     museCode: UI_TEXT.backendMuseCode,
     modelApi: UI_TEXT.backendModelApi,
+    external: UI_TEXT.backendExternal,
   }
   return labels[kind]
 }

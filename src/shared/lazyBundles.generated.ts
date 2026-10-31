@@ -388,6 +388,14 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'externalOrchestrator.js',
+    side: 'vscode',
+    requestedBy: [
+      { importer: 'src/extension.ts', symbol: 'controllerFor', side: ['vscode'] },
+      { importer: 'src/extension.ts', symbol: 'ensureModelsFeatures', side: ['vscode'] },
+    ],
+  },
+  {
     file: 'fontsInstall.js',
     side: 'acp',
     requestedBy: [
@@ -1568,6 +1576,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     requestedBy: [
       { importer: 'src/extension.ts', symbol: 'activateWindow', side: ['vscode'] },
       { importer: 'src/runtime/exec/execTeamEntry.ts', symbol: 'createExecTeam', side: ['acp'] },
+    ],
+  },
+  {
+    file: 'teamHttpBridge.js',
+    side: 'vscode',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'TEAM_HTTP_BRIDGE_BUNDLE_FILE',
+        side: ['vscode'],
+      },
     ],
   },
   {
