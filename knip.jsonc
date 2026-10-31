@@ -257,6 +257,19 @@
     "src/webview/fallbacks/index.ts",
     "src/webview/bridges/select.ts",
     "src/webview/bridges/moduleLoader.ts",
+    // RLF-HOSTSLAND: the native hosts' conformance runners (`node hosts/<host>/run.mjs`,
+    // which import the shared harness), the Xcode table generator
+    // (`node hosts/xcode/Scripts/generate.mjs` bundles nativeTables.ts, the
+    // reader of XCODE_HOST and XCODE_MODEL_TEXT), the hostApi vitest project
+    // (`vitest --config test/hostApi/vitest.config.mjs`) and the conformance
+    // drivers' command line and runner, which the suite starts as processes
+    // by path. knip does not trace a program started by name or path.
+    "hosts/*/run.mjs",
+    "hosts/xcode/Scripts/nativeTables.ts",
+    "test/hostApi/vitest.config.mjs",
+    "test/hostApi/listings.test.mjs",
+    "test/unit/hostDrivers/cli.ts",
+    "test/unit/hostDrivers/runDriver.mjs",
     "src/webview/resources/ResourceSurface.tsx",
     "src/webview/usage/ResourcesSection.tsx",
     // The Models & Agents panel's own entry (M95 lane M), required by path.
