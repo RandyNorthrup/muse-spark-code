@@ -96,6 +96,12 @@
     // RLF-M109: the runtime key-store migration chunk, required by path
     // from the vault runtime on the first unlock edge.
     "src/runtime/vault/vaultRuntimeMigrationEntry.ts",
+    // RLF-M109 (D243): the feeder, spawned in place of a command; the headless
+    // exec stack and the person vault policy's file half, each required by
+    // path from the vault runtime and the broker bindings on first use.
+    "src/runtime/vault/vaultExecEntry.ts",
+    "src/runtime/vault/vaultExecHostEntry.ts",
+    "src/runtime/vault/vaultPolicyEntry.ts",
     "src/runtime/vault/posixEntry.ts",
     "src/runtime/vault/windowsEntry.ts",
     "src/runtime/vault/storeEntry.ts",
