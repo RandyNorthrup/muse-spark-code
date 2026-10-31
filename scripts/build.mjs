@@ -469,6 +469,10 @@ const ACP_OUTFILE = 'dist/acp.js'
 // M110-N: isolated runtime mode, loaded only for explicit node commands.
 const NODE_ENTRY = 'src/runtime/node/main.ts'
 const NODE_OUTFILE = 'dist/node.js'
+// M110os RLF-MUSESETUP: the first-boot setup server, loaded only when the
+// first boot runs it, so dist/node.js never carries the seed reader's YAML.
+const NODE_SETUP_ENTRY = 'src/runtime/node/firstBoot/setupEntry.ts'
+const NODE_SETUP_OUTFILE = 'dist/nodeSetup.js'
 const SCHEDULE_BACKGROUND_ENTRY = 'src/runtime/schedules/backgroundEntry.ts'
 const SCHEDULE_BACKGROUND_OUTFILE = 'dist/scheduleBackground.js'
 const ACP_QUESTIONS_ENTRY = 'src/acp/questionDeferralEntry.ts'
@@ -1988,6 +1992,12 @@ const nodeOptions = {
   outfile: NODE_OUTFILE,
   banner: {},
 }
+const nodeSetupOptions = {
+  ...acpOptions,
+  entryPoints: [NODE_SETUP_ENTRY],
+  outfile: NODE_SETUP_OUTFILE,
+  banner: {},
+}
 
 // M104 lane H: the language server (`lsp`), and the supervised runs
 // (`supervise`, `stop`, the server's `muse.stop`), each loaded only by its
@@ -2819,6 +2829,7 @@ if (isWatch) {
     ['packsVerify', () => esbuild.build(packsVerifyOptions)],
     ['vaultRuntime', () => esbuild.build(vaultRuntimeOptions)],
     ['node', () => esbuild.build(nodeOptions)],
+    ['nodeSetup', () => esbuild.build(nodeSetupOptions)],
     ['lsp', () => esbuild.build(lspOptions)],
     ['supervise', () => esbuild.build(superviseOptions)],
     ['runtimePanel', () => esbuild.build(runtimePanelOptions)],
@@ -2842,6 +2853,7 @@ if (isWatch) {
   let packsVerify
   let vaultRuntime
   let node
+  let nodeSetup
   let lsp
   let supervise
   let runtimePanel
@@ -2863,6 +2875,7 @@ if (isWatch) {
       packsVerify,
       vaultRuntime,
       node,
+      nodeSetup,
       lsp,
       supervise,
       runtimePanel,
@@ -2934,6 +2947,8 @@ if (isWatch) {
     writeFileSync(path.join(ACP_METAFILE_DIR, 'acpPlaybook.json'), JSON.stringify(playbookMetafile))
     const { metafile: nodeMetafile } = await node
     writeFileSync(path.join(ACP_METAFILE_DIR, 'node.json'), JSON.stringify(nodeMetafile))
+    const { metafile: nodeSetupMetafile } = await nodeSetup
+    writeFileSync(path.join(ACP_METAFILE_DIR, 'nodeSetup.json'), JSON.stringify(nodeSetupMetafile))
     const { metafile: lspMetafile } = await lsp
     writeFileSync(path.join(ACP_METAFILE_DIR, 'lsp.json'), JSON.stringify(lspMetafile))
     const { metafile: superviseMetafile } = await supervise
@@ -3071,6 +3086,7 @@ if (isWatch) {
   reportSize('dist/headless.js')
   reportSize(SCHEDULE_BACKGROUND_OUTFILE)
   reportSize(NODE_OUTFILE)
+  reportSize(NODE_SETUP_OUTFILE)
   reportSize(LSP_OUTFILE)
   reportSize(SUPERVISE_OUTFILE)
   reportSize(RUNTIME_PANEL_OUTFILE)

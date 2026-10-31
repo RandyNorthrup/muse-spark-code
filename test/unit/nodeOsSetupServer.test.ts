@@ -3,18 +3,27 @@
 // stops the server; SSH keys come from the installed ssh-keygen and disks
 // from a sysfs-shaped fixture beside the real /sys cases next door.
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { scratch } from './helpers/nodeOs'
+import { MUSE_INSTALL_SCRIPT_URL } from '../../src/shared/constants'
+import { canReachUrl, hasTool, scratch } from './helpers/nodeOs'
 import { fill, UI_TEXT } from '../../src/shared/l10n/text'
 import {
   createSetupServer,
   prepareSetupState,
   type SetupServer,
 } from '../../src/runtime/node/firstBoot/server'
+import { resolveMuseInstallDir } from '../../src/runtime/node/firstBoot/installMuseCode'
 
 const servers: SetupServer[] = []
+
+const PROBE_TIMEOUT_MS = 30_000
+const CAN_INSTALL =
+  process.platform !== 'win32' &&
+  hasTool('bash', ['--version']) &&
+  hasTool('curl', ['--version']) &&
+  (await canReachUrl(MUSE_INSTALL_SCRIPT_URL, PROBE_TIMEOUT_MS))
 
 afterEach(async () => {
   while (servers.length > 0) {
@@ -59,11 +68,44 @@ function fixtureSysfs(root: string): string {
   return sys
 }
 
+/** The choices POST both Muse Code tests walk: install chosen, all else plain. */
+async function chooseMuseInstall(url: string, code: string) {
+  return await postForm(`${url}choices`, {
+    code,
+    networkKind: 'dhcp',
+    diskTarget: '/dev/sda',
+    encryption: 'none',
+    sshKey: '',
+    chrome: 'skip',
+    nvidia: 'skip',
+    museCode: 'install',
+  })
+}
+
+/**
+A serving setup with a scratch Muse home past the code gate, for the
+Muse Code tests. The caller owns root's removal.
+*/
+async function serveMuseInstall(root: string, timeoutMs: number) {
+  const stateDir = path.join(root, 'state')
+  const bootDir = path.join(root, 'boot')
+  mkdirSync(bootDir, { recursive: true })
+  const home = path.join(root, 'home')
+  mkdirSync(home, { recursive: true })
+  const { server, code } = await prepareAndServe(root, stateDir, bootDir, {
+    home,
+    timeoutMs,
+  })
+  await postForm(`${server.url}code`, { code })
+  return { home, server, code }
+}
+
 /** Fresh setup state plus its serving server, closed by the afterEach. */
 async function prepareAndServe(
   root: string,
   stateDir: string,
   bootDir: string,
+  muse?: { home?: string; timeoutMs?: number },
 ): Promise<{ server: SetupServer; code: string }> {
   const prepared = prepareSetupState(stateDir, bootDir)
   if (prepared.code === null) throw new Error('fresh setup has no code')
@@ -74,6 +116,8 @@ async function prepareAndServe(
     port: 0,
     maxBodyBytes: 1_000_000,
     sysfsRoot: fixtureSysfs(root),
+    museCodeHome: muse?.home ?? path.join(root, 'home'),
+    museCodeTimeoutMs: muse?.timeoutMs ?? 60_000,
   })
   servers.push(server)
   return { server, code: prepared.code }
@@ -144,6 +188,7 @@ describe('setup server', () => {
         text.sshTitle,
         text.chromeAccept,
         text.nvidiaAccept,
+        text.museCodeAccept,
         text.orchestratorWaiting,
         text.signinPasskeyNote,
       ]) {
@@ -154,6 +199,7 @@ describe('setup server', () => {
       expect(wizard.text).not.toContain('/dev/sdb')
       expect(wizard.text).toContain('https://www.google.com/chrome/terms/')
       expect(wizard.text).toContain('https://www.nvidia.com/en-us/drivers/nvidia-license/')
+      expect(wizard.text).toContain('https://dev.meta.ai/legal/terms-of-service')
 
       const hostileSsid = '<script>alert(1)</script>'
       const review = await postForm(`${url}choices`, {
@@ -167,8 +213,10 @@ describe('setup server', () => {
         sshKey,
         chrome: 'install',
         nvidia: 'skip',
+        museCode: 'skip',
       })
       expect(review.text).toContain(text.summaryTitle)
+      expect(review.text).toContain(text.museCodeTitle)
       expect(review.text).toContain('&lt;script&gt;')
       expect(review.text).not.toContain(hostileSsid)
       expect(review.text).not.toContain('correct-horse-battery-staple')
@@ -291,6 +339,8 @@ describe('setup server', () => {
         port: 0,
         maxBodyBytes: 32,
         sysfsRoot: fixtureSysfs(root),
+        museCodeHome: path.join(root, 'home'),
+        museCodeTimeoutMs: 60_000,
       })
       servers.push(server)
       const big = await postForm(`${server.url}code`, { code: 'x'.repeat(64) })
@@ -321,6 +371,8 @@ describe('setup server', () => {
         port: 0,
         maxBodyBytes: 1024,
         sysfsRoot: '/sys',
+        museCodeHome: '/home/setup',
+        museCodeTimeoutMs: 60_000,
       }),
     ).rejects.toThrow('Invalid setup server configuration')
     await expect(
@@ -331,7 +383,73 @@ describe('setup server', () => {
         port: 0,
         maxBodyBytes: 0,
         sysfsRoot: '/sys',
+        museCodeHome: '/home/setup',
+        museCodeTimeoutMs: 60_000,
+      }),
+    ).rejects.toThrow('Invalid setup server configuration')
+    await expect(
+      createSetupServer({
+        stateDir: '/state',
+        bootDir: '/boot',
+        host: '127.0.0.1',
+        port: 0,
+        maxBodyBytes: 1024,
+        sysfsRoot: '/sys',
+        museCodeHome: 'relative',
+        museCodeTimeoutMs: 0,
       }),
     ).rejects.toThrow('Invalid setup server configuration')
   })
+
+  it('brings the wizard back with the reason when the install fails', async () => {
+    const root = scratch('node-os-server-muse-fail-')
+    try {
+      const text = UI_TEXT.nodeOs
+      const { server, code } = await serveMuseInstall(root, 1)
+      const review = await chooseMuseInstall(server.url, code)
+      expect(review.text).toContain(text.summaryTitle)
+      // A spent bound fails the step: the wizard comes back with its
+      // reason, nothing completes, and the person retries or skips.
+      const again = await postForm(`${server.url}complete`, { code })
+      expect(again.text).toContain(text.netTitle)
+      expect(again.text).toContain(fill(text.museCodeFailed, { reason: 'timed-out' }))
+      const gate = await get(server.url)
+      expect(gate.text).toContain(text.setupCodeLabel)
+      expect(gate.text).not.toContain(text.setupDone)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  // Named timeout: Meta's real installer downloads and installs the CLI.
+  it.runIf(CAN_INSTALL)(
+    'installs Muse Code from Meta and reports its version',
+    { timeout: 300_000 },
+    async () => {
+      const root = scratch('node-os-server-muse-live-')
+      try {
+        const text = UI_TEXT.nodeOs
+        const { home, server, code } = await serveMuseInstall(root, 240_000)
+        await chooseMuseInstall(server.url, code)
+        const done = await postForm(`${server.url}complete`, { code })
+        expect(done.text).toContain(text.setupDone)
+        // The installed binary answers for itself, from the install dir.
+        const muse = path.join(resolveMuseInstallDir(home, process.env), 'muse')
+        expect(existsSync(muse)).toBe(true)
+        const version =
+          execFileSync(muse, ['--version'], { encoding: 'utf8' }).trim().split('\n', 1)[0] ?? ''
+        expect(version.length).toBeGreaterThan(0)
+        expect(done.text).toContain(version.slice(0, 100))
+        // Profiles stay untouched: the node manages PATH, not Meta's script.
+        for (const profile of ['.bashrc', '.bash_profile', '.profile', '.zshrc']) {
+          expect(existsSync(path.join(home, profile))).toBe(false)
+        }
+        // The report survives the completion: later visits show it too.
+        const after = await get(server.url)
+        expect(after.text).toContain(version.slice(0, 100))
+      } finally {
+        rmSync(root, { recursive: true, force: true })
+      }
+    },
+  )
 })

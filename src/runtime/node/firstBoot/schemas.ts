@@ -167,6 +167,18 @@ export function parseSshPublicKey(line: string): ParsedSshPublicKey | undefined 
   return { type, comment: rest.length === 0 ? undefined : rest.join(' ') }
 }
 
+/**
+The Muse Code step's recorded outcome (D229): the installed version. A
+failed install never completes: the wizard comes back with its stable
+reason, so the person retries or skips.
+*/
+export const museCodeInstalledSchema = z.strictObject({
+  ok: z.literal(true),
+  version: z.string(),
+})
+
+export type MuseCodeInstalled = z.infer<typeof museCodeInstalledSchema>
+
 export const setupChoicesSchema = z.strictObject({
   network: setupNetworkSchema,
   disk: setupDiskSchema,
@@ -174,6 +186,7 @@ export const setupChoicesSchema = z.strictObject({
   sshKey: z.string(),
   chrome: z.enum(['install', 'skip']),
   nvidia: z.enum(['install', 'skip']),
+  museCode: z.enum(['install', 'skip']),
 })
 
 export type SetupChoices = z.infer<typeof setupChoicesSchema>
