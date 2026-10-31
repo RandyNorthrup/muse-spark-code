@@ -619,6 +619,13 @@ Headless `exec` takes no MCP servers, so this route needs an ACP client.
   retry judgment: true where sending the prompt again may work, false
   where it cannot (a failure beyond retrying, or a dead backend, whose
   session is released with it). The agent never resubmits by itself.
+- **Spent subscription windows**: a turn that ran out of subscription quota
+  fails with code `-32014` and `data.kind: "quota_exhausted"`, never as an
+  internal error. The message states the reset in the person's language and
+  local time; `data.resetsAt` is the reset instant (ISO 8601, UTC) and
+  `data.retryable` is false. Wait until `data.resetsAt`, then send again —
+  resending before the reset fails again, and the agent never resubmits by
+  itself.
 - **One-shot notices**: a product notice the client cannot show as a
   notice goes out as its own message with its own id, so a client that
   groups by message id starts a new message instead of folding it into

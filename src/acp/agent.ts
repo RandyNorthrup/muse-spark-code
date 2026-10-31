@@ -138,7 +138,7 @@ import { fill, formatBytes, formatUnit, uiLocale } from '../shared/l10n/text'
 import type { AcpAttachment, AcpMediaFactory, AcpMediaPort } from './media'
 import { MediaRefusal } from './media'
 import { UserRefusalError } from '../shared/refusal'
-import { transientTurnFailureText } from '../shared/turnFailure'
+import { quotaTurnFailureText, transientTurnFailureText } from '../shared/turnFailure'
 import { parseSkillInvocation, slashCommandText } from '../shared/mentions'
 import { sessionTitle } from '../shared/sessions'
 import type { PaidUseRequest } from '../shared/paid'
@@ -412,6 +412,18 @@ with the turn's own detail; the rest keep their typed codes: the
 credential store's no-answer, else the failed turn with its kind.
 */
 export function turnFailureError(event: TurnCompleted): RequestError {
+  // A spent subscription window (D229): its own outcome, never internal
+  // and never transient, whatever the CLI's retryable judgment said. The
+  // data carries the kind, the reset instant and the wait: a client can
+  // wait until the reset and send again.
+  const quota = quotaTurnFailureText(event)
+  if (quota !== undefined && event.quota !== undefined) {
+    return new RequestError(ACP_ERROR_CODES.quotaExhausted, quota, {
+      kind: 'quota_exhausted',
+      resetsAt: new Date(event.quota.resetsAtMs).toISOString(),
+      retryable: false,
+    })
+  }
   const transient = transientTurnFailureText(event)
   if (transient !== undefined) return RequestError.internalError({ retryable: true }, transient)
   return event.errorKind === CREDENTIAL_STORE_ERROR_KIND
@@ -4511,6 +4523,7 @@ const OUTBOUND_ERROR_KINDS = [
   'authRequired',
   'deadline',
   'turn_failed',
+  'quota_exhausted',
   'model_api_error',
   'invalid_params',
   'invalid_request',
@@ -4531,6 +4544,7 @@ const OUTBOUND_ERROR_CODES: ReadonlySet<number> = new Set([
   ACP_ERROR_CODES.internal,
   ACP_ERROR_CODES.credentialStore,
   ACP_ERROR_CODES.turnFailed,
+  ACP_ERROR_CODES.quotaExhausted,
   ACP_ERROR_CODES.unavailable,
   ACP_ERROR_CODES.refused,
   JSON_RPC_ERRORS.invalidRequest,
@@ -4546,9 +4560,21 @@ interface OutboundErrorData {
   readonly reading?: ResourceReading
   readonly requestSent?: boolean
   /**
+  The backend's retry judgment (RLF-ACPTURNS, restored D229): a bare
+  boolean, so a client can offer to send again. A boolean carries no
+  content, so the shape is the whole check.
+  */
+  readonly retryable?: boolean
+  /**
+  A spent subscription window's reset instant (D229): the ISO instant
+  the quota error named, so a client can wait until it. Only a parseable
+  instant passes; anything else is dropped.
+  */
+  readonly resetsAt?: string
+  /**
   The session's own settled usage snapshot, attached by `promptResponse`
-  when a turn fails after spending (R1: the one non-vocabulary field, and
-  only when it validates — anything else in `_meta` is dropped).
+  when a turn fails after spending (R1: a validated structured field,
+  and only when it validates — anything else in `_meta` is dropped).
   */
   readonly _meta?: { readonly 'museSpark.usage': AcpUsageSnapshot }
 }
@@ -4661,6 +4687,9 @@ function kindForCode(code: number): OutboundErrorKind {
     case ACP_ERROR_CODES.turnFailed: {
       return 'turn_failed'
     }
+    case ACP_ERROR_CODES.quotaExhausted: {
+      return 'quota_exhausted'
+    }
     case ACP_ERROR_CODES.unavailable: {
       return 'unavailable'
     }
@@ -4675,6 +4704,8 @@ function outboundData(code: number, data: unknown): OutboundErrorData {
   let kind: OutboundErrorKind = kindForCode(code)
   let reading: ResourceReading | undefined
   let requestSent: boolean | undefined
+  let retryable: boolean | undefined
+  let resetsAt: string | undefined
   if (typeof data === 'object' && data !== null) {
     if (
       'kind' in data &&
@@ -4686,12 +4717,22 @@ function outboundData(code: number, data: unknown): OutboundErrorData {
     if ('reading' in data && isResourceReadingName(data.reading)) reading = data.reading
     if ('requestSent' in data && typeof data.requestSent === 'boolean')
       requestSent = data.requestSent
+    if ('retryable' in data && typeof data.retryable === 'boolean') retryable = data.retryable
+    if (
+      'resetsAt' in data &&
+      typeof data.resetsAt === 'string' &&
+      Number.isFinite(Date.parse(data.resetsAt))
+    ) {
+      resetsAt = data.resetsAt
+    }
   }
   const meta = outboundUsageMeta(data)
   return {
     kind,
     ...(reading !== undefined && { reading }),
     ...(requestSent !== undefined && { requestSent }),
+    ...(retryable !== undefined && { retryable }),
+    ...(resetsAt !== undefined && { resetsAt }),
     ...(meta !== undefined && { _meta: meta }),
   }
 }
@@ -4713,16 +4754,25 @@ const SDK_MESSAGE_PREFIXES = [
 ]
 
 /**
-Templates whose filled sentence may leave: the slot echoes the user's own
-command word in an error about that word (`Unknown argument: /share`).
-The template is fixed translated text read from the installed table at use
-time; the value travels only as the command word, never prompt, blob or
-key content. A raw planted secret carries no template prefix and stays
+Templates whose filled sentence may leave. One slot echoes the user's own
+command word in an error about that word (`Unknown argument: /share`);
+the other names a spent subscription window's reset instant in an error
+about that reset (D229). Each template is fixed translated text read
+from the installed table at use time; the values travel only as the
+command word and the Intl-rendered instant, never prompt, blob or key
+content. A raw planted secret carries no template prefix and stays
 generic.
 */
 function outboundTemplates(): readonly { readonly prefix: string; readonly suffix: string }[] {
-  const [prefix = '', suffix = ''] = UI_TEXT.acpUnknownArgument.split('{argument}', 2)
-  return prefix.length > 0 ? [{ prefix, suffix }] : []
+  const templates: { readonly prefix: string; readonly suffix: string }[] = []
+  for (const [text, slot] of [
+    [UI_TEXT.acpUnknownArgument, '{argument}'],
+    [UI_TEXT.subscriptionQuotaExhausted, '{resetTime}'],
+  ] as const) {
+    const [prefix = '', suffix = ''] = text.split(slot, 2)
+    if (prefix.length > 0) templates.push({ prefix, suffix })
+  }
+  return templates
 }
 
 /** The allow-listed sentence a message carries, past the SDK's own prefix. */
@@ -4774,7 +4824,8 @@ function networkAdviceSentence(message: string): string | undefined {
 }
 
 /** The single constructor for every error that leaves `respond`. */
-function outboundError(failure: OutboundFailure): RequestError {
+/** Rebuild the wire error from the classified failure: fixed codes, sentences and data. Exported so the wire contract is pinned over real code (acpTurnFailure.test.ts). */
+export function outboundError(failure: OutboundFailure): RequestError {
   const code = OUTBOUND_ERROR_CODES.has(failure.code) ? failure.code : ACP_ERROR_CODES.internal
   // The named reading sentence is fixed vocabulary too: the reading names
   // the failed port, never request content (R2's reporter uses the same).
@@ -4792,6 +4843,9 @@ function outboundError(failure: OutboundFailure): RequestError {
     ...(failure.data.reading !== undefined &&
       isResourceReadingName(failure.data.reading) && { reading: failure.data.reading }),
     ...(typeof failure.data.requestSent === 'boolean' && { requestSent: failure.data.requestSent }),
+    ...(typeof failure.data.retryable === 'boolean' && { retryable: failure.data.retryable }),
+    ...(typeof failure.data.resetsAt === 'string' &&
+      Number.isFinite(Date.parse(failure.data.resetsAt)) && { resetsAt: failure.data.resetsAt }),
     ...(failure.data._meta !== undefined &&
       outboundUsageMeta({ _meta: failure.data._meta }) !== undefined && {
         _meta: failure.data._meta,
@@ -4799,8 +4853,11 @@ function outboundError(failure: OutboundFailure): RequestError {
   })
 }
 
-/** Classify a caught failure into the one outbound shape, copying nothing it carried. */
-function toOutbound(error: unknown): { readonly failure: OutboundFailure; readonly log: boolean } {
+/** Classify a caught failure into the one outbound shape, copying nothing it carried. Exported so the wire contract is pinned over real code (acpTurnFailure.test.ts). */
+export function toOutbound(error: unknown): {
+  readonly failure: OutboundFailure
+  readonly log: boolean
+} {
   if (isResourceReadingError(error)) {
     const reading = error.reading
     return {
