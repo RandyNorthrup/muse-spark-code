@@ -10963,10 +10963,21 @@ request was made. Record: `docs/certification/cc-int5.md`.
 
 ### RLFQUOTA — A spent subscription window is said honestly, with its reset time (D229)
 
-**Status 2026-10-31 (lane RLF-QUOTA): building.** D229 is decided and the
-observed 429 line is saved as a fixture with its provenance; the outcome,
-the surfaces' words, the opt-in continue and the proofs are being built.
-Record (when proven): `docs/certification/rlf-quota.md`.
+**Status 2026-10-31 (lane RLF-QUOTA): built and certified.** A spent window is its own
+turn outcome on every surface (panel, CLI, ACP, headless) in English +
+14 tables, with the reset in local time; ACP carries
+`{kind: quota_exhausted, resetsAt, retryable: false}` on -32014;
+auto-resend never fires before the reset and the continue opt-in
+(`museCodeQuotaContinue`, off by default) waits the whole provider
+interval. Proven by real-code tests over the observed fixture (6
+red/green drills) and one packed-ACP turn on
+`muse-spark-1.3-contributor` (stated 1 request, spent 1). Two gates
+stay red and are reported, not raised: `build` (5 budgets OVER —
+3 pre-existing, `wire.js` +82 B of honest schema tips it 19 B over,
+`uiText.js` +96 B of build-shape noise) and the two widest
+`vitest related` runs (65/64 environmental failures: sandbox denials
+and base-tree issues, zero in this lane's area). Record:
+`docs/certification/rlf-quota.md`.
 
 ### TOOLROUNDS — Preserve answers at the model-call turn limit (D109)
 
