@@ -448,6 +448,7 @@ const BRIDGE_ENTRY = 'src/webview/bridges/select.ts'
 const WEBVIEW_OUTDIR = 'dist/webview'
 const PORTABLE_ENTRY = 'src/webview/portable.tsx'
 const PORTABLE_OUTDIR = 'dist/webview/portable'
+const PORTABLE_LOADER_FILE = 'dist/webview/portable/loader.js'
 const JUDGE_P2_ENTRY = 'src/runtime/judge/judgeEntry.ts'
 const JUDGE_P2_OUTFILE = 'dist/judgeP2.js'
 const JUDGE_SOURCES_ENTRY = 'src/runtime/judge/judgeSourcesEntry.ts'
@@ -2301,7 +2302,7 @@ async function buildPortable(buildRecord) {
       record({
         ...common,
         entryPoints: ['src/webview/bridges/moduleLoader.ts'],
-        outfile: `${PORTABLE_OUTDIR}/loader.js`,
+        outfile: PORTABLE_LOADER_FILE,
         metafile: true,
         plugins: isProduction ? [compactBrowserEnglish] : [],
         charset: 'utf8',
@@ -2339,7 +2340,7 @@ const portableLoaderOptions = {
   plugins: isProduction ? [compactBrowserEnglish] : [],
   charset: 'utf8',
   entryPoints: ['src/webview/bridges/moduleLoader.ts'],
-  outfile: `${PORTABLE_OUTDIR}/loader.js`,
+  outfile: PORTABLE_LOADER_FILE,
   platform: 'browser',
   format: 'iife',
   target: BROWSER_TARGET,
