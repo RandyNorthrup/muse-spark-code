@@ -79,7 +79,9 @@ async function startCaptureSession(
   answer: AnswerScript,
   settleMs: number,
 ): Promise<{ live: LiveHost; decide: (sourceIndex: number) => Promise<void> }> {
-  const live = startLiveHost(answer, undefined, { approvalPersistenceSettleMs: settleMs })
+  const live = startLiveHost(answer, undefined, undefined, {
+    approvalPersistenceSettleMs: settleMs,
+  })
   const session = await live.host.startSession({
     workspaceRoot: '<capture-workspace>',
     modelId: String(sessionRecord['modelId']),
