@@ -133,6 +133,49 @@ resourceSpans`; Resource → Scope → records. Retryable: 429/502/503/504
 - Next: M93 bundle files, Rust crate attempt, reference/host-api
   records, drills, CHANGELOG, full gates.
 
+## Part 5 (2026-10-31): M93 desktop facts, receiver fixes, Rust crate
+
+- `src/core/o11y/reportFacts.ts`: `desktopReportFacts(deps)` builds
+  M93's `desktop` facts block from the desktop host's reads (Electron
+  and Chrome versions, readiness + unready components, crash total and
+  kinds, export switch). Fixed vocabularies, versions and counts only;
+  never an endpoint, path or record text.
+- `src/core/support/problemReport.ts` (with M93's owner): optional
+  `desktop` block in the facts schema (versions validated by the
+  existing version check under dotted field names, kinds and
+  components as enums over the o11y vocabularies), `desktop` in the
+  unknownable facts, and a `desktop:` draft line
+  (`electron …, chrome …; ready…; crashes: …; otlp export: …`),
+  presence-gated so other hosts render no line. Suite:
+  `test/unit/o11y/reportFacts.test.ts` (8 tests over the real
+  builder); neighbours (`problemReportDetails`, `acpProblemReport`)
+  green.
+- Receiver spec fixes found through the Rust client: a span
+  `status.code` now takes the string form too (OTLP's JSON mapping
+  sends enums as names; prost-based senders send numbers), an empty
+  metric `unit` reads absent, and empty link ids (`parentSpanId`,
+  log `traceId`/`spanId`) read absent — exporters send `""` for
+  unset fields. Each with a unit case.
+- `desktop/crates/otel` (`muse-spark-otel`, MIT): `init` validates a
+  loopback-only HTTP endpoint and the component name, builds
+  tracer/meter/logger providers around OTLP/HTTP JSON exporters
+  with async-Tokio batching, installs tracer+meter globals, and
+  returns a guard with `shutdown` and the `tracing` bridge layers;
+  `install_panic_hook` chains the panic hook to append one
+  shape-only crash record to the ring's day file (payload never
+  read). Crate pins opentelemetry 0.33.1 family +
+  tracing-opentelemetry 0.34.0 with Cargo.lock committed.
+  Proof: 8 unit + 1 wiring (real hyper capture server, all three
+  signals as OTLP JSON) + 1 doctest, clippy all+pedantic denied,
+  `cargo fmt --check`. No CI builds Rust yet (no workflow runs
+  cargo); local runs are the proof until the release lane wires it.
+- Recorded exchange: `test/unit/o11y/fixtures/otlp-rust-2026-10-31/`
+  (bodies exactly as the exporters sent them, with capture date and
+  command) ingested for real by `test/unit/o11y/rustExchange.test.ts`
+  (spans + error flags, counter value, log severity, log→span link).
+- Next: reference/host-api records, CHANGELOG, PLAN status, red/green
+  drills, full gates, LANE DONE.
+
 ## Drills (red/green)
 
 None yet.

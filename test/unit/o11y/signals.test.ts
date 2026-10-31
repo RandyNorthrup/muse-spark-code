@@ -17,6 +17,23 @@ function wrapMetrics(res: unknown, met: unknown): unknown {
   return { resourceMetrics: [{ resource: res, scopeMetrics: [{ metrics: [met] }] }] }
 }
 
+function spanWith(code: unknown): unknown {
+  return {
+    traceId: 'a'.repeat(32),
+    spanId: 'b'.repeat(16),
+    name: 'workbench.render',
+    startTimeUnixNano: NANOS,
+    endTimeUnixNano: '1761864001000000000',
+    status: { code },
+  }
+}
+
+function statusBody(code: unknown): unknown {
+  return {
+    resourceSpans: [{ resource: resource('node'), scopeSpans: [{ spans: [spanWith(code)] }] }],
+  }
+}
+
 function wrapLogRecord(traceId: string, spanId: string): unknown {
   return {
     resourceLogs: [
@@ -108,6 +125,19 @@ describe('OTLP metrics ingest', () => {
     expect(parsed.records[0]).toMatchObject({ component: 'node', value: 42 })
   })
 
+  it('reads an empty unit as absent (exporters send "" when none was set)', () => {
+    const point = { timeUnixNano: NANOS, asDouble: 1 }
+    const body = wrapMetrics(resource('node'), {
+      name: 'ok.metric',
+      unit: '',
+      gauge: { dataPoints: [point] },
+    })
+    const parsed = ingestOtlpMetrics(body)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.records[0]?.unit).toBeUndefined()
+  })
+
   it('refuses an unknown component, a bad name and a bad time in fixed words', () => {
     const point = { timeUnixNano: NANOS, asDouble: 1 }
     const metric = { name: 'ok.metric', gauge: { dataPoints: [point] } }
@@ -168,6 +198,14 @@ describe('OTLP logs ingest', () => {
       reason: 'badId',
     })
   })
+
+  it('reads empty link ids as absent (exporters send "" when unlinked)', () => {
+    const parsed = ingestOtlpLogs(wrapLogRecord('', ''))
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.records[0]?.traceId).toBeUndefined()
+    expect(parsed.records[0]?.spanId).toBeUndefined()
+  })
 })
 
 describe('OTLP traces ingest', () => {
@@ -209,6 +247,18 @@ describe('OTLP traces ingest', () => {
         },
       ],
     })
+  })
+
+  it.each([2, 'STATUS_CODE_ERROR'])('marks an error span with status code %s', (code) => {
+    const parsed = ingestOtlpTraces(statusBody(code))
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) expect(parsed.records[0]?.error).toBe(true)
+  })
+
+  it('leaves a span without an error status unmarked', () => {
+    const parsed = ingestOtlpTraces(statusBody('STATUS_CODE_UNSET'))
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) expect(parsed.records[0]?.error).toBe(false)
   })
 
   it('refuses a span that ends before it starts', () => {

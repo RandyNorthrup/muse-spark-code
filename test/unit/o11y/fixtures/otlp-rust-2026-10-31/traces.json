@@ -1,0 +1,190 @@
+{
+  "resourceSpans": [
+    {
+      "resource": {
+        "attributes": [
+          {
+            "key": "telemetry.sdk.name",
+            "value": {
+              "stringValue": "opentelemetry"
+            }
+          },
+          {
+            "key": "service.name",
+            "value": {
+              "stringValue": "shell"
+            }
+          },
+          {
+            "key": "telemetry.sdk.language",
+            "value": {
+              "stringValue": "rust"
+            }
+          },
+          {
+            "key": "telemetry.sdk.version",
+            "value": {
+              "stringValue": "0.33.1"
+            }
+          }
+        ],
+        "droppedAttributesCount": 0,
+        "entityRefs": []
+      },
+      "scopeSpans": [
+        {
+          "scope": {
+            "name": "muse-spark-otel",
+            "version": "",
+            "attributes": [],
+            "droppedAttributesCount": 0
+          },
+          "spans": [
+            {
+              "traceId": "c81c5e8e9ac622871cf33f5f759ae551",
+              "spanId": "e7b8261c9ed367a1",
+              "traceState": "",
+              "parentSpanId": "",
+              "flags": 257,
+              "name": "render",
+              "kind": 1,
+              "startTimeUnixNano": "1793423224447145701",
+              "endTimeUnixNano": "1793423224447350580",
+              "attributes": [
+                {
+                  "key": "code.file.path",
+                  "value": {
+                    "stringValue": "tests/wiring.rs"
+                  }
+                },
+                {
+                  "key": "code.module.name",
+                  "value": {
+                    "stringValue": "wiring"
+                  }
+                },
+                {
+                  "key": "code.line.number",
+                  "value": {
+                    "intValue": "90"
+                  }
+                },
+                {
+                  "key": "thread.id",
+                  "value": {
+                    "intValue": "2"
+                  }
+                },
+                {
+                  "key": "thread.name",
+                  "value": {
+                    "stringValue": "emits_spans_metrics_and_logs_as_otlp_json"
+                  }
+                },
+                {
+                  "key": "target",
+                  "value": {
+                    "stringValue": "wiring"
+                  }
+                },
+                {
+                  "key": "busy_ns",
+                  "value": {
+                    "intValue": "132597"
+                  }
+                },
+                {
+                  "key": "idle_ns",
+                  "value": {
+                    "intValue": "87158"
+                  }
+                }
+              ],
+              "droppedAttributesCount": 0,
+              "events": [
+                {
+                  "timeUnixNano": "1793423224447309436",
+                  "name": "frame dropped",
+                  "attributes": [
+                    {
+                      "key": "level",
+                      "value": {
+                        "stringValue": "ERROR"
+                      }
+                    },
+                    {
+                      "key": "target",
+                      "value": {
+                        "stringValue": "wiring"
+                      }
+                    },
+                    {
+                      "key": "code.file.path",
+                      "value": {
+                        "stringValue": "tests/wiring.rs"
+                      }
+                    },
+                    {
+                      "key": "code.module.name",
+                      "value": {
+                        "stringValue": "wiring"
+                      }
+                    },
+                    {
+                      "key": "code.line.number",
+                      "value": {
+                        "intValue": "92"
+                      }
+                    }
+                  ],
+                  "droppedAttributesCount": 0
+                }
+              ],
+              "droppedEventsCount": 0,
+              "links": [],
+              "droppedLinksCount": 0,
+              "status": {
+                "message": "",
+                "code": 2
+              }
+            }
+          ],
+          "schemaUrl": ""
+        },
+        {
+          "scope": {
+            "name": "test",
+            "version": "",
+            "attributes": [],
+            "droppedAttributesCount": 0
+          },
+          "spans": [
+            {
+              "traceId": "af87c1e71bc52b7cb706696d6fcc2bfc",
+              "spanId": "d1fb9ee79f691d5e",
+              "traceState": "",
+              "parentSpanId": "",
+              "flags": 257,
+              "name": "failing",
+              "kind": 1,
+              "startTimeUnixNano": "1793423224447978207",
+              "endTimeUnixNano": "1793423224447981679",
+              "attributes": [],
+              "droppedAttributesCount": 0,
+              "events": [],
+              "droppedEventsCount": 0,
+              "links": [],
+              "droppedLinksCount": 0,
+              "status": {
+                "message": "broken pipe",
+                "code": 2
+              }
+            }
+          ],
+          "schemaUrl": ""
+        }
+      ],
+      "schemaUrl": ""
+    }
+  ]
+}
