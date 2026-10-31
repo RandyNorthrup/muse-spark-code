@@ -27,9 +27,10 @@ import {
 /** @unwired M96 workerFence re-exports for ACP host consumers */
 export { AcpNativeServersError, answerAcpPermission, extractRequestPaths } from './workerFence'
 import type { WorkerPromptParts, WorkerRolePolicy, WorkerTask } from './workerTypes'
+import { EXTERNAL_PRESET_LAUNCH, type ExternalPresetId } from '../externalAgents'
 
-/** An external agent preset (D75's list). */
-export type AcpPresetId = 'claude' | 'codex' | 'gemini' | 'copilot' | 'own'
+/** An external agent preset (D75's list); the ids and launch facts are D250's leaf table. */
+export type AcpPresetId = ExternalPresetId
 
 /** A role's shape for mode choice: what the mode must hold. */
 export type AcpRoleShape = 'readOnly' | 'writePaths' | 'engineering'
@@ -72,36 +73,36 @@ confined to its `cwd`); the rest wait on step 1's `initialize` records.
 export const ACP_PRESETS: Readonly<Record<AcpPresetId, AcpPreset>> = {
   claude: {
     id: 'claude',
-    command: 'claude-agent-acp',
-    defaultArgs: ['--hide-claude-auth'],
+    command: EXTERNAL_PRESET_LAUNCH.claude.command,
+    defaultArgs: EXTERNAL_PRESET_LAUNCH.claude.defaultArgs,
     modes: { readOnly: 'plan', writePaths: 'default', engineering: 'default' },
     forbiddenModes: ['bypassPermissions', 'dontAsk', 'auto'],
   },
   codex: {
     id: 'codex',
-    command: 'codex-acp',
-    defaultArgs: [],
+    command: EXTERNAL_PRESET_LAUNCH.codex.command,
+    defaultArgs: EXTERNAL_PRESET_LAUNCH.codex.defaultArgs,
     modes: { readOnly: 'read-only', writePaths: undefined, engineering: 'workspace-write' },
     forbiddenModes: ['agent-full-access'],
   },
   gemini: {
     id: 'gemini',
-    command: 'gemini',
-    defaultArgs: ['--acp'],
+    command: EXTERNAL_PRESET_LAUNCH.gemini.command,
+    defaultArgs: EXTERNAL_PRESET_LAUNCH.gemini.defaultArgs,
     modes: { readOnly: undefined, writePaths: undefined, engineering: undefined },
     forbiddenModes: [],
   },
   copilot: {
     id: 'copilot',
-    command: 'copilot',
-    defaultArgs: ['--acp'],
+    command: EXTERNAL_PRESET_LAUNCH.copilot.command,
+    defaultArgs: EXTERNAL_PRESET_LAUNCH.copilot.defaultArgs,
     modes: { readOnly: undefined, writePaths: undefined, engineering: undefined },
     forbiddenModes: [],
   },
   own: {
     id: 'own',
-    command: 'muse-spark-code-acp',
-    defaultArgs: [],
+    command: EXTERNAL_PRESET_LAUNCH.own.command,
+    defaultArgs: EXTERNAL_PRESET_LAUNCH.own.defaultArgs,
     modes: { readOnly: undefined, writePaths: undefined, engineering: undefined },
     forbiddenModes: [],
   },

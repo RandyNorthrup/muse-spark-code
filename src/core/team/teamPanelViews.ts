@@ -164,6 +164,7 @@ function roleIssues(
       issues.push(UI_TEXT.teamEntryMissing)
       continue
     }
+    if (!offer.worker) issues.push(fill(UI_TEXT.teamWorkerLeadOnly, { agent: offer.label }))
     const verdict = checkRoleCapability(
       offer.ref,
       { id: role.role, groups },
@@ -375,15 +376,17 @@ export function deriveTeamPanel(
   const orchestrator = document.orchestrator?.agent
   if (orchestrator !== undefined) {
     const offer = offers.find((item) => isSameAgent(item, orchestrator))
+    // D250: any offered agent may lead, external agents included. Its
+    // settings are its own: an external offer carries no controls, so a
+    // stored setting on it refuses here instead of being silently dropped.
     if (offer === undefined) issues.push(UI_TEXT.teamEntryMissing)
-    else if (offer.agent.kind === 'external') issues.push(UI_TEXT.teamEditor.invalid)
     else issues.push(...settingIssues(offer, document.orchestrator?.settings))
   }
-  // D227: a delegating draft needs a lead plus a worker. Offers are usable
-  // by construction (tool-calling models with limits and a worker kind),
-  // so a draft that delegates but offers no second model beside the
-  // orchestrator's says how to enable teams instead of saving an
-  // unrunnable team. Solo delegates nothing and needs no second model.
+  // D227: a delegating draft needs a lead plus a worker. Only offers this
+  // editor can run as workers count beside the orchestrator's model, so a
+  // draft that delegates but offers no second worker model says how to
+  // enable teams instead of saving an unrunnable team. Solo delegates
+  // nothing and needs no second model.
   // Key-billed offers count here: paid consent gates runs, not the draft.
   if (document.template !== 'solo') {
     const leadModel =
@@ -396,7 +399,7 @@ export function deriveTeamPanel(
       candidates: offers.map((offer) => ({
         modelId: offer.agent.model,
         billsKey: offer.agent.pays === 'key',
-        isAvailable: true,
+        isAvailable: offer.worker,
       })),
       isSameModel: isSameTeamModel,
       teamWorkersOn: true,

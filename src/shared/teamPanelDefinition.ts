@@ -91,6 +91,12 @@ export const teamPanelOfferSchema = z.strictObject({
   ref: id,
   label: z.string(),
   agent,
+  /**
+  This editor can run the agent as a worker (D250): an agent offered only
+  as orchestrator carries false, and a pool entry on it refuses in words
+  instead of saving work no runner can take.
+  */
+  worker: z.boolean(),
   toolCalling: z.boolean(),
   contextWindow: z.optional(z.number().check(z.gte(1))),
   imageInput: z.optional(z.boolean()),

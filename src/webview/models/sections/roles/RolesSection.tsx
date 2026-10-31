@@ -148,14 +148,12 @@ export function RolesSection({ panelState, post, highlightedItem }: SectionProps
           <SearchableSelect
             label={UI_TEXT.teamOrchestratorSlot}
             placeholder={UI_TEXT.groupModel}
-            options={slice.offers
-              .filter((offer) => offer.agent.kind !== 'external')
-              .map((offer) => ({
-                value: offer.ref,
-                label: offer.label,
-                description: offer.agent.model,
-                category: offer.agent.kind,
-              }))}
+            options={slice.offers.map((offer) => ({
+              value: offer.ref,
+              label: offer.label,
+              description: offer.agent.model,
+              category: offer.agent.kind,
+            }))}
             chips={[]}
             activeChip={chip}
             onChip={setChip}

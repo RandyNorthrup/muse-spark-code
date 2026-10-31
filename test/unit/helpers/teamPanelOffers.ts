@@ -6,6 +6,7 @@ export function teamOffers(): TeamPanelOffer[] {
     ref: `${id}/${id}`,
     label: id,
     agent: { kind: 'engine', agentId: id, model: id, provider: id, pays: 'key' },
+    worker: true,
     toolCalling: true,
     contextWindow: 131_072,
     imageInput: true,

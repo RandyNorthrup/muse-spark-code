@@ -7985,6 +7985,22 @@ export const EN = {
   teamTryWithOrchestrator: 'Try With the Orchestrator ({cost})',
   teamImportDraft: 'Opened as a draft: entries you lack show as missing.',
   teamEntryMissing: 'Missing: map it to one of your agents or remove it.',
+  // {agent}: the offered agent's label (D250: lead-only in this build).
+  teamWorkerLeadOnly: '{agent} can lead the team, but cannot run as a worker.',
+  // The external orchestrator's who-pays notice (D250). {agent}: its label.
+  teamExternalLeaderNotice:
+    'Led by {agent}, running as itself over ACP. It is paid however that agent is paid: its own plan or key.',
+  // {agent}: its label; {command}: the agent's own sign-in command (D250).
+  teamExternalSignIn:
+    '{agent} is not signed in. Sign in with its own command: run {command} in a terminal, then send your message again.',
+  teamExternalNotInstalled:
+    '{agent} is not installed: the command {command} was not found. Install it, then send your message again.',
+  teamExternalGone:
+    'The agent picked to lead this workspace is no longer configured. Pick another agent in the Roles section, or reset the orchestrator to Default.',
+  // {agent}: its label; {model}: the model the stored pick names (D250).
+  teamExternalModelRefused: '{agent} did not confirm the model {model}. No message was sent.',
+  teamExternalSwitchNotice:
+    'New conversations in this workspace will be led by {agent}, an external agent running as itself over ACP. It is paid however that agent is paid: its own plan or key.',
   teamIncludeTranscripts: 'Include Transcripts',
   // The tree's states (D75). Entry states with a time or reason ride in the
   // templates below.
