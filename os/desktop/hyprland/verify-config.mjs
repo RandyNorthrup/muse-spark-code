@@ -1,8 +1,7 @@
 // Muse Desktop (M111, D91.3) lane CP: the compositor gate. Runs Hyprland's
 // own --verify-config over the generated configs and passes only when it
-// prints `config ok`: the binary exits 0 even on a broken config, so the
-// exit code alone proves nothing. QA's desktop workflow calls this with
-// the pinned Hyprland installed.
+// prints `config ok`. QA's desktop workflow calls this with the pinned
+// Hyprland installed.
 // Usage: node os/desktop/hyprland/verify-config.mjs [--binary <path>] [files...]
 
 import { execFile } from 'node:child_process'
@@ -24,7 +23,7 @@ function run(binary, args) {
 export async function verifyConfigs(binary, files) {
   const failures = []
   for (const file of files) {
-    const full = path.join(REPO_ROOT, file)
+    const full = path.isAbsolute(file) ? file : path.join(REPO_ROOT, file)
     const { ran, output } = await run(binary, ['-c', full, '--verify-config'])
     if (!ran) return { binaryFound: false, failures: [file] }
     if (!output.includes('config ok')) failures.push({ file, output: output.trim() })
