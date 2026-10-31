@@ -29,7 +29,7 @@ import {
   type TeamProcessWorkersDeps,
 } from '../../src/host/team/teamProcessWorkers'
 import { createTeamHost } from '../../src/host/team/teamHostEntry'
-import { TEAM_MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
+import { TEAM_MODEL_TEXT, UI_TEXT, type CheckCommandSetting } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import type { TeamAgentRef, TeamSnapshot } from '../../src/shared/team'
 import { TEAM_WORKSPACE_KEYS } from '../../src/shared/teamConversation'
@@ -148,6 +148,7 @@ function processWorkerDeps(input: {
   readonly resolve: (launch: TeamMuseServeLaunch | undefined) => TeamMuseServeLaunch | undefined
   readonly pathEntries: () => readonly string[]
   readonly presets?: Readonly<Record<'own' | 'claude' | 'codex' | 'gemini' | 'copilot', AcpPreset>>
+  readonly checks?: () => readonly CheckCommandSetting[]
 }): Omit<TeamProcessWorkersDeps, 'runGit'> {
   const museLaunch: TeamMuseServeLaunch | undefined =
     MUSE === undefined
@@ -168,6 +169,8 @@ function processWorkerDeps(input: {
     extensionVersion: '0.0.0-test',
     resolveMuseServe: () => input.resolve(museLaunch),
     isContributorMode: () => false,
+    checks: input.checks ?? (() => []),
+    checkSetup: () => ({ setupCommand: '', cacheKey: '' }),
     baseEnv: () => input.env,
     pathEntries: input.pathEntries,
     ...(input.presets !== undefined && { presets: input.presets }),
@@ -181,6 +184,7 @@ async function makeRig(options: {
   readonly presets?: Readonly<Record<'own' | 'claude' | 'codex' | 'gemini' | 'copilot', AcpPreset>>
   readonly pathEntries?: readonly string[]
   readonly withoutMuse?: boolean
+  readonly checks?: () => readonly CheckCommandSetting[]
 }): Promise<Rig> {
   const root = await realpath(await mkdtemp(path.join(tmpdir(), 'muse-team-process-')))
   roots.push(root)
@@ -204,6 +208,7 @@ async function makeRig(options: {
     resolve: (launch) => (state.hasMuse ? launch : undefined),
     pathEntries: () => state.pathEntries,
     ...(options.presets !== undefined && { presets: options.presets }),
+    ...(options.checks !== undefined && { checks: options.checks }),
   })
   const processPorts = createProcessTeamPorts({ ...processDeps, runGit: realTeamGit })
   const engine = enginePortsWithoutWorker({
@@ -399,6 +404,40 @@ describe('one worker port over every kind a surface runs', () => {
       const args = processArguments(hosts[0]?.pid ?? 0)
       expect(args).toContain('--disable-write')
       expect(args).toContain('--disable-shell')
+    },
+    WORKER_TEST_TIMEOUT_MS,
+  )
+
+  // RLF-TEAMWORKERS3: a role with the checks group gets `run_checks` as a session MCP
+  // server of its own. The real `muse serve` is the client: it reads the server
+  // when the session starts, so the route's `checks` dep is read again for each
+  // request the host makes (once more than the single read that offers the server).
+  it.skipIf(MUSE === undefined).each([
+    [
+      'engineering',
+      'has the checks group: it gets its own run_checks server, which the real host reads',
+    ],
+    [
+      'research',
+      'is read-only without the checks group: it gets none, and the real host reads none',
+    ],
+  ])(
+    'a Muse Code worker whose role %s',
+    async (role, _what) => {
+      const reads: number[] = []
+      const rig = await makeRig({
+        agent: MUSE_AGENT,
+        checks: () => {
+          reads.push(reads.length)
+          return [{ name: 'unit', command: 'node --version' }]
+        },
+      })
+      const task = await delegate(rig, role, `Say exactly this:\n${ECHOED_REPORT}`)
+      const end = await settled(rig, task)
+      expect(end).toEqual({ phase: 'done', failure: '' })
+      // Offering the server reads the checks once; each request the host makes reads them again.
+      expect(reads.length > 1).toBe(role === 'engineering')
+      if (role !== 'engineering') expect(reads).toEqual([])
     },
     WORKER_TEST_TIMEOUT_MS,
   )

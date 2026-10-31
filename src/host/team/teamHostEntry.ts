@@ -37,13 +37,22 @@ function lazyProcessWorkers(
   locale: string,
   deps: NonNullable<TeamHostBundleDeps['processWorkers']>,
   runGit: TeamGit,
+  state: TeamStatePort,
 ): { readonly workers: TeamWorkerPort; readonly dispose: () => Promise<void> } {
   let loading: Promise<ProcessTeamPorts> | undefined
   let loaded: ProcessTeamPorts | undefined
   const start = async (): Promise<ProcessTeamPorts> => {
     try {
       const { createTeamProcessRuntime } = await import('./teamProcessEntry')
-      loaded = createTeamProcessRuntime(table, locale).createProcessTeamPorts({ ...deps, runGit })
+      loaded = createTeamProcessRuntime(table, locale).createProcessTeamPorts({
+        ...deps,
+        runGit,
+        // The check slots' setup, as the Roles section saved it for this workspace.
+        checkSetup: () => {
+          const { setupCommand, cacheKey } = readTeamWindowSettings(state)
+          return { setupCommand, cacheKey }
+        },
+      })
       return loaded
     } catch (error: unknown) {
       // A bundle that failed to load is tried again by the next task.
@@ -108,7 +117,7 @@ export async function createTeamHost(
   const process =
     processWorkers === undefined
       ? undefined
-      : lazyProcessWorkers(table, locale, processWorkers, git)
+      : lazyProcessWorkers(table, locale, processWorkers, git, deps.state)
   const service = createTeamHostService({
     ...rest,
     settings,

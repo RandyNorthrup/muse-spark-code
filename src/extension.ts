@@ -3545,6 +3545,8 @@ async function activateWindow(
           }
         },
         isContributorMode: () => backend.contributorModeEnabled(),
+        // The person's own checks: a worker's `run_checks` runs them in a check slot.
+        checks: () => currentSettings().checkCommands,
         baseEnv: () => process.env,
         pathEntries: () => (process.env['PATH'] ?? '').split(path.delimiter),
         ...(process.platform === 'win32' &&

@@ -12,10 +12,11 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { afterAll, describe, expect, it } from 'vitest'
+import { checkProcessOver } from '../../src/host/team/checkProcess'
 import { startNativeTeamLifetime } from '../../src/host/team/processLifetime'
 import { createTeamJournal } from '../../src/host/team/teamJournal'
 import { createWindowAuthority, createWindowIdentity } from '../../src/host/team/windowIdentity'
-import { HOOK_CONFIG_MAX_BYTES } from '../../src/shared/constants'
+import { HOOK_CONFIG_MAX_BYTES, TEAM_MODEL_TEXT } from '../../src/shared/constants'
 import { isProcessAlive } from './helpers/teamRealRig'
 
 // A genuinely long operation: the first launch runs the OS identity probes
@@ -50,6 +51,17 @@ function journalFor(storage: string, startedAt: number) {
   })
 }
 
+/** A lifetime over the journal that no host pressure holds back; it is stopped when the file ends. */
+async function startedLifetime(journal: ReturnType<typeof journalFor>) {
+  const started = await startNativeTeamLifetime({
+    journal,
+    isHostBusy: () => false,
+    killGraceMs: 1000,
+  })
+  lifetimes.push(started.lifetime)
+  return started
+}
+
 /** A child that says it is ready, then waits on its input until it is stopped. */
 const READY_CHILD = [String.raw`process.stdout.write('ready\n')`, 'process.stdin.resume()'].join(
   ';',
@@ -81,12 +93,7 @@ describe.skipIf(process.platform === 'win32')(
       async () => {
         const { storage, workspace } = await scratch()
         const journal = journalFor(storage, Date.now())
-        const started = await startNativeTeamLifetime({
-          journal,
-          isHostBusy: () => false,
-          killGraceMs: 1000,
-        })
-        lifetimes.push(started.lifetime)
+        const started = await startedLifetime(journal)
         const contained = await started.lifetime.launch({
           command: process.execPath,
           args: ['-e', READY_CHILD],
@@ -209,6 +216,98 @@ describe.skipIf(process.platform === 'win32')(
         if (orphan !== undefined) expect(await next.recovery.stop(orphan, true)).toBe('stopped')
         await untilGone(confirmation.pid)
         await contained.retire()
+      },
+      LAUNCH_TEST_TIMEOUT_MS,
+    )
+  },
+)
+
+// RLF-TEAMWORKERS3: the check slots' process runner over the same real lifetime.
+async function checkRunner() {
+  const { storage, workspace } = await scratch()
+  const journal = journalFor(storage, Date.now())
+  const started = await startedLifetime(journal)
+  return { run: checkProcessOver(started.lifetime), journal, workspace }
+}
+
+/** The launch record of the one check the runner started. */
+async function checkRecord(journal: ReturnType<typeof journalFor>) {
+  const all = await journal.names()
+  const names = all.filter((name) => name.startsWith('launch-'))
+  expect(names).toHaveLength(1)
+  const saved = await journal.read(names[0] ?? '', launchRecord)
+  if (saved.kind !== 'record') throw new Error('the launch record was not saved')
+  return saved.value
+}
+
+describe.skipIf(process.platform === 'win32')(
+  'the check slots’ process runner over the real lifetime (POSIX)',
+  () => {
+    it(
+      'runs a check contained, reads both streams, and claims the container’s proof only when the journal does',
+      async () => {
+        const { run, journal, workspace } = await checkRunner()
+        const result = await run({
+          file: process.execPath,
+          args: ['-e', "console.log('out'); console.error('err'); process.exit(3)"],
+          cwd: workspace,
+          env: { PATH: process.env['PATH'] },
+          timeoutMs: LAUNCH_TEST_TIMEOUT_MS,
+        })
+        expect(result.exitCode).toBe(3)
+        expect(result.output).toContain('out')
+        expect(result.output).toContain('err')
+        const record = await checkRecord(journal)
+        expect(record.taskId).toBe('team-check')
+        expect(record.end?.childExited).toBe(true)
+        // A bare process group (macOS) proves nothing; a delegated Linux scope proves it.
+        expect(result.descendantsEnded).toBe(record.end?.descendants === 'proved')
+      },
+      LAUNCH_TEST_TIMEOUT_MS,
+    )
+
+    it(
+      'stops a check at its time limit and says so',
+      async () => {
+        const { run, journal, workspace } = await checkRunner()
+        const result = await run({
+          file: process.execPath,
+          args: ['-e', "console.log('begun'); setInterval(() => undefined, 1000)"],
+          cwd: workspace,
+          env: { PATH: process.env['PATH'] },
+          timeoutMs: 1500,
+        })
+        expect(result.exitCode).not.toBe(0)
+        expect(result.output).toContain('begun')
+        expect(result.output).toContain(TEAM_MODEL_TEXT.hostCheckTimedOut)
+        const record = await checkRecord(journal)
+        expect(record.end?.childExited).toBe(true)
+        expect(isProcessAlive(record.confirmation?.pid ?? 0)).toBe(false)
+      },
+      LAUNCH_TEST_TIMEOUT_MS,
+    )
+
+    it(
+      'stops a check when its caller stops waiting for it',
+      async () => {
+        const { run, journal, workspace } = await checkRunner()
+        const stop = new AbortController()
+        const running = run({
+          file: process.execPath,
+          args: ['-e', "console.log('begun'); setInterval(() => undefined, 1000)"],
+          cwd: workspace,
+          env: { PATH: process.env['PATH'] },
+          timeoutMs: LAUNCH_TEST_TIMEOUT_MS,
+          signal: stop.signal,
+          onOutput: () => {
+            stop.abort()
+          },
+        })
+        const result = await running
+        expect(result.exitCode).not.toBe(0)
+        const record = await checkRecord(journal)
+        expect(record.end?.childExited).toBe(true)
+        expect(isProcessAlive(record.confirmation?.pid ?? 0)).toBe(false)
       },
       LAUNCH_TEST_TIMEOUT_MS,
     )

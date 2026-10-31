@@ -4533,6 +4533,27 @@ export type TeamToolGroup = (typeof TEAM_TOOL_GROUPS)[number]
 export const TEAM_REPORT_TOOL = 'report'
 /** The checks tool (M68), for the roles that run them. */
 export const TEAM_CHECKS_TOOL = 'run_checks'
+// The session MCP server a worker reaches `run_checks` on (M96c): a name no
+// settings file of the person's holds, since Muse Code refuses a reserved one.
+export const TEAM_CHECKS_SERVER = 'muse-team-checks'
+// The lockfiles whose content keys a check slot's install (once per lockfile
+// hash, PLAN.md M96c); one that the copy lacks is left out of the key.
+export const TEAM_CHECK_LOCKFILES: readonly string[] = [
+  'package-lock.json',
+  'pnpm-lock.yaml',
+  'yarn.lock',
+  'bun.lockb',
+  'bun.lock',
+  'poetry.lock',
+  'requirements.txt',
+  'Cargo.lock',
+  'go.sum',
+  'Gemfile.lock',
+  'composer.lock',
+]
+// The folders a slot's setup fills in the copy and a later run restores from
+// its cache (`git clean` empties them between runs).
+export const TEAM_CHECK_INSTALL_PATHS: readonly string[] = ['node_modules']
 /** The diagnostics tool, as the team names it across backends (PLAN.md D75). */
 export const TEAM_DIAGNOSTICS_TOOL = 'ide__getDiagnostics'
 /** The team tools a delegating worker gets; `merge` is never among them. */
@@ -9633,6 +9654,12 @@ export const TEAM_MODEL_TEXT = {
   hostMuseNotFound:
     'the Muse Code command was not found: install Muse Code or set museSpark.museBinaryPath, then run the task again',
   hostNoApprovalChoice: 'the worker’s approval offered no choice this team can answer safely',
+  // The worker's `run_checks` (M96c check slots).
+  hostCheckMovesRef:
+    'this check moves a git ref, which a team worker never does, so it was not run',
+  hostCheckResult: '{name}: exit code {code}, ran {location}',
+  hostCheckTimedOut: 'the check stopped at its time limit',
+  hostChecksNoShell: 'the checks need a shell this window could not find, so none was run',
   hostJournalForeign: 'this window cannot take over another window’s team records',
   hostContinueNotReady:
     'continue reopens a finished, unmerged task of the same role from this conversation, on its own branch',

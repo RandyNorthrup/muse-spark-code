@@ -1750,6 +1750,10 @@ const TEXT_BLOCKS = [
       // The file and shell tools' execution reads its refusal keys, so the
       // tool-run chunk carries the block whole too.
       'dist/modelApiToolRun.js',
+      // RLF-TEAMWORKERS3: a worker's `run_checks` (the bridge's lane O function)
+      // answers in this block's own sentences, so the process-worker bundle
+      // carries it whole (18.5 KiB).
+      'dist/teamProcess.js',
     ],
   },
   // The verify loop's own words (M68): the loop, its ledger and the

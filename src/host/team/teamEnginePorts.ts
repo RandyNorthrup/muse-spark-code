@@ -115,7 +115,7 @@ export interface TeamHostBundleDeps extends Omit<
   bundle adds the engine's git. Absent, this surface runs engine workers
   only and `canRun` answers false for the other kinds.
   */
-  readonly processWorkers?: Omit<TeamProcessWorkersDeps, 'runGit'> | undefined
+  readonly processWorkers?: Omit<TeamProcessWorkersDeps, 'runGit' | 'checkSetup'> | undefined
 }
 
 /**

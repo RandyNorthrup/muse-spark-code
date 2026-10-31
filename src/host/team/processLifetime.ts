@@ -236,6 +236,12 @@ export interface TeamLaunchRequest {
   /** The worker/bridge supplies its credential-free environment. */
   readonly env: NodeJS.ProcessEnv
   readonly priority: 'belowNormal' | 'normal'
+  /**
+  Called with the child as soon as it exists, before the lifetime releases its
+  command to run: a command that ends at once still has its output read, since
+  Node drops what nobody reads by the time a child exits.
+  */
+  readonly attach?: ((child: ChildProcessWithoutNullStreams) => void) | undefined
 }
 
 export interface ContainedTeamChild {
@@ -348,6 +354,7 @@ export function createTeamProcessLifetime(options: {
           record.id,
           lifecycle,
         )
+        request.attach?.(launched.child)
         try {
           let confirmation = confirmationSchema.parse(await launched.confirmation)
           lifecycle.confirm()

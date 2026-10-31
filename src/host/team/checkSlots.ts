@@ -22,7 +22,17 @@ export function requestCheckSlot<Slot extends SchedulerSlot>(
 
 import { createHash, randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
-import { cp, mkdir, mkdtemp, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises'
+import {
+  cp,
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  realpath,
+  rename,
+  rm,
+  writeFile,
+} from 'node:fs/promises'
 import path from 'node:path'
 import { RunnerTestFailedError, type CheckJob, type CheckResult } from '../../core/runners/routing'
 import { runnerEnvironment } from '../../core/runners/runnerConfig'
@@ -306,6 +316,13 @@ export class CheckSlots {
     for (const name of this.deps.installPaths) {
       const source = path.join(from, name)
       const target = path.join(to, name)
+      // A setup that leaves a folder out has nothing of it to carry over.
+      try {
+        await lstat(source)
+      } catch (error: unknown) {
+        if (!isMissingPath(error)) throw error
+        continue
+      }
       await rm(target, { recursive: true, force: true })
       await cp(source, target, {
         recursive: true,
