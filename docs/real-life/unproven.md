@@ -3260,3 +3260,9 @@ editor run proves it:
   deleted. The plugin waits for a run inside Sublime Text.
 - Qt Creator: mocked-exec tests deleted; the launch bootstrap and Lua shim
   are proven headless. The in-IDE run waits for Qt Creator.
+- Visual Studio: ProtocolTests (a hand-written FakeHost) and
+  RuntimeAndPackageTests (fake-runtime.mjs) are deleted. The remaining
+  suites compile on Linux but run only on Windows (net48); the host waits
+  for the lead's Windows PC.
+- Xcode: ported from RLF-M104GX (its fake runtime already deleted there);
+  every leg waits for the Mac mini.
