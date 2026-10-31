@@ -105,16 +105,7 @@ export function toolContext(orchestratorModelId: string): TeamToolContext {
   }
 }
 
-/** Whether a process is still running, by signal 0. */
-export function isProcessAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error: unknown) {
-    if (error instanceof Error && 'code' in error && error.code === 'ESRCH') return false
-    throw error
-  }
-}
+export { isProcessAlive } from './processAlive'
 
 /** One task's stored record, as the service persisted it in the state file. */
 export function storedTaskOf(values: ReadonlyMap<string, unknown>, taskId: string) {

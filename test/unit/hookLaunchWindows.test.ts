@@ -17,6 +17,7 @@ import { createToolIo } from '../../src/host/backend/toolIo'
 import { runProgram } from '../../src/host/processTree'
 import { configureRuntimeGovernor, type RuntimeGovernor } from './helpers/resources/runtimeGovernor'
 import { readJobSource } from './helpers/jobSource'
+import { isProcessAlive } from './helpers/processAlive'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const SUITE_MS = 180_000
@@ -45,19 +46,9 @@ writeFileSync(process.argv[2], String(child.pid))
 setTimeout(() => {}, 600000)
 `
 
-function isAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error: unknown) {
-    if (error instanceof Error && 'code' in error && error.code === 'ESRCH') return false
-    throw error
-  }
-}
-
 async function isEndedWithin(pid: number, ms: number): Promise<boolean> {
   const deadline = Date.now() + ms
-  while (isAlive(pid)) {
+  while (isProcessAlive(pid)) {
     if (Date.now() > deadline) return false
     await delay(100)
   }
