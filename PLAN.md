@@ -14897,6 +14897,27 @@ naming the questions, options and recommendations in that record. Slot
 checks wait on RLF-TEAMCORE's governed slots. Teams stay off until a
 second model is set up (D227).
 
+**Status 2026-10-31 (lane RLF-TEAMWORKERS2, Claude Code; the lead's brief): building.**
+Heavy team checks wait for the machine governor: the governor host lends
+its queue, `check` capacity and running count through
+`ResourceLaunchHost.teamSlotPorts` (and nothing wider), `CheckSlots` builds
+`GovernedTeamSlots` over them (a check takes its permit, then a folder; a
+folder whose processes are not proved ended keeps both) and `requestCheckSlot`
+has its caller; `dist/resourceGovernor.js` is 120.4 of its 125 KiB. The check
+path itself (`loadRunners`, `run_checks`) still has no caller in the product,
+so no live check has waited on the governor. External agents start where a
+switch for leaving out the person's own MCP servers was captured from the
+published package: Claude (`session/new` `_meta.claudeCode.options.strictMcpConfig`,
+adapter 0.99.1) and Gemini (`--allowed-mcp-server-names`, 0.66.0); Codex and
+Copilot have only per-server switches and keep refusing in words. Our own
+agent takes `--no-user-mcp-servers`: Muse Code 1.4.14 refuses
+`-c mcpServers.<name>.enabled=false` for a name the settings hold, so the
+flag refuses to open a session, in words, while the person's Muse settings
+turn an MCP server on. Proven on real parts, with no model turn and no other
+vendor's agent run (`docs/certification/rlf-teamworkers2.md`). The roles
+snapshot (Q1) still waits for the Roles panel's file roles. Teams stay off
+until a second model is set up (D227); not in a release yet.
+
 **Status 2026-10-31 (lane RLF-TEAMWORKERS, finished in Claude Code after Muse's weekly allowance ran out; decisions by the lead in the lane brief): building.**
 TEAMWIRE's open question 2 is decided and built: the team host binding in the
 lazy team bundle owns the assembly. A composite worker port sits beside the

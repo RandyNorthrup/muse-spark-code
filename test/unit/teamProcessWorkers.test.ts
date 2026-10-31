@@ -114,13 +114,18 @@ beforeAll(async () => {
   await symlink(path.resolve('node_modules'), path.join(staged.directory, 'node_modules'), 'dir')
 })
 
+// Each rig stops a real Muse Code host and its contained children, so the
+// teardown is a genuinely long operation on a shared rig: the rigs stop
+// together, under the named bound the tests use.
 afterAll(async () => {
-  for (const rig of rigs.splice(0)) {
-    await rig.service.dispose()
-    await rig.processPorts.dispose()
-  }
+  await Promise.all(
+    rigs.splice(0).map(async (rig) => {
+      await rig.service.dispose()
+      await rig.processPorts.dispose()
+    }),
+  )
   for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true })
-})
+}, WORKER_TEST_TIMEOUT_MS)
 
 function storedTeam(agent: TeamAgentRef): TeamSnapshot {
   const entry = (id: string) => ({ id, concurrent: 2, caps: [], agent })
