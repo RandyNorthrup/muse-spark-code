@@ -7459,6 +7459,8 @@ export const JSON_RPC_ERRORS = {
 export const HTTP_STATUS = {
   ok: 200,
   accepted: 202,
+  /** M104 lane C: the MHP routes answer 204; they return no body. */
+  noContent: 204,
   partialContent: 206,
   /** A 2xx answer ends below this (M95 lane K: the local probe). */
   multipleChoices: 300,
@@ -7467,8 +7469,12 @@ export const HTTP_STATUS = {
   forbidden: 403,
   notFound: 404,
   methodNotAllowed: 405,
+  /** M104 lane C: the MHP sequence and readiness refusals. */
+  conflict: 409,
   requestTooLarge: 413,
   unprocessable: 422,
+  /** M104 lane C: MHP's backpressure refusal. */
+  tooManyRequests: 429,
   internalServerError: 500,
 } as const
 
@@ -11452,6 +11458,28 @@ export const CONNECTOR_COMPANION_LIMITS = {
   launchCodeTtlMs: 120_000,
   /** 30 minutes. */
   sessionTtlMs: 1_800_000,
+  maxSessions: 2,
+} as const
+/**
+M104 lane C: `panel --companion` serves the portable panel over the
+companion server's MHP routes. The body and stream bounds are the MHP
+contract's own (an envelope is refused before it is parsed); the timeouts
+follow the companion family (the connector's idle and code TTLs, RLM104's
+panel request timeout); a panel window outlives a glance, so its bearer
+lives a day (RLM104's panel session TTL); one window is live at a time,
+with room for its replacement arriving (the connector's shape).
+*/
+export const PANEL_COMPANION_LIMITS = {
+  /** MHP's envelope bound. */
+  maxBodyBytes: MHP_PANEL.maximumEnvelopeBytes,
+  /** MHP's queue bound. */
+  maxEventBytes: MHP_PANEL.maximumQueuedBytes,
+  requestTimeoutMs: 30_000,
+  /** 30 minutes. */
+  idleTimeoutMs: 1_800_000,
+  launchCodeTtlMs: 120_000,
+  /** 24 hours. */
+  sessionTtlMs: 86_400_000,
   maxSessions: 2,
 } as const
 export const CONNECTOR_FOLDER = 'connector'

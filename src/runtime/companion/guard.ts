@@ -64,20 +64,24 @@ export function secureHeaders(response: ServerResponse, nonce: string): void {
   response.setHeader('Permissions-Policy', 'microphone=(self), camera=()')
 }
 
-/** Fatal UTF-8 decoding and a byte cap precede every injected zod parser. */
+/**
+Fatal UTF-8 decoding and a byte cap precede every injected zod parser. An
+over-cap body is named apart (EPANEL_TOO_LARGE) so the MHP routes answer
+the contract's own bound; every other malformed body is EPANEL_BODY.
+*/
 export async function readJson(request: IncomingMessage, maxBytes: number): Promise<unknown> {
   if (singleHeader(request, 'content-type') !== 'application/json')
     throw new Error('EPANEL_CONTENT_TYPE')
   const length = singleHeader(request, 'content-length')
-  if (length !== undefined && (!/^\d+$/.test(length) || Number(length) > maxBytes))
-    throw new Error('EPANEL_BODY')
+  if (length !== undefined && !/^\d+$/.test(length)) throw new Error('EPANEL_BODY')
+  if (length !== undefined && Number(length) > maxBytes) throw new Error('EPANEL_TOO_LARGE')
   let size = 0
   const chunks: Buffer[] = []
   const stream = request.iterator({ destroyOnReturn: false })
   for await (const chunk of stream) {
     if (!Buffer.isBuffer(chunk)) throw new TypeError('EPANEL_BODY')
     size += chunk.length
-    if (size > maxBytes) throw new Error('EPANEL_BODY')
+    if (size > maxBytes) throw new Error('EPANEL_TOO_LARGE')
     chunks.push(chunk)
   }
   const parsed: unknown = JSON.parse(

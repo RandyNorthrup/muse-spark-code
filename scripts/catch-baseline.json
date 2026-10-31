@@ -22,7 +22,7 @@
       "CLEANUP": 1
     },
     "runtime": {
-      "SWALLOW": 30,
+      "SWALLOW": 27,
       "GENERIC": 168,
       "CLEANUP": 130
     },
@@ -3989,11 +3989,6 @@
       "class": "SWALLOW"
     },
     {
-      "file": "src/runtime/companion/events.ts",
-      "identity": "04f8a585bc851fc437045f8ec9f8d4267ecee2e7a3ad587fd151872fcc9bd985",
-      "class": "SWALLOW"
-    },
-    {
       "file": "src/runtime/companion/nativeAttachments.ts",
       "identity": "08fdc73c1af9289ab9cced6f3139eb9c2441f423493faf2cb04117af3774b6e6",
       "class": "CLEANUP"
@@ -4002,16 +3997,6 @@
       "file": "src/runtime/companion/nativeAttachments.ts",
       "identity": "b20a94cebd27ae1ae0ec8442c5e42ff1d9252b3921f8b7f7e557f336a15977d0",
       "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/companion/server.ts",
-      "identity": "26dbe7c5eea4b00c5109c9602215509feba9a30b1595d974fd809a550221ecc8",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/runtime/companion/server.ts",
-      "identity": "478b597d5e780d45fcb1157303d793c061d84617f28db9be65c405d53d87ab53",
-      "class": "SWALLOW"
     },
     {
       "file": "src/runtime/companion/server.ts",
