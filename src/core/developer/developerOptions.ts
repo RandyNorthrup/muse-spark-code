@@ -118,12 +118,12 @@ export class DeveloperOptions {
     }
     await owner.refresh()
     if (owner.isMultipleAccountsOn()) {
-      const current = owner.fence()
+      const isCurrent = owner.fence()
       try {
         for (const profile of owner.state.profiles) {
           await deps.checkAccount(profile.provider, profile.account)
-          owner.assertCurrent(current)
-          await deps.resources.start(profile, current)
+          owner.assertCurrent(isCurrent)
+          await deps.resources.start(profile, isCurrent)
         }
       } catch (error) {
         // The refusal that stopped the start is what the person hears: turning
@@ -165,8 +165,8 @@ export class DeveloperOptions {
   ): Promise<DeveloperSnapshot> {
     const stored = await deps.store.read()
     const parsed = stored === undefined ? undefined : developerStateSchema.safeParse(stored)
-    if (parsed?.success !== true) throw new DeveloperOptionsError('differentMachine')
-    if (!(await deps.confirm('resetForeign'))) throw new DeveloperOptionsError('differentMachine')
+    if (parsed?.success !== true || !(await deps.confirm('resetForeign')))
+      throw new DeveloperOptionsError('differentMachine')
     const cleared = developerStateSchema.parse({
       v: 1,
       machineId: deps.machineId,
@@ -361,12 +361,12 @@ export class DeveloperOptions {
           throw new DeveloperOptionsError('locked')
         if (isAllowed) {
           await this.save({ ...this.state, isMultipleAccountsOn: true }, 'enable', source)
-          const current = this.fence()
+          const isCurrent = this.fence()
           try {
             for (const profile of this.state.profiles) {
               await this.deps.checkAccount(profile.provider, profile.account)
-              this.assertCurrent(current)
-              await this.deps.resources.start(profile, current)
+              this.assertCurrent(isCurrent)
+              await this.deps.resources.start(profile, isCurrent)
             }
           } catch (error) {
             this.invalidate()
@@ -384,9 +384,9 @@ export class DeveloperOptions {
     account: string,
     source: DeveloperAudit['source'] = 'page',
   ): Promise<DeveloperSnapshot> {
-    const current = this.fence()
+    const isCurrent = this.fence()
     return await this.serialize(async () => {
-      this.assertCurrent(current)
+      this.assertCurrent(isCurrent)
       const profile = developerProfileSchema.parse({
         id: this.deps.newProfileId(),
         provider,
@@ -397,13 +397,13 @@ export class DeveloperOptions {
         profiles: [...this.state.profiles, profile],
       })
       await this.deps.checkAccount(provider, account)
-      this.assertCurrent(current)
+      this.assertCurrent(isCurrent)
       // Record ownership before creating resources; failed starts remain
       // visible/removable and never become an unrecorded cleanup target.
       await this.save(next, 'create', source, profile.id)
-      this.assertCurrent(current)
-      await this.deps.resources.start(profile, current)
-      this.assertCurrent(current)
+      this.assertCurrent(isCurrent)
+      await this.deps.resources.start(profile, isCurrent)
+      this.assertCurrent(isCurrent)
       return this.snapshot()
     })
   }

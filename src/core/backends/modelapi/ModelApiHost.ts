@@ -7186,11 +7186,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     entry.isCompleted = true
     this.emit({ type: 'itemCompleted', item: completed })
     this.recordTranscript(turnId, completed)
-    if (this.sendingSearchBound !== undefined) {
-      return
-    }
     // Legacy unbounded requests retain their old tally; bounded requests count returned calls.
-    if (isFailed) {
+    if (isFailed || this.sendingSearchBound !== undefined) {
       return
     }
     const units = searchUnits(item)
@@ -8708,7 +8705,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (!isApproved) {
       await this.notePermissionDenied(
         call.name,
-        (review !== undefined && review.decision !== 'allow' ? review.note : undefined) ??
+        (review === undefined || review.decision === 'allow' ? undefined : review.note) ??
           decision.feedback ??
           MODEL_API_MODEL_TEXT.toolRejectedByUser,
         signal,
@@ -9036,8 +9033,9 @@ export class ModelApiSession implements ScheduledAgentSession {
           {
             deps: this.deps,
             resolved:
-              this.deps.accountRequests?.paidClient !== undefined && !modelId.includes('/')
-                ? {
+              this.deps.accountRequests?.paidClient === undefined || modelId.includes('/')
+                ? resolved
+                : {
                     ...resolved,
                     client: this.accountPaidClient(
                       {
@@ -9049,8 +9047,7 @@ export class ModelApiSession implements ScheduledAgentSession {
                       false,
                       { call, signal },
                     ),
-                  }
-                : resolved,
+                  },
             table: UI_TEXT,
             locale: uiLocale(),
             breaker: this.reviewBreaker,
@@ -12911,8 +12908,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       return { kind: 'skipped', skip: 'refused', detail: MODEL_API_MODEL_TEXT.agentToolNotOffered }
     }
     const beforePolicy = this.policy()
-    const commandAdmission = this.verificationAdmission(signal)
-    const isCurrent = () => isAllowed() && commandAdmission() && this.policy() === beforePolicy
+    const isCommandAdmitted = this.verificationAdmission(signal)
+    const isCurrent = () => isAllowed() && isCommandAdmitted() && this.policy() === beforePolicy
     if (!isCurrent()) return { kind: 'skipped', skip: 'refused' }
     const shell = shellToolFor(this.deps.platform)
     const turnId = this.active?.turnId
@@ -13820,9 +13817,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (refusal === undefined) throw error
       return refusal
     }
-    return refusal !== undefined && outcome.failureReason !== undefined
-      ? refusal
-      : { ...outcome, touched }
+    return refusal === undefined || outcome.failureReason === undefined
+      ? { ...outcome, touched }
+      : refusal
   }
 
   /** Memory writes can change a check's named input, including a new note's index. */
@@ -14320,9 +14317,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (inPlace !== undefined) {
       return { outcome: inPlace, isRejected: true }
     }
-    const current = this.verificationAdmission(signal)
+    const isVerified = this.verificationAdmission(signal)
     const isAllowed: CallAdmission = (detached) =>
-      current(detached) && this.inPlaceRefusalFor(call.name) === undefined
+      isVerified(detached) && this.inPlaceRefusalFor(call.name) === undefined
     const external = this.externalTool(call.name)
     if (external !== undefined && this.isSideChat) {
       return {
@@ -14434,16 +14431,16 @@ export class ModelApiSession implements ScheduledAgentSession {
       // Restricted Mode (PLAN.md D13): the tool is not offered, and a model
       // that calls it anyway is refused, never prompted.
       let reason: string
-      if (this.deps.hostKind !== undefined && this.deps.hostKind !== 'vscode') {
-        reason =
-          toolClass === 'mcp'
-            ? MODEL_API_MODEL_TEXT.runtimeMcpRefused
-            : MODEL_API_MODEL_TEXT.runtimeNoShell
-      } else {
+      if (this.deps.hostKind === undefined || this.deps.hostKind === 'vscode') {
         reason =
           toolClass === 'mcp'
             ? MODEL_API_MODEL_TEXT.mcpRestrictedMode
             : MODEL_API_MODEL_TEXT.shellRestrictedMode
+      } else {
+        reason =
+          toolClass === 'mcp'
+            ? MODEL_API_MODEL_TEXT.runtimeMcpRefused
+            : MODEL_API_MODEL_TEXT.runtimeNoShell
       }
       return { outcome: toolFailure(reason), isRejected: true }
     }
@@ -14795,10 +14792,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         },
         hookEffects: effects,
       }
-      if (error instanceof AbortedError) {
-        return cancelled
-      }
-      if (signal.aborted) {
+      if (error instanceof AbortedError || signal.aborted) {
         return cancelled
       }
       throw error
@@ -16410,10 +16404,10 @@ export class ModelApiSession implements ScheduledAgentSession {
           // Recovery must not spend the reserved wrap-up slot: without room
           // for both, the overflow stands with what it kept — through the
           // one exit, so held input is re-queued either way.
-          if (!canRecoverOverflow(error.kind, error.promptTokens, error.promptMaximum)) {
-            throw this.wrapUpRequestFailed(turn, signal, error) ?? error
-          }
-          if (this.isWrapUpSlotReserved()) {
+          if (
+            !canRecoverOverflow(error.kind, error.promptTokens, error.promptMaximum) ||
+            this.isWrapUpSlotReserved()
+          ) {
             throw this.wrapUpRequestFailed(turn, signal, error) ?? error
           }
           // Step (a) for every proven kind, count-based included: a
@@ -17069,9 +17063,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       turn.isWebSearchAllowed =
         !this.isReviewing() &&
         !this.isPlaybackTurn() &&
-        (this.deps.accountRequests !== undefined && !this.modelId.includes('/')
-          ? this.deps.isPaidFeatureOn('webSearch')
-          : await this.webSearchConsent(turn.abort.signal))
+        (this.deps.accountRequests === undefined || this.modelId.includes('/')
+          ? await this.webSearchConsent(turn.abort.signal)
+          : this.deps.isPaidFeatureOn('webSearch'))
       if (
         this.deps.autoCompaction?.() === true &&
         !(this.deps.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED) &&
@@ -17140,13 +17134,13 @@ export class ModelApiSession implements ScheduledAgentSession {
           // intact: cuts kept spills, so /compact, a larger window or a new
           // conversation all proceed from usable history.
           reason =
-            error.promptTokens !== undefined && error.promptMaximum !== undefined
-              ? fill(UI_TEXT.contextWindowTooLong, {
+            error.promptTokens === undefined || error.promptMaximum === undefined
+              ? error.message
+              : fill(UI_TEXT.contextWindowTooLong, {
                   tokens: formatNumber(error.promptTokens),
                   maximum: formatNumber(error.promptMaximum),
                   over: formatNumber(Math.max(0, error.promptTokens - error.promptMaximum)),
                 })
-              : error.message
           errorKind = 'context_overflow'
           this.deps.onContextOverflow?.({
             sessionId: this.sessionId,

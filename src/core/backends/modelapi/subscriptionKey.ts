@@ -73,6 +73,7 @@ export function readSubscriptionKeyText(text: string): SubscriptionKeyRead {
   // Only the captured schema versions speak; anything else is the CLI's to
   // say, and re-signing into an unknown shape would not fix it.
   if (
+    // eslint-disable-next-line unicorn/prefer-includes-over-repeated-comparisons -- version is unknown and the chain compares it directly; includes() on unknown needs a cast (PLAN §8, RLF-UNICORN79).
     version !== undefined &&
     version !== MUSE_CREDENTIAL_INLINE_SCHEMA &&
     version !== MUSE_CREDENTIAL_POINTER_SCHEMA

@@ -176,42 +176,41 @@ export async function runSetApprovalMode(
   try {
     await setSessionProfile(ops, mspPermissionProfile(mode), mode)
   } catch (error: unknown) {
-    if (previous !== undefined && previous !== mode) {
-      try {
-        // A foreground turn that ended during the profile call retires the
-        // captured token, so the rollback mints a fresh one: rolling back
-        // with the captured token would miss and report success-by-throw.
-        await applyModeChange(ops, previous, ops.owner.token())
-      } catch (rollbackError: unknown) {
-        // A torn rollback adoption put the previous mode back with the
-        // reviewer that was already installed for it: say the previous mode
-        // is restored and its reviewer is still installed, and keep turns
-        // refused until the mode is set again. Any other rollback failure
-        // leaves the new mode running without its reviewer.
-        if (isPermissionReviewerError(rollbackError)) {
-          const torn = tornRollbackError(previous, rollbackError)
-          ops.owner.quarantineWith(torn.message, previous)
-          throw torn
-        }
-        const failed = new PermissionReviewerError(
-          fill(UI_TEXT.permissionReviewerNotInstalled, { reason: refusalReason(error) }),
-          mode,
-          { cause: rollbackError },
-        )
-        ops.owner.quarantineWith(failed.message, mode)
-        ops.log(
-          'warn',
-          `Approval mode ${wireWordForLog(mode)} lost its permission profile (${failureForLog(error)}), and the previous mode is not restored (${failureForLog(rollbackError)}); new turns are refused`,
-        )
-        throw failed
-      }
-    } else {
+    if (previous === undefined || previous === mode) {
       const failed = new PermissionReviewerError(
         fill(UI_TEXT.permissionReviewerNotInstalled, { reason: refusalReason(error) }),
         mode,
         { cause: error },
       )
       ops.owner.quarantineWith(failed.message, mode)
+      throw failed
+    }
+    try {
+      // A foreground turn that ended during the profile call retires the
+      // captured token, so the rollback mints a fresh one: rolling back
+      // with the captured token would miss and report success-by-throw.
+      await applyModeChange(ops, previous, ops.owner.token())
+    } catch (rollbackError: unknown) {
+      // A torn rollback adoption put the previous mode back with the
+      // reviewer that was already installed for it: say the previous mode
+      // is restored and its reviewer is still installed, and keep turns
+      // refused until the mode is set again. Any other rollback failure
+      // leaves the new mode running without its reviewer.
+      if (isPermissionReviewerError(rollbackError)) {
+        const torn = tornRollbackError(previous, rollbackError)
+        ops.owner.quarantineWith(torn.message, previous)
+        throw torn
+      }
+      const failed = new PermissionReviewerError(
+        fill(UI_TEXT.permissionReviewerNotInstalled, { reason: refusalReason(error) }),
+        mode,
+        { cause: rollbackError },
+      )
+      ops.owner.quarantineWith(failed.message, mode)
+      ops.log(
+        'warn',
+        `Approval mode ${wireWordForLog(mode)} lost its permission profile (${failureForLog(error)}), and the previous mode is not restored (${failureForLog(rollbackError)}); new turns are refused`,
+      )
       throw failed
     }
     throw new ModeKeptError(

@@ -1405,8 +1405,8 @@ async function readVisual(
   // media path before the model reads "the file follows": priced at the
   // seeded bound, refused with the honest reason when capped and
   // unmeasurable. The same admission runs again when the bytes are sent.
-  if (context.media === undefined || 'reason' in context.media) return outcome
-  const admitVisual = context.media.admitVisual
+  const admitVisual =
+    context.media === undefined || 'reason' in context.media ? undefined : context.media.admitVisual
   if (admitVisual === undefined) return outcome
   try {
     admitVisual(outcome.visibleFile.part)
@@ -1799,9 +1799,9 @@ export function editSinglesOf(args: z.infer<typeof editFileArgs>):
   }
   const singles =
     args.edits ??
-    (args.find !== undefined && args.replace !== undefined
-      ? [{ find: args.find, replace: args.replace }]
-      : undefined)
+    (args.find === undefined || args.replace === undefined
+      ? undefined
+      : [{ find: args.find, replace: args.replace }])
   if (singles === undefined) {
     return { outcome: failure(MODEL_API_MODEL_TEXT.editPairRequired, UI_TEXT.toolEditInvalid) }
   }
