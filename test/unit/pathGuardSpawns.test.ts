@@ -451,6 +451,12 @@ const KNOWN_LAUNCH: Record<string, KnownSpawn> = {
     reason:
       'checkout batch starts through governed probe/contained profiles with the guarded child env for the checkout directory; the caller gate is rechecked after admission and at Windows GO',
   },
+  'src/runtime/supervise/supervisor.ts': {
+    kind: 'guarded',
+    anchor: 'workspaceChildEnvironment',
+    reason:
+      "a supervised run on Windows: this runtime's own absolute process.execPath through the one governed launch (contained, attested job), with the branded child env the supervisor makes by workspaceChildEnvironment for the run's folder; argument array, no shell",
+  },
 }
 
 function walk(directory: string): string[] {
