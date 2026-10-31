@@ -21,8 +21,8 @@ export function runtimeSerialPythonPath(dataFolder: string): string | undefined 
   } catch (error: unknown) {
     // NARROW: no settings file is the default; a file that is not JSON is the
     // settings store's to refuse. Any other failure is the caller's.
-    if ((isErrno(error) && error.code === 'ENOENT') || error instanceof SyntaxError)
-      return undefined
+    if (error instanceof SyntaxError) return undefined
+    if (isErrno(error) && error.code === 'ENOENT') return undefined
     throw error
   }
   const parsed = serialPythonSettingSchema.safeParse(raw)
