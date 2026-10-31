@@ -110,6 +110,15 @@ async function sweep(
   return await second.clean()
 }
 
+/** A sweep that must refuse, leaving `survivor` on disk and the entry recorded. */
+async function expectRefused(tree: Tree, survivor: string): Promise<void> {
+  await writeCreator(tree.file, await exitedCreator(tree.dir))
+  const swept = await sweep(tree.dir, tree.file, tree.base)
+  expect(swept.removed).toBe(0)
+  expect(swept.refused).toContain(tree.id)
+  expect(existsSync(survivor)).toBe(true)
+}
+
 describe('created registry quarantine resume (RVTEMPLEAK)', () => {
   it('finishes a tree the previous sweep quarantined and then died', async () => {
     const tree = await makeTree('parked')
@@ -132,11 +141,7 @@ describe('created registry quarantine resume (RVTEMPLEAK)', () => {
     await rename(tree.root, path.join(tree.dir, 'held-aside'))
     await mkdir(trash, { mode: 0o700 })
     await writeFile(sentinel, 'not the product tree\n', { mode: 0o600 })
-    await writeCreator(tree.file, await exitedCreator(tree.dir))
-    const swept = await sweep(tree.dir, tree.file, tree.base)
-    expect(swept.removed).toBe(0)
-    expect(swept.refused).toContain(tree.id)
-    expect(existsSync(sentinel)).toBe(true)
+    await expectRefused(tree, sentinel)
     const entries = JSON.parse(await readFile(tree.file, 'utf8')) as unknown[]
     expect(entries).toHaveLength(1)
     // Real native helper spawns: genuinely long.
@@ -148,11 +153,7 @@ describe('created registry quarantine resume (RVTEMPLEAK)', () => {
     await rename(tree.root, path.join(tree.dir, 'held-aside'))
     await mkdir(tree.root, { mode: 0o700 })
     await writeFile(sentinel, 'replacement\n', { mode: 0o600 })
-    await writeCreator(tree.file, await exitedCreator(tree.dir))
-    const swept = await sweep(tree.dir, tree.file, tree.base)
-    expect(swept.removed).toBe(0)
-    expect(swept.refused).toContain(tree.id)
-    expect(existsSync(sentinel)).toBe(true)
+    await expectRefused(tree, sentinel)
     // Real native helper spawns: genuinely long.
   }, 30_000)
 
@@ -161,11 +162,7 @@ describe('created registry quarantine resume (RVTEMPLEAK)', () => {
     const held = path.join(tree.dir, 'held-aside')
     await rename(tree.root, held)
     await symlink(held, tree.root)
-    await writeCreator(tree.file, await exitedCreator(tree.dir))
-    const swept = await sweep(tree.dir, tree.file, tree.base)
-    expect(swept.removed).toBe(0)
-    expect(swept.refused).toContain(tree.id)
-    expect(existsSync(path.join(held, 'payload.txt'))).toBe(true)
+    await expectRefused(tree, path.join(held, 'payload.txt'))
     // Real native helper spawns: genuinely long.
   }, 30_000)
 
