@@ -1,0 +1,11 @@
+{
+  "artifacts": ["lua/muse/init.lua", "README.md"],
+  "build": [
+    {
+      "args": ["--headless", "-i", "NONE", "-u", "NONE", "-l", "test/check.lua"],
+      "command": "nvim"
+    }
+  ],
+  "conformance": { "args": ["run.mjs"], "command": "node" },
+  "mhp": "mhp/1.5.0"
+}
