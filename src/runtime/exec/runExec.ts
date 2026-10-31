@@ -1,5 +1,6 @@
 import { Usd, sumUsd, type UsdAmount } from '../../shared/usd'
 import { toEpochMs, type EpochMs } from '../../shared/epochMs'
+import { quotaTurnFailureText } from '../../shared/turnFailure'
 import type * as acp from '@agentclientprotocol/sdk/unstable'
 import { constants as fileFlags, stat, realpath, open, type FileHandle } from 'node:fs/promises'
 import {
@@ -190,6 +191,18 @@ export function budgetFinalMessage(input: {
       : UI_TEXT.execBudgetStillReading,
     ...remedies,
   ].join(' ')
+}
+
+/**
+A failed turn's headless outcome (D229): a quota turn reports kind
+`quota_exhausted` with the reset in words, the same kind the ACP error
+carries; anything else reports undefined and keeps its existing words.
+*/
+export function execQuotaOutcome(event: {
+  readonly quota?: { readonly resetsAtMs: number } | undefined
+}): { readonly kind: 'quota_exhausted'; readonly message: string } | undefined {
+  const message = quotaTurnFailureText(event)
+  return message === undefined ? undefined : { kind: 'quota_exhausted', message }
 }
 
 export interface ExecDeps {
@@ -468,6 +481,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let isCompactionPrompt = false
   let terminal: string | null = null
   let incompleteReason: string | null = null
+  /** A quota turn's headless outcome (D229), for the stderr line and result below. */
+  let quotaFailure: { readonly kind: 'quota_exhausted'; readonly message: string } | undefined
   let modelCallLimitReason: string | undefined
   let backendErrorKind: string | undefined
   let catalogueHttpStatus: number | undefined
@@ -550,8 +565,17 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         modelCallLimitReason = event.reason
         sink.emit({ type: 'limit', limit: 'requests' })
       }
-      if (event.terminal === 'failed')
-        log.error(`${event.errorKind ?? 'turn_failed'}: ${event.reason ?? UI_TEXT.execIncomplete}`)
+      if (event.terminal === 'failed') {
+        // A spent window says the reset in words, never `kind: raw text` (D229).
+        const quota = execQuotaOutcome(event)
+        if (quota !== undefined) {
+          quotaFailure = quota
+        }
+        log.error(
+          quota?.message ??
+            `${event.errorKind ?? 'turn_failed'}: ${event.reason ?? UI_TEXT.execIncomplete}`,
+        )
+      }
     } else if (event.type === 'tokenUsage' && options.backend === 'museCode') {
       latestTokens = {
         inputTokens: event.inputTokens,
@@ -1808,8 +1832,18 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         status === 'completed'
           ? null
           : {
-              kind: localRefusalKind ?? (cause?.kind === 'unpriced' ? 'unpriced' : status),
-              message: error,
+              // A quota turn's failure is typed with the reset in words
+              // (D229); a lifecycle cause or local refusal stays the run's
+              // own story, and a specific error is never clobbered.
+              kind:
+                localRefusalKind ??
+                (cause?.kind === 'unpriced' ? 'unpriced' : undefined) ??
+                (quotaFailure !== undefined && cause === null ? quotaFailure.kind : undefined) ??
+                status,
+              message:
+                quotaFailure !== undefined && cause === null && error === UI_TEXT.execIncomplete
+                  ? quotaFailure.message
+                  : error,
               ...(localRefusalFacts !== undefined && { facts: localRefusalFacts }),
             },
     }
