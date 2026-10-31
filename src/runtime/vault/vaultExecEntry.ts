@@ -14,6 +14,7 @@ import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { UI_TEXT, VAULT_PROTOCOL_VERSION } from '../../shared/constants'
+import { errorNameForLog } from '../../core/logging'
 import { type VaultBrokerClient } from '../../core/vault/broker/client'
 import { openVaultFeederClient } from '../../core/vault/broker/feederClient'
 import { VaultBrokerDiscovery } from '../../core/vault/broker/discovery'
@@ -339,10 +340,16 @@ async function main(): Promise<void> {
   }
 }
 
+/** The feeder's only record is its stderr: fixed words, never a value, a path or an exception's text (D89.4). */
+const feederLog = {
+  warn: (line: string): void => {
+    process.stderr.write(`${line}\n`)
+  },
+}
+
 if (require.main === module) {
-  void main().catch(() => {
-    // Fixed words only: no value, path or exception text leaves the feeder.
-    process.stderr.write('vault-exec-refused\n')
+  void main().catch((error: unknown) => {
+    feederLog.warn(`vault-exec-refused ${errorNameForLog(error)}`)
     process.exitCode = 1
   })
 }

@@ -782,11 +782,10 @@ export class VaultChannelServer {
       this.identities.delete(socket)
       this.provenance.delete(socket)
       this.sockets.delete(socket)
-      // A feeder that vanished mid-use finishes every lease as failed.
-      for (const lease of feederLeases.values())
-        void lease.close(false).catch(() => {
-          // The connection is gone; the broker's own finish keeps the record.
-        })
+      // A feeder that vanished mid-use finishes every lease as failed; a
+      // finish that fails ends the connection's teardown, as the broker's own
+      // close below does (the broker's finish keeps the record).
+      for (const lease of feederLeases.values()) void lease.close(false).catch(close)
       feederLeases.clear()
       void this.deps.broker.closeConnection(connection).catch(close)
     })

@@ -33,6 +33,8 @@ export interface VaultExecSpawnDeps {
   process identity first. A rejection ends the run unstarted.
   */
   readonly onSpawned?: ((child: ChildProcess) => Promise<void>) | undefined
+  /** Where a refused delegation is recorded: a fixed word, never the failure's text. */
+  readonly warn?: ((word: string) => void) | undefined
   readonly env: () => NodeJS.ProcessEnv
   readonly tree: ProcessTreeDeps
   readonly job?: ShellJob
@@ -203,8 +205,9 @@ export async function spawnVaultFeeder(
       try {
         await deps.onSpawned?.(child)
       } catch {
-        // No delegation, no envelope: the feeder ends unstarted and the
-        // result refuses with fixed words.
+        // No delegation, no envelope: the feeder ends unstarted, the refusal
+        // is recorded in a fixed word, and the result refuses in words.
+        deps.warn?.('vault-exec-delegation-refused')
         stop()
         settle(null)
         return
