@@ -588,6 +588,7 @@ export function createProcessTeamPorts(deps: TeamProcessWorkersDeps): ProcessTea
       const child = await spawnAcpAgent({
         preset,
         command,
+        modelId: spec.entry.agent.model,
         cwd: plan.task.folder,
         workspaceRoot: copy.repositoryRoot,
         io: WORKER_NATIVE_IO,

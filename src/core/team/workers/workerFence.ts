@@ -10,6 +10,8 @@ import type { WorkerCreateProof } from './workerCreateEntry'
 /** A handle with another name is an alias outside the grant: only one link admits. */
 const SINGLE_LINK_COUNT = 1
 import {
+  CONTRIBUTOR_MODEL_SUFFIX,
+  MODEL_EFFORT_LEVELS,
   WORKER_ACP_MAX_PERMISSION_PATHS,
   WORKER_FILE_PATH_TIMEOUT_MS,
   UI_TEXT,
@@ -1015,12 +1017,26 @@ export class AcpUserServersSwitchError extends Error {
 }
 
 /**
-The arguments an agent starts with: its defaults and its captured switch.
-A preset with neither spawn switch nor `session/new` meta refuses, and so
-does any caller's extra argument, which could undo the switch.
+Whether a model id is a contributor-tier id the product's model table lists
+(`MODEL_EFFORT_LEVELS`, the exact row): the tier's suffix alone, on an id the
+table does not know, never counts.
+*/
+export function isListedContributorModel(modelId: string): boolean {
+  return modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX) && Object.hasOwn(MODEL_EFFORT_LEVELS, modelId)
+}
+
+/**
+The arguments an agent starts with: its defaults, its captured switch and,
+for an agent that lists contributor-tier models only on request, the switch
+that does so exactly when the pool entry names a listed contributor-tier model
+(the person's own pick of that model is the opt-in). A preset with neither
+spawn switch nor `session/new` meta refuses, and so does any caller's extra
+argument, which could undo the switch.
 */
 export function acpSpawnArgs(input: {
   readonly preset: AcpPreset
+  /** The model id the pool entry names. */
+  readonly modelId?: string
   readonly extraArgs?: readonly string[]
 }): readonly string[] {
   const { withoutUserServersSwitch: presetSwitch, withoutUserServersMeta: presetMeta } =
@@ -1028,5 +1044,9 @@ export function acpSpawnArgs(input: {
   const hasSwitch = presetSwitch !== undefined && presetSwitch.length > 0
   if ((!hasSwitch && presetMeta === undefined) || (input.extraArgs?.length ?? 0) > 0)
     throw new AcpUserServersSwitchError(input.preset.id)
-  return [...input.preset.defaultArgs, ...(hasSwitch ? presetSwitch : [])]
+  const contributorSwitch =
+    input.modelId !== undefined && isListedContributorModel(input.modelId)
+      ? (input.preset.contributorModelsSwitch ?? [])
+      : []
+  return [...input.preset.defaultArgs, ...(hasSwitch ? presetSwitch : []), ...contributorSwitch]
 }

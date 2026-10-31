@@ -318,16 +318,26 @@ Our own packed agent as the product's `own` preset: Node stands on the PATH
 as the command and runs the staged agent, which gets the preset's real
 `--no-user-mcp-servers` flag.
 */
-function ownOnPackedAgent(agentPath: string): AcpPreset {
-  return { ...ACP_PRESETS.own, command: path.basename(process.execPath), defaultArgs: [agentPath] }
+function ownOnPackedAgent(agentPath: string, preload: readonly string[] = []): AcpPreset {
+  return {
+    ...ACP_PRESETS.own,
+    command: path.basename(process.execPath),
+    defaultArgs: [...preload, agentPath],
+  }
 }
 
 /** A rig whose external agent is the real packed agent, started the way the product starts `own`. */
-function packedAgentRig(): Promise<Rig> {
+function packedAgentRig(
+  options: {
+    readonly model?: string
+    /** Node's own `-r` preload: a line that notes the arguments the real agent process received. */
+    readonly preload?: readonly string[]
+  } = {},
+): Promise<Rig> {
   const agentPath = path.join(staged.directory, 'dist', 'acp.js')
   return makeRig({
-    agent: OWN_AGENT,
-    presets: { ...ACP_PRESETS, own: ownOnPackedAgent(agentPath) },
+    agent: { ...OWN_AGENT, model: options.model ?? OWN_AGENT.model },
+    presets: { ...ACP_PRESETS, own: ownOnPackedAgent(agentPath, options.preload) },
     pathEntries: [path.dirname(process.execPath)],
   })
 }
@@ -557,6 +567,35 @@ describe.skipIf(process.platform === 'win32')('external agent workers', () => {
       await expect
         .poll(() => isProcessAlive(children[0]?.pid ?? 0), { timeout: 10_000 })
         .toBe(false)
+    },
+    WORKER_TEST_TIMEOUT_MS,
+  )
+
+  // RLF-TEAMWORKERS3: the real agent process is started by the real launcher, and a
+  // Node preload notes the arguments it received before the agent's own code runs.
+  it.each([
+    [
+      'a listed contributor-tier model',
+      'muse-wonder-full-1.0-contributor',
+      ['--no-user-mcp-servers', '--allow-contributor-models'],
+    ],
+    ['a standard model', 'muse-wonder-full-1.0', ['--no-user-mcp-servers']],
+  ])(
+    'starts the real agent as the entry’s model decides: %s',
+    async (_name, model, expectedArguments) => {
+      const noted = path.join(staged.directory, `arguments-${model}.jsonl`)
+      const preload = path.join(staged.directory, `note-arguments-${model}.cjs`)
+      await writeFile(
+        preload,
+        String.raw`require('node:fs').appendFileSync(${JSON.stringify(noted)}, JSON.stringify(process.argv.slice(2)) + '\n')`,
+      )
+      const rig = await packedAgentRig({ model, preload: ['-r', preload] })
+      const task = await delegate(rig, 'engineering', 'any work')
+      const end = await settled(rig, task)
+      // The agent's own parser accepted the arguments: it got as far as asking for a sign-in.
+      expect(end).toEqual({ phase: 'failed', failure: TEAM_MODEL_TEXT.hostExternalNotSignedIn })
+      const lines = readFileSync(noted, 'utf8').trim().split('\n')
+      expect(lines.map((line) => JSON.parse(line) as string[])).toEqual([expectedArguments])
     },
     WORKER_TEST_TIMEOUT_MS,
   )
