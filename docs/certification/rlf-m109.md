@@ -300,6 +300,25 @@ that does the steps below and records them.
    fix (`docs/certification/rvm109.md`).
 
 Still open from this lane and not claimed anywhere: git, askpass, sudo and
-SSH uses, and the editor surfaces (D243). The README section on `exec
---vault` (around "Local headless `exec --vault`") documents the same
-feature; the lead decides whether it stays until the run is recorded.
+SSH uses, and the editor surfaces (D243).
+
+The README section on `exec --vault` documented the same feature; the lead
+decided (the CC-INT9 brief, 2026-10-31) that it waits with the CHANGELOG lines
+until the run is recorded, and CC-INT9 moved it out of `README.md`. It returns
+to the README, in this wording, after the real-life run above:
+
+```text
+Local headless `exec --vault` requires existing unattended grants and never
+prompts. It also requires your vault policy ceiling for the workspace and
+the headless role: `muse-spark-code-acp vault policy` prints the policy,
+and `vault policy '<policy-json>'` sets it (a ceiling per workspace and
+role — the handles it may use, or `ask`); with none set, which is the
+default, the run refuses and the denial says so. The first secret-use
+increment serves environment and stdin uses: the value travels from the
+broker to a dedicated feeder process under a single-use delegation bound
+to that feeder's identity, and from the feeder into the command — never
+through the agent host. Missing grants, presence, taint, unavailable
+bindings or a failed vault use end the run with `denied` (exit 7),
+independently of `--fail-on-denial`. `--key-stdin` and CI cannot enable
+the vault. Ordinary headless behavior without the flag is unchanged.
+```
