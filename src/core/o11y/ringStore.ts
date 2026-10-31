@@ -16,7 +16,14 @@ import {
   O11Y_TRACES_RETENTION_MS,
   O11Y_TRACE_SAMPLE_KEEP_EVERY,
 } from '../../shared/constants'
-import type { O11yMetricPoint, O11ySpan } from './signals'
+import {
+  o11yLogRecordSchema,
+  o11yMetricPointSchema,
+  o11ySpanSchema,
+  type O11yLogRecord,
+  type O11yMetricPoint,
+  type O11ySpan,
+} from './signals'
 
 /** The ring store's signals, each with its day-file prefix. */
 export const O11Y_STORE_SIGNALS = ['metrics', 'logs', 'traces', 'crashes'] as const
@@ -37,19 +44,19 @@ export interface O11yMinuteBucket {
 /** The `YYYY-MM-DD` stamp's width, read off an example rather than counted. */
 const DAY_STAMP_CHARS = '2026-10-31'.length
 
-/** A day file's name for a signal at an instant: `metrics/2026-10-31.jsonl`. */
+/** A day file's name for a signal at an instant: `metrics-2026-10-31.jsonl`. */
 export function dayFileName(signal: O11yStoreSignal, atMs: number): string {
   const day = new Date(atMs).toISOString().slice(0, DAY_STAMP_CHARS)
-  return `${signal}/${day}.jsonl`
+  return `${signal}-${day}.jsonl`
 }
 
 /** A day-file stem: four digits, dash, two, dash, two. */
 const DAY_STEM_PATTERN = /^\d{4}-\d{2}-\d{2}$/u
 
 /** Whether a name is one of this signal's day files (never a stranger's). */
-function isDayFile(file: string, signal: O11yStoreSignal): boolean {
+export function isDayFileName(file: string, signal: O11yStoreSignal): boolean {
   return (
-    file.startsWith(`${signal}/`) &&
+    file.startsWith(`${signal}-`) &&
     file.endsWith('.jsonl') &&
     DAY_STEM_PATTERN.test(file.slice(signal.length + 1, -'.jsonl'.length))
   )
@@ -85,7 +92,7 @@ export function pruneDayFiles(
   nowMs: number,
 ): readonly string[] {
   const cutoff = new Date(nowMs - retentionMs(signal)).toISOString().slice(0, DAY_STAMP_CHARS)
-  return files.filter((file) => isDayFile(file, signal) && file < `${signal}/${cutoff}.jsonl`)
+  return files.filter((file) => isDayFileName(file, signal) && file < `${signal}-${cutoff}.jsonl`)
 }
 
 /**
@@ -188,4 +195,50 @@ export function sampleTraces(spans: readonly O11ySpan[]): readonly O11ySpan[] {
     if (span.error) errors.set(span.traceId, true)
   }
   return spans.filter((span) => shouldKeepTrace(span.traceId, errors.get(span.traceId) === true))
+}
+
+/**
+Thin one series to at most `maxPoints`, keeping order: every stride-th
+point plus always the last, so the chart's newest edge stays true. The
+input is never mutated.
+*/
+export function downsamplePoints<T>(points: readonly T[], maxPoints: number): readonly T[] {
+  if (points.length <= maxPoints || maxPoints <= 0) {
+    return maxPoints <= 0 ? [] : points
+  }
+  const stride = Math.ceil(points.length / maxPoints)
+  const thinned = points.filter((_, index) => index % stride === 0)
+  const last = points.at(-1)
+  return last !== undefined && thinned.at(-1) !== last ? [...thinned, last] : thinned
+}
+
+/**
+Parse one store line back: anything malformed or off-shape reads absent,
+never trusted or repaired. One parser per record shape, over the shared
+reader.
+*/
+function parseLine(line: string): unknown {
+  try {
+    return JSON.parse(line) as unknown
+  } catch (error: unknown) {
+    // Only a malformed store line reads absent: anything else keeps its
+    // kind past the store.
+    if (!(error instanceof SyntaxError)) throw error
+    return undefined
+  }
+}
+
+export function parseMetricLine(line: string): O11yMetricPoint | undefined {
+  const parsed = o11yMetricPointSchema.safeParse(parseLine(line))
+  return parsed.success ? parsed.data : undefined
+}
+
+export function parseLogLine(line: string): O11yLogRecord | undefined {
+  const parsed = o11yLogRecordSchema.safeParse(parseLine(line))
+  return parsed.success ? parsed.data : undefined
+}
+
+export function parseSpanLine(line: string): O11ySpan | undefined {
+  const parsed = o11ySpanSchema.safeParse(parseLine(line))
+  return parsed.success ? parsed.data : undefined
 }

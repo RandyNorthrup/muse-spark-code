@@ -10008,6 +10008,9 @@ export const O11Y_METRICS_RESOLUTION_MS = 10 * MILLISECONDS_PER_SECOND
 export const O11Y_METRICS_RETENTION_MS = 7 * MILLISECONDS_PER_DAY
 export const O11Y_LOGS_RETENTION_MS = 7 * MILLISECONDS_PER_DAY
 export const O11Y_LOGS_MAX_BYTES = 64 * 1024 * 1024
+// No day file is ever read past this: a file past it is compacted at the
+// next prune, and reads skip it until then instead of loading it whole.
+export const O11Y_DAY_FILE_MAX_BYTES = 64 * 1024 * 1024
 export const O11Y_TRACES_RETENTION_MS = 3 * MILLISECONDS_PER_DAY
 // One trace in this many is kept whole; every trace holding an error span
 // is kept regardless. A sampler's bound against disk fill, like the byte
@@ -10024,6 +10027,8 @@ export const O11Y_STORE_FILE_MODE = 0o600
 // connection failures retry, everything else fails at once
 // (opentelemetry-proto's retryable codes; the exporter spec's MUST).
 export const O11Y_EXPORT_TIMEOUT_MS = 30 * MILLISECONDS_PER_SECOND
+// The exporter's User-Agent: the exporter, its version and its language (the spec's SHOULD).
+export const O11Y_EXPORT_USER_AGENT = 'muse-spark-code-otlp/1 (Node.js)'
 export const O11Y_EXPORT_RETRY_INITIAL_MS = 5 * MILLISECONDS_PER_SECOND
 export const O11Y_EXPORT_RETRY_MAX_MS = 30 * MILLISECONDS_PER_SECOND
 export const O11Y_EXPORT_RETRY_MAX_ELAPSED_MS = 300 * MILLISECONDS_PER_SECOND
@@ -10046,7 +10051,10 @@ export const O11Y_CRASH_SYMBOL_MAX_CHARS = 256
 export const O11Y_DIAGNOSTICS_MAX_LOGS = 200
 export const O11Y_DIAGNOSTICS_MAX_TRACES = 100
 export const O11Y_DIAGNOSTICS_MAX_CRASHES = 50
+export const O11Y_DIAGNOSTICS_MAX_SERIES = 20
 export const O11Y_DIAGNOSTICS_MAX_POINTS = 300
+// The Diagnostics page's metric window: the trailing day, rolled to minutes.
+export const O11Y_DIAGNOSTICS_WINDOW_MS = MILLISECONDS_PER_DAY
 // --- Paired efficiency evaluation (M75, PLAN.md D49) ---
 
 // The paired runs answer on this model only (D49's live-spend rules: the
