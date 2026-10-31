@@ -1,4 +1,6 @@
-// Runner transports and Traffic mutations load only for a team action (M96c X2).
+// Runner transports load only for a team action (M96c X2). The Traffic
+// read and dispatch load with their own bundle (dist/teamTraffic.js) on
+// the first Traffic use, behind the same runtime members (RLF-TEAMFIT).
 import { SshRunner } from './sshRunner'
 import { CheckSlots } from '../team/checkSlots'
 import { readRunnerConfig, runnerEnvironment } from '../../core/runners/runnerConfig'
@@ -13,8 +15,8 @@ import {
   resourceRunnerRoutesJoin,
 } from '../../core/resources/admission'
 import { UI_TEXT } from '../../shared/constants'
-import { handleTrafficMessage, handleRunnersMessage } from '../modelsPanelTraffic'
-import { dispatchTeamTraffic, readTeamTraffic } from '../team/teamTrafficDispatch'
+import type { handleTrafficMessage, handleRunnersMessage } from '../modelsPanelTraffic'
+import type { dispatchTeamTraffic, readTeamTraffic } from '../team/teamTrafficDispatch'
 import { setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 
@@ -43,9 +45,29 @@ export function createTeamRunnersRuntime(table: UiText, locale: string) {
         throw error
       }
     },
-    handleTrafficMessage,
-    handleRunnersMessage,
-    readTeamTraffic,
-    dispatchTeamTraffic,
+    async handleTrafficMessage(
+      ...args: Parameters<typeof handleTrafficMessage>
+    ): ReturnType<typeof handleTrafficMessage> {
+      const { createTeamTrafficRuntime } = await import('../team/teamTrafficEntry')
+      return await createTeamTrafficRuntime(table, locale).handleTrafficMessage(...args)
+    },
+    async handleRunnersMessage(
+      ...args: Parameters<typeof handleRunnersMessage>
+    ): ReturnType<typeof handleRunnersMessage> {
+      const { createTeamTrafficRuntime } = await import('../team/teamTrafficEntry')
+      return await createTeamTrafficRuntime(table, locale).handleRunnersMessage(...args)
+    },
+    async readTeamTraffic(
+      ...args: Parameters<typeof readTeamTraffic>
+    ): ReturnType<typeof readTeamTraffic> {
+      const { createTeamTrafficRuntime } = await import('../team/teamTrafficEntry')
+      return await createTeamTrafficRuntime(table, locale).readTeamTraffic(...args)
+    },
+    async dispatchTeamTraffic(
+      ...args: Parameters<typeof dispatchTeamTraffic>
+    ): ReturnType<typeof dispatchTeamTraffic> {
+      const { createTeamTrafficRuntime } = await import('../team/teamTrafficEntry')
+      await createTeamTrafficRuntime(table, locale).dispatchTeamTraffic(...args)
+    },
   }
 }

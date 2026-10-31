@@ -3,7 +3,7 @@
 // Stop, Cancel and Reassign go through attempt retirement (acceptance 7);
 // an attempt retirement cannot prove stays counted until the person's
 // recorded decision (Continue anyway / Hand off anyway / Restart the
-// team host). Loads with the runners bundle, on the first Traffic use.
+// team host). Loads with the Traffic bundle, on the first Traffic use.
 import { UI_TEXT } from '../../shared/l10n/text'
 import type { TrafficMessage, TrafficSlice } from '../../shared/modelsPanel'
 import type { TeamSharedFile } from '../../shared/team'

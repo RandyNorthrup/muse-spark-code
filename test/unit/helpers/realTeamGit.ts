@@ -8,6 +8,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { onTestFinished } from 'vitest'
 import { TeamGitError, type TeamGit } from '../../../src/core/team/teamGit'
+import { createEngineTeamPorts } from '../../../src/host/team/teamEnginePorts'
+import { silentCoreLog } from './memoryLogs'
 
 export const realTeamGit: TeamGit = (args, cwd, input, env) => {
   try {
@@ -31,6 +33,34 @@ export const realTeamGit: TeamGit = (args, cwd, input, env) => {
       typeof error === 'object' && error !== null && 'stderr' in error ? String(error.stderr) : ''
     return Promise.reject(new TeamGitError(status, stderr, args.join(' ')))
   }
+}
+
+/** A port call a suite proves unreachable: it fails loudly if ever made. */
+export function tripwireError(name: string): Error {
+  return new Error(`test: the ports never call ${name} here`)
+}
+
+/**
+The real engine ports for suites that never reach a model conversation:
+`listModels` and `startWorker` are tripwires, so a call the behaviour must
+not make fails the suite instead of passing silently.
+*/
+export function enginePortsWithoutWorker(input: {
+  readonly repositoryRoot: () => string | undefined
+  readonly storageRoot: string
+  readonly isTrusted: () => boolean
+}): ReturnType<typeof createEngineTeamPorts> {
+  return createEngineTeamPorts({
+    repositoryRoot: input.repositoryRoot,
+    storageRoot: input.storageRoot,
+    platform: process.platform,
+    isTrusted: input.isTrusted,
+    listModels: () => Promise.reject(tripwireError('listModels')),
+    startWorker: () => Promise.reject(tripwireError('startWorker')),
+    runGit: realTeamGit,
+    now: () => Date.now(),
+    log: silentCoreLog(),
+  })
 }
 
 /**
