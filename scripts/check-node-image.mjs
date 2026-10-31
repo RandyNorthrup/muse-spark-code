@@ -4,8 +4,8 @@ import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { z } from 'zod'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 const ROOT = path.resolve(import.meta.dirname, '..')
 const POLICY = JSON.parse(readFileSync(path.join(ROOT, 'deploy/container/policy.json'), 'utf8'))
@@ -245,7 +245,7 @@ export function verifyReleaseIdentity(reference, tag, execute = execFileSync) {
   )
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+if (isEntryPoint(import.meta.url)) {
   let scratch
   try {
     const [archive, output, reference, tag] = process.argv.slice(2)

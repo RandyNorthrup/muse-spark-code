@@ -3,8 +3,8 @@ import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { z } from 'zod'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 const RELEASE = z.object({
   isDraft: z.boolean(),
@@ -85,10 +85,7 @@ export function ensureGithubRelease(tag, notes, artifacts, execute = run) {
   }
 }
 
-if (
-  process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
-) {
+if (isEntryPoint(import.meta.url)) {
   const [tag, notes, ...artifacts] = process.argv.slice(2)
   try {
     if (tag === undefined || notes === undefined) throw new Error('Tag and notes required')

@@ -2,7 +2,7 @@
 // technical aliases. No host maintains its own allowlist or numeric mapping.
 import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 const root = path.resolve(import.meta.dirname, '..')
 const aliases = {
@@ -74,7 +74,7 @@ ${entries.map(([name, code]) => `      "${name}" to ${constants.get(code)},`).jo
   }
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (isEntryPoint(import.meta.url)) {
   await generateMhpErrors(process.argv.includes('--check'))
   console.log(
     process.argv.includes('--check') ? 'MHP error tables match.' : 'MHP error tables written.',

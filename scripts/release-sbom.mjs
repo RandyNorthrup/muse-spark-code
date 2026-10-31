@@ -4,9 +4,9 @@ import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { z } from 'zod'
 import { contributedPackageDirs } from './lib/noticesInput.mjs'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 const COMPONENT = z
   .object({ name: z.string(), version: z.string().optional(), 'bom-ref': z.string() })
@@ -148,10 +148,7 @@ function contentUuid(text) {
   return `urn:uuid:${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }
 
-if (
-  process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
-) {
+if (isEntryPoint(import.meta.url)) {
   const staged = readAcpStageReceipt()
   const raw = execFileSync(
     'npm',

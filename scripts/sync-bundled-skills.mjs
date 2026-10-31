@@ -3,8 +3,8 @@ import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import { lstatSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { gunzipSync } from 'node:zlib'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 const PACKAGE = 'high-quality-projects-skill'
 const SOURCE = `https://github.com/RandyNorthrup/${PACKAGE}`
@@ -172,10 +172,7 @@ async function sync(tag) {
   console.log(`${PACKAGE} ${tag}: ${files.size} files copied (${archiveSha256})`)
 }
 
-if (
-  process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
-) {
+if (isEntryPoint(import.meta.url)) {
   try {
     const [flag, tag, ...extra] = process.argv.slice(2)
     if (flag !== '--tag' || !/^v\d+\.\d+\.\d+$/.test(tag ?? '') || extra.length > 0) {
