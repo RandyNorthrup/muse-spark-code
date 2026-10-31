@@ -488,6 +488,20 @@ export const EN = {
   paletteUsagePage: 'Track cost, tokens and limits across editors.',
   openUsagePage: 'Open Usage Page',
   acpUsageDescription: 'Show usage and cost across models, or open the usage page.',
+  // M104 lane D: React fallbacks for portable panels.
+  presentationRolesTitle: 'Roles',
+  presentationTrafficTitle: 'Message Traffic',
+  fallbackContinue: 'Continue',
+  fallbackNoMatches: 'No matching items',
+  fallbackNotifications: 'Notifications',
+  fallbackStatus: 'Status',
+  fallbackSettings: 'Settings',
+  fallbackTerminal: 'Terminal Output',
+  fallbackBefore: 'Before',
+  fallbackAfter: 'After',
+  fallbackEmpty: 'No entries',
+  fallbackWorktrees: 'Worktrees',
+  fallbackActionFailed: 'The action failed. Try again.',
   companionLaunchFailed:
     'Could not open the panel. Return to your editor and open Muse Spark Code again to get a fresh launch link.',
   // M118: prompt library and local sharing; read UI_TEXT at use time.

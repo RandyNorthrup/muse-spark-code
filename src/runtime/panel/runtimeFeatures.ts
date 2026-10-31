@@ -381,7 +381,7 @@ export async function runtimeConversationDeps(
     voiceAccountId: () => Promise.resolve(undefined),
     // The panel reads no trace logs (no usage history yet): the page says so.
     usageInsights: () =>
-      Promise.resolve({ report: undefined, notice: 'unavailable', empty: false }),
+      Promise.resolve({ report: undefined, notice: 'unavailable' as const, empty: false }),
     isRestorable: false,
     dictation: { isAvailable: false, reason: UI_TEXT.dictationUnavailable },
     exports: transfer.exports,
