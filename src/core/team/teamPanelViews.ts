@@ -154,10 +154,11 @@ function roleIssues(
   const prefixTokens = Math.ceil(roleCharter(role).charter.length / REPO_MAP_CHARS_PER_TOKEN)
   const spec = TEAM_INTENSITY_SPECS[document.intensity]
   for (const entry of role.pool) {
-    const offer =
+    const offer = offers.find(
       entry.agent === undefined
-        ? offers.find((item) => item.ref === defaultRef)
-        : offers.find((item) => isSameAgent(item, entry.agent))
+        ? (item) => item.ref === defaultRef
+        : (item) => isSameAgent(item, entry.agent),
+    )
     if (offer === undefined) {
       issues.push(UI_TEXT.teamEntryMissing)
       continue
@@ -174,9 +175,9 @@ function roleIssues(
         entry.caps.map((cap) => ({ ...cap, prefixTokens })),
         {
           usdPerMTok:
-            offer.inputRate !== undefined && offer.outputRate !== undefined
-              ? offer.inputRate
-              : undefined,
+            offer.inputRate === undefined || offer.outputRate === undefined
+              ? undefined
+              : offer.inputRate,
           billedToKey: offer.agent.pays === 'key',
         },
         {
@@ -217,10 +218,11 @@ function previewStepUsd(
   stepInput: number,
   stepOutput: number,
 ): Usd | undefined {
-  const offer =
+  const offer = offers.find(
     entry.agent === undefined
-      ? offers.find((item) => item.ref === defaultRef)
-      : offers.find((item) => isSameAgent(item, entry.agent))
+      ? (item) => item.ref === defaultRef
+      : (item) => isSameAgent(item, entry.agent),
+  )
   const inputRate = offer?.inputRate
   const outputRate = offer?.outputRate
   return inputRate === undefined || outputRate === undefined
@@ -411,10 +413,11 @@ export function deriveTeamPanel(
             document.roles
               .find((role) => role.role === item.role)
               ?.pool.some((entry) => {
-                const offer =
+                const offer = offers.find(
                   entry.agent === undefined
-                    ? offers.find((candidate) => candidate.ref === defaultRef)
-                    : offers.find((candidate) => isSameAgent(candidate, entry.agent))
+                    ? (candidate) => candidate.ref === defaultRef
+                    : (candidate) => isSameAgent(candidate, entry.agent),
+                )
                 return (
                   offer?.agent.pays === 'key' &&
                   offer.inputRate !== undefined &&
@@ -434,9 +437,11 @@ export function deriveTeamPanel(
             document.roles
               .map((role) => {
                 const agent = role.pool[0]?.agent
-                return agent === undefined
-                  ? offers.find((item) => item.ref === defaultRef)
-                  : offers.find((item) => isSameAgent(item, agent))
+                return offers.find(
+                  agent === undefined
+                    ? (item) => item.ref === defaultRef
+                    : (item) => isSameAgent(item, agent),
+                )
               })
               .filter((offer) => offer !== undefined)
               .map((offer) => ({

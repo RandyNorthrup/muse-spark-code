@@ -226,12 +226,9 @@ async function answersFor(
   try {
     return await unlessAborted(deps.resolve(checked.host), signal)
   } catch (error: unknown) {
-    if (signal.aborted) {
-      throw error
-    }
     // Only a failed lookup reads unresolved: the resolver fails shaped,
     // so anything else keeps its kind past the lookup.
-    if (!isCodedError(error)) throw error
+    if (signal.aborted || !isCodedError(error)) throw error
     return refuse('unresolved', { host: checked.host })
   }
 }
@@ -644,13 +641,16 @@ async function readCapped(
   try {
     return await read()
   } catch (error: unknown) {
-    if (error instanceof FetchRefused || signal.aborted || body.hasSourceFailed()) {
-      throw error
-    }
     // Damaged compressed data is refused as the coding's, not reported as
     // a network failure: only a shaped transport failure reads that way,
     // so anything else keeps its kind.
-    if (!isCodedError(error)) throw error
+    if (
+      error instanceof FetchRefused ||
+      signal.aborted ||
+      body.hasSourceFailed() ||
+      !isCodedError(error)
+    )
+      throw error
     return refuse('encoding', { encoding: shownToken(coding) })
   }
 }

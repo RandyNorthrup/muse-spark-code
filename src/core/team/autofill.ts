@@ -117,10 +117,11 @@ export function buildTeamSuggestions(context: TeamAutofillContext): readonly Tea
 function suggestReviewVendor(context: TeamAutofillContext): TeamSuggestion | undefined {
   const engineering = context.draft.roles.find((role) => role.role === 'engineering')
   const review = context.draft.roles.find((role) => role.role === 'code-review')
-  if (engineering === undefined || review === undefined) {
-    return undefined
-  }
-  if (context.dismissals.isDismissed('code-review', 'reviewVendor')) {
+  if (
+    engineering === undefined ||
+    review === undefined ||
+    context.dismissals.isDismissed('code-review', 'reviewVendor')
+  ) {
     return undefined
   }
   const primary = engineering.pool[0]?.modelRef

@@ -171,12 +171,11 @@ octet, always zero), or in the last 32 bits under a /96.
 */
 function embeddedIpv4(value: bigint, length: number): bigint {
   const first = length / Number(OCTET_BITS)
-  const indexes =
-    first >= IPV6_OCTETS - IPV4_OCTETS
-      ? Array.from({ length: IPV4_OCTETS }, (_, index) => IPV6_OCTETS - IPV4_OCTETS + index)
-      : Array.from({ length: IPV4_OCTETS }, (_, index) =>
-          first + index < U_OCTET ? first + index : first + index + 1,
-        )
+  const base = Math.min(first, IPV6_OCTETS - IPV4_OCTETS)
+  const indexes = Array.from({ length: IPV4_OCTETS }, (_, index) => {
+    const candidate = base + index
+    return first < IPV6_OCTETS - IPV4_OCTETS && candidate >= U_OCTET ? candidate + 1 : candidate
+  })
   let ipv4 = NO_BITS
   for (const index of indexes) {
     ipv4 = (ipv4 << OCTET_BITS) | octetOf(value, index)

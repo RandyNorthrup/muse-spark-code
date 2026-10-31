@@ -45,8 +45,6 @@ const ledgerFileSchema = z.strictObject({
   epoch: z.string().check(z.minLength(1)),
   grants: z.array(grantRecordSchema),
 })
-type LedgerFile = z.infer<typeof ledgerFileSchema>
-
 const identityFileSchema = z.strictObject({
   storeId: z.string().check(z.minLength(1)),
   version: z.literal(COORDINATOR_STORE_VERSION),
@@ -248,6 +246,7 @@ export async function openCoordinatorLedger(
   let isClosed = false
 
   const sync = async (): Promise<void> => {
+    type LedgerFile = z.infer<typeof ledgerFileSchema>
     const state: LedgerFile = {
       storeId,
       version: COORDINATOR_STORE_VERSION,

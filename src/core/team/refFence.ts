@@ -108,10 +108,13 @@ export function teamAgentsRef(branch: string): string {
   }
   const rest = branch.slice(TEAM_AGENTS_BRANCH_PREFIX.length + 1)
   const [role, taskId] = rest.split('/', 2)
-  if (role === undefined || taskId === undefined || rest.split('/').length !== 2) {
-    throw new TeamRefError('badName', `Refused team ref for branch ${branch}`)
-  }
-  if (!isBranchSegment(role) || !isBranchSegment(taskId)) {
+  if (
+    role === undefined ||
+    taskId === undefined ||
+    rest.split('/').length !== 2 ||
+    !isBranchSegment(role) ||
+    !isBranchSegment(taskId)
+  ) {
     throw new TeamRefError('badName', `Refused team ref for branch ${branch}`)
   }
   return `${TEAM_AGENTS_REF_PREFIX}${branch.slice(TEAM_AGENTS_BRANCH_PREFIX.length + 1)}`

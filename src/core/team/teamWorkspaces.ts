@@ -355,9 +355,7 @@ export function dispatchHeadReader(
     try {
       return await readDispatchHead(runGit, root, mode)
     } catch (error: unknown) {
-      if (isTeamGitError(error))
-        return { refused: TEAM_PLAYBOOK_MODEL_TEXT.hostPlaybookBaseUnreadable }
-      if (isTeamWorkspaceError(error))
+      if (isTeamGitError(error) || isTeamWorkspaceError(error))
         return { refused: TEAM_PLAYBOOK_MODEL_TEXT.hostPlaybookBaseUnreadable }
       throw error
     }

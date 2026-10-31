@@ -411,8 +411,8 @@ export class TaskBoard {
   */
   integrationRefreshDue(id: string): { base: string } | undefined {
     const task = this.requireTask(id)
-    if (task.integrationBase === undefined) return undefined
-    if (this.context.workspaceMode(task.id) !== 'own-branch') return undefined
+    if (task.integrationBase === undefined || this.context.workspaceMode(task.id) !== 'own-branch')
+      return undefined
     const current = this.requireIntegrationHead(task.id)
     return task.integrationBase === current ? undefined : { base: current }
   }
@@ -438,15 +438,20 @@ export class TaskBoard {
 
   begin(id: string, attempt: TeamAttempt, isReplacementQuarantined = false): boolean {
     const task = this.requireTask(id)
-    if (this.paused || task.held || task.state !== 'ready') return false
     // A stacked task whose bases moved waits for its refresh: the
     // launcher reads stackRefreshDue, rebases the worktree, and
     // acknowledges before this attempt. Throws when a stacked task has
     // no head provider: a wiring bug, never a stall.
-    if (this.stackRefreshDue(id).length > 0) return false
     // A waiting branch whose integration moved waits for its refresh
     // the same way, with review carry-over on exact deltas after it.
-    if (this.integrationRefreshDue(id) !== undefined) return false
+    if (
+      this.paused ||
+      task.held ||
+      task.state !== 'ready' ||
+      this.stackRefreshDue(id).length > 0 ||
+      this.integrationRefreshDue(id) !== undefined
+    )
+      return false
     const prior = task.attempts.at(-1)
     if (
       prior &&

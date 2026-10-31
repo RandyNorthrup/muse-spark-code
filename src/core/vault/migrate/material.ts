@@ -123,8 +123,7 @@ Every id is validated against its own pattern first; an invalid id is
 refused, never normalised. Deterministic across platforms and versions.
 */
 export function migrationItemName(kind: MigrationItemKind, ...ids: string[]): string {
-  if (!MIGRATION_ITEM_KINDS.has(kind)) throw new VaultMigrationFault('invalid')
-  if (ids.length === 0) throw new VaultMigrationFault('invalid')
+  if (!MIGRATION_ITEM_KINDS.has(kind) || ids.length === 0) throw new VaultMigrationFault('invalid')
   for (const [index, id] of ids.entries()) {
     const pattern = index === 0 ? PROVIDER_ID_PATTERN : ACCOUNT_ID_PATTERN
     if (!pattern.test(id)) throw new VaultMigrationFault('invalid')

@@ -909,10 +909,10 @@ function reportedEventLine(
   selected: readonly SelectedReportEvent[],
   reportedKind: unknown,
 ): string | undefined {
-  if (typeof reportedKind !== 'string') {
-    return undefined
-  }
-  if (!(REPORT_EVENT_KINDS as readonly string[]).includes(reportedKind)) {
+  if (
+    typeof reportedKind !== 'string' ||
+    !(REPORT_EVENT_KINDS as readonly string[]).includes(reportedKind)
+  ) {
     return undefined
   }
   for (let index = selected.length - 1; index >= 0; index -= 1) {
@@ -926,7 +926,7 @@ function reportedEventLine(
 
 /** A non-count reads as none dropped; a negative one reads as none dropped. */
 function countedDrops(value: number | undefined): number {
-  return typeof value !== 'number' || !Number.isFinite(value) ? 0 : Math.max(0, Math.floor(value))
+  return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0
 }
 
 /**

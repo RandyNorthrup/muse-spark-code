@@ -15,7 +15,6 @@ import { renderChatShareHtml } from './html'
 
 export type ChatShareRequest = Extract<ShareRequest, { target: 'chat' }>
 export type ChatShareDocument = Extract<ShareJson, { target: 'chat' }>
-type ShareItem = ChatShareDocument['items'][number]
 
 /** Display material from the existing snapshot/store, never a new wire shape. */
 export interface ChatShareSource {
@@ -139,6 +138,7 @@ export function buildChatShare(
   input: unknown,
   privacy: SharePrivacyPort,
 ): ChatShareDocument {
+  type ShareItem = ChatShareDocument['items'][number]
   const request = shareRequestSchema.parse(input)
   if (request.target !== 'chat') throw new Error(UI_TEXT.shareRangeInvalid)
   // NOLIMITS1FIX: the removed 20,000-item bound was invented — a share

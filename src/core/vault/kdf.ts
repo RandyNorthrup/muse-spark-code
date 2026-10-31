@@ -28,13 +28,13 @@ export function detectArgon2(source: object = crypto): Argon2Port | undefined {
         (error: unknown, result: unknown) => {
           if (error !== null && error !== undefined) {
             reject(new VaultError('authentication'))
-          } else if (!Buffer.isBuffer(result) || result.length !== parameters.tagLength) {
-            if (result instanceof Uint8Array) result.fill(0)
-            reject(new VaultError('invalid'))
-          } else {
+          } else if (Buffer.isBuffer(result) && result.length === parameters.tagLength) {
             const owned = ownedBytes(result)
             result.fill(0)
             resolve(owned)
+          } else {
+            if (result instanceof Uint8Array) result.fill(0)
+            reject(new VaultError('invalid'))
           }
         },
       ])

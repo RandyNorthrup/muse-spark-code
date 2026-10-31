@@ -58,8 +58,11 @@ export async function mergeFile(
   const { base, ours, theirs } = input
   if (isEqual(ours, theirs) || isEqual(base, theirs)) return { status: 'clean', file: ours }
   if (isEqual(base, ours)) return { status: 'clean', file: theirs }
-  if (ours === null || theirs === null) return { status: 'conflict', markers: null }
-  if ([ours, theirs, ...(base === null ? [] : [base])].some((file) => !isText(file))) {
+  if (
+    ours === null ||
+    theirs === null ||
+    [ours, theirs, ...(base === null ? [] : [base])].some((file) => !isText(file))
+  ) {
     return { status: 'conflict', markers: null }
   }
   if (ours.mode !== theirs.mode && ours.mode !== base?.mode && theirs.mode !== base?.mode) {

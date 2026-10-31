@@ -371,11 +371,14 @@ export const CREATE_ERRNOS: ReadonlySet<string> = new Set([
 export function typedCreateError(error: unknown, relative: string): Error {
   if (isTyped(error)) return error
   if (error instanceof Error && 'code' in error && typeof error.code === 'string') {
-    if (error.code === 'EEXIST')
-      return markTyped(new Error(UI_TEXT.teamFileExists, { cause: error }))
     // Every name in CREATE_ERRNOS, and any coded failure beyond them.
     return markTyped(
-      new Error(fill(UI_TEXT.teamFileCannotCreate, { path: relative }), { cause: error }),
+      new Error(
+        error.code === 'EEXIST'
+          ? UI_TEXT.teamFileExists
+          : fill(UI_TEXT.teamFileCannotCreate, { path: relative }),
+        { cause: error },
+      ),
     )
   }
   return error instanceof Error ? error : new Error(UI_TEXT.teamFileNativeFailed, { cause: error })
