@@ -111,7 +111,7 @@ const KNOWN: Record<string, KnownSpawn> = {
     kind: 'reviewed',
     anchor: 'windowsJobHost',
     reason:
-      'the C# helper serves and jobs end by name through the packaged, digest-named job helper by absolute path only (windowsJobHost: SystemRoot-only guarded env), fixed arguments, no shell, hidden window, ignored stdio',
+      'the C# helper serves and jobs end by name through the packaged, digest-named job helper by absolute path only (windowsJobHost: SystemRoot and the guard variable given, no credential), fixed arguments, no shell, hidden window, ignored stdio',
   },
   'src/runtime/converterTrust.ts': {
     kind: 'reviewed',
@@ -206,7 +206,7 @@ const KNOWN_WRAPPER: Record<string, KnownSpawn> = {
     kind: 'guarded',
     anchor: 'resolveExecutable',
     reason:
-      'setpriv/systemd-run/systemctl resolved outside the launch cwd + guarded child env (probes on absolute entries only)',
+      'setpriv/systemd-run/systemctl resolved outside the launch cwd + guarded child env (probes on absolute entries only); on Windows the packaged job helper by absolute path (windowsJobHost run-team), the payload resolved outside the workspace with the guarded environment block',
   },
   'src/host/team/processOwnership.ts': {
     kind: 'reviewed',
@@ -233,7 +233,7 @@ const KNOWN_WRAPPER: Record<string, KnownSpawn> = {
     kind: 'reviewed',
     anchor: 'windowsJobHost',
     reason:
-      'a job left by a stopped worker ends by name through the packaged, digest-named job helper by absolute path only (windowsJobHost: SystemRoot-only guarded env) with the branded child env, no shell',
+      'a job left by a stopped worker ends by name through the packaged, digest-named job helper by absolute path only (windowsJobHost: SystemRoot and the guard variable given, no credential) with the branded child env, no shell',
   },
   'src/runtime/tokenFile.ts': {
     kind: 'reviewed',

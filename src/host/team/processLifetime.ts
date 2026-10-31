@@ -1,8 +1,8 @@
 import type { ResourceLease } from '../../core/resources/launch'
 import type { ResourcePermit } from '../../core/resources/queue'
 import type { GovernedTeamSlot } from '../../core/team/scheduler/slots'
-import { loadJobAssembly, runProgram } from '../processTree'
-import { windowsPowerShell } from '../../core/execGuard'
+import { runProgram } from '../processTree'
+import { windowsJobHost } from '../../core/execGuard'
 import {
   guardedEnvironmentBlock,
   isWorkspacePath,
@@ -19,7 +19,6 @@ import { readFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { setTimeout as delay } from 'node:timers/promises'
 import { shellJobAssembly, type ShellJobDeps } from '../backend/shellJob'
-import { powerShellQuoted } from '../../core/shellQuote'
 import { withDeadline } from '../../core/timeouts'
 
 /** C1/T attach the reserved permit to their registry; no second admission or sampler. */
@@ -56,7 +55,6 @@ import {
   MCP_JOB_HANDSHAKE_MAX_CHARS,
   TEAM_PROCESS_STATUS_MAX_CHARS,
   MCP_JOB_NONCE_BYTES,
-  WINDOWS_POWERSHELL_COMMAND_ARGS,
   MSP_CLIENT_NAME,
   MSP_HANDSHAKE_TIMEOUT_MS,
   MSP_REQUESTED_CAPABILITIES,
@@ -904,6 +902,40 @@ export function resolveWindowsTeamCommand(
   return { executable: line.file, args: [...line.args], isVerbatim: line.isVerbatim }
 }
 
+/**
+The job helper's arguments for one team launch (MuseSparkJobHost's
+`run-team` in native/windows/MuseSparkJob.cs, which runs
+`MuseSparkJob.RunTeam`): the fixed values in its order, the payload's
+argument count, its arguments, then its whole environment block.
+*/
+function runTeamArgs(
+  target: WindowsTeamCommandTarget,
+  request: TeamLaunchRequest,
+  environment: readonly string[],
+  launch: {
+    readonly ownerPipe: string
+    readonly nonce: string
+    readonly statusPipe: string
+    readonly group: string
+  },
+): readonly string[] {
+  return [
+    'run-team',
+    target.executable,
+    request.cwd,
+    String(process.pid),
+    launch.ownerPipe,
+    launch.nonce,
+    launch.statusPipe,
+    launch.group,
+    String(request.priority === 'belowNormal'),
+    String(target.isVerbatim),
+    String(target.args.length),
+    ...target.args,
+    ...environment,
+  ]
+}
+
 function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDriver {
   return {
     launch(request, launchId, lifecycle = new TeamLaunchLifecycle()) {
@@ -1022,8 +1054,6 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
           fail(error)
         })
       }
-      const strings = (values: readonly string[]) =>
-        `[string[]]@(${values.map((value) => powerShellQuoted(value)).join(',')})`
       // The payload's whole environment: the same guarded child environment
       // the POSIX launch uses, so nothing the payload starts by bare name
       // resolves to a program planted in the workspace. The executable
@@ -1042,16 +1072,20 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
           realpath: realpathSync,
         },
       )
-      const powershell = windowsPowerShell(systemRoot, request.env)
-      // .NET and quoted literals only: ConvertFrom-Json discovers PowerShell
-      // modules on a cold runner before the native confirmation clock can fire.
-      const script = `${loadJobAssembly(assembly)}; exit [MuseSparkJob]::RunTeam(${powerShellQuoted(target.executable)}, ${strings(target.args)}, ${powerShellQuoted(request.cwd)}, ${String(process.pid)}, ${strings(environment)}, ${powerShellQuoted(ownerPipe)}, ${powerShellQuoted(nonce)}, ${powerShellQuoted(statusPipe)}, ${powerShellQuoted(group)}, $${request.priority === 'belowNormal' ? 'true' : 'false'}, $${target.isVerbatim ? 'true' : 'false'})`
-      const child = spawnGuarded(powershell.file, [...WINDOWS_POWERSHELL_COMMAND_ARGS, script], {
+      // The job helper run as a program of its own (`run-team`, no
+      // PowerShell start), whose exit code is the payload's: each value is
+      // one argument (Node quotes each for the C runtime), so no shell or
+      // script reads a name, an argument or an environment entry.
+      const host = windowsJobHost(assembly, systemRoot)
+      const args = runTeamArgs(target, request, environment, {
+        ownerPipe,
+        nonce,
+        statusPipe,
+        group,
+      })
+      const child = spawnGuarded(host.file, args, {
         cwd: request.cwd,
-        env: workspaceChildEnvironment('win32', powershell.env, {
-          workspaceRoot: request.cwd,
-          realpath: realpathSync,
-        }),
+        env: host.env,
         windowsHide: true,
         stdio: ['pipe', 'pipe', 'pipe'],
       })

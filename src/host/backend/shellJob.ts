@@ -11,8 +11,8 @@
 // digest) by .NET's compiler and loaded by each command. The compiled file
 // is a console program as well as the type: every other caller (the
 // resource governor's tree reads, job holder and created-path registry, the
-// team workers' file commands, the playbook's contained job, a command's job
-// termination) runs it directly, a native start of about 40 ms where a
+// team workers' file commands and process launches, the playbook's contained
+// job, a command's job termination) runs it directly, a native start of about 40 ms where a
 // Windows PowerShell start costs 200 ms and more (`MuseSparkJobHost` in the
 // C#, `windowsJobHost`). The self-test below stays a PowerShell start: what
 // it proves is that the shell, which is PowerShell, can load the type and
