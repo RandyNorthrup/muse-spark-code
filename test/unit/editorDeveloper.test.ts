@@ -9,6 +9,7 @@ import { AccountStore } from '../../src/core/providers/accounts'
 import { handleDeveloperRequest } from '../../src/core/developer/surfaces'
 import type { DeveloperSnapshot } from '../../src/shared/developerOptions'
 import { openEditorDeveloperOptions } from '../../src/host/developer/editorDeveloper'
+import { emptyVault } from './helpers/accountFixtures'
 
 function metadata() {
   const entry = {
@@ -22,22 +23,13 @@ function metadata() {
   return { read: () => Promise.resolve(entry), writeAccounts: () => Promise.resolve() }
 }
 
-function vault() {
-  return {
-    read: () => Promise.resolve(undefined),
-    readForRemoval: () => Promise.resolve(undefined),
-    write: () => Promise.resolve(),
-    remove: () => Promise.resolve(),
-  }
-}
-
 function setup(isConfirmed: boolean) {
   const dataDir = mkdtempSync(path.join(tmpdir(), 'rlf-m108-developer-'))
   const changed: DeveloperSnapshot[] = []
   const open = () =>
     openEditorDeveloperOptions({
       dataDir,
-      store: new AccountStore(metadata(), vault()),
+      store: new AccountStore(metadata(), emptyVault()),
       metadata: metadata(),
       confirm: () => Promise.resolve(isConfirmed),
       changed: (snapshot) => {

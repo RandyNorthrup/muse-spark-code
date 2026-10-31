@@ -7,15 +7,14 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { fileConfirmationStore, scriptedAsker } from './helpers/accountConfirmationStore'
+import { accountPoolBase } from './helpers/accountPoolBase'
 import {
   AccountPool,
   AccountPoolBusyError,
   AccountPoolStoppedError,
   type AccountPoolRequest,
 } from '../../src/core/accounts/pool'
-import { AccountPolicyGate } from '../../src/core/accounts/policyGate'
 import { AccountConfirmations } from '../../src/core/accounts/confirmations'
-import { accountPolicyFor } from '../../src/core/providers/accountPolicy'
 import { AccountRequestJournal } from '../../src/runtime/providers/accountRequestJournal'
 import { ownerColdCacheUsd } from '../../src/runtime/providers/accountRequestOwner'
 import { accountPeriodRange } from '../../src/core/accounts/thresholds'
@@ -95,25 +94,7 @@ async function setup(rows: Account[], settings?: { isSwapOn: boolean; isParallel
   })
   const published: AccountEvent[] = []
   const pool = new AccountPool({
-    provider: 'meta',
-    readSelection: (owner) => journal.selection('meta', owner),
-    writeSelection: (owner, selected) => {
-      journal.select('meta', owner, selected)
-    },
-    accounts: () => rows,
-    policy: () => accountPolicyFor('meta', 'model-api'),
-    journal,
-    limits: () => ({
-      read: (provider, id) =>
-        journal.limits(
-          provider,
-          id,
-          rows.find((row) => row.id === id),
-        ),
-    }),
-    gate: new AccountPolicyGate(confirmations),
-    now: () => NOW,
-    usageUrl: 'https://example.test/usage',
+    ...accountPoolBase({ provider: 'meta', journal, rows, confirmations, now: () => NOW }),
     settings: () => live,
     headroom: (row) => journal.headroom(row, 'meta'),
     canUseModel: (_row, request) => modelPolicyFor(request.modelId).identity.provider === 'meta',

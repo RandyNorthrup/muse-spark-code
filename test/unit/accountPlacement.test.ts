@@ -2,15 +2,10 @@
 // with its placement port, the routing layer's AccountPlacements and the
 // terminal commands, all against scratch dirs. The vault is a real
 // in-memory store (no keychain on this rig); nothing is scripted.
-import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
+import { readdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
-import {
-  AccountStoreError,
-  type AccountBinding,
-  type AccountCredential,
-  type AccountCredentialVault,
-} from '../../src/core/providers/accountCredentialRecord'
+import { describe, expect, it } from 'vitest'
+import { AccountStoreError } from '../../src/core/providers/accountCredentialRecord'
 import { AccountStore } from '../../src/core/providers/accounts'
 import {
   createAccountPlacements,
@@ -34,40 +29,10 @@ import { accountHeadroomBucket } from '../../src/core/accounts/headroomBucket'
 import { ACCOUNT_HEADROOM_SCALE, MODEL_API_BASE_URL, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import type { Account } from '../../src/shared/accounts'
+import { memoryVault } from './helpers/memoryVault'
+import { useScratchFolders } from './helpers/scratchFolders'
 
-const folders: string[] = []
-afterEach(async () => {
-  for (const folder of folders.splice(0)) await rm(folder, { recursive: true, force: true })
-})
-
-async function scratch(): Promise<string> {
-  await mkdir('temp', { recursive: true })
-  const folder = await mkdtemp(path.join('temp', 'account-placement-'))
-  folders.push(folder)
-  return folder
-}
-
-function vaultKey(binding: AccountBinding): string {
-  return `${binding.provider} ${binding.account}`
-}
-
-/** A real in-memory credential vault: it stores, it does not script. */
-function memoryVault(): AccountCredentialVault & { size(): number } {
-  const kept = new Map<string, AccountCredential>()
-  return {
-    read: (binding) => Promise.resolve(kept.get(vaultKey(binding))),
-    readForRemoval: (binding) => Promise.resolve(kept.get(vaultKey(binding))),
-    write: (binding, value) => {
-      kept.set(vaultKey(binding), value)
-      return Promise.resolve()
-    },
-    remove: (binding) => {
-      kept.delete(vaultKey(binding))
-      return Promise.resolve()
-    },
-    size: () => kept.size,
-  }
-}
+const scratch = useScratchFolders('temp', 'account-placement-')
 
 function byString(a: string, b: string): number {
   if (a === b) return 0
@@ -76,7 +41,7 @@ function byString(a: string, b: string): number {
 
 interface Harness {
   readonly folder: string
-  readonly vault: AccountCredentialVault & { size(): number }
+  readonly vault: ReturnType<typeof memoryVault>
   readonly store: AccountStore
   readonly localDevice: string
   readonly commands: AccountsCommandDeps

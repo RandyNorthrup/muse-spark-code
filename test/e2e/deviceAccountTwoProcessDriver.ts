@@ -23,6 +23,8 @@ import {
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
+import { accountPoolBase } from '../unit/helpers/accountPoolBase'
+import { memoryVault } from '../unit/helpers/memoryVault'
 import { AccountConfirmations } from '../../src/core/accounts/confirmations'
 import { accountHeadroomBucket } from '../../src/core/accounts/headroomBucket'
 import {
@@ -30,7 +32,6 @@ import {
   localPlacementDeviceMatcher,
   localPlacementId,
 } from '../../src/core/accounts/placement'
-import { AccountPolicyGate } from '../../src/core/accounts/policyGate'
 import { AccountPool, type AccountPoolRequest } from '../../src/core/accounts/pool'
 import {
   AccountRouteError,
@@ -40,11 +41,6 @@ import {
   type DeviceAccountClaim,
 } from '../../src/core/team/remotePool'
 import { AccountStore, type AccountsMetadataPort } from '../../src/core/providers/accounts'
-import type {
-  AccountBinding,
-  AccountCredential,
-  AccountCredentialVault,
-} from '../../src/core/providers/accountCredentialRecord'
 import { accountPolicyFor } from '../../src/core/providers/accountPolicy'
 import { modelPolicyFor } from '../../src/core/backends/modelapi/modelPolicy'
 import { DeviceAccountReceiver } from '../../src/host/devices/deviceReceiver'
@@ -57,6 +53,7 @@ import { parseUsd } from '../../src/shared/accountUsd'
 import { ACCOUNT_REQUEST_STORE, UI_TEXT } from '../../src/shared/constants'
 import type { AccountTrigger } from '../../src/shared/accounts'
 import { fileConfirmationStore } from '../unit/helpers/accountConfirmationStore'
+import { rigArg } from './driverArgs'
 
 const MODEL = 'muse-spark-1.3'
 const PROVIDER = 'meta'
@@ -71,13 +68,6 @@ const USER_CAP: AccountTrigger = {
   value: 10,
   threshold: 5,
   resetAt: '2026-10-30T00:00:00.000Z',
-}
-
-function arg(name: string): string {
-  const index = process.argv.indexOf(`--${name}`)
-  const value = index === -1 ? undefined : process.argv[index + 1]
-  if (value === undefined || value === '') throw new Error(`missing --${name}`)
-  return value
 }
 
 function signal(line: string): void {
@@ -96,27 +86,6 @@ async function waitForFile(file: string, missing: string): Promise<void> {
     if (existsSync(file)) return
     if (Date.now() - startedAt > FILE_BUDGET_MS) throw new Error(missing)
     await sleep(POLL_MS)
-  }
-}
-
-function vaultKey(binding: AccountBinding): string {
-  return `${binding.provider} ${binding.account}`
-}
-
-/** A real in-memory credential vault: it stores, it does not script. */
-function memoryVault(): AccountCredentialVault {
-  const kept = new Map<string, AccountCredential>()
-  return {
-    read: (binding) => Promise.resolve(kept.get(vaultKey(binding))),
-    readForRemoval: (binding) => Promise.resolve(kept.get(vaultKey(binding))),
-    write: (binding, value) => {
-      kept.set(vaultKey(binding), value)
-      return Promise.resolve()
-    },
-    remove: (binding) => {
-      kept.delete(vaultKey(binding))
-      return Promise.resolve()
-    },
   }
 }
 
@@ -368,25 +337,13 @@ async function runReceiver(dir: string, exchange: string): Promise<void> {
     store: fileConfirmationStore(path.join(dir, 'confirmations')),
   })
   const pool = new AccountPool({
-    provider: PROVIDER,
-    readSelection: (owner) => journal.selection(PROVIDER, owner),
-    writeSelection: (owner, selected) => {
-      journal.select(PROVIDER, owner, selected)
-    },
-    accounts: () => rows,
-    policy: () => accountPolicyFor(PROVIDER, 'model-api'),
-    journal,
-    limits: () => ({
-      read: (provider, id) =>
-        journal.limits(
-          provider,
-          id,
-          rows.find((row) => row.id === id),
-        ),
+    ...accountPoolBase({
+      provider: PROVIDER,
+      journal,
+      rows,
+      confirmations,
+      now: () => Date.now(),
     }),
-    gate: new AccountPolicyGate(confirmations),
-    now: () => Date.now(),
-    usageUrl: 'https://example.test/usage',
     settings: () => ({ isSwapOn: true, isParallelOn: true }),
     headroom: (row) => journal.headroom(row, PROVIDER),
     canUseModel: (_row, request) => modelPolicyFor(request.modelId).identity.provider === PROVIDER,
@@ -488,11 +445,11 @@ async function runReceiver(dir: string, exchange: string): Promise<void> {
 }
 
 async function run(): Promise<void> {
-  const role = arg('role')
-  const dir = arg('dir')
-  const exchange = arg('exchange')
+  const role = rigArg('role')
+  const dir = rigArg('dir')
+  const exchange = rigArg('exchange')
   mkdirSync(exchange, { recursive: true })
-  if (role === 'sender') await runSender(dir, exchange, arg('peer'), arg('peer-id'))
+  if (role === 'sender') await runSender(dir, exchange, rigArg('peer'), rigArg('peer-id'))
   else if (role === 'receiver') await runReceiver(dir, exchange)
   else throw new Error(`bad role ${role}`)
 }

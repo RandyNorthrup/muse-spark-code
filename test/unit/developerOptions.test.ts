@@ -1,20 +1,19 @@
 // M108 X developer options over real modules: the production services own
 // the files, the confirmations and the profile resources; time and answers
 // are the test's (a fixed clock and the user's own replies), nothing else.
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { DeveloperOptions, DeveloperOptionsError } from '../../src/core/developer/developerOptions'
 import { developerConfirmation } from '../../src/core/developer/surfaces'
-import { AccountStore } from '../../src/core/providers/accounts'
 import {
   checkDeveloperAccount,
   createRuntimeAccountServices,
 } from '../../src/runtime/providers/runtimeServices'
-import { fileAccountsMetadata } from '../../src/runtime/providers/providersFileStore'
 import { runTerminalDeveloperCommand } from '../../src/runtime/providers/accountsEntry'
 import { parseDeveloperCommand } from '../../src/runtime/developer/developerCommand'
 import { collectingLogger } from './helpers/collectingLogger'
+import { developerScratch, developerSlotsOf, shutVaultAccounts } from './helpers/developerFixtures'
 import { DeveloperLocalFiles } from '../../src/runtime/developer/localFiles'
 import type { SecretStore } from '../../src/host/auth/credentialStore'
 import {
@@ -32,10 +31,7 @@ afterEach(() => {
 })
 
 function scratch(): string {
-  mkdirSync('temp', { recursive: true })
-  const folder = mkdtempSync(path.join('temp', 'developer-options-'))
-  folders.push(folder)
-  return folder
+  return developerScratch('developer-options-', folders)
 }
 
 function mapSecrets(): SecretStore {
@@ -110,11 +106,10 @@ function auditOf(folder: string): { action: string; source: string }[] {
         .map((row) => ({ action: row.action, source: row.source }))
 }
 
-function slotsOf(folder: string): Record<string, string> {
-  const file = path.join(folder, 'developer', DEVELOPER_FILES.slots)
-  return existsSync(file)
-    ? (JSON.parse(readFileSync(file, 'utf8')) as { slots: Record<string, string> }).slots
-    : {}
+async function unlockedWithMultiple(harness: Harness): Promise<void> {
+  harness.answers.push(accept('unlock'), accept('multiple'))
+  await harness.owner.unlock('terminal')
+  await harness.owner.setMultiple(true, 'terminal')
 }
 
 describe('M108 X developer options', () => {
@@ -173,9 +168,7 @@ describe('M108 X developer options', () => {
 
   it('keeps a failed profile start visible and removable, folders and slots honest', async () => {
     const harness = await setup()
-    harness.answers.push(accept('unlock'), accept('multiple'))
-    await harness.owner.unlock('terminal')
-    await harness.owner.setMultiple(true, 'terminal')
+    await unlockedWithMultiple(harness)
     // The child launch refuses until its bindings land; the profile stays
     // recorded, its folder on disk, its slot released by the rollback.
     const failure = await failureOf(harness.owner.addProfile('meta', 'default', 'terminal'))
@@ -186,7 +179,7 @@ describe('M108 X developer options', () => {
     const profile = recorded.profiles[0]
     if (profile === undefined) throw new Error('no profile was recorded')
     expect(existsSync(path.join(harness.folder, 'developer', 'profiles', profile.id))).toBe(true)
-    expect(slotsOf(harness.folder)).toEqual({})
+    expect(developerSlotsOf(harness.folder)).toEqual({})
     const actions = auditOf(harness.folder).map((row) => row.action)
     expect(actions).toContain('create')
     // Removal completes: the folder goes, the record goes, the audit stays.
@@ -198,9 +191,7 @@ describe('M108 X developer options', () => {
 
   it('resets everything after confirmation and keeps the unlock when denied', async () => {
     const harness = await setup()
-    harness.answers.push(accept('unlock'), accept('multiple'))
-    await harness.owner.unlock('terminal')
-    await harness.owner.setMultiple(true, 'terminal')
+    await unlockedWithMultiple(harness)
     await failureOf(harness.owner.addProfile('meta', 'default', 'terminal'))
     harness.answers.push('no')
     const denied = await harness.owner.reset('terminal')
@@ -216,9 +207,7 @@ describe('M108 X developer options', () => {
 
   it('refuses an unknown account for a profile before recording anything', async () => {
     const harness = await setup()
-    harness.answers.push(accept('unlock'), accept('multiple'))
-    await harness.owner.unlock('terminal')
-    await harness.owner.setMultiple(true, 'terminal')
+    await unlockedWithMultiple(harness)
     const failure = await failureOf(harness.owner.addProfile('meta', 'nobody', 'terminal'))
     expect((failure as Error).message).toBe(UI_TEXT.developer.invalidRequest)
     expect(harness.owner.snapshot().profiles).toEqual([])
@@ -228,13 +217,7 @@ describe('M108 X developer options', () => {
   it('refuses unreadable or future-dated state in fixed words', async () => {
     const folder = scratch()
     const files = new DeveloperLocalFiles(`${folder}/developer`)
-    const metadata = fileAccountsMetadata(folder)
-    const store = new AccountStore(metadata, {
-      read: () => Promise.reject(new Error('vault must stay shut')),
-      readForRemoval: () => Promise.reject(new Error('vault must stay shut')),
-      write: () => Promise.reject(new Error('vault must stay shut')),
-      remove: () => Promise.reject(new Error('vault must stay shut')),
-    })
+    const { metadata, store } = shutVaultAccounts(folder)
     const deps = {
       machineId: 'machine-a',
       now: () => NOW,
@@ -283,13 +266,7 @@ describe('M108 X developer options', () => {
   it('keeps state on its machine until a confirmed foreign reset', async () => {
     const folder = scratch()
     const files = new DeveloperLocalFiles(`${folder}/developer`)
-    const metadata = fileAccountsMetadata(folder)
-    const store = new AccountStore(metadata, {
-      read: () => Promise.reject(new Error('vault must stay shut')),
-      readForRemoval: () => Promise.reject(new Error('vault must stay shut')),
-      write: () => Promise.reject(new Error('vault must stay shut')),
-      remove: () => Promise.reject(new Error('vault must stay shut')),
-    })
+    const { metadata, store } = shutVaultAccounts(folder)
     const checkAccount = (provider: string, account: string): Promise<void> =>
       checkDeveloperAccount(metadata, store, provider, account)
     const base = {

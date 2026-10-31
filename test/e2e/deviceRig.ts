@@ -4,30 +4,16 @@
 // runner import, so the drivers bundle this too.
 import { spawn, type ChildProcess } from 'node:child_process'
 import { mkdtempSync, mkdirSync } from 'node:fs'
-import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { build } from 'esbuild'
+import { vacantLoopbackPort } from '../unit/helpers/loopbackPort'
 export const RIG_SIGNAL_BUDGET_MS = 30_000
 // Two child processes plus two TLS handshakes over loopback.
 export const RIG_DRILL_TIMEOUT_MS = 60_000
 
 export async function rigFreePort(): Promise<number> {
-  const server = createServer()
-  await new Promise<void>((resolve) => {
-    server.listen(0, '127.0.0.1', () => {
-      resolve()
-    })
-  })
-  const address = server.address()
-  const port = typeof address === 'object' && address !== null ? address.port : 0
-  await new Promise<void>((resolve, reject) => {
-    server.close((error) => {
-      if (error) reject(error)
-      else resolve()
-    })
-  })
-  return port
+  return await vacantLoopbackPort()
 }
 
 export function rigWaitForLine(child: ChildProcess, match: string): Promise<void> {
