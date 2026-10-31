@@ -9,6 +9,7 @@ import { RUNTIME_MAKER_AGENT_MARKERS, UI_TEXT } from '../../shared/constants'
 import { setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 import { createAcpMakerRuntime } from './acpRuntime'
+import { runtimeSerialPythonPath } from '../runtimeSerialPython'
 import type { AcpMakerRuntime } from '../../acp/makerTools'
 
 export function runtimeMakerAcp(deps: RuntimeMakerEntryDeps, isTrusted: boolean): AcpMakerRuntime {
@@ -23,6 +24,7 @@ export function runtimeMakerAcp(deps: RuntimeMakerEntryDeps, isTrusted: boolean)
       platform: deps.platform,
       env: deps.env,
       packageRoot: path.dirname(deps.distDirectory),
+      serialPython: () => runtimeSerialPythonPath(deps.dataDirectory),
     },
   })
 }
@@ -81,6 +83,7 @@ export async function runRuntimeMaker(
       platform: deps.platform,
       env: deps.env,
       packageRoot: path.dirname(deps.distDirectory),
+      serialPython: () => runtimeSerialPythonPath(deps.dataDirectory),
     },
   })
   try {

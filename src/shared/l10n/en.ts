@@ -9595,6 +9595,10 @@ export const EN = {
 
   makerSerialPythonMissing:
     'Serial access needs Python 3 (python3) with the pyserial package, and no python3 was found on your PATH outside this workspace. Install Python 3 and run “python3 -m pip install pyserial”, then try again.',
+  makerSerialPythonSetMissing:
+    'The Python you set for serial access (museSpark.serialPythonPath, or serialPythonPath in the agent’s settings.json) is not the full path of a file that exists. Set it to the full path of a Python 3 with the pyserial package, or clear it to use python3 from your PATH.',
+  makerSerialPythonSetInWorkspace:
+    'The Python you set for serial access is inside this workspace, where a project could supply a program to run in its place. Set it to a Python outside the workspace, such as one in a virtual environment in your home folder.',
 
   makerEnableHardware: 'Enable hardware for this workspace',
   makerCliUsage:

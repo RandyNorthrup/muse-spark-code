@@ -40,6 +40,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Choose the Python for serial access.** On macOS and Linux the serial
+  helper needs a Python 3 with `pyserial`, and it used to take whichever
+  `python3` came first on your PATH outside the project. The new machine-scoped
+  setting `museSpark.serialPythonPath` (`serialPythonPath` in the agent's
+  `settings.json`) names the one to start, for example the `python3` of a
+  virtual environment that has `pyserial`. A project cannot set it, and a path
+  inside the project is refused with the reason. Left empty, nothing changes.
 - **Maker tools with a person at every physical action.** Shell commands
   that flash a board, open a device or move a machine ask every time, in
   every permission mode, and no remembered rule, hook or automatic reviewer

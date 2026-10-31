@@ -7517,6 +7517,8 @@
   "makerStopPhysicalRequired": "A(z) {machine} gép fizikai vészleállítást igényel; szoftveres leállítás nem érhető el.",
   "makerTrustRequired": "A hardver engedélyezése előtt jelölje megbízhatónak ezt a munkaterületet.",
   "makerSerialPythonMissing": "A soros hozzáféréshez Python 3 (python3) szükséges a pyserial csomaggal, és a PATH-on ezen a munkaterületen kívül nem található python3. Telepítse a Python 3-at, futtassa a „python3 -m pip install pyserial” parancsot, majd próbálja újra.",
+  "makerSerialPythonSetMissing": "A soros hozzáféréshez beállított Python (museSpark.serialPythonPath, vagy az ügynök settings.json fájljában a serialPythonPath) nem egy létező fájl teljes elérési útja. Adja meg egy pyserial csomagot tartalmazó Python 3 teljes elérési útját, vagy törölje a beállítást, hogy a PATH-ban lévő python3 legyen használva.",
+  "makerSerialPythonSetInWorkspace": "A soros hozzáféréshez beállított Python ezen a munkaterületen belül van, ahol egy projekt a helyén futtatandó programot adhatna. Állítson be egy munkaterületen kívüli Pythont, például egy virtuális környezetét a saját mappájában.",
   "makerEnableHardware": "Hardver engedélyezése ezen a munkaterületen",
   "makerCliUsage": "Maker hardver a terminálból: hardver engedélyezése vagy letiltása egy munkaterülethez, gépek regisztrálása és listázása, gép leállítása vagy a maker panel megnyitása. A machines add beolvassa a --registration értéket, a --key-stdin kapcsolóval pedig a gépkulcsot a szabványos bemenetről. A fizikai műveletek az operációs rendszer bejelentkezését kérik, és soha nem futnak felügyelet nélkül.",
   "makerDisableHardware": "Hardver letiltása ezen a munkaterületen",
