@@ -294,13 +294,13 @@ function recordRow(record: UsageRecord): UsageAggregateRow {
     histogram,
     measurements: {
       cache:
-        record.tokens.input !== undefined && record.tokens.cached !== undefined
-          ? { records: 1, input: record.tokens.input, cached: record.tokens.cached }
-          : { records: 0, input: 0, cached: 0 },
+        record.tokens.input === undefined || record.tokens.cached === undefined
+          ? { records: 0, input: 0, cached: 0 }
+          : { records: 1, input: record.tokens.input, cached: record.tokens.cached },
       speed:
-        record.tokens.output !== undefined && record.durationMs !== undefined
-          ? { records: 1, output: record.tokens.output, durationMs: record.durationMs }
-          : { records: 0, output: 0, durationMs: 0 },
+        record.tokens.output === undefined || record.durationMs === undefined
+          ? { records: 0, output: 0, durationMs: 0 }
+          : { records: 1, output: record.tokens.output, durationMs: record.durationMs },
       latency:
         record.durationMs === undefined
           ? { records: 0, durationMs: 0 }

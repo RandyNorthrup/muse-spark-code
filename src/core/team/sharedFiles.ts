@@ -43,8 +43,8 @@ export function teamPathMatcher(
   pattern: string,
   isCaseInsensitive?: boolean,
 ): (path: string) => boolean {
-  const match = compileGlob(`team-root/${canonicalTeamPath(pattern, isCaseInsensitive)}`)
-  return (path) => match(`team-root/${canonicalTeamPath(path, isCaseInsensitive)}`)
+  const isMatch = compileGlob(`team-root/${canonicalTeamPath(pattern, isCaseInsensitive)}`)
+  return (path) => isMatch(`team-root/${canonicalTeamPath(path, isCaseInsensitive)}`)
 }
 
 /** A conservative containment proof for fixed prefix/suffix wildcard rules.

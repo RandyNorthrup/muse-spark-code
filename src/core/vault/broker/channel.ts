@@ -569,9 +569,7 @@ export class VaultChannelServer {
         return
       }
       if (request.kind === 'firstPartyRead') {
-        if (!identity.firstParty || identity.requester !== null)
-          response = { kind: 'denied', reason: 'peer' }
-        else {
+        if (identity.firstParty && identity.requester === null) {
           await this.deps.broker.sendFirstParty(
             identity.peer,
             request,
@@ -602,6 +600,7 @@ export class VaultChannelServer {
           )
           return
         }
+        response = { kind: 'denied', reason: 'peer' }
       } else
         response = await this.dispatch(
           identity,

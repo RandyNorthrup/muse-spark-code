@@ -450,14 +450,14 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
           task.startMs >= since,
       ).length
     }
-    return owner !== undefined || cap.window !== 'task'
-      ? claimsFor(entry, cap, owner).reduce((sum, claim) => sum + measureOf(claim.usage, cap), 0)
-      : Math.max(
+    return owner === undefined && cap.window === 'task'
+      ? Math.max(
           0,
           ...allTasks()
             .filter((task) => task.entry?.id === entry.id && isActive(task.phase))
             .map((task) => capUsed(entry, cap, task)),
         )
+      : claimsFor(entry, cap, owner).reduce((sum, claim) => sum + measureOf(claim.usage, cap), 0)
   }
 
   /** The entry can run at all: its worker exists, it is loaded, it may bill, it is not limited. */
@@ -636,7 +636,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       orchestrator: {
         model: orchestratorModel(),
         backend: deps.orchestrator.backend(),
-        slot: override !== undefined && override.kind !== 'external' ? 'override' : 'default',
+        slot: override === undefined || override.kind === 'external' ? 'default' : 'override',
       },
       ...todayTally(all),
       roles: roles().map((role) => ({

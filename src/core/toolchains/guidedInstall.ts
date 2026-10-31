@@ -206,7 +206,7 @@ export function planGuidedInstall(
   const block = (tool: string, version: string): void => {
     blocked.push({ tool, version, code: 'manual-install' })
   }
-  if (os !== 'windows' && os !== 'macos' && os !== 'linux') {
+  if (!['windows', 'macos', 'linux'].includes(os)) {
     for (const tool of tools) block(tool.tool, tool.version)
     for (const entry of managed) block(entry.id, entry.version)
     return { steps, blocked }

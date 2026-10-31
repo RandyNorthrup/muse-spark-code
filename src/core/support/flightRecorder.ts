@@ -161,11 +161,17 @@ dropped, not repaired.
 */
 function scrubFramePath(path: string): string | undefined {
   const scrubbed = redactSecrets(path)
-  if (scrubbed !== path || !REPORT_PACKAGE_FRAME_PATHS.has(path)) return undefined
-  if (scrubbed.length === 0 || scrubbed.length > REPORT_FRAME_PATH_MAX_CHARS) return undefined
-  if (scrubbed.includes('\\')) return undefined
-  if (scrubbed.startsWith('/')) return undefined
-  if (DRIVE_ROOT.test(scrubbed) || URI_SCHEME.test(scrubbed)) return undefined
+  if (
+    scrubbed !== path ||
+    !REPORT_PACKAGE_FRAME_PATHS.has(path) ||
+    scrubbed.length === 0 ||
+    scrubbed.length > REPORT_FRAME_PATH_MAX_CHARS ||
+    scrubbed.includes('\\') ||
+    scrubbed.startsWith('/') ||
+    DRIVE_ROOT.test(scrubbed) ||
+    URI_SCHEME.test(scrubbed)
+  )
+    return undefined
   const segments = scrubbed.split('/')
   return segments.some((segment) => ['', '.', '..'].includes(segment)) ? undefined : scrubbed
 }
@@ -422,8 +428,7 @@ export function tempOwnerPid(name: string): number | undefined {
 
 /** The marker this activation sets before normal startup. */
 export function buildMarkerText(instance: string, pid: number, at: number): string | undefined {
-  if (!INSTANCE_STEM.test(instance)) return undefined
-  if (!Number.isSafeInteger(pid) || pid < 0) return undefined
+  if (!INSTANCE_STEM.test(instance) || !Number.isSafeInteger(pid) || pid < 0) return undefined
   return !Number.isSafeInteger(at) || at < 0
     ? undefined
     : `${JSON.stringify({ v: REPORT_JOURNAL_VERSION, instance, pid, at })}\n`
@@ -447,7 +452,7 @@ export function parseMarkerText(name: string, text: string): FlightMarker | unde
     return undefined
   }
   const parsed = flightMarkerSchema.safeParse(candidate)
-  return !parsed.success || parsed.data.instance !== owned ? undefined : parsed.data
+  return parsed.success && parsed.data.instance === owned ? parsed.data : undefined
 }
 
 /**

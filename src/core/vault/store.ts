@@ -1136,15 +1136,14 @@ export class VaultStore implements VaultStorePort {
     anchoredId: string,
     anchor: VaultGenerationPort,
   ): Promise<boolean> {
-    if (await files.writerRecovery?.()) {
-      // A stuck lock alone never loses a vault: a live foreign writer, or
-      // failed self evidence beside healthy files, is stuck, never lost.
-      // Only files no slot or code can open are lost (RVAPP-LEASE2 P1-2).
-      return !(await isVaultOpenable(files, anchoredId, await anchor.minimum(anchoredId)))
-    }
-    return await files.withWriter(
-      async () => !(await isVaultOpenable(files, anchoredId, await anchor.minimum(anchoredId))),
-    )
+    // A stuck lock alone never loses a vault: a live foreign writer, or
+    // failed self evidence beside healthy files, is stuck, never lost.
+    // Only files no slot or code can open are lost (RVAPP-LEASE2 P1-2).
+    return (await files.writerRecovery?.())
+      ? !(await isVaultOpenable(files, anchoredId, await anchor.minimum(anchoredId)))
+      : await files.withWriter(
+          async () => !(await isVaultOpenable(files, anchoredId, await anchor.minimum(anchoredId))),
+        )
   }
   /**
   The reset's file side: appends a value-free audit line to `reset.v1`,
