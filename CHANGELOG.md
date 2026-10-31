@@ -356,6 +356,12 @@ happened, not what was planned; superseded entries are kept.
   to approve a spend for a request that cannot be sent. A secret under the
   cursor is now found before the stored key is read and before the paid-use
   question, so the question comes only with a request that can be sent.
+- On Windows, the job helper's builds that earlier versions left in the
+  storage folder (`MuseSparkJob-<digest>.dll`, about 60 KB each, one per
+  earlier version) are removed the next time the helper is built (used for
+  real with the terminal agent; the extension builds the helper through the
+  same code). Only those exact names in the helper's own folder are touched;
+  a build another running window still holds is removed once it lets go.
 - A pack index is accepted only when the signature covers those exact bytes
   and the signer is the pack workflow on `main`, exactly. A signature for a
   branch whose name merely begins with `main`, or a signed statement that

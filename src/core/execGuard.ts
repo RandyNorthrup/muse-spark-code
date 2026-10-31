@@ -1021,8 +1021,11 @@ the legacy shell stop. The shell tool's PowerShell loads the same file as the
 type a command joins its job with; a call that only needs the type costs one
 native start (about 40 ms) where a Windows PowerShell start costs 200 ms and
 more, seconds on a busy machine. The helper is a digest-named file the build
-put in the extension's storage: the path must be absolute. Its environment
-holds only `SystemRoot`: no credential, no workspace entry, no module path.
+put in the extension's storage: the path must be absolute. The environment
+given is `SystemRoot` alone: no credential, no module path. Node's process
+start on Windows still copies the variables Windows programs require when
+they are absent (`PATH`, `TEMP`, `SYSTEMDRIVE`, `WINDIR`, the user's profile
+and names) from this process, none of them a credential.
 */
 export function windowsJobHost(
   assemblyPath: string,
