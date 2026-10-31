@@ -135,6 +135,7 @@ import {
   DEFERRED_WEBVIEW_SURFACES,
   webviewStartupOutputs,
   webviewTeamOutputs,
+  portableWebviewBudgetGroups,
 } from './lib/webviewBundles.mjs'
 import { UI_TEXT_REGIONS } from './lib/uiTextRegions.mjs'
 
@@ -2286,6 +2287,44 @@ for (const file of Object.keys(RESOURCE_WEBVIEW_ENTRIES)) visitWebview(file)
 
 visitWebview('dist/webview/reportingPage.js')
 visitWebview('dist/webview/reportingDestinations.js')
+
+// M104 lane D: VS Code's graph never carries the portable bridges,
+// fallbacks or entries; the portable graph keeps its fallback and
+// presentation surfaces out of its startup closure.
+const portableOnlySources = new Set([
+  'src/webview/portable.tsx',
+  'src/webview/bridges/companion.ts',
+  'src/webview/bridges/companionUi.ts',
+  'src/webview/bridges/moduleLoader.ts',
+  'src/webview/bridges/native.ts',
+  'src/webview/bridges/select.ts',
+  'src/webview/whatsNew/portable.ts',
+])
+for (const [file, output] of Object.entries(webviewMeta.outputs)) {
+  for (const source of Object.keys(output.inputs)) {
+    if (
+      portableOnlySources.has(source) ||
+      source.startsWith('src/webview/fallbacks/') ||
+      source.startsWith('src/webview/presentation/')
+    )
+      problems.push(`VS Code's webview carries portable-only source ${source} in ${file}`)
+  }
+}
+const portableMeta = JSON.parse(readFileSync('dist/meta/portable.json', 'utf8'))
+const [portableStartupGroup] = portableWebviewBudgetGroups(portableMeta)
+for (const file of portableStartupGroup.outputs) {
+  const output = portableMeta.outputs[file]
+  if (output === undefined) continue
+  const sources = Object.keys(output.inputs ?? {})
+  for (const source of sources) {
+    const normal = source.replaceAll('\\', '/')
+    if (
+      normal.startsWith('src/webview/fallbacks/') ||
+      normal.startsWith('src/webview/presentation/')
+    )
+      problems.push(`Portable startup carries deferred surface ${normal} in ${file}`)
+  }
+}
 const deferredWebviewSources = [
   ...DEFERRED_WEBVIEW_SURFACES.map((surface) => `src/webview/components/${surface}.tsx`),
   ...ADDITIONAL_WEBVIEW_BUDGETS.flatMap(({ entries }) => entries),
@@ -2406,6 +2445,9 @@ const nodeMetafiles = readdirSync('dist/meta')
         'reportingDestinationsWebview.json',
         'judgeSetupWebview.json',
         'developerOptionsWebview.json',
+        // M104 lane D: the portable browser graph bundles its own parser,
+        // as every webview graph above does.
+        'portable.json',
       ].includes(name),
   )
   .map((name) => `dist/meta/${name}`)

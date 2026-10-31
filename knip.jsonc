@@ -240,6 +240,14 @@
     "src/webview/main.tsx",
     // M103 U: separate host-rendered STL preview page, built by path.
     "src/webview/maker/previewMain.ts",
+    // M104 lane D's portable graph (dist/webview/portable/): esbuild
+    // entries scripts/build.mjs reads, which knip does not trace.
+    "src/webview/portable.tsx",
+    "src/webview/whatsNew/portable.ts",
+    "src/webview/presentation/presentationEntry.ts",
+    "src/webview/fallbacks/index.ts",
+    "src/webview/bridges/select.ts",
+    "src/webview/bridges/moduleLoader.ts",
     "src/webview/resources/ResourceSurface.tsx",
     "src/webview/usage/ResourcesSection.tsx",
     // The Models & Agents panel's own entry (M95 lane M), required by path.

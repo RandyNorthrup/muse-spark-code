@@ -30,8 +30,10 @@ export const UI_TEXT_REGIONS = [
     name: 'runtime',
     output: 'dist/uiTextRuntime.js',
     // The maker tools' words (M103) are read by the hardware guard, the maker
-    // commands and the ACP approval, never at a bundle's start.
-    keys: /^(?:acp|exec|scanSecrets|reportUsage$|maker|hardware|approvalHardwareNote$)/,
+    // commands and the ACP approval, never at a bundle's start. M104 lane D's
+    // host-service words, the language server's and the CLI help travel with
+    // the runtime too: only the Node bundles read them.
+    keys: /^(?:acp|exec|scanSecrets|reportUsage$|hostService$|gitWorkspaceNotRepository$|gitProgramMissing$|signOutInTerminal$|supervision$|languageServer$|referenceCliOptions$|cliHelp$|maker|hardware|approvalHardwareNote$)/,
   },
   {
     name: 'hooks',
@@ -48,7 +50,7 @@ export const UI_TEXT_REGIONS = [
     // setup wizard and its CLI steps, the Judge section, the judge's paid
     // asks, the device and desktop surfaces (M100), the per-provider request
     // headers editor and the playbook.
-    keys: /^(?:tab|paid\w*Tab|usagePaidTab|report(?!Usage$)|whatsNew|vault$|judgeSetupWizard$|judgeSetupCli$|judgeRecommend$|judgePanel$|paidConfirmJudge\w*|devices$|desktop$|providerHeaders|playbook)/,
+    keys: /^(?:tab|paid\w*Tab|usagePaidTab|report(?!Usage$)|whatsNew|vault$|judgeSetupWizard$|judgeSetupCli$|judgeRecommend$|judgePanel$|paidConfirmJudge\w*|devices$|desktop$|providerHeaders|playbook|fallback\w*$|presentationRolesTitle$|presentationTrafficTitle$)/,
   },
 ]
 

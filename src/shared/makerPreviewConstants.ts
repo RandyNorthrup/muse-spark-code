@@ -8,8 +8,9 @@ export const MAKER_TRIANGLE_COMPONENTS = 9
 export const MAKER_PREVIEW_VALIDATION_CHUNK = 9000
 export const MAKER_PREVIEW_VALIDATION_DEADLINE_MS = 1000
 export const MAKER_PREVIEW_CANVAS_SIZE = 640
-const ROTATION_SLICES = 12
-export const MAKER_PREVIEW_ROTATION_STEP = Math.PI / ROTATION_SLICES
+// Math.PI / 12 (a twelfth of a half turn) as a literal: a computed export is a
+// statement every bundle that imports constants.ts would keep.
+export const MAKER_PREVIEW_ROTATION_STEP = 0.2617993877991494
 export const MAKER_PREVIEW_ZOOM_STEP = 1.2
 export const MAKER_PREVIEW_MIN_ZOOM = 0.25
 export const MAKER_PREVIEW_MAX_ZOOM = 4

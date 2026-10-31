@@ -7442,7 +7442,10 @@
                     },
                     {
                       "type": "object",
-                      "properties": { "type": { "type": "string", "const": "surfaceFocused" } },
+                      "properties": {
+                        "type": { "type": "string", "const": "surfaceFocused" },
+                        "focused": { "type": "boolean" }
+                      },
                       "required": ["type"],
                       "additionalProperties": false
                     },
@@ -10270,7 +10273,8 @@
                                       "type": "string",
                                       "enum": [
                                         "schedules/backgroundStatus",
-                                        "schedules/backgroundRemove"
+                                        "schedules/backgroundRemove",
+                                        "schedules/backgroundMaintain"
                                       ]
                                     }
                                   },
@@ -10455,6 +10459,9 @@
                             "addModelProvider",
                             "manageModels",
                             "showWhatsNew",
+                            "showWalkthrough",
+                            "showRoles",
+                            "showPlans",
                             "openPlaybook"
                           ]
                         }
@@ -10753,6 +10760,16 @@
                       "type": "object",
                       "properties": { "type": { "type": "string", "const": "stopAllTeamTasks" } },
                       "required": ["type"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "moveTeamTask" },
+                        "taskId": { "type": "string" },
+                        "role": { "type": "string" }
+                      },
+                      "required": ["type", "taskId", "role"],
                       "additionalProperties": false
                     },
                     {
@@ -11650,7 +11667,12 @@
                                 "unhandledRejection",
                                 "reactBoundary",
                                 "errorNotice",
-                                "judgeFastSkip"
+                                "judgeFastSkip",
+                                "signInStarted",
+                                "signInSucceeded",
+                                "signInFailed",
+                                "cliProbe",
+                                "backendResolved"
                               ]
                             },
                             "entryIndex": {
@@ -11661,6 +11683,21 @@
                           },
                           "required": ["kind", "entryIndex"],
                           "additionalProperties": false
+                        },
+                        "panelState": {
+                          "type": "string",
+                          "enum": [
+                            "starting",
+                            "landingNoCli",
+                            "landingInstalling",
+                            "landingSignedOut",
+                            "landingSigningIn",
+                            "landingError",
+                            "ready",
+                            "turnRunning",
+                            "turnFailed",
+                            "questionWaiting"
+                          ]
                         }
                       },
                       "required": ["type"],
@@ -11753,6 +11790,15 @@
                         "message": {}
                       },
                       "required": ["type", "message"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "developerRequest" },
+                        "request": {}
+                      },
+                      "required": ["type", "request"],
                       "additionalProperties": false
                     }
                   ]
@@ -13711,6 +13757,10 @@
                           },
                           "required": ["day", "week"],
                           "additionalProperties": false
+                        },
+                        "insightsState": {
+                          "type": "string",
+                          "enum": ["empty", "behind", "unavailable"]
                         },
                         "providers": {
                           "type": "array",
@@ -19889,7 +19939,12 @@
                                 "unhandledRejection",
                                 "reactBoundary",
                                 "errorNotice",
-                                "judgeFastSkip"
+                                "judgeFastSkip",
+                                "signInStarted",
+                                "signInSucceeded",
+                                "signInFailed",
+                                "cliProbe",
+                                "backendResolved"
                               ]
                             },
                             "entryIndex": {
@@ -23171,6 +23226,7 @@
                       "type": "object",
                       "properties": {
                         "type": { "type": "string", "const": "composerState" },
+                        "isHardwareWorkspace": { "type": "boolean" },
                         "effort": {
                           "type": "string",
                           "enum": ["minimal", "low", "medium", "high", "xhigh", "max", "ultra"]
@@ -23620,7 +23676,12 @@
                                 "unhandledRejection",
                                 "reactBoundary",
                                 "errorNotice",
-                                "judgeFastSkip"
+                                "judgeFastSkip",
+                                "signInStarted",
+                                "signInSucceeded",
+                                "signInFailed",
+                                "cliProbe",
+                                "backendResolved"
                               ]
                             },
                             "entryIndex": {
@@ -24041,7 +24102,9 @@
                         "text": { "type": "string" },
                         "hash": { "type": "string", "minLength": 64, "maxLength": 64 },
                         "canUseVscodeReporter": { "type": "boolean" },
-                        "recordingUnavailable": { "type": "boolean" }
+                        "recordingUnavailable": { "type": "boolean" },
+                        "connectHint": { "type": "boolean" },
+                        "rebuildFailed": { "type": "boolean" }
                       },
                       "required": [
                         "type",
@@ -24055,8 +24118,15 @@
                         "text",
                         "hash",
                         "canUseVscodeReporter",
-                        "recordingUnavailable"
+                        "recordingUnavailable",
+                        "connectHint"
                       ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": { "type": { "type": "string", "const": "reportFailed" } },
+                      "required": ["type"],
                       "additionalProperties": false
                     },
                     {
@@ -24162,6 +24232,23 @@
                         "message": {}
                       },
                       "required": ["type", "message"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "developerReply" },
+                        "version": { "type": "string" },
+                        "badge": { "type": ["string", "null"] },
+                        "reply": {}
+                      },
+                      "required": ["type", "version", "badge", "reply"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": { "type": { "type": "string", "const": "openDeveloper" } },
+                      "required": ["type"],
                       "additionalProperties": false
                     }
                   ]
@@ -24551,7 +24638,8 @@
                                               "type": {
                                                 "type": "string",
                                                 "const": "surfaceFocused"
-                                              }
+                                              },
+                                              "focused": { "type": "boolean" }
                                             },
                                             "required": ["type"],
                                             "additionalProperties": false
@@ -27894,7 +27982,8 @@
                                                             "type": "string",
                                                             "enum": [
                                                               "schedules/backgroundStatus",
-                                                              "schedules/backgroundRemove"
+                                                              "schedules/backgroundRemove",
+                                                              "schedules/backgroundMaintain"
                                                             ]
                                                           }
                                                         },
@@ -28146,6 +28235,9 @@
                                                   "addModelProvider",
                                                   "manageModels",
                                                   "showWhatsNew",
+                                                  "showWalkthrough",
+                                                  "showRoles",
+                                                  "showPlans",
                                                   "openPlaybook"
                                                 ]
                                               }
@@ -28581,6 +28673,16 @@
                                               }
                                             },
                                             "required": ["type"],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "type": { "type": "string", "const": "moveTeamTask" },
+                                              "taskId": { "type": "string" },
+                                              "role": { "type": "string" }
+                                            },
+                                            "required": ["type", "taskId", "role"],
                                             "additionalProperties": false
                                           },
                                           {
@@ -29742,7 +29844,12 @@
                                                       "unhandledRejection",
                                                       "reactBoundary",
                                                       "errorNotice",
-                                                      "judgeFastSkip"
+                                                      "judgeFastSkip",
+                                                      "signInStarted",
+                                                      "signInSucceeded",
+                                                      "signInFailed",
+                                                      "cliProbe",
+                                                      "backendResolved"
                                                     ]
                                                   },
                                                   "entryIndex": {
@@ -29753,6 +29860,21 @@
                                                 },
                                                 "required": ["kind", "entryIndex"],
                                                 "additionalProperties": false
+                                              },
+                                              "panelState": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "starting",
+                                                  "landingNoCli",
+                                                  "landingInstalling",
+                                                  "landingSignedOut",
+                                                  "landingSigningIn",
+                                                  "landingError",
+                                                  "ready",
+                                                  "turnRunning",
+                                                  "turnFailed",
+                                                  "questionWaiting"
+                                                ]
                                               }
                                             },
                                             "required": ["type"],
@@ -29883,6 +30005,18 @@
                                             },
                                             "required": ["type", "message"],
                                             "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "type": {
+                                                "type": "string",
+                                                "const": "developerRequest"
+                                              },
+                                              "request": {}
+                                            },
+                                            "required": ["type", "request"],
+                                            "additionalProperties": false
                                           }
                                         ]
                                       }
@@ -29936,6 +30070,33 @@
                       "additionalProperties": false
                     }
                   ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": { "type": "string", "const": "theme" },
+                    "theme": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": ["light", "dark", "highContrastLight", "highContrastDark"]
+                        },
+                        "tokens": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string",
+                            "pattern": "^--muse-[a-zA-Z][\\w-]*$"
+                          },
+                          "additionalProperties": { "type": "string" }
+                        }
+                      },
+                      "required": ["kind", "tokens"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["type", "theme"],
+                  "additionalProperties": false
                 }
               ]
             }
@@ -30358,7 +30519,10 @@
               },
               {
                 "type": "object",
-                "properties": { "type": { "type": "string", "const": "surfaceFocused" } },
+                "properties": {
+                  "type": { "type": "string", "const": "surfaceFocused" },
+                  "focused": { "type": "boolean" }
+                },
                 "required": ["type"],
                 "additionalProperties": false
               },
@@ -33040,7 +33204,11 @@
                             "properties": {
                               "method": {
                                 "type": "string",
-                                "enum": ["schedules/backgroundStatus", "schedules/backgroundRemove"]
+                                "enum": [
+                                  "schedules/backgroundStatus",
+                                  "schedules/backgroundRemove",
+                                  "schedules/backgroundMaintain"
+                                ]
                               }
                             },
                             "required": ["method"],
@@ -33224,6 +33392,9 @@
                       "addModelProvider",
                       "manageModels",
                       "showWhatsNew",
+                      "showWalkthrough",
+                      "showRoles",
+                      "showPlans",
                       "openPlaybook"
                     ]
                   }
@@ -33522,6 +33693,16 @@
                 "type": "object",
                 "properties": { "type": { "type": "string", "const": "stopAllTeamTasks" } },
                 "required": ["type"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "moveTeamTask" },
+                  "taskId": { "type": "string" },
+                  "role": { "type": "string" }
+                },
+                "required": ["type", "taskId", "role"],
                 "additionalProperties": false
               },
               {
@@ -34357,13 +34538,33 @@
                           "unhandledRejection",
                           "reactBoundary",
                           "errorNotice",
-                          "judgeFastSkip"
+                          "judgeFastSkip",
+                          "signInStarted",
+                          "signInSucceeded",
+                          "signInFailed",
+                          "cliProbe",
+                          "backendResolved"
                         ]
                       },
                       "entryIndex": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
                     },
                     "required": ["kind", "entryIndex"],
                     "additionalProperties": false
+                  },
+                  "panelState": {
+                    "type": "string",
+                    "enum": [
+                      "starting",
+                      "landingNoCli",
+                      "landingInstalling",
+                      "landingSignedOut",
+                      "landingSigningIn",
+                      "landingError",
+                      "ready",
+                      "turnRunning",
+                      "turnFailed",
+                      "questionWaiting"
+                    ]
                   }
                 },
                 "required": ["type"],
@@ -34438,6 +34639,15 @@
                 "type": "object",
                 "properties": { "type": { "type": "string", "const": "playbook" }, "message": {} },
                 "required": ["type", "message"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "developerRequest" },
+                  "request": {}
+                },
+                "required": ["type", "request"],
                 "additionalProperties": false
               }
             ]
@@ -36327,6 +36537,7 @@
                     "required": ["day", "week"],
                     "additionalProperties": false
                   },
+                  "insightsState": { "type": "string", "enum": ["empty", "behind", "unavailable"] },
                   "providers": {
                     "type": "array",
                     "items": {
@@ -42282,7 +42493,12 @@
                           "unhandledRejection",
                           "reactBoundary",
                           "errorNotice",
-                          "judgeFastSkip"
+                          "judgeFastSkip",
+                          "signInStarted",
+                          "signInSucceeded",
+                          "signInFailed",
+                          "cliProbe",
+                          "backendResolved"
                         ]
                       },
                       "entryIndex": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
@@ -45389,6 +45605,7 @@
                 "type": "object",
                 "properties": {
                   "type": { "type": "string", "const": "composerState" },
+                  "isHardwareWorkspace": { "type": "boolean" },
                   "effort": {
                     "type": "string",
                     "enum": ["minimal", "low", "medium", "high", "xhigh", "max", "ultra"]
@@ -45819,7 +46036,12 @@
                           "unhandledRejection",
                           "reactBoundary",
                           "errorNotice",
-                          "judgeFastSkip"
+                          "judgeFastSkip",
+                          "signInStarted",
+                          "signInSucceeded",
+                          "signInFailed",
+                          "cliProbe",
+                          "backendResolved"
                         ]
                       },
                       "entryIndex": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
@@ -46215,7 +46437,9 @@
                   "text": { "type": "string" },
                   "hash": { "type": "string", "minLength": 64, "maxLength": 64 },
                   "canUseVscodeReporter": { "type": "boolean" },
-                  "recordingUnavailable": { "type": "boolean" }
+                  "recordingUnavailable": { "type": "boolean" },
+                  "connectHint": { "type": "boolean" },
+                  "rebuildFailed": { "type": "boolean" }
                 },
                 "required": [
                   "type",
@@ -46229,8 +46453,15 @@
                   "text",
                   "hash",
                   "canUseVscodeReporter",
-                  "recordingUnavailable"
+                  "recordingUnavailable",
+                  "connectHint"
                 ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": { "type": { "type": "string", "const": "reportFailed" } },
+                "required": ["type"],
                 "additionalProperties": false
               },
               {
@@ -46326,6 +46557,23 @@
                 "type": "object",
                 "properties": { "type": { "type": "string", "const": "playbook" }, "message": {} },
                 "required": ["type", "message"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "developerReply" },
+                  "version": { "type": "string" },
+                  "badge": { "type": ["string", "null"] },
+                  "reply": {}
+                },
+                "required": ["type", "version", "badge", "reply"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": { "type": { "type": "string", "const": "openDeveloper" } },
+                "required": ["type"],
                 "additionalProperties": false
               }
             ]
@@ -46678,7 +46926,8 @@
                                     {
                                       "type": "object",
                                       "properties": {
-                                        "type": { "type": "string", "const": "surfaceFocused" }
+                                        "type": { "type": "string", "const": "surfaceFocused" },
+                                        "focused": { "type": "boolean" }
                                       },
                                       "required": ["type"],
                                       "additionalProperties": false
@@ -49857,7 +50106,8 @@
                                                       "type": "string",
                                                       "enum": [
                                                         "schedules/backgroundStatus",
-                                                        "schedules/backgroundRemove"
+                                                        "schedules/backgroundRemove",
+                                                        "schedules/backgroundMaintain"
                                                       ]
                                                     }
                                                   },
@@ -50083,6 +50333,9 @@
                                             "addModelProvider",
                                             "manageModels",
                                             "showWhatsNew",
+                                            "showWalkthrough",
+                                            "showRoles",
+                                            "showPlans",
                                             "openPlaybook"
                                           ]
                                         }
@@ -50456,6 +50709,16 @@
                                         "type": { "type": "string", "const": "stopAllTeamTasks" }
                                       },
                                       "required": ["type"],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": { "type": "string", "const": "moveTeamTask" },
+                                        "taskId": { "type": "string" },
+                                        "role": { "type": "string" }
+                                      },
+                                      "required": ["type", "taskId", "role"],
                                       "additionalProperties": false
                                     },
                                     {
@@ -51484,7 +51747,12 @@
                                                 "unhandledRejection",
                                                 "reactBoundary",
                                                 "errorNotice",
-                                                "judgeFastSkip"
+                                                "judgeFastSkip",
+                                                "signInStarted",
+                                                "signInSucceeded",
+                                                "signInFailed",
+                                                "cliProbe",
+                                                "backendResolved"
                                               ]
                                             },
                                             "entryIndex": {
@@ -51495,6 +51763,21 @@
                                           },
                                           "required": ["kind", "entryIndex"],
                                           "additionalProperties": false
+                                        },
+                                        "panelState": {
+                                          "type": "string",
+                                          "enum": [
+                                            "starting",
+                                            "landingNoCli",
+                                            "landingInstalling",
+                                            "landingSignedOut",
+                                            "landingSigningIn",
+                                            "landingError",
+                                            "ready",
+                                            "turnRunning",
+                                            "turnFailed",
+                                            "questionWaiting"
+                                          ]
                                         }
                                       },
                                       "required": ["type"],
@@ -51608,6 +51891,15 @@
                                       },
                                       "required": ["type", "message"],
                                       "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": { "type": "string", "const": "developerRequest" },
+                                        "request": {}
+                                      },
+                                      "required": ["type", "request"],
+                                      "additionalProperties": false
                                     }
                                   ]
                                 }
@@ -51658,6 +51950,30 @@
                 "additionalProperties": false
               }
             ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": { "type": "string", "const": "theme" },
+              "theme": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": ["light", "dark", "highContrastLight", "highContrastDark"]
+                  },
+                  "tokens": {
+                    "type": "object",
+                    "propertyNames": { "type": "string", "pattern": "^--muse-[a-zA-Z][\\w-]*$" },
+                    "additionalProperties": { "type": "string" }
+                  }
+                },
+                "required": ["kind", "tokens"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["type", "theme"],
+            "additionalProperties": false
           }
         ]
       },

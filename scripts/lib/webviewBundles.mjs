@@ -144,6 +144,41 @@ export function webviewStartupOutputs(meta, entry = 'dist/webview/main.js') {
   return staticOutputs(meta, [entry])
 }
 
+// M104 lane D: the portable graph's budgets by static closure accounting,
+// the same accounting the VS Code pages use above. Startup is everything
+// the entry loads before the chat mounts: its static imports, the bridge
+// it selects, the theme entry it awaits, and the classic loader. Measured
+// on the first ported build (2026-10-30): startup 844,604 bytes and total
+// JS 1,437,313 bytes; each budget is measured +15%, rounded up to the
+// next 25 KiB (PLAN.md D6). Evidence: docs/certification/rlf-m104d.md.
+const PORTABLE_STARTUP_BUDGET_KIB = 950
+const PORTABLE_TOTAL_BUDGET_KIB = 1625
+
+export function portableWebviewBudgetGroups(meta) {
+  const themeEntry = Object.entries(meta.outputs).find(([, output]) =>
+    Object.keys(output.inputs ?? {}).some((input) =>
+      normalPath(input).endsWith('bridges/theme/themeEntry.ts'),
+    ),
+  )?.[0]
+  if (themeEntry === undefined) throw new Error('Missing portable theme entry output')
+  const startup = [
+    ...new Set([
+      ...webviewStartupOutputs(meta, 'dist/webview/portable/main.js'),
+      ...webviewStartupOutputs(meta, 'dist/webview/portable/bridge.js'),
+      ...webviewStartupOutputs(meta, themeEntry),
+      'dist/webview/portable/loader.js',
+    ]),
+  ]
+  return [
+    { name: 'startup resources', budgetKiB: PORTABLE_STARTUP_BUDGET_KIB, outputs: startup },
+    {
+      name: 'total JS',
+      budgetKiB: PORTABLE_TOTAL_BUDGET_KIB,
+      outputs: Object.keys(normalOutputs(meta)).filter((file) => file.endsWith('.js')),
+    },
+  ]
+}
+
 // Optional panel bodies charge all static dependencies outside their page's bootstrap.
 export function webviewPanelOutputs(meta, entry, source) {
   const eager = new Set(webviewStartupOutputs(meta, entry))
