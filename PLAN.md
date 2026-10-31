@@ -10352,6 +10352,11 @@ are scrubbed again at the send, a file name with a folder, home or account
 is refused, and a create that is not confirmed `public: false` at
 `https://gist.github.com/` is deleted when its id can be read.
 
+**Status 2026-10-30 (integration into int/recovery, CC-INT7): built.** The
+secret-gist core with RVCRED's two fixes is merged on int (D242 here, D218 on
+its branch). `gistShare`, `githubGist` and `gistGrantStore` pass (31 cases).
+No surface offers it and no live GitHub publish has been made.
+
 - **Q-M101IMAGE-DIMENSIONS (2026-10-06).** Which checked-in provider capture or
   authorized documentation supplies each vision model's maximum width/height?
   This base has no M95 N records for them, and the lane rules permit no network
@@ -11187,6 +11192,11 @@ is available), three red/green drills, and `related` on every changed
 source with every failure reproduced on the untouched base. Status
 evidence: `docs/certification/cc-govfork.md`.
 
+**Status 2026-10-30 (integration into int/recovery, CC-INT7): built.** Merged
+on int. On a ps-capable Mac the four POSIX fork-protection cases run and pass
+(the 521-process flood takes 6 to 8 s, so it carries a named 30 s timeout), and
+`superviseGoverned` passes. Record: `docs/certification/cc-int7.md`.
+
 - **Goal.** Decide the fork limit under D121/D208 with cited
   industry-standard values, person-settable where that makes sense,
   saying why when it stops something; register supervised runs with
@@ -11741,6 +11751,18 @@ is now built from the public URL the person set.
 `test/unit/connectorRemoteIssuer.test.ts` failed on the real server before
 the pin (vitest exit 1) and passes after. Node `serve` had no finding; no
 `rv/nodeserve` branch remains. Record: `docs/certification/rvnet.md`.
+
+**Status 2026-10-30 (integration into int/recovery, CC-INT7): built.**
+RLF-M124RO and RVNET's fix are merged on int (the decision is D240 here, D217
+on the branch). `connectorRemote` (13 cases over a real localhost certificate
+and the official MCP client) and `connectorRemoteIssuer` (3) pass on the merged
+tree on a Mac mini. The first showed a token still answered 200 for a moment
+after `mcp revoke` from another terminal, because the running endpoint learned
+of the new grant only when a file watcher fired and macOS delivers those late
+(4 of 8 runs failed): every token check now reads the grant afresh, as the
+registry does before each call (0 of 8 failed). Not run: the packed product,
+the MCP Inspector, the dual-era client against `serve-http`, hosted CI's
+Windows legs. Record: `docs/certification/cc-int7.md`.
 
 **Provenance.** The documentation-only M119PLAN lane planned this on
 2026-10-07 under the numbers D102/M119 (commits `b27ad09a9`, `00e825dfa` and
@@ -25398,6 +25420,25 @@ containment (the job launcher cannot yet carry the envelope pipe to
 its payload, so Windows refuses in words), lanes S/O, the D89.15
 companion surface, and the real-life receipt. M109 stays open.
 
+**Status 2026-10-30 (integration into int/recovery, CC-INT7): built.**
+RLF-M109 (D243 here, D216 on its branch), RLF-VAULTUNDO with RVCRED's journal
+fix (D241 here, D217 on its branch) and RLF-MACCRED are merged; the real broker
+and feeder have run on a Mac, not through the packed product. The lane's
+`vaultExecDelegated` suite could not run on a ps-capable Mac as shipped (the
+broker ran in the test process, where the created-directory helper is looked
+for under `src/core/native`; the person's ceiling is read once at registration
+and the suite wrote it afterwards; the lock landed while the command was still
+being authorized). The broker is now a bundled fixture child over the
+product's file anchor (no keychain), and its three cases pass in three runs
+in a row on a Mac mini (darwin x64): ceiling refusals in words, environment and
+stdin runs through the feeder with only the value's length and a redacted
+echo reaching the host, a foreign-identity delegation, a tainted use and a
+redemption on the requester socket all refused, and a lock ending the running
+command. The feeder bundles shrank to 94.3 and 34.0 KiB when a type-only
+import stopped pulling in the Model API tools. Not run: the vault suites that
+write the OS credential store (hosted CI), the Windows and Linux legs,
+`exec --vault` through the packed product. M109 stays open.
+
 **C-M109-1 lead decisions (2026-10-10, lead decision).** In 0.17.0, every
 vault use is refused. The binding layer was never built: the broker process,
 its ports, peer checks, a setup flow, a runtime bundle and a Linux slot are
@@ -29278,6 +29319,10 @@ never does; every live Muse drill refuses before any prompt unless the
 run's model is contributor-tier and listed. Record:
 `docs/certification/rlf-safefix.md`.
 
+**Status 2026-10-30 (integration into int/recovery, CC-INT7): built.** Merged
+on int; `scheduleDeferredRetry`, `watchdogQuotedAck`, the watchdog suites and
+`contributorGuard` pass on the merged tree.
+
 - **Goal.** A user, or an orchestrating agent within the user's limits,
   schedules any number of prompts to fire once, repeatedly, on a cron
   expression or on an event (a pull request merged, a milestone certified),
@@ -31544,6 +31589,11 @@ windows). Triaged follow-ups: the home-node doubles, the spend-library
 invented wire bodies, the team-worker errno models, the node bridge
 fetch. Proof: a red/green drill per rewrite and the touched suites.
 Evidence: `docs/certification/rlf-nostubs.md`.
+
+**Status 2026-10-30 (integration into int/recovery, CC-INT7): built.** Merged
+on int; its 18 suites pass on the merged tree (249 passed, 20 skipped), with
+`modelApiRetryNoCount` taking int's D228 values (0.5 s base, 8 s ceiling) inside
+the lane's real jitter window.
 
 ---
 
