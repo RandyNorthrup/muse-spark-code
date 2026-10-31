@@ -8,7 +8,8 @@
 import { writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { CreatedRegistry } from '../../src/core/resources/createdRegistry'
-import { createdCreator, createdRegistryProof } from './helpers/resources/registryProof'
+import { createdTreeCreator } from '../../src/core/resources/createdOwner'
+import { createdRegistryProof } from './helpers/resources/registryProof'
 import {
   createdChildSession,
   isCreatedChildPlan,
@@ -46,7 +47,10 @@ export async function runCreator(planJson: string): Promise<void> {
     // process is that host for its own owner at that one moment.
     const finishing = { value: false }
     const proof = {
-      ...createdRegistryProof((args) => commands(args)),
+      ...createdRegistryProof(
+        (args) => commands(args),
+        () => plan.storageDir,
+      ),
       exited: (owner: string) => Promise.resolve(finishing.value && owner === plan.owner),
     }
     const registry = await CreatedRegistry.open(plan.manifest, Date.now, proof, plan.base)
@@ -57,7 +61,7 @@ export async function runCreator(planJson: string): Promise<void> {
       await registry.finish(plan.owner, true)
     }
     process.stdout.write(
-      `${JSON.stringify({ id: tree.id, root: tree.root, pid: process.pid, creator: await createdCreator() })}\n`,
+      `${JSON.stringify({ id: tree.id, root: tree.root, pid: process.pid, creator: await createdTreeCreator(plan.storageDir) })}\n`,
     )
     if (plan.action === 'hold') {
       // Killed by the parent with SIGKILL: no finish, no cleanup, as a

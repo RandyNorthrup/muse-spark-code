@@ -110,7 +110,10 @@ async function secondStart(dir: string, now: () => number): Promise<CreatedRegis
   return await CreatedRegistry.open(
     path.join(dir, 'registry.json'),
     now,
-    createdRegistryProof((args) => commands(args)),
+    createdRegistryProof(
+      (args) => commands(args),
+      () => fixture().storage,
+    ),
     path.join(dir, 'trees'),
   )
 }
@@ -151,10 +154,21 @@ describe('created registry reclaim (RLF-TEMPLEAK)', () => {
       const swept = await second.clean()
       expect(swept.removed).toBe(0)
       expect(existsSync(tree.root)).toBe(true)
+      // A stopped process is still the creator (a sleeping laptop). It
+      // must not be treated as gone. Windows has no SIGSTOP; the live
+      // process above is that platform's check.
+      if (process.platform !== 'win32') {
+        child.kill('SIGSTOP')
+        const stopped = await second.clean()
+        expect(stopped.removed).toBe(0)
+        expect(existsSync(tree.root)).toBe(true)
+        child.kill('SIGCONT')
+      }
       const entries = await manifest(dir)
       expect(entries).toHaveLength(1)
       expect(entries[0]).toMatchObject({ state: 'created', endedAtMs: null })
     } finally {
+      if (process.platform !== 'win32') child.kill('SIGCONT')
       await kill(child)
     }
     // Real child processes and native helper spawns: genuinely long.

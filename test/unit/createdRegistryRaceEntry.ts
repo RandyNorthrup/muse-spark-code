@@ -68,7 +68,7 @@ export async function runWorker(planJson: string): Promise<string> {
     if (!isRacePlan(plan)) throw new Error('the race plan did not parse')
     const session = createdChildSession(plan)
     try {
-      const proof = createdRegistryProof(session.commands)
+      const proof = createdRegistryProof(session.commands, () => plan.storageDir)
       const registry = await CreatedRegistry.open(plan.manifest, Date.now, proof, plan.base)
       for (let round = 0; round < plan.rounds; round += 1) {
         const wait = plan.startAt + round * plan.gapMs - Date.now()

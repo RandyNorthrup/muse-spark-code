@@ -331,6 +331,10 @@ happened, not what was planned; superseded entries are kept.
   process is gone, the folder is kept one day for diagnosis and then
   removed, and the space returns. A folder that cannot be verified is
   left in place and said in the log.
+- A cleanup that stopped after it had moved a temporary folder aside now
+  finishes removing that folder the next time Muse Spark Code starts. A
+  different folder left in that place is left alone, and the record of the
+  original folder stays until the folder can be verified.
 - A pack index is accepted only when the signature covers those exact bytes
   and the signer is the pack workflow on `main`, exactly. A signature for a
   branch whose name merely begins with `main`, or a signed statement that
