@@ -197,7 +197,9 @@ function redactedRequest(parsed: JudgeRequest): JudgeRequest | undefined {
     const candidate = judgeRequestSchema.safeParse(redacted)
     return candidate.success ? candidate.data : undefined
   } catch (error: unknown) {
-    if (error instanceof SyntaxError || error instanceof TypeError) return undefined
+    if (error instanceof SyntaxError) return undefined
+    // eslint-disable-next-line unicorn/prefer-combined-guards -- separate guards keep this catch NARROW for check:catches; the combined guard classifies GENERIC (PLAN §8, RLF-UNICORN79).
+    if (error instanceof TypeError) return undefined
     throw error
   }
 }

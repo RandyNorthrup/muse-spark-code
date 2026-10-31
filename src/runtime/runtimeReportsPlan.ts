@@ -13,6 +13,15 @@ const planSettingSchema = z.object({
   reportsPlanMaxBytes: z.optional(z.number().check(z.nonnegative())),
 })
 
+/** A missing settings file (the default), malformed text or a misshapen record. */
+function isMissingOrMisshapenSettings(error: unknown): boolean {
+  return (
+    isStoreErrorCode(error, 'ENOENT') ||
+    error instanceof SyntaxError ||
+    (error instanceof Error && error.name === '$ZodError')
+  )
+}
+
 export function runtimeReportsPlanMaxBytes(dataFolder: string): number {
   try {
     const raw: unknown = JSON.parse(
@@ -24,12 +33,7 @@ export function runtimeReportsPlanMaxBytes(dataFolder: string): number {
     // NARROW: a missing settings file (the default), malformed text or a
     // misshapen record reads as no limit; anything else is not this file's
     // answer to give.
-    if (
-      isStoreErrorCode(error, 'ENOENT') ||
-      error instanceof SyntaxError ||
-      (error instanceof Error && error.name === '$ZodError')
-    )
-      return 0
+    if (isMissingOrMisshapenSettings(error)) return 0
     throw error
   }
 }

@@ -157,6 +157,16 @@ function remoteCommand(runner: Runner, script: string): string {
   return command
 }
 
+/** Policy, a proved protocol sentence, an untrusted receiver or an unreadable answer. */
+function isUncertainRunnerError(error: unknown): boolean {
+  return (
+    error instanceof RunnerPolicyRefusedError ||
+    error instanceof RunnerTestFailedError ||
+    error instanceof RunnerUntrustedError ||
+    error instanceof SyntaxError
+  )
+}
+
 export class SshRunner {
   private readonly health: RunnerHealthStore
   private readonly active = new Set<string>()
@@ -582,21 +592,16 @@ export class SshRunner {
           return { kind: 'busy', reason: 'executionPolicy' }
         if (error instanceof RunnerUntrustedError) return { kind: 'offline' }
         this.admit(job.signal)
-        if (error instanceof RunnerOfflineError || error instanceof RunnerTestFailedError)
-          return { kind: 'offline' }
+        if (error instanceof RunnerOfflineError) return { kind: 'offline' }
+        // eslint-disable-next-line unicorn/prefer-combined-guards -- separate guards keep this catch NARROW for check:catches; the combined guard classifies GENERIC (PLAN §8, RLF-UNICORN79).
+        if (error instanceof RunnerTestFailedError) return { kind: 'offline' }
         if (!isTransportError(error)) throw error
         return { kind: 'offline' }
       }
       // The start command went onto the wire, or its proof was lost: never
       // local. Only policy, proved protocol sentences, untrusted receivers,
       // transport failures and an unreadable answer read that way.
-      if (
-        error instanceof RunnerPolicyRefusedError ||
-        error instanceof RunnerTestFailedError ||
-        error instanceof RunnerUntrustedError ||
-        error instanceof SyntaxError
-      )
-        return { kind: 'uncertain' }
+      if (isUncertainRunnerError(error)) return { kind: 'uncertain' }
       if (!isTransportError(error)) throw error
       return { kind: 'uncertain' }
     } finally {

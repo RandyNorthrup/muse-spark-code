@@ -112,8 +112,9 @@ export function decodeContextText(bytes: Uint8Array): ContextText {
     // Only malformed bytes are refused: a fatal decoder raises TypeError
     // for a bad sequence (an odd UTF-16BE length breaks the swap with a
     // RangeError), so anything else is raised, never refused.
-    if (error instanceof TypeError || error instanceof RangeError)
-      return { ok: false, reason: INVALID_REASONS[encoding] }
+    if (error instanceof TypeError) return { ok: false, reason: INVALID_REASONS[encoding] }
+    // eslint-disable-next-line unicorn/prefer-combined-guards -- separate guards keep this catch NARROW for check:catches; the combined guard classifies GENERIC (PLAN §8, RLF-UNICORN79).
+    if (error instanceof RangeError) return { ok: false, reason: INVALID_REASONS[encoding] }
     throw error
   }
   return text.includes(NUL) ? { ok: false, reason: NUL_REASON } : { ok: true, text }

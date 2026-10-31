@@ -63,7 +63,18 @@ export async function probeLocalServers(
         // Our own timeout aborts the probe, and a refused loopback
         // connection answers nothing: both read as unanswered. A failure
         // from the fetch itself is not an answer either way, so it rejects.
-        if (controller.signal.aborted || error instanceof TypeError) {
+        if (controller.signal.aborted) {
+          return {
+            host: target.host,
+            port: target.port,
+            path: target.path,
+            answered: false,
+            status: undefined,
+            snippet: '',
+          }
+        }
+        // eslint-disable-next-line unicorn/prefer-combined-guards -- separate guards keep this catch NARROW for check:catches; the combined guard classifies GENERIC (PLAN §8, RLF-UNICORN79).
+        if (error instanceof TypeError) {
           return {
             host: target.host,
             port: target.port,

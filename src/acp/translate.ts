@@ -848,8 +848,9 @@ export function resourceName(uri: string): string {
   } catch (error: unknown) {
     // Only a malformed URL or escape keeps the raw name: anything else keeps
     // its kind past the display-name boundary.
-    if (error instanceof TypeError || error instanceof URIError)
-      return path.posix.basename(uri.replaceAll('\\', '/'))
+    if (error instanceof TypeError) return path.posix.basename(uri.replaceAll('\\', '/'))
+    // eslint-disable-next-line unicorn/prefer-combined-guards -- separate guards keep this catch NARROW for check:catches; the combined guard classifies GENERIC (PLAN §8, RLF-UNICORN79).
+    if (error instanceof URIError) return path.posix.basename(uri.replaceAll('\\', '/'))
     throw error
   }
 }

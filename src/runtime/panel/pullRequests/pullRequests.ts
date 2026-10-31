@@ -251,7 +251,9 @@ export class RuntimePullRequests {
       this.checkTrust()
     } catch (error: unknown) {
       // Ownership loss stops linking, never changes success.
-      if (error instanceof PullRequestServiceError || isAbortError(error)) return
+      if (error instanceof PullRequestServiceError) return
+      // eslint-disable-next-line unicorn/prefer-combined-guards -- separate guards keep this catch NARROW for check:catches; the combined guard classifies GENERIC (PLAN §8, RLF-UNICORN79).
+      if (isAbortError(error)) return
       throw error
     }
     try {

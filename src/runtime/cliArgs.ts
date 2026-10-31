@@ -1606,13 +1606,13 @@ function parseReport(argv: readonly string[], canUseNamed = true): RuntimeComman
       // An M93-option parse failure belongs to the named reports engine,
       // which parses or refuses with its own words; anything else is not
       // this parse's answer to give.
-      if (
-        error instanceof Error &&
-        'code' in error &&
-        (error.code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION' ||
-          error.code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE')
-      )
-        return { command: 'reports', args: argv }
+      if (error instanceof Error && 'code' in error) {
+        if (error.code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION')
+          return { command: 'reports', args: argv }
+        // eslint-disable-next-line unicorn/prefer-combined-guards -- separate guards keep this catch NARROW for check:catches; the combined guard classifies GENERIC (PLAN §8, RLF-UNICORN79).
+        if (error.code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE')
+          return { command: 'reports', args: argv }
+      }
       throw error
     }
   }
@@ -1639,13 +1639,13 @@ function parseReport(argv: readonly string[], canUseNamed = true): RuntimeComman
   } catch (error) {
     // Only the option parser fails here (unknown option, invalid value);
     // anything else is not this parse's answer to give.
-    if (
-      error instanceof Error &&
-      'code' in error &&
-      (error.code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION' ||
-        error.code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE')
-    )
-      return { command: 'invalid', reason: reportUsage(), exitCode: 2 }
+    if (error instanceof Error && 'code' in error) {
+      if (error.code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION')
+        return { command: 'invalid', reason: reportUsage(), exitCode: 2 }
+      // eslint-disable-next-line unicorn/prefer-combined-guards -- separate guards keep this catch NARROW for check:catches; the combined guard classifies GENERIC (PLAN §8, RLF-UNICORN79).
+      if (error.code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE')
+        return { command: 'invalid', reason: reportUsage(), exitCode: 2 }
+    }
     throw error
   }
 }
