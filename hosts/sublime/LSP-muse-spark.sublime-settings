@@ -1,0 +1,7 @@
+{
+  "enabled": true,
+  "command": ["muse-spark-code-acp", "lsp"],
+  "selector": "source",
+  "initializationOptions": {},
+  "env": {},
+}
