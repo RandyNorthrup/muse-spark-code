@@ -23,6 +23,7 @@ import { failureForLog } from '../core/backends/musecode/logText'
 import { isErrno } from '../core/fs/errno'
 import type { CoreLogger } from '../core/logging'
 import { isSameTeamModel } from '../core/team/sameModel'
+import type { TeamGit } from '../core/team/teamGit'
 import type { TeamCardItem, TeamHostSeams } from '../core/team/teamHostService'
 import { TeamHostBinding } from '../host/teamHostBinding'
 import type { EngineTeamPortsDeps } from '../host/team/teamEnginePorts'
@@ -94,6 +95,8 @@ export interface AcpTeamDeps {
   readonly paid: () => AcpPaidUse | undefined
   /** The stored files' reader; the filesystem's own when the caller has none. */
   readonly readFile?: StoredTeamSnapshotDeps['readFile'] | undefined
+  /** The engine's git; the governed default when the caller has none (as headless supplies its own). */
+  readonly runGit?: TeamGit | undefined
   readonly now?: (() => number) | undefined
 }
 
@@ -163,6 +166,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 interface AnnouncedTask {
   status: string
   isFinished: boolean
+  agent: string
 }
 
 /** A task's ACP status from its tree status word. */
@@ -170,18 +174,31 @@ function isFinishedStatus(status: string): boolean {
   return ['done', 'failed', 'cancelled', 'closed', 'capped', 'merged', 'discarded'].includes(status)
 }
 
-/** Every worker node the tree shows, with the role and entry that name it. */
+/**
+Every worker node the tree shows, with the role and entry that name it.
+A node outside its entry (queued before its pick, unmerged after it)
+carries no entry: a role with one custom entry names it still, and a
+later sighting under its entry corrects the call's title.
+*/
 function treeWorkers(
   tree: TeamTreeData,
-): readonly { roleId: string; agent: string; worker: TeamWorker }[] {
-  const found: { roleId: string; agent: string; worker: TeamWorker }[] = []
+): readonly { roleId: string; agent: string; isEntryKnown: boolean; worker: TeamWorker }[] {
+  const found: { roleId: string; agent: string; isEntryKnown: boolean; worker: TeamWorker }[] = []
   for (const role of tree.roles) {
     for (const entry of role.entries)
       for (const worker of entry.workers)
-        found.push({ roleId: role.id, agent: entry.model ?? entry.provider, worker })
+        found.push({
+          roleId: role.id,
+          agent: entry.model ?? entry.provider,
+          isEntryKnown: true,
+          worker,
+        })
+    const [only] = role.entries
+    const fallback =
+      only !== undefined && role.entries.length === 1 ? (only.model ?? only.provider) : role.id
     for (const worker of [...role.queued, ...role.unmerged, ...role.interrupted])
       if (found.every((row) => row.worker.taskId !== worker.taskId))
-        found.push({ roleId: role.id, agent: role.id, worker })
+        found.push({ roleId: role.id, agent: fallback, isEntryKnown: false, worker })
   }
   return found
 }
@@ -240,6 +257,7 @@ class WorkspaceTeam {
           isTrusted: this.deps.isTrusted,
           listModels: () => this.deps.listWorkerModels(this.cwd),
           startWorker: (input) => this.deps.startWorker(this.cwd, input),
+          ...(this.deps.runGit !== undefined && { runGit: this.deps.runGit }),
           now: this.deps.now ?? Date.now,
           log: this.deps.log,
         },
@@ -380,6 +398,7 @@ class WorkspaceTeam {
         announced.set(worker.taskId, {
           status: worker.status,
           isFinished: isFinishedStatus(worker.status),
+          agent: row.agent,
         })
         const call = teamTaskToolCall({
           taskId: worker.taskId,
@@ -397,11 +416,36 @@ class WorkspaceTeam {
         if (isFinishedStatus(worker.status)) this.finishTask(handler, worker.taskId, worker.status)
         continue
       }
+      if (row.isEntryKnown && known.agent !== row.agent) {
+        known.agent = row.agent
+        handler.sendUpdate({
+          sessionUpdate: 'tool_call_update',
+          toolCallId: teamTaskToolCallId(worker.taskId),
+          title: formatTeamPermissionTitle({
+            role: row.roleId,
+            agent: row.agent,
+            detail: worker.brief === '' ? worker.taskId : worker.brief,
+          }),
+        })
+      }
       if (known.status === worker.status) continue
       known.status = worker.status
       if (!isFinishedStatus(worker.status) || known.isFinished) continue
       known.isFinished = true
       this.finishTask(handler, worker.taskId, worker.status)
+    }
+    // A task that leaves the tree without a copy (a start that failed, a
+    // stopped or landed task) has still finished: close its call from
+    // its report instead of leaving it running in the editor forever.
+    const present = new Set(workers.map((row) => row.worker.taskId))
+    for (const [taskId, known] of announced) {
+      if (present.has(taskId) || known.isFinished) continue
+      known.isFinished = true
+      this.finishTask(
+        handler,
+        taskId,
+        this.binding.taskReport(taskId)?.status === 'done' ? 'done' : 'failed',
+      )
     }
   }
 
