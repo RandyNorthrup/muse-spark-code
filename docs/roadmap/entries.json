@@ -1493,6 +1493,12 @@
       "title": "What the agent tells editors is true",
       "summary": "Editors hear the approval mode the CLI runs, closing a conversation stops its background tasks first, and started sessions appear in the list.",
       "area": "editors"
+    },
+    {
+      "id": "RLFSHUTDOWN",
+      "title": "The ACP agent ends when its client leaves, even while Muse Code is starting",
+      "summary": "Closing the editor, stopping the agent or a crashed editor ends the agent and the Muse Code it started in every state, with no process left behind.",
+      "area": "platform"
     }
   ]
 }

@@ -11414,6 +11414,57 @@ are still said (`superviseRefusal`, 2 passed). Record:
   saying why when it stops something; register supervised runs with
   the governor the way other governed launches are.
 
+### RLFSHUTDOWN — The ACP agent ends when its client leaves, even while Muse Code is starting (2026-10-31)
+
+**Status 2026-10-31 (lane RLF-SHUTDOWN, macmini): built.** CC-INT7 saw
+the agent outlive its client while `muse serve` was stuck starting.
+Measured on the packed agent (macOS 15.7.4, Muse Code 1.4.11 blocked in
+a Keychain approval that a session without a screen cannot show; 0 Muse
+requests, a throwaway HOME and a dead proxy for every run): closing the
+input took 30.4 s to end the agent (the SDK's drain window given to a
+process that never answered), SIGTERM, SIGINT and SIGHUP ended the agent
+in 0.3 s and left the CLI running for good, and an editor that crashed
+with its pipes crashed the agent with exit 1 at 10 s (the first log write
+to the dead pipe) and also left the CLI running. Now the serving agent
+hears the three signals as its client leaving, a closed log pipe is not a
+crash, a Muse Code that never answered is ended with SIGTERM to its group,
+two seconds, then SIGKILL (the Windows job helper's stop there, written
+but not measured: no Windows host in this lane), and two races that
+hung or crashed a shutdown during the launch window are closed. Every
+case now ends in 0.3 s with no process left. Proven by real-process
+tests (each way of leaving, with no backend, with a start that cannot
+finish, with one that ignores SIGTERM, beside another agent's CLI), seven
+red/green drills, and the packed agent's process tree before and after.
+Not proven: a Muse Code that already answered (it keeps the SDK's drain
+ladder; the real CLI cannot start in this screenless session), Windows,
+and the Keychain wait's failure-with-words (open question 1 in the
+record). Status evidence: `docs/certification/rlf-shutdown.md`.
+
+**Status 2026-10-31 (lane RLF-SHUTDOWN2, macmini): built.** The shutdown
+suite no longer stands a Node process in for the CLI. Its cases run against
+the real Muse Code 1.4.11 in a home of its own with a dead proxy for every
+protocol (0 Muse requests, no prompt sent), the two ways this Mac mini makes
+it fail to finish: a recorded placeholder sign-in, where the CLI blocks
+writing a Keychain item a screenless session cannot approve (run only in a
+session no dialog can appear in), and the recorded empty sign-in, where the
+CLI answers but cannot reach Muse and the session cannot start. That second
+state is the answered Muse Code the first record could not reach: every way
+of leaving ends the agent and the CLI at once, in the suite and in the packed
+agent (0.16 s). The CLI that ignores SIGTERM is the same real CLI started
+with SIGTERM ignored. Restoring the old shutdown code fails 14 of the 16
+cases with the real CLI left running (parent 1); six single-edit drills and
+four on the suite's own guards fire. No Keychain item was written for any
+run's home or for the account. Not proven: an answered CLI that does not leave
+on the end of its input (the SDK's drain ladder), the blocked states in a
+session that can show a dialog, Linux and Windows with the real CLI. The
+real-CLI cases skip by name, with the reason, where the CLI is not installed
+(hosted CI). Status evidence: `docs/certification/rlf-shutdown.md` section 9.
+
+- **Goal.** The agent ends on client EOF and on SIGTERM, SIGINT and
+  SIGHUP in every state, stops the Muse Code it started (its whole
+  process group, or the Windows job) with the industry-standard grace
+  then a forced end, and never touches a Muse Code it did not start.
+
 ### M127 — Muse Code at its latest release (2026-10-17)
 
 **Status 2026-10-30 (RLF-UPAGENT): building.** The SDK rides 1.4.12
