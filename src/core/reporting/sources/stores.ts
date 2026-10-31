@@ -10,7 +10,6 @@ import {
   unavailableReportSource,
 } from './cache'
 
-type StoreRow = ReportSourcePayloads['stores'][number]
 type Channel = 'Marketplace' | 'Open VSX' | 'npm'
 const storeFactSchema = z.strictObject({ version: z.string().check(z.minLength(1)), url: z.url() })
 
@@ -100,6 +99,7 @@ export function storesReportSource(options: ReportStoreOptions): ReportSourcePor
           'notApplicable',
         )
       return await options.reader.read(context, 'stores', storeRowsSchema, async (query) => {
+        type StoreRow = ReportSourcePayloads['stores'][number]
         const rows: StoreRow[] = []
         for (const target of targets) {
           if (target.channel === 'npm' && options.project.private === true) {

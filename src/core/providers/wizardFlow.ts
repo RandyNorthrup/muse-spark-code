@@ -376,9 +376,9 @@ export function applyWizardEvent(state: WizardState, event: WizardEvent): Wizard
       // Where no free check exists, the one-token request's cost is stated
       // and asked before it is sent: a test carrying a cost without that
       // consent is refused, never recorded.
-      return event.result.costUsd !== undefined && !state.draft.costAccepted
-        ? failed(state, UI_TEXT.providerText.wizard.costConsent)
-        : { ...state, error: undefined, draft: { ...state.draft, test: event.result } }
+      return event.result.costUsd === undefined || state.draft.costAccepted
+        ? { ...state, error: undefined, draft: { ...state.draft, test: event.result } }
+        : failed(state, UI_TEXT.providerText.wizard.costConsent)
     }
     case 'set-models': {
       return state.step === 'models'

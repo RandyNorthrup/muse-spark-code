@@ -130,7 +130,9 @@ export class ResourceDiskSampler {
         (entry) => entry.atMs >= atMs - RESOURCE_DISK_TREND_MS && entry.atMs < atMs,
       ) ?? []
     let etaMs: number | null = null
-    if (freeBytes !== null && totalBytes !== null) {
+    if (freeBytes === null || totalBytes === null) {
+      history.length = 0
+    } else {
       const first = history[0]
       // A fill-rate forecast needs the person's floor as its destination.
       const floor = resourceDiskFloorBytes(this.settings())
@@ -139,7 +141,7 @@ export class ResourceDiskSampler {
         etaMs = (remaining * (atMs - first.atMs)) / (first.freeBytes - freeBytes)
       }
       history.push({ atMs, freeBytes })
-    } else history.length = 0
+    }
     const volume = resourceDiskVolumeSchema.parse({
       role: target.role,
       atMs,

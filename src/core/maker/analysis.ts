@@ -120,7 +120,9 @@ function didTrackArc(
     if (offsetI === null || offsetJ === null) return false
     center = { x: start.x + offsetI * unit, y: start.y + offsetJ * unit }
     radius = Math.hypot(offsetI * unit, offsetJ * unit)
-  } else if (radiusWord !== undefined && radiusWord !== null) {
+  } else if (radiusWord === undefined || radiusWord === null) {
+    return false
+  } else {
     const chord = Math.hypot(target.x - start.x, target.y - start.y)
     const signed = radiusWord * unit
     if (signed === 0 || chord === 0 || chord > Math.abs(signed) * 2) return false
@@ -133,8 +135,6 @@ function didTrackArc(
     const side = (isClockwise && signed > 0) || (!isClockwise && signed < 0) ? -1 : 1
     center = { x: middle.x + across.x * height * side, y: middle.y + across.y * height * side }
     radius = Math.abs(signed)
-  } else {
-    return false
   }
   if (radius === 0) return false
   const from = Math.atan2(start.y - center.y, start.x - center.x)

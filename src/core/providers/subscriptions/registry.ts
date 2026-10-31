@@ -1002,7 +1002,7 @@ export function createSubscriptionClient(
     // lane RETRYLIMITS), so a plan model reads the person's setting when
     // set and is unbounded otherwise; off-plan models are Meta's own.
     maxRetries: (model) =>
-      model !== undefined && !isPlanModel(model) ? meta.maxRetries() : deps.personCap?.(),
+      model === undefined || isPlanModel(model) ? deps.personCap?.() : meta.maxRetries(),
     personCap: () => deps.personCap?.(),
     createImage: (...args) => meta.createImage(...args),
     editImage: (...args) => meta.editImage(...args),
@@ -1229,10 +1229,9 @@ export function createSubscriptionClient(
           yield { type: 'error', code: limit.code, message: limit.message }
         }
       } catch (error) {
-        if (isUserRefusal(error) || signal.aborted) throw error
         // Anything that is not an error keeps its kind past this boundary:
         // the fixed retry sentence below must never stand in for it.
-        if (!(error instanceof Error)) throw error
+        if (isUserRefusal(error) || signal.aborted || !(error instanceof Error)) throw error
         // M105 lane V R3 (RVCM1054B P2): a typed codec refusal (a held
         // video with no vendor capture) reaches the user as its own
         // sentence on every plan leg, never the generic retry text. One

@@ -70,15 +70,7 @@ export class ScheduleEventRegistry {
     const source = this.sources.get(request.trigger.source)
     const capability = source?.capability()
     let preview: unknown
-    if (!source || !capability?.available || !source.kinds.includes(request.trigger.event)) {
-      preview = {
-        available: false,
-        reason:
-          capability && !capability.available
-            ? capability.reason
-            : UI_TEXT.scheduleV2.messages.historyUnavailable,
-      }
-    } else {
+    if (source && capability?.available && source.kinds.includes(request.trigger.event)) {
       const history = await source.history(request.range)
       const current = source.capability()
       if (current.available && history.available) {
@@ -96,6 +88,14 @@ export class ScheduleEventRegistry {
           events: await Promise.all(matches.map((event) => this.privacy.scrub(event))),
         }
       } else preview = current.available ? history : current
+    } else {
+      preview = {
+        available: false,
+        reason:
+          capability && !capability.available
+            ? capability.reason
+            : UI_TEXT.scheduleV2.messages.historyUnavailable,
+      }
     }
     const finalCapability = source?.capability()
     if (finalCapability && !finalCapability.available) preview = finalCapability

@@ -49,8 +49,8 @@ export function readWavFormat(
   if (end === undefined) return undefined
   let cursor = RIFF_HEADER_BYTES
   while (cursor < end) {
-    if (cursor + CHUNK_HEADER_BYTES > end) return undefined
-    if (cursor + CHUNK_HEADER_BYTES > bytes.length) return undefined
+    if (cursor + CHUNK_HEADER_BYTES > end || cursor + CHUNK_HEADER_BYTES > bytes.length)
+      return undefined
     const { type, length, body, next } = riffChunk(bytes, cursor)
     if (next > end) return undefined
     if (type === 'fmt ') {

@@ -251,8 +251,7 @@ export class ResourceRelocator {
         target = await this.select(work, signal, targetId, false)
         if (target === undefined || this.status(signal, isManual) === null) return result
         isApproved = (await unlessAborted(this.options.ask(work, target, signal), signal)) === true
-        if (!isApproved) return result
-        if ((await this.headroom(work, target, signal)) === null) return result
+        if (!isApproved || (await this.headroom(work, target, signal)) === null) return result
       } else {
         target = await this.select(work, signal, targetId, true)
       }
@@ -263,8 +262,11 @@ export class ResourceRelocator {
         if ((await work.retire?.()) !== true) return result
         result = 'kept'
       }
-      if (this.status(signal, isManual) === null) return result
-      if ((await this.headroom(work, target, signal)) === null) return result
+      if (
+        this.status(signal, isManual) === null ||
+        (await this.headroom(work, target, signal)) === null
+      )
+        return result
       status = this.status(signal, isManual)
       if (status === null || (!isRunning && work.phase() !== 'queued')) return result
       if (!isApproved && status.settings.relocate === 'ask') {
