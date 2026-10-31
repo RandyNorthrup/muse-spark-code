@@ -164,8 +164,45 @@ prettier/eslint on touched files 0; `typecheck` 0; `check-l10n` 0;
 `check:reference` 0; `check:host-api` 0; `check:plan` 0;
 `check:roadmap` 0 (after `roadmap:generate`); `check:catches` 0 (no
 rise); `duplication` 0 clones; `cycles` 0; `deadcode` 0; `build` 0
-(all budgets hold); touched suites plus `vitest related` on all seven
-changed sources, green with the repository's own timeouts (see below).
+(all budgets hold); touched suites green with the repository's own
+timeouts. `vitest related` on all seven changed sources: 346 files
+green, 21 red — every red file triaged below, none caused by this lane.
+
+Related-run triage (`temp/related-full.log`, 392 files, 4617 tests, 56
+failed): each red file was re-run on this tree and, except where noted,
+on a clean worktree of the base (`0eaf17293`, `temp/base-check/`,
+since removed), `--maxWorkers=3`, repo timeouts.
+
+- Identical on base (14): `vault/writerCrashPosix` (17=17, lock-busy
+  under SIGKILL children), `vault/vaultStoreScope` (1=1, OS birth
+  unestablishable in the sandbox), `scheduleFireFailures` (5=5, 5 s
+  delivery timeouts, zero host references), `providerHeadersStore`
+  (3=3, macOS keychain), `connectorStorageGuard` (3=3),
+  `acpServeHandshake` (1=1, the no-CLI list takes the auth path on
+  base too), `treeSyncNoDeadline`, `teamPlaybookIntegration`,
+  `teamPlaybookRounds` (5=5 combined), `playbookContainedJob`,
+  `connectorStdio.e2e`, `resourceStatusCpu` (5=5 combined, incl. the
+  sampler timeout), `playbookWindow` (5=5), `playbookGovernor` (1=1).
+- Fails on base, flaky counts (2): `runtimeLsp` (3 here, 5 on base),
+  `playbookSchedulesInputs` (1 here, 2 on base) — timing-sensitive,
+  red on both trees.
+- Pass quiet, flaked under load (2): `lintStagedBatching`,
+  `createdRegistryRace` (2/2 green alone).
+- Deterministic environment (3, not base-run): `browserEnglish`,
+  `browserUiText` (no Chrome on macOS — the lanes' known machine
+  fact), `treesLifecycleNative` (`spawn EPERM`, this account's limit).
+
+None of the 21 references any changed module or behaviour
+(`MuseCodeHost`, `MuseSession`, `createAcpAgent`, `startLiveHost`,
+`resourceFailureReporter`, `deleteSession`, `NATIVE_MUSE_CODE_FEATURE_PORTS`,
+`approvalModeChanged`, `session/started`, `stopAllTasks` — zero hits
+outside their own objects' `dispose`/`close`), and the only suites
+that construct hosts with `NATIVE_MUSE_CODE_FEATURE_PORTS` or the
+extended `startLiveHost` pass. The lane's own suites (B2 2, dispose 7,
+reporter 4, not-sent 1, lifecycle 8, binding 3, delete 12,
+sessionTitles 5) plus the approval-adjacent suites
+(`approvalModesFailurePaths`, `mapNotification`, `hookModelTurns`)
+are all green.
 
 ## Commits
 
