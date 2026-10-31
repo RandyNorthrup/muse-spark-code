@@ -822,12 +822,23 @@ public static class MuseSparkCreated {
       }
     }
   }
-  static void Walk(SafeFileHandle root, uint volume) {
-    foreach (Entry entry in Entries(root)) using (SafeFileHandle child = Open(root, entry.Name, (entry.Flags & (DIRECTORY | REPARSE)) == DIRECTORY, false)) {
-      Info held = Sample(child); if (entry.Id == 0 || Id(held) != entry.Id || held.Volume != volume) Refuse();
-      if ((held.Attributes & (DIRECTORY | REPARSE)) == DIRECTORY) Walk(child, volume);
-      DisposeEntry(child); // Reparse points are disposed themselves; directories must be empty.
+  static void Walk(SafeFileHandle root, uint volume, bool keepMarker = false) {
+    foreach (Entry entry in Entries(root)) {
+      // The root marker stays until every other name is gone, so a crash
+      // mid-walk can still prove this directory on the next start.
+      if (keepMarker && entry.Name == MARKER) continue;
+      using (SafeFileHandle child = Open(root, entry.Name, (entry.Flags & (DIRECTORY | REPARSE)) == DIRECTORY, false)) {
+        Info held = Sample(child); if (entry.Id == 0 || Id(held) != entry.Id || held.Volume != volume) Refuse();
+        if ((held.Attributes & (DIRECTORY | REPARSE)) == DIRECTORY) Walk(child, volume);
+        DisposeEntry(child); // Reparse points are disposed themselves; directories must be empty.
+      }
     }
+  }
+  static void FinishTrash(SafeFileHandle parent, SafeFileHandle root, string trash, string id, string hash, string identity) {
+    Private(root); Match(Sample(root), identity); Marker(root, id, hash);
+    Walk(root, Sample(root).Volume, true);
+    using (SafeFileHandle marker = Open(root, MARKER, false, false)) DisposeEntry(marker);
+    using (SafeFileHandle final = Open(parent, trash, true, false)) { Match(Sample(final), identity); DisposeEntry(final); }
   }
   static string WorkerFinal(SafeFileHandle file) {
     var name = new StringBuilder(32768);
@@ -949,13 +960,31 @@ public static class MuseSparkCreated {
         }
       }
       if (args[0] != "remove" || !Regex.IsMatch(args[5], "^[0-9a-f]{64}$")) Refuse();
+      string trash = ".muse-trash-" + args[4];
       using (SafeFileHandle source = Open(parent, args[3], true, false, true)) {
-        if (source == null) return "{\"removed\":true}";
-        Private(source); Match(Sample(source), args[6]); Marker(source, args[4], args[5]);
-        string trash = ".muse-trash-" + args[4]; Rename(source, parent, trash);
-        using (SafeFileHandle root = Open(parent, trash, true, false)) {
-          Private(root); Match(Sample(root), args[6]); Marker(root, args[4], args[5]); Walk(root, Sample(root).Volume);
-          using (SafeFileHandle final = Open(parent, trash, true, false)) { Match(Sample(final), args[6]); DisposeEntry(final); }
+        if (source == null) {
+          // The original name is gone. Finish a quarantine this process can
+          // still prove; a different directory at that name is refused.
+          using (SafeFileHandle parked = Open(parent, trash, true, false, true)) {
+            if (parked == null) return "{\"removed\":true}";
+            FinishTrash(parent, parked, trash, args[4], args[5], args[6]);
+          }
+        } else {
+          Private(source); Match(Sample(source), args[6]); Marker(source, args[4], args[5]);
+          using (SafeFileHandle occupied = Open(parent, trash, true, false, true)) {
+            if (occupied != null) Refuse();
+          }
+          string before = Key(Sample(source));
+          Rename(source, parent, trash);
+          using (SafeFileHandle root = Open(parent, trash, true, false)) {
+            if (Key(Sample(root)) != before) {
+              using (SafeFileHandle back = Open(parent, args[3], true, false, true)) {
+                if (back == null) { try { Rename(root, parent, args[3]); } catch { /* A raced name stays quarantined and is refused. */ } }
+              }
+              Refuse();
+            }
+            FinishTrash(parent, root, trash, args[4], args[5], args[6]);
+          }
         }
       }
       return "{\"removed\":true}";

@@ -18,9 +18,30 @@ import {
 import { fileIdentityKey, lstatIdentity } from '../fs/fileIdentity'
 import { CreatedRegistrySaveError } from '../../shared/createdRegistrySaveError'
 
+/**
+The process that created an entry, as the system recorded it: its host,
+its id and its birth (clock ticks since boot on Linux, with `bootId`;
+epoch milliseconds elsewhere), plus the exact evidence a sweep requires
+before it may end the entry (`machineId`, `bootId`, `pidNamespace`,
+`exactBirth`). A pid that is merely absent here is not proof: it can
+still be that process in another namespace. Entries that carry none of
+this, including every entry a build before the field wrote, are never
+ended by a sweep.
+*/
+const creatorSchema = z.strictObject({
+  host: z.string().check(z.minLength(1)),
+  pid: z.number().check(z.int(), z.gt(0)),
+  processStart: z.number().check(z.gte(0)),
+  bootId: z.optional(z.string().check(z.minLength(1))),
+  machineId: z.optional(z.string().check(z.minLength(1))),
+  pidNamespace: z.optional(z.string().check(z.minLength(1))),
+  exactBirth: z.optional(z.string().check(z.minLength(1))),
+})
+export type CreatedCreator = z.infer<typeof creatorSchema>
 const entrySchema = z.strictObject({
   id: z.string().check(z.regex(/^[\da-f-]+$/u)),
   owner: z.string().check(z.minLength(1)),
+  creator: z.optional(creatorSchema),
   path: z.string().check(z.minLength(1)),
   identity: z.optional(z.nullable(z.string().check(z.minLength(1)))),
   tokenHash: z.optional(z.nullable(z.string().check(z.regex(/^[\da-f]{64}$/u)))),
@@ -42,6 +63,14 @@ function isUuidText(text: string | undefined): boolean {
 export interface CreatedPathProof {
   /** Exact birth-bound whole-tree completion; absence of a PID is never proof. */
   exited(owner: string): Promise<boolean>
+  /** This process as entries it creates will name it; undefined when the system cannot say. */
+  creator(): Promise<CreatedCreator | undefined>
+  /**
+  Whether a recorded creator is provably gone: the same machine, boot and
+  pid namespace, and no process has its id, or the process that has it
+  was born at another time. Missing evidence is never proof.
+  */
+  creatorExited(creator: CreatedCreator): Promise<boolean>
   createdByTree?: ((file: string, owner: string) => Promise<boolean>) | undefined
   archivedAndClean(file: string): Promise<boolean>
   freeBytes(file: string): Promise<number | null>
@@ -679,9 +708,13 @@ export class CreatedRegistry {
     directory: string,
     rootIdentity: string,
     rootMountId: string,
+    shouldKeepMarker: boolean,
   ): Promise<void> {
     const names = await readdir(directory)
     for (const name of names) {
+      // The root marker stays until every other name is gone, so a crash
+      // mid-walk can still prove this directory on the next start.
+      if (shouldKeepMarker && name === RESOURCE_TEMP_MARKER) continue
       const child = path.join(directory, name)
       const sample = await lstatIdentity(child)
       if (sample.isDirectory() && !sample.isSymbolicLink()) {
@@ -690,13 +723,72 @@ export class CreatedRegistry {
           throw new Error('Creation cleanup refuses a filesystem boundary')
         await this.directory(child, identity, async (pinned, _identity, mountId) => {
           if (mountId !== rootMountId) throw new Error('Creation cleanup refuses a mount boundary')
-          await this.emptyDirectory(pinned, rootIdentity, rootMountId)
+          await this.emptyDirectory(pinned, rootIdentity, rootMountId, false)
           await this.removeDirectory(child, identity)
         })
       } else {
         await unlink(child)
       }
     }
+  }
+
+  /** The directory is still the tree this entry created, marker included. */
+  private async assertProductTree(
+    sample: Awaited<ReturnType<typeof lstatIdentity>>,
+    file: string,
+    entry: CreatedPath,
+    storedIdentity: string,
+  ): Promise<void> {
+    if (
+      !sample.isDirectory() ||
+      sample.isSymbolicLink() ||
+      fileIdentityKey(sample) !== storedIdentity ||
+      !(await this.markerMatches(file, entry))
+    )
+      throw new Error('Created path identity changed')
+  }
+
+  /**
+  Delete a quarantine whose identity and marker are the stored tree.
+  The marker is removed last. A failure leaves the directory parked for
+  the next sweep; nothing here moves it back.
+  */
+  private async consumeQuarantine(
+    trash: string,
+    entry: CreatedPath,
+    storedIdentity: string,
+    onWalk?: () => void,
+  ): Promise<void> {
+    await this.directory(trash, storedIdentity, async (pinned, identity, mountId) => {
+      if (!(await this.markerMatches(pinned, entry)))
+        throw new Error('Created path identity changed during quarantine')
+      await this.verifyBase()
+      onWalk?.()
+      await this.emptyDirectory(pinned, identity, mountId, true)
+      await unlink(path.join(pinned, RESOURCE_TEMP_MARKER))
+      await this.removeDirectory(trash, identity)
+    })
+  }
+
+  /**
+  The original name is gone. Finish a quarantine this process can still
+  prove. Both names gone is success. A different directory is refused
+  and left where it is.
+  */
+  private async finishParked(
+    trash: string,
+    entry: CreatedPath,
+    storedIdentity: string,
+  ): Promise<void> {
+    let parked: Awaited<ReturnType<typeof lstatIdentity>>
+    try {
+      parked = await lstatIdentity(trash)
+    } catch (error: unknown) {
+      if (isMissing(error)) return
+      throw error
+    }
+    await this.assertProductTree(parked, trash, entry, storedIdentity)
+    await this.consumeQuarantine(trash, entry, storedIdentity)
   }
 
   /**
@@ -730,8 +822,20 @@ export class CreatedRegistry {
       throw new Error('Created path has no stored identity or marker hash: report only')
     const storedIdentity = entry.identity
     // Loaded timestamps are retention hints, never evidence that a previous tree exited.
-    if (!this.finished.has(entry.owner) && !(await this.proof.exited(entry.owner))) return false
-    if (entry.endedAtMs === null && entry.state !== 'pending') return false
+    const isGone =
+      this.finished.has(entry.owner) ||
+      (await this.proof.exited(entry.owner)) ||
+      (entry.creator !== undefined && (await this.proof.creatorExited(entry.creator)))
+    if (!isGone) return false
+    if (entry.endedAtMs === null && entry.state !== 'pending') {
+      // Nobody reported an end: the creator was killed, crashed or lost
+      // power before finish() could land. This proof ends the entry now,
+      // as failed, so a temp tree is still kept RESOURCE_TEMP_KEEP_MS for
+      // diagnosis from here and then removed (RLF-TEMPLEAK).
+      entry.endedAtMs = this.now()
+      entry.failed = true
+      await this.save()
+    }
     if (
       entry.kind === 'temp' &&
       entry.failed &&
@@ -751,31 +855,29 @@ export class CreatedRegistry {
         const trash = path.join(base, `.muse-trash-${entry.id}`)
         let isQuarantined = false
         try {
-          const current = await lstatIdentity(source)
-          if (
-            !current.isDirectory() ||
-            current.isSymbolicLink() ||
-            fileIdentityKey(current) === undefined ||
-            fileIdentityKey(current) !== entry.identity ||
-            !(await this.markerMatches(source, entry))
-          )
-            throw new Error('Created path identity changed')
+          let isSourceMissing = false
           try {
-            await lstatIdentity(trash)
-            throw new Error('Creation quarantine already exists')
+            await this.assertProductTree(await lstatIdentity(source), source, entry, storedIdentity)
           } catch (error: unknown) {
             if (!isMissing(error)) throw error
+            isSourceMissing = true
           }
-          // Rename captures the entry atomically. No earlier checked pathname is recursively removed.
-          await this.renameEntry(source, trash, storedIdentity)
-          isQuarantined = true
-          await this.directory(trash, storedIdentity, async (pinned, identity, mountId) => {
-            if (!(await this.markerMatches(pinned, entry)))
-              throw new Error('Created path identity changed during quarantine')
-            await this.verifyBase()
-            await this.emptyDirectory(pinned, identity, mountId)
-            await this.removeDirectory(trash, identity)
-          })
+          if (isSourceMissing) {
+            await this.finishParked(trash, entry, storedIdentity)
+          } else {
+            try {
+              await lstatIdentity(trash)
+              throw new Error('Creation quarantine already exists')
+            } catch (error: unknown) {
+              if (!isMissing(error)) throw error
+            }
+            // Rename captures the entry atomically. No earlier checked pathname is recursively removed.
+            await this.renameEntry(source, trash, storedIdentity)
+            isQuarantined = true
+            await this.consumeQuarantine(trash, entry, storedIdentity, () => {
+              isQuarantined = false
+            })
+          }
         } catch (error: unknown) {
           if (isQuarantined) await this.restoreQuarantined(source, trash, storedIdentity)
           if (isQuarantined || !isMissing(error)) {
@@ -814,9 +916,11 @@ export class CreatedRegistry {
   createTemp(owner: string): Promise<{ id: string; root: string }> {
     return this.serial(async () => {
       const token = randomBytes(RESOURCE_TEMP_TOKEN_BYTES).toString('hex')
+      const creator = await this.proof.creator()
       const entry = entrySchema.parse({
         id: randomUUID(),
         owner,
+        ...(creator !== undefined && { creator }),
         kind: 'temp',
         path: path.join(this.base, `${RESOURCE_TEMP_PREFIX}${randomUUID()}`),
         identity: null,
@@ -959,6 +1063,19 @@ export class CreatedRegistry {
         cause: failure.reason,
       })
     return await this.serial(async () => {
+      // The sweep visits every entry the live manifest holds, as it now
+      // stands, including what other processes recorded or finished
+      // since this instance opened; a local change whose save failed is
+      // re-decided from the manifest. A manifest that is not there yet
+      // (no save ever landed) leaves the view as it is.
+      try {
+        const loaded = this.parseManifest(await this.checkManifest())
+        this.entries.clear()
+        for (const [id, entry] of loaded) this.entries.set(id, entry)
+        this.synced = snapshotEntries(this.entries)
+      } catch (error: unknown) {
+        if (!isMissing(error)) throw error
+      }
       let removed = 0
       let freedBytes: number | null = 0
       for (const entry of this.entries.values()) {

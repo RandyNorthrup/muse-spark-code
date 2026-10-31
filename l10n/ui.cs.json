@@ -259,6 +259,8 @@
   "resourceRelocationNoTarget": "Není aktivní žádná schválená cesta k výpočetnímu stroji. Práce zůstává na tomto počítači. Přesun na spárovaná zařízení není dostupný.",
   "resourceUnavailable": "Toto měření není na tomto počítači dostupné.",
   "resourceUnavailableWhy": "Toto měření není na tomto počítači dostupné: {cause}",
+  "resourceCleanupRemoved": "Zbývající dočasné složky z dřívějších relací byly odstraněny.",
+  "resourceCleanupRefused": "Některé zbývající dočasné složky se nepodařilo ověřit, takže zůstaly na místě.",
   "resourceGovernorOff": "Limity prostředků jsou na tomto počítači vypnuté.",
   "resourceStatusRefused": "Nejnovější stav prostředků nelze přečíst, proto se nezobrazují žádné hodnoty.",
   "resourceTransport": "Selhání přenosu",

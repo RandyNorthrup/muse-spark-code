@@ -259,6 +259,8 @@
   "resourceRelocationNoTarget": "Onaylı bir çalıştırıcıya giden etkin rota yok. İş bu makinede kalır. Eşleştirilmiş cihazlara taşıma kullanılamaz.",
   "resourceUnavailable": "Bu ölçüm bu makinede kullanılamıyor.",
   "resourceUnavailableWhy": "Bu ölçüm bu makinede kullanılamıyor: {cause}",
+  "resourceCleanupRemoved": "Önceki oturumlardan kalan geçici klasörler kaldırıldı.",
+  "resourceCleanupRefused": "Kalan geçici klasörlerden bazıları doğrulanamadı, bu yüzden yerlerinde bırakıldılar.",
   "resourceGovernorOff": "Bu makinede kaynak sınırları kapalı.",
   "resourceStatusRefused": "En son kaynak durumu okunamadı, bu nedenle hiçbir ölçüm gösterilmiyor.",
   "resourceTransport": "Aktarım hataları",

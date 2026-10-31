@@ -259,6 +259,8 @@
   "resourceRelocationNoTarget": "沒有通往已核准執行器的作用中路由。工作保留在本機。無法遷移至已配對裝置。",
   "resourceUnavailable": "此電腦無法提供這項讀數。",
   "resourceUnavailableWhy": "此電腦無法提供這項讀數：{cause}",
+  "resourceCleanupRemoved": "已移除先前工作階段遺留的暫存資料夾。",
+  "resourceCleanupRefused": "某些遺留的暫存資料夾無法驗證，因此保留在原處。",
   "resourceGovernorOff": "此電腦上的資源限制已關閉。",
   "resourceStatusRefused": "無法讀取最新的資源狀態，因此不顯示任何讀數。",
   "resourceTransport": "傳輸失敗",

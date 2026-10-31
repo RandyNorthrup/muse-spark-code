@@ -1,7 +1,7 @@
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import process from 'node:process'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { statfs } from 'node:fs/promises'
@@ -9,6 +9,8 @@ import { TreeTempRoots } from '../../host/resources/tempRoots'
 import type { ResourceTempRoots, ResourceWindowsJob } from './launch'
 import { ResourceDiskSampler, type ResourceDiskTarget } from './disk'
 import { CreatedRegistry, type CreatedCleanup, type CreatedPathProof } from './createdRegistry'
+import { agentDataFolder } from '../../runtime/dataFolder'
+import { createdTreeCreator, isCreatedTreeCreatorGone } from './createdOwner'
 import {
   BOUNDED_FILE_READ_CHUNK_BYTES,
   RESOURCE_HISTORY_FLUSH_TIMEOUT_MS,
@@ -212,6 +214,13 @@ export function resourceGovernorHost(
     path.join(__dirname, '..', 'native'),
     options.windowsJob,
   )
+  // The installation identity lives beside the registry, never in a
+  // caller's home by default from a test.
+  const creatorData = agentDataFolder({
+    platform: process.platform,
+    env: process.env,
+    homeDir: homedir(),
+  })
   const directories =
     options.createdDirectories ?? (process.platform === 'linux' ? undefined : nativeCommands)
   let registryPending: Promise<CreatedRegistry> | undefined
@@ -226,6 +235,12 @@ export function resourceGovernorHost(
               directories,
               files: directories ?? nativeCommands,
               exited: (owner) => Promise.resolve(launched.host?.hasRetired(owner) ?? false),
+              // Entries name this process with exact evidence, so a later
+              // start can prove it exited and reclaim what a kill, crash
+              // or power loss left behind. A pid absent from this
+              // namespace is not that proof (RLF-TEMPLEAK, RVTEMPLEAK).
+              creator: () => createdTreeCreator(creatorData),
+              creatorExited: (creator) => isCreatedTreeCreatorGone(creator, creatorData),
               archivedAndClean: () =>
                 Promise.reject(new Error('Archive/clean proof is not installed')),
               freeBytes: async (file) => {
@@ -374,6 +389,14 @@ export function resourceGovernorHost(
     ...(share !== undefined && { isGovernorShared: true, onWorkChanged: share.workChanged }),
   })
   launched.host = host
+  // Start sweep (RLF-TEMPLEAK): every host reclaims what earlier starts
+  // left behind — trees whose creator is provably gone are ended and,
+  // past their keep period, removed. It rides the registry's own queue
+  // behind nothing of this start's, and reports like every other clean.
+  void created
+    .clean()
+    .then((result) => options.onCleanup?.(result))
+    .catch(options.onError)
   // The runtime's own recorder reads these launches (H–C1); the window records here.
   if (recorder !== undefined) {
     // The governor's own sample and event streams; recording never gates admission.

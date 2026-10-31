@@ -17,9 +17,12 @@ import {
   type CreatedRegistrySaveReason,
 } from '../../src/shared/createdRegistrySaveError'
 import { denyWrites } from './helpers/deniedAccess'
+import { createdTreeCreator, isCreatedTreeCreatorGone } from '../../src/core/resources/createdOwner'
 
 const proof: CreatedPathProof = {
   exited: () => Promise.resolve(true),
+  creator: () => createdTreeCreator(scratch.folder),
+  creatorExited: (creator) => isCreatedTreeCreatorGone(creator, scratch.folder),
   archivedAndClean: () => Promise.resolve(true),
   freeBytes: () => Promise.resolve(null),
 }
