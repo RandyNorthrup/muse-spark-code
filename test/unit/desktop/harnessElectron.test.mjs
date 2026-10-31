@@ -47,10 +47,12 @@ describe('electron resolution', () => {
 })
 
 // A real Electron launch is half a minute of downloads away from a clean
-// checkout: the desktop workflow installs the fixture and runs this suite
-// under Xvfb. Without the fixture's Electron the suite reports skipped,
-// exactly like the browserCheckLive suites without their store.
-describe.skipIf(!existsSync(FIXTURE_ELECTRON))(
+// checkout and needs a display: the desktop workflow installs the
+// fixture and runs this suite under Xvfb. Without the fixture's Electron
+// or a display the suite reports skipped, exactly like the
+// browserCheckLive suites without their store.
+const HAS_DISPLAY = process.env.DISPLAY !== undefined || process.env.WAYLAND_DISPLAY !== undefined
+describe.skipIf(!existsSync(FIXTURE_ELECTRON) || !HAS_DISPLAY)(
   'the Electron driver against the real fixture app',
   () => {
     it('opens the fixture, types through the page, and reads the result', async () => {

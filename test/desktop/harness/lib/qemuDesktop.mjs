@@ -188,6 +188,16 @@ export function composeDesktopQemu(options) {
     const format = options.target.endsWith('.qcow2') ? 'qcow2' : 'raw'
     args.push('-drive', `file=${options.target},format=${format},if=virtio`)
   }
+  if (isText(options.seed)) {
+    // A NoCloud seed (CIDATA) for cloud-init guests, as a read-only CD.
+    args.push(
+      '-drive',
+      `file=${options.seed},format=raw,if=none,id=seed,media=cdrom,readonly=on`,
+      '-device',
+      arch === 'x86_64' ? 'ide-cd,drive=seed' : 'virtio-scsi-pci,id=scsi0',
+    )
+    if (arch === 'aarch64') args.push('-device', 'scsi-cd,drive=seed,bus=scsi0.0')
+  }
   const tpmArgs = [
     'socket',
     '--tpmstate',

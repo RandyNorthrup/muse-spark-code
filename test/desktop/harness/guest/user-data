@@ -1,0 +1,42 @@
+#cloud-config
+# The M111 QA compositor-guest seed, in two stages. Stage 1 (this file,
+# cloud-init's only boot) installs the pinned compositor stack from
+# trixie-backports AND Debian's full kernel - the cloud kernel has no
+# virtio-gpu driver, so the guest has no /dev/dri until it reboots into
+# the full one - copies the stage-2 script and unit off the harness
+# share, arms them, and reboots into the full kernel. Stage 2
+# (guest/stage2.sh) mounts the share again, runs one harness session as
+# the cloud user under seatd, and powers off. The session's results land
+# on the share; never boot the share with QEMU -snapshot or they vanish.
+apt:
+  sources:
+    backports:
+      source: "deb http://deb.debian.org/debian trixie-backports main"
+package_update: true
+# Packages install in runcmd with the backports target release: the
+# backported compositor needs backported libraries with it
+# (libxkbcommon0 >= 1.12.3), which a plain install will not select.
+# OS1 pins the same set by snapshot in the real image.
+runcmd:
+  - [sh, -c, "echo M111QA-RUNCMD-START > /dev/ttyS0"]
+  - [sh, -c, "DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -t trixie-backports hyprland grim foot nodejs seatd libgl1-mesa-dri linux-image-amd64 >> /dev/ttyS0 2>&1; echo M111QA-APT-EXIT=$? > /dev/ttyS0"]
+  - - sh
+    - -c
+    - |
+      set -e
+      mkdir -p /mnt/share /var/lib/m111qa
+      mount /dev/vdb /mnt/share || mount /dev/vda2 /mnt/share
+      install -m 0755 /mnt/share/stage2.sh /usr/local/bin/m111qa-stage2.sh
+      install -m 0644 /mnt/share/m111qa-session.service /etc/systemd/system/m111qa-session.service
+      umount /mnt/share
+      touch /var/lib/m111qa/stage2-armed
+      systemctl daemon-reload
+      systemctl enable m111qa-session.service
+      V=$(ls /boot/vmlinuz-*-amd64 | grep -v cloud | sort -V | tail -1)
+      V=${V#/boot/vmlinuz-}
+      sed -i "s/^GRUB_DEFAULT=.*/GRUB_DEFAULT='Advanced options for Debian GNU\\/Linux>Debian GNU\\/Linux, with Linux $V'/" /etc/default/grub
+      update-grub >> /dev/ttyS0 2>&1
+      echo "M111QA-ARMED kernel=$V" > /dev/ttyS0
+power_state:
+  mode: reboot
+  condition: "test -f /var/lib/m111qa/stage2-armed && ! test -f /var/lib/m111qa/stage2-done"

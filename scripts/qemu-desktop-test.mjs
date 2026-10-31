@@ -54,6 +54,7 @@ const VALUE_FLAGS = new Set([
   '--target-size-gib',
   '--keys-early',
   '--keys-after-marker',
+  '--seed',
 ])
 
 function parse(argv) {
@@ -136,6 +137,7 @@ const composed = composeDesktopQemu({
   firmwareOnly: options.firmwareOnly === true,
   snapshot: options.snapshot === true,
   target: options.target,
+  seed: options.seed,
   ovmfCode,
   ovmfVars,
   aavmf,
@@ -165,6 +167,7 @@ for (const [label, file] of [
   ['ovmf code', ovmfCode],
   ['ovmf vars', ovmfVars],
   ['aavmf', aavmf],
+  ['seed', options.seed],
 ]) {
   if (file === undefined || existsSync(file)) continue
   fail2(`${label} not found: ${file}`)

@@ -313,6 +313,11 @@
     "test/unit/helpers/vault/sessionBrokerChild.ts",
     // Built once by writerCrashPosix.test.ts; a real generated-only SIGKILL child.
     "test/unit/helpers/vault/writerCrashChild.ts",
+    // M111 lane QA: the Electron driver's real fixture app (launched by
+    // Playwright, never imported) and the in-guest session runner (run
+    // inside the QEMU guest from the harness share disk).
+    "test/desktop/harness/electron-fixture/main.mjs",
+    "test/desktop/harness/guest/run-session.mjs",
     // Pipe-relay fixture child, bundled by windowsPipeRelay.test.ts and launched
     // by path; knip does not trace esbuild entryPoints.
     "test/unit/helpers/vault/windowsPipeRelayChild.ts",
@@ -711,6 +716,8 @@
   "ignoreBinaries": [
     // The TUI suite probes the real terminfo database for its tier table.
     "tput",
+    // M111 lane QA: the QEMU desktop runner creates install targets.
+    "qemu-img",
     "gitleaks",
     "muse",
     "mkfifo",

@@ -1,0 +1,14 @@
+[Unit]
+Description=M111 QA compositor session in guest (stage 2)
+After=multi-user.target seatd.service
+ConditionPathExists=/var/lib/m111qa/stage2-armed
+ConditionPathExists=!/var/lib/m111qa/stage2-done
+
+[Service]
+Type=oneshot
+ExecStartPre=/usr/bin/touch /var/lib/m111qa/stage2-done
+ExecStart=/usr/local/bin/m111qa-stage2.sh
+TimeoutStartSec=900
+
+[Install]
+WantedBy=multi-user.target
