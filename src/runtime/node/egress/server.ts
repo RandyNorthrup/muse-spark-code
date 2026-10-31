@@ -265,7 +265,7 @@ export async function startEgressServer(options: EgressServerOptions): Promise<E
       }
       let resolved: readonly string[]
       try {
-        const entries = await lookup(target.host, { all: true, verbatim: true })
+        const entries = await lookup(target.host, { all: true, order: 'verbatim' })
         resolved = entries.map((entry) => entry.address)
       } catch (error: unknown) {
         if (!isDnsFailure(error)) throw error
