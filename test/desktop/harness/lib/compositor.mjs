@@ -285,7 +285,14 @@ export async function runSceneClient(
   session,
   command,
   args,
-  { output, screenshotFile, env, readyTimeoutMs = CLIENT_READY_MS, settleMs = 500 },
+  {
+    output,
+    screenshotFile,
+    env,
+    readyTimeoutMs = CLIENT_READY_MS,
+    settleMs = 500,
+    beforeScreenshot,
+  },
 ) {
   const before = await session.clients()
   const child = spawn(command, args, {
@@ -314,6 +321,7 @@ export async function runSceneClient(
       { timeoutMs: readyTimeoutMs, description: 'the scene client window' },
     )
     await sleep(settleMs)
+    if (beforeScreenshot !== undefined) await beforeScreenshot()
     await session.screenshot(output, screenshotFile)
     return { clients, screenshot: screenshotFile }
   } finally {

@@ -1,0 +1,20 @@
+[package]
+name = "muse-virtual-input"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+description = "Virtual keyboard and pointer driver for the M111 desktop test rig (Wayland virtual-input protocols)."
+license = "MIT"
+publish = false
+
+# Test-only harness tool (M111 lane QA). Rule 9: the Rust Wayland stack is
+# the maintained client implementation; hand-marshalling the wire with fd
+# passing was rejected as the fragile option. Exact versions, audited by
+# cargo audit in the desktop workflow.
+[dependencies]
+wayland-client = "=0.31.15"
+wayland-protocols-misc = { version = "=0.3.12", features = ["client"] }
+wayland-protocols-wlr = { version = "=0.3.12", features = ["client"] }
+
+[profile.release]
+panic = "abort"
