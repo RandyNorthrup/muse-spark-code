@@ -497,18 +497,24 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
       const session = await prepared.attach('team-session', editor.handler)
       await delegateOne(port, repo)
       await eventually(() => held.gates.length === 1, 'the worker start')
+      const before = editor.updates.length
       await session.cancel()
-      held.gates[0]?.reject(new Error('the worker conversation could not start'))
+      // A new empty plan arrives from the cancel itself, while the
+      // worker's start is still held at its gate: only the stop can
+      // have removed the task.
       await eventually(
         () =>
-          editor.updates.some(
-            (update) =>
-              update.sessionUpdate === 'plan' &&
-              Array.isArray(update.entries) &&
-              update.entries.length === 0,
-          ),
+          editor.updates
+            .slice(before)
+            .some(
+              (update) =>
+                update.sessionUpdate === 'plan' &&
+                Array.isArray(update.entries) &&
+                update.entries.length === 0,
+            ),
         'the emptied plan',
       )
+      held.gates[0]?.reject(new Error('the worker conversation could not start'))
       await session.close()
     } finally {
       await port.dispose()
