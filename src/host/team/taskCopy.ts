@@ -6,11 +6,23 @@
 // `agents/` ref; only the orchestrator's `merge` writes the user's tree.
 
 import { mkdir, realpath } from 'node:fs/promises'
-import { TEAM_MODEL_TEXT } from '../../shared/constants'
+import {
+  TEAM_HANDOFF_MODEL_TEXT,
+  TEAM_MODEL_TEXT,
+  TEAM_ROLE_TOOLSETS,
+  type TeamToolGroup,
+} from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type { TeamReport, TeamUsage } from '../../shared/team'
 import { builtinRoles } from '../../core/team/builtInRoles'
+import { buildTeamCharter } from '../../core/team/charter'
 import type { TeamGit } from '../../core/team/teamGit'
+import { resolveTeamToolset } from '../../core/team/toolsets'
+import type {
+  WorkerPromptParts,
+  WorkerRolePolicy,
+  WorkerTask,
+} from '../../core/team/workers/workerTypes'
 import {
   commitTaskBranch,
   publishTaskRef,
@@ -231,5 +243,82 @@ export async function removeUnreturnedCopy(
     await spec.meter.noteWorkspace(undefined)
   } catch {
     input.warn(`Team task ${spec.taskId}: its cleanup or recovery record could not be completed`)
+  }
+}
+
+/** The tool groups and write globs a task's role holds: its own, else the built-in's. */
+export function roleGrants(
+  spec: TeamTaskSpec,
+  builtin: TaskCopy['builtin'],
+): {
+  readonly groups: readonly TeamToolGroup[]
+  readonly writePaths: readonly string[] | undefined
+} {
+  return {
+    groups: spec.role.tools ?? (builtin === undefined ? [] : TEAM_ROLE_TOOLSETS[builtin.id]),
+    writePaths: spec.role.writePaths ?? builtin?.writePaths,
+  }
+}
+
+/** What a worker of any kind runs: its task, its role's policy and its prompt parts. */
+export interface WorkerPlan {
+  readonly task: WorkerTask
+  readonly role: WorkerRolePolicy
+  readonly prompt: WorkerPromptParts
+}
+
+/**
+The charter, the role policy and the task a worker runs, with the finished
+report a reopened or reviewed task carries marked as data. `offered` is the
+tool names the worker's session offers (the charter's "You may" meets them).
+*/
+export function planWorkerTask(
+  spec: TeamTaskSpec,
+  copy: TaskCopy,
+  offered: readonly string[],
+): WorkerPlan {
+  const { builtin, mode, previous, workspace } = copy
+  const reviewed = spec.reviewOf
+  const { groups, writePaths } = roleGrants(spec, builtin)
+  const tools = resolveTeamToolset(
+    { groups, writePaths },
+    { offered, webSearchAllowed: false, imagesAllowed: false, delegates: [] },
+  )
+  const charter = buildTeamCharter(
+    {
+      id: spec.role.role,
+      description: spec.role.purpose ?? builtin?.description ?? spec.role.role,
+      workspace: mode,
+      writePaths,
+      done: spec.role.done ?? builtin?.done,
+      report: spec.role.report ?? builtin?.report ?? 'summary',
+      delegates: [],
+      body: spec.role.guidance ?? builtin?.body ?? '',
+    },
+    tools,
+  )
+  const handoffData = previous?.report ?? reviewed?.report
+  const handoff =
+    handoffData === undefined
+      ? ''
+      : `\n\n${TEAM_HANDOFF_MODEL_TEXT.handoffDataOpen}\n${JSON.stringify(handoffData)}\n${TEAM_HANDOFF_MODEL_TEXT.handoffDataClose}`
+  return {
+    task: {
+      taskId: spec.taskId,
+      roleId: spec.role.role,
+      brief: `${spec.brief}${handoff}`,
+      branch: workspace.branch ?? '',
+      folder: workspace.folder,
+      files: spec.files,
+    },
+    role: {
+      roleId: spec.role.role,
+      workspaceMode: mode,
+      toolGroups: tools.groups,
+      ...(writePaths !== undefined && { writePaths }),
+      reportShape:
+        reviewed === undefined ? (spec.role.report ?? builtin?.report ?? 'summary') : 'review',
+    },
+    prompt: { charter: charter.generated, body: charter.body, rulesAndSkills: '' },
   }
 }

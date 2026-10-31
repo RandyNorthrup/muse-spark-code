@@ -98,12 +98,16 @@ export const ACP_PRESETS: Readonly<Record<AcpPresetId, AcpPreset>> = {
     modes: { readOnly: undefined, writePaths: undefined, engineering: undefined },
     forbiddenModes: [],
   },
+  // Our own agent's modes are its permission modes (`availablePermissionModes`,
+  // src/shared/permissionModes.ts): Plan reads and reasons only, Manual asks
+  // for every action. Accept edits, Auto and Bypass answer without asking
+  // the client, so a role never takes them.
   own: {
     id: 'own',
     command: 'muse-spark-code-acp',
     defaultArgs: [],
-    modes: { readOnly: undefined, writePaths: undefined, engineering: undefined },
-    forbiddenModes: [],
+    modes: { readOnly: 'plan', writePaths: 'manual', engineering: 'manual' },
+    forbiddenModes: ['acceptEdits', 'auto', 'bypassPermissions'],
   },
 }
 

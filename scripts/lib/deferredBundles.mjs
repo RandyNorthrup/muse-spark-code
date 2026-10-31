@@ -461,6 +461,20 @@ export const DEFERRED = [
     files: ['src/host/team/teamMcpEntry.ts', 'src/host/team/teamMcpServer.ts'],
   },
   {
+    // RLF-TEAMWORKERS: Muse Code and external-agent workers (the native
+    // process lifetime, the team's Muse Code host, the ACP client), loaded by
+    // the team host on the first such task. Headless `exec --team` never
+    // loads it: it runs engine workers only (PLAN M96b).
+    output: 'dist/teamProcess.js',
+    metafile: 'dist/meta/teamProcess.json',
+    files: [
+      'src/host/team/teamProcessEntry.ts',
+      'src/host/team/teamProcessWorkers.ts',
+      'src/host/team/taskCopy.ts',
+      'src/host/team/processLifetime.ts',
+    ],
+  },
+  {
     output: 'dist/teamEngine.js',
     metafile: 'dist/meta/teamEngine.json',
     files: ['src/host/team/teamEngineEntry.ts', 'src/host/team/teamEnginePorts.ts'],
@@ -1928,6 +1942,7 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/host/team/teamTrafficEntry.ts'), 'dist/teamTraffic.js'],
   [path.resolve('src/host/team/teamHostEntry.ts'), 'dist/teamHost.js'],
   [path.resolve('src/host/team/teamMcpEntry.ts'), 'dist/teamMcp.js'],
+  [path.resolve('src/host/team/teamProcessEntry.ts'), 'dist/teamProcess.js'],
   [path.resolve('src/host/team/teamEngineEntry.ts'), 'dist/teamEngine.js'],
   [path.resolve('src/core/team/workers/workerToolIoEntry.ts'), 'dist/teamFileIo.js'],
   [path.resolve('src/core/team/workers/workerCreateEntry.ts'), 'dist/teamCreate.js'],
@@ -1971,6 +1986,20 @@ const TEAM_SHARED_VIRTUAL_INPUTS = new Map()
 export const deferredCohort = {
   name: 'deferred-cohort',
   setup(build) {
+    // RLF-TEAMWORKERS: the process-worker bundle starts the team's own Muse
+    // Code host through the Muse Code backend's bundle, which already carries
+    // the host class and its notification mapping: one copy per process (the
+    // class keeps statics the backend forwards at each load), and the
+    // backend's text blocks stay with their declared readers.
+    build.onResolve({ filter: /\/(?:MuseCodeHost|museCodeEntry)(?:\.[jt]s)?$/ }, (args) => {
+      if (path.resolve(build.initialOptions.outfile ?? '') !== path.resolve('dist/teamProcess.js'))
+        return
+      const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+      return source === path.resolve('src/core/backends/musecode/MuseCodeHost.ts') ||
+        source === path.resolve('src/host/backend/museCodeEntry.ts')
+        ? { path: './museCode.js', external: true }
+        : undefined
+    })
     // The file adapter must reuse the host's retained-grant WeakMap.
     build.onResolve({ filter: /\/workerFence(?:\.ts)?$/ }, (args) => {
       if (
@@ -2091,7 +2120,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|providerListEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|accountPaidEntry|modelEffortsEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|modelApiB1Entry|modelApiToolRunEntry|modelApiFastEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|reportFallbackEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|modelApiAcpEntry|teamEntry|teamSchedulerEntry|teamWindowEntry|teamLandingEntry|teamRunnersEntry|teamTrafficEntry|teamPanelEntry|teamHostEntry|teamMcpEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|execTeamEntry|execLedgerLeaseEntry|workerCreateEntry|workerOpsEntry|usageAcp|usageExportEntry|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|subscriptionCommandsEntry|configuredProvidersEntry|chatGptProviderCommands|grokProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry|estimateActionsEntry|windowsEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|providerListEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|accountPaidEntry|modelEffortsEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|modelApiB1Entry|modelApiToolRunEntry|modelApiFastEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|reportFallbackEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|modelApiAcpEntry|teamEntry|teamSchedulerEntry|teamWindowEntry|teamLandingEntry|teamRunnersEntry|teamTrafficEntry|teamPanelEntry|teamHostEntry|teamMcpEntry|teamProcessEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|execTeamEntry|execLedgerLeaseEntry|workerCreateEntry|workerOpsEntry|usageAcp|usageExportEntry|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|subscriptionCommandsEntry|configuredProvidersEntry|chatGptProviderCommands|grokProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry|estimateActionsEntry|windowsEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)

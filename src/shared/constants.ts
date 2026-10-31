@@ -9622,6 +9622,18 @@ export const TEAM_MODEL_TEXT = {
   // The team host service's answers (M96 lane X, C-M96-3).
   hostInvalidArguments: 'invalid arguments for this team tool',
   hostRoleNotOffered: 'role {role} is not offered in this workspace',
+  hostKindNotOffered: 'this surface has no worker for {kind} agents',
+  hostExternalNotSignedIn:
+    'the external agent is not signed in: sign in with that agent’s own CLI first, then run the task again',
+  hostExternalNotFound: 'the external agent’s command was not found on the PATH: {command}',
+  hostExternalNoSwitch:
+    'the {agent} agent cannot start for a team yet: its switch for leaving out your own MCP servers has not been captured, so the task was not started',
+  hostExternalNoMode:
+    'the {agent} agent has no captured mode for a {shape} role, so the task was not started',
+  hostMuseNotFound:
+    'the Muse Code command was not found: install Muse Code or set museSpark.museBinaryPath, then run the task again',
+  hostNoApprovalChoice: 'the worker’s approval offered no choice this team can answer safely',
+  hostJournalForeign: 'this window cannot take over another window’s team records',
   hostContinueNotReady:
     'continue reopens a finished, unmerged task of the same role from this conversation, on its own branch',
   hostInPlaceNotOffered:

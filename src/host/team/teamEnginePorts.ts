@@ -9,9 +9,7 @@
 import {
   UI_TEXT,
   PERMISSION_MODES,
-  TEAM_HANDOFF_MODEL_TEXT,
   TEAM_MODEL_TEXT,
-  TEAM_ROLE_TOOLSETS,
   TEAM_TASK_MAX_REQUESTS_DEFAULT,
   TEAM_TASK_MAX_REQUESTS_WRITER,
   TEAM_TASK_MAX_REQUESTS_WRITER_ROLES,
@@ -29,17 +27,17 @@ import type { CoreLogger } from '../../core/logging'
 import { AgentWorktreeSession } from '../../core/bestOfN/agentWorktreeSession'
 import { builtinRoles } from '../../core/team/builtInRoles'
 import { validateWorkerSettings, type TeamSettingCapabilities } from '../../core/team/modelSettings'
-import { buildTeamCharter } from '../../core/team/charter'
 import { isSameTeamModel } from '../../core/team/sameModel'
-import { resolveTeamToolset } from '../../core/team/toolsets'
 import { applyTeamMerge, planTeamMerge, type TeamMergeSpec } from '../../core/team/teamMerge'
 import { removeTeamWorkspace } from '../../core/team/teamWorkspaces'
 import {
   beginTaskCopy,
   canonicalStorage,
   endTaskCopy,
+  planWorkerTask,
   removeUnreturnedCopy,
   requireRepository,
+  roleGrants,
 } from './taskCopy'
 import { isTeamGitError, type TeamGit } from '../../core/team/teamGit'
 import { runEngineWorker } from '../../core/team/workers/engineWorker'
@@ -59,6 +57,7 @@ import type {
 } from '../../core/backends/modelapi/transport'
 import type { ToolIo } from '../../core/backends/modelapi/tools'
 import { assertWorkerRoot } from '../../core/team/workers/workerFence'
+import type { TeamProcessWorkersDeps } from './teamProcessWorkers'
 
 /** One worker conversation the host started in the task's copy. */
 export interface EngineWorkerSession {
@@ -111,6 +110,12 @@ export interface TeamHostBundleDeps extends Omit<
   readonly engine: EngineTeamPortsDeps
   /** The team runner's playbook rounds (D218); the bundle adds the dispatch-base read. */
   readonly playbook?: Omit<TeamPlaybookPort, 'head'> | undefined
+  /**
+  What Muse Code and external-agent workers need (RLF-TEAMWORKERS); the
+  bundle adds the engine's git. Absent, this surface runs engine workers
+  only and `canRun` answers false for the other kinds.
+  */
+  readonly processWorkers?: Omit<TeamProcessWorkersDeps, 'runGit'> | undefined
 }
 
 /**
@@ -209,8 +214,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
     )
     if (unsupported !== undefined) throw new Error(unsupported)
     const copy = await beginTaskCopy(copyDeps, storage, spec)
-    const { repositoryRoot, builtin, mode, previous, baseCommit, workspace } = copy
-    const reviewed = spec.reviewOf
+    const { repositoryRoot, builtin, mode, baseCommit, workspace } = copy
     let usage = EMPTY_USAGE
     let meterWrites = Promise.resolve()
     let hasReservations = false
@@ -233,9 +237,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
         agentsRef: workspace.agentsRef,
       })
       signal.throwIfAborted()
-      const groups =
-        spec.role.tools ?? (builtin === undefined ? [] : TEAM_ROLE_TOOLSETS[builtin.id])
-      const writePaths = spec.role.writePaths ?? builtin?.writePaths
+      const { groups, writePaths } = roleGrants(spec, builtin)
       const fenceInput = {
         folder: workspace.folder,
         platform: deps.platform,
@@ -356,54 +358,12 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
       signal.addEventListener('abort', stop)
       let result
       try {
-        const tools = resolveTeamToolset(
-          { groups, writePaths },
-          {
-            offered: worker.toolNames,
-            webSearchAllowed: false,
-            imagesAllowed: false,
-            delegates: [],
-          },
-        )
-        const charter = buildTeamCharter(
-          {
-            id: spec.role.role,
-            description: spec.role.purpose ?? builtin?.description ?? spec.role.role,
-            workspace: mode,
-            writePaths,
-            done: spec.role.done ?? builtin?.done,
-            report: spec.role.report ?? builtin?.report ?? 'summary',
-            delegates: [],
-            body: spec.role.guidance ?? builtin?.body ?? '',
-          },
-          tools,
-        )
-        const handoffData = previous?.report ?? reviewed?.report
-        const handoff =
-          handoffData === undefined
-            ? ''
-            : `\n\n${TEAM_HANDOFF_MODEL_TEXT.handoffDataOpen}\n${JSON.stringify(handoffData)}\n${TEAM_HANDOFF_MODEL_TEXT.handoffDataClose}`
+        const plan = planWorkerTask(spec, copy, worker.toolNames)
         result = await runEngineWorker({
-          task: {
-            taskId: spec.taskId,
-            roleId: spec.role.role,
-            brief: `${spec.brief}${handoff}`,
-            branch: workspace.branch ?? '',
-            folder: workspace.folder,
-            files: spec.files,
-          },
+          task: plan.task,
           workspaceRoot: repositoryRoot,
-          role: {
-            roleId: spec.role.role,
-            workspaceMode: mode,
-            toolGroups: tools.groups,
-            ...(writePaths !== undefined && { writePaths }),
-            reportShape:
-              reviewed === undefined
-                ? (spec.role.report ?? builtin?.report ?? 'summary')
-                : 'review',
-          },
-          prompt: { charter: charter.generated, body: charter.body, rulesAndSkills: '' },
+          role: plan.role,
+          prompt: plan.prompt,
           isTrusted: deps.isTrusted(),
           io: WORKER_NATIVE_IO,
           platform: deps.platform,

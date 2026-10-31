@@ -480,6 +480,9 @@
     // trace.
     "src/host/team/teamTrafficEntry.ts",
     "src/host/team/teamMcpEntry.ts",
+    // RLF-TEAMWORKERS: the Muse Code and external-agent worker ports
+    // (dist/teamProcess.js), loaded by the team host on the first such task.
+    "src/host/team/teamProcessEntry.ts",
     //
     // M115 (Scheduled prompts v2, D95): the v2 engine, grant, event-source
     // and editor pieces ahead of their schedule-use wiring. Wiring: the
