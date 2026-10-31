@@ -7517,6 +7517,8 @@
   "makerStopPhysicalRequired": "{machine} makinesi fiziksel acil durdurma gerektirir; yazılımla durdurma kullanılamıyor.",
   "makerTrustRequired": "Donanımı etkinleştirmeden önce bu çalışma alanına güvenin.",
   "makerSerialPythonMissing": "Seri erişim, pyserial paketli Python 3 (python3) gerektirir ve PATH’inizde bu çalışma alanının dışında python3 bulunamadı. Python 3’ü kurun, “python3 -m pip install pyserial” komutunu çalıştırın ve yeniden deneyin.",
+  "makerSerialPythonSetMissing": "Seri erişim için ayarladığınız Python (museSpark.serialPythonPath veya aracının settings.json dosyasındaki serialPythonPath) var olan bir dosyanın tam yolu değil. pyserial paketli bir Python 3’ün tam yolunu ayarlayın ya da PATH’inizdeki python3’ün kullanılması için ayarı temizleyin.",
+  "makerSerialPythonSetInWorkspace": "Seri erişim için ayarladığınız Python bu çalışma alanının içinde; bir proje onun yerine çalışacak bir program sağlayabilir. Çalışma alanının dışındaki bir Python’u, örneğin ana klasörünüzdeki bir sanal ortamdakini ayarlayın.",
   "makerEnableHardware": "Bu çalışma alanında donanımı etkinleştir",
   "makerCliUsage": "Terminalden maker donanımı: bir çalışma alanı için donanımı etkinleştirin veya devre dışı bırakın, makineleri kaydedip listeleyin, bir makineyi durdurun veya maker panelini açın. machines add, --registration değerini ve --key-stdin ile makine anahtarını standart girdiden okur. Fiziksel eylemler işletim sisteminizde oturum açmanızı ister ve asla gözetimsiz çalışmaz.",
   "makerDisableHardware": "Bu çalışma alanında donanımı devre dışı bırak",

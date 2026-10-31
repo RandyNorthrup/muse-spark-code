@@ -25,6 +25,7 @@ import {
   type LegalHeaderPolicy,
   MEDIA_AUDIO_ACTION_OPTIONS,
   MEDIA_CONVERTER_PATH_MAX_CHARS,
+  SERIAL_PYTHON_PATH_MAX_CHARS,
   ESTIMATE_OPTIMIZE_MODES,
   type EstimateOptimizeMode,
   PROMPT_CACHE_RETENTIONS,
@@ -223,6 +224,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly mediaAudioAction: (typeof MEDIA_AUDIO_ACTION_OPTIONS)[number]
   /** M105 lane V: an absolute converter path; empty uses documented installs only. */
   readonly mediaConverterPath: string
+  /** RLF-SMALLFIX2: an absolute Python 3 path for the serial helper; empty finds python3 on PATH outside the workspace. */
+  readonly serialPythonPath: string
   /** M108 (PLAN.md D88.5): swap at the next request boundary; on by default. */
   readonly accountSwap: boolean
   /** M108 (PLAN.md D88.5): spread background work across accounts; on by default. */
@@ -411,6 +414,7 @@ const settingSchemas = {
   screenRecordingMaxSeconds: z.int().check(z.gte(0)),
   mediaAudioAction: z.enum(MEDIA_AUDIO_ACTION_OPTIONS),
   mediaConverterPath: z.string().check(z.maxLength(MEDIA_CONVERTER_PATH_MAX_CHARS)),
+  serialPythonPath: z.string().check(z.maxLength(SERIAL_PYTHON_PATH_MAX_CHARS)),
   accountSwap: z.boolean(),
   accountParallel: z.boolean(),
   'accounts.severalOnThisDevice': z.boolean(),
@@ -597,6 +601,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     screenRecordingMaxSeconds: readSetting(config, 'screenRecordingMaxSeconds', log),
     mediaAudioAction: readSetting(config, 'mediaAudioAction', log),
     mediaConverterPath: readSetting(config, 'mediaConverterPath', log),
+    serialPythonPath: readSetting(config, 'serialPythonPath', log),
     // M108: swap, spread and the visible several-accounts toggle stay
     // readable while uncertified, like the lane's certified state; the
     // certification switch and unbound owners refuse every binding, so

@@ -7889,6 +7889,8 @@
   "makerStopPhysicalRequired": "Maszyna {machine} wymaga fizycznego zatrzymania awaryjnego; zatrzymanie programowe jest niedostępne.",
   "makerTrustRequired": "Oznacz ten obszar roboczy jako zaufany przed włączeniem sprzętu.",
   "makerSerialPythonMissing": "Dostęp szeregowy wymaga Pythona 3 (python3) z pakietem pyserial, a w Twojej zmiennej PATH poza tym obszarem roboczym nie znaleziono python3. Zainstaluj Pythona 3, uruchom „python3 -m pip install pyserial” i spróbuj ponownie.",
+  "makerSerialPythonSetMissing": "Python ustawiony do dostępu szeregowego (museSpark.serialPythonPath lub serialPythonPath w pliku settings.json agenta) nie jest pełną ścieżką istniejącego pliku. Ustaw pełną ścieżkę do Pythona 3 z pakietem pyserial albo wyczyść ustawienie, aby użyć python3 ze zmiennej PATH.",
+  "makerSerialPythonSetInWorkspace": "Python ustawiony do dostępu szeregowego znajduje się w tym obszarze roboczym, gdzie projekt mógłby dostarczyć program uruchamiany w jego miejscu. Ustaw Pythona spoza obszaru roboczego, na przykład z wirtualnego środowiska w folderze domowym.",
   "makerEnableHardware": "Włącz sprzęt w tym obszarze roboczym",
   "makerCliUsage": "Sprzęt maker z terminala: włącz lub wyłącz sprzęt dla obszaru roboczego, rejestruj i listuj maszyny, zatrzymaj maszynę lub otwórz panel maker. machines add odczytuje --registration, a z opcją --key-stdin klucz maszyny ze standardowego wejścia. Działania fizyczne wymagają logowania do systemu operacyjnego i nigdy nie działają bez nadzoru.",
   "makerDisableHardware": "Wyłącz sprzęt w tym obszarze roboczym",

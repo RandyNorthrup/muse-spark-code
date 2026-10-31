@@ -64,7 +64,10 @@ export const runtimeMakerLan: MakerLanPolicy = {
 }
 export interface RuntimeMakerServiceDeps extends Omit<RuntimeMakerHostDeps, 'auditEnable'> {
   readonly stopOnlyFallback?: boolean
-  readonly native: Pick<NativeSerialDeps, 'platform' | 'env' | 'packageRoot' | 'classify'>
+  readonly native: Pick<
+    NativeSerialDeps,
+    'platform' | 'env' | 'packageRoot' | 'classify' | 'serialPython'
+  >
   readonly lan?: MakerLanPolicy
   /** A host-owned, already approved and leased serial machine connection, supplied by P/W. */
   readonly serialMachine?: (record: MachineRecord, deps: MachineDeps) => Promise<Machine>

@@ -7703,6 +7703,8 @@
   "makerStopPhysicalRequired": "La machine {machine} nécessite un arrêt d’urgence physique ; l’arrêt logiciel n’est pas disponible.",
   "makerTrustRequired": "Accordez votre confiance à cet espace de travail avant d’activer le matériel.",
   "makerSerialPythonMissing": "L’accès série nécessite Python 3 (python3) avec le paquet pyserial, et aucun python3 n’a été trouvé dans votre PATH en dehors de cet espace de travail. Installez Python 3, exécutez « python3 -m pip install pyserial », puis réessayez.",
+  "makerSerialPythonSetMissing": "Le Python que vous avez défini pour l’accès série (museSpark.serialPythonPath, ou serialPythonPath dans le settings.json de l’agent) n’est pas le chemin complet d’un fichier existant. Indiquez le chemin complet d’un Python 3 avec le paquet pyserial, ou videz le réglage pour utiliser python3 de votre PATH.",
+  "makerSerialPythonSetInWorkspace": "Le Python que vous avez défini pour l’accès série se trouve dans cet espace de travail, où un projet pourrait fournir un programme exécuté à sa place. Indiquez un Python en dehors de l’espace de travail, par exemple celui d’un environnement virtuel dans votre dossier personnel.",
   "makerEnableHardware": "Activer le matériel pour cet espace de travail",
   "makerCliUsage": "Matériel maker depuis le terminal : activez ou désactivez le matériel pour un espace de travail, enregistrez et listez les machines, arrêtez une machine ou ouvrez le panneau maker. machines add lit --registration et, avec --key-stdin, la clé de la machine depuis l’entrée standard. Les actions physiques demandent la connexion à votre système d’exploitation et ne s’exécutent jamais sans surveillance.",
   "makerDisableHardware": "Désactiver le matériel pour cet espace de travail",
