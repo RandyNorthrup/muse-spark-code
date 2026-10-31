@@ -45,9 +45,13 @@ Source lanes A/B/C/G/GX/GL: GL is the port base; GX's Xcode is ported
 whole; G is inside GL; A adds nothing under `hosts/` beyond GL; C's
 host deltas were fake-harness migrations (deleted with the fakes) and
 its runtime attachments binding targets a panel shape int does not
-have (not ported; needs its own lane). B's extra hosts (Spyder,
-RStudio, NetBeans, Jupyter) are outside this brief's nine and are not
-ported. The GX lineage's release pipeline (`hosts-native.yml`) is
+have (not ported; needs its own lane). B's host-touching work is an
+MHP 1.6 rev (theme message, all four natives to 1.6); int's frozen
+contract is 1.5.0 with 1.6.0 as its exclusive bound, so adopting it
+is a D212 rev decision for the lead, not a per-host port — nothing of
+B applies to the nine hosts on int's 1.5 panel. B's remaining pieces
+are new hosts and a Python client core (Spyder, RStudio, NetBeans,
+Jupyter, `hosts/mhp-python`), outside this brief's nine. The GX lineage's release pipeline (`hosts-native.yml`) is
 not landed; see `docs/real-life/unproven.md`.
 
 ## Next
@@ -55,6 +59,12 @@ not landed; see `docs/real-life/unproven.md`.
 - Live conformance legs (conversation, approval, session-reload,
   tab-completion) on `muse-spark-1.3-contributor`, ≤4 requests per
   host, counted — lead-authorized.
+- GL's backend checkpoint wiring (`checkpointsFor` in
+  `src/runtime/backends.ts`, tools recording through the owner IO,
+  the panel conversation restoring through it): the adapter is
+  landed and proven, but int's conversation port still reports
+  checkpoints off, as lane B left it. A runtime lane, with GL's
+  `runtimeConversationCheckpoints` suite as its spec.
 - Per-document 1-based versions for dirty-buffer and atomic-edit.
 - The M105D attachments binding on int's panel shape.
 - The native release pipeline against int's release workflow.
