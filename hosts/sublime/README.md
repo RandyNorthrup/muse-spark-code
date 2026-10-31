@@ -38,14 +38,10 @@ retry.
 The default opener is `open` on macOS and `xdg-open` on Linux. Set `opener`
 to a browser argv list on Windows. Every spawn uses `shell=False`.
 
-From the repository root, run the offline Sublime API stub tests:
-
-```sh
-python3 -m unittest discover -s hosts/sublime/test -v
-```
-
-No actual Sublime GUI or shared controller conformance is claimed by the
-stub. F1–F56 integration remains tracked in `docs/certification/m104-h.md`.
+The hand-written Sublime API suite was deleted with the fake `sublime`
+module. There is no `hosts/sublime/test` directory, and this package has
+not been run inside Sublime Text. F1–F56 integration remains tracked in
+`docs/certification/m104-h.md` and `docs/real-life/unproven.md`.
 
 ## LSP and independent workspace Stop
 
@@ -54,7 +50,7 @@ With Sublime's LSP package installed, this package registers
 route. Add `--tab` and `--trust-workspace` to that command only when opting
 into invoked paid Tab; runtime consent and the native-store key are required.
 The adapter empties inherited credential variables before LSP launch. Native
-GUI qualification is pending; registration and launch use offline API doubles.
+GUI qualification is pending.
 
 Companion launch uses `supervise`. `muse_stop` starts a separate bounded,
 credential-free workspace Stop process, including on window close. Panel and

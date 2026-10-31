@@ -48,6 +48,9 @@ happened, not what was planned; superseded entries are kept.
   Emacs, Neovim, Zed and Qt Creator shims launch the agent with
   credentials stripped. Sublime Text, Visual Studio and Xcode hosts
   are in the tree but not yet run in their editors.
+- **A page the agent asks JetBrains or Eclipse to show cannot bring its
+  own script or a looser security policy.** The editor keeps the page
+  rules it loaded, and a message from any other page is refused.
 - **`muse-spark-code-acp watchdog` keeps a watch list of GitHub repositories
   in a terminal.** `watchdog list` and `status` show the watched
   repositories, `pause` and `resume` stop and restart watching, and `policy`
