@@ -208,8 +208,10 @@ both on the untouched base and on this tree, and all pass with a canonical
   three private. **Built by RLF-TEAMWORKERS2** (`rlf-teamworkers2.md` §4): the
   host lends exactly those three through `teamSlotPorts`, `CheckSlots` builds
   the governed slots and calls `requestCheckSlot`, and `dist/resourceGovernor.js`
-  stayed within its 125 KiB (120.4). The check route above `CheckSlots` still has
-  no caller in the product.
+  stayed within its 125 KiB (120.4). **Wired by RLF-TEAMWORKERS3**
+  (`rlf-teamworkers3.md` §3): a Muse Code worker's `run_checks` is the caller
+  (`bridgeRunChecks` → `routeWorkerCheck` → the governed `CheckSlots`, built through
+  `loadRunners`); the engine route, external agents and SSH runners are not on it.
 - **External agents cannot start yet.** `acpSpawnArgs` refuses any preset whose
   switch for leaving out the person's own MCP servers is not captured, by design
   (M96 step 1). When this lane ended none of `claude`, `codex`, `gemini`,
@@ -237,7 +239,9 @@ both on the untouched base and on this tree, and all pass with a canonical
 ## 7. The live run for the lead, after the reset (not run here)
 
 Updated by RLF-TEAMWORKERS2 (2026-10-31): the external half now starts, with the
-conditions below; nothing here has run.
+conditions below; updated by RLF-TEAMWORKERS3 (2026-10-31): the contributor model on
+`own` is decided and built, and a Muse Code worker can run the person's checks
+(steps 6 and 7). Nothing here has run.
 
 Prerequisites: a build of this branch (`npm run build`; `node
 scripts/package-vsix.mjs --target <platform>`), Muse Code signed in with
@@ -249,16 +253,19 @@ repository with one commit. For the external half also:
   `~/.config/muse/settings.json` (a worker's environment drops `XDG_CONFIG_HOME`)
   names a server not set `enabled: false`. Use a profile with none, or set them
   `enabled: false` for the run.
-- **The lead's answer on a contributor-tier model for `own`**
-  (`rlf-teamworkers2.md` §7, item 2): the agent lists contributor models only with
-  `--allow-contributor-models`, which the `own` preset does not pass, so the entry
-  below cannot select `muse-wonder-full-1.0-contributor` until the lead decides.
-  Without that answer run the Muse Code half only (steps 1–5 with one entry).
+- **The contributor-tier model on `own` is decided** (the lead, option a): `own` is
+  started with `--allow-contributor-models` exactly when its pool entry names a
+  contributor-tier id the product's model table lists, so the entry below selects
+  `muse-wonder-full-1.0-contributor`. Check the agent's argument line (`ps -o args=`
+  while it runs) ends in `--no-user-mcp-servers --allow-contributor-models`, and that
+  the model is in its list: the agent lists it only after its sign-in, which the
+  suites could not show (`rlf-teamworkers3.md` §2).
 
-State first: **at most 12 requests**, all contributor tier, named explicitly:
-orchestrator `muse-spark-1.3-contributor`; the Muse Code worker on
+State first: **at most 16 requests**, all contributor tier, named explicitly:
+orchestrator `muse-spark-1.3-contributor`; the Muse Code workers on
 `muse-spark-1.3-contributor`; the external worker (our own `muse-spark-code-acp`)
-on `muse-wonder-full-1.0-contributor`. Expected: 3–4 requests per conversation.
+on `muse-wonder-full-1.0-contributor`. Expected: 3–4 requests per conversation,
+four conversations (orchestrator, two workers, the checks worker of step 6).
 Never any other Muse id in any session started here (an unknown tier is refused).
 
 1. Install the VSIX in a clean VS Code profile; open the empty workspace; in
@@ -281,5 +288,21 @@ Never any other Muse id in any session started here (an unknown tier is refused)
 5. Count: the requests of each session from Muse Code's session records
    (`~/.local/share/muse/sessions/<year>/<month>/<day>/<session id>`, the
    `countSessionCalls` audit in `test/e2e/team.live.e2e.test.ts`) plus the ACP
-   agent's own session record; the sum must be ≤ 12. Record the commands, the
-   counts and the two merge diffs here.
+   agent's own session record; the sum must be ≤ 16. Record the commands, the
+   counts and the merge diffs here.
+6. (RLF-TEAMWORKERS3) Put one check in `museSpark.checkCommands`, for example
+   `{"name": "version", "command": "node --version"}`, and ask the orchestrator to
+   delegate "run the project's checks and report what they say" to the Muse Code
+   `engineering` entry. That role has the checks group, so its session starts with
+   one session MCP server, `muse-team-checks`. Record, from the session record and
+   the log: the approval Muse Code raised for the `run_checks` call (its `subject`
+   and `toolName`; the team answers yes once to a tool whose reported name contains
+   `muse-team-checks`, and refuses anything else, so a different shape shows as a
+   refusal here and is the one constant to change), and that the call returned the
+   check's exit code and output.
+7. While step 6 runs, `ls <storage>/team/check-slots` shows a folder with a clone of
+   the task's copy, and with the machine held at throttle (Settings, memory limit
+   0%) two such tasks started together run their checks one after the other. On
+   Linux with a delegated systemd scope and on Windows the check ends with its tree
+   proved; **on macOS it ends in the uncertain-attempt sentence and the folder
+   stays held** (`rlf-teamworkers3.md` §7 item 1): record which you saw.
