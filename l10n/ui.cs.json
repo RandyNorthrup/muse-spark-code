@@ -7789,6 +7789,7 @@
   "makerStopFailed": "Zastavení selhalo — ihned použijte fyzické nouzové zastavení stroje {machine}.",
   "makerStopPhysicalRequired": "Stroj {machine} vyžaduje fyzické nouzové zastavení; softwarové zastavení není dostupné.",
   "makerTrustRequired": "Před povolením hardwaru označte tento pracovní prostor jako důvěryhodný.",
+  "makerSerialPythonMissing": "Sériový přístup potřebuje Python 3 (python3) s balíčkem pyserial a na vaší proměnné PATH mimo tento pracovní prostor nebyl nalezen žádný python3. Nainstalujte Python 3, spusťte „python3 -m pip install pyserial“ a zkuste to znovu.",
   "makerEnableHardware": "Povolit hardware pro tento pracovní prostor",
   "makerCliUsage": "Maker hardware z terminálu: povolte nebo zakažte hardware pro pracovní prostor, registrujte a vypisujte stroje, zastavte stroj nebo otevřete panel maker. Příkaz machines add čte --registration a s volbou --key-stdin klíč stroje ze standardního vstupu. Fyzické akce vyžadují přihlášení do operačního systému a nikdy neběží bez dozoru.",
   "makerDisableHardware": "Zakázat hardware pro tento pracovní prostor",

@@ -7605,6 +7605,7 @@
   "makerStopFailed": "La parada falló — use ahora la parada de emergencia física de la máquina {machine}.",
   "makerStopPhysicalRequired": "La máquina {machine} requiere una parada de emergencia física; la parada por software no está disponible.",
   "makerTrustRequired": "Confía en este espacio de trabajo antes de habilitar el hardware.",
+  "makerSerialPythonMissing": "El acceso serie necesita Python 3 (python3) con el paquete pyserial, y no se encontró ningún python3 en su PATH fuera de este espacio de trabajo. Instale Python 3, ejecute «python3 -m pip install pyserial» e inténtelo de nuevo.",
   "makerEnableHardware": "Habilitar hardware para este espacio de trabajo",
   "makerCliUsage": "Hardware maker desde el terminal: active o desactive el hardware para un espacio de trabajo, registre y enumere máquinas, detenga una máquina o abra el panel maker. machines add lee --registration y, con --key-stdin, la clave de la máquina desde la entrada estándar. Las acciones físicas piden el inicio de sesión de su sistema operativo y nunca se ejecutan sin supervisión.",
   "makerDisableHardware": "Deshabilitar hardware para este espacio de trabajo",

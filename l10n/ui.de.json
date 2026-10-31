@@ -7421,6 +7421,7 @@
   "makerStopFailed": "Stopp fehlgeschlagen — betätigen Sie jetzt den physischen Not-Aus der Maschine {machine}.",
   "makerStopPhysicalRequired": "Maschine {machine} erfordert den physischen Not-Aus; ein Softwarestopp ist nicht verfügbar.",
   "makerTrustRequired": "Vertrauen Sie diesem Arbeitsbereich, bevor Sie Hardware aktivieren.",
+  "makerSerialPythonMissing": "Der serielle Zugriff braucht Python 3 (python3) mit dem Paket pyserial, und auf Ihrem PATH wurde außerhalb dieses Arbeitsbereichs kein python3 gefunden. Installieren Sie Python 3, führen Sie „python3 -m pip install pyserial“ aus und versuchen Sie es erneut.",
   "makerEnableHardware": "Hardware für diesen Arbeitsbereich aktivieren",
   "makerCliUsage": "Maker-Hardware vom Terminal aus: Hardware für einen Arbeitsbereich aktivieren oder deaktivieren, Maschinen registrieren und auflisten, eine Maschine stoppen oder das Maker-Panel öffnen. machines add liest --registration und mit --key-stdin den Maschinenschlüssel von der Standardeingabe. Physische Aktionen fragen Ihre Anmeldung beim Betriebssystem ab und laufen nie unbeaufsichtigt.",
   "makerDisableHardware": "Hardware für diesen Arbeitsbereich deaktivieren",

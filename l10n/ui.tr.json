@@ -7421,6 +7421,7 @@
   "makerStopFailed": "Durdurma başarısız — {machine} makinesinin fiziksel acil durdurmasını hemen kullanın.",
   "makerStopPhysicalRequired": "{machine} makinesi fiziksel acil durdurma gerektirir; yazılımla durdurma kullanılamıyor.",
   "makerTrustRequired": "Donanımı etkinleştirmeden önce bu çalışma alanına güvenin.",
+  "makerSerialPythonMissing": "Seri erişim, pyserial paketli Python 3 (python3) gerektirir ve PATH’inizde bu çalışma alanının dışında python3 bulunamadı. Python 3’ü kurun, “python3 -m pip install pyserial” komutunu çalıştırın ve yeniden deneyin.",
   "makerEnableHardware": "Bu çalışma alanında donanımı etkinleştir",
   "makerCliUsage": "Terminalden maker donanımı: bir çalışma alanı için donanımı etkinleştirin veya devre dışı bırakın, makineleri kaydedip listeleyin, bir makineyi durdurun veya maker panelini açın. machines add, --registration değerini ve --key-stdin ile makine anahtarını standart girdiden okur. Fiziksel eylemler işletim sisteminizde oturum açmanızı ister ve asla gözetimsiz çalışmaz.",
   "makerDisableHardware": "Bu çalışma alanında donanımı devre dışı bırak",

@@ -386,6 +386,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Serial access starts only a `python3` it found by its full path.** On
+  macOS and Linux the serial helper used to start whatever `python3` came
+  first on your PATH, so a program planted in your project folder (a
+  relative PATH entry, or a folder inside the workspace) could run in its
+  place. It now starts one `python3` found by its full path outside the
+  workspace. When there is none, it says that serial access needs Python 3
+  with the pyserial package and the command that installs it.
 - A pack index is accepted only when the signature covers those exact bytes
   and the signer is the pack workflow on `main`, exactly. A signature for a
   branch whose name merely begins with `main`, or a signed statement that
