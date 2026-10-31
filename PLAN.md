@@ -2836,8 +2836,9 @@ long tasks, more agents safely, connectivity; both-backends-first within a
 wave), the carried rules (model calls beyond the user's own turn are billed,
 opt in, priced and ask first; Restricted Mode runs no git or shell;
 token/quality trades ship only after M75's paired evaluation holds the floors;
-one-token ide-server tool constraints), and the M67–M85 wave batch it ordered
-(all shipped). Full record:
+one-token ide-server tool constraints; the browser check reaching only the
+exact origins the person lists, amended 2026-10-31), and the M67–M85 wave
+batch it ordered (all shipped). Full record:
 [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 - "research the claude code harness and any upcoming features … and also
@@ -2906,6 +2907,20 @@ both backends comes before what serves one.
   prompts. Nothing generates text on its own.
 - **Restricted Mode** runs no git and no shell (D13, D24). A milestone that
   needs them is unavailable there and says why.
+- **The browser check reaches only the origins the person lists (amended
+  2026-10-31, CC-INT8: the lead's ruling on CC-INT6's open decision 4,
+  `docs/certification/cc-int6.md` §8).** M81's check goes through its own
+  proxy, and loopback, link-local and private addresses are refused by
+  default, including names that resolve to them, redirects, IPv4-mapped
+  IPv6 and a relay on a second port. A dev server is reached by adding its
+  exact origin (scheme, host and port), for example `http://localhost:3000`,
+  to the user-level `museSpark.browserCheckExtraHosts`: workspace files and
+  settings cannot add one, a non-loopback origin asks a separate
+  confirmation naming its address, and the maker companion's ports 47830 to
+  47839 are always refused. This replaces M81's first rule that loopback
+  was reachable by default (its record in `docs/plan-archive/milestones.md`
+  keeps that text as history). It is the rule RLM103 built and documented
+  (README, "Where a page may go"), so the original is not restored.
 - **Measured first.** A harness change that trades tokens against
   quality (M73, M74) ships only after M75's paired evaluation shows the
   capability floors held on muse-spark. M75 is therefore built first in
@@ -9454,7 +9469,12 @@ to exclusive `mhp/1.6.0`) or refuses with `MHP_INCOMPATIBLE_VERSION`; no
 older route, tag, schema or test survives. Both legacy-named snapshots and
 locks advertise 1.5.1; a new revision regenerates every schema, lock and
 host together. 1.5.1 (lane RLF-QUOTA, D252) carries the quota detail on
-`turnCompleted` and `turnRetry`. Record: `docs/certification/cc-rlm104.md`.
+`turnCompleted` and `turnRetry`. Neither 1.5.0 (on int since 2026-10-24,
+after 0.19.0) nor 1.5.1 has shipped, so the lock was re-frozen once on the
+CC-INT8 join (2026-10-31), through the adoption route, at 1.5.1
+(`docs/certification/cc-int8.md` names every change since the 1.5.0 lock);
+from the release that ships 1.5.1 the lock is frozen for real. Record:
+`docs/certification/cc-rlm104.md`.
 
 ### D227 — Teams stay off until the person sets up a second model (RLF-TEAMGATE, 2026-10-23; numbered D217 on its branch until the int/recovery join of 2026-10-30, when that number was found shared with the judge fast path's `stat`)
 
@@ -14606,6 +14626,13 @@ release candidate; the independent review RV81 (one P1, four P2) fixed the
 same day, each with a test and a red drill. Decisions taken while building:
 
 - **Goal.** The model sees its web change working.
+
+**Amended 2026-10-31 (D49, CC-INT8): reach.** The first design's
+"loopback is reachable by default" no longer holds: the check reaches an
+origin only when the person lists its exact origin in the user-level
+`museSpark.browserCheckExtraHosts` (D49, "Rules carried"; README, "Where a
+page may go"). The archived record below the stub keeps the first rule as
+history.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
