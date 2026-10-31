@@ -251,29 +251,24 @@ const initializeResponse = z.looseObject({
     z.nullable(z.looseObject({ name: z.optional(z.string()), version: z.optional(z.string()) })),
   ),
 })
+// What `session/new` and `session/load` both answer: the modes on offer and
+// the configuration selectors.
+const sessionState = {
+  modes: z.optional(
+    z.nullable(
+      z.looseObject({
+        currentModeId: z.string(),
+        availableModes: z.array(z.looseObject({ id: z.string() })),
+      }),
+    ),
+  ),
+  configOptions: z.optional(z.nullable(z.array(z.unknown()))),
+}
 const sessionResponse = z.looseObject({
   sessionId: z.string().check(z.minLength(1)),
-  modes: z.optional(
-    z.nullable(
-      z.looseObject({
-        currentModeId: z.string(),
-        availableModes: z.array(z.looseObject({ id: z.string() })),
-      }),
-    ),
-  ),
-  configOptions: z.optional(z.nullable(z.array(z.unknown()))),
+  ...sessionState,
 })
-const loadResponse = z.looseObject({
-  modes: z.optional(
-    z.nullable(
-      z.looseObject({
-        currentModeId: z.string(),
-        availableModes: z.array(z.looseObject({ id: z.string() })),
-      }),
-    ),
-  ),
-  configOptions: z.optional(z.nullable(z.array(z.unknown()))),
-})
+const loadResponse = z.looseObject(sessionState)
 const promptResponse = z.looseObject({ stopReason: z.string() })
 const configResponse = z.looseObject({ configOptions: z.array(z.unknown()) })
 const configValue = z.looseObject({ value: z.string() })
@@ -632,6 +627,25 @@ export function connectAcpAgent(input: {
     }
     return selectors
   }
+  /** Keeps what a started or loaded session answered; returns its modes. */
+  const noteSession = (
+    sessionId: string,
+    grant: WorkerRootGrant,
+    answered: z.infer<typeof loadResponse>,
+  ) => {
+    sessionGrants.set(sessionId, grant)
+    sessionConfigurations.set(sessionId, answered.configOptions ?? [])
+    if (answered.modes !== undefined && answered.modes !== null)
+      sessionModes.set(sessionId, answered.modes.currentModeId)
+    const modeSelector = selectorOf(answered.configOptions ?? [], 'mode')
+    return {
+      ...(answered.modes !== undefined &&
+        answered.modes !== null && { currentMode: answered.modes.currentModeId }),
+      advertisedModes:
+        answered.modes?.availableModes.map((mode) => mode.id) ??
+        (modeSelector === undefined ? [] : valuesOf(modeSelector)),
+    }
+  }
   const runPrompt = async (
     sessionId: string,
     blocks: readonly unknown[],
@@ -703,19 +717,7 @@ export function connectAcpAgent(input: {
         }),
       )
       const parsed = sessionResponse.parse(response)
-      sessionGrants.set(parsed.sessionId, params.grant)
-      sessionConfigurations.set(parsed.sessionId, parsed.configOptions ?? [])
-      if (parsed.modes !== undefined && parsed.modes !== null)
-        sessionModes.set(parsed.sessionId, parsed.modes.currentModeId)
-      const modeSelector = selectorOf(parsed.configOptions ?? [], 'mode')
-      return {
-        sessionId: parsed.sessionId,
-        ...(parsed.modes !== undefined &&
-          parsed.modes !== null && { currentMode: parsed.modes.currentModeId }),
-        advertisedModes:
-          parsed.modes?.availableModes.map((mode) => mode.id) ??
-          (modeSelector === undefined ? [] : valuesOf(modeSelector)),
-      }
+      return { sessionId: parsed.sessionId, ...noteSession(parsed.sessionId, params.grant, parsed) }
     },
     sessionLoad: async (params) => {
       const response = await requesting(
@@ -726,19 +728,7 @@ export function connectAcpAgent(input: {
           mcpServers: [...params.mcpServers],
         }),
       )
-      const parsed = loadResponse.parse(response)
-      sessionGrants.set(params.sessionId, params.grant)
-      sessionConfigurations.set(params.sessionId, parsed.configOptions ?? [])
-      if (parsed.modes !== undefined && parsed.modes !== null)
-        sessionModes.set(params.sessionId, parsed.modes.currentModeId)
-      const modeSelector = selectorOf(parsed.configOptions ?? [], 'mode')
-      return {
-        ...(parsed.modes !== undefined &&
-          parsed.modes !== null && { currentMode: parsed.modes.currentModeId }),
-        advertisedModes:
-          parsed.modes?.availableModes.map((mode) => mode.id) ??
-          (modeSelector === undefined ? [] : valuesOf(modeSelector)),
-      }
+      return noteSession(params.sessionId, params.grant, loadResponse.parse(response))
     },
     setConfigOption: async (sessionId, value) => {
       const selector = selectorOf(sessionConfigurations.get(sessionId) ?? [], 'mode')

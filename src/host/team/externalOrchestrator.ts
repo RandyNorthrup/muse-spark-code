@@ -124,6 +124,14 @@ function stoppedSentence(agent: ExternalAgent): string {
   return fill(UI_TEXT.teamExternalStopped, { agent: agent.label })
 }
 
+/** Adds a listener to a set and returns the call that removes it. */
+function subscribe<listener>(listeners: Set<listener>, listener: listener): () => void {
+  listeners.add(listener)
+  return () => {
+    listeners.delete(listener)
+  }
+}
+
 /** ACP `ToolCallStatus` onto the conversation's item status words. */
 function itemStatus(status: string | undefined, fallback = IN_PROGRESS): string {
   switch (status) {
@@ -534,16 +542,13 @@ export class ExternalOrchestratorSession implements AgentSession {
   }
 
   public onEvent(listener: SessionEventListener): () => void {
-    this.listeners.add(listener)
     // A (re)attach replays what this session already holds, as the other
     // hosts' attach replays their items; live events follow.
     for (const id of this.order) {
       const item = this.items.get(id)
       if (item !== undefined) listener({ type: 'itemCompleted', item })
     }
-    return () => {
-      this.listeners.delete(listener)
-    }
+    return subscribe(this.listeners, listener)
   }
 
   public onSessionUpdate(update: unknown): void {
@@ -1253,17 +1258,11 @@ export class ExternalOrchestratorHost implements AgentHost {
   }
 
   public onExit(listener: (exit: HostExit) => void): () => void {
-    this.exitListeners.add(listener)
-    return () => {
-      this.exitListeners.delete(listener)
-    }
+    return subscribe(this.exitListeners, listener)
   }
 
   public onSessionListEvent(listener: (event: SessionListEvent) => void): () => void {
-    this.listListeners.add(listener)
-    return () => {
-      this.listListeners.delete(listener)
-    }
+    return subscribe(this.listListeners, listener)
   }
 
   public async startSession(options: StartSessionOptions): Promise<AgentSession> {

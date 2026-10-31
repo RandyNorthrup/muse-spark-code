@@ -10,26 +10,12 @@ import { setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 import { fill } from '../../shared/l10n/text'
 import { UI_TEXT } from '../../shared/constants'
-import type { CoreLogger } from '../../core/logging'
 import type { ExternalAgent } from '../../core/team/externalAgents'
-import { ExternalOrchestratorHost } from './externalOrchestrator'
+import { ExternalOrchestratorHost, type ExternalOrchestratorDeps } from './externalOrchestrator'
 import { findAcpPresetCommand } from './acpProcess'
 
-/** What the extension supplies: the pick, and this window's own facts. */
-export interface ExternalOrchestratorEntryDeps {
-  readonly agent: ExternalAgent
-  /** The bridge this install ships (`dist/teamHttpBridge.js`) and its runtime. */
-  readonly bridge: {
-    readonly command: string
-    readonly args: readonly string[]
-    readonly env?: readonly { readonly name: string; readonly value: string }[]
-  }
-  readonly log: CoreLogger
-  readonly platform: NodeJS.Platform
-  readonly baseEnv: NodeJS.ProcessEnv
-  readonly newId: () => string
-  readonly now: () => number
-}
+/** What the extension supplies: the pick, and this window's own facts (the host resolves the command). */
+export type ExternalOrchestratorEntryDeps = Omit<ExternalOrchestratorDeps, 'command'>
 
 function isMissingCandidate(error: unknown): boolean {
   return (
