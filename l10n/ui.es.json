@@ -259,6 +259,8 @@
   "resourceRelocationNoTarget": "No hay ninguna ruta activa a un ejecutor aprobado. El trabajo permanece en esta máquina. La reubicación en dispositivos emparejados no está disponible.",
   "resourceUnavailable": "Esta lectura no está disponible en este equipo.",
   "resourceUnavailableWhy": "Esta lectura no está disponible en este equipo: {cause}",
+  "resourceCleanupRemoved": "Se eliminaron las carpetas temporales restantes de sesiones anteriores.",
+  "resourceCleanupRefused": "Algunas carpetas temporales restantes no pudieron verificarse, por lo que se dejaron en su sitio.",
   "resourceGovernorOff": "Los límites de recursos están desactivados en este equipo.",
   "resourceStatusRefused": "No se pudo leer el estado de recursos más reciente, así que no se muestran lecturas.",
   "resourceTransport": "Fallos de transporte",

@@ -259,6 +259,8 @@
   "resourceRelocationNoTarget": "Aucune route vers une machine d’exécution approuvée n’est active. Le travail reste sur cette machine. Le déplacement vers un appareil associé est indisponible.",
   "resourceUnavailable": "Cette mesure est indisponible sur cette machine.",
   "resourceUnavailableWhy": "Cette mesure est indisponible sur cette machine : {cause}",
+  "resourceCleanupRemoved": "Les dossiers temporaires restants des sessions précédentes ont été supprimés.",
+  "resourceCleanupRefused": "Certains dossiers temporaires restants n’ont pas pu être vérifiés et ont donc été laissés en place.",
   "resourceGovernorOff": "Les limites de ressources sont désactivées sur cette machine.",
   "resourceStatusRefused": "Le dernier état des ressources n’a pas pu être lu ; aucune mesure n’est donc affichée.",
   "resourceTransport": "Échecs du transport",

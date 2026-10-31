@@ -17,9 +17,13 @@ import {
   type CreatedRegistrySaveReason,
 } from '../../src/shared/createdRegistrySaveError'
 import { denyWrites } from './helpers/deniedAccess'
+import { createdCreator } from './helpers/resources/registryProof'
+import { isProcessOwnerGone } from '../../src/core/locks/processOwner'
 
 const proof: CreatedPathProof = {
   exited: () => Promise.resolve(true),
+  creator: createdCreator,
+  creatorExited: (creator) => isProcessOwnerGone(creator),
   archivedAndClean: () => Promise.resolve(true),
   freeBytes: () => Promise.resolve(null),
 }

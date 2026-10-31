@@ -259,6 +259,8 @@
   "resourceRelocationNoTarget": "Nessun percorso verso un esecutore approvato è attivo. Il lavoro rimane su questa macchina. Il trasferimento su dispositivi associati non è disponibile.",
   "resourceUnavailable": "Questa lettura non è disponibile su questa macchina.",
   "resourceUnavailableWhy": "Questa lettura non è disponibile su questa macchina: {cause}",
+  "resourceCleanupRemoved": "Le cartelle temporanee rimanenti delle sessioni precedenti sono state rimosse.",
+  "resourceCleanupRefused": "Alcune cartelle temporanee rimanenti non hanno potuto essere verificate, quindi sono state lasciate al loro posto.",
   "resourceGovernorOff": "I limiti delle risorse sono disattivati su questa macchina.",
   "resourceStatusRefused": "Impossibile leggere lo stato più recente delle risorse, quindi non vengono mostrate misurazioni.",
   "resourceTransport": "Errori di trasporto",

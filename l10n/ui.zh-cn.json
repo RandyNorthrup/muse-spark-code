@@ -259,6 +259,8 @@
   "resourceRelocationNoTarget": "没有通往已批准运行器的活动路由。工作保留在本机。无法迁移到已配对设备。",
   "resourceUnavailable": "此计算机无法提供这项读数。",
   "resourceUnavailableWhy": "此计算机无法提供这项读数：{cause}",
+  "resourceCleanupRemoved": "已删除早期会话遗留的临时文件夹。",
+  "resourceCleanupRefused": "某些遗留的临时文件夹无法验证，因此保留在原处。",
   "resourceGovernorOff": "此计算机上的资源限制已关闭。",
   "resourceStatusRefused": "无法读取最新的资源状态，因此不显示任何读数。",
   "resourceTransport": "传输失败",

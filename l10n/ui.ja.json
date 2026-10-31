@@ -259,6 +259,8 @@
   "resourceRelocationNoTarget": "承認済みランナーへの有効なルートがありません。作業はこのマシンに留まります。ペア設定済みデバイスへの移動は利用できません。",
   "resourceUnavailable": "このマシンではこの測定値を取得できません。",
   "resourceUnavailableWhy": "このマシンではこの測定値を取得できません: {cause}",
+  "resourceCleanupRemoved": "以前のセッションの残りの一時フォルダーが削除されました。",
+  "resourceCleanupRefused": "一部の残りの一時フォルダーを確認できなかったため、そのまま残されました。",
   "resourceGovernorOff": "このマシンではリソース制限がオフです。",
   "resourceStatusRefused": "最新のリソース状態を読み取れなかったため、測定値は表示されません。",
   "resourceTransport": "通信の失敗",

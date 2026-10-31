@@ -259,6 +259,8 @@
   "resourceRelocationNoTarget": "승인된 실행기로 연결되는 활성 경로가 없습니다. 작업은 이 컴퓨터에 남습니다. 페어링된 장치로의 이동은 사용할 수 없습니다.",
   "resourceUnavailable": "이 컴퓨터에서는 이 측정값을 사용할 수 없습니다.",
   "resourceUnavailableWhy": "이 컴퓨터에서는 이 측정값을 사용할 수 없습니다: {cause}",
+  "resourceCleanupRemoved": "이전 세션에서 남은 임시 폴더가 제거되었습니다.",
+  "resourceCleanupRefused": "남은 임시 폴더 중 일부를 확인할 수 없어 그대로 두었습니다.",
   "resourceGovernorOff": "이 컴퓨터에서 리소스 제한이 꺼져 있습니다.",
   "resourceStatusRefused": "최신 리소스 상태를 읽을 수 없어 측정값을 표시하지 않습니다.",
   "resourceTransport": "전송 실패",

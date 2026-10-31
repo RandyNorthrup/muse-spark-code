@@ -8,7 +8,13 @@ import { statfs } from 'node:fs/promises'
 import { TreeTempRoots } from '../../host/resources/tempRoots'
 import type { ResourceTempRoots, ResourceWindowsJob } from './launch'
 import { ResourceDiskSampler, type ResourceDiskTarget } from './disk'
-import { CreatedRegistry, type CreatedCleanup, type CreatedPathProof } from './createdRegistry'
+import {
+  CreatedRegistry,
+  type CreatedCleanup,
+  type CreatedCreator,
+  type CreatedPathProof,
+} from './createdRegistry'
+import { currentProcessOwner, isProcessOwnerGone } from '../locks/processOwner'
 import {
   BOUNDED_FILE_READ_CHUNK_BYTES,
   RESOURCE_HISTORY_FLUSH_TIMEOUT_MS,
@@ -226,6 +232,19 @@ export function resourceGovernorHost(
               directories,
               files: directories ?? nativeCommands,
               exited: (owner) => Promise.resolve(launched.host?.hasRetired(owner) ?? false),
+              // Entries name this process as their creator, so a later
+              // start can prove it exited and reclaim what a kill, crash
+              // or power loss left behind (RLF-TEMPLEAK).
+              creator: async (): Promise<CreatedCreator> => {
+                const me = await currentProcessOwner()
+                return {
+                  host: me.host,
+                  pid: me.pid,
+                  processStart: me.processStart,
+                  ...(me.bootId !== undefined && { bootId: me.bootId }),
+                }
+              },
+              creatorExited: (creator) => isProcessOwnerGone(creator),
               archivedAndClean: () =>
                 Promise.reject(new Error('Archive/clean proof is not installed')),
               freeBytes: async (file) => {
@@ -374,6 +393,14 @@ export function resourceGovernorHost(
     ...(share !== undefined && { isGovernorShared: true, onWorkChanged: share.workChanged }),
   })
   launched.host = host
+  // Start sweep (RLF-TEMPLEAK): every host reclaims what earlier starts
+  // left behind — trees whose creator is provably gone are ended and,
+  // past their keep period, removed. It rides the registry's own queue
+  // behind nothing of this start's, and reports like every other clean.
+  void created
+    .clean()
+    .then((result) => options.onCleanup?.(result))
+    .catch(options.onError)
   // The runtime's own recorder reads these launches (H–C1); the window records here.
   if (recorder !== undefined) {
     // The governor's own sample and event streams; recording never gates admission.
