@@ -3454,7 +3454,7 @@ Boards, printers and machines stay behind your approval: nothing moves, heats or
 - **Stop is never gated.** The status-bar Stop and `stop-machine` work in untrusted, disabled and unattended contexts. A software stop does not replace the machine's physical emergency stop.
 - **Exact-payload review.** Each approval binds the SHA-256 digest of the outgoing bytes; control bytes are shown visibly and dangerous commands need a separate acknowledgement. See [maker payload review](docs/help/maker-payload-review.md).
 - **Serial and machines.** Serial reads and writes go to the identified target only; machine keys stay in the OS store or SecretStorage. Machine registration confirms the target and warns about plain HTTP on the LAN.
-- **Headless.** The agent CLI serves `hardware enable|disable|status`, `machines add|list|remove`, `stop-machine` and `panel`. Hardware tools need `--hardware` plus the workspace grant; physical actions additionally need your OS sign-in and never run unattended.
+- **Headless.** The agent CLI serves `hardware enable|disable|status`, `machines add|list|remove|panel` and `stop-machine`. Hardware tools need `--hardware` plus the workspace grant; physical actions additionally need your OS sign-in and never run unattended.
 
 ## Design
 
@@ -6762,7 +6762,7 @@ muse-spark-code-acp machines add --registration <secretless-JSON> --trust-worksp
 muse-spark-code-acp machines list
 muse-spark-code-acp machines remove <id> --trust-workspace
 muse-spark-code-acp stop-machine [id|--all]
-muse-spark-code-acp panel [--trust-workspace]
+muse-spark-code-acp machines panel [--trust-workspace]
 ```
 
 `hardware enable`, `machines add`, opening the panel, and every motion, heater,
@@ -6795,7 +6795,7 @@ If no presence source is available, enable/install the source for your OS and
 retry; **Stop stays available** without it.
 
 Agent-marked shells (including subagent and unattended shell children) refuse
-`hardware enable`, `machines add` and `panel` before asking for OS presence.
+`hardware enable`, `machines add` and `machines panel` before asking for OS presence.
 These commands belong in the person's terminal. Stop remains available there
 and in agent shells.
 

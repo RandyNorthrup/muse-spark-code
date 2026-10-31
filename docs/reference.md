@@ -4144,7 +4144,7 @@ These are defaults; editor customizations take precedence.
 - `hardware enable|disable|status`: Enable hardware for this workspace
 - `machines list|add|remove`: Devices and machines
 - `stop-machine [id|--all]`: A software stop does not replace the machine’s physical emergency stop.
-- `panel`: Open panel
+- `machines panel`: Open panel
 - `providersAdd: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false}`
 - `providersAdd: --as <value>`: --as: Provider `{"type":"string","repeatable":false}`
 - `providersAdd: --address <value>`: --address: Address `{"type":"string","repeatable":false}`

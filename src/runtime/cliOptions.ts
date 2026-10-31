@@ -471,7 +471,6 @@ export function formatCommandHelp(table: UiText, command: string, route: string)
     hardware: 'hardware enable|disable|status',
     machines: 'machines list|add|remove',
     'stop-machine': 'stop-machine [id|--all]',
-    panel: 'panel',
   }
   const lines = [`${command} ${localUsage[route] ?? name}`]
   // A route whose options table holds only --help (its grammar is positional)
@@ -504,7 +503,6 @@ export function formatCommandHelp(table: UiText, command: string, route: string)
       hardware: table.makerCliUsage,
       machines: table.makerCliUsage,
       'stop-machine': table.makerCliUsage,
-      panel: table.makerCliUsage,
     }
     const description = Object.entries(usage).find(
       ([prefix]) => route === prefix || route.startsWith(`${prefix} `),

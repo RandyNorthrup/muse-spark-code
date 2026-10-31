@@ -67,7 +67,7 @@ describe('terminal spoofing never supplies physical authority', () => {
       for (const args of [
         ['hardware', 'enable', '--reason', 'agent claim', '--trust-workspace'],
         ['machines', 'add', '--registration', '{}', '--key-stdin', '--trust-workspace'],
-        ['panel', '--trust-workspace'],
+        ['machines', 'panel', '--trust-workspace'],
       ]) {
         const command = parseMakerCommand(args)
         if (command === undefined) throw new Error('command')
