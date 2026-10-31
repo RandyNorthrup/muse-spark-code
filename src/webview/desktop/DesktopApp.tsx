@@ -40,11 +40,13 @@ interface OpenFile {
 }
 
 function footerTabLabel(tab: FooterTab): string {
-  return tab === 'terminal'
-    ? UI_TEXT.desktop.workbenchTerminal
-    : tab === 'problems'
-      ? UI_TEXT.desktop.workbenchProblems
-      : UI_TEXT.desktop.workbenchOutput
+  // Built per call, so the label is the installed table's (PLAN.md D33).
+  const labels: Readonly<Record<FooterTab, string>> = {
+    terminal: UI_TEXT.desktop.workbenchTerminal,
+    problems: UI_TEXT.desktop.workbenchProblems,
+    output: UI_TEXT.desktop.workbenchOutput,
+  }
+  return labels[tab]
 }
 
 export function DesktopApp() {
