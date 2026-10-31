@@ -19,22 +19,27 @@ import { teamTreeSchema, teamUsageSchema, teamItemFields } from '../../shared/te
 // definitions and model text (M120CAP). No scheduler dispatch occurs here.
 export { createSchedulerTeamTools } from './teamTools'
 
-// The runners load only through their team runtime, so they read these
-// schemas from this bundle instead of carrying second copies of them (the
-// build externalises shared/team and shared/teamView to dist/team.js for
-// the runners build only). No runner dispatch occurs here.
+// The runners and the scheduler load only through their team runtime, so
+// they read these schemas from this bundle instead of carrying second
+// copies of them (the build externalises shared/team and shared/teamView
+// to dist/team.js for the runners and scheduler builds only). No runner
+// or scheduler dispatch occurs here.
 export {
   runnerSchema,
   runnersSchema,
   teamAgentRefSchema,
   teamAttemptRefSchema,
+  teamAttemptUsageSchema,
   teamBoardSchema,
   teamBoardTaskSchema,
   teamCapSchema,
   teamModelSettingsSchema,
   teamPoolEntrySchema,
   teamPrioritySchema,
+  teamRescheduleSchema,
   teamRoleConfigSchema,
+  teamSchedulerEventSchema,
+  teamSchedulerFieldsSchema,
   teamSnapshotSchema,
   teamTrafficMetricsSchema,
   teamWriteSetLeaseSchema,

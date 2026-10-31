@@ -1966,14 +1966,15 @@ export const deferredCohort = {
         ? { path: './team.js', external: true }
         : undefined,
     )
-    // The runners load only through their team runtime, so the runners build
-    // reads the shared team schemas from the already-loaded team.js instead
-    // of carrying second copies. Only that build rewrites: every other
-    // bundle keeps bundling these modules locally.
+    // The runners and the scheduler load only through their team runtime,
+    // so those builds read the shared team schemas from the already-loaded
+    // team.js instead of carrying second copies. Only those builds rewrite:
+    // every other bundle keeps bundling these modules locally.
     build.onResolve({ filter: /\/(?:team|teamView)(?:\.[jt]s)?$/ }, (args) => {
       const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
-      return path.resolve(build.initialOptions.outfile ?? '') ===
-        path.resolve('dist/teamRunners.js') &&
+      const outfile = path.resolve(build.initialOptions.outfile ?? '')
+      return (outfile === path.resolve('dist/teamRunners.js') ||
+        outfile === path.resolve('dist/teamScheduler.js')) &&
         (source === path.resolve('src/shared/team.ts') ||
           source === path.resolve('src/shared/teamView.ts'))
         ? { path: './team.js', external: true }
