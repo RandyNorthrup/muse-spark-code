@@ -364,6 +364,11 @@ export class TeamHostBinding implements TeamSurfacePort {
     return await service.taskDiffFiles(taskId)
   }
 
+  /** A finished task's report, where the service has one (RLF-ACPTEAM). */
+  public taskReport(taskId: string) {
+    return this.service?.taskReport?.(taskId)
+  }
+
   /** Stops every task one conversation delegated (RLF-ACPTEAM: cancel and close). */
   public async stopSessionTasks(sessionId: string): Promise<number> {
     return (await this.service?.stopSessionTasks?.(sessionId)) ?? 0

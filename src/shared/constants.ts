@@ -6263,7 +6263,11 @@ export const ACP_CONFIG_IDS = {
   account: 'account',
   mode: 'mode',
   paidAllowAlways: 'paidAllowAlways',
+  /** RLF-ACPTEAM (M96b): the session's team state, chosen when it starts. */
+  team: 'team',
 } as const
+/** RLF-ACPTEAM: the team config option's two values, as the wire spells them. */
+export const ACP_TEAM_VALUES = { on: 'on', off: 'off' } as const
 // The paid Model API features the agent can use (M63c, PLAN.md D30): each
 // only with its flag, and each use asked in the editor (M58, D48). Muse
 // Voice is its batch transcription of attached sound (M105 lane V); live
@@ -6339,6 +6343,10 @@ export const ACP_DATA_FOLDER = {
   other: 'muse-spark-code',
 } as const
 export const ACP_SESSIONS_SUBFOLDER = 'acp'
+/** RLF-ACPTEAM: one workspace's ACP team board (tasks, modes, command records). */
+export const ACP_TEAM_BOARD_FILE = 'team-board.json'
+/** RLF-ACPTEAM: where an ACP workspace's team keeps its task copies. */
+export const ACP_TEAM_STORAGE_FOLDER = 'team'
 export const ACP_WORKSPACE_HASH_CHARS = 16
 // "Allow Always in This Workspace" for paid uses (M58), every folder's in one
 // file beside the folders' own, keyed by the same hash.

@@ -3061,6 +3061,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       if (outcome?.head === undefined) throw new Error(UI_TEXT.teamTaskNoDiff)
       return await deps.merges.diff(outcome)
     },
+    taskReport: (taskId) => tasks.get(taskId)?.outcome?.report,
     taskDiffFiles: async (taskId) => {
       const outcome = known(taskId).outcome
       if (outcome?.head === undefined || deps.merges.diffFiles === undefined)

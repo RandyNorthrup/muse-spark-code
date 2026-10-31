@@ -1006,6 +1006,8 @@ export const EN = {
     output: 'Choose the result format: text, json or jsonl.',
     'max-budget-usd': 'Set the spending reservation limit in USD for this run.',
     team: '--team: Run engine teams with Model API, acceptEdits and a hard budget shared by every worker; prompts deny, merges enter the run working tree.',
+    'serve-team':
+      '--team: Offer the stored team in ACP sessions: the orchestrator can delegate to its workers, and merges ask in the editor.',
     'max-requests':
       'Set the maximum number of model requests; without it, there is no request limit.',
     'max-tool-output-bytes': 'Raise the per-tool-result byte guard for this run.',
@@ -2478,6 +2480,12 @@ export const EN = {
   // the agent. {role}: the worker's role; {agent}: the agent running it;
   // {detail}: what the approval is about.
   acpTeamPermissionTitle: '{role} · {agent}: {detail}',
+  // RLF-ACPTEAM (M96b): the team config option is fixed at session start,
+  // as the panel's conversation mode is (the tools are declared then).
+  acpTeamFixedForSession:
+    'Team use is chosen when the session starts. Start a new session to change it.',
+  acpTeamRolesUnavailable:
+    'There is no Roles section in this editor. Edit the stored team file named in the ACP guide.',
   // Shared resources (M96 lane B, D75): the registry, the leases and the bridge.
   teamResourcesTitle: 'Tools and Devices',
   teamResourcesDetail: 'Which MCP servers and devices the team shares, and who may use them',

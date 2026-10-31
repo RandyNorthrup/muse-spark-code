@@ -106,6 +106,8 @@ import {
   ACP_AGENT_TITLE,
   ACP_COMPACT_COMMAND,
   ACP_CONFIG_IDS,
+  ACP_TEAM_VALUES,
+  TEAM_MCP_SERVER_NAME,
   ACP_NEAREST_COMMAND_COUNT,
   ACP_PAID_TOOL_CALL_PREFIX,
   MAKER_TOOL_CALL_PREFIX,
@@ -218,6 +220,12 @@ import { parsePeekCommand, runPeekText } from '../runtime/peek/acpPeek'
 import type { SecretScrubPort } from '../shared/redact'
 import { type VaultApprovalRequest, type VaultApprovalAnswer } from '../shared/vault'
 import type { AcpEstimatePort } from './estimate'
+import {
+  isAcpTeamRefusal,
+  type AcpTeamPort,
+  type AcpTeamPrepared,
+  type AcpTeamSession,
+} from './teamPort'
 
 // Muse Code runs a session's MCP servers only with this grant (M63c).
 const [SESSION_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
@@ -377,6 +385,12 @@ export interface AcpAgentDeps {
   readonly problemReport?: AcpProblemReportPort
   /** M117: supplied by the lazy estimator loader; absence is reported locally. */
   readonly estimate?: AcpEstimatePort
+  /**
+  M96b (RLF-ACPTEAM): the team in this agent's sessions, present only
+  under `serve --team` (dist/acpTeam.js). Absent, sessions are exactly
+  as before: no admission, no team config option, no team endpoint.
+  */
+  readonly team?: AcpTeamPort
 }
 
 /** One observed failure as facts: a fixed kind and a fixed short code, nothing else. */
@@ -854,6 +868,9 @@ class AcpSession {
   private clientStop: AbortController | undefined
   /** Whether paid uses may offer "Allow always" here (a boolean option, G06). */
   private rememberPaid = true
+  /** RLF-ACPTEAM: this session's team, attached when it was admitted. */
+  private teamSession: AcpTeamSession | undefined
+  private teamOn = false
   /** Live peek's tap over this agent's own stream (M110b K). */
   private readonly peekTap: PeekTap
   public readonly sessionId: string
@@ -2243,6 +2260,18 @@ class AcpSession {
     return stop === undefined ? undefined : { cancellationSignal: stop.signal }
   }
 
+  /** Stops this session's team workers; a failure is logged, never a session's. */
+  private async stopTeam(work: () => Promise<void>): Promise<void> {
+    try {
+      await work()
+    } catch (error: unknown) {
+      this.deps.log.warn(
+        `ACP session ${this.sessionId}: its team could not be stopped: ${failureForLog(error)}`,
+      )
+      observeError(this.deps, 'teamStopFailed')
+    }
+  }
+
   /**
   The question before a paid use (M58, PLAN.md D48): a row naming what is
   about to be billed and its price, and a permission prompt on it with the
@@ -2814,6 +2843,22 @@ class AcpSession {
           description: permissionModeDetail(mode, this.deps.backend.kind),
         })),
       },
+      // RLF-ACPTEAM (M96b): the session's team state under `--team`,
+      // chosen when the session started (its tools were declared then).
+      ...(this.deps.team === undefined
+        ? []
+        : [
+            {
+              id: ACP_CONFIG_IDS.team,
+              name: UI_TEXT.teamTreeLabel,
+              type: 'select' as const,
+              currentValue: this.teamOn ? ACP_TEAM_VALUES.on : ACP_TEAM_VALUES.off,
+              options: [
+                { value: ACP_TEAM_VALUES.on, name: UI_TEXT.toggleOn },
+                { value: ACP_TEAM_VALUES.off, name: UI_TEXT.toggleOff },
+              ],
+            },
+          ]),
       // The only boolean: offering "Allow always" costs a stored grant,
       // so a session can refuse to offer it (G06). Sent only where the
       // client says it renders booleans.
@@ -2951,6 +2996,18 @@ class AcpSession {
   }
 
   public async setConfigOption(configId: string, value: unknown): Promise<void> {
+    if (configId === ACP_CONFIG_IDS.team) {
+      if (value !== ACP_TEAM_VALUES.on && value !== ACP_TEAM_VALUES.off) {
+        throw RequestError.invalidParams(undefined, configId)
+      }
+      // The tools were declared at the start (the MCP endpoint rode the
+      // session start; the engine latch is per conversation), so a
+      // change refuses in words instead of pretending to switch.
+      if ((value === ACP_TEAM_VALUES.on) !== this.teamOn) {
+        throw refusalError(UI_TEXT.acpTeamFixedForSession)
+      }
+      return
+    }
     if (configId === ACP_CONFIG_IDS.fast) {
       if (typeof value !== 'boolean') throw RequestError.invalidParams(undefined, configId)
       const tier = this.models.find((model) => model.modelId === this.modelId)?.fastTier
@@ -3112,6 +3169,35 @@ class AcpSession {
     }
     this.areCommandsAnnounced = true
     await this.refreshCommands()
+  }
+
+  /**
+  RLF-ACPTEAM: binds the admitted team to this session. The editor
+  hears once, as its own message, when a stored team conversation
+  resumed without its team and why.
+  */
+  public async attachTeam(prepared: AcpTeamPrepared): Promise<void> {
+    this.teamSession = await prepared.attach(this.sessionId, {
+      mode: () => this.mode,
+      sendUpdate: (update) => {
+        this.send(update)
+      },
+      requestPermission: async (request) =>
+        permissionResponse(
+          await this.client.request(
+            'session/request_permission',
+            request,
+            this.clientRequestOptions(),
+          ),
+        ),
+    })
+    this.teamOn = prepared.isTeam
+    if (prepared.notice !== undefined) {
+      this.send({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: prepared.notice },
+      })
+    }
   }
 
   public async prompt(
@@ -3780,6 +3866,10 @@ class AcpSession {
     this.legalStop?.abort()
     this.clientStop?.abort()
     this.cancelVaultRequests()
+    // RLF-ACPTEAM: a cancel reaches every worker this session delegated,
+    // even one still running after its delegating turn ended.
+    const teamSession = this.teamSession
+    if (teamSession !== undefined) await this.stopTeam(() => teamSession.cancel())
     if (this.cancelPreparing()) {
       this.deps.log.info(`ACP session ${this.sessionId}: cancelled before its turn started`)
     }
@@ -3874,6 +3964,10 @@ class AcpSession {
       return
     }
     this.isDisposed = true
+    // RLF-ACPTEAM: letting the session go stops its team with it.
+    const teamSession = this.teamSession
+    this.teamSession = undefined
+    if (teamSession !== undefined) await this.stopTeam(() => teamSession.close())
     this.dictationStop.abort()
     await Promise.all([...this.dictationPages].map((page) => page.close()))
     this.dictationPages.clear()
@@ -4058,6 +4152,7 @@ class AgentState {
     prepare: (acp: AcpSession) => Promise<void>,
     isImported = false,
     activeTurnId?: string,
+    teamPrepared?: AcpTeamPrepared,
   ): Promise<AcpSession> {
     // A session loaded again replaces the one held, and one still being set
     // up by an earlier load, before anything runs on it: both hosts hand
@@ -4095,6 +4190,7 @@ class AgentState {
         await created.loadQuestions()
         await created.holdSchedules()
         await prepare(created)
+        if (teamPrepared !== undefined) await created.attachTeam(teamPrepared)
         await created.startAccounts()
         // The editor builds its slash menu from available_commands_update, so
         // the list goes out with the new or loaded session, never with the
@@ -4142,6 +4238,54 @@ class AgentState {
     }
     this.deps.log.info(`MCP servers from the editor: ${Object.keys(servers).join(', ')}`)
     return servers
+  }
+
+  /**
+  RLF-ACPTEAM: a new session's team admission (`serve --team` only). A
+  branded refusal is the person's sentence, as the readiness check's
+  is; anything else keeps the start failure's generic words.
+  */
+  private async teamPrepareNew(cwd: string, modelId: string): Promise<AcpTeamPrepared | undefined> {
+    const team = this.deps.team
+    if (team === undefined) return undefined
+    try {
+      return await team.prepareNew(cwd, modelId)
+    } catch (error: unknown) {
+      if (isAcpTeamRefusal(error)) throw refusalError(error.message)
+      throw error
+    }
+  }
+
+  /** A resumed session's team, with the same refusal words as a new one's. */
+  private async teamPrepareResume(
+    cwd: string,
+    sessionId: string,
+    modelId: string,
+  ): Promise<AcpTeamPrepared | undefined> {
+    const team = this.deps.team
+    if (team === undefined) return undefined
+    try {
+      return await team.prepareResume(cwd, sessionId, modelId)
+    } catch (error: unknown) {
+      if (isAcpTeamRefusal(error)) throw refusalError(error.message)
+      throw error
+    }
+  }
+
+  /**
+  The `team` MCP server beside the editor's own, for a Muse Code
+  orchestrator: without the `sessionMcp` grant the start refuses, as
+  the panel's does, instead of starting a team session with no tools.
+  */
+  private withTeamMcp(
+    host: AgentHost,
+    forwarded: Readonly<Record<string, SessionMcpServer>> | undefined,
+    prepared: AcpTeamPrepared | undefined,
+  ): Readonly<Record<string, SessionMcpServer>> | undefined {
+    if (prepared?.mcpServer === undefined) return forwarded
+    if (!host.info.grantedCapabilities.includes(SESSION_MCP_CAPABILITY))
+      throw refusalError(fill(UI_TEXT.teamRunnerUnavailable, { tool: TEAM_MCP_SERVER_NAME }))
+    return { ...forwarded, [TEAM_MCP_SERVER_NAME]: prepared.mcpServer }
   }
 
   public initialize(clientCapabilities: ClientCapabilities | undefined): InitializeResponse {
@@ -4205,7 +4349,8 @@ class AgentState {
         this.deps.options.initialModelId,
         this.deps.backend.kind === 'modelApi',
       )
-      const mcpServers = this.forwardedMcp(host, requestedMcp)
+      const teamPrepared = await this.teamPrepareNew(cwd, modelId)
+      const mcpServers = this.withTeamMcp(host, this.forwardedMcp(host, requestedMcp), teamPrepared)
       // The start carries no account identity: a step that needs a stored key
       // refuses then, in the one store sentence, never at the open.
       const approvalMode = approvalModeFor(this.deps.options.initialMode, true)
@@ -4227,8 +4372,17 @@ class AgentState {
       // The mode and model went with the start; the effort is set here. A
       // plan model starts on its catalogue default unless the person chose one.
       const claim = this.registry.claim(session.sessionId)
-      const acp = await this.adopt(host, session, cwd, client, models, claim, (started) =>
-        started.applyEffort(startingEffort(models, modelId, this.deps.backend.kind)),
+      const acp = await this.adopt(
+        host,
+        session,
+        cwd,
+        client,
+        models,
+        claim,
+        (started) => started.applyEffort(startingEffort(models, modelId, this.deps.backend.kind)),
+        false,
+        undefined,
+        teamPrepared,
       )
       // Keep what the editor is shown, including backend events during setup.
       this.choices.set(session.sessionId, acp.currentChoice())
@@ -4261,14 +4415,21 @@ class AgentState {
     try {
       const { host, models } = await this.openHost(cwd)
       this.registry.ensureClaim(claim, host)
+      const remembered = this.choices.get(sessionId)
+      const resumeModel = startingModel(
+        models,
+        this.deps.options.initialModelId,
+        this.deps.backend.kind === 'modelApi',
+      )
+      const teamPrepared = await this.teamPrepareResume(
+        cwd,
+        sessionId,
+        remembered?.modelId ?? resumeModel,
+      )
       const loaded = await host.resumeSession(
         sessionId,
-        startingModel(
-          models,
-          this.deps.options.initialModelId,
-          this.deps.backend.kind === 'modelApi',
-        ),
-        this.forwardedMcp(host, requestedMcp),
+        resumeModel,
+        this.withTeamMcp(host, this.forwardedMcp(host, requestedMcp), teamPrepared),
       )
       // A session resumes on the approval mode, model and effort it last had,
       // which may differ from what the editor is told (a more permissive mode,
@@ -4277,7 +4438,6 @@ class AgentState {
       // if the backend refuses, the load fails instead. Where the editor
       // chose a model and effort in this process, that choice is applied and
       // read back first, so a restart keeps running on it.
-      const remembered = this.choices.get(sessionId)
       const acp = await this.adopt(
         host,
         loaded.session,
@@ -4303,6 +4463,7 @@ class AgentState {
         },
         loaded.record.imported === true,
         loaded.activeTurnId,
+        teamPrepared,
       )
       this.choices.set(sessionId, acp.currentChoice())
       this.additionalRoots.set(sessionId, [...roots])

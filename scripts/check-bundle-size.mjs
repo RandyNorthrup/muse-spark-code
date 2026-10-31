@@ -626,6 +626,11 @@ const BUDGETS = [
   // branch's base (RVCM96B2 P3-8 rule kept). Headless retains its original
   // 125 KiB cap.
   { path: 'dist/execTeam.js', budgetKiB: 53 },
+  // RLF-ACPTEAM (M96b): the ACP sessions' team binding (admission, cards,
+  // tree mapping), loaded only by `serve --team`. Measured 56,324 bytes
+  // (55.0 KiB, production build on linuxlt, 2026-10-30) x 1.15 = 63.3 KiB,
+  // rounded up to the next 25 KiB.
+  { path: 'dist/acpTeam.js', budgetKiB: 75 },
   // The cleanup ledger's cross-process lease (M96b), loaded on the first
   // ledger turn: 13,301 bytes (12.99 KiB, production build on macbook,
   // 2026-10-23) x 1.15 = 14.94 KiB, rounded up to the KiB.
