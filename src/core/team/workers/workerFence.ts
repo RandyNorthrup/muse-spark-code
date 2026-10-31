@@ -871,7 +871,6 @@ outside `write-paths`, an `execute` for a role without the shell, a git
 command the ref guard refuses, a `fetch` for a role without the network,
 and for a `read-only` role any edit and any command off the read-only
 list. Everything else becomes the user's card.
-@unwired M96 ACP permission answer
 */
 export async function answerAcpPermission(
   input: AcpPermissionInput,
@@ -950,7 +949,6 @@ function commandTextOf(rawInput: unknown): string | undefined {
     : undefined
 }
 
-/** @unwired M96 worker approval classifier */
 export async function classifyMuseWorkerApproval(input: {
   readonly role: WorkerRolePolicy
   readonly request: MuseWorkerApprovalRequest

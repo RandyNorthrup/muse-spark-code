@@ -26,6 +26,7 @@ import { fill } from '../../shared/l10n/text'
 import type { TeamAgentRef, TeamAttempt, TeamReport, TeamUsage } from '../../shared/team'
 import type { AgentEvent } from '../../shared/agentEvents'
 import type { CoreLogger } from '../../core/logging'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import type { MuseCodeHost, MuseSession } from '../../core/backends/musecode/MuseCodeHost'
 import type { ShellDialect } from '../../core/backends/modelapi/shellSyntax'
 import type { TeamGit } from '../../core/team/teamGit'
@@ -300,6 +301,8 @@ function museSessionPort(session: MuseSession, context: MuseTaskContext): MuseWo
                 try {
                   context.spec.meter.admitRequest()
                 } catch (error: unknown) {
+                  // A refusal (a met cap, a stop, withdrawn trust) ends the turn; its kind is logged.
+                  context.log.warn(failureForLog(error))
                   stopTurn(error)
                 }
                 break
