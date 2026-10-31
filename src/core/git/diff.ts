@@ -42,7 +42,7 @@ export function truncateDiffBytes(output: Buffer, maxBytes: number): TruncatedDi
   const window = output.subarray(0, maxBytes)
   const newline = window.lastIndexOf(NEWLINE_BYTE)
   return {
-    bytes: newline === -1 ? Buffer.from(window) : Buffer.from(window.subarray(0, newline + 1)),
+    bytes: Buffer.from(newline === -1 ? window : window.subarray(0, newline + 1)),
     truncated: true,
   }
 }

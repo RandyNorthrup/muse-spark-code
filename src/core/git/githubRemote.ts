@@ -85,7 +85,7 @@ cannot read.
 */
 function redactedEither(text: string): string {
   const plain = decoded(text)
-  return redactSecrets(plain !== text && redactSecrets(plain) !== plain ? plain : text)
+  return redactSecrets(plain === text || redactSecrets(plain) === plain ? text : plain)
 }
 
 /**

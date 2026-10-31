@@ -229,10 +229,12 @@ function applySideMass(
   mass: number,
 ): AppliedSideMass | undefined {
   const applied = applyCalibration(side.profile, identity, mass, false, side.limits)
-  if (applied.status !== 'calibrated') {
-    return undefined
-  }
-  if (!Number.isFinite(applied.probability) || applied.probability < 0 || applied.probability > 1) {
+  if (
+    applied.status !== 'calibrated' ||
+    !Number.isFinite(applied.probability) ||
+    applied.probability < 0 ||
+    applied.probability > 1
+  ) {
     return undefined
   }
   const weight = calibratedWeight(applied)

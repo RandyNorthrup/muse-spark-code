@@ -483,13 +483,14 @@ export function sanitizePathForWorkspace(probe: WorkspacePathSanitizeProbe): str
   const kept: string[] = []
   for (const entry of entries) {
     const trimmed = entry.trim()
-    if (trimmed === '' || !p.isAbsolute(trimmed)) {
-      continue
-    }
     // The original entry is resolved as itself: a forward-slash UNC or
     // verbatim spelling of the workspace must compare as the workspace, not
     // as a drive-rewritten path that no longer names it.
-    if (isSameOrInsideDirectory(probe.platform, root, resolveForCompare(probe.realpath, trimmed))) {
+    if (
+      trimmed === '' ||
+      !p.isAbsolute(trimmed) ||
+      isSameOrInsideDirectory(probe.platform, root, resolveForCompare(probe.realpath, trimmed))
+    ) {
       continue
     }
     // A rooted `\foo` or `/foo` entry is drive-relative: the child resolves

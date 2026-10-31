@@ -220,7 +220,9 @@ export function readJvm(
   const poms = new Map<string, { readonly licenses: readonly string[]; readonly file: string }>()
   const retainPom = (identity: string, licenses: readonly string[], file: string): void => {
     const existing = poms.get(identity)
-    if (existing !== undefined && existing.licenses.join(' OR ') !== licenses.join(' OR ')) {
+    if (existing === undefined || existing.licenses.join(' OR ') === licenses.join(' OR ')) {
+      poms.set(identity, { licenses, file })
+    } else {
       incomplete.push(
         fill(UI_TEXT.legalScanner.m165, {
           v0: identity,
@@ -231,7 +233,7 @@ export function readJvm(
         }),
       )
       poms.set(identity, { licenses: [], file })
-    } else poms.set(identity, { licenses, file })
+    }
   }
   const manifestDeps: (MavenDependency & { readonly file: string })[] = []
   const gradleDeps: {

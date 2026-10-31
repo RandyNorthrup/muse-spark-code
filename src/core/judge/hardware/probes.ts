@@ -445,9 +445,8 @@ async function fetchOllama(endpoint: OllamaEndpoint, route: string): Promise<str
     })
   } catch (error: unknown) {
     // Unreachable or refused: not running.
-    if (error instanceof TypeError) return undefined
     // The probe budget ran out: not answering.
-    if (error instanceof DOMException) return undefined
+    if (error instanceof TypeError || error instanceof DOMException) return undefined
     throw error
   }
   if (!response.ok) return undefined

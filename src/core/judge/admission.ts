@@ -388,15 +388,13 @@ export async function admitJudgeCall(request: JudgeAdmissionRequest): Promise<Ju
       ? rebound.reason
       : 'binding-invalid'
   }
-  if (!isValidBinding(before)) {
-    return { admitted: false, refusal: 'binding-invalid' }
-  }
+  // A Model API call without a ledger claim would bill nothing; a Muse
+  // Code call against the ledger would charge the subscription twice over.
   if (
+    !isValidBinding(before) ||
     (before.backend === 'modelApi') !== (request.billing.kind === 'metered') ||
     (before.backend === 'museCode') !== (request.billing.kind === 'subscription')
   ) {
-    // A Model API call without a ledger claim would bill nothing; a Muse
-    // Code call against the ledger would charge the subscription twice over.
     return { admitted: false, refusal: 'binding-invalid' }
   }
   const initialRefusal = bindingRefusal()
@@ -553,10 +551,7 @@ function rebindBinding(
   before: JudgeAdmissionBinding,
   current: JudgeAdmissionBinding,
 ): ReturnType<typeof rebindJudgeClaim> {
-  if (!isValidBinding(current)) {
-    return { rebound: false, reason: 'owner-changed' }
-  }
-  if (current.ownerId !== before.ownerId) {
+  if (!isValidBinding(current) || current.ownerId !== before.ownerId) {
     return { rebound: false, reason: 'owner-changed' }
   }
   if (current.backend !== before.backend) {

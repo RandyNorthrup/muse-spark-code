@@ -106,10 +106,16 @@ export function parseNvidiaSmi(text: string): readonly NvidiaGpu[] | undefined {
     const fields = line.split(',').map((field) => field.trim())
     if (fields.length !== NVIDIA_SMI_FIELD_COUNT) return undefined
     const [name, driverVersion, memMib] = fields
-    if (name === undefined || name === '') return undefined
-    if (driverVersion === undefined || driverVersion === '') return undefined
     // nounits prints a bare count, "11178" or "11178.00".
-    if (memMib === undefined || !/^\d+(?:\.\d+)?$/.test(memMib)) return undefined
+    if (
+      name === undefined ||
+      name === '' ||
+      driverVersion === undefined ||
+      driverVersion === '' ||
+      memMib === undefined ||
+      !/^\d+(?:\.\d+)?$/.test(memMib)
+    )
+      return undefined
     gpus.push({ name, driverVersion, vramBytes: Math.round(Number(memMib) * MIB) })
   }
   return gpus

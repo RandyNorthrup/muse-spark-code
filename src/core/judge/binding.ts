@@ -144,8 +144,12 @@ export function cascadeSideFromRuntime(deps: {
     ((outcome: Extract<JudgeOutcome, { outcome: 'answered' }>) => Phase2SideCosts) | undefined
   readonly servedModels?: readonly string[] | undefined
 }): JudgeCascadeSide | undefined {
-  if (!judgeCapabilitySchema.safeParse(deps.capability).success) return undefined
-  if (typeof deps.fitVersion !== 'string' || deps.fitVersion.length === 0) return undefined
+  if (
+    !judgeCapabilitySchema.safeParse(deps.capability).success ||
+    typeof deps.fitVersion !== 'string' ||
+    deps.fitVersion.length === 0
+  )
+    return undefined
   const costsOf = deps.costsOf ?? (() => zeroCosts())
   return {
     capability: deps.capability,

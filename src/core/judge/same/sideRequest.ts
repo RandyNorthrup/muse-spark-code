@@ -79,10 +79,7 @@ export function planSideRequest<TBody extends SideRequestMain>(
   }
   // Redaction first (D77): a changed byte anywhere in the main body means the
   // prefix the cache would read is not the prefix sent.
-  if (inputs.redact(serialized) !== serialized) {
-    return { mode: 'standalone' }
-  }
-  if (inputs.prefixTokens < inputs.minPrefixTokens) {
+  if (inputs.redact(serialized) !== serialized || inputs.prefixTokens < inputs.minPrefixTokens) {
     return { mode: 'standalone' }
   }
   const tail = redactedTail(inputs.redact, inputs.tail)

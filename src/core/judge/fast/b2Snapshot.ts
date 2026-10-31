@@ -149,9 +149,9 @@ export function openB2SnapshotReader(
 ): B2FileAnswers & { readonly root: string } {
   const inside = (relative: string): string | undefined => {
     const resolved = path.resolve(snapshot.root, relative.replaceAll('\\', '/'))
-    return resolved !== snapshot.root && !resolved.startsWith(`${snapshot.root}${path.sep}`)
-      ? undefined
-      : resolved
+    return resolved === snapshot.root || resolved.startsWith(`${snapshot.root}${path.sep}`)
+      ? resolved
+      : undefined
   }
   return {
     root: snapshot.root,

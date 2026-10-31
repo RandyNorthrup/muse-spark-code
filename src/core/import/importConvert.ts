@@ -872,11 +872,11 @@ function matchesFixedSubject(
 
 /** A converted native group's matcher: dropped where the source ignores one. */
 function nativeMatcher(event: string, matcher: string | undefined): string | undefined {
-  return matcher !== undefined &&
-    !MATCH_EVERYTHING.has(matcher) &&
-    !AGENT_IMPORT_HOOK_EVENTS_WITHOUT_MATCHER.includes(event)
-    ? matcher
-    : undefined
+  return matcher === undefined ||
+    MATCH_EVERYTHING.has(matcher) ||
+    AGENT_IMPORT_HOOK_EVENTS_WITHOUT_MATCHER.includes(event)
+    ? undefined
+    : matcher
 }
 
 /** The group refusal every Claude-shaped converter shares: a disabled hook, or a group field it cannot honour. */
@@ -1251,11 +1251,11 @@ export function geminiSequentialEvents(hooks: readonly FoundHook[]): ReadonlySet
 
 function geminiMatcher(event: string, matcher: string | undefined): MatcherTranslation {
   if (GEMINI_TOOL_EVENTS.has(event)) {
-    return matcher !== undefined &&
-      !MATCH_ALL_REGEX.has(matcher) &&
-      literalTokens(matcher, /^mcp_[A-Za-z0-9_]+$/)?.isAnchored !== true
-      ? REFUSED_MATCHER
-      : translateToolMatcher(matcher, GEMINI_VOCABULARY, /^mcp_[A-Za-z0-9_]+$/)
+    return matcher === undefined ||
+      MATCH_ALL_REGEX.has(matcher) ||
+      literalTokens(matcher, /^mcp_[A-Za-z0-9_]+$/)?.isAnchored === true
+      ? translateToolMatcher(matcher, GEMINI_VOCABULARY, /^mcp_[A-Za-z0-9_]+$/)
+      : REFUSED_MATCHER
   }
   const values = GEMINI_VALUE_MATCHERS[event]
   if (values !== undefined) {
@@ -1264,9 +1264,10 @@ function geminiMatcher(event: string, matcher: string | undefined): MatcherTrans
       ? { ok: true, matcher: value }
       : REFUSED_MATCHER
   }
-  if (event === 'SessionEnd' && matcher !== undefined && matcher !== '') return REFUSED_MATCHER
   // Gemini ignores a matcher on every other event: dropping it is exact.
-  return { ok: true, matcher: undefined }
+  return event === 'SessionEnd' && matcher !== undefined && matcher !== ''
+    ? REFUSED_MATCHER
+    : { ok: true, matcher: undefined }
 }
 
 /**
@@ -1889,12 +1890,11 @@ function kiroMatcher(
     const translated = translateToolMatcher(matcher, KIRO_VOCABULARY, KIRO_MCP_TOKEN)
     return translated.ok ? { ok: true, matcher: translated.matcher } : { ok: false }
   }
-  if (trigger === 'UserPromptSubmit') {
-    // A prompt-text filter: our UserPromptSubmit takes no matcher, so it is refused.
-    return { ok: matcher === undefined || matcher === '' }
-  }
+  // A prompt-text filter: our UserPromptSubmit takes no matcher, so it is refused.
   // Session, stop, task and manual triggers take no matcher there.
-  return { ok: true }
+  return trigger === 'UserPromptSubmit'
+    ? { ok: matcher === undefined || matcher === '' }
+    : { ok: true }
 }
 
 /**
@@ -1967,11 +1967,10 @@ export function convertKiroHook(hook: KiroHook): Conversion<MuseHook> {
       ? fieldRefusal(TIMEOUT_FIELD)
       : sparkHook(event, record, { type: COMMAND_HANDLER, command, timeout: seconds }, dropped)
   }
-  if (type === 'agent' && command === undefined && prompt !== undefined && prompt.trim() !== '') {
-    // Kiro ignores `timeout` on agent actions (raw/kiro_hooks.md:86).
-    return sparkHook(event, record, { type: 'prompt', prompt }, dropped)
-  }
-  return { ok: false, reason: 'unsupported' }
+  // Kiro ignores `timeout` on agent actions (raw/kiro_hooks.md:86).
+  return type === 'agent' && command === undefined && prompt !== undefined && prompt.trim() !== ''
+    ? sparkHook(event, record, { type: 'prompt', prompt }, dropped)
+    : { ok: false, reason: 'unsupported' }
 }
 
 /**

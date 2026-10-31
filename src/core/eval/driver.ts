@@ -281,7 +281,6 @@ export interface EvalTurnOutcome {
   readonly recalledOutputs: readonly string[]
 }
 
-type TurnCompleted = Extract<AgentEvent, { type: 'turnCompleted' }>
 type ApprovalRequested = Extract<AgentEvent, { type: 'approvalRequested' }>
 
 function describe(error: unknown): string {
@@ -315,6 +314,7 @@ function allowOnce(session: AgentSession, card: ApprovalRequested, problems: str
 }
 
 export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOutcome> {
+  type TurnCompleted = Extract<AgentEvent, { type: 'turnCompleted' }>
   const { deps } = options
   const counts = { approvals: 0, questions: 0, paidRefusals: 0, paidUses: 0 }
   const problems: string[] = []
@@ -513,7 +513,7 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
     // uncompacted were the mechanism.
     const terminal = turn?.terminal ?? EVAL_TURN_TIMED_OUT
     const failure =
-      missingAdmission !== undefined && terminal !== 'failed' ? missingAdmission : undefined
+      missingAdmission === undefined || terminal === 'failed' ? undefined : missingAdmission
     return {
       terminal: failure === undefined ? terminal : 'failed',
       reason: failure?.message ?? turn?.reason,
