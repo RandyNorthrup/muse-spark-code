@@ -546,7 +546,14 @@ src/runtime/**        the agent's process: arguments, backends outside VS Code,
                       first accounts, developer or keyed headless command; M108),
                       the vault's CLI, ACP and headless binding
                       (dist/vaultRuntime.js, loaded on the first vault need;
-                      C-M109-1), the journal-backed `playbook` command
+                      C-M109-1), the person vault policy's file half
+                      (dist/vaultPolicy.js, loaded by the broker bindings
+                      and the vault runtime on first use; D243), the
+                      headless vault exec stack — registration/session and
+                      feeder host port (dist/vaultExecHost.js, loaded on
+                      the first headless vault use; D243) — and the feeder
+                      itself (dist/vaultExec.js, spawned in place of a
+                      command; D243), the journal-backed `playbook` command
                       with its ACP `/playbook` surface (M116); the schedule command and settle path
                       (schedules/), and the native background scheduler entry
                       (dist/scheduleBackground.js, run by the OS launcher)

@@ -6991,6 +6991,8 @@
     "brokerBlocked": "代理服务无法启动。内部客户端的密钥仍可使用，但代理的使用请求被拒绝。请修复服务安装。",
     "switchedOff": "凭据库已在设置中关闭。若要使用，请启用 museSpark.vault.enabled。",
     "noUnattended": "{item} 需要用于 {use} 的无人值守授权。请在凭据库中添加，或交互式运行。",
+    "ceilingNone": "没有任何保管库策略允许此使用。请先使用保管库策略命令为此工作区和角色设置上限。",
+    "policyCeilings": "保管库策略上限",
     "nopasswd": "可使用 NOPASSWD sudo。任何已批准的命令都可能获得 root 权限；凭据库在此不提供额外保护。",
     "fenceOff": "关闭隔离会向主对话暴露您的环境和凭据获取途径。工作代理仍保持隔离。",
     "ambientWarning": "已批准的命令可以读取您能读取的文件。导入凭据不会隐藏其他文件。",

@@ -7345,6 +7345,8 @@
     "brokerBlocked": "O intermediário não pode iniciar. As chaves dos clientes internos funcionam; usos por agentes são recusados. Repare a instalação.",
     "switchedOff": "O cofre de credenciais está desativado nas configurações. Ative museSpark.vault.enabled para usá-lo.",
     "noUnattended": "{item} precisa de uma permissão sem supervisão para {use}. Adicione-a no cofre ou execute de forma interativa.",
+    "ceilingNone": "Nenhuma política do cofre permite este uso. Primeiro defina um limite para este espaço de trabalho e função com o comando de política do cofre.",
+    "policyCeilings": "Limites da política do cofre",
     "nopasswd": "Sudo com NOPASSWD está disponível. Qualquer comando aprovado pode obter acesso root; o cofre não acrescenta proteção aqui.",
     "fenceOff": "Desativar a barreira expõe seu ambiente e as rotas de credenciais à conversa principal. Os trabalhadores continuam protegidos.",
     "ambientWarning": "Um comando aprovado pode ler arquivos que você pode ler. Importar credenciais não oculta outros arquivos.",

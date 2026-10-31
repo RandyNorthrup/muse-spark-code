@@ -9088,6 +9088,11 @@ export const EN = {
       'The credential vault is switched off in settings. Turn museSpark.vault.enabled on to use it.',
     noUnattended:
       '{item} needs an unattended grant for {use}. Add one in the vault or run interactively.',
+    // D243: the person vault policy has no ceiling for this workspace and
+    // role (the default), so the use refuses in words, never silently.
+    ceilingNone:
+      'No vault policy allows this use. Set a ceiling for this workspace and role with the vault policy command first.',
+    policyCeilings: 'Vault Policy Ceilings',
     nopasswd:
       'NOPASSWD sudo is available. Any approved command may become root; the vault adds no protection here.',
     fenceOff:

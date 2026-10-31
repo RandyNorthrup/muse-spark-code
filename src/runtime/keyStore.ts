@@ -10,8 +10,13 @@
 
 import { createHash } from 'node:crypto'
 import { modelRef, credentialRecord } from '../host/backend/providerPolicyEntry'
-import type { SecretStore } from '../host/auth/credentialStore'
 import {
+  createSingleFlightSecretStore,
+  type SecretStore,
+  type SingleFlightSecretStore,
+} from '../host/auth/credentialStore'
+import {
+  HTTP_STATUS,
   KEYRING_GENERATIONS_SUFFIX,
   KEYRING_GENERATIONS_TAG,
   KEYRING_PART_CHARS,
@@ -72,6 +77,31 @@ export async function storeOperation<T>(work: () => Promise<T>): Promise<T> {
     // for a log or a sentence.
     throw new StoreUnavailableError({ cause: error })
   }
+}
+
+/** The HTTP statuses that answer "this key is not accepted": 401 and 403. */
+function isRejectionStatus(status: number): boolean {
+  return status === HTTP_STATUS.unauthorized || status === HTTP_STATUS.forbidden
+}
+
+/**
+The one choke point for a rejected key: when a provider answers HTTP 401
+or 403 to a request carrying an entry's key, forget exactly that entry,
+so the next use reads the OS store once more (the key may have been
+replaced elsewhere). The decision reads the answer's status only —
+never a message, which can carry provider or credential text. Anything
+else (rate limits, outages, local failures) is not a rejection and must
+not drop the remembered secret. When the store returns the same value,
+the provider's own sentence is shown and nothing loops: no retry and
+no further re-read lives here. A store without a `forget` (never the
+process's owned store) is a no-op.
+*/
+export function noteKeyRejectedStatus(
+  store: SecretStore & Partial<Pick<SingleFlightSecretStore, 'forget'>>,
+  key: string,
+  status: number | undefined,
+): void {
+  if (status !== undefined && isRejectionStatus(status)) store.forget?.(key)
 }
 
 /** A value kept as parts: how many, and the whole value's SHA-256 (hex). */
@@ -296,6 +326,20 @@ export function keyringSecretStore(
       })
     },
   }
+}
+
+/**
+The OS credential store under this process's one read owner: the
+multipart store above, read through the single-flight wrapper, so each
+entry is read from the OS store once per process until a rejection or a
+change forgets it. Composition sites share one instance per process;
+the raw store stays available for the migration's verifying re-reads.
+*/
+export function ownedKeyringSecretStore(
+  openEntry: KeyringEntryFactory,
+  options: KeyringStoreOptions = {},
+): SingleFlightSecretStore {
+  return createSingleFlightSecretStore(keyringSecretStore(openEntry, options))
 }
 
 /**

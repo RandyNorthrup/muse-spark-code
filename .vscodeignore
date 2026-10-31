@@ -185,7 +185,11 @@
 !dist/vaultPosix.js
 !dist/vaultWindows.js
 !dist/vaultRuntime.js
+!dist/vaultRuntimeMigration.js
+!dist/vaultPolicy.js
+!dist/vaultExecHost.js
 !dist/vaultBrokerBindings.js
+!dist/vaultExec.js
 !dist/vaultBoundaries.js
 !dist/vaultActions.js
 !dist/vaultMigration.js

@@ -40,7 +40,9 @@ const {
   pkceChallenge: createChallenge,
 } = pkce
 
-const RESOURCE = `${CHATGPT_ORIGIN}/v1`
+const ISSUER = CHATGPT_ISSUER
+const ORIGIN = CHATGPT_ORIGIN
+const RESOURCE = `${ORIGIN}/v1`
 const DIRECT_SCOPE = 'chatgpt.tokens.use.direct'
 const SCOPES = `openid profile email offline_access resource.invoke ${DIRECT_SCOPE}`
 const DYNAMIC_CLIENT = 'dynamic_agent_client'
@@ -48,10 +50,10 @@ const CALLBACK_PATH = '/auth/callback'
 const nonempty = z.string().check(z.minLength(1))
 const positive = z.number().check(z.gt(0))
 const discoverySchema = z.object({
-  issuer: z.literal(CHATGPT_ISSUER),
-  authorization_endpoint: z.literal(`${CHATGPT_ISSUER}/api/accounts/authorize`),
-  token_endpoint: z.literal(`${CHATGPT_ISSUER}/api/accounts/oauth/token`),
-  revocation_endpoint: z.literal(`${CHATGPT_ISSUER}/api/accounts/oauth/revoke`),
+  issuer: z.literal(ISSUER),
+  authorization_endpoint: z.literal(`${ISSUER}/api/accounts/authorize`),
+  token_endpoint: z.literal(`${ISSUER}/api/accounts/oauth/token`),
+  revocation_endpoint: z.literal(`${ISSUER}/api/accounts/oauth/revoke`),
   jwks_uri: z.url(),
 })
 const tokenSchema = z.object({
@@ -178,7 +180,7 @@ export function buildChatGptAuthorizeUrl(options: {
     throw new ChatGptSignInError('invalid-callback')
   }
   const { verifier, state, nonce, hostId, clientId } = options
-  const url = new URL(`${CHATGPT_ISSUER}/api/accounts/authorize`)
+  const url = new URL(`${ISSUER}/api/accounts/authorize`)
   url.search = new URLSearchParams({
     client_id: clientId ?? DYNAMIC_CLIENT,
     response_type: 'code',
@@ -411,7 +413,7 @@ export class ChatGptSignIn {
       const response = await subscriptionRequest(this.host.fetch, url, form)
       if (!response.ok) {
         if (
-          url === `${CHATGPT_ISSUER}/api/accounts/oauth/token` &&
+          url === `${ISSUER}/api/accounts/oauth/token` &&
           (response.status === HTTP_STATUS.badRequest ||
             response.status === HTTP_STATUS.unauthorized)
         ) {
@@ -462,12 +464,12 @@ export class ChatGptSignIn {
   private async discovery(): Promise<z.infer<typeof discoverySchema>> {
     const discovery = parse(
       discoverySchema,
-      await this.json(`${CHATGPT_ISSUER}/.well-known/openid-configuration`, 'invalid-discovery'),
+      await this.json(`${ISSUER}/.well-known/openid-configuration`, 'invalid-discovery'),
       'invalid-discovery',
     )
     const jwks = new URL(discovery.jwks_uri)
     if (
-      jwks.origin !== CHATGPT_ISSUER ||
+      jwks.origin !== ISSUER ||
       jwks.username !== '' ||
       jwks.password !== '' ||
       jwks.search !== '' ||
@@ -611,8 +613,8 @@ export class ChatGptSignIn {
               {
                 v: CREDENTIAL_RECORD_VERSION,
                 auth: 'subscription',
-                origin: CHATGPT_ORIGIN,
-                issuer: CHATGPT_ISSUER,
+                origin: ORIGIN,
+                issuer: ISSUER,
                 clientId: grant.clientId,
                 hostId: this.host.hostId,
                 ...(accountIdHash !== undefined && { accountIdHash }),

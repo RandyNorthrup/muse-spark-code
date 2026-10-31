@@ -6309,12 +6309,21 @@ fence. Approved environment injection cannot restore loader or startup
 variables.
 
 Local headless `exec --vault` requires existing unattended grants and never
-prompts. Missing grants, presence, taint, unavailable bindings or a failed
-vault use end the run with `denied` (exit 7), independently of
-`--fail-on-denial`. `--key-stdin` and CI cannot enable the vault. Ordinary
-headless behavior without the flag is unchanged. Companion and native panel
-routes carry only public state and bound answers; add/edit opens the host's
-local terminal and never sends a value through the bridge.
+prompts. It also requires your vault policy ceiling for the workspace and
+the headless role: `muse-spark-code-acp vault policy` prints the policy,
+and `vault policy '<policy-json>'` sets it (a ceiling per workspace and
+role — the handles it may use, or `ask`); with none set, which is the
+default, the run refuses and the denial says so. The first secret-use
+increment serves environment and stdin uses: the value travels from the
+broker to a dedicated feeder process under a single-use delegation bound
+to that feeder's identity, and from the feeder into the command — never
+through the agent host. Missing grants, presence, taint, unavailable
+bindings or a failed vault use end the run with `denied` (exit 7),
+independently of `--fail-on-denial`. `--key-stdin` and CI cannot enable
+the vault. Ordinary headless behavior without the flag is unchanged.
+Companion and native panel routes carry only public state and bound
+answers; add/edit opens the host's local terminal and never sends a value
+through the bridge.
 
 ## Development
 

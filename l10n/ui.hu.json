@@ -7168,6 +7168,8 @@
     "brokerBlocked": "A közvetítő nem indítható. A saját kliensek kulcsai működnek; az ügynökök használata elutasítva. Javítsa a közvetítő telepítését.",
     "switchedOff": "A hitelesítőadat-tároló ki van kapcsolva a beállításokban. Használatához kapcsolja be a museSpark.vault.enabled beállítást.",
     "noUnattended": "A(z) {item} felügyelet nélküli engedélyt igényel ehhez: {use}. Adja hozzá a tárolóban, vagy futtassa interaktívan.",
+    "ceilingNone": "Egyetlen trezorszabályzat sem engedélyezi ezt a használatot. Előbb állítson be korlátot ehhez a munkaterülethez és szerepkörhöz a trezor szabályzatparancsával.",
+    "policyCeilings": "A trezorszabályzat korlátai",
     "nopasswd": "A NOPASSWD sudo elérhető. Bármely jóváhagyott parancs root jogosultságot kaphat; itt a tároló nem ad további védelmet.",
     "fenceOff": "A korlát kikapcsolása a fő beszélgetésnek átadja a környezetét és hitelesítési útvonalait. A dolgozók védettek maradnak.",
     "ambientWarning": "A jóváhagyott parancs elolvashatja az Ön által olvasható fájlokat. A hitelesítő adatok importálása nem rejti el a többi fájlt.",

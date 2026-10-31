@@ -801,7 +801,7 @@
     {
       "id": "M109",
       "title": "Credential vault for agents",
-      "summary": "A credential vault gives agents approved, logged uses through POSIX brokers: setup, imports and confirmed reset with damaged-document retention, a crash-recoverable writer lease and a mounted panel with window commands; key-store migration is in progress.",
+      "summary": "A credential vault gives agents approved, logged uses through POSIX brokers: setup, imports and confirmed reset, a crash-recoverable writer lease and a mounted panel; key-store migration runs in every host on unlock; engine secret use waits on broker owners.",
       "area": "security"
     },
     {

@@ -25,6 +25,14 @@ export interface VaultExecSpawnDeps {
   readonly nodePath: string
   /** W's composed executable, including authenticated B transport and T streaming scrub. */
   readonly feederPath: string
+  /** Value-free routes only (the data folder, the caller's deadline): never a ticket or a value. */
+  readonly feederArgs?: readonly string[] | undefined
+  /**
+  D243: runs after the feeder exists and before the envelope reaches
+  it, so the host can delegate its tickets to this exact feeder
+  process identity first. A rejection ends the run unstarted.
+  */
+  readonly onSpawned?: ((child: ChildProcess) => Promise<void>) | undefined
   readonly env: () => NodeJS.ProcessEnv
   readonly tree: ProcessTreeDeps
   readonly job?: ShellJob
@@ -67,7 +75,7 @@ export async function spawnVaultFeeder(
   try {
     assertCanRun()
     signal.throwIfAborted()
-    child = spawnContained(deps.nodePath, [deps.feederPath], env)
+    child = spawnContained(deps.nodePath, [deps.feederPath, ...(deps.feederArgs ?? [])], env)
   } catch {
     bytes.fill(0)
     return unstartedShell(UI_TEXT.vault.noAccess)
@@ -189,7 +197,21 @@ export async function spawnVaultFeeder(
     pipe.once('error', () => {
       stop()
     })
-    pipe.end(bytes, () => bytes.fill(0))
+    // D243: delegation lands before the envelope, so a feeder can never
+    // redeem ahead of its own delegated identity.
+    void (async () => {
+      try {
+        await deps.onSpawned?.(child)
+      } catch {
+        // No delegation, no envelope: the feeder ends unstarted and the
+        // result refuses with fixed words.
+        stop()
+        settle(null)
+        return
+      }
+      if (pipe.destroyed || child.killed) return
+      pipe.end(bytes, () => bytes.fill(0))
+    })()
   })
 }
 

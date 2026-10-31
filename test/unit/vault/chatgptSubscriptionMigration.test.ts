@@ -23,6 +23,7 @@ import { shouldSkipPosixBrokerSuite } from '../helpers/vault/socketFit'
 import {
   chatgptSeeds,
   driveRetireCase,
+  driveRuntimeSlotCase,
   driveSlotCase,
   expectOriginRefused,
   pooledAccountSeeds,
@@ -132,6 +133,27 @@ describe.skipIf(shouldSkipPosixBrokerSuite())(
             connect: client.connect,
             lockScope: client.hostId,
             fresh: true,
+          }),
+        )
+      },
+      FLOW_TIMEOUT_MS,
+    )
+
+    it(
+      'migrates the pooled slot through the runtime binding and its file seams',
+      async () => {
+        await withClient('runtime-migration', (client, root) =>
+          driveRuntimeSlotCase({
+            connect: client.connect,
+            lockScope: client.hostId,
+            fresh: true,
+            codec: accountSecretMigrationCredential(POOLED_PROVIDER, POOLED_ACCOUNT, Date.now),
+            origin: POOLED_ORIGIN,
+            dataDir: path.join(root, 'runtime-migration', 'data'),
+            providersFile: path.join(root, 'runtime-migration', 'user-providers.json'),
+            provider: POOLED_PROVIDER,
+            accounts: ['default', POOLED_ACCOUNT],
+            ...pooledAccountSeeds(POOLED_PROVIDER, POOLED_ACCOUNT, POOLED_ORIGIN),
           }),
         )
       },
