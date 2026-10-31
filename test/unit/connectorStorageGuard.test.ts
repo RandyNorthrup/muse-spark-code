@@ -19,6 +19,7 @@ import { runConnector } from '../../src/runtime/connector/entry'
 import { ConnectorStore } from '../../src/runtime/connector/store'
 import { connectorStorageGuard } from '../../src/runtime/connector/storageGuard'
 import { isStorageRefused } from '../../src/runtime/connector/storageGuardPort'
+import { OWNER_COMMAND_IO } from './helpers/connectorRemote'
 import { usingPrivateDir } from './helpers/temporaryFolders'
 
 function run(file: string, args: readonly string[], env?: NodeJS.ProcessEnv): Promise<string> {
@@ -93,15 +94,7 @@ async function expectPrivate(files: readonly string[]): Promise<void> {
 async function grant(store: ConnectorStore): Promise<number> {
   const command = parseConnectorCommand(['grant', '--user-library'])
   if (command?.kind !== 'grant') throw new Error('grant parse')
-  return await runConnectorCommand(store, command, {
-    isInteractive: true,
-    now: Date.now,
-    print: () => undefined,
-    printError: (line) => {
-      throw new Error(line)
-    },
-    confirm: () => Promise.resolve(true),
-  })
+  return await runConnectorCommand(store, command, OWNER_COMMAND_IO)
 }
 
 /** The real entry on pipes, keeping both streams' words. */

@@ -121,6 +121,9 @@ const BUDGETS = [
   // RLM124 (finding 15): the connector's storage guard, 15565 bytes
   // (15.2 KiB) measured +15% = 17.5 KiB, rounded up to the next whole KiB.
   { path: 'dist/connectorStoreGuard.js', budgetKiB: 18 },
+  // M124 remote (D240): the HTTPS endpoint with its OAuth server (oidc-provider and the koa it
+  // runs on) and the registry it serves: 962.0 KiB measured +15%, rounded up to 25 KiB.
+  { path: 'dist/connectorRemote.js', budgetKiB: 1125 },
   // REL0160B combined Model API: 479.2 KiB measured +5%, rounded to 25 KiB;
   // authorized rebuild brief and measurement recorded in PLAN.md (2026-10-07).
   { path: 'dist/modelApi.js', budgetKiB: 525 },

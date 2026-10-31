@@ -29,6 +29,7 @@ import { runConnector, type ConnectorRuntimeDeps } from '../../src/runtime/conne
 import { ConnectorStore } from '../../src/runtime/connector/store'
 import { usingPrivateDir } from './helpers/temporaryFolders'
 import { connectorCall, connectorHeaders, connectorLogin } from './helpers/connectorLoopback'
+import { OWNER_COMMAND_IO } from './helpers/connectorRemote'
 
 const CANARY = 'sk-connector-canary-1234567890'
 const frame = (message: unknown) => `${JSON.stringify(message)}\n`
@@ -45,15 +46,7 @@ async function granted(data: string, scopes: readonly string[]): Promise<void> {
   const code = await runConnectorCommand(
     new ConnectorStore(data, connectorStorageGuard(path.join(data, CONNECTOR_FOLDER))),
     command,
-    {
-      isInteractive: true,
-      now: Date.now,
-      print: () => undefined,
-      printError: (line) => {
-        throw new Error(line)
-      },
-      confirm: () => Promise.resolve(true),
-    },
+    OWNER_COMMAND_IO,
   )
   expect(code).toBe(0)
 }

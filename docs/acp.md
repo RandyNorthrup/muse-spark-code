@@ -1159,7 +1159,9 @@ Muse Spark Code's prompt library, share previews, schedules, reports and
 Stop within a grant you make with `muse-spark-code-acp mcp grant` in your
 own terminal. Writes wait for your approval on Muse Spark Code's loopback
 approval page; the client cannot approve them. The connector loads from
-`connector.js` only for this command. Setup per client, tools, limits and
+`connector.js` only for this command; `mcp serve-http` and `mcp client …`
+serve the same grant over HTTPS with OAuth from your own PC and load from
+`connectorRemote.js`. Setup per client, tools, limits and
 records:
 [docs/mcp.md](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/mcp.md).
 
