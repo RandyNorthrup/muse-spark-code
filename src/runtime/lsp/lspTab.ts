@@ -213,8 +213,23 @@ export function createLspTab(deps: LspTabDeps) {
     const { document } = scope
     if (!(await isEligible(scope))) return quiet('ineligible-file')
     if (!scope.isPolicyCurrent()) return quiet('policy-changed')
-    // The store is read only now: an ineligible file never reads it. A key
-    // once found stays found; an absent one is read again next time.
+    const lines = document.text.split('\n')
+    const lineText = lines[position.line] ?? ''
+    const mode = chooseTabMode(
+      lineText.slice(0, position.character),
+      lineText.slice(position.character),
+      deps.settings.tabMultiline,
+      isInvoke,
+    )
+    // A secret spanning the cursor is decided from the document alone, so it
+    // quiets the request before the store is read and before the question:
+    // no request can follow, and the person is never asked to approve a
+    // spend that cannot happen.
+    const halves = redactedHalves(document.text, documentOffset(document.text, position))
+    if (halves === undefined) return quiet('secret-at-cursor')
+    // The store is read only now: an ineligible file, or a request that
+    // cannot be sent, never reads it. A key once found stays found; an
+    // absent one is read again next time.
     isKeyFound ||= await deps.isKeyStored()
     if (!isKeyFound) return quiet('no-key')
     const model = scope.context.model
@@ -229,16 +244,6 @@ export function createLspTab(deps: LspTabDeps) {
     }
     const isCurrent = () => scope.isPolicyCurrent() && grant.isCurrent()
     if (!isCurrent()) return quiet('policy-changed')
-    const lines = document.text.split('\n')
-    const lineText = lines[position.line] ?? ''
-    const mode = chooseTabMode(
-      lineText.slice(0, position.character),
-      lineText.slice(position.character),
-      deps.settings.tabMultiline,
-      isInvoke,
-    )
-    const halves = redactedHalves(document.text, documentOffset(document.text, position))
-    if (halves === undefined) return quiet('secret-at-cursor')
     const { prefix, suffix } = contextWindow(
       halves.before + halves.after,
       halves.before.length,
