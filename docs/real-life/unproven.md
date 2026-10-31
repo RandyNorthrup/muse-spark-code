@@ -3253,3 +3253,10 @@ editor run proves it:
   tests are deleted and the behaviours wait for a run with the real
   libraries installed. URL validation, credential stripping and real-child
   cleanup stay proven by the remaining ERT tests.
+- Zed: the Rust extension (hosts/zed/src/lib.rs) is unbuilt on this rig (no
+  Rust toolchain); register.py/launch.py are proven by their real-subprocess
+  tests. The mocked-exec tests are deleted.
+- Sublime: the whole suite ran on a hand-written `sublime` module double;
+  deleted. The plugin waits for a run inside Sublime Text.
+- Qt Creator: mocked-exec tests deleted; the launch bootstrap and Lua shim
+  are proven headless. The in-IDE run waits for Qt Creator.
