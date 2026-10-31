@@ -1,0 +1,17 @@
+{
+  "scenes": [
+    "workbench-1920",
+    "workbench-1280",
+    "bar-popovers",
+    "launcher",
+    "greeter",
+    "lock",
+    "prompts",
+    "tiled",
+    "onboarding",
+    "preview-grid",
+    "rtl"
+  ],
+  "themes": ["dark", "light", "hc-dark", "hc-light"],
+  "languages": ["en", "de", "ja", "zh-cn"]
+}

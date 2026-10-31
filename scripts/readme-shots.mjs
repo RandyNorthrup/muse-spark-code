@@ -14,6 +14,15 @@
 //   node scripts/readme-shots.mjs --out temp/readme-preview   preview elsewhere
 //   node scripts/readme-shots.mjs --list           the mapping and its gaps
 //   CHROME_PATH=/path/to/chrome node scripts/readme-shots.mjs
+//
+// The M111 desktop review shots (lane QA) ride the same script, never the
+// README list: scenes × themes × languages from
+// test/desktop/harness/review-shots.json, for a person to look at.
+//
+//   node scripts/readme-shots.mjs --desktop        the plan → temp/desktop-review/
+//   node scripts/readme-shots.mjs --desktop --only greeter,lock
+//   node scripts/readme-shots.mjs --desktop --languages='*'   all 15 tables
+//   node scripts/readme-shots.mjs --desktop --list
 
 import { existsSync } from 'node:fs'
 import { spawn } from 'node:child_process'
@@ -31,10 +40,18 @@ import {
   serveRepo,
   withSizedPage,
 } from './lib/harnessServer.mjs'
+import {
+  REVIEW_SHOT_FILE,
+  captureReviewShots,
+  expandReviewPlan,
+  parseReviewShots,
+} from '../test/desktop/harness/lib/reviewShots.mjs'
+import { serveDesktopScenes } from '../test/desktop/harness/lib/sceneServer.mjs'
 
 export const SHOT_LIST_FILE = 'scripts/readme-shots.json'
 export const README_FILE = 'README.md'
 export const DEFAULT_OUT_DIR = 'media/readme'
+export const DESKTOP_OUT_DIR = 'temp/desktop-review'
 export const BUNDLE_PATH = 'dist/webview/main.js'
 export const THEMES = new Set(['dark', 'light', 'hc-dark', 'hc-light'])
 // Keep the screenshot mapping’s existing minimum width; narrow scenarios
@@ -135,16 +152,20 @@ function parseOnly(value) {
   return names
 }
 
-/** CLI arguments: `{ only, out, list }`. */
+/** CLI arguments: `{ only, out, list, desktop, languages }`. */
 export function parseArgs(argv) {
   let only = null
-  let out = DEFAULT_OUT_DIR
+  let out
   let isList = false
+  let isDesktop = false
+  let languages
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index]
     const next = argv[index + 1]
     if (arg === '--list') {
       isList = true
+    } else if (arg === '--desktop') {
+      isDesktop = true
     } else if (arg === '--only' || arg.startsWith('--only=')) {
       const value = arg === '--only' ? next : arg.slice('--only='.length)
       if (value === undefined || value.startsWith('--')) {
@@ -163,13 +184,34 @@ export function parseArgs(argv) {
       if (arg === '--out') {
         index += 1
       }
+    } else if (arg === '--languages' || arg.startsWith('--languages=')) {
+      const value = arg === '--languages' ? next : arg.slice('--languages='.length)
+      if (value === undefined || value === '' || value.startsWith('--')) {
+        throw new Error("--languages needs a value: --languages <id,...> or '*'")
+      }
+      languages =
+        value === '*'
+          ? ['*']
+          : value
+              .split(',')
+              .map((lang) => lang.trim())
+              .filter((lang) => lang !== '')
+      if (arg === '--languages') {
+        index += 1
+      }
     } else {
       throw new Error(
-        `Unknown argument ${arg}; the flags are --list, --only <name,...> and --out <dir>`,
+        `Unknown argument ${arg}; the flags are --list, --desktop, --only <name,...>, --out <dir> and --languages <id,...>`,
       )
     }
   }
-  return { only, out, list: isList }
+  return {
+    only,
+    out: out ?? (isDesktop ? DESKTOP_OUT_DIR : DEFAULT_OUT_DIR),
+    list: isList,
+    desktop: isDesktop,
+    languages,
+  }
 }
 
 const compareNames = (a, b) => a.localeCompare(b, 'en')
@@ -322,9 +364,56 @@ async function shootShots(list, { only, out }) {
   }
 }
 
+async function runDesktop(args) {
+  const plan = parseReviewShots(await readFile(path.join(repoRoot, REVIEW_SHOT_FILE), 'utf8'))
+  const chosen = {
+    scenes: args.only === null ? plan.scenes : plan.scenes.filter((id) => args.only.includes(id)),
+    themes: plan.themes,
+    languages: args.languages ?? plan.languages,
+  }
+  const unknown = (args.only ?? []).filter((id) => !plan.scenes.includes(id))
+  if (unknown.length > 0) {
+    throw new Error(
+      `Unknown desktop scene(s): ${unknown.join(', ')}. Known: ${plan.scenes.join(', ')}`,
+    )
+  }
+  if (args.list) {
+    const captures = await expandReviewPlan(repoRoot, chosen)
+    for (const capture of captures) {
+      console.log(
+        `${capture.file} <- ${capture.scene} theme=${capture.theme} lang=${capture.lang} ${String(capture.width)}x${String(capture.height)}`,
+      )
+    }
+    return
+  }
+  const chrome = findChrome()
+  if (chrome === undefined) {
+    throw new Error('No Chrome install found; set CHROME_PATH to the browser executable')
+  }
+  const { server, port } = await serveDesktopScenes(repoRoot)
+  try {
+    const written = await captureReviewShots(
+      repoRoot,
+      chrome,
+      port,
+      chosen,
+      path.resolve(repoRoot, args.out),
+    )
+    for (const file of written) {
+      console.log(`desktop review: ${path.relative(repoRoot, file)}`)
+    }
+  } finally {
+    server.close()
+  }
+}
+
 async function main() {
-  const list = parseShotList(await readFile(path.join(repoRoot, SHOT_LIST_FILE), 'utf8'))
   const args = parseArgs(process.argv.slice(2))
+  if (args.desktop) {
+    await runDesktop(args)
+    return
+  }
+  const list = parseShotList(await readFile(path.join(repoRoot, SHOT_LIST_FILE), 'utf8'))
   if (args.list) {
     await listShots(list)
     return
