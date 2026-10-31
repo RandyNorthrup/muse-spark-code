@@ -100,4 +100,67 @@ edited by hand afterwards:
 
 ## Proof
 
-(To be filled: red/green drills, gate exit codes.)
+- `node scripts/build-tokens-desktop.mjs --check`: 0 problems (24 outputs
+  fresh, every desktop pair at AA in all four modes).
+- Vitest `test/unit/desktop/themeDesktop.test.mjs`: 20 passed, each under
+  the repo timeout; includes the stale-output red case (names the file,
+  leaves it untouched) and the derivation-drift red case (mutated danger
+  fails `dark: xterm/red on xterm/background`).
+- Rust `cargo test`: 4 passed; `cargo fmt --check` clean;
+  `cargo clippy --all-targets` with no warnings.
+- Real Qt 6.9.2: `qmllint` clean, `qmltestrunner` 10/10 (mode resolution,
+  override, invalid-override fallback, reduced motion, statics, column
+  geometry), emission verified `qmlformat`-stable.
+- Real LuaJIT (nvim headless): the Hyprland table loads; version, dark
+  focus `#7fb2ff`/`0xFF7FB2FF`, gaps 4/8, rounding 12, width 2, beziers,
+  HC border, tiling flags and the reduced-motion table all assert.
+- Real Chromium (headless, `rlf-m111th.dark.png` + `.light.png`): xterm.js
+  with the generated dark/light themes (all 16 ANSI), CodeMirror with the
+  generated editor themes (keyword/string/comment), the resolved palette
+  swatches and the boot pixels. Light white/brightWhite are invisible on
+  white by the documented bg-relative design.
+- Boot formats verified against authoritative sources: the Plymouth script
+  uses only calls present in Plymouth's own `script-lib-image.c` /
+  `script-lib-sprite.c` (the suite locks this: no `SetPosition`,
+  `SetClip`, `Image.Rectangle`, or bare `SetMessageFunction`); the GRUB
+  theme matches shipped `theme.txt` files (color-only, no pixmap or font
+  references until AR's land).
+- Red/green drill (worktree, 2026-10-31): corrupted
+  `desktop/shell/theme/palette-dark.css` → `--check` exit 1 naming the
+  stale file; regenerated → exit 0. (Below in Gates.)
+- Merge items for the lead: ack the `.stylelintrc.json` override touch;
+  extend `lint:css` to `desktop/**/*.css`; WB/ED/BP/CP/AR/PT/ST consume
+  the theme files, portal and override at merge; no Rust CI job exists
+  yet (`cargo test` runs on rigs only).
+
+## Gates
+
+All exit codes below are real, measured on linuxlt on 2026-10-31 with the
+repository's own timeouts (no `--testTimeout` anywhere):
+
+- `format:check`: 0; `lint`: 0 (lint:ps skips on Linux by design).
+- `typecheck`: 0.
+- `check:l10n`: 0 (no new strings).
+- `check:reference`: 0; `check:host-api`: 0; `check:plan`: 0;
+  `check:roadmap`: 0 (regenerated after the PLAN/CHANGELOG edits).
+- `check:catches`: 0 (baseline matches; the one new catch is NARROW and
+  outside the inventoried `src/` scope).
+- `duplication`: 0 clones; `cycles`: 0; `deadcode`: 0 (after promoting the
+  three test-imported packages to direct devDependencies).
+- `build`: 0, every budget holds.
+- `check:tokens` (chained): 0 — `tokens: 0 problems`,
+  `desktop tokens: 0 problems`.
+- Vitest `test/unit/desktop/themeDesktop.test.mjs`: 20 passed;
+  `vitest related scripts/build-tokens-desktop.mjs`: 20 passed;
+  `test/unit/desktop/` + `checkTokens.test.mjs`: 32 passed.
+- Cargo: `test` 4 passed, `fmt --check` clean, `clippy --all-targets`
+  no warnings (rig-only; no Rust CI job exists yet).
+- Qt 6.9.2: `qmllint` clean, `qmltestrunner` 10/10, emission
+  `qmlformat`-stable (rig drills, recorded here).
+- LuaJIT (nvim headless): theme table loads and asserts pass (rig drill).
+- Chromium headless: dark + light looks rendered and eyeballed (PNGs
+  beside this record); light white/brightWhite invisible on white is the
+  documented bg-relative design.
+- Not run: full `test:unit` (rules require touched suites + related
+  only), `test:a11y` (merge/release gate, not a lane gate), vault and
+  credential-store suites (untouched by this lane).
