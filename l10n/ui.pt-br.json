@@ -3483,6 +3483,7 @@
   "backendDetail": "Qual mecanismo executa esta conversa: automático, Muse Code ou Model API.",
   "backendMuseCode": "Muse Code (sua assinatura do Muse)",
   "backendModelApi": "Meta Model API (sua chave, pagamento conforme o uso)",
+  "backendExternal": "Agente externo (plano ou chave dele)",
   "modelApiBackendNotice": "Esta conversa é executada na Meta Model API com as ferramentas próprias da extensão (ler, editar, gravar, pesquisar, listar, shell). As sessões dela são mantidas no armazenamento da extensão deste espaço de trabalho.",
   "installOrKeyDetail": "A CLI do Muse Code hospeda as conversas desta extensão; sem ela, você ainda pode usar uma chave da Meta Model API.",
   "compactionDone": "Contexto compactado",

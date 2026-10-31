@@ -4191,6 +4191,7 @@ export const EN = {
   backendDetail: 'Which engine runs this conversation: automatic, Muse Code, or the Model API.',
   backendMuseCode: 'Muse Code (Your Muse Subscription)',
   backendModelApi: 'Meta Model API (Your Key, Pay as You Go)',
+  backendExternal: 'External Agent (Its Own Plan or Key)',
   modelApiBackendNotice:
     'This conversation runs on the Meta Model API with the extension’s own tools (read, edit, write, search, list, shell). Its sessions are kept in this workspace’s extension storage.',
   installOrKeyDetail:

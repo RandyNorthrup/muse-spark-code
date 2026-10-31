@@ -265,7 +265,7 @@ export interface PanelOptions {
   */
   readonly ensureHost?: () => Promise<AgentHost>
   /** The backend the sign-in gate reports; `modelApi` unless moved. */
-  readonly backend?: BackendKind
+  readonly backend?: Exclude<BackendKind, 'external'>
   /** The person's Muse Code resend limit (D228), read live per decision. */
   readonly museCodeMaxRetries?: () => number | undefined
   /** The resend wait's clock (D228); the product's real wait absent. */

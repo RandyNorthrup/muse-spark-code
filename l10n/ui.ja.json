@@ -3359,6 +3359,7 @@
   "backendDetail": "この会話を実行するエンジン:自動、Muse Code、Model API。",
   "backendMuseCode": "Muse Code (Muse サブスクリプション)",
   "backendModelApi": "Meta Model API (自分のキー、従量課金)",
+  "backendExternal": "外部エージェント（そのエージェント自体のプランまたはキー）",
   "modelApiBackendNotice": "この会話は、拡張機能独自のツール (読み取り、編集、書き込み、検索、一覧、シェル) を使用して Meta Model API で実行されます。セッションはこのワークスペースの拡張機能ストレージに保存されます。",
   "installOrKeyDetail": "Muse Code CLI がこの拡張機能の会話をホストします。CLI がなくても、Meta Model API キーを使用できます。",
   "compactionDone": "コンテキストを圧縮しました",

@@ -3359,6 +3359,7 @@
   "backendDetail": "이 대화를 실행할 엔진: 자동, Muse Code 또는 Model API.",
   "backendMuseCode": "Muse Code(Muse 구독)",
   "backendModelApi": "Meta Model API(사용자 키, 종량제)",
+  "backendExternal": "외부 에이전트(자체 요금제 또는 키)",
   "modelApiBackendNotice": "이 대화는 확장 자체 도구(읽기, 편집, 쓰기, 검색, 목록, 셸)를 사용하여 Meta Model API에서 실행됩니다. 세션은 이 작업 영역의 확장 저장소에 보관됩니다.",
   "installOrKeyDetail": "Muse Code CLI가 이 확장의 대화를 호스팅합니다. CLI가 없어도 Meta Model API 키를 사용할 수 있습니다.",
   "compactionDone": "컨텍스트가 압축됨",
