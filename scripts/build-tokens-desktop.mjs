@@ -16,8 +16,8 @@
 // Design record: docs/certification/rlf-m111th.md.
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { Buffer } from 'node:buffer'
-import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 import * as z from 'zod'
 import prettier from 'prettier'
 import stylelint from 'stylelint'
@@ -1430,10 +1430,7 @@ export async function checkDesktop(root = process.cwd()) {
   return problems
 }
 
-if (
-  process.argv[1] !== undefined &&
-  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-) {
+if (isEntryPoint(import.meta.url)) {
   if (process.argv.includes('--check')) {
     const problems = await checkDesktop()
     for (const problem of problems) console.error(problem)

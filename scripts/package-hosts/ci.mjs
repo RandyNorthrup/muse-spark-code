@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { appendFileSync, existsSync } from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { isEntryPoint } from '../lib/entryPoint.mjs'
 import { HOSTS } from './manifest.mjs'
 
 /** A shared-runtime change selects all hosts; isolated native changes select their host. */
@@ -15,7 +15,7 @@ export function hostMatrix(files) {
   }
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isEntryPoint(import.meta.url)) {
   const files = process.env.MUSE_BASE_SHA
     ? execFileSync('git', ['diff', '--name-only', process.env.MUSE_BASE_SHA, 'HEAD'], {
         encoding: 'utf8',

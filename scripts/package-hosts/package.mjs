@@ -13,7 +13,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { isEntryPoint } from '../lib/entryPoint.mjs'
 import { buildEnvironment, hostManifest, inside, MHP_VERSION } from './manifest.mjs'
 import * as z from 'zod/mini'
 
@@ -168,7 +168,7 @@ export function packageHost(root, host, run = execFileSync) {
   return receipt
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isEntryPoint(import.meta.url)) {
   try {
     const result = packageHost(process.cwd(), process.argv[2])
     console.log(JSON.stringify(result))
