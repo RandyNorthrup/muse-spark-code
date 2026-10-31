@@ -102,6 +102,37 @@ resourceSpans`; Resource → Scope → records. Retryable: 429/502/503/504
 - Next: node web UI wiring (lazy chunk, nav, fetch container), ui:look
   scene, M93 bundle files, Rust crate attempt, drills, full gates.
 
+## Part 4 (2026-10-31): node web UI wiring and the local look
+
+- `DiagnosticsLoader` (`src/webview/node/diagnostics/`): the Dashboard
+  fetch pattern against `node/diagnostics/read` (mount + RefreshButton,
+  failures to the workspace alert); renders the shared page.
+- `main.tsx`: `diagnostics` page state, nav button (after Audit),
+  `diagnostics` request kind + `runDiagnostics`, lazy chunk behind the
+  chunk boundary with the `nodeDiagnostics.chunkFailed`/`retry` words.
+  The terminal-only `TerminalChunkBoundary`/`TerminalChunk` became the
+  shared `NodeChunkBoundary`/`NodeLazyChunk` (same terminal strings and
+  behaviour; a second boundary would trip the 0-clone gate).
+- Suite: `test/unit/o11y/nodeDiagnosticsUi.test.tsx` (real workspace
+  shell + scripted port): lazy load renders the snapshot, refresh
+  re-reads, refusal reaches the alert. Neighbours green
+  (`nodeTerminalUi`, `UsageCharts`, 38 tests).
+- Budgets: diagnostics lazy chunk 19.7 KiB inside the editor bucket
+  (327.0/600 KiB); workspace 329.5/375, terminal 343.9/400. No new
+  budget, none raised.
+- Look: `node-diagnostics` scene in `test/harness/node.html` (fixture
+  snapshot, nav driver; help/whatsnew shifted to buttons 7/8), added to
+  the a11y gate. Real-Chrome screenshots light + dark in
+  `temp/ui-look/node-diagnostics.{light,dark}.png`. The look caught two
+  real bugs, both fixed: chart strokes invisible (`--ms-foreground`
+  undefined in the node bundle; now scoped aliases with system-colour
+  fallbacks in `diagnostics.css`, node-idiomatic `--vscode-*` elsewhere)
+  and a doubled Diagnostics heading (loader h2 removed).
+- a11y gate: `node-diagnostics` and `-narrow`, 4 themes each,
+  0 violations.
+- Next: M93 bundle files, Rust crate attempt, reference/host-api
+  records, drills, CHANGELOG, full gates.
+
 ## Drills (red/green)
 
 None yet.

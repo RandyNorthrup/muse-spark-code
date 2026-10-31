@@ -37,6 +37,10 @@ const TerminalTabs = lazy(async () => {
   const module = await import('../terminal/Terminal')
   return { default: module.TerminalTabs }
 })
+const DiagnosticsLoader = lazy(async () => {
+  const module = await import('../diagnostics/DiagnosticsLoader')
+  return { default: module.DiagnosticsLoader }
+})
 
 export interface NodeWorkspaceBinding {
   readonly port: NodeMethodPort
@@ -76,10 +80,15 @@ export function mountNodeWorkspace(element: Element, binding: NodeWorkspaceBindi
   }
 }
 
-/** The terminal chunk's boundary: a failed chunk load says so and offers
+/** A lazy chunk's boundary: a failed chunk load says so and offers
 a retry, which remounts the lazy page for another attempt. */
-class TerminalChunkBoundary extends Component<
-  { readonly children: ReactNode; readonly onRetry: () => void },
+class NodeChunkBoundary extends Component<
+  {
+    readonly children: ReactNode
+    readonly onRetry: () => void
+    readonly message: string
+    readonly retry: string
+  },
   { readonly failed: boolean }
 > {
   public static getDerivedStateFromError(): { readonly failed: boolean } {
@@ -92,41 +101,44 @@ class TerminalChunkBoundary extends Component<
     if (!this.state.failed) return this.props.children
     return (
       <>
-        <p role="alert">{UI_TEXT.nodeTerminal.chunkFailed}</p>
+        <p role="alert">{this.props.message}</p>
         <button type="button" onClick={this.props.onRetry}>
-          {UI_TEXT.nodeTerminal.retry}
+          {this.props.retry}
         </button>
       </>
     )
   }
 }
 
-function TerminalChunk(props: {
-  readonly port: NodeMethodPort
-  readonly auth: NodePageAuthPort
-  readonly workspaceId: string
-  readonly connect: NodeTerminalSocketFactory
-  readonly run: (work: (signal: AbortSignal) => Promise<void>) => void
-  readonly busy: boolean
+function NodeLazyChunk({
+  message,
+  retry,
+  loading,
+  children,
+}: {
+  readonly message: string
+  readonly retry: string
+  readonly loading: string
+  readonly children: ReactNode
 }) {
   const [attempt, setAttempt] = useState(0)
   return (
-    <TerminalChunkBoundary
+    <NodeChunkBoundary
       key={attempt}
       onRetry={() => {
         setAttempt((previous) => previous + 1)
       }}
+      message={message}
+      retry={retry}
     >
-      <Suspense fallback={<p data-deferred-loading="true">{UI_TEXT.nodeLabels.terminal}</p>}>
-        <TerminalTabs {...props} />
-      </Suspense>
-    </TerminalChunkBoundary>
+      <Suspense fallback={<p data-deferred-loading="true">{loading}</p>}>{children}</Suspense>
+    </NodeChunkBoundary>
   )
 }
 
 function NodeWorkspace({ port, auth, workspaceId, connectTerminal }: NodeWorkspaceBinding) {
   const [page, setPage] = useState<
-    'files' | 'git' | 'terminal' | 'dashboard' | 'audit' | 'help' | 'whatsnew'
+    'files' | 'git' | 'terminal' | 'dashboard' | 'audit' | 'diagnostics' | 'help' | 'whatsnew'
   >('files')
   const [opened, setOpened] = useState<NodeMethodResult<'node/files/read'>>()
   const [draft, setDraft] = useState('')
@@ -164,7 +176,7 @@ function NodeWorkspace({ port, auth, workspaceId, connectTerminal }: NodeWorkspa
   const startRequests = requests.start
   const startKind = useCallback(
     (
-      kind: 'file' | 'git' | 'terminal' | 'dashboard' | 'audit' | 'whatsnew',
+      kind: 'file' | 'git' | 'terminal' | 'dashboard' | 'audit' | 'diagnostics' | 'whatsnew',
       work: (signal: AbortSignal) => Promise<void>,
     ) => {
       const pending = startRequests(kind, work)
@@ -222,6 +234,12 @@ function NodeWorkspace({ port, auth, workspaceId, connectTerminal }: NodeWorkspa
   const runAudit = useCallback(
     (work: (signal: AbortSignal) => Promise<void>) => {
       startKind('audit', work)
+    },
+    [startKind],
+  )
+  const runDiagnostics = useCallback(
+    (work: (signal: AbortSignal) => Promise<void>) => {
+      startKind('diagnostics', work)
     },
     [startKind],
   )
@@ -313,6 +331,15 @@ function NodeWorkspace({ port, auth, workspaceId, connectTerminal }: NodeWorkspa
           }}
         >
           {UI_TEXT.nodeLabels.audit}
+        </button>
+        <button
+          type="button"
+          aria-pressed={page === 'diagnostics'}
+          onClick={() => {
+            setPage('diagnostics')
+          }}
+        >
+          {UI_TEXT.nodeLabels.diagnostics}
         </button>
         <button
           type="button"
@@ -536,18 +563,33 @@ function NodeWorkspace({ port, auth, workspaceId, connectTerminal }: NodeWorkspa
       )}
       {(terminalSeen || page === 'terminal') && (
         <div hidden={page !== 'terminal'}>
-          <TerminalChunk
-            port={port}
-            auth={auth}
-            workspaceId={workspaceId}
-            connect={connectTerminal}
-            run={runTerminal}
-            busy={isBusy}
-          />
+          <NodeLazyChunk
+            message={UI_TEXT.nodeTerminal.chunkFailed}
+            retry={UI_TEXT.nodeTerminal.retry}
+            loading={UI_TEXT.nodeLabels.terminal}
+          >
+            <TerminalTabs
+              port={port}
+              auth={auth}
+              workspaceId={workspaceId}
+              connect={connectTerminal}
+              run={runTerminal}
+              busy={isBusy}
+            />
+          </NodeLazyChunk>
         </div>
       )}
       {page === 'dashboard' && <DashboardPage port={port} run={runDashboard} busy={isBusy} />}
       {page === 'audit' && <AuditPage port={port} run={runAudit} busy={isBusy} />}
+      {page === 'diagnostics' && (
+        <NodeLazyChunk
+          message={UI_TEXT.nodeDiagnostics.chunkFailed}
+          retry={UI_TEXT.nodeDiagnostics.retry}
+          loading={UI_TEXT.nodeLabels.diagnostics}
+        >
+          <DiagnosticsLoader port={port} run={runDiagnostics} busy={isBusy} />
+        </NodeLazyChunk>
+      )}
       {page === 'help' && <HelpPage />}
       {page === 'whatsnew' && <WhatsNewPage port={port} run={runWhatsNew} busy={isBusy} />}
     </main>
