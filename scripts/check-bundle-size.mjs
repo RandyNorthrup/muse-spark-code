@@ -657,16 +657,16 @@ const BUDGETS = [
   { path: 'dist/vaultRuntimeMigration.js', budgetKiB: 70 },
   // RLF-M109 (D243): the feeder (envelope, delegated redemption client,
   // scrub streams, the contained command runner), spawned in place of a
-  // command. Measured 127.7 KiB; plus 15%, rounded up.
-  { path: 'dist/vaultExec.js', budgetKiB: 150 },
+  // command. Measured 94.3 KiB; plus 15%, rounded up.
+  { path: 'dist/vaultExec.js', budgetKiB: 110 },
   // RLF-M109 (D243): the person vault policy's file half, loaded by the
   // broker bindings and the vault runtime on first use. Measured
   // 7.0 KiB; plus 15%, rounded up to the 25 KiB floor.
   { path: 'dist/vaultPolicy.js', budgetKiB: 25 },
   // RLF-M109 (D243): the headless registration/session and the feeder
   // host port, loaded on the first headless vault use. Measured
-  // 66.3 KiB; plus 15%, rounded up.
-  { path: 'dist/vaultExecHost.js', budgetKiB: 80 },
+  // 34.0 KiB; plus 15%, rounded up.
+  { path: 'dist/vaultExecHost.js', budgetKiB: 40 },
 ]
 
 // DIET1: independently emitted optional surfaces, measured on main, each plus
