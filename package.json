@@ -1987,6 +1987,7 @@
     "harness:pseudo": "node scripts/pseudo-l10n.mjs",
     "readme:shots": "node scripts/readme-shots.mjs",
     "desktop:harness": "node scripts/desktop-harness.mjs",
+    "desktop:qemu": "node scripts/qemu-desktop-test.mjs",
     "test:a11y": "node scripts/a11y.mjs",
     "check:badges": "node scripts/check-badges.mjs",
     "check:l10n": "node scripts/check-l10n.mjs",
