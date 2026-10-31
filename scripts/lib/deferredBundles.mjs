@@ -2064,16 +2064,15 @@ export const deferredCohort = {
     build.onResolve({ filter: /\/(?:board|slots|teamPool)(?:\.[jt]s)?$/ }, (args) => {
       const outfile = path.resolve(build.initialOptions.outfile ?? '')
       const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
-      const shared =
-        outfile === path.resolve('dist/teamWindow.js')
-          ? [
-              'src/core/team/scheduler/board.ts',
-              'src/core/team/scheduler/slots.ts',
-              'src/core/team/teamPool.ts',
-            ]
-          : outfile === path.resolve('dist/teamRunners.js')
-            ? ['src/core/team/scheduler/slots.ts']
-            : []
+      let shared = []
+      if (outfile === path.resolve('dist/teamWindow.js'))
+        shared = [
+          'src/core/team/scheduler/board.ts',
+          'src/core/team/scheduler/slots.ts',
+          'src/core/team/teamPool.ts',
+        ]
+      else if (outfile === path.resolve('dist/teamRunners.js'))
+        shared = ['src/core/team/scheduler/slots.ts']
       return shared.some((file) => source === path.resolve(file))
         ? { path: './teamScheduler.js', external: true }
         : undefined
