@@ -7906,6 +7906,12 @@ export const NATIVE_HELPER_BUILD: Readonly<
   darwin: { script: 'native/darwin/build.sh', command: 'bash native/darwin/build.sh' },
   linux: { script: 'scripts/build.mjs', command: 'npm run build:dev' },
 }
+/**
+The exit statuses of the shell that starts `muse serve` on POSIX: 126 for a
+program it may not run, 127 for one it cannot find (POSIX.1-2017, shell
+exit status).
+*/
+export const SHELL_EXIT_CANNOT_RUN: ReadonlySet<number> = new Set([126, 127])
 /** This Mac's vault peer helper beside the .apps. */
 export function darwinVaultPeerFile(arch: string): string {
   if (arch === 'arm64') return 'muse-vault-peer-arm64'

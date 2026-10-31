@@ -475,6 +475,20 @@ happened, not what was planned; superseded entries are kept.
   place. It now starts one `python3` found by its full path outside the
   workspace. When there is none, it says that serial access needs Python 3
   with the pyserial package and the command that installs it.
+- **A session that cannot start now says why, in the editor.** Starting a
+  session through the agent when Muse Code could not read its sign-in file
+  (`muse/auth.json` malformed, a folder, or not readable by you) or when the file
+  was written for a newer Muse Code ended in "That did not work", or in a
+  bare "Internal error". It now says that Muse Code could not read the file
+  (or does not support its version) and what to do: repair or delete the file
+  and sign in again. A Muse Code that the computer will not run, or that stops
+  while starting, says its exit status. A folder the editor asks to open that
+  does not exist, is a file, or that this account may not open says so,
+  instead of "That did not work"; a folder not given as a full path says that.
+  When Muse Code lists no model, the message now tells you to check your
+  sign-in or key and that this computer can reach the provider. Any other
+  start failure now arrives as "The session could not be started (…)" with its
+  fixed cause, and the Muse Spark log has the details.
 - A pack index is accepted only when the signature covers those exact bytes
   and the signer is the pack workflow on `main`, exactly. A signature for a
   branch whose name merely begins with `main`, or a signed statement that

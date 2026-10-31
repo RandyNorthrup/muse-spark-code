@@ -16,6 +16,7 @@ import { vaultApprovalText } from '../runtime/vault/vaultApproval'
 
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
+import { stat } from 'node:fs/promises'
 import type { UsageAdapter } from '../runtime/usage/usageAdapter'
 import type { VoiceCompanion, VoiceCompanionContext } from '../runtime/companion/voiceEntry'
 import { agentListingText, listedAgents, listedAgentId } from '../core/agent/agentListing'
@@ -87,6 +88,8 @@ import {
 } from '../core/backends/musecode/sandbox'
 import { DeadlineError, unlessAborted } from '../core/timeouts'
 import { isMissingApiKeyError, isModelApiError } from '../core/backends/modelapi/transport'
+import { isErrno } from '../core/fs/errno'
+import { CAUSE_SLOT_VALUE, isFilledSentence } from '../core/filledSentence'
 import { isNativeHelperSentence } from '../core/nativeHelper'
 import {
   acpUsageSnapshotSchema,
@@ -550,6 +553,32 @@ function sharingRequestError(error: unknown): unknown {
     default: {
       return RequestError.internalError(undefined, error.message)
     }
+  }
+}
+
+/** The system errors that say a folder cannot be opened by this account. */
+const FOLDER_UNUSABLE_ERRNOS: ReadonlySet<string> = new Set([
+  'ENOENT',
+  'ENOTDIR',
+  'EACCES',
+  'EPERM',
+  'ENAMETOOLONG',
+  'ELOOP',
+])
+
+/**
+Whether `folder` is a folder this account can open: the CLI is started in it,
+so one that is missing, a file or closed to this account fails the start with
+nothing to tell the person. Only the system errors that say so are read as no.
+Exported so the answer is pinned over real folders (acpFolderCheck.test.ts).
+*/
+export async function isOpenableFolder(folder: string): Promise<boolean> {
+  try {
+    const found = await stat(folder)
+    return found.isDirectory()
+  } catch (error: unknown) {
+    if (isErrno(error) && FOLDER_UNUSABLE_ERRNOS.has(error.code ?? '')) return false
+    throw error
   }
 }
 
@@ -4135,8 +4164,12 @@ class AgentState {
   private async openHost(
     cwd: string,
   ): Promise<{ readonly host: AgentHost; readonly models: readonly ModelSummary[] }> {
+    // Neither folder problem echoes the path: it can name an account.
     if (!path.isAbsolute(cwd)) {
-      throw RequestError.invalidParams(undefined, cwd)
+      throw RequestError.invalidParams(undefined, UI_TEXT.acpFolderNotAbsolute)
+    }
+    if (!(await isOpenableFolder(cwd))) {
+      throw RequestError.invalidParams(undefined, UI_TEXT.acpFolderMissing)
     }
     // A dead credential store does not stop the session from opening: only
     // a step that needs a stored key refuses, in the store-down words.
@@ -4753,6 +4786,8 @@ function outboundSentences(): ReadonlySet<string> {
     UI_TEXT.actionFailed,
     UI_TEXT.acpPromptBusy,
     UI_TEXT.acpNoModels,
+    UI_TEXT.acpFolderNotAbsolute,
+    UI_TEXT.acpFolderMissing,
     UI_TEXT.acpCredentialStoreNoAnswer,
     UI_TEXT.vault.noAccess,
     UI_TEXT.vault.brokerBlocked,
@@ -4934,6 +4969,19 @@ function outboundSentence(message: string): string | undefined {
   // A native helper that is missing or cannot start: the sentence says which
   // and what to do, its slots hold a file name and a command only.
   if (isNativeHelperSentence(unprefixed)) return message
+  // Muse Code ending while it starts: the sentence says why (its sign-in
+  // file, its exit status) and what to do; its slots hold digits only.
+  if (isFilledSentence(unprefixed, Object.values(UI_TEXT.museStart))) return message
+  // The start backstops name the failure by its fixed-vocabulary cause (an
+  // error name, code or kind) and send the person to the log.
+  if (
+    isFilledSentence(
+      unprefixed,
+      [UI_TEXT.acpSessionStartFailed, UI_TEXT.acpTurnStartFailed],
+      CAUSE_SLOT_VALUE,
+    )
+  )
+    return message
   // The readiness check's CLI refusal names the folders it searched after
   // its fixed sentence (`Searched: …`): only the sentence leaves, never a
   // path, and the built error keeps the SDK's prefix.

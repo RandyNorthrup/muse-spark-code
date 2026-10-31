@@ -4453,7 +4453,9 @@
     "macos": "macOS Anahtar Zinciri",
     "linux": "Secret Service anahtarlığı"
   },
-  "acpNoModels": "Arka uç, bu aracının kullanabileceği bir model sunmuyor.",
+  "acpNoModels": "Arka uç, bu aracının kullanabileceği bir model sunmuyor. Oturum açtığınızdan veya bir anahtar kaydettiğinizden ve bu bilgisayarın sağlayıcının sunucusuna ulaşabildiğinden emin olun, sonra yeniden deneyin.",
+  "acpFolderNotAbsolute": "Düzenleyici, açılacak klasörü tam yol olarak vermelidir.",
+  "acpFolderMissing": "Açılacak klasör kullanılamıyor: yok, klasör değil veya bu hesap onu açamaz. Yolu kontrol edin ve yeniden açın.",
   "acpPromptBusy": "Bu oturumda zaten bir istem çalışıyor.",
   "acpSessionStartFailed": "Oturum başlatılamadı ({detail}). Ayrıntılar Muse Spark günlüğünde.",
   "acpTurnStartFailed": "Tur başlatılamadı ({detail}). Ayrıntılar Muse Spark günlüğünde.",
@@ -4472,6 +4474,12 @@
     "unloadableSource": "{helper} yerel yardımcısı derlenmiş, ancak bu bilgisayar onu çalıştıramıyor (hasarlı, sistem tarafından engellenmiş veya başka bir işlemci için derlenmiş olabilir), bu yüzden bu başlatılamadı. “{command}” komutuyla yeniden derleyin ve yeniden deneyin.",
     "unsupported": "Muse Spark Code, {arch} üzerindeki {platform} için yerel yardımcı içermiyor, bu yüzden bu başlatılamadı.",
     "windowsJob": "Windows iş yardımcısı hazırlanamadı, bu yüzden bu başlatılamadı. Muse Spark Code onu ilk kullanımda, native/windows klasöründeki dosyalardan Windows PowerShell 5.1 ile derler: Muse Spark Code’u yeniden kurun ve Windows PowerShell’in başladığını, güvenlik yazılımının onu engellemediğini denetleyin."
+  },
+  "museStart": {
+    "authFile": "Muse Code oturum dosyasını (yapılandırma klasöründeki muse/auth.json) okuyamadı, bu yüzden başlamadı. Dosyayı onarın veya silin, sonra yeniden oturum açın.",
+    "authSchema": "Muse Code'un oturum dosyası bu Muse Code'un desteklemediği bir biçimde ({version} sürümü), bu yüzden başlamadı. Dosyayı (yapılandırma klasöründeki muse/auth.json) silip yeniden oturum açın veya Muse Code'u güncelleyin.",
+    "cannotRun": "Bu bilgisayar Muse Code'u çalıştırmadı (çıkış durumu {code}), bu yüzden bu başlatılamadı. Dosyanın Muse Code programı olduğunu ve çalıştırma izniniz olduğunu kontrol edin veya yeniden kurun.",
+    "exited": "Muse Code başlarken durdu (çıkış durumu {code}), bu yüzden bu başlatılamadı. Ayrıntılar Muse Spark günlüğünde; bir terminalde “muse serve” çalıştırmak Muse Code'un ne dediğini gösterir."
   },
   "acpQuestionFormMessage": "Muse'un size bir sorusu var.",
   "acpQuestionAsked": "Muse'un bir sorusu var; bu düzenleyici soruyu form olarak gösteremiyor, bu yüzden bir sonraki iletinizde yanıtlayın:",

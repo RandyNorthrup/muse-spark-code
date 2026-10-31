@@ -4370,7 +4370,9 @@
     "macos": "macOS 키체인",
     "linux": "Secret Service 키링"
   },
-  "acpNoModels": "백엔드에 이 에이전트가 사용할 수 있는 모델이 없습니다.",
+  "acpNoModels": "백엔드에 이 에이전트가 사용할 수 있는 모델이 없습니다. 로그인했는지 또는 키를 저장했는지, 그리고 이 컴퓨터가 공급자의 서버에 연결할 수 있는지 확인한 다음 다시 시도하세요.",
+  "acpFolderNotAbsolute": "편집기는 열 폴더를 전체 경로로 지정해야 합니다.",
+  "acpFolderMissing": "열 폴더를 사용할 수 없습니다. 폴더가 없거나, 폴더가 아니거나, 이 계정이 열 수 없습니다. 경로를 확인하고 다시 여세요.",
   "acpPromptBusy": "이 세션에서 이미 프롬프트가 실행 중입니다.",
   "acpSessionStartFailed": "세션을 시작하지 못했습니다 ({detail}). 자세한 내용은 Muse Spark 로그 참조.",
   "acpTurnStartFailed": "턴을 시작하지 못했습니다 ({detail}). 자세한 내용은 Muse Spark 로그 참조.",
@@ -4389,6 +4391,12 @@
     "unloadableSource": "네이티브 도우미 {helper}이(가) 빌드되어 있지만 이 컴퓨터에서 실행할 수 없어(손상되었거나, 시스템이 차단했거나, 다른 프로세서용으로 빌드되었을 수 있습니다) 시작하지 못했습니다. “{command}”로 다시 빌드한 다음 다시 시도하세요.",
     "unsupported": "Muse Spark Code는 {arch}의 {platform}용 네이티브 도우미를 제공하지 않아 시작하지 못했습니다.",
     "windowsJob": "Windows 작업 도우미를 준비하지 못해 시작하지 못했습니다. Muse Spark Code는 처음 사용할 때 native/windows 폴더의 파일로 Windows PowerShell 5.1을 사용해 이를 컴파일합니다. Muse Spark Code를 다시 설치하고, Windows PowerShell이 시작되는지와 보안 소프트웨어가 차단하지 않는지 확인하세요."
+  },
+  "museStart": {
+    "authFile": "Muse Code가 로그인 파일(구성 폴더의 muse/auth.json)을 읽지 못해 시작되지 않았습니다. 이 파일을 복구하거나 삭제한 다음 다시 로그인하세요.",
+    "authSchema": "Muse Code의 로그인 파일이 이 Muse Code가 지원하지 않는 형식(버전 {version})이어서 시작되지 않았습니다. 파일(구성 폴더의 muse/auth.json)을 삭제하고 다시 로그인하거나 Muse Code를 업데이트하세요.",
+    "cannotRun": "이 컴퓨터가 Muse Code를 실행하지 않았습니다(종료 상태 {code}). 그래서 시작하지 못했습니다. 파일이 Muse Code 프로그램인지, 실행할 권한이 있는지 확인하거나 다시 설치하세요.",
+    "exited": "Muse Code가 시작하는 중에 멈췄습니다(종료 상태 {code}). 그래서 시작하지 못했습니다. 자세한 내용은 Muse Spark 로그에 있습니다. 터미널에서 “muse serve”를 실행하면 Muse Code가 출력하는 내용을 볼 수 있습니다."
   },
   "acpQuestionFormMessage": "Muse가 질문이 있습니다.",
   "acpQuestionAsked": "Muse가 질문이 있습니다. 이 편집기에서는 양식으로 표시할 수 없으니 다음 메시지로 답해 주세요:",

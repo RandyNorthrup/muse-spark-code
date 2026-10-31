@@ -4619,7 +4619,9 @@
     "macos": "Klíčenka macOS",
     "linux": "klíčenka služby Secret Service"
   },
-  "acpNoModels": "Backend nenabízí žádný model, který by tento agent mohl použít.",
+  "acpNoModels": "Backend nenabízí žádný model, který by tento agent mohl použít. Zkontrolujte, zda jste přihlášeni nebo máte uložený klíč a zda tento počítač dosáhne na server poskytovatele, a zkuste to znovu.",
+  "acpFolderNotAbsolute": "Editor musí složku k otevření zadat jako úplnou cestu.",
+  "acpFolderMissing": "Složku k otevření nelze použít: neexistuje, není složkou, nebo ji tento účet nesmí otevřít. Zkontrolujte cestu a otevřete ji znovu.",
   "acpPromptBusy": "V této relaci už běží jiný prompt.",
   "acpSessionStartFailed": "Relaci se nepodařilo spustit ({detail}). Podrobnosti najdete v protokolu Muse Spark.",
   "acpTurnStartFailed": "Kolo se nepodařilo spustit ({detail}). Podrobnosti najdete v protokolu Muse Spark.",
@@ -4638,6 +4640,12 @@
     "unloadableSource": "Nativní pomocník {helper} je sestaven, ale tento počítač ho nedokáže spustit (může být poškozený, zablokovaný systémem nebo sestavený pro jiný procesor), takže se to nepodařilo spustit. Sestavte ho znovu příkazem „{command}“ a zkuste to znovu.",
     "unsupported": "Muse Spark Code nedodává žádného nativního pomocníka pro {platform} na {arch}, takže se to nepodařilo spustit.",
     "windowsJob": "Pomocníka úloh pro Windows se nepodařilo připravit, takže se to nepodařilo spustit. Muse Spark Code ho při prvním použití sestaví ve Windows PowerShellu 5.1 ze souborů ve své složce native/windows: přeinstalujte Muse Spark Code a zkontrolujte, že se Windows PowerShell spouští a že ho nebrání bezpečnostní software."
+  },
+  "museStart": {
+    "authFile": "Muse Code nemohl přečíst svůj soubor s přihlášením (muse/auth.json ve své konfigurační složce), a proto se nespustil. Soubor opravte nebo smažte a poté se přihlaste znovu.",
+    "authSchema": "Soubor s přihlášením Muse Code má formát, který tento Muse Code nepodporuje (verze {version}), a proto se nespustil. Soubor (muse/auth.json v jeho konfigurační složce) smažte a přihlaste se znovu, nebo Muse Code aktualizujte.",
+    "cannotRun": "Tento počítač Muse Code nespustil (stavový kód ukončení {code}), takže se to nepodařilo spustit. Zkontrolujte, že soubor je program Muse Code a že ho smíte spustit, nebo ho nainstalujte znovu.",
+    "exited": "Muse Code se zastavil při spouštění (stavový kód ukončení {code}), takže se to nepodařilo spustit. Podrobnosti jsou v protokolu Muse Spark; spuštění „muse serve“ v terminálu ukáže, co Muse Code hlásí."
   },
   "acpQuestionFormMessage": "Muse má na vás otázku.",
   "acpQuestionAsked": "Muse má otázku; tento editor ji neumí zobrazit jako formulář, odpovězte proto v další zprávě:",

@@ -5492,7 +5492,12 @@ export const EN = {
     macos: 'the macOS Keychain',
     linux: 'the Secret Service keyring',
   },
-  acpNoModels: 'The backend offers no model this agent may use.',
+  acpNoModels:
+    'The backend offers no model this agent may use. Check that you are signed in or have stored a key, and that this computer can reach the provider’s server, then try again.',
+  // The folder an editor asked a session to open (it is never echoed: it can name an account).
+  acpFolderNotAbsolute: 'The editor must give the folder to open as a full path.',
+  acpFolderMissing:
+    'The folder to open cannot be used: it does not exist, is not a folder, or this account may not open it. Check the path and open it again.',
   acpPromptBusy: 'A prompt is already running in this session.',
   // {detail}: the failure's fixed-vocabulary cause (an error name, code or kind).
   acpSessionStartFailed:
@@ -5526,6 +5531,20 @@ export const EN = {
       'Muse Spark Code ships no native helper for {platform} on {arch}, so this could not start.',
     windowsJob:
       'The Windows job helper could not be prepared, so this could not start. Muse Spark Code compiles it on first use with Windows PowerShell 5.1 from the files in its native/windows folder: reinstall Muse Spark Code, and check that Windows PowerShell starts and that security software is not blocking it.',
+  },
+  // Muse Code (`muse serve`) ended before it answered. The CLI's own words are
+  // free text that can name a path or an account, so each sentence is ours,
+  // chosen by what the CLI was captured writing or by its exit status.
+  // {version}: the auth schema version number. {code}: the exit status number.
+  museStart: {
+    authFile:
+      'Muse Code could not read its sign-in file (muse/auth.json in its configuration folder), so it did not start. Repair or delete that file, then sign in again.',
+    authSchema:
+      'Muse Code’s sign-in file is in a format this Muse Code does not support (version {version}), so it did not start. Delete the file (muse/auth.json in its configuration folder) and sign in again, or update Muse Code.',
+    cannotRun:
+      'This computer would not run Muse Code (exit status {code}), so this could not start. Check that the file is the Muse Code program and that you may run it, or reinstall it.',
+    exited:
+      'Muse Code stopped while it was starting (exit status {code}), so this could not start. The Muse Spark log has the details; running “muse serve” in a terminal shows what Muse Code says.',
   },
   acpQuestionFormMessage: 'Muse has a question for you.',
   acpQuestionAsked:

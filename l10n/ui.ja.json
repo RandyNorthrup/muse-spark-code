@@ -4370,7 +4370,9 @@
     "macos": "macOS キーチェーン",
     "linux": "Secret Service キーリング"
   },
-  "acpNoModels": "バックエンドには、このエージェントが使用できるモデルがありません。",
+  "acpNoModels": "バックエンドには、このエージェントが使用できるモデルがありません。サインインしているか、またはキーを保存してあるか、またこのコンピューターがプロバイダーのサーバーに接続できるかを確認してから、もう一度お試しください。",
+  "acpFolderNotAbsolute": "エディターは、開くフォルダーを完全なパスで指定する必要があります。",
+  "acpFolderMissing": "開くフォルダーを使用できません。フォルダーが存在しない、フォルダーではない、またはこのアカウントでは開けません。パスを確認して、もう一度開いてください。",
   "acpPromptBusy": "このセッションでは既にプロンプトを実行中です。",
   "acpSessionStartFailed": "セッションを開始できませんでした ({detail})。詳細は Muse Spark のログを参照してください。",
   "acpTurnStartFailed": "ターンを開始できませんでした ({detail})。詳細は Muse Spark のログを参照してください。",
@@ -4389,6 +4391,12 @@
     "unloadableSource": "ネイティブヘルパー {helper} はビルドされていますが、このコンピューターでは実行できないため（破損している、システムにブロックされている、または別のプロセッサ用にビルドされている可能性があります）、開始できませんでした。「{command}」でビルドし直してから、もう一度お試しください。",
     "unsupported": "Muse Spark Code には {arch} 上の {platform} 用のネイティブヘルパーが同梱されていないため、開始できませんでした。",
     "windowsJob": "Windows のジョブヘルパーを準備できなかったため、開始できませんでした。Muse Spark Code は初回使用時に、native/windows フォルダーのファイルから Windows PowerShell 5.1 でこれをコンパイルします。Muse Spark Code を再インストールし、Windows PowerShell が起動すること、セキュリティソフトがブロックしていないことを確認してください。"
+  },
+  "museStart": {
+    "authFile": "Muse Code がサインインファイル（構成フォルダー内の muse/auth.json）を読み取れなかったため、起動しませんでした。このファイルを修復または削除してから、もう一度サインインしてください。",
+    "authSchema": "Muse Code のサインインファイルは、この Muse Code が対応していない形式（バージョン {version}）のため、起動しませんでした。ファイル（構成フォルダー内の muse/auth.json）を削除してもう一度サインインするか、Muse Code を更新してください。",
+    "cannotRun": "このコンピューターは Muse Code を実行しませんでした（終了ステータス {code}）。そのため開始できませんでした。ファイルが Muse Code のプログラムであり、実行が許可されていることを確認するか、再インストールしてください。",
+    "exited": "Muse Code が起動中に停止しました（終了ステータス {code}）。そのため開始できませんでした。詳細は Muse Spark のログにあります。ターミナルで “muse serve” を実行すると、Muse Code の出力を確認できます。"
   },
   "acpQuestionFormMessage": "Muse から質問があります。",
   "acpQuestionAsked": "Muse から質問があります。このエディターではフォームとして表示できないため、次のメッセージで回答してください:",

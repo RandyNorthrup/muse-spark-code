@@ -4536,7 +4536,9 @@
     "macos": "Trousseau macOS",
     "linux": "trousseau Secret Service"
   },
-  "acpNoModels": "Le backend ne propose aucun modèle que cet agent puisse utiliser.",
+  "acpNoModels": "Le backend ne propose aucun modèle que cet agent puisse utiliser. Vérifiez que vous êtes connecté ou que vous avez enregistré une clé, et que cet ordinateur peut joindre le serveur du fournisseur, puis réessayez.",
+  "acpFolderNotAbsolute": "L’éditeur doit indiquer le dossier à ouvrir sous forme de chemin complet.",
+  "acpFolderMissing": "Le dossier à ouvrir est inutilisable : il n’existe pas, n’est pas un dossier, ou ce compte n’a pas le droit de l’ouvrir. Vérifiez le chemin et rouvrez-le.",
   "acpPromptBusy": "Un prompt est déjà en cours dans cette session.",
   "acpSessionStartFailed": "La session n’a pas pu démarrer ({detail}). Le journal de Muse Spark contient les détails.",
   "acpTurnStartFailed": "Le tour n’a pas pu démarrer ({detail}). Le journal de Muse Spark contient les détails.",
@@ -4555,6 +4557,12 @@
     "unloadableSource": "L’assistant natif {helper} est compilé, mais cet ordinateur ne peut pas l’exécuter (il est peut-être endommagé, bloqué par le système ou compilé pour un autre processeur), donc cela n’a pas pu démarrer. Recompilez-le avec « {command} », puis réessayez.",
     "unsupported": "Muse Spark Code ne fournit aucun assistant natif pour {platform} sur {arch}, donc cela n’a pas pu démarrer.",
     "windowsJob": "L’assistant de tâches Windows n’a pas pu être préparé, donc cela n’a pas pu démarrer. Muse Spark Code le compile à la première utilisation avec Windows PowerShell 5.1 à partir des fichiers de son dossier native/windows : réinstallez Muse Spark Code, puis vérifiez que Windows PowerShell démarre et qu’aucun logiciel de sécurité ne le bloque."
+  },
+  "museStart": {
+    "authFile": "Muse Code n’a pas pu lire son fichier de connexion (muse/auth.json dans son dossier de configuration) et ne s’est donc pas lancé. Réparez ou supprimez ce fichier, puis reconnectez-vous.",
+    "authSchema": "Le fichier de connexion de Muse Code est dans un format que ce Muse Code ne prend pas en charge (version {version}) ; il ne s’est donc pas lancé. Supprimez le fichier (muse/auth.json dans son dossier de configuration) et reconnectez-vous, ou mettez Muse Code à jour.",
+    "cannotRun": "Cet ordinateur n’a pas voulu exécuter Muse Code (code de sortie {code}), donc cela n’a pas pu démarrer. Vérifiez que le fichier est bien le programme Muse Code et que vous avez le droit de l’exécuter, ou réinstallez-le.",
+    "exited": "Muse Code s’est arrêté pendant son démarrage (code de sortie {code}), donc cela n’a pas pu démarrer. Le journal de Muse Spark contient les détails ; exécuter « muse serve » dans un terminal montre ce que Muse Code indique."
   },
   "acpQuestionFormMessage": "Muse a une question pour vous.",
   "acpQuestionAsked": "Muse a une question ; cet éditeur ne peut pas l’afficher sous forme de formulaire, répondez donc dans votre prochain message :",

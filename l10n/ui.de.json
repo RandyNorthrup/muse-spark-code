@@ -4453,7 +4453,9 @@
     "macos": "macOS-Schlüsselbund",
     "linux": "Secret-Service-Schlüsselbund"
   },
-  "acpNoModels": "Das Backend bietet kein Modell an, das dieser Agent verwenden darf.",
+  "acpNoModels": "Das Backend bietet kein Modell an, das dieser Agent verwenden darf. Prüfen Sie, ob Sie angemeldet sind oder einen Schlüssel gespeichert haben und ob dieser Computer den Server des Anbieters erreichen kann, und versuchen Sie es dann erneut.",
+  "acpFolderNotAbsolute": "Der Editor muss den zu öffnenden Ordner als vollständigen Pfad angeben.",
+  "acpFolderMissing": "Der zu öffnende Ordner kann nicht verwendet werden: Er existiert nicht, ist kein Ordner, oder dieses Konto darf ihn nicht öffnen. Prüfen Sie den Pfad und öffnen Sie ihn erneut.",
   "acpPromptBusy": "In dieser Sitzung läuft bereits ein Prompt.",
   "acpSessionStartFailed": "Die Sitzung konnte nicht gestartet werden ({detail}). Details stehen im Muse Spark-Protokoll.",
   "acpTurnStartFailed": "Der Durchgang konnte nicht gestartet werden ({detail}). Details stehen im Muse Spark-Protokoll.",
@@ -4472,6 +4474,12 @@
     "unloadableSource": "Der native Helfer {helper} ist gebaut, aber dieser Computer kann ihn nicht ausführen (er ist möglicherweise beschädigt, vom System blockiert oder für einen anderen Prozessor gebaut), daher konnte dies nicht gestartet werden. Bauen Sie ihn mit „{command}“ neu und versuchen Sie es erneut.",
     "unsupported": "Muse Spark Code liefert keinen nativen Helfer für {platform} auf {arch} mit, daher konnte dies nicht gestartet werden.",
     "windowsJob": "Der Windows-Job-Helfer konnte nicht vorbereitet werden, daher konnte dies nicht gestartet werden. Muse Spark Code kompiliert ihn bei der ersten Verwendung mit Windows PowerShell 5.1 aus den Dateien in seinem Ordner native/windows: Installieren Sie Muse Spark Code neu und prüfen Sie, ob Windows PowerShell startet und ob Sicherheitssoftware es nicht blockiert."
+  },
+  "museStart": {
+    "authFile": "Muse Code konnte seine Anmeldedatei (muse/auth.json in seinem Konfigurationsordner) nicht lesen und wurde daher nicht gestartet. Reparieren oder löschen Sie die Datei und melden Sie sich dann erneut an.",
+    "authSchema": "Die Anmeldedatei von Muse Code hat ein Format, das dieses Muse Code nicht unterstützt (Version {version}), daher wurde es nicht gestartet. Löschen Sie die Datei (muse/auth.json in seinem Konfigurationsordner) und melden Sie sich erneut an, oder aktualisieren Sie Muse Code.",
+    "cannotRun": "Dieser Computer wollte Muse Code nicht ausführen (Exit-Status {code}), daher konnte dies nicht gestartet werden. Prüfen Sie, ob die Datei das Muse Code-Programm ist und ob Sie sie ausführen dürfen, oder installieren Sie es neu.",
+    "exited": "Muse Code wurde beim Start beendet (Exit-Status {code}), daher konnte dies nicht gestartet werden. Details stehen im Muse Spark-Protokoll; „muse serve“ in einem Terminal zeigt, was Muse Code ausgibt."
   },
   "acpQuestionFormMessage": "Muse hat eine Frage an Sie.",
   "acpQuestionAsked": "Muse hat eine Frage; dieser Editor kann sie nicht als Formular anzeigen, antworten Sie daher in Ihrer nächsten Nachricht:",
