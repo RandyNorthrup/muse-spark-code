@@ -3014,6 +3014,13 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       for (const task of open) await stop(task)
       return open.length
     },
+    stopSessionTasks: async (sessionId) => {
+      const open = allTasks().filter(
+        (task) => task.sessionId === sessionId && (isActive(task.phase) || task.phase === 'queued'),
+      )
+      for (const task of open) await stop(task)
+      return open.length
+    },
     answerWaiting: async (waitingId, choice) => {
       const resolve = waiting.get(waitingId)
       if (resolve === undefined) throw new Error(UI_TEXT.teamWaitingUnknown)
@@ -3053,6 +3060,12 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       const outcome = known(taskId).outcome
       if (outcome?.head === undefined) throw new Error(UI_TEXT.teamTaskNoDiff)
       return await deps.merges.diff(outcome)
+    },
+    taskDiffFiles: async (taskId) => {
+      const outcome = known(taskId).outcome
+      if (outcome?.head === undefined || deps.merges.diffFiles === undefined)
+        throw new Error(UI_TEXT.teamTaskNoDiff)
+      return await deps.merges.diffFiles(outcome)
     },
     resetEntry: async (entryId) => {
       if (saveFailure !== undefined) throw saveFailure

@@ -48,6 +48,7 @@ import { runEngineWorker } from '../../core/team/workers/engineWorker'
 import { WORKER_NATIVE_IO } from '../../core/team/workers/workerFence'
 import type { WorkerReportOutcome } from '../../core/team/workers/report'
 import type {
+  TeamDiffFile,
   TeamHostServiceDeps,
   TeamMergePort,
   TeamPlaybookPort,
@@ -718,6 +719,65 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
           outcome.folder,
         ),
       )
+    },
+    diffFiles: async (outcome) => {
+      if (
+        outcome.folder === undefined ||
+        outcome.baseCommit === undefined ||
+        outcome.head === undefined
+      )
+        throw new Error(TEAM_MODEL_TEXT.hostMergeNotReady)
+      const folder = outcome.folder
+      const base = outcome.baseCommit
+      const head = outcome.head
+      // `-` counts mark a binary file; `--no-renames` keeps one path per
+      // entry, so a rename reads as the delete and the add it lands as.
+      const listed = new TextDecoder().decode(
+        await runGit(
+          [
+            'diff',
+            '--numstat',
+            '-z',
+            '--no-renames',
+            '--no-color',
+            '--no-ext-diff',
+            '--no-textconv',
+            base,
+            head,
+            '--',
+          ],
+          folder,
+        ),
+      )
+      const at = async (commit: string, file: string): Promise<string | undefined> => {
+        try {
+          return new TextDecoder().decode(await runGit(['show', `${commit}:${file}`], folder))
+        } catch (error: unknown) {
+          // The path is absent at this side (added or deleted by the task).
+          if (isTeamGitError(error)) return undefined
+          throw error
+        }
+      }
+      const files: TeamDiffFile[] = []
+      for (const entry of listed.split('\0')) {
+        if (entry === '') continue
+        const [added, , ...rest] = entry.split('\t')
+        const file = rest.join('\t')
+        if (added === undefined || file === '') throw new Error(TEAM_MODEL_TEXT.hostMergeNotReady)
+        if (added === '-') {
+          files.push({ path: file, oldText: '', newText: '', isBinary: true })
+          continue
+        }
+        const oldText = await at(base, file)
+        const newText = await at(head, file)
+        files.push({
+          path: file,
+          oldText: oldText ?? null,
+          newText: newText ?? '',
+          isBinary: false,
+        })
+      }
+      return files
     },
     discard: async (task) => {
       const folder = task.outcome?.folder
