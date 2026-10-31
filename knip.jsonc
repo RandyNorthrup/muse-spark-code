@@ -367,6 +367,9 @@
     // scripts/lib/faultRig.mjs; the namespace responder is spawned by path.
     "test/faults/scenarios/*.ts",
     "test/faults/lib/nsResponder.mjs",
+    // M111 IN (D91.20): the desktop language checks, run by hand or from the
+    // desktop CI (real Qt, real Electron), which knip does not trace.
+    "test/desktop/l10n/qml-check.mjs",
     "scripts/**/*.mjs",
     ".vscode-test.mjs",
 
