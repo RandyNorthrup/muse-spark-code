@@ -230,6 +230,12 @@ const TEAM_RUNNERS_ENTRY = 'src/host/runners/teamRunnersEntry.ts'
 const TEAM_RUNNERS_OUTFILE = 'dist/teamRunners.js'
 const TEAM_HOST_ENTRY = 'src/host/team/teamHostEntry.ts'
 const TEAM_HOST_OUTFILE = 'dist/teamHost.js'
+// RLF-TEAMFIT: Traffic and the `team` MCP server load on their first use,
+// out of the runners and team-host bundles whose budgets they broke.
+const TEAM_TRAFFIC_ENTRY = 'src/host/team/teamTrafficEntry.ts'
+const TEAM_TRAFFIC_OUTFILE = 'dist/teamTraffic.js'
+const TEAM_MCP_ENTRY = 'src/host/team/teamMcpEntry.ts'
+const TEAM_MCP_OUTFILE = 'dist/teamMcp.js'
 const TEAM_FILE_IO_ENTRY = 'src/core/team/workers/workerToolIoEntry.ts'
 const TEAM_FILE_IO_OUTFILE = 'dist/teamFileIo.js'
 const TEAM_WORKER_OPS_ENTRY = 'src/core/team/workers/workerOpsEntry.ts'
@@ -788,6 +794,20 @@ const teamHostOptions = {
   ...teamOptions,
   entryPoints: [TEAM_HOST_ENTRY],
   outfile: TEAM_HOST_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const teamTrafficOptions = {
+  ...teamOptions,
+  entryPoints: [TEAM_TRAFFIC_ENTRY],
+  outfile: TEAM_TRAFFIC_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const teamMcpOptions = {
+  ...teamOptions,
+  entryPoints: [TEAM_MCP_ENTRY],
+  outfile: TEAM_MCP_OUTFILE,
 }
 
 const teamEngineOptions = {
@@ -2247,7 +2267,9 @@ if (isWatch) {
     esbuild.context(teamOptions),
     esbuild.context(teamPanelOptions),
     esbuild.context(teamRunnersOptions),
+    esbuild.context(teamTrafficOptions),
     esbuild.context(teamHostOptions),
+    esbuild.context(teamMcpOptions),
     esbuild.context(teamEngineOptions),
     esbuild.context(execTeamOptions),
     esbuild.context(execLedgerLeaseOptions),
@@ -2475,7 +2497,9 @@ if (isWatch) {
     team: recorded('team', teamOptions),
     teamPanel: recorded('teamPanel', teamPanelOptions),
     teamRunners: recorded('teamRunners', teamRunnersOptions),
+    teamTraffic: recorded('teamTraffic', teamTrafficOptions),
     teamHost: recorded('teamHost', teamHostOptions),
+    teamMcp: recorded('teamMcp', teamMcpOptions),
     teamEngine: recorded('teamEngine', teamEngineOptions),
     teamFileIo: recorded('teamFileIo', teamFileIoOptions),
     teamCreate: recorded('teamCreate', teamCreateOptions),
@@ -2808,7 +2832,9 @@ if (isWatch) {
   reportSize(REVIEWER_OUTFILE)
   reportSize(TEAM_OUTFILE)
   reportSize(TEAM_RUNNERS_OUTFILE)
+  reportSize(TEAM_TRAFFIC_OUTFILE)
   reportSize(TEAM_HOST_OUTFILE)
+  reportSize(TEAM_MCP_OUTFILE)
   reportSize(TEAM_SCHEDULER_OUTFILE)
   reportSize(FOREIGN_HOOKS_OUTFILE)
   reportSize(HOOK_RUNTIME_OUTFILE)

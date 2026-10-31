@@ -1,7 +1,7 @@
 // Error details shared by the durable session and schedule file stores.
 
 import { wireWordForLog } from '../../core/logging'
-import { redactSecrets } from '../../core/redact'
+import { redactSecrets } from '../../shared/redact'
 
 export function storeErrorCode(error: unknown): string | undefined {
   return typeof error === 'object' && error !== null && 'code' in error

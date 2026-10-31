@@ -19,6 +19,9 @@ const TEAM_ENTRIES = {
   'dist/team.js': 'src/core/team/teamEntry.ts',
   'dist/teamRunners.js': 'src/host/runners/teamRunnersEntry.ts',
   'dist/teamHost.js': 'src/host/team/teamHostEntry.ts',
+  // RLF-TEAMFIT: the editor window loads the `team` MCP server directly
+  // (extension.ts), so it is a VSIX team entry of its own, never an ACP one.
+  'dist/teamMcp.js': 'src/host/team/teamMcpEntry.ts',
   'dist/teamPanel.js': 'src/core/team/teamPanelEntry.ts',
   'dist/teamScheduler.js': 'src/core/team/teamSchedulerEntry.ts',
   'dist/teamWorkerOps.js': 'src/core/team/workers/workerOpsEntry.ts',
@@ -31,6 +34,7 @@ const VSIX_TEAM_ENTRIES = [
   'dist/team.js',
   'dist/teamRunners.js',
   'dist/teamHost.js',
+  'dist/teamMcp.js',
   'dist/teamPanel.js',
   'dist/teamScheduler.js',
 ]

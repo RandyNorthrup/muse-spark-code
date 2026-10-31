@@ -242,6 +242,11 @@ const BUDGETS = [
   // already-loaded dist/team.js instead of carrying second copies; 64.1 KiB
   // measured, back under the original 75 KiB cap.
   { path: 'dist/teamRunners.js', budgetKiB: 75 },
+  // RLF-TEAMFIT: the Traffic read and dispatch split out of the runners
+  // bundle, first Traffic use. Measured 48,241 bytes (47.1 KiB, production
+  // build on macmini, 2026-10-30) x 1.15 = 54.2 KiB, rounded up to the
+  // next 25 KiB multiple (PLAN.md D6).
+  { path: 'dist/teamTraffic.js', budgetKiB: 75 },
   // C-M96-3: the team host service with its engine worker and merge ports,
   // loaded only for a workspace that stores a team. Measured 114,909 bytes
   // (112.2 KiB, production build on Kubuntu, 2026-10-10) x 1.15 = 132,145
@@ -249,6 +254,11 @@ const BUDGETS = [
   // headless team merged, the engine ports stay in dist/teamEngine.js: 103,406
   // bytes (101.0 KiB, Windows 11, int/recovery 2026-10-22).
   { path: 'dist/teamHost.js', budgetKiB: 130 },
+  // RLF-TEAMFIT: the `team` MCP server split out of the team host bundle,
+  // first team endpoint request. Measured 7,131 bytes
+  // (7.0 KiB, macmini, 2026-10-30) x 1.15 = 8.0 KiB, rounded up to the
+  // next 25 KiB multiple (PLAN.md D6).
+  { path: 'dist/teamMcp.js', budgetKiB: 25 },
   { path: 'dist/teamEngine.js', budgetKiB: 100 },
   // R4: first-use file adapter, 8.5 KiB measured +15%, rounded up.
   { path: 'dist/teamFileIo.js', budgetKiB: 10 },
