@@ -282,6 +282,13 @@ const BUDGETS = [
   // (7.0 KiB, macmini, 2026-10-30) x 1.15 = 8.0 KiB, rounded up to the
   // next 25 KiB multiple (PLAN.md D6).
   { path: 'dist/teamMcp.js', budgetKiB: 25 },
+  // RLF-TEAMWORKERS: the Muse Code and external-agent worker ports, first
+  // such task: the native process lifetime, the team's Muse Code host and
+  // the ACP client with their schemas; the Muse Code host class comes from
+  // dist/museCode.js. Measured 319,882 bytes (312.4 KiB, production build on
+  // MacBookPro, 2026-10-31) x 1.15 = 359.3 KiB, rounded up to the next
+  // 25 KiB multiple (PLAN.md D6).
+  { path: 'dist/teamProcess.js', budgetKiB: 375 },
   { path: 'dist/teamEngine.js', budgetKiB: 100 },
   // R4: first-use file adapter, 8.5 KiB measured +15%, rounded up.
   { path: 'dist/teamFileIo.js', budgetKiB: 10 },

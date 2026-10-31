@@ -4,7 +4,14 @@
 import { setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 import { createTeamHostService } from '../../core/team/teamHost'
-import type { TeamHostService, TeamStatePort } from '../../core/team/teamHostService'
+import type {
+  TeamHostService,
+  TeamStatePort,
+  TeamWorkerPort,
+} from '../../core/team/teamHostService'
+import type { TeamGit } from '../../core/team/teamGit'
+import { createCompositeTeamWorkerPort } from '../../core/team/workers/compositeWorkerPort'
+import type { ProcessTeamPorts } from './teamProcessEntry'
 import { dispatchHeadReader } from '../../core/team/teamWorkspaces'
 import {
   TEAM_WINDOW_SETTINGS_KEY,
@@ -20,6 +27,63 @@ export function readTeamWindowSettings(state: TeamStatePort): TeamWindowSettings
   return parsed.success ? parsed.data : teamWindowSettingsSchema.parse({})
 }
 
+/**
+The Muse Code and external-agent worker port: it answers `canRun` for those
+kinds without loading anything, and loads dist/teamProcess.js on the first
+probe or task. Nothing starts until a worker of those kinds runs.
+*/
+function lazyProcessWorkers(
+  table: UiText,
+  locale: string,
+  deps: NonNullable<TeamHostBundleDeps['processWorkers']>,
+  runGit: TeamGit,
+  state: TeamStatePort,
+): { readonly workers: TeamWorkerPort; readonly dispose: () => Promise<void> } {
+  let loading: Promise<ProcessTeamPorts> | undefined
+  let loaded: ProcessTeamPorts | undefined
+  const start = async (): Promise<ProcessTeamPorts> => {
+    try {
+      const { createTeamProcessRuntime } = await import('./teamProcessEntry')
+      loaded = createTeamProcessRuntime(table, locale).createProcessTeamPorts({
+        ...deps,
+        runGit,
+        // The check slots' setup, as the Roles section saved it for this workspace.
+        checkSetup: () => {
+          const { setupCommand, cacheKey } = readTeamWindowSettings(state)
+          return { setupCommand, cacheKey }
+        },
+      })
+      return loaded
+    } catch (error: unknown) {
+      // A bundle that failed to load is tried again by the next task.
+      loading = undefined
+      throw error
+    }
+  }
+  const load = async (): Promise<ProcessTeamPorts> => await (loading ??= start())
+  const loadWorkers = async (): Promise<TeamWorkerPort> => {
+    const ports = await load()
+    return ports.workers
+  }
+  return {
+    workers: {
+      canRun: (agent) => agent.kind === 'museCode' || agent.kind === 'external',
+      probe: async (agent) => {
+        const workers = await loadWorkers()
+        return await workers.probe(agent)
+      },
+      run: async (spec, signal) => {
+        const workers = await loadWorkers()
+        return await workers.run(spec, signal)
+      },
+      retirement: (taskId) => loaded?.workers.retirement?.(taskId),
+    },
+    dispose: async () => {
+      await loaded?.dispose()
+    },
+  }
+}
+
 /** The window's team host service over the editor's ports and the engine's. */
 export async function createTeamHost(
   table: UiText,
@@ -32,7 +96,7 @@ export async function createTeamHost(
   // The playbook's dispatch-base read rides the engine's git; the rounds are
   // the window's. Apart, neither governs: the binding needs both halves.
   const { git, ...ports } = engine
-  const { playbook: rounds, ...rest } = deps
+  const { playbook: rounds, processWorkers, ...rest } = deps
   // The window scheduler (M96c) loads with its own bundle, only for a team
   // workspace: the host service drives admission, the merge queue and the
   // board through it. A caller may supply its own factory (headless runs).
@@ -49,15 +113,32 @@ export async function createTeamHost(
           scheduler: () => readTeamWindowSettings(deps.state),
         }
       : deps.settings
-  return createTeamHostService({
+  // Beside the engine port, in order: an agent no port can run stays unavailable.
+  const process =
+    processWorkers === undefined
+      ? undefined
+      : lazyProcessWorkers(table, locale, processWorkers, git, deps.state)
+  const service = createTeamHostService({
     ...rest,
     settings,
     createScheduler,
     ...ports,
+    ...(process !== undefined && {
+      workers: createCompositeTeamWorkerPort([ports.workers, process.workers]),
+    }),
     ...(rounds !== undefined && {
       playbook: { ...rounds, head: dispatchHeadReader(git, deps.engine.repositoryRoot) },
     }),
   })
+  if (process === undefined) return service
+  // The team's Muse Code hosts and external agents stop with the team.
+  return {
+    ...service,
+    dispose: async (options) => {
+      await service.dispose(options)
+      await process.dispose()
+    },
+  }
 }
 
 // The lazy file adapter shares this grant authority, including its WeakMap.

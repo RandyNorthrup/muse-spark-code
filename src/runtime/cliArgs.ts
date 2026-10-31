@@ -121,6 +121,11 @@ export interface ServeOptions {
   readonly questionsDeferAfterSeconds?: number
   readonly autoCompaction?: boolean | undefined
   readonly scheduledPrompts?: boolean
+  /**
+  `--no-user-mcp-servers`: the agent serves only while the person's own Muse
+  settings turn no MCP server on (a team worker never inherits them).
+  */
+  readonly noUserMcpServers?: boolean
   readonly maxBudgetUsd?: UsdAmount
   /** TOOLCAP: the run's per-tool-result byte guard, if raised for one run. */
   readonly maxToolOutputBytes?: number | undefined
@@ -957,6 +962,7 @@ export function parseCommandLine<T>(
     ...(values['scheduled-prompts'] !== undefined && {
       scheduledPrompts: values['scheduled-prompts'],
     }),
+    ...(values['no-user-mcp-servers'] === true && { noUserMcpServers: true }),
     ...(values.subscription === true && { subscription: true }),
     ...(budget !== undefined && { maxBudgetUsd: budget }),
   }

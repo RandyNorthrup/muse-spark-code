@@ -127,6 +127,7 @@ const COMMON_OPTIONS = {
 const SERVE_OPTIONS = {
   ...COMMON_OPTIONS,
   'scheduled-prompts': { type: 'boolean' },
+  'no-user-mcp-servers': { type: 'boolean' },
   subscription: { type: 'boolean' },
   'max-budget-usd': { type: 'string' },
 } as const satisfies CliParserOptions
@@ -351,6 +352,7 @@ export const CLI_OPTION_TEXT = {
   'image-generation': 'image-generation',
   'muse-voice': 'muse-voice',
   'scheduled-prompts': 'scheduled-prompts',
+  'no-user-mcp-servers': 'no-user-mcp-servers',
   verbose: 'verbose',
   'questions-defer-after': 'questions-defer-after',
   hardware: 'hardware',

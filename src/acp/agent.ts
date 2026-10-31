@@ -294,6 +294,12 @@ export interface SignInMethod {
 export interface AcpAgentDeps {
   readonly accounting?: AcpAccounting
   readonly makerTools?: AcpMakerRuntime
+  /**
+  `--no-user-mcp-servers`: the sentence that refuses a session while the
+  person's own Muse Code settings turn an MCP server on; undefined lets it open.
+  */
+  readonly userMcpServersRefusal?: () => string | undefined
+
   readonly legalScan?:
     | ((
         cwd: string,
@@ -4137,6 +4143,10 @@ class AgentState {
     if (!path.isAbsolute(cwd)) {
       throw RequestError.invalidParams(undefined, cwd)
     }
+    // Started without the person's own MCP servers: no host opens while their
+    // Muse Code settings turn any on, whatever the sign-in says.
+    const userServers = this.deps.userMcpServersRefusal?.()
+    if (userServers !== undefined) throw refusalError(userServers)
     // A dead credential store does not stop the session from opening: only
     // a step that needs a stored key refuses, in the store-down words.
     const readiness = await this.requireReady(false, true)
@@ -4778,6 +4788,9 @@ function outboundSentences(): ReadonlySet<string> {
     UI_TEXT.acpMuseCodeSignedOut,
     UI_TEXT.acpNoStoredKey,
     UI_TEXT.acpStoreDown,
+    // `--no-user-mcp-servers`: the settings the person turns off or repairs.
+    UI_TEXT.acpUserMcpServersConfigured,
+    UI_TEXT.acpUserMcpServersUnreadable,
     UI_TEXT.acpChatGpt.states['signed-out'],
     UI_TEXT.acpChatGpt.failure,
     UI_TEXT.planUi.copilotTerminalGrant,

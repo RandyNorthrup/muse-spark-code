@@ -20,6 +20,7 @@ export interface ResourceWindowHost {
     | 'settingsChanged'
     | 'createRelocator'
     | 'updateRelocationTarget'
+    | 'teamSlotPorts'
   >
   readonly createStatus: typeof Governor.createResourceStatus
   readonly createVsCodeItem: typeof Governor.createVsCodeResourceStatusItem

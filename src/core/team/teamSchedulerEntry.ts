@@ -9,11 +9,11 @@ import { setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 
 // The window scheduler bundle (dist/teamWindow.js) rides this bundle's
-// board, slots, pool and write-set code through the deferred cohort, so
-// every member it imports is exported here: the split gate fails a member
-// this list lacks.
+// board, slots, pool and write-set code through the deferred cohort, and the
+// runners bundle (dist/teamRunners.js) its governed slots, so every member
+// they import is exported here: the split gate fails a member this list lacks.
 export { BoardRefusal, TaskBoard } from './scheduler/board'
-export { SchedulerSlots, isResourceSlotAvailable } from './scheduler/slots'
+export { GovernedTeamSlots, SchedulerSlots, isResourceSlotAvailable } from './scheduler/slots'
 export { TeamScheduler } from './teamPool'
 
 export function createTeamSchedulerRuntime(table: UiText, locale: string) {

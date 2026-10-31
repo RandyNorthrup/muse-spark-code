@@ -28,6 +28,12 @@ import {
 export { AcpNativeServersError, answerAcpPermission, extractRequestPaths } from './workerFence'
 import type { WorkerPromptParts, WorkerRolePolicy, WorkerTask } from './workerTypes'
 
+/**
+The one name the Gemini allow-list is given: an allow-list names the servers
+that may connect, so a name that no configured server carries lets none.
+*/
+const GEMINI_NO_SERVER_NAME = 'muse-team-no-user-mcp-servers'
+
 /** An external agent preset (D75's list). */
 export type AcpPresetId = 'claude' | 'codex' | 'gemini' | 'copilot' | 'own'
 
@@ -49,11 +55,23 @@ export interface AcpPreset {
   /** Spawned by default with these arguments. */
   readonly defaultArgs: readonly string[]
   /**
-  The switch that starts the agent without the user's own MCP servers,
-  per preset, from step 1's capture. Absent until captured: without it a
-  worker beside a second copy of a singleton server must not start.
+  The spawn arguments that start the agent without the user's own MCP
+  servers, per preset, from step 1's capture. Absent until captured:
+  without a switch (here or in `withoutUserServersMeta`) a worker beside a
+  second copy of a singleton server must not start.
   */
   readonly withoutUserServersSwitch?: readonly string[]
+  /**
+  The `_meta` that `session/new` carries to leave out the user's own MCP
+  servers, for an agent whose switch is a session option, not an argument.
+  */
+  readonly withoutUserServersMeta?: Readonly<Record<string, unknown>>
+  /**
+  The spawn arguments that make the agent list contributor-tier models, which
+  it hides otherwise. Added only when the pool entry names a listed
+  contributor-tier model (`acpSpawnArgs`): the person's pick is the opt-in.
+  */
+  readonly contributorModelsSwitch?: readonly string[]
   /**
   The captured mode per role shape. Absent means the preset has shown no
   mode that meets the shape, so the role refuses the agent (acceptance 24).
@@ -64,16 +82,27 @@ export interface AcpPreset {
 }
 
 /**
-The preset table. Claude's and Codex's rows are the research (§4.2, §4.3:
-Claude's `default` asks before every edit, Codex's `workspace-write` is
-confined to its `cwd`); the rest wait on step 1's `initialize` records.
-@unwired M96 external agent preset table
+The preset table. Claude's and Codex's mode rows are the research (§4.2,
+§4.3: Claude's `default` asks before every edit, Codex's `workspace-write`
+is confined to its `cwd`); the rest wait on step 1's `initialize` records.
+
+The switches for leaving out the person's own MCP servers are step 1's
+captures (docs/certification/rlf-teamworkers2.md has each one's source and
+version). `claude` and `gemini` have one and `own` is our agent's own flag.
+`codex` has none: its only switch is per server (`mcp_servers.<name>.enabled
+= false`, which `-c mcp_servers={}` does not replace), and the names live in
+layered files this product does not read. `copilot` has none either: its
+`--disable-mcp-server <name>` is per server and `--additional-mcp-config`
+only adds. A preset without a switch refuses to start.
 */
 export const ACP_PRESETS: Readonly<Record<AcpPresetId, AcpPreset>> = {
   claude: {
     id: 'claude',
     command: 'claude-agent-acp',
     defaultArgs: ['--hide-claude-auth'],
+    // claude-agent-acp 0.99.1 spreads `_meta.claudeCode.options` into the Claude
+    // Agent SDK's options; `strictMcpConfig` is the SDK's `--strict-mcp-config`.
+    withoutUserServersMeta: { claudeCode: { options: { strictMcpConfig: true } } },
     modes: { readOnly: 'plan', writePaths: 'default', engineering: 'default' },
     forbiddenModes: ['bypassPermissions', 'dontAsk', 'auto'],
   },
@@ -88,6 +117,9 @@ export const ACP_PRESETS: Readonly<Record<AcpPresetId, AcpPreset>> = {
     id: 'gemini',
     command: 'gemini',
     defaultArgs: ['--acp'],
+    // gemini-cli 0.66.0 allows only the MCP servers its allow-list names, and
+    // an empty list means no list: one name that no server carries allows none.
+    withoutUserServersSwitch: ['--allowed-mcp-server-names', GEMINI_NO_SERVER_NAME],
     modes: { readOnly: undefined, writePaths: undefined, engineering: undefined },
     forbiddenModes: [],
   },
@@ -98,12 +130,19 @@ export const ACP_PRESETS: Readonly<Record<AcpPresetId, AcpPreset>> = {
     modes: { readOnly: undefined, writePaths: undefined, engineering: undefined },
     forbiddenModes: [],
   },
+  // Our own agent's modes are its permission modes (`availablePermissionModes`,
+  // src/shared/permissionModes.ts): Plan reads and reasons only, Manual asks
+  // for every action. Accept edits, Auto and Bypass answer without asking
+  // the client, so a role never takes them.
   own: {
     id: 'own',
     command: 'muse-spark-code-acp',
     defaultArgs: [],
-    modes: { readOnly: undefined, writePaths: undefined, engineering: undefined },
-    forbiddenModes: [],
+    withoutUserServersSwitch: ['--no-user-mcp-servers'],
+    // The agent lists contributor-tier models only with this flag (`openHost`).
+    contributorModelsSwitch: ['--allow-contributor-models'],
+    modes: { readOnly: 'plan', writePaths: 'manual', engineering: 'manual' },
+    forbiddenModes: ['acceptEdits', 'auto', 'bypassPermissions'],
   },
 }
 
@@ -167,7 +206,6 @@ export interface AcpPermissionOption {
 /**
 Picks the once option for the verdict. `allow_always` is never forwarded:
 the agent must never store an "always" the extension cannot see.
-@unwired M96 ACP once-option picker
 */
 export function pickOnceOption(
   options: readonly AcpPermissionOption[],
@@ -287,6 +325,8 @@ export interface AcpAgentConnection {
     readonly cwd: string
     readonly mcpServers: readonly McpServer[]
     readonly grant: WorkerRootGrant
+    /** The preset's `withoutUserServersMeta`, sent as the request's `_meta`. */
+    readonly meta?: Readonly<Record<string, unknown>>
   }) => Promise<{
     readonly sessionId: string
     readonly advertisedModes: readonly string[]
@@ -359,7 +399,6 @@ working copy as `cwd` and the bridge's servers, the preset's captured mode
 for the role's shape, then the prompt. A terminal sign-in surfaces as
 `AcpAuthRequiredError` for the host's terminal flow; no vendor credential
 file is ever read.
-@unwired M96 ACP worker runner
 */
 export async function runAcpWorker(deps: AcpWorkerDeps): Promise<{
   readonly sessionId: string
@@ -383,6 +422,9 @@ export async function runAcpWorker(deps: AcpWorkerDeps): Promise<{
         cwd: folder,
         mcpServers: deps.bridgeServers,
         grant,
+        ...(deps.preset.withoutUserServersMeta !== undefined && {
+          meta: deps.preset.withoutUserServersMeta,
+        }),
       })
       if (deps.signal.aborted) {
         void deps.connection.cancel(response.sessionId).catch(() => {

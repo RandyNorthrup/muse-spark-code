@@ -182,6 +182,8 @@ import { modelApiClientLoader } from '../host/backend/modelApiBundle'
 import { fileContextIo } from '../host/backend/contextIo'
 import { createToolIo } from '../host/backend/toolIo'
 import { museSettingsPath } from '../host/backend/museSettings'
+import { readTextIfPresent } from '../host/fsAtomic'
+import { userMcpServersRefusal } from './userMcpServers'
 import { walkFiles } from './fileWalk'
 import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
@@ -1612,6 +1614,20 @@ async function serve(
     }
     const dictationLifetime = new AbortController()
     const agent = engine.createAcpAgent({
+      // The Model API backend loads none of the person's MCP servers; Muse Code reads them.
+      ...(options.noUserMcpServers === true &&
+        options.backend === 'museCode' && {
+          userMcpServersRefusal: () =>
+            userMcpServersRefusal(() =>
+              readTextIfPresent(
+                museSettingsPath({
+                  platform: process.platform,
+                  homeDir: homedir(),
+                  xdgConfigHome: process.env['XDG_CONFIG_HOME'],
+                }),
+              ),
+            ),
+        }),
       accounting: createAcpAccounting({
         recording,
         runtime,

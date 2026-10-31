@@ -6,20 +6,16 @@
 // the `agents/` ref; only the orchestrator's `merge` writes the user's tree.
 // Loads with dist/team.js; the host supplies the conversation and the paths.
 
-import { mkdir, realpath } from 'node:fs/promises'
 import {
   UI_TEXT,
   PERMISSION_MODES,
-  TEAM_HANDOFF_MODEL_TEXT,
   TEAM_MODEL_TEXT,
-  TEAM_ROLE_TOOLSETS,
   TEAM_TASK_MAX_REQUESTS_DEFAULT,
   TEAM_TASK_MAX_REQUESTS_WRITER,
   TEAM_TASK_MAX_REQUESTS_WRITER_ROLES,
   TEAM_THROTTLE_RECOVER_MS,
   TEAM_USAGE_LIMIT_COOLDOWN_MS,
 } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
 import { approvalModeFor } from '../../shared/permissionModes'
 import { type UsdAmount } from '../../shared/usd'
 import type { TeamAgentRef, TeamReport, TeamRoleConfig, TeamUsage } from '../../shared/team'
@@ -31,18 +27,18 @@ import type { CoreLogger } from '../../core/logging'
 import { AgentWorktreeSession } from '../../core/bestOfN/agentWorktreeSession'
 import { builtinRoles } from '../../core/team/builtInRoles'
 import { validateWorkerSettings, type TeamSettingCapabilities } from '../../core/team/modelSettings'
-import { buildTeamCharter } from '../../core/team/charter'
 import { isSameTeamModel } from '../../core/team/sameModel'
-import { resolveTeamToolset } from '../../core/team/toolsets'
 import { applyTeamMerge, planTeamMerge, type TeamMergeSpec } from '../../core/team/teamMerge'
+import { removeTeamWorkspace } from '../../core/team/teamWorkspaces'
 import {
-  commitTaskBranch,
-  publishTaskRef,
-  removeTeamWorkspace,
-  resolveBaseCommit,
-  scratchBreach,
-  startTeamWorkspace,
-} from '../../core/team/teamWorkspaces'
+  beginTaskCopy,
+  canonicalStorage,
+  endTaskCopy,
+  planWorkerTask,
+  removeUnreturnedCopy,
+  requireRepository,
+  roleGrants,
+} from './taskCopy'
 import { isTeamGitError, type TeamGit } from '../../core/team/teamGit'
 import { runEngineWorker } from '../../core/team/workers/engineWorker'
 import { WORKER_NATIVE_IO } from '../../core/team/workers/workerFence'
@@ -61,6 +57,7 @@ import type {
 } from '../../core/backends/modelapi/transport'
 import type { ToolIo } from '../../core/backends/modelapi/tools'
 import { assertWorkerRoot } from '../../core/team/workers/workerFence'
+import type { TeamProcessWorkersDeps } from './teamProcessWorkers'
 
 /** One worker conversation the host started in the task's copy. */
 export interface EngineWorkerSession {
@@ -113,6 +110,12 @@ export interface TeamHostBundleDeps extends Omit<
   readonly engine: EngineTeamPortsDeps
   /** The team runner's playbook rounds (D218); the bundle adds the dispatch-base read. */
   readonly playbook?: Omit<TeamPlaybookPort, 'head'> | undefined
+  /**
+  What Muse Code and external-agent workers need (RLF-TEAMWORKERS); the
+  bundle adds the engine's git. Absent, this surface runs engine workers
+  only and `canRun` answers false for the other kinds.
+  */
+  readonly processWorkers?: Omit<TeamProcessWorkersDeps, 'runGit' | 'checkSetup'> | undefined
 }
 
 /**
@@ -161,35 +164,6 @@ function workerApprovalMode(permissionMode: string | undefined = 'plan'): string
   return approvalModeFor(saved, false)
 }
 
-/**
-Best-effort removal of a copy the task made but never handed back. A
-failure warns with fixed words (never the raw error) and stays silent
-otherwise: the outer handler already rethrows the task's own failure.
-*/
-async function removeUnreturnedCopy(input: {
-  readonly runGit: TeamGit
-  readonly repositoryRoot: string
-  readonly storageRoot: string
-  readonly folder: string
-  readonly agentsRef: string | undefined
-  readonly noteWorkspace: () => Promise<void>
-  readonly warn: (message: string) => void
-  readonly taskId: string
-}): Promise<void> {
-  try {
-    await removeTeamWorkspace(
-      input.runGit,
-      input.repositoryRoot,
-      input.storageRoot,
-      input.folder,
-      input.agentsRef,
-    )
-    await input.noteWorkspace()
-  } catch {
-    input.warn(`Team task ${input.taskId}: its cleanup or recovery record could not be completed`)
-  }
-}
-
 /** A worker runs no goal or background work to stop at its turn's end. */
 function noTerminalWork(): void {
   // Nothing to stop: the worker host has no goals, schedules or background tasks.
@@ -218,31 +192,9 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
       await (
         await (defaultGit ??= defaultTeamGit(deps.platform))
       )(args, cwd, input, env))
-  /**
-  The storage root as the file system resolves it: a linked profile or a
-  temporary folder behind a link (macOS's /var) is admitted by its real path,
-  which the copies' fence compares against.
-  */
-  let canonical: Promise<string> | undefined
-  const storage = async (): Promise<string> => {
-    canonical ??= (async () => {
-      await mkdir(deps.storageRoot, { recursive: true })
-      return await realpath(deps.storageRoot)
-    })()
-    try {
-      return await canonical
-    } catch (error: unknown) {
-      canonical = undefined
-      throw error
-    }
-  }
+  const storage = canonicalStorage(deps.storageRoot)
+  const copyDeps = { ...deps, runGit }
   const limitedUntil = new Map<string, number>()
-  const repository = (): string => {
-    const root = deps.repositoryRoot()
-    if (root === undefined) throw new Error(TEAM_MODEL_TEXT.hostNoRepository)
-    return root
-  }
-
   // Named apart from the eval harness's own runTask: the spawn-inventory
   // test-only proof matches identifiers by name, and these are different
   // runners (an engine worker task here, a paired eval case there).
@@ -261,39 +213,8 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
       await deps.capabilitiesForModel?.(spec.entry.agent.model),
     )
     if (unsupported !== undefined) throw new Error(unsupported)
-    const repositoryRoot = repository()
-    const builtin = builtinRoles().find((role) => role.id === spec.role.role)
-    if (
-      builtin === undefined &&
-      (spec.role.purpose?.trim() === undefined ||
-        spec.role.purpose.trim() === '' ||
-        spec.role.workspace === undefined ||
-        spec.role.tools === undefined ||
-        spec.role.report === undefined)
-    ) {
-      throw new Error(fill(TEAM_MODEL_TEXT.hostRoleNotOffered, { role: spec.role.role }))
-    }
-    // A review reads the reviewed branch at its head, in a scratch copy.
-    const reviewed = spec.reviewOf
-    const mode =
-      reviewed === undefined
-        ? (spec.role.workspace ?? builtin?.workspace ?? 'read-only')
-        : 'read-only'
-    if (mode === 'in-place') throw new Error(TEAM_MODEL_TEXT.hostInPlaceNotOffered)
-    const previous = spec.continueFrom
-    const baseCommit =
-      reviewed?.head ?? previous?.baseCommit ?? (await resolveBaseCommit(runGit, repositoryRoot))
-    const workspace =
-      previous?.folder === undefined
-        ? await startTeamWorkspace(runGit, await storage(), deps.platform, {
-            repositoryRoot,
-            role: spec.role.role,
-            taskId: spec.taskId,
-            mode,
-            baseCommit,
-          })
-        : { folder: previous.folder, branch: previous.branch, agentsRef: previous.agentsRef }
-    const isNewCopy = previous?.folder === undefined
+    const copy = await beginTaskCopy(copyDeps, storage, spec)
+    const { repositoryRoot, builtin, mode, baseCommit, workspace } = copy
     let usage = EMPTY_USAGE
     let meterWrites = Promise.resolve()
     let hasReservations = false
@@ -316,9 +237,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
         agentsRef: workspace.agentsRef,
       })
       signal.throwIfAborted()
-      const groups =
-        spec.role.tools ?? (builtin === undefined ? [] : TEAM_ROLE_TOOLSETS[builtin.id])
-      const writePaths = spec.role.writePaths ?? builtin?.writePaths
+      const { groups, writePaths } = roleGrants(spec, builtin)
       const fenceInput = {
         folder: workspace.folder,
         platform: deps.platform,
@@ -439,54 +358,12 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
       signal.addEventListener('abort', stop)
       let result
       try {
-        const tools = resolveTeamToolset(
-          { groups, writePaths },
-          {
-            offered: worker.toolNames,
-            webSearchAllowed: false,
-            imagesAllowed: false,
-            delegates: [],
-          },
-        )
-        const charter = buildTeamCharter(
-          {
-            id: spec.role.role,
-            description: spec.role.purpose ?? builtin?.description ?? spec.role.role,
-            workspace: mode,
-            writePaths,
-            done: spec.role.done ?? builtin?.done,
-            report: spec.role.report ?? builtin?.report ?? 'summary',
-            delegates: [],
-            body: spec.role.guidance ?? builtin?.body ?? '',
-          },
-          tools,
-        )
-        const handoffData = previous?.report ?? reviewed?.report
-        const handoff =
-          handoffData === undefined
-            ? ''
-            : `\n\n${TEAM_HANDOFF_MODEL_TEXT.handoffDataOpen}\n${JSON.stringify(handoffData)}\n${TEAM_HANDOFF_MODEL_TEXT.handoffDataClose}`
+        const plan = planWorkerTask(spec, copy, worker.toolNames)
         result = await runEngineWorker({
-          task: {
-            taskId: spec.taskId,
-            roleId: spec.role.role,
-            brief: `${spec.brief}${handoff}`,
-            branch: workspace.branch ?? '',
-            folder: workspace.folder,
-            files: spec.files,
-          },
+          task: plan.task,
           workspaceRoot: repositoryRoot,
-          role: {
-            roleId: spec.role.role,
-            workspaceMode: mode,
-            toolGroups: tools.groups,
-            ...(writePaths !== undefined && { writePaths }),
-            reportShape:
-              reviewed === undefined
-                ? (spec.role.report ?? builtin?.report ?? 'summary')
-                : 'review',
-          },
-          prompt: { charter: charter.generated, body: charter.body, rulesAndSkills: '' },
+          role: plan.role,
+          prompt: plan.prompt,
           isTrusted: deps.isTrusted(),
           io: WORKER_NATIVE_IO,
           platform: deps.platform,
@@ -515,81 +392,24 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
       }
       await meterWrites
       signal.throwIfAborted()
-      const report = teamReport(result.report, result.outcome.ceilingReached)
-      if (mode === 'read-only') {
-        const breach = await scratchBreach(runGit, workspace.folder)
-        await removeTeamWorkspace(runGit, repositoryRoot, await storage(), workspace.folder)
-        await spec.meter.noteWorkspace(undefined)
-        return {
-          isCeilingReached: result.outcome.ceilingReached,
-          report:
-            breach.length === 0
-              ? report
-              : {
-                  status: 'failed',
-                  summary: `${TEAM_MODEL_TEXT.hostReadOnlyBreach} ${breach.join(', ')}`,
-                },
-          usage,
-        }
-      }
-      const branch = workspace.branch ?? ''
-      const before = previous?.head ?? baseCommit
-      const committed = await commitTaskBranch(runGit, workspace.folder, {
-        branch,
-        role: spec.role.role,
-        taskId: spec.taskId,
-        entryId: spec.entry.id,
-      })
-      if (committed.committed && workspace.agentsRef !== undefined) {
-        await publishTaskRef(
-          runGit,
-          repositoryRoot,
-          workspace.folder,
-          branch,
-          workspace.agentsRef,
-          before,
-        )
-      }
-      const changed = new TextDecoder()
-        .decode(
-          await runGit(
-            ['diff', '--name-only', '-z', '--no-renames', baseCommit, committed.head, '--'],
-            workspace.folder,
-          ),
-        )
-        .split('\0')
-        .filter((name) => name !== '')
-      signal.throwIfAborted()
-      return {
+      return await endTaskCopy(copyDeps, storage, {
+        spec,
+        copy,
+        signal,
+        report: teamReport(result.report, result.outcome.ceilingReached),
         isCeilingReached: result.outcome.ceilingReached,
-        report,
         usage,
-        branch,
-        baseCommit,
-        head: committed.head,
-        changedFiles: changed,
-        folder: workspace.folder,
-        agentsRef: workspace.agentsRef,
-      }
+      })
     } catch (error: unknown) {
       // A copy this task made and never handed back is removed; a reopened
       // task's copy stays with the finished task it came from.
-      if (isNewCopy) {
-        await removeUnreturnedCopy({
-          runGit,
-          repositoryRoot,
-          storageRoot: await storage(),
-          folder: workspace.folder,
-          agentsRef: workspace.agentsRef,
-          noteWorkspace: async () => {
-            await spec.meter.noteWorkspace(undefined)
-          },
-          warn: (message: string) => {
-            deps.log.warn(message)
-          },
-          taskId: spec.taskId,
-        })
-      }
+      await removeUnreturnedCopy(copyDeps, storage, {
+        spec,
+        copy,
+        warn: (message: string) => {
+          deps.log.warn(message)
+        },
+      })
       throw error
     }
   }
@@ -627,7 +447,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
     ) {
       throw new Error(TEAM_MODEL_TEXT.hostMergeNotReady)
     }
-    const repositoryRoot = repository()
+    const repositoryRoot = requireRepository(deps)
     const builtin = builtinRoles().find((role) => role.id === task.role.role)
     let actual: string | undefined
     try {
@@ -724,7 +544,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
       if (folder === undefined) return
       await removeTeamWorkspace(
         runGit,
-        repository(),
+        requireRepository(deps),
         await storage(),
         folder,
         task.outcome?.agentsRef,

@@ -22,6 +22,9 @@ const TEAM_ENTRIES = {
   // RLF-TEAMFIT: the editor window loads the `team` MCP server directly
   // (extension.ts), so it is a VSIX team entry of its own, never an ACP one.
   'dist/teamMcp.js': 'src/host/team/teamMcpEntry.ts',
+  // RLF-TEAMWORKERS: the team host loads the process-worker ports on the
+  // first Muse Code or external task.
+  'dist/teamProcess.js': 'src/host/team/teamProcessEntry.ts',
   'dist/teamPanel.js': 'src/core/team/teamPanelEntry.ts',
   'dist/teamScheduler.js': 'src/core/team/teamSchedulerEntry.ts',
   'dist/teamWorkerOps.js': 'src/core/team/workers/workerOpsEntry.ts',
