@@ -36,3 +36,6 @@ test/harness/l10n/
 
 # Linux created-path helpers, compiled from the reviewed native source.
 native/linux/
+
+# Rust workspace build output (M111 lane CP); the lockfile stays tracked.
+desktop/target/
