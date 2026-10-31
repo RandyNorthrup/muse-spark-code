@@ -4,12 +4,11 @@
 
 import { DESKTOP_QUICK_OPEN_SCORES } from '../constants'
 import {
-  DEFAULT_WORKBENCH_LAYOUT,
-  workbenchLayoutSchema,
+  DEFAULT_WORKBENCH_LAYOUT_V2,
   type DesktopStatusItem,
   type LayoutKey,
   type TerminalPlacement,
-  type WorkbenchLayout,
+  type WorkbenchLayoutV2,
 } from './bridge'
 
 // Normalises a workspace root so one window serves one workspace on every
@@ -26,24 +25,14 @@ export function layoutStorageKey(key: LayoutKey, platform: string): string {
   return key.compositorWorkspace === undefined ? base : `${base}::${key.compositorWorkspace}`
 }
 
-// Parses a stored layout; a corrupt or older record is refused by name so
-// the caller can say so instead of silently keeping a broken layout.
-export function parseStoredLayout(raw: unknown): WorkbenchLayout {
-  return workbenchLayoutSchema.parse(raw)
-}
-
-export function isStoredLayout(raw: unknown): raw is WorkbenchLayout {
-  return workbenchLayoutSchema.safeParse(raw).success
-}
-
 // The panel's placement moves (D91.13): collapse docks into the footer,
 // detach floats, hide keeps the sessions alive.
 export type TerminalMove = 'collapse' | 'expand' | 'detach' | 'dock' | 'hide' | 'show'
 
-export function moveTerminal(layout: WorkbenchLayout, move: TerminalMove): WorkbenchLayout {
+export function moveTerminal(layout: WorkbenchLayoutV2, move: TerminalMove): WorkbenchLayoutV2 {
   switch (move) {
     case 'collapse': {
-      return { ...layout, terminalPlacement: 'footer', activeFooterTab: 'terminal' }
+      return { ...layout, terminalPlacement: 'footer', panelView: 'terminal' }
     }
     case 'expand': {
       return { ...layout, terminalPlacement: 'docked' }
@@ -145,6 +134,6 @@ export function isExternalUrlAllowed(url: string): boolean {
 }
 
 // Default layout for a workspace that has none stored yet.
-export function freshLayout(): WorkbenchLayout {
-  return { ...DEFAULT_WORKBENCH_LAYOUT, openFiles: [] }
+export function freshLayout(): WorkbenchLayoutV2 {
+  return { ...DEFAULT_WORKBENCH_LAYOUT_V2, openFiles: [], tabSlots: {} }
 }

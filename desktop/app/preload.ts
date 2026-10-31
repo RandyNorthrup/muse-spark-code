@@ -8,10 +8,16 @@ import {
   desktopWorkspaceSchema,
   fileEntrySchema,
   fileReadResultSchema,
+  outputAppendedSchema,
+  outputClearedSchema,
+  outputSnapshotSchema,
+  problemsChangedSchema,
+  terminalChildrenSchema,
   terminalCreatedSchema,
   terminalDataSchema,
   terminalExitSchema,
-  workbenchLayoutSchema,
+  terminalSessionSchema,
+  workbenchLayoutV2Schema,
   type DesktopChannel,
   type MuseDesktopBridge,
 } from '../../src/shared/desktop/bridge'
@@ -31,7 +37,7 @@ const bridge: MuseDesktopBridge = {
   },
   async getLayout(key) {
     const raw: unknown = await invoke('muse-desktop:layout:get', key)
-    return raw === null ? null : workbenchLayoutSchema.parse(raw)
+    return raw === null ? null : workbenchLayoutV2Schema.parse(raw)
   },
   async setLayout(request) {
     await invoke('muse-desktop:layout:set', request)
@@ -77,6 +83,58 @@ const bridge: MuseDesktopBridge = {
     ipcRenderer.on('muse-desktop:terminal:exit', handler)
     return () => {
       ipcRenderer.removeListener('muse-desktop:terminal:exit', handler)
+    }
+  },
+  async listTerminals() {
+    const raw: unknown = await invoke('muse-desktop:terminal:list')
+    return z.array(terminalSessionSchema).parse(raw)
+  },
+  async hasTerminalChildren(id) {
+    return terminalChildrenSchema.parse(await invoke('muse-desktop:terminal:children', { id }))
+  },
+  onTerminalOpened(listener) {
+    const handler = (_event: unknown, raw: unknown): void => {
+      listener(terminalSessionSchema.parse(raw))
+    }
+    ipcRenderer.on('muse-desktop:terminal:opened', handler)
+    return () => {
+      ipcRenderer.removeListener('muse-desktop:terminal:opened', handler)
+    }
+  },
+  async getProblems() {
+    return problemsChangedSchema.parse(await invoke('muse-desktop:problems:get'))
+  },
+  onProblemsChanged(listener) {
+    const handler = (_event: unknown, raw: unknown): void => {
+      listener(problemsChangedSchema.parse(raw))
+    }
+    ipcRenderer.on('muse-desktop:problems:changed', handler)
+    return () => {
+      ipcRenderer.removeListener('muse-desktop:problems:changed', handler)
+    }
+  },
+  async getOutput() {
+    return outputSnapshotSchema.parse(await invoke('muse-desktop:output:get'))
+  },
+  clearOutput(channel) {
+    send('muse-desktop:output:clear', channel === undefined ? {} : { channel })
+  },
+  onOutputAppended(listener) {
+    const handler = (_event: unknown, raw: unknown): void => {
+      listener(outputAppendedSchema.parse(raw))
+    }
+    ipcRenderer.on('muse-desktop:output:appended', handler)
+    return () => {
+      ipcRenderer.removeListener('muse-desktop:output:appended', handler)
+    }
+  },
+  onOutputCleared(listener) {
+    const handler = (_event: unknown, raw: unknown): void => {
+      listener(outputClearedSchema.parse(raw))
+    }
+    ipcRenderer.on('muse-desktop:output:cleared', handler)
+    return () => {
+      ipcRenderer.removeListener('muse-desktop:output:cleared', handler)
     }
   },
   async openWorkspace(root) {

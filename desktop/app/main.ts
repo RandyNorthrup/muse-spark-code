@@ -33,6 +33,7 @@ import {
   layoutKeySchema,
   layoutSetRequestSchema,
   openWorkspaceRequestSchema,
+  outputClearedSchema,
   statusPublishRequestSchema,
   terminalCreateRequestSchema,
   terminalIdSchema,
@@ -45,8 +46,15 @@ import {
   isExternalUrlAllowed,
   workspaceKey,
 } from '../../src/shared/desktop/workbench'
-import { listWorkspaceFiles, readWorkspaceFile, writeWorkspaceFile } from './files'
+import {
+  confineTerminalCwd,
+  listWorkspaceFiles,
+  readWorkspaceFile,
+  writeWorkspaceFile,
+} from './files'
 import { LayoutStore, writeStatusSnapshot } from './layoutStore'
+import { OutputStore } from './output'
+import { ProblemsStore } from './problems'
 import { TerminalSessions } from './terminals'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -57,6 +65,8 @@ interface WindowRecord {
   readonly window: BrowserWindow
   readonly workspace: DesktopWorkspace
   readonly terminals: TerminalSessions
+  readonly problems: ProblemsStore
+  readonly output: OutputStore
 }
 
 const windows = new Map<string, WindowRecord>()
@@ -124,7 +134,18 @@ function openWorkspaceWindow(root: string, isSetupMode: boolean): BrowserWindow 
       if (!window.isDestroyed()) window.webContents.send('muse-desktop:terminal:exit', { id, code })
     },
   })
-  windows.set(key, { window, workspace, terminals })
+  const problems = new ProblemsStore((snapshot) => {
+    if (!window.isDestroyed()) window.webContents.send('muse-desktop:problems:changed', snapshot)
+  })
+  const output = new OutputStore({
+    onAppended: (frame) => {
+      if (!window.isDestroyed()) window.webContents.send('muse-desktop:output:appended', frame)
+    },
+    onCleared: (frame) => {
+      if (!window.isDestroyed()) window.webContents.send('muse-desktop:output:cleared', frame)
+    },
+  })
+  windows.set(key, { window, workspace, terminals, problems, output })
   window.once('ready-to-show', () => {
     window.show()
   })
@@ -192,22 +213,40 @@ function installIpc(): void {
     await writeStatusSnapshot(app.getPath('userData'), request.workspaceRoot, request.items)
   })
   ipcMain.handle('muse-desktop:terminal:create', (event, raw: unknown) => {
-    terminalCreateRequestSchema.parse(raw)
+    const request = terminalCreateRequestSchema.parse(raw)
     const record = recordFor(event)
-    return record.terminals.create(record.workspace.root)
+    const created = record.terminals.create({
+      cwd: confineTerminalCwd(record.workspace.root, request.cwd),
+      cols: request.cols,
+      rows: request.rows,
+      ...(request.agent !== undefined && { agent: request.agent }),
+    })
+    record.window.webContents.send('muse-desktop:terminal:opened', created)
+    return created
   })
   ipcMain.on('muse-desktop:terminal:write', (event, raw: unknown) => {
     const frame = terminalWriteSchema.parse(raw)
     recordForIpc(event.sender.id)?.terminals.write(frame.id, frame.data)
   })
-  ipcMain.on('muse-desktop:terminal:resize', (_event, raw: unknown) => {
-    // Pipe-backed sessions have no window size to apply; the frame is still
-    // validated so a malformed resize is refused, never silently dropped.
-    terminalResizeSchema.parse(raw)
+  ipcMain.on('muse-desktop:terminal:resize', (event, raw: unknown) => {
+    const frame = terminalResizeSchema.parse(raw)
+    recordForIpc(event.sender.id)?.terminals.resize(frame.id, frame.cols, frame.rows)
   })
   ipcMain.on('muse-desktop:terminal:close', (event, raw: unknown) => {
     const frame = terminalIdSchema.parse(raw)
     recordForIpc(event.sender.id)?.terminals.close(frame.id)
+  })
+  ipcMain.handle('muse-desktop:terminal:list', (event) => recordFor(event).terminals.list())
+  ipcMain.handle('muse-desktop:terminal:children', (event, raw: unknown) => {
+    const frame = terminalIdSchema.parse(raw)
+    const record = recordFor(event)
+    return { id: frame.id, hasChildren: record.terminals.hasChildren(frame.id) }
+  })
+  ipcMain.handle('muse-desktop:problems:get', (event) => recordFor(event).problems.snapshot())
+  ipcMain.handle('muse-desktop:output:get', (event) => recordFor(event).output.snapshot())
+  ipcMain.on('muse-desktop:output:clear', (event, raw: unknown) => {
+    const frame = outputClearedSchema.parse(raw)
+    recordForIpc(event.sender.id)?.output.clear(frame.channel)
   })
   ipcMain.handle('muse-desktop:window:open-workspace', (_event, raw: unknown) => {
     const request = openWorkspaceRequestSchema.parse(raw)

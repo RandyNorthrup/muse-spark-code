@@ -6,11 +6,16 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { DESKTOP_LAYOUT_FILE, DESKTOP_STATUS_HASH_CHARS } from '../../src/shared/constants'
-import type { DesktopStatusItem, LayoutKey, WorkbenchLayout } from '../../src/shared/desktop/bridge'
-import { isStoredLayout, layoutStorageKey } from '../../src/shared/desktop/workbench'
+import {
+  parseStoredLayoutV2,
+  type DesktopStatusItem,
+  type LayoutKey,
+  type WorkbenchLayoutV2,
+} from '../../src/shared/desktop/bridge'
+import { layoutStorageKey } from '../../src/shared/desktop/workbench'
 
 export class LayoutStore {
-  private layouts = new Map<string, WorkbenchLayout>()
+  private layouts = new Map<string, WorkbenchLayoutV2>()
   private loaded = false
 
   public constructor(private readonly userDataDir: string) {}
@@ -35,17 +40,23 @@ export class LayoutStore {
       return
     }
     for (const [name, value] of Object.entries(parsed)) {
-      if (isStoredLayout(value)) this.layouts.set(name, value)
-      else process.stderr.write(`muse-desktop: dropped unreadable layout for ${name}\n`)
+      try {
+        this.layouts.set(name, parseStoredLayoutV2(value))
+      } catch (error: unknown) {
+        // Only a schema refusal drops the record (version 1 migrates
+        // inside the parse); anything else is a bug and is rethrown.
+        if (!(error instanceof Error) || error.name !== 'ZodError') throw error
+        process.stderr.write(`muse-desktop: dropped unreadable layout for ${name}\n`)
+      }
     }
   }
 
-  public async get(key: LayoutKey): Promise<WorkbenchLayout | null> {
+  public async get(key: LayoutKey): Promise<WorkbenchLayoutV2 | null> {
     await this.load()
     return this.layouts.get(layoutStorageKey(key, process.platform)) ?? null
   }
 
-  public async set(key: LayoutKey, layout: WorkbenchLayout): Promise<void> {
+  public async set(key: LayoutKey, layout: WorkbenchLayoutV2): Promise<void> {
     await this.load()
     this.layouts.set(layoutStorageKey(key, process.platform), layout)
     const record = Object.fromEntries(this.layouts)

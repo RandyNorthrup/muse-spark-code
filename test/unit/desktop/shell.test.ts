@@ -10,7 +10,11 @@ import {
 } from '../../../desktop/app/files'
 import { LayoutStore, writeStatusSnapshot } from '../../../desktop/app/layoutStore'
 import { TerminalSessions, cleanTerminalEnvironment } from '../../../desktop/app/terminals'
-import { DEFAULT_WORKBENCH_LAYOUT } from '../../../src/shared/desktop/bridge'
+import { DESKTOP_LAYOUT_FILE } from '../../../src/shared/constants'
+import {
+  DEFAULT_WORKBENCH_LAYOUT,
+  DEFAULT_WORKBENCH_LAYOUT_V2,
+} from '../../../src/shared/desktop/bridge'
 
 const scratchRoots: string[] = []
 
@@ -56,7 +60,7 @@ describe('M111 lane WB desktop shell services', () => {
     const dir = await scratch()
     const store = new LayoutStore(dir)
     expect(await store.get({ workspaceRoot: '/work/app' })).toBeNull()
-    const layout = { ...DEFAULT_WORKBENCH_LAYOUT, chatWidthPx: 400 }
+    const layout = { ...DEFAULT_WORKBENCH_LAYOUT_V2, chatWidthPx: 400 }
     await store.set({ workspaceRoot: '/work/app' }, layout)
     await store.set(
       { workspaceRoot: '/work/app', compositorWorkspace: '2' },
@@ -67,6 +71,19 @@ describe('M111 lane WB desktop shell services', () => {
     const scoped = await reopened.get({ workspaceRoot: '/work/app', compositorWorkspace: '2' })
     expect(plain?.chatWidthPx).toBe(400)
     expect(scoped?.chatWidthPx).toBe(500)
+  })
+
+  it('migrates a version 1 record to version 2 on load', async () => {
+    const dir = await scratch()
+    await writeFile(
+      path.join(dir, DESKTOP_LAYOUT_FILE),
+      JSON.stringify({ '/work/app': { ...DEFAULT_WORKBENCH_LAYOUT, activeFooterTab: 'output' } }),
+    )
+    const store = new LayoutStore(dir)
+    const loaded = await store.get({ workspaceRoot: '/work/app' })
+    expect(loaded?.version).toBe(2)
+    expect(loaded?.panelView).toBe('output')
+    expect(loaded?.panelPinned).toBe(true)
   })
 
   it('writes the ordered status snapshot SH1 reads', async () => {
@@ -109,7 +126,7 @@ describe('M111 lane WB desktop shell services', () => {
       },
     })
     const root = await scratch()
-    const created = sessions.create(root)
+    const created = sessions.create({ cwd: root, cols: 80, rows: 24 })
     sessions.write(created.id, 'echo muse-wb-smoke\nexit\n')
     const deadline = Date.now() + 4000
     while (exited === undefined && Date.now() < deadline) {
