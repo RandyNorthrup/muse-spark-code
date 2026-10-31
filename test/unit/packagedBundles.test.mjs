@@ -166,7 +166,24 @@ beforeAll(async () => {
     ...[...acp].filter((file) => isChunk(file)),
     ...registryAcp,
   ])
+  // The node's bundles load each other and the shared chunks by file name;
+  // the container image and the installer lay out exactly the files that
+  // closure names, or the node cannot start (RLF-NODESERVE).
+  const nodeRuntime = reachableChunks(
+    outputs,
+    new Set(['dist/node.js', 'dist/nodeServe.js', 'dist/nodeAuth.js']),
+  )
+  const containerFiles = new Set(
+    JSON.parse(readFileSync(path.join(root, 'deploy/container/policy.json'), 'utf8')).runtimeFiles,
+  )
+  const installFiles = new Set(
+    readFileSync(path.join(root, 'deploy/install/layout.sh'), 'utf8')
+      .matchAll(/package\/(dist\/[A-Za-z]+\.js)/gu)
+      .map((match) => match[1]),
+  )
   fixture.missing = {
+    nodeContainer: absent(nodeRuntime, containerFiles),
+    nodeInstall: absent(nodeRuntime, installFiles),
     VSIX: absent(reachableChunks(outputs, vscodeRoots), vsix),
     ACP: absent(reachableChunks(outputs, acpRoots), acp),
     registryVsix: absent(registryVsix, vsix),
@@ -242,6 +259,10 @@ afterAll(async () => {
 
 it('ships every reachable production chunk in the VSIX and ACP package', () => {
   expect(fixture.missing).toMatchObject({ VSIX: [], ACP: [] })
+})
+
+it('lays every file the node bundles load into the container image and the installed node', () => {
+  expect(fixture.missing).toMatchObject({ nodeContainer: [], nodeInstall: [] })
 })
 
 it('ships every registry bundle in the packages that load it (RVMODELAPIDIETB P2)', () => {

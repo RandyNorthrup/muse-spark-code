@@ -119,6 +119,11 @@ export function registerResourceRunnerRoutes(hasTarget: () => boolean): () => vo
   }
 }
 
+/** Whether this process already has a configured, undisposed admission. */
+export function hasResourceAdmission(): boolean {
+  return state.options !== undefined && !state.isDisposed
+}
+
 /** Shared, tiny Node bundle: installing settings performs no probe or governor import. */
 export function configureResources(settings: ResourceHostSettings): () => void {
   delete state.pending

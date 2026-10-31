@@ -18,7 +18,34 @@ import {
 } from '../../src/shared/constants'
 import { nodeConfig, nodeBearer, nodeHash } from './helpers/node/records'
 import { listenerFixture, maskedFrame } from './helpers/node/listener'
+import { loopbackHeaders, loopbackPost, loopbackTerminalSocket } from './helpers/node/loopback'
 import { nodeNativeTest, nodeTempRoot } from './helpers/nodeNative'
+
+/**
+The listener answers a bug (anything but its typed failures) with 503 and
+lets it surface as an unhandled rejection, so a supervised node restarts
+instead of serving past one. The runner would fail the whole file on that
+rejection: this takes the runner's handlers off for the duration, collects
+what surfaces, and puts them back.
+*/
+async function surfacing(run: () => Promise<void>): Promise<unknown[]> {
+  const kept = process.listeners('unhandledRejection')
+  const caught: unknown[] = []
+  process.removeAllListeners('unhandledRejection')
+  process.on('unhandledRejection', (reason: unknown) => {
+    caught.push(reason)
+  })
+  try {
+    await run()
+    await vi.waitFor(() => {
+      expect(caught).toHaveLength(1)
+    })
+  } finally {
+    process.removeAllListeners('unhandledRejection')
+    for (const handler of kept) process.on('unhandledRejection', handler)
+  }
+  return caught
+}
 
 const fixture = listenerFixture()
 const built: {
@@ -122,21 +149,6 @@ afterAll(async () => {
   if (built.root !== '') await rm(built.root, { recursive: true, force: true })
 })
 
-function requestHeaders(port: number, headers: Record<string, string | undefined>) {
-  const defaults: Record<string, string | undefined> = {
-    Host: `home.local:${String(port)}`,
-    Origin: `https://home.local:${String(port)}`,
-    'Sec-Fetch-Site': 'same-origin',
-    'Sec-Fetch-Mode': 'cors',
-    'Sec-Fetch-Dest': 'empty',
-    Authorization: `Bearer ${nodeBearer}`,
-    'Content-Type': 'application/json',
-  }
-  return Object.fromEntries(
-    Object.entries({ ...defaults, ...headers }).filter(([, value]) => value !== undefined),
-  )
-}
-
 async function post(
   route: string,
   body = '{}',
@@ -144,37 +156,13 @@ async function post(
   target = built.port,
   method = 'POST',
 ) {
-  const actual = requestHeaders(target, headers)
-  return await new Promise<{
-    status: number
-    body: string
-    headers: Record<string, string | string[] | undefined>
-  }>((resolve, reject) => {
-    const req = httpsRequest(
-      {
-        host: '127.0.0.1',
-        port: target,
-        servername: 'home.local',
-        ca: built.certificate,
-        path: route,
-        method,
-        headers: actual,
-        agent: false,
-      },
-      (response) => {
-        let text = ''
-        response.setEncoding('utf8')
-        response.on('data', (part: string) => {
-          text += part
-        })
-        response.on('end', () => {
-          resolve({ status: response.statusCode ?? 0, body: text, headers: response.headers })
-        })
-        response.on('error', reject)
-      },
-    )
-    req.on('error', reject)
-    req.end(body)
+  return await loopbackPost({
+    port: target,
+    certificate: built.certificate,
+    route,
+    method,
+    body,
+    headers: loopbackHeaders(target, headers, nodeBearer),
   })
 }
 
@@ -191,7 +179,7 @@ async function postHuge(
   body: string,
   headers: Record<string, string | undefined> = {},
 ): Promise<number> {
-  const actual = requestHeaders(built.port, headers)
+  const actual = loopbackHeaders(built.port, headers, nodeBearer)
   return await new Promise<number>((resolve, reject) => {
     let hasAnswered = false
     const req = httpsRequest(
@@ -237,31 +225,10 @@ async function postHuge(
 }
 
 async function terminalSocket(origin: string): Promise<Duplex> {
-  return await new Promise<Duplex>((resolve, reject) => {
-    const req = httpsRequest({
-      host: '127.0.0.1',
-      port: built.port,
-      servername: 'home.local',
-      ca: built.certificate,
-      path: '/node/terminal/stream',
-      agent: false,
-      headers: {
-        Host: `home.local:${String(built.port)}`,
-        Origin: origin,
-        'Sec-Fetch-Site': 'same-origin',
-        'Sec-Fetch-Mode': 'websocket',
-        'Sec-Fetch-Dest': 'websocket',
-        Upgrade: 'websocket',
-        Connection: 'Upgrade',
-        'Sec-WebSocket-Version': '13',
-        'Sec-WebSocket-Key': Buffer.alloc(16).toString('base64'),
-      },
-    })
-    req.once('upgrade', (_response, socket) => {
-      resolve(socket)
-    })
-    req.once('error', reject)
-    req.end()
+  return await loopbackTerminalSocket({
+    port: built.port,
+    certificate: built.certificate,
+    origin,
   })
 }
 
@@ -480,8 +447,11 @@ describe('M110-N real selected-interface HTTPS listener', () => {
       expect(fixture.request.calls).toHaveLength(0)
       const bad = { done: true } as const
       Object.defineProperty(bad, 'done', { value: false })
-      fixture.request.once(() => Promise.resolve(bad))
-      expect(await status('/node/stop')).toBe(503)
+      const surfaced = await surfacing(async () => {
+        fixture.request.once(() => Promise.resolve(bad))
+        expect(await status('/node/stop')).toBe(503)
+      })
+      expect(String(surfaced[0])).toContain('invalid_value')
     },
   )
   nodeNativeTest('validated routes dispatch only through the shared session port', async () => {
@@ -504,10 +474,13 @@ describe('M110-N real selected-interface HTTPS listener', () => {
       const conflict = await post('/node/stop')
       expect(conflict.status).toBe(409)
       expect(conflict.body).toBe('{"code":"conflict"}')
-      fixture.request.once(() => Promise.reject(new Error('plain failure')))
-      const down = await post('/node/stop')
-      expect(down.status).toBe(503)
-      expect(down.body).toBe('{"code":"unavailable"}')
+      const surfaced = await surfacing(async () => {
+        fixture.request.once(() => Promise.reject(new Error('plain failure')))
+        const down = await post('/node/stop')
+        expect(down.status).toBe(503)
+        expect(down.body).toBe('{"code":"unavailable"}')
+      })
+      expect(surfaced).toEqual([new Error('plain failure')])
     },
   )
   nodeNativeTest(

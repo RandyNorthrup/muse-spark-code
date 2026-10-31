@@ -473,6 +473,11 @@ const NODE_OUTFILE = 'dist/node.js'
 // first boot runs it, so dist/node.js never carries the seed reader's YAML.
 const NODE_SETUP_ENTRY = 'src/runtime/node/firstBoot/setupEntry.ts'
 const NODE_SETUP_OUTFILE = 'dist/nodeSetup.js'
+// RLF-NODESERVE: `serve` loads these two beside node.js when it starts.
+const NODE_SERVE_ENTRY = 'src/runtime/node/serveEntry.ts'
+const NODE_SERVE_OUTFILE = 'dist/nodeServe.js'
+const NODE_AUTH_ENTRY = 'src/runtime/node/auth/entry.ts'
+const NODE_AUTH_OUTFILE = 'dist/nodeAuth.js'
 const SCHEDULE_BACKGROUND_ENTRY = 'src/runtime/schedules/backgroundEntry.ts'
 const SCHEDULE_BACKGROUND_OUTFILE = 'dist/scheduleBackground.js'
 const ACP_QUESTIONS_ENTRY = 'src/acp/questionDeferralEntry.ts'
@@ -1992,6 +1997,19 @@ const nodeOptions = {
   outfile: NODE_OUTFILE,
   banner: {},
 }
+const nodeServeOptions = {
+  ...acpOptions,
+  entryPoints: [NODE_SERVE_ENTRY],
+  outfile: NODE_SERVE_OUTFILE,
+  banner: {},
+}
+const nodeAuthOptions = {
+  ...acpOptions,
+  entryPoints: [NODE_AUTH_ENTRY],
+  outfile: NODE_AUTH_OUTFILE,
+  banner: {},
+}
+
 const nodeSetupOptions = {
   ...acpOptions,
   entryPoints: [NODE_SETUP_ENTRY],
@@ -2573,6 +2591,8 @@ if (isWatch) {
     esbuild.context(runtimePanelOptions),
     esbuild.context(runtimePanelSessionOptions),
     esbuild.context(runtimePanelPortsOptions),
+    esbuild.context(nodeServeOptions),
+    esbuild.context(nodeAuthOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -2835,6 +2855,8 @@ if (isWatch) {
     ['runtimePanel', () => esbuild.build(runtimePanelOptions)],
     ['runtimePanelSession', () => esbuild.build(runtimePanelSessionOptions)],
     ['runtimePanelPorts', () => esbuild.build(runtimePanelPortsOptions)],
+    ['nodeServe', () => esbuild.build(nodeServeOptions)],
+    ['nodeAuth', () => esbuild.build(nodeAuthOptions)],
   ]
   if (!isProduction || isWithIntegrationTests) {
     extraSpecs.push(['integrationTests', () => esbuild.build(integrationTestOptions)])
@@ -2859,6 +2881,8 @@ if (isWatch) {
   let runtimePanel
   let runtimePanelSession
   let runtimePanelPorts
+  let nodeServe
+  let nodeAuth
   try {
     shipped = await runBuildPool(Object.entries(shippedSpecs), BUILD_POOL_SIZE)
     ;({
@@ -2881,6 +2905,8 @@ if (isWatch) {
       runtimePanel,
       runtimePanelSession,
       runtimePanelPorts,
+      nodeServe,
+      nodeAuth,
     } = await runBuildPool(extraSpecs, BUILD_POOL_SIZE))
   } catch (error) {
     await esbuild.stop()
@@ -2969,6 +2995,10 @@ if (isWatch) {
       path.join(ACP_METAFILE_DIR, 'runtimePanelPorts.json'),
       JSON.stringify(runtimePanelPortsMetafile),
     )
+    const { metafile: nodeServeMetafile } = await nodeServe
+    writeFileSync(path.join(ACP_METAFILE_DIR, 'nodeServe.json'), JSON.stringify(nodeServeMetafile))
+    const { metafile: nodeAuthMetafile } = await nodeAuth
+    writeFileSync(path.join(ACP_METAFILE_DIR, 'nodeAuth.json'), JSON.stringify(nodeAuthMetafile))
   }
   writeFileSync(BUILD_PROFILE_FILE, JSON.stringify({ ...profile, production: isProduction }))
   console.log('bundle sizes:')
@@ -3092,5 +3122,7 @@ if (isWatch) {
   reportSize(RUNTIME_PANEL_OUTFILE)
   reportSize(RUNTIME_PANEL_SESSION_OUTFILE)
   reportSize(RUNTIME_PANEL_PORTS_OUTFILE)
+  reportSize(NODE_SERVE_OUTFILE)
+  reportSize(NODE_AUTH_OUTFILE)
   reportSize(PACKS_VERIFY_OUTFILE)
 }

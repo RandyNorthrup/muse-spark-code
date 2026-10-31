@@ -2500,6 +2500,9 @@ async function main(processResources: ProcessResources): Promise<number> {
       process.on('SIGINT', stop)
       try {
         const loaded = nodeModule(path.join(distDir, NODE_BUNDLE_FILE))
+        const print = (line: string): void => {
+          writeLine(process.stdout, line)
+        }
         return await loaded.runNodeArgs(
           command.argv,
           {
@@ -2509,11 +2512,9 @@ async function main(processResources: ProcessResources): Promise<number> {
               homeDir: homedir(),
             }),
             signal: controller.signal,
-            binding: loaded.productionNodeBinding(),
+            binding: loaded.productionNodeBinding({ print, version: packageVersion }),
             now: Date.now,
-            print: (line) => {
-              writeLine(process.stdout, line)
-            },
+            print,
             readSecret: () =>
               readSecretLine(UI_TEXT.nodeLabels.unlock, process.stdin, process.stderr),
           },

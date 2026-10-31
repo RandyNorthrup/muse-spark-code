@@ -9,7 +9,7 @@ export {
   readNodeChallengeKey,
 } from '../tls/certificate'
 
-/** N loads dist/nodeAuth.js on first setup/sign-in, installing its own language table. */
+/** N loads dist/nodeAuth.js at serve start, installing its own language table. */
 export function createNodePasskeyAuth(
   options: NodeAuthOptions,
   table: UiText,

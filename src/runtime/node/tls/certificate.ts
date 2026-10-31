@@ -8,7 +8,7 @@ import {
 } from 'node:crypto'
 import { lookup } from 'node:dns/promises'
 import { constants } from 'node:fs'
-import { lstat, open, readFile, rename, rm } from 'node:fs/promises'
+import { open, readFile, rename, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { execResourceFile } from '../../../core/resources/launcher'
 import {
@@ -28,13 +28,7 @@ import { fill } from '../../../shared/l10n/text'
 import { nodeLanAddressSchema } from '../../../shared/node'
 import { nodeDomainSchema, nodeDigestSchema } from '../../../shared/nodeAuth'
 import { isMissingFile, NodePrivateFiles } from '../privateFiles'
-
-export interface NodeCertificate {
-  root: string
-  certificateFile: string
-  privateKeyFile: string
-  fingerprint: string
-}
+import { readCommittedPair, type NodeCertificate } from '../committedPair'
 
 /** The same certificate digest is pinned by N and printed in full on the console/TUI. */
 export function checkNodeCertificate(
@@ -131,32 +125,9 @@ export async function issueNodeCertificate(
     }
     throw new Error(UI_TEXT.nodeErrors.conflict)
   }
+  const committed = await readCommittedPair(files, names, now, signal, checkNodeCertificate)
+  if (committed !== undefined) return committed
   const committedRoot = files.file(NODE_TLS_DIRECTORY)
-  let hasCommitted = false
-  try {
-    await lstat(committedRoot)
-    hasCommitted = true
-  } catch (error: unknown) {
-    if (!isMissingFile(error)) throw error
-  }
-  if (hasCommitted) {
-    // A crash after publication may precede the console's receipt of the pin.
-    // Recover the same validated pair; never generate over existing material.
-    const committed = new NodePrivateFiles(committedRoot)
-    const fingerprint = checkNodeCertificate(
-      await committed.read(NODE_TLS_CERT_FILE, NODE_MAX_AUTH_BYTES),
-      await committed.read(NODE_TLS_KEY_FILE, NODE_MAX_AUTH_BYTES),
-      names,
-      now(),
-    )
-    signal.throwIfAborted()
-    return {
-      root: committedRoot,
-      certificateFile: NODE_TLS_CERT_FILE,
-      privateKeyFile: NODE_TLS_KEY_FILE,
-      fingerprint,
-    }
-  }
   // C/S0 holds N's exclusive service lock through issuance. A leftover staging
   // directory was never committed; validate its ownership before discarding it.
   const staging = new NodePrivateFiles(files.file(NODE_TLS_PENDING_DIRECTORY))

@@ -61,12 +61,19 @@ export async function dispatchNodeMethod(
     )
     const actionDigest = nodeActionDigest(method, parsed.data)
     if (fields.actionDigest !== actionDigest) throw new NodeListenerError('forbidden')
-    const proof = nodeStepUpSchema.parse(
-      await ports.verifier.consumeStepUp(
+    // A1's proofs fail with plain said words by contract; the wire answers
+    // forbidden, never a leak and never a hung socket.
+    let consumed: unknown
+    try {
+      consumed = await ports.verifier.consumeStepUp(
         { sessionId: session.id, id: fields.stepUpId, action, actionDigest },
         signal,
-      ),
-    )
+      )
+    } catch (error: unknown) {
+      if (signal.aborted) throw error
+      throw new NodeListenerError('forbidden', { cause: error })
+    }
+    const proof = nodeStepUpSchema.parse(consumed)
     const now = ports.now()
     if (
       proof.id !== fields.stepUpId ||

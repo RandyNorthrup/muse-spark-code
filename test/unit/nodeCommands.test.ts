@@ -1,4 +1,4 @@
-import { nodeTempRoot, nodeNativeTest } from './helpers/nodeNative'
+import { nodeTempRoot, nodeNativeTest, testPackageVersion } from './helpers/nodeNative'
 import { createHash } from 'node:crypto'
 import { readFile, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -6,7 +6,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { parseNodeArgs } from '../../src/runtime/node/args'
 import { ownService, productionNodeBinding } from '../../src/runtime/node/binding'
-import { runNodeCommand, type NodeCommandDeps } from '../../src/runtime/node/main'
+import { runNodeArgs, runNodeCommand, type NodeCommandDeps } from '../../src/runtime/node/main'
+import { EN } from '../../src/shared/l10n/en'
 import { NodeStateStore } from '../../src/runtime/node/state'
 import { nodeDataFolder } from '../../src/runtime/dataFolder'
 import { NODE_LOCK_FILE, UI_TEXT } from '../../src/shared/constants'
@@ -134,17 +135,24 @@ describe('M110-N node commands and isolated dispatch', () => {
     },
   )
   nodeNativeTest(
-    'H08 serve and the live commands refuse explicitly until the service binding lands',
+    'H08 lock, unlock and live status refuse explicitly until the control transport lands',
     async () => {
-      const { deps, init } = await setup()
+      const { deps, init, lines } = await setup()
       await runNodeCommand(init, deps)
-      const bound = { ...deps, binding: productionNodeBinding() }
-      await expect(runNodeCommand(parseNodeArgs(['serve']), bound)).rejects.toThrow(
-        UI_TEXT.nodeErrors.unavailable,
-      )
-      // A stopped node answers status from its files, binding or not.
+      const bound = {
+        ...deps,
+        binding: productionNodeBinding({
+          print: deps.print,
+          version: testPackageVersion,
+        }),
+      }
+      // A stopped node answers status from its files, binding or not; stop
+      // with no lock names the missing lock.
       expect(await runNodeCommand(parseNodeArgs(['status']), bound)).toBe(0)
-      for (const action of ['lock', 'unlock', 'stop'])
+      lines.length = 0
+      expect(await runNodeArgs(['stop'], bound, EN, 'en')).toBe(1)
+      expect(lines).toEqual([UI_TEXT.nodeErrors.notFound])
+      for (const action of ['lock', 'unlock'])
         await expect(runNodeCommand(parseNodeArgs([action]), bound)).rejects.toThrow(
           UI_TEXT.nodeErrors.unavailable,
         )

@@ -2,6 +2,7 @@
 import { createRequire } from 'node:module'
 import { UI_TEXT } from '../../shared/constants'
 import type { NodeCommandDeps, NodeServiceBinding } from './main'
+import type { ProductionNodeBindingOptions } from './binding'
 import type { UiText } from '../../shared/l10n/en'
 
 interface NodeModule {
@@ -11,7 +12,7 @@ interface NodeModule {
     table: UiText,
     locale: string,
   ): Promise<number>
-  productionNodeBinding(): NodeServiceBinding
+  productionNodeBinding(options: ProductionNodeBindingOptions): NodeServiceBinding
 }
 function isNodeModule(value: unknown): value is NodeModule {
   return (

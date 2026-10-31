@@ -26182,6 +26182,24 @@ Still open: the full Linux install, the attestation success path, every
 container runbook (Docker Desktop's socket never appeared on macmini), and
 the serve binding (A1/M104).
 
+**Status 2026-10-23 (serve binding built on lane RLF-NODESERVE): building.**
+`serve` boots the service, takes the exclusive lock, loads the A1 verifier
+and the pinned S0 leaf from the lazy `dist/nodeAuth.js` bundle, and listens
+on the interface `init` selected, printing the full SHA-256 fingerprint;
+`stop` signals the recorded supervisor and waits. Privileged routes answer
+401 without a verified bearer; H19/H20 stay as the accepted threat model
+wrote them. Still open: the operator control transport (`lock`/`unlock` and
+live `status` refuse `unavailable`), the `/peek` subscribe route and
+read-only page (no transport on these branches), N-M103-ACTION (RLM103
+running), and the lead's second-PC passkey join. Receipt:
+`docs/certification/rlf-nodeserve.md`.
+
+**Status 2026-10-30 (lane RLF-NODESERVE complete): building.** The
+serve binding serves: fingerprint, bearer [REDACTED] digest-bound proofs and
+`stop` are drilled in the receipt above. Still open and not this lane's:
+the operator control transport, the `/peek` subscribe route and page,
+N-M103-ACTION (RLM103), and the lead's second-PC passkey join.
+
 **Amended by D91 (2026-10-05).** Muse Desktop (M111) is this node's
 graphical host edition. M111's shared lanes TH (theme), IN (languages), AX
 (accessibility) and OB (observability) also cover this milestone's web UI
@@ -33095,6 +33113,10 @@ No new escape hatch is introduced.
 | `test/unit/nodeOsAddons.test.ts` (http negatives)    | `eslint-disable-next-line unicorn/prefer-https`, 2 sites | The violations under test: the checkers must refuse non-https terms and snapshot URLs, so the tests feed them http. Inline-reasoned; no rule change.                            | 2026-10-23 |
 | `test/unit/nodeOsAddons.test.ts` (manifest nav)      | `as Record<string, unknown>`, 2 sites                    | Navigation over parsed manifest fixtures the test constructed; each cast follows a throwing shape assertion. Inline-reasoned; no rule change.                                   | 2026-10-23 |
 | `os/addons/lib/checkAddon.mjs` (release unescaper)   | `eslint-disable-next-line unicorn/prefer-string-raw`     | Escape pairs read clearest as escapes in the `\"`/`\\` unescaper. Inline-reasoned; no rule change.                                                                              | 2026-10-23 |
+
+| RLF-NODESERVE location                    | Escape hatch                                  | Reason                                                                                                                                                                                                                                                                                                 | Date       |
+| ----------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| `src/runtime/node/serve.ts` (method port) | `result.parse(result) as NodeMethodResult<M>` | The catalog lookup is generic over M; zod has already parsed the value against the exact method's result schema, so the cast restates what validation proved. Narrowing cannot retain the generic method-to-result correlation. The serve binding tests assert each method's parsed result end to end. | 2026-10-23 |
 
 ## 9. Security assumptions and accepted residual risk
 
