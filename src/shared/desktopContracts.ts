@@ -1,11 +1,13 @@
 // Muse Desktop (M111, D91) lane 0 component contracts: the shapes the
+// (zod/mini, like every browser-facing shared schema: the classic build
+// would put ~400 KiB of zod into every webview bundle that reads these.)
 // owner-approved mockups define (docs/design/m111-mockups/, approved
 // 2026-10-23). Lanes SH1, SH2, WB, ST and the preview lanes build to these
 // contracts; changing one is a plan change, not an implementation detail.
 // Where a mockup and D91 disagree D91 governs (the tiled detached terminal
 // in Tiled.dc.html: D91.13 calls a detached terminal FLOATING).
 
-import { z } from 'zod'
+import * as z from 'zod/mini'
 
 /** The workbench's regions at 1920×1080 and 1280×800 (sheets 01–06). */
 export const WORKBENCH_REGIONS = [
@@ -68,11 +70,13 @@ export type LauncherResultKind = (typeof LAUNCHER_RESULT_KINDS)[number]
 export const LAUNCHER_MODES = ['all', 'calculate', 'symbols', 'agents', 'settings'] as const
 export type LauncherMode = (typeof LAUNCHER_MODES)[number]
 
+const nonEmptyString = z.string().check(z.minLength(1))
+
 export const launcherResultSchema = z.strictObject({
   kind: z.enum(LAUNCHER_RESULT_KINDS),
-  id: z.string().min(1),
-  title: z.string().min(1),
-  detail: z.string().optional(),
+  id: nonEmptyString,
+  title: nonEmptyString,
+  detail: z.optional(z.string()),
 })
 export type LauncherResult = z.infer<typeof launcherResultSchema>
 
@@ -106,12 +110,12 @@ export const TILING = {
 
 /** One onboarding pack from the signed pack index (sheet 15). */
 export const onboardingPackSchema = z.strictObject({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  version: z.string().min(1),
-  downloadBytes: z.number().int().nonnegative(),
-  diskBytes: z.number().int().nonnegative(),
-  licences: z.array(z.string().min(1)),
+  id: nonEmptyString,
+  name: nonEmptyString,
+  version: nonEmptyString,
+  downloadBytes: z.int().check(z.nonnegative()),
+  diskBytes: z.int().check(z.nonnegative()),
+  licences: z.array(nonEmptyString),
   recommended: z.boolean(),
 })
 export type OnboardingPack = z.infer<typeof onboardingPackSchema>
@@ -127,8 +131,8 @@ export type PreviewDevice = (typeof PREVIEW_DEVICES)[number]
 
 export const previewViewportSchema = z.strictObject({
   deviceId: z.enum(['phone', 'tablet', 'laptop', 'desktop']),
-  widthPx: z.number().int().positive(),
-  heightPx: z.number().int().positive(),
+  widthPx: z.int().check(z.positive()),
+  heightPx: z.int().check(z.positive()),
 })
 export type PreviewViewport = z.infer<typeof previewViewportSchema>
 

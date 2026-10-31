@@ -36,7 +36,7 @@ export const EN = {
     createBranch: 'Create branch',
     noFiles: 'No files found.',
     discard: 'Discard edits',
-    unsaved: 'Save or discard your edits before opening another file.',
+    unsaved: 'Save or discard your edits before closing this file.',
     truncated: 'This diff is truncated. Refresh for the current changes.',
     destination: 'SSH destination',
     hostKey: 'Verified host key',
@@ -1177,6 +1177,8 @@ export const EN = {
     'Move between files, expand or collapse a folder, or open the active file.',
   referenceNodeEditorKeys: 'Save the open file.',
   referenceDesktopTerminalKeys: 'Run the typed line in the Muse Desktop terminal.',
+  referenceEditorGroupKeys:
+    'Move between tabs, cycle tabs, focus a group by number, or close the menu.',
   referenceThinking:
     'Choose how much effort Muse puts into each reply. Thinking: On = effort; Off = museCode:none / modelApi:minimal.',
   referenceSandbox:
@@ -9852,6 +9854,57 @@ export const EN = {
   // Shared with the hardware Muse Code Modes menu; retain in browser fallback.
   hardwareBindingUnavailable:
     'This device adapter cannot verify the approved target at process start. Nothing was sent. Use the Model API backend for hardware commands.',
+  // M111 lane ED (D91.14): the shared editor group's words. The find and
+  // replace entries are CodeMirror's panel phrases; `$` in the two
+  // replaced-count strings is CodeMirror's own placeholder, kept as is.
+  editorGroup: {
+    tabs: 'Editors',
+    tabsInGroup: 'Editors, group {group}',
+    closeTab: 'Close {title}',
+    tabUnsaved: '{title}, unsaved changes',
+    tabPreview: '{title}, preview',
+    tabPinned: '{title}, pinned',
+    tabPinnedUnsaved: '{title}, pinned, unsaved changes',
+    pinTab: 'Pin tab',
+    unpinTab: 'Unpin tab',
+    keepTabOpen: 'Keep tab open',
+    closeOtherTabs: 'Close other tabs',
+    closeUnpinnedTabs: 'Close unpinned tabs',
+    splitRight: 'Split editor right',
+    splitDown: 'Split editor down',
+    moreActions: 'More editor actions',
+    breadcrumbs: 'Breadcrumbs',
+    language: 'Language',
+    plainText: 'Plain text',
+    languageFailed:
+      'The {language} language could not load. The file stays editable as plain text.',
+    minimap: 'Minimap',
+    findLabel: 'Find',
+    replaceLabel: 'Replace',
+    replaceOne: 'Replace',
+    replaceAll: 'Replace all',
+    nextMatch: 'Next',
+    previousMatch: 'Previous',
+    selectAllMatches: 'All',
+    closePanel: 'Close',
+    matchCase: 'Match case',
+    byWord: 'Whole word',
+    regexp: 'Regular expression',
+    goToLine: 'Go to line',
+    go: 'Go',
+    currentMatch: 'Current match',
+    onLine: 'on line',
+    replacedMatches: 'Replaced $ matches',
+    replacedMatchOnLine: 'Replaced match on line $',
+    noFileOpen: 'No file is open. Choose a file to start editing.',
+    lineColumn: 'Line {line}, column {column}',
+    previewSize: 'Preview size',
+    devicePhone: 'Phone',
+    deviceTablet: 'Tablet',
+    deviceLaptop: 'Laptop',
+    deviceDesktop: 'Desktop',
+    loading: 'Loading editor',
+  },
 }
 
 /** The shape every table has: English's keys, with any language's plural forms. */

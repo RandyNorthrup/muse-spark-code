@@ -211,6 +211,63 @@ export const WEBVIEW_KEYBINDINGS = {
   'desktop.terminal': {
     submit: { keys: [{ key: 'Enter' }], text: { ui: 'referenceDesktopTerminalKeys' } },
   },
+  // M111 lane ED: the shared editor group's tab strip and group keys
+  // (D91.13 reserves primary+1..9 for the editor groups).
+  'editor.group': {
+    next: { keys: [{ key: 'ArrowRight' }], text: { ui: 'referenceEditorGroupKeys' } },
+    previous: { keys: [{ key: 'ArrowLeft' }], text: { ui: 'referenceEditorGroupKeys' } },
+    first: { keys: [{ key: 'Home' }], text: { ui: 'referenceEditorGroupKeys' } },
+    last: { keys: [{ key: 'End' }], text: { ui: 'referenceEditorGroupKeys' } },
+    accept: {
+      keys: [{ key: 'Enter' }, { key: ' ' }],
+      text: { ui: 'referenceEditorGroupKeys' },
+    },
+    close: { keys: [{ key: 'Escape' }], text: { ui: 'referenceEditorGroupKeys' } },
+    cycleNext: {
+      keys: [{ key: 'PageDown', primary: true, alt: false }],
+      text: { ui: 'referenceEditorGroupKeys' },
+    },
+    cyclePrevious: {
+      keys: [{ key: 'PageUp', primary: true, alt: false }],
+      text: { ui: 'referenceEditorGroupKeys' },
+    },
+    group1: {
+      keys: [{ key: '1', primary: true, alt: false }],
+      text: { ui: 'referenceEditorGroupKeys' },
+    },
+    group2: {
+      keys: [{ key: '2', primary: true, alt: false }],
+      text: { ui: 'referenceEditorGroupKeys' },
+    },
+    group3: {
+      keys: [{ key: '3', primary: true, alt: false }],
+      text: { ui: 'referenceEditorGroupKeys' },
+    },
+    group4: {
+      keys: [{ key: '4', primary: true, alt: false }],
+      text: { ui: 'referenceEditorGroupKeys' },
+    },
+    group5: {
+      keys: [{ key: '5', primary: true, alt: false }],
+      text: { ui: 'referenceEditorGroupKeys' },
+    },
+    group6: {
+      keys: [{ key: '6', primary: true, alt: false }],
+      text: { ui: 'referenceEditorGroupKeys' },
+    },
+    group7: {
+      keys: [{ key: '7', primary: true, alt: false }],
+      text: { ui: 'referenceEditorGroupKeys' },
+    },
+    group8: {
+      keys: [{ key: '8', primary: true, alt: false }],
+      text: { ui: 'referenceEditorGroupKeys' },
+    },
+    group9: {
+      keys: [{ key: '9', primary: true, alt: false }],
+      text: { ui: 'referenceEditorGroupKeys' },
+    },
+  },
 } as const satisfies Readonly<Record<string, Readonly<Record<string, KeyBinding>>>>
 
 interface KeyEvent {
