@@ -41,6 +41,17 @@ desktop:l10n`), the Rust crate (`muse-desktop-l10n` 0.1.0, ICU4X 2.4.0,
   attribution. `fontCoverage` 7/7 (recorded hb-shape outputs, exit-2
   paths, symlink parity). Not in `quality:gates`: needs Linux with the
   image fonts + hb-shape; desktop CI runs it.
+- 2026-10-30: the Electron IME capture (`test/desktop/l10n/ime-flags.mjs`
+  - `ime-flags.json` receipt): pinned Electron 45.0.0 (Chromium
+    156.0.8078.48) carries `--enable-wayland-ime
+--wayland-text-input-version=3` in a real Xvfb run; without the flags
+    the probe reports false (assertion non-vacuous); missing binary fails
+    said. Text-input-v3 behaviour under Hyprland+fcitx5 belongs to image
+    CI. Noted: Electron 45.2.0 released 2026-10-30, pin bump is WB's call.
+- 2026-10-30: node web UI + TUI verified under the same checks (15 TUI
+  and 18 node-UI TS files in the load-order scan, green; their keys in
+  the generated tables and pseudo-RTL; both harness pages'
+  scripts syntax-clean).
 
 ## Next
 

@@ -370,6 +370,7 @@
     // M111 IN (D91.20): the desktop language checks, run by hand or from the
     // desktop CI (real Qt, real Electron), which knip does not trace.
     "test/desktop/l10n/qml-check.mjs",
+    "test/desktop/l10n/ime-flags.mjs",
     "scripts/**/*.mjs",
     ".vscode-test.mjs",
 

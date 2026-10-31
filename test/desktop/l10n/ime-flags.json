@@ -1,0 +1,15 @@
+{
+  "captured": "2026-10-30",
+  "command": "ELECTRON_BIN=<electron 45.0.0> ELECTRON_DISABLE_SANDBOX=1 XDG_CACHE_HOME=<tmp> xvfb-run -a node test/desktop/l10n/ime-flags.mjs",
+  "display": "Xvfb (X11); the workbench passes the same switches on Wayland",
+  "electron": "45.0.0",
+  "chromium": "156.0.8078.48",
+  "node": "24.22.0",
+  "platform": "linux",
+  "switches": ["--enable-wayland-ime", "--wayland-text-input-version=3"],
+  "carried": {
+    "enableWaylandIme": true,
+    "textInputVersion": "3"
+  },
+  "note": "The running app carries both switches with the version parsed. Proving a text-input-v3 session under Hyprland with fcitx5 in Chinese, Japanese and Korean needs the image, so it belongs to image CI (M111os IM/QA). Electron 45.2.0 released 2026-10-30; the pin bump is the workbench lane's call."
+}
