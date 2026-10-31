@@ -1,16 +1,23 @@
-import type { GovernedTeamSlots } from '../../core/team/scheduler/slots'
-import type { ResourcePermit } from '../../core/resources/queue'
+import {
+  GovernedTeamSlots,
+  type SchedulerSlot,
+  type SchedulerSlotPort,
+} from '../../core/team/scheduler/slots'
+import type { ResourceLaunchHost } from '../../core/resources/launchHost'
 
-/** Heavy team checks use the same governor queue as workers, under the check kind.
-@unwired M96 heavy team check slot
+/**
+Heavy team checks use the same governor queue as workers, under the check
+kind (the M96c join): the permit waits for the machine's `check` capacity,
+and the scheduler's slot is the folder the check then runs in. A check
+installs, builds and tests, so it is disk-heavy as every governed `check`
+launch is: a disk hold the person's floor causes keeps it waiting.
 */
-export function requestCheckSlot(
-  slots: GovernedTeamSlots,
+export function requestCheckSlot<Slot extends SchedulerSlot>(
+  slots: GovernedTeamSlots<Slot>,
   priority: number,
   signal?: AbortSignal,
-  parent?: ResourcePermit,
 ) {
-  return slots.request({ kind: 'check', priority, ...(parent !== undefined && { parent }) }, signal)
+  return slots.request({ kind: 'check', priority, diskHeavy: true }, signal)
 }
 
 import { createHash, randomUUID } from 'node:crypto'
@@ -122,15 +129,27 @@ export interface CheckSlotDeps extends CheckGit {
   readonly shellArgs: (command: string) => readonly string[]
   readonly isTrusted: () => boolean
   readonly isHostBusy: () => boolean
+  /**
+  The window governor's queue, capacity and running count
+  (`ResourceLaunchHost.teamSlotPorts`). With it a check waits for the
+  governor's `check` capacity before it takes a folder; without it the
+  folders alone bound the checks, as before.
+  */
+  readonly governor?: ReturnType<ResourceLaunchHost['teamSlotPorts']>
 }
 interface Slot {
   readonly id: number
   busy: boolean
   uncertain: boolean
 }
+/** A folder the governed queue admitted a check into. */
+interface HeldFolder extends SchedulerSlot {
+  readonly folder: Slot
+}
 
 export class CheckSlots {
   private readonly slots: Slot[]
+  private readonly governed: GovernedTeamSlots<HeldFolder> | undefined
   public constructor(private readonly deps: CheckSlotDeps) {
     if (!Number.isSafeInteger(deps.count) || deps.count < 1)
       throw new Error(UI_TEXT.teamRunners.testFailed)
@@ -151,6 +170,65 @@ export class CheckSlots {
       busy: false,
       uncertain: false,
     }))
+    this.governed =
+      deps.governor === undefined
+        ? undefined
+        : new GovernedTeamSlots(deps.governor.queue, this.folderPort(), {
+            governor: deps.governor.governor,
+            running: deps.governor.running,
+            configured: () => this.slots.length,
+            occupied: () => this.slots.filter((slot) => slot.busy).length,
+          })
+  }
+  /** The scheduler's side of the governed queue: a free folder, marked busy for one check. */
+  private folderPort(): SchedulerSlotPort<HeldFolder> {
+    return {
+      // Folders that may still hold processes never free: with all of them uncertain, no wait ends.
+      preflight: () => {
+        if (this.slots.every((slot) => slot.uncertain)) throw new Error(UI_TEXT.teamRunners.busy)
+      },
+      acquire: (_request, signal) => {
+        signal.throwIfAborted()
+        const folder = this.take()
+        return Promise.resolve({
+          folder,
+          release: () => {
+            this.give(folder)
+          },
+        })
+      },
+    }
+  }
+  private take(): Slot {
+    const slot = this.slots.find((candidate) => !candidate.busy)
+    if (slot === undefined) throw new Error(UI_TEXT.teamRunners.busy)
+    slot.busy = true
+    return slot
+  }
+  /** An uncertain folder stays busy: its processes may still run. */
+  private give(slot: Slot): void {
+    if (!slot.uncertain) slot.busy = false
+  }
+  /** One job's folder, through the governor's queue when it is lent, and given back after. */
+  private async withFolder<T>(job: CheckJob, use: (slot: Slot) => Promise<T>): Promise<T> {
+    this.admit(job)
+    if (this.deps.isHostBusy()) throw new Error(UI_TEXT.teamRunners.busy)
+    if (this.governed === undefined) {
+      const slot = this.take()
+      try {
+        return await use(slot)
+      } finally {
+        this.give(slot)
+      }
+    }
+    const held = await requestCheckSlot(this.governed, 0, job.signal).ready
+    try {
+      this.admit(job)
+      return await use(held.slot.folder)
+    } finally {
+      // The permit goes back only with a folder whose processes are proved ended.
+      if (!held.slot.folder.uncertain) held.release()
+    }
   }
   private admit(job: CheckJob): void {
     job.signal.throwIfAborted()
@@ -312,35 +390,22 @@ export class CheckSlots {
   }
   /** Called only after the caller's shell guards (routeChecks), including then_run. */
   public async run(job: CheckJob): Promise<CheckResult> {
-    this.admit(job)
-    if (this.deps.isHostBusy()) throw new Error(UI_TEXT.teamRunners.busy)
-    const slot = this.slots.find((candidate) => !candidate.busy)
-    if (slot === undefined) throw new Error(UI_TEXT.teamRunners.busy)
-    slot.busy = true
-    try {
+    return await this.withFolder(job, async (slot) => {
       const prepared = await this.prepare(slot, job)
       return 'failure' in prepared
         ? prepared.failure
         : await this.command(job.command, prepared.cwd, job, slot)
-    } finally {
-      if (!slot.uncertain) slot.busy = false
-    }
+    })
   }
   /** The optional per-copy install never shares mutable files with the cached install. */
   public async installInCopy(job: CheckJob): Promise<void> {
-    this.admit(job)
-    const slot = this.slots.find((candidate) => !candidate.busy)
-    if (slot === undefined || this.deps.isHostBusy()) throw new Error(UI_TEXT.teamRunners.busy)
-    slot.busy = true
-    try {
+    await this.withFolder(job, async (slot) => {
       const prepared = await this.prepare(slot, job)
       if ('failure' in prepared)
         throw new Error(UI_TEXT.teamRunners.testFailed, { cause: prepared.failure })
       await this.copyGuard(job.cwd)
       this.admit(job)
       await this.copyInstall(prepared.cwd, job.cwd)
-    } finally {
-      if (!slot.uncertain) slot.busy = false
-    }
+    })
   }
 }

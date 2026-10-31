@@ -29,6 +29,7 @@ import {
   type ResourcePermit,
   type ResourceAdmission,
   type ResourceLaunchRequest,
+  type ResourceRunningWork,
 } from './queue'
 import { ResourceTreeRegistry, RESOURCE_MEMBERSHIP_UNPROVEN } from './trees/registry'
 import type {
@@ -825,6 +826,26 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       (work) => work.kind === kind && work.class === 'background',
     )
     return entries.some((work) => !work.known) ? null : entries.length
+  }
+
+  /**
+  What a team's governed slots read from this host (the M96c join): this
+  queue's `request`, the governor's `capacity` and the registry's running
+  count, nothing wider. A host whose admissions go to the runtime's queue
+  owns no queue of its own to join.
+  */
+  teamSlotPorts(): {
+    readonly queue: Pick<ResourceQueue, 'request'>
+    readonly governor: Pick<ResourceGovernor, 'capacity'>
+    readonly running: ResourceRunningWork
+  } {
+    if (this.disposed) throw new Error('Resource launch host disposed')
+    if (this.options.admission !== undefined) throw new Error('Resource team slots unavailable')
+    return {
+      queue: { request: (request, signal) => this.queue.request(request, signal) },
+      governor: { capacity: (kind) => this.options.governor.capacity(kind) },
+      running: { backgroundCount: (kind) => this.backgroundCount(kind) },
+    }
   }
 
   dispose(): void {
