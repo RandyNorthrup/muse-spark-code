@@ -30747,6 +30747,17 @@ M114 (`panelThemePort` on MHP `theme` frames, never `portableTokens.css`),
 independent portable build with static-closure budgets; startup by static
 closure accounting (the browser timing waits for lane C's carrier).
 Record: `docs/certification/rlf-m104d.md`.
+Native hosts on int (RLF-HOSTSLAND, 2026-10-30): all nine editor hosts
+(JetBrains, Eclipse, Emacs, Neovim, Zed, Sublime, Qt Creator, Visual
+Studio, Xcode) re-landed from the RLM104 lineage on the real
+`panel --stdio`; every hand-written fake runtime is deleted and its
+claims recorded in `docs/real-life/unproven.md`. JetBrains and
+Eclipse validate 9 conformance legs each against the production
+runtime (13 legs wait for live model calls or unbuilt per-document
+versions); Emacs, Neovim, Zed and Qt Creator are excepted shims with
+green real harnesses; Sublime, Visual Studio and Xcode wait for their
+machines. Record: `docs/certification/rlf-hostsland.md`; matrix:
+`docs/ide-compatibility/matrix.md`.
 
 **Warning for the POSIX trusted-path verifier (INT0180, 2026-10-11).** A real
 POSIX verifier that refuses a group-writable unit search directory would
