@@ -4771,6 +4771,15 @@ function outboundSentences(): ReadonlySet<string> {
     UI_TEXT.acpChatGpt.states['signed-out'],
     UI_TEXT.acpChatGpt.failure,
     UI_TEXT.planUi.copilotTerminalGrant,
+    // RLF-ACPTEAM (M96b): the team admission's fixed refusals. Without
+    // them the editor would show the generic failure for a `--team`
+    // session the stored team cannot serve (D227: said, never silent).
+    UI_TEXT.teamNeedsSecondModel,
+    UI_TEXT.teamSwitchedOff,
+    UI_TEXT.acpTeamFixedForSession,
+    UI_TEXT.execTeamStateUnreadable,
+    UI_TEXT.execTeamConfigNotJson,
+    UI_TEXT.execTeamConfigNotObject,
     UI_TEXT.subscriptionKey.signInAgain,
     UI_TEXT.subscriptionKey.cannotRead,
     UI_TEXT.subscriptionKey.keychainBacked,
@@ -4882,8 +4891,23 @@ key content. A raw planted secret carries no template prefix and stays
 generic.
 */
 function outboundTemplates(): readonly { readonly prefix: string; readonly suffix: string }[] {
-  const [prefix = '', suffix = ''] = UI_TEXT.acpUnknownArgument.split('{argument}', 2)
-  return prefix.length > 0 ? [{ prefix, suffix }] : []
+  // RLF-ACPTEAM: the stored-team refusals name the entry or tool they
+  // refuse (a key path from the person's own team file, or the fixed
+  // MCP server name), like the unknown-argument command word.
+  const templates: readonly (readonly [string, string])[] = [
+    [UI_TEXT.acpUnknownArgument, '{argument}'],
+    [UI_TEXT.execTeamConfigInvalid, '{reason}'],
+    [UI_TEXT.execTeamConfigBadEntry, '{entry}'],
+    [UI_TEXT.execTeamConfigLowersOnly, '{entry}'],
+    [UI_TEXT.execTeamReviewerUnsupported, '{entry}'],
+    [UI_TEXT.teamRunnerUnavailable, '{tool}'],
+  ]
+  const found: { prefix: string; suffix: string }[] = []
+  for (const [template, slot] of templates) {
+    const [prefix = '', suffix = ''] = template.split(slot, 2)
+    if (prefix.length > 0) found.push({ prefix, suffix })
+  }
+  return found
 }
 
 /** The allow-listed sentence a message carries, past the SDK's own prefix. */
