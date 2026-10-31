@@ -1,6 +1,6 @@
 [Unit]
 Description=M111 QA compositor session in guest (stage 2)
-After=multi-user.target seatd.service
+After=multi-user.target
 ConditionPathExists=/var/lib/m111qa/stage2-armed
 ConditionPathExists=!/var/lib/m111qa/stage2-done
 

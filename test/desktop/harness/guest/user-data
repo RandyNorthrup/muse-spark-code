@@ -5,8 +5,9 @@
 # virtio-gpu driver, so the guest has no /dev/dri until it reboots into
 # the full one - copies the stage-2 script and unit off the harness
 # share, arms them, and reboots into the full kernel. Stage 2
-# (guest/stage2.sh) mounts the share again, runs one harness session as
-# the cloud user under seatd, and powers off. The session's results land
+# (guest/stage2.sh) mounts the share again and arms a logind autologin
+# session on tty1 whose profile runs one harness session as the cloud
+# user and powers off. The session's results land
 # on the share; never boot the share with QEMU -snapshot or they vanish.
 apt:
   sources:
@@ -19,7 +20,7 @@ package_update: true
 # OS1 pins the same set by snapshot in the real image.
 runcmd:
   - [sh, -c, "echo M111QA-RUNCMD-START > /dev/ttyS0"]
-  - [sh, -c, "DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -t trixie-backports hyprland grim foot nodejs seatd libgl1-mesa-dri linux-image-amd64 >> /dev/ttyS0 2>&1; echo M111QA-APT-EXIT=$? > /dev/ttyS0"]
+  - [sh, -c, "DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -t trixie-backports hyprland grim foot nodejs libgl1-mesa-dri linux-image-amd64 >> /dev/ttyS0 2>&1; echo M111QA-APT-EXIT=$? > /dev/ttyS0"]
   - - sh
     - -c
     - |
