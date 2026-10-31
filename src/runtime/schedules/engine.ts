@@ -7,6 +7,7 @@ import * as z from 'zod/mini'
 import { createScheduleStore, type ScheduleRunIntent } from '../../core/schedules/store'
 import { createScheduler } from '../../core/schedules/scheduler'
 import { ScheduleDelivery, type ScheduleDeliveryDeps } from '../../core/schedules/delivery'
+import { ScheduleBoardDelivery, type ScheduleTeamBoards } from '../../core/schedules/boardDelivery'
 import { ScheduleReportActionRunner } from '../../core/schedules/reportAction'
 import { createScheduleReportPort } from '../../core/schedules/reportAdapter'
 import { createReportOccurrencePort } from '../../core/schedules/reportOccurrences'
@@ -81,6 +82,12 @@ export interface ScheduleEngineOptions {
   ) =>
     | Pick<ScheduleDeliveryDeps, 'targets' | 'runs' | 'prompt'>
     | Promise<Pick<ScheduleDeliveryDeps, 'targets' | 'runs' | 'prompt'>>
+  /**
+  The host's team core for role/team targets (C-M115-8). Absent, those
+  targets refuse targetUnavailable; the certification switch drops the
+  whole delivery, boards with it.
+  */
+  readonly boards?: ScheduleTeamBoards
   readonly fs: ScheduleFsPort
   /**
   D121: the person's pause-after-failures count (0 never pauses), read
@@ -268,6 +275,9 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
       deliver: (schedule, context, occurrenceMs, event) =>
         reportRunner.run(schedule, context, occurrenceMs, event),
     },
+    ...(options.boards !== undefined && {
+      board: new ScheduleBoardDelivery({ boards: options.boards, authority, now }),
+    }),
     ...((await options.delivery?.(authority)) ??
       runtimeDelivery?.delivery ?? {
         targets: {

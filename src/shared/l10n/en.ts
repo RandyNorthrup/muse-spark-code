@@ -1647,6 +1647,8 @@ export const EN = {
       lostOnceClaim:
         'This fire no longer owns the once-only consent. Renew consent for another fire.',
       capReached: 'The schedule or shared daily cap does not admit this paid fire.',
+      scheduleTeamUnquotable:
+        'Set a task token ceiling on the role’s key entry to schedule it: its spend cannot be quoted without one.',
       paidUnavailable: 'This paid operation is unavailable or was not approved for this schedule.',
       changedConsent:
         'This schedule’s paid consent is missing or changed. Renew it before another paid fire.',

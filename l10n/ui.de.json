@@ -1343,6 +1343,7 @@
       "changedRevision": "Der Zeitplan oder seine laufende Sitzung hat sich geändert. Laden Sie ihn vor der nächsten kostenpflichtigen Ausführung neu.",
       "lostOnceClaim": "Diese Ausführung besitzt die einmalige Zustimmung nicht mehr. Erneuern Sie sie für eine weitere Ausführung.",
       "capReached": "Das Tageslimit des Zeitplans oder das gemeinsame Tageslimit erlaubt diese kostenpflichtige Ausführung nicht.",
+      "scheduleTeamUnquotable": "Legen Sie ein Tokenlimit pro Aufgabe für den Schlüssel-Eintrag der Rolle fest, um sie zu planen: Ohne dieses Limit können die Kosten nicht veranschlagt werden.",
       "paidUnavailable": "Dieser kostenpflichtige Vorgang ist nicht verfügbar oder wurde für diesen Zeitplan nicht genehmigt.",
       "changedConsent": "Die Zustimmung dieses Zeitplans fehlt oder hat sich geändert. Erneuern Sie sie vor der nächsten kostenpflichtigen Ausführung.",
       "setBy": "Von {agent} in {session} eingerichtet",

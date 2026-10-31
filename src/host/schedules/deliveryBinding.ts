@@ -3,6 +3,7 @@ import path from 'node:path'
 import { workspaceKey } from '../../runtime/dataFolder'
 import type { ShellDialect } from '../../core/backends/modelapi/shellSyntax'
 import type { ScheduleDeliveryDeps, ScheduleRunSettlement } from '../../core/schedules/delivery'
+import type { ScheduleTeamBoards } from '../../core/schedules/boardDelivery'
 import type { ScheduleAuthorityStore } from '../../core/schedules/grantAudit'
 import { ScheduleGrants } from '../../core/schedules/grant'
 import { UnattendedRun, type ScheduleRunDeps } from '../../core/schedules/unattended'
@@ -25,6 +26,8 @@ type Terminal = Extract<AgentEvent, { type: 'turnCompleted' | 'turnWithdrawn' }>
 
 export interface ScheduleEditorDeliveryPorts {
   readonly billing?: ScheduleBillingPorts
+  /** The host's team core for role/team targets (C-M115-8); absent, they refuse. */
+  readonly teamBoards?: ScheduleTeamBoards
   readonly caller?: () => ScheduleCallerContext
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform

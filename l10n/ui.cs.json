@@ -1353,6 +1353,7 @@
       "changedRevision": "Změnil se plán nebo jeho běžící relace. Před dalším placeným spuštěním jej znovu načtěte.",
       "lostOnceClaim": "Toto spuštění již nevlastní jednorázový souhlas. Pro další spuštění jej obnovte.",
       "capReached": "Denní limit plánu nebo sdílený denní limit toto placené spuštění neumožňuje.",
+      "scheduleTeamUnquotable": "Nastavte limit tokenů na úkol pro klíčovou položku role, abyste ji mohli naplánovat: bez něj nelze náklady vyčíslit.",
       "paidUnavailable": "Tato placená operace není dostupná nebo nebyla pro tento plán schválena.",
       "changedConsent": "Souhlas s placeným spuštěním tohoto plánu chybí nebo se změnil. Před dalším placeným spuštěním jej obnovte.",
       "setBy": "Nastavil {agent} v {session}",

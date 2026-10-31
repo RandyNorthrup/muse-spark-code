@@ -1343,6 +1343,7 @@
       "changedRevision": "Zamanlama veya çalışan oturumu değişti. Başka bir ücretli çalıştırmadan önce yeniden yükleyin.",
       "lostOnceClaim": "Bu çalıştırma artık tek kullanımlık onaya sahip değil. Başka bir çalıştırma için onayı yenileyin.",
       "capReached": "Zamanlamanın günlük sınırı veya paylaşılan günlük sınır bu ücretli çalıştırmaya izin vermiyor.",
+      "scheduleTeamUnquotable": "Planlamak için rolün anahtar girdisine görev başına token üst sınırı koyun: bu sınır olmadan harcama hesaplanamaz.",
       "paidUnavailable": "Bu ücretli işlem kullanılamıyor veya bu zamanlama için onaylanmadı.",
       "changedConsent": "Bu zamanlamanın ücretli kullanım onayı eksik veya değişti. Başka bir ücretli çalıştırmadan önce yenileyin.",
       "setBy": "{session} içinde {agent} tarafından ayarlandı",

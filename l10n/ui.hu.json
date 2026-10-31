@@ -1343,6 +1343,7 @@
       "changedRevision": "Megváltozott az ütemezés vagy annak futó munkamenete. Töltse be újra egy újabb fizetős futtatás előtt.",
       "lostOnceClaim": "Ez a futtatás már nem birtokolja az egyszeri hozzájárulást. Újítsa meg egy újabb futtatáshoz.",
       "capReached": "Az ütemezés napi korlátja vagy a közös napi korlát nem engedi ezt a fizetős futtatást.",
+      "scheduleTeamUnquotable": "Állítson be feladatonkénti tokenkorlátot a szerepkör kulcsos bejegyzéséhez az ütemezéshez: nélküle a költség nem becsülhető.",
       "paidUnavailable": "Ez a fizetős művelet nem érhető el, vagy nem hagyták jóvá ehhez az ütemezéshez.",
       "changedConsent": "Az ütemezés fizetési hozzájárulása hiányzik vagy megváltozott. Újítsa meg egy újabb fizetős futtatás előtt.",
       "setBy": "Beállította: {agent}, itt: {session}",

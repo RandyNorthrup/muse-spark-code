@@ -1348,6 +1348,7 @@
       "changedRevision": "La pianificazione o la sua sessione attiva è cambiata. Ricaricala prima di un’altra esecuzione a pagamento.",
       "lostOnceClaim": "Questa esecuzione non possiede più il consenso monouso. Rinnovalo per un’altra esecuzione.",
       "capReached": "Il limite giornaliero della pianificazione o quello condiviso non consente questa esecuzione a pagamento.",
+      "scheduleTeamUnquotable": "Imposta un limite di token per attività sulla voce chiave del ruolo per pianificarlo: senza di esso la spesa non può essere stimata.",
       "paidUnavailable": "Questa operazione a pagamento non è disponibile o non è stata approvata per questa pianificazione.",
       "changedConsent": "Il consenso a pagamento di questa pianificazione manca o è cambiato. Rinnovalo prima di un’altra esecuzione a pagamento.",
       "setBy": "Impostato da {agent} in {session}",

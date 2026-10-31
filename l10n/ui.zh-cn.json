@@ -1338,6 +1338,7 @@
       "changedRevision": "计划或其运行会话已更改。请在下次付费执行前重新加载。",
       "lostOnceClaim": "本次执行已失去一次性同意。请为另一次执行更新同意。",
       "capReached": "计划或共享每日上限不允许此次付费执行。",
+      "scheduleTeamUnquotable": "要安排该角色，请为其密钥条目设置每任务令牌上限：没有上限就无法估算费用。",
       "paidUnavailable": "此付费操作不可用，或未获此计划批准。",
       "changedConsent": "此计划的付费使用同意缺失或已更改。请在下次付费执行前更新。",
       "setBy": "由{agent}在{session}中设置",
