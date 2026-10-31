@@ -1481,6 +1481,12 @@
       "title": "The governor's per-job fork limit against supervised agents",
       "summary": "Decides the runaway-only fork bound with cited industry values that say why when they stop something, and governs supervised runs like every other launch.",
       "area": "platform"
+    },
+    {
+      "id": "RLFSHUTDOWN",
+      "title": "The ACP agent ends when its client leaves, even while Muse Code is starting",
+      "summary": "Closing the editor, stopping the agent or a crashed editor ends the agent and the Muse Code it started in every state, with no process left behind.",
+      "area": "platform"
     }
   ]
 }
