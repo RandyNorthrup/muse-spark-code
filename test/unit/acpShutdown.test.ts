@@ -147,11 +147,6 @@ async function waitFor(isDone: () => boolean, what: string): Promise<void> {
   }
 }
 
-/** The Muse Code processes on the machine (the real CLI's `muse-bin-<version>`, each leading its group). */
-function museProcesses(): readonly Process[] {
-  return processes().filter((row) => row.pgid === row.pid && row.command.includes(MUSE_BIN_PREFIX))
-}
-
 /**
 The Muse Code the agent started, from the moment it exists: the group leader
 the SDK made, first the launch shell, then the CLI's launcher, then the CLI
@@ -404,7 +399,7 @@ describe.skipIf(process.platform === 'win32')('the served agent when its client 
   afterEach(async () => {
     // A case that failed, or a Muse Code a leave did not end, is ended after it, and named.
     const left = [...CLIS].filter((pid) => isAlive(pid) || isAlive(pid, true))
-    const named = processes().filter((row) => left.includes(row.pid))
+    const named = left.length === 0 ? [] : processes().filter((row) => left.includes(row.pid))
     for (const pid of left) {
       if (isAlive(pid, true)) process.kill(-pid, 'SIGKILL')
       if (isAlive(pid)) process.kill(pid, 'SIGKILL')
@@ -427,11 +422,10 @@ describe.skipIf(process.platform === 'win32')('the served agent when its client 
     it.each(LEAVES)(
       '$name ends it with its work done',
       async ({ leave }) => {
-        const before = new Set(museProcesses().map((row) => row.pid))
         const served = await startedAgent({ state: 'idle' })
         expect(await leaveAndEnd(served, leave)).toBeLessThan(PROMPT_MS)
         // No Muse Code was started, on the way or by the leave.
-        expect(museProcesses().filter((row) => !before.has(row.pid))).toEqual([])
+        expect(served.log()).not.toContain('Spawning')
       },
       CASE_MS,
     )

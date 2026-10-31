@@ -400,7 +400,7 @@ redaction, unchanged by this lane.)
 
 - **Before any backend started** (4 cases): needs no Muse Code; runs wherever the
   suite runs, hosted CI included. Input closed, SIGTERM, SIGINT, SIGHUP each end the
-  agent with exit 0, and no Muse Code appears.
+  agent with exit 0, and its log shows no Muse Code spawned (no `ps` needed here).
 - **With the real Muse Code CLI**, skipped by name when it is not installed
   (`with the real Muse Code CLI (SKIPPED: no Muse Code CLI is installed on this machine)`,
   checked here by hiding it: 4 passed, 12 skipped), when the platform is not macOS, or
@@ -432,8 +432,8 @@ SIGTERM-ignoring one, two seconds of it the grace), 1.8 s (two agents), 1.1 s
 (answered, five leaves). Repository's own 5 s default is not used: the file names one
 30 s per-case budget for a case that starts the production agent and a real CLI and
 waits for both to exit (as the stand-in suite did); no case takes more than 3.2 s.
-Final runs, `--maxWorkers=3`: **16 of 16 in each of six runs** after the last logic
-change, no `muse-bin` process left behind (`ps` after each).
+Final runs, `--maxWorkers=3`: **16 of 16 in each of two runs** after the last logic
+change (and in each of six on the logic before the no-backend check moved to the log), no `muse-bin` process left behind (`ps` after each).
 
 ### 9.3 Red/green drills, on the real CLI
 
@@ -474,12 +474,13 @@ it is the launch shell's group leader, found by `ps`.
 
 **The suite's own guards**, edited, run, restored:
 
-| #   | Break                                                                              | Red                                                                                  | Green  |
-| --- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------ |
-| G1  | the home's lookup must be "found" (`.not.toBe(0)` to `.toBe(0)`)                   | 1: `expected 44 to be 0`                                                             | passed |
-| G2  | the home's folder check on `Library` (the CLI makes `Library/Application Support`) | 1: `expected true to be false`                                                       | passed |
-| G3  | the account's facts compared with `{ status: 0 }`                                  | 1: `expected { status: 44, attributes: '' } to deeply equal { status: 0, … }`        | passed |
-| G4  | `DEAD_PORT` moved to a port with a listener                                        | the real-CLI group failed in `beforeAll`: "something listens on the dead proxy port" | passed |
+| #   | Break                                                                                     | Red                                                                                  | Green  |
+| --- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------ |
+| G1  | the home's lookup must be "found" (`.not.toBe(0)` to `.toBe(0)`)                          | 1: `expected 44 to be 0`                                                             | passed |
+| G2  | the home's folder check on `Library` (the CLI makes `Library/Application Support`)        | 1: `expected true to be false`                                                       | passed |
+| G3  | the account's facts compared with `{ status: 0 }`                                         | 1: `expected { status: 44, attributes: '' } to deeply equal { status: 0, … }`        | passed |
+| G4  | `DEAD_PORT` moved to a port with a listener                                               | the real-CLI group failed in `beforeAll`: "something listens on the dead proxy port" | passed |
+| G5  | the no-backend cases' log check turned round (`not.toContain('Spawning')` to `toContain`) | 1: `expected '[info] Display language…' to contain 'Spawning'`                       | passed |
 
 ### 9.4 The answered state, now measured
 
@@ -560,7 +561,7 @@ On the final tree, exit codes as run:
 | `npm run build`                                                                              | **1**  | **the base's four rows over, no fifth, no budget raised**: `teamHost.js` 140.2 of 130 KiB, `teamRunners.js` 78.4 of 75, `teamScheduler.js` 76.5 of 75, `uiText.js` 126.2 of 125 (section 6; this lane touches no bundle input) |
 | `npm run security:sast` (`SSL_CERT_FILE=/etc/ssl/cert.pem`)                                  | 1      | the same 6 blocking findings, in `os/build.py`, `os/pi/compose.py`, `scripts/build-packs.mjs`, `src/core/backends/modelapi/mcp/headers.ts` and `src/runtime/node/keyStore.ts`; none in a file of this lane                     |
 | `npm run security:audit`                                                                     | 1      | `follow-redirects` (high), 9 advisories, the base's (CC-INT7 §9 item 3)                                                                                                                                                        |
-| `npx vitest run test/unit/acpShutdown.test.ts --maxWorkers=3`, the repository's own timeouts | 0      | 16 passed of 16, six runs                                                                                                                                                                                                      |
+| `npx vitest run test/unit/acpShutdown.test.ts --maxWorkers=3`, the repository's own timeouts | 0      | 16 passed of 16, eight runs (six, then two after the last logic change)                                                                                                                                                        |
 | `npx vitest related test/unit/acpShutdown.test.ts --run`                                     | 0      | 1 file, 16 passed of 16. The only changed file besides docs is the suite itself; no source file changed, so there is no `related` run for a source                                                                             |
 
 ### 9.8 Not proven, and open questions for the lead
