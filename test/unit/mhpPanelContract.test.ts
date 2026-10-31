@@ -120,6 +120,36 @@ describe('MHP 1.5 replacement panel contract', () => {
     ).toThrow('MHP_PANEL_INVALID_PAYLOAD')
   })
 
+  it('admits a theme frame toPanel on chat and tasks, refuses it toHost and on whatsNew', () => {
+    const theme = {
+      ...envelope,
+      direction: 'toPanel',
+      payload: { type: 'theme', theme: { kind: 'dark', tokens: { '--muse-surface': '#000' } } },
+    }
+    expect(parseMhpPanelEnvelope(theme, { ...context, direction: 'toPanel' })).toEqual(theme)
+    const tasksBinding: MhpPanelBinding = { ...binding, surfaceKind: 'tasks' }
+    expect(
+      parseMhpPanelEnvelope(theme, { ...context, binding: tasksBinding, direction: 'toPanel' }),
+    ).toEqual(theme)
+    expect(() => parseMhpPanelEnvelope({ ...theme, direction: 'toHost' }, context)).toThrow(
+      'MHP_PANEL_INVALID_PAYLOAD',
+    )
+    const whatsNewBinding: MhpPanelBinding = { ...binding, surfaceKind: 'whatsNew' }
+    expect(() =>
+      parseMhpPanelEnvelope(theme, {
+        ...context,
+        binding: whatsNewBinding,
+        direction: 'toPanel',
+      }),
+    ).toThrow('MHP_PANEL_INVALID_PAYLOAD')
+    expect(() =>
+      parseMhpPanelEnvelope(
+        { ...theme, payload: { type: 'theme', theme: { kind: 'neon', tokens: {} } } },
+        { ...context, direction: 'toPanel' },
+      ),
+    ).toThrow('MHP_PANEL_INVALID_PAYLOAD')
+  })
+
   it.each([0, -1, 0.5, Number.MAX_SAFE_INTEGER + 1])('refuses invalid sequence %s', (seq) => {
     expect(panelEnvelopeSchema.safeParse({ ...envelope, seq }).success).toBe(false)
   })

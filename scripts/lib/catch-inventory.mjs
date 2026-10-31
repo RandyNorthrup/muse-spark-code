@@ -61,7 +61,17 @@ const REDACTING_FNS = new Set([
   'errorNameForLog',
 ])
 /** A call that records the failure under a fixed-vocabulary code. */
-const CODE_RECORD_FNS = new Set(['observeError', 'recordError', 'reportError'])
+const CODE_RECORD_FNS = new Set([
+  'observeError',
+  'recordError',
+  'reportError',
+  // Lane RLF-M104D: `showBridgeFailure` (webview/bridges/failure.ts),
+  // verified by reading: it makes the surface inert and shows one focused
+  // fixed-vocabulary localized alert (crashTitle + companionLaunchFailed);
+  // an unavailable carrier cannot receive its own error report, so the
+  // shown alert is the failure's record on a portable surface.
+  'showBridgeFailure',
+])
 /** A `report(x, error)`-shaped call posts the failure to the host's record. */
 const ERROR_SINK_FNS = new Set([
   'report',
