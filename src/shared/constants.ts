@@ -8565,6 +8565,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/media.js',
   'dist/mediaHost.js',
   'dist/screenRecord.js',
+  'dist/screenRecordDrivers.js',
   'dist/uiTextMedia.js',
   'dist/browserCheck.js',
   'dist/browserRuntime.js',

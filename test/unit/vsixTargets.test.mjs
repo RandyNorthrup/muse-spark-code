@@ -50,8 +50,16 @@ const DARWIN_FILES = {
   ],
 }
 const LINUX_HELPERS = {
-  'linux-x64': ['native/linux/x64/muse-created', 'native/linux/x64/muse-vault-peer'],
-  'linux-arm64': ['native/linux/arm64/muse-created', 'native/linux/arm64/muse-vault-peer'],
+  'linux-x64': [
+    'native/linux/x64/muse-created',
+    'native/linux/x64/muse-vault-peer',
+    'native/linux/x64/muse-portal-record',
+  ],
+  'linux-arm64': [
+    'native/linux/arm64/muse-created',
+    'native/linux/arm64/muse-vault-peer',
+    'native/linux/arm64/muse-portal-record',
+  ],
 }
 const SHARED_FILES = [
   'dist/extension.js',

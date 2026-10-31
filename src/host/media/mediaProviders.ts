@@ -1,6 +1,7 @@
 // M105 lane W: the VS Code host's media providers. Activation carries only
 // these small factories; the attach port, the preview command and the
-// platform drivers load lazily from dist/media.js and dist/screenRecord.js.
+// platform drivers load lazily from dist/media.js, dist/screenRecord.js
+// and dist/screenRecordDrivers.js.
 // Images and documents keep their established pipeline; video and audio bind
 // to the window's attached-media registry on models whose captured record
 // takes them (lane V seam 1), and refuse with the gate's reason elsewhere.

@@ -2992,7 +2992,7 @@
       "nameKey": "command.attachScreenRecording.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "nativeRecorder=absent: Direct screen recording is unavailable in this build. Choose an existing recording file.",
+      "description": "nativeRecorder=absent: Record your screen with this computer's own recorder where it has one, choosing microphone and system sound for each recording, and preview it before it is attached. When this computer cannot record, the command says why; choose an existing recording file instead.",
       "text": {
         "conditions": [
           { "when": "nativeRecorder=absent", "text": { "ui": "referenceScreenRecording" } }

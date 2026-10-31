@@ -1,10 +1,10 @@
 // M105 lane W: the screen-recording bundle's entry. The activation bundle
-// keeps only the port types and the lazy loader; the preview command and the
-// R1-R3 platform drivers load on first recording use.
+// keeps only the port types and the lazy loader; the preview command and
+// the latest-file discovery load on first recording use, and the platform
+// drivers (macOS, Windows, Linux portal) later still, on the first start.
 export { runScreenRecordingCommand, openRecordingPreview } from '../vscode/media/previewPanel'
-export { macosScreenRecordingDriver } from '../../core/media/record/macos'
-export { windowsScreenRecorder } from '../../core/media/record/windows'
-export { findLatestRecording, linuxRecordingDriver } from '../../core/media/record/linux'
+export { findLatestRecording } from '../../core/media/record/latest'
+export { createRecordingDriver } from './recordingDriverLoader'
 export {
   createLatestRecordingPort,
   createLinuxLatestPort,
