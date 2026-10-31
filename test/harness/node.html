@@ -35,15 +35,22 @@
       for (const key of theme.unset) document.documentElement.style.removeProperty(key)
       const lang = params.get('lang')
       if (lang !== null) {
-        const table = await (
-          await fetch(lang === 'pseudo' ? 'l10n/ui.pseudo.json' : `../../l10n/ui.${lang}.json`)
-        ).json()
+        const pseudoUi = { pseudo: 'l10n/ui.pseudo.json', 'pseudo-rtl': 'l10n/ui.pseudo-rtl.json' }[
+          lang
+        ]
+        const table = await (await fetch(pseudoUi ?? `../../l10n/ui.${lang}.json`)).json()
         const embedded = document.createElement('script')
         embedded.id = 'muse-l10n'
         embedded.type = 'application/json'
-        embedded.textContent = JSON.stringify({ locale: lang === 'pseudo' ? 'en' : lang, table })
+        embedded.textContent = JSON.stringify({
+          locale: pseudoUi === undefined ? lang : 'en',
+          table,
+        })
         document.head.append(embedded)
-        document.documentElement.lang = lang === 'pseudo' ? 'en' : lang
+        document.documentElement.lang = pseudoUi === undefined ? lang : 'en'
+        if (lang === 'pseudo-rtl') {
+          document.documentElement.dir = 'rtl'
+        }
       }
       const { mountNodeWorkspace } = await import('../../dist/webview/node/files/main.js')
       const encode = (text) => new TextEncoder().encode(text)

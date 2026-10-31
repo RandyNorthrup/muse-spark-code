@@ -1,6 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/stylelintrc.json",
   "extends": ["stylelint-config-standard"],
+  "plugins": ["stylelint-use-logical"],
   "rules": {
     "no-descending-specificity": true,
     "no-duplicate-selectors": true,
@@ -71,6 +72,43 @@
       "rules": {
         "color-no-hex": null,
         "function-disallowed-list": null
+      }
+    },
+    {
+      "files": [
+        "desktop/**/*.css",
+        "src/webview/desktop/**/*.css",
+        "src/webview/editor/**/*.css",
+        "src/webview/node/**/*.css"
+      ],
+      "rules": {
+        "csstools/use-logical": [
+          "always",
+          {
+            "except": [
+              "top",
+              "bottom",
+              "width",
+              "min-width",
+              "max-width",
+              "height",
+              "min-height",
+              "max-height",
+              "margin-top",
+              "margin-bottom",
+              "padding-top",
+              "padding-bottom",
+              "border-top",
+              "border-top-color",
+              "border-top-style",
+              "border-top-width",
+              "border-bottom",
+              "border-bottom-color",
+              "border-bottom-style",
+              "border-bottom-width"
+            ]
+          }
+        ]
       }
     }
   ]
