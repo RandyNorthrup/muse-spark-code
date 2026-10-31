@@ -259,3 +259,47 @@ is red at base (PLAN.md 3,730,693 bytes before this resume, over the
 3,565,158 hygiene bound); archiving closed history is lead-scale
 editorial work and was not folded into this lane. SAST, accessibility
 and the hosted suites are the lead's gates as before.
+
+## 7. Waiting for the real-life run (moved out of the CHANGELOG by CC-INT8, 2026-10-31)
+
+CC-INT7 merged this lane with two CHANGELOG lines. The real broker and
+feeder suite (`vaultExecDelegated`) proves the engine path on a Mac, and the
+key-store migration is proven by the lane's pure suites; neither was used
+through the packed product, so neither claim belongs in the release notes
+until it is. Both lines are out of `CHANGELOG.md` `[Unreleased]` and wait
+here. They return to the CHANGELOG, in this wording, after the real-life run
+that does the steps below and records them.
+
+1. **The terminal agent and headless runs move their stored keys into the
+   vault.** Claimed: when the vault unlocks in the CLI, the ACP agent or a
+   headless run, every key in the operating system's credential store (the
+   Model API key, each provider's record, the ChatGPT sign-in and pooled
+   account keys) is copied into the vault, verified, kept mirrored as keys
+   rotate, and read back from the vault once a slot retires, as the editor
+   window already does. Steps: a packed `muse-spark-code-acp` in an empty
+   workspace and a fresh HOME with a stored key; unlock the vault from the
+   terminal agent; confirm the key reads back from the vault with the OS
+   store entry retired; rotate the key and confirm the vault follows.
+2. **Headless runs use vault secrets in shell commands, behind the
+   person's ceiling.** Claimed: `exec --vault` shell calls may name vault
+   items as environment or stdin secrets; an unattended grant for the exact
+   command and the vault policy ceiling for the workspace and the headless
+   role both gate every use (`vault policy` prints it, `vault policy
+'<policy-json>'` sets it; no ceiling refuses in words); the value travels
+   from the broker to the feeder process, admitted by its operating-system
+   identity and place in the run's process tree under a single-use
+   delegation, and from the feeder into the command with output scrubbed;
+   the agent host never receives it. Steps: on a Mac and on Linux, the
+   packed agent, a vault item, a ceiling set with `vault policy`, then one
+   `exec --vault` run whose shell command reads the item from its
+   environment and one from standard input; confirm the value never appears
+   in the transcript or the run's output (the redacted mark does), that a
+   run with no ceiling is refused in words, and that a command other than
+   the granted one is refused. Windows is not claimed (its feeder refuses
+   in words by design). The Linux feeder needed RVM109's runtime-directory
+   fix (`docs/certification/rvm109.md`).
+
+Still open from this lane and not claimed anywhere: git, askpass, sudo and
+SSH uses, and the editor surfaces (D243). The README section on `exec
+--vault` (around "Local headless `exec --vault`") documents the same
+feature; the lead decides whether it stays until the run is recorded.

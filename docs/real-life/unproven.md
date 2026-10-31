@@ -3401,3 +3401,20 @@ The old cases scripted provider answers the suite invented (`ANTHROPIC_USAGE`, `
 - `shows provider figures alone when the journal recorded nothing`: with no journal spend for the provider the report shows alone, never against a zero. Same setup with a fresh journal (no metered use yet); the report shows with no `Our estimate` line.
 - `shows the DeepSeek balance with no comparison`: the DeepSeek balance renders with no estimate comparison. Store a DeepSeek key (`auth set --provider deepseek`), then run `providers usage deepseek --days 30`; the balance and currency show with no difference line.
 - `shows OpenRouter key usage from the captured fields`: the OpenRouter key report renders. Store an OpenRouter key (`auth set --provider openrouter`), then run `providers usage openrouter --days 30`; the key usage shows.
+
+## Lane RLF-M109 (2026-10-30, branch rec/rlf-m109; its two CHANGELOG lines moved here by CC-INT8, 2026-10-31)
+
+The agent secret use of D243 and the key-store migration into the vault are
+built; the real broker and feeder suite passes on a Mac, and no step below was
+used through the packed product. Per-item record, with the steps:
+`docs/certification/rlf-m109.md` section 7.
+
+- The terminal agent and headless runs move their stored keys into the vault
+  (the Model API key, each provider's record, the ChatGPT sign-in, pooled
+  account keys): copied, verified, mirrored as keys rotate, read back from the
+  vault once a slot retires. Unproven until the packed agent does it with a
+  stored key in a fresh HOME.
+- Headless runs use vault secrets in shell commands behind the person's
+  ceiling (`exec --vault`, environment and standard-input secrets, the grant
+  and the `vault policy` ceiling, the broker-to-feeder delegation, scrubbed
+  output). Unproven until a packed run does it on a Mac and on Linux.
