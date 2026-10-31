@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { mkdir, rm, stat } from 'node:fs/promises'
+import { copyFile, mkdir, rm, stat } from 'node:fs/promises'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { sharedUiText, sharedValidation } from '../../scripts/lib/deferredBundles.mjs'
@@ -8,9 +8,13 @@ import { nodeModule } from '../../src/runtime/node/bundle'
 import { EN } from '../../src/shared/l10n/en'
 import { nodeNativeTest, nodeTempRoot } from './helpers/nodeNative'
 
-const built = { folder: '' }
+// The package layout: dist/ beside package.json, as the tarball lays it out.
+const built = { folder: '', dist: '' }
 beforeAll(async () => {
   built.folder = await nodeTempRoot('m110-node-bundle-')
+  built.dist = path.join(built.folder, 'dist')
+  await mkdir(built.dist)
+  await copyFile('package.json', path.join(built.folder, 'package.json'))
   const options = {
     bundle: true,
     platform: 'node',
@@ -21,17 +25,25 @@ beforeAll(async () => {
   await build({
     ...options,
     entryPoints: ['src/shared/validationEntry.ts'],
-    outfile: path.join(built.folder, 'validation.js'),
+    outfile: path.join(built.dist, 'validation.js'),
   })
   await build({
     ...options,
     entryPoints: ['src/shared/l10n/en.ts'],
-    outfile: path.join(built.folder, 'uiText.js'),
+    outfile: path.join(built.dist, 'uiText.js'),
   })
   await build({
     ...options,
     entryPoints: ['src/runtime/node/main.ts'],
-    outfile: path.join(built.folder, 'node.js'),
+    outfile: path.join(built.dist, 'node.js'),
+    plugins: [sharedUiText, sharedValidation],
+  })
+  // The lazy bundle `serve` loads beside node.js: with no listener chosen it
+  // refuses in the node's words, which the CLI case below checks.
+  await build({
+    ...options,
+    entryPoints: ['src/runtime/node/serveEntry.ts'],
+    outfile: path.join(built.dist, 'nodeServe.js'),
     plugins: [sharedUiText, sharedValidation],
   })
 })
@@ -50,7 +62,7 @@ function command() {
     },
     readSecret: () => Promise.reject(new Error('test forbids stdin use')),
   }
-  return { module: nodeModule(path.join(built.folder, 'node.js')), deps, lines }
+  return { module: nodeModule(path.join(built.dist, 'node.js')), deps, lines }
 }
 
 describe('M110-N shipped shared-parser boundary', () => {
@@ -86,7 +98,7 @@ describe('M110-N shipped shared-parser boundary', () => {
     },
   )
   it('the packaged CLI answers --help as a child process', () => {
-    const run = spawnSync(process.execPath, [path.join(built.folder, 'node.js'), '--help'], {
+    const run = spawnSync(process.execPath, [path.join(built.dist, 'node.js'), '--help'], {
       encoding: 'utf8',
     })
     expect(run.status).toBe(0)
@@ -98,7 +110,7 @@ describe('M110-N shipped shared-parser boundary', () => {
       const root = await nodeTempRoot('m110-node-cli-')
       const workspace = path.join(root, 'workspaces')
       await mkdir(workspace, { recursive: true })
-      const cli = path.join(built.folder, 'node.js')
+      const cli = path.join(built.dist, 'node.js')
       const run = (argv: readonly string[]) =>
         spawnSync(process.execPath, [cli, ...argv], { encoding: 'utf8' })
       try {
@@ -131,7 +143,7 @@ describe('M110-N shipped shared-parser boundary', () => {
   )
   nodeNativeTest('the packaged CLI honors the image data-root variable', async () => {
     const root = await nodeTempRoot('m110-node-clienv-')
-    const cli = path.join(built.folder, 'node.js')
+    const cli = path.join(built.dist, 'node.js')
     try {
       const initialized = spawnSync(
         process.execPath,

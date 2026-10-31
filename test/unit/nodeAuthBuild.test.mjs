@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -9,47 +9,46 @@ import {
   nodeAuthNotices,
 } from '../../scripts/lib/nodeAuthArtifacts.mjs'
 
-const context = { sizes: undefined, browser: undefined, server: undefined }
+// The page is built into a folder this suite owns: the repository's dist/ is
+// the production build's, and a stray page there changes what its lazy
+// registry sees.
+const context = { sizes: undefined, browser: undefined, outdir: '' }
 beforeAll(async () => {
-  context.sizes = await buildNodeAuth()
-  context.browser = JSON.parse(await readFile('dist/meta-node-auth/nodeAuthPage.json', 'utf8'))
-  context.server = JSON.parse(await readFile('dist/meta-node-auth/nodeAuth.json', 'utf8'))
+  context.outdir = await mkdtemp(path.join(os.tmpdir(), 'node-auth-build-'))
+  context.sizes = await buildNodeAuth(context.outdir)
+  context.browser = JSON.parse(
+    await readFile(path.join(context.outdir, 'meta-node-auth', 'nodeAuthPage.json'), 'utf8'),
+  )
+})
+afterAll(async () => {
+  await rm(context.outdir, { recursive: true, force: true })
 })
 
-describe('A1 lazy production artifacts', () => {
-  it('builds both real bundles under separate budgets and keeps SDKs on their own side', async () => {
-    expect(context.sizes.map((item) => item.file)).toEqual([
-      'dist/nodeAuth.js',
-      'dist/nodeAuthPage.js',
-    ])
+describe('A1 lazy browser-pairing page', () => {
+  it('builds the real page bundle under its budget and keeps server SDKs out', async () => {
+    expect(context.sizes.map((item) => item.file)).toEqual(['dist/nodeAuthPage.js'])
     for (const item of context.sizes) expect(item.sizeKiB).toBeLessThanOrEqual(item.budgetKiB)
     const inputs = Object.keys(context.browser.inputs).map((file) => file.replaceAll('\\', '/'))
     expect(inputs.some((file) => file.includes('@simplewebauthn/browser/'))).toBe(true)
     expect(inputs.some((file) => file.includes('@simplewebauthn/server/'))).toBe(false)
-    expect(
-      Object.keys(context.server.inputs).some((file) => file.includes('@simplewebauthn/server/')),
-    ).toBe(true)
-    const notices = await readFile('dist/NODE_AUTH_NOTICES.txt', 'utf8')
-    for (const name of ['@simplewebauthn/server', '@simplewebauthn/browser', 'react', 'zod'])
+    const notices = await readFile(path.join(context.outdir, 'NODE_AUTH_NOTICES.txt'), 'utf8')
+    for (const name of ['@simplewebauthn/browser', 'react', 'zod'])
       expect(notices).toContain(`${name} (`)
+    expect(notices).not.toContain('@simplewebauthn/server (')
     expect(notices).toContain('Permission is hereby granted')
   })
-  it.each(['nodeAuth.js', 'nodeAuthPage.js'])('refuses an over-budget %s', (name) => {
-    const item = context.sizes.find((size) => size.file.endsWith(name))
+  it('refuses an over-budget nodeAuthPage.js', () => {
+    const item = context.sizes[0]
     expect(() =>
       checkNodeAuthArtifact(
-        {
-          output: item.file,
-          budgetKiB: item.budgetKiB,
-          platform: name === 'nodeAuthPage.js' ? 'browser' : 'node',
-        },
+        { output: item.file, budgetKiB: item.budgetKiB, platform: 'browser' },
         item.budgetKiB + 1,
         [],
       ),
     ).toThrow('exceeds')
   })
   it('refuses runtime and server SDK input in the browser, including Windows paths', () => {
-    const item = context.sizes[1]
+    const item = context.sizes[0]
     for (const input of [
       'src/runtime/node/auth/service.ts',
       'node_modules/@simplewebauthn/server/esm/index.js',

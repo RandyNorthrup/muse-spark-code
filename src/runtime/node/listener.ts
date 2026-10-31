@@ -119,7 +119,7 @@ export class NodeListener {
       pending.abort()
       response.destroy()
     }, NODE_HTTP_TIMEOUT_MS)
-    let signal = AbortSignal.any([pending.signal, this.lifetime.signal])
+    const signal = AbortSignal.any([pending.signal, this.lifetime.signal])
     response.once('close', () => {
       pending.abort()
     })
@@ -145,9 +145,14 @@ export class NodeListener {
               signal,
             )
       if (this.options.verifier === undefined) throw new NodeListenerError('unavailable')
-      if (session !== null)
-        signal = AbortSignal.any([signal, this.options.verifier.sessionSignal(session.id)])
-      signal.throwIfAborted()
+      // Session death aborts in-flight work, but a method that ends its own
+      // session (end, lock, wipe) still answers: only the client side guards
+      // the write below.
+      const work =
+        session === null
+          ? signal
+          : AbortSignal.any([signal, this.options.verifier.sessionSignal(session.id)])
+      work.throwIfAborted()
       const body = await readBody(request)
       const result = await dispatchNodeMethod(
         method,
@@ -159,7 +164,7 @@ export class NodeListener {
           verifier: this.options.verifier,
           now: () => this.options.clock.now(),
         },
-        signal,
+        work,
       )
       signal.throwIfAborted()
       response.writeHead(NODE_HTTP_STATUS.ok, {

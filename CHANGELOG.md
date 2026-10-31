@@ -987,6 +987,11 @@ set|status|clear --provider <id> --admin` stores the separate admin
   does not. Image signing waits for
   the owner's key ceremony, and TPM/MOK/LUKS enrollment on hardware
   and the Ollama add-on stay named as waiting.
+- The home node now serves for real: `node serve` starts the node on the
+  interface setup chose, prints its certificate fingerprint, and answers
+  files, terminal, dashboard and sign-in over HTTPS; `node stop` shuts it
+  down. Locking and unlocking from the command line still wait on the
+  control transport.
 
 - Added a pinned amd64/arm64 base agent toolset layer with offline builds,
   verified artifact staging, bundled skill assets, an unprivileged smoke

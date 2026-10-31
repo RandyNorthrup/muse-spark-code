@@ -1587,7 +1587,18 @@ const webviewReview = SHIPPED.filter(
 // M110-N: ordinary ACP and every editor keep only a checked lazy loader.
 const NODE_SERVICE = { output: 'dist/node.js', metafile: 'dist/meta-acp/node.json' }
 const nodeService = inputsOf(NODE_SERVICE)
-const nodeRequired = ['main', 'state', 'service', 'supervisor', 'keyStore', 'toolHost', 'gitRunner']
+const nodeRequired = [
+  'main',
+  'state',
+  'service',
+  'supervisor',
+  'keyStore',
+  'toolHost',
+  'gitRunner',
+  'binding',
+  'stop',
+  'listener',
+]
 for (const name of nodeRequired) {
   const input = `src/runtime/node/${name}.ts`
   if (!nodeService.has(input)) problems.push(`${NODE_SERVICE.output} no longer carries ${input}`)
@@ -1620,15 +1631,79 @@ const NODE_SERVICE_CHUNKS = new Map([
     ]),
   ],
 ])
+// RLF-NODESERVE: `serve` is its own lazy bundle (the listener's method port,
+// the web pages' methods and the serve composition), and it requires the
+// auth bundle beside it. node.js keeps only the checked loaders: every other
+// command stays small, and no bundle carries the verifier by accident.
+const NODE_SERVE = { output: 'dist/nodeServe.js', metafile: 'dist/meta-acp/nodeServe.json' }
+const nodeServe = inputsOf(NODE_SERVE)
+const nodeServeRequired = [
+  'serveEntry',
+  'serve',
+  'listener',
+  'listenerGuard',
+  'listenerMethods',
+  'listenerSocket',
+  'service',
+  'web/files',
+  'web/terminal',
+  'web/dashboard',
+]
+for (const name of nodeServeRequired) {
+  const input = `src/runtime/node/${name}.ts`
+  if (!nodeServe.has(input)) problems.push(`${NODE_SERVE.output} no longer carries ${input}`)
+}
+for (const input of ['src/runtime/node/serve.ts', 'src/runtime/node/serveEntry.ts']) {
+  if (nodeService.has(input))
+    problems.push(`${NODE_SERVICE.output} carries the lazy serve: ${input}`)
+}
+const NODE_AUTH = { output: 'dist/nodeAuth.js', metafile: 'dist/meta-acp/nodeAuth.json' }
+const nodeAuth = inputsOf(NODE_AUTH)
+const nodeAuthRequired = [
+  'auth/entry',
+  'auth/service',
+  'auth/sessions',
+  'auth/passkeys',
+  'auth/challenges',
+  'auth/methods',
+  'tls/certificate',
+]
+for (const name of nodeAuthRequired) {
+  const input = `src/runtime/node/${name}.ts`
+  if (!nodeAuth.has(input)) problems.push(`${NODE_AUTH.output} no longer carries ${input}`)
+}
+for (const [bundle, inputs] of [
+  [NODE_SERVICE, nodeService],
+  [NODE_SERVE, nodeServe],
+]) {
+  for (const input of inputs.keys()) {
+    if (input.startsWith('src/runtime/node/auth/') || input.startsWith('src/runtime/node/tls/'))
+      problems.push(`${bundle.output} carries the lazy auth bundle: ${input}`)
+  }
+}
+// The lazy auth bundle carries exactly auth, issuance, and the four small
+// node modules they stand on (typed errors, transactions, private files,
+// the committed-pair reader serve shares so issuance is not duplicated).
+const NODE_AUTH_SHARED = new Set([
+  'src/runtime/node/listenerGuard.ts',
+  'src/runtime/node/transactions.ts',
+  'src/runtime/node/privateFiles.ts',
+  'src/runtime/node/committedPair.ts',
+])
 for (const bundle of SHIPPED) {
-  if (bundle.output === NODE_SERVICE.output) continue
+  if (bundle.output === NODE_SERVICE.output || bundle.output === NODE_SERVE.output) continue
   const allowed = NODE_SERVICE_CHUNKS.get(bundle.output) ?? new Set()
   for (const input of inputsOf(bundle).keys()) {
+    if (input === 'src/runtime/node/bundle.ts' || !input.startsWith('src/runtime/node/')) continue
+    // The lazy auth bundle carries exactly auth, issuance and the small modules they stand on.
     if (
-      input !== 'src/runtime/node/bundle.ts' &&
-      input.startsWith('src/runtime/node/') &&
-      !allowed.has(input)
+      bundle.output === NODE_AUTH.output &&
+      (input.startsWith('src/runtime/node/auth/') ||
+        input.startsWith('src/runtime/node/tls/') ||
+        NODE_AUTH_SHARED.has(input))
     )
+      continue
+    if (!allowed.has(input))
       problems.push(`${bundle.output} carries the isolated node service: ${input}`)
   }
 }

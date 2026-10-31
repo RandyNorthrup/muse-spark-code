@@ -670,6 +670,15 @@ const BUDGETS = [
   // M110os RLF-MUSESETUP: the first-boot setup server, loaded when the
   // first boot runs it. Measured 143.4 KiB; plus 15%, rounded up to 25 KiB.
   { path: 'dist/nodeSetup.js', budgetKiB: 175 },
+  // RLF-NODESERVE: `serve` (the serve composition, the listener's method port
+  // and the web pages' methods), loaded only when serve starts, plus the
+  // governor's loader the standalone service configures (CC-INT6 join).
+  // Measured 77.6 KiB; plus 15%, rounded up to 25 KiB.
+  { path: 'dist/nodeServe.js', budgetKiB: 100 },
+  // A1's lazy auth bundle (the verifier, the ceremonies and S0 issuance),
+  // loaded only when serve starts; it keeps the 500 KiB cap it had when the
+  // separate A1 build owned it (never raised).
+  { path: 'dist/nodeAuth.js', budgetKiB: 500 },
   // M110t TP2: the pack index verifier (Sigstore's verification packages,
   // cc-sigstore), loaded on the first pack fetch. Measured 207.8 KiB; plus
   // 15%, rounded up to 25 KiB.
