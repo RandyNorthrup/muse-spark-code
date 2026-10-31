@@ -7519,6 +7519,23 @@
       "one": "Instalando {count} pacote",
       "other": "Instalando {count} pacotes",
       "many": "Instalando {count} pacotes"
-    }
+    },
+    "placementLabel": "Novas janelas abrem em",
+    "placementNew": "Uma nova área de trabalho",
+    "placementCurrent": "A área de trabalho atual",
+    "placementAsk": "Perguntar sempre",
+    "placementAskQuestion": "Onde {app} deve abrir?",
+    "keySwitch": "Ir para a área de trabalho {n}",
+    "keySend": "Enviar a janela para a área de trabalho {n}",
+    "keyPreview": "Visualizar a área de trabalho {n}",
+    "keyAllDesktops": "Mostrar todas as áreas de trabalho",
+    "keyMerge": "Mesclar a área de trabalho {n} nesta área",
+    "keyMergePicker": "Escolher áreas de trabalho para mesclar",
+    "keySendNew": "Enviar a janela para uma nova área de trabalho",
+    "keyPrevious": "Área de trabalho anterior",
+    "keyNext": "Próxima área de trabalho",
+    "keyCycleNext": "Ir para a próxima janela",
+    "keyCyclePrevious": "Ir para a janela anterior",
+    "keyFocusBar": "Mover o foco para a barra"
   }
 }

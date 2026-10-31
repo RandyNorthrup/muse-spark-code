@@ -7703,6 +7703,23 @@
       "few": "Instalují se {count} balíčky",
       "many": "Instaluje se {count} balíčků",
       "other": "Instaluje se {count} balíčků"
-    }
+    },
+    "placementLabel": "Nová okna se otevírají na",
+    "placementNew": "Nová plocha",
+    "placementCurrent": "Aktuální plocha",
+    "placementAsk": "Zeptat se pokaždé",
+    "placementAskQuestion": "Kam se má otevřít {app}?",
+    "keySwitch": "Přepnout na plochu {n}",
+    "keySend": "Přesunout okno na plochu {n}",
+    "keyPreview": "Náhled plochy {n}",
+    "keyAllDesktops": "Zobrazit všechny plochy",
+    "keyMerge": "Sloučit plochu {n} do této plochy",
+    "keyMergePicker": "Vybrat plochy ke sloučení",
+    "keySendNew": "Přesunout okno na novou plochu",
+    "keyPrevious": "Předchozí plocha",
+    "keyNext": "Další plocha",
+    "keyCycleNext": "Přepnout na další okno",
+    "keyCyclePrevious": "Přepnout na předchozí okno",
+    "keyFocusBar": "Přesunout fokus do lišty"
   }
 }

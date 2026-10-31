@@ -7519,6 +7519,23 @@
       "one": "Installazione di {count} pacchetto",
       "other": "Installazione di {count} pacchetti",
       "many": "Installazione di {count} pacchetti"
-    }
+    },
+    "placementLabel": "Le nuove finestre si aprono su",
+    "placementNew": "Un nuovo desktop",
+    "placementCurrent": "Il desktop attuale",
+    "placementAsk": "Chiedi ogni volta",
+    "placementAskQuestion": "Dove dovrebbe aprirsi {app}?",
+    "keySwitch": "Passa al desktop {n}",
+    "keySend": "Sposta la finestra sul desktop {n}",
+    "keyPreview": "Anteprima del desktop {n}",
+    "keyAllDesktops": "Mostra tutti i desktop",
+    "keyMerge": "Unisci il desktop {n} in questo desktop",
+    "keyMergePicker": "Scegli i desktop da unire",
+    "keySendNew": "Sposta la finestra su un nuovo desktop",
+    "keyPrevious": "Desktop precedente",
+    "keyNext": "Desktop successivo",
+    "keyCycleNext": "Passa alla finestra successiva",
+    "keyCyclePrevious": "Passa alla finestra precedente",
+    "keyFocusBar": "Sposta lo stato attivo sulla barra"
   }
 }

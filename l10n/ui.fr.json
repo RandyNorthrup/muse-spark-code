@@ -7519,6 +7519,23 @@
       "one": "Installation de {count} paquet",
       "other": "Installation de {count} paquets",
       "many": "Installation de {count} paquets"
-    }
+    },
+    "placementLabel": "Les nouvelles fenêtres s’ouvrent sur",
+    "placementNew": "Un nouveau bureau",
+    "placementCurrent": "Le bureau actuel",
+    "placementAsk": "Demander à chaque fois",
+    "placementAskQuestion": "Où {app} doit-il s’ouvrir ?",
+    "keySwitch": "Aller au bureau {n}",
+    "keySend": "Envoyer la fenêtre sur le bureau {n}",
+    "keyPreview": "Aperçu du bureau {n}",
+    "keyAllDesktops": "Afficher tous les bureaux",
+    "keyMerge": "Fusionner le bureau {n} dans ce bureau",
+    "keyMergePicker": "Choisir les bureaux à fusionner",
+    "keySendNew": "Envoyer la fenêtre sur un nouveau bureau",
+    "keyPrevious": "Bureau précédent",
+    "keyNext": "Bureau suivant",
+    "keyCycleNext": "Passer à la fenêtre suivante",
+    "keyCyclePrevious": "Passer à la fenêtre précédente",
+    "keyFocusBar": "Déplacer le focus dans la barre"
   }
 }
