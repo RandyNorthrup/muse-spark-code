@@ -2,7 +2,7 @@
 import { execFileSync } from 'node:child_process'
 import { mkdirSync } from 'node:fs'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 export async function buildBlobHold(directory) {
   if (process.platform !== 'linux') throw new Error('The blob hold is Linux-only for now')
@@ -29,5 +29,4 @@ export async function buildBlobHold(directory) {
   return binary
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href)
-  await buildBlobHold(path.resolve('temp', 'blobhold'))
+if (isEntryPoint(import.meta.url)) await buildBlobHold(path.resolve('temp', 'blobhold'))

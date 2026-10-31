@@ -14,7 +14,7 @@
 import { createHash } from 'node:crypto'
 import { readFileSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 const PINS_MODULE = path.join('src', 'shared', 'linuxHelperPins.ts')
 // The full install set per architecture: the binary, whisper, ggml, and
@@ -116,10 +116,7 @@ function measure(directory, arch) {
   return measured
 }
 
-if (
-  process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
-) {
+if (isEntryPoint(import.meta.url)) {
   try {
     const [x64dir, arm64dir] = process.argv.slice(2)
     if (x64dir === undefined || arm64dir === undefined || process.argv.length !== 4)

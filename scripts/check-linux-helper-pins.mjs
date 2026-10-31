@@ -22,8 +22,8 @@ import { Buffer } from 'node:buffer'
 import { build } from 'esbuild'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { EXPECTED } from './build-linux-helper-pins.mjs'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 const ARCHES = ['x64', 'arm64']
 
@@ -128,10 +128,7 @@ export function checkBundle(pins, bundleText) {
   return failures
 }
 
-if (
-  process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
-) {
+if (isEntryPoint(import.meta.url)) {
   try {
     const args = process.argv.slice(2)
     const assets = args.includes('--assets') ? args[args.indexOf('--assets') + 1] : undefined

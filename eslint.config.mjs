@@ -506,6 +506,29 @@ const config = tseslint.config(
   },
 
   {
+    // A script asks scripts/lib/entryPoint.mjs whether it is the entry point and
+    // never reads its own start path: compared as typed, a start path through a
+    // symlink or a Windows junction never matches, and the script then ends
+    // without a word and with exit 0, a gate that passes by not running.
+    files: ['scripts/**/*.mjs'],
+    ignores: ['scripts/lib/entryPoint.mjs'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...[
+          "MemberExpression[computed=true][property.value=1][object.object.name='process'][object.property.name='argv']",
+          "CallExpression[callee.property.name='at'][arguments.0.value=1][callee.object.object.name='process'][callee.object.property.name='argv']",
+          "VariableDeclarator[id.type='ArrayPattern'][init.object.name='process'][init.property.name='argv']",
+        ].map((selector) => ({
+          selector,
+          message:
+            'Ask isEntryPoint(import.meta.url) from scripts/lib/entryPoint.mjs; a start path compared as typed fails through a symlink or junction and the script ends without running (exit 0).',
+        })),
+      ],
+    },
+  },
+
+  {
     // The badge Worker (infra/marketplace-hook) is plain ESM for the Cloudflare
     // Workers runtime, outside every TypeScript project; these are its globals.
     files: ['infra/**/*.js'],

@@ -4,8 +4,8 @@ import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { z } from 'zod'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 const ORIGIN = 'https://api.meta.ai/v1'
 const MODEL = 'muse-spark-1.3-contributor'
@@ -366,7 +366,7 @@ async function main() {
     }
   }
 }
-if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+if (isEntryPoint(import.meta.url)) {
   try {
     await main()
   } catch {
