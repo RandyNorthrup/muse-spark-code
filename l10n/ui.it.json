@@ -395,6 +395,7 @@
   "fallbackWorktrees": "Alberi di lavoro",
   "fallbackActionFailed": "L’azione non è riuscita. Riprova.",
   "companionLaunchFailed": "Impossibile aprire il pannello. Torna al tuo editor e apri di nuovo Muse Spark Code per ottenere un nuovo collegamento di avvio.",
+  "companionPanelTitle": "Pannello Muse Spark Code",
   "promptLimits": "Il prompt supera il limite di dimensione oppure questo ambito contiene troppi prompt.",
   "promptWorkspaceRequired": "Apri uno spazio di lavoro per salvarvi i prompt.",
   "promptScopeDamaged": "{scope}: L’archivio dei prompt è illeggibile o danneggiato. I file sono rimasti invariati.",
@@ -891,7 +892,8 @@
     "tab-daily-budget-usd": "Ferma Tab per il resto del giorno a questo importo in dollari statunitensi; 0, il valore predefinito, non imposta alcun budget.",
     "tab-max-output-tokens": "Limita ogni richiesta Tab a questo numero di token di output; 0, il valore predefinito, è il massimo proprio del modello.",
     "tab-trigger": "Serve Tab mentre si digita (automatic) o solo su richiesta (onInvoke).",
-    "panel-stdio": "Parlare MHP su standard input e output, un messaggio JSON per riga."
+    "panel-stdio": "Parlare MHP su standard input e output, un messaggio JSON per riga.",
+    "panel-companion": "Servire il pannello portatile come companion del browser loopback"
   },
   "referenceScanSecrets": "Analizza un file patch UTF-8 alla ricerca di segreti e termina con errore se li rileva. --key-stdin cerca anche la chiave Model API esatta in memoria; nessuna chiave viene salvata.",
   "referenceVault": "Lavora con il vault delle credenziali per utente da un terminale: configurazione, recupero, reimpostazione, stato, sblocco, blocco, elenco, aggiunta, concessioni, audit, importazione e osservazione. I valori non vengono mai stampati; li detiene il broker. Dopo una conferma esplicita, il ripristino può anche sostituire un blocco di scrittura di proprietario sconosciuto.",
@@ -4570,7 +4572,7 @@
     "noteLsp": "Senza --tab non viene addebitato nulla e l’archivio delle credenziali non viene mai letto. Con esso, ogni nuovo prezzo chiede prima nell’editor; Consenti sempre in questa area di lavoro è offerto solo con --trust-workspace.",
     "purposeSupervise": "Esegue un altro comando di questo agente in modo che stop possa terminarlo con tutti i processi che ha avviato.",
     "purposeStop": "Ferma ogni esecuzione supervisionata avviata in questa cartella, con tutti i processi che ha avviato.",
-    "purposePanel": "Servire l’host del pannello Muse di un editor tramite MHP: le sue conversazioni, nonché le impostazioni e l’archiviazione di questo agente, per la cartella in cui viene avviato.",
+    "purposePanel": "Servire un pannello Muse tramite MHP a un host di editor (--stdio) o a una finestra del browser (--companion): le sue conversazioni, nonché le impostazioni e l’archiviazione di questo agente, per la cartella in cui viene avviato.",
     "notePanel": "Un’impostazione scritta qui è quella che questo agente legge da sé: le impostazioni utente restano in settings.json e resources.json della cartella dati. Le impostazioni che scelgono cosa viene eseguito o cosa viene addebitato sono solo tue e rifiutano l’ambito dell’area di lavoro. Nessuna chiave né token viene mai salvato.",
     "purposeSetup": "Esegui gli hook Setup ed esci.",
     "purposeUsage": "Mostra l’utilizzo e il costo di tutti i modelli.",
@@ -7131,7 +7133,7 @@
   },
   "hostService": {
     "unavailable": "Il pannello di runtime non è disponibile in questa installazione.",
-    "needsStdio": "panel richiede --stdio: l’host dell’editor gli parla su standard input e output.",
+    "needsTransport": "panel richiede esattamente un trasporto: --stdio parla MHP su standard input e output; --companion serve il pannello a un browser.",
     "notAvailable": "Questo non è ancora disponibile in questo editor."
   },
   "acpConnector": {

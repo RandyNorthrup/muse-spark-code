@@ -5455,8 +5455,8 @@
     },
     {
       "route": "panel",
-      "name": "panel --stdio [--workspace <directory>]",
-      "description": "Serve an editor’s Muse panel host over MHP: its conversations, and this agent’s settings and storage, for the folder it starts in.",
+      "name": "panel (--stdio | --companion) [--workspace <directory>]",
+      "description": "Serve a Muse panel over MHP to an editor host (--stdio) or a browser window (--companion): its conversations, and this agent’s settings and storage, for the folder it starts in.",
       "invocations": [["panel"]]
     },
     {
@@ -8365,6 +8365,13 @@
         "protocol": "usageCompanion",
         "default": false
       }
+    },
+    {
+      "route": "panel",
+      "name": "panel: --companion",
+      "description": "Serve the portable panel as a loopback browser companion",
+      "text": { "cli": "panel-companion" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
     },
     {
       "route": "panel",

@@ -1907,6 +1907,14 @@ const runtimePanelPortsOptions = {
   outfile: RUNTIME_PANEL_PORTS_OUTFILE,
   banner: {},
 }
+// M104 lane C: the loopback browser companion, loaded only by `panel --companion`.
+const RUNTIME_PANEL_COMPANION_OUTFILE = 'dist/runtimePanelCompanion.js'
+const runtimePanelCompanionOptions = {
+  ...acpOptions,
+  entryPoints: ['src/runtime/panel/companionEntry.ts'],
+  outfile: RUNTIME_PANEL_COMPANION_OUTFILE,
+  banner: {},
+}
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
@@ -2490,6 +2498,7 @@ if (isWatch) {
     esbuild.context(runtimePanelOptions),
     esbuild.context(runtimePanelSessionOptions),
     esbuild.context(runtimePanelPortsOptions),
+    esbuild.context(runtimePanelCompanionOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -2734,6 +2743,7 @@ if (isWatch) {
     ['runtimePanel', () => esbuild.build(runtimePanelOptions)],
     ['runtimePanelSession', () => esbuild.build(runtimePanelSessionOptions)],
     ['runtimePanelPorts', () => esbuild.build(runtimePanelPortsOptions)],
+    ['runtimePanelCompanion', () => esbuild.build(runtimePanelCompanionOptions)],
   ]
   if (!isProduction) {
     extraSpecs.push(['integrationTests', () => esbuild.build(integrationTestOptions)])
@@ -2757,6 +2767,7 @@ if (isWatch) {
   let runtimePanel
   let runtimePanelSession
   let runtimePanelPorts
+  let runtimePanelCompanion
   try {
     shipped = await runBuildPool(Object.entries(shippedSpecs), BUILD_POOL_SIZE)
     ;({
@@ -2778,6 +2789,7 @@ if (isWatch) {
       runtimePanel,
       runtimePanelSession,
       runtimePanelPorts,
+      runtimePanelCompanion,
     } = await runBuildPool(extraSpecs, BUILD_POOL_SIZE))
   } catch (error) {
     await esbuild.stop()
@@ -2863,6 +2875,11 @@ if (isWatch) {
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'runtimePanelPorts.json'),
       JSON.stringify(runtimePanelPortsMetafile),
+    )
+    const { metafile: runtimePanelCompanionMetafile } = await runtimePanelCompanion
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'runtimePanelCompanion.json'),
+      JSON.stringify(runtimePanelCompanionMetafile),
     )
   }
   console.log('bundle sizes:')
@@ -2981,5 +2998,6 @@ if (isWatch) {
   reportSize(RUNTIME_PANEL_OUTFILE)
   reportSize(RUNTIME_PANEL_SESSION_OUTFILE)
   reportSize(RUNTIME_PANEL_PORTS_OUTFILE)
+  reportSize(RUNTIME_PANEL_COMPANION_OUTFILE)
   reportSize(PACKS_VERIFY_OUTFILE)
 }

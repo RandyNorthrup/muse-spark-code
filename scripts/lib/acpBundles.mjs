@@ -75,6 +75,8 @@ export const ACP_BUNDLES = [
   // M104 lane B: the runtime panel, loaded by `panel`.
   'runtimePanel.js',
   'runtimePanelSession.js',
+  // M104 lane C: the panel's loopback browser companion, loaded by `panel --companion`.
+  'runtimePanelCompanion.js',
   // M104 lane B: the runtime panel runs the editor's conversation controller
   // (conversation.js) in the agent, and the chunks the controller loads on
   // use: a session export or import, the problem report, the session board

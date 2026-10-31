@@ -395,6 +395,7 @@
   "fallbackWorktrees": "작업 트리",
   "fallbackActionFailed": "작업에 실패했습니다. 다시 시도하세요.",
   "companionLaunchFailed": "패널을 열 수 없습니다. 편집기로 돌아가 Muse Spark Code를 다시 열어 새 실행 링크를 받으세요.",
+  "companionPanelTitle": "Muse Spark Code 패널",
   "promptLimits": "프롬프트가 크기 제한을 초과했거나 이 범위의 프롬프트가 너무 많습니다.",
   "promptWorkspaceRequired": "작업 공간 프롬프트를 저장하려면 작업 공간을 여세요.",
   "promptScopeDamaged": "{scope}: 프롬프트 저장소를 읽을 수 없거나 손상되었습니다. 파일은 변경되지 않고 보존되었습니다.",
@@ -883,7 +884,8 @@
     "tab-daily-budget-usd": "이 금액(미국 달러)에 이르면 그날의 Tab을 멈춥니다. 기본값 0은 예산을 정하지 않습니다.",
     "tab-max-output-tokens": "각 Tab 요청의 출력 토큰을 이 수로 제한합니다. 기본값 0은 모델 자체의 최대값입니다.",
     "tab-trigger": "입력하는 동안 Tab을 제공할지(automatic), 요청할 때만 제공할지(onInvoke) 정합니다.",
-    "panel-stdio": "표준 입력과 출력으로 MHP를 주고받습니다. 한 줄에 JSON 메시지 하나입니다."
+    "panel-stdio": "표준 입력과 출력으로 MHP를 주고받습니다. 한 줄에 JSON 메시지 하나입니다.",
+    "panel-companion": "휴대용 패널을 루프백 브라우저 컴패니언으로 제공"
   },
   "referenceScanSecrets": "UTF-8 패치 파일에서 비밀 정보를 검색하고 발견하면 실패로 종료합니다. --key-stdin은 메모리에 있는 정확한 Model API 키도 검색하며 키를 저장하지 않습니다.",
   "referenceVault": "터미널에서 사용자별 자격 증명 Vault로 작업합니다: 설정, 복구, 재설정, 상태, 잠금 해제, 잠금, 목록, 추가, 부여, 감사, 가져오기 및 감시. 값은 절대 인쇄되지 않으며 브로커가 보관합니다. 명시적으로 확인하면 초기화를 통해 소유자를 알 수 없는 쓰기 잠금도 교체할 수 있습니다.",
@@ -4406,7 +4408,7 @@
     "noteLsp": "--tab이 없으면 아무것도 청구되지 않고 자격 증명 저장소도 읽지 않습니다. 지정하면 새 가격마다 먼저 편집기에서 묻습니다. \"이 작업 영역에서 항상 허용\"은 --trust-workspace를 지정할 때만 제공됩니다.",
     "purposeSupervise": "이 에이전트의 다른 명령을 stop이 시작된 모든 프로세스와 함께 끝낼 수 있도록 실행합니다.",
     "purposeStop": "이 폴더에서 시작한 감독 실행을 시작된 모든 프로세스와 함께 모두 중지합니다.",
-    "purposePanel": "편집기의 Muse 패널 호스트에 MHP로 응답합니다. 시작된 폴더에 대한 대화와 이 에이전트의 설정 및 저장소를 제공합니다.",
+    "purposePanel": "Muse 패널에 MHP로 응답합니다. 편집기 호스트(--stdio) 또는 브라우저 창(--companion)에 대해, 시작된 폴더의 대화와 이 에이전트의 설정 및 저장소를 제공합니다.",
     "notePanel": "여기에 쓴 설정은 이 에이전트가 직접 읽는 설정입니다. 사용자 설정은 데이터 폴더의 settings.json과 resources.json에 남습니다. 무엇을 실행하거나 무엇에 비용을 청구할지 정하는 설정은 사용자만의 것이며 작업 영역 범위를 거부합니다. 키나 토큰은 절대 저장하지 않습니다.",
     "purposeSetup": "Setup 후크를 실행하고 종료합니다.",
     "purposeUsage": "모델별 사용량과 비용을 표시합니다.",
@@ -6777,7 +6779,7 @@
   },
   "hostService": {
     "unavailable": "이 설치에서는 런타임 패널을 사용할 수 없습니다.",
-    "needsStdio": "panel에는 --stdio가 필요합니다. 편집기의 호스트는 표준 입력과 출력으로 통신합니다.",
+    "needsTransport": "panel에는 전송 수단이 정확히 하나 필요합니다. --stdio는 표준 입력과 출력으로 MHP를 말합니다. --companion은 패널을 브라우저에 제공합니다.",
     "notAvailable": "이 기능은 아직 이 편집기에서 사용할 수 없습니다."
   },
   "acpConnector": {

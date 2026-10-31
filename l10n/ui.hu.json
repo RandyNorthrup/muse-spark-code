@@ -395,6 +395,7 @@
   "fallbackWorktrees": "Munkafák",
   "fallbackActionFailed": "A művelet nem sikerült. Próbálja újra.",
   "companionLaunchFailed": "Nem sikerült megnyitni a panelt. Térjen vissza a szerkesztőbe, és nyissa meg újra a Muse Spark Code-ot egy új indítási hivatkozásért.",
+  "companionPanelTitle": "Muse Spark Code-panel",
   "promptLimits": "A prompt túllépi a méretkorlátot, vagy ebben a hatókörben túl sok prompt van.",
   "promptWorkspaceRequired": "Nyisson meg egy munkaterületet a munkaterületi promptok mentéséhez.",
   "promptScopeDamaged": "{scope}: A prompttároló olvashatatlan vagy sérült. A fájlok változatlanok maradtak.",
@@ -887,7 +888,8 @@
     "tab-daily-budget-usd": "A Tab leállítása a nap hátralevő részére ennyi amerikai dollárnál; a 0, az alapértelmezés, nem állít be keretet.",
     "tab-max-output-tokens": "Minden Tab-kérés korlátozása ennyi kimeneti tokenre; a 0, az alapértelmezés, a modell saját maximuma.",
     "tab-trigger": "Tab gépelés közben (automatic) vagy csak kérésre (onInvoke).",
-    "panel-stdio": "MHP-t beszél a szabványos bemeneten és kimeneten, soronként egy JSON-üzenet."
+    "panel-stdio": "MHP-t beszél a szabványos bemeneten és kimeneten, soronként egy JSON-üzenet.",
+    "panel-companion": "A hordozható panel kiszolgálása loopback böngészőtársként"
   },
   "referenceScanSecrets": "Titkokat keres egy UTF-8 javításfájlban, és találat esetén hibával kilép. A --key-stdin a memóriában lévő pontos Model API-kulcsot is keresi; nem tárol kulcsot.",
   "referenceVault": "Dolgozzon a terminálból a felhasználónkénti hitelesítőadat-tárolóval: beállítás, helyreállítás, alaphelyzetbe állítás, állapot, feloldás, zárolás, lista, hozzáadás, engedélyek, naplózás, importálás és figyelés. Az értékek soha nem jelennek meg; a közvetítő őrzi őket. Kifejezett megerősítés után az alaphelyzetbe állítás az ismeretlen tulajdonosú írási zárolást is lecserélheti.",
@@ -4488,7 +4490,7 @@
     "noteLsp": "A --tab nélkül semmi sem kerül terhelésre, és a hitelesítőadat-tár soha nem kerül olvasásra. Vele minden új ár előbb a szerkesztőben kérdez; az Engedélyezés mindig ezen a munkaterületen csak a --trust-workspace mellett érhető el.",
     "purposeSupervise": "Az ügynök egy másik parancsának futtatása úgy, hogy a stop leállíthassa az általa indított összes folyamattal együtt.",
     "purposeStop": "Az ebben a mappában indított összes felügyelt futás leállítása az általa indított összes folyamattal együtt.",
-    "purposePanel": "Egy szerkesztő Muse-paneljének gazdáját szolgálja ki MHP-n: annak beszélgetéseit, valamint ennek az ügynöknek a beállításait és tárolóját, abban a mappában, ahol elindul.",
+    "purposePanel": "Egy Muse-panelt szolgál ki MHP-n egy szerkesztő gazdájának (--stdio) vagy egy böngészőablaknak (--companion): annak beszélgetéseit, valamint ennek az ügynöknek a beállításait és tárolóját, abban a mappában, ahol elindul.",
     "notePanel": "Az itt írt beállítás ugyanaz, amelyet maga az ügynök is olvas: a felhasználói beállítások az adatmappa settings.json és resources.json fájljában maradnak. Azok a beállítások, amelyek eldöntik, mi fut vagy mit számláznak, csak az önéi, és elutasítják a munkaterület hatókörét. Kulcsot vagy tokent soha nem tárol.",
     "purposeSetup": "A Setup hookok futtatása, majd kilépés.",
     "purposeUsage": "Az összes modell használatának és költségének megjelenítése.",
@@ -6954,7 +6956,7 @@
   },
   "hostService": {
     "unavailable": "A futtatókörnyezeti panel ebben a telepítésben nem érhető el.",
-    "needsStdio": "a panelnek --stdio kell: a szerkesztő gazdája a szabványos bemeneten és kimeneten beszél vele.",
+    "needsTransport": "a panelnek pontosan egy átvitel kell: --stdio MHP-t beszél a szabványos bemeneten és kimeneten; --companion kiszolgálja a panelt egy böngészőnek.",
     "notAvailable": "Ez még nem érhető el ebben a szerkesztőben."
   },
   "acpConnector": {

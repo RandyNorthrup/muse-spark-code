@@ -504,6 +504,7 @@ export const EN = {
   fallbackActionFailed: 'The action failed. Try again.',
   companionLaunchFailed:
     'Could not open the panel. Return to your editor and open Muse Spark Code again to get a fresh launch link.',
+  companionPanelTitle: 'Muse Spark Code panel',
   // M118: prompt library and local sharing; read UI_TEXT at use time.
   promptLimits: 'The prompt exceeds the size limit, or this scope has too many prompts.',
   promptWorkspaceRequired: 'Open a workspace to save workspace prompts.',
@@ -1082,6 +1083,7 @@ export const EN = {
       'Cap each Tab request at this many output tokens; 0, the default, is the model’s own maximum.',
     'tab-trigger': 'Serve Tab as you type (automatic) or only on request (onInvoke).',
     'panel-stdio': 'Speak MHP on standard input and output, one JSON message per line.',
+    'panel-companion': 'Serve the portable panel as a loopback browser companion',
   },
   referenceScanSecrets:
     'Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.',
@@ -5592,7 +5594,7 @@ export const EN = {
       'Run another command of this agent so that stop can end it, with every process it started.',
     purposeStop: 'Stop every supervised run started in this folder, with every process it started.',
     purposePanel:
-      'Serve an editor’s Muse panel host over MHP: its conversations, and this agent’s settings and storage, for the folder it starts in.',
+      'Serve a Muse panel over MHP to an editor host (--stdio) or a browser window (--companion): its conversations, and this agent’s settings and storage, for the folder it starts in.',
     notePanel:
       'A setting written here is the one this agent itself reads: user settings stay in the data folder’s settings.json and resources.json. Settings that choose what runs or what is billed are yours alone and refuse the workspace scope. No key or token is ever stored.',
     purposeSetup: 'Run the Setup hooks and exit.',
@@ -8819,7 +8821,8 @@ export const EN = {
   // the reference's route names would carry the group into the panel's English.
   hostService: {
     unavailable: 'The runtime panel is not available in this installation.',
-    needsStdio: 'panel needs --stdio: the editor’s host speaks to it on standard input and output.',
+    needsTransport:
+      'panel needs exactly one transport: --stdio speaks MHP on standard input and output; --companion serves the panel to a browser.',
     notAvailable: 'This is not available through this editor yet.',
   },
   acpConnector: {

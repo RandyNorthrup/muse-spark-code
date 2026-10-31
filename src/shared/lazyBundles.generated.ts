@@ -1262,6 +1262,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'runtimePanelCompanion.js',
+    side: 'acp',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'RUNTIME_PANEL_COMPANION_BUNDLE_FILE',
+        side: ['acp'],
+      },
+    ],
+  },
+  {
     file: 'runtimePanelPorts.js',
     side: 'acp',
     requestedBy: [

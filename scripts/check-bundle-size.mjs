@@ -619,6 +619,10 @@ const BUDGETS = [
   // store joins), loaded on first use: 22.6 KiB measured (2026-10-24,
   // production build on the Mac mini) +15% = 26.0 KiB, rounded up to 30 KiB.
   { path: 'dist/runtimePanelPorts.js', budgetKiB: 30 },
+  // M104 lane C: the panel's loopback browser companion, loaded only by
+  // `panel --companion`: 118,679 bytes (115.9 KiB) measured (2026-10-30,
+  // production build on the Mac mini) +15% = 133.3 KiB, rounded up to 134 KiB.
+  { path: 'dist/runtimePanelCompanion.js', budgetKiB: 134 },
   // M96b: run-owned team policy with its cleanup ledger, stale-run sweep,
   // denied-merge holds and marker gate, loaded only for --team. Measured
   // 46,823 bytes (45.73 KiB, production build on macbook, 2026-10-22)

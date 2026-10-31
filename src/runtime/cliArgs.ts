@@ -123,14 +123,16 @@ export interface ServeOptions {
 }
 
 /**
-`panel` (M104 lane B, PLAN.md D84): the runtime's side of an editor's Muse
-panel over MHP, bound to one workspace.
+`panel` (M104 lanes B and C, PLAN.md D84): the runtime's side of a Muse
+panel over MHP, bound to one workspace, on stdio or in a browser window.
 */
 export interface PanelOptions {
   /** The workspace root; the folder the runtime starts in unless named. */
   readonly workspace: string
   /** `--verbose`: every detail on stderr, the host's log. */
   readonly isVerbose: boolean
+  /** `--stdio` for an editor's host, `--companion` for a loopback browser window. */
+  readonly transport: 'stdio' | 'companion'
 }
 
 /**
@@ -1803,8 +1805,9 @@ function parseStop(argv: readonly string[]): RuntimeCommand {
 }
 
 /**
-`panel` (M104 lane B): standard I/O is its one transport so far, so `--stdio`
-is required; a later transport is its own flag beside it.
+`panel` (M104 lanes B and C): exactly one transport, `--stdio` for an
+editor's host on standard I/O or `--companion` for a loopback browser
+window.
 */
 function parsePanel(argv: readonly string[]): RuntimeCommand {
   let values: ReturnType<typeof parsePanelArgs>['values']
@@ -1814,10 +1817,17 @@ function parsePanel(argv: readonly string[]): RuntimeCommand {
     return invalidTopicOption('panel', error)
   }
   if (values.help === true) return { command: 'helpTopic', topic: 'panel' }
-  if (values.stdio !== true) return refused(UI_TEXT.hostService.needsStdio)
+  let transport: 'stdio' | 'companion' | undefined
+  if (values.stdio === true && values.companion !== true) transport = 'stdio'
+  else if (values.companion === true && values.stdio !== true) transport = 'companion'
+  if (transport === undefined) return refused(UI_TEXT.hostService.needsTransport)
   return {
     command: 'panel',
-    options: { workspace: values.workspace ?? '.', isVerbose: values.verbose === true },
+    options: {
+      workspace: values.workspace ?? '.',
+      isVerbose: values.verbose === true,
+      transport,
+    },
   }
 }
 

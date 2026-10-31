@@ -6083,11 +6083,12 @@ export const ORPHAN_SWEEP_ROUNDS = 5
 // covers admission plus the adapter run.
 export const RESOURCE_HANDOFF_TIMEOUT_MS = 10_000
 /**
-The usage-page opener's own wait bound (D121): the terminal must not wait on
-a stuck OS opener past this; the page, once handed off, is the OS's. Other
-hand-offs name their own deadline, or the safety default above applies.
+The companion-page opener's own wait bound (D121): the terminal must not
+wait on a stuck OS opener past this; the page, once handed off, is the
+OS's. Other hand-offs name their own deadline, or the safety default
+above applies.
 */
-export const USAGE_PAGE_OPEN_TIMEOUT_MS = 10_000
+export const COMPANION_PAGE_OPEN_TIMEOUT_MS = 10_000
 export const OUTPUT_REF_PREFIX = 'tool_patch-'
 // The stored output the transcript can page (`item/readOutput` parity).
 export const MODEL_API_OUTPUT_MEDIA_TYPE = 'application/json'
@@ -11343,6 +11344,8 @@ export const LSP_BUNDLE_FILE = 'lsp.js'
 export const SUPERVISE_BUNDLE_FILE = 'supervise.js'
 // M104 lane B: the runtime panel, loaded only by `panel`.
 export const RUNTIME_PANEL_BUNDLE_FILE = 'runtimePanel.js'
+// M104 lane C: the panel's loopback browser companion, loaded only by `panel --companion`.
+export const RUNTIME_PANEL_COMPANION_BUNDLE_FILE = 'runtimePanelCompanion.js'
 // Its conversations (the controller's host, the backend and the editor's ports), loaded when the handshake is done.
 export const RUNTIME_PANEL_SESSION_BUNDLE_FILE = 'runtimePanelSession.js'
 // Its heavier ports (saved plans), required the first time one is used.

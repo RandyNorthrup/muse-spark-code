@@ -395,6 +395,7 @@
   "fallbackWorktrees": "Arbres de travail",
   "fallbackActionFailed": "L’action a échoué. Réessayez.",
   "companionLaunchFailed": "Impossible d’ouvrir le panneau. Revenez à votre éditeur et ouvrez à nouveau Muse Spark Code pour obtenir un nouveau lien de lancement.",
+  "companionPanelTitle": "Panneau Muse Spark Code",
   "promptLimits": "Le prompt dépasse la taille limite ou cette portée contient trop de prompts.",
   "promptWorkspaceRequired": "Ouvrez un espace de travail pour y enregistrer des prompts.",
   "promptScopeDamaged": "{scope} : Le stockage des prompts est illisible ou endommagé. Les fichiers sont restés inchangés.",
@@ -891,7 +892,8 @@
     "tab-daily-budget-usd": "Arrêter Tab pour la journée à ce montant en dollars américains ; 0, la valeur par défaut, ne fixe aucun budget.",
     "tab-max-output-tokens": "Limiter chaque requête Tab à ce nombre de jetons de sortie ; 0, la valeur par défaut, est le maximum propre au modèle.",
     "tab-trigger": "Servir Tab pendant la frappe (automatic) ou seulement à la demande (onInvoke).",
-    "panel-stdio": "Parler MHP sur l’entrée et la sortie standard, un message JSON par ligne."
+    "panel-stdio": "Parler MHP sur l’entrée et la sortie standard, un message JSON par ligne.",
+    "panel-companion": "Servir le panneau portable comme compagnon de navigateur loopback"
   },
   "referenceScanSecrets": "Analyse un fichier de patch UTF-8 pour détecter des secrets et échoue en cas de détection. --key-stdin recherche aussi la clé Model API exacte conservée en mémoire ; aucune clé n’est stockée.",
   "referenceVault": "Utilisez le coffre d’identifiants par utilisateur depuis un terminal : configuration, récupération, réinitialisation, état, déverrouillage, verrouillage, liste, ajout, autorisations, audit, import et surveillance. Les valeurs ne s’impriment jamais ; le courtier les détient. Après confirmation explicite, la réinitialisation peut aussi remplacer un verrou d’écriture dont le propriétaire est inconnu.",
@@ -4570,7 +4572,7 @@
     "noteLsp": "Sans --tab, rien n’est facturé et le magasin d’identifiants n’est jamais lu. Avec, chaque nouveau prix est d’abord demandé dans l’éditeur ; Toujours autoriser dans cet espace de travail n’est proposé qu’avec --trust-workspace.",
     "purposeSupervise": "Exécuter une autre commande de cet agent de sorte que stop puisse l’arrêter avec tous les processus qu’elle a lancés.",
     "purposeStop": "Arrêter chaque exécution supervisée lancée dans ce dossier, avec tous les processus qu’elle a lancés.",
-    "purposePanel": "Servir l’hôte du panneau Muse d’un éditeur via MHP : ses conversations, ainsi que les paramètres et le stockage de cet agent, pour le dossier où il démarre.",
+    "purposePanel": "Servir un panneau Muse via MHP à un hôte d’éditeur (--stdio) ou à une fenêtre de navigateur (--companion) : ses conversations, ainsi que les paramètres et le stockage de cet agent, pour le dossier où il démarre.",
     "notePanel": "Un paramètre écrit ici est celui que cet agent lit lui-même : les paramètres utilisateur restent dans settings.json et resources.json du dossier de données. Les paramètres qui choisissent ce qui s’exécute ou ce qui est facturé ne relèvent que de vous et refusent la portée de l’espace de travail. Aucune clé ni aucun jeton n’est jamais stocké.",
     "purposeSetup": "Exécuter les hooks Setup puis quitter.",
     "purposeUsage": "Afficher l’utilisation et le coût de tous les modèles.",
@@ -7131,7 +7133,7 @@
   },
   "hostService": {
     "unavailable": "Le panneau d’exécution n’est pas disponible dans cette installation.",
-    "needsStdio": "panel nécessite --stdio : l’hôte de l’éditeur lui parle sur l’entrée et la sortie standard.",
+    "needsTransport": "panel nécessite exactement un transport : --stdio parle MHP sur l’entrée et la sortie standard ; --companion sert le panneau à un navigateur.",
     "notAvailable": "Cela n’est pas encore disponible dans cet éditeur."
   },
   "acpConnector": {
