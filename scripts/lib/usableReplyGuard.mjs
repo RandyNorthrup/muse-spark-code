@@ -124,6 +124,13 @@ const ALLOW_LIST = new Map([
     'src/core/agent/agentEvidence.ts:finishedAgentEvidence',
     'evidence classifies unfinished todo items for the final check',
   ],
+  // The external orchestrator (D250) follows the agent's own tool-call
+  // updates: a completed or failed tool-call ITEM closes its item. The turn's
+  // end is the agent's `stopReason`, never read here.
+  [
+    'src/host/team/externalOrchestrator.ts:onToolCall',
+    'a completed or failed tool-call item status closes its item, never a turn reply',
+  ],
   // The playbook review collects per-item texts; the decision over them
   // goes through usableReply in settle.
   [
