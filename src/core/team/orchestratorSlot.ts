@@ -1,23 +1,28 @@
-// The orchestrator slot (PLAN.md M96 lane T, D75 "The orchestrator").
+// The orchestrator slot (PLAN.md M96 lane T, D75 "The orchestrator", D250).
 // Default is today's behaviour: exactly the composer's model picker. The
-// user may fill the slot with any configured model, per workspace; Reset to
-// Default restores the picker's behaviour. The override is kept in workspace
-// state, and new conversations in that workspace start on it; a picker
-// change applies to the next delegation, and a running task keeps what it
-// started on. Pure: workspace state arrives structurally (core never imports
+// user may fill the slot with any available agent — an engine or Muse Code
+// model, or an external ACP agent (D250) — per workspace; Reset to Default
+// restores the picker's behaviour. The override is kept in workspace state,
+// and new conversations in that workspace start on it; a picker change
+// applies to the next delegation, and a running task keeps what it started
+// on. Pure: workspace state arrives structurally (core never imports
 // `vscode`), and the backend switch itself stays with M95's lane U.
 
-import { teamSnapshotSchema, type TeamModelSettings } from '../../shared/team'
+import { teamSnapshotSchema, type TeamAgentPays, type TeamModelSettings } from '../../shared/team'
 import { TEAM_WORKSPACE_KEYS } from '../../shared/teamConversation'
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { refuseUnservedSetting, type TeamSettingCapabilities } from './modelSettings'
 
-/** A workspace's orchestrator override: a model on either backend. */
+/** A workspace's orchestrator override: any available agent (D250). */
 export interface OrchestratorOverride {
   readonly settings?: TeamModelSettings | undefined
   readonly modelId: string
-  readonly backend: 'modelApi' | 'musecode'
+  readonly backend: 'modelApi' | 'musecode' | 'external'
+  /** The stored agent's id: a provider, `museCode`, a preset or a custom agent's name. */
+  readonly agentId?: string
+  /** Who pays for the stored agent, as the stored ref says. */
+  readonly pays?: TeamAgentPays
 }
 
 /** The narrowest workspace-state shape this module touches. */
@@ -32,10 +37,13 @@ export function readOrchestratorOverride(
 ): OrchestratorOverride | undefined {
   const result = teamSnapshotSchema.safeParse(state.get(TEAM_WORKSPACE_KEYS.team))
   const agent = result.success ? result.data.orchestrator?.agent : undefined
-  if (agent === undefined || agent.kind === 'external') return
+  if (agent === undefined) return
   return {
     modelId: agent.model,
-    backend: agent.kind === 'engine' ? 'modelApi' : 'musecode',
+    backend:
+      agent.kind === 'engine' ? 'modelApi' : agent.kind === 'external' ? 'external' : 'musecode',
+    agentId: agent.agentId,
+    pays: agent.pays,
     ...(result.success &&
       result.data.orchestrator?.settings !== undefined && {
         settings: result.data.orchestrator.settings,
