@@ -14897,6 +14897,26 @@ naming the questions, options and recommendations in that record. Slot
 checks wait on RLF-TEAMCORE's governed slots. Teams stay off until a
 second model is set up (D227).
 
+**Status 2026-10-31 (lane RLF-TEAMWORKERS3, Claude Code; the lead's brief): building.**
+Our own agent lists contributor-tier models when a pool entry names one the
+product's model table lists: `acpSpawnArgs` adds `--allow-contributor-models` for
+that model id alone, every other entry gets none and any other extra argument is
+still refused. A Muse Code worker whose role has the checks group gets
+`run_checks` as a session MCP server of its own: a loopback endpoint with a token
+per task, whose call is the bridge's `bridgeRunChecks` routed by
+`routeWorkerCheck` to the governed check slots. The slots are built on the first
+check through the runners runtime (`loadRunners`) over the window governor and the
+team's own process lifetime, so a check waits for the machine's `check` capacity
+and a free folder, runs against a snapshot of the task's copy and gives both back.
+That is proved over the MCP protocol with the real governor, real git and real
+processes, and a real `muse serve` reads the endpoint; no model turn has called
+it, and the tool name Muse Code reports in its approval is not captured. The
+governed slots' wait between asks has its own suite. Not on this route: runners
+over SSH, external agents, the per-copy install and a process proof on macOS (a
+bare process group proves nothing, so a folder stays held after a check there).
+`docs/certification/rlf-teamworkers3.md`. Teams stay off until a second model is
+set up (D227); not in a release yet.
+
 **Status 2026-10-31 (lane RLF-TEAMWORKERS2, Claude Code; the lead's brief): building.**
 Heavy team checks wait for the machine governor: the governor host lends
 its queue, `check` capacity and running count through

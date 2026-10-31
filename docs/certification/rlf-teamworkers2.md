@@ -129,6 +129,7 @@ governed `check` launch (`admit`) is disk-heavy, so a disk hold the person's flo
 causes keeps a team check waiting too.
 
 **The caller is `CheckSlots`, and the check path above it has no caller yet.**
+(_RLF-TEAMWORKERS3 wired it for Muse Code workers: `rlf-teamworkers3.md` §3._)
 `createTeamRuntime().loadRunners()` has no caller in `src`, `CheckSlots` is built
 nowhere, and `bridgeRunChecks` / `routeWorkerCheck` are `@unwired`. This lane
 built the join and its caller inside the check slots and proved them on real
@@ -210,6 +211,8 @@ Two measured non-drills:
   break above is the drill for the place-keeping case.
 - Removing the 100 ms poll leaves the suite green: it guards a disagreement no
   real part produces now. It has no suite; the freeze above is its measurement.
+  **Superseded by RLF-TEAMWORKERS3** (`rlf-teamworkers3.md` §4): it has a suite that
+  fails without it, over the real governor, queue and scheduler slots.
 
 ## 6. Gates (final tree)
 
@@ -284,7 +287,8 @@ own), and the file passes in the canonical run.
    `-c mcpServers.<name>.enabled=false` was meant for this and refuses exactly
    the names that matter; until then the fail-closed flag is the guarantee. I
    cannot file that upstream.
-2. **A contributor-tier model on the `own` worker.** The agent lists contributor
+2. **A contributor-tier model on the `own` worker.** _Decided by the lead as (a) and
+   built by RLF-TEAMWORKERS3 (`rlf-teamworkers3.md` §2)._ The agent lists contributor
    models only with `--allow-contributor-models` (`openHost` filters them without
    it), the `own` preset passes no such flag, and `acpSpawnArgs` refuses extra
    arguments by design. So the live run's external entry on
@@ -295,7 +299,8 @@ own), and the file passes in the canonical run.
    and run the external half on no contributor model, which this lane's rules do
    not allow. **Recommendation:** (a). It is a consent decision (Meta may train on
    the content), so I did not build it.
-3. **The check route has no caller.** `loadRunners`, `bridgeRunChecks`,
+3. **The check route has no caller.** _Wired by RLF-TEAMWORKERS3 for Muse Code workers
+   (`rlf-teamworkers3.md` §3 and §7)._ `loadRunners`, `bridgeRunChecks`,
    `routeWorkerCheck` and the construction of `CheckSlots` are unwired, so Q3's
    caller is proven on real parts and not yet live. **Recommendation:** one lane
    that wires the check route and calls `createGovernedCheckSlots` there, with a
