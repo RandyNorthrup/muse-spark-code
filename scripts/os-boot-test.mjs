@@ -134,13 +134,16 @@ for (const [label, file] of [
 const verdict = await runBoot({
   program: composed.program,
   args: composed.args,
+  accel: composed.accel,
   marker: options.marker,
   timeoutSec: timeout.value,
   outDir: options.out,
 })
 if (verdict.ok) {
-  console.log(`os-boot-test: marker in ${String(verdict.bootMs)} ms: ${verdict.transcript}`)
+  console.log(
+    `os-boot-test: marker in ${String(verdict.bootMs)} ms under ${verdict.accel}: ${verdict.transcript}`,
+  )
 } else {
-  console.error(`os-boot-test: ${verdict.reason}: ${verdict.transcript}`)
+  console.error(`os-boot-test: ${verdict.reason} under ${verdict.accel}: ${verdict.transcript}`)
   process.exit(1)
 }

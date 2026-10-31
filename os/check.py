@@ -4,6 +4,7 @@
 import configparser
 import json
 from pathlib import Path
+import re
 import sys
 
 
@@ -207,6 +208,48 @@ def check(root):
         "partition seed",
     )
     require(base["Validation"]["Checksum"] == "yes", "artifact digests")
+    # Reproducible filesystems: repart's mkfs.ext4 otherwise draws a random
+    # directory hash seed, the one byte that made two builds differ.
+    build_environment = lookup(base, "Build", "Environment") or ""
+    require(
+        "SYSTEMD_REPART_MKFS_OPTIONS_EXT4=" in build_environment
+        and "hash_seed=" + base["Output"]["Seed"] in build_environment,
+        "ext4 hash seed pin",
+    )
+    require(
+        "/var/cache/ldconfig/aux-cache" in base["Content"]["RemoveFiles"].split(),
+        "ldconfig cache removal",
+    )
+    # OS4 and OS5 ride the recipe: the firewall, and the firmware set that
+    # firmware.json names.
+    packages = set(base["Content"]["Packages"].split())
+    firmware = json.loads((root / "firmware/firmware.json").read_text())["packages"]
+    require(
+        {name for group in firmware.values() for name in group} <= packages,
+        "base firmware packages",
+    )
+    require("nftables" in packages, "firewall package")
+    # Firmware belongs to /usr, not the UKI: without the exclusions mkosi puts
+    # the graphics and wireless firmware into the initrd (+70 MB of a 260 MB ESP).
+    initrd_modules = lookup(base, "Content", "KernelInitrdModules") or ""
+    require(
+        "-/drivers/gpu/" in initrd_modules.split()
+        and "-/drivers/net/wireless/" in initrd_modules.split(),
+        "initrd firmware exclusions",
+    )
+    firewall = (root / "hardening/nftables.conf").read_text()
+    require(
+        re.search(r"chain input \{[^}]*policy drop", firewall, re.S) is not None
+        and re.search(r"chain forward \{[^}]*policy drop", firewall, re.S) is not None,
+        "default-drop firewall",
+    )
+    require(
+        (root / "hardening/sysctl.d/99-muse-node.conf").is_file(), "kernel hardening knobs"
+    )
+    require(
+        "nftables.service" in (root / "mkosi.postinst").read_text(),
+        "firewall enablement",
+    )
     resolver = config(
         root / "overlay/usr/lib/systemd/system/systemd-resolved.service.d/muse-var.conf"
     )

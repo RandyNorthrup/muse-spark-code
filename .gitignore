@@ -1,6 +1,9 @@
 # build output
 dist/
 *.vsix
+# OS1 image composer outputs (os/build.py writes images, manifests and
+# qualification clones here; receipts land in docs/certification/).
+/out/
 # The macOS dictation helper, compiled by CI's macOS job (native/darwin/build.sh)
 native/darwin/muse-dictate
 native/darwin/muse-dictate-*
