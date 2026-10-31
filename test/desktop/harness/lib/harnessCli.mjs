@@ -14,6 +14,7 @@ import {
   startCompositorSession,
   verifyHyprlandConfig,
 } from './compositor.mjs'
+import { callBus, startTestBus } from './dbusBus.mjs'
 import { captureReviewShots } from './reviewShots.mjs'
 import { DESKTOP_SCENES, desktopScene } from './scenes.mjs'
 import { serveDesktopScenes } from './sceneServer.mjs'
@@ -42,6 +43,9 @@ export const HARNESS_USAGE = `Usage: desktop-harness <command> [options]
   verify-config [--out file] [--outputs ...]
       Write the generated harness config and check it with
       Hyprland --verify-config (the same gate CP's product config passes).
+  bus [--out dir]
+      Start the private D-Bus test bus and its canary services, round-trip
+      a ping and a notification over it, print the records, stop.
 
 Options after -- belong to the client command. Timeouts are operational
 bounds for a test rig (session ready 30 s, client window 15 s by default);
@@ -272,6 +276,32 @@ async function runVerifyConfig(options, { repoRoot, log, env }) {
   return verified.isOk ? 0 : 1
 }
 
+async function runBus(options, { repoRoot, log, env }) {
+  const outDir = path.resolve(repoRoot, options.out ?? 'temp/desktop-bus')
+  const bus = await startTestBus({ workDir: outDir, env })
+  try {
+    const ping = await callBus(bus, {
+      destination: 'org.muse.TestHarness.Canary1',
+      objectPath: '/org/muse/TestHarness/Canary1',
+      method: 'org.muse.TestHarness.Canary1.Ping',
+      args: ['harness'],
+    })
+    log(`canary Ping: ${ping}`)
+    const notify = await callBus(bus, {
+      destination: 'org.freedesktop.Notifications',
+      objectPath: '/org/freedesktop/Notifications',
+      method: 'org.freedesktop.Notifications.Notify',
+      args: ['desktop-harness', '0', '', 'Test bus ready', '', '[]', '{}', '0'],
+    })
+    log(`notifications Notify: ${notify}`)
+    log(`bus address: ${bus.address}`)
+    log(`records: ${path.relative(repoRoot, outDir)}`)
+  } finally {
+    await bus.stop()
+  }
+  return 0
+}
+
 /** Runs one harness command; resolves with its process exit code. */
 export async function runHarnessCli(argv, { repoRoot, log = console.log, env = process.env }) {
   const options = parseHarnessArgs(argv)
@@ -298,6 +328,9 @@ export async function runHarnessCli(argv, { repoRoot, log = console.log, env = p
     }
     case 'verify-config': {
       return runVerifyConfig(options, context)
+    }
+    case 'bus': {
+      return runBus(options, context)
     }
     default: {
       throw new Error(`unknown command ${options.command}\n${HARNESS_USAGE}`)
