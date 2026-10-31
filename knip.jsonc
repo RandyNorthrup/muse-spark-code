@@ -313,6 +313,9 @@
     "test/unit/helpers/vault/sessionBrokerChild.ts",
     // Built once by writerCrashPosix.test.ts; a real generated-only SIGKILL child.
     "test/unit/helpers/vault/writerCrashChild.ts",
+    // Built by retiredUndoFlow.ts and launched by path; knip does not trace
+    // esbuild entryPoints. The killed-undo broker case hangs here for SIGKILL.
+    "test/unit/helpers/vault/undoCrashChild.ts",
     // Pipe-relay fixture child, bundled by windowsPipeRelay.test.ts and launched
     // by path; knip does not trace esbuild entryPoints.
     "test/unit/helpers/vault/windowsPipeRelayChild.ts",

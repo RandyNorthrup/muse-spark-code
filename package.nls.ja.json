@@ -259,6 +259,7 @@
   "config.github.useGhLogin.description": "プルリクエストで既存の GitHub CLI のサインイン (`gh auth token`) を使えるようにします。エディターの GitHub サインインと Muse Spark のサインインの後、最後に試されます。トークンは 1 回のリクエストごとに読み取られ、保存されません。既定ではオフです。ユーザー設定でのみ有効にでき、リポジトリからはオンにできません。",
   "command.vault.title": "保管庫",
   "command.lockVault.title": "今すぐ保管庫をロック",
+  "command.vaultUndoRetired.title": "退役した保管庫エントリを元に戻す",
   "config.vault.enabled.description": "ユーザーごとの認証情報の保管庫をオンまたはオフにします。保存済みの古い museSpark.vault 値は、この設定が構成されるまで適用されます。",
   "config.vault.protection.description": "互換性のために保存されています。この設定はこのビルドでは効果がありません。",
   "config.vault.agentFence.description": "インタラクティブなModel APIシェルコマンドの認証情報保護を制御します。検証、スケジュール、ワーカー、フックは保護されたままです。",

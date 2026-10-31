@@ -12,13 +12,19 @@ import type {
   WindowVaultControlsDeps,
 } from './vaultPanelEntry'
 
-export const VAULT_COMMANDS = { open: 'museSpark.vault', lock: 'museSpark.lockVault' } as const
+export const VAULT_COMMANDS = {
+  open: 'museSpark.vault',
+  lock: 'museSpark.lockVault',
+  undoRetired: 'museSpark.vaultUndoRetired',
+} as const
 export interface VaultWindowControls {
   open(): Promise<void>
   lock(): Promise<void>
+  /** D217: undo one retired migration slot, chosen from the retired entries. */
+  undoRetired(): Promise<void>
   dispose(): void
 }
-/** Both commands remain available even before the vault has an item. */
+/** All commands remain available even before the vault has an item. */
 export function registerVaultCommands(
   register: (id: string, action: () => Promise<void>) => Disposable,
   load: () => VaultWindowControls,
@@ -34,6 +40,9 @@ export function registerVaultCommands(
     }),
     register(VAULT_COMMANDS.lock, async () => {
       await current().lock()
+    }),
+    register(VAULT_COMMANDS.undoRetired, async () => {
+      await current().undoRetired()
     }),
   ]
   return {

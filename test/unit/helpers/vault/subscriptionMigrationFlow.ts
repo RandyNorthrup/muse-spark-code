@@ -166,6 +166,8 @@ export async function openMigrationSession(deps: {
   connect: () => Promise<VaultBrokerClient>
   lockScope: string
   fresh: boolean
+  /** A store this run already opened. Absent: a new uniquely named native store. */
+  secrets?: SecretStore
 }): Promise<{ session: VaultManageSession; secrets: SecretStore; reader: VaultFirstPartyReader }> {
   const session = new VaultManageSession(deps.connect, encodeVaultMaterial)
   if (deps.fresh) {
@@ -178,7 +180,7 @@ export async function openMigrationSession(deps: {
   }
   return {
     session,
-    secrets: uniqueKeyringStore(deps.lockScope),
+    secrets: deps.secrets ?? uniqueKeyringStore(deps.lockScope),
     reader: new VaultFirstPartyReader(deps.connect),
   }
 }
@@ -188,6 +190,7 @@ export async function openLoggedSession(deps: {
   connect: () => Promise<VaultBrokerClient>
   lockScope: string
   fresh: boolean
+  secrets?: SecretStore
 }): Promise<{
   session: VaultManageSession
   secrets: SecretStore
@@ -200,12 +203,20 @@ export async function openLoggedSession(deps: {
   return { ...opened, log, logged }
 }
 
+/** Service name for one run's native store. Not the product keychain service. */
+export function migrationKeyringService(): string {
+  return `Muse RLM109 ${randomBytes(16).toString('hex')}`
+}
+
 /**
 A uniquely named real native store, owning only this run's generated
-entries; no person's key is read.
+entries; no person's key is read. Pass `service` when another process must
+open the same entries.
 */
-export function uniqueKeyringStore(lockScope: string): SecretStore {
-  const service = `Muse RLM109 ${randomBytes(16).toString('hex')}`
+export function uniqueKeyringStore(
+  lockScope: string,
+  service = migrationKeyringService(),
+): SecretStore {
   return keyringSecretStore((_service, account) => new AsyncEntry(service, account), {
     lockScope,
   })
@@ -364,6 +375,30 @@ export async function driveMigratedSlot(deps: {
 }
 
 /**
+A real session with the controller bound at an adjustable minor release:
+19 until the caller moves it, so the retain window can be crossed by
+setting `release.current`. The log is the one its drive asserts stayed quiet.
+*/
+export async function openRetireFlow(deps: {
+  connect: () => Promise<VaultBrokerClient>
+  lockScope: string
+  fresh: boolean
+  secrets?: SecretStore
+}) {
+  const opened = await openLoggedSession(deps)
+  const release = { current: 19 }
+  const flow = migrationFlow({
+    secrets: opened.secrets,
+    session: opened.session,
+    reader: opened.reader,
+    log: opened.log,
+    providers: [],
+    minorRelease: () => release.current,
+  })
+  return { ...opened, ...flow, release }
+}
+
+/**
 The retire drive both suites run over the subscription slot: taken on
 unlock at release 19 with its legacy entry kept; at release 21 the next
 unlock retires the legacy entry, and the shell keeps reading the value
@@ -377,16 +412,15 @@ export async function driveRetireCase(deps: {
   lockScope: string
   fresh: boolean
 }): Promise<void> {
-  const { session, secrets, reader, log, logged } = await openLoggedSession(deps)
-  const release = { current: 19 }
-  const { controller: active, shell } = migrationFlow({
-    secrets,
+  const {
     session,
+    secrets,
     reader,
-    log,
-    providers: [],
-    minorRelease: () => release.current,
-  })
+    logged,
+    release,
+    controller: active,
+    shell,
+  } = await openRetireFlow(deps)
   const codec = chatgptSubscriptionMigrationCredential(Date.now)
   const origin = 'https://api.openai.com'
   const migrated = (expected: string, isLegacyPresent: boolean) =>

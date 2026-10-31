@@ -9546,6 +9546,51 @@ service of ours.
 - Full record, citations, drills and what is still unproven:
   `docs/certification/rlf-m124ro.md`.
 
+### D241 — Undo for a retired vault item; reset deletes retired items too (lane RLF-VAULTUNDO, 2026-10-23; the owner delegated to the lead: "your call on the undo"; numbered D217 on its branch until the int/recovery join of 2026-10-30, when that number was found shared with the judge fast path's `stat`)
+
+RLM109 left two product questions: `engine.undo` exists but nothing
+triggers it, and a vault reset (broker-side) would destroy retired
+slots, their only copies. The owner's call (2026-10-23): "your call on
+the undo". The lead's call:
+
+1. **Undo on each retired item.** The vault panel lists every retired
+   migration slot with its own Undo action; the same undo is a command
+   in the palette (`museSpark.vaultUndoRetired`, picked from the
+   retired entries). Undo restores the retired value as current: the
+   vault bytes are verified against the
+   journal digest and written back to the legacy store byte-exact, and
+   the slot is active again with the retain window restarted —
+   otherwise the next unlock would retire it again at once, making
+   Undo a no-op. It stays available until the person empties the
+   retired slot (the existing sign-out/removal path), after which undo
+   refuses in words. A slot whose legacy copy reappeared with
+   different bytes is never overwritten: undo refuses and keeps the
+   current value. Active-slot undo (abandoning the migration) stays
+   untriggered. The terminal's `vault undo` is not built (open, lead):
+   a retired slot's legacy store is the editor's SecretStorage, which
+   the terminal cannot write, and the terminal's own key store (D61)
+   has no migration bound yet (the T5 follow-up in the M109 record),
+   so it has no retired slot to undo; it follows that binding.
+2. **Reset deletes retired items too.** A vault reset removes retired
+   slots' journal rows and vault copies along with everything else; no
+   host-side restore runs first (reset is broker-side and cannot write
+   the legacy store). Reset is offered only for a vault that cannot be
+   opened, so its entries cannot be listed then: the confirmation says
+   plainly, before the person types RESET, that retired entries are
+   deleted too because the vault holds their only copies.
+
+The two questions never entered §3 (they lived in the M109 status
+line and `docs/certification/rlm109.md`); this decision resolves
+them, and the M109 status line records it. An undo killed between
+its steps resumes at the next unlock (RVCRED, 2026-10-30): the
+journal marks the restore pending before the legacy write and
+written only after that write reads back the same bytes. A newer
+legacy value is never overwritten. A copy removed after the write
+was saved is not written again. A retired ChatGPT sign-in stays
+listed after its legacy copy is gone, because the journal row is
+what names it. Full record: `docs/certification/rlf-vaultundo.md`,
+and the review record `docs/certification/rvcred.md`.
+
 ## 3. Open questions (need the owner)
 
 <a id="q-cc-licence"></a>
@@ -10935,6 +10980,10 @@ this lane (three host bundles over budget, PLAN.md over its size budget,
 three high dependency advisories); what holds on the merged int/recovery
 is in `docs/certification/cc-int2.md`. Record:
 `docs/certification/rlf-a11y.md`.
+
+### RVCRED — Review of retired-vault undo, secret-gist publish, and the macOS credential file (2026-10-30)
+
+**Status 2026-10-30: built, pending integration.** The vault undo crash window is closed in the engine on this branch (`5c0e4ec1c`); the broker drill did not run on this rig. The session keyring refuses a write with "User interaction is not allowed" (the same abort the RLF-VAULTUNDO record names), so neither the existing retired-undo case nor the new killed-undo case ran here. Both stay with hosted CI. The engine journals an undo as pending before the legacy write and written only after that write reads back; a newer value is not overwritten, and a copy removed after the write was saved is not written again. A retired ChatGPT sign-in stays in the credential set when its journal row is in the vault. The secret-gist review is `rv/m118` at `a0e8785b7` (D242, gist alone, grant stored apart from the repository sign-in). The macOS credential-file review is `rv/maccred` at `221f50197` (a symlink is not read as the file). Record: `docs/certification/rvcred.md`.
 
 ### RLWINFIX — Windows defects found by using 0.19.0 for real (2026-10-22)
 
@@ -25152,6 +25201,27 @@ reviewed the migration, the private reader's `secret` admission and
 the retire path (no secret in logs, errors, usage or panel state; no
 loss or duplication found). Evidence: `docs/certification/rvsec.md`.
 M109 stays open.
+
+**RLF-VAULTUNDO (2026-10-24, randy-lt): built; broker proofs wait for hosted CI.**
+D241 settles the two RLM109 product questions. A retired slot lists in
+the vault section with its own Undo, and `Undo Retired Vault Entry`
+(`museSpark.vaultUndoRetired`) does the same from the palette: the
+vault copy is verified against its journal digest, written back to the
+legacy store byte-exact, and the slot returns to active with its
+two-release window restarted; an emptied, still-current, unknown,
+changed or damaged slot refuses in its own sentence in all 14 tables.
+The reset confirmation now says retired entries are deleted with
+everything else. Proven here: the section's Undo posts exactly its
+entry's key (real render, red/green drilled), axe on the new
+`models-vault-retired` scene in four themes, and the usual gates. Not
+run here: the real-broker undo and reset cases (this rig's session
+keyring aborts, and the governed launch pins the real user session), so
+`undoes a retired entry byte-exact...` and `deletes retired entries with
+everything else...` in both broker suites are for hosted CI. The terminal
+`vault undo` is not built (see D241). Receipts:
+`docs/certification/rlf-vaultundo.md`. M109 stays open.
+
+**RVCRED (2026-10-30, macmini): the retired-undo crash window is closed in the engine.** A killed undo now resumes from a journal mark (pending before the legacy write, written only after that write reads back). A newer legacy value is not overwritten, and a copy removed after the write was saved is not written again. A retired ChatGPT sign-in stays listed from its journal row. Not run here: the broker cases, including the new killed-undo case in both broker suites. This session's keyring still aborts with "User interaction is not allowed", the same limit the 2026-10-24 record names. Hosted CI owns that proof. No changelog line until that run exists.
 
 **C-M109-1 lead decisions (2026-10-10, lead decision).** In 0.17.0, every
 vault use is refused. The binding layer was never built: the broker process,

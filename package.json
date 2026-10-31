@@ -451,6 +451,11 @@
         "category": "%command.category%"
       },
       {
+        "command": "museSpark.vaultUndoRetired",
+        "title": "%command.vaultUndoRetired.title%",
+        "category": "%command.category%"
+      },
+      {
         "command": "museSpark.estimate",
         "title": "%command.estimate.title%",
         "category": "%command.category%"

@@ -6206,6 +6206,16 @@ async function activateWindow(
               return Promise.resolve()
             },
             log,
+            // D241: the palette undo's one-shot sources — the raw store,
+            // the seam's provider ids and the installed minor ordinal.
+            migrationSources: {
+              secrets: context.secrets,
+              listProviderIds: async () => {
+                const entries = await providersSeamBundle().store.list()
+                return entries.map((entry) => entry.id)
+              },
+              minorRelease: migrationMinorRelease,
+            },
           },
           UI_TEXT,
           uiLocale(),
