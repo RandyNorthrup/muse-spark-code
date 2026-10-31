@@ -409,6 +409,11 @@ class MinimapView implements PluginValue {
 
 const minimapExtension = ViewPlugin.fromClass(MinimapView)
 
+/** `import()` rejects with a TypeError when the chunk cannot be fetched and a SyntaxError when it is not a module. */
+function isChunkLoadFailure(error: unknown): boolean {
+  return error instanceof TypeError || error instanceof SyntaxError
+}
+
 function cursorOf(state: EditorState): { line: number; column: number } {
   const head = state.selection.main.head
   const line = state.doc.lineAt(head)
@@ -483,10 +488,12 @@ export function mountEditor(parent: HTMLElement, options: MountEditorOptions): M
       const support = await loader()
       if (isDisposed || generation !== languageGeneration) return
       view.dispatch({ effects: languageCompartment.reconfigure(support) })
-    } catch {
-      // REPORTED: the chunk failed to load (its URL can carry a local
-      // path, so the error itself is never surfaced). The host shows the
-      // localized plain-text notice; the file stays fully editable.
+    } catch (error: unknown) {
+      // Only a chunk that cannot load is the expected failure (its URL can
+      // carry a local path, so the error itself is never surfaced): the host
+      // shows the localized plain-text notice and the file stays fully
+      // editable. Anything else is a defect and rejects.
+      if (!isChunkLoadFailure(error)) throw error
       if (!isDisposed && generation === languageGeneration) options.onLanguageFailed(languageId)
     }
   }
@@ -567,8 +574,10 @@ export function mountDiff(
           if (lifecycle.isDisposed) return
           view.a.dispatch({ effects: originalLanguage.reconfigure(support) })
           view.b.dispatch({ effects: modifiedLanguage.reconfigure(support) })
-        } catch {
-          // REPORTED as in mountEditor: plain-text diff, host notified.
+        } catch (error: unknown) {
+          // As in mountEditor: a chunk that cannot load gives a plain-text
+          // diff and the host is told; anything else rejects.
+          if (!isChunkLoadFailure(error)) throw error
           if (!lifecycle.isDisposed) options.onLanguageFailed(languageId)
         }
       })()
