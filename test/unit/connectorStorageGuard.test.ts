@@ -203,6 +203,22 @@ describe('M124 connector storage guard', () => {
     })
   })
 
+  it('accepts a first start whose data folder is reached through a link above it', async () => {
+    await usingPrivateDir('m124-guard-above-', async (data) => {
+      // Links at or above the anchor are normal (macOS's /var is one): before
+      // anything exists, the guard reads the chain as the system resolves it.
+      const real = path.join(data, 'real')
+      await mkdir(real)
+      const via = path.join(data, 'via')
+      await symlink(real, via, process.platform === 'win32' ? 'junction' : 'dir')
+      const guard = connectorStorageGuard(path.join(via, CONNECTOR_FOLDER))
+      await expect(guard.verify()).resolves.toBeUndefined()
+      await mkdir(path.join(via, CONNECTOR_FOLDER))
+      await guard.secure(path.join(via, CONNECTOR_FOLDER), 'directory')
+      await expect(guard.verify()).resolves.toBeUndefined()
+    })
+  })
+
   it('refuses a hard link below the root', async () => {
     await usingPrivateDir('m124-guard-hardlink-', async (data) => {
       const { root, guard } = await securedRoot(data)
