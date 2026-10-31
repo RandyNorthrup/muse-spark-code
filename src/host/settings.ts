@@ -178,7 +178,7 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiMaxRetries: number | null
   /** Lane RLF-AUTORETRY (D228): resends of a retryable failed Muse Code turn; null is the industry default (2). */
   readonly museCodeMaxRetries: number | null
-  /** Lane RLF-QUOTA (D229): continue a quota-exhausted Muse Code turn at the reset; off by default. */
+  /** Lane RLF-QUOTA (D252): continue a quota-exhausted Muse Code turn at the reset; off by default. */
   readonly museCodeQuotaContinue: boolean
   /** Stop-hook continuations in a row (M127, D121: 0 is no limit of ours). */
   readonly hooksMaxStopContinuations: number
@@ -356,7 +356,7 @@ const settingSchemas = {
   modelApiMaxRetries: z.nullable(z.int().check(z.gte(0))),
   // Lane RLF-AUTORETRY (D228): null (unset) resends twice, the industry default; 0 never resends.
   museCodeMaxRetries: z.nullable(z.int().check(z.gte(0))),
-  // Lane RLF-QUOTA (D229): off by default; on continues at the reset.
+  // Lane RLF-QUOTA (D252): off by default; on continues at the reset.
   museCodeQuotaContinue: z.boolean(),
   // D121: 0 is no limit of ours (the default); a set whole count governs as
   // set (NOLIMITSSET: the removed 8 was ours — no provider documents one).

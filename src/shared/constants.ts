@@ -1543,7 +1543,7 @@ export const SETTING_DEFAULTS = {
   // turn, unset by default (null: two resends, the industry default).
   // Machine scoped like its Model API sibling: it chooses billed retries.
   museCodeMaxRetries: null as number | null,
-  // Lane RLF-QUOTA (D229): continue a quota-exhausted Muse Code turn
+  // Lane RLF-QUOTA (D252): continue a quota-exhausted Muse Code turn
   // when the usage window resets, off by default. Machine scoped like
   // the resend limit: the continue resends a billed turn.
   museCodeQuotaContinue: false,
@@ -4035,7 +4035,7 @@ export const ACP_ERROR_CODES = {
   turnFailed: -32_011,
   unavailable: -32_012,
   refused: -32_013,
-  // A spent subscription window (D229): its own outcome, never internal.
+  // A spent subscription window (D252): its own outcome, never internal.
   quotaExhausted: -32_014,
 } as const
 
@@ -11034,7 +11034,7 @@ export const HANDOFF_NOTE =
 // credential is a protocol value.
 export const MHP_ZERO_VERSION_COMPONENT = 0n
 export const MHP = {
-  // RLF-QUOTA (D229): 1.5.1 carries the quota detail on turnCompleted and
+  // RLF-QUOTA (D252): 1.5.1 carries the quota detail on turnCompleted and
   // turnRetry; one version everywhere (D226), so the minimum moves with it.
   version: 'mhp/1.5.1',
   minimumVersion: 'mhp/1.5.1',

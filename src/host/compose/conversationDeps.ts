@@ -172,7 +172,7 @@ export function composeConversationDeps(
     // D228: the person's Muse Code resend limit, read per resend decision;
     // unset leaves the industry default in force.
     museCodeMaxRetries: () => currentSettings().museCodeMaxRetries ?? undefined,
-    // D229: the person's quota-continue opt-in, read per continue decision.
+    // D252: the person's quota-continue opt-in, read per continue decision.
     museCodeQuotaContinue: () => currentSettings().museCodeQuotaContinue,
     ownedVoiceBudgetScope: async (sessionId) => {
       if (auth.current.backend !== 'modelApi') {

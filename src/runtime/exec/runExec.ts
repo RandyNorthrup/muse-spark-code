@@ -212,7 +212,7 @@ export function budgetFinalMessage(input: {
 }
 
 /**
-A failed turn's headless outcome (D229): a quota turn reports kind
+A failed turn's headless outcome (D252): a quota turn reports kind
 `quota_exhausted` with the reset in words, the same kind the ACP error
 carries; anything else reports undefined and keeps its existing words.
 */
@@ -500,7 +500,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let isCompactionPrompt = false
   let terminal: string | null = null
   let incompleteReason: string | null = null
-  /** A quota turn's headless outcome (D229), for the stderr line and result below. */
+  /** A quota turn's headless outcome (D252), for the stderr line and result below. */
   let quotaFailure: { readonly kind: 'quota_exhausted'; readonly message: string } | undefined
   let modelCallLimitReason: string | undefined
   let backendErrorKind: string | undefined
@@ -585,7 +585,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         sink.emit({ type: 'limit', limit: 'requests' })
       }
       if (event.terminal === 'failed') {
-        // A spent window says the reset in words, never `kind: raw text` (D229).
+        // A spent window says the reset in words, never `kind: raw text` (D252).
         const quota = execQuotaOutcome(event)
         if (quota !== undefined) {
           quotaFailure = quota
@@ -1879,7 +1879,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           ? null
           : {
               // A quota turn's failure is typed with the reset in words
-              // (D229); a lifecycle cause or local refusal stays the run's
+              // (D252); a lifecycle cause or local refusal stays the run's
               // own story, and a specific error is never clobbered.
               kind:
                 localRefusalKind ??

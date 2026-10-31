@@ -403,7 +403,7 @@ function rawNotification(notification: WireNotification): MapOutcome {
       const { sessionId, turnId, terminal, reason, durationMs, error } = params as z.infer<
         (typeof schemas)['turn/completed']
       >
-      // A spent subscription window (D229): the typed detail rides on
+      // A spent subscription window (D252): the typed detail rides on
       // only with a usable reset instant, so every reader branches on
       // presence alone and no surface can name an "Invalid Date".
       const quota =

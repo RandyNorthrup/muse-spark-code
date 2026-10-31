@@ -989,7 +989,7 @@ function turnAnnouncement(event: {
       return UI_TEXT.announceTurnCompleted
     }
     case 'failed': {
-      // A spent window is announced with its reset, never as raw text (D229).
+      // A spent window is announced with its reset, never as raw text (D252).
       const quota = quotaTurnFailureText(event)
       if (quota !== undefined) return `${UI_TEXT.announceTurnFailed}: ${quota}`
       return event.reason === undefined
@@ -2212,7 +2212,7 @@ function applyAgentEvent(
       // D228: one "Retrying in Ns (attempt K of N)" row per turn, replaced
       // in place by each further attempt (never a row per wait), offering
       // Stop. It clears when the turn speaks or ends (below). A wait
-      // until the subscription window resets (D229) names the reset
+      // until the subscription window resets (D252) names the reset
       // instead of a seconds count; the row still offers Stop.
       const seconds = Math.max(1, Math.round(event.retryDelayMs / MILLISECONDS_PER_SECOND))
       const retrying =

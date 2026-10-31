@@ -754,7 +754,7 @@ export interface ConversationDeps {
   */
   readonly museCodeMaxRetries?: () => number | undefined
   /**
-  The person's quota-continue opt-in (D229), read live per continue
+  The person's quota-continue opt-in (D252), read live per continue
   decision; absent or false shows a quota failure at once with Retry.
   The window reads the setting through it, the rig its own flag.
   */
@@ -8601,7 +8601,7 @@ export class ConversationController implements DeferredSend {
   CLI owns its loop, so our layer resends a continue in the same
   session), with the send's own parts still remembered and resends left.
   A duplicate end for the waiting turn is swallowed — it already waits.
-  A spent subscription window (D229) never resends this way: it waits
+  A spent subscription window (D252) never resends this way: it waits
   only for the reset, only with the person's opt-in, in
   `holdForQuotaReset` below.
   */
@@ -8614,7 +8614,7 @@ export class ConversationController implements DeferredSend {
   }
 
   /**
-  Whether a quota-exhausted turn waits until the window resets (D229):
+  Whether a quota-exhausted turn waits until the window resets (D252):
   only a failed quota turn, and only with the person's opt-in
   (`museCodeQuotaContinue`). The wait honours the provider's reset
   instant whole, however long; the resend count still bounds the chain
@@ -8717,7 +8717,7 @@ export class ConversationController implements DeferredSend {
     const quota = waiting.held.quota
     const maxResends = this.deps.museCodeMaxRetries?.() ?? INDUSTRY_RETRY_MAX_RETRIES
     // A quota wait honours the provider's reset instant whole, however
-    // long (D229): no wait of ours refuses it, as with Retry-After. A
+    // long (D252): no wait of ours refuses it, as with Retry-After. A
     // reset already past resubmits at once.
     const delayMs =
       quota === undefined
@@ -8778,7 +8778,7 @@ export class ConversationController implements DeferredSend {
       return
     }
     // The quota opt-in is live too: turned off mid-wait, the held
-    // failure shows instead of continuing at the reset (D229).
+    // failure shows instead of continuing at the reset (D252).
     if (quota !== undefined && this.deps.museCodeQuotaContinue?.() !== true) {
       this.forward(waiting.held)
       return
@@ -8812,7 +8812,7 @@ export class ConversationController implements DeferredSend {
       sessionId: session.sessionId,
       rememberedSessionId: waiting.sessionId,
       // At the reset the quota cause cleared, so the resubmit is
-      // admitted whatever the failure's own judgment said (D229).
+      // admitted whatever the failure's own judgment said (D252).
       failedRetryable: true,
       // A turn may have started while the session re-established above,
       // so the live read is load-bearing; the rule sees only the
