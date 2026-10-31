@@ -1826,6 +1826,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       { importer: 'src/shared/constants.ts', symbol: 'WEB_FETCH_BUNDLE_FILE', side: ['vscode'] },
     ],
   },
+  { file: 'webview/developerOptions.js', side: 'vscode', requestedBy: [] },
   {
     file: 'webview/judgeSetup.js',
     side: 'vscode',

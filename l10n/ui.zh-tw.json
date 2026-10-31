@@ -6632,7 +6632,7 @@
     "revokeUnsupported": "此執行環境不支援移除此登入。",
     "providersInvalid": "提供者檔案無效，其項目已被拒絕，檔案保持不變。",
     "poolUnavailable": "此執行環境不支援帳戶集區：需要繫結的資源擁有者。請移除 --account-pool 後重新執行。",
-    "cliUsage": "帳戶：{command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [依序排列的ID]。憑證：{command} auth set --provider <id> --account <id>（僅限標準輸入）。",
+    "cliUsage": "帳戶：{command} providers accounts list|add|remove|order|thresholds|place --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [--device <id>] [依序排列的ID|帳戶ID]。憑證：{command} auth set --provider <id> --account <id>（僅限標準輸入）。",
     "slashDescription": "列出帳戶、查看閾值或選擇帳戶。",
     "title": "帳戶",
     "defaultLabel": "預設帳戶",
@@ -6736,7 +6736,8 @@
     "spendAdminPrompt": "{provider} 的管理員報告金鑰：",
     "spendAdminStored": "{provider} 的管理員報告金鑰已儲存在 {store} 中。",
     "spendAdminCleared": "已清除 {provider} 的管理員報告金鑰。",
-    "spendRefreshWait": "支出報告最多每分鐘重新整理一次；目前顯示快取的報告。"
+    "spendRefreshWait": "支出報告最多每分鐘重新整理一次；目前顯示快取的報告。",
+    "severalSettingsRedirect": "請在「帳戶」頁面中提供者旁開啟多個帳戶，以便先顯示提供者條款確認。"
   },
   "developer": {
     "title": "開發人員選項",
@@ -6751,6 +6752,7 @@
     "differentMachine": "開發人員選項是在另一個機器身分下設定的。重設它們以在這台電腦上重新開始。",
     "invalidRequest": "請檢查開發人員選項請求。",
     "expires": "開發人員模式將於 {time} 到期。",
+    "expired": "開發者模式已過期，其設定檔已停止。",
     "reset": "重設開發人員選項",
     "profiles": "本機設定檔",
     "profileInfo": "每個設定檔都有獨立的認證資料儲存槽、狀態資料夾及執行程序。到期時停止設定檔，重設時將其刪除。",
@@ -6759,7 +6761,8 @@
     "addProfile": "新增本機設定檔",
     "helpUnlock": "點擊版本號七次，或使用開發人員選項命令解鎖。",
     "helpTerminal": "執行 `developer` 解鎖；`developer status` 顯示本機的選項。",
-    "commandUsage": "用法：developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
+    "commandUsage": "用法：developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]",
+    "versionLine": "版本 {version}"
   },
   "mcpConnectorTitle": "供其他代理使用的 MCP 連接器",
   "referenceMcpCommand": "透過 MCP 將 Muse Spark Code 的工具提供給其他代理（Codex、Claude Code、Gemini CLI）；每次寫入都會等待您的核准。",

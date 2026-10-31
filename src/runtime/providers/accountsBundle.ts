@@ -4,6 +4,11 @@ import { UI_TEXT } from '../../shared/constants'
 import type {
   createRuntimeAccountServicesForLocale,
   createEditorAccountServicesForLocale,
+  developerBadge,
+  developerConfirmation,
+  developerStatusText,
+  handleDeveloperRequest,
+  openEditorDeveloperOptions,
   runTerminalDeveloperCommand,
   runAccountsCommand,
   runAccountAuthSet,
@@ -15,6 +20,11 @@ export interface RuntimeAccountsBundle {
   readonly runAccountAuthSet: typeof runAccountAuthSet
   readonly createRuntimeAccountServicesForLocale: typeof createRuntimeAccountServicesForLocale
   readonly runTerminalDeveloperCommand: typeof runTerminalDeveloperCommand
+  readonly openEditorDeveloperOptions?: typeof openEditorDeveloperOptions
+  readonly developerBadge?: typeof developerBadge
+  readonly developerConfirmation?: typeof developerConfirmation
+  readonly developerStatusText?: typeof developerStatusText
+  readonly handleDeveloperRequest?: typeof handleDeveloperRequest
 }
 
 /** Same-build factory signatures are trusted after checking the exports (PLAN §8). */

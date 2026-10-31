@@ -394,6 +394,14 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     budgetKiB: 50,
   },
   {
+    // M108 X (CC-INT6 join): the Developer options page is its own lazy page
+    // entry; measured 5.5 KiB with its stylesheet, +15%, rounded up to 25 KiB
+    // (D6), so it no longer counts against the deferred aggregate.
+    name: 'Developer options',
+    entries: ['src/webview/developer/DeveloperOptionsEntry.tsx'],
+    budgetKiB: 25,
+  },
+  {
     name: 'code highlighting',
     entries: ['src/webview/components/HighlightedCode.tsx'],
     budgetKiB: 125,

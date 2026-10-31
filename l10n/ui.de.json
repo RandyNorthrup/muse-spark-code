@@ -6806,7 +6806,7 @@
     "revokeUnsupported": "Das Entfernen dieser Anmeldung wird in dieser Laufzeit nicht unterstützt.",
     "providersInvalid": "Die Anbieterdatei ist ungültig, daher wurden ihre Einträge abgelehnt und die Datei unverändert gelassen.",
     "poolUnavailable": "Die Kontobündelung ist in dieser Runtime nicht verfügbar: Sie benötigt einen gebundenen Ressourceninhaber. Führen Sie den Befehl ohne --account-pool erneut aus.",
-    "cliUsage": "Konten: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [geordnete IDs]. Zugangsdaten: {command} auth set --provider <id> --account <id> (nur Standardeingabe).",
+    "cliUsage": "Konten: {command} providers accounts list|add|remove|order|thresholds|place --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [--device <id>] [geordnete IDs|Konto-ID]. Zugangsdaten: {command} auth set --provider <id> --account <id> (nur Standardeingabe).",
     "slashDescription": "Konten auflisten, Schwellenwerte anzeigen oder ein Konto auswählen.",
     "title": "Konten",
     "defaultLabel": "Standardkonto",
@@ -6911,7 +6911,8 @@
     "spendAdminPrompt": "Admin-Berichtsschlüssel für {provider}: ",
     "spendAdminStored": "Admin-Berichtsschlüssel für {provider} in {store} gespeichert.",
     "spendAdminCleared": "Admin-Berichtsschlüssel für {provider} gelöscht.",
-    "spendRefreshWait": "Verbrauchsberichte werden höchstens einmal pro Minute aktualisiert; der zwischengespeicherte Bericht wird angezeigt."
+    "spendRefreshWait": "Verbrauchsberichte werden höchstens einmal pro Minute aktualisiert; der zwischengespeicherte Bericht wird angezeigt.",
+    "severalSettingsRedirect": "Schalten Sie mehrere Konten auf der Kontenseite neben dem Anbieter ein, damit zuerst die Bestätigung der Anbieterbedingungen angezeigt wird."
   },
   "developer": {
     "title": "Entwickleroptionen",
@@ -6926,6 +6927,7 @@
     "differentMachine": "Die Entwickleroptionen wurden unter einer anderen Rechneridentität eingerichtet. Setzen Sie sie zurück, um auf diesem Rechner neu zu beginnen.",
     "invalidRequest": "Prüfen Sie die Anfrage für Entwickleroptionen.",
     "expires": "Der Entwicklermodus läuft {time} ab.",
+    "expired": "Der Entwicklermodus ist abgelaufen und seine Profile wurden gestoppt.",
     "reset": "Entwickleroptionen zurücksetzen",
     "profiles": "Lokale Profile",
     "profileInfo": "Jedes Profil hat einen eigenen Zugangsdatenplatz, Zustandsordner und Laufzeitprozess. Bei Ablauf werden Profile beendet; Zurücksetzen löscht sie.",
@@ -6934,7 +6936,8 @@
     "addProfile": "Lokales Profil hinzufügen",
     "helpUnlock": "Klicken Sie siebenmal auf die Version oder verwenden Sie den Befehl Entwickleroptionen zum Entsperren.",
     "helpTerminal": "Führen Sie `developer` zum Entsperren aus; `developer status` zeigt die Optionen dieses Rechners.",
-    "commandUsage": "Aufruf: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
+    "commandUsage": "Aufruf: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]",
+    "versionLine": "Version {version}"
   },
   "mcpConnectorTitle": "MCP-Connector für andere Agenten",
   "referenceMcpCommand": "Die Tools von Muse Spark Code über MCP für andere Agents (Codex, Claude Code, Gemini CLI) bereitstellen; jeder Schreibvorgang wartet auf Ihre Genehmigung.",

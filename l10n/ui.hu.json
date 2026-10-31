@@ -6806,7 +6806,7 @@
     "revokeUnsupported": "A bejelentkezés eltávolítása ebben a futtatókörnyezetben nem támogatott.",
     "providersInvalid": "A szolgáltatófájl érvénytelen, ezért bejegyzéseit elutasítottuk, és a fájlt változatlanul hagytuk.",
     "poolUnavailable": "A fiók-összevonás ebben a futtatókörnyezetben nem érhető el: kötött erőforrás-tulajdonos szükséges hozzá. Futtassa újra a --account-pool kapcsoló nélkül.",
-    "cliUsage": "Fiókok: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [rendezett azonosítók]. Hitelesítő adatok: {command} auth set --provider <id> --account <id> (csak szabványos bemenetről).",
+    "cliUsage": "Fiókok: {command} providers accounts list|add|remove|order|thresholds|place --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [--device <id>] [rendezett azonosítók|fiókazonosító]. Hitelesítő adatok: {command} auth set --provider <id> --account <id> (csak szabványos bemenetről).",
     "slashDescription": "Fiókok listázása, küszöbértékek megtekintése vagy fiók kiválasztása.",
     "title": "Fiókok",
     "defaultLabel": "Alapértelmezett fiók",
@@ -6911,7 +6911,8 @@
     "spendAdminPrompt": "Rendszergazdai jelentéskulcs ehhez: {provider}: ",
     "spendAdminStored": "Rendszergazdai jelentéskulcs mentve ehhez: {provider}, hely: {store}.",
     "spendAdminCleared": "Rendszergazdai jelentéskulcs törölve ehhez: {provider}.",
-    "spendRefreshWait": "A költségjelentések legfeljebb percenként frissülnek; a gyorsítótárazott jelentés látható."
+    "spendRefreshWait": "A költségjelentések legfeljebb percenként frissülnek; a gyorsítótárazott jelentés látható.",
+    "severalSettingsRedirect": "Több fiókot a Fiókok oldalon, a szolgáltató mellett kapcsoljon be, hogy először a szolgáltató feltételeinek megerősítése jelenjen meg."
   },
   "developer": {
     "title": "Fejlesztői beállítások",
@@ -6926,6 +6927,7 @@
     "differentMachine": "A fejlesztői beállításokat egy másik gépazonosítóval állították be. Állítsa vissza őket, hogy ezen a gépen újra kezdhesse.",
     "invalidRequest": "Ellenőrizze a fejlesztői beállítások kérését.",
     "expires": "A fejlesztői mód ekkor jár le: {time}.",
+    "expired": "A fejlesztői mód lejárt, és profiljai leálltak.",
     "reset": "Fejlesztői beállítások visszaállítása",
     "profiles": "Helyi profilok",
     "profileInfo": "Minden profilnak saját hitelesítőadat-helye, állapotmappája és futtatási folyamata van. A lejárat leállítja a profilokat; a visszaállítás törli őket.",
@@ -6934,7 +6936,8 @@
     "addProfile": "Helyi profil hozzáadása",
     "helpUnlock": "Kattintson hétszer a verzióra, vagy használja a Fejlesztői beállítások parancsot a feloldáshoz.",
     "helpTerminal": "A feloldáshoz futtassa a `developer` parancsot; a `developer status` megjeleníti a gép beállításait.",
-    "commandUsage": "Használat: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
+    "commandUsage": "Használat: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]",
+    "versionLine": "Verzió {version}"
   },
   "mcpConnectorTitle": "MCP-összekötő más ügynökök számára",
   "referenceMcpCommand": "A Muse Spark Code eszközeinek elérhetővé tétele más ügynökök (Codex, Claude Code, Gemini CLI) számára MCP-n keresztül; minden írás az Ön jóváhagyására vár.",

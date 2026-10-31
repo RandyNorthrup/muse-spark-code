@@ -7154,7 +7154,7 @@
     "revokeUnsupported": "Usunięcie tego logowania nie jest obsługiwane w tym środowisku.",
     "providersInvalid": "Plik dostawców jest nieprawidłowy, więc jego wpisy zostały odrzucone, a plik pozostawiono bez zmian.",
     "poolUnavailable": "Łączenie kont jest niedostępne w tym środowisku wykonawczym: wymaga powiązanego właściciela zasobów. Uruchom ponownie bez --account-pool.",
-    "cliUsage": "Konta: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [uporządkowane identyfikatory]. Dane uwierzytelniające: {command} auth set --provider <id> --account <id> (tylko standardowe wejście).",
+    "cliUsage": "Konta: {command} providers accounts list|add|remove|order|thresholds|place --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [--device <id>] [uporządkowane identyfikatory|identyfikator konta]. Dane uwierzytelniające: {command} auth set --provider <id> --account <id> (tylko standardowe wejście).",
     "slashDescription": "Wyświetl konta, sprawdź progi lub wybierz konto.",
     "title": "Konta",
     "defaultLabel": "Konto domyślne",
@@ -7261,7 +7261,8 @@
     "spendAdminPrompt": "Klucz raportów administratora dla {provider}: ",
     "spendAdminStored": "Klucz raportów administratora dla {provider} zapisany w {store}.",
     "spendAdminCleared": "Klucz raportów administratora dla {provider} usunięty.",
-    "spendRefreshWait": "Raporty wydatków odświeżają się co najwyżej raz na minutę; wyświetlany jest raport z pamięci podręcznej."
+    "spendRefreshWait": "Raporty wydatków odświeżają się co najwyżej raz na minutę; wyświetlany jest raport z pamięci podręcznej.",
+    "severalSettingsRedirect": "Włącz wiele kont na stronie Konta, obok dostawcy, aby najpierw wyświetliło się potwierdzenie warunków dostawcy."
   },
   "developer": {
     "title": "Opcje programisty",
@@ -7276,6 +7277,7 @@
     "differentMachine": "Opcje programisty skonfigurowano dla innej tożsamości komputera. Zresetuj je, aby zacząć od nowa na tym komputerze.",
     "invalidRequest": "Sprawdź żądanie opcji programisty.",
     "expires": "Tryb programisty wygasa {time}.",
+    "expired": "Tryb dewelopera wygasł, a jego profile zostały zatrzymane.",
     "reset": "Zresetuj opcje programisty",
     "profiles": "Profile lokalne",
     "profileInfo": "Każdy profil ma własne miejsce na dane uwierzytelniające, folder stanu i proces wykonawczy. Wygaśnięcie zatrzymuje profile; reset je usuwa.",
@@ -7284,7 +7286,8 @@
     "addProfile": "Dodaj profil lokalny",
     "helpUnlock": "Kliknij wersję siedem razy lub użyj polecenia Opcje programisty, aby odblokować.",
     "helpTerminal": "Uruchom `developer`, aby odblokować; `developer status` pokazuje opcje tego komputera.",
-    "commandUsage": "Użycie: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
+    "commandUsage": "Użycie: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]",
+    "versionLine": "Wersja {version}"
   },
   "mcpConnectorTitle": "Łącznik MCP dla innych agentów",
   "referenceMcpCommand": "Udostępnia narzędzia Muse Spark Code innym agentom (Codex, Claude Code, Gemini CLI) przez MCP; każdy zapis czeka na Twoje zatwierdzenie.",

@@ -256,6 +256,9 @@ export const ACCOUNT_REQUEST_CERTIFICATION = { isComplete: true }
 export const ACCOUNT_HEADROOM_ZERO = 0n
 export const ACCOUNT_HEADROOM_ONE = 1n
 export const ACCOUNT_HEADROOM_SCALE = 1_000_000
+// M108 D: the offer bucket reads ample at this fraction of room left (a
+// routing preference only; the person's own caps live in the thresholds).
+export const ACCOUNT_HEADROOM_AMPLE_DIVISOR = 2n
 export const ACCOUNT_REQUEST_STORE = {
   directory: 'account-requests',
   // Covers current local month/week, including UTC bucket boundaries.
@@ -628,6 +631,9 @@ export const GOOEY_MENU = {
   staggerMs: 30,
 } as const
 
+// The developer-options command's id, named once: a bundle that needs only the
+// id must not pull the whole command table in with it.
+const DEVELOPER_OPTIONS_COMMAND = 'museSpark.developerOptions'
 export const COMMAND_IDS = {
   connectChatGpt: 'museSpark.connectChatGpt',
   connectCopilot: 'museSpark.connectCopilot',
@@ -721,6 +727,9 @@ export const COMMAND_IDS = {
   attachScreenRecording: 'museSpark.attachScreenRecording',
   attachLatestScreenRecording: 'museSpark.attachLatestScreenRecording',
   deleteUploadedFiles: 'museSpark.deleteUploadedFiles',
+  // M108 X (PLAN.md D88 amendment b): the palette entry that unlocks
+  // machine-local developer options and opens their page.
+  developerOptions: DEVELOPER_OPTIONS_COMMAND,
 } as const
 
 // M95 lane K (PLAN.md D74): the Models & Agents panel host. The panel's host
@@ -11396,12 +11405,16 @@ export const DEVELOPER_STATE_MAX_BYTES = 16 * 1024
 export const DEVELOPER_UI_BUDGET_BYTES = 25 * 1024
 export const DEVELOPER_DIRECTORY_MODE = 0o700
 export const DEVELOPER_FILE_MODE = 0o600
-export const DEVELOPER_COMMAND_ID = 'museSpark.developerOptions'
+export const DEVELOPER_COMMAND_ID = DEVELOPER_OPTIONS_COMMAND
 // D88 amendment b2: the visible Settings › Accounts option (machine-scoped,
 // off by default); its accounts run in isolated local profiles like the
 // developer first option, without the developer badge or expiry.
 export const DEVELOPER_SETTING_ID = 'museSpark.accounts.severalOnThisDevice'
-export const DEVELOPER_FILES = { state: 'developer.json', audit: 'developer-audit.jsonl' } as const
+export const DEVELOPER_FILES = {
+  state: 'developer.json',
+  audit: 'developer-audit.jsonl',
+  slots: 'developer-slots.json',
+} as const
 // DEVID017B: the stable machine identity (core/developer/machineId.ts). A
 // random id created once per machine and kept in the machine-scoped data
 // folder every host on this machine shares. It is never derived from the

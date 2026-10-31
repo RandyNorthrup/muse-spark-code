@@ -292,7 +292,8 @@
       "desktop.sessionTerminal",
       "desktop.downloadSize",
       "desktop.details",
-      "watchdog.verdicts.spam"
+      "watchdog.verdicts.spam",
+      "developer.versionLine"
     ],
     "es": [
       "hooksItem",
@@ -386,7 +387,8 @@
       "desktop.notificationsCount.one",
       "desktop.notificationsCount.other",
       "desktop.notificationsCount.many",
-      "watchdog.verdicts.spam"
+      "watchdog.verdicts.spam",
+      "developer.versionLine"
     ],
     "it": [
       "usageAccount",

@@ -98,3 +98,13 @@ export function createEditorAccountServicesForLocale(
   setUiText(table, locale)
   return createEditorAccountServices(input)
 }
+
+// The window's developer owner and the pure rendering around it (M108 X): the
+// editor reaches them through this bundle, so activation carries none of them.
+export { openEditorDeveloperOptions } from '../../host/developer/editorDeveloper'
+export {
+  developerBadge,
+  developerConfirmation,
+  developerStatusText,
+  handleDeveloperRequest,
+} from '../../core/developer/surfaces'

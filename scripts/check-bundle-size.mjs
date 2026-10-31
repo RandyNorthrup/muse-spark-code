@@ -103,6 +103,10 @@ const BUDGETS = [
   { path: 'dist/webview/resourceSurface.js', budgetKiB: 25 },
   { path: 'dist/webview/resourceHistory.js', budgetKiB: 25 },
   { path: 'dist/webview/resourceHistory.css', budgetKiB: 25 },
+  // M108 X: the Developer options page, loaded only when it opens; the
+  // 25 KiB cap is DEVELOPER_UI_BUDGET_BYTES (PLAN.md D6).
+  { path: 'dist/webview/developerOptions.js', budgetKiB: 25 },
+  { path: 'dist/webview/developerOptions.css', budgetKiB: 25 },
   // Versioned exec event schema: 37.5 KiB +15%, rounded to 25 KiB.
   { path: 'docs/schemas/exec-event-v2.schema.json', budgetKiB: 50 },
   // ACTDIET: first chat surface; 216.0 KiB + 15%, rounded to 25 KiB.

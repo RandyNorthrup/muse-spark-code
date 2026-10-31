@@ -24370,6 +24370,29 @@ lane-K cap (see §7). Still waiting: Q-M108 captures (M, replay/cache),
 lane D (M100/M107), X profiles and M95 foreign joins. Record:
 `docs/certification/rlm108.md`.
 
+**RLF-M108 recovery (2026-10-30, macbook).** Built lanes D and X on the
+merged base. D: pins on the account rows with queued one-per-device
+enforcement, `add --device` with rollback, `place` naming mistyped
+accounts, headroom-bucket routing, **Send to {device}**, receiver
+record and confirmations, proven by the two-process M100/M107 drill.
+X: the several-accounts setting undeprecated, read and enforced, with
+the per-provider Accounts-page switch running decision 6's
+confirmation and a revert on unconfirmed Settings flips; the window
+developer owner in the shared machine folder; the palette entry; the
+Developer options page as its own 25 KiB-capped chunk with the
+seven-click version unlock; the status-bar and header **Developer
+Mode** badge; expiry with notice; Reset; the audit file; `/help`
+rows; the cross-profile wire golden. Red/green drills throughout;
+twelve budgets flip from the lane's shared growth and are reported
+with measurements, never raised (recovery rule); base-red gates
+(nine budgets, catches, one `judge` help assertion) stay reported,
+not retouched. The setting's isolated-profile
+_effect_ stays held for M109's broker (C-M108-7/C-M126-INT):
+`runtime.start`/`pool.register` refuse honestly until it binds, so no
+profile runs or registers silently. Record:
+`docs/certification/rlf-m108.md`. Still waiting: Q-M108 captures,
+RLF-DEVICES live transport, M95 foreign joins, D93 audit display.
+
 **MSM108 main integration (2026-10-17, macmini).** Merged `main-now`
 3d30a7321 (568 commits) into the lane tip a79ed4c1f with `git merge
 --no-ff`; all 45 conflicted files resolved by meaning and main's test

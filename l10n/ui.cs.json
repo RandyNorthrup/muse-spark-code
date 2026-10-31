@@ -7154,7 +7154,7 @@
     "revokeUnsupported": "Odebrání tohoto přihlášení není v tomto běhovém prostředí podporováno.",
     "providersInvalid": "Soubor poskytovatelů je neplatný, proto byly jeho položky odmítnuty a soubor zůstal nezměněn.",
     "poolUnavailable": "Sdružování účtů není v tomto běhovém prostředí dostupné: vyžaduje vázaného vlastníka prostředků. Spusťte znovu bez --account-pool.",
-    "cliUsage": "Účty: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [seřazená ID]. Přihlašovací údaje: {command} auth set --provider <id> --account <id> (pouze standardní vstup).",
+    "cliUsage": "Účty: {command} providers accounts list|add|remove|order|thresholds|place --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [--device <id>] [seřazená ID|ID účtu]. Přihlašovací údaje: {command} auth set --provider <id> --account <id> (pouze standardní vstup).",
     "slashDescription": "Vypsat účty, zobrazit prahové hodnoty nebo vybrat účet.",
     "title": "Účty",
     "defaultLabel": "Výchozí účet",
@@ -7261,7 +7261,8 @@
     "spendAdminPrompt": "Klíč přehledů správce pro {provider}: ",
     "spendAdminStored": "Klíč přehledů správce pro {provider} uložen v {store}.",
     "spendAdminCleared": "Klíč přehledů správce pro {provider} smazán.",
-    "spendRefreshWait": "Přehledy útraty se obnovují nejvýše jednou za minutu; zobrazuje se uložený přehled."
+    "spendRefreshWait": "Přehledy útraty se obnovují nejvýše jednou za minutu; zobrazuje se uložený přehled.",
+    "severalSettingsRedirect": "Více účtů zapněte na stránce Účty vedle poskytovatele, aby se nejprve zobrazilo potvrzení podmínek poskytovatele."
   },
   "developer": {
     "title": "Možnosti pro vývojáře",
@@ -7276,6 +7277,7 @@
     "differentMachine": "Možnosti pro vývojáře byly nastaveny pod jinou identitou počítače. Obnovením je na tomto počítači začnete používat znovu.",
     "invalidRequest": "Zkontrolujte požadavek na možnosti pro vývojáře.",
     "expires": "Vývojářský režim vyprší {time}.",
+    "expired": "Režim pro vývojáře vypršel a jeho profily se zastavily.",
     "reset": "Obnovit možnosti pro vývojáře",
     "profiles": "Místní profily",
     "profileInfo": "Každý profil má vlastní úložiště přihlašovacích údajů, složku stavu a běhový proces. Vypršení profily zastaví; obnovení je odstraní.",
@@ -7284,7 +7286,8 @@
     "addProfile": "Přidat místní profil",
     "helpUnlock": "Klikněte sedmkrát na verzi nebo použijte příkaz Možnosti pro vývojáře k odemknutí.",
     "helpTerminal": "Spusťte `developer` pro odemknutí; `developer status` zobrazí možnosti tohoto počítače.",
-    "commandUsage": "Použití: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
+    "commandUsage": "Použití: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]",
+    "versionLine": "Verze {version}"
   },
   "mcpConnectorTitle": "MCP konektor pro další agenty",
   "referenceMcpCommand": "Zpřístupní nástroje Muse Spark Code jiným agentům (Codex, Claude Code, Gemini CLI) přes MCP; každý zápis čeká na vaše schválení.",

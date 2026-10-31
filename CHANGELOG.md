@@ -1601,6 +1601,32 @@ set|status|clear --provider <id> --admin` stores the separate admin
   (`dist/accountPaid.js`), never at activation. Native Meta VS Code and ACP bind this consent at request boundaries;
   headless keeps its explicit paid flags and hard budget. Other-provider billing
   joins remain pending. Help states the native Meta scope in all fourteen languages.
+- **Account placement on devices** (M108 lane D). Each account pins to one
+  device or node: `providers accounts add --device` stores the pin with the
+  row (rolling back row and credential when the pin cannot route), and
+  `providers accounts place` moves it, naming a mistyped account first.
+  One account per provider per device is enforced with the refusal naming
+  the two ways forward. Routing and swaps follow the pinned device's
+  headroom, offers carry the per-provider headroom bucket, **Send to
+  {device}** routes work, and the receiver keeps its own record and
+  confirmations. Live M100 transport and M107 reservation bind later.
+- **Developer options and the several-accounts setting** (M108 lane X).
+  Machine-local testing options unlock from the palette (**Open Developer
+  Options**), seven clicks on the version line, or `developer` in a
+  terminal, each with its confirmation. The Developer options page shows
+  state, expiry, **Reset** and local profiles; a persistent **Developer
+  Mode** badge shows in the status bar and the panel header while
+  unlocked; every change is audited; the grant expires after seven days
+  with a notice. The visible **Allow several accounts of one provider on
+  this PC** setting (`museSpark.accounts.severalOnThisDevice`,
+  machine-scoped, off by default) switches beside each provider on the
+  Accounts page, asking that provider's vendor-terms confirmation first;
+  turning it on from raw Settings is reverted with a redirect. Each extra
+  account is fenced to its own isolated local profile: the profile
+  ledger, credential slots and state folders are in, while the runtime
+  process and pool registration wait for M109's broker and refuse
+  honestly until then. `/help` documents the command, the setting and
+  the terminal route.
 
 ### Changed
 

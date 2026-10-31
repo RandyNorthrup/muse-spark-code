@@ -25,24 +25,32 @@ export function DeveloperOptionsPage({
   readonly message: unknown
   readonly post: (request: DeveloperRequest) => void
 }) {
-  const reply = developerReplySchema.safeParse(message)
+  const reply = message === undefined ? undefined : developerReplySchema.safeParse(message)
   const [provider, setProvider] = useState('')
   const [account, setAccount] = useState('')
   const prefix = useId()
-  const snapshot = reply.success && reply.data.type === 'developer/state' ? reply.data : undefined
+  const snapshot =
+    reply !== undefined && reply.success && reply.data.type === 'developer/state'
+      ? reply.data
+      : undefined
   let error: string | undefined
-  if (!reply.success) error = UI_TEXT.developer.invalidRequest
-  else if (reply.data.type === 'developer/error') error = UI_TEXT.developer[reply.data.code]
+  if (reply !== undefined) {
+    if (!reply.success) error = UI_TEXT.developer.invalidRequest
+    else if (reply.data.type === 'developer/error') error = UI_TEXT.developer[reply.data.code]
+  }
   const add = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
     post({ type: 'developer/addProfile', provider, account })
   }
   return (
     <main className="developer-options" aria-label={UI_TEXT.developer.title}>
-      <h1>{UI_TEXT.developer.title}</h1>
       {snapshot !== undefined && <DeveloperModeBadge snapshot={snapshot} />}
       <p>{UI_TEXT.developer.unlockWarning}</p>
-      {error !== undefined && <p role="alert">{error}</p>}
+      {reply === undefined ? (
+        <p role="status">{UI_TEXT.loadingOutput}</p>
+      ) : (
+        error !== undefined && <p role="alert">{error}</p>
+      )}
       {snapshot?.isUnlocked !== true && <p>{UI_TEXT.developer.helpUnlock}</p>}
       {snapshot?.expiresAt !== null && snapshot?.expiresAt !== undefined && (
         <p>{fill(UI_TEXT.developer.expires, { time: formatDateTime(snapshot.expiresAt) })}</p>

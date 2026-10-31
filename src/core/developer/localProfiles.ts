@@ -38,7 +38,8 @@ export interface LocalProfilePorts {
   }
 }
 
-function slot(profile: DeveloperProfile): string {
+/** The credential slot a profile's child resolves through the parent-owned broker. */
+export function profileCredentialSlot(profile: DeveloperProfile): string {
   return `museSpark.developer.profile.${profile.id}.provider.${profile.provider}.account.${profile.account}`
 }
 
@@ -63,7 +64,7 @@ export class LocalDeveloperProfiles implements DeveloperProfileResources {
     const active = this.running.get(profile.id)
     if (active?.withdraw !== undefined && active.admit()) return
     if (active !== undefined) await this.stop(profile)
-    const credentialSlot = slot(profile)
+    const credentialSlot = profileCredentialSlot(profile)
     await this.ports.credentials.prepare(credentialSlot, profile)
     try {
       if (!isCurrent()) throw new DeveloperOptionsError('locked')
@@ -99,7 +100,7 @@ export class LocalDeveloperProfiles implements DeveloperProfileResources {
 
   public async remove(profile: DeveloperProfile): Promise<void> {
     await this.stop(profile)
-    await this.ports.credentials.remove(slot(profile))
+    await this.ports.credentials.remove(profileCredentialSlot(profile))
     await this.ports.folders.remove(profile.id)
   }
 }

@@ -94,7 +94,7 @@ export function developerHelpRows() {
   ]
 }
 
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
+/** The status-bar and header badge text while unlocked, else undefined. */
 export function developerBadge(snapshot: DeveloperSnapshot): string | undefined {
   return snapshot.isUnlocked ? UI_TEXT.developer.badge : undefined
 }

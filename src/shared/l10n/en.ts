@@ -8657,7 +8657,7 @@ export const EN = {
     poolUnavailable:
       'Account pooling is unavailable in this runtime: it needs a bound resource owner. Run again without --account-pool.',
     cliUsage:
-      'Accounts: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [ordered ids]. Credentials: {command} auth set --provider <id> --account <id> (standard input only).',
+      'Accounts: {command} providers accounts list|add|remove|order|thresholds|place --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [--device <id>] [ordered ids|account id]. Credentials: {command} auth set --provider <id> --account <id> (standard input only).',
     slashDescription: 'List accounts, view thresholds, or choose an account.',
     title: 'Accounts',
     defaultLabel: 'Default Account',
@@ -8777,6 +8777,8 @@ export const EN = {
     spendAdminStored: 'Admin report key stored for {provider} in {store}.',
     spendAdminCleared: 'Admin report key cleared for {provider}.',
     spendRefreshWait: 'Spend reports refresh at most once a minute; showing the cached report.',
+    severalSettingsRedirect:
+      'Turn on several accounts from the Accounts page, beside the provider, so the vendor-terms confirmation is shown first.',
   },
   // M108 X: machine-local testing options; read after table installation.
   developer: {
@@ -8797,6 +8799,7 @@ export const EN = {
       'Developer options were set up under a different machine identity. Reset them to start over on this machine.',
     invalidRequest: 'Check the Developer options request.',
     expires: 'Developer mode expires {time}.',
+    expired: 'Developer mode expired and its profiles stopped.',
     reset: 'Reset Developer Options',
     profiles: 'Local Profiles',
     profileInfo:
@@ -8808,6 +8811,7 @@ export const EN = {
     helpTerminal: 'Run `developer` to unlock; `developer status` shows this machine’s options.',
     commandUsage:
       'Usage: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]',
+    versionLine: 'Version {version}',
   },
   // M124 (D106): the connector's Help & Reference rows.
   mcpConnectorTitle: 'MCP connector for other agents',

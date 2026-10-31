@@ -859,7 +859,6 @@ export class DeviceAccountReceiver {
         claim.check()
       }
       check()
-      let bucket: 'ample' | 'some' | 'none' | undefined
       const result = await pool.run(
         request,
         async (admission) => {
@@ -878,9 +877,13 @@ export class DeviceAccountReceiver {
           })
         },
         (account) => {
-          // First evaluation runs inside the existing pool's admission queue.
-          // Later fences check the same capacity class after credential waits.
-          bucket ??= this.bucket(fragment.provider, pool, request)
+          // Both sides recompute every call: the reservation between select
+          // and check legitimately moves headroom, so a cached provider
+          // bucket would refuse an admission whose own reservation crossed
+          // the ample/some cut. With one account the two always agree; with
+          // several, an account that genuinely left the best bucket refuses
+          // loudly instead of sneaking in for another (no G4).
+          const bucket = this.bucket(fragment.provider, pool, request)
           return (
             bucket !== 'none' &&
             this.deps.isPinnedHere(fragment.provider, account.id) &&

@@ -272,6 +272,7 @@ export const REFERENCE_ACTION_FEATURES = {
   readReference: 'support',
   openReferenceSetting: 'support',
   runReferenceCommand: 'support',
+  developerRequest: 'accounts',
   ready: 'chat',
   inputFocusChanged: 'chat',
   surfaceFocused: 'chat',

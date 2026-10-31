@@ -70,18 +70,24 @@ export function AccountsSection({
       const next = modelsAccountsSliceSchema.safeParse(reply)
       if (!next.success || next.data.provider !== slice.provider) {
         const problem = accountsReplySchema.safeParse(reply)
-        const code =
-          problem.success && problem.data.type === 'accounts/error' ? problem.data.code : undefined
+        const failure =
+          problem.success && problem.data.type === 'accounts/error' ? problem.data : undefined
         // Fixed bridge codes render their honest copy; anything else stays
         // a generic failure, never raw error text.
         const honest: Record<string, string> = {
           invalidAccount: UI_TEXT.accounts.invalidAccount,
           providersInvalid: UI_TEXT.accounts.providersInvalid,
         }
-        setError({
-          value,
-          message: (code === undefined ? undefined : honest[code]) ?? UI_TEXT.actionFailed,
-        })
+        const message =
+          failure?.code === 'placementConflict' &&
+          failure.provider !== undefined &&
+          failure.device !== undefined
+            ? fill(UI_TEXT.accounts.placementConflict, {
+                provider: failure.provider,
+                device: failure.device,
+              })
+            : ((failure === undefined ? undefined : honest[failure.code]) ?? UI_TEXT.actionFailed)
+        setError({ value, message })
         return
       }
       port.accept(next.data)
@@ -132,6 +138,24 @@ export function AccountsSection({
       <p>
         {UI_TEXT.accounts.parallel}: {slice.isParallelOn ? UI_TEXT.toggleOn : UI_TEXT.toggleOff}.{' '}
         {UI_TEXT.accounts.parallelDescription}
+      </p>
+      <p>
+        <label>
+          <input
+            type="checkbox"
+            checked={slice.severalOnThisDevice}
+            disabled={isPending || isUnavailable}
+            onChange={(event) => {
+              send({
+                type: 'accounts/several',
+                provider: slice.provider,
+                enabled: event.target.checked,
+              })
+            }}
+          />{' '}
+          {UI_TEXT.developer.allowMultiple}:{' '}
+          {slice.severalOnThisDevice ? UI_TEXT.toggleOn : UI_TEXT.toggleOff}.
+        </label>
       </p>
       {policy === null ? (
         <p role="status">{UI_TEXT.accounts.notOffered}</p>

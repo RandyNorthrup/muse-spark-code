@@ -139,6 +139,7 @@ import {
   WINDOWS_POWERSHELL_TERMINAL_PATH,
   WORKSPACE_STATE_KEYS,
   TAB_CONTEXT_FILES,
+  DEVELOPER_COMMAND_ID,
 } from './shared/constants'
 import {
   BROWSER_CHECK_BUNDLE_FILE,
@@ -315,6 +316,8 @@ import {
 import { createLegalFixApplier, legalFixFileEdits } from './host/legalFixApplier'
 import { legalScanResultSchema, type LegalScanRunner } from './shared/legal'
 import { isReferenceRequest, referenceLoader } from './host/referenceLoader'
+import type { DeveloperOptions } from './core/developer/developerOptions'
+import type { DeveloperSnapshot } from './shared/developerOptions'
 import { reportingCheckJournal } from './host/reporting/reportCheckBundle'
 import { reportPanelLoader } from './host/reporting/reportPanelBundle'
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
@@ -1356,12 +1359,44 @@ async function activateWindow(
         >
       >
     | undefined
+  // D88 b2: the Accounts page's several-accounts switch marks its own
+  // confirmed write; a raw Settings flip without the mark is reverted by
+  // the configuration watcher below, so turning it on always shows
+  // decision 6's vendor-terms confirmation first.
+  let hasSeveralConfirmedWrite = false
+  // The accounts bundle loads on the first accounts or developer use; the
+  // developer owner and its rendering ride it too, so activation carries none.
+  const accountsBundle = runtimeAccountsLoader({
+    bundlePath: path.join(context.extensionPath, 'dist', RUNTIME_ACCOUNTS_BUNDLE_FILE),
+    log,
+  })
+  const developerParts = () => {
+    const {
+      openEditorDeveloperOptions,
+      developerBadge,
+      developerConfirmation,
+      developerStatusText,
+      handleDeveloperRequest,
+    } = accountsBundle()
+    if (
+      openEditorDeveloperOptions === undefined ||
+      developerBadge === undefined ||
+      developerConfirmation === undefined ||
+      developerStatusText === undefined ||
+      handleDeveloperRequest === undefined
+    )
+      throw new Error(UI_TEXT.accounts.unavailable)
+    return {
+      openEditorDeveloperOptions,
+      developerBadge,
+      developerConfirmation,
+      developerStatusText,
+      handleDeveloperRequest,
+    }
+  }
   const accountServices = () => {
     if (editorAccounts !== undefined) return editorAccounts
-    const create = runtimeAccountsLoader({
-      bundlePath: path.join(context.extensionPath, 'dist', RUNTIME_ACCOUNTS_BUNDLE_FILE),
-      log,
-    })().createEditorAccountServicesForLocale
+    const create = accountsBundle().createEditorAccountServicesForLocale
     if (create === undefined) throw new Error(UI_TEXT.accounts.unavailable)
     editorAccounts = create(l10n.table, l10n.locale, {
       dataDir: path.join(context.globalStorageUri.fsPath, 'accounts'),
@@ -1376,8 +1411,15 @@ async function activateWindow(
       settings: () => ({
         isSwapOn: currentSettings().accountSwap,
         isParallelOn: currentSettings().accountParallel,
+        severalOnThisDevice: currentSettings()['accounts.severalOnThisDevice'],
       }),
       promptForApiKey,
+      setSeveral: async (enabled) => {
+        if (enabled) hasSeveralConfirmedWrite = true
+        await vscode.workspace
+          .getConfiguration(SETTINGS_SECTION)
+          .update('accounts.severalOnThisDevice', enabled, vscode.ConfigurationTarget.Global)
+      },
       askPolicy: async (row) => {
         const answer = await vscode.window.showWarningMessage(
           fill(UI_TEXT.accounts.confirmWarning, { provider: row.provider }),
@@ -1419,6 +1461,72 @@ async function activateWindow(
     return editorAccounts
   }
   context.subscriptions.push({ dispose: () => editorAccounts?.dispose() })
+  // M108 X (D88 amendment b): the window's developer-options owner. It opens
+  // the same machine folder the terminal owner uses, so either host honours
+  // the other's unlock. Snapshots push to the status bar badge and every
+  // panel; the expiry notice fires on the refresh that expires the grant.
+  const developerStatus = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right)
+  context.subscriptions.push(developerStatus)
+  let wasDeveloperUnlocked = false
+  let developerUnlockExpiresAt: number | null = null
+  const refreshDeveloperBadge = (snapshot: DeveloperSnapshot) => {
+    const badge = developerParts().developerBadge(snapshot)
+    if (badge === undefined) {
+      developerStatus.hide()
+      return
+    }
+    developerStatus.text = `$(beaker) ${badge}`
+    developerStatus.tooltip = developerParts().developerStatusText(snapshot)
+    developerStatus.command = DEVELOPER_COMMAND_ID
+    developerStatus.show()
+  }
+  let developerOwner: Promise<DeveloperOptions> | undefined
+  const openDeveloperOwner = async (): Promise<DeveloperOptions> => {
+    // A refused open clears itself, so the palette command retries it.
+    const parts = developerParts()
+    const pending = (developerOwner ??= parts.openEditorDeveloperOptions({
+      dataDir: agentDataFolder({
+        platform: process.platform,
+        env: process.env,
+        homeDir: homedir(),
+      }),
+      store: accountServices().commands.accounts,
+      metadata: accountServices().commands.metadata,
+      confirm: async (question) => {
+        const asked = parts.developerConfirmation(question)
+        const answer = await vscode.window.showWarningMessage(
+          asked.message,
+          { modal: true },
+          asked.accept,
+          asked.cancel,
+        )
+        return answer === asked.accept
+      },
+      changed: (snapshot) => {
+        const hasExpired =
+          wasDeveloperUnlocked &&
+          !snapshot.isUnlocked &&
+          developerUnlockExpiresAt !== null &&
+          developerUnlockExpiresAt <= Date.now()
+        wasDeveloperUnlocked = snapshot.isUnlocked
+        developerUnlockExpiresAt = snapshot.expiresAt
+        refreshDeveloperBadge(snapshot)
+        registry.broadcast({
+          type: 'developerReply',
+          version,
+          badge: parts.developerBadge(snapshot) ?? null,
+          reply: snapshot,
+        })
+        if (hasExpired) void vscode.window.showInformationMessage(UI_TEXT.developer.expired)
+      },
+    }))
+    try {
+      return await pending
+    } catch (error: unknown) {
+      if (developerOwner === pending) developerOwner = undefined
+      throw error
+    }
+  }
   // The paid Model API features (M33–M35, PLAN.md D30): on only with the
   // setting on and the price accepted; every panel shows which are on.
   // Whether a Model API key is stored (M44): the Muse Code backend then
@@ -4110,6 +4218,7 @@ async function activateWindow(
   }
   let isHelpPending = false
   let isEstimatePending = false
+  let isDeveloperPending = false
   const referenceBundle = referenceLoader({
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', REFERENCE_BUNDLE_FILE).fsPath,
     log,
@@ -5629,6 +5738,12 @@ async function activateWindow(
         isEstimatePending = false
         surface.post({ type: 'openEstimator' })
       }
+      // The palette's Developer options command opened this surface (M108
+      // X): the page opens once it has a surface to show in.
+      if (isDeveloperPending) {
+        isDeveloperPending = false
+        surface.post({ type: 'openDeveloper' })
+      }
       // `Report a Problem` opened this surface (M93): its dialog now has a page to show in.
       if (isReportPending) {
         isReportPending = false
@@ -5684,6 +5799,39 @@ async function activateWindow(
           log.error(`help reference failed: ${failureForLog(error)}`)
           surface.post({ type: 'referenceValues', model: '', values: {}, nls: {}, error: true })
         })
+        return
+      }
+      // M108 X: the Developer options page's requests run against the
+      // window's owner as a local page surface; the page carries no
+      // authority, and a refused owner answers unavailable, never a stack.
+      if (message.type === 'developerRequest') {
+        void (async () => {
+          try {
+            const owner = await openDeveloperOwner()
+            const parts = developerParts()
+            const reply = await parts.handleDeveloperRequest(
+              owner,
+              { id: 'panel', isLocal: true, kind: 'page' },
+              message.request,
+            )
+            surface.post({
+              type: 'developerReply',
+              version,
+              badge: parts.developerBadge(owner.snapshot()) ?? null,
+              reply,
+            })
+          } catch (error: unknown) {
+            // A refused owner answers unavailable, logging only the named
+            // failure, never its text.
+            log.error(`developer request failed: ${failureForLog(error)}`)
+            surface.post({
+              type: 'developerReply',
+              version,
+              badge: null,
+              reply: { type: 'developer/error', code: 'unavailable' },
+            })
+          }
+        })()
         return
       }
       if (message.type === 'resourcePull') {
@@ -6387,6 +6535,19 @@ async function activateWindow(
   usageStatus.command = COMMAND_IDS.openUsagePage
   usageStatus.show()
   context.subscriptions.push(usageStatus)
+  // M108 X: the owner opens here so an unlock from an earlier session
+  // badges this one; a refused open only hides the badge, and the palette
+  // command retries.
+  void openDeveloperOwner()
+    .then((owner) => {
+      const snapshot = owner.snapshot()
+      wasDeveloperUnlocked = snapshot.isUnlocked
+      developerUnlockExpiresAt = snapshot.expiresAt
+      refreshDeveloperBadge(snapshot)
+    })
+    .catch((error: unknown) => {
+      log.error(`developer options unavailable: ${failureForLog(error)}`)
+    })
 
   void recoverProviderRemovals(
     context.globalState.get(GLOBAL_STATE_KEYS.providerPendingRemovals),
@@ -6595,6 +6756,25 @@ async function activateWindow(
       ) {
         for (const controller of controllers.values()) {
           void controller.revokeBypass().catch(logRejection(log, 'Bypass revocation'))
+        }
+      }
+      // D88 b2: several accounts turn on only through the Accounts page's
+      // switch, which shows decision 6's confirmation first. A raw Settings
+      // flip is reverted with a redirect; the page's own write carries the
+      // mark and passes through.
+      if (event.affectsConfiguration(`${SETTINGS_SECTION}.accounts.severalOnThisDevice`)) {
+        if (hasSeveralConfirmedWrite) {
+          hasSeveralConfirmedWrite = false
+        } else if (currentSettings()['accounts.severalOnThisDevice']) {
+          void vscode.workspace
+            .getConfiguration(SETTINGS_SECTION)
+            .update('accounts.severalOnThisDevice', false, vscode.ConfigurationTarget.Global)
+            .then(
+              () => {
+                void vscode.window.showInformationMessage(UI_TEXT.accounts.severalSettingsRedirect)
+              },
+              logRejection(log, 'several-accounts revert'),
+            )
         }
       }
       // A host keeps its sandbox posture, its environment and its binary for
@@ -6832,6 +7012,21 @@ async function activateWindow(
       }
       surface.reveal()
       surface.post({ type: 'openHelp' })
+    }),
+    // The Developer options page (M108 X, D88 amendment b): the palette
+    // entry unlocks with its confirmation, then opens the page in the
+    // conversation in view or one opened for it.
+    registerLoggedCommand(log, DEVELOPER_COMMAND_ID, async () => {
+      const owner = await openDeveloperOwner()
+      await owner.unlock('palette')
+      const surface = registry.active
+      if (surface === undefined) {
+        isDeveloperPending = true
+        await openConversation()
+        return
+      }
+      surface.reveal()
+      surface.post({ type: 'openDeveloper' })
     }),
     // Open the capacity estimator (M117, PLAN.md D97): the composer takes
     // `/estimate ` in the conversation in view or one opened for it.

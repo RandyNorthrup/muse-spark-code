@@ -7154,7 +7154,7 @@
     "revokeUnsupported": "Удаление этого входа не поддерживается в этой среде выполнения.",
     "providersInvalid": "Файл поставщиков недействителен, поэтому его записи отклонены, а файл оставлен без изменений.",
     "poolUnavailable": "Объединение аккаунтов недоступно в этой среде выполнения: ему нужен привязанный владелец ресурсов. Повторите запуск без --account-pool.",
-    "cliUsage": "Учётные записи: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [упорядоченные идентификаторы]. Данные для входа: {command} auth set --provider <id> --account <id> (только стандартный ввод).",
+    "cliUsage": "Учётные записи: {command} providers accounts list|add|remove|order|thresholds|place --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [--device <id>] [упорядоченные идентификаторы|идентификатор учётной записи]. Данные для входа: {command} auth set --provider <id> --account <id> (только стандартный ввод).",
     "slashDescription": "Показать учётные записи, посмотреть пороги или выбрать учётную запись.",
     "title": "Аккаунты",
     "defaultLabel": "Аккаунт по умолчанию",
@@ -7261,7 +7261,8 @@
     "spendAdminPrompt": "Ключ отчётов администратора для {provider}: ",
     "spendAdminStored": "Ключ отчётов администратора для {provider} сохранён в {store}.",
     "spendAdminCleared": "Ключ отчётов администратора для {provider} удалён.",
-    "spendRefreshWait": "Отчёты о расходах обновляются не чаще раза в минуту; показан кэшированный отчёт."
+    "spendRefreshWait": "Отчёты о расходах обновляются не чаще раза в минуту; показан кэшированный отчёт.",
+    "severalSettingsRedirect": "Включайте несколько учётных записей на странице учётных записей, рядом с поставщиком, чтобы сначала показалось подтверждение условий поставщика."
   },
   "developer": {
     "title": "Параметры разработчика",
@@ -7276,6 +7277,7 @@
     "differentMachine": "Параметры разработчика были настроены для другого идентификатора компьютера. Сбросьте их, чтобы начать заново на этом компьютере.",
     "invalidRequest": "Проверьте запрос параметров разработчика.",
     "expires": "Режим разработчика истекает {time}.",
+    "expired": "Режим разработчика истёк, его профили остановлены.",
     "reset": "Сбросить параметры разработчика",
     "profiles": "Локальные профили",
     "profileInfo": "У каждого профиля своё хранилище учётных данных, папка состояния и процесс выполнения. По истечении срока профили останавливаются; сброс удаляет их.",
@@ -7284,7 +7286,8 @@
     "addProfile": "Добавить локальный профиль",
     "helpUnlock": "Нажмите на версию семь раз или используйте команду «Параметры разработчика» для разблокировки.",
     "helpTerminal": "Выполните `developer` для разблокировки; `developer status` показывает параметры этого компьютера.",
-    "commandUsage": "Использование: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
+    "commandUsage": "Использование: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]",
+    "versionLine": "Версия {version}"
   },
   "mcpConnectorTitle": "MCP-коннектор для других агентов",
   "referenceMcpCommand": "Предоставляет инструменты Muse Spark Code другим агентам (Codex, Claude Code, Gemini CLI) по MCP; каждая запись ждёт вашего одобрения.",
