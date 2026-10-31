@@ -81,5 +81,41 @@ headless` outputs, but `CBackend::create()` fails with no DRM device
 
 ## Status
 
-Part A in progress. Proofs and gate exit codes land below as each part
-finishes; nothing is claimed before it runs.
+Part A done (604be0c20); Part B done (this commit); Parts C–G next.
+
+### Part A proof (scenes and review screenshots)
+
+- `test/unit/desktop/harnessScenes.test.mjs` (10 tests, green): scene
+  registry vs `DESKTOP_SIZED_SCENARIOS`; the greeter renders the real
+  German table strings; unknown scene/theme/language refuse by name;
+  15 languages listed; plural forms picked per language; the review
+  plan expands scenes × themes × languages and `*` to all 15;
+  `readme-shots --desktop` routes away from the README list; in real
+  Chrome the compact workbench's bar, rail, chat, sidebar, panel and
+  status sizes equal `DESKTOP_FRAME`/`COMPACT_PANES`, and the RTL scene
+  keeps code classes left-to-right.
+- Red/green drill: `scenes.css` bar height changed from
+  `var(--ms-bar-height)` to `40px` → the geometry test fails (1 failed,
+  suite exit non-zero); restored → 10 passed.
+- Local look: `readme-shots --desktop --only greeter,workbench-1280
+--languages en,de` wrote 16 shots under `temp/desktop-review/`;
+  `greeter.dark.en.png` and `workbench-1280.light.de.png` were opened
+  and inspected (real strings, German plural "2 Agenten laufen",
+  annotation present; rail on the right as the mockups have it).
+
+### Part B proof (compositor session and CLI)
+
+- `test/unit/desktop/harnessCompositor.test.mjs` (8 tests, green):
+  generated config pins both headless outputs and disables the rest;
+  tool/KMS probing on real directories; capture and group-stop on real
+  child processes; argument parsing; the script as a child process
+  (scenes JSON exit 0, unknown command exit 1).
+- Real Hyprland in an Arch container (Hyprland 0.57.0, aquamarine
+  0.15.1): `desktop-harness check --for compositor` reports ready, and
+  `desktop-harness verify-config` generates the config and the real
+  binary prints `config ok` (exit 0). A deliberately broken config
+  (`hl.broken(`) prints the parse error instead.
+- On this host and in the container without `/dev/dri`,
+  `desktop-harness session` refuses with the allocator reason and the
+  VM directions; the full session proof runs inside the QEMU guest in
+  Part F, the way upstream Hyprland tests itself.
