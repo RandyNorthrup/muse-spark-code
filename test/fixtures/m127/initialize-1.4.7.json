@@ -1,0 +1,18 @@
+{
+  "experimentalApi": true,
+  "grantedCapabilities": [],
+  "museHome": "/home/randy/lanes/RLF-HARVEST/temp/capture147/home/.local/share/muse",
+  "platformFamily": "unix",
+  "platformOs": "linux",
+  "sandboxAvailability": "available",
+  "schema": {
+    "fingerprint": "sha256:6de32db08bbbe0deb478d2bfcaba001e9fb490986bc80db3aceb4d996abf7df9",
+    "version": 1
+  },
+  "serverInfo": {
+    "name": "muse",
+    "version": "1.4.7"
+  },
+  "sessionDurability": "ephemeral",
+  "userAgent": "muse-build/1.4.7 (serve; linux-x86_64; build d8c53d25bd30cda15ab32b18b9bb9961df9c4be0)"
+}
