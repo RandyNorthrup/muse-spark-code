@@ -212,4 +212,5 @@ are all green.
 - `9f793e81a` the replay rig imports PermissionMode from constants
 - `3178a4c4f` B5: the started lifecycle reader; delete stays refused
 - `f0788829b` one shared replay rig for the ACP suites
-- (records) PLAN §6, CHANGELOG, roadmap entry, this record
+- `f9bd1968e` PLAN §6, CHANGELOG, roadmap entry, this record
+- `e430d87ca` related-run triage (this section)
