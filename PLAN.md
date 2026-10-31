@@ -32975,6 +32975,11 @@ No new escape hatch is introduced.
 | ------------------------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/shared/epochMs.ts` (`toEpochMs`) | `Math.round(value) as EpochMs`, 1 site | The single brand constructor: `Math.round` guarantees a whole number the compiler cannot verify, so the brand is attached here and nowhere else; every other site receives `EpochMs` without casting. Inline-reasoned; no rule change. | 2026-10-22 |
 
+| RLF-M111OB location                                 | Escape hatch                                                | Reason                                                                                                                                                            | Date                                       |
+| --------------------------------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `src/core/o11y/export.ts` (`groupByComponent`)      | `eslint-disable-next-line unicorn/prefer-group-by`, 1 site  | `Map.groupBy` does not resolve under this repo's TS lib (as RLM96D records for `advisories.ts`); the explicit grouping loop stays. Inline-reasoned.               | A TS lib that resolves `Map.groupBy`.      |
+| `src/core/o11y/ringStore.ts` (map spreads, 2 sites) | `eslint-disable-next-line unicorn/prefer-iterator-to-array` | `Iterator.toArray` does not resolve under this repo's TS lib (as RLM96D records); the spreads stay (`Array.from` trips `prefer-spread` instead). Inline-reasoned. | A TS lib that resolves `Iterator.toArray`. |
+
 ## 9. Security assumptions and accepted residual risk
 
 - **OS2-TUF (RVM110OS2I P2-12, RVM110OS2F F11) — REPLACED 2026-10-22

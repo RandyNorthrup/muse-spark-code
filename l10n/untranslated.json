@@ -156,7 +156,8 @@
       "referenceNodeEditorKeys",
       "nodeOs.netWifi",
       "desktop.greeterTitle",
-      "desktop.pin"
+      "desktop.pin",
+      "nodeDiagnostics.traceName"
     ],
     "cs": [
       "groupModel",
@@ -292,7 +293,11 @@
       "desktop.sessionTerminal",
       "desktop.downloadSize",
       "desktop.details",
-      "watchdog.verdicts.spam"
+      "watchdog.verdicts.spam",
+      "nodeDiagnostics.healthStatus",
+      "nodeDiagnostics.healthDetail",
+      "nodeDiagnostics.traceStatus",
+      "nodeDiagnostics.crashSignal"
     ],
     "es": [
       "hooksItem",
@@ -386,7 +391,12 @@
       "desktop.notificationsCount.one",
       "desktop.notificationsCount.other",
       "desktop.notificationsCount.many",
-      "watchdog.verdicts.spam"
+      "watchdog.verdicts.spam",
+      "nodeLabels.diagnostics",
+      "nodeDiagnostics.title",
+      "nodeDiagnostics.tracesTitle",
+      "nodeDiagnostics.logMessage",
+      "nodeDiagnostics.crashSignal"
     ],
     "it": [
       "usageAccount",

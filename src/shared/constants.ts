@@ -6795,6 +6795,7 @@ export const HEARTBEAT_BEAM_LINE_WIDTH_PX = 1.5
 // dropped so a stalled frame never replays its debt as a burst.
 export const HEARTBEAT_BEAM_MAX_TICKS_PER_FRAME = 8
 export const MILLISECONDS_PER_SECOND = 1000
+export const NANOSECONDS_PER_MILLISECOND = 1_000_000
 export const SECONDS_PER_MINUTE = 60
 export const USAGE_COUNTDOWN_REFRESH_MS = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE
 // How often a wait with no deadline of its own says so out loud (owner
@@ -9989,6 +9990,63 @@ Read the fenced issue first, then the evidence: the duplicate candidates, the de
   triageEvidenceNone: 'none',
   triageEvidenceIncomplete: 'GitHub left this search incomplete: more rows may exist.',
 } as const
+// --- Desktop observability (M111 lane OB, PLAN.md D91.22) ---
+//
+// The local OTLP/HTTP receiver binds loopback only, on OTLP's own default
+// port (the exporter spec's default is http://localhost:4318); anything
+// but loopback is refused, never widened (D65).
+export const O11Y_RECEIVER_HOST = '127.0.0.1'
+export const O11Y_RECEIVER_PORT = 4318
+// One OTLP/HTTP request past this is refused with 413: a batch is many
+// small records, never one giant one.
+export const O11Y_RECEIVER_MAX_BODY_BYTES = 4 * 1024 * 1024
+// The ring store's resolutions and retentions (research §11): metrics at
+// 10-second resolution for 7 days, then rolled up to minute buckets kept
+// under the same bound; logs 7 days under a size cap; traces sampled with
+// every error kept, 3 days.
+export const O11Y_METRICS_RESOLUTION_MS = 10 * MILLISECONDS_PER_SECOND
+export const O11Y_METRICS_RETENTION_MS = 7 * MILLISECONDS_PER_DAY
+export const O11Y_LOGS_RETENTION_MS = 7 * MILLISECONDS_PER_DAY
+export const O11Y_LOGS_MAX_BYTES = 64 * 1024 * 1024
+export const O11Y_TRACES_RETENTION_MS = 3 * MILLISECONDS_PER_DAY
+// One trace in this many is kept whole; every trace holding an error span
+// is kept regardless. A sampler's bound against disk fill, like the byte
+// caps above.
+export const O11Y_TRACE_SAMPLE_KEEP_EVERY = 10
+// The ring files' directory under the data root, and their private mode.
+export const O11Y_STORE_DIR = 'o11y'
+export const O11Y_STORE_FILE_MODE = 0o600
+// Export (opt-in, off until the person names their collector): TLS only,
+// the collector's certificate verified, auth headers from the vault. The
+// retry is the collector's own `retry_on_failure` defaults (initial 5 s,
+// max 30 s between attempts, give up after 300 s), with Retry-After
+// honoured and clamped to the give-up bound; 429/502/503/504 and
+// connection failures retry, everything else fails at once
+// (opentelemetry-proto's retryable codes; the exporter spec's MUST).
+export const O11Y_EXPORT_TIMEOUT_MS = 30 * MILLISECONDS_PER_SECOND
+export const O11Y_EXPORT_RETRY_INITIAL_MS = 5 * MILLISECONDS_PER_SECOND
+export const O11Y_EXPORT_RETRY_MAX_MS = 30 * MILLISECONDS_PER_SECOND
+export const O11Y_EXPORT_RETRY_MAX_ELAPSED_MS = 300 * MILLISECONDS_PER_SECOND
+// Desktop readiness (research §11): a compositor IPC ping past this is not
+// ready, and OS2's trial boot waits for the desktop on its word.
+export const O11Y_COMPOSITOR_PING_MAX_MS = 250
+// Crash capture (D64): one crash record past this is refused, records are
+// pruned past this age, and raw cores never enter the store or the bundle.
+export const O11Y_CRASH_ENTRY_MAX_BYTES = 64 * 1024
+export const O11Y_CRASH_RETENTION_MS = 30 * MILLISECONDS_PER_DAY
+// The receiver's per-field bounds: a record is shaped facts, never a blob.
+export const O11Y_METRIC_NAME_MAX_CHARS = 128
+export const O11Y_SPAN_NAME_MAX_CHARS = 256
+export const O11Y_LOG_MESSAGE_MAX_CHARS = 2000
+export const O11Y_ATTRIBUTES_MAX = 16
+export const O11Y_ATTRIBUTE_KEY_MAX_CHARS = 64
+export const O11Y_ATTRIBUTE_VALUE_MAX_CHARS = 512
+export const O11Y_CRASH_SYMBOL_MAX_CHARS = 256
+// The Diagnostics page's serving caps: one page of each list, newest first.
+export const O11Y_DIAGNOSTICS_MAX_LOGS = 200
+export const O11Y_DIAGNOSTICS_MAX_TRACES = 100
+export const O11Y_DIAGNOSTICS_MAX_CRASHES = 50
+export const O11Y_DIAGNOSTICS_MAX_POINTS = 300
 // --- Paired efficiency evaluation (M75, PLAN.md D49) ---
 
 // The paired runs answer on this model only (D49's live-spend rules: the
