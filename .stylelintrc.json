@@ -72,6 +72,18 @@
         "color-no-hex": null,
         "function-disallowed-list": null
       }
+    },
+    {
+      "files": [
+        "desktop/shell/theme/palette-light.css",
+        "desktop/shell/theme/palette-dark.css",
+        "desktop/shell/theme/palette-hc-light.css",
+        "desktop/shell/theme/palette-hc-dark.css"
+      ],
+      "rules": {
+        "color-no-hex": null,
+        "function-disallowed-list": null
+      }
     }
   ]
 }

@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "modes": {
+    "light": {
+      "foreground": { "token": "colour.text", "value": "#252932" },
+      "muted": { "token": "colour.muted", "value": "#575d68" },
+      "accent": { "token": "colour.brand-mark", "value": "#0a5cff" },
+      "success": { "token": "colour.success", "value": "#176b2b" },
+      "warning": { "token": "colour.warning", "value": "#735500" },
+      "danger": { "token": "colour.danger", "value": "#ac1721" },
+      "info": { "token": "colour.info", "value": "#095bbe" }
+    },
+    "dark": {
+      "foreground": { "token": "colour.text", "value": "#e4e7ed" },
+      "muted": { "token": "colour.muted", "value": "#aeb6c4" },
+      "accent": { "token": "colour.brand-mark", "value": "#3d8bff" },
+      "success": { "token": "colour.success", "value": "#3fb950" },
+      "warning": { "token": "colour.warning", "value": "#e5c34b" },
+      "danger": { "token": "colour.danger", "value": "#ff9292" },
+      "info": { "token": "colour.info", "value": "#7fb2ff" }
+    },
+    "hc-light": {
+      "foreground": { "token": "colour.text", "value": "#000000" },
+      "muted": { "token": "colour.muted", "value": "#292929" },
+      "accent": { "token": "colour.brand-mark", "value": "#000000" },
+      "success": { "token": "colour.success", "value": "#176b2b" },
+      "warning": { "token": "colour.warning", "value": "#735500" },
+      "danger": { "token": "colour.danger", "value": "#ac1721" },
+      "info": { "token": "colour.info", "value": "#095bbe" }
+    },
+    "hc-dark": {
+      "foreground": { "token": "colour.text", "value": "#ffffff" },
+      "muted": { "token": "colour.muted", "value": "#ffffff" },
+      "accent": { "token": "colour.brand-mark", "value": "#ffffff" },
+      "success": { "token": "colour.success", "value": "#7fff7f" },
+      "warning": { "token": "colour.warning", "value": "#ffff00" },
+      "danger": { "token": "colour.danger", "value": "#ffb3b3" },
+      "info": { "token": "colour.info", "value": "#7fffff" }
+    }
+  }
+}

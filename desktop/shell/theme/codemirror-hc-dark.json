@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "mode": "hc-dark",
+  "roles": {
+    "text": "#ffffff",
+    "editorSurface": "#000000",
+    "muted": "#ffffff",
+    "border": "#ffffff",
+    "hover": "#000000",
+    "selection": "#ffffff",
+    "surface": "#000000",
+    "focus": "#ffffff",
+    "syntaxKeyword": "#7fffff",
+    "syntaxString": "#7fff7f",
+    "syntaxNumber": "#ffff00",
+    "syntaxFunction": "#ffb3b3",
+    "danger": "#ffb3b3"
+  },
+  "highlight": [
+    {
+      "tags": ["keyword", "operatorKeyword", "modifier", "controlKeyword"],
+      "role": "syntaxKeyword",
+      "color": "#7fffff"
+    },
+    { "tags": ["string", "special(string)", "regexp"], "role": "syntaxString", "color": "#7fff7f" },
+    { "tags": ["number", "bool", "null", "atom"], "role": "syntaxNumber", "color": "#ffff00" },
+    {
+      "tags": ["function(variableName)", "function(propertyName)", "typeName", "className"],
+      "role": "syntaxFunction",
+      "color": "#ffb3b3"
+    },
+    {
+      "tags": ["comment", "lineComment", "blockComment", "docComment"],
+      "role": "muted",
+      "fontStyle": "italic",
+      "color": "#ffffff"
+    },
+    { "tags": ["invalid"], "role": "danger", "color": "#ffb3b3" }
+  ]
+}
