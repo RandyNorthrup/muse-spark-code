@@ -367,8 +367,8 @@ not for the account's own. That is measured for `security` (the same Security
 framework); the CLI's own resolution is not measured directly. Evidence that nothing
 was written is in 9.5.
 
-**A real CLI that ignores SIGTERM.** Section 1's deaf stand-in has no real
-counterpart by itself: a SIGSTOPped CLI is ended at once by SIGTERM on macOS (the
+**A real CLI that ignores SIGTERM.** The first suite's deaf stand-in (section 4) has
+no real counterpart by itself: a SIGSTOPped CLI is ended at once by SIGTERM on macOS (the
 agent ended in 0.07 s, the CLI gone), and the blocked CLI handles SIGTERM. An ignored
 signal disposition survives `exec`, so the case starts the same real CLI through
 three lines of shell (`trap '' TERM; exec <the CLI> "$@"`): the process is the real
@@ -420,7 +420,7 @@ managername` = `Background`): the blocked start waits for a Keychain dialog and
     answered Muse Code of way (b), checked by the agent's "no model" refusal and the
     CLI's "Connected to muse" line): the same five leaves end the agent with exit 0 and
     the CLI and its group.
-- **Every case also checks**: the Keychain item was not written, in the case's own
+- **Every real-CLI case also checks**: the Keychain item was not written, in the case's own
   HOME (`security find-generic-password` scoped to the CLI's service and account from
   the product's `MACOS_KEYCHAIN_LOOKUP_ARGS`, attributes only, and no
   `Library/Keychains` folder) and in the account's own (its facts unchanged since the
@@ -429,7 +429,8 @@ managername` = `Background`): the blocked start waits for a Keychain dialog and
 
 Per case, final runs: 0.7 s (no backend), 1.0 s (blocked, five leaves), 3.2 s (the
 SIGTERM-ignoring one, two seconds of it the grace), 1.8 s (two agents), 1.1 s
-(answered, five leaves). Repository's own 5 s default is not used: the file names one
+(answered, five leaves). The repository's own 5 s default is not raised from outside (no `--testTimeout`
+anywhere); the file names one
 30 s per-case budget for a case that starts the production agent and a real CLI and
 waits for both to exit (as the stand-in suite did); no case takes more than 3.2 s.
 Final runs, `--maxWorkers=3`: **16 of 16 in each of two runs** after the last logic
@@ -486,7 +487,7 @@ it is the launch shell's group leader, found by `ps`.
 
 Section 7 item 2 said a Muse Code that already answered "is UNMEASURED here".
 With the empty sign-in the real CLI answers, and every way of leaving ends the
-agent and the CLI at once: the suite's five cases (0.8 to 1.2 s with the agent's
+agent and the CLI at once: the suite's five cases (1.1 to 1.2 s with the agent's
 start included) and the packed agent's five runs (9.6). The answered CLI reads the
 end of its input and leaves, so this is not the SDK's drain ladder; the ladder for an
 answered CLI that does **not** leave on end of input (up to 30 s, SIGTERM, 2 s,
@@ -585,14 +586,15 @@ On the final tree, exit codes as run:
 5. **The product says nothing a person can act on when `session/new` fails for a
    missing signed helper** (9.1): "That did not work" and a log line `Error`. A
    source checkout without `native/darwin/build.sh` met it. Not changed here
-   (redaction is by design, D-rule on text the CLI or the OS chose); a distinct
+   (the redaction is by design: AGENTS.md rule 8, text the CLI or the OS chose never reaches a log line or a sentence as sent); a distinct
    said sentence for "the macOS helper is missing" would be a small lane if wanted.
 6. **The base's four over-budget bundles, the audit and the six SAST findings**
    stay red, unchanged by this lane (section 6).
 
 ### 9.9 Commits
 
-On `rec/rlf-shutdown2`, after `6e88ebd35`: `d3aa086a9` (the suite on the real CLI,
-no stand-in), `bb15fb0a3` (the client leaves as the process appears; the
-SIGTERM-ignoring case once the CLI itself runs), and the commit carrying this section,
-the PLAN.md status line and the regenerated roadmap.
+On `rec/rlf-shutdown2`, after `6e88ebd35`: `d3aa086a9` (the suite on the real CLI, no
+stand-in), `bb15fb0a3` (the client leaves as the process appears; the
+SIGTERM-ignoring case once the CLI itself runs), `7a63a7247` (this section, the PLAN.md
+status line), `37e653afa` (the no-backend cases read the agent's log; the guard drill
+G5 in this record), and the commit that names them here.
