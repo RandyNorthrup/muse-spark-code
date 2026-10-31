@@ -267,8 +267,9 @@ function museSessionPort(session: MuseSession, context: MuseTaskContext): MuseWo
           workspaceRoot: context.workspaceRoot,
         })
         const isAllowed =
-          answer === 'askUser' &&
-          isAskedApprovalAllowed(context.spec.role.permissionMode, request.kind === 'writeFile')
+          answer === 'allow' ||
+          (answer === 'askUser' &&
+            isAskedApprovalAllowed(context.spec.role.permissionMode, request.kind === 'writeFile'))
         const choice = event.availableChoices.find((candidate) =>
           isAllowed
             ? candidate.decision === 'approved' && candidate.scope === 'once'

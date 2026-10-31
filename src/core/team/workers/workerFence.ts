@@ -12,6 +12,7 @@ const SINGLE_LINK_COUNT = 1
 import {
   CONTRIBUTOR_MODEL_SUFFIX,
   MODEL_EFFORT_LEVELS,
+  TEAM_CHECKS_SERVER,
   WORKER_ACP_MAX_PERMISSION_PATHS,
   WORKER_FILE_PATH_TIMEOUT_MS,
   UI_TEXT,
@@ -973,7 +974,12 @@ export async function classifyMuseWorkerApproval(input: {
       ? 'askUser'
       : 'deny'
   }
-  return 'deny'
+  // The team's own `run_checks` runs the person's configured commands, on the server
+  // only this team starts (Muse Code refuses a server of that name in the person's
+  // settings), and only for a role that has the checks group.
+  return input.role.toolGroups.includes('checks') && request.tool.includes(TEAM_CHECKS_SERVER)
+    ? 'allow'
+    : 'deny'
 }
 
 /** Step 1 has not shown how a session switches a user server off. */
