@@ -16,7 +16,7 @@ import { checkProcessOver } from '../../src/host/team/checkProcess'
 import { startNativeTeamLifetime } from '../../src/host/team/processLifetime'
 import { createTeamJournal } from '../../src/host/team/teamJournal'
 import { createWindowAuthority, createWindowIdentity } from '../../src/host/team/windowIdentity'
-import { HOOK_CONFIG_MAX_BYTES, TEAM_MODEL_TEXT } from '../../src/shared/constants'
+import { HOOK_CONFIG_MAX_BYTES, TEAM_PROCESS_MODEL_TEXT } from '../../src/shared/constants'
 import { isProcessAlive } from './helpers/teamRealRig'
 
 // A genuinely long operation: the first launch runs the OS identity probes
@@ -279,7 +279,7 @@ describe.skipIf(process.platform === 'win32')(
         })
         expect(result.exitCode).not.toBe(0)
         expect(result.output).toContain('begun')
-        expect(result.output).toContain(TEAM_MODEL_TEXT.hostCheckTimedOut)
+        expect(result.output).toContain(TEAM_PROCESS_MODEL_TEXT.hostCheckTimedOut)
         const record = await checkRecord(journal)
         expect(record.end?.childExited).toBe(true)
         expect(isProcessAlive(record.confirmation?.pid ?? 0)).toBe(false)

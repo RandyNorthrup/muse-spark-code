@@ -29,7 +29,12 @@ import {
   type TeamProcessWorkersDeps,
 } from '../../src/host/team/teamProcessWorkers'
 import { createTeamHost } from '../../src/host/team/teamHostEntry'
-import { TEAM_MODEL_TEXT, UI_TEXT, type CheckCommandSetting } from '../../src/shared/constants'
+import {
+  TEAM_MODEL_TEXT,
+  TEAM_PROCESS_MODEL_TEXT,
+  UI_TEXT,
+  type CheckCommandSetting,
+} from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import type { TeamAgentRef, TeamSnapshot } from '../../src/shared/team'
 import { TEAM_WORKSPACE_KEYS } from '../../src/shared/teamConversation'
@@ -451,7 +456,7 @@ describe('one worker port over every kind a surface runs', () => {
       const task = await delegate(rig, 'engineering', 'any work')
       const end = await settled(rig, task)
       expect(end.phase).toBe('failed')
-      expect(end.failure).toBe(TEAM_MODEL_TEXT.hostMuseNotFound)
+      expect(end.failure).toBe(TEAM_PROCESS_MODEL_TEXT.hostMuseNotFound)
       expect(launchRecords(rig)).toEqual([])
     },
   )
@@ -557,7 +562,9 @@ describe.skipIf(process.platform === 'win32')('external agent workers', () => {
     const refused = await delegate(rig, 'engineering', 'any work')
     const refusal = await settled(rig, refused)
     expect(refusal.phase).toBe('failed')
-    expect(refusal.failure).toBe(fill(TEAM_MODEL_TEXT.hostExternalNoSwitch, { agent: 'codex' }))
+    expect(refusal.failure).toBe(
+      fill(TEAM_PROCESS_MODEL_TEXT.hostExternalNoSwitch, { agent: 'codex' }),
+    )
     expect(launchRecords(rig)).toEqual([])
   })
 
@@ -569,7 +576,9 @@ describe.skipIf(process.platform === 'win32')('external agent workers', () => {
     const end = await settled(rig, task)
     expect(end.phase).toBe('failed')
     expect(end.failure).toBe(
-      fill(TEAM_MODEL_TEXT.hostExternalNotFound, { command: path.basename(process.execPath) }),
+      fill(TEAM_PROCESS_MODEL_TEXT.hostExternalNotFound, {
+        command: path.basename(process.execPath),
+      }),
     )
   })
 
@@ -599,7 +608,10 @@ describe.skipIf(process.platform === 'win32')('external agent workers', () => {
       const rig = await packedAgentRig()
       const task = await delegate(rig, 'engineering', 'any work')
       const end = await settled(rig, task)
-      expect(end).toEqual({ phase: 'failed', failure: TEAM_MODEL_TEXT.hostExternalNotSignedIn })
+      expect(end).toEqual({
+        phase: 'failed',
+        failure: TEAM_PROCESS_MODEL_TEXT.hostExternalNotSignedIn,
+      })
       // The agent was a real contained child, and it is gone with its task.
       const children = launchRecords(rig).filter((record) => record.taskId === task)
       expect(children).toHaveLength(1)
@@ -632,7 +644,10 @@ describe.skipIf(process.platform === 'win32')('external agent workers', () => {
       const task = await delegate(rig, 'engineering', 'any work')
       const end = await settled(rig, task)
       // The agent's own parser accepted the arguments: it got as far as asking for a sign-in.
-      expect(end).toEqual({ phase: 'failed', failure: TEAM_MODEL_TEXT.hostExternalNotSignedIn })
+      expect(end).toEqual({
+        phase: 'failed',
+        failure: TEAM_PROCESS_MODEL_TEXT.hostExternalNotSignedIn,
+      })
       const lines = readFileSync(noted, 'utf8').trim().split('\n')
       expect(lines.map((line) => JSON.parse(line) as string[])).toEqual([expectedArguments])
     },

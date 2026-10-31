@@ -7,7 +7,7 @@
 // so its folder stays held until the person decides (the M96c rule).
 
 import type { TeamAttempt } from '../../shared/team'
-import { TEAM_MODEL_TEXT } from '../../shared/constants'
+import { TEAM_PROCESS_MODEL_TEXT } from '../../shared/constants'
 import type { CheckProcess } from './checkSlots'
 import type { Retirement, TeamProcessLifetime } from './processLifetime'
 
@@ -92,7 +92,7 @@ export function checkProcessOver(lifetime: TeamProcessLifetime): CheckProcess {
       const end = await contained.retire()
       const code = await exited
       const confirmation = await contained.confirmation
-      if (state.isLimited) pieces.push(`\n${TEAM_MODEL_TEXT.hostCheckTimedOut}\n`)
+      if (state.isLimited) pieces.push(`\n${TEAM_PROCESS_MODEL_TEXT.hostCheckTimedOut}\n`)
       return {
         exitCode: code ?? EXIT_FAILED,
         output: pieces.join(''),

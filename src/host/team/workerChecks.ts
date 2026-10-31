@@ -36,6 +36,7 @@ import {
   TEAM_CHECKS_SERVER,
   TEAM_CHECKS_TOOL,
   TEAM_MODEL_TEXT,
+  TEAM_PROCESS_MODEL_TEXT,
   UI_TEXT,
   type CheckCommandSetting,
 } from '../../shared/constants'
@@ -120,7 +121,7 @@ function resultText(results: readonly CheckResult[], checks: readonly CheckComma
     MODEL_API_MODEL_TEXT.runChecksLead,
     ...results.map(
       (result, index) =>
-        `${fill(TEAM_MODEL_TEXT.hostCheckResult, {
+        `${fill(TEAM_PROCESS_MODEL_TEXT.hostCheckResult, {
           name: names[index] ?? result.runId,
           code: String(result.exitCode),
           location: result.location,
@@ -188,7 +189,7 @@ export function createWorkerChecks(deps: WorkerChecksDeps) {
       // The commands are the person's own; the one thing a worker never does is move a ref.
       guard: (job) => {
         if (hasRefMove(job.command, deps.platform === 'win32' ? 'powershell' : 'bash'))
-          return Promise.reject(new Error(TEAM_MODEL_TEXT.hostCheckMovesRef))
+          return Promise.reject(new Error(TEAM_PROCESS_MODEL_TEXT.hostCheckMovesRef))
         return Promise.resolve(job.command)
       },
       // Runners over SSH are not on this route: the only leg is the local slot.

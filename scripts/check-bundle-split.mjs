@@ -1811,6 +1811,20 @@ const TEXT_BLOCKS = [
       'dist/teamProcess.js',
     ],
   },
+  // CC-INT9: the process workers' words, read by the process workers' bundle
+  // alone (RLF-TEAMWORKERS): the Roles panel's bundle does not carry them.
+  {
+    block: 'TEAM_PROCESS_MODEL_TEXT',
+    sentinels: ['hostExternalNoSwitch', 'hostMuseNotFound'],
+    readers: ['dist/teamProcess.js'],
+  },
+  // D250: the team MCP server's instructions, read by the server's own bundle
+  // (RLF-TEAMFIT moved the server out of dist/teamHost.js).
+  {
+    block: 'TEAM_MCP_MODEL_TEXT',
+    sentinels: ['mcpInstructions'],
+    readers: ['dist/teamMcp.js'],
+  },
   // M116 (D218): the team runner's playbook refusals, worded by the team
   // service alone.
   {

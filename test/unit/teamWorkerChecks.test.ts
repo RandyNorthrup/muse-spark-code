@@ -25,7 +25,7 @@ import {
 import {
   MODEL_API_MODEL_TEXT,
   TEAM_CHECKS_SERVER,
-  TEAM_MODEL_TEXT,
+  TEAM_PROCESS_MODEL_TEXT,
   type CheckCommandSetting,
 } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
@@ -373,7 +373,7 @@ describe.skipIf(process.platform === 'win32')('a team worker’s run_checks', ()
       const endpoint = await serve(rig.workerChecks, await taskCopy('ref'))
       const reply = await call(endpoint, { names: ['publish'] })
       expect(reply.body?.result?.isError).toBe(true)
-      expect(text(reply)).toBe(TEAM_MODEL_TEXT.hostCheckMovesRef)
+      expect(text(reply)).toBe(TEAM_PROCESS_MODEL_TEXT.hostCheckMovesRef)
       expect(await lines(log)).toEqual([])
     },
     LONG_MS,
