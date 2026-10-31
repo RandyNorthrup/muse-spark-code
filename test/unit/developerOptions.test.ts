@@ -14,6 +14,7 @@ import {
 import { fileAccountsMetadata } from '../../src/runtime/providers/providersFileStore'
 import { runTerminalDeveloperCommand } from '../../src/runtime/providers/accountsEntry'
 import { parseDeveloperCommand } from '../../src/runtime/developer/developerCommand'
+import { collectingLogger } from './helpers/collectingLogger'
 import { DeveloperLocalFiles } from '../../src/runtime/developer/localFiles'
 import type { SecretStore } from '../../src/host/auth/credentialStore'
 import {
@@ -69,6 +70,7 @@ async function setup(): Promise<Harness> {
     dataDir: folder,
     secrets: mapSecrets(),
     now: () => clock.value,
+    log: collectingLogger([]),
   })
   const owner = await services.developer({
     readLine: (prompt: string) => {
@@ -376,7 +378,7 @@ describe('M108 X developer terminal command', () => {
 
   it('answers help and misuse before any state work', async () => {
     const folder = scratch()
-    const input = { dataDir: folder, secrets: mapSecrets() }
+    const input = { dataDir: folder, secrets: mapSecrets(), log: collectingLogger([]) }
     const owner = {
       readLine: () => Promise.resolve('no'),
       print: () => undefined,
@@ -416,7 +418,7 @@ describe('M108 X developer terminal command', () => {
     const first = await runTerminalDeveloperCommand(
       UI_TEXT,
       'en',
-      { dataDir: folder, secrets: mapSecrets() },
+      { dataDir: folder, secrets: mapSecrets(), log: collectingLogger([]) },
       owner,
       ['developer'],
       'test',
@@ -425,7 +427,7 @@ describe('M108 X developer terminal command', () => {
     const status = await runTerminalDeveloperCommand(
       UI_TEXT,
       'en',
-      { dataDir: folder, secrets: mapSecrets() },
+      { dataDir: folder, secrets: mapSecrets(), log: collectingLogger([]) },
       owner,
       ['developer', 'status'],
       'test',
