@@ -1,0 +1,17 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Muse Spark Eclipse tests
+Bundle-SymbolicName: io.musespark.eclipse.tests
+Bundle-Version: 0.18.2.qualifier
+Bundle-RequiredExecutionEnvironment: JavaSE-21
+Require-Bundle: org.eclipse.core.runtime,
+ org.eclipse.osgi,
+ org.eclipse.swt,
+ org.eclipse.jface,
+ io.musespark.eclipse,
+ org.junit,
+ org.eclipse.ui.ide,
+ org.eclipse.ui.editors,
+ org.eclipse.jface.text,
+ org.eclipse.core.resources,
+ com.google.gson
