@@ -125,6 +125,16 @@ const schemas = {
         kind: z.string(),
         message: z.string(),
         retryable: z.optional(z.boolean()),
+        // The typed quota-exhaustion detail (ADR 50047 D2/D3, verified
+        // in CLI 1.4.10's offline schema export): present iff the
+        // stopping failure was the quota class. Both members are
+        // required on the wire, as the CLI's schema requires them.
+        quota: z.optional(
+          z.object({
+            limitKind: z.string(),
+            resetsAtMs: z.number(),
+          }),
+        ),
       }),
     ),
   }),
@@ -393,6 +403,15 @@ function rawNotification(notification: WireNotification): MapOutcome {
       const { sessionId, turnId, terminal, reason, durationMs, error } = params as z.infer<
         (typeof schemas)['turn/completed']
       >
+      // A spent subscription window (D229): the typed detail rides on
+      // only with a usable reset instant, so every reader branches on
+      // presence alone and no surface can name an "Invalid Date".
+      const quota =
+        error?.quota !== undefined &&
+        Number.isFinite(error.quota.resetsAtMs) &&
+        error.quota.resetsAtMs >= 0
+          ? { limitKind: error.quota.limitKind, resetsAtMs: error.quota.resetsAtMs }
+          : undefined
       return {
         sessionId,
         event: {
@@ -405,6 +424,7 @@ function rawNotification(notification: WireNotification): MapOutcome {
           // CLI's own judgment where it spoke; absent judgment stays absent.
           ...(error?.retryable !== undefined && { retryable: error.retryable }),
           ...(durationMs !== undefined && { durationMs }),
+          ...(quota !== undefined && { quota }),
         },
       }
     }

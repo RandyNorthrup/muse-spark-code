@@ -4906,11 +4906,13 @@
   "announceApprovalFor": "Aprovação necessária para {tool}",
   "turnFailed": "O turno falhou.",
   "turnTransientFailed": "O serviço do Muse não conseguiu concluir o turno. O turno manteve seu trabalho; envie a mensagem novamente para continuar.",
+  "subscriptionQuotaExhausted": "A cota da assinatura se esgotou. Sua janela de uso será redefinida em {resetTime}.",
   "turnRetryAction": "Tentar novamente",
   "turnRetryUnavailable": "Esse turno não pode mais ser repetido. Envie sua mensagem novamente.",
   "turnRetryBusy": "Aguarde o fim da resposta, ou interrompa-a, antes de tentar novamente.",
   "turnRetrying": "Tentando novamente em {seconds} s (tentativa {attempt} de {maxAttempts}).",
   "turnRetryingUncapped": "Tentando novamente em {seconds} s (tentativa {attempt}).",
+  "turnQuotaWaiting": "Sua janela de uso será redefinida em {resetTime}; a vez continuará então. Você pode interromper a vez a qualquer momento.",
   "modelApiProviderRetryWait": "{reason}; o provedor pediu para aguardar até {time}. Você pode interromper a vez a qualquer momento.",
   "usageWindowHours": {
     "one": "janela de {count} hora",

@@ -3811,6 +3811,8 @@ export const ACP_ERROR_CODES = {
   turnFailed: -32_011,
   unavailable: -32_012,
   refused: -32_013,
+  // A spent subscription window (D229): its own outcome, never internal.
+  quotaExhausted: -32_014,
 } as const
 
 // The reasoning effort sent while the Thinking toggle is off (`none` is a 400).

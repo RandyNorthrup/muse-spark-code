@@ -4810,11 +4810,13 @@
   "announceApprovalFor": "Jóváhagyás szükséges: {tool}",
   "turnFailed": "A kör sikertelen volt.",
   "turnTransientFailed": "A Muse szolgáltatása nem tudta befejezni a kört. A kör megőrizte a munkáját; a folytatáshoz küldje el újra az üzenetet.",
+  "subscriptionQuotaExhausted": "Az előfizetési kvóta kimerült. A használati ablak {resetTime} időpontban visszaáll.",
   "turnRetryAction": "Újrapróbálás",
   "turnRetryUnavailable": "Ez a kör már nem próbálható újra. Küldje el újra az üzenetet.",
   "turnRetryBusy": "Várja meg a válasz végét, vagy állítsa le, mielőtt újrapróbálná.",
   "turnRetrying": "Újrapróbálás {seconds} mp múlva ({attempt}. kísérlet a {maxAttempts} közül).",
   "turnRetryingUncapped": "Újrapróbálás {seconds} mp múlva ({attempt}. kísérlet).",
+  "turnQuotaWaiting": "A használati ablak {resetTime} időpontban visszaáll; a menet ekkor folytatódik. A menetet bármikor leállíthatod.",
   "modelApiProviderRetryWait": "{reason}; a szolgáltató arra kért, hogy várj {time} időpontig. A menetet bármikor leállíthatod.",
   "usageWindowHours": {
     "one": "{count} órás időablak",
