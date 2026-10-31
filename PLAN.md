@@ -10385,6 +10385,11 @@ secret-gist core with RVCRED's two fixes is merged on int (D242 here, D218 on
 its branch). `gistShare`, `githubGist` and `gistGrantStore` pass (31 cases).
 No surface offers it and no live GitHub publish has been made.
 
+**Status 2026-10-31 (independent review, RVINT7): built.** The merge kept
+`gist` alone, treats a missing `X-OAuth-Scopes` header as not a missing
+scope, and scrubs the body again at send. `gistShare` (21) and `githubGist`
+(6) passed on this tree. Record: `docs/certification/rvint7.md`.
+
 - **Q-M101IMAGE-DIMENSIONS (2026-10-06).** Which checked-in provider capture or
   authorized documentation supplies each vision model's maximum width/height?
   This base has no M95 N records for them, and the lane rules permit no network
@@ -11235,6 +11240,12 @@ on int. On a ps-capable Mac the four POSIX fork-protection cases run and pass
 (the 521-process flood takes 6 to 8 s, so it carries a named 30 s timeout), and
 `superviseGoverned` passes. Record: `docs/certification/cc-int7.md`.
 
+**Status 2026-10-31 (independent review, RVINT7): built.** The bounds stay
+512 alive processes and 16,384 births in 15 s, and the stop sentences name
+those bounds. A private records folder and an over-long control-socket path
+are still said (`superviseRefusal`, 2 passed). Record:
+`docs/certification/rvint7.md`.
+
 - **Goal.** Decide the fork limit under D121/D208 with cited
   industry-standard values, person-settable where that makes sense,
   saying why when it stops something; register supervised runs with
@@ -11801,6 +11812,13 @@ of the new grant only when a file watcher fired and macOS delivers those late
 registry does before each call (0 of 8 failed). Not run: the packed product,
 the MCP Inspector, the dual-era client against `serve-http`, hosted CI's
 Windows legs. Record: `docs/certification/cc-int7.md`.
+
+**Status 2026-10-31 (independent review, RVINT7): built.** Re-read on this
+tree: a request that starts after `mcp revoke` is on disk is refused at the
+MCP endpoint and at the token endpoint, and the issuer pin still builds the
+token, key and revocation addresses from the configured issuer.
+`connectorRemote` (13) and `connectorRemoteIssuer` (3) passed here. Record:
+`docs/certification/rvint7.md`.
 
 **Provenance.** The documentation-only M119PLAN lane planned this on
 2026-10-07 under the numbers D102/M119 (commits `b27ad09a9`, `00e825dfa` and
@@ -25543,6 +25561,14 @@ import stopped pulling in the Model API tools. Not run: the vault suites that
 write the OS credential store (hosted CI), the Windows and Linux legs,
 `exec --vault` through the packed product. M109 stays open.
 
+**Status 2026-10-31 (independent review, RVINT7): built.** The merge kept
+the undo journal (pending before the legacy write, written only after
+read-back), the ChatGPT slot when the store or the journal holds it, the
+optional migration shell, the no-follow credential-file read, and ticket
+delegation to that feeder's pid, start time and envelope digest. The vault
+and OS credential-store suites were not run. `cliCredentialFile` (6) passed.
+Record: `docs/certification/rvint7.md`.
+
 **C-M109-1 lead decisions (2026-10-10, lead decision).** In 0.17.0, every
 vault use is refused. The binding layer was never built: the broker process,
 its ports, peer checks, a setup flow, a runtime bundle and a Linux slot are
@@ -29470,6 +29496,13 @@ run's model is contributor-tier and listed. Record:
 on int; `scheduleDeferredRetry`, `watchdogQuotedAck`, the watchdog suites and
 `contributorGuard` pass on the merged tree.
 
+**Status 2026-10-31 (independent review, RVINT7): built.** A persistence
+fault counts as applied only after stage news or a pending read shows the
+stage moved, and a stage that still waits is offered again. Live drills
+still refuse a model that is not contributor-tier.
+`museCodeApprovalPersistence` (2) passed. Record:
+`docs/certification/rvint7.md`.
+
 - **Goal.** A user, or an orchestrating agent within the user's limits,
   schedules any number of prompts to fire once, repeatedly, on a cron
   expression or on an event (a pull request merged, a milestone certified),
@@ -31767,6 +31800,11 @@ Evidence: `docs/certification/rlf-nostubs.md`.
 on int; its 18 suites pass on the merged tree (249 passed, 20 skipped), with
 `modelApiRetryNoCount` taking int's D228 values (0.5 s base, 8 s ceiling) inside
 the lane's real jitter window.
+
+**Status 2026-10-31 (independent review, RVINT7): built.** The retry
+ceiling stays the industry 8 s cap (D228). A 401 or 403 from a provider
+probe still forgets only that stored key. Record:
+`docs/certification/rvint7.md`.
 
 ---
 
