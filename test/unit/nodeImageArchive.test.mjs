@@ -56,10 +56,9 @@ const indexType = 'application/vnd.oci.image.index.v1+json'
 const manifestType = 'application/vnd.oci.image.manifest.v1+json'
 const configType = 'application/vnd.oci.image.config.v1+json'
 const put = (content, mediaType) => {
-  const bytes =
-    typeof content === 'object' && !Buffer.isBuffer(content)
-      ? Buffer.from(JSON.stringify(content))
-      : Buffer.from(content)
+  const bytes = Buffer.from(
+    typeof content === 'object' && !Buffer.isBuffer(content) ? JSON.stringify(content) : content,
+  )
   const hash = createHash('sha256').update(bytes).digest('hex')
   writeFileSync(path.join(fixture.oci, 'blobs/sha256', hash), bytes)
   return { digest: `sha256:${hash}`, size: bytes.length, mediaType }

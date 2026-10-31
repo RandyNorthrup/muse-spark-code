@@ -40,11 +40,12 @@ const runner = (diagnostic: EstimateDiagnostic) => {
   return {
     estimate: () => {
       calls += 1
-      if (calls === 1) return Promise.resolve(section)
       // The runner port refuses exactly as the production engine does: an
       // EstimateDiagnosticError carrying the code, which every surface
       // normalizes back to its installed-language sentence.
-      return Promise.reject(new EstimateDiagnosticError(diagnostic.estimateDiagnostic))
+      return calls === 1
+        ? Promise.resolve(section)
+        : Promise.reject(new EstimateDiagnosticError(diagnostic.estimateDiagnostic))
     },
   }
 }

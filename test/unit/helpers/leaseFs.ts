@@ -13,14 +13,13 @@ interface Pause {
   readonly resume: () => void
 }
 
-type AsyncOp =
-  'mkdir' | 'readdir' | 'readFile' | 'createExclusive' | 'link' | 'rename' | 'unlink' | 'lstat'
-
 /** A record generation's file name. */
 export const GENERATION_FILE = /\d+\.json$/u
 
 /** Node's lease port (or `base`), with one-shot pauses a test arms per call. */
 export function pausingPort(base: LeasePort = nodeLeasePort) {
+  type AsyncOp =
+    'mkdir' | 'readdir' | 'readFile' | 'createExclusive' | 'link' | 'rename' | 'unlink' | 'lstat'
   const traps: {
     readonly op: AsyncOp
     readonly isMatch: (args: readonly string[]) => boolean

@@ -115,9 +115,9 @@ const fetchPublic: typeof fetch = (input, init = {}) => {
   if (headers.has('authorization') || headers.has('cookie'))
     return Promise.reject(new Error(`credential leaked to ${url}`))
   if (url.startsWith('https://marketplace.visualstudio.com/'))
-    return init.method !== 'POST' || init.body !== MARKETPLACE_REQUEST_BODY
-      ? Promise.reject(new Error('marketplace request is not the captured form'))
-      : Promise.resolve(Response.json(MARKETPLACE_ANSWER))
+    return init.method === 'POST' && init.body === MARKETPLACE_REQUEST_BODY
+      ? Promise.resolve(Response.json(MARKETPLACE_ANSWER))
+      : Promise.reject(new Error('marketplace request is not the captured form'))
   if (url.startsWith('https://open-vsx.org/')) return Promise.resolve(Response.json(OPENVsx_ANSWER))
   return url.startsWith('https://registry.npmjs.org/')
     ? Promise.resolve(Response.json(NPM_ANSWER))

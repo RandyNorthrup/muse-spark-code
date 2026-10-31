@@ -138,8 +138,7 @@ describe('MuseCodeHookModels', () => {
         if (method === 'session/start') return { result: startResult }
         if (method === 'session/setReasoningEffort') return { result: {} }
         if (method === 'turn/start') return new Promise<Answer>(() => undefined)
-        if (method === 'turn/cancel') return { result: {} }
-        if (method === 'task/stopAll') return { result: {} }
+        if (method === 'turn/cancel' || method === 'task/stopAll') return { result: {} }
         throw new Error(`unexpected ${method}`)
       })
       const models = turnModels(root, log)
