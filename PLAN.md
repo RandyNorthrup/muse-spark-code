@@ -11228,6 +11228,26 @@ ladder; the real CLI cannot start in this screenless session), Windows,
 and the Keychain wait's failure-with-words (open question 1 in the
 record). Status evidence: `docs/certification/rlf-shutdown.md`.
 
+**Status 2026-10-31 (lane RLF-SHUTDOWN2, macmini): built.** The shutdown
+suite no longer stands a Node process in for the CLI. Its cases run against
+the real Muse Code 1.4.11 in a home of its own with a dead proxy for every
+protocol (0 Muse requests, no prompt sent), the two ways this Mac mini makes
+it fail to finish: a recorded placeholder sign-in, where the CLI blocks
+writing a Keychain item a screenless session cannot approve (run only in a
+session no dialog can appear in), and the recorded empty sign-in, where the
+CLI answers but cannot reach Muse and the session cannot start. That second
+state is the answered Muse Code the first record could not reach: every way
+of leaving ends the agent and the CLI at once, in the suite and in the packed
+agent (0.16 s). The CLI that ignores SIGTERM is the same real CLI started
+with SIGTERM ignored. Restoring the old shutdown code fails 14 of the 16
+cases with the real CLI left running (parent 1); six single-edit drills and
+four on the suite's own guards fire. No Keychain item was written for any
+run's home or for the account. Not proven: an answered CLI that does not leave
+on the end of its input (the SDK's drain ladder), the blocked states in a
+session that can show a dialog, Linux and Windows with the real CLI. The
+real-CLI cases skip by name, with the reason, where the CLI is not installed
+(hosted CI). Status evidence: `docs/certification/rlf-shutdown.md` section 9.
+
 - **Goal.** The agent ends on client EOF and on SIGTERM, SIGINT and
   SIGHUP in every state, stops the Muse Code it started (its whole
   process group, or the Windows job) with the industry-standard grace
