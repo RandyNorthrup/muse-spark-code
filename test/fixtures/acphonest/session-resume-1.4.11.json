@@ -1,0 +1,44 @@
+{
+  "session": {
+    "sessionId": "01a18e6a-7b16-7910-81f2-0158d565c3ae",
+    "path": "/Users/randy/lanes/RLF-ACPHONEST.app/home/Library/Application Support/Muse Spark Code/resource-created/trees/muse-tree-93e7acec-246d-4a54-ba50-f48ebf548128/acphonest-fix-home-Oih7DH/.local/share/muse/sessions/2026/10/30/01a18e6a-7b16-7910-81f2-0158d565c3ae/session.jsonl",
+    "status": "idle",
+    "activeTurnId": null,
+    "createdAt": "2026-10-30T20:05:05.43263Z",
+    "updatedAt": "2026-10-30T20:05:10.274453Z",
+    "workspaceRoot": "<capture-workspace>",
+    "providerId": "echo",
+    "modelId": "muse-spark-1.3",
+    "turnCount": 0,
+    "forkedFrom": null,
+    "sideFrom": null,
+    "kind": "root",
+    "approvalMode": {
+      "mode": "promptUnmatched",
+      "source": "approvalReconfigure",
+      "lastCommandId": "01a18e6a-8ba8-7000-bad2-92bafd68899f"
+    },
+    "permissionState": {
+      "profileId": ":ask-me",
+      "reviewerAuthority": "human",
+      "axes": {
+        "filesystem": "sandboxed",
+        "network": "off",
+        "approval": "onRequest",
+        "reviewer": "human"
+      },
+      "reviewerAttached": true
+    },
+    "createdByClient": {
+      "name": "muse_spark_capture",
+      "version": "0.0.0"
+    }
+  },
+  "viewCursor": "v4:01a18e6a-7b16-7910-81f2-0158d565c3ae:6",
+  "history": {
+    "mode": "inline",
+    "items": [],
+    "snapshot": null
+  },
+  "pendingRequests": []
+}

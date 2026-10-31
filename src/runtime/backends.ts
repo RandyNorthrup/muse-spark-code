@@ -339,7 +339,8 @@ function museCodeManager(
     usageRecording: deps.usageRecording,
     // The same captured-frame readers as the VS Code window (C-M106-3R2),
     // so the CLI and the ACP agent read effort extras, the note-only
-    // feedback receipt and the deletion refusal identically.
+    // feedback receipt, the session/started notice and the deletion
+    // refusal identically.
     featurePorts: NATIVE_MUSE_CODE_FEATURE_PORTS,
     // This records the actual scope boundary; it does not certify a VS Code fence.
     beforeWorkspaceHostStart: () => independentEditorStartupPolicy(log),

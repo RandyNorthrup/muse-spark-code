@@ -1,0 +1,94 @@
+{
+  "skills": [
+    {
+      "selector": "blender",
+      "displayName": "blender",
+      "description": "Build, edit, animate and render 3D content in Blender with Python (bpy), usually headless. Covers modeling objects and assemblies from a description or reference image, recreating a photographed scene, laying out environments from a tabletop to a landscape or city, animation (keyframes, paths, physics, camera moves), lighting, materials and still or video renders, each checked with renders. Use whenever a task involves Blender, bpy, a .blend file, 3D modeling, a procedural 3D scene, or rendering a 3D image or animation.",
+      "source": "bundled"
+    },
+    {
+      "selector": "create-plugin",
+      "displayName": "create-plugin",
+      "description": "Create and validate a new native Muse plugin package in the current workspace. Use ONLY when the user explicitly asks to create a Muse plugin or invokes the create-plugin skill. Do NOT use for application/library plugin classes, third-party plugin systems, or ordinary code changes.",
+      "source": "bundled"
+    },
+    {
+      "selector": "create-skill",
+      "displayName": "create-skill",
+      "description": "Create and validate a new Muse skill — project-local in the current workspace by default, or a personal skill staged for `muse skills install` into the managed personal root. Use ONLY when the user explicitly asks to create a Muse skill or invokes the create-skill skill. Do NOT use for ordinary skill usage, code changes, benchmark tasks, or third-party skill/plugin systems.",
+      "source": "bundled"
+    },
+    {
+      "selector": "doctor",
+      "displayName": "doctor",
+      "description": "Diagnose Muse Code product/runtime issues from installed binary evidence. Use ONLY when the user explicitly invokes the doctor skill, asks to debug/troubleshoot Muse Code itself, asks what happened earlier in the current Muse Code session, or explicitly selects an earlier Muse Code session. Do NOT use for ordinary repository code failures or history, benchmark tasks, implementation debugging, build/test hangs, or third-party project issues.",
+      "source": "bundled"
+    },
+    {
+      "selector": "game-3d-visuals",
+      "displayName": "game-3d-visuals",
+      "description": "Always call read_skill for this skill before writing code for any task that models, builds or recreates something visual in 3D (Blender, three.js, WebGL/WebGPU, a game engine) or builds a game, whether from a text prompt or reference image(s), and read it first, before any tool-specific skill such as blender or threejs (it owns the process and uses them only for technique). It raises visual quality with consistent reference images, a detailed visual PRD, a blockout gate and a render-vs-reference acceptance loop, run as one fixed Workflow script when the workflow tool is available. When it applies it owns the task's process: after preparing the references, launch its shipped workflow script instead of doing the steps inline, and use other loaded skills only for technique.",
+      "source": "bundled"
+    },
+    {
+      "selector": "grill",
+      "displayName": "grill",
+      "description": "Run an explicitly requested decision interview and record each settled decision in durable project documentation.",
+      "source": "bundled"
+    },
+    {
+      "selector": "import",
+      "displayName": "import",
+      "description": "Import a Claude Code, Codex, or Grok session",
+      "argumentHint": "<session-id-or-path>",
+      "source": "bundled"
+    },
+    {
+      "selector": "manage-settings",
+      "displayName": "manage-settings",
+      "description": "Any explicit Muse Code setting question or change (model, reasoning effort, /settings) requires a silent read_skill call for bundled:manage-settings as FIRST ACTION—no assistant text or other tool first. Never use for repository, app, eval, or other non-Muse configuration.",
+      "source": "bundled"
+    },
+    {
+      "selector": "migrate",
+      "displayName": "migrate",
+      "description": "Migrate Claude Code / Codex memory and MCP servers into Muse",
+      "argumentHint": "[memory|mcp] [claude|codex]",
+      "source": "bundled"
+    },
+    {
+      "selector": "plan",
+      "displayName": "plan",
+      "description": "On an explicit planning request, always call `read_skill` for this skill before answering. Research first, then return one concise inline plan; do not create a plan file unless the user explicitly asks or a governing workflow requires one. Start and end the reply by saying this is not a special mode and `go` executes the plan; do not implement in the planning turn. For ordinary implement, build, fix, debug, or refactor requests, work directly. When an explicit plan divides work into separate diffs, commits, or PRs and the user asks to publish, preserve that split and tell the user before deviating.",
+      "source": "bundled"
+    },
+    {
+      "selector": "resume-claude",
+      "displayName": "resume-claude",
+      "description": "Continue a Claude Code session here",
+      "argumentHint": "[session-id-or-log-path]",
+      "source": "bundled"
+    },
+    {
+      "selector": "resume-codex",
+      "displayName": "resume-codex",
+      "description": "Continue a Codex session here",
+      "argumentHint": "[session-id-or-log-path]",
+      "source": "bundled"
+    },
+    {
+      "selector": "threejs",
+      "displayName": "threejs",
+      "description": "Three.js 3D reference hub. Use when working with Three.js: pick the topic below and read its file for patterns and API guidance.",
+      "source": "plugin",
+      "pluginId": "threejs"
+    },
+    {
+      "selector": "threejs:threejs",
+      "displayName": "threejs",
+      "description": "Three.js 3D reference hub. Use when working with Three.js: pick the topic below and read its file for patterns and API guidance.",
+      "source": "plugin",
+      "pluginId": "threejs"
+    }
+  ]
+}

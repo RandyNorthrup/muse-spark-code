@@ -43,7 +43,13 @@ export interface MuseCodeLifecycleReader {
     readonly method: string
     readonly params: unknown
   }): MuseCodeLifecycleEvent
-  parseDeleteAdmission(receipt: unknown, commandId: string): void
+  /**
+  Parses a `session/delete` admission receipt. Absent until that receipt is
+  captured from a CLI that serves `session/delete` (gone from 1.4.4 on, so
+  no served capture exists); the native reader omits it, and `deleteSession`
+  refuses without sending while it is absent.
+  */
+  parseDeleteAdmission?(receipt: unknown, commandId: string): void
 }
 
 export type MappedNotification =

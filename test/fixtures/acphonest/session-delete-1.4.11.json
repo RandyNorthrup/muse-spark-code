@@ -1,0 +1,9 @@
+{
+  "refused": {
+    "code": -32601,
+    "message": "method not found",
+    "data": {
+      "kind": "methodNotFound"
+    }
+  }
+}

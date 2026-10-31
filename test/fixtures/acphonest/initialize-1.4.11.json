@@ -1,0 +1,24 @@
+{
+  "serverInfo": {
+    "name": "muse",
+    "version": "1.4.11"
+  },
+  "userAgent": "muse-build/1.4.11 (serve; macos-x86_64; build d654f64987ba0a6f60980e9e89351223c1e4095c)",
+  "museHome": "/Users/randy/lanes/RLF-ACPHONEST.app/home/Library/Application Support/Muse Spark Code/resource-created/trees/muse-tree-93e7acec-246d-4a54-ba50-f48ebf548128/acphonest-fix-home-Oih7DH/.local/share/muse",
+  "platformFamily": "unix",
+  "platformOs": "macos",
+  "schema": {
+    "version": 1,
+    "fingerprint": "sha256:f282ad16e21520d0cda68cb190149b86e2b062eef1dd282749360c05aa3d1082"
+  },
+  "grantedCapabilities": [
+    "userShell",
+    "sessionMcp",
+    "sessionListStream",
+    "feedback",
+    "sessionRename"
+  ],
+  "experimentalApi": true,
+  "sessionDurability": "durable",
+  "sandboxAvailability": "unavailable"
+}

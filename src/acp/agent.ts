@@ -865,6 +865,8 @@ class AcpSession {
   private starting: Promise<unknown> | undefined
   /** The last backend mode command queued: each one runs after the one before it. */
   private modeOrder: Promise<unknown> = Promise.resolve()
+  /** The last approval-mode wire word reported, so the set's echo is logged once. */
+  private lastApprovalModeWire: string | undefined
   /**
   The turn's own stop: aborting it sends `$/cancel_request` for the
   client's requests still waiting (permission, elicitation), the
@@ -1594,11 +1596,35 @@ class AcpSession {
         return
       }
       case 'approvalModeChanged': {
-        // The CLI changed the mode itself (a ceiling or managed policy): the
-        // editor keeps showing the mode it set, and the log keeps the fact.
+        // The CLI runs this wire mode now. When it is the mode the client
+        // set, the notice is the set's own echo (RLF-HARVEST H6: every
+        // session warned it): one info line, never a warning. When the CLI
+        // moved on its own (a ceiling, a managed policy), the editor is
+        // told the running mode and the warn stays. A wire mode no menu
+        // mode selects cannot be shown, so it only warns.
+        const shown = composerModeForApprovalMode(event.mode, this.mode, true)
+        if (shown === undefined) {
+          this.deps.log.warn(
+            `ACP session ${this.sessionId}: Muse Code now runs approval mode ${wireWordForLog(event.mode)}`,
+          )
+          return
+        }
+        if (shown === this.mode) {
+          if (this.lastApprovalModeWire !== event.mode) {
+            this.lastApprovalModeWire = event.mode
+            this.deps.log.info(
+              `ACP session ${this.sessionId}: Muse Code runs approval mode ${wireWordForLog(event.mode)}`,
+            )
+          }
+          return
+        }
+        this.lastApprovalModeWire = event.mode
+        this.mode = shown
         this.deps.log.warn(
           `ACP session ${this.sessionId}: Muse Code now runs approval mode ${wireWordForLog(event.mode)}`,
         )
+        this.send({ sessionUpdate: 'current_mode_update', currentModeId: shown })
+        this.send({ sessionUpdate: 'config_option_update', configOptions: this.configOptions() })
         return
       }
       case 'effortChanged': {
