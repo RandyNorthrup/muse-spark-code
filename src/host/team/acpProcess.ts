@@ -120,6 +120,8 @@ export interface SpawnAcpAgentInput {
   readonly preset: AcpPreset
   /** The resolved command (lane W's PATH lookup); the preset's name when already resolved. */
   readonly command: string
+  /** The pool entry's model id: a listed contributor-tier id adds the preset's contributor switch. */
+  readonly modelId?: string
   readonly extraArgs?: readonly string[]
   readonly cwd: string
   readonly workspaceRoot: string

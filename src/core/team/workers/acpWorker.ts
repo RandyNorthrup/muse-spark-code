@@ -67,6 +67,12 @@ export interface AcpPreset {
   */
   readonly withoutUserServersMeta?: Readonly<Record<string, unknown>>
   /**
+  The spawn arguments that make the agent list contributor-tier models, which
+  it hides otherwise. Added only when the pool entry names a listed
+  contributor-tier model (`acpSpawnArgs`): the person's pick is the opt-in.
+  */
+  readonly contributorModelsSwitch?: readonly string[]
+  /**
   The captured mode per role shape. Absent means the preset has shown no
   mode that meets the shape, so the role refuses the agent (acceptance 24).
   */
@@ -133,6 +139,8 @@ export const ACP_PRESETS: Readonly<Record<AcpPresetId, AcpPreset>> = {
     command: 'muse-spark-code-acp',
     defaultArgs: [],
     withoutUserServersSwitch: ['--no-user-mcp-servers'],
+    // The agent lists contributor-tier models only with this flag (`openHost`).
+    contributorModelsSwitch: ['--allow-contributor-models'],
     modes: { readOnly: 'plan', writePaths: 'manual', engineering: 'manual' },
     forbiddenModes: ['acceptEdits', 'auto', 'bypassPermissions'],
   },
