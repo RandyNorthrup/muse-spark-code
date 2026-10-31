@@ -62,7 +62,8 @@ function testLogger(): Logger {
   }
 }
 
-const WAIT_DEADLINE_MS = 4000
+// Each wait covers one real step of a 521-process flood (fill, stop, die), several seconds on macOS.
+const WAIT_DEADLINE_MS = 20_000
 
 async function waitFor(label: string, isReady: () => boolean): Promise<void> {
   const started = Date.now()
@@ -241,6 +242,12 @@ async function endGroup(child: ChildProcess): Promise<void> {
   await waitFor('the test group to die', () => !isGroupLive(group))
 }
 
+// The flood test starts 521 real processes, waits for the sampler to stop the
+// tree past the 512 bound and for the whole group to die; measured 7.7 s on a
+// Mac mini (macOS starts about 300 processes a second), past the repository's
+// 5 s default.
+const FLOOD_FILL_TIMEOUT_MS = 30_000
+
 describe.runIf(canBindTrees())('fork protection on bound trees', () => {
   let helperPath = ''
   let folder = ''
@@ -260,43 +267,47 @@ describe.runIf(canBindTrees())('fork protection on bound trees', () => {
     await removeFolder(folder)
   })
 
-  it('stops a tree past 512 alive processes, and only that tree', async () => {
-    const bound = boundHost({ helperPath })
-    const flood = await bound.host.admit('check')
-    const calmLease = await bound.host.admit('toolShell')
-    let root: ChildProcess | undefined
-    let calm: ChildProcess | undefined
-    try {
-      root = spawnGroup(await floodScript(folder), ['520'])
-      flood.register({ pid: root.pid, group: true })
-      calm = spawn('/bin/sleep', ['15'], { detached: true, stdio: 'ignore' })
-      calmLease.register({ pid: calm.pid, group: true })
-      await awaitReady(root)
-      if (root.pid === undefined) throw new Error('flood has no pid')
-      const floodGroup = root.pid
-      // All 521 present before the first sample, so the kill cannot miss a
-      // straggler that is still exec'ing.
-      await waitFor('the flood to fill', () => groupSize(floodGroup) >= 521)
-      await waitFor('the fork stop', () => {
-        void bound.host.refreshTrees()
-        return flood.stoppedForFork?.() !== undefined
-      })
-      expect(flood.stoppedForFork?.()).toBe('activeProcess')
-      // The offending group is gone; the unrelated lease never noticed.
-      await waitFor('the flood to die', () => root?.pid !== undefined && !isGroupLive(root.pid))
-      expect(calm.pid !== undefined && isLive(calm.pid)).toBe(true)
-      expect(calmLease.stoppedForFork?.()).toBeUndefined()
-      expect(bound.host.tickets()).toHaveLength(2)
-    } finally {
-      if (root !== undefined) await endGroup(root)
-      if (calm !== undefined) await endGroup(calm)
-      flood.complete(true)
-      calmLease.complete(true)
-      expect(bound.errors).toEqual([])
-      bound.clearTimers()
-      bound.host.dispose()
-    }
-  })
+  it(
+    'stops a tree past 512 alive processes, and only that tree',
+    async () => {
+      const bound = boundHost({ helperPath })
+      const flood = await bound.host.admit('check')
+      const calmLease = await bound.host.admit('toolShell')
+      let root: ChildProcess | undefined
+      let calm: ChildProcess | undefined
+      try {
+        root = spawnGroup(await floodScript(folder), ['520'])
+        flood.register({ pid: root.pid, group: true })
+        calm = spawn('/bin/sleep', ['15'], { detached: true, stdio: 'ignore' })
+        calmLease.register({ pid: calm.pid, group: true })
+        await awaitReady(root)
+        if (root.pid === undefined) throw new Error('flood has no pid')
+        const floodGroup = root.pid
+        // All 521 present before the first sample, so the kill cannot miss a
+        // straggler that is still exec'ing.
+        await waitFor('the flood to fill', () => groupSize(floodGroup) >= 521)
+        await waitFor('the fork stop', () => {
+          void bound.host.refreshTrees()
+          return flood.stoppedForFork?.() !== undefined
+        })
+        expect(flood.stoppedForFork?.()).toBe('activeProcess')
+        // The offending group is gone; the unrelated lease never noticed.
+        await waitFor('the flood to die', () => root?.pid !== undefined && !isGroupLive(root.pid))
+        expect(calm.pid !== undefined && isLive(calm.pid)).toBe(true)
+        expect(calmLease.stoppedForFork?.()).toBeUndefined()
+        expect(bound.host.tickets()).toHaveLength(2)
+      } finally {
+        if (root !== undefined) await endGroup(root)
+        if (calm !== undefined) await endGroup(calm)
+        flood.complete(true)
+        calmLease.complete(true)
+        expect(bound.errors).toEqual([])
+        bound.clearTimers()
+        bound.host.dispose()
+      }
+    },
+    FLOOD_FILL_TIMEOUT_MS,
+  )
 
   it('passes an ordinary burst: 200 quick spawns and 100 alive', async () => {
     const bound = boundHost({ helperPath })
