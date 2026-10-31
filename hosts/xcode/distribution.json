@@ -1,0 +1,14 @@
+{
+  "artifacts": ["dist/Muse-Spark-for-Xcode.zip"],
+  "build": [
+    { "args": ["Scripts/test.sh"], "command": "bash" },
+    { "args": ["Scripts/build.sh"], "command": "bash" },
+    { "args": ["-p", "dist"], "command": "mkdir" },
+    {
+      "args": ["../../temp/m104x/Muse-Spark-for-Xcode.zip", "dist/Muse-Spark-for-Xcode.zip"],
+      "command": "cp"
+    }
+  ],
+  "conformance": { "args": ["run.mjs"], "command": "node" },
+  "mhp": "mhp/1.5.0"
+}
