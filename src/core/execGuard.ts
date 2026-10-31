@@ -1016,16 +1016,22 @@ export function windowsPowerShell(
 The compiled job helper (`MuseSparkJob-<digest>.exe`) run as a program of its
 own, for every call into the job type but the shell tool's: the resource
 governor's tree reads, job holder and created-path registry, the team
-workers' file commands, the playbook's contained job and its end by name, and
-the legacy shell stop. The shell tool's PowerShell loads the same file as the
-type a command joins its job with; a call that only needs the type costs one
-native start (about 40 ms) where a Windows PowerShell start costs 200 ms and
-more, seconds on a busy machine. The helper is a digest-named file the build
-put in the extension's storage: the path must be absolute. The environment
-given is `SystemRoot` alone: no credential, no module path. Node's process
-start on Windows still copies the variables Windows programs require when
-they are absent (`PATH`, `TEMP`, `SYSTEMDRIVE`, `WINDIR`, the user's profile
-and names) from this process, none of them a credential.
+workers' file commands and process launches, the playbook's contained job and
+its end by name, and the legacy shell stop. The shell tool's PowerShell loads
+the same file as the type a command joins its job with; a call that only
+needs the type costs one native start (about 40 ms) where a Windows
+PowerShell start costs 200 ms and more, seconds on a busy machine. The helper
+is a digest-named file the build put in the extension's storage: the path
+must be absolute. The environment given is `SystemRoot` and the guard's
+`NoDefaultCurrentDirectoryInExePath=1`: no credential, no module path. Node's
+process start on Windows (libuv) then copies, from this process, each of
+`HOMEDRIVE`, `HOMEPATH`, `LOGONSERVER`, `PATH`, `SYSTEMDRIVE`, `TEMP`,
+`USERDOMAIN`, `USERNAME`, `USERPROFILE` and `WINDIR` that this process has:
+it adds them to any environment that lacks them, and a variable can be
+emptied but not left out. None is a credential. `PATH` is this process's
+whole PATH, which is why a program the helper starts for a caller is named
+by its absolute path (the playbook's git is `processGitPath`'s);
+test/unit/jobHostNative.test.ts reads the set back.
 */
 export function windowsJobHost(
   assemblyPath: string,

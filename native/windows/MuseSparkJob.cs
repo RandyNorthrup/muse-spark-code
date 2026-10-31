@@ -2,9 +2,9 @@
 // compiled with MuseSparkMcpJob.cs into one console program on first use and
 // kept out of the host bundle (PLAN.md D6): the shell tool's PowerShell loads
 // it as the type, and every other caller (the resource governor, the team
-// workers' file commands, the playbook's contained job, the legacy shell
-// stop) runs it as the program MuseSparkJobHost at the end, starting no
-// PowerShell. The class name is SHELL_JOB_TYPE_NAME in src/shared/constants.ts;
+// workers' file commands and their process launches, the playbook's contained
+// job, the legacy shell stop) runs it as the program MuseSparkJobHost at the
+// end, starting no PowerShell. The class name is SHELL_JOB_TYPE_NAME in src/shared/constants.ts;
 // test/unit/jobSource.test.ts holds them together.
 // C# 5, which the .NET Framework compiler compiles. The shell keeps its
 // handle for its whole life: a job's name lasts as long as a handle to it,
@@ -735,8 +735,8 @@ public static class MuseSparkJob {
     } finally {
       if (limitsBuffer != IntPtr.Zero) Marshal.FreeHGlobal(limitsBuffer);
       // Keep the helper's own kill-on-close job until its normal OS exit.
-      // Closing it here would kill the helper before PowerShell returns the
-      // child's exit code. Failure still closes immediately and fails shut.
+      // Closing it here would kill the helper before its `run-team` returns
+      // the child's exit code. Failure still closes immediately and fails shut.
       if (completed) held = job;
       else CloseHandle(job);
     }
@@ -1142,8 +1142,9 @@ public static class MuseSparkCreated {
 /**
 The calls above, for a caller that is not PowerShell: the resource governor's
 tree reads, its job holder and its created-path registry; the team workers'
-file commands; the playbook's contained job and its end by name; and the
-legacy shell stop's job termination. A Windows PowerShell start costs 200 ms
+file commands and their process launches (`run-team`); the playbook's
+contained job and its end by name; and the legacy shell stop's job
+termination. A Windows PowerShell start costs 200 ms
 and more (seconds on a busy machine); this program starts in about 40 ms. The
 compiled file is both the type PowerShell loads with `LoadFrom` (the shell
 tool's commands, which run in PowerShell, join their job with it) and this
@@ -1234,8 +1235,36 @@ public static class MuseSparkJobHost {
       return 1;
     }
   }
+  // run-team <executable> <cwd> <parentPid> <ownerPipe> <nonce> <statusPipe>
+  // <jobName> <belowNormal> <verbatim> <argumentCount>, then the arguments.
+  const int TeamFixedArguments = 11;
+  /**
+  A team worker's process launch (`MuseSparkJob.RunTeam`). The exit code is
+  the payload's, as `exit [MuseSparkJob]::RunTeam(...)` in PowerShell
+  returned it; the payload's own arguments follow the fixed ones, then its
+  whole environment (`KEY=value`), one program argument each, so no shell
+  or script reads a value. Standard input, output and error are the
+  payload's: a launch that fails writes nothing to them and exits 1 (one
+  that fails after its job exists ends inside it, by kill-on-close).
+  */
+  static int Team(string[] args) {
+    try {
+      if (args.Length < TeamFixedArguments) throw new ArgumentException("arguments");
+      int count = int.Parse(args[TeamFixedArguments - 1], System.Globalization.NumberStyles.None, Invariant);
+      if (count > args.Length - TeamFixedArguments) throw new ArgumentException("arguments");
+      string[] arguments = new string[count];
+      Array.Copy(args, TeamFixedArguments, arguments, 0, count);
+      string[] environment = new string[args.Length - TeamFixedArguments - count];
+      Array.Copy(args, TeamFixedArguments + count, environment, 0, environment.Length);
+      return MuseSparkJob.RunTeam(args[1], arguments, args[2], Number(args[3]), environment,
+        args[4], args[5], args[6], args[7], Flag(args[8]), Flag(args[9]));
+    } catch {
+      return 1;
+    }
+  }
   public static int Main(string[] args) {
     if (args.Length > 0 && args[0] == "worker") return Worker(args);
+    if (args.Length > 0 && args[0] == "run-team") return Team(args);
     try {
       if (args.Length == 1 && args[0] == "--self-test") {
         Console.Out.WriteLine("muse-spark-job-host-ready");

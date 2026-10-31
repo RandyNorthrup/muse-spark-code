@@ -3,13 +3,15 @@
 // governor's tree reads, its job holder and its created-path registry, the
 // team workers' file commands, the playbook's end of a job by name and the
 // legacy shell stop call it where each used to start Windows PowerShell (the
-// playbook's contained job has its own suite). The real helper is built
+// playbook's contained job and the team worker launch have their own suites).
+// The environment it starts with is read back here too. The real helper is built
 // through the product's own builder into a temporary folder. Each answer is
 // compared with what PowerShell prints for the same call on the same file
 // (the type PowerShell loads), because that text is what the readers parse.
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { setTimeout as delay } from 'node:timers/promises'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import * as z from 'zod/mini'
 import { windowsJobHost, windowsPowerShell } from '../../src/core/execGuard'
 import { runTreeProgram } from '../../src/core/resources/trees/run'
 import { loadJobAssembly } from '../../src/host/processTree'
@@ -28,6 +30,25 @@ import { removeFolder } from './helpers/temporaryFolders'
 const BUILD_MS = 120_000
 const CASE_MS = 60_000
 const IMPOSSIBLE_PID = 2 ** 30
+const byName = (a: string, b: string): number => a.localeCompare(b)
+/**
+The variables Node's process start on Windows (libuv's `make_program_env`,
+src/win/process.c `required_vars`) copies from the starting process into
+a child's environment whenever the given environment lacks them.
+*/
+const LIBUV_REQUIRED_VARIABLES = [
+  'HOMEDRIVE',
+  'HOMEPATH',
+  'LOGONSERVER',
+  'PATH',
+  'SYSTEMDRIVE',
+  'SYSTEMROOT',
+  'TEMP',
+  'USERDOMAIN',
+  'USERNAME',
+  'USERPROFILE',
+  'WINDIR',
+]
 
 describe.runIf(process.platform === 'win32')('the job helper run as a program', () => {
   const systemRoot = process.env['SystemRoot'] ?? ''
@@ -191,6 +212,51 @@ describe.runIf(process.platform === 'win32')('the job helper run as a program', 
       expect(
         await failure(['worker', 'worker-create', root, '1:1', 'src', '2:2', 'new.ts', '']),
       ).toEqual({ code: 1, stdout: '', stderr: `${WORKER_REFUSAL_PREFIX}root unavailable\r\n` })
+    },
+    CASE_MS,
+  )
+
+  it(
+    'is given SystemRoot and the guard variable, and Node adds only what Windows requires',
+    async () => {
+      const host = windowsJobHost(assembly, systemRoot)
+      expect(Object.keys(host.env).toSorted(byName)).toEqual([
+        'NoDefaultCurrentDirectoryInExePath',
+        'SystemRoot',
+      ])
+      // A variable only this process has, which no helper should see.
+      process.env['MUSE_JOB_HOST_PARENT_ONLY'] = 'this process only'
+      try {
+        // Node's process start is the same for any program: a Node probe
+        // started with the helper's environment reports what the helper gets.
+        const seen = z
+          .record(z.string(), z.string())
+          .parse(
+            JSON.parse(
+              await runTreeProgram(
+                process.execPath,
+                ['-e', 'process.stdout.write(JSON.stringify(process.env))'],
+                host.env,
+              ),
+            ),
+          )
+        const present = new Set(Object.keys(process.env).map((name) => name.toUpperCase()))
+        const expected = [
+          ...Object.keys(host.env),
+          ...LIBUV_REQUIRED_VARIABLES.filter((name) => present.has(name)),
+        ].map((name) => name.toUpperCase())
+        expect(
+          Object.keys(seen)
+            .map((name) => name.toUpperCase())
+            .toSorted(byName),
+        ).toEqual([...new Set(expected)].toSorted(byName))
+        expect(seen['SystemRoot']).toBe(systemRoot)
+        expect(seen['NoDefaultCurrentDirectoryInExePath']).toBe('1')
+        // The required ones carry this process's own values: its whole PATH.
+        expect(seen['PATH']).toBe(process.env['PATH'])
+      } finally {
+        delete process.env['MUSE_JOB_HOST_PARENT_ONLY']
+      }
     },
     CASE_MS,
   )
