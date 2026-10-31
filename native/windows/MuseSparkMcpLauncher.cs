@@ -2,7 +2,10 @@
 // compiled with MuseSparkMcpJob.cs into one console application on first
 // use and kept out of the host bundle (PLAN.md D6). The self-test argument
 // and answer and the configuration variable are constants in
-// src/shared/constants.ts; test/unit/jobSource.test.ts holds them together.
+// src/shared/constants.ts; test/unit/mcpJobRetire.test.ts holds them together
+// (it builds this launcher through `sealedMcpJobExecutable`, which refuses a
+// build whose self-test does not answer, and launches a payload through
+// `spawnMcpJob`, which hands the configuration over in that variable).
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;

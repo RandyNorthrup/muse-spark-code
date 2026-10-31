@@ -42,6 +42,8 @@ const RECORDER = fileURLToPath(new URL('helpers/hookHoldRecorder.mjs', import.me
 const SUITE_MS = 240_000
 const SAMPLE_TEXT = 'export const total = (a: number, b: number) => \n'
 const AT_END = { line: 0, character: SAMPLE_TEXT.length - 1 }
+const SECRET_LINE = 'const password = "hunter22";'
+const IN_SECRET = { line: 0, character: SECRET_LINE.indexOf('hunter22') + 3 }
 const FOLDER = realpathSync(mkdtempSync(path.join(tmpdir(), 'muse-lsp-')))
 const HOME = path.join(FOLDER, 'home')
 // Every process a case started; one a failed case left running is ended after it.
@@ -51,6 +53,8 @@ interface Served {
   readonly connection: MessageConnection
   readonly child: ChildProcessWithoutNullStreams
   readonly messages: { readonly type: number; readonly message: string }[]
+  /** Every question the server asked the editor (window/showMessageRequest). */
+  readonly questions: string[]
   readonly exited: Promise<number | null>
   stderr(): string
 }
@@ -106,12 +110,16 @@ function serve(args: readonly string[], cwd: string): Served {
     new StreamMessageWriter(child.stdin),
   )
   const messages: { type: number; message: string }[] = []
+  const questions: string[] = []
   connection.onNotification('window/showMessage', (params: { type: number; message: string }) => {
     messages.push(params)
   })
-  connection.onRequest('window/showMessageRequest', () => null)
+  connection.onRequest('window/showMessageRequest', (params: { message: string }) => {
+    questions.push(params.message)
+    return null
+  })
   connection.listen()
-  return { connection, child, messages, exited, stderr: () => stderr }
+  return { connection, child, messages, questions, exited, stderr: () => stderr }
 }
 
 /**
@@ -175,14 +183,23 @@ async function workspaceWith(name: string): Promise<{ root: string; uri: string 
   return { root: await realpath(root), uri: pathToFileURL(await realpath(file)).href }
 }
 
-async function openSample(served: Served, uri: string): Promise<void> {
+async function openText(served: Served, uri: string, text: string): Promise<void> {
   await served.connection.sendNotification('textDocument/didOpen', {
-    textDocument: { uri, languageId: 'typescript', version: 1, text: SAMPLE_TEXT },
+    textDocument: { uri, languageId: 'typescript', version: 1, text },
   })
 }
 
-function inlineAtEnd(served: Served, uri: string, source?: CancellationTokenSource) {
-  const params = { textDocument: { uri }, position: AT_END, context: { triggerKind: 1 } }
+async function openSample(served: Served, uri: string): Promise<void> {
+  await openText(served, uri, SAMPLE_TEXT)
+}
+
+function inlineAtEnd(
+  served: Served,
+  uri: string,
+  source?: CancellationTokenSource,
+  position: { line: number; character: number } = AT_END,
+) {
+  const params = { textDocument: { uri }, position, context: { triggerKind: 1 } }
   const pending =
     source === undefined
       ? served.connection.sendRequest('textDocument/inlineCompletion', params)
@@ -387,6 +404,29 @@ describe('lsp over real stdio, under the official client', () => {
         [EN.paidTabName, '0 Tab requests', 'Today: $0.00', EN.usagePaidTabBudgetNone].join('\n'),
         EN.languageServer.help.replace('{command}', 'muse-spark-code-acp'),
       ])
+      expect(await shutDown(served)).toBe(0)
+    },
+    SUITE_MS,
+  )
+
+  it(
+    'with --tab a secret under the cursor ends the request before the key is read and before any question',
+    async () => {
+      const { root, uri } = await workspaceWith('secret')
+      const served = serve(
+        ['lsp', '--workspace', root, '--trust-workspace', '--tab', '--verbose'],
+        root,
+      )
+      await initialize(served, root)
+      await openText(served, uri, `${SECRET_LINE}\n`)
+      expect(await inlineAtEnd(served, uri, undefined, IN_SECRET)).toEqual({ items: [] })
+      // The request is decided from the document alone: the person is never
+      // asked to approve a spend that cannot happen, and the credential
+      // store is not read for it (an absent key would have said no-key).
+      expect(served.stderr()).toContain('Tab quiet (secret-at-cursor)')
+      expect(served.stderr()).not.toContain('Tab quiet (no-key)')
+      expect(served.stderr()).not.toContain('Tab quiet (consent-denied)')
+      expect(served.questions).toEqual([])
       expect(await shutDown(served)).toBe(0)
     },
     SUITE_MS,

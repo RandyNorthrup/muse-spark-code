@@ -8,10 +8,22 @@
 //
 // PowerShell reaches the Win32 job calls through a small C# type, compiled
 // once per machine into the extension's storage (named by the source's
-// digest) by .NET's compiler and loaded by each command. Where that is
-// impossible (Constrained Language Mode forbids loading an assembly), the self-test
-// fails, the log says so, and commands run as before, their kill falling
-// back to taskkill and the orphan sweep (`processTree.ts`).
+// digest) by .NET's compiler and loaded by each command. The compiled file
+// is a console program as well as the type: every other caller (the
+// resource governor's tree reads, job holder and created-path registry, the
+// team workers' file commands and process launches, the playbook's contained
+// job, a command's job termination) runs it directly, a native start of about 40 ms where a
+// Windows PowerShell start costs 200 ms and more (`MuseSparkJobHost` in the
+// C#, `windowsJobHost`). The self-test below stays a PowerShell start: what
+// it proves is that the shell, which is PowerShell, can load the type and
+// join a job. Where loading is impossible (Constrained Language Mode forbids
+// loading an assembly), the self-test fails, the log says so, and commands
+// run as before, their kill falling back to taskkill and the orphan sweep
+// (`processTree.ts`).
+//
+// Earlier versions built the helper as a library (`MuseSparkJob-<digest>.dll`);
+// the sweep after a build removes those too, by their exact name in this
+// folder only (`retiredExtensions`).
 
 import path from 'node:path'
 import {
@@ -63,8 +75,11 @@ async function isPresent(file: string): Promise<boolean> {
 
 const ASSEMBLY: JobBuild = {
   stem: `${SHELL_JOB_TYPE_NAME}-`,
-  extension: '.dll',
-  outputType: 'library',
+  extension: '.exe',
+  // Built as a library (`MuseSparkJob-<digest>.dll`, 60 KB each) until the
+  // helper became a program too (CC-WINHOOK): those builds are swept as well.
+  retiredExtensions: ['.dll'],
+  outputType: 'exe',
   references: [],
   label: 'shell job assembly',
   isPresent,

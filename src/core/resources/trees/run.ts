@@ -5,6 +5,8 @@ export type ResourceTreeRun = (
   file: string,
   args: readonly string[],
   env: GuardedChildEnv,
+  /** The working folder; this process's when absent (the job helper passes its own). */
+  cwd?: string,
 ) => Promise<string>
 
 /** Share one in-flight OS table across concurrent trees; never retain an action-time table. */
@@ -25,13 +27,14 @@ A probe runner with, when given, its caller's own time bound and output
 bound; with no time bound the probe runs until it exits.
 */
 export function boundedTreeProgram(timeoutMs?: number, maxBuffer?: number): ResourceTreeRun {
-  return (file, args, env) =>
+  return (file, args, env, cwd) =>
     new Promise((resolve, reject) => {
       execFileGuarded(
         file,
         [...args],
         {
           env,
+          ...(cwd !== undefined && { cwd }),
           windowsHide: true,
           ...(timeoutMs !== undefined && { timeout: timeoutMs }),
           ...(maxBuffer !== undefined && { maxBuffer }),

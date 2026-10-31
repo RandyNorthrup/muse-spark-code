@@ -9,18 +9,16 @@ import path from 'node:path'
 import * as z from 'zod/mini'
 import { lstat, mkdir, readFile, rm, rmdir, writeFile } from 'node:fs/promises'
 import type { pathModule } from '../../workspaceRoot'
-import { powerShellQuoted } from '../../shellQuote'
 import {
   BYTES_PER_MIB,
   UI_TEXT,
-  WINDOWS_POWERSHELL_RELATIVE_PATH,
   WORKER_FILE_PATH_TIMEOUT_MS,
   WORKER_NATIVE_REPLY_MAX_BYTES,
 } from '../../../shared/constants'
 import type { UiText } from '../../../shared/l10n/en'
 import { fill, setUiText } from '../../../shared/l10n/text'
 import { execResourceFile, execResourceFileBytes } from '../../resources/launcher'
-import { windowsPowerShellEnvironment } from '../../execGuard'
+import { windowsJobHost } from '../../execGuard'
 import { resourceWindowsJob } from '../../resources/admission'
 import { scrubWorkerEnv } from './workerEnv'
 import { TeamGitError, type TeamGit } from '../teamGit'
@@ -83,20 +81,28 @@ export async function nativeOperation(proof: WorkerCreateProof, op: string, iden
   let file: string
   let command: readonly string[] = args
   let env: NodeJS.ProcessEnv = { LC_ALL: 'C' }
+  let workspaceRoot: string | undefined
+  let cwd: string | undefined
   if (process.platform === 'win32') {
     const job = await resourceWindowsJob()
     const systemRoot = process.env['SystemRoot'] ?? process.env['SYSTEMROOT']
     if (job === undefined || systemRoot === undefined)
-      // Already the typed sentence: on Windows no ENOENT marks the absence
-      // (PowerShell starts; the assembly load fails instead), so the mapper
-      // below must keep it, not remap it to the generic proof failure.
+      // Already the typed sentence: the mapper below keeps it rather than
+      // remapping it to the generic proof failure.
       throw markTyped(new Error(UI_TEXT.teamFileHelperMissing))
     await job.verify()
-    file = path.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH)
-    // Windows PowerShell 5.1 with its own module path, whatever shell
-    // started the host (windowsPowerShellEnvironment's one rule).
-    env = windowsPowerShellEnvironment({ SystemRoot: systemRoot }, systemRoot)
-    command = workerWindowsCommand(job.assemblyPath, args)
+    // The job helper as a program of its own (no PowerShell start), working
+    // in its own folder, with no folder to look a name up in (the governed
+    // launch drops the empty PATH, so the helper's block has none). It is a
+    // file the product built in its own storage, so the launch guards it
+    // against the working copy it acts in, never against whatever folder
+    // this process happens to run in.
+    const host = windowsJobHost(job.assemblyPath, systemRoot)
+    file = host.file
+    env = host.env
+    cwd = host.cwd
+    command = workerHostCommand(args)
+    workspaceRoot = proof.root
   } else if (process.platform === 'darwin') {
     file = path.join(__dirname, '..', 'native', 'darwin', 'muse-dictate')
     command = ['--created-directory', ...args]
@@ -109,6 +115,8 @@ export async function nativeOperation(proof: WorkerCreateProof, op: string, iden
       timeout: WORKER_FILE_PATH_TIMEOUT_MS,
       maxBuffer: WORKER_NATIVE_REPLY_MAX_BYTES,
       windowsHide: true,
+      ...(cwd !== undefined && { cwd }),
+      ...(workspaceRoot !== undefined && { workspaceRoot }),
     })
     return receipt.parse(JSON.parse(stdout))
   } catch (error: unknown) {
@@ -129,9 +137,10 @@ type WorkerRefusalSentence =
 
 /**
 Every refusal code the worker file helpers can produce, and the typed
-sentence each becomes — one table shared by the Windows forwarding wrapper
-below and the mapper, so the two cannot drift. The POSIX C helper and the
-Windows C# helper emit exactly this vocabulary; the drift test pins them.
+sentence each becomes, as the mapper below reads them. The POSIX C helper and
+the Windows C# helper emit exactly this vocabulary on standard error (the
+Windows one through MuseSparkJobHost's `worker` command); the drift test pins
+them.
 */
 export const WORKER_REFUSALS: readonly {
   readonly reason: string
@@ -169,49 +178,23 @@ export const WORKER_REFUSALS: readonly {
 ]
 
 /**
-The helper's fixed unexpected-failure line, emitted by the Windows
-launcher below when the helper throws anything but a listed refusal: the
-marker plus the exception's type name only (fixed vocabulary, never message
-text and never a path). Anything else on the line is not this marker.
+The helper's fixed unexpected-failure line, emitted by the Windows helper's
+`worker` command when it throws anything but a refusal: the marker plus the
+exception's type name only (fixed vocabulary, never message text and never a
+path). Anything else on the line is not this marker.
 */
 export const WORKER_HELPER_FAILED_PREFIX = 'worker file helper failed: '
 
 /**
-The Windows launch of the worker helper. Windows PowerShell joins every
-argument after a `-Command` string onto the command text (leaving `$args`
-empty), so no value may follow the script: the operation arguments are
-built into the script itself, each as one single-quoted PowerShell literal
-through powerShellQuoted. The whole script goes as ONE `-EncodedCommand`
-blob (UTF-16LE Base64, the SSH runner's pattern), which removes the
-process command line's quoting layer as well: the Base64 alphabet holds no
-PowerShell metacharacter, so a hostile name cannot become command text.
-Every refusal in the shared table is forwarded on stderr, so Windows
-refusals arrive typed exactly as on POSIX; any other exception writes the
-fixed helper-failed marker with its type name only, and still exits 1.
+The Windows job helper's arguments for one worker file operation: its
+`worker` command, then the operation's own arguments, each one argument of
+the program. No shell or script reads them: the governed launcher quotes each
+for the C runtime and the helper's `Main` receives them as they were, so a
+hostile name stays one value. A refusal arrives on standard error as the
+helper's own line, typed exactly as on POSIX.
 */
-export function workerWindowsCommand(
-  assemblyPath: string,
-  args: readonly string[],
-): readonly string[] {
-  const forwarded = WORKER_REFUSALS.map(
-    (row) => `$m -eq ${powerShellQuoted(`${WORKER_REFUSAL_PREFIX}${row.reason}`)}`,
-  ).join(' -or ')
-  const script =
-    `$ErrorActionPreference='Stop'; ` +
-    `try { [void][Reflection.Assembly]::LoadFrom(${powerShellQuoted(assemblyPath)}); ` +
-    `[MuseSparkCreated]::Execute([string[]]@(${args.map((arg) => powerShellQuoted(arg)).join(',')})) } catch { ` +
-    `$m = $_.Exception.GetBaseException().Message; ` +
-    `if (${forwarded}) { [Console]::Error.WriteLine($m) } ` +
-    `else { [Console]::Error.WriteLine(${powerShellQuoted(WORKER_HELPER_FAILED_PREFIX)} + $_.Exception.GetBaseException().GetType().Name) }; ` +
-    `exit 1 }`
-  return [
-    '-NoProfile',
-    '-NonInteractive',
-    '-ExecutionPolicy',
-    'Bypass',
-    '-EncodedCommand',
-    Buffer.from(script, 'utf16le').toString('base64'),
-  ]
+export function workerHostCommand(args: readonly string[]): readonly string[] {
+  return ['worker', ...args]
 }
 
 /** The first helper refusal reason in the output, if the helper refused. */
@@ -233,16 +216,16 @@ kind this mapper trusts, so it falls through to the generic backstop.
 const HELPER_FAILURE_KIND = /^[A-Za-z_][A-Za-z0-9_.]*$/
 
 /**
-Assembly-load failure types: the Windows launcher's helper-failed marker
-carries the exception's type name, and these three mean the verified
-helper binary itself cannot load — FileNotFoundException (the file or one
-of its dependencies is missing), FileLoadException (found but refused:
-policy, identity or lock), BadImageFormatException (not a managed
-assembly: corrupt or wrong bitness). Each maps to the helper-unavailable
-sentence, never the helper-failed one. Any other type keeps its kind for
-diagnosis: Execute performs no assembly loads, so another type names a
-defect inside the helper, and ArgumentException in particular stays
-visible now that the helper validates names before its Path calls.
+Assembly-load failure types: the Windows helper's helper-failed marker
+carries the exception's type name, and these three mean the helper cannot
+load what it runs on — FileNotFoundException (one of its framework
+assemblies is missing), FileLoadException (found but refused: policy,
+identity or lock), BadImageFormatException (not a managed assembly: corrupt
+or wrong bitness). Each maps to the helper-unavailable sentence, never the
+helper-failed one. Any other type keeps its kind for diagnosis: Execute
+performs no assembly loads, so another type names a defect inside the
+helper, and ArgumentException in particular stays visible now that the
+helper validates names before its Path calls.
 */
 const HELPER_UNAVAILABLE_KINDS: ReadonlySet<string> = new Set([
   'FileNotFoundException',

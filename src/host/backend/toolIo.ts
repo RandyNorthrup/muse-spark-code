@@ -265,9 +265,63 @@ export function searchOnWorker(
 const ENOENT = 'ENOENT'
 const BASH = 'bash'
 const POWERSHELL = 'powershell'
+/** The end of a Windows PowerShell hook line: the hook's own exit code, else 1 (never a success it did not report). */
+const HOOK_EXIT_TRAILER =
+  '$__hookok = $?; $__hookcode = $LASTEXITCODE; if ($__hookok) { exit 0 }; if ($__hookcode) { exit $__hookcode }; exit 1'
 const PATH_VARIABLE = 'PATH'
 // curl's own --fail exit for an HTTP error; a Stop answered without 2xx reports it too.
 const CURL_HTTP_ERROR_EXIT = 22
+
+/**
+On Windows a governed hook starts through the native job launcher, as a
+bounded CLI command does (`runResourceCommand`): no PowerShell is started for
+it, and the launcher's job is the tree the governor reads. Undefined where no
+governor is configured or the launcher is unavailable: PowerShell then joins
+the job first and starts cmd.exe. The launcher is checked before every launch
+(a changed helper is refused and never runs), and a refusal gives the admitted
+lease back.
+*/
+async function governedHookLauncher(
+  platform: NodeJS.Platform,
+  resource: ResourceLease | undefined,
+): Promise<Awaited<ReturnType<typeof resourceWindowsJob>>> {
+  if (resource === undefined || platform !== 'win32') return undefined
+  try {
+    const launcher = await resourceWindowsJob()
+    await launcher?.verify()
+    return launcher
+  } catch (error: unknown) {
+    resource.complete(true)
+    throw error
+  }
+}
+
+/**
+A hook's launch arguments. The command itself uses cmd, as Muse Code does.
+PowerShell reports only 0 or 1 for a `-Command` that ends in a failed native
+command, so its line ends by exiting with the hook's own code (a hook that
+exits 2 blocks its event, as it does everywhere else): `$?` first, then
+`$LASTEXITCODE`, and anything else fails as 1.
+*/
+function hookArguments(
+  platform: NodeJS.Platform,
+  command: string,
+  hookProgram: string,
+  isNative: boolean,
+  job: ShellJob | undefined,
+  isGoverned: boolean,
+): readonly string[] {
+  if (isNative) return ['/D', '/S', '/C', `"${command}"`]
+  return platform === 'win32'
+    ? shellArguments(
+        platform,
+        `& ${powerShellQuoted(hookProgram)} /D /S /C ${powerShellQuoted(command)}; ${HOOK_EXIT_TRAILER}`,
+        job,
+        isGoverned,
+      )
+    : ['-c', command]
+}
+
 function isMissingFile(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === ENOENT
 }
@@ -1263,20 +1317,21 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       if (hookProgram === undefined || file === undefined) {
         return unstartedShell('Hook shell is unavailable')
       }
-      const assembly = deps.platform === 'win32' ? await deps.shellJobAssembly?.() : undefined
-      const job = assembly === undefined ? undefined : newShellJob(assembly)
       let resource = await admitResource('hook', signal)
-      // On Windows PowerShell joins the job first, then starts cmd.exe with
-      // the configured command. The command itself uses cmd, as Muse Code does.
-      const args =
-        deps.platform === 'win32'
-          ? shellArguments(
-              deps.platform,
-              `& ${powerShellQuoted(hookProgram)} /D /S /C ${powerShellQuoted(command)}`,
-              job,
-              resource !== undefined,
-            )
-          : ['-c', command]
+      const nativeJob = await governedHookLauncher(deps.platform, resource)
+      const assembly =
+        nativeJob === undefined && deps.platform === 'win32'
+          ? await deps.shellJobAssembly?.()
+          : undefined
+      const job = assembly === undefined ? undefined : newShellJob(assembly)
+      const args = hookArguments(
+        deps.platform,
+        command,
+        hookProgram,
+        nativeJob !== undefined,
+        job,
+        resource !== undefined,
+      )
       resource = await prepareResourceJob(resource, job)
       // Lane K: the hook-process start shared by every session and the
       // lazy window/Tab bundles, held in the lazily loaded hook runtime so
@@ -1297,7 +1352,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       }
       try {
         return await runCommand({
-          file,
+          file: nativeJob === undefined ? file : hookProgram,
           args,
           cwd,
           env: hookEnvironment(deps.env(), deps.platform, extraEnvNames, workspaceFor(cwd)),
@@ -1306,6 +1361,8 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
           tree: { platform: deps.platform, systemRoot: deps.systemRoot, log: deps.log },
           job,
           resource,
+          nativeJob,
+          isVerbatim: nativeJob !== undefined,
           stdin: payload,
           maxOutputBytes: HOOK_OUTPUT_MAX_BYTES,
           assertCanStart,
@@ -1366,6 +1423,8 @@ export class BoundedText {
 
 export interface CommandRun {
   readonly nativeJob?: Awaited<ReturnType<typeof resourceWindowsJob>>
+  /** With `nativeJob`: `args` are the command line verbatim (a `cmd.exe /S /C` line), not quoted one by one. */
+  readonly isVerbatim?: boolean | undefined
   readonly maxOutputChars?: number | undefined
   readonly resource?: ResourceLease | undefined
   readonly file: string
@@ -1425,7 +1484,7 @@ function startProcess(run: CommandRun) {
             args: run.args,
             cwd: run.cwd,
             env: resourceEnvironment(run.env, run.resource),
-            isVerbatim: false,
+            isVerbatim: run.isVerbatim === true,
             resource: run.resource,
             log: run.tree.log,
           })

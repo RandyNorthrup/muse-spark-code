@@ -11,11 +11,13 @@
 // left suspended for good), and a launcher that exits leaves its own child
 // with no link to the shell at all. So each command joins a job object of
 // its own (`shellJob.ts`), which every process it starts belongs to from
-// its creation, and a kill terminates the job whole. Where no job could be
-// made, the fallback is taskkill and then a sweep of the process table for
-// the shell's orphans, one generation per round, each checked against its
-// creation time just before it is killed, so a process that took a dead
-// one's id is never hit.
+// its creation, and a kill terminates the job whole (the job helper's
+// `terminate`, run as a program of its own). Where no job could be made, the
+// fallback is taskkill and then a sweep of the process table for the shell's
+// orphans, one generation per round, each checked against its creation time
+// just before it is killed, so a process that took a dead one's id is never
+// hit. The sweep reads the table through Windows PowerShell: it serves the
+// case where the job helper may be missing, so it cannot depend on it.
 
 import {
   execFile,
@@ -26,7 +28,7 @@ import {
 import type { ResourceLease } from '../core/resources/launch'
 import path from 'node:path'
 import { type GuardedChildEnv } from '../core/executables'
-import { noWorkspaceChildEnvironment, windowsPowerShell } from '../core/execGuard'
+import { noWorkspaceChildEnvironment, windowsJobHost, windowsPowerShell } from '../core/execGuard'
 import { parseProcessTable, type ProcessRow } from '../core/resources/trees/processTable'
 import { stopResourceTree } from '../core/resources/admission'
 import { withoutCredentials } from '../core/credentialEnvironment'
@@ -38,15 +40,14 @@ import {
   ORPHAN_SWEEP_ROUNDS,
   POSIX_TREE_EXIT_POLL_MS,
   POSIX_TREE_EXIT_WAIT_MS,
-  SHELL_JOB_TYPE_NAME,
   TREE_EXIT_WAIT_MS,
   WINDOWS_POWERSHELL_COMMAND_ARGS,
 } from '../shared/constants'
 import { WINDOWS_TASKKILL_RELATIVE_PATH } from '../shared/browserCheckConstants'
 
 const SIGKILL = 'SIGKILL'
-const TERMINATED = 'terminated'
-const ABSENT = 'absent'
+// The job helper's `terminate` answer: whether the named job was there to end.
+const TERMINATED = 'true'
 // A killed process's exit code, as `taskkill /F` gives it.
 const KILLED_EXIT_CODE = 1
 
@@ -58,12 +59,15 @@ one), so a raw `process.env` does not type-check here. `timeoutMs` is the
 caller's own deadline; without one the program runs until it exits (no
 deadline of ours: Windows PowerShell's first start on a slow machine can
 take longer than any bound, and killing it failed the work it served).
+`cwd` is the working folder, this process's when absent (the job helper is
+given its own, `windowsJobHost`).
 */
 export type RunProgram = (
   file: string,
   args: readonly string[],
   env: GuardedChildEnv,
   timeoutMs?: number,
+  cwd?: string,
 ) => Promise<string>
 
 export interface ProcessTreeDeps {
@@ -98,7 +102,7 @@ export function treeSpawnOptions(platform: NodeJS.Platform): { readonly detached
   return { detached: platform !== 'win32' }
 }
 
-export const runProgram: RunProgram = (file, args, env, timeoutMs) =>
+export const runProgram: RunProgram = (file, args, env, timeoutMs, cwd) =>
   new Promise((resolve, reject) => {
     execFile(
       file,
@@ -106,6 +110,7 @@ export const runProgram: RunProgram = (file, args, env, timeoutMs) =>
       {
         windowsHide: true,
         ...(timeoutMs !== undefined && { timeout: timeoutMs }),
+        ...(cwd !== undefined && { cwd }),
         env: withoutCredentials(env),
       },
       (error, stdout) => {
@@ -328,26 +333,33 @@ export function loadJobAssembly(assemblyPath: string): string {
   return `[void][Reflection.Assembly]::LoadFrom(${powerShellQuoted(assemblyPath)})`
 }
 
-/** Terminates the command's job: false (logged) when that could not be done. */
+/**
+Terminates the command's job through the job helper run as a program of its
+own (its `terminate` command: no PowerShell start): false (logged) when that
+could not be done.
+*/
 async function didTerminateJob(
   job: ShellJob,
   pid: number,
   systemRoot: string,
   deps: ProcessTreeDeps,
 ): Promise<boolean> {
-  const powershell = windowsPowerShell(systemRoot)
-  const script = `${loadJobAssembly(job.assemblyPath)}; if ([${SHELL_JOB_TYPE_NAME}]::Terminate(${powerShellQuoted(job.name)}, ${String(KILLED_EXIT_CODE)})) { '${TERMINATED}' } else { '${ABSENT}' }`
   try {
+    const host = windowsJobHost(job.assemblyPath, systemRoot)
     const output = await (deps.run ?? runProgram)(
-      powershell.file,
-      [...WINDOWS_POWERSHELL_COMMAND_ARGS, script],
-      powershell.env,
+      host.file,
+      ['terminate', job.name, String(KILLED_EXIT_CODE)],
+      host.env,
+      undefined,
+      host.cwd,
     )
     const answer = output.trim()
     if (answer === TERMINATED) {
       return true
     }
-    deps.log(`the job of ${String(pid)} was not there (${answer}); ending its tree with taskkill`)
+    deps.log(
+      `the job of ${String(pid)} was not there (the helper answered ${answer}); ending its tree with taskkill`,
+    )
   } catch (error: unknown) {
     deps.log(
       `the job of ${String(pid)} could not be terminated (${describeStoreError(error)}); ending its tree with taskkill`,

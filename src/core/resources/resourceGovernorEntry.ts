@@ -50,13 +50,9 @@ import {
   type ResourceHistoryRecorder,
 } from '../../runtime/resources/history'
 import { probeChildEnvironment } from '../executables'
-import { windowsPowerShell } from '../execGuard'
+import { windowsJobHost } from '../execGuard'
 import { runTreeProgram } from './trees/run'
-import { powerShellQuoted } from '../shellQuote'
-import {
-  WINDOWS_POWERSHELL_COMMAND_ARGS,
-  darwinDictationHelperSegments,
-} from '../../shared/constants'
+import { darwinDictationHelperSegments } from '../../shared/constants'
 
 import { isErrno } from '../fs/errno'
 
@@ -147,7 +143,8 @@ export async function flushResourceHistory(): Promise<void> {
 /**
 The created-path registry's native file commands on this platform: the
 Linux `muse-created` helper, the macOS helper's `--created-directory`, or
-Windows PowerShell loading the job assembly's `MuseSparkCreated`. One
+the Windows job helper's `created` command (`MuseSparkCreated`, run as its
+own program: no PowerShell start). One
 wiring for the product (its native root is `dist/../native`) and for the
 tests that run the registry on each platform.
 */
@@ -175,15 +172,8 @@ export function createdPathCommands(
     const job = await windowsJob?.()
     if (systemRoot === undefined || job === undefined || platform !== 'win32')
       throw new Error('Native creation directory helper is required')
-    const powershell = windowsPowerShell(systemRoot, { SystemRoot: systemRoot })
-    return await runTreeProgram(
-      powershell.file,
-      [
-        ...WINDOWS_POWERSHELL_COMMAND_ARGS,
-        `try { [void][Reflection.Assembly]::LoadFrom(${powerShellQuoted(job.assemblyPath)}); [MuseSparkCreated]::Execute([string[]]@(${args.map((arg) => powerShellQuoted(arg)).join(',')})) } catch { exit 1 }`,
-      ],
-      powershell.env,
-    )
+    const host = windowsJobHost(job.assemblyPath, systemRoot)
+    return await runTreeProgram(host.file, ['created', ...args], host.env, host.cwd)
   }
 }
 

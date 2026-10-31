@@ -6,9 +6,6 @@
 // from the actuator's own answer: the job's CPU rate control and priority
 // class from QueryInformationJobObject (the helper's Read calls), and the
 // child's priority class from .NET's Process, which asks the OS separately.
-import { mkdtemp } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { ResourceActuators } from '../../src/core/resources/actuators'
@@ -21,16 +18,13 @@ import {
 } from '../../src/core/resources/trees/windows'
 import { windowsPowerShell } from '../../src/core/execGuard'
 import { spawnGuarded } from '../../src/core/guardedChildProcess'
-import { powerShellQuoted } from '../../src/core/shellQuote'
-import { joinStatement, newShellJob, shellJobAssembly } from '../../src/host/backend/shellJob'
-import { runProgram } from '../../src/host/processTree'
+import { joinStatement, newShellJob } from '../../src/host/backend/shellJob'
 import {
   RESOURCE_JOB_CPU_RATE_PERCENT,
-  SHELL_JOB_TYPE_NAME,
   WINDOWS_POWERSHELL_COMMAND_ARGS,
 } from '../../src/shared/constants'
 import type { ResourceProcessIdentity, ResourceTicket } from '../../src/shared/resources'
-import { readJobSource } from './helpers/jobSource'
+import { buildShellJobHelper } from './helpers/shellJobBuild'
 import { removeFolder } from './helpers/temporaryFolders'
 
 // Windows ABI value: JOB_OBJECT_CPU_RATE_CONTROL_ENABLE | ..._HARD_CAP.
@@ -64,8 +58,8 @@ function ticketFor(job: { name: string }, root: ResourceProcessIdentity): Resour
 }
 
 /** The helper's (job, pid, birth) arguments for one member. */
-function target(job: { name: string }, root: ResourceProcessIdentity): string {
-  return `${powerShellQuoted(job.name)}, ${String(root.pid)}, ${powerShellQuoted(root.startTime)}`
+function target(job: { name: string }, root: ResourceProcessIdentity): [string, string, string] {
+  return [job.name, String(root.pid), root.startTime]
 }
 
 describe.runIf(process.platform === 'win32')(
@@ -78,22 +72,9 @@ describe.runIf(process.platform === 'win32')(
     let reader: WindowsResourceTreeReader
 
     beforeAll(async () => {
-      storageDir = await mkdtemp(path.join(tmpdir(), 'muse-actuator-win-'))
-      const buildLog: string[] = []
-      const assembly = await shellJobAssembly({
-        storageDir,
-        systemRoot,
-        log: (message) => {
-          buildLog.push(message)
-        },
-        readJobSource,
-        // The real execFile runner: the default governed compiler needs a
-        // configured resource host, which a bare test process has none of.
-        run: runProgram,
-      })()
-      if (assembly === undefined)
-        throw new Error(`the shell-job helper did not build here: ${buildLog.join('; ')}`)
-      deps = { assemblyPath: assembly, systemRoot }
+      const built = await buildShellJobHelper('muse-actuator-win-', systemRoot)
+      storageDir = built.storageDir
+      deps = { assemblyPath: built.assembly, systemRoot }
       reader = new WindowsResourceTreeReader(deps)
     }, HELPER_BUILD_TIMEOUT_MS)
     afterAll(async () => {
@@ -134,11 +115,7 @@ describe.runIf(process.platform === 'win32')(
 
     /** The job's CPU rate control, as the OS answers QueryInformationJobObject. */
     async function jobRate(job: { name: string }, root: ResourceProcessIdentity): Promise<unknown> {
-      return await callWindowsJobHelper(
-        deps,
-        runTreeProgram,
-        `[${SHELL_JOB_TYPE_NAME}]::ReadResourceRate(${target(job, root)})`,
-      )
+      return await callWindowsJobHelper(deps, runTreeProgram, ['read-rate', ...target(job, root)])
     }
 
     /** The job's priority class and each member's, as the OS answers. */
@@ -146,11 +123,10 @@ describe.runIf(process.platform === 'win32')(
       job: { name: string },
       root: ResourceProcessIdentity,
     ): Promise<unknown> {
-      return await callWindowsJobHelper(
-        deps,
-        runTreeProgram,
-        `[${SHELL_JOB_TYPE_NAME}]::ReadResourcePriority(${target(job, root)})`,
-      )
+      return await callWindowsJobHelper(deps, runTreeProgram, [
+        'read-priority',
+        ...target(job, root),
+      ])
     }
 
     /** The child's priority class from .NET's Process: a second, separate OS read. */

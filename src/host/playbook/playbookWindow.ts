@@ -25,7 +25,6 @@ import {
   PLAYBOOK_WORKER_KIND,
   PLAYBOOK_WORKER_SILENCE_MS,
   REVIEW_FINDINGS_LANGUAGE,
-  WINDOWS_POWERSHELL_COMMAND_ARGS,
 } from '../../shared/constants'
 import { UI_TEXT, uiLocale } from '../../shared/l10n/text'
 import type { PlaybookRecord, PlaybookWhyNote } from '../../shared/playbook'
@@ -47,8 +46,8 @@ import type { PlaybookAgentRef } from '../../runtime/playbook/panelWire'
 import type { Logger } from '../logger'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import { runProgram } from '../processTree'
-import { windowsPowerShell } from '../../core/execGuard'
-import { endJobScript } from './containedJob'
+import { windowsJobHost } from '../../core/execGuard'
+import { endJobArgs } from './containedJob'
 import {
   fromPlaybookWorkerSchema,
   playbookResultSchemas,
@@ -185,14 +184,10 @@ interface DispatchHandlers {
   readonly abort: () => void
 }
 
-/** Ends a job by name; rejects unless it was seen empty or gone. */
+/** Ends a job by name through the job helper; rejects unless it was seen empty or gone. */
 async function endJobByName(name: string, assembly: string, systemRoot: string): Promise<void> {
-  const powershell = windowsPowerShell(systemRoot)
-  await runProgram(
-    powershell.file,
-    [...WINDOWS_POWERSHELL_COMMAND_ARGS, endJobScript(assembly, name)],
-    powershell.env,
-  )
+  const host = windowsJobHost(assembly, systemRoot)
+  await runProgram(host.file, endJobArgs(name), host.env, undefined, host.cwd)
 }
 
 /** Whether a failed look at a folder says the folder is not there, and nothing else. */
