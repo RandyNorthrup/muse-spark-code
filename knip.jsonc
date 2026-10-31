@@ -513,10 +513,16 @@
     "src/core/team/teamEntry.ts",
     // The scheduler chunk (dist/teamScheduler.js) and the window chunk
     // (dist/teamWindow.js): the build plugin resolves the window chunk's
-    // board, slots and pool imports, and the runners chunk's write-set
+    // board, slots and pool imports, and the Traffic chunk's write-set
     // imports, to these barrels' re-exports, which knip cannot trace.
     "src/core/team/teamSchedulerEntry.ts",
     "src/core/team/scheduler/teamWindowEntry.ts",
+    // RLF-TEAMFIT: the Traffic chunk (dist/teamTraffic.js) and the `team`
+    // MCP server chunk (dist/teamMcp.js), bundled by path in
+    // scripts/build.mjs and loaded on their first use, which knip cannot
+    // trace.
+    "src/host/team/teamTrafficEntry.ts",
+    "src/host/team/teamMcpEntry.ts",
     //
     // M115 (Scheduled prompts v2, D95): the v2 engine, grant, event-source
     // and editor pieces ahead of their schedule-use wiring. Wiring: the

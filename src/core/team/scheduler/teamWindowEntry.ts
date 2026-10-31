@@ -6,8 +6,8 @@ import { createWindowTeamScheduler } from './window'
 import { setUiText } from '../../../shared/l10n/text'
 import type { UiText } from '../../../shared/l10n/en'
 
-// The runners bundle's Traffic projection rides this bundle's shared-file
-// and write-set matching through the deferred cohort, so the members it
+// The Traffic bundle's projection rides this bundle's shared-file and
+// write-set matching through the deferred cohort, so the members it
 // imports are exported here: the split gate fails a member this list lacks.
 export { SharedFiles } from '../sharedFiles'
 export { expandWriteSet, writeSetOverlap } from '../writeSets'

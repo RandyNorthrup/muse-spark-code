@@ -20,19 +20,15 @@ import type {
 } from '../../src/core/team/teamHostService'
 import { TEAM_TASKS_STATE_KEY, storedTasksSchema } from '../../src/core/team/teamTaskState'
 import type { TeamToolContext } from '../../src/core/team/teamSeams'
-import { createEngineTeamPorts } from '../../src/host/team/teamEnginePorts'
+
 import { TEAM_MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import type { TeamRoleConfig, TeamSnapshot } from '../../src/shared/team'
 import { TEAM_WORKSPACE_KEYS } from '../../src/shared/teamConversation'
 import { silentCoreLog } from './helpers/memoryLogs'
-import { realTeamGit } from './helpers/realTeamGit'
+import { enginePortsWithoutWorker, tripwireError } from './helpers/realTeamGit'
 
 const ORCHESTRATOR = 'muse-spark-1.3'
-
-function tripwireError(name: string): Error {
-  return new Error(`test: the ports never call ${name} here`)
-}
 
 /** Engineering holds a zero task cap, so its tasks wait; code review has room. */
 function movableTeam(hasUnstaffedRole = false): TeamSnapshot {
@@ -65,16 +61,10 @@ function moveRig(stored: TeamSnapshot, options: { readonly isHeld: boolean }): M
   onTestFinished(() => {
     rmSync(storage, { recursive: true, force: true })
   })
-  const ports = createEngineTeamPorts({
+  const ports = enginePortsWithoutWorker({
     repositoryRoot: () => undefined,
     storageRoot: storage,
-    platform: process.platform,
     isTrusted: () => true,
-    listModels: () => Promise.reject(tripwireError('listModels')),
-    startWorker: () => Promise.reject(tripwireError('startWorker')),
-    runGit: realTeamGit,
-    now: () => Date.now(),
-    log: silentCoreLog(),
   })
   const state = new Map<string, unknown>([[TEAM_WORKSPACE_KEYS.team, stored]])
   const runs: TeamTaskSpec[] = []

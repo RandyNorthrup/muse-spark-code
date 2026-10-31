@@ -3694,8 +3694,9 @@ async function activateWindow(
       return createTeamHost
     },
     loadTeamMcp: async () => {
-      const { TeamMcpServer, teamRosterAnswer } = await import('./host/team/teamHostEntry')
-      return { server: new TeamMcpServer(log), rosterAnswer: teamRosterAnswer }
+      const { createTeamMcpRuntime } = await import('./host/team/teamMcpEntry')
+      const mcp = createTeamMcpRuntime(UI_TEXT, uiLocale())
+      return { server: new mcp.TeamMcpServer(log), rosterAnswer: mcp.teamRosterAnswer }
     },
     uiText: () => UI_TEXT,
     uiLocale,

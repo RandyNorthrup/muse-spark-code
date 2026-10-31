@@ -32,8 +32,11 @@ export const UI_TEXT_REGIONS = [
     // The maker tools' words (M103) are read by the hardware guard, the maker
     // commands and the ACP approval, never at a bundle's start. M104 lane D's
     // host-service words, the language server's and the CLI help travel with
-    // the runtime too: only the Node bundles read them.
-    keys: /^(?:acp|exec|scanSecrets|reportUsage$|hostService$|gitWorkspaceNotRepository$|gitProgramMissing$|signOutInTerminal$|supervision$|languageServer$|referenceCliOptions$|cliHelp$|maker|hardware|approvalHardwareNote$)/,
+    // the runtime too: only the Node bundles read them. The watchdog's words
+    // are terminal command text too (the `watchdog` command and its triage),
+    // read only when that command runs, so they ride this region instead of
+    // the core fallback (RLF-TEAMFIT).
+    keys: /^(?:acp|exec|scanSecrets|watchdog$|reportUsage$|hostService$|gitWorkspaceNotRepository$|gitProgramMissing$|signOutInTerminal$|supervision$|languageServer$|referenceCliOptions$|cliHelp$|maker|hardware|approvalHardwareNote$)/,
   },
   {
     name: 'hooks',

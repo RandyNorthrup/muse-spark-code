@@ -1582,6 +1582,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'teamMcp.js',
+    side: 'vscode',
+    requestedBy: [{ importer: 'src/extension.ts', symbol: 'activateWindow', side: ['vscode'] }],
+  },
+  {
     file: 'teamMerge.js',
     side: 'both',
     requestedBy: [
@@ -1620,6 +1625,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       {
         importer: 'src/core/team/teamEntry.ts',
         symbol: 'createTeamRuntime',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
+    file: 'teamTraffic.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/host/runners/teamRunnersEntry.ts',
+        symbol: 'createTeamRunnersRuntime',
         side: ['acp', 'vscode'],
       },
     ],

@@ -1275,6 +1275,10 @@ deferred-aggregate and individual caps are unchanged.
 
 **`dist/teamLanding.js` budget rationale.** (RLF-TEAMCORE, M96c: first checked landing; 60.4 KiB measured by the same rule)
 
+**`dist/teamTraffic.js` budget rationale.** (RLF-TEAMFIT, M96c: first Traffic use, split out of `dist/teamRunners.js`; 48,241 bytes measured +15%, rounded up to 25 KiB — 75 KiB)
+
+**`dist/teamMcp.js` budget rationale.** (RLF-TEAMFIT, M96 lane T: first team endpoint request, split out of `dist/teamHost.js`; 7,131 bytes measured +15%, rounded up to 25 KiB)
+
 **`dist/review.js` budget rationale.** (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)
 
 **`dist/pageWorker.js` budget rationale.** (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)
@@ -9679,6 +9683,31 @@ branch (D215 was the highest in force there); D216 was already taken on
 int by the Model API backend on the Muse Code subscription, so it is
 D243 here by the usual rule.
 
+### D251 — A landing decision retires the attempt it lands (lane RLF-TEAMFIT, 2026-10-30; numbered D229 on its branch until the int/recovery join of 2026-10-31)
+
+Retirement is proved only by the job or the user scope, and otherwise it
+is the user's decision (M96 T18). No worker port supplies a proof for an
+engine loop that simply ended, so on int a finished attempt stayed
+counted on the window board, its admission slot retained, and every
+landing refused as busy (`scheduler.landed` requires a retired
+attempt) — found by proving `finalAdmit`, the ordered merge queue and
+plan-before-card on real parts after the fake-driven suite's deletion
+(`docs/certification/rlf-teamfit.md`). The rule: the person's recorded
+merge or discard decision retires the attempt it lands
+(`retireAttemptByDecision` in `decideMerge` and `discard`, kind
+`userDecision`, the retained slot releasing with it as on a proved
+finish; a proved retirement already recorded stands). Every surface
+funnels through `decideMerge` — the merge card, Traffic's land-now,
+headless `exec --team` under the run's own recorded policy — so one
+seam covers all of them; `stop()`'s discard retires the same way. The
+same proof found that a final-admission refusal leaked its scheduler
+slot (the window refunded the board attempt and nothing released the
+slot or lease, so the refunded task could never be picked again);
+`TeamScheduler` now releases slot, lease and activity when start
+reports `notStarted` with the attempt off the board, mirroring
+`retired()`. A worker port that can prove containment (Windows job,
+Linux cgroup) still retires by proof at finish, before any decision.
+
 ## 3. Open questions (need the owner)
 
 <a id="q-cc-licence"></a>
@@ -17222,6 +17251,23 @@ raised. The
 deleted fake-driven `teamHostService` suite leaves the final admission, the
 merge queue and the plan-before-card order without a unit proof; the real-process
 suites above cover landing and recovery. Record: `docs/certification/cc-int5.md`.
+
+**Status 2026-10-30 (RLF-TEAMFIT, on CC-INT5's int): building.** `npm run
+build` exits 0 with every existing budget unchanged: `dist/teamHost.js`
+140.2 → 122.5 of 130 KiB (the `team` MCP server loads in its own
+`dist/teamMcp.js`, 7.0 of 25, and the host reads its argument parsers from
+`dist/team.js`), `dist/teamRunners.js` 78.4 → 33.3 of 75 (Traffic loads in
+its own `dist/teamTraffic.js`, 47.1 of 75), `dist/teamScheduler.js`
+76.5 → 60.2 of 75 (its schemas read from `dist/team.js` like the runners'),
+`dist/uiText.js` 125.3 → 123.8 of 125 (the watchdog's words ride the
+runtime English region). The final admission, the ordered merge queue and
+plan-before-card are proven again on real parts
+(`test/unit/teamHostRealParts.test.ts`: the real host service, window
+scheduler, engine merge ports, git repositories and worker processes),
+which found and fixed D251's two breaks (a landing decision now retires
+the attempt; a refused admission frees its slot). No real team run has
+been made through the packed product (CC-INT5 §8 item 3 stands). Record:
+`docs/certification/rlf-teamfit.md`.
 
 **M96CINT round 2 integration (2026-10-05).** Finish the existing partial
 integration by merging reviewed C (`52d04b69`) and then O (`19bb0703`) with

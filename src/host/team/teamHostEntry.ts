@@ -4,8 +4,7 @@
 import { setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 import { createTeamHostService } from '../../core/team/teamHost'
-import type { TeamHostSeams, TeamHostService, TeamStatePort } from '../../core/team/teamHostService'
-import { buildRosterLive, buildStableRosterSection } from '../../core/team/roster'
+import type { TeamHostService, TeamStatePort } from '../../core/team/teamHostService'
 import { dispatchHeadReader } from '../../core/team/teamWorkspaces'
 import {
   TEAM_WINDOW_SETTINGS_KEY,
@@ -94,14 +93,6 @@ export async function recoverOpenLandings(
 }
 export { setUiText } from '../../shared/l10n/text'
 export { teamProgramFreeGit } from '../../core/team/teamWorkspaces'
-// The `team` MCP server Muse Code orchestrators reach (M96 lane T): the
-// window binding loads it with this bundle on the first team conversation.
-export { TeamMcpServer, type TeamSessionBinding } from './teamMcpServer'
-
-/** The `roster` tool's answer text: the stable part with the live numbers. */
-export function teamRosterAnswer(
-  data: NonNullable<ReturnType<TeamHostSeams['teamRosterData']>>,
-): string {
-  const stable = buildStableRosterSection(data.stable)
-  return data.live === undefined ? stable : `${stable}\n\n${buildRosterLive(data.live)}`
-}
+// The `team` MCP server Muse Code orchestrators reach (M96 lane T) loads
+// with its own bundle (dist/teamMcp.js, teamMcpEntry) on the first team
+// endpoint request, not with the host service (RLF-TEAMFIT).
