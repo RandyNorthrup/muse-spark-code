@@ -6,7 +6,12 @@
 
 import type { Readable } from 'node:stream'
 
-export function webReadable(source: Readable): ReadableStream<Uint8Array> {
+/**
+A Node readable as a web stream. `leave` ends the stream as the source's own
+end does (RLF-SHUTDOWN): the client that left by a signal, not by closing its
+input, is heard as the same end.
+*/
+export function webReadable(source: Readable, leave?: AbortSignal): ReadableStream<Uint8Array> {
   let isDone = false
   const listeners: { onData?: (chunk: Buffer) => void } = {}
   const release = () => {
@@ -35,6 +40,19 @@ export function webReadable(source: Readable): ReadableStream<Uint8Array> {
         release()
         controller.error(error)
       })
+      const ended = () => {
+        if (isDone) {
+          return
+        }
+        release()
+        source.pause()
+        controller.close()
+      }
+      if (leave?.aborted === true) {
+        ended()
+      } else {
+        leave?.addEventListener('abort', ended, { once: true })
+      }
     },
     cancel() {
       release()

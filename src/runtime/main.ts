@@ -153,6 +153,7 @@ import { displayLanguage } from './locale'
 import { envProxyWarning } from './proxyWarning'
 import type { Logger } from '../host/logger'
 import { type LogLevel, stderrLogger } from './stderrLog'
+import { watchClientLeaving } from './serveLifetime'
 import { webReadable } from './webStreams'
 import { createLifecycle } from './exec/execLimits'
 import { createFdWriter } from './exec/fdWriter'
@@ -1454,6 +1455,9 @@ async function serve(
   processResources: ProcessResources,
 ): Promise<number> {
   let clientName = 'ACP'
+  // A signal is the client leaving (RLF-SHUTDOWN): from here on it ends the
+  // input as the client's own close does, so the backend is always ended first.
+  const leaving = watchClientLeaving(log)
   const recording = runtimeRecording(
     log,
     () => clientName,
@@ -1846,7 +1850,7 @@ async function serve(
       boundedAcpStream(
         engine.ndJsonStream,
         Writable.toWeb(process.stdout),
-        webReadable(process.stdin),
+        webReadable(process.stdin, leaving.signal),
       ),
     )
     log.info(`${ACP_AGENT_NAME} ${packageVersion()} serving ACP on stdio (${options.backend})`)
@@ -1884,6 +1888,7 @@ async function serve(
     }
     return 0
   } finally {
+    leaving.dispose()
     await recording.flush()
     restoreRecording()
   }

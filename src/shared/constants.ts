@@ -121,6 +121,12 @@ export const RESOURCE_NONCE_MAX_CHARS = 64
 export const RESOURCE_LAUNCH_POLL_MS = 100
 export const RESOURCE_MUSE_SHUTDOWN_MS = 30_000
 export const RESOURCE_MUSE_CLOSE_GRACE_MS = 10_000
+// RLF-SHUTDOWN: a Muse Code process that never answered `initialize` has no
+// session to drain, so it is ended at once: SIGTERM to its process group, this
+// long to exit, then SIGKILL. Two seconds is the Muse SDK's own SIGTERM-to-
+// SIGKILL grace (`SIGTERM_GRACE_MS`), Codex's stdio launcher's, and the MCP
+// SDKs' stdio clients' (docs/certification/rlf-shutdown.md).
+export const RESOURCE_MUSE_TERMINATE_GRACE_MS = 2000
 export const RESOURCE_TIMER_MAX_MS = 2_147_483_647
 // libuv fills missing Windows mandatory variables from the parent; blank them explicitly.
 export const RESOURCE_PROBE_EMPTY_ENV_KEYS = [
