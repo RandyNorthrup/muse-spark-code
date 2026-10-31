@@ -35,6 +35,13 @@ export interface WebviewHtmlOptions {
 // (`</script>`) or open a comment, and the two line separators end a line
 // in older JavaScript parsers. Each becomes its JSON escape, which parses
 // back to the same text.
+const HTML_UNSAFE = /[&<>]/g
+const HTML_ESCAPES: Readonly<Record<string, string>> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+}
+
 const SCRIPT_UNSAFE = /[<\u{2028}\u{2029}]/gu
 const SCRIPT_ESCAPES: Readonly<Record<string, string>> = {
   '<': String.raw`\u003c`,
@@ -65,10 +72,10 @@ export function buildWebviewHtml(options: WebviewHtmlOptions): string {
     ...(options.surface === 'tasks' ? [] : [`worker-src blob:`]),
   ].join('; ')
   const { locale, table } = options.l10n
-  const stopLabel = table.makerStopAll
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
+  const stopLabel = table.makerStopAll.replaceAll(
+    HTML_UNSAFE,
+    (character) => HTML_ESCAPES[character] ?? character,
+  )
   const stopShell =
     options.surface === 'tasks'
       ? ''
