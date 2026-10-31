@@ -55,7 +55,7 @@ import {
   SUBAGENT_CAPACITY,
   museCodeLoadedSessionCeiling,
 } from '../../src/shared/constants'
-import { MSP_KNOWN_SCHEMA_FINGERPRINTS, UI_TEXT } from '../../src/shared/constants'
+import { UI_TEXT } from '../../src/shared/constants'
 import type { ShellResult } from '../../src/core/shellResult'
 
 function fixture(name: string): unknown {
