@@ -99,6 +99,7 @@ import type { AssembledProviderRun } from './exec/providerExec'
 import { type GuardedChildEnv, NO_WORKSPACE } from '../core/executables'
 import { buildChildEnvironment, environmentValue } from '../core/execGuard'
 import { createToolIo } from '../host/backend/toolIo'
+import type { VaultExecService } from '../core/vault/exec/service'
 import { resolveExecOutputCap } from './exec/runLedger'
 import { Usd } from '../shared/usd'
 import { loadLegalScanner } from './legal/legalScanner'
@@ -147,6 +148,12 @@ export interface ExecRuntimeOptions {
   readonly isEphemeral: boolean
   readonly headlessPaid: HeadlessPaidPolicy
   readonly streamIdleMs: number
+  /**
+  D243: the vault exec service over the run's headless registration,
+  built per use so the session opened for this run is the one that
+  authorizes. Only the headless exec path supplies it.
+  */
+  readonly vaultExec?: (() => Promise<VaultExecService>) | undefined
 }
 
 export interface RuntimeBackendDeps {
@@ -486,6 +493,7 @@ function modelApiManager(
         : undefined,
     // The ACP agent exposes no hook-concurrency setting (D62).
     hookMaxRunningCommands: () => SETTING_DEFAULTS.hooksMaxRunningCommands,
+    ...(deps.exec?.vaultExec !== undefined && { vault: deps.exec.vaultExec }),
   })
   media.onIo(io)
   // Muse Code's memory (M49, PLAN.md D41), in the data home `muse serve` sees.

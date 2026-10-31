@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { UI_TEXT } from '../../../src/shared/constants'
 import type { VaultRequester, VaultUse } from '../../../src/shared/vault'
 import type { VaultBrokerPort } from '../../../src/shared/vaultProtocol'
-import { HeadlessVaultSession } from '../../../src/runtime/vault/execVault'
+import { HeadlessVaultSession } from '../../../src/runtime/vault/headlessSession'
 import { VaultSurface, type VaultPanelPort } from '../../../src/runtime/vault/vaultSurface'
 
 const SESSION_ID = 'session-1'

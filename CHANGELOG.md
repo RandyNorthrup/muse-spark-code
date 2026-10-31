@@ -85,6 +85,25 @@ happened, not what was planned; superseded entries are kept.
   modified files in Git lists, and the Muse Desktop frame sizes from the
   approved desktop mockups, which are now in the repository as the design
   reference with their component contracts.
+- **The terminal agent and headless runs now move their stored keys into
+  the vault too.** When the vault unlocks in the CLI, the ACP agent or a
+  headless run, every key in the operating system's credential store —
+  the Model API key, each provider's record, the ChatGPT sign-in and
+  pooled account keys — is copied into the vault, verified, kept
+  mirrored as keys rotate, and read back from the vault once a slot
+  retires, exactly as the editor window already did.
+- **Headless runs can use vault secrets in shell commands, behind your
+  ceiling.** `exec --vault` shell calls may name vault items as
+  environment or stdin secrets. Two things of yours gate every use: an
+  unattended grant for the exact command, and your vault policy ceiling
+  for the workspace and the headless role (`vault policy` prints it,
+  `vault policy '<policy-json>'` sets it; no ceiling, the default,
+  refuses in words). The value itself travels from the broker to a
+  dedicated feeder process — admitted by its operating-system identity
+  and its place in the run's process tree under a single-use delegation
+  — and from the feeder into the command, with command output scrubbed;
+  the agent host never receives it. Git, askpass, sudo and SSH uses,
+  and the editor surfaces, follow in later increments.
 - Best-of-N shows each attempt's reported tokens in the side-by-side
   comparison, plus its reported cost where the attempt's usage reports
   carry one, and the take notice names the taken attempt's reported use
@@ -504,6 +523,13 @@ happened, not what was planned; superseded entries are kept.
 - The connector's sign-in addresses stay the public URL you set. A request
   that names a different host, including one a tunnel forwards, no longer
   changes the sign-in, token or key address.
+- **Stored keys are read from the operating system's credential store
+  once per window or process, not on every use.** Reading a key dozens
+  of times in one turn made rare credential-store failures (notably the
+  Linux Secret Service) a certainty; one shared, remembered read per
+  entry makes them rare again. A key replaced elsewhere, a secret the
+  editor reports changed, or a key a provider answers 401 or 403 to is
+  read from the store once more on its next use.
 - **A vault no longer reports itself lost when it was never set up.** The
   vault's rollback record in the operating system's credential store is now
   keyed to the vault it protects, so nothing outside that vault can read

@@ -36,6 +36,7 @@ import {
   type VaultStatus,
 } from '../../../shared/vaultProtocol'
 import { type VaultBrokerDeps, type VaultUseLifetime, type VaultConnectionIdentity } from './ports'
+import { type VaultProcessIdentity } from './peer'
 import { type VaultCeiling } from './policy'
 import {
   initialBrokerState,
@@ -493,6 +494,36 @@ export class VaultBroker implements VaultBrokerPort {
         use: vaultUseSchema.parse(use),
         lifetime,
         ...(token && { token }),
+      }),
+    )
+  }
+  /** D243: delegate one unredeemed ticket to one feeder identity; false refuses. */
+  async delegate(
+    ticketId: string,
+    feeder: { processId: number; startedAt: number },
+    envelopeDigest: string,
+    token: RegistrationToken,
+  ): Promise<boolean> {
+    return z
+      .boolean()
+      .parse(await this.call({ kind: 'delegate', ticketId, token, feeder, envelopeDigest }))
+  }
+  /** D243: redeem on the feeder's own connection under a delegation. */
+  async redeemDelegated(
+    ticket: VaultTicket,
+    use: VaultUse,
+    lifetime: VaultUseLifetime,
+    feeder: VaultProcessIdentity,
+    envelopeDigest: string,
+  ): Promise<VaultApprovalResult> {
+    return vaultApprovalResultSchema.parse(
+      await this.call({
+        kind: 'redeemDelegated',
+        ticket: vaultTicketSchema.parse(ticket),
+        use: vaultUseSchema.parse(use),
+        lifetime,
+        feeder,
+        envelopeDigest,
       }),
     )
   }

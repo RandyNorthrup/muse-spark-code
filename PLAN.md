@@ -1355,6 +1355,14 @@ deferred-aggregate and individual caps are unchanged.
 
 **`dist/mcpVault.js` budget rationale.** (POSTSPAWN: 13.4 KiB +15%, rounded to 25 KiB; the vault-backed MCP start, off activation)
 
+**`dist/vaultRuntimeMigration.js` budget rationale.** (RLF-M109: the runtime key-store migration — controller, engine, codecs and the first-party reader — loaded by `dist/vaultRuntime.js` on the first unlock edge only; 60.2 KiB measured plus 15%, rounded up to 70 KiB; shipped in the ACP package and the VSIX beside the vault runtime that names it)
+
+**`dist/vaultExec.js` budget rationale.** (RLF-M109, D243: the feeder — envelope, delegated redemption client, scrub streams and the contained command runner — spawned in place of a command by the host; 127.7 KiB measured plus 15%, rounded up to 150 KiB; shipped in the ACP package and the VSIX beside the vault runtime)
+
+**`dist/vaultPolicy.js` budget rationale.** (RLF-M109, D243: the person vault policy's file half, loaded by the broker bindings at registration and by the vault runtime for `vault policy`; 7.0 KiB measured plus 15%, rounded up to the 25 KiB floor; shipped in the ACP package and the VSIX)
+
+**`dist/vaultExecHost.js` budget rationale.** (RLF-M109, D243: the headless registration/session and the feeder host port, loaded by the vault runtime binding on the first headless `--vault` open and by the exec entry for `vault_run`; 66.3 KiB measured plus 15%, rounded up to 80 KiB; shipped in the ACP package and the VSIX. Moving the session here also returned `dist/vaultRuntime.js` from 24.4 to 21.2 KiB)
+
 **`dist/resourceAdmission.js` budget rationale.** (M107 W: 1.8 KiB, shared process admission)
 
 **Resource controls/history budget rationale.** ≤ 25 KiB physical entries; ≤ 50 KiB each lazy closure; history CSS included (35.9/42.2 KiB closures); original deferred cap stays 50 KiB
@@ -9590,6 +9598,58 @@ was saved is not written again. A retired ChatGPT sign-in stays
 listed after its legacy copy is gone, because the journal row is
 what names it. Full record: `docs/certification/rlf-vaultundo.md`,
 and the review record `docs/certification/rvcred.md`.
+
+### D243 — Agent secret use (M109 lanes T and X): reported provenance, a person-set ceiling, delegated feeder redemption (lead decision 2026-10-30; numbered D216 on its branch until the int/recovery join of 2026-10-30, when that number was found shared with the Model API backend on the Muse Code subscription)
+
+RLF-M109 measured T5 blocked three times over in the installed broker
+(`docs/certification/rlf-m109.md` section 3: the channel ceiling is
+`none`, its taint dep rejects, `perform` rejects, and redemption
+admission binds a ticket to its registration incarnation by object
+identity, which only the registering connection holds). The lead
+decided on 2026-10-30, and this is the rule in force:
+
+1. **Option 1 with option 2 as its first increment.** Design and build
+   lanes T and X (provenance owner, ceiling owner, feeder redemption
+   transport with feeder authentication). The first increment is
+   environment/stdin secret uses only, headless first; no
+   git/askpass/sudo/SSH surfaces yet. Option 3 (host-side redemption,
+   the harness host receiving material itself) is rejected: it widens
+   the host secret surface and contradicts D89.4 (the feeder is the
+   one way a brokered value reaches a child).
+2. **Feeder peer authentication is owned by the broker:** OS peer
+   credentials (`SO_PEERCRED` on Linux, `getpeereid` on macOS,
+   `GetNamedPipeClientProcessId` on Windows) AND command-tree
+   membership — the feeder's ancestry includes the registered
+   requester process, with process start time checked — per the
+   helper server's `authenticate` contract
+   (`src/core/vault/exec/helpers.ts`).
+3. **Delegated tickets.** The feeder does NOT register as its own
+   requester. The registered host asks for a single-use delegated
+   redemption ticket bound to the feeder identity (pid + process
+   start time + the command envelope digest); the broker admits a
+   redemption on the feeder's own connection only when its peer
+   identity matches that delegation. Object-identity binding stays
+   for the host's own redemptions.
+4. **Provenance owner.** The host reports session taint/provenance
+   over its registered connection with each proposal (a new frame
+   kind); the broker channel evaluates that reported taint, validated
+   against the registration, instead of its own dep. The host
+   constructs `VaultTaintSession` per agent session.
+5. **Ceiling owner.** The person vault policy: a ceiling per
+   workspace and role, set by the person. The default is none, which
+   refuses in words; never a ceiling of ours (D121/D208).
+6. **Material only in private frames on the feeder connection**,
+   never on the requester socket; a finish message; terminate on
+   lock or revoke.
+
+Proof is on real parts: the real broker, a real feeder process, real
+OS peer credentials on macOS (and Linux where reachable); Windows
+legs are written for hosted CI. The undo trigger and vault-reset
+questions are answered on int (D241, RLF-VAULTUNDO); the companion
+vault surface stays open. Numbering note: this decision was D216 on its
+branch (D215 was the highest in force there); D216 was already taken on
+int by the Model API backend on the Muse Code subscription, so it is
+D243 here by the usual rule.
 
 ## 3. Open questions (need the owner)
 
@@ -25248,6 +25308,71 @@ everything else...` in both broker suites are for hosted CI. The terminal
 
 **RVCRED (2026-10-30, macmini): the retired-undo crash window is closed in the engine.** A killed undo now resumes from a journal mark (pending before the legacy write, written only after that write reads back). A newer legacy value is not overwritten, and a copy removed after the write was saved is not written again. A retired ChatGPT sign-in stays listed from its journal row. Not run here: the broker cases, including the new killed-undo case in both broker suites. This session's keyring still aborts with "User interaction is not allowed", the same limit the 2026-10-24 record names. Hosted CI owns that proof. No changelog line until that run exists.
 
+**RLF-M109 recovery (2026-10-30, macmini): building.** The reconciled
+keystore one-owner wrapper landed (source 07 as RLM109 redesigned it:
+single-flight remembered reads, `forget` on a 401/403 key rejection
+and on the editor's change notice, retained causes, no retry), and
+the runtime key-store migration binding is bound: its own lazy chunk
+(`dist/vaultRuntimeMigration.js`, 60.2/70 KiB; `dist/vaultRuntime.js`
+24.4/25 KiB) loaded on the first unlock edge in the CLI, ACP and
+headless processes, the controller over `migrateKeyStore` with
+providers listed from the person's file and pooled accounts from the
+file-backed pool, and the process's secrets behind the migration
+shell so runtime writes mirror and retired slots read from the vault.
+Both broker suites drive the runtime binding's pooled slot for CI.
+T5 (the engine secret-use consumer) stays blocked on its broker-side
+owners, measured in `docs/certification/rlf-m109.md`: the installed
+broker bindings refuse agent use three times over (`ceiling: 'none'`
+denies every use in policy, the channel's `taint` rejects, and
+`perform` rejects — "T/X/S/O transport owners supply provenance and
+execution before agent use is enabled"), and no feeder redemption
+transport (ticket-to-material over an authenticated feeder channel,
+with feeder peer authentication and lifetime/terminate) is designed
+in the record. No partial wiring shipped: the shell tool keeps
+refusing `secrets` with the broker sentence until those owners land.
+Open questions with options and a recommendation are in the
+certification record. M109 stays open.
+
+**RLF-M109 resume (2026-10-30, macmini): building.** The lead decided
+T5 (D243): lanes T and X with the reduced first increment —
+environment/stdin uses only, headless first; host-side redemption
+rejected. This resume records D243 first, then builds the provenance
+report frame and the person vault policy ceiling (lane T), the
+delegated feeder redemption transport with broker-owned feeder peer
+authentication (lane X), and the headless consumer on top. Claims
+wait for the real broker/feeder proof in
+`docs/certification/rlf-m109.md`; M109 stays open.
+
+**RLF-M109 resume (2026-10-30, macmini): D243 first increment built;
+real broker/feeder proof pending a capable rig.** Lane T ships: the
+`reportProvenance` frame (the broker evaluates taint reported over
+the incarnation-bound connection; a host that has not reported is
+refused), `VaultTaintSession` per headless run, and the person vault
+policy ceiling (`vault-policy.json` beside the vault files,
+`vault policy` to read and set it; default none refuses in words).
+Lane X ships: single-use delegated tickets bound to feeder pid + OS
+start time + envelope digest, broker-owned feeder authentication
+(kernel peer credentials and an ancestry walk to the registered
+requester process — `parent` mode in the POSIX helper, parent pid in
+the Windows pipe helper for hosted CI), material only in private
+frames on the feeder's own connection with an `execFinish`, and
+termination on lock or revoke through the lease lifetime. The
+headless consumer (`exec --vault` shell `secrets`, environment/stdin
+only) is wired runExec → runtime backend → toolIo; `dist/vaultExec.js`
+(the feeder), `dist/vaultPolicy.js` and `dist/vaultExecHost.js` ship
+in the ACP package and the VSIX (packed listing and a `vault policy`
+read drilled through the packed darwin-x64 agent on macmini). The
+real broker/feeder suite (test/unit/vault/vaultExecDelegated.test.ts)
+skips on macmini for the same sandbox blocks that skip the sibling
+broker suites there (`/bin/ps` execution refused, so exact process
+birth cannot be established, at the base commit too); the proof run
+belongs on a rig or hosted job where process listing works, and the
+certification record names the exact blocks. Remains: git/askpass/
+sudo/SSH surfaces, ACP-approval and VS Code consumers, Windows feeder
+containment (the job launcher cannot yet carry the envelope pipe to
+its payload, so Windows refuses in words), lanes S/O, the D89.15
+companion surface, and the real-life receipt. M109 stays open.
+
 **C-M109-1 lead decisions (2026-10-10, lead decision).** In 0.17.0, every
 vault use is refused. The binding layer was never built: the broker process,
 its ports, peer checks, a setup flow, a runtime bundle and a Linux slot are
@@ -33194,7 +33319,12 @@ No new escape hatch is introduced.
   attest against arbitrary hostile same-user code rewriting those files
   (D89.15's residual). Management/private reads are bound; installed agent
   T/X/S/O execution, lifetime and trusted provenance owners remain absent and
-  explicitly refused. Audit checkpoint updates commit the authenticated store
+  explicitly refused. (Superseded in part by D243, lead decision
+  2026-10-30: lanes T and X are designed there — reported provenance, a
+  person-set ceiling, delegated feeder redemption — and RLF-M109 builds
+  their first increment, environment/stdin uses headless first; S/O and
+  the git/askpass/sudo/SSH surfaces stay refused until their own
+  increments land.) Audit checkpoint updates commit the authenticated store
   before the protected checkpoint; interruption between those writes refuses
   reopening rather than guessing an anchor. Joined recovery must certify that
   failure path before availability is enabled. CM109JOINA supplies the writer

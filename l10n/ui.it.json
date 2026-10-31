@@ -7345,6 +7345,8 @@
     "brokerBlocked": "Il broker non può avviarsi. Le chiavi dei client interni funzionano ancora; gli usi degli agenti sono rifiutati. Ripara l’installazione del broker.",
     "switchedOff": "La cassaforte delle credenziali è disattivata nelle impostazioni. Attiva museSpark.vault.enabled per usarla.",
     "noUnattended": "{item} richiede un’autorizzazione non presidiata per {use}. Aggiungila nella cassaforte o esegui in modo interattivo.",
+    "ceilingNone": "Nessun criterio del vault consente questo uso. Prima imposta un limite per quest'area di lavoro e questo ruolo con il comando dei criteri del vault.",
+    "policyCeilings": "Limiti dei criteri del vault",
     "nopasswd": "Sudo con NOPASSWD è disponibile. Ogni comando approvato può ottenere privilegi root; qui la cassaforte non aggiunge protezione.",
     "fenceOff": "Disattivare la barriera espone l’ambiente e le vie di accesso alle credenziali alla conversazione principale. I lavoratori restano protetti.",
     "ambientWarning": "Un comando approvato può leggere i file che puoi leggere tu. Importare le credenziali non nasconde gli altri file.",

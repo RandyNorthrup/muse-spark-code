@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { keyringSecretStore, StoreUnavailableError } from '../../src/runtime/keyStore'
 import { KEYRING_PARTS_TAG, KEYRING_SERVICE } from '../../src/shared/constants'
+import { deleteAllServiceEntries } from './helpers/keyringCleanup'
 
 // The OS backends on macOS/Linux require native qualification on those rigs.
 describe.runIf(process.platform === 'win32')('native multipart credentials', () => {
@@ -41,10 +42,7 @@ describe.runIf(process.platform === 'win32')('native multipart credentials', () 
       expect(await store.get(account)).toBeUndefined()
       expect(await findCredentialsAsync(service)).toEqual([])
     } finally {
-      const remaining = await findCredentialsAsync(service)
-      for (const entry of remaining) {
-        await new AsyncEntry(service, entry.account).deletePassword()
-      }
+      await deleteAllServiceEntries(service)
     }
   })
 })

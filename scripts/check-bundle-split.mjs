@@ -1443,18 +1443,24 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
             !(
               input === 'src/core/providers/configured.ts' && output === BUNDLES.configured.output
             ) &&
-            // D89.14 lane M: the migration codecs parse the installed
-            // provider records, so the migration chunk carries their
-            // schemas beside the engine.
+            // D89.14 lane M / RLF-M109: the migration codecs parse the
+            // installed provider records, so both migration chunks (the
+            // window's and the runtime's) carry their schemas beside the
+            // engine; the runtime chunk also reads the person's
+            // providers file through its real reader to list what
+            // migrates, and that reader carries the capability record.
             !(
-              input === 'src/core/providers/accountCredentialRecord.ts' &&
-              output === VAULT_MIGRATION.output
+              (output === 'dist/vaultRuntimeMigration.js' || output === VAULT_MIGRATION.output) &&
+              (input === 'src/core/providers/subscriptions/chatgptRecord.ts' ||
+                ['modelRef.ts', 'accountCredentialRecord.ts'].some(
+                  (file) => input === `src/core/providers/${file}`,
+                ))
             ) &&
-            // RLM109: the ChatGPT slot's migration codec parses the stored
-            // grant with the record schema leaf, so the chunk carries it.
             !(
-              input === 'src/core/providers/subscriptions/chatgptRecord.ts' &&
-              output === VAULT_MIGRATION.output
+              output === 'dist/vaultRuntimeMigration.js' &&
+              ['providersFile.ts', 'capabilityRecord.ts'].some(
+                (file) => input === `src/core/providers/${file}`,
+              )
             ) &&
             !(input === 'src/core/providers/priceCard.ts' && output === 'dist/usageService.js') &&
             // C-M113-2: the session and usage inputs read M102's journal

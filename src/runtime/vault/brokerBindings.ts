@@ -18,6 +18,7 @@ import {
   UI_TEXT,
   VAULT_LIMITS,
   VAULT_AUDIT_MAX_BYTES,
+  VAULT_POLICY_BUNDLE_FILE,
 } from '../../shared/constants'
 import type { KeyringEntryFactory } from '../keyStore'
 import type { VaultProcessIdentity } from '../../core/vault/broker/peer'
@@ -34,7 +35,18 @@ import { FileVaultAnchor, fileRecordEntries, vaultAnchorFile } from './fileAncho
 import type { VaultAnchorPort } from '../../core/vault/broker/repository'
 import type { VaultBrokerBindings, VaultBrokerContext } from './vaultBrokerEntry'
 import { isPosixVaultHost } from './posixHost'
-import { holdVaultStartupLock, vaultPeerExecutable, vaultProcessIdentity } from './posixNative'
+import {
+  holdVaultStartupLock,
+  vaultParentIdentity,
+  vaultPeerExecutable,
+  vaultProcessIdentity,
+} from './posixNative'
+import type * as VaultPolicyModule from './vaultPolicyEntry'
+import { createRequire } from 'node:module'
+import { uiLocale } from '../../shared/l10n/text'
+import type { VaultRequester } from '../../shared/vault'
+import type { VaultCeiling } from '../../core/vault/broker/policy'
+import { totpCode } from '../../core/vault/web/totp'
 import type { WindowsBrokerPlatform } from './windowsHost'
 export { setUiText } from '../../shared/l10n/text'
 
@@ -300,6 +312,31 @@ async function createCredentialManagerKeyring(dataDir: string): Promise<{
   return { keyring: created, anchor: scopedVaultAnchor(created, dataDir) }
 }
 
+// D243: the policy file half is its own lazy chunk (dist/vaultPolicy.js);
+// the same-build sibling contract is validated before use (PLAN §8). A
+// chunk that cannot load refuses every use with the fixed word, exactly
+// like a damaged policy file.
+const policyModule: { current?: typeof VaultPolicyModule } = {}
+async function loadVaultPolicyCeiling(
+  dataDir: string,
+  requester: VaultRequester,
+): Promise<VaultCeiling> {
+  // A chunk that cannot load is a broken installation: the failure
+  // propagates and the registration refuses, like every other bindings
+  // failure. A damaged policy FILE is the chunk's own named outcome
+  // ('none', refused in words downstream).
+  if (policyModule.current === undefined) {
+    const loaded = createRequire(__filename)(
+      path.join(__dirname, VAULT_POLICY_BUNDLE_FILE),
+    ) as typeof VaultPolicyModule
+    if (typeof loaded.vaultPolicyCeiling !== 'function' || typeof loaded.setUiText !== 'function')
+      throw new TypeError(UI_TEXT.vault.brokerBlocked)
+    loaded.setUiText(UI_TEXT, uiLocale())
+    policyModule.current = loaded
+  }
+  return await policyModule.current.vaultPolicyCeiling(dataDir, requester)
+}
+
 /**
 Management and first-party reads shared by every platform; the factories
 differ only in how a host proves itself and where the audit anchors.
@@ -312,6 +349,8 @@ function baseVaultBrokerBindings(
     readonly slots?: VaultBrokerBindings['slots'] | undefined
     readonly home?: string | undefined
     readonly isHost: (pid: number, hostId: string, hostSession?: string) => Promise<boolean>
+    readonly processIdentity: (pid: number) => Promise<VaultProcessIdentity | null>
+    readonly parentIdentity: (pid: number) => Promise<VaultProcessIdentity | null>
     readonly isPlatformHost: (
       runDirectory: string,
       identity: VaultProcessIdentity,
@@ -357,6 +396,30 @@ function baseVaultBrokerBindings(
         registration.requester.peerProcessId === peer.processId &&
         registration.requester.hostId === peer.hostId &&
         (await parts.isHost(peer.processId, peer.hostId)),
+      // D243: kernel peer identity (the channel's record of the feeder's
+      // own socket) re-read live, then the ancestry walk to the exact
+      // requester process incarnation, start times checked at both ends.
+      verifyFeeder: async (feeder, requester) => {
+        const live = await parts.processIdentity(feeder.processId)
+        if (
+          live?.startedAt !== feeder.startedAt ||
+          live.userId !== feeder.userId ||
+          live.executable !== feeder.executable
+        )
+          return false
+        const host = await parts.processIdentity(requester.peerProcessId)
+        if (host?.userId !== feeder.userId) return false
+        const seen = new Set<number>([feeder.processId])
+        let current = feeder.processId
+        for (;;) {
+          const parent = await parts.parentIdentity(current)
+          if (!parent || seen.has(parent.processId)) return false
+          if (parent.processId === host.processId)
+            return parent.startedAt === host.startedAt && parent.userId === feeder.userId
+          seen.add(parent.processId)
+          current = parent.processId
+        }
+      },
     },
     identify: async (identity, hostId, hostSession) => {
       if (
@@ -400,19 +463,22 @@ function baseVaultBrokerBindings(
     onAuditFailure: () => {
       process.stderr.write('vault-audit-refused\n')
     },
-    // T/X/S/O transport owners supply provenance and execution before agent use is enabled.
-    ceiling: () => 'none',
-    taint: () => Promise.reject(new Error(UI_TEXT.vault.noAccess)),
-    lifetime: (_requester, socket) => ({
-      close: () => {
-        socket.destroy()
-      },
-      terminate: () => {
-        socket.destroy()
-        return Promise.resolve(false)
-      },
-    }),
-    perform: () => Promise.reject(new Error(UI_TEXT.vault.noAccess)),
+    // D243: the person vault policy owns the ceiling (default none,
+    // refused in words); provenance arrives per proposal over the
+    // registered connection; exec redemption runs on the feeder's own
+    // connection under a delegation. S/O surfaces stay unbound.
+    ceiling: async (requester) => await loadVaultPolicyCeiling(context.dataDir, requester),
+    oneTimeCode: (item) => {
+      const material = item.material
+      if (material.kind !== 'totp') return Promise.reject(new Error(UI_TEXT.vault.noAccess))
+      return Promise.resolve(
+        totpCode(material.seed, Date.now(), {
+          algorithm: material.algorithm,
+          digits: material.digits,
+          periodSeconds: material.periodSeconds,
+        }),
+      )
+    },
     scrub,
   }
 }
@@ -447,6 +513,8 @@ export async function createVaultBrokerBindings(
     slots: overrides.slots,
     home: overrides.home,
     isHost,
+    processIdentity: async (pid) => await vaultProcessIdentity(helper, pid),
+    parentIdentity: async (pid) => await vaultParentIdentity(helper, pid),
     isPlatformHost: isPosixVaultHost,
   })
 }
@@ -480,6 +548,8 @@ async function createWindowsVaultBrokerBindings(
     slots: overrides.slots,
     home: overrides.home,
     isHost,
+    processIdentity: async (pid) => await platform.identify(pid),
+    parentIdentity: async (pid) => await platform.parentIdentify(pid),
     isPlatformHost: (runDirectory, identity, hostId, hostSession) =>
       platform.isHost(runDirectory, identity, hostId, hostSession),
     auditPlatform: {

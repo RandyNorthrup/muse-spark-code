@@ -105,6 +105,14 @@ internal static class MuseSparkVaultPipe
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool GetProcessTimes(IntPtr process, out Filetime creation, out Filetime exit, out Filetime kernel, out Filetime user);
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("ntdll.dll")]
+    private static extern int NtQueryInformationProcess(IntPtr process, int informationClass, ref ProcessBasicInformation information, int length, out int returned);
+    private struct ProcessBasicInformation
+    {
+        internal IntPtr Reserved1, PebBaseAddress, Reserved2a, Reserved2b, UniqueProcessId, InheritedFromUniqueProcessId;
+    }
+    private const int ProcessBasicInformationClass = 0;
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern bool QueryFullProcessImageName(IntPtr process, uint flags, StringBuilder name, ref uint length);
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
@@ -274,6 +282,18 @@ internal static class MuseSparkVaultPipe
         if (!QueryFullProcessImageName(process, 0, name, ref length)) return null;
         return name.ToString(0, (int)length);
     }
+    // D243: the parent pid from the kernel's own process record, for the
+    // broker's feeder ancestry walk; 0 when the OS names no parent.
+    private static long ParentProcessId(IntPtr process)
+    {
+        var information = new ProcessBasicInformation();
+        int returned;
+        int status = NtQueryInformationProcess(process, ProcessBasicInformationClass,
+            ref information, Marshal.SizeOf(information), out returned);
+        if (status != 0) return -1;
+        long parent = information.InheritedFromUniqueProcessId.ToInt64();
+        return parent < 0 || parent > int.MaxValue ? -1 : parent;
+    }
     private static Dictionary<string, object> ProcessRecord(uint processId)
     {
         IntPtr process = OpenProcess(ProcessQueryLimitedInformation, false, processId);
@@ -283,11 +303,13 @@ internal static class MuseSparkVaultPipe
             string user = TokenUserSid(process);
             long startedAt = StartedAtMillis(process);
             string executable = ImagePath(process);
-            if (user == null || startedAt < 0 || executable == null) return null;
+            long parentProcessId = ParentProcessId(process);
+            if (user == null || startedAt < 0 || executable == null || parentProcessId < 0) return null;
             return new Dictionary<string, object>
             {
                 { "processId", (int)processId }, { "userId", user },
                 { "startedAt", startedAt }, { "executable", executable },
+                { "parentProcessId", (int)parentProcessId },
             };
         }
         finally { CloseHandle(process); }
