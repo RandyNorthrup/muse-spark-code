@@ -1,0 +1,25 @@
+{
+  "observations": {
+    "musecode/diff-hunks": {
+      "hunks": { "one": "accept", "two": "reject" },
+      "text": "l1c\nl2\nl3\n"
+    },
+    "musecode/diagnostics": { "verifyErrors": ["fixture error"] },
+    "musecode/settings": { "settingValue": 5 },
+    "musecode/panel-order": {
+      "deliveredSequences": [1, 2],
+      "refusals": ["MHP_PANEL_OUT_OF_ORDER", "MHP_PANEL_OUT_OF_ORDER"]
+    },
+    "modelapi/diff-hunks": {
+      "hunks": { "one": "accept", "two": "reject" },
+      "text": "l1c\nl2\nl3\n"
+    },
+    "modelapi/diagnostics": { "verifyErrors": ["fixture error"] },
+    "modelapi/checkpoint": { "text": "original", "checkpoints": 1 },
+    "modelapi/settings": { "settingValue": 5 },
+    "modelapi/panel-order": {
+      "deliveredSequences": [1, 2],
+      "refusals": ["MHP_PANEL_OUT_OF_ORDER", "MHP_PANEL_OUT_OF_ORDER"]
+    }
+  }
+}

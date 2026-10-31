@@ -1,0 +1,31 @@
+<idea-plugin>
+  <id>io.github.randynorthrup.musespark</id>
+  <name>Muse Spark Code (Unofficial)</name>
+  <vendor url="https://github.com/RandyNorthrup/muse-spark-code">RandyNorthrup</vendor>
+  <description><![CDATA[<p><b>Muse Spark Code (Unofficial)</b> puts Meta's Muse Spark model to work as a coding agent inside IntelliJ-based IDEs. It is an independent, open-source (MIT) project and is not affiliated with or endorsed by Meta.</p>
+<ul>
+<li><b>A chat panel in a tool window.</b> Answers stream in, every file change is shown as a diff, and commands and edits wait for your approval.</li>
+<li><b>Edits in your own editors.</b> Changes are applied to open files in one undo step, and only in projects you have trusted.</li>
+<li><b>Optional inline completions.</b> Tab accepts and Escape rejects. They are paid per use and capped per day, and nothing is charged before you agree.</li>
+<li><b>Your credentials stay out of the plugin.</b> Sign-in and keys are kept in the operating system's credential store by the runtime; the plugin never asks for a key.</li>
+<li><b>15 interface languages.</b></li>
+</ul>
+<p><b>Requirements.</b> An IntelliJ-based IDE from 2025.3 to 2026.2, Node.js 22 or later, and the <code>muse-spark-code-acp</code> runtime on your PATH (<code>npm install -g muse-spark-code-acp</code>). You bring your own access: a Muse subscription through the Muse Code CLI, or a Meta Model API key that is billed per call.</p>
+<p>Source code, documentation and the privacy policy: <a href="https://github.com/RandyNorthrup/muse-spark-code">github.com/RandyNorthrup/muse-spark-code</a>.</p>
+<p><i>Unofficial. "Muse Spark" and "Muse Code" are trademarks of Meta. This plugin is not affiliated with or endorsed by Meta or JetBrains.</i></p>]]></description>
+  <change-notes><![CDATA[<ul>
+<li>First release for IntelliJ-based IDEs 2025.3 to 2026.2.</li>
+<li>The Muse Spark Code panel as a tool window, an editor tab or a separate window.</li>
+<li>File edits through the IDE's own editors, in one undo step, in trusted projects.</li>
+<li>Optional paid inline completions: Tab accepts, Escape rejects.</li>
+<li>When the embedded browser (JCEF) is not available, the panel opens in your web browser instead.</li>
+</ul>]]></change-notes>
+  <depends>com.intellij.modules.platform</depends>
+  <extensions defaultExtensionNs="com.intellij">
+    <inline.completion.provider implementation="io.github.randynorthrup.musespark.MuseInlineCompletionProvider" />
+    <fileEditorProvider implementation="io.github.randynorthrup.musespark.PanelFileEditorProvider" />
+    <notificationGroup id="Muse Spark Code (Unofficial)" displayType="BALLOON"/>
+    <toolWindow id="Muse Spark Code (Unofficial)" anchor="right"
+                factoryClass="io.github.randynorthrup.musespark.MuseToolWindowFactory"/>
+  </extensions>
+</idea-plugin>
