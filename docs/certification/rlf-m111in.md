@@ -16,6 +16,13 @@ desktop:l10n`), the Rust crate (`muse-desktop-l10n` 0.1.0, ICU4X 2.4.0,
   unimplemented (icu_decimal docs, icu4x#275), so units stay a table
   pattern around `format_number`; needs rust 1.88+ (Debian trixie's 1.85
   is too old — the image build needs a newer toolchain, IM's call).
+- 2026-10-30: `check:l10n` covers Rust (`ui_text!`), QML
+  (`UiText.text`), the generated tables' freshness, and `desktop/**/*.ts`
+  load order (WB/ED's 11 real files scanned from their branches: 0
+  problems). `test/unit/desktop/l10nGate.test.mjs` 6/6; existing
+  `usageL10nGate` fixtures still green. Drills (each red exit 1, then
+  restored green): unknown Rust key, unknown QML key, stale tables.rs,
+  desktop TS module-load read.
 
 ## Next
 

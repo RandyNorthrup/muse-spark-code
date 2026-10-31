@@ -24,6 +24,12 @@
 //   exports and types (`typeof UI_TEXT`) are not reads.
 // - No JSON file it reads names a key twice in one object (M91): JSON.parse
 //   would keep the last one silently.
+// - The desktop (M111, D91.20): every `ui_text!("key")` in `desktop/**/*.rs`
+//   and every `UiText.text("key")` in `desktop/**/*.qml` and
+//   `test/desktop/**/*.qml` names a UI string, and the generated Rust and
+//   QML tables match the fifteen tables (`npm run desktop:l10n` refreshes
+//   them). The load-order scan covers `desktop/**/*.ts` too, so the
+//   workbench's main process and every new surface answer the same gate.
 //
 // Every problem is printed; any problem fails the gate.
 //
@@ -35,6 +41,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { brotliDecompressSync } from 'node:zlib'
 import ts from 'typescript'
+import { flattenTable, renderAll } from '../../desktop/crates/l10n/tools/tables.mjs'
 import { loadL10n } from './l10nSource.mjs'
 
 const MANIFEST = 'package.json'
@@ -44,8 +51,13 @@ const UNTRANSLATED = 'untranslated.json'
 const UNTRANSLATED_SECTIONS = ['ui', 'usage', 'manifest']
 const EVERY_LOCALE = '*'
 const TABLE_FILE = /^(ui|usage)\.(.+)\.json$/
-const SOURCE_DIR = 'src'
+const SOURCE_DIRS = ['src', 'desktop']
 const SOURCE_FILE = /\.tsx?$/
+const RUST_FILE = /\.rs$/
+const QML_FILE = /\.qml$/
+const QML_ROOTS = ['desktop', 'test/desktop']
+const UI_TEXT_CALL = /ui_text!\s*\(\s*"((?:[^"\\]|\\.)*)"/g
+const QML_TEXT_CALL = /UiText\.text\(\s*(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)')/g
 const TEXT_TABLES = ['UI_TEXT', 'USAGE_TEXT']
 // A manifest string VS Code replaces from package.nls*.json; vsce accepts
 // only these characters in the key.
@@ -270,7 +282,7 @@ function readUntranslated(file, known, locales, problems, repoRoot) {
 }
 
 /** The translated tables in l10n/: one per language TABLE_LOCALES lists, no other. */
-function checkTables(l10n, untranslatedFor, problems, family, repoRoot) {
+function checkTables(l10n, untranslatedFor, problems, family, repoRoot, collected) {
   const { TABLE_DIRECTORY, TABLE_LOCALES, tableProblems } = l10n
   const english = family === 'usage' ? l10n.USAGE_EN : l10n.EN
   const fileName = family === 'usage' ? l10n.usageTableFileName : l10n.tableFileName
@@ -295,6 +307,7 @@ function checkTables(l10n, untranslatedFor, problems, family, repoRoot) {
     }
     const table = readJson(file, problems, repoRoot)
     if (table === undefined) continue
+    collected?.set(locale, table)
     // Archives restore the canonical English key order; source tables must
     // already have that order so package-time equality cannot fail later.
     function checkOrder(reference, translated, where = '') {
@@ -532,15 +545,107 @@ function cachedModuleLoadReads(absolute, file, text) {
   return found
 }
 
-function checkLoadOrder(problems, repoRoot) {
-  const files = readdirSync(path.join(repoRoot, SOURCE_DIR), { recursive: true })
-    .map((name) => path.join(SOURCE_DIR, String(name)).replaceAll('\\', '/'))
-    .filter((file) => SOURCE_FILE.test(file) && statSync(path.join(repoRoot, file)).isFile())
+function listFiles(repoRoot, dir, pattern) {
+  return existsSync(path.join(repoRoot, dir))
+    ? readdirSync(path.join(repoRoot, dir), { recursive: true })
+        .map((name) => path.join(dir, String(name)).replaceAll('\\', '/'))
+        .filter((file) => pattern.test(file) && statSync(path.join(repoRoot, file)).isFile())
+    : []
+}
+
+export function checkLoadOrder(problems, repoRoot) {
+  const files = SOURCE_DIRS.flatMap((dir) => listFiles(repoRoot, dir, SOURCE_FILE))
   for (const file of files) {
     const absolute = path.join(repoRoot, file)
     problems.push(...cachedModuleLoadReads(absolute, file, readFileSync(absolute, 'utf8')))
   }
   return files.length
+}
+
+/**
+The dotted keys a native lookup can read: plain strings and plural forms
+(`agentsCount.one`). Whole plural objects are not strings, so unlike
+`stringKeys` this omits them.
+*/
+export function nativeKeys(english, isPluralForms) {
+  return new Set(flattenTable(english, isPluralForms).map(([key]) => key))
+}
+
+function lineOf(text, index) {
+  return text.slice(0, index).split('\n').length
+}
+
+/** Every `ui_text!("key")` call in Rust source, with its line number. */
+export function rustKeyUses(text) {
+  return text
+    .matchAll(UI_TEXT_CALL)
+    .map((match) => ({ key: match[1], line: lineOf(text, match.index) }))
+    .toArray()
+}
+
+/** Every `UiText.text("key")` call in QML source, with its line number. */
+export function qmlKeyUses(text) {
+  return text
+    .matchAll(QML_TEXT_CALL)
+    .map((match) => ({ key: match[1] ?? match[2], line: lineOf(text, match.index) }))
+    .toArray()
+}
+
+/**
+M111 (D91.20): every key native code reads names a UI string. Absent
+without `desktop/` (a fixture root tests other behaviour); a tree with the
+desktop answers it.
+*/
+export function checkDesktopKeys(english, isPluralForms, problems, repoRoot) {
+  if (!existsSync(path.join(repoRoot, 'desktop'))) return { rust: 0, qml: 0 }
+  const valid = nativeKeys(english, isPluralForms)
+  let rust = 0
+  for (const file of listFiles(repoRoot, 'desktop', RUST_FILE)) {
+    rust += 1
+    const text = readFileSync(path.join(repoRoot, file), 'utf8')
+    for (const { key, line } of rustKeyUses(text)) {
+      if (!valid.has(key))
+        problems.push(`${file}:${String(line)}: ui_text!("${key}") is not a UI string`)
+    }
+  }
+  let qml = 0
+  for (const root of QML_ROOTS) {
+    for (const file of listFiles(repoRoot, root, QML_FILE)) {
+      qml += 1
+      const text = readFileSync(path.join(repoRoot, file), 'utf8')
+      for (const { key, line } of qmlKeyUses(text)) {
+        if (!valid.has(key))
+          problems.push(`${file}:${String(line)}: UiText.text("${key}") is not a UI string`)
+      }
+    }
+  }
+  return { rust, qml }
+}
+
+/**
+M111 (D91.20): the generated Rust and QML tables match the fifteen tables
+byte for byte. The UI tables come from the gate's own read, so a malformed
+translation is its problem, not a crash here.
+*/
+export function checkDesktopGenerated(l10n, uiTables, problems, repoRoot) {
+  if (!existsSync(path.join(repoRoot, 'desktop'))) return
+  const { EN, TABLE_LOCALES, isPluralForms } = l10n
+  const locales = ['en', ...TABLE_LOCALES]
+  const nested = { en: EN }
+  for (const locale of TABLE_LOCALES) {
+    if (!isRecord(uiTables.get(locale))) return
+    nested[locale] = uiTables.get(locale)
+  }
+  const flattened = Object.fromEntries(
+    locales.map((locale) => [locale, flattenTable(nested[locale], isPluralForms)]),
+  )
+  const outputs = renderAll({ locales, nested, flattened })
+  for (const { file, text } of outputs) {
+    const absolute = path.join(repoRoot, file)
+    if (!existsSync(absolute) || readFileSync(absolute, 'utf8') !== text) {
+      problems.push(`${file}: the generated table is stale; run npm run desktop:l10n`)
+    }
+  }
 }
 
 // Package-time compaction must keep every translated value byte-for-byte
@@ -663,10 +768,13 @@ export async function createLocalizationCheck(repoRoot) {
       problems,
       repoRoot,
     )
-    const tables = checkTables(l10n, untranslatedFor, problems, 'ui', repoRoot)
+    const uiTables = new Map()
+    const tables = checkTables(l10n, untranslatedFor, problems, 'ui', repoRoot, uiTables)
     const usageTables = checkTables(l10n, untranslatedFor, problems, 'usage', repoRoot)
     const manifestKeys = checkManifest(l10n, untranslatedFor, strings, problems, repoRoot)
     const sources = checkLoadOrder(problems, repoRoot)
+    const desktop = checkDesktopKeys(l10n.EN, l10n.isPluralForms, problems, repoRoot)
+    checkDesktopGenerated(l10n, uiTables, problems, repoRoot)
     if (['--packaged', '--packaged-acp'].includes(args[0])) {
       if (args.length !== 2) throw new Error('--packaged requires exactly one stage directory')
       checkPackaged(
@@ -686,7 +794,7 @@ export async function createLocalizationCheck(repoRoot) {
       output:
         [
           ...problems,
-          `l10n: ${String(tables)} UI tables, ${String(usageTables)} usage tables, ${String(manifestKeys)} manifest strings, ${String(sources)} source files; ${String(problems.length)} problems`,
+          `l10n: ${String(tables)} UI tables, ${String(usageTables)} usage tables, ${String(manifestKeys)} manifest strings, ${String(sources)} source files, ${String(desktop.rust)} rust files, ${String(desktop.qml)} qml files; ${String(problems.length)} problems`,
         ].join('\n') + '\n',
     }
   }
