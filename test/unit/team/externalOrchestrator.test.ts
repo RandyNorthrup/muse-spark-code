@@ -138,7 +138,7 @@ function makeHost(mode: string, isHttp: boolean, model = 'fixture'): Run {
     baseEnv: {
       ...process.env,
       FIXTURE_MODE: mode,
-      FIXTURE_HTTP: http ? '1' : '0',
+      FIXTURE_HTTP: isHttp ? '1' : '0',
       FIXTURE_RECORD: recordPath,
     },
     newId: () => `id-${String(state.sequence)}-${Math.random().toString(36).slice(2)}`,
