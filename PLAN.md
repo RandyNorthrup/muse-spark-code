@@ -26711,6 +26711,19 @@ security` threshold; the OS images' QEMU boot test and their reproducibility
 
 ### M111 — Muse Desktop: the host edition's own shell (D91)
 
+**Status 2026-10-30 (RLF-M111IN): planned.** Lane IN (Languages, D91.20)
+built on `rec/rlf-m111in`, ready for integration: the generated Rust
+(`ui_text!`, ICU4X 2.4.0 dates/numbers) and QML singleton tables from the
+same fifteen tables; `check:l10n` covering Rust, QML, generated-table
+freshness and desktop TypeScript (WB/ED's real files verified clean by
+path rule); the pseudo-RTL table with mirrored-layout looks;
+stylelint-use-logical on new desktop CSS; the HarfBuzz font-coverage
+gate (13 faces, 2646 codepoints, 0 problems); fcitx5 with four engines
+and the Noto fonts in `os/desktop/packages.conf`; the Electron 45.0.0
+IME flags captured under Xvfb. Proof: `docs/certification/rlf-m111in.md`
+with red/green drills. Text-input-v3 behaviour under Hyprland with
+fcitx5 and the desktop CI wiring belong to M111os IM/QA.
+
 **Status 2026-10-23 (RLF-M111L0): planned.** Mockups approved; lane 0 landed. The
 owner approved the lead's 18-screen mockups on 2026-10-23 ("looks great"),
 closing Q-M111 item 6 and unblocking lanes SH1, SH2, WB and ST. The sources

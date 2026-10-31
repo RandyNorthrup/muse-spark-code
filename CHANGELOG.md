@@ -276,6 +276,13 @@ happened, not what was planned; superseded entries are kept.
   otherwise (`0` keeps Retry manual) — showing "Retrying in Ns (attempt
   K of N)" with Stop in the panel while the wait runs. Stop, a refusal,
   or the last attempt shows the error with Retry as before.
+- Muse Desktop speaks the same fifteen languages as the panel, from the
+  same tables: native Rust code and the Qt shell read generated tables
+  through one lookup each, with the same locale's dates and numbers. A
+  gate fails an unknown key in native code, a stale generated table, or
+  a character no image font can draw; desktop CSS stays logical so
+  layouts mirror; and the image carries fcitx5 input for Chinese,
+  Japanese and Korean (M111 IN).
 
 ### Changed
 
