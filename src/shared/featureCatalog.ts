@@ -613,7 +613,7 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'teamRolesTitle' },
       { ui: 'referenceTeamConfiguration' },
       ['modelsAndAgents'],
-      [],
+      ['teamExternalAgents'],
       'team-configuration',
       ['modelApi', 'museCode'],
     ),

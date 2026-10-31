@@ -31,7 +31,7 @@ export interface ScheduleSnapshot {
   readonly signal: AbortSignal
   readonly epoch: number
   readonly isSettled: (generation: number) => boolean
-  readonly authBackend: BackendKind | undefined
+  readonly authBackend: Exclude<BackendKind, 'external'> | undefined
   readonly now: () => number
   readonly revision: () => number
   readonly registries: WeakMap<BackendSession, QuestionRegistry>
@@ -273,8 +273,13 @@ export function openSchedulesOf(
     snapshot.notice('warning', UI_TEXT.noWorkspaceReason)
     return
   }
+  // A scheduled prompt fires unattended on one of our backends; an external
+  // orchestrator's session (D250) is never a schedule target, so the panel
+  // offers no current-conversation target for it instead of inventing one.
   const session =
-    snapshot.session === undefined || snapshot.sessionKind === undefined
+    snapshot.session === undefined ||
+    snapshot.sessionKind === undefined ||
+    snapshot.sessionKind === 'external'
       ? undefined
       : {
           sessionId: snapshot.session.sessionId,
@@ -291,7 +296,7 @@ export function openSchedulesOf(
     defaultDraft: bridge.defaultDraft(
       nowMs,
       session,
-      snapshot.sessionKind ?? snapshot.authBackend ?? 'modelApi',
+      session?.backend ?? snapshot.authBackend ?? 'modelApi',
     ),
     nowMs,
     initialView,

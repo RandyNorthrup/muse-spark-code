@@ -53,6 +53,8 @@
 !dist/teamTraffic.js
 !dist/teamMcp.js
 !dist/teamProcess.js
+!dist/externalOrchestrator.js
+!dist/teamHttpBridge.js
 !dist/schedules.js
 !dist/scheduleDelivery.js
 !dist/scheduleSurfaces.js

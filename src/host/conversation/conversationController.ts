@@ -4114,7 +4114,10 @@ export class ConversationController implements DeferredSend {
   /** One registry per shared session handle, with publication to every attached surface. */
   private async attachQuestions(session: BackendSession, backend: BackendKind): Promise<void> {
     const binding = this.deps.questions
-    if (binding === undefined) return
+    // The question store serves our two backends' ask surfaces; an external
+    // orchestrator (D250) asks through its own ACP surface, never this one,
+    // so nothing is registered for it.
+    if (binding === undefined || backend === 'external') return
     let registry = sessionQuestions.get(session)
     if (registry === undefined) {
       registry = new QuestionRegistry(session.sessionId, backend, {
@@ -4983,8 +4986,10 @@ export class ConversationController implements DeferredSend {
     resumeSessionId?: string,
   ): Promise<Readonly<Record<string, SessionMcpHttpServer>> | undefined> {
     // The `team` server rides beside the `ide` server on team conversations
-    // only; single-model sessions carry today's set, byte for byte.
-    if (host.info.kind === 'museCode') {
+    // only; single-model sessions carry today's set, byte for byte. An
+    // external orchestrator (D250) is a subprocess agent like Muse Code
+    // here: its servers arrive in `session/new`, never as engine tools.
+    if (host.info.kind !== 'modelApi') {
       if (resumeSessionId === undefined) {
         this.teamServerAttached =
           !this.isSideChat && this.deps.teamMcp?.modeForNewConversation() === 'team'
@@ -4996,7 +5001,7 @@ export class ConversationController implements DeferredSend {
       }
     }
     if (!host.info.grantedCapabilities.includes(IDE_MCP_CAPABILITY)) {
-      if (host.info.kind === 'museCode' && this.teamServerAttached === true)
+      if (host.info.kind !== 'modelApi' && this.teamServerAttached === true)
         throw new Error(fill(UI_TEXT.teamRunnerUnavailable, { tool: TEAM_MCP_SERVER_NAME }))
       return undefined
     }
@@ -5034,7 +5039,7 @@ export class ConversationController implements DeferredSend {
     if (ideEndpoint !== undefined) {
       servers[IDE_MCP_SERVER_NAME] = ideEndpoint
     }
-    if (host.info.kind === 'museCode' && this.teamServerAttached) {
+    if (host.info.kind !== 'modelApi' && this.teamServerAttached) {
       const team = await this.deps.teamMcp?.endpointForConversation(resumeSessionId)
       if (team === undefined)
         throw new Error(fill(UI_TEXT.teamRunnerUnavailable, { tool: TEAM_MCP_SERVER_NAME }))
@@ -5301,7 +5306,7 @@ export class ConversationController implements DeferredSend {
       this.requireCurrentOpening(generation)
     }
     this.modelId = session.modelId
-    if (host.info.kind === 'museCode') {
+    if (host.info.kind !== 'modelApi') {
       this.teamServerSessionId = session.sessionId
       try {
         await this.deps.teamMcp?.rememberMode?.(
@@ -5319,6 +5324,9 @@ export class ConversationController implements DeferredSend {
     this.requireCurrentOpening(generation)
     if (host.info.kind === 'modelApi') {
       this.notice('info', UI_TEXT.modelApiBackendNotice)
+    } else if (host.info.kind === 'external') {
+      // Who pays for the orchestrator, said where the person reads it (D75, D250).
+      this.notice('info', fill(UI_TEXT.teamExternalLeaderNotice, { agent: host.info.serverName }))
     } else {
       this.noteShellSandbox()
       void this.offerBundledSkills()

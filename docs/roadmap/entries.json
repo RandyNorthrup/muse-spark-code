@@ -697,7 +697,7 @@
     {
       "id": "M96",
       "title": "Agent roles and teams",
-      "summary": "Hidden Roles and Agents bind charters and overrides; Muse Code workers run on the team's own host and run your checks in governed slots, external agents start where a switch for leaving out your MCP servers is captured; certification is in progress.",
+      "summary": "Hidden Roles and Agents bind charters and overrides; an external ACP agent can be picked to lead (not yet used for real); Muse Code workers run your checks in governed slots; external workers start where a switch to leave out your MCP servers is captured.",
       "area": "agents"
     },
     {

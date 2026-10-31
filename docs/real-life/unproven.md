@@ -3418,3 +3418,23 @@ used through the packed product. Per-item record, with the steps:
   ceiling (`exec --vault`, environment and standard-input secrets, the grant
   and the `vault policy` ceiling, the broker-to-feeder delegation, scrubbed
   output). Unproven until a packed run does it on a Mac and on Linux.
+
+## Lane RLF-ORCHEXT (2026-10-31, branch rec/rlf-orchext; its CHANGELOG entry and three README edits held out by CC-INT9, 2026-10-31)
+
+An external ACP agent as the conversation's orchestrator (D250) is built and
+proven over a real ACP agent process, the real loopback `team` endpoint and the
+real stdio bridge; it has not been used through the packed product. Its
+sentences wait in `docs/certification/rlf-orchext.md` ("Waiting list"), with
+the steps that release them:
+
+- The Orchestrator slot offers Claude Code, Codex, Gemini CLI, Copilot, Muse
+  Spark Code's own agent and the agents added in `museSpark.teamExternalAgents`;
+  the agent runs as itself, is handed the team tools and their instructions,
+  streams into the panel, and Stop cancels its turn. Unproven until the lead's
+  Claude Code check (the record's nine steps, in the packed VSIX with a fresh
+  user-data folder) shows each step.
+- The same with Muse Spark Code's own packed agent on
+  `muse-spark-1.3-contributor` (expected 8 Muse requests, cap 12, counted from
+  the session records). Unproven until that run is made.
+- The worker leg (a delegated task on a contributor-tier worker) is not part of
+  these sentences: external agents lead but are not workers.

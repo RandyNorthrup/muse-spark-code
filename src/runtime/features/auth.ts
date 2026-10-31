@@ -51,7 +51,7 @@ export class RuntimeAuth implements AuthPort {
     return this.snapshot
   }
 
-  public get backend(): BackendKind {
+  public get backend(): Exclude<BackendKind, 'external'> {
     return this.deps.backend.kind
   }
 

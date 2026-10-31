@@ -175,6 +175,38 @@ describe('M96 U1 Roles UI', () => {
       expect(screen.queryByRole('button', { name: UI_TEXT.wizardContinue })).toBeNull()
     },
   )
+  it('says who pays for an external agent in the orchestrator slot, and only then (D250)', async () => {
+    const external = {
+      ref: 'external:claude',
+      label: 'Claude Code',
+      agent: {
+        kind: 'external' as const,
+        agentId: 'claude',
+        model: 'claude',
+        pays: 'subscription' as const,
+      },
+      worker: false,
+      toolCalling: true,
+      ceiling: 2,
+      controls: [],
+    }
+    const rig = panelRig({ offers: () => Promise.resolve([...teamOffers(), external]) })
+    await rig.read()
+    await rig.controller.handle({ type: 'roles/template', template: 'solo' })
+    await rig.controller.handle({ type: 'roles/save' })
+    await rig.controller.handle({ type: 'roles/orchestrator', modelRef: 'main/main' })
+    const engineSlice = await rig.read()
+    const view = render(<RolesSection {...sectionProps(engineSlice)} />)
+    const paid = fill(UI_TEXT.teamExternalLeaderNotice, { agent: 'Claude Code' })
+    expect(screen.queryByText(paid)).toBeNull()
+    view.unmount()
+
+    await rig.controller.handle({ type: 'roles/orchestrator', modelRef: 'external:claude' })
+    const externalSlice = await rig.read()
+    expect(externalSlice.issues).toEqual([])
+    render(<RolesSection {...sectionProps(externalSlice)} />)
+    expect(screen.getByText(paid)).toBeTruthy()
+  })
   it('keeps local role selection usable and honors a subsequent host deep link', async () => {
     const rig = panelRig()
     await rig.read()

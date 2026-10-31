@@ -1554,6 +1554,9 @@ export const SETTING_DEFAULTS = {
   // M81 (PLAN.md D49): the hosts beyond loopback the browser check may open
   // and reach. Empty: loopback only, unless a card widens one call.
   browserCheckExtraHosts: [] as readonly string[],
+  // D250: external ACP agents the person added by command, offered beside
+  // the presets as team workers and as orchestrator. Empty: presets only.
+  teamExternalAgents: [] as readonly unknown[],
   // M81 A1: ask before the browser check's runtime is downloaded.
   browserCheckRuntime: 'ask' as BrowserRuntimeMode,
   // M89 (PLAN.md D68): the skills that ship with the extension, a skill
@@ -1786,6 +1789,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   'turnCheckpoints',
   'browserCheckExtraHosts',
   'browserCheckRuntime',
+  // D250: agent commands a repository must never add (they choose what executes).
+  'teamExternalAgents',
   'bundledSkills',
   'modelApiSessionBudgetUsd',
   'paidDailyBudgetUsd',
@@ -2212,6 +2217,9 @@ export const JUDGE_MIN_CACHED_PREFIX_TOKENS = 1024
 // written to disk.
 export const JUDGE_RESULT_CACHE_MAX = 64
 export const JUDGE_BUNDLE_FILE = 'judge.js'
+// The external orchestrator's stdio-to-HTTP bridge bundle (D250): an ACP
+// agent without HTTP MCP transport spawns it to reach the team endpoint.
+export const TEAM_HTTP_BRIDGE_BUNDLE_FILE = 'teamHttpBridge.js'
 // The Auto risk advisory's judged family and wording versions (M98 P2B).
 // Fitted profiles and adoption receipts are recorded against exactly these,
 // so a measurement taken under other wording cannot enable a mode.
@@ -9865,6 +9873,13 @@ export const PACK_MODEL_TEXT = {
 // Team scheduler guidance stays English and is read only by the lazy team
 // bundle. M96's charter/roster region composes with this stable text.
 export const TEAM_MODEL_TEXT = {
+  // The `team` MCP server's instructions (D250): how any orchestrator —
+  // ours or an external agent running as itself — leads with these tools.
+  mcpInstructions:
+    'You lead a team of worker agents through these tools; you stay the agent you are, and nothing here changes how you work.\n' +
+    'Call roster once before delegating: it shows each role, its pool and headroom, and the work already running.\n' +
+    'Delegate whole, independent tasks with delegate: each one names a role and a brief a worker that has not seen this conversation can act on (goal, context, files, constraints, done criteria). Keep work that needs this conversation in the plan. Give each delegation a command_id so a retry starts nothing twice.\n' +
+    'Then collect reports with collect, review what came back, and merge a finished, reviewed task with merge. Cancel stops running work. Workers run on their own branches and meters; merges and paid work ask the person, never you.',
   scheduler:
     'Declare writes, depends_on and size for each delegated task. The board orders ready work; never start a dependent early. Use merged dependencies for changes that must land first and done dependencies for reports, which are data. Read predicted conflicts and the merge queue from collect. Add English strings beside their related block, never at the end of the source file.',
   reschedule:

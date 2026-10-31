@@ -219,7 +219,13 @@ export type AuthStatus = (typeof AUTH_STATUSES)[number]
 export const SIGN_IN_METHODS = ['browser', 'apiKey', 'byo'] as const
 export type SignInMethod = (typeof SIGN_IN_METHODS)[number]
 
-export const BACKEND_KINDS = ['museCode', 'modelApi'] as const
+/**
+Conversation host kinds on the wire: the two sign-in backends plus
+`external`, an ACP agent leading as orchestrator (D250). `external` is
+never a sign-in or settings backend; it names only the host a stored
+orchestrator pick started.
+*/
+export const BACKEND_KINDS = ['museCode', 'modelApi', 'external'] as const
 export type BackendKind = (typeof BACKEND_KINDS)[number]
 
 /**
