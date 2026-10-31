@@ -169,8 +169,12 @@ export type MuseWorkerApprovalRequest =
   | { readonly kind: 'writeFile'; readonly path: string }
   | { readonly kind: 'other'; readonly tool: string }
 
-/** `deny` is answered without asking; `askUser` becomes the user's labelled card. */
-export type MuseWorkerApprovalAnswer = 'deny' | 'askUser'
+/**
+`deny` is answered without asking; `askUser` becomes the user's labelled card;
+`allow` is the team's own `run_checks`, the person's configured commands, answered
+yes once without asking.
+*/
+export type MuseWorkerApprovalAnswer = 'deny' | 'askUser' | 'allow'
 
 export interface MuseCodeWorkerDeps {
   readonly task: WorkerTask
