@@ -57,7 +57,14 @@ quiet PC, against a 1.5 s bound that also covers the hook's own run.
   console program (`MuseSparkJob-<digest>.exe`) and is still the type
   PowerShell loads with `LoadFrom` (`[MuseSparkJob]::Join`, unchanged).
 - `windowsJobHost` (`core/execGuard.ts`) is the one place that names it as a
-  program: absolute path, environment of `SystemRoot` only. The tree reader,
+  program: absolute path, given the environment `SystemRoot` plus the guard's
+  `NoDefaultCurrentDirectoryInExePath=1`, to which Node's process start on
+  Windows adds, from the starting process, each of `HOMEDRIVE`, `HOMEPATH`,
+  `LOGONSERVER`, `PATH`, `SYSTEMDRIVE`, `TEMP`, `USERDOMAIN`, `USERNAME`,
+  `USERPROFILE` and `WINDIR` it has (no credential; `PATH` is that process's
+  whole PATH). Corrected 2026-10-30 by CC-WINRUNTEAM (`cc-winrunteam.md` §4),
+  from "environment of `SystemRoot` only", which was what the code gave, not
+  what the helper got. The tree reader,
   the actuator (`trees/windows.ts`, `actuators/windows.ts`), the created-path
   registry's Windows commands (`createdPathCommands`) and the job holder
   (`resourceJobHolder.ts`) call it; none starts PowerShell any more.

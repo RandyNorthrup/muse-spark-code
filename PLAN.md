@@ -24311,6 +24311,22 @@ open question in the record. The helper's old library builds
 (`MuseSparkJob-<digest>.dll`) are swept after a build by exact name in its own
 folder. Record: `docs/certification/cc-winworkers.md`.
 
+**CC-WINRUNTEAM — the team worker launch starts no PowerShell (2026-10-30,
+Windows 11, cc/winworkers 1b44323c7d).** CC-WINWORKERS' decisions 1, 4 and 5.
+`MuseSparkJobHost` gains `run-team`, which runs `MuseSparkJob.RunTeam`
+unchanged (the kill-on-close job without breakaway, the helper inside it, the
+held suspended launch, STOP, `END proved`, below-normal priority) and exits
+with the payload's code; `windowsTeamDriver` (`processLifetime.ts`) runs it
+through `windowsJobHost`, each value one program argument. Measured with the
+engine-start log: one PowerShell start per launch before, none after. The
+playbook's dispatch head runs `processGitPath`'s git, not a bare `git` that
+the contained helper looked up on its own PATH. `windowsJobHost`'s
+environment is recorded as it is: `SystemRoot` and the guard's variable
+given, and the ten variables Node's process start on Windows adds. The team
+launch has no product caller yet (`startNativeTeamLifetime`), so nothing is
+claimed until a real team run goes through a packed build. Record:
+`docs/certification/cc-winrunteam.md`.
+
 ---
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
