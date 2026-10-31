@@ -3266,3 +3266,7 @@ editor run proves it:
   for the lead's Windows PC.
 - Xcode: ported from RLF-M104GX (its fake runtime already deleted there);
   every leg waits for the Mac mini.
+- Native release plumbing: the GX lineage's `hosts-native.yml` workflow and
+  its release.yml fences (`test/hostApi/workflow.test.mjs`) are not landed;
+  they assert a release pipeline shape int does not have. A distribution
+  lane must port them against int's release workflow.
