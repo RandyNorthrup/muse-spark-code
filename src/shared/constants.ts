@@ -7088,8 +7088,11 @@ export const MSP_ATTACHMENT_FRAME_BUDGET_BYTES =
 export const MSP_SESSION_LIST_MAX_LIMIT = 200
 // Schemas this SDK interoperates with, by the build that served each in a
 // capture: 1.4.4-R5419.1 (2026-10-09, the SDK 1.4.4 pin),
-// 1.4.9-R6297.1 (2026-10-17, `muse schema generate-json-schema`, the SDK
-// 1.4.10 pin `EXPECTED_SCHEMA_FINGERPRINT`, so 1.4.10 serves it too) and
+// 1.4.7-R6101.1 (2026-10-30, test/fixtures/m127/initialize-1.4.7.json over
+// the echo provider; the same served fingerprint fills the harvest lanes'
+// mismatch warnings, RLF-HARVEST), 1.4.9-R6297.1 (2026-10-17,
+// `muse schema generate-json-schema`, the SDK 1.4.10 pin
+// `EXPECTED_SCHEMA_FINGERPRINT`, so 1.4.10 serves it too) and
 // 1.4.11-R6667.1 (2026-10-21, test/fixtures/session-titles/
 // msp-1.4.11-echo-titles.json, the SDK 1.4.11 pin). A host serving one
 // logs an info line naming it; any other difference stays a mismatch
@@ -7097,6 +7100,7 @@ export const MSP_SESSION_LIST_MAX_LIMIT = 200
 // before they enter this map.
 export const MSP_KNOWN_SCHEMA_FINGERPRINTS: Readonly<Record<string, string>> = {
   'sha256:7c94f153c41659cb3f1bd3c3e04438be254644cb2a97d65d48edc7449b74858a': '1.4.4-R5419.1',
+  'sha256:6de32db08bbbe0deb478d2bfcaba001e9fb490986bc80db3aceb4d996abf7df9': '1.4.7-R6101.1',
   'sha256:5d3b43e5ccdb7dc4f5a32c380f5f2cde0f10e3059b93610afb2e73f73b1d914c': '1.4.9-R6297.1',
   'sha256:f282ad16e21520d0cda68cb190149b86e2b062eef1dd282749360c05aa3d1082': '1.4.11-R6667.1',
 }

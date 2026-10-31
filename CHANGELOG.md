@@ -375,6 +375,18 @@ happened, not what was planned; superseded entries are kept.
   allowed up to its new 128 MB limit instead of the old 32 MB.
   Moonshot and Ollama Cloud models now carry catalogue prices
   instead of showing as unpriced.
+- A conversation no longer repeats "The session's version-control branch
+  changed" when Muse Code re-observes the same branch: the notice shows
+  once per branch, and again only when the branch actually moves. The
+  "turn finished its visible work" notice now names what still holds the
+  turn open, instead of calling every blocker a check. Starting against
+  Muse Code 1.4.7 no longer logs a schema-fingerprint mismatch warning:
+  its served schema is a known one, recorded from that build.
+- On macOS, a signed-in Muse Code CLI is recognised from its credential
+  file at start, instead of asking the CLI about its sign-in every time.
+  The start log names `inline` where it said `unrecognized`. A link put
+  in place of that file is not treated as a sign-in: Muse reads the file
+  itself, and a link stays unrecognised.
 - The terminal agent's requests were missing from usage history since 0.12.0:
   every headless turn stamped its usage record with a fractional clock, the
   journal refused the record, and one warning was all that was left. Stored
