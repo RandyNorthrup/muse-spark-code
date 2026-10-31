@@ -59,9 +59,12 @@ const SHIM_HARNESSES = {
     version: ['python3', ['--version']],
   },
   sublime: {
-    tools: ['python3'],
-    runs: [['python3', ['-m', 'unittest', 'discover', '-s', 'hosts/sublime/test']]],
-    version: ['python3', ['--version']],
+    // The suite ran on a hand-written sublime module double and is deleted
+    // (docs/real-life/unproven.md); the plugin qualifies inside Sublime Text.
+    tools: [],
+    runs: [],
+    need: 'MHP_CONFORMANCE_PENDING: a run inside Sublime Text (the offline suite used a module double and is deleted)',
+    version: ['subl', ['--version']],
   },
   emacs: {
     tools: ['emacs'],
@@ -140,6 +143,15 @@ function shimCommand(harness) {
 
 function runShim(host) {
   const harness = SHIM_HARNESSES[host]
+  if (harness.runs.length === 0) {
+    return {
+      host,
+      outcome: 'pending',
+      editorVersion: '',
+      need: harness.need,
+      provenance: provenance(''),
+    }
+  }
   for (const tool of harness.tools) {
     if (resolveTool(tool) === undefined) {
       return {

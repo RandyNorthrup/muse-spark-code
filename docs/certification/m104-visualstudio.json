@@ -1,0 +1,11 @@
+{
+  "host": "visualstudio",
+  "outcome": "pending",
+  "editorVersion": "",
+  "need": "MHP_CONFORMANCE_PENDING: Windows with Visual Studio 2022/2026 (VSSDK workload) and the experimental instance",
+  "provenance": {
+    "observedAt": "2026-10-31T01:31:16.796Z",
+    "observedOn": "randy-lt (linux)",
+    "command": "node test/hostApi/run.mjs visualstudio"
+  }
+}

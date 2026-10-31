@@ -1,0 +1,16 @@
+{
+  "host": "qtcreator",
+  "outcome": "excepted",
+  "editorVersion": "NVIM v0.12.6",
+  "reason": "no MHP surface: the shim is excepted from MHP scenarios and qualifies via its own harness",
+  "harness": {
+    "command": "nvim --headless -i NONE -u NONE -l hosts/qtcreator/test/check.lua && python3 -m unittest discover -s hosts/qtcreator/test",
+    "exitCode": 0,
+    "summary": "19 PASS; 4 tests OK"
+  },
+  "provenance": {
+    "observedAt": "2026-10-31T01:35:52.827Z",
+    "observedOn": "randy-lt (linux)",
+    "command": "nvim --headless -i NONE -u NONE -l hosts/qtcreator/test/check.lua && python3 -m unittest discover -s hosts/qtcreator/test"
+  }
+}
