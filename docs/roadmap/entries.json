@@ -1493,6 +1493,12 @@
       "title": "What the agent tells editors is true",
       "summary": "Editors hear the approval mode the CLI runs, closing a conversation stops its background tasks first, and started sessions appear in the list.",
       "area": "editors"
+    },
+    {
+      "id": "RLFSMALLFIX1",
+      "title": "A missing native helper says what is missing; the serial helper starts a python3 found by its full path",
+      "summary": "A shipped helper that is missing or will not run is named with the way out (reinstall, or the build command), and serial access no longer runs a python3 planted in the project.",
+      "area": "platform"
     }
   ]
 }

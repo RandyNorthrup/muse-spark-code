@@ -456,6 +456,25 @@ happened, not what was planned; superseded entries are kept.
   no longer promises a 60-second default, a 10-second minimum or a 3,600-second
   maximum: nothing defers unless you set a number of seconds (0, the default,
   waits indefinitely), matching the setting's actual behaviour.
+- **A native helper that is missing or will not run now says so, and what to
+  do.** Starting a session through an editor on a Mac whose signed helper
+  (`muse-dictate-screen-<arch>.app`) was not built ended in "That did not
+  work", with the log saying only "Error". It now names the helper and the
+  way out: reinstall Muse Spark Code, or, in a source checkout, the command
+  that builds it (`bash native/darwin/build.sh` on a Mac, `npm run build:dev`
+  on Linux). A helper that is there but that the computer cannot run (not
+  executable, damaged, built for the other processor) says that instead. The
+  same words come from agent teams creating files and from screen recording,
+  and, on Windows, from the created-resources registry when the job helper
+  could not be prepared. On a Mac, agent teams also looked for the helper
+  where the build never puts it.
+- **Serial access starts only a `python3` it found by its full path.** On
+  macOS and Linux the serial helper used to start whatever `python3` came
+  first on your PATH, so a program planted in your project folder (a
+  relative PATH entry, or a folder inside the workspace) could run in its
+  place. It now starts one `python3` found by its full path outside the
+  workspace. When there is none, it says that serial access needs Python 3
+  with the pyserial package and the command that installs it.
 - A pack index is accepted only when the signature covers those exact bytes
   and the signer is the pack workflow on `main`, exactly. A signature for a
   branch whose name merely begins with `main`, or a signed statement that

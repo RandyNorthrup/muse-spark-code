@@ -11370,6 +11370,35 @@ are still said (`superviseRefusal`, 2 passed). Record:
   saying why when it stops something; register supervised runs with
   the governor the way other governed launches are.
 
+### RLFSMALLFIX1 — A missing native helper says what is missing; the serial helper starts a python3 found by its full path (2026-10-31)
+
+**Status 2026-10-31 (lane RLF-SMALLFIX1, macmini): built.** Two honesty and
+safety fixes found in the CC-INT6 and RLF-SHUTDOWN2 rounds. (1) With the
+signed macOS helper not built, a session started through an editor ended in
+"That did not work" and the log said only "Error" (measured on the built
+agent: the created-resources registry's native file commands spawn the
+missing app, and the ACP boundary flattens any sentence it does not list).
+Now the place that starts a shipped helper (the created-path commands, the
+team worker's file helper, screen recording) says which helper is missing or
+cannot run (not executable, built for the other processor) and what to do:
+reinstall for a packaged product, the build command for a source checkout;
+the team worker looked for the macOS helper at a path the build never makes.
+Proven on the real agent, in a source checkout and as the installed packed
+agent, with the helper absent, not executable and built for the other
+processor, by real-process tests, and by six red/green drills.
+Not proven: Windows (the job helper's sentence is checked at the shared path
+only), Linux, and the macOS memory reader, trusted-path private-group check
+and vault helpers, which still degrade without words (record, sections 2.1 and 8).
+(2) The POSIX serial helper started a bare `python3`; it now starts one found
+by its full path on the absolute PATH entries outside the workspace, with a
+sentence when there is none; proven by a planted `python3` that never runs
+and three drills. No setting names the interpreter, so none is honoured.
+Status evidence: `docs/certification/rlf-smallfix1.md`.
+
+- **Goal.** A shipped native helper that is missing or will not run is
+  said where it is started, with the way out; the serial helper's Python
+  is never chosen by a bare name on a PATH a project can write to.
+
 ### M127 — Muse Code at its latest release (2026-10-17)
 
 **Status 2026-10-30 (RLF-UPAGENT): building.** The SDK rides 1.4.12

@@ -7895,6 +7895,17 @@ export function darwinDictationApp(arch: string): string {
 export function darwinDictationHelperSegments(arch: string): readonly string[] {
   return ['darwin', darwinDictationApp(arch), 'Contents', 'MacOS', 'muse-dictate']
 }
+/**
+How a source checkout builds the native helpers its platform starts, and the
+file that tells a checkout from an installed product (the build script is not
+shipped). Windows compiles its job helper on first use: nothing to build by hand.
+*/
+export const NATIVE_HELPER_BUILD: Readonly<
+  Partial<Record<string, { readonly script: string; readonly command: string }>>
+> = {
+  darwin: { script: 'native/darwin/build.sh', command: 'bash native/darwin/build.sh' },
+  linux: { script: 'scripts/build.mjs', command: 'npm run build:dev' },
+}
 /** This Mac's vault peer helper beside the .apps. */
 export function darwinVaultPeerFile(arch: string): string {
   if (arch === 'arm64') return 'muse-vault-peer-arm64'

@@ -20,7 +20,11 @@ import { removeFolder } from './helpers/temporaryFolders'
 /** What this platform's driver says when it ships no helper (Linux names the first thing it misses). */
 const NO_HELPER_REASONS: Readonly<Partial<Record<NodeJS.Platform, readonly string[]>>> = {
   win32: ['Windows.Graphics.Capture'],
-  darwin: [`native/darwin/muse-dictate-screen-${process.arch}.app`],
+  darwin: [
+    fill(UI_TEXT.nativeHelper.missingInstalled, {
+      helper: `muse-dictate-screen-${process.arch}.app`,
+    }),
+  ],
   linux: ['GStreamer / pipewiresrc / H.264 / AAC', 'xdg-desktop-portal ScreenCast'],
 }
 

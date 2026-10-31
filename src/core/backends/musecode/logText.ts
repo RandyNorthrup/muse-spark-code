@@ -10,6 +10,7 @@ import { errorNameForLog, wireWordForLog } from '../../logging'
 import { DeadlineError } from '../../timeouts'
 import { UI_TEXT } from '../../../shared/constants'
 import { isCreatedRegistrySaveError } from '../../../shared/createdRegistrySaveError'
+import { isNativeHelperError } from '../../../shared/nativeHelperError'
 
 /** SDK errors cross independently bundled code; constructor identity cannot. */
 export function isMspFailure(
@@ -69,6 +70,7 @@ export function causeForLog(error: unknown): string {
     // A refused registry save names its fixed reason; one of our own
     // sentences passes untouched; anything else stays the name alone.
     if (isCreatedRegistrySaveError(error)) return `${error.name} ${error.reason}`
+    if (isNativeHelperError(error)) return `${error.name} ${error.fault}`
     if (isOwnSentence(error.message)) return error.message
   }
   return failureForLog(error)

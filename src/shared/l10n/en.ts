@@ -4143,7 +4143,7 @@ export const EN = {
   dictationUnavailableWindows:
     'Voice dictation needs Windows PowerShell, which was not found (SystemRoot is not set).',
   dictationUnavailableDarwin:
-    'Voice dictation needs the macOS helper (native/darwin/{app}/Contents/MacOS/muse-dictate), which this build does not include.',
+    'Voice dictation needs the macOS helper (native/darwin/{app}/Contents/MacOS/muse-dictate), which this build does not include. Reinstall Muse Spark Code; in a source checkout, build it with “bash native/darwin/build.sh”.',
   // After `dictationFailed`, when voice's own code did not load (a damaged install).
   dictationNotLoaded:
     'the dictation code could not be loaded; reinstall the extension and reload the window. The log has the details.',
@@ -5509,6 +5509,23 @@ export const EN = {
     invalid: 'the saved registry was invalid',
     io: 'the save could not be written',
     contended: 'another running copy kept saving first; try again',
+  },
+  // A shipped native helper that is missing or that this computer cannot start.
+  // {helper}: its file or signed app name. {command}: the build command of a
+  // source checkout, which a packaged product does not have.
+  nativeHelper: {
+    missingInstalled:
+      'The native helper {helper} is missing from this installation of Muse Spark Code, so this could not start. Reinstall Muse Spark Code.',
+    missingSource:
+      'The native helper {helper} is not built in this source checkout, so this could not start. Build it with “{command}”, then try again.',
+    unloadableInstalled:
+      'The native helper {helper} is installed, but this computer cannot run it (it may be damaged, blocked by the system or built for another processor), so this could not start. Reinstall Muse Spark Code.',
+    unloadableSource:
+      'The native helper {helper} is built, but this computer cannot run it (it may be damaged, blocked by the system or built for another processor), so this could not start. Rebuild it with “{command}”, then try again.',
+    unsupported:
+      'Muse Spark Code ships no native helper for {platform} on {arch}, so this could not start.',
+    windowsJob:
+      'The Windows job helper could not be prepared, so this could not start. Muse Spark Code compiles it on first use with Windows PowerShell 5.1 from the files in its native/windows folder: reinstall Muse Spark Code, and check that Windows PowerShell starts and that security software is not blocking it.',
   },
   acpQuestionFormMessage: 'Muse has a question for you.',
   acpQuestionAsked:
@@ -7866,7 +7883,8 @@ export const EN = {
   }),
   pricePerMillion: 'Prices per million tokens.',
   modelsNotScanned: 'Refresh to list this provider’s models.',
-  teamFileHelperMissing: 'The verified native worker file helper is unavailable.',
+  teamFileHelperMissing:
+    'The verified native worker file helper is unavailable. Reinstall Muse Spark Code; in a source checkout, build the native helpers first.',
   teamFileNativeFailed: 'The native worker file proof failed; no file contents were written.',
   // {kind}: the helper exception's type name, fixed vocabulary, never a path.
   teamFileHelperFailed:
@@ -9555,6 +9573,9 @@ export const EN = {
     'Machine {machine} requires its physical emergency stop; software Stop is unavailable.',
 
   makerTrustRequired: 'Trust this workspace before enabling hardware.',
+
+  makerSerialPythonMissing:
+    'Serial access needs Python 3 (python3) with the pyserial package, and no python3 was found on your PATH outside this workspace. Install Python 3 and run “python3 -m pip install pyserial”, then try again.',
 
   makerEnableHardware: 'Enable hardware for this workspace',
   makerCliUsage:
