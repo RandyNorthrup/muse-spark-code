@@ -127,6 +127,7 @@ export async function createRuntimeSchedules(
         return module.createScheduleDeliveryBinding(delivery, authority, billing)
       },
     }),
+    ...(delivery?.teamBoards !== undefined && { boards: delivery.teamBoards }),
     ...(migration !== undefined && { migration }),
   })
   return runtime

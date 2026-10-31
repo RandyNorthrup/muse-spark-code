@@ -29,6 +29,7 @@ import { failureForLog } from '../backends/musecode/logText'
 import { redactSecrets } from '../redact'
 import {
   teamRescheduleSchema,
+  teamSchedulerFieldsSchema,
   teamSnapshotSchema,
   teamUsageSchema,
   type TeamAgentRef,
@@ -71,6 +72,8 @@ import type {
   TeamToolResult,
 } from './teamSeams'
 import type {
+  ScheduledBoardTaskInput,
+  ScheduledBoardTaskOutcome,
   TeamHostService,
   TeamHostServiceDeps,
   TeamMergeDecision,
@@ -83,6 +86,7 @@ import type {
   TeamWorkerOutcome,
 } from './teamHostService'
 import type { TeamSchedulingDeps, TeamSchedulingPort } from './teamScheduling'
+import { quoteKeyTasksUsd } from './teamPaid'
 import { runScheduledDelegate } from './scheduledDelegate'
 import { isResourceSlotAvailable } from './scheduler/slots'
 import { randomUUID } from 'node:crypto'
@@ -213,6 +217,31 @@ export function readStoredTeam(state: TeamStatePort): TeamSnapshot | undefined {
 
 function builtinRole(roleId: string): BuiltinRole | undefined {
   return builtinRoles().find((role) => role.id === roleId)
+}
+
+/** A stored role the team offers tasks: a built-in, or a custom role with a complete charter. */
+function isOfferedRole(role: TeamRoleConfig | undefined): role is TeamRoleConfig {
+  return (
+    role !== undefined &&
+    (builtinRole(role.role) !== undefined ||
+      (role.purpose?.trim() !== undefined &&
+        role.purpose.trim() !== '' &&
+        role.workspace !== undefined &&
+        role.tools !== undefined &&
+        role.report !== undefined))
+  )
+}
+
+/**
+The board's duplicate-key refusal, read by shape: teamHost.js never
+imports the window scheduler's board bundle for one refusal code.
+*/
+function isBoardDuplicateKey(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    (typeof error.code === 'string' ? error.code : '') === 'duplicateKey'
+  )
 }
 
 function custom(entry: TeamPoolEntry): StaffedEntry | undefined {
@@ -1943,15 +1972,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     const taken = new Map<string, number>()
     return parsed.data.tasks.map((item): PlanStep => {
       const role = roles().find((candidate) => candidate.role === item.role)
-      if (
-        role === undefined ||
-        (builtinRole(item.role) === undefined &&
-          (role.purpose?.trim() === undefined ||
-            role.purpose.trim() === '' ||
-            role.workspace === undefined ||
-            role.tools === undefined ||
-            role.report === undefined))
-      ) {
+      if (!isOfferedRole(role)) {
         return { item, refused: fill(TEAM_MODEL_TEXT.hostRoleNotOffered, { role: item.role }) }
       }
       if (roleMode(role) === 'in-place') {
@@ -2906,8 +2927,92 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
           },
         }
 
+  /** One scheduled fire onto the board (C-M115-8): delegate's scheduler
+  path — record, persist, submit — with the schedule's paid consent and
+  cap instead of the popup. An omitted roleId targets the team: the
+  stored team's first role. */
+  const delegateScheduled = async (
+    input: ScheduledBoardTaskInput,
+  ): Promise<ScheduledBoardTaskOutcome> => {
+    const refused = (reason: string): ScheduledBoardTaskOutcome => ({ admitted: false, reason })
+    if (isClosed() || !deps.settings.isTrusted())
+      return refused(UI_TEXT.scheduleV2.messages.targetUnavailable)
+    const board = scheduler
+    if (board === undefined) return refused(UI_TEXT.scheduleV2.messages.targetUnavailable)
+    const stored = roles()
+    const role =
+      input.roleId === undefined
+        ? stored[0]
+        : stored.find((candidate) => candidate.role === input.roleId)
+    if (!isOfferedRole(role))
+      return refused(
+        input.roleId === undefined
+          ? UI_TEXT.scheduleV2.messages.targetUnavailable
+          : fill(UI_TEXT.teamRoleUnknown, { role: input.roleId }),
+      )
+    if (roleMode(role) === 'in-place') return refused(UI_TEXT.scheduleV2.messages.targetUnavailable)
+    if (pool(role).length === 0)
+      return refused(fill(UI_TEXT.teamPoolNotStaffed, { role: role.role }))
+    // Consent binds to exactly what is quoted: key-billed entries usable
+    // at quote time (as runScheduledDelegate). Local and subscription
+    // entries need no authorization; a key entry needs the schedule's
+    // consent and a quote the schedule's cap admits.
+    const keyed = pool(role).filter((entry) => entry.agent.pays === 'key' && isUsable(entry))
+    const confirmations = keyed.map((entry) => confirmationFor(role.role, entry))
+    if (confirmations.length > 0 && !input.paidConsented)
+      return refused(UI_TEXT.scheduleV2.messages.changedConsent)
+    const quote = quoteKeyTasksUsd(confirmations)
+    if (quote === undefined && confirmations.length > 0)
+      return refused(UI_TEXT.scheduleV2.messages.scheduleTeamUnquotable)
+    if (quote !== undefined && Usd.from(input.paidCapUsd).compare(Usd.from(quote)) < 0)
+      return refused(UI_TEXT.scheduleV2.messages.capReached)
+    // A resubmitted fire adopts its task without another submit: the board
+    // key, not the minted id, names the fire across processes and restarts.
+    const adopted = board.snapshot().tasks.find((candidate) => candidate.key === input.boardKey)
+    if (adopted !== undefined) return { admitted: true, taskId: adopted.id, roleId: adopted.roleId }
+    const task = record(
+      role,
+      { brief: input.brief, reason: { code: 'asked_you', detail: 'scheduled' } },
+      input.parentSessionId,
+      'queued',
+    )
+    task.consented = new Set(keyed.map((entry) => paidScope(entry.agent)))
+    try {
+      await persist()
+      await board.submit([
+        {
+          id: task.taskId,
+          sessionId: input.parentSessionId,
+          roleId: role.role,
+          fields: teamSchedulerFieldsSchema.parse({ key: input.boardKey }),
+        },
+      ])
+      return { admitted: true, taskId: task.taskId, roleId: role.role }
+    } catch (error: unknown) {
+      // As runScheduledDelegate: drop only a record the board never took.
+      const raced = board.snapshot().tasks.find((candidate) => candidate.key === input.boardKey)
+      if (raced !== undefined && raced.id !== task.taskId) {
+        tasks.delete(task.taskId)
+        await persist()
+        return { admitted: true, taskId: raced.id, roleId: raced.roleId }
+      }
+      if (raced !== undefined) return { admitted: true, taskId: raced.id, roleId: raced.roleId }
+      if (isBoardDuplicateKey(error)) {
+        // The key's task already finished: the fire ran before, and the
+        // team's ledger keeps the outcome.
+        tasks.delete(task.taskId)
+        await persist()
+        return { admitted: true, taskId: undefined, roleId: role.role }
+      }
+      tasks.delete(task.taskId)
+      await persist()
+      throw error
+    }
+  }
+
   const service: TeamHostService = {
     scheduler,
+    delegateScheduled,
     teamDecisionSource: decisionSource,
     teamRosterData: () => {
       if (snapshot === undefined) return

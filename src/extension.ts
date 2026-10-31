@@ -5,6 +5,7 @@ import {
 } from './core/paid/spendClaim'
 import { scheduleWindowWorkspace } from './host/schedules/schedulesBridge'
 import type { ScheduleEditorDeliveryPorts } from './host/schedules/deliveryBinding'
+import { createScheduleTeamBoards } from './host/schedules/scheduleTeamBoards'
 import type { BackendSession } from './host/schedules/backgroundTarget'
 import type { StartSessionOptions } from './core/agent/agentBackend'
 import type { ScheduleV2 } from './shared/scheduleV2'
@@ -4812,6 +4813,11 @@ async function activateWindow(
           isActive: isScheduleActive,
           generation: () => auth.admissionGeneration,
           host: scheduleHost,
+          teamBoards: createScheduleTeamBoards({
+            workspaceRoot,
+            isActive: isScheduleActive,
+            admit: (input) => teamHost.admitScheduledBoardTask(input),
+          }),
           findLive: liveSchedule,
           options: async (schedule) => {
             const options: StartSessionOptions = {

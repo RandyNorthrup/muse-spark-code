@@ -1348,6 +1348,7 @@
       "changedRevision": "Cambió la programación o su sesión activa. Recárgala antes de otra ejecución de pago.",
       "lostOnceClaim": "Esta ejecución ya no posee el consentimiento de un solo uso. Renuévalo para otra ejecución.",
       "capReached": "El límite diario de la programación o el compartido no permite esta ejecución de pago.",
+      "scheduleTeamUnquotable": "Establezca un límite de tokens por tarea en la entrada de clave del rol para programarlo: sin él, el gasto no puede cotizarse.",
       "paidUnavailable": "Esta operación de pago no está disponible o no fue aprobada para esta programación.",
       "changedConsent": "Falta el consentimiento de pago de esta programación o ha cambiado. Renuévalo antes de otra ejecución de pago.",
       "setBy": "Creado por {agent} en {session}",

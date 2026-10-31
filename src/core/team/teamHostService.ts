@@ -71,6 +71,15 @@ sentence; the surface shows it.
 export interface TeamHostService extends TeamHostSeams {
   /** The window scheduler (M96c), when the host supplies its factory. */
   readonly scheduler?: TeamSchedulingPort | undefined
+  /**
+  Admit one scheduled fire as a task on the window scheduler's board
+  (C-M115-8): the same record/persist/submit path `delegate` takes,
+  authorized by the schedule's paid consent and cap, never the popup.
+  Refuses honestly without a scheduler, a team, the role, consent, a
+  quote or cap room; resubmission with the same board key adopts the
+  task instead of duplicating it.
+  */
+  readonly delegateScheduled: (input: ScheduledBoardTaskInput) => Promise<ScheduledBoardTaskOutcome>
   readonly landingPaused: () => boolean
   readonly setLandingPaused: (isPaused: boolean) => Promise<void>
   /** The last landing refusal for a task in review, if its merge was refused. */
@@ -419,6 +428,33 @@ export interface TeamPaidPort {
     context: TeamToolContext,
   ) => Promise<boolean>
 }
+
+/**
+One scheduled fire's admission to the board (C-M115-8, M115): a task
+under the role's charter, authorized by the schedule's own paid consent
+and cap instead of the popup. An omitted roleId targets the team: the
+stored team's first role.
+*/
+export interface ScheduledBoardTaskInput {
+  readonly roleId?: string | undefined
+  readonly brief: string
+  /** The fire's idempotency key on the board; resubmission adopts the task. */
+  readonly boardKey: string
+  /** The parent session the board and ledger name; stable per schedule. */
+  readonly parentSessionId: string
+  readonly paidCapUsd: UsdAmount
+  /** The schedule's paid consent covers this fire's key spend. */
+  readonly paidConsented: boolean
+}
+
+/**
+The admission's answer. A resubmitted fire adopts its task; when the
+adopted task already finished, no task id comes back: the fire ran
+before, and the team's ledger keeps the outcome.
+*/
+export type ScheduledBoardTaskOutcome =
+  | { readonly admitted: true; readonly taskId: string | undefined; readonly roleId: string }
+  | { readonly admitted: false; readonly reason: string }
 
 /** Everything `createTeamHostService` takes. */
 export interface TeamHostServiceDeps {

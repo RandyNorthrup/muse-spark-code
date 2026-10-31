@@ -1348,6 +1348,7 @@
       "changedRevision": "O agendamento ou sua sessão ativa mudou. Recarregue-o antes de outra execução paga.",
       "lostOnceClaim": "Esta execução não possui mais o consentimento de uso único. Renove-o para outra execução.",
       "capReached": "O limite diário do agendamento ou o compartilhado não permite esta execução paga.",
+      "scheduleTeamUnquotable": "Defina um limite de tokens por tarefa na entrada de chave da função para agendá-la: sem ele, o gasto não pode ser estimado.",
       "paidUnavailable": "Esta operação paga está indisponível ou não foi aprovada para este agendamento.",
       "changedConsent": "O consentimento pago deste agendamento está ausente ou mudou. Renove-o antes de outra execução paga.",
       "setBy": "Definido por {agent} em {session}",

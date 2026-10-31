@@ -1353,6 +1353,7 @@
       "changedRevision": "Zmienił się harmonogram lub jego działająca sesja. Wczytaj go ponownie przed kolejnym płatnym uruchomieniem.",
       "lostOnceClaim": "To uruchomienie nie posiada już jednorazowej zgody. Odnów ją dla kolejnego uruchomienia.",
       "capReached": "Dzienny limit harmonogramu lub wspólny limit nie pozwala na to płatne uruchomienie.",
+      "scheduleTeamUnquotable": "Ustaw limit tokenów na zadanie dla wpisu klucza roli, aby ją zaplanować: bez niego wydatków nie można oszacować.",
       "paidUnavailable": "Ta płatna operacja jest niedostępna lub nie została zatwierdzona dla tego harmonogramu.",
       "changedConsent": "Brakuje zgody na płatne uruchomienia tego harmonogramu lub zgoda się zmieniła. Odnów ją przed kolejnym płatnym uruchomieniem.",
       "setBy": "Ustawione przez {agent} w {session}",
