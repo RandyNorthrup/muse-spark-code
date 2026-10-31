@@ -3,18 +3,10 @@
 // real window scheduler. Tasks queue on zero caps, so no worker ever
 // starts: the recording ports below prove no model, consent card or
 // popup path is touched.
-import { mkdtempSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import path from 'node:path'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
-import { createTeamHostService } from '../../src/core/team/teamHost'
-import type { TeamHostService, TeamTaskSpec } from '../../src/core/team/teamHostService'
+import type { TeamHostService } from '../../src/core/team/teamHostService'
 import { TEAM_TASKS_STATE_KEY } from '../../src/core/team/teamTaskState'
 import { quoteKeyTasksUsd } from '../../src/core/team/teamPaid'
-import {
-  createWindowTeamScheduler,
-  TEAM_BOARD_STATE_KEY,
-} from '../../src/core/team/scheduler/window'
 import {
   ScheduleBoardDelivery,
   scheduleBoardKey,
@@ -22,14 +14,8 @@ import {
   type ScheduleTeamBoards,
 } from '../../src/core/schedules/boardDelivery'
 import { createScheduleTeamBoards } from '../../src/host/schedules/scheduleTeamBoards'
-import { createEngineTeamPorts } from '../../src/host/team/teamEnginePorts'
 import { createAuthorityStore } from '../../src/runtime/schedules/authorityStore'
-import { workspaceKey } from '../../src/runtime/dataFolder'
-import { createScheduleEngine } from '../../src/runtime/schedules/engine'
-import {
-  createNodeScheduleFs,
-  createNodeScheduleQueue,
-} from '../../src/runtime/schedules/nodeScheduleFs'
+import { createNodeScheduleFs } from '../../src/runtime/schedules/nodeScheduleFs'
 import {
   MILLISECONDS_PER_HOUR,
   MILLISECONDS_PER_MINUTE,
@@ -44,34 +30,19 @@ import {
   type ScheduleV2,
 } from '../../src/shared/scheduleV2'
 import type { ScheduleEvent } from '../../src/shared/scheduleEvents'
-import { teamBoardSchema, type TeamCap, type TeamSnapshot } from '../../src/shared/team'
-import { TEAM_WORKSPACE_KEYS } from '../../src/shared/teamConversation'
+import type { TeamCap } from '../../src/shared/team'
 import { Usd, type UsdAmount } from '../../src/shared/usd'
-import { silentCoreLog } from './helpers/memoryLogs'
-import { realTeamGit } from './helpers/realTeamGit'
+import type { BoardRig } from './helpers/scheduleBoardRig'
+import {
+  boardRig,
+  boardTasks,
+  closeRig,
+  ORCHESTRATOR,
+  QUEUE_CAPS,
+} from './helpers/scheduleBoardRig'
 import { runContextFixture, scheduleFixture } from './helpers/scheduleFixtures'
 
-const ORCHESTRATOR = 'muse-spark-1.3'
 const QUOTA_TOKENS = 1_000_000
-
-function tripwireError(operation: string): Error {
-  return new Error(`No ${operation} in this test: no model conversations run here.`)
-}
-
-function teamSnapshot(entryCaps: readonly TeamCap[], pays: 'local' | 'key'): TeamSnapshot {
-  return {
-    roles: [
-      {
-        role: 'engineering',
-        workspace: 'own-branch',
-        pool: [{ id: 'e1', concurrent: 1, caps: [...entryCaps] }],
-      },
-      { role: 'qa', workspace: 'own-branch', pool: [] },
-    ],
-    intensity: 'balanced',
-    orchestrator: { agent: { kind: 'engine', agentId: 'slot', model: ORCHESTRATOR, pays } },
-  }
-}
 
 function paidConsentFor(capUsd: UsdAmount): NonNullable<ScheduleV2['paidConsent']> {
   return schedulePaidConsentSchema.parse({
@@ -86,164 +57,6 @@ function paidConsentFor(capUsd: UsdAmount): NonNullable<ScheduleV2['paidConsent'
   })
 }
 
-interface BoardRig {
-  readonly root: string
-  readonly cwd: string
-  readonly storage: string
-  readonly key: string
-  readonly engine: Awaited<ReturnType<typeof createScheduleEngine>>
-  readonly service: TeamHostService
-  readonly runs: TeamTaskSpec[]
-  readonly state: Map<string, unknown>
-  readonly hold: () => Promise<void>
-  readonly calls: {
-    readonly teamFor: string[]
-    readonly startWorker: unknown[]
-    readonly listModels: unknown[]
-    readonly allowKeyTasks: unknown[]
-    readonly cards: unknown[]
-  }
-}
-
-async function boardRig(options: {
-  readonly pays: 'local' | 'key'
-  readonly caps: readonly TeamCap[]
-  readonly boards?: boolean
-}): Promise<BoardRig> {
-  const root = mkdtempSync(path.join(tmpdir(), 'sched-board-store-'))
-  const cwd = mkdtempSync(path.join(tmpdir(), 'sched-board-ws-'))
-  const storage = mkdtempSync(path.join(tmpdir(), 'sched-board-team-'))
-  const key = workspaceKey(cwd)
-  const calls = {
-    teamFor: [] as string[],
-    startWorker: [] as unknown[],
-    listModels: [] as unknown[],
-    allowKeyTasks: [] as unknown[],
-    cards: [] as unknown[],
-  }
-  const ports = createEngineTeamPorts({
-    repositoryRoot: () => undefined,
-    storageRoot: storage,
-    platform: process.platform,
-    isTrusted: () => true,
-    listModels: () => {
-      calls.listModels.push(true)
-      return Promise.reject(tripwireError('listModels'))
-    },
-    startWorker: () => {
-      calls.startWorker.push(true)
-      return Promise.reject(tripwireError('startWorker'))
-    },
-    runGit: realTeamGit,
-    now: () => Date.now(),
-    log: silentCoreLog(),
-  })
-  const state = new Map<string, unknown>([
-    [TEAM_WORKSPACE_KEYS.team, teamSnapshot(options.caps, options.pays)],
-  ])
-  const runs: TeamTaskSpec[] = []
-  const service = createTeamHostService({
-    state: {
-      get: (stateKey) => state.get(stateKey),
-      update: async (stateKey, value) => {
-        state.set(stateKey, value)
-        await Promise.resolve()
-      },
-    },
-    settings: {
-      isTeamOn: () => true,
-      isTeamWorkersOn: () => true,
-      maxWorkers: () => 4,
-      isTrusted: () => true,
-    },
-    orchestrator: {
-      modelId: () => ORCHESTRATOR,
-      backend: () => 'modelApi',
-      defaultAgent: (model) => ({ kind: 'engine', agentId: 'default', model, pays: options.pays }),
-    },
-    createScheduler: (scheduling) => createWindowTeamScheduler(scheduling),
-    workers: {
-      ...ports.workers,
-      run: async (spec, signal) => {
-        runs.push(spec)
-        return await ports.workers.run(spec, signal)
-      },
-    },
-    merges: ports.merges,
-    paid: {
-      allowKeyTasks: (...args) => {
-        calls.allowKeyTasks.push(args)
-        return Promise.reject(tripwireError('paid.allowKeyTasks'))
-      },
-    },
-    cards: {
-      show: (...args) => {
-        calls.cards.push(args)
-        throw tripwireError('cards.show')
-      },
-    },
-    newId: (() => {
-      let counter = 0
-      return () => {
-        counter += 1
-        return `task-${String(counter)}`
-      }
-    })(),
-    now: () => Date.now(),
-    log: silentCoreLog(),
-  })
-  const boards: ScheduleTeamBoards = {
-    teamFor: (workspace) => {
-      calls.teamFor.push(workspace)
-      return Promise.resolve(
-        workspace === key ? { admit: (input) => service.delegateScheduled(input) } : undefined,
-      )
-    },
-  }
-  const engine = await createScheduleEngine({
-    log: silentCoreLog(),
-    fs: createNodeScheduleFs(root),
-    queue: createNodeScheduleQueue(root),
-    // Production boards ride with conversation delivery; these tripwires
-    // prove board targets never consult it.
-    delivery: () =>
-      Promise.resolve({
-        targets: {
-          find: () => Promise.reject(tripwireError('conversation targets')),
-          open: () => Promise.reject(tripwireError('conversation targets')),
-          fresh: () => Promise.reject(tripwireError('conversation targets')),
-        },
-        runs: {
-          run: () => Promise.reject(tripwireError('conversation runs')),
-        },
-        prompt: () => {
-          throw tripwireError('conversation prompt')
-        },
-      }),
-    ...(options.boards !== false && { boards }),
-  })
-  const hold = await engine.runtime.holdWorkspace(cwd)
-  return { root, cwd, storage, key, engine, service, runs, state, calls, hold }
-}
-
-async function closeRig(rig: BoardRig): Promise<void> {
-  await rig.service.dispose()
-  await rig.hold()
-  try {
-    await rig.engine.runtime.close()
-  } catch (error: unknown) {
-    // Pre-existing engine close (base bug, not this lane): close aborts
-    // the combined stop before the trailing background reconcile reads
-    // the consent file, so close always rejects with the abort. The
-    // engine's own teardown (timer, intakes, scheduler) already ran.
-    if (!(error instanceof Error) || error.name !== 'AbortError') throw error
-  }
-  rmSync(rig.root, { recursive: true, force: true })
-  rmSync(rig.cwd, { recursive: true, force: true })
-  rmSync(rig.storage, { recursive: true, force: true })
-}
-
-const QUEUE_CAPS: readonly TeamCap[] = [{ measure: 'tasks', window: 'lifetime', amount: 0 }]
 const QUOTED_QUEUE_CAPS: readonly TeamCap[] = [
   ...QUEUE_CAPS,
   { measure: 'tokens', window: 'task', amount: QUOTA_TOKENS },
@@ -255,11 +68,6 @@ const LAUNCH_CAPS: readonly TeamCap[] = [
 // The shared rigs accumulate board tasks across tests (every fire below
 // uses a distinct schedule id), so refusal tests count rather than demand
 // an untouched board, and admission tests find their own task by key.
-function boardTasks(rig: BoardRig) {
-  const stored = rig.state.get(TEAM_BOARD_STATE_KEY)
-  return stored === undefined ? [] : teamBoardSchema.parse(stored).tasks
-}
-
 function queuedIds(service: TeamHostService, roleId: string): string[] {
   const role = service.tree()?.roles.find((item) => item.id === roleId)
   return role?.queued.map((worker) => worker.taskId) ?? []
@@ -472,7 +280,7 @@ describe('scheduled prompts to role and team targets', () => {
     const result = await fireDirect(rig, schedule)
     expect(result.outcome).toBe('refused')
     expect(result.reason).toBe(UI_TEXT.scheduleV2.messages.targetUnavailable)
-    expect(rig.state.get(TEAM_BOARD_STATE_KEY)).toBeUndefined()
+    expect(boardTasks(rig)).toEqual([])
   })
 
   it('refuses an unknown role by name', async () => {
@@ -565,7 +373,7 @@ describe('scheduled prompts to role and team targets', () => {
     const result = await fireDirect(rig, schedule)
     expect(result.outcome).toBe('refused')
     expect(result.reason).toBe(UI_TEXT.scheduleV2.messages.scheduleTeamUnquotable)
-    expect(rig.state.get(TEAM_BOARD_STATE_KEY)).toBeUndefined()
+    expect(boardTasks(rig)).toEqual([])
   })
 
   it('refuses a schedule edited since admission', async () => {
