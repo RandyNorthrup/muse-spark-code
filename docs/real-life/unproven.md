@@ -3418,6 +3418,10 @@ used through the packed product. Per-item record, with the steps:
   ceiling (`exec --vault`, environment and standard-input secrets, the grant
   and the `vault policy` ceiling, the broker-to-feeder delegation, scrubbed
   output). Unproven until a packed run does it on a Mac and on Linux.
+- The README section on `exec --vault` ("Local headless `exec --vault`"), held
+  out of `README.md` by CC-INT9 (2026-10-31) with the two lines above; its text
+  waits in `docs/certification/rlf-m109.md` section 7 and returns after the
+  same run.
 
 ## Lane RLF-ORCHEXT (2026-10-31, branch rec/rlf-orchext; its CHANGELOG entry and three README edits held out by CC-INT9, 2026-10-31)
 
