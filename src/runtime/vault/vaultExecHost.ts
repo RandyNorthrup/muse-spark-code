@@ -77,6 +77,9 @@ export function createHeadlessVaultExecService(deps: HeadlessVaultExecDeps): Vau
           nodePath: deps.nodePath,
           feederPath: path.join(deps.distDir, VAULT_EXEC_BUNDLE_FILE),
           feederArgs: [deps.dataDir, String(timeoutMs)],
+          warn: (word) => {
+            process.stderr.write(`${word}\n`)
+          },
           timeoutMs,
           env: () => deps.env,
           tree,
