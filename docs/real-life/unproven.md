@@ -3228,3 +3228,22 @@ it measured; nothing in the merged tree replaces its migration claims. The
 schedule own-cap check (`assertScheduleOwnCap`) likewise stays here: no paid
 fire could run while delivery is uncertified
 (`docs/real-life/pr207-2026-10-18.md`).
+
+## Native hosts re-landed without their scripted runtimes (RLF-HOSTSLAND, 2026-10-30)
+
+The M104 native hosts landed on int with every hand-written runtime deleted
+(`hosts/jetbrains/test/fixtures/*.py`, `hosts/eclipse/tests/fixtures/runtime.py`,
+`hosts/visualstudio/Test/fake-runtime.mjs`; the Xcode fake died in RLF-M104GX).
+The suites that only made sense against a scripted peer are deleted with them;
+what they claimed stays unproven until a real `panel --stdio` run or a real
+editor run proves it:
+
+- JetBrains: panel delivery order and approval round-trips through JCEF
+  (`NativePanelFixture`, `panel-runtime.test.mjs`), Tab completion against a
+  scripted runtime (`NativeTabTest`), lifecycle and process-tree teardown
+  timing (`NativeLifecycleTest`, `RuntimeProcessTest`, `RuntimeStressTest`),
+  and the embedded browser surface (`NativeBrowserTest`).
+- Eclipse: MHP version negotiation against a scripted peer (`SessionTest`,
+  `runtime-fixture.test.mjs`).
+- Visual Studio: runtime start/stop and packaging against `fake-runtime.mjs`
+  (`RuntimeAndPackageTests`); the whole host waits for the Windows machine.
