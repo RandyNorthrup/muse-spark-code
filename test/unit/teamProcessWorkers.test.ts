@@ -24,6 +24,7 @@ import { ACP_PRESETS, type AcpPreset } from '../../src/core/team/workers/acpWork
 import { resolveMuseLaunch } from '../../src/core/backends/musecode/launch'
 import {
   createProcessTeamPorts,
+  museStopReason,
   type ProcessTeamPorts,
   type TeamMuseServeLaunch,
   type TeamProcessWorkersDeps,
@@ -653,4 +654,28 @@ describe.skipIf(process.platform === 'win32')('external agent workers', () => {
     },
     WORKER_TEST_TIMEOUT_MS,
   )
+})
+
+describe('how a Muse Code turn ended, as the worker runner reads it', () => {
+  it('reads only a turn that finished as finished: a capped one is its own stop', () => {
+    expect(museStopReason({ terminal: 'completed', reason: undefined, errorKind: undefined })).toBe(
+      'end_turn',
+    )
+    expect(
+      museStopReason({ terminal: 'completed', reason: 'max_tokens', errorKind: undefined }),
+    ).toBe('max_tokens')
+    // The round limit rides on a completed turn as its error kind, with or without a reason.
+    expect(
+      museStopReason({ terminal: 'completed', reason: undefined, errorKind: 'max_turn_requests' }),
+    ).toBe('max_turn_requests')
+    expect(
+      museStopReason({ terminal: 'completed', reason: 'end_turn', errorKind: 'max_turn_requests' }),
+    ).toBe('max_turn_requests')
+    expect(museStopReason({ terminal: 'cancelled', reason: 'stopped', errorKind: undefined })).toBe(
+      'cancelled',
+    )
+    expect(museStopReason({ terminal: 'failed', reason: 'boom', errorKind: undefined })).toBe(
+      'boom',
+    )
+  })
 })

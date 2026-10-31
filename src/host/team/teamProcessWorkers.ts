@@ -13,6 +13,7 @@ import { existsSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { availableParallelism } from 'node:os'
 import path from 'node:path'
+import { usableReply } from '../../core/turns/usableReply'
 import {
   HOOK_CONFIG_MAX_BYTES,
   TEAM_CHECK_INSTALL_PATHS,
@@ -234,10 +235,23 @@ function asError(error: unknown): Error {
   return error instanceof Error ? error : new Error(TEAM_MODEL_TEXT.hostStopped, { cause: error })
 }
 
-/** Muse Code's `turnCompleted` as the worker runner's stop reasons. */
-function museStopReason(terminal: string, reason: string | undefined): string {
-  if (terminal === 'completed') return reason ?? 'end_turn'
-  return terminal === 'cancelled' ? 'cancelled' : (reason ?? terminal)
+/** What Muse Code's `turnCompleted` says about how the turn ended. */
+interface MuseTurnEnd {
+  readonly terminal: string
+  readonly reason: string | undefined
+  readonly errorKind: string | undefined
+}
+
+/**
+Muse Code's `turnCompleted` as the worker runner's stop reasons. A turn that
+ran into its round limit is its own stop, read through `usableReply` like
+every other completed turn: never a finished one, whatever its reason says.
+*/
+export function museStopReason(end: MuseTurnEnd): string {
+  const completed = usableReply(end, end.reason ?? 'end_turn')
+  if (completed.usable) return completed.reply
+  if (completed.capped) return 'max_turn_requests'
+  return end.terminal === 'cancelled' ? 'cancelled' : (end.reason ?? end.terminal)
 }
 
 /**
@@ -290,68 +304,70 @@ function museSessionPort(session: MuseSession, context: MuseTaskContext): MuseWo
           context.log.warn('A team Muse Code worker cancellation settled elsewhere')
         })
       }
-      const ended = new Promise<{ readonly terminal: string; readonly reason: string | undefined }>(
-        (resolve) => {
-          const stop = session.onEvent((event) => {
-            switch (event.type) {
-              case 'itemCompleted': {
-                if (event.item.kind === 'agentMessage' && event.item.text !== undefined)
-                  lastText = event.item.text
-                break
-              }
-              case 'tokenUsage': {
-                const usage = context.usage.current
-                context.usage.current = {
-                  ...usage,
-                  input: usage.input + event.inputTokens,
-                  cachedInput: usage.cachedInput + (event.cachedTokens ?? 0),
-                  output: usage.output + event.outputTokens,
-                  reasoning: usage.reasoning + (event.reasoningTokens ?? 0),
-                  modelCalls: usage.modelCalls + 1,
-                }
-                const earlier = writes
-                const reported = context.usage.current
-                writes = (async () => {
-                  await earlier
-                  await context.spec.meter.noteUsage(reported)
-                })()
-                try {
-                  context.spec.meter.admitRequest()
-                } catch (error: unknown) {
-                  // A refusal (a met cap, a stop, withdrawn trust) ends the turn; its kind is logged.
-                  context.log.warn(failureForLog(error))
-                  stopTurn(error)
-                }
-                break
-              }
-              case 'approvalRequested': {
-                void decide(event).catch(stopTurn)
-                break
-              }
-              case 'questionRequested': {
-                void session.cancelQuestions(event.userInputId).catch(() => {
-                  context.log.warn('A team Muse Code worker question could not be declined')
-                })
-                break
-              }
-              case 'turnCompleted': {
-                stop()
-                resolve({ terminal: event.terminal, reason: event.reason })
-                break
-              }
-              default: {
-                break
-              }
+      const ended = new Promise<MuseTurnEnd>((resolve) => {
+        const stop = session.onEvent((event) => {
+          switch (event.type) {
+            case 'itemCompleted': {
+              if (event.item.kind === 'agentMessage' && event.item.text !== undefined)
+                lastText = event.item.text
+              break
             }
-          })
-        },
-      )
+            case 'tokenUsage': {
+              const usage = context.usage.current
+              context.usage.current = {
+                ...usage,
+                input: usage.input + event.inputTokens,
+                cachedInput: usage.cachedInput + (event.cachedTokens ?? 0),
+                output: usage.output + event.outputTokens,
+                reasoning: usage.reasoning + (event.reasoningTokens ?? 0),
+                modelCalls: usage.modelCalls + 1,
+              }
+              const earlier = writes
+              const reported = context.usage.current
+              writes = (async () => {
+                await earlier
+                await context.spec.meter.noteUsage(reported)
+              })()
+              try {
+                context.spec.meter.admitRequest()
+              } catch (error: unknown) {
+                // A refusal (a met cap, a stop, withdrawn trust) ends the turn; its kind is logged.
+                context.log.warn(failureForLog(error))
+                stopTurn(error)
+              }
+              break
+            }
+            case 'approvalRequested': {
+              void decide(event).catch(stopTurn)
+              break
+            }
+            case 'questionRequested': {
+              void session.cancelQuestions(event.userInputId).catch(() => {
+                context.log.warn('A team Muse Code worker question could not be declined')
+              })
+              break
+            }
+            case 'turnCompleted': {
+              stop()
+              resolve({
+                terminal: event.terminal,
+                reason: event.reason,
+                errorKind: event.errorKind,
+              })
+              break
+            }
+            default: {
+              break
+            }
+          }
+        })
+      })
       context.spec.meter.admitRequest()
       await session.sendTurn([{ type: 'text', text }])
       const end = await ended
       await writes
       if (context.refusal.error !== undefined) throw context.refusal.error
-      return { lastMessage: lastText, stopReason: museStopReason(end.terminal, end.reason) }
+      return { lastMessage: lastText, stopReason: museStopReason(end) }
     },
     cancel: async () => {
       await session.cancel()
