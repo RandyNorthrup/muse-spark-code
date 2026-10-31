@@ -17,44 +17,16 @@ import {
   ExternalOrchestratorHost,
   type ExternalOrchestratorDeps,
 } from '../../../src/host/team/externalOrchestrator'
-import { TeamHostBinding } from '../../../src/host/teamHostBinding'
-import { TeamMcpServer } from '../../../src/host/team/teamMcpServer'
-import { createTeamHost, teamRosterAnswer } from '../../../src/host/team/teamHostEntry'
+import type { TeamHostBinding } from '../../../src/host/teamHostBinding'
 import type { ExternalAgent } from '../../../src/core/team/externalAgents'
 import type { AgentEvent } from '../../../src/shared/agentEvents'
-import { TEAM_MODEL_TEXT, UI_TEXT } from '../../../src/shared/constants'
-import { TEAM_WORKSPACE_KEYS } from '../../../src/shared/teamConversation'
-import { availabilityState } from '../helpers/teamAvailabilityRig'
+import { TEAM_MODEL_TEXT } from '../../../src/shared/constants'
+import { openExternalLeadBinding, silentLog } from '../helpers/teamMcpBinding'
 import { assertCurrentProductionBuild } from '../productionBuild'
-
-const silent = {
-  trace: () => undefined,
-  info: () => undefined,
-  warn: () => undefined,
-  error: () => undefined,
-}
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 const FIXTURE = path.join(ROOT, 'test', 'fixtures', 'external-orchestrator', 'agent.mjs')
 const BRIDGE = path.join(ROOT, 'dist', 'teamHttpBridge.js')
-
-const STORED_TEAM = {
-  roles: [
-    {
-      role: 'engineering',
-      workspace: 'own-branch',
-      pool: [
-        {
-          id: 'e1',
-          concurrent: 2,
-          caps: [],
-          agent: { kind: 'engine', agentId: 'agent-e1', model: 'other-model-7', pays: 'local' },
-        },
-      ],
-    },
-  ],
-  intensity: 'balanced',
-}
 
 const state: { workspace: string; binding: TeamHostBinding | undefined; sequence: number } = {
   workspace: '',
@@ -65,47 +37,7 @@ const state: { workspace: string; binding: TeamHostBinding | undefined; sequence
 beforeAll(async () => {
   assertCurrentProductionBuild(inject('productionBuildGeneration'), ROOT)
   state.workspace = await mkdtemp(path.join(tmpdir(), 'orchext-'))
-  const store = new Map<string, unknown>([[TEAM_WORKSPACE_KEYS.team, STORED_TEAM]])
-  state.binding = new TeamHostBinding({
-    ports: {
-      state: availabilityState(store),
-      settings: {
-        isTeamOn: () => true,
-        isTeamWorkersOn: () => true,
-        maxWorkers: () => 2,
-        isTrusted: () => true,
-      },
-      orchestrator: { modelId: () => 'm1', backend: () => 'external' },
-      paid: { allowKeyTasks: () => Promise.resolve(false) },
-      cards: { show: () => undefined },
-      newId: () => 'id-1',
-      now: () => 0,
-      log: silent,
-      engine: {
-        repositoryRoot: () => undefined,
-        storageRoot: '',
-        platform: process.platform,
-        isTrusted: () => true,
-        listModels: () => Promise.resolve(['other-model-7']),
-        startWorker: () => Promise.reject(new Error('no worker runs in this suite')),
-        now: () => 0,
-        log: silent,
-      },
-    },
-    canRunKind: (kind) => kind === 'engine',
-    loadFactory: () => Promise.resolve(createTeamHost),
-    loadTeamMcp: () =>
-      Promise.resolve({
-        server: new TeamMcpServer(silent),
-        rosterAnswer: teamRosterAnswer,
-      }),
-    uiText: () => UI_TEXT,
-    uiLocale: () => 'en',
-    showTree: () => undefined,
-    openRoles: () => Promise.resolve(),
-    showDiff: () => Promise.resolve(),
-  })
-  await state.binding.open()
+  state.binding = await openExternalLeadBinding()
 })
 
 afterAll(async () => {
@@ -135,7 +67,7 @@ function makeHost(mode: string, isHttp: boolean, model = 'fixture'): Run {
     agent,
     command: process.execPath,
     bridge: { command: process.execPath, args: [BRIDGE] },
-    log: silent,
+    log: silentLog,
     platform: process.platform,
     baseEnv: {
       ...process.env,
@@ -162,6 +94,20 @@ function makeHost(mode: string, isHttp: boolean, model = 'fixture'): Run {
       }
     },
   }
+}
+
+/** A session on the fixture agent, in the suite's workspace, with the person's usual mode. */
+function start(
+  run: Run,
+  modelId: string,
+  mcpServers?: Parameters<ExternalOrchestratorHost['startSession']>[0]['mcpServers'],
+) {
+  return run.host.startSession({
+    workspaceRoot: state.workspace,
+    modelId,
+    approvalMode: 'promptUnmatched',
+    ...(mcpServers !== undefined && { mcpServers }),
+  })
 }
 
 async function teamEndpoint() {
@@ -198,12 +144,7 @@ describe('an external ACP agent as orchestrator', () => {
     const endpoint = await teamEndpoint()
     try {
       expect(run.host.info.kind).toBe('external')
-      const session = await run.host.startSession({
-        workspaceRoot: state.workspace,
-        modelId: 'fixture',
-        approvalMode: 'promptUnmatched',
-        mcpServers: { team: endpoint },
-      })
+      const session = await start(run, 'fixture', { team: endpoint })
       const record = await run.record()
       const started = record.find((row) => row['kind'] === 'session/new')
       const servers = started?.['mcpServers'] as
@@ -244,12 +185,7 @@ describe('an external ACP agent as orchestrator', () => {
     const run = makeHost('default', true)
     const endpoint = await teamEndpoint()
     try {
-      const session = await run.host.startSession({
-        workspaceRoot: state.workspace,
-        modelId: 'fixture',
-        approvalMode: 'promptUnmatched',
-        mcpServers: { team: endpoint },
-      })
+      const session = await start(run, 'fixture', { team: endpoint })
       const record = await run.record()
       const servers = record.find((row) => row['kind'] === 'session/new')?.['mcpServers'] as
         { name: string; type?: string; url?: string }[] | undefined
@@ -271,12 +207,7 @@ describe('an external ACP agent as orchestrator', () => {
       if (state.binding === undefined) throw new Error('binding not open')
       await state.binding.teamMcp.rememberMode('orchext-session', 'team')
       try {
-        const session = await run.host.startSession({
-          workspaceRoot: state.workspace,
-          modelId: 'fixture',
-          approvalMode: 'promptUnmatched',
-          mcpServers: { team: endpoint },
-        })
+        const session = await start(run, 'fixture', { team: endpoint })
         const events = collect(session)
         await session.sendTurn([{ type: 'text', text: 'what can you use?' }])
         await waitFor(events, 'turnCompleted')
@@ -300,11 +231,7 @@ describe('an external ACP agent as orchestrator', () => {
   it('puts the agent’s permission request on the person’s card', async () => {
     const run = makeHost('permission', true)
     try {
-      const session = await run.host.startSession({
-        workspaceRoot: state.workspace,
-        modelId: 'fixture',
-        approvalMode: 'promptUnmatched',
-      })
+      const session = await start(run, 'fixture')
       const events = collect(session)
       await session.sendTurn([{ type: 'text', text: 'write it' }])
       const asked = await waitFor(events, 'approvalRequested')
@@ -333,11 +260,7 @@ describe('an external ACP agent as orchestrator', () => {
   it('reaches the agent with cancel', async () => {
     const run = makeHost('slow', true)
     try {
-      const session = await run.host.startSession({
-        workspaceRoot: state.workspace,
-        modelId: 'fixture',
-        approvalMode: 'promptUnmatched',
-      })
+      const session = await start(run, 'fixture')
       const events = collect(session)
       await session.sendTurn([{ type: 'text', text: 'long task' }])
       await session.cancel()
@@ -354,11 +277,7 @@ describe('an external ACP agent as orchestrator', () => {
   it('selects a named model, and refuses one the agent does not confirm', async () => {
     const named = makeHost('default', true, 'm2')
     try {
-      const session = await named.host.startSession({
-        workspaceRoot: state.workspace,
-        modelId: 'm2',
-        approvalMode: 'promptUnmatched',
-      })
+      const session = await start(named, 'm2')
       expect(session.modelId).toBe('m2')
       const record = await named.record()
       expect(record.find((row) => row['kind'] === 'session/set_config_option')).toMatchObject({
@@ -371,13 +290,9 @@ describe('an external ACP agent as orchestrator', () => {
     }
     const unknown = makeHost('default', true, 'no-such-model')
     try {
-      await expect(
-        unknown.host.startSession({
-          workspaceRoot: state.workspace,
-          modelId: 'no-such-model',
-          approvalMode: 'promptUnmatched',
-        }),
-      ).rejects.toThrow(/did not confirm the model no-such-model/u)
+      await expect(start(unknown, 'no-such-model')).rejects.toThrow(
+        /did not confirm the model no-such-model/u,
+      )
     } finally {
       await unknown.host.close()
     }
@@ -386,13 +301,9 @@ describe('an external ACP agent as orchestrator', () => {
   it('names the agent’s own sign-in command when it is not signed in', async () => {
     const run = makeHost('auth-terminal', true)
     try {
-      await expect(
-        run.host.startSession({
-          workspaceRoot: state.workspace,
-          modelId: 'fixture',
-          approvalMode: 'promptUnmatched',
-        }),
-      ).rejects.toThrow(/Fixture Agent is not signed in.*fixture-login/u)
+      await expect(start(run, 'fixture')).rejects.toThrow(
+        /Fixture Agent is not signed in.*fixture-login/u,
+      )
     } finally {
       await run.host.close()
     }
@@ -401,11 +312,7 @@ describe('an external ACP agent as orchestrator', () => {
   it('passes an agent-kind authenticate through as the agent’s own flow', async () => {
     const run = makeHost('auth-agent', true)
     try {
-      const session = await run.host.startSession({
-        workspaceRoot: state.workspace,
-        modelId: 'fixture',
-        approvalMode: 'promptUnmatched',
-      })
+      const session = await start(run, 'fixture')
       const events = collect(session)
       await session.sendTurn([{ type: 'text', text: 'go' }])
       const done = await waitFor(events, 'turnCompleted')
@@ -420,16 +327,25 @@ describe('an external ACP agent as orchestrator', () => {
     }
   })
 
-  it('resumes through session/load with its history', async () => {
-    const run = makeHost('default', true)
+  it('fails the open turn when the agent dies, then resumes through session/load with its history', async () => {
+    const run = makeHost('die', true)
     try {
-      const session = await run.host.startSession({
-        workspaceRoot: state.workspace,
-        modelId: 'fixture',
-        approvalMode: 'promptUnmatched',
-      })
+      const session = await start(run, 'fixture')
+      const events = collect(session)
+      await session.sendTurn([{ type: 'text', text: 'go' }])
+      const done = await waitFor(events, 'turnCompleted')
+      expect(done).toMatchObject({ terminal: 'failed', errorKind: 'backend' })
+
+      // The agent is gone; resuming starts it again and loads the session.
       const loaded = await run.host.resumeSession(session.sessionId, 'm1')
       expect(loaded.session).toBe(session)
+      const history = loaded.history
+      if (history.mode !== 'inline') throw new Error('the history is read inline')
+      const texts = history.items.map((item) => item.text)
+      expect(texts).toContain('earlier ask')
+      expect(texts).toContain('earlier answer')
+      const rows = await run.record()
+      expect(rows.some((row) => row['kind'] === 'session/load')).toBe(true)
       session.dispose()
     } finally {
       await run.host.close()

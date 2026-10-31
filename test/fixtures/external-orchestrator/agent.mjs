@@ -10,6 +10,7 @@
 //   slow         waits for session/cancel before ending its turn
 //   auth-terminal session/new refuses with auth_required (terminal method)
 //   auth-agent   the first prompt refuses until authenticate() runs
+//   die          the process ends when the first prompt arrives
 //   mcp          opens the `team` MCP server it was given in session/new —
 //                over HTTP, or by spawning the stdio command as a real agent
 //                does — and reports its instructions, tools and roster
@@ -225,6 +226,10 @@ const app = acpAgent({ name: 'fixture-agent' })
     const { sessionId, prompt } = context.params
     record('session/prompt', { blocks: prompt })
     if (mode === 'auth-agent' && !state.isAuthenticated) throw RequestError.authRequired()
+    if (mode === 'die') {
+      record('die', {})
+      process.exit(3)
+    }
     if (mode === 'slow') {
       const waiting = Promise.withResolvers()
       state.cancel = waiting.resolve

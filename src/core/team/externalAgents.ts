@@ -97,11 +97,6 @@ export function externalAgentPresets(): readonly ExternalAgent[] {
   })
 }
 
-export {
-  teamExternalAgentSettingSchema,
-  type TeamExternalAgentSetting,
-} from '../../shared/externalAgentSetting'
-
 /**
 The person's own agents from the raw setting value: an entry that does not
 parse, or repeats a name already taken (a preset's included), is left out —

@@ -11,84 +11,19 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { createServer } from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { TeamHostBinding } from '../../../src/host/teamHostBinding'
-import { TeamMcpServer } from '../../../src/host/team/teamMcpServer'
-import { createTeamHost, teamRosterAnswer } from '../../../src/host/team/teamHostEntry'
-import { TEAM_MODEL_TEXT, UI_TEXT } from '../../../src/shared/constants'
-import { TEAM_WORKSPACE_KEYS } from '../../../src/shared/teamConversation'
-import { availabilityState } from '../helpers/teamAvailabilityRig'
+import { TEAM_MODEL_TEXT } from '../../../src/shared/constants'
+import { openExternalLeadBinding } from '../helpers/teamMcpBinding'
+import type { TeamHostBinding } from '../../../src/host/teamHostBinding'
 import { assertCurrentProductionBuild } from '../productionBuild'
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 const BRIDGE = path.join(ROOT, 'dist', 'teamHttpBridge.js')
 
-const silent = {
-  trace: () => undefined,
-  info: () => undefined,
-  warn: () => undefined,
-  error: () => undefined,
-}
-
-const STORED_TEAM = {
-  roles: [
-    {
-      role: 'engineering',
-      workspace: 'own-branch',
-      pool: [
-        {
-          id: 'e1',
-          concurrent: 2,
-          caps: [],
-          agent: { kind: 'engine', agentId: 'agent-e1', model: 'other-model-7', pays: 'local' },
-        },
-      ],
-    },
-  ],
-  intensity: 'balanced',
-}
-
 const state: { binding: TeamHostBinding | undefined } = { binding: undefined }
 
 beforeAll(async () => {
   assertCurrentProductionBuild(inject('productionBuildGeneration'), ROOT)
-  const store = new Map<string, unknown>([[TEAM_WORKSPACE_KEYS.team, STORED_TEAM]])
-  state.binding = new TeamHostBinding({
-    ports: {
-      state: availabilityState(store),
-      settings: {
-        isTeamOn: () => true,
-        isTeamWorkersOn: () => true,
-        maxWorkers: () => 2,
-        isTrusted: () => true,
-      },
-      orchestrator: { modelId: () => 'm1', backend: () => 'external' },
-      paid: { allowKeyTasks: () => Promise.resolve(false) },
-      cards: { show: () => undefined },
-      newId: () => 'id-1',
-      now: () => 0,
-      log: silent,
-      engine: {
-        repositoryRoot: () => undefined,
-        storageRoot: '',
-        platform: process.platform,
-        isTrusted: () => true,
-        listModels: () => Promise.resolve(['other-model-7']),
-        startWorker: () => Promise.reject(new Error('no worker runs in this suite')),
-        now: () => 0,
-        log: silent,
-      },
-    },
-    canRunKind: (kind) => kind === 'engine',
-    loadFactory: () => Promise.resolve(createTeamHost),
-    loadTeamMcp: () =>
-      Promise.resolve({ server: new TeamMcpServer(silent), rosterAnswer: teamRosterAnswer }),
-    uiText: () => UI_TEXT,
-    uiLocale: () => 'en',
-    showTree: () => undefined,
-    openRoles: () => Promise.resolve(),
-    showDiff: () => Promise.resolve(),
-  })
-  await state.binding.open()
+  state.binding = await openExternalLeadBinding()
 })
 
 afterAll(async () => {
