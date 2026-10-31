@@ -46,6 +46,7 @@ beforeAll(async () => {
     'dist/uiText.js',
     'dist/validation.js',
     'dist/verifyEditor.js',
+    'dist/devices.js',
     'dist/hardwareGuard.js',
     'dist/hardwareShell.js',
     'dist/makerContracts.js',
