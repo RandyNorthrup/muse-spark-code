@@ -159,10 +159,12 @@ export interface AcpPermissionToolCall {
   readonly rawInput?: unknown
 }
 
-/** A permission option the agent offers. Only the once kinds reach the user. */
+/** A permission option the agent offers. Workers only ever take the once kinds. */
 export interface AcpPermissionOption {
   readonly optionId: string
   readonly kind: 'allow_once' | 'allow_always' | 'reject_once' | 'reject_always'
+  /** The agent's own words for the option, where the wire sent them. */
+  readonly name?: string | undefined
 }
 
 /**
@@ -278,12 +280,40 @@ export async function acpFsWrite(
   }
 }
 
-/** The agent side the runner drives; the SDK adapter lives in lane W's `acpProcess`. */
+/** One `select` config option the agent advertises, flattened for readers. */
+export interface AcpConfigSelector {
+  readonly id: string
+  readonly category: string | undefined
+  readonly currentValue: string
+  readonly values: readonly string[]
+}
+
+/** What `initialize` answered about the agent itself. */
+export interface AcpAgentFacts {
+  readonly loadSession: boolean
+  /** MCP transports in `session/new`: HTTP where true, else a stdio bridge (D250). */
+  readonly mcpHttp: boolean
+  readonly name?: string | undefined
+  readonly version?: string | undefined
+}
+
+/**
+The agent side a driver speaks to; the SDK adapter lives in lane W's
+`acpProcess`. Lane W's worker runner and D250's external orchestrator host
+share the one connection: workers read message text, the orchestrator
+streams every update through its handler.
+*/
 export interface AcpAgentConnection {
   readonly initialize: () => Promise<{
     readonly protocolVersion: number
     readonly authMethods: readonly AuthMethod[]
+    readonly agent: AcpAgentFacts
   }>
+  /**
+  An `agent`-kind `authenticate` the agent itself offers, passed through as
+  its own flow (D250); never called for a terminal method.
+  */
+  readonly authenticate: (methodId: string) => Promise<void>
   readonly sessionNew: (params: {
     readonly cwd: string
     readonly mcpServers: readonly McpServer[]
@@ -293,8 +323,26 @@ export interface AcpAgentConnection {
     readonly advertisedModes: readonly string[]
     readonly currentMode?: string
   }>
+  /** `session/load` for an agent that advertised it: history replays as updates. */
+  readonly sessionLoad: (params: {
+    readonly sessionId: string
+    readonly cwd: string
+    readonly mcpServers: readonly McpServer[]
+    readonly grant: WorkerRootGrant
+  }) => Promise<{
+    readonly advertisedModes: readonly string[]
+    readonly currentMode?: string
+  }>
   /** `session/set_config_option`, category `mode`; throws `AcpMethodNotFoundError` when absent. */
   readonly setConfigOption: (sessionId: string, value: string) => Promise<void>
+  /** Sets one select option by id and reads the answer back; a mismatch throws. */
+  readonly setConfigValue: (
+    sessionId: string,
+    configId: string,
+    value: string,
+  ) => Promise<readonly AcpConfigSelector[]>
+  /** The session's select options as last seen (new/load answers, sets, updates). */
+  readonly configSelectors: (sessionId: string) => readonly AcpConfigSelector[]
   /** Deprecated `session/set_mode`, for agents that predate config options. */
   readonly setMode: (sessionId: string, mode: string) => Promise<void>
   /** Selects and reads back the current model; absence/mismatch is an error. */
@@ -304,6 +352,11 @@ export interface AcpAgentConnection {
     sessionId: string,
     text: string,
   ) => Promise<{ readonly stopReason: string; readonly lastMessage: string | undefined }>
+  /** `prompt` with the wire's own content blocks (text, image, resource). */
+  readonly promptBlocks: (
+    sessionId: string,
+    blocks: readonly unknown[],
+  ) => Promise<{ readonly stopReason: string }>
   readonly cancel: (sessionId: string) => Promise<void>
   readonly close: () => void
 }

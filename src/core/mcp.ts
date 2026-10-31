@@ -38,6 +38,12 @@ export interface McpTool {
 export interface McpServerInfo {
   readonly name: string
   readonly version: string
+  /**
+  How to use this server, answered in the `initialize` result (the MCP
+  `instructions` field): the one place our guidance reaches an agent whose
+  own prompt we never touch (D250). Absent keeps today's bytes.
+  */
+  readonly instructions?: string | undefined
 }
 
 /** What the transport does with a message: answer it, or just accept it. */
@@ -168,10 +174,12 @@ export async function handleMcpMessage(
   switch (message.method) {
     case 'initialize': {
       const requested = message.params?.['protocolVersion']
+      const { instructions, ...info } = serverInfo
       return resultResponse(message.id, {
         protocolVersion: typeof requested === 'string' ? requested : MCP_PROTOCOL_VERSION,
         capabilities: { tools: {} },
-        serverInfo,
+        serverInfo: info,
+        ...(instructions !== undefined && { instructions }),
       })
     }
     case 'ping': {
