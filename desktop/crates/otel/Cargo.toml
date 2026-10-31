@@ -1,0 +1,49 @@
+[package]
+name = "muse-spark-otel"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/RandyNorthrup/muse-spark-code"
+description = "OpenTelemetry wiring for Muse Desktop's Rust surfaces (M111 lane OB)"
+
+[dependencies]
+opentelemetry = "0.33.1"
+opentelemetry_sdk = { version = "0.33.1", features = [
+  "trace",
+  "metrics",
+  "logs",
+  "rt-tokio",
+  "experimental_trace_batch_span_processor_with_async_runtime",
+  "experimental_metrics_periodicreader_with_async_runtime",
+  "experimental_logs_batch_log_processor_with_async_runtime",
+] }
+opentelemetry-otlp = { version = "0.33.1", default-features = false, features = [
+  "http-json",
+  "trace",
+  "metrics",
+  "logs",
+  "reqwest-client",
+  "tokio",
+] }
+opentelemetry-appender-tracing = "0.33.1"
+tracing-opentelemetry = "0.34.0"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "macros", "net", "sync"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+url = "2"
+
+[dev-dependencies]
+hyper = { version = "1", features = ["server", "http1"] }
+hyper-util = { version = "0.1", features = ["server", "tokio"] }
+http-body-util = "0.1"
+tempfile = "3"
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "deny"
+
+[lints.clippy]
+all = "deny"
+pedantic = "deny"

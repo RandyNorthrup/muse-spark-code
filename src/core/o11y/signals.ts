@@ -47,6 +47,11 @@ const NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_.:-]{0,127}$/u
 /** A hex id: 32 chars for traces, 16 for spans. */
 const TRACE_ID_PATTERN = /^[0-9a-f]{32}$/u
 const SPAN_ID_PATTERN = /^[0-9a-f]{16}$/u
+/**
+OTLP's JSON mapping sends enums as their string names; like protobuf's
+own JSON parsers, the receiver also takes the numeric form.
+*/
+const OTLP_STATUS_ERROR = 'STATUS_CODE_ERROR'
 
 const otlpAnyValueSchema = z.object({
   stringValue: z.optional(z.string()),
@@ -134,7 +139,7 @@ const otlpSpanSchema = z.object({
   name: z.string(),
   startTimeUnixNano: z.optional(z.union([z.string(), z.number()])),
   endTimeUnixNano: z.optional(z.union([z.string(), z.number()])),
-  status: z.optional(z.object({ code: z.optional(z.number()) })),
+  status: z.optional(z.object({ code: z.optional(z.union([z.number(), z.string()])) })),
   attributes: z.optional(z.array(otlpAttributeSchema)),
 })
 
@@ -323,11 +328,12 @@ export function ingestOtlpMetrics(body: unknown): O11yIngest<O11yMetricPoint> {
           if (at === undefined) return { ok: false, reason: 'badTime' }
           const value = pointValue(point)
           if (value === undefined) return { ok: false, reason: 'badValue' }
+          // Exporters send an empty unit when none was set; it reads
+          // absent, never refused.
+          const rawUnit = metric.unit === '' ? undefined : metric.unit
           const unit =
-            metric.unit === undefined
-              ? undefined
-              : scrubName(metric.unit, O11Y_ATTRIBUTE_KEY_MAX_CHARS)
-          if (unit === undefined && metric.unit !== undefined) {
+            rawUnit === undefined ? undefined : scrubName(rawUnit, O11Y_ATTRIBUTE_KEY_MAX_CHARS)
+          if (unit === undefined && rawUnit !== undefined) {
             return { ok: false, reason: 'badName' }
           }
           const attributes = scrubAttributes(point.attributes)
@@ -370,18 +376,18 @@ export function ingestOtlpLogs(body: unknown): O11yIngest<O11yLogRecord> {
           record.severityNumber >= 0
             ? record.severityNumber
             : 0
+        // Exporters send empty link ids when the record links nowhere;
+        // they read absent, never refused.
+        const rawTraceId = record.traceId === '' ? undefined : record.traceId
         const traceId =
-          record.traceId !== undefined && TRACE_ID_PATTERN.test(record.traceId)
-            ? record.traceId
-            : undefined
-        if (traceId === undefined && record.traceId !== undefined) {
+          rawTraceId !== undefined && TRACE_ID_PATTERN.test(rawTraceId) ? rawTraceId : undefined
+        if (traceId === undefined && rawTraceId !== undefined) {
           return { ok: false, reason: 'badId' }
         }
+        const rawSpanId = record.spanId === '' ? undefined : record.spanId
         const spanId =
-          record.spanId !== undefined && SPAN_ID_PATTERN.test(record.spanId)
-            ? record.spanId
-            : undefined
-        if (spanId === undefined && record.spanId !== undefined) {
+          rawSpanId !== undefined && SPAN_ID_PATTERN.test(rawSpanId) ? rawSpanId : undefined
+        if (spanId === undefined && rawSpanId !== undefined) {
           return { ok: false, reason: 'badId' }
         }
         const attributes = scrubAttributes(record.attributes)
@@ -416,7 +422,10 @@ export function ingestOtlpTraces(body: unknown): O11yIngest<O11ySpan> {
         if (!TRACE_ID_PATTERN.test(span.traceId) || !SPAN_ID_PATTERN.test(span.spanId)) {
           return { ok: false, reason: 'badId' }
         }
-        if (span.parentSpanId !== undefined && !SPAN_ID_PATTERN.test(span.parentSpanId)) {
+        // A root span's parent arrives as an empty id; it reads
+        // absent, never refused.
+        const parentSpanId = span.parentSpanId === '' ? undefined : span.parentSpanId
+        if (parentSpanId !== undefined && !SPAN_ID_PATTERN.test(parentSpanId)) {
           return { ok: false, reason: 'badId' }
         }
         const name = scrubMessage(span.name, O11Y_SPAN_NAME_MAX_CHARS)
@@ -430,12 +439,12 @@ export function ingestOtlpTraces(body: unknown): O11yIngest<O11ySpan> {
         records.push({
           traceId: span.traceId,
           spanId: span.spanId,
-          ...(span.parentSpanId !== undefined && { parentSpanId: span.parentSpanId }),
+          ...(parentSpanId !== undefined && { parentSpanId }),
           component,
           name,
           startMs,
           endMs,
-          error: span.status?.code === 2,
+          error: span.status?.code === 2 || span.status?.code === OTLP_STATUS_ERROR,
           attributes,
         })
       }
