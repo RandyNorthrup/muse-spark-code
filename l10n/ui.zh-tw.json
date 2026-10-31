@@ -1331,6 +1331,9 @@
       "targetUnavailable": "此排程的目標在目前主機上無法使用。",
       "targetClosed": "目標已關閉。",
       "deliveryFailed": "Delivery failed: {reason}",
+      "deferredEventGaveUp": {
+        "other": "{scheduleId} 的排程事件失敗了 {count} 次，將不再執行：{reason}"
+      },
       "schedulePaused": "排程在傳送前已暫停。",
       "scheduleDeleted": "排程在傳送前已刪除。",
       "scheduleEdited": "排程的時間、目標或傳送模式已變更。",

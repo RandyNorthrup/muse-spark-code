@@ -21,7 +21,7 @@ import { museCodeReviewerPort } from '../../src/host/review/museCodeReviewerBund
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { MUSE_CODE_REVIEWER_BUNDLE_FILE } from '../../src/shared/constants'
 import { stderrLogger } from '../../src/runtime/stderrLog'
-import { countAttempts, LIVE_MODEL_ID, liveBackend, sessionLog } from './liveCli'
+import { countAttempts, liveBackend, liveGuardedModelId, sessionLog } from './liveCli'
 
 const IS_ENABLED = process.env['MUSE_LIVE_REVIEWER'] === '1'
 const DRILL_TIMEOUT_MS = 600_000
@@ -88,9 +88,10 @@ async function runDrill(workspaceRoot: string, reviewerRoot: string): Promise<Dr
   const replies: string[] = []
   try {
     const host = await backend.ensureHost()
+    const modelId = await liveGuardedModelId(host)
     const session = await host.startSession({
       workspaceRoot,
-      modelId: LIVE_MODEL_ID,
+      modelId,
       approvalMode: 'onRequest',
     })
     let activeTurnId: string | undefined
@@ -121,7 +122,7 @@ async function runDrill(workspaceRoot: string, reviewerRoot: string): Promise<Dr
             reviews.hold(event, {
               session,
               host: () => Promise.resolve(host),
-              modelId: LIVE_MODEL_ID,
+              modelId,
               request: {
                 userRequest,
                 recentCalls: calls,

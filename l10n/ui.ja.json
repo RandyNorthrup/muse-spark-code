@@ -1331,6 +1331,9 @@
       "targetUnavailable": "このスケジュールの対象は、このホストでは利用できません。",
       "targetClosed": "対象が閉じられました。",
       "deliveryFailed": "Delivery failed: {reason}",
+      "deferredEventGaveUp": {
+        "other": "{scheduleId} のスケジュールされたイベントは {count} 回失敗したため、再実行されません: {reason}"
+      },
       "schedulePaused": "配信前にスケジュールが一時停止されました。",
       "scheduleDeleted": "配信前にスケジュールが削除されました。",
       "scheduleEdited": "スケジュールの時刻、対象、または配信モードが変更されました。",

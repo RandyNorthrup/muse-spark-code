@@ -23,7 +23,7 @@ import { reviewTurnText } from '../../src/core/review/reviewPrompt'
 import { REVIEW_FINDINGS_LANGUAGE } from '../../src/shared/constants'
 import type { Logger } from '../../src/host/logger'
 import { stderrLogger } from '../../src/runtime/stderrLog'
-import { countAttempts, LIVE_MODEL_ID, liveBackend, sessionLog, sleep } from './liveCli'
+import { countAttempts, liveBackend, liveGuardedModelId, sessionLog, sleep } from './liveCli'
 
 const IS_ENABLED = process.env['MUSE_LIVE_E2E'] === '1'
 const TURN_TIMEOUT_MS = 180_000
@@ -46,9 +46,10 @@ async function runDrill(workspaceRoot: string): Promise<{ sessionId: string; tex
   const events: AgentEvent[] = []
   try {
     const host = await backend.ensureHost()
+    const modelId = await liveGuardedModelId(host)
     const session = await host.startSession({
       workspaceRoot,
-      modelId: LIVE_MODEL_ID,
+      modelId,
       approvalMode: 'denyUnmatched',
     })
     const done = new Promise<AgentEvent>((resolve) => {
@@ -129,9 +130,10 @@ async function runReviewDrill(workspaceRoot: string) {
   const restored: PlanModeRestore[] = []
   try {
     const host = await backend.ensureHost()
+    const modelId = await liveGuardedModelId(host)
     const session = await host.startSession({
       workspaceRoot,
-      modelId: LIVE_MODEL_ID,
+      modelId,
       approvalMode: 'promptUnmatched',
     })
     const hold = new PlanModeHold({
