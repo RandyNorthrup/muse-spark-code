@@ -34,6 +34,7 @@ const SERVE_FILES = [
   'dist/modelApiBoundaries.js',
   'dist/resourceAdmission.js',
   'dist/resourceGovernor.js',
+  'dist/resourceGovernorWindows.js',
   'dist/resourceJournal.js',
   'dist/resourceProcess.js',
   'dist/execGuard.js',
