@@ -15,6 +15,19 @@ pub struct Shadow {
     pub spread: f32,
 }
 
+/// The column inset for a viewport width: half the overflow past the
+/// column, or zero. Mirrors the CSS max() formula over the viewport.
+#[must_use]
+pub const fn column_inset(viewport_px: u32) -> u32 {
+    viewport_px.saturating_sub(COLUMN_MAX_WIDTH) / 2
+}
+
+/// The column gutter for a viewport width: the inset plus the gap.
+#[must_use]
+pub const fn column_gutter(viewport_px: u32) -> u32 {
+    column_inset(viewport_px) + GAP
+}
+
 pub const SURFACE_LIGHT: u32 = 0xFFFF_FFFF;
 pub const SURFACE_DARK: u32 = 0xFF18_1818;
 pub const SURFACE_HC_LIGHT: u32 = 0xFFFF_FFFF;
@@ -382,8 +395,6 @@ pub const CHIP_HEIGHT: u32 = 20;
 pub const BUTTON_HEIGHT: u32 = 28;
 pub const COLUMN_MAX_WIDTH: u32 = 760;
 pub const PILL_MIN_WIDTH_REM: f32 = 2.5;
-pub const COLUMN_INSET: u32 = 0;
-pub const COLUMN_GUTTER: u32 = 0;
 pub const BAR_HEIGHT: u32 = 32;
 pub const STATUS_HEIGHT: u32 = 24;
 pub const RAIL_WIDTH: u32 = 48;

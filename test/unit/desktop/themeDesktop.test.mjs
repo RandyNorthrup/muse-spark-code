@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { inflateSync } from 'node:zlib'
 import { afterEach, describe, expect, it } from 'vitest'
 import { highlightTree, tags } from '@lezer/highlight'
 import {
@@ -14,6 +15,7 @@ import { Terminal } from '@xterm/headless'
 import { TILING } from '../../../src/shared/desktopContracts'
 import {
   CM_HIGHLIGHT,
+  DESKTOP_BINARY_OUTPUTS,
   DESKTOP_CONSUMERS,
   DESKTOP_MODES,
   HYPR_TOKEN_NAMES,
@@ -26,10 +28,12 @@ import {
   emitHex,
   hyprModel,
   parseConsumers,
+  pngPixel,
   renderCodeMirror,
   renderDesktop,
   renderLua,
   renderPaletteCss,
+  renderPlymouth,
   renderQml,
   renderRust,
   renderXterm,
@@ -365,6 +369,29 @@ describe('M111 TH desktop theme', () => {
     expect(lua).toContain('innerGap = 4')
   })
 
+  it('emits the viewport geometry as functions, never a silent zero', () => {
+    const parsed = parseConsumers(consumers)
+    const qml = renderQml(parsed)
+    expect(qml).toContain('function columnInsetFor(width)')
+    expect(qml).toContain('function columnGutterFor(width)')
+    expect(qml).not.toContain('columnInset:')
+    const rust = renderRust(parsed)
+    expect(rust).toContain('pub const fn column_inset(viewport_px: u32) -> u32')
+    expect(rust).toContain('pub const fn column_gutter(viewport_px: u32) -> u32')
+    expect(rust).not.toContain('COLUMN_INSET')
+  })
+
+  it('fails loudly when a viewport formula changes shape', () => {
+    const reshaped = structuredClone(consumers)
+    reshaped.modes.dark['layout.column-inset'].css = 'max(0px, (100cqw - 760px) / 2)'
+    expect(() => renderQml(parseConsumers(reshaped))).toThrow(
+      'Viewport formula changed shape: layout.column-inset in dark',
+    )
+    expect(() => renderRust(parseConsumers(reshaped))).toThrow(
+      'Viewport formula changed shape: layout.column-inset in dark',
+    )
+  })
+
   it('refuses a QML property collision instead of shadowing a token', () => {
     const doubled = structuredClone(consumers)
     for (const mode of DESKTOP_MODES) {
@@ -399,6 +426,60 @@ describe('M111 TH desktop theme', () => {
           expect(entry.value).toBe(emitHex(resolvedColour(parsed, mode, entry.token)))
         }
       }
+    }
+  })
+
+  it('writes boot pixels that decode to the token colours', async () => {
+    const parsed = parseConsumers(consumers)
+    expect(pngPixel(0x30, 0x36, 0x42).equals(pngPixel(0x30, 0x36, 0x42))).toBe(true)
+    for (const [file, role] of [
+      ['desktop/shell/theme/boot/progress-track.png', 'progressTrack'],
+      ['desktop/shell/theme/boot/progress-fill.png', 'progressFill'],
+    ]) {
+      expect(DESKTOP_BINARY_OUTPUTS.has(file)).toBe(true)
+      const bytes = await readFile(path.join(root, file))
+      expect([...bytes.subarray(0, 8)]).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+      let offset = 8
+      let idat
+      while (offset < bytes.length) {
+        const length = bytes.readUInt32BE(offset)
+        const type = bytes.subarray(offset + 4, offset + 8).toString()
+        if (type === 'IDAT') idat = bytes.subarray(offset + 8, offset + 8 + length)
+        offset += 12 + length
+      }
+      const pixel = [...inflateSync(idat)]
+      const token = role === 'progressTrack' ? 'colour.hover' : 'colour.brand-mark'
+      const hex = emitHex(resolvedColour(parsed, 'dark', token))
+      expect(pixel).toEqual([
+        0,
+        Number.parseInt(hex.slice(1, 3), 16),
+        Number.parseInt(hex.slice(3, 5), 16),
+        Number.parseInt(hex.slice(5, 7), 16),
+      ])
+    }
+  })
+
+  it('drives Plymouth through its verified script API only', () => {
+    const script = renderPlymouth(parseConsumers(consumers))
+    for (const call of [
+      'Window.SetBackgroundTopColor',
+      'Window.SetBackgroundBottomColor',
+      '.SetX (',
+      '.SetY (',
+      '.SetZ (',
+      '.Scale (',
+      '.Crop (',
+      '.SetImage (',
+      'Math.Int (',
+      'Plymouth.SetBootProgressFunction',
+      'Plymouth.SetDisplayMessageFunction',
+    ]) {
+      expect(script).toContain(call)
+    }
+    // The trailing space distinguishes the wrong SetMessageFunction from the
+    // right SetDisplayMessageFunction.
+    for (const missing of ['SetPosition', 'SetClip', 'Image.Rectangle', 'SetMessageFunction (']) {
+      expect(script).not.toContain(missing)
     }
   })
 
