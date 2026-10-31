@@ -322,3 +322,276 @@ fixes, the real-process suite, the catch baseline), `52bee4eb4` (the
 `948134811` (this record, CHANGELOG, PLAN, roadmap, ACP guide), and the commit that
 moves the suite's folder and hooks inside its POSIX-only block (nothing is made on
 a platform where it is skipped) and names these commits.
+
+## 9. RLF-SHUTDOWN2: the suite on the real Muse Code CLI, no stand-in (2026-10-31)
+
+Claude Code lane `RLF-SHUTDOWN2`, worktree `/Users/randy/lanes/RLF-SHUTDOWN2`,
+branch `rec/rlf-shutdown2`, on `Macmini.ivettnet` (macOS 15.7.4, Intel x86_64,
+Node 24.21.0), based on `rec/rlf-shutdown` (`6e88ebd35`). The repository's rule
+(CLAUDE.md, AGENTS.md) allows no stand-in for the CLI. Sections 1 to 8 stay as
+written. This lane changes **no source file**: the suite `test/unit/acpShutdown.test.ts`
+and this record.
+
+Muse model requests: **0**. No prompt was ever sent; every agent ran in its own
+HOME with `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY` (and lower case) at a dead
+local port (127.0.0.1:9, TCP discard, refused at once; the suite checks that
+nothing listens there before it starts a CLI) and `NO_PROXY` empty. In the CLI's own
+session index (`session-index.db`, table `sessions`) of the answered-state homes
+examined (1 exploration run and the 5 packed-agent runs) there are **0** rows.
+Nothing was pushed, rebased, stashed or tagged.
+
+### 9.1 What the real CLI does here, measured
+
+All with the production `dist/acp.js` (and, in 9.6, the packed agent), the
+installed Muse Code 1.4.11-R6667.1 (`~/.local/bin/muse`, found by the product's own
+`resolveMuseLaunch`), `MUSE_NO_AUTO_UPDATE=1` so the launcher touches nothing in
+its install folder.
+
+| Sign-in file in the fresh HOME                                              | What the CLI does                                                                                                                                                                                                                                                                                                            |
+| --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v1-auth-set.json` (placeholder inline sign-in), way (a)                    | **Blocks at start, never answers.** Every start with an inline sign-in (exploration, suite and packed runs) blocked; none answered. `sample` of the CLI: the same stack as CC-INT7 §6.1 (`SecItemAdd` > `defaultKeychainUI` > `makeLoginAuthUI` > `AuthorizationCopyRights` > `xpc_connection_send_message_with_reply_sync`) |
+| `v1-browser-login.macos.json` (placeholder account sign-in, inline)         | Blocks the same way. So both inline shapes block; the cause is inferred from the binary's strings ("keychain became unavailable mid-migration"): it moves an inline sign-in into the Keychain at start. UNMEASURED beyond the two shapes                                                                                     |
+| `v2-empty.json` (no credential in the file; the agent still starts the CLI) | **Answers `initialize` in 312 ms** (no Keychain write). Through the dead proxy it cannot fetch its models, so `session/new` is refused by the agent in 0.5 s: "The backend offers no model this agent may use." The answered CLI is left idle: way (b)                                                                       |
+
+So way (b), the unreachable proxy, does not hang the CLI on this rig: it makes the
+start fail to finish with a said refusal, and leaves the **answered** Muse Code that
+section 7 item 2 called unreachable. That state is now measured (9.4). Way (a) is
+the blocked start.
+
+**Which keychain the blocked write targets.** `security` under the throwaway
+HOME: `default-keychain` answers "A default keychain could not be found", and
+`list-keychains` lists only `/Library/Keychains/System.keychain`; a lookup of the CLI's
+service exits 44 (not found). macOS resolves the login keychain from HOME, so the
+write waits for a dialog to create a default keychain under the throwaway HOME,
+not for the account's own. That is measured for `security` (the same Security
+framework); the CLI's own resolution is not measured directly. Evidence that nothing
+was written is in 9.5.
+
+**A real CLI that ignores SIGTERM.** Section 1's deaf stand-in has no real
+counterpart by itself: a SIGSTOPped CLI is ended at once by SIGTERM on macOS (the
+agent ended in 0.07 s, the CLI gone), and the blocked CLI handles SIGTERM. An ignored
+signal disposition survives `exec`, so the case starts the same real CLI through
+three lines of shell (`trap '' TERM; exec <the CLI> "$@"`): the process is the real
+`muse-bin` throughout (`ps`: its command, its parent the agent), it survives the
+agent's SIGTERM, and the agent ends it by SIGKILL after the grace (measured 2.0 s,
+the suite asserts at least 1.9 s and under 10 s).
+
+**The child in the CLI's group is not kept.** The stand-in's child modelled a tool
+of the CLI's. The blocked or idle CLI has no child, and the product's vault fence
+removes `BASH_ENV` from the CLI's environment (`src/core/vault/exec/fence.ts`), so
+none can be planted; I did not work around the fence. The group assertion stays:
+the CLI leads its own group (the SDK made it one), the group exists before the
+client leaves, and it is gone after.
+
+**The suite needs the signed macOS helper.** On this worktree the first run of the
+unchanged `RLF-SHUTDOWN` suite failed 7 of 11 cases ("Muse Code never started"):
+`session/new` ended with the redacted "That did not work" and the agent's log said
+only `Error`, because `native/darwin/muse-dictate-screen-x64.app` (a gitignored
+output of `native/darwin/build.sh`, read for process identity) was not built here.
+Other lanes' worktrees had it. After `bash native/darwin/build.sh` the suite starts the
+real CLI. The suite now skips by name when it is missing. (A checkout without the
+build gets a start that says nothing a person can act on; that is the product's
+redaction, unchanged by this lane.)
+
+### 9.2 The suite
+
+`test/unit/acpShutdown.test.ts`, 16 cases (POSIX; Windows is skipped as before),
+**no stand-in**: no Node process imitates the CLI. Where each state runs:
+
+- **Before any backend started** (4 cases): needs no Muse Code; runs wherever the
+  suite runs, hosted CI included. Input closed, SIGTERM, SIGINT, SIGHUP each end the
+  agent with exit 0, and no Muse Code appears.
+- **With the real Muse Code CLI**, skipped by name when it is not installed
+  (`with the real Muse Code CLI (SKIPPED: no Muse Code CLI is installed on this machine)`,
+  checked here by hiding it: 4 passed, 12 skipped), when the platform is not macOS, or
+  when the signed helper is not built:
+  - **while Muse Code is still starting, blocked in the Keychain** (7 cases): the
+    five leaves (input closed, SIGTERM, SIGINT, SIGHUP, the editor vanishing with its
+    pipes) end the agent with exit 0 within 10 s and the CLI and its group are gone;
+    the CLI that ignores SIGTERM is ended by SIGKILL after the grace; another agent's
+    Muse Code and a bystander process are never touched, and that other agent still
+    ends its own. The client leaves **as the process appears** (the launch shell, the
+    launcher, the CLI: one pid through the exec chain), so it lands in the launch window
+    of cause 4; the ignoring case waits for the CLI itself. Skipped by name, with the
+    reason, in a login session that can show a dialog (anything but `launchctl
+managername` = `Background`): the blocked start waits for a Keychain dialog and
+    must never put one on a person's screen.
+  - **after Muse Code answered and the session could not start** (5 cases, the
+    answered Muse Code of way (b), checked by the agent's "no model" refusal and the
+    CLI's "Connected to muse" line): the same five leaves end the agent with exit 0 and
+    the CLI and its group.
+- **Every case also checks**: the Keychain item was not written, in the case's own
+  HOME (`security find-generic-password` scoped to the CLI's service and account from
+  the product's `MACOS_KEYCHAIN_LOOKUP_ARGS`, attributes only, and no
+  `Library/Keychains` folder) and in the account's own (its facts unchanged since the
+  suite started); a Muse Code a leave did not end is killed and **named with its
+  parent** in the failure.
+
+Per case, final runs: 0.7 s (no backend), 1.0 s (blocked, five leaves), 3.2 s (the
+SIGTERM-ignoring one, two seconds of it the grace), 1.8 s (two agents), 1.1 s
+(answered, five leaves). Repository's own 5 s default is not used: the file names one
+30 s per-case budget for a case that starts the production agent and a real CLI and
+waits for both to exit (as the stand-in suite did); no case takes more than 3.2 s.
+Final runs, `--maxWorkers=3`: **16 of 16 in each of six runs** after the last logic
+change, no `muse-bin` process left behind (`ps` after each).
+
+### 9.3 Red/green drills, on the real CLI
+
+**Old shutdown code restored** (the five source files `timeouts.ts`,
+`museCodeBackendManager.ts`, `museResourceLaunch.ts`, `main.ts`, `webStreams.ts` from
+`4e6a7140c`, `serveLifetime.ts` removed; the constant stays), the whole suite, then
+restored from `HEAD` and the suite green. **14 of 16 cases red, 2 green:**
+
+| State and way of leaving                | Old code                                                                                                           |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| no backend: input closed                | green (the input end already worked)                                                                               |
+| no backend: SIGTERM, SIGINT, SIGHUP     | red: the agent was killed by the signal (`code: null, signal`)                                                     |
+| starting: input closed                  | red: timed out at 30 s (the SDK's drain window); the real CLI still the agent's child                              |
+| starting: SIGTERM, SIGINT, SIGHUP       | red: agent killed by the signal; **the real CLI left, parent 1** (`muse-bin-1.4.11-R6667.1 serve --disable-shell`) |
+| starting: the editor vanishing          | red: timed out at 30 s; the real CLI left                                                                          |
+| starting: SIGTERM-ignoring CLI          | red: agent killed by SIGTERM; **the real CLI left, parent 1**                                                      |
+| starting: another agent's CLI untouched | red: agent killed; its CLI **left, parent 1**, and the other agent's was left running too                          |
+| answered: input closed                  | green (an answered CLI reads the end of its input and leaves; the SDK's ladder was never the fault)                |
+| answered: SIGTERM, SIGINT, SIGHUP       | red: agent killed by the signal (the CLI left by itself on the closed pipe)                                        |
+| answered: the editor vanishing          | red: agent exit 1, expected 0 (EPIPE on the log)                                                                   |
+
+Then **one edit each**, the filtered cases, restored from `HEAD`, the same command
+green (`git status` clean after each):
+
+| #   | Break                                                                                        | Cases run                        | Red                                                                                                                                 | Green         |
+| --- | -------------------------------------------------------------------------------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| D1  | `main.ts`: `webReadable(process.stdin, leaving.signal)` back to `webReadable(process.stdin)` | the four SIGTERM cases           | 4 of 4 failed: 30 s timeouts, the agent never ended (3 of them with the real CLI left running)                                      | 4 of 4 passed |
+| D2  | `serveLifetime.ts`: the stderr EPIPE listener removed                                        | both "vanishing" cases           | 2 of 2: agent `code: 1`, expected 0                                                                                                 | 2 of 2 passed |
+| D3  | `museResourceLaunch.ts`: the abandon of an unanswered handshake removed                      | the seven "still starting" cases | 7 of 7: 30 s timeouts, the real CLI left running (parent: the agent)                                                                | 7 of 7 passed |
+| D4  | `museResourceLaunch.ts`: the SIGKILL after the grace removed                                 | the SIGTERM-ignoring case        | 1: timed out at 30 s, the real CLI left running                                                                                     | passed        |
+| D8  | `museResourceLaunch.ts`: SIGKILL straight after SIGTERM, no grace                            | the SIGTERM-ignoring case        | 1: `expected 67 to be >= 1900`                                                                                                      | passed        |
+| D5  | `museCodeBackendManager.ts`: `waitForAnswer` back on `this.resourceStop.signal`              | the seven "still starting" cases | 6 of 7: 30 s timeouts, the real CLI left running (the launch-window hang); the ignoring case, which leaves after the window, passes | 7 of 7 passed |
+| D6  | `timeouts.ts` early `throw` back                                                             | `serveHandshakeWait` (section 4) | not rerun here: this lane changes neither file                                                                                      |               |
+
+D5 is the first drill that needed the real CLI's timing: the client leaves as the
+process appears, inside the launch window. With the stand-in it was the pid file; here
+it is the launch shell's group leader, found by `ps`.
+
+**The suite's own guards**, edited, run, restored:
+
+| #   | Break                                                                              | Red                                                                                  | Green  |
+| --- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------ |
+| G1  | the home's lookup must be "found" (`.not.toBe(0)` to `.toBe(0)`)                   | 1: `expected 44 to be 0`                                                             | passed |
+| G2  | the home's folder check on `Library` (the CLI makes `Library/Application Support`) | 1: `expected true to be false`                                                       | passed |
+| G3  | the account's facts compared with `{ status: 0 }`                                  | 1: `expected { status: 44, attributes: '' } to deeply equal { status: 0, … }`        | passed |
+| G4  | `DEAD_PORT` moved to a port with a listener                                        | the real-CLI group failed in `beforeAll`: "something listens on the dead proxy port" | passed |
+
+### 9.4 The answered state, now measured
+
+Section 7 item 2 said a Muse Code that already answered "is UNMEASURED here".
+With the empty sign-in the real CLI answers, and every way of leaving ends the
+agent and the CLI at once: the suite's five cases (0.8 to 1.2 s with the agent's
+start included) and the packed agent's five runs (9.6). The answered CLI reads the
+end of its input and leaves, so this is not the SDK's drain ladder; the ladder for an
+answered CLI that does **not** leave on end of input (up to 30 s, SIGTERM, 2 s,
+SIGKILL) stays UNMEASURED: no way to make the real CLI answer and then ignore its
+input without Muse was found.
+
+### 9.5 Keychain: what was checked
+
+Service names the CLI uses: `ai.meta.dev.credentials`, account `meta` (the
+product's `MUSE_KEYCHAIN_SERVICE` and `MUSE_KEYCHAIN_ACCOUNT`; it is the only
+`ai.meta.dev.…` string in `muse-bin`). The product's own: `Muse Spark Code
+(Unofficial)` (`KEYRING_SERVICE`, also the vault anchors and the vault's
+`vaultStoreScope` records), `Muse Spark Code (Unofficial).test.<scope>`
+(`keyringParts`, `keystoreOwner`, `credentialLease`, `providerHeadersStore`) and
+`Muse Spark Code (Unofficial).vault.v1` (the native vault key,
+`native/darwin/VaultKey.swift`).
+
+- **Before the first run** (04:06): `security find-generic-password -s
+ai.meta.dev.credentials -a meta` and `-s "Muse Spark Code (Unofficial)"` both exit 44. `security dump-keychain` of `login.keychain-db` (attributes only, no secret, read
+  under a 60 s alarm, the file deleted at once, only matching service names printed):
+  161 entries, 135 service names, **0 whose service contains `muse` or `ai.meta`** (the
+  one match of the looser pattern `meta` was Apple's `MetadataKeychain`).
+- **After the last run**: the same lookups exit 44; the dump has the same 161 entries
+  and 135 service names, 0 matching, and `login.keychain-db` has the same modification
+  time (Oct 31 03:56, before this lane started).
+- **After each of the lane's runs**: the suite's per-case checks (9.2) passed in
+  every green run; for the exploration and packed runs by hand: 12 exploration HOMEs
+  and 11 packed-run HOMEs, each looked up with `HOME=<home> security
+find-generic-password -s ai.meta.dev.credentials -a meta` (exit 44 each) and
+  none has a `Library/Keychains` folder. No CLI start completed a Keychain write;
+  every blocked one was ended by a leave or the driver.
+- **The earlier `related` run** (section 6: `providerHeadersStore`, the
+  `test/unit/vault/**` suites, run on this Mac mini before the exclusions): **no item of
+  theirs is in this machine's login keychain now** (none under `Muse Spark Code
+(Unofficial)` in any of the three forms above). Whether those suites ever wrote one
+  and removed it is UNMEASURED (they failed here for want of a screen). **Deleted by
+  this lane: nothing; there was nothing named exactly to delete.** Seen and not touched:
+  141 empty `0700` folders `/tmp/muse-spark-keys-<uuid>` (the keystore's lock folder,
+  `KEYSTORE_LOCK_DIR`, with a random test scope) left by test runs between Oct 30 08:26
+  and Oct 31 03:39, not by this lane (not Keychain items; outside this worktree).
+
+### 9.6 The packed agent, the answered state beside the blocked one
+
+`npm run package:acp -- --target darwin-x64` (after `native/darwin/build.sh` and
+`native/darwin/build-local-judge.sh`, the helpers it requires): **146 of 146 package
+checks**, the tgz extracted into a new empty folder, `dist/acp.js` driven by the
+SDK's ACP client against the real CLI as in 9.1, one action 3 s after the CLI is
+seen (blocked) or after the refusal (answered). Time until `ps` shows the agent and the
+CLI gone (sampled every 100 ms, so 0.16 s is "at the first sample"):
+
+| State and action                    | Agent         | Muse Code (real) | Both gone after |
+| ----------------------------------- | ------------- | ---------------- | --------------- |
+| blocked: input closed               | exit 0        | gone             | 0.16 s          |
+| blocked: SIGTERM / SIGINT / SIGHUP  | exit 0 (each) | gone             | 0.16 s (each)   |
+| blocked: the editor vanishing       | exit 0        | gone             | 0.16 s          |
+| answered: input closed              | exit 0        | gone             | 0.16 s          |
+| answered: SIGTERM / SIGINT / SIGHUP | exit 0 (each) | gone             | 0.16 s (each)   |
+| answered: the editor vanishing      | exit 0        | gone             | 0.16 s          |
+
+### 9.7 Gates
+
+On the final tree, exit codes as run:
+
+| Gate                                                                                         | Exit   | Note                                                                                                                                                                                                                           |
+| -------------------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `prettier --check`, `eslint --max-warnings 0` on the touched files                           | 0, 0   | (the pre-commit hook ran both on each commit as well)                                                                                                                                                                          |
+| `npm run typecheck` (all six projects)                                                       | 0      |                                                                                                                                                                                                                                |
+| `node scripts/check-l10n.mjs`                                                                | 0      | 0 problems; no text a person reads changed                                                                                                                                                                                     |
+| `npm run check:reference`, `check:host-api`, `check:plan`, `check:roadmap`                   | 0 each |                                                                                                                                                                                                                                |
+| `npm run check:catches`                                                                      | 0      | no count changed                                                                                                                                                                                                               |
+| `npm run duplication`, `npm run cycles`, `npm run deadcode`                                  | 0 each | 0 clones; no cycle                                                                                                                                                                                                             |
+| `npm run build`                                                                              | **1**  | **the base's four rows over, no fifth, no budget raised**: `teamHost.js` 140.2 of 130 KiB, `teamRunners.js` 78.4 of 75, `teamScheduler.js` 76.5 of 75, `uiText.js` 126.2 of 125 (section 6; this lane touches no bundle input) |
+| `npm run security:sast` (`SSL_CERT_FILE=/etc/ssl/cert.pem`)                                  | 1      | the same 6 blocking findings, in `os/build.py`, `os/pi/compose.py`, `scripts/build-packs.mjs`, `src/core/backends/modelapi/mcp/headers.ts` and `src/runtime/node/keyStore.ts`; none in a file of this lane                     |
+| `npm run security:audit`                                                                     | 1      | `follow-redirects` (high), 9 advisories, the base's (CC-INT7 §9 item 3)                                                                                                                                                        |
+| `npx vitest run test/unit/acpShutdown.test.ts --maxWorkers=3`, the repository's own timeouts | 0      | 16 passed of 16, six runs                                                                                                                                                                                                      |
+| `npx vitest related test/unit/acpShutdown.test.ts --run`                                     | 0      | 1 file, 16 passed of 16. The only changed file besides docs is the suite itself; no source file changed, so there is no `related` run for a source                                                                             |
+
+### 9.8 Not proven, and open questions for the lead
+
+1. **The blocked states run only in a session with no screen.** In a login session
+   that can show a Keychain dialog they are skipped by name; they have not run on a
+   Mac with a screen (the MacBook rule forbids starting anything that could show one).
+   The answered-state cases do not provoke a dialog (the CLI answered without any
+   UI-needing call, which would have hung here) and run in any session on a Mac with
+   the CLI; they have not been run in one with a screen either. Option: leave as is
+   (recommended); or add a person-run drill on a Mac with a screen.
+2. **Hosted CI.** The CLI is not installed there: the 4 no-backend cases run (on
+   Linux and macOS), the 12 real-CLI cases are skipped by name with the reason. The
+   real CLI's states are proven on a machine that has it (this Mac mini), not in CI.
+3. **Linux and Windows have no real-CLI proof** (the suite says so in the skip
+   reason): the empty sign-in is `unsupportedHere` off macOS, and the Keychain block
+   is macOS's. A Linux or Windows machine with the CLI could use the placeholder
+   sign-in (it is inline there) for the answered state; not measured.
+4. **The CLI that answers and does not leave on end of input** (9.4) stays
+   UNMEASURED; so does the Windows stop (section 7 item 3).
+5. **The product says nothing a person can act on when `session/new` fails for a
+   missing signed helper** (9.1): "That did not work" and a log line `Error`. A
+   source checkout without `native/darwin/build.sh` met it. Not changed here
+   (redaction is by design, D-rule on text the CLI or the OS chose); a distinct
+   said sentence for "the macOS helper is missing" would be a small lane if wanted.
+6. **The base's four over-budget bundles, the audit and the six SAST findings**
+   stay red, unchanged by this lane (section 6).
+
+### 9.9 Commits
+
+On `rec/rlf-shutdown2`, after `6e88ebd35`: `d3aa086a9` (the suite on the real CLI,
+no stand-in), `bb15fb0a3` (the client leaves as the process appears; the
+SIGTERM-ignoring case once the CLI itself runs), and the commit carrying this section,
+the PLAN.md status line and the regenerated roadmap.
