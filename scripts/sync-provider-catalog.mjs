@@ -24,8 +24,8 @@ import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { z } from 'zod'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 export const CATALOG_SOURCE = 'https://models.dev/api.json'
 export const CATALOG_UPSTREAM = 'https://github.com/anomalyco/models.dev'
@@ -647,10 +647,7 @@ export async function run(argv, vendorDir = DEFAULT_VENDOR_DIR) {
   throw new Error(USAGE)
 }
 
-if (
-  process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
-) {
+if (isEntryPoint(import.meta.url)) {
   try {
     await run(process.argv.slice(2))
   } catch (error) {

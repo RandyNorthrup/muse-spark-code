@@ -3,9 +3,9 @@ import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { appendFileSync, existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { z } from 'zod'
 import { vsixReleaseAssets } from './lib/vsixTargets.mjs'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 const SHA = z.string().regex(/^[a-f\d]{40}$/)
 const REPOSITORY = z.object({ full_name: z.string() })
@@ -216,10 +216,7 @@ export function verifyBuild(directory, tree, version, run = execute, isLegacyRec
   }
 }
 
-if (
-  process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
-) {
+if (isEntryPoint(import.meta.url)) {
   const [mode, directory] = process.argv.slice(2)
   let tree
   const { version } = MANIFEST.parse(JSON.parse(readFileSync('package.json', 'utf8')))

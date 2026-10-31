@@ -6,8 +6,7 @@
 // artifact kept the archive and dropped the loose files.
 import { execFileSync } from 'node:child_process'
 import { assertArchiveMembers } from './lib/solidTextArchive.mjs'
-import { pathToFileURL } from 'node:url'
-import path from 'node:path'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 // One entry per document a panel builds: the chat and tasks (main),
 // Models & Agents (models), usage, What's New and reporting.
@@ -43,10 +42,7 @@ function main() {
   console.log(`webview archive: ${String(members)} members, every panel file present in ${vsix}`)
 }
 
-if (
-  process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
-) {
+if (isEntryPoint(import.meta.url)) {
   try {
     main()
   } catch (error) {

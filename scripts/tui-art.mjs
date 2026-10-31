@@ -5,6 +5,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const ICON = path.join(ROOT, 'media/icon.svg')
@@ -114,9 +115,6 @@ function main() {
   writeFileSync(path.join(ROOT, 'design/tui/art.generated.ts'), `${module.join('\n')}\n`)
 }
 
-if (
-  process.argv[1] !== undefined &&
-  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-) {
+if (isEntryPoint(import.meta.url)) {
   main()
 }

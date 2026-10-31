@@ -19,7 +19,6 @@ import {
   repositoryUrl,
   selectWhatsNewReleases,
 } from './lib/whatsNewContent.mjs'
-import { pathToFileURL } from 'node:url'
 import { listFiles, pack } from '@vscode/vsce/out/package.js'
 import { assertNoVsixFonts } from './notices-fonts.mjs'
 import { assertPackagedBundles } from './check-packaged-bundles.mjs'
@@ -31,6 +30,7 @@ import {
   vsixArtifactName,
   isVsixTargetFile,
 } from './lib/vsixTargets.mjs'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 const RECENT_RELEASES = 2
 const HISTORY = 'https://github.com/RandyNorthrup/muse-spark-code/blob/main/CHANGELOG.md'
@@ -285,9 +285,6 @@ async function main() {
   }
 }
 
-if (
-  process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
-) {
+if (isEntryPoint(import.meta.url)) {
   await main()
 }

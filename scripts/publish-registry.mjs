@@ -4,12 +4,11 @@ import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { appendFileSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import path from 'node:path'
 import { setTimeout } from 'node:timers/promises'
-import { pathToFileURL } from 'node:url'
 import { gunzipSync } from 'node:zlib'
 import { z } from 'zod'
 import { targetOfVsix } from './lib/vsixTargets.mjs'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 // The declared bin of pinned ovsx 1.2.0, run through Node without a shell shim.
 // Static resolution also lets the dependency gate see the actual tool use.
@@ -321,10 +320,7 @@ export async function pollAllVisible(entries, deps = {}) {
   }
 }
 
-if (
-  process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
-) {
+if (isEntryPoint(import.meta.url)) {
   const [channel, ...artifacts] = process.argv.slice(2)
   try {
     // One package per platform plus the untargeted fallback (PLAN.md D209):

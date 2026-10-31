@@ -2,9 +2,8 @@
 // including untagged platform/attestation manifests and cosign attachments.
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
-import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { z } from 'zod'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 const POLICY = JSON.parse(
   readFileSync(new URL('../deploy/container/policy.json', import.meta.url), 'utf8'),
@@ -165,7 +164,7 @@ export function nodeImageRetention(versions, readManifest) {
     .map((entry) => entry.id)
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+if (isEntryPoint(import.meta.url)) {
   try {
     const api = '/users/randynorthrup/packages/container/muse-spark-code-node/versions'
     const versions = Versions.parse(

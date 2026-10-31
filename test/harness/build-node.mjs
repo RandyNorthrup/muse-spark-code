@@ -7,6 +7,7 @@ import { Buffer } from 'node:buffer'
 import { createRequire } from 'node:module'
 import ts from 'typescript'
 import { uiTextProperties } from '../../scripts/lib/uiTextRegions.mjs'
+import { isEntryPoint } from '../../scripts/lib/entryPoint.mjs'
 
 // This independent surface keeps its own inline English fallback. Its factory
 // projects the installed table onto these keys before the existing table check;
@@ -174,7 +175,7 @@ export async function buildNodeWorkspace(output = 'dist/webview/node', dependenc
   return result.metafile
 }
 
-if (process.argv[1]?.replaceAll('\\', '/').endsWith('/test/harness/build-node.mjs')) {
+if (isEntryPoint(import.meta.url)) {
   const temporary = path.resolve('temp/u1-deps/node_modules')
   await buildNodeWorkspace(undefined, existsSync(temporary) ? temporary : undefined)
   const meta = JSON.parse(readFileSync('dist/meta-node/workspace.json', 'utf8'))

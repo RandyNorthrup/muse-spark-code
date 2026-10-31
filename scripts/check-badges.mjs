@@ -4,13 +4,13 @@ import { readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { Buffer } from 'node:buffer'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { ReadmeProcessor } from '@vscode/vsce/out/package.js'
 import { JSDOM } from 'jsdom'
 import { fromMarkdown } from 'mdast-util-from-markdown'
 import { parseFragment } from 'parse5'
 import { z } from 'zod'
 import { PNG } from 'pngjs'
+import { isEntryPoint } from './lib/entryPoint.mjs'
 
 const VERSION = z.string().regex(/^\d+\.\d+\.\d+$/)
 const REQUEST_MS = 15_000
@@ -334,10 +334,7 @@ async function main() {
   )
 }
 
-if (
-  process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
-) {
+if (isEntryPoint(import.meta.url)) {
   try {
     await main()
   } catch (error) {
