@@ -367,6 +367,13 @@ happened, not what was planned; superseded entries are kept.
   refused; when the delete of a public gist fails, the message names that
   gist so you can delete it. Unpublish deletes the gist again. The live
   GitHub run stays with the lead.
+- Muse Desktop speaks the same fifteen languages as the panel, from the
+  same tables: native Rust code and the Qt shell read generated tables
+  through one lookup each, with the same locale's dates and numbers. A
+  gate fails an unknown key in native code, a stale generated table, or
+  a character no image font can draw; desktop CSS stays logical so
+  layouts mirror; and the image carries fcitx5 input for Chinese,
+  Japanese and Korean (M111 IN).
 
 ### Changed
 
