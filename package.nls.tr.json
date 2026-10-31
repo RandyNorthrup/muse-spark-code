@@ -259,6 +259,7 @@
   "config.github.useGhLogin.description": "Çekme isteklerinin mevcut GitHub CLI oturumunuzu (`gh auth token`) kullanmasına izin verir; düzenleyicinin GitHub oturumu ve Muse Spark oturumundan sonra en son denenir. Belirteç her seferinde yalnızca bir istek için okunur ve asla saklanmaz. Varsayılan olarak kapalı; yalnızca kullanıcı ayarlarında, bu yüzden bir depo bunu açamaz.",
   "command.vault.title": "Kasa",
   "command.lockVault.title": "Kasayı şimdi kilitle",
+  "command.vaultUndoRetired.title": "Kullanımdan kaldırılan kasa kaydını geri al",
   "config.vault.enabled.description": "Kullanıcı başına kimlik bilgileri kasasını açar veya kapatır. Kayıtlı eski museSpark.vault değeri, bu ayar yapılandırılana kadar geçerlidir.",
   "config.vault.protection.description": "Uyumluluk için saklanır; bu tercih bu derlemede etkili değildir.",
   "config.vault.agentFence.description": "Etkileşimli Model API kabuk komutlarının kimlik bilgisi korumasını denetler. Doğrulama, zamanlamalar, çalışanlar ve kancalar korumalı kalır.",

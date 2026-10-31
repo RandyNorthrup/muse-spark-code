@@ -259,6 +259,7 @@
   "config.github.useGhLogin.description": "Erlaubt Pull Requests, Ihre bestehende GitHub-CLI-Anmeldung (`gh auth token`) zu verwenden, als letzte versucht, nach der GitHub-Anmeldung des Editors und der von Muse Spark. Das Token wird jeweils nur für eine Anfrage gelesen und nie gespeichert. Standardmäßig aus; nur in den Benutzereinstellungen, sodass ein Repository es nicht einschalten kann.",
   "command.vault.title": "Tresor",
   "command.lockVault.title": "Tresor jetzt sperren",
+  "command.vaultUndoRetired.title": "Zurückgezogenen Tresor-Eintrag wiederherstellen",
   "config.vault.enabled.description": "Schaltet den benutzereigenen Zugangsdaten-Tresor ein oder aus. Ein gespeicherter veralteter museSpark.vault-Wert gilt, bis diese Einstellung konfiguriert wird.",
   "config.vault.protection.description": "Zur Kompatibilität gespeichert; diese Einstellung hat in diesem Build keine Wirkung.",
   "config.vault.agentFence.description": "Steuert die Abschirmung von Zugangsdaten für interaktive Model-API-Shellbefehle. Prüfungen, Zeitpläne, Worker und Hooks bleiben abgeschirmt.",

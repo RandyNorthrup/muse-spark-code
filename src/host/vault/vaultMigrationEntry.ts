@@ -27,6 +27,6 @@ export function bindCredentialMigration(
     log: deps.log,
     label: deps.label,
   })
-  deps.shell.bind(controller)
+  deps.shell?.bind(controller)
   return controller
 }

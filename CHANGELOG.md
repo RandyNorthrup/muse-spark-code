@@ -876,6 +876,17 @@ set|status|clear --provider <id> --admin` stores the separate admin
 - Past the retain window a migrated slot's legacy entry retires and
   the slot keeps reading from the vault, including across lock and
   sign-out.
+- **Undo a retired sign-in.** When a stored sign-in's old copy has
+  retired and only the vault holds it, the vault panel lists it under
+  Retired entries with an Undo button, and `Undo Retired Vault Entry` in
+  the Command Palette does the same. Undo puts the exact stored value back
+  as the current one and starts the two-release wait again. It says why
+  it cannot when the entry is already gone, is still current, was never
+  migrated, changed since it retired (your newer value is kept) or is
+  damaged.
+- **Resetting a lost vault now says what it deletes.** Its confirmation
+  states that retired entries are deleted too, because the vault holds
+  their only copies, before you type RESET.
 ### Team scheduler
 
 - **Stacked dependencies.** A task with `on: stacked` starts from its
