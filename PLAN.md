@@ -24293,6 +24293,24 @@ drills exit 1 and the restored tree is green. The full all-cores owner case was
 not run on this PC (the owner's rule), and the GUI second-window row and the
 Kubuntu cgroup row stay pending. Record: `docs/certification/cc-winruns.md`.
 
+**CC-WINWORKERS — the job helper's other callers start no PowerShell
+(2026-10-30, Windows 11, int/recovery 0a5ebd7189 with cc/winhook).**
+CC-WINHOOK's decisions 3 and 4. `MuseSparkJobHost` gains `worker`,
+`contained`, `end-job` and `terminate`, and every caller of the job type but
+the shell tool runs it through `windowsJobHost`: the team workers' file
+commands (`workerOps.ts`, through the governed contained launcher, guarded
+against the working copy they act in), the playbook's contained job and its
+end by name (`containedJob.ts`, `playbookWindow.ts`: the same kill-on-close
+server in C#), and the legacy shell stop's job termination (`processTree.ts`).
+Measured on the owner's PC with the Windows PowerShell engine-start log: one
+PowerShell start per operation before, none after. Still PowerShell: the
+shell tool (the person's shell), the helper's self-test (it proves that shell
+can load the type), the orphan sweep after taskkill (it serves a missing
+helper) and the ungoverned hook route; `RunTeam` (`processLifetime.ts`) is an
+open question in the record. The helper's old library builds
+(`MuseSparkJob-<digest>.dll`) are swept after a build by exact name in its own
+folder. Record: `docs/certification/cc-winworkers.md`.
+
 ---
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
