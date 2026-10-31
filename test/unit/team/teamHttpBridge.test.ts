@@ -8,6 +8,7 @@
 
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
 import { spawn, type ChildProcess } from 'node:child_process'
+import { createServer } from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { TeamHostBinding } from '../../../src/host/teamHostBinding'
@@ -185,6 +186,30 @@ describe('the team HTTP bridge', () => {
       expect(refused['result']).toBeUndefined()
     } finally {
       forged.close()
+    }
+  })
+
+  it('answers a down endpoint with an error naming why, and stays up for the next call', async () => {
+    // A port that was open a moment ago and is closed now: a real refusal.
+    const closed = await new Promise<number>((resolvePort, rejectPort) => {
+      const probe = createServer()
+      probe.once('error', rejectPort)
+      probe.listen(0, '127.0.0.1', () => {
+        const address = probe.address()
+        const port = typeof address === 'object' && address !== null ? address.port : 0
+        probe.close(() => {
+          resolvePort(port)
+        })
+      })
+    })
+    const bridge = startBridge(`http://127.0.0.1:${String(closed)}/mcp`, {})
+    try {
+      const first = await bridge.ask({ jsonrpc: '2.0', id: 1, method: 'tools/list' })
+      expect((first['error'] as { message: string }).message).toContain('ECONNREFUSED')
+      const second = await bridge.ask({ jsonrpc: '2.0', id: 2, method: 'tools/list' })
+      expect((second['error'] as { message: string }).message).toContain('ECONNREFUSED')
+    } finally {
+      bridge.close()
     }
   })
 })
