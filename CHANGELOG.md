@@ -276,6 +276,17 @@ happened, not what was planned; superseded entries are kept.
   otherwise (`0` keeps Retry manual) — showing "Retrying in Ns (attempt
   K of N)" with Stop in the panel while the wait runs. Stop, a refusal,
   or the last attempt shows the error with Retry as before.
+- **Secret-gist sharing core (M118 phase 2, D242; no surface offers it
+  yet).** The publish path behind a future **Secret gist** destination is
+  built. Sharing asks only for the gist permission, and only at the moment
+  you press Share, with words saying what it allows. That grant is kept
+  apart from the GitHub sign-in used for repositories. The preview is
+  scrubbed again as it is sent, and a file name that contains a folder,
+  a home or an account is refused. Declining leaves copy, file and browser
+  sharing working. A gist GitHub did not confirm as secret is deleted and
+  refused; when the delete of a public gist fails, the message names that
+  gist so you can delete it. Unpublish deletes the gist again. The live
+  GitHub run stays with the lead.
 
 ### Changed
 
