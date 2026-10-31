@@ -80,6 +80,16 @@ const REVIEWED: Record<string, Reviewed> = {
     anchor: '-EncodedCommand',
     reason: "a command line for the remote Windows host's own shell, over ssh",
   },
+  'src/core/maker/detect/projectIo.ts': {
+    anchor: 'volumeLabel',
+    reason:
+      'the drive label is one .NET call: no cmdlet module is autoloaded, and the child gets an empty environment, so no inherited PowerShell 7 module path',
+  },
+  'src/core/maker/detect/projectIoWindows.ts': {
+    anchor: 'WINDOWS_PSMODULEPATH_SEGMENTS',
+    reason:
+      "the child's whole environment is PSModulePath set to Windows PowerShell's system module folder (the rule's own folder), nothing inherited",
+  },
 }
 
 function isLiteral(node: ts.Node): boolean {
