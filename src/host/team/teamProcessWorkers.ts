@@ -644,7 +644,8 @@ export function createProcessTeamPorts(deps: TeamProcessWorkersDeps): ProcessTea
         prompt: plan.prompt,
         modelId: spec.entry.agent.model,
         workspaceRoot: copy.repositoryRoot,
-        // `spawnAcpAgent` only starts an agent with its preset's captured switch.
+        // `spawnAcpAgent` only starts an agent whose preset has a captured switch, and
+        // `runAcpWorker` opens its session with the preset's `session/new` option.
         nativeServersExcluded: true,
         isTrusted: deps.isTrusted(),
         io: WORKER_NATIVE_IO,

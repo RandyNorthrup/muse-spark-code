@@ -9,7 +9,7 @@
 // worker kind is the lead's live run (docs/certification/rlf-teamworkers.md).
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
-import { mkdir, mkdtemp, realpath, rm, symlink } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -309,18 +309,12 @@ function processArguments(pid: number): string {
 }
 
 /**
-Our own packed agent as a preset that has captured a switch. The agent has
-no flag for leaving out the person's MCP servers yet, so this preset names
-`--verbose`, a flag it accepts, to reach the code that runs past the switch
-check; the product's `own` preset keeps its switch absent and refuses.
+Our own packed agent as the product's `own` preset: Node stands on the PATH
+as the command and runs the staged agent, which gets the preset's real
+`--no-user-mcp-servers` flag.
 */
-function ownWithSwitch(agentPath: string): AcpPreset {
-  return {
-    ...ACP_PRESETS.own,
-    command: path.basename(process.execPath),
-    defaultArgs: [agentPath],
-    withoutUserServersSwitch: ['--verbose'],
-  }
+function ownOnPackedAgent(agentPath: string): AcpPreset {
+  return { ...ACP_PRESETS.own, command: path.basename(process.execPath), defaultArgs: [agentPath] }
 }
 
 describe('one worker port over every kind a surface runs', () => {
@@ -479,31 +473,32 @@ describe('one worker port over every kind a surface runs', () => {
   })
 })
 
-/** The captured `own` preset with Node standing on the PATH as its command: found, but with no captured switch. */
-function nodeAsOwnAgent(): Parameters<typeof makeRig>[0] {
+/** A preset with Node standing on the PATH as its command: found, then run or refused by its own switch. */
+function nodeAsAgent(agent: TeamAgentRef): Parameters<typeof makeRig>[0] {
+  const id = agent.agentId as 'own' | 'codex'
   return {
-    agent: OWN_AGENT,
+    agent,
     presets: {
       ...ACP_PRESETS,
-      own: { ...ACP_PRESETS.own, command: path.basename(process.execPath) },
+      [id]: { ...ACP_PRESETS[id], command: path.basename(process.execPath) },
     },
     pathEntries: [path.dirname(process.execPath)],
   }
 }
 
 describe.skipIf(process.platform === 'win32')('external agent workers', () => {
-  it('does not start an agent whose switch for leaving out the person’s MCP servers is not captured', async () => {
-    const rig = await makeRig(nodeAsOwnAgent())
-    // The captured preset has no switch yet: the command is found, nothing starts.
+  it('does not start an agent that has no switch for leaving out the person’s MCP servers', async () => {
+    const rig = await makeRig(nodeAsAgent({ ...OWN_AGENT, agentId: 'codex' }))
+    // Codex has only a per-server switch: the command is found, nothing starts.
     const refused = await delegate(rig, 'engineering', 'any work')
     const refusal = await settled(rig, refused)
     expect(refusal.phase).toBe('failed')
-    expect(refusal.failure).toBe(fill(TEAM_MODEL_TEXT.hostExternalNoSwitch, { agent: 'own' }))
+    expect(refusal.failure).toBe(fill(TEAM_MODEL_TEXT.hostExternalNoSwitch, { agent: 'codex' }))
     expect(launchRecords(rig)).toEqual([])
   })
 
   it('names the command it did not find on the PATH once it is gone', async () => {
-    const rig = await makeRig(nodeAsOwnAgent())
+    const rig = await makeRig(nodeAsAgent(OWN_AGENT))
     expect(await rig.workers.probe(OWN_AGENT)).toBe(true)
     rig.pathEntries = []
     const task = await delegate(rig, 'engineering', 'any work')
@@ -515,12 +510,37 @@ describe.skipIf(process.platform === 'win32')('external agent workers', () => {
   })
 
   it(
+    'refuses the real agent’s session in words while the person’s Muse settings turn an MCP server on',
+    async () => {
+      const agentPath = path.join(staged.directory, 'dist', 'acp.js')
+      const rig = await makeRig({
+        agent: OWN_AGENT,
+        presets: { ...ACP_PRESETS, own: ownOnPackedAgent(agentPath) },
+        pathEntries: [path.dirname(process.execPath)],
+      })
+      // The worker's environment keeps HOME and drops XDG_CONFIG_HOME: the agent reads ~/.config/muse.
+      const configured = path.join(path.dirname(rig.repo), 'home', '.config', 'muse')
+      await mkdir(configured, { recursive: true })
+      await writeFile(
+        path.join(configured, 'settings.json'),
+        JSON.stringify({ schema_version: 1, mcpServers: { docs: { command: 'node' } } }),
+      )
+      const task = await delegate(rig, 'engineering', 'any work')
+      const end = await settled(rig, task)
+      expect(end.phase).toBe('failed')
+      // The ACP error's own words reach the person, behind the protocol's fixed prefix.
+      expect(end.failure).toContain(UI_TEXT.acpUserMcpServersConfigured)
+    },
+    WORKER_TEST_TIMEOUT_MS,
+  )
+
+  it(
     'tells the person to sign in with the agent’s own CLI when the real agent has no sign-in',
     async () => {
       const agentPath = path.join(staged.directory, 'dist', 'acp.js')
       const rig = await makeRig({
         agent: OWN_AGENT,
-        presets: { ...ACP_PRESETS, own: ownWithSwitch(agentPath) },
+        presets: { ...ACP_PRESETS, own: ownOnPackedAgent(agentPath) },
         pathEntries: [path.dirname(process.execPath)],
       })
       const task = await delegate(rig, 'engineering', 'any work')

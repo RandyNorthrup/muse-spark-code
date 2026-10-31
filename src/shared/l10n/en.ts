@@ -976,6 +976,8 @@ export const EN = {
       '--muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)',
     'scheduled-prompts':
       '--scheduled-prompts              Offer paid scheduled prompts (Model API backend; its price is asked first)',
+    'no-user-mcp-servers':
+      '--no-user-mcp-servers            Serve only while your Muse Code settings turn on no MCP server (a team worker never inherits them)',
     verbose: '--verbose                        Log every detail on stderr',
     'questions-defer-after':
       '--questions-defer-after <seconds>  Defer questions after this many seconds; no limit unless you set one (0, the default, never defers)',
@@ -5438,6 +5440,12 @@ export const EN = {
   },
   acpNoModels: 'The backend offers no model this agent may use.',
   acpPromptBusy: 'A prompt is already running in this session.',
+  // Started with --no-user-mcp-servers while the person's Muse Code settings turn MCP servers on.
+  acpUserMcpServersConfigured:
+    'Started with --no-user-mcp-servers, but your Muse Code settings turn on MCP servers, and Muse Code has no switch that leaves them out for one run. Turn them off in that file (enabled: false), or start without --no-user-mcp-servers.',
+  // The same flag, with a settings file that cannot be read.
+  acpUserMcpServersUnreadable:
+    'Started with --no-user-mcp-servers, but your Muse Code settings file cannot be read, so this agent cannot tell whether it turns on MCP servers. Repair the file, or start without --no-user-mcp-servers.',
   // {detail}: the failure's fixed-vocabulary cause (an error name, code or kind).
   acpSessionStartFailed:
     'The session could not be started ({detail}). The Muse Spark log has the details.',
@@ -5507,6 +5515,7 @@ export const EN = {
     '  --image-generation               Offer paid image generation (Model API backend; its price is asked first)',
     '  --muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)',
     '  --subscription                   Drive the Model API backend with the Muse Code subscription instead of a key',
+    '  --no-user-mcp-servers            Serve only while your Muse Code settings turn on no MCP server (a team worker never inherits them)',
     '  --no-auto-compaction             Disable automatic compaction',
     '  --verbose                        Log every detail on stderr',
     '  --help, --version',

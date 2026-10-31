@@ -1006,20 +1006,27 @@ export function requireAcpNativeIsolation(isExcluded: boolean): void {
   if (!isExcluded) throw new AcpNativeServersError()
 }
 
-/** Step 1 has not captured the preset's switch for leaving out the user's MCP servers. */
+/** Step 1 has no switch for leaving out the user's MCP servers for this preset. */
 export class AcpUserServersSwitchError extends Error {
   public constructor(readonly preset: AcpPresetId) {
-    super(`Starting ${preset} without the user's servers waits on the step 1 capture`)
+    super(`Starting ${preset} without the user's servers has no captured switch`)
     this.name = 'AcpUserServersSwitchError'
   }
 }
 
+/**
+The arguments an agent starts with: its defaults and its captured switch.
+A preset with neither spawn switch nor `session/new` meta refuses, and so
+does any caller's extra argument, which could undo the switch.
+*/
 export function acpSpawnArgs(input: {
   readonly preset: AcpPreset
   readonly extraArgs?: readonly string[]
 }): readonly string[] {
-  const presetSwitch = input.preset.withoutUserServersSwitch
-  if (presetSwitch === undefined || presetSwitch.length === 0 || (input.extraArgs?.length ?? 0) > 0)
+  const { withoutUserServersSwitch: presetSwitch, withoutUserServersMeta: presetMeta } =
+    input.preset
+  const hasSwitch = presetSwitch !== undefined && presetSwitch.length > 0
+  if ((!hasSwitch && presetMeta === undefined) || (input.extraArgs?.length ?? 0) > 0)
     throw new AcpUserServersSwitchError(input.preset.id)
-  return [...input.preset.defaultArgs, ...presetSwitch]
+  return [...input.preset.defaultArgs, ...(hasSwitch ? presetSwitch : [])]
 }

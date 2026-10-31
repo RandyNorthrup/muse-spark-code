@@ -239,6 +239,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       { name: 'max-budget-usd', shape: '<amount>', fact: factFor('max-budget-usd') },
       { name: 'subscription', shape: '' },
       { name: 'scheduled-prompts', shape: '' },
+      { name: 'no-user-mcp-servers', shape: '' },
       { name: 'help', shape: '' },
       { name: 'version', shape: '' },
     ],
