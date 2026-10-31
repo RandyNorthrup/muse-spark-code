@@ -23281,6 +23281,24 @@ quality/coverage and non-Linux native receipts remain the lead's release gate.
 
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
 
+**RLF-TEMPLEAK — dead creators' temp trees reclaimed (2026-10-30).** Found in
+real use: every finished ACP lane left its `resource-created/trees/muse-tree-*`
+(50–520 MB) at `state:"created"`, `endedAtMs:null` forever — `removeEntry`
+refused every unended created entry even with the owner provably gone, no
+later start could prove the exit at all, no start swept, and the VS Code
+window's registry was a fresh random manifest per window. Entries now name
+their creating process (host, pid, birth, Linux boot), proven gone by the
+locks' `isProcessOwnerGone`; the sweep ends such an entry as failed at proof
+time, keeps a temp tree `RESOURCE_TEMP_KEEP_MS` for diagnosis, then removes it
+under the unchanged identity, marker, confinement and archive rules. Every
+governor host sweeps at start (the existing pressure and post-finish cleans
+unchanged, no new timer), the window shares the persisted agent-data
+registry, and sweep outcomes are said in the log (`onCleanup` wired in the
+editor and the runtime). Entries written before the creator field carry no
+proof and are left in place. Evidence: `docs/certification/rlf-templeak.md`
+(real child processes, SIGKILL, red/green drills, and a packed-agent
+two-start run on `muse-spark-1.3-contributor`).
+
 **CM1072R2 — RVCM1072 lifecycle repair (2026-10-10).** Forward sampler
 disposal through the runtime host's settings wrapper. Sweep the same ownership
 chain in the window, lazy runtime, ACP/CLI and headless shutdown paths; prove

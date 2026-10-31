@@ -8,17 +8,14 @@
 import { writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { CreatedRegistry } from '../../src/core/resources/createdRegistry'
-import { createdPathCommands } from '../../src/core/resources/resourceGovernorEntry'
-import { configureResources } from '../../src/core/resources/admission'
-import { runtimeWindowsJob } from '../../src/runtime/resources/jobs'
 import { createdCreator, createdRegistryProof } from './helpers/resources/registryProof'
+import {
+  createdChildSession,
+  isCreatedChildPlan,
+  type CreatedChildPlan,
+} from './helpers/resources/createdChild'
 
-interface ReclaimPlan {
-  readonly manifest: string
-  readonly base: string
-  readonly storageDir: string
-  readonly packageRoot: string
-  readonly nativeRoot: string
+interface ReclaimPlan extends CreatedChildPlan {
   readonly owner: string
   readonly action: 'hold' | 'exit' | 'finish'
 }
@@ -27,11 +24,7 @@ function isReclaimPlan(value: unknown): value is ReclaimPlan {
   if (typeof value !== 'object' || value === null) return false
   const plan = value as Record<string, unknown>
   return (
-    typeof plan['manifest'] === 'string' &&
-    typeof plan['base'] === 'string' &&
-    typeof plan['storageDir'] === 'string' &&
-    typeof plan['packageRoot'] === 'string' &&
-    typeof plan['nativeRoot'] === 'string' &&
+    isCreatedChildPlan(plan) &&
     typeof plan['owner'] === 'string' &&
     ['hold', 'exit', 'finish'].includes(plan['action'] as string)
   )
@@ -45,14 +38,9 @@ owner as failed first (the launch host's own end-of-work call).
 export async function runCreator(planJson: string): Promise<void> {
   const plan: unknown = JSON.parse(planJson)
   if (!isReclaimPlan(plan)) throw new Error('the reclaim plan did not parse')
-  const windowsJob = runtimeWindowsJob(plan.storageDir, plan.packageRoot)
-  const disposeAdmission = configureResources({
-    inspect: () => ({}),
-    onError: () => undefined,
-    windowsJob,
-  })
+  const session = createdChildSession(plan)
   try {
-    const commands = createdPathCommands(plan.nativeRoot, windowsJob)
+    const commands = session.commands
     // finish() asks the proof whether the owner retired: the launch host
     // answers from its retired set while it finishes a tree, and this
     // process is that host for its own owner at that one moment.
@@ -79,6 +67,6 @@ export async function runCreator(planJson: string): Promise<void> {
       })
     }
   } finally {
-    disposeAdmission()
+    session.dispose()
   }
 }
