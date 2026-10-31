@@ -27407,6 +27407,17 @@ green on both VS Code versions (the M112 panel green in both; the
 minimum-version failures are the activation/focus cases, measured
 pre-existing on the untouched base). The two live checks stay with the
 lead and the owner's key. Record: `docs/certification/rlfinish.md`.
+
+**Status 2026-10-30 (RLF-M112): building.** Every lane and acceptance row
+audited against int's code: lanes 0, Q, U and A are carried (registry,
+both backends' deferral, the dock and transcript, ACP, the runtime, docs
+and help), and the one open row int could carry — the deferral setting's
+stale words — now says D121, guarded by a `questionManifest` case. Open:
+the two live checks (with the lead, counted from trace logs), the
+native-host status mapping (waits for the `lanes/rlf-hostsland` merge),
+the companion page's keys, the TUI row and the desktop row (each waits
+for its lane), and the installed runs. Record:
+`docs/certification/rlf-m112.md`.
 Small: about 48 lane-hours in lane 0 and
 three lanes, for a 0.14.x patch (0.14.3, or folded into 0.14.2 when both are
 ready together). Lanes Q, U and A start together once lane 0's contracts
