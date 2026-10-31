@@ -1100,8 +1100,9 @@ through the ACP agent on both backends are recorded in
 [M112's certification](docs/certification/m112.md); installed-editor checks
 remain with the release lead.
 The integrated panel pins agent questions in the attention dock above the
-composer, after approvals, and keeps only a compact marker in the transcript. After
-one minute Muse continues work that does not depend on the answer. The card
+composer, after approvals, and keeps only a compact marker in the transcript. Once
+the seconds you set have passed, Muse continues work that does not depend on
+the answer. The card
 becomes an **Open Question**. Its compact transcript marker keeps the icon,
 title and **Answer** button. Answer reopens the pinned card and focuses its first
 control, even after deferral; the open-question chip also opens it. A card with
@@ -1116,8 +1117,8 @@ tab title and History marker show the count. Native editors use their own
 bindings: these keys conflict with defaults in JetBrains and Visual Studio.
 
 `museSpark.questions.deferAfterSeconds` is machine-scoped: no limit unless
-you set one (0, the default, waits indefinitely; otherwise 10–3600 seconds,
-and 1–9 are read as 10).
+you set one (0, the default, waits indefinitely; otherwise any whole number
+of seconds, used as set).
 A workspace setting cannot change it. Open questions survive a reload and
 resume, with at most 20 open per session and two reminders per question.
 A late answer is your own message in the current mode and approves nothing.

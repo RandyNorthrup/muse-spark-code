@@ -471,6 +471,10 @@ happened, not what was planned; superseded entries are kept.
   real with the terminal agent; the extension builds the helper through the
   same code). Only those exact names in the helper's own folder are touched;
   a build another running window still holds is removed once it lets go.
+- The Questions setting says what it does. `museSpark.questions.deferAfterSeconds`
+  no longer promises a 60-second default, a 10-second minimum or a 3,600-second
+  maximum: nothing defers unless you set a number of seconds (0, the default,
+  waits indefinitely), matching the setting's actual behaviour.
 - A pack index is accepted only when the signature covers those exact bytes
   and the signer is the pack workflow on `main`, exactly. A signature for a
   branch whose name merely begins with `main`, or a signed statement that
