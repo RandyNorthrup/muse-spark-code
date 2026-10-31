@@ -6,11 +6,11 @@
 // re-fetched on transient failure, and nothing is called installed until
 // the binary itself answers. Installer output is discarded: it names
 // paths under the person's home, which never reach a log or a sentence.
-import { execFile } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { promisify } from 'node:util'
+import { noWorkspaceChildEnvironment } from '../../../core/execGuard'
+import { execFileGuarded, type GuardedExecFileOptions } from '../../../core/guardedChildProcess'
 import {
   HTTP_REDIRECT_STATUSES,
   HTTP_STATUS,
@@ -22,7 +22,29 @@ import {
   MUSE_POSIX_INSTALL_SEGMENTS,
 } from '../../../shared/constants'
 
-const runFile = promisify(execFile)
+/**
+The first boot has no workspace: the child's environment is the guarded one
+without a workspace (empty and relative PATH entries dropped), and `bash`
+resolves through it.
+*/
+function runFile(
+  file: string,
+  args: readonly string[],
+  options: Omit<GuardedExecFileOptions, 'env'>,
+  env: NodeJS.ProcessEnv,
+): Promise<{ readonly stdout: string }> {
+  return new Promise((resolve, reject) => {
+    execFileGuarded(
+      file,
+      args,
+      { ...options, env: noWorkspaceChildEnvironment(process.platform, env, realpathSync) },
+      (error, stdout) => {
+        if (error === null) resolve({ stdout })
+        else reject(error instanceof Error ? error : new Error('muse setup process failed'))
+      },
+    )
+  })
+}
 
 /** Download attempts: the common three (curl's --retry shape). */
 const FETCH_ATTEMPTS = 3
@@ -184,13 +206,17 @@ async function runInstaller(
   try {
     const file = path.join(dir, 'install.sh')
     writeFileSync(file, script, 'utf8')
-    await runFile('bash', [file], {
-      cwd: homeDir,
-      env: { ...env, HOME: homeDir, [MUSE_NO_MODIFY_PATH_VARIABLE]: '1' },
-      timeout: Math.max(1, timeoutMs),
-      maxBuffer: INSTALL_OUTPUT_MAX_BYTES,
-      windowsHide: true,
-    })
+    await runFile(
+      'bash',
+      [file],
+      {
+        cwd: homeDir,
+        timeout: Math.max(1, timeoutMs),
+        maxBuffer: INSTALL_OUTPUT_MAX_BYTES,
+        windowsHide: true,
+      },
+      { ...env, HOME: homeDir, [MUSE_NO_MODIFY_PATH_VARIABLE]: '1' },
+    )
   } catch (error: unknown) {
     throw new MuseSetupFailure(wasKilled(error) ? 'timed-out' : 'install-failed', {
       cause: error,
@@ -203,13 +229,22 @@ async function runInstaller(
 }
 
 /** The installed CLI answers --version; anything else is not installed. */
-async function verifyInstall(musePath: string, timeoutMs: number): Promise<string> {
+async function verifyInstall(
+  musePath: string,
+  env: NodeJS.ProcessEnv,
+  timeoutMs: number,
+): Promise<string> {
   try {
-    const { stdout } = await runFile(musePath, ['--version'], {
-      timeout: Math.max(1, timeoutMs),
-      maxBuffer: INSTALL_OUTPUT_MAX_BYTES,
-      windowsHide: true,
-    })
+    const { stdout } = await runFile(
+      musePath,
+      ['--version'],
+      {
+        timeout: Math.max(1, timeoutMs),
+        maxBuffer: INSTALL_OUTPUT_MAX_BYTES,
+        windowsHide: true,
+      },
+      env,
+    )
     const first = stdout.split('\n', 1)[0]?.trim() ?? ''
     if (first === '') throw new MuseSetupFailure('verify-failed')
     return first.slice(0, SHOWN_VERSION_MAX_CHARS)
@@ -242,7 +277,7 @@ export async function installMuseCode(
     const remainingAfterInstall = deadline - Date.now()
     if (remainingAfterInstall <= 0) return { ok: false, reason: 'timed-out' }
     const musePath = path.join(resolveMuseInstallDir(options.homeDir, env), MUSE_POSIX_EXECUTABLE)
-    const version = await verifyInstall(musePath, remainingAfterInstall)
+    const version = await verifyInstall(musePath, env, remainingAfterInstall)
     return { ok: true, version }
   } catch (error: unknown) {
     // NARROW: our own branded failures become reasons; anything else is a bug.

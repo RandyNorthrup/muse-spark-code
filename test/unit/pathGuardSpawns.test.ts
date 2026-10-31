@@ -148,9 +148,57 @@ const KNOWN: Record<string, KnownSpawn> = {
     reason:
       'the shipped C# helper compiled once per source into the private directory and ping-proved before use; SystemRoot-only env, argument array, no shell',
   },
+  'src/core/maker/detect/onPi.ts': {
+    kind: 'reviewed',
+    anchor: 'MAKER_PI_COMMAND_PATHS',
+    reason:
+      "the Raspberry Pi probes by fixed absolute path (each stat'd and checked executable first) at cwd '/', an empty env, argument array, no shell, timeout and bounded output (M103)",
+  },
+  'src/core/maker/detect/projectIo.ts': {
+    kind: 'reviewed',
+    anchor: '/usr/bin/findmnt',
+    reason:
+      "absolute /usr/bin/perl listing a descriptor already opened inside the project, absolute /usr/bin/findmnt, or the system root's Windows PowerShell 5.1 for a drive label; an empty env (no cmdlet module is used), argument array, no shell, timeout and bounded output (M103)",
+  },
+  'src/core/maker/detect/projectIoWindows.ts': {
+    kind: 'reviewed',
+    anchor: 'WINDOWS_PSMODULEPATH_SEGMENTS',
+    reason:
+      'absolute SystemRoot Windows PowerShell 5.1 only, an env of nothing but PSModulePath set to the system module folder, argument array, no shell, hidden window, timeout and bounded output (M103)',
+  },
+  'src/core/maker/serial/nativeLease.ts': {
+    kind: 'reviewed',
+    anchor: 'helper.process.env',
+    reason:
+      'the lease helper the runtime prepared (the compiled Windows helper, or python3 under -I with the shipped script) with the env nativeSerial makes by workspaceChildEnvironment (no workspace on PATH, credentials and keyring routes removed), argument array, no shell, own process group on POSIX (M103)',
+  },
+  'src/core/maker/serial/process.ts': {
+    kind: 'reviewed',
+    anchor: 'deps.env',
+    reason:
+      'the serial helper the runtime prepared, started with the env nativeSerial makes by workspaceChildEnvironment (no workspace on PATH, credentials and keyring routes removed), argument array, no shell, own process group on POSIX, byte and time bounds (M103)',
+  },
+  'src/runtime/maker/userPresence.ts': {
+    kind: 'reviewed',
+    anchor: '/usr/bin/pkcheck',
+    reason:
+      'absolute /usr/bin/pkcheck only, an empty env (a system-bus client: no LD_PRELOAD), argument array, no shell, timeout and one-byte output bound (M103)',
+  },
 }
 
 const KNOWN_WRAPPER: Record<string, KnownSpawn> = {
+  'src/runtime/maker/commands.ts': {
+    kind: 'guarded',
+    anchor: 'noWorkspaceChildEnvironment',
+    reason:
+      'the maker page opener: Windows PowerShell 5.1 through windowsPowerShell (its guarded env) or absolute /usr/bin/open or /usr/bin/xdg-open, with the no-workspace guarded child env (M103)',
+  },
+  'src/runtime/maker/nativeSerial.ts': {
+    kind: 'guarded',
+    anchor: 'noWorkspaceChildEnvironment',
+    reason:
+      'serial port listing and ownership probes (fixed absolute programs, the system root PowerShell through windowsPowerShell) with the no-workspace guarded child env (M103)',
+  },
   'src/host/estimator/planSnapshotSource.ts': {
     kind: 'guarded',
     anchor: 'resolveExecutable',

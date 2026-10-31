@@ -15,6 +15,7 @@ import {
   environmentValue,
   noWorkspaceChildEnvironment,
   windowsPowerShell,
+  workspaceChildEnvironment,
 } from '../../core/execGuard'
 import { realpathSync } from 'node:fs'
 import { runtimeLeaseIdentity } from './stop'
@@ -52,7 +53,12 @@ export interface NativeSerialDeps {
   readonly audit: Parameters<typeof runSerialAction>[1]['log']
 }
 export function nativeSerial(deps: NativeSerialDeps) {
-  const env = withoutKeyringRoutes(withoutCredentials(deps.env))
+  // The helpers' bare `python3` resolves on a PATH without the run workspace.
+  const env = workspaceChildEnvironment(
+    deps.platform,
+    withoutKeyringRoutes(withoutCredentials(deps.env)),
+    { workspaceRoot: deps.workspace, realpath: realpathSync },
+  )
   // Windows names ignore case; a copied environment is a plain object that does not.
   const systemRoot = environmentValue(deps.env, deps.platform, 'SystemRoot')
   const tree = {
