@@ -453,7 +453,17 @@ export function connectorStorageGuard(root: string): ConnectorStorageGuard {
     } catch (error: unknown) {
       if (!isMissing(error)) throw error
     }
-    if (resolvedRoot === undefined) return { root, anchor }
+    if (resolvedRoot === undefined) {
+      // Nothing created yet: the chain above is still read as the system
+      // resolves it (macOS's /var is a link), or as given while the anchor is
+      // missing too, where the creations below are secured.
+      try {
+        return { root, anchor: await realpath(anchor) }
+      } catch (error: unknown) {
+        if (isMissing(error)) return { root, anchor }
+        throw error
+      }
+    }
     const resolvedAnchor = await resolveAnchor(anchor)
     const expected = path.join(resolvedAnchor, path.basename(root))
     const isRootMatch =
