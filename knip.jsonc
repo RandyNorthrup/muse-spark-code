@@ -745,10 +745,18 @@
     "src/webview/components/AudioAttachmentActions.tsx",
     "src/webview/developer/DeveloperOptionsPage.tsx",
     "src/webview/media/toolEntry.tsx",
-    "src/webview/media/ToolVideo.tsx"
+    "src/webview/media/ToolVideo.tsx",
+    // M111 WB (D91.12): the Electron workbench's esbuild entries, built by
+    // scripts/build-desktop.mjs, which knip does not trace.
+    "desktop/app/main.ts",
+    "desktop/app/preload.ts",
+    "src/webview/desktop/main.tsx",
+    // M111 WB: the real-Electron smoke run, started by hand under Xvfb.
+    "test/desktop/electron-smoke.mjs"
   ],
 
   "project": [
+    "desktop/**/*.ts",
     "src/**/*.{ts,tsx}",
     "test/**/*.{ts,tsx}",
     "test/**/*.mjs",

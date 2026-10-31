@@ -1176,6 +1176,7 @@ export const EN = {
   referenceNodeTreeKeys:
     'Move between files, expand or collapse a folder, or open the active file.',
   referenceNodeEditorKeys: 'Save the open file.',
+  referenceDesktopTerminalKeys: 'Run the typed line in the Muse Desktop terminal.',
   referenceThinking:
     'Choose how much effort Muse puts into each reply. Thinking: On = effort; Off = museCode:none / modelApi:minimal.',
   referenceSandbox:
@@ -9538,6 +9539,41 @@ export const EN = {
     back: 'Back',
     install: 'Install',
     installingPacks: forms({ one: 'Installing {count} pack', other: 'Installing {count} packs' }),
+    workbenchChat: 'Chat',
+    workbenchEditor: 'Editor',
+    workbenchSidebar: 'Sidebar',
+    workbenchTerminal: 'Terminal',
+    workbenchProblems: 'Problems',
+    workbenchOutput: 'Output',
+    workbenchQuickOpen: 'Search files by name',
+    workbenchNoFileOpen: 'No file is open. Press Ctrl+P to open one.',
+    workbenchNoProblems: 'No problems have been found.',
+    workbenchNoOutput: 'Nothing has written output yet.',
+    workbenchNewTerminal: 'New terminal',
+    workbenchCloseTerminal: 'Close terminal',
+    workbenchTerminalExited: 'Terminal exited with code {code}.',
+    workbenchSave: 'Save',
+    workbenchUnsaved: 'Unsaved changes',
+    workbenchSetupTitle: 'Welcome to Muse Desktop',
+    workbenchSetupDetail: 'Choose a folder to work in. Muse Desktop opens one window per folder.',
+    workbenchOpenFolder: 'Open folder…',
+    workbenchBridgeUnavailable:
+      'The desktop bridge is unavailable. Start Muse Desktop from its application, not from a browser.',
+    workbenchLayoutUnreadable:
+      'The saved layout could not be read, so the default layout is in use.',
+    workbenchFileUnreadable: 'This file could not be read as text.',
+    workbenchStatusWorkspace: 'Workspace: {name}',
+    workbenchStatusTerminals: forms({
+      one: '{count} terminal',
+      other: '{count} terminals',
+    }),
+    workbenchToggleSidebar: 'Toggle sidebar',
+    workbenchToggleRail: 'Toggle rail',
+    workbenchToggleTerminal: 'Toggle terminal panel',
+    workbenchDetachTerminal: 'Detach terminal',
+    workbenchDockTerminal: 'Dock terminal',
+    workbenchCollapseTerminal: 'Collapse into footer',
+    workbenchExpandTerminal: 'Expand terminal panel',
   },
 
   // M103 maker surfaces and guard: deferred readers retain the accepted wording.

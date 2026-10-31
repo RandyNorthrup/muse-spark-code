@@ -1,0 +1,254 @@
+/* Muse Desktop (M111, D91.13) lane WB: workbench chrome. Every value is a
+   --ms-* token from M114's generated sheet; no raw paint lives here. */
+
+body {
+  margin: 0;
+  background-color: var(--ms-surface);
+  color: var(--ms-text);
+  font: var(--ms-font-size) / var(--ms-line-ui) var(--ms-font-ui);
+}
+
+.muse-desktop input {
+  border: 1px solid var(--ms-input-border);
+  border-radius: var(--ms-radius-sm);
+  background: var(--ms-input-surface);
+  color: var(--ms-input-text);
+  padding: var(--ms-space-4) var(--ms-space-8);
+  font: inherit;
+}
+
+.muse-desktop {
+  display: flex;
+  block-size: 100vh;
+}
+
+.muse-desktop-chat {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-block-size: 0;
+  border-inline-end: 1px solid var(--ms-border);
+  overflow: auto;
+}
+
+.muse-desktop-centre {
+  flex: 1;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  min-block-size: 0;
+}
+
+.muse-desktop-editor {
+  flex: 1;
+  min-block-size: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.muse-desktop-code {
+  flex: 1;
+  min-block-size: 0;
+  border: 0;
+  padding: var(--ms-space-8);
+  background: var(--ms-code-surface);
+  color: var(--ms-text);
+  font-family: var(--ms-font-code);
+  resize: none;
+}
+
+.muse-desktop-terminal {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  border-block-start: 1px solid var(--ms-border);
+  background: var(--ms-surface);
+}
+
+.muse-desktop-terminal-floating {
+  position: fixed;
+  inset-inline-end: var(--ms-space-16);
+  inset-block-end: var(--ms-space-48);
+  inline-size: min(720px, 80vw);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-lg);
+  box-shadow: var(--ms-elevation-popover);
+  z-index: 3;
+}
+
+.muse-desktop-terminal-body {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 0;
+  flex: 1;
+}
+
+.muse-desktop-terminal-output {
+  flex: 1;
+  min-block-size: 0;
+  overflow: auto;
+  margin: 0;
+  padding: var(--ms-space-8);
+  font-family: var(--ms-font-code);
+  white-space: pre-wrap;
+}
+
+.muse-desktop-footer {
+  flex: none;
+  border-block-start: 1px solid var(--ms-border);
+  padding: var(--ms-space-4) var(--ms-space-8);
+  background: var(--ms-raised);
+}
+
+.muse-desktop-rail {
+  flex: none;
+  inline-size: var(--ms-rail-width);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ms-space-4);
+  padding-block: var(--ms-space-4);
+  border-inline-start: 1px solid var(--ms-border);
+}
+
+.muse-desktop-rail button {
+  inline-size: var(--ms-rail-button-size);
+  min-block-size: var(--ms-rail-button-size);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 0;
+  border-radius: var(--ms-radius-sm);
+  background: transparent;
+  color: var(--ms-text);
+}
+
+.muse-desktop-rail kbd {
+  font-family: var(--ms-font-code);
+  font-size: var(--ms-font-small);
+  color: var(--ms-muted);
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
+  text-align: center;
+  line-height: var(--ms-line-ui);
+}
+
+.muse-desktop-sidebar {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-block-size: 0;
+  border-inline-start: 1px solid var(--ms-border);
+  overflow: auto;
+}
+
+.muse-desktop-pane-head {
+  flex: none;
+  padding: var(--ms-space-8) var(--ms-space-12);
+  border-block-end: 1px solid var(--ms-border);
+  font-weight: var(--ms-weight-bold);
+}
+
+.muse-desktop-tabs {
+  display: flex;
+  gap: var(--ms-space-4);
+  align-items: center;
+  overflow-x: auto;
+}
+
+.muse-desktop-tabs button {
+  border: 0;
+  border-radius: var(--ms-radius-sm);
+  background: transparent;
+  color: var(--ms-text);
+  padding: var(--ms-space-4) var(--ms-space-8);
+  white-space: nowrap;
+}
+
+.muse-desktop-tabs button[aria-selected='true'] {
+  background: var(--ms-raised);
+  outline: var(--ms-focus-width) solid var(--ms-focus);
+  outline-offset: var(--ms-focus-offset);
+}
+
+.muse-desktop-files {
+  list-style: none;
+  margin: 0;
+  padding: var(--ms-space-4);
+}
+
+.muse-desktop-files button {
+  border: 0;
+  background: transparent;
+  color: var(--ms-text);
+  text-align: start;
+  inline-size: 100%;
+  padding: var(--ms-space-4);
+  border-radius: var(--ms-radius-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.muse-desktop-quickopen {
+  position: fixed;
+  inset-block-start: var(--ms-space-48);
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  inline-size: min(560px, 90vw);
+  background: var(--ms-overlay);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-lg);
+  box-shadow: var(--ms-elevation-overlay);
+  padding: var(--ms-space-8);
+  z-index: 4;
+}
+
+.muse-desktop-quickopen input {
+  inline-size: 100%;
+}
+
+.muse-desktop-quickopen ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-block-size: 320px;
+  overflow: auto;
+}
+
+.muse-desktop-setup {
+  padding: var(--ms-space-32);
+  font-family: var(--ms-font-ui);
+  color: var(--ms-text);
+  background: var(--ms-surface);
+  block-size: 100vh;
+}
+
+.muse-desktop-setup-body {
+  padding: var(--ms-space-12);
+}
+
+.muse-desktop-empty {
+  padding: var(--ms-space-16);
+  color: var(--ms-muted);
+}
+
+.muse-desktop-terminal-actions {
+  display: flex;
+  gap: var(--ms-space-4);
+  padding: var(--ms-space-4);
+}
+
+.muse-desktop :focus-visible,
+.muse-desktop-setup :focus-visible {
+  outline: var(--ms-focus-width) solid var(--ms-focus);
+  outline-offset: var(--ms-focus-offset);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .muse-desktop-rail {
+    transition: inline-size var(--ms-motion-flip) ease;
+  }
+}

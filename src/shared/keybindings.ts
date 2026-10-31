@@ -201,6 +201,16 @@ export const WEBVIEW_KEYBINDINGS = {
       text: { ui: 'referenceNodeEditorKeys' },
     },
   },
+  // Muse Desktop (M111, D91.12) lane WB: the workbench's own chord table
+  // lives in shared/desktop/keybindings.ts; these two contexts cover the
+  // workbench's text inputs so no handler owns a key literal.
+  'desktop.quickOpen': {
+    accept: { keys: [{ key: 'Enter' }], text: { ui: 'referenceMenuKeys' } },
+    close: { keys: [{ key: 'Escape' }], text: { ui: 'referenceMenuKeys' } },
+  },
+  'desktop.terminal': {
+    submit: { keys: [{ key: 'Enter' }], text: { ui: 'referenceDesktopTerminalKeys' } },
+  },
 } as const satisfies Readonly<Record<string, Readonly<Record<string, KeyBinding>>>>
 
 interface KeyEvent {
