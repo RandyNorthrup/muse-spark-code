@@ -1,4 +1,4 @@
-// RLF-QUOTA (PLAN.md D229): a spent subscription window is its own turn
+// RLF-QUOTA (PLAN.md D252): a spent subscription window is its own turn
 // outcome, never "internal" and never transient. The CLI's typed
 // `TurnError.quota` (ADR 50047) rides `turn/completed` onto the
 // `turnCompleted` event; every surface states it with the reset in the

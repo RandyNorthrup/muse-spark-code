@@ -34,7 +34,7 @@ function quotaFailed(isRetryable: boolean): TurnCompleted {
 // again. Absent judgment never reads as retryable. A retryable turn says
 // RLWINFIX2's sentence with its own detail; the rest keep their typed
 // codes (the failed turn with its kind, the credential store's no-answer).
-// RLF-QUOTA (PLAN.md D229): a spent subscription window is its own
+// RLF-QUOTA (PLAN.md D252): a spent subscription window is its own
 // outcome — its own code, the reset in words, and data a client can wait
 // on — and the outbound gate carries it (and every prompt error's retry
 // judgment) to the wire.

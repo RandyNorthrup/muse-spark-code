@@ -420,7 +420,7 @@ with the turn's own detail; the rest keep their typed codes: the
 credential store's no-answer, else the failed turn with its kind.
 */
 export function turnFailureError(event: TurnCompleted): RequestError {
-  // A spent subscription window (D229): its own outcome, never internal
+  // A spent subscription window (D252): its own outcome, never internal
   // and never transient, whatever the CLI's retryable judgment said. The
   // data carries the kind, the reset instant and the wait: a client can
   // wait until the reset and send again.
@@ -4679,13 +4679,13 @@ interface OutboundErrorData {
   readonly reading?: ResourceReading
   readonly requestSent?: boolean
   /**
-  The backend's retry judgment (RLF-ACPTURNS, restored D229): a bare
+  The backend's retry judgment (RLF-ACPTURNS, restored D252): a bare
   boolean, so a client can offer to send again. A boolean carries no
   content, so the shape is the whole check.
   */
   readonly retryable?: boolean
   /**
-  A spent subscription window's reset instant (D229): the ISO instant
+  A spent subscription window's reset instant (D252): the ISO instant
   the quota error named, so a client can wait until it. Only a parseable
   instant passes; anything else is dropped.
   */
@@ -4876,7 +4876,7 @@ const SDK_MESSAGE_PREFIXES = [
 Templates whose filled sentence may leave. One slot echoes the user's own
 command word in an error about that word (`Unknown argument: /share`);
 the other names a spent subscription window's reset instant in an error
-about that reset (D229). Each template is fixed translated text read
+about that reset (D252). Each template is fixed translated text read
 from the installed table at use time; the values travel only as the
 command word and the Intl-rendered instant, never prompt, blob or key
 content. A raw planted secret carries no template prefix and stays

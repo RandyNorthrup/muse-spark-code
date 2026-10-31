@@ -421,7 +421,7 @@ D2/D3: present iff the stopping failure was the quota class): which quota
 ran out (open vocabulary; `tierLimit` is the subscription usage window)
 and the provider's reset instant in epoch milliseconds. Only the Muse
 Code backend sets it, only with a usable instant, so every reader
-branches on presence alone (PLAN.md D229).
+branches on presence alone (PLAN.md D252).
 */
 const turnQuotaSchema = z.object({
   limitKind: stringSchema,
@@ -470,7 +470,7 @@ const agentEventSchema = z.discriminatedUnion('type', [
     // retryable.
     retryable: optionalBoolean,
     durationMs: optionalNumber,
-    // A spent subscription window (D229): the typed quota detail the
+    // A spent subscription window (D252): the typed quota detail the
     // CLI's `turn/completed` carried, present only with a usable reset
     // instant. Its own outcome downstream — never internal, never
     // transient — whatever `retryable` says.
@@ -494,7 +494,7 @@ const agentEventSchema = z.discriminatedUnion('type', [
     system: optionalString,
     errorKind: optionalString,
     httpStatus: optionalNumber,
-    // A wait until the subscription window resets (D229): the panel
+    // A wait until the subscription window resets (D252): the panel
     // controller forwards the held turn's quota detail on the wait it
     // names, so the row says when the turn continues instead of a
     // seconds count.

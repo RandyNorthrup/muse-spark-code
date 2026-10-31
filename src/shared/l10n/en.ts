@@ -6155,7 +6155,7 @@ export const EN = {
   // where the turn carried one (RLWINFIX2 item 3).
   turnTransientFailed:
     'MuseΓÇÖs service could not finish the turn. The turn kept its work; send the message again to continue.',
-  // A spent subscription window (D229): the CLI's typed quota detail
+  // A spent subscription window (D252): the CLI's typed quota detail
   // said the usage window ran out. Every surface says this with the
   // reset in the person's local time; `{resetTime}` is the Intl
   // date-time. Never transient, never internal.
@@ -6174,7 +6174,7 @@ export const EN = {
   // A retry notice with no stated ceiling (an older CLI's own retry
   // loop, which names none): the wait and the attempt still show.
   turnRetryingUncapped: 'Retrying in {seconds} s (attempt {attempt}).',
-  // The opt-in wait until the subscription window resets (D229): the
+  // The opt-in wait until the subscription window resets (D252): the
   // panel's wait row while the turn continues at the reset. `{resetTime}`
   // is the Intl date-time; the row offers Stop like every wait.
   turnQuotaWaiting:

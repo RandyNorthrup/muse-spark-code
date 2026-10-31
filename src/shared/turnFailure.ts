@@ -6,7 +6,7 @@
 // schema forbids it) — the reason rides along as a technical detail, as
 // it already does on every failed turn.
 //
-// Beside it, the words for a spent subscription window (PLAN.md D229):
+// Beside it, the words for a spent subscription window (PLAN.md D252):
 // one failure sentence and one wait-row sentence the panel, the ACP
 // agent and headless exec share, each with the reset in the person's
 // local time. Only the typed quota detail's presence branches here;

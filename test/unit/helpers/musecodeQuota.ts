@@ -1,4 +1,4 @@
-// RLF-QUOTA (PLAN.md D229): the observed subscription-quota failure as a
+// RLF-QUOTA (PLAN.md D252): the observed subscription-quota failure as a
 // live wire frame. The message text and reset instant are byte for byte
 // from the fixture (the lead's observed 0.19.0 ACP error line,
 // 2026-10-30); the `quota` member follows the CLI 1.4.10 schema export
