@@ -1,0 +1,641 @@
+/* Muse Desktop (M111, D91.13) lane BP: bottom panel chrome. The docked
+   panel, the floating window and the footer strip share this header
+   (panel views, terminal tabs, toolbar) over the terminal panes,
+   Problems and Output. Every value is a --ms-* token from M114's
+   generated sheet; raw numbers below are sizes and layering, never
+   paint. Docking, undocking and collapsing animate, except under
+   reduced motion. */
+
+.muse-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-block-size: 0;
+  min-inline-size: 0;
+}
+
+.muse-panel-drop {
+  outline: var(--ms-focus-width) dashed var(--ms-focus);
+  outline-offset: calc(-1 * var(--ms-focus-width));
+}
+
+.muse-panel-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--ms-space-4);
+  padding-inline: var(--ms-space-8);
+  min-block-size: 34px;
+}
+
+.muse-panel-head [role='tablist'] {
+  display: flex;
+  align-items: center;
+  gap: var(--ms-space-4);
+  overflow-x: auto;
+}
+
+.muse-panel-head-spacer {
+  flex: 1;
+}
+
+.muse-panel-view {
+  border: 0;
+  background: transparent;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ms-space-4);
+  block-size: 30px;
+  padding: 0 var(--ms-space-8);
+  white-space: nowrap;
+}
+
+.muse-panel-view-active {
+  color: var(--ms-text);
+  box-shadow: inset 0 -2px 0 var(--ms-accent);
+}
+
+.muse-panel-badge {
+  background: var(--ms-badge);
+  color: var(--ms-on-badge);
+  border-radius: var(--ms-radius-pill);
+  padding: 0 var(--ms-space-4);
+  font-size: var(--ms-font-small);
+}
+
+.muse-panel-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ms-space-4);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-sm);
+  background: transparent;
+  color: var(--ms-text);
+  padding: var(--ms-space-4) var(--ms-space-8);
+  white-space: nowrap;
+}
+
+.muse-panel-tab:hover {
+  background: var(--ms-hover);
+}
+
+.muse-panel-tab-active {
+  background: var(--ms-raised);
+}
+
+.muse-panel-tab-agent {
+  border-color: transparent;
+  background: var(--ms-selection);
+  color: var(--ms-on-selection);
+}
+
+.muse-panel-tab-agent:hover {
+  background: var(--ms-selection);
+}
+
+.muse-panel-tab-exited {
+  color: var(--ms-muted);
+}
+
+.muse-panel-tab-agent.muse-panel-tab-exited {
+  color: var(--ms-on-selection);
+  opacity: 75%;
+}
+
+.muse-panel-stop,
+.muse-panel-tab-close {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0 var(--ms-space-4);
+  display: inline-flex;
+  align-items: center;
+}
+
+.muse-panel-stop:hover,
+.muse-panel-tab-close:hover {
+  background: var(--ms-hover);
+  border-radius: var(--ms-radius-sm);
+}
+
+.muse-panel-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--ms-space-4);
+}
+
+.muse-panel-tool {
+  border: 0;
+  border-radius: var(--ms-radius-sm);
+  background: transparent;
+  color: var(--ms-text);
+  min-inline-size: var(--ms-control-size);
+  min-block-size: var(--ms-control-size);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+}
+
+.muse-panel-tool:hover {
+  background: var(--ms-hover);
+}
+
+.muse-panel-tool[aria-pressed='true'] {
+  background: var(--ms-raised);
+  color: var(--ms-accent);
+}
+
+.muse-panel-tool-text {
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-sm);
+  background: transparent;
+  color: var(--ms-text);
+  padding: var(--ms-space-4) var(--ms-space-8);
+  font: inherit;
+  white-space: nowrap;
+}
+
+.muse-panel-tool-text:hover {
+  background: var(--ms-hover);
+}
+
+.muse-panel-tool-text:disabled {
+  color: var(--ms-disabled);
+}
+
+.muse-panel-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-block-size: 0;
+  min-inline-size: 0;
+}
+
+.muse-panel-notice {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--ms-space-8);
+  padding: var(--ms-space-4) var(--ms-space-8);
+  background: var(--ms-warning-surface);
+  color: var(--ms-warning-text);
+  border-block: 1px solid var(--ms-border);
+}
+
+.muse-panel-notice button {
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-sm);
+  background: transparent;
+  color: inherit;
+  padding: var(--ms-space-4) var(--ms-space-8);
+  font: inherit;
+  margin-inline-start: auto;
+}
+
+.muse-panel-separator {
+  flex: none;
+  block-size: 6px;
+  cursor: row-resize;
+}
+
+.muse-panel-separator:hover {
+  background: var(--ms-hover);
+}
+
+.muse-panel-split-row,
+.muse-panel-split-column {
+  flex: 1;
+  display: flex;
+  min-block-size: 0;
+  min-inline-size: 0;
+}
+
+.muse-panel-split-row {
+  flex-direction: row;
+}
+
+.muse-panel-split-column {
+  flex-direction: column;
+}
+
+.muse-panel-split-cell {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 0;
+  min-inline-size: 0;
+}
+
+.muse-panel-sash {
+  flex: none;
+}
+
+.muse-panel-split-row > .muse-panel-sash {
+  inline-size: 6px;
+  cursor: col-resize;
+}
+
+.muse-panel-split-column > .muse-panel-sash {
+  block-size: 6px;
+  cursor: row-resize;
+}
+
+.muse-panel-sash:hover {
+  background: var(--ms-hover);
+}
+
+.muse-panel-terminal-shell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-block-size: 0;
+  min-inline-size: 0;
+}
+
+.muse-panel-terminal {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-block-size: 0;
+  min-inline-size: 0;
+}
+
+.muse-panel-terminal-host {
+  flex: 1;
+  min-block-size: 0;
+  min-inline-size: 0;
+}
+
+.muse-panel-terminal-host .xterm {
+  block-size: 100%;
+}
+
+.muse-panel-find {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--ms-space-4);
+  padding: var(--ms-space-4) var(--ms-space-8);
+  border-block-start: 1px solid var(--ms-border);
+  background: var(--ms-raised);
+}
+
+.muse-panel-find-input {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.muse-panel-find-count {
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
+  white-space: nowrap;
+}
+
+.muse-panel-find button {
+  border: 0;
+  border-radius: var(--ms-radius-sm);
+  background: transparent;
+  color: var(--ms-text);
+  min-inline-size: var(--ms-control-size);
+  min-block-size: var(--ms-control-size);
+  font: inherit;
+}
+
+.muse-panel-terminal-empty,
+.muse-panel-terminal-loading,
+.muse-panel-chunk-failed {
+  padding: var(--ms-space-16);
+  color: var(--ms-muted);
+}
+
+.muse-panel-terminal-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ms-space-8);
+}
+
+.muse-panel-terminal-empty button,
+.muse-panel-chunk-failed button {
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-sm);
+  background: transparent;
+  color: var(--ms-text);
+  padding: var(--ms-space-4) var(--ms-space-12);
+  font: inherit;
+}
+
+.muse-panel-empty {
+  padding: var(--ms-space-16);
+  color: var(--ms-muted);
+}
+
+.muse-panel-problems {
+  flex: 1;
+  overflow: auto;
+  margin: 0;
+  padding: var(--ms-space-4);
+  list-style: none;
+  min-block-size: 0;
+}
+
+.muse-panel-problems-path {
+  display: block;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
+  padding: var(--ms-space-4) var(--ms-space-8) 0;
+}
+
+.muse-panel-problems-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.muse-panel-problems-rows [role='option'] {
+  display: flex;
+  align-items: baseline;
+  gap: var(--ms-space-8);
+  padding: var(--ms-space-4) var(--ms-space-8);
+  border-radius: var(--ms-radius-sm);
+}
+
+.muse-panel-problems-rows [role='option'][data-active='true'] {
+  background: var(--ms-selection);
+  color: var(--ms-on-selection);
+}
+
+.muse-panel-severity {
+  flex: none;
+  align-self: center;
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: var(--ms-radius-circle);
+}
+
+.muse-panel-severity-error {
+  background: var(--ms-danger);
+}
+
+.muse-panel-severity-warning {
+  background: var(--ms-warning);
+}
+
+.muse-panel-severity-information {
+  background: var(--ms-info);
+}
+
+.muse-panel-severity-hint {
+  background: var(--ms-muted);
+}
+
+.muse-panel-problem-message {
+  overflow-wrap: anywhere;
+}
+
+.muse-panel-problem-location {
+  margin-inline-start: auto;
+  color: var(--ms-muted);
+  font-family: var(--ms-font-code);
+  font-size: var(--ms-font-small);
+  white-space: nowrap;
+}
+
+.muse-panel-problems-rows [role='option'][data-active='true'] .muse-panel-problem-location {
+  color: var(--ms-on-selection);
+}
+
+.muse-panel-output-wrap {
+  flex: 1;
+  display: flex;
+  min-block-size: 0;
+  min-inline-size: 0;
+}
+
+.muse-panel-output {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-block-size: 0;
+  min-inline-size: 0;
+}
+
+.muse-panel-output-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--ms-space-8);
+  padding: var(--ms-space-4) var(--ms-space-8);
+}
+
+.muse-panel-output-picker {
+  display: flex;
+  align-items: center;
+  gap: var(--ms-space-4);
+}
+
+.muse-panel-output-picker select {
+  background: var(--ms-input-surface);
+  color: var(--ms-input-text);
+  border: 1px solid var(--ms-input-border);
+  border-radius: var(--ms-radius-sm);
+  padding: var(--ms-space-4);
+  font: inherit;
+}
+
+.muse-panel-output-bar button {
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-sm);
+  background: transparent;
+  color: var(--ms-text);
+  padding: var(--ms-space-4) var(--ms-space-8);
+  font: inherit;
+}
+
+.muse-panel-output-truncated {
+  margin: 0;
+  padding-inline: var(--ms-space-8);
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
+}
+
+.muse-panel-output-log {
+  flex: 1;
+  overflow: auto;
+  margin: 0;
+  padding: var(--ms-space-8);
+  background: var(--ms-code-surface);
+  color: var(--ms-code-text);
+  font-family: var(--ms-font-code);
+  font-size: var(--ms-code-size);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  min-block-size: 0;
+}
+
+.muse-panel-floating {
+  position: fixed;
+  inset-inline-end: var(--ms-space-16);
+  inset-block-end: var(--ms-space-48);
+  inline-size: min(720px, 80vw);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  background: var(--ms-surface);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-lg);
+  box-shadow: var(--ms-elevation-popover);
+  overflow: hidden;
+  min-block-size: 0;
+}
+
+.muse-panel-floating-ontop {
+  z-index: 3;
+}
+
+.muse-panel-float-resize {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-end: 0;
+  inline-size: 16px;
+  block-size: 16px;
+  cursor: nwse-resize;
+  border-inline-end: 2px solid var(--ms-muted);
+  border-block-end: 2px solid var(--ms-muted);
+  border-end-end-radius: var(--ms-radius-lg);
+}
+
+.muse-panel-float-resize:dir(rtl) {
+  cursor: nesw-resize;
+}
+
+.muse-panel-foot {
+  display: flex;
+}
+
+.muse-panel-foot [role='tablist'] {
+  display: flex;
+  align-items: center;
+  gap: var(--ms-space-4);
+  overflow-x: auto;
+}
+
+.muse-panel-foot-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ms-space-4);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-sm);
+  background: transparent;
+  color: var(--ms-text);
+  block-size: 20px;
+  padding-inline: var(--ms-space-4);
+  font: inherit;
+  font-size: var(--ms-font-small);
+  white-space: nowrap;
+}
+
+.muse-panel-foot-tab:hover {
+  background: var(--ms-hover);
+}
+
+.muse-panel-dot {
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: var(--ms-radius-circle);
+  flex: none;
+}
+
+.muse-panel-dot-info {
+  background: var(--ms-info);
+}
+
+.muse-panel-dot-success {
+  background: var(--ms-success);
+}
+
+.muse-panel-dialog-wrap {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ms-modal-scrim);
+  z-index: 6;
+}
+
+.muse-panel-dialog {
+  background: var(--ms-overlay);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-lg);
+  box-shadow: var(--ms-elevation-overlay);
+  padding: var(--ms-space-16);
+  max-inline-size: min(480px, 90vw);
+}
+
+.muse-panel-dialog h2 {
+  margin: 0 0 var(--ms-space-8);
+  font-size: var(--ms-font-size);
+}
+
+.muse-panel-dialog p {
+  margin: 0 0 var(--ms-space-12);
+}
+
+.muse-panel-dialog-buttons {
+  display: flex;
+  gap: var(--ms-space-8);
+  justify-content: flex-end;
+}
+
+.muse-panel-dialog-buttons button {
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-sm);
+  background: transparent;
+  color: var(--ms-text);
+  padding: var(--ms-space-4) var(--ms-space-12);
+  font: inherit;
+}
+
+.muse-panel-dialog-buttons button:hover {
+  background: var(--ms-hover);
+}
+
+/* The output bar's and find bar's hover and pressed states sit last:
+   their specificity tops every plain button rule above, and
+   specificity must not descend. */
+.muse-panel-output-bar button:hover {
+  background: var(--ms-hover);
+}
+
+.muse-panel-find button:hover {
+  background: var(--ms-hover);
+}
+
+.muse-panel-find button[aria-pressed='true'] {
+  background: var(--ms-selection);
+  color: var(--ms-on-selection);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .muse-panel,
+  .muse-panel-floating,
+  .muse-panel-foot {
+    animation: muse-panel-in var(--ms-motion-base) var(--ms-ease-standard);
+  }
+}
+
+@keyframes muse-panel-in {
+  from {
+    opacity: 0%;
+    transform: translateY(4px);
+  }
+}

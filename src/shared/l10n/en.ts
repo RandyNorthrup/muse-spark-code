@@ -1127,8 +1127,11 @@ export const EN = {
   referenceNodeTreeKeys:
     'Move between files, expand or collapse a folder, or open the active file.',
   referenceNodeEditorKeys: 'Save the open file.',
-  referenceDesktopTerminalKeys: 'Run the typed line in the Muse Desktop terminal.',
   referenceDesktopResizeKeys: 'Make the panel taller or shorter.',
+  referenceDesktopTerminalSearchKeys:
+    'Move between the terminal find matches, or close the find bar.',
+  referenceDesktopProblemsKeys: 'Move through the problems and open the selected one.',
+  referenceDesktopPanelTabsKeys: 'Move between the bottom panel tabs.',
   referenceThinking:
     'Choose how much effort Muse puts into each reply. Thinking: On = effort; Off = museCode:none / modelApi:minimal.',
   referenceSandbox:
@@ -9329,9 +9332,13 @@ export const EN = {
     panelFindNext: 'Next match',
     panelFindPrevious: 'Previous match',
     panelFindClose: 'Close find',
+    panelFindCase: 'Match case',
+    panelFindWord: 'Match whole word',
+    panelFindRegex: 'Use regular expression',
     panelFindCount: '{current} of {total}',
     panelFindNoResults: 'No results',
     panelCloseRunning: 'This terminal may still be running a command. Close it anyway?',
+    panelCloseConfirm: 'Close',
     panelCancel: 'Cancel',
     panelRetry: 'Retry',
     panelProblemLabel: '{severity}: {message} in {path} at line {line}',
@@ -9343,11 +9350,14 @@ export const EN = {
     }),
     panelRegion: 'Bottom panel',
     panelFloating: 'Floating panel',
+    panelOnTop: 'Keep on top',
+    panelSash: 'Pane divider',
     panelResizeHandle: 'Resize the panel',
     panelTerminalLoading: 'Loading the terminal…',
     panelTerminalFailed: 'The terminal failed to load.',
     panelTerminalCreateFailed: 'The terminal could not be started.',
     panelTabExited: '{title}, exited with code {code}',
+    panelNoTerminals: 'No terminals are open.',
     panelSeverity: { error: 'Error', warning: 'Warning', information: 'Information', hint: 'Hint' },
   },
 }

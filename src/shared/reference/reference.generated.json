@@ -8813,10 +8813,28 @@
       "text": { "ui": "referenceMenuKeys" }
     },
     {
-      "command": "desktop.terminal",
-      "key": "Enter",
-      "when": "desktop.terminal",
-      "text": { "ui": "referenceDesktopTerminalKeys" }
+      "command": "desktop.terminalSearch",
+      "key": "Enter / Shift+Enter / Escape",
+      "when": "desktop.terminalSearch",
+      "text": { "ui": "referenceDesktopTerminalSearchKeys" }
+    },
+    {
+      "command": "desktop.problems",
+      "key": "Enter / Space / ArrowDown / ArrowUp / Home / End",
+      "when": "desktop.problems",
+      "text": { "ui": "referenceDesktopProblemsKeys" }
+    },
+    {
+      "command": "desktop.panelTabs",
+      "key": "ArrowRight / ArrowDown / ArrowUp / ArrowLeft / Home / End / Ctrl+ArrowUp / Cmd+ArrowUp / Ctrl+ArrowDown / Cmd+ArrowDown",
+      "when": "desktop.panelTabs",
+      "text": { "ui": "referenceDesktopPanelTabsKeys" }
+    },
+    {
+      "command": "desktop.panelResize",
+      "key": "ArrowUp / ArrowDown / ArrowRight / ArrowLeft / Home / End",
+      "when": "desktop.panelResize",
+      "text": { "ui": "referenceDesktopResizeKeys" }
     }
   ]
 }

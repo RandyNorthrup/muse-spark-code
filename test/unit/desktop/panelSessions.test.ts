@@ -66,6 +66,21 @@ describe('M111 lane BP terminal sessions', () => {
     expect(events.exits).toEqual([0])
   })
 
+  it('an agent session runs its command and carries its label', async () => {
+    const { events, all } = sessions()
+    const root = await scratch()
+    const created = all.create({
+      cwd: root,
+      cols: 80,
+      rows: 24,
+      agent: { label: 'web-eng', runId: 'run-9', command: 'echo bp-agent-ran' },
+    })
+    expect(created.title).toBe('web-eng')
+    await waitFor(() => events.chunks.join('').includes('bp-agent-ran'))
+    await waitFor(() => events.exits.length === 1)
+    expect(events.exits).toEqual([0])
+  })
+
   it('read-only agent sessions refuse writes while person sessions echo', async () => {
     const { events, all } = sessions()
     const root = await scratch()
@@ -73,7 +88,7 @@ describe('M111 lane BP terminal sessions', () => {
       cwd: root,
       cols: 80,
       rows: 24,
-      agent: { label: 'web-eng', runId: 'run-1', command: 'vitest' },
+      agent: { label: 'web-eng', runId: 'run-1', command: 'exit 3' },
     })
     const person = all.create({ cwd: root, cols: 80, rows: 24 })
     all.write(agent.id, 'echo agent-marker-never-typed\n')
@@ -81,10 +96,13 @@ describe('M111 lane BP terminal sessions', () => {
     await waitFor(() => events.chunks.join('').includes('person-marker-typed'))
     const output = events.chunks.join('')
     expect(output).not.toContain('agent-marker-never-typed')
-    // Closing drops the session at once; only the person's own exit emits.
+    // Closing drops the session at once; both exits emit, either order.
     all.close(agent.id)
     expect(all.list().map((session) => session.id)).toEqual([person.id])
-    await waitFor(() => events.exits.length === 1)
+    await waitFor(() => events.exits.length === 2)
+    expect(events.exits).toHaveLength(2)
+    expect(events.exits).toContain(0)
+    expect(events.exits).toContain(3)
     expect(all.list()).toEqual([])
   })
 

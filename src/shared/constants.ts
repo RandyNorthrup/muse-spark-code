@@ -11502,3 +11502,9 @@ export const DESKTOP_OUTPUT_CHANNEL_NAME_MAX_CHARS = 80
 export const DESKTOP_OUTPUT_APPEND_MAX_CHARS = 65_536
 export const DESKTOP_OUTPUT_CHANNEL_MAX_CHARS = 1_048_576
 export const DESKTOP_PROCESS_TREE_TIMEOUT_MS = 5000
+export const DESKTOP_TERMINAL_DEFAULT_COLS = 80
+export const DESKTOP_TERMINAL_DEFAULT_ROWS = 24
+// Lane BP (D91.13): split panes keep at least a tenth of the split each
+// way, and the sash's arrow keys move a twentieth at a time.
+export const DESKTOP_SPLIT_MIN_FRACTION = 0.1
+export const DESKTOP_SPLIT_KEYBOARD_STEP = 0.05

@@ -65,11 +65,11 @@ export interface TerminalTab {
   readonly title: string
 }
 
-export function nextTerminalAfterClose(
-  tabs: readonly TerminalTab[],
+export function nextTerminalAfterClose<Tab extends TerminalTab>(
+  tabs: readonly Tab[],
   closedId: string,
   activeId: string | undefined,
-): { tabs: readonly TerminalTab[]; activeId: string | undefined } {
+): { tabs: readonly Tab[]; activeId: string | undefined } {
   const remaining = tabs.filter((tab) => tab.id !== closedId)
   if (activeId !== closedId) return { tabs: remaining, activeId }
   const closedIndex = tabs.findIndex((tab) => tab.id === closedId)
