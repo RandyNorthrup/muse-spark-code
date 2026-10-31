@@ -372,6 +372,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Closing your editor, stopping the agent or losing its terminal while Muse
+  Code is still starting no longer leaves Muse Code running. The agent now
+  ends when its editor closes its input, when it is stopped (SIGTERM, SIGINT
+  or SIGHUP), and when the editor crashes with its pipes; it first stops the
+  Muse Code it started, with that program's own helpers. On a Mac whose Muse
+  Code was stuck waiting for a Keychain approval that could not appear,
+  closing the input used to take half a minute to end the agent, and a signal
+  or a crashed editor left Muse Code running for good; now everything ends in
+  under a second. A Muse Code that never answered is stopped at once (SIGTERM,
+  two seconds, then a forced end), one that is running gets its own time to
+  finish what it is doing, and a Muse Code another program started is never
+  touched.
 - `muse-spark-code-acp supervise` and `stop` now say why they refuse.
   When the agent's data folder or a folder above it is writable by other
   users, or its path is too long for the supervisor's control socket,
