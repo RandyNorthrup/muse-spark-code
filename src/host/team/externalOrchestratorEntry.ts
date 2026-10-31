@@ -31,17 +31,20 @@ export interface ExternalOrchestratorEntryDeps {
   readonly now: () => number
 }
 
+function isMissingCandidate(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    (error.code === 'ENOENT' || error.code === 'ENOTDIR')
+  )
+}
+
 function isFile(path: string): boolean {
   try {
     return statSync(path).isFile()
   } catch (error: unknown) {
     // A missing candidate is "not this one"; any other failure keeps its kind.
-    if (
-      error instanceof Error &&
-      'code' in error &&
-      (error.code === 'ENOENT' || error.code === 'ENOTDIR')
-    )
-      return false
+    if (isMissingCandidate(error)) return false
     throw error
   }
 }

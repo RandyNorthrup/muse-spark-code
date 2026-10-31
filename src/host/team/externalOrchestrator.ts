@@ -61,6 +61,7 @@ import { fill } from '../../shared/l10n/text'
 import { withoutCredentials } from '../../core/credentialEnvironment'
 import { isProtectedPath } from '../../core/protectedPaths'
 import { assertWorkerRoot, WORKER_NATIVE_IO } from '../../core/team/workers/workerFence'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import {
   AcpAuthRequiredError,
   AcpMethodNotFoundError,
@@ -111,6 +112,16 @@ function signInSentence(agent: ExternalAgent): string {
     agent: agent.label,
     command: agent.signInCommand,
   })
+}
+
+/** The refusal for what this agent runs itself, in the installed language. */
+function doesItselfSentence(agent: ExternalAgent): string {
+  return fill(UI_TEXT.teamExternalDoesItself, { agent: agent.label })
+}
+
+/** The sentence for an agent process that is not running (D250). */
+function stoppedSentence(agent: ExternalAgent): string {
+  return fill(UI_TEXT.teamExternalStopped, { agent: agent.label })
 }
 
 /** ACP `ToolCallStatus` onto the conversation's item status words. */
@@ -219,27 +230,37 @@ function toolOutputText(wire: ToolCallWire): string | undefined {
   return parts.length === 0 ? undefined : parts.join('\n')
 }
 
+/** A tool call's raw input as the text the panel shows. */
+function rawInputText(rawInput: unknown): string {
+  return typeof rawInput === 'string' ? rawInput : JSON.stringify(rawInput)
+}
+
 /** An item snapshot for a tool call, from the wire's fields as they stand. */
 function toolItemFrom(wire: ToolCallWire, previous?: ItemSnapshot): ItemSnapshot {
   const output = toolOutputText(wire)
+  const args = wire.rawInput === undefined ? previous?.args : rawInputText(wire.rawInput)
+  const visibleOutput = output ?? previous?.visibleOutput
   return {
     itemId: wire.toolCallId,
     kind: 'toolCall',
     status: itemStatus(wire.status ?? undefined, previous?.status ?? IN_PROGRESS),
     tool: wire.title ?? wire.kind ?? previous?.tool ?? 'tool',
-    ...(wire.rawInput === undefined
-      ? previous?.args === undefined
-        ? {}
-        : { args: previous.args }
-      : {
-          args: typeof wire.rawInput === 'string' ? wire.rawInput : JSON.stringify(wire.rawInput),
-        }),
-    ...(output === undefined
-      ? previous?.visibleOutput === undefined
-        ? {}
-        : { visibleOutput: previous.visibleOutput }
-      : { visibleOutput: output }),
+    ...(args !== undefined && { args }),
+    ...(visibleOutput !== undefined && { visibleOutput }),
     ...(wire.status === 'failed' && output !== undefined && { failureReason: output }),
+  }
+}
+
+/** The turn's failure, in words: the agent's own sign-in, or what it said. */
+function turnFailure(
+  agent: ExternalAgent,
+  error: unknown,
+): { readonly kind: string; readonly message: string } {
+  if (error instanceof AcpAuthRequiredError)
+    return { kind: AUTH_KIND, message: signInSentence(agent) }
+  return {
+    kind: 'backend',
+    message: error instanceof Error ? error.message : stoppedSentence(agent),
   }
 }
 
@@ -358,11 +379,7 @@ export class ExternalOrchestratorSession implements AgentSession {
     }
   }
 
-  /**
-  The agent asked permission: the person's card answers, never a policy of
-  ours (D250). Resolves with the chosen ACP option, or undefined (the wire's
-  `cancelled`) when the person dismissed it or the session ended first.
-  */
+  /** Every open permission card ends as dismissed; the agent reads `cancelled`. */
   private settleApprovalsCancelled(): void {
     for (const [approvalId, pending] of this.approvals) {
       this.emit({
@@ -419,15 +436,8 @@ export class ExternalOrchestratorSession implements AgentSession {
       const { stopReason } = await this.promptWithAuth(blocks)
       this.finishTurn(turnId, stopReason === 'cancelled' ? CANCELLED : COMPLETED)
     } catch (error: unknown) {
-      const isAuth = error instanceof AcpAuthRequiredError
-      this.finishTurn(turnId, FAILED, {
-        kind: isAuth ? AUTH_KIND : 'backend',
-        message: isAuth
-          ? signInSentence(this.deps.agent)
-          : error instanceof Error
-            ? error.message
-            : 'The external agent failed',
-      })
+      this.deps.log.warn(`external prompt failed: ${failureForLog(error)}`)
+      this.finishTurn(turnId, FAILED, turnFailure(this.deps.agent, error))
     }
   }
 
@@ -485,7 +495,11 @@ export class ExternalOrchestratorSession implements AgentSession {
     )
   }
 
-  /** The model the agent says this session runs, where it advertises one. */
+  /**
+  The MSP approval mode an agent mode id shows as, from the preset's
+  captured mode table (identity for ids that are MSP modes themselves, as
+  our own agent's are). Undefined: no honest label exists for it.
+  */
   private mspModeFor(agentMode: string): string | undefined {
     return mspModeForAgent(this.deps.agent, agentMode)
   }
@@ -591,6 +605,11 @@ export class ExternalOrchestratorSession implements AgentSession {
     this.emit({ type: 'sessionNamed', name: info.data.title })
   }
 
+  /**
+  The agent asked permission: the person's card answers, never a policy of
+  ours (D250). Resolves with the chosen ACP option, or undefined (the wire's
+  `cancelled`) when the person dismissed it or the session ended first.
+  */
   public requestPermission(
     toolCall: {
       toolCallId: string
@@ -627,12 +646,7 @@ export class ExternalOrchestratorSession implements AgentSession {
         approvalId,
         itemId: toolCall.toolCallId,
         toolName: toolCall.title ?? toolCall.kind ?? 'tool',
-        rawArgs:
-          toolCall.rawInput === undefined
-            ? ''
-            : typeof toolCall.rawInput === 'string'
-              ? toolCall.rawInput
-              : JSON.stringify(toolCall.rawInput),
+        rawArgs: toolCall.rawInput === undefined ? '' : rawInputText(toolCall.rawInput),
         requirementId: { approvalId, sourceIndex: 0 },
         subject: {
           kind: toolCall.kind ?? 'tool',
@@ -671,7 +685,7 @@ export class ExternalOrchestratorSession implements AgentSession {
   }
 
   public sendTurn(parts: readonly TurnPart[], displayText?: string): Promise<TurnSubmission> {
-    if (this.isDisposed) throw new Error('The external agent session has ended')
+    if (this.isDisposed) throw new Error(stoppedSentence(this.deps.agent))
     const blocks = this.blocksFor(parts)
     const turnId = this.deps.newId()
     const userMessageId = this.deps.newId()
@@ -702,13 +716,14 @@ export class ExternalOrchestratorSession implements AgentSession {
 
   public steer(): Promise<never> {
     // ACP has no steer: nothing is taken, so the caller sends a new turn.
-    throw new SteerRefusedError('This agent cannot take a mid-turn steer')
+    throw new SteerRefusedError(doesItselfSentence(this.deps.agent))
   }
 
   public setModelCallAllowance(): void {
     // The agent manages its own turn bounds (D250); nothing to bind.
   }
 
+  /** The model the agent says this session runs, where it advertises one. */
   public advertisedModel(): string | undefined {
     return this.selectorFor(['model'])?.currentValue
   }
@@ -731,21 +746,22 @@ export class ExternalOrchestratorSession implements AgentSession {
   public async setReasoningEffort(effort: string): Promise<void> {
     const selector = this.selectorFor(['effort', 'thought_level', 'reasoning_effort'])
     if (!selector?.values.includes(effort))
-      throw new Error(`This agent does not offer the effort ${effort}`)
+      throw new Error(
+        fill(UI_TEXT.teamExternalEffortRefused, { agent: this.deps.agent.label, effort }),
+      )
     await this.hooks.connection().setConfigValue(this.sessionId, selector.id, effort)
     this.emit({ type: 'effortChanged', effort })
   }
 
   /**
-  The MSP approval mode an agent mode id shows as, from the preset's
-  captured mode table (identity for ids that are MSP modes themselves, as
-  our own agent's are). Undefined: no honest label exists for it.
+  Selects the agent mode this MSP approval mode maps to; a mode with no
+  counterpart keeps the agent's own and says so (`ModeKeptError`).
   */
   public async setApprovalMode(mode: string): Promise<void> {
     const target = this.agentModeFor(mode)
     if (target === undefined)
       throw new ModeKeptError(
-        `${this.deps.agent.label} does not offer this permission mode`,
+        fill(UI_TEXT.teamExternalModeKept, { agent: this.deps.agent.label }),
         this.actualMode(),
       )
     if (target === this.currentMode) return
@@ -804,46 +820,46 @@ export class ExternalOrchestratorSession implements AgentSession {
   }
 
   public moveToBackground(): Promise<void> {
-    throw new Error('This agent runs its own tasks; the panel cannot move them')
+    throw new Error(doesItselfSentence(this.deps.agent))
   }
 
   public stopTask(): Promise<void> {
-    throw new Error('This agent runs its own tasks; the panel cannot stop them')
+    throw new Error(doesItselfSentence(this.deps.agent))
   }
 
   public stopAllTasks(): Promise<void> {
-    throw new Error('This agent runs its own tasks; the panel cannot stop them')
+    throw new Error(doesItselfSentence(this.deps.agent))
   }
 
   public runUserShell(): Promise<void> {
-    throw new Error('This agent takes shell commands in its own turns, not beside them')
+    throw new Error(doesItselfSentence(this.deps.agent))
   }
 
   public controlSubagent(): Promise<void> {
-    throw new Error('This agent runs its own subagents; the panel cannot command them')
+    throw new Error(doesItselfSentence(this.deps.agent))
   }
 
   public messageSubagent(): Promise<void> {
-    throw new Error('This agent runs its own subagents; the panel cannot message them')
+    throw new Error(doesItselfSentence(this.deps.agent))
   }
 
   public controlGoal(): Promise<never> {
-    throw new GoalRefusedError('noGoal', 'This agent has no goal surface')
+    throw new GoalRefusedError('noGoal', doesItselfSentence(this.deps.agent))
   }
 
   public compact(): Promise<{ status: string; reason: string | undefined }> {
     return Promise.resolve({
       status: 'unsupported',
-      reason: 'This agent compacts on its own, not on request',
+      reason: doesItselfSentence(this.deps.agent),
     })
   }
 
   public rename(): Promise<undefined> {
-    throw new Error('This agent names its own sessions')
+    throw new Error(doesItselfSentence(this.deps.agent))
   }
 
   public readOutput(): Promise<never> {
-    throw new Error('This agent keeps its own tool output')
+    throw new Error(doesItselfSentence(this.deps.agent))
   }
 
   /** The items this session holds, in order (host read/fork source). */
@@ -864,7 +880,7 @@ export class ExternalOrchestratorSession implements AgentSession {
     this.runningTurn = undefined
     this.finishTurn(turnId, FAILED, {
       kind: 'backend',
-      message: `${this.deps.agent.label} stopped`,
+      message: stoppedSentence(this.deps.agent),
     })
   }
 
@@ -1076,7 +1092,7 @@ export class ExternalOrchestratorHost implements AgentHost {
   }
 
   private connection(): AcpAgentConnection {
-    if (this.live === undefined) throw new Error('The external agent is not running')
+    if (this.live === undefined) throw new Error(stoppedSentence(this.deps.agent))
     return this.live.connection
   }
 
@@ -1089,7 +1105,8 @@ export class ExternalOrchestratorHost implements AgentHost {
     if (confined === undefined) return { error: 'outside the workspace' }
     try {
       return { content: await readFile(confined, 'utf8') }
-    } catch {
+    } catch (error: unknown) {
+      this.deps.log.warn(`external fs read failed: ${failureForLog(error)}`)
       return { error: 'unreadable' }
     }
   }
@@ -1106,7 +1123,8 @@ export class ExternalOrchestratorHost implements AgentHost {
     try {
       await writeFile(confined, content, 'utf8')
       return { ok: true }
-    } catch {
+    } catch (error: unknown) {
+      this.deps.log.warn(`external fs write failed: ${failureForLog(error)}`)
       return { error: 'unwritable' }
     }
   }
@@ -1388,18 +1406,18 @@ export class ExternalOrchestratorHost implements AgentHost {
   }
 
   public readSessionOutput(): Promise<OutputPage> {
-    throw new Error('This agent keeps its own tool output')
+    throw new Error(doesItselfSentence(this.deps.agent))
   }
 
   public forkSession(): Promise<LoadedSession> {
-    throw new Error('This agent cannot fork a session through ACP')
+    throw new Error(doesItselfSentence(this.deps.agent))
   }
 
   public deleteSession(sessionId: string): Promise<void> {
     if (!this.sessions.has(sessionId)) throw new SessionNotFoundError(sessionId)
     // The agent owns its stored sessions; ending ours deletes nothing of
     // its, so refuse rather than pretend (canDeleteSessions stays unset).
-    throw new Error('This agent keeps its own stored sessions')
+    throw new Error(doesItselfSentence(this.deps.agent))
   }
 
   public onUsageChanged(): () => void {

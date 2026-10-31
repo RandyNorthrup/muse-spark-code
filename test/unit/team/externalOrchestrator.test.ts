@@ -8,7 +8,7 @@
 // to answer, cancel reaches the agent, a named model is confirmed or the
 // start refuses, and not-signed-in names the agent's own CLI.
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -22,9 +22,10 @@ import { TeamMcpServer } from '../../../src/host/team/teamMcpServer'
 import { createTeamHost, teamRosterAnswer } from '../../../src/host/team/teamHostEntry'
 import type { ExternalAgent } from '../../../src/core/team/externalAgents'
 import type { AgentEvent } from '../../../src/shared/agentEvents'
-import { UI_TEXT } from '../../../src/shared/constants'
+import { TEAM_MODEL_TEXT, UI_TEXT } from '../../../src/shared/constants'
 import { TEAM_WORKSPACE_KEYS } from '../../../src/shared/teamConversation'
 import { availabilityState } from '../helpers/teamAvailabilityRig'
+import { assertCurrentProductionBuild } from '../productionBuild'
 
 const silent = {
   trace: () => undefined,
@@ -62,6 +63,7 @@ const state: { workspace: string; binding: TeamHostBinding | undefined; sequence
 }
 
 beforeAll(async () => {
+  assertCurrentProductionBuild(inject('productionBuildGeneration'), ROOT)
   state.workspace = await mkdtemp(path.join(tmpdir(), 'orchext-'))
   const store = new Map<string, unknown>([[TEAM_WORKSPACE_KEYS.team, STORED_TEAM]])
   state.binding = new TeamHostBinding({
@@ -257,6 +259,43 @@ describe('an external ACP agent as orchestrator', () => {
       await run.host.close()
     }
   })
+
+  it.each([
+    { label: 'the shipped bridge', isHttp: false, transport: 'stdio' },
+    { label: 'HTTP', isHttp: true, transport: 'http' },
+  ])(
+    'lets the agent use the team tools it was given, over $label',
+    async ({ isHttp, transport }) => {
+      const run = makeHost('mcp', isHttp)
+      const endpoint = await teamEndpoint()
+      if (state.binding === undefined) throw new Error('binding not open')
+      await state.binding.teamMcp.rememberMode('orchext-session', 'team')
+      try {
+        const session = await run.host.startSession({
+          workspaceRoot: state.workspace,
+          modelId: 'fixture',
+          approvalMode: 'promptUnmatched',
+          mcpServers: { team: endpoint },
+        })
+        const events = collect(session)
+        await session.sendTurn([{ type: 'text', text: 'what can you use?' }])
+        await waitFor(events, 'turnCompleted')
+        const rows = await run.record()
+        const read = rows.find((row) => row['kind'] === 'team-read')
+        // What the agent saw came from the very endpoint, through its own
+        // MCP client: the instructions we ship, the five tools, the roster.
+        expect(read).toMatchObject({
+          transport,
+          instructions: TEAM_MODEL_TEXT.mcpInstructions,
+          tools: ['roster', 'delegate', 'collect', 'cancel', 'merge'],
+        })
+        expect(String(read?.['roster'])).toContain('engineering')
+        session.dispose()
+      } finally {
+        await run.host.close()
+      }
+    },
+  )
 
   it('puts the agent’s permission request on the person’s card', async () => {
     const run = makeHost('permission', true)

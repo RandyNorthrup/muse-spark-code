@@ -8004,6 +8004,14 @@ export const EN = {
     'New conversations in this workspace will be led by {agent}, an external agent running as itself over ACP. It is paid however that agent is paid: its own plan or key.',
   teamExternalMediaUnsupported:
     'This agent cannot take attached media in a message. Remove the attachment and send again.',
+  // {agent}: its label; what the panel cannot take over from it (D250).
+  teamExternalDoesItself: '{agent} does this itself; the panel cannot do it for it.',
+  // {agent}: its label; the process ended under the session (D250).
+  teamExternalStopped: '{agent} stopped. Send your message again to start it.',
+  // {agent}: its label; the panel's permission mode has no counterpart (D250).
+  teamExternalModeKept: '{agent} does not offer this permission mode and keeps its own.',
+  // {agent}: its label; {effort}: the tier the panel asked for (D250).
+  teamExternalEffortRefused: '{agent} does not offer the reasoning effort {effort}.',
   teamIncludeTranscripts: 'Include Transcripts',
   // The tree's states (D75). Entry states with a time or reason ride in the
   // templates below.

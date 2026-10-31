@@ -10,9 +10,14 @@
 //   slow         waits for session/cancel before ending its turn
 //   auth-terminal session/new refuses with auth_required (terminal method)
 //   auth-agent   the first prompt refuses until authenticate() runs
+//   mcp          opens the `team` MCP server it was given in session/new —
+//                over HTTP, or by spawning the stdio command as a real agent
+//                does — and reports its instructions, tools and roster
 // FIXTURE_HTTP=1 advertises HTTP MCP transport; anything else does not.
 
+import { spawn } from 'node:child_process'
 import { appendFileSync } from 'node:fs'
+import { createInterface } from 'node:readline'
 import { Writable } from 'node:stream'
 import { Readable } from 'node:stream'
 import { agent as acpAgent, ndJsonStream, RequestError } from '@agentclientprotocol/sdk/unstable'
@@ -25,8 +30,96 @@ function record(kind, data) {
   if (recordPath !== undefined) appendFileSync(recordPath, `${JSON.stringify({ kind, ...data })}\n`)
 }
 
+const JSON_RPC = '2.0'
+const MCP_PROTOCOL = '2025-03-26'
+
+// One MCP client over the server exactly as session/new described it.
+function openMcp(server) {
+  if (server.type === 'http') {
+    const headers = Object.fromEntries(server.headers.map((row) => [row.name, row.value]))
+    return {
+      send: async (body) => {
+        const response = await fetch(server.url, {
+          method: 'POST',
+          headers: { ...headers, 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify(body),
+        })
+        const text = await response.text()
+        return text === '' ? undefined : JSON.parse(text)
+      },
+      close: () => undefined,
+    }
+  }
+  const env = {
+    ...process.env,
+    ...Object.fromEntries(server.env.map((row) => [row.name, row.value])),
+  }
+  const child = spawn(server.command, server.args, { env, stdio: ['pipe', 'pipe', 'inherit'] })
+  const waiters = new Map()
+  createInterface({ input: child.stdout }).on('line', (line) => {
+    const parsed = JSON.parse(line)
+    waiters.get(parsed.id)?.(parsed)
+  })
+  return {
+    send: (body) =>
+      new Promise((resolveSend) => {
+        if (body.id === undefined) {
+          child.stdin.write(`${JSON.stringify(body)}\n`, () => resolveSend(undefined))
+          return
+        }
+        waiters.set(body.id, resolveSend)
+        child.stdin.write(`${JSON.stringify(body)}\n`)
+      }),
+    close: () => child.kill(),
+  }
+}
+
+async function readTeam(server) {
+  const mcp = openMcp(server)
+  try {
+    const initialized = await mcp.send({
+      jsonrpc: JSON_RPC,
+      id: 1,
+      method: 'initialize',
+      params: {
+        protocolVersion: MCP_PROTOCOL,
+        capabilities: {},
+        clientInfo: { name: 'fixture-agent' },
+      },
+    })
+    await mcp.send({ jsonrpc: JSON_RPC, method: 'notifications/initialized' })
+    const listed = await mcp.send({ jsonrpc: JSON_RPC, id: 2, method: 'tools/list' })
+    const roster = await mcp.send({
+      jsonrpc: JSON_RPC,
+      id: 3,
+      method: 'tools/call',
+      params: { name: 'roster', arguments: {} },
+    })
+    return {
+      transport: server.type === 'http' ? 'http' : 'stdio',
+      instructions: initialized.result.instructions,
+      tools: listed.result.tools.map((tool) => tool.name),
+      roster: roster.result.content[0].text,
+    }
+  } finally {
+    mcp.close()
+  }
+}
+
 const MODELS = ['m1', 'm2']
-const state = { model: 'm1', mode: 'default', isAuthenticated: false, cancel: undefined }
+const state = {
+  model: 'm1',
+  mode: 'default',
+  isAuthenticated: false,
+  cancel: undefined,
+  mcpServers: [],
+}
+
+function authMethods() {
+  if (mode === 'auth-terminal')
+    return [{ id: 'terminal-sign-in', name: 'Sign in', type: 'terminal' }]
+  return mode === 'auth-agent' ? [{ id: 'agent-sign-in', name: 'Sign in' }] : []
+}
 
 function configOptions() {
   return [
@@ -89,12 +182,7 @@ const app = acpAgent({ name: 'fixture-agent' })
       promptCapabilities: { embeddedContext: true, image: true },
     },
     agentInfo: { name: 'fixture-agent', version: '1' },
-    authMethods:
-      mode === 'auth-terminal'
-        ? [{ id: 'terminal-sign-in', name: 'Sign in', type: 'terminal' }]
-        : mode === 'auth-agent'
-          ? [{ id: 'agent-sign-in', name: 'Sign in' }]
-          : [],
+    authMethods: authMethods(),
   }))
   .onRequest('authenticate', (context) => {
     record('authenticate', { methodId: context.params.methodId })
@@ -106,6 +194,7 @@ const app = acpAgent({ name: 'fixture-agent' })
       cwd: context.params.cwd,
       mcpServers: context.params.mcpServers,
     })
+    state.mcpServers = context.params.mcpServers
     if (mode === 'auth-terminal') throw RequestError.authRequired()
     return { sessionId: 'fixture-session', modes: modes(), configOptions: configOptions() }
   })
@@ -141,6 +230,13 @@ const app = acpAgent({ name: 'fixture-agent' })
       state.cancel = waiting.resolve
       await waiting.promise
       return { stopReason: 'cancelled' }
+    }
+    if (mode === 'mcp') {
+      const team = state.mcpServers.find((server) => server.name === 'team')
+      const seen = team === undefined ? { missing: true } : await readTeam(team)
+      record('team-read', seen)
+      await chunk(context.client, sessionId, 'agent_message_chunk', JSON.stringify(seen), 'mcp1')
+      return { stopReason: 'end_turn' }
     }
     if (mode === 'permission') {
       const answer = await context.client.request('session/request_permission', {
