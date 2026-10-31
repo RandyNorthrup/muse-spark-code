@@ -37,12 +37,11 @@ import {
   startTeamWorkspace,
 } from '../../src/core/team/teamWorkspaces'
 import type { TeamToolContext } from '../../src/core/team/teamSeams'
-import { createEngineTeamPorts } from '../../src/host/team/teamEnginePorts'
 import type { TeamSnapshot } from '../../src/shared/team'
 import { TEAM_WORKSPACE_KEYS } from '../../src/shared/teamConversation'
 import { silentCoreLog } from './helpers/memoryLogs'
 import { fixtureGit } from './helpers/teamLandingFixture'
-import { realTeamGit } from './helpers/realTeamGit'
+import { enginePortsWithoutWorker, realTeamGit, tripwireError } from './helpers/realTeamGit'
 
 const ORCHESTRATOR = 'orchestrator-model'
 const ZERO_USAGE = {
@@ -53,10 +52,6 @@ const ZERO_USAGE = {
   modelCalls: 0,
   estimated: false,
 } as const
-
-function tripwireError(name: string): Error {
-  return new Error(`test: the ports never call ${name} here`)
-}
 
 /** One staffed engineering role on a local engine entry; no review role. */
 function storedTeam(): TeamSnapshot {
@@ -261,16 +256,10 @@ async function makeRig(
       await rm(root, { recursive: true, force: true })
     },
   }
-  const engine = createEngineTeamPorts({
+  const engine = enginePortsWithoutWorker({
     repositoryRoot: () => repo,
     storageRoot: storage,
-    platform: process.platform,
     isTrusted: () => rig.trusted,
-    listModels: () => Promise.reject(tripwireError('listModels')),
-    startWorker: () => Promise.reject(tripwireError('startWorker')),
-    runGit: realTeamGit,
-    now: () => Date.now(),
-    log: silentCoreLog(),
   })
   let counter = 0
   const deps: TeamHostServiceDeps = {
