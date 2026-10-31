@@ -15,6 +15,7 @@ public final class Assets {
         CompletableFuture<JsonObject> render(JsonObject params);
     }
     private record Page(String nonce, String css, String script, String bootstrap, String csp, String document) { }
+    public record Parts(String nonce, String bootstrap, String document) { }
     private Assets() { }
     public static String locale(String requested) throws IOException {
         JsonArray languages = Json.resource("/target/assets/config.json").getAsJsonObject().getAsJsonArray("languages");
@@ -27,7 +28,12 @@ public final class Assets {
     public static String scriptSafe(String value) { return value.replace("<", "\\u003c").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029"); }
     public static String html(Path assets, String locale, String kind, JsonElement state, JsonObject tokens) throws IOException {
         if (kind.equals("whatsNew")) throw new IllegalArgumentException("MHP_CAPABILITY_UNAVAILABLE");
-        return page(assets, locale, kind, state, tokens).document;
+        return parts(assets, locale, kind, state, tokens).document;
+    }
+    /** The host bridge for a surface, including What's New, so a presented document can be sealed with it. */
+    public static Parts parts(Path assets, String locale, String kind, JsonElement state, JsonObject tokens) throws IOException {
+        Page built = page(assets, locale, kind, state, tokens);
+        return new Parts(built.nonce, built.bootstrap, built.document);
     }
     private static Page page(Path assets, String locale, String kind, JsonElement state, JsonObject tokens) throws IOException {
         byte[] random = new byte[Json.resource("/target/assets/config.json").getAsJsonObject().get("nonceBytes").getAsInt()]; new SecureRandom().nextBytes(random);
@@ -124,8 +130,12 @@ public final class Assets {
         return destination;
     }
     public static boolean navigationAllowed(Path page, String target) {
-        try { java.net.URI uri = java.net.URI.create(target); return uri.getScheme().equals("file") && Paths.get(new java.net.URI(uri.getScheme(), uri.getAuthority(), uri.getPath(), null, null)).normalize().equals(page.toAbsolutePath().normalize()); }
-        catch (RuntimeException | java.net.URISyntaxException ex) { return false; }
+        try {
+            java.net.URI uri = java.net.URI.create(target);
+            String authority = uri.getRawAuthority();
+            if (!"file".equals(uri.getScheme()) || uri.getRawQuery() != null || (authority != null && !authority.isEmpty() && !authority.equalsIgnoreCase("localhost"))) return false;
+            return Paths.get(new java.net.URI("file", null, uri.getPath(), null, null)).normalize().equals(page.toAbsolutePath().normalize());
+        } catch (RuntimeException | java.net.URISyntaxException ex) { return false; }
     }
     public static Map<String, String> environment(Map<String, String> source) {
         Map<String, String> result = new HashMap<>(source);
