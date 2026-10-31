@@ -101,8 +101,13 @@ GitLab posts, cloud and SMS have no runner at all.
 function destinationVerdict(
   destination: ScheduleReportAction['destinations'][number],
 ): ScheduleReportDestinationVerdict | undefined {
-  if (destination.kind === 'save' || destination.kind === 'email') return pendingVerdict()
-  if (destination.kind === 'cloud' || destination.kind === 'sms') return pendingVerdict()
+  if (
+    destination.kind === 'save' ||
+    destination.kind === 'email' ||
+    destination.kind === 'cloud' ||
+    destination.kind === 'sms'
+  )
+    return pendingVerdict()
   if (destination.kind === 'browser') return undefined
   if (destination.provider !== 'github') return pendingVerdict()
   return isPostRepository(destination.repository) ? undefined : pendingVerdict()

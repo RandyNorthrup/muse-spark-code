@@ -171,12 +171,12 @@ export function createScheduler(deps: SchedulerDeps) {
     if (!deps.host.holds(job.workspaceKey)) return UI_TEXT.scheduleV2.messages.workspaceNotHeld
     if (job.end?.atMs !== undefined && deps.host.now() >= job.end.atMs)
       return UI_TEXT.scheduleV2.messages.scheduleEnded
-    return JSON.stringify(job.trigger) !== JSON.stringify(previous.trigger) ||
-      job.zone !== previous.zone ||
-      JSON.stringify(job.target) !== JSON.stringify(previous.target) ||
-      job.delivery !== previous.delivery
-      ? UI_TEXT.scheduleV2.messages.scheduleEdited
-      : undefined
+    return JSON.stringify(job.trigger) === JSON.stringify(previous.trigger) &&
+      job.zone === previous.zone &&
+      JSON.stringify(job.target) === JSON.stringify(previous.target) &&
+      job.delivery === previous.delivery
+      ? undefined
+      : UI_TEXT.scheduleV2.messages.scheduleEdited
   }
   const execute = async (intent: ScheduleRunIntent): Promise<void> => {
     // An orderly close keeps every unhanded admission for the next owner, and
@@ -496,11 +496,10 @@ export function createScheduler(deps: SchedulerDeps) {
             const first = group[0]
             if (first === undefined) return
             for (const _entry of group) {
-              if (signal.aborted) break
               // The drain selects only what this process may act on. A fire
               // whose workspace this process no longer holds stays pending for
               // whoever holds it; this process neither advances nor settles it.
-              if (!canAct(first.schedule.workspaceKey)) break
+              if (signal.aborted || !canAct(first.schedule.workspaceKey)) break
               const queue = await deps.runs.pending(first.schedule.workspaceKey, { signal })
               const intent = queue.find(
                 (intent) =>

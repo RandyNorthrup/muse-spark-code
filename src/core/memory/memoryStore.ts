@@ -638,12 +638,9 @@ export class MemoryStore {
       }
     } catch (error: unknown) {
       rethrowOwner(assertCurrent)
-      if (isTaken(error)) {
-        // A taken name refuses in fixed words.
-        return failed(MODEL_TEXT.memoryNoteExists)
-      }
+      // A taken name refuses in fixed words.
       // Any other write failure keeps its text in the refusal the tool answers with.
-      return failed(describe(error))
+      return failed(isTaken(error) ? MODEL_TEXT.memoryNoteExists : describe(error))
     }
     const result = written(place, OPERATION_ADD, MODEL_TEXT.memoryNoteWritten)
     if (existing === undefined) {

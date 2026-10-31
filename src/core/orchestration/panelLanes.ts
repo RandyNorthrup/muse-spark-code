@@ -317,9 +317,9 @@ function declared(
     (id) => existing?.linked.has(id) !== true,
   )
   if (moved.length === 0) {
-    return existing !== undefined && all.length !== existing.module.files.length
-      ? { ...candidate, lineage: { renamedFrom: existing.module.id } }
-      : candidate
+    return existing === undefined || all.length === existing.module.files.length
+      ? candidate
+      : { ...candidate, lineage: { renamedFrom: existing.module.id } }
   }
   // A module that took in another's code is their successor, under a new id
   // the predecessors hand their counts to.

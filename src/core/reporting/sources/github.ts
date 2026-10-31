@@ -620,9 +620,12 @@ export async function postReport(
       return { status: 'refused', reason: context.reportText.reportUi.networkOff }
     if (scheduleGrant !== undefined && !(await deps.authorizeSchedule(context, scheduleGrant)))
       return { status: 'refused', reason: context.reportText.reportUi.previewPost }
-    if (!isPostingAllowed(deps, context) || !(await deps.enabled(kind, target)))
-      return { status: 'refused', reason: context.reportText.reportUi.previewPost }
-    if (deps.scrub(body) !== body || !isPostingAllowed(deps, context))
+    if (
+      !isPostingAllowed(deps, context) ||
+      !(await deps.enabled(kind, target)) ||
+      deps.scrub(body) !== body ||
+      !isPostingAllowed(deps, context)
+    )
       return { status: 'refused', reason: context.reportText.reportUi.previewPost }
     signal.throwIfAborted()
     dispatch.hasStarted = true

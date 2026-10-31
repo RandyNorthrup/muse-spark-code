@@ -451,9 +451,8 @@ export class UploadLedger implements SessionUploadLifecycle {
     signal?.throwIfAborted()
     if (!(await this.isCurrentAccount())) return
     for (const entry of state.entries) {
-      if (entry.sessions.length > 0) continue
       // RULE 1: a file in use is never deleted, in either scope.
-      if (pinCountOf(state, entry.file.fileId) > 0) continue
+      if (entry.sessions.length > 0 || pinCountOf(state, entry.file.fileId) > 0) continue
       if (scope === 'release' && releaseIds !== undefined && !releaseIds.has(entry.file.fileId))
         continue
       // A file that lives until deleted carries no expiry and is never swept.

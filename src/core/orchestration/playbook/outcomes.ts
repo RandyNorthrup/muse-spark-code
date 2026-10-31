@@ -392,13 +392,13 @@ export class PlaybookOutcomes {
         this.effect('git', isolated, ['rev-parse', '--verify', '--quiet', 'HEAD']),
         true,
       ).trimEnd()
-      if (head !== (range ? commit : (parent ?? ''))) throw new Error(UI_TEXT.playbookUnavailable)
       if (
+        head !== (range ? commit : (parent ?? '')) ||
         this.git(['write-tree'], isolated) !== tree ||
-        this.git(['diff', '--no-ext-diff', '--no-textconv', '--exit-code'], isolated) !== ''
+        this.git(['diff', '--no-ext-diff', '--no-textconv', '--exit-code'], isolated) !== '' ||
+        !readFileSync(message).equals(originalMessage) ||
+        this.digest(range) !== digest
       )
-        throw new Error(UI_TEXT.playbookUnavailable)
-      if (!readFileSync(message).equals(originalMessage) || this.digest(range) !== digest)
         throw new Error(UI_TEXT.playbookUnavailable)
       result = 'pass'
     } catch (error) {

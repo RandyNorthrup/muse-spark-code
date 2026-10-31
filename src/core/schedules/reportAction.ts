@@ -109,9 +109,10 @@ export class ScheduleReportActionRunner implements ScheduleReportDeliveryPort {
         ...(report !== undefined && { report }),
       })
     try {
-      if (!(await this.isCurrent(s)))
-        return settle('refused', UI_TEXT.scheduleV2.reportAction.grantRequired)
-      if (s.action.destinations.some((item) => !s.grant.destinationIds.includes(item.id)))
+      if (
+        !(await this.isCurrent(s)) ||
+        s.action.destinations.some((item) => !s.grant.destinationIds.includes(item.id))
+      )
         return settle('refused', UI_TEXT.scheduleV2.reportAction.grantRequired)
       if (s.action.destinations.some((item) => item.kind === 'cloud' || item.kind === 'sms'))
         return settle('refused', UI_TEXT.scheduleV2.messages.plannedDestination)

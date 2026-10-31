@@ -77,15 +77,16 @@ export function createEventClaimStore(
       const file = stateFile(workspaceKey, scheduleId)
       return await fs.lock(file, async () => {
         const raw = await fs.read(file)
-        const stored =
+        const stored = claimStateSchema.parse(
           raw === undefined
-            ? claimStateSchema.parse({
+            ? {
                 scheduleId,
                 receipts: [],
                 legacyReceipts: [],
                 ready: [],
-              })
-            : claimStateSchema.parse(parseScheduleStoredJson(raw))
+              }
+            : parseScheduleStoredJson(raw),
+        )
         if (stored.scheduleId !== scheduleId) throw new Error('scheduleStoredJsonInvalid')
         const state = toState(stored)
         const result = update(state)

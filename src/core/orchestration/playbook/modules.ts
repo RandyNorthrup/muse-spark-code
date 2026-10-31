@@ -159,8 +159,8 @@ export function fileIdentities(
     if (stat.isDirectory()) {
       for (const entry of readdirSync(real)) visit(`${file}/${entry}`)
     } else if (module.files.some((pattern) => nodePath.matchesGlob(file, pattern))) {
-      if (stat.size > TOOL_FILE_MAX_BYTES) throw new Error(UI_TEXT.playbookUnavailable)
-      if (files.size >= REVIEW_FINDINGS_MAX) throw new Error(UI_TEXT.playbookUnavailable)
+      if (stat.size > TOOL_FILE_MAX_BYTES || files.size >= REVIEW_FINDINGS_MAX)
+        throw new Error(UI_TEXT.playbookUnavailable)
       files.add(file)
     }
   }
