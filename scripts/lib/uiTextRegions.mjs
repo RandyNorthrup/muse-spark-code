@@ -29,7 +29,10 @@ export const UI_TEXT_REGIONS = [
   {
     name: 'runtime',
     output: 'dist/uiTextRuntime.js',
-    keys: /^(?:acp|exec|scanSecrets|reportUsage$)/,
+    // The watchdog's words are terminal command text too (the `watchdog`
+    // command and its triage), read only when that command runs, so they
+    // ride this region instead of the core fallback (RLF-TEAMFIT).
+    keys: /^(?:acp|exec|scanSecrets|watchdog$|reportUsage$)/,
   },
   {
     name: 'hooks',
