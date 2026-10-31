@@ -1562,9 +1562,12 @@ async function activateWindow(
       if (!isProjectTrusted()) return
       for (const controller of controllers.values()) {
         const current = controller.judgeContext(action.sessionId, action.turnId)
-        if (current !== undefined)
+        // Our judge never reviews an external orchestrator's calls (D250):
+        // the person answers its permission requests in the panel.
+        if (current !== undefined && current.backend !== 'external')
           return {
             ...current,
+            backend: current.backend,
             ownerId: String(auth.admissionGeneration),
             confidential: currentSettings().confidentialWorkspace,
           }
@@ -2432,17 +2435,20 @@ async function activateWindow(
         if (message.type !== 'authState') {
           return
         }
-        if (message.backend !== undefined) {
+        // authState names a sign-in backend, never an external orchestrator
+        // host (D250); the wire kind is wider than sign-in, so narrow here.
+        const signInBackend = message.backend === 'external' ? undefined : message.backend
+        if (signInBackend !== undefined) {
           const scoped =
             usageRecording.scopeLimits?.({
               accountId: ACCOUNT_DEFAULT_ID,
               generation: estimatorOwnerGeneration(),
-              backend: message.backend,
+              backend: signInBackend,
             }) ?? usageRecording
           MuseCodeBackendManager.usageRecording = scoped
           ModelApiBackendManager.usageRecording = scoped
         }
-        paidBackend = message.backend
+        paidBackend = signInBackend
         broadcastPaidState()
         // A key pasted or signed out of changes what the Muse Code backend offers (M44).
         refreshScheduleWorkspace()

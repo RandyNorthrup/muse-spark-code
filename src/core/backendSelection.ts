@@ -22,7 +22,7 @@ export interface BackendFacts {
 
 export type BackendChoice =
   | {
-      readonly kind: BackendKind
+      readonly kind: Exclude<BackendKind, 'external'>
       readonly status: 'signedIn' | 'signedOut'
       /** The sign-in paths the gate offers while signed out. */
       readonly methods: readonly SignInMethod[]

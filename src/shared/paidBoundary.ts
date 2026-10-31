@@ -95,7 +95,7 @@ lazy money chunk with the prices arrives.
 export function usablePaidFeatures(
   // The backends protocol.ts names; kept as literals so this module never
   // imports protocol (which imports this module for paidStateSchema).
-  backend: 'museCode' | 'modelApi' | undefined,
+  backend: 'museCode' | 'modelApi' | 'external' | undefined,
   isKeyStored: boolean,
 ): readonly PaidFeature[] {
   if (backend === 'modelApi') {
@@ -103,7 +103,12 @@ export function usablePaidFeatures(
       (feature) => feature !== 'autoCompaction' || isAutoCompactionEvaluated(),
     )
   }
-  return backend === 'museCode' && isKeyStored ? MUSE_CODE_PAID_FEATURES : []
+  // An external orchestrator (D250) reaches paid features exactly as Muse
+  // Code does: through the extension's own `ide` server, billed to the
+  // stored Model API key, never to the agent's own account (M44, rule 12).
+  return isKeyStored && (backend === 'museCode' || backend === 'external')
+    ? MUSE_CODE_PAID_FEATURES
+    : []
 }
 
 /** The feature's short name, as the badge and the dialog show it. */

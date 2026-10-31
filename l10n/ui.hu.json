@@ -3421,6 +3421,7 @@
   "backendDetail": "Melyik motor futtatja ezt a beszélgetést: automatikus, Muse Code vagy a Model API.",
   "backendMuseCode": "Muse Code (az Ön Muse-előfizetése)",
   "backendModelApi": "Meta Model API (saját kulcs, használatalapú díjszabás)",
+  "backendExternal": "Külső ügynök (saját csomag vagy kulcs)",
   "modelApiBackendNotice": "Ez a beszélgetés a Meta Model API-n fut a kiegészítő saját eszközeivel (olvasás, szerkesztés, írás, keresés, listázás, shell). A munkamenetei ennek a munkaterületnek a kiegészítő-tárolójában maradnak.",
   "installOrKeyDetail": "A Muse Code CLI szolgálja ki a kiegészítő beszélgetéseit; nélküle is használhat Meta Model API-kulcsot.",
   "compactionDone": "Kontextus tömörítve",

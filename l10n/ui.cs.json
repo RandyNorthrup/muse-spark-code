@@ -3545,6 +3545,7 @@
   "backendDetail": "Který engine vede tuto konverzaci: automaticky, Muse Code, nebo Model API.",
   "backendMuseCode": "Muse Code (vaše předplatné Muse)",
   "backendModelApi": "Meta Model API (váš klíč, platba za použití)",
+  "backendExternal": "Externí agent (vlastní plán nebo klíč)",
   "modelApiBackendNotice": "Tato konverzace běží na Meta Model API s vlastními nástroji rozšíření (čtení, úprava, zápis, hledání, výpis, shell). Její relace jsou uloženy v úložišti rozšíření tohoto pracovního prostoru.",
   "installOrKeyDetail": "Konverzace pro toto rozšíření hostuje Muse Code CLI; bez něj můžete stále použít klíč Meta Model API.",
   "compactionDone": "Kontext zkomprimován",

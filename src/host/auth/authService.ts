@@ -140,8 +140,11 @@ export interface AuthSnapshot {
   readonly planAccount?: Extract<HostToWebviewMessage, { type: 'authState' }>['planAccount']
   readonly status: AuthStatus
   readonly detail: string | undefined
-  /** The backend the window uses (known once the facts are in). */
-  readonly backend?: BackendKind | undefined
+  /**
+  The sign-in backend the window uses (known once the facts are in): never
+  `external`, which is a conversation host kind, not a sign-in (D250).
+  */
+  readonly backend?: Exclude<BackendKind, 'external'> | undefined
   /** The sign-in paths the gate offers. */
   readonly methods?: readonly SignInMethod[] | undefined
   readonly verificationUrl?: string | undefined
@@ -310,7 +313,7 @@ export class AuthService {
   The panel may show another state meanwhile (a sign-in's code) while a
   conversation still runs there.
   */
-  private liveBackend: BackendKind | undefined
+  private liveBackend: Exclude<BackendKind, 'external'> | undefined
   /** Moves each time `liveBackend` is recorded: a restart clears only what it ended. */
   private liveVersion = 0
   /** Counts logout-hold writes: only the latest one's outcome is kept. */
@@ -1338,7 +1341,7 @@ export class AuthService {
   }
 
   /** The backend the next conversation runs on; undefined without any credential. */
-  public get backend(): BackendKind | undefined {
+  public get backend(): Exclude<BackendKind, 'external'> | undefined {
     return this.snapshot.status === 'signedIn' &&
       !this.isLogoutHeld &&
       !this.isSigningOut &&

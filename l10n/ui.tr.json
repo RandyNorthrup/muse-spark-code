@@ -3421,6 +3421,7 @@
   "backendDetail": "Bu görüşmeyi hangi motor yürütüyor: otomatik, Muse Code veya Model API.",
   "backendMuseCode": "Muse Code (Muse aboneliğiniz)",
   "backendModelApi": "Meta Model API (anahtarınız, kullandıkça öde)",
+  "backendExternal": "Dış Ajan (kendi planı veya anahtarı)",
   "modelApiBackendNotice": "Bu konuşma, uzantının kendi araçlarıyla (okuma, düzenleme, yazma, arama, listeleme, kabuk) Meta Model API üzerinde çalışır. Oturumları bu çalışma alanının uzantı depolama alanında tutulur.",
   "installOrKeyDetail": "Bu uzantının konuşmalarını Muse Code CLI barındırır; o olmadan da bir Meta Model API anahtarı kullanabilirsiniz.",
   "compactionDone": "Bağlam sıkıştırıldı",

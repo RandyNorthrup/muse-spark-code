@@ -133,7 +133,7 @@ export interface BestOfNRunnerDeps {
   /** A branch-safe run id (`bon-â€¦`); validated before any branch names it. */
   readonly newRunId: () => string
   readonly isTrusted: () => boolean
-  readonly backendKind: () => 'museCode' | 'modelApi'
+  readonly backendKind: () => 'museCode' | 'modelApi' | 'external'
   /** The paid gate: the `bestOfN` setting on and its price accepted. */
   readonly isBestOfNOn: () => boolean
   /** The one D48 popup for the whole run. */

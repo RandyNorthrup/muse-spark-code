@@ -4047,7 +4047,10 @@ export class ConversationController implements DeferredSend {
   /** One registry per shared session handle, with publication to every attached surface. */
   private async attachQuestions(session: BackendSession, backend: BackendKind): Promise<void> {
     const binding = this.deps.questions
-    if (binding === undefined) return
+    // The question store serves our two backends' ask surfaces; an external
+    // orchestrator (D250) asks through its own ACP surface, never this one,
+    // so nothing is registered for it.
+    if (binding === undefined || backend === 'external') return
     let registry = sessionQuestions.get(session)
     if (registry === undefined) {
       registry = new QuestionRegistry(session.sessionId, backend, {

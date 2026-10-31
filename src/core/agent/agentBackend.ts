@@ -33,7 +33,12 @@ import type { FeedbackRequest } from '../backends/musecode/feedback'
 import type { ExtensionHookDispatch, ExtensionHookEvent } from '../backends/modelapi/extensionHooks'
 import type { UnattendedRun } from '../schedules/unattended'
 
-export type BackendKind = 'museCode' | 'modelApi'
+/**
+A conversation host's kind: Muse Code over MSP, the Model API engine, or
+an external ACP agent leading as orchestrator (D250). `external` is never
+a sign-in backend: the agent keeps its own sign-in and its own payer.
+*/
+export type BackendKind = 'museCode' | 'modelApi' | 'external'
 
 /** Shared empty result; importing it never loads a backend bundle. */
 export const NO_EXTENSION_HOOK_DISPATCH: ExtensionHookDispatch = {
