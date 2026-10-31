@@ -21,7 +21,7 @@ namespace MuseSpark.VisualStudio.Test
       public int Calls { get; private set; }
       public Task<JToken> InvokeAsync(string method, JObject parameters, CancellationToken cancellation) { Calls++; return Task.FromResult<JToken>(new JArray()); }
     }
-    internal static JObject Initialize(string minimum = "mhp/1.5.0", string maximum = "mhp/1.6.0") => new JObject
+    internal static JObject Initialize(string minimum = "mhp/1.5.1", string maximum = "mhp/1.6.0") => new JObject
     {
       ["jsonrpc"] = "2.0",
       ["id"] = "init",
@@ -98,17 +98,17 @@ namespace MuseSpark.VisualStudio.Test
     [TestMethod]
     public async Task SelectsCurrentVersionOnlyWithinAnExplicitOffer()
     {
-      foreach (var range in new[] { ("mhp/1.5.0", "mhp/1.6.0"), ("mhp/1.0.0", "mhp/2.0.0") })
+      foreach (var range in new[] { ("mhp/1.5.1", "mhp/1.6.0"), ("mhp/1.0.0", "mhp/2.0.0") })
       {
         using (var output = new StringWriter())
         using (var peer = new MhpPeer(SchemaContract.Load(true), new Host(), output))
         {
           await SendAsync(peer, Initialize(range.Item1, range.Item2));
-          Assert.AreEqual("mhp/1.5.0", Last(output)["result"]?.Value<string>("protocolVersion"));
+          Assert.AreEqual("mhp/1.5.1", Last(output)["result"]?.Value<string>("protocolVersion"));
           await peer.WritePanelAsync(Envelope("s", 1));
         }
       }
-      foreach (var range in new[] { ("mhp/1.0.0", "mhp/1.5.0"), ("mhp/1.6.0", "mhp/2.0.0"), ("mhp/1.0.0", "mhp/1.2.0") })
+      foreach (var range in new[] { ("mhp/1.0.0", "mhp/1.5.1"), ("mhp/1.6.0", "mhp/2.0.0"), ("mhp/1.0.0", "mhp/1.2.0") })
       {
         using (var output = new StringWriter())
         using (var peer = new MhpPeer(SchemaContract.Load(true), new Host(), output))

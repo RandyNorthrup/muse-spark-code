@@ -304,7 +304,7 @@ class MhpConnection(
   companion object {
     // Frozen MHP 1.5 range: mirrors MHP.minimumVersion/maximumVersionExclusive
     // in src/shared/constants.ts (lane A). Only the reviewed 1.5 contract is served.
-    const val PANEL_VERSION = "mhp/1.5.0"
+    const val PANEL_VERSION = "mhp/1.5.1"
     private const val METADATA_TIMEOUT_SECONDS = 2L
     private const val INITIALIZE_TIMEOUT_SECONDS = 100L
     private const val MAXIMUM_VERSION = "mhp/1.6.0"

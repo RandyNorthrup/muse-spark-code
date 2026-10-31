@@ -7,5 +7,5 @@
     }
   ],
   "conformance": { "args": ["run.mjs"], "command": "node" },
-  "mhp": "mhp/1.5.0"
+  "mhp": "mhp/1.5.1"
 }

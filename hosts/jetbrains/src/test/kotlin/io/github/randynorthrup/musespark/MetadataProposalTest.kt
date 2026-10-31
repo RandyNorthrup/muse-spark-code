@@ -8,7 +8,7 @@ class MetadataProposalTest {
   @Test
   fun rejectsLegacyVersionAndResultMetadata() {
     val boundary = JsonBoundary()
-    val result = json("protocolVersion" to "mhp/1.5.0", "capabilities" to listOf("lifecycle"))
+    val result = json("protocolVersion" to "mhp/1.5.1", "capabilities" to listOf("lifecycle"))
     val frame = json("jsonrpc" to "2.0", "id" to "init", "result" to result)
     boundary.result("initialize", frame)
     result.add("hostMetadata", json())
