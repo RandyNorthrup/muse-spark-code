@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { z } from 'zod'
 import { readLicenceReviews } from '../../src/core/legal/depLicenses'
 import { identifyLicenseText } from '../../src/core/legal/projectLicense'
 import { scanLegal } from '../../src/core/legal/scan'
@@ -85,7 +86,7 @@ describe('workspace licence review receipts', () => {
     )
   })
 
-  it('issues only the reviewed lz-string receipt and verifies its own package declaration', () => {
+  it('issues only receipts each backed by the installed package it names', () => {
     const root = path.join(__dirname, '../..')
     const entries = readLicenceReviews(
       snapshotFrom({
@@ -93,15 +94,31 @@ describe('workspace licence review receipts', () => {
       }),
       [],
     )
-    expect(entries).toEqual([REVIEW])
-    const metadata: unknown = JSON.parse(
-      readFileSync(path.join(root, 'node_modules/lz-string/package.json'), 'utf8'),
-    )
-    expect(metadata).toMatchObject({
-      name: 'lz-string',
-      version: REVIEW.version,
-      license: REVIEW.spdx,
-    })
+    expect(entries).toContainEqual(REVIEW)
+    const lock = z
+      .object({ packages: z.record(z.string(), z.object({ version: z.string().optional() })) })
+      .parse(JSON.parse(readFileSync(path.join(root, 'package-lock.json'), 'utf8')))
+    for (const entry of entries) {
+      // The lock names every copy of the package; a receipt names one version of it.
+      const installed = Object.entries(lock.packages).filter(
+        ([key, copy]) =>
+          key.endsWith(`node_modules/${entry.package}`) && copy.version === entry.version,
+      )
+      expect(installed, `${entry.package}@${entry.version} is in the lock`).not.toEqual([])
+      for (const [directory] of installed) {
+        const metadata: unknown = JSON.parse(
+          readFileSync(path.join(root, directory, 'package.json'), 'utf8'),
+        )
+        expect(metadata).toMatchObject({
+          name: entry.package,
+          version: entry.version,
+          license: entry.spdx,
+        })
+        expect(fingerprint(readFileSync(path.join(root, directory, 'LICENSE'), 'utf8'))).toBe(
+          entry.sha256,
+        )
+      }
+    }
   })
 
   it('keeps the strict default without a receipt', async () => {
