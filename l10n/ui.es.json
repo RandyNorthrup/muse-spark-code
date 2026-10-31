@@ -6980,7 +6980,7 @@
     "revokeUnsupported": "Quitar este inicio de sesión no es compatible con este entorno.",
     "providersInvalid": "El archivo de proveedores no es válido, por lo que sus entradas fueron rechazadas y el archivo se dejó sin cambios.",
     "poolUnavailable": "La agrupación de cuentas no está disponible en este entorno de ejecución: necesita un propietario de recursos vinculado. Vuelva a ejecutar sin --account-pool.",
-    "cliUsage": "Cuentas: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [ids ordenados]. Credenciales: {command} auth set --provider <id> --account <id> (solo entrada estándar).",
+    "cliUsage": "Cuentas: {command} providers accounts list|add|remove|order|thresholds|place --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [--device <id>] [ids ordenados|id de cuenta]. Credenciales: {command} auth set --provider <id> --account <id> (solo entrada estándar).",
     "slashDescription": "Mostrar cuentas, consultar umbrales o elegir una cuenta.",
     "title": "Cuentas",
     "defaultLabel": "Cuenta predeterminada",
@@ -7086,7 +7086,8 @@
     "spendAdminPrompt": "Clave de informe de administración para {provider}: ",
     "spendAdminStored": "Clave de informe de administración guardada para {provider} en {store}.",
     "spendAdminCleared": "Clave de informe de administración eliminada para {provider}.",
-    "spendRefreshWait": "Los informes de gasto se actualizan como máximo una vez por minuto; se muestra el informe en caché."
+    "spendRefreshWait": "Los informes de gasto se actualizan como máximo una vez por minuto; se muestra el informe en caché.",
+    "severalSettingsRedirect": "Active varias cuentas desde la página Cuentas, junto al proveedor, para que primero se muestre la confirmación de los términos del proveedor."
   },
   "developer": {
     "title": "Opciones de desarrollador",
@@ -7101,6 +7102,7 @@
     "differentMachine": "Las opciones de desarrollador se configuraron con otra identidad de máquina. Restablézcalas para empezar de nuevo en esta máquina.",
     "invalidRequest": "Revise la solicitud de opciones de desarrollador.",
     "expires": "El modo de desarrollador caduca {time}.",
+    "expired": "El modo de desarrollador caducó y sus perfiles se detuvieron.",
     "reset": "Restablecer opciones de desarrollador",
     "profiles": "Perfiles locales",
     "profileInfo": "Cada perfil tiene su propio espacio de credenciales, carpeta de estado y proceso de ejecución. La caducidad detiene los perfiles; el restablecimiento los elimina.",
@@ -7109,7 +7111,8 @@
     "addProfile": "Añadir perfil local",
     "helpUnlock": "Haga clic siete veces en la versión o use el comando Opciones de desarrollador para desbloquear.",
     "helpTerminal": "Ejecute `developer` para desbloquear; `developer status` muestra las opciones de este equipo.",
-    "commandUsage": "Uso: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
+    "commandUsage": "Uso: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]",
+    "versionLine": "Versión {version}"
   },
   "mcpConnectorTitle": "Conector MCP para otros agentes",
   "referenceMcpCommand": "Ofrecer las herramientas de Muse Spark Code a otros agentes (Codex, Claude Code, Gemini CLI) mediante MCP; cada escritura espera su aprobación.",

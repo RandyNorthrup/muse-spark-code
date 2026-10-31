@@ -39,6 +39,26 @@ describe('terminal account command parsing and real metadata files', () => {
     expect(
       parseAccountsCommand(['add', '--provider', 'meta', '--account', 'work', '--label', 'Work']),
     ).toMatchObject({ action: 'add', provider: 'meta', account: { id: 'work', label: 'Work' } })
+    expect(
+      parseAccountsCommand([
+        'add',
+        '--provider',
+        'meta',
+        '--account',
+        'work',
+        '--label',
+        'Work',
+        '--device',
+        'peer-1',
+      ]),
+    ).toMatchObject({
+      action: 'add',
+      provider: 'meta',
+      account: { id: 'work', device: 'peer-1' },
+    })
+    expect(
+      parseAccountsCommand(['place', 'work', '--provider', 'meta', '--device', 'peer-1']),
+    ).toMatchObject({ action: 'place', provider: 'meta', account: 'work', device: 'peer-1' })
     expect(parseAccountsCommand(['order', '--provider', 'meta', 'work', 'default'])).toMatchObject({
       action: 'order',
       accounts: ['work', 'default'],
@@ -97,6 +117,9 @@ describe('terminal account command parsing and real metadata files', () => {
       ],
       ['remove', '--provider', 'meta', '--account', '../bad'],
       ['order', '--provider', 'meta', 'default', '../bad'],
+      ['place', 'work', '--provider', 'meta'],
+      ['place', 'work', '--provider', 'meta', '--device', '../bad'],
+      ['add', '--provider', 'meta', '--account', 'work', '--label', 'Work', '--device', ''],
     ].map((args) => ({ args })),
   )('rejects malformed metadata without reflecting arguments: %j', ({ args }) => {
     expect(parseAccountsCommand(args)).toBeUndefined()

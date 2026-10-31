@@ -340,6 +340,10 @@
     // The two-process device drill bundles this child with esbuild by path
     // (test/e2e/deviceTwoProcess.e2e.test.ts), which knip does not trace.
     "test/e2e/deviceTwoProcessDriver.ts",
+    // The two-process device-account drill bundles this child with esbuild
+    // by path (test/e2e/deviceAccountTwoProcess.e2e.test.ts), which knip
+    // does not trace (RLF-M108 lane D).
+    "test/e2e/deviceAccountTwoProcessDriver.ts",
     // The README-shots script starts this reporting verifier by path
     // (scripts/readme-shots.mjs), which knip does not trace.
     "test/harness/reporting/verify.mjs",

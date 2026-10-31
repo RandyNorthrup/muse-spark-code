@@ -34,14 +34,25 @@ export function parseDeveloperCommand(args: readonly string[]): DeveloperRequest
       }
     }
   }
-  if (action === 'add' && first !== undefined && second !== undefined)
-    return developerRequestSchema.parse({
+  // Bad identifiers are misuse, not a crash: the entry answers the usage
+  // with exit 2 before any store or state work.
+  if (action === 'add' && first !== undefined && second !== undefined) {
+    const parsed = developerRequestSchema.safeParse({
       type: 'developer/addProfile',
       provider: first,
       account: second,
     })
-  if (action === 'remove' && first !== undefined && second === undefined)
-    return developerRequestSchema.parse({ type: 'developer/removeProfile', id: first })
+    if (!parsed.success) throw new SyntaxError(UI_TEXT.developer.commandUsage)
+    return parsed.data
+  }
+  if (action === 'remove' && first !== undefined && second === undefined) {
+    const parsed = developerRequestSchema.safeParse({
+      type: 'developer/removeProfile',
+      id: first,
+    })
+    if (!parsed.success) throw new SyntaxError(UI_TEXT.developer.commandUsage)
+    return parsed.data
+  }
   throw new SyntaxError(UI_TEXT.developer.commandUsage)
 }
 

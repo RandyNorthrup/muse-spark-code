@@ -592,14 +592,13 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     screenRecordingMaxSeconds: readSetting(config, 'screenRecordingMaxSeconds', log),
     mediaAudioAction: readSetting(config, 'mediaAudioAction', log),
     mediaConverterPath: readSetting(config, 'mediaConverterPath', log),
-    // M108: swap and spread stay readable while uncertified, like the lane's
-    // certified state; the certification switch and unbound owners refuse
-    // every binding, so reading them enables nothing until C-M108-2 closes.
-    // The visible several-accounts toggle stays compatibility-only (main's
-    // neutering) until its own completion slice restores text and reading.
+    // M108: swap, spread and the visible several-accounts toggle stay
+    // readable while uncertified, like the lane's certified state; the
+    // certification switch and unbound owners refuse every binding, so
+    // reading them enables nothing until C-M108-2 closes.
     accountSwap: readSetting(config, 'accountSwap', log),
     accountParallel: readSetting(config, 'accountParallel', log),
-    'accounts.severalOnThisDevice': SETTING_DEFAULTS['accounts.severalOnThisDevice'],
+    'accounts.severalOnThisDevice': readSetting(config, 'accounts.severalOnThisDevice', log),
     'github.useGhLogin': readSetting(config, 'github.useGhLogin', log),
     // The live switch (with its legacy precedence) resolves where the vault
     // runs; activation carries the configured flag for the round trip only.

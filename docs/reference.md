@@ -870,7 +870,7 @@ ACP native Meta requests select accounts at request boundaries. Headless --accou
 
 Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#several-accounts-per-provider)
+Commands: `museSpark.developerOptions`. Settings: `museSpark.accounts.severalOnThisDevice`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#several-accounts-per-provider)
 
 ### Permission Mode
 
@@ -2110,6 +2110,10 @@ Available when: `workspaceFolderCount > 0`.
 ### Muse Spark: Open Help & Reference
 
 `museSpark.openHelp` — Commands, settings and features, with descriptions and documentation.
+
+### Muse Spark: Open Developer Options
+
+`museSpark.developerOptions` — Open Developer Options
 
 ### Muse Spark: Next open question
 
@@ -3946,6 +3950,19 @@ Type: `"string"`. Default: `""`. Scope: `machine`.
   "type": "string",
   "default": "",
   "maxLength": 4096
+}
+```
+
+### museSpark.accounts.severalOnThisDevice
+
+Allow several accounts of one provider on this PC for testing, each in its own isolated local profile. Turning it on asks the provider’s vendor-terms confirmation first. Off by default; only this machine’s setting is used.
+
+Type: `"boolean"`. Default: `false`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": false
 }
 ```
 

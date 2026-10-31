@@ -148,6 +148,18 @@ describe('account errors name their cause', () => {
     expect(accountErrorText(new AccountStoreError('originMismatch'))).toBe(CONNECTION)
   })
 
+  it('passes the placement refusal through with only opaque ids', () => {
+    const sentence = fill(UI_TEXT.accounts.placementConflict, {
+      provider: 'meta',
+      device: 'peer-1',
+    })
+    const conflict = new AccountStoreError('placementConflict', sentence, {
+      placement: { provider: 'meta', device: 'peer-1' },
+    })
+    expect(accountErrorText(conflict)).toBe(sentence)
+    expect(commandError(conflict)).toBe(sentence)
+  })
+
   it('tells the terminal the real failure', async () => {
     expect(commandError(new AccountStoreError('invalidProvidersFile'))).toBe(
       UI_TEXT.accounts.providersInvalid,
@@ -176,6 +188,7 @@ describe('account errors name their cause', () => {
         {
           accounts: services.store,
           metadata: services.metadata,
+          placements: services.placements,
           print: (line) => {
             lines.push(line)
           },
@@ -196,6 +209,7 @@ describe('account errors name their cause', () => {
         {
           accounts: services.store,
           metadata: services.metadata,
+          placements: services.placements,
           print: () => undefined,
           printError: (line) => {
             errors.push(line)

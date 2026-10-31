@@ -6632,7 +6632,7 @@
     "revokeUnsupported": "이 런타임에서는 이 로그인 제거가 지원되지 않습니다.",
     "providersInvalid": "제공자 파일이 유효하지 않아 해당 항목이 거부되고 파일은 변경되지 않았습니다.",
     "poolUnavailable": "이 런타임에서는 계정 풀링을 사용할 수 없습니다. 바인딩된 리소스 소유자가 필요합니다. --account-pool 없이 다시 실행하세요.",
-    "cliUsage": "계정: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [정렬된 ID]. 인증 정보: {command} auth set --provider <id> --account <id> (표준 입력만).",
+    "cliUsage": "계정: {command} providers accounts list|add|remove|order|thresholds|place --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [--device <id>] [정렬된 ID|계정 ID]. 인증 정보: {command} auth set --provider <id> --account <id> (표준 입력만).",
     "slashDescription": "계정 목록을 표시하거나 임계값을 확인하거나 계정을 선택합니다.",
     "title": "계정",
     "defaultLabel": "기본 계정",
@@ -6736,7 +6736,8 @@
     "spendAdminPrompt": "{provider} 관리 보고서 키: ",
     "spendAdminStored": "{provider} 관리 보고서 키를 {store}에 저장했습니다.",
     "spendAdminCleared": "{provider} 관리 보고서 키를 삭제했습니다.",
-    "spendRefreshWait": "지출 보고서는 최대 1분에 한 번씩 새로고침됩니다. 캐시된 보고서를 표시합니다."
+    "spendRefreshWait": "지출 보고서는 최대 1분에 한 번씩 새로고침됩니다. 캐시된 보고서를 표시합니다.",
+    "severalSettingsRedirect": "여러 계정은 제공자 옆의 계정 페이지에서 켜십시오. 먼저 제공자 이용약관 확인이 표시됩니다."
   },
   "developer": {
     "title": "개발자 옵션",
@@ -6751,6 +6752,7 @@
     "differentMachine": "개발자 옵션은 다른 컴퓨터 ID로 설정되었습니다. 초기화하여 이 컴퓨터에서 새로 시작하세요.",
     "invalidRequest": "개발자 옵션 요청을 확인하세요.",
     "expires": "개발자 모드 만료: {time}.",
+    "expired": "개발자 모드가 만료되어 프로필이 중지되었습니다.",
     "reset": "개발자 옵션 초기화",
     "profiles": "로컬 프로필",
     "profileInfo": "각 프로필에는 별도의 인증 정보 저장 공간, 상태 폴더 및 실행 프로세스가 있습니다. 만료되면 프로필이 중지되고 초기화하면 삭제됩니다.",
@@ -6759,7 +6761,8 @@
     "addProfile": "로컬 프로필 추가",
     "helpUnlock": "버전을 일곱 번 클릭하거나 개발자 옵션 명령을 사용하여 잠금을 해제하세요.",
     "helpTerminal": "`developer`로 잠금을 해제하세요. `developer status`는 이 컴퓨터의 옵션을 보여 줍니다.",
-    "commandUsage": "사용법: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
+    "commandUsage": "사용법: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]",
+    "versionLine": "버전 {version}"
   },
   "mcpConnectorTitle": "다른 에이전트용 MCP 커넥터",
   "referenceMcpCommand": "Muse Spark Code의 도구를 MCP를 통해 다른 에이전트(Codex, Claude Code, Gemini CLI)에 제공합니다. 모든 쓰기 작업은 사용자의 승인을 기다립니다.",

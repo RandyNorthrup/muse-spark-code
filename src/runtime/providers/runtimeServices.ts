@@ -24,7 +24,13 @@ import {
 } from '../../host/providers/accountSecrets'
 import type { SecretStore } from '../../host/auth/credentialStore'
 import { keyringSecretStore, type KeyringEntryFactory } from '../keyStore'
-import { DeveloperOptions } from '../../core/developer/developerOptions'
+import {
+  createAccountPlacements,
+  localPlacementDeviceMatcher,
+  localPlacementId,
+} from '../../core/accounts/placement'
+import type { AccountPlacements } from '../../core/team/remotePool'
+import { DeveloperOptions, DeveloperOptionsError } from '../../core/developer/developerOptions'
 import type { DeveloperSnapshot } from '../../shared/developerOptions'
 import { developerMachineIdAliases, loadDeveloperMachineId } from '../../core/developer/machineId'
 import { DeveloperLocalFiles } from '../developer/localFiles'
@@ -51,8 +57,17 @@ export function runtimeRevokeSignIn(): Promise<void> {
   return Promise.reject(new RevokeUnsupportedError())
 }
 
+export interface AccountServicesSettings {
+  readonly isSwapOn: boolean
+  readonly isParallelOn: boolean
+  /** D88 b2: several accounts of one provider on this machine (off until X4 restores the read). */
+  readonly severalOnThisDevice: boolean
+}
+
 export type RuntimeAccountServicesInput = {
-  readonly settings?: (() => { isSwapOn: boolean; isParallelOn: boolean }) | undefined
+  readonly settings?: (() => AccountServicesSettings) | undefined
+  /** Placement devices; absent reads as this client alone plus profile devices. */
+  readonly devices?: { localId: string; isKnownDevice: (id: string) => boolean } | undefined
   readonly askPolicy?: Parameters<typeof createAccountRequestOwner>[0]['askPolicy']
   readonly onNotice?: Parameters<typeof createAccountRequestOwner>[0]['publish']
   /** Where an observer's failure is recorded, by kind only. */
@@ -68,6 +83,8 @@ export type RuntimeAccountServicesInput = {
 export interface RuntimeAccountServices {
   readonly store: AccountStore
   readonly metadata: AccountsMetadataPort
+  /** D88 placement (a): the one pin owner for this profile. */
+  readonly placements: AccountPlacements
   readonly commands: Omit<AccountsCommandDeps, 'print' | 'printError'>
   readonly exec: ExecAccountsPort
   requests(
@@ -109,7 +126,7 @@ class RuntimeAccountSessions implements AccountsSessionPort {
     private readonly provider: string,
     private readonly account: string,
     private readonly owner: () => ReturnType<typeof createAccountRequestOwner>,
-    private readonly settings: () => { isSwapOn: boolean; isParallelOn: boolean },
+    private readonly settings: () => AccountServicesSettings,
     private readonly log: Pick<CoreLogger, 'warn'>,
   ) {}
 
@@ -118,12 +135,14 @@ class RuntimeAccountSessions implements AccountsSessionPort {
     const owner = await this.owner()
     const selected = owner.pool.current('conversation', sessionId) ?? this.account
     const current = accounts.some((row) => row.id === selected) ? selected : null
+    const { isSwapOn, isParallelOn } = this.settings()
     return {
       type: 'accounts/state',
       provider: this.provider,
       accounts,
       currentAccount: current,
-      ...this.settings(),
+      isSwapOn,
+      isParallelOn,
     }
   }
 
@@ -225,8 +244,14 @@ class PublishingAccountStore extends AccountStore {
     metadata: AccountsMetadataPort,
     credentials: AccountSecrets,
     private readonly published: (provider: string) => Promise<void>,
+    placement?: ConstructorParameters<typeof AccountStore>[2],
   ) {
-    super(metadata, credentials)
+    super(metadata, credentials, placement)
+  }
+
+  public override async pin(provider: string, account: string, device: string): Promise<void> {
+    await super.pin(provider, account, device)
+    await this.published(provider)
   }
 
   public override async add(provider: string, value: Account): Promise<symbol> {
@@ -271,10 +296,6 @@ class PublishingAccountStore extends AccountStore {
     await super.remove(provider, account, addition)
     await this.published(provider)
   }
-}
-
-function developerUnavailableProfile(): Promise<void> {
-  return Promise.reject(new Error(UI_TEXT.developer.unavailable))
 }
 
 /** The one mapping point for a refused providers file: every runtime caller
@@ -331,24 +352,34 @@ export async function checkDeveloperAccount(
     if (isInvalidProvidersFileError(error)) throw error
     throw new Error(UI_TEXT.accounts.unavailable, { cause: error })
   }
+  // Typed refusals: the surface controller maps the code to its sentence,
+  // so a mistyped account reads invalid-request, never unavailable.
   if (entry === undefined || rows.every((row) => row.id !== account))
-    throw new Error(UI_TEXT.developer.invalidRequest)
+    throw new DeveloperOptionsError('invalidRequest')
   const policy = accountPolicyFor(entry.policyProvider, entry.product)
   if (entry.product === 'muse-code' || policy?.pooling === 'notOffered')
-    throw new Error(UI_TEXT.developer.unavailable)
+    throw new DeveloperOptionsError('unavailable')
 }
 
 export function createRuntimeAccountServices(
   input: RuntimeAccountServicesInput,
 ): RuntimeAccountServices {
-  const settings =
+  const settings: () => AccountServicesSettings =
     input.settings ??
     (() => ({
       isSwapOn: SETTING_DEFAULTS.accountSwap,
       isParallelOn: SETTING_DEFAULTS.accountParallel,
+      severalOnThisDevice: SETTING_DEFAULTS['accounts.severalOnThisDevice'],
     }))
   let isHeld = false
-  const metadata = withProvidersFileRefusal(fileAccountsMetadata(input.dataDir))
+  const files = fileAccountsMetadata(input.dataDir)
+  const metadata = withProvidersFileRefusal(files)
+  const localDevice = input.devices?.localId ?? localPlacementId(input.dataDir)
+  const isKnownDevice = input.devices?.isKnownDevice ?? localPlacementDeviceMatcher(localDevice)
+  const placement = {
+    localDevice: () => localDevice,
+    isOnePerDevice: () => !settings().severalOnThisDevice,
+  }
   const credentials = new AccountSecrets({
     vault: secretStorageAccountVault(
       input.openEntry === undefined ? input.secrets : keyringSecretStore(input.openEntry),
@@ -367,7 +398,15 @@ export function createRuntimeAccountServices(
       if (key.startsWith(`${provider} `)) port.publish()
     }
   }
-  const store = new PublishingAccountStore(metadata, credentials, publish)
+  const store = new PublishingAccountStore(metadata, credentials, publish, placement)
+  const placements = createAccountPlacements({
+    store,
+    metadata,
+    listProviders: () => files.listProviders(),
+    localDevice,
+    isKnownDevice,
+    isOnePerDevice: placement.isOnePerDevice,
+  })
   const owners = new Map<string, ReturnType<typeof createAccountRequestOwner>>()
   const owner = (provider: string) => {
     let created = owners.get(provider)
@@ -477,16 +516,7 @@ export function createRuntimeAccountServices(
     now: base.now,
     newProfileId: () => `p${randomBytes(DEVELOPER_PROFILE_ID_BYTES).toString('hex')}`,
     store: base.files,
-    resources: {
-      // Profile processes, credential slots and pool registration need
-      // M109's broker binding. Nothing starts here; the failure names
-      // the missing binding instead of running half a profile. Foreign
-      // reset (DEVID017C) clears the record without this port, so the
-      // unbound stub never blocks recovery.
-      start: developerUnavailableProfile,
-      stop: developerUnavailableProfile,
-      remove: developerUnavailableProfile,
-    },
+    resources: base.files.resources(),
     checkAccount: base.checkAccount,
     confirm: base.confirm,
     changed: base.changed,
@@ -494,7 +524,8 @@ export function createRuntimeAccountServices(
   return {
     store,
     metadata,
-    commands: { accounts: store, metadata },
+    placements,
+    commands: { accounts: store, metadata, placements },
     requests,
     billing: activeAccountBilling,
     confirmations: async (provider) => {

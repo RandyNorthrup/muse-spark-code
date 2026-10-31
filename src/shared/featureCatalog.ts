@@ -364,6 +364,10 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   sharePrompt: { description: { ui: 'shareReviewPrivacy' }, canRun: false },
   shareChat: { description: { ui: 'shareReviewPrivacy' }, canRun: false },
   openHelp: { description: { ui: 'referenceIntro' }, canRun: true },
+  developerOptions: {
+    description: { command: COMMAND_IDS.developerOptions },
+    canRun: true,
+  },
   attachScreenRecording: { description: { ui: 'referenceScreenRecording' }, canRun: false },
   attachLatestScreenRecording: { description: { ui: 'referenceLatestRecording' }, canRun: false },
   deleteUploadedFiles: { description: { ui: 'referenceUploadedFiles' }, canRun: false },
@@ -1100,9 +1104,10 @@ export function featureCatalog(): readonly Feature[] {
         'accounts',
         { ui: 'referenceAccountsTitle' },
         { ui: 'referenceAccounts' },
-        [],
-        // Published bare while uncertified: the three controls stay
-        // compatibility-only and the shared daily budget is not an
+        ['developerOptions'],
+        // RLF-M108 publishes the several-accounts setting: it is read,
+        // enforced and switched from the Accounts page. Swap and parallel
+        // stay compatibility-only and the shared daily budget is not an
         // accounts setting in Help.
         ['accountSwap', 'accountParallel', 'accounts.severalOnThisDevice'],
         'several-accounts-per-provider',

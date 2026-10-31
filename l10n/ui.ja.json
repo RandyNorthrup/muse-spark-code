@@ -6632,7 +6632,7 @@
     "revokeUnsupported": "このランタイムではこのサインインの削除はサポートされていません。",
     "providersInvalid": "プロバイダーファイルが無効なため、そのエントリは拒否され、ファイルは変更されませんでした。",
     "poolUnavailable": "このランタイムではアカウントのプール利用はできません。バインドされたリソース所有者が必要です。--account-pool なしでもう一度実行してください。",
-    "cliUsage": "アカウント: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [順序付きID]。認証情報: {command} auth set --provider <id> --account <id>（標準入力のみ）。",
+    "cliUsage": "アカウント: {command} providers accounts list|add|remove|order|thresholds|place --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [--device <id>] [順序付きID|アカウントID]。認証情報: {command} auth set --provider <id> --account <id>（標準入力のみ）。",
     "slashDescription": "アカウントを一覧表示し、しきい値を確認するか、アカウントを選択します。",
     "title": "アカウント",
     "defaultLabel": "既定のアカウント",
@@ -6736,7 +6736,8 @@
     "spendAdminPrompt": "{provider} の管理レポートキー：",
     "spendAdminStored": "{provider} の管理レポートキーを {store} に保存しました。",
     "spendAdminCleared": "{provider} の管理レポートキーを削除しました。",
-    "spendRefreshWait": "利用レポートは1分に1回まで更新されます。キャッシュされたレポートを表示しています。"
+    "spendRefreshWait": "利用レポートは1分に1回まで更新されます。キャッシュされたレポートを表示しています。",
+    "severalSettingsRedirect": "複数のアカウントは、プロバイダーの横にあるアカウントページからオンにしてください。最初にプロバイダーの利用規約の確認が表示されます。"
   },
   "developer": {
     "title": "開発者向けオプション",
@@ -6751,6 +6752,7 @@
     "differentMachine": "開発者向けオプションは別のマシンIDで設定されました。リセットしてこのマシンで最初から使い直してください。",
     "invalidRequest": "開発者向けオプションへの要求を確認してください。",
     "expires": "開発者モードの有効期限は{time}です。",
+    "expired": "開発者モードの有効期限が切れ、プロファイルが停止しました。",
     "reset": "開発者向けオプションをリセット",
     "profiles": "ローカルプロファイル",
     "profileInfo": "各プロファイルには専用の認証情報の保存枠、状態フォルダー、実行プロセスがあります。有効期限が切れると停止し、リセットすると削除されます。",
@@ -6759,7 +6761,8 @@
     "addProfile": "ローカルプロファイルを追加",
     "helpUnlock": "バージョンを7回クリックするか、開発者向けオプションのコマンドでロックを解除します。",
     "helpTerminal": "`developer`でロックを解除します。`developer status`でこの端末のオプションを表示します。",
-    "commandUsage": "使用法: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
+    "commandUsage": "使用法: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]",
+    "versionLine": "バージョン {version}"
   },
   "mcpConnectorTitle": "他のエージェント向け MCP コネクタ",
   "referenceMcpCommand": "Muse Spark Code のツールを MCP 経由で他のエージェント (Codex、Claude Code、Gemini CLI) に提供します。書き込みはすべてあなたの承認を待ちます。",

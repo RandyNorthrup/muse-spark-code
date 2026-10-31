@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 // M95 owns providers.json's envelope/atomic I/O. Only its accounts field is
 // written here; secrets and vendor responses have separate injected ports.
 import {
+  accountDeviceSchema,
   accountIdSchema,
   accountSchema,
   accountThresholdsSchema,
@@ -50,7 +51,30 @@ export class AccountStore {
   public constructor(
     private readonly metadata: AccountsMetadataPort,
     private readonly credentials: AccountCredentialVault,
+    private readonly placement?: {
+      /** This client's own device id (M100's when paired; a stable local id otherwise). */
+      readonly localDevice: () => string
+      /** D88 placement (a): one account of a provider per device unless off. */
+      readonly isOnePerDevice: () => boolean
+    },
   ) {}
+
+  /** A row without a pin reads as this machine (legacy rows predate placement). */
+  private effectiveDevice(row: Pick<Account, 'device'>): string {
+    return row.device ?? this.placement?.localDevice() ?? ''
+  }
+
+  private assertPlacement(provider: string, pool: readonly Account[], row: Account): void {
+    if (this.placement?.isOnePerDevice() !== true) return
+    const device = this.effectiveDevice(row)
+    if (pool.some((other) => other.id !== row.id && this.effectiveDevice(other) === device)) {
+      throw new AccountStoreError(
+        'placementConflict',
+        fill(UI_TEXT.accounts.placementConflict, { provider, device }),
+        { placement: { provider, device } },
+      )
+    }
+  }
 
   private async provider(id: string): Promise<AccountProvider> {
     if (!accountIdSchema.safeParse(id).success) throw new AccountStoreError('invalidAccount')
@@ -122,10 +146,32 @@ export class AccountStore {
       const entry = await this.provider(provider)
       this.assertCredentialsOffered(entry)
       const pool = providersAccountsSchema.parse([...this.pool(entry), value])
+      this.assertPlacement(provider, pool, value)
       await this.metadata.writeAccounts(provider, pool)
       const addition = Symbol()
       AccountStore.additions.set(accountSecretKey(provider, value.id), addition)
       return addition
+    })
+  }
+
+  /**
+  Pin an account to a device (D88 placement (a)); re-pinning replaces the
+  previous pin. The one-per-device rule is enforced here, inside the
+  mutation queue, so a concurrent add cannot slip a second row onto the
+  same device between the routing layer's check and this write.
+  */
+  public async pin(provider: string, account: string, device: string): Promise<void> {
+    const placement = accountDeviceSchema.parse(device)
+    await this.mutate(async () => {
+      const pool = this.pool(await this.provider(provider))
+      const row = pool.find((entry) => entry.id === account)
+      if (row === undefined) throw new AccountStoreError('invalidAccount')
+      const next = { ...row, device: placement }
+      this.assertPlacement(provider, pool, next)
+      await this.metadata.writeAccounts(
+        provider,
+        pool.map((entry) => (entry.id === account ? next : entry)),
+      )
     })
   }
 
@@ -136,6 +182,7 @@ export class AccountStore {
       const previous = pool.find((row) => row.id === parsed.id)
       if (previous === undefined) throw new AccountStoreError('invalidAccount')
       const account = { ...parsed, credentialRevision: previous.credentialRevision }
+      this.assertPlacement(provider, pool, account)
       await this.metadata.writeAccounts(
         provider,
         pool.map((row) => (row.id === account.id ? account : row)),

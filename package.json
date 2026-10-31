@@ -329,6 +329,11 @@
         "category": "%command.category%"
       },
       {
+        "command": "museSpark.developerOptions",
+        "title": "%command.developerOptions.title%",
+        "category": "%command.category%"
+      },
+      {
         "command": "museSpark.nextOpenQuestion",
         "title": "%command.nextOpenQuestion.title%",
         "category": "%command.category%"
@@ -1800,8 +1805,7 @@
           "type": "boolean",
           "default": false,
           "description": "%config.accounts.severalOnThisDevice.description%",
-          "scope": "machine",
-          "deprecationMessage": "%config.accounts.severalOnThisDevice.description%"
+          "scope": "machine"
         },
         "museSpark.github.useGhLogin": {
           "type": "boolean",

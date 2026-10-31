@@ -1232,8 +1232,8 @@
       "name": { "ui": "referenceAccountsTitle" },
       "summary": { "ui": "referenceAccounts" },
       "description": { "ui": "referenceAccounts" },
-      "commands": [],
-      "settings": [],
+      "commands": ["museSpark.developerOptions"],
+      "settings": ["museSpark.accounts.severalOnThisDevice"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#several-accounts-per-provider",
       "backends": ["modelApi"],
       "paid": false,
@@ -2817,6 +2817,16 @@
       "categoryKey": "command.category",
       "description": "Commands, settings and features, with descriptions and documentation.",
       "text": { "ui": "referenceIntro" },
+      "canRun": true
+    },
+    {
+      "id": "museSpark.developerOptions",
+      "name": "Open Developer Options",
+      "nameKey": "command.developerOptions.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Open Developer Options",
+      "text": { "command": "museSpark.developerOptions" },
       "canRun": true
     },
     {
@@ -4858,6 +4868,17 @@
       "schema": { "type": "string", "default": "", "maxLength": 4096 }
     },
     {
+      "id": "museSpark.accounts.severalOnThisDevice",
+      "name": "museSpark.accounts.severalOnThisDevice",
+      "description": "Allow several accounts of one provider on this PC for testing, each in its own isolated local profile. Turning it on asks the provider’s vendor-terms confirmation first. Off by default; only this machine’s setting is used.",
+      "descriptionKey": "config.accounts.severalOnThisDevice.description",
+      "type": "boolean",
+      "default": false,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": false }
+    },
+    {
       "id": "museSpark.github.useGhLogin",
       "name": "museSpark.github.useGhLogin",
       "description": "Lets pull requests use your existing GitHub CLI sign-in (`gh auth token`), tried last, after the editor's own GitHub sign-in and Muse Spark's. The token is read for one request at a time and never stored. Off by default; user settings only, so a repository cannot turn it on.",
@@ -5500,7 +5521,8 @@
         ["providers", "accounts", "add"],
         ["providers", "accounts", "remove"],
         ["providers", "accounts", "order"],
-        ["providers", "accounts", "thresholds"]
+        ["providers", "accounts", "thresholds"],
+        ["providers", "accounts", "place"]
       ]
     },
     {

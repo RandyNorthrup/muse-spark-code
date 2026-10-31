@@ -2405,6 +2405,7 @@ const nodeMetafiles = readdirSync('dist/meta')
         'reportingPageWebview.json',
         'reportingDestinationsWebview.json',
         'judgeSetupWebview.json',
+        'developerOptionsWebview.json',
       ].includes(name),
   )
   .map((name) => `dist/meta/${name}`)

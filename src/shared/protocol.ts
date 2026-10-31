@@ -117,7 +117,10 @@ import { teamTreeSchema, teamUsageSchema } from './teamView'
 const stringSchema = z.string()
 const numberSchema = z.number()
 // M107: the random id a chat document mints at start; and Show's request number.
-const documentNonceSchema = z.string().check(z.minLength(1), z.maxLength(RESOURCE_NONCE_MAX_CHARS))
+const documentNonceSchema = stringSchema.check(
+  z.minLength(1),
+  z.maxLength(RESOURCE_NONCE_MAX_CHARS),
+)
 const resourceSeqSchema = z.int().check(z.gte(1))
 const booleanSchema = z.boolean()
 const optionalBooleanSchema = z.optional(booleanSchema)
@@ -443,7 +446,7 @@ export type ReportEventRef = z.infer<typeof reportEventRefSchema>
 
 const reportFrameSchema = z.strictObject({
   /** A package-relative path the recorder already verified. */
-  path: z.string().check(z.minLength(1), z.maxLength(REPORT_FRAME_PATH_MAX_CHARS)),
+  path: stringSchema.check(z.minLength(1), z.maxLength(REPORT_FRAME_PATH_MAX_CHARS)),
   line: z.int().check(z.gte(1)),
   column: z.int().check(z.gte(0)),
 })
@@ -456,7 +459,7 @@ or REPORT_UNKNOWN_ERROR_CODE; `frames` are bounded verified frames.
 export const reportWebviewErrorSchema = z.strictObject({
   kind: z.enum(REPORT_WEBVIEW_ERROR_KINDS),
   source: z.enum(WEBVIEW_ERROR_SOURCES),
-  code: z.string().check(z.minLength(1), z.maxLength(REPORT_ERROR_CODE_MAX_CHARS)),
+  code: stringSchema.check(z.minLength(1), z.maxLength(REPORT_ERROR_CODE_MAX_CHARS)),
   frames: z.array(reportFrameSchema).check(z.maxLength(REPORT_STACK_MAX_FRAMES)),
 })
 export type ReportWebviewError = z.infer<typeof reportWebviewErrorSchema>
@@ -493,7 +496,7 @@ const reportDraftItemSchema = z.object({
   /** The journal entry's place, for `event` items only. */
   eventIndex: z.optional(z.int().check(z.gte(0))),
   /** Built by the host from fixed vocabularies; the webview renders it as is. */
-  label: z.string().check(z.minLength(1)),
+  label: stringSchema.check(z.minLength(1)),
 })
 export type ReportDraftItem = z.infer<typeof reportDraftItemSchema>
 
@@ -504,18 +507,18 @@ export const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // M118: the lazy implementation validates the action-specific payload.
   z.strictObject({
     type: z.literal('sharingAction'),
-    id: z.string(),
-    action: z.string(),
+    id: stringSchema,
+    action: stringSchema,
     payload: z.unknown(),
   }),
   z.strictObject({
     type: z.literal('runReport'),
-    requestId: z.string(),
-    argumentsText: z.string(),
+    requestId: stringSchema,
+    argumentsText: stringSchema,
   }),
   z.object({ type: z.literal('readReference') }),
-  z.object({ type: z.literal('openReferenceSetting'), key: z.string() }),
-  z.object({ type: z.literal('runReferenceCommand'), command: z.string() }),
+  z.object({ type: z.literal('openReferenceSetting'), key: stringSchema }),
+  z.object({ type: z.literal('runReferenceCommand'), command: stringSchema }),
   // Sent once when the React app has mounted and is listening for messages.
   z.object({ type: z.literal('ready'), attachmentEpoch: z.optional(numberSchema) }),
   // The composer gained or lost keyboard focus; drives the
@@ -555,7 +558,7 @@ export const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     */
     gitDraft: z.optional(z.enum(GIT_DRAFT_KINDS)),
     /** The PR form's edited base, so its draft describes the same comparison. */
-    gitDraftBase: z.optional(z.string()),
+    gitDraftBase: z.optional(stringSchema),
   }),
   // Edit on a queued message (M87, PLAN.md D66): take it back before the
   // model has it. The ids are those `turnAccepted` gave its card; the host
@@ -564,9 +567,9 @@ export const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // `withdrawRefused`.
   z.object({
     type: z.literal('withdrawQueued'),
-    localId: z.string().check(z.minLength(1)),
-    turnId: z.string().check(z.minLength(1)),
-    userMessageId: z.optional(z.string().check(z.minLength(1))),
+    localId: stringSchema.check(z.minLength(1)),
+    turnId: stringSchema.check(z.minLength(1)),
+    userMessageId: z.optional(stringSchema.check(z.minLength(1))),
   }),
   // Retry on a failed turn the backend judged retryable (RLF-ACPTURNS):
   // the webview rendered the optimistic card under `localId` from the
@@ -575,11 +578,11 @@ export const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // send is. Never an automatic resubmit: only this press sends it.
   z.object({
     type: z.literal('retryTurn'),
-    localId: z.string().check(z.minLength(1)),
-    turnId: z.string().check(z.minLength(1)),
+    localId: stringSchema.check(z.minLength(1)),
+    turnId: stringSchema.check(z.minLength(1)),
   }),
   // The user pressed Stop.
-  z.object({ type: z.literal('runManualHook'), name: z.string().check(z.minLength(1)) }),
+  z.object({ type: z.literal('runManualHook'), name: stringSchema.check(z.minLength(1)) }),
   z.object({ type: z.literal('cancelTurn') }),
   z.object({ type: z.literal('signIn'), method: z.enum(SIGN_IN_METHODS) }),
   z.object({ type: z.literal('installMuseCode') }),
@@ -688,7 +691,7 @@ export const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     feedback: z.optional(stringSchema),
   }),
   // Question card: Cancel declines the prompt; the model sees a cancelled result (M16).
-  z.object({ type: z.literal('cancelQuestion'), userInputId: z.string() }),
+  z.object({ type: z.literal('cancelQuestion'), userInputId: stringSchema }),
   // M112: explicit session identity rejects answers from stale surfaces.
   answerOpenQuestionSchema,
   dismissOpenQuestionSchema,
@@ -697,9 +700,9 @@ export const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // against the schema before they reach the server), or decline or cancel.
   z.object({
     type: z.literal('elicitationAnswer'),
-    elicitationId: z.string(),
+    elicitationId: stringSchema,
     action: z.enum(['accept', 'decline', 'cancel']),
-    values: z.optional(z.record(z.string(), z.unknown())),
+    values: z.optional(z.record(stringSchema, z.unknown())),
   }),
   // Question card: one answer per question.
   z.object({
@@ -802,7 +805,7 @@ export const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // An edit row's Revert (M87, PLAN.md D66 item 17): that edit's stored patch
   // reverse-applied after the file-action confirmation, as one step of
   // "Rewind Code to Here" is (M13, M72).
-  z.object({ type: z.literal('revertEdit'), itemId: z.string(), outputRef: z.string() }),
+  z.object({ type: z.literal('revertEdit'), itemId: stringSchema, outputRef: stringSchema }),
   // A tool row's path: open the file, selecting the changed lines when known (M16, `LineRange`).
   z.object({
     type: z.literal('openFile'),
@@ -998,7 +1001,7 @@ export const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('readUsage') }),
   // The usage dialog's uploaded-files section (M105 lane F): delete one
   // file or all of ours; answered by a fresh uploadedFilesReport.
-  z.object({ type: z.literal('deleteUploadedFile'), fileId: z.string() }),
+  z.object({ type: z.literal('deleteUploadedFile'), fileId: stringSchema }),
   z.object({ type: z.literal('deleteAllUploadedFiles') }),
   // Voice dictation (M9): the microphone button / Ctrl+D. Recognised text
   // comes back as `insertText`; the button state as `dictationState`.
@@ -1017,17 +1020,17 @@ export const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('gitAction'), action: z.enum(GIT_ACTIONS) }),
   z.object({
     type: z.literal('gitCommit'),
-    message: z.string(),
+    message: stringSchema,
     /** Stage every change first, new files included. */
     includeUnstaged: z.boolean(),
   }),
   z.object({
     type: z.literal('gitCreatePullRequest'),
     /** The branch the form showed: a different one now refuses the request. */
-    head: z.string(),
-    base: z.string(),
-    title: z.string(),
-    body: z.string(),
+    head: stringSchema,
+    base: stringSchema,
+    title: stringSchema,
+    body: stringSchema,
     isDraft: z.boolean(),
   }),
   // Report a problem (M93 lane W): the preview dialog's requests. Strict:
@@ -1049,7 +1052,7 @@ export const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     // echoes it on the rebuilt draft, so an older reply never settles a
     // newer choice.
     revision: z.int().check(z.gte(1)),
-    description: z.string().check(z.maxLength(REPORT_DESCRIPTION_MAX_CHARS)),
+    description: stringSchema.check(z.maxLength(REPORT_DESCRIPTION_MAX_CHARS)),
     includeFacts: z.boolean(),
     includeEvents: z.boolean(),
     removedEventIndexes: z
@@ -1061,7 +1064,10 @@ export const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('exportReport'),
     via: z.enum(REPORT_EXPORT_CHANNELS),
-    hash: z.string().check(z.minLength(REPORT_HASH_HEX_CHARS), z.maxLength(REPORT_HASH_HEX_CHARS)),
+    hash: stringSchema.check(
+      z.minLength(REPORT_HASH_HEX_CHARS),
+      z.maxLength(REPORT_HASH_HEX_CHARS),
+    ),
   }),
   // The scrubbed webview failure (M93 lane W): window.onerror,
   // unhandledrejection and React-boundary posts carry lane 0's bounded
@@ -1073,6 +1079,10 @@ export const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     ...reportWebviewErrorSchema.shape,
   }),
   playbookEnvelopeSchema,
+  // M108 X: the Developer options page's requests. The host validates the
+  // payload against the developer request schema; the page carries no
+  // authority of its own.
+  z.strictObject({ type: z.literal('developerRequest'), request: z.unknown() }),
 ])
 
 export type WebviewToHostMessage =
@@ -1081,11 +1091,11 @@ export type WebviewToHostMessage =
 export const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('sharingResult'),
-    id: z.string(),
+    id: stringSchema,
     // Optional: the host answers undefined for a failure and for actions
     // with no result, and the JSON transport drops the key (RLWINFIX).
     value: z.optional(z.unknown()),
-    error: z.optional(z.string()),
+    error: z.optional(stringSchema),
   }),
   z.strictObject({ type: z.literal('openSharing'), surface: z.enum(['prompts', 'chat']) }),
   // Posted on attach and each registry change; terminal updates settle both views.
@@ -1096,9 +1106,9 @@ export const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('referenceValues'),
     error: optionalBooleanSchema,
-    model: z.string(),
-    values: z.record(z.string(), z.string()),
-    nls: z.record(z.string(), z.string()),
+    model: stringSchema,
+    values: z.record(stringSchema, stringSchema),
+    nls: z.record(stringSchema, stringSchema),
   }),
   // Reply to `ready`: everything the shell needs to render its first frame.
   z.object({
@@ -1160,8 +1170,8 @@ export const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     /** Host-authored identity for plan notice persistence; no raw account id or credential. */
     planAccount: z.optional(
       z.object({
-        providerId: z.string().check(z.regex(/^(?!meta$)[a-z][a-z0-9-]{0,31}$/u)),
-        accountIdHash: z.string().check(z.regex(/^[a-f0-9]{64}$/u)),
+        providerId: stringSchema.check(z.regex(/^(?!meta$)[a-z][a-z0-9-]{0,31}$/u)),
+        accountIdHash: stringSchema.check(z.regex(/^[a-f0-9]{64}$/u)),
       }),
     ),
   }),
@@ -1201,7 +1211,7 @@ export const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('sessionList'),
     sessions: z.array(sessionRowSchema),
     archivedIds: z.array(stringSchema),
-    openQuestionCounts: z.optional(z.record(z.string(), z.number().check(z.int(), z.minimum(0)))),
+    openQuestionCounts: z.optional(z.record(stringSchema, z.number().check(z.int(), z.minimum(0)))),
     // `false` where the host cannot delete a stored session (D26); absent means offered.
     canDeleteSessions: z.optional(booleanSchema),
     // `false` where the backend keeps no recaps; absent means offered.
@@ -1328,7 +1338,7 @@ export const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // the chip says it is unavailable rather than keep an old reading.
   z.strictObject({
     type: z.literal('resourceStatus'),
-    status: z.nullable(z.string().check(z.minLength(1), z.maxLength(RESOURCE_STATUS_MAX_CHARS))),
+    status: z.nullable(stringSchema.check(z.minLength(1), z.maxLength(RESOURCE_STATUS_MAX_CHARS))),
   }),
   // Show resources' open, for the document whose nonce it names; it acks the seq.
   z.strictObject({
@@ -1374,22 +1384,22 @@ export const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // `attachmentAdded`; absent, the backend could not give them back.
   z.object({
     type: z.literal('queuedWithdrawn'),
-    localId: z.string().check(z.minLength(1)),
+    localId: stringSchema.check(z.minLength(1)),
     attachmentsKept: optionalBooleanSchema,
   }),
   // The host did not take it back (M87): the card stays, `reason` says why.
   z.object({
     type: z.literal('withdrawRefused'),
-    localId: z.string().check(z.minLength(1)),
-    reason: z.string(),
+    localId: stringSchema.check(z.minLength(1)),
+    reason: stringSchema,
   }),
   // M92e (PLAN.md D71): the prompt holds a detected secret, so nothing was
   // sent. The panel shows its dialog (Send anyway / Edit); the transcript
   // card already rendered is replaced by this redacted text.
   z.object({
     type: z.literal('secretPromptDetected'),
-    localId: z.string(),
-    redactedText: z.string(),
+    localId: stringSchema,
+    redactedText: stringSchema,
   }),
   // The command's admission result. Correlation protects a newer composer draft.
   z.object({
@@ -1412,7 +1422,7 @@ export const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // `/handoff …`, and a refused confirm keeps the dialog.
   z.strictObject({
     type: z.literal('reportCommandResult'),
-    requestId: z.string(),
+    requestId: stringSchema,
     accepted: z.boolean(),
   }),
   z.object({
@@ -1437,11 +1447,11 @@ export const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // opens the panel, and again when targets or defaults change.
   z.object({
     type: z.literal('schedulesSurface'),
-    workspaceKey: z.string(),
+    workspaceKey: stringSchema,
     targets: z.array(
       z.strictObject({
-        id: z.string(),
-        label: z.string(),
+        id: stringSchema,
+        label: stringSchema,
         target: scheduleTargetSchema,
         capability: scheduleSourceCapabilitySchema,
       }),
@@ -1524,7 +1534,7 @@ export const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     eof: booleanSchema,
   }),
   // The host did not move or stop this task (M46): the row's button is free again.
-  z.object({ type: z.literal('taskRefused'), itemId: z.string() }),
+  z.object({ type: z.literal('taskRefused'), itemId: stringSchema }),
   // Git and pull requests (M71, PLAN.md D49): the panel's cards and forms.
   z.object({ type: z.literal('gitState'), state: gitStateSchema }),
   z.object({ type: z.literal('gitCommitForm'), form: commitFormSchema }),
@@ -1581,13 +1591,16 @@ export const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     // still shows instead of waiting for a draft that never comes.
     session: z.int().check(z.gte(1)),
     revision: z.int().check(z.gte(0)),
-    description: z.string().check(z.maxLength(REPORT_DESCRIPTION_MAX_CHARS)),
+    description: stringSchema.check(z.maxLength(REPORT_DESCRIPTION_MAX_CHARS)),
     includeFacts: z.boolean(),
     includeEvents: z.boolean(),
     items: z.array(reportDraftItemSchema).check(z.maxLength(REPORT_RECENT_EVENT_COUNT + 1)),
-    title: z.string(),
-    text: z.string(),
-    hash: z.string().check(z.minLength(REPORT_HASH_HEX_CHARS), z.maxLength(REPORT_HASH_HEX_CHARS)),
+    title: stringSchema,
+    text: stringSchema,
+    hash: stringSchema.check(
+      z.minLength(REPORT_HASH_HEX_CHARS),
+      z.maxLength(REPORT_HASH_HEX_CHARS),
+    ),
     canUseVscodeReporter: z.boolean(),
     recordingUnavailable: z.boolean(),
     // Nothing can connect (lane REPORTFLOW): the dialog offers the landing
@@ -1614,7 +1627,10 @@ export const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     // for another draft (edited since, or a dialog closed and reopened) is
     // never shown beside the current one.
     session: z.int().check(z.gte(1)),
-    hash: z.string().check(z.minLength(REPORT_HASH_HEX_CHARS), z.maxLength(REPORT_HASH_HEX_CHARS)),
+    hash: stringSchema.check(
+      z.minLength(REPORT_HASH_HEX_CHARS),
+      z.maxLength(REPORT_HASH_HEX_CHARS),
+    ),
     via: z.enum(REPORT_EXPORT_CHANNELS),
     ok: z.boolean(),
     issueFallback: optionalBooleanSchema,
@@ -1642,6 +1658,19 @@ export const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     paused: booleanSchema,
   }),
   playbookEnvelopeSchema,
+  // M108 X: the developer owner's answers and pushed snapshots. `version`
+  // is the install's own, shown beside the page for the seven-click
+  // unlock; `reply` parses against the developer reply schema. `badge`
+  // carries the localized badge text because the header paints from
+  // startup English, which never carries the deferred developer group.
+  z.object({
+    type: z.literal('developerReply'),
+    version: stringSchema,
+    badge: z.nullable(stringSchema),
+    reply: z.unknown(),
+  }),
+  // M108 X: the palette's Developer options command opens the page.
+  z.object({ type: z.literal('openDeveloper') }),
 ])
 
 export type HostToWebviewMessage =

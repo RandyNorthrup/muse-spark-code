@@ -6,6 +6,7 @@ import { UI_TEXT } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
 
 export class AccountStoreError extends Error {
+  public readonly placement: { provider: string; device: string } | undefined
   public constructor(
     public readonly code:
       | 'invalidAccount'
@@ -13,15 +14,19 @@ export class AccountStoreError extends Error {
       | 'unavailable'
       | 'invalidCredential'
       | 'originMismatch'
-      | 'invalidProvidersFile',
+      | 'invalidProvidersFile'
+      | 'placementConflict',
     message: string = code,
-    options?: { cause?: unknown },
+    options?: { cause?: unknown; placement?: { provider: string; device: string } },
   ) {
     // A fixed code, or a fixed sentence filled with a fixed word: store and
     // revocation errors can contain the secret itself. A cause stays off the
-    // message (D207: the handler keeps it, never shows it).
+    // message (D207: the handler keeps it, never shows it). A placement
+    // conflict carries its opaque ids for structured surfaces; the message
+    // already fills them into the two-ways-forward sentence.
     super(message, options)
     this.name = 'AccountStoreError'
+    this.placement = options?.placement
   }
 }
 

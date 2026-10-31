@@ -6980,7 +6980,7 @@
     "revokeUnsupported": "La suppression de cette connexion n'est pas prise en charge dans cet environnement.",
     "providersInvalid": "Le fichier des fournisseurs est invalide : ses entrées ont été refusées et le fichier est resté inchangé.",
     "poolUnavailable": "Le regroupement de comptes est indisponible dans ce runtime : il nécessite un propriétaire de ressources lié. Relancez sans --account-pool.",
-    "cliUsage": "Comptes : {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [identifiants ordonnés]. Identifiants : {command} auth set --provider <id> --account <id> (entrée standard uniquement).",
+    "cliUsage": "Comptes : {command} providers accounts list|add|remove|order|thresholds|place --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [--device <id>] [identifiants ordonnés|identifiant de compte]. Identifiants : {command} auth set --provider <id> --account <id> (entrée standard uniquement).",
     "slashDescription": "Lister les comptes, consulter les seuils ou choisir un compte.",
     "title": "Comptes",
     "defaultLabel": "Compte par défaut",
@@ -7086,7 +7086,8 @@
     "spendAdminPrompt": "Clé de rapport admin pour {provider} : ",
     "spendAdminStored": "Clé de rapport admin enregistrée pour {provider} dans {store}.",
     "spendAdminCleared": "Clé de rapport admin effacée pour {provider}.",
-    "spendRefreshWait": "Les rapports de dépenses s’actualisent au plus une fois par minute ; affichage du rapport en cache."
+    "spendRefreshWait": "Les rapports de dépenses s’actualisent au plus une fois par minute ; affichage du rapport en cache.",
+    "severalSettingsRedirect": "Activez plusieurs comptes depuis la page Comptes, à côté du fournisseur, pour que la confirmation des conditions du fournisseur s’affiche d’abord."
   },
   "developer": {
     "title": "Options de développement",
@@ -7101,6 +7102,7 @@
     "differentMachine": "Les options de développement ont été configurées sous une autre identité de machine. Réinitialisez-les pour repartir sur cette machine.",
     "invalidRequest": "Vérifiez la demande d’options de développement.",
     "expires": "Le mode développeur expire {time}.",
+    "expired": "Le mode développeur a expiré et ses profils ont été arrêtés.",
     "reset": "Réinitialiser les options de développement",
     "profiles": "Profils locaux",
     "profileInfo": "Chaque profil possède son emplacement d’identifiants, son dossier d’état et son processus d’exécution. L’expiration arrête les profils ; la réinitialisation les supprime.",
@@ -7109,7 +7111,8 @@
     "addProfile": "Ajouter un profil local",
     "helpUnlock": "Cliquez sept fois sur la version ou utilisez la commande Options de développement pour déverrouiller.",
     "helpTerminal": "Exécutez `developer` pour déverrouiller ; `developer status` affiche les options de cette machine.",
-    "commandUsage": "Utilisation : developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
+    "commandUsage": "Utilisation : developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]",
+    "versionLine": "Version {version}"
   },
   "mcpConnectorTitle": "Connecteur MCP pour d’autres agents",
   "referenceMcpCommand": "Proposer les outils de Muse Spark Code à d’autres agents (Codex, Claude Code, Gemini CLI) via MCP ; chaque écriture attend votre approbation.",
