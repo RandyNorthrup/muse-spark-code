@@ -229,3 +229,4 @@ are all green.
 - `f0788829b` one shared replay rig for the ACP suites
 - `f9bd1968e` PLAN §6, CHANGELOG, roadmap entry, this record
 - `e430d87ca` related-run triage (this section)
+- `ae202a4a2` B3 after-bits drill proves task-stopped on the +1 request
