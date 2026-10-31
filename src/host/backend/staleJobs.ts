@@ -9,6 +9,7 @@ import path from 'node:path'
 import { describeStoreError } from './storeErrors'
 
 const DIGEST_LENGTH = 16
+const DIGEST = /^[0-9a-f]+$/
 
 /** What the filesystem says about a helper a live process still has loaded. */
 const HELD_JOB_CODES: ReadonlySet<string> = new Set(['EBUSY', 'EPERM', 'EACCES'])
@@ -29,6 +30,12 @@ export interface JobBuild {
   readonly stem: string
   /** The compiled file's extension. */
   readonly extension: string
+  /**
+  Extensions an earlier version built this helper with. Those builds are
+  swept beside the current one, matched by their exact name only (this
+  stem, a source digest, that extension) in the live build's own folder.
+  */
+  readonly retiredExtensions?: readonly string[]
   /** The compiler's output type. */
   readonly outputType: 'exe' | 'library'
   /** Additional framework assemblies, resolved only under Windows' framework directory. */
@@ -47,6 +54,22 @@ export interface JobBuild {
 export function jobFileName(build: JobBuild, csharp: string): string {
   const digest = createHash('sha256').update(csharp).digest('hex').slice(0, DIGEST_LENGTH)
   return `${build.stem}${digest}${build.extension}`
+}
+
+/**
+Whether `name` is one of this helper's builds, as `jobFileName` names them:
+the stem, a source digest, then its extension or one an earlier version
+built with. Nothing else in the folder is ever the sweep's.
+*/
+function isBuildName(build: JobBuild, name: string): boolean {
+  if (!name.startsWith(build.stem)) return false
+  const digest = name.slice(build.stem.length, build.stem.length + DIGEST_LENGTH)
+  const extension = name.slice(build.stem.length + DIGEST_LENGTH)
+  return (
+    digest.length === DIGEST_LENGTH &&
+    DIGEST.test(digest) &&
+    [build.extension, ...(build.retiredExtensions ?? [])].includes(extension)
+  )
 }
 
 /** A stale build waiting for its holding process to end. */
@@ -74,7 +97,7 @@ async function sweepStaleJobs(
   try {
     const names = await readdir(directory)
     for (const name of names) {
-      if (name === currentName || !name.startsWith(build.stem) || !name.endsWith(build.extension)) {
+      if (name === currentName || !isBuildName(build, name)) {
         continue
       }
       const stale = path.join(directory, name)
@@ -94,7 +117,8 @@ async function sweepStaleJobs(
 }
 
 /**
-Removes the builds of earlier sources beside `current`. One that a live
+Removes the builds of earlier sources beside `current`, and the builds an
+earlier version made with a retired extension. One that a live
 process still has loaded goes pending and retires when that process ends
 (`retireStaleJobs`, on every job-helper child exit) instead of warning on
 every start; anything else is said once and the helper still stands.

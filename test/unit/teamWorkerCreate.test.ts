@@ -47,9 +47,7 @@ import {
   recordCreated,
   sweepAbandonedReservations,
   typedCreateError,
-  workerWindowsCommand,
 } from '../../src/core/team/workers/workerOps'
-import { powerShellQuoted } from '../../src/core/shellQuote'
 import { fill } from '../../src/shared/l10n/text'
 import { shellJobAssembly } from '../../src/host/backend/shellJob'
 import { runProgram } from '../../src/host/processTree'
@@ -146,47 +144,6 @@ async function compileWorkerShellAssembly(): Promise<{ folder: string; assembly:
   return { folder, assembly }
 }
 type SweepRun = NonNullable<WorkerFenceIo['workerNativeOperation']>
-
-/** The decoded `-EncodedCommand` script at the end of a worker launcher argv. */
-function decodeWorkerScript(command: readonly string[]): string {
-  const encoded = command.at(-1)
-  expect(encoded).toMatch(/^[A-Za-z0-9+/=]+$/)
-  return Buffer.from(encoded ?? '', 'base64').toString('utf16le')
-}
-
-/**
-Every single-quoted span of a PowerShell script, in order, kept exactly as
-written (doubled quotes included): the script this lane builds quotes each
-value with powerShellQuoted, so the spans must equal those literals
-character for character. An unterminated span fails the test instead of
-silently dropping the tail.
-*/
-function quotedSpans(script: string): string[] {
-  const spans: string[] = []
-  let isOpen = false
-  let current = ''
-  let index = 0
-  while (index < script.length) {
-    const char = script[index]!
-    if (!isOpen) {
-      if (char === "'") {
-        isOpen = true
-        current = ''
-      }
-    } else if (char === "'") {
-      if (script[index + 1] === "'") {
-        current += "''"
-        index += 1
-      } else {
-        isOpen = false
-        spans.push(current)
-      }
-    } else current += char
-    index += 1
-  }
-  expect(isOpen).toBe(false)
-  return spans
-}
 
 /** The rejection of a native attempt, or undefined when it unexpectedly succeeds. */
 async function refusalOf(attempt: Promise<unknown>): Promise<unknown> {
@@ -477,12 +434,13 @@ describe('verified native worker creation', () => {
   })
   // The production Windows launcher runs for real here: the tool I/O below
   // keeps no fixture override, so the create falls back to the packaged
-  // nativeOperation (PowerShell plus the sealed job assembly through the
-  // governed contained profile). verify is a resolved stub; the attested
-  // verify path is covered by jobBuild and resourceWindowsLaunch.
+  // nativeOperation (the job helper's `worker` command, run as a program
+  // through the governed contained profile; no PowerShell). verify is a
+  // resolved stub; the attested verify path is covered by jobBuild and
+  // resourceWindowsLaunch.
   describe.runIf(process.platform === 'win32')(
     'windows production launcher',
-    { timeout: 60_000 }, // One C# compile plus a cold PowerShell start is genuinely long.
+    { timeout: 60_000 }, // One C# compile plus the governed launch is genuinely long.
     () => {
       const shell: { folder: string; assembly: string | undefined } = {
         folder: '',
@@ -535,14 +493,14 @@ describe('verified native worker creation', () => {
         })
         return { tool, copy, dispose: resources.dispose }
       }
-      it('NF windows production launcher creates through PowerShell and the job assembly', async () => {
+      it('NF windows production launcher creates through the job helper program', async () => {
         const { tool, copy, dispose } = await productionTool()
         try {
           const target = path.join(copy, 'src', 'launched.ts')
           await tool.writeFile(target, 'launched\n')
           expect(await readFile(target, 'utf8')).toBe('launched\n')
-          // A target occupied after preflight refuses through the PowerShell
-          // forwarding wrapper as the typed sentence, not the generic failure.
+          // A target occupied after preflight refuses with the helper's own
+          // refusal line, as the typed sentence, not the generic failure.
           const raced = path.join(copy, 'src', 'raced.ts')
           await expect(
             tool.writeFile(raced, 'late\n', undefined, () => {
@@ -558,6 +516,36 @@ describe('verified native worker creation', () => {
           })
         }
       })
+      it.each([
+        ["single quote: o'brien.ts", "o'brien.ts"],
+        ['semicolon: a;exit.ts', 'a;exit.ts'],
+        ['subexpression: $(Get-Date).ts', '$(Get-Date).ts'],
+        ['backtick: a`b.ts', 'a`b.ts'],
+        ['ampersand: a&b.ts', 'a&b.ts'],
+        ['percent: %VAR%.ts', '%VAR%.ts'],
+        ['spaces:  two  spaces .ts', ' two  spaces .ts'],
+        ['typographic quote U+2019: o’brien.ts', 'o’brien.ts'],
+        ['typographic quote U+201A: o‚brien.ts', 'o‚brien.ts'],
+      ])(
+        'NF windows production launcher passes a hostile name %s to the helper as one exact value',
+        async (_label, name) => {
+          // No shell or script reads the name: the launcher quotes it for the
+          // C runtime and the helper's Main receives it whole, so the file
+          // made is exactly the one asked for and nothing else appears.
+          const { tool, copy, dispose } = await productionTool()
+          try {
+            await tool.writeFile(path.join(copy, 'src', name), 'exact\n')
+            expect(await readdir(path.join(copy, 'src'))).toEqual([name])
+            expect(await readFile(path.join(copy, 'src', name), 'utf8')).toBe('exact\n')
+          } finally {
+            dispose()
+            resources.dispose = configureResources({
+              inspect: () => undefined,
+              onError: () => undefined,
+            })
+          }
+        },
+      )
       it('NF windows production launcher reports a nested file parent copy-relative', async () => {
         // No fixture override: the refusal below travels through the
         // packaged nativeOperation, which must print the copy-relative
@@ -1031,75 +1019,6 @@ describe('verified native worker creation', () => {
       expect(csReasons.length).toBeGreaterThan(0)
       for (const reason of [...cReasons, ...csReasons]) expect(table).toContain(reason)
       for (const reason of table) expect([...cReasons, ...csReasons]).toContain(reason)
-    })
-    it('NF the Windows wrapper forwards every refusal in the table', () => {
-      const script = decodeWorkerScript(
-        workerWindowsCommand(String.raw`C:\assembly.dll`, ['worker-create', 'root']),
-      )
-      for (const row of WORKER_REFUSALS)
-        expect(script).toContain(`${WORKER_REFUSAL_PREFIX}${row.reason}`)
-      for (const sentence of [
-        UI_TEXT.teamFileExists,
-        UI_TEXT.teamFileLinked,
-        UI_TEXT.teamFileOutside,
-        UI_TEXT.teamFileChanged,
-        UI_TEXT.teamFileNativeFailed,
-      ])
-        expect(script).not.toContain(sentence)
-    })
-    it('NF the Windows launcher passes one encoded script and nothing after it', () => {
-      const command = workerWindowsCommand(String.raw`C:\assembly.dll`, [
-        'worker-create',
-        String.raw`C:\copy`,
-        '1:2',
-        'src',
-        '3:4',
-        'new',
-        '',
-      ])
-      // The script is the last element: no value follows it on the command
-      // line, so PowerShell cannot join a file name onto the command text.
-      expect(command.slice(0, -1)).toEqual([
-        '-NoProfile',
-        '-NonInteractive',
-        '-ExecutionPolicy',
-        'Bypass',
-        '-EncodedCommand',
-      ])
-      expect(command).toHaveLength(6)
-      const script = decodeWorkerScript(command)
-      expect(script).toContain('[MuseSparkCreated]::Execute([string[]]@(')
-      expect(script).not.toContain('$args')
-    })
-    it.each([
-      ["single quote: o'brien.ts", "o'brien.ts"],
-      ['double quote: say "hi".ts', 'say "hi".ts'],
-      ['semicolon: a;exit.ts', 'a;exit.ts'],
-      ['subexpression: $(Get-Date).ts', '$(Get-Date).ts'],
-      ['backtick: a`b.ts', 'a`b.ts'],
-      ['ampersand: a&b.ts', 'a&b.ts'],
-      ['pipe: a|b.ts', 'a|b.ts'],
-      ['newline: line\nbreak.ts', 'line\nbreak.ts'],
-      ['percent: %VAR%.ts', '%VAR%.ts'],
-      ['trailing backslash: dir\\', 'dir\\'],
-      ['typographic quote U+2019: o’brien.ts', 'o’brien.ts'],
-      ['typographic quote U+2018: o‘brien.ts', 'o‘brien.ts'],
-      ['typographic quote U+201A: o‚brien.ts', 'o‚brien.ts'],
-      ['typographic quote U+201B: o‛brien.ts', 'o‛brien.ts'],
-    ])('NF the Windows launcher keeps a hostile name %s inside its literal', (_label, name) => {
-      const assembly = String.raw`C:\as sembly'dir\job.dll`
-      const args = ['worker-create', String.raw`C:\copy`, '1:2', 'src', '3:4', name, '']
-      const script = decodeWorkerScript(workerWindowsCommand(assembly, args))
-      // Every single-quoted span of the decoded script, in order: any value
-      // that broke out of its literal would change this exact sequence.
-      const expected = [
-        'Stop',
-        assembly,
-        ...args,
-        ...WORKER_REFUSALS.map((row) => `${WORKER_REFUSAL_PREFIX}${row.reason}`),
-        WORKER_HELPER_FAILED_PREFIX,
-      ].map((literal) => powerShellQuoted(literal).slice(1, -1))
-      expect(quotedSpans(script)).toEqual(expected)
     })
     it('NF a helper failure maps to the helper-failed sentence with its kind', () => {
       const failure = Object.assign(new Error('Command failed'), {

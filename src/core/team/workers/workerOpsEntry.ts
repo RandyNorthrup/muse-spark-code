@@ -12,7 +12,7 @@ export {
   sweepAbandonedReservations,
   trackCreated,
   typedCreateError,
-  workerWindowsCommand,
+  workerHostCommand,
   CREATE_ERRNOS,
   WORKER_HELPER_FAILED_PREFIX,
   WORKER_REFUSAL_PREFIX,

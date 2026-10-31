@@ -1014,8 +1014,10 @@ export function windowsPowerShell(
 
 /**
 The compiled job helper (`MuseSparkJob-<digest>.exe`) run as a program of its
-own, for the resource governor's calls into the job type: a tree read, the
-job holder, the created-path registry. PowerShell loads the same file as the
+own, for every call into the job type but the shell tool's: the resource
+governor's tree reads, job holder and created-path registry, the team
+workers' file commands, the playbook's contained job and its end by name, and
+the legacy shell stop. The shell tool's PowerShell loads the same file as the
 type a command joins its job with; a call that only needs the type costs one
 native start (about 40 ms) where a Windows PowerShell start costs 200 ms and
 more, seconds on a busy machine. The helper is a digest-named file the build

@@ -1,8 +1,10 @@
 // The job type the Windows shell tool's commands join (M27, PLAN.md D25),
 // compiled with MuseSparkMcpJob.cs into one console program on first use and
-// kept out of the host bundle (PLAN.md D6): PowerShell loads it as the type,
-// and the resource governor runs it as the program MuseSparkJobHost at the
-// end. The class name is SHELL_JOB_TYPE_NAME in src/shared/constants.ts;
+// kept out of the host bundle (PLAN.md D6): the shell tool's PowerShell loads
+// it as the type, and every other caller (the resource governor, the team
+// workers' file commands, the playbook's contained job, the legacy shell
+// stop) runs it as the program MuseSparkJobHost at the end, starting no
+// PowerShell. The class name is SHELL_JOB_TYPE_NAME in src/shared/constants.ts;
 // test/unit/jobSource.test.ts holds them together.
 // C# 5, which the .NET Framework compiler compiles. The shell keeps its
 // handle for its whole life: a job's name lasts as long as a handle to it,
@@ -479,6 +481,178 @@ public static class MuseSparkJob {
     } finally {
       CloseHandle(job);
     }
+  }
+
+  // The playbook's contained job (M116, PLAN.md D96.15 and section 9
+  // FIXM116P3-Windows-job-binding; src/host/playbook/containedJob.ts). One
+  // helper serves one decision: it joins a fresh named job, so everything a
+  // call starts belongs to that job from its creation; it binds the job to its
+  // own life (kill-on-close on the only handle, which this process holds), so
+  // a helper that dies, however it dies, takes its whole job with it; it ends
+  // every other member after each call and answers only then; and it
+  // terminates the job, itself included, when the pipe closes or no call
+  // arrives in time. The answer flags are PLAYBOOK_JOB_FLAGS in
+  // src/shared/constants.ts.
+  const int CONTAINED_TIMED_OUT = 1, CONTAINED_OVERFLOWED = 2, CONTAINED_UNCERTAIN = 4, CONTAINED_UNSTARTED = 8;
+  const int CONTAINED_HEADER_BYTES = 4; // PLAYBOOK_JOB_FRAME_HEADER_BYTES: one little-endian Int32.
+  const int CONTAINED_FIELDS = 5; // program, arguments, directory, time limit, output bound; then the environment.
+
+  /** One redirected stream of a call, drained on its own thread and counted whole. */
+  sealed class ContainedStream {
+    readonly Stream source;
+    readonly long max;
+    readonly MemoryStream kept = new MemoryStream();
+    long seen;
+    public readonly System.Threading.Tasks.Task Copy;
+    public ContainedStream(Stream source, long max) {
+      this.source = source;
+      this.max = max;
+      Copy = System.Threading.Tasks.Task.Factory.StartNew(Drain, System.Threading.Tasks.TaskCreationOptions.LongRunning);
+    }
+    void Drain() {
+      byte[] buffer = new byte[65536];
+      int read;
+      while ((read = source.Read(buffer, 0, buffer.Length)) > 0) {
+        // Past the bound nothing more is kept (the call's answer is refused
+        // whole), but the stream is still read, so the writer never blocks.
+        lock (kept) { if (seen + read <= max) kept.Write(buffer, 0, read); seen += read; }
+      }
+    }
+    public long Length { get { lock (kept) return seen; } }
+    public byte[] Bytes() { lock (kept) return kept.ToArray(); }
+  }
+
+  static byte[] ContainedRead(Stream pipe, int count, int idleMs) {
+    byte[] buffer = new byte[count];
+    int done = 0;
+    while (done < count) {
+      var read = pipe.ReadAsync(buffer, done, count - done);
+      if (!read.Wait(idleMs)) throw new TimeoutException("idle");
+      if (read.Result <= 0) return null;
+      done += read.Result;
+    }
+    return buffer;
+  }
+
+  static string ContainedText(string value) {
+    return new UTF8Encoding(false).GetString(Convert.FromBase64String(value));
+  }
+
+  /** One call, its whole tree ended, and its answer written; false once the job is uncertain. */
+  static bool ContainedCall(string name, uint self, Stream pipe, string[] lines, int sweepMs, int exitPollMs, int sweepPollMs) {
+    var start = new System.Diagnostics.ProcessStartInfo();
+    start.FileName = ContainedText(lines[0]);
+    start.Arguments = ContainedText(lines[1]);
+    start.WorkingDirectory = ContainedText(lines[2]);
+    int limit = int.Parse(lines[3], System.Globalization.NumberStyles.None, Invariant);
+    long max = long.Parse(lines[4], System.Globalization.NumberStyles.None, Invariant);
+    start.UseShellExecute = false;
+    start.CreateNoWindow = true;
+    start.RedirectStandardOutput = true;
+    start.RedirectStandardError = true;
+    start.RedirectStandardInput = true;
+    // Exactly the environment the call was given: nothing of this helper's.
+    start.Environment.Clear();
+    for (int index = CONTAINED_FIELDS; index < lines.Length; index++) {
+      if (lines[index].Length == 0) continue;
+      string pair = ContainedText(lines[index]);
+      int cut = pair.IndexOf('=', 1);
+      start.Environment[pair.Substring(0, cut)] = pair.Substring(cut + 1);
+    }
+    int flags = 0, status = -1;
+    var streams = new List<ContainedStream>();
+    System.Diagnostics.Process process = null;
+    try {
+      try {
+        process = System.Diagnostics.Process.Start(start);
+        process.StandardInput.Close();
+        streams.Add(new ContainedStream(process.StandardOutput.BaseStream, max));
+        streams.Add(new ContainedStream(process.StandardError.BaseStream, max));
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        while (!process.WaitForExit(exitPollMs)) {
+          if (clock.ElapsedMilliseconds >= limit) { flags |= CONTAINED_TIMED_OUT; break; }
+          if (streams[0].Length > max || streams[1].Length > max) { flags |= CONTAINED_OVERFLOWED; break; }
+        }
+        if (flags == 0) { process.WaitForExit(); status = process.ExitCode; }
+      } catch {
+        flags |= CONTAINED_UNSTARTED;
+      }
+      // Every other member of the job is ended, each checked by its start
+      // identity, before the call is answered: this helper is then its only member.
+      var sweep = System.Diagnostics.Stopwatch.StartNew();
+      while (true) {
+        int others = 0;
+        foreach (Match member in Regex.Matches(Query(name), "\\{\"pid\":(\\d+),\"startTime\":\"(\\d+)\"\\}")) {
+          uint id = uint.Parse(member.Groups[1].Value, System.Globalization.NumberStyles.None, Invariant);
+          if (id == self) continue;
+          others++;
+          Signal(name, id, member.Groups[2].Value, true);
+        }
+        if (others == 0) break;
+        if (sweep.ElapsedMilliseconds >= sweepMs) { flags |= CONTAINED_UNCERTAIN; break; }
+        System.Threading.Thread.Sleep(sweepPollMs);
+      }
+      foreach (ContainedStream stream in streams) if (!stream.Copy.Wait(sweepMs)) flags |= CONTAINED_UNCERTAIN;
+    } finally {
+      // Only now: both streams are read to their end before the handles go.
+      if (process != null) process.Dispose();
+    }
+    foreach (ContainedStream stream in streams) if (stream.Length > max) flags |= CONTAINED_OVERFLOWED;
+    byte[] output = new byte[0], error = new byte[0];
+    if ((flags & CONTAINED_OVERFLOWED) == 0 && streams.Count == 2) { output = streams[0].Bytes(); error = streams[1].Bytes(); }
+    byte[] header = new UTF8Encoding(false).GetBytes(status.ToString(Invariant) + " " + flags.ToString(Invariant) + " " +
+      output.Length.ToString(Invariant) + " " + error.Length.ToString(Invariant) + "\n");
+    pipe.Write(header, 0, header.Length);
+    pipe.Write(output, 0, output.Length);
+    pipe.Write(error, 0, error.Length);
+    pipe.Flush();
+    return (flags & CONTAINED_UNCERTAIN) == 0;
+  }
+
+  /** Serves one decision's calls on `pipeName` inside the job `name`, then ends the job. */
+  public static void ServeContained(string name, string pipeName, int idleMs, int sweepMs, int exitPollMs, int sweepPollMs) {
+    try {
+      Join(name);
+      // Kill-on-close, on the one handle to the job, which this process holds:
+      // the job cannot outlive it. Bound before any pipe exists to serve a call on.
+      var limits = new TeamLimits();
+      limits.Flags = 0x2000; // JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+      int length = Marshal.SizeOf(typeof(TeamLimits));
+      IntPtr buffer = Marshal.AllocHGlobal(length);
+      try {
+        Marshal.StructureToPtr(limits, buffer, false);
+        if (!SetInformationJobObject(held, 9, buffer, (uint)length)) throw new Win32Exception();
+      } finally { Marshal.FreeHGlobal(buffer); }
+      uint self = (uint)System.Diagnostics.Process.GetCurrentProcess().Id;
+      using (var pipe = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous)) {
+        IAsyncResult wait = pipe.BeginWaitForConnection(null, null);
+        if (!wait.AsyncWaitHandle.WaitOne(idleMs)) throw new TimeoutException("no caller");
+        pipe.EndWaitForConnection(wait);
+        while (true) {
+          byte[] head = ContainedRead(pipe, CONTAINED_HEADER_BYTES, idleMs);
+          if (head == null) break;
+          byte[] body = ContainedRead(pipe, BitConverter.ToInt32(head, 0), idleMs);
+          if (body == null) break;
+          string[] lines = new UTF8Encoding(false).GetString(body).Split('\n');
+          if (!ContainedCall(name, self, pipe, lines, sweepMs, exitPollMs, sweepPollMs)) break;
+        }
+      }
+    } catch {
+      // Whatever ended the session (a closed or idle pipe, a failed bind, a
+      // broken frame), the job ends below, this helper with it.
+    }
+    Terminate(name, 0);
+  }
+
+  /** Ends a job by name; true once it has no member left, or no longer exists. */
+  public static bool EndContained(string name, int sweepMs, int pollMs) {
+    try { Terminate(name, 1); } catch { /* Seen below: only an emptied job counts as ended. */ }
+    var clock = System.Diagnostics.Stopwatch.StartNew();
+    while (Query(name).Contains("\"pid\":")) {
+      if (clock.ElapsedMilliseconds >= sweepMs) return false;
+      System.Threading.Thread.Sleep(pollMs);
+    }
+    return true;
   }
 
   // Team-only mode. The shared launcher still performs READY/GO, opens the
@@ -967,17 +1141,27 @@ public static class MuseSparkCreated {
 
 /**
 The calls above, for a caller that is not PowerShell: the resource governor's
-tree reads, its job holder and its created-path registry. A Windows PowerShell
-start costs 200 ms and more (seconds on a busy machine); this program starts
-in about 40 ms. The compiled file is both the type PowerShell loads with
-`LoadFrom` and this program. Every answer is the text the matching PowerShell
-call printed; a call that fails prints nothing and exits 1, as the scripts'
-`catch { exit 1 }` did.
+tree reads, its job holder and its created-path registry; the team workers'
+file commands; the playbook's contained job and its end by name; and the
+legacy shell stop's job termination. A Windows PowerShell start costs 200 ms
+and more (seconds on a busy machine); this program starts in about 40 ms. The
+compiled file is both the type PowerShell loads with `LoadFrom` (the shell
+tool's commands, which run in PowerShell, join their job with it) and this
+program. Every answer is the text the matching PowerShell call printed; a call
+that fails prints nothing and exits 1, as the scripts' `catch { exit 1 }` did.
+The worker file commands keep their own failure lines (`Worker` below).
 */
 public static class MuseSparkJobHost {
   static readonly System.Globalization.CultureInfo Invariant = System.Globalization.CultureInfo.InvariantCulture;
+  // WORKER_REFUSAL_PREFIX and WORKER_HELPER_FAILED_PREFIX in
+  // src/core/team/workers/workerOps.ts.
+  const string WorkerRefused = "worker file helper refused: ";
+  const string WorkerFailed = "worker file helper failed: ";
   static uint Number(string text) {
     return uint.Parse(text, System.Globalization.NumberStyles.None, Invariant);
+  }
+  static int Milliseconds(string text) {
+    return int.Parse(text, System.Globalization.NumberStyles.None, Invariant);
   }
   static bool Flag(string text) {
     if (text == "true") return true;
@@ -1006,14 +1190,52 @@ public static class MuseSparkJobHost {
       case "set-rate":
         Count(args, 6);
         return MuseSparkJob.SetResourceRate(args[1], Number(args[2]), args[3], Number(args[4]), Number(args[5]));
-      case "created":
-        string[] rest = new string[args.Length - 1];
-        Array.Copy(args, 1, rest, 0, rest.Length);
-        return MuseSparkCreated.Execute(rest);
+      case "created": return MuseSparkCreated.Execute(Rest(args));
+      case "terminate":
+        Count(args, 3);
+        return MuseSparkJob.Terminate(args[1], Number(args[2])) ? "true" : "false";
+      case "contained":
+        Count(args, 7);
+        MuseSparkJob.ServeContained(args[1], args[2], Milliseconds(args[3]), Milliseconds(args[4]),
+          Milliseconds(args[5]), Milliseconds(args[6]));
+        return null;
+      case "end-job":
+        Count(args, 4);
+        if (!MuseSparkJob.EndContained(args[1], Milliseconds(args[2]), Milliseconds(args[3])))
+          throw new TimeoutException("job end unseen");
+        return null;
       default: throw new ArgumentException("command");
     }
   }
+  static string[] Rest(string[] args) {
+    string[] rest = new string[args.Length - 1];
+    Array.Copy(args, 1, rest, 0, rest.Length);
+    return rest;
+  }
+  /**
+  A team worker's file command (MuseSparkCreated's worker operations, and
+  only those). A refusal is the helper's own fixed line on standard error
+  (the reason a short code, never a path); any other failure is the fixed
+  helper-failed line with the exception's type name only. Either exits 1.
+  */
+  static int Worker(string[] args) {
+    try {
+      if (args.Length < 2 || !args[1].StartsWith("worker-", StringComparison.Ordinal))
+        throw new ArgumentException("operation");
+      Console.Out.WriteLine(MuseSparkCreated.Execute(Rest(args)));
+      Console.Out.Flush();
+      return 0;
+    } catch (Exception error) {
+      Exception cause = error.GetBaseException();
+      if (cause is IOException && cause.Message.StartsWith(WorkerRefused, StringComparison.Ordinal))
+        Console.Error.WriteLine(cause.Message);
+      else Console.Error.WriteLine(WorkerFailed + cause.GetType().Name);
+      Console.Error.Flush();
+      return 1;
+    }
+  }
   public static int Main(string[] args) {
+    if (args.Length > 0 && args[0] == "worker") return Worker(args);
     try {
       if (args.Length == 1 && args[0] == "--self-test") {
         Console.Out.WriteLine("muse-spark-job-host-ready");
