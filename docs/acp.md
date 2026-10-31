@@ -522,17 +522,6 @@ Headless `exec` takes no MCP servers, so this route needs an ACP client.
 | `--auto-compaction`                    | Accepted; automatic compaction is already on by default once evaluated, so the flag changes nothing on its own          |
 | `--no-auto-compaction`                 | Turn the default-on automatic compaction off (also accepted by exec, where it wins over `--auto-compaction`)            |
 
-`--no-user-mcp-servers` exists because Muse Code 1.4.14 has no switch that
-leaves a configured server out for one run: `-c mcpServers.<name>.enabled=false`
-is accepted for a name the settings do not hold and refused ("the server name
-is reserved") for one they do. The agent therefore reads the settings file
-(`$XDG_CONFIG_HOME/muse/settings.json`, else `~/.config/muse/settings.json`,
-under either spelling of the key) before it opens a session, and refuses while
-any server there is on (`enabled` other than `false`) or the file cannot be
-read. It never writes that file. The Model API backend loads none of these
-servers, so there the flag changes nothing. The team's own agent worker
-(`own` preset) is started with it.
-
 ## What the editor sees
 
 - **Modes**: Manual, Edit automatically, Plan, Auto (and Bypass permissions

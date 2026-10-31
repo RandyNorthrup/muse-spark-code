@@ -316,7 +316,19 @@ own), and the file passes in the canonical run.
    host. The team starts one agent process per task, so the file is read afresh;
    an editor that keeps the agent for hours with the flag would not notice a server
    added later.
-8. **Project servers.** Muse Code may also read a project's own MCP
+8. **No CHANGELOG line, no `docs/acp.md` paragraph.** The standing rule claims a
+   feature only after it was used through the packed product, and
+   `npm run package:acp` cannot run on this rig (§6). The flag's help text and its
+   row in the agent guide's option table are in (the help gate needs the flag
+   described); the entry below waits for the first packed run (the live run's
+   step 3 shows the child's arguments and, with a server turned on, the refusal):
+   "**`muse-spark-code-acp --no-user-mcp-servers` serves only while your Muse Code
+   settings turn on no MCP server.** Muse Code has no switch that leaves a
+   configured server out for one run, so a session that would open beside a server
+   your settings turn on is refused, saying how to turn it off, and so is one
+   whose settings file cannot be read; a missing file holds none. Agent teams
+   start their own agent with it."
+9. **Project servers.** Muse Code may also read a project's own MCP
    configuration (UNMEASURED here); the flag guards the person's settings only,
    as the lead's wording ("the person's own") says.
 
