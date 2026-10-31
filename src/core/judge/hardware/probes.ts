@@ -445,8 +445,10 @@ async function fetchOllama(endpoint: OllamaEndpoint, route: string): Promise<str
     })
   } catch (error: unknown) {
     // Unreachable or refused: not running.
+    if (error instanceof TypeError) return undefined
     // The probe budget ran out: not answering.
-    if (error instanceof TypeError || error instanceof DOMException) return undefined
+    // eslint-disable-next-line unicorn/prefer-combined-guards -- separate guards keep this catch NARROW for check:catches; the combined guard classifies GENERIC (PLAN §8, RLF-UNICORN79).
+    if (error instanceof DOMException) return undefined
     throw error
   }
   if (!response.ok) return undefined

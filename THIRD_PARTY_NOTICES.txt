@@ -859,6 +859,8 @@ micromark-util-decode-numeric-character-reference (MIT)
   https://github.com/micromark/micromark/tree/main/packages/micromark-util-decode-numeric-character-reference
 micromark-util-decode-string (MIT)
   https://github.com/micromark/micromark/tree/main/packages/micromark-util-decode-string
+micromark-util-edit-map (MIT)
+  https://github.com/micromark/micromark/tree/main/packages/micromark-util-edit-map
 micromark-util-html-tag-name (MIT)
   https://github.com/micromark/micromark/tree/main/packages/micromark-util-html-tag-name
 micromark-util-normalize-identifier (MIT)

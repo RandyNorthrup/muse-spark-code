@@ -85,7 +85,7 @@
     },
     {
       "file": "src/acp/agent.ts",
-      "identity": "913dc0fcf36cab571e3949a34aeaa0a23ba9953d0f915ee1ed537d41cb29fa55",
+      "identity": "ff145f38ebc911abca5a498251db4713c72d38aea075d7e8d7873d1947be2211",
       "class": "GENERIC"
     },
     {
@@ -480,7 +480,7 @@
     },
     {
       "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "44af09bd4a80d9e8210afce28ef4ea0d92ece75717253562eb4c95163a20f969",
+      "identity": "95c1eb414b5c0f26f3f2d77aa15ee33a8c290c1bc7849a40d2406dc46c52b441",
       "class": "GENERIC"
     },
     {
@@ -650,7 +650,7 @@
     },
     {
       "file": "src/core/backends/musecode/approvalModesEntry.ts",
-      "identity": "7c5a2bff89e5e7c5550ee85e56c443addc62fce767d491b492e43ce143024454",
+      "identity": "905e5a1edcdf9d7d143eea1d69ac6924bbbb835927885a3e0df5468b05feb508",
       "class": "GENERIC"
     },
     {
@@ -1150,7 +1150,7 @@
     },
     {
       "file": "src/core/locks/fileLease.ts",
-      "identity": "40b9b3bce53b24b176985ae352411ec869974b759b1c314e418f4a7d63014167",
+      "identity": "5623ed97fb839594c584e35095c73a286b9c08ad07d5ddf2db254cdad0b2b272",
       "class": "GENERIC"
     },
     {
@@ -1510,7 +1510,7 @@
     },
     {
       "file": "src/core/orchestration/playbook/outcomes.ts",
-      "identity": "34cc5e71341fbe7007a18c0ced29b56929354c6f16031373922b914460123289",
+      "identity": "c25bb4c6fe58a50bbef0ad9b0e22b82591e347a046333813ba81ed5f47bf10b0",
       "class": "GENERIC"
     },
     {
@@ -3020,7 +3020,7 @@
     },
     {
       "file": "src/host/backend/searchWorker.ts",
-      "identity": "4a6329ae0ca9d7cd32812cb267727cef71e874cccb1c1a669964b88a48970e11",
+      "identity": "14948531c629aa8dc151a3a4e81b9138e4400f53ad3d5fa73fb2d0f45e92c8f4",
       "class": "CLEANUP"
     },
     {
@@ -3495,7 +3495,7 @@
     },
     {
       "file": "src/host/schedules/deliveryBinding.ts",
-      "identity": "10a28886ed8d9aca0ef45f0dfac9311554d86c2e6c5c6e321cedf0e375a541cb",
+      "identity": "ae1d5ec51c8d4b9a70651791413d4f04907acb33227251bc65a1ff538b2b4e14",
       "class": "GENERIC"
     },
     {
@@ -3900,7 +3900,7 @@
     },
     {
       "file": "src/host/vscode/tab/tabProvider.ts",
-      "identity": "a1b1fd9387aa4e91becbd8823b3975ca01af33fa0e093ec8a28153e81ec9c38b",
+      "identity": "4dc2d4008bac48a23c780d393942cd9764783373d2418dedbf292083fc746e74",
       "class": "CLEANUP"
     },
     {
@@ -3955,7 +3955,7 @@
     },
     {
       "file": "src/runtime/backends.ts",
-      "identity": "7f17923826f19fae92a03495d75c85b9f000aabfc6f159d059f1d215cbe99f1a",
+      "identity": "c2229f276586852ba7bbe459c7973666fe6f04e160fa265d9cf10527c6e5d1ae",
       "class": "GENERIC"
     },
     {
@@ -4195,7 +4195,7 @@
     },
     {
       "file": "src/runtime/exec/execTeamRecovery.ts",
-      "identity": "24bb20e4bf11ae337edfdee4e7ee48af50c5601608ef0f9f49b8d5b9e79d8b3f",
+      "identity": "b7bd7a6fd286b0641954eb234997e667bb4db44ae519a1a70ac6109870107c4e",
       "class": "CLEANUP"
     },
     {
@@ -4235,7 +4235,7 @@
     },
     {
       "file": "src/runtime/exec/scanSecrets.ts",
-      "identity": "5cd01dfb67f6ba5a8564e009ed710c2cc9cad07294d2dea43676e67dedaacf80",
+      "identity": "b7386a8c057ffd5415def8dd3c4460d0aebd6c0be5fcc2d29b46d95a415c0adf",
       "class": "GENERIC"
     },
     {
@@ -4255,7 +4255,7 @@
     },
     {
       "file": "src/runtime/github/deviceFlowSource.ts",
-      "identity": "d688ade6727aecbda18fd553ea28d3eb2b02b4d5737d3d0800ca5f37ac0de39e",
+      "identity": "1e36bf7e4958e718c8c8dc9142177bc80125745a3f82fe6895b0fb12aea7bbdd",
       "class": "GENERIC"
     },
     {
@@ -4430,7 +4430,7 @@
     },
     {
       "file": "src/runtime/openRouterCommands.ts",
-      "identity": "dbb4ee3c2805575d50a3971d5574469df71042f4c8b28664da8d22e7a2e64998",
+      "identity": "defaaef81265d8dce28e4b1e9a4deb8de16cdcdee4989c529bec0594cf72655d",
       "class": "GENERIC"
     },
     {
@@ -4875,7 +4875,7 @@
     },
     {
       "file": "src/runtime/schedules/args.ts",
-      "identity": "fa82a3188b63f302eb493fc617cd881f7bb8a0338459db1526fd4a5a23b480c1",
+      "identity": "ff63a0ca1111ad738480a1711f8ea16b2369748db487046bcfb316a4c28a120c",
       "class": "GENERIC"
     },
     {
@@ -5650,7 +5650,7 @@
     },
     {
       "file": "src/webview/media/CompanionMedia.tsx",
-      "identity": "dbc54c2fcf29a76b42eff51050ab2bf6395550630582db41ab13777cac1f925a",
+      "identity": "07d908f6ebf2a793985b0be0f38109752eb9f6df24acf5c01411b15eddfba2f4",
       "class": "GENERIC"
     },
     {

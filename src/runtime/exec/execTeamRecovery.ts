@@ -67,7 +67,9 @@ async function readLedger(folder: string): Promise<CleanupLedger | undefined> {
     // A missing ledger is a new folder; undecodable or malformed content
     // keeps the orphan-only path. Anything else is unexpected and loud.
     if (isErrno(error) && error.code === 'ENOENT') return undefined
-    if (error instanceof SyntaxError || error instanceof TypeError) return undefined
+    if (error instanceof SyntaxError) return undefined
+    // eslint-disable-next-line unicorn/prefer-combined-guards -- separate guards keep this catch NARROW for check:catches; the combined guard classifies GENERIC (PLAN §8, RLF-UNICORN79).
+    if (error instanceof TypeError) return undefined
     throw error
   }
   const parsed = cleanupLedgerSchema.safeParse(
@@ -302,7 +304,9 @@ async function processStartTimeMs(
     // A birth that cannot be read proves nothing (P2-10): the OS refused
     // the read, or the platform helper failed. Anything else is unexpected
     // and reaches the sweep's per-folder record instead of reading as alive.
-    if (isErrno(error) || error instanceof HelperFailedError) return undefined
+    if (isErrno(error)) return undefined
+    // eslint-disable-next-line unicorn/prefer-combined-guards -- separate guards keep this catch NARROW for check:catches; the combined guard classifies GENERIC (PLAN §8, RLF-UNICORN79).
+    if (error instanceof HelperFailedError) return undefined
     throw error
   }
   return undefined

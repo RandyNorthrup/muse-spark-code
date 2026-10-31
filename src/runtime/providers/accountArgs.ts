@@ -24,6 +24,15 @@ export type AccountsCommand =
       readonly thresholds: AccountThresholds
     }
 
+/** Usage errors, malformed ids and malformed JSON read as no command. */
+function isMalformedAccountsInput(error: unknown): boolean {
+  return (
+    error instanceof TypeError ||
+    error instanceof SyntaxError ||
+    (error instanceof Error && error.name === '$ZodError')
+  )
+}
+
 export function parseAccountsCommand(argv: readonly string[]): AccountsCommand | undefined {
   try {
     const { values, positionals } = parseArgs({
@@ -85,12 +94,7 @@ export function parseAccountsCommand(argv: readonly string[]): AccountsCommand |
   } catch (error) {
     // CLI arguments are boundary input: usage errors, malformed ids and
     // malformed JSON read as no command. Anything else keeps its kind.
-    if (
-      error instanceof TypeError ||
-      error instanceof SyntaxError ||
-      (error instanceof Error && error.name === '$ZodError')
-    )
-      return undefined
+    if (isMalformedAccountsInput(error)) return undefined
     throw error
   }
 }

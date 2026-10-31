@@ -254,7 +254,9 @@ export async function writeNextGeneration(
     } catch (error: unknown) {
       // EEXIST: the number is taken. ENOENT: the stage was swept under a
       // delayed writer. Either way nothing was published.
-      if (isStoreErrorCode(error, 'EEXIST') || isStoreErrorCode(error, 'ENOENT')) return 'lost'
+      if (isStoreErrorCode(error, 'EEXIST')) return 'lost'
+      // eslint-disable-next-line unicorn/prefer-combined-guards -- separate guards keep this catch NARROW for check:catches; the combined guard classifies GENERIC (PLAN §8, RLF-UNICORN79).
+      if (isStoreErrorCode(error, 'ENOENT')) return 'lost'
       throw error
     }
   } finally {

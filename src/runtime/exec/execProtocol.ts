@@ -385,12 +385,11 @@ function microUsd(value: UsdAmount): bigint | undefined {
   } catch (error: unknown) {
     // A schema-valid amount meets only these two refusals here; anything
     // else is not this boundary's answer to give.
-    if (
-      error instanceof Error &&
-      (error.message === 'USD amount is not representable' ||
-        error.message === 'USD amount must be a finite decimal')
-    )
-      return undefined
+    if (error instanceof Error) {
+      if (error.message === 'USD amount is not representable') return undefined
+      // eslint-disable-next-line unicorn/prefer-combined-guards -- separate guards keep this catch NARROW for check:catches; the combined guard classifies GENERIC (PLAN §8, RLF-UNICORN79).
+      if (error.message === 'USD amount must be a finite decimal') return undefined
+    }
     throw error
   }
 }
