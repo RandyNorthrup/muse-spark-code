@@ -2,6 +2,7 @@ import type { EstimateDiagnostic, EstimateViewState } from '../shared/estimateDi
 import { loadDeferredEnglish } from '../shared/l10n/deferredEnglish'
 import { JudgeStatusLine } from './components/JudgeStatusLine'
 import { retrySurface } from './surfaceRetry'
+import { selectedTranscriptQuote } from './selectionQuote'
 import {
   type ReactNode,
   Suspense,
@@ -1627,33 +1628,14 @@ export function App({
   )
   const onTranscriptContextMenu = useCallback(
     (event: React.MouseEvent<HTMLElement>) => {
-      const selection = window.getSelection()
-      const text = selection?.toString().trim() ?? ''
-      const anchor = selection?.anchorNode ?? null
-      const element = anchor instanceof Element ? anchor : anchor?.parentElement
-      const row = element?.closest<HTMLElement>('[data-entry-id]') ?? null
-      const entryId = row?.dataset['entryId']
-      // A right-click on another row than the one holding the text is not a
-      // quote of it (the review of F2, P1); the gaps between rows still are.
-      const target = event.target instanceof Element ? event.target : null
-      const clickedRow = target?.closest('[data-entry-id]') ?? null
-      if (
-        text === '' ||
-        row === null ||
-        entryId === undefined ||
-        (clickedRow !== null && clickedRow !== row)
-      ) {
-        return
-      }
+      const quote = selectedTranscriptQuote(window.getSelection(), event.target, {
+        x: event.clientX,
+        y: event.clientY,
+      })
+      if (quote === undefined) return
       event.preventDefault()
-      // Highlighted-text actions fan from this row's “…” button too.
-      const button = row.querySelector<HTMLElement>('.row-actions-button')
-      const origin = button ?? { x: event.clientX, y: event.clientY }
       setQuoteMenu({
-        entryId,
-        role: row.dataset['role'] ?? 'assistant',
-        origin,
-        text,
+        ...quote,
         epoch: store.getState().attachmentEpoch,
       })
     },

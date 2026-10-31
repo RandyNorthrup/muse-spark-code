@@ -2324,6 +2324,8 @@ export const WEBVIEW_ARCHIVE_DIR_PREFIX = 'webview-'
 export const WEBVIEW_SCRIPT_FILE = 'main.js'
 export const WEBVIEW_STYLE_FILE = 'main.css'
 export const WEBVIEW_ROOT_ELEMENT_ID = 'root'
+/** Performance mark the portable entry sets once the chat has mounted (M104 lane D). */
+export const PORTABLE_CHAT_MOUNTED_MARK = 'muse:chat-mounted'
 // M107: the `<body>` attribute naming the document the host built (webviewSetup.ts).
 // A reload builds a new document with a new id; the webview only echoes it.
 export const WEBVIEW_DOCUMENT_ATTRIBUTE = 'data-document-id'
@@ -11005,6 +11007,9 @@ export const MHP_PRESENTATION = {
   maximumRecords: 128,
   maximumDateMs: 8_640_000_000_000_000,
 } as const
+
+/** A presentation action with no acknowledgement by then has failed (M104 lane D). */
+export const PRESENTATION_REQUEST_TIMEOUT_MS = 30_000
 
 export const MHP_PANEL = {
   version: 'mhp/1.5.0',

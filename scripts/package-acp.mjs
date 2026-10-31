@@ -134,6 +134,9 @@ try {
     filter: (source) => !source.endsWith('.map'),
   })
   cpSync('dist/legal-data', path.join(STAGE, 'dist', 'legal-data'), { recursive: true })
+  // M104 lane D: the portable panel graph and its manifest, served to
+  // native and companion hosts from the agent's own installation.
+  cpSync('dist/webview/portable', path.join(STAGE, 'dist/webview/portable'), { recursive: true })
   stageCiLauncher(process.cwd(), STAGE, CI_LAUNCHER_SOURCES)
   for (const source of pageAssets) {
     const staged = path.join(STAGE, source)

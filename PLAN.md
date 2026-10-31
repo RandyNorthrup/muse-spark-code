@@ -30849,6 +30849,15 @@ suites pass on the production build (`runtimePanel*`, `runtimeReview`,
 through it. The agent package carries `reportFallback.js` for the controller.
 Record: `docs/certification/cc-int5.md`.
 
+Lane D on int (RLF-M104D, 2026-10-30): the portable webview — bridges,
+React fallbacks, presentation pages, chat and Tasks and What's New on the
+bridge, the `chat.tsx`/`selectionQuote.ts` extractions, theme through
+M114 (`panelThemePort` on MHP `theme` frames, never `portableTokens.css`),
+`showWalkthrough`/`showRoles`/`showPlans` with VS Code handlers, and the
+independent portable build with static-closure budgets; startup by static
+closure accounting (the browser timing waits for lane C's carrier).
+Record: `docs/certification/rlf-m104d.md`.
+
 **Warning for the POSIX trusted-path verifier (INT0180, 2026-10-11).** A real
 POSIX verifier that refuses a group-writable unit search directory would
 refuse registration on stock Ubuntu with umask 0002. The native schedule

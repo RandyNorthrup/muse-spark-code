@@ -564,9 +564,9 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 
 ## The webview's host
 
-| Call               | Files                                                                                                                                                     |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `acquireVsCodeApi` | `src/webview/hostBridge.ts`, `src/webview/main.tsx`, `src/webview/maker/previewMain.ts`, `src/webview/reporting/main.tsx`, `src/webview/whatsNew/main.ts` |
+| Call               | Files                                                                                                                                                                                      |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `acquireVsCodeApi` | `src/webview/bridges/vscode.ts`, `src/webview/hostBridge.ts`, `src/webview/main.tsx`, `src/webview/maker/previewMain.ts`, `src/webview/reporting/main.tsx`, `src/webview/whatsNew/main.ts` |
 
 Theme variables the styles read (76), from `design/tokens/generated/host-roles.css`, `design/tokens/generated/muse.css`, `src/webview/components/reference.css`, `src/webview/components/traffic/traffic.css`, `src/webview/developer/developerOptions.css`, `src/webview/estimator/estimator.css`, `src/webview/judgeSetup/judgeSetup.css`, `src/webview/maker/maker.css`, `src/webview/maker/preview.css`, `src/webview/media/media.css`, `src/webview/models/controls.css`, `src/webview/models/models.css`, `src/webview/models/sections/accounts/accounts.css`, `src/webview/models/sections/agents/devices.css`, `src/webview/models/sections/vault/vault.css`, `src/webview/node/auth/pairing.css`, `src/webview/node/files/workspace.css`, `src/webview/node/terminal/Terminal.tsx`, `src/webview/page.css`, `src/webview/prompts/PromptLibrary.css`, `src/webview/prompts/Sequences.css`, `src/webview/reporting/destinations/destinations.css`, `src/webview/reporting/styles.css`, `src/webview/schedules/reportAction.css`, `src/webview/sharing/sharing.css`, `src/webview/styles.css`, `src/webview/tokens.css`, `src/webview/usage/AccountsSection.css`, `src/webview/usage/ResourcesSection.css`, `src/webview/usage/usage.css`:
 
