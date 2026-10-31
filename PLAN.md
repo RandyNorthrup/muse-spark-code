@@ -27173,6 +27173,14 @@ launch, so `serve` configures the process governor when none is configured
 RVNET's open requests for Node `serve` are listed in the record with what this
 round did about them. Record: `docs/certification/cc-int6.md`.
 
+**Status 2026-10-31 (RVINT6): building.** Independent read of the whole CC-INT6
+round (`339c1ec95`, twelve lanes). The three `-s ours` merges dropped no lane
+behaviour and overwrote none of int. The `fix(int):` commits, the node serve
+binding, the egress lookup, the browser rule, the Stop shell, the five SAST
+suppressions, the GCM tag length and the fifteen dependency bumps hold. No
+product change. No P1, P2 or P3. M110 stays building. Record:
+`docs/certification/rvint6.md`.
+
 **Amended by D91 (2026-10-05).** Muse Desktop (M111) is this node's
 graphical host edition. M111's shared lanes TH (theme), IN (languages), AX
 (accessibility) and OB (observability) also cover this milestone's web UI
