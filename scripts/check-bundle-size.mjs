@@ -461,16 +461,10 @@ const BUDGETS = [
   // recovery); exactly 15% headroom, rounded to one byte.
   // VAULTPARITY: 168,477 bytes measured on linuxlt with the Windows broker
   // channel, host and file anchor wired in; exactly 15% headroom.
-  // RLF-M109 (D243): 194,124 bytes measured on macmini with reported
-  // provenance, delegated redemption and the feeder channel wired in;
-  // exactly 15% headroom, rounded to one byte.
-  { path: 'dist/vaultBroker.js', budgetKiB: 223_243 / 1024 },
+  { path: 'dist/vaultBroker.js', budgetKiB: 193_749 / 1024 },
   // VAULTPARITY: 33,159 bytes measured on linuxlt with the OS-store/file
   // anchor choice; exactly 15% headroom.
-  // RLF-M109 (D243): 39,796 bytes measured on macmini with the person
-  // ceiling loader, feeder ancestry and the broker TOTP wired in;
-  // exactly 15% headroom, rounded to one byte.
-  { path: 'dist/vaultBrokerBindings.js', budgetKiB: 45_765 / 1024 },
+  { path: 'dist/vaultBrokerBindings.js', budgetKiB: 38_133 / 1024 },
   // MSM109: 58,130 bytes measured on linuxlt after the joined lease/store
   // reviews; exactly 15% headroom, rounded to one byte.
   { path: 'dist/vaultStore.js', budgetKiB: 66_850 / 1024 },
