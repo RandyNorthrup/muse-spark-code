@@ -60,6 +60,7 @@ import {
   type AgentHost,
   type AgentSession,
   isModeKeptError,
+  isMuseCodeFaultError,
   isPermissionReviewerError,
   isPromptSettledError,
   isSessionNotFoundError,
@@ -1799,10 +1800,12 @@ class AcpSession {
         requirementId: settled.requirementId,
       })
     } catch (error: unknown) {
-      // A settled approval the session already forgot is routine; anything
-      // else warns. Both log the redacted failure, never its text.
+      // A settled approval the session already forgot is routine, and a
+      // Muse Code fault means the decision applied while its reply was
+      // spoiled: both are the host's own news at info; anything else
+      // warns. All log the redacted failure, never its text.
       const message = `ACP session ${this.sessionId}: approval ${settled.approvalId}: ${failureForLog(error)}`
-      if (isPromptSettledError(error)) this.deps.log.info(message)
+      if (isPromptSettledError(error) || isMuseCodeFaultError(error)) this.deps.log.info(message)
       else this.deps.log.warn(message)
     }
   }

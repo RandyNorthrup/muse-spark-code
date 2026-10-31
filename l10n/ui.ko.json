@@ -3340,6 +3340,7 @@
   "approvalReplayRefused": "Muse Code가 이 대화의 모든 메시지를 거부합니다. 여러 단계로 된 명령이 일부만 승인된 상태에서 턴이 중지되어 Muse Code가 그 승인을 재생할 수 없습니다(사용자의 선택이 아니라 Muse Code의 결함입니다). 이 대화를 계속하려면 Muse Code를 다시 시작하거나 새 대화를 시작하세요.",
   "approvalLedgerFault": "Muse Code가 이 대화에서 승인을 적용하지만 승인할 때마다 오류를 보고합니다(사용자의 선택이 아니라 승인 기록의 결함입니다). 각 카드는 Muse Code가 다음에 하는 일을 따릅니다. 새 대화에는 이 결함이 없습니다.",
   "approvalLedgerFaultUpdate": "Muse Code가 승인을 적용했지만 승인 기록을 저장하지 못했습니다. {command} 명령으로 Muse Code를 1.4.3 이상으로 업데이트한 후 Muse Code를 다시 시작하세요. 각 카드는 Muse Code가 다음에 하는 일을 따릅니다. 새 대화에서도 이 결함을 피할 수 있습니다.",
+  "approvalPersistenceFault": "Muse Code가 해당 결정을 저장하는 데 너무 오래 걸려 오류를 보고했지만 결정은 적용되었습니다(사용자의 선택이 아닌 Muse Code의 결함입니다). 카드는 Muse Code가 다음에 하는 일을 따릅니다.",
   "museCodeRestartAsked": "Muse Code가 중지되었습니다. 다음 메시지를 보내면 다시 시작되고 이 대화가 계속됩니다.",
   "steerUnconfirmed": "Muse Code가 메시지가 실행 중인 턴에 전달되었는지 확인하지 않았습니다. 아직 전달될 수 있으니 다시 보내기 전에 확인하세요.",
   "museCodeNotAnswering": "Muse Code가 응답하지 않습니다. \"Muse Spark: Muse Code 다시 시작\"으로 다시 시작하세요.",
