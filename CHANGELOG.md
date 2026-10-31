@@ -73,6 +73,12 @@ happened, not what was planned; superseded entries are kept.
   modified files in Git lists, and the Muse Desktop frame sizes from the
   approved desktop mockups, which are now in the repository as the design
   reference with their component contracts.
+- **The Muse Desktop theme generates from the design tokens.** The shell
+  theme, the desktop palette, the terminal and editor themes, the boot
+  splash and menu colours and the wallpaper recipe are all generated from
+  the same token source in light, dark and both high-contrast themes, and
+  the token gate proves their contrast; the desktop follows the system's
+  light/dark choice with a manual override.
 - Best-of-N shows each attempt's reported tokens in the side-by-side
   comparison, plus its reported cost where the attempt's usage reports
   carry one, and the take notice names the taken attempt's reported use
