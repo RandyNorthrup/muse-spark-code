@@ -52,6 +52,10 @@ function replayHost(): Rigged {
             ),
           }
         }
+        case 'session/read': {
+          // Resume reads the stored session first to find its workspace.
+          return { result: fixture('session-read-1.4.11.json') }
+        }
         case 'session/resume': {
           return { result: fixture('session-resume-1.4.11.json') }
         }
