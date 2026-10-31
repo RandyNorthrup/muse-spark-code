@@ -23,7 +23,7 @@ import type {
   SessionHistoryInput,
 } from '../../../runtime/reporting/reportInputs'
 import type { EstimateRequest } from '../../../shared/estimate'
-import { readSettings } from '../../settings'
+import { readSetting, type SettingName } from '../../settings'
 import * as vscode from 'vscode'
 import { ReportPanel, type ReportPanelDeps } from './reportPanel'
 import { reportEngineLoader } from '../../reporting/reportEngineBundle'
@@ -104,6 +104,9 @@ export function createReportingWindow(
     bundlePath: vscode.Uri.joinPath(deps.context.extensionUri, 'dist', 'reporting.js').fsPath,
     log: deps.context.log,
   })
+  // The reports' settings are read fresh at each use, never cached.
+  const setting = <Key extends SettingName>(key: Key) =>
+    readSetting(vscode.workspace.getConfiguration(SETTINGS_SECTION), key, deps.context.log)
   let isSignedIn = false
   let authenticationRevision = 0
   const authenticationChanges = vscode.authentication.onDidChangeSessions((event) => {
@@ -290,10 +293,7 @@ export function createReportingWindow(
           log: deps.context.log,
           generatorVersion: deps.generatorVersion,
           network: async () => {
-            const mode = readSettings(
-              vscode.workspace.getConfiguration(SETTINGS_SECTION),
-              deps.context.log,
-            )['reports.network']
+            const mode = setting('reports.network')
             const revision = authenticationRevision
             const session =
               mode === 'off'
@@ -308,10 +308,7 @@ export function createReportingWindow(
               policy: {
                 surface: 'editor' as const,
                 get mode() {
-                  return readSettings(
-                    vscode.workspace.getConfiguration(SETTINGS_SECTION),
-                    deps.context.log,
-                  )['reports.network']
+                  return setting('reports.network')
                 },
                 get githubSignedIn() {
                   return isSignedIn
@@ -342,22 +339,13 @@ export function createReportingWindow(
             }
           },
           get keepHistory() {
-            return readSettings(
-              vscode.workspace.getConfiguration(SETTINGS_SECTION),
-              deps.context.log,
-            )['reports.keepHistory']
+            return setting('reports.keepHistory')
           },
           get planMaxBytes() {
-            return readSettings(
-              vscode.workspace.getConfiguration(SETTINGS_SECTION),
-              deps.context.log,
-            )['reports.planMaxBytes']
+            return setting('reports.planMaxBytes')
           },
           get enabledAgents() {
-            return readSettings(
-              vscode.workspace.getConfiguration(SETTINGS_SECTION),
-              deps.context.log,
-            )['reports.agentSources']
+            return setting('reports.agentSources')
           },
         })),
       now: () => new Date().toISOString(),

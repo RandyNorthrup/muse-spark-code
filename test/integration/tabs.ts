@@ -2,6 +2,7 @@
 // Tab groups update asynchronously after a webview panel is created, so a
 // direct read right after executeCommand races the UI: these poll instead.
 
+import * as assert from 'node:assert/strict'
 import * as vscode from 'vscode'
 
 export const TAB_WAIT_TIMEOUT_MS = 5000
@@ -47,4 +48,16 @@ export async function waitForTab(isMatch: (tab: vscode.Tab) => boolean): Promise
   throw new Error(
     `no matching tab appeared within ${String(TAB_WAIT_TIMEOUT_MS)} ms; open: ${open.join(', ')}; active editor: ${activeTextEditorFsPath() ?? 'none'}`,
   )
+}
+
+/** Waits until `target` is the active editor's document, then asserts it. */
+export async function waitForDocument(target: vscode.Uri): Promise<void> {
+  const deadline = Date.now() + TAB_WAIT_TIMEOUT_MS
+  while (
+    vscode.window.activeTextEditor?.document.uri.toString() !== target.toString() &&
+    Date.now() < deadline
+  ) {
+    await new Promise((resolve) => setTimeout(resolve, TAB_POLL_INTERVAL_MS))
+  }
+  assert.equal(vscode.window.activeTextEditor?.document.uri.fsPath, target.fsPath)
 }

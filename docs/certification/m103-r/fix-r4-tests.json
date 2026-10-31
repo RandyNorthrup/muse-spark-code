@@ -1,0 +1,152 @@
+[
+  {
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/checkProxy.test.ts test/unit/browserCheckConfirm.test.ts test/unit/browserPolicy.test.ts --maxWorkers=3",
+    "files": [
+      "test/unit/checkProxy.test.ts",
+      "test/unit/browserCheckConfirm.test.ts",
+      "test/unit/browserPolicy.test.ts"
+    ],
+    "exitCode": 0,
+    "passed": 79
+  },
+  {
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/settings.test.ts test/unit/makerRegistryLog.test.ts test/unit/webFetcher.test.ts --maxWorkers=3",
+    "files": [
+      "test/unit/settings.test.ts",
+      "test/unit/makerRegistryLog.test.ts",
+      "test/unit/webFetcher.test.ts"
+    ],
+    "exitCode": 0,
+    "passed": 41
+  },
+  {
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/runtimeMakerHost.test.ts test/unit/runtimeUserPresence.test.ts test/unit/runtimeMakerTransport.test.ts --maxWorkers=3",
+    "files": [
+      "test/unit/runtimeMakerHost.test.ts",
+      "test/unit/runtimeUserPresence.test.ts",
+      "test/unit/runtimeMakerTransport.test.ts"
+    ],
+    "exitCode": 0,
+    "passed": 80
+  },
+  {
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/runtimeMakerCommands.test.ts test/unit/runtimeMakerAttendance.test.ts test/unit/runtimeMakerAcp.test.ts --maxWorkers=3",
+    "files": [
+      "test/unit/runtimeMakerCommands.test.ts",
+      "test/unit/runtimeMakerAttendance.test.ts",
+      "test/unit/runtimeMakerAcp.test.ts"
+    ],
+    "exitCode": 0,
+    "passed": 43
+  },
+  {
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/toolIoCommandAdmission.test.ts test/unit/launch.test.ts test/unit/shellEnvironmentOrigins.test.ts --maxWorkers=3",
+    "files": [
+      "test/unit/toolIoCommandAdmission.test.ts",
+      "test/unit/launch.test.ts",
+      "test/unit/shellEnvironmentOrigins.test.ts"
+    ],
+    "exitCode": 0,
+    "passed": 41
+  },
+  {
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/browserTool.test.ts test/unit/browserRun.test.ts test/unit/ideBrowserCheck.test.ts --maxWorkers=3",
+    "files": [
+      "test/unit/browserTool.test.ts",
+      "test/unit/browserRun.test.ts",
+      "test/unit/ideBrowserCheck.test.ts"
+    ],
+    "exitCode": 0,
+    "passed": 64
+  },
+  {
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/canaries.test.ts test/unit/browserChecks.test.ts test/unit/publicAddress.test.ts --maxWorkers=3",
+    "files": [
+      "test/unit/canaries.test.ts",
+      "test/unit/browserChecks.test.ts",
+      "test/unit/publicAddress.test.ts"
+    ],
+    "exitCode": 0,
+    "passed": 37
+  },
+  {
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/runtimeMakerStop.test.ts test/unit/makerLease.test.ts test/unit/makerMachines.test.ts --maxWorkers=3",
+    "files": [
+      "test/unit/runtimeMakerStop.test.ts",
+      "test/unit/makerLease.test.ts",
+      "test/unit/makerMachines.test.ts"
+    ],
+    "exitCode": 0,
+    "passed": 134
+  },
+  {
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/webFetch.test.ts test/unit/makerProtocol.test.ts test/unit/runtimeManifest.test.ts --maxWorkers=3",
+    "files": [
+      "test/unit/webFetch.test.ts",
+      "test/unit/makerProtocol.test.ts",
+      "test/unit/runtimeManifest.test.ts"
+    ],
+    "exitCode": 0,
+    "passed": 77
+  },
+  {
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/deferredBundles.test.ts test/unit/bundleSize.test.mjs test/unit/vsixPackaging.test.mjs --maxWorkers=3",
+    "files": [
+      "test/unit/deferredBundles.test.ts",
+      "test/unit/bundleSize.test.mjs",
+      "test/unit/vsixPackaging.test.mjs"
+    ],
+    "exitCode": 0,
+    "passed": 58
+  },
+  {
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/e2e/acpStdio.e2e.test.ts --maxWorkers=3",
+    "files": ["test/e2e/acpStdio.e2e.test.ts"],
+    "exitCode": 0,
+    "passed": 11
+  },
+  {
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/modelApiHost.test.ts test/unit/browserCheckConfirm.test.ts --maxWorkers=3",
+    "files": ["test/unit/modelApiHost.test.ts", "test/unit/browserCheckConfirm.test.ts"],
+    "exitCode": 0,
+    "passed": 629,
+    "additionalUniqueTests": 623,
+    "note": "Six browser origin confirmation tests were repeated after strengthening the stale-answer regression to check persisted state on reload."
+  },
+  {
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/checkProxy.test.ts test/unit/settings.test.ts test/unit/browserCheckConfirm.test.ts --maxWorkers=3",
+    "files": [
+      "test/unit/checkProxy.test.ts",
+      "test/unit/settings.test.ts",
+      "test/unit/browserCheckConfirm.test.ts"
+    ],
+    "exitCode": 0,
+    "passed": 72,
+    "additionalUniqueTests": 2,
+    "note": "Adds missing registry reader and expanded IPv6 alias regressions; repeats 70 existing cases."
+  },
+  {
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/checkProxy.test.ts test/unit/browserPolicy.test.ts test/unit/browserCheckConfirm.test.ts --maxWorkers=3",
+    "files": [
+      "test/unit/checkProxy.test.ts",
+      "test/unit/browserPolicy.test.ts",
+      "test/unit/browserCheckConfirm.test.ts"
+    ],
+    "exitCode": 0,
+    "passed": 81,
+    "additionalUniqueTests": 0,
+    "note": "Final passing guard suites after all mutations were restored."
+  },
+  {
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/modelApiHost.test.ts test/unit/checkProxy.test.ts test/unit/browserCheckConfirm.test.ts --maxWorkers=3",
+    "files": [
+      "test/unit/modelApiHost.test.ts",
+      "test/unit/checkProxy.test.ts",
+      "test/unit/browserCheckConfirm.test.ts"
+    ],
+    "exitCode": 0,
+    "passed": 678,
+    "additionalUniqueTests": 0,
+    "note": "Final passing run after sharing the URL-refusal assertions and repeating the profile red drill."
+  }
+]

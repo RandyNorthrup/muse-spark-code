@@ -1,0 +1,1163 @@
+[
+  {
+    "name": "format",
+    "command": [
+      "npx",
+      "prettier",
+      "--write",
+      "CHANGELOG.md",
+      "PLAN.md",
+      "README.md",
+      "docs/help/maker-payload-review.md",
+      "src/core/maker/payloadSummary.ts",
+      "src/host/html.ts",
+      "src/shared/constants.ts",
+      "src/shared/featureCatalog.ts",
+      "src/shared/l10n/en.ts",
+      "src/shared/makerProtocol.ts",
+      "src/webview/maker/MakerSurface.tsx",
+      "src/webview/maker/PayloadReview.tsx",
+      "src/webview/maker/payloadSearch.ts",
+      "src/webview/makerEntry.ts",
+      "src/webview/styles.css",
+      "test/unit/html.test.ts",
+      "test/unit/makerEntryLoading.test.ts",
+      "test/unit/makerPayloadReview.test.tsx",
+      "test/unit/makerReviewBrowser.test.mjs",
+      "test/unit/makerUi.test.tsx",
+      "l10n/ui.de.json",
+      "l10n/ui.ru.json",
+      "l10n/ui.pl.json",
+      "l10n/ui.it.json",
+      "l10n/ui.tr.json",
+      "l10n/ui.hu.json",
+      "l10n/ui.zh-cn.json",
+      "l10n/ui.ja.json",
+      "l10n/ui.cs.json",
+      "l10n/ui.es.json",
+      "l10n/ui.pt-br.json",
+      "l10n/ui.zh-tw.json",
+      "l10n/ui.fr.json",
+      "l10n/ui.ko.json"
+    ],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "reference-generate",
+    "command": ["node", "scripts/gen-reference.mjs"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "lint",
+    "command": [
+      "npx",
+      "eslint",
+      "--max-warnings=0",
+      "src/core/maker/payloadSummary.ts",
+      "src/host/html.ts",
+      "src/shared/constants.ts",
+      "src/shared/featureCatalog.ts",
+      "src/shared/l10n/en.ts",
+      "src/shared/makerProtocol.ts",
+      "src/webview/maker/MakerSurface.tsx",
+      "src/webview/maker/PayloadReview.tsx",
+      "src/webview/maker/payloadSearch.ts",
+      "src/webview/makerEntry.ts",
+      "test/unit/html.test.ts",
+      "test/unit/makerEntryLoading.test.ts",
+      "test/unit/makerPayloadReview.test.tsx",
+      "test/unit/makerReviewBrowser.test.mjs",
+      "test/unit/makerUi.test.tsx"
+    ],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "stylelint",
+    "command": ["npx", "stylelint", "src/webview/styles.css", "--max-warnings=0"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "typecheck-webview",
+    "command": ["npm", "run", "typecheck:webview"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "typecheck-unit",
+    "command": ["npm", "run", "typecheck:unit"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "deadcode",
+    "command": ["npm", "run", "deadcode"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "duplication",
+    "command": ["npx", "jscpd"],
+    "exit": 1,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "format",
+    "command": [
+      "npx",
+      "prettier",
+      "--write",
+      "CHANGELOG.md",
+      "PLAN.md",
+      "README.md",
+      "docs/help/maker-payload-review.md",
+      "src/core/maker/payloadSummary.ts",
+      "src/host/html.ts",
+      "src/shared/constants.ts",
+      "src/shared/featureCatalog.ts",
+      "src/shared/l10n/en.ts",
+      "src/shared/makerProtocol.ts",
+      "src/webview/maker/MakerSurface.tsx",
+      "src/webview/maker/PayloadReview.tsx",
+      "src/webview/maker/payloadSearch.ts",
+      "src/webview/makerEntry.ts",
+      "src/webview/styles.css",
+      "test/unit/html.test.ts",
+      "test/unit/makerEntryLoading.test.ts",
+      "test/unit/makerPayloadReview.test.tsx",
+      "test/unit/makerReviewBrowser.test.mjs",
+      "test/unit/makerUi.test.tsx",
+      "l10n/ui.de.json",
+      "l10n/ui.ru.json",
+      "l10n/ui.pl.json",
+      "l10n/ui.it.json",
+      "l10n/ui.tr.json",
+      "l10n/ui.hu.json",
+      "l10n/ui.zh-cn.json",
+      "l10n/ui.ja.json",
+      "l10n/ui.cs.json",
+      "l10n/ui.es.json",
+      "l10n/ui.pt-br.json",
+      "l10n/ui.zh-tw.json",
+      "l10n/ui.fr.json",
+      "l10n/ui.ko.json"
+    ],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "lint",
+    "command": [
+      "npx",
+      "eslint",
+      "--max-warnings=0",
+      "src/core/maker/payloadSummary.ts",
+      "src/host/html.ts",
+      "src/shared/constants.ts",
+      "src/shared/featureCatalog.ts",
+      "src/shared/l10n/en.ts",
+      "src/shared/makerProtocol.ts",
+      "src/webview/maker/MakerSurface.tsx",
+      "src/webview/maker/PayloadReview.tsx",
+      "src/webview/maker/payloadSearch.ts",
+      "src/webview/makerEntry.ts",
+      "test/unit/html.test.ts",
+      "test/unit/makerEntryLoading.test.ts",
+      "test/unit/makerPayloadReview.test.tsx",
+      "test/unit/makerReviewBrowser.test.mjs",
+      "test/unit/makerUi.test.tsx"
+    ],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "stylelint",
+    "command": ["npx", "stylelint", "src/webview/styles.css", "--max-warnings=0"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "typecheck-unit",
+    "command": ["npm", "run", "typecheck:unit"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "duplication",
+    "command": ["npx", "jscpd"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "l10n",
+    "command": ["node", "scripts/check-l10n.mjs"],
+    "exit": 1,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "format",
+    "command": [
+      "npx",
+      "prettier",
+      "--write",
+      "CHANGELOG.md",
+      "PLAN.md",
+      "README.md",
+      "docs/help/maker-payload-review.md",
+      "src/core/maker/payloadSummary.ts",
+      "src/host/html.ts",
+      "src/shared/constants.ts",
+      "src/shared/featureCatalog.ts",
+      "src/shared/l10n/en.ts",
+      "src/shared/makerProtocol.ts",
+      "src/webview/maker/MakerSurface.tsx",
+      "src/webview/maker/PayloadReview.tsx",
+      "src/webview/maker/payloadSearch.ts",
+      "src/webview/makerEntry.ts",
+      "src/webview/styles.css",
+      "test/unit/html.test.ts",
+      "test/unit/makerEntryLoading.test.ts",
+      "test/unit/makerPayloadReview.test.tsx",
+      "test/unit/makerReviewBrowser.test.mjs",
+      "test/unit/makerUi.test.tsx",
+      "l10n/ui.de.json",
+      "l10n/ui.ru.json",
+      "l10n/ui.pl.json",
+      "l10n/ui.it.json",
+      "l10n/ui.tr.json",
+      "l10n/ui.hu.json",
+      "l10n/ui.zh-cn.json",
+      "l10n/ui.ja.json",
+      "l10n/ui.cs.json",
+      "l10n/ui.es.json",
+      "l10n/ui.pt-br.json",
+      "l10n/ui.zh-tw.json",
+      "l10n/ui.fr.json",
+      "l10n/ui.ko.json"
+    ],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "l10n",
+    "command": ["node", "scripts/check-l10n.mjs"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "host-api",
+    "command": ["npm", "run", "check:host-api"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "reference-check",
+    "command": ["npm", "run", "check:reference"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "maker-schema",
+    "command": ["node", "scripts/maker-schema.mjs", "--check"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "build",
+    "command": ["npm", "run", "build"],
+    "exit": 1,
+    "expectedExit": 1,
+    "results": []
+  },
+  {
+    "name": "tests-1",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/makerPayloadReview.test.tsx",
+      "test/unit/makerApproval.test.ts",
+      "test/unit/makerReload.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": [
+      "\n\n Test Files  3 passed (3)",
+      "      Tests  154 passed (154)",
+      "   Duration  11.58s (tests 55%, environment 25%, transform 11%, setup 6%, import 4%)"
+    ]
+  },
+  {
+    "name": "tests-2",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/makerEntryLoading.test.ts",
+      "test/unit/makerFailures.test.tsx",
+      "test/unit/makerStopLoading.test.tsx",
+      "--maxWorkers=3"
+    ],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": [
+      "\n\n Test Files  3 passed (3)",
+      "      Tests  5 passed (5)",
+      "   Duration  4.49s (environment 47%, tests 21%, transform 15%, setup 8%, import 8%)"
+    ]
+  },
+  {
+    "name": "tests-3",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/makerUiStore.test.ts",
+      "test/unit/makerUi.test.tsx",
+      "test/unit/makerPreview.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": [
+      "\n\n Test Files  3 passed (3)",
+      "      Tests  47 passed (47)",
+      "   Duration  5.81s (environment 40%, tests 29%, transform 17%, setup 7%, import 5%)"
+    ]
+  },
+  {
+    "name": "tests-4",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/makerProtocol.test.ts",
+      "test/unit/Modal.test.tsx",
+      "test/unit/bundleSize.test.mjs",
+      "--maxWorkers=3"
+    ],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": [
+      "\n\n Test Files  3 passed (3)",
+      "      Tests  50 passed (50)",
+      "   Duration  3.62s (environment 36%, tests 25%, setup 17%, transform 14%, import 7%)"
+    ]
+  },
+  {
+    "name": "tests-5",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/webviewBundles.test.mjs",
+      "test/unit/webviewBundle.test.mjs",
+      "test/unit/uiTextRegions.test.mjs",
+      "--maxWorkers=3"
+    ],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": [
+      "\n\n Test Files  3 passed (3)",
+      "      Tests  29 passed (29)",
+      "   Duration  9.53s (tests 82%, import 8%, setup 5%, transform 4%)"
+    ]
+  },
+  {
+    "name": "tests-6",
+    "command": ["npx", "vitest", "run", "test/unit/html.test.ts", "--maxWorkers=3"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": [
+      "\n\n Test Files  1 passed (1)",
+      "      Tests  10 passed (10)",
+      "   Duration  936ms (transform 46%, setup 32%, import 14%, tests 7%, worker 1%)"
+    ]
+  },
+  {
+    "name": "tests-7",
+    "command": ["npx", "vitest", "run", "test/unit/makerReviewBrowser.test.mjs", "--maxWorkers=3"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": [
+      "\n\n Test Files  1 passed (1)",
+      "      Tests  16 passed (16)",
+      "   Duration  43.18s (tests 93%, import 4%, transform 1%, setup 1%)"
+    ]
+  },
+  {
+    "name": "tests-webkit",
+    "command": ["npx", "vitest", "run", "test/unit/makerReviewBrowser.test.mjs", "--maxWorkers=3"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": [
+      "\n\n Test Files  1 passed (1)",
+      "      Tests  16 passed (16)",
+      "   Duration  38.09s (tests 96%, import 3%, transform 1%)"
+    ]
+  },
+  {
+    "name": "prettier-check",
+    "command": [
+      "npx",
+      "prettier",
+      "--check",
+      "CHANGELOG.md",
+      "PLAN.md",
+      "README.md",
+      "docs/help/maker-payload-review.md",
+      "src/core/maker/payloadSummary.ts",
+      "src/host/html.ts",
+      "src/shared/constants.ts",
+      "src/shared/featureCatalog.ts",
+      "src/shared/l10n/en.ts",
+      "src/shared/makerProtocol.ts",
+      "src/webview/maker/MakerSurface.tsx",
+      "src/webview/maker/PayloadReview.tsx",
+      "src/webview/maker/payloadSearch.ts",
+      "src/webview/makerEntry.ts",
+      "src/webview/styles.css",
+      "test/unit/html.test.ts",
+      "test/unit/makerEntryLoading.test.ts",
+      "test/unit/makerPayloadReview.test.tsx",
+      "test/unit/makerReviewBrowser.test.mjs",
+      "test/unit/makerUi.test.tsx",
+      "l10n/ui.de.json",
+      "l10n/ui.ru.json",
+      "l10n/ui.pl.json",
+      "l10n/ui.it.json",
+      "l10n/ui.tr.json",
+      "l10n/ui.hu.json",
+      "l10n/ui.zh-cn.json",
+      "l10n/ui.ja.json",
+      "l10n/ui.cs.json",
+      "l10n/ui.es.json",
+      "l10n/ui.pt-br.json",
+      "l10n/ui.zh-tw.json",
+      "l10n/ui.fr.json",
+      "l10n/ui.ko.json",
+      "docs/reference.md"
+    ],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "whitespace",
+    "command": ["git", "diff", "--check"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "browser-chrome-final",
+    "command": ["npx", "vitest", "run", "test/unit/makerReviewBrowser.test.mjs", "--maxWorkers=3"],
+    "exit": 1,
+    "expectedExit": 0,
+    "results": [
+      "\n Test Files  1 failed (1)",
+      "      Tests  1 failed | 15 passed (16)",
+      "   Duration  40.57s (tests 96%, import 2%, transform 1%)"
+    ]
+  },
+  {
+    "name": "browser-chrome-diagnostic",
+    "command": ["npx", "vitest", "run", "test/unit/makerReviewBrowser.test.mjs", "--maxWorkers=3"],
+    "exit": 1,
+    "expectedExit": 0,
+    "results": [
+      "1 failed / 15 passed; 120001-character query queued Stop 201.8 ms, synchronous dispatch 200.7 ms."
+    ],
+    "facts": [
+      {
+        "probe": "long-token",
+        "client": 121,
+        "scroll": 121,
+        "fits": true
+      },
+      {
+        "probe": "shared-stop",
+        "count": 5,
+        "height": 120,
+        "visible": true,
+        "top": 42,
+        "bottom": 74
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 5,
+        "height": 120,
+        "scrollHeight": 148,
+        "clientHeight": 14,
+        "buttons": 5
+      },
+      {
+        "probe": "shared-stop",
+        "count": 5,
+        "height": 160,
+        "visible": true,
+        "top": 42,
+        "bottom": 74
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 5,
+        "height": 160,
+        "scrollHeight": 148,
+        "clientHeight": 30,
+        "buttons": 5
+      },
+      {
+        "probe": "shared-stop",
+        "count": 5,
+        "height": 400,
+        "visible": true,
+        "top": 54,
+        "bottom": 86
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 5,
+        "height": 400,
+        "scrollHeight": 148,
+        "clientHeight": 86,
+        "buttons": 5
+      },
+      {
+        "probe": "shared-stop",
+        "count": 5,
+        "height": 760,
+        "visible": true,
+        "top": 54,
+        "bottom": 86
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 5,
+        "height": 760,
+        "scrollHeight": 148,
+        "clientHeight": 86,
+        "buttons": 5
+      },
+      {
+        "probe": "shared-stop",
+        "count": 10,
+        "height": 120,
+        "visible": true,
+        "top": 42,
+        "bottom": 74
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 10,
+        "height": 120,
+        "scrollHeight": 298,
+        "clientHeight": 14,
+        "buttons": 10
+      },
+      {
+        "probe": "shared-stop",
+        "count": 10,
+        "height": 160,
+        "visible": true,
+        "top": 42,
+        "bottom": 74
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 10,
+        "height": 160,
+        "scrollHeight": 298,
+        "clientHeight": 30,
+        "buttons": 10
+      },
+      {
+        "probe": "shared-stop",
+        "count": 10,
+        "height": 400,
+        "visible": true,
+        "top": 54,
+        "bottom": 86
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 10,
+        "height": 400,
+        "scrollHeight": 298,
+        "clientHeight": 86,
+        "buttons": 10
+      },
+      {
+        "probe": "shared-stop",
+        "count": 10,
+        "height": 760,
+        "visible": true,
+        "top": 54,
+        "bottom": 86
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 10,
+        "height": 760,
+        "scrollHeight": 298,
+        "clientHeight": 86,
+        "buttons": 10
+      },
+      {
+        "probe": "standalone-stop",
+        "count": 10,
+        "height": 120,
+        "visible": true,
+        "top": 64,
+        "bottom": 92
+      },
+      {
+        "probe": "standalone-stop",
+        "count": 10,
+        "height": 400,
+        "visible": true,
+        "top": 272,
+        "bottom": 300
+      },
+      {
+        "probe": "large-payload",
+        "latency": 40.900001525878906,
+        "rows": 19,
+        "height": 2000000,
+        "stops": 103
+      },
+      {
+        "probe": "worst-case-search",
+        "engine": "Chrome",
+        "queryLength": 60001,
+        "latency": 25.599998474121094,
+        "stops": 40,
+        "sent": 40,
+        "workers": {
+          "created": 1,
+          "terminated": 1
+        },
+        "dispatchMs": 25.299999237060547
+      },
+      {
+        "probe": "worst-case-search",
+        "engine": "Chrome",
+        "queryLength": 120001,
+        "latency": 201.79999923706055,
+        "stops": 41,
+        "sent": 41,
+        "workers": {
+          "created": 1,
+          "terminated": 1
+        },
+        "dispatchMs": 200.70000076293945
+      },
+      {
+        "probe": "static-dependency-reload",
+        "refetches": 2,
+        "restoredMachines": 10
+      },
+      {
+        "probe": "large-host-reload",
+        "escaped": false,
+        "chars": 1048576,
+        "readyRefetch": true,
+        "stop": true
+      },
+      {
+        "probe": "large-host-reload",
+        "escaped": true,
+        "chars": 400000,
+        "readyRefetch": true,
+        "stop": true
+      },
+      {
+        "probe": "storage-denied-reload",
+        "engine": "Chrome",
+        "stop": true,
+        "surfaces": 0,
+        "ready": true,
+        "sent": {
+          "v": 1,
+          "type": "makerStop"
+        }
+      }
+    ]
+  },
+  {
+    "name": "prepared-worker-webkit-setup",
+    "command": ["npx", "vitest", "run", "test/unit/makerReviewBrowser.test.mjs", "--maxWorkers=3"],
+    "browser": "WebKit",
+    "exit": 1,
+    "expectedExit": 0,
+    "results": ["beforeAll exceeded unchanged 10000 ms hook deadline; 16 cases not reached."]
+  },
+  {
+    "name": "prepared-worker-chrome-later",
+    "command": ["npx", "vitest", "run", "test/unit/makerReviewBrowser.test.mjs", "--maxWorkers=3"],
+    "exit": 1,
+    "expectedExit": 0,
+    "results": [
+      "\n Test Files  1 failed (1)",
+      "      Tests  1 failed | 15 passed (16)",
+      "   Duration  40.90s (tests 96%, import 2%, transform 1%)"
+    ],
+    "facts": [
+      {
+        "probe": "long-token",
+        "client": 121,
+        "scroll": 121,
+        "fits": true
+      },
+      {
+        "probe": "shared-stop",
+        "count": 5,
+        "height": 120,
+        "visible": true,
+        "top": 42,
+        "bottom": 74
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 5,
+        "height": 120,
+        "scrollHeight": 148,
+        "clientHeight": 14,
+        "buttons": 5
+      },
+      {
+        "probe": "shared-stop",
+        "count": 5,
+        "height": 160,
+        "visible": true,
+        "top": 42,
+        "bottom": 74
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 5,
+        "height": 160,
+        "scrollHeight": 148,
+        "clientHeight": 30,
+        "buttons": 5
+      },
+      {
+        "probe": "shared-stop",
+        "count": 5,
+        "height": 400,
+        "visible": true,
+        "top": 54,
+        "bottom": 86
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 5,
+        "height": 400,
+        "scrollHeight": 148,
+        "clientHeight": 86,
+        "buttons": 5
+      },
+      {
+        "probe": "shared-stop",
+        "count": 5,
+        "height": 760,
+        "visible": true,
+        "top": 54,
+        "bottom": 86
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 5,
+        "height": 760,
+        "scrollHeight": 148,
+        "clientHeight": 86,
+        "buttons": 5
+      },
+      {
+        "probe": "shared-stop",
+        "count": 10,
+        "height": 120,
+        "visible": true,
+        "top": 42,
+        "bottom": 74
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 10,
+        "height": 120,
+        "scrollHeight": 298,
+        "clientHeight": 14,
+        "buttons": 10
+      },
+      {
+        "probe": "shared-stop",
+        "count": 10,
+        "height": 160,
+        "visible": true,
+        "top": 42,
+        "bottom": 74
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 10,
+        "height": 160,
+        "scrollHeight": 298,
+        "clientHeight": 30,
+        "buttons": 10
+      },
+      {
+        "probe": "shared-stop",
+        "count": 10,
+        "height": 400,
+        "visible": true,
+        "top": 54,
+        "bottom": 86
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 10,
+        "height": 400,
+        "scrollHeight": 298,
+        "clientHeight": 86,
+        "buttons": 10
+      },
+      {
+        "probe": "shared-stop",
+        "count": 10,
+        "height": 760,
+        "visible": true,
+        "top": 54,
+        "bottom": 86
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 10,
+        "height": 760,
+        "scrollHeight": 298,
+        "clientHeight": 86,
+        "buttons": 10
+      },
+      {
+        "probe": "standalone-stop",
+        "count": 10,
+        "height": 120,
+        "visible": true,
+        "top": 64,
+        "bottom": 92
+      },
+      {
+        "probe": "standalone-stop",
+        "count": 10,
+        "height": 400,
+        "visible": true,
+        "top": 272,
+        "bottom": 300
+      },
+      {
+        "probe": "large-payload",
+        "latency": 34.79999923706055,
+        "rows": 19,
+        "height": 2000000,
+        "stops": 96
+      },
+      {
+        "probe": "worst-case-search",
+        "engine": "Chrome",
+        "queryLength": 60001,
+        "latency": 127.69999694824219,
+        "stops": 20,
+        "sent": 20,
+        "workers": {
+          "created": 1,
+          "terminated": 1
+        },
+        "dispatchMs": 3.200000762939453
+      },
+      {
+        "probe": "worst-case-search",
+        "engine": "Chrome",
+        "queryLength": 120001,
+        "latency": 7.8000030517578125,
+        "stops": 41,
+        "sent": 41,
+        "workers": {
+          "created": 1,
+          "terminated": 1
+        },
+        "dispatchMs": 4.3000030517578125
+      },
+      {
+        "probe": "static-dependency-reload",
+        "refetches": 2,
+        "restoredMachines": 10
+      },
+      {
+        "probe": "large-host-reload",
+        "escaped": false,
+        "chars": 1048576,
+        "readyRefetch": true,
+        "stop": true
+      },
+      {
+        "probe": "large-host-reload",
+        "escaped": true,
+        "chars": 400000,
+        "readyRefetch": true,
+        "stop": true
+      },
+      {
+        "probe": "storage-denied-reload",
+        "engine": "Chrome",
+        "stop": true,
+        "surfaces": 0,
+        "ready": true,
+        "sent": {
+          "v": 1,
+          "type": "makerStop"
+        }
+      }
+    ]
+  },
+  {
+    "name": "prepared-browser-chrome-repeat",
+    "command": ["npx", "vitest", "run", "test/unit/makerReviewBrowser.test.mjs", "--maxWorkers=3"],
+    "exit": 1,
+    "expectedExit": 0,
+    "results": [
+      "\n\n Test Files  1 failed (1)",
+      "      Tests  2 failed | 14 passed (16)",
+      "   Duration  44.49s (tests 95%, import 3%, transform 2%, setup 1%)"
+    ],
+    "facts": [
+      {
+        "probe": "long-token",
+        "client": 121,
+        "scroll": 121,
+        "fits": true
+      },
+      {
+        "probe": "shared-stop",
+        "count": 5,
+        "height": 120,
+        "visible": true,
+        "top": 42,
+        "bottom": 74
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 5,
+        "height": 120,
+        "scrollHeight": 148,
+        "clientHeight": 14,
+        "buttons": 5
+      },
+      {
+        "probe": "shared-stop",
+        "count": 5,
+        "height": 160,
+        "visible": true,
+        "top": 42,
+        "bottom": 74
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 5,
+        "height": 160,
+        "scrollHeight": 148,
+        "clientHeight": 30,
+        "buttons": 5
+      },
+      {
+        "probe": "shared-stop",
+        "count": 5,
+        "height": 400,
+        "visible": true,
+        "top": 54,
+        "bottom": 86
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 5,
+        "height": 400,
+        "scrollHeight": 148,
+        "clientHeight": 86,
+        "buttons": 5
+      },
+      {
+        "probe": "shared-stop",
+        "count": 5,
+        "height": 760,
+        "visible": true,
+        "top": 54,
+        "bottom": 86
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 5,
+        "height": 760,
+        "scrollHeight": 148,
+        "clientHeight": 86,
+        "buttons": 5
+      },
+      {
+        "probe": "shared-stop",
+        "count": 10,
+        "height": 120,
+        "visible": true,
+        "top": 42,
+        "bottom": 74
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 10,
+        "height": 120,
+        "scrollHeight": 298,
+        "clientHeight": 14,
+        "buttons": 10
+      },
+      {
+        "probe": "shared-stop",
+        "count": 10,
+        "height": 160,
+        "visible": true,
+        "top": 42,
+        "bottom": 74
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 10,
+        "height": 160,
+        "scrollHeight": 298,
+        "clientHeight": 30,
+        "buttons": 10
+      },
+      {
+        "probe": "shared-stop",
+        "count": 10,
+        "height": 400,
+        "visible": true,
+        "top": 54,
+        "bottom": 86
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 10,
+        "height": 400,
+        "scrollHeight": 298,
+        "clientHeight": 86,
+        "buttons": 10
+      },
+      {
+        "probe": "shared-stop",
+        "count": 10,
+        "height": 760,
+        "visible": true,
+        "top": 54,
+        "bottom": 86
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 10,
+        "height": 760,
+        "scrollHeight": 298,
+        "clientHeight": 86,
+        "buttons": 10
+      },
+      {
+        "probe": "standalone-stop",
+        "count": 10,
+        "height": 120,
+        "visible": true,
+        "top": 64,
+        "bottom": 92
+      },
+      {
+        "probe": "standalone-stop",
+        "count": 10,
+        "height": 400,
+        "visible": true,
+        "top": 272,
+        "bottom": 300
+      },
+      {
+        "probe": "worst-case-search",
+        "engine": "Chrome",
+        "queryLength": 60001,
+        "latency": 140.39999771118164,
+        "stops": 24,
+        "sent": 24,
+        "workers": {
+          "created": 1,
+          "terminated": 1
+        },
+        "dispatchMs": 55.70000076293945
+      },
+      {
+        "probe": "worst-case-search",
+        "engine": "Chrome",
+        "queryLength": 120001,
+        "latency": 14.599998474121094,
+        "stops": 38,
+        "sent": 38,
+        "workers": {
+          "created": 1,
+          "terminated": 1
+        },
+        "dispatchMs": 4
+      },
+      {
+        "probe": "static-dependency-reload",
+        "refetches": 2,
+        "restoredMachines": 10
+      },
+      {
+        "probe": "large-host-reload",
+        "escaped": false,
+        "chars": 1048576,
+        "readyRefetch": true,
+        "stop": true
+      },
+      {
+        "probe": "large-host-reload",
+        "escaped": true,
+        "chars": 400000,
+        "readyRefetch": true,
+        "stop": true
+      },
+      {
+        "probe": "storage-denied-reload",
+        "engine": "Chrome",
+        "stop": true,
+        "surfaces": 0,
+        "ready": true,
+        "sent": {
+          "v": 1,
+          "type": "makerStop"
+        }
+      }
+    ]
+  }
+]

@@ -15,8 +15,13 @@
 // never clean (the M68 review).
 
 import * as vscode from 'vscode'
-import { DIAGNOSTIC_SEVERITIES, type DiagnosticEntry } from '../../../core/diagnostics'
+import * as z from 'zod/mini'
 import { failureForLog } from '../../../core/backends/musecode/logText'
+import { showEditorDocument } from './showDocument'
+import { jsonDiagnostics } from '../../../core/verify/jsonDiagnostics'
+import type { UiText } from '../../../shared/l10n/en'
+import { setUiText } from '../../../shared/l10n/text'
+import { DIAGNOSTIC_SEVERITIES, type DiagnosticEntry } from '../../../core/diagnostics'
 import { isCodeLoading } from '../../../core/verify/codeFiles'
 import type { EditedFile, FileDiagnostics } from '../../../core/verify/diagnosticsReport'
 import { bytesFingerprint } from '../../../core/verify/fingerprint'
@@ -27,9 +32,12 @@ import {
   DIAGNOSTICS_SETTLE_MAX_MS,
   DIAGNOSTICS_SETTLE_QUIET_MS,
   EDITOR_DEFAULT_TAB_SIZE,
+  EDITOR_REVEAL_MAX_MS,
+  EDITOR_REVEAL_POLL_MS,
   FORMAT_SYNC_MAX_MS,
   FORMAT_SYNC_POLL_MS,
   FORMAT_TIMEOUT_MS,
+  JSON_DIAGNOSTICS_SOURCE,
   type UncheckedReason,
   VSCODE_COMMANDS,
 } from '../../../shared/constants'
@@ -64,6 +72,7 @@ const FORMAT_TIMING: FormatTiming = {
 export interface VerifyEditorDeps {
   readonly platform: NodeJS.Platform
   readonly log: Logger
+  readonly redact: (text: string) => string
   /** The first folder; the diagnostics tool's files are confined to it by real path. */
   readonly workspaceRoot: string | undefined
   /** A path's canonical form, links and junctions resolved (`canonicalPath`). */
@@ -105,6 +114,10 @@ const INSERT_SPACES = 'insertSpaces'
 const NEVER_STOPPED = new AbortController().signal
 // What a diagnostics tool call that stopped while it waited its turn read.
 const NOTHING_READ = (): readonly DiagnosticEntry[] | undefined => undefined
+
+function isEditorReadFailure(error: unknown): boolean {
+  return error instanceof Error && 'code' in error && typeof error.code === 'string'
+}
 
 /** A URI as one key: case-folded where the file system is (Windows). */
 function uriKey(uri: vscode.Uri, platform: NodeJS.Platform): string {
@@ -229,6 +242,10 @@ function watchReports(
   }
 }
 
+function isDirty(document: vscode.TextDocument): boolean {
+  return document.isDirty
+}
+
 /** Whether the caller stopped; a call, so a check after an await is not narrowed away. */
 function isStopped(signal: AbortSignal): boolean {
   return signal.aborted
@@ -247,6 +264,8 @@ function tabsOf(key: string, platform: NodeJS.Platform): readonly vscode.Tab[] {
 interface OpenedTab {
   readonly key: string
   readonly column: vscode.ViewColumn
+  readonly editor?: vscode.TextEditor
+  readonly isNewDocument?: boolean
 }
 
 type Shown =
@@ -269,6 +288,9 @@ async function show(
   isAllowed?: () => boolean,
 ): Promise<Shown> {
   if (isAllowed?.() === false) return { ok: false, reason: 'notShown' }
+  const wasOpen = vscode.workspace.textDocuments.some(
+    (document) => uriKey(document.uri, deps.platform) === key,
+  )
   let document: vscode.TextDocument
   try {
     document = await vscode.workspace.openTextDocument(vscode.Uri.file(file.absolute))
@@ -291,19 +313,36 @@ async function show(
   const existing = tabsOf(key, deps.platform)
   const before = new Set(existing.map((tab) => tab.group.viewColumn))
   const reused = existing.find((tab) => !tab.group.isActive)
+  let shownEditor: vscode.TextEditor
   try {
-    await vscode.window.showTextDocument(document.uri, {
-      viewColumn: reused?.group.viewColumn ?? vscode.ViewColumn.Beside,
-      preview: reused?.isPreview ?? false,
-      preserveFocus: true,
-    })
+    shownEditor = await showEditorDocument(
+      document,
+      {
+        viewColumn: reused?.group.viewColumn ?? vscode.ViewColumn.Beside,
+        preview: reused?.isPreview ?? false,
+        preserveFocus: true,
+      },
+      isAllowed,
+    )
   } catch (error: unknown) {
     deps.log.warn(
       `Verify: ${file.relative} could not be shown for diagnostics: ${failureForLog(error)}`,
     )
     return { ok: false, reason: 'notShown' }
   }
-  for (const tab of tabsOf(key, deps.platform)) {
+  const after = tabsOf(key, deps.platform)
+  // Arduino omits text input identities as well as webviews from tabGroups.
+  // The returned editor can hide exactly our new document; a document that
+  // was already open may be the user's hidden tab, so it is never hidden.
+  if (after.length === 0 && shownEditor.viewColumn !== undefined) {
+    opened.push({
+      key,
+      column: shownEditor.viewColumn,
+      editor: shownEditor,
+      isNewDocument: !wasOpen,
+    })
+  }
+  for (const tab of after) {
     if (!before.has(tab.group.viewColumn)) {
       opened.push({ key, column: tab.group.viewColumn })
     }
@@ -449,15 +488,34 @@ async function closeOpened(deps: VerifyEditorDeps, opened: readonly OpenedTab[])
   const tabs = opened.flatMap(({ key, column }) =>
     tabsOf(key, deps.platform).filter((tab) => tab.group.viewColumn === column && !tab.isDirty),
   )
-  if (tabs.length === 0) {
-    return
+  const hidden = opened.filter(
+    ({ key, column, editor, isNewDocument }) =>
+      editor !== undefined &&
+      isNewDocument === true &&
+      tabsOf(key, deps.platform).every((tab) => tab.group.viewColumn !== column),
+  )
+  if (tabs.length > 0) {
+    try {
+      await vscode.window.tabGroups.close([...tabs], true)
+    } catch (error: unknown) {
+      deps.log.warn(
+        `Verify: the files shown for diagnostics could not be closed: ${failureForLog(error)}`,
+      )
+    }
   }
-  try {
-    await vscode.window.tabGroups.close([...tabs], true)
-  } catch (error: unknown) {
-    deps.log.warn(
-      `Verify: the files shown for diagnostics could not be closed: ${failureForLog(error)}`,
-    )
+  for (const { editor, key } of hidden) {
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- Arduino omits tab inputs; hide is its only editor-specific close API. Never close the user's active editor instead.
+    if (editor === undefined || editor.document.isDirty || typeof editor.hide !== 'function')
+      continue
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- Only our newly opened, still-clean editor is hidden; the native tab close path stays preferred.
+    editor.hide()
+    const deadline = Date.now() + EDITOR_REVEAL_MAX_MS
+    const isVisible = () =>
+      vscode.window.visibleTextEditors.some(
+        (shown) => shown === editor && uriKey(shown.document.uri, deps.platform) === key,
+      )
+    while (isVisible() && Date.now() < deadline) await sleep(EDITOR_REVEAL_POLL_MS)
+    if (isVisible()) deps.log.warn('Verify: the editor did not close its temporary document')
   }
 }
 
@@ -465,6 +523,7 @@ async function closeOpened(deps: VerifyEditorDeps, opened: readonly OpenedTab[])
 async function settledDiagnostics(
   deps: VerifyEditorDeps,
   reportLog: ReportLog,
+  fallback: JsonFallback,
   file: EditedFile,
   signal: AbortSignal,
   opened: OpenedTab[],
@@ -490,18 +549,27 @@ async function settledDiagnostics(
     shownKeys.add(key)
     // A file an editor already showed may have been reported on before the
     // wait began, and showing it again brings no new report.
+    const isJson = ['json', 'jsonc'].includes(shown.document.languageId)
     const hasEarlierReport =
-      shown.wasVisible && (await isReportedSinceWrite(file, key, reportLog, isAllowed))
-    const isSettled =
-      (await reports.settle(deps.settle ?? SETTLE_TIMING, signal, hasEarlierReport)) ||
-      (shown.wasVisible && isAllowed() && (await isShowingDiskText(shown.document, isAllowed)))
+      !isJson && shown.wasVisible && (await isReportedSinceWrite(file, key, reportLog, isAllowed))
+    const timing = deps.settle ?? SETTLE_TIMING
+    let isSettled =
+      (await reports.settle(
+        isJson
+          ? { ...timing, firstMs: Math.min(timing.firstMs, DIAGNOSTICS_SETTLE_FIRST_MS) }
+          : timing,
+        signal,
+        hasEarlierReport,
+      )) ||
+      (shown.wasVisible &&
+        !isJson &&
+        isAllowed() &&
+        (await isShowingDiskText(shown.document, isAllowed))) ||
+      (isJson && vscode.languages.getDiagnostics(shown.document.uri).length > 0)
     if (isStopped(signal)) {
       return { file, entries: [], unchecked: 'stopped' }
     }
     if (canReadFile?.(file) === false) return { file, entries: [], unchecked: 'notShown' }
-    if (!isSettled) {
-      return { file, entries: [], unchecked: 'noReport' }
-    }
     // What the servers hold is about the text the editor has: read it only
     // while that is still what the edit left, at the path it left it.
     if (shown.document.isDirty) {
@@ -511,12 +579,65 @@ async function settledDiagnostics(
       return { file, entries: [], unchecked: 'changed' }
     }
     if (canReadFile?.(file) === false) return { file, entries: [], unchecked: 'notShown' }
+    if (isJson) {
+      // Editor changes advance version even when a reload ends on identical
+      // text. Certify the disk bytes read here, within that one generation.
+      const version = shown.document.version
+      const languageId = shown.document.languageId
+      let bytes: Uint8Array
+      try {
+        bytes = await vscode.workspace.fs.readFile(shown.document.uri)
+      } catch (error: unknown) {
+        if (!isEditorReadFailure(error)) throw error
+        return { file, entries: [], unchecked: 'noReport' }
+      }
+      if (isStopped(signal)) return { file, entries: [], unchecked: 'stopped' }
+      if (!isAllowed()) return { file, entries: [], unchecked: 'notShown' }
+      if (isDirty(shown.document)) return { file, entries: [], unchecked: 'unsaved' }
+      if (file.fingerprint !== undefined && bytesFingerprint(bytes) !== file.fingerprint)
+        return { file, entries: [], unchecked: 'changed' }
+      const text = new TextDecoder().decode(bytes)
+      const isCurrent = () =>
+        shown.document.version === version &&
+        shown.document.languageId === languageId &&
+        shown.document.getText() === text
+      if (!isCurrent()) return { file, entries: [], unchecked: 'noReport' }
+      if (!(await isStillAsConfined(deps, file, isAllowed)))
+        return { file, entries: [], unchecked: 'changed' }
+      if (isStopped(signal)) return { file, entries: [], unchecked: 'stopped' }
+      if (!isAllowed()) return { file, entries: [], unchecked: 'notShown' }
+      if (isDirty(shown.document)) return { file, entries: [], unchecked: 'unsaved' }
+      if (!isCurrent()) return { file, entries: [], unchecked: 'noReport' }
+      // No report or a malformed disk snapshot with only an empty event:
+      // provider installation/host name cannot establish a clean report.
+      if (vscode.languages.getDiagnostics(shown.document.uri).length > 0) {
+        isSettled = true
+      } else if (
+        !isSettled ||
+        jsonDiagnostics(text, file.relative, languageId === 'jsonc').length > 0
+      ) {
+        fallback.publish(shown.document, text, file.relative)
+        isSettled = await reports.settle(timing, signal, true)
+      }
+      if (isStopped(signal)) return { file, entries: [], unchecked: 'stopped' }
+      if (!isAllowed()) return { file, entries: [], unchecked: 'notShown' }
+      if (isDirty(shown.document)) return { file, entries: [], unchecked: 'unsaved' }
+      if (!(await isStillAsConfined(deps, file, isAllowed)))
+        return { file, entries: [], unchecked: 'changed' }
+      const isShowingSnapshot = await isShowingDiskText(shown.document, isAllowed)
+      if (isStopped(signal)) return { file, entries: [], unchecked: 'stopped' }
+      if (!isAllowed()) return { file, entries: [], unchecked: 'notShown' }
+      if (isDirty(shown.document)) return { file, entries: [], unchecked: 'unsaved' }
+      if (!isShowingSnapshot || !isCurrent()) return { file, entries: [], unchecked: 'noReport' }
+    }
+    if (!isSettled) return { file, entries: [], unchecked: 'noReport' }
     const held = vscode.languages
       .getDiagnostics()
       .find(([candidate]) => uriKey(candidate, deps.platform) === key)
     return { file, entries: (held?.[1] ?? []).map((diagnostic) => entryOf(file, diagnostic)) }
   } finally {
     reports.dispose()
+    fallback.remove(vscode.Uri.file(file.absolute))
   }
 }
 
@@ -527,6 +648,7 @@ front tab as it was before.
 async function readFiles(
   deps: VerifyEditorDeps,
   reportLog: ReportLog,
+  fallback: JsonFallback,
   files: readonly EditedFile[],
   signal: AbortSignal,
   canReadFile?: (file: EditedFile) => boolean,
@@ -538,7 +660,16 @@ async function readFiles(
   try {
     for (const file of files) {
       results.push(
-        await settledDiagnostics(deps, reportLog, file, signal, opened, shownKeys, canReadFile),
+        await settledDiagnostics(
+          deps,
+          reportLog,
+          fallback,
+          file,
+          signal,
+          opened,
+          shownKeys,
+          canReadFile,
+        ),
       )
     }
   } finally {
@@ -557,6 +688,7 @@ editor's tools run as code: its entries as read before its tab closed
 async function toolFileDiagnostics(
   deps: VerifyEditorDeps,
   reportLog: ReportLog,
+  fallback: JsonFallback,
   absolutePath: string,
   signal: AbortSignal,
 ): Promise<readonly DiagnosticEntry[] | undefined> {
@@ -572,6 +704,7 @@ async function toolFileDiagnostics(
   const [result] = await readFiles(
     deps,
     reportLog,
+    fallback,
     [{ relative: resolved.relative, absolute: resolved.checkedAbsolute }],
     signal,
   )
@@ -619,6 +752,29 @@ function formattingOptions(document: vscode.TextDocument): vscode.FormattingOpti
   }
 }
 
+const positionSchema = z.object({
+  line: z.int().check(z.nonnegative()),
+  character: z.int().check(z.nonnegative()),
+})
+const formatEditsSchema = z.array(
+  z.union([
+    z.object({
+      newText: z.string(),
+      range: z.object({ start: positionSchema, end: positionSchema }),
+    }),
+    // Captured in Arduino IDE 2.3.10, host-api-capture.json (M103A2).
+    z.object({
+      text: z.string(),
+      range: z.object({
+        startLineNumber: z.int().check(z.positive()),
+        startColumn: z.int().check(z.positive()),
+        endLineNumber: z.int().check(z.positive()),
+        endColumn: z.int().check(z.positive()),
+      }),
+    }),
+  ]),
+)
+
 async function formatAfterEdit(
   deps: VerifyEditorDeps,
   absolutePath: string,
@@ -639,27 +795,44 @@ async function formatAfterEdit(
     deps.log.info(`Format on edit skipped ${absolutePath}: the editor did not show the new text`)
     return undefined
   }
-  const edits = await within(
-    vscode.commands.executeCommand<vscode.TextEdit[] | undefined>(
+  const rawEdits = await within(
+    vscode.commands.executeCommand(
       VSCODE_COMMANDS.formatDocument,
       uri,
       formattingOptions(document),
     ),
     timing.formatMs,
   )
-  if (edits === TIMED_OUT) {
+  if (rawEdits === TIMED_OUT) {
     deps.log.warn(
       `Format on edit skipped ${absolutePath}: the formatter did not answer in ${String(timing.formatMs)} ms`,
     )
     return undefined
   }
-  if (edits === undefined || edits.length === 0 || document.getText() !== expected) {
+  if (rawEdits === undefined || document.getText() !== expected) return undefined
+  const parsed = formatEditsSchema.safeParse(rawEdits)
+  if (!parsed.success) {
+    deps.log.warn(`Format on edit skipped ${absolutePath}: unsupported formatter response`)
     return undefined
   }
+  const edits = parsed.data.map((edit) =>
+    'newText' in edit
+      ? edit
+      : {
+          newText: edit.text,
+          range: {
+            start: { line: edit.range.startLineNumber - 1, character: edit.range.startColumn - 1 },
+            end: { line: edit.range.endLineNumber - 1, character: edit.range.endColumn - 1 },
+          },
+        },
+  )
+  if (edits.length === 0) return undefined
   const isCrlf = document.eol === vscode.EndOfLine.CRLF
   const offsets: OffsetEdit[] = edits.map((edit) => ({
-    start: document.offsetAt(edit.range.start),
-    end: document.offsetAt(edit.range.end),
+    start: document.offsetAt(
+      new vscode.Position(edit.range.start.line, edit.range.start.character),
+    ),
+    end: document.offsetAt(new vscode.Position(edit.range.end.line, edit.range.end.character)),
     newText: isCrlf ? edit.newText.replaceAll(LONE_LINE_FEED, () => CRLF) : edit.newText,
   }))
   const formatted = applyOffsetEdits(expected, offsets)
@@ -701,8 +874,64 @@ async function afterBoth(first: Promise<void>, second: Promise<unknown>): Promis
   }
 }
 
-export function createVerifyEditor(deps: VerifyEditorDeps): VerifyEditor {
+interface JsonFallback {
+  readonly publish: (document: vscode.TextDocument, text: string, relative: string) => void
+  readonly remove: (uri: vscode.Uri) => void
+  readonly dispose: () => void
+}
+
+function jsonFallback(): JsonFallback {
+  let collection: vscode.DiagnosticCollection | undefined
+  let nativeReports: vscode.Disposable | undefined
+  return {
+    publish: (document, text, relative) => {
+      // Never append a second report to errors the native service already holds.
+      if (vscode.languages.getDiagnostics(document.uri).length > 0) return
+      const entries = jsonDiagnostics(text, relative, document.languageId === 'jsonc').map(
+        ({ offset, message }) => {
+          const start = document.positionAt(offset)
+          const end = document.positionAt(Math.min(offset + 1, text.length))
+          const diagnostic = new vscode.Diagnostic(
+            new vscode.Range(start, end),
+            message,
+            vscode.DiagnosticSeverity.Error,
+          )
+          diagnostic.source = JSON_DIAGNOSTICS_SOURCE
+          return diagnostic
+        },
+      )
+      collection ??= vscode.languages.createDiagnosticCollection(JSON_DIAGNOSTICS_SOURCE)
+      nativeReports ??= vscode.languages.onDidChangeDiagnostics(({ uris }) => {
+        for (const uri of uris) {
+          if (
+            collection?.get(uri) !== undefined &&
+            vscode.languages
+              .getDiagnostics(uri)
+              .some((diagnostic) => diagnostic.source !== JSON_DIAGNOSTICS_SOURCE)
+          ) {
+            collection.delete(uri)
+          }
+        }
+      })
+      collection.set(document.uri, entries)
+    },
+    remove: (uri) => collection?.delete(uri),
+    dispose: () => {
+      nativeReports?.dispose()
+      collection?.dispose()
+    },
+  }
+}
+
+export function createVerifyEditor(
+  deps: VerifyEditorDeps,
+  table?: UiText,
+  locale?: string,
+): VerifyEditor {
+  if (table !== undefined && locale !== undefined) setUiText(table, locale)
+  const fallback = jsonFallback()
   const reportLog = logReports(deps.platform)
+  const lifetime = new AbortController()
   // One queue for every caller: files are shown and read one batch at a time,
   // each batch starting once every one before it ended, however that ended.
   // A caller that stops while it waits leaves at once (the Codex review of
@@ -711,12 +940,13 @@ export function createVerifyEditor(deps: VerifyEditorDeps): VerifyEditor {
   const enqueue = async <T>(
     signal: AbortSignal,
     stopped: () => T,
-    work: () => Promise<T>,
+    work: (activeSignal: AbortSignal) => Promise<T>,
   ): Promise<T> => {
+    const activeSignal = AbortSignal.any([signal, lifetime.signal])
     const previous = tail
     // No Promise.withResolvers here: VS Code 1.99's extension host runs Node 20.
     const turn = (async () =>
-      (await reachedBeforeStop(previous, signal)) ? await work() : stopped())()
+      (await reachedBeforeStop(previous, activeSignal)) ? await work(activeSignal) : stopped())()
     tail = afterBoth(previous, turn)
     return await turn
   }
@@ -725,15 +955,17 @@ export function createVerifyEditor(deps: VerifyEditorDeps): VerifyEditor {
       enqueue(
         signal,
         () => files.map((file) => ({ file, entries: [], unchecked: 'stopped' as const })),
-        () => readFiles(deps, reportLog, files, signal, canReadFile),
+        (activeSignal) => readFiles(deps, reportLog, fallback, files, activeSignal, canReadFile),
       ),
     settleFile: (absolutePath, signal = NEVER_STOPPED) =>
-      enqueue(signal, NOTHING_READ, () =>
-        toolFileDiagnostics(deps, reportLog, absolutePath, signal),
+      enqueue(signal, NOTHING_READ, (activeSignal) =>
+        toolFileDiagnostics(deps, reportLog, fallback, absolutePath, activeSignal),
       ),
     formatAfterEdit: (absolutePath, text) => formatAfterEdit(deps, absolutePath, text),
     dispose: () => {
+      lifetime.abort()
       reportLog.dispose()
+      fallback.dispose()
     },
   }
 }

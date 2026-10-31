@@ -44,6 +44,14 @@ export const PLAYED_SCENARIOS = [
   'jump',
 ]
 export const SCENARIOS = [
+  'maker-approval',
+  'maker-approval-narrow',
+  'maker-serial-approval',
+  'maker-devices',
+  'maker-hardware-off',
+  'maker-wizard',
+  'maker-log',
+  'maker-preview',
   ...[
     'empty',
     'history-off',
@@ -121,6 +129,7 @@ export const SCENARIOS = [
   'filter',
   'modes',
   'modes-bypass',
+  'modes-hardware',
   'attach',
   'add-context',
   'markdown',
@@ -477,6 +486,7 @@ export const SIZED_SCENARIOS = {
   'questions-expired-narrow': { width: 320, ready: '.attention-dock, .question' },
   help: { width: 1000, ready: '#reference-search' },
   'help-narrow': { width: 320, ready: '#reference-search' },
+  'maker-approval-narrow': { width: 320, ready: '#maker-approval-title' },
   'schedules-v2-background-narrow': { width: 320, ready: '.schedule-v2-consent' },
   'schedules-v2-list-narrow': { width: 320, ready: '[data-schedule-ready]' },
   'schedules-v2-editor-narrow': { width: 320, ready: '.schedule-v2-editor' },

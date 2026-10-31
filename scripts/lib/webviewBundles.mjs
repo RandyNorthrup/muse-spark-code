@@ -369,6 +369,31 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     budgetKiB: 25,
   },
   {
+    name: 'maker surfaces',
+    entries: [
+      'src/webview/maker/MakerSurface.tsx',
+      'src/webview/maker/StopChip.tsx',
+      'src/webview/maker/DevicePanel.tsx',
+      'src/webview/maker/DeviceLog.tsx',
+    ],
+    budgetKiB: 25,
+  },
+  {
+    name: 'maker review',
+    entries: ['src/webview/maker/reviewEntry.ts'],
+    // REDM103U: separate review closure; measure plus 15%, rounded up to 25 KiB.
+    budgetKiB: 75,
+  },
+  {
+    // FIXM103W2: the companion bridge's lazy validated boundaries. The bridge
+    // awaits makerBoundarySchemas() from startup instead of importing the
+    // maker schemas from it, so maker validation and its Zod copy stay in this
+    // deferred closure and never rejoin the eager chunk (12 findings).
+    name: 'maker boundaries',
+    entries: ['src/webview/maker/boundaries.ts'],
+    budgetKiB: 50,
+  },
+  {
     name: 'code highlighting',
     entries: ['src/webview/components/HighlightedCode.tsx'],
     budgetKiB: 125,

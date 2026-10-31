@@ -1,0 +1,7 @@
+{
+  "finding": "P2-5 CSS overlap",
+  "exit": 1,
+  "restored": true,
+  "sha256": "2cf46963483c98b1d2bdb67e5460de0830aee6e28046e6abbfacbd2adbef0398",
+  "output": "node:internal/modules/run_main:107\r\n    triggerUncaughtException(\r\n    ^\r\n\r\nAssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\r\n\r\n  assert(rectangles[i].y>=rectangles[i-1].y+rectangles[i-1].height)\r\n\r\n    at file:///C:/lanes/M103U/temp/round2-browser.mjs:51:258 {\r\n  generatedMessage: true,\r\n  code: 'ERR_ASSERTION',\r\n  actual: false,\r\n  expected: true,\r\n  operator: '==',\r\n  diff: 'simple'\r\n}\r\n\r\nNode.js v24.21.0\r\n"
+}

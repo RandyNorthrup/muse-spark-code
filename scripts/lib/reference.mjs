@@ -1183,9 +1183,52 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
   const variants = ts.isUnionTypeNode(runtimeType.type)
     ? runtimeType.type.types
     : [runtimeType.type]
+  // A variant may name a command interface declared in cliArgs.ts or reached
+  // through one relative import (M103's maker commands). Anything else is
+  // still rejected: the inventory stays closed and explicit.
+  const resolveCommandMembers = (name) => {
+    const local = runtimeTree.statements.find(
+      (statement) => ts.isInterfaceDeclaration(statement) && statement.name.text === name,
+    )
+    if (local !== undefined) return local.members
+    for (const statement of runtimeTree.statements) {
+      if (
+        !ts.isImportDeclaration(statement) ||
+        !ts.isStringLiteral(statement.moduleSpecifier) ||
+        statement.importClause?.namedBindings === undefined ||
+        !ts.isNamedImports(statement.importClause.namedBindings)
+      )
+        continue
+      const imported = statement.importClause.namedBindings.elements.some(
+        (element) => (element.propertyName ?? element.name).text === name,
+      )
+      if (!imported) continue
+      const specifier = statement.moduleSpecifier.text
+      if (!specifier.startsWith('.'))
+        throw new Error(`Non-relative RuntimeCommand import: ${specifier}`)
+      const file = path.join('src', 'runtime', `${specifier}.ts`)
+      const tree = ts.createSourceFile(
+        file,
+        readFileSync(file, 'utf8'),
+        ts.ScriptTarget.Latest,
+        true,
+      )
+      const found = tree.statements.find(
+        (candidate) => ts.isInterfaceDeclaration(candidate) && candidate.name.text === name,
+      )
+      if (found !== undefined) return found.members
+    }
+    throw new Error('Invalid RuntimeCommand variant')
+  }
+  const runtimeMembers = (variant) => {
+    if (ts.isTypeLiteralNode(variant)) return variant.members
+    if (ts.isTypeReferenceNode(variant) && ts.isIdentifier(variant.typeName))
+      return resolveCommandMembers(variant.typeName.text)
+    throw new Error('Invalid RuntimeCommand variant')
+  }
   const runtimeNames = variants.flatMap((variant) => {
-    if (!ts.isTypeLiteralNode(variant)) throw new Error('Invalid RuntimeCommand variant')
-    const command = variant.members.find(
+    const members = runtimeMembers(variant)
+    const command = members.find(
       (member) =>
         ts.isPropertySignature(member) &&
         (ts.isIdentifier(member.name) || ts.isStringLiteral(member.name)) &&

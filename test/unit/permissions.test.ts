@@ -21,6 +21,7 @@ const CLASSES: readonly ToolClass[] = [
   'mcp',
   'spawn',
   'network',
+  'device',
 ]
 
 /** One PowerShell call as the engine judges it. */
@@ -40,6 +41,7 @@ describe('verdictFor', () => {
         mcp: 'allow',
         spawn: 'ask',
         network: 'allow',
+        device: 'ask',
       },
       onRequest: {
         read: 'allow',
@@ -50,6 +52,7 @@ describe('verdictFor', () => {
         mcp: 'ask',
         spawn: 'ask',
         network: 'ask',
+        device: 'ask',
       },
       promptUnmatched: {
         read: 'allow',
@@ -60,6 +63,7 @@ describe('verdictFor', () => {
         mcp: 'ask',
         spawn: 'ask',
         network: 'ask',
+        device: 'ask',
       },
       denyUnmatched: {
         read: 'allow',
@@ -70,6 +74,7 @@ describe('verdictFor', () => {
         mcp: 'deny',
         spawn: 'deny',
         network: 'deny',
+        device: 'deny',
       },
     }
     for (const mode of APPROVAL_MODES) {
@@ -435,6 +440,76 @@ function policyOf(profile = '') {
 function bash(command: string) {
   return { toolName: 'bash', toolClass: 'shell', command, dialect: 'bash' } as const
 }
+
+describe('M103-G physical-action settle', () => {
+  it.each(APPROVAL_MODES)('never gates a fixed stop, even unattended in %s', (mode) => {
+    const engine = new PermissionEngine(mode)
+    expect(
+      engine.judge({
+        ...bash("echo 'M112' > /dev/ttyUSB0"),
+        isUnattended: true,
+        hardware: { targets: [{ address: '/dev/ttyUSB0', stop: 'M112\n' }] },
+      }).verdict,
+    ).toBe('allow')
+    expect(
+      engine.judge({ toolName: 'machine_stop', toolClass: 'device', isUnattended: true }).verdict,
+    ).toBe('allow')
+  })
+  const command = 'esptool write_flash 0 app.bin'
+  const allow = compilePolicy(
+    {
+      commandRules: [{ pattern: ['esptool'], decision: 'allow', match: [command] }],
+      profiles: {},
+      profile: '',
+      repositoryRules: {},
+    },
+    'linux',
+  )
+
+  it.each(APPROVAL_MODES)('always asks in %s, unless Plan refuses', (mode) => {
+    const engine = new PermissionEngine(mode)
+    engine.allowForSession('bash', command)
+    expect(engine.judge(bash(command), allow)).toMatchObject({
+      verdict: mode === 'denyUnmatched' ? 'deny' : 'ask',
+      settledBy: 'hardwareDetected',
+      isReviewable: false,
+      hasSessionChoice: false,
+    })
+  })
+
+  it.each(APPROVAL_MODES)('refuses irreversible operations in %s', (mode) => {
+    expect(new PermissionEngine(mode).judge(bash('espefuse burn-key KEY0 key.bin'))).toMatchObject({
+      verdict: 'deny',
+      settledBy: 'hardwareDetected',
+      isReviewable: false,
+      hasSessionChoice: false,
+    })
+  })
+
+  it.each(APPROVAL_MODES)('refuses unattended command and device tool in %s', (mode) => {
+    const engine = new PermissionEngine(mode)
+    expect(engine.judge({ ...bash(command), isUnattended: true }, allow).verdict).toBe('deny')
+    expect(
+      engine.judge({ toolName: 'serial_write', toolClass: 'device', isUnattended: true }).verdict,
+    ).toBe('deny')
+  })
+
+  it('never trusts physical MCP readOnlyHint, session rules or model flags', () => {
+    const engine = new PermissionEngine('allowAll')
+    engine.allowForSession('mcp__moonraker__send_gcode')
+    expect(
+      engine.judge({ toolName: 'mcp__moonraker__send_gcode', toolClass: 'mcp', isReadOnly: true }),
+    ).toMatchObject({ verdict: 'ask', settledBy: 'hardwareDetected', hasSessionChoice: false })
+    expect(
+      engine.judge({ toolName: 'mcp__alias__run', toolClass: 'mcp', isPhysical: true }),
+    ).toMatchObject({ verdict: 'ask', settledBy: 'hardwareDetected' })
+    expect(engine.judge({ toolName: 'serial_write', toolClass: 'device' })).toMatchObject({
+      verdict: 'ask',
+      hasSessionChoice: false,
+    })
+    expect(verdictFor('allowAll', 'device')).toBe('ask')
+  })
+})
 
 describe('PermissionEngine.judge: shell commands under the rules (M78)', () => {
   const policy = policyOf()

@@ -199,6 +199,8 @@ export const MODEL_API_TOOL_RUN_ONLY = ['modelApiToolRunEntry.ts']
 // application modules live outside the backend's folder; reflex/loop.ts
 // stays with the backend too (the repeat guard reads its call key).
 export const MODEL_API_FAST_ONLY = ['modelApiFastEntry.ts', 'fastJudge.ts']
+/** The permission engine's shell reader and command rules (dist/modelApiShell.js). */
+export const MODEL_API_SHELL_ONLY = ['modelApiShellEntry.ts', 'shellSyntax.ts', 'commandRules.ts']
 const MODEL_API_FAST_JUDGE = [
   'src/core/judge/fast/apply.ts',
   'src/core/judge/fast/engines.ts',
@@ -354,6 +356,14 @@ export const DEFERRED = [
       'src/core/backends/modelapi/modelApiAcpEntry.ts',
       'src/core/backends/modelapi/acpAssist.ts',
     ],
+  },
+  {
+    output: 'dist/modelApiShell.js',
+    metafile: 'dist/meta/modelApiShell.json',
+    // The runtime engine and the schedule delivery bundle keep their own
+    // copies of the two modules, so only the backend is a parent.
+    parents: [BUNDLES.modelApi],
+    files: MODEL_API_SHELL_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
   },
   {
     output: 'dist/vaultBoundaries.js',
@@ -534,6 +544,18 @@ export const DEFERRED = [
       'src/shared/reference/referenceEntry.ts',
       'src/runtime/reference.node.generated.ts',
       'src/shared/reference/text.ts',
+    ],
+  },
+  {
+    output: 'dist/runtimeMaker.js',
+    metafile: 'dist/meta/runtimeMaker.json',
+    files: [
+      'src/runtime/maker/entry.ts',
+      'src/runtime/maker/service.ts',
+      'src/runtime/maker/nativeSerial.ts',
+      'src/runtime/maker/runtimeMakerHost.ts',
+      'src/runtime/maker/companionServer.ts',
+      'src/runtime/maker/thonnyServer.ts',
     ],
   },
   {
@@ -1011,6 +1033,35 @@ export const ON_FIRST_USE = [
     files: ['src/acp/questionDeferralEntry.ts', 'src/acp/questionDeferral.ts'],
   },
   {
+    output: 'dist/makerContracts.js',
+    metafile: 'dist/meta/makerContracts.json',
+    use: 'the first maker message or hardware approval',
+    files: ['src/shared/makerProtocol.ts', 'src/shared/makerProtocolPreview.ts'],
+  },
+  {
+    output: 'dist/makerHost.js',
+    metafile: 'dist/meta/makerHost.json',
+    use: 'the first maker UI or device tool',
+    files: [
+      'src/host/maker/makerEntry.ts',
+      'src/host/vscode/maker/vscodeMakerHost.ts',
+      'src/host/vscode/maker/makerCommands.ts',
+      'src/host/ide/makerTools.ts',
+    ],
+  },
+  {
+    output: 'dist/makerPreviewHost.js',
+    metafile: 'dist/meta/makerPreviewHost.json',
+    use: 'the first maker preview',
+    files: ['src/host/maker/makerPreviewEntry.ts', 'src/host/vscode/maker/makerPreviewPanel.ts'],
+  },
+  {
+    output: 'dist/verifyEditor.js',
+    metafile: 'dist/meta/verifyEditor.json',
+    use: 'the first diagnostics or formatting request',
+    files: ['src/host/vscode/editor/verifyEditor.ts', 'src/core/verify/jsonDiagnostics.ts'],
+  },
+  {
     output: 'dist/runtimeAccounts.js',
     metafile: 'dist/meta-acp/runtimeAccounts.json',
     use: 'the first accounts, developer or keyed headless ACP command',
@@ -1486,6 +1537,16 @@ export const ON_FIRST_USE = [
 /** The same parent exclusions and destination requirements used by the CLI. */
 export function checkDeferredBundles(inputsOf, metafileOf) {
   const problems = []
+  const makerHost = inputsOf(ON_FIRST_USE.find((bundle) => bundle.output === 'dist/makerHost.js'))
+  for (const file of [
+    'src/host/maker/makerPreviewEntry.ts',
+    'src/host/vscode/maker/makerPreviewPanel.ts',
+  ]) {
+    if (makerHost.has(file))
+      problems.push(
+        `dist/makerHost.js carries ${file}, which loads only on the first maker preview`,
+      )
+  }
   for (const [names, owner] of [
     [CONFIGURED_TRANSPORT_ONLY, BUNDLES.configured],
     [SHARED_TRANSPORT_ONLY, BUNDLES.modelApi],
@@ -1877,6 +1938,21 @@ export const sharedValidation = {
   },
 }
 
+// Maker schemas remain outside startup and are shared by the lazy guard,
+// maker host and standalone runtime instead of being copied into each one.
+export const sharedMakerContracts = {
+  name: 'shared-maker-contracts',
+  setup(build) {
+    build.onResolve({ filter: /\/makerProtocol(?:\.[jt]s)?$/ }, (args) => {
+      const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+      return source === path.resolve('src/shared/makerProtocol.ts') &&
+        path.resolve(build.initialOptions.outfile ?? '') !== path.resolve('dist/makerContracts.js')
+        ? { path: './makerContracts.js', external: true }
+        : undefined
+    })
+  },
+}
+
 // Keep dynamic imports dynamic: these entries run only on their first action.
 // Exported for the generated lazy registry (scripts/gen-lazy-registry.mjs):
 // the source entry each filename-loaded bundle resolves from.
@@ -1894,6 +1970,7 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/backends/modelapi/modelApiHooksEntry.ts'), 'dist/modelApiHooks.js'],
   [path.resolve('src/core/backends/modelapi/modelApiMcpEntry.ts'), 'dist/modelApiMcp.js'],
   [path.resolve('src/core/backends/modelapi/modelApiAcpEntry.ts'), 'dist/modelApiAcp.js'],
+  [path.resolve('src/core/backends/modelapi/modelApiShellEntry.ts'), 'dist/modelApiShell.js'],
   [path.resolve('src/runtime/exec/runExec.ts'), 'dist/headless.js'],
   [path.resolve('src/runtime/exec/execTeamEntry.ts'), 'dist/execTeam.js'],
   [path.resolve('src/runtime/exec/execLedgerLeaseEntry.ts'), 'dist/execLedgerLease.js'],
@@ -1911,6 +1988,8 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/questions/deferralEntry.ts'), 'dist/questionNotes.js'],
   [path.resolve('src/host/backend/toolRangeEntry.ts'), 'dist/toolRange.js'],
   [path.resolve('src/core/backends/musecode/approvalModesEntry.ts'), 'dist/approvalModes.js'],
+  [path.resolve('src/host/maker/makerEntry.ts'), 'dist/makerHost.js'],
+  [path.resolve('src/host/maker/makerPreviewEntry.ts'), 'dist/makerPreviewHost.js'],
   [path.resolve('src/core/backends/modelapi/mcpPoolEntry.ts'), 'dist/mcpPool.js'],
   [path.resolve('src/runtime/exec/execEntry.ts'), 'dist/exec.js'],
   [path.resolve('src/runtime/exec/providerListEntry.ts'), 'dist/providerList.js'],
@@ -2072,7 +2151,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|providerListEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|accountPaidEntry|modelEffortsEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|modelApiB1Entry|modelApiToolRunEntry|modelApiFastEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|reportFallbackEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|modelApiAcpEntry|teamEntry|teamSchedulerEntry|teamWindowEntry|teamLandingEntry|teamRunnersEntry|teamPanelEntry|teamHostEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|execTeamEntry|execLedgerLeaseEntry|workerCreateEntry|workerOpsEntry|usageAcp|usageExportEntry|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|subscriptionCommandsEntry|configuredProvidersEntry|chatGptProviderCommands|grokProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|recordingDriverEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry|estimateActionsEntry|windowsEntry)(?:\.[jt]s)?$/,
+          /\/(?:makerEntry|makerPreviewEntry|mcpPoolEntry|execEntry|providerListEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|accountPaidEntry|modelEffortsEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|modelApiB1Entry|modelApiToolRunEntry|modelApiFastEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|reportFallbackEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|modelApiAcpEntry|modelApiShellEntry|teamEntry|teamSchedulerEntry|teamWindowEntry|teamLandingEntry|teamRunnersEntry|teamPanelEntry|teamHostEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|execTeamEntry|execLedgerLeaseEntry|workerCreateEntry|workerOpsEntry|usageAcp|usageExportEntry|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|subscriptionCommandsEntry|configuredProvidersEntry|chatGptProviderCommands|grokProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|recordingDriverEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry|estimateActionsEntry|windowsEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
@@ -2083,7 +2162,10 @@ export const deferredCohort = {
         // required the assist bundle by then): any other bundle keeps the
         // entry's sources to itself and the split gate fails it loudly.
         if (
-          source === path.resolve('src/core/backends/modelapi/modelApiAcpEntry.ts') &&
+          [
+            path.resolve('src/core/backends/modelapi/modelApiAcpEntry.ts'),
+            path.resolve('src/core/backends/modelapi/modelApiShellEntry.ts'),
+          ].includes(source) &&
           args.kind !== 'entry-point'
         ) {
           const output = DEFERRED_OUTFILES.get(source)

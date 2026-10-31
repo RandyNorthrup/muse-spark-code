@@ -740,6 +740,14 @@ Surfaces: vscode:museCode, vscode:modelApi, acp:modelApi. Paid: no extra feature
 
 Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#web-fetch)
 
+### Makers
+
+Review the exact payload behind one SHA-256 digest, then Send once or Reject. Enabling hardware needs the OS account check; Stop never does.
+
+Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#makers)
+
 ### Code Intelligence
 
 Use editor language services for definitions, references, symbols, calls and safe renames.
@@ -954,6 +962,15 @@ backend: Bundled skills: project_setup, feature_delivery, quality_retrofit. muse
       "feature_delivery",
       "project_setup",
       "quality_retrofit",
+      "maker_cad",
+      "maker_cnc",
+      "maker_firmware",
+      "maker_kicad",
+      "maker_micropython",
+      "maker_pi",
+      "maker_printers",
+      "maker_ros2",
+      "maker_simulation",
       "muse_gadgets",
       "orchestrator_playbook"
     ]
@@ -3275,7 +3292,7 @@ Type: `"boolean"`. Default: `false`. Scope: `machine`.
 
 ### museSpark.browserCheckExtraHosts
 
-browserNetworkAdmission: Hosts beyond this computer that the browser check may open and reach, as plain host names or IP addresses, with no port, path or wildcard; listing a loopback name also lets a local page use https and WebSockets. Empty means plain-http local pages only, unless you allow a host on a card or in the confirmation, for that one check. https and WebSocket traffic to a listed host is encrypted and not inspected, and a site there may sign in as you with this computer’s account (on Windows in particular). Only you can widen this, never the model, and a repository’s settings cannot.
+browserNetworkAdmission: User settings only: public host names or exact http(s) dev-server origins. Non-loopback origins require a separate address confirmation after you edit this setting. Registered machine hosts and known printer/CNC interfaces are always refused, including Bypass. Private web/machine ports and private encrypted tunnels are refused. Remove an origin to revoke it. Empty permits no local server.
 
 Type: `"array"`. Default: `[]`. Scope: `machine`.
 
@@ -4107,6 +4124,10 @@ These are defaults; editor customizations take precedence.
 - `/whatsnew`: Open this version’s release highlights and full notes.
 - `resources [status|history|resume] [--json]; usage resources [--json]`: Keep this machine responsive by slowing or deferring work started by the harness. On by default.
 - `--version / -v`: Print the installed agent version.
+- `hardware enable|disable|status`: Enable hardware for this workspace
+- `machines list|add|remove`: Devices and machines
+- `stop-machine [id|--all]`: A software stop does not replace the machine’s physical emergency stop.
+- `panel`: Open panel
 - `providersAdd: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false}`
 - `providersAdd: --as <value>`: --as: Provider `{"type":"string","repeatable":false}`
 - `providersAdd: --address <value>`: --address: Address `{"type":"string","repeatable":false}`
@@ -4168,6 +4189,7 @@ These are defaults; editor customizations take precedence.
 - `serve: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers) `{"type":"string","repeatable":false}`
+- `serve: --hardware`: --hardware Allow maker hardware tools (the workspace must also enable hardware) `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --subscription`: --subscription Drive the Model API backend with the Muse Code subscription instead of a key (its calls count against the plan) `{"type":"boolean","repeatable":false,"default":false}`
@@ -4199,6 +4221,7 @@ These are defaults; editor customizations take precedence.
 - `login: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
 - `login: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers) `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `login: --hardware`: --hardware Allow maker hardware tools (the workspace must also enable hardware) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `login: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `setup: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
@@ -4228,6 +4251,7 @@ These are defaults; editor customizations take precedence.
 - `setup: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `setup: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
 - `setup: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers) `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `setup: --hardware`: --hardware Allow maker hardware tools (the workspace must also enable hardware) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `setup: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `setup: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `authSet: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"refused":true}`
@@ -4259,6 +4283,7 @@ These are defaults; editor customizations take precedence.
 - `authSet: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers) `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `authSet: --hardware`: --hardware Allow maker hardware tools (the workspace must also enable hardware) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `authSet: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `authStatus: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"refused":true}`
@@ -4289,6 +4314,7 @@ These are defaults; editor customizations take precedence.
 - `authStatus: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers) `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `authStatus: --hardware`: --hardware Allow maker hardware tools (the workspace must also enable hardware) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `authStatus: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `authClear: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"refused":true}`
@@ -4319,6 +4345,7 @@ These are defaults; editor customizations take precedence.
 - `authClear: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers) `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `authClear: --hardware`: --hardware Allow maker hardware tools (the workspace must also enable hardware) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `authClear: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `exec: --provider <value>`: Run on this provider (Model API backend); --model is then &lt;provider&gt;/&lt;model&gt;. `{"type":"string","repeatable":false,"purpose":"provider"}`

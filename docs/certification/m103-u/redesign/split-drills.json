@@ -1,0 +1,23 @@
+[
+  {
+    "source": "src\\core\\maker\\canonicalPayload.ts",
+    "exit": 1,
+    "beforeSha256": "5cbeba5136969a2f8135eee631ac2e882042104547a8a9d8bf727ba206fdb7be",
+    "restoredSha256": "5cbeba5136969a2f8135eee631ac2e882042104547a8a9d8bf727ba206fdb7be",
+    "output": "bundle split: 1 problem(s); see PLAN.md D6 and M57\n  Maker UI must stay deferred: src\\core\\maker\\canonicalPayload.ts\n"
+  },
+  {
+    "source": "src\\shared\\l10n\\makerEnglish.ts",
+    "exit": 1,
+    "beforeSha256": "5cbeba5136969a2f8135eee631ac2e882042104547a8a9d8bf727ba206fdb7be",
+    "restoredSha256": "5cbeba5136969a2f8135eee631ac2e882042104547a8a9d8bf727ba206fdb7be",
+    "output": "bundle split: 1 problem(s); see PLAN.md D6 and M57\n  Maker UI must stay deferred: src\\shared\\l10n\\makerEnglish.ts\n"
+  },
+  {
+    "source": "maker-validation:node_modules/zod/v4/mini/index.js",
+    "exit": 1,
+    "beforeSha256": "5cbeba5136969a2f8135eee631ac2e882042104547a8a9d8bf727ba206fdb7be",
+    "restoredSha256": "5cbeba5136969a2f8135eee631ac2e882042104547a8a9d8bf727ba206fdb7be",
+    "output": "bundle split: 1 problem(s); see PLAN.md D6 and M57\n  Maker UI must stay deferred: maker-validation:node_modules/zod/v4/mini/index.js\n"
+  }
+]

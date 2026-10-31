@@ -14,6 +14,15 @@ import type { ScheduleApprovalAction } from '../../../shared/scheduleV2'
 import { mspApprovalMode } from '../../../shared/permissionModes'
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
+import { createHardwareContexts, type HardwareWorkspace } from '../../maker/hardwareContext'
+import { SessionHardwareGuard } from '../../maker/sessionGuard'
+import { isHardwareStop, hardwareStop, type HardwareStop } from '../../maker/guard/hardwareCommands'
+import {
+  hardwareApprovalMode,
+  prepareHardwareTurn,
+  isPositivelyHardwareWorkspace,
+} from '../../maker/guard/shellPolicy'
+import type { HardwareContext } from '../../maker/guard/httpCommands'
 import { observeAgentItem, observeChildReceipt } from '../../agent/agentObservation'
 import type { ChildProcess } from 'node:child_process'
 import { spawnGuarded } from '../../guardedChildProcess'
@@ -1287,6 +1296,7 @@ async function sendCommand(
   params: Record<string, unknown>,
   commandId: string,
   run?: UnattendedRun,
+  assertCanSend?: () => void,
 ): Promise<Record<string, unknown>> {
   const { log } = channel
   const commandParams = { ...params, commandId }
@@ -1297,7 +1307,10 @@ async function sendCommand(
   }
   for (let attempt = 1; ; attempt += 1) {
     try {
-      const send = () => answered(channel, generation, method, commandParams)
+      const send = () => {
+        assertCanSend?.()
+        return answered(channel, generation, method, commandParams)
+      }
       const ack = await (run === undefined ? send() : run.dispatch(send))
       if (ack['commandId'] !== undefined && ack['commandId'] !== commandId) {
         throw new Error(`${method} ack did not echo its commandId ${commandId}`)
@@ -1412,6 +1425,7 @@ async function commandWithin(
   signal?: AbortSignal,
   commandId: string = channel.connection.mintCommandId(),
   run?: UnattendedRun,
+  assertCanSend?: () => void,
 ): Promise<unknown> {
   const { log, timeouts } = channel
   const timeoutMs = commandTimeoutMs(method, timeouts)
@@ -1422,7 +1436,7 @@ async function commandWithin(
       generation,
       method,
       timeoutMs,
-      () => sendCommand(channel, generation, method, params, commandId, run),
+      () => sendCommand(channel, generation, method, params, commandId, run, assertCanSend),
       signal,
     )
     log.trace(`${method} answered in ${String(Date.now() - startedAt)} ms`)
@@ -1475,6 +1489,11 @@ export function describeExit(
       }
 }
 
+function defaultHardwareContext(): () => HardwareContext {
+  const owner = createHardwareContexts()(process.cwd())
+  return () => owner.current()
+}
+
 interface NativeFireToken {
   readonly run: UnattendedRun
   readonly token: SessionToken
@@ -1482,12 +1501,12 @@ interface NativeFireToken {
 
 export class MuseSession implements ScheduledAgentSession {
   private readonly observedAgents = new Map<string, ItemSnapshot>()
-
   private readonly listeners = new Set<SessionEventListener>()
   /** One card per prompt and stage, and the open ones for a late listener (D26). */
   private readonly prompts = new PromptLedger()
   /** A stage's callers share its eventual result, and Stop waits for it. */
   private readonly decisionsInFlight = new Map<string, Promise<void>>()
+  private readonly hardwareGuard: SessionHardwareGuard
   /**
   What arrived before anyone listened (D26): the events right after
   `session/resume` (the re-issued prompts, a running turn's stream) land
@@ -1561,9 +1580,18 @@ export class MuseSession implements ScheduledAgentSession {
     },
     private readonly isFastPathOff?: () => boolean,
     private readonly fastDecisionPin?: FastDecisionPin,
+    private readonly hardwareContext: () => HardwareContext = defaultHardwareContext(),
+    private readonly runHardwareStop?: (stop: HardwareStop) => Promise<void>,
   ) {
     this.owner = new SessionOwner(initialApprovalMode)
     this.log = channel.log
+    this.hardwareGuard = new SessionHardwareGuard(
+      this.hardwareContext,
+      (id) => this.prompts.pending(id),
+      (id) => {
+        void this.rejectWaitingStage(id)
+      },
+    )
     this.leaseGeneration = channel.generation
     if (feedback === undefined) {
       return
@@ -1801,6 +1829,32 @@ export class MuseSession implements ScheduledAgentSession {
         undefined,
         commandId ?? this.channel.connection.mintCommandId(),
         run,
+        () => {
+          // Recheck at every wire attempt: preparation and refusal retries can await.
+          if (
+            [
+              'turn/start',
+              'turn/steer',
+              'session/userShell',
+              'subagent/sendMessage',
+              'subagent/followupTask',
+              'subagent/resume',
+              'goal/set',
+              'goal/edit',
+              'goal/resume',
+              'userInput/answer',
+              'userInput/clarify',
+            ].includes(method) &&
+            isPositivelyHardwareWorkspace(this.hardwareGuard.current())
+          )
+            throw new Error(UI_TEXT.hardwareBindingUnavailable)
+          if (method !== 'approval/decide' || typeof params['approvalId'] !== 'string') return
+          const pending = this.prompts.pending(params['approvalId'])
+          this.hardwareGuard.validate(
+            pending?.availableChoices.find((choice) => choice.choiceId === params['choiceId']),
+            pending?.subject,
+          )
+        },
       )
     } catch (error: unknown) {
       this.noteLogFault(error)
@@ -1827,6 +1881,7 @@ export class MuseSession implements ScheduledAgentSession {
 
   private finishDispose(): void {
     this.scheduledQueue.clear()
+    this.hardwareGuard.dispose()
     this.isDisposed = true
     this.listeners.clear()
     this.logDamagedListeners.clear()
@@ -2187,6 +2242,43 @@ export class MuseSession implements ScheduledAgentSession {
     if (this.isDisposed) {
       return
     }
+    if (event.type === 'approvalRequested' || event.type === 'approvalUpdated') {
+      const toolName =
+        event.type === 'approvalRequested'
+          ? event.toolName
+          : this.prompts.pending(event.approvalId)?.toolName
+      event = this.hardwareGuard.scrub(event, toolName)
+    }
+    if (
+      (event.type === 'approvalRequested' || event.type === 'approvalUpdated') &&
+      event.subject.kind === 'shell' &&
+      event.subject.command !== undefined &&
+      isHardwareStop(event.subject.command, 'bash', this.hardwareGuard.current())
+    ) {
+      const stop = hardwareStop(event.subject.command, 'bash', this.hardwareGuard.current())
+      if (stop !== undefined) {
+        void (async () => {
+          const [attempt] = await Promise.allSettled([
+            (async () => {
+              if (this.runHardwareStop === undefined)
+                throw new Error(UI_TEXT.hardwareBindingUnavailable)
+              await this.runHardwareStop(stop)
+            })(),
+          ])
+          if (attempt.status === 'rejected') {
+            this.emit({
+              type: 'backendNotice',
+              level: 'error',
+              text: UI_TEXT.hardwareStopUnconfirmed,
+            })
+          }
+          // Never allow the CLI to repeat this operation through its ambient shell.
+          this.prompts.admit(event)
+          await this.rejectWaitingStage(event.approvalId)
+        })()
+      }
+      return
+    }
     const terminalRun =
       event.type === 'turnCompleted' || event.type === 'turnWithdrawn'
         ? this.owner.run(event.turnId)
@@ -2241,6 +2333,11 @@ export class MuseSession implements ScheduledAgentSession {
     if (admitted === undefined) {
       return
     }
+    if (
+      (admitted.type === 'approvalRequested' || admitted.type === 'approvalUpdated') &&
+      !this.hardwareGuard.admit(admitted)
+    )
+      return
     switch (admitted.type) {
       case 'approvalRequested':
       case 'approvalUpdated': {
@@ -2386,6 +2483,9 @@ export class MuseSession implements ScheduledAgentSession {
       throw new Error(this.owner.quarantineCause ?? UI_TEXT.permissionReviewerMissing)
     if (scheduledOwner !== undefined) await scheduledOwner.checkParts(parts)
     if (!this.owner.start(token, scheduledOwner)) throw new Error(UI_TEXT.scheduleBusy)
+    if (isPositivelyHardwareWorkspace(this.hardwareGuard.current()))
+      throw new Error(UI_TEXT.hardwareBindingUnavailable)
+    await prepareHardwareTurn(this.hardwareGuard.current(), (mode) => this.setApprovalMode(mode))
     let ack: unknown
     try {
       ack = await this.command(
@@ -2520,6 +2620,10 @@ export class MuseSession implements ScheduledAgentSession {
     await this.command('session/setReasoningEffort', { reasoningEffort })
   }
 
+  public hardwareState(): HardwareContext {
+    return this.hardwareGuard.current()
+  }
+
   /**
   Select one of the host's preconfigured approval modes and keep the
   session's reviewer on the mode's. The orchestration (profile sync, put
@@ -2534,7 +2638,11 @@ export class MuseSession implements ScheduledAgentSession {
     const token = this.owner.token()
     await this.restoringScheduleMode
     const modes = await import('./approvalModesEntry')
-    await modes.runSetApprovalMode(this.modeOps(), token, mode)
+    await modes.runSetApprovalMode(
+      this.modeOps(),
+      token,
+      hardwareApprovalMode(mode, this.hardwareGuard.current()),
+    )
   }
 
   /** Summarise older context; `status` is `noop` with a reason when nothing to do. */
@@ -2574,6 +2682,11 @@ export class MuseSession implements ScheduledAgentSession {
       )
       throw new PromptSettledError('movedOn', `${stage}: the approval moved on`)
     }
+    const current = this.prompts.pending(approvalId)
+    this.hardwareGuard.validate(
+      current?.availableChoices.find((choice) => choice.choiceId === decision.choiceId),
+      current?.subject,
+    )
     this.prompts.markDecided(requirementId)
     const admitted = stripUnacceptedDecisionFeedback(
       this.prompts.pending(approvalId)?.availableChoices,
@@ -2588,6 +2701,7 @@ export class MuseSession implements ScheduledAgentSession {
     this.decisionsInFlight.set(key, pending)
     try {
       await pending
+      this.hardwareGuard.settled(key)
     } finally {
       this.decisionsInFlight.delete(key)
     }
@@ -2983,6 +3097,7 @@ export class MuseCodeHost implements AgentHost {
   private readonly unresponsiveListeners = new Set<() => void>()
   /** The deadlines, log and watchdog every command on this connection shares. */
   private readonly channel: CommandChannel
+  private readonly hardwareContexts: ReturnType<typeof createHardwareContexts>
   public readonly info: MuseHostInfo
 
   public constructor(
@@ -2993,6 +3108,8 @@ export class MuseCodeHost implements AgentHost {
     private readonly usageRecording = MuseCodeHost.usageRecording,
     private readonly accountHome?: MuseCodeAccountHome,
     private restartCause?: string | undefined,
+    private readonly hardwareContext?: (workspaceRoot: string | undefined) => HardwareContext,
+    private readonly runHardwareStop?: (stop: HardwareStop) => Promise<void>,
   ) {
     if (
       accountHome !== undefined &&
@@ -3001,6 +3118,7 @@ export class MuseCodeHost implements AgentHost {
     )
       throw new Error(UI_TEXT.accounts.museCodeUnavailable)
     this.commandOwner = host.commandOwner ?? new MuseCodeCommandOwner()
+    this.hardwareContexts = createHardwareContexts(hardwareContext)
     this.channel = {
       connection: host.connection,
       timeouts,
@@ -3219,8 +3337,30 @@ export class MuseCodeHost implements AgentHost {
     method: string,
     params: Record<string, unknown>,
     signal?: AbortSignal,
+    assertCanSend?: () => void,
   ): Promise<unknown> {
-    return await commandWithin(this.channel, this.channel.generation, method, params, signal)
+    return await commandWithin(
+      this.channel,
+      this.channel.generation,
+      method,
+      params,
+      signal,
+      this.channel.connection.mintCommandId(),
+      undefined,
+      assertCanSend,
+    )
+  }
+
+  private hardwareOwner(workspaceRoot: string | undefined): HardwareWorkspace {
+    const context = this.hardwareContext?.(workspaceRoot)
+    if (
+      [context?.workspaceRoot, context?.hardwareOwner?.current().workspaceRoot].some(
+        (root) =>
+          root !== undefined && root.replaceAll('\\', '/') !== workspaceRoot?.replaceAll('\\', '/'),
+      )
+    )
+      throw new Error(UI_TEXT.hardwareRefused)
+    return context?.hardwareOwner ?? this.hardwareContexts(workspaceRoot)
   }
 
   /**
@@ -3364,10 +3504,11 @@ export class MuseCodeHost implements AgentHost {
 
   /** Registers the handle for a session this connection now holds. */
   private track(
-    record: { readonly sessionId: string },
+    record: { readonly sessionId: string; readonly workspaceRoot?: string | null | undefined },
     modelId: string,
     isNew = false,
     initialApprovalMode?: string,
+    hardwareContext?: () => HardwareContext,
   ): MuseSession {
     const existing = this.sessions.get(record.sessionId)
     if (existing !== undefined) {
@@ -3394,6 +3535,8 @@ export class MuseCodeHost implements AgentHost {
       },
       this.features.isFastPathOff,
       this.features.fastDecisionPin,
+      hardwareContext ?? (() => this.hardwareOwner(record.workspaceRoot ?? undefined).current()),
+      this.runHardwareStop,
     )
     this.sessions.set(record.sessionId, handle)
     const waiting = this.unclaimed.get(record.sessionId) ?? []
@@ -3846,18 +3989,37 @@ export class MuseCodeHost implements AgentHost {
     mcpServers?: Readonly<Record<string, SessionMcpServer>>,
     options?: { readonly requireSideChat?: boolean; readonly permissionProfile?: string },
   ): Promise<LoadedSession> {
+    // `session/read` does not attach or restart queued turns (captured M6 envelope).
+    const stored = sessionEnvelopeSchema.parse(
+      await this.command('session/read', { sessionId, excludeItems: true }),
+    )
+    const owner = this.hardwareOwner(stored.session.workspaceRoot ?? undefined)
+    owner.startSession()
+    const assertCanResume = () => {
+      owner.startSession()
+      // Attach refuses only on positive hardware evidence: an unknown
+      // inventory or an unscannable folder is fail-safe for commands
+      // (the per-turn fences still apply), never proof of hardware.
+      if (owner.isPositivelyHardware()) throw new Error(UI_TEXT.hardwareBindingUnavailable)
+    }
+    assertCanResume()
     const { loaded, hasPending } = await this.opened(async () => {
       const envelope = sessionEnvelopeSchema.parse(
-        await this.command('session/resume', {
-          sessionId,
-          history: HISTORY_PREFERENCE_SNAPSHOT,
-          // The launch permission-profile pick (1.4.8): refused before
-          // anything is written when the host does not offer it.
-          ...(options?.permissionProfile !== undefined && {
-            permissionProfile: options.permissionProfile,
-          }),
-          ...this.mcpConfig(mcpServers),
-        }),
+        await this.command(
+          'session/resume',
+          {
+            sessionId,
+            history: HISTORY_PREFERENCE_SNAPSHOT,
+            // The launch permission-profile pick (1.4.8): refused before
+            // anything is written when the host does not offer it.
+            ...(options?.permissionProfile !== undefined && {
+              permissionProfile: options.permissionProfile,
+            }),
+            ...this.mcpConfig(mcpServers),
+          },
+          undefined,
+          assertCanResume,
+        ),
       )
       return {
         loaded: this.loaded(envelope, modelId),
@@ -4010,12 +4172,14 @@ export class MuseCodeHost implements AgentHost {
 
   public async startSession(options: StartSessionOptions): Promise<MuseSession> {
     return await this.opened(async () => {
+      const owner = this.hardwareOwner(options.workspaceRoot)
+      owner.startSession()
       let result: unknown
       try {
         result = await this.command('session/start', {
           workspaceRoot: options.workspaceRoot,
           modelId: options.modelId,
-          approvalMode: options.approvalMode,
+          approvalMode: hardwareApprovalMode(options.approvalMode, owner.current()),
           // The initial permission profile (1.4.6): select, never create.
           // An older host ignores the unknown member and keeps its default
           // profile; 1.4.7 commits it (amendment 42624).
@@ -4028,7 +4192,13 @@ export class MuseCodeHost implements AgentHost {
         throw ceilingOr(error)
       }
       const { session } = sessionStartResultSchema.parse(result)
-      return this.track(session, session.modelId ?? options.modelId, true, options.approvalMode)
+      return this.track(
+        { ...session, workspaceRoot: options.workspaceRoot },
+        session.modelId ?? options.modelId,
+        true,
+        options.approvalMode,
+        () => owner.current(),
+      )
     })
   }
 

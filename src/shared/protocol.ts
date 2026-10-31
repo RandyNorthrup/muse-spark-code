@@ -120,6 +120,7 @@ const numberSchema = z.number()
 const documentNonceSchema = z.string().check(z.minLength(1), z.maxLength(RESOURCE_NONCE_MAX_CHARS))
 const resourceSeqSchema = z.int().check(z.gte(1))
 const booleanSchema = z.boolean()
+const optionalBooleanSchema = z.optional(booleanSchema)
 import { parseWith, type ParseResult } from './parseResult'
 
 // Settings the webview needs to render. Host-only settings (binary path,
@@ -410,6 +411,7 @@ export type EditorContextSummary = z.infer<typeof editorContextSummarySchema>
 
 const composerStateSchema = z.object({
   type: z.literal('composerState'),
+  isHardwareWorkspace: optionalBooleanSchema,
   effort: z.enum(EFFORT_LEVELS),
   isThinkingEnabled: booleanSchema,
   isFastEnabled: booleanSchema,
@@ -521,7 +523,7 @@ export const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('inputFocusChanged'), focused: booleanSchema }),
   // The panel's document gained focus (M25): it becomes the surface the
   // keybindings (New Conversation, Alt+T) act on.
-  z.object({ type: z.literal('surfaceFocused') }),
+  z.object({ type: z.literal('surfaceFocused'), focused: optionalBooleanSchema }),
   // Something threw in the webview (M39): the host logs it. Cut to these
   // lengths by the sender; nothing the user typed is sent.
   z.object({
@@ -546,7 +548,7 @@ export const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     M92e (PLAN.md D71): the user saw the secret prompt for this text and
     chose Send anyway. The host skips the secret hold for this send only.
     */
-    secretAccepted: z.optional(z.boolean()),
+    secretAccepted: optionalBooleanSchema,
     /**
     The user asked the model for a commit message or a pull request's
     text (M71): the host adds what the model needs, and the reply fills the form.
@@ -1093,7 +1095,7 @@ export const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('openHelp') }),
   z.object({
     type: z.literal('referenceValues'),
-    error: z.optional(z.boolean()),
+    error: optionalBooleanSchema,
     model: z.string(),
     values: z.record(z.string(), z.string()),
     nls: z.record(z.string(), z.string()),
@@ -1373,7 +1375,7 @@ export const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('queuedWithdrawn'),
     localId: z.string().check(z.minLength(1)),
-    attachmentsKept: z.optional(z.boolean()),
+    attachmentsKept: optionalBooleanSchema,
   }),
   // The host did not take it back (M87): the card stays, `reason` says why.
   z.object({
@@ -1595,7 +1597,7 @@ export const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     // choice's revision and this mark (lane REPORTFLOW R2): the dialog's
     // own status line says the preview could not be updated. Absent on a
     // fresh draft.
-    rebuildFailed: z.optional(z.boolean()),
+    rebuildFailed: optionalBooleanSchema,
   }),
   // The open found no draft to show (lane REPORTFLOW R2): the build refused
   // after the snapshot, so the waiting dialog stops working and the
@@ -1615,7 +1617,7 @@ export const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     hash: z.string().check(z.minLength(REPORT_HASH_HEX_CHARS), z.maxLength(REPORT_HASH_HEX_CHARS)),
     via: z.enum(REPORT_EXPORT_CHANNELS),
     ok: z.boolean(),
-    issueFallback: z.optional(z.boolean()),
+    issueFallback: optionalBooleanSchema,
     reason: z.optional(z.enum(REPORT_EXPORT_REASONS)),
   }),
   // The extension's `museSpark.estimate` command: focus the composer with

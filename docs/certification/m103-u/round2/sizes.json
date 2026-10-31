@@ -1,0 +1,14 @@
+{
+  "rig": "Win11",
+  "base": "c0e6c1467",
+  "baseStartupBytes": 813602,
+  "reviewedHead": "04cb62ba4",
+  "reviewedStartupBytes": 818701,
+  "startupBytes": 818889,
+  "startupGrowthBytes": 5287,
+  "startupBudgetBytes": 921600,
+  "makerBytes": 25500,
+  "makerBudgetBytes": 25600,
+  "previewBytes": 23303,
+  "previewBudgetBytes": 25600
+}

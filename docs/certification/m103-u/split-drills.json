@@ -1,0 +1,16 @@
+[
+  {
+    "name": "maker-eager",
+    "file": "src/webview/makerEntry.ts",
+    "sha256": "70b9b7bafbe297f19a01053b58a13a5c0d6228256134bd650ca4dd1e48162d72",
+    "expected": "Maker UI must stay deferred:",
+    "result": "gate exit 1"
+  },
+  {
+    "name": "preview-english",
+    "file": "src/webview/maker/previewMain.ts",
+    "sha256": "806995615bfc0dcde12da8f85f4b555e32be4fdbb2b9bbc29f39933aa35eccd1",
+    "expected": "Maker preview must stay portable and independent: src/shared/l10n/en.ts",
+    "result": "gate exit 1"
+  }
+]

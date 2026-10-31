@@ -70,12 +70,18 @@
     // CONVBUDGET: the session-transfer flows, required by path on the first
     // export, import or share-file preview.
     "src/host/conversation/conversationTransferEntry.ts",
+    "src/host/vscode/editor/verifyEditor.ts",
+    // M103 V's lazy VS Code maker host; W supplies the engine and activation.
+    "src/host/maker/makerEntry.ts",
+    "src/host/maker/makerPreviewEntry.ts",
     "src/shared/validationEntry.ts",
     // Help data: separate lazy runtime and generator build entries.
     "src/shared/reference/referenceEntry.ts",
     "src/shared/reference/referenceSource.ts",
     "src/host/validationEntry.ts",
     "src/shared/wireEntry.ts",
+    // Build-only Help catalogue read by scripts/gen-reference.mjs through esbuild.
+    "src/shared/featureCatalog.ts",
     // M106 actual production lazy entries, called through their emitted bundles.
     "src/shared/structuredSchemaEntry.ts",
     "src/core/backends/modelapi/codeIntelEntry.ts",
@@ -149,6 +155,8 @@
     "src/host/planMarkdownEntry.ts",
     // The checkpoint store's own bundle (M72), required by path at construction.
     "src/host/checkpoints/checkpointStoreEntry.ts",
+    "src/core/maker/guardEntry.ts",
+    "src/core/maker/shellEntry.ts",
     // The browser check's own bundle (M81), required by path on the first check.
     "src/host/browser/browserCheckEntry.ts",
     // Its runtime acquisition (M81 A1), required by path when a runtime is prepared.
@@ -227,6 +235,8 @@
     "src/host/devices/deviceBundle.ts",
     "src/host/devices/makerEntry.ts",
     "src/webview/main.tsx",
+    // M103 U: separate host-rendered STL preview page, built by path.
+    "src/webview/maker/previewMain.ts",
     "src/webview/resources/ResourceSurface.tsx",
     "src/webview/usage/ResourcesSection.tsx",
     // The Models & Agents panel's own entry (M95 lane M), required by path.
@@ -253,6 +263,8 @@
     // M115w: /watchdog's issue bundle (dist/acpWatchdog.js), loaded by path on first use.
     "src/runtime/watchdog/watchdogEntry.ts",
     "src/core/questions/deferralEntry.ts",
+    // M103 R: required by path only for explicit runtime maker commands/--hardware.
+    "src/runtime/maker/entry.ts",
     "src/runtime/fonts/fontsEntry.ts",
     "src/runtime/judge/judgeEntry.ts",
     "src/runtime/judge/judgeSourcesEntry.ts",

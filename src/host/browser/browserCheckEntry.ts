@@ -14,6 +14,7 @@ import {
   runBrowserCheck as runCheck,
 } from '../../core/browser/browserRun'
 import { hostBrowserRunDeps } from './browserProcess'
+import path from 'node:path'
 import { admitResource, resourceWindowsJob } from '../../core/resources/admission'
 import type { ResourceLease } from '../../core/resources/launch'
 
@@ -61,6 +62,7 @@ export async function runBrowserCheck(
         platform: process.platform,
         env: process.env,
         warn: options.warn,
+        machineDirectory: path.join(options.storageDir, 'maker'),
         resource: processResource,
         windowsJob,
       }),

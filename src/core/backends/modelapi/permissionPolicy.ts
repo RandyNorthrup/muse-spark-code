@@ -28,12 +28,8 @@ import {
   repositoryRulesSchema,
 } from '../../permissionSettings'
 import { pathModule } from '../../workspaceRoot'
-import {
-  type CommandRule,
-  compileCommandRules,
-  type RuleProblem,
-  type RuleSource,
-} from './commandRules'
+import type { CommandRule, RuleProblem, RuleSource } from './commandRules'
+import { compileCommandRules } from './modelApiShellEntry'
 import { compileDenyGlobs, compileGlob } from './globLimits'
 
 /** The paths the file tools refuse, and the folders `read_file` may read outside the workspace. */

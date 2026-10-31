@@ -1,0 +1,39 @@
+{
+  "activation": 444733,
+  "modelApi": 457781,
+  "startup": 814526,
+  "startupBaseline": 813602,
+  "preview": 23466,
+  "groups": [
+    {
+      "name": "deferred JS",
+      "bytes": 50891,
+      "budgetKiB": 50
+    },
+    {
+      "name": "maker surfaces",
+      "bytes": 10710,
+      "budgetKiB": 25
+    },
+    {
+      "name": "maker review",
+      "bytes": 58311,
+      "budgetKiB": 75
+    },
+    {
+      "name": "code highlighting",
+      "bytes": 95366,
+      "budgetKiB": 125
+    },
+    {
+      "name": "action dialogs",
+      "bytes": 9360,
+      "budgetKiB": 25
+    },
+    {
+      "name": "tasks tab",
+      "bytes": 1375,
+      "budgetKiB": 25
+    }
+  ]
+}

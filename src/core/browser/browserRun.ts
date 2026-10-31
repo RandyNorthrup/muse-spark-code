@@ -82,10 +82,10 @@ export interface BrowserCheckRequest {
   readonly url: string
   readonly actions: readonly BrowserAction[]
   /**
-  The hosts beyond loopback the user explicitly allowed for this check:
+  The public hosts and exact dev origins the user explicitly allowed for this check:
   the setting, and the one a card or the modal widened. Never the
-  model's. Implicit loopback is derived separately (plain HTTP only).
-  */
+  model's. Private destinations require an exact configured origin.
+*/
   readonly allowedHosts: readonly string[]
   /** What the user approved: the URL and its scope (`browserScopeKey`). */
   readonly approvalKey: string
@@ -470,6 +470,7 @@ async function startedNetworkServiceId(page: PageCheck): Promise<number> {
 interface CheckContext {
   readonly page: PageCheck
   readonly fixture: ProbeFixture
+  readonly proxy: CheckProxy
   /** Where the proxy's records go from now on: a phase's own list, or nowhere. */
   readonly collect: (into: ProxyObservation[] | undefined) => void
   readonly request: BrowserCheckRequest
@@ -494,7 +495,12 @@ async function runPhase(
     fixture.open(deps.randomHex(BROWSER_CANARY_NONCE_BYTES)),
     'unverifiable',
   )
-  const plan = phasePlan(phase, target, request.allowedHosts)
+  const revokeProbe = context.proxy.allowProbe?.(target)
+  const plan = phasePlan(
+    phase,
+    target,
+    request.allowedHosts.filter((entry) => !entry.includes('://')),
+  )
   const observations: ProxyObservation[] = []
   context.collect(observations)
   let isOver = false
@@ -506,7 +512,7 @@ async function runPhase(
     if (isOver) {
       throw new CdpError('phase over')
     }
-    page.bind({ frameId, urls: plan.exceptions })
+    page.bind({ frameId, urls: plan.exceptions, fixtureUrls: plan.fixtureUrls })
     const raw = await page.probe(sessionId, plan.pageUrl, plan.script)
     // No probe page, no report: the phase's own failure below.
     if (raw === undefined) {
@@ -541,6 +547,7 @@ async function runPhase(
     isOver = true
     clearTimeout(timer)
     page.bind(undefined)
+    revokeProbe?.()
     context.collect(undefined)
   }
 }
@@ -700,7 +707,7 @@ async function check(
   const collect = (into: ProxyObservation[] | undefined): void => {
     records = into
   }
-  const canary: CheckContext = { page, fixture, collect, request, deps, timings }
+  const canary: CheckContext = { page, fixture, proxy, collect, request, deps, timings }
   const initialEnd = performance.now() + timings.initialCanaryMs
   const remaining = (): number => Math.min(timings.phaseMs, initialEnd - performance.now())
   await runPhase(canary, 'default', undefined, remaining())

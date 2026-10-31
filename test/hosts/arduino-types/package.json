@@ -1,0 +1,8 @@
+{
+  "name": "muse-spark-arduino-api-floor",
+  "private": true,
+  "version": "1.0.0",
+  "devDependencies": {
+    "@types/vscode": "1.96.0"
+  }
+}

@@ -1012,6 +1012,21 @@
       "editors": ["vscode", "acp"]
     },
     {
+      "id": "makers",
+      "name": { "ui": "makerTitle" },
+      "summary": { "ui": "referenceMakers" },
+      "description": { "ui": "referenceMakers" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#makers",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
       "id": "code-intelligence",
       "name": { "ui": "referenceCodeIntelTitle" },
       "summary": { "ui": "referenceCodeIntelDetail" },
@@ -1362,6 +1377,15 @@
             "feature_delivery",
             "project_setup",
             "quality_retrofit",
+            "maker_cad",
+            "maker_cnc",
+            "maker_firmware",
+            "maker_kicad",
+            "maker_micropython",
+            "maker_pi",
+            "maker_printers",
+            "maker_ros2",
+            "maker_simulation",
             "muse_gadgets",
             "orchestrator_playbook"
           ]
@@ -4112,7 +4136,7 @@
       },
       "id": "museSpark.browserCheckExtraHosts",
       "name": "museSpark.browserCheckExtraHosts",
-      "description": "Hosts beyond this computer that the browser check may open and reach, as plain host names or IP addresses, with no port, path or wildcard; listing a loopback name also lets a local page use https and WebSockets. Empty means plain-http local pages only, unless you allow a host on a card or in the confirmation, for that one check. https and WebSocket traffic to a listed host is encrypted and not inspected, and a site there may sign in as you with this computer’s account (on Windows in particular). Only you can widen this, never the model, and a repository’s settings cannot.",
+      "description": "User settings only: public host names or exact http(s) dev-server origins. Non-loopback origins require a separate address confirmation after you edit this setting. Registered machine hosts and known printer/CNC interfaces are always refused, including Bypass. Private web/machine ports and private encrypted tunnels are refused. Remove an origin to revoke it. Empty permits no local server.",
       "descriptionKey": "config.browserCheckExtraHosts.description",
       "type": "array",
       "default": [],
@@ -5700,6 +5724,34 @@
       "invocations": []
     },
     {
+      "route": "maker",
+      "name": "hardware enable|disable|status",
+      "description": "Enable hardware for this workspace",
+      "text": { "ui": "makerEnableHardware" },
+      "invocations": [["hardware"], ["machines"], ["stop-machine"], ["panel"]]
+    },
+    {
+      "route": "maker",
+      "name": "machines list|add|remove",
+      "description": "Devices and machines",
+      "text": { "ui": "makerDevicesTitle" },
+      "invocations": [["hardware"], ["machines"], ["stop-machine"], ["panel"]]
+    },
+    {
+      "route": "maker",
+      "name": "stop-machine [id|--all]",
+      "description": "A software stop does not replace the machine’s physical emergency stop.",
+      "text": { "ui": "makerSoftwareStopWarning" },
+      "invocations": [["hardware"], ["machines"], ["stop-machine"], ["panel"]]
+    },
+    {
+      "route": "maker",
+      "name": "panel",
+      "description": "Open panel",
+      "text": { "ui": "makerLaunchConnect" },
+      "invocations": [["hardware"], ["machines"], ["stop-machine"], ["panel"]]
+    },
+    {
       "route": "providersAdd",
       "name": "providersAdd: --preset <value>",
       "description": "--preset: Provider",
@@ -6213,6 +6265,13 @@
     },
     {
       "route": "serve",
+      "name": "serve: --hardware",
+      "description": "--hardware  Allow maker hardware tools (the workspace must also enable hardware)",
+      "text": { "cli": "hardware" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "serve",
       "name": "serve: --help / -h",
       "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
       "text": { "cli": "help" },
@@ -6530,6 +6589,18 @@
     },
     {
       "route": "login",
+      "name": "login: --hardware",
+      "description": "--hardware  Allow maker hardware tools (the workspace must also enable hardware)",
+      "text": { "cli": "hardware" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "login",
       "name": "login: --help / -h",
       "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
       "text": { "cli": "help" },
@@ -6822,6 +6893,18 @@
       "description": "--questions-defer-after <seconds>  Defer questions after this many seconds; no limit unless you set one (0, the default, never defers)",
       "text": { "cli": "questions-defer-after" },
       "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
+    },
+    {
+      "route": "setup",
+      "name": "setup: --hardware",
+      "description": "--hardware  Allow maker hardware tools (the workspace must also enable hardware)",
+      "text": { "cli": "hardware" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
     },
     {
       "route": "setup",
@@ -7140,6 +7223,18 @@
     },
     {
       "route": "authSet",
+      "name": "authSet: --hardware",
+      "description": "--hardware  Allow maker hardware tools (the workspace must also enable hardware)",
+      "text": { "cli": "hardware" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authSet",
       "name": "authSet: --help / -h",
       "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
       "text": { "cli": "help" },
@@ -7448,6 +7543,18 @@
     },
     {
       "route": "authStatus",
+      "name": "authStatus: --hardware",
+      "description": "--hardware  Allow maker hardware tools (the workspace must also enable hardware)",
+      "text": { "cli": "hardware" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authStatus",
       "name": "authStatus: --help / -h",
       "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
       "text": { "cli": "help" },
@@ -7753,6 +7860,18 @@
       "description": "--questions-defer-after <seconds>  Defer questions after this many seconds; no limit unless you set one (0, the default, never defers)",
       "text": { "cli": "questions-defer-after" },
       "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
+    },
+    {
+      "route": "authClear",
+      "name": "authClear: --hardware",
+      "description": "--hardware  Allow maker hardware tools (the workspace must also enable hardware)",
+      "text": { "cli": "hardware" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
     },
     {
       "route": "authClear",

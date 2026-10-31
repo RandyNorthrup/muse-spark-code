@@ -9,11 +9,12 @@ import { failureForLog } from '../core/backends/musecode/logText'
 import type { AccountRequestPort } from '../core/accounts/requestWriter'
 import type { PaidBilling } from '../core/paid/accountPaidRoute'
 import type { ModelPolicy } from '../core/backends/modelapi/modelPolicy'
+import type { HardwareContext } from '../core/maker/guard/httpCommands'
+import { createHardwareContexts } from '../core/maker/hardwareContext'
 import type * as RuntimeAccountingEntry from './runtimeAccountingEntry'
 import type { ProviderClient } from '../core/backends/modelapi/client'
 import type { runtimeSubscriptionClient } from './chatGptProviderCommands'
 import type * as ConfiguredProvidersEntry from '../host/backend/configuredProvidersEntry'
-
 // The ACP agent's backend (PLAN.md D62): the panel's backend managers,
 // given in this process what VS Code gives them in the extension, one per
 // workspace folder. Muse Code signs in on its own and the subscription
@@ -28,6 +29,7 @@ import type * as ConfiguredProvidersEntry from '../host/backend/configuredProvid
 
 import { createHash, randomUUID } from 'node:crypto'
 import path from 'node:path'
+import type { McpTool } from '../core/mcp'
 import type { AcpBackend, BackendReadiness } from '../acp/agent'
 import type { AgentHost } from '../core/agent/agentBackend'
 import type { TeamHostSeams } from '../core/team/teamHostService'
@@ -98,7 +100,7 @@ import { providersFile } from '../host/backend/providersEntry'
 import type { AssembledProviderRun } from './exec/providerExec'
 import { type GuardedChildEnv, NO_WORKSPACE } from '../core/executables'
 import { buildChildEnvironment, environmentValue } from '../core/execGuard'
-import { createToolIo } from '../host/backend/toolIo'
+import { createHardwareStopRunner, createToolIo } from '../host/backend/toolIo'
 import { resolveExecOutputCap } from './exec/runLedger'
 import { Usd } from '../shared/usd'
 import { loadLegalScanner } from './legal/legalScanner'
@@ -155,6 +157,8 @@ export interface RuntimeBackendDeps {
   readonly usageRecording?: UsageRecording | undefined
   readonly usageScope?: UsageScopeReader | undefined
   readonly questions?: { remove(sessionId: string): Promise<void> }
+  readonly makerTools?: (cwd: string) => readonly McpTool[]
+  readonly hardwareInventory?: () => HardwareContext
   readonly exec?: ExecRuntimeOptions
   readonly options: ServeOptions
   readonly version: string
@@ -196,6 +200,7 @@ export interface RuntimeBackend {
     cwd: string,
     input: Parameters<EngineTeamPortsDeps['startWorker']>[0],
   ) => ReturnType<EngineTeamPortsDeps['startWorker']>
+  readonly isHardwareWorkspace: (cwd: string) => boolean
   readonly readUsageBudgets: () => Promise<readonly UsageBudgetRead[]>
   readonly backend: AcpBackend
   /** Muse Code's launch and environment, for `login`. */
@@ -279,7 +284,11 @@ export function withCredentialRedaction(
   }
 }
 
-function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undefined) {
+function museCodeManager(
+  deps: RuntimeBackendDeps,
+  workspaceRoot: string | undefined,
+  hardware: ReturnType<typeof createHardwareContexts>,
+) {
   const { options, log } = deps
   // VS Code inherits its host environment (D1); the standalone runtime has
   // a stricter boundary, shared by serve, account hosts and login.
@@ -332,6 +341,18 @@ function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undef
     getConfiguredBinaryPath: () => options.museBinary,
     getEnvironmentVariables: () => [],
     workspaceRoot,
+    hardwareContext: (root) => hardware(root ?? workspaceRoot).current(),
+    runHardwareStop: async (stop) => {
+      const runStop = createHardwareStopRunner({
+        platform: deps.platform,
+        systemRoot: deps.env['SystemRoot'],
+        log: (message) => {
+          deps.log.trace(message)
+        },
+      })
+      const result = await runStop(stop)
+      if (result.exitCode !== 0) throw new Error(UI_TEXT.hardwareRefused)
+    },
     getShellSandbox: () => options.shellSandbox,
     // No `--sandbox-network` (M56): Muse Code's default, or a managed policy's.
     getSandboxNetwork: () => SETTING_DEFAULTS.sandboxNetwork,
@@ -400,6 +421,7 @@ function modelApiManager(
     /** The folder's confined reads, for the media port. */
     readonly onIo: (io: ToolIo) => void
   },
+  hardware: ReturnType<typeof createHardwareContexts>,
 ): ModelApiBackendManager {
   const { options, log, platform } = deps
   const providerConfigFile = path.join(
@@ -461,6 +483,7 @@ function modelApiManager(
     })
   const listFiles = filesIn(workspaceRoot)
   const io = createToolIo({
+    hardwareContext: () => hardware(workspaceRoot).current(),
     platform,
     listFiles,
     // The interpreter lookup excludes this workspace, so a planted `bash`
@@ -617,6 +640,10 @@ function modelApiManager(
     isCredentialStoreDown: () => metaKeyProbe.state === 'storeDown',
     workspaceRoot,
     sessionWorkspaceRoot: storedWorkspaceRoot,
+    hardwareContext: (root) => ({
+      ...hardware(root ?? workspaceRoot).current(),
+      isUnattended: deps.exec !== undefined,
+    }),
     assertWorkspaceCurrent,
     workspaceEdits,
     io,
@@ -796,9 +823,14 @@ function modelApiManager(
     isConfidentialWorkspace: () => false,
     confirmContributorModel: () => Promise.resolve(options.allowsContributorModels),
     isWorkspaceTrusted,
+    isUnattended: () => deps.exec !== undefined,
     store: deps.exec === undefined ? store : headlessStore,
     ...(uploadLedgerDir !== undefined && { uploadLedgerDir }),
     uploadExpiryDays: () => SETTING_DEFAULTS.mediaUploadExpiryDays,
+    ...(deps.exec === undefined &&
+      deps.makerTools !== undefined && {
+        getIdeTools: () => deps.makerTools?.(storedWorkspaceRoot) ?? [],
+      }),
     describeEnvironment: () =>
       describeEnvironment({
         runGit: deps.runGit,
@@ -900,7 +932,8 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   // otherwise a project directory they start from is still searched
   // (docs/certification/pathguard.md).
   const launchDirectory = process.cwd()
-  const museCode = museCodeManager(deps, launchDirectory)
+  const hardware = createHardwareContexts(deps.hardwareInventory)
+  const museCode = museCodeManager(deps, launchDirectory, hardware)
   const museCodeHosts = new Map<string, MuseCodeBackendManager>()
   const modelApiHosts = new Map<
     string,
@@ -1261,6 +1294,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
           mediaIo.set(cwd, io)
         },
       },
+      hardware,
     )
     modelApiHosts.set(cwd, { manager, identity: key })
     return await withTeamTrust(manager)
@@ -1270,7 +1304,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     if (deps.options.backend === 'modelApi') {
       return modelApiHostFor(cwd)
     }
-    const manager = museCodeHosts.get(cwd) ?? museCodeManager(deps, cwd)
+    const manager = museCodeHosts.get(cwd) ?? museCodeManager(deps, cwd, hardware)
     museCodeHosts.set(cwd, manager)
     return manager.ensureHost()
   }
@@ -1337,6 +1371,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       if (deps.team !== undefined) host.setTeamTrusted(isTeamTrusted)
       return await openTeamWorkerSession(host, input)
     },
+    isHardwareWorkspace: (cwd) => hardware(cwd).current().isHardwareWorkspace === true,
     readUsageBudgets: async () => {
       // The shared daily paid budget first, then the live session budgets:
       // the same pair VS Code passes (RVCM1132B finding 3). The ledger read

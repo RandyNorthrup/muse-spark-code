@@ -64,6 +64,11 @@ const BUDGETS = [
   // PR251FIX3B: the Muse Code approval-mode effect and reviewer-profile sync,
   // off activation; measured 22.88 KiB when split out, +15% rounded up to 27 KiB (PLAN.md D6).
   { path: 'dist/approvalModes.js', budgetKiB: 27 },
+  // M103R: 107.0 KiB + 15%, rounded to 25 KiB. RLM103: 125.4 KiB measured
+  // on 0.19.0; capped at measured.
+  { path: 'dist/runtimeMaker.js', budgetKiB: 126 },
+  // PORTM103: shared first-use maker schemas; 12.6 KiB plus 15%, rounded to 25 KiB.
+  { path: 'dist/makerContracts.js', budgetKiB: 25 },
   { path: 'dist/extension.js', budgetKiB: 600 },
   // M100: measured 74.8 KiB + 15%, rounded to the next 25 KiB (D6). Re-measured
   // with the Windows storage binding (P-I-WINDOWS-STORAGE, its C# shipped
@@ -111,6 +116,12 @@ const BUDGETS = [
   { path: 'dist/conversationTransfer.js', budgetKiB: 50 },
   // M94: provider, engine and ledger on first Tab use (PLAN.md D6).
   { path: 'dist/tab.js', budgetKiB: 75 },
+  // M103A3: editor verification and JSON fallback, deferred until first use.
+  { path: 'dist/verifyEditor.js', budgetKiB: 25 },
+  // M103 V: native maker host UI and wrappers, loaded only on first use.
+  { path: 'dist/makerHost.js', budgetKiB: 25 },
+  { path: 'dist/makerPreviewHost.js', budgetKiB: 25 },
+  { path: 'dist/webview/makerPreview.js', budgetKiB: 25 },
   // M118: portable stores, native/panel adapters and chat renderer: 163.4 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/prompts.js', budgetKiB: 200 },
   // M118: local CLI/ACP stores, renderer and destinations: 152.1 KiB + 15%, rounded to 25 KiB.
@@ -155,6 +166,10 @@ const BUDGETS = [
   // alias-glob fallback, loaded with the Model API backend; 19.7 KiB
   // measured + 15%, rounded up to 25 KiB (D6).
   { path: 'dist/modelApiAcp.js', budgetKiB: 25 },
+  // RLM103 join (CC-INT6): the shell reader and command rules the permission
+  // engine judges every shell line with, split out of dist/modelApi.js to hold
+  // its unchanged 525 KiB cap; 10.7 KiB measured + 15%, rounded up to 25 KiB (D6).
+  { path: 'dist/modelApiShell.js', budgetKiB: 25 },
   { path: 'dist/runtimeAccounting.js', budgetKiB: 50 },
   // TRAIN15E: credentials/model references only; 7.7 KiB +15%, rounded to 25 KiB.
   { path: 'dist/providerPolicy.js', budgetKiB: 25 },
@@ -341,6 +356,8 @@ const BUDGETS = [
   // M72: real checkpoint store/legacy reader, 187.0 KiB when split out.
   // Measured size plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/checkpointStore.js', budgetKiB: 225 },
+  { path: 'dist/hardwareGuard.js', budgetKiB: 25 },
+  { path: 'dist/hardwareShell.js', budgetKiB: 20 },
   // M105 lane W: the attachment path (attach port with the portable
   // sniffers, limits and modality gate), loaded on first attach: 21.0 KiB
   // after the USD split. Measured size plus 15%, rounded up to 25 KiB.

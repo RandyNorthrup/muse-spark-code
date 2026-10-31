@@ -1,0 +1,12 @@
+{
+  "status": "claimed",
+  "record": {
+    "version": 2,
+    "id": "0d61e8b8-99b2-4cc3-87ef-f049f6801001",
+    "generation": "890e467e-e226-4eb8-96e4-d03be70efa3d",
+    "resource": "port:/tmp/mx-frame-zCtpWQ/ordinary-file",
+    "holder": "emulator-worker",
+    "pid": 647423,
+    "endpoint": "/tmp/mx-frame-zCtpWQ/leases/0d61e8b8-99b2-4cc3-87ef-f049f6801001.sock"
+  }
+}

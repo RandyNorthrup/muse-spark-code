@@ -116,6 +116,7 @@ const COMMON_OPTIONS = {
   [ACP_PAID_FLAGS.voice]: { type: 'boolean' },
   verbose: { type: 'boolean' },
   'questions-defer-after': { type: 'string' },
+  hardware: { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
   version: { type: 'boolean', short: 'v' },
 } as const satisfies CliParserOptions
@@ -352,6 +353,7 @@ export const CLI_OPTION_TEXT = {
   'scheduled-prompts': 'scheduled-prompts',
   verbose: 'verbose',
   'questions-defer-after': 'questions-defer-after',
+  hardware: 'hardware',
   help: 'help',
   version: 'version',
   cwd: 'cwd',
@@ -466,6 +468,10 @@ export function formatCommandHelp(table: UiText, command: string, route: string)
     openRouterConnect: 'providers connect openrouter',
     helpTopic: 'help <command>',
     authGitHub: 'auth github login|logout|status',
+    hardware: 'hardware enable|disable|status',
+    machines: 'machines list|add|remove',
+    'stop-machine': 'stop-machine [id|--all]',
+    panel: 'panel',
   }
   const lines = [`${command} ${localUsage[route] ?? name}`]
   // A route whose options table holds only --help (its grammar is positional)
@@ -495,6 +501,10 @@ export function formatCommandHelp(table: UiText, command: string, route: string)
       help: table.referenceBriefHelp,
       share: sharingCliHelp(table, command),
       prompts: sharingCliHelp(table, command),
+      hardware: table.makerCliUsage,
+      machines: table.makerCliUsage,
+      'stop-machine': table.makerCliUsage,
+      panel: table.makerCliUsage,
     }
     const description = Object.entries(usage).find(
       ([prefix]) => route === prefix || route.startsWith(`${prefix} `),

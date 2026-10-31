@@ -1,0 +1,6 @@
+{
+  "provider": "dankeboy36.vscode-arduino-api",
+  "providerVersion": "0.1.2",
+  "vscode": "1.96.0",
+  "node": "20.14.0"
+}

@@ -26,6 +26,7 @@ export async function buildBrowserEnglish(folder) {
   writeFileSync(
     probe,
     `export { EN } from '${source('src/shared/l10n/en.ts')}';
+export { MAKER_EN } from '${source('src/shared/l10n/makerEnglish.ts')}';
 export { UI_TEXT, setUiText } from '${source('src/shared/l10n/text.ts')}';
 export { loadDeferredEnglish } from '${source('src/shared/l10n/deferredEnglish.ts')}';
 export { installEmbeddedTable } from '${source('src/webview/installTable.ts')}';

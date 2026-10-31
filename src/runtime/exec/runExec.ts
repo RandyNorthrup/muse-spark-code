@@ -1193,6 +1193,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         questions: 'decline',
         ...(accounts !== undefined && { accounts }),
         backend: tap.backend,
+        isHardwareWorkspace: runtime.isHardwareWorkspace,
         version: deps.version,
         options: {
           canBypass: false,

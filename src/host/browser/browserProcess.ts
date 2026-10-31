@@ -15,6 +15,9 @@
 import type { ChildProcess } from 'node:child_process'
 import path from 'node:path'
 import type { BrowserProcess, BrowserRunDeps, CheckFolder } from '../../core/browser/browserRun'
+import { discoverNat64, NAT64_LOOKUPS } from '../web/nat64'
+import { registeredMachineEndpoints } from '../../core/maker/registry'
+import { agentDataFolder } from '../../runtime/dataFolder'
 import {
   BROWSER_CHECK_DIR,
   BROWSER_CHECK_ID_BYTES,
@@ -31,7 +34,7 @@ import { withoutCredentials } from '../../core/credentialEnvironment'
 import { execFileGuarded, spawnGuarded } from '../../core/guardedChildProcess'
 import { randomBytes } from 'node:crypto'
 import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
-import { networkInterfaces } from 'node:os'
+import { homedir, networkInterfaces } from 'node:os'
 import { Duplex } from 'node:stream'
 import { startProbeFixture } from '../../core/browser/canaries'
 import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
@@ -48,6 +51,7 @@ export interface HostBrowserDeps {
   readonly env: Readonly<Record<string, string | undefined>>
   /** A fixed fact for the extension's log. */
   readonly warn: (fact: string) => void
+  readonly machineDirectory?: string
 }
 
 const PRIVATE_DIR_MODE = 0o700
@@ -361,7 +365,24 @@ export function hostBrowserRunDeps(deps: HostBrowserDeps): BrowserRunDeps {
         throw error
       }
     },
-    startProxy: async (scope) => await startCheckProxy(scope),
+    startProxy: async (scope) =>
+      await startCheckProxy(
+        scope,
+        undefined,
+        () => discoverNat64(NAT64_LOOKUPS, { info: deps.warn, trace: ignore }),
+        async () => {
+          const endpoints = await Promise.all(
+            [
+              path.join(
+                agentDataFolder({ platform: deps.platform, env: deps.env, homeDir: homedir() }),
+                'maker',
+              ),
+              ...(deps.machineDirectory === undefined ? [] : [deps.machineDirectory]),
+            ].map(async (directory) => await registeredMachineEndpoints(directory)),
+          )
+          return endpoints.flat()
+        },
+      ),
     startFixture: async () => await startProbeFixture(deps.platform, ownAddress),
     spawn: (executable, args, env) => spawnBrowser(executable, args, env, deps),
     randomHex: (bytes) => randomBytes(bytes).toString('hex'),

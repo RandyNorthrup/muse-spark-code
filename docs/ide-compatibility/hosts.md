@@ -111,6 +111,20 @@ Scheduled/unattended prompts defer immediately and keep the question open,
 including with interactive deferral disabled; headless exec, best-of-N,
 worktrees and the evaluation retain their distinct immediate policies.
 
+## M103 makers routes — integration status
+
+2026-10-06: integration joins the VS Code maker host, the runtime maker
+commands and the lease redesign. Physical approvals need OS user presence and
+Stop is never gated on every surface below; nothing physical runs unattended
+(PLAN.md D83). Simulator and emulator receipts are authoritative until
+installed-device runs exist; see [M103's record](../certification/m103.md).
+
+| Surface       | Makers path                                                                                                        | Status                                                            |
+| ------------- | ------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| VS Code panel | Native approvals, device and serial views, preview tab, status-bar Stop (`m103-v.md`, `m103-u.md`)                 | Integrated; installed-device runs remain open                     |
+| ACP agent     | `--hardware`, `/hardware`, `/machines`, `/stop-machine`, companion commands (`m103-r.md`; setup in `docs/acp.md`)  | Integrated against fakes; installed-editor maker runs remain open |
+| Headless exec | `hardware`, `machines`, `stop-machine` routes with the workspace grant and OS sign-in (`m103-r.md`, README Makers) | Integrated; physical runs stay attended                           |
+
 ## M116 playbook surfaces — integration status
 
 The ACP agent and standalone CLI read journal records and settings locally.

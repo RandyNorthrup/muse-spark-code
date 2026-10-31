@@ -58,6 +58,12 @@ matches a load in the source.
 */
 export const COMPUTED_SOURCE_LOADS = Object.freeze([
   Object.freeze({
+    importer: 'src/webview/maker/PayloadReview.tsx',
+    call: 'new Worker(url)',
+    reason:
+      'The payload-search worker is a Blob built from the bundled findPayloadMatch source and JSON job data in the same file: it loads no file from either package.',
+  }),
+  Object.freeze({
     importer: 'src/host/lazyBundle.ts',
     call: 'createRequire(file)(file)',
     reason:

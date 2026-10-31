@@ -1,0 +1,1285 @@
+
+ RUN  v5.0.2 C:/lanes/M103U
+
+ ❯ test/unit/makerPayloadReview.test.tsx (8 tests | 5 failed) 6408ms
+   × keyboard focus wrap cannot approve unseen lines (30 lines) 1257ms
+   × keyboard focus wrap cannot approve unseen lines (6000 lines) 1851ms
+   × screen-reader traversal visits every line and Next page focuses payload 1105ms
+   × receipts bind DOM bytes on paint, replacement, appearance and visibility return 1022ms
+   × the read-only payload view posts the V id and freshly computed digest 1030ms
+
+ Test Files  1 failed (1)
+      Tests  5 failed | 3 passed (8)
+   Start at  09:32:07
+   Duration  9.06s (tests 72%, environment 15%, transform 5%, import 5%, setup 3%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/makerPayloadReview.test.tsx > keyboard focus wrap cannot approve unseen lines (30 lines)
+AssertionError: expected "vi.fn()" to be called with arguments: [ Array(1) ]
+
+Received:
+
+  1st vi.fn() call:
+
+  [
+-   "3e53b97c849d6f216e53050958141b3e632f3967e570f4609a750c2882263c20",
++   "11d510e067d2cdcd7559bd86d27a2f4c20babd43670346b97af99b522c1f0075",
+  ]
+
+  2nd vi.fn() call:
+
+  [
+-   "3e53b97c849d6f216e53050958141b3e632f3967e570f4609a750c2882263c20",
++   "11d510e067d2cdcd7559bd86d27a2f4c20babd43670346b97af99b522c1f0075",
+  ]
+
+
+Number of calls: 2
+
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"modal-backdrop"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33maria-labelledby[39m=[32m"maker-approval-title"[39m
+          [33maria-modal[39m=[32m"true"[39m
+          [33mclass[39m=[32m"modal"[39m
+          [33mrole[39m=[32m"dialog"[39m
+        [36m>[39m
+          [36m<header[39m
+            [33mclass[39m=[32m"modal-header"[39m
+          [36m>[39m
+            [36m<h2[39m
+              [33mclass[39m=[32m"modal-title"[39m
+              [33mid[39m=[32m"maker-approval-title"[39m
+            [36m>[39m
+              [0mApprove hardware action[0m
+            [36m</h2>[39m
+            [36m<button[39m
+              [33maria-label[39m=[32m"Close"[39m
+              [33mclass[39m=[32m"icon-button"[39m
+              [33mtitle[39m=[32m"Close"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"icon"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"16"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"1.4"[39m
+                [33mviewBox[39m=[32m"0 0 16 16"[39m
+                [33mwidth[39m=[32m"16"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"m4 4 8 8M12 4l-8 8"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</button>[39m
+          [36m</header>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"modal-body"[39m
+          [36m>[39m
+            [36m<p>[39m
+              [0mA software stop does not replace the machine’s physical emergency stop.[0m
+            [36m</p>[39m
+            [36m<h3>[39m
+              [0mTarget[0m
+            [36m</h3>[39m
+            [36m<pre[39m
+              [33mtabindex[39m=[32m"0"[39m
+            [36m>[39m
+              [0m{
+  "kind": "machine",
+  "registrationId": "2b4a9acb-2dc5-4f46-aeb8-40aee71bb875",
+  "id": "printer",
+  "name": "Bench printer",
+  "endpoint": "http://192.168.1.5",
+  "identity": "Klipper"
+}[0m
+            [36m</pre>[39m
+            [36m<p>[39m
+              [36m<code>[39m
+                [0mactuate[0m
+              [36m</code>[39m
+            [36m</p>[39m
+            [36m<h3>[39m
+              [0mExact payload[0m
+            [36m</h3>[39m
+            [36m<p[39m
+              [33mrole[39m=[32m"status"[39m
+            [36m>[39m
+              [0m0 of 30 lines reviewed[0m
+            [36m</p>[39m
+            [36m<pre[39m
+              [33maria-label[39m=[32m"Read payload"[39m
+              [33mclass[39m=[32m"maker-payload"[39m
+              [33mrole[39m=[32m"region"[39m
+              [33mtabindex[39m=[32m"0"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+              [36m</span>[39m
+            [36m</pre>[39m
+            [36m<button[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [0mNext page[0m
+            [36m</button>[39m
+            [36m<h3>[39m
+              [0mAnalysis[0m
+            [36m</h3>[39m
+            [36m<pre[39m
+              [33mtabindex[39m=[32m"0"[39m
+            [36m>[39m
+              [0m{
+  "classes": [
+    "actuate"
+  ],
+  "maxFeedMmMin": "100",
+  "temperatures": {
+    "extruder": "190"
+  },
+  "unknown": [],
+  "refused": [],
+  "hasMotion": false
+}[0m
+            [36m</pre>[39m
+            [36m<p>[39m
+              [0mMaximum feed: 0.1m/min[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mextruder[0m
+              [0m:[0m
+              [0m [0m
+              [0mMaximum temperature: 190°C[0m
+            [36m</p>[39m
+            [36m<details>[39m
+              [36m<summary>[39m
+                [0mAnalysis[0m
+              [36m</summary>[39m
+              [36m<code>[39m
+                [0m3e53b97c849d6f216e53050958141b3e632f3967e570f4609a750c2882263c20[0m
+              [36m</code>[39m
+            [36m</details>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"maker-actions maker-approval-actions"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [0mReject[0m
+              [36m</button>[39m
+              [36m<button[39m
+                [33mdisabled[39m=[32m""[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [0mSend once[0m
+              [36m</button>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</body>[39m
+[36m</html>[39m
+ ❯ test/unit/makerPayloadReview.test.tsx:45:24
+     43|     const send = screen.getByRole('button', { name: UI_TEXT.makerSendO…
+     44|     await waitFor(() => {
+     45|       expect(rendered).toHaveBeenCalledWith(request.digest)
+       |                        ^
+     46|     })
+     47|     const close = screen.getByRole('button', { name: UI_TEXT.usageClos…
+ ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  test/unit/makerPayloadReview.test.tsx > keyboard focus wrap cannot approve unseen lines (6000 lines)
+AssertionError: expected "vi.fn()" to be called with arguments: [ Array(1) ]
+
+Received:
+
+  1st vi.fn() call:
+
+  [
+-   "98fe2b828778a261eacd17f812e02b40fcf96224e790a078d3cbe54161aaac14",
++   "11d510e067d2cdcd7559bd86d27a2f4c20babd43670346b97af99b522c1f0075",
+  ]
+
+  2nd vi.fn() call:
+
+  [
+-   "98fe2b828778a261eacd17f812e02b40fcf96224e790a078d3cbe54161aaac14",
++   "11d510e067d2cdcd7559bd86d27a2f4c20babd43670346b97af99b522c1f0075",
+  ]
+
+
+Number of calls: 2
+
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"modal-backdrop"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33maria-labelledby[39m=[32m"maker-approval-title"[39m
+          [33maria-modal[39m=[32m"true"[39m
+          [33mclass[39m=[32m"modal"[39m
+          [33mrole[39m=[32m"dialog"[39m
+        [36m>[39m
+          [36m<header[39m
+            [33mclass[39m=[32m"modal-header"[39m
+          [36m>[39m
+            [36m<h2[39m
+              [33mclass[39m=[32m"modal-title"[39m
+              [33mid[39m=[32m"maker-approval-title"[39m
+            [36m>[39m
+              [0mApprove hardware action[0m
+            [36m</h2>[39m
+            [36m<button[39m
+              [33maria-label[39m=[32m"Close"[39m
+              [33mclass[39m=[32m"icon-button"[39m
+              [33mtitle[39m=[32m"Close"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"icon"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"16"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"1.4"[39m
+                [33mviewBox[39m=[32m"0 0 16 16"[39m
+                [33mwidth[39m=[32m"16"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"m4 4 8 8M12 4l-8 8"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</button>[39m
+          [36m</header>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"modal-body"[39m
+          [36m>[39m
+            [36m<p>[39m
+              [0mA software stop does not replace the machine’s physical emergency stop.[0m
+            [36m</p>[39m
+            [36m<h3>[39m
+              [0mTarget[0m
+            [36m</h3>[39m
+            [36m<pre[39m
+              [33mtabindex[39m=[32m"0"[39m
+            [36m>[39m
+              [0m{
+  "kind": "machine",
+  "registrationId": "2b4a9acb-2dc5-4f46-aeb8-40aee71bb875",
+  "id": "printer",
+  "name": "Bench printer",
+  "endpoint": "http://192.168.1.5",
+  "identity": "Klipper"
+}[0m
+            [36m</pre>[39m
+            [36m<p>[39m
+              [36m<code>[39m
+                [0mactuate[0m
+              [36m</code>[39m
+            [36m</p>[39m
+            [36m<h3>[39m
+              [0mExact payload[0m
+            [36m</h3>[39m
+            [36m<p[39m
+              [33mrole[39m=[32m"status"[39m
+            [36m>[39m
+              [0m0 of 6,000 lines reviewed[0m
+            [36m</p>[39m
+            [36m<pre[39m
+              [33maria-label[39m=[32m"Read payload"[39m
+              [33mclass[39m=[32m"maker-payload"[39m
+              [33mrole[39m=[32m"region"[39m
+              [33mtabindex[39m=[32m"0"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+            ...
+ ❯ test/unit/makerPayloadReview.test.tsx:45:24
+     43|     const send = screen.getByRole('button', { name: UI_TEXT.makerSendO…
+     44|     await waitFor(() => {
+     45|       expect(rendered).toHaveBeenCalledWith(request.digest)
+       |                        ^
+     46|     })
+     47|     const close = screen.getByRole('button', { name: UI_TEXT.usageClos…
+ ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  test/unit/makerPayloadReview.test.tsx > screen-reader traversal visits every line and Next page focuses payload
+Error: expect(element).toBeEnabled()
+
+Received element is not enabled:
+  <button
+  disabled=""
+  type="button"
+/>
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"modal-backdrop"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33maria-labelledby[39m=[32m"maker-approval-title"[39m
+          [33maria-modal[39m=[32m"true"[39m
+          [33mclass[39m=[32m"modal"[39m
+          [33mrole[39m=[32m"dialog"[39m
+        [36m>[39m
+          [36m<header[39m
+            [33mclass[39m=[32m"modal-header"[39m
+          [36m>[39m
+            [36m<h2[39m
+              [33mclass[39m=[32m"modal-title"[39m
+              [33mid[39m=[32m"maker-approval-title"[39m
+            [36m>[39m
+              [0mApprove hardware action[0m
+            [36m</h2>[39m
+            [36m<button[39m
+              [33maria-label[39m=[32m"Close"[39m
+              [33mclass[39m=[32m"icon-button"[39m
+              [33mtitle[39m=[32m"Close"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"icon"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"16"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"1.4"[39m
+                [33mviewBox[39m=[32m"0 0 16 16"[39m
+                [33mwidth[39m=[32m"16"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"m4 4 8 8M12 4l-8 8"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</button>[39m
+          [36m</header>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"modal-body"[39m
+          [36m>[39m
+            [36m<p>[39m
+              [0mA software stop does not replace the machine’s physical emergency stop.[0m
+            [36m</p>[39m
+            [36m<h3>[39m
+              [0mTarget[0m
+            [36m</h3>[39m
+            [36m<pre[39m
+              [33mtabindex[39m=[32m"0"[39m
+            [36m>[39m
+              [0m{
+  "kind": "machine",
+  "registrationId": "2b4a9acb-2dc5-4f46-aeb8-40aee71bb875",
+  "id": "printer",
+  "name": "Bench printer",
+  "endpoint": "http://192.168.1.5",
+  "identity": "Klipper"
+}[0m
+            [36m</pre>[39m
+            [36m<p>[39m
+              [36m<code>[39m
+                [0mactuate[0m
+              [36m</code>[39m
+            [36m</p>[39m
+            [36m<h3>[39m
+              [0mExact payload[0m
+            [36m</h3>[39m
+            [36m<p[39m
+              [33mrole[39m=[32m"status"[39m
+            [36m>[39m
+              [0m30 of 30 lines reviewed[0m
+            [36m</p>[39m
+            [36m<pre[39m
+              [33maria-label[39m=[32m"Read payload"[39m
+              [33mclass[39m=[32m"maker-payload"[39m
+              [33mrole[39m=[32m"region"[39m
+              [33mtabindex[39m=[32m"0"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+                [0m
+[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [0mG1 X1[0m
+              [36m</span>[39m
+            [36m</pre>[39m
+            [36m<button[39m
+              [33mdisabled[39m=[32m""[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [0mNext page[0m
+            [36m</button>[39m
+            [36m<h3>[39m
+              [0mAnalysis[0m
+            [36m</h3>[39m
+            [36m<pre[39m
+              [33mtabindex[39m=[32m"0"[39m
+            [36m>[39m
+              [0m{
+  "classes": [
+    "actuate"
+  ],
+  "maxFeedMmMin": "100",
+  "temperatures": {
+    "extruder": "190"
+  },
+  "unknown": [],
+  "refused": [],
+  "hasMotion": false
+}[0m
+            [36m</pre>[39m
+            [36m<p>[39m
+              [0mMaximum feed: 0.1m/min[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mextruder[0m
+              [0m:[0m
+              [0m [0m
+              [0mMaximum temperature: 190°C[0m
+            [36m</p>[39m
+            [36m<details>[39m
+              [36m<summary>[39m
+                [0mAnalysis[0m
+              [36m</summary>[39m
+              [36m<code>[39m
+                [0m3e53b97c849d6f216e53050958141b3e632f3967e570f4609a750c2882263c20[0m
+              [36m</code>[39m
+            [36m</details>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"maker-actions maker-approval-actions"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [0mReject[0m
+              [36m</button>[39m
+              [36m<button[39m
+                [33mdisabled[39m=[32m""[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [0mSend once[0m
+              [36m</button>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</body>[39m
+[36m</html>[39m
+ ❯ test/unit/makerPayloadReview.test.tsx:80:36
+     78|   expect(send).toBeDisabled()
+     79|   for (const line of lines) fireEvent.focus(line)
+     80|   await waitFor(() => expect(send).toBeEnabled())
+       |                                    ^
+     81|   expect(screen.getByRole('status')).toHaveTextContent('30 of 30 lines…
+     82| })
+ ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  test/unit/makerPayloadReview.test.tsx > receipts bind DOM bytes on paint, replacement, appearance and visibility return
+AssertionError: expected last "vi.fn()" call to have been called with [ Array(1) ]
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div>[39m
+      [36m<p[39m
+        [33mrole[39m=[32m"status"[39m
+      [36m>[39m
+        [0m0 of 4 lines reviewed[0m
+      [36m</p>[39m
+      [36m<pre[39m
+        [33maria-label[39m=[32m"Read payload"[39m
+        [33mclass[39m=[32m"maker-payload"[39m
+        [33mrole[39m=[32m"region"[39m
+        [33mtabindex[39m=[32m"0"[39m
+      [36m>[39m
+        [36m<span[39m
+          [33mtabindex[39m=[32m"0"[39m
+        [36m>[39m
+          [0mG1 X1[0m
+          [0m
+[0m
+        [36m</span>[39m
+        [36m<span[39m
+          [33mtabindex[39m=[32m"0"[39m
+        [36m>[39m
+          [0m
+[0m
+        [36m</span>[39m
+        [36m<span[39m
+          [33mtabindex[39m=[32m"0"[39m
+        [36m>[39m
+          [0mG1 X2[0m
+          [0m
+[0m
+        [36m</span>[39m
+        [36m<span[39m
+          [33mtabindex[39m=[32m"0"[39m
+        [36m/>[39m
+      [36m</pre>[39m
+    [36m</div>[39m
+  [36m</body>[39m
+[36m</html>[39m
+
+- Expected
++ Received
+
+  [
+-   "79797c3354160b0ead1f4cc530d80cce5936bc69a74f990f069131e2f427b37d",
++   "11d510e067d2cdcd7559bd86d27a2f4c20babd43670346b97af99b522c1f0075",
+  ]
+
+ ❯ test/unit/makerPayloadReview.test.tsx:87:21
+     85|   const { rerender } = render(<PayloadReview content={'G1 X1\n\nG1 X2\…
+     86|   await waitFor(() => {
+     87|     expect(receipt).toHaveBeenLastCalledWith(hash('G1 X1\n\nG1 X2\n'))
+       |                     ^
+     88|   })
+     89|   rerender(<PayloadReview content="G1 X200" onRendered={receipt} />)
+ ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  test/unit/makerPayloadReview.test.tsx > the read-only payload view posts the V id and freshly computed digest
+AssertionError: expected "vi.fn()" to be called with arguments: [ { v: 1, …(3) } ]
+
+Received:
+
+  1st vi.fn() call:
+
+  [
+    {
+-     "digest": "2a064108bee01a6cbd780b8035809acd7550764721981248b15cdf1bc0643e3c",
++     "digest": "11d510e067d2cdcd7559bd86d27a2f4c20babd43670346b97af99b522c1f0075",
+      "id": "2b4a9acb-2dc5-4f46-aeb8-40aee71bb875",
+      "type": "makerPreviewRendered",
+      "v": 1,
+    },
+  ]
+
+
+Number of calls: 1
+
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"maker-surface"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"maker-toolbar"[39m
+          [33minert[39m=[32m""[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [0mDevices and machines[0m
+          [36m</button>[39m
+          [36m<button[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [0mOpen device log[0m
+          [36m</button>[39m
+          [36m<div[39m
+            [33maria-label[39m=[32m"Stop machine"[39m
+            [33mclass[39m=[32m"maker-stop maker-stop-slot"[39m
+            [33mrole[39m=[32m"group"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [0mStop all machines[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [0mStop machine: Bench printer[0m
+            [36m</button>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"modal-backdrop"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33maria-labelledby[39m=[32m"maker-preview-title"[39m
+            [33maria-modal[39m=[32m"true"[39m
+            [33mclass[39m=[32m"modal"[39m
+            [33mrole[39m=[32m"dialog"[39m
+          [36m>[39m
+            [36m<header[39m
+              [33mclass[39m=[32m"modal-header"[39m
+            [36m>[39m
+              [36m<h2[39m
+                [33mclass[39m=[32m"modal-title"[39m
+                [33mid[39m=[32m"maker-preview-title"[39m
+              [36m>[39m
+                [0mPayload[0m
+              [36m</h2>[39m
+              [36m<button[39m
+                [33maria-label[39m=[32m"Close"[39m
+                [33mclass[39m=[32m"icon-button"[39m
+                [33mtitle[39m=[32m"Close"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"icon"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mheight[39m=[32m"16"[39m
+                  [33mstroke[39m=[32m"currentColor"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"1.4"[39m
+                  [33mviewBox[39m=[32m"0 0 16 16"[39m
+                  [33mwidth[39m=[32m"16"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"m4 4 8 8M12 4l-8 8"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+              [36m</button>[39m
+            [36m</header>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"modal-body"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33maria-label[39m=[32m"Stop machine"[39m
+                [33mclass[39m=[32m"maker-stop maker-stop-slot"[39m
+                [33mrole[39m=[32m"group"[39m
+              [36m>[39m
+                [36m<button[39m
+                  [33mtype[39m=[32m"button"[39m
+                [36m>[39m
+                  [0mStop all machines[0m
+                [36m</button>[39m
+                [36m<button[39m
+                  [33mtype[39m=[32m"button"[39m
+                [36m>[39m
+                  [0mStop machine: Bench printer[0m
+                [36m</button>[39m
+              [36m</div>[39m
+              [36m<p[39m
+                [33mrole[39m=[32m"status"[39m
+              [36m>[39m
+                [0m0 of 1 lines reviewed[0m
+              [36m</p>[39m
+              [36m<pre[39m
+                [33maria-label[39m=[32m"Read payload"[39m
+                [33mclass[39m=[32m"maker-payload"[39m
+                [33mrole[39m=[32m"region"[39m
+                [33mtabindex[39m=[32m"0"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mtabindex[39m=[32m"0"[39m
+                [36m>[39m
+                  [0mG1 X200[0m
+                [36m</span>[39m
+              [36m</pre>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</body>[39m
+[36m</html>[39m
+ ❯ test/unit/makerPayloadReview.test.tsx:142:18
+    140|   render(<MakerSurface store={store} />)
+    141|   await waitFor(() => {
+    142|     expect(post).toHaveBeenCalledWith({
+       |                  ^
+    143|       v: 1,
+    144|       type: 'makerPreviewRendered',
+ ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
