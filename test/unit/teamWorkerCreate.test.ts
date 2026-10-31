@@ -54,7 +54,7 @@ import { runProgram } from '../../src/host/processTree'
 import { readJobSource } from './helpers/jobSource'
 import { fixtureJobLifecycle } from './helpers/jobLifecycle'
 import { removeFolder } from './helpers/temporaryFolders'
-import { UI_TEXT } from '../../src/shared/constants'
+import { UI_TEXT, darwinDictationApp } from '../../src/shared/constants'
 
 useCreatedNative()
 const resources: { dispose: (() => void) | undefined } = { dispose: undefined }
@@ -805,7 +805,16 @@ describe('verified native worker creation', () => {
   it('NF missing helper and malformed receipt fail with their true reason', async () => {
     const { copy, input, role } = await setup()
     const missing = await acpFsWrite({ ...input, io: WORKER_NATIVE_IO, role }, 'src/new', 'attack')
-    expect(missing).toHaveProperty('error', UI_TEXT.teamFileHelperMissing)
+    // This folder ships no helper: the person is told which one, and what to do.
+    expect(missing).toHaveProperty(
+      'error',
+      process.platform === 'win32'
+        ? UI_TEXT.nativeHelper.windowsJob
+        : fill(UI_TEXT.nativeHelper.missingInstalled, {
+            helper:
+              process.platform === 'darwin' ? darwinDictationApp(process.arch) : 'muse-created',
+          }),
+    )
     const nativeOpen = WORKER_NATIVE_IO.openFile
     if (nativeOpen === undefined) throw new Error('native existing-file opener missing')
     let openFileCalls = 0

@@ -6596,6 +6596,11 @@ bash test/native/darwin/check-screen-resources.sh
 bash native/darwin/check-disclaim.sh --screen-only
 ```
 
+A source checkout on a Mac needs that first command before the agent can
+start a session (its output is git-ignored). Without it the agent says which
+helper is missing and names the command; a packaged product that lacks the
+helper says to reinstall.
+
 Recorder entry points and packaging remain under M105 integration; the
 certification record lists the outstanding real-capture/editor checks.
 
