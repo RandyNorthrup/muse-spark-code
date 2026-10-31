@@ -357,6 +357,7 @@ export function parseExec(
     'auto-compaction',
     'output-schema',
     'output-schema-outside',
+    'team',
   ])
   if (backend === 'museCode' && modelApiOnly !== '')
     return invalid(fill(UI_TEXT.execModelApiOnly, { options: modelApiOnly }))

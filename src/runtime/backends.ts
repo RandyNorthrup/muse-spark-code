@@ -1365,7 +1365,8 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   let isClosed = false
   return {
     startTeamWorker: async (cwd, input) => {
-      if (deps.options.backend !== 'modelApi') throw new Error(UI_TEXT.execModelApiOnly)
+      if (deps.options.backend !== 'modelApi')
+        throw new Error(fill(UI_TEXT.execModelApiOnly, { options: '--team' }))
       await modelApiHostFor(cwd)
       const manager = modelApiHosts.get(cwd)?.manager
       if (manager === undefined) throw new Error(UI_TEXT.teamBudgetUnavailable)
