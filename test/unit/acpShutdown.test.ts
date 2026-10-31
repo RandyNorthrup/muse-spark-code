@@ -103,6 +103,8 @@ interface Start {
   readonly signIn?: 'v1-auth-set.json' | 'v2-empty.json'
   /** The Muse Code the agent starts; the installed one by default. */
   readonly museBinary?: string
+  /** Leave only once the process is the CLI itself, not while it is being launched. */
+  readonly isRunning?: boolean
   /** Where the case leaves: before any session, while Muse Code starts, or after it answered. */
   readonly state: 'idle' | 'starting' | 'answered'
 }
@@ -150,11 +152,22 @@ function museProcesses(): readonly Process[] {
   return processes().filter((row) => row.pgid === row.pid && row.command.includes(MUSE_BIN_PREFIX))
 }
 
-/** The Muse Code the agent started, once it runs. */
-async function startedMuse(agentPid: number): Promise<number> {
+/**
+The Muse Code the agent started, from the moment it exists: the group leader
+the SDK made, first the launch shell, then the CLI's launcher, then the CLI
+itself, one pid through the exec chain. A client that leaves as it appears
+leaves while the agent is still launching it. `launchers` name the earlier
+stages; none waits for the CLI itself.
+*/
+async function startedMuse(agentPid: number, launchers: readonly string[]): Promise<number> {
   const deadline = Date.now() + WAIT_MS
   for (;;) {
-    const pid = museProcesses().find((row) => row.ppid === agentPid)?.pid
+    const pid = processes().find(
+      (row) =>
+        row.ppid === agentPid &&
+        row.pgid === row.pid &&
+        [MUSE_BIN_PREFIX, ...launchers].some((name) => row.command.includes(name)),
+    )?.pid
     if (pid !== undefined) return pid
     if (Date.now() > deadline) throw new Error('the Muse Code process never started')
     await delay(25)
@@ -314,7 +327,10 @@ async function startedAgent(start: Start): Promise<Left> {
       const answer = said.value ?? ''
       if (!answer.includes(UI_TEXT.acpNoModels)) throw new Error(`it said: ${answer}`)
     }
-    const cli = await startedMuse(agentPid)
+    const cli = await startedMuse(
+      agentPid,
+      museBinary === undefined || start.isRunning === true ? [] : [museBinary],
+    )
     CLIS.add(cli)
     return { agent, exited, cli, log: () => log }
   } catch (error: unknown) {
@@ -472,6 +488,8 @@ describe.skipIf(process.platform === 'win32')('the served agent when its client 
               state: 'starting',
               signIn: 'v1-auth-set.json',
               museBinary: ignoring,
+              // The ignoring shell has run its line only once the CLI itself runs.
+              isRunning: true,
             })
             const cli = cliOf(served)
             const took = await leaveAndEnd(served, (left) => {
