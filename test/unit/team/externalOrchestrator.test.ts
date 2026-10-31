@@ -110,6 +110,15 @@ function start(
   })
 }
 
+/** A session on the fixture agent that took one turn: the session, its events, how the turn ended. */
+async function takeTurn(run: Run) {
+  const session = await start(run, 'fixture')
+  const events = collect(session)
+  await session.sendTurn([{ type: 'text', text: 'go' }])
+  const done = await waitFor(events, 'turnCompleted')
+  return { session, events, done }
+}
+
 async function teamEndpoint() {
   if (state.binding === undefined) throw new Error('binding not open')
   const endpoint = await state.binding.teamMcp.endpointForConversation()
@@ -312,10 +321,7 @@ describe('an external ACP agent as orchestrator', () => {
   it('passes an agent-kind authenticate through as the agent’s own flow', async () => {
     const run = makeHost('auth-agent', true)
     try {
-      const session = await start(run, 'fixture')
-      const events = collect(session)
-      await session.sendTurn([{ type: 'text', text: 'go' }])
-      const done = await waitFor(events, 'turnCompleted')
+      const { session, done } = await takeTurn(run)
       expect(done).toMatchObject({ terminal: 'completed' })
       const record = await run.record()
       expect(record.find((row) => row['kind'] === 'authenticate')).toMatchObject({
@@ -330,10 +336,7 @@ describe('an external ACP agent as orchestrator', () => {
   it('fails the open turn when the agent dies, then resumes through session/load with its history', async () => {
     const run = makeHost('die', true)
     try {
-      const session = await start(run, 'fixture')
-      const events = collect(session)
-      await session.sendTurn([{ type: 'text', text: 'go' }])
-      const done = await waitFor(events, 'turnCompleted')
+      const { session, done } = await takeTurn(run)
       expect(done).toMatchObject({ terminal: 'failed', errorKind: 'backend' })
 
       // The agent is gone; resuming starts it again and loads the session.
