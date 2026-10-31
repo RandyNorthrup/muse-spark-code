@@ -19,14 +19,17 @@ Base: rec/rlf-m111th (TH on int dfcb45936). Rig: linuxlt. Date: 2026-10-31.
 ## Status
 
 - [x] TH twin: `hyprland-theme.json` beside the Lua table (shared region).
-- [ ] Docked Hyprland 0.57 (Arch) + pinned 0.55.2 (Debian backports).
-- [ ] Rust workspace + `muse-compositor-port` crate.
-- [ ] `src/shared/desktop/compositor.ts` (TS mirror, tools, policy).
-- [ ] `os/desktop/hyprland/` sources + generator + configs + pin.
+- [x] Docked Hyprland 0.57 (Arch) + pinned 0.55.2 (Debian backports).
+- [x] Rust workspace + `muse-compositor-port` crate (unit-tested; fixtures next).
+- [x] `src/shared/desktop/compositor.ts` (TS mirror, tools, policy).
+- [x] `os/desktop/hyprland/` sources + generator + configs + pin.
 - [ ] Suites green (vitest + cargo over recorded real IPC).
 - [ ] VM session proofs (binds, merge, rename, events, permission drills).
 - [ ] Strings x15, reference, CHANGELOG, PLAN, roadmap.
 - [ ] Gates + LANE DONE.
+
+Commits: 40589d37d (twin), 84bbf1dce (crate), 919c20683 (mirror),
+7e47861d3 (generator).
 
 ## Proof
 
@@ -54,3 +57,22 @@ Base: rec/rlf-m111th (TH on int dfcb45936). Rig: linuxlt. Date: 2026-10-31.
   even for the Wayland backend (source read: `Backend.cpp`, `Wayland.cpp`);
   sway-headless nesting fails at `CBackend::create()`. Session proofs run
   in a QEMU virtio-gpu VM (Arch live), the way upstream tests itself.
+- `eval` on the pin: `hyprctl --help` on 0.55.2 omits `eval` (0.57.0
+  lists `eval <code>`), but the pinned `/usr/bin/Hyprland` binary
+  contains the socket1 handler's errors `eval is only supported with
+the lua config manager` and `keyword can't work with non-legacy
+parsers. Use eval.` — so `eval` is the Lua path on the pin and
+  `keyword` is legacy-only. The adapter's eval-based live setters
+  stand; no `keyword` rewrite.
+- Dispatchers (wiki `configuring/core/dispatchers`, fetched 2026-10-31):
+  every `dsp_*` string the adapter emits matches a documented method
+  (`window.move` workspace/monitor forms, `workspace.move/rename`,
+  `window.close/float/fullscreen/pin/center`, `group.toggle`,
+  `cycle_next`, `focus`, `event`, `exec_cmd`, `exit`). Two open
+  proofs for the live session: the `window` param's string form
+  (`"address:…"`) and the `exec_cmd` rules-table shape
+  (`{ workspace = "1 silent" }`).
+- No bind-triggering dispatcher exists (`send_shortcut`/`send_key_state`
+  push keys into windows, they do not fire binds), so the binds
+  themselves are proven by `--verify-config` plus the `hyprctl binds`
+  listing; key round-trips wait for QA's input-injecting harness.
