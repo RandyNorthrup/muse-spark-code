@@ -156,7 +156,8 @@
       "referenceNodeEditorKeys",
       "nodeOs.netWifi",
       "desktop.greeterTitle",
-      "desktop.pin"
+      "desktop.pin",
+      "referenceEditorGroupKeys"
     ],
     "cs": [
       "groupModel",
@@ -188,7 +189,8 @@
       "nodeOs.diskTitle",
       "watchdog.verdicts.spam",
       "desktop.workbenchChat",
-      "desktop.workbenchEditor"
+      "desktop.workbenchEditor",
+      "editorGroup.deviceTablet"
     ],
     "tr": [
       "groupModel",
@@ -208,7 +210,8 @@
       "nodeOs.diskTitle",
       "desktop.sessionTerminal",
       "desktop.workbenchTerminal",
-      "desktop.workbenchStatusTerminals.one"
+      "desktop.workbenchStatusTerminals.one",
+      "editorGroup.deviceTablet"
     ],
     "pl": [
       "groupModel",
@@ -237,7 +240,9 @@
       "desktop.sessionTerminal",
       "watchdog.verdicts.spam",
       "desktop.workbenchTerminal",
-      "desktop.workbenchStatusTerminals.one"
+      "desktop.workbenchStatusTerminals.one",
+      "editorGroup.deviceTablet",
+      "editorGroup.deviceLaptop"
     ],
     "de": [
       "groupSkills",
@@ -302,7 +307,10 @@
       "developer.versionLine",
       "desktop.workbenchChat",
       "desktop.workbenchEditor",
-      "desktop.workbenchTerminal"
+      "desktop.workbenchTerminal",
+      "editorGroup.deviceTablet",
+      "editorGroup.deviceLaptop",
+      "editorGroup.deviceDesktop"
     ],
     "es": [
       "hooksItem",
@@ -358,7 +366,8 @@
       "desktop.workbenchChat",
       "desktop.workbenchEditor",
       "desktop.workbenchTerminal",
-      "desktop.workbenchStatusTerminals.one"
+      "desktop.workbenchStatusTerminals.one",
+      "editorGroup.deviceTablet"
     ],
     "fr": [
       "modesTitle",
@@ -442,7 +451,9 @@
       "watchdog.verdicts.spam",
       "desktop.workbenchChat",
       "desktop.workbenchEditor",
-      "desktop.workbenchOutput"
+      "desktop.workbenchOutput",
+      "editorGroup.deviceTablet",
+      "editorGroup.deviceDesktop"
     ],
     "zh-cn": ["toolLabels.shell", "devices.cpuPressure"],
     "zh-tw": ["toolLabels.shell", "devices.cpuPressure"],
@@ -456,7 +467,8 @@
       "teamIntensityLevels.max",
       "teamCapabilityWarning",
       "devices.cpuPressure",
-      "nodeDashboard.sessionWeb"
+      "nodeDashboard.sessionWeb",
+      "editorGroup.deviceLaptop"
     ],
     "ko": ["gitChangeCounts", "teamCapabilityWarning", "devices.cpuPressure"],
     "ru": ["gitChangeCounts", "teamCapabilityWarning", "devices.cpuPressure"]

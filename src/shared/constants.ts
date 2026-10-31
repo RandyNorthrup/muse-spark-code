@@ -388,6 +388,11 @@ binding (`loadWorkspace`), never by file name from the chat bundle.
 export const NODE_WORKSPACE_STYLESHEET = './node/files/main.css'
 export const NODE_WORKSPACE_BUDGET_KIB = 375
 export const NODE_EDITOR_BUDGET_KIB = 600
+/** M111 lane ED: the in-tree minimap draws one block per text run; a
+character cell is this many CSS pixels wide before device-pixel scaling. */
+export const EDITOR_MINIMAP_CHAR_WIDTH_PX = 2
+/** A minimap block fills this fraction of its line's scaled height. */
+export const EDITOR_MINIMAP_BLOCK_HEIGHT_FRACTION = 0.7
 /** U2: the lazy terminal chunk (xterm.js) is budgeted apart from the
 editor's, so neither feature's growth hides in the other's budget. */
 export const NODE_TERMINAL_BUDGET_KIB = 400

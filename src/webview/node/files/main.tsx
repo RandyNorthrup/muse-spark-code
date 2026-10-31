@@ -9,7 +9,7 @@ import {
 } from '../../../shared/constants'
 import { webviewKey } from '../../../shared/keybindings'
 import { EN } from '../../../shared/l10n/en'
-import type { NodeMethodPort, NodeMethodResult } from '../../../shared/hostApi/nodeMethods'
+import type { NodeMethodPort } from '../../../shared/hostApi/nodeMethods'
 import type { NodeTerminalSocketFactory } from '../../bridges/nodePort'
 import { nodeIdentifierSchema } from '../../../shared/nodeAuth'
 import { nodeRelativePathSchema } from '../../../shared/node'
@@ -23,16 +23,36 @@ import { DashboardPage } from '../dashboard/DashboardPage'
 import { HelpPage } from '../dashboard/HelpPage'
 import { WhatsNewPage } from '../dashboard/WhatsNewPage'
 import { AuditPage } from '../audit/AuditPage'
+import {
+  activeTabOf,
+  closeTab,
+  emptyEditorGroupState,
+  fileTabId,
+  openFileTab,
+  tabFilePath,
+  type EditorGroupState,
+  type EditorTab,
+} from '../../editor/groupState'
+import { languageIdForPath, languageName } from '../../editor/languages'
+import { fill } from '../../../shared/l10n/text'
 import './workspace.css'
+import '../../editor/editor.css'
 
-const Editor = lazy(async () => {
-  const module = await import('../editor/Editor')
-  return { default: module.Editor }
+const EditorGroup = lazy(async () => {
+  const module = await import('../../editor/EditorGroup')
+  return { default: module.EditorGroup }
 })
 const EditorDiff = lazy(async () => {
-  const module = await import('../editor/Editor')
+  const module = await import('../../editor/Editor')
   return { default: module.EditorDiff }
 })
+
+interface FileBuffer {
+  readonly text: string
+  readonly savedText: string
+  readonly digest: string
+  readonly revision: number
+}
 const TerminalTabs = lazy(async () => {
   const module = await import('../terminal/Terminal')
   return { default: module.TerminalTabs }
@@ -128,11 +148,12 @@ function NodeWorkspace({ port, auth, workspaceId, connectTerminal }: NodeWorkspa
   const [page, setPage] = useState<
     'files' | 'git' | 'terminal' | 'dashboard' | 'audit' | 'help' | 'whatsnew'
   >('files')
-  const [opened, setOpened] = useState<NodeMethodResult<'node/files/read'>>()
-  const [draft, setDraft] = useState('')
+  // The shared editor group (M111 lane ED): every open file keeps its
+  // own buffer, so opening another file can never orphan unsaved edits.
+  const [buffers, setBuffers] = useState<Readonly<Record<string, FileBuffer>>>({})
+  const [group, setGroup] = useState<EditorGroupState>(emptyEditorGroupState)
   const [path, setPath] = useState('')
   const [review, setReview] = useState(false)
-  const [generation, setGeneration] = useState(0)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   // The terminal mounts on its first visit (so its chunk stays lazy) and
@@ -231,39 +252,84 @@ function NodeWorkspace({ port, auth, workspaceId, connectTerminal }: NodeWorkspa
     },
     [startKind],
   )
-  const openFile = (name: string) => {
-    if (opened !== undefined && draft !== opened.text) {
-      onError(new Error(UI_TEXT.nodeWorkspace.unsaved))
+  const activePane = group.panes.find((pane) => pane.id === group.activePaneId) ?? group.panes[0]
+  const activeEditorTab = activePane === undefined ? undefined : activeTabOf(activePane)
+  const activePath = activeEditorTab === undefined ? undefined : tabFilePath(activeEditorTab)
+  const activeBuffer = activePath === undefined ? undefined : buffers[activePath]
+  const hasTabs = group.panes.some((pane) => pane.tabs.length > 0)
+  const openFile = (name: string, isEphemeral: boolean) => {
+    const existing = buffers[name]
+    // A preview open (the tree) focuses the tab already holding the
+    // file; an explicit open (the path form) re-reads it, as before —
+    // unless its buffer has unsaved edits, which are never clobbered.
+    if (existing !== undefined && (isEphemeral || existing.text !== existing.savedText)) {
+      setGroup((current) => openFileTab(current, name, { ephemeral: isEphemeral }))
+      setPath(name)
+      setReview(false)
       return
     }
     runFile(async (signal) => {
       const file = await port.request('node/files/read', { workspaceId, path: name }, signal)
       if (file.path !== name) throw new NodePageError('conflict')
       if (signal.aborted) return
-      setOpened(file)
-      setDraft(file.text)
+      setBuffers((current) => ({
+        ...current,
+        [file.path]: {
+          text: file.text,
+          savedText: file.text,
+          digest: file.digest,
+          revision: (current[file.path]?.revision ?? -1) + 1,
+        },
+      }))
+      setGroup((current) => openFileTab(current, file.path, { ephemeral: isEphemeral }))
       setPath(file.path)
       setReview(false)
-      setGeneration((previous) => previous + 1)
     })
   }
   const save = () => {
-    if (opened === undefined) return
-    const saved = draft
+    if (activePath === undefined || activeBuffer === undefined) return
+    const target = activePath
+    const saved = activeBuffer.text
+    const expectedDigest = activeBuffer.digest
     runFile(async (signal) => {
       const result = await port.request(
         'node/files/write',
-        { workspaceId, path: opened.path, expectedDigest: opened.digest, text: saved },
+        { workspaceId, path: target, expectedDigest, text: saved },
         signal,
       )
       if (signal.aborted) {
         return
       }
-
-      setOpened({ ...opened, text: saved, digest: result.digest })
+      // Typing during the save survives: only the saved snapshot and the
+      // digest move; the live text is whatever it has become since.
+      setBuffers((current) => {
+        const buffer = current[target]
+        return buffer === undefined
+          ? current
+          : { ...current, [target]: { ...buffer, savedText: saved, digest: result.digest } }
+      })
       setNotice(UI_TEXT.nodeWorkspace.saved)
     })
   }
+  const canCloseTab = useCallback(
+    (tab: EditorTab): boolean => {
+      const tabPath = tabFilePath(tab)
+      const buffer = tabPath === undefined ? undefined : buffers[tabPath]
+      return buffer === undefined || buffer.text === buffer.savedText
+    },
+    [buffers],
+  )
+  const onCloseRefused = useCallback(() => {
+    onError(new Error(UI_TEXT.nodeWorkspace.unsaved))
+  }, [onError])
+  const onBufferChange = useCallback((bufferPath: string, text: string) => {
+    setBuffers((current) => {
+      const buffer = current[bufferPath]
+      return buffer === undefined || buffer.text === text
+        ? current
+        : { ...current, [bufferPath]: { ...buffer, text } }
+    })
+  }, [])
   return (
     <main className="node-workspace" aria-label={UI_TEXT.nodeLabels.title}>
       <h1>{UI_TEXT.nodeLabels.title}</h1>
@@ -346,11 +412,18 @@ function NodeWorkspace({ port, auth, workspaceId, connectTerminal }: NodeWorkspa
         </button>
       )}
       <div hidden={page !== 'files'}>
-        <FileTree port={port} workspaceId={workspaceId} onOpen={openFile} onError={onError} />
+        <FileTree
+          port={port}
+          workspaceId={workspaceId}
+          onOpen={(name) => {
+            openFile(name, true)
+          }}
+          onError={onError}
+        />
         <form
           onSubmit={(event) => {
             event.preventDefault()
-            openFile(path)
+            openFile(path, false)
           }}
         >
           <label>
@@ -381,11 +454,14 @@ function NodeWorkspace({ port, auth, workspaceId, connectTerminal }: NodeWorkspa
               }
               runFile(async (signal) => {
                 const target = nodeRelativePathSchema.parse(path === '' ? file.name : path)
-                // An upload over the open file with unsaved edits would
+                const openBuffer = buffers[target]
+                // An upload over an open file with unsaved edits would
                 // orphan the draft: refuse it whether the path box names
                 // the file or is cleared to the upload's own name.
-                if (opened?.path === target) {
-                  if (draft !== opened.text) throw new NodePageError('conflict')
+                if (openBuffer !== undefined) {
+                  if (openBuffer.text !== openBuffer.savedText) {
+                    throw new NodePageError('conflict')
+                  }
                 } else if (path !== '') {
                   throw new NodePageError('conflict')
                 }
@@ -401,7 +477,7 @@ function NodeWorkspace({ port, auth, workspaceId, connectTerminal }: NodeWorkspa
                   {
                     workspaceId,
                     path: target,
-                    expectedDigest: opened?.path === target ? opened.digest : null,
+                    expectedDigest: openBuffer?.digest ?? null,
                     data,
                     digest,
                   },
@@ -410,7 +486,7 @@ function NodeWorkspace({ port, auth, workspaceId, connectTerminal }: NodeWorkspa
                 // The saved bytes are no longer the open ones: reload the
                 // buffer and digest from the server so the next Save sends
                 // the new digest instead of conflicting on the stale one.
-                if (opened?.path === target) {
+                if (openBuffer !== undefined) {
                   let fresh
                   try {
                     fresh = await port.request(
@@ -425,28 +501,42 @@ function NodeWorkspace({ port, auth, workspaceId, connectTerminal }: NodeWorkspa
                     // never a matched message — names the refusal, so it
                     // holds in every display language.
                     if (!signal.aborted && isNodePageError(error) && error.code === 'notText') {
-                      setOpened(undefined)
-                      setDraft('')
+                      setBuffers((current) =>
+                        Object.fromEntries(
+                          Object.entries(current).filter(([entryPath]) => entryPath !== target),
+                        ),
+                      )
+                      setGroup((current) => closeTab(current, fileTabId(target)))
                       setPath('')
                       setReview(false)
-                      setGeneration((previous) => previous + 1)
                       setNotice(UI_TEXT.nodeWorkspace.binaryReplaced)
                       return
                     }
                     throw error
                   }
                   if (signal.aborted) return
-                  setOpened(fresh)
-                  setDraft(fresh.text)
+                  setBuffers((current) => {
+                    const buffer = current[target]
+                    return buffer === undefined
+                      ? current
+                      : {
+                          ...current,
+                          [target]: {
+                            text: fresh.text,
+                            savedText: fresh.text,
+                            digest: fresh.digest,
+                            revision: buffer.revision + 1,
+                          },
+                        }
+                  })
                   setReview(false)
-                  setGeneration((previous) => previous + 1)
                 }
                 if (!signal.aborted) setNotice(UI_TEXT.nodeWorkspace.saved)
               })
             }}
           />
         </label>
-        {opened !== undefined && (
+        {hasTabs && (
           <section
             aria-label={UI_TEXT.nodeLabels.editor}
             onKeyDown={(event) => {
@@ -458,9 +548,17 @@ function NodeWorkspace({ port, auth, workspaceId, connectTerminal }: NodeWorkspa
               if (!isBusy) save()
             }}
           >
-            <h2>{opened.path}</h2>
+            {activePath !== undefined && <h2>{activePath}</h2>}
             <div className="node-actions">
-              <button type="button" disabled={isBusy || draft === opened.text} onClick={save}>
+              <button
+                type="button"
+                disabled={
+                  isBusy ||
+                  activeBuffer === undefined ||
+                  activeBuffer.text === activeBuffer.savedText
+                }
+                onClick={save}
+              >
                 {UI_TEXT.nodeWorkspace.save}
               </button>
               <button
@@ -475,10 +573,27 @@ function NodeWorkspace({ port, auth, workspaceId, connectTerminal }: NodeWorkspa
               </button>
               <button
                 type="button"
-                disabled={isBusy || draft === opened.text}
+                disabled={
+                  isBusy ||
+                  activeBuffer === undefined ||
+                  activeBuffer.text === activeBuffer.savedText
+                }
                 onClick={() => {
-                  setDraft(opened.text)
-                  setGeneration((previous) => previous + 1)
+                  if (activePath === undefined) return
+                  const target = activePath
+                  setBuffers((current) => {
+                    const buffer = current[target]
+                    return buffer === undefined
+                      ? current
+                      : {
+                          ...current,
+                          [target]: {
+                            ...buffer,
+                            text: buffer.savedText,
+                            revision: buffer.revision + 1,
+                          },
+                        }
+                  })
                   setReview(false)
                 }}
               >
@@ -486,12 +601,14 @@ function NodeWorkspace({ port, auth, workspaceId, connectTerminal }: NodeWorkspa
               </button>
               <button
                 type="button"
-                disabled={isBusy}
+                disabled={isBusy || activePath === undefined}
                 onClick={() => {
+                  if (activePath === undefined) return
+                  const target = activePath
                   runFile(async (signal) => {
                     const result = await port.request(
                       'node/files/download',
-                      { workspaceId, path: opened.path },
+                      { workspaceId, path: target },
                       signal,
                     )
                     const bytes = Uint8Array.from(
@@ -510,7 +627,7 @@ function NodeWorkspace({ port, auth, workspaceId, connectTerminal }: NodeWorkspa
                     try {
                       const link = document.createElement('a')
                       link.href = url
-                      link.download = opened.path.split('/').at(-1) ?? ''
+                      link.download = target.split('/').at(-1) ?? ''
                       link.click()
                     } finally {
                       URL.revokeObjectURL(url)
@@ -522,10 +639,33 @@ function NodeWorkspace({ port, auth, workspaceId, connectTerminal }: NodeWorkspa
               </button>
             </div>
             <Suspense fallback={<p data-deferred-loading="true">{UI_TEXT.nodeLabels.editor}</p>}>
-              {review ? (
-                <EditorDiff original={opened.text} modified={draft} />
+              {review && activeBuffer !== undefined && activePath !== undefined ? (
+                <div className="node-editor-group">
+                  <EditorDiff
+                    original={activeBuffer.savedText}
+                    modified={activeBuffer.text}
+                    languageId={languageIdForPath(activePath)}
+                    onLanguageFailed={(languageId) => {
+                      setNotice(
+                        fill(UI_TEXT.editorGroup.languageFailed, {
+                          language: languageName(languageId) ?? languageId,
+                        }),
+                      )
+                    }}
+                  />
+                </div>
               ) : (
-                <Editor key={generation} text={draft} onChange={setDraft} />
+                <div className="node-editor-group">
+                  <EditorGroup
+                    state={group}
+                    onStateChange={setGroup}
+                    buffers={buffers}
+                    onBufferChange={onBufferChange}
+                    canClose={canCloseTab}
+                    onCloseRefused={onCloseRefused}
+                    onBreadcrumb={setPath}
+                  />
+                </div>
               )}
             </Suspense>
           </section>

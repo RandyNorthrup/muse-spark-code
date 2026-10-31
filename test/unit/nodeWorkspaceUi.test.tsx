@@ -15,38 +15,12 @@ import {
 } from '../../src/shared/constants'
 import type { NodeMethodName } from '../../src/shared/hostApi/nodeMethods'
 import { EN } from '../../src/shared/l10n/en'
+import { fill } from '../../src/shared/l10n/text'
 import { scripted } from './helpers/recordCalls'
 import { cleanupNodeUi, mountNodeUi } from './helpers/nodeUi'
+import { installCodeMirrorDom } from './helpers/codemirrorDom'
 
-// The tests drive the real CodeMirror editor, whose view needs the layout
-// primitives jsdom leaves out. These complete the environment (as jsdom
-// itself does for the rest of the DOM); they stand in for no product code.
-if (!('ResizeObserver' in globalThis)) {
-  Object.defineProperty(globalThis, 'ResizeObserver', {
-    value: class {
-      observe(): void {
-        /* jsdom has no layout to observe */
-      }
-      unobserve(): void {
-        /* jsdom has no layout to observe */
-      }
-      disconnect(): void {
-        /* jsdom has no layout to observe */
-      }
-    },
-    configurable: true,
-    writable: true,
-  })
-}
-for (const key of ['getClientRects', 'getBoundingClientRect'] as const) {
-  if (typeof Range.prototype[key] !== 'function') {
-    Object.defineProperty(Range.prototype, key, {
-      value: key === 'getClientRects' ? () => [] : () => new DOMRect(),
-      configurable: true,
-      writable: true,
-    })
-  }
-}
+installCodeMirrorDom()
 
 // Temporary interposition on real objects, never a module stand-in: jsdom
 // leaves out URL.createObjectURL, and the memory-only test must observe
@@ -109,12 +83,22 @@ async function fixture(hasManyFiles = false) {
         entries: [{ path: 'second.txt', kind: 'file', sizeBytes: 0 }],
         nextCursor: null,
       }
-    if (method === 'node/files/read')
+    if (method === 'node/files/read') {
+      // A faithful two-file store: each path answers with its own bytes.
+      const requested =
+        typeof input === 'object' &&
+        input !== null &&
+        'path' in input &&
+        input.path === 'second.txt'
+          ? 'second.txt'
+          : 'example.txt'
+      const text = requested === 'second.txt' ? 'second\n' : state.text
       return {
-        path: state.wrongPath ? 'different.txt' : 'example.txt',
-        text: state.text,
-        digest: hash(state.text),
+        path: state.wrongPath ? 'different.txt' : requested,
+        text,
+        digest: hash(text),
       }
+    }
     if (method === 'node/files/write') {
       if (
         typeof input !== 'object' ||
@@ -245,7 +229,9 @@ describe('M110-U1 shared workspace UI', () => {
     // Once the aborted request settles the lock is free again.
     fireEvent.click(ui.getByRole('treeitem', { name: 'second.txt' }))
     expect(request.calls.filter(([method]) => method === 'node/files/read')).toHaveLength(2)
-    expect(await ui.findByRole('alert')).toHaveTextContent(UI_TEXT.nodeErrors.conflict)
+    expect(editorText(await ui.findByRole('textbox', { name: UI_TEXT.nodeLabels.editor }))).toBe(
+      'second\n',
+    )
   })
   it('opens, edits and saves with the original digest and keeps editor input through rerenders', async () => {
     const { ui, request, state } = await fixture()
@@ -263,20 +249,33 @@ describe('M110-U1 shared workspace UI', () => {
     })
     expect(state.text).toBe('edited\n')
   })
-  it('H10 retains unsaved edits when another file is requested and after a stale save refuses', async () => {
+  it('H10 keeps each file’s unsaved edits in its own tab, and a stale save still refuses', async () => {
     const { ui, state, request } = await fixture()
     fireEvent.click(ui.getByRole('treeitem', { name: 'example.txt' }))
     const editor = await ui.findByRole('textbox', { name: UI_TEXT.nodeLabels.editor })
     setEditorText(editor, 'my edit')
+    // Opening another file takes a second tab; the first tab keeps its
+    // edits (M111 lane ED: the tabbed editor group replaces the old
+    // single-buffer refusal, and closing a dirty tab is what refuses).
     fireEvent.click(ui.getByRole('treeitem', { name: 'second.txt' }))
-    expect(await ui.findByRole('alert')).toHaveTextContent(UI_TEXT.nodeWorkspace.unsaved)
-    expect(request.calls.filter(([method]) => method === 'node/files/read')).toHaveLength(1)
+    await waitFor(() => {
+      expect(editorText(ui.getByRole('textbox', { name: UI_TEXT.nodeLabels.editor }))).toBe(
+        'second\n',
+      )
+    })
+    expect(request.calls.filter(([method]) => method === 'node/files/read')).toHaveLength(2)
+    fireEvent.click(
+      ui.getByRole('tab', {
+        name: fill(UI_TEXT.editorGroup.tabUnsaved, { title: 'example.txt' }),
+      }),
+    )
+    expect(editorText(ui.getByRole('textbox', { name: UI_TEXT.nodeLabels.editor }))).toBe('my edit')
     state.text = 'competing edit'
     fireEvent.click(ui.getByRole('button', { name: UI_TEXT.nodeWorkspace.save }))
     await waitFor(() => {
       expect(ui.getByRole('alert')).toHaveTextContent(UI_TEXT.nodeErrors.conflict)
     })
-    expect(editorText(editor)).toBe('my edit')
+    expect(editorText(ui.getByRole('textbox', { name: UI_TEXT.nodeLabels.editor }))).toBe('my edit')
     expect(state.text).toBe('competing edit')
   })
   it('reviews saved and edited text, then discards explicitly', async () => {

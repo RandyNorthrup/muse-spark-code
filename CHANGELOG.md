@@ -17,6 +17,14 @@ happened, not what was planned; superseded entries are kept.
   retries, 0.5 s doubling to 8 s); `museSpark.modelApiMaxRetries` still
   decides when set. Every wait shows "Retrying in Ns (attempt K of N)" with
   Stop, in the panel and through ACP.
+- **The node workspace editor is tabbed now.** Files open in tabs (a
+  preview tab from the tree, kept once you edit it), with side-by-side
+  splits, breadcrumbs, find and replace, syntax colours per language, a
+  minimap you can click to scroll, and the saved/edited diff. It is the
+  shared editor group Muse Desktop will run (M111), in English and every
+  translated language. Unsaved edits stay safe in their own tab, and a
+  close that would lose them says so instead of closing.
+
 - **Big files open a window at a time.** `read_file` and `edit_file` take
   `byteOffset` and `byteLength` for files past the whole-read size: one
   byte window is shown, edits land inside the window that was read, and a

@@ -1,0 +1,342 @@
+/* The shared editor group (M111 lane ED). Paint comes only from the
+   design tokens (--ms-*, D94) with the host editor's variables as the
+   fallback chain; heights follow the approved workbench mockups
+   (36px tab strip, 24px breadcrumbs). The editor itself, with its
+   minimap, never mirrors in a right-to-left layout (lane 0 contracts). */
+
+.ms-editor-group {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(
+    --ms-editor-surface,
+    var(--vscode-editor-background, var(--vscode-sideBar-background))
+  );
+  color: var(--ms-text, var(--vscode-editor-foreground, var(--vscode-foreground)));
+}
+
+.ms-editor-panes {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.ms-editor-panes-right {
+  flex-direction: row;
+}
+
+.ms-editor-panes-down {
+  flex-direction: column;
+}
+
+.ms-editor-pane {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.ms-editor-panes-right .ms-editor-pane + .ms-editor-pane {
+  border-inline-start: 1px solid var(--ms-border, var(--vscode-panel-border));
+}
+
+.ms-editor-panes-down .ms-editor-pane + .ms-editor-pane {
+  border-top: 1px solid var(--ms-border, var(--vscode-panel-border));
+}
+
+.ms-editor-strip {
+  display: flex;
+  flex: none;
+  align-items: stretch;
+  height: 36px;
+  background: var(
+    --ms-surface,
+    var(--vscode-tab-inactiveBackground, var(--vscode-sideBar-background))
+  );
+  border-bottom: 1px solid var(--ms-border, var(--vscode-panel-border));
+}
+
+.ms-editor-tablist {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  overflow: auto hidden;
+}
+
+.ms-editor-tab {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--ms-space-4, 4px);
+  max-width: 220px;
+  padding-inline: var(--ms-space-12, 12px) var(--ms-space-8, 8px);
+  border-inline-end: 1px solid var(--ms-border, var(--vscode-panel-border));
+  color: var(--ms-muted, var(--vscode-tab-inactiveForeground, var(--vscode-foreground)));
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.ms-editor-tab[aria-selected='true'] {
+  background: var(
+    --ms-editor-surface,
+    var(--vscode-tab-activeBackground, var(--vscode-editor-background))
+  );
+  color: var(--ms-text, var(--vscode-tab-activeForeground, var(--vscode-foreground)));
+  box-shadow: inset 0 2px 0
+    var(--ms-accent, var(--vscode-tab-activeBorderTop, var(--vscode-focusBorder)));
+}
+
+.ms-editor-tab:hover {
+  background: var(--ms-hover, var(--vscode-tab-hoverBackground, transparent));
+}
+
+.ms-editor-tab-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ms-editor-tab-preview .ms-editor-tab-title {
+  font-style: italic;
+}
+
+.ms-editor-tab-close {
+  display: inline-flex;
+  padding: 2px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.ms-editor-tab-pin {
+  display: inline-flex;
+  color: var(--ms-muted, var(--vscode-foreground));
+}
+
+.ms-editor-tab-dirty {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ms-accent, var(--vscode-tab-unfocusedActiveBorder, var(--vscode-foreground)));
+}
+
+.ms-editor-tools {
+  display: flex;
+  flex: none;
+  align-items: center;
+}
+
+.ms-editor-tool {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  padding-inline: var(--ms-space-8, 8px);
+  border: 0;
+  background: transparent;
+  color: var(--ms-text, var(--vscode-icon-foreground, var(--vscode-foreground)));
+  cursor: pointer;
+}
+
+.ms-editor-tool:disabled {
+  color: var(--ms-disabled, var(--vscode-disabledForeground, var(--vscode-foreground)));
+  cursor: default;
+  opacity: 60%;
+}
+
+.ms-editor-menu-anchor {
+  position: relative;
+  display: flex;
+  height: 100%;
+}
+
+.ms-editor-menu {
+  position: absolute;
+  inset-block-start: 100%;
+  inset-inline-end: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  padding-block: var(--ms-space-4, 4px);
+  background: var(--ms-raised, var(--vscode-menu-background, var(--vscode-sideBar-background)));
+  border: 1px solid var(--ms-border, var(--vscode-menu-border, var(--vscode-panel-border)));
+  box-shadow: var(--ms-elevation-popover, none);
+}
+
+.ms-editor-breadcrumbs {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--ms-space-4, 4px);
+  height: 24px;
+  padding-inline: var(--ms-space-12, 12px);
+  overflow: auto hidden;
+  color: var(--ms-muted, var(--vscode-breadcrumb-foreground, var(--vscode-foreground)));
+  font-size: var(--ms-font-small, 12px);
+  white-space: nowrap;
+}
+
+.ms-editor-breadcrumbs button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ms-editor-crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ms-space-4, 4px);
+}
+
+.ms-editor-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.ms-editor,
+.ms-editor-diff {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* CodeMirror owns these case-sensitive class names. */
+.ms-editor [class~='cm-editor'],
+.ms-editor-diff [class~='cm-editor'] {
+  position: relative;
+  height: 100%;
+}
+
+.ms-editor-minimap {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: 64px;
+  overflow: hidden;
+  border-inline-start: 1px solid var(--ms-divider, var(--vscode-panel-border, transparent));
+  cursor: pointer;
+}
+
+.ms-editor-minimap-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 75%;
+}
+
+.ms-editor-minimap-viewport {
+  position: absolute;
+  inset-inline: 0;
+  background: var(--ms-hover, var(--vscode-minimapSlider-background, transparent));
+  pointer-events: none;
+}
+
+.ms-editor-diff [class~='cm-mergeView'] {
+  display: block;
+  height: 100%;
+  overflow: auto;
+}
+
+.ms-editor-diff [class~='cm-mergeViewEditors'] {
+  flex-direction: column;
+}
+
+.ms-editor-diff [class~='cm-mergeViewEditor'] {
+  width: 100%;
+}
+
+.ms-editor-empty {
+  padding: var(--ms-space-16, 16px);
+  color: var(--ms-muted, var(--vscode-foreground));
+}
+
+.ms-editor-preview {
+  flex: 1;
+  overflow: auto;
+  padding: var(--ms-space-12, 12px);
+}
+
+.ms-editor-preview-frame {
+  max-width: 100%;
+  margin-inline: auto;
+  overflow: hidden;
+  border: 1px solid var(--ms-border, var(--vscode-panel-border));
+}
+
+.ms-editor-status {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ms-space-12, 12px);
+  padding: var(--ms-space-4, 4px) var(--ms-space-12, 12px);
+  border-top: 1px solid var(--ms-border, var(--vscode-panel-border));
+  background: var(
+    --ms-surface,
+    var(--vscode-statusBar-background, var(--vscode-sideBar-background))
+  );
+  color: var(--ms-text, var(--vscode-statusBar-foreground, var(--vscode-foreground)));
+  font-size: var(--ms-font-small, 12px);
+}
+
+.ms-editor-status label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ms-space-4, 4px);
+}
+
+.ms-editor-status button {
+  padding: var(--ms-space-4, 4px) var(--ms-space-8, 8px);
+  border: 1px solid var(--ms-control-border, var(--vscode-button-border, var(--vscode-foreground)));
+  background: var(--ms-secondary-surface, var(--vscode-button-secondaryBackground, transparent));
+  color: var(
+    --ms-secondary-text,
+    var(--vscode-button-secondaryForeground, var(--vscode-foreground))
+  );
+  font: inherit;
+  cursor: pointer;
+}
+
+.ms-editor-status button[aria-pressed='true'] {
+  background: var(--ms-selection, var(--vscode-editor-selectionBackground, transparent));
+  color: var(--ms-on-selection, var(--vscode-editor-foreground, var(--vscode-foreground)));
+}
+
+.ms-editor-menu button {
+  padding: var(--ms-space-4, 4px) var(--ms-space-12, 12px);
+  border: 0;
+  background: transparent;
+  color: var(--ms-raised-text, var(--vscode-menu-foreground, var(--vscode-foreground)));
+  text-align: start;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ms-editor-menu button:hover {
+  background: var(--ms-selection, var(--vscode-menu-selectionBackground, transparent));
+  color: var(--ms-on-selection, var(--vscode-menu-selectionForeground, var(--vscode-foreground)));
+}
+
+.ms-editor-breadcrumbs button:hover {
+  color: var(--ms-text, var(--vscode-breadcrumb-focusForeground, var(--vscode-foreground)));
+}
+
+.ms-editor-tab:focus-visible,
+.ms-editor-tool:focus-visible,
+.ms-editor-tab-close:focus-visible,
+.ms-editor-breadcrumbs button:focus-visible,
+.ms-editor-menu button:focus-visible,
+.ms-editor-status button:focus-visible {
+  outline: var(--ms-focus-width, 2px) solid var(--ms-focus, var(--vscode-focusBorder));
+  outline-offset: var(--ms-focus-offset, 1px);
+}
