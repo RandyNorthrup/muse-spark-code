@@ -3379,7 +3379,7 @@
   "dictationUnavailable": "Sesle dikte bu platformda kullanılamıyor.",
   "dictationUnavailableLinux": "Linux diktesi, PulseAudio veya PulseAudio destekli PipeWire çalıştıran x64 veya arm64 bilgisayar gerektirir.",
   "dictationUnavailableWindows": "Sesle dikte Windows PowerShell gerektirir, ancak bulunamadı (SystemRoot ayarlanmamış).",
-  "dictationUnavailableDarwin": "Sesle dikte macOS yardımcısını (native/darwin/{app}/Contents/MacOS/muse-dictate) gerektirir, ancak bu derleme onu içermiyor.",
+  "dictationUnavailableDarwin": "Sesle dikte macOS yardımcısını (native/darwin/{app}/Contents/MacOS/muse-dictate) gerektirir, ancak bu derleme onu içermiyor. Muse Spark Code’u yeniden kurun; kaynak kodu kopyasında “bash native/darwin/build.sh” komutuyla derleyin.",
   "dictationNotLoaded": "dikte kodu yüklenemedi; uzantıyı yeniden yükleyin ve pencereyi yeniden yükleyin. Ayrıntılar günlükte.",
   "announceListening": "Dinleniyor",
   "announceStoppedListening": "Dinleme durduruldu",
@@ -4439,6 +4439,14 @@
     "invalid": "kaydedilen kayıt defteri geçersiz",
     "io": "kayıt yazılamadı",
     "contended": "çalışan başka bir kopya sürekli önce kaydetti; yeniden deneyin"
+  },
+  "nativeHelper": {
+    "missingInstalled": "{helper} yerel yardımcısı Muse Spark Code’un bu kurulumunda eksik, bu yüzden bu başlatılamadı. Muse Spark Code’u yeniden kurun.",
+    "missingSource": "{helper} yerel yardımcısı bu kaynak kodu kopyasında derlenmemiş, bu yüzden bu başlatılamadı. “{command}” komutuyla derleyin ve yeniden deneyin.",
+    "unloadableInstalled": "{helper} yerel yardımcısı kurulu, ancak bu bilgisayar onu çalıştıramıyor (hasarlı, sistem tarafından engellenmiş veya başka bir işlemci için derlenmiş olabilir), bu yüzden bu başlatılamadı. Muse Spark Code’u yeniden kurun.",
+    "unloadableSource": "{helper} yerel yardımcısı derlenmiş, ancak bu bilgisayar onu çalıştıramıyor (hasarlı, sistem tarafından engellenmiş veya başka bir işlemci için derlenmiş olabilir), bu yüzden bu başlatılamadı. “{command}” komutuyla yeniden derleyin ve yeniden deneyin.",
+    "unsupported": "Muse Spark Code, {arch} üzerindeki {platform} için yerel yardımcı içermiyor, bu yüzden bu başlatılamadı.",
+    "windowsJob": "Windows iş yardımcısı hazırlanamadı, bu yüzden bu başlatılamadı. Muse Spark Code onu ilk kullanımda, native/windows klasöründeki dosyalardan Windows PowerShell 5.1 ile derler: Muse Spark Code’u yeniden kurun ve Windows PowerShell’in başladığını, güvenlik yazılımının onu engellemediğini denetleyin."
   },
   "acpQuestionFormMessage": "Muse'un size bir sorusu var.",
   "acpQuestionAsked": "Muse'un bir sorusu var; bu düzenleyici soruyu form olarak gösteremiyor, bu yüzden bir sonraki iletinizde yanıtlayın:",
@@ -6093,7 +6101,7 @@
   },
   "pricePerMillion": "Milyon jeton başına fiyatlar.",
   "modelsNotScanned": "Bu sağlayıcının modellerini listelemek için yenileyin.",
-  "teamFileHelperMissing": "Doğrulanmış yerel çalışan dosyası yardımcısı kullanılamıyor.",
+  "teamFileHelperMissing": "Doğrulanmış yerel çalışan dosyası yardımcısı kullanılamıyor. Muse Spark Code’u yeniden kurun; kaynak kodu kopyasında önce yerel yardımcıları derleyin.",
   "teamFileNativeFailed": "Çalışan dosyasının yerel doğrulaması başarısız oldu; dosya içeriği yazılmadı.",
   "teamFileHelperFailed": "Çalışan dosyasının yerel yardımcısının kendisi başarısız oldu ({kind}); dosya içeriği yazılmadı.",
   "teamFileLinked": "Dosya yolu bir bağlantı veya farklı yorumlanan bir bileşen içeriyor.",

@@ -13,7 +13,7 @@ export interface SerialInterpreterProbe {
 
 /**
 The POSIX serial helper's Python (`native/posix/serial.py` runs under it, with
-pyserial from the person's install) as one absolute path found once on the
+pyserial from the person's install) as one absolute path found on the
 absolute entries of PATH outside the run workspace, as `gh`, `git` and the
 Linux recorders are found. A bare `python3` would let a program planted in a
 relative or workspace PATH entry run in place of the interpreter (CC-WINRUNTEAM).

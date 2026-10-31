@@ -3503,7 +3503,7 @@
   "dictationUnavailable": "Hlasové diktování není na této platformě k dispozici.",
   "dictationUnavailableLinux": "Diktování v Linuxu vyžaduje počítač x64 nebo arm64 se spuštěným PulseAudio nebo PipeWire.",
   "dictationUnavailableWindows": "Hlasové diktování vyžaduje Windows PowerShell, který nebyl nalezen (SystemRoot není nastaveno).",
-  "dictationUnavailableDarwin": "Hlasové diktování vyžaduje pomocnou aplikaci pro macOS (native/darwin/{app}/Contents/MacOS/muse-dictate), kterou toto sestavení neobsahuje.",
+  "dictationUnavailableDarwin": "Hlasové diktování vyžaduje pomocnou aplikaci pro macOS (native/darwin/{app}/Contents/MacOS/muse-dictate), kterou toto sestavení neobsahuje. Přeinstalujte Muse Spark Code; ve zdrojovém repozitáři ji sestavte příkazem „bash native/darwin/build.sh“.",
   "dictationNotLoaded": "kód diktování se nepodařilo načíst; přeinstalujte rozšíření a znovu načtěte okno. Podrobnosti jsou v protokolu.",
   "announceListening": "Poslouchám",
   "announceStoppedListening": "Poslech zastaven",
@@ -4603,6 +4603,14 @@
     "invalid": "uložený registr je neplatný",
     "io": "uložení se nezdařilo zapsat",
     "contended": "jiná spuštěná kopie stále ukládala jako první; zkuste to znovu"
+  },
+  "nativeHelper": {
+    "missingInstalled": "Nativní pomocník {helper} v této instalaci Muse Spark Code chybí, takže se to nepodařilo spustit. Přeinstalujte Muse Spark Code.",
+    "missingSource": "Nativní pomocník {helper} není v tomto zdrojovém repozitáři sestaven, takže se to nepodařilo spustit. Sestavte ho příkazem „{command}“ a zkuste to znovu.",
+    "unloadableInstalled": "Nativní pomocník {helper} je nainstalován, ale tento počítač ho nedokáže spustit (může být poškozený, zablokovaný systémem nebo sestavený pro jiný procesor), takže se to nepodařilo spustit. Přeinstalujte Muse Spark Code.",
+    "unloadableSource": "Nativní pomocník {helper} je sestaven, ale tento počítač ho nedokáže spustit (může být poškozený, zablokovaný systémem nebo sestavený pro jiný procesor), takže se to nepodařilo spustit. Sestavte ho znovu příkazem „{command}“ a zkuste to znovu.",
+    "unsupported": "Muse Spark Code nedodává žádného nativního pomocníka pro {platform} na {arch}, takže se to nepodařilo spustit.",
+    "windowsJob": "Pomocníka úloh pro Windows se nepodařilo připravit, takže se to nepodařilo spustit. Muse Spark Code ho při prvním použití sestaví ve Windows PowerShellu 5.1 ze souborů ve své složce native/windows: přeinstalujte Muse Spark Code a zkontrolujte, že se Windows PowerShell spouští a že ho nebrání bezpečnostní software."
   },
   "acpQuestionFormMessage": "Muse má na vás otázku.",
   "acpQuestionAsked": "Muse má otázku; tento editor ji neumí zobrazit jako formulář, odpovězte proto v další zprávě:",
@@ -6365,7 +6373,7 @@
   },
   "pricePerMillion": "Ceny za milion tokenů.",
   "modelsNotScanned": "Obnovte, aby se vypsaly modely tohoto poskytovatele.",
-  "teamFileHelperMissing": "Ověřený nativní pomocník pro soubory pracovníků není dostupný.",
+  "teamFileHelperMissing": "Ověřený nativní pomocník pro soubory pracovníků není dostupný. Přeinstalujte Muse Spark Code; ve zdrojovém repozitáři nejprve sestavte nativní pomocníky.",
   "teamFileNativeFailed": "Nativní ověření souboru pracovníka selhalo; nebyl zapsán žádný obsah souboru.",
   "teamFileHelperFailed": "Nativní pomocník souboru pracovníka selhal ({kind}); nebyl zapsán žádný obsah souboru.",
   "teamFileLinked": "Cesta souboru obsahuje odkaz nebo jinak interpretovanou část.",

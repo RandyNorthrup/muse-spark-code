@@ -3441,7 +3441,7 @@
   "dictationUnavailable": "El dictado por voz no está disponible en esta plataforma.",
   "dictationUnavailableLinux": "El dictado en Linux necesita un equipo x64 o arm64 con PulseAudio o PipeWire en ejecución.",
   "dictationUnavailableWindows": "El dictado por voz necesita Windows PowerShell, que no se encontró (SystemRoot no está establecido).",
-  "dictationUnavailableDarwin": "El dictado por voz necesita el asistente de macOS (native/darwin/{app}/Contents/MacOS/muse-dictate), que esta compilación no incluye.",
+  "dictationUnavailableDarwin": "El dictado por voz necesita el asistente de macOS (native/darwin/{app}/Contents/MacOS/muse-dictate), que esta compilación no incluye. Reinstale Muse Spark Code; en una copia del código fuente, compílelo con «bash native/darwin/build.sh».",
   "dictationNotLoaded": "no se pudo cargar el código del dictado; reinstale la extensión y vuelva a cargar la ventana. El registro tiene los detalles.",
   "announceListening": "Escuchando",
   "announceStoppedListening": "Se dejó de escuchar",
@@ -4521,6 +4521,14 @@
     "invalid": "el registro guardado no es válido",
     "io": "el guardado no se pudo escribir",
     "contended": "otra copia en ejecución siguió guardando primero; inténtelo de nuevo"
+  },
+  "nativeHelper": {
+    "missingInstalled": "Falta el asistente nativo {helper} en esta instalación de Muse Spark Code, por lo que no se pudo iniciar. Reinstale Muse Spark Code.",
+    "missingSource": "El asistente nativo {helper} no está compilado en esta copia del código fuente, por lo que no se pudo iniciar. Compílelo con «{command}» e inténtelo de nuevo.",
+    "unloadableInstalled": "El asistente nativo {helper} está instalado, pero este equipo no puede ejecutarlo (puede estar dañado, bloqueado por el sistema o compilado para otro procesador), por lo que no se pudo iniciar. Reinstale Muse Spark Code.",
+    "unloadableSource": "El asistente nativo {helper} está compilado, pero este equipo no puede ejecutarlo (puede estar dañado, bloqueado por el sistema o compilado para otro procesador), por lo que no se pudo iniciar. Vuelva a compilarlo con «{command}» e inténtelo de nuevo.",
+    "unsupported": "Muse Spark Code no incluye ningún asistente nativo para {platform} en {arch}, por lo que no se pudo iniciar.",
+    "windowsJob": "No se pudo preparar el asistente de trabajos de Windows, por lo que no se pudo iniciar. Muse Spark Code lo compila en el primer uso con Windows PowerShell 5.1 a partir de los archivos de su carpeta native/windows: reinstale Muse Spark Code y compruebe que Windows PowerShell se inicia y que ningún software de seguridad lo bloquea."
   },
   "acpQuestionFormMessage": "Muse tiene una pregunta para usted.",
   "acpQuestionAsked": "Muse tiene una pregunta; este editor no puede mostrarla como formulario, así que responda en su próximo mensaje:",
@@ -6229,7 +6237,7 @@
   },
   "pricePerMillion": "Precios por millón de tokens.",
   "modelsNotScanned": "Actualice para listar los modelos de este proveedor.",
-  "teamFileHelperMissing": "El asistente nativo verificado para archivos de trabajadores no está disponible.",
+  "teamFileHelperMissing": "El asistente nativo verificado para archivos de trabajadores no está disponible. Reinstale Muse Spark Code; en una copia del código fuente, compile antes los asistentes nativos.",
   "teamFileNativeFailed": "Falló la comprobación nativa del archivo del trabajador; no se escribió contenido en ningún archivo.",
   "teamFileHelperFailed": "El propio ayudante nativo del archivo del trabajador falló ({kind}); no se escribió contenido en ningún archivo.",
   "teamFileLinked": "La ruta del archivo contiene un enlace o un componente reinterpretado.",

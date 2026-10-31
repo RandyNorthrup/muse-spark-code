@@ -55,7 +55,7 @@ export interface NativeSerialDeps {
 }
 export function nativeSerial(deps: NativeSerialDeps) {
   // The helpers' PATH holds no entry of the run workspace; the POSIX helper's
-  // Python is found once on it by absolute path (`resolveSerialInterpreter`).
+  // Python is found on it by absolute path (`resolveSerialInterpreter`).
   const env = workspaceChildEnvironment(
     deps.platform,
     withoutKeyringRoutes(withoutCredentials(deps.env)),

@@ -23,6 +23,8 @@ import { Buffer } from 'node:buffer'
 import { chmod, lstat, mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { StringDecoder } from 'node:string_decoder'
 import { fill } from '../../../shared/l10n/text'
+import type { NativeHelperFault } from '../../../shared/nativeHelperError'
+import { isNativeStartFailure, nativeHelperError } from '../../nativeHelper'
 import { realpathSync } from 'node:fs'
 
 const PRIVATE_DIRECTORY_MODE = 0o700
@@ -134,13 +136,9 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
   // diagnostics and refuse malformed/truncated output.
   const readCheck = (command: string, args: readonly string[]): Promise<string | undefined> =>
     new Promise((resolve) => {
-      let child: HelperChild
-      try {
-        child = deps.spawn(command, args, childEnvironment(deps.environment))
-      } catch {
-        resolve(undefined)
-        return
-      }
+      // A program that will not start rejects here, for the caller to say: the
+      // helper cannot run, or the signature check reads it as unverified.
+      const child: HelperChild = deps.spawn(command, args, childEnvironment(deps.environment))
       let isDone = false
       let output = ''
       const decoder = new StringDecoder('utf8')
@@ -163,6 +161,9 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
         finish(description === 'exit code 0' && decoder.end() === '' ? output : undefined)
       })
     })
+  /** The signed app is not there, or this Mac will not run it: said with what to do. */
+  const helperUnusable = (fault: NativeHelperFault) =>
+    unavailable(nativeHelperError(fault, deps.helperPath, deps.platform).message)
   const verifiedPath = async (): Promise<string | undefined> => {
     if (!deps.verifyTrustedHelper) return undefined
     try {
@@ -202,20 +203,23 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
     isMicrophoneSelected: boolean,
   ): ReturnType<ScreenRecordingDriver['available']> => {
     if (deps.remoteName !== undefined) return { ok: false, reason: UI_TEXT.media.recordingRemote }
-    if (
-      deps.platform !== 'darwin' ||
-      !path.isAbsolute(deps.helperPath) ||
-      !deps.fileExists(deps.helperPath)
-    )
-      // Names the architecture's own signed .app the package ships: the
-      // last .app on the path, since an ancestor folder can end in .app too
-      // (a sandboxed temp root, an installed host).
+    if (deps.platform !== 'darwin' || !path.isAbsolute(deps.helperPath))
       return unavailable(
         `native/darwin/${deps.helperPath.split(/[\\/]/u).findLast((part) => part.endsWith('.app')) ?? path.basename(deps.helperPath)}`,
       )
+    // Names the architecture's own signed .app the package ships (the last
+    // .app on the path, since an ancestor folder can end in .app too: a
+    // sandboxed temp root, an installed host) and what to do about it.
+    if (!deps.fileExists(deps.helperPath)) return helperUnusable('missing')
     const helper = await verifiedPath()
-    if (!helper) return unavailable('helperIntegrity')
-    const output = await readCheck(helper, ['--record-screen', '--probe'])
+    if (!helper) return helperUnusable('unloadable')
+    let output: string | undefined
+    try {
+      output = await readCheck(helper, ['--record-screen', '--probe'])
+    } catch (error: unknown) {
+      if (!isNativeStartFailure(error, helper)) throw error
+      return helperUnusable('unloadable')
+    }
     try {
       const probe = probeSchema.parse(JSON.parse(output ?? ''))
       if (isMicrophoneSelected && probe.microphone === 'restricted')
@@ -258,7 +262,7 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
         return {
           stop: () => Promise.resolve(),
           cancel: () => Promise.resolve(),
-          result: Promise.resolve(unavailable('helperIntegrity')),
+          result: Promise.resolve(helperUnusable('unloadable')),
         }
       }
       const subscribeSuspend = deps.onSuspend
@@ -289,12 +293,14 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
           ],
           childEnvironment(deps.environment),
         )
-      } catch {
+      } catch (error: unknown) {
         await dispose()
+        // The helper's own start failure is said; any other failure is not ours to hide.
+        if (!isNativeStartFailure(error, helperPath)) throw error
         return {
           stop: () => Promise.resolve(),
           cancel: () => Promise.resolve(),
-          result: Promise.resolve(unavailable('muse-dictate')),
+          result: Promise.resolve(helperUnusable('unloadable')),
         }
       }
       let stopRun: () => Promise<void>

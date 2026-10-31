@@ -3317,7 +3317,7 @@
   "dictationUnavailable": "이 플랫폼에서는 음성 받아쓰기를 사용할 수 없습니다.",
   "dictationUnavailableLinux": "Linux 받아쓰기에는 PulseAudio 또는 PulseAudio를 지원하는 PipeWire가 실행되는 x64 또는 arm64 컴퓨터가 필요합니다.",
   "dictationUnavailableWindows": "음성 받아쓰기에는 Windows PowerShell이 필요하지만 찾을 수 없습니다(SystemRoot가 설정되지 않음).",
-  "dictationUnavailableDarwin": "음성 받아쓰기에는 macOS 도우미(native/darwin/{app}/Contents/MacOS/muse-dictate)가 필요하지만 이 빌드에는 포함되어 있지 않습니다.",
+  "dictationUnavailableDarwin": "음성 받아쓰기에는 macOS 도우미(native/darwin/{app}/Contents/MacOS/muse-dictate)가 필요하지만 이 빌드에는 포함되어 있지 않습니다. Muse Spark Code를 다시 설치하세요. 소스 체크아웃에서는 “bash native/darwin/build.sh”로 빌드하세요.",
   "dictationNotLoaded": "받아쓰기 코드를 불러오지 못했습니다. 확장을 다시 설치하고 창을 다시 로드하세요. 자세한 내용은 로그에 있습니다.",
   "announceListening": "듣는 중",
   "announceStoppedListening": "듣기 중지됨",
@@ -4357,6 +4357,14 @@
     "invalid": "저장된 레지스트리가 잘못되었습니다",
     "io": "저장 내용을 쓸 수 없었습니다",
     "contended": "실행 중인 다른 복사본이 계속 먼저 저장했습니다. 다시 시도하세요"
+  },
+  "nativeHelper": {
+    "missingInstalled": "네이티브 도우미 {helper}이(가) 이 Muse Spark Code 설치에 없어 시작하지 못했습니다. Muse Spark Code를 다시 설치하세요.",
+    "missingSource": "네이티브 도우미 {helper}이(가) 이 소스 체크아웃에 빌드되어 있지 않아 시작하지 못했습니다. “{command}”로 빌드한 다음 다시 시도하세요.",
+    "unloadableInstalled": "네이티브 도우미 {helper}이(가) 설치되어 있지만 이 컴퓨터에서 실행할 수 없어(손상되었거나, 시스템이 차단했거나, 다른 프로세서용으로 빌드되었을 수 있습니다) 시작하지 못했습니다. Muse Spark Code를 다시 설치하세요.",
+    "unloadableSource": "네이티브 도우미 {helper}이(가) 빌드되어 있지만 이 컴퓨터에서 실행할 수 없어(손상되었거나, 시스템이 차단했거나, 다른 프로세서용으로 빌드되었을 수 있습니다) 시작하지 못했습니다. “{command}”로 다시 빌드한 다음 다시 시도하세요.",
+    "unsupported": "Muse Spark Code는 {arch}의 {platform}용 네이티브 도우미를 제공하지 않아 시작하지 못했습니다.",
+    "windowsJob": "Windows 작업 도우미를 준비하지 못해 시작하지 못했습니다. Muse Spark Code는 처음 사용할 때 native/windows 폴더의 파일로 Windows PowerShell 5.1을 사용해 이를 컴파일합니다. Muse Spark Code를 다시 설치하고, Windows PowerShell이 시작되는지와 보안 소프트웨어가 차단하지 않는지 확인하세요."
   },
   "acpQuestionFormMessage": "Muse가 질문이 있습니다.",
   "acpQuestionAsked": "Muse가 질문이 있습니다. 이 편집기에서는 양식으로 표시할 수 없으니 다음 메시지로 답해 주세요:",
@@ -5957,7 +5965,7 @@
   },
   "pricePerMillion": "백만 토큰당 가격.",
   "modelsNotScanned": "이 공급자의 모델을 나열하려면 새로 고치세요.",
-  "teamFileHelperMissing": "검증된 작업자 파일용 네이티브 도우미를 사용할 수 없습니다.",
+  "teamFileHelperMissing": "검증된 작업자 파일용 네이티브 도우미를 사용할 수 없습니다. Muse Spark Code를 다시 설치하세요. 소스 체크아웃에서는 먼저 네이티브 도우미를 빌드하세요.",
   "teamFileNativeFailed": "작업자 파일의 네이티브 검증에 실패했습니다. 파일 내용은 기록되지 않았습니다.",
   "teamFileHelperFailed": "작업자 파일의 네이티브 헬퍼 자체가 실패했습니다({kind}). 파일 내용은 기록되지 않았습니다.",
   "teamFileLinked": "파일 경로에 링크 또는 다르게 해석되는 구성 요소가 포함되어 있습니다.",

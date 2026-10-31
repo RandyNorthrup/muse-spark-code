@@ -86,6 +86,7 @@ import {
 } from '../core/backends/musecode/sandbox'
 import { DeadlineError, unlessAborted } from '../core/timeouts'
 import { isMissingApiKeyError, isModelApiError } from '../core/backends/modelapi/transport'
+import { isNativeHelperSentence } from '../core/nativeHelper'
 import {
   acpUsageSnapshotSchema,
   readAcpUsage,
@@ -4851,6 +4852,9 @@ function outboundSentence(message: string): string | undefined {
     if (unprefixed.startsWith(prefix)) unprefixed = unprefixed.slice(prefix.length)
   }
   if (outboundSentences().has(unprefixed)) return message
+  // A native helper that is missing or cannot start: the sentence says which
+  // and what to do, its slots hold a file name and a command only.
+  if (isNativeHelperSentence(unprefixed)) return message
   // The readiness check's CLI refusal names the folders it searched after
   // its fixed sentence (`Searched: …`): only the sentence leaves, never a
   // path, and the built error keeps the SDK's prefix.
