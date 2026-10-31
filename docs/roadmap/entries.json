@@ -697,7 +697,7 @@
     {
       "id": "M96",
       "title": "Agent roles and teams",
-      "summary": "Hidden Roles and Agents bind saved charters, conversation overrides, paid Try, engine discovery, lifecycle hooks and native worker file creation, while the scheduler, advanced controls and VS Code certification are in progress.",
+      "summary": "Hidden Roles and Agents bind saved charters, overrides, paid Try, engine discovery, hooks and worker file creation; Muse Code workers run on the team's own host, external agents wait on a captured switch, and the scheduler and certification are in progress.",
       "area": "agents"
     },
     {

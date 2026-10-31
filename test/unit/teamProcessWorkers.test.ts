@@ -26,8 +26,10 @@ import {
   createProcessTeamPorts,
   type ProcessTeamPorts,
   type TeamMuseServeLaunch,
+  type TeamProcessWorkersDeps,
 } from '../../src/host/team/teamProcessWorkers'
-import { TEAM_MODEL_TEXT } from '../../src/shared/constants'
+import { createTeamHost } from '../../src/host/team/teamHostEntry'
+import { TEAM_MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import type { TeamAgentRef, TeamSnapshot } from '../../src/shared/team'
 import { TEAM_WORKSPACE_KEYS } from '../../src/shared/teamConversation'
@@ -131,6 +133,44 @@ function storedTeam(agent: TeamAgentRef): TeamSnapshot {
   }
 }
 
+/** The process ports' deps over a rig's real folders; `resolve` can take Muse Code away after the setup probe. */
+function processWorkerDeps(input: {
+  readonly repo: string
+  readonly storage: string
+  readonly journal: string
+  readonly env: NodeJS.ProcessEnv
+  readonly isTrusted: () => boolean
+  readonly resolve: (launch: TeamMuseServeLaunch | undefined) => TeamMuseServeLaunch | undefined
+  readonly pathEntries: () => readonly string[]
+  readonly presets?: Readonly<Record<'own' | 'claude' | 'codex' | 'gemini' | 'copilot', AcpPreset>>
+}): Omit<TeamProcessWorkersDeps, 'runGit'> {
+  const museLaunch: TeamMuseServeLaunch | undefined =
+    MUSE === undefined
+      ? undefined
+      : {
+          command: MUSE,
+          prefixArgs: [],
+          // Muse Code's own echo provider: a real host answering without a model request.
+          postureArgs: ['--provider', 'echo', '--no-session-log', '--disable-sandbox'],
+          env: input.env,
+        }
+  return {
+    repositoryRoot: () => input.repo,
+    storageRoot: input.storage,
+    journalStorageDirectory: input.journal,
+    platform: process.platform,
+    isTrusted: input.isTrusted,
+    extensionVersion: '0.0.0-test',
+    resolveMuseServe: () => input.resolve(museLaunch),
+    isContributorMode: () => false,
+    baseEnv: () => input.env,
+    pathEntries: input.pathEntries,
+    ...(input.presets !== undefined && { presets: input.presets }),
+    now: () => Date.now(),
+    log: silentCoreLog(),
+  }
+}
+
 async function makeRig(options: {
   readonly agent: TeamAgentRef
   readonly presets?: Readonly<Record<'own' | 'claude' | 'codex' | 'gemini' | 'copilot', AcpPreset>>
@@ -147,35 +187,20 @@ async function makeRig(options: {
   ])
   const cards: TeamCardItem[] = []
   const env = isolatedRuntimeEnvironment(home, root)
-  const museLaunch: TeamMuseServeLaunch | undefined =
-    MUSE === undefined
-      ? undefined
-      : {
-          command: MUSE,
-          prefixArgs: [],
-          // Muse Code's own echo provider: a real host answering without a model request.
-          postureArgs: ['--provider', 'echo', '--no-session-log', '--disable-sandbox'],
-          env,
-        }
   const state = { hasMuse: options.withoutMuse !== true, pathEntries: options.pathEntries ?? [] }
   const journal = path.join(root, 'journal')
   let isTrusted = true
-  const processPorts = createProcessTeamPorts({
-    repositoryRoot: () => repo,
-    storageRoot: storage,
-    journalStorageDirectory: journal,
-    platform: process.platform,
+  const processDeps = processWorkerDeps({
+    repo,
+    storage,
+    journal,
+    env,
     isTrusted: () => isTrusted,
-    extensionVersion: '0.0.0-test',
-    resolveMuseServe: () => (state.hasMuse ? museLaunch : undefined),
-    isContributorMode: () => false,
-    baseEnv: () => env,
+    resolve: (launch) => (state.hasMuse ? launch : undefined),
     pathEntries: () => state.pathEntries,
-    runGit: realTeamGit,
     ...(options.presets !== undefined && { presets: options.presets }),
-    now: () => Date.now(),
-    log: silentCoreLog(),
   })
+  const processPorts = createProcessTeamPorts({ ...processDeps, runGit: realTeamGit })
   const engine = enginePortsWithoutWorker({
     repositoryRoot: () => repo,
     storageRoot: storage,
@@ -236,12 +261,15 @@ async function delegate(rig: Rig, role: string, brief: string): Promise<string> 
   return id
 }
 
-function storedTask(rig: Rig, taskId: string) {
+function storedTask(rig: Pick<Rig, 'stateValues'>, taskId: string) {
   return storedTaskOf(rig.stateValues, taskId)
 }
 
 /** The task's final phase: `done` or `failed` with the person's sentence. */
-async function settled(rig: Rig, taskId: string): Promise<{ phase: string; failure: string }> {
+async function settled(
+  rig: Pick<Rig, 'stateValues'>,
+  taskId: string,
+): Promise<{ phase: string; failure: string }> {
   await expect
     .poll(() => ['done', 'failed'].includes(storedTask(rig, taskId)?.phase ?? ''), {
       timeout: 45_000,
@@ -252,7 +280,9 @@ async function settled(rig: Rig, taskId: string): Promise<{ phase: string; failu
 }
 
 /** Every launch record the team's journal holds, as the launcher wrote them. */
-function launchRecords(rig: Rig): { taskId: string; pid: number | undefined; command: string }[] {
+function launchRecords(
+  rig: Pick<Rig, 'journal'>,
+): { taskId: string; pid: number | undefined; command: string }[] {
   const owners = existsSync(path.join(rig.journal, 'team', 'journal'))
     ? readdirSync(path.join(rig.journal, 'team', 'journal'))
     : []
@@ -366,6 +396,78 @@ describe('one worker port over every kind a surface runs', () => {
       expect(end.failure).toBe(TEAM_MODEL_TEXT.hostMuseNotFound)
       expect(launchRecords(rig)).toEqual([])
     },
+  )
+
+  it.skipIf(MUSE === undefined)(
+    'loads its process ports on the first Muse Code task through the team host entry and stops them with the service',
+    async () => {
+      const root = await realpath(await mkdtemp(path.join(tmpdir(), 'muse-team-entry-')))
+      roots.push(root)
+      const { repo, storage } = await initRigFolders(root)
+      const home = path.join(root, 'home')
+      await mkdir(home, { recursive: true })
+      const journal = path.join(root, 'journal')
+      const stateValues = new Map<string, unknown>([
+        [TEAM_WORKSPACE_KEYS.team, storedTeam(MUSE_AGENT)],
+      ])
+      const cards: TeamCardItem[] = []
+      const service = await createTeamHost(UI_TEXT, 'en', {
+        ...realServiceDeps({
+          orchestrator: ORCHESTRATOR,
+          isTrusted: () => true,
+          cards,
+          state: fileState(path.join(root, 'state.json'), stateValues),
+        }),
+        paid: { allowKeyTasks: () => Promise.resolve(true) },
+        engine: {
+          repositoryRoot: () => repo,
+          storageRoot: storage,
+          platform: process.platform,
+          isTrusted: () => true,
+          listModels: () => Promise.reject(new Error('the engine is not asked here')),
+          startWorker: () => Promise.reject(new Error('the engine is not asked here')),
+          runGit: realTeamGit,
+          now: () => Date.now(),
+          log: silentCoreLog(),
+        },
+        processWorkers: processWorkerDeps({
+          repo,
+          storage,
+          journal,
+          env: isolatedRuntimeEnvironment(home, root),
+          isTrusted: () => true,
+          resolve: (launch) => launch,
+          pathEntries: () => [],
+        }),
+      })
+      await service.probeEntries()
+      const answer = await service.teamRunner.delegate(
+        {
+          tasks: [
+            {
+              role: 'engineering',
+              brief: `Say exactly this:\n${ECHOED_REPORT}`,
+              reason: { code: 'parallel', detail: 'independent work' },
+            },
+          ],
+        },
+        toolContext(ORCHESTRATOR),
+      )
+      const taskId = (JSON.parse(answer.output) as { tasks: { task_id: string }[] }).tasks[0]
+        ?.task_id
+      expect(taskId).toBeDefined()
+      const end = await settled({ stateValues }, taskId ?? '')
+      expect(end).toEqual({ phase: 'done', failure: '' })
+      const hosts = launchRecords({ journal }).filter(
+        (record) => record.taskId === 'muse-host-team',
+      )
+      expect(hosts).toHaveLength(1)
+      const pid = hosts[0]?.pid ?? 0
+      expect(isProcessAlive(pid)).toBe(true)
+      await service.dispose()
+      await expect.poll(() => isProcessAlive(pid), { timeout: 10_000 }).toBe(false)
+    },
+    WORKER_TEST_TIMEOUT_MS,
   )
 
   it('keeps an entry whose Muse Code is not installed out of the roster', async () => {

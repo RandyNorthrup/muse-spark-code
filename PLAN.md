@@ -14897,6 +14897,30 @@ naming the questions, options and recommendations in that record. Slot
 checks wait on RLF-TEAMCORE's governed slots. Teams stay off until a
 second model is set up (D227).
 
+**Status 2026-10-31 (lane RLF-TEAMWORKERS, finished in Claude Code after Muse's weekly allowance ran out; decisions by the lead in the lane brief): building.**
+TEAMWIRE's open question 2 is decided and built: the team host binding in the
+lazy team bundle owns the assembly. A composite worker port sits beside the
+engine port (`compositeWorkerPort.ts`); its Muse Code and external-agent half
+loads in `dist/teamProcess.js` (budget 375 KiB, measured 313.0) on the first
+such task. The first Muse Code worker starts the team's own host through
+`startTeamMuseCodeHost` over `startNativeTeamLifetime` (a read-only role gets
+the second host Muse Code itself keeps from writes and the shell), and both
+stop with the team; an external agent runs as a held ACP session per task
+through `acpProcess.ts`, its permission requests answered by the role's
+policy and its sign-in report turned into words telling the person to sign in
+with that agent's CLI. `canRun` accepts all three kinds in the editor;
+headless `exec --team` keeps its engine-only port (M96b). Proven on real
+parts (`docs/certification/rlf-teamworkers.md`): the POSIX launch drivers, a
+real `muse serve` on Muse Code's echo provider and the real packed ACP agent
+with no sign-in; no model turn has run through either kind (Muse's allowance
+is out until 2026-11-02T00:00:00Z; the exact run is in that record). Not built,
+decided by the lead and left open there with reasons: the roles-file snapshot
+(Q1, option a) and the governed check slots (Q3). No external preset has a
+captured switch for leaving out the person's own MCP servers, so every
+external agent refuses with words until one is captured (the record names the
+Muse Code switch this lane measured). Teams stay off until a second model is
+set up (D227); not in a release yet.
+
 **Status 2026-10-30 (CC-INT5, D75's caps): built.** The three bounds D75's
 2026-10-17 amendments removed are out of the code: the command-slot count,
 the shared-server default limit (a shared resource has the limit its person
