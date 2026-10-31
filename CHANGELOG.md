@@ -448,6 +448,9 @@ happened, not what was planned; superseded entries are kept.
   name when it resets, instead of an internal error with the reset buried in
   text. Automatic retries never fire before the reset; ACP clients get the
   reset instant and a not-retryable flag to wait on.
+- `exec --team` on the wrong backend now names the option it refuses
+  ("These options require the Model API backend (--backend modelApi):
+  --team.") instead of showing an unfilled "{options}" placeholder.
 - A pack index is accepted only when the signature covers those exact bytes
   and the signer is the pack workflow on `main`, exactly. A signature for a
   branch whose name merely begins with `main`, or a signed statement that
