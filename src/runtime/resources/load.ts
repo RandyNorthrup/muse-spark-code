@@ -145,6 +145,12 @@ export function lazyRuntimeResources(
     // takes the user's umask (002 on Ubuntu desktops), so it keeps a folder of
     // its own that it creates private.
     registryFile: path.join(options.machineDir, 'resource-created', 'registry.json'),
+    // The sweep's outcome is said in the log: freed space, and anything
+    // unverifiable left in place (never a path or an entry id).
+    onCleanup: (result) => {
+      if (result.removed > 0) options.log.info(UI_TEXT.resourceCleanupRemoved)
+      if ((result.refused?.length ?? 0) > 0) options.log.warn(UI_TEXT.resourceCleanupRefused)
+    },
     inspect: () => ({}),
     onError: () => {
       options.onError(new ResourceReadingError('resources.admission'))

@@ -907,7 +907,27 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   }
   context.subscriptions.push({
     dispose: configureResources({
+      // One persisted creation registry in the agent data folder, shared
+      // with the ACP agent and the CLI, so a later start reclaims temp
+      // trees a closed window left behind (RLF-TEMPLEAK). Without it the
+      // governor fell back to a fresh manifest per window and nothing
+      // was ever reclaimed.
+      registryFile: path.join(
+        agentDataFolder({
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+        }),
+        'resource-created',
+        'registry.json',
+      ),
       history: resourceHistory,
+      // The sweep's outcome is said in the log: freed space, and anything
+      // unverifiable left in place (never a path or an entry id).
+      onCleanup: (result) => {
+        if (result.removed > 0) log.info(UI_TEXT.resourceCleanupRemoved)
+        if ((result.refused?.length ?? 0) > 0) log.warn(UI_TEXT.resourceCleanupRefused)
+      },
       inspect: (key) => vscode.workspace.getConfiguration('museSpark').inspect(key),
       // The cause, when there is one: a usage-history write failure once
       // read as an unavailable sampler every 30 seconds.

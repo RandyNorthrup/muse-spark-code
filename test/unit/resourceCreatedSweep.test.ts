@@ -33,7 +33,7 @@ async function files(args: readonly string[]): Promise<string> {
 
 // This fixture retires no owners and archives nothing: the shared proof's
 // false answers and production uninstalled answer are the true ones here.
-const proof = createdRegistryProof(files)
+const proof = createdRegistryProof(files, () => fixture.root)
 
 async function openRegistry(dir: string): Promise<CreatedRegistry> {
   return await CreatedRegistry.open(

@@ -23838,6 +23838,37 @@ quality/coverage and non-Linux native receipts remain the lead's release gate.
 
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
 
+**RLF-TEMPLEAK — dead creators' temp trees reclaimed (2026-10-30).** Found in
+real use: every finished ACP lane left its `resource-created/trees/muse-tree-*`
+(50–520 MB) at `state:"created"`, `endedAtMs:null` forever — `removeEntry`
+refused every unended created entry even with the owner provably gone, no
+later start could prove the exit at all, no start swept, and the VS Code
+window's registry was a fresh random manifest per window. Entries now name
+their creating process (host, pid, birth, Linux boot), proven gone by the
+locks' `isProcessOwnerGone`; the sweep ends such an entry as failed at proof
+time, keeps a temp tree `RESOURCE_TEMP_KEEP_MS` for diagnosis, then removes it
+under the unchanged identity, marker, confinement and archive rules. Every
+governor host sweeps at start (the existing pressure and post-finish cleans
+unchanged, no new timer), the window shares the persisted agent-data
+registry, and sweep outcomes are said in the log (`onCleanup` wired in the
+editor and the runtime). Entries written before the creator field carry no
+proof and are left in place. Evidence: `docs/certification/rlf-templeak.md`
+(real child processes, SIGKILL, red/green drills, and a packed-agent
+two-start run on `muse-spark-1.3-contributor`).
+
+**RVTEMPLEAK — removal review (2026-10-30).** Two defects in that reclaim.
+A sweep that died after renaming a tree to `.muse-trash-<id>` and before
+removing it treated the missing original name as success, dropped the
+registry entry, and left the folder — or a different directory parked at
+that name — on disk. The sweep also treated a creator as gone when its pid
+was merely absent in this namespace, without a machine, boot, pid namespace
+or exact birth. Removal now finishes a quarantine whose device, inode and
+marker still match, refuses anything else there, and ends an entry only
+when the locks' gone-check is given that exact evidence (`exactOnly`).
+Entries that lack it, including every entry written before it, stay. The
+24 h keep, the marker and identity checks, and the start sweep's error
+path are unchanged. Evidence: `docs/certification/rvtempleak.md`.
+
 **CM1072R2 — RVCM1072 lifecycle repair (2026-10-10).** Forward sampler
 disposal through the runtime host's settings wrapper. Sweep the same ownership
 chain in the window, lazy runtime, ACP/CLI and headless shutdown paths; prove

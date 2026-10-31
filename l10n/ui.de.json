@@ -259,6 +259,8 @@
   "resourceRelocationNoTarget": "Keine genehmigte Runner-Route ist aktiv. Die Arbeit bleibt auf diesem Rechner. Die Verlagerung auf gekoppelte Geräte ist nicht verfügbar.",
   "resourceUnavailable": "Dieser Messwert ist auf diesem Rechner nicht verfügbar.",
   "resourceUnavailableWhy": "Dieser Messwert ist auf diesem Rechner nicht verfügbar: {cause}",
+  "resourceCleanupRemoved": "Übrig gebliebene temporäre Ordner aus früheren Sitzungen wurden entfernt.",
+  "resourceCleanupRefused": "Einige übrig gebliebene temporäre Ordner konnten nicht überprüft werden und blieben daher an Ort und Stelle.",
   "resourceGovernorOff": "Ressourcenlimits sind auf diesem Rechner ausgeschaltet.",
   "resourceStatusRefused": "Der aktuelle Ressourcenstatus konnte nicht gelesen werden, daher werden keine Messwerte angezeigt.",
   "resourceTransport": "Transportfehler",

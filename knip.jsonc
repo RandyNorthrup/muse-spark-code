@@ -395,6 +395,9 @@
     // The created-registry race worker entry: the race test bundles it with
     // esbuild, which knip does not trace.
     "test/unit/createdRegistryRaceEntry.ts",
+    // The created-registry reclaim creator entry: the reclaim test bundles
+    // it with esbuild, which knip does not trace.
+    "test/unit/createdRegistryReclaimEntry.ts",
     // The refresh-lock worker entry: the cross-surface drill bundles it
     // with esbuild, which knip does not trace.
     "test/unit/refreshLockWorkerEntry.ts",

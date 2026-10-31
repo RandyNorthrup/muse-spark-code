@@ -259,6 +259,8 @@
   "resourceRelocationNoTarget": "Nenhuma rota para um executor aprovado está ativa. O trabalho permanece nesta máquina. A transferência para dispositivos pareados está indisponível.",
   "resourceUnavailable": "Esta leitura não está disponível nesta máquina.",
   "resourceUnavailableWhy": "Esta leitura não está disponível nesta máquina: {cause}",
+  "resourceCleanupRemoved": "As pastas temporárias restantes de sessões anteriores foram removidas.",
+  "resourceCleanupRefused": "Algumas pastas temporárias restantes não puderam ser verificadas e, por isso, foram deixadas no lugar.",
   "resourceGovernorOff": "Os limites de recursos estão desativados nesta máquina.",
   "resourceStatusRefused": "Não foi possível ler o status de recursos mais recente, então nenhuma leitura é exibida.",
   "resourceTransport": "Falhas de transporte",

@@ -308,6 +308,9 @@ export const EN = {
     'No approved runner route is active. Work stays on this machine. Paired-device relocation is unavailable.',
   resourceUnavailable: 'This reading is unavailable on this machine.',
   resourceUnavailableWhy: 'This reading is unavailable on this machine: {cause}',
+  resourceCleanupRemoved: 'Leftover temporary folders from earlier sessions were removed.',
+  resourceCleanupRefused:
+    'Some leftover temporary folders could not be verified, so they were left in place.',
   resourceGovernorOff: 'Resource limits are off on this machine.',
   resourceStatusRefused: 'The latest resource status could not be read, so no readings are shown.',
   resourceTransport: 'Transport Failures',
