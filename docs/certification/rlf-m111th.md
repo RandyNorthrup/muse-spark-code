@@ -41,10 +41,10 @@ edited by hand afterwards:
 ## Status
 
 - [x] Design (see below).
-- [ ] Generator `scripts/build-tokens-desktop.mjs`.
-- [ ] Generated outputs committed.
-- [ ] Rust crate + `cargo test`.
-- [ ] Vitest suite green.
+- [x] Generator `scripts/build-tokens-desktop.mjs` (`9f8320d3f`).
+- [x] Generated outputs committed.
+- [x] Rust crate + `cargo test` (4 passed, clippy + fmt clean).
+- [x] Vitest suite green (16 passed).
 - [ ] Rig drills (qmllint, qmltestrunner, LuaJIT, Chromium look).
 - [ ] package.json scripts, README, CHANGELOG, PLAN, ROADMAP.
 - [ ] All gates + LANE DONE.
