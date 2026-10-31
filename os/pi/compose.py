@@ -604,8 +604,10 @@ def _copy_open(src_fd, src_path, dst_fd, dst_path, directory):
             child_dst_fd, _resolved = _resolve_dest_dir(dst_fd, dst_path, [name])
             try:
                 if dst_fd is not None:
+                    # nosemgrep: python.lang.security.audit.insecure-file-permissions.insecure-file-permissions -- directories need the execute bit to traverse; 0o755 grants no write outside the owner, and the rule's 0o644 would break every directory (PLAN.md §8)
                     os.chmod(name, 0o755, dir_fd=dst_fd)
                 else:
+                    # nosemgrep: python.lang.security.audit.insecure-file-permissions.insecure-file-permissions -- directories need the execute bit to traverse; 0o755 grants no write outside the owner, and the rule's 0o644 would break every directory (PLAN.md §8)
                     os.chmod(child_dst, 0o755)
             except OSError:
                 raise ValueError("OS1 Pi staging write")
