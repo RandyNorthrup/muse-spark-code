@@ -729,7 +729,9 @@
     "openssl",
     "gpgv",
     "gcc",
-    "gpg"
+    "gpg",
+    // M111 IN (D91.20): qml-check.mjs locates the Qt 6 tools through it.
+    "qtpaths6"
   ],
 
   "ignoreExportsUsedInFile": true,

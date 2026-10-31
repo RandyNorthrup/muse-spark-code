@@ -52,12 +52,23 @@ desktop:l10n`), the Rust crate (`muse-desktop-l10n` 0.1.0, ICU4X 2.4.0,
   and 18 node-UI TS files in the load-order scan, green; their keys in
   the generated tables and pseudo-RTL; both harness pages'
   scripts syntax-clean).
+- 2026-10-30: final battery, true exit codes (no pipes): typecheck,
+  check:l10n, check:reference, check:host-api, check:plan,
+  check:roadmap, check:catches, duplication, cycles, deadcode,
+  lint:css, prettier, eslint all 0; vitest 12 + 22 + related 16/10/27
+  all green (browser suites need TMPDIR=$PWD/temp here); cargo test
+  5/5, clippy 0 warnings, fmt clean, cargo-audit 0 vulns (50 crates);
+  qml-check, font gate (13 fonts, 2646 codepoints, 0 problems) and
+  ime-flags all 0. Two pre-existing failures, neither this lane's
+  (zero src/l10n input changes; no lane code in the bundles):
+  `npm run build` exit 1 (teamRunners +3.4, teamHost +10.2,
+  teamScheduler +1.5, uiText +0.3 KiB over budget — never raised) and
+  `security:audit` exit 1 (10 advisories, none touching the new
+  dependency). One lane bug found and fixed by the battery: knip's
+  unlisted `qtpaths6` binary, now in ignoreBinaries.
 
 ## Next
 
-- `check:l10n` extended to Rust/QML sources and every new surface.
-- The pseudo-RTL table, mirrored-layout proof, the stylelint
-  logical-properties rule.
-- The font-coverage gate, the os/desktop package list, the Electron IME
-  capture.
-- Records, gates, commits.
+- Nothing: the row is built, proven and recorded. The lead integrates;
+  image CI (IM/QA) runs check:font-coverage, qml-check and ime-flags,
+  and proves text-input-v3 under Hyprland with fcitx5.
