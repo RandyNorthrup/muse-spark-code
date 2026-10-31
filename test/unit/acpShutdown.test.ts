@@ -92,6 +92,14 @@ async function waitFor(isDone: () => boolean): Promise<void> {
   }
 }
 
+/** The client leaves; the agent ends cleanly, with its log naming a failure. Returns how long it took. */
+async function leaveAndEnd(served: Left, leave: (served: Left) => void): Promise<number> {
+  const left = Date.now()
+  leave(served)
+  expect(await served.exited, served.log()).toEqual({ code: 0, signal: null })
+  return Date.now() - left
+}
+
 /**
 The production agent signed in with the placeholder credential file, its
 backend a never-answering process; `session/new` is sent and left pending.
@@ -233,10 +241,7 @@ describe.skipIf(process.platform === 'win32')('the served agent when its client 
       '$name ends it with its work done',
       async ({ leave }) => {
         const served = await startedAgent({ withSession: false })
-        const left = Date.now()
-        leave(served)
-        expect(await served.exited, served.log()).toEqual({ code: 0, signal: null })
-        expect(Date.now() - left).toBeLessThan(PROMPT_MS)
+        expect(await leaveAndEnd(served, leave)).toBeLessThan(PROMPT_MS)
         expect(existsSync(path.join(served.workspace, 'cli.pid'))).toBe(false)
       },
       CASE_MS,
@@ -254,10 +259,7 @@ describe.skipIf(process.platform === 'win32')('the served agent when its client 
         expect(child).toBeDefined()
         // The CLI leads its own group (the SDK made it one), the agent's apart.
         expect(isAlive(cli ?? 0, true)).toBe(true)
-        const left = Date.now()
-        leave(served)
-        expect(await served.exited, served.log()).toEqual({ code: 0, signal: null })
-        expect(Date.now() - left).toBeLessThan(PROMPT_MS)
+        expect(await leaveAndEnd(served, leave)).toBeLessThan(PROMPT_MS)
         await waitFor(() => !isAlive(cli ?? 0, true))
         expect(isAlive(cli ?? 0)).toBe(false)
         expect(isAlive(child ?? 0)).toBe(false)
@@ -270,10 +272,9 @@ describe.skipIf(process.platform === 'win32')('the served agent when its client 
       async () => {
         const served = await startedAgent({ withSession: true, isDeaf: true })
         const cli = pidOf(path.join(served.workspace, 'cli.pid'))
-        const left = Date.now()
-        served.agent.kill('SIGTERM')
-        expect(await served.exited, served.log()).toEqual({ code: 0, signal: null })
-        const took = Date.now() - left
+        const took = await leaveAndEnd(served, (agent) => {
+          agent.agent.kill('SIGTERM')
+        })
         // Not at once: SIGTERM got its whole grace; and not the SDK's drain.
         expect(took).toBeGreaterThanOrEqual(RESOURCE_MUSE_TERMINATE_GRACE_MS - 100)
         expect(took).toBeLessThan(PROMPT_MS)
@@ -294,8 +295,9 @@ describe.skipIf(process.platform === 'win32')('the served agent when its client 
         })
         const otherCli = pidOf(path.join(other.workspace, 'cli.pid'))
         try {
-          mine.agent.kill('SIGTERM')
-          expect(await mine.exited, mine.log()).toEqual({ code: 0, signal: null })
+          await leaveAndEnd(mine, (agent) => {
+            agent.agent.kill('SIGTERM')
+          })
           await waitFor(() => !isAlive(pidOf(path.join(mine.workspace, 'cli.pid')) ?? 0))
           expect(isAlive(otherCli ?? 0)).toBe(true)
           expect(other.agent.exitCode).toBeNull()
