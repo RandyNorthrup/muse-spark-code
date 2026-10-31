@@ -386,6 +386,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **A native helper that is missing or will not run now says so, and what to
+  do.** Starting a session through an editor on a Mac whose signed helper
+  (`muse-dictate-screen-<arch>.app`) was not built ended in "That did not
+  work", with the log saying only "Error". It now names the helper and the
+  way out: reinstall Muse Spark Code, or, in a source checkout, the command
+  that builds it (`bash native/darwin/build.sh` on a Mac, `npm run build:dev`
+  on Linux). A helper that is there but that the computer cannot run (not
+  executable, damaged, built for the other processor) says that instead. The
+  same words come from agent teams creating files and from screen recording,
+  and, on Windows, from the created-resources registry when the job helper
+  could not be prepared. On a Mac, agent teams also looked for the helper
+  where the build never puts it.
 - **Serial access starts only a `python3` it found by its full path.** On
   macOS and Linux the serial helper used to start whatever `python3` came
   first on your PATH, so a program planted in your project folder (a

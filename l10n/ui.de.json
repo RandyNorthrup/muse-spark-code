@@ -3379,7 +3379,7 @@
   "dictationUnavailable": "Die Spracheingabe ist auf dieser Plattform nicht verfügbar.",
   "dictationUnavailableLinux": "Linux-Spracheingabe benötigt einen x64- oder arm64-Computer mit PulseAudio oder PipeWire.",
   "dictationUnavailableWindows": "Die Spracheingabe benötigt Windows PowerShell, das nicht gefunden wurde (SystemRoot ist nicht gesetzt).",
-  "dictationUnavailableDarwin": "Die Spracheingabe benötigt das macOS-Hilfsprogramm (native/darwin/{app}/Contents/MacOS/muse-dictate), das in diesem Build nicht enthalten ist.",
+  "dictationUnavailableDarwin": "Die Spracheingabe benötigt das macOS-Hilfsprogramm (native/darwin/{app}/Contents/MacOS/muse-dictate), das in diesem Build nicht enthalten ist. Installieren Sie Muse Spark Code neu; in einem Quellcode-Checkout bauen Sie es mit „bash native/darwin/build.sh“.",
   "dictationNotLoaded": "der Code der Spracheingabe konnte nicht geladen werden; installieren Sie die Erweiterung neu und laden Sie das Fenster neu. Details stehen im Protokoll.",
   "announceListening": "Hört zu",
   "announceStoppedListening": "Hört nicht mehr zu",
@@ -4439,6 +4439,14 @@
     "invalid": "die gespeicherte Registrierung ist ungültig",
     "io": "das Speichern konnte nicht geschrieben werden",
     "contended": "eine andere laufende Kopie hat immer zuerst gespeichert; versuchen Sie es erneut"
+  },
+  "nativeHelper": {
+    "missingInstalled": "Der native Helfer {helper} fehlt in dieser Installation von Muse Spark Code, daher konnte dies nicht gestartet werden. Installieren Sie Muse Spark Code neu.",
+    "missingSource": "Der native Helfer {helper} ist in diesem Quellcode-Checkout nicht gebaut, daher konnte dies nicht gestartet werden. Bauen Sie ihn mit „{command}“ und versuchen Sie es erneut.",
+    "unloadableInstalled": "Der native Helfer {helper} ist installiert, aber dieser Computer kann ihn nicht ausführen (er ist möglicherweise beschädigt, vom System blockiert oder für einen anderen Prozessor gebaut), daher konnte dies nicht gestartet werden. Installieren Sie Muse Spark Code neu.",
+    "unloadableSource": "Der native Helfer {helper} ist gebaut, aber dieser Computer kann ihn nicht ausführen (er ist möglicherweise beschädigt, vom System blockiert oder für einen anderen Prozessor gebaut), daher konnte dies nicht gestartet werden. Bauen Sie ihn mit „{command}“ neu und versuchen Sie es erneut.",
+    "unsupported": "Muse Spark Code liefert keinen nativen Helfer für {platform} auf {arch} mit, daher konnte dies nicht gestartet werden.",
+    "windowsJob": "Der Windows-Job-Helfer konnte nicht vorbereitet werden, daher konnte dies nicht gestartet werden. Muse Spark Code kompiliert ihn bei der ersten Verwendung mit Windows PowerShell 5.1 aus den Dateien in seinem Ordner native/windows: Installieren Sie Muse Spark Code neu und prüfen Sie, ob Windows PowerShell startet und ob Sicherheitssoftware es nicht blockiert."
   },
   "acpQuestionFormMessage": "Muse hat eine Frage an Sie.",
   "acpQuestionAsked": "Muse hat eine Frage; dieser Editor kann sie nicht als Formular anzeigen, antworten Sie daher in Ihrer nächsten Nachricht:",
@@ -6093,7 +6101,7 @@
   },
   "pricePerMillion": "Preise pro Million Token.",
   "modelsNotScanned": "Aktualisieren Sie, um die Modelle dieses Anbieters aufzulisten.",
-  "teamFileHelperMissing": "Der verifizierte native Helfer für Worker-Dateien ist nicht verfügbar.",
+  "teamFileHelperMissing": "Der verifizierte native Helfer für Worker-Dateien ist nicht verfügbar. Installieren Sie Muse Spark Code neu; in einem Quellcode-Checkout bauen Sie zuerst die nativen Helfer.",
   "teamFileNativeFailed": "Die native Prüfung der Worker-Datei ist fehlgeschlagen; es wurden keine Dateiinhalte geschrieben.",
   "teamFileHelperFailed": "Der native Helfer für Worker-Dateien ist selbst fehlgeschlagen ({kind}); es wurden keine Dateiinhalte geschrieben.",
   "teamFileLinked": "Der Dateipfad enthält einen Link oder einen anders interpretierten Bestandteil.",

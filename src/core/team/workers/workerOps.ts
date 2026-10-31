@@ -20,6 +20,8 @@ import {
 import type { UiText } from '../../../shared/l10n/en'
 import { fill, setUiText } from '../../../shared/l10n/text'
 import { execResourceFile, execResourceFileBytes } from '../../resources/launcher'
+import { createdHelperFile, runNativeHelper } from '../../nativeHelper'
+import { NativeHelperError, isNativeHelperError } from '../../../shared/nativeHelperError'
 import { windowsPowerShellEnvironment } from '../../execGuard'
 import { resourceWindowsJob } from '../../resources/admission'
 import { scrubWorkerEnv } from './workerEnv'
@@ -90,26 +92,43 @@ export async function nativeOperation(proof: WorkerCreateProof, op: string, iden
       // Already the typed sentence: on Windows no ENOENT marks the absence
       // (PowerShell starts; the assembly load fails instead), so the mapper
       // below must keep it, not remap it to the generic proof failure.
-      throw markTyped(new Error(UI_TEXT.teamFileHelperMissing))
+      throw markTyped(new NativeHelperError('missing', UI_TEXT.nativeHelper.windowsJob))
     await job.verify()
     file = path.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH)
     // Windows PowerShell 5.1 with its own module path, whatever shell
     // started the host (windowsPowerShellEnvironment's one rule).
     env = windowsPowerShellEnvironment({ SystemRoot: systemRoot }, systemRoot)
     command = workerWindowsCommand(job.assemblyPath, args)
-  } else if (process.platform === 'darwin') {
-    file = path.join(__dirname, '..', 'native', 'darwin', 'muse-dictate')
-    command = ['--created-directory', ...args]
-  } else if (process.platform === 'linux' && ['x64', 'arm64'].includes(process.arch)) {
-    file = path.join(__dirname, '..', 'native', 'linux', process.arch, 'muse-created')
-  } else throw markTyped(new Error(UI_TEXT.teamFileHelperMissing))
+  } else {
+    const helper = createdHelperFile(
+      path.join(__dirname, '..', 'native'),
+      process.platform,
+      process.arch,
+    )
+    if (helper === undefined)
+      throw markTyped(
+        new NativeHelperError(
+          'missing',
+          fill(UI_TEXT.nativeHelper.unsupported, {
+            platform: process.platform,
+            arch: process.arch,
+          }),
+        ),
+      )
+    file = helper
+    if (process.platform === 'darwin') command = ['--created-directory', ...args]
+  }
   try {
-    const { stdout } = await execResourceFile('contained', file, command, {
-      env: scrubWorkerEnv({ platform: process.platform, baseEnv: env }),
-      timeout: WORKER_FILE_PATH_TIMEOUT_MS,
-      maxBuffer: WORKER_NATIVE_REPLY_MAX_BYTES,
-      windowsHide: true,
-    })
+    const run = () =>
+      execResourceFile('contained', file, command, {
+        env: scrubWorkerEnv({ platform: process.platform, baseEnv: env }),
+        timeout: WORKER_FILE_PATH_TIMEOUT_MS,
+        maxBuffer: WORKER_NATIVE_REPLY_MAX_BYTES,
+        windowsHide: true,
+      })
+    // The shipped POSIX helper says what is missing or cannot start; Windows
+    // starts PowerShell, whose assembly-load failures the mapper types.
+    const { stdout } = await (process.platform === 'win32' ? run() : runNativeHelper(file, run))
     return receipt.parse(JSON.parse(stdout))
   } catch (error: unknown) {
     throw mapNativeError(error, proof.relative)
@@ -292,6 +311,8 @@ ancestor-relative suffix: every caller passes the copy-relative path.
 */
 export function mapNativeError(error: unknown, display: string): Error {
   if (isTyped(error)) return error
+  // The helper's own sentence (what is missing, what to do) is already typed.
+  if (isNativeHelperError(error)) return markTyped(error)
   const cause = error instanceof Error ? error : new Error(UI_TEXT.teamFileNativeFailed)
   // Production carries the helper's words on stderr; the test fixture embeds
   // them in the message. Both are the helper's fixed refusals, never paths.

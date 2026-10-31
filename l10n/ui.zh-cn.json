@@ -3317,7 +3317,7 @@
   "dictationUnavailable": "此平台不支持语音听写。",
   "dictationUnavailableLinux": "Linux 听写需要运行 PulseAudio 或 PipeWire 的 x64 或 arm64 计算机。",
   "dictationUnavailableWindows": "语音听写需要 Windows PowerShell，但未找到它（未设置 SystemRoot）。",
-  "dictationUnavailableDarwin": "语音听写需要 macOS 帮助程序（native/darwin/{app}/Contents/MacOS/muse-dictate），但此版本未包含它。",
+  "dictationUnavailableDarwin": "语音听写需要 macOS 帮助程序（native/darwin/{app}/Contents/MacOS/muse-dictate），但此版本未包含它。请重新安装 Muse Spark Code；在源码检出中，请用“bash native/darwin/build.sh”构建它。",
   "dictationNotLoaded": "无法加载听写代码；请重新安装扩展并重新加载窗口。日志中有详细信息。",
   "announceListening": "正在聆听",
   "announceStoppedListening": "已停止聆听",
@@ -4357,6 +4357,14 @@
     "invalid": "已保存的注册表无效",
     "io": "保存内容无法写入",
     "contended": "另一个正在运行的副本一直在抢先保存；请重试"
+  },
+  "nativeHelper": {
+    "missingInstalled": "此 Muse Spark Code 安装中缺少原生辅助程序 {helper}，因此无法启动。请重新安装 Muse Spark Code。",
+    "missingSource": "此源码检出中尚未构建原生辅助程序 {helper}，因此无法启动。请用“{command}”构建它，然后重试。",
+    "unloadableInstalled": "原生辅助程序 {helper} 已安装，但此计算机无法运行它（它可能已损坏、被系统阻止，或是为其他处理器构建的），因此无法启动。请重新安装 Muse Spark Code。",
+    "unloadableSource": "原生辅助程序 {helper} 已构建，但此计算机无法运行它（它可能已损坏、被系统阻止，或是为其他处理器构建的），因此无法启动。请用“{command}”重新构建它，然后重试。",
+    "unsupported": "Muse Spark Code 未提供适用于 {arch} 上 {platform} 的原生辅助程序，因此无法启动。",
+    "windowsJob": "无法准备 Windows 作业辅助程序，因此无法启动。Muse Spark Code 会在首次使用时用 Windows PowerShell 5.1 从其 native/windows 文件夹中的文件编译它：请重新安装 Muse Spark Code，并检查 Windows PowerShell 能否启动、安全软件是否阻止了它。"
   },
   "acpQuestionFormMessage": "Muse 有一个问题要问你。",
   "acpQuestionAsked": "Muse 有一个问题；此编辑器无法以表单形式显示，请在下一条消息中回答：",
@@ -5957,7 +5965,7 @@
   },
   "pricePerMillion": "每百万 token 价格。",
   "modelsNotScanned": "刷新以列出此供应商的模型。",
-  "teamFileHelperMissing": "无法使用经过验证的工作代理文件原生辅助程序。",
+  "teamFileHelperMissing": "无法使用经过验证的工作代理文件原生辅助程序。请重新安装 Muse Spark Code；在源码检出中，请先构建原生辅助程序。",
   "teamFileNativeFailed": "工作代理文件的原生验证失败；未写入文件内容。",
   "teamFileHelperFailed": "工作代理文件原生助手本身失败（{kind}）；未写入文件内容。",
   "teamFileLinked": "文件路径包含链接或被重新解释的路径部分。",
