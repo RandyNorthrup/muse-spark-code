@@ -5,7 +5,6 @@
 // real connection. Views are real: the tasks tab answers without a
 // backend, so the suite needs none. (The packed suite proves the real
 // session behind the same transport.)
-import { request as httpRequest, type IncomingMessage } from 'node:http'
 import { mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -13,17 +12,23 @@ import { pathToFileURL } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { HTTP_STATUS, MHP, MHP_PANEL, PANEL_COMPANION_LIMITS } from '../../src/shared/constants'
 import { fallbackUiCallSchema, fallbackUiReplySchema } from '../../src/shared/hostApi/fallbackUi'
-import {
-  panelEnvelopeSchema,
-  panelErrorSchema,
-  panelLifecycleSchema,
-  type MhpPanelBinding,
-} from '../../src/shared/hostApi/panel'
+import { panelEnvelopeSchema } from '../../src/shared/hostApi/panel'
 import type { MhpParams } from '../../src/shared/hostApi/methods'
 import type { PanelView } from '../../src/runtime/panel/surfaces'
 import { withDeadline } from '../../src/core/timeouts'
 import { PanelConnection, MhpServiceError } from '../../src/runtime/panel/connection'
 import { agentVersion } from './helpers/agentVersion'
+import {
+  call,
+  envelope,
+  expectGuardRefusal,
+  expectPanelRefusal,
+  lifecycle,
+  openStream,
+  panelHeaders,
+  waitFor,
+  type CompanionWindow,
+} from './helpers/companionWindow'
 import {
   createPanelCompanionTransport,
   type PanelCompanionTransport,
@@ -34,137 +39,6 @@ import { renderCompanionPage } from '../../src/runtime/companion/page'
 import type { TasksTabView } from '../../src/host/views/tasksTabPort'
 import { tasksHostMessageSchema } from '../../src/shared/tasksProtocol'
 import { removeFolder } from './helpers/temporaryFolders'
-
-interface HttpReply {
-  readonly status: number
-  readonly authorization: string | undefined
-  readonly body: string
-}
-
-function call(
-  url: string,
-  options: {
-    readonly headers?: Record<string, string>
-    readonly body?: string
-    /** A declared length without its body: the server refuses on the headers alone. */
-    readonly contentLength?: number
-  } = {},
-): Promise<HttpReply> {
-  return new Promise((resolve, reject) => {
-    const parsed = new URL(url)
-    const headers = { ...options.headers }
-    if (options.contentLength !== undefined)
-      headers['Content-Length'] = String(options.contentLength)
-    else if (options.body !== undefined && headers['Content-Length'] === undefined)
-      headers['Content-Length'] = String(Buffer.byteLength(options.body))
-    const request = httpRequest(
-      {
-        method: 'POST',
-        hostname: parsed.hostname,
-        port: parsed.port,
-        path: `${parsed.pathname}${parsed.search}`,
-        headers,
-      },
-      (response) => {
-        const chunks: Buffer[] = []
-        response.on('data', (chunk: Buffer) => {
-          chunks.push(chunk)
-        })
-        response.on('end', () => {
-          const authorization = response.headers.authorization
-          resolve({
-            status: response.statusCode ?? 0,
-            authorization: Array.isArray(authorization) ? authorization.join(', ') : authorization,
-            body: Buffer.concat(chunks).toString('utf8'),
-          })
-        })
-        response.on('error', reject)
-      },
-    )
-    request.on('error', reject)
-    request.end(options.body)
-  })
-}
-
-/** Reads data frames from a stream the way the window's bridge does. */
-function openStream(
-  url: string,
-  headers: Record<string, string>,
-): {
-  readonly opened: Promise<number>
-  readonly frames: unknown[]
-  readonly closed: Promise<void>
-  close(): void
-} {
-  const frames: unknown[] = []
-  let buffer = ''
-  const parsed = new URL(url)
-  const request = httpRequest({
-    method: 'POST',
-    hostname: parsed.hostname,
-    port: parsed.port,
-    path: parsed.pathname,
-    headers,
-  })
-  const opened = new Promise<number>((resolve) => {
-    request.on('response', (response: IncomingMessage) => {
-      resolve(response.statusCode ?? 0)
-    })
-    request.on('error', () => {
-      resolve(0)
-    })
-  })
-  const closed = new Promise<void>((resolve) => {
-    request.on('response', (response: IncomingMessage) => {
-      response.on('data', (chunk: Buffer) => {
-        buffer += chunk.toString('utf8')
-        const parts = buffer.split('\n\n')
-        buffer = parts.pop() ?? ''
-        for (const part of parts)
-          for (const line of part.split('\n'))
-            if (line.startsWith('data:')) frames.push(JSON.parse(line.slice('data:'.length)))
-      })
-      // The stream always closes: after its last frame, or when it breaks.
-      response.once('close', () => {
-        resolve()
-      })
-    })
-    request.on('error', () => {
-      resolve()
-    })
-  })
-  request.end('{}')
-  return {
-    opened,
-    frames,
-    closed,
-    close: () => {
-      request.destroy()
-    },
-  }
-}
-
-async function waitFor(frames: readonly unknown[], count: number): Promise<void> {
-  const started = Date.now()
-  while (frames.length < count) {
-    if (Date.now() - started > 4000)
-      throw new Error(`only ${String(frames.length)} of ${String(count)} frames arrived`)
-    await new Promise((resolve) => setTimeout(resolve, 10))
-  }
-}
-
-function envelope(surface: string, payload: unknown): string {
-  return JSON.stringify(
-    panelEnvelopeSchema.parse({
-      mhp: MHP_PANEL.wireVersion,
-      kind: 'panel',
-      surface,
-      seq: 1,
-      direction: 'toHost',
-      payload,
-    }),
-  )
-}
 
 /** The call's answer marker, or the refusal it rejected with. */
 async function outcomeOf(call: Promise<unknown>): Promise<unknown> {
@@ -183,38 +57,7 @@ function expectServiceRefusals(outcomes: readonly unknown[], message: string): v
       throw new Error(`a call settled past ${message}`)
   }
 }
-
-function headers(origin: string, bearer?: string): Record<string, string> {
-  return {
-    'Content-Type': 'application/json',
-    Origin: origin,
-    'x-muse-panel': '1',
-    ...(bearer !== undefined && { Authorization: `Bearer ${bearer}` }),
-  }
-}
-
 type CompanionServer = Awaited<ReturnType<typeof startCompanionServer>>
-
-/** An open window: the bearer it exchanged, its binding, and the server's origin. */
-interface CompanionWindow {
-  readonly bearer: string
-  readonly binding: MhpPanelBinding
-  readonly origin: string
-}
-
-/** The guard's refusal: its status, and its code as the whole body. */
-function expectGuardRefusal(reply: HttpReply, status: number, code: string): void {
-  expect(reply.status).toBe(status)
-  expect(reply.body).toBe(JSON.stringify({ error: code }))
-}
-
-/** The contract's refusal: its status, and its frame carrying the code. */
-function expectPanelRefusal(reply: HttpReply, status: number, code: string): void {
-  expect(reply.status).toBe(status)
-  const frame = panelErrorSchema.parse(JSON.parse(reply.body))
-  expect(frame.code).toBe(code)
-}
-
 /** The launch URLs the transport mints through the server, once it starts. */
 function launchUrls(): {
   readonly started: { server?: CompanionServer }
@@ -233,13 +76,6 @@ function launchUrls(): {
     },
   }
 }
-
-function lifecycle(binding: MhpPanelBinding, event: 'opened' | 'ready'): string {
-  return JSON.stringify(
-    panelLifecycleSchema.parse({ mhp: MHP_PANEL.wireVersion, kind: 'surface', ...binding, event }),
-  )
-}
-
 interface Harness {
   readonly connection: PanelConnection
   readonly transport: PanelCompanionTransport
@@ -416,12 +252,12 @@ describe('panel companion routes (real server, transport and connection)', () =>
       body: JSON.stringify({ code }),
     })
     expect(exchanged.status).toBe(HTTP_STATUS.ok)
-    const bearer = (exchanged.authorization ?? '').replace(/^Bearer /, '')
-    expect(bearer).toMatch(/^[\da-f]{64}$/)
+    const token = (exchanged.authorization ?? '').replace(/^Bearer /, '')
+    expect(token).toMatch(/^[\da-f]{64}$/)
     const binding = transport.bindingFor(surface)
     if (binding === undefined) throw new Error('the window minted no binding')
     expect(binding).toEqual({ surface, sessionId: 'session-1', surfaceKind: 'tasks' })
-    return { bearer, binding, origin }
+    return { token, binding, origin }
   }
 
   it('sends the synthetic handshake the session boots from', () => {
@@ -439,17 +275,17 @@ describe('panel companion routes (real server, transport and connection)', () =>
     const window = await bootWindow()
     const stream = openStream(
       `${window.origin}/panel/events`,
-      headers(window.origin, window.bearer),
+      panelHeaders(window.origin, window.token),
     )
     expect(await stream.opened).toBe(HTTP_STATUS.ok)
     try {
       const opened = await call(`${window.origin}/panel/surface`, {
-        headers: headers(window.origin, window.bearer),
+        headers: panelHeaders(window.origin, window.token),
         body: lifecycle(window.binding, 'opened'),
       })
       expect(opened.status).toBe(HTTP_STATUS.noContent)
       const ready = await call(`${window.origin}/panel/surface`, {
-        headers: headers(window.origin, window.bearer),
+        headers: panelHeaders(window.origin, window.token),
         body: lifecycle(window.binding, 'ready'),
       })
       expect(ready.status).toBe(HTTP_STATUS.noContent)
@@ -460,7 +296,7 @@ describe('panel companion routes (real server, transport and connection)', () =>
       expect(published.conversation).toBe('Companion window')
       expect(published.items).toEqual(tabs.get('session-1')?.view.items)
       const asked = await call(`${window.origin}/panel/message`, {
-        headers: headers(window.origin, window.bearer),
+        headers: panelHeaders(window.origin, window.token),
         body: envelope(window.binding.surface, { type: 'tasksReady' }),
       })
       expect(asked.status).toBe(HTTP_STATUS.noContent)
@@ -484,7 +320,7 @@ describe('panel companion routes (real server, transport and connection)', () =>
         { id: 'no', title: 'Keep it' },
       ],
     })
-    const ui = openStream(`${window.origin}/host/events`, headers(window.origin, window.bearer))
+    const ui = openStream(`${window.origin}/host/events`, panelHeaders(window.origin, window.token))
     expect(await ui.opened).toBe(HTTP_STATUS.ok)
     try {
       await waitFor(ui.frames, 1)
@@ -492,7 +328,7 @@ describe('panel companion routes (real server, transport and connection)', () =>
       if (frame.method !== 'ui/confirm') throw new Error('the window was asked the wrong question')
       expect(frame.params).toMatchObject({ title: 'Leave the window' })
       const replied = await call(`${window.origin}/host/message`, {
-        headers: headers(window.origin, window.bearer),
+        headers: panelHeaders(window.origin, window.token),
         body: JSON.stringify(
           fallbackUiReplySchema.parse({
             jsonrpc: MHP.jsonRpcVersion,
@@ -511,19 +347,22 @@ describe('panel companion routes (real server, transport and connection)', () =>
   it('retires the live window when the session opens another', async () => {
     const { announced } = use()
     const first = await bootWindow()
-    const stream = openStream(`${first.origin}/panel/events`, headers(first.origin, first.bearer))
+    const stream = openStream(
+      `${first.origin}/panel/events`,
+      panelHeaders(first.origin, first.token),
+    )
     expect(await stream.opened).toBe(HTTP_STATUS.ok)
     const second = await openWindow()
     expect(announced).toHaveLength(2)
     expect(second.binding.surface).not.toBe(first.binding.surface)
     await withDeadline(stream.closed, 4000, 'the retired window stayed subscribed')
     const dead = await call(`${first.origin}/panel/message`, {
-      headers: headers(first.origin, first.bearer),
+      headers: panelHeaders(first.origin, first.token),
       body: envelope(first.binding.surface, { type: 'tasksReady' }),
     })
     expectGuardRefusal(dead, HTTP_STATUS.unauthorized, 'EPANEL_BEARER')
     const live = await call(`${second.origin}/panel/surface`, {
-      headers: headers(second.origin, second.bearer),
+      headers: panelHeaders(second.origin, second.token),
       body: lifecycle(second.binding, 'opened'),
     })
     expect(live.status).toBe(HTTP_STATUS.noContent)
@@ -538,7 +377,7 @@ describe('panel companion routes (real server, transport and connection)', () =>
     ).resolves.toBeNull()
     expect(transport.bindingFor(window.binding.surface)).toBeUndefined()
     const dead = await call(`${window.origin}/panel/message`, {
-      headers: headers(window.origin, window.bearer),
+      headers: panelHeaders(window.origin, window.token),
       body: envelope(window.binding.surface, { type: 'tasksReady' }),
     })
     expectGuardRefusal(dead, HTTP_STATUS.unauthorized, 'EPANEL_BEARER')
@@ -579,7 +418,7 @@ describe('panel companion routes (real server, transport and connection)', () =>
     const fresh = outcomeOf(
       connection.request('ui/notify', { severity: 'warning', message: 'fresh' }),
     )
-    const ui = openStream(`${window.origin}/host/events`, headers(window.origin, window.bearer))
+    const ui = openStream(`${window.origin}/host/events`, panelHeaders(window.origin, window.token))
     expect(await ui.opened).toBe(HTTP_STATUS.ok)
     try {
       await waitFor(ui.frames, 1)
@@ -597,7 +436,7 @@ describe('panel companion routes (real server, transport and connection)', () =>
   it('refuses a post without the window’s bearer', async () => {
     const window = await bootWindow()
     const refused = await call(`${window.origin}/panel/message`, {
-      headers: headers(window.origin),
+      headers: panelHeaders(window.origin),
       body: envelope(window.binding.surface, { type: 'tasksReady' }),
     })
     expectGuardRefusal(refused, HTTP_STATUS.unauthorized, 'EPANEL_BEARER')
@@ -606,7 +445,7 @@ describe('panel companion routes (real server, transport and connection)', () =>
   it('refuses a post from another origin', async () => {
     const window = await bootWindow()
     const refused = await call(`${window.origin}/panel/message`, {
-      headers: { ...headers(window.origin, window.bearer), Origin: 'http://evil.test' },
+      headers: { ...panelHeaders(window.origin, window.token), Origin: 'http://evil.test' },
       body: envelope(window.binding.surface, { type: 'tasksReady' }),
     })
     expectGuardRefusal(refused, HTTP_STATUS.forbidden, 'EPANEL_ORIGIN')
@@ -614,7 +453,7 @@ describe('panel companion routes (real server, transport and connection)', () =>
 
   it('refuses a post without the panel header', async () => {
     const window = await bootWindow()
-    const headed = headers(window.origin, window.bearer)
+    const headed = panelHeaders(window.origin, window.token)
     delete headed['x-muse-panel']
     const refused = await call(`${window.origin}/panel/message`, {
       headers: headed,
@@ -626,7 +465,7 @@ describe('panel companion routes (real server, transport and connection)', () =>
   it('refuses an envelope for a surface the window never opened', async () => {
     const window = await bootWindow()
     const refused = await call(`${window.origin}/panel/message`, {
-      headers: headers(window.origin, window.bearer),
+      headers: panelHeaders(window.origin, window.token),
       body: envelope('no-such-surface', { type: 'tasksReady' }),
     })
     expectPanelRefusal(refused, HTTP_STATUS.notFound, 'MHP_PANEL_UNKNOWN_SURFACE')
@@ -635,7 +474,7 @@ describe('panel companion routes (real server, transport and connection)', () =>
   it('refuses lifecycle for a surface the window never opened', async () => {
     const window = await bootWindow()
     const refused = await call(`${window.origin}/panel/surface`, {
-      headers: headers(window.origin, window.bearer),
+      headers: panelHeaders(window.origin, window.token),
       body: lifecycle({ ...window.binding, surface: 'no-such-surface' }, 'opened'),
     })
     expectPanelRefusal(refused, HTTP_STATUS.notFound, 'MHP_PANEL_UNKNOWN_SURFACE')
@@ -644,7 +483,7 @@ describe('panel companion routes (real server, transport and connection)', () =>
   it('refuses a body larger than MHP’s envelope', async () => {
     const window = await bootWindow()
     const refused = await call(`${window.origin}/panel/message`, {
-      headers: headers(window.origin, window.bearer),
+      headers: panelHeaders(window.origin, window.token),
       contentLength: PANEL_COMPANION_LIMITS.maxBodyBytes + 1,
     })
     expectPanelRefusal(refused, HTTP_STATUS.requestTooLarge, 'MHP_PANEL_TOO_LARGE')
@@ -653,7 +492,7 @@ describe('panel companion routes (real server, transport and connection)', () =>
   it('refuses a malformed envelope aloud', async () => {
     const window = await bootWindow()
     const refused = await call(`${window.origin}/panel/message`, {
-      headers: headers(window.origin, window.bearer),
+      headers: panelHeaders(window.origin, window.token),
       body: '{}',
     })
     expectPanelRefusal(refused, HTTP_STATUS.badRequest, 'MHP_PANEL_INVALID_PAYLOAD')
