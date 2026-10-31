@@ -3367,7 +3367,8 @@ export const PLAYBOOK_TEAM_RUNNER = 'team'
 // D96.1's default module: the file's directory two levels under the source root.
 export const PLAYBOOK_MODULE_DIRECTORY_DEPTH = 3
 // Windows containment (PLAN.md §9, FIXM116P3-Windows-job-binding): one named
-// job per decision. A helper process joins it, serves each git and hook call
+// job per decision. The job helper, run as a program of its own
+// (MuseSparkJobHost's `contained`), joins it, serves each git and hook call
 // over a private pipe, ends every other member of the job after each call,
 // and terminates the job when the decision's pipe closes. Plain strings: the
 // same characters String.raw would give, without the call, so bundles that
@@ -3378,37 +3379,22 @@ export const PLAYBOOK_JOB_PIPE_PREFIX = 'muse-spark-playbook-'
 // eslint-disable-next-line unicorn/prefer-string-raw -- droppability beats readability here; test/unit/bundleDiet pins it.
 export const PLAYBOOK_JOB_PIPE_ROOT = '\\\\.\\pipe'
 // A helper that has exited is noticed at once; this bounds only a live one
-// that is slow to start (Windows PowerShell starting cold takes seconds).
+// that is slow to start (any program start takes seconds on a loaded machine).
 export const PLAYBOOK_JOB_CONNECT_MS = 30_000
 export const PLAYBOOK_JOB_CONNECT_POLL_MS = 10
 // The helper ends its job when no call arrives for this long (a worker that
 // was stopped mid-decision cannot close its pipe).
 export const PLAYBOOK_JOB_IDLE_MS = 30_000
 export const PLAYBOOK_JOB_SWEEP_MS = 5000
-export const PLAYBOOK_JOB_ENVIRONMENT = {
-  job: 'MUSE_SPARK_PLAYBOOK_JOB',
-  assembly: 'MUSE_SPARK_PLAYBOOK_ASSEMBLY',
-  pipe: 'MUSE_SPARK_PLAYBOOK_PIPE',
-  idleMs: 'MUSE_SPARK_PLAYBOOK_IDLE_MS',
-  sweepMs: 'MUSE_SPARK_PLAYBOOK_SWEEP_MS',
-} as const
-// The job dies with the last handle to it, and the helper holds the only
-// one: Win32's JOBOBJECT_EXTENDED_LIMIT_INFORMATION (information class 9),
-// zeroed but for JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE in its LimitFlags.
-export const PLAYBOOK_JOB_KILL_ON_CLOSE = {
-  informationClass: 9,
-  flag: 0x20_00,
-  flagOffset: 16,
-  bytes64: 144,
-  bytes32: 112,
-} as const
-// The helper's answer flags for one call.
+// The helper's answer flags for one call (CONTAINED_* in
+// native/windows/MuseSparkJob.cs).
 export const PLAYBOOK_JOB_FLAGS = {
   timedOut: 1,
   overflowed: 2,
   uncertain: 4,
   unstarted: 8,
 } as const
+// One little-endian Int32, the body's length (CONTAINED_HEADER_BYTES in the C#).
 export const PLAYBOOK_JOB_FRAME_HEADER_BYTES = 4
 // The block as the review prompt shows it to the model (English, as all
 // model text is), and what it holds when the review found nothing.

@@ -451,6 +451,26 @@ happened, not what was planned; superseded entries are kept.
 - `exec --team` on the wrong backend now names the option it refuses
   ("These options require the Model API backend (--backend modelApi):
   --team.") instead of showing an unfilled "{options}" placeholder.
+- Tab hooks work on a busy Windows PC. Starting a hook used to start about
+  eleven Windows PowerShell processes (the resource governor's job, tree and
+  registry calls each started one), about 0.9 seconds on a quiet PC and far
+  more under load, against Tab's 1.5-second bound for a hook, so under load
+  a Tab read waited for a hook that did not answer in time. A hook now
+  starts through the native job launcher and the governor's calls run as
+  short native programs: no PowerShell is started for a hook, and a launch
+  takes about a quarter of a second on a quiet PC. A Windows hook that exits
+  2 now blocks its event, as it does everywhere else (PowerShell used to
+  report every failure as exit 1).
+- Tab over the language server (`muse-spark-code-acp lsp`) no longer asks you
+  to approve a spend for a request that cannot be sent. A secret under the
+  cursor is now found before the stored key is read and before the paid-use
+  question, so the question comes only with a request that can be sent.
+- On Windows, the job helper's builds that earlier versions left in the
+  storage folder (`MuseSparkJob-<digest>.dll`, about 60 KB each, one per
+  earlier version) are removed the next time the helper is built (used for
+  real with the terminal agent; the extension builds the helper through the
+  same code). Only those exact names in the helper's own folder are touched;
+  a build another running window still holds is removed once it lets go.
 - A pack index is accepted only when the signature covers those exact bytes
   and the signer is the pack workflow on `main`, exactly. A signature for a
   branch whose name merely begins with `main`, or a signed statement that
@@ -830,6 +850,19 @@ happened, not what was planned; superseded entries are kept.
   with which bound fired and its number instead of dying silently, and
   supervised runs are governed like every other launch, so ordinary
   supervised use is never stopped.
+
+### Security
+
+- **The native Windows job helper no longer reads the workspace or `PATH`
+  for programs or DLLs.** The compiled helper the resource governor runs on
+  Windows (its tree reads and created-directory registry, proven in a packed
+  `lsp --tab` run) now starts in its own folder with an empty `PATH`, so
+  neither Windows' program lookup nor its DLL search reaches the workspace or
+  a folder on the inherited `PATH`; it starts only fully qualified programs
+  and restricts its DLL loads to its own folder and the system folder. A
+  program or DLL planted under a trusted name on `PATH` or in the workspace
+  is never run or loaded.
+
 ### Added
 
 - **Model API on the Muse Code subscription** (C-M95-SUB). The Model API

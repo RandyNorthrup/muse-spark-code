@@ -174,12 +174,7 @@ export class PlaybookOutcomes {
   /** The checked-out branch, when there is one, and its commit: what a dispatch brief records. */
   head(): { readonly ref: string | undefined; readonly commit: string } {
     const ref = this.run(
-      {
-        kind: 'git',
-        cwd: this.workspace,
-        command: 'git',
-        args: ['symbolic-ref', '--quiet', 'HEAD'],
-      },
+      this.effect('git', this.workspace, ['symbolic-ref', '--quiet', 'HEAD']),
       true,
     ).trimEnd()
     return {

@@ -1,9 +1,9 @@
 // The playbook's Windows containment (M116, PLAN.md §9
-// FIXM116P3-Windows-job-binding): the argument quoting and the helper's text
-// on every OS; the real helper, its job and the parent/grandchild timeout
-// fixture on Windows, with the shipped MuseSparkJob type compiled as the
-// extension compiles it. On macOS and Linux the supervisor's own group sweep
-// ends what a finished call left behind.
+// FIXM116P3-Windows-job-binding): the argument quoting and the job's
+// bookkeeping on every OS; the real helper (the shipped job helper run as a
+// program of its own, compiled as the extension compiles it), its job and the
+// parent/grandchild timeout fixture on Windows. On macOS and Linux the
+// supervisor's own group sweep ends what a finished call left behind.
 import { spawn, spawnSync } from 'node:child_process'
 import { readFileSync, realpathSync } from 'node:fs'
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
@@ -14,22 +14,17 @@ import * as z from 'zod/mini'
 import { withoutCredentials } from '../../src/core/credentialEnvironment'
 import {
   shellEnvironment,
+  windowsJobHost,
   windowsPowerShell,
   workspaceChildEnvironment,
 } from '../../src/core/execGuard'
-import {
-  ContainedJob,
-  containedJobScript,
-  endJobScript,
-  windowsArgument,
-} from '../../src/host/playbook/containedJob'
+import { ContainedJob, endJobArgs, windowsArgument } from '../../src/host/playbook/containedJob'
 import { processGitPath } from '../../src/host/git'
 import { runTreeSync } from '../../src/host/processTree'
 import { withoutHostVariables } from '../../src/core/hostVariables'
 import { renamedFiles } from '../../src/core/orchestration/playbook/renamedFiles'
 import type { PlaybookHookEffect } from '../../src/core/orchestration/playbook/outcomes'
 import {
-  PLAYBOOK_JOB_ENVIRONMENT,
   PLAYBOOK_JOB_NAME_PREFIX,
   PLAYBOOK_JOB_PIPE_ROOT,
   WINDOWS_POWERSHELL_COMMAND_ARGS,
@@ -114,52 +109,10 @@ describe('windowsArgument', () => {
   })
 })
 
-describe('containedJobScript', () => {
-  const script = containedJobScript()
-
-  it('names no cmdlet that module auto-loading would have to find', () => {
-    expect(script).not.toMatch(
-      /\b(?:New-Object|Add-Type|ConvertFrom-Json|ConvertTo-Json|Write-Output|Write-Host|Start-Process|Get-\w+|Where-Object|ForEach-Object|Out-\w+)\b/u,
-    )
-  })
-
-  it('clears every value it was given from its own environment before any call', () => {
-    for (const name of Object.values(PLAYBOOK_JOB_ENVIRONMENT))
-      expect(script).toContain(`$env:${name} = $null`)
-    expect(script.indexOf(`$env:${PLAYBOOK_JOB_ENVIRONMENT.job} = $null`)).toBeLessThan(
-      script.indexOf('[Diagnostics.Process]::Start'),
-    )
-  })
-
-  it('binds the job to its own life before any pipe can serve a call', () => {
-    // Kill-on-close on the handle the helper holds: the job cannot outlive it.
-    const bound = script.indexOf("GetMethod('SetInformationJobObject'")
-    expect(bound).toBeGreaterThan(script.indexOf('::Join($j)'))
-    expect(script.indexOf('WriteInt32($info, 16, 8192)')).toBeGreaterThan(-1)
-    expect(script.indexOf("{ throw 'limit' }")).toBeGreaterThan(bound)
-    expect(script.indexOf('NamedPipeServerStream')).toBeGreaterThan(
-      script.indexOf("{ throw 'limit' }"),
-    )
-  })
-
-  it('binds through members the shipped job type still has', () => {
-    // The helper reaches these two by name; a rename there must fail here, on every OS.
-    const source = readFileSync(path.resolve('native/windows/MuseSparkJob.cs'), 'utf8')
-    expect(source).toContain('static IntPtr held = IntPtr.Zero;')
-    expect(source).toContain(
-      'static extern bool SetInformationJobObject(IntPtr job, int kind, IntPtr info, uint length);',
-    )
-  })
-
-  it('answers a call only after the sweep, and always ends its job', () => {
-    expect(script.indexOf('::Query($j)')).toBeGreaterThan(script.indexOf('WaitForExit'))
-    expect(script.indexOf('$pipe.Write($header')).toBeGreaterThan(script.indexOf('::Query($j)'))
-    expect(script.trimEnd().endsWith('::Terminate($j, 0)')).toBe(true)
-  })
-})
-
 describe('ContainedJob', () => {
   const VERSION = { kind: 'git', cwd: process.cwd(), command: 'git', args: ['--version'] } as const
+  // The product always passes the built helper's absolute path; this one names no file.
+  const MISSING_HELPER = path.join(tmpdir(), 'muse-no-such-job-helper.exe')
 
   it('fails the call, never runs it uncontained, when the helper cannot be reached', () => {
     const published: string[][] = []
@@ -169,7 +122,7 @@ describe('ContainedJob', () => {
     // never looking dead; spawnSync reaps before the open runs.)
     const grave = spawnSync(process.execPath, ['-e', ''], { stdio: 'ignore' })
     const job = new ContainedJob({
-      assemblyPath: 'missing.dll',
+      assemblyPath: MISSING_HELPER,
       systemRoot: SYSTEM_ROOT,
       onJob: (names) => {
         published.push([...names])
@@ -210,7 +163,7 @@ describe('ContainedJob', () => {
     })
     try {
       const job = new ContainedJob({
-        assemblyPath: 'missing.dll',
+        assemblyPath: MISSING_HELPER,
         systemRoot: SYSTEM_ROOT,
         onJob: (names) => {
           published.push([...names])
@@ -576,17 +529,19 @@ describe.runIf(IS_WINDOWS)('ContainedJob on Windows (native)', () => {
     let isStaying = true
     const ended: string[] = []
     const helpers: { kill: () => boolean }[] = []
-    // A helper that serves its pipe, drops whoever connects, and stays.
-    const stays = String.raw`require('node:net').createServer((socket) => { socket.destroy() }).listen(process.env.MUSE_TEST_PIPE_ROOT + '\\' + process.env.${PLAYBOOK_JOB_ENVIRONMENT.pipe})`
+    // A helper that serves its pipe (named in its arguments, as the job
+    // helper's is), drops whoever connects, and stays.
+    const stays = String.raw`require('node:net').createServer((socket) => { socket.destroy() }).listen(process.env.MUSE_TEST_PIPE_ROOT + '\\' + process.argv.at(-1))`
     const job = new ContainedJob({
       assemblyPath: storage.assembly,
       systemRoot: SYSTEM_ROOT,
       onJob: (names) => {
         published.push([...names])
       },
-      start: (_file, _args, env) => {
+      start: (_file, args, env) => {
         if (!isStaying) return { pid: undefined, unref: () => undefined }
-        const helper = spawn(process.execPath, ['-e', stays], {
+        // `contained <job> <pipe> …`: the pipe's name is the third argument.
+        const helper = spawn(process.execPath, ['-e', stays, args[2] ?? ''], {
           env: { ...env, MUSE_TEST_PIPE_ROOT: PLAYBOOK_JOB_PIPE_ROOT },
           stdio: 'ignore',
           windowsHide: true,
@@ -643,12 +598,14 @@ describe.runIf(IS_WINDOWS)('ContainedJob on Windows (native)', () => {
           reject(new Error('The member never joined its job'))
         })
       })
+      // The product's end by name: the job helper's `end-job`, no PowerShell.
+      const host = windowsJobHost(storage.assembly, SYSTEM_ROOT)
       const end = (job: string) =>
-        spawnSync(
-          powershell.file,
-          [...WINDOWS_POWERSHELL_COMMAND_ARGS, endJobScript(storage.assembly, job)],
-          { env: powershell.env, stdio: 'ignore', windowsHide: true },
-        ).status
+        spawnSync(host.file, [...endJobArgs(job)], {
+          env: host.env,
+          stdio: 'ignore',
+          windowsHide: true,
+        }).status
       expect(end(name)).toBe(0)
       expect(await hasHappened(() => !isRunning(member.pid ?? 0))).toBe(true)
       // A job that does not exist is a job seen to be over.

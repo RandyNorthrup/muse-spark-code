@@ -17,7 +17,7 @@ const NATIVE_WINDOWS = path.join('native', 'windows')
 export const JOB_SOURCE_FILES = {
   /** The Win32 half both helpers compile in. */
   shared: path.join(NATIVE_WINDOWS, 'MuseSparkMcpJob.cs'),
-  /** The job type shell commands join (`shellJob.ts`), a library. */
+  /** The job type shell commands join, and the job helper program every other caller runs (`shellJob.ts`), a console application. */
   shellJob: path.join(NATIVE_WINDOWS, 'MuseSparkJob.cs'),
   /** The MCP launcher's entry and configuration (`mcpJobExecutable.ts`), a console application. */
   mcpLauncher: path.join(NATIVE_WINDOWS, 'MuseSparkMcpLauncher.cs'),

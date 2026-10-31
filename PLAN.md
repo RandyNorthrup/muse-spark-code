@@ -19831,6 +19831,15 @@ live suggestion and the live check stay open (B4); the same order in
 `src/runtime/lsp/lspTab.ts` has no suite and is unchanged. Record:
 `docs/certification/cc-winruns.md`.
 
+**Status 2026-10-30 (CC-WINHOOK, Windows 11, int/recovery dfcb45936f): building.**
+The same order in `src/runtime/lsp/lspTab.ts` is reordered: a secret under
+the cursor is decided from the document right after the policy check, before
+the stored key is read and before D48's question, so Tab over LSP never asks
+for a request that cannot be sent. `test/unit/runtimeLsp.test.ts` proves it
+through the real server under the official client, which now records every
+question the server asks (the old order fails it with `Tab quiet (no-key)`).
+Record: `docs/certification/cc-winhook.md`.
+
 **Owner decision 2026-10-23: the Tab status bar stays at startup; the
 4 KiB ambition is dropped.** RLF-TAB moved everything else Tab carried at
 activation into `dist/tab.js` (Tab's share of `dist/extension.js` fell
@@ -24822,6 +24831,61 @@ answer, and a ticket with a wrong birth changes nothing. 2 of 2 pass, three red
 drills exit 1 and the restored tree is green. The full all-cores owner case was
 not run on this PC (the owner's rule), and the GUI second-window row and the
 Kubuntu cgroup row stay pending. Record: `docs/certification/cc-winruns.md`.
+
+**CC-WINWORKERS — the job helper's other callers start no PowerShell
+(2026-10-30, Windows 11, int/recovery 0a5ebd7189 with cc/winhook).**
+CC-WINHOOK's decisions 3 and 4. `MuseSparkJobHost` gains `worker`,
+`contained`, `end-job` and `terminate`, and every caller of the job type but
+the shell tool runs it through `windowsJobHost`: the team workers' file
+commands (`workerOps.ts`, through the governed contained launcher, guarded
+against the working copy they act in), the playbook's contained job and its
+end by name (`containedJob.ts`, `playbookWindow.ts`: the same kill-on-close
+server in C#), and the legacy shell stop's job termination (`processTree.ts`).
+Measured on the owner's PC with the Windows PowerShell engine-start log: one
+PowerShell start per operation before, none after. Still PowerShell: the
+shell tool (the person's shell), the helper's self-test (it proves that shell
+can load the type), the orphan sweep after taskkill (it serves a missing
+helper) and the ungoverned hook route; `RunTeam` (`processLifetime.ts`) is an
+open question in the record. The helper's old library builds
+(`MuseSparkJob-<digest>.dll`) are swept after a build by exact name in its own
+folder. Record: `docs/certification/cc-winworkers.md`.
+
+**CC-WINRUNTEAM — the team worker launch starts no PowerShell (2026-10-30,
+Windows 11, cc/winworkers 1b44323c7d).** CC-WINWORKERS' decisions 1, 4 and 5.
+`MuseSparkJobHost` gains `run-team`, which runs `MuseSparkJob.RunTeam`
+unchanged (the kill-on-close job without breakaway, the helper inside it, the
+held suspended launch, STOP, `END proved`, below-normal priority) and exits
+with the payload's code; `windowsTeamDriver` (`processLifetime.ts`) runs it
+through `windowsJobHost`, each value one program argument. Measured with the
+engine-start log: one PowerShell start per launch before, none after. The
+playbook's dispatch head runs `processGitPath`'s git, not a bare `git` that
+the contained helper looked up on its own PATH. `windowsJobHost`'s
+environment is recorded as it is: `SystemRoot` and the guard's variable
+given, and the ten variables Node's process start on Windows adds. The team
+launch has no product caller yet (`startNativeTeamLifetime`), so nothing is
+claimed until a real team run goes through a packed build. Record:
+`docs/certification/cc-winrunteam.md`.
+
+**CC-WINPATH — the job helper's PATH, working folder and DLL search, closed
+for every native caller (2026-10-30, Windows 11, cc/winrunteam 57e6126ca9).**
+CC-WINRUNTEAM's decisions 1 and 4, accepted as a security hardening.
+`windowsJobHost` now passes `PATH` present and empty and the helper's own
+folder as the working folder; every native caller (`workerOps.ts`,
+`containedJob.ts`, `playbookWindow.ts`, `processTree.ts`,
+`resourceJobHolder.ts`, the governor's tree reads and created-path registry,
+and `windowsTeamDriver`'s `run-team`) passes that folder as `cwd` while the
+payload still gets the folder it is meant to work in. In the C#,
+`MuseSparkJobHost` restricts the process DLL search to the application folder
+and System32 (`SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_APPLICATION_DIR |
+LOAD_LIBRARY_SEARCH_SYSTEM32)`; `[assembly: DefaultDllImportSearchPaths(System32)]`
+for every platform invoke), and `RunTeam` and the contained call refuse any
+program or working folder that is not fully qualified. A planted `whoami.exe`
+under a program name (`git.exe`) or a DLL name, first on the parent's PATH and
+in the workspace, is never run or loaded by any caller (loader traces and
+real-process drills). Decision 4: `MuseSparkJob.cs` and
+`MuseSparkMcpLauncher.cs` now cite the real suites (`jobHostNative.test.ts`,
+`mcpJobRetire.test.ts`), not the absent `jobSource.test.ts`. Record:
+`docs/certification/cc-winpath.md`.
 
 ---
 
@@ -31505,6 +31569,15 @@ suites pass on the production build (`runtimePanel*`, `runtimeReview`,
 `acpPaidGrants`); no editor host carries it and no model call has gone
 through it. The agent package carries `reportFallback.js` for the controller.
 Record: `docs/certification/cc-int5.md`.
+Lane H, Tab hooks on a busy Windows PC (CC-WINHOOK, 2026-10-30): a hook
+launch starts no Windows PowerShell. The governor's tree reads, job holder
+and created-path registry run the job helper as a program of its own
+(`MuseSparkJobHost`, `windowsJobHost`), and a governed hook starts through the
+native job launcher; measured on the owner's PC the launch fell from 8 to 14
+PowerShell starts and about 0.9 s to none and about 0.27 s, and
+`test/unit/runtimeLsp.test.ts`'s two hook cases pass under two CPUs and six
+busy loops where the old launch never ran the hook. The 1.5 s bound is
+unchanged. Record and open questions: `docs/certification/cc-winhook.md`.
 
 Lane D on int (RLF-M104D, 2026-10-30): the portable webview — bridges,
 React fallbacks, presentation pages, chat and Tasks and What's New on the
@@ -33634,7 +33707,7 @@ before a repaired one loads (2026-09-30).
 
 | File                                      | Construct                                                                     | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Added      |
 | ----------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/host/resources/resourceJobHolder.ts` | `nosemgrep` on `spawn` (`detect-child-process`)                               | M107 C1's absolute Windows PowerShell runs only the verified packaged job DLL's fixed Hold entry and a fresh generated job name, in the projected helper environment. No model/workspace command or credential; it holds a query handle until owned job membership is empty. It is sampling infrastructure outside the governed job, and never sets limits or kills work.                                                                                                                                                                                                                                                         | 2026-10-05 |
+| `src/host/resources/resourceJobHolder.ts` | `nosemgrep` on `spawn` (`detect-child-process`)                               | M107 C1's packaged, digest-named job helper (the same file PowerShell loads as the job type) runs only its fixed `hold` command by absolute path and a fresh generated job name, in the projected helper environment (SystemRoot only); no PowerShell is started for it (CC-WINHOOK, 2026-10-30). No model/workspace command or credential; it holds a query handle until owned job membership is empty. It is sampling infrastructure outside the governed job, and never sets limits or kills work.                                                                                                                             | 2026-10-05 |
 | `src/host/backend/toolIo.ts`              | `nosemgrep` on `spawn`, in `startProcess` (`detect-child-process`)            | The command line is the tool's payload by design: the user approved it on a card, and it runs through PowerShell / bash as an argument array, never a shell string. The comment moved with the call into `startProcess` (M72, 2026-09-30), which catches `spawn`'s synchronous throw and reports an unstarted shell; no suppression was added.                                                                                                                                                                                                                                                                                    | 2026-09-22 |
 | `src/host/backend/searchWorker.ts`        | `nosemgrep` on `new RegExp(pattern)` (`detect-non-literal-regexp`)            | The model's search pattern is evaluated on a worker thread that `toolIo.searchOnWorker` terminates at `SEARCH_TIMEOUT_MS`, and the pattern is capped at `SEARCH_PATTERN_MAX_LENGTH`; a runaway match cannot hang the host.                                                                                                                                                                                                                                                                                                                                                                                                        | 2026-09-22 |
 | `knip.jsonc`                              | Named system-binary declarations for `cmake`, `strip`, `readelf`, `cc`, `c++` | CM9LNX builds precompiled native helpers with installed CMake/strip and compiles fake-engine/hostile-plugin fixtures with the system compiler; readelf verifies each produced ELF loader path. None is an npm dependency. Dead-code rules and thresholds remain unchanged.                                                                                                                                                                                                                                                                                                                                                        | 2026-10-10 |

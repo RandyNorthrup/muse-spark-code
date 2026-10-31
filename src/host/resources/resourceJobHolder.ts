@@ -1,30 +1,25 @@
 import type { ResourceJob, ResourceLease } from '../../core/resources/launch'
-import {
-  RESOURCE_SAMPLE_MS,
-  SHELL_JOB_TYPE_NAME,
-  WINDOWS_POWERSHELL_COMMAND_ARGS,
-} from '../../shared/constants'
-import { loadJobAssembly } from '../processTree'
-import { windowsPowerShell } from '../../core/execGuard'
+import { RESOURCE_SAMPLE_MS } from '../../shared/constants'
+import { windowsJobHost } from '../../core/execGuard'
 import { spawnGuarded } from '../../core/guardedChildProcess'
-import { powerShellQuoted } from '../../core/shellQuote'
 
-/** A sampler infrastructure process, excluded from the job it keeps queryable. */
+/**
+A sampler infrastructure process, excluded from the job it keeps queryable:
+the job helper's `hold` command, run as its own program (no PowerShell start).
+*/
 export async function holdResourceJob(
   lease: ResourceLease,
   job: ResourceJob,
   systemRoot: string,
 ): Promise<ResourceLease> {
-  const ps = windowsPowerShell(systemRoot)
-  // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- absolute Windows PowerShell, the packaged verified job assembly and a fresh generated job name only; the holder never receives a model/workspace command or credentials (M107 C1, PLAN.md §8).
-  const child = spawnGuarded(
-    ps.file,
-    [
-      ...WINDOWS_POWERSHELL_COMMAND_ARGS,
-      `${loadJobAssembly(job.assemblyPath)}; [${SHELL_JOB_TYPE_NAME}]::Hold(${powerShellQuoted(job.name)})`,
-    ],
-    { env: ps.env, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] },
-  )
+  const host = windowsJobHost(job.assemblyPath, systemRoot)
+  // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the packaged, digest-named job helper by absolute path and a fresh generated job name only; the holder never receives a model/workspace command or credentials (M107 C1, PLAN.md §8).
+  const child = spawnGuarded(host.file, ['hold', job.name], {
+    env: host.env,
+    cwd: host.cwd,
+    windowsHide: true,
+    stdio: ['pipe', 'pipe', 'pipe'],
+  })
   child.stdin.on('error', () => {
     /* A retired holder has already closed the job. */
   })
