@@ -414,6 +414,15 @@ happened, not what was planned; superseded entries are kept.
   The start log names `inline` where it said `unrecognized`. A link put
   in place of that file is not treated as a sign-in: Muse reads the file
   itself, and a link stays unrecognised.
+- A scheduled event whose trigger keeps failing no longer retries forever:
+  after 5 attempts with doubling waits it stops and says why.
+- Closing the scheduler no longer fails its own cleanup: the background
+  re-arm now runs before shutdown instead of after it, so a scheduled run
+  ends cleanly instead of reporting a cleanup warning.
+- The watchdog no longer mistakes a reporter quoting its acknowledgement for
+  its own post: a reply that quotes the marker counts as the reporter's
+  answer again, and a quoted marker no longer stops the acknowledgement from
+  being posted.
 - The terminal agent's requests were missing from usage history since 0.12.0:
   every headless turn stamped its usage record with a fractional clock, the
   journal refused the record, and one warning was all that was left. Stored

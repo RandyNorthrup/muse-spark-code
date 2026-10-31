@@ -1336,6 +1336,10 @@
       "targetUnavailable": "Bu zamanlamanın hedefi bu ana makinede kullanılamıyor.",
       "targetClosed": "Hedef kapatıldı.",
       "deliveryFailed": "Delivery failed: {reason}",
+      "deferredEventGaveUp": {
+        "one": "{scheduleId} için zamanlanan etkinlik {count} kez başarısız oldu ve yeniden çalıştırılmayacak: {reason}",
+        "other": "{scheduleId} için zamanlanan etkinlik {count} kez başarısız oldu ve yeniden çalıştırılmayacak: {reason}"
+      },
       "schedulePaused": "Zamanlama teslimden önce duraklatıldı.",
       "scheduleDeleted": "Zamanlama teslimden önce silindi.",
       "scheduleEdited": "Zamanlamanın saati, hedefi veya teslim modu değişti.",

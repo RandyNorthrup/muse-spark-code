@@ -1647,6 +1647,11 @@ export const EN = {
       targetUnavailable: 'This schedule’s target is unavailable in this host.',
       targetClosed: 'The target closed.',
       deliveryFailed: 'Delivery failed: {reason}',
+      deferredEventGaveUp: forms({
+        one: 'The scheduled event for {scheduleId} failed {count} time and will not run again: {reason}',
+        other:
+          'The scheduled event for {scheduleId} failed {count} times and will not run again: {reason}',
+      }),
       schedulePaused: 'The schedule was paused before delivery.',
       scheduleDeleted: 'The schedule was deleted before delivery.',
       scheduleEdited: 'The schedule’s timing, target or delivery mode changed.',

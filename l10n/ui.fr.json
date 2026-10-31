@@ -1341,6 +1341,11 @@
       "targetUnavailable": "La cible de cette planification est indisponible sur cet hôte.",
       "targetClosed": "La cible a été fermée.",
       "deliveryFailed": "Delivery failed: {reason}",
+      "deferredEventGaveUp": {
+        "one": "L’événement planifié pour {scheduleId} a échoué {count} fois et ne sera pas réexécuté : {reason}",
+        "other": "L’événement planifié pour {scheduleId} a échoué {count} fois et ne sera pas réexécuté : {reason}",
+        "many": "L’événement planifié pour {scheduleId} a échoué {count} fois et ne sera pas réexécuté : {reason}"
+      },
       "schedulePaused": "La planification a été mise en pause avant la livraison.",
       "scheduleDeleted": "La planification a été supprimée avant la livraison.",
       "scheduleEdited": "L’horaire, la cible ou le mode de livraison de la planification a changé.",

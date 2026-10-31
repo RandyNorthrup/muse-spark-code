@@ -6411,6 +6411,15 @@ export const SCHEDULE_JOURNAL_SEAL_MAX_BYTES = 256
 export const SCHEDULE_OUTBOX_MAX_PENDING = 1024
 export const SCHEDULE_RECONCILE_MAX_RUNS = 32
 export const SCHEDULE_FENCE_GRACE_MS = 8 * MILLISECONDS_PER_DAY
+// RLF-SAFEFIX (D121, RVINT5 P3): a failed deferred schedule event retries
+// with capped exponential backoff — wait = min(cap, base * 2^failures)
+// (AWS Architecture Blog, "Exponential Backoff And Jitter") — at most 5
+// fire attempts including the first (gRPC's MaxRetryAttempts default),
+// then stops and says why. The base is one poll interval: a wait shorter
+// than the scan period could never fire sooner. The schedules settings
+// carry no retry knobs, so no setting tunes this.
+export const SCHEDULE_DEFERRED_EVENT_MAX_ATTEMPTS = 5
+export const SCHEDULE_DEFERRED_EVENT_RETRY_CAP_MS = 8 * SCHEDULE_POLL_INTERVAL_MS
 export const SCHEDULE_AUDIT_MAX_PER_SCHEDULE = 100
 export const SCHEDULE_AUDIT_MAX_AGE_MS = 30 * MILLISECONDS_PER_DAY
 export const SCHEDULE_FENCE_SEGMENT_CHARS = 2

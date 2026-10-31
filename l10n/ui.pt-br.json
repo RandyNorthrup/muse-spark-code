@@ -1341,6 +1341,11 @@
       "targetUnavailable": "O destino deste agendamento não está disponível neste host.",
       "targetClosed": "O destino foi fechado.",
       "deliveryFailed": "Delivery failed: {reason}",
+      "deferredEventGaveUp": {
+        "one": "O evento agendado para {scheduleId} falhou {count} vez e não será executado novamente: {reason}",
+        "other": "O evento agendado para {scheduleId} falhou {count} vezes e não será executado novamente: {reason}",
+        "many": "O evento agendado para {scheduleId} falhou {count} vezes e não será executado novamente: {reason}"
+      },
       "schedulePaused": "O agendamento foi pausado antes da entrega.",
       "scheduleDeleted": "O agendamento foi excluído antes da entrega.",
       "scheduleEdited": "O horário, o destino ou o modo de entrega do agendamento mudou.",
