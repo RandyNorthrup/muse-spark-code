@@ -17259,6 +17259,17 @@ serve`."
 
 **Status 2026-10-10 (depends on team integration): waiting.**
 
+**Status 2026-10-31 (integration into cc/int8, CC-INT8): building.**
+RLF-TEAMFIT (D251) and RLF-M96CERT are merged with the other rounds' lanes, and
+`npm run build` exits 0 with every budget unchanged (`teamHost.js` 122.7 of 130
+KiB, `teamRunners.js` 33.3 of 75, `teamScheduler.js` 60.4 of 75, `uiText.js`
+114.1 of 125), so the RLF-M96CERT status that the build stays red on this
+milestone's bundles no longer holds. The packed agent refuses `exec --team` on
+the wrong backend by naming the option (exit 2). The ACP agent has no team
+session path and no real team run has been made through the packed product
+(`docs/certification/rlf-m96cert.md`); the roadmap entry says so. Record:
+`docs/certification/cc-int8.md`.
+
 **Status 2026-10-22 (RLM96B recovery landing, macbook rig): building.**
 
 Source `src/RLM96B/01-c-m96b-2` merged onto `main at 0.19.0` with
@@ -25681,6 +25692,15 @@ and admission have deliberate failing regressions.
 **Status 2026-10-17 (MSM109; superseded 2026-10-18 by VAULTOPEN: the key-store migration and companion surface stayed open): complete.** Merged `main-now`, purged every stand-in-based vault test per the 10-17 testing rules (the overhaul deletions stay deleted; crash recovery and broker sessions stay proven through real child processes), bound the Models & Agents vault section and the window commands to the lazy vault bundle, enabled the reviewed availability switch, composed SSH key add in the action dialogs, published vault Help, and passed all gates. The Windows pipe helper (lane C-M109-1c), the key-store migration, the companion vault surface and the macOS replay still wait and are not claimed here; see `docs/certification/msm109.md`.
 **Status 2026-10-18 (VAULTOPEN, macmini): building.** The key-store migration is built for apiKey-shaped keys (Model API key, apiKey provider records; opaque records, retire/undo and pooled accounts stay follow-ups) behind the lazy `dist/vaultMigration.js` chunk with its own budget; the macOS replay is recorded with its sandbox blocks; the companion vault surface stays open with the measured gap. See `docs/certification/msm109.md` (lane VAULTOPEN). M109 stays open.
 
+**Status 2026-10-31 (integration into cc/int8, CC-INT8): built.**
+RVM109's two fixes are merged on D243's first increment: a linked, shared or
+second-named vault policy file is refused, and the Linux feeder sees the
+broker's runtime directory. The lane's two CHANGELOG lines (stored keys moving
+into the vault in the terminal agent and headless runs; `exec --vault` shell
+calls with vault secrets) left `[Unreleased]` and wait for the real-life run
+(`docs/certification/rlf-m109.md`, section 7). The vault suites were not run on
+this Mac. M109 stays open. Record: `docs/certification/cc-int8.md`.
+
 **RLM109 recovery (2026-10-21, Windows): building.** Reconcile the seven
 `src/RLM109/*` sources against the released tree, retaining its death-only
 writer ownership, current native helpers, no-limit rules and removed stand-in
@@ -31595,6 +31615,13 @@ logged.
 ### M104 — Every editor, every feature (D84)
 
 **Status 2026-10-07: waiting.** Certification metadata remains incomplete; retained requirements and receipts follow.
+
+**Status 2026-10-31 (integration into cc/int8, CC-INT8): building.**
+The MHP v1.1 lock was re-frozen once, through the adoption route, at
+`mhp/1.5.1` (D226). The only changes since the 1.5.0 lock are the version and
+the optional `quota` detail on `turnCompleted` and `turnRetry` (D252); neither
+1.5.0 nor 1.5.1 has shipped. `check:mhp` exits 0. Record:
+`docs/certification/cc-int8.md`.
 
 On int (cc/rlm104, 2026-10-24): the MHP contract (D226) and lane A's
 `src/host/vscode/` boundary; every other lane, with its int-specific
