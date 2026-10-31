@@ -17,6 +17,7 @@ import {
   AcpMethodNotFoundError,
   AcpModelSelectionError,
   type AcpAgentConnection,
+  type AcpConfigSelector,
   type AcpPermissionOption,
   type AcpPermissionToolCall,
   type AcpPreset,
@@ -57,7 +58,7 @@ export interface TeamChildLauncher {
 
 /** Finds a preset's command on the PATH: the directory entries and a file probe, injected. */
 export function findAcpPresetCommand(
-  preset: AcpPreset,
+  preset: Pick<AcpPreset, 'command'>,
   platform: NodeJS.Platform,
   pathEntries: readonly string[],
   isFile: (filePath: string) => boolean,
@@ -190,6 +191,11 @@ export interface AcpClientHandlers {
     grant: WorkerRootGrant,
   ) => Promise<{ readonly ok: true } | { readonly error: string }>
   readonly onUpdate: (text: string | undefined) => void
+  /**
+  Every `session/update`, unparsed past the loose boundary (D250's
+  orchestrator streams them all; a worker's `onUpdate` text still flows).
+  */
+  readonly onSessionUpdate?: (sessionId: string, update: unknown) => void
 }
 
 // Stable ACP v1 shapes from the pinned SDK and the recorded fake stdio
@@ -233,9 +239,31 @@ function sdkAuthMethod(method: z.infer<typeof authMethod>): acp.AuthMethod {
 const initializeResponse = z.looseObject({
   protocolVersion: z.literal(1),
   authMethods: z.optional(z.nullable(z.array(authMethod))),
+  agentCapabilities: z.optional(
+    z.nullable(
+      z.looseObject({
+        loadSession: z.optional(z.boolean()),
+        mcpCapabilities: z.optional(z.nullable(z.looseObject({ http: z.optional(z.boolean()) }))),
+      }),
+    ),
+  ),
+  agentInfo: z.optional(
+    z.nullable(z.looseObject({ name: z.optional(z.string()), version: z.optional(z.string()) })),
+  ),
 })
 const sessionResponse = z.looseObject({
   sessionId: z.string().check(z.minLength(1)),
+  modes: z.optional(
+    z.nullable(
+      z.looseObject({
+        currentModeId: z.string(),
+        availableModes: z.array(z.looseObject({ id: z.string() })),
+      }),
+    ),
+  ),
+  configOptions: z.optional(z.nullable(z.array(z.unknown()))),
+})
+const loadResponse = z.looseObject({
   modes: z.optional(
     z.nullable(
       z.looseObject({
@@ -445,7 +473,13 @@ export function connectAcpAgent(input: {
       locations: z.optional(z.nullable(z.array(z.looseObject({ path: z.string() })))),
       rawInput: z.optional(z.unknown()),
     }),
-    options: z.array(z.looseObject({ optionId: z.string(), kind: z.string() })),
+    options: z.array(
+      z.looseObject({
+        optionId: z.string(),
+        kind: z.string(),
+        name: z.optional(z.nullable(z.string())),
+      }),
+    ),
   })
   const fsReadParams = z.looseObject({ sessionId: z.string(), path: z.string() })
   const fsWriteParams = z.looseObject({
@@ -471,7 +505,11 @@ export function connectAcpAgent(input: {
         for (const option of params.options) {
           const kind = optionKinds.find((known) => known === option.kind)
           if (kind !== undefined) {
-            options.push({ optionId: option.optionId, kind })
+            options.push({
+              optionId: option.optionId,
+              kind,
+              ...(option.name !== undefined && option.name !== null && { name: option.name }),
+            })
           }
         }
         return new Promise<acp.RequestPermissionResponse>((resolve) => {
@@ -522,6 +560,16 @@ export function connectAcpAgent(input: {
       },
     )
     .onNotification('session/update', updateNotification, ({ params }) => {
+      const configUpdate = z
+        .looseObject({
+          sessionUpdate: z.literal('config_option_update'),
+          configOptions: z.array(z.unknown()),
+        })
+        .safeParse(params.update)
+      if (configUpdate.success) {
+        sessionConfigurations.set(params.sessionId, configUpdate.data.configOptions)
+      }
+      handlers.onSessionUpdate?.(params.sessionId, params.update)
       const chunk = agentMessageChunk.safeParse(params.update)
       const text =
         chunk.success && chunk.data.content.type === 'text' ? chunk.data.content.text : undefined
@@ -568,6 +616,55 @@ export function connectAcpAgent(input: {
       throw asAcpSdkError(error, method, authMethods)
     }
   }
+  const selectorsOf = (sessionId: string): AcpConfigSelector[] => {
+    const selectors: AcpConfigSelector[] = []
+    const options = sessionConfigurations.get(sessionId) ?? []
+    for (const option of options) {
+      const parsed = configSelector.safeParse(option)
+      if (parsed.success) {
+        selectors.push({
+          id: parsed.data.id,
+          category: parsed.data.category ?? undefined,
+          currentValue: parsed.data.currentValue,
+          values: valuesOf(parsed.data),
+        })
+      }
+    }
+    return selectors
+  }
+  const runPrompt = async (
+    sessionId: string,
+    blocks: readonly unknown[],
+  ): Promise<{ readonly stopReason: string }> => {
+    messagesOf(sessionId).length = 0
+    const stop = new AbortController()
+    promptStops.set(sessionId, stop)
+    const work = requesting(
+      'session/prompt',
+      agent.request(
+        'session/prompt',
+        { sessionId, prompt: [...blocks] },
+        { cancellationSignal: stop.signal },
+      ),
+    )
+    promptSettled.set(
+      sessionId,
+      (async () => {
+        try {
+          await work
+        } catch {
+          /* The prompt caller receives the failure. */
+        }
+      })(),
+    )
+    try {
+      const response = await work
+      return { stopReason: promptResponse.parse(response).stopReason }
+    } finally {
+      promptSettled.delete(sessionId)
+      if (promptStops.get(sessionId) === stop) promptStops.delete(sessionId)
+    }
+  }
   return {
     initialize: async () => {
       const response = await requesting(
@@ -583,7 +680,19 @@ export function connectAcpAgent(input: {
       )
       const parsed = initializeResponse.parse(response)
       authMethods = (parsed.authMethods ?? []).map((method) => sdkAuthMethod(method))
-      return { protocolVersion: parsed.protocolVersion, authMethods }
+      return {
+        protocolVersion: parsed.protocolVersion,
+        authMethods,
+        agent: {
+          loadSession: parsed.agentCapabilities?.loadSession === true,
+          mcpHttp: parsed.agentCapabilities?.mcpCapabilities?.http === true,
+          ...(parsed.agentInfo?.name !== undefined && { name: parsed.agentInfo.name }),
+          ...(parsed.agentInfo?.version !== undefined && { version: parsed.agentInfo.version }),
+        },
+      }
+    },
+    authenticate: async (methodId) => {
+      await requesting('authenticate', agent.request('authenticate', { methodId }))
     },
     sessionNew: async (params) => {
       const response = await requesting(
@@ -601,6 +710,29 @@ export function connectAcpAgent(input: {
       const modeSelector = selectorOf(parsed.configOptions ?? [], 'mode')
       return {
         sessionId: parsed.sessionId,
+        ...(parsed.modes !== undefined &&
+          parsed.modes !== null && { currentMode: parsed.modes.currentModeId }),
+        advertisedModes:
+          parsed.modes?.availableModes.map((mode) => mode.id) ??
+          (modeSelector === undefined ? [] : valuesOf(modeSelector)),
+      }
+    },
+    sessionLoad: async (params) => {
+      const response = await requesting(
+        'session/load',
+        agent.request('session/load', {
+          sessionId: params.sessionId,
+          cwd: params.cwd,
+          mcpServers: [...params.mcpServers],
+        }),
+      )
+      const parsed = loadResponse.parse(response)
+      sessionGrants.set(params.sessionId, params.grant)
+      sessionConfigurations.set(params.sessionId, parsed.configOptions ?? [])
+      if (parsed.modes !== undefined && parsed.modes !== null)
+        sessionModes.set(params.sessionId, parsed.modes.currentModeId)
+      const modeSelector = selectorOf(parsed.configOptions ?? [], 'mode')
+      return {
         ...(parsed.modes !== undefined &&
           parsed.modes !== null && { currentMode: parsed.modes.currentModeId }),
         advertisedModes:
@@ -661,42 +793,25 @@ export function connectAcpAgent(input: {
         throw new Error('The ACP agent did not confirm its mode')
     },
     prompt: async (sessionId, text) => {
-      messagesOf(sessionId).length = 0
-      const stop = new AbortController()
-      promptStops.set(sessionId, stop)
-      const work = requesting(
-        'session/prompt',
-        agent.request(
-          'session/prompt',
-          {
-            sessionId,
-            prompt: [{ type: 'text', text }],
-          },
-          { cancellationSignal: stop.signal },
+      const { stopReason } = await runPrompt(sessionId, [{ type: 'text', text }])
+      const messages = messagesOf(sessionId).at(-1)?.text ?? ''
+      return { stopReason, lastMessage: messages === '' ? undefined : messages }
+    },
+    promptBlocks: async (sessionId, blocks) => await runPrompt(sessionId, blocks),
+    setConfigValue: async (sessionId, configId, value) => {
+      const response = configResponse.parse(
+        await requesting(
+          'session/set_config_option',
+          agent.request('session/set_config_option', { sessionId, configId, value }),
         ),
       )
-      promptSettled.set(
-        sessionId,
-        (async () => {
-          try {
-            await work
-          } catch {
-            /* The prompt caller receives the failure. */
-          }
-        })(),
-      )
-      try {
-        const response = await work
-        const messages = messagesOf(sessionId).at(-1)?.text ?? ''
-        return {
-          stopReason: promptResponse.parse(response).stopReason,
-          lastMessage: messages === '' ? undefined : messages,
-        }
-      } finally {
-        promptSettled.delete(sessionId)
-        if (promptStops.get(sessionId) === stop) promptStops.delete(sessionId)
-      }
+      sessionConfigurations.set(sessionId, response.configOptions)
+      const selectors = selectorsOf(sessionId)
+      if (selectors.find((row) => row.id === configId)?.currentValue !== value)
+        throw new Error('The ACP agent did not confirm its setting')
+      return selectors
     },
+    configSelectors: (sessionId) => selectorsOf(sessionId),
     cancel: async (sessionId) => {
       for (const answer of pendingPermissions) {
         answer(undefined)

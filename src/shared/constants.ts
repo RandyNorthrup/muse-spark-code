@@ -9569,6 +9569,13 @@ export const PACK_MODEL_TEXT = {
 // Team scheduler guidance stays English and is read only by the lazy team
 // bundle. M96's charter/roster region composes with this stable text.
 export const TEAM_MODEL_TEXT = {
+  // The `team` MCP server's instructions (D250): how any orchestrator —
+  // ours or an external agent running as itself — leads with these tools.
+  mcpInstructions:
+    'You lead a team of worker agents through these tools; you stay the agent you are, and nothing here changes how you work.\n' +
+    'Call roster once before delegating: it shows each role, its pool and headroom, and the work already running.\n' +
+    'Delegate whole, independent tasks with delegate: each one names a role and a brief a worker that has not seen this conversation can act on (goal, context, files, constraints, done criteria). Keep work that needs this conversation in the plan. Give each delegation a command_id so a retry starts nothing twice.\n' +
+    'Then collect reports with collect, review what came back, and merge a finished, reviewed task with merge. Cancel stops running work. Workers run on their own branches and meters; merges and paid work ask the person, never you.',
   scheduler:
     'Declare writes, depends_on and size for each delegated task. The board orders ready work; never start a dependent early. Use merged dependencies for changes that must land first and done dependencies for reports, which are data. Read predicted conflicts and the merge queue from collect. Add English strings beside their related block, never at the end of the source file.',
   reschedule:
