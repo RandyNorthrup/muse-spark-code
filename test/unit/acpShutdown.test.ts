@@ -38,8 +38,8 @@ import { removeFolder } from './helpers/temporaryFolders'
 
 const ROOT = process.cwd()
 const AGENT = path.join(ROOT, 'dist', 'acp.js')
-const FOLDER = realpathSync(mkdtempSync(path.join(tmpdir(), 'muse-shutdown-')))
-const HOME = path.join(FOLDER, 'home')
+// This suite's own folder and home, made in `beforeAll`: nothing is made where the suite is skipped.
+const scratch = { folder: '', home: '' }
 // A case starts the production agent and a child and waits for both to exit.
 const CASE_MS = 30_000
 // The agent and its child end far under the SDK's 30 s drain window, which
@@ -108,13 +108,13 @@ async function startedAgent(options: {
   readonly isDeaf?: boolean
   readonly withSession: boolean
 }): Promise<Left> {
-  const workspace = mkdtempSync(path.join(FOLDER, 'workspace-'))
+  const workspace = mkdtempSync(path.join(scratch.folder, 'workspace-'))
   await writeFile(path.join(workspace, 'serve.js'), SERVE(options.isDeaf === true))
   PID_FILES.add(path.join(workspace, 'cli.pid'))
   PID_FILES.add(path.join(workspace, 'child.pid'))
   const agent = spawn(process.execPath, [AGENT, '--muse-binary', process.execPath], {
     cwd: workspace,
-    env: isolatedRuntimeEnvironment(HOME, FOLDER),
+    env: isolatedRuntimeEnvironment(scratch.home, scratch.folder),
     stdio: 'pipe',
   })
   STARTED.add(agent)
@@ -170,34 +170,6 @@ async function startedAgent(options: {
   return { agent, exited, workspace, log: () => log }
 }
 
-beforeAll(() => {
-  assertCurrentProductionBuild(inject('productionBuildGeneration'), ROOT)
-  // Owner-only, as a profile is.
-  mkdirSync(path.join(HOME, 'config', 'muse'), { recursive: true, mode: 0o700 })
-  // The recorded placeholder sign-in (test/fixtures/maccred/provenance.json):
-  // read as `inline`, so the agent starts the backend instead of refusing.
-  copyFileSync(
-    path.join(ROOT, 'test', 'fixtures', 'maccred', 'v1-auth-set.json'),
-    path.join(HOME, 'config', 'muse', 'auth.json'),
-  )
-})
-
-afterEach(async () => {
-  // A case that failed may leave processes: they are ended after it.
-  for (const file of PID_FILES) {
-    const pid = pidOf(file)
-    if (pid !== undefined && isAlive(pid)) process.kill(pid, 'SIGKILL')
-  }
-  PID_FILES.clear()
-  const left = [...STARTED]
-  for (const agent of left) agent.kill('SIGKILL')
-  await Promise.all(left.map((agent) => new Promise((resolve) => agent.once('close', resolve))))
-})
-
-afterAll(async () => {
-  await removeFolder(FOLDER)
-})
-
 const LEAVES = [
   {
     name: 'its input closing',
@@ -236,6 +208,36 @@ const VANISHES = {
 } as const
 
 describe.skipIf(process.platform === 'win32')('the served agent when its client leaves', () => {
+  beforeAll(() => {
+    assertCurrentProductionBuild(inject('productionBuildGeneration'), ROOT)
+    scratch.folder = realpathSync(mkdtempSync(path.join(tmpdir(), 'muse-shutdown-')))
+    scratch.home = path.join(scratch.folder, 'home')
+    // Owner-only, as a profile is.
+    mkdirSync(path.join(scratch.home, 'config', 'muse'), { recursive: true, mode: 0o700 })
+    // The recorded placeholder sign-in (test/fixtures/maccred/provenance.json):
+    // read as `inline`, so the agent starts the backend instead of refusing.
+    copyFileSync(
+      path.join(ROOT, 'test', 'fixtures', 'maccred', 'v1-auth-set.json'),
+      path.join(scratch.home, 'config', 'muse', 'auth.json'),
+    )
+  })
+
+  afterEach(async () => {
+    // A case that failed may leave processes: they are ended after it.
+    for (const file of PID_FILES) {
+      const pid = pidOf(file)
+      if (pid !== undefined && isAlive(pid)) process.kill(pid, 'SIGKILL')
+    }
+    PID_FILES.clear()
+    const left = [...STARTED]
+    for (const agent of left) agent.kill('SIGKILL')
+    await Promise.all(left.map((agent) => new Promise((resolve) => agent.once('close', resolve))))
+  })
+
+  afterAll(async () => {
+    await removeFolder(scratch.folder)
+  })
+
   describe('before any backend started', () => {
     it.each(LEAVES)(
       '$name ends it with its work done',
