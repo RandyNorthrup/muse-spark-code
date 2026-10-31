@@ -15,6 +15,11 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises'
 import type { ShellTimeLimit } from '../../core/backends/modelapi/tools'
 import { type ShellResult, unstartedShell, refusedShellEntry } from '../../core/shellResult'
 import { vaultFenceEnvironment } from '../../core/vault/exec/fence'
+import { type VaultExecFeederPort } from '../../core/vault/exec/feeder'
+import { setLongTimeout } from '../../core/timeouts'
+import { realpathSync } from 'node:fs'
+import { vaultPrivateDirectory } from '../../core/vault/broker/files'
+import { posixQuoted } from '../../core/shellQuote'
 
 /**
 The feeder's own environment. The command fence drops `XDG_RUNTIME_DIR`
@@ -30,11 +35,6 @@ export function feederProcessEnvironment(source: NodeJS.ProcessEnv): NodeJS.Proc
     env['XDG_RUNTIME_DIR'] = runtimeDir
   return env
 }
-import { type VaultExecFeederPort } from '../../core/vault/exec/feeder'
-import { setLongTimeout } from '../../core/timeouts'
-import { realpathSync } from 'node:fs'
-import { vaultPrivateDirectory } from '../../core/vault/broker/files'
-import { posixQuoted } from '../../core/shellQuote'
 
 export interface VaultExecSpawnDeps {
   readonly nodePath: string
