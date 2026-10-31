@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "modes": {
+    "light": {
+      "outline": { "token": "colour.qr-module", "value": "#000000" },
+      "fill": { "token": "colour.qr-field", "value": "#ffffff" },
+      "accent": { "token": "colour.brand-mark", "value": "#0a5cff" }
+    },
+    "dark": {
+      "outline": { "token": "colour.qr-module", "value": "#000000" },
+      "fill": { "token": "colour.qr-field", "value": "#ffffff" },
+      "accent": { "token": "colour.brand-mark", "value": "#3d8bff" }
+    },
+    "hc-light": {
+      "outline": { "token": "colour.qr-module", "value": "#000000" },
+      "fill": { "token": "colour.qr-field", "value": "#ffffff" },
+      "accent": { "token": "colour.brand-mark", "value": "#000000" }
+    },
+    "hc-dark": {
+      "outline": { "token": "colour.qr-module", "value": "#000000" },
+      "fill": { "token": "colour.qr-field", "value": "#ffffff" },
+      "accent": { "token": "colour.brand-mark", "value": "#ffffff" }
+    }
+  }
+}

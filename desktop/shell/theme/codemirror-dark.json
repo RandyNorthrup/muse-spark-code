@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "mode": "dark",
+  "roles": {
+    "text": "#e4e7ed",
+    "editorSurface": "#242832",
+    "muted": "#aeb6c4",
+    "border": "#858b98",
+    "hover": "#303642",
+    "selection": "#064e8a",
+    "surface": "#181818",
+    "focus": "#7fb2ff",
+    "syntaxKeyword": "#c792ea",
+    "syntaxString": "#c3e88d",
+    "syntaxNumber": "#f78c6c",
+    "syntaxFunction": "#82aaff",
+    "danger": "#ff9292"
+  },
+  "highlight": [
+    {
+      "tags": ["keyword", "operatorKeyword", "modifier", "controlKeyword"],
+      "role": "syntaxKeyword",
+      "color": "#c792ea"
+    },
+    { "tags": ["string", "special(string)", "regexp"], "role": "syntaxString", "color": "#c3e88d" },
+    { "tags": ["number", "bool", "null", "atom"], "role": "syntaxNumber", "color": "#f78c6c" },
+    {
+      "tags": ["function(variableName)", "function(propertyName)", "typeName", "className"],
+      "role": "syntaxFunction",
+      "color": "#82aaff"
+    },
+    {
+      "tags": ["comment", "lineComment", "blockComment", "docComment"],
+      "role": "muted",
+      "fontStyle": "italic",
+      "color": "#aeb6c4"
+    },
+    { "tags": ["invalid"], "role": "danger", "color": "#ff9292" }
+  ]
+}
