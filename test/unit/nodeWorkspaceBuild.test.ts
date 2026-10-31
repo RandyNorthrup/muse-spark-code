@@ -60,7 +60,7 @@ describe('M110-U1 independent browser budget', () => {
   })
   it('carries the exact shipped dependency licences beside the standalone chunks', async () => {
     const notices = await readFile(path.join(built.directory, 'THIRD_PARTY_NOTICES.txt'), 'utf8')
-    expect(notices).toContain('@codemirror/merge@6.12.2')
+    expect(notices).toContain('@codemirror/merge@6.12.3')
     expect(notices).toContain('codemirror@6.0.2')
     expect(notices).toContain('@xterm/xterm@6.0.0')
     expect(notices).toContain('@xterm/addon-fit@0.11.0')
