@@ -34,6 +34,8 @@ const PRODUCTION_BUILD_SUITES: ReadonlySet<string> = new Set([
   'test/unit/runtimePanelSessions.test.ts',
   // M104 lane B: git in the runtime panel loads dist/nativeGit.js.
   'test/unit/runtimePanelGit.test.ts',
+  // M123 (D104 §2): the editor's GitHub lease loads dist/nativeGit.js.
+  'test/unit/runtimePanelGitLease.test.ts',
   // M104 lane B: edit review and `/review` load dist/review.js.
   'test/unit/runtimeReview.test.ts',
   // M104 lane B: the bundles the runtime panel loads run without the vscode module.

@@ -17,6 +17,7 @@ import { parseMhpResult } from '../../src/shared/hostApi/protocol'
 import { testGit } from './helpers/nativeGitHarness'
 import type { ChatSurface } from './helpers/panelEditor'
 import { confirmations, connectedPanel } from './helpers/panelConversation'
+import { repositoryRun } from './helpers/panelGitRepo'
 import { createPanelRun, type PanelRun } from './helpers/panelRun'
 import { assertCurrentProductionBuild } from './productionBuild'
 
@@ -31,25 +32,6 @@ afterAll(async () => {
   for (const run of runs) await run.dispose()
 })
 
-/** A workspace that is a repository of its own with one commit, and the git that made it. */
-function repositoryRun() {
-  const run = createPanelRun('muse-panel-git-')
-  runs.push(run)
-  run.prepare()
-  const git = testGit(run.folder)
-  git.run(run.workspace, 'init', '-q', '-b', 'main')
-  for (const [key, value] of [
-    ['user.name', 'Panel Suite'],
-    ['user.email', 'panel@example.invalid'],
-    ['commit.gpgsign', 'false'],
-  ] as const)
-    git.run(run.workspace, 'config', key, value)
-  writeFileSync(path.join(run.workspace, 'base.txt'), 'base\n')
-  git.run(run.workspace, 'add', 'base.txt')
-  git.run(run.workspace, 'commit', '-q', '-m', 'Base')
-  return { run, git }
-}
-
 /** The name the environment holds the PATH under (Windows keeps its own casing). */
 function pathVariable(): { path: string } {
   return { path: Object.keys(process.env).find((name) => name.toUpperCase() === 'PATH') ?? 'PATH' }
@@ -62,7 +44,7 @@ async function noticeOf(chat: ChatSurface, level: 'info' | 'warning' | 'error') 
 
 describe('git in the runtime panel', () => {
   it('shows the commit form of the workspace’s repository and commits through it', async () => {
-    const { run, git } = repositoryRun()
+    const { run, git } = repositoryRun(runs, 'muse-panel-git-')
     writeFileSync(path.join(run.workspace, 'a.txt'), 'a\n')
     const { host, editor, exit } = await connectedPanel(run, { runGit: processGitRunner() })
     const chat = await editor.nextSurface()
@@ -79,7 +61,7 @@ describe('git in the runtime panel', () => {
   })
 
   it('asks before it pushes, names every part of the push, and pushes only on a yes', async () => {
-    const { run, git } = repositoryRun()
+    const { run, git } = repositoryRun(runs, 'muse-panel-git-')
     const remote = path.join(run.folder, 'remote.git')
     git.run(run.folder, 'init', '-q', '--bare', '-b', 'main', remote)
     git.run(run.workspace, 'remote', 'add', 'origin', remote)
@@ -110,7 +92,7 @@ describe('git in the runtime panel', () => {
   })
 
   it('opens a push git itself could not finish in the editor’s terminal, with git’s own command', async () => {
-    const { run, git } = repositoryRun()
+    const { run, git } = repositoryRun(runs, 'muse-panel-git-')
     const missing = path.join(run.folder, 'nowhere.git')
     git.run(run.workspace, 'remote', 'add', 'origin', missing)
     const { host, editor, exit } = await connectedPanel(run, { runGit: processGitRunner() })
@@ -146,7 +128,7 @@ describe('git in the runtime panel', () => {
   })
 
   it('runs no git in a workspace the editor does not trust, and starts once it does', async () => {
-    const { run, git } = repositoryRun()
+    const { run, git } = repositoryRun(runs, 'muse-panel-git-')
     writeFileSync(path.join(run.workspace, 'a.txt'), 'a\n')
     // The user's own runner, watched: what git is asked is what the product asks.
     const runner = processGitRunner()
