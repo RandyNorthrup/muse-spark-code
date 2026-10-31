@@ -14,8 +14,14 @@ into `temp/pkgs/<name>`, their code and README were read, and only
 `env -i` with a scratch `HOME` and `CODEX_HOME`. Nothing was pushed, rebased,
 stashed or tagged. The real OS credential-store suites and the vault suites
 were not run (MacBook rule); no browser or GUI app was started. Temporary
-folders were under `temp/tmp` (a canonical path: `/var/folders` is a link the
-worker fence refuses, as the base record measured).
+folders: the drills and the first runs used `temp/tmp` in the worktree; the
+final suites and the related run used the canonical path of this rig's
+temporary folder (`/private/var/folders/…/T/rlf2-tmp`, which is not a link and
+sits outside the worktree). The difference matters to one suite:
+`teamWorkerCreateBundle` stages a helper "outside the workspace" and failed on
+this tree while `TMPDIR` sat inside the worktree (`Governed command unavailable`);
+it passes on this tree with the canonical path, and it passed on the untouched
+base run from its own folder (so its `TMPDIR` was outside it).
 
 ## 1. What landed
 
@@ -210,28 +216,63 @@ Two measured non-drills:
 Exit codes are each command's own; the suites ran with the repository's own
 timeouts, `--maxWorkers=3`.
 
-| Command                                                     | Exit         | Result                                                                                                                                                                                                                                                         |
-| ----------------------------------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npx prettier --check` on every touched file                | 0            |                                                                                                                                                                                                                                                                |
-| `npx eslint --max-warnings 0` on every touched `.ts`/`.mjs` | 0            | one nested ternary in `deferredBundles.mjs` found and fixed (its commit)                                                                                                                                                                                       |
-| `npm run typecheck`                                         | 0            | six projects                                                                                                                                                                                                                                                   |
-| `node scripts/check-l10n.mjs`                               | 0            | 14 UI tables, 14 usage tables, 0 problems                                                                                                                                                                                                                      |
-| `npm run check:reference`                                   | 0            | current (365 CLI entries)                                                                                                                                                                                                                                      |
-| `npm run check:host-api`                                    | 0            | after `--write`: the slots poll counts one more `node:timers/promises`                                                                                                                                                                                         |
-| `npm run check:plan`                                        | 0            | 244 milestones, 0 drift                                                                                                                                                                                                                                        |
-| `npm run check:roadmap`                                     | 0            | 244 entries, current                                                                                                                                                                                                                                           |
-| `npm run check:catches`                                     | 0            | counts equal the baseline; the new catch (`userMcpServers.ts`) is NARROW                                                                                                                                                                                       |
-| `npm run duplication`                                       | 0            | 0 clones (four found in the first draft, shared into `launchHostOver` and `packedAgentRig`)                                                                                                                                                                    |
-| `npm run cycles`                                            | 0            | none                                                                                                                                                                                                                                                           |
-| `npm run deadcode`                                          | 0            | knip clean (tag hints only)                                                                                                                                                                                                                                    |
-| `npm run build`                                             | 0            | every size row holds (§4); split gate, lazy registry (187 bundles, 295 loads), host-globals, notices, legal records green                                                                                                                                      |
-| Touched suites                                              | 0            | `teamCheckSlotsGoverned` 6, `noUserMcpServers` 5, `acpPresetSwitches` 7, `teamProcessWorkers` 10, `resourceRelocationDevices` 12, `cliHelp`/`cliHelpConsistency`/`cliArgs` 94, `teamChunkPackaging`/`acpTeamPackage`/`governorWindowsBundle`/`lazyBundleFiles` |
-| `npx vitest related <16 changed sources> --run`             | RELATED_EXIT | RELATED_RESULT                                                                                                                                                                                                                                                 |
-| `npm run package:acp -- --target darwin-arm64`              | not run      | the base record: this rig lacks a prebuilt native helper; the staged agent (`stageAgentBundle`) is what the suites and `--help` ran                                                                                                                            |
-| `npm run security:audit`, `npm run security:sast`           | not run      | not in this brief's gate list; no dependency changed                                                                                                                                                                                                           |
+| Command                                                              | Exit    | Result                                                                                                                                                                                                                                                         |
+| -------------------------------------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npx prettier --check` on every touched file                         | 0       |                                                                                                                                                                                                                                                                |
+| `npx eslint --max-warnings 0` on every touched `.ts`/`.mjs`          | 0       | one nested ternary in `deferredBundles.mjs` found and fixed (its commit)                                                                                                                                                                                       |
+| `npm run typecheck`                                                  | 0       | six projects                                                                                                                                                                                                                                                   |
+| `node scripts/check-l10n.mjs`                                        | 0       | 14 UI tables, 14 usage tables, 0 problems                                                                                                                                                                                                                      |
+| `npm run check:reference`                                            | 0       | current (365 CLI entries)                                                                                                                                                                                                                                      |
+| `npm run check:host-api`                                             | 0       | after `--write`: the slots poll counts one more `node:timers/promises`                                                                                                                                                                                         |
+| `npm run check:plan`                                                 | 0       | 244 milestones, 0 drift                                                                                                                                                                                                                                        |
+| `npm run check:roadmap`                                              | 0       | 244 entries, current                                                                                                                                                                                                                                           |
+| `npm run check:catches`                                              | 0       | counts equal the baseline; the new catch (`userMcpServers.ts`) is NARROW                                                                                                                                                                                       |
+| `npm run duplication`                                                | 0       | 0 clones (four found in the first draft, shared into `launchHostOver` and `packedAgentRig`)                                                                                                                                                                    |
+| `npm run cycles`                                                     | 0       | none                                                                                                                                                                                                                                                           |
+| `npm run deadcode`                                                   | 0       | knip clean (tag hints only)                                                                                                                                                                                                                                    |
+| `npm run build`                                                      | 0       | every size row holds (§4); split gate, lazy registry (187 bundles, 295 loads), host-globals, notices, legal records green                                                                                                                                      |
+| Touched suites                                                       | 0       | `teamCheckSlotsGoverned` 6, `noUserMcpServers` 5, `acpPresetSwitches` 7, `teamProcessWorkers` 10, `resourceRelocationDevices` 12, `cliHelp`/`cliHelpConsistency`/`cliArgs` 94, `teamChunkPackaging`/`acpTeamPackage`/`governorWindowsBundle`/`lazyBundleFiles` |
+| `npx vitest related <16 changed sources> --run` (canonical `TMPDIR`) | 1       | 398 files: 365 passed, 17 skipped, **16 failed**; 4,591 tests passed, 27 failed, 193 skipped. Every failing file fails the same way on the untouched base (§6.1)                                                                                               |
+| `npm run package:acp -- --target darwin-arm64`                       | not run | the base record: this rig lacks a prebuilt native helper; the staged agent (`stageAgentBundle`) is what the suites and `--help` ran                                                                                                                            |
+| `npm run security:audit`, `npm run security:sast`                    | not run | not in this brief's gate list; no dependency changed                                                                                                                                                                                                           |
 
 `src/shared/l10n/en.ts` is a hub every suite imports: it is covered by
-`check-l10n`, `typecheck` and the suites above, not by a related run.
+`check-l10n`, `typecheck` and the suites above, not by a related run. The
+related run's sources were the sixteen named in the row (the credential-store and
+vault suites excluded by the MacBook rule), and it includes `agent.ts` and
+`main.ts`, which pull in the ACP suites.
+
+### 6.1 The related run's sixteen failing files
+
+Each was run alone on this tree and on the untouched base (`git archive
+f96b69586` under `temp/`, this worktree's `node_modules` linked, the same
+canonical `TMPDIR`), and gave the same counts on both:
+
+- **Identical on the untouched base** (failed tests of total): `resourceCreatedSweep`
+  4 of 4, `connectorStorageGuard` 3 of 8, `resourceHandoffDeadline` 2 of 3,
+  `nodeWorkspaceDevcontainer` 2 of 28, `playbookSchedulesInputs` 1 of 22,
+  `playbookGovernor` 1 of 33, `teamPlaybookIntegration` 1 of 4, `nodeToolHost` 1 of
+  13, `execTeamSweep` 1 of 7, `resourceStatusCpu` 1 of 1, `createdRegistryRace` 1
+  of 1, `acpServeHandshake` 1 of 2 (a signed-in Muse Code on this rig answers where
+  the test expects the CLI missing). All are on CC-INT5's and RLF-TEAMFIT's lists.
+- **Not run here, by the same file on the base:** `nodeCertificate` (9 skipped,
+  "The node feature is unavailable") and `devicesPhase2Harness` (10 skipped: a real
+  Chrome, and `CHROME_PATH` is set to fail on the MacBook): **NOT RUN: browser
+  suite on the MacBook.**
+- **Load, green alone:** `scheduleFireFailures` (two failures in the related run,
+  30 s cases; no failure alone on the tree or on the base).
+- `runtimeLsp` (5 cases that wait out their 240 s deadlines): the one case run on
+  the untouched base, "serves the language server through the supervisor", fails
+  by its 240 s deadline there too. The other four were not run on the base:
+  **UNMEASURED** one by one; the file is on CC-INT5's and RLF-TEAMFIT's lists.
+
+The first related run, with `TMPDIR` inside the worktree, had 24 failing files.
+The eight extra were that `TMPDIR`'s: `gitMetadata`, `worktreeCommands`,
+`tabIgnoreBlind`, `runtimePanelGit`, `reviewCollector`, `bestOfNWorktreeFailed`,
+`teamWorkspaceRefs` and `teamWorkerCreateBundle` pass in the canonical run. Its
+24th, `teamProcessWorkers`, timed out in its 10 s teardown hook under that run's
+load; the teardown now stops the rigs together under the named bound (the tests'
+own), and the file passes in the canonical run.
 
 ## 7. Not built, open questions, and what I recommend
 
