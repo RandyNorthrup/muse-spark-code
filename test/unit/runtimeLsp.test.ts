@@ -114,21 +114,41 @@ function serve(args: readonly string[], cwd: string): Served {
   return { connection, child, messages, exited, stderr: () => stderr }
 }
 
+/**
+A request's answer, or a fast failure carrying the server's stderr when the
+server exited before answering. vscode-jsonrpc leaves a request pending
+forever when its server dies (measured on 9.0.3 and 10.0.0, RLF-LSPBUS), so
+without the race a server that cannot start stalls the suite at the per-test
+timeout with nothing said.
+*/
+async function answer<T>(served: Served, pending: Promise<T>): Promise<T> {
+  const exitedFailure = (async (): Promise<never> => {
+    const code = await served.exited
+    throw new Error(
+      `the language server exited (${String(code)}) before answering: ${served.stderr()}`,
+    )
+  })()
+  return await Promise.race([pending, exitedFailure])
+}
+
 async function initialize(served: Served, workspace: string): Promise<unknown> {
-  const result = await served.connection.sendRequest('initialize', {
-    processId: process.pid,
-    rootUri: pathToFileURL(workspace).href,
-    capabilities: {
-      workspace: { applyEdit: true },
-      textDocument: { inlineCompletion: {} },
-    },
-  })
+  const result = await answer(
+    served,
+    served.connection.sendRequest('initialize', {
+      processId: process.pid,
+      rootUri: pathToFileURL(workspace).href,
+      capabilities: {
+        workspace: { applyEdit: true },
+        textDocument: { inlineCompletion: {} },
+      },
+    }),
+  )
   await served.connection.sendNotification('initialized', {})
   return result
 }
 
 async function shutDown(served: Served): Promise<number | null> {
-  await served.connection.sendRequest('shutdown')
+  await answer(served, served.connection.sendRequest('shutdown'))
   await served.connection.sendNotification('exit')
   const code = await served.exited
   served.connection.dispose()
@@ -163,9 +183,11 @@ async function openSample(served: Served, uri: string): Promise<void> {
 
 function inlineAtEnd(served: Served, uri: string, source?: CancellationTokenSource) {
   const params = { textDocument: { uri }, position: AT_END, context: { triggerKind: 1 } }
-  return source === undefined
-    ? served.connection.sendRequest('textDocument/inlineCompletion', params)
-    : served.connection.sendRequest('textDocument/inlineCompletion', params, source.token)
+  const pending =
+    source === undefined
+      ? served.connection.sendRequest('textDocument/inlineCompletion', params)
+      : served.connection.sendRequest('textDocument/inlineCompletion', params, source.token)
+  return answer(served, pending)
 }
 
 function quoted(value: string): string {
@@ -302,13 +324,20 @@ describe('lsp over real stdio, under the official client', () => {
     async () => {
       const { root } = await workspaceWith('order')
       const served = serve(['lsp', '--workspace', root], root)
-      const early = await refusalOf(served.connection.sendRequest('textDocument/completion', {}))
+      const early = await refusalOf(
+        answer(served, served.connection.sendRequest('textDocument/completion', {})),
+      )
       expect(early.code).toBe(LSP_SERVER_NOT_INITIALIZED)
       await initialize(served, root)
-      const unknown = await refusalOf(served.connection.sendRequest('textDocument/hover', {}))
+      const unknown = await refusalOf(
+        answer(served, served.connection.sendRequest('textDocument/hover', {})),
+      )
       expect(unknown.code).toBe(MHP_ERROR_CODES.methodNotFound)
       const malformed = await refusalOf(
-        served.connection.sendRequest('textDocument/inlineCompletion', { position: 'nowhere' }),
+        answer(
+          served,
+          served.connection.sendRequest('textDocument/inlineCompletion', { position: 'nowhere' }),
+        ),
       )
       expect(malformed.code).toBe(MHP_ERROR_CODES.invalidParams)
       expect(await shutDown(served)).toBe(0)
@@ -324,16 +353,22 @@ describe('lsp over real stdio, under the official client', () => {
       await initialize(served, root)
       await openSample(served, uri)
       expect(await inlineAtEnd(served, uri)).toEqual({ items: [] })
-      const list = await served.connection.sendRequest('textDocument/completion', {
-        textDocument: { uri },
-        position: AT_END,
-      })
+      const list = await answer(
+        served,
+        served.connection.sendRequest('textDocument/completion', {
+          textDocument: { uri },
+          position: AT_END,
+        }),
+      )
       expect(list).toEqual([])
       expect(served.stderr()).toContain('Tab quiet (paid-off)')
       expect(served.stderr()).not.toContain('Tab quiet (no-key)')
-      const usage = await served.connection.sendRequest('workspace/executeCommand', {
-        command: LSP_COMMANDS.usage,
-      })
+      const usage = await answer(
+        served,
+        served.connection.sendRequest('workspace/executeCommand', {
+          command: LSP_COMMANDS.usage,
+        }),
+      )
       expect(usage).toEqual({
         isOn: false,
         model: 'muse-spark-1.3',
@@ -341,9 +376,12 @@ describe('lsp over real stdio, under the official client', () => {
         todayRequests: 0,
         budgetUsd: '0',
       })
-      await served.connection.sendRequest('workspace/executeCommand', {
-        command: LSP_COMMANDS.help,
-      })
+      await answer(
+        served,
+        served.connection.sendRequest('workspace/executeCommand', {
+          command: LSP_COMMANDS.help,
+        }),
+      )
       await waitFor(() => served.messages.length >= 2, SUITE_MS / 2)
       expect(served.messages.map((message) => message.message)).toEqual([
         [EN.paidTabName, '0 Tab requests', 'Today: $0.00', EN.usagePaidTabBudgetNone].join('\n'),
@@ -442,9 +480,12 @@ describe('supervise and stop', () => {
       const { root } = await workspaceWith('self-stopped')
       const served = serve(['supervise', 'lsp', '--workspace', root], root)
       await initialize(served, root)
-      await served.connection.sendRequest('workspace/executeCommand', {
-        command: LSP_COMMANDS.stop,
-      })
+      await answer(
+        served,
+        served.connection.sendRequest('workspace/executeCommand', {
+          command: LSP_COMMANDS.stop,
+        }),
+      )
       expect(await served.exited).toBe(0)
       served.connection.dispose()
       expect(await run(['stop'], root)).toEqual([1, EN.supervision.stopNone])

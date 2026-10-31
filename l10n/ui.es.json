@@ -7145,7 +7145,9 @@
       "other": "La protección anti-fork denegó {count} procesos hijos a la ejecución supervisada; la ejecución continuó.",
       "many": "La protección anti-fork denegó {count} procesos hijos a la ejecución supervisada; la ejecución continuó."
     },
-    "unavailable": "La supervisión no está disponible en esta instalación."
+    "unavailable": "La supervisión no está disponible en esta instalación.",
+    "recordsFolderNotPrivate": "La supervisión guarda sus registros en una carpeta en la que solo usted puede escribir, pero la carpeta de datos del agente o una carpeta superior permite la escritura de otros usuarios. Quite el acceso de escritura a otros usuarios en esas carpetas y vuelva a intentarlo.",
+    "endpointPathTooLong": "La supervisión no puede iniciarse porque la ruta de la carpeta de datos del agente es demasiado larga para el socket de control que permite este sistema. Mueva la carpeta de datos del agente a una ruta más corta y vuelva a intentarlo."
   },
   "hostService": {
     "unavailable": "El panel del entorno de ejecución no está disponible en esta instalación.",

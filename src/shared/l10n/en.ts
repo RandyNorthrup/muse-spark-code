@@ -8845,6 +8845,10 @@ export const EN = {
         'The supervised run was refused {count} child processes by fork protection; the run continued.',
     }),
     unavailable: 'Supervision is not available in this installation.',
+    recordsFolderNotPrivate:
+      'Supervision keeps its records in a folder only you can write to, but the agent’s data folder or one above it is writable by others. Remove others’ write access there, then try again.',
+    endpointPathTooLong:
+      'Supervision cannot start: the agent’s data folder path is too long for this system’s control socket. Move that folder to a shorter path, then try again.',
   },
   // M104 lane B: the runtime panel (`panel`). Not named after the command:
   // the reference's route names would carry the group into the panel's English.
