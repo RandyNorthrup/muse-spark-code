@@ -23,6 +23,15 @@ desktop:l10n`), the Rust crate (`muse-desktop-l10n` 0.1.0, ICU4X 2.4.0,
   `usageL10nGate` fixtures still green. Drills (each red exit 1, then
   restored green): unknown Rust key, unknown QML key, stale tables.rs,
   desktop TS module-load read.
+- 2026-10-30: the pseudo-RTL table (`?lang=pseudo-rtl` /
+  `--lang=pseudo-rtl`, RLO-wrapped strings, page flips to `dir=rtl`,
+  node harness included) with `pseudoRtl` 2/2; the stylelint
+  logical-properties rule (`csstools/use-logical`, path-scoped to new
+  desktop surfaces, block-axis excepted, `:dir(ltr)` for LTR-only
+  content; WB/ED's real CSS verified 0 warnings). Local looks:
+  `rlf-m111in-rtl.light/dark.png` (mirrored, message text stays LTR per
+  lane 0); classic `--lang=pseudo` re-verified. Logical-rule drill: 3
+  errors, exit 2, restored green.
 
 ## Next
 

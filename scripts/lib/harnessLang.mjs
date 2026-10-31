@@ -14,10 +14,16 @@ import path from 'node:path'
 import { loadL10n } from './l10nSource.mjs'
 
 export const PSEUDO_LANG = 'pseudo'
-// The pseudo table is English underneath: its plural rules and formats.
+// M111 (D91.20): the pseudo-RTL table, Android ar-XB style. Every UI string
+// wrapped in a right-to-left override, so a mirrored layout renders in the
+// harness under `?lang=pseudo-rtl` with the page direction flipped.
+export const PSEUDO_RTL_LANG = 'pseudo-rtl'
+// The pseudo tables are English underneath: their plural rules and formats.
 const PSEUDO_LOCALE = 'en'
 const PSEUDO_FILE = 'test/harness/l10n/ui.pseudo.json'
 const USAGE_PSEUDO_FILE = 'test/harness/l10n/usage.pseudo.json'
+const PSEUDO_RTL_FILE = 'test/harness/l10n/ui.pseudo-rtl.json'
+const USAGE_PSEUDO_RTL_FILE = 'test/harness/l10n/usage.pseudo-rtl.json'
 const UNTRANSLATED_FILE = 'l10n/untranslated.json'
 const EVERY_LOCALE = '*'
 const LANG_OPTION = '--lang='
@@ -67,39 +73,51 @@ function pseudoString(text) {
   return `⟦${accented} ${filler}⟧`
 }
 
-function pseudoTable(table, isPluralForms, kept, prefix = '') {
+function pseudoRtlString(text) {
+  if (text.trim() === '') {
+    return text
+  }
+  // A right-to-left override (U+202E) with its pop (U+202C), Android
+  // ar-XB style; the bidi algorithm mirrors brackets itself.
+  return `\u{202E}${text}\u{202C}`
+}
+
+function shapedTable(table, isPluralForms, kept, shape, prefix = '') {
   return Object.fromEntries(
     Object.entries(table).map(([name, value]) => {
       const key = `${prefix}${name}`
       if (typeof value === 'string') {
-        return [name, kept.has(key) ? value : pseudoString(value)]
+        return [name, kept.has(key) ? value : shape(value)]
       }
       return [
         name,
         isPluralForms(value)
           ? Object.fromEntries(
-              Object.entries(value).map(([category, text]) => [category, pseudoString(text)]),
+              Object.entries(value).map(([category, text]) => [category, shape(text)]),
             )
-          : pseudoTable(value, isPluralForms, kept, `${key}.`),
+          : shapedTable(value, isPluralForms, kept, shape, `${key}.`),
       ]
     }),
   )
 }
 
 /**
-Writes the pseudo-locale tables from the English ones (the UI table and,
-for the usage page, the usage table); returns their paths.
+Writes the pseudo-locale tables from the English ones: the accented table
+and the pseudo-RTL table, each for the UI table and, for the usage page,
+the usage table. Returns their paths.
 */
 export async function writePseudoTable(repoRoot) {
   const { EN, USAGE_EN, isPluralForms, tableProblems } = await loadL10n(repoRoot)
   const untranslated = JSON.parse(readFileSync(path.join(repoRoot, UNTRANSLATED_FILE), 'utf8'))
   const files = []
-  for (const [english, section, pseudoFile] of [
-    [EN, 'ui', PSEUDO_FILE],
-    [USAGE_EN, 'usage', USAGE_PSEUDO_FILE],
+  for (const [english, section, pseudoFile, shape] of [
+    [EN, 'ui', PSEUDO_FILE, pseudoString],
+    [USAGE_EN, 'usage', USAGE_PSEUDO_FILE, pseudoString],
+    [EN, 'ui', PSEUDO_RTL_FILE, pseudoRtlString],
+    [USAGE_EN, 'usage', USAGE_PSEUDO_RTL_FILE, pseudoRtlString],
   ]) {
     const kept = new Set(untranslated[section]?.[EVERY_LOCALE])
-    const table = pseudoTable(english, isPluralForms, kept)
+    const table = shapedTable(english, isPluralForms, kept, shape)
     const problems = tableProblems(english, table, { locale: PSEUDO_LOCALE, isStrict: false })
     if (problems.length > 0) {
       throw new Error(`the pseudo table does not match the English one:\n${problems.join('\n')}`)
@@ -125,15 +143,22 @@ export function harnessArgs(argv) {
       scenarios.push(arg)
     }
   }
-  if (lang !== undefined && lang !== PSEUDO_LANG && !LANG_ID.test(lang)) {
-    throw new Error(`--lang=${lang}: a VS Code language id (de, pt-br, …) or ${PSEUDO_LANG}`)
+  if (
+    lang !== undefined &&
+    lang !== PSEUDO_LANG &&
+    lang !== PSEUDO_RTL_LANG &&
+    !LANG_ID.test(lang)
+  ) {
+    throw new Error(
+      `--lang=${lang}: a VS Code language id (de, pt-br, …), ${PSEUDO_LANG} or ${PSEUDO_RTL_LANG}`,
+    )
   }
   return { lang, scenarios }
 }
 
-/** Makes the table `lang` names ready: the pseudo table written afresh, a real one found. */
+/** Makes the table `lang` names ready: a pseudo table written afresh, a real one found. */
 export async function prepareLang(repoRoot, lang) {
-  if (lang === PSEUDO_LANG) {
+  if (lang === PSEUDO_LANG || lang === PSEUDO_RTL_LANG) {
     await writePseudoTable(repoRoot)
   } else if (lang !== undefined && !existsSync(path.join(repoRoot, 'l10n', `ui.${lang}.json`))) {
     throw new Error(`l10n/ui.${lang}.json is missing`)
