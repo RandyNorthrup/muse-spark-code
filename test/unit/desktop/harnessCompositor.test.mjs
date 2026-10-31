@@ -63,7 +63,8 @@ describe('process helpers', () => {
     expect(refused.code).toBeNull()
   })
 
-  it('stops a whole detached process group', async () => {
+  // POSIX process groups; Windows job control is a different mechanism.
+  it.skipIf(process.platform === 'win32')('stops a whole detached process group', async () => {
     const child = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], {
       detached: true,
       stdio: 'ignore',
