@@ -53,7 +53,7 @@ class MhpConnectionTest {
   private fun initialize() {
     connection.initialize(
       fixtureMetadata().apply {
-        add("protocolRange", json("minimum" to "mhp/1.5.0", "maximumExclusive" to "mhp/1.6.0"))
+        add("protocolRange", json("minimum" to "mhp/1.5.1", "maximumExclusive" to "mhp/1.6.0"))
         add("capabilities", jsonValue(services.capabilities))
       },
     )
@@ -62,7 +62,7 @@ class MhpConnectionTest {
         "jsonrpc" to "2.0",
         "id" to sent.last()["id"],
         "result" to
-          json("protocolVersion" to "mhp/1.5.0", "capabilities" to services.capabilities),
+          json("protocolVersion" to "mhp/1.5.1", "capabilities" to services.capabilities),
       ),
     )
   }

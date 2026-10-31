@@ -29,7 +29,7 @@ starts false; native trust transitions still need their adapter. See
 The C# validator consumes the frozen
 [`MHP 1.0`](../../src/shared/hostApi/mhp-v1.schema.json) and additive
 [`MHP 1.1`](../../src/shared/hostApi/mhp-v1.1.schema.json) exports directly.
-Both generations advertise the one current version, `mhp/1.5.0` (wire `1.5`);
+Both generations advertise the one current version, `mhp/1.5.1` (wire `1.5`);
 an offer must include it or the handshake refuses with
 `MHP_INCOMPATIBLE_VERSION`. Panel traffic requires the negotiated 1.5.
 

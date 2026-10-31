@@ -369,7 +369,7 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
         String version = platform == null ? Platform.getBundle("org.eclipse.ui").getVersion().toString() : platform.getVersion().toString();
         boolean dark = PlatformUI.getWorkbench().getThemeManager().getCurrentTheme().getId().toLowerCase(Locale.ROOT).contains("dark");
         String kind = Display.getDefault().getHighContrast() ? dark ? "highContrastDark" : "highContrastLight" : dark ? "dark" : "light";
-        return Json.object("host", Json.object("id", "eclipse", "version", version), "protocolRange", Json.object("minimum", "mhp/1.5.0", "maximumExclusive", "mhp/1.6.0"), "capabilities", Json.GSON.toJsonTree(CAPABILITIES), "locale", Assets.locale(Platform.getNL()), "theme", Json.object("kind", kind, "tokens", tokens()), "folders", folders(), "trusted", trusted);
+        return Json.object("host", Json.object("id", "eclipse", "version", version), "protocolRange", Json.object("minimum", "mhp/1.5.1", "maximumExclusive", "mhp/1.6.0"), "capabilities", Json.GSON.toJsonTree(CAPABILITIES), "locale", Assets.locale(Platform.getNL()), "theme", Json.object("kind", kind, "tokens", tokens()), "folders", folders(), "trusted", trusted);
     }
     public static JsonObject tokens() {
         RGB background = Display.getDefault().getSystemColor(SWT.COLOR_LIST_BACKGROUND).getRGB(); RGB foreground = Display.getDefault().getSystemColor(SWT.COLOR_LIST_FOREGROUND).getRGB();
