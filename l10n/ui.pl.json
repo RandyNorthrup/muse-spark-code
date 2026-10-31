@@ -7703,6 +7703,23 @@
       "few": "Instalowanie {count} pakietów",
       "many": "Instalowanie {count} pakietów",
       "other": "Instalowanie {count} pakietów"
-    }
+    },
+    "placementLabel": "Nowe okna otwierają się na",
+    "placementNew": "Nowy pulpit",
+    "placementCurrent": "Bieżący pulpit",
+    "placementAsk": "Pytaj za każdym razem",
+    "placementAskQuestion": "Gdzie ma się otworzyć {app}?",
+    "keySwitch": "Przełącz na pulpit {n}",
+    "keySend": "Wyślij okno na pulpit {n}",
+    "keyPreview": "Podgląd pulpitu {n}",
+    "keyAllDesktops": "Pokaż wszystkie pulpity",
+    "keyMerge": "Scal pulpit {n} z tym pulpitem",
+    "keyMergePicker": "Wybierz pulpity do scalenia",
+    "keySendNew": "Wyślij okno na nowy pulpit",
+    "keyPrevious": "Poprzedni pulpit",
+    "keyNext": "Następny pulpit",
+    "keyCycleNext": "Przełącz na następne okno",
+    "keyCyclePrevious": "Przełącz na poprzednie okno",
+    "keyFocusBar": "Przenieś fokus na pasek"
   }
 }

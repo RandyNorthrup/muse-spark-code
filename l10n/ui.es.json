@@ -7519,6 +7519,23 @@
       "one": "Instalando {count} paquete",
       "other": "Instalando {count} paquetes",
       "many": "Instalando {count} paquetes"
-    }
+    },
+    "placementLabel": "Las ventanas nuevas se abren en",
+    "placementNew": "Un escritorio nuevo",
+    "placementCurrent": "El escritorio actual",
+    "placementAsk": "Preguntar cada vez",
+    "placementAskQuestion": "¿Dónde debería abrirse {app}?",
+    "keySwitch": "Cambiar al escritorio {n}",
+    "keySend": "Enviar la ventana al escritorio {n}",
+    "keyPreview": "Vista previa del escritorio {n}",
+    "keyAllDesktops": "Mostrar todos los escritorios",
+    "keyMerge": "Combinar el escritorio {n} en este escritorio",
+    "keyMergePicker": "Elegir escritorios para combinar",
+    "keySendNew": "Enviar la ventana a un escritorio nuevo",
+    "keyPrevious": "Escritorio anterior",
+    "keyNext": "Escritorio siguiente",
+    "keyCycleNext": "Cambiar a la ventana siguiente",
+    "keyCyclePrevious": "Cambiar a la ventana anterior",
+    "keyFocusBar": "Mover el foco a la barra"
   }
 }

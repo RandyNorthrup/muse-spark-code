@@ -7335,6 +7335,23 @@
     "installingPacks": {
       "one": "{count} paket kuruluyor",
       "other": "{count} paket kuruluyor"
-    }
+    },
+    "placementLabel": "Yeni pencereler şurada açılır",
+    "placementNew": "Yeni masaüstü",
+    "placementCurrent": "Geçerli masaüstü",
+    "placementAsk": "Her seferinde sor",
+    "placementAskQuestion": "{app} nerede açılsın?",
+    "keySwitch": "Masaüstü {n}’ye geç",
+    "keySend": "Pencereyi masaüstü {n}’ye gönder",
+    "keyPreview": "Masaüstü {n} önizlemesi",
+    "keyAllDesktops": "Tüm masaüstlerini göster",
+    "keyMerge": "Masaüstü {n}’yi bu masaüstüyle birleştir",
+    "keyMergePicker": "Birleştirilecek masaüstlerini seç",
+    "keySendNew": "Pencereyi yeni bir masaüstüne gönder",
+    "keyPrevious": "Önceki masaüstü",
+    "keyNext": "Sonraki masaüstü",
+    "keyCycleNext": "Sonraki pencereye geç",
+    "keyCyclePrevious": "Önceki pencereye geç",
+    "keyFocusBar": "Odağı çubuğa taşı"
   }
 }

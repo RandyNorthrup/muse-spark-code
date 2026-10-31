@@ -7151,6 +7151,23 @@
     "install": "インストール",
     "installingPacks": {
       "other": "{count} 個のパックをインストール中"
-    }
+    },
+    "placementLabel": "新しいウィンドウを開く場所",
+    "placementNew": "新しいデスクトップ",
+    "placementCurrent": "現在のデスクトップ",
+    "placementAsk": "毎回確認する",
+    "placementAskQuestion": "{app}をどこで開きますか?",
+    "keySwitch": "デスクトップ{n}に切り替え",
+    "keySend": "ウィンドウをデスクトップ{n}に送る",
+    "keyPreview": "デスクトップ{n}のプレビュー",
+    "keyAllDesktops": "すべてのデスクトップを表示",
+    "keyMerge": "デスクトップ{n}をこのデスクトップに統合",
+    "keyMergePicker": "統合するデスクトップを選択",
+    "keySendNew": "ウィンドウを新しいデスクトップに送る",
+    "keyPrevious": "前のデスクトップ",
+    "keyNext": "次のデスクトップ",
+    "keyCycleNext": "次のウィンドウに切り替え",
+    "keyCyclePrevious": "前のウィンドウに切り替え",
+    "keyFocusBar": "フォーカスをバーに移動"
   }
 }

@@ -7335,6 +7335,23 @@
     "installingPacks": {
       "one": "{count} csomag telepítése",
       "other": "{count} csomag telepítése"
-    }
+    },
+    "placementLabel": "Új ablakok megnyitása:",
+    "placementNew": "Új asztal",
+    "placementCurrent": "Az aktuális asztal",
+    "placementAsk": "Kérdezés minden alkalommal",
+    "placementAskQuestion": "Hol nyíljon meg a(z) {app}?",
+    "keySwitch": "Váltás a(z) {n}. asztalra",
+    "keySend": "Ablak küldése a(z) {n}. asztalra",
+    "keyPreview": "A(z) {n}. asztal előnézete",
+    "keyAllDesktops": "Összes asztal megjelenítése",
+    "keyMerge": "A(z) {n}. asztal beolvasztása ebbe az asztalba",
+    "keyMergePicker": "Egyesítendő asztalok kiválasztása",
+    "keySendNew": "Ablak küldése új asztalra",
+    "keyPrevious": "Előző asztal",
+    "keyNext": "Következő asztal",
+    "keyCycleNext": "Váltás a következő ablakra",
+    "keyCyclePrevious": "Váltás az előző ablakra",
+    "keyFocusBar": "Fókusz áthelyezése a sávba"
   }
 }

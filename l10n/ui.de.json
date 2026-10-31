@@ -7335,6 +7335,23 @@
     "installingPacks": {
       "one": "{count} Paket wird installiert",
       "other": "{count} Pakete werden installiert"
-    }
+    },
+    "placementLabel": "Neue Fenster öffnen auf",
+    "placementNew": "Ein neuer Desktop",
+    "placementCurrent": "Der aktuelle Desktop",
+    "placementAsk": "Jedes Mal fragen",
+    "placementAskQuestion": "Wo soll {app} geöffnet werden?",
+    "keySwitch": "Zu Desktop {n} wechseln",
+    "keySend": "Fenster auf Desktop {n} verschieben",
+    "keyPreview": "Desktop {n} in der Vorschau",
+    "keyAllDesktops": "Alle Desktops anzeigen",
+    "keyMerge": "Desktop {n} in diesen Desktop zusammenführen",
+    "keyMergePicker": "Zusammenzuführende Desktops auswählen",
+    "keySendNew": "Fenster auf einen neuen Desktop verschieben",
+    "keyPrevious": "Vorheriger Desktop",
+    "keyNext": "Nächster Desktop",
+    "keyCycleNext": "Zum nächsten Fenster wechseln",
+    "keyCyclePrevious": "Zum vorherigen Fenster wechseln",
+    "keyFocusBar": "Fokus in die Leiste verschieben"
   }
 }

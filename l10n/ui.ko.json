@@ -7151,6 +7151,23 @@
     "install": "설치",
     "installingPacks": {
       "other": "팩 {count}개 설치 중"
-    }
+    },
+    "placementLabel": "새 창 열기 위치",
+    "placementNew": "새 데스크톱",
+    "placementCurrent": "현재 데스크톱",
+    "placementAsk": "매번 묻기",
+    "placementAskQuestion": "{app}을(를) 어디에서 열까요?",
+    "keySwitch": "데스크톱 {n}(으)로 전환",
+    "keySend": "창을 데스크톱 {n}(으)로 보내기",
+    "keyPreview": "데스크톱 {n} 미리 보기",
+    "keyAllDesktops": "모든 데스크톱 표시",
+    "keyMerge": "데스크톱 {n}을(를) 이 데스크톱에 병합",
+    "keyMergePicker": "병합할 데스크톱 선택",
+    "keySendNew": "창을 새 데스크톱으로 보내기",
+    "keyPrevious": "이전 데스크톱",
+    "keyNext": "다음 데스크톱",
+    "keyCycleNext": "다음 창으로 전환",
+    "keyCyclePrevious": "이전 창으로 전환",
+    "keyFocusBar": "포커스를 막대로 이동"
   }
 }

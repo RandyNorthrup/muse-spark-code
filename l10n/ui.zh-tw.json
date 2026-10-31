@@ -7151,6 +7151,23 @@
     "install": "安裝",
     "installingPacks": {
       "other": "正在安裝 {count} 個套件"
-    }
+    },
+    "placementLabel": "新視窗開啟於",
+    "placementNew": "新桌面",
+    "placementCurrent": "目前桌面",
+    "placementAsk": "每次詢問",
+    "placementAskQuestion": "{app}應在哪裡開啟?",
+    "keySwitch": "切換到桌面{n}",
+    "keySend": "將視窗傳送到桌面{n}",
+    "keyPreview": "預覽桌面{n}",
+    "keyAllDesktops": "顯示所有桌面",
+    "keyMerge": "將桌面{n}合併到此桌面",
+    "keyMergePicker": "選擇要合併的桌面",
+    "keySendNew": "將視窗傳送到新桌面",
+    "keyPrevious": "上一個桌面",
+    "keyNext": "下一個桌面",
+    "keyCycleNext": "切換到下一個視窗",
+    "keyCyclePrevious": "切換到上一個視窗",
+    "keyFocusBar": "將焦點移到列"
   }
 }
