@@ -13,7 +13,6 @@
 // by a timer a starved loop could never fire: without the wait the same three
 // asks finish in a moment, and the elapsed time says so.
 import { afterAll, describe, expect, it } from 'vitest'
-import { configureResources, loadResourceWindow } from '../../src/core/resources/admission'
 import {
   GovernedTeamSlots,
   SchedulerSlots,
@@ -21,6 +20,7 @@ import {
   type SlotRequest,
 } from '../../src/core/team/scheduler/slots'
 import { RESOURCE_LAUNCH_POLL_MS } from '../../src/shared/constants'
+import { governorWindow } from './helpers/governorWindow'
 
 /** The asks before the first worker ends: two waits sit between three asks. */
 const ASKS_BEFORE_THE_WORKER_ENDS = 3
@@ -45,19 +45,8 @@ afterAll(() => {
 
 describe('a governed team slot while the scheduler and the queue disagree', () => {
   it('waits between asks, and is admitted once the scheduler’s place is free', async () => {
-    const errors: unknown[] = []
-    disposers.push(
-      configureResources({
-        inspect: (key: string) =>
-          key === 'resourceMemoryMaxPercent' ? { globalValue: 0 } : undefined,
-        onError: (error?: unknown) => {
-          errors.push(error)
-        },
-      }),
-    )
-    const window = await loadResourceWindow()
-    if (window === undefined) throw new Error('the governor window did not load')
-    for (let reading = 0; reading < 3; reading += 1) await window.port.refreshStatus()
+    const { window, errors, dispose } = await governorWindow({ isLimited: true })
+    disposers.push(dispose)
     const ports = window.port.teamSlotPorts()
     expect(ports.governor.capacity('worker')).toBe(1)
 

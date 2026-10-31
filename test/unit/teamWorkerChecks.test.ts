@@ -13,7 +13,6 @@ import { realpath, mkdtemp, readFile, rm, writeFile, appendFile } from 'node:fs/
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { configureResources, loadResourceWindow } from '../../src/core/resources/admission'
 import { runnerEnvironment } from '../../src/core/runners/runnerConfig'
 import type { WorkerRolePolicy } from '../../src/core/team/workers/workerTypes'
 import { createTeamRunnersRuntime } from '../../src/host/runners/teamRunnersEntry'
@@ -33,6 +32,7 @@ import { EN } from '../../src/shared/l10n/en'
 import { fill, setUiText } from '../../src/shared/l10n/text'
 import { checkProcessProvedByExit } from './helpers/checkProcessProvedByExit'
 import { fixtureGitEnvironment } from './helpers/fixtureGit'
+import { governorWindow } from './helpers/governorWindow'
 import { silentCoreLog } from './helpers/memoryLogs'
 import { resolveGitBinary } from './helpers/realGit'
 import { realTeamGit } from './helpers/realTeamGit'
@@ -165,20 +165,8 @@ describe.skipIf(process.platform === 'win32')('a team worker’s run_checks', ()
     readonly isLimited: boolean
     readonly checks: () => readonly CheckCommandSetting[]
   }) {
-    const errors: unknown[] = []
-    disposers.push(
-      configureResources({
-        inspect: (key: string) =>
-          key === 'resourceMemoryMaxPercent' && options.isLimited ? { globalValue: 0 } : undefined,
-        onError: (error?: unknown) => {
-          errors.push(error)
-        },
-      }),
-    )
-    const window = await loadResourceWindow()
-    if (window === undefined) throw new Error('the governor window did not load')
-    // The window's sampler reads this machine: a few readings put it at the limit.
-    for (let reading = 0; reading < 3; reading += 1) await window.port.refreshStatus()
+    const { window, errors, dispose } = await governorWindow({ isLimited: options.isLimited })
+    disposers.push(dispose)
     counter += 1
     const slots: CheckSlots = await createTeamRunnersRuntime(EN, 'en').createGovernedCheckSlots({
       file: git,
