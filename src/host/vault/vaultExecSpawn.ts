@@ -21,6 +21,21 @@ import { realpathSync } from 'node:fs'
 import { vaultPrivateDirectory } from '../../core/vault/broker/files'
 import { posixQuoted } from '../../core/shellQuote'
 
+/**
+The feeder's own environment. The command fence drops `XDG_RUNTIME_DIR`
+so a command cannot see the per-user runtime directory; on Linux that is
+also where the broker binds its socket. The feeder has to keep the
+directory to recognize that socket, and the command is fenced again from
+the feeder's environment, so the command still does not receive it.
+*/
+export function feederProcessEnvironment(source: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const env = vaultFenceEnvironment(source)
+  const runtimeDir = source['XDG_RUNTIME_DIR']
+  if (runtimeDir !== undefined && path.posix.isAbsolute(runtimeDir))
+    env['XDG_RUNTIME_DIR'] = runtimeDir
+  return env
+}
+
 export interface VaultExecSpawnDeps {
   readonly nodePath: string
   /** W's composed executable, including authenticated B transport and T streaming scrub. */
@@ -70,7 +85,7 @@ export async function spawnVaultFeeder(
     bytes.fill(0)
     return unstartedShell(UI_TEXT.vault.noAccess)
   }
-  const env = vaultFenceEnvironment(deps.env())
+  const env = feederProcessEnvironment(deps.env())
   if (deps.runAsNode) env['ELECTRON_RUN_AS_NODE'] = '1'
   let child: ChildProcess
   const startedAt = Date.now()

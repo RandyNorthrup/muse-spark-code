@@ -416,6 +416,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- A vault policy that is a link, that another account can read, or that has
+  a second name is ignored, and saving a policy can no longer be aimed at
+  another file. The ceiling stays "none" and the refusal is the same words
+  as a damaged policy. A normal policy file is unchanged.
+- On Linux, a headless vault use can reach its command. The feeder now sees
+  the per-user runtime directory where the broker socket lives. The command
+  itself still does not receive that directory.
 - `muse-spark-code-acp supervise` and `stop` now say why they refuse.
   When the agent's data folder or a folder above it is writable by other
   users, or its path is too long for the supervisor's control socket,
