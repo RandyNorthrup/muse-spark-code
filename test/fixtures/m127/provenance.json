@@ -35,5 +35,19 @@
       "an unknown skill selector is refused -32032 skillNotFound; unknown workflow runs are refused -32030 commandRejected (missing_run)",
       "computerUseSettings/read and computerUseSetup/read are refused -32033 computerUseUnavailable on this Windows host, like the check"
     ]
+  },
+  "harvest147": {
+    "capturedAt": "2026-10-30T17:03:32Z",
+    "cli": "Muse Code 1.4.7 (1.4.7-R6101.1)",
+    "sdk": "@muse-code/sdk 1.4.11",
+    "provider": "echo (the CLI's own local provider; no model call, no sign-in)",
+    "commands": [
+      "muse-bin (1.4.7-R6101.1) schema generate-json-schema --out temp/capture147/schema",
+      "muse-bin (1.4.7-R6101.1) serve --provider echo --no-session-log (initialize over stdio, temp/capture147/capture.mjs)"
+    ],
+    "isolation": "HOME, XDG_CONFIG_HOME and XDG_DATA_HOME pointed at temp/capture147/home; --no-session-log so nothing persisted",
+    "notes": [
+      "initialize-1.4.7.json is the initialize result as served; its schema fingerprint is the one the harvest lanes served on 1.4.7 (RLF-HARVEST, 156 linux/macOS lane logs) and the one the same binary's schema manifest carries"
+    ]
   }
 }
