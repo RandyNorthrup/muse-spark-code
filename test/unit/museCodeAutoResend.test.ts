@@ -35,64 +35,40 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import type { AgentHost, HostExit } from '../../src/core/agent/agentBackend'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
-import { initialUiState, uiReducer } from '../../src/webview/state/uiState'
+import { awaitPosts, turnAcceptances, turnCompletions } from './helpers/conversationPanel'
 import {
-  awaitPosts,
-  conversationPanel,
-  modelApiRig,
-  turnAcceptances,
-  turnCompletions,
-  type PanelRig,
-} from './helpers/conversationPanel'
+  echoCompleted,
+  echoItem,
+  echoStarted,
+  expectCompletedTurn,
+  isRecord,
+  LIVE_SESSION_ID,
+  LIVE_TURN_ID,
+  liveString,
+  liveTurnPanel,
+  liveTurnScript,
+  releaseResend,
+  sendAs,
+  sendFirst,
+  shownTranscript,
+  startEchoHost,
+  startFirstTurn,
+  turnRetries,
+  type LiveTurnRig,
+} from './helpers/museLiveTurn'
 import {
-  captureBroadcast,
-  captureResult,
   closeLiveHosts,
-  readCapture,
   refuseUnscripted,
-  startLiveHost,
-  type Answer,
   type LiveHost,
   type WireFrame,
 } from './helpers/museReplay'
 import { removeFolder } from './helpers/temporaryFolders'
-
-const echo = readCapture(new URL('../fixtures/m106/msp-1.4.7-echo-turn.json', import.meta.url))
-const echoInit = captureResult(echo.frames, 1)
-const echoModels = captureResult(echo.frames, 2)
-const echoStart = captureResult(echo.frames, 3)
-const echoTurnAck = captureResult(echo.frames, 4)
-const echoStarted = captureBroadcast(echo.frames, 'turn/started')
-const echoItem = captureBroadcast(echo.frames, 'item/completed')
-const echoCompleted = captureBroadcast(echo.frames, 'turn/completed')
-const lifecycle = readCapture(
-  new URL('../fixtures/m106/msp-1.4.4-session-lifecycle.json', import.meta.url),
-)
-const effortAck = captureResult(lifecycle.frames, 4)
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
-
-function liveString(record: Record<string, unknown>, key: string, what: string): string {
-  const value = record[key]
-  if (typeof value !== 'string') throw new TypeError(`the capture serves no ${what}`)
-  return value
-}
-
-// The live session and turn: the ids the script's recorded answers serve.
-const startSession = echoStart['session']
-if (!isRecord(startSession)) throw new Error('the capture serves no session/start session')
-const LIVE_SESSION_ID = liveString(startSession, 'sessionId', 'session id')
-const LIVE_TURN_ID = liveString(echoTurnAck, 'turnId', 'turn id')
 
 // The recorded item's text, read off the frame: the row the failed
 // turn's work stays as, asserted surviving below.
 const echoItemParams = echoItem.params
 if (!isRecord(echoItemParams?.['item'])) throw new Error('the capture serves no item')
 const ITEM_TEXT = liveString(echoItemParams['item'], 'text', 'item text')
-
-const TYPED = 'Say the word apricot, then stop.'
 
 const m91Lines = readFileSync(
   new URL(
@@ -133,58 +109,8 @@ function m91End(line: typeof m91Line): WireFrame {
   return { jsonrpc: '2.0', method: 'turn/completed', params }
 }
 
-function turnRetries(posted: readonly HostToWebviewMessage[]) {
-  return posted.flatMap((message) =>
-    message.type === 'agentEvent' && message.event.type === 'turnRetry' ? [message.event] : [],
-  )
-}
-
 function sendFailures(posted: readonly HostToWebviewMessage[]) {
   return posted.flatMap((message) => (message.type === 'sendFailed' ? [message] : []))
-}
-
-function shownTranscript(panel: PanelRig) {
-  let state = initialUiState
-  state = uiReducer(state, {
-    type: 'submitted',
-    localId: 'local-1',
-    text: TYPED,
-    attachments: [],
-    contextLabel: undefined,
-  })
-  for (const message of panel.posted) {
-    state = uiReducer(state, { type: 'hostMessage', message, at: 0 })
-  }
-  return state.transcript
-}
-
-interface ResendRig {
-  readonly panel: PanelRig
-  readonly live: LiveHost
-  readonly waits: number[]
-  readonly releaseSleep: () => void
-}
-
-function scriptFor(shouldRefuseTurnStart: boolean): (method: string) => Answer {
-  return (method: string): Answer => {
-    switch (method) {
-      case 'session/start': {
-        return { result: echoStart }
-      }
-      case 'model/list': {
-        return { result: echoModels }
-      }
-      case 'session/setReasoningEffort': {
-        return { result: effortAck }
-      }
-      case 'turn/start': {
-        return shouldRefuseTurnStart ? refuseUnscripted('turn/start') : { result: echoTurnAck }
-      }
-      default: {
-        return refuseUnscripted(method)
-      }
-    }
-  }
 }
 
 function resendPanel(
@@ -195,79 +121,21 @@ function resendPanel(
     readonly live?: LiveHost
     readonly ensureHost?: () => Promise<AgentHost>
   },
-): ResendRig {
-  const live =
-    options?.live ??
-    startLiveHost(scriptFor(options?.shouldRefuseTurnStart === true), undefined, {
-      initializeResult: echoInit,
-      startResult: echoStart,
-    })
-  const rig = modelApiRig(directory)
-  const waits: number[] = []
-  const gate = Promise.withResolvers<undefined>()
-  const releaseSleep = (): void => {
-    gate.resolve(undefined)
-  }
-  // The wait's clock, held shut until the test releases it: the suite
-  // watches the named wait, then lets the resend fire (or stops it).
-  // An abort (Stop, a new turn, dispose) rejects it, as the product's
-  // own clock does.
-  const resendSleep = (ms: number, signal: AbortSignal): Promise<void> => {
-    waits.push(ms)
-    return new Promise<void>((resolve, reject) => {
-      if (signal.aborted) {
-        reject(new Error('the resend wait was already stopped'))
-        return
-      }
-      signal.addEventListener(
-        'abort',
-        () => {
-          reject(new Error('the resend wait stopped'))
-        },
-        {
-          once: true,
-        },
-      )
-      void gate.promise.then(resolve)
-    })
-  }
-  const panel = conversationPanel({
-    rig,
-    directory,
-    isNamespaceKnown: true,
-    backend: 'museCode',
+): LiveTurnRig {
+  return liveTurnPanel(directory, {
     modelId: 'muse-wonder-1.0',
-    ensureHost: options?.ensureHost ?? (() => Promise.resolve(live.host)),
+    script: liveTurnScript(
+      options?.shouldRefuseTurnStart === true ? (method) => refuseUnscripted(method) : undefined,
+    ),
+    ...(options?.live !== undefined && { live: options.live }),
+    ...(options?.ensureHost !== undefined && { ensureHost: options.ensureHost }),
     ...(options?.maxRetries !== undefined && { museCodeMaxRetries: options.maxRetries }),
-    resendSleep,
-    resendRandom: () => 0.5,
   })
-  return { panel, live, waits, releaseSleep }
-}
-
-async function sendAs(panel: PanelRig, localId: string): Promise<void> {
-  await panel.controller.handle({
-    type: 'sendMessage',
-    localId,
-    text: TYPED,
-    attachmentIds: [],
-  })
-}
-
-async function sendFirst(panel: PanelRig): Promise<void> {
-  await sendAs(panel, 'local-1')
-}
-
-/** The first turn sent, accepted and started on the live wire. */
-async function startFirstTurn(rig: ResendRig): Promise<void> {
-  await sendFirst(rig.panel)
-  await awaitPosts(rig.panel, turnAcceptances, 1, 'turns accepted')
-  rig.live.wire.release(echoStarted)
 }
 
 /** The first turn fails with the recorded end (`middle` rides along first). */
 async function failFirstTurn(
-  rig: ResendRig,
+  rig: LiveTurnRig,
   end: WireFrame,
   middle: readonly WireFrame[] = [],
 ): Promise<void> {
@@ -276,21 +144,15 @@ async function failFirstTurn(
   rig.live.wire.release(end)
 }
 
-/** Lets a named wait fire and awaits the resend's acceptance. */
-async function releaseResend(rig: ResendRig, accepted: number): Promise<void> {
-  rig.releaseSleep()
-  await awaitPosts(rig.panel, turnAcceptances, accepted, 'turns accepted')
-}
-
 /** Nothing waited and nothing resent: the one submit, shown once. */
-function expectNoResend(rig: ResendRig): void {
+function expectNoResend(rig: LiveTurnRig): void {
   expect(turnRetries(rig.panel.posted)).toHaveLength(0)
   expect(rig.waits).toHaveLength(0)
   expect(rig.live.wire.sentCount('turn/start')).toBe(1)
 }
 
 /** The held failure shows with Retry: failed, and still retryable. */
-async function expectFailedEnd(rig: ResendRig): Promise<void> {
+async function expectFailedEnd(rig: LiveTurnRig): Promise<void> {
   const [end] = await awaitPosts(rig.panel, turnCompletions, 1, 'turns ended')
   expect(end?.terminal).toBe('failed')
   expect(end?.retryable).toBe(true)
@@ -318,10 +180,7 @@ describe('Muse Code automatic resend', () => {
     expect(wait?.maxAttempts).toBe(3)
     expect(wait?.retryDelayMs).toBe(1000)
     await releaseResend(rig, 2)
-    expect(rig.live.wire.sentCount('turn/start')).toBe(2)
-    rig.live.wire.release(echoCompleted)
-    const [end] = await awaitPosts(rig.panel, turnCompletions, 1, 'turns ended')
-    expect(end?.terminal).toBe('completed')
+    await expectCompletedTurn(rig)
     // The failed turn's work stays: its item row survives the resend.
     expect(JSON.stringify(shownTranscript(rig.panel))).toContain(ITEM_TEXT)
     expect(sendFailures(rig.panel.posted)).toHaveLength(0)
@@ -411,14 +270,8 @@ describe('Muse Code automatic resend', () => {
   it('a dead host resends on its replacement and completes', async () => {
     // The replacement host the restart serves: the resend re-establishes
     // the dropped session on it, as a send after a restart does (D25).
-    const first = startLiveHost(scriptFor(false), undefined, {
-      initializeResult: echoInit,
-      startResult: echoStart,
-    })
-    const replacement = startLiveHost(scriptFor(false), undefined, {
-      initializeResult: echoInit,
-      startResult: echoStart,
-    })
+    const first = startEchoHost(liveTurnScript())
+    const replacement = startEchoHost(liveTurnScript())
     let current: LiveHost = first
     const rig = resendPanel(directory, {
       live: first,

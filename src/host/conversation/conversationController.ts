@@ -8547,52 +8547,32 @@ export class ConversationController implements DeferredSend {
     if (event.quota !== undefined) {
       return this.holdForQuotaReset(event)
     }
-    if (event.terminal !== 'failed' || event.retryable !== true) {
-      return false
-    }
-    const waiting = this.resendWait
-    if (waiting !== undefined) {
-      return waiting.turnId === event.turnId
-    }
-    if (this.isDisposed || this.sessionKind !== 'museCode') {
-      return false
-    }
-    const remembered = this.retryableTurns.get(event.turnId)
-    if (remembered === undefined) {
-      return false
-    }
-    const maxResends = this.deps.museCodeMaxRetries?.() ?? INDUSTRY_RETRY_MAX_RETRIES
-    if (remembered.resendsUsed >= maxResends) {
-      return false
-    }
-    this.resendWait = {
-      turnId: event.turnId,
-      held: event,
-      localId: remembered.localId,
-      sessionId: remembered.sessionId,
-      parts: remembered.parts,
-      displayText: remembered.displayText,
-      shownText: remembered.shownText,
-      resendsUsed: remembered.resendsUsed,
-      abort: new AbortController(),
-    }
-    void this.runResendWait()
-    return true
+    const isTransientFailure = event.terminal === 'failed' && event.retryable === true
+    return isTransientFailure && this.armResendWait(event)
   }
 
   /**
   Whether a quota-exhausted turn waits until the window resets (D229):
-  only with the person's opt-in (`museCodeQuotaContinue`), on the Muse
-  Code backend, with the send's own parts still remembered and resends
-  left. The wait honours the provider's reset instant whole, however
-  long; the resend count still bounds the chain (D228, D121). Off by
-  default, and never before the reset: without the opt-in the failure
-  shows at once with Retry.
+  only a failed quota turn, and only with the person's opt-in
+  (`museCodeQuotaContinue`). The wait honours the provider's reset
+  instant whole, however long; the resend count still bounds the chain
+  (D228, D121). Off by default, and never before the reset: without the
+  opt-in the failure shows at once with Retry.
   */
   private holdForQuotaReset(event: Extract<AgentEvent, { type: 'turnCompleted' }>): boolean {
-    if (event.terminal !== 'failed' || event.quota === undefined) {
-      return false
-    }
+    const isContinuableQuota =
+      event.terminal === 'failed' &&
+      event.quota !== undefined &&
+      this.deps.museCodeQuotaContinue?.() === true
+    return isContinuableQuota && this.armResendWait(event)
+  }
+
+  /**
+  Arms the shared resend wait both holds run through: on the Muse Code
+  backend, with the send's own parts still remembered and resends left.
+  A duplicate end for the waiting turn is swallowed — it already waits.
+  */
+  private armResendWait(event: Extract<AgentEvent, { type: 'turnCompleted' }>): boolean {
     const waiting = this.resendWait
     if (waiting !== undefined) {
       return waiting.turnId === event.turnId
@@ -8602,10 +8582,6 @@ export class ConversationController implements DeferredSend {
     }
     const remembered = this.retryableTurns.get(event.turnId)
     if (remembered === undefined) {
-      return false
-    }
-    // Off by default: without the opt-in the failure shows at once.
-    if (this.deps.museCodeQuotaContinue?.() !== true) {
       return false
     }
     const maxResends = this.deps.museCodeMaxRetries?.() ?? INDUSTRY_RETRY_MAX_RETRIES
