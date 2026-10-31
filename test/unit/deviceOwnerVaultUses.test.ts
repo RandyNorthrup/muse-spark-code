@@ -244,6 +244,7 @@ describe.runIf(process.platform === 'linux' || process.platform === 'darwin')(
         identity: {
           verifyHost: unreachablePort('identity'),
           verifyLaunched: unreachablePort('identity'),
+          verifyFeeder: unreachablePort('identity'),
         },
         idleMs: VAULT_IDLE_MINUTES * MILLISECONDS_PER_MINUTE,
         lockOnScreenLock: false,
