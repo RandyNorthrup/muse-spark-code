@@ -6,9 +6,18 @@
 // platform API lives here, so every function is exercised directly by the
 // unit suites.
 
-import { DESKTOP_FLOATING_MIN_HEIGHT_PX, DESKTOP_LAYOUT_BOUNDS } from '../constants'
+import {
+  DESKTOP_FLOATING_MIN_HEIGHT_PX,
+  DESKTOP_FLOATING_MIN_WIDTH_PX,
+  DESKTOP_LAYOUT_BOUNDS,
+  DESKTOP_OUTPUT_CHANNEL_MAX_CHARS,
+  DESKTOP_SPLIT_MIN_FRACTION,
+} from '../constants'
 import {
   type FOOTER_TABS,
+  type FloatingBounds,
+  type OutputAppended,
+  type OutputSnapshot,
   type SplitDirection,
   type SplitNode,
   type TerminalAgent,
@@ -57,18 +66,18 @@ export function shouldConfirmTerminalClose(isExited: boolean, hasChildren: boole
   return !isExited && hasChildren
 }
 
-export function tabsInSlot(
-  tabs: readonly PanelTerminalTab[],
+export function tabsInSlot<Tab extends PanelTerminalTab>(
+  tabs: readonly Tab[],
   slot: TerminalSlot,
-): PanelTerminalTab[] {
+): Tab[] {
   return tabs.filter((tab) => tab.slot === slot)
 }
 
-export function moveTabToSlot(
-  tabs: readonly PanelTerminalTab[],
+export function moveTabToSlot<Tab extends PanelTerminalTab>(
+  tabs: readonly Tab[],
   id: string,
   slot: TerminalSlot,
-): readonly PanelTerminalTab[] {
+): readonly Tab[] {
   const next = tabs.map((tab) => (tab.id !== id || tab.slot === slot ? tab : { ...tab, slot }))
   return next.every((tab, index) => tab === tabs[index]) ? tabs : next
 }
@@ -165,6 +174,34 @@ export function normalizeSplitSizes(sizes: readonly number[], count: number): nu
   return total > 0 ? kept.map((size) => size / total) : kept.map(() => 1 / count)
 }
 
+/**
+Resizes one split node's children: the sizes at the index path (empty for
+the root) become the given fractions, each clamped to at least the
+minimum pane fraction, renormalized to fill. An unknown path is a
+no-op returning the same tree.
+*/
+export function resizeSplitSizes(
+  tree: SplitNode,
+  path: readonly number[],
+  sizes: readonly number[],
+): SplitNode {
+  if (path.length === 0) {
+    if (tree.kind === 'leaf' || tree.children.length !== sizes.length) return tree
+    const clamped = sizes.map((size) => Math.max(DESKTOP_SPLIT_MIN_FRACTION, size))
+    return { ...tree, sizes: normalizeSplitSizes(clamped, tree.children.length) }
+  }
+  if (tree.kind === 'leaf') return tree
+  const [at = -1, ...rest] = path
+  const child = tree.children[at]
+  if (child === undefined) return tree
+  const resized = resizeSplitSizes(child, rest, sizes)
+  if (resized === child) return tree
+  return {
+    ...tree,
+    children: tree.children.map((entry, index) => (index === at ? resized : entry)),
+  }
+}
+
 /** The keyboard resize step, clamped into the dock's height bounds. */
 export function resizePanelHeightPx(currentPx: number, deltaPx: number): number {
   return Math.min(
@@ -197,6 +234,47 @@ export function clipChannelTail(
   let kept = text.slice(text.length - maxChars)
   if (LOW_SURROGATE.test(kept)) kept = kept.slice(1)
   return { text: kept, dropped: text.length - kept.length }
+}
+
+/**
+An Output snapshot after one appended frame: the channel's text grows
+by the frame and clips by the same rule main applies, while the
+truncated count stays main's authoritative one.
+*/
+export function applyOutputAppend(snapshot: OutputSnapshot, frame: OutputAppended): OutputSnapshot {
+  const found = snapshot.channels.find((entry) => entry.channel === frame.channel)
+  const text = clipChannelTail(
+    `${found?.text ?? ''}${frame.text}`,
+    DESKTOP_OUTPUT_CHANNEL_MAX_CHARS,
+  ).text
+  const entry = { channel: frame.channel, text, truncatedChars: frame.truncatedChars }
+  return {
+    channels:
+      found === undefined
+        ? [...snapshot.channels, entry]
+        : snapshot.channels.map((candidate) =>
+            candidate.channel === frame.channel ? entry : candidate,
+          ),
+  }
+}
+
+/**
+Floating bounds measured from a rendered window: rounded, kept on the
+positive axes and at least the minimum size, so the layout store's
+schema always accepts them.
+*/
+export function floatingBoundsFromRect(rect: {
+  readonly left: number
+  readonly top: number
+  readonly width: number
+  readonly height: number
+}): FloatingBounds {
+  return {
+    x: Math.max(0, Math.round(rect.left)),
+    y: Math.max(0, Math.round(rect.top)),
+    widthPx: Math.max(DESKTOP_FLOATING_MIN_WIDTH_PX, Math.round(rect.width)),
+    heightPx: Math.max(DESKTOP_FLOATING_MIN_HEIGHT_PX, Math.round(rect.height)),
+  }
 }
 
 /** How many errors and warnings the Problems badge counts (M68's rule: information and hints are not what an edit breaks). */

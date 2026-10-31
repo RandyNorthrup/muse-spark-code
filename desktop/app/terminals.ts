@@ -48,14 +48,23 @@ function defaultShell(): { command: string; args: string[] } {
     : { command: process.env['SHELL'] ?? '/bin/bash', args: ['-i'] }
 }
 
+// An agent's session runs its command through the shell and exits with
+// it; the renderer can never write to it (H13), so main starts the
+// command itself instead of an interactive shell.
+function agentCommand(command: string): { command: string; args: string[] } {
+  return process.platform === 'win32'
+    ? { command: process.env['ComSpec'] ?? 'cmd.exe', args: ['/c', command] }
+    : { command: process.env['SHELL'] ?? '/bin/bash', args: ['-c', command] }
+}
+
 export class TerminalSessions {
   private readonly sessions = new Map<string, TerminalSession>()
 
   public constructor(private readonly events: TerminalEvents) {}
 
   public create(options: TerminalCreateOptions): TerminalSessionInfo {
-    const { command, args } = defaultShell()
-    const child = pty.spawn(command, args, {
+    const shell = options.agent === undefined ? defaultShell() : agentCommand(options.agent.command)
+    const child = pty.spawn(shell.command, shell.args, {
       name: 'xterm-256color',
       cols: options.cols,
       rows: options.rows,
@@ -63,7 +72,10 @@ export class TerminalSessions {
       env: cleanTerminalEnvironment(process.env),
     })
     const id = randomUUID()
-    const title = command.split(/[\\/]/).pop() ?? command
+    const title =
+      options.agent === undefined
+        ? (shell.command.split(/[\\/]/).pop() ?? shell.command)
+        : options.agent.label
     const session: TerminalSession = { id, title, process: child, agent: options.agent }
     this.sessions.set(id, session)
     child.onData((data: string) => {

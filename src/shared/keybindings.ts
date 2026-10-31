@@ -208,8 +208,60 @@ export const WEBVIEW_KEYBINDINGS = {
     accept: { keys: [{ key: 'Enter' }], text: { ui: 'referenceMenuKeys' } },
     close: { keys: [{ key: 'Escape' }], text: { ui: 'referenceMenuKeys' } },
   },
-  'desktop.terminal': {
-    submit: { keys: [{ key: 'Enter' }], text: { ui: 'referenceDesktopTerminalKeys' } },
+  // Muse Desktop (M111, D91.13) lane BP: the bottom panel's widgets. The
+  // workbench's global chords live in shared/desktop/keybindings.ts; these
+  // contexts cover the panel's own keys so no handler owns a key literal.
+  'desktop.terminalSearch': {
+    next: {
+      keys: [{ key: 'Enter', shift: false }],
+      text: { ui: 'referenceDesktopTerminalSearchKeys' },
+    },
+    previous: {
+      keys: [{ key: 'Enter', shift: true }],
+      text: { ui: 'referenceDesktopTerminalSearchKeys' },
+    },
+    close: { keys: [{ key: 'Escape' }], text: { ui: 'referenceDesktopTerminalSearchKeys' } },
+  },
+  'desktop.problems': {
+    open: { keys: [{ key: 'Enter' }, { key: ' ' }], text: { ui: 'referenceDesktopProblemsKeys' } },
+    next: { keys: [{ key: 'ArrowDown' }], text: { ui: 'referenceDesktopProblemsKeys' } },
+    previous: { keys: [{ key: 'ArrowUp' }], text: { ui: 'referenceDesktopProblemsKeys' } },
+    first: { keys: [{ key: 'Home' }], text: { ui: 'referenceDesktopProblemsKeys' } },
+    last: { keys: [{ key: 'End' }], text: { ui: 'referenceDesktopProblemsKeys' } },
+  },
+  'desktop.panelTabs': {
+    next: {
+      keys: [
+        { key: 'ArrowRight', primary: false },
+        { key: 'ArrowDown', primary: false },
+      ],
+      text: { ui: 'referenceDesktopPanelTabsKeys' },
+    },
+    previous: {
+      keys: [
+        { key: 'ArrowUp', primary: false },
+        { key: 'ArrowLeft', primary: false },
+      ],
+      text: { ui: 'referenceDesktopPanelTabsKeys' },
+    },
+    first: { keys: [{ key: 'Home' }], text: { ui: 'referenceDesktopPanelTabsKeys' } },
+    last: { keys: [{ key: 'End' }], text: { ui: 'referenceDesktopPanelTabsKeys' } },
+    moveUp: {
+      keys: [{ key: 'ArrowUp', primary: true }],
+      text: { ui: 'referenceDesktopPanelTabsKeys' },
+    },
+    moveDown: {
+      keys: [{ key: 'ArrowDown', primary: true }],
+      text: { ui: 'referenceDesktopPanelTabsKeys' },
+    },
+  },
+  'desktop.panelResize': {
+    increase: { keys: [{ key: 'ArrowUp' }], text: { ui: 'referenceDesktopResizeKeys' } },
+    decrease: { keys: [{ key: 'ArrowDown' }], text: { ui: 'referenceDesktopResizeKeys' } },
+    wider: { keys: [{ key: 'ArrowRight' }], text: { ui: 'referenceDesktopResizeKeys' } },
+    narrower: { keys: [{ key: 'ArrowLeft' }], text: { ui: 'referenceDesktopResizeKeys' } },
+    first: { keys: [{ key: 'Home' }], text: { ui: 'referenceDesktopResizeKeys' } },
+    last: { keys: [{ key: 'End' }], text: { ui: 'referenceDesktopResizeKeys' } },
   },
 } as const satisfies Readonly<Record<string, Readonly<Record<string, KeyBinding>>>>
 

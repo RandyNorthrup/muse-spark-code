@@ -20,8 +20,10 @@ import {
   isBindingActive,
 } from '../../../src/shared/desktop/keybindings'
 import {
+  applyOutputAppend,
   clipChannelTail,
   closePane,
+  floatingBoundsFromRect,
   isTerminalWritable,
   moveTabToSlot,
   normalizeSplitSizes,
@@ -31,6 +33,7 @@ import {
   reconcileTerminalTabs,
   resizeFloatingHeightPx,
   resizePanelHeightPx,
+  resizeSplitSizes,
   shouldConfirmTerminalClose,
   splitLeaf,
   tabsInSlot,
@@ -67,6 +70,7 @@ describe('M111 lane BP panel model', () => {
     expect(migrated.panelView).toBe('problems')
     expect(migrated.panelPinned).toBe(true)
     expect(migrated.tabSlots).toEqual({})
+    expect(migrated.floatingOnTop).toBe(false)
     expect(parseStoredLayoutV2(DEFAULT_WORKBENCH_LAYOUT)).toEqual(
       migrateLayoutV1ToV2(DEFAULT_WORKBENCH_LAYOUT),
     )
@@ -185,6 +189,33 @@ describe('M111 lane BP panel model', () => {
     expect(normalizeSplitSizes([], 2)).toEqual([0.5, 0.5])
   })
 
+  it('split sizes resize along a path, clamped and renormalized', () => {
+    const leaf: SplitNode = { kind: 'leaf', terminalId: 'a' }
+    const split = splitLeaf(leaf, 'a', 'b', 'right')
+    expect(resizeSplitSizes(split, [], [0.8, 0.2])).toEqual({ ...split, sizes: [0.8, 0.2] })
+    // A sliver clamps to the minimum pane fraction, then fills to one.
+    const clamped = resizeSplitSizes(split, [], [0.99, 0.01])
+    const [first = 0, second = 0] = clamped.kind === 'split' ? clamped.sizes : []
+    expect(first).toBeGreaterThan(second)
+    expect(second).toBeGreaterThanOrEqual(0.09)
+    expect(first + second).toBeCloseTo(1)
+    // Unknown paths, leaves and wrong counts return the same tree.
+    expect(resizeSplitSizes(split, [5], [0.5, 0.5])).toBe(split)
+    expect(resizeSplitSizes(split, [0, 0], [0.5, 0.5])).toBe(split)
+    expect(resizeSplitSizes(leaf, [], [0.5, 0.5])).toBe(leaf)
+    expect(resizeSplitSizes(split, [], [0.5])).toBe(split)
+    // A nested path resizes only that split.
+    const nested = splitLeaf(split, 'b', 'c', 'down')
+    const resized = resizeSplitSizes(nested, [1], [0.25, 0.75])
+    if (resized.kind === 'split') {
+      expect(resized.sizes).toEqual([0.5, 0.5])
+      const inner = resized.children.find((child) => child.kind === 'split')
+      expect(inner?.kind === 'split' ? inner.sizes : []).toEqual([0.25, 0.75])
+    } else {
+      expect.unreachable('a split stays a split')
+    }
+  })
+
   it('keyboard resizing clamps into the dock and window bounds', () => {
     expect(resizePanelHeightPx(176, 40)).toBe(216)
     expect(resizePanelHeightPx(80, -40)).toBe(80)
@@ -200,6 +231,41 @@ describe('M111 lane BP panel model', () => {
     // U+1F600 is a surrogate pair; the clip must not strand its low half.
     expect(clipChannelTail('ab\u{1F600}cd', 4)).toEqual({ text: '\u{1F600}cd', dropped: 2 })
     expect(clipChannelTail('ab\u{1F600}cd', 3)).toEqual({ text: 'cd', dropped: 4 })
+  })
+
+  it('appended frames grow channels, clip by the shared rule, keep main counts', () => {
+    const empty = { channels: [] }
+    const first = applyOutputAppend(empty, { channel: 'vite', text: 'ready', truncatedChars: 0 })
+    expect(first).toEqual({ channels: [{ channel: 'vite', text: 'ready', truncatedChars: 0 }] })
+    const second = applyOutputAppend(first, { channel: 'vite', text: '!', truncatedChars: 0 })
+    expect(second.channels).toEqual([{ channel: 'vite', text: 'ready!', truncatedChars: 0 }])
+    // Another channel joins; main's truncated count is authoritative.
+    const third = applyOutputAppend(second, { channel: 'tsc', text: 'ok', truncatedChars: 41 })
+    expect(third.channels).toHaveLength(2)
+    expect(third.channels[1]).toEqual({ channel: 'tsc', text: 'ok', truncatedChars: 41 })
+    // A megabyte channel clips oldest-first on the renderer too.
+    const wide = applyOutputAppend(first, {
+      channel: 'vite',
+      text: 'x'.repeat(1_048_576),
+      truncatedChars: 5,
+    })
+    expect(wide.channels[0]?.text).toBe('x'.repeat(1_048_576))
+    expect(wide.channels[0]?.truncatedChars).toBe(5)
+  })
+
+  it('measured floating bounds round, clamp and meet the minimums', () => {
+    expect(floatingBoundsFromRect({ left: 10.4, top: 20.6, width: 720, height: 400 })).toEqual({
+      x: 10,
+      y: 21,
+      widthPx: 720,
+      heightPx: 400,
+    })
+    expect(floatingBoundsFromRect({ left: -4, top: -2, width: 100, height: 60 })).toEqual({
+      x: 0,
+      y: 0,
+      widthPx: 320,
+      heightPx: 160,
+    })
   })
 
   it('the Problems badge counts errors and warnings, not information', () => {

@@ -40,7 +40,47 @@ slots and bridge; never a second layout.
 
 ## What is next
 
-Renderer panel → PTY staging → real-Electron proof → drills and gates.
+Build splitting + chunk budget → PTY staging → real-Electron proof → ui:look → drills and gates.
+
+## Landed: renderer chrome and workbench wiring (2026-10-31)
+
+- `src/webview/desktop/panel/`: `terminalEngine.ts` (persistent
+  emulators: the emulator outlives its React shell, so a dragged tab
+  keeps its transcript; bridge subscriptions, exit sentence, theme and
+  the find listener live with the engine), `TerminalView.tsx` (the shell:
+  host attach, find bar on `desktop.terminalSearch`), `ProblemsView.tsx`,
+  `OutputView.tsx`, `problemsFormat.ts`, `BottomPanel.tsx` (docked panel,
+  floating window, footer strip, exit dialog) and `panel.css`.
+- `DesktopApp.tsx` owns the panel state (tabs with exit codes, Problems,
+  Output, the exit question, create errors), the subscriptions, all panel
+  actions and the pending-focus queue. The global dispatcher now honours
+  each binding's `when` from focus-region tracking; runCommand covers the
+  new split/detach/dock/collapse/pin/resize/search/focus/kill commands.
+- `desktop.terminal` (WB's textarea submit) and
+  `referenceDesktopTerminalKeys` are retired; the reference now documents
+  `desktop.terminalSearch`, `desktop.problems`, `desktop.panelTabs`
+  (arrows + Ctrl+Up/Down slot moves) and `desktop.panelResize`, with
+  `referenceDesktopTerminalSearchKeys`, `referenceDesktopProblemsKeys`
+  and `referenceDesktopPanelTabsKeys` in all 15 tables.
+- New strings since the strings landing, all x15: `panelFindCase`,
+  `panelFindWord`, `panelFindRegex`, `panelCloseConfirm`, `panelOnTop`,
+  `panelSash`, `panelNoTerminals`.
+- Model additions: `resizeSplitSizes`, `applyOutputAppend`,
+  `floatingBoundsFromRect` (`panel.ts`), `floatingOnTop` on layout v2,
+  generic `tabsInSlot`/`moveTabToSlot`/`nextTerminalAfterClose`; agent
+  sessions run their command through the shell (`-c`/`/c`) and carry the
+  agent label as their title.
+- Splits render in the dock and in the floated full window (never in a
+  detached-only window); panes resize by pointer and arrow keys;
+  separator and floating window resize by pointer and
+  `desktop.panelResize` keys; unpinned blur collapses (skipped while the
+  exit dialog asks); the floated window drags, keeps on top, and shares
+  one bounds rect with the detached window (they never co-exist).
+- Verified: webview/desktop/root typechecks clean, eslint clean on
+  touched files, `check:l10n` 0 problems, `check:reference` current;
+  panel (15), panelSessions (8), panelStores (3) and panelView (3)
+  suites green, including the new resize/append/bounds/agent-spawn
+  cases; `vitest related` 43 + 5 files green (389 + 41 tests).
 
 ## Landed: strings (2026-10-31)
 

@@ -145,8 +145,9 @@ const v1Shape = workbenchLayoutSchema.shape
 
 /**
 The persisted layout, version 2 (lane BP). WB's `activeFooterTab`
-becomes the panel's view; pinning, per-tab slots, splits and the
-floating bounds join it. Strict: anything else stored is refused.
+becomes the panel's view; pinning, per-tab slots, splits, the
+floating bounds and its always-on-top join it. Strict: anything else
+stored is refused.
 */
 export const workbenchLayoutV2Schema = z.strictObject({
   version: z.literal(2),
@@ -164,6 +165,7 @@ export const workbenchLayoutV2Schema = z.strictObject({
   tabSlots: z.record(z.string(), z.enum(TERMINAL_SLOTS)),
   splits: splitNodeSchema.optional(),
   floatingBounds: floatingBoundsSchema.optional(),
+  floatingOnTop: z.boolean().optional(),
   activePaneId: z.string().min(1).optional(),
 })
 export type WorkbenchLayoutV2 = z.infer<typeof workbenchLayoutV2Schema>
@@ -180,6 +182,7 @@ export const DEFAULT_WORKBENCH_LAYOUT_V2: WorkbenchLayoutV2 = {
   panelView: 'terminal',
   panelPinned: true,
   tabSlots: {},
+  floatingOnTop: false,
 }
 
 export function migrateLayoutV1ToV2(v1: WorkbenchLayout): WorkbenchLayoutV2 {
@@ -197,6 +200,7 @@ export function migrateLayoutV1ToV2(v1: WorkbenchLayout): WorkbenchLayoutV2 {
     panelView: v1.activeFooterTab,
     panelPinned: true,
     tabSlots: {},
+    floatingOnTop: false,
   }
 }
 

@@ -1,35 +1,85 @@
-// Muse Desktop (M111, D91.13) lane WB: the workbench layout. Chat on the
-// left, the editor group in the centre with the terminal panel below it and
-// the tabbed footer at the same width, the rail and sidebar on the right.
-// The status bar belongs to SH1's shell surface; this app publishes its
-// items over the bridge. ED, SB1 and BP fill the editor, sidebar and
-// terminal surfaces inside these regions.
+// Muse Desktop (M111, D91.13) lanes WB and BP: the workbench layout.
+// Chat on the left, the editor group in the centre with the bottom panel
+// below it and the tabbed footer at the same width, the rail and sidebar
+// on the right. The status bar belongs to SH1's shell surface; this app
+// publishes its items over the bridge. ED and SB1 fill the editor and
+// sidebar surfaces inside these regions; BP's BottomPanel fills the
+// terminal panel, the floating window and the footer strip. This module
+// owns the panel's state (tabs, Problems, Output, the exit question),
+// the bridge subscriptions, the panel actions and the workbench
+// dispatcher, which honours each binding's `when`.
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { DESKTOP_QUICK_OPEN_MAX_RESULTS, UI_TEXT } from '../../shared/constants'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FocusEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
+import {
+  DESKTOP_LAYOUT_BOUNDS,
+  DESKTOP_PANEL_KEYBOARD_RESIZE_PX,
+  DESKTOP_QUICK_OPEN_MAX_RESULTS,
+  DESKTOP_TERMINAL_DEFAULT_COLS,
+  DESKTOP_TERMINAL_DEFAULT_ROWS,
+  UI_TEXT,
+} from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
 import {
-  FOOTER_TABS,
   type DesktopWorkspace,
   type FileEntry,
-  type FooterTab,
+  type FloatingBounds,
+  type OutputSnapshot,
+  type PanelProblem,
+  type SplitNode,
+  type TerminalSessionInfo,
+  type TerminalSlot,
   type WorkbenchLayoutV2,
 } from '../../shared/desktop/bridge'
 import {
   KeybindingRegistry,
+  WORKBENCH_COMMANDS,
   chordFromEvent,
+  isBindingActive,
   type WorkbenchCommand,
+  type WorkbenchFocus,
 } from '../../shared/desktop/keybindings'
 import {
+  applyOutputAppend,
+  closePane,
+  floatingBoundsFromRect,
+  moveTabToSlot,
+  paneTerminalIds,
+  pruneSplitTree,
+  resizeFloatingHeightPx,
+  resizePanelHeightPx,
+  shouldConfirmTerminalClose,
+  splitLeaf,
+  tabsInSlot,
+  type PanelView,
+} from '../../shared/desktop/panel'
+import {
   freshLayout,
-  isTerminalPanelVisible,
   moveTerminal,
   nextTerminalAfterClose,
   rankQuickOpen,
-  type TerminalTab,
+  type TerminalMove,
 } from '../../shared/desktop/workbench'
 import { webviewKey } from '../../shared/keybindings'
 import { desktopBridge } from '../bridges/desktop'
+import { releasePersistentTerminal, type IsWorkbenchChord } from './panel/terminalEngine'
+import type { TerminalPaneHandle } from './panel/TerminalView'
+import {
+  BottomPanel,
+  ExitConfirmDialog,
+  FooterPanelStrip,
+  type BottomPanelActions,
+  type BottomPanelState,
+  type BottomPanelTab,
+  type PendingTabClose,
+} from './panel/BottomPanel'
 
 const registry = new KeybindingRegistry()
 
@@ -39,17 +89,37 @@ interface OpenFile {
   savedText: string
 }
 
-function footerTabLabel(tab: FooterTab): string {
-  switch (tab) {
-    case 'terminal': {
-      return UI_TEXT.desktop.workbenchTerminal
+function separatorHeight(action: string, current: number): number | undefined {
+  switch (action) {
+    case 'increase': {
+      return resizePanelHeightPx(current, DESKTOP_PANEL_KEYBOARD_RESIZE_PX)
     }
-    case 'problems': {
-      return UI_TEXT.desktop.workbenchProblems
+    case 'decrease': {
+      return resizePanelHeightPx(current, -DESKTOP_PANEL_KEYBOARD_RESIZE_PX)
     }
-    case 'output': {
-      return UI_TEXT.desktop.workbenchOutput
+    case 'first': {
+      return DESKTOP_LAYOUT_BOUNDS.terminalHeightMinPx
     }
+    case 'last': {
+      return DESKTOP_LAYOUT_BOUNDS.terminalHeightMaxPx
+    }
+    default: {
+      return undefined
+    }
+  }
+}
+
+function sessionToTab(session: TerminalSessionInfo, slot: TerminalSlot): BottomPanelTab {
+  if (session.agent === undefined) {
+    return { id: session.id, title: session.title, slot, source: 'person', exitCode: undefined }
+  }
+  return {
+    id: session.id,
+    title: session.title,
+    slot,
+    source: 'agent',
+    agent: session.agent,
+    exitCode: undefined,
   }
 }
 
@@ -59,19 +129,47 @@ export function DesktopApp() {
   const [layoutNotice, setLayoutNotice] = useState<string | null>(null)
   const [files, setFiles] = useState<readonly FileEntry[]>([])
   const [openFiles, setOpenFiles] = useState<readonly OpenFile[]>([])
-  const [terminals, setTerminals] = useState<readonly TerminalTab[]>([])
-  const [terminalText, setTerminalText] = useState<ReadonlyMap<string, string>>(new Map())
+  const [tabs, setTabs] = useState<readonly BottomPanelTab[]>([])
+  const [problems, setProblems] = useState<readonly PanelProblem[]>([])
+  const [output, setOutput] = useState<OutputSnapshot>({ channels: [] })
+  const [terminalCreateError, setTerminalCreateError] = useState<string | null>(null)
+  const [pendingClose, setPendingClose] = useState<PendingTabClose | null>(null)
   const [quickOpenVisible, setQuickOpenVisible] = useState(false)
   const [quickOpenQuery, setQuickOpenQuery] = useState('')
   const [error, setError] = useState<string | null>(null)
   const chatRef = useRef<HTMLElement>(null)
   const editorRef = useRef<HTMLElement>(null)
   const sidebarRef = useRef<HTMLElement>(null)
-  const terminalRef = useRef<HTMLElement>(null)
   const layoutRef = useRef(layout)
   useEffect(() => {
     layoutRef.current = layout
   }, [layout])
+  const tabsRef = useRef(tabs)
+  useEffect(() => {
+    tabsRef.current = tabs
+  }, [tabs])
+  const openFilesRef = useRef(openFiles)
+  useEffect(() => {
+    openFilesRef.current = openFiles
+  }, [openFiles])
+  const pendingCloseRef = useRef(pendingClose)
+  useEffect(() => {
+    pendingCloseRef.current = pendingClose
+  }, [pendingClose])
+  // The dispatcher's focus (`when`), the panel's pending focus request,
+  // the tab ids known (closed ids release their emulators), the mounted
+  // panes' handles and the mounted Problems/Output focus targets.
+  const focusRef = useRef<WorkbenchFocus>('other')
+  const pendingFocus = useRef<{
+    kind: 'pane' | 'search' | 'problems' | 'output'
+    id?: string
+  } | null>(null)
+  const previousTabIds = useRef<ReadonlySet<string>>(new Set())
+  const paneHandles = useRef(new Map<string, TerminalPaneHandle>())
+  const problemsListRef = useRef<HTMLUListElement>(null)
+  const outputWrapRef = useRef<HTMLDivElement>(null)
+  const separatorDrag = useRef<{ startY: number; startHeight: number } | null>(null)
+  const firstFocusReturn = useRef(true)
 
   const persistLayout = useCallback(
     async (next: WorkbenchLayoutV2) => {
@@ -84,6 +182,10 @@ export function DesktopApp() {
     },
     [workspace],
   )
+
+  const updateLayout = useCallback((next: WorkbenchLayoutV2) => {
+    setLayout(next)
+  }, [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -105,7 +207,47 @@ export function DesktopApp() {
           if (!isAborted()) setLayoutNotice(UI_TEXT.desktop.workbenchLayoutUnreadable)
         }
         if (isAborted()) return
-        setLayout(stored ?? freshLayout())
+        const initial = stored ?? freshLayout()
+        const listed = await bridge.listTerminals()
+        if (isAborted()) return
+        const live = new Map(listed.map((session) => [session.id, session]))
+        const liveIds = new Set(live.keys())
+        setTabs(
+          listed.map((session) => sessionToTab(session, initial.tabSlots[session.id] ?? 'dock')),
+        )
+        // Stored slots, splits and actives that name dead sessions are
+        // pruned; a stored layout is normalized back at once.
+        const tabSlots = Object.fromEntries(
+          Object.entries(initial.tabSlots).filter(([id]) => liveIds.has(id)),
+        )
+        const splits =
+          initial.splits === undefined
+            ? undefined
+            : (pruneSplitTree(initial.splits, liveIds) ?? undefined)
+        const activeTerminalId =
+          initial.activeTerminalId !== undefined && liveIds.has(initial.activeTerminalId)
+            ? initial.activeTerminalId
+            : listed[0]?.id
+        const activePaneId =
+          initial.activePaneId !== undefined && liveIds.has(initial.activePaneId)
+            ? initial.activePaneId
+            : activeTerminalId
+        const next: WorkbenchLayoutV2 = {
+          ...initial,
+          tabSlots,
+          splits,
+          activeTerminalId,
+          activePaneId,
+        }
+        setLayout(next)
+        if (stored !== null || listed.length > 0) {
+          await bridge.setLayout({ key: { workspaceRoot: current.root }, layout: next })
+        }
+        if (isAborted()) return
+        const published = await bridge.getProblems()
+        if (isAborted()) return
+        setProblems(published.problems)
+        setOutput(await bridge.getOutput())
         setFiles(await bridge.listFiles())
       } catch (error_: unknown) {
         // Bridge failures arrive as Errors with the refusal as their
@@ -127,29 +269,62 @@ export function DesktopApp() {
 
   useEffect(() => {
     const bridge = desktopBridge()
-    const offData = bridge.onTerminalData((frame) => {
-      setTerminalText((previous) => {
-        const next = new Map(previous)
-        next.set(frame.id, `${next.get(frame.id) ?? ''}${frame.data}`)
-        return next
+    // Terminal data flows straight into the persistent emulators (they
+    // subscribe in terminalEngine); the workbench tracks only exits
+    // (exited tabs), opened sessions (agents' tabs appear) and the
+    // Problems and Output stores.
+    const offExit = bridge.onTerminalExit((frame) => {
+      setTabs((previous) =>
+        previous.map((tab) => (tab.id === frame.id ? { ...tab, exitCode: frame.code } : tab)),
+      )
+    })
+    const offOpened = bridge.onTerminalOpened((session) => {
+      setTabs((previous) => {
+        if (previous.some((tab) => tab.id === session.id)) return previous
+        return [
+          ...previous,
+          sessionToTab(session, layoutRef.current.tabSlots[session.id] ?? 'dock'),
+        ]
       })
     })
-    const offExit = bridge.onTerminalExit((frame) => {
-      setTerminalText((previous) => {
-        const next = new Map(previous)
-        const code = frame.code === null ? '—' : String(frame.code)
-        next.set(
-          frame.id,
-          `${next.get(frame.id) ?? ''}\n${fill(UI_TEXT.desktop.workbenchTerminalExited, { code })}\n`,
-        )
-        return next
-      })
+    const offProblems = bridge.onProblemsChanged((frame) => {
+      setProblems(frame.problems)
+    })
+    const offAppended = bridge.onOutputAppended((frame) => {
+      setOutput((previous) => applyOutputAppend(previous, frame))
+    })
+    const offCleared = bridge.onOutputCleared((frame) => {
+      setOutput((previous) => ({
+        channels:
+          frame.channel === undefined
+            ? []
+            : previous.channels.filter((entry) => entry.channel !== frame.channel),
+      }))
     })
     return () => {
-      offData()
       offExit()
+      offOpened()
+      offProblems()
+      offAppended()
+      offCleared()
     }
   }, [])
+
+  useEffect(() => {
+    // Closed tabs release their emulators and drop their pane handles;
+    // this runs after the shells unmounted, so no shell cleans a
+    // disposed engine.
+    const live = new Set(tabs.map((tab) => tab.id))
+    for (const id of previousTabIds.current) {
+      if (live.has(id)) {
+        continue
+      }
+
+      releasePersistentTerminal(id)
+      paneHandles.current.delete(id)
+    }
+    previousTabIds.current = live
+  }, [tabs])
 
   useEffect(() => {
     if (workspace === null) return
@@ -165,14 +340,14 @@ export function DesktopApp() {
         {
           id: 'workbench.terminals',
           side: 'right',
-          text: plural(UI_TEXT.desktop.workbenchStatusTerminals, terminals.length, {
-            count: String(terminals.length),
+          text: plural(UI_TEXT.desktop.workbenchStatusTerminals, tabs.length, {
+            count: String(tabs.length),
           }),
           priority: 20,
         },
       ],
     })
-  }, [workspace, terminals.length])
+  }, [workspace, tabs.length])
 
   const openFile = useCallback(
     async (filePath: string) => {
@@ -204,24 +379,492 @@ export function DesktopApp() {
     [persistLayout],
   )
 
-  const newTerminal = useCallback(async () => {
-    if (workspace === null) return
-    const created = await desktopBridge().createTerminal({
-      cwd: workspace.root,
-      cols: 80,
-      rows: 24,
-    })
-    setTerminals((previous) => [...previous, created])
-    const next: WorkbenchLayoutV2 = {
-      ...layoutRef.current,
-      terminalPlacement:
-        layoutRef.current.terminalPlacement === 'hidden'
-          ? 'docked'
-          : layoutRef.current.terminalPlacement,
-      activeTerminalId: created.id,
+  const createFailed = useCallback((error: unknown) => {
+    setTerminalCreateError(
+      error instanceof Error
+        ? `${UI_TEXT.desktop.panelTerminalCreateFailed}: ${error.message}`
+        : UI_TEXT.desktop.panelTerminalCreateFailed,
+    )
+  }, [])
+
+  const newTerminal = useCallback(
+    async (slot: 'dock' | 'window') => {
+      if (workspace === null) return
+      try {
+        const created = await desktopBridge().createTerminal({
+          cwd: workspace.root,
+          cols: DESKTOP_TERMINAL_DEFAULT_COLS,
+          rows: DESKTOP_TERMINAL_DEFAULT_ROWS,
+        })
+        // The opened event adds the tab too; both add-if-missing, so the
+        // race either way lands one tab.
+        setTabs((previous) =>
+          previous.some((tab) => tab.id === created.id)
+            ? previous
+            : [...previous, sessionToTab(created, slot)],
+        )
+        const current = layoutRef.current
+        await persistLayout({
+          ...current,
+          terminalPlacement:
+            current.terminalPlacement === 'hidden' || current.terminalPlacement === 'footer'
+              ? 'docked'
+              : current.terminalPlacement,
+          tabSlots: { ...current.tabSlots, [created.id]: slot },
+          activeTerminalId: created.id,
+          activePaneId: created.id,
+        })
+        setTerminalCreateError(null)
+      } catch (error: unknown) {
+        createFailed(error)
+      }
+    },
+    [createFailed, persistLayout, workspace],
+  )
+
+  const doClose = useCallback(
+    async (id: string) => {
+      desktopBridge().closeTerminal(id)
+      const outcome = nextTerminalAfterClose(
+        tabsRef.current,
+        id,
+        layoutRef.current.activeTerminalId,
+      )
+      setTabs(outcome.tabs)
+      const current = layoutRef.current
+      const live = new Set(outcome.tabs.map((tab) => tab.id))
+      const activeTerminalId =
+        outcome.activeId !== undefined && live.has(outcome.activeId)
+          ? outcome.activeId
+          : outcome.tabs[0]?.id
+      await persistLayout({
+        ...current,
+        splits:
+          current.splits === undefined ? undefined : (closePane(current.splits, id) ?? undefined),
+        tabSlots: Object.fromEntries(
+          Object.entries(current.tabSlots).filter(([entry]) => entry !== id),
+        ),
+        activeTerminalId,
+        activePaneId:
+          current.activePaneId !== undefined &&
+          current.activePaneId !== id &&
+          live.has(current.activePaneId)
+            ? current.activePaneId
+            : activeTerminalId,
+      })
+    },
+    [persistLayout],
+  )
+
+  const requestClose = useCallback(
+    (id: string) => {
+      const tab = tabsRef.current.find((entry) => entry.id === id)
+      if (tab === undefined) return
+      if (tab.exitCode !== undefined) {
+        void doClose(id)
+        return
+      }
+      void (async () => {
+        let children: { hasChildren: boolean } | null
+        try {
+          children = await desktopBridge().hasTerminalChildren(id)
+        } catch (error: unknown) {
+          // The probe cannot tell (the session raced its exit): ask, as
+          // the exit question's unknown-means-ask rule requires.
+          if (!(error instanceof Error)) throw error
+          children = null
+        }
+        if (children !== null && !shouldConfirmTerminalClose(false, children.hasChildren)) {
+          await doClose(id)
+          return
+        }
+        setPendingClose({ id, title: tab.title })
+      })()
+    },
+    [doClose],
+  )
+
+  const confirmClose = useCallback(() => {
+    const pending = pendingCloseRef.current
+    setPendingClose(null)
+    if (pending !== null) void doClose(pending.id)
+  }, [doClose])
+
+  const cancelClose = useCallback(() => {
+    setPendingClose(null)
+  }, [])
+
+  const selectTab = useCallback(
+    (id: string) => {
+      const current = layoutRef.current
+      if (current.activeTerminalId === id && current.activePaneId === id) return
+      void persistLayout({ ...current, activeTerminalId: id, activePaneId: id })
+    },
+    [persistLayout],
+  )
+
+  const registerPane = useCallback((id: string, handle: TerminalPaneHandle | null) => {
+    if (handle === null) paneHandles.current.delete(id)
+    else paneHandles.current.set(id, handle)
+  }, [])
+
+  const paneHandleFor = useCallback(
+    (id: string): TerminalPaneHandle | null => paneHandles.current.get(id) ?? null,
+    [],
+  )
+
+  const activateTab = useCallback(
+    (id: string) => {
+      // A clicked tab shows its terminal and takes focus; arrows select
+      // through selectTab and stay in the strip.
+      const current = layoutRef.current
+      if (
+        current.activeTerminalId !== id ||
+        current.activePaneId !== id ||
+        current.panelView !== 'terminal'
+      ) {
+        void persistLayout({
+          ...current,
+          activeTerminalId: id,
+          activePaneId: id,
+          panelView: 'terminal',
+        })
+      }
+      const handle = paneHandleFor(id)
+      if (handle === null) {
+        pendingFocus.current = { kind: 'pane', id }
+      } else {
+        handle.focusPane()
+        pendingFocus.current = null
+      }
+    },
+    [paneHandleFor, persistLayout],
+  )
+
+  const returnTab = useCallback(
+    (id: string) => {
+      // A footer tab returns to the dock, selected and focused.
+      setTabs((previous) => moveTabToSlot(previous, id, 'dock'))
+      const current = layoutRef.current
+      void persistLayout({
+        ...current,
+        tabSlots: { ...current.tabSlots, [id]: 'dock' },
+        activeTerminalId: id,
+        activePaneId: id,
+        panelView: 'terminal',
+      })
+      const handle = paneHandleFor(id)
+      if (handle === null) {
+        pendingFocus.current = { kind: 'pane', id }
+      } else {
+        handle.focusPane()
+        pendingFocus.current = null
+      }
+    },
+    [paneHandleFor, persistLayout],
+  )
+
+  const moveTab = useCallback(
+    (id: string, slot: TerminalSlot) => {
+      const next = moveTabToSlot(tabsRef.current, id, slot)
+      if (next === tabsRef.current) return
+      setTabs(next)
+      const current = layoutRef.current
+      void persistLayout({
+        ...current,
+        splits:
+          slot === 'dock' || current.splits === undefined
+            ? current.splits
+            : (closePane(current.splits, id) ?? undefined),
+        tabSlots: { ...current.tabSlots, [id]: slot },
+      })
+    },
+    [persistLayout],
+  )
+
+  const selectView = useCallback(
+    (view: PanelView) => {
+      const current = layoutRef.current
+      if (current.panelView !== view) void persistLayout({ ...current, panelView: view })
+    },
+    [persistLayout],
+  )
+
+  const expandView = useCallback(
+    (view: PanelView) => {
+      void persistLayout(moveTerminal({ ...layoutRef.current, panelView: view }, 'expand'))
+    },
+    [persistLayout],
+  )
+
+  const movePanel = useCallback(
+    (move: TerminalMove) => {
+      void persistLayout(moveTerminal(layoutRef.current, move))
+    },
+    [persistLayout],
+  )
+
+  const togglePin = useCallback(() => {
+    const current = layoutRef.current
+    void persistLayout({ ...current, panelPinned: !current.panelPinned })
+  }, [persistLayout])
+
+  const toggleOnTop = useCallback(() => {
+    const current = layoutRef.current
+    void persistLayout({ ...current, floatingOnTop: !(current.floatingOnTop ?? false) })
+  }, [persistLayout])
+
+  const splitsChanged = useCallback(
+    (splits: SplitNode | null, shouldPersist: boolean) => {
+      const next: WorkbenchLayoutV2 = { ...layoutRef.current, splits: splits ?? undefined }
+      if (shouldPersist) void persistLayout(next)
+      else updateLayout(next)
+    },
+    [persistLayout, updateLayout],
+  )
+
+  const floatingBoundsChanged = useCallback(
+    (bounds: FloatingBounds, shouldPersist: boolean) => {
+      const next: WorkbenchLayoutV2 = { ...layoutRef.current, floatingBounds: bounds }
+      if (shouldPersist) void persistLayout(next)
+      else updateLayout(next)
+    },
+    [persistLayout, updateLayout],
+  )
+
+  const openProblemFile = useCallback(
+    (path: string) => {
+      // The line reveal is ED's, with the editor; the panel opens the file.
+      void openFile(path)
+    },
+    [openFile],
+  )
+
+  const clearOutput = useCallback((channel: string | undefined) => {
+    desktopBridge().clearOutput(channel)
+  }, [])
+
+  const dismissCreateError = useCallback(() => {
+    setTerminalCreateError(null)
+  }, [])
+
+  const openSearch = useCallback(
+    (id: string | undefined) => {
+      if (id === undefined) return
+      const current = layoutRef.current
+      const handle = paneHandleFor(id)
+      if (
+        handle !== null &&
+        current.panelView === 'terminal' &&
+        (current.terminalPlacement === 'docked' || current.terminalPlacement === 'floating')
+      ) {
+        selectTab(id)
+        handle.openSearch()
+        pendingFocus.current = null
+        return
+      }
+      const tab = tabsRef.current.find((entry) => entry.id === id)
+      if (tab === undefined) {
+        pendingFocus.current = null
+        return
+      }
+      pendingFocus.current = { kind: 'search', id }
+      if (tab.slot === 'footer') {
+        moveTab(id, current.terminalPlacement === 'floating' ? 'window' : 'dock')
+      }
+      if (current.terminalPlacement === 'hidden') movePanel('show')
+      else if (current.terminalPlacement === 'footer') movePanel('expand')
+      if (current.panelView !== 'terminal') selectView('terminal')
+      selectTab(id)
+    },
+    [movePanel, moveTab, paneHandleFor, selectTab, selectView],
+  )
+
+  const focusTerminalPane = useCallback(
+    (id?: string) => {
+      const current = layoutRef.current
+      const target = id ?? current.activePaneId ?? current.activeTerminalId
+      if (target === undefined) return
+      const handle = paneHandleFor(target)
+      if (
+        handle !== null &&
+        current.panelView === 'terminal' &&
+        (current.terminalPlacement === 'docked' || current.terminalPlacement === 'floating')
+      ) {
+        handle.focusPane()
+        pendingFocus.current = null
+        return
+      }
+      const tab = tabsRef.current.find((entry) => entry.id === target)
+      if (tab === undefined) {
+        pendingFocus.current = null
+        return
+      }
+      pendingFocus.current = { kind: 'pane', id: target }
+      if (tab.slot === 'footer') {
+        moveTab(target, current.terminalPlacement === 'floating' ? 'window' : 'dock')
+      }
+      if (current.terminalPlacement === 'hidden') movePanel('show')
+      else if (current.terminalPlacement === 'footer') movePanel('expand')
+      if (current.panelView !== 'terminal') selectView('terminal')
+      selectTab(target)
+    },
+    [movePanel, moveTab, paneHandleFor, selectTab, selectView],
+  )
+
+  const focusProblems = useCallback(() => {
+    const current = layoutRef.current
+    if (
+      current.panelView === 'problems' &&
+      (current.terminalPlacement === 'docked' || current.terminalPlacement === 'floating') &&
+      problemsListRef.current !== null
+    ) {
+      problemsListRef.current.focus()
+      pendingFocus.current = null
+      return
     }
-    await persistLayout(next)
-  }, [persistLayout, workspace])
+    if (current.terminalPlacement === 'hidden') movePanel('show')
+    else if (current.terminalPlacement === 'footer') movePanel('expand')
+    if (current.panelView !== 'problems') selectView('problems')
+    pendingFocus.current = { kind: 'problems' }
+  }, [movePanel, selectView])
+
+  const focusOutput = useCallback(() => {
+    const current = layoutRef.current
+    if (
+      current.panelView === 'output' &&
+      (current.terminalPlacement === 'docked' || current.terminalPlacement === 'floating') &&
+      outputWrapRef.current !== null
+    ) {
+      outputWrapRef.current.focus()
+      pendingFocus.current = null
+      return
+    }
+    if (current.terminalPlacement === 'hidden') movePanel('show')
+    else if (current.terminalPlacement === 'footer') movePanel('expand')
+    if (current.panelView !== 'output') selectView('output')
+    pendingFocus.current = { kind: 'output' }
+  }, [movePanel, selectView])
+
+  const splitPane = useCallback(
+    async (id: string) => {
+      if (workspace === null) return
+      try {
+        const created = await desktopBridge().createTerminal({
+          cwd: workspace.root,
+          cols: DESKTOP_TERMINAL_DEFAULT_COLS,
+          rows: DESKTOP_TERMINAL_DEFAULT_ROWS,
+        })
+        const current = layoutRef.current
+        // Splits live in the dock: the split tab joins it, and splitting
+        // outside the split view starts a new split there (the old
+        // panes' tabs remain as tabs).
+        const base: SplitNode =
+          current.splits !== undefined && paneTerminalIds(current.splits).includes(id)
+            ? current.splits
+            : { kind: 'leaf', terminalId: id }
+        const grown = splitLeaf(base, id, created.id, 'right')
+        setTabs((previous) => {
+          const added = previous.some((tab) => tab.id === created.id)
+            ? previous
+            : [...previous, sessionToTab(created, 'dock')]
+          return moveTabToSlot(added, id, 'dock')
+        })
+        await persistLayout({
+          ...current,
+          terminalPlacement:
+            current.terminalPlacement === 'hidden' || current.terminalPlacement === 'footer'
+              ? 'docked'
+              : current.terminalPlacement,
+          splits: grown,
+          tabSlots: { ...current.tabSlots, [created.id]: 'dock', [id]: 'dock' },
+          activeTerminalId: created.id,
+          activePaneId: created.id,
+        })
+        setTerminalCreateError(null)
+      } catch (error: unknown) {
+        createFailed(error)
+      }
+    },
+    [createFailed, persistLayout, workspace],
+  )
+
+  const adjustPanelHeight = useCallback(
+    (delta: number) => {
+      const current = layoutRef.current
+      if (current.terminalPlacement === 'docked') {
+        void persistLayout({
+          ...current,
+          terminalHeightPx: resizePanelHeightPx(current.terminalHeightPx, delta),
+        })
+        return
+      }
+      if (current.terminalPlacement !== 'floating') return
+      const measured = document.querySelector('.muse-panel-floating')?.getBoundingClientRect()
+      const bounds =
+        current.floatingBounds ?? (measured === undefined ? null : floatingBoundsFromRect(measured))
+      if (bounds === null) return
+      void persistLayout({
+        ...current,
+        floatingBounds: { ...bounds, heightPx: resizeFloatingHeightPx(bounds.heightPx, delta) },
+      })
+    },
+    [persistLayout],
+  )
+
+  // Satisfies the panel's focus requests after every commit: panes and
+  // searches wait for their shell to mount (a move lands it a commit
+  // later); Problems and Output focus once their view renders. A closed
+  // tab clears its request instead of hanging it.
+  useEffect(() => {
+    const pending = pendingFocus.current
+    if (pending === null) return
+    const isPlaced =
+      layout.terminalPlacement === 'docked' || layout.terminalPlacement === 'floating'
+    if (pending.kind === 'problems') {
+      if (isPlaced && layout.panelView === 'problems') {
+        problemsListRef.current?.focus()
+        pendingFocus.current = null
+      }
+      return
+    }
+    if (pending.kind === 'output') {
+      if (isPlaced && layout.panelView === 'output') {
+        outputWrapRef.current?.focus()
+        pendingFocus.current = null
+      }
+      return
+    }
+    const id = pending.id ?? layout.activePaneId ?? layout.activeTerminalId
+    if (id === undefined || tabs.every((tab) => tab.id !== id)) {
+      pendingFocus.current = null
+      return
+    }
+    const handle = paneHandles.current.get(id)
+    if (handle === undefined) return
+    if (pending.kind === 'search') handle.openSearch()
+    else handle.focusPane()
+    pendingFocus.current = null
+  })
+
+  useEffect(() => {
+    // A closed tab or dialog leaves focus on the body; return it to the
+    // selected tab instead of stranding it. The first run is the load,
+    // which takes no focus.
+    if (firstFocusReturn.current) {
+      firstFocusReturn.current = false
+      return
+    }
+    if (document.activeElement !== document.body) return
+    const id = layout.activeTerminalId
+    if (id === undefined) return
+    document.querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(id)}"]`)?.focus()
+  }, [tabs, pendingClose, layout.activeTerminalId])
+
+  const isWorkbenchChord: IsWorkbenchChord = useCallback((event) => {
+    const binding = registry.commandForChord(chordFromEvent(event))
+    return binding !== undefined && isBindingActive(binding, 'terminal')
+  }, [])
 
   const runCommand = useCallback(
     (command: WorkbenchCommand) => {
@@ -240,13 +883,49 @@ export function DesktopApp() {
           break
         }
         case 'workbench.toggleTerminal': {
-          void persistLayout(
-            moveTerminal(current, current.terminalPlacement === 'hidden' ? 'show' : 'hide'),
-          )
+          movePanel(current.terminalPlacement === 'hidden' ? 'show' : 'hide')
           break
         }
         case 'workbench.newTerminal': {
-          void newTerminal()
+          void newTerminal(current.terminalPlacement === 'floating' ? 'window' : 'dock')
+          break
+        }
+        case 'workbench.splitTerminal': {
+          const id = current.activePaneId ?? current.activeTerminalId
+          if (id !== undefined) void splitPane(id)
+          break
+        }
+        case 'workbench.killTerminal': {
+          const id = current.activeTerminalId
+          if (id !== undefined) requestClose(id)
+          break
+        }
+        case 'workbench.detachTerminal': {
+          movePanel('detach')
+          break
+        }
+        case 'workbench.dockTerminal': {
+          movePanel('dock')
+          break
+        }
+        case 'workbench.collapseTerminal': {
+          movePanel('collapse')
+          break
+        }
+        case 'workbench.pinTerminal': {
+          togglePin()
+          break
+        }
+        case 'workbench.panelTaller': {
+          adjustPanelHeight(DESKTOP_PANEL_KEYBOARD_RESIZE_PX)
+          break
+        }
+        case 'workbench.panelShorter': {
+          adjustPanelHeight(-DESKTOP_PANEL_KEYBOARD_RESIZE_PX)
+          break
+        }
+        case 'workbench.terminalSearch': {
+          openSearch(current.activePaneId ?? current.activeTerminalId)
           break
         }
         case 'workbench.focusChat': {
@@ -258,7 +937,15 @@ export function DesktopApp() {
           break
         }
         case 'workbench.focusTerminal': {
-          terminalRef.current?.focus()
+          focusTerminalPane()
+          break
+        }
+        case 'workbench.focusProblems': {
+          focusProblems()
+          break
+        }
+        case 'workbench.focusOutput': {
+          focusOutput()
           break
         }
         case 'workbench.focusSidebar': {
@@ -266,7 +953,7 @@ export function DesktopApp() {
           break
         }
         case 'workbench.saveFile': {
-          const active = openFiles.find((file) => file.path === current.activeFile)
+          const active = openFilesRef.current.find((file) => file.path === current.activeFile)
           if (active !== undefined) {
             void desktopBridge()
               .writeFile(active.path, active.text)
@@ -305,21 +992,91 @@ export function DesktopApp() {
         }
       }
     },
-    [newTerminal, openFiles, persistLayout],
+    [
+      adjustPanelHeight,
+      focusOutput,
+      focusProblems,
+      focusTerminalPane,
+      movePanel,
+      newTerminal,
+      openSearch,
+      persistLayout,
+      requestClose,
+      splitPane,
+      togglePin,
+    ],
   )
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
+      // The exit dialog is modal: no chord fires while it asks.
+      if (pendingCloseRef.current !== null) return
       const binding = registry.commandForChord(chordFromEvent(event))
-      if (binding === undefined) return
+      if (binding === undefined || !isBindingActive(binding, focusRef.current)) return
+      const command = WORKBENCH_COMMANDS.find((entry) => entry === binding.command)
+      if (command === undefined) return
       event.preventDefault()
-      runCommand(binding.command as WorkbenchCommand)
+      runCommand(command)
     }
     window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('keydown', onKey)
     }
   }, [runCommand])
+
+  const onRootFocus = (event: FocusEvent): void => {
+    // The dispatcher's `when`: the editor and the terminal regions say
+    // so, everywhere else is other.
+    const target = event.target
+    const regionElement =
+      target instanceof HTMLElement ? target.closest('[data-focus-region]') : null
+    const region =
+      regionElement instanceof HTMLElement ? regionElement.dataset['focusRegion'] : null
+    let focus: WorkbenchFocus = 'other'
+    if (region === 'editor') focus = 'editor'
+    else if (region === 'terminal') focus = 'terminal'
+    focusRef.current = focus
+  }
+
+  const onSeparatorPointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    if (event.button !== 0) return
+    separatorDrag.current = {
+      startY: event.clientY,
+      startHeight: layoutRef.current.terminalHeightPx,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  const onSeparatorPointerMove = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    const drag = separatorDrag.current
+    if (drag === null || !event.currentTarget.hasPointerCapture(event.pointerId)) return
+    updateLayout({
+      ...layoutRef.current,
+      terminalHeightPx: resizePanelHeightPx(drag.startHeight, drag.startY - event.clientY),
+    })
+  }
+
+  const onSeparatorPointerUp = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    if (separatorDrag.current === null || !event.currentTarget.hasPointerCapture(event.pointerId)) {
+      return
+    }
+    event.currentTarget.releasePointerCapture(event.pointerId)
+    separatorDrag.current = null
+    void persistLayout(layoutRef.current)
+  }
+
+  const onSeparatorKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>): void => {
+      const action = webviewKey('desktop.panelResize', event)
+      if (action === undefined) return
+      const height = separatorHeight(action, layoutRef.current.terminalHeightPx)
+      if (height === undefined) return
+      event.preventDefault()
+      event.stopPropagation()
+      void persistLayout({ ...layoutRef.current, terminalHeightPx: height })
+    },
+    [persistLayout],
+  )
 
   if (error !== null && workspace === null) {
     return (
@@ -330,28 +1087,70 @@ export function DesktopApp() {
     )
   }
 
-  const closeTerminal = (id: string): void => {
-    desktopBridge().closeTerminal(id)
-    const outcome = nextTerminalAfterClose(terminals, id, layout.activeTerminalId)
-    setTerminals(outcome.tabs)
-    void persistLayout({ ...layout, activeTerminalId: outcome.activeId })
+  const panelState: BottomPanelState = {
+    tabs,
+    activeTerminalId: layout.activeTerminalId,
+    activePaneId: layout.activePaneId,
+    splits: layout.splits ?? null,
+    placement: layout.terminalPlacement,
+    panelView: layout.panelView,
+    terminalHeightPx: layout.terminalHeightPx,
+    panelPinned: layout.panelPinned,
+    floatingOnTop: layout.floatingOnTop ?? false,
+    floatingBounds: layout.floatingBounds,
+    problems,
+    output,
+    terminalCreateError,
+    dialogOpen: pendingClose !== null,
+  }
+
+  const panelActions: BottomPanelActions = {
+    selectTab,
+    requestClose,
+    newTerminal: (slot) => {
+      void newTerminal(slot)
+    },
+    splitPane: (id) => {
+      void splitPane(id)
+    },
+    openSearch,
+    selectView,
+    expandView,
+    movePanel,
+    togglePin,
+    toggleOnTop,
+    moveTab,
+    splitsChanged,
+    floatingBoundsChanged,
+    openFile: openProblemFile,
+    clearOutput,
+    dismissCreateError,
+    activateTab,
+    returnTab,
   }
 
   const activeFile = openFiles.find((file) => file.path === layout.activeFile)
-  const activeTerminalId = layout.activeTerminalId ?? terminals[0]?.id
   const quickOpenResults = rankQuickOpen(quickOpenQuery, files).slice(
     0,
     DESKTOP_QUICK_OPEN_MAX_RESULTS,
   )
+  const isDialogOpen = pendingClose !== null
+  const windowTabs = tabsInSlot(tabs, 'window')
+  const footerTabs = tabsInSlot(tabs, 'footer')
 
   return (
-    <div className="muse-desktop" data-setup={workspace?.setupMode ? 'true' : undefined}>
+    <div
+      className="muse-desktop"
+      data-setup={workspace?.setupMode ? 'true' : undefined}
+      onFocusCapture={onRootFocus}
+    >
       <section
         ref={chatRef}
         tabIndex={-1}
         aria-label={UI_TEXT.desktop.workbenchChat}
         className="muse-desktop-chat"
         style={{ inlineSize: `${String(layout.chatWidthPx)}px` }}
+        inert={isDialogOpen}
       >
         <header className="muse-desktop-pane-head">{UI_TEXT.desktop.workbenchChat}</header>
         {workspace?.setupMode ? (
@@ -364,11 +1163,12 @@ export function DesktopApp() {
         {error === null ? null : <p role="alert">{error}</p>}
       </section>
 
-      <div className="muse-desktop-centre">
+      <div className="muse-desktop-centre" inert={isDialogOpen}>
         <section
           ref={editorRef}
           tabIndex={-1}
           aria-label={UI_TEXT.desktop.workbenchEditor}
+          data-focus-region="editor"
           className="muse-desktop-editor"
         >
           <div
@@ -412,84 +1212,68 @@ export function DesktopApp() {
           )}
         </section>
 
-        {isTerminalPanelVisible(layout.terminalPlacement) ? (
+        {layout.terminalPlacement === 'docked' ? (
+          <div
+            role="separator"
+            aria-orientation="horizontal"
+            aria-label={UI_TEXT.desktop.panelResizeHandle}
+            aria-valuemin={DESKTOP_LAYOUT_BOUNDS.terminalHeightMinPx}
+            aria-valuemax={DESKTOP_LAYOUT_BOUNDS.terminalHeightMaxPx}
+            aria-valuenow={layout.terminalHeightPx}
+            tabIndex={0}
+            className="muse-panel-separator"
+            onPointerDown={onSeparatorPointerDown}
+            onPointerMove={onSeparatorPointerMove}
+            onPointerUp={onSeparatorPointerUp}
+            onPointerCancel={onSeparatorPointerUp}
+            onKeyDown={onSeparatorKeyDown}
+          />
+        ) : null}
+
+        {layout.terminalPlacement === 'docked' ? (
           <section
-            ref={terminalRef}
-            tabIndex={-1}
-            aria-label={UI_TEXT.desktop.workbenchTerminal}
-            className={
-              layout.terminalPlacement === 'floating'
-                ? 'muse-desktop-terminal muse-desktop-terminal-floating'
-                : 'muse-desktop-terminal'
-            }
+            data-focus-region="terminal"
+            aria-label={UI_TEXT.desktop.panelRegion}
+            className="muse-desktop-terminal"
             style={{ blockSize: `${String(layout.terminalHeightPx)}px` }}
           >
-            <TerminalTabs
-              terminals={terminals}
-              activeId={activeTerminalId}
-              text={
-                activeTerminalId === undefined ? '' : (terminalText.get(activeTerminalId) ?? '')
-              }
-              onNew={() => void newTerminal()}
-              onClose={closeTerminal}
-              onSelect={(id) => void persistLayout({ ...layout, activeTerminalId: id })}
-              onInput={(data) => {
-                if (activeTerminalId !== undefined)
-                  desktopBridge().writeTerminal(activeTerminalId, data)
-              }}
+            <BottomPanel
+              location="dock"
+              state={panelState}
+              actions={panelActions}
+              problemsListRef={problemsListRef}
+              outputWrapRef={outputWrapRef}
+              registerPane={registerPane}
+              isWorkbenchChord={isWorkbenchChord}
             />
-            <div className="muse-desktop-terminal-actions">
-              <button onClick={() => void persistLayout(moveTerminal(layout, 'collapse'))}>
-                {UI_TEXT.desktop.workbenchCollapseTerminal}
-              </button>
-              {layout.terminalPlacement === 'floating' ? (
-                <button onClick={() => void persistLayout(moveTerminal(layout, 'dock'))}>
-                  {UI_TEXT.desktop.workbenchDockTerminal}
-                </button>
-              ) : (
-                <button onClick={() => void persistLayout(moveTerminal(layout, 'detach'))}>
-                  {UI_TEXT.desktop.workbenchDetachTerminal}
-                </button>
-              )}
-            </div>
           </section>
         ) : null}
 
-        <footer className="muse-desktop-footer">
-          <div
-            role="tablist"
-            aria-label={UI_TEXT.desktop.workbenchTerminal}
-            className="muse-desktop-tabs"
-          >
-            {FOOTER_TABS.map((tab) => (
-              <button
-                key={tab}
-                role="tab"
-                aria-selected={layout.panelView === tab}
-                onClick={() => {
-                  if (tab === 'terminal' && layout.terminalPlacement === 'footer') {
-                    void persistLayout(moveTerminal({ ...layout, panelView: tab }, 'expand'))
-                  } else {
-                    void persistLayout({ ...layout, panelView: tab })
-                  }
-                }}
-              >
-                {footerTabLabel(tab)}
-              </button>
-            ))}
-          </div>
-          {layout.panelView === 'problems' ? <p>{UI_TEXT.desktop.workbenchNoProblems}</p> : null}
-          {layout.panelView === 'output' ? <p>{UI_TEXT.desktop.workbenchNoOutput}</p> : null}
-          {layout.panelView === 'terminal' && layout.terminalPlacement === 'footer' ? (
-            <button onClick={() => void persistLayout(moveTerminal(layout, 'expand'))}>
-              {UI_TEXT.desktop.workbenchExpandTerminal}
-            </button>
-          ) : null}
-        </footer>
+        {layout.terminalPlacement === 'footer' || footerTabs.length > 0 ? (
+          <footer className="muse-desktop-footer">
+            <FooterPanelStrip state={panelState} actions={panelActions} />
+          </footer>
+        ) : null}
+
+        {layout.terminalPlacement === 'floating' || windowTabs.length > 0 ? (
+          <BottomPanel
+            location="window"
+            state={panelState}
+            actions={panelActions}
+            problemsListRef={problemsListRef}
+            outputWrapRef={outputWrapRef}
+            registerPane={registerPane}
+            isWorkbenchChord={isWorkbenchChord}
+          />
+        ) : null}
       </div>
 
       {layout.railVisible ? (
-        <nav aria-label={UI_TEXT.desktop.workbenchSidebar} className="muse-desktop-rail">
+        <nav
+          aria-label={UI_TEXT.desktop.workbenchSidebar}
+          className="muse-desktop-rail"
+          inert={isDialogOpen}
+        >
           <button
             aria-label={UI_TEXT.desktop.workbenchToggleSidebar}
             onClick={() => {
@@ -518,6 +1302,7 @@ export function DesktopApp() {
           aria-label={UI_TEXT.desktop.workbenchSidebar}
           className="muse-desktop-sidebar"
           style={{ inlineSize: `${String(layout.sidebarWidthPx)}px` }}
+          inert={isDialogOpen}
         >
           <header className="muse-desktop-pane-head">{UI_TEXT.desktop.workbenchSidebar}</header>
           <ul className="muse-desktop-files">
@@ -545,7 +1330,7 @@ export function DesktopApp() {
             placeholder={UI_TEXT.desktop.workbenchQuickOpen}
             value={quickOpenQuery}
             onChange={(event) => {
-              setQuickOpenQuery(event.target.value)
+              setQuickOpenQuery(event.currentTarget.value)
             }}
             onKeyDown={(event) => {
               const action = webviewKey('desktop.quickOpen', event)
@@ -575,64 +1360,8 @@ export function DesktopApp() {
           </ul>
         </div>
       ) : null}
-    </div>
-  )
-}
 
-function TerminalTabs(properties: {
-  readonly terminals: readonly TerminalTab[]
-  readonly activeId: string | undefined
-  readonly text: string
-  readonly onNew: () => void
-  readonly onClose: (id: string) => void
-  readonly onSelect: (id: string) => void
-  readonly onInput: (data: string) => void
-}) {
-  return (
-    <div className="muse-desktop-terminal-body">
-      <div
-        role="tablist"
-        aria-label={UI_TEXT.desktop.workbenchTerminal}
-        className="muse-desktop-tabs"
-      >
-        {properties.terminals.map((terminal) => (
-          <span key={terminal.id} className="muse-desktop-terminal-tab">
-            <button
-              role="tab"
-              aria-selected={properties.activeId === terminal.id}
-              onClick={() => {
-                properties.onSelect(terminal.id)
-              }}
-            >
-              {terminal.title}
-            </button>
-            <button
-              aria-label={UI_TEXT.desktop.workbenchCloseTerminal}
-              onClick={() => {
-                properties.onClose(terminal.id)
-              }}
-            >
-              ×
-            </button>
-          </span>
-        ))}
-        <button onClick={properties.onNew}>{UI_TEXT.desktop.workbenchNewTerminal}</button>
-      </div>
-      <pre dir="ltr" className="muse-desktop-terminal-output" aria-live="polite">
-        {properties.text}
-      </pre>
-      <input
-        aria-label={UI_TEXT.desktop.workbenchTerminal}
-        dir="ltr"
-        onKeyDown={(event) => {
-          if (webviewKey('desktop.terminal', event) !== 'submit') {
-            return
-          }
-
-          properties.onInput(`${event.currentTarget.value}\n`)
-          event.currentTarget.value = ''
-        }}
-      />
+      <ExitConfirmDialog pending={pendingClose} onConfirm={confirmClose} onCancel={cancelClose} />
     </div>
   )
 }

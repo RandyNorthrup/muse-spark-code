@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import { OutputStore } from '../../../desktop/app/output'
 import { ProblemsStore } from '../../../desktop/app/problems'
+import type { PanelProblem } from '../../../src/shared/desktop/bridge'
 import {
   DESKTOP_OUTPUT_APPEND_MAX_CHARS,
   DESKTOP_OUTPUT_CHANNEL_MAX_CHARS,
@@ -29,7 +30,7 @@ describe('M111 lane BP panel stores', () => {
     expect(seen).toHaveLength(2)
     // Past the product's own entry bound the replace is refused, and the
     // refused replace leaves the last good list alone.
-    const flood = Array.from({ length: DIAGNOSTICS_MAX_ENTRIES + 1 }, () => ({
+    const flood: PanelProblem[] = Array.from({ length: DIAGNOSTICS_MAX_ENTRIES + 1 }, () => ({
       path: 'x.ts',
       severity: 'error',
       line: 1,
