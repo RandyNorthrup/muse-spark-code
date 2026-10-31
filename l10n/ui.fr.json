@@ -197,7 +197,31 @@
     "unavailable": "Les diagnostics sont indisponibles : {reason}",
     "refresh": "Actualiser",
     "retry": "Réessayer",
-    "chunkFailed": "La page de diagnostics n’a pas pu être chargée."
+    "chunkFailed": "La page de diagnostics n’a pas pu être chargée.",
+    "chartKeyboard": "Utilisez les flèches du clavier pour passer d’un intervalle à l’autre.",
+    "chartBucket": "{date} : {values}",
+    "chartEmpty": "Aucun point dans cette plage.",
+    "showDataTable": "Afficher les données du graphique",
+    "metricSummary": "{series} du {from} au {to}",
+    "traceError": "Erreur",
+    "traceSpans": {
+      "one": "{count} segment",
+      "other": "{count} segments",
+      "many": "{count} segments"
+    },
+    "unreadable": {
+      "one": "{count} fichier illisible",
+      "other": "{count} fichiers illisibles",
+      "many": "{count} fichiers illisibles"
+    },
+    "logTrace": "Trace",
+    "logDebug": "Débogage",
+    "logInfo": "Info",
+    "logWarn": "Avertissement",
+    "logFatal": "Fatal",
+    "statMin": "Min",
+    "statAvg": "Moyenne",
+    "statMax": "Max"
   },
   "nodeHelp": {
     "title": "Aide du nœud",

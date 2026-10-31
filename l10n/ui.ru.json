@@ -198,7 +198,33 @@
     "unavailable": "Диагностика недоступна: {reason}",
     "refresh": "Обновить",
     "retry": "Повторить",
-    "chunkFailed": "Не удалось загрузить страницу диагностики."
+    "chunkFailed": "Не удалось загрузить страницу диагностики.",
+    "chartKeyboard": "Используйте стрелки для перемещения между временными корзинами.",
+    "chartBucket": "{date}: {values}",
+    "chartEmpty": "В этом диапазоне нет точек.",
+    "showDataTable": "Показать данные диаграммы",
+    "metricSummary": "{series} с {from} по {to}",
+    "traceError": "Ошибка",
+    "traceSpans": {
+      "one": "{count} спан",
+      "few": "{count} спана",
+      "many": "{count} спанов",
+      "other": "{count} спанов"
+    },
+    "unreadable": {
+      "one": "{count} нечитаемый файл",
+      "few": "{count} нечитаемых файла",
+      "many": "{count} нечитаемых файлов",
+      "other": "{count} нечитаемых файлов"
+    },
+    "logTrace": "Трассировка",
+    "logDebug": "Отладка",
+    "logInfo": "Сведения",
+    "logWarn": "Предупреждение",
+    "logFatal": "Критическая",
+    "statMin": "Мин",
+    "statAvg": "Среднее",
+    "statMax": "Макс"
   },
   "nodeHelp": {
     "title": "Справка узла",

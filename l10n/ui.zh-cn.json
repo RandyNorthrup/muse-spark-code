@@ -195,7 +195,27 @@
     "unavailable": "诊断不可用：{reason}",
     "refresh": "刷新",
     "retry": "重试",
-    "chunkFailed": "无法加载诊断页面。"
+    "chunkFailed": "无法加载诊断页面。",
+    "chartKeyboard": "使用方向键在时间桶之间移动。",
+    "chartBucket": "{date}：{values}",
+    "chartEmpty": "此范围内没有数据点。",
+    "showDataTable": "显示图表数据",
+    "metricSummary": "{from} 至 {to} 的 {series}",
+    "traceError": "错误",
+    "traceSpans": {
+      "other": "{count} 个跨度"
+    },
+    "unreadable": {
+      "other": "{count} 个文件无法读取"
+    },
+    "logTrace": "跟踪",
+    "logDebug": "调试",
+    "logInfo": "信息",
+    "logWarn": "警告",
+    "logFatal": "致命",
+    "statMin": "最小",
+    "statAvg": "平均",
+    "statMax": "最大"
   },
   "nodeHelp": {
     "title": "节点帮助",

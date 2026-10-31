@@ -198,7 +198,33 @@
     "unavailable": "Diagnostyka jest niedostępna: {reason}",
     "refresh": "Odśwież",
     "retry": "Ponów",
-    "chunkFailed": "Nie można wczytać strony diagnostyki."
+    "chunkFailed": "Nie można wczytać strony diagnostyki.",
+    "chartKeyboard": "Użyj strzałek, aby przechodzić między przedziałami czasu.",
+    "chartBucket": "{date}: {values}",
+    "chartEmpty": "Brak punktów w tym zakresie.",
+    "showDataTable": "Pokaż dane wykresu",
+    "metricSummary": "{series} od {from} do {to}",
+    "traceError": "Błąd",
+    "traceSpans": {
+      "one": "{count} span",
+      "few": "{count} spany",
+      "many": "{count} spanów",
+      "other": "{count} spanów"
+    },
+    "unreadable": {
+      "one": "{count} nieczytelny plik",
+      "few": "{count} nieczytelne pliki",
+      "many": "{count} nieczytelnych plików",
+      "other": "{count} nieczytelnych plików"
+    },
+    "logTrace": "Śledzenie",
+    "logDebug": "Debugowanie",
+    "logInfo": "Informacje",
+    "logWarn": "Ostrzeżenie",
+    "logFatal": "Krytyczny",
+    "statMin": "Min",
+    "statAvg": "Średnia",
+    "statMax": "Maks"
   },
   "nodeHelp": {
     "title": "Pomoc węzła",

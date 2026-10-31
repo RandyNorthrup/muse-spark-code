@@ -196,7 +196,29 @@
     "unavailable": "Tanılama kullanılamıyor: {reason}",
     "refresh": "Yenile",
     "retry": "Yeniden dene",
-    "chunkFailed": "Tanılama sayfası yüklenemedi."
+    "chunkFailed": "Tanılama sayfası yüklenemedi.",
+    "chartKeyboard": "Zaman dilimleri arasında ok tuşlarıyla gezinin.",
+    "chartBucket": "{date}: {values}",
+    "chartEmpty": "Bu aralıkta nokta yok.",
+    "showDataTable": "Grafik verilerini göster",
+    "metricSummary": "{from} - {to} arası {series}",
+    "traceError": "Hata",
+    "traceSpans": {
+      "one": "{count} span",
+      "other": "{count} span"
+    },
+    "unreadable": {
+      "one": "{count} okunamayan dosya",
+      "other": "{count} okunamayan dosya"
+    },
+    "logTrace": "İzleme",
+    "logDebug": "Hata ayıklama",
+    "logInfo": "Bilgi",
+    "logWarn": "Uyarı",
+    "logFatal": "Kritik",
+    "statMin": "Min",
+    "statAvg": "Ort",
+    "statMax": "Maks"
   },
   "nodeHelp": {
     "title": "Düğüm yardımı",

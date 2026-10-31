@@ -195,7 +195,27 @@
     "unavailable": "診断は利用できません: {reason}",
     "refresh": "更新",
     "retry": "再試行",
-    "chunkFailed": "診断ページを読み込めませんでした。"
+    "chunkFailed": "診断ページを読み込めませんでした。",
+    "chartKeyboard": "方向キーで時間バケット間を移動します。",
+    "chartBucket": "{date}：{values}",
+    "chartEmpty": "この範囲にポイントはありません。",
+    "showDataTable": "グラフのデータを表示",
+    "metricSummary": "{from} から {to} までの {series}",
+    "traceError": "エラー",
+    "traceSpans": {
+      "other": "{count} スパン"
+    },
+    "unreadable": {
+      "other": "{count} 個のファイルを読めません"
+    },
+    "logTrace": "トレース",
+    "logDebug": "デバッグ",
+    "logInfo": "情報",
+    "logWarn": "警告",
+    "logFatal": "致命的",
+    "statMin": "最小",
+    "statAvg": "平均",
+    "statMax": "最大"
   },
   "nodeHelp": {
     "title": "ノードヘルプ",
