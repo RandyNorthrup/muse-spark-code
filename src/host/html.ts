@@ -65,11 +65,10 @@ export function buildWebviewHtml(options: WebviewHtmlOptions): string {
     ...(options.surface === 'tasks' ? [] : [`worker-src blob:`]),
   ].join('; ')
   const { locale, table } = options.l10n
-  // Numeric references keep the label inert as element text.
-  const stopLabel = table.makerStopAll.replaceAll(
-    /[&<>]/g,
-    (character) => `&#${String(character.codePointAt(0))};`,
-  )
+  const stopLabel = table.makerStopAll
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
   const stopShell =
     options.surface === 'tasks'
       ? ''
