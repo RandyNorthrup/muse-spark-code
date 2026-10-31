@@ -79,10 +79,21 @@ that warn is gone, the close says
 background tasks`, and the surviving session still answers
 (`bSurvived: true`). `npm run check:catches`: no count rise.
 
-OPEN — the after-bits one-turn drill (a session end with a running
-background task showing the task stopped) needs 1 model request; the
-lane's budget of 4 is spent (see below). Ask the lead for +1, or accept
-the echo ordering suites as the after-proof.
+After-bits one-turn drill (the lead's approved +1 request, see
+below): fresh packed product from this tree
+(`muse-spark-code-acp-0.19.0-darwin-x64.tgz`,
+`temp/packed-afterbits/`; phase0 re-confirms the after bits — the
+singular close line, no `stopAll`-failed warn, `bSurvived: true`).
+One turn on `muse-spark-1.3-contributor` backgrounded a real `sleep
+120` tool, then `dispose()` released the session while the host stayed
+up for session B (`temp/caps/b3-after-1.json`): `tasksBeforeDispose`
+names the tool, `tasksAfterDispose` is `[]` — outcome
+`task-stopped`. The tool's journal fold (`task …/5c2c…/ cancelled`)
+lands ~3.25 s before the host-death cascade, i.e. in the dispose
+window, not at host death as in the before bits. The drill's 4 warns
+are `MSP event item/… for unknown session <A>` — the stop's own
+completion events arriving after the released session was deafened;
+named, not bare-`Error`, and no `task/stopAll … failed` warn.
 
 ## B5 — The session lifecycle reader (H10)
 
@@ -144,19 +155,23 @@ it; `npm run duplication` reports 0 clones.
 
 ## Model calls
 
-4 requests, all `muse-spark-1.3-contributor` on the meta provider, $0
-contributor tier, empty scratch workspaces — the brief's cap, reached on
-the before-bits measurement. Counted afterwards from Muse Code's own
-session records (`runtime.user_intent.accepted` × 1 and
+5 requests, all `muse-spark-1.3-contributor` on the meta provider, $0
+contributor tier, empty scratch workspaces: the brief's 4, spent on the
+before-bits measurement, plus the lead's approved +1 for the after-bits
+drill. Counted afterwards from Muse Code's own session records
+(`runtime.user_intent.accepted` × 1 and
 `model_id: muse-spark-1.3-contributor` in each):
 
 - `01a18e9a-c57e-7a00-9dfa-a6117640d664` (run 1, no durable tool)
 - `01a18e9a-5d76-7953-af35-b4afe794a6cb` (run 2, no durable tool)
 - `01a18e9c-3594-79d1-bc79-e425179c2374` (run 3, no durable tool)
 - `01a18ea3-9907-7bf2-af14-7e1b8b0b2a9f` (run 4, backgrounded `sleep 120`)
+- `01a18f65-2cfe-72e3-9c14-b702c76ca695` (after-bits, `task-stopped`)
 
-plus `01a18ea3-d96d-…` (run 4's second session, started, no turn, no
-model use). No other model id appears in any drill record.
+plus `01a18ea3-d96d-…` (run 4's second session) and
+`01a18f65-731f-7b61-85d3-b2e43b575e6a` (after-bits session B), each
+started with no turn and no model use (`accepted` × 0). No other model
+id appears in any drill record.
 
 ## Gates
 

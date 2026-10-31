@@ -10807,12 +10807,12 @@ the host close counts its sessions); the resource reporter names the
 reading and the cause; the started lifecycle reader delivers started
 sessions to the list with no re-list while delete stays refused without
 sending (no delete frame is served on CLI 1.4.11). Proven by real-code
-red/green suites and packed-product drills before and after on 4
-`muse-spark-1.3-contributor` requests. The after-bits one-turn drill
-needs +1 request; the brief's second-client drill and end-to-end delete
-are impossible on CLI 1.4.11 (single-client stdio, no delete served),
-measured in the record. Record:
-`docs/certification/rlf-acphonest.md`.
+red/green suites and packed-product drills before and after on 5
+`muse-spark-1.3-contributor` requests (the brief's 4 plus the lead's
+approved +1 for the after-bits one-turn drill, `task-stopped`); the
+brief's second-client drill and end-to-end delete are impossible on CLI
+1.4.11 (single-client stdio, no delete served), measured in the record.
+Record: `docs/certification/rlf-acphonest.md`.
 
 ### RLWINFIX — Windows defects found by using 0.19.0 for real (2026-10-22)
 
