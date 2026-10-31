@@ -76,6 +76,7 @@ def download(url, expected, dest):
         return
     partial = dest.with_suffix(".partial")
     try:
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected -- production callers pass repo-pinned URLs (os/pins.json after check() requires Node 24.18.0, or the Pi manifest). check() requires https; the composer allows file:// for fixtures. The InRelease fetch is signature-verified; every other fetch is digest-pinned. No CLI argument, environment variable or network body becomes the URL (PLAN.md §8)
         with urllib.request.urlopen(url, timeout=60) as source, partial.open(
             "wb"
         ) as output:

@@ -83,7 +83,9 @@ function encrypt(key: Uint8Array, id: EncryptedItem['id'], value: string): Encry
 function decrypt(key: Uint8Array, item: EncryptedItem): Buffer {
   const derived = itemKey(key, item.id)
   try {
-    const cipher = createDecipheriv('aes-256-gcm', derived, item.nonce)
+    const cipher = createDecipheriv('aes-256-gcm', derived, item.nonce, {
+      authTagLength: NODE_VAULT_TAG_BYTES,
+    })
     cipher.setAAD(additionalData(item.id))
     cipher.setAuthTag(item.tag)
     return Buffer.concat([cipher.update(item.ciphertext), cipher.final()])
