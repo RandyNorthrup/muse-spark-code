@@ -12788,6 +12788,11 @@ Neovim and Emacs with zero usage/accounting stderr lines; the
 RLF-HOSTS2 Vim live drill is green live, 4/4;
 `docs/certification/rlf-maclive.md`).
 
+**Status 2026-10-30 (integration into int/recovery, CC-INT6): built.**
+Recorded with `-s ours` (the lane's two lineage merges are int's own re-lands)
+and its four own commits applied on top: the ACP usage read on Muse Code and
+the journal rig two suites share. Record: `docs/certification/cc-int6.md`.
+
 | Milestone | Phase | What it delivers                                                                                                                                             |
 | --------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | M60       | A     | The host API inventory: every VS Code API, Node built-in, webview host call and theme variable the extension uses, recorded and gated; the `vscode` boundary |
@@ -21991,6 +21996,11 @@ per OS through the packed product, with the permission recovery run)
 stay owner steps, with the hosted-CI Windows and Linux legs.
 Record: `docs/certification/rlf-recording.md`.
 
+**Status 2026-10-30 (integration into int/recovery, CC-INT6): building.** The
+recording drivers' lazy bundle and the preview ride int's deferred stanzas;
+the preview and what's-new pages ship in the VSIX's webview archive rather
+than as loose files. Record: `docs/certification/cc-int6.md`.
+
 **MSM105 finish lane (2026-10-17, macmini).** Merged the codec-refusal line
 (`cand/MSM105/3`), the production-composition line (`cand/MSM105/2`) and the
 current main (`3d30a7321`) onto C-M105-8; overhaul GO deletions stay
@@ -24393,6 +24403,13 @@ profile runs or registers silently. Record:
 `docs/certification/rlf-m108.md`. Still waiting: Q-M108 captures,
 RLF-DEVICES live transport, M95 foreign joins, D93 audit display.
 
+**Integration into int/recovery (CC-INT6, 2026-10-30).** The lane's sixteen
+commits are applied as one three-way patch after `-s ours` (the original
+RLM108 lineage is int's already). The window's developer owner is reached
+through the lazy accounts bundle, the Developer options page has its own
+webview budget group (7.1 KiB of 25), and `dist/wire.js` shares its string
+schema to keep 75 KiB. Record: `docs/certification/cc-int6.md`.
+
 **MSM108 main integration (2026-10-17, macmini).** Merged `main-now`
 3d30a7321 (568 commits) into the lane tip a79ed4c1f with `git merge
 --no-ff`; all 45 conflicted files resolved by meaning and main's test
@@ -25974,7 +25991,19 @@ or helper-only-access certification.
 
 **Status 2026-10-30: building.** RLF-MUSESETUP recorded the owner's Q-M110 item 4 ruling as D229 (the install is part of setup) and built it: the first-boot setup offers Meta's CLI from Meta's official installer with Meta's terms shown for acceptance and a `muse --version` check, while the image, add-on and pack gates refuse the CLI anywhere inside (each proven red/green); a first-boot run in the VM installed Muse Code 1.4.14 during setup onto a CLI-free image. Evidence: `docs/certification/rlf-musesetup.md`.
 
+**Status 2026-10-30 (integration into int/recovery, CC-INT6): building.** The
+lane's D227 is D229 on int (D227 stays the teams switch). The installer's
+`bash` and the `--version` check run through the guarded launcher with the
+no-workspace child environment; `dist/nodeSetup.js` is 142.4 KiB of 175.
+Record: `docs/certification/cc-int6.md`.
+
 **Status 2026-10-30: building.** RLF-M110OS2's resume put the build in the repository's builder container, pinned the ext4 hash seed, and proved two builds of each image byte-identical, so the pipeline's reproducibility comparison now blocks; both new images boot to the login prompt (x86-64 TCG, aarch64 container QEMU) with an SPDX SBOM each. KVM boots, TPM/MOK/LUKS enrollment on hardware, image signing and OSJ wait, named. Threat-model acceptance stays with the lead. Evidence: `docs/certification/rlf-m110os2.md`.
+
+**Status 2026-10-30 (integration into int/recovery, CC-INT6): building.** The
+lane's OS2 work is kept (builder container and pipeline, ext4 hash seed,
+chunked repro hashing, boot driver shape and receipts, the IPv6
+neighbour-discovery rule); int's later work is kept over the lane's older
+cherry-picked copies. Record: `docs/certification/cc-int6.md`.
 
 **Status 2026-10-23: building.** RLF-M110OS2 landed OS3–OS7 on OS1's recipe and OS2, built both images from the 0.19.0 runtime and booted x86-64 under TCG and aarch64 through container QEMU to the login prompt, with an SPDX SBOM per image; two x86-64 builds compared with every divergence root-caused (payload content identical). KVM boots, TPM/MOK/LUKS enrollment on hardware, image signing and OSJ wait, named. Threat-model acceptance stays with the lead. Evidence: `docs/certification/rlf-m110os2.md`.
 
@@ -26222,6 +26251,13 @@ serve binding serves: fingerprint, bearer [REDACTED] digest-bound proofs and
 `stop` are drilled in the receipt above. Still open and not this lane's:
 the operator control transport, the `/peek` subscribe route and page,
 N-M103-ACTION (RLM103), and the lead's second-PC passkey join.
+
+**Status 2026-10-30 (integration into int/recovery, CC-INT6): building.** The
+lane's three commits sit on int's tree. Certificate issuance is a governed
+launch, so `serve` configures the process governor when none is configured
+(`dist/nodeServe.js`, 77.6 KiB of 100; `dist/nodeAuth.js` 470.0 KiB of 500).
+RVNET's open requests for Node `serve` are listed in the record with what this
+round did about them. Record: `docs/certification/cc-int6.md`.
 
 **Amended by D91 (2026-10-05).** Muse Desktop (M111) is this node's
 graphical host edition. M111's shared lanes TH (theme), IN (languages), AX
@@ -30537,6 +30573,16 @@ host bindings stay open for RLM104. Receipt:
 
 **Status 2026-10-23 (recovery lane RLM103 on `rec/rlm103`, landed on 0.19.0; not yet released): building.** Both source branches (`01-m103-port-0171`, `02-m103-th-pack`) are merged with the fake-driven suites deleted or rebuilt on real code; `docs/certification/rlm103.md` carries the suite and gate receipts. Still open: two bundle budgets are over (`dist/modelApi.js` by 0.5 KiB, `dist/runtimeMaker.js` by 2.1 KiB; caps not raised), the lease/serial suites blocked on the macmini rig (`/bin/ps` and socat unavailable there), the installed Arduino IDE 2 run, lane E's one counted live call (needs the packed product), and the owner's Pi and ESP32 session.
 
+**Status 2026-10-30 (integration into int/recovery, CC-INT6): building.** The
+lane lands beside int's RLF-DEVICES maker stack: its ACP module is
+`src/acp/makerTools.ts`, and its companion page opens with `machines panel`
+because `panel` is the MHP host's word (D84). `dist/modelApiShell.js` (10.7
+KiB measured, 25 KiB budget) takes the shell reader and the command rules out
+of `dist/modelApi.js`, which holds its 525 KiB; no budget was raised. Its
+process starts stand in int's spawn inventory. The VS Code maker host, its
+commands and the preview panel have no activation caller on the lane's tip or
+on int: open in the record. Record: `docs/certification/cc-int6.md`.
+
 **Q-M103a–h resolved 2026-10-05 (lead, under the owner's standing
 authorization: "any recommendation you come up with you are authorized").**
 (a) Plain HTTP on the LAN only for a machine the user registered by command,
@@ -30857,6 +30903,13 @@ M114 (`panelThemePort` on MHP `theme` frames, never `portableTokens.css`),
 independent portable build with static-closure budgets; startup by static
 closure accounting (the browser timing waits for lane C's carrier).
 Record: `docs/certification/rlf-m104d.md`.
+
+Integration into int/recovery (CC-INT6, 2026-10-30): the portable graph builds
+beside VS Code's (`dist/webview/portable/`), ships in the ACP package and is
+left out of the VSIX's webview archive (VS Code never serves it; the archive
+passed its 4,000,000-byte bound with it). `chat.tsx` is the lane's mount with
+int's reload flush, and the MHP v1.1 panel lock is re-frozen on the merged
+tree. Record: `docs/certification/cc-int6.md`.
 
 **Warning for the POSIX trusted-path verifier (INT0180, 2026-10-11).** A real
 POSIX verifier that refuses a group-writable unit search directory would
