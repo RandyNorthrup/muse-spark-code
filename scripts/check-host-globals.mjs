@@ -101,6 +101,7 @@ const HOST_BUNDLES = [
   'dist/media.js',
   'dist/mediaHost.js',
   'dist/screenRecord.js',
+  'dist/screenRecordDrivers.js',
   'dist/webFetch.js',
   'dist/museCodeReviewer.js',
   'dist/modelEfforts.js',

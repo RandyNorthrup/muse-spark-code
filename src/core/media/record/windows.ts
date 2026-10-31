@@ -12,13 +12,16 @@ import {
 import { UI_TEXT, fill } from '../../../shared/l10n/text'
 import { mediaInfoSchema, screenRecordingOptionsSchema } from '../../../shared/media'
 import type { MediaInfo } from '../../../shared/media'
-import { recordingNotFound, windowsRecordingPlaces } from './driver'
+import { recordingNotFound, windowsRecordingPlaces } from './latest'
 import type {
   ScreenRecordingDriver,
   ScreenRecordingOptions,
   ScreenRecordingResult,
   ScreenRecordingRun,
 } from './driver'
+
+/** The Windows helper's own output bound. */
+export const WINDOWS_RECORDING_HELPER_MAX_BYTES = MEDIA_MAX_UPLOAD_MIB * MEDIA_FILE_ID_MIN_BYTES
 
 const helperFrame = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('recording') }),
@@ -147,7 +150,7 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
     if (
       !Number.isSafeInteger(deps.maxBytes) ||
       deps.maxBytes <= 0 ||
-      deps.maxBytes > MEDIA_MAX_UPLOAD_MIB * MEDIA_FILE_ID_MIN_BYTES ||
+      deps.maxBytes > WINDOWS_RECORDING_HELPER_MAX_BYTES ||
       (options !== undefined && !screenRecordingOptionsSchema.safeParse(options).success)
     )
       return refused(unavailable())

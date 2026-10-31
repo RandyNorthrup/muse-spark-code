@@ -4,6 +4,7 @@ import path from 'node:path'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
 import type { ScreenRecordingPreview } from '../../../core/media/record/driver'
+import { openMacosRecordingPermissions } from '../../../core/media/record/macosPermissions'
 import { UI_TEXT } from '../../../shared/constants'
 import { fill, formatUnit, setUiText } from '../../../shared/l10n/text'
 import { screenRecordingOptionsSchema } from '../../../shared/media'
@@ -107,6 +108,28 @@ button:focus-visible{outline:2px solid var(--vscode-focusBorder);outline-offset:
   return panel
 }
 
+/**
+Says why a recording could not start or finish. A refused macOS permission
+also offers its own Settings pane, which opens only when the person picks
+it.
+*/
+async function showRefusal(deps: RecordingCommandDeps, reason: string): Promise<void> {
+  const message = fill(UI_TEXT.media.recordingUnavailable, { reason })
+  const permission = deps.takeRefusedPermission?.()
+  if (permission === undefined) {
+    await vscode.window.showInformationMessage(message)
+    return
+  }
+  const action =
+    permission === 'screen'
+      ? UI_TEXT.media.recordingOpenPermissions
+      : UI_TEXT.media.recordingOpenMicrophonePermissions
+  if ((await vscode.window.showInformationMessage(message, action)) === action)
+    await openMacosRecordingPermissions(permission, async (uri) => {
+      await vscode.env.openExternal(vscode.Uri.parse(uri))
+    })
+}
+
 /** Command registrations call this only in response to an interactive user. */
 export async function runScreenRecordingCommand(
   deps: RecordingCommandDeps,
@@ -136,9 +159,7 @@ export async function runScreenRecordingCommand(
   }
   const available = await driver.available()
   if (!available.ok) {
-    await vscode.window.showInformationMessage(
-      fill(UI_TEXT.media.recordingUnavailable, { reason: available.reason }),
-    )
+    await showRefusal(deps, available.reason)
     return
   }
   const selected = await vscode.window.showQuickPick(
@@ -187,10 +208,7 @@ export async function runScreenRecordingCommand(
     try {
       stopping = vscode.commands.registerCommand(stopCommand, () => run.stop())
       const result = await run.result
-      if (!result.ok)
-        await vscode.window.showInformationMessage(
-          fill(UI_TEXT.media.recordingUnavailable, { reason: result.reason }),
-        )
+      if (!result.ok) await showRefusal(deps, result.reason)
       else if (isLive()) {
         openRecordingPreview(result.preview, deps)
       } else {

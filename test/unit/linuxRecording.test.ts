@@ -1,71 +1,17 @@
-// The Linux screen driver's failure handling (D119 catch burn-down): an
-// encoder probe failure reports unavailable, a failed portal setup refuses
-// the run, a missing capture directory never hides the others, and an
-// unverifiable latest file reports unavailable. Directory listing runs over
-// the real file system; the portal, encoder probe and preview copy fail for
-// real through the driver's own injected ports.
+// The Linux screen driver's latest-recording discovery (D119 catch burn-down): a
+// missing capture directory never hides the others and an unverifiable
+// latest file reports unavailable. Directory listing runs over the real file
+// system. The driver itself is proved against the real portal helper in
+// portalRecord.test.ts, and its words by recordingDriver.test.ts.
 import { mkdtemp, readdir, rm, stat, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it, onTestFinished } from 'vitest'
-import {
-  findLatestRecording,
-  linuxRecordingDriver,
-  type LinuxRecordingPort,
-} from '../../src/core/media/record/linux'
+import { findLatestRecording } from '../../src/core/media/record/latest'
 
 const HOUR_MS = 60 * 60 * 1000
 /** The person's name for a test root, as the not-found sentence shows it. */
 const PLACE = 'Screencasts'
-
-function driverPort(overrides: Partial<LinuxRecordingPort>): LinuxRecordingPort {
-  return {
-    userInitiated: () => true,
-    localScreen: () => true,
-    signal: new AbortController().signal,
-    findEncoder: () => Promise.resolve('/usr/bin/gst-launch-1.0'),
-    openPortal: () => Promise.reject(new Error('no portal in tests')),
-    createPrivateRecording: () => Promise.reject(new Error('no recording in tests')),
-    launchVerified: () => Promise.reject(new Error('no encoder in tests')),
-    sniff: () => Promise.reject(new Error('no sniffing in tests')),
-    ...overrides,
-  }
-}
-
-const recordOptions = { maxSeconds: 10, microphone: false, systemAudio: false }
-
-function noopCountdown(): void {
-  // Countdown display is the host's.
-}
-
-describe('linux screen driver availability', () => {
-  it('reports unavailable when the encoder probe fails', async () => {
-    const driver = linuxRecordingDriver(
-      driverPort({ findEncoder: () => Promise.reject(new Error('no GStreamer in tests')) }),
-    )
-    await expect(driver.available()).resolves.toEqual({
-      ok: false,
-      reason: expect.any(String),
-    })
-  })
-
-  it('reports remote when there is no local screen', async () => {
-    const driver = linuxRecordingDriver(driverPort({ localScreen: () => false }))
-    await expect(driver.available()).resolves.toEqual({
-      ok: false,
-      reason: expect.any(String),
-    })
-  })
-})
-
-describe('linux screen driver start', () => {
-  it('refuses the run when portal setup fails', async () => {
-    const driver = linuxRecordingDriver(driverPort({}))
-    const run = await driver.start(recordOptions, noopCountdown)
-    const outcome = await run.result
-    expect(outcome).toEqual({ ok: false, reason: expect.any(String) })
-  })
-})
 
 /** The port's listing over the real file system, with real modification times. */
 async function listRecordingFiles(

@@ -2174,7 +2174,7 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 
 ### Muse Spark: Attach Screen Recording…
 
-`museSpark.attachScreenRecording` — nativeRecorder=absent: Direct screen recording is unavailable in this build. Choose an existing recording file.
+`museSpark.attachScreenRecording` — nativeRecorder=absent: Record your screen with this computer's own recorder where it has one, choosing microphone and system sound for each recording, and preview it before it is attached. When this computer cannot record, the command says why; choose an existing recording file instead.
 
 Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible`.
 

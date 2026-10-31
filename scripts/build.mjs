@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { buildLinuxHelper } from './build-linux-helper.mjs'
+import { buildPortalRecord } from './build-portal-record.mjs'
 import { buildVaultPeer } from './build-vault-peer.mjs'
 import {
   COMPANION_THEME_CSS_FILE,
@@ -139,6 +140,7 @@ cpSync('src/core/legal/legal-data', 'dist/legal-data', { recursive: true, force:
 const args = new Set(process.argv.slice(2))
 buildLinuxHelper()
 buildVaultPeer()
+buildPortalRecord()
 
 const isProduction = args.has('--production')
 const isWatch = args.has('--watch')
@@ -310,6 +312,8 @@ const TOOL_RANGE_ENTRY = 'src/host/backend/toolRangeEntry.ts'
 const TOOL_RANGE_OUTFILE = 'dist/toolRange.js'
 const SCREEN_RECORD_ENTRY = 'src/host/media/screenRecordEntry.ts'
 const SCREEN_RECORD_OUTFILE = 'dist/screenRecord.js'
+const SCREEN_RECORD_DRIVERS_ENTRY = 'src/host/media/recordingDriverEntry.ts'
+const SCREEN_RECORD_DRIVERS_OUTFILE = 'dist/screenRecordDrivers.js'
 // The browser check's own bundle (M81): the pipe, the run, the browser's processes.
 const BROWSER_CHECK_ENTRY = 'src/host/browser/browserCheckEntry.ts'
 const BROWSER_CHECK_OUTFILE = 'dist/browserCheck.js'
@@ -1687,9 +1691,41 @@ const toolRangeOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const screenRecordOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  // M105 RLF-RECORDING: the bound drivers reach the process launcher, the
+  // child-environment guard, the secret scrubber and the media sniffer;
+  // all four ship once in their lazy owners, never copied here.
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    sharedWire,
+    deferredCohort,
+    sharedResourceAdmission,
+    sharedExecGuard,
+    sharedRedaction,
+  ],
   entryPoints: [SCREEN_RECORD_ENTRY],
   outfile: SCREEN_RECORD_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+// M105 RLF-RECORDING: the drivers' own bundle (see screenRecordOptions).
+const screenRecordDriversOptions = {
+  ...common,
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    sharedWire,
+    deferredCohort,
+    sharedResourceAdmission,
+    sharedExecGuard,
+    sharedRedaction,
+  ],
+  entryPoints: [SCREEN_RECORD_DRIVERS_ENTRY],
+  outfile: SCREEN_RECORD_DRIVERS_OUTFILE,
   platform: 'node',
   external: ['vscode'],
   format: 'cjs',
@@ -2320,6 +2356,7 @@ if (isWatch) {
     esbuild.context(mediaHostOptions),
     esbuild.context(toolRangeOptions),
     esbuild.context(screenRecordOptions),
+    esbuild.context(screenRecordDriversOptions),
     esbuild.context(agentImportOptions),
     esbuild.context(conversationGitOptions),
     esbuild.context(modelApiSessionsOptions),
@@ -2531,6 +2568,7 @@ if (isWatch) {
     media: recorded('media', mediaOptions),
     toolRange: recorded('toolRange', toolRangeOptions),
     screenRecord: recorded('screenRecord', screenRecordOptions),
+    screenRecordDrivers: recorded('screenRecordDrivers', screenRecordDriversOptions),
     agentImport: recorded('agentImport', agentImportOptions),
     conversationGit: recorded('conversationGit', conversationGitOptions),
     conversationTransfer: recorded('conversationTransfer', conversationTransferOptions),
@@ -2817,6 +2855,7 @@ if (isWatch) {
   reportSize(MEDIA_OUTFILE)
   reportSize(MEDIA_HOST_OUTFILE)
   reportSize(SCREEN_RECORD_OUTFILE)
+  reportSize(SCREEN_RECORD_DRIVERS_OUTFILE)
   reportSize(AGENT_IMPORT_OUTFILE)
   reportSize(CONVERSATION_GIT_OUTFILE)
   reportSize(MODEL_API_SESSIONS_OUTFILE)

@@ -1147,7 +1147,7 @@ export const EN = {
   referenceAttachments:
     'Attach files by selecting or dropping them, and paste images into the composer. PNG, JPEG, GIF and WebP images require a selected model with vision. PDF attachments require Model API. Trusted indexed workspace text files can be attached; protected or confidential files are refused. The limits below apply before sending.',
   referenceScreenRecording:
-    'Direct screen recording is unavailable in this build. Choose an existing recording file.',
+    "Record your screen with this computer's own recorder where it has one, choosing microphone and system sound for each recording, and preview it before it is attached. When this computer cannot record, the command says why; choose an existing recording file instead.",
   referenceLatestRecording:
     'Attach the most recent screen recording again without recording a new one. Requires a readable recording and verified video upload support.',
   referenceUploadedFiles:
@@ -1705,8 +1705,6 @@ export const EN = {
     recordingScreenPermissionRequired: 'Screen Recording permission has not been granted.',
     recordingMicrophonePermissionDenied: 'Microphone permission was denied.',
     recordingMicrophonePermissionRestricted: 'Microphone access is restricted by system policy.',
-    recordingMicrophonePermissionPending:
-      'Microphone permission is undecided. Start a recording to request access.',
 
     nativeMicrophonePurpose:
       "Muse Spark Code uses the microphone to type your speech into the composer. With paid Muse Voice enabled, it sends the audio to Meta's Muse Voice Transcribe; otherwise macOS recognizes it. Screen recordings include microphone audio only when you select it. You preview each screen recording before attaching it.",
@@ -1795,6 +1793,7 @@ export const EN = {
     recordingFailed:
       'Screen recording failed. Check available storage and recording support, then try again.',
     recordingOpenPermissions: 'Open Screen Recording Settings',
+    recordingOpenMicrophonePermissions: 'Open Microphone Settings',
     recordingUnavailable: 'Screen recording is unavailable: {reason}',
     recordingRemote:
       'This window runs on a remote host with no local screen. Use the companion page or choose a recording file.',

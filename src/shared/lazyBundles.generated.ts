@@ -596,6 +596,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       { importer: 'src/extension.ts', symbol: 'activateWindow', side: ['vscode'] },
       { importer: 'src/host/backend/toolIo.ts', symbol: 'createToolIo', side: ['acp', 'vscode'] },
       {
+        importer: 'src/host/media/recordingInspect.ts',
+        symbol: 'inspectRecordingFile',
+        side: ['vscode'],
+      },
+      {
         importer: 'src/host/media/recordingLatest.ts',
         symbol: 'createLatestPort',
         side: ['acp', 'vscode'],
@@ -1366,6 +1371,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     file: 'screenRecord.js',
     side: 'vscode',
     requestedBy: [{ importer: 'src/extension.ts', symbol: 'activateWindow', side: ['vscode'] }],
+  },
+  {
+    file: 'screenRecordDrivers.js',
+    side: 'vscode',
+    requestedBy: [
+      {
+        importer: 'src/host/media/recordingDriverLoader.ts',
+        symbol: 'createRecordingDriver',
+        side: ['vscode'],
+      },
+    ],
   },
   {
     file: 'searchWorker.js',

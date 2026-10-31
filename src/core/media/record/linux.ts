@@ -4,13 +4,12 @@ import path from 'node:path'
 import * as z from 'zod/mini'
 import {
   MEDIA_FILE_ID_MIN_BYTES,
-  MEDIA_MAX_UPLOAD_DEFAULT_MIB,
+  MEDIA_MAX_UPLOAD_MIB,
   MILLISECONDS_PER_SECOND,
   UI_TEXT,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import { mediaInfoSchema, screenRecordingOptionsSchema } from '../../../shared/media'
-import { recordingNotFound } from './driver'
 import type {
   ScreenRecordingDriver,
   ScreenRecordingOptions,
@@ -19,17 +18,24 @@ import type {
   ScreenRecordingRun,
 } from './driver'
 
+/**
+The portal's video source: its PipeWire descriptor with the node it names.
+Sound does not come from the portal (it governs no microphone): the audio
+elements connect to the default PipeWire daemon themselves, so the gate for
+sound is the person's explicit per-recording selection.
+*/
 const sourceSchema = z.strictObject({
   fd: z.int().check(z.gte(0)),
   nodeId: z.int().check(z.gt(0)),
 })
 type PipeWireSource = z.infer<typeof sourceSchema>
 
+/** The native helper's own output bound (RLF-RECORDING's portal recorder). */
+export const LINUX_RECORDING_HELPER_MAX_BYTES = MEDIA_MAX_UPLOAD_MIB * MEDIA_FILE_ID_MIN_BYTES
+
 interface PortalSession {
   /** D-Bus adapter returns untrusted identities; the driver validates them. */
   readonly video: unknown
-  readonly microphone?: unknown
-  readonly systemAudio?: unknown
   /** Resolves on permission revocation, portal closure or compositor exit. */
   readonly closed: Promise<void>
   readonly close: () => Promise<void>
@@ -54,14 +60,28 @@ export interface LinuxRecordingPort {
   readonly localScreen: () => boolean
   /** Owner aborts on close, disconnect and sleep, including during the picker. */
   readonly signal: AbortSignal
-  /** Absolute gst-launch-1.0 path, with pipewiresrc/H.264/mp4/AAC plugins probed. */
-  readonly findEncoder: () => Promise<string | undefined>
-  /** A user/OS permission refusal rejects with an Error named NotAllowedError;
-  transport, compositor and other portal failures keep their own identity. */
+  /**
+  Absolute gst-launch-1.0 path, with pipewiresrc/H.264/mp4 probed, plus the
+  AAC audio plugins when sound is selected (a video-only recording never
+  refuses for a missing audio codec).
+  */
+  readonly findEncoder: (audio: {
+    readonly microphone: boolean
+    readonly systemAudio: boolean
+  }) => Promise<string | undefined>
+  /**
+  Runs the portal flow: the desktop shows its picker and the person answers
+  it. A refusal rejects with an Error named for it: NotAllowedError when
+  the desktop or the person's policy refuses, NotFoundError when there is
+  no screen-cast portal, AbortError when the person ends the picker;
+  anything else keeps its own identity.
+  */
   readonly openPortal: (
     options: ScreenRecordingOptions,
     signal: AbortSignal,
   ) => Promise<PortalSession>
+  /** True when the desktop's portal answers with a ScreenCast interface (no picker, no session). */
+  readonly hasPortal: () => Promise<boolean>
   readonly createPrivateRecording: () => Promise<PrivateRecording>
   /** Verify trusted path at launch; no shell or credentials. Inherit exactly
   these fds, enforce hard output size and lifetime, and kill on parent exit.
@@ -78,6 +98,12 @@ export interface LinuxRecordingPort {
   }) => Promise<EncoderRun>
   /** M1's bounded byte sniffer, never metadata inferred from the filename. */
   readonly sniff: (file: string) => Promise<unknown>
+  /**
+  The recording file's byte bound: the person's upload cap when set, else
+  the helper's own bound. Refused unless a whole number from 1 to the
+  helper's bound.
+  */
+  readonly maxBytes: number
 }
 
 function unavailable(reason: string): string {
@@ -92,7 +118,8 @@ function refused(reason: string): ScreenRecordingRun {
   }
 }
 
-function sourceArgs(source: PipeWireSource): string[] {
+/** The portal's video: its descriptor and the node it names. */
+function videoArgs(source: PipeWireSource): string[] {
   return [
     'pipewiresrc',
     `fd=${String(source.fd)}`,
@@ -101,20 +128,33 @@ function sourceArgs(source: PipeWireSource): string[] {
   ]
 }
 
+/**
+Sound connects to the default daemon: no descriptor and no node, so the
+default microphone is the daemon's own default source, and the system's
+sound is the default output's monitor (PipeWire's `stream.capture.sink`).
+*/
+function audioArgs(isSystemAudio: boolean): string[] {
+  return [
+    'pipewiresrc',
+    ...(isSystemAudio ? ['stream-properties="props,stream.capture.sink=true"'] : []),
+    'do-timestamp=true',
+  ]
+}
+
 function pipeline(
   output: string,
   video: PipeWireSource,
-  audio: readonly PipeWireSource[],
+  options: ScreenRecordingOptions,
 ): string[] {
   // GStreamer's parser receives quoted properties, even for paths with spaces.
+  // The native helper runs gst-launch-1.0 with -e: its stop is EOS.
   const args = [
-    '-e',
     'mp4mux',
     'name=mux',
     '!',
     'filesink',
     `location=${JSON.stringify(output)}`,
-    ...sourceArgs(video),
+    ...videoArgs(video),
     '!',
     'videoconvert',
     '!',
@@ -126,7 +166,7 @@ function pipeline(
     '!',
     'mux.video_0',
   ]
-  if (audio.length > 0) {
+  if (options.microphone || options.systemAudio) {
     args.push(
       'audiomixer',
       'name=mix',
@@ -141,8 +181,17 @@ function pipeline(
       '!',
       'mux.audio_0',
     )
-    for (const source of audio)
-      args.push(...sourceArgs(source), '!', 'audioconvert', '!', 'audioresample', '!', 'mix.')
+    for (const isSystemAudio of [false, true])
+      if (isSystemAudio ? options.systemAudio : options.microphone)
+        args.push(
+          ...audioArgs(isSystemAudio),
+          '!',
+          'audioconvert',
+          '!',
+          'audioresample',
+          '!',
+          'mix.',
+        )
   }
   return args
 }
@@ -154,13 +203,15 @@ export function linuxRecordingDriver(port: LinuxRecordingPort): ScreenRecordingD
     if (!port.localScreen()) return { ok: false, reason: UI_TEXT.media.recordingRemote }
     let command: string | undefined
     try {
-      command = await port.findEncoder()
+      command = await port.findEncoder({ microphone: false, systemAudio: false })
     } catch {
       return { ok: false, reason: unavailable('GStreamer / pipewiresrc') }
     }
-    return command !== undefined && path.posix.isAbsolute(command.replaceAll('\\', '/'))
+    if (command === undefined || !path.posix.isAbsolute(command.replaceAll('\\', '/')))
+      return { ok: false, reason: unavailable('GStreamer / pipewiresrc / H.264 / AAC') }
+    return (await port.hasPortal())
       ? { ok: true }
-      : { ok: false, reason: unavailable('GStreamer / pipewiresrc / H.264 / AAC') }
+      : { ok: false, reason: unavailable('xdg-desktop-portal ScreenCast') }
   }
   return {
     available,
@@ -169,6 +220,12 @@ export function linuxRecordingDriver(port: LinuxRecordingPort): ScreenRecordingD
       const options = screenRecordingOptionsSchema.safeParse(input)
       if (isBusy || port.signal.aborted || !options.success)
         return refused(UI_TEXT.execStatus.cancelled)
+      if (
+        !Number.isSafeInteger(port.maxBytes) ||
+        port.maxBytes <= 0 ||
+        port.maxBytes > LINUX_RECORDING_HELPER_MAX_BYTES
+      )
+        return refused(UI_TEXT.media.recordingFailed)
       isBusy = true
       let isHandedOff = false
       const lifecycle = new AbortController()
@@ -182,7 +239,10 @@ export function linuxRecordingDriver(port: LinuxRecordingPort): ScreenRecordingD
       let file: PrivateRecording | undefined
       try {
         if (!port.localScreen()) return refused(UI_TEXT.media.recordingRemote)
-        const command = await port.findEncoder()
+        const command = await port.findEncoder({
+          microphone: options.data.microphone,
+          systemAudio: options.data.systemAudio,
+        })
         if (command === undefined || !path.posix.isAbsolute(command.replaceAll('\\', '/'))) {
           return refused(unavailable('GStreamer / pipewiresrc / H.264 / AAC'))
         }
@@ -192,17 +252,19 @@ export function linuxRecordingDriver(port: LinuxRecordingPort): ScreenRecordingD
         } catch (error) {
           if (error instanceof Error && error.name === 'NotAllowedError')
             return refused(UI_TEXT.media.recordingPermissionDenied)
+          if (error instanceof Error && error.name === 'NotFoundError')
+            return refused(unavailable('xdg-desktop-portal ScreenCast'))
+          // The person ended the picker: a cancelled recording, not a failure.
+          if (error instanceof Error && error.name === 'AbortError')
+            return refused(UI_TEXT.execStatus.cancelled)
           throw error
         }
         const closeSetup = () => {
           if (!isHandedOff) abortSetup()
         }
         void session.closed.then(closeSetup).catch(closeSetup)
-        const video = sourceSchema.parse(session.video)
-        const audio: PipeWireSource[] = []
-        if (options.data.microphone) audio.push(sourceSchema.parse(session.microphone))
-        if (options.data.systemAudio) audio.push(sourceSchema.parse(session.systemAudio))
         if (isAborted()) return refused(UI_TEXT.execStatus.cancelled)
+        const video = sourceSchema.parse(session.video)
         file = await port.createPrivateRecording()
         if (isAborted()) return refused(UI_TEXT.execStatus.cancelled)
         if (
@@ -213,10 +275,10 @@ export function linuxRecordingDriver(port: LinuxRecordingPort): ScreenRecordingD
         }
         const recording = await port.launchVerified({
           command,
-          args: pipeline(file.path, video, audio),
-          sources: [video, ...audio],
+          args: pipeline(file.path, video, options.data),
+          sources: [video],
           output: file.path,
-          maxBytes: MEDIA_MAX_UPLOAD_DEFAULT_MIB * MEDIA_FILE_ID_MIN_BYTES,
+          maxBytes: port.maxBytes,
           maxSeconds: options.data.maxSeconds,
           signal: lifecycle.signal,
         })
@@ -349,7 +411,7 @@ function recordingRun(
           info.kind !== 'video' ||
           info.mediaType !== 'video/mp4' ||
           info.sizeBytes === 0 ||
-          info.sizeBytes > MEDIA_MAX_UPLOAD_DEFAULT_MIB * MEDIA_FILE_ID_MIN_BYTES ||
+          info.sizeBytes > port.maxBytes ||
           info.durationSeconds === null ||
           (options.maxSeconds > 0 && info.durationSeconds > options.maxSeconds) ||
           info.hasSoundtrack !== (options.microphone || options.systemAudio)
@@ -404,99 +466,5 @@ function recordingRun(
       await result
     },
     result,
-  }
-}
-
-export interface LatestRecordingPort {
-  /** The OS recordings locations: Linux Videos roots, Windows Screen
-  Recordings and Captures, or the macOS Desktop default. The host factory
-  sets them. */
-  readonly roots: readonly string[]
-  /**
-  The person's names for those locations (`Videos\Screen Recordings`,
-  `Desktop`), never a profile path: the not-found sentence names them.
-  */
-  readonly places: readonly string[]
-  /**
-  An extra per-platform file-name gate for a general-purpose directory:
-  macOS scans the Desktop, so only Screenshot names qualify. Absent means
-  every media file qualifies (Linux Videos, Windows Screen Recordings and
-  Captures are dedicated recordings folders).
-  */
-  readonly isRecordingFileName?: (fileName: string) => boolean
-  /** Nonrecursive, confined regular files only; reject symlinks/special files. */
-  readonly list: (
-    root: string,
-  ) => Promise<readonly { readonly path: string; readonly modifiedAt: number }[]>
-  /** Copy privately under a hard byte cap, then sniff; source is never deleted.
-  WebM is retained as WebM for M1's explicit conversion offer. */
-  readonly copyForPreview: (source: string, maxBytes: number) => Promise<ScreenRecordingPreview>
-}
-
-/**
-Whether a discovered file sits directly inside a recordings root. Both
-sides normalize to forward slashes first, so Windows drive-letter roots
-confine the same way POSIX ones do; anything else (relative, traversal
-outside the root) fails closed.
-*/
-export function isWithinRecordingRoot(root: string, file: string): boolean {
-  const normalRoot = root.replaceAll('\\', '/').replace(/\/$/u, '')
-  const normalFile = file.replaceAll('\\', '/')
-  return (
-    (path.posix.isAbsolute(normalRoot) || path.win32.isAbsolute(root)) &&
-    path.posix.dirname(normalFile) === normalRoot
-  )
-}
-
-/**
-Explicit Attach latest action; never walks arbitrary home/workspace trees.
-D121: no age cutoff of ours. The newest recording across the roots wins,
-whatever its age (the preview shows the person what they attach); only a
-file dated in the future is refused.
-*/
-export async function findLatestRecording(
-  port: LatestRecordingPort,
-  now = Date.now(),
-): Promise<ScreenRecordingResult> {
-  const candidates: { readonly path: string; readonly modifiedAt: number }[] = []
-  for (const root of port.roots) {
-    try {
-      const files = await port.list(root)
-      for (const file of files) {
-        const normalFile = file.path.replaceAll('\\', '/')
-        const fileName = normalFile.slice(normalFile.lastIndexOf('/') + 1)
-        if (
-          isWithinRecordingRoot(root, file.path) &&
-          /\.(?:mp4|mov|webm)$/iu.test(normalFile) &&
-          (port.isRecordingFileName?.(fileName) ?? true) &&
-          file.modifiedAt <= now
-        )
-          candidates.push(file)
-      }
-    } catch {
-      /* A missing recordings directory does not hide the other ones. */
-    }
-  }
-  candidates.sort((a, b) => b.modifiedAt - a.modifiedAt)
-  const latest = candidates[0]
-  if (latest === undefined) return { ok: false, reason: recordingNotFound(port.places) }
-  try {
-    const preview = await port.copyForPreview(
-      latest.path,
-      MEDIA_MAX_UPLOAD_DEFAULT_MIB * MEDIA_FILE_ID_MIN_BYTES,
-    )
-    const parsed = mediaInfoSchema.safeParse(preview.info)
-    if (
-      !parsed.success ||
-      parsed.data.kind !== 'video' ||
-      parsed.data.sizeBytes === 0 ||
-      parsed.data.sizeBytes > MEDIA_MAX_UPLOAD_DEFAULT_MIB * MEDIA_FILE_ID_MIN_BYTES
-    ) {
-      await preview.dispose()
-      return { ok: false, reason: unavailable('mp4 / WebM') }
-    }
-    return { ok: true, preview }
-  } catch {
-    return { ok: false, reason: unavailable('mp4 / WebM') }
   }
 }

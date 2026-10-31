@@ -349,10 +349,16 @@ const BUDGETS = [
   // hook and contributor consent, loaded on the first attach beside
   // dist/media.js: 18.1 KiB measured. Measured size plus 15%, rounded up to 25 KiB.
   { path: 'dist/mediaHost.js', budgetKiB: 25 },
-  // M105 lane W: the screen-recording command with the R1-R3 platform
-  // drivers, loaded on the first recording command: 30.2 KiB when split
-  // out. Measured size plus 15%, rounded up to 25 KiB.
+  // M105 lane W: the screen-recording command with the latest-file
+  // discovery, loaded on the first recording command: 17.5 KiB after the
+  // drivers split out (was 30.2 KiB with the R1-R3 drivers in). Budget 50
+  // KiB stands.
   { path: 'dist/screenRecord.js', budgetKiB: 50 },
+  // M105 RLF-RECORDING: the platform drivers (Windows, macOS, the Linux
+  // portal) with their trust and helper chains, loaded on the first
+  // recording start: 51.7 KiB measured. Measured size plus 15%, rounded
+  // up to 60 KiB.
+  { path: 'dist/screenRecordDrivers.js', budgetKiB: 60 },
   // The host side of byte-range file reads and edits, loaded on the first
   // range addressed call. Measured size plus 15%, rounded up to 25 KiB.
   { path: 'dist/toolRange.js', budgetKiB: 25 },
