@@ -1,0 +1,266 @@
+[
+  {
+    "binding": "ALT + SHIFT + Tab",
+    "action": "window.cycle-previous",
+    "command": "function() hl.dispatch(hl.dsp.window.cycle_next({ next = false })) end",
+    "applies": "desktop"
+  },
+  {
+    "binding": "ALT + Tab",
+    "action": "window.cycle-next",
+    "command": "function() hl.dispatch(hl.dsp.window.cycle_next()) end",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + 1",
+    "action": "desktop.switch",
+    "command": "hl.dsp.focus({ workspace = \"1\" })",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + 2",
+    "action": "desktop.switch",
+    "command": "hl.dsp.focus({ workspace = \"2\" })",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + 3",
+    "action": "desktop.switch",
+    "command": "hl.dsp.focus({ workspace = \"3\" })",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + 4",
+    "action": "desktop.switch",
+    "command": "hl.dsp.focus({ workspace = \"4\" })",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + 5",
+    "action": "desktop.switch",
+    "command": "hl.dsp.focus({ workspace = \"5\" })",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + 6",
+    "action": "desktop.switch",
+    "command": "hl.dsp.focus({ workspace = \"6\" })",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + 7",
+    "action": "desktop.switch",
+    "command": "hl.dsp.focus({ workspace = \"7\" })",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + 8",
+    "action": "desktop.switch",
+    "command": "hl.dsp.focus({ workspace = \"8\" })",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + 9",
+    "action": "desktop.switch",
+    "command": "hl.dsp.focus({ workspace = \"9\" })",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + ALT + 1",
+    "action": "desktop.merge",
+    "command": "function() muse_merge_desktop(1) end",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + ALT + 2",
+    "action": "desktop.merge",
+    "command": "function() muse_merge_desktop(2) end",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + ALT + 3",
+    "action": "desktop.merge",
+    "command": "function() muse_merge_desktop(3) end",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + ALT + 4",
+    "action": "desktop.merge",
+    "command": "function() muse_merge_desktop(4) end",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + ALT + 5",
+    "action": "desktop.merge",
+    "command": "function() muse_merge_desktop(5) end",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + ALT + 6",
+    "action": "desktop.merge",
+    "command": "function() muse_merge_desktop(6) end",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + ALT + 7",
+    "action": "desktop.merge",
+    "command": "function() muse_merge_desktop(7) end",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + ALT + 8",
+    "action": "desktop.merge",
+    "command": "function() muse_merge_desktop(8) end",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + ALT + 9",
+    "action": "desktop.merge",
+    "command": "function() muse_merge_desktop(9) end",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + ALT + M",
+    "action": "desktops.merge-picker",
+    "command": "hl.dsp.event(\"muse:merge-picker\")",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + B",
+    "action": "bar.focus",
+    "command": "hl.dsp.event(\"muse:focus-bar\")",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + bracketleft",
+    "action": "desktop.previous",
+    "command": "hl.dsp.focus({ workspace = \"m-1\" })",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + bracketright",
+    "action": "desktop.next",
+    "command": "hl.dsp.focus({ workspace = \"m+1\" })",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + CTRL + 1",
+    "action": "desktop.preview",
+    "command": "hl.dsp.event(\"muse:preview-desktop:1\")",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + CTRL + 2",
+    "action": "desktop.preview",
+    "command": "hl.dsp.event(\"muse:preview-desktop:2\")",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + CTRL + 3",
+    "action": "desktop.preview",
+    "command": "hl.dsp.event(\"muse:preview-desktop:3\")",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + CTRL + 4",
+    "action": "desktop.preview",
+    "command": "hl.dsp.event(\"muse:preview-desktop:4\")",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + CTRL + 5",
+    "action": "desktop.preview",
+    "command": "hl.dsp.event(\"muse:preview-desktop:5\")",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + CTRL + 6",
+    "action": "desktop.preview",
+    "command": "hl.dsp.event(\"muse:preview-desktop:6\")",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + CTRL + 7",
+    "action": "desktop.preview",
+    "command": "hl.dsp.event(\"muse:preview-desktop:7\")",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + CTRL + 8",
+    "action": "desktop.preview",
+    "command": "hl.dsp.event(\"muse:preview-desktop:8\")",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + CTRL + 9",
+    "action": "desktop.preview",
+    "command": "hl.dsp.event(\"muse:preview-desktop:9\")",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + SHIFT + 1",
+    "action": "desktop.send",
+    "command": "hl.dsp.window.move({ workspace = \"1\", follow = true })",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + SHIFT + 2",
+    "action": "desktop.send",
+    "command": "hl.dsp.window.move({ workspace = \"2\", follow = true })",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + SHIFT + 3",
+    "action": "desktop.send",
+    "command": "hl.dsp.window.move({ workspace = \"3\", follow = true })",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + SHIFT + 4",
+    "action": "desktop.send",
+    "command": "hl.dsp.window.move({ workspace = \"4\", follow = true })",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + SHIFT + 5",
+    "action": "desktop.send",
+    "command": "hl.dsp.window.move({ workspace = \"5\", follow = true })",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + SHIFT + 6",
+    "action": "desktop.send",
+    "command": "hl.dsp.window.move({ workspace = \"6\", follow = true })",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + SHIFT + 7",
+    "action": "desktop.send",
+    "command": "hl.dsp.window.move({ workspace = \"7\", follow = true })",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + SHIFT + 8",
+    "action": "desktop.send",
+    "command": "hl.dsp.window.move({ workspace = \"8\", follow = true })",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + SHIFT + 9",
+    "action": "desktop.send",
+    "command": "hl.dsp.window.move({ workspace = \"9\", follow = true })",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + SHIFT + N",
+    "action": "desktop.send-new",
+    "command": "function() muse_send_new() end",
+    "applies": "desktop"
+  },
+  {
+    "binding": "SUPER + Tab",
+    "action": "desktops.overlay",
+    "command": "hl.dsp.event(\"muse:all-desktops\")",
+    "applies": "desktop"
+  }
+]
