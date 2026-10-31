@@ -9499,10 +9499,14 @@ older route, tag, schema or test survives. Both legacy-named snapshots and
 locks advertise 1.5.1; a new revision regenerates every schema, lock and
 host together. 1.5.1 (lane RLF-QUOTA, D252) carries the quota detail on
 `turnCompleted` and `turnRetry`. Neither 1.5.0 (on int since 2026-10-24,
-after 0.19.0) nor 1.5.1 has shipped, so the lock was re-frozen once on the
+after 0.19.0) nor 1.5.1 has shipped, so the lock was re-frozen on the
 CC-INT8 join (2026-10-31), through the adoption route, at 1.5.1
-(`docs/certification/cc-int8.md` names every change since the 1.5.0 lock);
-from the release that ships 1.5.1 the lock is frozen for real. Record:
+(`docs/certification/cc-int8.md` names every change since the 1.5.0 lock),
+and a second time on the CC-INT9 join (2026-10-31), through the same route,
+for the one change since: RLF-ORCHEXT's third conversation host kind
+`external` (D250), the `backend` enum of the panel payloads
+(`docs/certification/cc-int9.md`); the nine native hosts name 1.5.1 too.
+From the release that ships 1.5.1 the lock is frozen for real. Record:
 `docs/certification/cc-rlm104.md`.
 
 ### D227 — Teams stay off until the person sets up a second model (RLF-TEAMGATE, 2026-10-23; numbered D217 on its branch until the int/recovery join of 2026-10-30, when that number was found shared with the judge fast path's `stat`)
