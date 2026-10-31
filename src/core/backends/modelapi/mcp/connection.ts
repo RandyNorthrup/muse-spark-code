@@ -631,10 +631,12 @@ export class McpConnection {
       // itself never retries: its answer is the era verdict.
       const versions = error instanceof McpError ? unsupportedVersions(error) : undefined
       const mutual = versions === undefined ? undefined : newestMutualModern(versions.supported)
-      if (method === METHOD_DISCOVER || this.modernVersion === undefined) {
-        throw error
-      }
-      if (mutual === undefined || mutual === this.modernVersion) {
+      if (
+        method === METHOD_DISCOVER ||
+        mutual === undefined ||
+        this.modernVersion === undefined ||
+        mutual === this.modernVersion
+      ) {
         throw error
       }
       this.options.log.info(
@@ -1119,6 +1121,7 @@ export class McpConnection {
       const raw = await this.request(METHOD_TOOLS_CALL, params, requestOptions)
       const resultType = resultTypeOf(raw)
       if (
+        // eslint-disable-next-line unicorn/prefer-includes-over-repeated-comparisons -- resultType is unknown and the chain compares it directly; includes() on unknown needs a cast (PLAN §8, RLF-UNICORN79).
         resultType !== undefined &&
         resultType !== RESULT_COMPLETE &&
         resultType !== RESULT_INPUT_REQUIRED

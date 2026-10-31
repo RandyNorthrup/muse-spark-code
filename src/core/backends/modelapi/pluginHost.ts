@@ -448,11 +448,8 @@ function boundedBun(
   deps: PluginRunDeps,
   maxMemoryBytes: number | undefined,
 ): RuntimeResolution {
-  if (maxMemoryBytes === undefined) {
-    return { ok: true, command: bun, args: ['-e'] }
-  }
-  if (platform === 'win32') {
-    // The host starts this through its job launcher, which carries the same ceiling.
+  // The host starts this through its job launcher, which carries the same ceiling.
+  if (maxMemoryBytes === undefined || platform === 'win32') {
     return { ok: true, command: bun, args: ['-e'] }
   }
   if (platform === 'darwin') {

@@ -505,12 +505,12 @@ export async function verifyRound(
   context: VerificationContext,
   turn: ActiveTurn,
 ): Promise<string | undefined> {
-  const admission = context.verificationAdmission(turn.abort.signal)
+  const isAdmitted = context.verificationAdmission(turn.abort.signal)
   const edited = context.ledger.takeRoundEdits()
   const wasTrusted = context.deps.isWorkspaceTrusted()
   // Filtering denied files out of lookup must not authorize checks over the revoked edit.
   const isAllowed: (canRunDetached?: boolean) => boolean = (canRunDetached) =>
-    admission(canRunDetached) && context.verificationAllowed(edited, wasTrusted)
+    isAdmitted(canRunDetached) && context.verificationAllowed(edited, wasTrusted)
   const { verify } = context.deps
   const { signal } = turn.abort
   if (verify === undefined || isAbortRequested(signal)) {

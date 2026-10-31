@@ -150,11 +150,13 @@ function toolName(candidate: unknown, ctx: TransformContext): TransformResult {
   if (direct !== undefined) return value(direct)
   const mcp = splitMcpName(candidate)
   const template = names[MCP_TEMPLATE_KEY]
-  if (mcp !== undefined && template !== undefined)
-    return value(template.split('{server}').join(mcp.server).split('{tool}').join(mcp.tool))
   // A tool with no vendor equivalent keeps its runtime name
   // (gh/copilot_reference_hooks-configuration.md:448).
-  return value(candidate)
+  return value(
+    mcp === undefined || template === undefined
+      ? candidate
+      : template.split('{server}').join(mcp.server).split('{tool}').join(mcp.tool),
+  )
 }
 
 function timestamp(candidate: unknown, isIso: boolean): TransformResult {

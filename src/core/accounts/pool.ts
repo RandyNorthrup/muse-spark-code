@@ -342,12 +342,20 @@ export class AccountPool {
     hint: Awaited<ReturnType<AccountPool['select']>>,
   ): Awaited<ReturnType<AccountPool['select']>> | undefined {
     const row = this.deps.policy()
-    if (row === undefined || row.pooling === 'notOffered' || !row.isCredentialHeld) return undefined
-    if (hint.decision?.isCurrent(row) === false) return undefined
-    const account = this.rows().find((entry) => entry.id === hint.account.id)
-    if (account === undefined || !isEligible(account) || !this.deps.canUseModel(account, request))
+    if (
+      row === undefined ||
+      row.pooling === 'notOffered' ||
+      !row.isCredentialHeld ||
+      hint.decision?.isCurrent(row) === false
+    )
       return undefined
-    if (this.triggers(account, hint.estimate, this.deps.journal, request).length > 0)
+    const account = this.rows().find((entry) => entry.id === hint.account.id)
+    if (
+      account === undefined ||
+      !isEligible(account) ||
+      !this.deps.canUseModel(account, request) ||
+      this.triggers(account, hint.estimate, this.deps.journal, request).length > 0
+    )
       return undefined
     // A worker that chose at equal headroom sees a concurrent reservation
     // here and reranks instead of joining it.

@@ -119,7 +119,7 @@ async function resolveGlobAlias(
       : p.resolve(workspaceRoot, ...base.split('/'))
     const [realRoot, realBase] = await Promise.all([
       io.realPath(workspaceRoot),
-      base === '' ? io.realPath(workspaceRoot) : io.realPath(baseAbsolute),
+      io.realPath(base === '' ? workspaceRoot : baseAbsolute),
     ])
     const relative = p.relative(realRoot, realBase)
     if (relative !== '' && !isBelow(relative, p)) return undefined

@@ -158,8 +158,6 @@ const geminiChunkSchema = z.object({
   modelVersion: z.optional(z.string()),
   responseId: z.optional(z.string()),
 })
-type GeminiChunk = z.infer<typeof geminiChunkSchema>
-
 const geminiModelsListSchema = z.object({
   models: z.array(
     z.looseObject({
@@ -432,11 +430,11 @@ function toNativeParts(content: readonly InputContentPart[], build: ContentsBuil
       (part.type === 'output_text' && part.thoughtSignature !== undefined)
     ) {
       const text = cleanWireText(part.text)
-      if (part.type === 'output_text' && part.thoughtSignature !== undefined) {
-        parts.push({ text, thoughtSignature: part.thoughtSignature })
-      } else {
-        parts.push({ text })
-      }
+      parts.push(
+        part.type === 'output_text' && part.thoughtSignature !== undefined
+          ? { text, thoughtSignature: part.thoughtSignature }
+          : { text },
+      )
     }
   }
   return parts
@@ -635,7 +633,7 @@ export function encodeGeminiRequest(
   recordOrBudget?: ModelCapabilityRecord | number,
   explicitBudget?: number,
 ): GeminiNativeRequest {
-  const options = settings !== undefined && !('identity' in settings) ? settings : undefined
+  const options = settings === undefined || 'identity' in settings ? undefined : settings
   let capabilityRecord = typeof recordOrBudget === 'object' ? recordOrBudget : undefined
   if (settings !== undefined && 'identity' in settings) capabilityRecord = settings
   const thinkingBudget = typeof recordOrBudget === 'number' ? recordOrBudget : explicitBudget
@@ -978,6 +976,7 @@ export async function* decodeGeminiStream(
   let isReasoningOpen = false
   let isSeenFrame = false
   for await (const frame of parseSse(chunks)) {
+    type GeminiChunk = z.infer<typeof geminiChunkSchema>
     if (frame.data.trim() === '' || frame.data === SSE_DONE_SENTINEL) {
       continue
     }

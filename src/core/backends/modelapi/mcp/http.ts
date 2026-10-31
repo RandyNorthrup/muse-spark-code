@@ -356,12 +356,9 @@ export class McpHttpTransport implements McpTransport {
         redirect: 'error',
       })
     } catch (error: unknown) {
-      if (signal.aborted) {
-        throw error
-      }
       // A failed fetch rejects with TypeError; anything else is not the
       // server's fault. The record names the server, never the failure text.
-      if (!(error instanceof TypeError)) throw error
+      if (signal.aborted || !(error instanceof TypeError)) throw error
       throw new McpError('the server could not be reached')
     }
     const session = response.headers.get(SESSION_HEADER)

@@ -454,8 +454,8 @@ export function offeredAgents(catalogue: AgentCatalogue): readonly AgentDefiniti
 }
 
 /** The model a spawn with this agent runs on: the agent's, else the session's. */
-export function resolveAgentModel(sessionModel: string, agentModel: string | undefined): string {
-  return agentModel ?? sessionModel
+export function resolveAgentModel(sessionModel: string, agentModel: string = sessionModel): string {
+  return agentModel
 }
 
 /**

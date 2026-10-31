@@ -370,11 +370,11 @@ export function readChatReasoning(
     return undefined
   }
   const result = chatReasoningEnvelopeSchema.safeParse(parsed)
-  return !result.success ||
-    result.data.chat.provider !== providerId ||
-    result.data.chat.model !== model
-    ? undefined
-    : result.data.chat
+  return result.success &&
+    result.data.chat.provider === providerId &&
+    result.data.chat.model === model
+    ? result.data.chat
+    : undefined
 }
 
 const chatReasoningEnvelopeSchema = z.object({
@@ -587,11 +587,7 @@ export function encodeChatRequest(
         }
         if (quirks.toolResultName) {
           const name = callNames.get(item.call_id)
-          if (name === undefined) {
-            messages.push(toolMessage)
-          } else {
-            messages.push({ ...toolMessage, name })
-          }
+          messages.push(name === undefined ? toolMessage : { ...toolMessage, name })
         } else {
           messages.push(toolMessage)
         }
@@ -1553,11 +1549,7 @@ export class ChatStreamDecoder {
       events.push({ type: 'response.failed', response })
       return this.finished(events, response)
     }
-    if (
-      this.finishReason !== 'stop' &&
-      this.finishReason !== 'tool_calls' &&
-      this.finishReason !== 'eos'
-    ) {
+    if (!['stop', 'tool_calls', 'eos'].includes(this.finishReason)) {
       const response: ResponseObject = {
         ...base,
         status: 'incomplete',
