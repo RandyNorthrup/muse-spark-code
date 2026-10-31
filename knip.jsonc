@@ -320,6 +320,8 @@
     "test/e2e/**/*.test.ts",
     "test/unit/helpers/vault/sessionClientChild.ts",
     "test/unit/helpers/vault/sessionBrokerChild.ts",
+    // Built by vaultExecDelegated.test.ts as the fixture install root's broker and launched by path.
+    "test/unit/helpers/vault/execBrokerChild.ts",
     // Built once by writerCrashPosix.test.ts; a real generated-only SIGKILL child.
     "test/unit/helpers/vault/writerCrashChild.ts",
     // Built by retiredUndoFlow.ts and launched by path; knip does not trace
