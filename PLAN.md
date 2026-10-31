@@ -23299,6 +23299,19 @@ proof and are left in place. Evidence: `docs/certification/rlf-templeak.md`
 (real child processes, SIGKILL, red/green drills, and a packed-agent
 two-start run on `muse-spark-1.3-contributor`).
 
+**RVTEMPLEAK — removal review (2026-10-30).** Two defects in that reclaim.
+A sweep that died after renaming a tree to `.muse-trash-<id>` and before
+removing it treated the missing original name as success, dropped the
+registry entry, and left the folder — or a different directory parked at
+that name — on disk. The sweep also treated a creator as gone when its pid
+was merely absent in this namespace, without a machine, boot, pid namespace
+or exact birth. Removal now finishes a quarantine whose device, inode and
+marker still match, refuses anything else there, and ends an entry only
+when the locks' gone-check is given that exact evidence (`exactOnly`).
+Entries that lack it, including every entry written before it, stay. The
+24 h keep, the marker and identity checks, and the start sweep's error
+path are unchanged. Evidence: `docs/certification/rvtempleak.md`.
+
 **CM1072R2 — RVCM1072 lifecycle repair (2026-10-10).** Forward sampler
 disposal through the runtime host's settings wrapper. Sweep the same ownership
 chain in the window, lazy runtime, ACP/CLI and headless shutdown paths; prove

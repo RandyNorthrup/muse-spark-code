@@ -1,20 +1,16 @@
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import process from 'node:process'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { statfs } from 'node:fs/promises'
 import { TreeTempRoots } from '../../host/resources/tempRoots'
 import type { ResourceTempRoots, ResourceWindowsJob } from './launch'
 import { ResourceDiskSampler, type ResourceDiskTarget } from './disk'
-import {
-  CreatedRegistry,
-  type CreatedCleanup,
-  type CreatedCreator,
-  type CreatedPathProof,
-} from './createdRegistry'
-import { currentProcessOwner, isProcessOwnerGone } from '../locks/processOwner'
+import { CreatedRegistry, type CreatedCleanup, type CreatedPathProof } from './createdRegistry'
+import { agentDataFolder } from '../../runtime/dataFolder'
+import { createdTreeCreator, isCreatedTreeCreatorGone } from './createdOwner'
 import {
   BOUNDED_FILE_READ_CHUNK_BYTES,
   RESOURCE_HISTORY_FLUSH_TIMEOUT_MS,
@@ -218,6 +214,13 @@ export function resourceGovernorHost(
     path.join(__dirname, '..', 'native'),
     options.windowsJob,
   )
+  // The installation identity lives beside the registry, never in a
+  // caller's home by default from a test.
+  const creatorData = agentDataFolder({
+    platform: process.platform,
+    env: process.env,
+    homeDir: homedir(),
+  })
   const directories =
     options.createdDirectories ?? (process.platform === 'linux' ? undefined : nativeCommands)
   let registryPending: Promise<CreatedRegistry> | undefined
@@ -232,19 +235,12 @@ export function resourceGovernorHost(
               directories,
               files: directories ?? nativeCommands,
               exited: (owner) => Promise.resolve(launched.host?.hasRetired(owner) ?? false),
-              // Entries name this process as their creator, so a later
+              // Entries name this process with exact evidence, so a later
               // start can prove it exited and reclaim what a kill, crash
-              // or power loss left behind (RLF-TEMPLEAK).
-              creator: async (): Promise<CreatedCreator> => {
-                const me = await currentProcessOwner()
-                return {
-                  host: me.host,
-                  pid: me.pid,
-                  processStart: me.processStart,
-                  ...(me.bootId !== undefined && { bootId: me.bootId }),
-                }
-              },
-              creatorExited: (creator) => isProcessOwnerGone(creator),
+              // or power loss left behind. A pid absent from this
+              // namespace is not that proof (RLF-TEMPLEAK, RVTEMPLEAK).
+              creator: () => createdTreeCreator(creatorData),
+              creatorExited: (creator) => isCreatedTreeCreatorGone(creator, creatorData),
               archivedAndClean: () =>
                 Promise.reject(new Error('Archive/clean proof is not installed')),
               freeBytes: async (file) => {

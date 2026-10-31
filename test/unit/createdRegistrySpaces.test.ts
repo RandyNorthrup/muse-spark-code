@@ -21,7 +21,7 @@ useCreatedNative()
 const fixture: { root: string } = { root: '' }
 // Nothing is retired or archived here; the exit proof below retires the
 // test's owners so finish/release run the native remove with spaces.
-const proof = createdRegistryProof(nativeCreated)
+const proof = createdRegistryProof(nativeCreated, () => fixture.root)
 const exitingProof = { ...proof, exited: () => Promise.resolve(true) }
 
 /** The words a shell split of a spaces data home would drop in the cwd. */

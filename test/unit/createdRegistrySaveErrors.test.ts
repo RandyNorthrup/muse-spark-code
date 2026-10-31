@@ -17,13 +17,12 @@ import {
   type CreatedRegistrySaveReason,
 } from '../../src/shared/createdRegistrySaveError'
 import { denyWrites } from './helpers/deniedAccess'
-import { createdCreator } from './helpers/resources/registryProof'
-import { isProcessOwnerGone } from '../../src/core/locks/processOwner'
+import { createdTreeCreator, isCreatedTreeCreatorGone } from '../../src/core/resources/createdOwner'
 
 const proof: CreatedPathProof = {
   exited: () => Promise.resolve(true),
-  creator: createdCreator,
-  creatorExited: (creator) => isProcessOwnerGone(creator),
+  creator: () => createdTreeCreator(scratch.folder),
+  creatorExited: (creator) => isCreatedTreeCreatorGone(creator, scratch.folder),
   archivedAndClean: () => Promise.resolve(true),
   freeBytes: () => Promise.resolve(null),
 }

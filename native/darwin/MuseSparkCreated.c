@@ -165,11 +165,14 @@ static unsigned long long mount_id(int fd) {
   fclose(file); return id;
 }
 #endif
-static void walk(int fd, dev_t root_device, unsigned long long root_mount) {
+static void walk(int fd, dev_t root_device, unsigned long long root_mount, int keep_marker) {
   DIR *d = fdopendir(dup(fd)); if (!d) refuse();
   struct dirent *e; errno = 0;
   while ((e = readdir(d))) {
     const char *name = e->d_name; if (!strcmp(name, ".") || !strcmp(name, "..")) continue;
+    // The root marker stays until every other name is gone, so a crash
+    // mid-walk can still prove this directory on the next start.
+    if (keep_marker && !strcmp(name, marker)) continue;
     struct stat observed; if (fstatat(fd, name, &observed, AT_SYMLINK_NOFOLLOW)) refuse();
     if (S_ISDIR(observed.st_mode)) {
       if (observed.st_dev != root_device) refuse();
@@ -178,7 +181,7 @@ static void walk(int fd, dev_t root_device, unsigned long long root_mount) {
 #ifdef __linux__
       if (mount_id(child) != root_mount) refuse();
 #endif
-      walk(child, root_device, root_mount);
+      walk(child, root_device, root_mount, 0);
       // Recheck immediately before empty-only removal while child remains held.
       same_name(fd, name, held);
       if (unlinkat(fd, name, AT_REMOVEDIR)) refuse();
@@ -190,6 +193,28 @@ static void walk(int fd, dev_t root_device, unsigned long long root_mount) {
   closedir(d);
 }
 #include "MuseSparkWorkerFile.c"
+
+static int same_inode(struct stat left, struct stat right) {
+  return left.st_dev == right.st_dev && left.st_ino == right.st_ino;
+}
+/** Undo a rename onto a name that is still absent. Never replace whatever is there now. */
+static void restore_name(int parent, const char *from, const char *to) {
+  struct stat occupied;
+  if (fstatat(parent, to, &occupied, AT_SYMLINK_NOFOLLOW) && errno == ENOENT)
+    move_entry(parent, from, to, 0);
+}
+static void consume_trash(int parent, int root, const char *trash, const char *id, const char *value, const char *stored) {
+  struct stat held = info(root); private_dir(held); match(held, stored); marker_matches(root, id, value);
+  unsigned long long root_mount = 0;
+#ifdef __linux__
+  root_mount = mount_id(root);
+#endif
+  walk(root, held.st_dev, root_mount, 1);
+  if (unlinkat(root, marker, 0)) refuse();
+  same_name(parent, trash, held);
+  if (unlinkat(parent, trash, AT_REMOVEDIR)) refuse();
+  close(root);
+}
 
 int muse_created_main(int argc, char **argv) {
   if (argc > 1 && !strncmp(argv[1], "worker-", 7)) return worker_file(argc, argv);
@@ -203,6 +228,13 @@ int muse_created_main(int argc, char **argv) {
     struct stat source; if (fstatat(parent, name, &source, AT_SYMLINK_NOFOLLOW)) refuse();
     match(source, argv[7]);
     if (move_entry(parent, name, id, 0)) refuse();
+    // The rename is by name. If the name was swapped, put that directory
+    // back only while the old name is free, then refuse. Never delete it.
+    struct stat moved;
+    if (fstatat(parent, id, &moved, AT_SYMLINK_NOFOLLOW) || !same_inode(moved, source)) {
+      restore_name(parent, id, name);
+      refuse();
+    }
     close(parent); puts("{\"renamed\":true}"); return 0;
   }
   if (strncmp(name, "muse-tree-", 10) || strspn(name + 10, "0123456789abcdef-") != strlen(name + 10) || !name[10] || !id[0] || strspn(id, "0123456789abcdef-") != strlen(id)) refuse();
@@ -229,21 +261,27 @@ int muse_created_main(int argc, char **argv) {
     if (mkdirat(root, "browser-profile", 0700) || mkdirat(root, "browser-cache", 0700)) refuse();
     char key[64]; identity(s, key); printf("{\"identity\":\"%s\"}\n", key); close(root);
   } else if (!strcmp(op, "remove")) {
-    int source = openat(parent, name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
-    if (source < 0) { if (errno == ENOENT) { puts("{\"removed\":true}"); close(parent); return 0; } refuse(); }
-    struct stat original = info(source); private_dir(original); match(original, argv[7]); marker_matches(source, id, value);
     char trash[128]; if (snprintf(trash, sizeof(trash), ".muse-trash-%s", id) >= (int)sizeof(trash)) refuse();
-    struct stat occupied; if (!fstatat(parent, trash, &occupied, AT_SYMLINK_NOFOLLOW) || errno != ENOENT) refuse();
-    if (move_entry(parent, name, trash, 0)) refuse();
-    int root = directory(parent, trash); struct stat held = info(root); match(held, argv[7]); marker_matches(root, id, value);
-    unsigned long long root_mount = 0;
-#ifdef __linux__
-    root_mount = mount_id(root);
-#endif
-    walk(root, held.st_dev, root_mount);
-    same_name(parent, trash, held);
-    if (unlinkat(parent, trash, AT_REMOVEDIR)) refuse();
-    close(root); close(source); puts("{\"removed\":true}");
+    int source = openat(parent, name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    if (source < 0) {
+      if (errno != ENOENT) refuse();
+      // The original name is gone. Finish a quarantine this process can
+      // still prove; a different directory at that name is refused.
+      int parked = openat(parent, trash, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+      if (parked < 0) { if (errno == ENOENT) { puts("{\"removed\":true}"); close(parent); return 0; } refuse(); }
+      consume_trash(parent, parked, trash, id, value, argv[7]);
+      puts("{\"removed\":true}");
+    } else {
+      struct stat original = info(source); private_dir(original); match(original, argv[7]); marker_matches(source, id, value);
+      struct stat occupied; if (!fstatat(parent, trash, &occupied, AT_SYMLINK_NOFOLLOW) || errno != ENOENT) refuse();
+      if (move_entry(parent, name, trash, 0)) refuse();
+      int root = openat(parent, trash, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+      if (root < 0) { restore_name(parent, trash, name); refuse(); }
+      struct stat held = info(root);
+      if (!same_inode(held, original)) { restore_name(parent, trash, name); close(root); refuse(); }
+      consume_trash(parent, root, trash, id, value, argv[7]);
+      close(source); puts("{\"removed\":true}");
+    }
   } else refuse();
   close(parent); return 0;
 }
