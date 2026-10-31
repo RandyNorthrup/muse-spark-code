@@ -1,7 +1,5 @@
 import path from 'node:path'
 import * as z from 'zod/mini'
-import { powerShellQuoted } from '../../shellQuote'
-import { SHELL_JOB_TYPE_NAME, WINDOWS_POWERSHELL_COMMAND_ARGS } from '../../../shared/constants'
 import {
   resourceProcessIdentitySchema,
   resourceTreeUsageSchema,
@@ -10,7 +8,7 @@ import {
   type ResourceTreeReader,
   type ResourceTreeUsage,
 } from '../../../shared/resources'
-import { windowsPowerShell } from '../../execGuard'
+import { windowsJobHost } from '../../execGuard'
 import { runTreeProgram, type ResourceTreeRun } from './run'
 import {
   resourceActionResultSchema,
@@ -24,7 +22,11 @@ const querySchema = z.strictObject({
 })
 
 export interface WindowsTreeDeps {
-  /** M27's compiled, source-digested assembly, acquired lazily by the spawning adapter. */
+  /**
+  M27's compiled, source-digested job helper, acquired lazily by the spawning
+  adapter: the type commands join their job with, and the program these
+  reads run (`windowsJobHost`).
+  */
   readonly assemblyPath: string
   readonly systemRoot: string
   readonly run?: ResourceTreeRun
@@ -32,21 +34,18 @@ export interface WindowsTreeDeps {
 
 /**
 One call into the compiled job helper, shared by the tree reader and the
-actuator: `%SystemRoot%`'s Windows PowerShell with only SystemRoot and its
-own module path (`windowsPowerShell`) loads the assembly and prints JSON.
+actuator: the helper runs as its own program (`windowsJobHost`, about 40 ms
+a call where a Windows PowerShell start took 200 ms and more) with the
+command and its arguments, and prints the JSON the call answers. A call that
+fails exits 1 and prints nothing.
 */
 export async function callWindowsJobHelper(
   deps: WindowsTreeDeps,
   run: ResourceTreeRun,
-  body: string,
+  command: readonly [string, ...string[]],
 ): Promise<unknown> {
-  const script = `try { [void][Reflection.Assembly]::LoadFrom(${powerShellQuoted(deps.assemblyPath)}); ${body} } catch { exit 1 }`
-  const powershell = windowsPowerShell(deps.systemRoot, { SystemRoot: deps.systemRoot })
-  const text = await run(
-    powershell.file,
-    [...WINDOWS_POWERSHELL_COMMAND_ARGS, script],
-    powershell.env,
-  )
+  const host = windowsJobHost(deps.assemblyPath, deps.systemRoot)
+  const text = await run(host.file, command, host.env)
   const value: unknown = JSON.parse(text)
   return value
 }
@@ -58,8 +57,8 @@ export class WindowsResourceTreeReader implements ResourceTreeReader {
       throw new Error('Resource helper paths must be absolute')
   }
 
-  private async call(body: string): Promise<unknown> {
-    return await callWindowsJobHelper(this.deps, this.deps.run ?? runTreeProgram, body)
+  private async call(command: readonly [string, ...string[]]): Promise<unknown> {
+    return await callWindowsJobHelper(this.deps, this.deps.run ?? runTreeProgram, command)
   }
 
   private epoch(id: string): { members: readonly ResourceProcessIdentity[] } {
@@ -74,9 +73,7 @@ export class WindowsResourceTreeReader implements ResourceTreeReader {
   private async query(ticket: ResourceTicket): Promise<z.infer<typeof querySchema> | null> {
     if (ticket.scope.type !== 'job') return null
     const state = this.epoch(ticket.id)
-    const answer = await this.call(
-      `[${SHELL_JOB_TYPE_NAME}]::Query(${powerShellQuoted(ticket.scope.name)})`,
-    )
+    const answer = await this.call(['query', ticket.scope.name])
     if (answer === null || this.known.get(ticket.id) !== state) return null
     const parsed = querySchema.parse(answer)
     const hasAnchor = parsed.members.some(
@@ -108,7 +105,7 @@ export class WindowsResourceTreeReader implements ResourceTreeReader {
   async identity(pid: number): Promise<ResourceProcessIdentity | null> {
     if (!resourceProcessIdentitySchema.safeParse({ pid, startTime: '0' }).success) return null
     try {
-      const answer = await this.call(`[${SHELL_JOB_TYPE_NAME}]::Identity(${String(pid)})`)
+      const answer = await this.call(['identity', String(pid)])
       if (answer === null) return null
       const identity = resourceProcessIdentitySchema.parse(answer)
       return identity.pid === pid ? identity : null
@@ -119,7 +116,7 @@ export class WindowsResourceTreeReader implements ResourceTreeReader {
 
   /** A private named launch job, never a process discovered outside our launch boundary. */
   async rootOfJob(name: string): Promise<ResourceProcessIdentity | null> {
-    const answer = await this.call(`[${SHELL_JOB_TYPE_NAME}]::Query(${powerShellQuoted(name)})`)
+    const answer = await this.call(['query', name])
     if (answer === null) return null
     const { members } = querySchema.parse(answer)
     return (
@@ -131,7 +128,7 @@ export class WindowsResourceTreeReader implements ResourceTreeReader {
 
   /** Only a successful native query can prove retirement; failed probes throw. */
   async jobGone(name: string): Promise<boolean> {
-    const answer = await this.call(`[${SHELL_JOB_TYPE_NAME}]::Query(${powerShellQuoted(name)})`)
+    const answer = await this.call(['query', name])
     return answer === null || querySchema.parse(answer).members.length === 0
   }
 
@@ -151,9 +148,12 @@ export class WindowsResourceTreeReader implements ResourceTreeReader {
         )
           return false
       }
-      const answer = await this.call(
-        `if ([${SHELL_JOB_TYPE_NAME}]::Contains(${powerShellQuoted(ticket.scope.name)}, ${String(identity.pid)}, ${powerShellQuoted(identity.startTime)})) { 'true' } else { 'false' }`,
-      )
+      const answer = await this.call([
+        'contains',
+        ticket.scope.name,
+        String(identity.pid),
+        identity.startTime,
+      ])
       if (this.known.get(ticket.id) !== state) return false
       const isMember = z.boolean().parse(answer)
       if (isRoot && isMember && state.members.length === 0)
@@ -219,10 +219,14 @@ export class WindowsResourceTreeReader implements ResourceTreeReader {
           return 'refused'
       }
       if (this.known.get(ticket.id) !== state || !isRegistered()) return 'refused'
-      // Signal returns a fixed protocol word. Quoting it needs no cmdlet/module discovery.
-      const answer = await this.call(
-        `'"' + [${SHELL_JOB_TYPE_NAME}]::Signal(${powerShellQuoted(ticket.scope.name)}, ${String(identity.pid)}, ${powerShellQuoted(identity.startTime)}, ${signal === 'SIGKILL' ? '$true' : '$false'}) + '"'`,
-      )
+      // Signal answers a fixed protocol word, printed quoted so it parses as JSON.
+      const answer = await this.call([
+        'signal',
+        ticket.scope.name,
+        String(identity.pid),
+        identity.startTime,
+        String(signal === 'SIGKILL'),
+      ])
       // Once dispatched, the native handle-bound action cannot be revoked; report its real result.
       return resourceActionResultSchema.parse(answer)
     } catch {

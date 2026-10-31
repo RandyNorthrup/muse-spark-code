@@ -1,10 +1,12 @@
 // The job type the Windows shell tool's commands join (M27, PLAN.md D25),
-// compiled with MuseSparkMcpJob.cs into one library on first use and kept
-// out of the host bundle (PLAN.md D6). The class name is SHELL_JOB_TYPE_NAME
-// in src/shared/constants.ts; test/unit/jobSource.test.ts holds them together.
-// C# 5, which Windows PowerShell 5.1's Add-Type compiles. The shell keeps
-// its handle for its whole life: a job's name lasts as long as a handle to
-// it, and the Stop opens the job by that name.
+// compiled with MuseSparkMcpJob.cs into one console program on first use and
+// kept out of the host bundle (PLAN.md D6): PowerShell loads it as the type,
+// and the resource governor runs it as the program MuseSparkJobHost at the
+// end. The class name is SHELL_JOB_TYPE_NAME in src/shared/constants.ts;
+// test/unit/jobSource.test.ts holds them together.
+// C# 5, which the .NET Framework compiler compiles. The shell keeps its
+// handle for its whole life: a job's name lasts as long as a handle to it,
+// and the Stop opens the job by that name.
 using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
@@ -959,6 +961,70 @@ public static class MuseSparkCreated {
         }
       }
       return "{\"removed\":true}";
+    }
+  }
+}
+
+/**
+The calls above, for a caller that is not PowerShell: the resource governor's
+tree reads, its job holder and its created-path registry. A Windows PowerShell
+start costs 200 ms and more (seconds on a busy machine); this program starts
+in about 40 ms. The compiled file is both the type PowerShell loads with
+`LoadFrom` and this program. Every answer is the text the matching PowerShell
+call printed; a call that fails prints nothing and exits 1, as the scripts'
+`catch { exit 1 }` did.
+*/
+public static class MuseSparkJobHost {
+  static readonly System.Globalization.CultureInfo Invariant = System.Globalization.CultureInfo.InvariantCulture;
+  static uint Number(string text) {
+    return uint.Parse(text, System.Globalization.NumberStyles.None, Invariant);
+  }
+  static bool Flag(string text) {
+    if (text == "true") return true;
+    if (text == "false") return false;
+    throw new ArgumentException("flag");
+  }
+  static void Count(string[] args, int count) {
+    if (args.Length != count) throw new ArgumentException("arguments");
+  }
+  static string Run(string[] args) {
+    switch (args.Length > 0 ? args[0] : "") {
+      case "identity": Count(args, 2); return MuseSparkJob.Identity(Number(args[1]));
+      case "query": Count(args, 2); return MuseSparkJob.Query(args[1]);
+      case "contains":
+        Count(args, 4);
+        return MuseSparkJob.Contains(args[1], Number(args[2]), args[3]) ? "true" : "false";
+      case "signal":
+        Count(args, 5);
+        return "\"" + MuseSparkJob.Signal(args[1], Number(args[2]), args[3], Flag(args[4])) + "\"";
+      case "hold": Count(args, 2); MuseSparkJob.Hold(args[1]); return null;
+      case "read-priority": Count(args, 4); return MuseSparkJob.ReadResourcePriority(args[1], Number(args[2]), args[3]);
+      case "set-priority":
+        Count(args, 7);
+        return MuseSparkJob.SetResourcePriority(args[1], Number(args[2]), args[3], args[4], args[5], Flag(args[6])) ? "true" : "false";
+      case "read-rate": Count(args, 4); return MuseSparkJob.ReadResourceRate(args[1], Number(args[2]), args[3]);
+      case "set-rate":
+        Count(args, 6);
+        return MuseSparkJob.SetResourceRate(args[1], Number(args[2]), args[3], Number(args[4]), Number(args[5]));
+      case "created":
+        string[] rest = new string[args.Length - 1];
+        Array.Copy(args, 1, rest, 0, rest.Length);
+        return MuseSparkCreated.Execute(rest);
+      default: throw new ArgumentException("command");
+    }
+  }
+  public static int Main(string[] args) {
+    try {
+      if (args.Length == 1 && args[0] == "--self-test") {
+        Console.Out.WriteLine("muse-spark-job-host-ready");
+        return 0;
+      }
+      string answer = Run(args);
+      if (answer != null) Console.Out.WriteLine(answer);
+      Console.Out.Flush();
+      return 0;
+    } catch {
+      return 1;
     }
   }
 }

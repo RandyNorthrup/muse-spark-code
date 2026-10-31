@@ -1011,3 +1011,28 @@ export function windowsPowerShell(
     env: noWorkspaceChildEnvironment('win32', env, realpathSync),
   }
 }
+
+/**
+The compiled job helper (`MuseSparkJob-<digest>.exe`) run as a program of its
+own, for the resource governor's calls into the job type: a tree read, the
+job holder, the created-path registry. PowerShell loads the same file as the
+type a command joins its job with; a call that only needs the type costs one
+native start (about 40 ms) where a Windows PowerShell start costs 200 ms and
+more, seconds on a busy machine. The helper is a digest-named file the build
+put in the extension's storage: the path must be absolute. Its environment
+holds only `SystemRoot`: no credential, no workspace entry, no module path.
+*/
+export function windowsJobHost(
+  assemblyPath: string,
+  systemRoot: string,
+): {
+  readonly file: string
+  readonly env: GuardedChildEnv
+} {
+  if (!path.win32.isAbsolute(assemblyPath) || !path.win32.isAbsolute(systemRoot))
+    throw new Error('Resource helper paths must be absolute')
+  return {
+    file: assemblyPath,
+    env: noWorkspaceChildEnvironment('win32', { SystemRoot: systemRoot }, realpathSync),
+  }
+}
