@@ -819,7 +819,7 @@ reconciliation names it as the catalogue our estimate's prices come
 from. Pinned by test against `vendor/models-dev/VENDOR.json`
 (`fetchedAt`); bump both together when the snapshot refreshes.
 */
-export const MODELS_DEV_CATALOGUE_DATE = '2026-10-22'
+export const MODELS_DEV_CATALOGUE_DATE = '2026-10-30'
 /** The OAuth loopback's one-shot callback lasts ten minutes (D74). */
 export const OAUTH_LOOPBACK_TIMEOUT_MS = 10 * 60 * 1000
 /**

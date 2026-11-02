@@ -1,11 +1,10 @@
 // CI/developer build only: users run the prebuilt helper and never compile it.
-import { build as compile } from 'esbuild'
-import { Buffer } from 'node:buffer'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, writeFile, rm, copyFile, chmod, readdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { linuxDictationConfigHeader } from './lib/linuxDictationConfig.mjs'
 
 if (process.platform !== 'linux' || !['x64', 'arm64'].includes(process.arch))
   throw new Error('The Linux dictation build requires Linux x64 or arm64')
@@ -25,33 +24,7 @@ try {
     execFileSync('tar', ['-xzf', archive, '-C', scratch], { stdio: 'inherit' })
     source = path.join(scratch, 'whisper.cpp-1.7.6')
   }
-  const compiled = await compile({
-    stdin: {
-      contents: "export { LINUX_DICTATION } from './src/shared/constants.ts'",
-      resolveDir: process.cwd(),
-    },
-    bundle: true,
-    platform: 'node',
-    format: 'esm',
-    write: false,
-  })
-  const { LINUX_DICTATION: pin } = await import(
-    `data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString('base64')}`
-  )
-  await writeFile(
-    path.join(scratch, 'muse_config.hpp'),
-    `#pragma once
-namespace muse_config {
-constexpr unsigned RATE = ${pin.sampleRate};
-constexpr unsigned FRAMES_PER_SECOND = ${pin.framesPerSecond};
-constexpr unsigned PHRASE_SECONDS = ${pin.phraseSeconds};
-constexpr unsigned QUEUE_SECONDS = ${pin.queueSeconds};
-constexpr unsigned WAV_SECONDS = ${pin.wavSeconds};
-constexpr float SILENCE = ${pin.silenceThreshold}f;
-constexpr unsigned THREADS = ${pin.recognizerThreads};
-}
-`,
-  )
+  await writeFile(path.join(scratch, 'muse_config.hpp'), await linuxDictationConfigHeader())
   const build = path.join(scratch, 'build')
   execFileSync(
     'cmake',

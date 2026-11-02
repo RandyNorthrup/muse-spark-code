@@ -8,6 +8,24 @@ import { findChrome } from '../../scripts/lib/chrome.mjs'
 import { serveRepo } from '../../scripts/lib/harnessServer.mjs'
 import { loadL10n } from '../../scripts/lib/l10nSource.mjs'
 
+// A fresh Chrome's first page pays browser-wide work once: a renderer start
+// and the first font fallbacks (5.5 s on a CPU-starved Mac, CIFIX017). The
+// same warm-up feedbackBrowser runs, so the first case keeps its deadline.
+async function warmBrowser(browser) {
+  const page = await browser.newPage()
+  try {
+    await page.setContent(
+      '<!doctype html><html lang="en"><body><p style="font-family:sans-serif">Warm</p><pre style="font-family:monospace">warm()</pre><p lang="ja">温</p></body></html>',
+    )
+    await page.evaluate(async () => {
+      await globalThis.document.fonts.ready
+      return globalThis.document.body.getBoundingClientRect().height
+    })
+  } finally {
+    await page.close()
+  }
+}
+
 const state = { pages: [] }
 beforeAll(async () => {
   const dependencies = path.resolve('temp/u1-deps/node_modules')
@@ -20,6 +38,9 @@ beforeAll(async () => {
   state.server = served.server
   state.port = served.port
   state.browser = await chromium.launch({ executablePath: chrome })
+})
+beforeAll(async () => {
+  await warmBrowser(state.browser)
 })
 afterEach(async () => {
   for (const page of state.pages.splice(0)) await page.close()
