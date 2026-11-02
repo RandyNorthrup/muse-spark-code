@@ -717,6 +717,17 @@ export function App({
     }
   }, [store, isOwnStore, postMessage, now])
 
+  // Resume after a spent window without typed detail (M88, D67 item
+  // 16): a failed turn the goal left usage-limited asks the host to
+  // read the usage its offer rests on.
+  useEffect(() => {
+    for (const [turnId, stage] of Object.entries(state.usageResume)) {
+      if (stage !== 'pending') continue
+      postMessage({ type: 'usageForResume', turnId })
+      dispatch({ type: 'usageResumeSent', turnId })
+    }
+  }, [state.usageResume, postMessage, dispatch])
+
   // Scheduled prompts v2 (M115): the panel's versioned channel over the
   // host bridge. It owns its window listener beside the store's; the store
   // ignores its answers, and it ignores everything else.

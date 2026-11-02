@@ -1624,6 +1624,7 @@
   "timedSendRefused": "定时发送“{name}”被拒绝：{reason}",
   "timedSendSkipped": "定时发送“{name}”被跳过：{reason}",
   "timedSendMissed": "定时发送“{name}”错过了发送时机：{reason}",
+  "resumeUsageReportNote": "根据最新的用量报告。",
   "museCodeOnceCleared": {
     "other": "安排后 Muse Code 的登录状态发生了变化，因此 {count} 个定时发送已被移除。请重新安排，以使用当前登录状态发送。"
   },

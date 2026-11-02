@@ -1644,6 +1644,7 @@
   "timedSendRefused": "L’envoi planifié « {name} » a été refusé : {reason}",
   "timedSendSkipped": "L’envoi planifié « {name} » a été ignoré : {reason}",
   "timedSendMissed": "L’envoi planifié « {name} » a manqué son moment : {reason}",
+  "resumeUsageReportNote": "D’après le dernier relevé d’utilisation.",
   "museCodeOnceCleared": {
     "one": "La connexion Muse Code a changé depuis la planification de {count} envoi, qui a donc été supprimé. Planifiez-le à nouveau pour l’envoyer avec la connexion actuelle.",
     "other": "La connexion Muse Code a changé depuis la planification de {count} envois, qui ont donc été supprimés. Planifiez-les à nouveau pour les envoyer avec la connexion actuelle.",

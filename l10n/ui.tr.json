@@ -1634,6 +1634,7 @@
   "timedSendRefused": "“{name}” zamanlanmış gönderimi reddedildi: {reason}",
   "timedSendSkipped": "“{name}” zamanlanmış gönderimi atlandı: {reason}",
   "timedSendMissed": "“{name}” zamanlanmış gönderimi zamanını kaçırdı: {reason}",
+  "resumeUsageReportNote": "En son kullanım raporuna göre.",
   "museCodeOnceCleared": {
     "one": "Bir zamanlanmış gönderim zamanlandığından beri Muse Code oturumu değişti, bu yüzden gönderim kaldırıldı. Geçerli oturumla göndermek için yeniden zamanlayın.",
     "other": "{count} zamanlanmış gönderim zamanlandığından beri Muse Code oturumu değişti, bu yüzden gönderimler kaldırıldı. Geçerli oturumla göndermek için yeniden zamanlayın."

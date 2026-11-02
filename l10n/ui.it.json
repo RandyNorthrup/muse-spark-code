@@ -1644,6 +1644,7 @@
   "timedSendRefused": "L’invio programmato “{name}” è stato rifiutato: {reason}",
   "timedSendSkipped": "L’invio programmato “{name}” è stato saltato: {reason}",
   "timedSendMissed": "L’invio programmato “{name}” ha perso il suo momento: {reason}",
+  "resumeUsageReportNote": "In base all’ultimo resoconto di utilizzo.",
   "museCodeOnceCleared": {
     "one": "L’accesso a Muse Code è cambiato da quando è stato programmato un invio, che è stato quindi rimosso. Programmalo di nuovo per inviarlo con l’accesso attuale.",
     "other": "L’accesso a Muse Code è cambiato da quando sono stati programmati {count} invii, che sono stati quindi rimossi. Programmali di nuovo per inviarli con l’accesso attuale.",

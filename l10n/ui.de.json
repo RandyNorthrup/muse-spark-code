@@ -1634,6 +1634,7 @@
   "timedSendRefused": "Timerversand „{name}“ wurde abgelehnt: {reason}",
   "timedSendSkipped": "Timerversand „{name}“ wurde übersprungen: {reason}",
   "timedSendMissed": "Timerversand „{name}“ hat seinen Zeitpunkt verpasst: {reason}",
+  "resumeUsageReportNote": "Nach dem neuesten Nutzungsbericht.",
   "museCodeOnceCleared": {
     "one": "Die Muse Code-Anmeldung hat sich seit der Planung eines Timerversands geändert, daher wurde die Sendung entfernt. Plane sie erneut, um sie mit der aktuellen Anmeldung zu senden.",
     "other": "Die Muse Code-Anmeldung hat sich seit der Planung von {count} Timersendungen geändert, daher wurden die Sendungen entfernt. Plane sie erneut, um sie mit der aktuellen Anmeldung zu senden."

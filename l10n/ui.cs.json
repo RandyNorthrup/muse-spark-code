@@ -1654,6 +1654,7 @@
   "timedSendRefused": "Časované odeslání „{name}“ bylo odmítnuto: {reason}",
   "timedSendSkipped": "Časované odeslání „{name}“ bylo přeskočeno: {reason}",
   "timedSendMissed": "Časované odeslání „{name}“ propáslo svůj okamžik: {reason}",
+  "resumeUsageReportNote": "Podle nejnovějšího hlášení o využití.",
   "museCodeOnceCleared": {
     "one": "Přihlášení Muse Code se od naplánování časovaného odeslání změnilo, proto bylo odeslání odebráno. Naplánujte je znovu, aby se odeslalo pod aktuálním přihlášením.",
     "other": "Přihlášení Muse Code se od naplánování {count} časovaných odeslání změnilo, proto byla odeslání odebrána. Naplánujte je znovu, aby se odeslala pod aktuálním přihlášením.",

@@ -1644,6 +1644,7 @@
   "timedSendRefused": "El envío programado «{name}» fue rechazado: {reason}",
   "timedSendSkipped": "El envío programado «{name}» fue omitido: {reason}",
   "timedSendMissed": "El envío programado «{name}» perdió su momento: {reason}",
+  "resumeUsageReportNote": "Según el último informe de uso.",
   "museCodeOnceCleared": {
     "one": "El inicio de sesión de Muse Code cambió desde que se programó un envío, por lo que se eliminó. Prográmalo de nuevo para enviarlo con el inicio de sesión actual.",
     "other": "El inicio de sesión de Muse Code cambió desde que se programaron {count} envíos, por lo que se eliminaron. Prográmalos de nuevo para enviarlos con el inicio de sesión actual.",

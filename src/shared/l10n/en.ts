@@ -2045,6 +2045,9 @@ export const EN = {
   timedSendSkipped: 'Timed send “{name}” was skipped: {reason}',
   // A timed send whose moment passed unsent (M88, D67 item 15).
   timedSendMissed: 'Timed send “{name}” was missed: {reason}',
+  // A resume offer built from the usage report, not a typed limit
+  // signal (M88, D67 item 16): the row says what it rests on.
+  resumeUsageReportNote: 'Based on the latest usage report.',
   // Timed sends removed after a sign-in change (M88, D67 item 15): the
   // transcript says why, with the count.
   museCodeOnceCleared: forms({
