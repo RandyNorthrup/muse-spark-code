@@ -7,10 +7,11 @@
 // opens here: the main boot resolves no opener on its sterile PATH, and
 // the handoff boot hands a recording stub. No provider, key or network
 // is touched.
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { spawn, type ChildProcessByStdio } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import type { Readable } from 'node:stream'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { withDeadline } from '../../src/core/timeouts'
 import { HTTP_STATUS, IDE_MCP_LOOPBACK_HOST } from '../../src/shared/constants'
@@ -33,8 +34,11 @@ import {
 import { isolatedRuntimeEnvironment } from './helpers/isolatedRuntimeEnvironment'
 import { removeFolder } from './helpers/temporaryFolders'
 
+/** The packed child: ignored stdin, piped stdout and stderr. */
+type PackedChild = ChildProcessByStdio<null, Readable, Readable>
+
 interface PackedPanel {
-  readonly child: ChildProcessWithoutNullStreams
+  readonly child: PackedChild
   readonly url: string
   readonly origin: string
   readonly token: string
@@ -46,7 +50,7 @@ interface PackedPanel {
 }
 
 interface BootedPanel {
-  readonly child: ChildProcessWithoutNullStreams
+  readonly child: PackedChild
   readonly url: string
   stderr(): string
 }
@@ -103,7 +107,7 @@ async function bootPacked(
   }
 }
 
-async function stopPacked(child: ChildProcessWithoutNullStreams): Promise<number | null> {
+async function stopPacked(child: PackedChild): Promise<number | null> {
   child.kill('SIGTERM')
   return await withDeadline(
     new Promise<number | null>((resolve) => {
