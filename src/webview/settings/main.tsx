@@ -5,18 +5,10 @@
 
 import { createRoot } from 'react-dom/client'
 import { UI_TEXT, WEBVIEW_ROOT_ELEMENT_ID } from '../../shared/constants'
+import { followSystemScheme } from '../desktop/systemScheme'
 import { SettingsApp } from './shell/SettingsApp'
 import './shell/shell.css'
 import './system/system.css'
-
-function followSystemScheme(): void {
-  const scheme = window.matchMedia('(prefers-color-scheme: dark)')
-  const applyScheme = (): void => {
-    document.documentElement.dataset['msTheme'] = scheme.matches ? 'dark' : 'light'
-  }
-  applyScheme()
-  scheme.addEventListener('change', applyScheme)
-}
 
 function mount(): void {
   const rootElement = document.querySelector(`#${WEBVIEW_ROOT_ELEMENT_ID}`)

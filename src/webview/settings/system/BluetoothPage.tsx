@@ -12,7 +12,7 @@ import type {
   BluetoothState,
 } from '../../../shared/desktop/sysd'
 import { fill, formatPercent } from '../../../shared/l10n/text'
-import { ConfirmChangeDialog, SettingsDialog } from './dialog'
+import { PendingChangeDialog, SettingsDialog } from './dialog'
 import { PageFrame, runPageApply } from './frame'
 import { SettingRow, SettingsEmpty, SettingsSection, SettingsSwitch } from './rows'
 import { usePendingChange } from './usePendingChange'
@@ -155,14 +155,7 @@ function DeviceRow({
           </div>
         </SettingsDialog>
       )}
-      {pending.pending === null ? null : (
-        <ConfirmChangeDialog
-          title={text.confirmTitle}
-          description={pending.pending.description}
-          onConfirm={pending.confirm}
-          onCancel={pending.cancel}
-        />
-      )}
+      <PendingChangeDialog title={text.confirmTitle} handle={pending} />
     </div>
   )
 }
@@ -209,14 +202,7 @@ export function BluetoothPage({
           ))
         )}
       </SettingsSection>
-      {pending.pending === null ? null : (
-        <ConfirmChangeDialog
-          title={text.confirmTitle}
-          description={pending.pending.description}
-          onConfirm={pending.confirm}
-          onCancel={pending.cancel}
-        />
-      )}
+      <PendingChangeDialog title={text.confirmTitle} handle={pending} />
     </div>
   )
 }

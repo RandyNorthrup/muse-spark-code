@@ -1,12 +1,7 @@
 /* Muse Desktop (M111, D91.13) lane WB: workbench chrome. Every value is a
    --ms-* token from M114's generated sheet; no raw paint lives here. */
 
-body {
-  margin: 0;
-  background-color: var(--ms-surface);
-  color: var(--ms-text);
-  font: var(--ms-font-size) / var(--ms-line-ui) var(--ms-font-ui);
-}
+@import url('./appBase.css');
 
 .muse-desktop input {
   border: 1px solid var(--ms-input-border);

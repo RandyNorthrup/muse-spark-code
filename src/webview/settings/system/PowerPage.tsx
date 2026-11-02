@@ -20,7 +20,7 @@ import {
 import { fill, formatList, formatPercent, formatUnit, plural } from '../../../shared/l10n/text'
 import type { PageBinding } from './binding'
 import { parseDraftInt } from './numbers'
-import { ConfirmChangeDialog } from './dialog'
+import { PendingChangeDialog } from './dialog'
 import { SettingRow, SettingsEmpty, SettingsSection } from './rows'
 import { usePendingChange } from './usePendingChange'
 
@@ -268,14 +268,7 @@ export function PowerPage({
           }
         />
       </SettingsSection>
-      {pending.pending === null ? null : (
-        <ConfirmChangeDialog
-          title={text.confirmTitle}
-          description={pending.pending.description}
-          onConfirm={pending.confirm}
-          onCancel={pending.cancel}
-        />
-      )}
+      <PendingChangeDialog title={text.confirmTitle} handle={pending} />
     </div>
   )
 }

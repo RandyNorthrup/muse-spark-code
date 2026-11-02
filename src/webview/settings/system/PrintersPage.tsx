@@ -7,7 +7,7 @@ import { UI_TEXT } from '../../../shared/constants'
 import type { Printer, PrinterStatus, PrintersState } from '../../../shared/desktop/sysd'
 import { fill } from '../../../shared/l10n/text'
 import type { PageBinding } from './binding'
-import { ConfirmChangeDialog } from './dialog'
+import { PendingChangeDialog } from './dialog'
 import { SettingsEmpty, SettingsSection } from './rows'
 import { usePendingChange } from './usePendingChange'
 
@@ -80,14 +80,7 @@ function PrinterRow({
           {text.printersRemove}
         </button>
       </div>
-      {pending.pending === null ? null : (
-        <ConfirmChangeDialog
-          title={text.confirmTitle}
-          description={pending.pending.description}
-          onConfirm={pending.confirm}
-          onCancel={pending.cancel}
-        />
-      )}
+      <PendingChangeDialog title={text.confirmTitle} handle={pending} />
     </div>
   )
 }
@@ -147,14 +140,7 @@ export function PrintersPage({
           </div>
         </div>
       </SettingsSection>
-      {pending.pending === null ? null : (
-        <ConfirmChangeDialog
-          title={text.confirmTitle}
-          description={pending.pending.description}
-          onConfirm={pending.confirm}
-          onCancel={pending.cancel}
-        />
-      )}
+      <PendingChangeDialog title={text.confirmTitle} handle={pending} />
     </div>
   )
 }

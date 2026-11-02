@@ -5,8 +5,13 @@
 
 /** @vitest-environment jsdom */
 /** @vitest-environment-options {"pretendToBeVisual": true} */
-import { fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { fireEvent, screen } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
+import {
+  confirmSettingsDialog,
+  renderSettingsPage,
+  trackSettingsRenders,
+} from '../helpers/settingsPages'
 import { UI_TEXT } from '../../../src/shared/constants'
 import type { AppearanceOverride } from '../../../src/shared/desktop/settings'
 import type { DisplaysState, SoundState } from '../../../src/shared/desktop/sysd'
@@ -21,13 +26,10 @@ import {
 } from '../../../src/webview/settings/system/DisplaysPage'
 import { SoundPage, type SoundChange } from '../../../src/webview/settings/system/SoundPage'
 
-const cleanups: (() => void)[] = []
-afterEach(() => {
-  for (const cleanup of cleanups.splice(0)) cleanup()
-})
+trackSettingsRenders()
 
 function renderAppearance(data: AppearanceOverride, applied: AppearanceChange[]): void {
-  const host = render(
+  renderSettingsPage(
     <AppearancePage
       data={data}
       onApply={(change) => {
@@ -35,11 +37,6 @@ function renderAppearance(data: AppearanceOverride, applied: AppearanceChange[])
       }}
     />,
   )
-  cleanups.push(host.unmount)
-}
-
-function confirmDialog(): void {
-  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.settingsSystem.confirmApply }))
 }
 
 function cancelDialog(): void {
@@ -59,7 +56,7 @@ describe('Appearance page', () => {
         }),
       ),
     ).toBeDefined()
-    confirmDialog()
+    confirmSettingsDialog()
     expect(applied).toEqual(['dark'])
   })
 
@@ -120,7 +117,7 @@ const DISPLAYS: DisplaysState = {
 }
 
 function renderDisplays(applied: DisplaysChange[]): void {
-  const host = render(
+  renderSettingsPage(
     <DisplaysPage
       data={DISPLAYS}
       onApply={(change) => {
@@ -128,7 +125,6 @@ function renderDisplays(applied: DisplaysChange[]): void {
       }}
     />,
   )
-  cleanups.push(host.unmount)
 }
 
 describe('Displays page', () => {
@@ -141,7 +137,7 @@ describe('Displays page', () => {
     expect(
       screen.getByText(fill(UI_TEXT.settingsSystem.displaysConfirm, { name: 'Laptop panel' })),
     ).toBeDefined()
-    confirmDialog()
+    confirmSettingsDialog()
     expect(applied).toEqual([{ kind: 'enabled', id: 'out-1', enabled: false }])
   })
 
@@ -155,7 +151,7 @@ describe('Displays page', () => {
       target: { value: '125' },
     })
     fireEvent.click(screen.getAllByRole('button', { name: UI_TEXT.settingsSystem.apply })[0]!)
-    confirmDialog()
+    confirmSettingsDialog()
     expect(applied).toEqual([
       {
         kind: 'output',
@@ -201,7 +197,7 @@ const SOUND: SoundState = {
 }
 
 function renderSound(applied: SoundChange[]): void {
-  const host = render(
+  renderSettingsPage(
     <SoundPage
       data={SOUND}
       onApply={(change) => {
@@ -209,7 +205,6 @@ function renderSound(applied: SoundChange[]): void {
       }}
     />,
   )
-  cleanups.push(host.unmount)
 }
 
 describe('Sound page', () => {
@@ -221,7 +216,7 @@ describe('Sound page', () => {
     expect(
       screen.getByText(fill(UI_TEXT.settingsSystem.soundConfirmMute, { name: 'Speakers' })),
     ).toBeDefined()
-    confirmDialog()
+    confirmSettingsDialog()
     expect(applied).toEqual([{ kind: 'muted', id: 'sink-1', direction: 'output', muted: true }])
   })
 
@@ -229,7 +224,7 @@ describe('Sound page', () => {
     const applied: SoundChange[] = []
     renderSound(applied)
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.settingsSystem.useAsDefault }))
-    confirmDialog()
+    confirmSettingsDialog()
     expect(applied).toEqual([{ kind: 'default', id: 'sink-2', direction: 'output' }])
   })
 })

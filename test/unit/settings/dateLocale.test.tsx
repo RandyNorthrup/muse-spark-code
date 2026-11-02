@@ -4,8 +4,13 @@
 
 /** @vitest-environment jsdom */
 /** @vitest-environment-options {"pretendToBeVisual": true} */
-import { fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { fireEvent, screen } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
+import {
+  confirmSettingsDialog,
+  renderSettingsPage,
+  trackSettingsRenders,
+} from '../helpers/settingsPages'
 import { UI_TEXT } from '../../../src/shared/constants'
 import type { DateTimeState, LocaleState } from '../../../src/shared/desktop/sysd'
 import { fill, formatDateTime } from '../../../src/shared/l10n/text'
@@ -15,14 +20,7 @@ import {
 } from '../../../src/webview/settings/system/DateTimePage'
 import { LocalePage, type LocaleChange } from '../../../src/webview/settings/system/LocalePage'
 
-const cleanups: (() => void)[] = []
-afterEach(() => {
-  for (const cleanup of cleanups.splice(0)) cleanup()
-})
-
-function confirmDialog(): void {
-  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.settingsSystem.confirmApply }))
-}
+trackSettingsRenders()
 
 const DATETIME: DateTimeState = {
   automatic: true,
@@ -32,7 +30,7 @@ const DATETIME: DateTimeState = {
 }
 
 function renderDateTime(data: DateTimeState, applied: DateTimeChange[]): void {
-  const host = render(
+  renderSettingsPage(
     <DateTimePage
       data={data}
       onApply={(change) => {
@@ -40,7 +38,6 @@ function renderDateTime(data: DateTimeState, applied: DateTimeChange[]): void {
       }}
     />,
   )
-  cleanups.push(host.unmount)
 }
 
 describe('Date and time page', () => {
@@ -49,7 +46,7 @@ describe('Date and time page', () => {
     renderDateTime(DATETIME, applied)
     fireEvent.click(screen.getByRole('switch', { name: UI_TEXT.settingsSystem.datetimeAutomatic }))
     expect(screen.getByText(UI_TEXT.settingsSystem.datetimeConfirmAutoOff)).toBeDefined()
-    confirmDialog()
+    confirmSettingsDialog()
     expect(applied).toEqual([{ kind: 'automatic', automatic: false }])
   })
 
@@ -62,7 +59,7 @@ describe('Date and time page', () => {
         fill(UI_TEXT.settingsSystem.datetimeConfirmTimezone, { zone: 'America/New_York' }),
       ),
     ).toBeDefined()
-    confirmDialog()
+    confirmSettingsDialog()
     expect(applied).toEqual([{ kind: 'timezone', timezone: 'America/New_York' }])
   })
 
@@ -82,7 +79,7 @@ describe('Date and time page', () => {
         fill(UI_TEXT.settingsSystem.datetimeConfirmManual, { when: formatDateTime(when) }),
       ),
     ).toBeDefined()
-    confirmDialog()
+    confirmSettingsDialog()
     expect(applied).toEqual([{ kind: 'manual', unixMs: when }])
   })
 
@@ -111,7 +108,7 @@ const LOCALE: LocaleState = {
 describe('Language and region page', () => {
   it('carries the language pair from one Apply after one confirmation', () => {
     const applied: LocaleChange[] = []
-    const host = render(
+    renderSettingsPage(
       <LocalePage
         data={LOCALE}
         onApply={(change) => {
@@ -119,7 +116,6 @@ describe('Language and region page', () => {
         }}
       />,
     )
-    cleanups.push(host.unmount)
     fireEvent.change(screen.getByLabelText(UI_TEXT.settingsSystem.localeLanguage), {
       target: { value: 'de' },
     })
@@ -129,7 +125,7 @@ describe('Language and region page', () => {
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.settingsSystem.apply }))
     expect(screen.getByText(UI_TEXT.settingsSystem.localeConfirm)).toBeDefined()
     expect(screen.getByText(UI_TEXT.settingsSystem.localeNote)).toBeDefined()
-    confirmDialog()
+    confirmSettingsDialog()
     expect(applied).toEqual([{ kind: 'set', language: 'de', region: 'de-DE' }])
   })
 })

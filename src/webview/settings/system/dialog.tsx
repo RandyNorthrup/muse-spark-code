@@ -5,6 +5,7 @@
 import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react'
 import { UI_TEXT } from '../../../shared/constants'
 import { webviewKey } from '../../../shared/keybindings'
+import type { PendingChangeHandle } from './usePendingChange'
 
 export function SettingsDialog({
   title,
@@ -85,5 +86,25 @@ export function ConfirmChangeDialog({
         </button>
       </div>
     </SettingsDialog>
+  )
+}
+
+export function PendingChangeDialog<Change>({
+  title,
+  handle,
+}: {
+  readonly title: string
+  readonly handle: PendingChangeHandle<Change>
+}): ReactNode {
+  if (handle.pending === null) {
+    return null
+  }
+  return (
+    <ConfirmChangeDialog
+      title={title}
+      description={handle.pending.description}
+      onConfirm={handle.confirm}
+      onCancel={handle.cancel}
+    />
   )
 }

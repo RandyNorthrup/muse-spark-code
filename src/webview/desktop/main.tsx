@@ -6,18 +6,8 @@ import { createRoot } from 'react-dom/client'
 import { UI_TEXT, WEBVIEW_ROOT_ELEMENT_ID } from '../../shared/constants'
 import { hasDesktopBridge } from '../bridges/desktop'
 import { DesktopApp } from './DesktopApp'
+import { followSystemScheme } from './systemScheme'
 import './desktop.css'
-
-// The token sheet keys its palettes off data-ms-theme (M114); the desktop
-// follows the system scheme until the settings app (ST1) owns the override.
-function followSystemScheme(): void {
-  const scheme = window.matchMedia('(prefers-color-scheme: dark)')
-  const applyScheme = (): void => {
-    document.documentElement.dataset['msTheme'] = scheme.matches ? 'dark' : 'light'
-  }
-  applyScheme()
-  scheme.addEventListener('change', applyScheme)
-}
 
 function mount(): void {
   const rootElement = document.querySelector(`#${WEBVIEW_ROOT_ELEMENT_ID}`)
