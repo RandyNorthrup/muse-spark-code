@@ -7,9 +7,32 @@
 // main refuses every write to one (H13).
 
 import { randomUUID } from 'node:crypto'
-import * as pty from 'node-pty'
+import { createRequire } from 'node:module'
+import type * as pty from 'node-pty'
+import { DESKTOP_LOG_TEXT } from '../../src/shared/constants'
 import type { TerminalAgent, TerminalSessionInfo } from '../../src/shared/desktop/bridge'
 import { hasChildProcesses } from './processTree'
+
+// node-pty stays out of the bundle (scripts/build-desktop.mjs marks it
+// external) and loads on the first terminal: the checkout's own copy
+// answers a plain run, the staged Electron-ABI copy answers the packaged
+// app, and a machine without either still starts — only the terminal
+// says it could not start.
+const mainRequire = createRequire(import.meta.url)
+
+/** The one node-pty member the sessions use, guarded before describing. */
+interface PtySpawn {
+  spawn(file: string, args: string[], options: pty.IPtyForkOptions): pty.IPty
+}
+
+function isPtySpawn(value: unknown): value is PtySpawn {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'spawn' in value &&
+    typeof value.spawn === 'function'
+  )
+}
 
 export interface TerminalSession {
   readonly id: string
@@ -59,12 +82,22 @@ function agentCommand(command: string): { command: string; args: string[] } {
 
 export class TerminalSessions {
   private readonly sessions = new Map<string, TerminalSession>()
+  private loadedPty: PtySpawn | undefined
 
   public constructor(private readonly events: TerminalEvents) {}
 
+  private ptyModule(): PtySpawn {
+    if (this.loadedPty === undefined) {
+      const loaded: unknown = mainRequire('node-pty')
+      if (!isPtySpawn(loaded)) throw new Error(DESKTOP_LOG_TEXT.terminalCreateFailed)
+      this.loadedPty = loaded
+    }
+    return this.loadedPty
+  }
+
   public create(options: TerminalCreateOptions): TerminalSessionInfo {
     const shell = options.agent === undefined ? defaultShell() : agentCommand(options.agent.command)
-    const child = pty.spawn(shell.command, shell.args, {
+    const child = this.ptyModule().spawn(shell.command, shell.args, {
       name: 'xterm-256color',
       cols: options.cols,
       rows: options.rows,

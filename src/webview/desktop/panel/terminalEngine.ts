@@ -1,9 +1,11 @@
 // Muse Desktop (M111, D91.13) lane BP: the terminal engine. One xterm.js
 // emulator per tab with the addons VS Code uses: WebGL rendering (the
 // canvas renderer when the machine has no WebGL2), search, links and
-// Unicode 11 widths, fitted to its host. This module is the lazy chunk's
-// root: everything xterm ships travels with it, and nothing else imports
-// xterm.
+// Unicode 11 widths, fitted to its host. This module is the lazy chunk:
+// everything xterm ships travels with it, and it imports nothing the
+// startup chunk shares — every bridge call, sentence and size arrives
+// through the acquire hooks — so the bundler cannot hoist it into the
+// startup path. Nothing else imports xterm.
 //
 // The emulator outlives its React shell: a dragged tab moves its shell
 // between the dock, the window and the footer, and the shell mounts and
@@ -19,13 +21,7 @@ import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { Terminal, type ITheme } from '@xterm/xterm'
-import {
-  DESKTOP_TERMINAL_DEFAULT_COLS,
-  DESKTOP_TERMINAL_DEFAULT_ROWS,
-  UI_TEXT,
-} from '../../../shared/constants'
-import { fill } from '../../../shared/l10n/text'
-import { desktopBridge } from '../../bridges/desktop'
+import type { MuseDesktopBridge } from '../../../shared/desktop/bridge'
 
 interface TerminalEngineCallbacks {
   /** A key the emulator kept (never a workbench chord; never read-only). */
@@ -109,10 +105,12 @@ function createTerminalEngine(
   element: HTMLElement,
   callbacks: TerminalEngineCallbacks,
   isReadOnly: boolean,
+  initialCols: number,
+  initialRows: number,
 ): TerminalEngine {
   const terminal = new Terminal({
-    cols: DESKTOP_TERMINAL_DEFAULT_COLS,
-    rows: DESKTOP_TERMINAL_DEFAULT_ROWS,
+    cols: initialCols,
+    rows: initialRows,
     screenReaderMode: true,
     theme: resolveTerminalTheme(),
   })
@@ -229,20 +227,40 @@ export interface PersistentTerminal {
   release(): void
 }
 
-const persistentTerminals = new Map<string, PersistentTerminal>()
+const acquiredTerminals = new Map<string, PersistentTerminal>()
+
+/**
+Everything the lazy chunk needs from the startup chunk, handed in by
+the shell: the registry entries, the bridge calls, the exit sentence
+and the opening size. The engine calls nothing else outside xterm.
+*/
+export interface PersistentTerminalHooks {
+  readonly isWorkbenchChord: IsWorkbenchChord
+  readonly initialCols: number
+  readonly initialRows: number
+  readonly register: (tabId: string, terminal: PersistentTerminal) => void
+  readonly unregister: (tabId: string) => void
+  readonly writeTerminal: MuseDesktopBridge['writeTerminal']
+  readonly resizeTerminal: MuseDesktopBridge['resizeTerminal']
+  readonly openExternal: MuseDesktopBridge['openExternal']
+  readonly onTerminalData: MuseDesktopBridge['onTerminalData']
+  readonly onTerminalExit: MuseDesktopBridge['onTerminalExit']
+  readonly formatExit: (code: number | null) => string
+}
 
 /**
 The tab's emulator, created on first use and kept until
-releasePersistentTerminal. The first call's title, read-only flag and
-chord probe win: a tab's never change afterwards.
+releasePersistentTerminal (terminalRegistry, which owns disposal from
+outside this chunk). The first call's title, read-only flag and hooks
+win: a tab's never change afterwards.
 */
 export function acquirePersistentTerminal(
   tabId: string,
   title: string,
   isReadOnly: boolean,
-  isWorkbenchChord: IsWorkbenchChord,
+  hooks: PersistentTerminalHooks,
 ): PersistentTerminal {
-  const kept = persistentTerminals.get(tabId)
+  const kept = acquiredTerminals.get(tabId)
   if (kept !== undefined) return kept
   const host = document.createElement('div')
   host.className = 'muse-panel-terminal-host'
@@ -254,28 +272,29 @@ export function acquirePersistentTerminal(
     host,
     {
       onInput: (data) => {
-        desktopBridge().writeTerminal(tabId, data)
+        hooks.writeTerminal(tabId, data)
       },
       onResize: (cols, rows) => {
-        desktopBridge().resizeTerminal(tabId, cols, rows)
+        hooks.resizeTerminal(tabId, cols, rows)
       },
       onOpenLink: (uri) => {
-        void desktopBridge().openExternal(uri)
+        void hooks.openExternal(uri)
       },
       onSearchResults: (resultIndex, resultCount) => {
         searchListener?.(resultIndex, resultCount)
       },
-      isWorkbenchChord,
+      isWorkbenchChord: hooks.isWorkbenchChord,
     },
     isReadOnly,
+    hooks.initialCols,
+    hooks.initialRows,
   )
-  const bridge = desktopBridge()
-  const releaseData = bridge.onTerminalData((frame) => {
+  const releaseData = hooks.onTerminalData((frame) => {
     if (frame.id === tabId) created.write(frame.data)
   })
-  const releaseExit = bridge.onTerminalExit((frame) => {
+  const releaseExit = hooks.onTerminalExit((frame) => {
     if (frame.id !== tabId) return
-    created.exit(fill(UI_TEXT.desktop.workbenchTerminalExited, { code: frame.code ?? '—' }))
+    created.exit(hooks.formatExit(frame.code))
   })
   const scheme = window.matchMedia('(prefers-color-scheme: dark)')
   const retheme = (): void => {
@@ -310,14 +329,11 @@ export function acquirePersistentTerminal(
       releaseData()
       releaseExit()
       created.dispose()
-      persistentTerminals.delete(tabId)
+      acquiredTerminals.delete(tabId)
+      hooks.unregister(tabId)
     },
   }
-  persistentTerminals.set(tabId, terminal)
+  acquiredTerminals.set(tabId, terminal)
+  hooks.register(tabId, terminal)
   return terminal
-}
-
-/** Disposes a closed tab's emulator; unknown ids are already gone. */
-export function releasePersistentTerminal(tabId: string): void {
-  persistentTerminals.get(tabId)?.release()
 }

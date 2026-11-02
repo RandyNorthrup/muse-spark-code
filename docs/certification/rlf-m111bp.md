@@ -40,7 +40,35 @@ slots and bridge; never a second layout.
 
 ## What is next
 
-Build splitting + chunk budget → PTY staging → real-Electron proof → ui:look → drills and gates.
+PTY staging → real-Electron proof → ui:look → drills and gates.
+
+## Landed: lazy engine chunk, app scheme, native loader (2026-11-01)
+
+- The xterm engine is a chunk-pure lazy file
+  (`dist/desktop/renderer.terminalEngine.js`, 532.3 KiB): it imports
+  nothing the startup chunk shares — bridge calls, sentences, sizes and
+  registry entries arrive through acquire hooks from the shell, which
+  rides the startup chunk and loads the engine through `use()` (the
+  pane keeps its Suspense loading fallback and retry boundary).
+  `renderer.js` (1163.4 KiB) carries no xterm; the shared helpers are
+  0.6 KiB. New budgets measured +15% to the next 25 KiB (D6): 625 /
+  25 / 25; WB's four caps unchanged and green.
+- The window serves itself over its own privileged same-origin scheme
+  (`muse-desktop://app/`, `desktop/app/scheme.ts` + `main.ts`): module
+  chunks cannot load over file://. Only the app host answers, only
+  .html/.js/.css from inside the app folder; anything else is denied
+  (403) or missing (404); reads past missing-file are fixed words on
+  stderr with a 500. `index.html` loads the renderer as a module.
+- node-pty stays external to `main.mjs` and loads lazily per window
+  through a spawn-shape guard: a dev run answers from the checkout's
+  copy, the packaged app from the staged Electron-ABI copy, and a
+  machine without either still starts. Terminal-create failures are
+  fixed words on both sides (main's stderr, the panel's sentence):
+  the native loader's paths reach neither.
+- Suites: new `appScheme.test.ts` (4: serve/deny/MIME) and
+  `terminalRegistry.test.ts` (2); panel (15), panelSessions (8),
+  panelStores (3), panelView (3), shell + workbench neighbours green;
+  webview/desktop/unit typechecks clean, eslint/prettier clean.
 
 ## Landed: renderer chrome and workbench wiring (2026-10-31)
 
