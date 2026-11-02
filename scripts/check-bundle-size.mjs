@@ -80,7 +80,8 @@ const BUDGETS = [
   { path: 'dist/desktop/renderer.js', budgetKiB: 1300 },
   { path: 'dist/desktop/renderer.css', budgetKiB: 25 },
   // M111 ST1 (D91.16): the settings app's renderer. New bundles, measured
-  // +15% rounded to the next 25 KiB (D6): settings 754.7 KiB,
+  // +15% rounded to the next 25 KiB (D6): settings 754.1 KiB
+  // (re-measured after the duplication-gate dedup),
   // settings.css 7.3 KiB. Like the workbench renderer it carries the full
   // English table; regionalising desktop text is TH/J follow-up work.
   { path: 'dist/desktop/settings.js', budgetKiB: 875 },

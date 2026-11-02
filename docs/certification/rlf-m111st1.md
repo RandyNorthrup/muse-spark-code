@@ -16,7 +16,8 @@ base `5ec754534`.
   versioned methods, zod/mini strict on both directions, `SysdError`
   with a code for every wire failure. A sysd message is never shown
   to the person. Tested in `test/unit/desktop/sysd.test.ts`
-  (22 tests).
+  (24 tests, including the named-type conformance test that pins
+  every contract type to the method carrying it).
 - Strings: the `settingsSystem` group, 152 keys in `en.ts` plus the
   confirmation and pairing follow-ups, in English and all 14 tables
   (`node scripts/check-l10n.mjs`: 0 problems). They ride their own
@@ -46,12 +47,13 @@ base `5ec754534`.
   `desktop/app/settings.html`, and the production build
   (`dist/desktop/settings.js`, `dist/desktop/settings.css`).
   Budgets (D6, measured +15% to the next 25 KiB): `settings.js`
-  875 KiB (measured 754.9 KiB), `settings.css` 25 KiB (measured
+  875 KiB (measured 754.1 KiB), `settings.css` 25 KiB (measured
   7.3 KiB).
 - Component tests on the real pages only
   (`test/unit/settings/systemPages.test.tsx`,
   `networkPages.test.tsx`, `powerPrinters.test.tsx`,
-  `dateLocale.test.tsx`, `shell.test.tsx`): 64 green.
+  `dateLocale.test.tsx`, `shell.test.tsx`): 42 green, sharing
+  one render/confirm rig (`test/unit/helpers/settingsPages.ts`).
 - Token-only CSS (logical properties, no motion). The keybinding
   and bundle-size checks know the new surfaces and bundles.
 
@@ -106,8 +108,8 @@ the regression test fails without the fix and passes with it.
 4. _Bundle budget._ Break: lower the `settings.js` budget to
    700 KiB. Red: `node scripts/check-bundle-size.mjs` exits 1
    with `OVER dist/desktop/settings.js: 754.9 KiB (budget 700
-KiB)`. Restore (tree clean); green: settings 754.9 KiB /
-   875 KiB, settings.css 7.3 KiB / 25 KiB, both `ok`.
+KiB)` (measured at drill time, before the dedup). Restore
+   (tree clean); green, both `ok`.
 
 ## What is next
 
@@ -121,20 +123,35 @@ KiB)`. Restore (tree clean); green: settings 754.9 KiB /
 
 ## Gates
 
-(Filled in on the final pass; every exit code pasted.)
+- prettier (`--check`, all lane files): exit 0.
+- eslint (`--max-warnings 0`, all lane `ts/tsx/mjs`): exit 0.
+- stylelint (settings + desktop CSS): exit 0.
+- `npm run typecheck`: exit 0.
+- `node scripts/check-l10n.mjs`: exit 0, 0 problems.
+- `npm run check:reference`: exit 0.
+- `npm run check:host-api`: exit 0, 0 problems.
+- `npm run check:plan`: exit 0, 0 drift.
+- `npm run check:roadmap`: exit 0, current.
+- `npm run check:catches`: exit 0, baseline matches.
+- `npm run duplication`: exit 0, 0 clones (after sharing the
+  confirm block, the scheme follower, the page base and the
+  test rig; the gate's first run found the real clones).
+- `npm run cycles`: exit 0, no circular dependency.
+- `npm run deadcode`: exit 0 (after the sysd named-type
+  conformance test; the gate's first run flagged the 27
+  contract types the method map carries).
+- `npm run build`: exit 0. Settings 754.1 KiB / 875 KiB,
+  settings.css 7.3 KiB / 25 KiB, uiTextSettings 2.2 KiB /
+  25 KiB, uiTextSurfaces back to 24.3 KiB / 25 KiB.
+- SAST: exit 0.
+- vitest: settings 42 passed, sysd 24 passed (23 + the
+  conformance test); `related` on sysd/dialog/frame 66 passed,
+  on the entries/settings 43 passed, on keybindings 555 passed
+  (50 files). One load flake on the first keybindings run
+  (`nodeWorkspaceUi` upload race, unrelated to this lane):
+  green alone (21 passed) and green on the identical re-run;
+  both runs are reported.
 
-- prettier: —
-- eslint: —
-- typecheck: —
-- check-l10n: —
-- check-reference: —
-- check-host-api: —
-- check-plan: —
-- check-roadmap: —
-- check-catches: —
-- duplication: —
-- cycles: —
-- deadcode: —
-- build: —
-- SAST: —
-- vitest (settings + sysd + related): —
+Not run here: `npm run check:font-coverage` (`hb-shape` is
+missing on this rig and the install was denied) — hosted CI
+covers it.
