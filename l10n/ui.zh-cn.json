@@ -4729,7 +4729,6 @@
   "providerModelNoPrice": "{ref} 无法运行：没有价格卡，因此任何运行都无法为其预留。",
   "execProviderNeedsModelApi": "--provider 需要 --backend modelApi。",
   "execProviderModelRequired": "此提供商运行需要 --model provider/model。",
-  "execProviderNotReady": "提供方运行需要提供方传输层；{provider} 的请求校验已通过。",
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin] [--timeout <seconds>]",
   "scanSecretsExits": "干净时退出 0，发现机密时退出 10，误用时退出 2。",

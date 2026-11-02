@@ -5011,7 +5011,6 @@
   "providerModelNoPrice": "{ref} нельзя запустить: нет тарифной карты, поэтому ни один запуск не может зарезервировать.",
   "execProviderNeedsModelApi": "--provider требует --backend modelApi.",
   "execProviderModelRequired": "Этому запуску провайдера нужен --model provider/model.",
-  "execProviderNotReady": "Запускам провайдеров нужен транспортный уровень провайдеров; проверка запроса для {provider} прошла.",
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin] [--timeout <seconds>]",
   "scanSecretsExits": "Завершается с 0 если чисто, 10 если найден секрет, 2 при неверном использовании.",

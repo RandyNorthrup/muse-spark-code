@@ -5011,7 +5011,6 @@
   "providerModelNoPrice": "{ref} nie może działać: brak karty cenowej, więc żaden przebieg nie może zarezerwować.",
   "execProviderNeedsModelApi": "--provider wymaga --backend modelApi.",
   "execProviderModelRequired": "To uruchomienie dostawcy wymaga --model provider/model.",
-  "execProviderNotReady": "Uruchomienia dostawców wymagają warstwy transportowej dostawców; sprawdzenie żądania dla {provider} powiodło się.",
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin] [--timeout <seconds>]",
   "scanSecretsExits": "Kończy z 0 gdy czysto, 10 przy znalezisku, 2 przy błędnym użyciu.",

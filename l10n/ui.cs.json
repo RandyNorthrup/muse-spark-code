@@ -5011,7 +5011,6 @@
   "providerModelNoPrice": "{ref} nelze spustit: nemá ceník, takže na něj žádný běh nemůže rezervovat.",
   "execProviderNeedsModelApi": "--provider vyžaduje --backend modelApi.",
   "execProviderModelRequired": "Toto spuštění poskytovatele potřebuje --model provider/model.",
-  "execProviderNotReady": "Běhy poskytovatelů potřebují přenosovou vrstvu poskytovatelů; kontrola požadavku pro {provider} proběhla.",
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin] [--timeout <seconds>]",
   "scanSecretsExits": "Končí 0 při čistém výsledku, 10 při nálezu tajemství, 2 při chybném použití.",

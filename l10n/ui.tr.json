@@ -4823,7 +4823,6 @@
   "providerModelNoPrice": "{ref} çalıştırılamıyor: fiyat kartı yok, bu yüzden hiçbir çalıştırma rezervasyon yapamaz.",
   "execProviderNeedsModelApi": "--provider için --backend modelApi gerekir.",
   "execProviderModelRequired": "Bu sağlayıcı çalıştırması --model provider/model gerektirir.",
-  "execProviderNotReady": "Sağlayıcı çalıştırmaları sağlayıcı taşıma katmanını gerektirir; {provider} isteğinin denetimi geçti.",
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin] [--timeout <seconds>]",
   "scanSecretsExits": "Temizse 0, gizli dizi bulunursa 10, yanlış kullanımda 2 ile çıkar.",
