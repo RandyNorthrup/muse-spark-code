@@ -15580,6 +15580,15 @@ $0 settled), so no real team run has been made on this build. One defect
 fixed: the `--team` Model-API-only refusal names the option instead of
 an unfilled `{options}` (`4e9f04878`).
 
+**Status 2026-11-02 (integration into cc/int9, CC-INT9): building.**
+RLF-TEAMWORKERS3 (Muse Code and external-agent workers, governed check
+slots) and RLF-ORCHEXT (D250: an external ACP agent leads the conversation)
+are merged; the external host starts through the guarded child environment
+like every other spawn. No real team run and no external-led conversation
+has been made through the packed product yet, so their README and
+CHANGELOG sentences stay held (§2.3 of the record). Record:
+`docs/certification/cc-int9.md`.
+
 Status detail retained: first parts (role charters, tools, pools, limits)
 shipped in 0.15.0; team creation and worker dispatch remain (no team can be
 created: the teamWorkers paid gate has no production availability). Planned on `feature/m96-agent-roles` from main
@@ -27912,6 +27921,13 @@ is weakened. Receipts and deliberate failures are in
 
 **Status 2026-10-05: planned.**
 
+**Status 2026-11-02 (integration into cc/int9, CC-INT9): building.** The
+first four lanes are merged (WB the workbench shell, ED the shared editor
+group, TH the desktop theme from M114's tokens, IN languages, pseudo-RTL,
+font coverage and IME flags), each with its own budgets, none raised. Muse
+Desktop itself has not been run here (no GUI on the rig; the Electron
+suites are listed for hosted CI). Record: `docs/certification/cc-int9.md`.
+
 Status detail retained: planned, documentation only. Nothing is implemented,
 and no lane is launched by this record. The research is
 `docs/research/muse-desktop-2026-10-05.md`. Lane 0's threat model is reviewed
@@ -31883,6 +31899,14 @@ The MHP v1.1 lock was re-frozen once, through the adoption route, at
 the optional `quota` detail on `turnCompleted` and `turnRetry` (D252); neither
 1.5.0 nor 1.5.1 has shipped. `check:mhp` exits 0. Record:
 `docs/certification/cc-int8.md`.
+
+**Status 2026-11-02 (integration into cc/int9, CC-INT9): building.** The
+nine native hosts landed on the real `panel --stdio` (RLF-HOSTSLAND,
+RVHOSTS) and name `mhp/1.5.1`; the v1.1 lock was re-frozen a second time at
+1.5.1 for D250's `external` host kind, the only snapshot change.
+`check:editor-matrix` is red until the JetBrains and Eclipse hosts re-run
+at 1.5.1 (their receipts record 1.5.0 runs and are not edited). Record:
+`docs/certification/cc-int9.md`.
 
 On int (cc/rlm104, 2026-10-24): the MHP contract (D226) and lane A's
 `src/host/vscode/` boundary; every other lane, with its int-specific
