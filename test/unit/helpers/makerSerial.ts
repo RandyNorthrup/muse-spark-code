@@ -3,7 +3,9 @@ import { createHash, randomUUID } from 'node:crypto'
 import { link, readFile, writeFile } from 'node:fs/promises'
 import net from 'node:net'
 import path from 'node:path'
-import { killTree, sweepExitedTree } from '../../../src/host/processTree'
+import { withoutCredentials } from '../../../src/core/credentialEnvironment'
+import { windowsPowerShell } from '../../../src/core/execGuard'
+import { killTree, runProgram, sweepExitedTree } from '../../../src/host/processTree'
 import { prepareWindowsSerialHelper } from '../../../src/core/maker/serial/windowsHelper'
 import {
   listenNativeOwnerPipe,
@@ -11,7 +13,8 @@ import {
   type NativeLeaseHelper,
 } from '../../../src/core/maker/serial/nativeLease'
 import type { SerialProcessDependencies } from '../../../src/core/maker/serial/process'
-import type { LeaseDependencies } from '../../../src/core/maker/lease'
+import { leaseIdentity, type LeaseDependencies } from '../../../src/core/maker/lease'
+import { makePrivateFolder } from './makerTemp'
 
 export function makerProcessDeps(
   overrides: Partial<SerialProcessDependencies> = {},
@@ -39,13 +42,15 @@ export async function makerNativeHelper(
   directory: string,
   transformSource?: (source: string) => string,
 ): Promise<NativeLeaseHelper> {
-  const processDeps = makerProcessDeps()
   if (process.platform !== 'win32')
     return {
       file: '/usr/bin/python3',
       prefix: ['-I', path.resolve('native/posix/serial.py')],
-      process: processDeps,
+      process: makerProcessDeps(),
     }
+  // The compiler and the helper get what production gives them (nativeSerial.ts):
+  // the whole environment without credentials.
+  const processDeps = makerProcessDeps({ env: withoutCredentials(process.env) })
   const file = await prepareWindowsSerialHelper({
     directory,
     systemRoot: process.env['SystemRoot'] ?? String.raw`C:\Windows`,
@@ -79,58 +84,21 @@ export async function makerLeaseDeps(directory: string): Promise<LeaseDependenci
         },
       ),
     )
-  const windowsScript = path.join(directory, 'lease-owner.ps1')
-  if (process.platform === 'win32') {
-    await writeFile(
-      windowsScript,
-      `
-param([string]$Operation, [string]$Target)
-$ErrorActionPreference = 'Stop'
-$user = [Security.Principal.WindowsIdentity]::GetCurrent().User
-if ($Operation -eq 'start') {
-  try { [Diagnostics.Process]::GetProcessById([int]$Target).StartTime.ToUniversalTime().Ticks.ToString() }
-  catch [ArgumentException] { 'absent' }
-  exit
-}
-$acl = Get-Acl -LiteralPath $Target
-if ($Operation -eq 'prepare') {
-  $acl.SetOwner($user)
-  $acl.SetAccessRuleProtection($true, $false)
-  $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($user, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow'))
-  Set-Acl -LiteralPath $Target -AclObject $acl
-  $acl = Get-Acl -LiteralPath $Target
-}
-$private = $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value -eq $user.Value
-foreach ($rule in $acl.Access) {
-  $sid = $rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
-  if ($rule.AccessControlType -eq 'Allow' -and $sid -notin @($user.Value, 'S-1-5-18', 'S-1-5-32-544')) { $private = $false }
-}
-if ($private) { 'private' } else { 'public' }
-`,
-    )
-    await run('powershell.exe', [
-      '-NoProfile',
-      '-ExecutionPolicy',
-      'Bypass',
-      '-File',
-      windowsScript,
-      'prepare',
-      directory,
-    ])
-  }
+  // Windows: the product's own identity reader through the one 5.1 launch, over
+  // a folder made private by the shared fixture. A script of the suite's own, run
+  // with almost no environment, cost more than a case's whole budget on every
+  // hosted Windows fixture of run 41214393586.
+  const windows =
+    process.platform === 'win32'
+      ? leaseIdentity({
+          platform: 'win32',
+          run: runProgram,
+          powershell: windowsPowerShell(process.env['SystemRoot'] ?? String.raw`C:\Windows`),
+        })
+      : undefined
+  if (windows !== undefined) await makePrivateFolder(directory)
   const processStartTime = async (pid: number) => {
-    if (process.platform === 'win32') {
-      const result = await run('powershell.exe', [
-        '-NoProfile',
-        '-ExecutionPolicy',
-        'Bypass',
-        '-File',
-        windowsScript,
-        'start',
-        String(pid),
-      ])
-      return result === 'absent' ? undefined : result
-    }
+    if (windows !== undefined) return await windows.processStartTime(pid)
     if (process.platform === 'linux') {
       try {
         const stat = await readFile(`/proc/${String(pid)}/stat`, 'utf8')
@@ -163,24 +131,15 @@ if ($private) { 'private' } else { 'public' }
     listenOwnerPipe: (endpoint, id, stop) => listenNativeOwnerPipe(helper, endpoint, id, stop),
     processStartTime: (pid) =>
       pid === process.pid ? Promise.resolve(ownStart) : processStartTime(pid),
-    isOwnerDirectory: (folder) => {
-      const previous = ownerChecks.get(folder)
-      if (previous !== undefined) return previous
-      const checked = (async () => {
-        const result = await run('powershell.exe', [
-          '-NoProfile',
-          '-ExecutionPolicy',
-          'Bypass',
-          '-File',
-          windowsScript,
-          'check',
-          folder,
-        ])
-        return result === 'private'
-      })()
-      ownerChecks.set(folder, checked)
-      return checked
-    },
+    ...(windows?.isOwnerDirectory !== undefined && {
+      isOwnerDirectory: (folder: string) => {
+        const previous = ownerChecks.get(folder)
+        if (previous !== undefined) return previous
+        const checked = windows.isOwnerDirectory?.(folder) ?? Promise.resolve(false)
+        ownerChecks.set(folder, checked)
+        return checked
+      },
+    }),
   }
 }
 
