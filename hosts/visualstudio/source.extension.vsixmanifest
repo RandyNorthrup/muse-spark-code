@@ -5,7 +5,7 @@
     <DisplayName>Muse Spark Code (Unofficial)</DisplayName>
     <Description xml:space="preserve">Meta's Muse Spark model as a coding agent in a Visual Studio tool window. Unofficial and open source (MIT): not affiliated with or endorsed by Meta or Microsoft. You bring your own Muse subscription or Meta Model API key.</Description>
     <MoreInfo>https://github.com/RandyNorthrup/muse-spark-code</MoreInfo>
-    <License>LICENSE.txt</License>
+    <License>assets\LICENSE.txt</License>
     <ReleaseNotes>https://github.com/RandyNorthrup/muse-spark-code/blob/main/CHANGELOG.md</ReleaseNotes>
     <Icon>icon.png</Icon>
     <PreviewImage>icon.png</PreviewImage>

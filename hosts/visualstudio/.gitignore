@@ -3,3 +3,5 @@ obj/
 TestResults/
 assets/
 .vs/
+conformance-contract.json
+conformance-observations.json

@@ -16,7 +16,7 @@ namespace MuseSpark.VisualStudio.Panel
   public sealed class PanelView : Grid, IDisposable
   {
     private readonly WebView2 browser = new WebView2();
-    private readonly IPanelChannel channel;
+    private readonly PanelChannel channel;
     private readonly JoinableTaskFactory taskFactory;
     private readonly CancellationTokenSource lifetime = new CancellationTokenSource();
     private string? bootstrapId;
@@ -24,18 +24,17 @@ namespace MuseSpark.VisualStudio.Panel
     private bool loaded;
     private bool navigatingAgain;
 
-    public PanelView(IPanelChannel channel, JoinableTaskFactory taskFactory)
+    public PanelView(PanelChannel channel, JoinableTaskFactory taskFactory)
     {
       this.channel = channel; this.taskFactory = taskFactory;
       Children.Add(browser);
       IsVisibleChanged += VisibilityChanged;
     }
 
-    public async Task InitializeAsync(string assets, UiText text, string kind = "chat")
+    public async Task InitializeAsync(string assets, string browserData, UiText text, string kind)
     {
       await taskFactory.SwitchToMainThreadAsync(lifetime.Token);
-      var userData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MuseSparkCode", "VisualStudio", "WebView2");
-      var environment = await CoreWebView2Environment.CreateAsync(null, userData);
+      var environment = await CoreWebView2Environment.CreateAsync(null, browserData);
       lifetime.Token.ThrowIfCancellationRequested();
       await browser.EnsureCoreWebView2Async(environment);
       lifetime.Token.ThrowIfCancellationRequested();
@@ -102,20 +101,12 @@ namespace MuseSpark.VisualStudio.Panel
       {
         try
         {
-          var frame = channel.ParseWebviewMessage(args.WebMessageAsJson);
-          if (frame.Value<string>("bridge") == "subscribed") { await channel.ReadyAsync(); return; }
-          if (frame.Value<string>("bridge") == "state") { channel.SaveState(frame["state"] ?? throw new Protocol.MhpException("invalidParams", "MHP_PANEL_INVALID_PAYLOAD")); return; }
-          await channel.PostAsync(frame, lifetime.Token);
-          await taskFactory.SwitchToMainThreadAsync(lifetime.Token);
-          browser.CoreWebView2.PostWebMessageAsJson(new JObject { ["bridge"] = "drained", ["surface"] = frame["surface"], ["seq"] = frame["seq"] }.ToString(Formatting.None));
+          await channel.PostAsync(channel.ParseWebviewMessage(args.WebMessageAsJson), lifetime.Token);
         }
         catch (OperationCanceledException) { }
         catch (JsonException) { /* Reject malformed browser input without logging it. */ }
-        catch (Protocol.MhpException error)
-        {
-          await taskFactory.SwitchToMainThreadAsync(lifetime.Token);
-          browser.CoreWebView2.PostWebMessageAsJson(new JObject { ["mhp"] = "1.6", ["kind"] = "panelError", ["surface"] = null, ["seq"] = null, ["code"] = error.Message.StartsWith("MHP_PANEL_", StringComparison.Ordinal) ? error.Message : "MHP_PANEL_INVALID_PAYLOAD" }.ToString(Formatting.None));
-        }
+        // A page message the frozen vocabulary refuses is logged by its fixed code; the page keeps its surface.
+        catch (Protocol.MhpException error) { ActivityLog.LogWarning("Muse Spark Code (Unofficial)", error.Message); }
       }).FileAndForget("MuseSpark/PanelMessage");
     }
 
@@ -133,6 +124,9 @@ namespace MuseSpark.VisualStudio.Panel
         catch (Protocol.MhpException) { /* A channel or page boundary rejected this message. */ }
       });
     }
+
+    // What the page shows a person, as text: the conformance suite's proof that the runtime's frames rendered.
+    internal Task<string> VisibleTextAsync() => browser.CoreWebView2.ExecuteScriptAsync("document.body.innerText");
 
     public void Dispose()
     {

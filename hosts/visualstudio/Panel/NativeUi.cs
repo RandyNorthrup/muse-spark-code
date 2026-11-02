@@ -45,6 +45,19 @@ namespace MuseSpark.VisualStudio.Panel
           case "ui/status":
           case "ui/progress": return UpdateStatus(method, parameters);
           case "commands/register": return Register(parameters);
+          case "commands/run":
+            var id = parameters.Value<string>("id") ?? throw Invalid();
+            if (!commands.ContainsKey(id)) throw new MhpException("unsupportedCapability", "MHP_COMMAND_NOT_REGISTERED");
+            await (Peer ?? throw new MhpException("cancelled", "MHP_UI_CLOSED")).NotifyAsync("commands/execute", new JObject { ["id"] = id });
+            return JValue.CreateNull();
+          case "ui/openFile":
+            var open = new Microsoft.Win32.OpenFileDialog { Title = parameters.Value<string>("title") ?? throw Invalid(), CheckFileExists = true };
+            return open.ShowDialog() == true ? new JValue(new Uri(open.FileName, UriKind.Absolute).AbsoluteUri) : JValue.CreateNull();
+          case "ui/saveText":
+            var save = new Microsoft.Win32.SaveFileDialog { Title = parameters.Value<string>("title") ?? throw Invalid(), FileName = parameters.Value<string>("suggestedName") ?? throw Invalid() };
+            if (save.ShowDialog() != true) return new JValue(false);
+            System.IO.File.WriteAllText(save.FileName, parameters.Value<string>("text") ?? throw Invalid(), new System.Text.UTF8Encoding(false));
+            return new JValue(true);
           default:
             await prompts.WaitAsync(linked.Token);
             try

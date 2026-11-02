@@ -16,11 +16,11 @@ if (-not $msbuild) {
 if ($LASTEXITCODE -ne 0) {
   exit $LASTEXITCODE
 }
-& dotnet test (Join-Path $PSScriptRoot 'Test\MuseSpark.VisualStudio.Test.csproj') --no-restore
+& dotnet test (Join-Path $PSScriptRoot 'Test\MuseSpark.VisualStudio.Test.csproj')
 if ($LASTEXITCODE -ne 0) {
   exit $LASTEXITCODE
 }
-& node --test (Join-Path $PSScriptRoot 'Test\embedded-bridge.test.mjs')
+& node --test (Join-Path $PSScriptRoot 'Test\listing.test.mjs')
 if ($LASTEXITCODE -ne 0) {
   exit $LASTEXITCODE
 }

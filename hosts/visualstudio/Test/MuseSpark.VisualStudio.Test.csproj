@@ -20,12 +20,9 @@
     <Compile Include="..\Panel\RuntimeProcess.cs" Link="Panel\RuntimeProcess.cs" />
     <Compile Include="..\Panel\UiText.cs" Link="Panel\UiText.cs" />
     <Compile Include="..\Panel\RuntimeLocator.cs" Link="Panel\RuntimeLocator.cs" />
-    <Compile Include="..\Panel\IPanelChannel.cs" Link="Panel\IPanelChannel.cs" />
     <Compile Include="..\Panel\PanelChannel.cs" Link="Panel\PanelChannel.cs" />
-    <Compile Include="..\Panel\MhpPanelChannel.cs" Link="Panel\MhpPanelChannel.cs" />
     <Compile Include="..\Panel\NativeUi.cs" Link="Panel\NativeUi.cs" />
-    <Reference Include="System.IO.Compression" />
-    <Reference Include="System.IO.Compression.FileSystem" />
+    <Reference Include="System.Management" />
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
     <Reference Include="WindowsBase" />

@@ -29,7 +29,7 @@ namespace MuseSpark.VisualStudio.Test
         Assert.IsFalse(info.UseShellExecute);
         Assert.IsTrue(info.CreateNoWindow);
         Assert.IsTrue(info.RedirectStandardInput && info.RedirectStandardOutput && info.RedirectStandardError);
-        StringAssert.EndsWith(info.Arguments, " panel --stdio --host visual-studio");
+        StringAssert.EndsWith(info.Arguments, " panel --stdio");
         foreach (var name in keyNames) Assert.IsNull(info.EnvironmentVariables[name], name);
         Assert.IsFalse(info.EnvironmentVariables.Values.Cast<string>().Contains("fixture-marker"));
         Assert.AreEqual("\"C:\\space dir\\\\\"", AssetPolicy.Quote("C:\\space dir\\"));
