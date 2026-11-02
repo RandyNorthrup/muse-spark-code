@@ -6,7 +6,7 @@
 
 pub mod protocol;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
@@ -37,6 +37,13 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 /// even, the ends bias.
 const SPLIT_RATIO_MIN: f32 = 0.1;
 const SPLIT_RATIO_MAX: f32 = 1.9;
+
+/// How long `open_on_desktop` waits for the new window before it stops
+/// verifying placement. The exec rule matches by a token that lives one
+/// second, so a slow client misses the rule; the verify pass moves the
+/// strays explicitly instead.
+const EXEC_VERIFY_TIMEOUT: Duration = Duration::from_secs(15);
+const EXEC_VERIFY_INTERVAL: Duration = Duration::from_millis(500);
 
 /// Everything the Hyprland adapter reports. Displays name the kind, never
 /// the data: paths, titles and replies stay in fields, out of logs.
@@ -368,6 +375,27 @@ impl HyprlandAdapter {
     }
 }
 
+/// Addresses that appeared after an exec and did not land on the target
+/// desktop: the exec rule's token lives one second, so slow clients miss
+/// it and the caller moves these explicitly. Matches a numeric target by
+/// id, a named one by name.
+fn find_stray_windows(
+    before: &HashSet<String>,
+    after: &[WindowInfo],
+    desktop: &str,
+) -> Vec<String> {
+    let numeric = desktop.parse::<i32>().ok();
+    after
+        .iter()
+        .filter(|w| !before.contains(&w.address))
+        .filter(|w| match numeric {
+            Some(id) => w.desktop_id != id,
+            None => w.desktop_name != desktop,
+        })
+        .map(|w| w.address.clone())
+        .collect()
+}
+
 impl CompositorPort for HyprlandAdapter {
     type Error = HyprlandError;
 
@@ -550,7 +578,24 @@ impl CompositorPort for HyprlandAdapter {
         desktop: &str,
         focus: bool,
     ) -> Result<(), HyprlandError> {
-        self.dispatch(&dsp_exec(command, desktop, focus))
+        let before: HashSet<String> = self.windows()?.iter().map(|w| w.address.clone()).collect();
+        self.dispatch(&dsp_exec(command, desktop, focus))?;
+        let deadline = Instant::now() + EXEC_VERIFY_TIMEOUT;
+        loop {
+            let after = self.windows()?;
+            let strays = find_stray_windows(&before, &after, desktop);
+            if !strays.is_empty() {
+                for address in strays {
+                    let window = WindowSelector::Address(address);
+                    self.dispatch(&dsp_move_window(Some(&window), desktop, focus))?;
+                }
+                return Ok(());
+            }
+            if after.len() > before.len() || Instant::now() >= deadline {
+                return Ok(());
+            }
+            std::thread::sleep(EXEC_VERIFY_INTERVAL);
+        }
     }
 
     fn label_desktop(&self, desktop: &str, label: &str) -> Result<(), HyprlandError> {
@@ -809,9 +854,59 @@ impl Iterator for EventStream {
 
 #[cfg(test)]
 mod tests {
-    use super::HyprlandAdapter;
-    use crate::port::CompositorPort;
+    use super::{find_stray_windows, HyprlandAdapter};
+    use crate::port::{CompositorPort, WindowInfo};
+    use std::collections::HashSet;
     use std::path::PathBuf;
+
+    fn window_on(address: &str, desktop_id: i32, desktop_name: &str) -> WindowInfo {
+        WindowInfo {
+            address: address.to_string(),
+            class: "foot".to_string(),
+            title: "foot".to_string(),
+            pid: 1000,
+            desktop_id,
+            desktop_name: desktop_name.to_string(),
+            floating: false,
+            fullscreen: false,
+            pinned: false,
+            monitor: "Virtual-1".to_string(),
+        }
+    }
+
+    #[test]
+    fn strays_are_new_windows_off_the_numeric_target() {
+        let before: HashSet<String> = ["0xaaa".to_string()].into_iter().collect();
+        let after = vec![
+            window_on("0xaaa", 1, "1"),
+            window_on("0xbbb", 3, "3"),
+            window_on("0xccc", 1, "1"),
+        ];
+        assert_eq!(
+            find_stray_windows(&before, &after, "3"),
+            vec!["0xccc".to_string()]
+        );
+    }
+
+    #[test]
+    fn strays_match_a_named_target_by_name() {
+        let before: HashSet<String> = HashSet::new();
+        let after = vec![
+            window_on("0xbbb", 2, "agent:fix"),
+            window_on("0xccc", 1, "1"),
+        ];
+        assert_eq!(
+            find_stray_windows(&before, &after, "agent:fix"),
+            vec!["0xccc".to_string()]
+        );
+    }
+
+    #[test]
+    fn no_strays_when_nothing_new_arrives() {
+        let before: HashSet<String> = ["0xaaa".to_string()].into_iter().collect();
+        let after = vec![window_on("0xaaa", 1, "1")];
+        assert!(find_stray_windows(&before, &after, "3").is_empty());
+    }
 
     #[test]
     fn bind_and_unbind_hold_the_runtime_copy() {
