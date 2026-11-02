@@ -55,7 +55,7 @@ import {
   type SubagentTaskConfirmation,
   type SubagentUsage,
 } from '../../../shared/paid'
-import { redactDiagnosticEvent, redactSecrets } from '../../redact'
+import { redactDiagnosticEvent, redactSecrets, scrubRefusalLeak } from '../../redact'
 import {
   sideCallBody,
   structuredCompaction,
@@ -359,7 +359,6 @@ import {
   type ResponseAttemptGuard,
 } from './client'
 import { canRetryWithinBudget } from './transport'
-import { scrubRefusalLeak } from './providerRefusal'
 import { isPersonRetryCap } from '../../../shared/retryPolicy'
 import { noRetryBudget } from './transport'
 import {

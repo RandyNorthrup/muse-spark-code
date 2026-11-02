@@ -292,6 +292,10 @@ const ACTIVATION_ALLOWED = new Map([
   // the `ide` image tools (M44), whose MODEL_TEXT keys it reads.
   ['imageToolDefinitions.ts', "the IDE server's image tools on Muse Code (M44)"],
   ['sessionStore.ts', "the stored-session format the window's session store reads (D14)"],
+  [
+    'modelApiError.ts',
+    'the request-error shapes the ACP agent, providers and report read without requiring the backend bundle (D6)',
+  ],
   ['goalRecord.ts', "a stored session's goal (D14, M45)"],
   // C-M95-SUB: the subscription key source. Activation reads it for the
   // opt-in readiness gate; the runtime engine (serve) and the headless

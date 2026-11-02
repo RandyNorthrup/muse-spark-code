@@ -20,10 +20,10 @@ import {
   parseRefusalError,
   refusalOf,
   refusalSentence,
-  scrubRefusalLeak,
   type ProviderRefusalKind,
   type RefusalCarrier,
 } from '../../src/core/backends/modelapi/providerRefusal'
+import { scrubRefusalLeak } from '../../src/core/redact'
 
 const FIXTURES = path.resolve('test/fixtures/provider-refusals')
 

@@ -48,9 +48,8 @@ import {
 } from '../../shared/constants'
 import { describeBackendResolution } from '../backendSelection'
 import { BACKEND_KINDS, reportWebviewErrorSchema } from '../../shared/protocol'
-import { redactSecrets } from '../redact'
+import { redactSecrets, scrubRefusalLeak } from '../redact'
 import type { SecretScrubPort } from '../../shared/redact'
-import { scrubRefusalLeak } from '../backends/modelapi/providerRefusal'
 
 const YES = 'yes'
 const NO = 'no'

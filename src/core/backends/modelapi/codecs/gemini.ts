@@ -25,7 +25,7 @@ import {
 } from '../../../../shared/constants'
 import { fill, UI_TEXT } from '../../../../shared/l10n/text'
 
-import { ModelApiError } from '../transport'
+import { ModelApiError } from '../modelApiError'
 import { UserRefusalError } from '../../../refusal'
 import { parseRefusalError } from '../providerRefusal'
 import { CODEC_EMPTY_TOOL_OUTPUT, CODEC_IMAGE_WITHOUT_VISION } from '../../../../shared/constants'

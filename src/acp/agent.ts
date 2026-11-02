@@ -86,7 +86,7 @@ import {
   type LinuxSandboxReadiness,
 } from '../core/backends/musecode/sandbox'
 import { DeadlineError, unlessAborted } from '../core/timeouts'
-import { isMissingApiKeyError, isModelApiError } from '../core/backends/modelapi/transport'
+import { isMissingApiKeyError, isModelApiError } from '../core/backends/modelapi/modelApiError'
 import {
   acpUsageSnapshotSchema,
   readAcpUsage,
