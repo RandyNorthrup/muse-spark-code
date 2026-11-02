@@ -3491,6 +3491,12 @@
     "one": "{count} tur özet hâline getirildi (önce {before} kayıt, sonra {after}).",
     "other": "{count} tur özet hâline getirildi (önce {before} kayıt, sonra {after})."
   },
+  "pinnedAcrossCompaction": "Sıkıştırma sonrasında sabitlendi:",
+  "pinnedAcrossCompactionList": "Sıkıştırma sonrasında sabitlendi:\n{items}",
+  "unpinConstraint": "Sabiti kaldır",
+  "unpinConstraintLabel": "Sabitlenen kısıtı kaldır: {constraint}",
+  "pinnedConstraintRemoved": "Sabitlenen kısıt kaldırıldı: {constraint}",
+  "pinnedConstraintsUnsupported": "Sabitlenen kısıtlar bu arka uçta kullanılamıyor.",
   "referenceManualCompaction": "Konuşmayı /compact ile özetleyin ve son mesajları değiştirmeden koruyun.",
   "autoCompactionName": "Otomatik sıkıştırma",
   "paidConfirmAutoCompaction": "Otomatik sıkıştırma, seçilen modeli {price} fiyatıyla kullanır. Abonelik bu ücreti karşılamaz.",

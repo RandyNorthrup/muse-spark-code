@@ -4281,6 +4281,12 @@ export const EN = {
     one: 'Compacted {count} turn into a summary ({before} entries before, {after} after).',
     other: 'Compacted {count} turns into a summary ({before} entries before, {after} after).',
   }),
+  pinnedAcrossCompaction: 'Pinned across compaction:',
+  pinnedAcrossCompactionList: 'Pinned across compaction:\n{items}',
+  unpinConstraint: 'Unpin',
+  unpinConstraintLabel: 'Unpin the pinned constraint: {constraint}',
+  pinnedConstraintRemoved: 'Pinned constraint removed: {constraint}',
+  pinnedConstraintsUnsupported: 'Pinned constraints are not available on this backend.',
   referenceManualCompaction:
     'Summarize the conversation with /compact and keep recent turns verbatim.',
   autoCompactionName: 'Automatic compaction',

@@ -1435,7 +1435,15 @@ function entryFor(item: ItemSnapshot, at: number, seq: number): TranscriptEntry 
           id: item.itemId,
           itemKind: item.kind,
           status: item.status,
-          text: item.fallbackText ?? item.text,
+          // With pins to list on their own (RLF-PINNED), the row's line is
+          // the short text; the fallback carries the pins for other surfaces.
+          text:
+            item.pinnedConstraints === undefined
+              ? (item.fallbackText ?? item.text)
+              : (item.text ?? item.fallbackText),
+          ...(item.pinnedConstraints !== undefined && {
+            pinnedConstraints: item.pinnedConstraints,
+          }),
         }
       )
     }
@@ -1543,7 +1551,17 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
       }
     }
     case 'item': {
-      return { ...entry, status: item.status, text: item.fallbackText ?? item.text ?? entry.text }
+      return {
+        ...entry,
+        status: item.status,
+        text:
+          item.pinnedConstraints === undefined
+            ? (item.fallbackText ?? item.text ?? entry.text)
+            : (item.text ?? item.fallbackText ?? entry.text),
+        // The latest card wins whole (RLF-PINNED): an unpin re-emits the
+        // compaction item without the pin, or without the field at all.
+        pinnedConstraints: item.pinnedConstraints,
+      }
     }
     case 'teamPlan':
     case 'teamSwitch':

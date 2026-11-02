@@ -3555,6 +3555,12 @@
     "other": "{count} turnos compactados em um resumo ({before} entradas antes, {after} depois).",
     "many": "{count} turnos compactados em um resumo ({before} entradas antes, {after} depois)."
   },
+  "pinnedAcrossCompaction": "Fixado após a compactação:",
+  "pinnedAcrossCompactionList": "Fixado após a compactação:\n{items}",
+  "unpinConstraint": "Desafixar",
+  "unpinConstraintLabel": "Desafixar a restrição fixada: {constraint}",
+  "pinnedConstraintRemoved": "Restrição fixada removida: {constraint}",
+  "pinnedConstraintsUnsupported": "As restrições fixadas não estão disponíveis neste backend.",
   "referenceManualCompaction": "Resuma a conversa com /compact e mantenha as interações recentes sem alterações.",
   "autoCompactionName": "Compactação automática",
   "paidConfirmAutoCompaction": "A compactação automática usa o modelo selecionado por {price}. A assinatura não cobre esse custo.",

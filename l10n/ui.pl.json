@@ -3619,6 +3619,12 @@
     "few": "Zagęszczono {count} tury do podsumowania ({before} wpisy wcześniej, {after} potem).",
     "many": "Zagęszczono {count} tur do podsumowania ({before} wpisów wcześniej, {after} potem)."
   },
+  "pinnedAcrossCompaction": "Przypięte przez kompaktowanie:",
+  "pinnedAcrossCompactionList": "Przypięte przez kompaktowanie:\n{items}",
+  "unpinConstraint": "Odepnij",
+  "unpinConstraintLabel": "Odepnij przypięte ograniczenie: {constraint}",
+  "pinnedConstraintRemoved": "Usunięto przypięte ograniczenie: {constraint}",
+  "pinnedConstraintsUnsupported": "Przypięte ograniczenia nie są dostępne w tym backendzie.",
   "referenceManualCompaction": "Podsumuj rozmowę poleceniem /compact i zachowaj ostatnie wymiany bez zmian.",
   "autoCompactionName": "Automatyczna kompakcja",
   "paidConfirmAutoCompaction": "Automatyczna kompakcja używa wybranego modelu w cenie {price}. Subskrypcja nie pokrywa tego kosztu.",

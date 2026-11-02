@@ -3427,6 +3427,12 @@
   "compactionDoneDetail": {
     "other": "{count}ターンを要約にまとめました（{before}件から{after}件へ）。"
   },
+  "pinnedAcrossCompaction": "圧縮後も固定:",
+  "pinnedAcrossCompactionList": "圧縮後も固定:\n{items}",
+  "unpinConstraint": "固定を外す",
+  "unpinConstraintLabel": "固定した制約を外す: {constraint}",
+  "pinnedConstraintRemoved": "固定した制約を外しました: {constraint}",
+  "pinnedConstraintsUnsupported": "固定した制約はこのバックエンドでは使えません。",
   "referenceManualCompaction": "/compact で会話を要約し、最近のやり取りをそのまま保持します。",
   "autoCompactionName": "自動コンパクション",
   "paidConfirmAutoCompaction": "自動圧縮は選択したモデルを {price} の料金で使用します。サブスクリプションでは支払われません。",

@@ -3619,6 +3619,12 @@
     "few": "{count} хода диалога сжаты в сводку (было записей: {before}, стало: {after}).",
     "many": "{count} ходов диалога сжато в сводку (было записей: {before}, стало: {after})."
   },
+  "pinnedAcrossCompaction": "Закреплено сквозь сжатие:",
+  "pinnedAcrossCompactionList": "Закреплено сквозь сжатие:\n{items}",
+  "unpinConstraint": "Открепить",
+  "unpinConstraintLabel": "Открепить закреплённое ограничение: {constraint}",
+  "pinnedConstraintRemoved": "Закреплённое ограничение удалено: {constraint}",
+  "pinnedConstraintsUnsupported": "Закреплённые ограничения недоступны в этом бэкенде.",
   "referenceManualCompaction": "Сократите разговор с помощью /compact, сохранив последние сообщения без изменений.",
   "autoCompactionName": "Автоматическое сжатие",
   "paidConfirmAutoCompaction": "Автоматическое сжатие использует выбранную модель по тарифу {price}. Подписка не покрывает эти расходы.",

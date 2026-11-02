@@ -3427,6 +3427,12 @@
   "compactionDoneDetail": {
     "other": "已將 {count} 輪對話壓縮為摘要（{before} 條記錄變為 {after} 條）。"
   },
+  "pinnedAcrossCompaction": "已跨壓縮釘選：",
+  "pinnedAcrossCompactionList": "已跨壓縮釘選：\n{items}",
+  "unpinConstraint": "取消釘選",
+  "unpinConstraintLabel": "取消釘選此約束：{constraint}",
+  "pinnedConstraintRemoved": "已移除釘選的約束：{constraint}",
+  "pinnedConstraintsUnsupported": "此後端不支援釘選的約束。",
   "referenceManualCompaction": "使用 /compact 摘要對話，並原樣保留最近的回合。",
   "autoCompactionName": "自動壓縮",
   "paidConfirmAutoCompaction": "自動壓縮以 {price} 的費率使用所選模型。訂閱不承擔此費用。",

@@ -131,6 +131,7 @@ import {
   CODE_INTEL_TOOLS,
   COMPACTION_SUMMARY_MAX_TOKENS,
   COMPACTION_SUMMARY_WINDOW_FRACTION,
+  isConstraintPinningEvaluated,
   COMPACTION_TAIL_MAX_TOKENS,
   NO_COMPACTABLE_HISTORY,
   COMPACTION_TAIL_WINDOW_FRACTION,
@@ -490,6 +491,12 @@ import {
   type AutoCompactDecision,
 } from './autoCompact'
 import {
+  extractPinnedConstraints,
+  mergePinnedConstraints,
+  pinnedConstraintsItem,
+  withoutPinnedConstraints,
+} from './constraintPins'
+import {
   AutoCompactionNotAuthorizedError,
   isAutoCompactionNotAuthorizedError,
 } from '../../paid/paidConsent'
@@ -736,6 +743,8 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   readonly autoCompaction?: (() => boolean) | undefined
   /** Lane E's bounded evaluation override; production uses the certified latch. */
   readonly autoCompactionEvaluated?: (() => boolean) | undefined
+  /** RLF-PINNED's bounded evaluation override; production uses the certified latch. */
+  readonly constraintPinning?: (() => boolean) | undefined
   /**
   The context-full stop in the installed language. The editor names the
   manual remedies; ACP names the approval, exec the opt-in flag and the
@@ -1748,6 +1757,8 @@ const RUNNING = 'running'
 const NOOP = 'noop'
 const ACCEPTED = 'accepted'
 const COMPACTION_TURN_ID = 'compaction'
+/** The pinned-constraints replay entry's id (RLF-PINNED): no turn owns it. */
+const PINNED_TURN_ID = 'pinned-constraints'
 // A replayed picture (`contentPartsFor`): `data:<media type>;base64,<data>`.
 const DATA_URL = /^data:([^;,]+);base64,(.+)$/s
 const MODEL_API_ERROR_KIND = 'modelApi'
@@ -3186,6 +3197,15 @@ export class ModelApiSession implements ScheduledAgentSession {
   */
   private restoredPackedTokens: number | undefined
   private restoredPackedCallIds: readonly string[] | undefined
+  /**
+  The person's pinned side constraints (RLF-PINNED), verbatim in stated
+  order: captured from user turns, saved with the session, and re-sent
+  after every accepted compaction's summary. The compaction item that
+  shows them, so an unpin updates the card the person is looking at.
+  */
+  private pinnedConstraints: string[] = []
+  private compactionItemId: string | undefined
+  private compactionItemPaid = false
   private mediaNoticeSent = false
   /**
   The PDFs and images `read_file` read this round (M54): they follow the
@@ -6744,6 +6764,53 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (entry !== undefined) {
       this.transcript[index] = { turnId: entry.turnId, item }
     }
+  }
+
+  private isConstraintPinningOn(): boolean {
+    return this.deps.constraintPinning?.() ?? isConstraintPinningEvaluated()
+  }
+
+  /**
+  The compaction card as the person sees it (RLF-PINNED): what is pinned
+  rides the card verbatim, in `pinnedConstraints` for surfaces that offer
+  unpin and in the fallback text for every other surface.
+  */
+  private compactionItemSnapshot(itemId: string, isPaid: boolean): ItemSnapshot {
+    const pins = this.pinnedConstraints
+    return {
+      itemId,
+      kind: 'compaction',
+      status: COMPLETED,
+      ...(isPaid && { paid: 'autoCompaction' as const }),
+      ...(pins.length > 0 && { pinnedConstraints: [...pins], text: UI_TEXT.compactionDone }),
+      fallbackText:
+        pins.length === 0
+          ? UI_TEXT.compactionDone
+          : `${UI_TEXT.compactionDone}\n${fill(UI_TEXT.pinnedAcrossCompactionList, {
+              items: pins.map((pin) => `- ${pin}`).join('\n'),
+            })}`,
+    }
+  }
+
+  /** Keep a live pinned replay entry byte-for-byte with the session's pins. */
+  private refreshPinnedReplayEntry(): void {
+    const index = this.replay.findIndex((entry) => entry.turnId === PINNED_TURN_ID)
+    if (index === -1) return
+    const item = pinnedConstraintsItem(this.pinnedConstraints)
+    if (item === undefined) {
+      this.replay.splice(index, 1)
+      return
+    }
+    const entry = this.replay[index]
+    if (entry !== undefined) this.replay[index] = { ...entry, item }
+  }
+
+  /** Re-show the compaction card with the pins as they now stand. */
+  private updateCompactionCard(): void {
+    if (this.compactionItemId === undefined) return
+    const item = this.compactionItemSnapshot(this.compactionItemId, this.compactionItemPaid)
+    this.emit({ type: 'itemCompleted', item })
+    this.rerecordTranscript(item)
   }
 
   private async appendUserMessage(
@@ -16210,6 +16277,9 @@ export class ModelApiSession implements ScheduledAgentSession {
           },
         }
         this.replay.push(entry)
+        // A steered message is a user turn too (RLF-PINNED): its stated
+        // constraints pin like a queued turn's.
+        this.noteUserConstraints(typedText(parts))
         if (turn.scheduleRun !== undefined)
           this.recordContent(entry, turn.scheduleRun, {
             kind: 'harness',
@@ -17162,6 +17232,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.verifyState().ledger.beginTurn()
     this.active = turn
     if (!queued.isGoalWake) this.autoCompact.newUserTask()
+    // The person's own stated constraints pin from the words they typed
+    // (RLF-PINNED); wakes, reviews and playbacks state none of theirs.
+    if (!queued.isGoalWake && queued.isPlayback !== true && queued.isReview !== true) {
+      this.noteUserConstraints(typedText(queued.parts))
+    }
     // A message of the user's puts them back in the loop: the Auto reviewer
     // may answer again (M78). A goal's wake is not one.
     if (!queued.isGoalWake) {
@@ -17916,7 +17991,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const turns = [
       ...new Set(
         this.replay
-          .filter((entry) => entry.turnId !== COMPACTION_TURN_ID)
+          .filter((entry) => entry.turnId !== COMPACTION_TURN_ID && entry.turnId !== PINNED_TURN_ID)
           .map((entry) => entry.turnId),
       ),
     ]
@@ -18118,6 +18193,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
       return false
     const kept = new Set(this.compactionTail(window).map((entry) => entry.turnId))
+    // The pinned block stays after the new summary (RLF-PINNED): its tokens
+    // are retained context, never part of what a compaction removes.
+    kept.add(PINNED_TURN_ID)
     const measured = measureAutoCompactRequest(sent.body, sent.turnIds, kept)
     if (measured === undefined) return false
     const summaryBudget = Math.max(
@@ -18347,6 +18425,9 @@ export class ModelApiSession implements ScheduledAgentSession {
           ...this.fastJudge().keepForCompaction(tail, this.replay, this.fastLastRequest),
         ]),
       ]
+      // The pinned block is rebuilt from session state at acceptance
+      // (RLF-PINNED); it never rides the tail, so it cannot land twice.
+      tail = tail.filter((entry) => entry.turnId !== PINNED_TURN_ID)
       const tailTurns = new Set(tail.map((entry) => entry.turnId)).size
       snapshot = `${MODEL_API_MODEL_TEXT.compactionFiles}\n${JSON.stringify({ ...this.compactionFiles(), keptEntries: tail.filter((entry) => entry.turnId !== COMPACTION_TURN_ID).length })}\n\n${MODEL_API_MODEL_TEXT.compactionTodos}\n${JSON.stringify(this.todos.filter((todo) => todo.status !== 'completed'))}`
       const isUpdate = this.replay[0]?.turnId === COMPACTION_TURN_ID
@@ -18382,6 +18463,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       // The last POST supplies cache metadata only. Stop, fitting and hook
       // rewrites can replace replay entries; its saved input is never replayed.
       const cached = canReuse && prefix?.body.model === modelId ? prefix.body : undefined
+      // The pinned block is never sent through the summariser (RLF-PINNED):
+      // it leaves the summary request whole and is re-sent verbatim after
+      // the accepted summary instead.
+      const unpinnedInput = withoutPinnedConstraints(current.input, this.pinnedConstraints)
       const body = this.keyed({
         ...current,
         ...(cached !== undefined && {
@@ -18389,7 +18474,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         }),
         input: this.budget.fit(
           [
-            ...(this.media?.summaryInput(current.input) ?? current.input).filter(
+            ...(this.media?.summaryInput(unpinnedInput) ?? unpinnedInput).filter(
               (item) => canReplayReasoning || !isReasoningItem(item),
             ),
             append,
@@ -18481,6 +18566,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       project: (inputs) => inputs,
     })
     this.compactedThroughTurnId = this.turnIds.at(-1)
+    // The pinned block re-sends verbatim right after the summary entry, on
+    // this and every later request until unpinned (RLF-PINNED). It is
+    // rebuilt from session state here, never from the summary.
+    const pinnedItem = pinnedConstraintsItem(this.pinnedConstraints)
     this.replay.splice(
       0,
       this.replay.length,
@@ -18498,6 +18587,15 @@ export class ModelApiSession implements ScheduledAgentSession {
           ],
         },
       },
+      ...(pinnedItem === undefined
+        ? []
+        : [
+            {
+              turnId: PINNED_TURN_ID,
+              provenance: this.vaultTaint.derived(),
+              item: pinnedItem,
+            },
+          ]),
       ...tail,
     )
     // No await sits between the replacement and this continuation: a new
@@ -18520,13 +18618,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
     this.packing?.reset()
     await this.appendHookContexts(COMPACTION_TURN_ID, postContexts)
-    const item: ItemSnapshot = {
-      itemId: this.deps.newId(),
-      kind: 'compaction',
-      status: COMPLETED,
-      ...(extraAdmission !== undefined && !isSummaryFork && { paid: 'autoCompaction' as const }),
-      fallbackText: UI_TEXT.compactionDone,
-    }
+    const item: ItemSnapshot = this.compactionItemSnapshot(
+      this.deps.newId(),
+      extraAdmission !== undefined && !isSummaryFork,
+    )
+    this.compactionItemId = item.itemId
+    this.compactionItemPaid = item.paid !== undefined
     this.emit({ type: 'itemCompleted', item })
     this.recordTranscript(COMPACTION_TURN_ID, item)
     this.touch()
@@ -18798,7 +18895,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     // Only a new summary fork overrides the same-session NOOP, never C2's paid guard.
     if (isSummaryFork && this.replay.some((entry) => entry.turnId === COMPACTION_TURN_ID))
       return true
-    const entries = this.replay.filter((entry) => entry.turnId !== COMPACTION_TURN_ID).length
+    const entries = this.replay.filter(
+      (entry) => entry.turnId !== COMPACTION_TURN_ID && entry.turnId !== PINNED_TURN_ID,
+    ).length
     return (
       entries > 0 &&
       (this.transcript.at(-1)?.item.kind !== 'compaction' ||
@@ -19771,7 +19870,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const size = (): { turns: number; entries: number } => ({
       turns: new Set(
         this.replay
-          .filter((entry) => entry.turnId !== COMPACTION_TURN_ID)
+          .filter((entry) => entry.turnId !== COMPACTION_TURN_ID && entry.turnId !== PINNED_TURN_ID)
           .map((entry) => entry.turnId),
       ).size,
       entries: this.replay.length,
@@ -20141,6 +20240,42 @@ export class ModelApiSession implements ScheduledAgentSession {
   turn that implements it. Refused while a turn or a compaction holds the
   session, where `todo_write` may be replacing the list.
   */
+  /**
+  Capture one user turn's stated side constraints (RLF-PINNED):
+  deterministic and additive, so the turn's own words stay the record
+  until a compaction re-sends them after its summary.
+  */
+  public noteUserConstraints(text: string): void {
+    if (!this.isConstraintPinningOn() || this.isSubagent) return
+    const found = extractPinnedConstraints(text)
+    if (found.length === 0) return
+    const merged = mergePinnedConstraints(this.pinnedConstraints, found)
+    if (merged.length === this.pinnedConstraints.length) return
+    this.pinnedConstraints = merged
+    this.refreshPinnedReplayEntry()
+    this.updateCompactionCard()
+    this.touch()
+  }
+
+  /** What is pinned, verbatim and in stated order (RLF-PINNED). */
+  public pinnedConstraintList(): readonly string[] {
+    return [...this.pinnedConstraints]
+  }
+
+  /**
+  Remove one pin (RLF-PINNED): the block the model next reads and the
+  compaction card change together. False when the text is not pinned.
+  */
+  public unpinConstraint(text: string): boolean {
+    const kept = this.pinnedConstraints.filter((pin) => pin !== text)
+    if (kept.length === this.pinnedConstraints.length) return false
+    this.pinnedConstraints = kept
+    this.refreshPinnedReplayEntry()
+    this.updateCompactionCard()
+    this.touch()
+    return true
+  }
+
   public setTodos(items: readonly TodoItem[]): void {
     if (this.active !== undefined || this.compacting !== undefined) {
       throw new Error(UI_TEXT.planWaitForTurn)
@@ -20416,6 +20551,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),
       ...(this.hookTokensAdded > 0 && { hookTokensAdded: this.hookTokensAdded }),
       ...(packedCallIds !== undefined && { packedCallIds }),
+      ...(this.pinnedConstraints.length > 0 && {
+        pinnedConstraints: [...this.pinnedConstraints],
+      }),
       ...(this.spawnCommands.size > 0 && { spawnCommands: Object.fromEntries(this.spawnCommands) }),
       // M96 lane T: the declared delegation family, so a resumed
       // conversation keeps its declared set, with its `command_id` claims.
@@ -20542,6 +20680,14 @@ export class ModelApiSession implements ScheduledAgentSession {
     // The packing store does not exist yet (it loads on the first turn);
     // ensurePacking replays these onto the fresh store.
     this.restoredPackedCallIds = stored.packedCallIds
+    // The pins resume with the session (RLF-PINNED), like the packing
+    // ledger above; the card that shows them is the last compaction's.
+    this.pinnedConstraints = [...(stored.pinnedConstraints ?? [])]
+    const lastCompaction = this.transcript.findLast(
+      (entry) => entry.item.kind === 'compaction' && entry.item.status === COMPLETED,
+    )
+    this.compactionItemId = lastCompaction?.item.itemId
+    this.compactionItemPaid = lastCompaction?.item.paid !== undefined
     this.status = IDLE
     this.pendingChildResults.push(
       // TOOLCAP: a restored reply enters through the bound like a new one.
@@ -20640,6 +20786,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     const kept = new Set(completed.slice(0, cut + 1))
     kept.add(COMPACTION_TURN_ID)
+    kept.add(PINNED_TURN_ID)
     const replay = this.replay.filter((entry) => kept.has(entry.turnId))
     const copied = this.media?.snapshot(replay) ?? replay
     // TOOLCAP: a fork is a conversation: whole outputs a restore brought
@@ -20664,10 +20811,37 @@ export class ModelApiSession implements ScheduledAgentSession {
       ),
     )
     target.restoredPackedCallIds = packedIds.filter((id) => keptOutputIds.has(id))
+    // A fork (and with it a rewind) keeps the pins its kept turns stated
+    // (RLF-PINNED), as it keeps the sticky ids above: the ones the copied
+    // user words — or the copied pinned block — still carry.
+    const keptPins = new Set(
+      boundedCopied.flatMap((entry) =>
+        entry.item.type === 'message' && entry.item.role === 'user'
+          ? extractPinnedConstraints(
+              entry.item.content
+                .flatMap((part) => (part.type === 'input_text' ? part.text : []))
+                .join('\n'),
+            )
+          : [],
+      ),
+    )
+    target.pinnedConstraints = this.pinnedConstraints.filter((pin) => keptPins.has(pin))
+    target.refreshPinnedReplayEntry()
     // The fork's store does not exist yet (it loads on the first turn);
     // ensurePacking replays these onto the fresh store.
     const retained = this.transcript.filter((entry) => kept.has(entry.turnId))
     target.transcript.push(...withoutRunning(retained))
+    // The fork's compaction card shows the fork's pins, not the source's.
+    const forkCompaction = target.transcript.findLast(
+      (entry) => entry.item.kind === 'compaction' && entry.item.status === COMPLETED,
+    )
+    target.compactionItemId = forkCompaction?.item.itemId
+    target.compactionItemPaid = forkCompaction?.item.paid !== undefined
+    if (target.compactionItemId !== undefined) {
+      target.rerecordTranscript(
+        target.compactionItemSnapshot(target.compactionItemId, target.compactionItemPaid),
+      )
+    }
     target.turnIds.push(...completed.slice(0, cut + 1))
     target.compactedThroughTurnId = completed[compactedIndex]
     const copiedNotes = new Set(target.replay.flatMap((entry) => entry.backgroundTaskId ?? []))
@@ -21256,12 +21430,17 @@ export class ModelApiHost implements AgentHost {
     // No same-values skip: the per-session queue coalesces rapid persists
     // into one trailing write, so the running total after a call reaches
     // the store even when the snapshot matches the queued one (D208).
-    const { budgetSpentUsd: _unsaved, ...saved } = last
+    // The snapshot's pins replace the saved ones whole (RLF-PINNED): an
+    // unpin at this boundary must not resurrect from the last save.
+    const { budgetSpentUsd: _unsaved, pinnedConstraints: _savedPins, ...saved } = last
     return this.queueSave(
       {
         ...saved,
         usage: snapshot.usage,
         ...(packedCallIds !== undefined && { packedCallIds }),
+        ...(snapshot.pinnedConstraints !== undefined && {
+          pinnedConstraints: snapshot.pinnedConstraints,
+        }),
         ...(snapshot.budgetSpentUsd !== undefined && { budgetSpentUsd: snapshot.budgetSpentUsd }),
       },
       store,

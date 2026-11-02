@@ -3427,6 +3427,12 @@
   "compactionDoneDetail": {
     "other": "已将 {count} 轮对话压缩为摘要（{before} 条记录变为 {after} 条）。"
   },
+  "pinnedAcrossCompaction": "已跨压缩固定：",
+  "pinnedAcrossCompactionList": "已跨压缩固定：\n{items}",
+  "unpinConstraint": "取消固定",
+  "unpinConstraintLabel": "取消固定此约束：{constraint}",
+  "pinnedConstraintRemoved": "已移除固定的约束：{constraint}",
+  "pinnedConstraintsUnsupported": "此后端不支持固定的约束。",
   "referenceManualCompaction": "使用 /compact 总结对话，并原样保留最近的轮次。",
   "autoCompactionName": "自动压缩",
   "paidConfirmAutoCompaction": "自动压缩以 {price} 的费率使用所选模型。订阅不承担此费用。",

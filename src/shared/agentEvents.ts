@@ -182,6 +182,12 @@ export const itemSnapshotFields = {
   patchSummary: z.optional(patchSummarySchema),
   /** Server one-liner for kinds the UI does not know. */
   fallbackText: optionalString,
+  /**
+  `compaction`: the person's pinned side constraints, verbatim in stated
+  order (RLF-PINNED), so the card can show each one with its unpin.
+  Absent where nothing is pinned.
+  */
+  pinnedConstraints: z.optional(z.array(stringSchema)),
   /** `userMessage`: image attachment metadata (no bytes), for replayed history (M6). */
   attachments: z.optional(z.array(messageAttachmentSchema)),
   /** `subagent`: the child as spawned, its control state and transitive usage (M14). */
