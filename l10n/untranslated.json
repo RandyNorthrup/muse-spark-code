@@ -329,7 +329,8 @@
       "nodeDiagnostics.logTrace",
       "nodeDiagnostics.logInfo",
       "nodeDiagnostics.logFatal",
-      "nodeDiagnostics.logDebug"
+      "nodeDiagnostics.logDebug",
+      "desktop.panelSeverity.information"
     ],
     "es": [
       "hooksItem",
@@ -360,7 +361,8 @@
       "desktop.workbenchTerminal",
       "desktop.workbenchStatusTerminals.one",
       "nodeDiagnostics.traceError",
-      "nodeDiagnostics.logFatal"
+      "nodeDiagnostics.logFatal",
+      "desktop.panelSeverity.error"
     ],
     "pt-br": [
       "agentTokens",
@@ -449,7 +451,8 @@
       "nodeDiagnostics.statMax",
       "nodeDiagnostics.logTrace",
       "nodeDiagnostics.logInfo",
-      "nodeDiagnostics.logFatal"
+      "nodeDiagnostics.logFatal",
+      "desktop.panelSeverity.information"
     ],
     "it": [
       "usageAccount",

@@ -53,7 +53,15 @@ export const UI_TEXT_REGIONS = [
     // setup wizard and its CLI steps, the Judge section, the judge's paid
     // asks, the device and desktop surfaces (M100), the per-provider request
     // headers editor and the playbook.
-    keys: /^(?:tab|paid\w*Tab|usagePaidTab|report(?!Usage$)|whatsNew|vault$|judgeSetupWizard$|judgeSetupCli$|judgeRecommend$|judgePanel$|paidConfirmJudge\w*|devices$|desktop$|editorGroup$|providerHeaders|playbook|fallback\w*$|presentationRolesTitle$|presentationTrafficTitle$)/,
+    keys: /^(?:tab|paid\w*Tab|usagePaidTab|report(?!Usage$)|whatsNew|vault$|judgeSetupWizard$|judgeSetupCli$|judgeRecommend$|judgePanel$|paidConfirmJudge\w*|devices$|providerHeaders|playbook|fallback\w*$|presentationRolesTitle$|presentationTrafficTitle$)/,
+  },
+  // Muse Desktop's own surfaces (M111): the workbench, editor group and
+  // bottom panel words, split from surfaces at CC-INT10 so each region
+  // keeps its budget (D6).
+  {
+    name: 'desktop',
+    output: 'dist/uiTextDesktop.js',
+    keys: /^(?:desktop$|editorGroup$)/,
   },
 ]
 

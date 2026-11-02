@@ -27,7 +27,11 @@ await Promise.all([
     outfile: `${outdir}/main.mjs`,
     format: 'esm',
     platform: 'node',
-    external: ['electron'],
+    // node-pty stays external (M111 D91.13 lane BP): its native
+    // binding cannot bundle, so the packaged app carries the staged
+    // module beside main.mjs (scripts/stage-desktop-pty.mjs), and a
+    // dev run resolves the checkout's own copy.
+    external: ['electron', 'node-pty'],
   }),
   esbuild.build({
     ...shared,
@@ -39,9 +43,16 @@ await Promise.all([
   }),
   esbuild.build({
     ...shared,
+    // The terminal engine ships lazily (M111 D91.13 lane BP): code
+    // splitting pulls the xterm chunk out of the startup path. Chunk
+    // names stay hash-free so the size budgets name fixed files; the
+    // desktop ships its folder whole, never through a cache.
     entryPoints: ['src/webview/desktop/main.tsx'],
-    outfile: `${outdir}/renderer.js`,
-    format: 'iife',
+    outdir,
+    entryNames: 'renderer',
+    chunkNames: 'renderer.[name]',
+    splitting: true,
+    format: 'esm',
     platform: 'browser',
     jsx: 'automatic',
   }),

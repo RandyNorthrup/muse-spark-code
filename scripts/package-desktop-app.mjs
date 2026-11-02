@@ -5,6 +5,7 @@
 // installer belong to the packaging lanes (M111i/IM); this script is the
 // development package the smoke run and the Debian VM use.
 
+import { execFileSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { FuseV1Options, FuseVersion, flipFuses } from '@electron/fuses'
@@ -30,6 +31,11 @@ writeFileSync(
   path.join(resourcesApp, 'package.json'),
   `${JSON.stringify({ name: 'muse-desktop', version: '0.0.0', main: 'main.mjs', type: 'module', private: true })}\n`,
 )
+
+// Lane BP (D91.13): the packaged terminal needs node-pty compiled for
+// Electron's ABI beside main.mjs; without it only the panel's failure
+// sentence answers.
+execFileSync(process.execPath, ['scripts/stage-desktop-pty.mjs'], { stdio: 'inherit' })
 
 const binaryName = process.platform === 'win32' ? 'electron.exe' : 'electron'
 const binaryPath = path.join(outdir, binaryName)

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
-  DEFAULT_WORKBENCH_LAYOUT,
+  DEFAULT_WORKBENCH_LAYOUT_V2,
   desktopStatusItemSchema,
   statusPublishRequestSchema,
-  workbenchLayoutSchema,
+  workbenchLayoutV2Schema,
 } from '../../../src/shared/desktop/bridge'
 import {
   KeybindingRegistry,
@@ -14,13 +14,11 @@ import {
   isDesktopPermissionGranted,
   isExternalUrlAllowed,
   freshLayout,
-  isStoredLayout,
   isTerminalPanelVisible,
   layoutStorageKey,
   moveTerminal,
   nextTerminalAfterClose,
   orderStatusItems,
-  parseStoredLayout,
   quickOpenScore,
   rankQuickOpen,
   workspaceKey,
@@ -39,19 +37,21 @@ describe('M111 lane WB workbench logic', () => {
   })
 
   it('stored layouts round-trip and corrupt records are refused by name', () => {
-    expect(parseStoredLayout(DEFAULT_WORKBENCH_LAYOUT)).toEqual(DEFAULT_WORKBENCH_LAYOUT)
-    expect(isStoredLayout(DEFAULT_WORKBENCH_LAYOUT)).toBe(true)
-    expect(isStoredLayout({ ...DEFAULT_WORKBENCH_LAYOUT, version: 2 })).toBe(false)
-    expect(isStoredLayout(null)).toBe(false)
-    expect(() => workbenchLayoutSchema.parse({ ...DEFAULT_WORKBENCH_LAYOUT, extra: 1 })).toThrow()
+    expect(workbenchLayoutV2Schema.parse(DEFAULT_WORKBENCH_LAYOUT_V2)).toEqual(
+      DEFAULT_WORKBENCH_LAYOUT_V2,
+    )
+    expect(() =>
+      workbenchLayoutV2Schema.parse({ ...DEFAULT_WORKBENCH_LAYOUT_V2, extra: 1 }),
+    ).toThrow()
     expect(freshLayout().openFiles).toEqual([])
+    expect(freshLayout().tabSlots).toEqual({})
   })
 
   it('terminal placement moves follow D91.13 (detached floats)', () => {
     expect(moveTerminal(freshLayout(), 'detach').terminalPlacement).toBe('floating')
     const collapsed = moveTerminal(freshLayout(), 'collapse')
     expect(collapsed.terminalPlacement).toBe('footer')
-    expect(collapsed.activeFooterTab).toBe('terminal')
+    expect(collapsed.panelView).toBe('terminal')
     const hidden = moveTerminal(freshLayout(), 'hide')
     expect(hidden.terminalPlacement).toBe('hidden')
     expect(moveTerminal(hidden, 'show').terminalPlacement).toBe('docked')

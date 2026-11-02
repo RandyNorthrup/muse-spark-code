@@ -8964,6 +8964,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/uiTextRuntime.js',
   'dist/uiTextHooks.js',
   'dist/uiTextSurfaces.js',
+  'dist/uiTextDesktop.js',
   'dist/wire.js',
   'dist/resourceProcess.js',
   'dist/resourceGovernor.js',
@@ -12137,6 +12138,10 @@ export const DESKTOP_FILE_SCAN_IGNORED = [
 export const DESKTOP_LOG_TEXT = {
   permissionDenied: 'permission denied by the desktop shell',
   navigationDenied: 'navigation outside the workbench was blocked',
+  // Lane BP (D91.13): the app scheme's read failed past missing-file.
+  appFileFailed: 'the workbench window could not read its own file',
+  // Lane BP (D91.13): the PTY spawn or the native load refused.
+  terminalCreateFailed: 'the terminal could not be started',
 } as const
 export const DESKTOP_LAYOUT_BOUNDS = {
   chatWidthMinPx: 200,
@@ -12163,3 +12168,29 @@ export const DESKTOP_THUMBNAIL_FPS = 10
 // M111 lane CP (D91.15): where a headed app opens when the person never
 // chose (`desktop.placement`): a new desktop of its own.
 export const DESKTOP_PLACEMENT_DEFAULT = 'new-desktop'
+// Muse Desktop (M111, D91.13) lane BP: the bottom panel's tunables and wire
+// bounds. The output bounds cite D95's per-stream 1 MiB precedent (the threat
+// model keeps at most 1 MiB per stream, discards and counts the rest); the
+// request bound matches D95's 64 KiB frame.
+export const DESKTOP_PANEL_KEYBOARD_RESIZE_PX = 40
+export const DESKTOP_FLOATING_MIN_WIDTH_PX = 320
+export const DESKTOP_FLOATING_MIN_HEIGHT_PX = 160
+export const DESKTOP_TERMINAL_LABEL_MAX_CHARS = 120
+export const DESKTOP_TERMINAL_COMMAND_MAX_CHARS = 500
+export const DESKTOP_OUTPUT_CHANNEL_NAME_MAX_CHARS = 80
+export const DESKTOP_OUTPUT_APPEND_MAX_CHARS = 65_536
+export const DESKTOP_OUTPUT_CHANNEL_MAX_CHARS = 1_048_576
+export const DESKTOP_PROCESS_TREE_TIMEOUT_MS = 5000
+export const DESKTOP_TERMINAL_DEFAULT_COLS = 80
+export const DESKTOP_TERMINAL_DEFAULT_ROWS = 24
+// Lane BP (D91.13): split panes keep at least a tenth of the split each
+// way, and the sash's arrow keys move a twentieth at a time.
+export const DESKTOP_SPLIT_MIN_FRACTION = 0.1
+export const DESKTOP_SPLIT_KEYBOARD_STEP = 0.05
+// Lane BP (D91.13): the workbench window's own scheme. ES module chunks
+// (the lazy terminal engine first, every M111b lane's after it) cannot
+// load over file://, so main serves its folder over this privileged,
+// same-origin scheme instead — the standard Electron answer, as VS Code's
+// own schemes are. Only this host answers, from the app folder only.
+export const DESKTOP_APP_SCHEME = 'muse-desktop'
+export const DESKTOP_APP_HOST = 'app'

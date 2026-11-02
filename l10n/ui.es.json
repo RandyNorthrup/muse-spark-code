@@ -630,8 +630,8 @@
     },
     "unresolvedCount": {
       "one": "{count} intento sin resolver",
-      "many": "{count} intentos sin resolver",
-      "other": "{count} intentos sin resolver"
+      "other": "{count} intentos sin resolver",
+      "many": "{count} intentos sin resolver"
     },
     "title": "Dispositivos",
     "pair": "Emparejar dispositivo",
@@ -1018,8 +1018,11 @@
   "referenceSendKeys": "Enviar el borrador con el gesto elegido por useCtrlEnterToSend.",
   "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
   "referenceNodeEditorKeys": "Save the open file.",
-  "referenceDesktopTerminalKeys": "Ejecutar la línea escrita en la terminal de Muse Desktop.",
   "referenceEditorGroupKeys": "Move between tabs, cycle tabs, focus a group by number, or close the menu.",
+  "referenceDesktopResizeKeys": "Hacer el panel más alto o más bajo.",
+  "referenceDesktopTerminalSearchKeys": "Moverse entre las coincidencias de búsqueda del terminal o cerrar la barra de búsqueda.",
+  "referenceDesktopProblemsKeys": "Moverse por los problemas y abrir el seleccionado.",
+  "referenceDesktopPanelTabsKeys": "Moverse entre las pestañas del panel inferior.",
   "referenceThinking": "Elige cuánto esfuerzo dedica Muse a cada respuesta. Pensamiento: Activado = effort; Desactivado = museCode:none / modelApi:minimal.",
   "referenceSandbox": "En Windows, cuando esta ventana usa el aislamiento de shell de Muse Code, configúrelo con una aprobación de administrador y abra una conversación nueva. shellSandbox=\"off\" no requiere configuración.",
   "referenceSetup": "Ejecutar los hooks Setup de init de spark-hooks.json en un espacio de trabajo de confianza.",
@@ -3205,8 +3208,8 @@
   "questionExpired": "Caducada",
   "questionsExpiredNotice": {
     "one": "Una pregunta anterior caducó sin respuesta: solo las {max} preguntas más recientes permanecen abiertas. Su texto se conserva en su tarjeta.",
-    "many": "{count} de preguntas anteriores caducaron sin respuesta: solo las {max} preguntas más recientes permanecen abiertas. Su texto se conserva en sus tarjetas.",
-    "other": "{count} preguntas anteriores caducaron sin respuesta: solo las {max} preguntas más recientes permanecen abiertas. Su texto se conserva en sus tarjetas."
+    "other": "{count} preguntas anteriores caducaron sin respuesta: solo las {max} preguntas más recientes permanecen abiertas. Su texto se conserva en sus tarjetas.",
+    "many": "{count} de preguntas anteriores caducaron sin respuesta: solo las {max} preguntas más recientes permanecen abiertas. Su texto se conserva en sus tarjetas."
   },
   "questionAnswer": "Responder",
   "questionDismiss": "Cerrar sin responder",
@@ -7824,7 +7827,53 @@
     "keyNext": "Escritorio siguiente",
     "keyCycleNext": "Cambiar a la ventana siguiente",
     "keyCyclePrevious": "Cambiar a la ventana anterior",
-    "keyFocusBar": "Mover el foco a la barra"
+    "keyFocusBar": "Mover el foco a la barra",
+    "panelTerminals": "Terminales",
+    "panelCollapsedPanels": "Paneles contraídos",
+    "panelViews": "Vistas del panel",
+    "panelSplitTerminal": "Dividir terminal",
+    "panelPin": "Fijar panel",
+    "panelHide": "Ocultar panel",
+    "panelStop": "Detener",
+    "panelReadOnly": "solo lectura",
+    "panelFind": "Buscar en el terminal",
+    "panelFindPlaceholder": "Buscar",
+    "panelFindNext": "Siguiente coincidencia",
+    "panelFindPrevious": "Coincidencia anterior",
+    "panelFindClose": "Cerrar búsqueda",
+    "panelFindCase": "Distinguir mayúsculas",
+    "panelFindWord": "Palabras completas",
+    "panelFindRegex": "Expresión regular",
+    "panelFindCount": "{current} de {total}",
+    "panelFindNoResults": "Sin resultados",
+    "panelCloseRunning": "Es posible que este terminal siga ejecutando un comando. ¿Cerrarlo de todos modos?",
+    "panelCloseConfirm": "Cerrar",
+    "panelCancel": "Cancelar",
+    "panelRetry": "Reintentar",
+    "panelProblemLabel": "{severity}: {message} en {path} en la línea {line}",
+    "panelOutputChannel": "Canal de salida",
+    "panelClearOutput": "Borrar salida",
+    "panelOutputTruncated": {
+      "one": "{count} carácter truncado",
+      "other": "{count} caracteres truncados",
+      "many": "{count} caracteres truncados"
+    },
+    "panelRegion": "Panel inferior",
+    "panelFloating": "Panel flotante",
+    "panelOnTop": "Mantener encima",
+    "panelSash": "Divisor de paneles",
+    "panelResizeHandle": "Cambiar el tamaño del panel",
+    "panelTerminalLoading": "Cargando el terminal…",
+    "panelTerminalFailed": "No se pudo cargar el terminal.",
+    "panelTerminalCreateFailed": "No se pudo iniciar el terminal.",
+    "panelTabExited": "{title}, salió con el código {code}",
+    "panelNoTerminals": "No hay terminales abiertas.",
+    "panelSeverity": {
+      "error": "Error",
+      "warning": "Advertencia",
+      "information": "Información",
+      "hint": "Sugerencia"
+    }
   },
   "referenceMakers": "Revise la carga útil exacta tras un digest SHA-256 y luego Envíe una vez o Rechace. Habilitar el hardware requiere la comprobación de la cuenta del SO; Detener nunca.",
   "makerDetectBuild": "Compilar {target}",
@@ -7903,8 +7952,8 @@
   "makerClearSearch": "Borrar búsqueda",
   "makerLongSearch": {
     "one": "Se muestran los primeros {shown} de {count} caracteres de búsqueda. Borra para editar; la búsqueda usa la consulta completa.",
-    "many": "Se muestran los primeros {shown} de {count} caracteres de búsqueda. Borra para editar; la búsqueda usa la consulta completa.",
-    "other": "Se muestran los primeros {shown} de {count} caracteres de búsqueda. Borra para editar; la búsqueda usa la consulta completa."
+    "other": "Se muestran los primeros {shown} de {count} caracteres de búsqueda. Borra para editar; la búsqueda usa la consulta completa.",
+    "many": "Se muestran los primeros {shown} de {count} caracteres de búsqueda. Borra para editar; la búsqueda usa la consulta completa."
   },
   "makerNextHighlight": "Siguiente resaltado",
   "makerHighlightPosition": "Resaltado {current} de {count}",
@@ -7916,8 +7965,8 @@
   "makerSummaryUnknown": "Desconocido",
   "makerTemperatureSettings": {
     "one": "Temperatura configurada ({shown}/{count}): {temperatures}. Máxima: {maximum}.",
-    "many": "Temperaturas configuradas (primeras {shown} de {count} distintas): {temperatures}. Máxima: {maximum}.",
-    "other": "Temperaturas configuradas (primeras {shown} de {count} distintas): {temperatures}. Máxima: {maximum}."
+    "other": "Temperaturas configuradas (primeras {shown} de {count} distintas): {temperatures}. Máxima: {maximum}.",
+    "many": "Temperaturas configuradas (primeras {shown} de {count} distintas): {temperatures}. Máxima: {maximum}."
   },
   "makerDangerTemperature": "Una temperatura supera un límite seguro, o su límite es desconocido.",
   "makerDangerTravel": "El movimiento supera los límites de recorrido, o sus límites son desconocidos.",
@@ -7958,8 +8007,8 @@
   "makerResetView": "Restablecer vista",
   "makerDeviceCount": {
     "one": "{count} dispositivo",
-    "many": "{count} dispositivos",
-    "other": "{count} dispositivos"
+    "other": "{count} dispositivos",
+    "many": "{count} dispositivos"
   },
   "jsonExpectedComma": "Se esperaba una coma",
   "jsonInvalidSyntax": "Sintaxis JSON no válida",

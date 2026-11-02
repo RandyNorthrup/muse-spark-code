@@ -275,6 +275,8 @@ temp/planfix0190/d2-summary.txt Full record:
 | `mdast-util-from-markdown` / `micromark-extension-gfm` / `mdast-util-gfm` / `mdast-util-to-markdown` | 2.0.3 / 3.0.0 / 3.1.0 / 2.1.2     |
 | `smol-toml`                                                                                          | 1.8.0                             |
 | `@xterm/xterm` / `addon-fit` / `headless`                                                            | 6.0.0 / 0.11.0 / 6.0.0            |
+| `@xterm/addon-webgl` / `addon-search` / `addon-web-links` / `addon-unicode11`                        | 0.19.0 / 0.16.0 / 0.12.0 / 0.9.0  |
+| `node-pty`                                                                                           | 1.1.0                             |
 | `string-width` / `wrap-ansi`                                                                         | 8.3.0 / 10.0.2                    |
 | `ink` / `ink-testing-library`                                                                        | 6.3.1 / 4.0.0                     |
 | `sigstore`                                                                                           | 5.0.0                             |
@@ -348,6 +350,10 @@ temp/planfix0190/d2-summary.txt Full record:
 **`smol-toml`** — Codex `config.toml` for the import from other agents (M83): a TOML 1.0 parser with no dependencies, BSD-3-Clause, bundled only in the lazily loaded `dist/agentImport.js`. No peer dependencies; `npm audit` clean; 1.9.0 was inside the seven-day release window, and 1.8.0 was already in the lockfile through knip. A hand-written subset (the first draft) misread sub-tables such as `[mcp_servers.x.env]` and multi-line arrays, both in real Codex files.
 
 **`@xterm/xterm` / `@xterm/addon-fit` / `@xterm/headless`** — M110a0 U2: the node workspace's terminal tabs render a real emulator (xterm.js 6 with `screenReaderMode`, fitted by `addon-fit`); the session suite drives the headless build as its emulator. MIT; no dependencies; no peers; `npm audit` clean. Only the terminal's lazy chunk carries them (343.9 KiB of its 400 KiB budget); the workspace startup holds none. Dev-only since RLF-NOTICES (2026-10-30, `docs/certification/cc-notices.md`): no shipped bundle's metafile lists them — the workspace build that carries them runs only in tests — so they left `dependencies`; the workspace's own notices still travel with that build.
+
+**`@xterm/addon-webgl` / `@xterm/addon-search` / `@xterm/addon-web-links` / `@xterm/addon-unicode11`** — M111 lane BP (D91.13's amendment): the bottom panel's terminal engine is xterm.js with the addons VS Code uses — WebGL rendering, search, links and Unicode 11 widths. MIT; no dependencies; no peers; published 2025-12-22, past the seven-day window; canonical `security:audit` exits 0 with them in the tree (2026-10-31). Dev-only like the other `@xterm/*` packages: the desktop renderer is not a VSIX bundle, so no shipped metafile lists them; the desktop installer's notices (M111i) travel with that build.
+
+**`node-pty`** — M111 lane BP: the desktop terminal's pseudoterminal, the same module VS Code's terminal and the node tool host's PTY abstraction (`NodePtyFactory`) are built on, and the version `scripts/package-node-image.mjs` already expects (1.1.0). MIT; one dependency, `node-addon-api` ^7 (build-time); no peers; published 2026-10-23, past the seven-day window; canonical `security:audit` exits 0 (2026-10-31). The binding compiles from source at install (no Linux prebuilds), and `scripts/stage-desktop-pty.mjs` compiles the Electron-ABI copy the desktop build stages — `npm run build` itself stays toolchain-free. D90's "node-pty lives only in the tool host" keeps it out of the node _service_ process; the desktop's main process is the local tool host, running as the person with `*_API_KEY` stripped from every child's environment. Dev-only: no VSIX metafile lists it; the desktop installer's notices (M111i) travel with that build.
 
 **`codemirror` / `@codemirror/merge`** — M110a0 U1: the node workspace's editor and diff views (CodeMirror 6, MIT; no peers; `npm audit` clean). Dev-only (RLF-NOTICES, 2026-10-30, `docs/certification/cc-notices.md`): RLM110A0 added them to `dependencies` without a D3 record; no shipped bundle's metafile lists them — only the test-run workspace build — so they moved to `devDependencies` with the `@xterm/*` packages.
 
@@ -27881,6 +27887,23 @@ security` threshold; the OS images' QEMU boot test and their reproducibility
         live or paid call without CLAUDE.md's count first
 
 ### M111 — Muse Desktop: the host edition's own shell (D91)
+
+**Status 2026-11-01 (RLF-M111BP): building.** Lane BP landed on lane WB.
+The bottom panel runs the person's real shell on a real PTY (node-pty,
+staged for Electron's ABI) behind xterm.js with the WebGL, search, links
+and Unicode 11 addons: docked and pinned, unpinned, detached and
+floating, collapsed into the footer, hidden or exited; tabs, split
+panes, keyboard resize and the screen-reader tree; Problems (M68's
+shapes) and Output (channel logs). Proven in the packaged app under
+Xvfb through CDP (typed keys reach bash, output streams back, exit
+lands the tab and its sentence, split/collapse/detach/pin round-trip,
+both empty states honest) with light and dark looks. Agents' tabs are
+labelled read-only with Stop and carry the run id SB2's Live peek will
+key on; Problems/Output suppliers (ED's checks, WS's dev servers, task
+runners) are later lanes', so the empty states are the honest ones. The
+record, the red/green drills and the looks are in
+`docs/certification/rlf-m111bp.md`. SH1, SH2, ED, SB1 and the settings
+lanes have not started; nothing is installable yet (M111i owns that).
 
 **Status 2026-10-30 (RLF-M111WB): building.** Lane WB landed. The Electron
 workbench shell is built and proven on linuxlt: single instance, one window
