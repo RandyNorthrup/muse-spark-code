@@ -3555,6 +3555,12 @@
     "other": "{count} tours condensés en un résumé ({before} entrées avant, {after} après).",
     "many": "{count} tours condensés en un résumé ({before} entrées avant, {after} après)."
   },
+  "pinnedAcrossCompaction": "Épinglé malgré le compactage :",
+  "pinnedAcrossCompactionList": "Épinglé malgré le compactage :\n{items}",
+  "unpinConstraint": "Désépingler",
+  "unpinConstraintLabel": "Désépingler la contrainte épinglée : {constraint}",
+  "pinnedConstraintRemoved": "Contrainte épinglée retirée : {constraint}",
+  "pinnedConstraintsUnsupported": "Les contraintes épinglées ne sont pas disponibles sur ce backend.",
   "referenceManualCompaction": "Résumez la conversation avec /compact et conservez les échanges récents tels quels.",
   "autoCompactionName": "Compaction automatique",
   "paidConfirmAutoCompaction": "La compression automatique utilise le modèle sélectionné au tarif de {price}. L’abonnement ne couvre pas ce coût.",

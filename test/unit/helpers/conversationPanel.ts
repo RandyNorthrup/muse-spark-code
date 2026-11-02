@@ -101,6 +101,8 @@ export function modelApiRig(
     apiKey?: () => Promise<string | undefined>
     /** Configured providers' models (a real providers file), listed with no Meta key. */
     models?: ModelResolver
+    /** RLF-PINNED's evaluation override, as the eval driver arms it. */
+    constraintPinning?: boolean
   },
 ): ModelApiRig {
   let ids = 0
@@ -173,6 +175,9 @@ export function modelApiRig(
     store,
     ...(loadExtensionHooks !== undefined && { loadExtensionHooks }),
     ...(options?.models !== undefined && { models: options.models }),
+    ...(options?.constraintPinning !== undefined && {
+      constraintPinning: () => options.constraintPinning === true,
+    }),
   }
   return { host: new ModelApiHost(deps), store, warnings, errors }
 }

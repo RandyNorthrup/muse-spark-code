@@ -517,6 +517,22 @@ body {
   font-family: var(--ms-font-code);
 }
 
+/* A compaction's pinned constraints (RLF-PINNED): each with its Unpin. */
+.pinned-constraints {
+  display: block;
+}
+
+.pinned-constraints ul {
+  margin: 0;
+  padding-inline-start: var(--ms-space-4);
+}
+
+.pinned-constraints li {
+  display: flex;
+  gap: var(--ms-gap);
+  align-items: baseline;
+}
+
 /* --- sequence run row (M88): above the composer while a run goes --- */
 .sequence-run {
   display: flex;

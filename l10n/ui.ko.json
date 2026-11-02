@@ -3427,6 +3427,12 @@
   "compactionDoneDetail": {
     "other": "{count}턴을 요약으로 압축했습니다(이전 {before}개 항목, 이후 {after}개 항목)."
   },
+  "pinnedAcrossCompaction": "압축 후에도 고정됨:",
+  "pinnedAcrossCompactionList": "압축 후에도 고정됨:\n{items}",
+  "unpinConstraint": "고정 해제",
+  "unpinConstraintLabel": "고정된 제약 해제: {constraint}",
+  "pinnedConstraintRemoved": "고정된 제약이 제거됨: {constraint}",
+  "pinnedConstraintsUnsupported": "고정된 제약은 이 백엔드에서 사용할 수 없습니다.",
   "referenceManualCompaction": "/compact로 대화를 요약하고 최근 대화는 그대로 유지합니다.",
   "autoCompactionName": "자동 압축",
   "paidConfirmAutoCompaction": "자동 압축은 선택한 모델을 {price} 요금으로 사용합니다. 구독으로 이 비용을 지불할 수 없습니다.",
