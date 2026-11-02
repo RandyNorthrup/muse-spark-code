@@ -6196,6 +6196,16 @@ export const EN = {
   // Retry on a failed turn the backend judged retryable (RLF-ACPTURNS):
   // the error row's button resends the turn's own message.
   turnRetryAction: 'Retry',
+  // Resume after a limit (M88, D67 item 16): the error row's button
+  // schedules the fixed resume prompt at the offer's default minute.
+  resumeLaterAction: 'Resume later…',
+  // A limit lifting more than six days out gets no resume timer (D67):
+  // the error row says when it lifts instead. `{time}` is the Intl
+  // date-time of the lift.
+  resumeLimitLifts: 'The limit lifts {time}.',
+  // A spent Model API session budget (D67): no timer refills it, so the
+  // error row offers the budget setting, then Continue.
+  budgetSettingAction: 'Budget setting',
   // The retry was refused: the turn's message is gone, it failed beyond
   // retrying, or the conversation moved on. Sending again still works.
   turnRetryUnavailable: 'That turn can no longer be retried. Send your message again.',

@@ -31,6 +31,9 @@ import {
   type CheckpointRestoreBlocker,
   CHECKPOINT_INITIAL_AVAILABILITY,
   DEFAULT_EFFORT,
+  MODEL_API_BUDGET_ERROR_KIND,
+  RATE_LIMITED_ERROR_KIND,
+  RESUME_LIMIT_DEFAULT_DELAY_MS,
   type DictationEngine,
   type DictationUiStatus,
   type EffortLevel,
@@ -105,9 +108,11 @@ import {
   withSendFailed,
 } from './gitState'
 import { backgroundRun } from '../toolDetails'
+import { resumeOfferFor } from '../../shared/resumeOffer'
 import {
   type ChildTranscript,
   type ContextSummary,
+  type ErrorResumeOffer,
   hasImageAttachment,
   type NoticeLevel,
   type OutputRef,
@@ -2065,6 +2070,36 @@ function admitQueued(
     : transcript
 }
 
+/**
+The failed turn's resume offer (M88, D67 item 16): a spent budget offers
+its setting and Continue, never a timer; a rate limit or a spent window
+offers Resume later at the fitted default, or says when the limit lifts
+when it lifts more than six days out. Anything else offers nothing.
+*/
+function resumeOfferOf(
+  event: Extract<AgentEvent, { type: 'turnCompleted' }>,
+  at: number,
+): ErrorResumeOffer | undefined {
+  if (event.terminal !== 'failed') return undefined
+  if (event.errorKind === MODEL_API_BUDGET_ERROR_KIND) {
+    return { kind: 'budget', turnId: event.turnId }
+  }
+  const liftsAtMs =
+    event.quota === undefined
+      ? event.errorKind === RATE_LIMITED_ERROR_KIND
+        ? at + (event.rateLimit?.retryAfterMs ?? RESUME_LIMIT_DEFAULT_DELAY_MS)
+        : undefined
+      : event.quota.resetsAtMs
+  if (liftsAtMs === undefined || !Number.isFinite(liftsAtMs) || liftsAtMs < 0) {
+    return undefined
+  }
+  const kind = event.quota === undefined ? 'rateLimit' : 'quota'
+  const offer = resumeOfferFor(at, liftsAtMs)
+  return offer.kind === 'timer'
+    ? { kind, turnId: event.turnId, defaultAtMs: offer.defaultAtMs }
+    : { kind, turnId: event.turnId, liftsAtMs: offer.liftsAtMs }
+}
+
 /** A turn of the conversation ended (M25 settles the rows it left behind). */
 function completeTurn(
   state: UiState,
@@ -2077,6 +2112,7 @@ function completeTurn(
     // A subagent's own turn ended: its transcript settles, the conversation runs on.
     return mapChildEntries(state, child.childSessionId, (entries) => settleAll(entries, at))
   }
+  const resume = resumeOfferOf(event, at)
   const failure: readonly TranscriptEntry[] =
     event.terminal === 'failed'
       ? [
@@ -2092,6 +2128,7 @@ function completeTurn(
             ...(reportRef !== undefined && { reportRef }),
             ...(event.errorKind !== undefined && { errorKind: event.errorKind }),
             ...(event.retryable === true && { retryTurnId: event.turnId }),
+            ...(resume !== undefined && { resume }),
           },
         ]
       : []
