@@ -148,8 +148,8 @@ describe('node reverse-proxy sign-in', () => {
 
 describe('node ACME answers', () => {
   it('builds the RFC 8557 key authorization and dns-01 digest', () => {
-    const challenge = { token: 'evaGxfADs6pSRb2LAv9IZf17D', thumbprint: 'JWK-thumbprint' }
-    expect(acmeKeyAuthorization(challenge)).toBe('evaGxfADs6pSRb2LAv9IZf17D.JWK-thumbprint')
+    const challenge = { token: 'example-acme-challenge-token', thumbprint: 'JWK-thumbprint' }
+    expect(acmeKeyAuthorization(challenge)).toBe('example-acme-challenge-token.JWK-thumbprint')
     const digest = acmeDns01Digest(challenge)
     expect(digest).toMatch(/^[A-Za-z0-9_-]{43}$/)
     expect(acmeDns01Digest({ ...challenge, token: 'other' })).not.toBe(digest)
