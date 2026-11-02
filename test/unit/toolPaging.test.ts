@@ -16,6 +16,19 @@ const HITS: SearchHit[] = Array.from({ length: 5 }, (_, index) => ({
   text: `hit ${String(index + 1)}`,
 }))
 
+/** The real tool IO over a fixed listing, as a host hands it to the tools. */
+function toolIoFor(names: readonly string[]) {
+  return createToolIo({
+    platform: process.platform,
+    listFiles: () => Promise.resolve([...names]),
+    systemRoot: undefined,
+    env: () => ({}),
+    searchWorkerPath: '',
+    log: () => undefined,
+    unsavedFiles: () => [],
+  })
+}
+
 describe('search paging', () => {
   it('pages content hits with the total kept', () => {
     const first = searchPage(HITS, 'content', 2, 0)
@@ -63,15 +76,7 @@ describe('list_files end to end', () => {
   function contextFor(): {
     run: (args: unknown) => Promise<{ output: string; failure: string | undefined }>
   } {
-    const io = createToolIo({
-      platform: process.platform,
-      listFiles: () => Promise.resolve([...names]),
-      systemRoot: undefined,
-      env: () => ({}),
-      searchWorkerPath: '',
-      log: () => undefined,
-      unsavedFiles: () => [],
-    })
+    const io = toolIoFor(names)
     const ctx: ToolContext = {
       workspaceRoot: root,
       platform: process.platform,
@@ -132,15 +137,7 @@ describe('sensitive files in search (D261)', () => {
   const names = ['.env', '.env.example', 'cert.pem', 'index.ts']
 
   function contextWith(sensitiveReads: unknown): ToolContext {
-    const io = createToolIo({
-      platform: process.platform,
-      listFiles: () => Promise.resolve([...names]),
-      systemRoot: undefined,
-      env: () => ({}),
-      searchWorkerPath: '',
-      log: () => undefined,
-      unsavedFiles: () => [],
-    })
+    const io = toolIoFor(names)
     return {
       workspaceRoot: root,
       platform: process.platform,

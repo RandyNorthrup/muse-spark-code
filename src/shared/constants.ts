@@ -9690,8 +9690,7 @@ export const MODEL_API_MODEL_TEXT = {
     'is refused: the user’s permission settings deny the file tools this path; do not try to read it another way',
   // D261: after the file's name, where no card can be shown (a hook
   // handler's own agent turn): the sensitive file was not read.
-  sensitiveReadRefused:
-    'is a sensitive file and was not read: reading it asks the user first; do not try to read it another way',
+  sensitiveReadRefused: 'is a sensitive file and was not read',
   // M45 (PLAN.md D38): the goal tools' refusals.
   goalUnfinishedExists:
     'cannot create a new goal because this session has an unfinished goal; complete the existing goal first',
