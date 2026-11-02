@@ -244,7 +244,7 @@ codepoints; 0 problems` (exit 0, this rig, 2026-11-02).
 - `258307b35` the wallpapers and greeter art.
 - `f7ac2afe8` the Plymouth and GRUB themes.
 - `57ae43f15` the companion's 2x, HC and still variants, manifest and provenance.
-- (Docs commit SHA lands here at commit time.)
+- `5be6e8f3b` the docs, look sheet and gate record.
 
 ## Gates
 
