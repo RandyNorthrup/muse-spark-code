@@ -153,6 +153,7 @@ import {
   MuseCodeFaultError,
   PromptSettledError,
   type PromptSettledReason,
+  SessionNotFoundError,
   SessionNotLoadedError,
   SteerRefusedError,
 } from '../../agent/agentBackend'
@@ -925,6 +926,24 @@ function settledOr(error: unknown): unknown {
   return reason === undefined ? error : new PromptSettledError(reason, error.message)
 }
 
+const SESSION_NOT_FOUND = 'sessionNotFound'
+const MSP_METHOD_NOT_FOUND = 'methodNotFound'
+
+/**
+A resume the store cannot serve as a `SessionNotFoundError`; anything else
+unchanged. Two shapes, both meaning the history cannot come back: the
+store's own `sessionNotFound` (the binary's exported error table names it,
+-32020, not retryable), and `methodNotFound` from a host that serves no
+store at all (an ephemeral host unserves `session/read` and
+`session/resume`; measured 2026-11-02 on CLI 1.4.14).
+*/
+function resumeRefusedOr(error: unknown, sessionId: string): unknown {
+  return error instanceof MspError &&
+    (error.kind === SESSION_NOT_FOUND || error.kind === MSP_METHOD_NOT_FOUND)
+    ? new SessionNotFoundError(sessionId)
+    : error
+}
+
 const FAULT_MARKERS: Readonly<Record<MuseCodeFault, string>> = {
   approvalReplay: MUSE_APPROVAL_REPLAY_FAULT,
   approvalLedger: MUSE_APPROVAL_LEDGER_FAULT,
@@ -1251,6 +1270,15 @@ function pause(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms)
   })
+}
+
+/**
+A write that failed because the other end is gone: over the stdio transport
+the host only ever closes stdin on its way out, so a broken pipe names a
+dead host. Matched on Node's stable `code`, never the message.
+*/
+function isPipeGoneError(error: unknown): boolean {
+  return error instanceof Error && 'code' in error && error.code === 'EPIPE'
 }
 
 /**
@@ -1972,6 +2000,50 @@ export class MuseSession implements ScheduledAgentSession {
         }
       }
     }
+  }
+
+  /**
+  A stop call (cancel, interrupt, stop-all) on a dead host is already done:
+  nothing runs there to stop, so the call is skipped and the state is named,
+  never sent into a log line that says only `Error`. The pre-check covers a
+  processed exit; the catch covers the exit that lands, or landed
+  unprocessed, during the call.
+  */
+  private async unlessHostGone(verb: string, action: () => Promise<unknown>): Promise<void> {
+    if (this.channel.signal.aborted) {
+      this.log.info(`session ${this.sessionId} ${verb} skipped: its host already exited`)
+      return
+    }
+    try {
+      await action()
+    } catch (error: unknown) {
+      if (await this.isHostGone(error)) {
+        this.log.info(`session ${this.sessionId} ${verb} skipped: its host exited during the call`)
+        return
+      }
+      throw error
+    }
+  }
+
+  /**
+  Whether the host is gone now: its channel aborted, the call failed on a
+  broken pipe, or the connection already finished. Read fresh in its own
+  scope: the exit it reports can land while a call is in flight.
+  */
+  private async isHostGone(error: unknown): Promise<boolean> {
+    return (
+      this.channel.signal.aborted || isPipeGoneError(error) || (await this.isConnectionFinished())
+    )
+  }
+
+  /**
+  Whether the MSP connection already finished, observed without waiting: an
+  already-settled `closed` wins the microtask race (it is subscribed first),
+  while a live connection loses to the resolved fallback.
+  */
+  private async isConnectionFinished(): Promise<boolean> {
+    const live = Symbol('connection-live')
+    return (await Promise.race([this.channel.connection.closed, Promise.resolve(live)])) !== live
   }
 
   /** The single wire decision whose outcome every caller of this stage sees. */
@@ -2743,6 +2815,10 @@ export class MuseSession implements ScheduledAgentSession {
 
   /** Ask the host to stop the running turn gracefully. */
   public async cancel(scheduledOwner?: UnattendedRun): Promise<void> {
+    if (this.channel.signal.aborted) {
+      this.log.info(`session ${this.sessionId} turn/cancel skipped: its host already exited`)
+      return
+    }
     const token = this.owner.token()
     await this.rejectPartlyDecided()
     if (
@@ -2750,15 +2826,19 @@ export class MuseSession implements ScheduledAgentSession {
       (scheduledOwner !== undefined && !this.owner.canCancel(token, scheduledOwner))
     )
       return
-    await this.command('turn/cancel', {})
+    await this.unlessHostGone('turn/cancel', () => this.command('turn/cancel', {}))
   }
 
   /** Stop the running turn immediately. */
   public async interrupt(): Promise<void> {
+    if (this.channel.signal.aborted) {
+      this.log.info(`session ${this.sessionId} turn/interrupt skipped: its host already exited`)
+      return
+    }
     const token = this.owner.token()
     await this.rejectPartlyDecided()
     if (!this.owner.matches(token)) return
-    await this.command('turn/interrupt', {})
+    await this.unlessHostGone('turn/interrupt', () => this.command('turn/interrupt', {}))
   }
 
   /** Durable model selection; applies from the next model call. */
@@ -2929,7 +3009,7 @@ export class MuseSession implements ScheduledAgentSession {
 
   /** `task/stopAll` (M46): every background task; accepted over none too. */
   public async stopAllTasks(): Promise<void> {
-    await this.command('task/stopAll', {})
+    await this.unlessHostGone('task/stopAll', () => this.command('task/stopAll', {}))
   }
 
   /**
@@ -4187,9 +4267,13 @@ export class MuseCodeHost implements AgentHost {
     options?: { readonly requireSideChat?: boolean; readonly permissionProfile?: string },
   ): Promise<LoadedSession> {
     // `session/read` does not attach or restart queued turns (captured M6 envelope).
-    const stored = sessionEnvelopeSchema.parse(
-      await this.command('session/read', { sessionId, excludeItems: true }),
-    )
+    let read: unknown
+    try {
+      read = await this.command('session/read', { sessionId, excludeItems: true })
+    } catch (error: unknown) {
+      throw resumeRefusedOr(error, sessionId)
+    }
+    const stored = sessionEnvelopeSchema.parse(read)
     const owner = this.hardwareOwner(stored.session.workspaceRoot ?? undefined)
     owner.startSession()
     const assertCanResume = () => {
@@ -4201,8 +4285,9 @@ export class MuseCodeHost implements AgentHost {
     }
     assertCanResume()
     const { loaded, hasPending } = await this.opened(async () => {
-      const envelope = sessionEnvelopeSchema.parse(
-        await this.command(
+      let resumed: unknown
+      try {
+        resumed = await this.command(
           'session/resume',
           {
             sessionId,
@@ -4216,8 +4301,11 @@ export class MuseCodeHost implements AgentHost {
           },
           undefined,
           assertCanResume,
-        ),
-      )
+        )
+      } catch (error: unknown) {
+        throw resumeRefusedOr(error, sessionId)
+      }
+      const envelope = sessionEnvelopeSchema.parse(resumed)
       return {
         loaded: this.loaded(envelope, modelId),
         hasPending: (envelope.pendingRequests ?? []).length > 0,

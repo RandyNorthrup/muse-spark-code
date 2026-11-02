@@ -59,6 +59,8 @@ import {
 import {
   type AgentHost,
   type AgentSession,
+  type HostExit,
+  type LoadedSession,
   isModeKeptError,
   isMuseCodeFaultError,
   isPermissionReviewerError,
@@ -126,7 +128,10 @@ import {
   UI_TEXT,
   SLASH_COMMAND_NAMES,
   WHATS_NEW_CONTENT_FILE,
+  INDUSTRY_RETRY_MAX_RETRIES,
+  MODEL_API_RETRY_JITTER_MS,
 } from '../shared/constants'
+import { INDUSTRY_RETRY_LIMITS, retryDelayMs } from '../shared/retryPolicy'
 import { isCredentialStoreDown } from '../host/auth/credentialStore'
 import {
   effortForThinking,
@@ -453,13 +458,52 @@ export function turnFailureError(event: TurnCompleted): RequestError {
 }
 
 /**
-A dead backend's prompt error (RLF-ACPTURNS): never retryable. The session
-is released with its host (`watch` calls `releaseAll` beside `hostExited`),
-so resubmitting the prompt into this session cannot work; the client
-starts a new session instead, which is a new turn, not a retry.
+A dead backend's prompt error (RLF-ACPTURNS, RLF-ACPRECOVER): retryable
+when sending the prompt again can work. An unexpected, non-persistent exit
+(a crash) can: the next prompt brings the backend back and re-attaches
+this session, like the panel's Retry. An expected exit (the session is
+going away deliberately) or a persistent one (the CLI refuses to run as
+configured) cannot: resending without fixing that first is futile.
 */
-export function hostExitError(description: string): RequestError {
-  return new RequestError(ACP_ERROR_CODES.unavailable, description, { retryable: false })
+export function hostExitError(exit: HostExit): RequestError {
+  return new RequestError(ACP_ERROR_CODES.unavailable, exit.description, {
+    retryable: !exit.isExpected && !exit.isPersistent,
+  })
+}
+
+/**
+A `session/set_mode` id parsed against what this agent offers: Bypass is
+not for maker sessions, and anything else must be one of the available
+modes. One validation for a live session and a detached one (whose mode
+is remembered and applies when the backend comes back).
+*/
+function parsePermissionMode(
+  modeId: string,
+  options: {
+    readonly canBypass: boolean
+    readonly isHardware: boolean
+    readonly hasMakerTools: boolean
+  },
+): PermissionMode {
+  if (modeId === 'bypassPermissions' && options.hasMakerTools)
+    throw RequestError.invalidParams(undefined, modeId)
+  const mode = availablePermissionModes(options.canBypass, options.isHardware).find(
+    (candidate) => candidate === modeId,
+  )
+  if (mode === undefined) {
+    throw RequestError.invalidParams(undefined, modeId)
+  }
+  return mode
+}
+
+/**
+A re-attach attempt that lost its session meanwhile: a load adopted the
+id, or a close gave it up. Only the registry's claim failure reads this
+way inside a re-attach (a refused resume reads as a refused resume), so
+the attempt re-reads instead of retrying blindly.
+*/
+function isReattachClaimLoss(error: unknown): boolean {
+  return isOutboundRequestError(error) && error.code === RESOURCE_NOT_FOUND_CODE
 }
 
 interface PendingPrompt {
@@ -899,6 +943,7 @@ class AcpSession {
     private activeTurnId: string | undefined,
     private readonly noteChoice: () => void,
     private readonly makerTools?: AcpMakerSession,
+    private readonly onDetached?: (exit: HostExit) => void,
   ) {
     this.sessionId = session.sessionId
     this.peekTap = new PeekTap(createPeekScrubHook(deps.scrubService))
@@ -2743,6 +2788,18 @@ class AcpSession {
     this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
   }
 
+  /**
+  The agent's own words about this session's backend (a restart it came
+  back from): a notice where the client shows one, else the protocol's
+  sanctioned agent-message fallback, exactly as a backend's own notice.
+  */
+  public backendNotice(text: string, level: 'info' | 'warning' | 'error' = 'info'): void {
+    const updates = this.translator.updates({ type: 'backendNotice', level, text })
+    for (const update of updates) {
+      this.send(update)
+    }
+  }
+
   public async startAccounts(): Promise<void> {
     // Ordinary sessions never depend on accounts: a failing port leaves the
     // session working without accounts instead of failing adoption.
@@ -3011,15 +3068,11 @@ class AcpSession {
   }
 
   public async setMode(modeId: string): Promise<void> {
-    if (modeId === 'bypassPermissions' && this.makerTools !== undefined)
-      throw RequestError.invalidParams(undefined, modeId)
-    const mode = availablePermissionModes(
-      this.deps.options.canBypass,
-      this.deps.isHardwareWorkspace?.(this.cwd) === true,
-    ).find((candidate) => candidate === modeId)
-    if (mode === undefined) {
-      throw RequestError.invalidParams(undefined, modeId)
-    }
+    const mode = parsePermissionMode(modeId, {
+      canBypass: this.deps.options.canBypass,
+      isHardware: this.deps.isHardwareWorkspace?.(this.cwd) === true,
+      hasMakerTools: this.makerTools !== undefined,
+    })
     this.ensureHeld()
     await this.inModeOrder(async () => {
       try {
@@ -3929,8 +3982,14 @@ class AcpSession {
   }
 
   /** The backend went away: the running prompt ends with its reason. */
-  public hostExited(description: string): void {
-    const error = hostExitError(description)
+  public hostExited(exit: HostExit): void {
+    // An unexpected exit detaches the session for a later prompt, which
+    // brings the backend back and re-attaches it; an expected one is a
+    // deliberate close, so nothing is recorded.
+    if (!exit.isExpected) {
+      this.onDetached?.(exit)
+    }
+    const error = hostExitError(exit)
     if (this.preparing !== undefined) {
       this.preparing.error = error
       this.preparing.abandonElicitation?.()
@@ -4077,6 +4136,17 @@ class AcpSession {
   }
 }
 
+/**
+A session whose backend died under it, kept resumable: the working folder
+the restart runs in and the exit that detached it. A later prompt (or
+setting) brings the backend back and re-attaches the session instead of
+answering that the session is not found; a close gives it up.
+*/
+interface DetachedSession {
+  readonly cwd: string
+  readonly exit: HostExit
+}
+
 /** The agent's state across the connection: the client's capabilities and the live sessions. */
 class AgentState {
   /**
@@ -4089,6 +4159,12 @@ class AgentState {
   private readonly sessionModes = new Map<string, PermissionMode>()
   /** Further workspace roots each session was opened with (G09), by id. */
   private readonly additionalRoots = new Map<string, readonly string[]>()
+  /** The editor's MCP servers per session (M63c): a re-attach forwards them again. */
+  private readonly sessionMcp = new Map<string, readonly McpServer[]>()
+  /** Sessions whose backend died under them, resumable by a later prompt, by id. */
+  private readonly detached = new Map<string, DetachedSession>()
+  /** Re-attaches in flight, by id: one attempt per session, stoppable. */
+  private readonly attaching = new Map<string, AbortController>()
   /** Who holds each session, the one being set up, the claims and release barriers (M104). */
   private readonly registry: ControllerRegistry<AcpSession>
   private clientCapabilities: ClientCapabilities = {}
@@ -4096,8 +4172,8 @@ class AgentState {
   public constructor(private readonly deps: AcpAgentDeps) {
     this.registry = new ControllerRegistry<AcpSession>({
       missing: (sessionId) => RequestError.resourceNotFound(sessionId),
-      hostStopped: (host, description) => {
-        this.deps.log.warn(`The ${host.info.kind} backend stopped: ${description}`)
+      hostStopped: (host, exit) => {
+        this.deps.log.warn(`The ${host.info.kind} backend stopped: ${exit.description}`)
       },
       released: (sessionId) => {
         this.additionalRoots.delete(sessionId)
@@ -4223,6 +4299,9 @@ class AgentState {
             }
           },
           makerTools,
+          (exit) => {
+            this.noteDetached(sessionId, cwd, exit)
+          },
         )
         return acp
       },
@@ -4242,6 +4321,317 @@ class AgentState {
     // Linux sandbox cannot start on this machine.
     adopted.noteSandboxCannotStart()
     return adopted
+  }
+
+  /**
+  A session's backend died under it: keep the session resumable for a
+  later prompt. Expected exits are deliberate closes, so nothing is
+  recorded for them.
+  */
+  private noteDetached(sessionId: string, cwd: string, exit: HostExit): void {
+    if (exit.isExpected) {
+      return
+    }
+    this.detached.set(sessionId, { cwd, exit })
+    this.deps.log.warn(
+      `ACP session ${sessionId}: its backend stopped unexpectedly (${exit.description}); the next prompt brings it back`,
+    )
+  }
+
+  /**
+  A re-attach that failed terminally, in the person's words: never a
+  request id or a path. The failure it answers carries as the cause, so
+  the record keeps the kind behind the words.
+  */
+  private restartFailure(message: string, cause: unknown): RequestError {
+    const failure = new RequestError(ACP_ERROR_CODES.unavailable, message, {
+      kind: 'unavailable',
+      requestSent: false,
+      retryable: false,
+    })
+    failure.cause = cause
+    return failure
+  }
+
+  /**
+  A re-attach's notices while no session is held: straight to the client
+  in order, through the same translator a held session uses. A notice for
+  a client that is gone is said in the log, like any unsent update.
+  */
+  private async notifyReattach(
+    client: AgentContext,
+    sessionId: string,
+    notices: UpdateTranslator,
+    event: Extract<AgentEvent, { type: 'turnRetry' | 'backendNotice' }>,
+  ): Promise<void> {
+    for (const update of notices.updates(event)) {
+      try {
+        await client.notify('session/update', { sessionId, update })
+      } catch (error: unknown) {
+        this.deps.log.warn(
+          `ACP session ${sessionId}: a re-attach notice was not sent: ${causeForLog(error)}`,
+        )
+      }
+    }
+  }
+
+  /**
+  A re-attach backoff wait: true when the prompt's stop or a cancel ended
+  it early. The timer is always cleared, so a stop leaks no handle.
+  */
+  private async waitReattach(ms: number, signal: AbortSignal): Promise<boolean> {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+      const elapsed = await unlessAborted(
+        new Promise<true>((resolve) => {
+          timer = setTimeout(() => {
+            resolve(true)
+          }, ms)
+        }),
+        signal,
+      )
+      return elapsed === undefined
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
+  /** Whether the backend's CLI is currently missing or unusable, so no restart can work. */
+  private async isCliGone(): Promise<boolean> {
+    try {
+      const readiness = await this.deps.backend.readiness(true)
+      return readiness.state === 'unavailable'
+    } catch (error: unknown) {
+      // The check is advisory: its own failure never decides the attempt,
+      // which keeps the failure it already has.
+      this.deps.log.trace(`ACP backend readiness re-check failed: ${failureForLog(error)}`)
+      return false
+    }
+  }
+
+  /**
+  Bring a detached session's backend back and re-attach the session, so
+  the person carries on with their history: a fresh host, the stored
+  session resumed on it, adopted as a load is (remembered mode, model,
+  effort, roots and MCP servers; no replay — the client already shows
+  them). One attempt runs per session; a second prompt meanwhile is busy,
+  as a second prompt mid-turn is. Nothing is reported finished: a stop
+  answers cancelled, anything else either holds the session or throws.
+  */
+  private async reattach(
+    sessionId: string,
+    record: DetachedSession,
+    client: AgentContext,
+    stop: AbortSignal,
+  ): Promise<
+    { readonly status: 'ok'; readonly session: AcpSession } | { readonly status: 'cancelled' }
+  > {
+    if (this.attaching.has(sessionId)) {
+      throw refusalError(UI_TEXT.acpPromptBusy)
+    }
+    const abort = new AbortController()
+    this.attaching.set(sessionId, abort)
+    try {
+      const combined = AbortSignal.any([stop, abort.signal])
+      const notices = new UpdateTranslator(
+        record.cwd,
+        false,
+        this.deps.backend.kind === 'modelApi' ? 'modelApi' : 'museCode',
+        this.clientCapabilities.session?.notices != null,
+      )
+      // A load, or a close, may decide the session meanwhile: a held
+      // session is used, a given-up one reads as missing. Lost claims
+      // retry the re-read twice, then read as busy: the client retries,
+      // which is the outer loop of this compare-and-swap.
+      for (let race = 0; ; race += 1) {
+        const held = this.registry.held(sessionId)
+        if (held !== undefined) {
+          return { status: 'ok', session: held }
+        }
+        const current = this.detached.get(sessionId)
+        if (current === undefined) {
+          throw RequestError.resourceNotFound(sessionId)
+        }
+        const claim = this.registry.claim(sessionId)
+        try {
+          const session = await this.restartSession(
+            sessionId,
+            current,
+            claim,
+            client,
+            notices,
+            combined,
+          )
+          if (session === undefined || stop.aborted || abort.signal.aborted) {
+            // Adopted, but the prompt is already stopped: the session
+            // stays for the next prompt, this one answers cancelled.
+            return { status: 'cancelled' }
+          }
+          return { status: 'ok', session }
+        } catch (error: unknown) {
+          if (!isReattachClaimLoss(error) || race >= 2) {
+            throw error
+          }
+          this.deps.log.info(`ACP session ${sessionId}: its re-attach lost its claim; trying again`)
+        }
+      }
+    } finally {
+      if (this.attaching.get(sessionId) === abort) {
+        this.attaching.delete(sessionId)
+      }
+    }
+  }
+
+  /**
+  Restart the backend with the industry backoff (D228: two retries,
+  0.5 s doubling to 8 s) and resume the stored session on it. Each wait
+  shows as the panel's "Retrying in Ns (attempt K of N)" and stops on a
+  cancel. Terminal failures say so in words: a CLI that cannot start, a
+  store that no longer has the session, a backend that keeps dying. A
+  stop answers undefined: nothing restarted, nothing reported.
+  */
+  private async bringBackendBack(
+    sessionId: string,
+    record: DetachedSession,
+    claim: ControllerClaim,
+    client: AgentContext,
+    notices: UpdateTranslator,
+    stop: AbortSignal,
+    makerTools: AcpMakerSession | undefined,
+  ): Promise<
+    { host: AgentHost; models: readonly ModelSummary[]; loaded: LoadedSession } | undefined
+  > {
+    for (let retry = 0; ; retry += 1) {
+      try {
+        const { host, models } = await this.openHost(record.cwd)
+        this.registry.ensureClaim(claim, host)
+        const loaded = await host.resumeSession(
+          sessionId,
+          startingModel(
+            models,
+            this.deps.options.initialModelId,
+            this.deps.backend.kind === 'modelApi',
+          ),
+          makerTools === undefined
+            ? this.forwardedMcp(host, this.sessionMcp.get(sessionId))
+            : {
+                ...this.forwardedMcp(host, this.sessionMcp.get(sessionId)),
+                muse_spark_maker: makerTools.server,
+              },
+        )
+        return { host, models, loaded }
+      } catch (error: unknown) {
+        if (isSessionNotFoundError(error)) {
+          throw this.restartFailure(UI_TEXT.acpBackendRestartSessionLost, error)
+        }
+        if (isReattachClaimLoss(error)) {
+          throw error
+        }
+        if (await this.isCliGone()) {
+          throw this.restartFailure(UI_TEXT.acpBackendRestartCliGone, error)
+        }
+        // A typed refusal (sign-in, store, MCP servers) is terminal as
+        // said: no wait brings a sign-in back.
+        if (isOutboundRequestError(error)) {
+          throw error
+        }
+        this.deps.log.warn(
+          `ACP session ${sessionId}: bringing the backend back failed: ${causeForLog(error)}`,
+        )
+        if (retry >= INDUSTRY_RETRY_MAX_RETRIES) {
+          throw this.restartFailure(UI_TEXT.acpBackendRestartGaveUp, error)
+        }
+        const delayMs = retryDelayMs(
+          retry,
+          INDUSTRY_RETRY_LIMITS,
+          undefined,
+          Math.random(),
+          MODEL_API_RETRY_JITTER_MS,
+        )
+        await this.notifyReattach(client, sessionId, notices, {
+          type: 'turnRetry',
+          turnId: sessionId,
+          attempt: retry + 1,
+          maxAttempts: INDUSTRY_RETRY_MAX_RETRIES + 1,
+          retryDelayMs: delayMs,
+          reason: 'backend-restart',
+        })
+        if (await this.waitReattach(delayMs, stop)) {
+          return undefined
+        }
+      }
+    }
+  }
+
+  /**
+  One re-attach pass: bring the backend back, resume the stored session
+  on it, then adopt it as a load is (remembered mode, model, effort,
+  roots and MCP servers; no replay — the client already shows them).
+  */
+  private async restartSession(
+    sessionId: string,
+    record: DetachedSession,
+    claim: ControllerClaim,
+    client: AgentContext,
+    notices: UpdateTranslator,
+    stop: AbortSignal,
+  ): Promise<AcpSession | undefined> {
+    const makerTools = await this.deps.makerTools?.session(
+      record.cwd,
+      acpMakerAsker(client, () => sessionId),
+    )
+    try {
+      const brought = await this.bringBackendBack(
+        sessionId,
+        record,
+        claim,
+        client,
+        notices,
+        stop,
+        makerTools,
+      )
+      if (brought === undefined) {
+        return undefined
+      }
+      const { host, models, loaded } = brought
+      const remembered = this.choices.get(sessionId)
+      // The adopt below releases nothing (the id is unheld) but still
+      // reports it released, which forgets the extra roots: keep them.
+      const roots = this.additionalRoots.get(sessionId)
+      const acp = await this.adopt(
+        host,
+        loaded.session,
+        record.cwd,
+        client,
+        models,
+        claim,
+        async (resumed) => {
+          if (remembered === undefined) {
+            await resumed.matchAdvertised()
+          } else {
+            await resumed.restoreChoice(
+              remembered.modelId,
+              remembered.effort,
+              remembered.isEffortChosen,
+            )
+          }
+        },
+        loaded.record.imported === true,
+        loaded.activeTurnId,
+        makerTools,
+      )
+      this.detached.delete(sessionId)
+      this.choices.set(sessionId, acp.currentChoice())
+      if (roots !== undefined) {
+        this.additionalRoots.set(sessionId, roots)
+      }
+      acp.backendNotice(UI_TEXT.sessionContinued)
+      return acp
+    } catch (error: unknown) {
+      await makerTools?.close()
+      this.registry.abandon(claim)
+      throw error
+    }
   }
 
   /**
@@ -4391,6 +4781,7 @@ class AgentState {
       // Keep what the editor is shown, including backend events during setup.
       this.choices.set(session.sessionId, acp.currentChoice())
       this.additionalRoots.set(session.sessionId, [...roots])
+      this.sessionMcp.set(session.sessionId, [...(requestedMcp ?? [])])
       return {
         sessionId: session.sessionId,
         modes: acp.modes(),
@@ -4472,13 +4863,22 @@ class AgentState {
       )
       this.choices.set(sessionId, acp.currentChoice())
       this.additionalRoots.set(sessionId, [...roots])
+      this.sessionMcp.set(sessionId, [...(requestedMcp ?? [])])
+      this.detached.delete(sessionId)
       return { modes: acp.modes(), configOptions: acp.configOptions() }
     } catch (error: unknown) {
       await makerTools?.close()
       this.registry.abandon(claim)
       // An id no host holds loads nothing: the same resource-not-found a
-      // prompt on an unknown session answers, never an internal error.
-      if (isSessionNotFoundError(error)) throw RequestError.resourceNotFound(sessionId)
+      // prompt on an unknown session answers, never an internal error. An
+      // id whose backend died, though, says in words that the history is
+      // gone, so the person starts over knowingly.
+      if (isSessionNotFoundError(error)) {
+        if (this.detached.has(sessionId)) {
+          throw this.restartFailure(UI_TEXT.acpBackendRestartSessionLost, error)
+        }
+        throw RequestError.resourceNotFound(sessionId)
+      }
       throw error
     }
   }
@@ -4526,11 +4926,95 @@ class AgentState {
     return this.registry.held(sessionId)
   }
 
+  /**
+  A prompt for a session: a held one runs it; a detached one (its backend
+  died) brings the backend back and re-attaches first, so the person
+  carries on with their history. Anything else is missing. A stop before
+  the turn starts answers cancelled, never a turn that never ran.
+  */
+  public async prompt(
+    sessionId: string,
+    blocks: readonly ContentBlock[],
+    client: AgentContext,
+    stop: AbortSignal,
+  ): Promise<PromptResponse> {
+    const held = this.registry.held(sessionId)
+    if (held !== undefined) {
+      return await held.promptResponse(blocks)
+    }
+    const record = this.detached.get(sessionId)
+    if (record === undefined) {
+      throw RequestError.resourceNotFound(sessionId)
+    }
+    const reattached = await this.reattach(sessionId, record, client, stop)
+    // A stop before the turn starts answers cancelled, never a turn that
+    // never ran. The re-attach already checked the stop itself, so its
+    // status alone decides here.
+    return reattached.status === 'cancelled'
+      ? { stopReason: 'cancelled' }
+      : await reattached.session.promptResponse(blocks)
+  }
+
+  /**
+  A config option set on a session: a held one applies it; a detached one
+  brings the backend back and re-attaches first, as a prompt does, so the
+  set validates against the running session. A stop answers cancelled.
+  */
+  public async setConfigOption(
+    sessionId: string,
+    configId: string,
+    value: unknown,
+    client: AgentContext,
+    stop: AbortSignal,
+  ): Promise<ReturnType<AcpSession['configOptions']>> {
+    const held = this.registry.held(sessionId)
+    if (held !== undefined) {
+      await held.setConfigOption(configId, value)
+      this.noteChoice(sessionId)
+      return held.configOptions()
+    }
+    const record = this.detached.get(sessionId)
+    if (record === undefined) {
+      throw RequestError.resourceNotFound(sessionId)
+    }
+    if (stop.aborted) {
+      throw RequestError.requestCancelled()
+    }
+    const reattached = await this.reattach(sessionId, record, client, stop)
+    if (reattached.status === 'cancelled') {
+      throw RequestError.requestCancelled()
+    }
+    await reattached.session.setConfigOption(configId, value)
+    this.noteChoice(sessionId)
+    return reattached.session.configOptions()
+  }
+
+  /** Stop what runs for a session: its turn, or a re-attach bringing its backend back. */
+  public async cancelWork(sessionId: string): Promise<void> {
+    this.attaching.get(sessionId)?.abort()
+    await this.registry.held(sessionId)?.cancel()
+  }
+
   /** The mode the client set for a session, kept across later loads. */
   public async setSessionMode(sessionId: string, modeId: string): Promise<void> {
-    const session = this.session(sessionId)
-    await session.setMode(modeId)
-    this.sessionModes.set(sessionId, session.permissionMode)
+    const session = this.registry.held(sessionId)
+    if (session !== undefined) {
+      await session.setMode(modeId)
+      this.sessionModes.set(sessionId, session.permissionMode)
+      return
+    }
+    // A detached session's mode is remembered without bringing the
+    // backend back: it applies when the next prompt re-attaches it.
+    const record = this.detached.get(sessionId)
+    if (record === undefined) {
+      throw RequestError.resourceNotFound(sessionId)
+    }
+    const mode = parsePermissionMode(modeId, {
+      canBypass: this.deps.options.canBypass,
+      isHardware: this.deps.isHardwareWorkspace?.(record.cwd) === true,
+      hasMakerTools: this.deps.makerTools !== undefined,
+    })
+    this.sessionModes.set(sessionId, mode)
   }
 
   /** Remember the editor's latest model/effort choice for a later load. */
@@ -4546,6 +5030,13 @@ class AgentState {
     // Close releases the live handle, not history or the client's selected mode.
     const wasHeld = await this.registry.closeSession(sessionId)
     this.choices.delete(sessionId)
+    this.sessionMcp.delete(sessionId)
+    // A detached session's close gives up the resume: it is closed now,
+    // and a re-attach still bringing the backend back stops.
+    this.attaching.get(sessionId)?.abort()
+    if (this.detached.delete(sessionId)) {
+      return
+    }
     if (!wasHeld) {
       throw RequestError.resourceNotFound(sessionId)
     }
@@ -4559,9 +5050,10 @@ class AgentState {
   */
   public async deleteSession(sessionId: string): Promise<void> {
     const held = this.registry.heldOrAdopting(sessionId)
+    const record = this.detached.get(sessionId)
     let host: AgentHost | undefined = held?.host
     if (host === undefined) {
-      const opened = await this.openHost(this.deps.defaultCwd)
+      const opened = await this.openHost(record?.cwd ?? this.deps.defaultCwd)
       host = opened.host
     }
     // A host that cannot delete refuses before anything is released: the
@@ -4572,10 +5064,13 @@ class AgentState {
         fill(UI_TEXT.sessionDeleteUnsupported, { version: host.info.serverVersion }),
       )
     }
+    this.attaching.get(sessionId)?.abort()
     if (held !== undefined) {
       await this.registry.releaseAll(sessionId)
       this.choices.delete(sessionId)
     }
+    this.detached.delete(sessionId)
+    this.sessionMcp.delete(sessionId)
     try {
       await host.deleteSession(sessionId)
     } catch (error: unknown) {
@@ -4593,6 +5088,9 @@ class AgentState {
   user's to run.
   */
   public async logout(): Promise<void> {
+    for (const abort of this.attaching.values()) {
+      abort.abort()
+    }
     await this.registry.releaseEvery()
     await this.deps.signOut?.()
   }
@@ -4762,6 +5260,9 @@ function outboundSentences(): ReadonlySet<string> {
     UI_TEXT.actionFailed,
     UI_TEXT.acpPromptBusy,
     UI_TEXT.acpNoModels,
+    UI_TEXT.acpBackendRestartCliGone,
+    UI_TEXT.acpBackendRestartSessionLost,
+    UI_TEXT.acpBackendRestartGaveUp,
     UI_TEXT.acpCredentialStoreNoAnswer,
     UI_TEXT.vault.noAccess,
     UI_TEXT.vault.brokerBlocked,
@@ -5231,29 +5732,37 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
     )
     .onRequest('session/set_config_option', (context) =>
       respond('session/set_config_option', async () => {
-        const session = state.session(context.params.sessionId)
-        await session.setConfigOption(context.params.configId, context.params.value)
-        state.noteChoice(context.params.sessionId)
-        return { configOptions: session.configOptions() }
+        const configOptions = await state.setConfigOption(
+          context.params.sessionId,
+          context.params.configId,
+          context.params.value,
+          context.client,
+          context.signal,
+        )
+        return { configOptions }
       }),
     )
     .onRequest('session/prompt', (context) =>
       respond('session/prompt', async () => {
-        const session = state.session(context.params.sessionId)
         // `$/cancel_request` aborts this request's signal in the SDK's
         // JSON-RPC layer (G04): end the turn the way `session/cancel` does
         // and answer with the cancellation marker the protocol allows.
         const stop = context.signal
         if (stop.aborted) {
-          await session.cancel()
+          await state.cancelWork(context.params.sessionId)
           return { stopReason: 'cancelled' }
         }
         const onStop = (): void => {
-          void session.cancel()
+          void state.cancelWork(context.params.sessionId)
         }
         stop.addEventListener('abort', onStop, { once: true })
         try {
-          return await session.promptResponse(context.params.prompt)
+          return await state.prompt(
+            context.params.sessionId,
+            context.params.prompt,
+            context.client,
+            stop,
+          )
         } finally {
           stop.removeEventListener('abort', onStop)
         }
@@ -5261,7 +5770,7 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
     )
     .onNotification('session/cancel', (context) =>
       respond('session/cancel', async () => {
-        await state.held(context.params.sessionId)?.cancel()
+        await state.cancelWork(context.params.sessionId)
       }),
     )
 }
