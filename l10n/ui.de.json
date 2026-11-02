@@ -5798,7 +5798,9 @@
     "recommended": "Empfohlen",
     "cheapestCapable": "Günstigstes geeignetes",
     "largestContext": "Größter Kontext",
-    "newBadge": "Neu"
+    "newBadge": "Neu",
+    "deprecated": "Veraltet",
+    "beta": "Beta"
   },
   "modelToolCallingUnavailable": "Werkzeugaufrufe wurden für dieses Modell nicht verifiziert.",
   "paidProviderPrice": "Pro Million Tokens: Eingabe {input}, Cache-Lesen {cached}, Cache-Schreiben {write}, einstündiges Schreiben {write1h}, zwölfstündiges Schreiben {write12h}, Ausgabe {output}. Pro Anfrage {request}; pro Bild {image}.",
@@ -5847,6 +5849,9 @@
   "pickerPinnedGroup": "Angeheftete Favoriten",
   "pickerMetaGroup": "Muse Spark",
   "pickerPricePair": "{input} Eingabe · {output} Ausgabe (pro Mio. Token)",
+  "pickerRetiresOn": "Wird {date} abgeschaltet",
+  "pickerRerouteServes": "Bedient Anfragen an {id}",
+  "modelReroutesOn": "Wechselt am {date} zu {model}",
   "usageKeyUsage": "API-Schlüsselnutzung",
   "usageLimit": "Limit",
   "usageRemaining": "Übrig",
@@ -6054,6 +6059,9 @@
       "zdr": "Keine Datenspeicherung: Nur Endpunkte, die keinerlei Daten speichern, dürfen antworten.",
       "no-training": "Kein Training: Nur Anbieter, die nicht mit Ihren Daten trainieren, dürfen antworten.",
       "any": "Beliebiger Anbieter: Die günstigste oder schnellste Antwort gewinnt, auch von Anbietern, die Daten speichern könnten."
+    },
+    "privacyNotes": {
+      "geminiStore": "Jede Anfrage von hier trägt store=false, sodass Google Ihre Prompts und Antworten nicht speichert – auch in einem Projekt, das standardmäßig speichert."
     },
     "suggest": {
       "recommended": "Empfohlen und das günstigste Modell mit Werkzeugaufrufen und genügend Platz für die Laufzeitumgebung ({ref}).",

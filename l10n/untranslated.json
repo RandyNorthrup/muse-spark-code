@@ -157,7 +157,8 @@
       "nodeOs.netWifi",
       "desktop.greeterTitle",
       "desktop.pin",
-      "referenceEditorGroupKeys"
+      "referenceEditorGroupKeys",
+      "modelBadges.beta"
     ],
     "cs": [
       "groupModel",

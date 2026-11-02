@@ -5930,7 +5930,9 @@
     "recommended": "Recomendado",
     "cheapestCapable": "El más barato capaz",
     "largestContext": "Mayor contexto",
-    "newBadge": "Nuevo"
+    "newBadge": "Nuevo",
+    "deprecated": "Obsoleto",
+    "beta": "Beta"
   },
   "modelToolCallingUnavailable": "No se ha verificado la llamada a herramientas para este modelo.",
   "paidProviderPrice": "Por millón de tokens: entrada {input}, lectura de caché {cached}, escritura de caché {write}, escritura de una hora {write1h}, escritura de doce horas {write12h}, salida {output}. Por solicitud {request}; por imagen {image}.",
@@ -5979,6 +5981,9 @@
   "pickerPinnedGroup": "Favoritos fijados",
   "pickerMetaGroup": "Muse Spark",
   "pickerPricePair": "{input} de entrada · {output} de salida (por millón de tokens)",
+  "pickerRetiresOn": "Se retira el {date}",
+  "pickerRerouteServes": "Atiende solicitudes de {id}",
+  "modelReroutesOn": "Cambia a {model} el {date}",
   "usageKeyUsage": "Uso de la clave API",
   "usageLimit": "Límite",
   "usageRemaining": "Restante",
@@ -6186,6 +6191,9 @@
       "zdr": "Sin retención de datos: solo pueden responder los puntos de conexión que no almacenan ningún dato.",
       "no-training": "Sin entrenamiento: solo pueden responder los proveedores que no entrenan con tus datos.",
       "any": "Cualquier proveedor: gana la respuesta más barata o rápida, incluidos los proveedores que pueden guardar datos."
+    },
+    "privacyNotes": {
+      "geminiStore": "Cada solicitud enviada desde aquí incluye store=false, por lo que Google no almacena sus mensajes ni respuestas, ni siquiera en un proyecto que almacena de forma predeterminada."
     },
     "suggest": {
       "recommended": "Recomendado y el modelo más barato con llamadas a herramientas y espacio para el entorno de ejecución ({ref}).",

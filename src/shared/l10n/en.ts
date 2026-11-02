@@ -7409,6 +7409,8 @@ export const EN = {
     cheapestCapable: 'Cheapest Capable',
     largestContext: 'Largest Context',
     newBadge: 'New',
+    deprecated: 'Deprecated',
+    beta: 'Beta',
   },
   // How a model without a dollar price is marked.
   modelToolCallingUnavailable: 'Tool calling has not been verified for this model.',
@@ -7487,6 +7489,14 @@ export const EN = {
   pickerMetaGroup: 'Muse Spark',
   // {input}, {output}: a priced model's per-M-token prices as dollars.
   pickerPricePair: '{input} in · {output} out (per M tokens)',
+  // {date}: the provider's announced shutdown day, in the display language.
+  pickerRetiresOn: 'Retires {date}',
+  // {id}: the configured model id, named where the row is labelled as the
+  // model that serves it (a Gemini id Google reroutes).
+  pickerRerouteServes: 'Serves {id} requests',
+  // {model}: the serving model's name; {date}: the reroute's first day.
+  // Shared by the composer picker and the Models table.
+  modelReroutesOn: 'Routes to {model} on {date}',
   // Account & usage's rows per provider.
   usageKeyUsage: 'API Key Usage',
   usageLimit: 'Limit',
@@ -7789,6 +7799,13 @@ export const EN = {
       zdr: 'No data retention: only endpoints that store no data at all may answer.',
       'no-training': 'No training: only providers that do not train on your data may answer.',
       any: 'Any provider: the cheapest or fastest answer wins, including providers that may keep data.',
+    },
+    // One honest sentence per preset about what the provider keeps, shown
+    // where the key is entered. Gemini's store=false rides every request
+    // (aistudio.google.com/docs/changelog 2026-10-26, read 2026-11-02).
+    privacyNotes: {
+      geminiStore:
+        'Every request from here carries store=false, so Google does not store your prompts and responses, even on a project that stores by default.',
     },
     suggest: {
       recommended:

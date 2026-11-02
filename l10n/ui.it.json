@@ -5930,7 +5930,9 @@
     "recommended": "Consigliato",
     "cheapestCapable": "Il più economico adeguato",
     "largestContext": "Contesto più ampio",
-    "newBadge": "Nuovo"
+    "newBadge": "Nuovo",
+    "deprecated": "Deprecato",
+    "beta": "Beta"
   },
   "modelToolCallingUnavailable": "La chiamata agli strumenti non è stata verificata per questo modello.",
   "paidProviderPrice": "Per milione di token: input {input}, lettura cache {cached}, scrittura cache {write}, scrittura di un’ora {write1h}, scrittura di dodici ore {write12h}, output {output}. Per richiesta {request}; per immagine {image}.",
@@ -5979,6 +5981,9 @@
   "pickerPinnedGroup": "Preferiti fissati",
   "pickerMetaGroup": "Muse Spark",
   "pickerPricePair": "{input} in ingresso · {output} in uscita (per un milione di token)",
+  "pickerRetiresOn": "Ritirato il {date}",
+  "pickerRerouteServes": "Serve le richieste {id}",
+  "modelReroutesOn": "Passa a {model} il {date}",
   "usageKeyUsage": "Utilizzo della chiave API",
   "usageLimit": "Limite",
   "usageRemaining": "Rimanente",
@@ -6186,6 +6191,9 @@
       "zdr": "Nessuna conservazione: possono rispondere solo gli endpoint che non memorizzano alcun dato.",
       "no-training": "Nessun addestramento: possono rispondere solo i fornitori che non addestrano sui tuoi dati.",
       "any": "Qualsiasi fornitore: vince la risposta più economica o veloce, inclusi i fornitori che potrebbero conservare dati."
+    },
+    "privacyNotes": {
+      "geminiStore": "Ogni richiesta inviata da qui include store=false, quindi Google non conserva i prompt e le risposte, nemmeno in un progetto che conserva per impostazione predefinita."
     },
     "suggest": {
       "recommended": "Consigliato e il modello più economico con chiamate agli strumenti e spazio per l’ambiente di esecuzione ({ref}).",
