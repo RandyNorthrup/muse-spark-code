@@ -16,9 +16,10 @@ export class CompanionEvents {
     id: string,
     response: ServerResponse,
     expiresAt: number,
-    subscribe: (emit: (message: unknown) => void) => () => void,
+    subscribe: (emit: (message: unknown, complete?: () => void) => void) => () => void,
     encode: (message: unknown) => string,
     activity: () => void,
+    report?: (error: unknown) => void,
   ): void {
     if (this.has(id)) throw new Error('EPANEL_STREAM')
     let unsubscribe: (() => void) | undefined
@@ -51,17 +52,29 @@ export class CompanionEvents {
     })
     response.write(': connected\n\n')
     try {
-      unsubscribe = subscribe((message) => {
-        if (isStopped) return
+      unsubscribe = subscribe((message, complete) => {
+        if (isStopped) {
+          complete?.()
+          return
+        }
         try {
           const frame = `data: ${encode(message)}\n\n`
           if (Buffer.byteLength(frame) + response.writableLength > this.maxBytes) {
+            complete?.()
             stop()
             return
           }
           activity()
-          response.write(frame)
-        } catch {
+          // Completion is tied to Node's writer: the panel's delivery
+          // holds its budget until the frame is flushed or the stream dies.
+          response.write(frame, () => {
+            complete?.()
+          })
+        } catch (error: unknown) {
+          // REPORTED: a frame the owner's schema refuses, or a stream that
+          // died mid-write, ends the stream; the owner records the cause.
+          complete?.()
+          report?.(error)
           stop()
         }
       })
@@ -71,6 +84,10 @@ export class CompanionEvents {
       stop()
       throw error
     }
+  }
+
+  public retire(id: string): void {
+    this.streams.get(id)?.stop()
   }
 
   public close(): void {

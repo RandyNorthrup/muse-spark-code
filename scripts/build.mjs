@@ -2155,6 +2155,14 @@ const vaultExecHostOptions = {
   entryPoints: [VAULT_EXEC_HOST_ENTRY],
   outfile: VAULT_EXEC_HOST_OUTFILE,
 }
+// M104 lane C: the loopback browser companion, loaded only by `panel --companion`.
+const RUNTIME_PANEL_COMPANION_OUTFILE = 'dist/runtimePanelCompanion.js'
+const runtimePanelCompanionOptions = {
+  ...acpOptions,
+  entryPoints: ['src/runtime/panel/companionEntry.ts'],
+  outfile: RUNTIME_PANEL_COMPANION_OUTFILE,
+  banner: {},
+}
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
@@ -2780,6 +2788,7 @@ if (isWatch) {
     esbuild.context(runtimePanelPortsOptions),
     esbuild.context(nodeServeOptions),
     esbuild.context(nodeAuthOptions),
+    esbuild.context(runtimePanelCompanionOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -3059,6 +3068,7 @@ if (isWatch) {
     ['vaultRuntimeMigration', () => esbuild.build(vaultRuntimeMigrationOptions)],
     ['vaultPolicy', () => esbuild.build(vaultPolicyOptions)],
     ['vaultExecHost', () => esbuild.build(vaultExecHostOptions)],
+    ['runtimePanelCompanion', () => esbuild.build(runtimePanelCompanionOptions)],
   ]
   if (!isProduction || isWithIntegrationTests) {
     extraSpecs.push(['integrationTests', () => esbuild.build(integrationTestOptions)])
@@ -3088,6 +3098,7 @@ if (isWatch) {
   let vaultRuntimeMigration
   let vaultPolicy
   let vaultExecHost
+  let runtimePanelCompanion
   try {
     shipped = await runBuildPool(Object.entries(shippedSpecs), BUILD_POOL_SIZE)
     ;({
@@ -3115,6 +3126,7 @@ if (isWatch) {
       vaultRuntimeMigration,
       vaultPolicy,
       vaultExecHost,
+      runtimePanelCompanion,
     } = await runBuildPool(extraSpecs, BUILD_POOL_SIZE))
   } catch (error) {
     await esbuild.stop()
@@ -3222,6 +3234,11 @@ if (isWatch) {
     writeFileSync(path.join(ACP_METAFILE_DIR, 'nodeServe.json'), JSON.stringify(nodeServeMetafile))
     const { metafile: nodeAuthMetafile } = await nodeAuth
     writeFileSync(path.join(ACP_METAFILE_DIR, 'nodeAuth.json'), JSON.stringify(nodeAuthMetafile))
+    const { metafile: runtimePanelCompanionMetafile } = await runtimePanelCompanion
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'runtimePanelCompanion.json'),
+      JSON.stringify(runtimePanelCompanionMetafile),
+    )
   }
   writeFileSync(BUILD_PROFILE_FILE, JSON.stringify({ ...profile, production: isProduction }))
   console.log('bundle sizes:')
@@ -3351,5 +3368,6 @@ if (isWatch) {
   reportSize(RUNTIME_PANEL_PORTS_OUTFILE)
   reportSize(NODE_SERVE_OUTFILE)
   reportSize(NODE_AUTH_OUTFILE)
+  reportSize(RUNTIME_PANEL_COMPANION_OUTFILE)
   reportSize(PACKS_VERIFY_OUTFILE)
 }
