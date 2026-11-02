@@ -1,0 +1,246 @@
+{
+  "version": 1,
+  "generatedBy": "scripts/build-companion-art.mjs",
+  "animations": {
+    "alert": {
+      "strip": "design/companion/anim/alert.png",
+      "strip2x": "design/companion/anim-2x/alert.png",
+      "hc": "design/companion/anim-hc/alert.png",
+      "hc2x": "design/companion/anim-hc-2x/alert.png",
+      "still": "design/companion/anim-still/alert.png",
+      "still2x": "design/companion/anim-still-2x/alert.png",
+      "stillFrame": 1,
+      "stillRule": "median-area frame of the loop",
+      "displayScale": 0.72,
+      "flash": {
+        "transitions": 6,
+        "reversals": 0,
+        "flashesPerSecond": 0,
+        "maxDisplayArea": 13180,
+        "areaThreshold": 87296,
+        "redPairs": 0,
+        "compliant": true
+      }
+    },
+    "beam": {
+      "strip": "design/companion/anim/beam.png",
+      "strip2x": "design/companion/anim-2x/beam.png",
+      "hc": "design/companion/anim-hc/beam.png",
+      "hc2x": "design/companion/anim-hc-2x/beam.png",
+      "still": "design/companion/anim-still/beam.png",
+      "still2x": "design/companion/anim-still-2x/beam.png",
+      "stillFrame": 3,
+      "stillRule": "peak-area frame of the one-shot",
+      "displayScale": 1,
+      "flash": {
+        "transitions": 5,
+        "reversals": 0,
+        "flashesPerSecond": 0,
+        "maxDisplayArea": 13697,
+        "areaThreshold": 87296,
+        "redPairs": 0,
+        "compliant": true
+      }
+    },
+    "charge": {
+      "strip": "design/companion/anim/charge.png",
+      "strip2x": "design/companion/anim-2x/charge.png",
+      "hc": "design/companion/anim-hc/charge.png",
+      "hc2x": "design/companion/anim-hc-2x/charge.png",
+      "still": "design/companion/anim-still/charge.png",
+      "still2x": "design/companion/anim-still-2x/charge.png",
+      "stillFrame": 5,
+      "stillRule": "median-area frame of the loop",
+      "displayScale": 1.17,
+      "flash": {
+        "transitions": 5,
+        "reversals": 1,
+        "flashesPerSecond": 1.5,
+        "maxDisplayArea": 9463,
+        "areaThreshold": 87296,
+        "redPairs": 0,
+        "compliant": true
+      }
+    },
+    "hop": {
+      "strip": "design/companion/anim/hop.png",
+      "strip2x": "design/companion/anim-2x/hop.png",
+      "hc": "design/companion/anim-hc/hop.png",
+      "hc2x": "design/companion/anim-hc-2x/hop.png",
+      "still": "design/companion/anim-still/hop.png",
+      "still2x": "design/companion/anim-still-2x/hop.png",
+      "stillFrame": 1,
+      "stillRule": "median-area frame of the loop",
+      "displayScale": 0.93,
+      "flash": {
+        "transitions": 6,
+        "reversals": 2,
+        "flashesPerSecond": 3,
+        "maxDisplayArea": 10346,
+        "areaThreshold": 87296,
+        "redPairs": 0,
+        "compliant": true
+      }
+    },
+    "idle": {
+      "strip": "design/companion/anim/idle.png",
+      "strip2x": "design/companion/anim-2x/idle.png",
+      "hc": "design/companion/anim-hc/idle.png",
+      "hc2x": "design/companion/anim-hc-2x/idle.png",
+      "still": "design/companion/anim-still/idle.png",
+      "still2x": "design/companion/anim-still-2x/idle.png",
+      "stillFrame": 5,
+      "stillRule": "median-area frame of the loop",
+      "displayScale": 1,
+      "flash": {
+        "transitions": 6,
+        "reversals": 0,
+        "flashesPerSecond": 0,
+        "maxDisplayArea": 8888,
+        "areaThreshold": 87296,
+        "redPairs": 0,
+        "compliant": true
+      }
+    },
+    "peek": {
+      "strip": "design/companion/anim/peek.png",
+      "strip2x": "design/companion/anim-2x/peek.png",
+      "hc": "design/companion/anim-hc/peek.png",
+      "hc2x": "design/companion/anim-hc-2x/peek.png",
+      "still": "design/companion/anim-still/peek.png",
+      "still2x": "design/companion/anim-still-2x/peek.png",
+      "stillFrame": 4,
+      "stillRule": "peak-area frame of the one-shot",
+      "displayScale": 0.46,
+      "flash": {
+        "transitions": 5,
+        "reversals": 1,
+        "flashesPerSecond": 0.6666666666666666,
+        "maxDisplayArea": 18054,
+        "areaThreshold": 87296,
+        "redPairs": 0,
+        "compliant": true
+      }
+    },
+    "sleep": {
+      "strip": "design/companion/anim/sleep.png",
+      "strip2x": "design/companion/anim-2x/sleep.png",
+      "hc": "design/companion/anim-hc/sleep.png",
+      "hc2x": "design/companion/anim-hc-2x/sleep.png",
+      "still": "design/companion/anim-still/sleep.png",
+      "still2x": "design/companion/anim-still-2x/sleep.png",
+      "stillFrame": 5,
+      "stillRule": "median-area frame of the loop",
+      "displayScale": 0.71,
+      "flash": {
+        "transitions": 6,
+        "reversals": 0,
+        "flashesPerSecond": 0,
+        "maxDisplayArea": 11232,
+        "areaThreshold": 87296,
+        "redPairs": 0,
+        "compliant": true
+      }
+    },
+    "talk": {
+      "strip": "design/companion/anim/talk.png",
+      "strip2x": "design/companion/anim-2x/talk.png",
+      "hc": "design/companion/anim-hc/talk.png",
+      "hc2x": "design/companion/anim-hc-2x/talk.png",
+      "still": "design/companion/anim-still/talk.png",
+      "still2x": "design/companion/anim-still-2x/talk.png",
+      "stillFrame": 1,
+      "stillRule": "median-area frame of the loop",
+      "displayScale": 0.83,
+      "flash": {
+        "transitions": 6,
+        "reversals": 0,
+        "flashesPerSecond": 0,
+        "maxDisplayArea": 11970,
+        "areaThreshold": 87296,
+        "redPairs": 0,
+        "compliant": true
+      }
+    },
+    "think": {
+      "strip": "design/companion/anim/think.png",
+      "strip2x": "design/companion/anim-2x/think.png",
+      "hc": "design/companion/anim-hc/think.png",
+      "hc2x": "design/companion/anim-hc-2x/think.png",
+      "still": "design/companion/anim-still/think.png",
+      "still2x": "design/companion/anim-still-2x/think.png",
+      "stillFrame": 4,
+      "stillRule": "median-area frame of the loop",
+      "displayScale": 0.83,
+      "flash": {
+        "transitions": 6,
+        "reversals": 0,
+        "flashesPerSecond": 0,
+        "maxDisplayArea": 9652,
+        "areaThreshold": 87296,
+        "redPairs": 0,
+        "compliant": true
+      }
+    },
+    "turn": {
+      "strip": "design/companion/anim/turn.png",
+      "strip2x": "design/companion/anim-2x/turn.png",
+      "hc": "design/companion/anim-hc/turn.png",
+      "hc2x": "design/companion/anim-hc-2x/turn.png",
+      "still": "design/companion/anim-still/turn.png",
+      "still2x": "design/companion/anim-still-2x/turn.png",
+      "stillFrame": 2,
+      "stillRule": "peak-area frame of the one-shot",
+      "displayScale": 1,
+      "flash": {
+        "transitions": 5,
+        "reversals": 1,
+        "flashesPerSecond": 1,
+        "maxDisplayArea": 8420,
+        "areaThreshold": 87296,
+        "redPairs": 0,
+        "compliant": true
+      }
+    },
+    "walk": {
+      "strip": "design/companion/anim/walk.png",
+      "strip2x": "design/companion/anim-2x/walk.png",
+      "hc": "design/companion/anim-hc/walk.png",
+      "hc2x": "design/companion/anim-hc-2x/walk.png",
+      "still": "design/companion/anim-still/walk.png",
+      "still2x": "design/companion/anim-still-2x/walk.png",
+      "stillFrame": 3,
+      "stillRule": "median-area frame of the loop",
+      "displayScale": 1,
+      "flash": {
+        "transitions": 8,
+        "reversals": 2,
+        "flashesPerSecond": 2.5,
+        "maxDisplayArea": 7108,
+        "areaThreshold": 87296,
+        "redPairs": 0,
+        "compliant": true
+      }
+    },
+    "wave": {
+      "strip": "design/companion/anim/wave.png",
+      "strip2x": "design/companion/anim-2x/wave.png",
+      "hc": "design/companion/anim-hc/wave.png",
+      "hc2x": "design/companion/anim-hc-2x/wave.png",
+      "still": "design/companion/anim-still/wave.png",
+      "still2x": "design/companion/anim-still-2x/wave.png",
+      "stillFrame": 0,
+      "stillRule": "median-area frame of the loop",
+      "displayScale": 0.8,
+      "flash": {
+        "transitions": 6,
+        "reversals": 0,
+        "flashesPerSecond": 0,
+        "maxDisplayArea": 11254,
+        "areaThreshold": 87296,
+        "redPairs": 0,
+        "compliant": true
+      }
+    }
+  }
+}
