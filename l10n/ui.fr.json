@@ -7423,6 +7423,7 @@
     "internal": "Enregistrement interne",
     "labelWarning": "Les agents voient les noms et les libellés. N’y mettez aucun secret.",
     "processWarning": "Ce programme et ses sous-processus verront l’identifiant et pourront le transmettre ailleurs.",
+    "environmentWarning": "La valeur est placée dans l’environnement de ce programme pendant son exécution. Sous Linux, l’exécution est protégée des autres programmes lancés sous votre compte ; sous macOS et Windows, un autre programme lancé sous votre compte peut encore pouvoir l’y lire. Lorsque le programme peut lire la valeur depuis son entrée standard, elle reste hors de l’environnement.",
     "disclosureWarning": "Vous seul verrez cette valeur après confirmation de votre présence. Une valeur divulguée ne peut pas être rappelée ; remplacez-la ensuite.",
     "taintWarning": "Cette demande suit un contenu non fiable : {content}. Une approbation est requise malgré les autorisations existantes.",
     "presenceWarning": "Votre système d’exploitation vous demandera de confirmer cette utilisation exacte.",

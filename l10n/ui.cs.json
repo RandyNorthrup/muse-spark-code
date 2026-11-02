@@ -7602,6 +7602,7 @@
     "internal": "Interní záznam",
     "labelWarning": "Agenti vidí názvy a popisky. Neuvádějte v nich tajné údaje.",
     "processWarning": "Tento program a jeho potomci uvidí přihlašovací údaj a mohou jej odeslat jinam.",
+    "environmentWarning": "Hodnota se po dobu běhu programu umístí do jeho prostředí. V Linuxu je běh chráněn před ostatními programy běžícími pod vaším účtem; v macOS a Windows ji tam jiný program běžící pod vaším účtem může stále přečíst. Pokud program dokáže hodnotu místo toho přečíst ze standardního vstupu, zůstane mimo prostředí.",
     "disclosureWarning": "Tuto hodnotu uvidíte pouze vy po ověření přítomnosti. Zpřístupněnou hodnotu nelze odvolat; poté ji změňte.",
     "taintWarning": "Tento požadavek následuje nedůvěryhodný obsah: {content}. I přes existující oprávnění je nutné schválení.",
     "presenceWarning": "Operační systém vás požádá o potvrzení tohoto přesného použití.",

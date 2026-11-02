@@ -9217,6 +9217,10 @@ export const EN = {
     labelWarning: 'Agents see names and labels. Keep secrets out of them.',
     processWarning:
       'This program and its children will see the credential and can send it elsewhere.',
+    // RLF-M109H: what the environment delivery mode still exposes, said
+    // where the person allows that mode (the approval card).
+    environmentWarning:
+      'The value goes into this program’s environment while it runs. On Linux, the run is shielded from other programs running as you; on macOS and Windows, another program running as you may still be able to read it there. When the program can read the value from its standard input instead, that keeps it out of the environment.',
     disclosureWarning:
       'Only you will see this value, after confirming your presence. A released value cannot be recalled; rotate it afterwards.',
     taintWarning:
