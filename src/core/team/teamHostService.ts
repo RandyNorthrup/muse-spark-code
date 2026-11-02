@@ -108,9 +108,9 @@ export interface TeamHostService extends TeamHostSeams {
   */
   readonly taskDiffFiles?: ((taskId: string) => Promise<readonly TeamDiffFile[]>) | undefined
   /**
-  Stops every running and queued task one conversation delegated; returns
-  how many stopped (RLF-ACPTEAM: an ACP session's cancel and close stop
-  its team, as a panel conversation's end should).
+  Stops one conversation's running and queued tasks, and drops a merge
+  that is still waiting plus any copy that conversation still holds.
+  Returns how many stopped (an ACP session's cancel, close and shutdown).
   */
   readonly stopSessionTasks?: ((sessionId: string) => Promise<number>) | undefined
   /**
@@ -119,6 +119,11 @@ export interface TeamHostService extends TeamHostSeams {
   has no outcome yet or is unknown.
   */
   readonly taskReport?: ((taskId: string) => TeamReport | undefined) | undefined
+  /**
+  The conversation that delegated the task. Undefined when the task is
+  unknown. An ACP surface uses it so one session cannot read another's.
+  */
+  readonly taskSession?: ((taskId: string) => string | undefined) | undefined
   /** Clears one entry's meters; the ledger keeps the record (acceptance 11). */
   readonly resetEntry: (entryId: string) => Promise<void>
   /**

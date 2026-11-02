@@ -1976,6 +1976,7 @@
   "acpTeamPermissionTitle": "{role} · {agent}: {detail}",
   "acpTeamFixedForSession": "팀 사용은 세션이 시작될 때 정해집니다. 변경하려면 새 세션을 시작하세요.",
   "acpTeamRolesUnavailable": "이 편집기에는 Roles 섹션이 없습니다. ACP 안내서에 나온 저장된 팀 파일을 편집하세요.",
+  "acpTeamUnanswered": "편집기가 답하지 않아 이 팀 단계는 거부되었습니다.",
   "teamResourcesTitle": "도구 및 장치",
   "teamResourcesDetail": "팀이 공유하는 MCP 서버와 장치, 그리고 사용자",
   "teamResourcesKindLabel": "종류",

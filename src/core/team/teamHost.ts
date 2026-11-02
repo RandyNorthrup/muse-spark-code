@@ -3015,9 +3015,22 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       return open.length
     },
     stopSessionTasks: async (sessionId) => {
-      const open = allTasks().filter(
-        (task) => task.sessionId === sessionId && (isActive(task.phase) || task.phase === 'queued'),
-      )
+      // Running and queued work stops, and so does a finished task that is
+      // still waiting to merge or still holds its copy. Leaving that copy
+      // would let a late Merge answer land after the session had ended.
+      // A merge already applying is left to finish. Merged and discarded
+      // tasks are already settled.
+      const open = allTasks().filter((task) => {
+        if (task.sessionId !== sessionId || task.phase === 'merged' || task.phase === 'discarded')
+          return false
+        if (isActive(task.phase) || task.phase === 'queued') return true
+        const hasOpenWork =
+          task.awaiting !== undefined ||
+          task.mergePhase === 'reviewing' ||
+          task.mergePhase === 'awaiting-decision' ||
+          hasCopy(task)
+        return SETTLED_PHASES.has(task.phase) && task.mergePhase !== 'merging' && hasOpenWork
+      })
       for (const task of open) await stop(task)
       return open.length
     },
@@ -3062,6 +3075,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       return await deps.merges.diff(outcome)
     },
     taskReport: (taskId) => tasks.get(taskId)?.outcome?.report,
+    taskSession: (taskId) => tasks.get(taskId)?.sessionId,
     taskDiffFiles: async (taskId) => {
       const outcome = known(taskId).outcome
       if (outcome?.head === undefined || deps.merges.diffFiles === undefined)

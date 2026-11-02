@@ -214,6 +214,8 @@ class WorkspaceTeam {
   private readonly handlers = new Map<string, AcpTeamSessionHandler>()
   private readonly announced = new Map<string, Map<string, AnnouncedTask>>()
   private readonly plans = new Map<string, string>()
+  /** Bumped when a session's cards must no longer be answered. */
+  private readonly cardEpoch = new Map<string, number>()
   private orchestratorModel = ''
   private isDisposed = false
   public readonly binding: TeamHostBinding
@@ -302,12 +304,13 @@ class WorkspaceTeam {
         this.showTree(tree)
       },
       openRoles: () => Promise.reject(new Error(UI_TEXT.acpTeamRolesUnavailable)),
-      showDiff: (_taskId, diff) => {
-        for (const handler of this.handlers.values())
-          handler.sendUpdate({
-            sessionUpdate: 'agent_message_chunk',
-            content: { type: 'text', text: diff },
-          })
+      showDiff: (taskId, diff) => {
+        const owner = this.binding.taskSession(taskId)
+        const handler = owner === undefined ? undefined : this.handlers.get(owner)
+        handler?.sendUpdate({
+          sessionUpdate: 'agent_message_chunk',
+          content: { type: 'text', text: diff },
+        })
         return Promise.resolve()
       },
     })
@@ -371,7 +374,12 @@ class WorkspaceTeam {
     tree: TeamTreeData | undefined,
   ): void {
     if (this.isDisposed) return
-    const workers = tree === undefined ? [] : treeWorkers(tree)
+    // One folder has one team. A session sees only the tasks it delegated,
+    // so another client in the same folder never receives their briefs or diffs.
+    const workers = (tree === undefined ? [] : treeWorkers(tree)).filter(
+      (row) => this.binding.taskSession(row.worker.taskId) === sessionId,
+    )
+    if (workers.length === 0 && (this.announced.get(sessionId)?.size ?? 0) === 0) return
     const running = workers.filter((row) => !isFinishedStatus(row.worker.status))
     const planKey = running.map((row) => row.worker.taskId).join('\0')
     if (this.plans.get(sessionId) !== planKey) {
@@ -449,6 +457,18 @@ class WorkspaceTeam {
     }
   }
 
+  /**
+  ACP's tool status for a task the tree calls finished. `completed` is only
+  a report whose own status is `done` on a done or merged task. A cap, a
+  refusal, a discard or any other report is `failed`, so an unfinished
+  worker is never told as finished.
+  */
+  private acpFinishStatus(taskId: string, treeStatus: string): 'completed' | 'failed' {
+    const report = this.binding.taskReport(taskId)?.status
+    if (report !== undefined && report !== 'done') return 'failed'
+    return treeStatus === 'done' || treeStatus === 'merged' ? 'completed' : 'failed'
+  }
+
   /** A finished task's completion: its report, then its diffs re-sent with it. */
   private finishTask(handler: AcpTeamSessionHandler, taskId: string, status: string): void {
     void (async () => {
@@ -461,7 +481,7 @@ class WorkspaceTeam {
         this.deps.log.warn(`ACP team diff for ${taskId} failed: ${failureForLog(error)}`)
       }
       if (this.isDisposed) return
-      if (status === 'failed' || status === 'cancelled') {
+      if (this.acpFinishStatus(taskId, status) === 'failed') {
         handler.sendUpdate({
           sessionUpdate: 'tool_call_update',
           toolCallId: teamTaskToolCallId(taskId),
@@ -550,6 +570,28 @@ class WorkspaceTeam {
     })()
   }
 
+  /** The generation of this session's open cards. */
+  private cardEpochOf(sessionId: string): number {
+    return this.cardEpoch.get(sessionId) ?? 0
+  }
+
+  private bumpCards(sessionId: string): void {
+    this.cardEpoch.set(sessionId, this.cardEpochOf(sessionId) + 1)
+  }
+
+  /** A card opened at `epoch` is not answered once the session has moved on. */
+  private cardsClosed(sessionId: string, epoch: number): boolean {
+    return this.isDisposed || this.cardEpochOf(sessionId) !== epoch || !this.handlers.has(sessionId)
+  }
+
+  /** The editor has no permission prompt, so the step is refused out loud. */
+  private sayUnanswered(handler: AcpTeamSessionHandler): void {
+    handler.sendUpdate({
+      sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text: this.table.acpTeamUnanswered },
+    })
+  }
+
   /** The waiting card as the editor's permission request, its four choices by name. */
   private async askWaiting(
     sessionId: string,
@@ -576,18 +618,26 @@ class WorkspaceTeam {
       },
       options,
     }
+    const epoch = this.cardEpochOf(sessionId)
     let choice: 'queue' | 'self' | 'raise' | 'cancel' = 'cancel'
+    let isUnanswered = false
     try {
+      if (this.cardsClosed(sessionId, epoch)) return
       const response = await handler.requestPermission(request)
+      if (this.cardsClosed(sessionId, epoch)) return
       const picked = response.outcome.outcome === 'selected' ? response.outcome.optionId : undefined
       const pickedChoice = (['queue', 'self', 'raise'] as const).find(
         (candidate) => candidate === picked,
       )
       if (pickedChoice !== undefined) choice = pickedChoice
     } catch (error: unknown) {
-      // No answer is a denial (D62): the waiting task is cancelled, said in the log.
+      // No answer is a denial (D62): the waiting task is cancelled, and the
+      // person hears that the editor never answered.
       this.deps.log.warn(`ACP team waiting prompt failed: ${failureForLog(error)}`)
+      if (this.cardsClosed(sessionId, epoch)) return
+      isUnanswered = true
     }
+    if (isUnanswered) this.sayUnanswered(handler)
     await this.binding.handle({
       type: 'answerTeamWaiting',
       waitingId: item.teamWaiting.waitingId,
@@ -606,6 +656,7 @@ class WorkspaceTeam {
     handler: AcpTeamSessionHandler,
     item: Extract<TeamCardItem, { kind: 'teamMerge' }>,
   ): Promise<void> {
+    const epoch = this.cardEpochOf(sessionId)
     const merge = item.teamMerge
     const tree = this.binding.tree()
     const agent =
@@ -676,15 +727,23 @@ class WorkspaceTeam {
           options,
         }
     let decision: 'merge' | 'discard' = 'discard'
+    let isUnanswered = false
     try {
+      if (this.cardsClosed(sessionId, epoch)) return
       const response = await handler.requestPermission(request)
+      // Cancel or close already stopped the task and removed its copy.
+      // Answering now would land a merge the person had already cancelled.
+      if (this.cardsClosed(sessionId, epoch)) return
       if (response.outcome.outcome === 'selected' && response.outcome.optionId === MERGE_OPTION)
         decision = 'merge'
     } catch (error: unknown) {
       // No answer is a denial (D62): the finished branch is discarded by
       // the merge flow's own decision, never landed unapproved.
       this.deps.log.warn(`ACP team merge prompt failed: ${failureForLog(error)}`)
+      if (this.cardsClosed(sessionId, epoch)) return
+      isUnanswered = true
     }
+    if (isUnanswered) this.sayUnanswered(handler)
     await this.binding.handle({ type: 'decideTeamMerge', taskId: merge.taskId, decision })
   }
   /** The board and the stored snapshot, read once before anything is admitted. */
@@ -771,10 +830,14 @@ class WorkspaceTeam {
   }
 
   public async cancel(sessionId: string): Promise<void> {
+    // Before any await, so a permission answer that arrives during the stop
+    // cannot land.
+    this.bumpCards(sessionId)
     await this.binding.stopSessionTasks(sessionId)
   }
 
   public async close(sessionId: string): Promise<void> {
+    this.bumpCards(sessionId)
     this.handlers.delete(sessionId)
     this.announced.delete(sessionId)
     this.plans.delete(sessionId)
@@ -783,7 +846,15 @@ class WorkspaceTeam {
   public async dispose(): Promise<void> {
     if (this.isDisposed) return
     this.isDisposed = true
+    const sessions: string[] = []
+    for (const sessionId of this.handlers.keys()) {
+      this.bumpCards(sessionId)
+      sessions.push(sessionId)
+    }
     this.handlers.clear()
+    this.announced.clear()
+    this.plans.clear()
+    for (const sessionId of sessions) await this.binding.stopSessionTasks(sessionId)
     await this.binding.dispose()
     await this.writes
   }

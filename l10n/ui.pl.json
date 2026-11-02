@@ -2024,6 +2024,7 @@
   "acpTeamPermissionTitle": "{role} · {agent}: {detail}",
   "acpTeamFixedForSession": "Korzystanie z zespołu wybiera się przy starcie sesji. Aby je zmienić, rozpocznij nową sesję.",
   "acpTeamRolesUnavailable": "Ten edytor nie ma sekcji Roles. Edytuj zapisany plik zespołu wskazany w przewodniku ACP.",
+  "acpTeamUnanswered": "Edytor nie odpowiedział, więc ten krok zespołu został odrzucony.",
   "teamResourcesTitle": "Narzędzia i urządzenia",
   "teamResourcesDetail": "Które serwery MCP i urządzenia współdzieli zespół i kto może ich używać",
   "teamResourcesKindLabel": "Rodzaj",
