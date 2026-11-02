@@ -21,7 +21,7 @@ import type { MediaLimits } from '../../core/media/limits'
 import { isProtectedPath } from '../../core/protectedPaths'
 import { isPrivateFileName } from '../../shared/privateFiles'
 import type { MediaAttachDeps } from './mediaAttach'
-import { isRecordingTempPath } from './recordingLatest'
+import { recordingTempAbsolute } from './recordingLatest'
 
 export interface MediaHostSettings {
   readonly mediaMaxUploadMiB: number
@@ -151,7 +151,8 @@ export interface MediaSourceOpenDeps {
   /**
   The host's recording temp root. Recorder-produced files under it skip
   workspace confinement (the driver made them); everything else is
-  confined. Windows separators normalize before the prefix check.
+  confined. Separators normalize and `.` / `..` collapse before the
+  prefix check; the open uses that collapsed path.
   */
   readonly recordingTempRoot: string
 }
@@ -164,9 +165,8 @@ throws the read failure. The fd pins the file between the sniff reads.
 export function createMediaSourceOpen(deps: MediaSourceOpenDeps): MediaAttachDeps['open'] {
   return async (file) => {
     let absolute: string
-    if (isRecordingTempPath(deps.recordingTempRoot, file.fsPath)) {
-      absolute = file.fsPath
-    } else {
+    const recording = recordingTempAbsolute(deps.recordingTempRoot, file.fsPath)
+    if (recording === undefined) {
       let checked: Awaited<ReturnType<MediaSourceOpenDeps['canonicalRelativePath']>>
       try {
         checked = await deps.canonicalRelativePath(file.fsPath)
@@ -182,6 +182,8 @@ export function createMediaSourceOpen(deps: MediaSourceOpenDeps): MediaAttachDep
         return
       }
       absolute = checked.checkedAbsolute
+    } else {
+      absolute = recording
     }
     // A link, a directory or a file that is already gone refuses before any
     // handle exists; only a handle that later fails reads as unreadable.

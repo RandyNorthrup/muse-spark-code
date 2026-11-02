@@ -370,6 +370,7 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **A path that only starts inside the recording folder cannot attach a file outside it.** The panel says that private file cannot be attached and does not read it. A video that really is in the recording folder still attaches.
 - A pack index is accepted only when the signature covers those exact bytes
   and the signer is the pack workflow on `main`, exactly. A signature for a
   branch whose name merely begins with `main`, or a signed statement that
