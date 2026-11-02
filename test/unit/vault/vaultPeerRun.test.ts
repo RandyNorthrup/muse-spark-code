@@ -73,8 +73,10 @@ describe.skipIf(!isPosix)('vault peer run mode (RLF-M109H)', () => {
       ['run', '/bin/sh', '-c', 'if : >&3; then echo open; else echo closed; fi'],
       { stdio: ['ignore', 'pipe', 'pipe', 'pipe'] },
     )
+    const stdout = child.stdout
+    if (stdout === null) throw new Error('command stdout was not piped')
     let out = ''
-    child.stdout.on('data', (bytes: Buffer) => {
+    stdout.on('data', (bytes: Buffer) => {
       out += bytes.toString('utf8')
     })
     const code = await new Promise<number | null>((resolve) => {
