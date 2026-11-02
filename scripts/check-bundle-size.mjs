@@ -642,6 +642,9 @@ const BUDGETS = [
   { path: 'dist/uiTextSurfaces.js', budgetKiB: 25 },
   // M105: media English on first use; measured region +15%, rounded to 25 KiB.
   { path: 'dist/uiTextMedia.js', budgetKiB: 25 },
+  // M111 ST1: the desktop's system settings English; measured region
+  // +15%, rounded to 25 KiB.
+  { path: 'dist/uiTextSettings.js', budgetKiB: 25 },
   // TRAIN13B: used Node mini-parser API, 39.5 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/validation.js', budgetKiB: 50 },
   // Shared existing Node boundary schemas: 41.3 KB plus 15%, rounded to 25

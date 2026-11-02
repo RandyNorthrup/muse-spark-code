@@ -1710,6 +1710,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   { file: 'uiTextHooks.js', side: 'both', requestedBy: [] },
   { file: 'uiTextMedia.js', side: 'both', requestedBy: [] },
   { file: 'uiTextRuntime.js', side: 'both', requestedBy: [] },
+  { file: 'uiTextSettings.js', side: 'both', requestedBy: [] },
   { file: 'uiTextSurfaces.js', side: 'both', requestedBy: [] },
   {
     file: 'usageCompanion.js',
