@@ -60,9 +60,29 @@ function checkoutRoot(): string {
   return root
 }
 
-const contract = JSON.parse(
-  readFileSync(path.join(checkoutRoot(), 'test', 'hostApi', 'scenarios', 'contract.json'), 'utf8'),
-) as Contract
+function isContract(value: unknown): value is Contract {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'protocol' in value &&
+    typeof value.protocol === 'string' &&
+    'scenarios' in value &&
+    Array.isArray(value.scenarios)
+  )
+}
+
+function readContract(): Contract {
+  const parsed: unknown = JSON.parse(
+    readFileSync(
+      path.join(checkoutRoot(), 'test', 'hostApi', 'scenarios', 'contract.json'),
+      'utf8',
+    ),
+  )
+  assert.ok(isContract(parsed), 'contract.json names its protocol and scenarios')
+  return parsed
+}
+
+const contract = readContract()
 
 const observations = new Map<string, Record<string, unknown>>()
 
