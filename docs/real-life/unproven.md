@@ -3321,3 +3321,10 @@ deleted stand-ins claimed, and what no suite here can yet prove:
   Panel run, `task::Spawn`), and the compiled extension installed
   (its LSP command against a live worktree). The WASM builds here;
   no Zed GUI test harness exists upstream.
+- Qt Creator: the Lua plugin inside Qt Creator (menu actions, Process
+  ownership, pending-lookup cancellation, stop retries) — formerly
+  claimed by an API-double suite in Neovim's Lua VM, now deleted.
+  Qt Creator 18.0.2 runs on this rig (extracted `.deb`, offscreen)
+  and carries the Lua plugin, but no headless entry point drives a
+  Lua plugin's actions, so an interactive in-editor run must prove
+  it. The Python bootstrap is proven against the real agent.
