@@ -3317,3 +3317,7 @@ deleted stand-ins claimed, and what no suite here can yet prove:
   failing process prove; the Windows explicit-opener refusal, which
   only Windows proves. Inline (Tab) completion needs `--tab`, a stored
   key and consent, none of which a headless run here supplies.
+- Zed: the generated settings and tasks inside Zed itself (the Agent
+  Panel run, `task::Spawn`), and the compiled extension installed
+  (its LSP command against a live worktree). The WASM builds here;
+  no Zed GUI test harness exists upstream.
