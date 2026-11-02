@@ -6664,6 +6664,14 @@ export const SCHEDULE_MAX_PROMPT_CHARS = 4000
 export const SCHEDULE_POLL_INTERVAL_MS = 60 * 1000
 export const SCHEDULE_CLAIM_RETENTION_MS = 8 * MILLISECONDS_PER_DAY
 export const SCHEDULE_MAX_JOBS_PER_SESSION = 100
+// M88 lane C (PLAN.md D67, items 15-16): a timed send goes at the earliest
+// a minute ahead, in whole minutes; a rate limit's default resume without
+// a Retry-After is five minutes after the failure; a limit lifting more
+// than six days out gets no resume timer (the row says when it lifts
+// instead). No horizon caps a send the person times themselves (D121).
+export const TIMED_SEND_MIN_LEAD_MS = 60 * 1000
+export const RESUME_LIMIT_DEFAULT_DELAY_MS = 5 * 60 * 1000
+export const RESUME_OFFER_MAX_LIFT_MS = 6 * MILLISECONDS_PER_DAY
 // M115's editor-independent schedule contracts. M52's limits above remain
 // intact for reading and migrating its v1 jobs.
 export const SCHEDULE_MAX_PER_WORKSPACE = 200
