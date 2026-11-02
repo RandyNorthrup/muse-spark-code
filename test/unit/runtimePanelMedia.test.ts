@@ -7,7 +7,7 @@
 // unheard media refuse with the pipeline's own reasons; recording refuses
 // with its wired words; a frame carrying bytes and an unparsed frame are
 // refused, never attached or ignored.
-import { mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -195,6 +195,38 @@ describe('the panel attach flow', () => {
         const result = await media.dispatch({ method: 'attachments/attach', params: { pathToken } })
         expect(result).toEqual({ ok: false, reason: UI_TEXT.textFilePrivate })
       }
+    } finally {
+      media.release()
+    }
+  })
+
+  it('refuses a recording-root path that leaves through .. and still attaches a real recording', async () => {
+    const { media, dataRoot } = await setup()
+    const outside = await mkdtemp(path.join(tmpdir(), 'panel-media-out-'))
+    tempDirs.push(outside)
+    const secret = path.join(outside, 'secret.mp4')
+    const recordings = path.join(dataRoot, 'recordings')
+    const kept = path.join(recordings, 'kept.mp4')
+    try {
+      await mkdir(recordings, { recursive: true })
+      await writeFile(secret, videoFixture({ soundtrack: false }))
+      // Absolute and uncollapsed. path.resolve would hide the `..`, and the
+      // panel keeps an absolute pathToken as given. The recordings directory
+      // has to exist or the kernel cannot walk the `..`.
+      const escaped = `${dataRoot}/recordings/../../${path.basename(outside)}/secret.mp4`
+      const refused = await media.dispatch({
+        method: 'attachments/attach',
+        params: { pathToken: escaped },
+      })
+      expect(refused).toEqual({ ok: false, reason: UI_TEXT.textFilePrivate })
+      await writeFile(kept, videoFixture({ soundtrack: false }))
+      const admitted = await media.dispatch({
+        method: 'attachments/attach',
+        params: { pathToken: kept },
+      })
+      expect(admitted.ok).toBe(true)
+      if (!admitted.ok) throw new Error('expected the recording to attach')
+      expect(admitted.value.attachments[0]?.name).toBe('kept.mp4')
     } finally {
       media.release()
     }

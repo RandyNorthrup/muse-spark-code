@@ -88,6 +88,13 @@ describe('M105 W recording temp gate', () => {
     ['/ws/clip.mp4', '/tmp/muse-screen', false],
     [String.raw`C:\rec\muse-screen\clip.mp4`, String.raw`C:\rec\muse-screen`, true],
     [String.raw`C:\rec\muse-screen-evil\clip.mp4`, String.raw`C:\rec\muse-screen`, false],
+    // `..` is collapsed before the prefix check. A spelling that starts with
+    // the root and then leaves it is not a recorder file.
+    ['/tmp/muse-screen/../../etc/passwd', '/tmp/muse-screen', false],
+    ['/tmp/muse-screen/nested/../clip.mp4', '/tmp/muse-screen', true],
+    ['/tmp/muse-screen/../muse-screen/clip.mp4', '/tmp/muse-screen', true],
+    [String.raw`C:\rec\muse-screen\..\..\secret.mp4`, String.raw`C:\rec\muse-screen`, false],
+    [String.raw`C:\rec\muse-screen\nested\..\clip.mp4`, String.raw`C:\rec\muse-screen`, true],
   ])('admits %s under %s only on the directory boundary', (given, root, expected) => {
     expect(isRecordingTempPath(root, given)).toBe(expected)
   })
@@ -561,6 +568,39 @@ describe('M105 W media source opener', () => {
     expect(
       await open({ name: 'gone.mp4', fsPath: path.join(ws, 'gone.mp4'), relativePath: 'gone.mp4' }),
     ).toBeUndefined()
+    // A path that only spells the recording root, then leaves it with `..`,
+    // is not opened. path.join would collapse this, so the token keeps the
+    // dots the way an absolute MHP pathToken arrives.
+    const secretDir = await temp()
+    const secret = path.join(secretDir, 'secret.mp4')
+    await writeFile(secret, videoFixture())
+    const escaped = `${tempRoot}/../${path.basename(secretDir)}/secret.mp4`
+    expect(
+      await open({ name: 'secret.mp4', fsPath: escaped, relativePath: undefined }),
+    ).toBeUndefined()
+    // A `..` that stays inside still opens, and it opens the collapsed path:
+    // a symlink hop must not choose a different file than the spelling.
+    const viaDots = `${tempRoot}/preview/../preview/clip.mp4`
+    const dotted = await open({ name: 'clip.mp4', fsPath: viaDots, relativePath: undefined })
+    expect(dotted?.source.sizeBytes).toBe(videoFixture().length)
+    await dotted?.close()
+    const sandbox = await temp()
+    const outsideDir = path.join(sandbox, 'out')
+    const evil = path.join(sandbox, 'preview', 'clip.mp4')
+    await mkdir(path.dirname(evil), { recursive: true })
+    await mkdir(outsideDir, { recursive: true })
+    await writeFile(evil, Buffer.concat([videoFixture(), Buffer.from([0])]))
+    let didLink = true
+    try {
+      await symlink(outsideDir, path.join(tempRoot, 'hop'))
+    } catch {
+      didLink = false
+    }
+    if (!didLink) return
+    const viaHop = `${tempRoot}/hop/../preview/clip.mp4`
+    const hopped = await open({ name: 'clip.mp4', fsPath: viaHop, relativePath: undefined })
+    expect(hopped?.source.sizeBytes).toBe(videoFixture().length)
+    await hopped?.close()
   })
 
   it('refuses when the path check itself fails, without a word', async () => {
