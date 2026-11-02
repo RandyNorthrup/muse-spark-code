@@ -24,12 +24,14 @@ import type { TasksTabPort } from '../../host/views/tasksTabPort'
 import type { MediaHostSettings } from '../../host/media/mediaProviders'
 import {
   MHP_PANEL,
+  OPTIONAL_RUNTIME_AVAILABILITY,
   RUNTIME_PANEL_MEDIA_BUNDLE_FILE,
   UI_TEXT,
   type AcpBackendKind,
 } from '../../shared/constants'
 import { panelMediaLoader } from './panelBundle'
 import type { AttachmentDispatch, PanelMediaHost } from './panelMedia'
+import type { PanelScheduleHold } from './panelSchedules'
 import {
   createQuestionsStatusPublisher,
   type QuestionsStatusHost,
@@ -109,6 +111,8 @@ export interface RuntimeConversationOptions {
   readonly stopped: () => void
   /** The host surface the open-questions count is published to (M112). */
   readonly statusHost: QuestionsStatusHost
+  /** C-M115-9: this conversation's native schedule hold, when schedules have a binding. */
+  readonly schedules?: PanelScheduleHold
   /** M105 delivery d: what this conversation's `attachments/*` dispatch is built from. */
   readonly attachments: {
     /** The folder holding the agent's bundles (the media bundle loads on first attach). */
@@ -157,6 +161,7 @@ export class RuntimeConversation implements SessionController, PanelView {
   private isDisposed = false
   private isHostStopped = false
   private releaseMedia: (() => void) | undefined
+  private scheduleHold: PanelScheduleHold | undefined
   private readonly questionsStatus: QuestionsStatusPublisher
   private readonly tasksTab: RuntimeTasksTab
 
@@ -258,6 +263,7 @@ export class RuntimeConversation implements SessionController, PanelView {
               this.questionsStatus.releaseSession(previousId)
             }
             this.ensureLive()
+            await this.holdSchedules(session)
           } catch (error: unknown) {
             // REPORTED: the conversation stays on what it had; the controller disposes the session it was refused.
             this.currentSession = previousSession
@@ -311,6 +317,28 @@ export class RuntimeConversation implements SessionController, PanelView {
       media?.release()
       media = undefined
     }
+  }
+
+  /** C-M115-9: hold this workspace while the taken session stays live. Absent without a schedules port or certified delivery. */
+  private async holdSchedules(session: AgentSession): Promise<void> {
+    const schedules = this.options.schedules
+    const conversation = this.conversation
+    if (
+      schedules === undefined ||
+      conversation === undefined ||
+      !OPTIONAL_RUNTIME_AVAILABILITY.schedules
+    )
+      return
+    if (this.scheduleHold === undefined) {
+      this.scheduleHold = schedules
+      this.cleanups.push(() => schedules.close())
+    }
+    await schedules.hold(
+      this.options.attachments.workspaceRoot,
+      session,
+      this.options.attachments.backendKind(),
+      conversation,
+    )
   }
 
   private paidMessage(): HostToWebviewMessage {

@@ -11365,6 +11365,8 @@ export const RUNTIME_PANEL_SESSION_BUNDLE_FILE = 'runtimePanelSession.js'
 export const RUNTIME_PANEL_PORTS_BUNDLE_FILE = 'runtimePanelPorts.js'
 // M105 delivery d: its attachments route and port, loaded on the first attachments call.
 export const RUNTIME_PANEL_MEDIA_BUNDLE_FILE = 'runtimePanelMedia.js'
+// C-M115-9: its schedules binding, loaded on the first native schedule hold.
+export const RUNTIME_PANEL_SCHEDULES_BUNDLE_FILE = 'runtimePanelSchedules.js'
 /** Each workspace's keyed Tab Always record (RVM94KR2), in the agent's data folder. */
 export const LSP_TAB_CONSENT_FOLDER = 'tab-consent'
 /** A header block past this is malformed input (the common 8 KiB HTTP header bound). */
