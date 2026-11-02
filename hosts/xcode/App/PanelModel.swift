@@ -22,13 +22,39 @@ final class PanelModel: ObservableObject {
 
   private let navigationProcessFactory: () -> Process
   private var navigationProcesses: [UUID: Process] = [:]
+  private var appearanceObservation: NSKeyValueObservation?
+  private var contrastObserver: NSObjectProtocol?
   init(navigationProcessFactory: @escaping () -> Process = { Process() }) {
     self.navigationProcessFactory = navigationProcessFactory
+    appearanceObservation = NSApp.observe(\.effectiveAppearance, options: [.new]) { [weak self] _, _ in
+      Task { @MainActor [weak self] in self?.sendTheme() }
+    }
+    contrastObserver = NSWorkspace.shared.notificationCenter.addObserver(
+      forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main
+    ) { [weak self] _ in
+      Task { @MainActor [weak self] in self?.sendTheme() }
+    }
   }
 
   static func themeKind(dark: Bool, contrast: Bool) -> String {
     if contrast { return dark ? "highContrastDark" : "highContrastLight" }
     return dark ? "dark" : "light"
+  }
+
+  private static func currentTheme() -> [String: Any] {
+    [
+      "kind": Self.themeKind(
+        dark: NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua,
+        contrast: NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast),
+      "tokens": [String: String](),
+    ]
+  }
+
+  private func sendTheme() {
+    guard connected else { return }
+    do {
+      try launcher.theme(Self.currentTheme())
+    } catch { self.error = UI_TEXT.xcodeUnavailable }
   }
 
   func chooseWorkspace() {
@@ -73,12 +99,7 @@ final class PanelModel: ObservableObject {
     do {
       try launcher.start(
         executable: runtime, workspace: workspace,
-        theme: [
-          "kind": Self.themeKind(
-            dark: NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua,
-            contrast: NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast),
-          "tokens": [String: String](),
-        ],
+        theme: Self.currentTheme(),
         trusted: trusted,
         service: { [weak self] method, params, token, reply in
           DispatchQueue.main.async {

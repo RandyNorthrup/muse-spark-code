@@ -298,6 +298,13 @@ final class RuntimeLauncher {
     guard let peer = peer else { throw NativeFailure.unavailable }
     try peer.trust(trusted)
   }
+  func theme(_ theme: [String: Any]) throws {
+    lock.lock()
+    let peer = session
+    lock.unlock()
+    guard let peer = peer else { throw NativeFailure.unavailable }
+    try peer.didChangeTheme(theme: theme)
+  }
   private func stop(expected: UUID?) -> Bool {
     lock.lock()
     if let expected = expected, expected != generation {

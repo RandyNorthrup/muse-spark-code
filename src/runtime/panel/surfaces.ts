@@ -8,6 +8,7 @@ import * as z from 'zod/mini'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import type { CoreLogger } from '../../core/logging'
 import { MHP_PANEL } from '../../shared/constants'
+import type { themeSchema } from '../../shared/hostApi/data'
 import {
   panelLifecycleSchema,
   parseMhpPanelEnvelope,
@@ -51,8 +52,12 @@ function bindingOf(frame: MhpPanelBinding): MhpPanelBinding {
   return { surface: frame.surface, sessionId: frame.sessionId, surfaceKind: frame.surfaceKind }
 }
 
+type Theme = z.infer<typeof themeSchema>
+
 export class PanelSurfaces {
   private readonly surfaces = new Map<string, Surface>()
+  /** The host window's latest theme (MHP 1.6): relayed on ready and on change. */
+  private theme: Theme | undefined
   /** Ids a host closed: a host mints each id once, so an id is never opened again. */
   private readonly retired = new Set<string>()
   /** Surfaces the runtime retired and waits for the host to confirm closed. */
@@ -215,6 +220,8 @@ export class PanelSurfaces {
       case 'ready': {
         surface.ready = true
         this.delivery.ready(frame.surface, true)
+        // The latest theme paints before any state replay (M114).
+        if (this.theme !== undefined) this.output(surface, { type: 'theme', theme: this.theme })
         if (surface.replay !== undefined) {
           const complete = this.delivery.reserve(
             new TextEncoder().encode(JSON.stringify(surface.replay)).byteLength,
@@ -239,6 +246,25 @@ export class PanelSurfaces {
       }
       case 'hidden': {
         break
+      }
+    }
+  }
+
+  /**
+  The host window's theme, replaced whole (MHP 1.6): held for surfaces
+  that are not ready yet and relayed to every ready one now.
+  */
+  public setTheme(theme: Theme): void {
+    this.theme = theme
+    for (const surface of this.surfaces.values()) {
+      if (!surface.ready) continue
+      try {
+        this.output(surface, { type: 'theme', theme })
+      } catch (error: unknown) {
+        // REPORTED: output the contract refuses, or a host that stopped reading, ends the connection.
+        this.log.error(`MHP_PANEL_OUTPUT_FAILED: ${failureForLog(error)}`)
+        this.fatal()
+        return
       }
     }
   }

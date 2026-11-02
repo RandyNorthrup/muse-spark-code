@@ -143,7 +143,7 @@ namespace MuseSpark.VisualStudio.Panel
         }
         var envelope = new JObject
         {
-          ["mhp"] = "1.5",
+          ["mhp"] = "1.6",
           ["kind"] = "panel",
           ["direction"] = "toHost",
           ["surface"] = SurfaceId,
@@ -213,7 +213,7 @@ namespace MuseSpark.VisualStudio.Panel
     private JObject LifecycleFrame(string value)
     {
       var frame = (JObject)binding.DeepClone();
-      frame["mhp"] = "1.5"; frame["kind"] = "surface"; frame["event"] = value;
+      frame["mhp"] = "1.6"; frame["kind"] = "surface"; frame["event"] = value;
       return frame;
     }
     private Task LifecycleAsync(string value) => peer.PostPanelAsync(LifecycleFrame(value));

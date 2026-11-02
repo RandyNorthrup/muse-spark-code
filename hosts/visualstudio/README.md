@@ -4,7 +4,7 @@ This is the M104c in-process VSSDK host for Visual Studio 2022 and 2026.
 It targets .NET Framework 4.8 and embeds the shared React bundle in WPF
 WebView2. The status is **Prototype, qualification pending**.
 
-The reviewed MHP 1.5 contract is
+The reviewed MHP 1.6 contract is
 [`mhp-v1.1.schema.json`](../../src/shared/hostApi/mhp-v1.1.schema.json), consumed
 directly by the C# validator (the filename is retained from the replaced contract).
 The editor initiates initialization with its installed version, display language,
@@ -29,9 +29,9 @@ starts false; native trust transitions still need their adapter. See
 The C# validator consumes the frozen
 [`MHP 1.0`](../../src/shared/hostApi/mhp-v1.schema.json) and additive
 [`MHP 1.1`](../../src/shared/hostApi/mhp-v1.1.schema.json) exports directly.
-Both generations advertise the one current version, `mhp/1.5.0` (wire `1.5`);
+Both generations advertise the one current version, `mhp/1.6.0` (wire `1.6`);
 an offer must include it or the handshake refuses with
-`MHP_INCOMPATIBLE_VERSION`. Panel traffic requires the negotiated 1.5.
+`MHP_INCOMPATIBLE_VERSION`. Panel traffic requires the negotiated 1.6.
 
 WebView2 installs `window.museHost` before page scripts. Its payloads use the
 shared zod boundaries, bound opaque surfaces, independent ordered sequences,
@@ -96,7 +96,7 @@ include input, selection, clipboard, external links, status and progress;
 runtime command registration owns removable native key bindings and a menu.
 These are component receipts, not installed-editor or paid-ledger qualification.
 
-MHP 1.5 also adds fresh version-attested diagnostics, command execution,
+MHP 1.6 also adds fresh version-attested diagnostics, command execution,
 file-open/save and settings UI. Their complete native groups remain undeclared
 alongside auxiliary surfaces until these new methods are implemented. Existing
 Error List, menu and WPF prompt components remain present; the runtime must use

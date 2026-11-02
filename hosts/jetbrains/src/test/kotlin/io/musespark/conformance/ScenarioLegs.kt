@@ -208,7 +208,7 @@ private fun panelFrame(
   seq: Long,
 ): JsonObject =
   json(
-    "mhp" to "1.5",
+    "mhp" to "1.6",
     "kind" to "panel",
     "surface" to surface,
     "direction" to "toPanel",

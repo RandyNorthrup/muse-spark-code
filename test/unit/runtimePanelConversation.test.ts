@@ -97,7 +97,7 @@ describe('the chat in panel --stdio', () => {
       expect(frame).toMatchObject({ code })
       return frame
     }
-    const envelope = { mhp: '1.5', kind: 'panel', surface: chat.surface, direction: 'toHost' }
+    const envelope = { mhp: '1.6', kind: 'panel', surface: chat.surface, direction: 'toHost' }
     // A sequence that skips ahead, a surface nobody opened, and a frame the wrong way round.
     host.send({ ...envelope, seq: 7, payload: { type: 'inputFocusChanged', focused: true } })
     expect(await refusal('MHP_PANEL_OUT_OF_ORDER')).toMatchObject({ surface: chat.surface, seq: 7 })
@@ -112,7 +112,7 @@ describe('the chat in panel --stdio', () => {
     await refusal('MHP_PANEL_WRONG_DIRECTION')
     // A surface for a session the runtime does not hold.
     host.send({
-      mhp: '1.5',
+      mhp: '1.6',
       kind: 'surface',
       event: 'opened',
       surface: 'stranger',
@@ -122,6 +122,34 @@ describe('the chat in panel --stdio', () => {
     await refusal('MHP_PANEL_UNKNOWN_SURFACE')
     // The surface it does hold still works after the refusals.
     chat.say({ type: 'inputFocusChanged', focused: true })
+    parseMhpResult('shutdown', await host.request('shutdown', {}))
+    expect(await host.exited).toBe(0)
+  })
+
+  it('relays the editor theme on ready and on every window theme change (MHP 1.6)', async () => {
+    await writeSettings({
+      backend: 'museCode',
+      museBinaryPath: path.join(run.folder, 'no-such-muse'),
+    })
+    const host = run.serve(['panel', '--stdio'])
+    const editor = panelEditor(host)
+    const first = { kind: 'dark' as const, tokens: { '--muse-editor-background': '#101010' } }
+    panelInitializeResultSchema.parse(
+      await host.request(
+        'initialize',
+        run.initializeParams({ capabilities: [...OFFERED], theme: first }),
+      ),
+    )
+    const chat = await editor.nextSurface()
+    // The initialize theme reaches the surface once it is ready.
+    expect(await chat.shown('theme')).toEqual({ type: 'theme', theme: first })
+    const second = { kind: 'light' as const, tokens: { '--muse-editor-background': '#f8f8f8' } }
+    host.send({
+      jsonrpc: '2.0',
+      method: 'window/didChangeTheme',
+      params: { theme: second },
+    })
+    expect(await chat.shown('theme')).toEqual({ type: 'theme', theme: second })
     parseMhpResult('shutdown', await host.request('shutdown', {}))
     expect(await host.exited).toBe(0)
   })

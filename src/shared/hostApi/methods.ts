@@ -7,6 +7,13 @@ import {
   versionRangeSchema,
 } from './capabilities'
 import {
+  attachmentsAttachParamsSchema,
+  attachmentsPickParamsSchema,
+  attachmentsRecordParamsSchema,
+  attachmentsRemoveParamsSchema,
+  attachmentsResultSchema,
+} from './attachments'
+import {
   diagnosticSchema,
   documentSchema,
   folderSchema,
@@ -499,6 +506,36 @@ export const MHP_METHODS = {
     z.null(),
   ),
   'ui/showSetting': request('ui', 'react-ui', z.strictObject({ key: settingKeySchema }), z.null()),
+  // M105 delivery d (D85): the native host's attachment gestures. The host
+  // calls; the runtime opens the IDE chooser, confines, sniffs and binds.
+  'attachments/pick': request(
+    'ui',
+    'react-ui',
+    attachmentsPickParamsSchema,
+    attachmentsResultSchema,
+    'hostToRuntime',
+  ),
+  'attachments/attach': request(
+    'ui',
+    'react-ui',
+    attachmentsAttachParamsSchema,
+    attachmentsResultSchema,
+    'hostToRuntime',
+  ),
+  'attachments/remove': request(
+    'ui',
+    'react-ui',
+    attachmentsRemoveParamsSchema,
+    attachmentsResultSchema,
+    'hostToRuntime',
+  ),
+  'attachments/record': request(
+    'ui',
+    'react-ui',
+    attachmentsRecordParamsSchema,
+    attachmentsResultSchema,
+    'hostToRuntime',
+  ),
   'commands/execute': notification('commands', 'panel-palette', z.strictObject({ id: z.string() })),
   'tab/register': request(
     'tab',
@@ -612,6 +649,14 @@ export const MHP_METHODS = {
     'companion-notification',
     z.strictObject({ message: z.string() }),
     z.null(),
+  ),
+  // M114's theme message (MHP 1.6): the host window's complete theme, sent
+  // when it changes. The runtime relays it to panels; initialize carries the
+  // first one. A full replacement every time, never a patch.
+  'window/didChangeTheme': notification(
+    'window',
+    'companion-notification',
+    z.strictObject({ theme: themeSchema }),
   ),
 } as const
 

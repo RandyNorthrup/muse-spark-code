@@ -1,5 +1,5 @@
 // dist/runtimePanel.js (M104 lane B, PLAN.md D84): `muse-spark-code-acp panel
-// --stdio`, the runtime's side of an editor's Muse panel over MHP 1.5 on
+// --stdio`, the runtime's side of an editor's Muse panel over MHP 1.6 on
 // standard I/O, one newline-delimited JSON frame per line. Loaded only by
 // `panel`. It serves the handshake and this agent's settings and storage (the
 // same files the runtime itself reads, src/runtime/settingsStore.ts), and
