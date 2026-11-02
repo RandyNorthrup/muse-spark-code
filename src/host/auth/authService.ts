@@ -123,9 +123,10 @@ export interface AuthServiceDeps {
   readonly log: Logger
   /**
   The flight recorder's facts-only way in (lane REPORTFLOW, PLAN.md M93):
-  sign-in starts and ends, the CLI probe and the backend resolution, so a
-  signed-out person's report is not "Recent events (0)". Absent in tests
-  and where no recorder runs; recording never throws into the flow.
+  sign-in starts and ends, the CLI probe, the install's start and re-check
+  (RSCH-MUSE-G, #157) and the backend resolution, so a signed-out person's
+  report is not "Recent events (0)". Absent in tests and where no recorder
+  runs; recording never throws into the flow.
   */
   readonly report?: ((kind: ReportEventKind, code: string) => void) | undefined
 }
@@ -882,6 +883,11 @@ export class AuthService {
       status = 'signedIn'
       detail = undefined
     }
+    // The install's own probe row (RSCH-MUSE-G, #157): forced, never
+    // deduped. `choose` already said the CLI is missing, but that row cannot
+    // say the person pressed Install. One start row and one outcome row per
+    // attempt, so an install cannot crowd the journal out.
+    this.recordReport('cliProbe', 'cliMissing')
     this.set({
       ...this.snapshot,
       status,
@@ -901,14 +907,24 @@ export class AuthService {
         }
         await this.deps.sleep(MUSE_INSTALL_POLL_INTERVAL_MS)
       }
-      return await this.installFailed(UI_TEXT.installTimedOut, epoch)
+      return await this.installFailed(UI_TEXT.installTimedOut, epoch, 'cliMissing')
     } catch (error: unknown) {
       this.deps.log.warn(`Muse Code installer terminal failed: ${failureForLog(error)}`)
-      return await this.installFailed(UI_TEXT.installStartFailed, epoch)
+      return await this.installFailed(UI_TEXT.installStartFailed, epoch, 'unknown')
     }
   }
 
-  private async installFailed(detail: string, epoch: number): Promise<AuthSnapshot> {
+  private async installFailed(
+    detail: string,
+    epoch: number,
+    probeCode: string,
+  ): Promise<AuthSnapshot> {
+    // The re-check's answer beside the start row: `cliMissing` when the wait
+    // ran out with the CLI still missing, `unknown` when the installer never
+    // started. Recorded even when a sign-out supersedes the publication (as a
+    // failed sign-in is): the re-check concluded either way, and the pair's
+    // ages separate "never tried" from "tried and failed".
+    this.recordReport('cliProbe', probeCode)
     // The install's error path publishes what it asks here only if nothing
     // newer was published while it asked (Codex on 86d63652).
     const ticket = this.nextTicket()
@@ -1497,6 +1513,11 @@ export class AuthService {
       const key = await this.deps.promptForApiKey()
       if (key === undefined) {
         this.deps.log.info('Sign-in with an API key cancelled')
+        // A dismissed key box cancels the sign-in it offered (RSCH-MUSE-G,
+        // #157): the browser flow records its cancels, so the key flow
+        // records its own, and the report tells an abandoned offer from one
+        // never made.
+        this.recordReport('signInFailed', 'cancelled')
         return this.snapshot
       }
       if (epoch !== this.signOutEpoch) {
