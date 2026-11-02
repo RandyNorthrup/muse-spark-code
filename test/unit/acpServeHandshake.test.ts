@@ -9,12 +9,13 @@
 // would take the signed-in path. With no CLI on PATH the same list refuses
 // with the CLI-missing sentence instead.
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { mkdtempSync } from 'node:fs'
+import { existsSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { Writable } from 'node:stream'
 import * as acp from '@agentclientprotocol/sdk'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { MUSE_CMD_FILE, MUSE_POSIX_EXECUTABLE } from '../../src/shared/constants'
 import { webReadable } from '../../src/runtime/webStreams'
 import { removeFolder } from './helpers/temporaryFolders'
 import { stageAgentBundle } from './helpers/stageAgentBundle'
@@ -94,9 +95,12 @@ describe('the served ACP agent over real stdio', () => {
 
   it('refuses a session list with the CLI-missing sentence when no CLI is on PATH', async () => {
     const separator = process.platform === 'win32' ? ';' : ':'
+    // Drop every entry that actually holds the CLI: its install folder
+    // name need not contain "muse" (`~/.local/bin` on POSIX rigs).
+    const executable = process.platform === 'win32' ? MUSE_CMD_FILE : MUSE_POSIX_EXECUTABLE
     const scrubbed = (process.env['PATH'] ?? '')
       .split(separator)
-      .filter((entry) => !entry.toLowerCase().includes('muse'))
+      .filter((entry) => entry === '' || !existsSync(path.join(entry, executable)))
       .join(separator)
     expect(await refusedList(scrubbed)).toMatch(/Muse Code is not installed/)
   })

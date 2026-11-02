@@ -101,8 +101,9 @@ export const ACP_PRESETS: Readonly<Record<AcpPresetId, AcpPreset>> = {
     id: 'claude',
     command: EXTERNAL_PRESET_LAUNCH.claude.command,
     defaultArgs: EXTERNAL_PRESET_LAUNCH.claude.defaultArgs,
-    // claude-agent-acp 0.99.1 spreads `_meta.claudeCode.options` into the Claude
-    // Agent SDK's options; `strictMcpConfig` is the SDK's `--strict-mcp-config`.
+    // claude-agent-acp spreads `_meta.claudeCode.options` into the Claude
+    // Agent SDK's options; `strictMcpConfig` is the SDK's `--strict-mcp-config`
+    // (re-verified in 0.100.0's dist, 2026-11-02, RLF-UPSDK).
     withoutUserServersMeta: { claudeCode: { options: { strictMcpConfig: true } } },
     modes: { readOnly: 'plan', writePaths: 'default', engineering: 'default' },
     forbiddenModes: ['bypassPermissions', 'dontAsk', 'auto'],

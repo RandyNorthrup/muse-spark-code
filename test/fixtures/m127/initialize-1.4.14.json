@@ -1,0 +1,18 @@
+{
+  "serverInfo": {
+    "name": "muse",
+    "version": "1.4.14"
+  },
+  "userAgent": "muse-build/1.4.14 (serve; macos-x86_64; build dec7d7497fecdad135ec5835a8161dbc92e55b58)",
+  "museHome": "/Users/user/lanes/RLF-UPSDK/temp/rlf-upsdk/home/data/muse",
+  "platformFamily": "unix",
+  "platformOs": "macos",
+  "schema": {
+    "version": 1,
+    "fingerprint": "sha256:c94c3d1f2f51e6424074b9ec43eac3eedcf532d3dcd77351ec1383a87d3049c6"
+  },
+  "grantedCapabilities": ["sessionListStream", "feedback"],
+  "experimentalApi": false,
+  "sessionDurability": "ephemeral",
+  "sandboxAvailability": "unavailable"
+}
