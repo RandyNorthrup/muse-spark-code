@@ -17,7 +17,7 @@ values (`boot/boot.json`), all read, never copied by hand.
 - [x] Icon sources, `scripts/build-icons.mjs`, four themes, tests.
 - [x] Fonts (Inter + JetBrains Mono), fontconfig, `packages.conf`, notices.
 - [x] Wallpapers and greeter art.
-- [ ] Plymouth and GRUB theme packaging.
+- [x] Plymouth and GRUB theme packaging.
 - [ ] Companion variants, manifest, provenance; flash measurement.
 - [ ] Chromium looks (light + dark + boot).
 - [ ] PLAN status, CHANGELOG, gates, red/green drills, LANE DONE.
@@ -186,6 +186,30 @@ codepoints; 0 problems` (exit 0, this rig, 2026-11-02).
   lifts its glow-symmetric mirror by exactly the 0.07 blend of #3d8bff
   (+2,+7,+13). The recipe's `rule` key is not painted: it is the focus
   colour SS's on-wallpaper UI reads from the same recipe.
+- Boot: `test/unit/desktop/artBoot.test.mjs`, 11 tests, all green
+  (2026-11-02). `os/desktop/plymouth/muse/` carries the descriptor, the
+  script (TH's progress/message core plus the logo, the passphrase dialog
+  with bullets and keyboard layout, quit and message hiding, after
+  upstream's reference theme), the five dialog PNGs rendered from
+  boot.json, and TH's two progress PNGs byte-identical. The script shows
+  only packaged files, paints only boot.json colours (within float
+  rounding) in Inter 13, registers seven callbacks that all name defined
+  functions, and calls only the script API transcribed from upstream
+  Plymouth b79b1786. `os/desktop/grub-theme/muse/` carries theme.txt (TH's
+  colours and geometry plus the background, icon wiring and Inter faces),
+  the background byte-identical to the dark 1080p wallpaper, and the
+  32x32 muse class icon in brand paint. The first red drill missed: it
+  renamed a callback argument the test did not check, so the suite stayed
+  green; the test now proves every registered callback is defined, and
+  the re-run drill fails exactly that test.
+- GRUB bake drill (grub-mkfont 2.14, this rig, 2026-11-02): one style per
+  file, because a two-file run merges the glyphs under one name (proven:
+  Regular+Bold baked together name only "Inter Bold 16"). Assembly runs
+  `grub-mkfont -o <theme>/fonts/inter-regular.pf2 -s 16
+<fonts-inter>/Inter-Regular.otf` (94 KiB, names "Inter Regular 16")
+  and the same for Bold (97 KiB, "Inter Bold 16"); M111os loadfonts both.
+  No .pf2 is committed: the bytes depend on the image's font version.
+  QEMU boot proof stays M111os/IQ's, per the plan.
 
 ## Commits
 
@@ -193,7 +217,8 @@ codepoints; 0 problems` (exit 0, this rig, 2026-11-02).
 - `4c29dc13d` the pointer themes (`check:art` joins `quality:gates`).
 - `27da2d767` the icon themes.
 - `1eafb9798` the image fonts, slot-59 fontconfig and notices.
-- (Wallpapers commit SHA lands here at commit time.)
+- `258307b35` the wallpapers and greeter art.
+- (Boot commit SHA lands here at commit time.)
 
 ## Gates
 
@@ -208,3 +233,6 @@ codepoints; 0 problems` (exit 0, this rig, 2026-11-02).
 - Wallpapers (2026-11-02): the mark placeholder → `0.5` in the template
   makes `build-desktop-art.mjs --check` exit 1 naming all 15 PNGs;
   restored, exit 0 with 15 fresh.
+- Boot (2026-11-02): the password registration → a missing callback fails
+  the registrations test (10 of 11 pass); restored, 11 green. The drill's
+  first run stayed green and grew the test (see above).

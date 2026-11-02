@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="30" viewBox="0 0 200 30">
+  <!-- M111 lane AR (D91.11): the Plymouth passphrase entry field.
+       Upstream's 200x30 slot in the progress track colour. -->
+  <rect x="1" y="1" width="198" height="28" rx="8" fill="%%ENTRY%%" />
+</svg>
