@@ -6877,6 +6877,15 @@ export const EN = {
     'The Auto reviewer is paused for this turn after repeated declines or failures, so you decide.',
   autoReviewerTripped:
     'The Auto reviewer stopped for the rest of this turn after repeated declines or failures. Every risky action asks you until you send your next message.',
+  // A rules file or skill body holding hidden characters (RLF-SECTEXT):
+  // {file} names the file, {class} is one of the three words below. The
+  // file loads unchanged; the warning fires once per file per session.
+  contextHiddenFile:
+    '{file} holds hidden characters ({class}), which do not show as the model reads them; it is loaded unchanged — check the file before trusting what it says.',
+  // The hidden-character classes, read inside the parentheses above.
+  contextHiddenBidi: 'bidirectional controls',
+  contextHiddenZeroWidth: 'zero-width spaces and joiners',
+  contextHiddenTag: 'tag characters',
   // The window's first review on Muse Code (M90, PLAN.md D69).
   museCodeReviewerNotice:
     'On by default. In Auto on Muse Code, only approvals for the running turn that no rule settles are eligible: one short Muse Code turn on your subscription in a hidden Plan session. Protected writes, paid calls, child tasks, questions, replayed or escalated requests, unknown subjects, requests without allow-once and sessions shared by panels are never reviewed. A successful review may allow once; declines, failures, busy sessions, timeouts or a tripped breaker show the approval card. Host exit recreates the side session. Turn it off with museSpark.museCodeAutoReviewer.',
