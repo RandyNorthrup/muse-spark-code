@@ -31,15 +31,15 @@ export const OS_DESKTOP_PACKAGES = 'os/desktop/packages.conf'
 export const ENGLISH_LOCALE = 'en'
 
 /**
-The image's text faces: the UI face and the monospace face in Regular and
-Bold, each CJK face in Regular and Bold (separate faces of one TTC, told
-apart by fontconfig's index), and the emoji face. Lane AR may refine the
-UI and monospace families; until it does, Noto Sans and Noto Sans Mono
-stand in.
+The image's text faces: the UI face (Inter) and the monospace face
+(JetBrains Mono, chosen by lane AR for the product's own UI/code defaults
+in M114 F) in Regular and Bold, each CJK face in Regular and Bold
+(separate faces of one TTC, told apart by fontconfig's index), and the
+emoji face.
 */
 export const IMAGE_FONTS = [
-  { family: 'Noto Sans', styles: ['Regular', 'Bold'], packages: 'fonts-noto-core' },
-  { family: 'Noto Sans Mono', styles: ['Regular', 'Bold'], packages: 'fonts-noto-core' },
+  { family: 'Inter', styles: ['Regular', 'Bold'], packages: 'fonts-inter' },
+  { family: 'JetBrains Mono', styles: ['Regular', 'Bold'], packages: 'fonts-jetbrains-mono' },
   { family: 'Noto Sans CJK SC', styles: ['Regular', 'Bold'], packages: 'fonts-noto-cjk' },
   { family: 'Noto Sans CJK TC', styles: ['Regular', 'Bold'], packages: 'fonts-noto-cjk' },
   { family: 'Noto Sans CJK JP', styles: ['Regular', 'Bold'], packages: 'fonts-noto-cjk' },

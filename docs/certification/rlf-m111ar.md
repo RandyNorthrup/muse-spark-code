@@ -15,7 +15,7 @@ values (`boot/boot.json`), all read, never copied by hand.
 - [x] `@resvg/resvg-js` 2.6.2 (rule 9 record in PLAN.md D3).
 - [x] Cursor sources, `scripts/build-cursors.mjs`, three themes, tests.
 - [x] Icon sources, `scripts/build-icons.mjs`, four themes, tests.
-- [ ] Fonts (Inter + JetBrains Mono), fontconfig, `packages.conf`, notices.
+- [x] Fonts (Inter + JetBrains Mono), fontconfig, `packages.conf`, notices.
 - [ ] Wallpapers and greeter art.
 - [ ] Plymouth and GRUB theme packaging.
 - [ ] Companion variants, manifest, provenance; flash measurement.
@@ -92,11 +92,17 @@ values (`boot/boot.json`), all read, never copied by hand.
    spec names the desktop uses plus our three app icons. SVG-only is valid
    per the spec (`Type=Scalable`); Qt (Svg module) and GTK (librsvg)
    render it.
-4. **Fonts: Inter + JetBrains Mono.** The product's own defaults (M114 F),
-   both OFL, both in Debian trixie (`fonts-inter` 4.1, `fonts-jetbrains-mono`
-   2.304, verified on packages.debian.org 2026-11-02). The font-coverage
-   gate decides whether Noto Sans/Mono stay; the CJK and emoji faces stay
-   regardless.
+4. **Fonts: Inter + JetBrains Mono, no Noto Sans/Mono.** The product's
+   own defaults (M114 F), both OFL, both in Debian trixie (`fonts-inter`
+   4.1, `fonts-jetbrains-mono` 2.304, verified on packages.debian.org
+   2026-11-02). Noto Sans/Mono do not ship: the gate is green without them
+   and `fonts-noto` is a pull-everything metapackage. The CJK and emoji
+   faces stay. The slots are aliases in `59-muse-desktop.conf`: after
+   49-sansserif (absent requests fall back to our UI face) and 50-user
+   (the person's aliases accumulate first and keep winning), before
+   60-latin (our faces accumulate first and win the requested generics).
+   A strong match would hijack every request (49 appends weak sans-serif
+   to all of them); an alias at 64 loses to 60-latin. Both proven below.
 5. **Wallpapers follow the mockups + TH's recipe.** Base-to-deep wash, the
    brand gradient glow, the squiggle-m watermark at the mockups' opacity,
    at 1920×1080, 2560×1440 and 3840×2160 per mode. The greeter reuses the
@@ -149,12 +155,33 @@ values (`boot/boot.json`), all read, never copied by hand.
 - Icons caught by the build: the palette key is `warning` with an `accent`
   beside it (not `warn`); folders, home, the launcher mark and the
   workbench icon use the accent, functional blue stays info.
+- Fonts: `test/unit/desktop/artFonts.test.mjs`, 7 tests, all green
+  (2026-11-02). The gate's image set is pinned (Inter, JetBrains Mono,
+  CJK ×4, emoji, with styles and packages); the shipped fontconfig parses
+  as well-formed XML and binds the three slots to those faces with LCD
+  rendering and no forced size or dpi; the notices name every face with
+  its source package and the OFL.
+- Fonts vs fontconfig itself (debs extracted without sudo, 2026-11-02):
+  with only the image's four font packages visible (99 faces), the shipped
+  `59-muse-desktop.conf` resolves sans-serif/serif to Inter Regular,
+  monospace to JetBrains Mono Regular, bold requests to the Bold faces,
+  and absent Arial/Times/Courier New to Inter/Inter/JetBrains Mono. The
+  person's own XDG alias still wins (CJK over Inter). The alias-at-64
+  draft lost to 60-latin (Noto Sans), and the strong-match draft hijacked
+  direct requests (JetBrains Mono resolved to Inter) because
+  49-sansserif.conf appends a weak sans-serif to every pattern; both
+  drafts died here so the regressions stay dead.
+- The real font gate is green on the image set: `node
+scripts/check-font-coverage.mjs` with `FONTCONFIG_FILE` at the
+  image-fidelity config and HarfBuzz 12.3.2 reports `13 fonts, 2688
+codepoints; 0 problems` (exit 0, this rig, 2026-11-02).
 
 ## Commits
 
 - `70545f0fe` research, design record, resvg 2.6.2 (+ PLAN.md D3 rule 9).
 - `4c29dc13d` the pointer themes (`check:art` joins `quality:gates`).
-- (Icon commit SHA lands here at commit time.)
+- `27da2d767` the icon themes.
+- (Fonts commit SHA lands here at commit time.)
 
 ## Gates
 
@@ -163,3 +190,6 @@ values (`boot/boot.json`), all read, never copied by hand.
 ## Red/green drills
 
 - (Each: break, non-zero exit, restore, green.)
+- Fonts (2026-11-02): `Inter` → `Noto Sans` in the shipped
+  `59-muse-desktop.conf` fails 2 of the 7 artFonts tests (the sans-serif
+  prefer list and the image-fonts-only rule); restored, 7 green.
