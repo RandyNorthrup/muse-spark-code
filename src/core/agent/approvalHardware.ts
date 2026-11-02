@@ -7,7 +7,8 @@ import {
   isHardwareStop,
 } from '../maker/guard/hardwareCommands'
 import type { HardwareContext } from '../maker/guard/httpCommands'
-import { isPositivelyHardwareWorkspace, hardwareShellNote } from '../maker/guard/shellPolicy'
+import { isPositivelyHardwareWorkspace } from '../maker/guard/modes'
+import { hardwareShellNote } from '../maker/guard/shellPolicy'
 import { isDeviceAction, isPhysicalTool, type ActionClass } from '../maker/guard/actionClass'
 
 type ApprovalCard = Extract<AgentEvent, { type: 'approvalRequested' | 'approvalUpdated' }>
