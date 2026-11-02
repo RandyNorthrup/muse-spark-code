@@ -83,14 +83,16 @@ function windowsShell(): { readonly file: string; readonly env: GuardedChildEnv 
 // ever interpolated into the script. Protection on, every grant removed,
 // the current user set as owner with full control, then the live descriptor
 // is read back. A reparse point is reported, never secured. It uses the CLR
-// alone, like the tree read below: the Get-Acl and Set-Acl cmdlets load their
-// module on first use, about 0.2 s of every start.
+// alone, like the tree read below and the JSON around both: every cmdlet that
+// has to load its module makes PowerShell search the module path first, about
+// 0.2 s of every start here, all of it again where the search has no cache
+// (this user's profile folder is a client's own).
 const WINDOWS_SECURE_SCRIPT = `
 $ErrorActionPreference = 'Stop'
 $me = [Security.Principal.WindowsIdentity]::GetCurrent().User
 $seen = [IO.File]::GetAttributes($inputPath.path)
 if (($seen -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
-  @{ reparse = $true } | ConvertTo-Json -Compress
+  $json.Serialize(@{ reparse = $true })
   return
 }
 if ($inputPath.directory) { $acl = [IO.Directory]::GetAccessControl($inputPath.path) } else { $acl = [IO.File]::GetAccessControl($inputPath.path) }
@@ -103,7 +105,7 @@ $grant = [Security.AccessControl.FileSystemAccessRule]::new($me, [Security.Acces
 $acl.AddAccessRule($grant)
 if ($inputPath.directory) { [IO.Directory]::SetAccessControl($inputPath.path, $acl); $read = [IO.Directory]::GetAccessControl($inputPath.path) } else { [IO.File]::SetAccessControl($inputPath.path, $acl); $read = [IO.File]::GetAccessControl($inputPath.path) }
 $grants = @($read.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]) | ForEach-Object { @{ sid = $_.IdentityReference.Value; inherited = $_.IsInherited; allow = ($_.AccessControlType -eq 'Allow'); full = ($_.FileSystemRights -eq 'FullControl'); rights = [int]$_.FileSystemRights } })
-@{ reparse = $false; owner = $read.GetOwner([Security.Principal.SecurityIdentifier]).Value; me = $me.Value; locked = $read.AreAccessRulesProtected; grants = $grants } | ConvertTo-Json -Compress -Depth 5
+$json.Serialize(@{ reparse = $false; owner = $read.GetOwner([Security.Principal.SecurityIdentifier]).Value; me = $me.Value; locked = $read.AreAccessRulesProtected; grants = $grants })
 `
 
 // Every path arrives as base64 JSON in $inputPaths; one spawn reads the
@@ -120,12 +122,16 @@ $scanned = @(foreach ($candidate in $inputPaths.paths) {
   $grants = @($acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]) | ForEach-Object { @{ sid = $_.IdentityReference.Value; inherited = $_.IsInherited; allow = ($_.AccessControlType -eq 'Allow'); full = ($_.FileSystemRights -eq 'FullControl'); rights = [int]$_.FileSystemRights } })
   @{ owner = $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value; folder = $folder; reparse = $reparse; grants = $grants }
 })
-@{ me = $me; scanned = $scanned } | ConvertTo-Json -Compress -Depth 6
+$json.Serialize(@{ me = $me; scanned = $scanned })
 `
+
+const WINDOWS_JSON_ASSEMBLY =
+  'System.Web.Extensions, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'
 
 async function runWindowsScript(body: string, payload: unknown): Promise<unknown> {
   const { file, env } = windowsShell()
-  const envelope = `$inputPath = $null; $inputPaths = $null; $staged = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${Buffer.from(JSON.stringify(payload), 'utf8').toString('base64')}')) | ConvertFrom-Json
+  const envelope = `[void][Reflection.Assembly]::Load('${WINDOWS_JSON_ASSEMBLY}'); $json = [System.Web.Script.Serialization.JavaScriptSerializer]::new(); $json.MaxJsonLength = [int]::MaxValue
+$inputPath = $null; $inputPaths = $null; $staged = $json.DeserializeObject([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${Buffer.from(JSON.stringify(payload), 'utf8').toString('base64')}')))
 if ($staged.paths) { $inputPaths = $staged } else { $inputPath = $staged }
 ${body}`
   const stdout = await runFixed(
