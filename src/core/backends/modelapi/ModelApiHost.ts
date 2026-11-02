@@ -3517,6 +3517,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.media = deps.createMediaReplay?.(sessionId, {
       isCapped: () => this.isMediaCapped(),
       isClosed: () => this.isDisposed,
+      // The record the selected model resolved to in this session, while
+      // that resolution is current: a prepared item is gated and priced
+      // through it, never through a vendor table alone (D85.1).
+      capabilityRecord: (modelId) => {
+        const resolved = this.resolvedModels.get(modelId)
+        return resolved?.isCurrent() === true ? resolved.capabilityRecord : undefined
+      },
     })
     if (agent !== undefined) {
       this.effort = agent.effort
@@ -17250,6 +17257,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       this.drainChildResults()
       let parts = queued.parts
+      // Never prepare without a consumer: with no media service to carry
+      // the prepared video part (and gate it through the selected
+      // model's record), transcription would spend on a turn that then
+      // refuses the part. The part itself refuses below, unspent.
       if (
         !queued.isGoalWake &&
         queued.isHookContinuation !== true &&
@@ -17257,6 +17268,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         queued.isPlayback !== true &&
         queued.confirmedRequest === undefined &&
         !this.isSubagent &&
+        this.media !== undefined &&
         this.deps.prepareAudioMessage !== undefined
       ) {
         const revision = this.modelRevision

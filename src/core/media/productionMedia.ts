@@ -139,6 +139,8 @@ export interface ProductionMediaDeps {
   readonly isCapped: () => boolean
   /** Whether the session is disposed: then nothing is read or uploaded (RVMEDIAV3 2). */
   readonly isClosed: () => boolean
+  /** The selected model's resolved record, when the host carries one. */
+  readonly capabilityRecord?: ReplayMediaDeps['recordFor']
   readonly now?: () => number
   readonly lock?: MediaStoreLock
 }
@@ -195,6 +197,7 @@ export function createProductionMediaReplay(deps: ProductionMediaDeps): ReplayMe
   return new ReplayMedia(deps.sessionId, {
     estimator,
     capabilities: metaMediaCapabilities,
+    ...(deps.capabilityRecord !== undefined && { recordFor: deps.capabilityRecord }),
     codec: responsesMediaCodec,
     ledger: (provider) => {
       if (provider !== 'meta') throw new Error('Media upload provider mismatch')

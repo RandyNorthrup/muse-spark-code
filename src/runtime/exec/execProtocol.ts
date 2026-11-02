@@ -37,7 +37,7 @@ export type ExecStatus =
   | 'accounting_unverified'
 export type ExecSignal = 'SIGINT' | 'SIGTERM'
 export type Refusal = 'budget' | 'requests' | 'closed' | 'unpriced' | 'request_shape'
-export type AttemptEndpoint = 'responses' | 'images.generations' | 'images.edits'
+export type AttemptEndpoint = 'responses' | 'images.generations' | 'images.edits' | 'transcribe'
 export interface TokenTotals {
   inputTokens: number
   outputTokens: number
@@ -59,6 +59,11 @@ export interface PaidTotals {
   imagesReturned: number
   imagesRefunded: number
   imagesUncertain: number
+  transcriptionAttempts: number
+  transcriptionsReturned: number
+  transcriptionsRefunded: number
+  transcriptionsUncertain: number
+  transcribedSeconds: number
   settledUsd: UsdAmount
   uncertainUsd: UsdAmount
 }
@@ -208,7 +213,7 @@ export type ExecEventBody =
     }
   | {
       type: 'paid_use'
-      feature: 'imageGeneration'
+      feature: 'imageGeneration' | 'voice'
       n: number | null
       phase: 'admitted' | 'returned' | 'refunded' | 'uncertain' | 'refused'
       units: number
@@ -246,7 +251,7 @@ const STATUSES = [
 ] as const
 const SIGNALS = ['SIGINT', 'SIGTERM'] as const
 const REFUSALS = ['budget', 'requests', 'closed', 'unpriced', 'request_shape'] as const
-const ENDPOINTS = ['responses', 'images.generations', 'images.edits'] as const
+const ENDPOINTS = ['responses', 'images.generations', 'images.edits', 'transcribe'] as const
 const PROHIBITED_UPDATE = new RegExp(EXEC_PROHIBITED_UPDATE_PATTERN)
 const RAW_TOOL_FIELDS = new Set<string>(EXEC_RAW_TOOL_FIELDS)
 const counter = z.number().check(z.gte(0), z.int(), z.lte(Number.MAX_SAFE_INTEGER))
@@ -279,13 +284,23 @@ const paidSchema = z
     imagesReturned: counter,
     imagesRefunded: counter,
     imagesUncertain: counter,
+    transcriptionAttempts: counter,
+    transcriptionsReturned: counter,
+    transcriptionsRefunded: counter,
+    transcriptionsUncertain: counter,
+    transcribedSeconds: counter,
     settledUsd: amount,
     uncertainUsd: amount,
   })
   .check(
     z.refine(
       (value) =>
-        value.imagesReturned + value.imagesRefunded + value.imagesUncertain <= value.imageAttempts,
+        value.imagesReturned + value.imagesRefunded + value.imagesUncertain <=
+          value.imageAttempts &&
+        value.transcriptionsReturned +
+          value.transcriptionsRefunded +
+          value.transcriptionsUncertain <=
+          value.transcriptionAttempts,
     ),
   )
 const costSchema = z
@@ -667,7 +682,7 @@ const eventSchemas = [
   }),
   z.strictObject({
     type: z.literal('paid_use'),
-    feature: z.literal('imageGeneration'),
+    feature: z.enum(['imageGeneration', 'voice']),
     n: z.nullable(counter.check(z.gte(1))),
     phase: z.enum(['admitted', 'returned', 'refunded', 'uncertain', 'refused']),
     units: counter,
