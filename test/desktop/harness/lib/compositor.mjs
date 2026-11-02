@@ -1,0 +1,451 @@
+// The headless Hyprland harness (M111 lane QA): one private compositor
+// session per run — its own runtime directory, home, config and logs —
+// with aquamarine headless outputs for scenes, Mesa llvmpipe rendering,
+// grim screenshots, and a stop that leaves nothing running.
+//
+// Aquamarine's headless backend provides outputs but no buffer allocator:
+// the GBM allocator comes from a DRM device, so a session needs a KMS
+// device (a virtio-gpu in this lane's QEMU runner, a vkms device, or a
+// rig's GPU) or an explicit parent Wayland display to nest in. Upstream
+// Hyprland runs its own compositor tests the same way (a QEMU VM with
+// virtio-gpu). Where neither exists the session refuses and says why.
+
+import { spawn } from 'node:child_process'
+import { createWriteStream } from 'node:fs'
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import path from 'node:path'
+import { runCapture, sleep, stopProcessGroup, waitFor } from './proc.mjs'
+import { findExecutable, findKmsDevices } from './tools.mjs'
+
+// Hyprland 0.55 claims an output named HEADLESS-1 as its internal
+// fallback and renames it FALLBACK, so neither name can ever be a
+// scene output there. The harness names its own outputs clear of both.
+export const DEFAULT_OUTPUTS = [
+  { name: 'MUSE-HEADLESS-1', width: 1920, height: 1080 },
+  { name: 'MUSE-HEADLESS-2', width: 1280, height: 800 },
+]
+export const RESERVED_OUTPUT_NAMES = ['FALLBACK', 'HEADLESS-1']
+export const SESSION_READY_MS = 30_000
+export const CLIENT_READY_MS = 15_000
+const OUTPUT_CREATE_RETRY_MS = 1000
+
+/**
+The harness's Hyprland Lua config: the headless outputs at their sizes,
+every other output disabled, no logo, splash, wallpaper, animations or
+effects (software rendering stays boring). CP's generated product config
+is a different file; this one exists only to hold scenes still.
+*/
+export function hyprlandConfig(outputs) {
+  const monitors = outputs
+    .map(
+      (output) =>
+        `hl.monitor({ output = "${output.name}", mode = "${String(output.width)}x${String(output.height)}@60", position = "auto", scale = 1 })`,
+    )
+    .join('\n')
+  return `-- Muse Desktop QA harness session (generated; not the product config).
+${monitors}
+hl.monitor({ output = "", disabled = true })
+hl.config({
+  animations = { enabled = false },
+  debug = { enable_stdout_logs = true },
+  decoration = { rounding = 0, shadow = { enabled = false }, blur = { enabled = false } },
+  general = { gaps_in = 4, gaps_out = 8, border_size = 1, layout = "dwindle" },
+  misc = { disable_hyprland_logo = true, force_default_wallpaper = 0 },
+})
+`
+}
+
+/**
+True when every wanted output is present in a `hyprctl monitors -j`
+listing at exactly its size. Kept apart from the session so the guest
+proof's captured listing can pin the rule (see harnessCompositor tests).
+*/
+export function outputsAtSizes(monitors, outputs) {
+  return outputs.every((output) =>
+    monitors.some(
+      (monitor) =>
+        monitor.name === output.name &&
+        monitor.width === output.width &&
+        monitor.height === output.height,
+    ),
+  )
+}
+
+/** The wanted outputs absent by name from a monitors listing. */
+export function missingOutputs(monitors, outputs) {
+  return monitors === undefined
+    ? [...outputs]
+    : outputs.filter((output) => monitors.every((monitor) => monitor.name !== output.name))
+}
+
+/** One line naming what a monitors listing actually holds, for refusals. */
+export function describeMonitors(monitors) {
+  if (monitors !== undefined && monitors.length > 0) {
+    return monitors
+      .map(
+        (monitor) =>
+          `${String(monitor.name)} ${String(monitor.width)}x${String(monitor.height)}${monitor.disabled === true ? ' (disabled)' : ''}`,
+      )
+      .join(', ')
+  }
+  return monitors === undefined ? 'no monitors listing was ever read' : 'no monitors'
+}
+
+/** Runs `Hyprland --verify-config`; true only when it prints `config ok`. */
+export async function verifyHyprlandConfig({ hyprland, configFile, runtimeDir, env }) {
+  const result = await runCapture(hyprland, ['-c', configFile, '--verify-config'], {
+    env: { ...env, XDG_RUNTIME_DIR: runtimeDir },
+    timeoutMs: 15_000,
+  })
+  const output = `${result.stdout}\n${result.stderr}`
+  return { isOk: output.includes('config ok'), output: output.trim() }
+}
+
+async function waylandSockets(runtimeDir) {
+  const names = await readdir(runtimeDir)
+  return names
+    .filter((name) => /^wayland-\d+$/.test(name))
+    .toSorted((a, b) => a.localeCompare(b, 'en'))
+}
+
+async function instanceSignatures(runtimeDir) {
+  try {
+    return await readdir(path.join(runtimeDir, 'hypr'))
+  } catch (error) {
+    if (error instanceof Error && error.code === 'ENOENT') return []
+    throw error
+  }
+}
+
+/**
+Starts one harness compositor session in `workDir` (created; the caller
+owns removing it). `stop()` on the result ends Hyprland and its group.
+*/
+export async function startCompositorSession({
+  workDir,
+  outputs = DEFAULT_OUTPUTS,
+  hyprland: hyprlandCommand = 'Hyprland',
+  hyprctl: hyprctlCommand = 'hyprctl',
+  grim: grimCommand = 'grim',
+  nestDisplay,
+  driDir = '/dev/dri',
+  readyTimeoutMs = SESSION_READY_MS,
+  env: parentEnv = process.env,
+}) {
+  const reserved = outputs.filter((output) => RESERVED_OUTPUT_NAMES.includes(output.name))
+  if (reserved.length > 0) {
+    throw new Error(
+      `the compositor session cannot start: output name ${reserved.map((output) => output.name).join(', ')} is reserved by Hyprland for its fallback output; choose another name`,
+    )
+  }
+  const hyprland = await findExecutable(hyprlandCommand, parentEnv)
+  const hyprctl = await findExecutable(hyprctlCommand, parentEnv)
+  const grim = await findExecutable(grimCommand, parentEnv)
+  const missing = [
+    ['Hyprland', hyprland],
+    ['hyprctl', hyprctl],
+    ['grim', grim],
+  ]
+    .filter(([, found]) => found === undefined)
+    .map(([name]) => name)
+  if (missing.length > 0) {
+    throw new Error(
+      `the compositor session cannot start: ${missing.join(', ')} not found on PATH (run \`desktop-harness check\`)`,
+    )
+  }
+  const kmsDevices = await findKmsDevices(driDir)
+  if (
+    nestDisplay === undefined &&
+    parentEnv.AQ_DRM_DEVICES === undefined &&
+    kmsDevices.length === 0
+  ) {
+    throw new Error(
+      `the compositor session cannot start: no KMS device under ${driDir} and no parent Wayland display to nest in. Aquamarine takes its buffer allocator from a DRM device, so run inside a virtio-gpu VM (scripts/qemu-desktop-test.mjs), on a machine with a GPU or vkms device, or pass a parent display.`,
+    )
+  }
+
+  // The runtime directory stays short and outside workDir on purpose:
+  // Hyprland's IPC socket lives at $XDG_RUNTIME_DIR/hypr/<signature>/…,
+  // and a long work path pushes it past the AF_UNIX limit (Hyprland
+  // then runs with IPC dead and hyprctl can never answer).
+  const runtimeDir = await mkdtemp('/tmp/mqa-')
+  const homeDir = path.join(workDir, 'home')
+  await mkdir(homeDir, { recursive: true })
+  const configFile = path.join(workDir, 'hyprland.lua')
+  await writeFile(configFile, hyprlandConfig(outputs))
+
+  const env = { ...parentEnv }
+  delete env.HYPRLAND_INSTANCE_SIGNATURE
+  env.XDG_RUNTIME_DIR = runtimeDir
+  env.HOME = homeDir
+  // Software rendering by default, but a caller that sets either
+  // variable (to '' to clear it) wins: on a virtio-gpu KMS device,
+  // forcing llvmpipe breaks aquamarine's EGL-device matching, and the
+  // right driver there is Mesa's own kms_swrast choice.
+  env.LIBGL_ALWAYS_SOFTWARE = parentEnv.LIBGL_ALWAYS_SOFTWARE ?? '1'
+  env.GALLIUM_DRIVER = parentEnv.GALLIUM_DRIVER ?? 'llvmpipe'
+  if (env.LIBGL_ALWAYS_SOFTWARE === '') delete env.LIBGL_ALWAYS_SOFTWARE
+  if (env.GALLIUM_DRIVER === '') delete env.GALLIUM_DRIVER
+  env.HYPRLAND_NO_CRASHREPORTER = '1'
+  env.HYPRLAND_NO_SD_VARS = '1'
+  if (nestDisplay === undefined) {
+    delete env.WAYLAND_DISPLAY
+  } else {
+    env.WAYLAND_DISPLAY = nestDisplay
+  }
+
+  const verified = await verifyHyprlandConfig({ hyprland, configFile, runtimeDir, env })
+  if (!verified.isOk) {
+    throw new Error(`the generated Hyprland config does not verify:\n${verified.output}`)
+  }
+
+  const logStream = createWriteStream(path.join(workDir, 'hyprland.log'))
+  const child = spawn(hyprland, ['-c', configFile], {
+    env,
+    detached: true,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+  child.stdout.pipe(logStream)
+  child.stderr.pipe(logStream)
+  let exitInfo
+  child.once('close', (code, signal) => {
+    exitInfo = { code, signal }
+    logStream.end()
+  })
+
+  const session = { workDir, runtimeDir, outputs, child }
+  const fail = async (error) => {
+    try {
+      await stopProcessGroup(child)
+      // Hyprland's own per-instance log file is unbuffered where its
+      // stdout pipe is not; keep it beside the piped log before the
+      // runtime directory goes away.
+      const instanceRoot = path.join(runtimeDir, 'hypr')
+      let instanceNames = []
+      try {
+        instanceNames = await readdir(instanceRoot)
+      } catch {
+        // No instance directory was created; there is no log to keep.
+      }
+      for (const name of instanceNames) {
+        let instanceLog = ''
+        try {
+          instanceLog = await readFile(path.join(instanceRoot, name, 'hyprland.log'), 'utf8')
+        } catch {
+          // This instance wrote no log file; keep looking at the rest.
+        }
+        if (instanceLog !== '') {
+          await writeFile(path.join(workDir, 'hyprland-instance.log'), instanceLog)
+        }
+      }
+      await rm(runtimeDir, { recursive: true, force: true })
+    } catch {
+      // Already failing with the startup error; the log tail below says more.
+    }
+    let log = ''
+    try {
+      log = await readFile(path.join(workDir, 'hyprland.log'), 'utf8')
+    } catch {
+      // No log was written; the startup error stands alone.
+    }
+    const tail = log.split('\n').slice(-20).join('\n').trim()
+    throw new Error(`${error.message}\nHyprland log (last lines):\n${tail}`, { cause: error })
+  }
+
+  let signature
+  try {
+    signature = await waitFor(
+      async () => {
+        if (exitInfo !== undefined) {
+          throw new Error(
+            `Hyprland exited during startup (code ${String(exitInfo.code)}, signal ${String(exitInfo.signal)})`,
+          )
+        }
+        const signatures = await instanceSignatures(runtimeDir)
+        return signatures[0]
+      },
+      { timeoutMs: readyTimeoutMs, description: 'the Hyprland instance signature' },
+    )
+  } catch (error) {
+    return fail(error)
+  }
+
+  const ctlEnv = { ...env, HYPRLAND_INSTANCE_SIGNATURE: signature }
+  session.signature = signature
+  session.hyprctl = async (args, { timeoutMs = 10_000 } = {}) => {
+    const result = await runCapture(hyprctl, args, { env: ctlEnv, timeoutMs })
+    if (result.code !== 0) {
+      throw new Error(
+        `hyprctl ${args.join(' ')} failed (exit ${String(result.code)}): ${result.stdout.trim()} ${result.stderr.trim()}`.trim(),
+      )
+    }
+    return result.stdout
+  }
+  session.monitors = async () => JSON.parse(await session.hyprctl(['monitors', '-j']))
+  session.allMonitors = async () => JSON.parse(await session.hyprctl(['monitors', 'all', '-j']))
+  session.clients = async () => JSON.parse(await session.hyprctl(['clients', '-j']))
+
+  try {
+    await waitFor(
+      async () => {
+        try {
+          await session.monitors()
+          return true
+        } catch {
+          return false
+        }
+      },
+      { timeoutMs: readyTimeoutMs, description: 'hyprctl answering monitors' },
+    )
+    let lastMonitors
+    let lastAllMonitors
+    let lastCreateRefusal
+    let lastCreateAt = 0
+    try {
+      await waitFor(
+        async () => {
+          if (exitInfo !== undefined) {
+            throw new Error(
+              `Hyprland exited during startup (code ${String(exitInfo.code)}, signal ${String(exitInfo.signal)})`,
+            )
+          }
+          try {
+            lastMonitors = await session.monitors()
+            if (outputsAtSizes(lastMonitors, outputs)) return true
+
+            // A creation request can land while Hyprland is still
+            // settling its fallback output, and an output created then
+            // can vanish with it. Re-create only the outputs that are
+            // absent from the full listing until the deadline; outputs
+            // that exist at the wrong size are left for their monitor
+            // rule to finish applying.
+            const now = Date.now()
+            if (now - lastCreateAt >= OUTPUT_CREATE_RETRY_MS) {
+              lastCreateAt = now
+              lastAllMonitors = await session.allMonitors()
+              for (const output of missingOutputs(lastAllMonitors, outputs)) {
+                // hyprctl exits 0 even when the reply refuses; the reply
+                // text is the verdict (upstream's tester checks it too).
+                const created = await session.hyprctl(['output', 'create', 'headless', output.name])
+                const reply = created.trim()
+                if (reply !== 'ok' && reply !== 'Name already taken') {
+                  lastCreateRefusal = `${output.name}: ${reply}`
+                }
+              }
+            }
+            return false
+          } catch {
+            // IPC can drop a reply while outputs come and go; only the
+            // deadline (or the process exiting above) ends the wait.
+            return false
+          }
+        },
+        { timeoutMs: readyTimeoutMs, description: 'the headless outputs at their sizes' },
+      )
+    } catch (error) {
+      try {
+        lastAllMonitors = await session.allMonitors()
+      } catch {
+        // The session is already failing; the last full listing stands.
+      }
+      const refusal =
+        lastCreateRefusal === undefined ? '' : `; last creation refusal: ${lastCreateRefusal}`
+      throw new Error(
+        `${error.message}; enabled: ${describeMonitors(lastMonitors)}; all: ${describeMonitors(lastAllMonitors)}${refusal}`,
+        { cause: error },
+      )
+    }
+    const sockets = await waylandSockets(runtimeDir)
+    session.waylandDisplay = sockets.find((name) => name !== nestDisplay) ?? sockets[0]
+    if (session.waylandDisplay === undefined) {
+      throw new Error('Hyprland started without a Wayland socket in its runtime directory')
+    }
+  } catch (error) {
+    return fail(error)
+  }
+
+  session.clientEnv = (extra = {}) => ({
+    ...parentEnv,
+    ...extra,
+    XDG_RUNTIME_DIR: runtimeDir,
+    WAYLAND_DISPLAY: session.waylandDisplay,
+    HYPRLAND_INSTANCE_SIGNATURE: signature,
+  })
+  session.screenshot = async (outputName, file) => {
+    const result = await runCapture(grim, ['-o', outputName, file], {
+      env: session.clientEnv(),
+      timeoutMs: 15_000,
+    })
+    if (result.code !== 0) {
+      throw new Error(
+        `grim could not capture ${outputName}: ${result.stderr.trim() || result.stdout.trim()}`,
+      )
+    }
+    return file
+  }
+  let isStopped = false
+  session.stop = async () => {
+    if (isStopped) return
+    isStopped = true
+    try {
+      await session.hyprctl(['dispatch', 'exit'], { timeoutMs: 3000 })
+    } catch {
+      // Hyprland may already be gone; the group stop below is the guarantee.
+    }
+    await stopProcessGroup(child)
+    await rm(runtimeDir, { recursive: true, force: true })
+  }
+  return session
+}
+
+/**
+Runs one scene client in the session: waits for its window, lets it
+settle, captures the named output, then stops the client group.
+*/
+export async function runSceneClient(
+  session,
+  command,
+  args,
+  {
+    output,
+    screenshotFile,
+    env,
+    readyTimeoutMs = CLIENT_READY_MS,
+    settleMs = 500,
+    beforeScreenshot,
+  },
+) {
+  const before = await session.clients()
+  const child = spawn(command, args, {
+    env: session.clientEnv(env),
+    detached: true,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+  let clientLog = ''
+  child.stdout.on('data', (chunk) => {
+    clientLog += chunk
+  })
+  child.stderr.on('data', (chunk) => {
+    clientLog += chunk
+  })
+  try {
+    const clients = await waitFor(
+      async () => {
+        if (child.exitCode !== null) {
+          throw new Error(
+            `the scene client exited (code ${String(child.exitCode)}) before opening a window: ${clientLog.trim()}`,
+          )
+        }
+        const now = await session.clients()
+        return now.length > before.length ? now : false
+      },
+      { timeoutMs: readyTimeoutMs, description: 'the scene client window' },
+    )
+    await sleep(settleMs)
+    if (beforeScreenshot !== undefined) await beforeScreenshot()
+    await session.screenshot(output, screenshotFile)
+    return { clients, screenshot: screenshotFile }
+  } finally {
+    await stopProcessGroup(child)
+  }
+}

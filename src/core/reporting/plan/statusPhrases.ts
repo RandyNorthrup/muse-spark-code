@@ -68,6 +68,7 @@ export const STATUS_PHRASES: Readonly<Record<string, PlanMilestone['status'] | u
     'building',
   'waiting for a stable API (Q-M94d)': 'waiting',
   'lane 0 built': 'building',
+  'in progress — the M111a0 test rig (lane QA) is landed': 'building',
   'core built': 'building',
   'panel editor built; installed host bindings open': 'building',
   'documentation only on `feature/m100-multi-device`': 'planned',

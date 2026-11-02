@@ -108,6 +108,15 @@ happened, not what was planned; superseded entries are kept.
   VS Code keys and a layout that is remembered per folder. It is built
   and run on the development machines; the installable desktop arrives
   with the M111 installer, so nothing about the extension changes yet.
+- **A test rig for Muse Desktop (M111).** `npm run desktop:harness` checks
+  the machine, renders the desktop scenes in every theme and language,
+  runs a private D-Bus test bus, drives a real Electron app, and starts
+  headless Hyprland on software rendering with virtual input from the
+  Rust driver; `npm run desktop:qemu` boots desktop images on a
+  two-output virtual GPU with a TPM on amd64 and arm64. The rig is what
+  the desktop's shell, workbench and accessibility lanes now run under;
+  no desktop surface ships yet.
+
 - **`muse-spark-code-acp watchdog` keeps a watch list of GitHub repositories
   in a terminal.** `watchdog list` and `status` show the watched
   repositories, `pause` and `resume` stop and restart watching, and `policy`

@@ -27924,6 +27924,26 @@ and the Noto fonts in `os/desktop/packages.conf`; the Electron 45.0.0
 IME flags captured under Xvfb. Proof: `docs/certification/rlf-m111in.md`
 with red/green drills. Text-input-v3 behaviour under Hyprland with
 fcitx5 and the desktop CI wiring belong to M111os IM/QA.
+**Status 2026-11-01 (RLF-M111QA): in progress — the M111a0 test rig
+(lane QA) is landed.** `test/desktop/harness/` plus
+`scripts/desktop-harness.mjs` and `scripts/qemu-desktop-test.mjs` give
+every later lane its rig: desktop scenes from lane 0's contracts in all
+four themes and 15 languages, review screenshots (never compared), the
+private D-Bus test bus, the Rust virtual-input driver, the Playwright
+Electron driver, the headless-Hyprland session, and the QEMU runner
+(two virtio-gpu outputs and swtpm on amd64 and arm64), wired into
+`.github/workflows/desktop.yml` with a smoke job in `ci.yml`. Two of
+this section's Tests lines yield to the owner's standing rules, as
+recorded in `docs/certification/rlf-m111qa.md`: there are no screenshot
+goldens (review shots are for people), and no D-Bus stand-ins for
+system services (the test bus carries harness-owned canaries; SY meets
+the real services in a VM). The session runs where a KMS device exists
+(aquamarine's allocator rule): on 2026-11-01 a fresh Debian guest on
+virtio-gpu completed the whole in-guest proof—the two harness outputs
+at 1920×1080 and 1280×800, a foot client typed into by the virtual
+-input driver, grim captures of both outputs, and the host runner's
+`ok: true` marker verdict—the way upstream Hyprland tests itself.
+SH1, SH2, WB, CP and AX run under this rig from here.
 
 **Status 2026-10-23 (RLF-M111L0): planned.** Mockups approved; lane 0 landed. The
 owner approved the lead's 18-screen mockups on 2026-10-23 ("looks great"),

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>M111 QA Electron fixture</title>
+  </head>
+  <body>
+    <h1 id="fixture-heading">M111 QA Electron fixture</h1>
+    <label>
+      Text
+      <input id="fixture-text" type="text" />
+    </label>
+    <button id="fixture-apply" type="button">Apply</button>
+    <p id="fixture-status" role="status">waiting</p>
+    <script>
+      document.getElementById('fixture-apply').addEventListener('click', () => {
+        const value = document.getElementById('fixture-text').value
+        document.getElementById('fixture-status').textContent = `applied: ${value}`
+      })
+    </script>
+  </body>
+</html>

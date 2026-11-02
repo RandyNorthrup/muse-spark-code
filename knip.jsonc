@@ -365,6 +365,11 @@
     // Built by retiredUndoFlow.ts and launched by path; knip does not trace
     // esbuild entryPoints. The killed-undo broker case hangs here for SIGKILL.
     "test/unit/helpers/vault/undoCrashChild.ts",
+    // M111 lane QA: the Electron driver's real fixture app (launched by
+    // Playwright, never imported) and the in-guest session runner (run
+    // inside the QEMU guest from the harness share disk).
+    "test/desktop/harness/electron-fixture/main.mjs",
+    "test/desktop/harness/guest/run-session.mjs",
     // Pipe-relay fixture child, bundled by windowsPipeRelay.test.ts and launched
     // by path; knip does not trace esbuild entryPoints.
     "test/unit/helpers/vault/windowsPipeRelayChild.ts",
@@ -779,8 +784,11 @@
   // through @types/vscode. @vscode/test-electron is imported by
   // scripts/capture-themes.mjs (M37), so knip sees it. axe-core is loaded by
   // the harness page with a <script src> (test/harness/index.html, M37), which
-  // knip does not read, so its use is invisible to it.
-  "ignoreDependencies": ["axe-core"],
+  // knip does not read, so its use is invisible to it. electron is the M111
+  // QA fixture's own devDependency (test/desktop/harness/electron-fixture/
+  // package.json), installed in that folder by the desktop workflow; the
+  // root package never depends on it, so knip cannot list it.
+  "ignoreDependencies": ["axe-core", "electron"],
 
   // gitleaks (winget/brew) is a system binary, not an npm package: the
   // pre-commit hook and security:secrets call it. semgrep (pip) is started by
@@ -801,6 +809,8 @@
   "ignoreBinaries": [
     // The TUI suite probes the real terminfo database for its tier table.
     "tput",
+    // M111 lane QA: the QEMU desktop runner creates install targets.
+    "qemu-img",
     "gitleaks",
     "muse",
     "mkfifo",

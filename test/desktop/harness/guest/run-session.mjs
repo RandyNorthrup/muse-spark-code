@@ -1,0 +1,87 @@
+#!/usr/bin/env node
+// Runs ONE harness compositor session inside a desktop guest (M111 lane
+// QA): Hyprland on the guest's virtio-gpu with llvmpipe, a foot terminal
+// as the scene client, the virtual-input driver typing into it, and grim
+// screenshots of both headless outputs. Prints the marker
+// M111QA-SESSION-OK on success (and to the guest serial device, where
+// the host's QEMU runner watches the transcript). Talks only to the
+// harness libs
+// placed beside it on the share disk — no node_modules in the guest.
+
+import { execFileSync } from 'node:child_process'
+import { appendFile } from 'node:fs/promises'
+import path from 'node:path'
+import process from 'node:process'
+import { fileURLToPath } from 'node:url'
+
+const here = path.dirname(fileURLToPath(import.meta.url))
+const share = process.env.MUSE_HARNESS_SHARE ?? here
+const { runSceneClient, startCompositorSession } = await import(
+  path.join(share, 'lib/compositor.mjs')
+)
+const { runVirtualInputScript } = await import(path.join(share, 'lib/virtualInput.mjs'))
+
+const outDir = path.join(share, 'session-out')
+const marker = 'M111QA-SESSION-OK'
+
+const SERIAL_DEVICES = ['/dev/ttyS0', '/dev/ttyAMA0', '/dev/console']
+
+async function announce(line, { isFinal = false } = {}) {
+  console.log(line)
+  if (isFinal) {
+    // The host stops QEMU as soon as it sees the success marker, before
+    // this guest can power itself off. Flush the share first so the
+    // screenshots and this log survive that stop.
+    execFileSync('sync', [], { stdio: 'ignore' })
+  }
+  for (const device of SERIAL_DEVICES) {
+    try {
+      await appendFile(device, `${line}\n`)
+      return
+    } catch {
+      // Not this guest's serial device, or not writable from the
+      // autologin session; try the next name. Files in session-out on
+      // the share stay the record if no serial device takes the line.
+    }
+  }
+}
+
+try {
+  const session = await startCompositorSession({
+    workDir: path.join(outDir, 'state'),
+    // Emulated CPUs start compositors slowly; this bounds a hang, not work.
+    readyTimeoutMs: 300_000,
+    // The guest's virtio-gpu is a KMS device: Mesa's kms_swrast is the
+    // software renderer aquamarine can match to it (see compositor.mjs).
+    env: { ...process.env, LIBGL_ALWAYS_SOFTWARE: '', GALLIUM_DRIVER: '' },
+  })
+  try {
+    const monitors = await session.monitors()
+    await announce(
+      `monitors: ${monitors.map((m) => `${m.name} ${m.width}x${m.height}`).join(', ')}`,
+    )
+    const first = session.outputs[0]
+    const ran = await runSceneClient(session, 'foot', ['sh', '-c', 'echo ready; sleep 60'], {
+      output: first.name,
+      screenshotFile: path.join(outDir, 'guest-headless-1.png'),
+      readyTimeoutMs: 60_000,
+      settleMs: 1000,
+      beforeScreenshot: async () => {
+        const driven = await runVirtualInputScript(path.join(share, 'muse-virtual-input'), {
+          env: session.clientEnv(),
+          script: 'text echo typed-by-virtual-input\nkey enter tap\nsleep 400\n',
+          timeoutMs: 60_000,
+        })
+        await announce(`virtual input acknowledged: ${String(driven.acknowledged)}`)
+      },
+    })
+    await session.screenshot(session.outputs[1].name, path.join(outDir, 'guest-headless-2.png'))
+    await announce(`clients: ${ran.clients.map((c) => c.class ?? c.title ?? 'window').join(', ')}`)
+    await announce(marker, { isFinal: true })
+  } finally {
+    await session.stop()
+  }
+} catch (error) {
+  await announce(`M111QA-SESSION-FAIL ${error instanceof Error ? error.message : String(error)}`)
+  process.exit(1)
+}
