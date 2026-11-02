@@ -9816,15 +9816,11 @@ one of those is taken at once, read in full, and tested accurately
 is unchanged: exact pins, peer-range checks, `npm audit`, and the
 reason recorded in D3 before a dependency is added or moved.
 
-Dated records that describe the old window (the one-off `--min-release-age=0`
-installs, pins that waited for a date) stay as history; no sentence
-states the wait as current after this decision, and no gate or test
-enforces it (none did: the wait lived only in `.npmrc`). First
-application, same lane: `@muse-code/sdk` 1.4.12 → 1.4.14,
-`@agentclientprotocol/sdk` 2.0.1 → 2.4.0, `@modelcontextprotocol/sdk`
-1.32.1 → 1.32.2 (D3). Full record: `docs/certification/rlf-upsdk.md`;
-the dated currency table the next round diffs against is
-`docs/research/agents-sdks-2026-11-02.md`.
+First application, same lane: `@muse-code/sdk` 1.4.12 → 1.4.14,
+`@agentclientprotocol/sdk` 2.0.1 → 2.4.0, `@modelcontextprotocol/sdk` 1.32.1 → 1.32.2
+(D3), each installed the day its newest release was checked with a plain
+pinned install. Full record:
+[docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ## 3. Open questions (need the owner)
 

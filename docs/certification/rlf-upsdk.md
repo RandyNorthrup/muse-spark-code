@@ -359,7 +359,12 @@ assessments (named in §3 with what blocks each); B3
 MCP-over-ACP serving; the experimental ACP methods when a real
 client first needs one; a served 1.4.12/1.4.13 fingerprint
 capture for the known-build map (needs a rig still on those
-builds). D260's design record moves to
+builds). D260's record paragraph moved to
 `docs/plan-archive/decisions.md` with `npm run plan:archive`
-in this lane's second commit (the move names the commit its
-lines refer to, so it follows the commit that adds D260).
+in this lane's second commit (block
+`decisions-e47b91767-9819`, reassembly byte-identical, parsed
+facts identical; the move's prescribed follow-ups all exit 0:
+prettier on both files, `check:plan`, `roadmap:generate` with
+ROADMAP.md unchanged, `check:roadmap`, `check:reference`, and
+the plan suites `planReader` + `planCitation` + `autoCompact`
+89 passed and `paidMoneyStructure` 46 passed).
