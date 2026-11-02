@@ -20587,6 +20587,18 @@ plugin deploys, chat webview renders, no page errors. No conversations
 (no backend credentials here). Firebase Studio, Che and Codespaces wait
 on accounts.
 
+**Status 2026-11-02 (CC-M104GW, M62b on the owner's Windows PC): built.**
+VSCodium 1.99.32846 (the floor) and 1.143.17232, Devin 3.11.238 and Positron
+2026.10.2, each from its portable Windows archive with its own data folders: the
+0.19.0 VSIX installs and lists with the editor's CLI, and the 9 M104g legs pass on
+the development extension. code-server 4.144.0's Windows archive: the VSIX installs,
+activates in 196 ms and the panel's sign-in page renders with 0 page errors. No
+conversations. Cursor (its Windows feed gives only an installer) and Kiro (its feed
+answered 403) did not run, so their records stay `forks.yml`'s; Theia keeps
+2026-10-22's; Firebase Studio, Che and Codespaces wait on accounts; Arduino IDE 2
+waits for M103f's VSIX (M104g).
+Record: `docs/certification/cc-m104gw.md`.
+
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### M63 — The ACP agent (D62, phase D)
@@ -30807,6 +30819,28 @@ JetBrains (53 tests) re-conform at 1.6.0. Remaining: the companion
 (no adapter consumer yet), lane B's extra editors, and the Visual
 Studio and Xcode suites on their machines. Record:
 `docs/certification/rlf-hosts2.md`.
+Visual Studio and the VS Code rows on the owner's PC (CC-M104GW,
+2026-11-02): the Visual Studio host builds, installs into an experimental
+instance and opens its panel on the packed agent, with no VSSDK workload
+(NuGet's build tools are enough; adding the workload takes a UAC prompt, the
+owner's). Its first real run found what no earlier lane could: the package did
+not compile, every launch was refused (`--host`), no runtime request was served,
+and the real page opened on its fatal card (a theme `<style>` without the page's
+nonce, in `src/webview/portable.tsx`, shared with every native page). 13 of 13
+runnable legs green at 17.14.25, 9 waiting; 26 plain `dotnet test` cases need no
+editor. VS Code: the driver runs on stable and on the 1.99 floor against the
+modules VS Code really runs, 9 legs each; its dirty-buffer and atomic-edit legs
+wait for the in-process MHP adapter (lane A's `hostServices`, not landed).
+VSCodium, Devin Desktop and Positron ran the same legs on Windows (M62). New
+dependency, in the conformance project only and never in the VSIX:
+`Microsoft.VisualStudio.Extensibility.Testing.Xunit` 0.1.800-beta, pinned, from
+Microsoft's public `vssdk` feed with source mapping to its own ids: no other
+harness runs a test inside a real experimental instance. Upstream archived it (the
+code moved to dotnet/roslyn), so its hosted-runner reliability is unmeasured. Open:
+the JetBrains and Eclipse payload check refuses the theme frame by reading (not
+run here), Visual Studio's trust adapter and `workspace` group, Visual Studio
+2026, and Arduino IDE 2, which waits for M103f's VSIX (not on this tree). Record:
+`docs/certification/cc-m104gw.md`.
 
 **Warning for the POSIX trusted-path verifier (INT0180, 2026-10-11).** A real
 POSIX verifier that refuses a group-writable unit search directory would

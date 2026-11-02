@@ -65,8 +65,15 @@ happened, not what was planned; superseded entries are kept.
   suites pass 9 checks each (diff hunks, diagnostics, settings, panel
   order, checkpoints), with live-conversation checks still to run. The
   Emacs, Neovim, Zed and Qt Creator shims launch the agent with
-  credentials stripped. Sublime Text, Visual Studio and Xcode hosts
-  are in the tree but not yet run in their editors.
+  credentials stripped. Sublime Text and Xcode hosts are in the tree
+  but not yet run in their editors.
+- **The panel opens in Visual Studio 2022.** In an experimental instance
+  of Community 17.14 the extension installs without the
+  extension-development workload, opens the panel from the View menu on
+  the agent you installed, and passes 13 conformance checks (diff hunks,
+  dirty and changed buffers, diagnostics, settings, panel order,
+  checkpoints) with live-conversation checks still to run. It is not on
+  the Marketplace, and Visual Studio 2026 has not been tried.
 - **A page the agent asks JetBrains or Eclipse to show cannot bring its
   own script or a looser security policy.** The editor keeps the page
   rules it loaded, and a message from any other page is refused.

@@ -3357,3 +3357,42 @@ deleted stand-ins claimed, and what no suite here can yet prove:
   checkout action to consume it. Lane B's extra editors
   (`hosts/mhp-python`, Jupyter, NetBeans/`mhp-java`, Spyder,
   RStudio) wait on the companion transport above.
+
+### After Visual Studio's first real run (CC-M104GW, 2026-11-02)
+
+The Visual Studio host now builds, installs into an experimental instance and
+opens its panel on the packed agent; the page shows what the runtime sends and
+the 13 runnable contract legs pass (`docs/certification/cc-m104gw.md`). What
+that run does not prove:
+
+- The modal dialogs (`ui/confirm`, `ui/input`, `ui/pick`, `ui/notify`,
+  `ui/openFile`, `ui/saveText`): each waits for a person, and no stand-in may
+  answer one. Paid consent's popup in this host is the same dialog.
+- Tab ghost text (`tab-completion` waits for live generation), the theme
+  re-colour on a theme switch, the panel's reload path in a real page, `commands/*`
+  from a real registration, What's New and the other presentation surfaces
+  (refused by name), accessibility and high contrast.
+- A real conversation, an approval or a session reload through this panel: no
+  model call was made; the legs wait in the contract.
+- Solution trust: the host always offers `trusted: false`. A trust adapter and
+  the `workspace` group are owed, so the panel runs as in an untrusted folder.
+- Visual Studio 2026: not installed on this PC, so the manifest's `[17.0,19.0)`
+  range is proven only at 17.14.25. The installed Marketplace VSIX is the owner's
+  upload and has not happened.
+- The Error List "settled" read is a quiet window (the same entries for 1.5 s at
+  one version), because the Error List gives no finished signal; the runtime has
+  no caller for `diagnostics/settled` on this tree yet.
+- The JetBrains and Eclipse chat surfaces: by reading, `JsonBoundary.payload` and
+  `Contract.payload` choose the payload group by surface kind, as this host did,
+  and the runtime's first frame is the theme frame, which only the last group
+  admits. This host failed on exactly that in its real page
+  (`MHP_PANEL_INVALID_PAYLOAD`); their suites open no real surface, so nothing
+  here has run those two. They wait for a real page on a machine with their
+  toolchains.
+- The VS Code family on Windows covers the editors with a portable archive
+  (VSCodium, Devin Desktop, Positron), and its legs run the development
+  extension, as the fork runners do: the installed VSIX is proven to install and
+  list, not to run those legs. No conversation ran in any of them. Cursor and Kiro
+  offer no portable Windows archive (Cursor's feed gives an installer, which changes
+  the machine; Kiro's answered 403), so their records stay the Linux runs of
+  `forks.yml`.
