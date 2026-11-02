@@ -23,6 +23,7 @@ namespace MuseSpark.VisualStudio.Panel
     }
     private readonly AsyncPackage package;
     private readonly string assets;
+    private readonly string browserData;
     private readonly UiText text;
     private readonly NativeUi ui;
     private readonly Dictionary<string, Surface> surfaces = new Dictionary<string, Surface>(StringComparer.Ordinal);
@@ -30,8 +31,10 @@ namespace MuseSpark.VisualStudio.Panel
     private bool disposed;
     public MhpPeer? Peer { private get; set; }
     public JObject? Theme { private get; set; }
+    internal IReadOnlyList<PanelChannel> Channels { get { var open = new List<PanelChannel>(); foreach (var surface in surfaces.Values) open.Add(surface.Channel); return open; } }
+    internal IReadOnlyList<PanelView> Views { get { var open = new List<PanelView>(); foreach (var surface in surfaces.Values) open.Add(surface.View); return open; } }
 
-    public NativeSurfaces(AsyncPackage package, string assets, UiText text, NativeUi ui) { this.package = package; this.assets = assets; this.text = text; this.ui = ui; }
+    public NativeSurfaces(AsyncPackage package, string assets, string browserData, UiText text, NativeUi ui) { this.package = package; this.assets = assets; this.browserData = browserData; this.text = text; this.ui = ui; }
     public async Task<JToken> InvokeAsync(string method, JObject parameters, CancellationToken cancellation)
     {
       await package.JoinableTaskFactory.SwitchToMainThreadAsync(cancellation);
@@ -45,7 +48,7 @@ namespace MuseSpark.VisualStudio.Panel
         var id = "visual-studio:" + Guid.NewGuid().ToString("N");
         var window = await package.ShowToolWindowAsync(typeof(MuseToolWindow), nextWindow++, true, cancellation) as MuseToolWindow ?? throw Invalid();
         var frame = window.Frame as IVsWindowFrame ?? throw Invalid();
-        var channel = new PanelChannel(Peer ?? throw Invalid(), SchemaContract.Load(), id, session, kind, Theme ?? throw Invalid());
+        var channel = new PanelChannel(Peer ?? throw Invalid(), SchemaContract.Load(true), id, session, kind, Theme ?? throw Invalid());
         var view = new PanelView(channel, package.JoinableTaskFactory);
         channel.Faulted += (sender, code) => package.JoinableTaskFactory.RunAsync(() => FaultedAsync(id, channel, code)).FileAndForget("MuseSpark/PanelFaulted");
         try
@@ -55,8 +58,8 @@ namespace MuseSpark.VisualStudio.Panel
           var container = new DockPanel();
           var menu = ui.CommandMenu(); DockPanel.SetDock(menu, Dock.Top);
           container.Children.Add(menu); container.Children.Add(view);
-          window.Content = container;
-          await view.InitializeAsync(assets, text, kind);
+          window.Show(container);
+          await view.InitializeAsync(assets, browserData, text, kind);
           cancellation.ThrowIfCancellationRequested();
           if (disposed || channel.FaultCode != null) throw new OperationCanceledException();
           surfaces.Add(id, new Surface(channel, view, frame, window));
@@ -86,7 +89,7 @@ namespace MuseSpark.VisualStudio.Panel
       if (!surfaces.TryGetValue(id, out var held) || !ReferenceEquals(held.Channel, channel)) return;
       surfaces.Remove(id);
       held.View.Dispose();
-      held.Window.Content = new TextBlock { Text = text["crashTitle"] + Environment.NewLine + code, TextWrapping = TextWrapping.Wrap };
+      held.Window.Show(new TextBlock { Text = text["crashTitle"] + Environment.NewLine + code, TextWrapping = TextWrapping.Wrap });
     }
 
     public void Dispose()

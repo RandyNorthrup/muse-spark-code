@@ -9,7 +9,7 @@ using Newtonsoft.Json.Linq;
 namespace MuseSpark.VisualStudio.Panel
 {
   // The reviewed MHP envelope is the only relay; native validation uses its frozen export.
-  public sealed class PanelChannel : IPanelChannel, IPanelEndpoint
+  public sealed class PanelChannel : IPanelEndpoint, IDisposable
   {
     private readonly MhpPeer peer;
     private readonly SchemaContract contract;
@@ -21,6 +21,7 @@ namespace MuseSpark.VisualStudio.Panel
     private long incoming;
     private bool ready;
     private bool hasBeenReady;
+    private bool replayPending;
     // Read by the receive loop and by browser posts; set once, under `closing`.
     private volatile bool disposed;
     private bool closeOwed;
@@ -81,25 +82,7 @@ namespace MuseSpark.VisualStudio.Panel
     }
 
     public Task OpenAsync() => LifecycleAsync("opened");
-    public async Task ReadyAsync()
-    {
-      await sending.WaitAsync().ConfigureAwait(false);
-      try
-      {
-        if (disposed) throw new MhpException("cancelled", "MHP_SURFACE_CLOSED");
-        if (ready) return;
-        await LifecycleAsync("ready").ConfigureAwait(false);
-        ready = true;
-        hasBeenReady = true;
-      }
-      finally { sending.Release(); }
-    }
     public Task HiddenAsync() => LifecycleAsync("hidden");
-    public void SaveState(JToken state)
-    {
-      // The page persists its own state under sessionStorage (DocumentBootstrap); the host validates the shape.
-      SchemaContract.Validate(state, peer.Contract.Export["embeddedBridge"]?["setState"]?["state"] ?? throw Invalid());
-    }
     public async Task ReloadAsync()
     {
       await sending.WaitAsync().ConfigureAwait(false);
@@ -107,6 +90,7 @@ namespace MuseSpark.VisualStudio.Panel
       {
         if (disposed) throw new MhpException("cancelled", "MHP_SURFACE_CLOSED");
         ready = false;
+        replayPending = true;
         var frame = LifecycleFrame("reloaded");
         frame["stateRequest"] = SurfaceKind == "whatsNew" ? JValue.CreateNull() : new JObject { ["type"] = ReadyType };
         await peer.PostPanelAsync(frame).ConfigureAwait(false);
@@ -137,9 +121,12 @@ namespace MuseSpark.VisualStudio.Panel
         if (!ready)
         {
           if (message.Value<string>("type") != ReadyType) throw Invalid();
+          // Before the write: the runtime answers ready with its first frames at once, ahead of this await's return.
+          hasBeenReady = true;
           await LifecycleAsync("ready").ConfigureAwait(false);
           ready = true;
-          hasBeenReady = true;
+          // The reload frame carried this state request; the runtime replays it on ready.
+          if (replayPending) { replayPending = false; return; }
         }
         var envelope = new JObject
         {
@@ -228,7 +215,8 @@ namespace MuseSpark.VisualStudio.Panel
           disposed = true;
         }
         peer.DetachPanel(this);
-        var frame = LifecycleFrame("closed"); frame["droppedMessages"] = 0;
+        // Frames this surface still has queued are dropped and counted, never written after its close.
+        var frame = LifecycleFrame("closed"); frame["droppedMessages"] = peer.DropPanel(SurfaceId);
         await peer.PostPanelAsync(frame).ConfigureAwait(false);
       }
       finally { sending.Release(); }

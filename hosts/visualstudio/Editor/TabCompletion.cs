@@ -139,7 +139,7 @@ namespace MuseSpark.VisualStudio.Editor
           var results = await peer.RequestAsync("tab/complete", new JObject
           {
             ["uri"] = new Uri(document.FilePath).AbsoluteUri,
-            ["version"] = snapshot.Version.VersionNumber,
+            ["version"] = DocumentVersion.Of(snapshot),
             ["position"] = EditPlan.Position(text, position),
             ["context"] = new JObject
             {
@@ -196,7 +196,7 @@ namespace MuseSpark.VisualStudio.Editor
       finally { applying = false; }
       view.Caret.MoveTo(new SnapshotPoint(view.TextSnapshot, replacement.Start + replacement.Text.Length));
       Clear();
-      Notify("tab/accepted", new JObject { ["id"] = item["id"], ["uri"] = new Uri(document.FilePath).AbsoluteUri, ["version"] = view.TextSnapshot.Version.VersionNumber });
+      Notify("tab/accepted", new JObject { ["id"] = item["id"], ["uri"] = new Uri(document.FilePath).AbsoluteUri, ["version"] = DocumentVersion.Of(view.TextSnapshot) });
       return true;
     }
     private void Notify(string method, JObject parameters)

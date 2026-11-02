@@ -46,8 +46,6 @@ namespace MuseSpark.VisualStudio.Protocol
     private readonly MhpWriter writer;
     public SchemaContract Contract => contract;
     public string? ProtocolVersion { get; private set; }
-    public Func<JObject, Task>? PanelReceiverAsync { get; set; }
-    public string? PanelSurface { get; set; }
     private readonly object stateLock = new object();
     private readonly Dictionary<string, Pending> pending = new Dictionary<string, Pending>(StringComparer.Ordinal);
     private readonly Dictionary<string, string> cancelledRequests = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -58,7 +56,6 @@ namespace MuseSpark.VisualStudio.Protocol
     private readonly int activeLimit;
     private readonly Dictionary<string, IPanelEndpoint> panels = new Dictionary<string, IPanelEndpoint>(StringComparer.Ordinal);
     private readonly HashSet<string> negotiated = new HashSet<string>(StringComparer.Ordinal);
-    private readonly List<TaskCompletionSource<bool>> readyWaiters = new List<TaskCompletionSource<bool>>();
     private readonly CancellationTokenSource lifetime = new CancellationTokenSource();
     private long nextId;
     private bool initialized;
@@ -155,14 +152,6 @@ namespace MuseSpark.VisualStudio.Protocol
       {
         if (ProtocolVersion != "mhp/1.6.0") throw new MhpException("incompatibleVersion", "MHP_INCOMPATIBLE_VERSION");
         var kind = frame["kind"]?.Type == JTokenType.String ? frame.Value<string>("kind") : null;
-        var receiver = PanelReceiverAsync;
-        var surface = frame["surface"]?.Type == JTokenType.String ? frame.Value<string>("surface") : null;
-        // The bound carrier owns its surface; attached endpoints own every other surface.
-        if (receiver != null && surface != null && surface == PanelSurface)
-        {
-          await receiver(frame).ConfigureAwait(false);
-          return;
-        }
         if (kind == "panelError")
         {
           // Strict: a malformed refusal throws rather than faulting a channel.
@@ -174,7 +163,7 @@ namespace MuseSpark.VisualStudio.Protocol
           return;
         }
         var code = kind == "surface" ? "MHP_PANEL_WRONG_DIRECTION" : "MHP_PANEL_INVALID_ENVELOPE";
-        await WritePanelAsync(new JObject { ["mhp"] = "1.6", ["kind"] = "panelError", ["surface"] = null, ["seq"] = null, ["code"] = code }).ConfigureAwait(false);
+        await PostPanelAsync(new JObject { ["mhp"] = "1.6", ["kind"] = "panelError", ["surface"] = null, ["seq"] = null, ["code"] = code }).ConfigureAwait(false);
         return;
       }
       if (frame["method"] == null) { ReceiveResult(frame); return; }
@@ -212,28 +201,18 @@ namespace MuseSpark.VisualStudio.Protocol
           active.Add(key, cancellation);
         }
         var parameters = frame["params"] as JObject ?? throw new MhpException("invalidParams", "MHP_INVALID_PARAMS");
-        JToken result;
-        if (method == "initialize") result = Initialize(parameters);
-        else
-        {
-          RequireReady(definition.Value<string>("capability") ?? throw new MhpException("internalError", "MHP_CONTRACT_ERROR"));
-          if (method == "shutdown") result = JValue.CreateNull();
-          else
-          {
-            reservation = writer.ReserveResponse();
-            result = await services.InvokeAsync(method, parameters, cancellation.Token).ConfigureAwait(false);
-          }
-        }
+        RequireServed(definition.Value<string>("capability") ?? throw new MhpException("internalError", "MHP_CONTRACT_ERROR"));
+        reservation = writer.ReserveResponse();
+        var result = await services.InvokeAsync(method, parameters, cancellation.Token).ConfigureAwait(false);
         cancellation.Token.ThrowIfCancellationRequested();
         var response = new JObject { ["jsonrpc"] = "2.0", ["id"] = id, ["result"] = result };
         contract.ValidateResult(method, response);
         await writer.EnqueueAsync(response, reservation).ConfigureAwait(false);
-        if (method == "initialize") { lock (stateLock) { foreach (var waiter in readyWaiters) waiter.TrySetResult(true); } }
-        if (method == "shutdown") Stop();
       }
       catch (OperationCanceledException) { await FailAsync(id, new MhpException("cancelled", "MHP_CANCELLED"), reservation).ConfigureAwait(false); }
-      catch (MhpException error) { await FailAsync(id, error, reservation).ConfigureAwait(false); }
-      catch (Exception) { await FailAsync(id, new MhpException("internalError", "MHP_HOST_FAILED"), reservation).ConfigureAwait(false); }
+      // The log gets the frozen method name and the fixed code or type: no frame content, path or account.
+      catch (MhpException error) { Report(frame.Value<string>("method") + " " + error.Message); await FailAsync(id, error, reservation).ConfigureAwait(false); }
+      catch (Exception error) { Report(frame.Value<string>("method") + " MHP_HOST_FAILED " + error.GetType().Name); await FailAsync(id, new MhpException("internalError", "MHP_HOST_FAILED"), reservation).ConfigureAwait(false); }
       finally
       {
         reservation?.Dispose();
@@ -372,23 +351,6 @@ namespace MuseSpark.VisualStudio.Protocol
       finally { lock (stateLock) { initializing = false; } }
     }
 
-    // The runtime's own initialize call: negotiate the shared subset and answer inline.
-    private JToken Initialize(JObject parameters)
-    {
-      lock (stateLock)
-      {
-        if (initialized || stopped) throw new MhpException("invalidRequest", "MHP_ALREADY_INITIALIZED");
-        var range = parameters["protocolRange"] ?? throw new MhpException("invalidParams", "MHP_INVALID_PARAMS");
-        var minimum = range.Value<string>("minimum") ?? "";
-        var maximum = range.Value<string>("maximumExclusive") ?? "";
-        ProtocolVersion = contract.Version == "mhp/1.6.0" && CompareVersion(minimum, "mhp/1.6.0") <= 0 && CompareVersion("mhp/1.6.0", maximum) < 0 ? "mhp/1.6.0" : throw new MhpException("incompatibleVersion", "MHP_INCOMPATIBLE_VERSION");
-        var offered = parameters["capabilities"] as JArray ?? throw new MhpException("invalidParams", "MHP_INVALID_PARAMS");
-        foreach (var capability in services.Capabilities) if (offered.Values<string>().Contains(capability)) negotiated.Add(capability);
-        initialized = true;
-        return new JObject { ["protocolVersion"] = ProtocolVersion, ["capabilities"] = new JArray(negotiated.OrderBy(c => c, StringComparer.Ordinal)) };
-      }
-    }
-
     private static int CompareVersion(string left, string right)
     {
       var a = left.Substring("mhp/".Length).Split('.');
@@ -397,6 +359,7 @@ namespace MuseSpark.VisualStudio.Protocol
       return 0;
     }
 
+    // A request to the runtime needs what the runtime named in its initialize answer.
     private void RequireReady(string capability)
     {
       lock (stateLock)
@@ -406,17 +369,14 @@ namespace MuseSpark.VisualStudio.Protocol
       }
     }
 
-    public async Task WaitUntilReadyAsync(CancellationToken cancellation)
+    // A request from the runtime needs what this host offered in initialize.
+    private void RequireServed(string capability)
     {
-      var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
       lock (stateLock)
       {
-        if (stopped) throw new MhpException("cancelled", "MHP_DISCONNECTED");
-        if (initialized) return;
-        readyWaiters.Add(completion);
+        if (!initialized || stopped) throw new MhpException("invalidRequest", "MHP_NOT_READY");
+        if (!services.Capabilities.Contains(capability)) throw new MhpException("unsupportedCapability", "MHP_UNSUPPORTED_CAPABILITY");
       }
-      try { using (cancellation.Register(() => completion.TrySetCanceled())) await completion.Task.ConfigureAwait(false); }
-      finally { lock (stateLock) { readyWaiters.Remove(completion); } }
     }
 
     private void ReceiveResult(JObject frame)
@@ -447,7 +407,6 @@ namespace MuseSpark.VisualStudio.Protocol
               if (stopped) throw new MhpException("cancelled", "MHP_DISCONNECTED");
               foreach (var capability in frame["result"]?["capabilities"]?.Values<string>().OfType<string>() ?? Enumerable.Empty<string>()) negotiated.Add(capability);
               initialized = true;
-              foreach (var waiter in readyWaiters) waiter.TrySetResult(true);
             }
             request.Completion.TrySetResult(frame["result"] ?? JValue.CreateNull());
           }
@@ -515,16 +474,6 @@ namespace MuseSpark.VisualStudio.Protocol
       return writer.EnqueueAsync(frame, reservation);
     }
 
-    public Task WritePanelAsync(JObject frame)
-    {
-      RequireReady("lifecycle");
-      if (ProtocolVersion != "mhp/1.6.0") throw new MhpException("incompatibleVersion", "MHP_INCOMPATIBLE_VERSION");
-      var kind = frame.Value<string>("kind");
-      var schema = kind == "surface" ? "lifecycle" : kind == "panelError" ? "error" : kind == "panel" ? "envelope" : throw new MhpException("invalidParams", "MHP_PANEL_INVALID_ENVELOPE");
-      SchemaContract.Validate(frame, contract.Export["panel"]?[schema] ?? throw new MhpException("internalError", "MHP_CONTRACT_ERROR"));
-      return WriteAsync(frame);
-    }
-
     public int DropPanel(string surface) => writer.Drop(surface);
     private Task WriteAsync(JObject frame) => writer.EnqueueAsync(frame);
 
@@ -533,7 +482,7 @@ namespace MuseSpark.VisualStudio.Protocol
         : id.Type + ":" + id.ToString(Formatting.None);
     private void Stop()
     {
-      lock (stateLock) { stopped = true; foreach (var request in pending.Values) request.Completion.TrySetException(new MhpException("cancelled", "MHP_DISCONNECTED")); foreach (var waiter in readyWaiters) waiter.TrySetException(new MhpException("cancelled", "MHP_DISCONNECTED")); }
+      lock (stateLock) { stopped = true; foreach (var request in pending.Values) request.Completion.TrySetException(new MhpException("cancelled", "MHP_DISCONNECTED")); }
       lifetime.Cancel();
     }
     public void Dispose() { Stop(); writer.Stop(); lifetime.Dispose(); }

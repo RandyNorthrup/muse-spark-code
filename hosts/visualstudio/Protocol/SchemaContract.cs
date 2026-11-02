@@ -56,6 +56,8 @@ namespace MuseSpark.VisualStudio.Protocol
       var envelope = Export["panel"]?["envelope"]?["oneOf"] as JArray ?? throw Invalid();
       var rules = envelope.Single(s => s["properties"]?["direction"]?.Value<string>("const") == direction)["properties"]?["payload"] ?? throw Invalid();
       var groups = rules["anyOf"] as JArray ?? throw Invalid();
+      // The theme frame (MHP 1.6) is the last toPanel group and reaches every surface kind.
+      if (direction == "toPanel" && payload is JObject message && message.Value<string>("type") == "theme") { Validate(payload, groups[groups.Count - 1]); return; }
       // These group positions are the frozen export's shared chat/tasks/news/presentation unions.
       var group = surfaceKind == "tasks" ? 1 : 0;
       if (IsPresentationSurface(surfaceKind)) group = direction == "toHost" ? 3 : 2;
