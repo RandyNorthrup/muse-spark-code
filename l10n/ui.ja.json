@@ -3433,6 +3433,8 @@
   "unpinConstraintLabel": "固定した制約を外す: {constraint}",
   "pinnedConstraintRemoved": "固定した制約を外しました: {constraint}",
   "pinnedConstraintsUnsupported": "固定した制約はこのバックエンドでは使えません。",
+  "pinnedConstraintsName": "固定した制約",
+  "referencePinnedConstraints": "あなたが述べた副次的な制約は、一語一句そのまま圧縮を越えて引き継がれます。圧縮カードで確認でき、どれでも固定を外せます。",
   "referenceManualCompaction": "/compact で会話を要約し、最近のやり取りをそのまま保持します。",
   "autoCompactionName": "自動コンパクション",
   "paidConfirmAutoCompaction": "自動圧縮は選択したモデルを {price} の料金で使用します。サブスクリプションでは支払われません。",

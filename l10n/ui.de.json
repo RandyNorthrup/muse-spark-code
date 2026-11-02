@@ -3497,6 +3497,8 @@
   "unpinConstraintLabel": "Angeheftete Vorgabe lösen: {constraint}",
   "pinnedConstraintRemoved": "Angeheftete Vorgabe entfernt: {constraint}",
   "pinnedConstraintsUnsupported": "Angeheftete Vorgaben sind auf diesem Backend nicht verfügbar.",
+  "pinnedConstraintsName": "Angeheftete Vorgaben",
+  "referencePinnedConstraints": "Von Ihnen genannte Nebenbedingungen werden Wort für Wort über die Kompaktierung hinweg übernommen; Sie sehen sie auf der Kompaktierungskarte und können jede davon lösen.",
   "referenceManualCompaction": "Fassen Sie das Gespräch mit /compact zusammen und behalten Sie die letzten Beiträge unverändert bei.",
   "autoCompactionName": "Automatische Komprimierung",
   "paidConfirmAutoCompaction": "Die automatische Komprimierung verwendet das gewählte Modell für {price}. Das Abonnement übernimmt diese Kosten nicht.",

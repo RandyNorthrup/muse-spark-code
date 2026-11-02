@@ -71,6 +71,27 @@ export const AUTO_COMPACTION_ARM: EvalArm = {
 }
 
 /**
+Verbatim constraint pinning (RLF-PINNED): the auto-compaction arm plus
+the host-owned pinned block — the person's stated side constraints,
+captured deterministically, never summarised, re-sent after the summary.
+Its pair against AUTO_COMPACTION_ARM isolates pinning alone, at the same
+harness window, on the side-constraint and long-context tasks.
+*/
+export const AUTO_COMPACTION_PINNED_ARM: EvalArm = {
+  name: 'auto-compaction-pinned',
+  mechanism:
+    'automatic compaction with verbatim constraint pinning (RLF-PINNED): as the auto-compaction arm, and the person’s stated side constraints ride past every compaction outside the summary, re-sent word for word after it',
+  program: ARM_PROGRAM,
+  change: frozenChange('auto-compaction-pinned'),
+}
+
+/** The pinned pair, in run order: compaction as today, then with pinning. */
+export const PINNED_EVAL_ARMS: readonly [EvalArm, ...EvalArm[]] = [
+  AUTO_COMPACTION_ARM,
+  AUTO_COMPACTION_PINNED_ARM,
+]
+
+/**
 Strict tool schemas (M101 item 24): the eval host declares the strict
 subset as the shipped host does for a capable selected model. The
 baseline declares the same tools non-strict.
@@ -194,6 +215,8 @@ const armOptionsSchema = z.strictObject({
   autoCompaction: z.optional(z.boolean()),
   autoCompactionEvaluated: z.optional(z.boolean()),
   evaluationAdmission: z.optional(z.boolean()),
+  /** RLF-PINNED: verbatim constraint pinning across compaction. */
+  constraintPinning: z.optional(z.boolean()),
   /**
   D107 (M125 lane V): the one fast decision that runs its natural
   verdict, every other pinned off; `none` pins all off. The pin is not
@@ -267,6 +290,9 @@ export function frozenBundleChange(bundle: ArmBundle): EvalHostChange {
     }),
     ...(options.autoCompactionEvaluated !== undefined && {
       autoCompactionEvaluated: () => options.autoCompactionEvaluated === true,
+    }),
+    ...(options.constraintPinning !== undefined && {
+      constraintPinning: () => options.constraintPinning === true,
     }),
     ...(options.evaluationAdmission === true && {
       // The frozen arm declares that it compacts; the spend authority is

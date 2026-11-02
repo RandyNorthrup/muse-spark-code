@@ -107,6 +107,7 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['toolchains', []],
   ['auto-compaction', ['vscode:modelApi', 'acp:modelApi']],
   ['compaction', ['vscode:modelApi', 'acp:modelApi']],
+  ['pinned-constraints', ['vscode:modelApi', 'acp:modelApi']],
   ['custom-agents', ['vscode:modelApi']],
   ['mcp-elicitation', ['vscode:modelApi']],
   ...[
@@ -300,6 +301,7 @@ export const REFERENCE_ACTION_FEATURES = {
   setPermissionMode: 'chat',
   clearConversation: 'conversation-actions',
   compact: 'chat',
+  unpinConstraint: 'pinned-constraints',
   requestHandoff: 'chat',
   confirmHandoff: 'chat',
   cancelHandoff: 'chat',

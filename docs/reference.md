@@ -453,6 +453,14 @@ Surfaces: vscode:modelApi, acp:modelApi. Paid: yes; consent required; admission 
 
 Commands: —. Settings: `museSpark.modelApiAutoCompaction`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
 
+### Pinned constraints
+
+Side constraints you state are carried word for word past compaction; see them on the compaction card and unpin any of them.
+
+Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
+
 ### Argument Preview
 
 Show validated, scrubbed tool arguments as they arrive, before the tool runs.

@@ -48,6 +48,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Your stated rules are pinned across compaction (in evaluation).**
+  Side constraints you state — a "Constraints:" list or a
+  must/never/always line — will be carried word for word past every
+  compaction instead of riding the summary, shown on the compaction card
+  with an Unpin on each one. The mechanism is built and proven offline;
+  it turns on only when its counted live evaluation passes, and this
+  entry will say so when it does.
 - **Maker tools with a person at every physical action.** Shell commands
   that flash a board, open a device or move a machine ask every time, in
   every permission mode, and no remembered rule, hook or automatic reviewer

@@ -3625,6 +3625,8 @@
   "unpinConstraintLabel": "Открепить закреплённое ограничение: {constraint}",
   "pinnedConstraintRemoved": "Закреплённое ограничение удалено: {constraint}",
   "pinnedConstraintsUnsupported": "Закреплённые ограничения недоступны в этом бэкенде.",
+  "pinnedConstraintsName": "Закреплённые ограничения",
+  "referencePinnedConstraints": "Указанные вами побочные ограничения переносятся сквозь сжатие слово в слово; их можно увидеть на карточке сжатия и открепить любое из них.",
   "referenceManualCompaction": "Сократите разговор с помощью /compact, сохранив последние сообщения без изменений.",
   "autoCompactionName": "Автоматическое сжатие",
   "paidConfirmAutoCompaction": "Автоматическое сжатие использует выбранную модель по тарифу {price}. Подписка не покрывает эти расходы.",
