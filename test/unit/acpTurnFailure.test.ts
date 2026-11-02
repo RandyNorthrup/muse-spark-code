@@ -9,6 +9,7 @@ import {
 } from '../../src/acp/agent'
 import { mapNotification } from '../../src/core/backends/musecode/mapNotification'
 import { ACP_ERROR_CODES, CREDENTIAL_STORE_ERROR_KIND, UI_TEXT } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 import { quotaTurnFailureText } from '../../src/shared/turnFailure'
 import { QUOTA_MESSAGE, QUOTA_RESETS_AT_MS, quotaTurnParams } from './helpers/musecodeQuota'
 
@@ -121,6 +122,27 @@ describe('outboundError wire contract', () => {
       turnFailureError(failed({ reason: 'no', errorKind: 'authRequired', retryable: false })),
     )
     expect(refused.data).toMatchObject({ kind: 'authRequired', retryable: false })
+  })
+
+  it('does not let the observed request id ride inside the quota sentence', () => {
+    // The recorded provider line, placed where the reset instant goes.
+    // The open template used to let that whole sentence leave.
+    const planted = fill(UI_TEXT.subscriptionQuotaExhausted, { resetTime: QUOTA_MESSAGE })
+    const error = wire(
+      new RequestError(ACP_ERROR_CODES.quotaExhausted, planted, {
+        kind: 'quota_exhausted',
+        resetsAt: new Date(QUOTA_RESETS_AT_MS).toISOString(),
+        retryable: false,
+      }),
+    )
+    expect(planted).toContain('request_id=')
+    expect(error.message).toBe(UI_TEXT.actionFailed)
+    expect(error.message).not.toContain('request_id=')
+    expect(error.data).toEqual({
+      kind: 'quota_exhausted',
+      resetsAt: new Date(QUOTA_RESETS_AT_MS).toISOString(),
+      retryable: false,
+    })
   })
 
   it('drops an unparseable reset instant', () => {
