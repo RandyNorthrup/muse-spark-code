@@ -12,7 +12,9 @@ import {
 } from '../../../src/shared/desktop/settings'
 import {
   encodeSysdRequest,
+  lidCloseActionSchema,
   parseSysdResponse,
+  powerButtonActionSchema,
   SysdError,
   SYSD_ERROR_CODES,
   SYSD_METHOD_NAMES,
@@ -210,6 +212,18 @@ describe('sysd state reads', () => {
 })
 
 describe('sysd mutations', () => {
+  it('round-trips the lid and power-button actions', () => {
+    expect(
+      roundTrip(
+        'power.setActions',
+        { onLidClose: 'lock', onPowerButton: 'shutdown' },
+        { ok: true },
+      ),
+    ).toEqual({ ok: true })
+    expect(z.parse(lidCloseActionSchema, 'nothing')).toBe('nothing')
+    expect(() => z.parse(powerButtonActionSchema, 'reboot')).toThrow()
+  })
+
   it('round-trips a wifi connect, a pairing and a printer add', () => {
     expect(
       roundTrip('network.connectWifi', { ssid: 'home', autoconnect: true }, { ok: true }),
