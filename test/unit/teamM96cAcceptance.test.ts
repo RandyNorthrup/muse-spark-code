@@ -4,7 +4,7 @@
 // real child processes. These replace the lane-S suites deleted with the
 // fake tests (33150b3cf); every port below either is the production class
 // itself or does real filesystem/git/process work in a temp folder.
-import { execFile, execFileSync, type ExecFileException } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import {
   cpSync,
   existsSync,
@@ -52,7 +52,8 @@ import {
 } from '../../src/core/team/mergeQueue'
 import { runnerSshArgs } from '../../src/host/runners/sshRunner'
 import { runnerEnvironment } from '../../src/core/runners/runnerConfig'
-import { CheckSlots, type CheckProcess } from '../../src/host/team/checkSlots'
+import { CheckSlots } from '../../src/host/team/checkSlots'
+import { checkProcess } from './helpers/runnerProcesses'
 import type { Runner } from '../../src/shared/team'
 import {
   boardAttempt,
@@ -731,6 +732,17 @@ function candidate(id: string, patch: Partial<MergeCandidate> = {}): MergeCandid
   }
 }
 
+/** Merge one candidate into a fresh trial copy of the tree, on disk. */
+function trialMerger(root: string, contents: (item: MergeCandidate) => string) {
+  let trialCount = 0
+  return (tree: string, item: MergeCandidate) => {
+    const next = path.join(root, `trial-${String(trialCount++)}`)
+    cpSync(tree, next, { recursive: true })
+    writeFileSync(path.join(next, `${item.id}.txt`), contents(item))
+    return Promise.resolve({ status: 'merged' as const, tree: next })
+  }
+}
+
 describe('M96c acceptance 18-21: the merge queue', () => {
   it('orders by dependencies, inherited priority, conflicts, blast and finish, with reasons', () => {
     const { ordered, held, reasons } = orderMergeQueue(
@@ -763,15 +775,9 @@ describe('M96c acceptance 18-21: the merge queue', () => {
     const initial = path.join(root, 'tree')
     mkdirSync(initial, { recursive: true })
     writeFileSync(path.join(initial, 'keep.txt'), 'keep\n')
-    let trialCount = 0
     const reworked: string[] = []
     const deps = {
-      merge: (tree: string, item: MergeCandidate) => {
-        const next = path.join(root, `trial-${String(trialCount++)}`)
-        cpSync(tree, next, { recursive: true })
-        writeFileSync(path.join(next, `${item.id}.txt`), item.id === 'c' ? 'BAD\n' : `${item.id}\n`)
-        return Promise.resolve({ status: 'merged' as const, tree: next })
-      },
+      merge: trialMerger(root, (item) => (item.id === 'c' ? 'BAD\n' : `${item.id}\n`)),
       check: (tree: string) => {
         const isBad = ['a', 'b', 'c', 'd'].some((id) => {
           const file = path.join(tree, `${id}.txt`)
@@ -805,14 +811,8 @@ describe('M96c acceptance 18-21: the merge queue', () => {
     const root = tempRoot('m96c-interact-')
     const initial = path.join(root, 'tree')
     mkdirSync(initial, { recursive: true })
-    let trialCount = 0
     const admission = await admitMergeBatch(initial, [candidate('a'), candidate('b')], new Set(), {
-      merge: (tree: string, item: MergeCandidate) => {
-        const next = path.join(root, `trial-${String(trialCount++)}`)
-        cpSync(tree, next, { recursive: true })
-        writeFileSync(path.join(next, `${item.id}.txt`), `${item.id}\n`)
-        return Promise.resolve({ status: 'merged' as const, tree: next })
-      },
+      merge: trialMerger(root, (item) => `${item.id}\n`),
       check: (tree: string) => {
         const isTogether =
           existsSync(path.join(tree, 'a.txt')) && existsSync(path.join(tree, 'b.txt'))
@@ -831,14 +831,8 @@ describe('M96c acceptance 18-21: the merge queue', () => {
     mkdirSync(initial, { recursive: true })
     const counter = path.join(root, 'counter')
     writeFileSync(counter, '0')
-    let trialCount = 0
     const admission = await admitMergeBatch(initial, [candidate('a'), candidate('b')], new Set(), {
-      merge: (tree: string, item: MergeCandidate) => {
-        const next = path.join(root, `trial-${String(trialCount++)}`)
-        cpSync(tree, next, { recursive: true })
-        writeFileSync(path.join(next, `${item.id}.txt`), `${item.id}\n`)
-        return Promise.resolve({ status: 'merged' as const, tree: next })
-      },
+      merge: trialMerger(root, (item) => `${item.id}\n`),
       check: () => {
         const runs = Number(readFileSync(counter, 'utf8')) + 1
         writeFileSync(counter, String(runs))
@@ -851,23 +845,6 @@ describe('M96c acceptance 18-21: the merge queue', () => {
     expect(admission.checkRuns).toBe(2)
   })
 })
-
-const runProcess: CheckProcess = (request) =>
-  new Promise((resolve) => {
-    execFile(
-      request.file,
-      [...request.args],
-      { cwd: request.cwd, env: request.env, timeout: request.timeoutMs },
-      (error: ExecFileException | null, stdout: string, stderr: string) => {
-        resolve({
-          exitCode: error === null ? 0 : typeof error.code === 'number' ? error.code : 1,
-          output: stdout,
-          descendantsEnded: true,
-          stderr,
-        })
-      },
-    )
-  })
 
 describe('M96c acceptance 25-26: check slots and runners', () => {
   it('every SSH connection carries the fixed options and no credential reaches the remote env', () => {
@@ -921,7 +898,7 @@ describe('M96c acceptance 25-26: check slots and runners', () => {
     writeFileSync(setups, '')
     const slots = new CheckSlots({
       file: 'git',
-      run: runProcess,
+      run: checkProcess,
       env: process.env,
       root,
       repositoryRoot: repo,

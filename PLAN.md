@@ -16928,6 +16928,18 @@ the attempt; a refused admission frees its slot). No real team run has
 been made through the packed product (CC-INT5 §8 item 3 stands). Record:
 `docs/certification/rlf-teamfit.md`.
 
+**Status 2026-11-01 (RLF-M96CREC, on RLF-TEAMFIT): building.** The
+acceptance record exists (`docs/certification/m96c.md`): acceptance
+1–32 each carry their real-code proof or stay open, named — the
+board, pick, stalls, retirement, merge queue, check slots and runner
+options are proven on real parts with red/green drills
+(`teamM96cAcceptance`), the four golden frames have a consumer
+(`teamGoldenFrames`), and acceptance 31's bundles are measured inside
+their budgets (`npm run build` exit 0). Still open: the live team
+run, throughput, the Traffic harness (red on this tree), three rows
+with no owning suite (no-preemption, hygiene, team log lines), and
+the Windows/Linux legs.
+
 **M96CINT round 2 integration (2026-10-05).** Finish the existing partial
 integration by merging reviewed C (`52d04b69`) and then O (`19bb0703`) with
 `--no-ff`, preserving every lane's intent. Resolve only integration seams
@@ -17897,12 +17909,12 @@ it process lifetime, the journal, hints and the load guard. The research is
         all three platforms.
   - [ ] The real feature-lane throughput scenario recorded: lanes used,
         waits, conflicts and time to merge.
-  - [ ] Single-model mode re-checked against M96's golden fixtures and
+  - [x] Single-model mode re-checked against M96's golden fixtures and
         frames with this milestone's code.
   - [ ] The rubric's evaluation meets its floors, with its count.
   - [ ] The integration test at the 1.99 floor and at stable.
   - [ ] The live check recorded, with its counts and spend.
-  - [ ] Bundle sizes measured and within budget.
+  - [x] Bundle sizes measured and within budget.
   - [ ] README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING and this record
         updated.
 

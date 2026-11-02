@@ -4,46 +4,21 @@
 // module deliberately refuses to retain or log. The failures below are a
 // real SSH client refused by a real closed port, through a real process
 // transport.
-import { execFile, type ExecFileException } from 'node:child_process'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, it } from 'vitest'
 import { runnerEnvironment } from '../../src/core/runners/runnerConfig'
-import type { CheckProcess } from '../../src/host/team/checkSlots'
 import { SshRunner } from '../../src/host/runners/sshRunner'
 import type { Runner } from '../../src/shared/team'
 import { UI_TEXT } from '../../src/shared/constants'
-
-// The test transport: the real process launch, with the window launcher's
-// container proof standing in as a clean exit (a refusal never exits
-// cleanly, which is the only case this suite drives).
-const run: CheckProcess = (request) =>
-  new Promise((resolve) => {
-    execFile(
-      request.file,
-      [...request.args],
-      { cwd: request.cwd, env: request.env, timeout: request.timeoutMs },
-      (error: ExecFileException | null, stdout: string, stderr: string) => {
-        if (error === null) {
-          resolve({ exitCode: 0, output: stdout, descendantsEnded: true, stderr })
-          return
-        }
-        resolve({
-          exitCode: typeof error.code === 'number' ? error.code : 1,
-          output: stdout,
-          descendantsEnded: false,
-          stderr,
-        })
-      },
-    )
-  })
+import { checkProcess } from './helpers/runnerProcesses'
 
 async function runner(): Promise<{ ssh: SshRunner; value: Runner }> {
   const scratch = await mkdtemp(path.join(tmpdir(), 'ssh-runner-'))
   const ssh = new SshRunner({
     file: 'git',
-    run,
+    run: checkProcess,
     env: runnerEnvironment(process.env),
     ssh: 'ssh',
     helperFolder: 'native/runner',
