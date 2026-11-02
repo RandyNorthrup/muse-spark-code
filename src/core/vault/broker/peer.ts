@@ -60,8 +60,13 @@ export async function hasVaultFeederAncestry(
   const births = new Map<number, number>([[feeder.processId, feeder.startedAt]])
   let current = feeder.processId
   for (;;) {
+    const expectedBirth = births.get(current)
     const currentLive = await port.processIdentity(current)
-    if (currentLive?.startedAt !== births.get(current) || currentLive.userId !== feeder.userId)
+    if (
+      expectedBirth === undefined ||
+      currentLive?.startedAt !== expectedBirth ||
+      currentLive.userId !== feeder.userId
+    )
       return false
     const parent = await port.parentIdentity(current)
     if (!parent || births.has(parent.processId)) return false
