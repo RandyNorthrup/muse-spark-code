@@ -17,9 +17,9 @@
 // MuseCodeHost over the SDK's real Connection fed with the recorded
 // frames. `model/list` is never mocked: the replay script answers with
 // recorded bytes, and unscripted methods are refused loudly.
-import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { mkdtemp } from 'node:fs/promises'
-import { homedir, tmpdir } from 'node:os'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { spawnMspConnection } from '@muse-code/sdk'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -28,7 +28,7 @@ import {
   emptyCatalogueRetryDelayMs,
   isEmptyCatalogueEpisode,
 } from '../../src/core/backends/musecode/emptyCatalogue'
-import { resolveMuseLaunch } from '../../src/core/backends/musecode/launch'
+import { resolveInstalledMuse } from './helpers/installedMuse'
 import {
   modelListResultSchema,
   toModelSummary,
@@ -68,25 +68,10 @@ const HEALTHY_LIST: Record<string, unknown> = JSON.parse(
 const HEALTHY_IDS = ['muse-wonder-1.0', 'muse-wonder-full-1.0', 'muse-spark-1.3', 'muse-spark-1.2']
 
 /** The real CLI the product would run, found as the product finds it; why not when it is not there. */
-function installedMuse(): { readonly command: string } | { readonly missing: string } {
-  const found = resolveMuseLaunch({
-    platform: process.platform,
-    configuredPath: '',
-    pathEntries: (process.env['PATH'] ?? '').split(path.delimiter).filter((entry) => entry !== ''),
-    homeDir: homedir(),
-    localAppData: process.env['LOCALAPPDATA'],
-    fileExists: (file) => existsSync(file),
-    readTextFile: (file) => (existsSync(file) ? readFileSync(file, 'utf8') : undefined),
-    listDirectory: (folder) => (existsSync(folder) ? readdirSync(folder) : []),
-    serveArgs: [],
-    scope: { workspaceRoot: process.cwd(), realpath: realpathSync },
-  })
-  return found.ok
-    ? { command: found.launch.command }
-    : { missing: 'no Muse Code CLI is installed on this machine' }
-}
-
-const MUSE = installedMuse()
+const MUSE = resolveInstalledMuse({
+  localAppData: process.env['LOCALAPPDATA'],
+  workspaceRoot: process.cwd(),
+})
 const SKIPPED_WITHOUT_CLI = 'missing' in MUSE ? ` (SKIPPED: ${MUSE.missing})` : ''
 // Spawning the real CLI and waiting for its first answers is genuinely slow.
 const CASE_MS = 30_000
@@ -154,6 +139,11 @@ function modelLists(posted: readonly HostToWebviewMessage[]): readonly string[][
   return posted.flatMap((message) =>
     message.type === 'modelList' ? [message.models.map((model) => model.modelId)] : [],
   )
+}
+
+/** The sentence is the only words the panel said: said once, never anything else. */
+function expectOnlySentence(posted: readonly HostToWebviewMessage[]): void {
+  expect(panelNotices(posted)).toEqual([{ level: 'warning', text: EN.metaCatalogueEmptyRetrying }])
 }
 
 async function awaitListings(wire: ReplayWire, count: number): Promise<void> {
@@ -241,6 +231,22 @@ function catalogueScript(
   }
 }
 
+/** A panel sent once over the recorded answers, its first listing answered. */
+async function sendOnScript(
+  directory: string,
+  script: (method: string, params: Record<string, unknown>) => Answer,
+): Promise<{
+  readonly rig: ReturnType<typeof cataloguePanel>
+  readonly clock: ReturnType<typeof gatedCatalogueClock>
+}> {
+  const clock = gatedCatalogueClock()
+  const rig = cataloguePanel(directory, script, clock)
+  await sendFirst(rig.panel)
+  await awaitPosts(rig.panel, turnAcceptances, 1, 'turns accepted')
+  await awaitListings(rig.live.wire, 1)
+  return { rig, clock }
+}
+
 describe('the panel on an empty served catalogue', () => {
   let directory = ''
   beforeEach(async () => {
@@ -252,17 +258,11 @@ describe('the panel on an empty served catalogue', () => {
   })
 
   it('says the sentence and retries on Meta backoff, never posting an empty picker', async () => {
-    const clock = gatedCatalogueClock()
-    const rig = cataloguePanel(directory, catalogueScript([EMPTY_LIST]), clock)
-    await sendFirst(rig.panel)
-    await awaitPosts(rig.panel, turnAcceptances, 1, 'turns accepted')
-    await awaitListings(rig.live.wire, 1)
+    const { rig, clock } = await sendOnScript(directory, catalogueScript([EMPTY_LIST]))
     // The empty list is said, not obeyed: no modelList post presents it
     // as truth, and the sentence is the only words the panel says.
     expect(modelLists(rig.panel.posted)).toEqual([])
-    const notices = panelNotices(rig.panel.posted)
-    expect(notices).toHaveLength(1)
-    expect(notices[0]).toEqual({ level: 'warning', text: EN.metaCatalogueEmptyRetrying })
+    expectOnlySentence(rig.panel.posted)
     // The burst retries on Meta's documented backoff: 500 ms doubling to
     // 4 s, four retries after the first try, then it stops with the
     // sentence staying and the picker still unposted.
@@ -270,15 +270,11 @@ describe('the panel on an empty served catalogue', () => {
     await awaitListings(rig.live.wire, 5)
     expect(clock.waits).toEqual([500, 1000, 2000, 4000])
     expect(modelLists(rig.panel.posted)).toEqual([])
-    expect(panelNotices(rig.panel.posted)).toHaveLength(1)
+    expectOnlySentence(rig.panel.posted)
   })
 
   it('keeps the last good catalogue for display when the list empties', async () => {
-    const clock = gatedCatalogueClock()
-    const rig = cataloguePanel(directory, catalogueScript([HEALTHY_LIST, EMPTY_LIST]), clock)
-    await sendFirst(rig.panel)
-    await awaitPosts(rig.panel, turnAcceptances, 1, 'turns accepted')
-    await awaitListings(rig.live.wire, 1)
+    const { rig } = await sendOnScript(directory, catalogueScript([HEALTHY_LIST, EMPTY_LIST]))
     expect(modelLists(rig.panel.posted)).toEqual([HEALTHY_IDS])
     // The backend generation goes away and the next listing comes back
     // empty: the last good catalogue stays on display with the sentence.
@@ -286,17 +282,14 @@ describe('the panel on an empty served catalogue', () => {
     await awaitListings(rig.live.wire, 2)
     const lists = modelLists(rig.panel.posted)
     expect(lists.at(-1)).toEqual(HEALTHY_IDS)
-    const notices = panelNotices(rig.panel.posted)
-    expect(notices).toHaveLength(1)
-    expect(notices[0]).toEqual({ level: 'warning', text: EN.metaCatalogueEmptyRetrying })
+    expectOnlySentence(rig.panel.posted)
   })
 
   it('recovers without a restart when the list returns', async () => {
-    const clock = gatedCatalogueClock()
-    const rig = cataloguePanel(directory, catalogueScript([EMPTY_LIST, HEALTHY_LIST]), clock)
-    await sendFirst(rig.panel)
-    await awaitPosts(rig.panel, turnAcceptances, 1, 'turns accepted')
-    await awaitListings(rig.live.wire, 1)
+    const { rig, clock } = await sendOnScript(
+      directory,
+      catalogueScript([EMPTY_LIST, HEALTHY_LIST]),
+    )
     expect(modelLists(rig.panel.posted)).toEqual([])
     // The first retry finds the list back: the catalogue posts, the
     // episode ends, and no further retry is asked.
@@ -305,20 +298,16 @@ describe('the panel on an empty served catalogue', () => {
     await awaitPosts(rig.panel, modelLists, 1, 'model lists')
     expect(modelLists(rig.panel.posted)).toEqual([HEALTHY_IDS])
     expect(clock.waits).toEqual([500])
-    expect(panelNotices(rig.panel.posted)).toHaveLength(1)
+    expectOnlySentence(rig.panel.posted)
   })
 
   it('still recovers on a later listing after the burst is spent', async () => {
     let isEmpty = true
-    const clock = gatedCatalogueClock()
-    const rig = cataloguePanel(
+    const { rig, clock } = await sendOnScript(
       directory,
       (method: string, params: Record<string, unknown>) =>
         catalogueScript([isEmpty ? EMPTY_LIST : HEALTHY_LIST])(method, params),
-      clock,
     )
-    await sendFirst(rig.panel)
-    await awaitPosts(rig.panel, turnAcceptances, 1, 'turns accepted')
     clock.release()
     await awaitListings(rig.live.wire, 5)
     expect(modelLists(rig.panel.posted)).toEqual([])
@@ -328,7 +317,7 @@ describe('the panel on an empty served catalogue', () => {
     rig.panel.controller.confidentialWorkspaceChanged()
     await awaitPosts(rig.panel, modelLists, 1, 'model lists')
     expect(modelLists(rig.panel.posted)).toEqual([HEALTHY_IDS])
-    expect(panelNotices(rig.panel.posted)).toHaveLength(1)
+    expectOnlySentence(rig.panel.posted)
   })
 })
 
