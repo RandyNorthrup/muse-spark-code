@@ -10018,6 +10018,8 @@ export const O11Y_TRACES_RETENTION_MS = 3 * MILLISECONDS_PER_DAY
 export const O11Y_TRACE_SAMPLE_KEEP_EVERY = 10
 // The ring files' private mode, for files the crash hook creates.
 export const O11Y_STORE_FILE_MODE = 0o600
+// The node crash hook's lazy chunk, loaded at node CLI startup (PLAN.md D6).
+export const O11Y_CRASH_HOOK_BUNDLE_FILE = 'nodeCrashHook.js'
 // Export (opt-in, off until the person names their collector): TLS only,
 // the collector's certificate verified, auth headers from the vault. The
 // retry is the collector's own `retry_on_failure` defaults (initial 5 s,
