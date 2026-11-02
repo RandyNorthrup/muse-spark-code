@@ -13,7 +13,9 @@ real credential-store suites (`test/unit/vault/**`, `keyringParts`, `keystoreOwn
 `credentialLease`, `providerHeadersStore`) were never run on this PC. Scratch files
 lived in the worktree's ignored `temp/` (`TMP` and `TEMP` at `temp/tmp`,
 `LOCALAPPDATA` at `temp/localappdata`, so the birth reader builds there); at most
-four vitest workers; one heavy command at a time.
+four vitest workers; one heavy command at a time, but once: the last typecheck and
+duplication gates overlapped the final three-spelling run for a few minutes, because
+a stale done marker was read as that run's end. Both finished clean.
 
 ## 1. What was open
 
