@@ -166,6 +166,8 @@ class EmbeddedPanel(
       json(
         "toHost" to payloads[0][index],
         "toPanel" to (payloads[1].toList().getOrNull(index) ?: jsonValue(false)),
+        // The theme frame (MHP 1.6) is the last toPanel group and reaches every surface kind.
+        "theme" to payloads[1][payloads[1].size() - 1],
         "stateSchema" to
           JsonBoundary
             .parse(JsonBoundary.resource("/mhp/mhp-v1.1.schema.json"))

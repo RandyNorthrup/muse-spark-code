@@ -196,7 +196,14 @@ Object.defineProperty(globalThis, 'installMuseHost', {
       museHost: { value: api, configurable: false, writable: false },
       __museReceive: {
         value(payload, sequence) {
-          if (!matches(config.toPanel, payload)) throw new Error('MHP_PANEL_INVALID_PAYLOAD')
+          // A theme frame (MHP 1.6) rides toPanel on every surface kind.
+          const isTheme =
+            typeof payload === 'object' && payload !== null && payload.type === 'theme'
+          const admitted = matches(
+            isTheme && config.theme !== undefined ? config.theme : config.toPanel,
+            payload,
+          )
+          if (!admitted) throw new Error('MHP_PANEL_INVALID_PAYLOAD')
           try {
             for (const listener of listeners) listener(clone(payload))
           } finally {

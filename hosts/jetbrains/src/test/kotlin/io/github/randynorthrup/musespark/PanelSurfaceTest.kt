@@ -65,6 +65,25 @@ class PanelSurfaceTest {
   }
 
   @Test
+  fun deliversTheRuntimesThemeAsItsFirstFrameOnChatAndTasks() {
+    for (kind in listOf("chat", "tasks")) {
+      rendered.clear()
+      val surface = surface(kind)
+      surface.open()
+      surface.subscribe()
+      val theme =
+        message().also {
+          it.add(
+            "payload",
+            json("type" to "theme", "theme" to json("kind" to "dark", "tokens" to json())),
+          )
+        }
+      surface.receive(theme)
+      assertEquals(listOf(1L), rendered)
+    }
+  }
+
+  @Test
   fun preservesSequencesStateAndExactlyOneReplayAcrossReload() {
     val surface = surface()
     surface.open()
