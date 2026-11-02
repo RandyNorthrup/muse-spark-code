@@ -10,6 +10,7 @@ import {
 import { restoredToolText, type CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { CHATGPT_TOOL_NAMESPACE_DESCRIPTION } from '../../src/shared/constants'
 import { testPlanStreamBody } from './helpers/chatGptGrant'
+import { recordedFunctionToolSchema } from './helpers/recordedFunctionTool'
 
 const encoder = new TextEncoder()
 const codec = createResponsesCodec({
@@ -40,15 +41,7 @@ const captureSchema = z.object({
           type: z.literal('namespace'),
           name: z.string(),
           description: z.string(),
-          tools: z.array(
-            z.looseObject({
-              type: z.literal('function'),
-              name: z.string(),
-              description: z.string(),
-              parameters: z.record(z.string(), z.unknown()),
-              strict: z.boolean(),
-            }),
-          ),
+          tools: z.array(recordedFunctionToolSchema),
         }),
       ),
       store: z.literal(false),
