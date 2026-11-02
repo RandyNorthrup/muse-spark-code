@@ -138,6 +138,8 @@ function rollupRowSchemaWith<C extends typeof usageCostSchema | typeof usageLega
     durationMs: z.optional(usageAmountSchema),
     firstTokenMs: z.optional(usageAmountSchema),
     packedAvoided: z.optional(usageCountSchema),
+    definitionTokens: z.optional(usageCountSchema),
+    rulesTokens: z.optional(usageCountSchema),
     retries: usageCountSchema,
     rateLimited: usageCountSchema,
     latencyHistogram: histogramSchema,
@@ -340,6 +342,8 @@ export function toAggregateRow(row: UsageRollupRow): UsageAggregateRow {
       ...(row.durationMs !== undefined && { durationMs: row.durationMs }),
       ...(row.firstTokenMs !== undefined && { firstTokenMs: row.firstTokenMs }),
       ...(row.packedAvoided !== undefined && { packedAvoided: row.packedAvoided }),
+      ...(row.definitionTokens !== undefined && { definitionTokens: row.definitionTokens }),
+      ...(row.rulesTokens !== undefined && { rulesTokens: row.rulesTokens }),
     },
   }
 }
@@ -418,6 +422,8 @@ export function rollupUsageRecords(records: readonly UsageRecord[]): UsageRollup
     row.durationMs = sum(row.durationMs, record.durationMs)
     row.firstTokenMs = sum(row.firstTokenMs, record.firstTokenMs)
     row.packedAvoided = sum(row.packedAvoided, record.packedAvoided)
+    row.definitionTokens = sum(row.definitionTokens, record.definitionTokens)
+    row.rulesTokens = sum(row.rulesTokens, record.rulesTokens)
     row.retries += record.retries ?? 0
     row.rateLimited += record.rateLimited === true ? 1 : 0
     if (record.durationMs !== undefined) {

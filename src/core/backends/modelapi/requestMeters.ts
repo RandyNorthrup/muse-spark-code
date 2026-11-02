@@ -6,7 +6,7 @@
 // files cost beside the provider's own cached-token count. Pure.
 
 import { estimateDefinitionTokens } from './mcp/deferredTools'
-import type { FunctionToolDefinition } from './schemas'
+import type { ToolDefinition } from './schemas'
 import { estimatePackTokens } from './toolResultBound'
 
 /** The estimated fixed-prefix costs of one request. */
@@ -23,7 +23,7 @@ exactly as the request body carries them; `rules` is the workspace
 rules text folded into the instructions (undefined without rules).
 */
 export function meterRequestPrefix(
-  tools: readonly FunctionToolDefinition[],
+  tools: readonly ToolDefinition[],
   rules: string | undefined,
 ): RequestMeters {
   return {

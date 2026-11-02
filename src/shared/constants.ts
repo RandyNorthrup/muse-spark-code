@@ -9683,6 +9683,8 @@ export const MODEL_API_MODEL_TEXT = {
     'No deferred MCP tool matches "{query}". Search again with other words from a tool name, description or argument name.',
   toolSearchNotDeferred: 'tool_search is not available: no MCP tools are deferred in this session',
   toolSearchBadQuery: 'tool_search needs a non-empty query string',
+  toolSearchLoadFirst:
+    'is a deferred MCP tool and is not loaded yet: call tool_search to load it before calling it',
 
   // M75 (PLAN.md D49): the paired evaluation's answer to a question the
   // model asks mid-task; nobody is there to choose.

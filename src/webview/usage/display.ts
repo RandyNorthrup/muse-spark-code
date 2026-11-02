@@ -208,6 +208,8 @@ export function totalsFacts(
       value: count(totals.tokens.cacheWrite12h),
     },
     { label: USAGE_TEXT.reasoningTokens, value: count(totals.tokens.reasoning) },
+    { label: USAGE_TEXT.definitionTokens, value: count(totals.definitionTokens) },
+    { label: USAGE_TEXT.rulesTokens, value: count(totals.rulesTokens) },
     { label: USAGE_TEXT.requests, value: count(totals.records) },
     { label: USAGE_TEXT.totalTime, value: duration(totals.durationMs) },
     { label: USAGE_TEXT.firstToken, value: duration(totals.firstTokenMs) },
