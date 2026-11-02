@@ -139,8 +139,12 @@ RLF-UPDEPS brief B1 is not flagged on the base's 6.16.1 either;
 - **H5 — other lanes'.** `@muse-code/sdk` 1.4.12 → 1.4.14 and
   `@agentclientprotocol/sdk` 2.0.1 → 2.4.0 are RLF-UPSDK's;
   `eslint-plugin-unicorn` 77.0.0 → 79.0.0 is `rlf-unicorn79`'s.
-  Untouched here. (`ovsx` 1.3.1/1.3.2, queued by RLF-UPDEPS, no
-  longer exist on the registry; 1.3.0 is latest.)
+  Untouched here. (`vscode-jsonrpc` 10.0.0, RLF-UPDEPS brief B3,
+  already landed on this base via RLF-LSPBUS with its own proof;
+  its `runtimeLsp` suite stalls in this sandbox on both jsonrpc
+  versions — RLF-UPDEPS drill D2 — so it stays with hosted CI.
+  `ovsx` 1.3.1/1.3.2, queued by RLF-UPDEPS, no longer exist on
+  the registry; 1.3.0 is latest.)
 - **H6 — Node engine floor and Hyprland snapshot.** As above:
   not dependency-lane calls.
 - **PLAN.md D3's table** ("verified 2026-09-21") still pre-dates
