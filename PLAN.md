@@ -26708,7 +26708,7 @@ security` threshold; the OS images' QEMU boot test and their reproducibility
 
 ### M111 — Muse Desktop: the host edition's own shell (D91)
 
-**Status 2026-10-30 (RLF-M111QA): in progress — the M111a0 test rig
+**Status 2026-11-01 (RLF-M111QA): in progress — the M111a0 test rig
 (lane QA) is landed.** `test/desktop/harness/` plus
 `scripts/desktop-harness.mjs` and `scripts/qemu-desktop-test.mjs` give
 every later lane its rig: desktop scenes from lane 0's contracts in all
@@ -26722,8 +26722,11 @@ recorded in `docs/certification/rlf-m111qa.md`: there are no screenshot
 goldens (review shots are for people), and no D-Bus stand-ins for
 system services (the test bus carries harness-owned canaries; SY meets
 the real services in a VM). The session runs where a KMS device exists
-(aquamarine's allocator rule), so the guest session proof boots a
-Debian guest on virtio-gpu, the way upstream Hyprland tests itself.
+(aquamarine's allocator rule): on 2026-11-01 a fresh Debian guest on
+virtio-gpu completed the whole in-guest proof—the two harness outputs
+at 1920×1080 and 1280×800, a foot client typed into by the virtual
+-input driver, grim captures of both outputs, and the host runner's
+`ok: true` marker verdict—the way upstream Hyprland tests itself.
 SH1, SH2, WB, CP and AX run under this rig from here.
 
 **Status 2026-10-23 (RLF-M111L0): planned.** Mockups approved; lane 0 landed. The

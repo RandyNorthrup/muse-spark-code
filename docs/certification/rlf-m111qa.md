@@ -1,7 +1,8 @@
 # RLF-M111QA — M111 lane QA: the desktop test rig
 
 Base: int/recovery at `0a5ebd7189` (contains lane 0, RLF-M111L0). Rig:
-linuxlt (Ubuntu 25.10, x86_64). Date: 2026-10-30.
+linuxlt (Ubuntu 25.10, x86_64). Date: 2026-10-30; the resumed guest
+proof was completed on 2026-11-01.
 
 ## What this lane builds (PLAN.md M111a0, lane QA)
 
@@ -52,7 +53,18 @@ headless` outputs, but `CBackend::create()` fails with no DRM device
    driver is a Wayland client speaking `zwp_virtual_keyboard_v1` and
    `zwlr_virtual_pointer_v1`, which Hyprland implements in every
    session type. Backed by `wayland-client` (rule 9 record below).
-5. **Scenes are harness shells until the shell lanes land.** SH1, SH2
+5. **The scene outputs keep clear of Hyprland's fallback name.**
+   Measured in the Debian guest (Hyprland 0.55.2): an output named
+   `HEADLESS-1` is claimed as the compositor's internal fallback and
+   renamed `FALLBACK`, so it never appears as a usable monitor. The
+   harness defaults are therefore `MUSE-HEADLESS-1` and
+   `MUSE-HEADLESS-2`; a session refuses `HEADLESS-1` and `FALLBACK`
+   by name instead of waiting for an output that cannot appear. A
+   creation request can also be lost while Hyprland settles that
+   fallback at startup, so the session re-creates only outputs absent
+   from `hyprctl monitors all -j` until its ready deadline and reports
+   both listings if the deadline passes.
+6. **Scenes are harness shells until the shell lanes land.** SH1, SH2
    and WB are not on int. Desktop scenes render the lane-0 contract
    frame (regions, sizes from the M114 tokens) with the real desktop
    strings in all 15 tables, so TH, IN and AX can prove the token,
@@ -81,10 +93,11 @@ headless` outputs, but `CBackend::create()` fails with no DRM device
 
 ## Status
 
-Parts A–E done (604be0c20, 07871f4e2, bc64f6e4a, 7623452e0); Part F's
-runner and firmware/kernel boots done (31b9efafb), its in-guest
-compositor session in progress (see below); Part G's workflows and
-records done (04aaa6caa, 64e3e1cf0, fcc4708dd).
+Parts A–G done. The harness, QEMU runner and workflows landed in
+604be0c20 through 04aaa6caa; the guest-session and gate fixes landed
+in 8d2585683, 608afd943, a1c19a7b2, 2b64a5737, dbcbff58e and
+8b3632b87. This record and the PLAN status were brought up to date
+in the closing change.
 
 ### Part A proof (scenes and review screenshots)
 
@@ -108,16 +121,22 @@ records done (04aaa6caa, 64e3e1cf0, fcc4708dd).
 
 ### Part B proof (compositor session and CLI)
 
-- `test/unit/desktop/harnessCompositor.test.mjs` (8 tests, green):
-  generated config pins both headless outputs and disables the rest;
-  tool/KMS probing on real directories; capture and group-stop on real
-  child processes; argument parsing; the script as a child process
-  (scenes JSON exit 0, unknown command exit 1).
+- `test/unit/desktop/harnessCompositor.test.mjs` (10 tests, green):
+  generated config pins both harness outputs and disables the rest;
+  the captured guest monitors listing pins which outputs still have
+  to be created; Hyprland's reserved fallback names refuse before any
+  tool lookup; tool/KMS probing on real directories; capture and
+  group-stop on real child processes; argument parsing; the script as
+  a child process (scenes JSON exit 0, unknown command exit 1). The
+  new expectations were watched failing first (3 failed, 7 passed,
+  exit 1) and then passing (10 passed, exit 0).
 - Real Hyprland in an Arch container (Hyprland 0.57.0, aquamarine
   0.15.1): `desktop-harness check --for compositor` reports ready, and
   `desktop-harness verify-config` generates the config and the real
   binary prints `config ok` (exit 0). A deliberately broken config
-  (`hl.broken(`) prints the parse error instead.
+  (`hl.broken(`) prints the parse error instead. The renamed defaults
+  were re-verified with the guest's own Debian Hyprland
+  0.55.2+ds-1~bpo13+1 binary, also `config ok` (exit 0).
 - On this host and in the container without `/dev/dri`,
   `desktop-harness session` refuses with the allocator reason and the
   VM directions; the full session proof runs inside the QEMU guest in
@@ -135,11 +154,21 @@ bus` round-trips the same path by hand; its records show sender,
 
 ### Parts D+E proof (virtual input, Electron)
 
-- Rust driver: `cargo test` 4 passed, `cargo fmt --check` and
+- Rust driver: `cargo test` 5 passed, `cargo fmt --check` and
   `cargo clippy -- -D warnings` clean, `cargo deny check` and
   `cargo audit` exit 0 (26 crates; rust:1-bookworm container,
   rustc 1.99.1). The binary refuses a missing Wayland socket by name.
-  Its in-session run is the Part F guest proof.
+  The guest first exposed a real staging bug that the unit tests had
+  not covered: the keymap file was created write-only, so the
+  compositor's `mmap` of the passed descriptor failed with `EACCES`
+  (shown as `wl_display@1: no memory`); an strace of Sway receiving
+  the same request shows that exact `mmap` result. The new
+  read-back test was watched failing on the old staging (`Bad file
+descriptor`, cargo exit 101) and passing after the descriptor was
+  opened read/write and rewound. The fixed binary then drove a real
+  Sway pixman-headless session (text, key, move, button and scroll
+  all acknowledged) before its in-session run in the Part F guest
+  proof.
 - Electron driver: `test/unit/desktop/harnessElectron.test.mjs`
   3 passed under Xvfb — the real Electron 45 fixture opens, is typed
   into through its page, and reports back; resolution refuses with
@@ -147,7 +176,7 @@ bus` round-trips the same path by hand; its records show sender,
   (`desktop-harness electron --expect-title "Electron fixture"`)
   prints the title and wrote `temp/desktop-electron/first-window.png`.
 
-### Part F proof (QEMU runner) so far
+### Part F proof (QEMU runner and in-guest session)
 
 - `test/unit/desktop/harnessQemu.test.mjs` (8 tests, green):
   composition per arch (two outputs, the right TPM device each time),
@@ -163,3 +192,81 @@ bus` round-trips the same path by hand; its records show sender,
   sandbox), so host-side QEMU runs through the container, exactly as
   CI does; the failure is the sandbox's, recorded here, not worked
   around.
+- The in-guest compositor session is proven on a fresh Debian 13
+  cloud image in that same container with KVM passed through: stage 1
+  installs Hyprland 0.55.2+ds-1~bpo13+1, grim, foot and Node from
+  trixie-backports plus the full 7.2.11 kernel (`M111QA-APT-EXIT=0`),
+  reboots, and stage 2 arms the logind autologin on tty1. Hyprland
+  then runs on the virtio-gpu KMS device with Mesa llvmpipe and
+  reports `MUSE-HEADLESS-1 1920x1080, MUSE-HEADLESS-2 1280x800`;
+  the foot client opens on the first output, the virtual-input
+  driver is acknowledged for all 3 script lines, and grim captures
+  both outputs (1920×1080 and 1280×800 PNGs, opened and inspected:
+  the foot window shows the typed text; they were never compared).
+  The host runner returns `ok: true`, reason `marker`, in 220218 ms,
+  with both QMP head captures written. The guest syncs its share
+  before announcing
+  `M111QA-SESSION-OK` on the serial device, so `run.log` and both
+  grim screenshots survive the host stopping QEMU at the marker.
+- The failing runs that led here were each kept as evidence, not
+  rerun into green: with the old output names the guest timed out
+  with only `HEADLESS-2 1280x800` visible (decision 5 above); with
+  the readable-fd fix missing, the session reached both outputs and
+  then failed at the virtual-keyboard keymap (Part D above); with
+  the marker sent to `/dev/console` the guest succeeded but the
+  host saw only `eof (qemu exit 0)`, and with the marker on the
+  serial device but no sync the host passed while the share lost
+  its files to the stop. Each cause was fixed in the harness and
+  the next fresh-image run is the one recorded above.
+
+### Part G proof (workflows and records)
+
+- `.github/workflows/desktop.yml` carries the harness suites on
+  amd64 and arm64, the Rust format/clippy/test/build and supply-chain
+  legs, the Electron fixture under Xvfb, the compositor config check
+  against trixie-backports Hyprland, the review screenshots as
+  artifacts only, QEMU firmware boots on x86_64 and aarch64, the
+  kernel-marker boot, and the schedule/dispatch-only in-guest
+  session. `ci.yml` calls it in smoke mode for pull requests. This
+  record, the PLAN status, the roadmap and the changelog move with
+  the code in the same change; hosted CI remains the lead's gate.
+
+### Final gate record (2026-11-01)
+
+- Touched-file Prettier and ESLint (`--max-warnings 0`) exit 0;
+  `npm run typecheck`, `node scripts/check-l10n.mjs`,
+  `check:reference`, `check:host-api`, `check:plan`,
+  `check:roadmap`, `check:catches`, `check:tokens`, `duplication`,
+  `cycles` and `deadcode` exit 0. `check:workflow-scripts` first
+  exited 1 because the compositor-config job mounted a fresh
+  checkout with no `node_modules`; after adding its `npm ci` step it
+  exits 0 (77 workflow Node loads checked). Shell syntax and
+  ShellCheck, Python `py_compile`, the scene stylesheet's Stylelint
+  and parsing all 14 workflow YAML files exit 0.
+- The desktop suites pass with the repository's own 5 s test
+  timeout: scenes 10, compositor 10, D-Bus 5, QEMU 8, input 2,
+  contracts 5 and Electron 3 under Xvfb (43 tests). The Rust crate
+  passes 5 tests plus fmt, clippy, release build, `cargo deny check`
+  and `cargo audit` (all exit 0).
+- `npm run build` exits 1 on four bundle budgets
+  (`teamRunners.js` 78.4/75 KiB, `teamHost.js` 140.2/130 KiB,
+  `teamScheduler.js` 76.5/75 KiB, `uiText.js` 125.3/125 KiB). The
+  untouched base `0a5ebd7189`, built in a separate worktree, exits 1
+  with the same four files byte-identical (80329, 143526, 78313 and
+  128341 bytes; `cmp` clean), so the overruns pre-date this lane and
+  no budget was raised.
+- `vitest related` over every changed JS/TS source exits 1 on this
+  busy rig (37 files, 1874 passed, 20 failed) and is not claimed
+  green. Its estimator failures came from the run's `TMPDIR` pointing
+  inside this worktree, so "outside a repository" fixtures were in
+  one; the same three files pass 41 tests with the lane's normal
+  outside-repository temp root, and `planReader` passes 55 alone.
+  The remaining failures are Chrome readiness/test timeouts in the
+  devices and feedback harness suites at host load averages of
+  12–18; the devices suite on untouched base fails the same 2 s
+  readiness wait (exit 1, 9 passed, 1 failed), so they are recorded
+  as rig-load failures for hosted CI to judge, not rerun into green.
+- Two wider configured checks also fail identically on base and are
+  not this lane's change: `check:mhp` (the frozen v1.1 wire digest)
+  and `security:audit` (high `GHSA-mrwp-f3q8-3g9p` in
+  follow-redirects), both exit 1 here and on `0a5ebd7189`.
