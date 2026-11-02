@@ -4,6 +4,10 @@
     {
       "args": ["--headless", "-i", "NONE", "-u", "NONE", "-l", "test/check.lua"],
       "command": "nvim"
+    },
+    {
+      "args": ["--headless", "-i", "NONE", "-u", "NONE", "-l", "test/lsp.lua"],
+      "command": "nvim"
     }
   ],
   "conformance": { "args": ["run.mjs"], "command": "node" },
