@@ -40,6 +40,23 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **In the editor hosts, the panel follows your editor's theme.**
+  Switching the editor's theme re-colours the panel immediately in
+  the JetBrains and Eclipse plugins (the Visual Studio and Xcode
+  hosts send the same message when they run on their machines).
+- **The panel status item shows how many questions wait for you** in
+  the native editor hosts, updating as questions arrive and are
+  answered.
+- **An editor that already holds your GitHub credential can sign the
+  panel in with it.** The panel asks the editor for a proxied
+  credential before falling back to the device sign-in or `gh`; the
+  token itself never reaches the panel process.
+- **Scheduled prompts in a native window hold for your decision in
+  that window's workspace**, and while schedule delivery is not yet
+  certified the hold plays it safe with a warning and a notice.
+- **Native editor hosts can attach files and screen captures to a
+  conversation** through the panel's attach actions, with the same
+  validation and per-window isolation as in VS Code.
 - **Editor hosts for JetBrains IDEs and Eclipse, plus shims for Emacs,
   Neovim, Zed and Qt Creator.** The JetBrains and Eclipse plugins carry
   the panel in the editor over the real runtime; their conformance
