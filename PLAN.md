@@ -26708,6 +26708,19 @@ security` threshold; the OS images' QEMU boot test and their reproducibility
 
 ### M111 — Muse Desktop: the host edition's own shell (D91)
 
+**Status 2026-11-02 (RLF-M111OB): lane OB built.** The shared observability
+layer is landed (`docs/certification/rlf-m111ob.md`): the OTLP/HTTP ingest
+shapes, ring store and rollups (`src/core/o11y/**`), the loopback-only
+receiver, `node/diagnostics/read`, the Node crash hook and the opt-in TLS
+exporter (`src/runtime/o11y/**`), the desktop readiness shapes behind
+`/readyz` (`src/runtime/node/health.ts`), the Diagnostics page in the
+node's web UI (`src/webview/diagnostics/**`), the desktop facts in M93's
+report builder, and the `muse-spark-otel` Rust crate
+(`desktop/crates/otel/**`). Still with other lanes: each desktop
+component's own probes and wiring (CP, SH1, SH2, SY, WB), serving the
+receiver and the desktop `/readyz` block (lane N), and a CI job that
+builds the Rust crate (local `cargo test`, clippy and fmt are the proof
+until then).
 **Status 2026-10-23 (RLF-M111L0): planned.** Mockups approved; lane 0 landed. The
 owner approved the lead's 18-screen mockups on 2026-10-23 ("looks great"),
 closing Q-M111 item 6 and unblocking lanes SH1, SH2, WB and ST. The sources

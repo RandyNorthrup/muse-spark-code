@@ -59,6 +59,13 @@ export interface O11yStoreSkipped {
   readonly files: number
 }
 
+// A read failure the store may skip: the read threw an Error, so the
+// file is unreadable. Anything else (a foreign thrown value) keeps its
+// kind past the store.
+function isReadError(error: unknown): error is Error {
+  return error instanceof Error
+}
+
 function serializePoint(point: O11yMetricPoint): string {
   return `${JSON.stringify(point)}\n`
 }
@@ -136,8 +143,8 @@ export class O11yRingStore {
         text = await this.readDayFile(name, O11Y_DAY_FILE_MAX_BYTES)
       } catch (error: unknown) {
         // A day file that cannot be read is skipped and counted for this
-        // read; anything that is not an error keeps its kind past the store.
-        if (!(error instanceof Error)) throw error
+        // read; anything that is not a read failure keeps its kind.
+        if (!isReadError(error)) throw error
         files += 1
         continue
       }
@@ -279,9 +286,9 @@ export class O11yRingStore {
           text = await this.readDayFile(name, cap + O11Y_RECEIVER_MAX_BODY_BYTES)
         } catch (error: unknown) {
           // A file that cannot be read is left for the next prune (and
-          // for retention after that); anything that is not an error
-          // keeps its kind past the store.
-          if (!(error instanceof Error)) throw error
+          // for retention after that); anything that is not a read
+          // failure keeps its kind.
+          if (!isReadError(error)) throw error
           continue
         }
         if (text === undefined) continue

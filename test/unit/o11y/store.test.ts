@@ -2,13 +2,15 @@
 // serves recent logs, traces, crashes and metric windows, and prunes to
 // retention. Real files under a temp root; Windows runs the unsupported
 // boundary instead (nodeNativeTest).
-import { rm } from 'node:fs/promises'
+import { mkdir, rm } from 'node:fs/promises'
+import path from 'node:path'
 import { afterEach, describe, expect } from 'vitest'
 import { MILLISECONDS_PER_DAY } from '../../../src/shared/constants'
 import { buildCrashRecord } from '../../../src/core/o11y/crash'
 import { O11yRingStore } from '../../../src/runtime/o11y/store'
 import { NodePrivateFiles } from '../../../src/runtime/node/privateFiles'
 import { nodeNativeTest, nodeTempRoot } from '../helpers/nodeNative'
+import { o11ySpan } from '../helpers/o11y'
 
 const NOW = Date.UTC(2026, 9, 31, 12, 0, 0)
 const directories: string[] = []
@@ -33,18 +35,7 @@ describe('o11y ring store', () => {
     await store.appendMetrics([
       { at: NOW - 1000, component: 'node', name: 'cpu.percent', value: 12, attributes: [] },
     ])
-    await store.appendSpans([
-      {
-        traceId: 'a'.repeat(32),
-        spanId: 'b'.repeat(16),
-        component: 'node',
-        name: 'op',
-        startMs: NOW - 1000,
-        endMs: NOW,
-        error: true,
-        attributes: [],
-      },
-    ])
+    await store.appendSpans([o11ySpan(NOW - 1000, NOW)])
     const built = buildCrashRecord(
       { component: 'shell', kind: 'panic', code: 'SIGSEGV' },
       NOW - 500,
@@ -90,5 +81,16 @@ describe('o11y ring store', () => {
     const logs = await store.readRecentLogs(10)
     expect(logs.records.map((record) => record.message)).toEqual(['ok'])
     expect(logs.skipped.lines).toBe(2)
+  })
+
+  nodeNativeTest('skips an unreadable day file and counts it; prune leaves it', async () => {
+    const { store, dir } = await setup()
+    // A directory wearing a day file's name: the owner-only read
+    // refuses it, as it refuses any unreadable file.
+    await mkdir(path.join(dir, 'logs-2026-10-31.jsonl'))
+    const logs = await store.readRecentLogs(10)
+    expect(logs.records).toHaveLength(0)
+    expect(logs.skipped).toEqual({ lines: 0, files: 1 })
+    await expect(store.prune()).resolves.toEqual({ deleted: [], compacted: [] })
   })
 })

@@ -78,7 +78,8 @@ describe('node MHP method extension', () => {
       'node/wipe',
       'node/maker/action',
     ])
-    expect(Object.keys(nodeMethods)).toHaveLength(32)
+    // 33 with M111 lane OB's `node/diagnostics/read`.
+    expect(Object.keys(nodeMethods)).toHaveLength(33)
     for (const [name, entry] of Object.entries(nodeMethods)) {
       const expected = publicMethods.has(name) ? 'public' : 'session'
       expect(entry.access, name).toBe(stepUpMethods.has(name) ? 'stepUp' : expected)

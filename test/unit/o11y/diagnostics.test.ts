@@ -4,15 +4,12 @@
 // origin only.
 import { rm } from 'node:fs/promises'
 import { afterEach, describe, expect } from 'vitest'
-import { NODE_ZERO_DIGEST } from '../../../src/shared/constants'
 import { buildCrashRecord } from '../../../src/core/o11y/crash'
 import { createNodeDiagnosticsMethods } from '../../../src/runtime/o11y/diagnostics'
 import { O11yRingStore } from '../../../src/runtime/o11y/store'
 import { NodePrivateFiles } from '../../../src/runtime/node/privateFiles'
-import { NodeStateStore } from '../../../src/runtime/node/state'
-import { nodeNativeTest, nodeTempRoot } from '../helpers/nodeNative'
-import { nodeState } from '../helpers/node/records'
-import { recordCalls } from '../helpers/recordCalls'
+import { nodeNativeTest } from '../helpers/nodeNative'
+import { o11yReadyProbes, o11yStateRoot, seedO11ySignals } from '../helpers/o11y'
 
 const NOW = Date.UTC(2026, 9, 31, 12, 0, 0)
 const directories: string[] = []
@@ -23,32 +20,10 @@ afterEach(async () => {
 
 describe('node diagnostics read', () => {
   nodeNativeTest('serves health, export, drops and one page of each signal', async () => {
-    const dir = await nodeTempRoot('m111-ob-diagnostics-')
+    const { dir, state, reported } = await o11yStateRoot('m111-ob-diagnostics-')
     directories.push(dir)
-    const reported = recordCalls<[unknown]>()
-    const state = new NodeStateStore(dir, reported.fn)
-    const value = nodeState()
-    value.auditHead = { seq: 0, hash: NODE_ZERO_DIGEST }
-    await state.initialize(value)
     const store = new O11yRingStore(new NodePrivateFiles(dir), () => NOW)
-    await store.appendLogs([
-      { at: NOW - 1000, component: 'node', severity: 9, message: 'up', attributes: [] },
-    ])
-    await store.appendMetrics([
-      { at: NOW - 1000, component: 'node', name: 'cpu.percent', value: 12, attributes: [] },
-    ])
-    await store.appendSpans([
-      {
-        traceId: 'a'.repeat(32),
-        spanId: 'b'.repeat(16),
-        component: 'node',
-        name: 'op',
-        startMs: NOW - 1000,
-        endMs: NOW,
-        error: true,
-        attributes: [],
-      },
-    ])
+    await seedO11ySignals(store, NOW - 1000)
     const built = buildCrashRecord(
       { component: 'node', kind: 'uncaught', code: 'TypeError' },
       NOW - 500,
@@ -65,13 +40,7 @@ describe('node diagnostics read', () => {
         isKeyStoreSealed: () => false,
         keysNeeded: () => false,
         desktop: {
-          probe: () =>
-            Promise.resolve([
-              { component: 'compositor', ready: true, detail: 'ping-ok', pingMs: 12 },
-              { component: 'shell', ready: true, detail: 'surfaces-mapped' },
-              { component: 'app', ready: true, detail: 'windows-responsive' },
-              { component: 'sysd', ready: true, detail: 'services-connected' },
-            ] as const),
+          probe: () => Promise.resolve(o11yReadyProbes()),
         },
       },
       exportTarget: 'https://collector:4318/v1/traces',
@@ -99,13 +68,8 @@ describe('node diagnostics read', () => {
   })
 
   nodeNativeTest('reports export off and strips userinfo from the endpoint', async () => {
-    const dir = await nodeTempRoot('m111-ob-diagnostics-off-')
+    const { dir, state, reported } = await o11yStateRoot('m111-ob-diagnostics-off-')
     directories.push(dir)
-    const reported = recordCalls<[unknown]>()
-    const state = new NodeStateStore(dir, reported.fn)
-    const value = nodeState()
-    value.auditHead = { seq: 0, hash: NODE_ZERO_DIGEST }
-    await state.initialize(value)
     const store = new O11yRingStore(new NodePrivateFiles(dir), () => NOW)
     const base = {
       store,
