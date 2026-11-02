@@ -3,7 +3,7 @@
   "outcome": "waiting",
   "editorVersion": "",
   "report": {
-    "protocol": "mhp/1.5.0",
+    "protocol": "mhp/1.6.0",
     "host": "jetbrains",
     "results": [
       {
@@ -163,7 +163,7 @@
     }
   ],
   "provenance": {
-    "observedAt": "2026-10-31T01:35:52.411Z",
+    "observedAt": "2026-11-02T13:39:14.832Z",
     "observedOn": "randy-lt (linux)",
     "command": "node test/hostApi/run.mjs jetbrains"
   }
