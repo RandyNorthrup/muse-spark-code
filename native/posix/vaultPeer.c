@@ -12,6 +12,10 @@
 #include <stdint.h>
 #include <sys/stat.h>
 #include <sys/file.h>
+#include <sys/resource.h>
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif
 #ifdef __APPLE__
 #include <sys/un.h>
 #include <libproc.h>
@@ -113,16 +117,51 @@ static int identity(pid_t pid) {
   return print_identity(pid, uid, birth, image);
 }
 
-/* D243: the parent process's identity, for the broker's ancestry walk. */
+/* D243: the parent process's identity, for the broker's ancestry walk.
+ * The reads bracket each other: the child is re-read after the parent and
+ * must still name the same parent with the same birth, and the parent is
+ * read twice with the same birth. A parent that died and whose pid was
+ * recycled inside the window changes one of those facts (a dead parent
+ * also reparents the child), so a recycled pid cannot answer for the
+ * process that was the parent when the walk arrived. */
 static int parent_identity(pid_t pid) {
-  unsigned long uid;
-  uint64_t birth;
-  pid_t ppid;
-  char image[PATH_MAX];
+  unsigned long uid, parent_uid, again_uid, child_uid;
+  uint64_t birth, parent_birth, again_birth, child_birth;
+  pid_t ppid, parent_ppid, again_ppid, child_ppid;
+  char image[PATH_MAX], parent_image[PATH_MAX], again_image[PATH_MAX], child_image[PATH_MAX];
   int result = read_identity(pid, &uid, &birth, image, &ppid);
   if (result != 0) return result;
   if (ppid <= 0) return 2;
-  return identity(ppid);
+  result = read_identity(ppid, &parent_uid, &parent_birth, parent_image, &parent_ppid);
+  if (result != 0) return result;
+  result = read_identity(ppid, &again_uid, &again_birth, again_image, &again_ppid);
+  if (result != 0) return result;
+  if (again_uid != parent_uid || again_birth != parent_birth) return 1;
+  result = read_identity(pid, &child_uid, &child_birth, child_image, &child_ppid);
+  if (result != 0) return result;
+  if (child_uid != uid || child_birth != birth || child_ppid != ppid) return 1;
+  return print_identity(ppid, again_uid, again_birth, again_image);
+}
+
+/* RLF-M109H: `run <file> [args...]` becomes the delegated command with a
+ * zero core limit, and on Linux with dumpable off, so a crash writes no
+ * core holding a handed-over value and another process of the same user
+ * cannot read the command's environment or memory through /proc. The
+ * exec keeps this process's pid, group and descriptors; only the image
+ * and those two kernel facts change. Any failure refuses before the
+ * command exists. macOS has no dumpable switch: the core limit is set
+ * there and the environment exposure is named in the certification
+ * record instead. */
+static int run_command(char **argv) {
+  struct rlimit no_core;
+  no_core.rlim_cur = 0;
+  no_core.rlim_max = 0;
+  if (setrlimit(RLIMIT_CORE, &no_core) != 0) return 1;
+#ifdef __linux__
+  if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) != 0) return 1;
+#endif
+  execv(argv[0], argv);
+  return 1;
 }
 
 #define main vault_peer
@@ -143,6 +182,10 @@ int main(int argc, char **argv) {
     long pid = strtol(argv[2], &end, 10);
     if (errno || *end || pid <= 0 || pid > INT_MAX) return 1;
     return parent_identity((pid_t)pid);
+  }
+  if (argc >= 3 && strcmp(argv[1], "run") == 0) {
+    if (argv[2][0] != '/') return 1;
+    return run_command(argv + 2);
   }
   if (argc == 2 && (strcmp(argv[1], "lock") == 0 || strcmp(argv[1], "lock-wait") == 0)) {
     struct stat info;
