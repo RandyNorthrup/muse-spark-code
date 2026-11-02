@@ -69,7 +69,8 @@ export function fileText(text: string, shape: TextShape): string {
 /**
 One line for fuzzy matching (M101, Pi's edit-diff): NFKC, Unicode spaces
 as spaces, curly quotes and dashes as their plain forms, no trailing
-whitespace.
+whitespace. The dash set is Pi's whole one (hyphen, non-breaking
+hyphen, figure dash, en/em dash, horizontal bar, minus).
 */
 function fuzzyLine(line: string): string {
   return line
@@ -77,7 +78,7 @@ function fuzzyLine(line: string): string {
     .replaceAll(/[\u{00A0}\u{2000}-\u{200A}\u{202F}\u{205F}\u{3000}]/gu, ' ')
     .replaceAll(/[\u{2018}\u{2019}\u{201A}\u{201B}]/gu, "'")
     .replaceAll(/[\u{201C}\u{201D}\u{201E}\u{201F}]/gu, '"')
-    .replaceAll(/[\u{2013}\u{2014}\u{2212}]/gu, '-')
+    .replaceAll(/[\u{2010}\u{2011}\u{2012}\u{2013}\u{2014}\u{2015}\u{2212}]/gu, '-')
     .trimEnd()
 }
 
