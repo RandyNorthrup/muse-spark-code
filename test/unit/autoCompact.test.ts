@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { z } from 'zod'
+import * as z from 'zod/mini'
 import {
   AutoCompact,
   compactionSummaryBudget,
@@ -20,6 +20,7 @@ import {
   MODEL_API_CONTEXT_WINDOW,
   PROVIDERS_FILE_VERSION,
 } from '../../src/shared/constants'
+import { recordedFunctionToolSchema } from './helpers/recordedFunctionTool'
 
 const PRICES: readonly { name: string; pricing: ModelPricing; ratio?: number }[] = [
   {
@@ -363,15 +364,7 @@ describe('automatic compaction economics (D81.4)', () => {
 const goldenFileSchema = z.object({ scenario: z.string(), requests: z.array(z.string()) })
 const goldenSummaryBodySchema = z.object({
   instructions: z.string(),
-  tools: z.array(
-    z.object({
-      type: z.literal('function'),
-      name: z.string(),
-      description: z.string(),
-      parameters: z.record(z.string(), z.unknown()),
-      strict: z.boolean(),
-    }),
-  ),
+  tools: z.array(recordedFunctionToolSchema),
   input: z.array(
     z.object({
       type: z.literal('message'),
