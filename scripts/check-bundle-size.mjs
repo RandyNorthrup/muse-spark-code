@@ -648,6 +648,9 @@ const BUDGETS = [
   // cc-sigstore), loaded on the first pack fetch. Measured 207.8 KiB; plus
   // 15%, rounded up to 25 KiB.
   { path: 'dist/packsVerify.js', budgetKiB: 250 },
+  // M111 lane OB: the node crash hook and its record builder, loaded at
+  // node CLI startup. Measured 12.2 KiB; plus 15%, rounded up to 25 KiB.
+  { path: 'dist/nodeCrashHook.js', budgetKiB: 25 },
 ]
 
 // DIET1: independently emitted optional surfaces, measured on main, each plus

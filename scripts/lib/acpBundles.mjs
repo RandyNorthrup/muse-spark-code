@@ -106,6 +106,8 @@ export const ACP_BUNDLES = [
   'runtimeQuestions.js',
   'runtimeAccounts.js',
   'packsVerify.js',
+  // M111 lane OB: the node crash hook, loaded at node CLI startup.
+  'nodeCrashHook.js',
   'vaultRuntime.js',
   'planSnapshot.js',
   'accountPaid.js',

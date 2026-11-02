@@ -228,6 +228,22 @@ three are fixed in code, none weakened:
   files-page failures, and the sandbox/timeout failures far from this
   lane. No lane suite fails anywhere.
 
+## Part 8 (2026-11-02): the crash hook's lazy chunk
+
+Wiring the hook statically pulled zod into `dist/node.js` (71.3 → 80.1
+KiB, budget 75). The D6-shaped fix: the hook and its record builder live
+in `dist/nodeCrashHook.js` (measured 12.2 KiB, budget 25), built from
+`src/runtime/o11y/crashHookEntry.ts`, loaded at node CLI startup through
+`src/runtime/o11y/crashHookBundle.ts`. A missing or malformed chunk says
+the fixed `nodeErrors.unavailable` word once and the node still starts
+(telemetry degrades, the command runs). `node.js` is back to 74.6 KiB.
+Registered everywhere a bundle is listed (build entries, size budget,
+`acpBundles.mjs`, knip entry, lazy registry). Proven three ways: the
+loader suite builds the real entry and covers load/missing/malformed/
+foreign-error/stderr paths (7 tests); the shipped bytes crash for real
+(driver requires `dist/nodeCrashHook.js`, dies 1, record lands valid);
+the packed CLI without the chunk prints the word and starts (exit 0).
+
 ## Drills (red/green)
 
 Each drill: break on purpose, non-zero exit, restore byte-identical
@@ -274,8 +290,20 @@ Final tree, 2026-11-02, linuxlt. Exit codes:
 - duplication: 0 (0 clones)
 - cycles: 0
 - deadcode: 0 (only pre-existing hints)
-- build: (runs next)
-- security:sast, security:audit: (run next)
-- a11y node-diagnostics scene: (re-run next)
+- build: red only on 4 pre-existing overs (teamRunners 78.4/75,
+  teamHost 140.2/130, teamScheduler 76.5/75, all byte-identical on base;
+  uiText 125.9/125, over by 0.3 on base, +0.6 lane strings for the
+  Diagnostics page). Lane bundles green: node.js 74.6/75, nodeCrashHook
+  12.2/25.
+- check-bundle-split, gen-lazy-registry --check, check-host-globals,
+  third-party-notices, check-legal-build-records: 0
+- security:sast: 1, both findings in files the lane never touches
+  (mcp/headers.ts, keyStore.ts) — pre-existing by construction
+- security:audit: 1 (follow-redirects high); the lane changes no
+  dependencies — base state
+- a11y node-diagnostics scene (final tree): 0, 0 violations
 - vitest related (changed sources): 1126 files green; 32 red, all
   classified above (1 fixed, 1 load, 30 pre-existing on base)
+- vitest related (newest files): 0, 37 files / 246 tests green
+- cargo test (8+1+1), clippy --all-targets -D warnings, fmt --check:
+  0 on the final tree

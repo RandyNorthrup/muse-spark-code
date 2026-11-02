@@ -26,7 +26,7 @@ import { setUiText } from '../../shared/l10n/text'
 import { NodeStateStore } from './state'
 import { NodeListenerError } from './listenerGuard'
 import { isMissingFile } from './privateFiles'
-import { installNodeCrashHook } from '../o11y/crashHook'
+import { installNodeCrashHookBundle } from '../o11y/crashHookBundle'
 
 // The isolated bundle also exposes the real shared service pieces to the
 // integration binding. These never enter ACP stdio or the extension.
@@ -222,8 +222,9 @@ async function cliMain(argv: readonly string[]): Promise<number> {
     process.env['MUSE_NODE_DATA_ROOT'] ??
     nodeDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() })
   // A crash anywhere below lands one record in the store's crashes day
-  // file before the non-zero exit; only hook failures reach the log.
-  installNodeCrashHook(root, report)
+  // file before the non-zero exit; only hook failures reach the log. The
+  // chunk loads beside this bundle; when it is gone the node still starts.
+  installNodeCrashHookBundle({ distDir: __dirname, root, report })
   const controller = new AbortController()
   const stop = () => {
     controller.abort()

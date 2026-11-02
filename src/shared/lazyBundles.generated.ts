@@ -845,6 +845,13 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       { importer: 'src/shared/constants.ts', symbol: 'NODE_BUNDLE_FILE', side: ['acp'] },
     ],
   },
+  {
+    file: 'nodeCrashHook.js',
+    side: 'acp',
+    requestedBy: [
+      { importer: 'src/shared/constants.ts', symbol: 'O11Y_CRASH_HOOK_BUNDLE_FILE', side: ['acp'] },
+    ],
+  },
   { file: 'packsVerify.js', side: 'acp', requestedBy: [] },
   {
     file: 'pageWorker.js',
