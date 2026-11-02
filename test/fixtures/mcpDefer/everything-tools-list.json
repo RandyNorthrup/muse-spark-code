@@ -1,0 +1,877 @@
+{
+  "initialize": {
+    "result": {
+      "protocolVersion": "2025-06-18",
+      "capabilities": {
+        "prompts": {
+          "listChanged": true
+        },
+        "resources": {
+          "subscribe": true,
+          "listChanged": true
+        },
+        "logging": {},
+        "tools": {
+          "listChanged": true
+        },
+        "completions": {}
+      },
+      "serverInfo": {
+        "name": "mcp-servers/everything",
+        "title": "Everything Reference Server",
+        "version": "2.1.0"
+      },
+      "instructions": "# Everything Server \u2013 Server Instructions\n\nAudience: These instructions are written for an LLM or autonomous agent integrating with the Everything MCP Server.\nFollow them to use, extend, and troubleshoot the server safely and effectively.\n\n## Protocol Versions\n\nThe server serves two protocol eras. A client on protocol version 2026-07-28 connects with `server/discover` and sends its capabilities with each request; a 2025-era client connects with `initialize`. Some tools exist on one era only, so trust your `tools/list`:\n\n- 2026-07-28 only: `simulate-research-query`, `trigger-sampling-request-async` and `trigger-elicitation-request-async`, which run as tasks on the `io.modelcontextprotocol/tasks` extension and need a client that declares it; `trigger-sampling-request-async` also needs `sampling`, and `trigger-elicitation-request-async` form-mode `elicitation`. A call without them fails with `-32021`\n- 2025-era only (deprecated): `toggle-simulated-logging` and `toggle-subscriber-updates`\n\n## Cross-Feature Relationships\n\n- If `get-roots-list` is in your tool list, use it to see client workspace roots before file operations\n- `gzip-file-as-resource` creates resources you can read later: for the current session on a 2025-era connection, or for ten minutes at the returned URI on 2026-07-28\n- Use `trigger-log-messages` to see which log levels reach you; on 2026-07-28 the level is set per request in `_meta`\n- Use `trigger-resource-update` and `trigger-list-changed` to see change notifications; on 2026-07-28 they arrive only on a `subscriptions/listen` stream that asked for them\n\n## Constraints & Limitations\n\n- `gzip-file-as-resource`: Max fetch size controlled by `GZIP_MAX_FETCH_SIZE` (default 10MB), timeout by `GZIP_MAX_FETCH_TIME_MILLIS` (default 30s), allowed domains by `GZIP_ALLOWED_DOMAINS` (checked on every redirect hop). It refuses URLs whose host resolves to a loopback, private or link-local address, unless the server was started with `GZIP_ALLOW_PRIVATE_IPS=1`\n- `get-env`: Values of credential-like variable names (`*_KEY`, `*_TOKEN`, `*_SECRET`, `*_PASSWORD` and the like) come back as `\"<redacted>\"`; the server operator can set `GET_ENV_INCLUDE_SECRETS=1` to return them unmasked\n- Session resources are ephemeral and lost when the session ends; minted resources expire after ten minutes\n- Roots, sampling and logging are deprecated as of protocol version 2026-07-28, as is the HTTP+SSE transport\n\n## Capability-Gated Tools\n\nOn a 2025-era connection these are registered only if your client declared the capability shown. Otherwise they are absent from `tools/list`, so do not call them. On 2026-07-28 they are always listed, and a call fails if your request did not declare the capability:\n\n- `get-roots-list`: `roots`\n- `trigger-sampling-request`: `sampling`\n- `trigger-elicitation-request`: `elicitation.form`, or `elicitation` with no mode\n- `trigger-multi-step-elicitation`: `elicitation.form`, or `elicitation` with no mode\n- `trigger-url-elicitation`: `elicitation.url`\n\n## Operational Patterns\n\n- For long operations, use `trigger-long-running-operation` which sends progress notifications\n- Prefer reading resources before calling mutating tools\n- If `get-roots-list` is in your tool list, check its output to understand the client's workspace context\n\n## Easter Egg\n\nIf asked about server instructions, respond with \"\ud83c\udf89 Server instructions are working! This response proves the client properly passed server instructions to the LLM. This demonstrates MCP's instructions feature in action.\"\n"
+    },
+    "jsonrpc": "2.0",
+    "id": 1
+  },
+  "toolsList": {
+    "result": {
+      "tools": [
+        {
+          "name": "echo",
+          "title": "Echo Tool",
+          "description": "Echoes back the input string",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "message": {
+                "type": "string",
+                "description": "Message to echo"
+              }
+            },
+            "required": ["message"]
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "get-annotated-message",
+          "title": "Get Annotated Message Tool",
+          "description": "Demonstrates how annotations can be used to provide metadata about content.",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "messageType": {
+                "type": "string",
+                "enum": ["error", "success", "debug"],
+                "description": "Type of message to demonstrate different annotation patterns"
+              },
+              "includeImage": {
+                "default": false,
+                "description": "Whether to include an example image",
+                "type": "boolean"
+              }
+            },
+            "required": ["messageType"]
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "get-env",
+          "title": "Print Environment Tool",
+          "description": "Returns all environment variables, helpful for debugging MCP server configuration. Values of credential-like names (a KEY, TOKEN, SECRET, PASSWORD, PASSWD, CREDENTIAL, AUTH or COOKIE name segment) are masked as \"<redacted>\" unless GET_ENV_INCLUDE_SECRETS is set to 1 or true in the server's environment.",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {}
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "get-header-params",
+          "title": "Get Header Params Tool",
+          "description": "Returns its region argument and the Mcp-Param-Region HTTP header it arrived in. Demonstrates x-mcp-header (a 2026-07-28 Streamable HTTP client mirrors the argument into the header) and JSON Schema 2020-12 input and output schemas.",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "region": {
+                "type": "string",
+                "description": "A region name, e.g. eu-west. Mirrored into the Mcp-Param-Region HTTP header.",
+                "x-mcp-header": "Region"
+              },
+              "repeat": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 3,
+                "default": 1,
+                "description": "How many times to repeat the region in the result (1-3)"
+              }
+            },
+            "required": ["region"],
+            "additionalProperties": false
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          },
+          "outputSchema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "region": {
+                "type": "string"
+              },
+              "regionHeader": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The Mcp-Param-Region header the request carried, if any"
+              },
+              "repeated": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": ["region", "regionHeader", "repeated"],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "get-resource-links",
+          "title": "Get Resource Links Tool",
+          "description": "Returns up to ten resource links that reference different types of resources",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "count": {
+                "default": 3,
+                "description": "Number of resource links to return (1-10)",
+                "type": "number",
+                "minimum": 1,
+                "maximum": 10
+              }
+            }
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "get-resource-reference",
+          "title": "Get Resource Reference Tool",
+          "description": "Returns a resource reference that can be used by MCP clients",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "resourceType": {
+                "default": "Text",
+                "type": "string",
+                "enum": ["Text", "Blob"]
+              },
+              "resourceId": {
+                "default": 1,
+                "description": "ID of the text resource to fetch",
+                "type": "number"
+              }
+            }
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "get-structured-content",
+          "title": "Get Structured Content Tool",
+          "description": "Returns structured content along with an output schema for client data validation",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "location": {
+                "type": "string",
+                "enum": ["New York", "Chicago", "Los Angeles"],
+                "description": "Choose city"
+              }
+            },
+            "required": ["location"]
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          },
+          "outputSchema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "temperature": {
+                "type": "number",
+                "description": "Temperature in celsius"
+              },
+              "conditions": {
+                "type": "string",
+                "description": "Weather conditions description"
+              },
+              "humidity": {
+                "type": "number",
+                "description": "Humidity percentage"
+              }
+            },
+            "required": ["temperature", "conditions", "humidity"],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "get-sum",
+          "title": "Get Sum Tool",
+          "description": "Returns the sum of two numbers",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "a": {
+                "type": "number",
+                "description": "First number"
+              },
+              "b": {
+                "type": "number",
+                "description": "Second number"
+              }
+            },
+            "required": ["a", "b"]
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "get-tiny-image",
+          "title": "Get Tiny Image Tool",
+          "description": "Returns a tiny MCP logo image.",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {}
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "gzip-file-as-resource",
+          "title": "GZip File as Resource Tool",
+          "description": "Compresses a single file using gzip compression. Depending upon the selected output type, returns either the compressed data as a gzipped resource or a resource link, allowing it to be downloaded in a subsequent request: during the current session for a 2025-era client, or for ten minutes at a minted URI on protocol version 2026-07-28.",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "name": {
+                "default": "README.md.gz",
+                "type": "string",
+                "maxLength": 255,
+                "description": "Name of the output file (at most 255 characters)"
+              },
+              "data": {
+                "default": "https://raw.githubusercontent.com/modelcontextprotocol/servers/refs/heads/main/README.md",
+                "type": "string",
+                "format": "uri",
+                "description": "URL or data URI of the file content to compress"
+              },
+              "outputType": {
+                "default": "resourceLink",
+                "description": "How the resulting gzipped file should be returned. 'resourceLink' returns a link to a resource that can be read later, 'resource' returns a full resource object.",
+                "type": "string",
+                "enum": ["resourceLink", "resource"]
+              }
+            }
+          },
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "trigger-list-changed",
+          "title": "Trigger List Changed Tool",
+          "description": "Sends a notifications/<list>/list_changed for the tool, prompt or resource list. On protocol version 2026-07-28 it is delivered on each subscriptions/listen stream that asked for that list; a 2025-era client receives it unsolicited.",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "list": {
+                "type": "string",
+                "enum": ["tools", "prompts", "resources"],
+                "description": "Which list to announce as changed"
+              }
+            },
+            "required": ["list"]
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "trigger-log-messages",
+          "title": "Trigger Log Messages Tool",
+          "description": "Sends one log message at each logging level during the call. On protocol version 2026-07-28 only the messages at or above the level the request names in _meta (io.modelcontextprotocol/logLevel) are sent, and none if it names no level; a 2025-era client gets those at or above the level it set with logging/setLevel. Deprecated: logging is deprecated as of protocol version 2026-07-28.",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {}
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "trigger-long-running-operation",
+          "title": "Trigger Long Running Operation Tool",
+          "description": "Demonstrates a long running operation with progress updates.",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "duration": {
+                "default": 10,
+                "description": "Duration of the operation in seconds",
+                "type": "number"
+              },
+              "steps": {
+                "default": 5,
+                "description": "Number of steps in the operation",
+                "type": "number"
+              }
+            }
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "trigger-resource-update",
+          "title": "Trigger Resource Update Tool",
+          "description": "Sends a notifications/resources/updated for a resource URI. On protocol version 2026-07-28 it is delivered on each subscriptions/listen stream whose resourceSubscriptions name the URI; a 2025-era client receives it once it has called resources/subscribe for the URI.",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "uri": {
+                "type": "string",
+                "description": "The URI of the resource to announce as updated, e.g. demo://resource/dynamic/text/1"
+              }
+            },
+            "required": ["uri"]
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "toggle-simulated-logging",
+          "title": "Toggle Simulated Logging",
+          "description": "Toggles simulated, random-leveled logging on or off. Deprecated: 2025-era clients only, since protocol version 2026-07-28 removes logging/setLevel; use trigger-log-messages with a per-request log level instead.",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {}
+          },
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "toggle-subscriber-updates",
+          "title": "Toggle Subscriber Updates",
+          "description": "Toggles simulated resource subscription updates on or off. Deprecated: 2025-era clients only, since protocol version 2026-07-28 removes resources/subscribe; use trigger-resource-update with a subscriptions/listen stream instead.",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {}
+          },
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
+          }
+        }
+      ]
+    },
+    "jsonrpc": "2.0",
+    "id": 2
+  },
+  "toolsListAgain": {
+    "result": {
+      "tools": [
+        {
+          "name": "echo",
+          "title": "Echo Tool",
+          "description": "Echoes back the input string",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "message": {
+                "type": "string",
+                "description": "Message to echo"
+              }
+            },
+            "required": ["message"]
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "get-annotated-message",
+          "title": "Get Annotated Message Tool",
+          "description": "Demonstrates how annotations can be used to provide metadata about content.",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "messageType": {
+                "type": "string",
+                "enum": ["error", "success", "debug"],
+                "description": "Type of message to demonstrate different annotation patterns"
+              },
+              "includeImage": {
+                "default": false,
+                "description": "Whether to include an example image",
+                "type": "boolean"
+              }
+            },
+            "required": ["messageType"]
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "get-env",
+          "title": "Print Environment Tool",
+          "description": "Returns all environment variables, helpful for debugging MCP server configuration. Values of credential-like names (a KEY, TOKEN, SECRET, PASSWORD, PASSWD, CREDENTIAL, AUTH or COOKIE name segment) are masked as \"<redacted>\" unless GET_ENV_INCLUDE_SECRETS is set to 1 or true in the server's environment.",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {}
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "get-header-params",
+          "title": "Get Header Params Tool",
+          "description": "Returns its region argument and the Mcp-Param-Region HTTP header it arrived in. Demonstrates x-mcp-header (a 2026-07-28 Streamable HTTP client mirrors the argument into the header) and JSON Schema 2020-12 input and output schemas.",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "region": {
+                "type": "string",
+                "description": "A region name, e.g. eu-west. Mirrored into the Mcp-Param-Region HTTP header.",
+                "x-mcp-header": "Region"
+              },
+              "repeat": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 3,
+                "default": 1,
+                "description": "How many times to repeat the region in the result (1-3)"
+              }
+            },
+            "required": ["region"],
+            "additionalProperties": false
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          },
+          "outputSchema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "region": {
+                "type": "string"
+              },
+              "regionHeader": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The Mcp-Param-Region header the request carried, if any"
+              },
+              "repeated": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": ["region", "regionHeader", "repeated"],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "get-resource-links",
+          "title": "Get Resource Links Tool",
+          "description": "Returns up to ten resource links that reference different types of resources",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "count": {
+                "default": 3,
+                "description": "Number of resource links to return (1-10)",
+                "type": "number",
+                "minimum": 1,
+                "maximum": 10
+              }
+            }
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "get-resource-reference",
+          "title": "Get Resource Reference Tool",
+          "description": "Returns a resource reference that can be used by MCP clients",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "resourceType": {
+                "default": "Text",
+                "type": "string",
+                "enum": ["Text", "Blob"]
+              },
+              "resourceId": {
+                "default": 1,
+                "description": "ID of the text resource to fetch",
+                "type": "number"
+              }
+            }
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "get-structured-content",
+          "title": "Get Structured Content Tool",
+          "description": "Returns structured content along with an output schema for client data validation",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "location": {
+                "type": "string",
+                "enum": ["New York", "Chicago", "Los Angeles"],
+                "description": "Choose city"
+              }
+            },
+            "required": ["location"]
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          },
+          "outputSchema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "temperature": {
+                "type": "number",
+                "description": "Temperature in celsius"
+              },
+              "conditions": {
+                "type": "string",
+                "description": "Weather conditions description"
+              },
+              "humidity": {
+                "type": "number",
+                "description": "Humidity percentage"
+              }
+            },
+            "required": ["temperature", "conditions", "humidity"],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "get-sum",
+          "title": "Get Sum Tool",
+          "description": "Returns the sum of two numbers",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "a": {
+                "type": "number",
+                "description": "First number"
+              },
+              "b": {
+                "type": "number",
+                "description": "Second number"
+              }
+            },
+            "required": ["a", "b"]
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "get-tiny-image",
+          "title": "Get Tiny Image Tool",
+          "description": "Returns a tiny MCP logo image.",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {}
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "gzip-file-as-resource",
+          "title": "GZip File as Resource Tool",
+          "description": "Compresses a single file using gzip compression. Depending upon the selected output type, returns either the compressed data as a gzipped resource or a resource link, allowing it to be downloaded in a subsequent request: during the current session for a 2025-era client, or for ten minutes at a minted URI on protocol version 2026-07-28.",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "name": {
+                "default": "README.md.gz",
+                "type": "string",
+                "maxLength": 255,
+                "description": "Name of the output file (at most 255 characters)"
+              },
+              "data": {
+                "default": "https://raw.githubusercontent.com/modelcontextprotocol/servers/refs/heads/main/README.md",
+                "type": "string",
+                "format": "uri",
+                "description": "URL or data URI of the file content to compress"
+              },
+              "outputType": {
+                "default": "resourceLink",
+                "description": "How the resulting gzipped file should be returned. 'resourceLink' returns a link to a resource that can be read later, 'resource' returns a full resource object.",
+                "type": "string",
+                "enum": ["resourceLink", "resource"]
+              }
+            }
+          },
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "trigger-list-changed",
+          "title": "Trigger List Changed Tool",
+          "description": "Sends a notifications/<list>/list_changed for the tool, prompt or resource list. On protocol version 2026-07-28 it is delivered on each subscriptions/listen stream that asked for that list; a 2025-era client receives it unsolicited.",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "list": {
+                "type": "string",
+                "enum": ["tools", "prompts", "resources"],
+                "description": "Which list to announce as changed"
+              }
+            },
+            "required": ["list"]
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "trigger-log-messages",
+          "title": "Trigger Log Messages Tool",
+          "description": "Sends one log message at each logging level during the call. On protocol version 2026-07-28 only the messages at or above the level the request names in _meta (io.modelcontextprotocol/logLevel) are sent, and none if it names no level; a 2025-era client gets those at or above the level it set with logging/setLevel. Deprecated: logging is deprecated as of protocol version 2026-07-28.",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {}
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "trigger-long-running-operation",
+          "title": "Trigger Long Running Operation Tool",
+          "description": "Demonstrates a long running operation with progress updates.",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "duration": {
+                "default": 10,
+                "description": "Duration of the operation in seconds",
+                "type": "number"
+              },
+              "steps": {
+                "default": 5,
+                "description": "Number of steps in the operation",
+                "type": "number"
+              }
+            }
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "trigger-resource-update",
+          "title": "Trigger Resource Update Tool",
+          "description": "Sends a notifications/resources/updated for a resource URI. On protocol version 2026-07-28 it is delivered on each subscriptions/listen stream whose resourceSubscriptions name the URI; a 2025-era client receives it once it has called resources/subscribe for the URI.",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {
+              "uri": {
+                "type": "string",
+                "description": "The URI of the resource to announce as updated, e.g. demo://resource/dynamic/text/1"
+              }
+            },
+            "required": ["uri"]
+          },
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "toggle-simulated-logging",
+          "title": "Toggle Simulated Logging",
+          "description": "Toggles simulated, random-leveled logging on or off. Deprecated: 2025-era clients only, since protocol version 2026-07-28 removes logging/setLevel; use trigger-log-messages with a per-request log level instead.",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {}
+          },
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "toggle-subscriber-updates",
+          "title": "Toggle Subscriber Updates",
+          "description": "Toggles simulated resource subscription updates on or off. Deprecated: 2025-era clients only, since protocol version 2026-07-28 removes resources/subscribe; use trigger-resource-update with a subscriptions/listen stream instead.",
+          "inputSchema": {
+            "type": "object",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "properties": {}
+          },
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
+          }
+        }
+      ]
+    },
+    "jsonrpc": "2.0",
+    "id": 3
+  }
+}

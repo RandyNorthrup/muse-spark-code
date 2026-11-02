@@ -1,0 +1,14 @@
+{
+  "captured": "2026-11-02",
+  "lane": "RLF-DEFERTOOLS (4-H4 deferred MCP loading)",
+  "servers": {
+    "everything": "@modelcontextprotocol/server-everything 2.1.0, `node dist/index.js stdio`",
+    "filesystem": "@modelcontextprotocol/server-filesystem 2026.7.4, `node dist/index.js <allowed-dir>`"
+  },
+  "harness": "temp/mcp-capture/capture.mjs and capture-fs.mjs (lane scratch, not shipped): spawn the server over stdio with HOME pointed at a throwaway folder, send initialize at protocol 2025-06-18, notifications/initialized, then tools/list (twice for everything, to record a no-op refresh). Node v24.21.0 on the linuxlt rig. No account, no model call.",
+  "files": {
+    "everything-tools-list.json": "initialize + two identical tools/list replies (16 tools) from server-everything",
+    "filesystem-tools-list.json": "initialize + tools/list reply (14 tools) from server-filesystem"
+  },
+  "largeCatalogue": "The >=55k-token catalogue in test/unit/mcpDefer.test.ts replicates the captured everything tools under server names catalog-00..catalog-31 (512 tools). Every tool shape is byte-identical to the capture; only the server id (and so the fitted function name) differs. This mirrors a person running many servers (Anthropic's 5-server ~55k-token measurement, harness-science 1.4) without inventing a schema."
+}
