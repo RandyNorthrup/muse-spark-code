@@ -9,10 +9,8 @@ import {
   MAKER_DETECT_MAX_DEPTH,
   MAKER_DETECT_MAX_FILES,
   MAKER_DETECT_IO_TIMEOUT_MS,
-  WINDOWS_POWERSHELL_RELATIVE_PATH,
-  WINDOWS_PSMODULEPATH_SEGMENTS,
-  WINDOWS_PSMODULEPATH_VARIABLE,
 } from '../../../shared/constants'
+import { windowsPowerShell } from '../../execGuard'
 import { resolveWorkspacePath } from '../../workspacePath'
 import { relativePathSchema } from './presetOffers'
 
@@ -132,10 +130,16 @@ ${NATIVE_SOURCE}
 $r = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${request}')) | ConvertFrom-Json
 if ($null -eq $r.relative) { $result = @([MuseProjectIo]::Files($r.root, $r.limit, $r.depth)) }
 else { $result = [MuseProjectIo]::Read($r.root, $r.relative, $r.limit) }
-[Console]::Write((ConvertTo-Json -Compress -InputObject $result))`
+# ConvertTo-Json writes nothing at all for $null, which a refused read returns.
+if ($null -eq $result) { [Console]::Write('null') }
+else { [Console]::Write((ConvertTo-Json -Compress -InputObject $result)) }`
+  // The one launch for every 5.1 child (credential-free, its own module path).
+  // A child given almost no environment ran past this bound on every hosted
+  // Windows call of run 41214393586, where the same compile takes under a second.
+  const shell = windowsPowerShell(systemRoot)
   const stdout = await new Promise<string>((resolveOutput, rejectOutput) => {
     execFile(
-      path.win32.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH),
+      shell.file,
       [
         '-NoProfile',
         '-NonInteractive',
@@ -143,13 +147,7 @@ else { $result = [MuseProjectIo]::Read($r.root, $r.relative, $r.limit) }
         Buffer.from(script, 'utf16le').toString('base64'),
       ],
       {
-        // Only Windows' own cmdlet modules; no inherited environment or user module path.
-        env: {
-          [WINDOWS_PSMODULEPATH_VARIABLE]: path.win32.join(
-            systemRoot,
-            ...WINDOWS_PSMODULEPATH_SEGMENTS.systemRoot,
-          ),
-        },
+        env: shell.env,
         windowsHide: true,
         encoding: 'utf8',
         timeout: MAKER_DETECT_IO_TIMEOUT_MS,
