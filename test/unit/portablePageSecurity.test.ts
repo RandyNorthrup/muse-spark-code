@@ -209,6 +209,22 @@ describe('portable page security', () => {
     }
   })
 
+  it.skipIf(!CAN_LINK_FILES)('refuses a module reached through a link', async () => {
+    const file = path.join(rig.root, 'loader.js')
+    const stashed = path.join(rig.root, 'loader.stashed.js')
+    const outside = path.join(rig.outside, 'loader.js')
+    await rename(file, stashed)
+    try {
+      await writeFile(outside, '')
+      symlinkSync(outside, file)
+      await expect(portablePage(rig.root)).rejects.toThrow('MHP_ASSET_PATH')
+    } finally {
+      await unlink(file)
+      await rename(stashed, file)
+      await unlink(outside)
+    }
+  })
+
   it('refuses a graph larger than MHP’s queue bound', async () => {
     const file = path.join(rig.root, 'loader.js')
     try {
