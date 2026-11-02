@@ -17,7 +17,8 @@ import {
   windowsPowerShell,
   workspaceChildEnvironment,
 } from '../../core/execGuard'
-import { realpathSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
+import { resolveSerialInterpreter } from '../../core/maker/serial/interpreter'
 import { runtimeLeaseIdentity } from './stop'
 import {
   RUNTIME_MAKER_APPROVAL_MS,
@@ -53,7 +54,8 @@ export interface NativeSerialDeps {
   readonly audit: Parameters<typeof runSerialAction>[1]['log']
 }
 export function nativeSerial(deps: NativeSerialDeps) {
-  // The helpers' bare `python3` resolves on a PATH without the run workspace.
+  // The helpers' PATH holds no entry of the run workspace; the POSIX helper's
+  // Python is found on it by absolute path (`resolveSerialInterpreter`).
   const env = workspaceChildEnvironment(
     deps.platform,
     withoutKeyringRoutes(withoutCredentials(deps.env)),
@@ -68,32 +70,37 @@ export function nativeSerial(deps: NativeSerialDeps) {
       /* Child diagnostics never enter a surface/log unredacted. */
     },
   }
-  let helper: Promise<{ file: string; prefix: readonly string[] }> | undefined
-  function prepare() {
-    helper ??= (async () => {
-      if (deps.platform === 'win32') {
-        if (systemRoot === undefined) throw new Error('serial-system-root-required')
-        const file = await prepareWindowsSerialHelper({
-          directory: deps.dataDirectory,
-          systemRoot,
-          readSource: () =>
-            readFile(
-              path.join(deps.packageRoot, 'native', 'windows', 'MuseSparkSerial.cs'),
-              'utf8',
-            ),
-          run: runProgram,
-          env,
-          log: tree.log,
-        })
-        return { file, prefix: [] }
-      }
-      // Fixed shipped helper; the user's installed Python must provide pyserial.
+  let windowsHelper: Promise<{ file: string; prefix: readonly string[] }> | undefined
+  async function prepare(): Promise<{ file: string; prefix: readonly string[] }> {
+    if (deps.platform !== 'win32') {
+      // Fixed shipped helper under the person's own Python, which must provide
+      // pyserial. Found on every call, so a Python installed while the runtime
+      // lives is used and a missing one is said each time.
       return {
-        file: 'python3',
+        file: resolveSerialInterpreter({
+          platform: deps.platform,
+          env,
+          workspaceRoot: deps.workspace,
+          fileExists: existsSync,
+          realpath: realpathSync,
+        }),
         prefix: ['-I', path.join(deps.packageRoot, 'native', 'posix', 'serial.py')],
       }
+    }
+    windowsHelper ??= (async () => {
+      if (systemRoot === undefined) throw new Error('serial-system-root-required')
+      const file = await prepareWindowsSerialHelper({
+        directory: deps.dataDirectory,
+        systemRoot,
+        readSource: () =>
+          readFile(path.join(deps.packageRoot, 'native', 'windows', 'MuseSparkSerial.cs'), 'utf8'),
+        run: runProgram,
+        env,
+        log: tree.log,
+      })
+      return { file, prefix: [] }
     })()
-    return helper
+    return await windowsHelper
   }
   const processDeps = {
     env,

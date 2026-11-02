@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { startFailureText } from '../../src/acp/startText'
+import { nativeHelperError } from '../../src/core/nativeHelper'
 import {
   CreatedRegistrySaveError,
   type CreatedRegistrySaveReason,
@@ -45,6 +46,20 @@ describe('startFailureText', () => {
       ).toBe(expected)
       expect(startFailureText(new CreatedRegistrySaveError(reason), 'turn')).toBe(expected)
     }
+  })
+
+  it('says a missing or unstartable native helper in full, on either site', () => {
+    const missing = nativeHelperError(
+      'missing',
+      '/product/native/darwin/muse-dictate-screen-x64.app/x',
+      'darwin',
+    )
+    expect(startFailureText(missing, 'session')).toBe(
+      fill(UI_TEXT.nativeHelper.missingInstalled, { helper: 'muse-dictate-screen-x64.app' }),
+    )
+    expect(startFailureText(new Error('start failed', { cause: missing }), 'turn')).toBe(
+      missing.message,
+    )
   })
 
   it('passes through sentences our own layers threw', () => {

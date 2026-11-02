@@ -170,7 +170,7 @@ const KNOWN: Record<string, KnownSpawn> = {
     kind: 'reviewed',
     anchor: 'helper.process.env',
     reason:
-      'the lease helper the runtime prepared (the compiled Windows helper, or python3 under -I with the shipped script) with the env nativeSerial makes by workspaceChildEnvironment (no workspace on PATH, credentials and keyring routes removed), argument array, no shell, own process group on POSIX (M103)',
+      'the lease helper the runtime prepared (the compiled Windows helper, or the absolute python3 resolveSerialInterpreter found outside the workspace, under -I with the shipped script) with the env nativeSerial makes by workspaceChildEnvironment (no workspace on PATH, credentials and keyring routes removed), argument array, no shell, own process group on POSIX (M103)',
   },
   'src/core/maker/serial/process.ts': {
     kind: 'reviewed',
