@@ -132,7 +132,21 @@ class JetBrainsPanelHost(
       NativeHostServices(project, { method, params ->
         surfaceRequest(method, params, checkEpoch)
       }, widgets, NativeHostOptions(checkEpoch = checkEpoch, workspaceRoot = process.workspaceRoot))
-    NativeTheme.install(project, lifetime) { if (!disposed) panels.values.forEach(EmbeddedPanel::updateTheme) }
+    NativeTheme.install(project, lifetime) {
+      if (!disposed) {
+        panels.values.forEach(EmbeddedPanel::updateTheme)
+        owner.notify(
+          "window/didChangeTheme",
+          json(
+            "theme" to
+              json(
+                "kind" to if (NativeTheme.dark()) "dark" else "light",
+                "tokens" to NativeTheme.tokens,
+              ),
+          ),
+        )
+      }
+    }
     owner =
       RuntimeConnection(
         process,
@@ -301,7 +315,7 @@ class JetBrainsPanelHost(
       val code = failure.message?.takeIf { it in PANEL_ERRORS } ?: "MHP_PANEL_INVALID_PAYLOAD"
       val error =
         json(
-          "mhp" to "1.5",
+          "mhp" to "1.6",
           "kind" to "panelError",
           "surface" to id,
           "seq" to frame["seq"],

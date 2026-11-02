@@ -80,14 +80,7 @@ namespace MuseSpark.VisualStudio
         using (var deadline = CancellationTokenSource.CreateLinkedTokenSource(DisposalToken))
         {
           deadline.CancelAfter(TimeSpan.FromSeconds(30));
-          var background = VSColorTheme.GetThemedColor(EnvironmentColors.ToolWindowBackgroundColorKey);
-          var foreground = VSColorTheme.GetThemedColor(EnvironmentColors.ToolWindowTextColorKey);
-          var isLight = background.GetBrightness() > 0.5;
-          var theme = new JObject
-          {
-            ["kind"] = System.Windows.SystemParameters.HighContrast ? (isLight ? "highContrastLight" : "highContrastDark") : (isLight ? "light" : "dark"),
-            ["tokens"] = new JObject { ["--muse-editorBackground"] = Color(background), ["--muse-foreground"] = Color(foreground) }
-          };
+          var theme = CurrentTheme();
           surfaces.Theme = theme;
           var application = (await GetServiceAsync(typeof(EnvDTE.DTE)) as EnvDTE.DTE) ?? throw new InvalidOperationException("MHP_HOST_VERSION_UNAVAILABLE");
           var version = System.Diagnostics.FileVersionInfo.GetVersionInfo(application.FullName).ProductVersion ?? throw new InvalidOperationException("MHP_HOST_VERSION_UNAVAILABLE");
@@ -103,6 +96,7 @@ namespace MuseSpark.VisualStudio
             ["trusted"] = false
           }, deadline.Token);
         }
+        VSColorTheme.ThemeChanged += OnThemeChanged;
         var channel = new MhpPanelChannel(runtime.Peer, Guid.NewGuid().ToString("N"), "chat", File.ReadAllText(Path.Combine(assets, "embedded-bridge.js")), message => ActivityLog.LogWarning("Muse Spark Code (Unofficial)", message));
         await channel.OpenAsync();
         panel = new PanelView(channel, JoinableTaskFactory);
@@ -120,9 +114,33 @@ namespace MuseSpark.VisualStudio
       finally { opening = false; }
     }
 
+    private static JObject CurrentTheme()
+    {
+      ThreadHelper.ThrowIfNotOnUIThread();
+      var background = VSColorTheme.GetThemedColor(EnvironmentColors.ToolWindowBackgroundColorKey);
+      var foreground = VSColorTheme.GetThemedColor(EnvironmentColors.ToolWindowTextColorKey);
+      var isLight = background.GetBrightness() > 0.5;
+      return new JObject
+      {
+        ["kind"] = System.Windows.SystemParameters.HighContrast ? (isLight ? "highContrastLight" : "highContrastDark") : (isLight ? "light" : "dark"),
+        ["tokens"] = new JObject { ["--muse-editorBackground"] = Color(background), ["--muse-foreground"] = Color(foreground) }
+      };
+    }
+
+    private void OnThemeChanged(ThemeChangedEventArgs args)
+    {
+      ThreadHelper.ThrowIfNotOnUIThread();
+      var peer = runtime?.Peer;
+      if (peer == null || surfaces == null) return;
+      var theme = CurrentTheme();
+      surfaces.Theme = theme;
+      JoinableTaskFactory.RunAsync(() => peer.NotifyAsync("window/didChangeTheme", new JObject { ["theme"] = theme })).FileAndForget("MuseSpark/ThemeChanged");
+    }
+
     private void Release()
     {
       ThreadHelper.ThrowIfNotOnUIThread();
+      VSColorTheme.ThemeChanged -= OnThemeChanged;
       try { completion?.Attach(null, null); surfaces?.Dispose(); ui?.Dispose(); }
       finally
       {

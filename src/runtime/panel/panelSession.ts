@@ -508,6 +508,8 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
   return {
     initialize: async (params, signal) => {
       isTrusted = params.trusted
+      // Held until each surface is ready, then relayed (M114, MHP 1.6).
+      connection.surfaces.setTheme(params.theme)
       settings = await store.readAll()
       configured = await store.configuredSettings()
       isGhLoginAllowed = (await store.getSetting('museSpark.github.useGhLogin')) === true
@@ -576,6 +578,10 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
         }
         case 'documents/didClose': {
           documents.delete(MHP_METHODS[method].params.parse(value).uri)
+          break
+        }
+        case 'window/didChangeTheme': {
+          connection.surfaces.setTheme(MHP_METHODS[method].params.parse(value).theme)
           break
         }
         default: {

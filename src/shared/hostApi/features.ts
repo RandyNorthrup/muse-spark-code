@@ -108,7 +108,12 @@ export const MHP_FEATURES: readonly MhpFeature[] = [
     'editor/active',
     'editor/didChangeSelection',
   ]),
-  feature('F16', 'attachments'),
+  feature('F16', 'attachments', [
+    'attachments/pick',
+    'attachments/attach',
+    'attachments/remove',
+    'attachments/record',
+  ]),
   feature('F17', 'subagents-and-map'),
   feature('F18', 'workflows'),
   feature('F19', 'tasks', ['surfaces/open', 'surfaces/close', 'surfaces/focus', 'surfaces/state']),
@@ -175,6 +180,7 @@ export const MHP_FEATURES: readonly MhpFeature[] = [
     'ui/clipboard',
     'window/state',
     'window/attention',
+    'window/didChangeTheme',
   ]),
   feature('F49', 'commands-and-keybindings', [
     'commands/register',

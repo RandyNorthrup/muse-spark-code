@@ -116,6 +116,17 @@ final class MhpSession {
       try send(frame)
     }
   }
+  func didChangeTheme(theme: [String: Any]) throws {
+    try queue.sync {
+      guard initialized, !closed else { throw NativeFailure.unavailable }
+      let frame: [String: Any] = [
+        "jsonrpc": NativeMhp.jsonRpcVersion,
+        "method": "window/didChangeTheme", "params": ["theme": theme],
+      ]
+      try schema.check(frame, method: "window/didChangeTheme")
+      try send(frame)
+    }
+  }
   private func finish() {
     closed = true
     buffer.removeAll()

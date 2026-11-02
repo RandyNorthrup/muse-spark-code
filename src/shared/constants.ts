@@ -10769,9 +10769,9 @@ export const HANDOFF_NOTE =
 // credential is a protocol value.
 export const MHP_ZERO_VERSION_COMPONENT = 0n
 export const MHP = {
-  version: 'mhp/1.5.0',
-  minimumVersion: 'mhp/1.5.0',
-  maximumVersionExclusive: 'mhp/1.6.0',
+  version: 'mhp/1.6.0',
+  minimumVersion: 'mhp/1.6.0',
+  maximumVersionExclusive: 'mhp/1.7.0',
   jsonRpcVersion: '2.0',
   // Number.MAX_SAFE_INTEGER as a literal: a property read on a global keeps
   // this whole block in every bundle that imports this module (M104 join).
@@ -10794,7 +10794,7 @@ export const MHP_ERROR_CODES = {
   permissionDenied: -32_006,
 } as const
 
-// MHP 1.5 is the sole supported contract; editor hosts initiate initialization.
+// MHP 1.6 is the sole supported contract; editor hosts initiate initialization.
 export const MHP_PRESENTATION = {
   maximumIdChars: 256,
   maximumTextChars: 16_384,
@@ -10806,10 +10806,10 @@ export const MHP_PRESENTATION = {
 export const PRESENTATION_REQUEST_TIMEOUT_MS = 30_000
 
 export const MHP_PANEL = {
-  version: 'mhp/1.5.0',
-  wireVersion: '1.5',
-  minimumVersion: 'mhp/1.5.0',
-  maximumVersionExclusive: 'mhp/1.6.0',
+  version: 'mhp/1.6.0',
+  wireVersion: '1.6',
+  minimumVersion: 'mhp/1.6.0',
+  maximumVersionExclusive: 'mhp/1.7.0',
   maximumEnvelopeBytes: 16_777_216,
   maximumQueuedBytes: 33_554_432,
   maximumQueuedMessages: 128,
