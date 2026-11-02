@@ -2486,6 +2486,9 @@ export const EN = {
     'Team use is chosen when the session starts. Start a new session to change it.',
   acpTeamRolesUnavailable:
     'There is no Roles section in this editor. Edit the stored team file named in the ACP guide.',
+  // The editor has no permission prompt (or the prompt failed). The step is
+  // refused, and the person hears that instead of a silent discard.
+  acpTeamUnanswered: 'The editor did not answer, so this team step was refused.',
   // Shared resources (M96 lane B, D75): the registry, the leases and the bridge.
   teamResourcesTitle: 'Tools and Devices',
   teamResourcesDetail: 'Which MCP servers and devices the team shares, and who may use them',

@@ -1992,6 +1992,7 @@
   "acpTeamPermissionTitle": "{role} · {agent}: {detail}",
   "acpTeamFixedForSession": "Ekip kullanımı oturum başlarken seçilir. Değiştirmek için yeni bir oturum başlatın.",
   "acpTeamRolesUnavailable": "Bu düzenleyicide Roles bölümü yok. ACP kılavuzunda adı geçen kayıtlı ekip dosyasını düzenleyin.",
+  "acpTeamUnanswered": "Düzenleyici yanıt vermediği için bu ekip adımı reddedildi.",
   "teamResourcesTitle": "Araçlar ve cihazlar",
   "teamResourcesDetail": "Ekibin hangi MCP sunucularını ve cihazları paylaştığı ve kimlerin kullanabileceği",
   "teamResourcesKindLabel": "Tür",

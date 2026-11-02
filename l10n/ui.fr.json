@@ -2008,6 +2008,7 @@
   "acpTeamPermissionTitle": "{role} · {agent}: {detail}",
   "acpTeamFixedForSession": "L’utilisation de l’équipe est choisie au démarrage de la session. Démarrez une nouvelle session pour la modifier.",
   "acpTeamRolesUnavailable": "Cet éditeur n’a pas de section Roles. Modifiez le fichier d’équipe enregistré indiqué dans le guide ACP.",
+  "acpTeamUnanswered": "L’éditeur n’a pas répondu, donc cette étape de l’équipe a été refusée.",
   "teamResourcesTitle": "Outils et appareils",
   "teamResourcesDetail": "Quels serveurs MCP et appareils l’équipe partage, et qui peut les utiliser",
   "teamResourcesKindLabel": "Type",

@@ -8,7 +8,7 @@
 // (a start that cannot complete is the worker's real failure), and the
 // merge case restores a finished task the real end-of-task sequence
 // committed, as a restart would find it.
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as acp from '@agentclientprotocol/sdk/unstable'
@@ -27,7 +27,12 @@ import { workspaceKey } from '../../src/runtime/dataFolder'
 import { runtimeWindowsJob } from '../../src/runtime/resources/jobs'
 import { storedTeamSnapshotFile } from '../../src/runtime/teamSnapshotFile'
 import { stderrLogger } from '../../src/runtime/stderrLog'
-import { ACP_TEAM_BOARD_FILE, UI_TEXT } from '../../src/shared/constants'
+import {
+  ACP_SESSIONS_SUBFOLDER,
+  ACP_TEAM_BOARD_FILE,
+  ACP_TEAM_STORAGE_FOLDER,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import type { TeamSnapshot } from '../../src/shared/team'
 import { createLocalAcpAgent } from './helpers/acpLocalAgentDeps'
 import { realTeamGit, scratchTeamRepo } from './helpers/realTeamGit'
@@ -302,12 +307,23 @@ async function delegateOne(port: AcpTeamPort, cwd: string): Promise<string> {
 }
 
 /** A finished task restored from the board, its copy made by the real sequence. */
-async function restoredMerge(answer: string) {
+async function restoredMerge(
+  answer: string,
+  handler?: AcpTeamSessionHandler,
+  reportStatus: 'done' | 'capped' = 'done',
+) {
   const repo = await gitRepo()
   const dataFolder = scratch('acp-team-data-')
   const snapshot = storedTeam(WORKER)
   writeStoredTeam(dataFolder, repo, snapshot)
-  const storage = scratch('acp-team-storage-')
+  // The copy has to live in the storage the session will actually clean,
+  // which is the same place a worker's copy is created.
+  const storage = path.join(
+    dataFolder,
+    ACP_SESSIONS_SUBFOLDER,
+    workspaceKey(repo),
+    ACP_TEAM_STORAGE_FOLDER,
+  )
   const baseCommit = await resolveBaseCommit(realTeamGit, repo)
   const workspace = await startTeamWorkspace(realTeamGit, storage, process.platform, {
     repositoryRoot: repo,
@@ -366,7 +382,10 @@ async function restoredMerge(answer: string) {
             agentsRef: workspace.agentsRef,
           },
           outcome: {
-            report: { status: 'done', summary: 'did it' },
+            report: {
+              status: reportStatus,
+              summary: reportStatus === 'capped' ? 'stopped at the cap' : 'did it',
+            },
             usage,
             branch: workspace.branch,
             baseCommit,
@@ -381,9 +400,18 @@ async function restoredMerge(answer: string) {
   )
   const port = createAcpTeam(teamDeps(dataFolder), UI_TEXT, 'en')
   const prepared = await port.prepareNew(repo, ORCHESTRATOR)
-  const editor = editorHandler(() => answer)
+  const editor =
+    handler === undefined ? editorHandler(() => answer) : { updates: [], requests: [], handler }
   const session = await prepared.attach('team-session', editor.handler)
-  return { repo, port, editor, session, agentsRef: workspace.agentsRef }
+  return {
+    repo,
+    port,
+    prepared,
+    editor,
+    session,
+    agentsRef: workspace.agentsRef,
+    copyFolder: workspace.folder,
+  }
 }
 
 /** A restored merge asked of the editor, ready for its answer's effect. */
@@ -561,6 +589,127 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
         { Authorization: `Bearer ${'0'.repeat(64)}` },
       )
       expect(forged.status).toBe(401)
+      await session.close()
+    } finally {
+      await port.dispose()
+    }
+  })
+
+  it('keeps one session’s tasks, briefs and diffs out of another session', async () => {
+    const { repo, port, prepared, editor } = await restoredMerge('discard')
+    const otherUpdates: acp.SessionUpdate[] = []
+    try {
+      await prepared.attach('other-session', {
+        mode: () => 'manual',
+        sendUpdate: (update) => {
+          otherUpdates.push(update)
+        },
+        requestPermission: () => Promise.reject(new Error('the other session is not asked')),
+      })
+      await eventually(
+        () =>
+          editor.updates.some(
+            (update) =>
+              update.sessionUpdate === 'tool_call' &&
+              typeof update.title === 'string' &&
+              update.title.includes('fix the bug'),
+          ),
+        'the owning session’s task',
+      )
+      const leaked = JSON.stringify(otherUpdates)
+      expect(leaked).not.toContain('fix the bug')
+      expect(leaked).not.toContain('const value = 2')
+      expect(readFileSync(path.join(repo, 'a.ts'), 'utf8')).toBe('const value = 1\n')
+    } finally {
+      await port.dispose()
+    }
+  })
+
+  it('refuses a merge the editor answers only after cancel, and removes the copy', async () => {
+    const { promise: answer, resolve: release } = Promise.withResolvers<string>()
+    let isAsked = false
+    const { repo, port, session, copyFolder } = await restoredMerge('merge', {
+      mode: () => 'manual',
+      sendUpdate: () => undefined,
+      requestPermission: async () => {
+        isAsked = true
+        const optionId = await answer
+        return { outcome: { outcome: 'selected' as const, optionId } }
+      },
+    })
+    try {
+      const result = await port
+        .seamsFor(repo)
+        .teamRunner.merge({ task_id: 'task-merge' }, context())
+      expect(result.output).not.toContain('Error:')
+      await eventually(() => isAsked, 'the merge question')
+      await session.cancel()
+      expect(existsSync(copyFolder)).toBe(false)
+      expect(readFileSync(path.join(repo, 'a.ts'), 'utf8')).toBe('const value = 1\n')
+      release('merge')
+      await answer
+      expect(readFileSync(path.join(repo, 'a.ts'), 'utf8')).toBe('const value = 1\n')
+      expect(existsSync(copyFolder)).toBe(false)
+    } finally {
+      await port.dispose()
+    }
+  })
+
+  it('says so and discards when the editor cannot answer a merge', async () => {
+    const updates: acp.SessionUpdate[] = []
+    const { repo, port, session } = await restoredMerge('discard', {
+      mode: () => 'manual',
+      sendUpdate: (update) => {
+        updates.push(update)
+      },
+      requestPermission: () =>
+        Promise.reject(new Error('session/request_permission is not supported')),
+    })
+    try {
+      const result = await port
+        .seamsFor(repo)
+        .teamRunner.merge({ task_id: 'task-merge' }, context())
+      expect(result.output).not.toContain('Error:')
+      await eventually(
+        () =>
+          updates.some(
+            (update) =>
+              update.sessionUpdate === 'agent_message_chunk' &&
+              update.content.type === 'text' &&
+              update.content.text === UI_TEXT.acpTeamUnanswered,
+          ),
+        'the unanswered sentence',
+      )
+      expect(readFileSync(path.join(repo, 'a.ts'), 'utf8')).toBe('const value = 1\n')
+      await session.close()
+      expect(readFileSync(path.join(repo, 'a.ts'), 'utf8')).toBe('const value = 1\n')
+    } finally {
+      await port.dispose()
+    }
+  })
+
+  it('reports a capped worker as failed, with its report', async () => {
+    const { port, editor, session } = await restoredMerge('discard', undefined, 'capped')
+    try {
+      await eventually(
+        () =>
+          editor.updates.some(
+            (update) =>
+              update.sessionUpdate === 'tool_call_update' &&
+              update.toolCallId === 'team/task/task-merge' &&
+              update.status === 'failed' &&
+              JSON.stringify(update.content).includes('stopped at the cap'),
+          ),
+        'the capped task’s failed call',
+      )
+      expect(
+        editor.updates.some(
+          (update) =>
+            update.sessionUpdate === 'tool_call_update' &&
+            update.toolCallId === 'team/task/task-merge' &&
+            update.status === 'completed',
+        ),
+      ).toBe(false)
       await session.close()
     } finally {
       await port.dispose()

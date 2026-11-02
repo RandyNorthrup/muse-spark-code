@@ -369,6 +369,11 @@ export class TeamHostBinding implements TeamSurfacePort {
     return this.service?.taskReport?.(taskId)
   }
 
+  /** The conversation that owns the task, where the service knows it. */
+  public taskSession(taskId: string): string | undefined {
+    return this.service?.taskSession?.(taskId)
+  }
+
   /** Stops every task one conversation delegated (RLF-ACPTEAM: cancel and close). */
   public async stopSessionTasks(sessionId: string): Promise<number> {
     return (await this.service?.stopSessionTasks?.(sessionId)) ?? 0
