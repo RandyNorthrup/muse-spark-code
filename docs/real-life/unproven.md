@@ -3418,3 +3418,15 @@ used through the packed product. Per-item record, with the steps:
   ceiling (`exec --vault`, environment and standard-input secrets, the grant
   and the `vault policy` ceiling, the broker-to-feeder delegation, scrubbed
   output). Unproven until a packed run does it on a Mac and on Linux.
+
+## Lane CC-CIFIXW (2026-11-02, branch cc/cifixw)
+
+The Windows serial inventory is real code on a real registry, and only with no
+board attached (`test/fixtures/maker/windows-serialcomm.json`). Per-item record:
+`docs/certification/cc-cifixw.md`.
+
+- A USB serial board on Windows turns the workspace into a hardware workspace,
+  with its port among the targets. Unproven until a real board is plugged into
+  a Windows machine and a shell command asks. The driver's device name decides
+  (`\Device\USBSER000`, `\Device\VCP0`, ...), and none has been captured.
+- Windows mass-storage boards (`CIRCUITPY`, `RPI-RP2`) are not read at all.
