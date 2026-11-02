@@ -28,6 +28,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **The desktop's compositor foundation (M111).** Muse Desktop pins
+  Hyprland 0.55.2 with generated full and light configs (layouts, gaps,
+  animations, floating rules, gestures, monitors, permissions), a
+  44-binding key table with a duplicate check, and a compositor port
+  with project-bound desktops, agent labels, Alt+Tab, send and merge —
+  all proven in a headless guest session and gated in CI.
 - **`muse-spark-code-acp watchdog` keeps a watch list of GitHub repositories
   in a terminal.** `watchdog list` and `status` show the watched
   repositories, `pause` and `resume` stop and restart watching, and `policy`
