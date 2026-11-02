@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- context-menu: the arrow with a menu badge. Hotspot 7,3 (the tip). -->
+  <path d="M7 3 L7 23 L11.8 18.4 L14.3 23.8 L16.8 22.6 L14.3 17.2 L19 17.2 Z" fill="%%FILL%%" stroke="%%OUTLINE%%" stroke-width="2" stroke-linejoin="round"/>
+  <rect x="19" y="18.5" width="10" height="10.5" rx="2" fill="%%FILL%%" stroke="%%OUTLINE%%" stroke-width="2"/>
+  <path d="M21.2 21.5 L26.8 21.5 M21.2 24 L26.8 24 M21.2 26.5 L25 26.5" fill="none" stroke="%%OUTLINE%%" stroke-width="1.5" stroke-linecap="round"/>
+</svg>
