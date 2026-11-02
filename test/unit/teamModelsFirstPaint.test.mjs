@@ -1,38 +1,42 @@
 // Real production-plugin entry: ordinary Models first paint stays independent
 // of team English; validated enabled-team navigation waits for that loader.
 import path from 'node:path'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { pathToFileURL } from 'node:url'
-import { build } from 'esbuild'
 import { chromium } from 'playwright-core'
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
-import { compactBrowserUiText } from '../../scripts/lib/uiTextRegions.mjs'
-import { teamPanelBrowserValidation } from '../../scripts/lib/webviewBundles.mjs'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
 import { BROWSER_ENGLISH, L10N_BUILDS_KEY } from './helpers/l10nBuilds.mjs'
+import { MODELS_FIRST_PAINT_KEY } from './helpers/modelsFirstPaintBuild.mjs'
 import { makeState } from './modelsPanelFixtures'
 import { panelRig } from './helpers/teamPanelRig'
 import { EN } from '../../src/shared/l10n/en'
 
 const runtime = { files: [], browser: undefined, server: undefined, url: '', state: undefined }
-// A cold production bundle build plus a Chrome launch: slow on a cold runner.
+/** The global-setup bundle as the in-memory files the server and cases read. */
+function readBundle(folder) {
+  const files = []
+  const walk = (directory) => {
+    const entries = readdirSync(directory, { withFileTypes: true })
+    for (const entry of entries) {
+      const full = path.join(directory, entry.name)
+      if (entry.isDirectory()) walk(full)
+      else {
+        const contents = readFileSync(full)
+        files.push({ path: full, contents, text: contents.toString('utf8') })
+      }
+    }
+  }
+  walk(folder)
+  return files
+}
+// The bundle builds once in global setup, outside every hook's deadline; the
+// hook only reads it into memory, warms the rig state and launches Chrome.
 beforeAll(async () => {
-  const result = await build({
-    entryPoints: [path.resolve('src/webview/models/models.tsx')],
-    bundle: true,
-    platform: 'browser',
-    format: 'esm',
-    target: 'chrome128',
-    splitting: true,
-    outdir: 'out',
-    write: false,
-    metafile: true,
-    logLevel: 'silent',
-    define: { 'process.env.NODE_ENV': '"production"' },
-    plugins: [compactBrowserUiText, teamPanelBrowserValidation],
-  })
-  runtime.files = result.outputFiles ?? []
+  const folder = inject(MODELS_FIRST_PAINT_KEY)
+  if (folder === undefined) throw new Error('Models first-paint build missing from global setup')
+  runtime.files = readBundle(folder)
   const rig = panelRig()
   await rig.read()
   await rig.controller.handle({ type: 'roles/template', template: 'pair' })
@@ -60,7 +64,7 @@ beforeAll(async () => {
   const address = runtime.server.address()
   if (address === null || typeof address === 'string') throw new Error('No server address')
   runtime.url = `http://127.0.0.1:${String(address.port)}`
-}, 60_000)
+})
 afterAll(async () => {
   await runtime.browser?.close()
   await new Promise((resolve) => runtime.server?.close(resolve))
