@@ -26089,6 +26089,28 @@ delegation to that feeder's pid, start time and envelope digest. The vault
 and OS credential-store suites were not run. `cliCredentialFile` (6) passed.
 Record: `docs/certification/rvint7.md`.
 
+**Status 2026-11-02 (RLF-M109H, macmini): built.** RVM109's four open
+hardening items are closed on POSIX: a delegated command starts through
+the peer helper's `run` mode with a zero core limit and, on Linux,
+dumpable off, so a crash writes no core holding a handed-over value and
+another process of the same user cannot read the command's environment
+through `/proc` (macOS has no dumpable switch: its core limit is set
+and the remaining environment exposure is said on the approval card,
+in all 15 tables, where the person allows that mode); the feeder
+ancestry walk binds every step to the start time recorded for that pid
+and the helper's `parent` mode brackets its own reads, so a recycled
+pid cannot answer for a dead ancestor; and a headless run's vault uses
+are authorized against the provenance the engine actually noted during
+that run, accumulating for the run's life, with a tainted use denied in
+the run's denial record. Proven here on real processes and the
+compiled helper; the delegated broker/feeder suite's new taint case
+could not run in this lane's sandbox (its governed identity probe
+fails identically at the base commit) and belongs to hosted CI.
+Named, not fixed, with what a run has to prove: the Windows policy
+path, a container pid namespace, and the git, askpass, sudo, SSH and
+editor surfaces (`docs/real-life/unproven.md`). Record:
+`docs/certification/rlf-m109h.md`. M109 stays open.
+
 **C-M109-1 lead decisions (2026-10-10, lead decision).** In 0.17.0, every
 vault use is refused. The binding layer was never built: the broker process,
 its ports, peer checks, a setup flow, a runtime bundle and a Linux slot are

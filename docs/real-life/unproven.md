@@ -3507,3 +3507,61 @@ editor run proves it:
   not on this branch. Lane C's `attachments/*` methods are not on the
   native hosts. Lane A's `src/runtime/panel/git/gitEntry.ts` is not on
   this branch.
+
+## Lane RLF-M109H named, not fixed (2026-11-02, branch rec/rlf-m109h)
+
+RLF-M109H closed RVM109's four hardening items on POSIX
+(`docs/certification/rlf-m109h.md`). The surfaces below were named, not
+fixed, by that brief; each line says what a run has to prove before
+any claim is made about it. Nothing here is proven by this lane.
+
+- Windows person-policy path: RVM109's linked/shared/second-named
+  refusal uses the POSIX no-follow, owner-only, single-link helpers;
+  the Windows write makes an exclusive random temporary and renames,
+  and no Windows run has shown what a linked, shared or second-named
+  `vault-policy.json` does there. A Windows run (hosted CI's Windows
+  vault legs or the lead's PC) has to plant each shape — a junction or
+  symlink at the policy name, a policy readable by another account, a
+  second hard link, a planted next-name link — and show the ceiling
+  reads `none` with `vault-policy-refused` said, while an ordinary
+  owner-only policy still loads and saves.
+- Container pid namespace: the broker's feeder ancestry walk compares
+  kernel pids and start times read in the broker's own pid namespace.
+  A feeder (or broker) inside a container whose pid namespace differs
+  has never been run. A container run has to show, for each placement
+  (broker outside/feeder inside, both inside one namespace, broker
+  inside/host outside), that redemption either verifies against the
+  real requester ancestry or refuses in words — never verifies
+  against a same-numbered pid from the other namespace.
+- Git surface (D243's later increments): the feeder's git credential
+  helper has no run behind it. A run has to drive a real `git` HTTPS
+  operation through the feeder helper against a real remote and show
+  the credential is answered only for the approved host and path, a
+  different host or path is refused, and the value reaches neither
+  the host result, git's own credential store, nor any file git
+  writes.
+- Askpass surface: the feeder-owned askpass helper has no run behind
+  it. A run has to drive a real program that invokes `SUDO_ASKPASS`
+  (or its own askpass route) through the feeder and show the answer is
+  given only inside the approved use and its short lifetime, a call
+  after the lease ends is refused, and the value never lands in the
+  environment, argv or a helper file a later process can read.
+- Sudo surface: `sudo -S -k` through the feeder has no run behind it.
+  A run has to execute a real sudo command through the feeder on a
+  rig where sudo is configured for the test account and show the
+  exact approved argv ran with a fresh authentication, the timestamp
+  is cleared afterwards (a second sudo asks again), a swapped sudo
+  path or cwd refuses, and the password is in no core, log or result.
+- SSH surface: the broker's agent socket route has no feeder run
+  behind it. A run has to make a real SSH connection through the
+  broker socket and show signing happens only for the approved host
+  binding, an unapproved host or a forwarding request is refused, and
+  no key material reaches the command, its environment or its files.
+- Editor surfaces (VS Code and ACP consumers of `vault_run`): only
+  the headless consumer is wired and run. An editor run has to drive
+  `vault_run` from a real conversation in the packed product (the
+  panel and one ACP editor) and show the approval card names the
+  exact use and delivery mode, session grants behave as their
+  sentences say, the run's own provenance notes gate the use as the
+  headless ones now do, and no value reaches the transcript, the
+  session log or the model.
