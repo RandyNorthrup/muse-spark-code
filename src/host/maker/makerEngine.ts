@@ -8,7 +8,15 @@ import { randomUUID } from 'node:crypto'
 import * as z from 'zod/mini'
 import { errorNameForLog } from '../../core/logging'
 import { DeviceLog, type DeviceLogEntry } from '../../core/maker/deviceLog'
-import { claimHardwareLease } from '../../core/maker/lease'
+import {
+  leaseGuardedSend,
+  machineEngineFor,
+  makerSendResultMessage,
+  makerSerialInput,
+  makerSerialResultMessage,
+  serialAuditAppender,
+  summarizeMachines,
+} from '../../core/maker/machineEngines'
 import {
   FileMachineStorage,
   MachineError,
@@ -19,12 +27,8 @@ import {
 } from '../../core/maker/registry'
 import { MachineHttp } from '../../core/maker/machines/http'
 import type { Machine, MachineDeps, MachineSendResult } from '../../core/maker/machines/machine'
-import { createMoonrakerMachine } from '../../core/maker/machines/moonraker'
-import { createOctoprintMachine, requestOctoprintAppKey } from '../../core/maker/machines/octoprint'
-import {
-  createPrusalinkMachine,
-  type PrusaLinkTransport,
-} from '../../core/maker/machines/prusalink'
+import { requestOctoprintAppKey } from '../../core/maker/machines/octoprint'
+import type { PrusaLinkTransport } from '../../core/maker/machines/prusalink'
 import type { MakerHost, MakerSecrets } from '../../core/maker/ports'
 import type { SerialIdentity } from '../../core/maker/serial/identity'
 import {
@@ -33,11 +37,8 @@ import {
   OCTOPRINT_APPKEYS_APP,
   OCTOPRINT_APPKEYS_POLL_MS,
   OCTOPRINT_APPKEYS_TIMEOUT_MS,
-  RUNTIME_MAKER_APPROVAL_MS,
   RUNTIME_MAKER_LOG_BYTES,
   RUNTIME_MAKER_MAX_BYTES,
-  RUNTIME_MAKER_MAX_LINES,
-  RUNTIME_MAKER_MM_PER_INCH,
   RUNTIME_MAKER_TIMEOUT_MS,
   SECRET_KEYS,
   UI_TEXT,
@@ -120,17 +121,7 @@ export class MakerEngine {
       workspace: deps.workspaceRoot ?? deps.dataDirectory,
       host: deps.host,
       refreshAdmission: () => this.refresh(),
-      audit: ({ request, outcome }) =>
-        this.deviceLog().append({
-          machine: request.target.port,
-          action: request.action,
-          payload:
-            request.payload.encoding === 'hex'
-              ? Buffer.from(request.payload.value, 'hex')
-              : request.payload.value,
-          approval: request.id,
-          outcome: outcome === 'rejected' || outcome === 'changed' ? 'refused' : outcome,
-        }),
+      audit: serialAuditAppender(() => this.deviceLog()),
     })
   }
 
@@ -170,18 +161,7 @@ export class MakerEngine {
   }
 
   private async summaries(): Promise<readonly MakerMachineSummary[]> {
-    const registered = await this.registry.list()
-    return registered
-      .filter((record) => record.credentialPendingRemoval !== true)
-      .map(({ registrationId, id, name, kind, category, endpoint, limits }) => ({
-        registrationId,
-        id,
-        name,
-        kind,
-        category,
-        endpoint,
-        limits,
-      }))
+    return summarizeMachines(await this.registry.list())
   }
 
   private async openAuthDialog(endpoint: string, url: string): Promise<void> {
@@ -203,70 +183,18 @@ export class MakerEngine {
     const record = await this.registry.get(id)
     const previous = this.machines.get(record.registrationId)
     if (previous !== undefined) return previous
-    const engineDeps: MachineDeps = {
+    const engine = await machineEngineFor(record, id, {
       host: this.deps.host,
       log: this.deviceLog(),
-      isLeaseHeld: () => this.leased.has(record.registrationId),
-      policy: {
-        gcode: {
-          maxBytes: RUNTIME_MAKER_MAX_BYTES,
-          maxLines: RUNTIME_MAKER_MAX_LINES,
-          mmPerInch: RUNTIME_MAKER_MM_PER_INCH,
-        },
-        approvalTtlMs: RUNTIME_MAKER_APPROVAL_MS,
-        stopDeadlineMs: RUNTIME_MAKER_TIMEOUT_MS,
-        requestDeadlineMs: RUNTIME_MAKER_TIMEOUT_MS,
-        maxStateChanges: 2,
-        now: Date.now,
-      },
-    }
-    const secrets = {
-      ...this.deps.secrets,
-      get: async (name: string) => {
-        const current = await this.registry.get(id)
-        if (current.registrationId !== record.registrationId)
-          throw new MachineError('machineTargetChanged')
-        return await this.deps.secrets.get(name)
-      },
-    }
-    const http = new MachineHttp(record, this.lan, secrets, {
-      timeoutMs: RUNTIME_MAKER_TIMEOUT_MS,
-      maxResponseBytes: RUNTIME_MAKER_MAX_BYTES,
-      onGuardedDispatch: () => {
-        this.dispatched.add(record.registrationId)
-      },
-      beforeGuardedDispatch: async () => {
-        await this.refresh()
-        const current = await this.registry.get(id)
-        if (current.registrationId !== record.registrationId)
-          throw new MachineError('machineTargetChanged')
-      },
+      isLeaseHeld: (registrationId) => this.leased.has(registrationId),
+      secrets: this.deps.secrets,
+      registryGet: (machineId) => this.registry.get(machineId),
+      lan: this.lan,
+      refresh: () => this.refresh(),
+      dispatched: this.dispatched,
+      prusalinkTransport: this.deps.prusalinkTransport,
+      serialMachine: this.deps.serialMachine,
     })
-    let engine: Machine
-    switch (record.kind) {
-      case 'moonraker': {
-        engine = createMoonrakerMachine(record, http, engineDeps)
-        break
-      }
-      case 'octoprint': {
-        engine = createOctoprintMachine(record, http, engineDeps)
-        break
-      }
-      case 'prusalink': {
-        if (this.deps.prusalinkTransport === undefined)
-          throw new MachineError('prusalink-transport-required')
-        engine = createPrusalinkMachine(
-          record,
-          this.deps.prusalinkTransport(record, secrets),
-          engineDeps,
-        )
-        break
-      }
-      default: {
-        if (this.deps.serialMachine === undefined) throw new MachineError('serial-session-required')
-        engine = await this.deps.serialMachine(record, engineDeps)
-      }
-    }
     this.machines.set(record.registrationId, engine)
     return engine
   }
@@ -281,46 +209,21 @@ export class MakerEngine {
     await this.refresh()
     signal.throwIfAborted()
     const engine = await this.machine(id)
-    const generation = engine.record.registrationId
-    const claim = await claimHardwareLease(
-      this.serial.lease,
-      `machine:${generation}`,
-      'Muse Spark window',
-      async () => {
-        await engine.stop()
+    return await leaseGuardedSend({
+      lease: this.serial.lease,
+      holder: 'Muse Spark window',
+      engine,
+      payload,
+      signal,
+      cancelApprovals: () => {
+        this.deps.host.cancelApprovals()
       },
-    )
-    if (claim.status !== 'acquired') throw new MachineError('machineBusy')
-    this.dispatched.delete(generation)
-    this.leased.add(generation)
-    const cancel = () => {
-      this.deps.host.cancelApprovals()
-      // Revoke the final write guard. Cancelling an unsent permission is not a machine Stop.
-      this.leased.delete(generation)
-      if (this.dispatched.has(generation))
-        void (async () => {
-          const [attempt] = await Promise.allSettled([engine.stop()])
-          if (attempt.status === 'rejected') {
-            // The notice itself never rejects: the host swallows delivery failures.
-            void this.deps.host.notify({
-              type: 'makerNotice',
-              level: 'error',
-              message: fill(UI_TEXT.makerStopFailed, { machine: engine.record.name }),
-            })
-          }
-        })()
-    }
-    signal.addEventListener('abort', cancel, { once: true })
-    try {
-      signal.throwIfAborted()
-      const result = await engine.send(payload)
-      return { outcome: result.outcome, logRecorded: result.logRecorded }
-    } finally {
-      signal.removeEventListener('abort', cancel)
-      this.leased.delete(generation)
-      this.dispatched.delete(generation)
-      await claim.release()
-    }
+      notify: (notice) => {
+        void this.deps.host.notify(notice)
+      },
+      leased: this.leased,
+      dispatched: this.dispatched,
+    })
   }
 
   /** The tool list's state: registry summaries plus serial ports while enabled. */
@@ -524,53 +427,11 @@ export class MakerEngine {
       }
       case 'makerSend': {
         const result = await this.send(message.machineId, message.payload, signal)
-        const text = {
-          sent: UI_TEXT.execStatus.completed,
-          sentWithUnrecordedAudit: UI_TEXT.makerAuditUnrecorded,
-          sentOutcomeUnknown: UI_TEXT.makerSentOutcomeUnknown,
-        }[result.outcome]
-        return makerHostMessageSchema.parse({
-          v: MAKER_PROTOCOL_VERSION,
-          type: 'makerResult',
-          id: message.id,
-          outcome: result.outcome,
-          message: text,
-        })
+        return makerSendResultMessage(result.outcome, message.id)
       }
       case 'makerSerial': {
-        const { kind: _kind, ...identity } = message.target
-        const { operation, baud, durationMs, dtr, rts, payloadHex } = message
-        const result = await this.serial.execute(
-          { operation, baud, durationMs, dtr, rts, payloadHex, identity },
-          signal,
-        )
-        let outcome: 'refused' | 'stopped' | 'failed' | 'sent' = 'refused'
-        let text = UI_TEXT.toolRejected
-        if (result.status === 'complete') {
-          switch (result.capture.reason) {
-            case 'stopped': {
-              outcome = 'stopped'
-              text = UI_TEXT.toolStopped
-              break
-            }
-            case 'failed': {
-              outcome = 'failed'
-              text = UI_TEXT.toolFailed
-              break
-            }
-            default: {
-              outcome = 'sent'
-              text = UI_TEXT.execStatus.completed
-            }
-          }
-        }
-        return makerHostMessageSchema.parse({
-          v: MAKER_PROTOCOL_VERSION,
-          type: 'makerResult',
-          id: message.id,
-          outcome,
-          message: text,
-        })
+        const result = await this.serial.execute(makerSerialInput(message), signal)
+        return makerSerialResultMessage(result, message.id)
       }
       default: {
         throw new MachineError('maker-surface-operation-unavailable')
