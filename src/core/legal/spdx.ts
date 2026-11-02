@@ -80,11 +80,7 @@ function tokenize(text: string): { readonly tokens: readonly Token[]; readonly e
         end += 1
       }
       const value = text.slice(index, end)
-      if (isOperator(value)) {
-        tokens.push({ kind: 'operator', value })
-      } else {
-        tokens.push({ kind: 'id', value })
-      }
+      tokens.push(isOperator(value) ? { kind: 'operator', value } : { kind: 'id', value })
       index = end
       continue
     }

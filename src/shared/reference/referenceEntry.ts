@@ -115,7 +115,7 @@ export function createReference(table: UiText, locale: string) {
       lines.push('', 'ACP / CLI')
       for (const c of REFERENCE.cli)
         lines.push(
-          `${c.name}: ${c.usageKey !== undefined && c.usageLine !== undefined ? (fill(UI_TEXT[c.usageKey], { command: REFERENCE.executable }).split('\n')[c.usageLine] ?? c.description) : fill(c.text === undefined ? c.description : referenceText(c.text, REFERENCE, nls, UI_TEXT), { command: REFERENCE.executable })}${c.contract === undefined ? '' : ` ${JSON.stringify(c.contract)}`}`,
+          `${c.name}: ${c.usageKey === undefined || c.usageLine === undefined ? fill(c.text === undefined ? c.description : referenceText(c.text, REFERENCE, nls, UI_TEXT), { command: REFERENCE.executable }) : (fill(UI_TEXT[c.usageKey], { command: REFERENCE.executable }).split('\n')[c.usageLine] ?? c.description)}${c.contract === undefined ? '' : ` ${JSON.stringify(c.contract)}`}`,
         )
       return lines.join('\n')
     },

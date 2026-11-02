@@ -251,5 +251,5 @@ export const BROWSER_RUNTIME_EOCD_SEARCH_BYTES = 65_557
 // fallback (processTree.ts, M27) and the browser check's kill.
 // A plain string: the same characters String.raw would give, without the call,
 // so bundles that never kill a tree drop it.
-// eslint-disable-next-line unicorn/prefer-string-raw -- a plain string drops out of bundles that never kill a tree; String.raw is a call and pins it.
+
 export const WINDOWS_TASKKILL_RELATIVE_PATH = 'System32\\taskkill.exe'

@@ -191,7 +191,7 @@ function watchReports(
     reports += 1
     onReport?.()
   })
-  const settle = (
+  const didSettle = (
     timing: SettleTiming,
     signal: AbortSignal,
     hasEarlierReport: boolean,
@@ -235,7 +235,7 @@ function watchReports(
       }
     })
   return {
-    settle,
+    settle: didSettle,
     dispose: () => {
       subscription.dispose()
     },
@@ -844,7 +844,7 @@ async function formatAfterEdit(
 }
 
 /** True once `waited` settles, false when the caller stops first. */
-function reachedBeforeStop(waited: Promise<void>, signal: AbortSignal): Promise<boolean> {
+function didReachBeforeStop(waited: Promise<void>, signal: AbortSignal): Promise<boolean> {
   if (signal.aborted) {
     return Promise.resolve(false)
   }
@@ -946,7 +946,7 @@ export function createVerifyEditor(
     const previous = tail
     // No Promise.withResolvers here: VS Code 1.99's extension host runs Node 20.
     const turn = (async () =>
-      (await reachedBeforeStop(previous, activeSignal)) ? await work(activeSignal) : stopped())()
+      (await didReachBeforeStop(previous, activeSignal)) ? await work(activeSignal) : stopped())()
     tail = afterBoth(previous, turn)
     return await turn
   }

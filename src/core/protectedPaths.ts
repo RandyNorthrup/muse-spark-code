@@ -27,17 +27,17 @@ protected write. Case is ignored: Windows and macOS file systems fold it.
 export function isProtectedPath(canonicalRelative: string): boolean {
   const segments = canonicalRelative.toLowerCase().split('/')
   const name = segments.at(-1) ?? ''
-  if (PROTECTED_FILE_NAMES.has(name)) {
-    return true
-  }
   // The run may sit anywhere (a nested repository's `.git`) and may be the
   // file itself (a `.git` file points git at another directory).
-  return segments.some((_segment, index) =>
-    PROTECTED_PATH_SEGMENTS.some(
-      (protectedSegments) =>
-        protectedSegments.length <= segments.length - index &&
-        protectedSegments.every((part, offset) => segments[index + offset] === part),
-    ),
+  return (
+    PROTECTED_FILE_NAMES.has(name) ||
+    segments.some((_segment, index) =>
+      PROTECTED_PATH_SEGMENTS.some(
+        (protectedSegments) =>
+          protectedSegments.length <= segments.length - index &&
+          protectedSegments.every((part, offset) => segments[index + offset] === part),
+      ),
+    )
   )
 }
 

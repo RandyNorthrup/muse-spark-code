@@ -1123,7 +1123,7 @@ function startPendingBlock(
     pending.toolId = tool.data.id
     pending.toolName = tool.data.name
     for (const [key, value] of Object.entries(tool.data)) {
-      if (key !== 'type' && key !== 'id' && key !== 'name' && key !== 'input') {
+      if (!['type', 'id', 'name', 'input'].includes(key)) {
         pending.extras[key] = value
       }
     }

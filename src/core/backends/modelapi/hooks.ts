@@ -454,10 +454,7 @@ function matcherFor(value: unknown, event: HookEvent): HookMatcher | undefined |
   }
   // Neither carries a match dimension: a batch names many tools, and a fork
   // names none (SessionFork fires nothing until upstream #84 is answered).
-  if (event === 'PostToolBatch' || event === 'SessionFork') {
-    return undefined
-  }
-  if (MATCH_EVERYTHING.has(value)) {
+  if (event === 'PostToolBatch' || event === 'SessionFork' || MATCH_EVERYTHING.has(value)) {
     return undefined
   }
   if (value !== '*' && (event === 'UserPromptSubmit' || event === 'Stop')) {
@@ -1331,9 +1328,9 @@ async function runTypedHook(
   // A hook with no explicit timeout and no caller signal waits on a signal
   // that never aborts: nothing of ours bounds the run.
   const combined =
-    timeout !== undefined && signal !== undefined
-      ? AbortSignal.any([signal, timeout])
-      : (timeout ?? signal ?? AbortSignal.any([]))
+    timeout === undefined || signal === undefined
+      ? (timeout ?? signal ?? AbortSignal.any([]))
+      : AbortSignal.any([signal, timeout])
   const runFallback = (): Promise<HookAnswer | undefined> =>
     runner === undefined || hook.onFailure === undefined
       ? Promise.resolve(undefined)
@@ -1449,8 +1446,9 @@ async function runHandler(
   const answer = parseHookAnswer(event, result.exitCode, result.stdout, result.stderr)
   if (answer.status === 'failed') {
     warn(`${event}: ${hook.source} hook failed (exit ${String(result.exitCode)})`)
-    return result.exitCode !== 0 && hook.onFailure !== undefined
-      ? await runHandler(
+    return result.exitCode === 0 || hook.onFailure === undefined
+      ? undefined
+      : await runHandler(
           hook.onFailure,
           event,
           serialized,
@@ -1460,7 +1458,6 @@ async function runHandler(
           warn,
           maxRunningCommands,
         )
-      : undefined
   }
   return answer
 }

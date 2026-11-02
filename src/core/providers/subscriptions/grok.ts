@@ -546,10 +546,11 @@ function withRefreshedTokens(record: GrokRecord, token: TokenAnswer, now: number
 /** No background calls, logging, child process or UI bridge. */
 export class GrokSignIn {
   private static wrap(error: unknown): GrokSignInError {
-    if (error instanceof GrokSignInError) return error
     // Anything untyped is named by its own codes (Node's network codes, or
     // the error's name), never as an unexplained outage.
-    return new GrokSignInError('request-failed', failureCodeNames(error))
+    return error instanceof GrokSignInError
+      ? error
+      : new GrokSignInError('request-failed', failureCodeNames(error))
   }
 
   public constructor(private readonly host: GrokHostPort) {}

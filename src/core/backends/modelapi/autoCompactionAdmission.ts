@@ -131,11 +131,17 @@ export function createAutoCompactionAdmission(
 ): AdmitAutoCompaction {
   return async ({ signal, model, modelId, sessionId }) => {
     const isAvailable = () => deps.isOn() && deps.isTrusted() && deps.isEvaluated()
-    if (signal.aborted || !isAvailable() || deps.loadPricing === undefined) return
     // Only the verified catalogue is settled here; BYO tariffs belong to C-M101-4.
-    if (model.pricing.kind !== 'priced' || modelApiPaidTier(modelId) === undefined) return
-    const beforeConsent = deps.paidUseFence(sessionId)
-    let isConsentCurrent = beforeConsent
+    if (
+      signal.aborted ||
+      !isAvailable() ||
+      deps.loadPricing === undefined ||
+      model.pricing.kind !== 'priced' ||
+      modelApiPaidTier(modelId) === undefined
+    )
+      return
+    const hasConsentedBefore = deps.paidUseFence(sessionId)
+    let isConsentCurrent = hasConsentedBefore
     const checkAuthorization = () => {
       signal.throwIfAborted()
       if (!isAvailable() || !isConsentCurrent()) throw new AutoCompactionNotAuthorizedError()
@@ -149,8 +155,8 @@ export function createAutoCompactionAdmission(
     )
     signal.throwIfAborted()
     if (paidDecision !== true || !isAvailable() || !isConsentCurrent()) return
-    const acceptedConsent = deps.paidUseFence(sessionId)
-    isConsentCurrent = () => beforeConsent() && acceptedConsent()
+    const hasConsent = deps.paidUseFence(sessionId)
+    isConsentCurrent = () => hasConsentedBefore() && hasConsent()
     let claim: SpendClaim | undefined
     let didSend = false
     let hasFailed = false

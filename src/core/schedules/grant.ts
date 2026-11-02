@@ -17,7 +17,7 @@ function isSafeRelative(value: string, isPattern = false): boolean {
     !/^(?:[\\/]|[a-z]:)/i.test(value) &&
     !/[\p{Cc}:]/u.test(value) &&
     (!isPattern || !/[{}[\]!]/u.test(value)) &&
-    value.split(/[\\/]/).every((part) => part !== '' && part !== '.' && part !== '..')
+    value.split(/[\\/]/).every((part) => !['', '.', '..'].includes(part))
   )
 }
 

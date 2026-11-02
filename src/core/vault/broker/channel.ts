@@ -250,8 +250,7 @@ export class VaultChannelServer {
         // this registration; a proposal may add taint, never clear it. A
         // host that has not reported has no provenance owner: refuse.
         const reported = this.provenance.get(socket)
-        if (!reported || !token) return denied
-        if (socket.destroyed) return denied
+        if (!reported || !token || socket.destroyed) return denied
         const result = await broker.request(
           requester,
           request.proposal.handle,
@@ -728,9 +727,7 @@ export class VaultChannelServer {
         return
       }
       if (request.kind === 'firstPartyRead') {
-        if (!identity.firstParty || identity.requester !== null)
-          response = { kind: 'denied', reason: 'peer' }
-        else {
+        if (identity.firstParty && identity.requester === null) {
           await this.deps.broker.sendFirstParty(
             identity.peer,
             request,
@@ -761,6 +758,7 @@ export class VaultChannelServer {
           )
           return
         }
+        response = denied
       } else if (request.kind === 'execRedeem' || request.kind === 'execFinish')
         // Feeder frames on a host connection: material is never served here.
         response = denied

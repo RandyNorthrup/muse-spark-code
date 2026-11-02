@@ -423,7 +423,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       const cause = error instanceof Error ? error.message : ''
       draft.errors = [
         redactSecrets(
-          cause !== '' && cause !== UI_TEXT.actionFailed ? cause : UI_TEXT.actionFailed,
+          cause === '' || cause === UI_TEXT.actionFailed ? UI_TEXT.actionFailed : cause,
           Array.from(credentials.values(), (record) => record.secret),
         ),
       ]
@@ -458,10 +458,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       draft.errors = [UI_TEXT.providerSaveSecretFailed]
     }
     if (entry.auth !== 'none' && entry.auth !== 'subscription') {
-      if (credential !== undefined && !isOriginBound(credential, entry.address)) {
-        draft.errors = [UI_TEXT.importNeedsKey]
-      } else {
+      if (credential === undefined || isOriginBound(credential, entry.address)) {
         secret = credential?.secret
+      } else {
+        draft.errors = [UI_TEXT.importNeedsKey]
       }
     }
     editSnapshots.set(draft, { entry, fields: structuredClone(draft), credential })

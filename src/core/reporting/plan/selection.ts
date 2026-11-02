@@ -54,7 +54,7 @@ const COMPLETE_STATES = new Set<PlanMilestone['status']>([
 
 /** Keep declared delivery order, and require evidence for every declared dependency. */
 export function nextSteps(facts: PlanFacts): PlanFacts['deliveryOrder'] {
-  const complete = (id: string) => {
+  const isComplete = (id: string) => {
     const [milestoneId = '', laneId] = id.split(/[/:]/, 2)
     const selected = findMilestone(facts, milestoneId)
     return selected.exitCode === REPORT_EXIT_CODES.generated
@@ -69,6 +69,6 @@ export function nextSteps(facts: PlanFacts): PlanFacts['deliveryOrder'] {
         )
   }
   return facts.deliveryOrder.filter(
-    ({ id, needs }) => !complete(id) && needs.every((need) => complete(need)),
+    ({ id, needs }) => !isComplete(id) && needs.every((need) => isComplete(need)),
   )
 }

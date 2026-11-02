@@ -189,6 +189,7 @@ if (isEntryPoint(import.meta.url)) {
     console.log(`Node registry retention: ${deletions.length} unreachable versions removed`)
   } catch {
     console.error('Node registry retention failed; registry output withheld')
+    // eslint-disable-next-line unicorn/no-top-level-side-effects -- the main-guard runs this only when the file is the program, never on import; the rule does not prove reachability (PLAN §8, RLF-UNICORN79).
     process.exitCode = 1
   }
 }

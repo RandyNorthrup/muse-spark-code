@@ -406,8 +406,6 @@ const CONCLUSION_COUNTS = {
 // A commit status's captured states; a count of 0 with `pending` means none.
 const STATUS_COUNTS = { success: 'passed', failure: 'failed' } as const
 
-type CountKey = 'passed' | 'failed' | 'running' | 'skipped' | 'cancelled'
-
 function isKnownKey<T extends object>(table: T, key: string): key is Extract<keyof T, string> {
   return Object.hasOwn(table, key)
 }
@@ -521,6 +519,7 @@ function summarizeChecks(
   runs: readonly z.infer<typeof checkRunsSchema>['check_runs'][number][],
   statuses: readonly z.infer<typeof combinedStatusSchema>['statuses'][number][],
 ): ChecksSummary {
+  type CountKey = 'passed' | 'failed' | 'running' | 'skipped' | 'cancelled'
   const counts: Record<CountKey, number> = {
     passed: 0,
     failed: 0,
@@ -575,9 +574,9 @@ function readGistReply(raw: unknown): Gist {
       ? raw.id
       : ''
   const parsed = gistSchema.safeParse(raw)
-  return !parsed.success || parsed.data.id !== id
-    ? { id, url: undefined, isPublic: undefined }
-    : { id, url: parsed.data.html_url, isPublic: parsed.data.public }
+  return parsed.success && parsed.data.id === id
+    ? { id, url: parsed.data.html_url, isPublic: parsed.data.public }
+    : { id, url: undefined, isPublic: undefined }
 }
 
 export class GitHubClient {

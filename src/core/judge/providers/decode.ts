@@ -76,9 +76,9 @@ function readAlternative(
 ): { readonly token: string; readonly logprob: number } | undefined {
   if (!isRecord(value) || Object.hasOwn(value, 'logprobs')) return undefined
   const parsed = alternativeSchema.safeParse(value)
-  return !parsed.success || !Number.isFinite(parsed.data.logprob)
-    ? undefined
-    : { token: parsed.data.token, logprob: parsed.data.logprob }
+  return parsed.success && Number.isFinite(parsed.data.logprob)
+    ? { token: parsed.data.token, logprob: parsed.data.logprob }
+    : undefined
 }
 
 function readAlternatives(

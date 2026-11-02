@@ -2624,9 +2624,9 @@ async function wasPublished(
     })
     const reason =
       exposureRefusal(write.sourceExposure, targetExposure) ??
-      (targetExposure !== 'personal' && !write.isProject
-        ? AGENT_IMPORT_ROOT_CHANGED_CODE
-        : undefined)
+      (targetExposure === 'personal' || write.isProject
+        ? undefined
+        : AGENT_IMPORT_ROOT_CHANGED_CODE)
     if (reason !== undefined)
       throw Object.assign(new Error('Import exposure refused'), { code: reason })
     options.beforeWrite?.(write.isProject)

@@ -25,7 +25,6 @@ export function splashFrames(
   art: readonly string[],
   hasReducedMotion: boolean,
 ): readonly (readonly string[])[] {
-  if (hasReducedMotion || art.length === 0) return [art]
   // The reveal answers in whole rows: a partial row would tear the mark.
-  return art.map((_, end) => art.slice(0, end + 1))
+  return hasReducedMotion || art.length === 0 ? [art] : art.map((_, end) => art.slice(0, end + 1))
 }

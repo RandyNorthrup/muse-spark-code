@@ -237,8 +237,9 @@ export async function runOpenRouterConnect(
       // The transaction returns its own failures; aborts, user-file reads
       // and anything else escaping it fail here, with the lease-busy case
       // saying to retry.
-      if (isCredentialLockBusy(error)) deps.printError(UI_TEXT.providerConnectBusy)
-      else deps.printError(UI_TEXT.providerConnectFailed)
+      deps.printError(
+        isCredentialLockBusy(error) ? UI_TEXT.providerConnectBusy : UI_TEXT.providerConnectFailed,
+      )
       return 1
     }
   }

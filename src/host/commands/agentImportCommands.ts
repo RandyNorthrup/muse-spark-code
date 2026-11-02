@@ -572,7 +572,7 @@ async function isCopyTargetSafe(
       const targetExposure = await importExposure(copy.absolutePath, { ...deps, io: deps.io })
       const reason =
         exposureRefusal(copy.sourceExposure, targetExposure) ??
-        (targetExposure !== 'personal' && !copy.isProject ? 'changed' : undefined)
+        (targetExposure === 'personal' || copy.isProject ? undefined : 'changed')
       if (reason !== undefined) {
         deps.showWarning(reasonLabel(reason))
         deps.log.warn(`${LOG_PREFIX} config edit refused (${reason})`)
@@ -593,9 +593,9 @@ async function isCopyTargetSafe(
     return false
   }
   const standing =
-    project !== undefined && !(await isRootCurrent(deps, project))
-      ? 'changed'
-      : await projectStanding(deps, copy.absolutePath, project)
+    project === undefined || (await isRootCurrent(deps, project))
+      ? await projectStanding(deps, copy.absolutePath, project)
+      : 'changed'
   if (standing === 'inside') {
     if (!deps.isActive()) {
       return false

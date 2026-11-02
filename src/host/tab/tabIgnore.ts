@@ -64,7 +64,7 @@ async function checkIgnore(
 function foldersUpToRoot(relativePath: string): string[] {
   const folders: string[] = []
   let folder = path.posix.dirname(relativePath)
-  while (folder !== '.' && folder !== '/' && folder !== '') {
+  while (!['.', '/', ''].includes(folder)) {
     folders.push(folder)
     folder = path.posix.dirname(folder)
   }
@@ -113,16 +113,16 @@ export class TabIgnoreCache {
         return true
       }
     }
-    if (ignored === false) {
-      return false
-    }
     // git cannot answer the plain check: refuse where an ignore file sits in
     // the file's folder or any folder above it, since only there could git
     // have had something to say.
-    return foldersUpToRoot(relativePath).some((folder) =>
-      IGNORE_FILENAMES.some((name) =>
-        this.deps.ignoreFileExists(path.join(rootAbs, ...folder.split('/'), name)),
-      ),
+    return (
+      ignored !== false &&
+      foldersUpToRoot(relativePath).some((folder) =>
+        IGNORE_FILENAMES.some((name) =>
+          this.deps.ignoreFileExists(path.join(rootAbs, ...folder.split('/'), name)),
+        ),
+      )
     )
   }
 

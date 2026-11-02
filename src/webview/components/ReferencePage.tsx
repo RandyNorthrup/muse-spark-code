@@ -176,16 +176,16 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
       ),
     )
     const cliDescription = (entry: (typeof model.cli)[number]) =>
-      entry.usageKey !== undefined && entry.usageLine !== undefined
-        ? (fill(UI_TEXT[entry.usageKey], { command: model.executable }).split('\n')[
-            entry.usageLine
-          ] ?? entry.description)
-        : fill(
+      entry.usageKey === undefined || entry.usageLine === undefined
+        ? fill(
             entry.text === undefined
               ? entry.description
               : referenceText(entry.text, model, nls, UI_TEXT),
             { command: model.executable },
           )
+        : (fill(UI_TEXT[entry.usageKey], { command: model.executable }).split('\n')[
+            entry.usageLine
+          ] ?? entry.description)
     const cliRows = model.cli.filter((entry) =>
       isMatch(entry.name, cliDescription(entry), jsonText(entry.contract ?? {})),
     )

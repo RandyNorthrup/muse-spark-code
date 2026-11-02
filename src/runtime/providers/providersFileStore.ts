@@ -52,9 +52,9 @@ function storedProviderOf(key: string, value: unknown): AccountProvider | undefi
       entry.origin !== new URL(MODEL_API_BASE_URL).origin)
   )
     return undefined
-  return entry.accounts !== undefined && !accountPoolSchema.safeParse(entry.accounts).success
-    ? undefined
-    : entry
+  return entry.accounts === undefined || accountPoolSchema.safeParse(entry.accounts).success
+    ? entry
+    : undefined
 }
 
 /** The built-in entry: every field is already pinned in-repo (the key names
@@ -106,8 +106,7 @@ export class FileAccountsMetadata implements AccountsMetadataPort {
     if (raw === undefined) return { exists: true, envelope, providers: {} }
     if (raw === null || typeof raw !== 'object' || Array.isArray(raw))
       throw new AccountStoreError('invalidProvidersFile')
-    const providers: Record<string, unknown> = {}
-    for (const [key, value] of Object.entries(raw)) providers[key] = value
+    const providers: Record<string, unknown> = Object.fromEntries(Object.entries(raw))
     return { exists: true, envelope, providers }
   }
 

@@ -160,10 +160,13 @@ export function parseSshPublicKey(line: string): ParsedSshPublicKey | undefined 
   const blob = Buffer.from(encoded, 'base64')
   // Buffer skips characters outside the alphabet instead of failing, so the
   // round trip is the alphabet check: only canonical base64 survives it.
-  if (blob.length < SSH_WIRE_U32_BYTES || blob.toString('base64') !== encoded) {
+  if (
+    blob.length < SSH_WIRE_U32_BYTES ||
+    blob.toString('base64') !== encoded ||
+    !isIntactBlob(blob, type)
+  ) {
     return undefined
   }
-  if (!isIntactBlob(blob, type)) return undefined
   return { type, comment: rest.length === 0 ? undefined : rest.join(' ') }
 }
 

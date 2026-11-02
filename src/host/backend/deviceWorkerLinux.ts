@@ -36,7 +36,6 @@ import type { RunProgram } from '../processTree'
 
 const countSchema = z.int().check(z.gte(0))
 const pidSchema = z.int().check(z.gte(1))
-type Power = 'ac' | 'battery' | 'unknown'
 const unitSchema = z.strictObject({
   LoadState: z.enum(['loaded', 'not-found']),
   ActiveState: z.enum(['active', 'activating', 'deactivating', 'inactive', 'failed']),
@@ -46,7 +45,6 @@ const unitSchema = z.strictObject({
   Result: z.string(),
 })
 
-type UnitState = z.infer<typeof unitSchema>
 const listedUnitsSchema = z.array(z.looseObject({ unit: z.string() }))
 // Linux proc(5): starttime is field 22, after the final ')' of the comm field.
 function processIdentity(text: string) {
@@ -158,6 +156,8 @@ function groupPath(group: string, file: string): string {
 
 /** No user manager, unenforceable task limit or sleep authorization means no worker. */
 export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriver {
+  type Power = 'ac' | 'battery' | 'unknown'
+  type UnitState = z.infer<typeof unitSchema>
   const invoke = deps.run ?? run
   const start =
     deps.start ??

@@ -115,9 +115,11 @@ describe('github workflow and releases port', () => {
     const transport = githubCaptureTransport({
       tags: TAGS,
       onUnknown: (request) =>
-        request.url.includes('/releases?')
-          ? Promise.resolve(Response.json(RELEASES_PAGE_1))
-          : Promise.resolve(new Response('not found', { status: 404 })),
+        Promise.resolve(
+          request.url.includes('/releases?')
+            ? Response.json(RELEASES_PAGE_1)
+            : new Response('not found', { status: 404 }),
+        ),
     })
     const result = await readGithubReleases({ transport: transport.transport, options })
     expect(result.record.status).toBe('partial')

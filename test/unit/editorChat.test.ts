@@ -427,8 +427,7 @@ describe('editor chat rates', () => {
     const first: unknown = samples[0]
     if (typeof first !== 'object' || first === null)
       throw new Error('the xai capture lost its first sample')
-    const native: Record<string, unknown> = {}
-    for (const [key, value] of Object.entries(first)) native[key] = value
+    const native: Record<string, unknown> = Object.fromEntries(Object.entries(first))
     const card = listedPriceCard('xai', native)
     if (card?.longContextTier === undefined) throw new Error('the xai sample lost its tier')
     const pricing: ModelPricing = { kind: 'priced', card }

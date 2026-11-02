@@ -39,11 +39,9 @@ export function parseLegalPrompt(text: string): LegalScanInput | undefined {
   const paths = rest.split(WORDS)
   if (
     paths.length > LEGAL_SCAN_PATHS_MAX ||
-    paths.some((word) => word.length === 0 || word.length > LEGAL_PATH_MAX_CHARS)
+    paths.some((word) => word.length === 0 || word.length > LEGAL_PATH_MAX_CHARS) ||
+    paths.some((word) => word.startsWith(OPTION_DASH))
   ) {
-    return undefined
-  }
-  if (paths.some((word) => word.startsWith(OPTION_DASH))) {
     return undefined
   }
   const input: LegalScanInput = { paths }

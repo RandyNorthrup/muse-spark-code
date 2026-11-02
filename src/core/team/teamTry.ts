@@ -67,9 +67,12 @@ export async function tryTeam(
   // The quote names this account when it is shown: a stored-key replacement
   // while the consent is open voids the approval, and nothing is sent.
   quote.digest = await deps.keyDigest()
-  if (quote.digest === undefined) throw new Error(UI_TEXT.teamTryDenied)
-  if (!(await deps.consent())) throw new Error(UI_TEXT.teamTryDenied)
-  if ((await deps.keyDigest()) !== quote.digest) throw new Error(UI_TEXT.teamTryDenied)
+  if (
+    quote.digest === undefined ||
+    !(await deps.consent()) ||
+    (await deps.keyDigest()) !== quote.digest
+  )
+    throw new Error(UI_TEXT.teamTryDenied)
   check()
   let attempts = 0
   let charged = Usd.from(0).toAmount()

@@ -260,7 +260,9 @@ export function readNuGet(
     const { expression } = readNuspecLicense(text)
     const identityKey = `${identity.id.toLowerCase()}@${identity.version ?? ''}`
     const existing = nuspecs.get(identityKey)
-    if (existing !== undefined && existing.expression !== expression) {
+    if (existing === undefined || existing.expression === expression) {
+      nuspecs.set(identityKey, { expression, file })
+    } else {
       incomplete.push(
         fill(UI_TEXT.legalScanner.m165, {
           v0: identityKey,
@@ -271,7 +273,7 @@ export function readNuGet(
         }),
       )
       nuspecs.set(identityKey, { expression: undefined, file })
-    } else nuspecs.set(identityKey, { expression, file })
+    }
     if (
       expression !== undefined &&
       !referenced.has(identity.id) &&

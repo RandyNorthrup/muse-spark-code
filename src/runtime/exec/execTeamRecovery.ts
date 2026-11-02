@@ -68,6 +68,7 @@ async function readLedger(folder: string): Promise<CleanupLedger | undefined> {
     // keeps the orphan-only path. Anything else is unexpected and loud.
     if (isErrno(error) && error.code === 'ENOENT') return undefined
     if (error instanceof SyntaxError) return undefined
+    // eslint-disable-next-line unicorn/prefer-combined-guards -- separate guards keep this catch NARROW for check:catches; the combined guard classifies GENERIC (PLAN §8, RLF-UNICORN79).
     if (error instanceof TypeError) return undefined
     throw error
   }
@@ -329,6 +330,7 @@ async function processStartTimeMs(
     // the read, or the platform helper failed. Anything else is unexpected
     // and reaches the sweep's per-folder record instead of reading as alive.
     if (isErrno(error)) return undefined
+    // eslint-disable-next-line unicorn/prefer-combined-guards -- separate guards keep this catch NARROW for check:catches; the combined guard classifies GENERIC (PLAN §8, RLF-UNICORN79).
     if (error instanceof HelperFailedError) return undefined
     throw error
   }
@@ -590,8 +592,7 @@ export async function preserveFailedMerge(input: {
     )
   } catch (error: unknown) {
     // The hold could not be created: the work stays where it is.
-    if (isTeamGitError(error)) return { kind: 'kept' }
-    if (isErrno(error)) return { kind: 'kept' }
+    if (isTeamGitError(error) || isErrno(error)) return { kind: 'kept' }
     throw error
   }
   return { kind: 'held', ref }
@@ -816,7 +817,7 @@ export async function sweepStaleTeamRuns(options: {
   readonly isAlive?: (pid: number, startedAt: number) => boolean | Promise<boolean>
 }): Promise<SweepResult> {
   const tmpRoot = options.tmpRoot ?? tmpdir()
-  const checkAlive = options.isAlive ?? isProcessAlive
+  const isOwnerAlive = options.isAlive ?? isProcessAlive
   const sweptFolders: string[] = []
   const sweptRefs: string[] = []
   const skipped: string[] = []
@@ -888,7 +889,7 @@ export async function sweepStaleTeamRuns(options: {
     }
     let isAlive: boolean
     try {
-      isAlive = await checkAlive(ledger.owner.pid, ledger.owner.startedAt)
+      isAlive = await isOwnerAlive(ledger.owner.pid, ledger.owner.startedAt)
     } catch {
       // A liveness read that fails unexpectedly keeps the folder for the
       // next sweep (P2-12): only a proven-dead owner sweeps.

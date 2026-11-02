@@ -477,8 +477,6 @@ interface PendingPrompt {
   answerCommit?: Promise<void>
 }
 
-type PromptOutcome = { readonly reason: StopReason } | { readonly error: unknown }
-
 interface PreparingPrompt {
   isCancelled: boolean
   readonly abort: AbortController
@@ -759,14 +757,16 @@ export function dedupeSkillSelectors(skills: readonly SkillSummary[]): readonly 
     const separator = skill.selector.indexOf(':')
     if (separator === -1) return true
     const plugin = skill.selector.slice(0, separator)
-    if (skill.selector.slice(separator + 1) !== plugin) return true
     // A self-qualified pair reads once when its bare form reads the same.
-    return kept.every(
-      (other) =>
-        other === skill ||
-        other.selector !== plugin ||
-        other.description !== skill.description ||
-        (other.argumentHint ?? '') !== (skill.argumentHint ?? ''),
+    return (
+      skill.selector.slice(separator + 1) !== plugin ||
+      kept.every(
+        (other) =>
+          other === skill ||
+          other.selector !== plugin ||
+          other.description !== skill.description ||
+          (other.argumentHint ?? '') !== (skill.argumentHint ?? ''),
+      )
     )
   })
 }
@@ -3238,6 +3238,7 @@ class AcpSession {
     blocks: readonly ContentBlock[],
     onAccepted?: () => void,
   ): Promise<StopReason> {
+    type PromptOutcome = { readonly reason: StopReason } | { readonly error: unknown }
     this.ensureHeld()
     if (this.deps.resources !== undefined) {
       // A rejected reading reaches `respond` below, which reports it once
@@ -3447,11 +3448,11 @@ class AcpSession {
           if ('error' in preparing) throw preparing.error
           if (this.wasEstimateCancelled(preparing)) return 'cancelled'
           let text =
-            this.deps.estimate !== undefined &&
-            this.deps.estimate.isAvailable !== false &&
-            parsed.parts.length !== 1
-              ? UI_TEXT.estimateUsage
-              : UI_TEXT.estimateRuntimeUnavailable
+            this.deps.estimate === undefined ||
+            this.deps.estimate.isAvailable === false ||
+            parsed.parts.length === 1
+              ? UI_TEXT.estimateRuntimeUnavailable
+              : UI_TEXT.estimateUsage
           if (
             this.deps.estimate !== undefined &&
             this.deps.estimate.isAvailable !== false &&
@@ -4996,16 +4997,14 @@ function outboundSentence(message: string): string | undefined {
   for (const prefix of SDK_MESSAGE_PREFIXES) {
     if (unprefixed.startsWith(prefix)) unprefixed = unprefixed.slice(prefix.length)
   }
-  if (outboundSentences().has(unprefixed)) return message
-  // A native helper that is missing or cannot start: the sentence says which
-  // and what to do, its slots hold a file name and a command only.
-  if (isNativeHelperSentence(unprefixed)) return message
-  // Muse Code ending while it starts: the sentence says why (its sign-in
-  // file, its exit status) and what to do; its slots hold digits only.
-  if (isFilledSentence(unprefixed, Object.values(UI_TEXT.museStart))) return message
-  // The start backstops name the failure by its fixed-vocabulary cause (an
-  // error name, code or kind) and send the person to the log.
+  // The allow-list past the prefix; a native helper that is missing or
+  // cannot start (its slots hold a file name and a command only); Muse
+  // Code ending while it starts (its slots hold digits only); and the
+  // start backstops, which name the failure by its fixed-vocabulary cause.
   if (
+    outboundSentences().has(unprefixed) ||
+    isNativeHelperSentence(unprefixed) ||
+    isFilledSentence(unprefixed, Object.values(UI_TEXT.museStart)) ||
     isFilledSentence(
       unprefixed,
       [UI_TEXT.acpSessionStartFailed, UI_TEXT.acpTurnStartFailed],

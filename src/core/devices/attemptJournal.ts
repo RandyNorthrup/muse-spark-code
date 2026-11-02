@@ -26,7 +26,6 @@ import {
 } from '../../shared/devices'
 
 export type DeviceOutcome = Extract<DeviceFrame['body'], { kind: 'outcome' }>['outcome']
-type Tombstone = Extract<DeviceJournalRecord, { kind: 'tombstone' }>
 
 /** M96 must hold an exclusive local lifetime lease, never a reachability/PID guess. */
 export interface AttemptJournalOwner {
@@ -429,6 +428,7 @@ export class AttemptJournal {
     await this.ordered(async () => {
       const state = await this.readNow()
       for (const [index, row] of state.records.entries()) {
+        type Tombstone = Extract<DeviceJournalRecord, { kind: 'tombstone' }>
         if (
           row.kind !== 'receiver-record' ||
           !isTerminal(row) ||

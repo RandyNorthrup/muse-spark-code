@@ -54,8 +54,6 @@ const usageLimitRowSchema = z.union([
     unit: z.optional(z.literal('percent')),
   }),
 ])
-type UsageBreakdownRow = z.infer<typeof usageBreakdownRowSchema>
-type UsageLimitRow = z.infer<typeof usageLimitRowSchema>
 const checkSchema = z.object({
   check: z.string(),
   outcome: z.enum(['passed', 'failed', 'cancelled', 'skipped']),
@@ -141,6 +139,8 @@ export function scrubUsage(
   usage: unknown,
   scrub: SourceScrub,
 ): { readonly usage: ReportSourcePayloads['usage']; readonly problems: readonly ReportProblem[] } {
+  type UsageBreakdownRow = z.infer<typeof usageBreakdownRowSchema>
+  type UsageLimitRow = z.infer<typeof usageLimitRowSchema>
   const scrubbed = scrubSourceValue(usage, scrub)
   const head = usageHeadSchema.parse(scrubbed)
   const breakdown = readReportRows<UsageBreakdownRow>(

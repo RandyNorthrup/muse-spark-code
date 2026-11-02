@@ -106,11 +106,11 @@ function baseText(facts: InstructionFacts): string[] {
     shell = `The shell tool (${facts.shellToolName}) runs one ${facts.shellName} command line in the workspace root. Give a one-line description with every command. Some actions need the user's approval; a refused action comes back as a tool error, so move on instead of retrying it.`
   } else if (facts.hasShell) {
     shell = MODEL_API_MODEL_TEXT.agentNoShell
-  } else if (facts.hostKind !== undefined && facts.hostKind !== 'vscode') {
-    shell = MODEL_API_MODEL_TEXT.runtimeNoShell
-  } else {
+  } else if (facts.hostKind === undefined || facts.hostKind === 'vscode') {
     shell =
       "There is no shell tool: the workspace is in VS Code's Restricted Mode, so commands cannot run until the user trusts it. Some actions need the user's approval; a refused action comes back as a tool error, so move on instead of retrying it."
+  } else {
+    shell = MODEL_API_MODEL_TEXT.runtimeNoShell
   }
   let identity: string
   if (facts.hostKind !== undefined && facts.hostKind !== 'vscode') {
@@ -279,9 +279,9 @@ function verifyText(facts: InstructionFacts): string | undefined {
   const lines = [
     ...(isDiagnosticsOn
       ? [
-          facts.hostKind !== undefined && facts.hostKind !== 'vscode'
-            ? MODEL_API_MODEL_TEXT.runtimeDiagnostics
-            : "- After each round in which you edit files, a message gives the edited files' errors and warnings from VS Code's language servers, with what changed since their previous check. Fix what your edit broke before you finish.",
+          facts.hostKind === undefined || facts.hostKind === 'vscode'
+            ? "- After each round in which you edit files, a message gives the edited files' errors and warnings from VS Code's language servers, with what changed since their previous check. Fix what your edit broke before you finish."
+            : MODEL_API_MODEL_TEXT.runtimeDiagnostics,
         ]
       : []),
     ...(checks.length === 0

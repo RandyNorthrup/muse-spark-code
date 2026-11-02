@@ -323,12 +323,12 @@ function unpricedMessage(
   requestedModel: string | null | undefined,
   file: string | undefined,
 ): string {
-  return file !== undefined &&
-    requestedModel !== undefined &&
-    requestedModel !== null &&
-    requestedModel !== ''
-    ? fill(UI_TEXT.execUnpricedProvider, { model: requestedModel, file })
-    : UI_TEXT.execUnpricedModel
+  return file === undefined ||
+    requestedModel === undefined ||
+    requestedModel === null ||
+    requestedModel === ''
+    ? UI_TEXT.execUnpricedModel
+    : fill(UI_TEXT.execUnpricedProvider, { model: requestedModel, file })
 }
 
 function stopMessage(cause: StopCause, maxRequests: number): string {
@@ -379,13 +379,13 @@ function relativePaths(cwd: string, paths: readonly string[]): string[] {
     ...new Set(
       paths.flatMap((given) => {
         const relative = path.relative(cwd, path.resolve(cwd, given)).split(path.sep).join('/')
-        return relative !== '' &&
-          relative !== '..' &&
-          !relative.startsWith('../') &&
-          !path.isAbsolute(relative) &&
-          !relative.includes(':')
-          ? relative
-          : []
+        return relative === '' ||
+          relative === '..' ||
+          relative.startsWith('../') ||
+          path.isAbsolute(relative) ||
+          relative.includes(':')
+          ? []
+          : relative
       }),
     ),
   ]
@@ -1118,8 +1118,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                     if (details !== undefined) budgetRefusal = details
                     if (message !== undefined) log.info(message)
                   }
-                  if (reason === 'closed') latch({ kind: 'internal' })
-                  else latch({ kind: reason })
+                  latch(reason === 'closed' ? { kind: 'internal' } : { kind: reason })
                 },
                 localRefusal: (kind, message, facts) => {
                   localRefusalFacts = facts
@@ -1184,8 +1183,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             deps.vault !== undefined && {
               vaultExec: () => {
                 const vaultPort = deps.vault
-                if (vaultPort === undefined) throw new Error(UI_TEXT.vault.noAccess)
-                if (vaultSession === undefined) throw new Error(UI_TEXT.vault.noAccess)
+                if (vaultPort === undefined || vaultSession === undefined)
+                  throw new Error(UI_TEXT.vault.noAccess)
                 // One service per run session: its provenance session
                 // must outlive a single command (D243 lane T).
                 if (vaultExecService?.session === vaultSession)

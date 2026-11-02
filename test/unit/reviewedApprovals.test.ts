@@ -140,8 +140,7 @@ describe('ReviewedApprovals', () => {
     await leavesCardByKindOnly((method) => {
       if (method === 'session/start') return { result: startResult }
       if (method === 'turn/start') return refuseUnscripted(method)
-      if (method === 'turn/cancel') return { result: {} }
-      if (method === 'task/stopAll') return { result: {} }
+      if (method === 'turn/cancel' || method === 'task/stopAll') return { result: {} }
       throw new Error(`unexpected ${method}`)
     })
   })

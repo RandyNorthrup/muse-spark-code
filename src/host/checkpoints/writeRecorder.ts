@@ -151,8 +151,6 @@ interface KeptBytes {
   readonly bytes: Uint8Array | undefined
 }
 
-type WriteFields = Pick<WriteRecord, 'before' | 'after' | 'createdFolders' | 'isKept'>
-
 async function lstatOrMissing(absolutePath: string): Promise<BigIntStats | undefined> {
   try {
     return await lstatIdentity(absolutePath)
@@ -249,6 +247,7 @@ export function innermostFolders(relative: string, count: number): readonly stri
 }
 
 export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
+  type WriteFields = Pick<WriteRecord, 'before' | 'after' | 'createdFolders' | 'isKept'>
   const p = pathModule(deps.platform)
   const inFlight = new Set<Promise<void>>()
   let isDrained = false

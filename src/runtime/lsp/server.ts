@@ -74,8 +74,6 @@ export interface LspEditor {
   notify(type: number, message: string): void
 }
 
-type ServerState = 'new' | 'initialized' | 'ready' | 'shutdown'
-
 /** Request failures with their LSP error codes; anything else is an internal error. */
 const FAILURE_CODES: Readonly<Record<string, number>> = {
   ELSP_NOT_READY: LSP_SERVER_NOT_INITIALIZED,
@@ -122,6 +120,7 @@ export async function serveLsp(
   log: Logger,
   signal: AbortSignal,
 ): Promise<number> {
+  type ServerState = 'new' | 'initialized' | 'ready' | 'shutdown'
   const documents = new LspDocuments()
   const calls = new Map<RpcId, AbortController>()
   let state: ServerState = 'new'

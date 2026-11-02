@@ -55,11 +55,10 @@ function compareIdentifiers(a: string, b: string): number {
 }
 
 function comparePrerelease(a: readonly string[], b: readonly string[]): number {
-  if (a.length === 0 || b.length === 0) {
-    // A release outranks every prerelease of the same core version.
-    return Math.sign(b.length - a.length)
-  }
-  return compareIdentifierLists(a, b)
+  // A release outranks every prerelease of the same core version.
+  return a.length === 0 || b.length === 0
+    ? Math.sign(b.length - a.length)
+    : compareIdentifierLists(a, b)
 }
 
 /** The first identifier that differs decides; a list that the other starts with is lower. */

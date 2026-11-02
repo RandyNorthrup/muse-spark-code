@@ -58,9 +58,9 @@ export function bestOfNTakenNotice(run: BestOfNRun): string | undefined {
     return fill(UI_TEXT.bestOfNTaken, { branch })
   }
   const cost =
-    taken?.reportedCostUsd !== undefined && taken.hasUnreportedCost !== true
-      ? taken.reportedCostUsd
-      : undefined
+    taken?.reportedCostUsd === undefined || taken.hasUnreportedCost === true
+      ? undefined
+      : taken.reportedCostUsd
   // The slot carries its unit ("1,234 tokens"), as the comparison's
   // attempt line does; a bare count would not say what was used.
   const reportedUse = fill(UI_TEXT.agentTokens, { tokens: formatNumber(tokens) })

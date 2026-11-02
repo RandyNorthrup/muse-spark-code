@@ -151,7 +151,7 @@ export function makeBoard(
   archived = new Map<string, TeamBoardTask>(),
   counting: Partial<Pick<BoardContext, 'countAttempt' | 'refundAttempt'>> = {},
 ) {
-  const countAttempt = tapped(counting.countAttempt ?? (() => true))
+  const doesCountAttempt = tapped(counting.countAttempt ?? (() => true))
   const refundAttempt = tapped(
     counting.refundAttempt ??
       (() => {
@@ -165,12 +165,12 @@ export function makeBoard(
     workspaceFor: (id) => (id === 'foreign' ? 'other' : undefined),
     workspaceMode: (id) => (id === 'reader' ? 'read-only' : 'own-branch'),
     report: () => 'untrusted report',
-    countAttempt,
+    countAttempt: doesCountAttempt,
     refundAttempt,
     archive,
     archivedTask: (id) => archived.get(id),
   })
-  return { board, countAttempt, refundAttempt, archive, archived }
+  return { board, countAttempt: doesCountAttempt, refundAttempt, archive, archived }
 }
 
 export function boardAttempt(number = 1, kind: TeamAttempt['kind'] = 'engine'): TeamAttempt {

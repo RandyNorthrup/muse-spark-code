@@ -202,14 +202,12 @@ function MediaControls({
       // kind past the controls (P2-7).
       if (!(error instanceof Error)) throw error
       if (!isLive()) return
-      if (
+      setStatus(
         error.message === UI_TEXT.media.recordingPermissionDenied ||
-        error.message === UI_TEXT.media.recordingAccessDenied
-      ) {
-        setStatus(error.message)
-      } else {
-        setStatus(UI_TEXT.media.recordingFailed)
-      }
+          error.message === UI_TEXT.media.recordingAccessDenied
+          ? error.message
+          : UI_TEXT.media.recordingFailed,
+      )
     } finally {
       recordingIntent.current = false
       run.current = undefined

@@ -247,7 +247,7 @@ async function handleRequest(
     )
     return
   }
-  if (pathname !== '/code' && pathname !== '/choices' && pathname !== '/complete') {
+  if (!['/code', '/choices', '/complete'].includes(pathname)) {
     send(response, HTTP_STATUS.notFound, failedPage('not-found'))
     return
   }

@@ -38,8 +38,6 @@ export interface LegalReportProps {
   readonly onClose: () => void
 }
 
-type Flow = 'select' | 'preview' | 'done'
-
 function rangeOf(finding: LegalFinding): LineRange | undefined {
   return finding.file === undefined || finding.line === undefined
     ? undefined
@@ -181,6 +179,7 @@ export function LegalReport({
   onOpenFile,
   onClose,
 }: LegalReportProps) {
+  type Flow = 'select' | 'preview' | 'done'
   const titleId = useId()
   const previewHeadingId = useId()
   const resultHeadingId = useId()

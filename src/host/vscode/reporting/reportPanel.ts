@@ -184,8 +184,7 @@ export class ReportPanel implements vscode.Disposable {
     const result = reportsMethods['reports/run'].result.parse(
       await this.deps.engine().reports.run({ workspaceKey: this.deps.workspaceKey, options }),
     )
-    if (result.status === 'failed') throw new Error(UI_TEXT.reportUi.generationFailed)
-    if (result.document.header.kind !== options.kind)
+    if (result.status === 'failed' || result.document.header.kind !== options.kind)
       throw new Error(UI_TEXT.reportUi.generationFailed)
     if (this.panel !== target) return
     this.display(result.document)

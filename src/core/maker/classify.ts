@@ -204,10 +204,13 @@ function refusedMoonraker(line: string): string | undefined {
 
 function classifyGrblDollar(word: string): MakerLineClass {
   const command = word.toUpperCase()
-  if (command === '$X') return { command, class: 'refused', reason: 'refused-command' }
-  if (/^\$RST/i.test(command)) return { command, class: 'refused', reason: 'refused-command' }
   // A `$` write sets a numbered setting or a startup line; `$J=` is jog.
-  if (/^\$\d+=/.test(command) || /^\$N\d+=/i.test(command))
+  if (
+    command === '$X' ||
+    /^\$RST/i.test(command) ||
+    /^\$\d+=/.test(command) ||
+    /^\$N\d+=/i.test(command)
+  )
     return { command, class: 'refused', reason: 'refused-command' }
   const actionClass = ['$$', '$#', '$G', '$I', '$N'].includes(command) ? 'observe' : 'actuate'
   return { command, class: actionClass }
@@ -228,7 +231,7 @@ const BYTE_CONTROL_END = 0x9f
 function isUnsafeByte(code: number): boolean {
   if (code === BYTE_EXCLAMATION || code === BYTE_TILDE) return true
   return code < BYTE_SPACE
-    ? code !== BYTE_TAB && code !== BYTE_LINE_FEED && code !== BYTE_CARRIAGE_RETURN
+    ? ![BYTE_TAB, BYTE_LINE_FEED, BYTE_CARRIAGE_RETURN].includes(code)
     : code >= BYTE_DELETE && code <= BYTE_CONTROL_END
 }
 
@@ -268,15 +271,13 @@ function classifyMachineLine(kind: MakerTargetKind, line: string): MakerLineClas
 }
 
 export function classifyMakerLine(kind: MakerTargetKind, line: string): MakerLineClass {
-  if (kind === 'mcu') {
-    const chip = refusedChipOp(line)
-    if (chip !== undefined)
-      return { command: firstWord(line), class: 'refused', reason: 'refused-command' }
-    // Microcontroller payloads are firmware bytes shown as hex; composed
-    // flashing commands arrive through the tool-command path instead.
-    return { command: firstWord(line), class: 'program' }
-  }
-  return classifyMachineLine(kind, line)
+  if (kind !== 'mcu') return classifyMachineLine(kind, line)
+  const chip = refusedChipOp(line)
+  // Microcontroller payloads are firmware bytes shown as hex; composed
+  // flashing commands arrive through the tool-command path instead.
+  return chip === undefined
+    ? { command: firstWord(line), class: 'program' }
+    : { command: firstWord(line), class: 'refused', reason: 'refused-command' }
 }
 
 export interface MakerPayloadClass {

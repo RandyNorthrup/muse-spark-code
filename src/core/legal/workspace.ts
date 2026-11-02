@@ -150,6 +150,7 @@ export function readPinnedLegalData(
     // error the guards above already exclude, and it keeps its kind past
     // the read.
     if (error instanceof SyntaxError) return undefined
+    // eslint-disable-next-line unicorn/prefer-combined-guards -- separate guards keep this catch NARROW for check:catches; the combined guard classifies GENERIC (PLAN §8, RLF-UNICORN79).
     if (isCodedError(error)) return undefined
     throw error
   }
@@ -482,6 +483,7 @@ export async function createLegalSnapshot(
         }
         // A shaped store failure reads absent; anything else keeps its kind
         // past the read.
+        // eslint-disable-next-line unicorn/prefer-combined-guards -- separate guards keep this catch NARROW for check:catches; the combined guard classifies GENERIC (PLAN §8, RLF-UNICORN79).
         if (isCodedError(error)) {
           return undefined
         }

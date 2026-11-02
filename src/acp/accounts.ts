@@ -269,8 +269,12 @@ export class AcpAccounts {
         if (isInvalidProvidersFileError(error)) throw error
         throw new Error(UI_TEXT.accounts.unavailable, { cause: error })
       }
-      if (!isCurrent() || !canCommit()) throw new Error(UI_TEXT.accounts.changed)
-      if (state.provider !== this.state.provider || state.currentAccount !== account)
+      if (
+        !isCurrent() ||
+        !canCommit() ||
+        state.provider !== this.state.provider ||
+        state.currentAccount !== account
+      )
         throw new Error(UI_TEXT.accounts.changed)
       if (revision !== this.noticeRevision) {
         if (this.state.currentAccount !== account) throw new Error(UI_TEXT.accounts.changed)

@@ -249,10 +249,7 @@ function validateState(state: DeviceStoreState): void {
     !isUnique(pairIds) ||
     !isUnique(pendingIds) ||
     !isUnique(state.usedInvitationIds) ||
-    !isUnique(state.revokedPairIds)
-  )
-    throw new DevicePairingError('storage')
-  if (
+    !isUnique(state.revokedPairIds) ||
     !isUnique(state.revokedKeys.map((row) => row.pairId)) ||
     state.revokedKeys.some(
       (row) =>

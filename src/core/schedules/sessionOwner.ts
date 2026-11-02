@@ -249,10 +249,11 @@ export class SessionOwner {
   public startAcknowledged(token: SessionToken, turnId: string, didStart: boolean): void {
     const dispatchedAt = this.starts.get(token)
     this.starts.delete(token)
-    if (dispatchedAt === undefined || token.generation !== this.generation) return
     // A queued turn's terminal cannot discard evidence for another turn.
     if (
       !didStart ||
+      dispatchedAt === undefined ||
+      token.generation !== this.generation ||
       this.terminalTurns.has(turnId) ||
       (this.stoppedTurns.get(turnId) ?? -1) > dispatchedAt
     ) {

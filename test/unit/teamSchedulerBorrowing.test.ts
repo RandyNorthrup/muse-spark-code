@@ -485,11 +485,11 @@ function revokeDuring(
         : point === 'launch journal' && coding?.state === 'running'
     if (isPoint && !isReached) await hit()
   })
-  const authorize = f.deps.authorize
+  const doesAuthorize = f.deps.authorize
   f.deps.authorize = async (task, worker) => {
     if (!isReached && point === 'authorization' && task.id === 'coding' && worker.id === 'reviewer')
       await hit()
-    return await authorize(task, worker)
+    return await doesAuthorize(task, worker)
   }
   return { isReached: () => isReached }
 }
@@ -540,8 +540,8 @@ async function wakeAround(
       return journal(snapshot)
     }),
   )
-  const authorize = f.deps.authorize
-  f.deps.authorize = (task, worker) => tracked(() => authorize(task, worker))
+  const doesAuthorize = f.deps.authorize
+  f.deps.authorize = (task, worker) => tracked(() => doesAuthorize(task, worker))
   f.deps.start = tapped((task) => {
     if (task.id === 'first') arrive()
     return Promise.resolve('started')

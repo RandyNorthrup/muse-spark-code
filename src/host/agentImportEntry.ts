@@ -19,7 +19,7 @@ import { type AgentImportHostDeps, runAgentImportUi } from './vscode/agentImport
 
 // One gate for the extension host: a second import asked for while one is
 // open is told so, and starts nothing over the first one's questions.
-const importGate = createImportGate()
+const didRunImport = createImportGate()
 
 export async function runAgentImport(
   host: AgentImportHostDeps,
@@ -46,6 +46,6 @@ export async function importFromAgents(
     io: fileImportIo,
     writer: fileImportWriter,
     isPresent: isPathPresent,
-    gate: importGate,
+    gate: didRunImport,
   })
 }

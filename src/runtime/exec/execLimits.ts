@@ -100,7 +100,7 @@ export function createLifecycle(input: {
   let lastSignal: { signal: ExecSignal; time: number } | undefined
   let isForced = false
   const removers: (() => void)[] = []
-  const latch = (next: StopCause) => {
+  const didLatch = (next: StopCause) => {
     if (cause !== null) return false
     cause = next
     stoppedAt = input.now()
@@ -112,7 +112,7 @@ export function createLifecycle(input: {
     if (lastSignal?.signal === signal && now - lastSignal.time < EXEC_SIGNAL_DEDUP_MS) return
     if (lastSignal === undefined) {
       lastSignal = { signal, time: now }
-      latch({ kind: 'signal', signal })
+      didLatch({ kind: 'signal', signal })
       return
     }
     if (isForced) return
@@ -138,7 +138,7 @@ export function createLifecycle(input: {
     if (delay <= NODE_SET_TIMEOUT_MAX_MS) {
       clearDeadline = input.setTimer(delay, () => {
         clearDeadline = undefined
-        latch({ kind: 'timeout' })
+        didLatch({ kind: 'timeout' })
       })
     } else {
       clearDeadline = input.setTimer(NODE_SET_TIMEOUT_MAX_MS, () => {
@@ -163,7 +163,7 @@ export function createLifecycle(input: {
     stopped,
     deadlineMs,
     startMs: input.processStartMs,
-    latch,
+    latch: didLatch,
     race(waiting) {
       // Attach to the awaited operation even when stop already won: late
       // setup failures cannot become unhandled rejections or change the latch.

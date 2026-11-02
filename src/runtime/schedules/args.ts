@@ -145,9 +145,12 @@ export function parseScheduleCommand(argv: readonly string[]): ScheduleCommandPa
             },
           }
     }
-    if (values['scheduled-prompts'] !== undefined || values['max-budget-usd'] !== undefined)
+    if (
+      values['scheduled-prompts'] !== undefined ||
+      values['max-budget-usd'] !== undefined ||
+      values.draft !== undefined
+    )
       return refused()
-    if (values.draft !== undefined) return refused()
     if (operation === 'timeline') {
       if (
         argument !== undefined ||

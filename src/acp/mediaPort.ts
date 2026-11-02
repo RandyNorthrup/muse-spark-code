@@ -80,14 +80,14 @@ export function runtimeMediaPort(context: AcpMediaContext, deps: RuntimeMediaPor
     prepare: async (input, signal) => {
       const { info } = input
       // A registered source reads the admitted bytes only; no path is kept.
-      return info.kind !== 'video' && info.kind !== 'audio'
-        ? await inlinePart(input, signal)
-        : deps.attached.register(
+      return info.kind === 'video' || info.kind === 'audio'
+        ? deps.attached.register(
             deps.newToken(),
             { name: input.name, info, sha256: input.sha256 },
             { read: (active) => input.source.open(active) },
             owner,
           )
+        : await inlinePart(input, signal)
     },
   })
 }

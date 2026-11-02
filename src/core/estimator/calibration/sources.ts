@@ -341,8 +341,8 @@ export function ciDurationSource(deps: HistoryCiDeps): {
   return {
     duration: async (laneId, asOf) => {
       const parsed = z.array(checkRunSchema).safeParse(deps.readCheckRuns())
-      if (!parsed.success) throw calibrationFailure('invalidHistorySource')
-      if (parsed.data.length > ESTIMATE_MAX_ITEMS) throw calibrationFailure('invalidHistorySource')
+      if (!parsed.success || parsed.data.length > ESTIMATE_MAX_ITEMS)
+        throw calibrationFailure('invalidHistorySource')
       const asOfMs = Date.parse(asOf)
       const runs = parsed.data.filter((run) => {
         const at = Date.parse(run.at)

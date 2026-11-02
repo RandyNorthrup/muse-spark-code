@@ -73,6 +73,7 @@ export async function probeLocalServers(
             snippet: '',
           }
         }
+        // eslint-disable-next-line unicorn/prefer-combined-guards -- separate guards keep this catch NARROW for check:catches; the combined guard classifies GENERIC (PLAN §8, RLF-UNICORN79).
         if (error instanceof TypeError) {
           return {
             host: target.host,

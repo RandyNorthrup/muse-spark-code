@@ -105,8 +105,7 @@ errno the store kept reaches the sentence through a closed kind word,
 never raw. Anything else (including the invalid shape) is not ours to say.
 */
 export function scheduleStoredUnreadableReason(error: unknown): string | undefined {
-  if (!(error instanceof Error)) return undefined
-  if (!error.message.startsWith(UNREADABLE_PREFIX)) return undefined
+  if (!(error instanceof Error) || !error.message.startsWith(UNREADABLE_PREFIX)) return undefined
   const code = error.message.slice(UNREADABLE_PREFIX.length)
   return fill(UI_TEXT.scheduleConsentUnreadable, { reason: scheduleStoreKindWord(code) })
 }

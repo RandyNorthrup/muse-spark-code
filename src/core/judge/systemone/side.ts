@@ -254,16 +254,17 @@ function scrubValue(value: unknown, key: string, isOwnedMap = false): unknown {
   if (typeof value === 'string') return redactSecrets(value.split(key).join(REDACTED))
   if (Array.isArray(value)) return value.map((item) => scrubValue(item, key))
   const record = recordSchema.safeParse(value)
-  if (!record.success) return value
-  return Object.fromEntries(
-    Object.entries(record.data).flatMap(([name, item]) =>
-      // Names in an owned map (question ids, usage counters) are ours, but
-      // never one that carries the credential itself.
-      isCredentialBearingName(name, key) || (!isOwnedMap && isCredentialName(name))
-        ? []
-        : [[name, scrubValue(item, key)]],
-    ),
-  )
+  return record.success
+    ? Object.fromEntries(
+        Object.entries(record.data).flatMap(([name, item]) =>
+          // Names in an owned map (question ids, usage counters) are ours, but
+          // never one that carries the credential itself.
+          isCredentialBearingName(name, key) || (!isOwnedMap && isCredentialName(name))
+            ? []
+            : [[name, scrubValue(item, key)]],
+        ),
+      )
+    : value
 }
 
 /**
@@ -316,10 +317,14 @@ export function pinnedSystemOnePost(
     const verdict = endpointPolicy.checkEndpointUrl(url.href, answers)
     const address = answers[0]
     // Only a public address: a SystemOne preset never has a private one.
-    if (address === undefined || verdict.kind !== 'ok' || verdict.network !== 'public')
-      return notSent
     // Name resolution is a wait: the run must still hold before connecting.
-    if (!request.proceed()) return notSent
+    if (
+      address === undefined ||
+      verdict.kind !== 'ok' ||
+      verdict.network !== 'public' ||
+      !request.proceed()
+    )
+      return notSent
     const target: PinnedTarget = {
       url,
       host,

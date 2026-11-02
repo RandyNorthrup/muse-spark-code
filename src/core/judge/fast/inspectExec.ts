@@ -471,8 +471,7 @@ export async function openInspectSession(
 ): Promise<InspectSessionBinding | undefined> {
   if (helper === undefined) return undefined
   if (process.platform !== 'linux' && process.platform !== 'darwin') return undefined
-  if (process.getuid?.() === 0 || process.geteuid?.() === 0) return undefined
-  if (!existsSync(helper)) return undefined
+  if (process.getuid?.() === 0 || process.geteuid?.() === 0 || !existsSync(helper)) return undefined
   let storage: string
   try {
     storage = await mkdtemp(path.join(tmpdir(), 'b1-'))

@@ -453,10 +453,11 @@ export function createTeamPanelController(deps: TeamPanelDeps): TeamPanelControl
           // (D75); the meters count caps per entry, so the share is split
           // across the priced entries rather than copied onto each one.
           const priced = role.pool.filter((entry) => {
-            const offer =
+            const offer = offers.find(
               entry.agent === undefined
-                ? offers.find((item) => item.ref === derived.defaultRef)
-                : offers.find((item) => isSameAgent(item, entry.agent))
+                ? (item) => item.ref === derived.defaultRef
+                : (item) => isSameAgent(item, entry.agent),
+            )
             return (
               offer?.agent.pays === 'key' &&
               offer.inputRate !== undefined &&
@@ -485,8 +486,8 @@ export function createTeamPanelController(deps: TeamPanelDeps): TeamPanelControl
       case 'roles/try': {
         if (deps.dryRun === undefined) throw new Error(UI_TEXT.teamEditor.invalid)
         const derived = await view()
-        if (derived.issues.length > 0) throw new Error(UI_TEXT.teamEditor.invalid)
-        if (trying !== undefined) throw new Error(UI_TEXT.teamEditor.invalid)
+        if (trying !== undefined || derived.issues.length > 0)
+          throw new Error(UI_TEXT.teamEditor.invalid)
         const abort = new AbortController()
         trying = abort
         try {

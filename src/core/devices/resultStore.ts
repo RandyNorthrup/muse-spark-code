@@ -84,8 +84,8 @@ export class FileResultStore implements DeviceResultStore {
   ) {}
 
   private async assertStorage(): Promise<void> {
-    if (this.hasFailed) throw new DeviceResultError('storage')
     if (
+      this.hasFailed ||
       !sameFile(
         this.directoryIdentity,
         await checkPrivatePath(this.directory, true, this.storage, refuseResult),

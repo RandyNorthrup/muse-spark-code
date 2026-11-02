@@ -1085,8 +1085,8 @@ export class ConnectorRegistry implements ConnectorServer {
     if (grant === undefined || grant.revoked) return []
     return CONNECTOR_TOOLS.flatMap((tool) => {
       const backed = tool.availability
-      if (backed.kind !== 'backed') return []
-      if (tool.scopes.some((scope) => !grant.scopes.includes(scope))) return []
+      if (backed.kind !== 'backed' || tool.scopes.some((scope) => !grant.scopes.includes(scope)))
+        return []
       return {
         name: tool.name,
         description: CONNECTOR_MODEL_TEXT[backed.description],

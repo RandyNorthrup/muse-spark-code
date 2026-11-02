@@ -167,10 +167,6 @@ const deferredEventSchema = z.strictObject({
   failures: z.optional(z.int().check(z.gte(0))),
 })
 const deferredFileSchema = z.array(deferredEventSchema)
-type DeferredEvent = Omit<z.infer<typeof deferredEventSchema>, 'failures'> & {
-  readonly failures: number
-}
-
 /** Capped exponential backoff after a failed deferred event: the base
 doubles per failure, never past the cap (AWS Architecture Blog,
 "Exponential Backoff And Jitter": wait = min(cap, base * 2^failures)). */
@@ -210,9 +206,9 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
     signal: combined,
   })
   const runtimeDelivery =
-    options.runtimeDelivery !== undefined && options.runtimeDeliveryFactory !== undefined
-      ? options.runtimeDeliveryFactory(options.runtimeDelivery, authority, registry)
-      : undefined
+    options.runtimeDelivery === undefined || options.runtimeDeliveryFactory === undefined
+      ? undefined
+      : options.runtimeDeliveryFactory(options.runtimeDelivery, authority, registry)
   if (runtimeDelivery === undefined && options.runtimeDelivery !== undefined)
     throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
   const late: { delivery?: ScheduleDelivery } = {}
@@ -442,6 +438,9 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
     },
   })
   const controls = new Map<string, ScheduleControlPort>()
+  type DeferredEvent = Omit<z.infer<typeof deferredEventSchema>, 'failures'> & {
+    readonly failures: number
+  }
   const readDeferred = async (): Promise<DeferredEvent[]> => {
     const raw = await options.fs.read('runtime/deferred-events.json', { signal: combined })
     if (raw === undefined) return []

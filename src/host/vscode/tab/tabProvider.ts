@@ -326,16 +326,13 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
         const related = await vscode.workspace.openTextDocument(candidate.uri)
         if (isCancelled() || !deps.isTrusted() || ignore.currentGeneration !== checkedGeneration)
           return ''
-        if (
-          !isTabLanguageOn(deps.settings().tabLanguages, related.languageId) ||
-          isFilesExcluded(relativePath, policy.filesExclude(candidate.uri), checks.hasSibling)
-        )
-          continue
         // A large unsaved buffer is refused before reading its text too.
         if (
+          !isTabLanguageOn(deps.settings().tabLanguages, related.languageId) ||
+          isFilesExcluded(relativePath, policy.filesExclude(candidate.uri), checks.hasSibling) ||
           related.offsetAt(related.lineAt(related.lineCount - 1).range.end) *
             TAB_UTF8_BYTES_PER_CODE_UNIT >
-          TAB_FILE_MAX_BYTES
+            TAB_FILE_MAX_BYTES
         )
           continue
         const text = related.getText()

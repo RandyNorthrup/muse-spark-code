@@ -251,27 +251,35 @@ export class ResourceRelocator {
         target = await this.select(work, signal, targetId, false)
         if (target === undefined || this.status(signal, isManual) === null) return result
         isApproved = (await unlessAborted(this.options.ask(work, target, signal), signal)) === true
-        if (!isApproved) return result
-        if ((await this.headroom(work, target, signal)) === null) return result
+        if (!isApproved || (await this.headroom(work, target, signal)) === null) return result
       } else {
         target = await this.select(work, signal, targetId, true)
       }
       let status = this.status(signal, isManual)
       if (target === undefined || status === null) return result
+      // A probe or an answer may have moved the machine: re-read the status,
+      // and read a non-queued phase as gone once the work is not running.
+      const refreshStatus = (): ResourceStatus | null => {
+        const next = this.status(signal, isManual)
+        return next === null || (!isRunning && work.phase() !== 'queued') ? null : next
+      }
       if (isRunning) {
         result = 'uncertain'
         if ((await work.retire?.()) !== true) return result
         result = 'kept'
       }
-      if (this.status(signal, isManual) === null) return result
-      if ((await this.headroom(work, target, signal)) === null) return result
-      status = this.status(signal, isManual)
-      if (status === null || (!isRunning && work.phase() !== 'queued')) return result
+      if (
+        this.status(signal, isManual) === null ||
+        (await this.headroom(work, target, signal)) === null
+      )
+        return result
+      status = refreshStatus()
+      if (status === null) return result
       if (!isApproved && status.settings.relocate === 'ask') {
         isApproved = (await unlessAborted(this.options.ask(work, target, signal), signal)) === true
         if (!isApproved || (await this.headroom(work, target, signal)) === null) return result
-        status = this.status(signal, isManual)
-        if (status === null || (!isRunning && work.phase() !== 'queued')) return result
+        status = refreshStatus()
+        if (status === null) return result
       }
       const metadata: RelocationMetadata = Object.freeze({
         reason: 'machineBusy',

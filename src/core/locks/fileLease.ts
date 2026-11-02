@@ -485,11 +485,8 @@ async function retire(
   try {
     await port.rename(lockPath, aside)
   } catch (error: unknown) {
-    if (isErrno(error, 'ENOENT')) {
-      return 'retired'
-    }
     // Held by a scanner and the like: nothing moved; wait on.
-    return 'kept'
+    return isErrno(error, 'ENOENT') ? 'retired' : 'kept'
   }
   const moved = await instanceAt(port, aside)
   if (

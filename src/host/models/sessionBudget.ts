@@ -73,9 +73,9 @@ export function createSessionBudgetConfig(
       // An existing workspace value stays a workspace value; a global one
       // stays global. The write below never moves the value's scope.
       const scope: SessionBudgetScope =
-        inspected?.workspaceValue !== undefined || inspected?.workspaceFolderValue !== undefined
-          ? 'workspace'
-          : 'global'
+        inspected?.workspaceValue === undefined && inspected?.workspaceFolderValue === undefined
+          ? 'global'
+          : 'workspace'
       return {
         effectiveUsd: readEffective(),
         scope,
@@ -146,10 +146,7 @@ export async function applyWizardSessionBudget(
   }
   // The setting's own schema: non-negative exact-decimal USD, as elsewhere.
   const parsed = legacyUsdSchema.safeParse(budget)
-  if (!parsed.success) {
-    return { status: 'failed', error: UI_TEXT.wizardSessionBudgetInvalid }
-  }
-  if (expectedUsd === undefined) {
+  if (expectedUsd === undefined || !parsed.success) {
     return { status: 'failed', error: UI_TEXT.wizardSessionBudgetInvalid }
   }
   const current = config.read()

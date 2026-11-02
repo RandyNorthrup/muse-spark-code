@@ -537,12 +537,12 @@ export function createByoJudge(deps: ByoJudgeDeps): ByoJudge {
     )
       return noAnswer('source-unavailable')
     if (current.fingerprint === 'unpriced') return noAnswer('unpriced')
-    return current.fingerprint !== before.fingerprint ||
-      current.consentEpoch !== before.consentEpoch ||
-      current.consentExpiresAtMs !== before.consentExpiresAtMs ||
-      current.consentPrice !== before.consentPrice
-      ? noAnswer('consent-needed')
-      : consentBlock(current, isPriced)
+    return current.fingerprint === before.fingerprint &&
+      current.consentEpoch === before.consentEpoch &&
+      current.consentExpiresAtMs === before.consentExpiresAtMs &&
+      current.consentPrice === before.consentPrice
+      ? consentBlock(current, isPriced)
+      : noAnswer('consent-needed')
   }
 
   function opened(before: Snapshot): JudgeOutcome | undefined {

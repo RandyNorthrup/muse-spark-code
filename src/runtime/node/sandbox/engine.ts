@@ -487,7 +487,7 @@ export async function cleanupSandboxes(
   const sandboxes = await listSandboxes(engine)
   for (const summary of sandboxes) {
     if (wanted.some(([key, value]) => summary.Labels[key] !== value)) continue
-    if (summary.State !== 'exited' && summary.State !== 'created' && summary.State !== 'dead') {
+    if (!['exited', 'created', 'dead'].includes(summary.State)) {
       kept.push({ id: summary.Id, reason: 'running' })
       continue
     }
