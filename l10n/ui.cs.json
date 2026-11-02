@@ -1651,6 +1651,9 @@
   "sentOnSchedule": "Odesláno podle plánu",
   "museCodeOnceEnvKeyRefused": "Časovaná odeslání Muse Code nejsou k dispozici, dokud je v tomto okně nastaven META_API_KEY: odeslání by účtovalo tomuto klíči, nikoli přihlášenému účtu.",
   "museCodeOnceAccountChanged": "Přihlášení Muse Code se od naplánování tohoto odeslání změnilo, proto bylo odeslání odmítnuto. Naplánujte je znovu, aby se odeslalo pod aktuálním přihlášením.",
+  "timedSendRefused": "Časované odeslání „{name}“ bylo odmítnuto: {reason}",
+  "timedSendSkipped": "Časované odeslání „{name}“ bylo přeskočeno: {reason}",
+  "timedSendMissed": "Časované odeslání „{name}“ propáslo svůj okamžik: {reason}",
   "museCodeOnceCleared": {
     "one": "Přihlášení Muse Code se od naplánování časovaného odeslání změnilo, proto bylo odeslání odebráno. Naplánujte je znovu, aby se odeslalo pod aktuálním přihlášením.",
     "other": "Přihlášení Muse Code se od naplánování {count} časovaných odeslání změnilo, proto byla odeslání odebrána. Naplánujte je znovu, aby se odeslala pod aktuálním přihlášením.",

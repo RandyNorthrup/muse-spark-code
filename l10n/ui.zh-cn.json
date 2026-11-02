@@ -1621,6 +1621,9 @@
   "sentOnSchedule": "已按计划发送",
   "museCodeOnceEnvKeyRefused": "在此窗口中设置了 META_API_KEY 时，Muse Code 定时发送不可用：发送将计费到该密钥，而非当前登录的帐户。",
   "museCodeOnceAccountChanged": "安排此次发送后，Muse Code 的登录状态发生了变化，因此发送被拒绝。请重新安排，以使用当前登录状态发送。",
+  "timedSendRefused": "定时发送“{name}”被拒绝：{reason}",
+  "timedSendSkipped": "定时发送“{name}”被跳过：{reason}",
+  "timedSendMissed": "定时发送“{name}”错过了发送时机：{reason}",
   "museCodeOnceCleared": {
     "other": "安排后 Muse Code 的登录状态发生了变化，因此 {count} 个定时发送已被移除。请重新安排，以使用当前登录状态发送。"
   },

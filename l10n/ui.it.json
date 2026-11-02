@@ -1641,6 +1641,9 @@
   "sentOnSchedule": "Inviato come programmato",
   "museCodeOnceEnvKeyRefused": "Gli invii programmati di Muse Code non sono disponibili mentre META_API_KEY è impostato in questa finestra: un invio verrebbe addebitato a tale chiave, non all’account collegato.",
   "museCodeOnceAccountChanged": "L’accesso a Muse Code è cambiato da quando è stato programmato questo invio, che è stato quindi rifiutato. Programmalo di nuovo per inviarlo con l’accesso attuale.",
+  "timedSendRefused": "L’invio programmato “{name}” è stato rifiutato: {reason}",
+  "timedSendSkipped": "L’invio programmato “{name}” è stato saltato: {reason}",
+  "timedSendMissed": "L’invio programmato “{name}” ha perso il suo momento: {reason}",
   "museCodeOnceCleared": {
     "one": "L’accesso a Muse Code è cambiato da quando è stato programmato un invio, che è stato quindi rimosso. Programmalo di nuovo per inviarlo con l’accesso attuale.",
     "other": "L’accesso a Muse Code è cambiato da quando sono stati programmati {count} invii, che sono stati quindi rimossi. Programmali di nuovo per inviarli con l’accesso attuale.",

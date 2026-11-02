@@ -1621,6 +1621,9 @@
   "sentOnSchedule": "已按計劃傳送",
   "museCodeOnceEnvKeyRefused": "在此視窗中設定了 META_API_KEY 時，Muse Code 定時傳送無法使用：傳送將計費到該金鑰，而非目前登入的帳戶。",
   "museCodeOnceAccountChanged": "安排此次傳送後，Muse Code 的登入狀態發生了變化，因此傳送被拒絕。請重新安排，以使用目前登入狀態傳送。",
+  "timedSendRefused": "定時傳送「{name}」被拒絕：{reason}",
+  "timedSendSkipped": "定時傳送「{name}」被略過：{reason}",
+  "timedSendMissed": "定時傳送「{name}」錯過了傳送時機：{reason}",
   "museCodeOnceCleared": {
     "other": "安排後 Muse Code 的登入狀態發生了變化，因此 {count} 個定時傳送已被移除。請重新安排，以使用目前登入狀態傳送。"
   },

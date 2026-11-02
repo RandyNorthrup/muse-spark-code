@@ -1621,6 +1621,9 @@
   "sentOnSchedule": "スケジュールどおりに送信",
   "museCodeOnceEnvKeyRefused": "このウィンドウで META_API_KEY が設定されている間、Muse Code の予約送信は利用できません。送信はサインイン中のアカウントではなく、そのキーに課金されるためです。",
   "museCodeOnceAccountChanged": "この送信の予約後に Muse Code のサインインが変更されたため、送信は拒否されました。現在のサインインで送信するには、もう一度予約してください。",
+  "timedSendRefused": "予約送信「{name}」は拒否されました：{reason}",
+  "timedSendSkipped": "予約送信「{name}」はスキップされました：{reason}",
+  "timedSendMissed": "予約送信「{name}」は送信時刻を逃しました：{reason}",
   "museCodeOnceCleared": {
     "other": "予約後に Muse Code のサインインが変更されたため、{count} 件の予約送信は削除されました。現在のサインインで送信するには、もう一度予約してください。"
   },

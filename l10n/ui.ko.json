@@ -1621,6 +1621,9 @@
   "sentOnSchedule": "예약대로 전송됨",
   "museCodeOnceEnvKeyRefused": "이 창에 META_API_KEY가 설정되어 있는 동안에는 Muse Code 예약 전송을 사용할 수 없습니다. 전송 요금이 로그인된 계정이 아닌 해당 키에 청구되기 때문입니다.",
   "museCodeOnceAccountChanged": "이 전송을 예약한 이후 Muse Code 로그인이 변경되어 전송이 거부되었습니다. 현재 로그인으로 전송하려면 다시 예약하세요.",
+  "timedSendRefused": "예약 전송 “{name}”이(가) 거부되었습니다: {reason}",
+  "timedSendSkipped": "예약 전송 “{name}”이(가) 건너뛰어졌습니다: {reason}",
+  "timedSendMissed": "예약 전송 “{name}”이(가) 전송 시점을 놓쳤습니다: {reason}",
   "museCodeOnceCleared": {
     "other": "예약 이후 Muse Code 로그인이 변경되어 예약 전송 {count}건이 삭제되었습니다. 현재 로그인으로 전송하려면 다시 예약하세요."
   },

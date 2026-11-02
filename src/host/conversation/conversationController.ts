@@ -14236,6 +14236,11 @@ export class ConversationController implements DeferredSend {
       this.say('info', text)
   }
 
+  /** An unsent once-send's outcome (M88 lane C): the window's notifier raises it while unfocused. */
+  public notifyScheduleOutcome(notice: AttentionNotice): void {
+    if (!this.isDisposed) this.deps.notifyAttention(notice)
+  }
+
   public revealBoardSession(sessionId: string, backend: BackendKind): boolean {
     if (
       this.isDisposed ||
