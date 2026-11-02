@@ -5,7 +5,7 @@ import { removeFolder } from './helpers/temporaryFolders'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { machineSimulator } from './helpers/makerMachineSimulator'
-import { runRuntimeMaker } from '../../src/runtime/maker/entry'
+import { runRuntimeMaker, type RuntimeMakerEntryDeps } from '../../src/runtime/maker/entry'
 import { parseMakerCommand } from '../../src/runtime/maker/commandArgs'
 import {
   runtimeLeaseIdentity,
@@ -67,6 +67,32 @@ async function fixture() {
   return { root, directory, record, deps, server, stops }
 }
 const devicesFailed = () => fill(UI_TEXT.makerStopFailed, { machine: UI_TEXT.makerDevicesTitle })
+/** `stop-machine printer` through the CLI entry, which must fail: the words it reports. */
+async function failedPrinterStop(
+  deps: Pick<RuntimeMakerEntryDeps, 'dataDirectory' | 'platform' | 'secrets' | 'lan'>,
+  workspace: string,
+): Promise<string[]> {
+  const output: string[] = []
+  const command = parseMakerCommand(['stop-machine', 'printer'])
+  if (command === undefined) throw new Error('command')
+  expect(
+    await runRuntimeMaker(command, {
+      ...deps,
+      workspace,
+      distDirectory: '',
+      env: {},
+      readSecret: () => Promise.resolve(undefined),
+      print: () => undefined,
+      reportFailure: (text) => {
+        output.push(text)
+      },
+      done: new AbortController().signal,
+      table: EN,
+      locale: 'en',
+    }),
+  ).toBe(1)
+  return output
+}
 // FIXM103W11: a Stop index record for one owner, with the endpoint spelling under test.
 async function owner(endpoint: (folder: string, id: string) => string, pid = process.pid) {
   const f = await fixture()
@@ -171,25 +197,7 @@ describe('independent runtime Stop', () => {
   it('names a failed machine and directs immediate physical emergency Stop', async () => {
     const f = await fixture()
     f.server.reply({ status: 500, body: 'private transport detail' })
-    const output: string[] = []
-    const command = parseMakerCommand(['stop-machine', 'printer'])
-    if (command === undefined) throw new Error('command')
-    expect(
-      await runRuntimeMaker(command, {
-        ...f.deps,
-        workspace: f.root,
-        distDirectory: '',
-        env: {},
-        readSecret: () => Promise.resolve(undefined),
-        print: () => undefined,
-        reportFailure: (text) => {
-          output.push(text)
-        },
-        done: new AbortController().signal,
-        table: EN,
-        locale: 'en',
-      }),
-    ).toBe(1)
+    const output = await failedPrinterStop(f.deps, f.root)
     expect(output).toEqual([fill(UI_TEXT.makerStopFailed, { machine: 'Bench printer' })])
     expect(output.join('')).not.toContain('private transport')
     expect(f.stops()).toHaveLength(1)
@@ -197,25 +205,7 @@ describe('independent runtime Stop', () => {
   it("a person's command, which passes no LAN policy, keeps the production one", async () => {
     const f = await fixture()
     const { lan: _, ...person } = f.deps
-    const output: string[] = []
-    const command = parseMakerCommand(['stop-machine', 'printer'])
-    if (command === undefined) throw new Error('command')
-    expect(
-      await runRuntimeMaker(command, {
-        ...person,
-        workspace: f.root,
-        distDirectory: '',
-        env: {},
-        readSecret: () => Promise.resolve(undefined),
-        print: () => undefined,
-        reportFailure: (text) => {
-          output.push(text)
-        },
-        done: new AbortController().signal,
-        table: EN,
-        locale: 'en',
-      }),
-    ).toBe(1)
+    const output = await failedPrinterStop(person, f.root)
     expect(output).toEqual([fill(UI_TEXT.makerStopFailed, { machine: 'Bench printer' })])
     // The rule refuses a loopback machine before any request leaves.
     expect(f.server.requests).toEqual([])
