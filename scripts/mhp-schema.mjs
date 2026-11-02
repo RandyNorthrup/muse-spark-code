@@ -110,7 +110,7 @@ const contract = {
     transport: 'JSON-RPC 2.0, one UTF-8 JSON object per line over stdio; no batches',
     positions: 'zero-based UTF-16 line and character',
     initialize:
-      'hostToRuntime; editor sends host metadata, locale, theme, folders, trust and capabilities; runtime returns mhp/1.5.0 and its capabilities',
+      'hostToRuntime; editor sends host metadata, locale, theme, folders, trust and capabilities; runtime returns mhp/1.5.1 and its capabilities',
     requiredCapability: 'lifecycle',
     versioning: 'breaking schema or semantic changes require a new protocol version and snapshot',
     edits:
@@ -141,7 +141,7 @@ const panelContract = {
     ...contract.conventions,
     transport: 'one bounded UTF-8 NDJSON stream multiplexes JSON-RPC and MHP 1.5 envelopes',
     initialize:
-      'hostToRuntime; select mhp/1.5.0 only when offered; every incompatible range receives MHP_INCOMPATIBLE_VERSION',
+      'hostToRuntime; select mhp/1.5.1 only when offered; every incompatible range receives MHP_INCOMPATIBLE_VERSION',
     panel: 'docs/ide-compatibility/host-api-panel-1.1.md',
   },
   methods: {
@@ -161,7 +161,7 @@ const panelContract = {
       maximumQueuedMessages: MHP_PANEL.maximumQueuedMessages,
     },
     invariants: [
-      'Panel frames require negotiated mhp/1.5.0. Validate shared payload and bound surface kind before delivery.',
+      'Panel frames require negotiated mhp/1.5.1. Validate shared payload and bound surface kind before delivery.',
       'One immutable session binding per surface; unknown/closed surfaces produce typed errors and no delivery.',
       'Sequence starts at 1 per surface and direction; reject duplicates and gaps without advancing.',
       'Reload retains binding and sequence, suspends delivery until ready, then replays stateRequest once.',
