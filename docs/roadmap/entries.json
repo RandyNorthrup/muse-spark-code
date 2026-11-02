@@ -1499,6 +1499,11 @@
       "title": "The ACP agent ends when its client leaves, even while Muse Code is starting",
       "summary": "Closing the editor, stopping the agent or a crashed editor ends the agent and the Muse Code it started in every state, with no process left behind.",
       "area": "platform"
+    },
+    {
+      "id": "RLFUNPROVEN",
+      "public": false,
+      "note": "recovery: the unproven backlog as run-ready real-life scenarios plus the scenario index"
     }
   ]
 }
