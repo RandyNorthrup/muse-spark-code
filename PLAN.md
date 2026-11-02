@@ -9823,9 +9823,10 @@ leaves sensitive files out in every mode but Bypass and says how many
 (`searchPaging.ts`), judged on the listed names — a link into the set
 under another listed name is the one named gap, and `read_file` of it
 still asks on the canonical path. A hook handler's own agent turn can
-show no card, so it simply does not read a sensitive file; the repeat
-witness never stands in for the card; sensitive reads never run in a
-parallel read group. In an unattended scheduled run both asks are
+show no card, so it simply does not read a sensitive file; sensitive
+reads never run in a parallel read group. The repeat witness needs no
+guard: it only fingerprints in-process and every call still dispatches
+and asks as run. In an unattended scheduled run both asks are
 requires-asking and refuse. `museSpark.modelApiSensitiveReads`
 (machine) is the person's set: unset (`null`) is the built-in one, a
 workspace-relative glob list replaces it, an empty list empties it,

@@ -116,7 +116,7 @@ interface SensitiveParts {
 /** The built-in sensitive set (D261): each name judged on its own path. */
 const BUILT_IN_SENSITIVE: SensitiveParts = {
   globs: null,
-  isSensitive: (relativePaths) => relativePaths.some((path) => isSensitiveReadPath(path)),
+  isSensitive: (paths) => paths.some((path) => isSensitiveReadPath(path)),
 }
 
 const sensitiveReadsSchema = z.array(z.string()).check(z.maxLength(PERMISSION_PROFILE_MAX_GLOBS))
@@ -139,18 +139,14 @@ function sensitiveParts(raw: unknown, problems: PolicyProblem[]): SensitiveParts
   }
   const globs = parsed.data.map((glob) => glob.toLowerCase())
   try {
-    for (const glob of globs) {
-      compileGlob(glob)
-    }
+    return { globs, isSensitive: compileDenyGlobs(globs) }
   } catch (error: unknown) {
-    // compileGlob fails only on a RangeError (past the length or
+    // Compiling fails only on a RangeError (past the length or
     // alternative caps); anything else is not the glob's fault.
     if (!(error instanceof RangeError)) throw error
     problems.push({ kind: 'sensitiveInvalid' })
     return BUILT_IN_SENSITIVE
   }
-  const isSensitive = compileDenyGlobs(globs)
-  return { globs, isSensitive }
 }
 
 /** The globs that compile, lower case; one that does not denies every file, and says so. */

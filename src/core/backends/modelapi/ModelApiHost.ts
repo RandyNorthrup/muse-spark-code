@@ -2384,9 +2384,7 @@ function cardNote(
   if (judgement?.settledBy === 'hardwareDetected') return UI_TEXT.approvalHardwareNote
   // D261: the card names the file and that its contents go to the model.
   if (judgement?.settledBy === 'sensitiveRead') {
-    const path =
-      query?.command ?? (call === undefined ? undefined : pick(argumentsOf(call), 'path')) ?? ''
-    return fill(UI_TEXT.approvalSensitiveReadNote, { path })
+    return fill(UI_TEXT.approvalSensitiveReadNote, { path: query?.command ?? '' })
   }
   // D261: the exact text the memory write would save, as the model wrote it.
   if (call !== undefined && judgement?.settledBy === 'untrustedMemory') {
@@ -10597,6 +10595,14 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (given === undefined) {
       return undefined
     }
+    const ask = (
+      confined: { readonly canonical: string },
+      names: readonly string[],
+      display: string,
+    ): string | undefined =>
+      policy.files.isDenied(names) || !policy.files.isSensitive([confined.canonical])
+        ? undefined
+        : display
     const inWorkspace = await confineWorkspacePath(
       this.deps.workspaceRoot,
       given,
@@ -10604,10 +10610,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.deps.io,
     )
     if (inWorkspace.ok) {
-      return policy.files.isDenied([inWorkspace.relative, inWorkspace.canonical]) ||
-        !policy.files.isSensitive([inWorkspace.canonical])
-        ? undefined
-        : inWorkspace.canonical
+      return ask(inWorkspace, [inWorkspace.relative, inWorkspace.canonical], inWorkspace.canonical)
     }
     const p = pathModule(this.deps.platform)
     for (const root of policy.files.extraRoots) {
@@ -10616,10 +10619,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         continue
       }
       const absolute = underRoot.absolute.replaceAll(p.sep, '/')
-      return policy.files.isDenied([absolute, underRoot.canonical]) ||
-        !policy.files.isSensitive([underRoot.canonical])
-        ? undefined
-        : absolute
+      return ask(underRoot, [absolute, underRoot.canonical], absolute)
     }
     return undefined
   }
@@ -11275,22 +11275,13 @@ export class ModelApiSession implements ScheduledAgentSession {
       return outcome.output
     }
     // No card can be shown inside a hook handler's own turn, so a
-    // sensitive file is simply not read there (D261), Bypass and a
-    // per-file session grant aside.
+    // sensitive file is simply not read there (D261), Bypass aside.
     if (name === MODEL_API_TOOLS.readFile && this.permissions.currentMode !== 'allowAll') {
       const sensitive = await this.sensitiveReadName(
         { type: 'function_call', call_id: this.deps.newId(), name, arguments: argsJson },
         this.policy(),
       )
-      signal.throwIfAborted()
-      if (
-        sensitive !== undefined &&
-        !this.permissions.isAllowedForSession({
-          toolName: name,
-          toolClass: 'read',
-          command: sensitive,
-        })
-      ) {
+      if (sensitive !== undefined) {
         return `Error: ${sensitive} ${MODEL_API_MODEL_TEXT.sensitiveReadRefused}`
       }
     }
@@ -14874,7 +14865,6 @@ export class ModelApiSession implements ScheduledAgentSession {
       call.name === MODEL_API_TOOLS.readFile
         ? await this.sensitiveReadName(call, policy)
         : undefined
-    if (!isAllowed()) throw new AbortedError()
     // A follow-up that starts a new task is a paid child task like a spawn.
     const childTask = this.childTaskFor(call, undefined)
     const query: PermissionQuery = {
@@ -15675,17 +15665,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     // dispatch on the canonical path, which a link can only add asks to.
     const given =
       effectiveCall.name === MODEL_API_TOOLS.readFile
-        ? pick(argumentsOf(effectiveCall), 'path')
+        ? pick(argumentsOf(effectiveCall), 'path')?.replaceAll('\\', '/')
         : undefined
     const isSensitiveGiven =
       given !== undefined &&
       this.permissions.currentMode !== 'allowAll' &&
-      this.policy().files.isSensitive([given.replaceAll('\\', '/')]) &&
-      !this.permissions.isAllowedForSession({
-        toolName: effectiveCall.name,
-        toolClass: 'read',
-        command: given.replaceAll('\\', '/'),
-      })
+      this.policy().files.isSensitive([given])
     return (
       !isSensitiveGiven &&
       isParallelRead(effectiveCall.name) &&
@@ -15719,19 +15704,6 @@ export class ModelApiSession implements ScheduledAgentSession {
     const io = this.toolWrites()?.io ?? this.deps.io
     const file = await confineWorkspacePath(this.deps.workspaceRoot, given, this.deps.platform, io)
     if (!file.ok || this.policy().files.isDenied([file.relative, file.canonical])) return undefined
-    // A witness must never stand in for the sensitive-read card (D261):
-    // without proof the call runs and asks like any first read.
-    if (
-      this.permissions.currentMode !== 'allowAll' &&
-      this.policy().files.isSensitive([file.canonical]) &&
-      !this.permissions.isAllowedForSession({
-        toolName: call.name,
-        toolClass: 'read',
-        command: file.canonical,
-      })
-    ) {
-      return undefined
-    }
     signal.throwIfAborted()
     const raw = await io.readFile(file.checkedAbsolute, file.checkedAbsolute, signal)
     signal.throwIfAborted()

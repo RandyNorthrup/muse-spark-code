@@ -292,7 +292,7 @@ export const NO_POLICY: PermissionPolicy = {
     extraRoots: [],
     isDenied: () => false,
     sensitiveGlobs: null,
-    isSensitive: (relativePaths) => relativePaths.some((path) => isSensitiveReadPath(path)),
+    isSensitive: (paths) => paths.some((path) => isSensitiveReadPath(path)),
   },
   memoryAfterUntrustedAsk: true,
   problems: [],
