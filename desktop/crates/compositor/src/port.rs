@@ -505,7 +505,10 @@ pub trait CompositorPort {
     fn toggle_group(&self, window: &WindowSelector) -> Result<(), Self::Error>;
 
     /// Opens a headed app on a desktop. `focus = false` leaves focus where
-    /// it is: an agent's new desktop never takes focus (D91.15).
+    /// it is: an agent's new desktop never takes focus (D91.15). Backends
+    /// place through the exec rule first, then verify and move strays
+    /// explicitly: a client slower than the rule's one-second token misses
+    /// the rule and would otherwise land on the active desktop.
     fn open_on_desktop(&self, command: &str, desktop: &str, focus: bool)
         -> Result<(), Self::Error>;
     /// Labels a desktop with its agent or session; an empty label clears it.
