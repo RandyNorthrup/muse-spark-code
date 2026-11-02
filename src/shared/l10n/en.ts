@@ -6862,6 +6862,16 @@ export const EN = {
   // shows the value redacted, and no allow rule approves it on its own.
   approvalSecretNote:
     'This command contains a detected secret, shown redacted. It always asks: no allow rule approves it on its own.',
+  // D261: a sensitive file read. {path}: the file, as the tool names it.
+  approvalSensitiveReadNote:
+    'This will read {path} and send its contents to the model. Sensitive files ask first.',
+  // D261: a memory write after this turn read the web or an MCP result.
+  // {note}: the exact text the write would save, as the model wrote it.
+  approvalUntrustedMemoryNote:
+    'This turn read the web or an MCP result, so this memory asks first. The exact text to save is:\n{note}',
+  // D261: the sensitive-reads setting could not be read. {setting}: its name.
+  permissionSensitiveInvalid:
+    '{setting} could not be read, so the built-in sensitive file set applies instead. Fix the setting to choose your own list, or set it to an empty list to turn the ask off.',
   // Who answered a call no card was shown for (the row's "Decided" line).
   autoReviewerResolver: 'Auto Reviewer',
   // The CLI's own reviewer deciding for one child (M116, PLAN.md D96.17):

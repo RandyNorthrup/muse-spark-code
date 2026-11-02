@@ -134,6 +134,10 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiPermissionProfiles: Readonly<Record<string, unknown>>
   readonly modelApiPermissionProfile: unknown
   readonly modelApiRepositoryRules: unknown
+  /** D261: sensitive-read globs kept whole; null is the built-in set. */
+  readonly modelApiSensitiveReads: unknown
+  /** D261: in Auto, a memory write after a web or MCP result asks first. */
+  readonly modelApiMemoryAfterUntrustedAsk: boolean
   /** Paid Auto reviewer availability (M78, D78); each use needs consent. */
   readonly modelApiAutoReviewer: boolean
   /** Inline completions (M94, PLAN.md D73): on only with the price accepted too. */
@@ -314,6 +318,8 @@ const settingSchemas = {
   modelApiPermissionProfiles: z.record(z.string(), z.unknown()),
   modelApiPermissionProfile: z.unknown(),
   modelApiRepositoryRules: z.unknown(),
+  modelApiSensitiveReads: z.unknown(),
+  modelApiMemoryAfterUntrustedAsk: z.boolean(),
   modelApiAutoReviewer: z.boolean(),
   modelApiTab: z.boolean(),
   tabModel: z.union([
@@ -583,6 +589,8 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiPermissionProfiles: readSetting(config, 'modelApiPermissionProfiles', log),
     modelApiPermissionProfile: readSetting(config, 'modelApiPermissionProfile', log),
     modelApiRepositoryRules: readSetting(config, 'modelApiRepositoryRules', log),
+    modelApiSensitiveReads: readSetting(config, 'modelApiSensitiveReads', log),
+    modelApiMemoryAfterUntrustedAsk: readSetting(config, 'modelApiMemoryAfterUntrustedAsk', log),
     modelApiAutoReviewer: readSetting(config, 'modelApiAutoReviewer', log),
     'judge.engine': readSetting(config, 'judge.engine', log),
     'judge.separate': readSetting(config, 'judge.separate', log),
@@ -632,6 +640,8 @@ export function permissionSettingsOf(settings: ExtensionSettings): PermissionSet
     profiles: settings.modelApiPermissionProfiles,
     profile: settings.modelApiPermissionProfile,
     repositoryRules: settings.modelApiRepositoryRules,
+    sensitiveReads: settings.modelApiSensitiveReads,
+    memoryAfterUntrustedAsk: settings.modelApiMemoryAfterUntrustedAsk,
   }
 }
 

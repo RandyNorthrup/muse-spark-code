@@ -9,6 +9,15 @@
 //   write; its extra roots are folders outside the workspace `read_file` may
 //   read by absolute path. The shell runs unconfined, so while a profile is
 //   on every shell command asks (permissions.ts).
+// - **Sensitive reads (D261).** `museSpark.modelApiSensitiveReads` chooses
+//   the files `read_file` asks before sending to the model and `search`
+//   leaves out: unset (null) is the built-in set in constants beside
+//   `PROTECTED_FILE_NAMES` (`isSensitiveReadPath`), an empty list empties
+//   it, and a list of workspace-relative globs replaces it. A value that
+//   cannot be read keeps the built-in set and is said once — a mistake
+//   must never silently turn the ask off. The memory switch
+//   (`museSpark.modelApiMemoryAfterUntrustedAsk`) rides along: in Auto, a
+//   memory write in a turn that read the web or an MCP result asks first.
 // - **Failing closed.** A profile named but not defined, or not valid, is
 //   still on (every shell command asks); a profile that is not valid, or a
 //   glob that cannot be read, denies every file. A rule that asks or forbids
@@ -17,10 +26,12 @@
 
 import * as z from 'zod/mini'
 import {
+  PERMISSION_PROFILE_MAX_GLOBS,
   PERMISSION_PROFILE_NAME_MAX_CHARS,
   PERMISSION_PROFILES_MAX,
   UI_TEXT,
 } from '../../../shared/constants'
+import { isSensitiveReadPath } from '../../protectedPaths'
 import { fill } from '../../../shared/l10n/text'
 import {
   type PermissionSettings,
@@ -46,6 +57,17 @@ export interface FileRules {
   matches it or a folder above it. Case is ignored.
   */
   isDenied(relativePaths: readonly string[]): boolean
+  /**
+  The sensitive globs the person set, lower case (D261): null for the
+  built-in set, empty for none. Part of the file policy's revision.
+  */
+  readonly sensitiveGlobs: readonly string[] | null
+  /**
+  Whether any of a file's names (forward slashes) is sensitive: the
+  built-in set judged on each name, or the person's globs over a name or
+  a folder above it. Case is ignored.
+  */
+  readonly isSensitive: (relativePaths: readonly string[]) => boolean
 }
 
 export type PolicyProblem =
@@ -55,12 +77,15 @@ export type PolicyProblem =
   | { readonly kind: 'globInvalid'; readonly glob: string; readonly detail: string }
   | { readonly kind: 'rootInvalid'; readonly root: string }
   | { readonly kind: 'repositoryInvalid'; readonly detail: string }
+  | { readonly kind: 'sensitiveInvalid' }
 
 export interface PermissionPolicy {
   readonly commandRules: readonly CommandRule[]
   /** The profile in force, if any: every shell command asks while it is on. */
   readonly profileName: string | undefined
   readonly files: FileRules
+  /** In Auto, a memory write after a web or MCP result asks first (D261). */
+  readonly memoryAfterUntrustedAsk: boolean
   readonly problems: readonly PolicyProblem[]
 }
 
@@ -70,6 +95,7 @@ function fileRules(
   denyGlobs: readonly string[],
   isDenyAll: boolean,
   extraRoots: readonly string[],
+  sensitive: SensitiveParts,
 ): FileRules {
   const isCovered = compileDenyGlobs(denyGlobs)
   return {
@@ -77,7 +103,54 @@ function fileRules(
     isDenyAll,
     extraRoots,
     isDenied: (relativePaths) => isDenyAll || isCovered(relativePaths),
+    sensitiveGlobs: sensitive.globs,
+    isSensitive: sensitive.isSensitive,
   }
+}
+
+interface SensitiveParts {
+  readonly globs: readonly string[] | null
+  readonly isSensitive: (relativePaths: readonly string[]) => boolean
+}
+
+/** The built-in sensitive set (D261): each name judged on its own path. */
+const BUILT_IN_SENSITIVE: SensitiveParts = {
+  globs: null,
+  isSensitive: (relativePaths) => relativePaths.some((path) => isSensitiveReadPath(path)),
+}
+
+const sensitiveReadsSchema = z.array(z.string()).check(z.maxLength(PERMISSION_PROFILE_MAX_GLOBS))
+
+/**
+The sensitive set the settings choose (D261): unset is the built-in set,
+an empty list is none, a list replaces it. A value that cannot be read
+keeps the built-in set and is said once: the ask must never turn itself
+off by mistake. The problem names no part of the value, which can hold
+anything the person typed.
+*/
+function sensitiveParts(raw: unknown, problems: PolicyProblem[]): SensitiveParts {
+  if (raw === undefined || raw === null) {
+    return BUILT_IN_SENSITIVE
+  }
+  const parsed = sensitiveReadsSchema.safeParse(raw)
+  if (!parsed.success) {
+    problems.push({ kind: 'sensitiveInvalid' })
+    return BUILT_IN_SENSITIVE
+  }
+  const globs = parsed.data.map((glob) => glob.toLowerCase())
+  try {
+    for (const glob of globs) {
+      compileGlob(glob)
+    }
+  } catch (error: unknown) {
+    // compileGlob fails only on a RangeError (past the length or
+    // alternative caps); anything else is not the glob's fault.
+    if (!(error instanceof RangeError)) throw error
+    problems.push({ kind: 'sensitiveInvalid' })
+    return BUILT_IN_SENSITIVE
+  }
+  const isSensitive = compileDenyGlobs(globs)
+  return { globs, isSensitive }
 }
 
 /** The globs that compile, lower case; one that does not denies every file, and says so. */
@@ -209,7 +282,9 @@ export function compilePolicy(
       globs.valid,
       profile.isDenyAll || globs.isDenyAll,
       absoluteRoots(profile.extraRoots, platform, problems),
+      sensitiveParts(settings.sensitiveReads, problems),
     ),
+    memoryAfterUntrustedAsk: settings.memoryAfterUntrustedAsk,
     problems,
   }
 }
@@ -230,6 +305,7 @@ const SETTING_OF_SOURCE: Readonly<Record<RuleSource, string>> = {
 }
 const PROFILES_SETTING = 'museSpark.modelApiPermissionProfiles'
 const PROFILE_SETTING = 'museSpark.modelApiPermissionProfile'
+const SENSITIVE_SETTING = 'museSpark.modelApiSensitiveReads'
 
 /** One problem as the transcript's notice says it, in the display language. */
 export function describePolicyProblem(problem: PolicyProblem): string {
@@ -267,6 +343,9 @@ export function describePolicyProblem(problem: PolicyProblem): string {
         setting: SETTING_OF_SOURCE.repository,
         detail: problem.detail,
       })
+    }
+    case 'sensitiveInvalid': {
+      return fill(UI_TEXT.permissionSensitiveInvalid, { setting: SENSITIVE_SETTING })
     }
   }
 }

@@ -1137,7 +1137,7 @@ Model API backend: your command rules for the shell tool. Each rule has the word
 
 Surfaces: vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: —. Settings: `museSpark.modelApiCommandRules`, `museSpark.modelApiPermissionProfiles`, `museSpark.modelApiPermissionProfile`, `museSpark.modelApiRepositoryRules`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#auto-rules-and-permission-profiles-model-api)
+Commands: —. Settings: `museSpark.modelApiCommandRules`, `museSpark.modelApiPermissionProfiles`, `museSpark.modelApiPermissionProfile`, `museSpark.modelApiRepositoryRules`, `museSpark.modelApiSensitiveReads`, `museSpark.modelApiMemoryAfterUntrustedAsk`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#auto-rules-and-permission-profiles-model-api)
 
 ### Download Browser Check Runtime
 
@@ -3219,6 +3219,36 @@ Type: `"object"`. Default: `{}`. Scope: `window`.
       "maxItems": 200
     }
   }
+}
+```
+
+### museSpark.modelApiSensitiveReads
+
+Model API backend: files `read_file` asks before sending to the model (and `search` leaves out), as workspace-relative globs. Unset uses the built-in set: `.env` and `.env.*` (not `.env.example`), `*.pem`, `*.key`, `id_rsa`/`id_ed25519` and the other SSH key names, `.npmrc`, and `.aws/credentials`, in any folder, judged on the resolved path. A list you set replaces that set; an empty list turns the ask off. The card names the file and that its contents will be sent to the model, and Allow for This Session answers that file only. Manual, Edit automatically and Auto ask; Plan asks instead of reading silently; Bypass permissions reads as before. A permission profile's `denyRead` still refuses a file outright without asking. User and machine settings only.
+
+Type: `["array","null"]`. Default: `null`. Scope: `machine`.
+
+```json
+{
+  "type": ["array", "null"],
+  "items": {
+    "type": "string"
+  },
+  "maxItems": 200,
+  "default": null
+}
+```
+
+### museSpark.modelApiMemoryAfterUntrustedAsk
+
+Model API backend, on by default: in Auto, a memory write (add_memory or edit_memory) in a turn that read the web (web fetch, browser check or hosted search) or an MCP tool result asks first, showing the exact text it would save, so text copied from untrusted content cannot become a standing memory without your word. Off restores Auto writing memory like any edit. User and machine settings only.
+
+Type: `"boolean"`. Default: `true`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": true
 }
 ```
 
