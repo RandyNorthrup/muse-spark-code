@@ -541,21 +541,26 @@ export async function publishTaskRef(
   }
 }
 
-/** Every existing ancestor must be canonical and remain inside trusted storage. */
-async function validateTeamFolder(storageRoot: string, folder: string): Promise<void> {
+/**
+Every existing ancestor at or below the storage root is a real folder, and
+the nearest existing one's canonical path stays inside the root's canonical
+path. The root's own spelling may cross a system link both sides share
+(macOS spells its temporary folders under `/var`, a link to `/private/var`),
+but a link inside storage must never lead a copy out of it. Returns the
+root's canonical path.
+*/
+async function validateTeamFolder(storageRoot: string, folder: string): Promise<string> {
   const root = path.resolve(storageRoot)
   const target = path.resolve(folder)
-  if (
-    !isBelow(path.relative(path.toNamespacedPath(root), path.toNamespacedPath(target)), path) ||
-    !isSameTeamPath(await realpath(root), root)
-  ) {
+  if (!isBelow(path.relative(path.toNamespacedPath(root), path.toNamespacedPath(target)), path)) {
     throw new TeamWorkspaceError('workspaceFailed', 'The team copy is outside canonical storage')
   }
+  const canonicalRoot = await realpath(root)
   let current = path.dirname(target)
   for (;;) {
     try {
       const stat = await lstat(current)
-      if (stat.isSymbolicLink() || !isSameTeamPath(await realpath(current), current)) {
+      if (stat.isSymbolicLink()) {
         throw new TeamWorkspaceError(
           'workspaceFailed',
           'The team copy has a linked storage ancestor',
@@ -572,9 +577,39 @@ async function validateTeamFolder(storageRoot: string, folder: string): Promise<
       }
     }
     if (isSameTeamPath(current, root)) {
-      return
+      break
     }
     current = path.dirname(current)
+  }
+  let probe = path.dirname(target)
+  for (;;) {
+    try {
+      const canonicalProbe = await realpath(probe)
+      const relative = path.relative(
+        path.toNamespacedPath(canonicalRoot),
+        path.toNamespacedPath(canonicalProbe),
+      )
+      if (relative !== '' && !isBelow(relative, path)) {
+        throw new TeamWorkspaceError(
+          'workspaceFailed',
+          'The team copy is outside canonical storage',
+        )
+      }
+      return canonicalRoot
+    } catch (error: unknown) {
+      if (
+        !(
+          typeof error === 'object' &&
+          error !== null &&
+          'code' in error &&
+          error.code === 'ENOENT'
+        ) ||
+        isSameTeamPath(probe, root)
+      ) {
+        throw error
+      }
+      probe = path.dirname(probe)
+    }
   }
 }
 
@@ -591,13 +626,17 @@ export async function removeTeamWorkspace(
   folder: string,
   agentsRef?: string,
 ): Promise<void> {
-  await validateTeamFolder(storageRoot, folder)
+  const canonicalRoot = await validateTeamFolder(storageRoot, folder)
   try {
     const stat = await lstat(folder)
     if (stat.isSymbolicLink()) {
       await unlink(folder)
     } else {
-      if (!isSameTeamPath(await realpath(folder), folder)) {
+      const canonicalFolder = path.join(
+        canonicalRoot,
+        path.relative(path.resolve(storageRoot), path.resolve(folder)),
+      )
+      if (!isSameTeamPath(await realpath(folder), canonicalFolder)) {
         throw new TeamWorkspaceError(
           'workspaceFailed',
           'The team copy is outside canonical storage',

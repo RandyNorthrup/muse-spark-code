@@ -218,12 +218,18 @@ export function landingFileAccess(
     fileSchema.shape.path.parse(file)
     const target = path.resolve(root, file)
     const canonicalRoot = await canonicalPath(root)
-    const relative = path.relative(canonicalRoot, target)
+    const canonicalTarget = await canonicalPath(target)
+    const relative = path.relative(canonicalRoot, canonicalTarget)
+    // The canonical target must be the spelled one carried into canonical
+    // space: a link at or below the root makes them differ. A system link
+    // above the root (macOS spells temporary folders under `/var`, a link
+    // to `/private/var`) is in both sides alike and cancels out.
+    const spelled = path.join(canonicalRoot, path.relative(path.resolve(root), target))
     if (
       relative === '..' ||
       relative.startsWith(`..${path.sep}`) ||
       path.isAbsolute(relative) ||
-      !isSamePath(await canonicalPath(target), target, process.platform)
+      !isSamePath(canonicalTarget, spelled, process.platform)
     )
       throw new Error(UI_TEXT.checkpointFailed)
     await options.validateTarget(target)
@@ -277,7 +283,9 @@ export function landingFileAccess(
           bytes,
           {
             sleep: delay,
-            expectedCanonicalPath: target,
+            // The bound path is canonical, as every writer passes it: the
+            // spelled target may sit under a system link (macOS `/var`).
+            expectedCanonicalPath: await canonicalPath(target),
             executable: replacement.mode === '100755',
             ...(options.rename !== undefined && { rename: options.rename }),
           },

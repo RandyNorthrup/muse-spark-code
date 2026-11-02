@@ -16,6 +16,7 @@ import { panelRig } from './helpers/teamPanelRig'
 import { EN } from '../../src/shared/l10n/en'
 
 const runtime = { files: [], browser: undefined, server: undefined, url: '', state: undefined }
+// A cold production bundle build plus a Chrome launch: slow on a cold runner.
 beforeAll(async () => {
   const result = await build({
     entryPoints: [path.resolve('src/webview/models/models.tsx')],
@@ -59,7 +60,7 @@ beforeAll(async () => {
   const address = runtime.server.address()
   if (address === null || typeof address === 'string') throw new Error('No server address')
   runtime.url = `http://127.0.0.1:${String(address.port)}`
-})
+}, 60_000)
 afterAll(async () => {
   await runtime.browser?.close()
   await new Promise((resolve) => runtime.server?.close(resolve))
