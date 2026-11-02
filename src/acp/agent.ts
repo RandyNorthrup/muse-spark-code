@@ -173,7 +173,7 @@ import {
   type AccountsSessionPort,
 } from './accounts'
 import { isInvalidProvidersFileError } from './accountText'
-import { startFailureText, type StartSite } from './startText'
+import { startFailure, type StartSite } from './startText'
 import { runUploadsCommand, type AcpUploadsPort } from './uploads'
 import {
   acpQuestionClock,
@@ -562,11 +562,17 @@ function sharingRequestError(error: unknown): unknown {
 A failed start as the ACP answer: a RequestError already carries the
 client's words and passes through; anything else becomes words naming the
 failure, never a bare "Internal error" with the cause buried in its data.
+A start a layer refused in its own sentence (the hardware fence, a busy
+schedule, a refused registry save) is an invalid request in this state
+with that sentence, never -32603: the client shows the reason we know
+instead of a generic failure (RLF-MAKERFENCE item 4).
 */
 function startRequestError(error: unknown, site: StartSite): RequestError {
-  return error instanceof RequestError
-    ? error
-    : RequestError.internalError(undefined, startFailureText(error, site))
+  if (error instanceof RequestError) return error
+  const failure = startFailure(error, site)
+  return failure.isRefusal
+    ? refusalError(failure.text)
+    : RequestError.internalError(undefined, failure.text)
 }
 
 /**

@@ -134,10 +134,15 @@ it('native inventory simulator detects connected ports, replacement generations 
   expect(readHardwareInventory('darwin', devices, [mounts]).targets?.[0]?.connectionId).not.toBe(
     before.targets?.[0]?.connectionId,
   )
-  expect(readHardwareInventory('linux', path.join(devices, 'missing'), []).hasConnectedBoard).toBe(
-    true,
-  )
-  expect(readHardwareInventory('win32', devices, []).hasConnectedBoard).toBe(true)
+  // An unreadable or unqualified inventory reports no board: unknown stays
+  // fail-safe for commands through isInventoryKnown alone and is never
+  // positive evidence against a whole turn (RLF-MAKERFENCE item 3).
+  const unreadable = readHardwareInventory('linux', path.join(devices, 'missing'), [])
+  expect(unreadable.hasConnectedBoard).toBe(false)
+  expect(unreadable.isInventoryKnown).toBe(false)
+  const windows = readHardwareInventory('win32', devices, [])
+  expect(windows.hasConnectedBoard).toBe(false)
+  expect(windows.isInventoryKnown).toBe(false)
 })
 
 it('unknown native inventory cannot be cleared by an idle UI reset', () => {
