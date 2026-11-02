@@ -4800,6 +4800,16 @@ function outboundSentences(): ReadonlySet<string> {
     UI_TEXT.acpChatGpt.states['signed-out'],
     UI_TEXT.acpChatGpt.failure,
     UI_TEXT.planUi.copilotTerminalGrant,
+    // Session and turn start refusals (startText.ts): a start our own
+    // layers refused reaches the client in its own sentence with the
+    // refusal's code, never as the generic failure (RLF-MAKERFENCE).
+    UI_TEXT.hardwareBindingUnavailable,
+    UI_TEXT.hardwareBypassNotice,
+    UI_TEXT.hardwareUnattended,
+    UI_TEXT.scheduleBusy,
+    UI_TEXT.permissionReviewerMissing,
+    UI_TEXT.surfaceClosed,
+    UI_TEXT.museCodeNotAnswering,
     UI_TEXT.subscriptionKey.signInAgain,
     UI_TEXT.subscriptionKey.cannotRead,
     UI_TEXT.subscriptionKey.keychainBacked,
@@ -4932,6 +4942,13 @@ function outboundTemplates(): readonly { readonly prefix: string; readonly suffi
   for (const [text, slot] of [
     [UI_TEXT.acpUnknownArgument, '{argument}'],
     [UI_TEXT.subscriptionQuotaExhausted, '{resetTime}'],
+    // A failed start's own sentence (startText.ts): the detail slot
+    // carries causeForLog's fixed vocabulary (an error name, an errno
+    // code, an MSP kind) and the reason slot one of the registry's
+    // fixed clauses — never a path, a prompt or a backend message.
+    [UI_TEXT.acpSessionStartFailed, '{detail}'],
+    [UI_TEXT.acpTurnStartFailed, '{detail}'],
+    [UI_TEXT.createdRegistrySave.failed, '{reason}'],
   ] as const) {
     const [prefix = '', suffix = ''] = text.split(slot, 2)
     if (prefix.length > 0) templates.push({ prefix, suffix })
