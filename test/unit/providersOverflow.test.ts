@@ -6,9 +6,15 @@ import type { ProviderFormat } from '../../src/core/providers/providersFile'
 const ERRORS: readonly (readonly [ProviderFormat, string])[] = [
   ['responses', 'This model maximum context length is 8192 tokens'],
   ['responses', 'Please reduce the length of your input'],
+  [
+    'responses',
+    'litellm._pre_call_checks: Context Window exceeded for given call. No models have context window large enough.',
+  ],
   ['chat', 'The request exceeds the available context size'],
   ['chat', 'Maximum prompt length is 8192'],
   ['chat', 'Too many tokens'],
+  ['chat', 'litellm.ContextWindowExceededError: Context Window exceeded for given call.'],
+  ['chat', 'prompt token count of 9000 exceeds the limit of 8192'],
   ['anthropic', 'prompt is too long: 9000 tokens > 8192 maximum'],
   ['anthropic', 'Input is too long for requested model'],
   ['gemini', 'The input token count exceeds the maximum number of tokens allowed'],
@@ -109,6 +115,122 @@ describe('provider context overflow (M101 item 6)', () => {
       classifyContextOverflow({
         format: 'responses',
         error: { kind: 'rate_limit_error', message: 'prompt is too long' },
+      }),
+    ).toBeUndefined()
+  })
+
+  it('detects the bare ContextWindowExceededError code on OpenAI-compatible formats only', () => {
+    for (const format of ['responses', 'chat'] as const) {
+      expect(
+        classifyContextOverflow({
+          format,
+          error: { status: 400, code: 'ContextWindowExceededError', message: 'Rejected' },
+        }),
+      ).toBe('error')
+    }
+    for (const format of ['anthropic', 'gemini', 'ollama'] as const) {
+      expect(
+        classifyContextOverflow({
+          format,
+          error: { status: 400, code: 'ContextWindowExceededError', message: 'Rejected' },
+        }),
+      ).toBeUndefined()
+    }
+  })
+
+  it('keeps Copilot token prose on chat only', () => {
+    expect(
+      classifyContextOverflow({
+        format: 'chat',
+        error: { status: 400, message: 'prompt token count of 9000 exceeds the limit of 8192' },
+      }),
+    ).toBe('error')
+    for (const format of ['responses', 'anthropic', 'gemini', 'ollama'] as const) {
+      expect(
+        classifyContextOverflow({
+          format,
+          error: { status: 400, message: 'prompt token count of 9000 exceeds the limit of 8192' },
+        }),
+      ).toBeUndefined()
+    }
+  })
+
+  it.each([
+    ['anthropic', 'request_too_large', 'Request exceeds the maximum size'],
+    ['responses', 'request_too_large', 'Request exceeds the maximum size'],
+    ['responses', undefined, 'Request Entity Too Large'],
+    ['chat', undefined, 'failed to parse request'],
+    ['chat', undefined, 'Payload Too Large'],
+    ['gemini', undefined, 'Request Entity Too Large'],
+    ['ollama', undefined, 'Payload Too Large'],
+  ] as const)('classifies a large-body 413 on %s: %s %s', (format, code, message) => {
+    expect(classifyContextOverflow({ format, error: { status: 413, code, message } })).toBe('error')
+  })
+
+  it('leaves bare, gated and foreign large-body 413s unclassified', () => {
+    // A bare 413 is never overflow by status alone.
+    expect(
+      classifyContextOverflow({ format: 'chat', error: { status: 413, message: 'refused' } }),
+    ).toBeUndefined()
+    // The 413 shapes are gated on the status.
+    expect(
+      classifyContextOverflow({
+        format: 'chat',
+        error: { status: 400, message: 'failed to parse request' },
+      }),
+    ).toBeUndefined()
+    expect(
+      classifyContextOverflow({
+        format: 'anthropic',
+        error: {
+          status: 400,
+          code: 'request_too_large',
+          message: 'Request exceeds the maximum size',
+        },
+      }),
+    ).toBeUndefined()
+    // …and on the format.
+    expect(
+      classifyContextOverflow({
+        format: 'anthropic',
+        error: { status: 413, message: 'failed to parse request' },
+      }),
+    ).toBeUndefined()
+    expect(
+      classifyContextOverflow({
+        format: 'responses',
+        error: { status: 413, message: 'failed to parse request' },
+      }),
+    ).toBeUndefined()
+    expect(
+      classifyContextOverflow({
+        format: 'gemini',
+        error: {
+          status: 413,
+          code: 'request_too_large',
+          message: 'Request exceeds the maximum size',
+        },
+      }),
+    ).toBeUndefined()
+  })
+
+  it('keeps the rate-limit and quota guards on large-body 413 shapes', () => {
+    expect(
+      classifyContextOverflow({
+        format: 'chat',
+        error: { status: 429, message: 'failed to parse request' },
+      }),
+    ).toBeUndefined()
+    expect(
+      classifyContextOverflow({
+        format: 'chat',
+        error: { status: 413, code: 'rate_limit_error', message: 'failed to parse request' },
+      }),
+    ).toBeUndefined()
+    expect(
+      classifyContextOverflow({
+        format: 'anthropic',
+        error: { status: 413, message: 'quota exceeded: failed to parse request' },
       }),
     ).toBeUndefined()
   })

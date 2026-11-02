@@ -1,6 +1,10 @@
 // Context protection (M101, D81), inspired by Pi's overflow classifier.
 // These are already validated canonical errors/usage, never native wire parsers.
-import { HTTP_TOO_MANY_REQUESTS, MODEL_API_SILENT_OVERFLOW_FRACTION } from '../../shared/constants'
+import {
+  HTTP_STATUS,
+  HTTP_TOO_MANY_REQUESTS,
+  MODEL_API_SILENT_OVERFLOW_FRACTION,
+} from '../../shared/constants'
 import type { ModelRow } from '../providers/modelFilters'
 import type { ProviderFormat } from '../providers/providersFile'
 
@@ -24,6 +28,8 @@ export interface ContextOverflowEvent {
 const RESPONSE_PATTERNS = [
   /maximum context length/i,
   /context (?:length|window).*(?:exceed|full|limit)/i,
+  // LiteLLM's pre-call check, spaced or as the bare code (Pi #11494).
+  /context[_ ]?window[_ ]?exceeded/i,
   /(?:input|prompt).*(?:exceed|too long).*(?:token|context|length)/i,
   /(?:input|prompt) is too long/i,
   /reduce the length of (?:the |your )?(?:messages|input|prompt)/i,
@@ -39,6 +45,8 @@ const PATTERNS: Record<ProviderFormat, readonly RegExp[]> = {
     /maximum prompt length is \d+/i,
     /too many tokens/i,
     /(?:input|prompt).*greater than.*context length/i,
+    // Copilot's prompt-token shape (Pi's overflow table).
+    /exceeds the limit of \d+/i,
   ],
   anthropic: [
     /prompt is too long/i,
@@ -51,6 +59,29 @@ const PATTERNS: Record<ProviderFormat, readonly RegExp[]> = {
     /context (?:length|window).*(?:exceed|full|limit)/i,
     /input length.*context length/i,
   ],
+}
+// Large-body 413 shapes, matched only when the status is 413, so a bare
+// "failed to parse request" at another status never counts as overflow.
+// Anthropic's pair is its documented 413 (past 128 MB the Messages API
+// answers `request_too_large`); Copilot's body is Pi's 413 shape; the
+// generic pair is HTTP's own 413 vocabulary.
+const REQUEST_TOO_LARGE = /request_too_large/i
+const EXCEEDS_MAXIMUM_SIZE = /request exceeds the maximum size/i
+const ENTITY_TOO_LARGE = /request entity too large/i
+const PAYLOAD_TOO_LARGE = /payload too large/i
+const FAILED_TO_PARSE_REQUEST = /failed to parse request/i
+const LARGE_BODY_413_PATTERNS: Record<ProviderFormat, readonly RegExp[]> = {
+  responses: [REQUEST_TOO_LARGE, EXCEEDS_MAXIMUM_SIZE, ENTITY_TOO_LARGE, PAYLOAD_TOO_LARGE],
+  chat: [
+    REQUEST_TOO_LARGE,
+    EXCEEDS_MAXIMUM_SIZE,
+    ENTITY_TOO_LARGE,
+    PAYLOAD_TOO_LARGE,
+    FAILED_TO_PARSE_REQUEST,
+  ],
+  anthropic: [REQUEST_TOO_LARGE, EXCEEDS_MAXIMUM_SIZE],
+  gemini: [ENTITY_TOO_LARGE, PAYLOAD_TOO_LARGE],
+  ollama: [ENTITY_TOO_LARGE, PAYLOAD_TOO_LARGE],
 }
 const RATE_LIMIT =
   /(?:rate[\s_-]*limit|rate exceeded|too many requests|tokens per (?:minute|day)|\b(?:429|tpm|rpm)\b)/i
@@ -80,8 +111,13 @@ export function classifyContextOverflow(input: {
       QUOTA_OR_BILLING.test(`${error.code ?? ''} ${error.kind ?? ''} ${error.message}`)
     )
       return undefined
-    return format !== undefined &&
-      PATTERNS[format].some((pattern) => pattern.test(`${error.code ?? ''} ${error.message}`))
+    if (format === undefined) return undefined
+    const text = `${error.code ?? ''} ${error.message}`
+    if (PATTERNS[format].some((pattern) => pattern.test(text))) return 'error'
+    // A 413 with a large-body shape is the request outgrowing the
+    // provider's size limit; a bare 413 stays unclassified.
+    return error.status === HTTP_STATUS.requestTooLarge &&
+      LARGE_BODY_413_PATTERNS[format].some((pattern) => pattern.test(text))
       ? 'error'
       : undefined
   }
