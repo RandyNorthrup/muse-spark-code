@@ -11504,16 +11504,12 @@ maximum (131,072 for a Meta model); the session budget fit and the judge
 reservation fit against the same model policy maximum, with the legacy
 default only where the record names none. The provider's >= 16 minimum
 stays. Proven by real-code tests (exec parse and output-cap resolution,
-budget fit default, policy maximum, worst-case reservation figures) with
-red/green drills, and the reservation money tables (README, docs/ci.md)
-now state the M=131,072 figures. Not proven here: a genuine
-`response.incomplete` stream with reason `max_output_tokens` has no
-captured fixture in the tree (all captured `incomplete_details` are
-null); the max_output_tokens refusal path is covered by the existing
-2026-10-10 capture (`output-incomplete.json`, the >= 16 minimum) and the
-codec mappings, and the genuine-stop capture stays a lead run (one
-request on `muse-spark-1.3-contributor`, key on stdin). Status evidence:
-`docs/certification/rlf-outputcap.md`.
+budget fit default, policy maximum, worst-case reservation figures, and
+the output-limit stop mapping to `response.incomplete` with reason
+`max_output_tokens` from the existing 2026-10-10 LM Studio capture)
+with red/green drills, and the reservation money tables (README,
+docs/ci.md) now state the M=131,072 figures. No live calls were needed
+or made. Status evidence: `docs/certification/rlf-outputcap.md`.
 
 - **Goal.** `MODEL_API_MAX_OUTPUT_TOKENS` (32,768) binds nothing below a
   provider's documented output maximum: exec, budget and judge paths take
