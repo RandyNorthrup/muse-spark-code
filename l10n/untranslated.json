@@ -157,7 +157,23 @@
       "nodeOs.netWifi",
       "desktop.greeterTitle",
       "desktop.pin",
-      "referenceEditorGroupKeys"
+      "referenceEditorGroupKeys",
+      "settingsSystem.navBluetooth",
+      "settingsSystem.networkWifi",
+      "settingsSystem.networkVpn",
+      "settingsSystem.displaysResolutionValue",
+      "settingsSystem.displaysRefreshHz",
+      "settingsSystem.soundVolume",
+      "settingsSystem.bluetoothKindAudio",
+      "settingsSystem.bluetoothKindComputer",
+      "settingsSystem.cellularStatus",
+      "settingsSystem.cellularSignal",
+      "settingsSystem.powerProfilePerformance",
+      "settingsSystem.printersOffline",
+      "settingsSystem.printersError",
+      "settingsSystem.storageVolumes",
+      "settingsSystem.datetimeDate",
+      "settingsSystem.localeRegion"
     ],
     "cs": [
       "groupModel",
@@ -417,7 +433,10 @@
       "developer.versionLine",
       "desktop.workbenchChat",
       "desktop.workbenchTerminal",
-      "desktop.workbenchStatusTerminals.one"
+      "desktop.workbenchStatusTerminals.one",
+      "settingsSystem.powerTimeoutMinutes.one",
+      "settingsSystem.powerTimeoutMinutes.other",
+      "settingsSystem.powerTimeoutMinutes.many"
     ],
     "it": [
       "usageAccount",

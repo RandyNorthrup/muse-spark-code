@@ -51,9 +51,10 @@ export const UI_TEXT_REGIONS = [
     output: 'dist/uiTextSurfaces.js',
     // First-use surfaces: Tab, reports, What's New, the vault, the judge
     // setup wizard and its CLI steps, the Judge section, the judge's paid
-    // asks, the device and desktop surfaces (M100), the per-provider request
-    // headers editor and the playbook.
-    keys: /^(?:tab|paid\w*Tab|usagePaidTab|report(?!Usage$)|whatsNew|vault$|judgeSetupWizard$|judgeSetupCli$|judgeRecommend$|judgePanel$|paidConfirmJudge\w*|devices$|desktop$|editorGroup$|providerHeaders|playbook|fallback\w*$|presentationRolesTitle$|presentationTrafficTitle$)/,
+    // asks, the device and desktop surfaces (M100), the desktop's system
+    // settings (M111 ST1), the per-provider request headers editor and the
+    // playbook.
+    keys: /^(?:tab|paid\w*Tab|usagePaidTab|report(?!Usage$)|whatsNew|vault$|judgeSetupWizard$|judgeSetupCli$|judgeRecommend$|judgePanel$|paidConfirmJudge\w*|devices$|desktop$|editorGroup$|settingsSystem$|providerHeaders|playbook|fallback\w*$|presentationRolesTitle$|presentationTrafficTitle$)/,
   },
 ]
 
