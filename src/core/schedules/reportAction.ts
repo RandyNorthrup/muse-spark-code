@@ -1,12 +1,9 @@
 import { UI_TEXT } from '../../shared/constants'
 import { wireWordForLog, type CoreLogger } from '../logging'
-import { isRunContextOf } from './runIdentity'
-import { scheduleEventSchema, type ScheduleEvent } from '../../shared/scheduleEvents'
+import { parseDeliveryCall } from './deliveryRequest'
+import type { ScheduleEvent } from '../../shared/scheduleEvents'
 import {
   scheduleV2Schema,
-  scheduleRunContextSchema,
-  scheduleFireRecordSchema,
-  noScheduleCost,
   scheduleReportResultsSchema,
   scheduleGrantAuditSchema,
   scheduleDraftSchema,
@@ -77,37 +74,18 @@ export class ScheduleReportActionRunner implements ScheduleReportDeliveryPort {
     occurrenceMs: number,
     event?: ScheduleEvent,
   ): Promise<ScheduleDeliveryResult> {
-    const s = scheduleV2Schema.parse(schedule)
-    const c = scheduleRunContextSchema.parse(context)
-    if (
-      s.action.kind !== 'report' ||
-      !Number.isSafeInteger(occurrenceMs) ||
-      occurrenceMs < 0 ||
-      !Number.isFinite(new Date(occurrenceMs).getTime()) ||
-      !isRunContextOf(s, c)
-    )
-      throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
-    const e = event === undefined ? undefined : scheduleEventSchema.parse(event)
-    const settle = (
-      outcome: ScheduleDeliveryResult['outcome'],
-      reason?: string,
-      report?: ReturnType<typeof scheduleReportResultsSchema.parse>,
-    ): ScheduleDeliveryResult =>
-      scheduleFireRecordSchema.parse({
-        runId: c.runId,
-        scheduleId: s.id,
-        workspaceKey: s.workspaceKey,
-        occurrenceMs,
-        observedAtMs: this.deps.now(),
-        target: s.target,
-        delivery: s.delivery,
-        outcome,
-        ...(reason !== undefined && { reason }),
-        refusedActions: [],
-        cost: noScheduleCost(),
-        ...(e !== undefined && { event: e }),
-        ...(report !== undefined && { report }),
-      })
+    const {
+      schedule: s,
+      context: c,
+      settle,
+    } = parseDeliveryCall({
+      schedule,
+      context,
+      occurrenceMs,
+      ...(event !== undefined && { event }),
+      action: 'report',
+      now: this.deps.now,
+    })
     try {
       if (!(await this.isCurrent(s)))
         return settle('refused', UI_TEXT.scheduleV2.reportAction.grantRequired)

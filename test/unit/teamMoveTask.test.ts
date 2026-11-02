@@ -27,6 +27,7 @@ import type { TeamRoleConfig, TeamSnapshot } from '../../src/shared/team'
 import { TEAM_WORKSPACE_KEYS } from '../../src/shared/teamConversation'
 import { silentCoreLog } from './helpers/memoryLogs'
 import { realTeamGit } from './helpers/realTeamGit'
+import { queuedIds, teamServiceCore } from './helpers/scheduleBoardRig'
 
 const ORCHESTRATOR = 'muse-spark-1.3'
 
@@ -82,24 +83,7 @@ function moveRig(stored: TeamSnapshot, options: { readonly isHeld: boolean }): M
   if (!options.isHeld) gate.resolve(undefined)
   let counter = 0
   const deps: TeamHostServiceDeps = {
-    state: {
-      get: (key) => state.get(key),
-      update: async (key, value) => {
-        state.set(key, value)
-        await Promise.resolve()
-      },
-    },
-    settings: {
-      isTeamOn: () => true,
-      isTeamWorkersOn: () => true,
-      maxWorkers: () => 4,
-      isTrusted: () => true,
-    },
-    orchestrator: {
-      modelId: () => ORCHESTRATOR,
-      backend: () => 'modelApi',
-      defaultAgent: (model) => ({ kind: 'engine', agentId: 'default', model, pays: 'local' }),
-    },
+    ...teamServiceCore(state, 'local'),
     workers: {
       ...ports.workers,
       run: async (spec, signal) => {
@@ -155,11 +139,6 @@ async function delegate(service: TeamHostService, role: string): Promise<string>
   const taskId = answer.tasks?.[0]?.task_id
   if (taskId === undefined) throw new Error(`The delegation did not start a task: ${result.output}`)
   return taskId
-}
-
-function queuedIds(service: TeamHostService, roleId: string): string[] {
-  const role = service.tree()?.roles.find((item) => item.id === roleId)
-  return role?.queued.map((worker) => worker.taskId) ?? []
 }
 
 function storedTask(rig: MoveRig, taskId: string) {
