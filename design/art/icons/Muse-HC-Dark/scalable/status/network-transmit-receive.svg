@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- network-transmit-receive (status). -->
+  <g fill="none" stroke="#7fffff" stroke-width="2.63" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 4.5 L8 12 M5.5 9.5 L8 12 L10.5 9.5"/>
+    <path d="M16 19.5 L16 12 M13.5 14.5 L16 12 L18.5 14.5"/>
+  </g>
+  <g fill="none" stroke="#ffffff" stroke-width="2.63" stroke-linecap="round">
+    <path d="M4.5 15.5 L4.5 18.5 C4.5 19.3 5.2 20 6 20 L11 20 M13 4 L18 4 C18.8 4 19.5 4.7 19.5 5.5 L19.5 8.5"/>
+  </g>
+</svg>

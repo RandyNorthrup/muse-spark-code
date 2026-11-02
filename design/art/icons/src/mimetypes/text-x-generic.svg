@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- text-x-generic (mimetypes). -->
+  <g fill="none" stroke="%%FOREGROUND%%" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6 3.5 L13.5 3.5 L18 8 L18 20.5 L6 20.5 Z M13.5 3.5 L13.5 8 L18 8"/>
+  </g>
+  <g fill="none" stroke="%%MUTED%%" stroke-width="1.5" stroke-linecap="round">
+    <path d="M9 12 L15 12 M9 14.8 L15 14.8 M9 17.6 L13 17.6"/>
+  </g>
+</svg>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- preferences-desktop-theme (apps): the swatches. -->
+  <g fill="none" stroke="#000000" stroke-width="2.63" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3.5" y="4.5" width="10" height="10" rx="2"/>
+    <rect x="10.5" y="9.5" width="10" height="10" rx="2"/>
+  </g>
+  <g fill="#095bbe">
+    <circle cx="8.5" cy="9.5" r="1.6"/>
+  </g>
+  <g fill="#292929">
+    <circle cx="15.5" cy="14.5" r="1.6"/>
+  </g>
+</svg>

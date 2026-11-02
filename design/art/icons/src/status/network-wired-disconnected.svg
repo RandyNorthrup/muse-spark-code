@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- network-wired-disconnected (status). -->
+  <g fill="none" stroke="%%MUTED%%" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 3.5 L9 8 M15 3.5 L15 8 M7 8 L17 8 L17 14 L7 14 Z"/>
+    <path d="M12 14 L12 17 C12 19 10 19 10 20.5"/>
+  </g>
+  <g fill="none" stroke="%%DANGER%%" stroke-width="1.75" stroke-linecap="round">
+    <path d="M4.5 4.5 L19.5 19.5"/>
+  </g>
+</svg>

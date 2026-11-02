@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- battery-full (status). -->
+  <g fill="none" stroke="%%FOREGROUND%%" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="2.5" y="8" width="17" height="8.5" rx="2"/>
+    <path d="M21.5 11 L21.5 13.5"/>
+  </g>
+  <g fill="%%SUCCESS%%">
+    <rect x="5.5" y="10.5" width="3" height="3.5" rx="0.75"/>
+    <rect x="10" y="10.5" width="3" height="3.5" rx="0.75"/>
+    <rect x="14.5" y="10.5" width="2.5" height="3.5" rx="0.75"/>
+  </g>
+</svg>

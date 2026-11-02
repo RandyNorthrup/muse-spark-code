@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- network-transmit (status): up out of the tray. -->
+  <g fill="none" stroke="%%INFO%%" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 20 L12 11 M8.5 14.5 L12 11 L15.5 14.5"/>
+    <path d="M4.5 9 L4.5 5.5 C4.5 4.7 5.2 4 6 4 L18 4 C18.8 4 19.5 4.7 19.5 5.5 L19.5 9"/>
+  </g>
+</svg>

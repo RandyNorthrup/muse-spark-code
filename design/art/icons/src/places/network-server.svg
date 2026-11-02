@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- network-server (places). -->
+  <g fill="none" stroke="%%FOREGROUND%%" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="5" y="3.5" width="14" height="7" rx="1.5"/>
+    <rect x="5" y="13.5" width="14" height="7" rx="1.5"/>
+  </g>
+  <g fill="%%SUCCESS%%">
+    <circle cx="8.5" cy="7" r="1.1"/>
+    <circle cx="8.5" cy="17" r="1.1"/>
+  </g>
+  <g fill="none" stroke="%%MUTED%%" stroke-width="1.5" stroke-linecap="round">
+    <path d="M12 7 L16 7 M12 17 L16 17"/>
+  </g>
+</svg>

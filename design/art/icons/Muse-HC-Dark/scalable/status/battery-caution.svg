@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- battery-caution (status). -->
+  <g fill="none" stroke="#ffffff" stroke-width="2.63" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="2.5" y="8" width="17" height="8.5" rx="2"/>
+    <path d="M21.5 11 L21.5 13.5"/>
+  </g>
+  <g fill="none" stroke="#ffb3b3" stroke-width="2.63" stroke-linecap="round">
+    <path d="M11 10.5 L11 12.5 M11 14.5 L11 14.6"/>
+  </g>
+</svg>
