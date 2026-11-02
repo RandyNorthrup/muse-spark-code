@@ -5,7 +5,12 @@
 // serves ephemeral sessions); signed-in runs take the person's real home
 // so the CLI signs in on its own, exactly as for the product, and the
 // test never runs a turn on a model provider there.
-import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import {
+  spawn,
+  spawnSync,
+  type ChildProcess,
+  type ChildProcessWithoutNullStreams,
+} from 'node:child_process'
 import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
@@ -251,11 +256,7 @@ export async function startServeHost(options: StartServeOptions): Promise<ServeH
   await connection.flush()
   const lines: LoggedLine[] = []
   const exits: HostExit[] = []
-  const exited = new Promise<{ code: number | null; signal: string | null }>((resolve) => {
-    child.on('exit', (code: number | null, signal: NodeJS.Signals | null) => {
-      resolve({ code, signal })
-    })
-  })
+  const exited = childExit(child)
   const host = new MuseCodeHost(
     {
       connection,
@@ -271,6 +272,18 @@ export async function startServeHost(options: StartServeOptions): Promise<ServeH
   const serve = { host, child, home, lines, exits }
   live.push(serve)
   return serve
+}
+
+/** Resolves with how the child ended; the tests own the child for the kill. */
+export function childExit(child: ChildProcess): Promise<{
+  code: number | null
+  signal: string | null
+}> {
+  return new Promise((resolve) => {
+    child.on('exit', (code, signal) => {
+      resolve({ code, signal })
+    })
+  })
 }
 
 /** Kills every owned serve child, closes its host, and removes throwaway homes. */

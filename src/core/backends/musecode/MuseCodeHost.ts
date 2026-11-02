@@ -926,20 +926,17 @@ function settledOr(error: unknown): unknown {
   return reason === undefined ? error : new PromptSettledError(reason, error.message)
 }
 
-const SESSION_NOT_FOUND = 'sessionNotFound'
-const MSP_METHOD_NOT_FOUND = 'methodNotFound'
-
 /**
 A resume the store cannot serve as a `SessionNotFoundError`; anything else
-unchanged. Two shapes, both meaning the history cannot come back: the
+unchanged. Two wire kinds, both meaning the history cannot come back: the
 store's own `sessionNotFound` (the binary's exported error table names it,
 -32020, not retryable), and `methodNotFound` from a host that serves no
 store at all (an ephemeral host unserves `session/read` and
 `session/resume`; measured 2026-11-02 on CLI 1.4.14).
 */
-function resumeRefusedOr(error: unknown, sessionId: string): unknown {
+function refusedOr(error: unknown, sessionId: string): unknown {
   return error instanceof MspError &&
-    (error.kind === SESSION_NOT_FOUND || error.kind === MSP_METHOD_NOT_FOUND)
+    (error.kind === 'sessionNotFound' || error.kind === 'methodNotFound')
     ? new SessionNotFoundError(sessionId)
     : error
 }
@@ -1270,15 +1267,6 @@ function pause(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms)
   })
-}
-
-/**
-A write that failed because the other end is gone: over the stdio transport
-the host only ever closes stdin on its way out, so a broken pipe names a
-dead host. Matched on Node's stable `code`, never the message.
-*/
-function isPipeGoneError(error: unknown): boolean {
-  return error instanceof Error && 'code' in error && error.code === 'EPIPE'
 }
 
 /**
@@ -2007,43 +1995,36 @@ export class MuseSession implements ScheduledAgentSession {
   nothing runs there to stop, so the call is skipped and the state is named,
   never sent into a log line that says only `Error`. The pre-check covers a
   processed exit; the catch covers the exit that lands, or landed
-  unprocessed, during the call.
+  unprocessed, during the call. A failure that names a dead host (the
+  channel, a broken pipe, the SDK's closed-connection refusal) skips;
+  anything else still throws.
   */
-  private async unlessHostGone(verb: string, action: () => Promise<unknown>): Promise<void> {
+  private async ifLive(verb: 'turn/cancel' | 'turn/interrupt' | 'task/stopAll'): Promise<void> {
     if (this.channel.signal.aborted) {
-      this.log.info(`session ${this.sessionId} ${verb} skipped: its host already exited`)
+      this.log.info(`session ${this.sessionId} ${verb} skipped: host exited`)
       return
     }
     try {
-      await action()
+      await this.command(verb, {})
     } catch (error: unknown) {
-      if (await this.isHostGone(error)) {
-        this.log.info(`session ${this.sessionId} ${verb} skipped: its host exited during the call`)
-        return
+      // Read fresh: the exit can land while the call is in flight, past
+      // the pre-check above. A broken pipe names a dead host: over the
+      // stdio transport the host only ever closes stdin on its way out.
+      // So does the SDK's own closed-connection refusal (its two local
+      // wordings; every other ProtocolError keeps its report).
+      const signal = this.channel.signal
+      if (
+        !signal.aborted &&
+        !(error instanceof Error && 'code' in error && error.code === 'EPIPE') &&
+        !(
+          error instanceof ProtocolError &&
+          (error.message === 'connection is closed' || error.message === 'connection closed')
+        )
+      ) {
+        throw error
       }
-      throw error
+      this.log.info(`session ${this.sessionId} ${verb} skipped: host exited`)
     }
-  }
-
-  /**
-  Whether the host is gone now: its channel aborted, the call failed on a
-  broken pipe, or the connection already finished. Read fresh in its own
-  scope: the exit it reports can land while a call is in flight.
-  */
-  private async isHostGone(error: unknown): Promise<boolean> {
-    return (
-      this.channel.signal.aborted || isPipeGoneError(error) || (await this.isConnectionFinished())
-    )
-  }
-
-  /**
-  Whether the MSP connection already finished, observed without waiting: an
-  already-settled `closed` wins the microtask race (it is subscribed first),
-  while a live connection loses to the resolved fallback.
-  */
-  private async isConnectionFinished(): Promise<boolean> {
-    const live = Symbol('connection-live')
-    return (await Promise.race([this.channel.connection.closed, Promise.resolve(live)])) !== live
   }
 
   /** The single wire decision whose outcome every caller of this stage sees. */
@@ -2815,10 +2796,6 @@ export class MuseSession implements ScheduledAgentSession {
 
   /** Ask the host to stop the running turn gracefully. */
   public async cancel(scheduledOwner?: UnattendedRun): Promise<void> {
-    if (this.channel.signal.aborted) {
-      this.log.info(`session ${this.sessionId} turn/cancel skipped: its host already exited`)
-      return
-    }
     const token = this.owner.token()
     await this.rejectPartlyDecided()
     if (
@@ -2826,19 +2803,15 @@ export class MuseSession implements ScheduledAgentSession {
       (scheduledOwner !== undefined && !this.owner.canCancel(token, scheduledOwner))
     )
       return
-    await this.unlessHostGone('turn/cancel', () => this.command('turn/cancel', {}))
+    await this.ifLive('turn/cancel')
   }
 
   /** Stop the running turn immediately. */
   public async interrupt(): Promise<void> {
-    if (this.channel.signal.aborted) {
-      this.log.info(`session ${this.sessionId} turn/interrupt skipped: its host already exited`)
-      return
-    }
     const token = this.owner.token()
     await this.rejectPartlyDecided()
     if (!this.owner.matches(token)) return
-    await this.unlessHostGone('turn/interrupt', () => this.command('turn/interrupt', {}))
+    await this.ifLive('turn/interrupt')
   }
 
   /** Durable model selection; applies from the next model call. */
@@ -3008,8 +2981,8 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /** `task/stopAll` (M46): every background task; accepted over none too. */
-  public async stopAllTasks(): Promise<void> {
-    await this.unlessHostGone('task/stopAll', () => this.command('task/stopAll', {}))
+  public stopAllTasks(): Promise<void> {
+    return this.ifLive('task/stopAll')
   }
 
   /**
@@ -4271,7 +4244,7 @@ export class MuseCodeHost implements AgentHost {
     try {
       read = await this.command('session/read', { sessionId, excludeItems: true })
     } catch (error: unknown) {
-      throw resumeRefusedOr(error, sessionId)
+      throw refusedOr(error, sessionId)
     }
     const stored = sessionEnvelopeSchema.parse(read)
     const owner = this.hardwareOwner(stored.session.workspaceRoot ?? undefined)
@@ -4303,7 +4276,7 @@ export class MuseCodeHost implements AgentHost {
           assertCanResume,
         )
       } catch (error: unknown) {
-        throw resumeRefusedOr(error, sessionId)
+        throw refusedOr(error, sessionId)
       }
       const envelope = sessionEnvelopeSchema.parse(resumed)
       return {

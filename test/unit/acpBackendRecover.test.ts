@@ -16,7 +16,7 @@ import { Connection } from '@muse-code/sdk'
 import { ChildStdioTransport } from '@muse-code/sdk/dist/src/connection/spawn.js'
 import type { AgentHost, AgentSession, HostExit, TurnPart } from '../../src/core/agent/agentBackend'
 import { isSessionNotFoundError } from '../../src/core/agent/agentBackend'
-import type { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
+import type { MuseCodeHost, MuseSession } from '../../src/core/backends/musecode/MuseCodeHost'
 import {
   ControllerRegistry,
   type SessionController,
@@ -28,6 +28,7 @@ import {
   MUSE,
   RECOVER_TEST_TIMEOUT_MS,
   bareErrorLines,
+  childExit,
   cleanupRecoverRig,
   hasSkippedLine,
   museOrThrow,
@@ -54,14 +55,21 @@ const DEAD_PROXY: NodeJS.ProcessEnv = {
   NO_PROXY: '',
 }
 
-async function startUnsignedEcho(muse: string, stderrs: string[]): Promise<ServeHost> {
-  return await startServeHost({
-    muse,
+async function openUnsignedEchoSession(): Promise<{ echo: ServeHost; session: MuseSession }> {
+  const stderrs: string[] = []
+  const echo = await startServeHost({
+    muse: museOrThrow(),
     serveArgs: ['serve', '--provider', 'echo', '--no-session-log'],
     stderrs,
     home: { kind: 'throwaway-unsigned', credentialText: EMPTY_CREDENTIAL },
     extraEnv: DEAD_PROXY,
   })
+  const session = await echo.host.startSession({
+    workspaceRoot: echo.home,
+    modelId: 'echo',
+    approvalMode: 'onRequest',
+  })
+  return { echo, session }
 }
 
 /** A controller that only records what the registry tells it: the registry is under test. */
@@ -111,14 +119,7 @@ describe.skipIf(MUSE === undefined)('a dead muse serve under real sessions', () 
   it(
     'idle: the exit reports its reason and the session stops skip quietly',
     async () => {
-      const muse = museOrThrow()
-      const stderrs: string[] = []
-      const echo = await startUnsignedEcho(muse, stderrs)
-      const session = await echo.host.startSession({
-        workspaceRoot: echo.home,
-        modelId: 'echo',
-        approvalMode: 'onRequest',
-      })
+      const { echo, session } = await openUnsignedEchoSession()
       const stopped: HostExit[] = []
       const registry = new ControllerRegistry<ProbeController>({
         missing: (sessionId: string) => new Error(`missing ${sessionId}`),
@@ -173,14 +174,7 @@ describe.skipIf(MUSE === undefined)('a dead muse serve under real sessions', () 
   it(
     'mid-turn: a turn in flight when the host dies never reports finished',
     async () => {
-      const muse = museOrThrow()
-      const stderrs: string[] = []
-      const echo = await startUnsignedEcho(muse, stderrs)
-      const session = await echo.host.startSession({
-        workspaceRoot: echo.home,
-        modelId: 'echo',
-        approvalMode: 'onRequest',
-      })
+      const { echo, session } = await openUnsignedEchoSession()
       const finishedTerminal = await warmEchoTurn(session)
       // Completions land in the callback, so they collect in an array the
       // test reads after the exit, never in flags narrowed at the throw.
@@ -226,14 +220,7 @@ describe.skipIf(MUSE === undefined)('a dead muse serve under real sessions', () 
   it(
     'background tasks: task/stopAll on a dead host skips, naming the state',
     async () => {
-      const muse = museOrThrow()
-      const stderrs: string[] = []
-      const echo = await startUnsignedEcho(muse, stderrs)
-      const session = await echo.host.startSession({
-        workspaceRoot: echo.home,
-        modelId: 'echo',
-        approvalMode: 'onRequest',
-      })
+      const { echo, session } = await openUnsignedEchoSession()
       // Accepted over none, too: the echo session runs no tasks.
       await expect(session.stopAllTasks()).resolves.toBeUndefined()
       echo.child.kill('SIGKILL')
@@ -248,12 +235,7 @@ describe.skipIf(MUSE === undefined)('a dead muse serve under real sessions', () 
       // The exit that lands, or landed unprocessed, during the call reads
       // the same way: a stop dispatched in the kill's own tick still
       // settles instead of warning a bare Error.
-      const racing = await startUnsignedEcho(muse, stderrs)
-      const racingSession = await racing.host.startSession({
-        workspaceRoot: racing.home,
-        modelId: 'echo',
-        approvalMode: 'onRequest',
-      })
+      const { echo: racing, session: racingSession } = await openUnsignedEchoSession()
       const stopping = racingSession.stopAllTasks()
       racing.child.kill('SIGKILL')
       await expect(stopping).resolves.toBeUndefined()
@@ -267,14 +249,7 @@ describe.skipIf(MUSE === undefined)('a dead muse serve under real sessions', () 
   it(
     'failed restart: a resume the store cannot serve reads as not-found',
     async () => {
-      const muse = museOrThrow()
-      const stderrs: string[] = []
-      const echo = await startUnsignedEcho(muse, stderrs)
-      const session = await echo.host.startSession({
-        workspaceRoot: echo.home,
-        modelId: 'echo',
-        approvalMode: 'onRequest',
-      })
+      const { echo, session } = await openUnsignedEchoSession()
       // The unsigned CLI serves ephemeral sessions: it unserves resume, and
       // the host reads that refusal, like the store's own, as not-found, so
       // the agent answers in words instead of a wire error.
@@ -305,11 +280,7 @@ describe.skipIf(MUSE === undefined)('a dead muse serve under real sessions', () 
         },
         stdio: ['pipe', 'pipe', 'pipe'],
       })
-      const exited = new Promise<{ code: number | null; signal: string | null }>((resolve) => {
-        child.on('exit', (code: number | null, signal: NodeJS.Signals | null) => {
-          resolve({ code, signal })
-        })
-      })
+      const exited = childExit(child)
       const transport = new ChildStdioTransport(child, (chunk: string) => {
         stderrs.push(chunk)
       })
