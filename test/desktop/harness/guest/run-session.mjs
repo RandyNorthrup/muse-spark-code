@@ -8,6 +8,7 @@
 // harness libs
 // placed beside it on the share disk — no node_modules in the guest.
 
+import { execFileSync } from 'node:child_process'
 import { appendFile } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
@@ -25,8 +26,14 @@ const marker = 'M111QA-SESSION-OK'
 
 const SERIAL_DEVICES = ['/dev/ttyS0', '/dev/ttyAMA0', '/dev/console']
 
-async function announce(line) {
+async function announce(line, { isFinal = false } = {}) {
   console.log(line)
+  if (isFinal) {
+    // The host stops QEMU as soon as it sees the success marker, before
+    // this guest can power itself off. Flush the share first so the
+    // screenshots and this log survive that stop.
+    execFileSync('sync', [], { stdio: 'ignore' })
+  }
   for (const device of SERIAL_DEVICES) {
     try {
       await appendFile(device, `${line}\n`)
@@ -70,7 +77,7 @@ try {
     })
     await session.screenshot(session.outputs[1].name, path.join(outDir, 'guest-headless-2.png'))
     await announce(`clients: ${ran.clients.map((c) => c.class ?? c.title ?? 'window').join(', ')}`)
-    await announce(marker)
+    await announce(marker, { isFinal: true })
   } finally {
     await session.stop()
   }
