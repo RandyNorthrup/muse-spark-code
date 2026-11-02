@@ -10,6 +10,7 @@
 // notification, so it cannot prove that no command ran (the narrowed claim).
 // The judge runs in the background and is never awaited. No `vscode` import.
 
+import { randomBytes } from 'node:crypto'
 import type {
   AgentSession,
   StartSessionOptions,
@@ -20,7 +21,7 @@ import type { JudgeEntryHandle } from '../../core/judge/entries'
 import { type JudgeQuestion } from '../../core/judge/judge'
 import type { AgentEvent } from '../../shared/agentEvents'
 import type { TokenUsage } from '../../shared/agentEvents'
-import { THINKING_OFF_EFFORT } from '../../shared/constants'
+import { JUDGE_MARKER_BYTES, THINKING_OFF_EFFORT } from '../../shared/constants'
 import { checkStandingAllowRules } from '../../core/judge/same/allowRules'
 import { settleBatch } from '../../core/judge/same/answers'
 import {
@@ -275,7 +276,14 @@ export class MuseCodeSameJudge {
       const tracked = trackBatchTurns(session, this.deps.onUsage)
       try {
         await session.setReasoningEffort(THINKING_OFF_EFFORT)
-        const parts: readonly TurnPart[] = [{ type: 'text', text: judgeStandaloneTurn(batch.user) }]
+        const parts: readonly TurnPart[] = [
+          {
+            type: 'text',
+            text: judgeStandaloneTurn(batch.user, () =>
+              randomBytes(JUDGE_MARKER_BYTES).toString('hex'),
+            ),
+          },
+        ]
         signal.throwIfAborted()
         const submission = await (this.deps.sendTurn === undefined
           ? session.sendTurn(parts)

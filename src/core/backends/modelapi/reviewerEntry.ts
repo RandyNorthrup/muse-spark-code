@@ -30,8 +30,10 @@ import {
   type ResolvedModel,
 } from './modelPolicy'
 import type { AgentEvent, ItemSnapshot } from '../../../shared/agentEvents'
+import { randomBytes } from 'node:crypto'
 import {
   AUTO_REVIEW_ROW_TOOL,
+  AUTO_REVIEWER_MARKER_BYTES,
   AUTO_REVIEWER_MAX_OUTPUT_TOKENS,
   AUTO_REVIEWER_MODEL_TEXT,
   AUTO_REVIEWER_TIMEOUT_MS,
@@ -211,14 +213,17 @@ async function requestReviewer(
   budgetScope: OwnedSessionBudgetScope | undefined,
   attempt: SideCallAttempt,
 ): Promise<string> {
-  const input = reviewerInput({
-    userRequest: context.userRequest,
-    recentCalls: context.recentCalls,
-    tool,
-    action,
-    workspaceRoot: context.deps.workspaceRoot,
-    platform: context.deps.platform,
-  })
+  const input = reviewerInput(
+    {
+      userRequest: context.userRequest,
+      recentCalls: context.recentCalls,
+      tool,
+      action,
+      workspaceRoot: context.deps.workspaceRoot,
+      platform: context.deps.platform,
+    },
+    () => randomBytes(AUTO_REVIEWER_MARKER_BYTES).toString('hex'),
+  )
   let body = context.keyed(
     sideCallBody(
       context.keyed({

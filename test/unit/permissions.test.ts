@@ -524,6 +524,16 @@ describe('PermissionEngine.judge: shell commands under the rules (M78)', () => {
     }
   })
 
+  it('reads rm -r -f as the rm -rf forbid in Bypass and in Auto (RLF-SECTEXT)', () => {
+    for (const mode of ['allowAll', 'onRequest'] as const) {
+      expect(new PermissionEngine(mode).judge(bash('rm -r -f build'), policy)).toMatchObject({
+        verdict: 'deny',
+        settledBy: 'forbidRule',
+        isReviewable: false,
+      })
+    }
+  })
+
   it('runs a rule-allowed command in Auto and in Manual, and Plan still refuses it', () => {
     for (const mode of ['onRequest', 'promptUnmatched'] as const) {
       expect(new PermissionEngine(mode).judge(bash('git status'), policy)).toMatchObject({
