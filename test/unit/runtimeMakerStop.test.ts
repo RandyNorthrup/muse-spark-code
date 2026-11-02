@@ -151,7 +151,6 @@ describe('independent runtime Stop', () => {
   })
   it('reaches lease owners even if the machine registry is corrupt', async () => {
     const f = await fixture()
-    // The Windows helper writes its script into the folder, then makes it private.
     await mkdir(path.join(f.directory, 'leases'), { mode: 0o700 })
     const lease = await makerLeaseDeps(path.join(f.directory, 'leases'))
     let stops = 0
