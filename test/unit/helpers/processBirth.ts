@@ -1,16 +1,14 @@
 // Whether this machine answers OS process-birth probes: Linux /proc, macOS
-// ps, Windows PowerShell. Suites that assert birth-dependent behavior run a
-// real probe once and assert the matching reality on both sides — the birth
-// contract where the table answers, the documented degraded contract (an
-// unreadable birth proves nothing) where it does not. Never a skip: both
-// branches end in assertions over real behavior.
+// ps, and on Windows the compiler the product's birth reader is built with.
+// Suites that assert birth-dependent behavior run a real probe once and assert
+// the matching reality on both sides — the birth contract where the table
+// answers, the documented degraded contract (an unreadable birth proves nothing)
+// where it does not. Never a skip: both branches end in assertions over real
+// behavior.
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
-import {
-  WINDOWS_POWERSHELL_COMMAND_ARGS,
-  WINDOWS_POWERSHELL_RELATIVE_PATH,
-} from '../../../src/shared/constants'
+import { WINDOWS_FRAMEWORK_RELATIVE_PATH } from '../../../src/shared/constants'
 
 function canRunProbe(file: string, args: readonly string[]): boolean {
   try {
@@ -31,12 +29,14 @@ export function canReadProcessBirth(): boolean {
     }
   }
   if (process.platform === 'win32') {
+    // No process start, so no clock: this used to ask Windows PowerShell with a
+    // 5 s limit, a cold start on a fresh VM can pass that (15 s in PR 165's run),
+    // and a slow start then read as a machine with no process table.
     const systemRoot = process.env['SystemRoot']
-    if (systemRoot === undefined) return false
-    return canRunProbe(path.win32.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH), [
-      ...WINDOWS_POWERSHELL_COMMAND_ARGS,
-      `try { [Diagnostics.Process]::GetProcessById(${String(process.pid)}).StartTime.ToFileTimeUtc() } catch [ArgumentException] { }`,
-    ])
+    return (
+      systemRoot !== undefined &&
+      existsSync(path.win32.join(systemRoot, WINDOWS_FRAMEWORK_RELATIVE_PATH, 'csc.exe'))
+    )
   }
   return canRunProbe('/bin/ps', ['-o', 'lstart=', '-p', String(process.pid)])
 }
