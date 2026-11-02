@@ -121,9 +121,71 @@ function isMatchAt(
 
 /** A forbid or ask rule: its words in a row anywhere in the command line. */
 function isMatchAnywhere(rule: CommandRule, command: string, dialect: ShellDialect): boolean {
-  return looseWords(command, dialect).some((words) =>
-    words.some((_word, start) => isMatchAt(rule.pattern, words, start, dialect)),
-  )
+  const pattern = normaliseRmWords(rule.pattern, dialect)
+  return looseWords(command, dialect).some((words) => {
+    const normal = normaliseRmWords(words, dialect)
+    return normal.some((_word, start) => isMatchAt(pattern, normal, start, dialect))
+  })
+}
+
+// rm's combined short flags (`-rf`), the only flag shape the forbid
+// matcher parses exactly (RLF-SECTEXT): recursive and force, which an
+// rm run reads the same in any order or split (`-fr`, `-r -f`).
+const RM_FLAG_CLUSTER = /^-[rf]+$/
+
+/** One rm flag cluster expanded to a flag a word; undefined for anything else. */
+function rmFlags(word: string): readonly string[] | undefined {
+  if (!RM_FLAG_CLUSTER.test(word)) {
+    return undefined
+  }
+  // The cluster is regex-verified ASCII above, so one letter is one flag.
+  const flags = Array.from(word.slice(1), (flag) => `-${flag}`)
+  return flags.toSorted((left, right) => left.localeCompare(right, 'en'))
+}
+
+/** The flag clusters from `start` on, expanded; and where the run ends. */
+function flagRun(
+  words: readonly string[],
+  start: number,
+): { readonly flags: readonly string[]; readonly end: number } {
+  const flags: string[] = []
+  let end = start
+  while (end < words.length) {
+    const expanded = rmFlags(words[end] ?? '')
+    if (expanded === undefined) {
+      return { flags, end }
+    }
+    flags.push(...expanded)
+    end += 1
+  }
+  return { flags, end }
+}
+
+/**
+An rm flag run canonicalised, so a forbid on `rm -rf` reads `rm -fr`
+and `rm -r -f` the same in Bypass as in Auto: each cluster expanded,
+the run sorted and deduplicated. Stops at the first word that is not
+a cluster (`--` ends the flags; a filename `-rf` past it stays one),
+and reads nothing else: unknown shapes keep today's word matching.
+*/
+function normaliseRmWords(words: readonly string[], dialect: ShellDialect): readonly string[] {
+  if (dialect !== 'bash') {
+    return words
+  }
+  const normal: string[] = []
+  let index = 0
+  while (index < words.length) {
+    const word = words[index] ?? ''
+    normal.push(word)
+    index += 1
+    if (programName(word, dialect) !== 'rm') {
+      continue
+    }
+    const run = flagRun(words, index)
+    index = run.end
+    normal.push(...new Set(run.flags.toSorted((left, right) => left.localeCompare(right, 'en'))))
+  }
+  return normal
 }
 
 /**

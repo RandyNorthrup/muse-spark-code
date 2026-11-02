@@ -21,6 +21,7 @@ import {
   AUTO_REVIEWER_TEXT_MAX_CHARS,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
+import { breakMarkerOccurrences } from '../../../shared/markerFence'
 
 /** What the reviewer is shown. */
 export interface ReviewRequest {
@@ -50,21 +51,29 @@ function clipped(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max)}${ELLIPSIS}` : text
 }
 
-/** The reviewer's one input message: every part of it data, fenced and labelled. */
-export function reviewerInput(request: ReviewRequest): string {
+/**
+The reviewer's one input message: every part of it data, fenced between
+fresh random markers and labelled. Any literal marker text inside the
+data is broken up before fencing, so the reviewed text cannot close
+its own block (RLF-SECTEXT).
+*/
+export function reviewerInput(request: ReviewRequest, newMarker: () => string): string {
+  const marker = newMarker()
   const calls =
     request.recentCalls.length === 0
       ? NONE
       : request.recentCalls
           .map((call) => clipped(`${call.tool} ${call.args}`, AUTO_REVIEWER_RECENT_CALL_MAX_CHARS))
           .join('\n')
+  const broken = (text: string): string => breakMarkerOccurrences(text, marker)
   return fill(AUTO_REVIEWER_MODEL_TEXT.autoReviewerRequest, {
-    userRequest: clipped(request.userRequest ?? NONE, AUTO_REVIEWER_TEXT_MAX_CHARS),
-    recentCalls: calls,
-    tool: request.tool,
-    action: clipped(request.action, AUTO_REVIEWER_TEXT_MAX_CHARS),
-    workspace: request.workspaceRoot,
-    platform: request.platform,
+    marker,
+    userRequest: broken(clipped(request.userRequest ?? NONE, AUTO_REVIEWER_TEXT_MAX_CHARS)),
+    recentCalls: broken(calls),
+    tool: broken(request.tool),
+    action: broken(clipped(request.action, AUTO_REVIEWER_TEXT_MAX_CHARS)),
+    workspace: broken(request.workspaceRoot),
+    platform: broken(request.platform),
   })
 }
 

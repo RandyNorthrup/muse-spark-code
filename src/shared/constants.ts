@@ -2234,6 +2234,9 @@ export const JUDGE_MIN_READY_RATE = 0.5
 // One judge call never runs longer than this. Calls run in the background and
 // are never awaited on a user path; a late result is dropped at its fence.
 export const JUDGE_REQUEST_TIMEOUT_MS = 60_000
+// Random bytes (as hex) in the markers around the judged request, so the
+// judged text cannot close its own block (RLF-SECTEXT).
+export const JUDGE_MARKER_BYTES = 8
 // Phase-2 eligibility limits, not authorization to dispatch or spend.
 export const JUDGE_CASCADE_CONFIDENCE = 0.8
 export const JUDGE_ISOTONIC_MIN_LABELS = 200
@@ -8584,6 +8587,9 @@ export const AUTO_REVIEWER_RECENT_CALLS = 8
 export const AUTO_REVIEWER_RECENT_CALL_MAX_CHARS = 400
 // The reviewer's reason as the card and the row show it.
 export const AUTO_REVIEWER_REASON_MAX_CHARS = 300
+// Random bytes (as hex) in the markers around the data under review, so
+// the reviewed text cannot close its own block (RLF-SECTEXT).
+export const AUTO_REVIEWER_MARKER_BYTES = 8
 // The transcript row of one review (never replayed to the model).
 export const AUTO_REVIEW_ROW_TOOL = 'auto_review'
 
@@ -9427,7 +9433,7 @@ export const AUTO_REVIEWER_MODEL_TEXT = {
   museCodeReviewerTurn:
     '{instructions}\n\nThis message is one review on its own; any earlier message here was another review and does not bear on it. Use no tools.\n\n{request}',
   autoReviewerRequest:
-    'The user’s latest message (data):\n<<<\n{userRequest}\n>>>\n\nThe agent’s earlier actions in this turn (data):\n<<<\n{recentCalls}\n>>>\n\nThe action to review (data):\n<<<\ntool: {tool}\naction: {action}\nworkspace: {workspace}\nplatform: {platform}\n>>>',
+    'The user’s latest message (data):\n<<<request {marker}>>>\n{userRequest}\n<<<end of request {marker}>>>\n\nThe agent’s earlier actions in this turn (data):\n<<<actions {marker}>>>\n{recentCalls}\n<<<end of actions {marker}>>>\n\nThe action to review (data):\n<<<action {marker}>>>\ntool: {tool}\naction: {action}\nworkspace: {workspace}\nplatform: {platform}\n<<<end of action {marker}>>>',
 } as const
 
 // The same-model judge's words (M98 lane S, PLAN.md D77): the stated-confidence
@@ -9445,6 +9451,8 @@ export const JUDGE_MODEL_TEXT = {
   judgeStateLabel: 'The state to judge (data):\n',
   judgeQuestionLabel: 'Question (data):\n',
   judgeAlternativeLine: '{letter}. {label}',
+  judgeRequestOpen: '<<<judged request {marker}>>>',
+  judgeRequestClose: '<<<end of judged request {marker}>>>',
   // One turn of a fresh hidden session holds the instructions and the request;
   // the session is dropped after the batch, so earlier turns are never reread.
   judgeStandaloneTurn:
