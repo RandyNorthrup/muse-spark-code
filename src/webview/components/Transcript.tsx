@@ -1251,6 +1251,7 @@ function OtherRow({
             liftsAtMs={entry.resume?.liftsAtMs}
             defaultAtMs={entry.resume?.defaultAtMs}
           />
+          {entry.resume?.kind === 'usage' ? <div>{UI_TEXT.resumeUsageReportNote}</div> : null}
           <ReportThisButton entry={entry} onReportProblem={onReportProblem} />
         </li>
       )

@@ -1634,6 +1634,7 @@
   "timedSendRefused": "A „{name}“ időzített küldés el lett utasítva: {reason}",
   "timedSendSkipped": "A „{name}“ időzített küldés ki lett hagyva: {reason}",
   "timedSendMissed": "A „{name}“ időzített küldés lemaradt az időpontjáról: {reason}",
+  "resumeUsageReportNote": "A legfrissebb használati jelentés alapján.",
   "museCodeOnceCleared": {
     "one": "A Muse Code-bejelentkezés megváltozott egy időzített küldés ütemezése óta, ezért a küldés el lett távolítva. Ütemezze újra, hogy az aktuális bejelentkezéssel menjen el.",
     "other": "A Muse Code-bejelentkezés megváltozott {count} időzített küldés ütemezése óta, ezért a küldések el lettek távolítva. Ütemezze újra őket, hogy az aktuális bejelentkezéssel menjenek el."

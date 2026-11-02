@@ -1654,6 +1654,7 @@
   "timedSendRefused": "Zaplanowana wysyłka „{name}“ została odrzucona: {reason}",
   "timedSendSkipped": "Zaplanowana wysyłka „{name}“ została pominięta: {reason}",
   "timedSendMissed": "Zaplanowana wysyłka „{name}“ przegapiła swój moment: {reason}",
+  "resumeUsageReportNote": "Na podstawie najnowszego raportu użycia.",
   "museCodeOnceCleared": {
     "one": "Logowanie Muse Code zmieniło się od zaplanowania wysyłki, więc wysyłkę usunięto. Zaplanuj ją ponownie, aby wysłać przy obecnym logowaniu.",
     "other": "Logowanie Muse Code zmieniło się od zaplanowania {count} wysyłek, więc wysyłki usunięto. Zaplanuj je ponownie, aby wysłać przy obecnym logowaniu.",

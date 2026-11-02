@@ -1644,6 +1644,7 @@
   "timedSendRefused": "O envio agendado “{name}” foi recusado: {reason}",
   "timedSendSkipped": "O envio agendado “{name}” foi ignorado: {reason}",
   "timedSendMissed": "O envio agendado “{name}” perdeu seu momento: {reason}",
+  "resumeUsageReportNote": "Com base no relatório de uso mais recente.",
   "museCodeOnceCleared": {
     "one": "O login do Muse Code mudou desde que {count} envio foi agendado, por isso o envio foi removido. Agende-o novamente para enviar com o login atual.",
     "other": "O login do Muse Code mudou desde que {count} envios foram agendados, por isso os envios foram removidos. Agende-os novamente para enviar com o login atual.",

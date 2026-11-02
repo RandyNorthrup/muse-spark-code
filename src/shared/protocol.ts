@@ -1043,6 +1043,9 @@ export const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('renameSession'), name: stringSchema }),
   // Account & usage (M8): ask for the subscription window; answered by usageReport.
   z.object({ type: z.literal('readUsage') }),
+  // Resume after a spent window without typed detail (M88, D67 item 16):
+  // read the usage for one failed turn's offer; answered by resumeUsage.
+  z.object({ type: z.literal('usageForResume'), turnId: stringSchema }),
   // The usage dialog's uploaded-files section (M105 lane F): delete one
   // file or all of ours; answered by a fresh uploadedFilesReport.
   z.object({ type: z.literal('deleteUploadedFile'), fileId: stringSchema }),
@@ -1290,6 +1293,14 @@ export const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     // The session holds imported history (M84, PLAN.md D49): its code
     // blocks offer Copy only, as a share file's do.
     imported: z.optional(z.literal(true)),
+  }),
+  // Resume after a spent window without typed detail (M88, D67 item
+  // 16): the usage read for one failed turn's offer, or none when the
+  // read found nothing. Answered for usageForResume, always.
+  z.object({
+    type: z.literal('resumeUsage'),
+    turnId: stringSchema,
+    usage: z.optional(subscriptionUsageSchema),
   }),
   // Account & usage (M8): the backend this window runs on and the
   // subscription window the CLI last observed (absent on a key, or before

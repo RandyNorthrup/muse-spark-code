@@ -969,6 +969,9 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   // (M88, D67 item 16); both need an admitted session.
   'continueTurn',
   'resumeLater',
+  // The usage read for a failed turn's resume offer (M88, D67 item 16)
+  // runs on the turn's own session.
+  'usageForResume',
   // A sequence's first step is a turn (M88); its stop and library are local.
   'sequenceStart',
 ])
@@ -8655,6 +8658,28 @@ export class ConversationController implements DeferredSend {
   }
 
   /**
+  Reads the subscription usage for one failed turn's resume offer (M88,
+  D67 item 16): only on Muse Code, where the spent window lives. Always
+  answers, with or without usage, so the webview's wait ends; a failed
+  read leaves the row ordinary, as if no offer path existed.
+  */
+  private async answerUsageForResume(turnId: string): Promise<void> {
+    if (this.isDisposed) return
+    if (this.sessionKind !== 'museCode') {
+      this.post({ type: 'resumeUsage', turnId })
+      return
+    }
+    try {
+      const host = await this.ensureHost()
+      const usage = await host.readUsage()
+      this.post({ type: 'resumeUsage', turnId, ...(usage !== undefined && { usage }) })
+    } catch (error: unknown) {
+      this.deps.log.warn(`The usage for resuming could not be read: ${failureForLog(error)}`)
+      this.post({ type: 'resumeUsage', turnId })
+    }
+  }
+
+  /**
   Resubmits a remembered turn's own message in its session (RLF-ACPTURNS,
   D228): a Retry press and the automatic resend share these steps, and
   only their failure answers differ. The resubmission's own turn may
@@ -13017,6 +13042,10 @@ export class ConversationController implements DeferredSend {
       }
       case 'resumeLater': {
         await this.resumeLater(message.turnId, message.defaultAtMs)
+        break
+      }
+      case 'usageForResume': {
+        await this.answerUsageForResume(message.turnId)
         break
       }
       case 'runManualHook': {
