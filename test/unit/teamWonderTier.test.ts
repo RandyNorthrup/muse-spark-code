@@ -5,12 +5,8 @@
 // is refused in words before either Muse Code-backed worker starts, so
 // no request is sent at an unknown billed tier. On the Model API backend
 // the same id stays offered, at the Wonder rates, never the standard ones.
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import {
-  modelListResultSchema,
-  toModelSummary,
-} from '../../src/core/backends/musecode/MuseCodeHost'
+import { recordedMuseCodeModels } from './helpers/recordedMuseCodeModels'
 import { metaCapabilityRecord } from '../../src/core/providers/capabilityRecord'
 import { buildTeamModelOffers } from '../../src/core/team/teamModelRegistry'
 import { ACP_PRESETS } from '../../src/core/team/workers/acpWorker'
@@ -25,16 +21,6 @@ import { setUiText } from '../../src/shared/l10n/text'
 setUiText(EN, 'en')
 
 const WONDER = 'muse-wonder-1.0'
-
-function recordedMuseCodeModels() {
-  const raw: unknown = JSON.parse(
-    readFileSync(
-      new URL('../fixtures/muse-contributor/model-list-1.4.10.json', import.meta.url),
-      'utf8',
-    ),
-  )
-  return modelListResultSchema.parse(raw).models.map((row) => toModelSummary(row))
-}
 
 const registryInput = { engine: [], limits: [], maxWorkers: 2, canRunKind: () => true }
 
