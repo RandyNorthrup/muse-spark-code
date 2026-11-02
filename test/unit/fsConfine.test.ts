@@ -1,15 +1,13 @@
-import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { mkdir, readFile, realpath, symlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { confineToRoot } from '../../src/core/fs/confine'
+import { removeScratchDirs, trackScratch } from './helpers/scratchDir'
 
 const scratchRoots: string[] = []
 
-async function scratch(): Promise<string> {
-  const dir = await mkdtemp(path.join(tmpdir(), 'muse-confine-'))
-  scratchRoots.push(dir)
-  return dir
+function scratch(): Promise<string> {
+  return trackScratch(scratchRoots, 'muse-confine-')
 }
 
 function directoryLinkKind(): 'junction' | 'dir' {
@@ -17,11 +15,7 @@ function directoryLinkKind(): 'junction' | 'dir' {
 }
 
 afterEach(async () => {
-  await Promise.all(
-    scratchRoots.splice(0).map(async (dir) => {
-      await rm(dir, { recursive: true, force: true })
-    }),
-  )
+  await removeScratchDirs(scratchRoots)
 })
 
 describe('confineToRoot', () => {

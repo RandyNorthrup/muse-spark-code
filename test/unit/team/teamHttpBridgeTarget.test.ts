@@ -1,5 +1,6 @@
 import { createServer } from 'node:http'
 import { describe, expect, it } from 'vitest'
+import { readIncomingBody } from '../helpers/incomingBody'
 import {
   BRIDGE_HEADERS_ENV,
   BRIDGE_LOOPBACK_REFUSAL,
@@ -87,13 +88,9 @@ describe('the team bridge endpoint', () => {
       body: '',
     }
     const server = createServer((request, response) => {
-      const chunks: Buffer[] = []
-      request.on('data', (chunk: Buffer) => {
-        chunks.push(chunk)
-      })
-      request.on('end', () => {
+      void readIncomingBody(request).then((body) => {
         seen.authorization = request.headers.authorization
-        seen.body = Buffer.concat(chunks).toString('utf8')
+        seen.body = body
         response.writeHead(200, { 'Content-Type': 'application/json' })
         response.end(JSON.stringify({ jsonrpc: '2.0', id: 7, result: { ok: true } }))
       })

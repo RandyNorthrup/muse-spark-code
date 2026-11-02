@@ -1,5 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { mkdir, readFile, symlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
@@ -11,21 +10,16 @@ import {
 import { LayoutStore, writeStatusSnapshot } from '../../../desktop/app/layoutStore'
 import { TerminalSessions, cleanTerminalEnvironment } from '../../../desktop/app/terminals'
 import { DEFAULT_WORKBENCH_LAYOUT } from '../../../src/shared/desktop/bridge'
+import { removeScratchDirs, trackScratch } from '../helpers/scratchDir'
 
 const scratchRoots: string[] = []
 
-async function scratch(): Promise<string> {
-  const dir = await mkdtemp(path.join(tmpdir(), 'muse-desktop-wb-'))
-  scratchRoots.push(dir)
-  return dir
+function scratch(): Promise<string> {
+  return trackScratch(scratchRoots, 'muse-desktop-wb-')
 }
 
 afterEach(async () => {
-  await Promise.all(
-    scratchRoots.splice(0).map(async (dir) => {
-      await rm(dir, { recursive: true, force: true })
-    }),
-  )
+  await removeScratchDirs(scratchRoots)
 })
 
 describe('M111 lane WB desktop shell services', () => {
