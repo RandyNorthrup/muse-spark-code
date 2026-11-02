@@ -27,6 +27,10 @@ const rootDir = process.cwd()
 const nodePtyDir = path.join(rootDir, 'node_modules', 'node-pty')
 const buildDir = path.join(rootDir, 'temp', 'desktop-pty-build', 'node-pty')
 const platformTag = `${process.platform}-${process.arch}`
+// The compiled binding outlives any one package: packaging wipes the
+// app folder (and its stamp) every run, so a cache in the worktree's
+// temp keeps repackaging from recompiling what it just built.
+const cacheDir = path.join(rootDir, 'temp', 'desktop-pty-cache', platformTag)
 
 function fail(message) {
   throw new Error(`stage-desktop-pty: ${message}`)
@@ -101,6 +105,18 @@ function stampMatches(dest, electron, nodePty) {
   }
 }
 
+function cacheMatches(electron, nodePty) {
+  const stampFile = path.join(cacheDir, '.cached-pty.json')
+  const bindingFile = path.join(cacheDir, 'pty.node')
+  if (!existsSync(stampFile) || !existsSync(bindingFile)) return false
+  try {
+    const stamp = readJson(stampFile)
+    return stamp.electron === electron && stamp.nodePty === nodePty
+  } catch {
+    return false
+  }
+}
+
 function copySources() {
   rmSync(path.dirname(buildDir), { recursive: true, force: true })
   mkdirSync(buildDir, { recursive: true })
@@ -169,13 +185,6 @@ function stageBinding(dest) {
   }
 }
 
-function stageModule(dest, isDev) {
-  if (isDev) return
-  mkdirSync(dest, { recursive: true })
-  cpSync(path.join(nodePtyDir, 'package.json'), path.join(dest, 'package.json'))
-  cpSync(path.join(nodePtyDir, 'lib'), path.join(dest, 'lib'), { recursive: true })
-}
-
 const args = process.argv.slice(2)
 const isDev = args.includes('--dev')
 const flagAt = args.indexOf('--node-gyp')
@@ -188,17 +197,41 @@ if (devdirAt !== -1 && devdirFlag === null) fail('--devdir needs the headers cac
 const electron = electronVersion()
 const nodePty = nodePtyVersion()
 const dest = stageRoot(isDev)
+
+function stageModule() {
+  if (isDev) return
+  mkdirSync(dest, { recursive: true })
+  cpSync(path.join(nodePtyDir, 'package.json'), path.join(dest, 'package.json'))
+  cpSync(path.join(nodePtyDir, 'lib'), path.join(dest, 'lib'), { recursive: true })
+}
 if (stampMatches(dest, electron, nodePty)) {
   console.log(`stage-desktop-pty: ${platformTag} for Electron ${electron} is already staged`)
   process.exit(0)
 }
-const nodeGyp = resolveNodeGyp(nodeGypFlag)
-copySources()
-// Without the flag, node-gyp's own `npm_config_devdir` answers (the
-// rig lanes keep their headers cache in the worktree's temp/).
-compileBinding(nodeGyp, electron, devdirFlag ?? process.env['npm_config_devdir'] ?? null)
-stageBinding(dest)
-stageModule(dest, isDev)
+if (cacheMatches(electron, nodePty)) {
+  stageModule()
+  const prebuildsDir = path.join(dest, 'prebuilds', platformTag)
+  mkdirSync(prebuildsDir, { recursive: true })
+  cpSync(cacheDir, prebuildsDir, {
+    recursive: true,
+    filter: (source) => path.basename(source) !== '.cached-pty.json',
+  })
+} else {
+  const nodeGyp = resolveNodeGyp(nodeGypFlag)
+  copySources()
+  // Without the flag, node-gyp's own `npm_config_devdir` answers (the
+  // rig lanes keep their headers cache in the worktree's temp/).
+  compileBinding(nodeGyp, electron, devdirFlag ?? process.env['npm_config_devdir'] ?? null)
+  stageBinding(dest)
+  stageModule()
+  rmSync(cacheDir, { recursive: true, force: true })
+  mkdirSync(cacheDir, { recursive: true })
+  cpSync(path.join(dest, 'prebuilds', platformTag), cacheDir, { recursive: true })
+  writeFileSync(
+    path.join(cacheDir, '.cached-pty.json'),
+    `${JSON.stringify({ electron, nodePty })}\n`,
+  )
+}
 writeFileSync(
   path.join(dest, '.staged-pty.json'),
   `${JSON.stringify({ electron, nodePty, tag: platformTag })}\n`,

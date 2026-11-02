@@ -276,6 +276,13 @@
   block-size: 100%;
 }
 
+/* xterm.css paints the viewport black; the fractional row below the
+   last full row must carry the code surface instead. The triple class
+   outranks xterm.css whatever order the sheets arrive in. */
+.muse-panel-terminal-host .xterm .xterm-viewport {
+  background-color: var(--ms-code-surface);
+}
+
 .muse-panel-find {
   flex: none;
   display: flex;

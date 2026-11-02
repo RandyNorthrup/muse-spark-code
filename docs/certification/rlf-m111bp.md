@@ -40,7 +40,44 @@ slots and bridge; never a second layout.
 
 ## What is next
 
-Real-Electron proof → ui:look → drills and gates.
+Drills and gates.
+
+## Landed: real-Electron proof, look, renderer fixes (2026-11-01)
+
+- `test/desktop/electron-panel.mjs`: the packaged app under Xvfb,
+  driven through CDP. PASS (2026-11-01, linuxlt): the window renders
+  on `muse-desktop://app/`; startup fetches no engine chunk (read off
+  the Network domain — resource timing stays empty in this window);
+  New terminal loads `renderer.terminalEngine.js`, its stylesheet
+  (link sheet loaded) and the screen-reader tree; the WebGL renderer
+  is live (canvas present; `--enable-unsafe-swiftshader` stands in
+  for the rig's missing GPU, without it the product honestly falls
+  back to canvas); per-character keys reach `bash -i` and
+  `bp-proof-7147` streams back through the bridge (printf's format
+  keeps the input echo from containing it); `exit` lands the exited
+  tab, exit code 0 and the exit sentence; Problems and Output show
+  their honest empty states; the status snapshot carries the
+  workbench items. Every phase has its own bound (120–180 s; a
+  shared rig answers slowly) and says which phase failed with the
+  page's state.
+- The look found and fixed three real defects: (1) xterm's Unicode
+  11 addon needs `allowProposedApi` (the pane showed the chunk
+  failure until the flag landed); (2) the CSP blocked xterm's
+  dynamic inline styles, so style-src allows `'unsafe-inline'`
+  (script-src stays `'self'`, the renderer stays sandboxed, no
+  remote or model content renders as HTML); (3) xterm.css paints
+  the viewport black, so panel.css overrules it with
+  `--ms-code-surface` (the fractional row below the last full row).
+- The shell loads the engine behind an explicit loading state with
+  its own retry (the same loading/failure DOM as before): React
+  `use()` suspended the pane flakily (0.5–120 s, sometimes never)
+  while a manual import resolved at once, so the suspense boundary
+  in BottomPanel is gone with it.
+- Local look (real Electron via CDP, no comparison): light and dark
+  captures are `rlf-m111bp-panel-light.png` and
+  `rlf-m111bp-panel-dark.png` beside this record.
+- No WB regression: `test/desktop/electron-smoke.mjs` still PASSes
+  on the dev path (status items, single-instance handoff).
 
 ## Landed: PTY staging for Electron (2026-11-01)
 
