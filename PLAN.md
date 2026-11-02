@@ -27931,6 +27931,20 @@ font coverage and IME flags), each with its own budgets, none raised. Muse
 Desktop itself has not been run here (no GUI on the rig; the Electron
 suites are listed for hosted CI). Record: `docs/certification/cc-int9.md`.
 
+**Status 2026-11-02 (RLF-M111AR): building.** Lane AR is built: the pointer
+themes (Muse, Large, HighContrast; hyprcursor and Xcursor, 34 shapes plus
+aliases), the icon themes (dark, light, HC-dark, HC-light; 89 sources), the
+image fonts (Inter and JetBrains Mono with CJK and emoji, slot-59
+fontconfig, OFL notices), the wallpapers (four modes plus the greeter at
+three sizes), the Plymouth theme (descriptor, script, dialog art) and the
+GRUB theme (theme.txt, background, class icon; the .pf2 bakes at assembly),
+and the companion's 2×, HC and still sets with `variants.json` (still
+frames, display scales, WCAG 2.3.1 flash verdicts: all twelve compliant)
+and the provenance note. Freshness is gated (`check:art` runs all four
+builders). Not proven here: QEMU boot (M111os/IQ's, per the plan), the
+owner's aesthetic approval, and the mirrored-walk visual check (both at
+release). Record: `docs/certification/rlf-m111ar.md` with the look sheet.
+
 Status detail retained: planned, documentation only. Nothing is implemented,
 and no lane is launched by this record. The research is
 `docs/research/muse-desktop-2026-10-05.md`. Lane 0's threat model is reviewed

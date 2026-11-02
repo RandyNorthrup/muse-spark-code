@@ -19,8 +19,8 @@ values (`boot/boot.json`), all read, never copied by hand.
 - [x] Wallpapers and greeter art.
 - [x] Plymouth and GRUB theme packaging.
 - [x] Companion variants, manifest, provenance; flash measurement.
-- [ ] Chromium looks (light + dark + boot).
-- [ ] PLAN status, CHANGELOG, gates, red/green drills, LANE DONE.
+- [x] Chromium looks (light + dark + boot).
+- [x] PLAN status, CHANGELOG, gates, red/green drills, LANE DONE.
 
 ## Sources read (research first)
 
@@ -226,6 +226,14 @@ codepoints; 0 problems` (exit 0, this rig, 2026-11-02).
   3.00/s, largest area peek at 18,054 of the 87,296 threshold, zero red
   pairs). An independent numpy reimplementation of the flash method
   matches all twelve animations exactly.
+- Looks: `docs/certification/rlf-m111ar-look.png` (2026-11-02) renders
+  every art family in headless Chrome (a second engine after resvg): the
+  five wallpapers, the Plymouth dialog set, the GRUB background and class
+  icon, companion stills plus the walk mirror pair, and cursor/icon
+  samples. The shot carries 2,871 distinct colours (nothing blank, nothing
+  broken: every PNG decodes in the suites and every themed cursor SVG
+  renders in resvg). Aesthetic approval is the owner's at release, as
+  with the mockups.
 
 ## Commits
 
@@ -235,11 +243,31 @@ codepoints; 0 problems` (exit 0, this rig, 2026-11-02).
 - `1eafb9798` the image fonts, slot-59 fontconfig and notices.
 - `258307b35` the wallpapers and greeter art.
 - `f7ac2afe8` the Plymouth and GRUB themes.
-- (Companion commit SHA lands here at commit time.)
+- `57ae43f15` the companion's 2x, HC and still variants, manifest and provenance.
+- (Docs commit SHA lands here at commit time.)
 
 ## Gates
 
-- (Exit codes on the final tree.)
+All on the final tree, this rig, 2026-11-02, repository timeouts:
+
+- prettier --check on touched files: exit 0.
+- eslint --max-warnings=0 on touched files: exit 0.
+- `npm run typecheck`: exit 0.
+- `node scripts/check-l10n.mjs`: exit 0 (0 problems; art carries no UI text).
+- `npm run check:reference`: exit 0.
+- `npm run check:host-api`: exit 0 (0 problems).
+- `npm run check:plan`: exit 0 (250 milestones, 0 drift).
+- `npm run check:roadmap`: exit 0 (regenerated, current).
+- `npm run check:catches`: exit 0 (baseline matches; no count rose).
+- `npm run duplication`: exit 0 (0 clones).
+- `npm run cycles`: exit 0 (no circular dependency).
+- `npm run deadcode`: exit 0.
+- `npm run build`: exit 0 (every budget holds; legal scans clean).
+- `npm run check:tokens`: exit 0 (0 problems).
+- `npm run check:art`: exit 0 (294 cursors + 360 icons + 24 desktop-art + 61 companion-art fresh).
+- Suites: artCursors 17, artIcons 45, artFonts 7, fontCoverage 7, artWallpapers 11, artBoot 11, artCompanion 12 — 110 passed, 0 failed.
+- `npx vitest related` on the three changed sources: 5 files, 48 passed.
+- `node scripts/check-font-coverage.mjs` on the image set: 13 fonts, 2688 codepoints, 0 problems, exit 0.
 
 ## Red/green drills
 
