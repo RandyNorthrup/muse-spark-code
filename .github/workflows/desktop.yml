@@ -181,6 +181,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Dependencies
+        run: npm ci
       - name: Hyprland from trixie-backports, in the Debian 13 container
         run: |
           docker run --rm -v "$PWD:/repo" -w /repo debian:trixie sh -c '
