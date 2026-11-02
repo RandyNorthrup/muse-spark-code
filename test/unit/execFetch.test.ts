@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { Usd } from '../../src/shared/usd'
 import { MODEL_API_BASE_URL, UI_TEXT } from '../../src/shared/constants'
 import { execFetch } from '../../src/runtime/exec/execFetch'
-import { createLifecycle } from '../../src/runtime/exec/execLimits'
+import { createExecTestLifecycle } from './helpers/execLifecycle'
 import { createRunLedger } from '../../src/runtime/exec/runLedger'
 import type { ExecEventBody } from '../../src/runtime/exec/execProtocol'
 
@@ -18,9 +18,6 @@ const BODY = JSON.stringify({ model: MODEL, stream: true, max_output_tokens: 409
 /** A listener the test never triggers. */
 function ignore(): void {
   // Nothing to observe on this path.
-}
-function ignoreSignal(): () => void {
-  return ignore
 }
 function malformedUpstream(): Promise<Response> {
   return Promise.resolve(
@@ -34,22 +31,7 @@ function malformedUpstream(): Promise<Response> {
 function pulleys(fetcher: typeof fetch = fetch) {
   const events: ExecEventBody[] = []
   const latched: unknown[] = []
-  const lifecycle = createLifecycle({
-    processStartMs: Date.now(),
-    timeoutMs: 30_000,
-    now: () => Date.now(),
-    setTimer: (ms, run) => {
-      const timer = setTimeout(run, ms)
-      return () => {
-        clearTimeout(timer)
-      }
-    },
-    onSignal: ignoreSignal,
-    forceFinish: ignore,
-    exit: (code): never => {
-      throw new Error(`exit ${String(code)}`)
-    },
-  })
+  const lifecycle = createExecTestLifecycle()
   const ledger = createRunLedger({ capUsd: Usd.from(10).toAmount(), maxRequests: 5 })
   const transport = execFetch({
     fetch: fetcher,

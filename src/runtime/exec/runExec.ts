@@ -1239,11 +1239,12 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             providerRun === undefined &&
             !isPlanRun && {
               reserveTranscription: (costUsd, signal) => {
-                try {
-                  signal.throwIfAborted()
-                } catch (error: unknown) {
-                  return Promise.reject(error instanceof Error ? error : new Error(String(error)))
-                }
+                if (signal.aborted)
+                  return Promise.reject(
+                    signal.reason instanceof Error
+                      ? signal.reason
+                      : new Error(UI_TEXT.execInterrupted),
+                  )
                 const ticket = ledger.admitTranscription(costUsd)
                 if ('refused' in ticket) {
                   if (!isFinishing)
@@ -1289,25 +1290,22 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                     isSettled = true
                     const isRefunded =
                       hasUnknownCost !== true && Usd.from(amountUsd).compare(Usd.from(0)) === 0
-                    const result = ledger.settleTranscription(
-                      ticket,
-                      hasUnknownCost === true
-                        ? { kind: 'unknown' }
-                        : isRefunded
-                          ? { kind: 'refunded' }
-                          : { kind: 'returned', costUsd: amountUsd },
-                    )
+                    let settlement: Parameters<typeof ledger.settleTranscription>[1] = {
+                      kind: 'returned',
+                      costUsd: amountUsd,
+                    }
+                    if (hasUnknownCost === true) settlement = { kind: 'unknown' }
+                    else if (isRefunded) settlement = { kind: 'refunded' }
+                    const result = ledger.settleTranscription(ticket, settlement)
                     const totals = ledger.totals()
+                    let phase: 'uncertain' | 'refunded' | 'returned' = 'returned'
+                    if (result.outcome === 'full-reservation') phase = 'uncertain'
+                    else if (isRefunded) phase = 'refunded'
                     sink.emit({
                       type: 'paid_use',
                       feature: 'voice',
                       n: ticket.n,
-                      phase:
-                        result.outcome === 'full-reservation'
-                          ? 'uncertain'
-                          : isRefunded
-                            ? 'refunded'
-                            : 'returned',
+                      phase,
                       units:
                         !isRefunded && result.outcome === 'priced'
                           ? totals.paid.transcribedSeconds - secondsBefore

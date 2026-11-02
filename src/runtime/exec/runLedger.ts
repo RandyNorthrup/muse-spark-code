@@ -413,7 +413,10 @@ export function createRunLedger(input: {
       let amount: bigint
       try {
         amount = units(costUsd)
-      } catch {
+      } catch (error: unknown) {
+        // NARROW: an amount the exact arithmetic cannot hold is unpriced;
+        // anything else is not this conversion's failure.
+        if (!(error instanceof UserRefusalError)) throw error
         return refuse('unpriced')
       }
       if (amount < ZERO) return refuse('unpriced')
