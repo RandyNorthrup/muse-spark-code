@@ -165,70 +165,72 @@ async function withEditor(
   })
 }
 
+type Editor = Parameters<Parameters<ReturnType<typeof acp.client>['connectWith']>[1]>[0]
+
+/** One admission case: the agent for a stored team, its editor, its folder. */
+async function admissionCase(
+  snapshot: TeamSnapshot | undefined,
+  hasTeam: boolean,
+  run: (editor: Editor, folder: string) => Promise<void>,
+): Promise<void> {
+  const { agent, folder, team } = agentWithTeam(snapshot, hasTeam)
+  try {
+    await withEditor(agent, async (editor) => {
+      await run(editor, folder)
+    })
+  } finally {
+    await team?.dispose()
+  }
+}
+
 describe('ACP team admission over the real agent', () => {
   // The first admitted session loads the team service and probes its
   // entries; pay that once here so no case carries the cold start.
   beforeAll(async () => {
-    const { agent, folder, team } = agentWithTeam(storedTeam(WORKER), true)
-    try {
-      await withEditor(agent, async (editor) => {
-        const created = await editor.request('session/new', { cwd: folder, mcpServers: [] })
-        await editor.request('session/close', { sessionId: created.sessionId })
-      })
-    } finally {
-      await team?.dispose()
-    }
+    await admissionCase(storedTeam(WORKER), true, async (editor, folder) => {
+      const created = await editor.request('session/new', { cwd: folder, mcpServers: [] })
+      await editor.request('session/close', { sessionId: created.sessionId })
+    })
   })
 
   it('refuses a new session without a second usable model', async () => {
     for (const snapshot of [undefined, storedTeam(ORCHESTRATOR)]) {
-      const { agent, folder, team } = agentWithTeam(snapshot, true)
-      try {
-        await withEditor(agent, async (editor) => {
-          const refusal = await errorOf(
-            editor.request('session/new', { cwd: folder, mcpServers: [] }),
-          )
-          expect(refusal).toContain(UI_TEXT.teamNeedsSecondModel)
-        })
-      } finally {
-        await team?.dispose()
-      }
+      await admissionCase(snapshot, true, async (editor, folder) => {
+        const refusal = await errorOf(
+          editor.request('session/new', { cwd: folder, mcpServers: [] }),
+        )
+        expect(refusal).toContain(UI_TEXT.teamNeedsSecondModel)
+      })
     }
   })
 
   it('opens a team session, shows its state, and refuses a mid-session switch', async () => {
-    const { agent, folder, team } = agentWithTeam(storedTeam(WORKER), true)
-    try {
-      await withEditor(agent, async (editor) => {
-        const created = await editor.request('session/new', { cwd: folder, mcpServers: [] })
-        const option = created.configOptions?.find((row) => row.id === 'team')
-        expect(option).toMatchObject({ type: 'select', currentValue: 'on' })
-        const refusal = await errorOf(
-          editor.request('session/set_config_option', {
-            sessionId: created.sessionId,
-            configId: 'team',
-            value: 'off',
-          }),
-        )
-        expect(refusal).toContain(UI_TEXT.acpTeamFixedForSession)
-        const again = await editor.request('session/set_config_option', {
+    await admissionCase(storedTeam(WORKER), true, async (editor, folder) => {
+      const created = await editor.request('session/new', { cwd: folder, mcpServers: [] })
+      const option = created.configOptions?.find((row) => row.id === 'team')
+      expect(option).toMatchObject({ type: 'select', currentValue: 'on' })
+      const refusal = await errorOf(
+        editor.request('session/set_config_option', {
           sessionId: created.sessionId,
           configId: 'team',
-          value: 'on',
-        })
-        expect(again.configOptions.find((row) => row.id === 'team')).toMatchObject({
-          currentValue: 'on',
-        })
-        await editor.request('session/close', { sessionId: created.sessionId })
+          value: 'off',
+        }),
+      )
+      expect(refusal).toContain(UI_TEXT.acpTeamFixedForSession)
+      const again = await editor.request('session/set_config_option', {
+        sessionId: created.sessionId,
+        configId: 'team',
+        value: 'on',
       })
-    } finally {
-      await team?.dispose()
-    }
+      expect(again.configOptions.find((row) => row.id === 'team')).toMatchObject({
+        currentValue: 'on',
+      })
+      await editor.request('session/close', { sessionId: created.sessionId })
+    })
   })
 
   it('offers no team option and no admission without the team port', async () => {
-    const { agent, folder } = agentWithTeam(undefined, false)
-    await withEditor(agent, async (editor) => {
+    await admissionCase(undefined, false, async (editor, folder) => {
       const created = await editor.request('session/new', { cwd: folder, mcpServers: [] })
       expect((created.configOptions ?? []).some((row) => row.id === 'team')).toBe(false)
       await editor.request('session/close', { sessionId: created.sessionId })
