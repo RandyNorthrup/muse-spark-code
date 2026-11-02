@@ -3,8 +3,10 @@ import {
   CRON_MAX_WEEKDAY,
   SCHEDULE_DEFAULT_INTERVAL_MS,
   SCHEDULE_MIN_INTERVAL_MS,
+  TIMED_SEND_MIN_LEAD_MS,
   UI_TEXT,
 } from '../../shared/constants'
+import { ceilToMinuteMs } from '../../shared/resumeOffer'
 import { scheduleWeekdayText } from './presentation'
 import { scheduleEventTriggerSchema } from '../../shared/scheduleEvents'
 import {
@@ -22,7 +24,9 @@ export function timeTrigger(kind: string, nowMs: number, zone: string): Schedule
   const times = [{ hour: 0, minute: 0 }]
   switch (kind) {
     case 'once': {
-      return { kind, atMs: nowMs }
+      // A timed send goes at the earliest a minute ahead (M88, D67 item
+      // 15), so switching kinds lands on a valid whole minute, never now.
+      return { kind, atMs: ceilToMinuteMs(nowMs + TIMED_SEND_MIN_LEAD_MS) }
     }
     case 'interval': {
       return { kind, everyMs: SCHEDULE_DEFAULT_INTERVAL_MS, anchorMs: nowMs }
@@ -126,19 +130,70 @@ export function UtcInput({
   )
 }
 
+/** A `datetime-local` year always writes four digits. */
+const INPUT_YEAR_DIGITS = 4
+
+/** A whole minute as the person's local `datetime-local` text. */
+function toLocalInputValue(atMs: number): string {
+  const date = new Date(atMs)
+  const part = (value: number): string => String(value).padStart(2, '0')
+  return `${String(date.getFullYear()).padStart(INPUT_YEAR_DIGITS, '0')}-${part(date.getMonth() + 1)}-${part(date.getDate())}T${part(date.getHours())}:${part(date.getMinutes())}`
+}
+
+/**
+A timed send's moment (M88, D67 item 15): in the person's own time,
+whole minutes, at the earliest a minute ahead. The `min` guides the
+picker; the editor's save refuses a sooner send in words.
+*/
+function OnceInput({
+  value,
+  nowMs,
+  onChange,
+}: {
+  readonly value: number | undefined
+  readonly nowMs: number
+  readonly onChange: (value: number | undefined) => void
+}) {
+  const [text, setText] = useState(() =>
+    value === undefined || !Number.isFinite(value) ? '' : toLocalInputValue(value),
+  )
+  return (
+    <label>
+      {UI_TEXT.scheduleV2.editor.dateTimeLocal}
+      <input
+        type="datetime-local"
+        value={text}
+        min={toLocalInputValue(ceilToMinuteMs(nowMs + TIMED_SEND_MIN_LEAD_MS))}
+        step={60}
+        onChange={(event) => {
+          setText(event.target.value)
+          // Unparseable text is the save's refusal, never a throw here:
+          // `undefined` keeps the draft's NaN, as an empty field does.
+          const parsed = event.target.value === '' ? undefined : Date.parse(event.target.value)
+          onChange(
+            parsed === undefined || Number.isNaN(parsed) ? undefined : ceilToMinuteMs(parsed),
+          )
+        }}
+      />
+    </label>
+  )
+}
+
 function TimeFields({
   trigger,
+  nowMs,
   onChange,
 }: {
   readonly trigger: ScheduleTimeTrigger
+  readonly nowMs: number
   readonly onChange: (value: ScheduleTimeTrigger) => void
 }) {
   switch (trigger.kind) {
     case 'once': {
       return (
-        <UtcInput
-          label={UI_TEXT.scheduleV2.editor.dateTimeUtc}
+        <OnceInput
           value={trigger.atMs}
+          nowMs={nowMs}
           onChange={(atMs) => {
             onChange({ ...trigger, atMs: atMs ?? NaN })
           }}
@@ -460,6 +515,7 @@ export function TriggerFields({
         <TimeFields
           key={`${trigger.kind}:${time.kind}`}
           trigger={time}
+          nowMs={nowMs}
           onChange={(next) => {
             onChange(trigger.kind === 'afterEvent' ? { ...trigger, time: next } : next)
           }}

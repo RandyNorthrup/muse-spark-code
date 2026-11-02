@@ -1511,6 +1511,12 @@ export const EN = {
       stateUnknown: 'State unknown — Retry',
       retry: 'Retry',
       dateTimeUtc: 'Date and Time (UTC)',
+      // A timed send's moment (M88, D67 item 15): the once trigger reads
+      // in the person's own time, whole minutes, at least a minute ahead.
+      dateTimeLocal: 'Date and Time',
+      // Saving a once trigger less than a minute ahead is refused: the
+      // send could never go on time.
+      onceTooSoon: 'A one-shot send goes at least a minute ahead.',
       anchorDate: 'Anchor Date (in the Schedule’s Time Zone)',
       minutes: 'Interval in Minutes',
       everyDays: 'Every N Days',

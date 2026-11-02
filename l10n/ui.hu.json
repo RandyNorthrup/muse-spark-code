@@ -1210,6 +1210,8 @@
       "stateUnknown": "Ismeretlen állapot — Újra",
       "retry": "Újra",
       "dateTimeUtc": "Dátum és idő (UTC)",
+      "dateTimeLocal": "Dátum és idő",
+      "onceTooSoon": "Az egyszeri küldés legkorábban egy perc múlva megy el.",
       "anchorDate": "Kezdőnap (az ütemezés időzónájában)",
       "minutes": "Időköz percben",
       "everyDays": "N naponta",

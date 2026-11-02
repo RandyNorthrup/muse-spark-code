@@ -1205,6 +1205,8 @@
       "stateUnknown": "상태 알 수 없음 — 재시도",
       "retry": "재시도",
       "dateTimeUtc": "날짜 및 시간 (UTC)",
+      "dateTimeLocal": "날짜 및 시간",
+      "onceTooSoon": "일회성 전송은 최소 1분 후에 이루어집니다.",
       "anchorDate": "기준 날짜 (일정의 시간대)",
       "minutes": "간격(분)",
       "everyDays": "N일마다",

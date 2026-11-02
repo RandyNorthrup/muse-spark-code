@@ -1205,6 +1205,8 @@
       "stateUnknown": "状態不明 — 再試行",
       "retry": "再試行",
       "dateTimeUtc": "日時 (UTC)",
+      "dateTimeLocal": "日時",
+      "onceTooSoon": "ワンショット送信は最短でも1分後になります。",
       "anchorDate": "基準日（スケジュールのタイムゾーン）",
       "minutes": "間隔（分）",
       "everyDays": "N 日ごと",

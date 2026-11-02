@@ -1215,6 +1215,8 @@
       "stateUnknown": "Estado desconhecido — Tentar novamente",
       "retry": "Tentar novamente",
       "dateTimeUtc": "Data e hora (UTC)",
+      "dateTimeLocal": "Data e hora",
+      "onceTooSoon": "Um envio único sai no mínimo um minuto depois.",
       "anchorDate": "Data de referência (no fuso horário do agendamento)",
       "minutes": "Intervalo em minutos",
       "everyDays": "A cada N dias",

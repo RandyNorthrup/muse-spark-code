@@ -1210,6 +1210,8 @@
       "stateUnknown": "Durum bilinmiyor — Yeniden dene",
       "retry": "Yeniden dene",
       "dateTimeUtc": "Tarih ve saat (UTC)",
+      "dateTimeLocal": "Tarih ve Saat",
+      "onceTooSoon": "Tek seferlik gönderim en erken bir dakika sonra yapılır.",
       "anchorDate": "Başlangıç tarihi (zamanlamanın saat diliminde)",
       "minutes": "Dakika cinsinden aralık",
       "everyDays": "Her N günde bir",
