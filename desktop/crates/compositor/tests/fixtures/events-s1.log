@@ -1,0 +1,24 @@
+createworkspace>>2
+createworkspacev2>>2,2
+workspace>>2
+workspacev2>>2,2
+destroyworkspace>>1
+destroyworkspacev2>>1,1
+renameworkspace>>2,agent:fix
+renameworkspace>>2,2
+activelayout>>hl-virtual-keyboard-wtype,English (US)
+activelayout>>hl-virtual-keyboard-wtype,error
+createworkspace>>1
+createworkspacev2>>1,1
+workspace>>1
+workspacev2>>1,1
+destroyworkspace>>2
+destroyworkspacev2>>2,2
+activelayout>>hl-virtual-keyboard-cp1,English (US)
+createworkspace>>2
+createworkspacev2>>2,2
+workspace>>2
+workspacev2>>2,2
+destroyworkspace>>1
+destroyworkspacev2>>1,1
+activelayout>>cp-proof-pending,English (US)

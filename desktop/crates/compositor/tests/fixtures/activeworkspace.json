@@ -1,12 +1,12 @@
 {
-  "id": 1,
-  "name": "1",
-  "monitor": "Virtual-1",
-  "monitorID": 0,
-  "windows": 0,
-  "hasfullscreen": false,
-  "lastwindow": "0x0",
-  "lastwindowtitle": "",
-  "ispersistent": false,
-  "tiledLayout": "dwindle"
+    "id": 1,
+    "name": "1",
+    "monitor": "Virtual-1",
+    "monitorID": 0,
+    "windows": 0,
+    "hasfullscreen": false,
+    "lastwindow": "0x0",
+    "lastwindowtitle": "",
+    "ispersistent": false,
+    "tiledLayout": "dwindle"
 }

@@ -1,5 +1,4 @@
-[
-  {
+[{
     "address": "0x55ffacc255c0",
     "mapped": true,
     "hidden": false,
@@ -8,8 +7,8 @@
     "at": [10, 10],
     "size": [384, 284],
     "workspace": {
-      "id": 2,
-      "name": "2"
+        "id": 2,
+        "name": "2"
     },
     "floating": false,
     "monitor": 0,
@@ -32,8 +31,7 @@
     "xdgDescription": "",
     "contentType": "none",
     "stableId": "18000000"
-  },
-  {
+},{
     "address": "0x55ffacf95430",
     "mapped": true,
     "hidden": false,
@@ -42,8 +40,8 @@
     "at": [406, 10],
     "size": [384, 580],
     "workspace": {
-      "id": 2,
-      "name": "2"
+        "id": 2,
+        "name": "2"
     },
     "floating": false,
     "monitor": 0,
@@ -66,8 +64,7 @@
     "xdgDescription": "",
     "contentType": "none",
     "stableId": "18000001"
-  },
-  {
+},{
     "address": "0x55ffaca04b30",
     "mapped": true,
     "hidden": false,
@@ -76,8 +73,8 @@
     "at": [10, 306],
     "size": [384, 284],
     "workspace": {
-      "id": 2,
-      "name": "2"
+        "id": 2,
+        "name": "2"
     },
     "floating": false,
     "monitor": 0,
@@ -100,5 +97,4 @@
     "xdgDescription": "",
     "contentType": "none",
     "stableId": "18000004"
-  }
-]
+}]
