@@ -67,3 +67,15 @@ docs/design/m111-mockups/
 # Lane RLSCHED M115w issue captures: kept byte-exact beside their receipts,
 # whose SHA-256 hashes cover the bodies (test/unit/watchdogCaptures.test.ts).
 test/fixtures/m115w/
+
+# Lane RLF-M111CP recorded Hyprland captures: raw socket1 replies and the
+# socket2 stream as received (rule 14); reformatting would break the
+# capture record (desktop/crates/compositor/tests/fixtures/README.md).
+desktop/crates/compositor/tests/fixtures/workspaces.json
+desktop/crates/compositor/tests/fixtures/monitors.json
+desktop/crates/compositor/tests/fixtures/clients.json
+desktop/crates/compositor/tests/fixtures/devices.json
+desktop/crates/compositor/tests/fixtures/activeworkspace.json
+desktop/crates/compositor/tests/fixtures/activewindow.json
+desktop/crates/compositor/tests/fixtures/events-s1.log
+desktop/crates/compositor/tests/fixtures/events-s3.log
