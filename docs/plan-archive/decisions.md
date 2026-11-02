@@ -14841,3 +14841,19 @@ their instructions only — its loop, prompt and sign-in unchanged, its own
 payer named in the panel. The sealed text above stands as written; where it
 says the slot takes a model on either of today's backends, read D250 with
 it.
+
+## D260 — No release-age wait
+
+<!-- plan-archive:begin id="decisions-e47b91767-9819" lines="9819-9827" at="e47b91767" bytes="581" sha256="d07990c13b9f6a68358f3e9d61ffb9d61d22a6fba46f52aabb7cec1a48085f1f" -->
+
+Dated records that describe the old window (the one-off `--min-release-age=0`
+installs, pins that waited for a date) stay as history; no sentence
+states the wait as current after this decision, and no gate or test
+enforces it (none did: the wait lived only in `.npmrc`). First
+application, same lane: `@muse-code/sdk` 1.4.12 → 1.4.14,
+`@agentclientprotocol/sdk` 2.0.1 → 2.4.0, `@modelcontextprotocol/sdk`
+1.32.1 → 1.32.2 (D3). Full record: `docs/certification/rlf-upsdk.md`;
+the dated currency table the next round diffs against is
+`docs/research/agents-sdks-2026-11-02.md`.
+
+<!-- plan-archive:end id="decisions-e47b91767-9819" -->
