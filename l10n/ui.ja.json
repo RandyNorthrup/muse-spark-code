@@ -5111,6 +5111,7 @@
   "teamTasksQueued": "キューに入ったチームタスク: {count}",
   "teamMergeRework": "マージで競合が発生しました。タスクは手直しのために戻されました。",
   "teamTaskUnknown": "そのチームタスクはこのウィンドウで開いていません。",
+  "teamWonderTierRefused": "{model} はチームで標準の Muse Code モデルとしては実行できません。これは Wonder モデルで、Wonder 料金が適用され、標準の Muse Code ティアではないため、このモデルのリクエストは送信されませんでした。",
   "teamWaitingUnknown": "この回答を待っているものはもうありません。",
   "teamBudgetUnavailable": "セッション予算の下では、この会話の予算を共有できるまでチームタスクを開始できません。",
   "teamTaskNoDiff": "そのチームタスクには比較するブランチがありません。",

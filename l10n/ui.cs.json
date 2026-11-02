@@ -5447,6 +5447,7 @@
   "teamTasksQueued": "Úkoly týmu ve frontě: {count}",
   "teamMergeRework": "Sloučení narazilo na konflikty: úloha se vrátila k přepracování.",
   "teamTaskUnknown": "Tato úloha týmu není v tomto okně otevřená.",
+  "teamWonderTierRefused": "{model} nemůže v týmu běžet jako standardní model Muse Code: je to model Wonder s tarifem Wonder, nikoli standardní úroveň Muse Code, takže pro něj nebyl odeslán žádný požadavek.",
   "teamWaitingUnknown": "Na tuto odpověď už nic nečeká.",
   "teamBudgetUnavailable": "Úloha týmu se nemůže spustit s rozpočtem relace, dokud nemůže sdílet rozpočet této konverzace.",
   "teamTaskNoDiff": "Tato úloha týmu nemá větev k porovnání.",

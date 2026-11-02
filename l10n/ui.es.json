@@ -5335,6 +5335,7 @@
   "teamTasksQueued": "Tareas del equipo en cola: {count}",
   "teamMergeRework": "La fusión encontró conflictos: la tarea volvió para rehacerse.",
   "teamTaskUnknown": "Esa tarea del equipo no está abierta en esta ventana.",
+  "teamWonderTierRefused": "{model} no puede ejecutarse en un equipo como modelo estándar de Muse Code: es un modelo Wonder, con la tarifa Wonder, no un nivel estándar de Muse Code, por lo que no se envió ninguna solicitud para él.",
   "teamWaitingUnknown": "Ya no hay nada esperando esta respuesta.",
   "teamBudgetUnavailable": "Una tarea del equipo no puede iniciarse con un presupuesto de sesión hasta que pueda compartir el presupuesto de esta conversación.",
   "teamTaskNoDiff": "Esa tarea del equipo no tiene una rama que comparar.",

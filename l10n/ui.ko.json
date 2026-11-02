@@ -5111,6 +5111,7 @@
   "teamTasksQueued": "대기 중인 팀 작업: {count}",
   "teamMergeRework": "병합 중 충돌이 발생했습니다. 작업이 재작업을 위해 돌아갔습니다.",
   "teamTaskUnknown": "이 팀 작업은 이 창에서 열려 있지 않습니다.",
+  "teamWonderTierRefused": "{model}은(는) 팀에서 표준 Muse Code 모델로 실행할 수 없습니다. Wonder 모델로 Wonder 요금이 적용되며 표준 Muse Code 등급이 아니므로 요청이 전송되지 않았습니다.",
   "teamWaitingUnknown": "이 답변을 기다리는 것이 더 이상 없습니다.",
   "teamBudgetUnavailable": "세션 예산이 있으면 이 대화의 예산을 공유할 수 있을 때까지 팀 작업을 시작할 수 없습니다.",
   "teamTaskNoDiff": "이 팀 작업에는 비교할 브랜치가 없습니다.",
