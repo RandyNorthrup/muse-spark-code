@@ -27901,6 +27901,18 @@ diffs, and the browser-preview tab's slot against lane 0's
 WB). The node's files page runs on it today, every open file in its own
 buffer and tab; the evidence and the budget measurements are in
 `docs/certification/rlf-m111ed.md`. No other build lane has started.
+**Status 2026-11-02 (RLF-M111CP): planned.** Lane CP landed: the
+trixie-backports Hyprland pin (`0.55.2+ds-1~bpo13+1`, 0.57.0 verified),
+the generated full/light Lua configs from TH's theme twin, the key
+table with its duplicate check, `--verify-config` in CI
+(`desktop.yml`, pin asserted), the `CompositorPort` trait + TS mirror
+with the Hyprland adapter over both sockets, placement/ownership/label
+policy, the M107 thumbnail gate, the agents' desktop tools with their
+`edit` class, and desktop strings x15 — proven by a QEMU guest session
+(`M111CP-SESSION-OK`, 25/25) and wire tests over its recordings. QA's
+harness had not landed, so CP scripted its own sessions per the brief
+and stays ready to switch at merge; QA owns `desktop.yml`'s future
+jobs. Record: `docs/certification/rlf-m111cp.md`.
 
 **Status 2026-10-31 (RLF-M111TH): planned.** Lane TH landed: the desktop
 theme generates from M114's resolved tokens (`scripts/build-tokens-desktop.mjs`;

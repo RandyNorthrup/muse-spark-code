@@ -1,0 +1,23 @@
+[{
+    "id": 1,
+    "name": "1",
+    "monitor": "Virtual-1",
+    "monitorID": 0,
+    "windows": 0,
+    "hasfullscreen": false,
+    "lastwindow": "0x0",
+    "lastwindowtitle": "",
+    "ispersistent": false,
+    "tiledLayout": "dwindle"
+},{
+    "id": 2,
+    "name": "2",
+    "monitor": "Virtual-1",
+    "monitorID": 0,
+    "windows": 3,
+    "hasfullscreen": false,
+    "lastwindow": "0x55ffacf95430",
+    "lastwindowtitle": "cp-exec",
+    "ispersistent": false,
+    "tiledLayout": "dwindle"
+}]

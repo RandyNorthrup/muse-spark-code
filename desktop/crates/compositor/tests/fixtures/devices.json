@@ -1,0 +1,66 @@
+{
+"mice": [
+    {
+        "address": "0x562dc60a9230",
+        "name": "qemu-virtio-tablet",
+        "defaultSpeed": 0.00000,
+        "scrollFactor": -1.00
+    },    {
+        "address": "0x562dc6606ed0",
+        "name": "imexps/2-generic-explorer-mouse",
+        "defaultSpeed": 0.00000,
+        "scrollFactor": -1.00
+    }
+],
+"keyboards": [
+    {
+        "address": "0x562dc1989a70",
+        "name": "qemu-virtio-keyboard",
+        "rules": "",
+        "model": "",
+        "layout": "us",
+        "variant": "",
+        "options": "",
+        "active_layout_index": 0,
+        "active_keymap": "English (US)",
+        "capsLock": false,
+        "numLock": false,
+        "main": false
+    },    {
+        "address": "0x562dc1950b70",
+        "name": "power-button",
+        "rules": "",
+        "model": "",
+        "layout": "us",
+        "variant": "",
+        "options": "",
+        "active_layout_index": 0,
+        "active_keymap": "English (US)",
+        "capsLock": false,
+        "numLock": false,
+        "main": false
+    },    {
+        "address": "0x562dc1916f40",
+        "name": "at-translated-set-2-keyboard",
+        "rules": "",
+        "model": "",
+        "layout": "us",
+        "variant": "",
+        "options": "",
+        "active_layout_index": 0,
+        "active_keymap": "English (US)",
+        "capsLock": false,
+        "numLock": false,
+        "main": true
+    }
+],
+"tablets": [
+
+],
+"touch": [
+
+],
+"switches": [
+
+]
+}
