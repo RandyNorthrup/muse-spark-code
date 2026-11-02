@@ -30772,6 +30772,25 @@ harness plus 4 tests are green; those shim suites do not start
 still has no in-editor harness. Peer HTML shown by JetBrains or
 Eclipse is sealed to the host page policy. Record:
 `docs/certification/rvhosts.md`.
+Second native-hosts pass (RLF-HOSTS2, 2026-11-02): the Emacs, Neovim,
+Zed and Qt Creator suites now start this tree's real `dist/acp.js`
+through each host's real launch path (every stand-in child deleted;
+what only a live editor, a GUI run or a model call proves is recorded
+in `docs/real-life/unproven.md`), Sublime Text gains an in-editor
+harness against the real editor (Build 4200) and agent, and Zed's
+Rust extension builds (wasm32-wasip1). MHP moves 1.5.0 → 1.6.0 in one
+revision (D226): lane B's `window/didChangeTheme` and lane C's
+`attachments/*` join the wire; attachments bind to the native panel
+runtime, the panel status item publishes the open-questions count, a
+native window's scheduled-prompt hold resolves in its workspace
+(delivery still degrades to a warning while the M115 delivery
+certification reads not-ready), and the editor's GitHub lease signs
+the panel in first. Eclipse (62 tests, WebKitGTK present) and
+JetBrains (53 tests) re-conform at 1.6.0. Remaining: the companion
+`panel --companion` transport, the held pull request checkout
+(no adapter consumer yet), lane B's extra editors, and the Visual
+Studio and Xcode suites on their machines. Record:
+`docs/certification/rlf-hosts2.md`.
 
 **Warning for the POSIX trusted-path verifier (INT0180, 2026-10-11).** A real
 POSIX verifier that refuses a group-writable unit search directory would

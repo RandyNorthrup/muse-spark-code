@@ -3288,11 +3288,11 @@ editor run proves it:
   target needs the Mac mini. Zed's Rust extension is unbuilt (no Rust
   toolchain on this rig). Live conversation, approval, session-reload and
   tab-completion legs were not run.
-- MHP on this branch is 1.5.0. Lane B's 1.6 theme message and its extra
-  editors (`hosts/mhp-python`, Jupyter, NetBeans, Spyder, RStudio) are
-  not on this branch. Lane C's `attachments/*` methods are not on the
-  native hosts. Lane A's `src/runtime/panel/git/gitEntry.ts` is not on
-  this branch.
+- MHP on this branch was then 1.5.0 (RLF-HOSTS2 moved it to 1.6.0;
+  see the section below). Lane B's extra editors (`hosts/mhp-python`,
+  Jupyter, NetBeans, Spyder, RStudio) are still not on this branch,
+  and lane A's held pull request checkout has no runtime adapter
+  consumer yet.
 
 ### After the second native-hosts pass (RLF-HOSTS2, 2026-11-01)
 
@@ -3337,3 +3337,23 @@ deleted stand-ins claimed, and what no suite here can yet prove:
   the LSP package route, and window-close/package-unload cleanup
   also wait for an interactive run. The same package code ran here
   under build 4200's 3.8 host.
+- MHP 1.6 in a live native host: the theme relay, the `attachments/*`
+  binding, the questions count, the schedule hold and the GitHub
+  lease are each proven by committed suites over the real runtime
+  and, for JetBrains and Eclipse, by the hosts' own builds and the
+  conformance runs at `mhp/1.6.0`; no packed-product run through a
+  real IDE window has shown the theme re-colour, attached a file
+  picked in an IDE, or used a lease from a signed-in editor. A live
+  screenshot attach also needs XDG Desktop Portal and a DBus
+  session, which this rig lacks (the refusal is said and asserted).
+- Scheduled-prompt delivery onto a native window stays uncertified:
+  `SCHEDULE_EDITOR_DELIVERY_CERTIFICATION` reads not-ready, so the
+  native hold degrades to a warning and a notice like the bridge.
+- The Visual Studio and Xcode hosts carry the 1.6 pins and the theme
+  senders but were not compiled here; their suites run on the lead's
+  Windows PC and the Mac mini.
+- Lane A's held pull request checkout (records, holds, trust card)
+  is not ported: this branch's runtime pull-request adapter has no
+  checkout action to consume it. Lane B's extra editors
+  (`hosts/mhp-python`, Jupyter, NetBeans/`mhp-java`, Spyder,
+  RStudio) wait on the companion transport above.
