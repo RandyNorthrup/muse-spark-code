@@ -342,6 +342,7 @@ export default {
   exec: {
     claims: ['ref/cli/exec/exec'],
     requests: 1,
+    maxUsd: '0.05',
     async run(person, see) {
       const marker = person.marker()
       const turn = await person.exec(`Reply with exactly this and nothing else: ${marker}`)
@@ -359,6 +360,13 @@ export default {
 - `exec` and `acp` are the two surfaces; a scenario has one or both.
 - `claims` are ids from the claims table, per surface.
 - `requests` is the most model requests the surface may make.
+- `maxUsd` is the most settled dollars the surface may spend, as a decimal
+  string (`'0.05'`). It is optional: absent, only the run's stops apply.
+  When it is there the run fails the cell for spending more (or for a cap
+  it cannot read) and starts nothing more, exactly as for `requests`.
+  Every unproven-backlog scenario names one; a surface that needs no model
+  says `'0.00'`. `--list` prints each surface's allowance beside its claims,
+  and the record keeps the declared cap beside what was spent.
 - `see(what, ok, saw)` records one observation: what must be true, whether
   it was, and what was actually there. A scenario passes when every
   observation holds.
@@ -376,6 +384,71 @@ What `person` can do: `exec(prompt, { mode, maxRequests, model, args })`,
 `models()`), `usage()`, `file(name)` and `marker()`.
 
 The runner has no test suite of its own: it is proven by running it.
+
+## The unproven-backlog scenarios
+
+`docs/real-life/unproven.md` is the backlog of behaviours whose tests were
+deleted under the no-fakes rule: each waits for proof by real use of the
+packed product. The scenarios named `m<milestone>-<what>.mjs` are that
+backlog converted to runs, one small file per scenario, grouped by
+milestone. Each names its deleted titles, its packed-product steps, its
+expected model attempts (`requests`) and its dollar cap (`maxUsd`).
+`docs/real-life/scenario-index.md` maps every backlog section to its
+scenario, to an older scenario that already covers it, to lead-only manual
+steps, or to hosted receipts that alone can prove it. A behaviour leaves
+`unproven.md` only when the lead's run proves it.
+
+Run the backlog set on one provider route and the Meta route (every file
+at once on every route would be hundreds of requests):
+
+```text
+node scripts/real-life/run.mjs \
+  --artefact dist/muse-spark-code-acp-<version>.tgz \
+  --routes anthropic,meta \
+  --scenarios 'm1*,m3*,m4*,m5*,m6*,m7*,m8*,m9*' \
+  --max-requests 120 --max-usd 2.00 \
+  --keys env \
+  --record docs/testing/real-life/<version>/<system>-<date>-unproven
+```
+
+(The patterns select every `m<digits>-*` file and none of the older
+scenarios: the glob's `*` stands for any characters.) The set declares 62
+model requests on the Meta route at most, 58 on a provider route; the caps
+below are bounds, not spend — each is an order of magnitude above what the
+same turns cost on the cheapest models in the 0.18.2 records (about $0.003
+a request on Anthropic, less elsewhere), so a cap fires only on a runaway.
+
+| Scenario file            | Surface(s) | Requests | Cap   |
+| ------------------------ | ---------- | -------: | ----- |
+| `m10-workspace-context`  | acp        |        4 | $0.10 |
+| `m33-web-search`         | exec, acp  |     0, 4 | $0.15 |
+| `m34-images`             | exec       |        8 | $0.30 |
+| `m48-subagents`          | acp        |        6 | $0.15 |
+| `m49-memory`             | acp        |        4 | $0.10 |
+| `m54-media-attach`       | exec       |        4 | $0.10 |
+| `m63-agent-identity`     | exec       |        0 | $0.00 |
+| `m67-code-intel`         | acp        |        8 | $0.15 |
+| `m69-web-fetch`          | acp        |        4 | $0.10 |
+| `m70-review`             | acp        |        8 | $0.15 |
+| `m80-exec-args`          | exec       |        0 | $0.00 |
+| `m80-exec-egress`        | exec       |        4 | $0.10 |
+| `m80-scanner`            | exec       |        3 | $0.05 |
+| `m82-budget-refusal`     | exec       |        0 | $0.00 |
+| `m84-share-redaction`    | exec       |        2 | $0.05 |
+| `m93-report`             | exec       |        0 | $0.00 |
+| `m95-accounts-auth`      | exec       |        0 | $0.00 |
+| `m96-team-admission`     | exec       |        0 | $0.00 |
+| `m102-usage-views`       | exec       |        1 | $0.05 |
+| `m105-uploads`           | acp        |        0 | $0.00 |
+| `m106-structured-output` | exec       |        6 | $0.10 |
+| `m116-playbook`          | exec, acp  |     0, 0 | $0.00 |
+| `m118-prompts-share`     | exec, acp  |     0, 0 | $0.00 |
+
+Four scenario files run on some routes only: `m34-images` on the Meta
+route (the run's Model API key pays); `m80-exec-egress`,
+`m82-budget-refusal` and `m96-team-admission` on provider routes (a raw
+command cannot carry Meta's key, which only `person.exec` holds). Caps are
+per surface; a surface with 0 requests caps at $0.00.
 
 ## Beside it
 
