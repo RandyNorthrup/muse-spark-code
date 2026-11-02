@@ -230,6 +230,21 @@ describe('package.json manifest', () => {
     expect(retention.enum).toEqual(['in_memory', '24h'])
   })
 
+  it('keeps the fallback model a machine choice, off until the person names one (D261)', () => {
+    // A named model is a new way to spend: the setting stays blank (off)
+    // until the person names one, and a cloned .vscode/settings.json must
+    // not set it for them.
+    const fallback =
+      manifest.contributes.configuration.properties['museSpark.modelApiFallbackModel']
+    expect(fallback.scope).toBe('machine')
+    expect(fallback.default).toBe('')
+    expect(SETTING_DEFAULTS.modelApiFallbackModel).toBe('')
+    expect(fallback.description).toBe('%config.modelApiFallbackModel.description%')
+    const description = nls['config.modelApiFallbackModel.description']
+    expect(description).toContain('Empty (the default)')
+    expect(description).toContain('exec --fallback-model')
+  })
+
   it('keeps the prompt-cache ttl a machine choice defaulting to the provider default (RLPROVSYNC)', () => {
     // A cloned .vscode/settings.json must not raise the person's
     // cache-write rate from the 30-minute 1.25x to the 12-hour 2.5x.

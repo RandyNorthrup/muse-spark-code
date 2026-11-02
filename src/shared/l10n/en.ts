@@ -397,6 +397,13 @@ export const EN = {
   toolArgumentPreviewPending: 'Waiting for complete arguments…',
   toolArgumentPreviewPreparing: 'Preparing arguments…',
   modelApiContinuing: 'The output limit was reached. Continuing (part {count})…',
+  // D261: a refused turn continues on the fallback model; `{model}` is the
+  // model id it continues on.
+  modelApiFallbackContinuing: 'The reply was refused. Continuing on {model}…',
+  // D261: the fallback switch failed; `{model}` is the model id that was
+  // not used. The turn ends with the refusal's own sentence.
+  modelApiFallbackNotUsed:
+    'Could not continue on the fallback model ({model}). The refused reply stands.',
   modelApiToolRepeating:
     'The model is repeating the same {tool} call with an unchanged result ({count} in a row). The call runs again — Stop ends the turn.',
   structuredOutputRepair:
@@ -1034,6 +1041,8 @@ export const EN = {
     record: 'Refused for headless runs: nobody is there to preview a recording.',
     'permission-mode': 'Choose how Muse asks before it acts.',
     model: 'Choose the model for this run.',
+    // D261: `exec --fallback-model`.
+    'fallback-model': 'Continue a refused turn on this model.',
     engine: 'Which judge answers: auto, same, separate or both.',
     separate: 'The separate source id, without a credential.',
     'budget-usd': 'Run cap in USD, exact to nine decimals.',
@@ -2247,6 +2256,8 @@ export const EN = {
   paletteSkillTip: 'Run the {name} skill.',
   groupContext: 'Context',
   groupModel: 'Model',
+  // D261: the ACP session option naming the model a refused turn continues on.
+  fallbackModelName: 'Fallback model',
   groupCustomize: 'Customize',
   groupAccount: 'Account & Usage',
   groupSkills: 'Skills',
@@ -6186,7 +6197,7 @@ export const EN = {
   // message again continues it. The CLI's own detail follows in parentheses
   // where the turn carried one (RLWINFIX2 item 3).
   turnTransientFailed:
-    'MuseΓÇÖs service could not finish the turn. The turn kept its work; send the message again to continue.',
+    'Muse’s service could not finish the turn. The turn kept its work; send the message again to continue.',
   // A spent subscription window (D252): the CLI's typed quota detail
   // said the usage window ran out. Every surface says this with the
   // reset in the person's local time; `{resetTime}` is the Intl

@@ -89,6 +89,7 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['effort', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['voice', ['vscode:museCode', 'vscode:modelApi']],
   ['output-schema', ['acp:modelApi']],
+  ['refusal-fallback', ['vscode:modelApi', 'acp:modelApi']],
   ['fast-tier', ['vscode:modelApi', 'acp:modelApi']],
   // CM80CI: the four non-GitHub CI templates run headless Model API turns.
   ['ci-other-systems', ['acp:modelApi']],

@@ -9796,6 +9796,50 @@ unchanged. Fixture:
 `test/fixtures/musecode-quota/observed-acp-error.json`. Full record:
 `docs/certification/rlf-quota.md`.
 
+### D261 — A refused Model API turn continues on the person's fallback model, when they named one (owner, 2026-11-02; closes Q-REFUSAL-FALLBACK)
+
+Q-REFUSAL-FALLBACK (lane PROVERRR2): an Anthropic reply stopped with
+`refusal` offered no fallback model, and a refused turn ended with its
+true sentence. The owner answered: "anthopic model flag fallback is a
+toggle in claude code so that should be your answer". Researched
+2026-11-02 from Claude Code's current docs (model-config: fallback model
+chains and automatic model fallback; cli-reference: `--fallback-model`)
+and Anthropic's refusals-and-fallback API page, and matched where it
+applies.
+
+The setting names one fallback model and is off by default: blank names
+nothing. It lives everywhere settings live: `museSpark.modelApiFallbackModel`
+(machine scope, blank default), `exec --fallback-model` for one headless
+run, and the ACP session's `fallbackModel` select (off plus the session's
+models, Model API backend only). Nothing falls back unless the person
+named a model: the opt-in is the consent, so no new way to spend money
+unseen. Like Claude Code, nothing is confirmed at startup: an
+unresolvable name is revealed by the first refusal it meets.
+
+Only the `refusal` stop switches: the turn continues on the named model,
+once per turn, and the session then stays on it (as Claude Code's
+automatic fallback and Anthropic's manual-retry guidance both do; the
+person switches back with the model picker). The person sees the switch
+in the transcript (a notice naming the model) and in usage (every
+request settles at the model that ran it, as itself); the same budgets,
+dollar caps and consent bound the retry. Claude Code's availability-chain
+triggers (overload, unavailable, non-retryable server errors) never
+switch here: those stay on the request's own retry path (D228), as
+Anthropic's own server-side fallback likewise never fires on them.
+
+When off, blank, naming the running model, unresolvable, kept by a
+PreModelSwitch hook, or refused again on the fallback, the turn ends
+with its true sentence, as today; no loop, one fallback per refusal. The
+switch lives in the turn loop only: in-flight tool calls are answered,
+never executed, before it, and the next request replays that answered
+history through the fallback model's own codec, exactly as a mid-session
+model switch does. Subagents inherit the setting (their own turns fall
+back at most once each); compaction and hook model calls never switch.
+Muse Code's CLI keeps its own behaviour (no option there), external
+agents keep theirs, and team engine workers are not ModelApiSession
+turns and are unaffected. Full record:
+`docs/certification/rlf-fallback.md`.
+
 ## 3. Open questions (need the owner)
 
 <a id="q-cc-licence"></a>
@@ -10044,12 +10088,16 @@ owner answers, the launcher keeps the key to the D65-named exec reader with
 every steps-file field validated before key intake, and the workflow is not
 dispatched. Record: `docs/certification/real-use-pr232w2.md`.
 
-**Q-REFUSAL-FALLBACK (lane PROVERRR2, 2026-10-13).** GAPANTH-G11's scan row
-notes that an Anthropic reply stopped with `refusal` offers no fallback
-model. No model-fallback mechanism exists in the product; building one (when
-to offer, which model, whose money) is a product decision. Until the owner
-answers, a refused or paused turn ends with its true sentence and its tool
-calls answered, never continued. Record: `docs/certification/proverrr2.md`.
+**Q-REFUSAL-FALLBACK (lane PROVERRR2, 2026-10-13; closed by D261, 2026-11-02).**
+GAPANTH-G11's scan row notes that an Anthropic reply stopped with `refusal`
+offers no fallback model. **Resolved by the owner: "anthopic model flag
+fallback is a toggle in claude code so that should be your answer".**
+D261 builds it as a person-set fallback model, off by default: when named
+and a reply stops with `refusal`, the turn continues on the named model,
+once per turn; otherwise a refused or paused turn still ends with its
+true sentence and its tool calls answered. Record:
+`docs/certification/proverrr2.md`; decision record:
+`docs/certification/rlf-fallback.md`.
 
 **CM109JOINB native resource receipt resolved (2026-10-11, Kubuntu).**
 An exploratory copy identified `Resource root membership not proven` only for
@@ -11363,6 +11411,21 @@ stay red and are reported, not raised: `build` (5 budgets OVER —
 `vitest related` runs (65/64 environmental failures: sandbox denials
 and base-tree issues, zero in this lane's area). Record:
 `docs/certification/rlf-quota.md`.
+
+### RLFFALLBACK — A refused Model API turn continues on the person's fallback model (D261)
+
+**Status 2026-11-02 (lane RLF-FALLBACK): built and certified.**
+The opt-in fallback model is implemented on the Model API backend in
+every settings surface (the `museSpark.modelApiFallbackModel` setting,
+`exec --fallback-model`, the ACP `fallbackModel` option; English + 14
+tables): a reply stopped with `refusal` continues on the named model,
+once per turn, with a transcript notice and per-model usage, and the
+session then stays on it; anything else ends with its true sentence.
+Real-code tests cover the decision, the flag, the option and the setting
+shape (5 red/green drills); the live refusal switch still needs its
+real run (see `docs/real-life/unproven.md`), and the CHANGELOG and
+README lines wait for it. Record:
+`docs/certification/rlf-fallback.md`.
 
 ### TOOLROUNDS — Preserve answers at the model-call turn limit (D109)
 

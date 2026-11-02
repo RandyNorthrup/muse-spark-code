@@ -1461,6 +1461,12 @@
       "area": "chat"
     },
     {
+      "id": "RLFFALLBACK",
+      "title": "A refused turn continues on the fallback model",
+      "summary": "When you name a fallback model, a Model API turn the provider refuses continues on it, once per turn, with a notice naming it and each request billed at the model that ran it; with nothing named, a refused turn ends with the refusal.",
+      "area": "models-providers"
+    },
+    {
       "id": "ACPDOG",
       "public": false,
       "note": "implementation complete; dependent validation pending"

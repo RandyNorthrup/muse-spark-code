@@ -1127,6 +1127,12 @@
           "description": "%config.modelApiMaxToolOutputBytes.description%",
           "scope": "machine"
         },
+        "museSpark.modelApiFallbackModel": {
+          "type": "string",
+          "default": "",
+          "description": "%config.modelApiFallbackModel.description%",
+          "scope": "machine"
+        },
         "museSpark.turnCheckpoints": {
           "type": "boolean",
           "default": true,

@@ -703,6 +703,21 @@
       "editors": ["vscode", "acp"]
     },
     {
+      "id": "refusal-fallback",
+      "name": { "setting": "modelApiFallbackModel" },
+      "summary": { "setting": "modelApiFallbackModel" },
+      "description": { "setting": "modelApiFallbackModel" },
+      "commands": [],
+      "settings": ["museSpark.modelApiFallbackModel"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
       "id": "headless-teams",
       "name": { "ui": "paidTeamWorkersName" },
       "summary": { "cli": "team" },
@@ -967,7 +982,8 @@
           "fast": "fast",
           "account": "account",
           "mode": "mode",
-          "paidAllowAlways": "paidAllowAlways"
+          "paidAllowAlways": "paidAllowAlways",
+          "fallbackModel": "fallbackModel"
         },
         "permissionModes": ["manual", "acceptEdits", "plan", "auto", "bypassPermissions"],
         "bypassFlag": "--allow-dangerously-skip-permissions",
@@ -3882,6 +3898,17 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "integer", "default": 0 }
+    },
+    {
+      "id": "museSpark.modelApiFallbackModel",
+      "name": "museSpark.modelApiFallbackModel",
+      "description": "The model a refused Model API turn continues on. Empty (the default) leaves the refusal standing: the turn ends with the refusal. A set model answers one refusal per turn, with a notice naming it; the session then continues on it, and every request bills at the model that ran it. A name the session cannot resolve, the session's own model, or a second refusal ends the turn with the refusal. Machine-scoped; exec --fallback-model sets it for one headless run.",
+      "descriptionKey": "config.modelApiFallbackModel.description",
+      "type": "string",
+      "default": "",
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "string", "default": "" }
     },
     {
       "id": "museSpark.turnCheckpoints",
@@ -8084,6 +8111,13 @@
       "description": "Choose the model for this run.",
       "text": { "cli": "model" },
       "contract": { "type": "string", "repeatable": false, "purpose": "model" }
+    },
+    {
+      "route": "exec",
+      "name": "exec: --fallback-model <value>",
+      "description": "Continue a refused turn on this model.",
+      "text": { "cli": "fallback-model" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "fallback-model" }
     },
     {
       "route": "exec",

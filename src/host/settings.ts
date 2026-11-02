@@ -174,6 +174,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiObservationPacking: boolean
   /** TOOLCAP: the per-result byte guard. Validated where used; unusable values fall back. */
   readonly modelApiMaxToolOutputBytes: number
+  /** D261: the model a refused turn continues on; blank leaves the refusal standing. */
+  readonly modelApiFallbackModel: string
   readonly modelApiAutoCompaction: boolean
   readonly modelApiStrictTools: boolean
   readonly modelApiParallelReads: boolean
@@ -350,6 +352,8 @@ const settingSchemas = {
   modelApiRepoMap: z.boolean(),
   modelApiObservationPacking: z.boolean(),
   modelApiMaxToolOutputBytes: z.number().check(z.int(), z.gte(0)),
+  // D261: any string; blank (the default) leaves refusals standing.
+  modelApiFallbackModel: z.string(),
   modelApiAutoCompaction: z.boolean(),
   modelApiStrictTools: z.boolean(),
   modelApiParallelReads: z.boolean(),
@@ -550,6 +554,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiRepoMap: readSetting(config, 'modelApiRepoMap', log),
     modelApiObservationPacking: readSetting(config, 'modelApiObservationPacking', log),
     modelApiMaxToolOutputBytes: readSetting(config, 'modelApiMaxToolOutputBytes', log),
+    modelApiFallbackModel: readSetting(config, 'modelApiFallbackModel', log),
     modelApiAutoCompaction: readSetting(config, 'modelApiAutoCompaction', log),
     modelApiStrictTools: readSetting(config, 'modelApiStrictTools', log),
     modelApiParallelReads: readSetting(config, 'modelApiParallelReads', log),

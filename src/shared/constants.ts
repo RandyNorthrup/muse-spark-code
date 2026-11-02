@@ -1537,6 +1537,8 @@ export const SETTING_DEFAULTS = {
   // default). A set value raises or lowers it for the session; raise for
   // one run with the exec flag. Validated where used.
   modelApiMaxToolOutputBytes: 0,
+  /** D261: no fallback model named; a refused turn ends with the refusal. */
+  modelApiFallbackModel: '',
   modelApiAutoCompaction: true,
   modelApiStrictTools: true,
   modelApiParallelReads: true,
@@ -1785,6 +1787,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiRepoMap',
   'modelApiObservationPacking',
   'modelApiMaxToolOutputBytes',
+  'modelApiFallbackModel',
   // Lane RETRYLIMITS: the person's retry ceiling chooses billed retries, so
   // a repository must not set it (PLAN.md D15). D228: its Muse Code
   // sibling chooses billed resends the same way.
@@ -6550,6 +6553,8 @@ export const ACP_CONFIG_IDS = {
   account: 'account',
   mode: 'mode',
   paidAllowAlways: 'paidAllowAlways',
+  /** D261: the model a refused turn continues on. */
+  fallbackModel: 'fallbackModel',
 } as const
 // The paid Model API features the agent can use (M63c, PLAN.md D30): each
 // only with its flag, and each use asked in the editor (M58, D48). Muse

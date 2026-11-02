@@ -483,6 +483,14 @@ Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model us
 
 Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
 
+### museSpark.modelApiFallbackModel
+
+The model a refused Model API turn continues on. Empty (the default) leaves the refusal standing: the turn ends with the refusal. A set model answers one refusal per turn, with a notice naming it; the session then continues on it, and every request bills at the model that ran it. A name the session cannot resolve, the session's own model, or a second refusal ends the turn with the refusal. Machine-scoped; exec --fallback-model sets it for one headless run.
+
+Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: `museSpark.modelApiFallbackModel`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
+
 ### Team Workers
 
 --team: Run engine teams with Model API, acceptEdits and a hard budget shared by every worker; prompts deny, merges enter the run working tree.
@@ -699,7 +707,8 @@ help / --help / -h: ACP / CLI. help &lt;command&gt; / &lt;command&gt; --help: Us
     "fast": "fast",
     "account": "account",
     "mode": "mode",
-    "paidAllowAlways": "paidAllowAlways"
+    "paidAllowAlways": "paidAllowAlways",
+    "fallbackModel": "fallbackModel"
   },
   "permissionModes": ["manual", "acceptEdits", "plan", "auto", "bypassPermissions"],
   "bypassFlag": "--allow-dangerously-skip-permissions",
@@ -2999,6 +3008,19 @@ Type: `"integer"`. Default: `0`. Scope: `machine`.
 }
 ```
 
+### museSpark.modelApiFallbackModel
+
+The model a refused Model API turn continues on. Empty (the default) leaves the refusal standing: the turn ends with the refusal. A set model answers one refusal per turn, with a notice naming it; the session then continues on it, and every request bills at the model that ran it. A name the session cannot resolve, the session's own model, or a second refusal ends the turn with the refusal. Machine-scoped; exec --fallback-model sets it for one headless run.
+
+Type: `"string"`. Default: `""`. Scope: `machine`.
+
+```json
+{
+  "type": "string",
+  "default": ""
+}
+```
+
 ### museSpark.turnCheckpoints
 
 On by default: keeps the model’s own file, image, workspace memory and symbol-rename tool writes for Restore files and Redo in a connected Model API session, while files still hold exactly what the model left. Never undoes changes by commands, hooks, MCP tools, you or other windows; copies stay in extension storage, outside the workspace’s .git. Needs git on PATH and a trusted workspace.
@@ -4432,6 +4454,7 @@ These are defaults; editor customizations take precedence.
 - `exec: --record`: Refused for headless runs: nobody is there to preview a recording. `{"type":"boolean","repeatable":false,"default":false,"refused":true,"purpose":"record"}`
 - `exec: --permission-mode <value>`: Choose how Muse asks before it acts. `{"type":"string","repeatable":false,"enum":["plan","acceptEdits"],"default":"plan","purpose":"permission-mode"}`
 - `exec: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":false,"purpose":"model"}`
+- `exec: --fallback-model <value>`: Continue a refused turn on this model. `{"type":"string","repeatable":false,"purpose":"fallback-model"}`
 - `exec: --account <value>`: --account &lt;id&gt; The account to use (auth set, exec). `{"type":"string","repeatable":false,"purpose":"account"}`
 - `exec: --account-pool`: --account-pool Model API: pool at request boundaries; existing budgets still bind. Excludes key-stdin in CI. `{"type":"boolean","repeatable":false,"default":false,"purpose":"account-pool"}`
 - `exec: --effort <value>`: Choose how much effort Muse puts into each reply. `{"type":"string","repeatable":false,"enum":["minimal","low","medium","high","xhigh","max","ultra","none"],"purpose":"effort"}`

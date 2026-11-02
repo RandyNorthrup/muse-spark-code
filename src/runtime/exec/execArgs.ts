@@ -59,6 +59,8 @@ export interface ExecOptions {
   */
   readonly provider: string | undefined
   readonly model: string | undefined
+  /** D261: the model a refused turn continues on for this run only; absent is off. */
+  readonly fallbackModel: string | undefined
   /** M96b: explicit opt-in to bounded, in-process headless engine teams. */
   readonly team: boolean
   /**
@@ -126,6 +128,7 @@ const STRING_OPTIONS = new Set([
   'prompt-file',
   'permission-mode',
   'model',
+  'fallback-model',
   'effort',
   'output',
   'output-schema',
@@ -350,6 +353,7 @@ export function parseExec(
     'max-requests',
     'max-tool-output-bytes',
     'max-output-tokens',
+    'fallback-model',
     'ephemeral',
     'key-stdin',
     'subscription',
@@ -404,6 +408,21 @@ export function parseExec(
     // provider. The sentence names both, and the command listing the entry.
     return invalid(unknownProviderModelText(rawModel, provider, listModelsRemedy()))
   }
+  // D261: --fallback-model names the model a refused turn continues on,
+  // qualified by --provider like --model. Blank means off, as when absent.
+  const rawFallback = stringValue('fallback-model')
+  const fallbackModel =
+    rawFallback === undefined || rawFallback.trim() === ''
+      ? undefined
+      : qualifyProviderModel(provider, rawFallback)
+  if (
+    fallbackModel === undefined &&
+    provider !== undefined &&
+    rawFallback !== undefined &&
+    rawFallback.trim() !== ''
+  ) {
+    return invalid(unknownProviderModelText(rawFallback, provider, listModelsRemedy()))
+  }
   // Team admission follows the prompt, provider and hard-budget checks.
   // D227: no availability switch stands before it; the two-model rule at
   // run start refuses a team run without a second runnable model.
@@ -424,6 +443,7 @@ export function parseExec(
       mode,
       provider,
       model,
+      fallbackModel,
       effort,
       fast: values['fast'] === true,
       allowsContributorModels: values['allow-contributor-models'] === true,

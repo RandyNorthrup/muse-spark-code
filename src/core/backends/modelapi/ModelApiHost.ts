@@ -360,6 +360,7 @@ import {
 } from './client'
 import { canRetryWithinBudget } from './transport'
 import { scrubRefusalLeak } from './providerRefusal'
+import { refusalFallbackTarget } from './refusalFallback'
 import { isPersonRetryCap } from '../../../shared/retryPolicy'
 import { noRetryBudget } from './transport'
 import {
@@ -907,6 +908,13 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   readonly modelOutputMaxTokens?: (modelId: string, resolved: ResolvedModel) => number | undefined
   /** Fixed for the session, with an explicit off arm for byte-identical requests. */
   readonly outputContinuation?: () => boolean
+  /**
+  D261 (lane RLF-FALLBACK): `museSpark.modelApiFallbackModel`, read live at
+  every refusal. The model a refused turn continues on; absent or blank
+  leaves the refusal standing, as before. A session's own override (ACP, a
+  headless run) wins over this standing value.
+  */
+  readonly fallbackModel?: (() => string | undefined) | undefined
   /** Trusted host proof of an unchanged complete result, never an MCP annotation. */
   readonly repeatResultWitness?: {
     readonly observed: (call: FunctionCallItem, outcome: ToolOutcome) => string | undefined
@@ -1387,6 +1395,8 @@ export interface ActiveTurn {
   didRecoverOverflow?: boolean
   /** TOOLCAP: the turn already resent once after trimming tool results. */
   didTrimOverflow?: boolean
+  /** D261: the turn already continued once on the fallback model. */
+  didRefusalFallback?: boolean
   /** The terminal is selected; checkpoint cleanup cannot cancel this turn. */
   isFinalizing?: boolean
 }
@@ -3209,6 +3219,8 @@ export class ModelApiSession implements ScheduledAgentSession {
   private effort: string = DEFAULT_EFFORT
   /** The conversation's Fast tier id while the switch is on; off by default. */
   private serviceTier: string | undefined
+  /** D261: the session's own fallback model (ACP, a headless run); undefined reads the standing setting. */
+  private sessionFallbackModel: string | undefined
   private todos: readonly TodoItem[] = []
   private todoTurnId: string | undefined
   private outcomeStopReason: AgentEvidence['stopReason']
@@ -8263,7 +8275,21 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     // A cut-short tool reply fails after adoptOutput pairs every refused
     // call with an error (D86.5); continuation is for text-only replies.
-    if (final.status === 'incomplete' && final.output.some((item) => isFunctionCallItem(item))) {
+    // The one way through is D261: a refused reply whose turn will continue
+    // on the fallback model returns its incomplete reason instead of
+    // throwing, and the loop switches the model there. adoptOutput already
+    // answered every in-flight call, so the switch replays answered
+    // history only.
+    if (
+      final.status === 'incomplete' &&
+      final.output.some((item) => isFunctionCallItem(item)) &&
+      refusalFallbackTarget({
+        incompleteReason: final.incomplete_details?.reason,
+        fallbackModel: this.standingFallbackModel(),
+        refusedModel: body.model,
+        didFallback: this.active?.didRefusalFallback === true,
+      }) === undefined
+    ) {
       throw new ModelApiError(
         UI_TEXT.incompleteToolCallsNotRun,
         0,
@@ -12357,6 +12383,10 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
     child.childTaskGrant = grant
     child.topTurn = { checkpoint: this.active?.checkpoint }
+    // D261: a child inherits its parent's fallback override, so a refused
+    // child turn continues where the parent's would. Without an override
+    // both read the same standing setting.
+    child.sessionFallbackModel = this.sessionFallbackModel
     const record: ChildRecord = {
       id,
       role: args.role,
@@ -16806,6 +16836,45 @@ export class ModelApiSession implements ScheduledAgentSession {
           })
           continue
         }
+        // D261: a refused reply with a fallback model named continues the
+        // turn on that model, once per turn. The in-flight calls above were
+        // answered, never executed; the next request replays that answered
+        // history through the fallback model's own codec, settles its usage
+        // at the fallback's price, and spends the same budgets and caps.
+        const fallbackTarget = refusalFallbackTarget({
+          incompleteReason: streamed.incompleteReason,
+          fallbackModel: this.standingFallbackModel(),
+          refusedModel: this.modelId,
+          didFallback: turn.didRefusalFallback === true,
+        })
+        if (fallbackTarget !== undefined) {
+          turn.didRefusalFallback = true
+          try {
+            await this.setModel(fallbackTarget)
+          } catch (error: unknown) {
+            // REPORTED: the switch failed (an unresolvable name, a stale
+            // record, a concurrent switch): the refusal stands with its true
+            // sentence, and the notice names the model that was not used.
+            this.deps.log.warn(
+              `Model API refusal fallback did not switch (${failureForLog(error)})`,
+            )
+            this.emit({
+              type: 'backendNotice',
+              level: 'warning',
+              text: fill(UI_TEXT.modelApiFallbackNotUsed, { model: fallbackTarget }),
+            })
+            return
+          }
+          // A PreModelSwitch hook can keep the session on its model: the
+          // refusal stands, with the hook's own notice already said.
+          if (this.modelId !== fallbackTarget) return
+          this.emit({
+            type: 'backendNotice',
+            level: 'info',
+            text: fill(UI_TEXT.modelApiFallbackContinuing, { model: fallbackTarget }),
+          })
+          continue
+        }
         if (streamed.incompleteReason === 'max_output_tokens' && turn.wrapUpLimit !== undefined) {
           // A wrap-up cut at the output limit is a limit stop, never
           // "again": the partial answer is kept, through the one exit, with
@@ -19206,6 +19275,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
   }
 
+  /** D261: the session's override wins; otherwise the standing setting, read live. Blank means off. */
+  private standingFallbackModel(): string {
+    return this.sessionFallbackModel ?? this.deps.fallbackModel?.() ?? ''
+  }
+
   /** Recording adapters use the nominal session, never an arbitrary callback. */
   public async runRecordedTool(
     ...args: Parameters<ModelApiSession['decideAndRun']>
@@ -19719,6 +19793,18 @@ export class ModelApiSession implements ScheduledAgentSession {
   /** The conversation's Fast tier (off by default); rides on plan turns only. */
   public setServiceTier(serviceTier: string | undefined): Promise<void> {
     this.serviceTier = serviceTier === '' ? undefined : serviceTier
+    this.touch()
+    return Promise.resolve()
+  }
+
+  /**
+  D261: name the model a refused turn continues on; undefined (or blank)
+  clears back to the standing setting. Session-lived, like the Fast tier:
+  a resumed session reads the setting again until its editor sets it.
+  */
+  public setFallbackModel(modelId: string | undefined): Promise<void> {
+    const trimmed = modelId?.trim() ?? ''
+    this.sessionFallbackModel = trimmed === '' ? undefined : trimmed
     this.touch()
     return Promise.resolve()
   }

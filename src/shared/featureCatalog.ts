@@ -820,6 +820,17 @@ export function featureCatalog(): readonly Feature[] {
       ['vscode', 'acp'],
     ),
     feature(
+      'refusal-fallback',
+      { setting: 'modelApiFallbackModel' },
+      { setting: 'modelApiFallbackModel' },
+      [],
+      ['modelApiFallbackModel'],
+      'agent-loop-guarantees',
+      ['modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
       'headless-teams',
       { ui: 'paidTeamWorkersName' },
       { cli: 'team' },

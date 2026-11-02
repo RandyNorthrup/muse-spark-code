@@ -3507,3 +3507,25 @@ editor run proves it:
   not on this branch. Lane C's `attachments/*` methods are not on the
   native hosts. Lane A's `src/runtime/panel/git/gitEntry.ts` is not on
   this branch.
+
+## Lane RLF-FALLBACK (2026-11-02; D261)
+
+The refusal fallback is built with real-code tests over the decision, the
+flag, the option and the setting shape, but a live refusal cannot be
+ordered on demand (no provider refuses to order), so no test or real run
+has yet watched a turn switch models. A real run still has to prove, on
+an Anthropic-shaped provider with a fallback model named:
+
+- a reply stopped with `refusal` continues on the named model, with the
+  transcript notice naming it and the session staying on it afterwards;
+- each model's cost counts on the usage record as itself, and the
+  person's budgets and dollar caps still bound the retry;
+- a fallback that is refused too, unresolvable, or kept by a
+  PreModelSwitch hook ends the turn with its true sentence, with the
+  notice naming the model that was not used;
+- in-flight tool calls are answered, never executed, at the switch, and
+  the history the fallback receives is valid for its provider.
+
+Until that run, the CHANGELOG line, the README paragraph and the
+docs/acp.md paragraph drafted in `docs/certification/rlf-fallback.md`
+stay out of those files.

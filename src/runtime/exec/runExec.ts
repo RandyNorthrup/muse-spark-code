@@ -1270,6 +1270,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           initialMode: options.mode,
           isHeadless: true,
           ...(initialModelId !== undefined && { initialModelId }),
+          // D261: the run's fallback model rides the session the flag's run starts.
+          ...(options.fallbackModel !== undefined && {
+            initialFallbackModelId: options.fallbackModel,
+          }),
         },
         signIn: {
           id: 'headless',
