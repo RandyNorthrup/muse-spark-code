@@ -168,7 +168,9 @@ came, never blank.
 */
 export function formatProviderDate(value: string): string {
   const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
-  if (day?.[1] !== undefined && day[2] !== undefined && day[3] !== undefined) {
+  if (day !== null) {
+    // A match always carries its three groups; an out-of-range day fails
+    // the round trip below and reads as it came.
     const year = Number(day[1])
     const month = Number(day[2])
     const date = Number(day[3])

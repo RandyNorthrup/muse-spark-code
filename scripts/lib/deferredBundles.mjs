@@ -1814,6 +1814,16 @@ export function checkDeferredBundles(inputsOf, metafileOf) {
           SUBSCRIPTION_COMMANDS_ONLY.includes(source)
         ) &&
         !(source === 'src/core/providers/configured.ts' && bundle === BUNDLES.configured) &&
+        // RLF-GEMPRIVACY (2026-11-02): the Gemini reroute table and its
+        // pure apply function have one runtime importer, configured.ts,
+        // so they ride where it rides; the scan path they serve lives
+        // in this bundle.
+        !(
+          bundle === BUNDLES.configured &&
+          ['geminiReroutes.ts', 'geminiReroutes.json'].some(
+            (file) => source === `src/core/providers/${file}`,
+          )
+        ) &&
         !(
           bundle.output === 'dist/providerPolicy.js' &&
           ['credentialRecord.ts', 'endpointPolicy.ts'].some(

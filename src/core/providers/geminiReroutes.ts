@@ -54,6 +54,8 @@ export function resolveGeminiReroute(
 
 /** A Gemini id Google serves with another model, as rows carry it. */
 export interface ModelReroute {
+  /** The configured native id the reroute serves requests for. */
+  readonly requested: string
   /** The serving native id. */
   readonly serves: string
   /** The serving model's display name (its id where the catalogue names none). */
@@ -84,6 +86,7 @@ export function applyGeminiReroute(
   return {
     row: resolved.active ? serving : undefined,
     reroute: {
+      requested: nativeModel,
       serves: resolved.serves,
       servesLabel: typeof name === 'string' ? name : resolved.serves,
       active: resolved.active,

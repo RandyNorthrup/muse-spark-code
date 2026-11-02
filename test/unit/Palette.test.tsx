@@ -378,11 +378,7 @@ describe('Palette (models view)', () => {
           pricing: 'priced',
           inputUsdPerMTokens: 0.75,
           outputUsdPerMTokens: 3.75,
-          reroute: {
-            serves: 'gemini-3.6-flash',
-            servesLabel: 'Gemini 3.6 Flash',
-            active: true,
-          },
+          marks: ['Serves gemini-3.5-flash requests'],
         },
         {
           modelId: 'gemini/gemini-2.5-pro',
@@ -394,12 +390,7 @@ describe('Palette (models view)', () => {
           pricing: 'priced',
           inputUsdPerMTokens: 1.25,
           outputUsdPerMTokens: 10,
-          reroute: {
-            serves: 'gemini-3.8-flash',
-            servesLabel: 'Gemini 3.8 Flash',
-            active: false,
-            from: '2026-12-01',
-          },
+          marks: ['Routes to Gemini 3.8 Flash on Dec 1, 2026'],
         },
         {
           modelId: 'openai/gpt-4o-2024-08-06',
@@ -411,8 +402,7 @@ describe('Palette (models view)', () => {
           pricing: 'priced',
           inputUsdPerMTokens: 2.5,
           outputUsdPerMTokens: 10,
-          lifecycle: 'deprecated',
-          retiresAt: '2027-01-14',
+          marks: ['Retires Jan 14, 2027'],
         },
         {
           modelId: 'mistral/mistral-large-4',
@@ -424,7 +414,7 @@ describe('Palette (models view)', () => {
           pricing: 'priced',
           inputUsdPerMTokens: 2,
           outputUsdPerMTokens: 6,
-          beta: true,
+          marks: ['Beta'],
         },
       ],
     })

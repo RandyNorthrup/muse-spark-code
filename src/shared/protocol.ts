@@ -386,21 +386,14 @@ const modelOptionSchema = z.object({
     z.array(z.object({ tier: stringSchema, description: z.optional(stringSchema) })),
   ),
   defaultReasoningEffort: z.optional(stringSchema),
-  /** The provider's lifecycle word where it is not active. */
-  lifecycle: z.optional(z.enum(['deprecated', 'retired'])),
-  /** The announced shutdown day where one is known. */
-  retiresAt: z.optional(stringSchema),
-  /** The catalogue calls this model beta. */
-  beta: z.optional(booleanSchema),
-  /** Google serves this id with another model, active or future. */
-  reroute: z.optional(
-    z.object({
-      serves: stringSchema,
-      servesLabel: stringSchema,
-      active: booleanSchema,
-      from: z.optional(stringSchema),
-    }),
-  ),
+  /**
+  Lifecycle and reroute marks the picker names after the detail
+  (PROV-HONEST): the shutdown day where one is announced (else the
+  lifecycle word), the beta mark, and the reroute served. The host
+  composes them where the record lives, so the webview carries no
+  date formatter for them; nothing here blocks selecting the model.
+  */
+  marks: z.optional(z.array(stringSchema)),
 })
 export type ModelOption = z.infer<typeof modelOptionSchema>
 

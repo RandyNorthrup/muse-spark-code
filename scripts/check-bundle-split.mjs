@@ -1508,6 +1508,16 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
             !(
               input === 'src/core/providers/configured.ts' && output === BUNDLES.configured.output
             ) &&
+            // RLF-GEMPRIVACY (2026-11-02): the Gemini reroute table and
+            // its pure apply function have one runtime importer,
+            // configured.ts, so they ride where it rides; the scan
+            // path they serve lives in this bundle.
+            !(
+              output === BUNDLES.configured.output &&
+              ['geminiReroutes.ts', 'geminiReroutes.json'].some(
+                (file) => input === `src/core/providers/${file}`,
+              )
+            ) &&
             // D89.14 lane M / RLF-M109: the migration codecs parse the
             // installed provider records, so both migration chunks (the
             // window's and the runtime's) carry their schemas beside the
