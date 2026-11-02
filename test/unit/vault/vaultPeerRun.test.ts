@@ -1,9 +1,8 @@
 import { execFileSync, spawn } from 'node:child_process'
 import { readFileSync } from 'node:fs'
-import { mkdtemp, rm } from 'node:fs/promises'
-import os from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { compileVaultPeerHelper } from '../helpers/vault/peerBuild'
 
 // RLF-M109H items 1 and 2 on the real helper: the delegated command is
 // started through the peer helper's `run` mode (vaultExecEntry), which
@@ -16,23 +15,17 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 /** Compiling the shipped C helper takes seconds on a loaded rig. */
 const BUILD_TIMEOUT_MS = 60_000
 const isPosix = process.platform === 'linux' || process.platform === 'darwin'
-const state = { helper: '', root: '' }
+const state: { helper: string; dispose?: () => Promise<void> } = { helper: '' }
 
 beforeAll(async () => {
   if (!isPosix) return
-  state.root = await mkdtemp(path.join(os.tmpdir(), 'vault-peer-run-'))
-  state.helper = path.join(state.root, 'muse-vault-peer')
-  execFileSync(
-    '/usr/bin/cc',
-    ['-Os', '-Wall', '-Wextra', '-Werror', 'native/posix/vaultPeer.c', '-o', state.helper],
-    {
-      stdio: 'pipe',
-    },
-  )
+  const built = await compileVaultPeerHelper('vault-peer-run-')
+  state.helper = built.helper
+  state.dispose = built.dispose
 }, BUILD_TIMEOUT_MS)
 
 afterAll(async () => {
-  if (state.root) await rm(state.root, { recursive: true, force: true })
+  await state.dispose?.()
 })
 
 describe.skipIf(!isPosix)('vault peer run mode (RLF-M109H)', () => {

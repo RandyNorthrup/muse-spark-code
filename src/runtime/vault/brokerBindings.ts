@@ -21,7 +21,7 @@ import {
   VAULT_POLICY_BUNDLE_FILE,
 } from '../../shared/constants'
 import type { KeyringEntryFactory } from '../keyStore'
-import type { VaultProcessIdentity } from '../../core/vault/broker/peer'
+import { hasVaultFeederAncestry, type VaultProcessIdentity } from '../../core/vault/broker/peer'
 import { KeyringVaultAnchor } from './keyringAnchor'
 import {
   VAULT_ANCHOR_ACCOUNT,
@@ -398,28 +398,11 @@ function baseVaultBrokerBindings(
         (await parts.isHost(peer.processId, peer.hostId)),
       // D243: kernel peer identity (the channel's record of the feeder's
       // own socket) re-read live, then the ancestry walk to the exact
-      // requester process incarnation, start times checked at both ends.
-      verifyFeeder: async (feeder, requester) => {
-        const live = await parts.processIdentity(feeder.processId)
-        if (
-          live?.startedAt !== feeder.startedAt ||
-          live.userId !== feeder.userId ||
-          live.executable !== feeder.executable
-        )
-          return false
-        const host = await parts.processIdentity(requester.peerProcessId)
-        if (host?.userId !== feeder.userId) return false
-        const seen = new Set<number>([feeder.processId])
-        let current = feeder.processId
-        for (;;) {
-          const parent = await parts.parentIdentity(current)
-          if (!parent || seen.has(parent.processId)) return false
-          if (parent.processId === host.processId)
-            return parent.startedAt === host.startedAt && parent.userId === feeder.userId
-          seen.add(parent.processId)
-          current = parent.processId
-        }
-      },
+      // requester process incarnation, start times checked at every
+      // step so a recycled pid cannot answer for a dead ancestor
+      // (RLF-M109H; the walk itself lives with the peer identities).
+      verifyFeeder: async (feeder, requester) =>
+        await hasVaultFeederAncestry(feeder, requester.peerProcessId, parts),
     },
     identify: async (identity, hostId, hostSession) => {
       if (

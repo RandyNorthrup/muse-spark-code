@@ -28,6 +28,55 @@ export interface VaultPeerVerifier {
   /** OS credentials and pinned process start/image identity; never a claimed token or pid. */
   verify(socket: Duplex): Promise<VaultProcessIdentity>
 }
+/** Kernel identity reads for the feeder ancestry walk; null proves the process gone. */
+export interface VaultAncestryPort {
+  processIdentity(pid: number): Promise<VaultProcessIdentity | null>
+  parentIdentity(pid: number): Promise<VaultProcessIdentity | null>
+}
+/**
+D243 feeder ancestry, bound against pid recycling (RLF-M109H): the
+feeder is re-read live, then every step up re-reads the current process
+and requires the start time the previous step recorded for that pid
+before its parent is trusted, and the requester is re-read at the end.
+A process that died and whose pid was recycled between two steps has a
+different start time, so the walk refuses instead of following the
+recycled process's ancestry. The helper's `parent` mode brackets its
+own two reads the same way (native/posix/vaultPeer.c).
+*/
+export async function hasVaultFeederAncestry(
+  feeder: VaultProcessIdentity,
+  requesterProcessId: number,
+  port: VaultAncestryPort,
+): Promise<boolean> {
+  const live = await port.processIdentity(feeder.processId)
+  if (
+    live?.startedAt !== feeder.startedAt ||
+    live.userId !== feeder.userId ||
+    live.executable !== feeder.executable
+  )
+    return false
+  const host = await port.processIdentity(requesterProcessId)
+  if (host?.userId !== feeder.userId) return false
+  const births = new Map<number, number>([[feeder.processId, feeder.startedAt]])
+  let current = feeder.processId
+  for (;;) {
+    const currentLive = await port.processIdentity(current)
+    if (currentLive?.startedAt !== births.get(current) || currentLive.userId !== feeder.userId)
+      return false
+    const parent = await port.parentIdentity(current)
+    if (!parent || births.has(parent.processId)) return false
+    if (parent.processId === host.processId) {
+      const hostNow = await port.processIdentity(host.processId)
+      return (
+        parent.startedAt === host.startedAt &&
+        hostNow?.startedAt === host.startedAt &&
+        parent.userId === feeder.userId
+      )
+    }
+    births.set(parent.processId, parent.startedAt)
+    current = parent.processId
+  }
+}
 /**
 The Windows client's pipe dialer (lane C-M109-1c): a raw pipe socket
 carries no inspectable server end, so the client platform verifies the
