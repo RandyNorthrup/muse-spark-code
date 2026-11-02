@@ -14,6 +14,7 @@ import {
   buildRegionalEnglish,
 } from './helpers/l10nBuilds.mjs'
 import { removeFolder } from './helpers/temporaryFolders'
+import { MODELS_FIRST_PAINT_KEY, buildModelsFirstPaint } from './helpers/modelsFirstPaintBuild.mjs'
 import { startReviewBrowser } from './helpers/reviewBrowser.mjs'
 import {
   PRODUCTION_BUILD_KEY,
@@ -67,6 +68,16 @@ export default async function setup(project) {
     buildRegionalEnglish(path.join(root, REGIONAL_ENGLISH)),
   ])
   project.provide(L10N_BUILDS_KEY, root)
+  // The Models first-paint bundle: its cold build plus a Chrome launch
+  // overran the suite's hook on hosted runners, so it builds here, outside
+  // every hook's deadline, and only when the suite is selected.
+  if (
+    testFiles.some((file) => file.replaceAll('\\', '/').endsWith('/teamModelsFirstPaint.test.mjs'))
+  ) {
+    const models = path.join(root, 'models-first-paint')
+    await buildModelsFirstPaint(models)
+    project.provide(MODELS_FIRST_PAINT_KEY, models)
+  }
   let browser
   try {
     browser = await startReviewBrowser(project, testFiles)
