@@ -4,7 +4,10 @@
 // (`--check`) re-renders from the records and refuses any drift, without
 // running a harness. A live green/failed outcome overwrites its record; a
 // live pending keeps a recorded one (another machine's evidence stands)
-// and writes a pending record only when none exists.
+// and writes a pending record only when none exists. `--hosts a,b` refreshes
+// only the named editors and re-renders the matrix from every other record:
+// a machine runs what it holds, without another rig's harnesses overwriting
+// their records (RLF-HOSTS2's Linux shims on a Windows PC, say).
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { hostname, platform } from 'node:os'
@@ -30,6 +33,9 @@ import {
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const isCheck = process.argv.includes('--check')
+const hostsFlag = process.argv.indexOf('--hosts')
+const onlyHosts = hostsFlag === -1 ? undefined : (process.argv[hostsFlag + 1] ?? '').split(',')
+const isRefreshed = (host) => onlyHosts === undefined || onlyHosts.includes(host)
 
 const NATIVE_HOSTS = ['jetbrains', 'visualstudio', 'eclipse', 'xcode']
 const VSCODE_COMMAND = 'npx vscode-test --grep M104g (labels stable and minimum)'
@@ -317,21 +323,33 @@ async function main() {
     console.log(`Matrix: ${String(hosts.length)} editors; ${MATRIX_PATH} is current`)
     return
   }
+  const unknown = onlyHosts?.find((host) => !hosts.includes(host))
+  if (unknown !== undefined) {
+    console.error(`matrix: ${unknown} is not in the matrix`)
+    process.exit(1)
+  }
   const records = {}
-  const natives = runConformance(root, NATIVE_HOSTS)
+  for (const host of hosts) if (!isRefreshed(host)) records[host] = readRecord(host)
+  const natives = runConformance(
+    root,
+    NATIVE_HOSTS.filter((host) => isRefreshed(host)),
+  )
   for (const outcome of natives) {
     const previous = readRecord(outcome.host)
     records[outcome.host] = keepOrWrite(outcome.host, recordForNative(outcome, previous), previous)
   }
   for (const host of Object.keys(SHIM_HARNESSES)) {
+    if (!isRefreshed(host)) continue
     const previous = readRecord(host)
     records[host] = keepOrWrite(host, runShim(host), previous)
   }
-  records.vscode = keepOrWrite(
-    'vscode',
-    recordForVscode(readRecord('vscode')),
-    readRecord('vscode'),
-  )
+  if (isRefreshed('vscode')) {
+    records.vscode = keepOrWrite(
+      'vscode',
+      recordForVscode(readRecord('vscode')),
+      readRecord('vscode'),
+    )
+  }
   const options = (await resolveConfig(path.join(root, MATRIX_PATH))) ?? {}
   const rendered = await format(renderMatrix(records), { ...options, parser: 'markdown' })
   writeFileSync(path.join(root, MATRIX_PATH), rendered)
