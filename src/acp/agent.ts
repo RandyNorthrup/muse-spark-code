@@ -4163,12 +4163,15 @@ class AgentState {
 
   private async openHost(
     cwd: string,
+    requiresOpenableFolder = false,
   ): Promise<{ readonly host: AgentHost; readonly models: readonly ModelSummary[] }> {
     // Neither folder problem echoes the path: it can name an account.
     if (!path.isAbsolute(cwd)) {
       throw RequestError.invalidParams(undefined, UI_TEXT.acpFolderNotAbsolute)
     }
-    if (!(await isOpenableFolder(cwd))) {
+    // Starting the CLI in a folder needs one this account can open; listing
+    // and deleting never start there, so they do not check.
+    if (requiresOpenableFolder && !(await isOpenableFolder(cwd))) {
       throw RequestError.invalidParams(undefined, UI_TEXT.acpFolderMissing)
     }
     // A dead credential store does not stop the session from opening: only
@@ -4363,7 +4366,7 @@ class AgentState {
     )
     try {
       const roots = parseAdditionalDirectories(additionalDirectories)
-      const { host, models } = await this.openHost(cwd)
+      const { host, models } = await this.openHost(cwd, true)
       const modelId = startingModel(
         models,
         this.deps.options.initialModelId,
@@ -4446,7 +4449,7 @@ class AgentState {
       acpMakerAsker(client, () => sessionId),
     )
     try {
-      const { host, models } = await this.openHost(cwd)
+      const { host, models } = await this.openHost(cwd, true)
       this.registry.ensureClaim(claim, host)
       const loaded = await host.resumeSession(
         sessionId,

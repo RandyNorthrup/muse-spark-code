@@ -59,21 +59,16 @@ describe('the Linux portal recorder without its helper', () => {
     })
 
   it('says the helper is missing, and to reinstall, not that there is no portal', async () => {
-    const product = await folder('portal-missing')
-    const failure = await helperFailure(portFor(product).hasPortal())
-    expect(failure.fault).toBe('missing')
-    expect(failure.message).toBe(
-      fill(UI_TEXT.nativeHelper.missingInstalled, { helper: 'muse-portal-record' }),
-    )
-  })
-
-  it('names the helper file, not a folder above the product ending in .app', async () => {
-    const product = await folder(path.join('Outer.app', 'portal-nested'))
-    const failure = await helperFailure(portFor(product).hasPortal())
-    expect(failure.fault).toBe('missing')
-    expect(failure.message).toBe(
-      fill(UI_TEXT.nativeHelper.missingInstalled, { helper: 'muse-portal-record' }),
-    )
+    // The second layout names the helper file even when a folder above the
+    // product ends in `.app` (an install path, a test root).
+    for (const name of ['portal-missing', path.join('Outer.app', 'portal-nested')]) {
+      const product = await folder(name)
+      const failure = await helperFailure(portFor(product).hasPortal())
+      expect(failure.fault).toBe('missing')
+      expect(failure.message).toBe(
+        fill(UI_TEXT.nativeHelper.missingInstalled, { helper: 'muse-portal-record' }),
+      )
+    }
   })
 
   it('names the build command in a source checkout', async () => {
