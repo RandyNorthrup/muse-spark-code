@@ -51,9 +51,9 @@ async function windowsPrivacy(files: readonly string[]): Promise<boolean[]> {
 
 /**
 Whether this account owns the path, from an independent Get-Acl. An account
-need not: a member of Administrators whose system gives such members' new
-objects to the group (Windows Server's default, so the hosted runner's built-in
-Administrator) owns nothing it did not take.
+need not: under an administrator's full token (the built-in Administrator's, as
+on the hosted runner, and any elevated process's) new objects belong to the
+Administrators group. Only UAC's filtered token makes the user their owner.
 */
 export async function isOwnedByThisAccount(file: string): Promise<boolean> {
   if (process.platform !== 'win32') {

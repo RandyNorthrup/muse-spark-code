@@ -8447,6 +8447,10 @@ export const WINDOWS_POWERSHELL_RELATIVE_PATH = 'System32\\WindowsPowerShell\\v1
 // hook's narrow environment does not carry).
 export const WINDOWS_POWERSHELL_UTF8_PREAMBLE =
   '$OutputEncoding = [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false); '
+// .NET Framework's JSON serializer, which a script that names no cmdlet loads
+// in place of ConvertTo-Json and ConvertFrom-Json.
+export const WINDOWS_JSON_ASSEMBLY =
+  'System.Web.Extensions, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'
 // Windows PowerShell running one inline script (the UAC relaunch for the
 // sandbox setup); `-NonInteractive` turns any prompt into an error.
 export const WINDOWS_POWERSHELL_COMMAND_ARGS = [

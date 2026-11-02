@@ -35,9 +35,9 @@ async function windowsUserSid(): Promise<string> {
 }
 
 /**
-Makes this account the owner on Windows, where an elevated account's new
-objects can belong to Administrators (Windows Server's default for its
-members). POSIX has no such case to put right.
+Makes this account the owner on Windows, where new objects under an
+administrator's full token belong to the Administrators group. POSIX has no
+such case to put right.
 */
 export async function takeOwnership(directory: string): Promise<void> {
   if (process.platform !== 'win32') return

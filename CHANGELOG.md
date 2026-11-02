@@ -412,6 +412,10 @@ happened, not what was planned; superseded entries are kept.
   nothing to read, instead of failing on an empty answer.
 - The connector's storage check starts faster on Windows, and no longer depends
   on PowerShell's module cache: its JSON goes through .NET, not a cmdlet.
+- Maker project detection on Windows no longer gives up where large PowerShell
+  modules are installed. Each read named a cmdlet, so PowerShell analysed the
+  whole module folder first and the read could run past its 10 s bound. It now
+  goes through .NET alone.
 - Team copies, the connector's first start and the home node's private
   folders work when their path is spelled through a system link (macOS
   `/var` for `/private/var`). Each fence judged the spelled path against

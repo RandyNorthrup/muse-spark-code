@@ -27,9 +27,10 @@ const agent = path.join(directory, 'dist', 'acp.js')
 const data = path.join(directory, 'data')
 const CANARY = 'sk-proj-canary0123456789abcdefghijklmnop'
 // What the official MCP SDK hands a server it starts, as a real client's launch
-// does, then this run's own home. Fewer variables than that is no client's
-// launch, and Windows PowerShell's start ran past this suite's budget on every
-// hosted Windows case of run 41214393586 without them.
+// does, then this run's own home. It carries no PSModuleAnalysisCachePath, as a
+// client's launch does not: the storage guard's scripts name no cmdlet, so an
+// agent's start pays no module search (two starts took 48,147 ms on the hosted
+// runner when they did: docs/certification/cc-winfix2.md).
 const env = {
   ...getDefaultEnvironment(),
   SystemRoot: process.env['SystemRoot'],
