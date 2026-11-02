@@ -157,6 +157,12 @@ happened, not what was planned; superseded entries are kept.
   the same token source in light, dark and both high-contrast themes, and
   the token gate proves their contrast; the desktop follows the system's
   light/dark choice with a manual override.
+- **Muse Desktop's look (M111, in development).** The pointer, the icons,
+  the fonts, the wallpapers, the boot splash and menu, and the companion's
+  animations are built from the approved mockups in light, dark and both
+  high-contrast themes, with reduced-motion stills and flash-safe
+  animation. Nothing about the extension changes yet; the installable
+  desktop arrives with the M111 installer.
 - Best-of-N shows each attempt's reported tokens in the side-by-side
   comparison, plus its reported cost where the attempt's usage reports
   carry one, and the take notice names the taken attempt's reported use
