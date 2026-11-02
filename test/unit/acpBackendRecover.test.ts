@@ -7,20 +7,16 @@
 // resume-after-restart is proven refused (as not-found), while the
 // agent-level re-attach that consumes it runs signed-in
 // (acpBackendRecoverAgent.test.ts). Measured 2026-11-02 on CLI 1.4.14.
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { homedir, tmpdir } from 'node:os'
+import { spawn } from 'node:child_process'
+import { mkdtemp } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Connection } from '@muse-code/sdk'
 import { ChildStdioTransport } from '@muse-code/sdk/dist/src/connection/spawn.js'
 import type { AgentHost, AgentSession, HostExit, TurnPart } from '../../src/core/agent/agentBackend'
 import { isSessionNotFoundError } from '../../src/core/agent/agentBackend'
-import type { CoreLogger } from '../../src/core/logging'
-import { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
-import { resolveMuseLaunch } from '../../src/core/backends/musecode/launch'
-import { credentialFilePath } from '../../src/core/backends/musecode/credentialPath'
+import type { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
 import {
   ControllerRegistry,
   type SessionController,
@@ -28,163 +24,45 @@ import {
 import { isolatedRuntimeEnvironment } from './helpers/isolatedRuntimeEnvironment'
 import { MSP_CLIENT_NAME, MSP_REQUESTED_CAPABILITIES, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
+import {
+  MUSE,
+  RECOVER_TEST_TIMEOUT_MS,
+  bareErrorLines,
+  cleanupRecoverRig,
+  hasSkippedLine,
+  museOrThrow,
+  productVersion,
+  startServeHost,
+  trackScratchHome,
+  waitFor,
+  type ServeHost,
+} from './helpers/acpRecoverRig'
 
-/** The product's own CLI resolution; undefined where Muse Code is not installed. */
-function museCommand(): string | undefined {
-  const resolution = resolveMuseLaunch({
-    platform: process.platform,
-    configuredPath: '',
-    pathEntries: (process.env['PATH'] ?? '').split(path.delimiter),
-    homeDir: homedir(),
-    localAppData: process.env['LOCALAPPDATA'],
-    fileExists: existsSync,
-    readTextFile: (file) => (existsSync(file) ? readFileSync(file, 'utf8') : undefined),
-    listDirectory: (directory) => (existsSync(directory) ? readdirSync(directory) : []),
-    serveArgs: ['serve'],
-    scope: { workspaceRoot: tmpdir(), realpath: realpathSync },
+afterEach(cleanupRecoverRig)
+
+/** The sign-out the unsigned leg runs under: a file naming no provider. */
+const EMPTY_CREDENTIAL = '{ "providers": {}, "schema_version": 2 }'
+
+/** No model call can leave the machine: every proxy points at a dead port. */
+const DEAD_PROXY: NodeJS.ProcessEnv = {
+  HTTP_PROXY: 'http://127.0.0.1:9',
+  HTTPS_PROXY: 'http://127.0.0.1:9',
+  ALL_PROXY: 'http://127.0.0.1:9',
+  http_proxy: 'http://127.0.0.1:9',
+  https_proxy: 'http://127.0.0.1:9',
+  all_proxy: 'http://127.0.0.1:9',
+  NO_PROXY: '',
+}
+
+async function startUnsignedEcho(muse: string, stderrs: string[]): Promise<ServeHost> {
+  return await startServeHost({
+    muse,
+    serveArgs: ['serve', '--provider', 'echo', '--no-session-log'],
+    stderrs,
+    home: { kind: 'throwaway-unsigned', credentialText: EMPTY_CREDENTIAL },
+    extraEnv: DEAD_PROXY,
   })
-  return resolution.ok ? resolution.launch.command : undefined
 }
-
-const MUSE = museCommand()
-
-// A genuinely long operation: a real `muse serve` start, its handshake, a
-// session and a turn, then a kill and its settle, on a shared rig.
-const RECOVER_TEST_TIMEOUT_MS = 30_000
-
-function museOrThrow(): string {
-  if (MUSE === undefined) {
-    throw new Error('the Muse Code CLI is not installed on this machine')
-  }
-  return MUSE
-}
-
-interface LoggedLine {
-  readonly level: 'trace' | 'info' | 'warn' | 'error'
-  readonly message: string
-}
-
-function collectingCoreLog(into: LoggedLine[]): CoreLogger {
-  return {
-    trace: (message: string): void => {
-      into.push({ level: 'trace', message })
-    },
-    info: (message: string): void => {
-      into.push({ level: 'info', message })
-    },
-    warn: (message: string): void => {
-      into.push({ level: 'warn', message })
-    },
-    error: (message: string): void => {
-      into.push({ level: 'error', message })
-    },
-  }
-}
-
-interface EchoHost {
-  readonly host: MuseCodeHost
-  readonly child: ChildProcessWithoutNullStreams
-  readonly home: string
-  readonly lines: LoggedLine[]
-  readonly exits: HostExit[]
-}
-
-const live: EchoHost[] = []
-const scratchHomes: string[] = []
-
-async function productVersion(): Promise<string> {
-  const raw = await readFile(new URL('../../package.json', import.meta.url), 'utf8')
-  return (JSON.parse(raw) as { version: string }).version
-}
-
-/**
-A real host over a real `muse serve` the test owns (for the kill): the
-echo provider under a throwaway home with an empty credential file and a
-dead proxy, so no model call can leave. The SDK's own child transport
-carries the real bytes; the handshake mirrors the backend manager's.
-*/
-async function startEchoHost(
-  muse: string,
-  serveArgs: readonly string[],
-  stderrs: string[],
-): Promise<EchoHost> {
-  const home = await mkdtemp(path.join(tmpdir(), 'acp-recover-'))
-  const configHome = path.join(home, 'config')
-  await mkdir(path.join(configHome, 'muse'), { recursive: true })
-  await writeFile(
-    credentialFilePath({ homeDir: home, xdgConfigHome: configHome, platform: process.platform }),
-    '{ "providers": {}, "schema_version": 2 }',
-  )
-  const env: NodeJS.ProcessEnv = {
-    ...isolatedRuntimeEnvironment(home, tmpdir()),
-    MUSE_NO_AUTO_UPDATE: '1',
-    HTTP_PROXY: 'http://127.0.0.1:9',
-    HTTPS_PROXY: 'http://127.0.0.1:9',
-    ALL_PROXY: 'http://127.0.0.1:9',
-    http_proxy: 'http://127.0.0.1:9',
-    https_proxy: 'http://127.0.0.1:9',
-    all_proxy: 'http://127.0.0.1:9',
-    NO_PROXY: '',
-  }
-  const child = spawn(muse, [...serveArgs], { env, stdio: ['pipe', 'pipe', 'pipe'] })
-  const transport = new ChildStdioTransport(child, (chunk: string) => {
-    stderrs.push(chunk)
-  })
-  const connection = new Connection(transport)
-  const initializeResult = await connection.request('initialize', {
-    clientInfo: { name: MSP_CLIENT_NAME, version: await productVersion() },
-    capabilities: {
-      userInputDialogs: true,
-      requestedCapabilities: [...MSP_REQUESTED_CAPABILITIES],
-      experimentalApi: true,
-    },
-  })
-  connection.notify('initialized')
-  await connection.flush()
-  const lines: LoggedLine[] = []
-  const exits: HostExit[] = []
-  const exited = new Promise<{ code: number | null; signal: string | null }>((resolve) => {
-    child.on('exit', (code: number | null, signal: NodeJS.Signals | null) => {
-      resolve({ code, signal })
-    })
-  })
-  const host = new MuseCodeHost(
-    {
-      connection,
-      initializeResult,
-      exited,
-      close: async () => {
-        await transport.close()
-      },
-    },
-    collectingCoreLog(lines),
-  )
-  host.onExit((exit: HostExit) => {
-    exits.push(exit)
-  })
-  const echo = { host, child, home, lines, exits }
-  live.push(echo)
-  return echo
-}
-
-afterEach(async () => {
-  for (const echo of live.splice(0)) {
-    try {
-      echo.child.kill('SIGKILL')
-    } catch {
-      // Already gone: the test killed it, which is the point.
-    }
-    try {
-      await echo.host.close()
-    } catch {
-      // Already gone: closing a dead host is cleanup.
-    }
-    await rm(echo.home, { recursive: true, force: true })
-  }
-  for (const home of scratchHomes.splice(0)) {
-    await rm(home, { recursive: true, force: true })
-  }
-})
 
 /** A controller that only records what the registry tells it: the registry is under test. */
 class ProbeController implements SessionController {
@@ -211,20 +89,6 @@ class ProbeController implements SessionController {
   }
 }
 
-function hasSkippedLine(lines: readonly LoggedLine[], sessionId: string, verb: string): boolean {
-  return lines.some(
-    (line) =>
-      line.level === 'info' &&
-      line.message.includes(sessionId) &&
-      line.message.includes(verb) &&
-      line.message.includes('exited'),
-  )
-}
-
-function bareErrorLines(lines: readonly LoggedLine[]): readonly LoggedLine[] {
-  return lines.filter((line) => line.message === 'Error' || line.message.endsWith('failed: Error'))
-}
-
 /** The echo turn's own words for a finished turn, read off a warm turn, never guessed. */
 async function warmEchoTurn(session: AgentSession): Promise<string> {
   const terminals: string[] = []
@@ -236,10 +100,7 @@ async function warmEchoTurn(session: AgentSession): Promise<string> {
   try {
     const parts: readonly TurnPart[] = [{ type: 'text', text: 'warm up' }]
     await session.sendTurn(parts)
-    for (let attempt = 0; attempt < 200 && terminals.length === 0; attempt += 1) {
-      await new Promise((resolve) => setTimeout(resolve, 0))
-    }
-    expect(terminals.length).toBeGreaterThan(0)
+    await waitFor('the warm echo turn never completed', () => terminals.length > 0)
     return terminals[0]!
   } finally {
     stop()
@@ -252,11 +113,7 @@ describe.skipIf(MUSE === undefined)('a dead muse serve under real sessions', () 
     async () => {
       const muse = museOrThrow()
       const stderrs: string[] = []
-      const echo = await startEchoHost(
-        muse,
-        ['serve', '--provider', 'echo', '--no-session-log'],
-        stderrs,
-      )
+      const echo = await startUnsignedEcho(muse, stderrs)
       const session = await echo.host.startSession({
         workspaceRoot: echo.home,
         modelId: 'echo',
@@ -283,9 +140,7 @@ describe.skipIf(MUSE === undefined)('a dead muse serve under real sessions', () 
       )
 
       echo.child.kill('SIGKILL')
-      for (let attempt = 0; attempt < 500 && echo.exits.length === 0; attempt += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 0))
-      }
+      await waitFor('the killed serve never exited', () => echo.exits.length > 0)
       expect(echo.exits).toHaveLength(1)
       const exit = echo.exits[0]!
       expect(exit.isExpected).toBe(false)
@@ -301,10 +156,7 @@ describe.skipIf(MUSE === undefined)('a dead muse serve under real sessions', () 
       expect(stopped[0]).toBe(exit)
       expect(probe.exits).toHaveLength(1)
       expect(probe.exits[0]).toBe(exit)
-      for (let attempt = 0; attempt < 500 && !probe.released; attempt += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 0))
-      }
-      expect(probe.released).toBe(true)
+      await waitFor('the registry never retired the dead session', () => probe.released)
       expect(registry.held(session.sessionId)).toBeUndefined()
 
       // Stops on the dead host resolve instead of throwing into the log.
@@ -323,11 +175,7 @@ describe.skipIf(MUSE === undefined)('a dead muse serve under real sessions', () 
     async () => {
       const muse = museOrThrow()
       const stderrs: string[] = []
-      const echo = await startEchoHost(
-        muse,
-        ['serve', '--provider', 'echo', '--no-session-log'],
-        stderrs,
-      )
+      const echo = await startUnsignedEcho(muse, stderrs)
       const session = await echo.host.startSession({
         workspaceRoot: echo.home,
         modelId: 'echo',
@@ -356,9 +204,7 @@ describe.skipIf(MUSE === undefined)('a dead muse serve under real sessions', () 
       } catch {
         settled = 'rejected'
       }
-      for (let attempt = 0; attempt < 500 && echo.exits.length === 0; attempt += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 0))
-      }
+      await waitFor('the killed serve never exited', () => echo.exits.length > 0)
       expect(echo.exits).toHaveLength(1)
       isExitSeen = true
       if (completions.includes('before')) {
@@ -382,11 +228,7 @@ describe.skipIf(MUSE === undefined)('a dead muse serve under real sessions', () 
     async () => {
       const muse = museOrThrow()
       const stderrs: string[] = []
-      const echo = await startEchoHost(
-        muse,
-        ['serve', '--provider', 'echo', '--no-session-log'],
-        stderrs,
-      )
+      const echo = await startUnsignedEcho(muse, stderrs)
       const session = await echo.host.startSession({
         workspaceRoot: echo.home,
         modelId: 'echo',
@@ -395,9 +237,7 @@ describe.skipIf(MUSE === undefined)('a dead muse serve under real sessions', () 
       // Accepted over none, too: the echo session runs no tasks.
       await expect(session.stopAllTasks()).resolves.toBeUndefined()
       echo.child.kill('SIGKILL')
-      for (let attempt = 0; attempt < 500 && echo.exits.length === 0; attempt += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 0))
-      }
+      await waitFor('the killed serve never exited', () => echo.exits.length > 0)
       expect(echo.exits).toHaveLength(1)
       await expect(session.stopAllTasks()).resolves.toBeUndefined()
       await expect(session.interrupt()).resolves.toBeUndefined()
@@ -408,11 +248,7 @@ describe.skipIf(MUSE === undefined)('a dead muse serve under real sessions', () 
       // The exit that lands, or landed unprocessed, during the call reads
       // the same way: a stop dispatched in the kill's own tick still
       // settles instead of warning a bare Error.
-      const racing = await startEchoHost(
-        muse,
-        ['serve', '--provider', 'echo', '--no-session-log'],
-        stderrs,
-      )
+      const racing = await startUnsignedEcho(muse, stderrs)
       const racingSession = await racing.host.startSession({
         workspaceRoot: racing.home,
         modelId: 'echo',
@@ -421,9 +257,7 @@ describe.skipIf(MUSE === undefined)('a dead muse serve under real sessions', () 
       const stopping = racingSession.stopAllTasks()
       racing.child.kill('SIGKILL')
       await expect(stopping).resolves.toBeUndefined()
-      for (let attempt = 0; attempt < 500 && racing.exits.length === 0; attempt += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 0))
-      }
+      await waitFor('the killed serve never exited', () => racing.exits.length > 0)
       expect(racing.exits).toHaveLength(1)
       expect(bareErrorLines(racing.lines)).toEqual([])
     },
@@ -435,11 +269,7 @@ describe.skipIf(MUSE === undefined)('a dead muse serve under real sessions', () 
     async () => {
       const muse = museOrThrow()
       const stderrs: string[] = []
-      const echo = await startEchoHost(
-        muse,
-        ['serve', '--provider', 'echo', '--no-session-log'],
-        stderrs,
-      )
+      const echo = await startUnsignedEcho(muse, stderrs)
       const session = await echo.host.startSession({
         workspaceRoot: echo.home,
         modelId: 'echo',
@@ -467,7 +297,7 @@ describe.skipIf(MUSE === undefined)('a dead muse serve under real sessions', () 
       // The local provider with no local server: the real CLI exits at
       // once, which is what a crash loop looks like from the outside.
       const home = await mkdtemp(path.join(tmpdir(), 'acp-recover-'))
-      scratchHomes.push(home)
+      trackScratchHome(home)
       const child = spawn(muse, ['serve', '--provider', 'local', '--no-session-log'], {
         env: {
           ...isolatedRuntimeEnvironment(home, tmpdir()),
