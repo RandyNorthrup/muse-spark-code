@@ -112,6 +112,9 @@ function createTerminalEngine(
     cols: initialCols,
     rows: initialRows,
     screenReaderMode: true,
+    // The Unicode 11 addon drives the proposed unicode API, as it does
+    // in VS Code: without the flag the addon refuses to activate.
+    allowProposedApi: true,
     theme: resolveTerminalTheme(),
   })
   const fit = new FitAddon()

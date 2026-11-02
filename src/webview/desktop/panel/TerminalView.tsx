@@ -5,14 +5,13 @@
 // bar's listener and fits. Tab close releases the emulator through
 // DesktopApp's tab effect, never here: this shell unmounts on every move.
 //
-// The shell rides the startup chunk; the engine loads lazily through
-// use(), so the pane suspends on the panel's loading fallback until the
-// chunk arrives, and a failed chunk reaches the panel's retry boundary.
-// The engine shares nothing with this chunk (every bridge call, sentence
-// and size arrives through the acquire hooks), so the bundler keeps it
-// whole in its own file.
+// The shell rides the startup chunk; the engine loads lazily behind an
+// explicit loading state (a failed chunk shows the failure with a retry
+// that fetches again). The engine shares nothing with this chunk (every
+// bridge call, sentence and size arrives through the acquire hooks), so
+// the bundler keeps it whole in its own file.
 
-import { type KeyboardEvent, use, useEffect, useRef, useState } from 'react'
+import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react'
 import type { ISearchOptions } from '@xterm/addon-search'
 import {
   DESKTOP_TERMINAL_DEFAULT_COLS,
@@ -100,11 +99,79 @@ function searchOptions(
 }
 
 export function TerminalView(properties: TerminalViewProps) {
-  const { tabId, title, isReadOnly, isWorkbenchChord, onFocusPane, registerPane } = properties
-  // One load per mount: the boundary's retry remounts, so the chunk
-  // fetch runs again without sharing a rejected promise.
-  const [enginePromise] = useState(loadEngine)
-  const engineModule = use(enginePromise)
+  const [attempt, setAttempt] = useState(0)
+  return (
+    <TerminalViewAttempt
+      key={attempt}
+      {...properties}
+      onRetry={() => {
+        setAttempt((count) => count + 1)
+      }}
+    />
+  )
+}
+
+function TerminalViewAttempt(
+  properties: TerminalViewProps & { readonly onRetry: () => void },
+): ReactNode {
+  const { title, onRetry } = properties
+  const [engineModule, setEngineModule] = useState<TerminalEngineModule | null>(null)
+  const [loadFailed, setLoadFailed] = useState(false)
+
+  useEffect(() => {
+    // One load per mount: a rejection settles here (never shared), and
+    // the retry below remounts, so the chunk fetch runs again.
+    let isCancelled = false
+    void loadEngine()
+      .then((module) => {
+        if (!isCancelled) setEngineModule(module)
+      })
+      .catch(() => {
+        if (!isCancelled) setLoadFailed(true)
+      })
+    return () => {
+      isCancelled = true
+    }
+  }, [])
+
+  if (loadFailed) {
+    return (
+      <div role="alert" className="muse-panel-chunk-failed">
+        <p>
+          {title}: {UI_TEXT.desktop.panelTerminalFailed}
+        </p>
+        <button type="button" onClick={onRetry}>
+          {UI_TEXT.desktop.panelRetry}
+        </button>
+      </div>
+    )
+  }
+  if (engineModule === null) {
+    return (
+      <p role="status" className="muse-panel-terminal-loading">
+        {UI_TEXT.desktop.panelTerminalLoading}
+      </p>
+    )
+  }
+  const { tabId, isReadOnly, isWorkbenchChord, onFocusPane, registerPane } = properties
+  return (
+    <TerminalPane
+      tabId={tabId}
+      title={title}
+      isReadOnly={isReadOnly}
+      isWorkbenchChord={isWorkbenchChord}
+      onFocusPane={onFocusPane}
+      registerPane={registerPane}
+      engineModule={engineModule}
+    />
+  )
+}
+
+function TerminalPane(
+  properties: TerminalViewProps & { readonly engineModule: TerminalEngineModule },
+) {
+  const { tabId, title, isReadOnly, isWorkbenchChord, onFocusPane, registerPane, engineModule } =
+    properties
   const shell = useRef<HTMLDivElement>(null)
   const engine = useRef<PersistentTerminal | null>(null)
   const input = useRef<HTMLInputElement>(null)

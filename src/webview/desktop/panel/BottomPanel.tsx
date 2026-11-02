@@ -13,8 +13,6 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
   type RefObject,
-  Component,
-  Suspense,
   useRef,
   useState,
 } from 'react'
@@ -204,42 +202,6 @@ function TabStrip(properties: {
   )
 }
 
-// The lazy chunk's honest failure: what went wrong and a retry that
-// remounts the shell, so the chunk fetch runs again (the shell clears
-// its rejected load for the retry).
-class TerminalChunkBoundary extends Component<
-  { readonly title: string; readonly onRetry: () => void; readonly children: ReactNode },
-  { readonly failed: boolean }
-> {
-  static getDerivedStateFromError(): { readonly failed: boolean } {
-    return { failed: true }
-  }
-
-  override state = { failed: false }
-
-  override render(): ReactNode {
-    if (this.state.failed) {
-      return (
-        <div role="alert" className="muse-panel-chunk-failed">
-          <p>
-            {this.props.title}: {UI_TEXT.desktop.panelTerminalFailed}
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              this.props.onRetry()
-              this.setState({ failed: false })
-            }}
-          >
-            {UI_TEXT.desktop.panelRetry}
-          </button>
-        </div>
-      )
-    }
-    return this.props.children
-  }
-}
-
 function TerminalPaneShell(properties: {
   readonly tab: BottomPanelTab
   readonly registerPane: (id: string, handle: TerminalPaneHandle | null) => void
@@ -247,33 +209,18 @@ function TerminalPaneShell(properties: {
   readonly onFocusPane: (id: string) => void
 }): ReactNode {
   const { tab, registerPane, isWorkbenchChord, onFocusPane } = properties
-  const [attempt, setAttempt] = useState(0)
+  // The shell carries its own loading state and retry (the chunk fetch
+  // settles in its loader effect), so the pane needs no boundary here.
   return (
     <div className="muse-panel-terminal-shell" data-shell-id={tab.id}>
-      <TerminalChunkBoundary
+      <TerminalView
+        tabId={tab.id}
         title={tabText(tab)}
-        onRetry={() => {
-          setAttempt((count) => count + 1)
-        }}
-      >
-        <Suspense
-          fallback={
-            <p role="status" className="muse-panel-terminal-loading">
-              {UI_TEXT.desktop.panelTerminalLoading}
-            </p>
-          }
-        >
-          <TerminalView
-            key={attempt}
-            tabId={tab.id}
-            title={tabText(tab)}
-            isReadOnly={tab.source === 'agent'}
-            isWorkbenchChord={isWorkbenchChord}
-            onFocusPane={onFocusPane}
-            registerPane={registerPane}
-          />
-        </Suspense>
-      </TerminalChunkBoundary>
+        isReadOnly={tab.source === 'agent'}
+        isWorkbenchChord={isWorkbenchChord}
+        onFocusPane={onFocusPane}
+        registerPane={registerPane}
+      />
     </div>
   )
 }

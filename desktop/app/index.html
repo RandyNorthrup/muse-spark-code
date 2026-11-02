@@ -2,9 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <!-- Lane BP (D91.13): style-src allows the inline styles xterm.js
+         applies (cursor, sizes, theme-driven rules: dynamic values no
+         hash can enumerate, and CodeMirror will need the same). Scripts
+         stay locked to the app's own files, the renderer stays
+         sandboxed, and no remote or model content renders as HTML. -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'"
     />
     <title>Muse Desktop</title>
     <link rel="stylesheet" href="./muse.css" />
