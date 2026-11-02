@@ -125,8 +125,8 @@ namespace MuseSpark.VisualStudio.Panel
       });
     }
 
-    // What the page shows a person, as text: the conformance suite's proof that the runtime's frames rendered.
-    internal Task<string> VisibleTextAsync() => browser.CoreWebView2.ExecuteScriptAsync("document.body.innerText");
+    // What the page shows a person, read as text: the conformance suite's proof that the runtime's frames rendered.
+    internal Task<string> EvaluateAsync(string script) => browser.CoreWebView2.ExecuteScriptAsync(script);
 
     public void Dispose()
     {

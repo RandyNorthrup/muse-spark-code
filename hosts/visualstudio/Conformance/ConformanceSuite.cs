@@ -42,6 +42,10 @@ namespace MuseSpark.VisualStudio.Conformance
     private const string UndoLabel = "Conformance edit";
     private const int MaximumUndos = 8;
     private const string SignedOutText = "Muse Code is not signed in";
+    private const string FatalCardText = "The Panel Hit an Error";
+    private const string VisibleText = "document.body.innerText";
+    private const string PaintFacts = "(() => { const root = document.documentElement, style = getComputedStyle(root); return JSON.stringify({ theme: root.dataset.msTheme, foreground: style.getPropertyValue('--vscode-foreground').trim(), text: style.color, surface: style.backgroundColor }); })()";
+    private static readonly TimeSpan CardSettle = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan OpenDeadline = TimeSpan.FromMinutes(3);
     private static readonly TimeSpan SettleDeadline = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan DriverDeadline = TimeSpan.FromMinutes(2);
@@ -106,8 +110,35 @@ namespace MuseSpark.VisualStudio.Conformance
         catch (Exception error) { throw new InvalidOperationException(leg.Backend + "/" + leg.Scenario + ": " + error.Message, error); }
         finally { CloseEveryDocument(live.Dte); }
       }
+      WriteIdeState(live.Dte);
       Directory.CreateDirectory(Path.GetDirectoryName(layout.Observations) ?? throw new InvalidOperationException("MHP_CONFORMANCE_HARNESS_FAILED"));
       File.WriteAllText(layout.Observations, new JObject { ["observations"] = observed }.ToString(Formatting.None));
+    }
+
+    // What a person sees below the editor on a green run, beside the harness's own logs: each Output pane with its
+    // line count and last lines, and every Error List entry. A pane or an entry of ours would be a defect.
+    private static void WriteIdeState(DTE2 dte)
+    {
+      ThreadHelper.ThrowIfNotOnUIThread();
+      var logs = Environment.GetEnvironmentVariable("XUNIT_LOGS");
+      if (string.IsNullOrEmpty(logs)) return;
+      var state = new System.Text.StringBuilder();
+      foreach (OutputWindowPane pane in dte.ToolWindows.OutputWindow.OutputWindowPanes)
+      {
+        try
+        {
+          var document = pane.TextDocument;
+          var lines = document.StartPoint.CreateEditPoint().GetText(document.EndPoint).Split('\n');
+          state.AppendLine("pane [" + pane.Name + "] " + lines.Length.ToString(System.Globalization.CultureInfo.InvariantCulture) + " lines");
+          foreach (var line in lines.Skip(Math.Max(0, lines.Length - 4))) state.AppendLine("  " + line.TrimEnd());
+        }
+        // A pane that was never written has no document yet.
+        catch (System.Runtime.InteropServices.COMException) { state.AppendLine("pane [" + pane.Name + "] no document"); }
+      }
+      var errors = dte.ToolWindows.ErrorList.ErrorItems;
+      state.AppendLine("error list " + errors.Count.ToString(System.Globalization.CultureInfo.InvariantCulture) + " entries");
+      for (var index = 1; index <= errors.Count; index++) state.AppendLine("  " + errors.Item(index).ErrorLevel + " " + errors.Item(index).Description);
+      File.WriteAllText(Path.Combine(logs, "ide-state.txt"), state.ToString());
     }
 
     private sealed class Leg
@@ -171,17 +202,27 @@ namespace MuseSpark.VisualStudio.Conformance
         if (package.StartFailure != null) throw new InvalidOperationException(package.StartFailure);
         return surfaces.Channels.Any(channel => channel.LastReceivedSequence > 0);
       }, OpenDeadline, "MHP_PANEL_NOT_READY");
-      // The page rendered what the runtime sent: the sign-in state its scratch home really has, no picture needed.
+      // The page rendered what the runtime sent: the sign-in state its scratch home really has, and not its fatal
+      // card, which sits over a page that had already rendered. No picture needed.
       string shown = "";
       var rendering = Stopwatch.StartNew();
       while (!shown.Contains(SignedOutText))
       {
         if (rendering.Elapsed > SettleDeadline) throw new InvalidOperationException("MHP_PANEL_NOT_RENDERED: " + shown);
-        shown = await surfaces.Views[0].VisibleTextAsync();
+        shown = await surfaces.Views[0].EvaluateAsync(VisibleText);
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
         if (!shown.Contains(SignedOutText)) await Task.Delay(250);
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
       }
+      await Task.Delay(CardSettle);
+      await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+      shown = await surfaces.Views[0].EvaluateAsync(VisibleText);
+      await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+      if (shown.Contains(FatalCardText)) throw new InvalidOperationException("MHP_PANEL_FATAL_CARD");
+      // The panel is painted and readable: the theme bridge took the page, and its text is not its background.
+      var paint = JToken.Parse(JToken.Parse(await surfaces.Views[0].EvaluateAsync(PaintFacts)).Value<string>() ?? "{}");
+      await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+      if (string.IsNullOrEmpty(paint.Value<string>("theme")) || string.IsNullOrEmpty(paint.Value<string>("foreground")) || paint.Value<string>("text") == paint.Value<string>("surface")) throw new InvalidOperationException("MHP_PANEL_UNREADABLE " + paint.ToString(Formatting.None));
       var components = await ServiceProvider.GetGlobalServiceAsync<SComponentModel, IComponentModel>();
       return new Live(package, package.Host ?? throw new InvalidOperationException("MHP_CONFORMANCE_HARNESS_FAILED"), package.Peer ?? throw new InvalidOperationException("MHP_CONFORMANCE_HARNESS_FAILED"), dte, workspace, components);
     }
@@ -249,7 +290,7 @@ namespace MuseSpark.VisualStudio.Conformance
         }, CancellationToken.None);
         await peer.ReceiveAsync(RecordedInitializeAnswer);
         await started;
-        using (var channel = new PanelChannel(peer, contract, "conformance-surface", "conformance-session", "chat"))
+        using (var channel = new PanelChannel(peer, "conformance-surface", "conformance-session", "chat"))
         {
           await channel.OpenAsync();
           await channel.PostAsync(new JObject { ["type"] = "ready" }, CancellationToken.None);

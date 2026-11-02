@@ -140,7 +140,7 @@ namespace MuseSpark.VisualStudio.Test
       using (var peer = new MhpPeer(SchemaContract.Load(true), new Host(), output))
       {
         await HandshakeAsync(peer);
-        using (var channel = new PanelChannel(peer, SchemaContract.Load(true), "surface", "conversation", "chat"))
+        using (var channel = new PanelChannel(peer, "surface", "conversation", "chat"))
         {
           await channel.OpenAsync();
           Assert.AreEqual("opened", Last(output).Value<string>("event"));
@@ -188,8 +188,8 @@ namespace MuseSpark.VisualStudio.Test
         };
         for (var i = 0; i < bad.Length; i++)
         {
-          using (var neighbour = new PanelChannel(peer, contract, "neighbour-" + i, "session", "chat"))
-          using (var channel = new PanelChannel(peer, contract, "surface-" + i, "session", "tasks"))
+          using (var neighbour = new PanelChannel(peer, "neighbour-" + i, "session", "chat"))
+          using (var channel = new PanelChannel(peer, "surface-" + i, "session", "tasks"))
           {
             await channel.OpenAsync(); await channel.PostAsync(new JObject { ["type"] = "tasksReady" }, CancellationToken.None);
             await neighbour.OpenAsync(); await neighbour.PostAsync(new JObject { ["type"] = "ready" }, CancellationToken.None);
@@ -216,7 +216,7 @@ namespace MuseSpark.VisualStudio.Test
       using (var peer = new MhpPeer(SchemaContract.Load(true), new Host(), output))
       {
         output.Drain.Set(); await HandshakeAsync(peer);
-        using (var channel = new PanelChannel(peer, SchemaContract.Load(true), "surface", "session", "chat"))
+        using (var channel = new PanelChannel(peer, "surface", "session", "chat"))
         {
           await channel.OpenAsync(); output.Drain.Reset();
           var first = peer.PostPanelAsync(Envelope(channel.SurfaceId, 1));
@@ -239,12 +239,79 @@ namespace MuseSpark.VisualStudio.Test
       using (var peer = new MhpPeer(SchemaContract.Load(true), new Host(), output))
       {
         await HandshakeAsync(peer);
-        using (var channel = new PanelChannel(peer, SchemaContract.Load(true), "surface", "session", "chat"))
+        using (var channel = new PanelChannel(peer, "surface", "session", "chat"))
         {
           Assert.AreEqual("ready", channel.ParseWebviewMessage("{\"type\":\"ready\"}").Value<string>("type"));
           foreach (var invalid in new[] { "{\"bridge\":\"subscribed\"}", "{\"type\":\"tasksReady\"}", "{\"type\":\"ready\",\"extra\":true}", "[]" }) Assert.ThrowsException<MhpException>(() => channel.ParseWebviewMessage(invalid));
           Assert.AreEqual("focusInput", channel.ParseRuntimeMessage(new JObject { ["type"] = "focusInput" }).Value<string>("type"));
           Assert.ThrowsException<MhpException>(() => channel.ParseRuntimeMessage(new JObject { ["type"] = "ready" }));
+        }
+      }
+    }
+
+    [TestMethod]
+    public async Task ServesTheRuntimesRequestsOnWhatThisHostOfferedNotOnWhatTheRuntimeOffersBack()
+    {
+      using (var output = new StringWriter())
+      {
+        var host = new Host();
+        using (var peer = new MhpPeer(SchemaContract.Load(true), host, output))
+        {
+          await HandshakeAsync(peer);
+          // The runtime's answer names lifecycle, settings and storage; this host offered documents and reaches it.
+          await SendAsync(peer, new JObject { ["jsonrpc"] = "2.0", ["id"] = "runtime-1", ["method"] = "documents/list", ["params"] = new JObject() });
+          Assert.AreEqual(1, host.Calls);
+          Assert.AreEqual("MHP_HOST_FAILED", Last(output)["error"]?.Value<string>("message"));
+          // Not offered: refused by name, and the host is never asked.
+          await SendAsync(peer, new JObject { ["jsonrpc"] = "2.0", ["id"] = "runtime-2", ["method"] = "ui/notify", ["params"] = new JObject { ["severity"] = "error", ["message"] = "fixture" } });
+          Assert.AreEqual(1, host.Calls);
+          Assert.AreEqual("MHP_UNSUPPORTED_CAPABILITY", Last(output)["error"]?.Value<string>("message"));
+        }
+      }
+    }
+
+    [TestMethod]
+    public async Task AdmitsTheThemeFrameOnEverySurfaceKindAndRefusesAMalformedOne()
+    {
+      using (var output = new StringWriter())
+      using (var peer = new MhpPeer(SchemaContract.Load(true), new Host(), output))
+      {
+        await HandshakeAsync(peer);
+        // The runtime's real first frame, captured with the handshake above.
+        var theme = JObject.Parse("{\"type\":\"theme\",\"theme\":{\"kind\":\"dark\",\"tokens\":{}}}");
+        foreach (var kind in new[] { "chat", "tasks" })
+          using (var channel = new PanelChannel(peer, "surface-" + kind, "session", kind))
+          {
+            Assert.AreEqual("theme", channel.ParseRuntimeMessage(theme).Value<string>("type"));
+            Assert.ThrowsException<MhpException>(() => channel.ParseRuntimeMessage(JObject.Parse("{\"type\":\"theme\",\"theme\":{}}")));
+          }
+      }
+    }
+
+    [TestMethod]
+    public async Task AdmitsTheRuntimesFirstFramesWhileItsReadyIsStillBeingWritten()
+    {
+      using (var output = new WriterTests.BlockedWriter())
+      using (var peer = new MhpPeer(SchemaContract.Load(true), new Host(), output))
+      {
+        output.Drain.Set(); await HandshakeAsync(peer);
+        using (var channel = new PanelChannel(peer, "surface", "session", "chat"))
+        {
+          await channel.OpenAsync();
+          var received = 0; channel.MessageReceived += (_, __) => received++;
+          output.Drain.Reset();
+          // The real page's ready: the runtime answers it before this write returns here.
+          var posting = channel.PostAsync(new JObject { ["type"] = "ready" }, CancellationToken.None);
+          var answering = SendAsync(peer, Envelope(channel.SurfaceId, 1));
+          // Read before the writer drains: a refusal here queues its own error frame behind the blocked write.
+          try
+          {
+            Assert.AreEqual(1, received);
+            Assert.IsNull(channel.FaultCode);
+          }
+          finally { output.Drain.Set(); }
+          await answering;
+          await posting;
         }
       }
     }

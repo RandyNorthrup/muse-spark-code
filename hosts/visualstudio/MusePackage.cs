@@ -141,7 +141,7 @@ namespace MuseSpark.VisualStudio
       return new JObject
       {
         ["kind"] = System.Windows.SystemParameters.HighContrast ? (isLight ? "highContrastLight" : "highContrastDark") : (isLight ? "light" : "dark"),
-        ["tokens"] = new JObject { ["--muse-editorBackground"] = Color(background), ["--muse-foreground"] = Color(foreground) }
+        ["tokens"] = new JObject { ["--muse-surface"] = Color(background), ["--muse-text"] = Color(foreground) }
       };
     }
 

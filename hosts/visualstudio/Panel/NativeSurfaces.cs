@@ -48,7 +48,7 @@ namespace MuseSpark.VisualStudio.Panel
         var id = "visual-studio:" + Guid.NewGuid().ToString("N");
         var window = await package.ShowToolWindowAsync(typeof(MuseToolWindow), nextWindow++, true, cancellation) as MuseToolWindow ?? throw Invalid();
         var frame = window.Frame as IVsWindowFrame ?? throw Invalid();
-        var channel = new PanelChannel(Peer ?? throw Invalid(), SchemaContract.Load(true), id, session, kind, Theme ?? throw Invalid());
+        var channel = new PanelChannel(Peer ?? throw Invalid(), id, session, kind, Theme ?? throw Invalid());
         var view = new PanelView(channel, package.JoinableTaskFactory);
         channel.Faulted += (sender, code) => package.JoinableTaskFactory.RunAsync(() => FaultedAsync(id, channel, code)).FileAndForget("MuseSpark/PanelFaulted");
         try
