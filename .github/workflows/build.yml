@@ -241,6 +241,14 @@ jobs:
       - name: macOS dictation helper for the fixture created paths
         if: runner.os == 'macOS'
         run: bash native/darwin/build.sh
+      # The serial suite's PTY relay (makerSerial's rig data path) spawns
+      # socat at its fixed system path; the suite skips where it is absent.
+      - name: Linux socat for the serial rig suite
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y socat
+      - name: macOS socat for the serial rig suite
+        if: runner.os == 'macOS'
+        run: brew install socat
       - name: unit tests
         if: runner.os != 'Windows'
         shell: bash

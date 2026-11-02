@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { constants } from 'node:fs'
+import { constants, existsSync } from 'node:fs'
 import { open, access, mkdtemp, readFile, writeFile, rm, type FileHandle } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -408,8 +408,11 @@ describe('serial framing and adapters', () => {
   })
 })
 
+/** The rig's relay binary at its fixed system path; CI installs it (build.yml). */
+const SOCAT = process.platform === 'darwin' ? '/opt/homebrew/bin/socat' : '/usr/bin/socat'
+
 if (process.platform !== 'win32') {
-  describe('socat data path on the rig', () => {
+  describe.skipIf(!existsSync(SOCAT))('socat data path on the rig', () => {
     it.each(['posix-raw', 'stty'] as const)(
       'refuses approved line settings on %s and independently verifies its low-level binary IO',
       async (kind) => {
@@ -418,7 +421,7 @@ if (process.platform !== 'win32') {
         const left = path.join(directory, 'left')
         const right = path.join(directory, 'right')
         const relay = spawn(
-          process.platform === 'darwin' ? '/opt/homebrew/bin/socat' : '/usr/bin/socat',
+          SOCAT,
           [`PTY,link=${left},raw,echo=0`, `PTY,link=${right},raw,echo=0`],
           { detached: true, stdio: 'ignore', env: makerProcessDeps().env },
         )
