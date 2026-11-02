@@ -42,6 +42,11 @@ const PRODUCTION_BUILD_SUITES: ReadonlySet<string> = new Set([
   'test/unit/runtimePortableBundles.test.ts',
   // RVM104B: saved plans in the runtime panel load dist/planMarkdown.js.
   'test/unit/runtimePlans.test.ts',
+  // RLF-CIFIXM: the node workspace harness page links the main webview
+  // stylesheet (the bridge mounts inside the main webview, which owns the
+  // body reset), so without the shared build the 320 px case measures an
+  // 8 px overflow that production never has.
+  'test/unit/nodeBrowserWorkspace.test.mjs',
 ])
 // A hung build fails the run with its output instead of holding it open.
 const PRODUCTION_BUILD_TIMEOUT_MS = 600_000

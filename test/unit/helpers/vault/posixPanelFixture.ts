@@ -8,7 +8,8 @@
 // toString('hex')): the registrar parses them as such, and shorter names
 // throw before connect.
 
-import { chmod, copyFile, mkdir, mkdtemp, realpath } from 'node:fs/promises'
+import { chmod, copyFile, cp, mkdir, mkdtemp, realpath } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import { randomBytes } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -103,6 +104,36 @@ async function stageFromSource(root: string): Promise<void> {
       }),
     ),
   )
+  // The staged broker resolves its OS keyring binding from the install
+  // root's own node_modules, exactly like the ACP install (which ships the
+  // binding as a dependency): the scratch root stands outside the checkout,
+  // so without this the import fails and the broker silently falls back to
+  // the file anchor — and a system TEMP (CI) would run a different anchor
+  // than an in-checkout TEMP (a lane), which is how the macOS scope case
+  // read a null anchor. The bytes are the checkout's own installed
+  // binding, copied, never substituted.
+  try {
+    await cp(
+      path.resolve('node_modules', '@napi-rs'),
+      path.join(root, 'node_modules', '@napi-rs'),
+      {
+        recursive: true,
+      },
+    )
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+    throw new Error('the broker fixture needs the keyring binding: run npm ci first', {
+      cause: error,
+    })
+  }
+  // Fail fast where the binding still does not resolve: passing against
+  // the file anchor would prove nothing about store scoping (the mirror of
+  // brokerWithoutKeyring's own fail-fast, which needs it absent).
+  try {
+    createRequire(path.join(root, 'dist', 'vaultBroker.js')).resolve('@napi-rs/keyring')
+  } catch (error: unknown) {
+    throw new Error('the staged broker cannot resolve its keyring binding', { cause: error })
+  }
   if (process.platform !== 'darwin') return
   const staged = path.join(root, 'dist', 'native', 'darwin')
   await mkdir(staged, { recursive: true })
