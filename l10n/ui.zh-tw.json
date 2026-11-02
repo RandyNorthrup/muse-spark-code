@@ -1205,6 +1205,8 @@
       "stateUnknown": "狀態未知 — 重試",
       "retry": "重試",
       "dateTimeUtc": "日期和時間 (UTC)",
+      "dateTimeLocal": "日期和時間",
+      "onceTooSoon": "單次傳送最早在一分鐘後進行。",
       "anchorDate": "基準日期（排程的時區）",
       "minutes": "間隔（分鐘）",
       "everyDays": "每 N 天",

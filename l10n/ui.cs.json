@@ -1220,6 +1220,8 @@
       "stateUnknown": "Stav neznámý — Zkusit znovu",
       "retry": "Zkusit znovu",
       "dateTimeUtc": "Datum a čas (UTC)",
+      "dateTimeLocal": "Datum a čas",
+      "onceTooSoon": "Jednorázové odeslání je možné nejdříve za minutu.",
       "anchorDate": "Výchozí datum (v časovém pásmu plánu)",
       "minutes": "Interval v minutách",
       "everyDays": "Každých N dní",

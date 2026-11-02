@@ -1220,6 +1220,8 @@
       "stateUnknown": "Stan nieznany — Ponów",
       "retry": "Ponów",
       "dateTimeUtc": "Data i godzina (UTC)",
+      "dateTimeLocal": "Data i godzina",
+      "onceTooSoon": "Wysyłka jednorazowa nastąpi najwcześniej za minutę.",
       "anchorDate": "Data odniesienia (w strefie czasowej harmonogramu)",
       "minutes": "Odstęp w minutach",
       "everyDays": "Co N dni",

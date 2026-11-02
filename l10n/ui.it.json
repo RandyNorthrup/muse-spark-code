@@ -1215,6 +1215,8 @@
       "stateUnknown": "Stato sconosciuto — Riprova",
       "retry": "Riprova",
       "dateTimeUtc": "Data e ora (UTC)",
+      "dateTimeLocal": "Data e ora",
+      "onceTooSoon": "Un invio singolo parte non prima di un minuto.",
       "anchorDate": "Data di riferimento (nel fuso orario della pianificazione)",
       "minutes": "Intervallo in minuti",
       "everyDays": "Ogni N giorni",

@@ -1210,6 +1210,8 @@
       "stateUnknown": "Status unbekannt — Erneut versuchen",
       "retry": "Erneut versuchen",
       "dateTimeUtc": "Datum und Uhrzeit (UTC)",
+      "dateTimeLocal": "Datum und Uhrzeit",
+      "onceTooSoon": "Ein einmaliger Versand geht frühestens in einer Minute raus.",
       "anchorDate": "Bezugsdatum (in der Zeitzone des Zeitplans)",
       "minutes": "Intervall in Minuten",
       "everyDays": "Alle N Tage",

@@ -5,6 +5,7 @@ import {
   SCHEDULE_DELIVERIES,
   SCHEDULE_LIFETIME_MS,
   SCHEDULE_MODES,
+  TIMED_SEND_MIN_LEAD_MS,
   UI_TEXT,
 } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
@@ -105,6 +106,16 @@ export function ScheduleEditor({
     const parsed = scheduleDraftSchema.safeParse(draft)
     if (!validConditions || !isAvailable || !parsed.success) {
       setError(UI_TEXT.scheduleV2.editor.invalid)
+      return undefined
+    }
+    // A timed send goes at the earliest a minute ahead (M88, D67 item
+    // 15): the picker guides, and the save says why a sooner send
+    // cannot go. The runtime refuses a past send again at creation.
+    if (
+      parsed.data.trigger.kind === 'once' &&
+      parsed.data.trigger.atMs < context.nowMs + TIMED_SEND_MIN_LEAD_MS
+    ) {
+      setError(UI_TEXT.scheduleV2.editor.onceTooSoon)
       return undefined
     }
     setError(undefined)
