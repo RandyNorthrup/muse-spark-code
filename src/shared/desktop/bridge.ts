@@ -61,7 +61,6 @@ export const TERMINAL_PLACEMENTS = ['docked', 'footer', 'floating', 'hidden'] as
 export type TerminalPlacement = (typeof TERMINAL_PLACEMENTS)[number]
 
 export const FOOTER_TABS = ['terminal', 'problems', 'output'] as const
-export type FooterTab = (typeof FOOTER_TABS)[number]
 
 /** The persisted workbench layout, per workspace and per Hyprland workspace. */
 export const workbenchLayoutSchema = z.strictObject({
@@ -302,10 +301,6 @@ export const terminalSessionSchema = z.strictObject({
 })
 export type TerminalSessionInfo = z.infer<typeof terminalSessionSchema>
 
-/** Emitted on every create, so agent tabs opened outside the renderer appear. */
-export const terminalOpenedSchema = terminalSessionSchema
-export type TerminalOpened = z.infer<typeof terminalOpenedSchema>
-
 export const terminalChildrenSchema = z.strictObject({
   id: z.string().min(1),
   hasChildren: z.boolean(),
@@ -400,7 +395,8 @@ export interface MuseDesktopBridge {
   hasTerminalChildren(id: string): Promise<TerminalChildren>
   onTerminalData(listener: (frame: { id: string; data: string }) => void): () => void
   onTerminalExit(listener: (frame: { id: string; code: number | null }) => void): () => void
-  onTerminalOpened(listener: (frame: TerminalOpened) => void): () => void
+  /** Emitted on every create, so agent tabs opened outside the renderer appear. */
+  onTerminalOpened(listener: (frame: TerminalSessionInfo) => void): () => void
   getProblems(): Promise<ProblemsChanged>
   onProblemsChanged(listener: (frame: ProblemsChanged) => void): () => void
   getOutput(): Promise<OutputSnapshot>
