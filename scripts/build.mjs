@@ -1916,6 +1916,14 @@ const runtimePanelMediaOptions = {
   outfile: RUNTIME_PANEL_MEDIA_OUTFILE,
   banner: {},
 }
+// C-M115-9: the panel's schedules binding, loaded on the first native hold.
+const RUNTIME_PANEL_SCHEDULES_OUTFILE = 'dist/runtimePanelSchedules.js'
+const runtimePanelSchedulesOptions = {
+  ...acpOptions,
+  entryPoints: ['src/runtime/panelSchedulesEntry.ts'],
+  outfile: RUNTIME_PANEL_SCHEDULES_OUTFILE,
+  banner: {},
+}
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
@@ -2500,6 +2508,7 @@ if (isWatch) {
     esbuild.context(runtimePanelSessionOptions),
     esbuild.context(runtimePanelPortsOptions),
     esbuild.context(runtimePanelMediaOptions),
+    esbuild.context(runtimePanelSchedulesOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -2745,6 +2754,7 @@ if (isWatch) {
     ['runtimePanelSession', () => esbuild.build(runtimePanelSessionOptions)],
     ['runtimePanelPorts', () => esbuild.build(runtimePanelPortsOptions)],
     ['runtimePanelMedia', () => esbuild.build(runtimePanelMediaOptions)],
+    ['runtimePanelSchedules', () => esbuild.build(runtimePanelSchedulesOptions)],
   ]
   if (!isProduction) {
     extraSpecs.push(['integrationTests', () => esbuild.build(integrationTestOptions)])
@@ -2769,6 +2779,7 @@ if (isWatch) {
   let runtimePanelSession
   let runtimePanelPorts
   let runtimePanelMedia
+  let runtimePanelSchedules
   try {
     shipped = await runBuildPool(Object.entries(shippedSpecs), BUILD_POOL_SIZE)
     ;({
@@ -2791,6 +2802,7 @@ if (isWatch) {
       runtimePanelSession,
       runtimePanelPorts,
       runtimePanelMedia,
+      runtimePanelSchedules,
     } = await runBuildPool(extraSpecs, BUILD_POOL_SIZE))
   } catch (error) {
     await esbuild.stop()
@@ -2881,6 +2893,11 @@ if (isWatch) {
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'runtimePanelMedia.json'),
       JSON.stringify(runtimePanelMediaMetafile),
+    )
+    const { metafile: runtimePanelSchedulesMetafile } = await runtimePanelSchedules
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'runtimePanelSchedules.json'),
+      JSON.stringify(runtimePanelSchedulesMetafile),
     )
   }
   console.log('bundle sizes:')
@@ -3000,5 +3017,6 @@ if (isWatch) {
   reportSize(RUNTIME_PANEL_SESSION_OUTFILE)
   reportSize(RUNTIME_PANEL_PORTS_OUTFILE)
   reportSize(RUNTIME_PANEL_MEDIA_OUTFILE)
+  reportSize(RUNTIME_PANEL_SCHEDULES_OUTFILE)
   reportSize(PACKS_VERIFY_OUTFILE)
 }

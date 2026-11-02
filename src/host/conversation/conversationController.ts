@@ -13960,6 +13960,19 @@ export class ConversationController implements DeferredSend {
       this.say('info', text)
   }
 
+  /** A scheduled run's question settles into this conversation's registry (C-M115-9 reuses it for native sessions). */
+  public async settleScheduledQuestion(
+    session: BackendSession,
+    backend: BackendKind,
+    event: Extract<AgentEvent, { type: 'questionRequested' }>,
+    context: ScheduleRunContext,
+  ): Promise<void> {
+    const snapshot = this.scheduleSnapshot()
+    await snapshot.attach(session, backend)
+    const surfaces = await this.scheduleSurfaces()
+    await surfaces.settleScheduledQuestion(snapshot, session, event, context)
+  }
+
   public revealBoardSession(sessionId: string, backend: BackendKind): boolean {
     if (
       this.isDisposed ||
