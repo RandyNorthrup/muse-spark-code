@@ -38,10 +38,21 @@ retry.
 The default opener is `open` on macOS and `xdg-open` on Linux. Set `opener`
 to a browser argv list on Windows. Every spawn uses `shell=False`.
 
-The hand-written Sublime API suite was deleted with the fake `sublime`
-module. There is no `hosts/sublime/test` directory, and this package has
-not been run inside Sublime Text. F1–F56 integration remains tracked in
-`docs/certification/m104-h.md` and `docs/real-life/unproven.md`.
+The in-editor suite installs this package into a scratch Sublime
+profile and drives its commands against the real agent under Xvfb
+(run `npm run build` first):
+
+```sh
+python3 -m unittest discover -s hosts/sublime/test -v
+```
+
+It skips where Sublime Text or Xvfb is absent. On an editor older
+than build 4205 the installed copy's Python-version marker is lowered
+to the newest plugin host that build ships (the plugin code is
+identical); the 3.14 host is qualified on build 4205+. Refusal paths
+whose error dialog only a person can dismiss headlessly are listed
+in `docs/real-life/unproven.md`. F1–F56 integration remains tracked
+in `docs/certification/m104-h.md`.
 
 ## LSP and independent workspace Stop
 

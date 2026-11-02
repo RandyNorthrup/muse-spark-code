@@ -3328,3 +3328,12 @@ deleted stand-ins claimed, and what no suite here can yet prove:
   and carries the Lua plugin, but no headless entry point drives a
   Lua plugin's actions, so an interactive in-editor run must prove
   it. The Python bootstrap is proven against the real agent.
+- Sublime: the refusal dialogs themselves (duplicate start, unsafe
+  launch URL, stop failure, unexpected-exit notice) — each shows a
+  `sublime.error_message` dialog that holds the editor's main thread
+  until a person dismisses it, so the headless in-editor suite
+  proves the launch, the opener route and the exit cleanup but not
+  the dialogs; the shipped Python 3.14 plugin host (build 4205+),
+  the LSP package route, and window-close/package-unload cleanup
+  also wait for an interactive run. The same package code ran here
+  under build 4200's 3.8 host.
