@@ -22,6 +22,7 @@ function errorCode(error: unknown): string {
 
 interface Snapshot<Data> {
   readonly token: number
+  readonly load: () => Promise<Data>
   readonly data?: Data | undefined
   readonly error?: unknown
 }
@@ -45,7 +46,10 @@ export function PageFrame<Data>({
   readonly children: (data: Data, report: PageReport<Data>) => ReactNode
 }): ReactNode {
   const text = UI_TEXT.settingsSystem
-  const [snapshot, setSnapshot] = useState<Snapshot<Data>>({ token: -1 })
+  // A snapshot belongs to the loader that read it: when the shell swaps
+  // pages the loader changes and the old page's state must never render
+  // as the new page's, so a snapshot for another loader reads as loading.
+  const [snapshot, setSnapshot] = useState<Snapshot<Data>>({ token: -1, load })
   const [applyError, setApplyError] = useState<unknown>(undefined)
   const [loadToken, setLoadToken] = useState(0)
   const [epoch, setEpoch] = useState(0)
@@ -56,14 +60,14 @@ export function PageFrame<Data>({
     // state, shown with its code.
     const onError = (error: unknown): void => {
       if (isLive) {
-        setSnapshot({ token: loadToken, error })
+        setSnapshot({ token: loadToken, load, error })
       }
     }
     const run = async (): Promise<void> => {
       try {
         const data = await load()
         if (isLive) {
-          setSnapshot({ token: loadToken, data })
+          setSnapshot({ token: loadToken, load, data })
           setEpoch((count) => count + 1)
         }
       } catch (error) {
@@ -87,13 +91,13 @@ export function PageFrame<Data>({
   const succeeded = useCallback(
     (data: Data) => {
       setApplyError(undefined)
-      setSnapshot({ token: loadToken, data })
+      setSnapshot({ token: loadToken, load, data })
       setEpoch((count) => count + 1)
     },
-    [loadToken],
+    [load, loadToken],
   )
 
-  if (snapshot.token !== loadToken) {
+  if (snapshot.token !== loadToken || snapshot.load !== load) {
     return <LoadingState />
   }
   if (snapshot.error !== undefined) {

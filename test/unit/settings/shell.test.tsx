@@ -148,6 +148,24 @@ describe('page frame', () => {
     expect(seen).toEqual(['sys', 'sys'])
   })
 
+  it('never renders one loader’s data for another loader', async () => {
+    const host = render(
+      <PageFrame load={() => Promise.resolve('first')}>
+        {(data) => <p>{`ready:${data}`}</p>}
+      </PageFrame>,
+    )
+    cleanups.push(host.unmount)
+    expect(await screen.findByText('ready:first')).toBeDefined()
+    host.rerender(
+      <PageFrame load={() => Promise.resolve('second')}>
+        {(data) => <p>{`ready:${data}`}</p>}
+      </PageFrame>,
+    )
+    expect(screen.getByRole('status')).toBeDefined()
+    expect(screen.queryByText('ready:first')).toBeNull()
+    expect(await screen.findByText('ready:second')).toBeDefined()
+  })
+
   it('resets drafts when fresh state lands after an apply', async () => {
     let report!: PageReport<string>
     const host = render(
