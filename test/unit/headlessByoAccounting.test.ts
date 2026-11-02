@@ -41,7 +41,9 @@ function sseBytes(
   )
 }
 
-function setup() {
+type ReplayMode = 'completed' | 'cut' | 'refused'
+
+function setup(mode: ReplayMode, sharedDataFolder?: string) {
   const directory = mkdtempSync(path.join(tmpdir(), 'headless-byo-'))
   const configFile = path.join(directory, 'providers.json')
   const catalogFile = path.join(directory, 'providerCatalog.json')
@@ -95,7 +97,7 @@ function setup() {
     },
     send: (target) => {
       sentPaths.push(target.url.pathname)
-      if (target.url.pathname.includes('input_tokens')) {
+      if (mode === 'refused' || target.url.pathname.includes('input_tokens')) {
         const bytes = new TextEncoder().encode(JSON.stringify(capturedError.response.body))
         return Promise.resolve({
           status: capturedError.response.status,
@@ -109,7 +111,11 @@ function setup() {
           close: () => undefined,
         })
       }
-      const bytes = sseBytes(capturedStream.response.events)
+      const replayed =
+        mode === 'cut'
+          ? capturedStream.response.events.slice(0, -1)
+          : capturedStream.response.events
+      const bytes = sseBytes(replayed)
       return Promise.resolve({
         status: capturedStream.response.status,
         headers: { 'content-type': 'text/event-stream' },
@@ -123,7 +129,7 @@ function setup() {
       })
     },
   })
-  const dataFolder = path.join(directory, 'agent-data')
+  const dataFolder = sharedDataFolder ?? path.join(directory, 'agent-data')
   return { dataFolder, services, sentPaths }
 }
 
@@ -142,17 +148,24 @@ function dailyFor(dataFolder: string, limitUsd: number | undefined) {
   })
 }
 
-async function runOnce(limitUsd: number | undefined) {
-  const { dataFolder, services, sentPaths } = setup()
+async function runOnce(
+  limitUsd: number | undefined,
+  mode: ReplayMode = 'completed',
+  sharedDataFolder?: string,
+) {
+  const { dataFolder, services, sentPaths } = setup(mode, sharedDataFolder)
   const daily = dailyFor(dataFolder, limitUsd)
   const ledger = createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests: undefined })
   const refusals: string[] = []
+  const startedReserves: string[] = []
   const accounting: RuntimeResponseAccounting = {
     ledger,
     refuse: (reason) => {
       refusals.push(reason)
     },
-    started: () => undefined,
+    started: (_n, ticket) => {
+      startedReserves.push(ticket.reserveUsd)
+    },
     settled: () => undefined,
   }
   const client = withRuntimeAccounting(services.client, daily, accounting)
@@ -175,8 +188,13 @@ async function runOnce(limitUsd: number | undefined) {
     undefined,
     undefined,
   )
-  for await (const event of stream) events.push(event.type)
-  return { dataFolder, daily, ledger, refusals, events, sentPaths }
+  let failure: unknown
+  try {
+    for await (const event of stream) events.push(event.type)
+  } catch (error: unknown) {
+    failure = error
+  }
+  return { dataFolder, daily, ledger, refusals, events, sentPaths, startedReserves, failure }
 }
 
 describe('headless BYO accounting (RLF-M102BYO)', () => {
@@ -203,10 +221,52 @@ describe('headless BYO accounting (RLF-M102BYO)', () => {
 
   it('with no daily limit set, settles the run and writes no daily record (D208)', async () => {
     const run = await runOnce(undefined)
+    expect(run.failure).toBeUndefined()
     expect(run.events.at(-1)).toBe('response.completed')
     expect(run.ledger.totals().settledUsd).toBe('0.000057')
     expect(await run.daily.readToday()).toEqual([])
     const dailyFolder = path.join(run.dataFolder, PAID_DAILY_BUDGET.directory)
     expect(() => readdirSync(dailyFolder)).toThrow()
+  })
+
+  it('a sent stream with no terminal usage stays liability, never spend (D208)', async () => {
+    const run = await runOnce(1, 'cut')
+    const totals = run.ledger.totals()
+    expect(run.startedReserves).toHaveLength(1)
+    expect(totals.requests).toBe(1)
+    expect(totals.settledUsd).toBe('0')
+    expect(totals.reservedUsd).toBe('0')
+    expect(totals.uncertainUsd).toBe(run.startedReserves[0])
+    const rows = await run.daily.readToday()
+    expect(rows[0]?.budget.spentUsd).toBe('0')
+    expect(rows[0]?.budget.unknownChargeCalls).toBe(1)
+  })
+
+  it('a provider refusal before generation books nothing (D208)', async () => {
+    const run = await runOnce(1, 'refused')
+    expect(run.failure).toBeDefined()
+    const totals = run.ledger.totals()
+    expect(totals.requests).toBe(0)
+    expect(totals.settledUsd).toBe('0')
+    expect(totals.uncertainUsd).toBe('0')
+    expect(totals.reservedUsd).toBe('0')
+    const rows = await run.daily.readToday()
+    expect(rows[0]?.budget.spentUsd).toBe('0')
+    expect(rows[0]?.budget.unknownChargeCalls).toBeUndefined()
+  })
+
+  it('the shared daily limit stops a second process before dispatch', async () => {
+    const first = await runOnce(1)
+    expect(first.ledger.totals().settledUsd).toBe('0.000057')
+    // A second process over the same agent data folder, with the person's
+    // daily limit now exactly what the first run already spent: its
+    // estimate no longer fits today, so nothing is dispatched.
+    const second = await runOnce(0.000057, 'completed', first.dataFolder)
+    expect(second.failure).toBeDefined()
+    expect(second.refusals).toContain('budget')
+    expect(second.sentPaths.filter((p) => p === '/v1/responses')).toHaveLength(0)
+    expect(second.ledger.totals().requests).toBe(0)
+    const rows = await second.daily.readToday()
+    expect(rows[0]?.budget.spentUsd).toBe('0.000057')
   })
 })
