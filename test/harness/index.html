@@ -2153,6 +2153,22 @@
           privacyNote: 'Routing chooses who sees the prompt.',
         },
         {
+          id: 'gemini',
+          label: 'Google Gemini',
+          description: 'Gemini models on the generateContent API',
+          category: 'cloud',
+          format: 'gemini',
+          originKind: 'fixed',
+          originDisplay: 'https://generativelanguage.googleapis.com',
+          auth: 'apiKey',
+          connectOAuth: false,
+          keyHint: 'The key from AI Studio',
+          keyPage: 'https://aistudio.google.com/apikey',
+          docsUrl: 'https://ai.google.dev/gemini-api/docs',
+          privacyNote:
+            'Every request from here carries store=false, so Google does not store your prompts and responses, even on a project that stores by default.',
+        },
+        {
           id: 'ollama',
           label: 'Ollama',
           description: 'Models on this computer through Ollama',
@@ -2200,6 +2216,8 @@
             cheapestCapable: true,
             largestContext: false,
             isNew: false,
+            deprecated: false,
+            beta: false,
           },
         },
         {
@@ -2221,6 +2239,8 @@
             cheapestCapable: false,
             largestContext: false,
             isNew: true,
+            deprecated: false,
+            beta: false,
           },
         },
         {
@@ -2239,6 +2259,8 @@
             cheapestCapable: false,
             largestContext: false,
             isNew: false,
+            deprecated: true,
+            beta: false,
           },
         },
         {
@@ -2261,6 +2283,8 @@
             cheapestCapable: false,
             largestContext: true,
             isNew: false,
+            deprecated: false,
+            beta: false,
           },
         },
         {
@@ -2283,6 +2307,8 @@
             cheapestCapable: false,
             largestContext: false,
             isNew: true,
+            deprecated: false,
+            beta: true,
           },
         },
       ]
@@ -2423,6 +2449,13 @@
           }
           case 'models-credential': {
             return wizard('credential', { blockers: [] })
+          }
+          case 'models-credential-gemini': {
+            return wizard('credential', {
+              presetId: 'gemini',
+              address: 'https://generativelanguage.googleapis.com',
+              blockers: [],
+            })
           }
           case 'models-test': {
             return wizard('test', {
@@ -3786,6 +3819,52 @@
                 providerId: 'ollama',
                 providerLabel: 'Ollama',
                 pricing: 'local',
+              },
+              {
+                modelId: 'gemini/gemini-3.5-flash',
+                displayLabel: 'Gemini 3.6 Flash',
+                contextLimit: 1048576,
+                isDefault: false,
+                providerId: 'gemini',
+                providerLabel: 'Google Gemini',
+                pricing: 'priced',
+                inputUsdPerMTokens: 0.75,
+                outputUsdPerMTokens: 3.75,
+                reroute: {
+                  serves: 'gemini-3.6-flash',
+                  servesLabel: 'Gemini 3.6 Flash',
+                  active: true,
+                },
+              },
+              {
+                modelId: 'gemini/gemini-2.5-pro',
+                displayLabel: 'Gemini 2.5 Pro',
+                contextLimit: 1048576,
+                isDefault: false,
+                providerId: 'gemini',
+                providerLabel: 'Google Gemini',
+                pricing: 'priced',
+                inputUsdPerMTokens: 1.25,
+                outputUsdPerMTokens: 10,
+                reroute: {
+                  serves: 'gemini-3.8-flash',
+                  servesLabel: 'Gemini 3.8 Flash',
+                  active: false,
+                  from: '2026-12-01',
+                },
+              },
+              {
+                modelId: 'openai/gpt-4o-2024-08-06',
+                displayLabel: 'GPT-4o',
+                contextLimit: 128000,
+                isDefault: false,
+                providerId: 'openai',
+                providerLabel: 'OpenAI',
+                pricing: 'priced',
+                inputUsdPerMTokens: 2.5,
+                outputUsdPerMTokens: 10,
+                lifecycle: 'deprecated',
+                retiresAt: '2027-01-14',
               },
             ],
           })
@@ -7315,6 +7394,9 @@
         // Each wizard state below arrives as the host's draft; opening the
         // wizard shows its step.
         'models-credential': () => {
+          clickText('Pick a Provider')
+        },
+        'models-credential-gemini': () => {
           clickText('Pick a Provider')
         },
         'models-test': () => {

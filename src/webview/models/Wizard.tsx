@@ -422,6 +422,7 @@ function CredentialStep({
     <div className="models-wizard-step">
       <h3>{preset?.label ?? UI_TEXT.providerFields.provider}</h3>
       <p className="models-hint">{preset?.keyHint}</p>
+      {preset?.privacyNote !== undefined && <p className="models-hint">{preset.privacyNote}</p>}
       {preset?.keyPage !== undefined && (
         <button
           type="button"

@@ -2,8 +2,9 @@
 // functions (M95, PLAN.md D74): a searchable, sortable table with filters
 // (tool calling, vision, reasoning, a context range, input, output and
 // cached price ranges, free or local, provider, family) and badges
-// (Recommended, Cheapest capable, Largest context, New). Pinned favourites
-// sort first in the composer's picker (lane U); the ticked set is lane K's.
+// (Recommended, Cheapest capable, Largest context, New, Deprecated, Beta).
+// Pinned favourites sort first in the composer's picker (lane U); the
+// ticked set is lane K's.
 
 import { HARNESS_MIN_CONTEXT_TOKENS } from '../../shared/constants'
 
@@ -28,6 +29,10 @@ export interface ModelRow {
   readonly serverless?: boolean | undefined
   /** New since the last scan (from the scan diff). */
   readonly isNew?: boolean | undefined
+  /** The record's lifecycle word where it is not active (PROV-HONEST). */
+  readonly lifecycle?: 'deprecated' | 'retired' | undefined
+  /** The catalogue calls this model beta. */
+  readonly beta?: boolean | undefined
 }
 
 /** Every filter the table offers, each alone or combined. */
@@ -158,19 +163,23 @@ function compareByKey(a: ModelRow, b: ModelRow, key: ModelSortKey): number {
   }
 }
 
-/** The four badges by their rules, over a fixture catalogue. */
+/** The six badges by their rules, over a fixture catalogue. */
 export interface ModelBadges {
   readonly recommended: boolean
   readonly cheapestCapable: boolean
   readonly largestContext: boolean
   readonly isNew: boolean
+  readonly deprecated: boolean
+  readonly beta: boolean
 }
 
 /**
 The badges for one row among its peers. Cheapest capable needs tool
 calling, the harness's minimum context, a price and a runnable model —
 a tool-less or unpriced model never wins it. Largest context needs the
-widest known window. New comes from the scan diff.
+widest known window. New comes from the scan diff. Deprecated and Beta
+come from the record's lifecycle honesty (PROV-HONEST): a retired
+lifecycle reads as deprecated, past-deprecated still warning correctly.
 */
 export function badgesFor(row: ModelRow, all: readonly ModelRow[]): ModelBadges {
   const capable = all.filter(
@@ -194,5 +203,7 @@ export function badgesFor(row: ModelRow, all: readonly ModelRow[]): ModelBadges 
       row.serverless !== false,
     largestContext: (row.contextTokens ?? 0) > 0 && row.contextTokens === widest,
     isNew: row.isNew === true,
+    deprecated: row.lifecycle === 'deprecated' || row.lifecycle === 'retired',
+    beta: row.beta === true,
   }
 }

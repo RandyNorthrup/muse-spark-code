@@ -70,17 +70,21 @@ export const CATALOG_PRESETS = [
 // The model fields the snapshot keeps (m95-research.md §2.10): the identity,
 // the capability flags the Models table filters and badges on (`tool_call`
 // is always true here; it documents the filter invariant), the modalities the
-// vision filter reads, the release date the New badge reads, the per-million
-// prices the budgets settle from, and the window and output cap the harness
-// sizes requests with. Reasoning/sampling/structured-output metadata stays
+// vision filter reads, the release date the New badge reads, the provider's
+// own status word where it says `deprecated` or `beta` (the Deprecated and
+// Beta badges read it; any other word fails the sync loudly, so a new word
+// gets a review instead of slipping through), the per-million prices the
+// budgets settle from, and the window and output cap the harness sizes
+// requests with. Reasoning/sampling/structured-output metadata stays
 // with the row for the capability resolver. Everything else (docs links, key names,
-// knowledge cutoffs, weights, status) stays in the download.
+// knowledge cutoffs, weights) stays in the download.
 const COST_FIELDS = ['input', 'output', 'cache_read', 'cache_write', 'reasoning']
 const LIMIT_FIELDS = ['context', 'input', 'output']
 const MAX_ID_LENGTH = 256
 const MAX_NAME_LENGTH = 256
 const MAX_ORIGIN_LENGTH = 512
 const MAX_DATE_LENGTH = 64
+const MAX_STATUS_LENGTH = 64
 
 const digestSchema = z.string().regex(HEX_DIGEST)
 const dateSchema = z.iso.date()
@@ -104,6 +108,7 @@ const modelSchema = z.object({
   interleaved: z.json().optional(),
   // Catalogue metadata stays JSON data; the runtime reader owns its interpretation.
   modalities: z.json().optional(),
+  status: z.enum(['deprecated', 'beta']).optional(),
   release_date: z.string().max(MAX_DATE_LENGTH).optional(),
   cost: pricesSchema.optional(),
   limit: limitsSchema.optional(),
@@ -116,7 +121,11 @@ const providerSchema = z.object({
 })
 // The captured image/audio models use zero for inapplicable token limits.
 // Retained tool models still require positive limits through modelSchema.
+// A status word outside the sync table (upstream's `alpha` today) must not
+// fail the download parse: only a kept row's word is reviewed, strictly,
+// when the filter below parses it through modelSchema.
 const sourceModelSchema = modelSchema.extend({
+  status: z.string().max(MAX_STATUS_LENGTH).optional(),
   limit: z
     .object(
       Object.fromEntries(
@@ -186,10 +195,59 @@ function filterModel(key, entry) {
     if (entry[field] !== undefined) model[field] = entry[field]
   }
   if (entry.modalities !== undefined) model.modalities = entry.modalities
+  if (entry.status !== undefined) model.status = entry.status
   if (entry.release_date !== undefined) model.release_date = entry.release_date
   if (entry.cost !== undefined && Object.keys(entry.cost).length > 0) model.cost = entry.cost
   if (entry.limit !== undefined && Object.keys(entry.limit).length > 0) model.limit = entry.limit
   return model
+}
+
+const REROUTE_TABLE_FILE = 'src/core/providers/geminiReroutes.json'
+
+const rerouteRowSchema = z.object({
+  id: z.string().min(1).max(MAX_ID_LENGTH),
+  serves: z.string().min(1).max(MAX_ID_LENGTH),
+  from: z.iso.date().nullable(),
+  docUrl: z.string().min(1),
+  readOn: z.iso.date(),
+})
+
+/** The cited Gemini reroute table the registry prices and labels from (PROV-HONEST). */
+export function readRerouteTable(worktreeRoot = WORKTREE_ROOT) {
+  const file = path.join(worktreeRoot, REROUTE_TABLE_FILE)
+  let rows
+  try {
+    rows = JSON.parse(readFileSync(file, 'utf8'))
+  } catch {
+    throw new Error(`The Gemini reroute table is missing or invalid: ${REROUTE_TABLE_FILE}`)
+  }
+  const table = z.array(rerouteRowSchema).parse(rows)
+  const ids = table.map((row) => row.id)
+  if (new Set(ids).size !== ids.length)
+    throw new Error('The Gemini reroute table names an id twice')
+  return table
+}
+
+/**
+Re-check every cited Gemini reroute against one provider's models: the
+rerouted id must still be listed, and the serving model must still be a
+priced tool-capable row, or the registry would price from a stale
+citation. Throws naming the stale row, its provider page and its read
+date; re-read the page and update the table, then re-sync.
+*/
+export function assertReroutesCurrent(models, table, where) {
+  for (const row of table) {
+    const stale = (detail) =>
+      `Gemini reroute '${row.id}' → '${row.serves}' is stale in ${where} (${detail}); re-read ${row.docUrl} (last read ${row.readOn}) and update ${REROUTE_TABLE_FILE}, then re-sync`
+    const source = isRecord(models) ? models[row.id] : undefined
+    if (!isRecord(source)) throw new Error(stale(`'${row.id}' is no longer listed`))
+    const target = models[row.serves]
+    if (!isRecord(target)) throw new Error(stale(`'${row.serves}' is no longer listed`))
+    if (target.tool_call !== true) throw new Error(stale(`'${row.serves}' no longer calls tools`))
+    if (!isRecord(target.cost) || Object.keys(target.cost).length === 0)
+      throw new Error(stale(`'${row.serves}' carries no prices`))
+  }
+  return table.length
 }
 
 /**
@@ -228,6 +286,9 @@ export function filterCatalog(api) {
       models,
     }
   }
+  // The cited reroutes are re-checked on each sync, never trusted blind:
+  // every preset above is present here, so `google` is too.
+  assertReroutesCurrent(api['google'].models, readRerouteTable(), 'the download')
   return providers
 }
 
@@ -309,6 +370,9 @@ export function parseCatalogSnapshot(text) {
       }
     }
   }
+  // A sealed snapshot is checked the same way: a table edit without a
+  // re-sync fails here until the sync re-checks it against the download.
+  assertReroutesCurrent(document.providers['gemini'].models, readRerouteTable(), 'the snapshot')
   // Owner-reported IDs with no captured tariff stay separate from tool-capable data.
   if (document.unpriced !== undefined) {
     const entries = z

@@ -1241,6 +1241,17 @@ export function toModelOption(model: ModelSummary): ModelOption {
     ...(model.defaultReasoningEffort !== undefined && {
       defaultReasoningEffort: model.defaultReasoningEffort,
     }),
+    ...(model.lifecycle !== undefined && { lifecycle: model.lifecycle }),
+    ...(model.retiresAt !== undefined && { retiresAt: model.retiresAt }),
+    ...(model.beta === true && { beta: true }),
+    ...(model.reroute !== undefined && {
+      reroute: {
+        serves: model.reroute.serves,
+        servesLabel: model.reroute.servesLabel,
+        active: model.reroute.active,
+        ...(model.reroute.from !== undefined && { from: model.reroute.from }),
+      },
+    }),
   }
 }
 

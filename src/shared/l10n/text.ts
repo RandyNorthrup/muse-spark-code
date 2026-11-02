@@ -159,6 +159,28 @@ export function formatDate(epochMs: number): string {
   return current.dates.format(epochMs)
 }
 
+/**
+A provider's announced day for a person (a shutdown or reroute date). A
+`YYYY-MM-DD` calendar day renders as that day in every timezone (a bare
+UTC-midnight parse would read as the day before west of Greenwich);
+anything else parses as an instant; an unparseable value reads as it
+came, never blank.
+*/
+export function formatProviderDate(value: string): string {
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (day?.[1] !== undefined && day[2] !== undefined && day[3] !== undefined) {
+    const year = Number(day[1])
+    const month = Number(day[2])
+    const date = Number(day[3])
+    const at = new Date(year, month - 1, date)
+    return at.getFullYear() === year && at.getMonth() === month - 1 && at.getDate() === date
+      ? formatDate(at.getTime())
+      : value
+  }
+  const at = Date.parse(value)
+  return Number.isFinite(at) ? formatDate(at) : value
+}
+
 /** A local calendar date and time in the installed language. */
 export function formatDateTime(epochMs: number): string {
   return current.dateTimes.format(epochMs)

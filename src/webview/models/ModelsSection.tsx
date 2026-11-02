@@ -1,5 +1,5 @@
 // The Models section (M95 step 8.5 and acceptance 17): a fresh scan's
-// rows in a searchable, sortable table with every facet, the four badges
+// rows in a searchable, sortable table with every facet, the six badges
 // by their rules, pinned favourites and ticked picker models. The host
 // filters, sorts and badges (lane P's pure functions); this posts the
 // facet messages and renders the rows it gets back.
@@ -108,6 +108,12 @@ function RowBadges({ row }: { readonly row: ModelRow }) {
   }
   if (row.badges.isNew) {
     kinds.push('isNew')
+  }
+  if (row.badges.deprecated) {
+    kinds.push('deprecated')
+  }
+  if (row.badges.beta) {
+    kinds.push('beta')
   }
   if (kinds.length === 0) {
     return null
