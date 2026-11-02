@@ -16,7 +16,7 @@ values (`boot/boot.json`), all read, never copied by hand.
 - [x] Cursor sources, `scripts/build-cursors.mjs`, three themes, tests.
 - [x] Icon sources, `scripts/build-icons.mjs`, four themes, tests.
 - [x] Fonts (Inter + JetBrains Mono), fontconfig, `packages.conf`, notices.
-- [ ] Wallpapers and greeter art.
+- [x] Wallpapers and greeter art.
 - [ ] Plymouth and GRUB theme packaging.
 - [ ] Companion variants, manifest, provenance; flash measurement.
 - [ ] Chromium looks (light + dark + boot).
@@ -175,13 +175,25 @@ values (`boot/boot.json`), all read, never copied by hand.
 scripts/check-font-coverage.mjs` with `FONTCONFIG_FILE` at the
   image-fidelity config and HarfBuzz 12.3.2 reports `13 fonts, 2688
 codepoints; 0 problems` (exit 0, this rig, 2026-11-02).
+- Wallpapers: `test/unit/desktop/artWallpapers.test.mjs`, 11 tests, all
+  green (2026-11-02). One template, TH's recipe, 15 PNGs (four modes plus
+  the greeter at 1920x1080, 2560x1440, 3840x2160): every committed PNG
+  matches a fresh resvg render byte-for-byte, every PNG carries its
+  claimed IHDR size, the corners are the wash (dark: exactly #181818 top
+  and #242832 bottom) and the centre the glow, a repainted recipe moves
+  the pixels (no hardcoded colours), and the greeter halves the glow and
+  drops the mark to 0.05. The watermark math checks out: the mark pixel
+  lifts its glow-symmetric mirror by exactly the 0.07 blend of #3d8bff
+  (+2,+7,+13). The recipe's `rule` key is not painted: it is the focus
+  colour SS's on-wallpaper UI reads from the same recipe.
 
 ## Commits
 
 - `70545f0fe` research, design record, resvg 2.6.2 (+ PLAN.md D3 rule 9).
 - `4c29dc13d` the pointer themes (`check:art` joins `quality:gates`).
 - `27da2d767` the icon themes.
-- (Fonts commit SHA lands here at commit time.)
+- `1eafb9798` the image fonts, slot-59 fontconfig and notices.
+- (Wallpapers commit SHA lands here at commit time.)
 
 ## Gates
 
@@ -193,3 +205,6 @@ codepoints; 0 problems` (exit 0, this rig, 2026-11-02).
 - Fonts (2026-11-02): `Inter` → `Noto Sans` in the shipped
   `59-muse-desktop.conf` fails 2 of the 7 artFonts tests (the sans-serif
   prefer list and the image-fonts-only rule); restored, 7 green.
+- Wallpapers (2026-11-02): the mark placeholder → `0.5` in the template
+  makes `build-desktop-art.mjs --check` exit 1 naming all 15 PNGs;
+  restored, exit 0 with 15 fresh.
