@@ -600,6 +600,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         symbol: 'createLatestPort',
         side: ['acp', 'vscode'],
       },
+      { importer: 'src/runtime/panel/panelMedia.ts', symbol: 'createPanelMedia', side: ['acp'] },
     ],
   },
   {
@@ -1244,6 +1245,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       { importer: 'src/runtime/main.ts', symbol: 'main', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'runtimeFor', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'serve', side: ['acp'] },
+      {
+        importer: 'src/runtime/panelSchedulesEntry.ts',
+        symbol: 'loadPanelSchedulesBinding',
+        side: ['acp'],
+      },
     ],
   },
   {
@@ -1262,12 +1268,34 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'runtimePanelMedia.js',
+    side: 'acp',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'RUNTIME_PANEL_MEDIA_BUNDLE_FILE',
+        side: ['acp'],
+      },
+    ],
+  },
+  {
     file: 'runtimePanelPorts.js',
     side: 'acp',
     requestedBy: [
       {
         importer: 'src/shared/constants.ts',
         symbol: 'RUNTIME_PANEL_PORTS_BUNDLE_FILE',
+        side: ['acp'],
+      },
+    ],
+  },
+  {
+    file: 'runtimePanelSchedules.js',
+    side: 'acp',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'RUNTIME_PANEL_SCHEDULES_BUNDLE_FILE',
         side: ['acp'],
       },
     ],
@@ -1348,6 +1376,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
       { importer: 'src/runtime/main.ts', symbol: 'main', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'serve', side: ['acp'] },
+      {
+        importer: 'src/runtime/panelSchedulesEntry.ts',
+        symbol: 'loadPanelSchedulesBinding',
+        side: ['acp'],
+      },
     ],
   },
   {
