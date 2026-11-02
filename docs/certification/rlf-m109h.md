@@ -6,9 +6,13 @@ Date: 2026-11-02. Host: macmini (the Mac mini rig). Worktree:
 rebased, stashed or tagged.
 
 RVM109 (`docs/certification/rvm109.md`) left four measured residuals.
-This lane closed each one on POSIX, or recorded with evidence why a
-part cannot be closed on a platform. Per item: finding, change, drill,
-residual risk.
+This lane took each one up on POSIX. RVM109H
+(`docs/certification/rvm109h.md`) reviewed the result: clearing
+dumpable before exec does not hide a normal command's environment,
+the parent helper did not yet require the walk's recorded birth, and
+the headless workspace-trust flag denied clean runs. Those corrections
+are on this branch. The sections below are this lane's own record.
+Per item: finding, change, drill, residual risk.
 
 Commits on `rec/rlf-m109h`:
 
@@ -44,20 +48,16 @@ command exists.
 Delivery modes after this change, and what remains of each:
 
 - environment: the value is in the command's environment block while
-  it runs. On Linux, dumpable off makes `/proc/<pid>` root-owned, so
-  another process of the same user can no longer read the environment
-  (or attach) for that command; the feeder and the command itself
-  still hold it, and root still can. On macOS there is no dumpable
-  switch and no `/proc`; another process of the same user can still
-  read a running program's arguments and environment through the
-  kernel's process-args sysctl, so the exposure remains there. On
-  Windows the first increment does not run (feeder containment is the
-  named open step) and a same-user process can read another's
-  environment block from its memory. This is now said where the
-  person allows the mode: the vault approval card carries
-  `vault.environmentWarning` in English and all 14 tables for an
-  environment use, naming the macOS/Windows remainder and that
-  standard input keeps the value out of the environment.
+  it runs. RVM109H: on Linux, `PR_SET_DUMPABLE 0` before exec does not
+  survive exec of a normal command, so another process of the same
+  user can still read `/proc/<pid>/environ` after the command image is
+  running. Root can too. On macOS there is no dumpable switch; another
+  process of the same user can still read a running program's
+  arguments and environment through the kernel's process-args sysctl.
+  On Windows a same-user process can read another's environment block
+  from its memory. The approval card says this for Linux, macOS and
+  Windows, in English and all 14 tables, and that standard input keeps
+  the value out of the environment.
 - stdin (and totp, which rides it): the value is only in the feeder's
   wiped buffer and the command's input pipe; no environment copy.
   Preferable wherever the program can read it that way — the card
@@ -76,23 +76,25 @@ Drill: `test/unit/vault/vaultPeerRun.test.ts` compiles the shipped
 helper from source and runs real children. With the base helper
 restored (`git show HEAD:native/posix/vaultPeer.c`), 2 of 3 runnable
 cases failed (the `run` mode does not exist). With the fix: 3 passed,
-1 skipped (the Linux `/proc/<pid>/environ` refusal, which runs where
-`/proc` exists). Manual probe on this rig: outer `ulimit -c
-unlimited`, then `ulimit -c` inside `run` printed `0`; environment
-and argv passed through byte-exact (length check); a relative path
-exited 1. The card sentence: `vaultEnvironmentWarning.test.tsx`
-renders the real card — warning present for an environment use,
-absent for stdin; removing the card line failed 1 of 2, restored
-green. No local UI look: macOS lanes cannot start Chrome on this rig
-(established machine fact), so the render proof is the jsdom suite.
+1 skipped (the Linux `/proc` case, which this darwin lane did not
+run). RVM109H changed that skipped case: it now expects the same user
+to be able to read the command's environment after exec, because the
+kernel sets dumpable back for a normal command. Manual probe on this
+rig: outer `ulimit -c unlimited`, then `ulimit -c` inside `run`
+printed `0`; environment and argv passed through byte-exact (length
+check); a relative path exited 1. The card sentence:
+`vaultEnvironmentWarning.test.tsx` renders the real card — warning
+present for an environment use, absent for stdin. No local UI look:
+macOS lanes cannot start Chrome on this rig (established machine
+fact), so the render proof is the jsdom suite.
 
-Residual risk: macOS/Windows same-user environment reading remains,
-now said at the decision point. Linux: the feeder process itself
-holds leased values in memory (wiped buffers; JS strings that held
-JSON/base64 cannot be wiped — unchanged from RVM109). A setuid
-command re-enables dumpable per the kernel's suid rules; the only
-setuid route is sudo, whose password rides stdin, not the
-environment.
+Residual risk: same-user environment reading remains on Linux, macOS
+and Windows, and is said at the decision point. The feeder process
+itself holds leased values in memory (wiped buffers; JS strings that
+held JSON/base64 cannot be wiped — unchanged from RVM109). A setuid
+or file-capability target follows the kernel's `suid_dumpable` rule
+rather than the helper's pre-exec setting. The only setuid route in
+this design is sudo, whose password rides stdin, not the environment.
 
 ## 2. RLIMIT_CORE not set by the guarded spawn
 
@@ -115,10 +117,10 @@ Drill: the suite above — a caller shell raises `ulimit -c unlimited`,
 execs through `run`, and the command's own `ulimit -c` reads `0`.
 Red on the base helper, green with the fix (same drill as item 1).
 
-Residual risk: a command can raise its own soft core limit back up
-only to the hard limit, which is also set to 0 here, so it cannot.
-Core handling of the feeder/host processes stays the person's shell
-default, as before.
+Residual risk: an unprivileged command cannot raise the hard core
+limit back above 0. A setuid or file-capability target that is
+allowed to raise resource limits can. Core handling of the feeder
+and host processes stays the person's shell default, as before.
 
 ## 3. The parent-lookup pid-recycle race
 
@@ -152,10 +154,14 @@ intermediate really dies and the leaf reparents. Removal drill:
 deleting the intermediate re-read failed exactly the recycled case
 (1 failed, 3 passed); restored, 4 passed.
 
-Residual risk: the window left is a pid recycled and re-recycled back
-to an identical (pid, start-time) pair inside one bracketed read set,
-which needs two full pid-space wraps between adjacent kernel reads.
-A container pid namespace is named, not proven (unproven.md).
+Residual risk: RVM109H found the walk's re-read and the parent helper
+were separate processes, so a recycle between them was outside this
+bracket. The helper now requires the birth the walk recorded, on both
+of its own reads (`docs/certification/rvm109h.md`). What remains is a
+same-tick collision of two Linux start times, and a pid recycled and
+re-recycled back to an identical (pid, start-time) pair inside one
+bracketed read set. A real pid-space wrap was not run. A container
+pid namespace is named, not proven (unproven.md).
 
 ## 4. Headless taint never accumulated
 
