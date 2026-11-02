@@ -1179,6 +1179,8 @@ export const EN = {
   referenceDesktopTerminalKeys: 'Run the typed line in the Muse Desktop terminal.',
   referenceEditorGroupKeys:
     'Move between tabs, cycle tabs, focus a group by number, or close the menu.',
+  referenceSettingsKeys:
+    'Move through settings pages, open one, move focus in a dialog, or close it.',
   referenceThinking:
     'Choose how much effort Muse puts into each reply. Thinking: On = effort; Off = museCode:none / modelApi:minimal.',
   referenceSandbox:
@@ -9976,6 +9978,7 @@ export const EN = {
     networkConfirmForget: 'Forget {ssid}?',
     networkConfirmVpnOn: 'Connect to {name}?',
     networkConfirmVpnOff: 'Disconnect from {name}?',
+    networkNoVpn: 'No VPN connections are set up.',
     bluetoothDevices: 'Devices',
     bluetoothNoDevices: 'No devices were found.',
     bluetoothPair: 'Pair',
@@ -9985,6 +9988,8 @@ export const EN = {
     bluetoothConfirmConnect: 'Connect to {name}?',
     bluetoothConfirmDisconnect: 'Disconnect from {name}?',
     bluetoothConfirmRemove: 'Remove {name}?',
+    bluetoothConfirmOn: 'Turn Bluetooth on?',
+    bluetoothConfirmOff: 'Turn Bluetooth off?',
     bluetoothKindAudio: 'Audio',
     bluetoothKindInput: 'Input device',
     bluetoothKindPhone: 'Phone',
@@ -10016,9 +10021,11 @@ export const EN = {
     powerSleep: 'Sleep after',
     powerTimeoutMinutes: forms({ one: '{count} minute', other: '{count} minutes' }),
     powerTimeoutNever: 'Never',
+    powerTimersTitle: 'Sleep timers',
     powerLid: 'When the lid closes',
     powerLidLock: 'Lock',
     powerLidNothing: 'Do nothing',
+    powerLidTitle: 'Lid and power button',
     powerButton: 'When the power button is pressed',
     powerButtonPrompt: 'Ask what to do',
     powerButtonShutdown: 'Shut down',
