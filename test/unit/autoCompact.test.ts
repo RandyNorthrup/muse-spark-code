@@ -1,12 +1,25 @@
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { z } from 'zod'
 import {
   AutoCompact,
+  compactionSummaryBudget,
   measureAutoCompactRequest,
   type AutoCompactInput,
 } from '../../src/core/backends/modelapi/autoCompact'
+import { modelPolicyFor } from '../../src/core/backends/modelapi/modelPolicy'
 import { ObservationPack } from '../../src/core/backends/modelapi/observationPacking'
 import { restoredToolText, type InputItem } from '../../src/core/backends/modelapi/schemas'
+import { estimateInput, requestParts } from '../../src/core/backends/modelapi/sessionBudget'
+import { createConfiguredProviderServices } from '../../src/core/providers/configured'
 import type { ModelPricing } from '../../src/core/providers/priceCard'
+import {
+  COMPACTION_SUMMARY_MAX_TOKENS,
+  MODEL_API_CONTEXT_WINDOW,
+  PROVIDERS_FILE_VERSION,
+} from '../../src/shared/constants'
 
 const PRICES: readonly { name: string; pricing: ModelPricing; ratio?: number }[] = [
   {
@@ -344,5 +357,133 @@ describe('automatic compaction economics (D81.4)', () => {
 
   it.each([NaN, Infinity, -1])('refuses malformed counts %s', (count) => {
     expect(registered().decide(input({ removableTokens: count }), true)).toBeUndefined()
+  })
+})
+
+const goldenFileSchema = z.object({ scenario: z.string(), requests: z.array(z.string()) })
+const goldenSummaryBodySchema = z.object({
+  instructions: z.string(),
+  tools: z.array(
+    z.object({
+      type: z.literal('function'),
+      name: z.string(),
+      description: z.string(),
+      parameters: z.record(z.string(), z.unknown()),
+      strict: z.boolean(),
+    }),
+  ),
+  input: z.array(
+    z.object({
+      type: z.literal('message'),
+      role: z.enum(['user', 'assistant', 'developer']),
+      content: z.array(
+        z.union([
+          z.object({ type: z.literal('input_text'), text: z.string() }),
+          z.object({ type: z.literal('output_text'), text: z.string() }),
+        ]),
+      ),
+    }),
+  ),
+})
+
+/**
+The recorded manual-compaction summary request
+(`test/fixtures/golden-requests/05-manual-compaction.json`, request 1 of
+the M91-G harness capture), parsed into the send path's own part shapes,
+so the budget tests measure the same input the request builder does.
+*/
+function recordedSummaryInputTokens(): number {
+  const golden = goldenFileSchema.parse(
+    JSON.parse(
+      readFileSync(
+        new URL('../fixtures/golden-requests/05-manual-compaction.json', import.meta.url),
+        'utf8',
+      ),
+    ),
+  )
+  const body = goldenSummaryBodySchema.parse(JSON.parse(golden.requests[1] ?? ''))
+  return estimateInput(requestParts(body), undefined).inputTokens
+}
+
+describe('compaction summary output budget (R2, Pi v1.4.0)', () => {
+  it('gives a reasoning model its own output limit, above the legacy cap', () => {
+    const policy = modelPolicyFor('muse-spark-1.3-contributor')
+    expect(policy.reasoning.supported).toEqual({ state: 'yes', value: true })
+    expect(policy.output.maxTokens).toBe(131_072)
+    const summaryInputTokens = recordedSummaryInputTokens()
+    expect(summaryInputTokens).toBe(11_048)
+    const budget = compactionSummaryBudget({
+      policy,
+      windowTokens: MODEL_API_CONTEXT_WINDOW,
+      summaryInputTokens,
+    })
+    expect(budget).toBe(131_072)
+    expect(budget).toBeGreaterThan(COMPACTION_SUMMARY_MAX_TOKENS)
+    expect(summaryInputTokens + budget).toBeLessThanOrEqual(MODEL_API_CONTEXT_WINDOW)
+  })
+
+  it('clamps a small-window record so summary input plus output fit instead of overflowing', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'compactcap-'))
+    const configFile = path.join(directory, 'providers.json')
+    const catalogFile = path.join(directory, 'catalog.json')
+    writeFileSync(
+      configFile,
+      JSON.stringify({
+        v: PROVIDERS_FILE_VERSION,
+        providers: [
+          {
+            id: 'compact',
+            preset: 'custom',
+            address: 'https://8.8.8.8/v1',
+            auth: 'none',
+            format: 'responses',
+            models: ['small'],
+            modelLimits: { small: { contextTokens: 32_768, outputTokens: 24_576 } },
+            modelCapabilities: {
+              small: { tools: { calling: { state: 'yes', value: true } } },
+            },
+          },
+        ],
+      }),
+    )
+    writeFileSync(catalogFile, JSON.stringify({ providers: {} }))
+    const services = createConfiguredProviderServices(undefined, {
+      configFile,
+      catalogFile,
+      secrets: { get: () => Promise.resolve(undefined) },
+      send: () => Promise.reject(new Error('the budget test sends no request')),
+    })
+    const registry = services.registry
+    if (registry.list === undefined) throw new TypeError('Expected a listing registry')
+    await registry.list()
+    const resolved = await registry.resolve('compact/small')
+    expect(resolved.policy.output.maxTokens).toBe(24_576)
+    const windowTokens = resolved.contextTokens
+    if (windowTokens === undefined) throw new TypeError('Expected the record window')
+    expect(windowTokens).toBe(32_768)
+    const summaryInputTokens = recordedSummaryInputTokens()
+    const budget = compactionSummaryBudget({
+      policy: resolved.policy,
+      windowTokens,
+      summaryInputTokens,
+    })
+    // The record's own 24,576-token output limit would overflow the 32,768
+    // window on top of the recorded input; the clamp fits exactly.
+    expect(budget).toBe(windowTokens - summaryInputTokens)
+    expect(budget).toBeLessThan(resolved.policy.output.maxTokens ?? 0)
+    expect(summaryInputTokens + budget).toBe(windowTokens)
+  })
+
+  it('keeps the legacy cap only where the record states no output limit', () => {
+    const policy = modelPolicyFor('compact/unlisted-limits')
+    expect(policy.output.maxTokens).toBeUndefined()
+    const summaryInputTokens = recordedSummaryInputTokens()
+    const budget = compactionSummaryBudget({
+      policy,
+      windowTokens: MODEL_API_CONTEXT_WINDOW,
+      summaryInputTokens,
+    })
+    expect(budget).toBe(COMPACTION_SUMMARY_MAX_TOKENS)
+    expect(summaryInputTokens + budget).toBeLessThanOrEqual(MODEL_API_CONTEXT_WINDOW)
   })
 })
