@@ -23,7 +23,8 @@
 // updates and the conversation's `AgentEvent`s, and serves the client's
 // `fs/*` methods confined to the workspace.
 
-import { spawn, type ChildProcess } from 'node:child_process'
+import type { ChildProcess } from 'node:child_process'
+import { realpathSync } from 'node:fs'
 import { readFile, realpath, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
@@ -59,6 +60,8 @@ import type { CoreLogger } from '../../core/logging'
 import { UI_TEXT, CONTEXT_PRESSURE_HIGH, CONTEXT_PRESSURE_MEDIUM } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { withoutCredentials } from '../../core/credentialEnvironment'
+import { workspaceChildEnvironment } from '../../core/execGuard'
+import { spawnGuarded } from '../../core/guardedChildProcess'
 import { isProtectedPath } from '../../core/protectedPaths'
 import { assertWorkerRoot, WORKER_NATIVE_IO } from '../../core/team/workers/workerFence'
 import { failureForLog } from '../../core/backends/musecode/logText'
@@ -997,10 +1000,14 @@ export class ExternalOrchestratorHost implements AgentHost {
 
   private async startProcess(cwd: string): Promise<LiveProcess> {
     const { agent, command, platform, baseEnv } = this.deps
-    const child = spawn(command, [...agent.args], {
+    // The agent and whatever it starts by bare name never resolve to a program
+    // planted in the workspace: the guarded child environment for this cwd.
+    const child = spawnGuarded(command, [...agent.args], {
       cwd,
-      env: withoutCredentials({ ...baseEnv }),
-      stdio: ['pipe', 'pipe', 'pipe'],
+      env: workspaceChildEnvironment(platform, withoutCredentials({ ...baseEnv }), {
+        workspaceRoot: cwd,
+        realpath: realpathSync,
+      }),
       detached: platform !== 'win32',
       windowsHide: true,
     })
