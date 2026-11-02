@@ -2225,7 +2225,7 @@
     "mdast-util-to-markdown": "2.2.0",
     "micromark-extension-gfm": "3.0.0",
     "oidc-provider": "9.13.3",
-    "parse5": "8.0.1",
+    "parse5": "8.1.0",
     "pngjs": "7.0.0",
     "qrcode-generator": "2.0.4",
     "react-markdown": "10.1.0",
