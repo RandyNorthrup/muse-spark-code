@@ -47,16 +47,18 @@ happened, not what was planned; superseded entries are kept.
 - **The panel status item shows how many questions wait for you** in
   the native editor hosts, updating as questions arrive and are
   answered.
-- **An editor that already holds your GitHub credential can sign the
-  panel in with it.** The panel asks the editor for a proxied
-  credential before falling back to the device sign-in or `gh`; the
-  token itself never reaches the panel process.
-- **Scheduled prompts in a native window hold for your decision in
-  that window's workspace**, and while schedule delivery is not yet
-  certified the hold plays it safe with a warning and a notice.
-- **Native editor hosts can attach files and screen captures to a
-  conversation** through the panel's attach actions, with the same
-  validation and per-window isolation as in VS Code.
+- **The panel asks the editor for a GitHub lease before device
+  sign-in or `gh`.** When the editor answers, that lease is what the
+  panel uses, and the token stays in the editor. No plugin in this
+  tree answers the lease yet.
+- **Scheduled prompts loaded for a native window stay tied to that
+  window's workspace.** While schedule delivery is not yet certified,
+  a failure to hold them shows a warning and a notice.
+- **The native panel can attach a video a workspace path or the
+  editor's file chooser names**, with the same checks as VS Code, and
+  it says why when it refuses. Recording says it is not available on
+  this panel yet. The JetBrains and Eclipse plugins do not send an
+  attachment yet.
 - **Editor hosts for JetBrains IDEs and Eclipse, plus shims for Emacs,
   Neovim, Zed and Qt Creator.** The JetBrains and Eclipse plugins carry
   the panel in the editor over the real runtime; their conformance
