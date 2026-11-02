@@ -29,6 +29,21 @@ export interface HttpReply {
   readonly status: number
   readonly body: unknown
 }
+export interface MachineReadOptions {
+  /**
+  Non-2xx statuses that resolve with a null body instead of rejecting: the
+  caller reads the status itself (OctoPrint's appkeys poll reads 404 as
+  denied).
+  */
+  readonly acceptStatus?: readonly number[]
+  /**
+  Skip response scrubbing for the enrollment reads whose purpose is
+  receiving a credential (OctoPrint's appkeys token and key): the scrubber
+  redacts exactly those fields. The caller parses strictly and stores the
+  credential immediately; the raw body is never logged.
+  */
+  readonly scrub?: boolean
+}
 
 /** No redirects, proxy discovery, URL credentials, or second DNS lookup. */
 export class MachineHttp {
@@ -57,16 +72,22 @@ export class MachineHttp {
     body?: unknown,
     signal?: AbortSignal,
     beforeWrite?: () => Promise<() => void>,
+    read?: MachineReadOptions,
   ): Promise<unknown> {
-    const reply = await this.request(method, path, body, signal, beforeWrite)
+    const reply = await this.request(method, path, body, signal, beforeWrite, read)
     return reply.body
   }
+  /**
+  Read modifiers for callers that need more than a 2xx JSON body. Without
+  `read` every non-2xx rejects and every body is scrubbed, as before.
+  */
   async request(
     method: 'GET' | 'POST' | 'DELETE',
     path: string,
     body?: unknown,
     signal?: AbortSignal,
     beforeWrite?: () => Promise<() => void>,
+    read?: MachineReadOptions,
   ): Promise<HttpReply> {
     if (
       !path.startsWith('/') ||
@@ -133,17 +154,25 @@ export class MachineHttp {
             response.on('end', () => {
               void (async () => {
                 const status = response.statusCode ?? 0
-                if (status < HTTP_SUCCESS_MIN || status > HTTP_SUCCESS_MAX) {
+                const isSuccess = status >= HTTP_SUCCESS_MIN && status <= HTTP_SUCCESS_MAX
+                const acceptStatus = read?.acceptStatus
+                if (!isSuccess && acceptStatus?.includes(status) !== true) {
                   reject(new MachineError('machineHttpStatus'))
+                  return
+                }
+                if (!isSuccess) {
+                  // An accepted error status carries no body the caller reads.
+                  resolve({ status, body: null })
                   return
                 }
                 const [body] = await Promise.allSettled([
                   (async () => {
                     await Promise.resolve()
-                    const text = redactSecrets(
-                      Buffer.concat(chunks).toString('utf8'),
-                      key === undefined ? [] : [key],
-                    )
+                    const raw = Buffer.concat(chunks).toString('utf8')
+                    const text =
+                      read?.scrub === false
+                        ? raw
+                        : redactSecrets(raw, key === undefined ? [] : [key])
                     const parsed: unknown = text === '' ? null : JSON.parse(text)
                     return responseBodySchema.parse(parsed)
                   })(),
