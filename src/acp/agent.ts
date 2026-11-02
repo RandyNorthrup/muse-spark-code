@@ -4483,6 +4483,39 @@ class AgentState {
   }
 
   /**
+  A fresh host with the stored session resumed on it: the load and the
+  re-attach open alike (open, claim, resume), so one helper holds all
+  three. The MCP servers come from the caller: the load's request, or
+  the detached session's remembered ones.
+  */
+  private async openAndResume(
+    cwd: string,
+    sessionId: string,
+    claim: ControllerClaim,
+    requestedMcp: readonly McpServer[] | undefined,
+    makerTools: AcpMakerSession | undefined,
+  ): Promise<{
+    readonly host: AgentHost
+    readonly models: readonly ModelSummary[]
+    readonly loaded: LoadedSession
+  }> {
+    const { host, models } = await this.openHost(cwd)
+    this.registry.ensureClaim(claim, host)
+    const loaded = await host.resumeSession(
+      sessionId,
+      startingModel(
+        models,
+        this.deps.options.initialModelId,
+        this.deps.backend.kind === 'modelApi',
+      ),
+      makerTools === undefined
+        ? this.forwardedMcp(host, requestedMcp)
+        : { ...this.forwardedMcp(host, requestedMcp), muse_spark_maker: makerTools.server },
+    )
+    return { host, models, loaded }
+  }
+
+  /**
   Restart the backend with the industry backoff (D228: two retries,
   0.5 s doubling to 8 s) and resume the stored session on it. Each wait
   shows as the panel's "Retrying in Ns (attempt K of N)" and stops on a
@@ -4503,21 +4536,12 @@ class AgentState {
   > {
     for (let retry = 0; ; retry += 1) {
       try {
-        const { host, models } = await this.openHost(record.cwd)
-        this.registry.ensureClaim(claim, host)
-        const loaded = await host.resumeSession(
+        const { host, models, loaded } = await this.openAndResume(
+          record.cwd,
           sessionId,
-          startingModel(
-            models,
-            this.deps.options.initialModelId,
-            this.deps.backend.kind === 'modelApi',
-          ),
-          makerTools === undefined
-            ? this.forwardedMcp(host, this.sessionMcp.get(sessionId))
-            : {
-                ...this.forwardedMcp(host, this.sessionMcp.get(sessionId)),
-                muse_spark_maker: makerTools.server,
-              },
+          claim,
+          this.sessionMcp.get(sessionId),
+          makerTools,
         )
         return { host, models, loaded }
       } catch (error: unknown) {
@@ -4813,18 +4837,12 @@ class AgentState {
       acpMakerAsker(client, () => sessionId),
     )
     try {
-      const { host, models } = await this.openHost(cwd)
-      this.registry.ensureClaim(claim, host)
-      const loaded = await host.resumeSession(
+      const { host, models, loaded } = await this.openAndResume(
+        cwd,
         sessionId,
-        startingModel(
-          models,
-          this.deps.options.initialModelId,
-          this.deps.backend.kind === 'modelApi',
-        ),
-        makerTools === undefined
-          ? this.forwardedMcp(host, requestedMcp)
-          : { ...this.forwardedMcp(host, requestedMcp), muse_spark_maker: makerTools.server },
+        claim,
+        requestedMcp,
+        makerTools,
       )
       // A session resumes on the approval mode, model and effort it last had,
       // which may differ from what the editor is told (a more permissive mode,
