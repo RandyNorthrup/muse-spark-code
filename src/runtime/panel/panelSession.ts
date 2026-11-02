@@ -24,6 +24,7 @@ import {
   WORKSPACE_STATE_KEYS,
   type AcpBackendKind,
   type AcpPaidFeature,
+  RUNTIME_PANEL_MEDIA_BUNDLE_FILE,
   RUNTIME_PANEL_RECONFIGURE_SETTINGS,
   UI_TEXT,
 } from '../../shared/constants'
@@ -44,6 +45,7 @@ import type { RuntimeSettingsStore } from '../settingsStore'
 import type { PanelConnection } from './connection'
 import { ControllerRegistry } from './controllerRegistry'
 import type { PanelGit } from './git/panelGit'
+import { panelMediaLoader } from './panelBundle'
 import { RuntimeConversation } from './runtimeConversation'
 import { runtimeConversationDeps } from './runtimeFeatures'
 import type { PanelView } from './surfaces'
@@ -83,6 +85,8 @@ export interface PanelSession {
   initialize(params: MhpParams<'initialize'>, signal: AbortSignal): Promise<void>
   /** The handshake was answered: the first chat surface opens. */
   initialized(): void
+  /** M105 delivery d: the host's `attachments/*` call, answered by the one live conversation. */
+  attachments(raw: unknown): Promise<unknown>
   notify(method: MhpNotificationMethod, value: unknown): void
   view(binding: MhpPanelBinding): PanelView | undefined
   /** Ends every conversation and the backend. */
@@ -285,6 +289,10 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
       signalFor: (sessionId) => registry.heldOrAdopting(sessionId)?.signal,
     },
   )
+  const loadPanelMedia = panelMediaLoader(
+    path.join(deps.distDir, RUNTIME_PANEL_MEDIA_BUNDLE_FILE),
+    log,
+  )
   const outputs = createRuntimeDocuments({
     host: connection,
     dataFolder: deps.dataFolder,
@@ -392,6 +400,19 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
         if (awaitingSurface.delete(conversation)) await openSurface(conversation.sessionId)
       },
       stopped: deps.stopped,
+      attachments: {
+        distDir: deps.distDir,
+        dataRoot: deps.dataFolder,
+        workspaceRoot: workspace,
+        settings: () => currentSettings(),
+        host: {
+          request: async <M extends 'ui/openFile' | 'ui/confirm'>(
+            method: M,
+            params: MhpParams<M>,
+          ) => await connection.request(method, params),
+        },
+        backendKind: () => runtime?.backend.kind ?? backendKind(currentSettings()),
+      },
     })
   }
 
@@ -548,6 +569,12 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
           .catch(logRejection(log, 'panel start notice'))
       })
     },
+    attachments: async (raw) =>
+      await loadPanelMedia().routeAttachmentMethod(
+        registry.controllers(),
+        (controller) => registry.held(controller.sessionId) === controller,
+        raw,
+      ),
     notify: (method, value) => {
       switch (method) {
         case 'settings/didChange': {

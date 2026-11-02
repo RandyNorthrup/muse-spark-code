@@ -93,6 +93,9 @@ export const ACP_BUNDLES = [
   'nativeGit.js',
   // M104 lane B: saved plans in the runtime panel (their port, the Markdown reader, and the Plans… list in the commands chunk).
   'runtimePanelPorts.js',
+  // M105 delivery d: the native panel's attachments route and port, loaded
+  // on the first attachments call.
+  'runtimePanelMedia.js',
   'planMarkdown.js',
   'commands.js',
   // Lazy shared method factory; receiver qualification still refuses headless hosts.

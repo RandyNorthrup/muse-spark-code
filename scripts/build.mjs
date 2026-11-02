@@ -1907,6 +1907,15 @@ const runtimePanelPortsOptions = {
   outfile: RUNTIME_PANEL_PORTS_OUTFILE,
   banner: {},
 }
+// M105 delivery d: the panel's attachments route and port, loaded on the
+// first attachments call, never with the panel.
+const RUNTIME_PANEL_MEDIA_OUTFILE = 'dist/runtimePanelMedia.js'
+const runtimePanelMediaOptions = {
+  ...acpOptions,
+  entryPoints: ['src/runtime/panelMediaEntry.ts'],
+  outfile: RUNTIME_PANEL_MEDIA_OUTFILE,
+  banner: {},
+}
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
@@ -2490,6 +2499,7 @@ if (isWatch) {
     esbuild.context(runtimePanelOptions),
     esbuild.context(runtimePanelSessionOptions),
     esbuild.context(runtimePanelPortsOptions),
+    esbuild.context(runtimePanelMediaOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -2734,6 +2744,7 @@ if (isWatch) {
     ['runtimePanel', () => esbuild.build(runtimePanelOptions)],
     ['runtimePanelSession', () => esbuild.build(runtimePanelSessionOptions)],
     ['runtimePanelPorts', () => esbuild.build(runtimePanelPortsOptions)],
+    ['runtimePanelMedia', () => esbuild.build(runtimePanelMediaOptions)],
   ]
   if (!isProduction) {
     extraSpecs.push(['integrationTests', () => esbuild.build(integrationTestOptions)])
@@ -2757,6 +2768,7 @@ if (isWatch) {
   let runtimePanel
   let runtimePanelSession
   let runtimePanelPorts
+  let runtimePanelMedia
   try {
     shipped = await runBuildPool(Object.entries(shippedSpecs), BUILD_POOL_SIZE)
     ;({
@@ -2778,6 +2790,7 @@ if (isWatch) {
       runtimePanel,
       runtimePanelSession,
       runtimePanelPorts,
+      runtimePanelMedia,
     } = await runBuildPool(extraSpecs, BUILD_POOL_SIZE))
   } catch (error) {
     await esbuild.stop()
@@ -2863,6 +2876,11 @@ if (isWatch) {
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'runtimePanelPorts.json'),
       JSON.stringify(runtimePanelPortsMetafile),
+    )
+    const { metafile: runtimePanelMediaMetafile } = await runtimePanelMedia
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'runtimePanelMedia.json'),
+      JSON.stringify(runtimePanelMediaMetafile),
     )
   }
   console.log('bundle sizes:')
@@ -2981,5 +2999,6 @@ if (isWatch) {
   reportSize(RUNTIME_PANEL_OUTFILE)
   reportSize(RUNTIME_PANEL_SESSION_OUTFILE)
   reportSize(RUNTIME_PANEL_PORTS_OUTFILE)
+  reportSize(RUNTIME_PANEL_MEDIA_OUTFILE)
   reportSize(PACKS_VERIFY_OUTFILE)
 }

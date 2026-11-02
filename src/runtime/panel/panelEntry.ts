@@ -203,6 +203,10 @@ export async function runPanel(options: PanelOptions, deps: PanelRuntimeDeps): P
           session?.initialized()
         },
         request: async (method, value) => {
+          if (method.startsWith('attachments/')) {
+            if (session === undefined) throw new Error('MHP_NOT_INITIALIZED')
+            return await session.attachments({ method, params: value })
+          }
           try {
             return await answerState(store, method, value)
           } catch (error: unknown) {
