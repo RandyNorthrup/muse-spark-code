@@ -67,9 +67,11 @@ hl.window_rule({ match = { title = "^Picture in picture$" }, float = true })
 -- (the shell's, accessibility tools, remote input, the test harness) are
 -- allowed by name: an ask dialog names the device, never the client that
 -- created it, so no person could answer it informed. The internal AT
--- keyboard is allowed. The image must ship hyprland-guiutils: without it
--- any ask segfaults the compositor instead of falling back (upstream,
--- 0.55.2 and 0.57.0: the null check sits after the dereference).
+-- keyboard is allowed. Keyboard names in rules use Hyprland's internal
+-- form (lowercase, spaces to dashes): the check never sees the original.
+-- The image must ship hyprland-guiutils: without it any ask segfaults
+-- the compositor instead of falling back (upstream, 0.55.2 and 0.57.0:
+-- the null check sits after the dereference).
 hl.permission({ binary = "/usr/bin/muse-shell", type = "screencopy", mode = "allow" })
 hl.permission({
   binary = "/usr/(lib|libexec|lib64)/xdg-desktop-portal-hyprland",
@@ -83,7 +85,7 @@ hl.permission({
 })
 hl.permission({ binary = "/usr/lib/muse-hyprland/.*", type = "plugin", mode = "allow" })
 hl.permission({ binary = ".*/hyprctl", type = "plugin", mode = "deny" })
-hl.permission({ binary = "AT Translated Set 2 keyboard", type = "keyboard", mode = "allow" })
+hl.permission({ binary = "at-translated-set-2-keyboard", type = "keyboard", mode = "allow" })
 hl.permission({ binary = "hl-virtual-keyboard.*", type = "keyboard", mode = "allow" })
 hl.permission({ binary = ".*", type = "keyboard", mode = "ask" })
 
