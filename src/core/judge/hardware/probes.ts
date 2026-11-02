@@ -14,6 +14,7 @@ import {
   JUDGE_PROBE_MAX_OUTPUT_BYTES,
   JUDGE_PROBE_TIMEOUT_MS,
   OLLAMA_DEFAULT_PORT,
+  WINDOWS_JSON_ASSEMBLY,
   WINDOWS_PROGRAM_EXTENSIONS,
 } from '../../../shared/constants'
 import {
@@ -290,8 +291,14 @@ function probeDarwinGpu(): JudgeGpuInfo {
   }
 }
 
-const WINDOWS_VIDEO_SCRIPT =
-  "$ErrorActionPreference='Stop'; Get-CimInstance -ClassName Win32_VideoController | Select-Object Name,DriverVersion | ConvertTo-Json -Compress"
+/**
+The machine's video controllers, always as an array. It names no cmdlet: this
+probe starts with an empty environment, so no module analysis cache is reached,
+and a cmdlet not yet loaded makes Windows PowerShell analyse every module on its
+path first. Where those are large that takes past the probe's own budget, and the
+machine read as having no known card (docs/certification/cc-winfix3.md).
+*/
+export const WINDOWS_VIDEO_SCRIPT = `$ErrorActionPreference = 'Stop'; [void][Reflection.Assembly]::Load('${WINDOWS_JSON_ASSEMBLY}'); $rows = foreach ($card in ([wmisearcher]'SELECT Name, DriverVersion FROM Win32_VideoController').Get()) { @{ Name = $card['Name']; DriverVersion = $card['DriverVersion'] } }; [System.Web.Script.Serialization.JavaScriptSerializer]::new().Serialize(@($rows))`
 
 async function probeWindowsGpu(systemRoot: string | undefined): Promise<JudgeGpuInfo> {
   const smi = await firstExecutable(

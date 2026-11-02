@@ -419,6 +419,10 @@ happened, not what was planned; superseded entries are kept.
 - The vault works on Windows again. Since the feeder's parent check, the pipe
   helper's answer about the broker's pipe carried a field its contract does not
   name, so every client refused the answer and could never reach the broker.
+- The local judge's hardware scan reads the graphics card on Windows where large
+  PowerShell modules are installed, and on a machine with one card. The read named
+  cmdlets, which ran past its bound there, and one card came back in a shape the
+  parser refused. Both read as an unknown card; it now goes through .NET alone.
 - Team copies, the connector's first start and the home node's private
   folders work when their path is spelled through a system link (macOS
   `/var` for `/private/var`). Each fence judged the spelled path against
