@@ -1704,6 +1704,7 @@
   "sessionContinued": "A conversa continuou após a reinicialização.",
   "sessionNotContinued": "Não foi possível continuar a conversa após a reinicialização, então esta mensagem inicia uma nova",
   "modelNotKeptAfterRestart": "O Muse Code informa que esta conversa usa {active} em vez de {wanted}, por isso a mensagem não foi enviada. Escolha o modelo novamente e reenvie para continuar.",
+  "metaCatalogueEmptyRetrying": "A lista de modelos da Meta voltou vazia, então os modelos já exibidos permanecem enquanto pedimos a lista novamente.",
   "surfaceClosed": "O painel foi fechado",
   "hostStartFailed": "Não foi possível iniciar o back-end",
   "decisionErrorNotice": "O Muse Code relatou um erro na decisão (a ferramenta pode ter sido executada mesmo assim)",

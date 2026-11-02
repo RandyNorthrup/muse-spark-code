@@ -2118,6 +2118,11 @@ export const EN = {
   // resumable, so choosing the reported model and resending continues it.
   modelNotKeptAfterRestart:
     'Muse Code reports this conversation runs on {active} instead of {wanted}, so the message was not sent. Choose the model again and resend to continue it.',
+  // Meta's list came back with zero rows for a signed-in account
+  // (RLF-EMPTYCAT): the models already shown stay, and the list is
+  // asked again. One sentence, true with and without last-good rows.
+  metaCatalogueEmptyRetrying:
+    'Meta’s model list came back empty, so the models already shown stay in place while we ask for the list again.',
   surfaceClosed: 'The panel was closed',
   hostStartFailed: 'The backend could not start',
   decisionErrorNotice:
