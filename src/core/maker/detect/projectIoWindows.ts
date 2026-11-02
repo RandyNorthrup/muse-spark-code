@@ -9,6 +9,7 @@ import {
   MAKER_DETECT_MAX_DEPTH,
   MAKER_DETECT_MAX_FILES,
   MAKER_DETECT_IO_TIMEOUT_MS,
+  WINDOWS_JSON_ASSEMBLY,
 } from '../../../shared/constants'
 import { windowsPowerShell } from '../../execGuard'
 import { resolveWorkspacePath } from '../../workspacePath'
@@ -115,27 +116,49 @@ public static class MuseProjectIo {
   }
 }`
 
+/**
+The one script behind every read. It names no cmdlet (M51): one not yet loaded
+is found by module auto-loading, which first analyses every module on the module
+path unless a cache is reached, and Windows PowerShell 5.1 adds Program Files' own
+folder to whatever path it is given. Where that folder holds large modules and no
+cache is reached, each read ran past this reader's bound (every hosted Windows call
+of run 41214393586). The compiler and the JSON come through the CLR, as Add-Type
+and the JSON cmdlets reach them.
+*/
+export function windowsProjectIoScript(
+  root: string,
+  relative: string | undefined,
+  limit: number,
+): string {
+  const request = Buffer.from(
+    JSON.stringify({ root, relative, limit, depth: MAKER_DETECT_MAX_DEPTH }),
+  ).toString('base64')
+  return `$ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+[void][Reflection.Assembly]::Load('${WINDOWS_JSON_ASSEMBLY}')
+$json = [System.Web.Script.Serialization.JavaScriptSerializer]::new(); $json.MaxJsonLength = [int]::MaxValue
+$provider = [Microsoft.CSharp.CSharpCodeProvider]::new()
+$parameters = [CodeDom.Compiler.CompilerParameters]::new()
+$parameters.GenerateInMemory = $true
+[void]$parameters.ReferencedAssemblies.Add('System.dll')
+[void]$parameters.ReferencedAssemblies.Add('System.Core.dll')
+try { $compiled = $provider.CompileAssemblyFromSource($parameters, [string[]]@(@'
+${NATIVE_SOURCE}
+'@)) } finally { $provider.Dispose() }
+if ($compiled.Errors.HasErrors) { throw 'native helper failed' }
+$io = $compiled.CompiledAssembly.GetType('MuseProjectIo', $true)
+$r = $json.DeserializeObject([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${request}')))
+if ($null -eq $r.relative) { $result = @($io::Files($r.root, $r.limit, $r.depth)) }
+else { $result = $io::Read($r.root, $r.relative, $r.limit) }
+[Console]::Write($json.Serialize($result))`
+}
+
 async function run(root: string, relative: string | undefined, limit: number): Promise<unknown> {
   const systemRoot = process.env['SystemRoot']
   if (systemRoot === undefined || !path.win32.isAbsolute(systemRoot))
     throw new Error('system-directory')
-  const request = Buffer.from(
-    JSON.stringify({ root, relative, limit, depth: MAKER_DETECT_MAX_DEPTH }),
-  ).toString('base64')
-  const script = `$ErrorActionPreference = 'Stop'
-[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
-Add-Type -TypeDefinition @'
-${NATIVE_SOURCE}
-'@
-$r = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${request}')) | ConvertFrom-Json
-if ($null -eq $r.relative) { $result = @([MuseProjectIo]::Files($r.root, $r.limit, $r.depth)) }
-else { $result = [MuseProjectIo]::Read($r.root, $r.relative, $r.limit) }
-# ConvertTo-Json writes nothing at all for $null, which a refused read returns.
-if ($null -eq $result) { [Console]::Write('null') }
-else { [Console]::Write((ConvertTo-Json -Compress -InputObject $result)) }`
+  const script = windowsProjectIoScript(root, relative, limit)
   // The one launch for every 5.1 child (credential-free, its own module path).
-  // A child given almost no environment ran past this bound on every hosted
-  // Windows call of run 41214393586, where the same compile takes under a second.
   const shell = windowsPowerShell(systemRoot)
   const stdout = await new Promise<string>((resolveOutput, rejectOutput) => {
     execFile(

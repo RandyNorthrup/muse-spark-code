@@ -83,7 +83,7 @@ const REVIEWED: Record<string, Reviewed> = {
   'src/core/maker/detect/projectIo.ts': {
     anchor: 'volumeLabel',
     reason:
-      'the drive label is one .NET call: no cmdlet module is autoloaded, and the child gets an empty environment, so no inherited PowerShell 7 module path',
+      'the drive label is one .NET call: no cmdlet module is autoloaded (projectKinds runs it with auto-loading off), and the child gets an empty environment, so no inherited PowerShell 7 module path',
   },
 }
 

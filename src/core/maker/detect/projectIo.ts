@@ -215,6 +215,14 @@ async function read(
   }
 }
 
+/**
+The drive label through .NET alone. It names no cmdlet (M51), so an empty
+environment costs it no module search: that fault is the one a cmdlet pays.
+*/
+export function windowsVolumeLabelScript(root: string): string {
+  return `$root = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${Buffer.from(root).toString('base64')}')); [Console]::Write(([IO.DriveInfo]::new($root)).VolumeLabel)`
+}
+
 async function volumeLabel(root: string, platform: NodeJS.Platform): Promise<string | undefined> {
   if (platform === 'darwin') {
     return path.posix.dirname(root) === '/Volumes' ? path.posix.basename(root) : undefined
@@ -231,14 +239,13 @@ async function volumeLabel(root: string, platform: NodeJS.Platform): Promise<str
     if (systemRoot === undefined || !path.win32.isAbsolute(systemRoot)) return
     file = path.win32.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH)
   }
-  const script = `$root = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${Buffer.from(root).toString('base64')}')); [Console]::Write(([IO.DriveInfo]::new($root)).VolumeLabel)`
   const args =
     platform === 'win32'
       ? [
           '-NoProfile',
           '-NonInteractive',
           '-EncodedCommand',
-          Buffer.from(script, 'utf16le').toString('base64'),
+          Buffer.from(windowsVolumeLabelScript(root), 'utf16le').toString('base64'),
         ]
       : ['--json', '--output', 'TARGET,LABEL', '--target', root]
   const result = await new Promise<string | undefined>((resolve) => {

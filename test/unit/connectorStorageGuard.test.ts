@@ -10,16 +10,18 @@ import path from 'node:path'
 import process from 'node:process'
 import { PassThrough } from 'node:stream'
 import { describe, expect, it } from 'vitest'
+import { z } from 'zod'
 import { CONNECTOR_FOLDER } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { parseConnectorCommand, runConnectorCommand } from '../../src/runtime/connector/command'
 import { runConnector } from '../../src/runtime/connector/entry'
 import { ConnectorStore } from '../../src/runtime/connector/store'
-import { connectorStorageGuard } from '../../src/runtime/connector/storageGuard'
+import { connectorStorageGuard, windowsGuardScript } from '../../src/runtime/connector/storageGuard'
 import { isStorageRefused } from '../../src/runtime/connector/storageGuardPort'
 import { expectPrivate, isOwnedByThisAccount } from './helpers/connectorPrivacy'
 import { OWNER_COMMAND_IO } from './helpers/connectorRemote'
 import { takeOwnership } from './helpers/makerTemp'
+import { withoutModuleAutoLoading } from './helpers/noModuleAutoLoading'
 import { usingPrivateDir } from './helpers/temporaryFolders'
 
 const unbound = () => Promise.reject(new Error('not bound in this suite'))
@@ -130,8 +132,8 @@ describe('M124 connector storage guard', () => {
       const root = path.join(data, CONNECTOR_FOLDER)
       const guard = connectorStorageGuard(root)
       // The owner comes first: where this account's new objects belong to
-      // Administrators (Windows Server's default for its members, the hosted
-      // runner's built-in Administrator), the plant is refused on that.
+      // Administrators (an administrator's full token: the hosted runner's
+      // built-in Administrator, any elevated process), the plant is refused on that.
       const refusal = await refusalOf(() => guard.verify())
       expect(refusal.reason).toBe((await isOwnedByThisAccount(root)) ? 'access' : 'owner')
     })
@@ -155,6 +157,41 @@ describe('M124 connector storage guard', () => {
     const refusal = await refusalOf(() => guard.verify())
     expect(refusal.reason).toBe('owner')
   })
+
+  // An agent a client started carries no analysis cache variable, and the guard
+  // runs at its every start: a cmdlet here is 20 s and more a start where the
+  // module path holds large modules.
+  it.runIf(process.platform === 'win32')(
+    'secures and reads with module auto-loading off',
+    async () => {
+      await usingPrivateDir('m124-guard-noload-', async (data) => {
+        const root = path.join(data, CONNECTOR_FOLDER)
+        await mkdir(root)
+        const secured = z
+          .object({ owner: z.string(), me: z.string(), locked: z.boolean() })
+          .parse(
+            JSON.parse(
+              await withoutModuleAutoLoading(
+                windowsGuardScript('secure', { path: root, directory: true }),
+              ),
+            ),
+          )
+        expect(secured.locked).toBe(true)
+        expect(secured.owner).toBe(secured.me)
+        const read = z
+          .object({
+            me: z.string(),
+            scanned: z.array(z.object({ owner: z.string(), folder: z.boolean() })),
+          })
+          .parse(
+            JSON.parse(
+              await withoutModuleAutoLoading(windowsGuardScript('read', { paths: [root] })),
+            ),
+          )
+        expect(read.scanned).toMatchObject([{ owner: read.me, folder: true }])
+      })
+    },
+  )
 
   it('refuses a link below the root', async () => {
     await usingPrivateDir('m124-guard-link-', async (data) => {
