@@ -1651,6 +1651,9 @@
   "sentOnSchedule": "Wysłano zgodnie z harmonogramem",
   "museCodeOnceEnvKeyRefused": "Zaplanowane wysyłki Muse Code są niedostępne, dopóki w tym oknie ustawiono META_API_KEY: wysyłka obciążyłaby ten klucz, a nie zalogowane konto.",
   "museCodeOnceAccountChanged": "Logowanie Muse Code zmieniło się od zaplanowania tej wysyłki, więc wysyłkę odrzucono. Zaplanuj ją ponownie, aby wysłać przy obecnym logowaniu.",
+  "timedSendRefused": "Zaplanowana wysyłka „{name}“ została odrzucona: {reason}",
+  "timedSendSkipped": "Zaplanowana wysyłka „{name}“ została pominięta: {reason}",
+  "timedSendMissed": "Zaplanowana wysyłka „{name}“ przegapiła swój moment: {reason}",
   "museCodeOnceCleared": {
     "one": "Logowanie Muse Code zmieniło się od zaplanowania wysyłki, więc wysyłkę usunięto. Zaplanuj ją ponownie, aby wysłać przy obecnym logowaniu.",
     "other": "Logowanie Muse Code zmieniło się od zaplanowania {count} wysyłek, więc wysyłki usunięto. Zaplanuj je ponownie, aby wysłać przy obecnym logowaniu.",

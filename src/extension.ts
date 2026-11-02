@@ -305,6 +305,7 @@ import {
   type MuseCodeBindingPorts,
   type MuseCodeSeen,
 } from './host/schedules/museCodeBinding'
+import { voiceOnceOutcome } from './host/schedules/onceOutcome'
 import { notify } from './core/events/notify'
 import { agentDataFolder, workspaceKey } from './runtime/dataFolder'
 import { requireFile } from './host/lazyBundle'
@@ -5130,6 +5131,20 @@ async function activateWindow(
           host: scheduleHost,
           admit: (schedule) =>
             admitMuseCodeOnce(schedule, { ...museCodeScheduleBinding, nowMs: Date.now() }),
+          // An unsent once-send's outcome (M88 lane C): said in every
+          // live conversation, and raised while unfocused through the
+          // first one. Map reads and posts only, so it never throws.
+          settled: (result, schedule) => {
+            voiceOnceOutcome(result, schedule, {
+              notice: (text) => {
+                for (const controller of controllers.values())
+                  controller.scheduleNotice(undefined, text)
+              },
+              attention: (notice) => {
+                controllers.values().next().value?.notifyScheduleOutcome(notice)
+              },
+            })
+          },
           findLive: liveSchedule,
           options: async (schedule) => {
             const options: StartSessionOptions = {

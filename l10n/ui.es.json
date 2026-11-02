@@ -1641,6 +1641,9 @@
   "sentOnSchedule": "Enviado según lo programado",
   "museCodeOnceEnvKeyRefused": "Los envíos programados de Muse Code no están disponibles mientras META_API_KEY esté establecido en esta ventana: un envío se facturaría a esa clave, no a la cuenta activa.",
   "museCodeOnceAccountChanged": "El inicio de sesión de Muse Code cambió desde que se programó este envío, por lo que se rechazó. Prográmalo de nuevo para enviarlo con el inicio de sesión actual.",
+  "timedSendRefused": "El envío programado «{name}» fue rechazado: {reason}",
+  "timedSendSkipped": "El envío programado «{name}» fue omitido: {reason}",
+  "timedSendMissed": "El envío programado «{name}» perdió su momento: {reason}",
   "museCodeOnceCleared": {
     "one": "El inicio de sesión de Muse Code cambió desde que se programó un envío, por lo que se eliminó. Prográmalo de nuevo para enviarlo con el inicio de sesión actual.",
     "other": "El inicio de sesión de Muse Code cambió desde que se programaron {count} envíos, por lo que se eliminaron. Prográmalos de nuevo para enviarlos con el inicio de sesión actual.",

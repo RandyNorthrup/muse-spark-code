@@ -2038,6 +2038,13 @@ export const EN = {
   // sign-in changed since it was scheduled.
   museCodeOnceAccountChanged:
     "Muse Code's sign-in changed since this send was scheduled, so the send was refused. Schedule it again to send under the current sign-in.",
+  // A timed send refused at its fire (M88, D67 item 15): said in the
+  // conversation with the schedule's name, never silent.
+  timedSendRefused: 'Timed send “{name}” was refused: {reason}',
+  // A timed send skipped before it was sent (M88, D67 item 15).
+  timedSendSkipped: 'Timed send “{name}” was skipped: {reason}',
+  // A timed send whose moment passed unsent (M88, D67 item 15).
+  timedSendMissed: 'Timed send “{name}” was missed: {reason}',
   // Timed sends removed after a sign-in change (M88, D67 item 15): the
   // transcript says why, with the count.
   museCodeOnceCleared: forms({

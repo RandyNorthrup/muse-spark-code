@@ -1631,6 +1631,9 @@
   "sentOnSchedule": "Zamanlandığı gibi gönderildi",
   "museCodeOnceEnvKeyRefused": "Bu pencerede META_API_KEY ayarlıyken Muse Code zamanlanmış gönderileri kullanılamaz: gönderim, oturum açmış hesaba değil bu anahtara ücretlendirilir.",
   "museCodeOnceAccountChanged": "Bu gönderim zamanlandığından beri Muse Code oturumu değişti, bu yüzden gönderim reddedildi. Geçerli oturumla göndermek için yeniden zamanlayın.",
+  "timedSendRefused": "“{name}” zamanlanmış gönderimi reddedildi: {reason}",
+  "timedSendSkipped": "“{name}” zamanlanmış gönderimi atlandı: {reason}",
+  "timedSendMissed": "“{name}” zamanlanmış gönderimi zamanını kaçırdı: {reason}",
   "museCodeOnceCleared": {
     "one": "Bir zamanlanmış gönderim zamanlandığından beri Muse Code oturumu değişti, bu yüzden gönderim kaldırıldı. Geçerli oturumla göndermek için yeniden zamanlayın.",
     "other": "{count} zamanlanmış gönderim zamanlandığından beri Muse Code oturumu değişti, bu yüzden gönderimler kaldırıldı. Geçerli oturumla göndermek için yeniden zamanlayın."

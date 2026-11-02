@@ -284,6 +284,8 @@ export interface PanelOptions {
   readonly runHostAction?: ConversationDeps['runHostAction']
   /** Told with the live session object when the controller attaches one. */
   readonly onSessionAttached?: ConversationDeps['onSessionAttached']
+  /** Captures background attention notices; absent, they are dropped. */
+  readonly notifyAttention?: ConversationDeps['notifyAttention']
 }
 
 export interface PanelRig {
@@ -474,7 +476,7 @@ export function conversationPanel(options: PanelOptions): PanelRig {
     notePaidUse: () => undefined,
     buildAttemptHost: unused('buildAttemptHost'),
     realPath: unused('realPath'),
-    notifyAttention: () => undefined,
+    notifyAttention: options.notifyAttention ?? (() => undefined),
     now: options.now ?? (() => Date.now()),
     log: { trace: record, info: record, warn: record, error: record },
     ...(options.estimator !== undefined && { estimator: options.estimator }),
