@@ -10,6 +10,7 @@ import { z } from 'zod'
 
 const execute = promisify(execFile)
 describe.skipIf(process.platform !== 'darwin')('M98 native macOS actual PID reuse', () => {
+  // Cycling real processes until the kernel reuses the PID takes as long as it takes (110 s child bound).
   it('keeps the original kernel watch invalid after the PID is reused', async () => {
     await mkdir(path.resolve('temp/m98-j3'), { recursive: true })
     const helper = path.resolve('temp/m98-j3/darwin-pid-reuse')
@@ -70,5 +71,5 @@ describe.skipIf(process.platform !== 'darwin')('M98 native macOS actual PID reus
       child.kill('SIGKILL')
       reader.close()
     }
-  })
+  }, 120_000)
 })
