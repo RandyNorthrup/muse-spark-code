@@ -2222,7 +2222,7 @@
     "lz-string": "1.5.0",
     "mdast-util-from-markdown": "2.1.0",
     "mdast-util-gfm": "3.1.0",
-    "mdast-util-to-markdown": "2.2.0",
+    "mdast-util-to-markdown": "2.2.1",
     "micromark-extension-gfm": "3.0.0",
     "oidc-provider": "9.13.3",
     "parse5": "8.1.0",
