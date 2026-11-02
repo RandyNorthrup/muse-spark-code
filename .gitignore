@@ -47,3 +47,5 @@ test/desktop/harness/virtual-input/target/
 test/desktop/harness/electron-fixture/node_modules/
 # Rust workspace build output (M111 lane CP); the lockfile stays tracked.
 desktop/target/
+# The standalone otel crate's build output (M111 lane OB); its lockfile stays tracked.
+desktop/crates/otel/target/

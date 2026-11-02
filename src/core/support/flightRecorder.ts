@@ -24,7 +24,6 @@ import {
   REPORT_ERROR_CODES,
   REPORT_PACKAGE_FRAME_PATHS,
   REPORT_EVENT_KINDS,
-  REPORT_FRAME_PATH_MAX_CHARS,
   REPORT_JOURNAL_ENTRY_MAX_BYTES,
   REPORT_JOURNAL_MAX_AGE_MS,
   REPORT_JOURNAL_MAX_BYTES,
@@ -35,13 +34,10 @@ import {
   type ReportEventKind,
 } from '../../shared/constants'
 import { redactSecrets } from '../redact'
+import { scrubFramePath as scrubSharedFramePath } from '../../shared/framePath'
 
 /** A version as a short token (a dotted triple), never a sentence. */
 const VERSION_TOKEN = /^\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?$/
-/** A URI scheme prefix (`https:`, `file:`, `vscode-remote:`): never a journal path. */
-const URI_SCHEME = /^[A-Za-z][A-Za-z0-9+.-]*:/
-/** A Windows drive root (`C:/`): never a journal path. */
-const DRIVE_ROOT = /^[A-Za-z]:\//
 /** A window instance id as a file stem: what the recorder itself generates. */
 const INSTANCE_STEM = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/
 /** A journal file name, capturing the owning instance. */
@@ -154,20 +150,13 @@ function scrubVersion(version: string): string | undefined {
 }
 
 /**
-A frame path the journal may hold: relative, with no empty, dot or
-dot-dot segments, no backslashes, no drive root and no URI scheme. A path
-the redactor changes (a secret-shaped value) never lands: the frame is
-dropped, not repaired.
+A frame path the journal may hold: one of the package's own shipped
+files, then the shared scrub (relative, no empty, dot or dot-dot
+segments, no backslashes, no drive root, no URI scheme, nothing the
+redactor changes).
 */
 function scrubFramePath(path: string): string | undefined {
-  const scrubbed = redactSecrets(path)
-  if (scrubbed !== path || !REPORT_PACKAGE_FRAME_PATHS.has(path)) return undefined
-  if (scrubbed.length === 0 || scrubbed.length > REPORT_FRAME_PATH_MAX_CHARS) return undefined
-  if (scrubbed.includes('\\')) return undefined
-  if (scrubbed.startsWith('/')) return undefined
-  if (DRIVE_ROOT.test(scrubbed) || URI_SCHEME.test(scrubbed)) return undefined
-  const segments = scrubbed.split('/')
-  return segments.some((segment) => ['', '.', '..'].includes(segment)) ? undefined : scrubbed
+  return REPORT_PACKAGE_FRAME_PATHS.has(path) ? scrubSharedFramePath(path) : undefined
 }
 
 function scrubFrames(frames: readonly FlightFrameInput[] | undefined): FlightFrame[] {

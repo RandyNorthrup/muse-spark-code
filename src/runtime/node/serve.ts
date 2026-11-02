@@ -476,6 +476,10 @@ function createMethodPort(
         // action is registered and step-up bound, but has no engine to run.
         // The auth wrapper answers auth before this port runs; reaching here
         // is a wiring bug, failed closed without a leak.
+        // OB's diagnostics page is composed by lane N (its ring store,
+        // receiver counts and export target are N's ports); until then the
+        // method says unavailable like every other uncomposed peer.
+        case 'node/diagnostics/read':
         case 'node/git/status':
         case 'node/git/diff':
         case 'node/git/branches':

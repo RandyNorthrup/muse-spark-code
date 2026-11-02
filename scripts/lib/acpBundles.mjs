@@ -116,6 +116,8 @@ export const ACP_BUNDLES = [
   // M110os RLF-MUSESETUP: the first-boot setup server, loaded when the
   // first boot runs it.
   'nodeSetup.js',
+  // M111 lane OB: the node crash hook, loaded at node CLI startup.
+  'nodeCrashHook.js',
   'vaultRuntime.js',
   // RLF-M109: the runtime key-store migration chunk, loaded by
   // vaultRuntime.js on the first unlock edge.

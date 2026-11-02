@@ -43,14 +43,80 @@ export function ColumnBucket({
   )
 }
 
+/** One plotted dot: the caller's y, already mapped to the 0–100 box. */
+export interface ChartDot {
+  readonly id: string
+  readonly x: number
+  readonly y: number
+}
+
+/** One series' plotted data: the caller's segments and dots, in its colour. */
+export interface ChartGlyph {
+  readonly id: string
+  readonly colour: string
+  readonly segments: readonly string[]
+  readonly dots: readonly ChartDot[]
+}
+
+// Every step-line chart's plotted half: one `<g>` per series (its
+// polyline segments, then a circle per dot) and the active point's
+// line. The segment rule (gap handling) and the y mapping stay the
+// caller's; they arrive here as data.
+export function SeriesLines({
+  glyphs,
+  activeX,
+  pattern,
+}: {
+  readonly glyphs: readonly ChartGlyph[]
+  readonly activeX: number
+  readonly pattern: (colour: string) => string
+}): ReactNode {
+  return (
+    <>
+      {glyphs.map((glyph) => (
+        <g key={glyph.id}>
+          {glyph.segments.map((coordinates, index) => (
+            <polyline
+              key={index}
+              className={`usage-line usage-series-${glyph.colour}`}
+              points={coordinates.trim()}
+            />
+          ))}
+          {glyph.dots.map((dot) => (
+            <circle
+              key={dot.id}
+              className={`usage-series-${glyph.colour}`}
+              fill={pattern(glyph.colour)}
+              cx={dot.x}
+              cy={dot.y}
+              r={2}
+            />
+          ))}
+        </g>
+      ))}
+      <line className="usage-chart-active" x1={activeX} x2={activeX} y1={0} y2={100} />
+    </>
+  )
+}
+
+/** The frame's own sentences; usage callers leave the default. */
+export interface ChartFrameText {
+  readonly keyboard: string
+  readonly emptyRange: string
+  readonly showDataTable: string
+  readonly rowHeading: string
+  bucket(date: string, values: string): string
+}
+
 export function ChartFrame({
   title,
   summary,
   series,
   legend = series,
-  rowHeading = USAGE_TEXT.dateColumn,
+  rowHeading,
   points,
   format,
+  text,
   children,
 }: {
   readonly title: string
@@ -60,8 +126,19 @@ export function ChartFrame({
   readonly rowHeading?: string
   readonly points: readonly ChartPoint[]
   readonly format: (value: number | undefined) => string
+  readonly text?: ChartFrameText
   readonly children: (active: number, pattern: (colour: string) => string) => ReactNode
 }) {
+  // The frame's sentences are read when it renders, never at module load,
+  // so the installed table is the one shown — whichever surface mounts it.
+  const frameText: ChartFrameText = text ?? {
+    keyboard: USAGE_TEXT.chartKeyboard,
+    emptyRange: USAGE_TEXT.emptyRange,
+    showDataTable: USAGE_TEXT.showDataTable,
+    rowHeading: USAGE_TEXT.dateColumn,
+    bucket: (date: string, values: string) => fill(USAGE_TEXT.chartBucket, { date, values }),
+  }
+  const heading = rowHeading ?? frameText.rowHeading
   const id = useId()
   const patterns = {
     blue: 'M0 2H4',
@@ -77,21 +154,21 @@ export function ChartFrame({
   const point = points[active]
   const description =
     point === undefined
-      ? USAGE_TEXT.emptyRange
-      : fill(USAGE_TEXT.chartBucket, {
-          date: point.label,
-          values: formatList(
+      ? frameText.emptyRange
+      : frameText.bucket(
+          point.label,
+          formatList(
             series.map(
               (item, index) =>
                 `${item.label}: ${point.texts?.[index] ?? format(point.values[index])}`,
             ),
           ),
-        })
+        )
   return (
     <figure className="usage-chart">
       <figcaption id={`${id}-caption`}>{title}</figcaption>
       <p id={`${id}-summary`}>{summary}</p>
-      <p id={`${id}-keyboard`}>{USAGE_TEXT.chartKeyboard}</p>
+      <p id={`${id}-keyboard`}>{frameText.keyboard}</p>
       <svg
         viewBox="0 0 100 100"
         preserveAspectRatio="none"
@@ -156,13 +233,13 @@ export function ChartFrame({
         ))}
       </ul>
       <details>
-        <summary>{USAGE_TEXT.showDataTable}</summary>
+        <summary>{frameText.showDataTable}</summary>
         <div className="usage-table-scroll" tabIndex={0} role="region" aria-label={title}>
           <table>
             <caption>{title}</caption>
             <thead>
               <tr>
-                <th scope="col">{rowHeading}</th>
+                <th scope="col">{heading}</th>
                 {series.map((item) => (
                   <th key={item.id} scope="col">
                     {item.label}

@@ -47,6 +47,8 @@ import {
   type ReportSignInOutcome,
 } from '../../shared/constants'
 import { describeBackendResolution } from '../backendSelection'
+import { O11Y_CRASH_KINDS } from '../o11y/crash'
+import { DESKTOP_READINESS_COMPONENTS } from '../o11y/readiness'
 import { BACKEND_KINDS, reportWebviewErrorSchema } from '../../shared/protocol'
 import { redactSecrets } from '../redact'
 import type { SecretScrubPort } from '../../shared/redact'
@@ -190,6 +192,34 @@ const problemReportFactsSchema = z.strictObject({
   the choice.
   */
   backendResolution: z.optional(z.enum(REPORT_BACKEND_RESOLUTIONS)),
+  /**
+  The desktop's facts (M111 lane OB): versions, readiness, crash counts
+  and the export switch. Absent outside the desktop (other hosts omit
+  the block, so no desktop line renders for them); present but partial
+  when some desktop read never answered, in which case each absent
+  subfact reads `unknown`.
+  */
+  desktop: z.optional(
+    z.strictObject({
+      electronVersion: z.optional(
+        z.string().check(z.minLength(1), z.maxLength(REPORT_VERSION_MAX_CHARS)),
+      ),
+      chromeVersion: z.optional(
+        z.string().check(z.minLength(1), z.maxLength(REPORT_VERSION_MAX_CHARS)),
+      ),
+      ready: z.optional(z.boolean()),
+      unreadyComponents: z.optional(
+        z
+          .array(z.enum(DESKTOP_READINESS_COMPONENTS))
+          .check(z.maxLength(DESKTOP_READINESS_COMPONENTS.length)),
+      ),
+      crashTotal: z.optional(z.int().check(z.gte(0))),
+      crashKinds: z.optional(
+        z.array(z.enum(O11Y_CRASH_KINDS)).check(z.maxLength(O11Y_CRASH_KINDS.length)),
+      ),
+      exportOn: z.optional(z.boolean()),
+    }),
+  ),
 })
 
 /** The allowlisted support facts a problem report may carry. */
@@ -260,6 +290,7 @@ const UNKNOWNABLE_FACTS: ReadonlySet<string> = new Set([
   'hasStoredApiKey',
   'hasEnvironmentApiKey',
   'settingNames',
+  'desktop',
 ])
 
 /** The allowlisted reason codes for unknown facts, each with its fixed code. */
@@ -287,6 +318,8 @@ function validatedFacts(input: unknown): ProblemReportFacts {
     extensionVersion: facts.extensionVersion,
     vscodeVersion: facts.vscodeVersion,
     nodeVersion: facts.nodeVersion,
+    'desktop.electronVersion': facts.desktop?.electronVersion,
+    'desktop.chromeVersion': facts.desktop?.chromeVersion,
   }
   for (const [field, value] of Object.entries(versions)) {
     // `unknown` is the bounded read's word for a version it could not read
@@ -740,6 +773,9 @@ function factLines(facts: ProblemReportFacts): readonly string[] {
       : [
           `model api service: ${facts.modelApiStatus.status}; alive: ${facts.modelApiStatus.isAlive ? YES : NO}`,
         ]),
+    ...(facts.desktop === undefined
+      ? []
+      : [unknownLine(facts, 'desktop', 'desktop', desktopSummary(facts.desktop))]),
     `cli: ${cli}; signed in: ${unknownValue(facts, 'cliSignIn', triState(facts.cliSignIn))}`,
     `stored model api key: ${unknownValue(facts, 'hasStoredApiKey', triState(facts.hasStoredApiKey))}; META_API_KEY in environment: ${unknownValue(facts, 'hasEnvironmentApiKey', triState(facts.hasEnvironmentApiKey))}`,
     modelApiSignInLine(facts),
@@ -755,6 +791,35 @@ function factLines(facts: ProblemReportFacts): readonly string[] {
     lastSignInLine(facts),
     `backend resolution: ${facts.backendResolution ?? 'not recorded'}`,
   ]
+}
+
+/**
+The desktop's facts in fixed words (M111 lane OB): versions, readiness
+with the components still waiting, crash counts with the kinds seen,
+and the export switch. An absent subfact reads `unknown`.
+*/
+function desktopSummary(desktop: NonNullable<ProblemReportFacts['desktop']>): string {
+  const electron = desktop.electronVersion ?? REPORT_UNKNOWN_ERROR_CODE
+  const chrome = desktop.chromeVersion ?? REPORT_UNKNOWN_ERROR_CODE
+  let readiness: string
+  if (desktop.ready === undefined) {
+    readiness = REPORT_UNKNOWN_ERROR_CODE
+  } else if (desktop.ready) {
+    readiness = 'ready'
+  } else {
+    const waiting = desktop.unreadyComponents ?? []
+    readiness = waiting.length === 0 ? 'not ready' : `not ready (${waiting.join(', ')})`
+  }
+  const kinds = desktop.crashKinds ?? []
+  let crashes: string
+  if (desktop.crashTotal === undefined) {
+    crashes = REPORT_UNKNOWN_ERROR_CODE
+  } else if (kinds.length === 0) {
+    crashes = String(desktop.crashTotal)
+  } else {
+    crashes = `${String(desktop.crashTotal)} (${kinds.join(', ')})`
+  }
+  return `electron ${electron}, chrome ${chrome}; ${readiness}; crashes: ${crashes}; otlp export: ${triState(desktop.exportOn)}`
 }
 
 /**

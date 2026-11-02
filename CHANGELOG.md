@@ -123,6 +123,12 @@ happened, not what was planned; superseded entries are kept.
   44-binding key table with a duplicate check, and a compositor port
   with project-bound desktops, agent labels, Alt+Tab, send and merge —
   all proven in a headless guest session and gated in CI.
+- **The node's web UI gains a Diagnostics page** (M111 lane OB). The
+  workspace pages add **Diagnostics** after Audit: the node's health and
+  readiness, the telemetry the box keeps locally (metrics with charts,
+  logs, traces and crash records), and whether export to your own
+  collector is on. Everything stays on the box: the receiver listens on
+  loopback only, and export stays off until you name your collector.
 - **`muse-spark-code-acp watchdog` keeps a watch list of GitHub repositories
   in a terminal.** `watchdog list` and `status` show the watched
   repositories, `pause` and `resume` stop and restart watching, and `policy`

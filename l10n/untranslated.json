@@ -157,7 +157,9 @@
       "nodeOs.netWifi",
       "desktop.greeterTitle",
       "desktop.pin",
-      "referenceEditorGroupKeys"
+      "referenceEditorGroupKeys",
+      "nodeDiagnostics.traceName",
+      "nodeDiagnostics.chartBucket"
     ],
     "cs": [
       "groupModel",
@@ -190,7 +192,10 @@
       "watchdog.verdicts.spam",
       "desktop.workbenchChat",
       "desktop.workbenchEditor",
-      "editorGroup.deviceTablet"
+      "editorGroup.deviceTablet",
+      "nodeDiagnostics.statMin",
+      "nodeDiagnostics.statMax",
+      "nodeDiagnostics.traceSpans.one"
     ],
     "tr": [
       "groupModel",
@@ -211,7 +216,9 @@
       "desktop.sessionTerminal",
       "desktop.workbenchTerminal",
       "desktop.workbenchStatusTerminals.one",
-      "editorGroup.deviceTablet"
+      "editorGroup.deviceTablet",
+      "nodeDiagnostics.statMin",
+      "nodeDiagnostics.traceSpans.one"
     ],
     "pl": [
       "groupModel",
@@ -242,7 +249,9 @@
       "desktop.workbenchTerminal",
       "desktop.workbenchStatusTerminals.one",
       "editorGroup.deviceTablet",
-      "editorGroup.deviceLaptop"
+      "editorGroup.deviceLaptop",
+      "nodeDiagnostics.statMin",
+      "nodeDiagnostics.traceSpans.one"
     ],
     "de": [
       "groupSkills",
@@ -310,7 +319,17 @@
       "desktop.workbenchTerminal",
       "editorGroup.deviceTablet",
       "editorGroup.deviceLaptop",
-      "editorGroup.deviceDesktop"
+      "editorGroup.deviceDesktop",
+      "nodeDiagnostics.healthStatus",
+      "nodeDiagnostics.healthDetail",
+      "nodeDiagnostics.traceStatus",
+      "nodeDiagnostics.crashSignal",
+      "nodeDiagnostics.statMin",
+      "nodeDiagnostics.statMax",
+      "nodeDiagnostics.logTrace",
+      "nodeDiagnostics.logInfo",
+      "nodeDiagnostics.logFatal",
+      "nodeDiagnostics.logDebug"
     ],
     "es": [
       "hooksItem",
@@ -339,7 +358,9 @@
       "desktop.workbenchChat",
       "desktop.workbenchEditor",
       "desktop.workbenchTerminal",
-      "desktop.workbenchStatusTerminals.one"
+      "desktop.workbenchStatusTerminals.one",
+      "nodeDiagnostics.traceError",
+      "nodeDiagnostics.logFatal"
     ],
     "pt-br": [
       "agentTokens",
@@ -367,7 +388,8 @@
       "desktop.workbenchEditor",
       "desktop.workbenchTerminal",
       "desktop.workbenchStatusTerminals.one",
-      "editorGroup.deviceTablet"
+      "editorGroup.deviceTablet",
+      "nodeDiagnostics.logFatal"
     ],
     "fr": [
       "modesTitle",
@@ -417,7 +439,17 @@
       "developer.versionLine",
       "desktop.workbenchChat",
       "desktop.workbenchTerminal",
-      "desktop.workbenchStatusTerminals.one"
+      "desktop.workbenchStatusTerminals.one",
+      "nodeLabels.diagnostics",
+      "nodeDiagnostics.title",
+      "nodeDiagnostics.tracesTitle",
+      "nodeDiagnostics.logMessage",
+      "nodeDiagnostics.crashSignal",
+      "nodeDiagnostics.statMin",
+      "nodeDiagnostics.statMax",
+      "nodeDiagnostics.logTrace",
+      "nodeDiagnostics.logInfo",
+      "nodeDiagnostics.logFatal"
     ],
     "it": [
       "usageAccount",
@@ -453,7 +485,11 @@
       "desktop.workbenchEditor",
       "desktop.workbenchOutput",
       "editorGroup.deviceTablet",
-      "editorGroup.deviceDesktop"
+      "editorGroup.deviceDesktop",
+      "nodeDiagnostics.statMin",
+      "nodeDiagnostics.statMax",
+      "nodeDiagnostics.logDebug",
+      "nodeDiagnostics.logInfo"
     ],
     "zh-cn": ["toolLabels.shell", "devices.cpuPressure"],
     "zh-tw": ["toolLabels.shell", "devices.cpuPressure"],
@@ -468,7 +504,10 @@
       "teamCapabilityWarning",
       "devices.cpuPressure",
       "nodeDashboard.sessionWeb",
-      "editorGroup.deviceLaptop"
+      "editorGroup.deviceLaptop",
+      "nodeDiagnostics.statMin",
+      "nodeDiagnostics.statMax",
+      "nodeDiagnostics.traceSpans.one"
     ],
     "ko": ["gitChangeCounts", "teamCapabilityWarning", "devices.cpuPressure"],
     "ru": ["gitChangeCounts", "teamCapabilityWarning", "devices.cpuPressure"]
