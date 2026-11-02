@@ -1120,6 +1120,13 @@ export const MAKER_LEASE_SOCKET_PATH_BYTES = 103
 export const MAKER_LEASE_SOCKET_NAME_CHARS = 8
 export const RUNTIME_MAKER_MAX_PORT = 65_535
 export const RUNTIME_MAKER_TIMEOUT_MS = 15_000
+// OctoPrint's application-keys flow (RLF-M103WIRE; docs.octoprint.org appkeys):
+// probe, request, then poll every second (a request polled for nothing within
+// 5 s goes stale server-side) until the person approves in OctoPrint's UI or
+// two minutes pass. The app name is what OctoPrint's dialog shows the person.
+export const OCTOPRINT_APPKEYS_APP = 'Muse Spark Code (Unofficial)'
+export const OCTOPRINT_APPKEYS_POLL_MS = 1000
+export const OCTOPRINT_APPKEYS_TIMEOUT_MS = 120_000
 export const RUNTIME_MAKER_APPROVAL_MS = 60_000
 export const RUNTIME_MAKER_MAX_ITEMS = 256
 export const RUNTIME_MAKER_LOG_BYTES = 4 * 1024 * 1024
@@ -3999,6 +4006,8 @@ export const BYTES_PER_MIB = 1024 * 1024
 export const TOOL_FILE_MAX_MIB = 10
 export const TOOL_FILE_MAX_BYTES = TOOL_FILE_MAX_MIB * BYTES_PER_MIB
 export const BOUNDED_FILE_READ_CHUNK_BYTES = 64 * 1024
+export const HTTP_OK = 200
+export const HTTP_NOT_FOUND = 404
 export const HTTP_UNAUTHORIZED = 401
 // Refused before any work was done: the one status a per-call-billed request retries (M34).
 export const HTTP_TOO_MANY_REQUESTS = 429
