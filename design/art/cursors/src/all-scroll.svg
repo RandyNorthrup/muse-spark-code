@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- all-scroll: the four-arrow with a centre dot. Hotspot 16,16 (the middle). -->
+  <rect x="14.5" y="4" width="3" height="24" fill="%%FILL%%" stroke="%%OUTLINE%%" stroke-width="2"/>
+  <rect x="4" y="14.5" width="24" height="3" fill="%%FILL%%" stroke="%%OUTLINE%%" stroke-width="2"/>
+  <path d="M16 2 L12.5 9 L19.5 9 Z" fill="%%FILL%%" stroke="%%OUTLINE%%" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M16 30 L12.5 23 L19.5 23 Z" fill="%%FILL%%" stroke="%%OUTLINE%%" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M2 16 L9 12.5 L9 19.5 Z" fill="%%FILL%%" stroke="%%OUTLINE%%" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M30 16 L23 12.5 L23 19.5 Z" fill="%%FILL%%" stroke="%%OUTLINE%%" stroke-width="2" stroke-linejoin="round"/>
+  <circle cx="16" cy="16" r="2.2" fill="%%OUTLINE%%"/>
+</svg>

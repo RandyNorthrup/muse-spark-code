@@ -13,7 +13,7 @@ values (`boot/boot.json`), all read, never copied by hand.
 
 - [x] Research (formats verified against their own sources, below).
 - [x] `@resvg/resvg-js` 2.6.2 (rule 9 record in PLAN.md D3).
-- [ ] Cursor sources, `scripts/build-cursors.mjs`, three themes, tests.
+- [x] Cursor sources, `scripts/build-cursors.mjs`, three themes, tests.
 - [ ] Icon sources, `scripts/build-icons.mjs`, four themes, tests.
 - [ ] Fonts (Inter + JetBrains Mono), fontconfig, `packages.conf`, notices.
 - [ ] Wallpapers and greeter art.
@@ -124,11 +124,28 @@ values (`boot/boot.json`), all read, never copied by hand.
 - resvg 2.6.2 renders the same SVG to identical bytes twice (this rig,
   2026-11-02); `npm audit` implicates nothing in its tree (24 pre-existing
   moderates elsewhere).
-- (Per-part proof lands with its commit, below.)
+- Cursors: `test/unit/desktop/artCursors.test.mjs`, 17 tests, all green
+  (2026-11-02). Independent Xcursor/zip readers parse every committed file;
+  the committed pixels match a fresh resvg render within premultiply
+  rounding; the hotspot pixel is painted on the aimed shapes; the planted
+  stale file is named and only it.
+- Cursors vs the reference tools (Ubuntu .debs, 2026-11-02):
+  `hyprcursor-util` 0.1.13 `--create` on a working state unpacked from my
+  `.hlc` parses every meta (right override/size counts) and emits
+  byte-identical contents. `xcur2png` 0.7.1 loads every image with the
+  spec's sizes, hotspots and delays; its pixels match resvg's except full
+  white, which that version renders black on Adwaita's own cursor too
+  (tool quirk, reproduced on the control).
+- Cursors caught by the drill: the first writer set the Xcursor
+  header-length field to 76 (header + TOC); `xcur2png` then found 0
+  images. libXcursor's own writer always sets 16 (its reader skips
+  `header - 16`), so the writer now sets 16 and the test's reader asserts
+  it. Recorded here so the regression stays dead.
 
 ## Commits
 
-- (Landed commits, with their part.)
+- `70545f0fe` research, design record, resvg 2.6.2 (+ PLAN.md D3 rule 9).
+- (Cursor commit SHA lands here at commit time.)
 
 ## Gates
 

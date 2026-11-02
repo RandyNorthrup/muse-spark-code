@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- nw-resize: the NW-SE double arrow. Hotspot 16,16 (the middle). -->
+  <g transform="rotate(45 16 16)">
+    <rect x="9" y="15" width="14" height="2" fill="%%FILL%%" stroke="%%OUTLINE%%" stroke-width="2"/>
+    <path d="M4 16 L11 11.5 L11 20.5 Z" fill="%%FILL%%" stroke="%%OUTLINE%%" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M28 16 L21 11.5 L21 20.5 Z" fill="%%FILL%%" stroke="%%OUTLINE%%" stroke-width="2" stroke-linejoin="round"/>
+  </g>
+</svg>

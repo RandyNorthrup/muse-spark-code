@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- no-drop: the same circle-slash as not-allowed (Adwaita agrees: the names
+       differ because toolkits request different names, not different glyphs). -->
+  <circle cx="16" cy="16" r="11" fill="none" stroke="%%OUTLINE%%" stroke-width="5.5"/>
+  <circle cx="16" cy="16" r="11" fill="none" stroke="%%FILL%%" stroke-width="2.8"/>
+  <line x1="8.2" y1="23.8" x2="23.8" y2="8.2" stroke="%%OUTLINE%%" stroke-width="5.5" stroke-linecap="round"/>
+  <line x1="8.2" y1="23.8" x2="23.8" y2="8.2" stroke="%%FILL%%" stroke-width="2.8" stroke-linecap="round"/>
+</svg>
