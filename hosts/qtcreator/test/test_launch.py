@@ -75,7 +75,9 @@ class LauncherTests(unittest.TestCase):
                         if cmdline.split(b"\0")[0] == NODE.encode():
                             break
                         time.sleep(0.05)
-                    self.assertEqual(cmdline.split(b"\0")[0], NODE.encode())
+                    parts = [part for part in cmdline.split(b"\0") if part]
+                    self.assertEqual(parts[0], NODE.encode())
+                    self.assertIn(str(AGENT).encode(), parts)
                     names = Path(f"/proc/{child.pid}/environ").read_bytes()
                     self.assertNotIn(b"M104_API_KEY", names)
 
