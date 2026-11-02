@@ -208,6 +208,38 @@ describe('git in the runtime panel', () => {
     expect(await second.exit).toBe(0)
   })
 
+  it('signs in through the editor’s own GitHub lease first (lane A)', async () => {
+    const { run } = repositoryRun()
+    const leaseId = '11111111-1111-4111-8111-111111111111'
+    const proxied: { url?: unknown; leaseId?: unknown }[] = []
+    const { host, editor, exit } = await connectedPanel(run, {
+      runGit: processGitRunner(),
+      offers: ['auth'],
+      beforeInitialize: (wire) => {
+        wire.serve('auth/githubLease', () => ({ leaseId }))
+        wire.serve('github/request', (params) => {
+          proxied.push(params as { url?: unknown; leaseId?: unknown })
+          return { status: 200, body: JSON.stringify({ login: 'lease-account', id: 7 }) }
+        })
+      },
+    })
+    const chat = await editor.nextSurface()
+    chat.say({ type: 'gitAction', action: 'signInGitHub' })
+    const shown = await chat.shown('gitState', (payload) => {
+      const state = payload['state'] as { github?: unknown } | undefined
+      return typeof state?.github === 'object' && state.github !== null
+    })
+    expect((shown['state'] as { github?: unknown }).github).toMatchObject({
+      account: { source: 'editorLease', login: 'lease-account' },
+    })
+    expect(host.asked.some((entry) => entry.method === 'auth/githubLease')).toBe(true)
+    expect(proxied).toEqual([
+      expect.objectContaining({ leaseId, url: 'https://api.github.com/user' }),
+    ])
+    parseMhpResult('shutdown', await host.request('shutdown', {}))
+    expect(await exit).toBe(0)
+  })
+
   it('works on the repository around a workspace that is one of its folders', async () => {
     const run = createPanelRun('muse-panel-git-')
     runs.push(run)
