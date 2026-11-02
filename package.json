@@ -2141,6 +2141,7 @@
     "@lezer/highlight": "1.2.5",
     "@modelcontextprotocol/sdk": "1.32.1",
     "@muse-code/sdk": "1.4.12",
+    "@resvg/resvg-js": "2.6.2",
     "@simplewebauthn/browser": "14.0.0",
     "@simplewebauthn/server": "14.0.3",
     "@testing-library/dom": "10.4.2",
