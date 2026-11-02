@@ -12,6 +12,7 @@ import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { expect } from 'vitest'
 import type { AgentHost, BackendKind } from '../../../src/core/agent/agentBackend'
+import type { AgentEvent } from '../../../src/shared/agentEvents'
 import { BestOfNCoordinator } from '../../../src/core/bestOfN/bestOfNCoordinator'
 import { PendingPrompts } from '../../../src/core/sessionBoard'
 import type { AuthPort, AuthSnapshot } from '../../../src/host/auth/authService'
@@ -558,4 +559,42 @@ export function shownState(posted: readonly HostToWebviewMessage[]): UiState {
     if (parsed.ok) state = uiReducer(state, { type: 'hostMessage', message: parsed.message, at: 0 })
   }
   return state
+}
+
+export type TurnCompleted = Extract<AgentEvent, { type: 'turnCompleted' }>
+
+/** The turn that ended at `index` (0-based) once `count` turns ended. */
+export async function endedTurn(
+  panel: PanelRig,
+  count: number,
+  index: number,
+): Promise<TurnCompleted> {
+  const ended = await awaitPosts(panel, turnCompletions, count, 'turns ended')
+  const turn = ended[index]
+  if (turn === undefined) throw new Error(`turn ${String(index + 1)} never ended`)
+  return turn
+}
+
+/**
+The transcript the person sees: the optimistic sends first, then every
+posted message, each folded through the webview reducer.
+*/
+export function shownTranscript(
+  panel: PanelRig,
+  sends: readonly { localId: string; text: string }[],
+): UiState['transcript'] {
+  let state = initialUiState
+  for (const send of sends) {
+    state = uiReducer(state, {
+      type: 'submitted',
+      localId: send.localId,
+      text: send.text,
+      attachments: [],
+      contextLabel: undefined,
+    })
+  }
+  for (const message of panel.posted) {
+    state = uiReducer(state, { type: 'hostMessage', message, at: 0 })
+  }
+  return state.transcript
 }

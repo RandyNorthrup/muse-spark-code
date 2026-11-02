@@ -2,23 +2,12 @@
 // schedule editor with the composer's own draft. An explicit
 // `/schedule add` stash wins; a blank draft seeds nothing.
 import { describe, expect, it } from 'vitest'
-import { createSchedulesBridge } from '../../src/host/schedules/schedulesBridge'
 import type { ScheduleDraft } from '../../src/shared/scheduleV2'
 import { seedScheduleDraft } from '../../src/webview/schedules/seedDraft'
+import { testScheduleBridge } from './helpers/schedules/scheduleTestRig'
 
 function draft(): ScheduleDraft {
-  const bridge = createSchedulesBridge({
-    distDir: import.meta.dirname,
-    log: {
-      trace: () => undefined,
-      info: () => undefined,
-      warn: () => undefined,
-      error: () => undefined,
-    },
-    isEnabled: () => true,
-    defaultDelivery: () => 'whenIdle',
-    pauseAfterFailures: () => 3,
-  })
+  const bridge = testScheduleBridge(import.meta.dirname)
   return bridge.defaultDraft(Date.now(), undefined, 'modelApi')
 }
 

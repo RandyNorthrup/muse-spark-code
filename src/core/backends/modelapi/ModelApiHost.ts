@@ -108,7 +108,6 @@ import type {
   ItemSnapshot,
   QuestionAnswer,
   TodoItem,
-  TurnRateLimit,
 } from '../../../shared/agentEvents'
 import {
   AGENT_SOURCE_LABELS,
@@ -2146,7 +2145,7 @@ export function isRateLimitedRefusal(error: unknown): error is ModelApiError {
 
 export interface ModelApiLimitFailure {
   readonly errorKind: string
-  readonly rateLimit?: TurnRateLimit | undefined
+  readonly retryAfterMs?: number | undefined
 }
 
 /**
@@ -2163,9 +2162,7 @@ export function modelApiLimitFailureOf(error: unknown): ModelApiLimitFailure | u
   if (isRateLimitedRefusal(error)) {
     return {
       errorKind: RATE_LIMITED_ERROR_KIND,
-      rateLimit: {
-        ...(error.retryAfterMs !== undefined && { retryAfterMs: error.retryAfterMs }),
-      },
+      ...(error.retryAfterMs !== undefined && { retryAfterMs: error.retryAfterMs }),
     }
   }
   return undefined
@@ -17240,7 +17237,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     let reason: string | undefined
     let errorKind: string | undefined
     let retryable: boolean | undefined
-    let rateLimit: TurnRateLimit | undefined
+    let retryAfterMs: number | undefined
     try {
       // An unattended fire is background schedule work under the M107
       // governor, as a confirmed scheduled prompt is (runSchedule).
@@ -17511,7 +17508,7 @@ export class ModelApiSession implements ScheduledAgentSession {
               errorKind = isAuthFailure(error) ? AUTH_REQUIRED_ERROR_KIND : MODEL_API_ERROR_KIND
             } else {
               errorKind = limit.errorKind
-              rateLimit = limit.rateLimit
+              retryAfterMs = limit.retryAfterMs
             }
           }
         }
@@ -17625,7 +17622,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       ...(reason !== undefined && { reason }),
       ...(errorKind !== undefined && { errorKind }),
       ...(retryable !== undefined && { retryable }),
-      ...(rateLimit !== undefined && { rateLimit }),
+      ...(retryAfterMs !== undefined && { retryAfterMs }),
       durationMs: this.deps.now() - startedAt,
     })
     this.emit({ type: 'sessionStatus', status: IDLE })

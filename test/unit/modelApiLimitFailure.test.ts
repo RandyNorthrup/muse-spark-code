@@ -27,11 +27,10 @@ describe('modelApiLimitFailureOf', () => {
     waited.retryAfterMs = 45_000
     expect(modelApiLimitFailureOf(waited)).toEqual({
       errorKind: RATE_LIMITED_ERROR_KIND,
-      rateLimit: { retryAfterMs: 45_000 },
+      retryAfterMs: 45_000,
     })
     expect(modelApiLimitFailureOf(refusal('slow down', undefined, undefined))).toEqual({
       errorKind: RATE_LIMITED_ERROR_KIND,
-      rateLimit: {},
     })
   })
 

@@ -603,8 +603,8 @@ export const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // turn whose failure named the budget may continue this way.
   z.object({
     type: z.literal('continueTurn'),
-    localId: stringSchema.check(z.minLength(1)),
-    turnId: stringSchema.check(z.minLength(1)),
+    localId: stringSchema,
+    turnId: stringSchema,
   }),
   // Resume later after a limit (M88, D67 item 16): the failed turn's row
   // offers it at the offer's default minute, and the host opens the
@@ -613,7 +613,7 @@ export const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // or a notice saying why the turn can no longer be resumed.
   z.object({
     type: z.literal('resumeLater'),
-    turnId: stringSchema.check(z.minLength(1)),
+    turnId: stringSchema,
     defaultAtMs: numberSchema,
   }),
   // The user pressed Stop.

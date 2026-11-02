@@ -13281,6 +13281,13 @@ run. Certification record:
 **Status 2026-10-22 (RLM88): M87 built and joined (its status below);
 M88 sequences and bookmarks built on main (lanes 0, P, A, B, W), timed
 sends with resume stay M115's; evidence docs/certification/rlm88.md.**
+
+**Status 2026-11-02 (RLF-M88): built, pending integration**
+(lane C: timed sends with resume after a limit, both backends, on
+M115's v2 store and delivery path with no fork; real-code unit suites
+green; `docs/certification/rlf-m88.md`). Packed real-life proof stays
+open (`docs/real-life/unproven.md`); nothing in CHANGELOG or README
+until it lands.
 These are the owner's sixteen requests of
 2026-10-03, which came with screenshots of the Codex app as inspiration. The design decisions are D66 (M87) and D67 (M88); the
 owner's answers to their questions (2026-10-03) are in §3 and applied in D66

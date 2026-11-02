@@ -27,11 +27,48 @@ export {
   webviewToHostMessageSchema,
 } from './protocol'
 export * from './agentEvents'
-export * from './scheduleProtocol'
+// scheduleProtocol, media and questions are shared by name: what no Node
+// bundle reads stays out of dist/wire.js (mediaAttachmentUpdateSchema,
+// parseScheduleWebviewMessage, questionReplySchema and
+// attentionDockStateSchema serve the webview bundle and the contract
+// tests, which read the sources). test/unit/wireEntry.test.ts pins
+// these lists; a new Node reader adds its name back with the proof.
+export {
+  parseScheduleHostMessage,
+  scheduleChangedMessageSchema,
+  scheduleHostMessageSchema,
+  scheduleResponseMessageSchema,
+  scheduleWebviewMessageSchema,
+} from './scheduleProtocol'
 // CAPS017: schemas the protocol above already carries; every lazy Node bundle
 // required its own copy (scheduleV2 alone, 9.4 KiB, in six bundles).
 export * from './scheduleV2'
 export * from './scheduleEvents'
 export * from './schedule'
-export * from './media'
-export * from './questions'
+export {
+  companionMediaUploadSchema,
+  mediaAttachmentActionSchema,
+  mediaAttachmentRequestSchema,
+  mediaChipSchema,
+  mediaContributorChoiceSchema,
+  mediaEstimateSchema,
+  mediaInfoSchema,
+  mediaUploadStateSchema,
+  screenRecordingOptionsSchema,
+  storedMediaPartSchema,
+  storedReplayMediaSchema,
+  uploadedAccountFileSchema,
+  uploadedFilesReportSchema,
+  uploadedMediaRefSchema,
+} from './media'
+export {
+  QUESTION_STATES,
+  answerOpenQuestionSchema,
+  dismissOpenQuestionSchema,
+  jumpToOpenQuestionSchema,
+  openQuestionAnswerSchema,
+  openQuestionSchema,
+  openQuestionStoreSchema,
+  openQuestionsMessageSchema,
+  openQuestionsSnapshotSchema,
+} from './questions'

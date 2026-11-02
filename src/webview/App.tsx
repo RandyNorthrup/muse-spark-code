@@ -2456,17 +2456,17 @@ export function App({
     },
     [postOpenReport],
   )
-  // Retry on a failed turn the backend judged retryable (RLF-ACPTURNS):
-  // the failed turn's user card goes again under a fresh id, and the
-  // host resubmits that turn's own parts. The composer is untouched.
-  // Without the card there is nothing to resend: the row hides Retry
-  // then, so this only answers the press with the card in hand (a
-  // cleared conversation meanwhile answers it by doing nothing).
-  const onRetryTurn = useCallback(
-    (_entryId: string, turnId: string) => {
+  // A failed turn's user card goes again under a fresh id, shared by
+  // Retry and Continue: the host resubmits that turn's own parts, and
+  // the composer is untouched. Without the card there is nothing to
+  // resend: the row hides its press then, so this only answers the
+  // press with the card in hand (a cleared conversation meanwhile
+  // answers it by doing nothing).
+  const resendTurnCard = useCallback(
+    (turnId: string, type: 'retryTurn' | 'continueTurn') => {
       const current = store.getState()
       // The turn's first card is its starter: a steered message joins the
-      // turn but is never what a retry resends (the host remembers the
+      // turn but is never what a resend sends (the host remembers the
       // starter's parts, never a steer's).
       const source = current.transcript.find(
         (entry) => entry.kind === 'user' && entry.turnId === turnId,
@@ -2484,37 +2484,30 @@ export function App({
         referenceLabel: source.referenceLabel,
         at: now(),
       })
-      postMessage({ type: 'retryTurn', localId, turnId })
+      if (type === 'retryTurn') {
+        postMessage({ type: 'retryTurn', localId, turnId })
+      } else {
+        postMessage({ type: 'continueTurn', localId, turnId })
+      }
       setIsPinnedToEnd(true)
     },
     [store, dispatch, newLocalId, now, postMessage],
+  )
+  // Retry on a failed turn the backend judged retryable (RLF-ACPTURNS).
+  const onRetryTurn = useCallback(
+    (_entryId: string, turnId: string) => {
+      resendTurnCard(turnId, 'retryTurn')
+    },
+    [resendTurnCard],
   )
   // Continue after a spent session budget (M88, D67 item 16): the
   // error row resends the turn's own message, as a retry does, for the
   // budget the person just raised.
   const onContinueTurn = useCallback(
     (_entryId: string, turnId: string) => {
-      const current = store.getState()
-      const source = current.transcript.find(
-        (entry) => entry.kind === 'user' && entry.turnId === turnId,
-      )
-      if (source?.kind !== 'user') {
-        return
-      }
-      const localId = newLocalId()
-      dispatch({
-        type: 'retried',
-        localId,
-        text: source.text,
-        attachments: source.attachments,
-        contextLabel: source.contextLabel,
-        referenceLabel: source.referenceLabel,
-        at: now(),
-      })
-      postMessage({ type: 'continueTurn', localId, turnId })
-      setIsPinnedToEnd(true)
+      resendTurnCard(turnId, 'continueTurn')
     },
-    [store, dispatch, newLocalId, now, postMessage],
+    [resendTurnCard],
   )
   // Resume later after a limit (M88, D67 item 16): the error row's press
   // opens the schedule editor with the fixed resume prompt seeded at

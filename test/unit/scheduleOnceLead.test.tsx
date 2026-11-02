@@ -4,7 +4,6 @@
 // guides, and the save says why a sooner send cannot go.
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { createSchedulesBridge } from '../../src/host/schedules/schedulesBridge'
 import { TIMED_SEND_MIN_LEAD_MS } from '../../src/shared/constants'
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import { ceilToMinuteMs } from '../../src/shared/resumeOffer'
@@ -12,24 +11,10 @@ import type { ScheduleDraft, ScheduleRequest } from '../../src/shared/scheduleV2
 import { ScheduleEditor } from '../../src/webview/schedules/ScheduleEditor'
 import type { ScheduleSurfacePort } from '../../src/webview/schedules/ports'
 import { TriggerFields, timeTrigger } from '../../src/webview/schedules/TriggerFields'
+import { testScheduleBridge } from './helpers/schedules/scheduleTestRig'
 
 const NOW_MS = Date.UTC(2026, 10, 1, 12, 0, 30)
 const SESSION = { sessionId: 's1', backend: 'modelApi' as const, label: 'Test chat' }
-
-function bridge() {
-  return createSchedulesBridge({
-    distDir: import.meta.dirname,
-    log: {
-      trace: () => undefined,
-      info: () => undefined,
-      warn: () => undefined,
-      error: () => undefined,
-    },
-    isEnabled: () => true,
-    defaultDelivery: () => 'whenIdle',
-    pauseAfterFailures: () => 3,
-  })
-}
 
 function failPort(): never {
   throw new Error('the refused save never reaches the runtime')
@@ -37,6 +22,32 @@ function failPort(): never {
 
 function unusedPort(): ScheduleSurfacePort {
   return { request: () => failPort(), preview: () => failPort() }
+}
+
+function renderEditor(atMs: number, saved: ScheduleRequest[]): void {
+  const live = testScheduleBridge(import.meta.dirname)
+  const draft: ScheduleDraft = {
+    ...live.defaultDraft(NOW_MS, SESSION, 'modelApi'),
+    trigger: { kind: 'once', atMs },
+  }
+  render(
+    <ScheduleEditor
+      context={{
+        port: unusedPort(),
+        workspaceKey: 'test',
+        targets: [...live.targets(SESSION)],
+        defaultDraft: draft,
+        nowMs: NOW_MS,
+      }}
+      schedule={undefined}
+      sources={[]}
+      busy={false}
+      onSave={(request) => {
+        saved.push(request)
+      }}
+      onClose={() => undefined}
+    />,
+  )
 }
 
 describe('once trigger lead', () => {
@@ -78,30 +89,8 @@ describe('once trigger lead', () => {
   })
 
   it('refuses a save less than a minute ahead, in words, saving nothing', () => {
-    const live = bridge()
     const saved: ScheduleRequest[] = []
-    const draft: ScheduleDraft = {
-      ...live.defaultDraft(NOW_MS, SESSION, 'modelApi'),
-      trigger: { kind: 'once', atMs: NOW_MS },
-    }
-    render(
-      <ScheduleEditor
-        context={{
-          port: unusedPort(),
-          workspaceKey: 'test',
-          targets: [...live.targets(SESSION)],
-          defaultDraft: draft,
-          nowMs: NOW_MS,
-        }}
-        schedule={undefined}
-        sources={[]}
-        busy={false}
-        onSave={(request) => {
-          saved.push(request)
-        }}
-        onClose={() => undefined}
-      />,
-    )
+    renderEditor(NOW_MS, saved)
     // Past the picker's own floor (a save after clock drift reaches the
     // same place): the editor refuses in its own words and saves nothing.
     const form = screen
@@ -114,31 +103,8 @@ describe('once trigger lead', () => {
   })
 
   it('saves a once trigger a minute ahead and beyond', () => {
-    const live = bridge()
     const saved: ScheduleRequest[] = []
-    const atMs = ceilToMinuteMs(NOW_MS + TIMED_SEND_MIN_LEAD_MS)
-    const draft: ScheduleDraft = {
-      ...live.defaultDraft(NOW_MS, SESSION, 'modelApi'),
-      trigger: { kind: 'once', atMs },
-    }
-    render(
-      <ScheduleEditor
-        context={{
-          port: unusedPort(),
-          workspaceKey: 'test',
-          targets: [...live.targets(SESSION)],
-          defaultDraft: draft,
-          nowMs: NOW_MS,
-        }}
-        schedule={undefined}
-        sources={[]}
-        busy={false}
-        onSave={(request) => {
-          saved.push(request)
-        }}
-        onClose={() => undefined}
-      />,
-    )
+    renderEditor(ceilToMinuteMs(NOW_MS + TIMED_SEND_MIN_LEAD_MS), saved)
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.scheduleV2.labels.save }))
     expect(screen.queryByRole('alert')).toBeNull()
     expect(saved).toHaveLength(1)

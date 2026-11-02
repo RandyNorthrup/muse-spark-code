@@ -9,33 +9,32 @@ import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { AgentEvent } from '../../src/shared/agentEvents'
 import type { AgentSession } from '../../src/core/agent/agentBackend'
 import {
   continueTurnRefusal,
   type ConversationDeps,
 } from '../../src/host/conversation/conversationController'
-import { createSchedulesBridge } from '../../src/host/schedules/schedulesBridge'
 import { CONVERSATION_MODEL_TEXT } from '../../src/shared/constants'
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
 import { scheduleRunContextSchema } from '../../src/shared/scheduleV2'
 import { Usd } from '../../src/shared/usd'
-import { initialUiState, uiReducer } from '../../src/webview/state/uiState'
 import {
   awaitPosts,
   conversationPanel,
+  endedTurn,
   modelApiRig,
   panelNotices,
   savedSession,
+  shownTranscript,
   turnCompletions,
   type PanelRig,
+  type TurnCompleted,
 } from './helpers/conversationPanel'
+import { testScheduleBridge } from './helpers/schedules/scheduleTestRig'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const TYPED = 'Count the migrations'
-
-type TurnCompleted = Extract<AgentEvent, { type: 'turnCompleted' }>
 
 // A spend cap below any request's estimate: every send fails naming the
 // budget before the HTTP try. The dummy key resolves so the turn reaches
@@ -52,21 +51,6 @@ function budgetRig(directory: string) {
 function failingKeyRig(directory: string) {
   return modelApiRig(directory, undefined, undefined, {
     apiKey: () => Promise.reject(new Error('the panel rig withholds the key')),
-  })
-}
-
-function scheduleBridge(directory: string): ConversationDeps['schedulesBridge'] {
-  return createSchedulesBridge({
-    distDir: directory,
-    log: {
-      trace: () => undefined,
-      info: () => undefined,
-      warn: () => undefined,
-      error: () => undefined,
-    },
-    isEnabled: () => true,
-    defaultDelivery: () => 'whenIdle',
-    pauseAfterFailures: () => 3,
   })
 }
 
@@ -99,28 +83,17 @@ async function panelWithSession(
   return panel
 }
 
-async function endedTurn(panel: PanelRig, count: number, index: number): Promise<TurnCompleted> {
-  const ended = await awaitPosts(panel, turnCompletions, count, 'turns ended')
-  const turn = ended[index]
-  if (turn === undefined) throw new Error(`turn ${String(index + 1)} never ended`)
-  return turn
-}
-
-function shownTranscript(panel: PanelRig, sends: readonly { localId: string; text: string }[]) {
-  let state = initialUiState
-  for (const send of sends) {
-    state = uiReducer(state, {
-      type: 'submitted',
-      localId: send.localId,
-      text: send.text,
-      attachments: [],
-      contextLabel: undefined,
-    })
-  }
-  for (const message of panel.posted) {
-    state = uiReducer(state, { type: 'hostMessage', message, at: 0 })
-  }
-  return state.transcript
+// The opening send, awaited to its failed end.
+async function failedOpeningTurn(panel: PanelRig): Promise<TurnCompleted> {
+  await panel.controller.handle({
+    type: 'sendMessage',
+    localId: 'local-1',
+    text: TYPED,
+    attachmentIds: [],
+  })
+  const first = await endedTurn(panel, 1, 0)
+  expect(first.terminal).toBe('failed')
+  return first
 }
 
 describe('resume host flow', () => {
@@ -135,14 +108,7 @@ describe('resume host flow', () => {
 
   it('continues a budget-failed turn as a new turn, offering the budget', async () => {
     const panel = await panelWithSession(budgetRig(directory), directory)
-    await panel.controller.handle({
-      type: 'sendMessage',
-      localId: 'local-1',
-      text: TYPED,
-      attachmentIds: [],
-    })
-    const first = await endedTurn(panel, 1, 0)
-    expect(first.terminal).toBe('failed')
+    const first = await failedOpeningTurn(panel)
     expect(first.errorKind).toBe('budget')
     expect(first.retryable).toBe(false)
 
@@ -173,14 +139,7 @@ describe('resume host flow', () => {
 
   it('says when a turn that named no budget cannot continue', async () => {
     const panel = await panelWithSession(failingKeyRig(directory), directory)
-    await panel.controller.handle({
-      type: 'sendMessage',
-      localId: 'local-1',
-      text: TYPED,
-      attachmentIds: [],
-    })
-    const first = await endedTurn(panel, 1, 0)
-    expect(first.terminal).toBe('failed')
+    const first = await failedOpeningTurn(panel)
     expect(first.retryable).toBe(true)
 
     await panel.controller.handle({
@@ -198,16 +157,9 @@ describe('resume host flow', () => {
 
   it('opens Resume later with the fixed prompt seeded at the offer minute', async () => {
     const panel = await panelWithSession(failingKeyRig(directory), directory, {
-      schedulesBridge: scheduleBridge(directory),
+      schedulesBridge: testScheduleBridge(directory),
     })
-    await panel.controller.handle({
-      type: 'sendMessage',
-      localId: 'local-1',
-      text: TYPED,
-      attachmentIds: [],
-    })
-    const first = await endedTurn(panel, 1, 0)
-    expect(first.terminal).toBe('failed')
+    const first = await failedOpeningTurn(panel)
 
     const defaultAtMs = Math.ceil((Date.now() + 10 * 60 * 1000) / 60_000) * 60_000
     await panel.controller.handle({ type: 'resumeLater', turnId: first.turnId, defaultAtMs })
@@ -227,7 +179,7 @@ describe('resume host flow', () => {
 
   it('says when the resume turn is gone instead of seeding', async () => {
     const panel = await panelWithSession(failingKeyRig(directory), directory, {
-      schedulesBridge: scheduleBridge(directory),
+      schedulesBridge: testScheduleBridge(directory),
     })
     await panel.controller.handle({ type: 'resumeLater', turnId: 'no-such-turn', defaultAtMs: 1 })
     expect(panelNotices(panel.posted).map((notice) => notice.text)).toContain(
@@ -238,7 +190,7 @@ describe('resume host flow', () => {
 
   it('seeds the composer text only for the Schedule This Prompt entry', async () => {
     const panel = await panelWithSession(failingKeyRig(directory), directory, {
-      schedulesBridge: scheduleBridge(directory),
+      schedulesBridge: testScheduleBridge(directory),
     })
     await panel.controller.handle({ type: 'openSchedules', view: 'editor', seed: 'composer' })
     await panel.controller.handle({ type: 'openSchedules', view: 'list' })

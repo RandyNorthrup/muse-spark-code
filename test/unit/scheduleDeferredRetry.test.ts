@@ -21,7 +21,8 @@ import {
 import { scheduleEventSchema } from '../../src/shared/scheduleEvents'
 import { scheduleV2Schema } from '../../src/shared/scheduleV2'
 import { scheduleFixture } from './helpers/reporting/reportKindFixtures'
-import { removeFolder, temporaryDir } from './helpers/temporaryFolders'
+import { closeSharedScheduleEngine } from './helpers/schedules/scheduleTestRig'
+import { temporaryDir } from './helpers/temporaryFolders'
 
 const silentLog: CoreLogger = {
   trace: () => undefined,
@@ -145,14 +146,7 @@ describe('deferred event retry', () => {
   })
 
   afterAll(async () => {
-    const current = sharedBox.current
-    sharedBox.current = undefined
-    if (current === undefined) return
-    try {
-      await current.engine.runtime.close()
-    } finally {
-      await removeFolder(current.root)
-    }
+    await closeSharedScheduleEngine(sharedBox)
   })
 
   it('retries with capped backoff, then stops and says why', async () => {
