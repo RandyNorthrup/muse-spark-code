@@ -11497,7 +11497,6 @@ export const DESKTOP_STATUS_HASH_CHARS = 16
 // model keeps at most 1 MiB per stream, discards and counts the rest); the
 // request bound matches D95's 64 KiB frame.
 export const DESKTOP_PANEL_KEYBOARD_RESIZE_PX = 40
-export const DESKTOP_FLOATING_DEFAULT_WIDTH_PX = 720
 export const DESKTOP_FLOATING_MIN_WIDTH_PX = 320
 export const DESKTOP_FLOATING_MIN_HEIGHT_PX = 160
 export const DESKTOP_TERMINAL_LABEL_MAX_CHARS = 120

@@ -33,6 +33,7 @@ interface PanelTerminalTabBase {
   readonly id: string
   readonly title: string
   readonly slot: TerminalSlot
+  readonly source: TerminalSource
 }
 
 export interface PanelPersonTab extends PanelTerminalTabBase {
@@ -114,6 +115,23 @@ export function splitLeaf(
 }
 
 /**
+Rebuilds a split from its kept children: none leaves no tree, one
+collapses into it, more renormalize to fill.
+*/
+function collapseSplitChildren(
+  tree: SplitNode & { kind: 'split' },
+  children: SplitNode[],
+  sizes: number[],
+): SplitNode | null {
+  if (children.length === 0) return null
+  if (children.length === 1) {
+    const [only = null] = children
+    return only
+  }
+  return { ...tree, children, sizes: normalizeSplitSizes(sizes, children.length) }
+}
+
+/**
 Closes one pane. A split left with a single child collapses into it;
 closing the last pane leaves no tree. Sizes renormalize to fill.
 */
@@ -132,13 +150,7 @@ export function closePane(tree: SplitNode, terminalId: string): SplitNode | null
     children.push(kept)
     sizes.push(...tree.sizes.slice(index, index + 1))
   }
-  if (!isChanged) return tree
-  if (children.length === 0) return null
-  if (children.length === 1) {
-    const [only = null] = children
-    return only
-  }
-  return { ...tree, children, sizes: normalizeSplitSizes(sizes, children.length) }
+  return isChanged ? collapseSplitChildren(tree, children, sizes) : tree
 }
 
 /** Keeps only the leaves whose terminal is still in the given set. */
@@ -152,12 +164,7 @@ export function pruneSplitTree(tree: SplitNode, keep: ReadonlySet<string>): Spli
     children.push(kept)
     sizes.push(...tree.sizes.slice(index, index + 1))
   }
-  if (children.length === 0) return null
-  if (children.length === 1) {
-    const [only = null] = children
-    return only
-  }
-  return { ...tree, children, sizes: normalizeSplitSizes(sizes, children.length) }
+  return collapseSplitChildren(tree, children, sizes)
 }
 
 export function paneTerminalIds(tree: SplitNode): string[] {

@@ -66,9 +66,17 @@ function ensureTerminalCss(): void {
 }
 
 async function loadEngine(): Promise<TerminalEngineModule> {
-  const module = await import('./terminalEngine')
+  const { acquirePersistentTerminal } = await import('./terminalEngine')
   ensureTerminalCss()
-  return module
+  return { acquirePersistentTerminal }
+}
+
+/**
+A failed chunk fetch: a missing chunk (a TypeError) or the chunk's own
+Error. Anything else a load rejects with is a bug, not a failed load.
+*/
+function isChunkLoadError(error: unknown): error is Error {
+  return error instanceof Error && (error.name === 'TypeError' || error.name === 'Error')
 }
 
 export interface TerminalPaneHandle {
@@ -120,18 +128,17 @@ function TerminalViewAttempt(
 
   useEffect(() => {
     // One load per mount: a rejection settles here (never shared), and
-    // the retry below remounts, so the chunk fetch runs again.
-    let isCancelled = false
+    // the retry below remounts, so the chunk fetch runs again. A settle
+    // past unmount is discarded by React, so no cancellation flag.
     void loadEngine()
-      .then((module) => {
-        if (!isCancelled) setEngineModule(module)
+      .then(setEngineModule)
+      .catch((error: unknown) => {
+        if (isChunkLoadError(error)) {
+          setLoadFailed(true)
+        } else {
+          throw error
+        }
       })
-      .catch(() => {
-        if (!isCancelled) setLoadFailed(true)
-      })
-    return () => {
-      isCancelled = true
-    }
   }, [])
 
   if (loadFailed) {
