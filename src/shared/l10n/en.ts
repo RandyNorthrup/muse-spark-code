@@ -1055,6 +1055,8 @@ export const EN = {
     'max-requests':
       'Set the maximum number of model requests; without it, there is no request limit.',
     'max-tool-output-bytes': 'Raise the per-tool-result byte guard for this run.',
+    'mcp-defer-tokens':
+      'Defer MCP tool schemas past this many estimated definition tokens, loading them through tool search; 0 always loads every schema.',
     'max-output-tokens':
       'Lower the run’s output cap in tokens; absent is the model’s policy cap, never above it.',
     timeout:

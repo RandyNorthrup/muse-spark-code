@@ -216,6 +216,8 @@
   "savings": "Önbellek ve paketleme tasarrufu",
   "cacheSavings": "Önbellek tasarrufu",
   "packedAvoided": "Paketleme sayesinde kaçınılan belirteç tahmini",
+  "definitionTokens": "Gönderilen tahmini araç tanımı belirteçleri",
+  "rulesTokens": "Gönderilen tahmini kural belirteçleri",
   "searches": "Aramalar",
   "images": "Görüntüler",
   "audioSeconds": "Ses süresi",

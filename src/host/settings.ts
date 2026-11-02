@@ -174,6 +174,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiObservationPacking: boolean
   /** TOOLCAP: the per-result byte guard. Validated where used; unusable values fall back. */
   readonly modelApiMaxToolOutputBytes: number
+  /** 4-H4: MCP definition tokens above which MCP schemas load on discovery; 0 never defers. */
+  readonly modelApiMcpDeferTokens: number
   readonly modelApiAutoCompaction: boolean
   readonly modelApiStrictTools: boolean
   readonly modelApiParallelReads: boolean
@@ -350,6 +352,7 @@ const settingSchemas = {
   modelApiRepoMap: z.boolean(),
   modelApiObservationPacking: z.boolean(),
   modelApiMaxToolOutputBytes: z.number().check(z.int(), z.gte(0)),
+  modelApiMcpDeferTokens: z.number().check(z.int(), z.gte(0)),
   modelApiAutoCompaction: z.boolean(),
   modelApiStrictTools: z.boolean(),
   modelApiParallelReads: z.boolean(),
@@ -550,6 +553,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiRepoMap: readSetting(config, 'modelApiRepoMap', log),
     modelApiObservationPacking: readSetting(config, 'modelApiObservationPacking', log),
     modelApiMaxToolOutputBytes: readSetting(config, 'modelApiMaxToolOutputBytes', log),
+    modelApiMcpDeferTokens: readSetting(config, 'modelApiMcpDeferTokens', log),
     modelApiAutoCompaction: readSetting(config, 'modelApiAutoCompaction', log),
     modelApiStrictTools: readSetting(config, 'modelApiStrictTools', log),
     modelApiParallelReads: readSetting(config, 'modelApiParallelReads', log),

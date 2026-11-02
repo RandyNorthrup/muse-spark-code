@@ -1127,6 +1127,13 @@
           "description": "%config.modelApiMaxToolOutputBytes.description%",
           "scope": "machine"
         },
+        "museSpark.modelApiMcpDeferTokens": {
+          "type": "integer",
+          "default": 10000,
+          "minimum": 0,
+          "description": "%config.modelApiMcpDeferTokens.description%",
+          "scope": "machine"
+        },
         "museSpark.turnCheckpoints": {
           "type": "boolean",
           "default": true,

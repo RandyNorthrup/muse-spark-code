@@ -1433,7 +1433,7 @@
       "summary": { "ui": "referenceMcp" },
       "description": { "ui": "referenceMcp" },
       "commands": ["museSpark.mcpServers"],
-      "settings": [],
+      "settings": ["museSpark.modelApiMcpDeferTokens"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#rules-skills-and-memory",
       "backends": ["museCode", "modelApi"],
       "paid": false,
@@ -3882,6 +3882,22 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "integer", "default": 0 }
+    },
+    {
+      "text": {
+        "conditions": [
+          { "when": "conversationStart", "text": { "setting": "modelApiMcpDeferTokens" } }
+        ]
+      },
+      "id": "museSpark.modelApiMcpDeferTokens",
+      "name": "museSpark.modelApiMcpDeferTokens",
+      "description": "When your MCP servers' tool definitions pass this many estimated tokens, their schemas load on demand instead of riding every request: the model gets a Find Tools search over the local catalogue, and a tool it finds stays loaded for the session. Built-in tools always load. 0 always loads every MCP schema up front. This only changes what each request carries; it never limits your work.",
+      "descriptionKey": "config.modelApiMcpDeferTokens.description",
+      "type": "integer",
+      "default": 10000,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "integer", "default": 10000, "minimum": 0 }
     },
     {
       "id": "museSpark.turnCheckpoints",
@@ -8164,6 +8180,13 @@
       "description": "Raise the per-tool-result byte guard for this run.",
       "text": { "cli": "max-tool-output-bytes" },
       "contract": { "type": "string", "repeatable": false, "purpose": "max-tool-output-bytes" }
+    },
+    {
+      "route": "exec",
+      "name": "exec: --mcp-defer-tokens <value>",
+      "description": "Defer MCP tool schemas past this many estimated definition tokens, loading them through tool search; 0 always loads every schema.",
+      "text": { "cli": "mcp-defer-tokens" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "mcp-defer-tokens" }
     },
     {
       "route": "exec",

@@ -203,6 +203,8 @@
   "savings": "缓存与打包节省",
   "cacheSavings": "缓存节省",
   "packedAvoided": "预估避免的打包 Token 数",
+  "definitionTokens": "已发送的估算工具定义令牌",
+  "rulesTokens": "已发送的估算规则令牌",
   "searches": "搜索",
   "images": "图片",
   "audioSeconds": "音频时长",

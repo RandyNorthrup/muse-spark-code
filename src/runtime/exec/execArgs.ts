@@ -79,6 +79,8 @@ export interface ExecOptions {
   readonly maxRequests: number | undefined
   /** TOOLCAP: raise the per-tool-result byte guard for this run only. */
   readonly maxToolOutputBytes: number | undefined
+  /** 4-H4: MCP definition-token defer threshold for this run; 0 never defers. */
+  readonly mcpDeferTokens: number | undefined
   /**
   Optional lowering limit for the run's output cap (round 5): absent is
   the policy cap; present never exceeds it (larger values are refused at
@@ -132,6 +134,7 @@ const STRING_OPTIONS = new Set([
   'max-budget-usd',
   'max-requests',
   'max-tool-output-bytes',
+  'mcp-defer-tokens',
   'max-output-tokens',
   'timeout',
   'muse-binary',
@@ -326,6 +329,15 @@ export function parseExec(
       fill(UI_TEXT.toolResultCapBelowFloor, { floor: formatNumber(TOOL_RESULT_MIN_BYTES) }),
     )
   if (maxToolOutputBytes === undefined) return invalid(UI_TEXT.execNumberInvalid)
+  // 4-H4: absent keeps the setting default; 0 never defers (D121).
+  const mcpDeferTokens = integer(
+    values['mcp-defer-tokens'],
+    SETTING_DEFAULTS.modelApiMcpDeferTokens,
+    0,
+    Number.MAX_SAFE_INTEGER,
+  )
+  if (mcpDeferTokens === undefined)
+    return invalid(fill(UI_TEXT.execLimitInvalid, { flag: '--mcp-defer-tokens' }))
   if (timeout === undefined && values['timeout'] !== undefined)
     return invalid(fill(UI_TEXT.execLimitInvalid, { flag: '--timeout' }))
   if (maxRequests === undefined && values['max-requests'] !== undefined)
@@ -349,6 +361,7 @@ export function parseExec(
     'max-budget-usd',
     'max-requests',
     'max-tool-output-bytes',
+    'mcp-defer-tokens',
     'max-output-tokens',
     'ephemeral',
     'key-stdin',
@@ -433,6 +446,7 @@ export function parseExec(
       budgetUsd,
       maxRequests: backend === 'modelApi' ? maxRequests : undefined,
       maxToolOutputBytes: backend === 'modelApi' ? maxToolOutputBytes : undefined,
+      mcpDeferTokens: backend === 'modelApi' ? mcpDeferTokens : undefined,
       ...(backend === 'modelApi' && maxOutputTokens !== undefined && { maxOutputTokens }),
       timeoutMs: timeout === undefined ? undefined : timeout * MILLISECONDS_PER_SECOND,
       paidFeatures: [
@@ -492,6 +506,7 @@ export function serveOptionsFor(options: ExecOptions): ServeOptions {
     isVerbose: options.isVerbose,
     autoCompaction: options.autoCompaction,
     maxToolOutputBytes: options.maxToolOutputBytes,
+    mcpDeferTokens: options.mcpDeferTokens,
     ...(options.subscription && { subscription: true }),
   }
 }

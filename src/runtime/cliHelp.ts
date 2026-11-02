@@ -1043,6 +1043,8 @@ export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> 
     // Parsed and reference-documented, but off the one screen: the setting
     // text carries the guard/spill/removal description (lane TOOLCAP).
     'max-tool-output-bytes',
+    // 4-H4: same shape; the setting text carries the deferral description.
+    'mcp-defer-tokens',
   ],
   // PROVSPEND: `auth set|clear --admin` is shown on the auth topic, not here.
   providersAdd: ['admin'],
