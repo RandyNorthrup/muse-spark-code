@@ -1381,7 +1381,10 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       if (deps.team !== undefined) host.setTeamTrusted(isTeamTrusted)
       return await openTeamWorkerSession(host, input)
     },
-    isHardwareWorkspace: (cwd) => hardware(cwd).current().isHardwareWorkspace === true,
+    // Proven hardware only: an unscannable folder or unknown inventory
+    // latches the command guard fail-safe but never loses Bypass or the
+    // reviewer (RLF-MAKERFENCE).
+    isHardwareWorkspace: (cwd) => hardware(cwd).isPositivelyHardware(),
     readUsageBudgets: async () => {
       // The shared daily paid budget first, then the live session budgets:
       // the same pair VS Code passes (RVCM1132B finding 3). The ledger read

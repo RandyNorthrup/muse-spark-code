@@ -7,7 +7,7 @@ import {
   isHardwareStop,
 } from '../maker/guard/hardwareCommands'
 import type { HardwareContext } from '../maker/guard/httpCommands'
-import { isHardwareWorkspace, hardwareShellNote } from '../maker/guard/shellPolicy'
+import { isPositivelyHardwareWorkspace, hardwareShellNote } from '../maker/guard/shellPolicy'
 import { isDeviceAction, isPhysicalTool, type ActionClass } from '../maker/guard/actionClass'
 
 type ApprovalCard = Extract<AgentEvent, { type: 'approvalRequested' | 'approvalUpdated' }>
@@ -47,7 +47,12 @@ export function approvalHardwareAction(
         ]),
     ...(subject.stages ?? []).map((stage) => hardwareArgvAction(stage.argv, context)),
   ]
-  if (isHardwareWorkspace(context)) {
+  // Every shell command escalates only in a proven hardware workspace
+  // (the table cannot recognise every program that can reach a device).
+  // An unknown scan or inventory never escalates by itself: the table
+  // still classifies physical commands, and hardwareAction holds opaque
+  // ones while the inventory is unknown.
+  if (isPositivelyHardwareWorkspace(context)) {
     return actions.find((action) => action !== 'refused' && isDeviceAction(action)) ?? 'actuate'
   }
   return actions.includes('refused') ? 'refused' : actions.find((action) => isDeviceAction(action))
@@ -67,13 +72,15 @@ export function scrubHardwareApproval<T extends ApprovalCard>(
   const action =
     approvalHardwareAction(event.subject, context) ??
     (isPhysicalTool('toolName' in event ? event.toolName : '') ? 'actuate' : undefined)
-  if (!isDeviceAction(action) && !(event.subject.kind === 'shell' && isHardwareWorkspace(context)))
-    return event
+  // approvalHardwareAction already escalates a proven workspace and an
+  // unknown inventory's opaque commands, so a device action is the
+  // whole trigger; anything else keeps its ordinary card.
+  if (!isDeviceAction(action)) return event
   let note = UI_TEXT.approvalHardwareNote
   const hasNoBindingAdapter = event.subject.kind !== 'shell'
   if (action === 'refused') note = UI_TEXT.hardwareRefused
   else if (hasNoBindingAdapter) note = UI_TEXT.hardwareBindingUnavailable
-  else if (event.subject.kind === 'shell' && isHardwareWorkspace(context))
+  else if (event.subject.kind === 'shell')
     note = hardwareShellNote(
       event.subject.command === undefined
         ? hardwareArgvAction(event.subject.stages?.[0]?.argv ?? [], context)
