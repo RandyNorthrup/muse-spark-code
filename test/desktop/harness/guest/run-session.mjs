@@ -3,8 +3,9 @@
 // QA): Hyprland on the guest's virtio-gpu with llvmpipe, a foot terminal
 // as the scene client, the virtual-input driver typing into it, and grim
 // screenshots of both headless outputs. Prints the marker
-// M111QA-SESSION-OK on success (and to /dev/console, where the host's
-// QEMU runner watches the serial line). Talks only to the harness libs
+// M111QA-SESSION-OK on success (and to the guest serial device, where
+// the host's QEMU runner watches the transcript). Talks only to the
+// harness libs
 // placed beside it on the share disk — no node_modules in the guest.
 
 import { appendFile } from 'node:fs/promises'
@@ -22,13 +23,19 @@ const { runVirtualInputScript } = await import(path.join(share, 'lib/virtualInpu
 const outDir = path.join(share, 'session-out')
 const marker = 'M111QA-SESSION-OK'
 
+const SERIAL_DEVICES = ['/dev/ttyS0', '/dev/ttyAMA0', '/dev/console']
+
 async function announce(line) {
   console.log(line)
-  try {
-    await appendFile('/dev/console', `${line}\n`)
-  } catch {
-    // The serial marker is an optimisation for the host; files in
-    // session-out on the share are the record either way.
+  for (const device of SERIAL_DEVICES) {
+    try {
+      await appendFile(device, `${line}\n`)
+      return
+    } catch {
+      // Not this guest's serial device, or not writable from the
+      // autologin session; try the next name. Files in session-out on
+      // the share stay the record if no serial device takes the line.
+    }
   }
 }
 
