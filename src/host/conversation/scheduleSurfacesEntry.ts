@@ -9,6 +9,7 @@ export {
   cancelScheduleOf,
   createScheduleOf,
   listSchedulesOf,
+  openResumeScheduleOf,
   openSchedulesOf,
   runScheduleOf,
   scheduleRunChangedOf,

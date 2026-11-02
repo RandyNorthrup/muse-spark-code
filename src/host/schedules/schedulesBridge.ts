@@ -184,40 +184,47 @@ export function registerScheduleCommands<Surface extends object>(ports: {
   readonly isReady: (surface: Surface) => boolean
   readonly isEnabled: () => boolean
   readonly openConversation: () => Promise<void>
-  readonly open: (surface: Surface, view: 'list' | 'timeline' | 'editor') => Promise<void>
+  readonly open: (
+    surface: Surface,
+    view: 'list' | 'timeline' | 'editor',
+    seed?: 'composer',
+  ) => Promise<void>
 }) {
   type View = 'list' | 'timeline' | 'editor'
-  let coldView: View | undefined
-  const pending = new WeakMap<Surface, View>()
+  // Schedule This Prompt seeds the editor with the composer's own text
+  // (M88, D67 item 15); the seed waits with the view when no surface is
+  // ready, so a cold start seeds the conversation it opens.
+  let coldView: { view: View; seed?: 'composer' } | undefined
+  const pending = new WeakMap<Surface, { view: View; seed?: 'composer' }>()
   const commands = (
     [
-      [COMMAND_IDS.schedulePrompt, 'editor'],
+      [COMMAND_IDS.schedulePrompt, 'editor', 'composer'],
       [COMMAND_IDS.showSchedules, 'list'],
       [COMMAND_IDS.showScheduleTimeline, 'timeline'],
     ] as const
-  ).map(([id, view]) =>
+  ).map(([id, view, seed]) =>
     ports.register(id, async () => {
       if (!ports.isEnabled()) throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
       const surface = ports.active()
       if (surface === undefined) {
-        coldView = view
+        coldView = { view, ...(seed !== undefined && { seed }) }
         try {
           await ports.openConversation()
         } catch (error: unknown) {
           coldView = undefined
           throw error
         }
-      } else if (ports.isReady(surface)) await ports.open(surface, view)
-      else pending.set(surface, view)
+      } else if (ports.isReady(surface)) await ports.open(surface, view, seed)
+      else pending.set(surface, { view, ...(seed !== undefined && { seed }) })
     }),
   )
   return {
     commands,
     async ready(surface: Surface): Promise<void> {
-      const view = pending.get(surface) ?? coldView
+      const held = pending.get(surface) ?? coldView
       pending.delete(surface)
       coldView = undefined
-      if (view !== undefined && ports.isEnabled()) await ports.open(surface, view)
+      if (held !== undefined && ports.isEnabled()) await ports.open(surface, held.view, held.seed)
     },
   }
 }

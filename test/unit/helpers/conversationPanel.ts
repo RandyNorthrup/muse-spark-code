@@ -48,7 +48,7 @@ import {
   MODEL_API_BASE_URL,
   SETTING_DEFAULTS,
 } from '../../../src/shared/constants'
-import { Usd } from '../../../src/shared/usd'
+import { Usd, type UsdAmount } from '../../../src/shared/usd'
 import { initialUiState, uiReducer, type UiState } from '../../../src/webview/state/uiState'
 
 // The spend ledger only serves key-digest accounts (`ACCOUNT_ID` in the
@@ -101,6 +101,8 @@ export function modelApiRig(
     apiKey?: () => Promise<string | undefined>
     /** Configured providers' models (a real providers file), listed with no Meta key. */
     models?: ModelResolver
+    /** The session's spend cap (M82); zero (no cap) unless the suite sets one. */
+    sessionBudgetUsd?: () => UsdAmount
   },
 ): ModelApiRig {
   let ids = 0
@@ -165,7 +167,7 @@ export function modelApiRig(
     noteSubagentUsage: () => undefined,
     noteReviewerUsage: () => undefined,
     promptCacheRetention: () => SETTING_DEFAULTS.modelApiPromptCacheRetention,
-    sessionBudgetUsd: () => Usd.from(0).toAmount(),
+    sessionBudgetUsd: options?.sessionBudgetUsd ?? (() => Usd.from(0).toAmount()),
     showReplyUsage: () => false,
     memory: undefined,
     getAccountId: () => Promise.resolve(TEST_ACCOUNT_ID),
@@ -276,6 +278,10 @@ export interface PanelOptions {
   readonly museCodeQuotaContinue?: () => boolean
   /** The controller's clock; Date.now absent. A suite pins it to read a recorded instant. */
   readonly now?: () => number
+  /** This window's schedule bridge (M115); absent, the controller refuses schedule messages. */
+  readonly schedulesBridge?: ConversationDeps['schedulesBridge']
+  /** The editor's answer to a host action (M88); absent, the path fails closed. */
+  readonly runHostAction?: ConversationDeps['runHostAction']
 }
 
 export interface PanelRig {
@@ -481,6 +487,8 @@ export function conversationPanel(options: PanelOptions): PanelRig {
     ...(options.museCodeQuotaContinue !== undefined && {
       museCodeQuotaContinue: options.museCodeQuotaContinue,
     }),
+    ...(options.schedulesBridge !== undefined && { schedulesBridge: options.schedulesBridge }),
+    ...(options.runHostAction !== undefined && { runHostAction: options.runHostAction }),
   }
   return { controller: new ConversationController(deps), posted, logged, backendErrors }
 }

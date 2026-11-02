@@ -33681,6 +33681,14 @@ live `activeTurnId` read after the await is load-bearing; the rule sees
 only the pre-await narrowing. Removal guard: restructure so no narrowing
 crosses the await (e.g. establishment returning the live turn state).
 
+RLF-M88, 2026-11-02: `// eslint-disable-next-line
+@typescript-eslint/no-unnecessary-condition` on the `turnRunning` read in
+`continueTurn` (`src/host/conversation/conversationController.ts`). A turn may
+start while `sessionForAction` re-establishes the dropped session, so the
+live `activeTurnId` read after the await is load-bearing; the rule sees
+only the pre-await narrowing. Removal guard: restructure so no narrowing
+crosses the await (e.g. establishment returning the live turn state).
+
 | RLM125 location                                        | Escape hatch                                                                                                               | Reason                                                                                                                                                          | 2026-10-23 |
 | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `test/unit/judgeSetupController.test.ts`, `snapshotOf` | `directive.snapshot as JudgeSetupSnapshot`                                                                                 | The guard proves a non-null object carrying `snapshot`; the cast names it for the step assertions. Nine unguarded casts folded into this one helper. Test-only. |
