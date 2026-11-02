@@ -210,7 +210,13 @@ function add(target: Accumulator, row: UsageAggregateRow): void {
   for (const key of UNIT_KEYS)
     if (value.units[key] !== undefined)
       total.units[key] = (total.units[key] ?? 0) + value.units[key]
-  for (const key of ['durationMs', 'firstTokenMs', 'packedAvoided'] as const)
+  for (const key of [
+    'durationMs',
+    'firstTokenMs',
+    'packedAvoided',
+    'definitionTokens',
+    'rulesTokens',
+  ] as const)
     if (value[key] !== undefined) total[key] = (total[key] ?? 0) + value[key]
   total.retries += value.retries
   total.rateLimited += value.rateLimited
@@ -330,6 +336,10 @@ function recordRow(record: UsageRecord): UsageAggregateRow {
       ...(record.durationMs !== undefined && { durationMs: record.durationMs }),
       ...(record.firstTokenMs !== undefined && { firstTokenMs: record.firstTokenMs }),
       ...(record.packedAvoided !== undefined && { packedAvoided: record.packedAvoided }),
+      ...(record.definitionTokens !== undefined && {
+        definitionTokens: record.definitionTokens,
+      }),
+      ...(record.rulesTokens !== undefined && { rulesTokens: record.rulesTokens }),
       retries: record.retries ?? 0,
       rateLimited: record.rateLimited === true ? 1 : 0,
     },

@@ -463,7 +463,20 @@ import {
 import type { ImagePlan } from './imageGeneration'
 import type * as ModelApiImage from './modelApiImageEntry'
 import type * as ModelApiToolRun from './modelApiToolRunEntry'
-import { cacheMissTokens, promptCacheKey } from './promptCache'
+import {
+  type McpCatalogEntry,
+  planDeferral,
+  searchCatalog,
+  TOOL_SEARCH_DEFINITION,
+} from './mcp/deferredTools'
+import {
+  cacheMissTokens,
+  changedComponents,
+  prefixComponentHashes,
+  type PrefixComponentHashes,
+  promptCacheKey,
+} from './promptCache'
+import { meterRequestPrefix } from './requestMeters'
 
 import { readImageInfo } from '../../imageDimensions'
 import type { ModelPricing } from '../../providers/priceCard'
@@ -575,6 +588,7 @@ import {
   parseQuestions,
   type ReadMediaFile,
   readSkillArgs,
+  toolSearchArgs,
   webFetchArgs,
   type ShellResult,
   parseShellDirectoryReport,
@@ -900,6 +914,14 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   absent keeps no guard of ours. Read on every bound so one run can raise it.
   */
   readonly maxToolOutputBytes?: (() => number | undefined) | undefined
+  /**
+  4-H4: `museSpark.modelApiMcpDeferTokens` — MCP definition tokens
+  above which MCP schemas load through `tool_search` instead of
+  riding every request. A display/load preference (D121), never a
+  work cap: 0 never defers; absent reads the setting's default. Read
+  once per user turn, with the turn's catalogue snapshot.
+  */
+  readonly mcpDeferThresholdTokens?: (() => number | undefined) | undefined
   /** M106, fixed for the session. Lane W binds modelApiParallelReads in every host. */
   readonly strictTools?: () => boolean
   readonly parallelReads?: () => boolean
@@ -3295,6 +3317,28 @@ export class ModelApiSession implements ScheduledAgentSession {
   /** The request in flight is the wrap-up: its tokens never measure the turn body. */
   private isSendingWrapUp = false
   private previousCacheUsage: { readonly modelId: string; readonly inputTokens: number } | undefined
+  /** 4-H4: the last settled request's prefix digests, for cache-miss attribution (hashes only). */
+  private previousPrefixHashes: PrefixComponentHashes | undefined
+  /** 4-H4: the in-flight request's prefix digests, taken when its body was keyed. */
+  private sendingPrefixHashes: PrefixComponentHashes | undefined
+  /** 4-H4: the in-flight request's prefix meters (definition and rules tokens). */
+  private sendingMeters:
+    { readonly definitionTokens: number; readonly rulesTokens: number } | undefined
+  /** 4-H4: the rules text the last built instructions folded in, for the meters. */
+  private lastRulesText: string | undefined
+  /**
+  4-H4: this user turn's MCP catalogue snapshot and defer threshold,
+  taken in `prepareMcp`: a mid-turn `tools/list` change reaches
+  requests only at the next user turn, so the prefix changes once.
+  */
+  private mcpTurnCatalog: readonly McpCatalogEntry[] | undefined
+  private mcpTurnThreshold = 0
+  /** 4-H4: discovered MCP function names, in discovery order, for the session's life. */
+  private readonly mcpDiscovered: string[] = []
+  /** 4-H4: the previous turn's catalogue digest, so a change is logged once (counts only). */
+  private mcpCatalogDigest: string | undefined
+  /** 4-H4: deferral was already announced in the log for the current catalogue. */
+  private mcpDeferAnnounced = false
   private approvedSearchQuote: PaidQuote | undefined
   private sendingSearchQuote: PaidQuote | undefined
   private sendingSearchBound: number | undefined
@@ -5087,6 +5131,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     // The settle math below prices this attempt the same way: plan means no
     // dollar cost, no journal write and no reply-usd, like a plan model.
     this.sendingRoute = route
+    // 4-H4: meter this request's fixed prefix and digest its components
+    // (hashes only), for the journal, the per-request log and
+    // cache-miss attribution at settle.
+    this.sendingMeters = meterRequestPrefix(body.tools, this.lastRulesText)
+    this.sendingPrefixHashes = prefixComponentHashes(body)
     this.recordedCall = {
       backend: 'modelApi',
       provider,
@@ -5096,6 +5145,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       kind,
       pricing: planPricing ?? (provider === 'meta' ? undefined : this.sendingModel.policy.pricing),
       outcome: 'failed',
+      definitionTokens: this.sendingMeters.definitionTokens,
+      rulesTokens: this.sendingMeters.rulesTokens,
     }
     const open = this.openRequest
     if (open?.hasCap === true) {
@@ -5502,6 +5553,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       !isUntooled && this.toolFlags().hasMemory,
       !isUntooled,
     )
+    // 4-H4: the rules section these instructions carry, for the meters.
+    this.lastRulesText = context.rules
     const environment = this.environment ?? NO_ENVIRONMENT
     if (environment.git !== undefined)
       read(environment, JSON.stringify({ git: environment.git }), {
@@ -6052,7 +6105,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       hasLegalScan: this.deps.legalScan !== undefined && this.deps.isWorkspaceTrusted(),
       hasToolchains: this.deps.toolchains !== undefined,
     })
-    const mcp = hasShell ? (this.deps.mcpServers?.definitions() ?? []) : []
+    const mcp = hasShell ? this.mcpDefinitionsForRequest() : []
     const offered = [...own, ...this.ideDefinitions(), ...mcp]
     const withSearch: readonly ToolDefinition[] = this.isWebSearchOffered()
       ? [...offered, { type: MODEL_API_WEB_SEARCH_TOOL }]
@@ -6065,6 +6118,38 @@ export class ModelApiSession implements ScheduledAgentSession {
         (this.agent?.toolAllowlist === undefined ||
           this.agent.toolAllowlist.includes(toolNameOf(tool))),
     )
+  }
+
+  /**
+  4-H4: the MCP definitions this request declares, from the turn's
+  frozen catalogue. Past the person's defer threshold that is
+  `tool_search` followed by the discovered tools in discovery order
+  (append-only, so the prefix only grows); under it, the whole sorted
+  catalogue. Core and IDE tools always load (they are declared by the
+  caller). When an allowlist would filter `tool_search` out, the
+  full catalogue rides instead: deferral must never make an allowed
+  tool unreachable.
+  */
+  private mcpDefinitionsForRequest(): readonly ToolDefinition[] {
+    if (this.deps.mcpServers === undefined) {
+      return []
+    }
+    const catalog = this.mcpCatalogForRequest()
+    const threshold =
+      this.mcpTurnCatalog === undefined
+        ? (this.deps.mcpDeferThresholdTokens?.() ?? SETTING_DEFAULTS.modelApiMcpDeferTokens)
+        : this.mcpTurnThreshold
+    const plan = planDeferral(
+      catalog,
+      Number.isSafeInteger(threshold) && threshold > 0 ? threshold : 0,
+      this.mcpDiscovered,
+    )
+    if (!plan.isDeferred) {
+      return plan.declared.map((entry) => entry.definition)
+    }
+    return this.isToolSearchAllowed()
+      ? [TOOL_SEARCH_DEFINITION, ...plan.declared.map((entry) => entry.definition)]
+      : catalog.map((entry) => entry.definition)
   }
 
   /** The extension's own IDE tools, as the model calls them (M50). */
@@ -6282,6 +6367,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       return
     }
     await unlessStopped(servers.start(), signal)
+    this.snapshotMcpCatalog(servers)
     const snapshot = servers.snapshot()
     for (const notice of mcpNotices(snapshot)) {
       if (this.announcedMcp.has(notice.key)) {
@@ -6294,6 +6380,91 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (requiredFailure !== undefined) {
       throw requiredFailure
     }
+  }
+
+  /**
+  4-H4: freeze this user turn's MCP catalogue and defer threshold.
+  Every request of the turn declares from the snapshot, so a
+  `tools/list` change the pool learns mid-turn (a change
+  notification, a stale listing, a reconnect) reaches the prefix
+  once, at the next user turn — never between two requests of one
+  turn. A catalogue that really changed since the last turn is
+  logged once, with counts only; discoveries still append within
+  the turn, because the model asked for them.
+  */
+  private snapshotMcpCatalog(servers: McpToolSource): void {
+    const catalog = servers.catalog()
+    this.mcpTurnCatalog = catalog
+    const threshold =
+      this.deps.mcpDeferThresholdTokens?.() ?? SETTING_DEFAULTS.modelApiMcpDeferTokens
+    this.mcpTurnThreshold = Number.isSafeInteger(threshold) && threshold > 0 ? threshold : 0
+    const digest = createHash('sha256')
+      .update(JSON.stringify(catalog.map((entry) => entry.definition)))
+      .digest('hex')
+    if (this.mcpCatalogDigest !== undefined && digest !== this.mcpCatalogDigest) {
+      this.mcpDeferAnnounced = false
+      this.deps.log.info(
+        `MCP tool catalogue changed for the next request prefix: ${String(catalog.length)} tools, about ${String(
+          meterRequestPrefix(
+            catalog.map((entry) => entry.definition),
+            undefined,
+          ).definitionTokens,
+        )} definition tokens`,
+      )
+    }
+    this.mcpCatalogDigest = digest
+    const plan = planDeferral(catalog, this.mcpTurnThreshold, this.mcpDiscovered)
+    if (!plan.isDeferred || this.mcpDeferAnnounced) {
+      return
+    }
+
+    this.mcpDeferAnnounced = true
+    this.deps.log.info(
+      `MCP tools deferred: ${String(plan.deferredCount)} of ${String(catalog.length)} tools load through tool_search (about ${String(plan.definitionTokens)} definition tokens over the ${String(this.mcpTurnThreshold)}-token threshold; set museSpark.modelApiMcpDeferTokens to 0 to always load them)`,
+    )
+    this.emit({
+      type: 'backendNotice',
+      level: 'info',
+      text: fill(UI_TEXT.mcpToolsDeferred, {
+        deferred: formatNumber(plan.deferredCount),
+        total: formatNumber(catalog.length),
+        tokens: formatNumber(plan.definitionTokens),
+      }),
+    })
+  }
+
+  /** 4-H4: whether the allowlists in force leave `tool_search` reachable. */
+  private isToolSearchAllowed(): boolean {
+    return (
+      (this.deps.toolAllowlist === undefined ||
+        this.deps.toolAllowlist.includes(MODEL_API_TOOLS.toolSearch)) &&
+      (this.agent?.toolAllowlist === undefined ||
+        this.agent.toolAllowlist.includes(MODEL_API_TOOLS.toolSearch))
+    )
+  }
+
+  /** 4-H4: true when `functionName` is in the turn catalogue, deferral is on, and it was never loaded. */
+  private isDeferredUndiscovered(functionName: string): boolean {
+    const catalog = this.mcpCatalogForRequest()
+    if (
+      catalog.every((entry) => entry.functionName !== functionName) ||
+      this.mcpDiscovered.includes(functionName) ||
+      !this.isToolSearchAllowed()
+    ) {
+      return false
+    }
+    return planDeferral(
+      catalog,
+      this.mcpTurnCatalog === undefined
+        ? (this.deps.mcpDeferThresholdTokens?.() ?? SETTING_DEFAULTS.modelApiMcpDeferTokens)
+        : this.mcpTurnThreshold,
+      this.mcpDiscovered,
+    ).isDeferred
+  }
+
+  /** 4-H4: the catalogue requests declare from: the turn snapshot, else the live pool. */
+  private mcpCatalogForRequest(): readonly McpCatalogEntry[] {
+    return this.mcpTurnCatalog ?? this.deps.mcpServers?.catalog() ?? []
   }
 
   private requiredMcpFailure(snapshot: McpPoolSnapshot | undefined): Error | undefined {
@@ -6942,6 +7113,28 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.previousCacheUsage = { modelId: sentModelId, inputTokens: billable.inputTokens }
     if (missed !== undefined) {
       this.deps.log.warn(fill(UI_TEXT.promptCacheMiss, { tokens: missed }))
+      // 4-H4: say which prefix component moved (hashes only, never content).
+      const changed =
+        this.previousPrefixHashes === undefined || this.sendingPrefixHashes === undefined
+          ? []
+          : changedComponents(this.previousPrefixHashes, this.sendingPrefixHashes)
+      this.deps.log.warn(
+        changed.length === 0
+          ? 'Prompt cache miss with an unchanged prefix (same model, instructions and tools hashes)'
+          : `Prompt cache miss after the prefix changed: ${changed
+              .map(
+                (component) =>
+                  `${component} ${this.previousPrefixHashes?.[component] ?? ''} -> ${this.sendingPrefixHashes?.[component] ?? ''}`,
+              )
+              .join(', ')}`,
+      )
+    }
+    this.previousPrefixHashes = this.sendingPrefixHashes
+    // 4-H4: one meter line per counted request (counts only).
+    if (this.sendingMeters !== undefined) {
+      this.deps.log.info(
+        `Request meters: about ${String(this.sendingMeters.definitionTokens)} tool-definition tokens, about ${String(this.sendingMeters.rulesTokens)} rules tokens, ${String(billable.cachedTokens ?? 0)} cached input tokens`,
+      )
     }
     const sentModel = this.sendingModel ?? this.selectedModel(sentModelId)
     // A plan-priced attempt settles no dollar cost: like a plan model, its
@@ -10263,6 +10456,66 @@ export class ModelApiSession implements ScheduledAgentSession {
   card. Without packing the tool is not offered, and a model that calls
   it anyway is told so, never run.
   */
+  /**
+  A `tool_search` call (4-H4): finds deferred MCP tools in the turn's
+  frozen catalogue and loads them for the session (append-only, so
+  the prefix only grows). It runs nothing and asks no server
+  anything; a discovered tool then passes the same permission engine
+  as any MCP call. Without deferral the tool is not offered, and a
+  model that calls it anyway is told so, never run.
+  */
+  private searchDeferredTools(call: FunctionCallItem): ToolOutcome {
+    const parsed = toolSearchArgs.safeParse(argumentsOf(call))
+    if (!parsed.success || parsed.data.query.trim() === '') {
+      return toolFailure(MODEL_API_MODEL_TEXT.toolSearchBadQuery)
+    }
+    const query = parsed.data.query
+    const catalog = this.mcpCatalogForRequest()
+    const plan = planDeferral(
+      catalog,
+      this.mcpTurnCatalog === undefined
+        ? (this.deps.mcpDeferThresholdTokens?.() ?? SETTING_DEFAULTS.modelApiMcpDeferTokens)
+        : this.mcpTurnThreshold,
+      this.mcpDiscovered,
+    )
+    if (!plan.isDeferred) {
+      return toolFailure(MODEL_API_MODEL_TEXT.toolSearchNotDeferred)
+    }
+    const matches = searchCatalog(catalog, query)
+    if (matches.length === 0) {
+      this.deps.log.info('tool_search matched no deferred MCP tool')
+      return {
+        output: fill(MODEL_API_MODEL_TEXT.toolSearchNone, { query }),
+        visibleOutput: UI_TEXT.toolSearchLoadedNone,
+      }
+    }
+    const loaded: McpCatalogEntry[] = []
+    const already: McpCatalogEntry[] = []
+    for (const entry of matches) {
+      if (this.mcpDiscovered.includes(entry.functionName)) {
+        already.push(entry)
+      } else {
+        this.mcpDiscovered.push(entry.functionName)
+        loaded.push(entry)
+      }
+    }
+    this.deps.log.info(
+      `tool_search matched ${String(matches.length)} MCP tool(s): ${String(loaded.length)} newly loaded, ${String(already.length)} already loaded`,
+    )
+    const lines = matches.map(
+      (entry) =>
+        `- ${entry.functionName} (${entry.server}): ${entry.description} Arguments: ${entry.argumentNames.length === 0 ? '(none)' : entry.argumentNames.join(', ')}`,
+    )
+    const names = matches.map((entry) => entry.functionName).join(', ')
+    return {
+      output: `${fill(MODEL_API_MODEL_TEXT.toolSearchFound, { count: String(matches.length) })}\n${lines.join('\n')}`,
+      visibleOutput:
+        loaded.length === 0
+          ? fill(UI_TEXT.toolSearchAlreadyLoaded, { names })
+          : fill(UI_TEXT.toolSearchLoaded, { count: formatNumber(loaded.length), names }),
+    }
+  }
+
   private async recallPacked(call: FunctionCallItem): Promise<ToolOutcome> {
     if (this.packing !== undefined && this.canPack()) {
       const outcome = this.packing.recall(call.arguments)
@@ -12823,6 +13076,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       case MODEL_API_TOOLS.recallOutput: {
         return { outcome: await this.recallPacked(call) }
       }
+      case MODEL_API_TOOLS.toolSearch: {
+        return { outcome: this.searchDeferredTools(call) }
+      }
       case MODEL_API_TOOLS.legalScan: {
         return { outcome: await this.runLegalScan(call, signal) }
       }
@@ -14571,6 +14827,14 @@ export class ModelApiSession implements ScheduledAgentSession {
     const isAllowed: CallAdmission = (detached) =>
       current(detached) && this.inPlaceRefusalFor(call.name) === undefined
     const external = this.externalTool(call.name)
+    if (external?.kind === 'mcp' && this.isDeferredUndiscovered(call.name)) {
+      // 4-H4: a deferred tool is callable only after tool_search loads
+      // it; naming it is not loading it.
+      return {
+        outcome: toolFailure(`${call.name} ${MODEL_API_MODEL_TEXT.toolSearchLoadFirst}`),
+        isRejected: true,
+      }
+    }
     if (external !== undefined && this.isSideChat) {
       return {
         outcome: toolFailure(`${call.name} ${MODEL_API_MODEL_TEXT.toolRefusedByMode}`),
@@ -14583,7 +14847,19 @@ export class ModelApiSession implements ScheduledAgentSession {
       toolClass = external.kind === 'ide' ? 'read' : 'mcp'
     }
     if (toolClass === undefined) {
-      return { outcome: toolFailure(`unknown tool ${call.name}`), isRejected: false }
+      // 4-H4: a tool this turn's frozen catalogue declared whose server
+      // has since stopped or relisted is unavailable, not unknown.
+      const wasDeclared =
+        this.mcpCatalogForRequest().some((entry) => entry.functionName === call.name) ||
+        this.mcpDiscovered.includes(call.name)
+      return {
+        outcome: toolFailure(
+          wasDeclared
+            ? `${call.name} ${MCP_POOL_MODEL_TEXT.mcpToolUnavailable}`
+            : `unknown tool ${call.name}`,
+        ),
+        isRejected: false,
+      }
     }
     if (this.active?.scheduleRun !== undefined) {
       const run = this.active.scheduleRun

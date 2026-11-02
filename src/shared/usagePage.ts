@@ -65,6 +65,8 @@ export const usageTotalsSchema = /* @__PURE__ */ z.strictObject({
   retries: usageCountSchema,
   rateLimited: usageCountSchema,
   packedAvoided: z.optional(usageCountSchema),
+  definitionTokens: z.optional(usageCountSchema),
+  rulesTokens: z.optional(usageCountSchema),
   cacheHitPercent: z.optional(usageAmountSchema),
   tokensPerSecond: z.optional(usageAmountSchema),
 })

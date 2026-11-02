@@ -633,6 +633,9 @@ const TOOL_CLASSES: Readonly<Record<string, ToolClass>> = {
   // M73 (PLAN.md D49): reading a packed output back is a read of the
   // session's own earlier output: no card, in any mode.
   [MODEL_API_TOOLS.recallOutput]: 'read',
+  // 4-H4: searching the local MCP catalogue runs nothing and asks no
+  // server anything: a read of the session's own catalogue, in any mode.
+  [MODEL_API_TOOLS.toolSearch]: 'read',
   // M68: the call itself asks nothing; each check it runs takes the shell
   // tool's permission path, one command at a time.
   [VERIFY_TOOLS.runChecks]: 'interactive',
@@ -716,6 +719,7 @@ const shellArgs = z.object({
 })
 export const askUserArgs = z.object({ questions: z.array(questionSchema) })
 export const readSkillArgs = z.object({ id: z.string() })
+export const toolSearchArgs = z.object({ query: z.string() })
 export const webFetchArgs = z.object({ url: z.string(), offset: z.optional(z.number()) })
 export const todoWriteArgs = z.object({ items: z.array(todoItemSchema) })
 

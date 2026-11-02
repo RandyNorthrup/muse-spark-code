@@ -89,6 +89,8 @@ export function exportUsageCallsCsv(
       'retryDelayMs',
       'session',
       'packedAvoided',
+      'definitionTokens',
+      'rulesTokens',
     ],
     ...records.map((record) => [
       record.v,
@@ -128,6 +130,8 @@ export function exportUsageCallsCsv(
       record.retryDelayMs,
       record.session,
       record.packedAvoided,
+      record.definitionTokens,
+      record.rulesTokens,
     ]),
   ])
 }
@@ -165,6 +169,8 @@ export function exportUsageSummaryCsv(input: UsagePageState): string {
       'retries',
       'rateLimited',
       'packedAvoided',
+      'definitionTokens',
+      'rulesTokens',
     ],
     ...state.breakdown.flatMap((row) =>
       (row.totals.costs.length === 0 ? [undefined] : row.totals.costs).map((cost, index) => {
@@ -200,6 +206,8 @@ export function exportUsageSummaryCsv(input: UsagePageState): string {
           totals?.retries,
           totals?.rateLimited,
           totals?.packedAvoided,
+          totals?.definitionTokens,
+          totals?.rulesTokens,
         ]
       }),
     ),

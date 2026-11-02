@@ -108,7 +108,7 @@ Estimated tokens of tool definitions as they ride a request: the JSON
 bytes the request carries, at the product's chars-per-token rule
 (`estimatePackTokens`).
 */
-export function estimateDefinitionTokens(definitions: readonly FunctionToolDefinition[]): number {
+export function estimateDefinitionTokens(definitions: readonly object[]): number {
   return estimatePackTokens(JSON.stringify(definitions).length)
 }
 
