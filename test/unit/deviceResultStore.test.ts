@@ -48,6 +48,7 @@ describe('M100 result store', () => {
     const file = path.join(directory, `${'3'.repeat(32)}.json`)
     const grant = await grantOthers(file, 'file')
     try {
+      await expect(ownerOnlyEvidence(file, false)).resolves.not.toBe('600')
       await expect(store.load('3'.repeat(32))).rejects.toThrow(DeviceResultError)
     } finally {
       await grant.restore()

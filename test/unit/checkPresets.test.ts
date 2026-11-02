@@ -5,6 +5,7 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import { afterEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
+import { windowsPowerShell } from '../../src/core/execGuard'
 import {
   checkPresets,
   detectAndOfferMakerPresets,
@@ -295,14 +296,19 @@ describe('portable maker preset suggestions', () => {
       const [preset] = checkPresets(project('cadquery', filename), process.platform)
       expect(preset?.type).toBe('command')
       if (preset?.type !== 'command') throw new Error('Missing syntax check')
-      const shell = process.platform === 'win32' ? 'powershell.exe' : '/bin/sh'
-      const args =
+      // Windows PowerShell's own launch, with the whole environment a person's
+      // shell has: without PATHEXT it does not recognise `python` at all.
+      const windows =
         process.platform === 'win32'
-          ? ['-NoProfile', '-NonInteractive', '-Command', preset.check.command]
-          : ['-c', preset.check.command]
-      await promisify(execFile)(shell, args, {
+          ? windowsPowerShell(process.env['SystemRoot'] ?? '')
+          : undefined
+      const args =
+        windows === undefined
+          ? ['-c', preset.check.command]
+          : ['-NoProfile', '-NonInteractive', '-Command', preset.check.command]
+      await promisify(execFile)(windows?.file ?? '/bin/sh', args, {
         cwd: root,
-        env: { PATH: process.env['PATH'], SystemRoot: process.env['SystemRoot'] },
+        env: windows?.env ?? { PATH: process.env['PATH'] },
       })
       await expect(readFile(path.join(root, 'injected'))).rejects.toThrow()
       await expect(readFile(path.join(root, '__pycache__'))).rejects.toThrow()
