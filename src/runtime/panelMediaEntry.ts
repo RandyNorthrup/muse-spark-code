@@ -11,9 +11,3 @@ export function createPanelMedia(options: PanelMediaOptions) {
 }
 
 export { routeAttachmentMethod } from './panel/panelMedia'
-export type {
-  AttachmentDispatch,
-  AttachmentOwner,
-  PanelMediaHost,
-  PanelMediaOptions,
-} from './panel/panelMedia'

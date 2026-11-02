@@ -20,6 +20,16 @@ import { modelApiRig, type ModelApiRig } from './helpers/conversationPanel'
 import { removeFolder } from './helpers/temporaryFolders'
 import { warningLogger } from './helpers/collectingLogger'
 
+function countingHold(warnings: string[], load: () => Promise<never>, count: () => void) {
+  return createPanelScheduleHold({
+    log: warningLogger(warnings),
+    load: () => {
+      count()
+      return load()
+    },
+  })
+}
+
 function recordingOwner() {
   const notices: { session: unknown; text: string }[] = []
   return {
@@ -59,10 +69,9 @@ describe('the native schedule hold without certified delivery', () => {
     const warnings: string[] = []
     const { notices, owner } = recordingOwner()
     let loads = 0
-    const hold = createPanelScheduleHold({
-      log: warningLogger(warnings),
-      load: () => {
-        loads += 1
+    const hold = countingHold(
+      warnings,
+      () => {
         // The real lazy loader over a folder with no bundle in it: its
         // own refusal, not an invented one.
         panelSchedulesLoader(
@@ -71,7 +80,10 @@ describe('the native schedule hold without certified delivery', () => {
         )()
         return Promise.reject(new Error('the loader must refuse first'))
       },
-    })
+      () => {
+        loads += 1
+      },
+    )
     const session = await startSession()
     await hold.hold(directory, session, 'modelApi', owner)
     expect(loads).toBe(1)
@@ -87,13 +99,13 @@ describe('the native schedule hold without certified delivery', () => {
     const warnings: string[] = []
     const { notices, owner } = recordingOwner()
     let loads = 0
-    const hold = createPanelScheduleHold({
-      log: warningLogger(warnings),
-      load: () => {
+    const hold = countingHold(
+      warnings,
+      () => Promise.reject(new Error('must not load after close')),
+      () => {
         loads += 1
-        return Promise.reject(new Error('must not load after close'))
       },
-    })
+    )
     await hold.close()
     const session = await startSession()
     await expect(hold.hold(directory, session, 'modelApi', owner)).rejects.toThrow(

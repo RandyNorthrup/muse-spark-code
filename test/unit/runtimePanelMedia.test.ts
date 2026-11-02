@@ -25,6 +25,7 @@ import { attachmentsResultSchema } from '../../src/shared/hostApi/attachments'
 import { SETTING_DEFAULTS, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { videoFixture, wavFixture } from './helpers/media/fixtures'
+import { collectingLogger } from './helpers/collectingLogger'
 
 const CONTRIBUTOR = 'muse-spark-1.3-contributor'
 const STANDARD = 'muse-spark-1.3'
@@ -36,10 +37,7 @@ afterEach(async () => {
 
 function recordingLog() {
   const lines: string[] = []
-  const record = (message: string) => {
-    lines.push(message)
-  }
-  return { trace: record, info: record, warn: record, error: record, lines }
+  return { ...collectingLogger(lines), lines }
 }
 
 async function setup(
