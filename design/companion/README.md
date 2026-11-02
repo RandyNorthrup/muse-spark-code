@@ -16,6 +16,12 @@ Nothing here ships in the VS Code extension: the VSIX packages an allow-list
 | `source/reference-sheet.jpg` | The owner's character sheet (front, side, jump, charge, beam and angry poses), as he supplied it on 2026-10-05.   |
 | `anim/<name>.png`            | One horizontal strip per animation, 240 px tall, frames left to right, transparent background.                    |
 | `anim/manifest.json`         | Per animation: `frames`, the frame width `w` and height `h` in pixels, the playback rate `fps`, and `loop`.       |
+| `anim-2x/<name>.png`         | Lane AR: every strip at 480 px (Keys-bicubic upscale; the raw sheets stay outside the repo).                      |
+| `anim-hc/<name>.png`         | Lane AR: every strip with a white-then-black outline ring (2 px each) for high contrast.                          |
+| `anim-hc-2x/<name>.png`      | Lane AR: the high-contrast set at 480 px (4 px rings).                                                            |
+| `anim-still/<name>.png`      | Lane AR: one reduced-motion frame per animation (median-area loop frame, peak-area one-shot frame).               |
+| `anim-still-2x/<name>.png`   | Lane AR: the stills at twice the size.                                                                            |
+| `anim/variants.json`         | Lane AR: every derived file with its still frame, display scale and WCAG 2.3.1 flash measurement. Lane PE reads.  |
 | `tools/penguin-slice.py`     | Keys the chroma-green sheets, slices each grid into frames, aligns rows and writes the strips and the manifest.   |
 | `tools/penguin-cut.py`       | Cuts the six reference poses out of `source/reference-sheet.jpg` (used to check the strips against the original). |
 | `prompts.md`                 | The exact twelve image prompts that produced the sheets.                                                          |
@@ -57,20 +63,26 @@ way the character must be one size on screen in every animation.
    union box of its animation, and wrote the strips at 240 px.
 
 Under OpenAI's terms of use the person who prompts owns the output; the
-character itself is the owner's. Lane AR records this provenance in
-`THIRD_PARTY_NOTICES.txt`'s desktop section when the art ships, and re-checks
-the white belly mark against publishers' penguin logos before release
-(D91.30).
+character itself is the owner's. The provenance note lives in
+`os/desktop/notices/companion.md` beside the image's other notices (the
+VSIX notices file covers npm bundles only, and this art never ships in
+the VSIX). The white belly mark is re-checked against publishers' penguin
+logos before release (D91.30).
 
 The raw 1536 × 1024 sheets are kept outside the repository (19 MB) in the
 lead's archive on the Kubuntu rig, `~/archive/companion-sheets/`. Re-running
 the slicer needs them; the strips here are the build input.
 
-## Still to do (lane PE and lane AR)
+## Still to do (lane PE and release)
 
-- 2× strips (480 px) for high-density displays, regenerated from the sheets
-  with the same slicer, or re-prompted at a larger size if 2× upscaling blurs.
+Lane AR has delivered the 2× strips (Keys-bicubic upscale: downsampling the
+result reproduces the 1× paint within 1.2/255 per channel, so no re-prompt
+was needed), the high-contrast outline set at both scales, the stills at
+both scales, `anim/variants.json`, and the provenance note — all twelve
+animations measure WCAG 2.3.1 compliant (see
+`docs/certification/rlf-m111ar.md`).
+
 - A left-facing `walk` is the mirrored strip; check that the lightning bolts
   and the belly mark read correctly when mirrored, or draw a left sheet.
-- A high-contrast outline variant and a reduced-motion still for each pose
-  (D91.30's accessibility rules).
+  The strips hold no text (the prompts forbid it), so mirroring cannot flip
+  any wording; the rest is a visual check at release.

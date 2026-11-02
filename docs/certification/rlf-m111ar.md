@@ -18,7 +18,7 @@ values (`boot/boot.json`), all read, never copied by hand.
 - [x] Fonts (Inter + JetBrains Mono), fontconfig, `packages.conf`, notices.
 - [x] Wallpapers and greeter art.
 - [x] Plymouth and GRUB theme packaging.
-- [ ] Companion variants, manifest, provenance; flash measurement.
+- [x] Companion variants, manifest, provenance; flash measurement.
 - [ ] Chromium looks (light + dark + boot).
 - [ ] PLAN status, CHANGELOG, gates, red/green drills, LANE DONE.
 
@@ -60,7 +60,7 @@ values (`boot/boot.json`), all read, never copied by hand.
   `SetDisplayPasswordFunction(prompt, bullets)` for the LUKS passphrase.
 - Approved mockups (`docs/design/m111-mockups/`, viewer): the background
   language (`--ms-surface` + the giant squiggle-m watermark in
-  `--ms-brand-mark` at 8–9%) and the icon language (24-grid,
+  `--ms-brand-mark` at 0.07 opacity) and the icon language (24-grid,
   `fill:none;stroke:currentColor;stroke-width:1.75;round caps/joins`).
 - M114 (`design/tokens/README.md`, `design/fonts/README.md`): one token
   source, radius/spacing/motion scales, font preference defaults Inter +
@@ -116,13 +116,17 @@ values (`boot/boot.json`), all read, never copied by hand.
      image's font version, so committing them would pin a lie). The bake
      command is proven on this rig and recorded here; QEMU boot proof is
      M111os/IQ's, per the plan.
-7. **Companion: build what this rig can prove.** HC outline variants (black
-   - white double outline, reads on any bar), reduced-motion stills (the
-     median-area frame of loops, the peak frame of one-shots, measured
-     below), the `variants.json` contract, the flash measurement at manifest
-     fps, and the desktop-section provenance text. 2× strips need the raw
-     sheets (lead's Kubuntu archive) or a fresh model generation: neither is
-     available in this lane, so they stay open for the lead.
+7. **Companion: derive everything from the 1× strips.** The raw sheets
+   stay outside the repo (lead's archive), so the 2× set is a Keys-bicubic
+   upscale of the committed 1× strips — arithmetic only, bit-deterministic,
+   and downsampling it reproduces the 1× paint within 1.2/255 per channel,
+   so no re-prompt was needed. HC outline variants (white inner, black
+   outer ring, 2 px each at 1× and 4 px at 2×, reads on any bar),
+   reduced-motion stills (the median-area frame of loops, the peak-area
+   frame of one-shots), the `variants.json` contract lane PE reads, the
+   WCAG 2.3.1 flash measurement at manifest fps (all twelve compliant),
+   and the provenance note in `os/desktop/notices/companion.md` (the VSIX
+   notices file covers npm bundles only; this art never ships in it).
 8. **No new strings.** Art carries no UI text; `check:l10n` stays at 0.
 
 ## Proof
@@ -210,6 +214,18 @@ codepoints; 0 problems` (exit 0, this rig, 2026-11-02).
   and the same for Bold (97 KiB, "Inter Bold 16"); M111os loadfonts both.
   No .pf2 is committed: the bytes depend on the image's font version.
   QEMU boot proof stays M111os/IQ's, per the plan.
+- Companion: `test/unit/desktop/artCompanion.test.mjs`, 12 tests, all
+  green (2026-11-02). 61 files from `scripts/build-companion-art.mjs`
+  (in `check:art`): the 2x, HC, HC-2x and still sets at both scales plus
+  `anim/variants.json`. Every derived PNG matches a fresh render
+  pixel-exact (freshness compares pixels, not bytes: deflate bytes vary
+  with the zlib build); the HC set keeps every source pixel and adds only
+  pure black and white (walk: +15,768 white, +13,589 black, 0 other
+  diffs); the stills are their recorded frames; the flash numbers match a
+  fresh measurement and every animation is compliant (highest rate hop at
+  3.00/s, largest area peek at 18,054 of the 87,296 threshold, zero red
+  pairs). An independent numpy reimplementation of the flash method
+  matches all twelve animations exactly.
 
 ## Commits
 
@@ -218,7 +234,8 @@ codepoints; 0 problems` (exit 0, this rig, 2026-11-02).
 - `27da2d767` the icon themes.
 - `1eafb9798` the image fonts, slot-59 fontconfig and notices.
 - `258307b35` the wallpapers and greeter art.
-- (Boot commit SHA lands here at commit time.)
+- `f7ac2afe8` the Plymouth and GRUB themes.
+- (Companion commit SHA lands here at commit time.)
 
 ## Gates
 
@@ -236,3 +253,6 @@ codepoints; 0 problems` (exit 0, this rig, 2026-11-02).
 - Boot (2026-11-02): the password registration → a missing callback fails
   the registrations test (10 of 11 pass); restored, 11 green. The drill's
   first run stayed green and grew the test (see above).
+- Companion (2026-11-02): seven garbage bytes over a committed still make
+  `build-companion-art.mjs --check` exit 1 naming only that file;
+  restored, exit 0 with 61 fresh.
