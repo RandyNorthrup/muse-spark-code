@@ -256,6 +256,24 @@ so it does not claim deletion or forget ownership without its resource owner.
   sent in a confidential workspace, never chosen by `auto`, and its answer
   only adds caution to your own model's judgment: it never answers you,
   writes code or decides alone. Nothing is sent without that setting.
+- **Local-judge scan (M125).** `judge scan` and the wizard's Scan step read
+  this machine's hardware facts (OS and architecture, RAM, CPU features,
+  GPU vendor and VRAM, free disk, an existing Ollama's version, state and
+  models) and print a recommendation with reasons. The scan writes nothing,
+  starts nothing and makes no network call; its facts never leave the
+  machine.
+- **Local-judge setup (M125).** The wizard installs a private Ollama runtime
+  and model only after its consent screen names what, where, size and time,
+  and only into the extension's storage unless you take the Advanced
+  machine-wide choice; removal deletes only what setup added. No model or
+  runtime has been downloaded through this path yet: downloads wait for the
+  owner's go, and the install and smoke steps are unproven in real use.
+- **Fast-judge checks (M125).** The deterministic checks run locally on the
+  turn's own data with no model and no network call. The model-backed
+  checks stay off: they show nothing without a fitted calibration profile
+  for the engine, and no profile is fitted yet, so the fast judge makes no
+  hosted call on any backend. The B2 check core has no run path yet, so no
+  contained run reads or sends anything.
 - **Auto reviewer (Model API, available by default).** With
   `museSpark.modelApiAutoReviewer` enabled and its paid-use popup accepted,
   a separate request to Meta judges an eligible tool call. It includes your
