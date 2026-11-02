@@ -7065,7 +7065,7 @@
     "internal": "内部记录",
     "labelWarning": "代理可以看到名称和标签。请勿在其中包含机密。",
     "processWarning": "此程序及其子进程将看到凭据，并可将其发送到其他地方。",
-    "environmentWarning": "该值会在此程序运行期间进入其环境。在 Linux 上，此次运行与以你的身份运行的其他程序隔离；在 macOS 和 Windows 上，以你的身份运行的另一个程序仍可能在那里读取它。如果程序改为从标准输入读取该值，它就不会进入环境。",
+    "environmentWarning": "该值会在此程序运行期间进入其环境。以你的身份运行的另一个程序在 Linux、macOS 和 Windows 上仍能在那里读取它，管理员也可以。命令在 macOS 和 Linux 上启动时关闭核心转储。如果程序改为从标准输入读取该值，它就不会进入环境。",
     "disclosureWarning": "确认本人在场后，只有您能看到此值。已公开的值无法收回；请随后更换。",
     "taintWarning": "此请求发生在不可信内容之后：{content}。即使已有授权，也需要批准。",
     "presenceWarning": "操作系统将要求您确认这项具体使用。",

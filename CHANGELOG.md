@@ -1126,13 +1126,14 @@ set|status|clear --provider <id> --admin` stores the separate admin
   states that retired entries are deleted too, because the vault holds
   their only copies, before you type RESET.
 - **Environment delivery says what it exposes.** When a vault approval
-  asks to place a value in a program's environment, the card now says
-  that another program running as you may still read it there on macOS
-  and Windows (Linux runs are shielded), and that reading the value from
+  asks to place a value in a program's environment, the card says that
+  another program running as you can still read it there on Linux, macOS
+  and Windows, and that an administrator can too. Reading the value from
   standard input keeps it out of the environment.
 - **Vault-fed commands leave no core dump.** A command the vault feeds
-  a secret to now starts with core dumps off on macOS and Linux, so a
-  crash cannot write the handed-over value into a core file.
+  a secret to starts with core dumps off on macOS and Linux, so an
+  ordinary crash does not write a core file. That does not hide the
+  value from another program running as you.
 ### Team scheduler
 
 - **Stacked dependencies.** A task with `on: stacked` starts from its

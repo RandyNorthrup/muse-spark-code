@@ -36,7 +36,14 @@ function renderCard(withUse: VaultUse): void {
 describe('vault approval environment warning (RLF-M109H)', () => {
   it('says what environment delivery exposes where the person allows it', () => {
     renderCard(use())
-    expect(screen.getByText(UI_TEXT.vault.environmentWarning)).toBeInTheDocument()
+    const warning = UI_TEXT.vault.environmentWarning
+    expect(screen.getByText(warning)).toBeInTheDocument()
+    expect(warning).toMatch(/Linux/)
+    expect(warning).toMatch(/macOS/)
+    expect(warning).toMatch(/Windows/)
+    expect(warning).toMatch(/administrator/)
+    expect(warning).toMatch(/standard input/)
+    expect(warning).not.toMatch(/shield/i)
   })
 
   it('does not carry the environment sentence for a standard-input use', () => {
