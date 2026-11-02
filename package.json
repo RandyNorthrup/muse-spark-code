@@ -2110,7 +2110,8 @@
     "build:tokens:desktop": "node scripts/build-tokens-desktop.mjs",
     "check:tokens": "node scripts/check-tokens.mjs && node scripts/build-tokens-desktop.mjs --check",
     "build:cursors": "node scripts/build-cursors.mjs",
-    "check:art": "node scripts/build-cursors.mjs --check",
+    "build:icons": "node scripts/build-icons.mjs",
+    "check:art": "node scripts/build-cursors.mjs --check && node scripts/build-icons.mjs --check",
     "build:node-auth": "node scripts/build-node-auth.mjs",
     "check:editor-matrix": "node scripts/gen-editor-matrix.mjs --check",
     "editor-matrix:generate": "node scripts/gen-editor-matrix.mjs"

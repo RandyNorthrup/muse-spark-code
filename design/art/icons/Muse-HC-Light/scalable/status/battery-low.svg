@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- battery-low (status). -->
+  <g fill="none" stroke="#000000" stroke-width="2.63" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="2.5" y="8" width="17" height="8.5" rx="2"/>
+    <path d="M21.5 11 L21.5 13.5"/>
+  </g>
+  <g fill="#735500">
+    <rect x="5.5" y="10.5" width="3" height="3.5" rx="0.75"/>
+  </g>
+</svg>

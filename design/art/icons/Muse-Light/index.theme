@@ -1,0 +1,34 @@
+[Icon Theme]
+Name=Muse-Light
+Comment=Muse Desktop: the icon theme, light (D91.11).
+Inherits=hicolor
+Directories=scalable/apps,scalable/status,scalable/places,scalable/mimetypes
+Example=folder
+
+[scalable/apps]
+Size=24
+MinSize=8
+MaxSize=512
+Context=Applications
+Type=Scalable
+
+[scalable/status]
+Size=24
+MinSize=8
+MaxSize=512
+Context=Status
+Type=Scalable
+
+[scalable/places]
+Size=24
+MinSize=8
+MaxSize=512
+Context=Places
+Type=Scalable
+
+[scalable/mimetypes]
+Size=24
+MinSize=8
+MaxSize=512
+Context=MimeTypes
+Type=Scalable

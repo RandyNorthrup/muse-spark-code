@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- audio-volume-medium (status). -->
+  <g fill="none" stroke="%%FOREGROUND%%" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 9.5 L7.5 9.5 L12 5.5 L12 18.5 L7.5 14.5 L4 14.5 Z"/>
+    <path d="M14.5 9 C15.5 10 16 11 16 12 C16 13 15.5 14 14.5 15"/>
+  </g>
+</svg>

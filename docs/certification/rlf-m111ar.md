@@ -14,7 +14,7 @@ values (`boot/boot.json`), all read, never copied by hand.
 - [x] Research (formats verified against their own sources, below).
 - [x] `@resvg/resvg-js` 2.6.2 (rule 9 record in PLAN.md D3).
 - [x] Cursor sources, `scripts/build-cursors.mjs`, three themes, tests.
-- [ ] Icon sources, `scripts/build-icons.mjs`, four themes, tests.
+- [x] Icon sources, `scripts/build-icons.mjs`, four themes, tests.
 - [ ] Fonts (Inter + JetBrains Mono), fontconfig, `packages.conf`, notices.
 - [ ] Wallpapers and greeter art.
 - [ ] Plymouth and GRUB theme packaging.
@@ -141,11 +141,20 @@ values (`boot/boot.json`), all read, never copied by hand.
   images. libXcursor's own writer always sets 16 (its reader skips
   `header - 16`), so the writer now sets 16 and the test's reader asserts
   it. Recorded here so the regression stays dead.
+- Icons: `test/unit/desktop/artIcons.test.mjs`, 45 tests, all green
+  (2026-11-02). Every committed SVG renders to real paint; every painted
+  colour is its mode's palette; the planted stale file is named and only
+  it. `gtk-update-icon-cache` and `gtk4-update-icon-cache` both build a
+  cache from the committed theme (exit 0, this rig).
+- Icons caught by the build: the palette key is `warning` with an `accent`
+  beside it (not `warn`); folders, home, the launcher mark and the
+  workbench icon use the accent, functional blue stays info.
 
 ## Commits
 
 - `70545f0fe` research, design record, resvg 2.6.2 (+ PLAN.md D3 rule 9).
-- (Cursor commit SHA lands here at commit time.)
+- `4c29dc13d` the pointer themes (`check:art` joins `quality:gates`).
+- (Icon commit SHA lands here at commit time.)
 
 ## Gates
 
