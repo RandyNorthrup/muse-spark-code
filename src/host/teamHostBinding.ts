@@ -19,7 +19,12 @@ import type { WebviewToHostMessage } from '../shared/protocol'
 import type { TeamTreeData } from '../shared/teamView'
 import type { UiText } from '../shared/l10n/en'
 import type { SessionMcpHttpServer } from '../core/agent/agentBackend'
-import type { TeamHostSeams, TeamHostService } from '../core/team/teamHostService'
+import type {
+  ScheduledBoardTaskInput,
+  ScheduledBoardTaskOutcome,
+  TeamHostSeams,
+  TeamHostService,
+} from '../core/team/teamHostService'
 import type { TeamHostBundleDeps } from './team/teamEnginePorts'
 import type { TeamToolResult } from '../core/team/teamSeams'
 import type { TeamMcpServer, TeamSessionBinding } from './team/teamMcpServer'
@@ -355,6 +360,21 @@ export class TeamHostBinding implements TeamSurfacePort {
   /** The tree to show when a surface opens; undefined is today's map. */
   public tree(): TeamTreeData | undefined {
     return this.service?.tree()
+  }
+
+  /**
+  Admit one scheduled fire to the board (C-M115-8): loads the service on
+  the first scheduled fire as surfaces load it on open, without the
+  setup probes. Undefined when this window runs no team; the schedule
+  refuses targetUnavailable.
+  */
+  public async admitScheduledBoardTask(
+    input: ScheduledBoardTaskInput,
+  ): Promise<ScheduledBoardTaskOutcome | undefined> {
+    const service = await this.load()
+    return service === undefined || this.closed() || service.tree() === undefined
+      ? undefined
+      : await service.delegateScheduled(input)
   }
 
   public async handle(message: TeamSurfaceMessage): Promise<void> {

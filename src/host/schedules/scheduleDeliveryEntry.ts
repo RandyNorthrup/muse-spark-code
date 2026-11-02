@@ -3,5 +3,5 @@
 // dist/schedules.js loads this as dist/scheduleDelivery.js on the first
 // delivery; a bundle that cannot load refuses the run that needed it, never
 // an undelivered run and never a default target.
-export { createScheduleDeliveryBinding } from './deliveryBinding'
+export { createScheduleDeliveryBinding, scheduleBoardEventFence } from './deliveryBinding'
 export type { ScheduleEditorDeliveryPorts } from './deliveryBinding'

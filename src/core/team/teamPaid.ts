@@ -1,11 +1,12 @@
 import type { TeamPaidPort } from './teamHostService'
 import type { TeamToolContext } from './teamSeams'
-import type { UsdAmount } from '../../shared/usd'
+import { Usd, type UsdAmount } from '../../shared/usd'
 // Paid team pricing and grant scopes load with the team runtime (M96, D6).
 import {
   MODEL_API_PRICES_PER_MILLION,
   MODEL_API_PRICE_DECIMALS,
   TEAM_MODEL_TEXT,
+  TOKENS_PER_MILLION,
   UI_TEXT,
 } from '../../shared/constants'
 import { fill, formatNumber } from '../../shared/l10n/text'
@@ -151,6 +152,36 @@ export async function hasTeamTaskConsent(
 ): Promise<boolean> {
   context.signal.throwIfAborted()
   return confirmations.length === 0 || (await paid.allowKeyTasks(confirmations, undefined, context))
+}
+
+/**
+The quoted ceiling of key-billed tasks in USD (C-M115-8): each task's
+token ceiling at the dearest of its input and output rates, from the
+same prices the popup quotes. Undefined when any task cannot be quoted
+(no task token ceiling, or neither quoted rates nor a verified tier):
+an unquotable task never runs on a schedule's cap.
+*/
+export function quoteKeyTasksUsd(
+  confirmations: readonly TeamWorkerConfirmation[],
+): UsdAmount | undefined {
+  let total = Usd.from(0)
+  for (const task of confirmations) {
+    if (!Number.isSafeInteger(task.taskCeilingTokens) || task.taskCeilingTokens <= 0)
+      return undefined
+    const tier = teamWorkerPaidTier(task)
+    const tariff =
+      task.rates ?? (tier === undefined ? undefined : MODEL_API_PRICES_PER_MILLION[tier])
+    if (tariff === undefined) return undefined
+    // Exact: the ceiling at the dearest rate, one power-of-ten division
+    // at the end (M121, as the preview's costOf).
+    let dearest = Usd.from(0)
+    for (const rate of [tariff.input, tariff.output, tariff.cachedInput ?? tariff.input]) {
+      const priced = Usd.from(rate)
+      if (priced.compare(dearest) > 0) dearest = priced
+    }
+    total = total.add(dearest.times(task.taskCeilingTokens))
+  }
+  return total.divide(TOKENS_PER_MILLION).toAmount()
 }
 
 /**

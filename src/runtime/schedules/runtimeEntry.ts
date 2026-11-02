@@ -99,6 +99,7 @@ export async function createRuntimeSchedules(
   }
   // Either stop ends an engine wait: the editor delivery's, the caller's, or neither.
   const engineSignal = eitherSignal(delivery?.signal, callerSignal)
+  const deliveryModule = delivery?.teamBoards === undefined ? undefined : await loadDelivery()
   const { runtime } = await createScheduleEngine({
     log,
     fs: createNodeScheduleFs(root),
@@ -127,6 +128,11 @@ export async function createRuntimeSchedules(
         return module.createScheduleDeliveryBinding(delivery, authority, billing)
       },
     }),
+    ...(delivery?.teamBoards !== undefined &&
+      deliveryModule !== undefined && {
+        boards: delivery.teamBoards,
+        eventFence: deliveryModule.scheduleBoardEventFence,
+      }),
     ...(migration !== undefined && { migration }),
   })
   return runtime

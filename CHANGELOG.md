@@ -1967,6 +1967,12 @@ set|status|clear --provider <id> --admin` stores the separate admin
   remove only grants approved before it, never one approved after its advance.
   A revocation from any window ends "Allow once" for the window, and an answer
   given under a revoked epoch is never cached for later uses.
+- Scheduled prompts can target a team role or a whole team: a role fire
+  lands on the board under that role, a team fire under the team's first
+  role, and key-billed roles quote from the schedule's own consent and cap
+  instead of refusing. A fire retried after a crash adopts its task
+  instead of duplicating it. Automatic delivery stays disabled until
+  cross-platform qualification.
 
 ## [0.19.0] - 2026-10-21
 
