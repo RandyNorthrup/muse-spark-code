@@ -58,11 +58,23 @@ async function probeVaultIdentity(
   helper: string,
   mode: 'identity' | 'parent',
   pid: number,
+  expectedStartedAt?: number,
 ): Promise<VaultProcessIdentity | null> {
   z.number().check(z.int(), z.positive()).parse(pid)
+  const args = [mode, String(pid)]
+  if (mode === 'parent') {
+    args.push(
+      String(
+        z
+          .number()
+          .check(z.int(), z.positive(), z.refine(Number.isSafeInteger))
+          .parse(expectedStartedAt),
+      ),
+    )
+  }
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const result = await execResourceFile('probe', helper, [mode, String(pid)], {
+      const result = await execResourceFile('probe', helper, args, {
         env: {},
         timeout: VAULT_BROKER_NATIVE_TIMEOUT_MS,
         maxBuffer: VAULT_LIMITS.text,
@@ -93,13 +105,15 @@ export async function vaultProcessIdentity(
 
 /**
 D243: the parent process's identity (the helper's `parent` mode), or
-null when the process or its parent is proven gone.
+null when the process or its parent is proven gone. The helper returns
+the parent only when `pid` still has `expectedStartedAt`.
 */
 export async function vaultParentIdentity(
   helper: string,
   pid: number,
+  expectedStartedAt: number,
 ): Promise<VaultProcessIdentity | null> {
-  return await probeVaultIdentity(helper, 'parent', pid)
+  return await probeVaultIdentity(helper, 'parent', pid, expectedStartedAt)
 }
 
 /** A kernel lock survives broker crashes only until its private stdin reaches EOF. Never unlink it. */

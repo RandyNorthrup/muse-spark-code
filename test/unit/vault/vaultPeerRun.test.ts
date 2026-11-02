@@ -4,13 +4,14 @@ import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { compileVaultPeerHelper } from '../helpers/vault/peerBuild'
 
-// RLF-M109H items 1 and 2 on the real helper: the delegated command is
-// started through the peer helper's `run` mode (vaultExecEntry), which
-// zeroes the command's core limit in its own process and, on Linux,
-// turns dumpable off so another process of the same user cannot read
-// the command's environment through /proc. The helper is compiled here
-// from the shipped source exactly as the broker fixtures compile it
-// (sessionBrokerBuild), and every assertion reads a real child process.
+// RLF-M109H items 1 and 2 on the real helper, reviewed by RVM109H. The
+// delegated command starts through the peer helper's `run` mode
+// (vaultExecEntry), which zeroes the command's core limit before exec.
+// On Linux the helper also clears dumpable, but the kernel sets it
+// back for a normal command, so the same user can still read the
+// command's environment after exec. Extra descriptors are closed
+// before exec. The helper is compiled here from the shipped source
+// exactly as the broker fixtures compile it (sessionBrokerBuild).
 
 /** Compiling the shipped C helper takes seconds on a loaded rig. */
 const BUILD_TIMEOUT_MS = 60_000
@@ -66,8 +67,27 @@ describe.skipIf(!isPosix)('vault peer run mode (RLF-M109H)', () => {
     ).toThrow()
   })
 
+  it('closes descriptors above 2 before the command runs', async () => {
+    const child = spawn(
+      state.helper,
+      ['run', '/bin/sh', '-c', 'if : >&3; then echo open; else echo closed; fi'],
+      { stdio: ['ignore', 'pipe', 'pipe', 'pipe'] },
+    )
+    let out = ''
+    child.stdout.on('data', (bytes: Buffer) => {
+      out += bytes.toString('utf8')
+    })
+    const code = await new Promise<number | null>((resolve) => {
+      child.once('exit', (status) => {
+        resolve(status)
+      })
+    })
+    expect(code).toBe(0)
+    expect(out.trim()).toBe('closed')
+  })
+
   it.skipIf(process.platform !== 'linux')(
-    'keeps the command environment unreadable to another process of the same user',
+    'leaves the command environment readable by the same user after exec',
     async () => {
       const child = spawn(state.helper, ['run', '/bin/sh', '-c', 'sleep 30'], {
         env: { ...process.env, VAULT_PROBE: 'peer-run-probe' },
@@ -75,9 +95,25 @@ describe.skipIf(!isPosix)('vault peer run mode (RLF-M109H)', () => {
       })
       try {
         if (child.pid === undefined) throw new Error('command did not start')
-        // Dumpable off makes /proc/<pid> root-owned: the same user's
-        // environ read is refused by the kernel while the command runs.
-        expect(() => readFileSync(path.join('/proc', String(child.pid), 'environ'))).toThrow()
+        const pid = String(child.pid)
+        const deadline = Date.now() + 1000
+        let comm = ''
+        while (Date.now() < deadline) {
+          try {
+            comm = readFileSync(path.join('/proc', pid, 'comm'), 'utf8')
+          } catch {
+            comm = ''
+          }
+          if (comm.startsWith('sh') || comm.startsWith('sleep')) break
+          await new Promise((resolve) => {
+            setTimeout(resolve, 20)
+          })
+        }
+        // The image is the command, not the helper still waiting to exec.
+        expect(comm.startsWith('sh') || comm.startsWith('sleep')).toBe(true)
+        // A normal exec sets dumpable back to 1, so this read succeeds.
+        const environ = readFileSync(path.join('/proc', pid, 'environ'))
+        expect(environ.includes(Buffer.from('VAULT_PROBE=peer-run-probe'))).toBe(true)
       } finally {
         child.kill('SIGKILL')
         await new Promise<void>((resolve) => {

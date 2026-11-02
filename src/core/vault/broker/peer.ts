@@ -31,17 +31,21 @@ export interface VaultPeerVerifier {
 /** Kernel identity reads for the feeder ancestry walk; null proves the process gone. */
 export interface VaultAncestryPort {
   processIdentity(pid: number): Promise<VaultProcessIdentity | null>
-  parentIdentity(pid: number): Promise<VaultProcessIdentity | null>
+  /**
+  The parent of `pid`, only when that process's start time is still
+  `expectedStartedAt`. A recycled pid has a different start time.
+  */
+  parentIdentity(pid: number, expectedStartedAt: number): Promise<VaultProcessIdentity | null>
 }
 /**
-D243 feeder ancestry, bound against pid recycling (RLF-M109H): the
-feeder is re-read live, then every step up re-reads the current process
-and requires the start time the previous step recorded for that pid
-before its parent is trusted, and the requester is re-read at the end.
-A process that died and whose pid was recycled between two steps has a
-different start time, so the walk refuses instead of following the
-recycled process's ancestry. The helper's `parent` mode brackets its
-own two reads the same way (native/posix/vaultPeer.c).
+D243 feeder ancestry, bound against pid recycling. The feeder is
+re-read live, then every step re-reads the current process and asks the
+parent helper for that exact recorded start time. The helper refuses
+unless the process it reads, both before and after the parent read,
+still has that start time, so a pid recycled between this re-read and
+the helper cannot answer. The requester is re-read at the end. Linux
+birth is a clock tick, so two processes that started in the same tick
+can still collide.
 */
 export async function hasVaultFeederAncestry(
   feeder: VaultProcessIdentity,
@@ -68,7 +72,7 @@ export async function hasVaultFeederAncestry(
       currentLive.userId !== feeder.userId
     )
       return false
-    const parent = await port.parentIdentity(current)
+    const parent = await port.parentIdentity(current, expectedBirth)
     if (!parent || births.has(parent.processId)) return false
     if (parent.processId === host.processId) {
       const hostNow = await port.processIdentity(host.processId)
