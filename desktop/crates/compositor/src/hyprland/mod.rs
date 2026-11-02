@@ -246,6 +246,154 @@ struct HyprKeyboard {
     active_keymap: String,
 }
 
+/// Maps one `workspaces -j` row to the port shape.
+fn desktop_info(w: HyprWorkspace) -> DesktopInfo {
+    DesktopInfo {
+        id: w.id.unwrap_or(-1),
+        name: w.name,
+        monitor: w.monitor,
+        monitor_id: w.monitor_id.unwrap_or(-1),
+        windows: w.windows,
+        fullscreen: w.hasfullscreen,
+        last_window: w.lastwindow,
+    }
+}
+
+/// Maps one `clients -j` row, resolving the numeric monitor through the
+/// names from `monitors -j`.
+fn window_info(c: HyprClient, monitors: &HashMap<i32, String>) -> WindowInfo {
+    WindowInfo {
+        address: c.address,
+        class: c.class,
+        title: c.title,
+        pid: c.pid,
+        desktop_id: c.workspace.id.unwrap_or(-1),
+        desktop_name: c.workspace.name,
+        floating: c.floating,
+        fullscreen: c.fullscreen != 0,
+        pinned: c.pinned,
+        monitor: monitors.get(&c.monitor).cloned().unwrap_or_default(),
+    }
+}
+
+/// Maps one `monitors -j` row to the port shape.
+fn monitor_info(m: HyprMonitor) -> MonitorInfo {
+    MonitorInfo {
+        id: m.id,
+        name: m.name,
+        description: m.description,
+        width: m.width,
+        height: m.height,
+        refresh_rate: m.refresh_rate,
+        x: m.x,
+        y: m.y,
+        scale: m.scale,
+        active_desktop: m.active_workspace.id.unwrap_or(-1),
+    }
+}
+
+/// Maps the `devices -j` answer: mice, then keyboards with the active
+/// keymap preferred over the layout code.
+fn devices_info(devices: HyprDevices) -> Vec<InputDevice> {
+    let mut out: Vec<InputDevice> = devices
+        .mice
+        .into_iter()
+        .map(|m| InputDevice {
+            name: m.name,
+            kind: "mouse".to_string(),
+            layout: String::new(),
+        })
+        .collect();
+    out.extend(devices.keyboards.into_iter().map(|k| {
+        let layout = if k.active_keymap.is_empty() {
+            k.layout
+        } else {
+            k.active_keymap
+        };
+        InputDevice {
+            name: k.name,
+            kind: "keyboard".to_string(),
+            layout,
+        }
+    }));
+    out
+}
+
+fn invalid_json(request: String, reply: &str) -> HyprlandError {
+    HyprlandError::InvalidJson {
+        request,
+        reply: reply.to_string(),
+    }
+}
+
+/// Parses a `j/workspaces` reply. Locked to the recorded capture in
+/// `tests/fixtures/workspaces.json`.
+pub fn parse_desktops(reply: &str) -> Result<Vec<DesktopInfo>, HyprlandError> {
+    let request = info_request("workspaces");
+    let workspaces: Vec<HyprWorkspace> =
+        serde_json::from_str(reply).map_err(|_| invalid_json(request, reply))?;
+    Ok(workspaces.into_iter().map(desktop_info).collect())
+}
+
+/// Parses a `j/activeworkspace` reply. Locked to the recorded capture in
+/// `tests/fixtures/activeworkspace.json`.
+pub fn parse_active_desktop(reply: &str) -> Result<DesktopInfo, HyprlandError> {
+    let request = info_request("activeworkspace");
+    let workspace: HyprWorkspace =
+        serde_json::from_str(reply).map_err(|_| invalid_json(request, reply))?;
+    Ok(desktop_info(workspace))
+}
+
+/// Parses a `j/monitors` reply. Locked to the recorded capture in
+/// `tests/fixtures/monitors.json`.
+pub fn parse_monitors(reply: &str) -> Result<Vec<MonitorInfo>, HyprlandError> {
+    let request = info_request("monitors");
+    let monitors: Vec<HyprMonitor> =
+        serde_json::from_str(reply).map_err(|_| invalid_json(request, reply))?;
+    Ok(monitors.into_iter().map(monitor_info).collect())
+}
+
+/// Parses a `ja/clients` reply (`j/clients` rows share the shape).
+/// Locked to the recorded capture in `tests/fixtures/clients.json`.
+pub fn parse_windows(
+    reply: &str,
+    monitors: &HashMap<i32, String>,
+) -> Result<Vec<WindowInfo>, HyprlandError> {
+    let request = "ja/clients".to_string();
+    let clients: Vec<HyprClient> =
+        serde_json::from_str(reply).map_err(|_| invalid_json(request, reply))?;
+    Ok(clients
+        .into_iter()
+        .map(|c| window_info(c, monitors))
+        .collect())
+}
+
+/// Parses a `j/activewindow` reply: `{}` means nothing has focus. Locked
+/// to the recorded capture in `tests/fixtures/activewindow.json`.
+pub fn parse_active_window(
+    reply: &str,
+    monitors: &HashMap<i32, String>,
+) -> Result<Option<WindowInfo>, HyprlandError> {
+    let request = info_request("activewindow");
+    let value: serde_json::Value =
+        serde_json::from_str(reply).map_err(|_| invalid_json(request.clone(), reply))?;
+    if value.as_object().is_none_or(serde_json::Map::is_empty) {
+        return Ok(None);
+    }
+    let client: HyprClient =
+        serde_json::from_value(value).map_err(|_| invalid_json(request, reply))?;
+    Ok(Some(window_info(client, monitors)))
+}
+
+/// Parses a `j/devices` reply. Locked to the recorded capture in
+/// `tests/fixtures/devices.json`.
+pub fn parse_devices(reply: &str) -> Result<Vec<InputDevice>, HyprlandError> {
+    let request = info_request("devices");
+    let devices: HyprDevices =
+        serde_json::from_str(reply).map_err(|_| invalid_json(request, reply))?;
+    Ok(devices_info(devices))
+}
+
 /// The adapter: the port over Hyprland's two sockets. Holds the runtime
 /// project bindings; the settings app persists them in `desktop.json`.
 pub struct HyprlandAdapter {
@@ -400,32 +548,13 @@ impl CompositorPort for HyprlandAdapter {
     type Error = HyprlandError;
 
     fn desktops(&self) -> Result<Vec<DesktopInfo>, HyprlandError> {
-        let workspaces: Vec<HyprWorkspace> = self.info("workspaces")?;
-        Ok(workspaces
-            .into_iter()
-            .map(|w| DesktopInfo {
-                id: w.id.unwrap_or(-1),
-                name: w.name,
-                monitor: w.monitor,
-                monitor_id: w.monitor_id.unwrap_or(-1),
-                windows: w.windows,
-                fullscreen: w.hasfullscreen,
-                last_window: w.lastwindow,
-            })
-            .collect())
+        let reply = self.round_trip(&info_request("workspaces"))?;
+        parse_desktops(&reply)
     }
 
     fn active_desktop(&self) -> Result<DesktopInfo, HyprlandError> {
-        let w: HyprWorkspace = self.info("activeworkspace")?;
-        Ok(DesktopInfo {
-            id: w.id.unwrap_or(-1),
-            name: w.name,
-            monitor: w.monitor,
-            monitor_id: w.monitor_id.unwrap_or(-1),
-            windows: w.windows,
-            fullscreen: w.hasfullscreen,
-            last_window: w.lastwindow,
-        })
+        let reply = self.round_trip(&info_request("activeworkspace"))?;
+        parse_active_desktop(&reply)
     }
 
     fn switch_desktop(&self, desktop: &str) -> Result<(), HyprlandError> {
@@ -486,58 +615,15 @@ impl CompositorPort for HyprlandAdapter {
     fn windows(&self) -> Result<Vec<WindowInfo>, HyprlandError> {
         // `ja/clients`: JSON with every window, mapped or not, so a merge
         // never loses one.
-        let request = "ja/clients".to_string();
-        let reply = self.round_trip(&request)?;
-        let clients: Vec<HyprClient> = serde_json::from_str(&reply)
-            .map_err(|_| HyprlandError::InvalidJson { request, reply })?;
+        let reply = self.round_trip("ja/clients")?;
         let monitors = self.monitor_names()?;
-        Ok(clients
-            .into_iter()
-            .map(|c| {
-                let monitor = monitors.get(&c.monitor).cloned().unwrap_or_default();
-                WindowInfo {
-                    address: c.address,
-                    class: c.class,
-                    title: c.title,
-                    pid: c.pid,
-                    desktop_id: c.workspace.id.unwrap_or(-1),
-                    desktop_name: c.workspace.name,
-                    floating: c.floating,
-                    fullscreen: c.fullscreen != 0,
-                    pinned: c.pinned,
-                    monitor,
-                }
-            })
-            .collect())
+        parse_windows(&reply, &monitors)
     }
 
     fn active_window(&self) -> Result<Option<WindowInfo>, HyprlandError> {
-        let request = info_request("activewindow");
-        let reply = self.round_trip(&request)?;
-        let value: serde_json::Value =
-            serde_json::from_str(&reply).map_err(|_| HyprlandError::InvalidJson {
-                request: request.clone(),
-                reply: reply.clone(),
-            })?;
-        if value.as_object().is_none_or(serde_json::Map::is_empty) {
-            return Ok(None);
-        }
-        let client: HyprClient = serde_json::from_value(value)
-            .map_err(|_| HyprlandError::InvalidJson { request, reply })?;
+        let reply = self.round_trip(&info_request("activewindow"))?;
         let monitors = self.monitor_names()?;
-        let monitor = monitors.get(&client.monitor).cloned().unwrap_or_default();
-        Ok(Some(WindowInfo {
-            address: client.address,
-            class: client.class,
-            title: client.title,
-            pid: client.pid,
-            desktop_id: client.workspace.id.unwrap_or(-1),
-            desktop_name: client.workspace.name,
-            floating: client.floating,
-            fullscreen: client.fullscreen != 0,
-            pinned: client.pinned,
-            monitor,
-        }))
+        parse_active_window(&reply, &monitors)
     }
 
     fn focus_window(&self, window: &WindowSelector) -> Result<(), HyprlandError> {
@@ -680,22 +766,8 @@ impl CompositorPort for HyprlandAdapter {
     }
 
     fn monitors(&self) -> Result<Vec<MonitorInfo>, HyprlandError> {
-        let monitors: Vec<HyprMonitor> = self.info("monitors")?;
-        Ok(monitors
-            .into_iter()
-            .map(|m| MonitorInfo {
-                id: m.id,
-                name: m.name,
-                description: m.description,
-                width: m.width,
-                height: m.height,
-                refresh_rate: m.refresh_rate,
-                x: m.x,
-                y: m.y,
-                scale: m.scale,
-                active_desktop: m.active_workspace.id.unwrap_or(-1),
-            })
-            .collect())
+        let reply = self.round_trip(&info_request("monitors"))?;
+        parse_monitors(&reply)
     }
 
     fn arrange_monitor(&self, spec: &MonitorSpec) -> Result<(), HyprlandError> {
@@ -721,29 +793,8 @@ impl CompositorPort for HyprlandAdapter {
     }
 
     fn input_devices(&self) -> Result<Vec<InputDevice>, HyprlandError> {
-        let devices: HyprDevices = self.info("devices")?;
-        let mut out: Vec<InputDevice> = devices
-            .mice
-            .into_iter()
-            .map(|m| InputDevice {
-                name: m.name,
-                kind: "mouse".to_string(),
-                layout: String::new(),
-            })
-            .collect();
-        out.extend(devices.keyboards.into_iter().map(|k| {
-            let layout = if k.active_keymap.is_empty() {
-                k.layout
-            } else {
-                k.active_keymap
-            };
-            InputDevice {
-                name: k.name,
-                kind: "keyboard".to_string(),
-                layout,
-            }
-        }));
-        Ok(out)
+        let reply = self.round_trip(&info_request("devices"))?;
+        parse_devices(&reply)
     }
 
     fn switch_keyboard_layout(
