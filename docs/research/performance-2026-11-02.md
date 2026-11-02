@@ -412,5 +412,241 @@ Machine: `linuxlt` unless the brief says otherwise. No
 Muse request beyond the lane's own session; no paid call
 unless the brief states the model, count and cap; D121 holds
 everywhere (no limits of ours; industry-standard safety
-limits stay, cite
-...[truncated 11138 chars]
+limits stay, cited). Follow AGENTS.md and the rig note
+(CPU-time A/B like RSCH-PERF's when the rig is loaded).
+
+### PERF-PROV — lazy-load providers.js off the ACP startup path
+
+```text
+Goal: `dist/acp.js` starts without parsing `dist/providers.js`
+(201 KB) unless the command needs it (`providers`, `auth`
+flows that read presets). Today acp.js requires it at the
+top for 7 bindings while `--version`/`--help`/`serve` on the
+Muse Code backend never touch providers.
+
+Base: main after RSCH-PERF lands. Machine: linuxlt.
+
+Steps: (1) measure first: CPU user+sys medians of 5 for
+`--version`/`--help`/idle-serve before; profile which
+providers.js module scopes run at start; (2) move the
+providers reads in `src/runtime/main.ts` behind the existing
+per-command loaders (same pattern as `runtimeAccountsLoader`);
+keep every HOTFIX0181 name exported from
+`src/host/backend/modelApiEntry.ts`; (3) rebuild, re-measure,
+confirm `require("./providers.js")` is gone from acp.js's
+eager path and every providers/auth command still works.
+
+Proves it (real code only): before/after CPU medians;
+`providers list/add/test/remove` + `auth set/status/clear`
+round-trip in a throwaway HOME; split + size gates green
+(budgets never raised); touched suites green.
+
+Safety: no new limits; loader failures keep today's refusal
+words. Decision needed: none (D6 split mechanics already
+cover it).
+```
+
+### PERF-WIRE — move BACKEND_KINDS + reportWebviewErrorSchema out of wire.js
+
+```text
+Goal: `dist/acp.js` stops requiring `dist/wire.js` (76 KB)
+for its only two used symbols (`BACKEND_KINDS`,
+`reportWebviewErrorSchema`), the same two-symbol pattern as
+RSCH-PERF's modelApi.js fix (f6a452642).
+
+Base: main after RSCH-PERF lands. Machine: linuxlt.
+
+Steps: (1) measure before (CPU medians of 5,
+`--version`/`--help`); (2) relocate the two symbols to the
+shared module their readers already carry (or a leaf like
+`modelApiError.ts` with a split-gate ACTIVATION_ALLOWED row
+and reason); update all importers; (3) rebuild, confirm zero
+`require("./wire.js")` in acp.js, re-measure.
+
+Proves it (real code only): before/after CPU medians; a
+red/green drill each way (restore the import → require
+returns; remove → gone); split + size gates green; touched
+suites green.
+
+Safety: no behaviour change, no new limits. Decision needed:
+none.
+```
+
+### PERF-SCOPE — find and fix vaultBoundaries.js module-scope cost
+
+```text
+Goal: explain and remove the module-scope CPU in
+`dist/vaultBoundaries.js` (46 KB), the largest single-chunk
+self time in RSCH-PERF's after-fix `--version` profile
+(noisy under load 11+; re-measure first on a quiet rig —
+suspects: zod schema construction, regex tables).
+
+Base: main after RSCH-PERF lands. Machine: linuxlt.
+
+Steps: (1) re-profile `--version`/`--help` on a quiet rig
+(load < 2) plus CPU medians of 5; attribute vaultBoundaries
+scope time to functions; (2) defer the work to first use
+(lazy getters, same words and schemas) or shrink it;
+(3) re-measure; confirm every vault/auth/report path still
+works (throwaway HOME; never the real OS store on a personal
+machine — see the rig note's vault-suite rule).
+
+Proves it (real code only): before/after CPU medians and
+profiles; red/green drill on the deferred path; split + size
+gates green; touched suites green.
+
+Safety: no new limits; schema strictness unchanged.
+Decision needed: none, unless deferral changes an error's
+timing — then name it and ask.
+```
+
+### PERF-PREFIX — freeze the per-request prefix with a byte-budget test
+
+```text
+Goal: a real-code unit test asserting the exact system +
+tool bytes for four sessions (minimal, shell, full,
+subagent), so the preamble P1/P2 prove sets the bill can
+never grow silently. RSCH-PERF's throwaway probe
+(temp/perf-probe.ts) shows the shape: bundle the real
+`instructionsFor` + `toolDefinitions`, run them, assert
+bytes.
+
+Base: main after RSCH-PERF lands. Machine: linuxlt.
+
+Steps: (1) port the probe into `test/unit/` over real code
+only (no mocks, no invented data); pin the four byte counts
+measured on the base; (2) document the update rule in the
+test header: a count may move only with a one-line reason
+naming what the person gains (same convention as
+exact-size assertions); (3) break it on purpose once
+(add a tool description word) to prove it fires, restore.
+
+Proves it (real code only): the test itself + its red/green
+drill; typecheck, eslint, related suites green.
+
+Safety: none (test-only). Decision needed: none.
+```
+
+### PERF-ACT — measure activation time + first paint, set time budgets
+
+```text
+Goal: measured activation ms (M39 already logs it) and
+panel first-paint ms through the packed product, plus time
+budgets beside the byte budgets. Activation runs
+`onStartupFinished` in every window; its bytes are capped
+(551/600 KiB) but its time never measured.
+
+Base: main after RSCH-PERF lands. Machine: the rig that can
+drive VS Code (not linuxlt's sandbox if Electron is
+blocked — say where it ran).
+
+Steps: (1) extend the real-life run (or a documented packed-
+product procedure) to open a window, read activation ms from
+the log channel, and time first paint of the chat panel;
+(2) repeat 5× on a quiet machine, report medians; attribute
+the top costs from the log; (3) propose time budgets in D6
+style (measured + headroom, never raised afterwards) — the
+lane measures and proposes; the owner sets the numbers.
+
+Proves it (real code only): the packed product, used as a
+person uses it; log excerpts with the ms; no mocks.
+
+Safety: no product change unless a cheap win appears (then
+it gets its own before/after). No paid calls. Decision
+needed: the owner sets the budget numbers (D6).
+```
+
+### PERF-TURN — measure turn overhead + cache hits over long sessions
+
+```text
+Goal: how much latency WE add over the raw model per turn
+(diagnostics, verify loop, hooks, observation packing),
+and the prefix cache hit rate over a 50+ turn session —
+the two numbers RSCH-PERF could not measure without live
+calls.
+
+Base: main after RSCH-PERF lands. Machine: linuxlt, empty
+workspace. Model: `muse-spark-1.3-contributor` ONLY (never
+any other id). Expected calls: 2 sessions × ~55 requests
+(50 work turns + compaction) ≈ 110 requests; count the real
+number from session records afterwards and report it. Cap:
+the lane states the dollar cap from the contributor tariff
+before the first call; buying credits is the owner's.
+
+Steps: (1) drive scripted coding turns through the packed
+product on the Model API backend; (2) log per-turn
+model-time vs harness-time (timestamps around the send and
+around each post-edit stage) and cached vs uncached input
+tokens per turn from the usage already accounted
+(`ModelApiHost.ts` cached_tokens); (3) publish time series
++ medians; say which stage dominates and whether the full
+38-tool prefix measurably hurts.
+
+Proves it (real code only): the packed product against the
+real API; provider-side usage as the source of truth (P1:
+never trust harness-side math alone); no mocks.
+
+Safety: D121 — no caps of ours anywhere on this path; the
+dollar cap is the person's, stated up front. Decision
+needed: none, unless a stage's cost argues for a product
+change — then brief it, don't build it.
+```
+
+### PERF-TEAM — measure team/subagent overhead before touching teams
+
+```text
+Goal: test P4's claim (single loop up to ~2× faster) on
+CODING tasks: same tasks solo vs team/subagents, scored on
+time, tokens and success. Runs AFTER PERF-TURN (reuses its
+harness) and last of all.
+
+Base: main after RSCH-PERF lands. Machine: linuxlt, empty
+workspace. Model: `muse-spark-1.3-contributor` ONLY.
+Expected calls: 6 tasks × 2 shapes × ~15 requests ≈ 180
+requests; real count reported from session records. Dollar
+cap stated up front from the contributor tariff.
+
+Steps: (1) pick 6 small deterministic coding tasks with
+hidden checks; (2) run each solo and as a team, recording
+wall time, input/output/cached tokens and pass/fail;
+(3) report paired medians; conclude: keep, narrow, or
+re-brief teams — with numbers, not P4's enterprise anecdote.
+
+Proves it (real code only): packed product, real API,
+hidden checks. Safety: D121; the person's dollar cap only.
+Decision needed: none in-lane; the outcome may ask the
+owner for a teams decision (new D-number).
+```
+
+## 7. What a person would notice
+
+The terminal agent now starts about a fifth faster, and the
+rest of this report is the reason to believe the smallness is
+deliberate: a typical session sends about 2.5k tokens of
+harness overhead on every request where the best-measured
+rival sends 16–20k, the install is a 4 MB package against
+rivals' 100–427 MB, and our whole footprint on disk after
+weeks of use is under 200 KB. What the evidence does not yet
+support is claimed nowhere above: turn latency, cache hit
+rates and panel paint times are briefed to be measured, not
+asserted.
+
+## 8. Sources
+
+| #   | Source                                                                                                                                                | Read       | Version / SHA                                       |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | --------------------------------------------------- |
+| P1  | Weinberger & Hozez, Prompt-Induced Waste in Coding Agents, `https://arxiv.org/pdf/2608.01347v2`                                                       | 2026-11-02 | v2, 5 Aug 2026 (PDF extracted)                      |
+| P2  | Liu & Han, What Does a Harness Buy? Tokens, Mostly, `https://arxiv.org/abs/2610.04433`                                                                | 2026-11-02 | v1, 3 Oct 2026 (abstract + secondaries)             |
+| P3  | Sadani & Kumar, Tool Attention Is All You Need, `https://arxiv.org/abs/2604.21816`                                                                    | 2026-11-02 | v1, 23 Apr 2026 (abstract; simulation caveat noted) |
+| P4  | Anthropic, Building agents: When to fold subagents into your main agent loop, 22 Oct 2026, via o-mega.ai, the-decoder.com, dev.to, enjoy.dev, i10x.ai | 2026-11-02 | secondary reports agree; primary not fetched        |
+| R1  | Pi 0.73.1 npm tarball, `dist/` builders run                                                                                                           | 2026-11-02 | 0.73.1, MIT                                         |
+| R2  | gemini-cli tag `v0.63.0` (`5738466`) + installed 0.63.0                                                                                               | 2026-11-02 | shallow sparse clone, Apache-2.0                    |
+| R3  | codex HEAD `ba0dfd3` (no version tags) + installed 0.160.0                                                                                            | 2026-11-02 | shallow sparse clone, Apache-2.0                    |
+| R4  | opencode tag `v1.19.4` (`148842e`) + npm binary                                                                                                       | 2026-11-02 | shallow clone, MIT                                  |
+| R5  | Claude Code 2.1.310 native binary (`strings` probe)                                                                                                   | 2026-11-02 | closed source; partial                              |
+| R6  | Muse Code 1.4.14-R7309.1 launcher + binary                                                                                                            | 2026-11-02 | closed source; timing only                          |
+| O1  | This worktree at `72d8d5003` + `f6a452642`, production builds, `temp/bench-*.sh`, `temp/perf-probe.*`, `temp/prof/`                                   | 2026-11-02 | —                                                   |
+| O2  | `docs/certification/activation-diet.md`, `cc-winhook.md`, `cc-govfork.md`, `rlf-templeak.md` (prior records, read not re-measured)                    | 2026-11-02 | —                                                   |
+
+Ideas are free; no rival code was copied into our tree. Hands-on
+checks ran with no sign-in and no credentials.

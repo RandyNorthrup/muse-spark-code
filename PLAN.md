@@ -32454,6 +32454,21 @@ ceiling stays the industry 8 s cap (D228). A 401 or 403 from a provider
 probe still forgets only that stored key. Record:
 `docs/certification/rvint7.md`.
 
+### RSCHPERF — Performance research: measured, compared, one fix landed (2026-11-02)
+
+**Status 2026-11-02: built.** The research is
+`docs/research/performance-2026-11-02.md`: cold start, memory,
+bundles, per-request prefix bytes and disk use measured on
+linuxlt; the same measured on pi, gemini, codex, opencode,
+claude and muse installs; three recent papers read with their
+methods; a ranked action list with lane briefs and a NOT-to-do
+list. The one fix landed here: the ACP agent no longer loads
+the Model API engine at start (six leaf helpers moved to
+`modelApiError.ts`, `timeouts.ts` and `redact.ts`), cutting
+start CPU time by about a fifth with no budget raised. Proof:
+three red/green drills and the touched suites. Record:
+`docs/certification/rsch-perf.md`.
+
 ---
 
 ## 7. Gates

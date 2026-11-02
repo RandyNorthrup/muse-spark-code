@@ -1499,6 +1499,12 @@
       "title": "The ACP agent ends when its client leaves, even while Muse Code is starting",
       "summary": "Closing the editor, stopping the agent or a crashed editor ends the agent and the Muse Code it started in every state, with no process left behind.",
       "area": "platform"
+    },
+    {
+      "id": "RSCHPERF",
+      "title": "Faster agent startup, measured against the alternatives",
+      "summary": "The terminal agent starts without loading the Model API engine, and a performance survey records measured startup, memory, token and disk figures beside six rival CLIs.",
+      "area": "platform"
     }
   ]
 }
