@@ -2007,6 +2007,7 @@
     "typecheck:desktop": "tsc -p desktop/tsconfig.json --noEmit",
     "build:desktop": "node scripts/build-desktop.mjs",
     "package:desktop": "node scripts/package-desktop-app.mjs",
+    "stage:desktop-pty": "node scripts/stage-desktop-pty.mjs",
     "typecheck:webview": "tsc -p src/webview/tsconfig.json --noEmit",
     "typecheck:unit": "node --max-old-space-size=4096 node_modules/typescript/bin/tsc -p test/unit/tsconfig.json --noEmit",
     "typecheck:e2e": "tsc -p test/e2e/tsconfig.json --noEmit",
