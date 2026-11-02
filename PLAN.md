@@ -16882,6 +16882,19 @@ Prerequisite: team integration (M96).
   `docs/certification/rlf-acpteam.md`. Headless support still awaits
   its live receipts (M80), and the ACP package contract suite is
   CC-M96CERT's, not this lane's.
+- **Status 2026-11-02 (RVACPTEAM): building.** Independent review of
+  `rec/rlf-acpteam` at `57004781c` on `rv/acpteam`. Two ACP sessions in
+  one folder no longer receive each other's task briefs or diffs.
+  Cancel and close drop a merge that is still waiting and remove its
+  copy, so a late Merge answer cannot land. Agent shutdown calls that
+  same stop. A task whose report is not `done` is reported failed on
+  the ACP tool call, and an editor that cannot answer a team step is
+  told. Proof is
+  `test/unit/acpTeamSession.test.ts` (12 passed, repository timeout)
+  and three red/green drills in `docs/certification/rvacpteam.md`.
+  The packed `dist/acp.js --team` run remains unrun (the source lane's
+  real run stopped at `session/new` with 0 generation requests). This
+  review made no Muse request and no paid call.
 
 ### M96c — Scheduler and traffic (D75)
 

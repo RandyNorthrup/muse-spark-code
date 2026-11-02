@@ -38,6 +38,15 @@ happened, not what was planned; superseded entries are kept.
   and the Roles section says how to enable teams. Setting
   `museSpark.team` to false still turns teams off.
 
+### Fixed
+
+- **An ACP team session keeps its own work.** Another session in the
+  same folder no longer sees that session's tasks. Cancelling or
+  closing the session drops a merge that is still waiting and removes
+  its copy, so a late Merge answer does not change your files. A task
+  that stopped short is reported as failed, not finished. If the
+  editor cannot answer a team step, the session says so.
+
 ### Added
 
 - **Agent teams run in ACP sessions** (M96b). Starting the ACP agent
