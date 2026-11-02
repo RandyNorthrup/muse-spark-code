@@ -40,7 +40,29 @@ slots and bridge; never a second layout.
 
 ## What is next
 
-PTY staging → real-Electron proof → ui:look → drills and gates.
+Real-Electron proof → ui:look → drills and gates.
+
+## Landed: PTY staging for Electron (2026-11-01)
+
+- `scripts/stage-desktop-pty.mjs` (`npm run stage:desktop-pty`):
+  compiles the pinned node-pty sources against the pinned Electron's
+  headers into `prebuilds/<platform>-<arch>/`, which node-pty's own
+  loader finds after its Node-ABI copy. Into the packaged app by
+  default (`npm run package:desktop` runs it; a stamp skips a current
+  stage), or `--dev` into the checkout's node-pty for dev runs.
+  node-gyp resolves from `--node-gyp`, PATH, or npm's bundled copy;
+  `--devdir`/`npm_config_devdir` aims its headers cache (rig lanes
+  keep it in `temp/`); one compile, no retries, past ten minutes it
+  stops and says so.
+- Proved (linuxlt, Xvfb): `require` of the staged module, spawn of
+  `/bin/echo`, `DATA:e-pty-ok` streamed, `EXIT:0` reported — under
+  real Electron 45 (Node v24.22.0, modules 150). spawn-helper is
+  macOS-only in binding.gyp; Linux stages the binding alone.
+  Electron's download and node-gyp's headers cache both honour
+  worktree-temp overrides (`electron_config_cache`,
+  `npm_config_devdir`); Electron runs here with
+  `ELECTRON_DISABLE_SANDBOX=1` (the rig note WB recorded) and needs X
+  even for `--run-as-node`.
 
 ## Landed: lazy engine chunk, app scheme, native loader (2026-11-01)
 
