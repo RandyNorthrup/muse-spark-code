@@ -265,7 +265,7 @@ describe.skipIf(process.platform !== 'win32')('Windows vault store scope', () =>
       const sharedBefore = await readPassword(VAULT_ANCHOR_ACCOUNT)
       // The helper builds take as long as the machine needs; the named
       // case timeout above covers them.
-      const fixture = await startWindowsBrokerFixture('vs-scope-')
+      const fixture = await startWindowsBrokerFixture('vs-scope-', { osStore: true })
       try {
         const driven = await driveScopedVault(fixture.connect, fixture.dataDir, 'windows')
         await fixture.dispose()
