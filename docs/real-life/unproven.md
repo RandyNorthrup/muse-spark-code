@@ -3293,3 +3293,27 @@ editor run proves it:
   not on this branch. Lane C's `attachments/*` methods are not on the
   native hosts. Lane A's `src/runtime/panel/git/gitEntry.ts` is not on
   this branch.
+
+### After the second native-hosts pass (RLF-HOSTS2, 2026-11-01)
+
+The shim suites now start this tree's real `dist/acp.js`; what only the
+deleted stand-ins claimed, and what no suite here can yet prove:
+
+- The loopback companion panel transport (`panel --companion`, M104
+  lane C) is not on int's contracts: every shim's Panel start is
+  refused and shown as `EPANEL_EXIT`. A working companion page (launch
+  URL exchange, session pairing, F1–F56 in the browser) stays unproven
+  until that transport lands.
+- Supervised legs (`supervise`, `stop`) refuse in this lane's agent
+  sandbox (`PrivateRootRefused`: `/` is uid 65534, and the owner-only
+  root admits only root or the caller above it). The suites carry
+  them for a normal machine; the lead runs them outside the sandbox.
+- Emacs: `muse-spark-start` through agent-shell's ACP client (the
+  package is a separate install; nothing here drives it), and the
+  xwidget-versus-browser preference for a supplied `/panel` link.
+- Neovim: the CodeCompanion adapter (credential blanking, chat
+  cancellation, preserving other agents' chats) and failed-kill or
+  late-exit ownership, which only a real CodeCompanion install and a
+  failing process prove; the Windows explicit-opener refusal, which
+  only Windows proves. Inline (Tab) completion needs `--tab`, a stored
+  key and consent, none of which a headless run here supplies.
