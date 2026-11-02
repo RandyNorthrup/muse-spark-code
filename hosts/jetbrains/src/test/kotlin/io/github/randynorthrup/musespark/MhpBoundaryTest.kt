@@ -85,6 +85,17 @@ class MhpBoundaryTest {
   }
 
   @Test
+  fun admitsTheThemeFrameOnEverySurfaceKindAndRefusesAMalformedOne() {
+    // The runtime's real first toPanel frame on every ready (MHP 1.6).
+    val theme = json("type" to "theme", "theme" to json("kind" to "dark", "tokens" to json()))
+    for (kind in listOf("chat", "tasks", "whatsNew")) boundary.payload(kind, "toPanel", theme)
+    assertThrows(Exception::class.java) {
+      boundary.payload("chat", "toPanel", json("type" to "theme", "theme" to json()))
+    }
+    assertThrows(Exception::class.java) { boundary.payload("chat", "toHost", theme) }
+  }
+
+  @Test
   fun boundsOriginalUtf8BeforeParsingAndHandlesCrlf() {
     fun input(value: String) = ByteArrayInputStream(value.toByteArray(Charsets.UTF_8))
     assertEquals("{}", MhpPipe.readLine(input("{}\r\n"), 2))

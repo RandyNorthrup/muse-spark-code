@@ -26,6 +26,19 @@ public class PanelTest {
         surface.post(Json.object("type", "tasksReady")); assertEquals(1, sent.get(2).get("seq").getAsInt());
         assertThrows(IllegalArgumentException.class, () -> surface.receive(inbound(1)));
     }
+    @Test public void admitsTheThemeFrameOnEverySurfaceKindAndRefusesAMalformedOne() throws Exception {
+        // The runtime's real first toPanel frame on every ready (MHP 1.6).
+        JsonObject theme = Json.object("type", "theme", "theme", Json.object("kind", "dark", "tokens", Json.object()));
+        for (String kind : List.of("chat", "tasks", "whatsNew")) {
+            List<JsonObject> sent = new ArrayList<>(); PanelSurface surface = surface(kind, sent); surface.opened(); surface.ready();
+            JsonObject frame = inbound(1); frame.add("payload", theme);
+            assertEquals(theme, surface.receive(frame));
+        }
+        List<JsonObject> sent = new ArrayList<>(); PanelSurface surface = surface("chat", sent); surface.opened(); surface.ready();
+        JsonObject malformed = inbound(1); malformed.add("payload", Json.object("type", "theme", "theme", Json.object()));
+        assertThrows(IllegalArgumentException.class, () -> surface.receive(malformed));
+        surface.receive(inbound(1));
+    }
     @Test public void reloadRetainsStateAndSequencesAndSuppressesDuplicateReplay() throws Exception {
         List<JsonObject> sent = new ArrayList<>(); PanelSurface surface = surface("chat", sent); surface.opened(); surface.ready(); surface.post(Json.object("type", "ready"));
         surface.state(Json.object("draft", "unfinished")); surface.reload();
