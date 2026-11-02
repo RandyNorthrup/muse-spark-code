@@ -9,11 +9,12 @@
 // own launches): a stop sends SIGTERM to the group (the runtime then stops
 // what it governs), and SIGKILL to what remains after the grace. A stop
 // arrives from this process's own signals or from `stop`, through a
-// private endpoint (a named pipe, or a socket in the owner-only folder)
+// private endpoint (a named pipe, or a socket in the owner-only folder —
+// in the temporary folder when that folder's path outruns `sun_path`)
 // that answers only a request carrying the run's token.
 import { realpathSync } from 'node:fs'
 import { createServer, type Server, type Socket } from 'node:net'
-import { constants as osConstants } from 'node:os'
+import { constants as osConstants, tmpdir } from 'node:os'
 import { randomBytes, randomUUID } from 'node:crypto'
 import path from 'node:path'
 import type { Readable, Writable } from 'node:stream'
@@ -86,10 +87,18 @@ export class SuperviseEndpointError extends Error {
 
 function endpointFor(root: string, ownerId: string): string {
   if (process.platform === 'win32') return String.raw`\\.\pipe\muse-spark-supervised-${ownerId}`
-  const socket = path.join(root, `${randomBytes(SUPERVISE_ENDPOINT_NAME_BYTES).toString('hex')}.s`)
-  if (Buffer.byteLength(socket) > SUPERVISE_SOCKET_PATH_MAX_BYTES)
+  const name = `${randomBytes(SUPERVISE_ENDPOINT_NAME_BYTES).toString('hex')}.s`
+  const socket = path.join(root, name)
+  if (Buffer.byteLength(socket) <= SUPERVISE_SOCKET_PATH_MAX_BYTES) return socket
+  // The data folder's spelling alone can outrun `sun_path` (macOS keeps it
+  // under `Library/Application Support`, and a long home folder does the
+  // rest): the socket then sits in the temporary folder under the same
+  // unguessable name, still answering only a request carrying the run's
+  // token, and the record in the owner-only folder names it for `stop`.
+  const temporary = path.join(tmpdir(), name)
+  if (Buffer.byteLength(temporary) > SUPERVISE_SOCKET_PATH_MAX_BYTES)
     throw new SuperviseEndpointError()
-  return socket
+  return temporary
 }
 
 /** Whether no process remains in the POSIX group. */
