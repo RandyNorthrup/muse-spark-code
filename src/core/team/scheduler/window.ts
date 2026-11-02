@@ -502,7 +502,18 @@ export function createWindowTeamScheduler(deps: TeamSchedulingDeps): TeamSchedul
           isCurrent: (ref) =>
             board.snapshot().tasks.find((item) => item.id === ref.taskId)?.currentAttempt ===
             ref.attempt,
-          retire: (ref) => attemptRetirement.retire(ref),
+          // A proved retirement goes on the board as retireAttempt puts it:
+          // the next attempt opens only from a retired one, and the retired
+          // attempt's slot and write lease go back before the handoff.
+          retire: async (ref) => {
+            const outcome = await attemptRetirement.retire(ref)
+            if (outcome.state === 'retired') {
+              const { state, endedAt, retirement } = outcome
+              board.finishAttempt(ref.taskId, ref.attempt, { state, endedAt, retirement })
+              await scheduler.retired(ref)
+            }
+            return outcome
+          },
           checkpoint: (ref) => retirementPort.checkpoint(ref),
           settleUsage: (ref) => retirementPort.settleUsage(ref),
           entries: () => handoffEntries(task, onlyEntryId),
