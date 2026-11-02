@@ -273,9 +273,9 @@ export interface PanelOptions {
   /** The resend wait's jitter draw (D228); Math.random absent. */
   readonly resendRandom?: () => number
   /** The catalogue retry's clock (RLF-EMPTYCAT); the product's real wait absent. */
-  readonly catalogueRetrySleep?: (ms: number, signal: AbortSignal) => Promise<void>
+  readonly catalogueRetrySleep?: ConversationDeps['catalogueRetrySleep']
   /** The catalogue retry's jitter draw (RLF-EMPTYCAT); Math.random absent. */
-  readonly catalogueRetryRandom?: () => number
+  readonly catalogueRetryRandom?: ConversationDeps['catalogueRetryRandom']
   /** The person's quota-continue opt-in (D252); absent or false shows quota failures at once. */
   readonly museCodeQuotaContinue?: () => boolean
   /** The controller's clock; Date.now absent. A suite pins it to read a recorded instant. */

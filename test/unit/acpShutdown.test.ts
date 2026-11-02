@@ -38,8 +38,6 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
-  readFileSync,
-  readdirSync,
   realpathSync,
   writeFileSync,
 } from 'node:fs'
@@ -50,7 +48,7 @@ import { Writable } from 'node:stream'
 import { setTimeout as delay } from 'node:timers/promises'
 import * as acp from '@agentclientprotocol/sdk'
 import { afterAll, afterEach, beforeAll, describe, expect, inject, it } from 'vitest'
-import { resolveMuseLaunch } from '../../src/core/backends/musecode/launch'
+import { resolveInstalledMuse } from './helpers/installedMuse'
 import {
   darwinDictationApp,
   MACOS_KEYCHAIN_LOOKUP_ARGS,
@@ -178,23 +176,12 @@ function cliOf(served: Left): number {
 function installedMuse(): { readonly command: string } | { readonly missing: string } {
   if (process.platform !== 'darwin')
     return { missing: 'the real-CLI states are measured on macOS only' }
-  const found = resolveMuseLaunch({
-    platform: process.platform,
-    configuredPath: '',
-    pathEntries: (process.env['PATH'] ?? '').split(path.delimiter).filter((entry) => entry !== ''),
-    homeDir: homedir(),
-    localAppData: undefined,
-    fileExists: (file) => existsSync(file),
-    readTextFile: (file) => (existsSync(file) ? readFileSync(file, 'utf8') : undefined),
-    listDirectory: (folder) => (existsSync(folder) ? readdirSync(folder) : []),
-    serveArgs: [],
-    scope: { workspaceRoot: ROOT, realpath: realpathSync },
-  })
-  if (!found.ok) return { missing: 'no Muse Code CLI is installed on this machine' }
+  const muse = resolveInstalledMuse({ localAppData: undefined, workspaceRoot: ROOT })
+  if ('missing' in muse) return muse
   // The agent's process-identity reads need the signed helper that `native/darwin/build.sh` makes.
   const helper = darwinDictationApp(process.arch)
   return existsSync(path.join(ROOT, 'native', 'darwin', helper))
-    ? { command: found.launch.command }
+    ? muse
     : { missing: `native/darwin/${helper} is not built (native/darwin/build.sh)` }
 }
 
