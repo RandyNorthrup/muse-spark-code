@@ -4558,7 +4558,9 @@
     "macos": "Chaves do macOS",
     "linux": "chaveiro do Secret Service"
   },
-  "acpNoModels": "O backend não oferece nenhum modelo que este agente possa usar.",
+  "acpNoModels": "O backend não oferece nenhum modelo que este agente possa usar. Verifique se você está conectado ou se guardou uma chave, e se este computador consegue alcançar o servidor do provedor; depois tente novamente.",
+  "acpFolderNotAbsolute": "O editor deve informar a pasta a abrir como um caminho completo.",
+  "acpFolderMissing": "A pasta a abrir não pode ser usada: ela não existe, não é uma pasta ou esta conta não pode abri-la. Verifique o caminho e abra-a novamente.",
   "acpPromptBusy": "Já há um prompt em andamento nesta sessão.",
   "acpUserMcpServersConfigured": "Iniciado com --no-user-mcp-servers, mas as configurações do Muse Code ativam servidores MCP, e o Muse Code não tem nenhuma chave que os deixe de fora em uma execução. Desative-os nesse arquivo (enabled: false) ou inicie sem --no-user-mcp-servers.",
   "acpUserMcpServersUnreadable": "Iniciado com --no-user-mcp-servers, mas o arquivo de configurações do Muse Code não pode ser lido, então este agente não sabe se ele ativa servidores MCP. Repare o arquivo ou inicie sem --no-user-mcp-servers.",
@@ -4579,6 +4581,12 @@
     "unloadableSource": "O auxiliar nativo {helper} está compilado, mas este computador não consegue executá-lo (ele pode estar danificado, bloqueado pelo sistema ou compilado para outro processador), então isto não pôde iniciar. Compile-o novamente com “{command}” e tente novamente.",
     "unsupported": "O Muse Spark Code não inclui nenhum auxiliar nativo para {platform} em {arch}, então isto não pôde iniciar.",
     "windowsJob": "Não foi possível preparar o auxiliar de jobs do Windows, então isto não pôde iniciar. O Muse Spark Code o compila no primeiro uso com o Windows PowerShell 5.1 a partir dos arquivos da sua pasta native/windows: reinstale o Muse Spark Code e verifique se o Windows PowerShell inicia e se nenhum software de segurança o bloqueia."
+  },
+  "museStart": {
+    "authFile": "O Muse Code não conseguiu ler o próprio arquivo de login (muse/auth.json na pasta de configuração dele), por isso não iniciou. Repare ou exclua esse arquivo e entre novamente.",
+    "authSchema": "O arquivo de login do Muse Code está em um formato que este Muse Code não suporta (versão {version}), por isso não iniciou. Exclua o arquivo (muse/auth.json na pasta de configuração dele) e entre novamente, ou atualize o Muse Code.",
+    "cannotRun": "Este computador não executou o Muse Code (status de saída {code}), então isto não pôde iniciar. Verifique se o arquivo é o programa do Muse Code e se você pode executá-lo, ou reinstale-o.",
+    "exited": "O Muse Code parou durante a inicialização (status de saída {code}), então isto não pôde iniciar. O registro do Muse Spark tem os detalhes; executar “muse serve” em um terminal mostra o que o Muse Code diz."
   },
   "acpQuestionFormMessage": "O Muse tem uma pergunta para você.",
   "acpQuestionAsked": "O Muse tem uma pergunta; este editor não consegue mostrá-la como formulário, então responda na sua próxima mensagem:",
@@ -7765,6 +7773,8 @@
   "makerStopPhysicalRequired": "A máquina {machine} exige uma parada de emergência física; a parada por software não está disponível.",
   "makerTrustRequired": "Confie neste espaço de trabalho antes de habilitar o hardware.",
   "makerSerialPythonMissing": "O acesso serial precisa do Python 3 (python3) com o pacote pyserial, e nenhum python3 foi encontrado no seu PATH fora deste espaço de trabalho. Instale o Python 3, execute “python3 -m pip install pyserial” e tente novamente.",
+  "makerSerialPythonSetMissing": "O Python que você definiu para o acesso serial (museSpark.serialPythonPath, ou serialPythonPath no settings.json do agente) não é o caminho completo de um arquivo existente. Defina o caminho completo de um Python 3 com o pacote pyserial, ou limpe a configuração para usar o python3 do seu PATH.",
+  "makerSerialPythonSetInWorkspace": "O Python que você definiu para o acesso serial está dentro deste espaço de trabalho, onde um projeto poderia fornecer um programa para ser executado no lugar dele. Defina um Python fora do espaço de trabalho, como o de um ambiente virtual na sua pasta pessoal.",
   "makerEnableHardware": "Habilitar hardware neste espaço de trabalho",
   "makerCliUsage": "Hardware maker pelo terminal: ative ou desative o hardware para um workspace, registre e liste máquinas, pare uma máquina ou abra o painel maker. machines add lê --registration e, com --key-stdin, a chave da máquina da entrada padrão. Ações físicas pedem o login do seu sistema operacional e nunca são executadas sem supervisão.",
   "makerDisableHardware": "Desabilitar hardware neste espaço de trabalho",

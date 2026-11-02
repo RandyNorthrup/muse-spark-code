@@ -10,6 +10,7 @@ import {
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import { mediaInfoSchema, screenRecordingOptionsSchema } from '../../../shared/media'
+import { isNativeHelperError } from '../../../shared/nativeHelperError'
 import type {
   ScreenRecordingDriver,
   ScreenRecordingOptions,
@@ -209,9 +210,16 @@ export function linuxRecordingDriver(port: LinuxRecordingPort): ScreenRecordingD
     }
     if (command === undefined || !path.posix.isAbsolute(command.replaceAll('\\', '/')))
       return { ok: false, reason: unavailable('GStreamer / pipewiresrc / H.264 / AAC') }
-    return (await port.hasPortal())
-      ? { ok: true }
-      : { ok: false, reason: unavailable('xdg-desktop-portal ScreenCast') }
+    try {
+      return (await port.hasPortal())
+        ? { ok: true }
+        : { ok: false, reason: unavailable('xdg-desktop-portal ScreenCast') }
+    } catch (error: unknown) {
+      // The portal helper is not there, or this computer will not run it: its
+      // own sentence says which and what to do, not "no portal".
+      if (isNativeHelperError(error)) return { ok: false, reason: unavailable(error.message) }
+      throw error
+    }
   }
   return {
     available,
@@ -254,6 +262,7 @@ export function linuxRecordingDriver(port: LinuxRecordingPort): ScreenRecordingD
             return refused(UI_TEXT.media.recordingPermissionDenied)
           if (error instanceof Error && error.name === 'NotFoundError')
             return refused(unavailable('xdg-desktop-portal ScreenCast'))
+          if (isNativeHelperError(error)) return refused(unavailable(error.message))
           // The person ended the picker: a cancelled recording, not a failure.
           if (error instanceof Error && error.name === 'AbortError')
             return refused(UI_TEXT.execStatus.cancelled)

@@ -9,9 +9,15 @@
 
 import { existsSync } from 'node:fs'
 import path from 'node:path'
-import { NATIVE_HELPER_BUILD, UI_TEXT, darwinDictationHelperSegments } from '../shared/constants'
+import {
+  NATIVE_HELPER_BUILD,
+  UI_TEXT,
+  darwinDictationHelperSegments,
+  type NativeHelperBuild,
+} from '../shared/constants'
 import { fill } from '../shared/l10n/text'
 import { NativeHelperError, type NativeHelperFault } from '../shared/nativeHelperError'
+import { isFilledSentence } from './filledSentence'
 
 /** The deepest cause chain read for a failed start: wrappers are shallow. */
 const CAUSE_DEPTH = 16
@@ -19,7 +25,11 @@ const CAUSE_DEPTH = 16
 /** The name a person knows the helper by: its signed app on macOS, else its file. */
 function helperName(file: string): string {
   const parts = file.split(/[\\/]/u)
-  return parts.findLast((part) => part.endsWith('.app')) ?? path.basename(file)
+  // Only the helper's own bundle counts: a folder above the product (an
+  // install path, a test root) may itself end in `.app`.
+  const shipped = parts.lastIndexOf('native')
+  const own = shipped === -1 ? [] : parts.slice(shipped + 1)
+  return own.findLast((part) => part.endsWith('.app')) ?? path.basename(file)
 }
 
 /** The product's folder (the one holding `native/`) for a helper's file, if it sits in one. */
@@ -43,8 +53,8 @@ export function nativeHelperError(
   file: string,
   platform: NodeJS.Platform = process.platform,
   cause?: unknown,
+  build: NativeHelperBuild | undefined = NATIVE_HELPER_BUILD[platform],
 ): NativeHelperError {
-  const build = NATIVE_HELPER_BUILD[platform]
   const root = productRoot(file)
   const isSource =
     build !== undefined && root !== undefined && existsSync(`${root}/${build.script}`)
@@ -105,9 +115,6 @@ export async function runNativeHelper<T>(
   }
 }
 
-/** What a template's slot may hold: a file or app name, a command, a platform or processor name. */
-const SLOT_VALUE = /^[\w./: -]{1,64}$/u
-
 /**
 Whether `message` is exactly one of the helper sentences with its slots
 filled by plain names (letters, digits, `. / : _ -` and spaces, at most 64).
@@ -115,17 +122,7 @@ A boundary that lets only fixed sentences leave uses this: the slots can hold
 a file name or a command, never a prompt, a path with an account or a key.
 */
 export function isNativeHelperSentence(message: string): boolean {
-  return Object.values(UI_TEXT.nativeHelper).some((template) => {
-    const [first = '', ...rest] = template.split(/\{[a-z]+\}/u)
-    if (!message.startsWith(first)) return false
-    let remaining = message.slice(first.length)
-    for (const fixed of rest) {
-      const end = fixed === '' ? remaining.length : remaining.indexOf(fixed)
-      if (end < 0 || !SLOT_VALUE.test(remaining.slice(0, end))) return false
-      remaining = remaining.slice(end + fixed.length)
-    }
-    return remaining === ''
-  })
+  return isFilledSentence(message, Object.values(UI_TEXT.nativeHelper))
 }
 
 /**

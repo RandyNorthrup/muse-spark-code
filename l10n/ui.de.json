@@ -4475,7 +4475,9 @@
     "macos": "macOS-Schlüsselbund",
     "linux": "Secret-Service-Schlüsselbund"
   },
-  "acpNoModels": "Das Backend bietet kein Modell an, das dieser Agent verwenden darf.",
+  "acpNoModels": "Das Backend bietet kein Modell an, das dieser Agent verwenden darf. Prüfen Sie, ob Sie angemeldet sind oder einen Schlüssel gespeichert haben und ob dieser Computer den Server des Anbieters erreichen kann, und versuchen Sie es dann erneut.",
+  "acpFolderNotAbsolute": "Der Editor muss den zu öffnenden Ordner als vollständigen Pfad angeben.",
+  "acpFolderMissing": "Der zu öffnende Ordner kann nicht verwendet werden: Er existiert nicht, ist kein Ordner, oder dieses Konto darf ihn nicht öffnen. Prüfen Sie den Pfad und öffnen Sie ihn erneut.",
   "acpPromptBusy": "In dieser Sitzung läuft bereits ein Prompt.",
   "acpUserMcpServersConfigured": "Mit --no-user-mcp-servers gestartet, aber Ihre Muse-Code-Einstellungen schalten MCP-Server ein, und Muse Code hat keinen Schalter, der sie für einen Lauf auslässt. Schalten Sie sie in dieser Datei aus (enabled: false) oder starten Sie ohne --no-user-mcp-servers.",
   "acpUserMcpServersUnreadable": "Mit --no-user-mcp-servers gestartet, aber Ihre Muse-Code-Einstellungsdatei kann nicht gelesen werden, daher kann dieser Agent nicht feststellen, ob sie MCP-Server einschaltet. Reparieren Sie die Datei oder starten Sie ohne --no-user-mcp-servers.",
@@ -4496,6 +4498,12 @@
     "unloadableSource": "Der native Helfer {helper} ist gebaut, aber dieser Computer kann ihn nicht ausführen (er ist möglicherweise beschädigt, vom System blockiert oder für einen anderen Prozessor gebaut), daher konnte dies nicht gestartet werden. Bauen Sie ihn mit „{command}“ neu und versuchen Sie es erneut.",
     "unsupported": "Muse Spark Code liefert keinen nativen Helfer für {platform} auf {arch} mit, daher konnte dies nicht gestartet werden.",
     "windowsJob": "Der Windows-Job-Helfer konnte nicht vorbereitet werden, daher konnte dies nicht gestartet werden. Muse Spark Code kompiliert ihn bei der ersten Verwendung mit Windows PowerShell 5.1 aus den Dateien in seinem Ordner native/windows: Installieren Sie Muse Spark Code neu und prüfen Sie, ob Windows PowerShell startet und ob Sicherheitssoftware es nicht blockiert."
+  },
+  "museStart": {
+    "authFile": "Muse Code konnte seine Anmeldedatei (muse/auth.json in seinem Konfigurationsordner) nicht lesen und wurde daher nicht gestartet. Reparieren oder löschen Sie die Datei und melden Sie sich dann erneut an.",
+    "authSchema": "Die Anmeldedatei von Muse Code hat ein Format, das dieses Muse Code nicht unterstützt (Version {version}), daher wurde es nicht gestartet. Löschen Sie die Datei (muse/auth.json in seinem Konfigurationsordner) und melden Sie sich erneut an, oder aktualisieren Sie Muse Code.",
+    "cannotRun": "Dieser Computer wollte Muse Code nicht ausführen (Exit-Status {code}), daher konnte dies nicht gestartet werden. Prüfen Sie, ob die Datei das Muse Code-Programm ist und ob Sie sie ausführen dürfen, oder installieren Sie es neu.",
+    "exited": "Muse Code wurde beim Start beendet (Exit-Status {code}), daher konnte dies nicht gestartet werden. Details stehen im Muse Spark-Protokoll; „muse serve“ in einem Terminal zeigt, was Muse Code ausgibt."
   },
   "acpQuestionFormMessage": "Muse hat eine Frage an Sie.",
   "acpQuestionAsked": "Muse hat eine Frage; dieser Editor kann sie nicht als Formular anzeigen, antworten Sie daher in Ihrer nächsten Nachricht:",
@@ -7578,6 +7586,8 @@
   "makerStopPhysicalRequired": "Maschine {machine} erfordert den physischen Not-Aus; ein Softwarestopp ist nicht verfügbar.",
   "makerTrustRequired": "Vertrauen Sie diesem Arbeitsbereich, bevor Sie Hardware aktivieren.",
   "makerSerialPythonMissing": "Der serielle Zugriff braucht Python 3 (python3) mit dem Paket pyserial, und auf Ihrem PATH wurde außerhalb dieses Arbeitsbereichs kein python3 gefunden. Installieren Sie Python 3, führen Sie „python3 -m pip install pyserial“ aus und versuchen Sie es erneut.",
+  "makerSerialPythonSetMissing": "Das Python, das Sie für den seriellen Zugriff festgelegt haben (museSpark.serialPythonPath oder serialPythonPath in der settings.json des Agenten), ist nicht der vollständige Pfad einer vorhandenen Datei. Legen Sie den vollständigen Pfad eines Python 3 mit dem Paket pyserial fest, oder leeren Sie die Einstellung, um python3 aus Ihrem PATH zu verwenden.",
+  "makerSerialPythonSetInWorkspace": "Das Python, das Sie für den seriellen Zugriff festgelegt haben, liegt in diesem Arbeitsbereich, wo ein Projekt ein Programm liefern könnte, das an seiner Stelle ausgeführt wird. Legen Sie ein Python außerhalb des Arbeitsbereichs fest, etwa eines in einer virtuellen Umgebung in Ihrem Home-Ordner.",
   "makerEnableHardware": "Hardware für diesen Arbeitsbereich aktivieren",
   "makerCliUsage": "Maker-Hardware vom Terminal aus: Hardware für einen Arbeitsbereich aktivieren oder deaktivieren, Maschinen registrieren und auflisten, eine Maschine stoppen oder das Maker-Panel öffnen. machines add liest --registration und mit --key-stdin den Maschinenschlüssel von der Standardeingabe. Physische Aktionen fragen Ihre Anmeldung beim Betriebssystem ab und laufen nie unbeaufsichtigt.",
   "makerDisableHardware": "Hardware für diesen Arbeitsbereich deaktivieren",

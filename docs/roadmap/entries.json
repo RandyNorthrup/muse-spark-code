@@ -1505,6 +1505,12 @@
       "title": "A missing native helper says what is missing; the serial helper starts a python3 found by its full path",
       "summary": "A shipped helper that is missing or will not run is named with the way out (reinstall, or the build command), and serial access no longer runs a python3 planted in the project.",
       "area": "platform"
+    },
+    {
+      "id": "RLFSMALLFIX2",
+      "title": "A session that cannot start says why; more missing helpers are said; the serial Python is a machine setting",
+      "summary": "Editors hear why a session could not start (Muse Code's sign-in file, its exit, the folder), the Linux portal helper, the Mac group check and the judge peer say when they are missing, and museSpark.serialPythonPath names the Python for serial access.",
+      "area": "platform"
     }
   ]
 }

@@ -43,6 +43,11 @@ export interface NativeSerialDeps {
   readonly platform: NodeJS.Platform
   readonly env: NodeJS.ProcessEnv
   readonly packageRoot: string
+  /**
+  The Python 3 the person set for this machine (`serialPythonPath`), read at
+  each serial action; absent finds python3 on PATH outside the workspace.
+  */
+  readonly serialPython?: () => string | undefined
   readonly dataDirectory: string
   readonly workspace: string
   readonly host: MakerHost
@@ -83,6 +88,7 @@ export function nativeSerial(deps: NativeSerialDeps) {
           workspaceRoot: deps.workspace,
           fileExists: existsSync,
           realpath: realpathSync,
+          configured: deps.serialPython?.(),
         }),
         prefix: ['-I', path.join(deps.packageRoot, 'native', 'posix', 'serial.py')],
       }

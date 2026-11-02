@@ -4641,7 +4641,9 @@
     "macos": "Klíčenka macOS",
     "linux": "klíčenka služby Secret Service"
   },
-  "acpNoModels": "Backend nenabízí žádný model, který by tento agent mohl použít.",
+  "acpNoModels": "Backend nenabízí žádný model, který by tento agent mohl použít. Zkontrolujte, zda jste přihlášeni nebo máte uložený klíč a zda tento počítač dosáhne na server poskytovatele, a zkuste to znovu.",
+  "acpFolderNotAbsolute": "Editor musí složku k otevření zadat jako úplnou cestu.",
+  "acpFolderMissing": "Složku k otevření nelze použít: neexistuje, není složkou, nebo ji tento účet nesmí otevřít. Zkontrolujte cestu a otevřete ji znovu.",
   "acpPromptBusy": "V této relaci už běží jiný prompt.",
   "acpUserMcpServersConfigured": "Spuštěno s --no-user-mcp-servers, ale vaše nastavení Muse Code zapíná servery MCP a Muse Code nemá žádný přepínač, který by je pro jedno spuštění vynechal. Vypněte je v tomto souboru (enabled: false) nebo spusťte bez --no-user-mcp-servers.",
   "acpUserMcpServersUnreadable": "Spuštěno s --no-user-mcp-servers, ale soubor nastavení Muse Code nelze přečíst, takže tento agent nepozná, zda zapíná servery MCP. Soubor opravte nebo spusťte bez --no-user-mcp-servers.",
@@ -4662,6 +4664,12 @@
     "unloadableSource": "Nativní pomocník {helper} je sestaven, ale tento počítač ho nedokáže spustit (může být poškozený, zablokovaný systémem nebo sestavený pro jiný procesor), takže se to nepodařilo spustit. Sestavte ho znovu příkazem „{command}“ a zkuste to znovu.",
     "unsupported": "Muse Spark Code nedodává žádného nativního pomocníka pro {platform} na {arch}, takže se to nepodařilo spustit.",
     "windowsJob": "Pomocníka úloh pro Windows se nepodařilo připravit, takže se to nepodařilo spustit. Muse Spark Code ho při prvním použití sestaví ve Windows PowerShellu 5.1 ze souborů ve své složce native/windows: přeinstalujte Muse Spark Code a zkontrolujte, že se Windows PowerShell spouští a že ho nebrání bezpečnostní software."
+  },
+  "museStart": {
+    "authFile": "Muse Code nemohl přečíst svůj soubor s přihlášením (muse/auth.json ve své konfigurační složce), a proto se nespustil. Soubor opravte nebo smažte a poté se přihlaste znovu.",
+    "authSchema": "Soubor s přihlášením Muse Code má formát, který tento Muse Code nepodporuje (verze {version}), a proto se nespustil. Soubor (muse/auth.json v jeho konfigurační složce) smažte a přihlaste se znovu, nebo Muse Code aktualizujte.",
+    "cannotRun": "Tento počítač Muse Code nespustil (stavový kód ukončení {code}), takže se to nepodařilo spustit. Zkontrolujte, že soubor je program Muse Code a že ho smíte spustit, nebo ho nainstalujte znovu.",
+    "exited": "Muse Code se zastavil při spouštění (stavový kód ukončení {code}), takže se to nepodařilo spustit. Podrobnosti jsou v protokolu Muse Spark; spuštění „muse serve“ v terminálu ukáže, co Muse Code hlásí."
   },
   "acpQuestionFormMessage": "Muse má na vás otázku.",
   "acpQuestionAsked": "Muse má otázku; tento editor ji neumí zobrazit jako formulář, odpovězte proto v další zprávě:",
@@ -7952,6 +7960,8 @@
   "makerStopPhysicalRequired": "Stroj {machine} vyžaduje fyzické nouzové zastavení; softwarové zastavení není dostupné.",
   "makerTrustRequired": "Před povolením hardwaru označte tento pracovní prostor jako důvěryhodný.",
   "makerSerialPythonMissing": "Sériový přístup potřebuje Python 3 (python3) s balíčkem pyserial a na vaší proměnné PATH mimo tento pracovní prostor nebyl nalezen žádný python3. Nainstalujte Python 3, spusťte „python3 -m pip install pyserial“ a zkuste to znovu.",
+  "makerSerialPythonSetMissing": "Python, který jste nastavili pro sériový přístup (museSpark.serialPythonPath nebo serialPythonPath v souboru settings.json agenta), není úplná cesta k existujícímu souboru. Nastavte úplnou cestu k Pythonu 3 s balíčkem pyserial, nebo nastavení vymažte, aby se použil python3 z vaší proměnné PATH.",
+  "makerSerialPythonSetInWorkspace": "Python, který jste nastavili pro sériový přístup, je uvnitř tohoto pracovního prostoru, kde by projekt mohl dodat program, který se spustí místo něj. Nastavte Python mimo pracovní prostor, například z virtuálního prostředí ve své domovské složce.",
   "makerEnableHardware": "Povolit hardware pro tento pracovní prostor",
   "makerCliUsage": "Maker hardware z terminálu: povolte nebo zakažte hardware pro pracovní prostor, registrujte a vypisujte stroje, zastavte stroj nebo otevřete panel maker. Příkaz machines add čte --registration a s volbou --key-stdin klíč stroje ze standardního vstupu. Fyzické akce vyžadují přihlášení do operačního systému a nikdy neběží bez dozoru.",
   "makerDisableHardware": "Zakázat hardware pro tento pracovní prostor",
