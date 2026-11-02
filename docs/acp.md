@@ -883,7 +883,13 @@ live under its `team/` folder.
   discards it too. In Bypass the merge is shown as a completed call
   and lands without asking.
 - `session/cancel` and closing the session stop every worker that
-  session delegated; ending the agent stops every workspace's team.
+  session delegated. They also drop a merge that is still waiting and
+  remove its copy, so a Merge answer that arrives afterwards does not
+  land. Another session in the same folder does not see that
+  session's tasks, briefs or diffs. A task whose own report is not
+  done is not reported finished. If the editor cannot answer a team
+  step, the session says so rather than dropping it quietly. Ending
+  the agent stops every workspace's team.
 
 ## Networks and proxies
 
