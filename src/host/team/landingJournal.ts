@@ -1,11 +1,17 @@
-import { lstat, readFile, unlink } from 'node:fs/promises'
+import { lstat, readdir, readFile, rm, unlink } from 'node:fs/promises'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
 import type { LandingIntent } from '../../core/team/teamMerge'
 import { lstatIdentity } from '../../core/fs/fileIdentity'
 import { isSamePath } from '../../core/paths'
-import { TEAM_SCHED_ID_MAX_CHARS, TEAM_WRITE_SET_MAX } from '../../shared/constants'
+import {
+  ATOMIC_RENAME_ATTEMPTS,
+  ATOMIC_RENAME_DELAY_MS,
+  ATOMIC_TEMPORARY_SUFFIX,
+  TEAM_SCHED_ID_MAX_CHARS,
+  TEAM_WRITE_SET_MAX,
+} from '../../shared/constants'
 import { UI_TEXT } from '../../shared/constants'
 import { canonicalPath, isMissingPath } from '../canonicalPath'
 import { isOwnedFile, writeFileIfUnchanged } from '../fsAtomic'
@@ -16,6 +22,7 @@ const blobSchema = z.strictObject({
   oid: z.string().check(z.regex(/^[a-f0-9]+$/u)),
   mode: z.enum(['100644', '100755', '120000']),
 })
+const stageIdSchema = z.uuid()
 const landingIdSchema = z
   .string()
   .check(
@@ -132,6 +139,12 @@ export interface LandingFileAccess {
     replacement: LandingFile['before'],
     canWrite: () => Promise<boolean>,
   ) => Promise<boolean>
+  /** Removes what a killed write staged beside `file`; false when the tree stopped being ours. */
+  readonly removeStages: (
+    file: string,
+    blobs: readonly LandingFile['before'][],
+    canWrite: () => Promise<boolean>,
+  ) => Promise<boolean>
 }
 
 function isSameBlob(left: LandingFile['before'], right: LandingFile['before']): boolean {
@@ -171,11 +184,13 @@ export class LandingJournal {
     const conflicts: string[] = []
     const parsed = recordSchema.parse(record)
     for (const file of parsed.files.toReversed()) {
+      const isClear = await access.removeStages(file.path, [file.before, file.after], canWrite)
       const current = await access.read(file.path)
-      if (isSameBlob(current, file.before)) continue
       if (
-        !isSameBlob(current, file.after) ||
-        !(await access.replace(file.path, file.after, file.before, canWrite))
+        !isClear ||
+        (!isSameBlob(current, file.before) &&
+          (!isSameBlob(current, file.after) ||
+            !(await access.replace(file.path, file.after, file.before, canWrite))))
       )
         conflicts.push(file.path)
     }
@@ -247,8 +262,57 @@ export function landingFileAccess(
       throw error
     }
   }
+  /** The whole of one of `blobs`, or its start: a write killed while filling its stage. */
+  const isLandingBytes = async (
+    stage: string,
+    blobs: readonly LandingFile['before'][],
+  ): Promise<boolean> => {
+    const bytes = await readFile(stage)
+    for (const blob of blobs) {
+      if (blob === null) continue
+      const landed = await staging.readBlob(root, blob.oid)
+      if (bytes.length <= landed.length && landed.subarray(0, bytes.length).equals(bytes))
+        return true
+    }
+    return false
+  }
   return {
     read,
+    removeStages: async (file, blobs, canWrite) => {
+      const target = await targetOf(file)
+      const folder = path.dirname(target)
+      // The name `writeFileIfUnchanged` gives a stage, in the target's folder:
+      // no process ever finishes a dead lander's stage, and an untracked file
+      // would ride every later snapshot. Only this landing's bytes go.
+      const prefix = `${path.basename(target)}.`.toLowerCase()
+      let names: readonly string[]
+      try {
+        names = await readdir(folder)
+      } catch (error: unknown) {
+        if (isMissingPath(error)) return true
+        throw error
+      }
+      for (const name of names) {
+        const lower = name.toLowerCase()
+        if (
+          !lower.startsWith(prefix) ||
+          !lower.endsWith(ATOMIC_TEMPORARY_SUFFIX) ||
+          !stageIdSchema.safeParse(lower.slice(prefix.length, -ATOMIC_TEMPORARY_SUFFIX.length))
+            .success
+        )
+          continue
+        const stage = path.join(folder, name)
+        const held = await lstatIdentity(stage)
+        if (!held.isFile() || !(await isLandingBytes(stage, blobs))) continue
+        if (!(await isOwnedFile(stage, held)) || !(await canWrite())) return false
+        await rm(stage, {
+          force: true,
+          maxRetries: ATOMIC_RENAME_ATTEMPTS,
+          retryDelay: ATOMIC_RENAME_DELAY_MS,
+        })
+      }
+      return true
+    },
     replace: async (file, expected, replacement, canWrite) => {
       const target = await targetOf(file)
       if (!isSameBlob(await read(file), expected)) return false

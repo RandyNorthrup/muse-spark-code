@@ -196,6 +196,22 @@ async function hasConfirmedTakeover(input: {
   return await authority.takeOver(storeOwner, true)
 }
 
+/**
+The workspace and the landing's storage as the file system resolves them
+(PLAN.md D24), once, before either is used: an 8.3 short name (a Windows
+TEMP under a long profile name, `RUNNER~1` on hosted runners), a junction
+or a symbolic link above either folder (macOS's /var) names the same
+folder by another spelling. The staging copy is made under the canonical
+storage, so the merge applier's linked-root refusal judges only links
+inside the copy; every user-tree target resolves under the canonical root,
+so the write's canonical-target check judges only links inside the tree.
+*/
+async function canonicalLandingFolders(
+  deps: Pick<LandingDeps, 'root' | 'storage'>,
+): Promise<{ readonly root: string; readonly storage: string }> {
+  return { root: await canonicalPath(deps.root), storage: await canonicalPath(deps.storage) }
+}
+
 /** Existing review permission admits staging; no user-tree write precedes checked landing. */
 export async function landTeamTask(
   table: UiText,
@@ -206,7 +222,7 @@ export async function landTeamTask(
   options: Parameters<TeamMergePort['merge']>[2],
 ): ReturnType<TeamMergePort['merge']> {
   setUiText(table, locale)
-  const { policy, root, runGit } = deps
+  const { policy, runGit } = deps
   const admit = landingAdmit(deps, signal)
   const outcome = task.outcome
   if (
@@ -219,12 +235,13 @@ export async function landTeamTask(
   const branchHead = outcome.head
   const agentsRef = outcome.agentsRef
   const git = landingGit(admit, runGit)
-  const scratch = path.join(deps.storage, 'landing')
-  await mkdir(scratch, { recursive: true })
+  await mkdir(path.join(deps.storage, 'landing'), { recursive: true })
+  const { root, storage } = await canonicalLandingFolders(deps)
+  const scratch = path.join(storage, 'landing')
   const copy = await mkdtemp(path.join(scratch, 'staging-'))
   const staging = new StagingCopy(git, process.env, scratch)
   const owner = policy.owner
-  const { store: journalStore, authority } = createLandingStore(deps.storage, owner, deps.platform)
+  const { store: journalStore, authority } = createLandingStore(storage, owner, deps.platform)
   const journal = storeLandingJournal(() => journalStore)
   const validateTarget = async (file: string) => {
     admit()
@@ -427,27 +444,27 @@ export async function recoverOpenLandings(
   signal: AbortSignal,
 ): Promise<number> {
   setUiText(table, locale)
-  const { policy, root, runGit } = deps
+  const { policy, runGit } = deps
   const admit = landingAdmit(deps, signal)
   const owner = policy.owner
+  const { root, storage } = await canonicalLandingFolders(deps)
   const {
     store: journalStore,
     authority,
     storeFor,
-  } = createLandingStore(deps.storage, owner, deps.platform)
+  } = createLandingStore(storage, owner, deps.platform)
   const scanned = await scanLandingEntries(journalStore)
   if (scanned.blocked) return 0
-  const canonical = await canonicalPath(root)
   const open: { record: LandingRecord; storeOwner: WindowIdentity }[] = []
   for (const entry of scanned.entries) {
     if (entry.raw.kind !== 'record') return 0
     const record = parseLandingEntry(entry.name, entry.raw.value)
-    if (record.status === 'open' && (await canonicalPath(record.root)) === canonical)
+    if (record.status === 'open' && (await canonicalPath(record.root)) === root)
       open.push({ record, storeOwner: entry.owner })
   }
   if (open.length === 0) return 0
   const git = landingGit(admit, runGit)
-  const scratch = path.join(deps.storage, 'landing')
+  const scratch = path.join(storage, 'landing')
   const staging = new StagingCopy(git, process.env, scratch)
   // Recovery settles each intent in its owner's store: a recovered copy in
   // this window's store would leave the owner's open intent blocking every
