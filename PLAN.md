@@ -26090,26 +26090,35 @@ and OS credential-store suites were not run. `cliCredentialFile` (6) passed.
 Record: `docs/certification/rvint7.md`.
 
 **Status 2026-11-02 (RLF-M109H, macmini): built.** RVM109's four open
-hardening items are closed on POSIX: a delegated command starts through
-the peer helper's `run` mode with a zero core limit and, on Linux,
-dumpable off, so a crash writes no core holding a handed-over value and
-another process of the same user cannot read the command's environment
-through `/proc` (macOS has no dumpable switch: its core limit is set
-and the remaining environment exposure is said on the approval card,
-in all 15 tables, where the person allows that mode); the feeder
-ancestry walk binds every step to the start time recorded for that pid
-and the helper's `parent` mode brackets its own reads, so a recycled
-pid cannot answer for a dead ancestor; and a headless run's vault uses
-are authorized against the provenance the engine actually noted during
-that run, accumulating for the run's life, with a tainted use denied in
-the run's denial record. Proven here on real processes and the
-compiled helper; the delegated broker/feeder suite's new taint case
-could not run in this lane's sandbox (its governed identity probe
-fails identically at the base commit) and belongs to hosted CI.
-Named, not fixed, with what a run has to prove: the Windows policy
-path, a container pid namespace, and the git, askpass, sudo, SSH and
-editor surfaces (`docs/real-life/unproven.md`). Record:
+hardening items were taken up on POSIX. A delegated command starts
+through the peer helper's `run` mode with a zero core limit, so an
+ordinary crash writes no core file, and on Linux the helper calls
+`PR_SET_DUMPABLE` before exec. That call does not survive exec of a
+normal command (RVM109H): another program running as you can still
+read the command's environment on Linux, macOS and Windows, and the
+approval card says so, in all 15 tables, where the person allows that
+mode. The feeder ancestry walk binds every step to a recorded start
+time. A headless run authorizes vault uses against the provenance the
+engine noted. The delegated broker/feeder suite could not run in that
+lane's sandbox. Named, not fixed, with what a run has to prove: the
+Windows policy path, a container pid namespace, and the git, askpass,
+sudo, SSH and editor surfaces (`docs/real-life/unproven.md`). Record:
 `docs/certification/rlf-m109h.md`. M109 stays open.
+
+**Status 2026-11-02 (RVM109H, macmini): built.** The review corrected
+the three claims above. The parent helper now refuses unless the pid
+still has the start time the walk recorded, on both of its bracketed
+reads; Windows re-reads the child after the parent. Run mode closes
+inherited descriptors above 2 before exec and wipes the environment
+when it refuses. Headless taint drops `restrictedWorkspace`, which
+every headless request carries because exec refuses workspace trust,
+and still keeps a search, web or other content reason. On this rig,
+after `bash native/darwin/build.sh`, the delegated broker/feeder suite
+passed 4 tests, including a provenance note refusing the next vault
+use in the denial record. The Linux `/proc` case did not run: the
+Docker client is installed and the daemon is not. That case now
+expects the same user to be able to read the command's environment
+after exec. Record: `docs/certification/rvm109h.md`. M109 stays open.
 
 **C-M109-1 lead decisions (2026-10-10, lead decision).** In 0.17.0, every
 vault use is refused. The binding layer was never built: the broker process,

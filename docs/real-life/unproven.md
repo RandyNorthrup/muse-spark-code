@@ -3510,10 +3510,14 @@ editor run proves it:
 
 ## Lane RLF-M109H named, not fixed (2026-11-02, branch rec/rlf-m109h)
 
-RLF-M109H closed RVM109's four hardening items on POSIX
-(`docs/certification/rlf-m109h.md`). The surfaces below were named, not
-fixed, by that brief; each line says what a run has to prove before
-any claim is made about it. Nothing here is proven by this lane.
+RLF-M109H took up RVM109's four hardening items on POSIX
+(`docs/certification/rlf-m109h.md`). RVM109H
+(`docs/certification/rvm109h.md`) withdrew the claim that a Linux run
+hides the command's environment from another program of the same user,
+and bound the parent read to the recorded start time. The surfaces
+below were named, not fixed; each line says what a run has to prove
+before any claim is made about it. Nothing here is proven by either
+lane.
 
 - Windows person-policy path: RVM109's linked/shared/second-named
   refusal uses the POSIX no-follow, owner-only, single-link helpers;
