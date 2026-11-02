@@ -489,6 +489,20 @@ describe('panel companion routes (real server, transport and connection)', () =>
     expectPanelRefusal(refused, HTTP_STATUS.requestTooLarge, 'MHP_PANEL_TOO_LARGE')
   })
 
+  it('refuses a non-loopback bind before a socket opens', async () => {
+    const { transport } = use()
+    await expect(
+      startCompanionServer({
+        host: '0.0.0.0',
+        handler: transport.handler,
+        services: transport.services,
+        limits: PANEL_COMPANION_LIMITS,
+        assets: new Map(),
+        renderPage: () => '',
+      }),
+    ).rejects.toThrow('EPANEL_BIND')
+  })
+
   it('refuses a malformed envelope aloud', async () => {
     const window = await bootWindow()
     const refused = await call(`${window.origin}/panel/message`, {

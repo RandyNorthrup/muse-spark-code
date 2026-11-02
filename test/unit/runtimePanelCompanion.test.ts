@@ -254,6 +254,16 @@ describe('packed panel --companion (real agent, real session)', () => {
     expectGuardRefusal(refused, HTTP_STATUS.forbidden, 'EPANEL_ORIGIN')
   })
 
+  it('refuses the launch code a second time', async () => {
+    const { url, origin } = use()
+    const { code } = launchCode(url)
+    const refused = await call(`${origin}/session`, {
+      headers: panelHeaders(origin),
+      body: JSON.stringify({ code }),
+    })
+    expectGuardRefusal(refused, HTTP_STATUS.forbidden, 'EPANEL_LAUNCH')
+  })
+
   it('refuses an envelope for a surface the window never opened', async () => {
     const { origin, token } = use()
     const refused = await call(`${origin}/panel/message`, {
