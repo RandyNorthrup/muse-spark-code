@@ -78,6 +78,8 @@ async function requestBody(request: IncomingMessage): Promise<unknown> {
   const parsed: unknown = text === '' ? null : JSON.parse(text)
   return z.json().parse(parsed)
 }
+export type AppkeysDecision = 'granted' | 'denied' | 'pending'
+
 export async function machineSimulator() {
   const requests: SimulatorRequest[] = []
   const moonraker = moonrakerFrame()
@@ -87,6 +89,10 @@ export async function machineSimulator() {
   let shouldHoldSend = false
   let shouldLoseReply = false
   let override: { status: number; body: string; headers?: Record<string, string> } | undefined
+  let isAppkeysSupported = true
+  let appkeysDecision: AppkeysDecision = 'granted'
+  let appkeysDialog: string | undefined
+  let endpoint = ''
   const server = createServer((request, response) => {
     void requestBody(request)
       .then((body) => {
@@ -123,6 +129,40 @@ export async function machineSimulator() {
           response.end()
           return
         }
+        // OctoPrint's documented application-keys shapes (probe, request, poll).
+        if (path === '/plugin/appkeys/probe') {
+          if (isAppkeysSupported) {
+            response.writeHead(204)
+            response.end()
+          } else {
+            response.writeHead(404, { 'content-type': 'application/json' })
+            response.end(JSON.stringify({ error: 'no plugin' }))
+          }
+          return
+        }
+        if (path === '/plugin/appkeys/request' && request.method === 'POST') {
+          response.writeHead(201, { 'content-type': 'application/json' })
+          response.end(
+            JSON.stringify({
+              app_token: 'sim-token',
+              auth_dialog: appkeysDialog ?? `${endpoint}/auth/sim`,
+            }),
+          )
+          return
+        }
+        if (path === '/plugin/appkeys/request/sim-token') {
+          if (appkeysDecision === 'granted') {
+            response.writeHead(200, { 'content-type': 'application/json' })
+            response.end(JSON.stringify({ api_key: 'sim-issued-key' }))
+          } else if (appkeysDecision === 'denied') {
+            response.writeHead(404, { 'content-type': 'application/json' })
+            response.end(JSON.stringify({ error: 'denied' }))
+          } else {
+            response.writeHead(202)
+            response.end()
+          }
+          return
+        }
         response.setHeader('content-type', 'application/json')
         const replies: Record<string, unknown> = {
           '/printer/info': { result: { state: 'ready', hostname, software_version: 'test' } },
@@ -139,13 +179,23 @@ export async function machineSimulator() {
       })
   })
   const port = await listenOnLoopback(server)
+  endpoint = `http://127.0.0.1:${String(port)}`
   return {
-    endpoint: `http://127.0.0.1:${String(port)}`,
+    endpoint,
     requests,
     moonraker,
     octoprint,
     changeIdentity() {
       hostname = 'different-printer'
+    },
+    setAppkeysProbe(isSupported: boolean) {
+      isAppkeysSupported = isSupported
+    },
+    setAppkeysDecision(decision: AppkeysDecision) {
+      appkeysDecision = decision
+    },
+    setAppkeysDialog(url: string | undefined) {
+      appkeysDialog = url
     },
     holdSend() {
       shouldHoldSend = true

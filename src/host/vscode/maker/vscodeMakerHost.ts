@@ -4,7 +4,7 @@ import path from 'node:path'
 import * as vscode from 'vscode'
 import type { MakerHost, MakerStorage } from '../../../core/maker/ports'
 import {
-  MAKER_COMMANDS,
+  COMMAND_IDS,
   MAKER_MODAL_MAX_CHARS,
   MAKER_MODAL_MAX_LINES,
   MAKER_STORAGE_PREFIX,
@@ -58,7 +58,10 @@ function storage(memento: vscode.Memento, directory: string): MakerStorage {
 }
 
 async function directory(uri: vscode.Uri | undefined): Promise<string> {
-  if (uri?.scheme !== 'file') throw new Error(UI_TEXT.makerUnavailable)
+  // No scheme check: VS Code hands these URIs as `file` or `vscode-userdata`
+  // depending on the release, and the scheme has changed before. Definedness
+  // plus the realpath and workspace-containment checks below are the guard.
+  if (uri === undefined) throw new Error(UI_TEXT.makerUnavailable)
   const folder = path.join(uri.fsPath, 'maker')
   await mkdir(folder, { recursive: true })
   const canonical = await realpath(folder)
@@ -275,7 +278,7 @@ export class VscodeMakerHost implements MakerHost, vscode.Disposable {
     this.item.name = UI_TEXT.makerStopMachine
     this.item.text = `$(debug-stop) ${UI_TEXT.makerStopMachine}`
     this.item.tooltip = UI_TEXT.makerSoftwareStopWarning
-    this.item.command = MAKER_COMMANDS.stopMachine
+    this.item.command = COMMAND_IDS.stopMachine
     this.item.show()
   }
   async stop(machineId?: string): Promise<void> {

@@ -67,8 +67,11 @@ export interface OctoprintAppKeysDeps {
   readonly pollIntervalMs: number
   readonly timeoutMs: number
   readonly signal?: AbortSignal
-  /** The auth-dialog URL, for the host to open once the request is polling. */
-  readonly onAuthDialog?: (url: string) => void
+  /**
+  The auth-dialog URL, for the host to open once the request is polling.
+  Awaited: a refused dialog refuses the enrollment before the first poll.
+  */
+  readonly onAuthDialog?: (url: string) => void | Promise<void>
 }
 
 export type OctoprintAppKeysResult =
@@ -107,7 +110,7 @@ export async function requestOctoprintAppKey(
       { scrub: false },
     ),
   )
-  deps.onAuthDialog?.(authorization.auth_dialog)
+  await deps.onAuthDialog?.(authorization.auth_dialog)
   const pollPath = `/plugin/appkeys/request/${authorization.app_token}`
   const deadline = Date.now() + deps.timeoutMs
   for (;;) {

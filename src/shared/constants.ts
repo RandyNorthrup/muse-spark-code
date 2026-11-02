@@ -654,6 +654,12 @@ export const COMMAND_IDS = {
   openInNewTab: 'museSpark.openInNewTab',
   openTasks: 'museSpark.openTasks',
   openDevices: 'museSpark.openDevices',
+  enableHardware: 'museSpark.enableHardware',
+  disableHardware: 'museSpark.disableHardware',
+  addMachine: 'museSpark.addMachine',
+  removeMachine: 'museSpark.removeMachine',
+  stopMachine: 'museSpark.stopMachine',
+  openDeviceLog: 'museSpark.openDeviceLog',
   focusInput: 'museSpark.focusInput',
   insertMentionReference: 'museSpark.insertMentionReference',
   toggleFocusView: 'museSpark.toggleFocusView',
@@ -1131,6 +1137,9 @@ export const RUNTIME_MAKER_APPROVAL_MS = 60_000
 export const RUNTIME_MAKER_MAX_ITEMS = 256
 export const RUNTIME_MAKER_LOG_BYTES = 4 * 1024 * 1024
 export const RUNTIME_MAKER_STATE_KEY = 'hardware'
+// The window latch in the workspace mementos (RLF-M103WIRE): same grant shape
+// as the runtime's key, in the window's own store.
+export const MAKER_HOST_STATE_KEY = 'hardware'
 export const RUNTIME_MAKER_AGENT_SHELL = 'MUSE_SPARK_AGENT_SHELL'
 export const RUNTIME_MAKER_AGENT_MARKERS = [
   'CI',
@@ -1178,14 +1187,6 @@ export const MAKER_PREVIEW_SCRIPT_FILE = 'makerPreview.js'
 export const MAKER_PREVIEW_STYLE_FILE = 'makerPreview.css'
 export const MAKER_MODAL_MAX_LINES = 32
 export const MAKER_MODAL_MAX_CHARS = 8192
-export const MAKER_COMMANDS = {
-  enableHardware: 'museSpark.enableHardware',
-  disableHardware: 'museSpark.disableHardware',
-  addMachine: 'museSpark.addMachine',
-  removeMachine: 'museSpark.removeMachine',
-  stopMachine: 'museSpark.stopMachine',
-  openDeviceLog: 'museSpark.openDeviceLog',
-} as const
 // Only the deferred VS Code adapter reads these descriptions. W reuses the
 // portable engine operations; these wrappers never classify hardware commands.
 export const MAKER_HOST_MODEL_TEXT = {
@@ -6596,6 +6597,9 @@ export const MAKER_PERMISSION_OPTIONS = {
 // The maker executors' lazy bundle beside dist/devices.js, required on the
 // first maker execution; the devices bundle keeps only the panel surface.
 export const MAKER_BUNDLE_FILE = 'maker.js'
+// The window's maker assembly beside the activation bundle (RLF-M103WIRE),
+// required on the first maker UI or device tool.
+export const MAKER_HOST_BUNDLE_FILE = 'makerHost.js'
 // One session-list page the agent reads for the editor's cursor; the editor
 // pages through every one, so no session is hidden past the page.
 export const ACP_SESSION_LIST_LIMIT = 50

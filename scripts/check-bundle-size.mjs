@@ -135,6 +135,9 @@ const BUDGETS = [
   // M103 V: native maker host UI and wrappers, loaded only on first use.
   { path: 'dist/makerHost.js', budgetKiB: 25 },
   { path: 'dist/makerPreviewHost.js', budgetKiB: 25 },
+  // RLF-M103WIRE: the window's maker engine (latch, registry, serial, machines):
+  // 89.7 KiB measured + 15%, rounded to 25 KiB.
+  { path: 'dist/makerEngine.js', budgetKiB: 125 },
   { path: 'dist/webview/makerPreview.js', budgetKiB: 25 },
   // M118: portable stores, native/panel adapters and chat renderer: 163.4 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/prompts.js', budgetKiB: 200 },

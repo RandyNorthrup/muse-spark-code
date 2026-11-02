@@ -9674,6 +9674,21 @@ export const EN = {
 
   makerAddMachine: 'Add machine',
 
+  makerMachineNamePrompt: 'Name for this machine',
+
+  makerMachineIdPrompt: 'Machine ID (letters, numbers and dashes)',
+
+  makerMachineEndpointPrompt: 'Machine address',
+
+  makerMachineAdded: 'Added machine {name}.',
+
+  makerAppKeysApprove: 'Approve {app} in OctoPrint: a browser dialog opened for this request.',
+
+  makerAppKeysDenied: 'The OctoPrint request was denied or timed out.',
+
+  makerAppKeysUnsupported:
+    'This OctoPrint has no application-keys plugin; enable it in OctoPrint and try again.',
+
   makerRemoveMachine: 'Remove machine',
 
   makerPlainHttpWarning: 'HTTP sends the machine key over the LAN without encryption.',

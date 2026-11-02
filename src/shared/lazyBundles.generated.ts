@@ -605,14 +605,32 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   { file: 'makerContracts.js', side: 'both', requestedBy: [] },
-  { file: 'makerHost.js', side: 'vscode', requestedBy: [] },
+  {
+    file: 'makerEngine.js',
+    side: 'vscode',
+    requestedBy: [
+      {
+        importer: 'src/host/vscode/maker/makerAssembly.ts',
+        symbol: 'createMakerAssembly',
+        side: ['vscode'],
+      },
+    ],
+  },
+  {
+    file: 'makerHost.js',
+    side: 'vscode',
+    requestedBy: [
+      { importer: 'src/host/vscode/maker/makerLoader.ts', symbol: 'assembly', side: ['vscode'] },
+      { importer: 'src/shared/constants.ts', symbol: 'MAKER_HOST_BUNDLE_FILE', side: ['vscode'] },
+    ],
+  },
   {
     file: 'makerPreviewHost.js',
     side: 'vscode',
     requestedBy: [
       {
-        importer: 'src/host/maker/makerEntry.ts',
-        symbol: 'createMakerPreviewPanel',
+        importer: 'src/host/vscode/maker/makerAssembly.ts',
+        symbol: 'needPreview',
         side: ['vscode'],
       },
     ],
