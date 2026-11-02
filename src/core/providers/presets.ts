@@ -365,6 +365,8 @@ export interface ProviderPreset {
   readonly keyShape: KeyShape
   /** Where the key comes from, beside the key field (never a key's characters). */
   readonly keyHint: string
+  /** One honest sentence about what the provider keeps, shown where the key is entered. */
+  readonly privacyNote?: string | undefined
   readonly keyTest: KeyTest
   readonly modelsList: ModelsListSpec
   /** What the provider's own API offers about spend (one capability per preset). */
@@ -750,6 +752,9 @@ const GEMINI_PRESET: ProviderPreset = {
   keyShape: { kind: 'prefix', prefix: 'AIza', minLength: 30 },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'AI Studio' })
+  },
+  get privacyNote() {
+    return UI_TEXT.providerText.privacyNotes.geminiStore
   },
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/v1beta/models', windowField: 'inputTokenLimit', priceSource: 'catalogue' },

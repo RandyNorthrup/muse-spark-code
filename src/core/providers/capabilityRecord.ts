@@ -175,14 +175,17 @@ const groups = {
 /**
 The served version and the model's lifecycle from its list (AC3):
 `active`, `deprecated` or `retired`, with the deprecation and
-scheduled-retirement instants where the list carries them. The record's
-identity and its overrides read the same fields.
+scheduled-retirement instants where the list carries them. `beta` is the
+catalogue's own status word where it says `beta`: orthogonal to the
+lifecycle, a beta model is active-but-beta. The record's identity and
+its overrides read the same fields.
 */
 const lifecycleFields = {
   servedVersion: z.optional(z.string()),
   lifecycle: z.optional(z.enum(['active', 'deprecated', 'retired'])),
   deprecatedAt: z.optional(z.string()),
   retiresAt: z.optional(z.string()),
+  beta: z.optional(z.boolean()),
 }
 const recordSchema = z.strictObject({
   identity: z.strictObject({
@@ -334,7 +337,7 @@ export function resolveModelCapabilities(
   }
   const ordered = evidence.toSorted((a, b) => PRIORITY[a.source.kind] - PRIORITY[b.source.kind])
   for (const item of ordered) {
-    const { servedVersion, lifecycle, deprecatedAt, retiresAt, ...patch } =
+    const { servedVersion, lifecycle, deprecatedAt, retiresAt, beta, ...patch } =
       capabilityOverridesSchema.parse(item.fields)
     const modes = patch.reasoning?.modes
     if (
@@ -351,7 +354,7 @@ export function resolveModelCapabilities(
     overlay(result, patch, sourceSchema.parse(item.source), sources)
     // Identity facts accumulate per field in priority order, like the
     // overlay: a later source wins only the fields it speaks.
-    const identityFacts = { servedVersion, lifecycle, deprecatedAt, retiresAt }
+    const identityFacts = { servedVersion, lifecycle, deprecatedAt, retiresAt, beta }
     for (const [key, value] of Object.entries(identityFacts)) {
       if (value === undefined) continue
       mergedIdentity[key] = value

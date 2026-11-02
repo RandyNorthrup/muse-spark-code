@@ -15,9 +15,18 @@ export interface CatalogModel {
   reasoning?: boolean
   attachment?: boolean
   modalities?: unknown
+  status?: 'deprecated' | 'beta'
   release_date?: string
   cost?: Record<string, unknown>
   limit?: Record<string, number>
+}
+
+export interface GeminiRerouteRow {
+  id: string
+  serves: string
+  from: string | null
+  docUrl: string
+  readOn: string
 }
 
 export interface CatalogProvider {
@@ -45,6 +54,12 @@ export interface VendorManifest {
 
 export function assertDownloadChecksum(bytes: Uint8Array, expectedSha256: unknown): string
 export function assertSnapshotSize(byteLength: number): number
+export function readRerouteTable(worktreeRoot?: string): GeminiRerouteRow[]
+export function assertReroutesCurrent(
+  models: unknown,
+  table: readonly GeminiRerouteRow[],
+  where: string,
+): number
 export function parseCatalogApi(text: string): Record<string, unknown>
 export function filterCatalog(api: unknown): Record<string, CatalogProvider>
 export function snapshotDocument(

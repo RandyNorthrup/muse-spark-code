@@ -26,6 +26,7 @@ import type {
   ScheduleRunConfirmation,
 } from '../../shared/schedule'
 import type { ApprovalMode } from '../../shared/permissionModes'
+import type { ModelReroute } from '../providers/geminiReroutes'
 import type { MediaInfo } from '../../shared/media'
 import type { SessionExport } from '../export/sessionTransfer'
 import type { GitDraftOutputPort } from '../git/gitText'
@@ -419,6 +420,17 @@ export interface ModelSummary {
   readonly reasoningEffortVariants?:
     readonly { readonly tier: string; readonly description?: string | undefined }[] | undefined
   readonly defaultReasoningEffort?: string | undefined
+  /**
+  The model's lifecycle honesty (PROV-HONEST): `lifecycle` from the
+  provider's list or the catalogue (absent while active), `retiresAt`
+  where a shutdown day is announced, `beta` while the catalogue calls
+  it beta, and `reroute` while Google serves the id with another model.
+  The picker names each; nothing here blocks selecting the model.
+  */
+  readonly lifecycle?: 'deprecated' | 'retired' | undefined
+  readonly retiresAt?: string | undefined
+  readonly beta?: boolean | undefined
+  readonly reroute?: ModelReroute | undefined
 }
 
 export interface SkillSummary {

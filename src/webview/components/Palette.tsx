@@ -20,7 +20,8 @@ import {
 } from 'react'
 import { UI_TEXT, PALETTE_LISTBOX_ID, CONTRIBUTOR_MODEL_SUFFIX } from '../../shared/constants'
 import { effortAt, effortIndex, isEffortLevel } from '../../shared/effort'
-import { fill } from '../../shared/l10n/text'
+import { fill, formatProviderDate } from '../../shared/l10n/text'
+import { parseModelRef } from '../../shared/modelRef'
 import {
   type PaletteContext,
   filterPalette,
@@ -183,6 +184,39 @@ function priceText(
   }
 }
 
+/**
+A row's lifecycle and reroute marks (PROV-HONEST): the shutdown day where
+one is announced (else the lifecycle word), the beta mark, and the
+serving model. Nothing here blocks selecting the model.
+*/
+function modelMarks(model: ModelOption): readonly string[] {
+  const marks: string[] = []
+  if (model.retiresAt !== undefined) {
+    marks.push(fill(UI_TEXT.pickerRetiresOn, { date: formatProviderDate(model.retiresAt) }))
+  } else if (model.lifecycle !== undefined) {
+    // Retired reads as deprecated: past-deprecated still warns correctly.
+    marks.push(UI_TEXT.modelBadges.deprecated)
+  }
+  if (model.beta === true) marks.push(UI_TEXT.modelBadges.beta)
+  const reroute = model.reroute
+  if (reroute !== undefined) {
+    if (reroute.active) {
+      // The row is labelled as the serving model; the mark names the
+      // configured native id it serves requests for.
+      const native = parseModelRef(model.modelId)?.modelId ?? model.modelId
+      marks.push(fill(UI_TEXT.pickerRerouteServes, { id: native }))
+    } else if (reroute.from !== undefined) {
+      marks.push(
+        fill(UI_TEXT.modelReroutesOn, {
+          model: reroute.servesLabel,
+          date: formatProviderDate(reroute.from),
+        }),
+      )
+    }
+  }
+  return marks
+}
+
 /** "{window} context · {price}", either half alone, or nothing to say. */
 function modelDetail(
   model: ModelOption,
@@ -191,16 +225,18 @@ function modelDetail(
   const { contextLimit } = model
   const price = priceText(model, formatPrice)
   const tier = modelTier(model)
+  const marks = modelMarks(model)
+  const suffix = tier === undefined ? marks : [tier, ...marks]
   if (contextLimit === undefined) {
-    return appendTier(price, tier)
+    return appendMarks(price, suffix)
   }
   if (price === undefined) {
-    return appendTier(contextWindowLabel(contextLimit), tier)
+    return appendMarks(contextWindowLabel(contextLimit), suffix)
   }
   // The template names the unit itself, so the window goes in bare (M95).
-  return appendTier(
+  return appendMarks(
     fill(UI_TEXT.pickerModelDetail, { window: formatTokenWindow(contextLimit), price }),
-    tier,
+    suffix,
   )
 }
 
@@ -217,12 +253,12 @@ function modelTier(model: ModelOption): string | undefined {
     : undefined
 }
 
-/** The detail with the tier named after it, either half alone, or nothing to say. */
-function appendTier(detail: string | undefined, tier: string | undefined): string | undefined {
+/** The detail with the tier and marks named after it, each half alone, or nothing to say. */
+function appendMarks(detail: string | undefined, suffix: readonly string[]): string | undefined {
   if (detail === undefined) {
-    return tier
+    return suffix.length === 0 ? undefined : suffix.join(' · ')
   }
-  return tier === undefined ? detail : `${detail} · ${tier}`
+  return suffix.length === 0 ? detail : `${detail} · ${suffix.join(' · ')}`
 }
 
 /** One provider's models in the picker's models view, in first-seen order. */

@@ -114,7 +114,8 @@ import type { CoreLogger } from '../logging'
 import { wireWordForLog } from '../logging'
 import { withDeadline, unlessAborted } from '../timeouts'
 import { Usd, type UsdAmount } from '../../shared/usd'
-import { fill } from '../../shared/l10n/text'
+import { fill, formatProviderDate } from '../../shared/l10n/text'
+import { applyGeminiReroute, type ModelReroute } from './geminiReroutes'
 import {
   ADDRESS_FAMILIES,
   TEAM_CAPTURED_PROVIDER_PRESETS,
@@ -258,6 +259,24 @@ const openRouterUsageSchema = z.object({
 // Public PKCE documentation, read 2026-10-11; live exchange receipt pending CM952.
 const openRouterExchangeSchema = z.object({ key: z.string().check(z.minLength(1)) })
 const digest = (value: string) => createHash('sha256').update(value).digest('hex')
+/**
+A scan row's label under the reroute table (PROV-HONEST): an actively
+rerouted id reads as the serving model with its own id beside it (the
+`Label (id)` splice, the id being technical); a future reroute keeps
+its name and names the serving model and its first day.
+*/
+function rerouteScanLabel(
+  id: string,
+  liveLabel: string,
+  requestedName: string | undefined,
+  reroute: ModelReroute | undefined,
+): string {
+  if (reroute === undefined) return liveLabel
+  if (reroute.active) return `${reroute.servesLabel} (${id})`
+  if (reroute.from === undefined) return liveLabel
+  const base = requestedName ?? liveLabel
+  return `${base} (${fill(UI_TEXT.modelReroutesOn, { model: reroute.servesLabel, date: formatProviderDate(reroute.from) })})`
+}
 /**
 A provider entry the services cannot use, as a closed cause (round 2,
 finding 6): every cause a person can meet gets its own translated
@@ -1112,9 +1131,23 @@ export function createConfiguredProviderServices(
       const preset = presetFor(entry)
       for (const nativeModel of entry.models) {
         const ref = `${entry.id}/${nativeModel}`
+        const sectionId = preset.id.replace('-plan', '')
         const native =
-          catalogue.providers[preset.id.replace('-plan', '')]?.models[nativeModel] ??
-          catalogue.unpriced?.[preset.id.replace('-plan', '')]?.[nativeModel]
+          catalogue.providers[sectionId]?.models[nativeModel] ??
+          catalogue.unpriced?.[sectionId]?.[nativeModel]
+        // A Gemini id Google reroutes is evidenced, priced and labelled as
+        // the model that serves it once the reroute is effective on the
+        // catalogue's date; a future reroute rides along to be named, and
+        // pricing and labels stay on the model that serves today.
+        const rerouted =
+          sectionId === 'gemini'
+            ? applyGeminiReroute(
+                catalogue.providers[sectionId]?.models,
+                nativeModel,
+                catalogue.fetchedAt,
+              )
+            : undefined
+        const effective = rerouted?.row ?? native
         // Dated provider-documentation facts the snapshot lacks (lane
         // REASONSHAPES): `preset`-kind evidence, shadowing the pinned
         // catalogue where it speaks and losing to the live list, a
@@ -1129,11 +1162,11 @@ export function createConfiguredProviderServices(
             fields: fact.fields,
           })),
         ]
-        if (native !== undefined)
+        if (effective !== undefined)
           evidence.push(
             modelMetadata.nativeCapabilityEvidence(
               preset.id,
-              native,
+              effective,
               {
                 kind: 'catalogue',
                 ref: options.catalogFile,
@@ -1150,11 +1183,11 @@ export function createConfiguredProviderServices(
         )
         const four = capabilities.capabilitiesOf({ capabilityRecord: record })
         const entered = entry.prices?.[nativeModel]
-        const cost = costSchema.safeParse(native?.['cost'])
+        const cost = costSchema.safeParse(effective?.['cost'])
         // The catalogue card carries tiers, reasoning and cache-write rates
         // (priceCard.cataloguePriceCard); the spend ledger is untouched.
         const catalogued = cost.success
-          ? priceCard.cataloguePriceCard(preset.id.replace('-plan', ''), native?.['cost'])
+          ? priceCard.cataloguePriceCard(sectionId, effective?.['cost'])
           : undefined
         const card = priceCard.resolvePriceCard([
           ...(catalogued !== undefined && priceCard.isValidPriceCard(catalogued)
@@ -1219,7 +1252,8 @@ export function createConfiguredProviderServices(
           // evidence above projects, so fresh media meets the model's own
           // caps instead of riding through record-less.
           record,
-          displayLabel: typeof native?.['name'] === 'string' ? native['name'] : nativeModel,
+          ...(rerouted?.reroute !== undefined && { reroute: rerouted.reroute }),
+          displayLabel: typeof effective?.['name'] === 'string' ? effective['name'] : nativeModel,
           providerLabel: preset.label,
           contextTokens:
             entry.modelLimits?.[nativeModel]?.contextTokens ?? record.limits.contextTokens,
@@ -2113,9 +2147,17 @@ export function createConfiguredProviderServices(
         // `missingAddress` above fails closed on an address-less entry, so
         // `address` is set here (lane PROVERRORS).
         const source = { kind: 'models-list' as const, ref: entry.address }
-        const known =
-          catalogue.providers[preset.id.replace('-plan', '')]?.models[id] ??
-          catalogue.unpriced?.[preset.id.replace('-plan', '')]?.[id]
+        const sectionId = preset.id.replace('-plan', '')
+        const requested =
+          catalogue.providers[sectionId]?.models[id] ?? catalogue.unpriced?.[sectionId]?.[id]
+        // An effective reroute evidences the scan as the serving model,
+        // like the registry list does; a future one rides along to be
+        // named, and the row stays on the model that serves today.
+        const rerouted =
+          sectionId === 'gemini'
+            ? applyGeminiReroute(catalogue.providers[sectionId]?.models, id, catalogue.fetchedAt)
+            : undefined
+        const known = rerouted?.row ?? requested
         const record = capabilities.resolveModelCapabilities(
           { provider: entry.id, nativeModel: id, format: entry.format ?? preset.format },
           [
@@ -2198,15 +2240,27 @@ export function createConfiguredProviderServices(
               : undefined,
           })
         }
+        const identity = record.identity
+        const requestedName =
+          typeof requested?.['name'] === 'string' ? requested['name'] : undefined
         return {
           id,
-          label: modelRef.sanitizeModelLabel(
-            typeof native['name'] === 'string' ? native['name'] : id,
+          label: rerouteScanLabel(
+            id,
+            modelRef.sanitizeModelLabel(typeof native['name'] === 'string' ? native['name'] : id),
+            requestedName,
+            rerouted?.reroute,
           ),
           toolCapable: four.toolCalling,
           vision: four.vision,
           reasoning: four.reasoning,
           context: record.limits.contextTokens,
+          ...((identity.lifecycle === 'deprecated' || identity.lifecycle === 'retired') && {
+            lifecycle: identity.lifecycle,
+          }),
+          ...(identity.retiresAt !== undefined && { retiresAt: identity.retiresAt }),
+          ...(identity.beta === true && { beta: true }),
+          ...(rerouted?.reroute !== undefined && { reroute: rerouted.reroute }),
           priceFingerprint,
           ...(!isPlan &&
             card !== undefined && {

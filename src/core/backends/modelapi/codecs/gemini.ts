@@ -624,9 +624,15 @@ function toContents(
 /**
 The native request for one canonical body: `systemInstruction` from the
 instructions (text only, research §1.6), `functionDeclarations` in the
-schema subset with `AUTO` calling, and the output cap plus thinking level
-in `generationConfig`. Meta-only fields (`store`, `prompt_cache_key`,
-`include`, `tool_choice`) are never sent.
+schema subset with `AUTO` calling, the output cap plus thinking level
+in `generationConfig`, and the canonical `store` (always false: new paid
+projects store GenerateContent requests by default since 2026-10-26, and
+a set `store` takes precedence over the project setting, so every
+request opts out;
+aistudio.google.com/docs/changelog#10-26-2026 and
+aistudio.google.com/api-reference/generate-content/stream-generate-content,
+both read 2026-11-02). Meta-only fields (`prompt_cache_key`, `include`,
+`tool_choice`) are never sent.
 */
 export function encodeGeminiRequest(
   body: CreateResponseBody,
@@ -725,6 +731,8 @@ export function encodeGeminiRequest(
     request['tools'] = [{ functionDeclarations: declarations }]
     request['toolConfig'] = { functionCallingConfig: { mode: 'AUTO' } }
   }
+  // The storage opt-out rides every request (see the doc comment above).
+  request['store'] = body.store
   request['generationConfig'] = {
     maxOutputTokens: body.max_output_tokens,
     ...(!isProviderDefault &&
