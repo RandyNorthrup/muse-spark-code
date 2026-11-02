@@ -4131,7 +4131,10 @@ These are defaults; editor customizations take precedence.
 - `node.tree`: `ArrowDown / ArrowUp / Home / End / Enter / Space / ArrowRight / ArrowLeft`; when `node.tree`; Move between files, expand or collapse a folder, or open the active file.
 - `node.editor`: `Ctrl+S / Cmd+S`; when `node.editor`; Save the open file.
 - `desktop.quickOpen`: `Enter / Escape`; when `desktop.quickOpen`; Navigate items, choose or complete a selection, or close the list.
-- `desktop.terminal`: `Enter`; when `desktop.terminal`; Run the typed line in the Muse Desktop terminal.
+- `desktop.terminalSearch`: `Enter / Shift+Enter / Escape`; when `desktop.terminalSearch`; Move between the terminal find matches, or close the find bar.
+- `desktop.problems`: `Enter / Space / ArrowDown / ArrowUp / Home / End`; when `desktop.problems`; Move through the problems and open the selected one.
+- `desktop.panelTabs`: `ArrowRight / ArrowDown / ArrowUp / ArrowLeft / Home / End / Ctrl+ArrowUp / Cmd+ArrowUp / Ctrl+ArrowDown / Cmd+ArrowDown`; when `desktop.panelTabs`; Move between the bottom panel tabs.
+- `desktop.panelResize`: `ArrowUp / ArrowDown / ArrowRight / ArrowLeft / Home / End`; when `desktop.panelResize`; Make the panel taller or shorter.
 - `editor.group`: `ArrowRight / ArrowLeft / Home / End / Enter / Space / Escape / Ctrl+PageDown / Cmd+PageDown / Ctrl+PageUp / Cmd+PageUp / Ctrl+1 / Cmd+1 / Ctrl+2 / Cmd+2 / Ctrl+3 / Cmd+3 / Ctrl+4 / Cmd+4 / Ctrl+5 / Cmd+5 / Ctrl+6 / Cmd+6 / Ctrl+7 / Cmd+7 / Ctrl+8 / Cmd+8 / Ctrl+9 / Cmd+9`; when `editor.group`; Move between tabs, cycle tabs, focus a group by number, or close the menu.
 
 ## ACP / CLI commands

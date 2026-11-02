@@ -188,7 +188,7 @@ above.
      declared readers, and a new block the split check does not guard
      (PLAN.md D6, 2026-10-03 and 2026-10-04).
    - **Node bundles share English fallback** (`dist/uiText.js` and its generated
-     runtime/hooks/surfaces/media regions, PLAN.md D6).
+     runtime/hooks/surfaces/media/desktop regions, PLAN.md D6).
      Each bundle keeps its own installed-language state; lazy factories install
      the caller's table before use. Production chat splits optional account/developer/help/runtime English
      behind `loadDeferredEnglish`; its generated validation templates preserve

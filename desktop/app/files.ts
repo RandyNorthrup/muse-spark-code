@@ -36,6 +36,15 @@ async function collectFiles(root: string, folder: string, entries: FileEntry[]):
   }
 }
 
+/**
+A terminal's working directory, confined to the workspace root like
+every path the renderer names. Absolute or root-relative; anything
+outside is refused by name.
+*/
+export function confineTerminalCwd(root: string, cwd: string): string {
+  return confinedPath(root, cwd)
+}
+
 export async function listWorkspaceFiles(root: string): Promise<FileEntry[]> {
   const entries: FileEntry[] = []
   await collectFiles(root, '', entries)

@@ -191,9 +191,9 @@
     "emptyCrashes": "Записей о сбоях нет.",
     "dropped": {
       "one": "{count} запись отброшена",
+      "other": "{count} записей отброшено",
       "few": "{count} записи отброшены",
-      "many": "{count} записей отброшено",
-      "other": "{count} записей отброшено"
+      "many": "{count} записей отброшено"
     },
     "unavailable": "Диагностика недоступна: {reason}",
     "refresh": "Обновить",
@@ -207,15 +207,15 @@
     "traceError": "Ошибка",
     "traceSpans": {
       "one": "{count} спан",
+      "other": "{count} спанов",
       "few": "{count} спана",
-      "many": "{count} спанов",
-      "other": "{count} спанов"
+      "many": "{count} спанов"
     },
     "unreadable": {
       "one": "{count} нечитаемый файл",
+      "other": "{count} нечитаемых файлов",
       "few": "{count} нечитаемых файла",
-      "many": "{count} нечитаемых файлов",
-      "other": "{count} нечитаемых файлов"
+      "many": "{count} нечитаемых файлов"
     },
     "logTrace": "Трассировка",
     "logDebug": "Отладка",
@@ -635,9 +635,9 @@
     },
     "unresolvedCount": {
       "one": "{count} неразрешённая попытка",
+      "other": "{count} неразрешённой попытки",
       "few": "{count} неразрешённые попытки",
-      "many": "{count} неразрешённых попыток",
-      "other": "{count} неразрешённой попытки"
+      "many": "{count} неразрешённых попыток"
     },
     "title": "Устройства",
     "pair": "Связать устройство",
@@ -1025,8 +1025,11 @@
   "referenceSendKeys": "Отправить черновик действием, выбранным useCtrlEnterToSend.",
   "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
   "referenceNodeEditorKeys": "Save the open file.",
-  "referenceDesktopTerminalKeys": "Выполнить введённую строку в терминале Muse Desktop.",
   "referenceEditorGroupKeys": "Move between tabs, cycle tabs, focus a group by number, or close the menu.",
+  "referenceDesktopResizeKeys": "Сделать панель выше или ниже.",
+  "referenceDesktopTerminalSearchKeys": "Переходить между совпадениями поиска в терминале или закрыть панель поиска.",
+  "referenceDesktopProblemsKeys": "Перемещаться по проблемам и открывать выбранную.",
+  "referenceDesktopPanelTabsKeys": "Переходить между вкладками нижней панели.",
   "referenceThinking": "Выберите, сколько усилий Muse вкладывает в каждый ответ. Размышление: Вкл. = effort; Выкл. = museCode:none / modelApi:minimal.",
   "referenceSandbox": "В Windows, когда окно использует песочницу оболочки Muse Code, настройте её с одобрением администратора и начните новую беседу. shellSandbox=\"off\" не требует настройки.",
   "referenceSetup": "Запустить хуки Setup для init из spark-hooks.json в доверенной рабочей области.",
@@ -3253,9 +3256,9 @@
   "questionExpired": "Срок истёк",
   "questionsExpiredNotice": {
     "one": "{count} старый вопрос истёк без ответа: открытыми остаются только {max} новейших вопросов. Его текст сохранён на его карточке.",
+    "other": "{count} старых вопросов истекло без ответа: открытыми остаются только {max} новейших вопросов. Их текст сохранён на их карточках.",
     "few": "{count} старых вопроса истекли без ответа: открытыми остаются только {max} новейших вопроса. Их текст сохранён на их карточках.",
-    "many": "{count} старых вопросов истекло без ответа: открытыми остаются только {max} новейших вопросов. Их текст сохранён на их карточках.",
-    "other": "{count} старых вопросов истекло без ответа: открытыми остаются только {max} новейших вопросов. Их текст сохранён на их карточках."
+    "many": "{count} старых вопросов истекло без ответа: открытыми остаются только {max} новейших вопросов. Их текст сохранён на их карточках."
   },
   "questionAnswer": "Ответить",
   "questionDismiss": "Закрыть без ответа",
@@ -5023,16 +5026,16 @@
   },
   "providerRefreshAdded": {
     "one": "Сохранена {count} новая модель на {provider}: {models}.",
+    "other": "Сохранено {count} новых моделей на {provider}: {models}.",
     "few": "Сохранены {count} новые модели на {provider}: {models}.",
-    "many": "Сохранено {count} новых моделей на {provider}: {models}.",
-    "other": "Сохранено {count} новых моделей на {provider}: {models}."
+    "many": "Сохранено {count} новых моделей на {provider}: {models}."
   },
   "providerRefreshMissing": "По-прежнему настроено на {provider}, но больше не в списке: {models}.",
   "providerRefreshCurrent": {
     "one": "{provider} уже актуален: {count} модель.",
+    "other": "{provider} уже актуален: {count} моделей.",
     "few": "{provider} уже актуален: {count} модели.",
-    "many": "{provider} уже актуален: {count} моделей.",
-    "other": "{provider} уже актуален: {count} моделей."
+    "many": "{provider} уже актуален: {count} моделей."
   },
   "providerModelStoredOnUse": "Модель {model} сохранена на {provider} из живого списка провайдера.",
   "providerModelStoreFailed": "Не удалось сохранить модель {model} на {provider}; выполнение продолжается без обновления файла.",
@@ -5790,9 +5793,9 @@
     "scanCpu": "CPU: {model} ({cores}, {features})",
     "scanCores": {
       "one": "{count} ядро",
+      "other": "{count} ядра",
       "few": "{count} ядра",
-      "many": "{count} ядер",
-      "other": "{count} ядра"
+      "many": "{count} ядер"
     },
     "scanGpu": "GPU: {vendor} ({backend}): {reason}",
     "scanDiskFree": "Диск: свободно {free}, путь {path}",
@@ -5889,8 +5892,8 @@
     "allowRow": "Разрешено без проверки: команда inspect",
     "excluded": {
       "one": "{count} запись не прочитана",
-      "few": "{count} записи не прочитаны",
       "other": "{count} записей не прочитано",
+      "few": "{count} записи не прочитаны",
       "many": "{count} записей не прочитано"
     },
     "resolver": "Быстрый путь B1"
@@ -7909,15 +7912,15 @@
     "secureAttentionPrompt": "Не уверены, что это по-настоящему? Нажмите Ctrl+Alt+Del.",
     "notificationsCount": {
       "one": "{count} уведомление",
+      "other": "{count} уведомлений",
       "few": "{count} уведомления",
-      "many": "{count} уведомлений",
-      "other": "{count} уведомлений"
+      "many": "{count} уведомлений"
     },
     "agentsRunning": {
       "one": "Работает {count} агент",
+      "other": "Работают {count} агентов",
       "few": "Работают {count} агента",
-      "many": "Работают {count} агентов",
-      "other": "Работают {count} агентов"
+      "many": "Работают {count} агентов"
     },
     "worksWithoutSignIn": "Работает без входа",
     "stopEverything": "Остановить всё",
@@ -7945,9 +7948,9 @@
     "packsForYourWork": "Пакеты для вашей работы",
     "recommendedPacks": {
       "one": "Рекомендуется · {count}",
+      "other": "Рекомендуется · {count}",
       "few": "Рекомендуется · {count}",
-      "many": "Рекомендуется · {count}",
-      "other": "Рекомендуется · {count}"
+      "many": "Рекомендуется · {count}"
     },
     "allPacks": "Все пакеты · {count}",
     "fromSignedIndex": "Из подписанного индекса пакетов Muse",
@@ -7959,9 +7962,9 @@
     "install": "Установить",
     "installingPacks": {
       "one": "Установка пакета: {count}",
+      "other": "Установка пакетов: {count}",
       "few": "Установка пакетов: {count}",
-      "many": "Установка пакетов: {count}",
-      "other": "Установка пакетов: {count}"
+      "many": "Установка пакетов: {count}"
     },
     "workbenchChat": "Чат",
     "workbenchEditor": "Редактор",
@@ -7987,9 +7990,9 @@
     "workbenchStatusWorkspace": "Рабочая область: {name}",
     "workbenchStatusTerminals": {
       "one": "{count} терминал",
+      "other": "{count} терминалов",
       "few": "{count} терминала",
-      "many": "{count} терминалов",
-      "other": "{count} терминалов"
+      "many": "{count} терминалов"
     },
     "workbenchToggleSidebar": "Переключить боковую панель",
     "workbenchToggleRail": "Переключить рельсу",
@@ -8014,7 +8017,54 @@
     "keyNext": "Следующий рабочий стол",
     "keyCycleNext": "Перейти к следующему окну",
     "keyCyclePrevious": "Перейти к предыдущему окну",
-    "keyFocusBar": "Переместить фокус на панель"
+    "keyFocusBar": "Переместить фокус на панель",
+    "panelTerminals": "Терминалы",
+    "panelCollapsedPanels": "Свёрнутые панели",
+    "panelViews": "Представления панели",
+    "panelSplitTerminal": "Разделить терминал",
+    "panelPin": "Закрепить панель",
+    "panelHide": "Скрыть панель",
+    "panelStop": "Остановить",
+    "panelReadOnly": "только чтение",
+    "panelFind": "Найти в терминале",
+    "panelFindPlaceholder": "Найти",
+    "panelFindNext": "Следующее совпадение",
+    "panelFindPrevious": "Предыдущее совпадение",
+    "panelFindClose": "Закрыть поиск",
+    "panelFindCase": "Учитывать регистр",
+    "panelFindWord": "Слово целиком",
+    "panelFindRegex": "Регулярное выражение",
+    "panelFindCount": "{current} из {total}",
+    "panelFindNoResults": "Нет результатов",
+    "panelCloseRunning": "Возможно, в этом терминале всё ещё выполняется команда. Всё равно закрыть?",
+    "panelCloseConfirm": "Закрыть",
+    "panelCancel": "Отмена",
+    "panelRetry": "Повторить",
+    "panelProblemLabel": "{severity}: {message} в {path} в строке {line}",
+    "panelOutputChannel": "Канал вывода",
+    "panelClearOutput": "Очистить вывод",
+    "panelOutputTruncated": {
+      "one": "{count} символ обрезан",
+      "other": "{count} символов обрезано",
+      "few": "{count} символа обрезано",
+      "many": "{count} символов обрезано"
+    },
+    "panelRegion": "Нижняя панель",
+    "panelFloating": "Плавающая панель",
+    "panelOnTop": "Держать поверх",
+    "panelSash": "Разделитель панелей",
+    "panelResizeHandle": "Изменить размер панели",
+    "panelTerminalLoading": "Загрузка терминала…",
+    "panelTerminalFailed": "Не удалось загрузить терминал.",
+    "panelTerminalCreateFailed": "Не удалось запустить терминал.",
+    "panelTabExited": "{title}, завершён с кодом {code}",
+    "panelNoTerminals": "Нет открытых терминалов.",
+    "panelSeverity": {
+      "error": "Ошибка",
+      "warning": "Предупреждение",
+      "information": "Информация",
+      "hint": "Подсказка"
+    }
   },
   "referenceMakers": "Проверьте точную полезную нагрузку за одним дайджестом SHA-256, затем отправьте один раз или отклоните. Включение оборудования требует проверки учётной записи ОС; остановка — никогда.",
   "makerDetectBuild": "Собрать {target}",
@@ -8093,9 +8143,9 @@
   "makerClearSearch": "Очистить поиск",
   "makerLongSearch": {
     "one": "Показаны первые {shown} из {count} символа поиска. Очистите для редактирования; поиск использует весь запрос.",
+    "other": "Показаны первые {shown} из {count} символов поиска. Очистите для редактирования; поиск использует весь запрос.",
     "few": "Показаны первые {shown} из {count} символов поиска. Очистите для редактирования; поиск использует весь запрос.",
-    "many": "Показаны первые {shown} из {count} символов поиска. Очистите для редактирования; поиск использует весь запрос.",
-    "other": "Показаны первые {shown} из {count} символов поиска. Очистите для редактирования; поиск использует весь запрос."
+    "many": "Показаны первые {shown} из {count} символов поиска. Очистите для редактирования; поиск использует весь запрос."
   },
   "makerNextHighlight": "Следующее выделение",
   "makerHighlightPosition": "Выделение {current} из {count}",
@@ -8107,9 +8157,9 @@
   "makerSummaryUnknown": "Неизвестно",
   "makerTemperatureSettings": {
     "one": "Заданная температура ({shown}/{count}): {temperatures}. Максимум: {maximum}.",
+    "other": "Заданные температуры (первые {shown} из {count} различных): {temperatures}. Максимум: {maximum}.",
     "few": "Заданные температуры (первые {shown} из {count} различных): {temperatures}. Максимум: {maximum}.",
-    "many": "Заданные температуры (первые {shown} из {count} различных): {temperatures}. Максимум: {maximum}.",
-    "other": "Заданные температуры (первые {shown} из {count} различных): {temperatures}. Максимум: {maximum}."
+    "many": "Заданные температуры (первые {shown} из {count} различных): {temperatures}. Максимум: {maximum}."
   },
   "makerDangerTemperature": "Температура превышает безопасный предел либо её предел неизвестен.",
   "makerDangerTravel": "Движение выходит за пределы перемещения либо его границы неизвестны.",
@@ -8150,9 +8200,9 @@
   "makerResetView": "Сбросить вид",
   "makerDeviceCount": {
     "one": "{count} устройство",
+    "other": "{count} устройства",
     "few": "{count} устройства",
-    "many": "{count} устройств",
-    "other": "{count} устройства"
+    "many": "{count} устройств"
   },
   "jsonExpectedComma": "Ожидается запятая",
   "jsonInvalidSyntax": "Недопустимый синтаксис JSON",

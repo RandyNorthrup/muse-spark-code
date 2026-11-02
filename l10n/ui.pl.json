@@ -191,9 +191,9 @@
     "emptyCrashes": "Brak rekordów awarii.",
     "dropped": {
       "one": "{count} odrzucony rekord",
+      "other": "{count} odrzuconych rekordów",
       "few": "{count} odrzucone rekordy",
-      "many": "{count} odrzuconych rekordów",
-      "other": "{count} odrzuconych rekordów"
+      "many": "{count} odrzuconych rekordów"
     },
     "unavailable": "Diagnostyka jest niedostępna: {reason}",
     "refresh": "Odśwież",
@@ -207,15 +207,15 @@
     "traceError": "Błąd",
     "traceSpans": {
       "one": "{count} span",
+      "other": "{count} spanów",
       "few": "{count} spany",
-      "many": "{count} spanów",
-      "other": "{count} spanów"
+      "many": "{count} spanów"
     },
     "unreadable": {
       "one": "{count} nieczytelny plik",
+      "other": "{count} nieczytelnych plików",
       "few": "{count} nieczytelne pliki",
-      "many": "{count} nieczytelnych plików",
-      "other": "{count} nieczytelnych plików"
+      "many": "{count} nieczytelnych plików"
     },
     "logTrace": "Śledzenie",
     "logDebug": "Debugowanie",
@@ -635,9 +635,9 @@
     },
     "unresolvedCount": {
       "one": "{count} nierozstrzygnięta próba",
+      "other": "{count} nierozstrzygniętej próby",
       "few": "{count} nierozstrzygnięte próby",
-      "many": "{count} nierozstrzygniętych prób",
-      "other": "{count} nierozstrzygniętej próby"
+      "many": "{count} nierozstrzygniętych prób"
     },
     "title": "Urządzenia",
     "pair": "Sparuj urządzenie",
@@ -1025,8 +1025,11 @@
   "referenceSendKeys": "Wyślij szkic gestem wybranym przez useCtrlEnterToSend.",
   "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
   "referenceNodeEditorKeys": "Save the open file.",
-  "referenceDesktopTerminalKeys": "Uruchom wpisany wiersz w terminalu Muse Desktop.",
   "referenceEditorGroupKeys": "Move between tabs, cycle tabs, focus a group by number, or close the menu.",
+  "referenceDesktopResizeKeys": "Zwiększ lub zmniejsz wysokość panelu.",
+  "referenceDesktopTerminalSearchKeys": "Przechodzenie między trafieniami wyszukiwania w terminalu lub zamknięcie paska wyszukiwania.",
+  "referenceDesktopProblemsKeys": "Poruszanie się po problemach i otwieranie wybranego.",
+  "referenceDesktopPanelTabsKeys": "Przechodzenie między kartami dolnego panelu.",
   "referenceThinking": "Wybierz, ile wysiłku Muse wkłada w każdą odpowiedź. Myślenie: Wł. = effort; Wył. = museCode:none / modelApi:minimal.",
   "referenceSandbox": "W Windows, gdy okno używa piaskownicy powłoki Muse Code, skonfiguruj ją z jedną zgodą administratora i rozpocznij nową rozmowę. shellSandbox=\"off\" nie wymaga konfiguracji.",
   "referenceSetup": "Uruchomić haki Setup dla init z pliku spark-hooks.json w zaufanym obszarze roboczym.",
@@ -3253,9 +3256,9 @@
   "questionExpired": "Wygasłe",
   "questionsExpiredNotice": {
     "one": "Jedno starsze pytanie wygasło bez odpowiedzi: otwartych pozostaje tylko {max} najnowszych pytań. Jego tekst jest zachowany na jego karcie.",
+    "other": "{count} starszych pytań wygasło bez odpowiedzi: otwartych pozostaje tylko {max} najnowszych pytań. Ich tekst jest zachowany na ich kartach.",
     "few": "{count} starsze pytania wygasły bez odpowiedzi: otwarte pozostają tylko {max} najnowsze pytania. Ich tekst jest zachowany na ich kartach.",
-    "many": "{count} starszych pytań wygasło bez odpowiedzi: otwartych pozostaje tylko {max} najnowszych pytań. Ich tekst jest zachowany na ich kartach.",
-    "other": "{count} starszych pytań wygasło bez odpowiedzi: otwartych pozostaje tylko {max} najnowszych pytań. Ich tekst jest zachowany na ich kartach."
+    "many": "{count} starszych pytań wygasło bez odpowiedzi: otwartych pozostaje tylko {max} najnowszych pytań. Ich tekst jest zachowany na ich kartach."
   },
   "questionAnswer": "Odpowiedz",
   "questionDismiss": "Zamknij bez odpowiedzi",
@@ -5023,16 +5026,16 @@
   },
   "providerRefreshAdded": {
     "one": "Zapisano 1 nowy model w {provider}: {models}.",
+    "other": "Zapisano {count} nowych modeli w {provider}: {models}.",
     "few": "Zapisano {count} nowe modele w {provider}: {models}.",
-    "many": "Zapisano {count} nowych modeli w {provider}: {models}.",
-    "other": "Zapisano {count} nowych modeli w {provider}: {models}."
+    "many": "Zapisano {count} nowych modeli w {provider}: {models}."
   },
   "providerRefreshMissing": "Nadal skonfigurowane w {provider}, ale nie ma już na liście: {models}.",
   "providerRefreshCurrent": {
     "one": "{provider} jest już aktualny: 1 model.",
+    "other": "{provider} jest już aktualny: {count} modeli.",
     "few": "{provider} jest już aktualny: {count} modele.",
-    "many": "{provider} jest już aktualny: {count} modeli.",
-    "other": "{provider} jest już aktualny: {count} modeli."
+    "many": "{provider} jest już aktualny: {count} modeli."
   },
   "providerModelStoredOnUse": "Zapisano {model} w {provider} z listy na żywo dostawcy.",
   "providerModelStoreFailed": "Nie można zapisać {model} w {provider}; przebieg jest kontynuowany bez aktualizacji pliku.",
@@ -5790,9 +5793,9 @@
     "scanCpu": "CPU: {model} ({cores}, {features})",
     "scanCores": {
       "one": "{count} rdzeń",
+      "other": "{count} rdzenia",
       "few": "{count} rdzenie",
-      "many": "{count} rdzeni",
-      "other": "{count} rdzenia"
+      "many": "{count} rdzeni"
     },
     "scanGpu": "GPU: {vendor} ({backend}): {reason}",
     "scanDiskFree": "Dysk: {free} wolne w {path}",
@@ -5889,8 +5892,8 @@
     "allowRow": "Dozwolone bez przeglądu: polecenie inspect",
     "excluded": {
       "one": "{count} nieprzeczytany wpis",
-      "few": "{count} nieprzeczytane wpisy",
       "other": "{count} nieprzeczytanych wpisów",
+      "few": "{count} nieprzeczytane wpisy",
       "many": "{count} nieprzeczytanych wpisów"
     },
     "resolver": "Szybka ścieżka B1"
@@ -7909,15 +7912,15 @@
     "secureAttentionPrompt": "Nie masz pewności, czy to prawdziwe? Naciśnij Ctrl+Alt+Del.",
     "notificationsCount": {
       "one": "{count} powiadomienie",
+      "other": "{count} powiadomień",
       "few": "{count} powiadomienia",
-      "many": "{count} powiadomień",
-      "other": "{count} powiadomień"
+      "many": "{count} powiadomień"
     },
     "agentsRunning": {
       "one": "Działa {count} agent",
+      "other": "Działa {count} agentów",
       "few": "Działają {count} agenci",
-      "many": "Działa {count} agentów",
-      "other": "Działa {count} agentów"
+      "many": "Działa {count} agentów"
     },
     "worksWithoutSignIn": "Działa bez logowania",
     "stopEverything": "Zatrzymaj wszystko",
@@ -7945,9 +7948,9 @@
     "packsForYourWork": "Pakiety do Twojej pracy",
     "recommendedPacks": {
       "one": "Polecane · {count}",
+      "other": "Polecane · {count}",
       "few": "Polecane · {count}",
-      "many": "Polecane · {count}",
-      "other": "Polecane · {count}"
+      "many": "Polecane · {count}"
     },
     "allPacks": "Wszystkie pakiety · {count}",
     "fromSignedIndex": "Z podpisanego indeksu pakietów Muse",
@@ -7959,9 +7962,9 @@
     "install": "Zainstaluj",
     "installingPacks": {
       "one": "Instalowanie {count} pakietu",
+      "other": "Instalowanie {count} pakietów",
       "few": "Instalowanie {count} pakietów",
-      "many": "Instalowanie {count} pakietów",
-      "other": "Instalowanie {count} pakietów"
+      "many": "Instalowanie {count} pakietów"
     },
     "workbenchChat": "Czat",
     "workbenchEditor": "Edytor",
@@ -7987,9 +7990,9 @@
     "workbenchStatusWorkspace": "Obszar roboczy: {name}",
     "workbenchStatusTerminals": {
       "one": "{count} terminal",
+      "other": "{count} terminali",
       "few": "{count} terminale",
-      "many": "{count} terminali",
-      "other": "{count} terminali"
+      "many": "{count} terminali"
     },
     "workbenchToggleSidebar": "Przełącz pasek boczny",
     "workbenchToggleRail": "Przełącz szynę",
@@ -8014,7 +8017,54 @@
     "keyNext": "Następny pulpit",
     "keyCycleNext": "Przełącz na następne okno",
     "keyCyclePrevious": "Przełącz na poprzednie okno",
-    "keyFocusBar": "Przenieś fokus na pasek"
+    "keyFocusBar": "Przenieś fokus na pasek",
+    "panelTerminals": "Terminale",
+    "panelCollapsedPanels": "Zwinięte panele",
+    "panelViews": "Widoki panelu",
+    "panelSplitTerminal": "Podziel terminal",
+    "panelPin": "Przypnij panel",
+    "panelHide": "Ukryj panel",
+    "panelStop": "Zatrzymaj",
+    "panelReadOnly": "tylko do odczytu",
+    "panelFind": "Znajdź w terminalu",
+    "panelFindPlaceholder": "Znajdź",
+    "panelFindNext": "Następne wystąpienie",
+    "panelFindPrevious": "Poprzednie wystąpienie",
+    "panelFindClose": "Zamknij wyszukiwanie",
+    "panelFindCase": "Uwzględnij wielkość liter",
+    "panelFindWord": "Całe wyrazy",
+    "panelFindRegex": "Wyrażenie regularne",
+    "panelFindCount": "{current} z {total}",
+    "panelFindNoResults": "Brak wyników",
+    "panelCloseRunning": "Ten terminal może nadal wykonywać polecenie. Mimo to zamknąć?",
+    "panelCloseConfirm": "Zamknij",
+    "panelCancel": "Anuluj",
+    "panelRetry": "Ponów",
+    "panelProblemLabel": "{severity}: {message} w {path} w wierszu {line}",
+    "panelOutputChannel": "Kanał wyjściowy",
+    "panelClearOutput": "Wyczyść dane wyjściowe",
+    "panelOutputTruncated": {
+      "one": "{count} znak obcięty",
+      "other": "{count} znaku obciętego",
+      "few": "{count} znaki obcięte",
+      "many": "{count} znaków obciętych"
+    },
+    "panelRegion": "Dolny panel",
+    "panelFloating": "Panel pływający",
+    "panelOnTop": "Trzymaj na wierzchu",
+    "panelSash": "Rozdzielacz okienek",
+    "panelResizeHandle": "Zmień rozmiar panelu",
+    "panelTerminalLoading": "Ładowanie terminala…",
+    "panelTerminalFailed": "Nie udało się wczytać terminala.",
+    "panelTerminalCreateFailed": "Nie można uruchomić terminala.",
+    "panelTabExited": "{title}, zakończono z kodem {code}",
+    "panelNoTerminals": "Brak otwartych terminali.",
+    "panelSeverity": {
+      "error": "Błąd",
+      "warning": "Ostrzeżenie",
+      "information": "Informacja",
+      "hint": "Wskazówka"
+    }
   },
   "referenceMakers": "Przejrzyj dokładny ładunek stojący za jednym skrótem SHA-256, a następnie wyślij raz lub odrzuć. Włączenie sprzętu wymaga sprawdzenia konta systemu operacyjnego; zatrzymanie nigdy.",
   "makerDetectBuild": "Zbuduj {target}",
@@ -8093,9 +8143,9 @@
   "makerClearSearch": "Wyczyść wyszukiwanie",
   "makerLongSearch": {
     "one": "Wyświetlono pierwsze {shown} z {count} znaków wyszukiwania. Wyczyść, aby edytować; wyszukiwanie używa całego zapytania.",
+    "other": "Wyświetlono pierwsze {shown} z {count} znaków wyszukiwania. Wyczyść, aby edytować; wyszukiwanie używa całego zapytania.",
     "few": "Wyświetlono pierwsze {shown} z {count} znaków wyszukiwania. Wyczyść, aby edytować; wyszukiwanie używa całego zapytania.",
-    "many": "Wyświetlono pierwsze {shown} z {count} znaków wyszukiwania. Wyczyść, aby edytować; wyszukiwanie używa całego zapytania.",
-    "other": "Wyświetlono pierwsze {shown} z {count} znaków wyszukiwania. Wyczyść, aby edytować; wyszukiwanie używa całego zapytania."
+    "many": "Wyświetlono pierwsze {shown} z {count} znaków wyszukiwania. Wyczyść, aby edytować; wyszukiwanie używa całego zapytania."
   },
   "makerNextHighlight": "Następne wyróżnienie",
   "makerHighlightPosition": "Wyróżnienie {current} z {count}",
@@ -8107,9 +8157,9 @@
   "makerSummaryUnknown": "Nieznane",
   "makerTemperatureSettings": {
     "one": "Ustawiona temperatura ({shown}/{count}): {temperatures}. Maksimum: {maximum}.",
+    "other": "Ustawione temperatury (pierwsze {shown} z {count} różnych): {temperatures}. Maksimum: {maximum}.",
     "few": "Ustawione temperatury (pierwsze {shown} z {count} różnych): {temperatures}. Maksimum: {maximum}.",
-    "many": "Ustawione temperatury (pierwsze {shown} z {count} różnych): {temperatures}. Maksimum: {maximum}.",
-    "other": "Ustawione temperatury (pierwsze {shown} z {count} różnych): {temperatures}. Maksimum: {maximum}."
+    "many": "Ustawione temperatury (pierwsze {shown} z {count} różnych): {temperatures}. Maksimum: {maximum}."
   },
   "makerDangerTemperature": "Temperatura przekracza bezpieczny limit lub jej limit jest nieznany.",
   "makerDangerTravel": "Ruch przekracza granice przesuwu lub jego zakres jest nieznany.",
@@ -8150,9 +8200,9 @@
   "makerResetView": "Przywróć widok",
   "makerDeviceCount": {
     "one": "{count} urządzenie",
+    "other": "{count} urządzenia",
     "few": "{count} urządzenia",
-    "many": "{count} urządzeń",
-    "other": "{count} urządzenia"
+    "many": "{count} urządzeń"
   },
   "jsonExpectedComma": "Oczekiwano przecinka",
   "jsonInvalidSyntax": "Nieprawidłowa składnia JSON",

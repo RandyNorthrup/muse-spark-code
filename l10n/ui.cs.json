@@ -191,9 +191,9 @@
     "emptyCrashes": "Žádné záznamy o pádech.",
     "dropped": {
       "one": "{count} zahozený záznam",
+      "other": "{count} zahozených záznamů",
       "few": "{count} zahozené záznamy",
-      "many": "{count} zahozených záznamů",
-      "other": "{count} zahozených záznamů"
+      "many": "{count} zahozených záznamů"
     },
     "unavailable": "Diagnostika není dostupná: {reason}",
     "refresh": "Obnovit",
@@ -207,15 +207,15 @@
     "traceError": "Chyba",
     "traceSpans": {
       "one": "{count} span",
+      "other": "{count} spanů",
       "few": "{count} spany",
-      "many": "{count} spanů",
-      "other": "{count} spanů"
+      "many": "{count} spanů"
     },
     "unreadable": {
       "one": "{count} nečitelný soubor",
+      "other": "{count} nečitelných souborů",
       "few": "{count} nečitelné soubory",
-      "many": "{count} nečitelných souborů",
-      "other": "{count} nečitelných souborů"
+      "many": "{count} nečitelných souborů"
     },
     "logTrace": "Trasování",
     "logDebug": "Ladění",
@@ -635,9 +635,9 @@
     },
     "unresolvedCount": {
       "one": "{count} nevyřešený pokus",
+      "other": "{count} nevyřešených pokusů",
       "few": "{count} nevyřešené pokusy",
-      "many": "{count} nevyřešeného pokusu",
-      "other": "{count} nevyřešených pokusů"
+      "many": "{count} nevyřešeného pokusu"
     },
     "title": "Zařízení",
     "pair": "Spárovat zařízení",
@@ -1025,8 +1025,11 @@
   "referenceSendKeys": "Odeslat zadání gestem podle useCtrlEnterToSend.",
   "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
   "referenceNodeEditorKeys": "Save the open file.",
-  "referenceDesktopTerminalKeys": "Spustí napsaný řádek v terminálu Muse Desktop.",
   "referenceEditorGroupKeys": "Move between tabs, cycle tabs, focus a group by number, or close the menu.",
+  "referenceDesktopResizeKeys": "Zvětšit nebo zmenšit výšku panelu.",
+  "referenceDesktopTerminalSearchKeys": "Procházet výskyty hledání v terminálu nebo zavřít panel hledání.",
+  "referenceDesktopProblemsKeys": "Procházet problémy a otevřít vybraný.",
+  "referenceDesktopPanelTabsKeys": "Přecházet mezi kartami spodního panelu.",
   "referenceThinking": "Zvolte, kolik úsilí Muse věnuje každé odpovědi. Přemýšlení: Zapnuto = effort; Vypnuto = museCode:none / modelApi:minimal.",
   "referenceSandbox": "Ve Windows, pokud okno používá shellový sandbox Muse Code, nastavte jej s jedním potvrzením správce a začněte novou konverzaci. shellSandbox=\"off\" nastavení nevyžaduje.",
   "referenceSetup": "Spustit háčky Setup pro init ze spark-hooks.json v důvěryhodném pracovním prostoru.",
@@ -3253,9 +3256,9 @@
   "questionExpired": "Platnost vypršela",
   "questionsExpiredNotice": {
     "one": "Jedna starší otázka vypršela bez odpovědi: otevřených zůstává jen nejnovějších {max} otázek. Její text zůstal na její kartě.",
+    "other": "{count} starších otázek vypršelo bez odpovědi: otevřených zůstává jen nejnovějších {max} otázek. Jejich text zůstal na jejich kartách.",
     "few": "{count} starší otázky vypršely bez odpovědi: otevřených zůstávají jen nejnovější {max} otázky. Jejich text zůstal na jejich kartách.",
-    "many": "{count} starších otázek vypršelo bez odpovědi: otevřených zůstává jen nejnovějších {max} otázek. Jejich text zůstal na jejich kartách.",
-    "other": "{count} starších otázek vypršelo bez odpovědi: otevřených zůstává jen nejnovějších {max} otázek. Jejich text zůstal na jejich kartách."
+    "many": "{count} starších otázek vypršelo bez odpovědi: otevřených zůstává jen nejnovějších {max} otázek. Jejich text zůstal na jejich kartách."
   },
   "questionAnswer": "Odpovědět",
   "questionDismiss": "Uzavřít bez odpovědi",
@@ -5023,16 +5026,16 @@
   },
   "providerRefreshAdded": {
     "one": "Na {provider} uložen 1 nový model: {models}.",
+    "other": "Na {provider} uloženo {count} nových modelů: {models}.",
     "few": "Na {provider} uloženy {count} nové modely: {models}.",
-    "many": "Na {provider} uloženo {count} nových modelů: {models}.",
-    "other": "Na {provider} uloženo {count} nových modelů: {models}."
+    "many": "Na {provider} uloženo {count} nových modelů: {models}."
   },
   "providerRefreshMissing": "Na {provider} stále nastaveno, ale již není v seznamu: {models}.",
   "providerRefreshCurrent": {
     "one": "{provider} je již aktuální: 1 model.",
+    "other": "{provider} je již aktuální: {count} modelů.",
     "few": "{provider} je již aktuální: {count} modely.",
-    "many": "{provider} je již aktuální: {count} modelů.",
-    "other": "{provider} je již aktuální: {count} modelů."
+    "many": "{provider} je již aktuální: {count} modelů."
   },
   "providerModelStoredOnUse": "Model {model} uložen na {provider} z živého seznamu poskytovatele.",
   "providerModelStoreFailed": "Model {model} se na {provider} nepodařilo uložit; běh pokračuje bez aktualizace souboru.",
@@ -5790,8 +5793,8 @@
     "scanCpu": "CPU: {model} ({cores}, {features})",
     "scanCores": {
       "one": "{count} jádro",
-      "few": "{count} jádra",
       "other": "{count} jader",
+      "few": "{count} jádra",
       "many": "{count} jader"
     },
     "scanGpu": "GPU: {vendor} ({backend}): {reason}",
@@ -5889,8 +5892,8 @@
     "allowRow": "Povoleno bez kontroly: příkaz inspect",
     "excluded": {
       "one": "{count} nepřečtený záznam",
-      "few": "{count} nepřečtené záznamy",
       "other": "{count} nepřečtených záznamů",
+      "few": "{count} nepřečtené záznamy",
       "many": "{count} nepřečtených záznamů"
     },
     "resolver": "Rychlá cesta B1"
@@ -7909,15 +7912,15 @@
     "secureAttentionPrompt": "Nejste si jisti, že je to pravé? Stiskněte Ctrl+Alt+Del.",
     "notificationsCount": {
       "one": "{count} oznámení",
+      "other": "{count} oznámení",
       "few": "{count} oznámení",
-      "many": "{count} oznámení",
-      "other": "{count} oznámení"
+      "many": "{count} oznámení"
     },
     "agentsRunning": {
       "one": "Běží {count} agent",
+      "other": "Běží {count} agentů",
       "few": "Běží {count} agenti",
-      "many": "Běží {count} agentů",
-      "other": "Běží {count} agentů"
+      "many": "Běží {count} agentů"
     },
     "worksWithoutSignIn": "Funguje bez přihlášení",
     "stopEverything": "Zastavit vše",
@@ -7945,9 +7948,9 @@
     "packsForYourWork": "Balíčky pro vaši práci",
     "recommendedPacks": {
       "one": "Doporučené · {count}",
+      "other": "Doporučené · {count}",
       "few": "Doporučené · {count}",
-      "many": "Doporučené · {count}",
-      "other": "Doporučené · {count}"
+      "many": "Doporučené · {count}"
     },
     "allPacks": "Všechny balíčky · {count}",
     "fromSignedIndex": "Z podepsaného indexu balíčků Muse",
@@ -7959,9 +7962,9 @@
     "install": "Nainstalovat",
     "installingPacks": {
       "one": "Instaluje se {count} balíček",
+      "other": "Instaluje se {count} balíčků",
       "few": "Instalují se {count} balíčky",
-      "many": "Instaluje se {count} balíčků",
-      "other": "Instaluje se {count} balíčků"
+      "many": "Instaluje se {count} balíčků"
     },
     "workbenchChat": "Chat",
     "workbenchEditor": "Editor",
@@ -7987,9 +7990,9 @@
     "workbenchStatusWorkspace": "Pracovní prostor: {name}",
     "workbenchStatusTerminals": {
       "one": "{count} terminál",
+      "other": "{count} terminálů",
       "few": "{count} terminály",
-      "many": "{count} terminálů",
-      "other": "{count} terminálů"
+      "many": "{count} terminálů"
     },
     "workbenchToggleSidebar": "Přepnout postranní panel",
     "workbenchToggleRail": "Přepnout kolej",
@@ -8014,7 +8017,54 @@
     "keyNext": "Další plocha",
     "keyCycleNext": "Přepnout na další okno",
     "keyCyclePrevious": "Přepnout na předchozí okno",
-    "keyFocusBar": "Přesunout fokus do lišty"
+    "keyFocusBar": "Přesunout fokus do lišty",
+    "panelTerminals": "Terminály",
+    "panelCollapsedPanels": "Sbalené panely",
+    "panelViews": "Zobrazení panelu",
+    "panelSplitTerminal": "Rozdělit terminál",
+    "panelPin": "Připnout panel",
+    "panelHide": "Skrýt panel",
+    "panelStop": "Zastavit",
+    "panelReadOnly": "jen pro čtení",
+    "panelFind": "Hledat v terminálu",
+    "panelFindPlaceholder": "Hledat",
+    "panelFindNext": "Další výskyt",
+    "panelFindPrevious": "Předchozí výskyt",
+    "panelFindClose": "Zavřít hledání",
+    "panelFindCase": "Rozlišovat velikost písmen",
+    "panelFindWord": "Celá slova",
+    "panelFindRegex": "Regulární výraz",
+    "panelFindCount": "{current} z {total}",
+    "panelFindNoResults": "Žádné výsledky",
+    "panelCloseRunning": "V tomto terminálu možná stále běží příkaz. Přesto jej zavřít?",
+    "panelCloseConfirm": "Zavřít",
+    "panelCancel": "Zrušit",
+    "panelRetry": "Opakovat",
+    "panelProblemLabel": "{severity}: {message} v {path} na řádku {line}",
+    "panelOutputChannel": "Kanál výstupu",
+    "panelClearOutput": "Vymazat výstup",
+    "panelOutputTruncated": {
+      "one": "{count} znak oříznut",
+      "other": "{count} znaků oříznuto",
+      "few": "{count} znaky oříznuty",
+      "many": "{count} znaků oříznuto"
+    },
+    "panelRegion": "Spodní panel",
+    "panelFloating": "Plovoucí panel",
+    "panelOnTop": "Nechat navrchu",
+    "panelSash": "Oddělovač podoken",
+    "panelResizeHandle": "Změnit velikost panelu",
+    "panelTerminalLoading": "Načítání terminálu…",
+    "panelTerminalFailed": "Terminál se nepodařilo načíst.",
+    "panelTerminalCreateFailed": "Terminál se nepodařilo spustit.",
+    "panelTabExited": "{title}, ukončeno s kódem {code}",
+    "panelNoTerminals": "Nejsou otevřené žádné terminály.",
+    "panelSeverity": {
+      "error": "Chyba",
+      "warning": "Varování",
+      "information": "Informace",
+      "hint": "Tip"
+    }
   },
   "referenceMakers": "Zkontrolujte přesné datové části za jedním otiskem SHA-256 a pak odešlete jednorázově, nebo zamítněte. Povolení hardwaru vyžaduje ověření účtu operačního systému; zastavení nikdy.",
   "makerDetectBuild": "Sestavit {target}",
@@ -8093,9 +8143,9 @@
   "makerClearSearch": "Vymazat hledání",
   "makerLongSearch": {
     "one": "Zobrazeno prvních {shown} z {count} znaku hledání. Pro úpravu vymažte; hledání používá celý dotaz.",
+    "other": "Zobrazeno prvních {shown} z {count} znaků hledání. Pro úpravu vymažte; hledání používá celý dotaz.",
     "few": "Zobrazeno prvních {shown} z {count} znaků hledání. Pro úpravu vymažte; hledání používá celý dotaz.",
-    "many": "Zobrazeno prvních {shown} z {count} znaku hledání. Pro úpravu vymažte; hledání používá celý dotaz.",
-    "other": "Zobrazeno prvních {shown} z {count} znaků hledání. Pro úpravu vymažte; hledání používá celý dotaz."
+    "many": "Zobrazeno prvních {shown} z {count} znaku hledání. Pro úpravu vymažte; hledání používá celý dotaz."
   },
   "makerNextHighlight": "Další zvýraznění",
   "makerHighlightPosition": "Zvýraznění {current} z {count}",
@@ -8107,9 +8157,9 @@
   "makerSummaryUnknown": "Neznámé",
   "makerTemperatureSettings": {
     "one": "Nastavení teploty ({shown}/{count}): {temperatures}. Maximum: {maximum}.",
+    "other": "Nastavení teploty (prvních {shown} z {count} různých): {temperatures}. Maximum: {maximum}.",
     "few": "Nastavení teploty (prvních {shown} z {count} různých): {temperatures}. Maximum: {maximum}.",
-    "many": "Nastavení teploty (prvních {shown} z {count} různých): {temperatures}. Maximum: {maximum}.",
-    "other": "Nastavení teploty (prvních {shown} z {count} různých): {temperatures}. Maximum: {maximum}."
+    "many": "Nastavení teploty (prvních {shown} z {count} různých): {temperatures}. Maximum: {maximum}."
   },
   "makerDangerTemperature": "Teplota překračuje bezpečný limit nebo je její limit neznámý.",
   "makerDangerTravel": "Pohyb překračuje limity pojezdu nebo jsou jeho meze neznámé.",
@@ -8150,9 +8200,9 @@
   "makerResetView": "Obnovit pohled",
   "makerDeviceCount": {
     "one": "{count} zařízení",
+    "other": "{count} zařízení",
     "few": "{count} zařízení",
-    "many": "{count} zařízení",
-    "other": "{count} zařízení"
+    "many": "{count} zařízení"
   },
   "jsonExpectedComma": "Očekává se čárka",
   "jsonInvalidSyntax": "Neplatná syntaxe JSON",

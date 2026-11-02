@@ -1,21 +1,56 @@
-// Muse Desktop (M111, D91.13) lane WB: terminal sessions for the bottom
-// panel. Lane BP owns the xterm.js surface; this module owns the processes
-// behind the bridge's terminal channels. Credentials never reach a child:
-// every *_API_KEY variable is removed from the environment first, as the
-// ACP agent does (AGENTS rule 8).
+// Muse Desktop (M111, D91.13) lanes WB and BP: terminal sessions for the
+// bottom panel. Lane BP runs the person's real shell on a real
+// pseudoterminal (node-pty, the module VS Code's terminal uses), on the
+// same bridge channels WB's pipe sessions used. Credentials never reach a
+// child: every *_API_KEY variable is removed from the environment first,
+// as the ACP agent does (AGENTS rule 8). Agents' sessions are read-only:
+// main refuses every write to one (H13).
 
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
+import { createRequire } from 'node:module'
+import type * as pty from 'node-pty'
+import { DESKTOP_LOG_TEXT } from '../../src/shared/constants'
+import type { TerminalAgent, TerminalSessionInfo } from '../../src/shared/desktop/bridge'
+import { hasChildProcesses } from './processTree'
+
+// node-pty stays out of the bundle (scripts/build-desktop.mjs marks it
+// external) and loads on the first terminal: the checkout's own copy
+// answers a plain run, the staged Electron-ABI copy answers the packaged
+// app, and a machine without either still starts — only the terminal
+// says it could not start.
+const mainRequire = createRequire(import.meta.url)
+
+/** The one node-pty member the sessions use, guarded before describing. */
+interface PtySpawn {
+  spawn(file: string, args: string[], options: pty.IPtyForkOptions): pty.IPty
+}
+
+function isPtySpawn(value: unknown): value is PtySpawn {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'spawn' in value &&
+    typeof value.spawn === 'function'
+  )
+}
 
 export interface TerminalSession {
   readonly id: string
   readonly title: string
-  readonly process: ChildProcessWithoutNullStreams
+  readonly process: pty.IPty
+  readonly agent: TerminalAgent | undefined
 }
 
 export interface TerminalEvents {
   onData(id: string, data: string): void
   onExit(id: string, code: number | null): void
+}
+
+export interface TerminalCreateOptions {
+  readonly cwd: string
+  readonly cols: number
+  readonly rows: number
+  readonly agent?: TerminalAgent
 }
 
 const CREDENTIAL_SUFFIX = '_API_KEY'
@@ -36,37 +71,91 @@ function defaultShell(): { command: string; args: string[] } {
     : { command: process.env['SHELL'] ?? '/bin/bash', args: ['-i'] }
 }
 
+// An agent's session runs its command through the shell and exits with
+// it; the renderer can never write to it (H13), so main starts the
+// command itself instead of an interactive shell.
+function agentCommand(command: string): { command: string; args: string[] } {
+  return process.platform === 'win32'
+    ? { command: process.env['ComSpec'] ?? 'cmd.exe', args: ['/c', command] }
+    : { command: process.env['SHELL'] ?? '/bin/bash', args: ['-c', command] }
+}
+
 export class TerminalSessions {
   private readonly sessions = new Map<string, TerminalSession>()
+  private loadedPty: PtySpawn | undefined
 
   public constructor(private readonly events: TerminalEvents) {}
 
-  public create(cwd: string): { id: string; title: string } {
-    const { command, args } = defaultShell()
-    const child = spawn(command, args, {
-      cwd,
+  private ptyModule(): PtySpawn {
+    if (this.loadedPty === undefined) {
+      const loaded: unknown = mainRequire('node-pty')
+      if (!isPtySpawn(loaded)) throw new Error(DESKTOP_LOG_TEXT.terminalCreateFailed)
+      this.loadedPty = loaded
+    }
+    return this.loadedPty
+  }
+
+  public create(options: TerminalCreateOptions): TerminalSessionInfo {
+    const shell = options.agent === undefined ? defaultShell() : agentCommand(options.agent.command)
+    const child = this.ptyModule().spawn(shell.command, shell.args, {
+      name: 'xterm-256color',
+      cols: options.cols,
+      rows: options.rows,
+      cwd: options.cwd,
       env: cleanTerminalEnvironment(process.env),
-      stdio: ['pipe', 'pipe', 'pipe'],
     })
     const id = randomUUID()
-    const title = command.split(/[\\/]/).pop() ?? command
-    const session: TerminalSession = { id, title, process: child }
+    const title =
+      options.agent === undefined
+        ? (shell.command.split(/[\\/]/).pop() ?? shell.command)
+        : options.agent.label
+    const session: TerminalSession = { id, title, process: child, agent: options.agent }
     this.sessions.set(id, session)
-    child.stdout.on('data', (chunk: Buffer) => {
-      this.events.onData(id, chunk.toString('utf8'))
+    child.onData((data: string) => {
+      if (this.sessions.has(id)) this.events.onData(id, data)
     })
-    child.stderr.on('data', (chunk: Buffer) => {
-      this.events.onData(id, chunk.toString('utf8'))
-    })
-    child.on('exit', (code) => {
+    child.onExit(({ exitCode }) => {
+      if (!this.sessions.has(id)) return
       this.sessions.delete(id)
-      this.events.onExit(id, code)
+      this.events.onExit(id, exitCode)
     })
-    return { id, title }
+    return options.agent === undefined ? { id, title } : { id, title, agent: options.agent }
   }
 
   public write(id: string, data: string): void {
-    this.sessions.get(id)?.process.stdin.write(data)
+    const session = this.sessions.get(id)
+    // Unknown ids are exit races, not errors. A read-only agent session
+    // never receives input, from anyone (H13): the surface never sends,
+    // and main refuses what reaches it anyway.
+    if (session === undefined || session.agent !== undefined) return
+    session.process.write(data)
+  }
+
+  public resize(id: string, cols: number, rows: number): void {
+    const session = this.sessions.get(id)
+    if (session === undefined) return
+    try {
+      session.process.resize(cols, rows)
+    } catch (error: unknown) {
+      // The PTY died between the lookup and the resize (probed on
+      // Linux/macOS: node-pty throws 'ioctl(2) failed, EBADF'); its exit
+      // event already told the renderer. Anything else is rethrown.
+      if (error instanceof Error && error.message.includes('EBADF')) return
+      throw error
+    }
+  }
+
+  public hasChildren(id: string): boolean {
+    const session = this.sessions.get(id)
+    return session !== undefined && hasChildProcesses(session.process.pid)
+  }
+
+  public list(): TerminalSessionInfo[] {
+    return Array.from(this.sessions.values(), (session) =>
+      session.agent === undefined
+        ? { id: session.id, title: session.title }
+        : { id: session.id, title: session.title, agent: session.agent },
+    )
   }
 
   public close(id: string): void {

@@ -4,6 +4,7 @@
 // machine only through the zod-validated desktop bridge.
 
 import { statSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
@@ -11,12 +12,15 @@ import {
   app,
   dialog,
   ipcMain,
+  protocol,
   session,
   shell,
   type IpcMainInvokeEvent,
 } from 'electron'
 import {
+  DESKTOP_APP_HOST,
   DESKTOP_APP_NAME,
+  DESKTOP_APP_SCHEME,
   DESKTOP_COMPOSITOR_WORKSPACE_ENV,
   DESKTOP_LOG_TEXT,
   DESKTOP_SETUP_FLAG,
@@ -33,6 +37,7 @@ import {
   layoutKeySchema,
   layoutSetRequestSchema,
   openWorkspaceRequestSchema,
+  outputClearedSchema,
   statusPublishRequestSchema,
   terminalCreateRequestSchema,
   terminalIdSchema,
@@ -45,18 +50,60 @@ import {
   isExternalUrlAllowed,
   workspaceKey,
 } from '../../src/shared/desktop/workbench'
-import { listWorkspaceFiles, readWorkspaceFile, writeWorkspaceFile } from './files'
+import {
+  confineTerminalCwd,
+  listWorkspaceFiles,
+  readWorkspaceFile,
+  writeWorkspaceFile,
+} from './files'
 import { LayoutStore, writeStatusSnapshot } from './layoutStore'
+import { OutputStore } from './output'
+import { ProblemsStore } from './problems'
+import { mimeForAppFile, resolveAppFile } from './scheme'
 import { TerminalSessions } from './terminals'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-const rendererFile = path.join(here, 'index.html')
 const preloadFile = path.join(here, 'preload.cjs')
+const rendererUrl = `${DESKTOP_APP_SCHEME}://${DESKTOP_APP_HOST}/index.html`
+
+// Lane BP (D91.13): the window's own scheme answers same-origin, so the
+// renderer's ES module chunks load. Registering stays before the app is
+// ready; serving starts with the first window.
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: DESKTOP_APP_SCHEME,
+    privileges: { standard: true, secure: true, supportFetchAPI: true },
+  },
+])
+
+function installAppScheme(): void {
+  protocol.handle(DESKTOP_APP_SCHEME, async (request) => {
+    const resolved = resolveAppFile(here, request.url)
+    if (resolved.outcome === 'denied') return new Response('Denied', { status: 403 })
+    try {
+      const body = await readFile(resolved.file)
+      return new Response(new Uint8Array(body), {
+        headers: { 'content-type': mimeForAppFile(resolved.file) },
+      })
+    } catch (error: unknown) {
+      // A missing chunk is a broken install, said plainly; anything
+      // else is recorded in fixed words (never the error's text) and
+      // answered 500.
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+        return new Response('Missing', { status: 404 })
+      }
+      process.stderr.write(`muse-desktop: ${DESKTOP_LOG_TEXT.appFileFailed}\n`)
+      return new Response('Failed', { status: 500 })
+    }
+  })
+}
 
 interface WindowRecord {
   readonly window: BrowserWindow
   readonly workspace: DesktopWorkspace
   readonly terminals: TerminalSessions
+  readonly problems: ProblemsStore
+  readonly output: OutputStore
 }
 
 const windows = new Map<string, WindowRecord>()
@@ -124,7 +171,18 @@ function openWorkspaceWindow(root: string, isSetupMode: boolean): BrowserWindow 
       if (!window.isDestroyed()) window.webContents.send('muse-desktop:terminal:exit', { id, code })
     },
   })
-  windows.set(key, { window, workspace, terminals })
+  const problems = new ProblemsStore((snapshot) => {
+    if (!window.isDestroyed()) window.webContents.send('muse-desktop:problems:changed', snapshot)
+  })
+  const output = new OutputStore({
+    onAppended: (frame) => {
+      if (!window.isDestroyed()) window.webContents.send('muse-desktop:output:appended', frame)
+    },
+    onCleared: (frame) => {
+      if (!window.isDestroyed()) window.webContents.send('muse-desktop:output:cleared', frame)
+    },
+  })
+  windows.set(key, { window, workspace, terminals, problems, output })
   window.once('ready-to-show', () => {
     window.show()
   })
@@ -140,7 +198,7 @@ function openWorkspaceWindow(root: string, isSetupMode: boolean): BrowserWindow 
     if (isExternalUrlAllowed(url)) void shell.openExternal(url)
     return { action: 'deny' }
   })
-  void window.loadFile(rendererFile)
+  void window.loadURL(rendererUrl)
   return window
 }
 
@@ -192,22 +250,49 @@ function installIpc(): void {
     await writeStatusSnapshot(app.getPath('userData'), request.workspaceRoot, request.items)
   })
   ipcMain.handle('muse-desktop:terminal:create', (event, raw: unknown) => {
-    terminalCreateRequestSchema.parse(raw)
+    const request = terminalCreateRequestSchema.parse(raw)
     const record = recordFor(event)
-    return record.terminals.create(record.workspace.root)
+    try {
+      const created = record.terminals.create({
+        cwd: confineTerminalCwd(record.workspace.root, request.cwd),
+        cols: request.cols,
+        rows: request.rows,
+        ...(request.agent !== undefined && { agent: request.agent }),
+      })
+      record.window.webContents.send('muse-desktop:terminal:opened', created)
+      return created
+    } catch {
+      // The native load's own text (build paths, loader errors) never
+      // reaches the renderer's sentence or this stderr line (AGENTS
+      // rules 8 and 18): the panel says the fact, fixed words say it
+      // here, and the rejection carries the same fixed words.
+      process.stderr.write(`muse-desktop: ${DESKTOP_LOG_TEXT.terminalCreateFailed}\n`)
+      throw new Error(DESKTOP_LOG_TEXT.terminalCreateFailed)
+    }
   })
   ipcMain.on('muse-desktop:terminal:write', (event, raw: unknown) => {
     const frame = terminalWriteSchema.parse(raw)
     recordForIpc(event.sender.id)?.terminals.write(frame.id, frame.data)
   })
-  ipcMain.on('muse-desktop:terminal:resize', (_event, raw: unknown) => {
-    // Pipe-backed sessions have no window size to apply; the frame is still
-    // validated so a malformed resize is refused, never silently dropped.
-    terminalResizeSchema.parse(raw)
+  ipcMain.on('muse-desktop:terminal:resize', (event, raw: unknown) => {
+    const frame = terminalResizeSchema.parse(raw)
+    recordForIpc(event.sender.id)?.terminals.resize(frame.id, frame.cols, frame.rows)
   })
   ipcMain.on('muse-desktop:terminal:close', (event, raw: unknown) => {
     const frame = terminalIdSchema.parse(raw)
     recordForIpc(event.sender.id)?.terminals.close(frame.id)
+  })
+  ipcMain.handle('muse-desktop:terminal:list', (event) => recordFor(event).terminals.list())
+  ipcMain.handle('muse-desktop:terminal:children', (event, raw: unknown) => {
+    const frame = terminalIdSchema.parse(raw)
+    const record = recordFor(event)
+    return { id: frame.id, hasChildren: record.terminals.hasChildren(frame.id) }
+  })
+  ipcMain.handle('muse-desktop:problems:get', (event) => recordFor(event).problems.snapshot())
+  ipcMain.handle('muse-desktop:output:get', (event) => recordFor(event).output.snapshot())
+  ipcMain.on('muse-desktop:output:clear', (event, raw: unknown) => {
+    const frame = outputClearedSchema.parse(raw)
+    recordForIpc(event.sender.id)?.output.clear(frame.channel)
   })
   ipcMain.handle('muse-desktop:window:open-workspace', (_event, raw: unknown) => {
     const request = openWorkspaceRequestSchema.parse(raw)
@@ -257,6 +342,7 @@ if (hasSingleInstanceLock) {
       callback(isGranted)
     })
     installIpc()
+    installAppScheme()
     await firstWindow()
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) void firstWindow()

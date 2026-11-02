@@ -630,8 +630,8 @@
     },
     "unresolvedCount": {
       "one": "{count} tentativo irrisolto",
-      "many": "{count} tentativi irrisolti",
-      "other": "{count} tentativi irrisolti"
+      "other": "{count} tentativi irrisolti",
+      "many": "{count} tentativi irrisolti"
     },
     "title": "Dispositivi",
     "pair": "Associa dispositivo",
@@ -1018,8 +1018,11 @@
   "referenceSendKeys": "Inviare la bozza con il gesto scelto da useCtrlEnterToSend.",
   "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
   "referenceNodeEditorKeys": "Save the open file.",
-  "referenceDesktopTerminalKeys": "Esegui la riga digitata nel terminale di Muse Desktop.",
   "referenceEditorGroupKeys": "Move between tabs, cycle tabs, focus a group by number, or close the menu.",
+  "referenceDesktopResizeKeys": "Rendi il pannello più alto o più basso.",
+  "referenceDesktopTerminalSearchKeys": "Spostarsi tra le occorrenze trovate nel terminale o chiudere la barra di ricerca.",
+  "referenceDesktopProblemsKeys": "Spostarsi tra i problemi e aprire quello selezionato.",
+  "referenceDesktopPanelTabsKeys": "Spostarsi tra le schede del pannello inferiore.",
   "referenceThinking": "Scegli quanto impegno Muse dedica a ogni risposta. Riflessione: Attivato = effort; Disattivato = museCode:none / modelApi:minimal.",
   "referenceSandbox": "Su Windows, quando questa finestra usa la sandbox della shell Muse Code, configurarla con un’approvazione amministratore, poi avviare una nuova conversazione. shellSandbox=\"off\" non richiede configurazione.",
   "referenceSetup": "Eseguire gli hook Setup per init da spark-hooks.json in un’area di lavoro attendibile.",
@@ -3205,8 +3208,8 @@
   "questionExpired": "Scaduta",
   "questionsExpiredNotice": {
     "one": "Una domanda precedente è scaduta senza risposta: solo le {max} domande più recenti restano aperte. Il suo testo è conservato sulla sua scheda.",
-    "many": "{count} di domande precedenti sono scadute senza risposta: solo le {max} domande più recenti restano aperte. Il loro testo è conservato sulle loro schede.",
-    "other": "{count} domande precedenti sono scadute senza risposta: solo le {max} domande più recenti restano aperte. Il loro testo è conservato sulle loro schede."
+    "other": "{count} domande precedenti sono scadute senza risposta: solo le {max} domande più recenti restano aperte. Il loro testo è conservato sulle loro schede.",
+    "many": "{count} di domande precedenti sono scadute senza risposta: solo le {max} domande più recenti restano aperte. Il loro testo è conservato sulle loro schede."
   },
   "questionAnswer": "Rispondi",
   "questionDismiss": "Chiudi senza rispondere",
@@ -7824,7 +7827,53 @@
     "keyNext": "Desktop successivo",
     "keyCycleNext": "Passa alla finestra successiva",
     "keyCyclePrevious": "Passa alla finestra precedente",
-    "keyFocusBar": "Sposta lo stato attivo sulla barra"
+    "keyFocusBar": "Sposta lo stato attivo sulla barra",
+    "panelTerminals": "Terminali",
+    "panelCollapsedPanels": "Pannelli compressi",
+    "panelViews": "Viste del pannello",
+    "panelSplitTerminal": "Dividi terminale",
+    "panelPin": "Blocca pannello",
+    "panelHide": "Nascondi pannello",
+    "panelStop": "Interrompi",
+    "panelReadOnly": "sola lettura",
+    "panelFind": "Cerca nel terminale",
+    "panelFindPlaceholder": "Cerca",
+    "panelFindNext": "Risultato successivo",
+    "panelFindPrevious": "Risultato precedente",
+    "panelFindClose": "Chiudi ricerca",
+    "panelFindCase": "Maiuscole/minuscole",
+    "panelFindWord": "Parole intere",
+    "panelFindRegex": "Espressione regolare",
+    "panelFindCount": "{current} di {total}",
+    "panelFindNoResults": "Nessun risultato",
+    "panelCloseRunning": "Questo terminale potrebbe eseguire ancora un comando. Chiuderlo comunque?",
+    "panelCloseConfirm": "Chiudi",
+    "panelCancel": "Annulla",
+    "panelRetry": "Riprova",
+    "panelProblemLabel": "{severity}: {message} in {path} alla riga {line}",
+    "panelOutputChannel": "Canale di output",
+    "panelClearOutput": "Cancella output",
+    "panelOutputTruncated": {
+      "one": "{count} carattere troncato",
+      "other": "{count} caratteri troncati",
+      "many": "{count} caratteri troncati"
+    },
+    "panelRegion": "Pannello inferiore",
+    "panelFloating": "Pannello mobile",
+    "panelOnTop": "Mantieni in primo piano",
+    "panelSash": "Divisore dei riquadri",
+    "panelResizeHandle": "Ridimensiona il pannello",
+    "panelTerminalLoading": "Caricamento del terminale…",
+    "panelTerminalFailed": "Caricamento del terminale non riuscito.",
+    "panelTerminalCreateFailed": "Impossibile avviare il terminale.",
+    "panelTabExited": "{title}, terminato con codice {code}",
+    "panelNoTerminals": "Nessun terminale aperto.",
+    "panelSeverity": {
+      "error": "Errore",
+      "warning": "Avviso",
+      "information": "Informazione",
+      "hint": "Suggerimento"
+    }
   },
   "referenceMakers": "Controlla il payload esatto dietro un digest SHA-256, quindi Invia una volta o Rifiuta. Abilitare l’hardware richiede il controllo dell’account del sistema operativo; Interrompere mai.",
   "makerDetectBuild": "Compila {target}",
@@ -7903,8 +7952,8 @@
   "makerClearSearch": "Cancella ricerca",
   "makerLongSearch": {
     "one": "Sono mostrati i primi {shown} di {count} caratteri di ricerca. Cancella per modificare; la ricerca usa la query completa.",
-    "many": "Sono mostrati i primi {shown} di {count} caratteri di ricerca. Cancella per modificare; la ricerca usa la query completa.",
-    "other": "Sono mostrati i primi {shown} di {count} caratteri di ricerca. Cancella per modificare; la ricerca usa la query completa."
+    "other": "Sono mostrati i primi {shown} di {count} caratteri di ricerca. Cancella per modificare; la ricerca usa la query completa.",
+    "many": "Sono mostrati i primi {shown} di {count} caratteri di ricerca. Cancella per modificare; la ricerca usa la query completa."
   },
   "makerNextHighlight": "Evidenziazione successiva",
   "makerHighlightPosition": "Evidenziazione {current} di {count}",
@@ -7916,8 +7965,8 @@
   "makerSummaryUnknown": "Sconosciuto",
   "makerTemperatureSettings": {
     "one": "Temperatura impostata ({shown}/{count}): {temperatures}. Massima: {maximum}.",
-    "many": "Temperature impostate (prime {shown} di {count} distinte): {temperatures}. Massima: {maximum}.",
-    "other": "Temperature impostate (prime {shown} di {count} distinte): {temperatures}. Massima: {maximum}."
+    "other": "Temperature impostate (prime {shown} di {count} distinte): {temperatures}. Massima: {maximum}.",
+    "many": "Temperature impostate (prime {shown} di {count} distinte): {temperatures}. Massima: {maximum}."
   },
   "makerDangerTemperature": "Una temperatura supera un limite sicuro, oppure il limite è sconosciuto.",
   "makerDangerTravel": "Il movimento supera i limiti di corsa, oppure i suoi limiti sono sconosciuti.",
@@ -7958,8 +8007,8 @@
   "makerResetView": "Reimposta vista",
   "makerDeviceCount": {
     "one": "{count} dispositivo",
-    "many": "{count} dispositivi",
-    "other": "{count} dispositivi"
+    "other": "{count} dispositivi",
+    "many": "{count} dispositivi"
   },
   "jsonExpectedComma": "Virgola prevista",
   "jsonInvalidSyntax": "Sintassi JSON non valida",

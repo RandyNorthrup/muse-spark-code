@@ -27,6 +27,18 @@ export function isNodeCrashHookBundle(value: unknown): value is NodeCrashHookBun
 }
 
 /**
+The chunk file itself is absent (anything else keeps its kind past the loader).
+*/
+function isMissingBundle(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    error.code === 'MODULE_NOT_FOUND' &&
+    error.message.includes(O11Y_CRASH_HOOK_BUNDLE_FILE)
+  )
+}
+
+/**
 Install the node crash hook from its lazy chunk. Returns the
 uninstaller, or undefined with the fixed unavailable word when the chunk
 is gone or malformed.
@@ -49,12 +61,7 @@ export function installNodeCrashHookBundle(deps: {
     module = load(path.join(deps.distDir, O11Y_CRASH_HOOK_BUNDLE_FILE))
   } catch (error: unknown) {
     // A missing chunk degrades to no crash capture; anything else keeps its kind.
-    const isMissing =
-      error instanceof Error &&
-      'code' in error &&
-      error.code === 'MODULE_NOT_FOUND' &&
-      error.message.includes(O11Y_CRASH_HOOK_BUNDLE_FILE)
-    if (!isMissing) throw error
+    if (!isMissingBundle(error)) throw error
     print(UI_TEXT.nodeErrors.unavailable)
     return undefined
   }
