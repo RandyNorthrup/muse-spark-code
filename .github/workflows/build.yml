@@ -241,6 +241,14 @@ jobs:
       - name: macOS dictation helper for the fixture created paths
         if: runner.os == 'macOS'
         run: bash native/darwin/build.sh
+      # The serial suite's PTY relay (makerSerial's rig data path) spawns
+      # socat at its fixed system path; the suite skips where it is absent.
+      - name: Linux socat for the serial rig suite
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y socat
+      - name: macOS socat for the serial rig suite
+        if: runner.os == 'macOS'
+        run: brew install socat
       - name: unit tests
         if: runner.os != 'Windows'
         shell: bash
@@ -752,7 +760,7 @@ jobs:
           cache: npm
       - run: sudo apt-get update && sudo apt-get install -y libssl-dev libpulse-dev cmake g++-14
       - run: node --input-type=module -e "import { buildLinuxHelper } from './scripts/build-linux-helper.mjs'; import { buildPortalRecord } from './scripts/build-portal-record.mjs'; import { buildVaultPeer } from './scripts/build-vault-peer.mjs'; buildLinuxHelper(); buildVaultPeer(); buildPortalRecord()"
-      # The dictation build reads its pins from src/shared/constants.ts
+      # The dictation build reads its pins from src/shared/linuxDictationConstants.ts
       # through esbuild, so the locked dependencies come first.
       - run: npm ci
       - run: CC=gcc-14 CXX=g++-14 node scripts/build-linux-dictation.mjs

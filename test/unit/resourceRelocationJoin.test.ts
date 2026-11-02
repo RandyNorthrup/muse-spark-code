@@ -3,7 +3,7 @@
 // registration until the teams wiring binds one, admission keeps work local
 // with no route, and a governor left at relocate steps down to pause the
 // moment its last route is lost. The governor samples this machine live.
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import {
   admitResource,
   configureResources,
@@ -13,17 +13,34 @@ import {
 import { ResourceEvents } from '../../src/core/resources/events'
 import { ResourceGovernor } from '../../src/core/resources/governor'
 import { resourceGovernorHost } from '../../src/core/resources/resourceGovernorEntry'
+import type { DarwinMemoryReader } from '../../src/core/resources/sampler/darwinMemory'
 import { createMachineResourceSampler } from '../../src/core/resources/sampler/system'
 import { RESOURCE_ESCALATE_MS, RESOURCE_MIN_DWELL_MS } from '../../src/shared/constants'
 import { resourceSettingsSchema, type ResourceSettings } from '../../src/shared/resources'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
-import { manualClock } from './resourceHarness'
+import { darwinSamplerMemory, manualClock } from './resourceHarness'
 
 setUiText(EN, 'en')
 
+const PROBE_LIMITS = { timeoutMs: 1000, maxOutputBytes: 64 * 1024 }
+const memoryFixture: {
+  reader: (() => DarwinMemoryReader | undefined) | undefined
+  remove: (() => Promise<void>) | undefined
+} = { reader: undefined, remove: undefined }
+
+beforeAll(async () => {
+  const compiled = await darwinSamplerMemory(PROBE_LIMITS)
+  memoryFixture.reader = compiled.reader
+  memoryFixture.remove = compiled.remove
+})
+
+afterAll(async () => {
+  await memoryFixture.remove?.()
+})
+
 function liveSampler(settings: () => ResourceSettings) {
-  return createMachineResourceSampler(settings, { timeoutMs: 1000, maxOutputBytes: 64 * 1024 })
+  return createMachineResourceSampler(settings, PROBE_LIMITS, undefined, memoryFixture.reader?.())
 }
 
 const disposers: (() => void)[] = []

@@ -3,7 +3,7 @@
 // check to it through the real governor, host and relocator, and the
 // teams binding completes the join so registration succeeds. Refusal
 // anywhere keeps the check local.
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import {
   hasDeviceLinkOffer,
   ResourceRunnerRouter,
@@ -25,6 +25,7 @@ import {
 import { ResourceEvents } from '../../src/core/resources/events'
 import { ResourceGovernor } from '../../src/core/resources/governor'
 import type { ResourceLaunchHost } from '../../src/core/resources/launchHost'
+import type { DarwinMemoryReader } from '../../src/core/resources/sampler/darwinMemory'
 import { createMachineResourceSampler } from '../../src/core/resources/sampler/system'
 import { createTeamRunnersRuntime } from '../../src/host/runners/teamRunnersEntry'
 import { deviceOfferSchema, type DeviceOffer } from '../../src/shared/devices'
@@ -32,10 +33,26 @@ import { RESOURCE_ESCALATE_MS, RESOURCE_MIN_DWELL_MS } from '../../src/shared/co
 import { resourceSettingsSchema, type ResourceSettings } from '../../src/shared/resources'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
-import { manualClock } from './resourceHarness'
+import { darwinSamplerMemory, manualClock } from './resourceHarness'
 import { launchHostOver } from './helpers/resourceRig'
 
 setUiText(EN, 'en')
+
+const PROBE_LIMITS = { timeoutMs: 1000, maxOutputBytes: 64 * 1024 }
+const memoryFixture: {
+  reader: (() => DarwinMemoryReader | undefined) | undefined
+  remove: (() => Promise<void>) | undefined
+} = { reader: undefined, remove: undefined }
+
+beforeAll(async () => {
+  const compiled = await darwinSamplerMemory(PROBE_LIMITS)
+  memoryFixture.reader = compiled.reader
+  memoryFixture.remove = compiled.remove
+})
+
+afterAll(async () => {
+  await memoryFixture.remove?.()
+})
 
 const PAIR_ID = 'a'.repeat(32)
 const DEVICE_ID = 'b'.repeat(32)
@@ -193,10 +210,12 @@ async function pressuredHost(
     clock,
     events,
     settings,
-    sampler: createMachineResourceSampler(() => settings, {
-      timeoutMs: 1000,
-      maxOutputBytes: 64 * 1024,
-    }),
+    sampler: createMachineResourceSampler(
+      () => settings,
+      PROBE_LIMITS,
+      undefined,
+      memoryFixture.reader?.(),
+    ),
     // R binds approved availability; the test binds a route below.
     hasRelocationTarget: () => hasResourceRunnerRoutes(),
     onError: (error) => {

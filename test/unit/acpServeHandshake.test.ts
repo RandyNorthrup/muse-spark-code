@@ -7,8 +7,10 @@
 // XDG_CONFIG_HOME: on Windows HOME does not move Node's homedir(), so the
 // person's real credential file would otherwise show through and the list
 // would take the signed-in path. With no CLI on PATH the same list refuses
-// with the CLI-missing sentence instead.
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+// with the CLI-missing sentence instead; that case runs the agent with an
+// empty folder as its whole PATH, so no host's install can show through,
+// and the unsigned case runs only where a real CLI is installed.
+import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -24,6 +26,12 @@ const agent = path.join(directory, 'dist', 'acp.js')
 const config = path.join(directory, 'config')
 const data = path.join(directory, 'data')
 const workspace = path.join(directory, 'workspace')
+const emptyPath = path.join(directory, 'no-bin')
+
+// The unsigned refusal needs a real Muse Code CLI for the agent to find:
+// without one the agent rightly answers CLI-missing first (the next case).
+const isCliInstalled =
+  spawnSync(process.platform === 'win32' ? 'where' : 'which', ['muse']).status === 0
 
 beforeAll(async () => {
   await stageAgentBundle(directory)
@@ -88,16 +96,14 @@ async function refusedList(pathValue: string): Promise<string> {
 }
 
 describe('the served ACP agent over real stdio', () => {
-  it('negotiates the protocol and refuses an unsigned session list', async () => {
-    expect(await refusedList(process.env['PATH'] ?? '')).toMatch(/Authentication required/)
-  })
+  it.skipIf(!isCliInstalled)(
+    'negotiates the protocol and refuses an unsigned session list',
+    async () => {
+      expect(await refusedList(process.env['PATH'] ?? '')).toMatch(/Authentication required/)
+    },
+  )
 
   it('refuses a session list with the CLI-missing sentence when no CLI is on PATH', async () => {
-    const separator = process.platform === 'win32' ? ';' : ':'
-    const scrubbed = (process.env['PATH'] ?? '')
-      .split(separator)
-      .filter((entry) => !entry.toLowerCase().includes('muse'))
-      .join(separator)
-    expect(await refusedList(scrubbed)).toMatch(/Muse Code is not installed/)
+    expect(await refusedList(emptyPath)).toMatch(/Muse Code is not installed/)
   })
 })

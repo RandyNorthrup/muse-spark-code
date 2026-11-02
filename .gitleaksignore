@@ -19,8 +19,8 @@ src/core/reporting/collect/estimate.ts:generic-api-key:124
 test/fixtures/webfetch/wiki-internet.body:generic-api-key:6
 # RFC 6238 Appendix B's published TOTP test secret ("12345678901234567890", base32); a standard vector, no credential.
 test/unit/nodeSignin.test.ts:generic-api-key:28
-# Example ACME challenge token in a unit test; invented for the test, no credential.
-test/unit/nodeSignin.test.ts:generic-api-key:151
+# Example ACME challenge token in a unit test at its first commit; invented for the test, no credential. The test now uses a plainly example value, so only this historical fingerprint remains.
+8797abc4c359123e0e473be424b94d831022bb03:test/unit/nodeSignin.test.ts:generic-api-key:147
 # SHA-256 source digest in the M125 certification record's sourceSha256 map; the ModelApiHost.ts filename tripped the detector, no credential.
 878ef7ffaff3c753a384a650863b0bf11b7e6c58:docs/certification/m125-f1-linux.json:generic-api-key:131
 # Synthetic migration-test key placeholder; sequential-hex value beside an explicit not-a-real-key record, absent from the current tree.

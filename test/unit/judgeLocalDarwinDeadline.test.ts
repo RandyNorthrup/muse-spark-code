@@ -5,6 +5,7 @@ import { darwinProcessLease } from '../../src/core/judge/local/darwinPeer'
 
 // Isolated because this deliberately waits for the actual helper's 30-second limit.
 describe.skipIf(process.platform !== 'darwin')('M98 macOS default native deadline', () => {
+  // The case waits out the helper's real 30 s deadline by design.
   it('kills a nonresponsive helper at its own deadline before the caller fallback', async () => {
     await mkdir(path.resolve('temp/m98-j3'), { recursive: true })
     const directory = await realpath(await mkdtemp(path.resolve('temp/m98-j3/deadline-')))
@@ -20,5 +21,5 @@ describe.skipIf(process.platform !== 'darwin')('M98 macOS default native deadlin
     } finally {
       await rm(directory, { recursive: true })
     }
-  })
+  }, 45_000)
 })
