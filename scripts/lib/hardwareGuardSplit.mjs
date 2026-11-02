@@ -40,6 +40,7 @@ const EXPORTS = new Map(
         'hardwareApprovalMode',
         'prepareHardwareTurn',
         'isPositivelyHardwareWorkspace',
+        'isBoardVolumeWorkspace',
       ],
     ],
     ['src/core/maker/guard/shellParse.ts', ['parseShell']],
@@ -116,7 +117,8 @@ export const hardwareShellSplit = guardSplit(
           (name) =>
             name !== 'hardwareApprovalMode' &&
             name !== 'prepareHardwareTurn' &&
-            name !== 'isPositivelyHardwareWorkspace',
+            name !== 'isPositivelyHardwareWorkspace' &&
+            name !== 'isBoardVolumeWorkspace',
         ),
       ]),
   ),

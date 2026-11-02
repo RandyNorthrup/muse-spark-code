@@ -36,6 +36,17 @@ function registryText(reason: CreatedRegistrySaveReason): string {
   return fill(UI_TEXT.createdRegistrySave.failed, { reason: registryReasonText(reason) })
 }
 
+/** What a failed start says, and whether it is a refusal we can name. */
+export interface StartFailure {
+  readonly text: string
+  /**
+  True when a layer that knew what happened refused in its own sentence
+  (or the registry save named its reason): the start was refused, not
+  broken, and the answer carries the refusal's code and sentence.
+  */
+  readonly isRefusal: boolean
+}
+
 /**
 What a failed start says: the session or turn could not start, with the
 failure's fixed-vocabulary cause. A refused registry save names itself and
@@ -43,14 +54,20 @@ why; sentences our own layers threw when they knew what happened pass
 through untouched (they span layers, so any installed sentence passes
 rather than a fixed allowlist); wrappers are walked past to their cause.
 */
-export function startFailureText(error: unknown, site: StartSite): string {
+export function startFailure(error: unknown, site: StartSite): StartFailure {
   const template = site === 'session' ? UI_TEXT.acpSessionStartFailed : UI_TEXT.acpTurnStartFailed
   let current: unknown = error
   while (current instanceof Error) {
-    if (isCreatedRegistrySaveError(current)) return registryText(current.reason)
-    if (isOwnSentence(current.message)) return current.message
-    if (current.cause === undefined) return fill(template, { detail: causeForLog(current) })
+    if (isCreatedRegistrySaveError(current))
+      return { text: registryText(current.reason), isRefusal: true }
+    if (isOwnSentence(current.message)) return { text: current.message, isRefusal: true }
+    if (current.cause === undefined)
+      return { text: fill(template, { detail: causeForLog(current) }), isRefusal: false }
     current = current.cause
   }
-  return fill(template, { detail: causeForLog(error) })
+  return { text: fill(template, { detail: causeForLog(error) }), isRefusal: false }
+}
+
+export function startFailureText(error: unknown, site: StartSite): string {
+  return startFailure(error, site).text
 }
