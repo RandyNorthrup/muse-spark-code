@@ -440,6 +440,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- An edit now lands even when quotes, dashes or spacing in the file differ
+  slightly from what was asked (curly quotes, the full dash set, Unicode
+  spaces, trailing blanks): the changed lines are replaced and every other
+  line keeps its exact bytes.
+- A request that outgrew the context window is recognised as a full window
+  instead of a generic error, including LiteLLM's context-window refusal
+  and over-size 413 answers; rate limits and quota errors still read as
+  themselves.
+- A request the provider refused over strict tool limits is sent once more
+  with plain tool schemas instead of failing.
 - A vault policy that is a link, that another account can read, or that has
   a second name is ignored, and saving a policy can no longer be aimed at
   another file. The ceiling stays "none" and the refusal is the same words

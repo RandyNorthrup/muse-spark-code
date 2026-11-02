@@ -1499,6 +1499,12 @@
       "title": "The ACP agent ends when its client leaves, even while Muse Code is starting",
       "summary": "Closing the editor, stopping the agent or a crashed editor ends the agent and the Muse Code it started in every state, with no process left behind.",
       "area": "platform"
+    },
+    {
+      "id": "RLFEDITFUZZ",
+      "title": "Fuzzy edit parity plus overflow and strict-tool error sync",
+      "summary": "Edits land when quotes, dashes or spacing differ slightly; over-long requests read as full context windows, including LiteLLM and 413 answers; a strict-tool-limit refusal is sent once more with plain schemas.",
+      "area": "chat"
     }
   ]
 }

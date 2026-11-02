@@ -11494,6 +11494,24 @@ real-CLI cases skip by name, with the reason, where the CLI is not installed
   process group, or the Windows job) with the industry-standard grace
   then a forced end, and never touches a Muse Code it did not start.
 
+### RLFEDITFUZZ — Fuzzy edit fallback parity plus overflow and strict-tool error sync
+
+**Status 2026-11-02 (lane RLF-EDITFUZZ, macmini): built and certified.**
+Pi-solpi R4/R5: Pi's whole dash set in the fuzzy edit matcher
+(`src/core/toolEdit.ts`); LiteLLM `ContextWindowExceededError`, Copilot
+token prose and per-format large-body 413 shapes in the overflow
+classifier (`src/core/context/overflow.ts`), 429/rate-limit/quota
+guards first; the strict-limit refusal detector and preferred-strict
+restoration (`src/core/backends/modelapi/schemas.ts`) with one
+non-strict resend on the Meta-direct route
+(`src/core/backends/modelapi/client.ts`); real-code suites
+`test/unit/editFuzzy.test.ts`, `test/unit/strictToolFallback.test.ts`
+and new `test/unit/providersOverflow.test.ts` rows (66 pass, one
+red/green drill per part). The resend call site itself is review-only:
+no test can show it a live provider strict-limit refusal without a
+live call or a stand-in, and both are out. Record:
+`docs/certification/rlf-editfuzz.md`.
+
 ### M127 — Muse Code at its latest release (2026-10-17)
 
 **Status 2026-10-30 (RLF-UPAGENT): building.** The SDK rides 1.4.12
