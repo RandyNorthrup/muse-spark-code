@@ -10,7 +10,10 @@
 
 import { describe, expect, it } from 'vitest'
 import { modelPolicyFor, outputLimitFor } from '../../src/core/backends/modelapi/modelPolicy'
-import { MODEL_API_MIN_OUTPUT_TOKENS } from '../../src/shared/constants'
+import {
+  MODEL_API_MIN_OUTPUT_TOKENS,
+  MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
+} from '../../src/shared/constants'
 import { outputTokenMinimumMessage } from '../../src/shared/providerRouting'
 
 function expectMinimumRefused(policy: ReturnType<typeof modelPolicyFor>): void {
@@ -44,5 +47,13 @@ describe('provider output cap', () => {
 
   it('refuses a Meta ceiling below sixteen', () => {
     expectMinimumRefused(modelPolicyFor('muse-spark-1.3', { capabilities: { toolCalling: true } }))
+  })
+
+  it('resolves a Meta model to the documented output maximum', () => {
+    // The maximum the exec, budget and judge paths reserve and enforce.
+    expect(modelPolicyFor('muse-spark-1.3-contributor').output.maxTokens).toBe(
+      MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
+    )
+    expect(modelPolicyFor('unrecorded-vendor/unrecorded-model').output.maxTokens).toBeUndefined()
   })
 })

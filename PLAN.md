@@ -11494,6 +11494,32 @@ real-CLI cases skip by name, with the reason, where the CLI is not installed
   process group, or the Windows job) with the industry-standard grace
   then a forced end, and never touches a Muse Code it did not start.
 
+### RLFOUTPUTCAP — Output-token ceilings follow the provider and the person (D121, RSCH-MUSE-D, 2026-11-02)
+
+**Status 2026-11-02 (lane RLF-OUTPUTCAP, macbook): built.** The 32,768
+legacy output cap is a default only: headless `exec --max-output-tokens`
+parses any positive integer and the run refuses a value above the
+selected model's own maximum where the model is known, naming that
+maximum (131,072 for a Meta model); the session budget fit and the judge
+reservation fit against the same model policy maximum, with the legacy
+default only where the record names none. The provider's >= 16 minimum
+stays. Proven by real-code tests (exec parse and output-cap resolution,
+budget fit default, policy maximum, worst-case reservation figures) with
+red/green drills, and the reservation money tables (README, docs/ci.md)
+now state the M=131,072 figures. Not proven here: a genuine
+`response.incomplete` stream with reason `max_output_tokens` has no
+captured fixture in the tree (all captured `incomplete_details` are
+null); the max_output_tokens refusal path is covered by the existing
+2026-10-10 capture (`output-incomplete.json`, the >= 16 minimum) and the
+codec mappings, and the genuine-stop capture stays a lead run (one
+request on `muse-spark-1.3-contributor`, key on stdin). Status evidence:
+`docs/certification/rlf-outputcap.md`.
+
+- **Goal.** `MODEL_API_MAX_OUTPUT_TOKENS` (32,768) binds nothing below a
+  provider's documented output maximum: exec, budget and judge paths take
+  the model policy's `maxTokens`, and only the provider's limit or a
+  value the person set stops the work.
+
 ### M127 — Muse Code at its latest release (2026-10-17)
 
 **Status 2026-10-30 (RLF-UPAGENT): building.** The SDK rides 1.4.12

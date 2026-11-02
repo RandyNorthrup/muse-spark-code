@@ -3753,6 +3753,10 @@ export const M106_CAPTURED_META_MODEL = 'muse-spark-1.3-contributor'
 // must be `>= 16`". Never send a smaller output cap to Meta; a budget that
 // cannot fit this refuses instead (sessionBudget.ts).
 export const MODEL_API_MIN_OUTPUT_TOKENS = 16
+// D121: a default only, never a maximum below the provider's own limit.
+// Exec, budget and judge paths resolve the model policy's maxTokens first
+// (modelPolicy.ts, 131,072 for a Meta model) and keep this only where the
+// record names no maximum.
 export const MODEL_API_MAX_OUTPUT_TOKENS = 32_768
 // M101 C1: keep whole recent turns; summaries and the tail scale down for small windows.
 export const NO_COMPACTABLE_HISTORY = 'no_compactable_history'
