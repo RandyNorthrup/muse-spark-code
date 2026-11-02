@@ -2248,6 +2248,7 @@
   "gitHubFailed": "GitHub への要求に失敗しました",
   "gitHubAnswered": "GitHub の応答: {status}",
   "gitHubResponseInvalid": "GitHub が予期しない形式の応答を返しました。",
+  "gitHubLeaseRefused": "この GitHub サインインは、このウィンドウでは使えません。",
   "gitHubCommitInvalid": "コミット ID ではありません: {sha}",
   "gitDestinationBaseUnavailable": "宛先リポジトリのベースブランチが見つかりません。取得用のリモートを追加してベースブランチを取得し、もう一度お試しください。",
   "gitPullRequestExists": "このブランチにはプル リクエスト #{number} が既に作成されています。この会話にリンクしました。",

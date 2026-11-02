@@ -2248,6 +2248,7 @@
   "gitHubFailed": "GitHub 请求失败",
   "gitHubAnswered": "GitHub 返回了 {status}",
   "gitHubResponseInvalid": "GitHub 返回了格式异常的响应。",
+  "gitHubLeaseRefused": "此 GitHub 登录对本窗口无效。",
   "gitHubCommitInvalid": "不是提交 ID：{sha}",
   "gitDestinationBaseUnavailable": "找不到目标仓库的基准分支。请添加其用于获取的远程仓库并获取基准分支，然后重试。",
   "gitPullRequestExists": "此分支已有打开的拉取请求 #{number}；它现已关联到此对话。",

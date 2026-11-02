@@ -2835,6 +2835,7 @@ export const EN = {
   gitHubFailed: 'The GitHub request failed',
   gitHubAnswered: 'GitHub answered {status}',
   gitHubResponseInvalid: 'GitHub returned a response in an unexpected format.',
+  gitHubLeaseRefused: 'This GitHub sign-in is not valid for this window.',
   gitHubCommitInvalid: 'Not a commit ID: {sha}',
   gitDestinationBaseUnavailable:
     'The destination repository’s base branch could not be found. Add its fetch remote and fetch the base, then try again.',

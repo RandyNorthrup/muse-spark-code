@@ -2294,6 +2294,7 @@
   "gitHubFailed": "La requête GitHub a échoué",
   "gitHubAnswered": "GitHub a répondu {status}",
   "gitHubResponseInvalid": "GitHub a renvoyé une réponse dans un format inattendu.",
+  "gitHubLeaseRefused": "Cette connexion GitHub n'est pas valable pour cette fenêtre.",
   "gitHubCommitInvalid": "Identifiant de commit non valide : {sha}",
   "gitDestinationBaseUnavailable": "La branche de base du dépôt de destination est introuvable. Ajoutez son dépôt distant de récupération et récupérez la branche de base, puis réessayez.",
   "gitPullRequestExists": "La pull request #{number} est déjà ouverte pour cette branche ; elle est maintenant liée à cette conversation.",

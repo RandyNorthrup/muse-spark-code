@@ -2271,6 +2271,7 @@
   "gitHubFailed": "A GitHub-kérés sikertelen",
   "gitHubAnswered": "A GitHub válasza: {status}",
   "gitHubResponseInvalid": "A GitHub váratlan formátumú választ adott.",
+  "gitHubLeaseRefused": "Ez a GitHub-bejelentkezés erre az ablakra nem érvényes.",
   "gitHubCommitInvalid": "Nem commitazonosító: {sha}",
   "gitDestinationBaseUnavailable": "A céladattár alapága nem található. Adja hozzá a letöltési távoli adattárát, töltse le az alapágat, majd próbálja újra.",
   "gitPullRequestExists": "A(z) #{number} pull request már nyitva van ehhez az ághoz; most ehhez a beszélgetéshez kapcsolódik.",

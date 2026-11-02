@@ -3,8 +3,9 @@
 // to this connection and owner, never an OAuth token. GitHub reads go
 // out through the host's `github/request` proxy.
 import { GitHubClient } from '../../core/git/github'
+import { leaseExpiresAt } from '../../core/git/tokenSource'
 import type { Logger } from '../../host/logger'
-import { GITHUB_API_BASE_URL } from '../../shared/constants'
+import { GITHUB_API_BASE_URL, UI_TEXT } from '../../shared/constants'
 import { jsonValueSchema } from '../../shared/hostApi/data'
 import { MHP_METHODS, type HostServices } from '../../shared/hostApi/methods'
 
@@ -15,8 +16,11 @@ export function createNativeGitHub(deps: {
   readonly userAgent: string
   readonly signal: AbortSignal
   readonly log: Logger
+  /** Grant and expiry clock. Absent means `Date.now`. */
+  readonly now?: () => number
 }) {
-  const leases = new Set<string>()
+  const leases = new Map<string, number>()
+  const clock = deps.now ?? Date.now
   const check = () => {
     deps.signal.throwIfAborted()
   }
@@ -33,7 +37,12 @@ export function createNativeGitHub(deps: {
       authorization?.startsWith('Bearer ') === true
         ? authorization.slice('Bearer '.length)
         : undefined
-    if (lease === undefined || !leases.has(lease)) throw new Error('MHP_GITHUB_LEASE_REFUSED')
+    const held = lease === undefined ? undefined : leases.get(lease)
+    // A bearer this window did not grant, or one past the local lifetime,
+    // is said. The id itself is not part of the sentence or the log.
+    if (lease === undefined || held === undefined || clock() >= held) {
+      throw new Error(UI_TEXT.gitHubLeaseRefused)
+    }
     const text = await request.text()
     check()
     const params = MHP_METHODS['github/request'].params.parse({
@@ -79,7 +88,7 @@ export function createNativeGitHub(deps: {
       )
       check()
       if (result.leaseId === null) return
-      leases.add(result.leaseId)
+      leases.set(result.leaseId, leaseExpiresAt(clock(), undefined))
       return result.leaseId
     },
   }
