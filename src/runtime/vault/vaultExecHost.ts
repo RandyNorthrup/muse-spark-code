@@ -13,6 +13,7 @@ import { probeChildEnvironment } from '../../core/executables'
 import { VaultExecService, type VaultExecHostPort } from '../../core/vault/exec/service'
 import { vaultExecEnvelopeDigest } from '../../core/vault/exec/envelopeDigest'
 import { VaultTaintSession } from '../../core/vault/taint'
+import type { VaultTaint } from '../../shared/vault'
 import { spawnVaultFeeder } from '../../host/vault/vaultExecSpawn'
 import { killTree, treeSpawnOptions, type ProcessTreeDeps } from '../../host/processTree'
 import { type HeadlessVaultBroker } from './execVault'
@@ -28,16 +29,44 @@ export interface HeadlessVaultExecDeps {
   readonly nodePath: string
   readonly env: NodeJS.ProcessEnv
   readonly platform: NodeJS.Platform
+  /**
+  RLF-M109H: the run's accumulated provenance, read at each authorize.
+  Required, so no headless construction can silently present a clean
+  session the run never proved; the source below is the exec run's.
+  */
+  readonly taint: () => VaultTaint
+}
+
+/** The exec run's provenance sink and reader (D243 lane T, RLF-M109H). */
+export interface HeadlessVaultTaintSource {
+  /** The engine's per-request note (ModelApiHost's `noteVaultTaint`). */
+  note(sessionId: string, taint: VaultTaint): void
+  /** Everything noted so far in this run; taint only ever accumulates. */
+  current(): VaultTaint
+}
+
+/**
+One taint source per exec run. The engine notes the provenance of each
+request's context; those notes are observations for the run's life and
+are never cleared by a later clean snapshot, because the headless run
+has no person to answer the ask a tainted use would need (D89.7): the
+session denies it instead, in words, through its denial record. The
+workspace is the operator's own chosen folder for the run, so the
+source starts trusted and only the engine's notes add taint.
+*/
+export function createHeadlessVaultTaintSource(): HeadlessVaultTaintSource {
+  const taints = new VaultTaintSession('museCode')
+  taints.beginRequest([], true)
+  return {
+    note: (_sessionId, taint) => {
+      taints.observe(taint)
+    },
+    current: () => taints.current(),
+  }
 }
 
 /** One VaultExecService over the run's headless registration. */
 export function createHeadlessVaultExecService(deps: HeadlessVaultExecDeps): VaultExecService {
-  // D243 lane T: one provenance session per agent session (this service
-  // is built once per exec run and cached by its factory). The workspace
-  // is the operator's own chosen folder for the run, so it starts
-  // trusted; observations only ever add taint from there.
-  const taints = new VaultTaintSession('modelApi')
-  taints.beginRequest([], true)
   const tree: ProcessTreeDeps = {
     platform: deps.platform,
     systemRoot: deps.env['SystemRoot'],
@@ -52,7 +81,7 @@ export function createHeadlessVaultExecService(deps: HeadlessVaultExecDeps): Vau
       // git/askpass/sudo/SSH surfaces refuse here, before any ticket.
       if (use.kind !== 'environment' && use.kind !== 'stdin')
         throw new Error(UI_TEXT.vault.noAccess)
-      const result = await deps.broker.authorize(handle, use, taints.current(), signal)
+      const result = await deps.broker.authorize(handle, use, deps.taint(), signal)
       if (result.kind !== 'ticket') throw new Error(UI_TEXT.vault.noAccess)
       return result.ticket
     },

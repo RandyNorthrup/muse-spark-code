@@ -13,6 +13,7 @@ import {
   darwinDictationHelperSegments,
 } from '../../../src/shared/constants'
 import { vaultCommandDigest } from '../../../src/core/vault/broker/policy'
+import { vaultProvenance } from '../../../src/core/vault/taint'
 import { VaultManageSession } from '../../../src/core/vault/broker/manageClient'
 import { encodeVaultMaterial } from '../../../src/core/vault/crypto'
 import { type VaultBrokerClient } from '../../../src/core/vault/broker/client'
@@ -21,7 +22,11 @@ import { configureResources } from '../../../src/core/resources/admission'
 import { createdPathCommands } from '../../../src/core/resources/resourceGovernorEntry'
 import { posixVaultClientPlatform } from '../../../src/runtime/vault/posixClientPlatform'
 import { openHeadlessVault } from '../../../src/runtime/vault/headlessSession'
-import { createHeadlessVaultExecService } from '../../../src/runtime/vault/vaultExecHost'
+import {
+  createHeadlessVaultExecService,
+  createHeadlessVaultTaintSource,
+  type HeadlessVaultTaintSource,
+} from '../../../src/runtime/vault/vaultExecHost'
 import { writeVaultPolicy } from '../../../src/runtime/vault/vaultPolicy'
 import { vaultBrokerDataDir } from '../../../src/runtime/vault/vaultStoreScope'
 import { vaultPeerExecutable } from '../../../src/runtime/vault/posixNative'
@@ -66,6 +71,7 @@ const state: {
   manage?: VaultManageSession
   session?: ExecVaultSession
   service?: VaultExecService
+  taints?: HeadlessVaultTaintSource
   raw?: VaultBrokerClient
   controller: AbortController
 } = { root: '', data: '', shell: '', sessions: 0, controller: new AbortController() }
@@ -279,6 +285,7 @@ async function openSession(): Promise<void> {
     hostId,
     process.pid,
   )
+  state.taints = createHeadlessVaultTaintSource()
   state.service = createHeadlessVaultExecService({
     broker: state.session.execBroker(),
     distDir: path.join(state.root, 'dist'),
@@ -286,6 +293,10 @@ async function openSession(): Promise<void> {
     nodePath: process.execPath,
     env: process.env,
     platform: process.platform,
+    taint: () => {
+      if (!state.taints) throw new Error('missing taint source')
+      return state.taints.current()
+    },
   })
 }
 
@@ -442,6 +453,10 @@ describe.skipIf(shouldSkipBroker)(
           nodePath: process.execPath,
           env: process.env,
           platform: process.platform,
+          taint: () => {
+            if (!state.taints) throw new Error('missing taint source')
+            return state.taints.current()
+          },
         })
         const refused = await foreign.run(
           envRun('printf %s "$VAULT_PROBE" | wc -c'),
@@ -489,6 +504,40 @@ describe.skipIf(shouldSkipBroker)(
           envelopeDigest: '0'.repeat(64),
         })
         expect(feederFrame).toMatchObject({ kind: 'denied' })
+      },
+      FLOW_TIMEOUT_MS,
+    )
+
+    it(
+      'a provenance note from the run refuses the next vault use, said in the denial record',
+      async () => {
+        await allowThisWorkspace()
+        await openSession()
+        const service = state.service
+        const taints = state.taints
+        if (!service || !taints) throw new Error('missing exec service')
+        const counted = await service.run(
+          envRun('printf %s "$VAULT_PROBE" | wc -c'),
+          state.controller.signal,
+          assertCanRun,
+        )
+        expect(counted.exitCode).toBe(0)
+        // RLF-M109H: the engine's note for this run (the same note
+        // ModelApiHost makes for a web search call) accumulates in the
+        // source the service authorizes against, so the next use is
+        // refused as tainted instead of running on a clean claim.
+        const saidBefore = denials.length
+        taints.note('run-session', vaultProvenance('search', 'web_search_call'))
+        await expect(
+          service.run(
+            envRun('printf %s "$VAULT_PROBE" | wc -c'),
+            state.controller.signal,
+            assertCanRun,
+          ),
+        ).rejects.toThrow(UI_TEXT.vault.noAccess)
+        expect(denials.slice(saidBefore).some((message) => message.includes('(tainted)'))).toBe(
+          true,
+        )
       },
       FLOW_TIMEOUT_MS,
     )

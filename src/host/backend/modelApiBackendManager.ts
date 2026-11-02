@@ -87,6 +87,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly paidAuthority?: ModelApiClientDeps['paidAuthority']
   readonly reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']
   readonly judge?: ModelApiHostDeps['judge']
+  /** RLF-M109H: the run's vault taint sink; only the headless exec path supplies it. */
+  readonly noteVaultTaint?: ModelApiHostDeps['noteVaultTaint']
   readonly createAccountRequests?: ModelApiBundleDeps['createAccountRequests']
   readonly createProviderClient?: ModelApiBundleDeps['createProviderClient']
   readonly getProviderAccountId?: () => Promise<string | undefined>
@@ -472,6 +474,9 @@ export class ModelApiBackendManager {
       host: {
         toolAllowlist: variant.toolAllowlist,
         judge: this.deps.judge,
+        ...(this.deps.noteVaultTaint !== undefined && {
+          noteVaultTaint: this.deps.noteVaultTaint,
+        }),
         workspaceRoot: variant.workspaceRoot,
         hardwareContext: () =>
           this.deps.hardwareContext?.(variant.workspaceRoot) ??
