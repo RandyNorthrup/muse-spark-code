@@ -4055,6 +4055,13 @@ export const ERROR_CAUSE_MAX_DEPTH = 5
 // The turn error kind both backends report when the credential is refused;
 // the controller turns it into the signed-out gate.
 export const AUTH_REQUIRED_ERROR_KIND = 'authRequired'
+// M88 lane C (PLAN.md D67, item 16): the limit kinds the failed row reads
+// for its offers. `rateLimited` is a Model API 429 past the client's
+// retries that the refusal classifier still calls a rate limit (quota
+// and balance refusals keep their own sentences and stay ordinary);
+// `budget` is M82's spent session budget, which no timer refills.
+export const RATE_LIMITED_ERROR_KIND = 'rateLimited'
+export const MODEL_API_BUDGET_ERROR_KIND = 'budget'
 // OS-store reads are request-local (D89).
 export const CREDENTIAL_STORE_ERROR_KIND = 'credential_store_unavailable'
 export const ACP_ERROR_CODES = {
