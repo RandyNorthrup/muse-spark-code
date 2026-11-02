@@ -63,7 +63,10 @@ async function mount(): Promise<void> {
   }
   // The theme consumer mounts before the panel so the first paint already
   // carries the host's roles; a refused snapshot leaves the generated
-  // palette in place and is reported, never painted half-way.
+  // palette in place and is reported, never painted half-way. The
+  // companion page serves its style nonce on the root (the usage page
+  // reads it the same way); without it the strict style-src policy
+  // refuses the bridge-owned declarations and the window cannot mount.
   const page = new AbortController()
   window.addEventListener(
     'pagehide',
@@ -72,6 +75,14 @@ async function mount(): Promise<void> {
     },
     { once: true },
   )
+  const themeNonce = document.querySelector<HTMLElement>(`#${WEBVIEW_ROOT_ELEMENT_ID}`)?.dataset[
+    'themeNonce'
+  ]
+  if (
+    document.body.dataset['bridge'] === 'companion' &&
+    (themeNonce === undefined || themeNonce === '')
+  )
+    throw new TypeError('Missing companion theme nonce')
   await loadThemeBridge(
     document.documentElement,
     panelThemePort(host.messages, window.matchMedia('(prefers-color-scheme: dark)').matches),
@@ -79,6 +90,7 @@ async function mount(): Promise<void> {
       reportBridgeFailure(new Error('MHP_PANEL_THEME_INVALID'))
     },
     page.signal,
+    themeNonce === undefined || themeNonce === '' ? undefined : { nonce: themeNonce },
   )
   if (isTasks) {
     const tableError = installEmbeddedTable(document)

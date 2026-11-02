@@ -98,12 +98,12 @@ export function renderCompanionPage(nonce: string, content: CompanionPageContent
       : `<p id="launch-error" role="alert" tabindex="-1" hidden>${escapeHtml(UI_TEXT.companionLaunchFailed)}</p><script type="module" nonce="${nonce}" data-muse-entry="${panel.entry}"></script>`
   const datasets =
     panel === undefined ? '' : ` data-bridge="companion" data-surface="${panel.surface}"`
-  return `<!doctype html><html lang="${escapeHtml(content.locale)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(content.title)}</title>${links}<script nonce="${nonce}" type="importmap">${embeddedJson({ imports: content.imports })}</script>${embedded}</head><body data-host-bridge="http"${datasets}><div id="root" data-theme-nonce="${nonce}"></div>${scripts}${entry}</body></html>`
+  return `<!doctype html><html lang="${escapeHtml(content.locale)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="data:,"><title>${escapeHtml(content.title)}</title>${links}<script nonce="${nonce}" type="importmap">${embeddedJson({ imports: content.imports })}</script>${embedded}</head><body data-host-bridge="http"${datasets}><div id="root" data-theme-nonce="${nonce}"></div>${scripts}${entry}</body></html>`
 }
 
 /** The bearer stays in this page's fetch closure, including after installing the trusted UI. */
 export function launchPage(nonce: string): string {
-  return String.raw`<!doctype html><html lang="${escapeHtml(uiLocale())}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title></title></head><body><main><p id="launch-error" role="alert" tabindex="-1" data-launch-text="${encodeURIComponent(UI_TEXT.companionLaunchFailed)}" hidden></p></main><script nonce="${nonce}">
+  return String.raw`<!doctype html><html lang="${escapeHtml(uiLocale())}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="data:,"><title></title></head><body><main><p id="launch-error" role="alert" tabindex="-1" data-launch-text="${encodeURIComponent(UI_TEXT.companionLaunchFailed)}" hidden></p></main><script nonce="${nonce}">
 (() => {
   const recovery = document.getElementById('launch-error');
   const copy = decodeURIComponent(recovery.dataset.launchText);
