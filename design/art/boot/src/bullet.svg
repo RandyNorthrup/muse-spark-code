@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="7" height="7" viewBox="0 0 7 7">
+  <!-- M111 lane AR (D91.11): the Plymouth passphrase bullet. Upstream's
+       7x7 slot in the progress fill colour. -->
+  <circle cx="3.5" cy="3.5" r="3" fill="%%BULLET%%" />
+</svg>

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="290" height="78" viewBox="0 0 290 78">
+  <!-- M111 lane AR (D91.11): the Plymouth passphrase dialog box. Upstream's
+       proportions (290x78), our raised fill and border. -->
+  <rect x="1.5" y="1.5" width="287" height="75" rx="12" fill="%%BOX_FILL%%" stroke="%%BOX_BORDER%%" stroke-width="3" />
+</svg>
