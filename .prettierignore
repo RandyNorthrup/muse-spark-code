@@ -79,3 +79,4 @@ desktop/crates/compositor/tests/fixtures/activeworkspace.json
 desktop/crates/compositor/tests/fixtures/activewindow.json
 desktop/crates/compositor/tests/fixtures/events-s1.log
 desktop/crates/compositor/tests/fixtures/events-s3.log
+test/fixtures/m111cp/binds-0.55.2.json
