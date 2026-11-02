@@ -265,7 +265,7 @@ rerouted id reads as the serving model with its own id beside it (the
 `Label (id)` splice, the id being technical); a future reroute keeps
 its name and names the serving model and its first day.
 */
-function rerouteScanLabel(
+export function rerouteScanLabel(
   id: string,
   liveLabel: string,
   requestedName: string | undefined,
