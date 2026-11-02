@@ -437,6 +437,11 @@ happened, not what was planned; superseded entries are kept.
   including tree-shaken inputs and virtual modules behind real dependencies.
 - Headless exec says plainly that it offers no subagent tools, so
   built-in and custom agents cannot run there.
+- Compacting a long conversation gives the summary the model's own output
+  allowance instead of a fixed 8,192-token cap, so summaries on capable
+  models are no longer cut short; the allowance still fits inside the
+  model's context window, and a model without a stated output limit keeps
+  the previous cap.
 
 ### Fixed
 
