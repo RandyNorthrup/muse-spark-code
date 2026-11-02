@@ -94,10 +94,10 @@ async function owner(endpoint: (folder: string, id: string) => string, pid = pro
   return { f, file, record }
 }
 describe('independent runtime Stop', () => {
-  // The CLI entry hard-wires the production LAN policy, which refuses a
-  // loopback simulator, so machine reach is proven through the same
-  // stopRuntimeMachines the entry calls; argument parsing is covered by the
-  // command suites.
+  // The production LAN policy refuses a loopback simulator, and the CLI entry
+  // takes it from its deps like the ACP runtime; a person's command passes
+  // none and gets the real one. Argument parsing is covered by the command
+  // suites.
   it.each(['plain', 'linked-data'])(
     'Stop reaches the machine under data layout %s without touching workspace storage',
     async (layout) => {
@@ -192,6 +192,33 @@ describe('independent runtime Stop', () => {
     ).toBe(1)
     expect(output).toEqual([fill(UI_TEXT.makerStopFailed, { machine: 'Bench printer' })])
     expect(output.join('')).not.toContain('private transport')
+    expect(f.stops()).toHaveLength(1)
+  })
+  it("a person's command, which passes no LAN policy, keeps the production one", async () => {
+    const f = await fixture()
+    const { lan: _, ...person } = f.deps
+    const output: string[] = []
+    const command = parseMakerCommand(['stop-machine', 'printer'])
+    if (command === undefined) throw new Error('command')
+    expect(
+      await runRuntimeMaker(command, {
+        ...person,
+        workspace: f.root,
+        distDirectory: '',
+        env: {},
+        readSecret: () => Promise.resolve(undefined),
+        print: () => undefined,
+        reportFailure: (text) => {
+          output.push(text)
+        },
+        done: new AbortController().signal,
+        table: EN,
+        locale: 'en',
+      }),
+    ).toBe(1)
+    expect(output).toEqual([fill(UI_TEXT.makerStopFailed, { machine: 'Bench printer' })])
+    // The rule refuses a loopback machine before any request leaves.
+    expect(f.server.requests).toEqual([])
   })
   it('attempts HTTP Stop alongside registered serial and PrusaLink machines and names their physical Stop requirement', async () => {
     const f = await fixture()
