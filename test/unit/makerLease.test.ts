@@ -32,6 +32,7 @@ import {
   makerNativeHelper,
   isTestProcessAlive,
 } from './helpers/makerSerial'
+import { canLinkFiles } from './helpers/temporaryFolders'
 import { startSerialProcess } from '../../src/core/maker/serial/process'
 import {
   listenNativeOwnerPipe,
@@ -343,58 +344,62 @@ describe('hardware lease', () => {
     await chmod(deps.directory, 0o700)
   })
 
-  it.each(['corrupt', 'oversized', 'foreign-resource', 'foreign-endpoint', 'symlink'])(
-    'holds an unknown %s claim without gating Stop',
-    async (kind) => {
-      const deps = await fixture()
-      const active = await claim(deps)
-      const slot = path.join(
-        deps.directory,
-        `claim-v1.${createHash('sha256').update('port:test').digest('hex')}.head.claim`,
+  // A file link needs a privilege an ordinary Windows account lacks; the hosted one has it.
+  it.each([
+    'corrupt',
+    'oversized',
+    'foreign-resource',
+    'foreign-endpoint',
+    ...(canLinkFiles() ? ['symlink'] : []),
+  ])('holds an unknown %s claim without gating Stop', async (kind) => {
+    const deps = await fixture()
+    const active = await claim(deps)
+    const slot = path.join(
+      deps.directory,
+      `claim-v1.${createHash('sha256').update('port:test').digest('hex')}.head.claim`,
+    )
+    const saved = await readFile(slot)
+    const moved = `${slot}.moved`
+    switch (kind) {
+      case 'corrupt': {
+        await writeFile(slot, '{')
+        break
+      }
+      case 'oversized': {
+        await writeFile(
+          slot,
+          JSON.stringify({ ...active.record, padding: 'x'.repeat(deps.maxRecordBytes + 1) }),
+        )
+        break
+      }
+      case 'foreign-resource': {
+        const foreign = await claim(deps, 'port:foreign')
+        await writeFile(slot, JSON.stringify(foreign.record))
+        break
+      }
+      case 'foreign-endpoint': {
+        await writeFile(slot, JSON.stringify({ ...active.record, endpoint: 'foreign' }))
+        break
+      }
+      case 'symlink': {
+        await rename(slot, moved)
+        await symlink(moved, slot, 'file')
+        break
+      }
+    }
+    try {
+      expect(await claimHardwareLease(deps, 'port:test', 'third', () => Promise.resolve())).toEqual(
+        { status: 'busy' },
       )
-      const saved = await readFile(slot)
-      const moved = `${slot}.moved`
-      switch (kind) {
-        case 'corrupt': {
-          await writeFile(slot, '{')
-          break
-        }
-        case 'oversized': {
-          await writeFile(
-            slot,
-            JSON.stringify({ ...active.record, padding: 'x'.repeat(deps.maxRecordBytes + 1) }),
-          )
-          break
-        }
-        case 'foreign-resource': {
-          const foreign = await claim(deps, 'port:foreign')
-          await writeFile(slot, JSON.stringify(foreign.record))
-          break
-        }
-        case 'foreign-endpoint': {
-          await writeFile(slot, JSON.stringify({ ...active.record, endpoint: 'foreign' }))
-          break
-        }
-        case 'symlink': {
-          await rename(slot, moved)
-          await symlink(moved, slot, 'file')
-          break
-        }
-      }
-      try {
-        expect(
-          await claimHardwareLease(deps, 'port:test', 'third', () => Promise.resolve()),
-        ).toEqual({ status: 'busy' })
-        expect(await didStopHardwareLease(deps, 'port:test')).toBe(true)
-      } finally {
-        if (kind === 'symlink') {
-          await unlink(slot)
-          await rename(moved, slot)
-        } else await writeFile(slot, saved)
-        await active.release()
-      }
-    },
-  )
+      expect(await didStopHardwareLease(deps, 'port:test')).toBe(true)
+    } finally {
+      if (kind === 'symlink') {
+        await unlink(slot)
+        await rename(moved, slot)
+      } else await writeFile(slot, saved)
+      await active.release()
+    }
+  })
 
   it('Stop reports no session for an absent lease folder without creating it', async () => {
     const deps = await fixture()
