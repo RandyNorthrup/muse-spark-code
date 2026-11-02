@@ -1499,6 +1499,12 @@
       "title": "The ACP agent ends when its client leaves, even while Muse Code is starting",
       "summary": "Closing the editor, stopping the agent or a crashed editor ends the agent and the Muse Code it started in every state, with no process left behind.",
       "area": "platform"
+    },
+    {
+      "id": "RLFEMPTYCAT",
+      "title": "An empty model list is said, not obeyed",
+      "summary": "When Meta’s list comes back empty, the last known models stay on display with one plain sentence, retries ask again on Meta’s backoff, and the panel recovers without a restart when the list returns.",
+      "area": "chat"
     }
   ]
 }
