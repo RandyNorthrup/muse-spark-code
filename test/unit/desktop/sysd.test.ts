@@ -3,7 +3,7 @@
 // every response parses through its result schema; unknown fields, wrong
 // shapes, id mismatches and error envelopes are all refused.
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, expectTypeOf, it } from 'vitest'
 import * as z from 'zod/mini'
 import {
   appearanceOverrideSchema,
@@ -19,9 +19,38 @@ import {
   SYSD_ERROR_CODES,
   SYSD_METHOD_NAMES,
   SYSD_PROTOCOL_VERSION,
+  type BluetoothConfirmPair,
+  type BluetoothDeviceRef,
+  type BluetoothPaired,
+  type BluetoothPairStarted,
+  type BluetoothSetConnected,
+  type DateTimeSetAutomatic,
+  type DateTimeSetManual,
+  type DateTimeSetTimezone,
+  type DisplaysSetBrightness,
+  type LocaleName,
+  type LocaleSet,
+  type LocaleState,
+  type NetworkConnectWifi,
+  type NetworkSetVpn,
+  type NetworkState,
+  type PowerSetActions,
+  type PowerSetProfile,
+  type PowerSetTimeouts,
+  type PrinterRef,
+  type PrintersAdd,
+  type PrintersAdded,
+  type SoundDeviceRef,
+  type SoundSetMuted,
+  type SoundSetVolume,
+  type StorageEject,
+  type SysdErrorFrame,
   type SysdMethod,
+  type SysdOk,
   type SysdParams,
   type SysdResult,
+  type VpnConnection,
+  type VpnState,
 } from '../../../src/shared/desktop/sysd'
 
 function roundTrip<M extends SysdMethod>(
@@ -287,12 +316,13 @@ describe('sysd frame strictness', () => {
 
   it('carries an error envelope’s code in a SysdError', () => {
     let caught: unknown
+    const frame: SysdErrorFrame = {
+      jsonrpc: '2.0',
+      id: 'req-1',
+      error: { code: SYSD_ERROR_CODES.denied, message: 'polkit refused' },
+    }
     try {
-      parseSysdResponse('power.setProfile', 'req-1', {
-        jsonrpc: '2.0',
-        id: 'req-1',
-        error: { code: SYSD_ERROR_CODES.denied, message: 'polkit refused' },
-      })
+      parseSysdResponse('power.setProfile', 'req-1', frame)
     } catch (error) {
       caught = error
     }
@@ -317,6 +347,35 @@ describe('sysd frame strictness', () => {
         /^(network|bluetooth|cellular|sound|displays|power|printers|storage|datetime|locale)\./,
       )
     }
+  })
+
+  it('pins every named type to the method that carries it', () => {
+    expectTypeOf<SysdResult<'network.connectWifi'>>().toEqualTypeOf<SysdOk>()
+    expectTypeOf<VpnConnection['state']>().toEqualTypeOf<VpnState>()
+    expectTypeOf<NetworkState['vpn'][number]>().toEqualTypeOf<VpnConnection>()
+    expectTypeOf<SysdParams<'network.connectWifi'>>().toEqualTypeOf<NetworkConnectWifi>()
+    expectTypeOf<SysdParams<'network.setVpn'>>().toEqualTypeOf<NetworkSetVpn>()
+    expectTypeOf<SysdParams<'bluetooth.remove'>>().toEqualTypeOf<BluetoothDeviceRef>()
+    expectTypeOf<SysdResult<'bluetooth.startPair'>>().toEqualTypeOf<BluetoothPairStarted>()
+    expectTypeOf<SysdParams<'bluetooth.confirmPair'>>().toEqualTypeOf<BluetoothConfirmPair>()
+    expectTypeOf<SysdResult<'bluetooth.confirmPair'>>().toEqualTypeOf<BluetoothPaired>()
+    expectTypeOf<SysdParams<'bluetooth.setConnected'>>().toEqualTypeOf<BluetoothSetConnected>()
+    expectTypeOf<SysdParams<'sound.setDefault'>>().toEqualTypeOf<SoundDeviceRef>()
+    expectTypeOf<SysdParams<'sound.setVolume'>>().toEqualTypeOf<SoundSetVolume>()
+    expectTypeOf<SysdParams<'sound.setMuted'>>().toEqualTypeOf<SoundSetMuted>()
+    expectTypeOf<SysdParams<'displays.setBrightness'>>().toEqualTypeOf<DisplaysSetBrightness>()
+    expectTypeOf<SysdParams<'power.setProfile'>>().toEqualTypeOf<PowerSetProfile>()
+    expectTypeOf<SysdParams<'power.setTimeouts'>>().toEqualTypeOf<PowerSetTimeouts>()
+    expectTypeOf<SysdParams<'power.setActions'>>().toEqualTypeOf<PowerSetActions>()
+    expectTypeOf<SysdParams<'printers.remove'>>().toEqualTypeOf<PrinterRef>()
+    expectTypeOf<SysdParams<'printers.add'>>().toEqualTypeOf<PrintersAdd>()
+    expectTypeOf<SysdResult<'printers.add'>>().toEqualTypeOf<PrintersAdded>()
+    expectTypeOf<SysdParams<'storage.eject'>>().toEqualTypeOf<StorageEject>()
+    expectTypeOf<SysdParams<'datetime.setAutomatic'>>().toEqualTypeOf<DateTimeSetAutomatic>()
+    expectTypeOf<SysdParams<'datetime.setTimezone'>>().toEqualTypeOf<DateTimeSetTimezone>()
+    expectTypeOf<SysdParams<'datetime.setManual'>>().toEqualTypeOf<DateTimeSetManual>()
+    expectTypeOf<LocaleState['languages'][number]>().toEqualTypeOf<LocaleName>()
+    expectTypeOf<SysdParams<'locale.set'>>().toEqualTypeOf<LocaleSet>()
   })
 })
 
