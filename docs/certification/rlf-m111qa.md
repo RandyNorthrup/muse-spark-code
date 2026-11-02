@@ -81,7 +81,10 @@ headless` outputs, but `CBackend::create()` fails with no DRM device
 
 ## Status
 
-Part A done (604be0c20); Part B done (this commit); Parts C–G next.
+Parts A–E done (604be0c20, 07871f4e2, bc64f6e4a, 7623452e0); Part F's
+runner and firmware/kernel boots done (31b9efafb), its in-guest
+compositor session in progress (see below); Part G's workflows and
+records done (04aaa6caa, 64e3e1cf0, fcc4708dd).
 
 ### Part A proof (scenes and review screenshots)
 
