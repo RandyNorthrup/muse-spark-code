@@ -1,6 +1,6 @@
 // Owner-only state, outside every tools workspace (D90.23).
 import { constants, type BigIntStats } from 'node:fs'
-import { mkdir, open, readdir, realpath, rename, unlink, type FileHandle } from 'node:fs/promises'
+import { mkdir, open, realpath, rename, unlink, type FileHandle } from 'node:fs/promises'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { handleIdentity, lstatIdentity, sameFile } from '../../core/fs/fileIdentity'
@@ -22,7 +22,9 @@ export interface NodeIdentitySource {
 }
 
 export class NodePrivateFiles {
-  private readonly identity: NodeIdentitySource
+  // The journal subclass (journalFiles.ts) owner-checks its held files the
+  // same way; nothing else reaches these.
+  protected readonly identity: NodeIdentitySource
 
   constructor(
     readonly root: string,
@@ -31,7 +33,7 @@ export class NodePrivateFiles {
     this.identity = identity ?? { lstatIdentity, handleIdentity }
   }
 
-  private checkOwner(uid: bigint, mode: bigint): void {
+  protected checkOwner(uid: bigint, mode: bigint): void {
     if (process.platform === 'win32' || process.getuid === undefined) {
       // A0 runs natively on Linux or WSL; a DACL adapter is not qualified.
       throw new Error(UI_TEXT.nodeErrors.unsupported)
@@ -98,53 +100,6 @@ export class NodePrivateFiles {
       return new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(0, length))
     } finally {
       await handle.close()
-    }
-  }
-
-  /**
-  Crash-safe append for JSONL journals (M111 lane OB's ring store): the
-  held file is owner-checked like a read, the bytes fsync before the call
-  returns, and a link never redirects the append.
-  */
-  async append(name: string, text: string): Promise<void> {
-    await this.prepare()
-    const file = this.file(name)
-    const handle = await open(
-      file,
-      constants.O_WRONLY | constants.O_CREAT | constants.O_APPEND | constants.O_NOFOLLOW,
-      NODE_FILE_MODE,
-    )
-    try {
-      const held = await this.identity.handleIdentity(handle)
-      if (!held.isFile() || held.nlink !== NODE_SINGLE_LINK) {
-        throw new Error(UI_TEXT.nodeErrors.forbidden)
-      }
-      this.checkOwner(held.uid, held.mode)
-      await handle.appendFile(text, 'utf8')
-      await handle.sync()
-    } finally {
-      await handle.close()
-    }
-  }
-
-  /** The owned names under the root, sorted; the caller filters its own. */
-  async list(): Promise<string[]> {
-    await this.prepare()
-    const names = await readdir(this.root)
-    return names.toSorted((left, right) => {
-      if (left === right) return 0
-      return left < right ? -1 : 1
-    })
-  }
-
-  /** Delete one owned file; a missing file is already gone, never an error. */
-  async remove(name: string): Promise<void> {
-    await this.prepare()
-    const file = this.file(name)
-    try {
-      await unlink(file)
-    } catch (error: unknown) {
-      if (!isMissingFile(error)) throw error
     }
   }
 

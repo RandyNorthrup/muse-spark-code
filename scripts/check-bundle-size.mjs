@@ -751,6 +751,9 @@ const BUDGETS = [
   // M111 lane OB: the node crash hook and its record builder, loaded at
   // node CLI startup. Measured 12.2 KiB; plus 15%, rounded up to 25 KiB.
   { path: 'dist/nodeCrashHook.js', budgetKiB: 25 },
+  // CC-INT10 (D6): the Diagnostics payload schema, required by the node
+  // bundles through the method catalog. Measured 10.0 KiB; 25 KiB floor.
+  { path: 'dist/nodeDiagnostics.js', budgetKiB: 25 },
 ]
 
 // DIET1: independently emitted optional surfaces, measured on main, each plus

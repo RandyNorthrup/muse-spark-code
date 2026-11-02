@@ -3,6 +3,7 @@
 // component are ready. Real state store under a temp root.
 import { rm } from 'node:fs/promises'
 import { afterEach, describe, expect } from 'vitest'
+import { evaluateDesktopReadiness } from '../../../src/core/o11y/readiness'
 import { nodeHealth } from '../../../src/runtime/node/health'
 import { nodeNativeTest } from '../helpers/nodeNative'
 import { o11yReadyProbes, o11yStateRoot } from '../helpers/o11y'
@@ -26,7 +27,7 @@ describe('node health with desktop readiness', () => {
     // Outside the desktop profile the shape is unchanged.
     expect(await nodeHealth('/readyz', ports)).toEqual({ status: 200, word: 'ready' })
     const desktop = {
-      probe: () => Promise.resolve(o11yReadyProbes()),
+      probe: () => Promise.resolve(evaluateDesktopReadiness(o11yReadyProbes())),
     }
     const ready = await nodeHealth('/readyz', { ...ports, desktop })
     expect(ready.word).toBe('ready')
@@ -40,12 +41,14 @@ describe('node health with desktop readiness', () => {
       ...ports,
       desktop: {
         probe: () =>
-          Promise.resolve([
-            { component: 'compositor', ready: false, detail: 'ipc-down' },
-            { component: 'shell', ready: true, detail: 'surfaces-mapped' },
-            { component: 'app', ready: true, detail: 'windows-responsive' },
-            { component: 'sysd', ready: true, detail: 'services-connected' },
-          ] as const),
+          Promise.resolve(
+            evaluateDesktopReadiness([
+              { component: 'compositor', ready: false, detail: 'ipc-down' },
+              { component: 'shell', ready: true, detail: 'surfaces-mapped' },
+              { component: 'app', ready: true, detail: 'windows-responsive' },
+              { component: 'sysd', ready: true, detail: 'services-connected' },
+            ]),
+          ),
       },
     })
     expect(failing).toMatchObject({ status: 503, word: 'not-ready' })

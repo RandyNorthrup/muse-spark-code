@@ -118,6 +118,8 @@ export const ACP_BUNDLES = [
   'nodeSetup.js',
   // M111 lane OB: the node crash hook, loaded at node CLI startup.
   'nodeCrashHook.js',
+  // CC-INT10 (D6): the Diagnostics payload schema the catalog requires.
+  'nodeDiagnostics.js',
   'vaultRuntime.js',
   // RLF-M109: the runtime key-store migration chunk, loaded by
   // vaultRuntime.js on the first unlock edge.

@@ -9,7 +9,7 @@ import {
   formatNumber,
   plural,
 } from '../../../src/shared/l10n/text'
-import { nodeDiagnosticsSchema, type NodeDiagnostics } from '../../../src/shared/node'
+import { nodeDiagnosticsSchema, type NodeDiagnostics } from '../../../src/shared/nodeDiagnostics'
 import { DiagnosticsPage } from '../../../src/webview/diagnostics/DiagnosticsPage'
 
 const MINUTE = 60 * 1000

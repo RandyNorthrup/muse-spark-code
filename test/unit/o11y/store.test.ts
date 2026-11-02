@@ -8,7 +8,7 @@ import { afterEach, describe, expect } from 'vitest'
 import { MILLISECONDS_PER_DAY } from '../../../src/shared/constants'
 import { buildCrashRecord } from '../../../src/core/o11y/crash'
 import { O11yRingStore } from '../../../src/runtime/o11y/store'
-import { NodePrivateFiles } from '../../../src/runtime/node/privateFiles'
+import { NodeJournalFiles } from '../../../src/runtime/node/journalFiles'
 import { nodeNativeTest, nodeTempRoot } from '../helpers/nodeNative'
 import { o11ySpan } from '../helpers/o11y'
 
@@ -18,7 +18,7 @@ const directories: string[] = []
 async function setup(): Promise<{ store: O11yRingStore; dir: string }> {
   const dir = await nodeTempRoot('m111-ob-store-')
   directories.push(dir)
-  return { store: new O11yRingStore(new NodePrivateFiles(dir), () => NOW), dir }
+  return { store: new O11yRingStore(new NodeJournalFiles(dir), () => NOW), dir }
 }
 
 afterEach(async () => {
@@ -62,7 +62,7 @@ describe('o11y ring store', () => {
 
   nodeNativeTest('prunes day files past retention and leaves strangers alone', async () => {
     const { store, dir } = await setup()
-    const files = new NodePrivateFiles(dir)
+    const files = new NodeJournalFiles(dir)
     await files.write('metrics-2026-10-20.jsonl', '{"at":1}\n')
     await files.write('metrics-2026-10-31.jsonl', '{"at":2}\n')
     await files.write('notes.txt', 'not ours\n')
@@ -73,7 +73,7 @@ describe('o11y ring store', () => {
 
   nodeNativeTest('skips malformed lines and counts them on the read', async () => {
     const { store, dir } = await setup()
-    const files = new NodePrivateFiles(dir)
+    const files = new NodeJournalFiles(dir)
     await files.write(
       'logs-2026-10-31.jsonl',
       '{"at":1}\nnot json\n{"at":1761912000000,"component":"node","severity":9,"message":"ok","attributes":[]}\n',

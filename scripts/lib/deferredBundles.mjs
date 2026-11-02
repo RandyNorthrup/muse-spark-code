@@ -251,6 +251,14 @@ export const DEFERRED = [
     files: ['src/runtime/exec/execEntry.ts'],
   },
   {
+    // CC-INT10 (D6): the Diagnostics payload schema, required by the
+    // three node bundles through the method catalog's static import;
+    // dist/node.js keeps its budget without it.
+    output: 'dist/nodeDiagnostics.js',
+    metafile: 'dist/meta-acp/nodeDiagnostics.json',
+    files: ['src/shared/nodeDiagnosticsEntry.ts', 'src/shared/nodeDiagnostics.ts'],
+  },
+  {
     // RLTESTDRIVE item 5: the live list read for headless refresh on use.
     // The read itself (providerList.ts) is shared with the terminal
     // commands in dist/acp.js; only the entry loads on first use.
@@ -2030,6 +2038,7 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/host/maker/makerPreviewEntry.ts'), 'dist/makerPreviewHost.js'],
   [path.resolve('src/core/backends/modelapi/mcpPoolEntry.ts'), 'dist/mcpPool.js'],
   [path.resolve('src/runtime/exec/execEntry.ts'), 'dist/exec.js'],
+  [path.resolve('src/shared/nodeDiagnosticsEntry.ts'), 'dist/nodeDiagnostics.js'],
   [path.resolve('src/runtime/exec/providerListEntry.ts'), 'dist/providerList.js'],
   [path.resolve('src/core/backends/modelapi/codeIntelEntry.ts'), 'dist/modelApiCodeIntel.js'],
   [path.resolve('src/runtime/schedules/backgroundEntry.ts'), 'dist/scheduleBackground.js'],
@@ -2237,7 +2246,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:makerEntry|makerPreviewEntry|mcpPoolEntry|execEntry|providerListEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|accountPaidEntry|modelEffortsEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|modelApiB1Entry|modelApiToolRunEntry|modelApiFastEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|reportFallbackEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|modelApiAcpEntry|modelApiShellEntry|teamEntry|teamSchedulerEntry|teamWindowEntry|teamLandingEntry|externalOrchestratorEntry|teamRunnersEntry|teamTrafficEntry|teamPanelEntry|teamHostEntry|teamMcpEntry|teamProcessEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|execTeamEntry|execLedgerLeaseEntry|workerCreateEntry|workerOpsEntry|usageAcp|usageExportEntry|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|subscriptionCommandsEntry|configuredProvidersEntry|chatGptProviderCommands|grokProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|recordingDriverEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry|estimateActionsEntry|windowsEntry)(?:\.[jt]s)?$/,
+          /\/(?:makerEntry|makerPreviewEntry|mcpPoolEntry|execEntry|nodeDiagnosticsEntry|providerListEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|accountPaidEntry|modelEffortsEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|modelApiB1Entry|modelApiToolRunEntry|modelApiFastEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|reportFallbackEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|modelApiAcpEntry|modelApiShellEntry|teamEntry|teamSchedulerEntry|teamWindowEntry|teamLandingEntry|externalOrchestratorEntry|teamRunnersEntry|teamTrafficEntry|teamPanelEntry|teamHostEntry|teamMcpEntry|teamProcessEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|execTeamEntry|execLedgerLeaseEntry|workerCreateEntry|workerOpsEntry|usageAcp|usageExportEntry|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|subscriptionCommandsEntry|configuredProvidersEntry|chatGptProviderCommands|grokProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|recordingDriverEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry|estimateActionsEntry|windowsEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
@@ -2257,6 +2266,22 @@ export const deferredCohort = {
           const output = DEFERRED_OUTFILES.get(source)
           return output !== undefined &&
             ['dist/modelApi.js', 'dist/modelApiToolRun.js'].some(
+              (outfile) =>
+                path.resolve(build.initialOptions.outfile ?? '') === path.resolve(outfile),
+            )
+            ? { path: `./${path.basename(output)}`, external: true }
+            : undefined
+        }
+        // The method catalog imports the Diagnostics schema statically;
+        // only the three node bundles that carry the catalog may
+        // externalise it to the sibling dist/nodeDiagnostics.js.
+        if (
+          source === path.resolve('src/shared/nodeDiagnosticsEntry.ts') &&
+          args.kind !== 'entry-point'
+        ) {
+          const output = DEFERRED_OUTFILES.get(source)
+          return output !== undefined &&
+            ['dist/node.js', 'dist/nodeAuth.js', 'dist/nodeServe.js'].some(
               (outfile) =>
                 path.resolve(build.initialOptions.outfile ?? '') === path.resolve(outfile),
             )

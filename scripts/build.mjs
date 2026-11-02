@@ -528,6 +528,10 @@ const PACKS_VERIFY_OUTFILE = 'dist/packsVerify.js'
 // node CLI startup so the CLI never carries zod (PLAN.md D6).
 const CRASH_HOOK_ENTRY = 'src/runtime/o11y/crashHookEntry.ts'
 const CRASH_HOOK_OUTFILE = 'dist/nodeCrashHook.js'
+// CC-INT10 (D6): the Diagnostics payload schema, required by the node
+// bundles through the method catalog so dist/node.js keeps its budget.
+const NODE_DIAGNOSTICS_ENTRY = 'src/shared/nodeDiagnosticsEntry.ts'
+const NODE_DIAGNOSTICS_OUTFILE = 'dist/nodeDiagnostics.js'
 // C-M109-1 (lead decision 5): the vault for the CLI, the ACP agent and
 // headless runs, loaded on the first vault need; no `vscode` import.
 const VAULT_RUNTIME_ENTRY = 'src/runtime/vault/vaultRuntimeEntry.ts'
@@ -2068,6 +2072,11 @@ const crashHookOptions = {
   entryPoints: [CRASH_HOOK_ENTRY],
   outfile: CRASH_HOOK_OUTFILE,
 }
+const nodeDiagnosticsOptions = {
+  ...acpQuestionsOptions,
+  entryPoints: [NODE_DIAGNOSTICS_ENTRY],
+  outfile: NODE_DIAGNOSTICS_OUTFILE,
+}
 const vaultRuntimeOptions = {
   ...acpQuestionsOptions,
   plugins: [...acpQuestionsOptions.plugins, sharedVaultStore, sharedVaultPosix, sharedVaultWindows],
@@ -2799,6 +2808,7 @@ if (isWatch) {
     esbuild.context(nodeAuthOptions),
     esbuild.context(runtimePanelCompanionOptions),
     esbuild.context(crashHookOptions),
+    esbuild.context(nodeDiagnosticsOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -3066,6 +3076,7 @@ if (isWatch) {
     ['runtimeAccounts', () => esbuild.build(runtimeAccountsOptions)],
     ['packsVerify', () => esbuild.build(packsVerifyOptions)],
     ['crashHook', () => esbuild.build(crashHookOptions)],
+    ['nodeDiagnostics', () => esbuild.build(nodeDiagnosticsOptions)],
     ['vaultRuntime', () => esbuild.build(vaultRuntimeOptions)],
     ['node', () => esbuild.build(nodeOptions)],
     ['nodeSetup', () => esbuild.build(nodeSetupOptions)],
@@ -3097,6 +3108,7 @@ if (isWatch) {
   let runtimeAccounts
   let packsVerify
   let crashHook
+  let nodeDiagnostics
   let vaultRuntime
   let node
   let nodeSetup
@@ -3126,6 +3138,7 @@ if (isWatch) {
       runtimeAccounts,
       packsVerify,
       crashHook,
+      nodeDiagnostics,
       vaultRuntime,
       node,
       nodeSetup,
@@ -3176,10 +3189,15 @@ if (isWatch) {
     const { metafile: runtimeAccountsMetafile } = await runtimeAccounts
     const { metafile: packsVerifyMetafile } = await packsVerify
     const { metafile: crashHookMetafile } = await crashHook
+    const { metafile: nodeDiagnosticsMetafile } = await nodeDiagnostics
     const { metafile: vaultRuntimeMetafile } = await vaultRuntime
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'nodeCrashHook.json'),
       JSON.stringify(crashHookMetafile, null, 2),
+    )
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'nodeDiagnostics.json'),
+      JSON.stringify(nodeDiagnosticsMetafile, null, 2),
     )
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'vaultRuntime.json'),
@@ -3389,4 +3407,5 @@ if (isWatch) {
   reportSize(RUNTIME_PANEL_COMPANION_OUTFILE)
   reportSize(PACKS_VERIFY_OUTFILE)
   reportSize(CRASH_HOOK_OUTFILE)
+  reportSize(NODE_DIAGNOSTICS_OUTFILE)
 }

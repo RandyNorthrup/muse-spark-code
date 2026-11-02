@@ -893,6 +893,14 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'nodeCrashHook.js',
+    side: 'acp',
+    requestedBy: [
+      { importer: 'src/shared/constants.ts', symbol: 'O11Y_CRASH_HOOK_BUNDLE_FILE', side: ['acp'] },
+    ],
+  },
+  { file: 'nodeDiagnostics.js', side: 'acp', requestedBy: [] },
+  {
     file: 'nodeServe.js',
     side: 'acp',
     requestedBy: [

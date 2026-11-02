@@ -10452,6 +10452,9 @@ export const O11Y_EXPORT_RETRY_MAX_ELAPSED_MS = 300 * MILLISECONDS_PER_SECOND
 // Desktop readiness (research §11): a compositor IPC ping past this is not
 // ready, and OS2's trial boot waits for the desktop on its word.
 export const O11Y_COMPOSITOR_PING_MAX_MS = 250
+// The desktop's readiness components, in `/readyz` order (M111 lane OB);
+// here so the node's health path never carries the probe schema (D6).
+export const DESKTOP_READINESS_COMPONENTS = ['compositor', 'shell', 'app', 'sysd'] as const
 // Crash capture (D64): one crash record past this is refused, records are
 // pruned past this age, and raw cores never enter the store or the bundle.
 export const O11Y_CRASH_ENTRY_MAX_BYTES = 64 * 1024

@@ -2,7 +2,7 @@
 import { fireEvent } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { UI_TEXT } from '../../../src/shared/constants'
-import { nodeDiagnosticsSchema } from '../../../src/shared/node'
+import { nodeDiagnosticsSchema } from '../../../src/shared/nodeDiagnostics'
 import type { NodeMethodName } from '../../../src/shared/hostApi/nodeMethods'
 import { NodePageError } from '../../../src/webview/bridges/nodePort'
 import { cleanupNodeUi, mountNodeUi } from '../helpers/nodeUi'
