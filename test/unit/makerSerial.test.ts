@@ -13,6 +13,7 @@ import {
 } from '../../src/core/maker/serial/adapters'
 import { SerialLineFramer, serialPayload } from '../../src/core/maker/serial/framing'
 import { startSerialProcess, type SerialCommand } from '../../src/core/maker/serial/process'
+import { resolveSerialPython } from '../../src/runtime/maker/nativeSerial'
 import { killTree } from '../../src/host/processTree'
 import { fakeSerialScript, makerProcessDeps, isTestProcessAlive } from './helpers/makerSerial'
 
@@ -408,7 +409,34 @@ describe('serial framing and adapters', () => {
   })
 })
 
+describe('serial helper interpreter resolution', () => {
+  it('never resolves on Windows, where the compiled helper serves', () => {
+    expect(resolveSerialPython('win32', process.env['PATH'], process.cwd())).toBe(undefined)
+  })
+  it('reports missing when no python3 answers outside the workspace', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'm103-nopython-'))
+    directories.push(directory)
+    expect(resolveSerialPython('linux', directory, directory)).toBe(undefined)
+    expect(resolveSerialPython('darwin', directory, directory)).toBe(undefined)
+  })
+})
+
 if (process.platform !== 'win32') {
+  describe('serial helper interpreter on POSIX', () => {
+    it('pins python3 to an absolute path and never answers a planted workspace copy', async () => {
+      const workspace = await mkdtemp(path.join(tmpdir(), 'm103-pyws-'))
+      directories.push(workspace)
+      const planted = path.join(workspace, 'python3')
+      await writeFile(planted, '#!/bin/sh\nexit 0\n', { mode: 0o755 })
+      const pathVariable = `${workspace}${path.delimiter}${process.env['PATH'] ?? ''}`
+      const resolved = resolveSerialPython(process.platform, pathVariable, workspace)
+      expect(resolved).toBeDefined()
+      expect(path.isAbsolute(resolved ?? '')).toBe(true)
+      expect(resolved).not.toBe(planted)
+      expect((resolved ?? '').startsWith(`${workspace}${path.sep}`)).toBe(false)
+      await expect(access(resolved ?? '')).resolves.toBeUndefined()
+    })
+  })
   describe('socat data path on the rig', () => {
     it.each(['posix-raw', 'stty'] as const)(
       'refuses approved line settings on %s and independently verifies its low-level binary IO',

@@ -14,10 +14,11 @@ import { withoutCredentials, withoutKeyringRoutes } from '../credentialVariables
 import {
   environmentValue,
   noWorkspaceChildEnvironment,
+  resolveExecutable,
   windowsPowerShell,
   workspaceChildEnvironment,
 } from '../../core/execGuard'
-import { realpathSync } from 'node:fs'
+import { realpathSync, statSync } from 'node:fs'
 import { runtimeLeaseIdentity } from './stop'
 import {
   RUNTIME_MAKER_APPROVAL_MS,
@@ -52,8 +53,36 @@ export interface NativeSerialDeps {
   ) => Promise<'connect' | 'program' | 'actuate' | 'refused'>
   readonly audit: Parameters<typeof runSerialAction>[1]['log']
 }
+function isHelperFile(filePath: string): boolean {
+  try {
+    return statSync(filePath).isFile()
+  } catch {
+    return false
+  }
+}
+
+/**
+The POSIX serial helper's interpreter, pinned to an absolute path outside
+the run workspace through the governed lookup every helper uses (CC-INT6
+§8.7): a bare name never reaches the spawn, so a planted `python3` in the
+workspace or earlier on PATH cannot answer it.
+*/
+export function resolveSerialPython(
+  platform: NodeJS.Platform,
+  pathVariable: string | undefined,
+  workspaceRoot: string,
+): string | undefined {
+  if (platform === 'win32') return undefined
+  return resolveExecutable('python3', {
+    platform,
+    pathVariable,
+    fileExists: isHelperFile,
+    scope: { workspaceRoot, realpath: realpathSync },
+  })
+}
+
 export function nativeSerial(deps: NativeSerialDeps) {
-  // The helpers' bare `python3` resolves on a PATH without the run workspace.
+  // The helper's PATH carries no run workspace, credentials or keyring routes.
   const env = workspaceChildEnvironment(
     deps.platform,
     withoutKeyringRoutes(withoutCredentials(deps.env)),
@@ -88,8 +117,14 @@ export function nativeSerial(deps: NativeSerialDeps) {
         return { file, prefix: [] }
       }
       // Fixed shipped helper; the user's installed Python must provide pyserial.
+      const python = resolveSerialPython(
+        deps.platform,
+        environmentValue(env, deps.platform, 'PATH'),
+        deps.workspace,
+      )
+      if (python === undefined) throw new Error('serial-python-unavailable')
       return {
-        file: 'python3',
+        file: python,
         prefix: ['-I', path.join(deps.packageRoot, 'native', 'posix', 'serial.py')],
       }
     })()
