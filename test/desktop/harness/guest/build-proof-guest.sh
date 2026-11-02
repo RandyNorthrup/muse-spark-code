@@ -14,7 +14,7 @@ set -eu
 OUT="${1:?usage: build-proof-guest.sh <out-dir>}"
 mkdir -p "$OUT/rootfs/bin" "$OUT/rootfs/dev" "$OUT/rootfs/proc" "$OUT/rootfs/sys"
 
-KERNEL="$(ls /boot/vmlinuz-* | sort -V | tail -1)"
+KERNEL="$(find /boot -maxdepth 1 -name 'vmlinuz-*' -type f | sort -V | tail -1)"
 test -n "$KERNEL" || { echo "no kernel under /boot (install linux-image)" >&2; exit 1; }
 BUSYBOX="$(command -v busybox)"
 test -n "$BUSYBOX" || { echo "busybox is required (install busybox-static)" >&2; exit 1; }
