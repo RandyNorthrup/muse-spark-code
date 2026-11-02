@@ -288,16 +288,17 @@ async function main(): Promise<void> {
     const run = vaultExecProcessRunner(tree, timeoutMs, async (child) => {
       await killTree(child, tree, runStartedAt)
     })
-    // RLF-M109H: the delegated command starts through the peer helper's
-    // `run` mode, which zeroes its core limit (and, on Linux, turns
-    // dumpable off) in the command's own process before it becomes the
-    // command, so a crash writes no core holding a handed-over value
-    // and another process of the same user cannot read the command's
-    // environment through /proc. The helper is the installed one this
-    // feeder already trusts for peer identity; the approved executable
-    // was realpath-verified by the feeder core before this port runs.
-    // Windows has neither limit to set here and keeps its named job
-    // containment instead (docs/certification/rlf-m109h.md).
+    // RLF-M109H, corrected by RVM109H: the delegated command starts
+    // through the peer helper's `run` mode, which zeroes its core limit
+    // before exec so an ordinary crash writes no core file, and closes
+    // descriptors above 2. On Linux the helper also clears dumpable for
+    // its own process until exec; the kernel sets that back for a
+    // normal command, so another program running as the same user can
+    // still read the command's environment. The helper is the installed
+    // one this feeder already trusts for peer identity; the approved
+    // executable was realpath-verified by the feeder core before this
+    // port runs. Windows has no core limit to set here and keeps its
+    // named job containment instead.
     const runGuarded: typeof run =
       process.platform === 'win32'
         ? run

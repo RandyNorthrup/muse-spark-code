@@ -350,7 +350,10 @@ function baseVaultBrokerBindings(
     readonly home?: string | undefined
     readonly isHost: (pid: number, hostId: string, hostSession?: string) => Promise<boolean>
     readonly processIdentity: (pid: number) => Promise<VaultProcessIdentity | null>
-    readonly parentIdentity: (pid: number) => Promise<VaultProcessIdentity | null>
+    readonly parentIdentity: (
+      pid: number,
+      expectedStartedAt: number,
+    ) => Promise<VaultProcessIdentity | null>
     readonly isPlatformHost: (
       runDirectory: string,
       identity: VaultProcessIdentity,
@@ -497,7 +500,8 @@ export async function createVaultBrokerBindings(
     home: overrides.home,
     isHost,
     processIdentity: async (pid) => await vaultProcessIdentity(helper, pid),
-    parentIdentity: async (pid) => await vaultParentIdentity(helper, pid),
+    parentIdentity: async (pid, expectedStartedAt) =>
+      await vaultParentIdentity(helper, pid, expectedStartedAt),
     isPlatformHost: isPosixVaultHost,
   })
 }
@@ -532,7 +536,8 @@ async function createWindowsVaultBrokerBindings(
     home: overrides.home,
     isHost,
     processIdentity: async (pid) => await platform.identify(pid),
-    parentIdentity: async (pid) => await platform.parentIdentify(pid),
+    parentIdentity: async (pid, expectedStartedAt) =>
+      await platform.parentIdentify(pid, expectedStartedAt),
     isPlatformHost: (runDirectory, identity, hostId, hostSession) =>
       platform.isHost(runDirectory, identity, hostId, hostSession),
     auditPlatform: {
