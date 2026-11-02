@@ -752,7 +752,7 @@ jobs:
           cache: npm
       - run: sudo apt-get update && sudo apt-get install -y libssl-dev libpulse-dev cmake g++-14
       - run: node --input-type=module -e "import { buildLinuxHelper } from './scripts/build-linux-helper.mjs'; import { buildPortalRecord } from './scripts/build-portal-record.mjs'; import { buildVaultPeer } from './scripts/build-vault-peer.mjs'; buildLinuxHelper(); buildVaultPeer(); buildPortalRecord()"
-      # The dictation build reads its pins from src/shared/constants.ts
+      # The dictation build reads its pins from src/shared/linuxDictationConstants.ts
       # through esbuild, so the locked dependencies come first.
       - run: npm ci
       - run: CC=gcc-14 CXX=g++-14 node scripts/build-linux-dictation.mjs
