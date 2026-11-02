@@ -333,10 +333,7 @@ function SplitSash(properties: {
   )
 }
 
-function SplitView(properties: {
-  readonly node: SplitNode
-  readonly path: readonly number[]
-  readonly tabs: ReadonlyMap<string, BottomPanelTab>
+interface TerminalPaneCallbacks {
   readonly registerPane: (id: string, handle: TerminalPaneHandle | null) => void
   readonly isWorkbenchChord: IsWorkbenchChord
   readonly onFocusPane: (id: string) => void
@@ -345,7 +342,15 @@ function SplitView(properties: {
     sizes: readonly number[],
     shouldPersist: boolean,
   ) => void
-}): ReactNode {
+}
+
+function SplitView(
+  properties: TerminalPaneCallbacks & {
+    readonly node: SplitNode
+    readonly path: readonly number[]
+    readonly tabs: ReadonlyMap<string, BottomPanelTab>
+  },
+): ReactNode {
   const { node, path, tabs, registerPane, isWorkbenchChord, onFocusPane, onSash } = properties
   if (node.kind === 'leaf') {
     const tab = tabs.get(node.terminalId)
@@ -402,20 +407,14 @@ function SplitView(properties: {
   )
 }
 
-function TerminalArea(properties: {
-  readonly locationTabs: readonly BottomPanelTab[]
-  readonly displayedId: string | undefined
-  readonly splits: SplitNode | null
-  readonly registerPane: (id: string, handle: TerminalPaneHandle | null) => void
-  readonly isWorkbenchChord: IsWorkbenchChord
-  readonly onFocusPane: (id: string) => void
-  readonly onSash: (
-    path: readonly number[],
-    sizes: readonly number[],
-    shouldPersist: boolean,
-  ) => void
-  readonly onNewTerminal: () => void
-}): ReactNode {
+function TerminalArea(
+  properties: TerminalPaneCallbacks & {
+    readonly locationTabs: readonly BottomPanelTab[]
+    readonly displayedId: string | undefined
+    readonly splits: SplitNode | null
+    readonly onNewTerminal: () => void
+  },
+): ReactNode {
   const { locationTabs, displayedId, splits, registerPane, isWorkbenchChord, onFocusPane, onSash } =
     properties
   if (locationTabs.length === 0) {
@@ -467,6 +466,37 @@ function personTabClass(isSelected: boolean, isRunning: boolean): string {
   return classes.join(' ')
 }
 
+function TerminalTabFrame(properties: {
+  readonly tab: BottomPanelTab
+  readonly selected: boolean
+  readonly className: string
+  readonly onActivate: (id: string) => void
+  readonly children: ReactNode
+}): ReactNode {
+  const { tab, selected, className, onActivate, children } = properties
+  const onDragStart = (event: DragEvent<HTMLDivElement>): void => {
+    event.dataTransfer.setData(TERMINAL_TAB_MIME, tab.id)
+    event.dataTransfer.effectAllowed = 'move'
+  }
+  return (
+    <div
+      role="tab"
+      aria-selected={selected}
+      aria-label={tabAccessibleName(tab)}
+      tabIndex={selected ? 0 : -1}
+      data-tab-id={tab.id}
+      draggable
+      onDragStart={onDragStart}
+      onClick={() => {
+        onActivate(tab.id)
+      }}
+      className={className}
+    >
+      {children}
+    </div>
+  )
+}
+
 function TerminalTabButton(properties: {
   readonly tab: BottomPanelTab
   readonly selected: boolean
@@ -474,24 +504,13 @@ function TerminalTabButton(properties: {
   readonly onClose: (id: string) => void
 }): ReactNode {
   const { tab, selected, onActivate, onClose } = properties
-  const onDragStart = (event: DragEvent<HTMLDivElement>): void => {
-    event.dataTransfer.setData(TERMINAL_TAB_MIME, tab.id)
-    event.dataTransfer.effectAllowed = 'move'
-  }
   if (tab.source === 'agent') {
     return (
-      <div
-        role="tab"
-        aria-selected={selected}
-        aria-label={tabAccessibleName(tab)}
-        tabIndex={selected ? 0 : -1}
-        data-tab-id={tab.id}
-        draggable
-        onDragStart={onDragStart}
-        onClick={() => {
-          onActivate(tab.id)
-        }}
+      <TerminalTabFrame
+        tab={tab}
+        selected={selected}
         className={agentTabClass(selected, tab.exitCode === undefined)}
+        onActivate={onActivate}
       >
         <span aria-hidden="true" className="muse-panel-tab-glyph">
           @
@@ -510,22 +529,15 @@ function TerminalTabButton(properties: {
           <span aria-hidden="true">■ </span>
           {UI_TEXT.desktop.panelStop}
         </button>
-      </div>
+      </TerminalTabFrame>
     )
   }
   return (
-    <div
-      role="tab"
-      aria-selected={selected}
-      aria-label={tabAccessibleName(tab)}
-      tabIndex={selected ? 0 : -1}
-      data-tab-id={tab.id}
-      draggable
-      onDragStart={onDragStart}
-      onClick={() => {
-        onActivate(tab.id)
-      }}
+    <TerminalTabFrame
+      tab={tab}
+      selected={selected}
       className={personTabClass(selected, tab.exitCode === undefined)}
+      onActivate={onActivate}
     >
       <span aria-hidden="true" className="muse-panel-tab-glyph">
         ›
@@ -542,7 +554,7 @@ function TerminalTabButton(properties: {
       >
         <span aria-hidden="true">×</span>
       </button>
-    </div>
+    </TerminalTabFrame>
   )
 }
 
@@ -679,6 +691,53 @@ function chromeTabs(
     : tabsInSlot(tabs, 'dock')
 }
 
+/** A tab drop zone: enter/leave depth tracking with the drop highlight. */
+function useTabDropZone(
+  target: TerminalSlot,
+  moveTab: (id: string, slot: TerminalSlot) => void,
+): {
+  readonly dropActive: boolean
+  readonly onDragEnter: (event: DragEvent<HTMLDivElement>) => void
+  readonly onDragLeave: () => void
+  readonly onDrop: (event: DragEvent<HTMLDivElement>) => void
+} {
+  const [dropActive, setDropActive] = useState(false)
+  const dragDepth = useRef(0)
+  const onDragEnter = (event: DragEvent<HTMLDivElement>): void => {
+    if (!event.dataTransfer.types.includes(TERMINAL_TAB_MIME)) return
+    event.preventDefault()
+    dragDepth.current += 1
+    setDropActive(true)
+  }
+  const onDragLeave = (): void => {
+    dragDepth.current = Math.max(0, dragDepth.current - 1)
+    if (dragDepth.current === 0) setDropActive(false)
+  }
+  const onDrop = (event: DragEvent<HTMLDivElement>): void => {
+    dragDepth.current = 0
+    setDropActive(false)
+    const id = event.dataTransfer.getData(TERMINAL_TAB_MIME)
+    if (id === '') return
+    event.preventDefault()
+    moveTab(id, target)
+  }
+  return { dropActive, onDragEnter, onDragLeave, onDrop }
+}
+
+/** Moves a tab to the neighbouring slot towards the given direction. */
+function moveSlotNeighbour(
+  tabs: readonly BottomPanelTab[],
+  moveTab: (id: string, slot: TerminalSlot) => void,
+  id: string,
+  direction: 'up' | 'down',
+): void {
+  const tab = tabs.find((entry) => entry.id === id)
+  if (tab === undefined) return
+  const at = SLOT_ORDER.indexOf(tab.slot)
+  const next = SLOT_ORDER[at + (direction === 'up' ? -1 : 1)]
+  if (next !== undefined) moveTab(id, next)
+}
+
 export function BottomPanel(properties: BottomPanelProperties): ReactNode {
   const {
     location,
@@ -696,8 +755,6 @@ export function BottomPanel(properties: BottomPanelProperties): ReactNode {
     : locationTabs[0]?.id
   const counts = problemsCounts(state.problems)
   const problemTotal = counts.errors + counts.warnings
-  const [dropActive, setDropActive] = useState(false)
-  const dragDepth = useRef(0)
   const windowRef = useRef<HTMLDivElement>(null)
   const floatDrag = useRef<{
     startX: number
@@ -713,27 +770,7 @@ export function BottomPanel(properties: BottomPanelProperties): ReactNode {
   } | null>(null)
 
   const zoneSlot: TerminalSlot = location === 'dock' ? 'dock' : 'window'
-
-  const onDragEnter = (event: DragEvent<HTMLDivElement>): void => {
-    if (!event.dataTransfer.types.includes(TERMINAL_TAB_MIME)) return
-    event.preventDefault()
-    dragDepth.current += 1
-    setDropActive(true)
-  }
-
-  const onDragLeave = (): void => {
-    dragDepth.current = Math.max(0, dragDepth.current - 1)
-    if (dragDepth.current === 0) setDropActive(false)
-  }
-
-  const onDrop = (event: DragEvent<HTMLDivElement>): void => {
-    dragDepth.current = 0
-    setDropActive(false)
-    const id = event.dataTransfer.getData(TERMINAL_TAB_MIME)
-    if (id === '') return
-    event.preventDefault()
-    actions.moveTab(id, zoneSlot)
-  }
+  const { dropActive, onDragEnter, onDragLeave, onDrop } = useTabDropZone(zoneSlot, actions.moveTab)
 
   const onPanelBlur = (event: FocusEvent<HTMLDivElement>): void => {
     // Unpinned, the panel collapses into the footer when focus leaves
@@ -745,11 +782,7 @@ export function BottomPanel(properties: BottomPanelProperties): ReactNode {
   }
 
   const onMoveSlot = (id: string, direction: 'up' | 'down'): void => {
-    const tab = state.tabs.find((entry) => entry.id === id)
-    if (tab === undefined) return
-    const at = SLOT_ORDER.indexOf(tab.slot)
-    const next = SLOT_ORDER[at + (direction === 'up' ? -1 : 1)]
-    if (next !== undefined) actions.moveTab(id, next)
+    moveSlotNeighbour(state.tabs, actions.moveTab, id, direction)
   }
 
   const onSash = (
@@ -1146,29 +1179,7 @@ export function FooterPanelStrip(properties: {
   readonly actions: BottomPanelActions
 }): ReactNode {
   const { state, actions } = properties
-  const [dropActive, setDropActive] = useState(false)
-  const dragDepth = useRef(0)
-
-  const onDragEnter = (event: DragEvent<HTMLDivElement>): void => {
-    if (!event.dataTransfer.types.includes(TERMINAL_TAB_MIME)) return
-    event.preventDefault()
-    dragDepth.current += 1
-    setDropActive(true)
-  }
-
-  const onDragLeave = (): void => {
-    dragDepth.current = Math.max(0, dragDepth.current - 1)
-    if (dragDepth.current === 0) setDropActive(false)
-  }
-
-  const onDrop = (event: DragEvent<HTMLDivElement>): void => {
-    dragDepth.current = 0
-    setDropActive(false)
-    const id = event.dataTransfer.getData(TERMINAL_TAB_MIME)
-    if (id === '') return
-    event.preventDefault()
-    actions.moveTab(id, 'footer')
-  }
+  const { dropActive, onDragEnter, onDragLeave, onDrop } = useTabDropZone('footer', actions.moveTab)
 
   if (state.placement === 'footer') {
     const counts = problemsCounts(state.problems)
@@ -1238,11 +1249,7 @@ export function FooterPanelStrip(properties: {
   }
 
   const onMoveSlot = (id: string, direction: 'up' | 'down'): void => {
-    const tab = state.tabs.find((entry) => entry.id === id)
-    if (tab === undefined) return
-    const at = SLOT_ORDER.indexOf(tab.slot)
-    const next = SLOT_ORDER[at + (direction === 'up' ? -1 : 1)]
-    if (next !== undefined) actions.moveTab(id, next)
+    moveSlotNeighbour(state.tabs, actions.moveTab, id, direction)
   }
 
   const footerTabs = tabsInSlot(state.tabs, 'footer')

@@ -20,11 +20,13 @@ async function scratch(): Promise<string> {
   return dir
 }
 
-function sessions(): {
-  events: { chunks: string[]; exits: (number | null)[] }
-  all: TerminalSessions
-} {
-  const events = { chunks: [] as string[], exits: [] as (number | null)[] }
+interface SessionEvents {
+  chunks: string[]
+  exits: (number | null)[]
+}
+
+function sessions(): { events: SessionEvents; all: TerminalSessions } {
+  const events: SessionEvents = { chunks: [], exits: [] }
   const all = new TerminalSessions({
     onData: (_id, data) => {
       events.chunks.push(data)
@@ -35,6 +37,22 @@ function sessions(): {
   })
   liveSessions.push(all)
   return { events, all }
+}
+
+/** Runs the body with a scratch HOME, restored afterwards. */
+async function withIsolatedHome(
+  body: (context: { events: SessionEvents; all: TerminalSessions; root: string }) => Promise<void>,
+): Promise<void> {
+  const previousHome = process.env['HOME']
+  process.env['HOME'] = await scratch()
+  try {
+    const { events, all } = sessions()
+    const root = await scratch()
+    await body({ events, all, root })
+  } finally {
+    if (previousHome === undefined) delete process.env['HOME']
+    else process.env['HOME'] = previousHome
+  }
 }
 
 afterEach(async () => {
@@ -107,11 +125,7 @@ describe('M111 lane BP terminal sessions', () => {
   })
 
   it('the child probe sees running commands, not idle prompts', async () => {
-    const previousHome = process.env['HOME']
-    process.env['HOME'] = await scratch()
-    try {
-      const { events, all } = sessions()
-      const root = await scratch()
+    await withIsolatedHome(async ({ events, all, root }) => {
       const created = all.create({ cwd: root, cols: 80, rows: 24 })
       // Echo is a builtin: when its marker returns the shell is truly
       // idle at its prompt, not merely still starting.
@@ -127,19 +141,12 @@ describe('M111 lane BP terminal sessions', () => {
       all.close(created.id)
       expect(all.list()).toEqual([])
       expect(all.hasChildren(created.id)).toBe(false)
-    } finally {
-      if (previousHome === undefined) delete process.env['HOME']
-      else process.env['HOME'] = previousHome
-    }
+    })
   })
 
   it.runIf(process.platform !== 'win32')('closing ends the running command', async () => {
     const { spawnSync } = await import('node:child_process')
-    const previousHome = process.env['HOME']
-    process.env['HOME'] = await scratch()
-    try {
-      const { events, all } = sessions()
-      const root = await scratch()
+    await withIsolatedHome(async ({ events, all, root }) => {
       const created = all.create({ cwd: root, cols: 80, rows: 24 })
       all.write(created.id, 'sleep 28 & echo bp-sleep-pid-$!\n')
       await waitFor(() => /bp-sleep-pid-\d+/.test(events.chunks.join('')))
@@ -148,10 +155,7 @@ describe('M111 lane BP terminal sessions', () => {
       expect(all.hasChildren(created.id)).toBe(true)
       all.close(created.id)
       await waitFor(() => spawnSync('ps', ['-p', String(pid)], { encoding: 'utf8' }).status !== 0)
-    } finally {
-      if (previousHome === undefined) delete process.env['HOME']
-      else process.env['HOME'] = previousHome
-    }
+    })
   })
 
   it('terminal environments carry no credential variables end to end', async () => {
