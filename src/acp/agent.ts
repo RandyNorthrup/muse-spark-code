@@ -570,7 +570,7 @@ const FOLDER_UNUSABLE_ERRNOS: ReadonlySet<string> = new Set([
 Whether `folder` is a folder this account can open: the CLI is started in it,
 so one that is missing, a file or closed to this account fails the start with
 nothing to tell the person. Only the system errors that say so are read as no.
-Exported so the answer is pinned over real folders (acpFolderCheck.test.ts).
+Exported so the answer is pinned over real folders (museStartFault.test.ts).
 */
 export async function isOpenableFolder(folder: string): Promise<boolean> {
   try {

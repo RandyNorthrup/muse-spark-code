@@ -51,6 +51,29 @@ function verifiedConfig(endpoint: string): LocalJudgeConfiguration {
   }
 }
 
+/** The host's dependencies for this config, with the pieces a case changes. */
+function hostDependencies(
+  config: LocalJudgeConfiguration,
+  changes: Partial<LocalJudgeHostDependencies> & Pick<LocalJudgeHostDependencies, 'peerHelper'>,
+): LocalJudgeHostDependencies {
+  return {
+    configuration: () => config,
+    nativeScope: () => 'native',
+    runtimeInstallation: () => undefined,
+    chatPrompt: () => ({ system: 'test', user: 'test' }),
+    measureTokens: () => 1,
+    ...changes,
+  }
+}
+
+/** One private question put to the judge. */
+function judgeRisk(deps: LocalJudgeHostDependencies) {
+  return createHostLocalJudge(deps).judge(
+    { state: 'private-state', questions: { risk: { type: 'noul', instructions: 'risk' } } },
+    new AbortController().signal,
+  )
+}
+
 describe('M98 J2 host posture and status', () => {
   it.each(['remote', 'container', 'wsl', 'unknown'] as const)(
     'refuses %s before writing even metadata',
@@ -67,22 +90,15 @@ describe('M98 J2 host posture and status', () => {
       const endpoint = `http://127.0.0.1:${String(address.port)}`
       const config = verifiedConfig(endpoint)
       const peerHelperCalls: unknown[] = []
-      const deps: LocalJudgeHostDependencies = {
-        configuration: () => config,
+      const deps = hostDependencies(config, {
         nativeScope: () => scope,
         peerHelper: () => {
           peerHelperCalls.push(true)
           return Promise.resolve('unused')
         },
-        runtimeInstallation: () => undefined,
-        chatPrompt: () => ({ system: 'test', user: 'test' }),
-        measureTokens: () => 1,
-      }
+      })
       try {
-        const result = await createHostLocalJudge(deps).judge(
-          { state: 'private-state', questions: { risk: { type: 'noul', instructions: 'risk' } } },
-          new AbortController().signal,
-        )
+        const result = await judgeRisk(deps)
         expect(result).toEqual({ outcome: 'no-answer', reason: 'local-unverified' })
         expect(peerHelperCalls).toHaveLength(0)
         expect(requests).toBe(0)
@@ -115,9 +131,7 @@ describe.skipIf(process.platform !== 'darwin')(
       const address = listener.address()
       if (!address || typeof address === 'string') throw new Error('missing host test socket')
       const config = verifiedConfig(`http://127.0.0.1:${String(address.port)}`)
-      const deps: LocalJudgeHostDependencies = {
-        configuration: () => config,
-        nativeScope: () => 'native',
+      const deps = hostDependencies(config, {
         posixRuntimeInstallation: () => ({
           platform: 'darwin',
           executable: '/unused',
@@ -130,15 +144,9 @@ describe.skipIf(process.platform !== 'darwin')(
             { packageRoot: product, storageRoot: path.join(product, 'storage') },
             platform,
           ),
-        runtimeInstallation: () => undefined,
-        chatPrompt: () => ({ system: 'test', user: 'test' }),
-        measureTokens: () => 1,
-      }
+      })
       try {
-        const result = await createHostLocalJudge(deps).judge(
-          { state: 'private-state', questions: { risk: { type: 'noul', instructions: 'risk' } } },
-          new AbortController().signal,
-        )
+        const result = await judgeRisk(deps)
         expect(result).toEqual({ outcome: 'no-answer', reason: 'local-unverified' })
       } finally {
         listener.close()
