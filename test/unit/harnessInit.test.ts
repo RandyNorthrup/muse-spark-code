@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { runInNewContext } from 'node:vm'
+import { Script, runInNewContext } from 'node:vm'
 import { describe, expect, it } from 'vitest'
 import { SETTING_DEFAULTS } from '../../src/shared/constants'
 import { parseHostToWebviewMessage } from '../../src/shared/protocol'
@@ -22,5 +22,21 @@ describe('shared webview harness init', () => {
     expect(parsed.message.settings['estimator.optimize']).toBe(
       SETTING_DEFAULTS['estimator.optimize'],
     )
+  })
+
+  // A merge once dropped a scene's closing brace: the whole classic script
+  // stopped parsing, every harness global vanished, and each browser suite
+  // failed far from the cause (RLF-CIFIXA). Compiling (never running) each
+  // inline script catches that here, with no browser.
+  it('parses every inline script the harness page carries', () => {
+    const html = readFileSync(new URL('../harness/index.html', import.meta.url), 'utf8')
+    const scripts = Array.from(html.matchAll(/<script>([\s\S]*?)<\/script>/g), (match) => match[1]!)
+    expect(scripts.length).toBeGreaterThan(0)
+    for (const [index, source] of scripts.entries()) {
+      expect(
+        () => new Script(source, { filename: `index.html script ${String(index)}` }),
+        `script ${String(index)}`,
+      ).not.toThrow()
+    }
   })
 })
