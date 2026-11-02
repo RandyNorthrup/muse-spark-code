@@ -153,11 +153,14 @@ function isParseFailure(error: unknown): boolean {
   return error instanceof SyntaxError || (error instanceof Error && error.name === '$ZodError')
 }
 
+/**
+The identity port's contract is that any doubt throws: undefined alone
+proves absence. So every Error it (or the shape check on its answer)
+raises leaves the holder unproven dead; only a non-Error throwable,
+which no port here produces, is not a query outcome.
+*/
 function isStartTimeFailure(error: unknown): boolean {
-  return (
-    isFsError(error) ||
-    (error instanceof Error && (error.message.startsWith('lease-') || error.name === '$ZodError'))
-  )
+  return error instanceof Error
 }
 
 function isAbsentAfter(error: unknown, pid: number): boolean {
