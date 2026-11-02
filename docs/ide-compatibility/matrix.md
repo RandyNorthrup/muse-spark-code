@@ -11,9 +11,9 @@ disagreed with the contract.
 
 ## Reference
 
-| Editor  | Version | Status  | Legs | Waiting / need                                                                    | Evidence                                       |
-| ------- | ------- | ------- | ---- | --------------------------------------------------------------------------------- | ---------------------------------------------- |
-| VS Code | —       | Pending | —    | MHP_CONFORMANCE_PENDING: vscode observations are absent; run the vscode leg first | [m104-vscode](../certification/m104-vscode.md) |
+| Editor  | Version                          | Status  | Legs           | Waiting / need                                                                                           | Evidence                                       |
+| ------- | -------------------------------- | ------- | -------------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| VS Code | 1.144.0 (stable), 1.99.0 (floor) | Waiting | 9/9 legs green | 13 waits (approval, atomic-edit, checkpoint, conversation, dirty-buffer, session-reload, tab-completion) | [m104-vscode](../certification/m104-vscode.md) |
 
 ## Native
 
