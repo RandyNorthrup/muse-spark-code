@@ -1,0 +1,12 @@
+{
+  "package": "hyprland",
+  "version": "0.55.2+ds-1~bpo13+1",
+  "suite": "trixie-backports",
+  "architectures": ["amd64", "arm64"],
+  "companions": {
+    "hyprland-dev": "0.55.2+ds-1~bpo13+1",
+    "xdg-desktop-portal-hyprland": "1.4.1-1~bpo13+1",
+    "hyprland-protocols": "0.7.1-2~bpo13+1"
+  },
+  "verified": ["0.55.2", "0.57.0"]
+}

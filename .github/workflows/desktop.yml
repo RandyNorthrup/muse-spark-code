@@ -1,4 +1,4 @@
-# Muse Desktop's test rig in CI (M111 lane QA, PLAN.md §6 M111a0): the
+# Muse Desktop's test rig in CI (M111 lanes QA and CP, PLAN.md §6 M111a0): the
 # harness unit suites, the Rust virtual-input driver, the Electron
 # driver against its real fixture, the compositor config check, the
 # review screenshots (for people to look at, never compared), and the
@@ -40,13 +40,34 @@ on:
       - 'src/shared/l10n/**'
       - 'l10n/**'
       - 'design/tokens/**'
+      - 'os/desktop/**'
+      - 'desktop/crates/compositor/**'
+      - 'desktop/shell/theme/hyprland-theme.json'
+      - 'scripts/build-tokens-desktop.mjs'
+      - 'test/fixtures/m111cp/**'
+      - '.github/workflows/desktop.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'os/desktop/**'
+      - 'desktop/crates/compositor/**'
+      - 'desktop/shell/theme/hyprland-theme.json'
+      - 'scripts/build-tokens-desktop.mjs'
+      - 'test/unit/desktop/**'
+      - 'test/fixtures/m111cp/**'
       - '.github/workflows/desktop.yml'
   schedule:
     # Nightly: full legs and review shots in every language.
     - cron: '41 3 * * *'
+    # Weekly: a backports drift that moves the Hyprland pin must go loud.
+    - cron: '23 5 * * 1'
 
 permissions:
   contents: read
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   unit:
@@ -193,6 +214,47 @@ jobs:
             su qa -s /bin/sh -c "export HOME=/home/qa; cd /repo && node scripts/desktop-harness.mjs check --for compositor || true; node scripts/desktop-harness.mjs verify-config --out /tmp/hyprland.lua"
           '
 
+  verify-config:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - leg: pinned
+            image: debian:trixie
+          - leg: verified
+            image: archlinux:latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: install the pinned Hyprland (trixie-backports)
+        if: matrix.leg == 'pinned'
+        run: |
+          echo "deb http://deb.debian.org/debian trixie-backports main" > /etc/apt/sources.list.d/backports.list
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -t trixie-backports hyprland nodejs
+          useradd -m tester
+      - name: install current Hyprland (arch)
+        if: matrix.leg == 'verified'
+        run: |
+          pacman -Syu --noconfirm hyprland nodejs
+          useradd -m tester
+      - name: verify the generated configs
+        # Hyprland refuses superuser (rightly) and aborts without a runtime
+        # dir, even for --version: the check runs as the tester user.
+        run: |
+          mkdir -p /tmp/hl-verify
+          chown tester /tmp/hl-verify
+          if [ "${{ matrix.leg }}" = "pinned" ]; then
+            su tester -s /bin/sh -c 'export XDG_RUNTIME_DIR=/tmp/hl-verify; Hyprland --version && node os/desktop/hyprland/verify-config.mjs --expect-pin'
+          else
+            su tester -s /bin/sh -c 'export XDG_RUNTIME_DIR=/tmp/hl-verify; Hyprland --version && node os/desktop/hyprland/verify-config.mjs'
+          fi
+
   review-shots:
     name: review screenshots
     if: inputs.mode == 'full' || github.event_name != 'workflow_call'
@@ -325,6 +387,7 @@ jobs:
       - rust-supply-chain
       - electron
       - compositor-config
+      - verify-config
       - review-shots
       - qemu-firmware
       - qemu-kernel

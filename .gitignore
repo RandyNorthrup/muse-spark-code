@@ -45,3 +45,5 @@ native/linux/
 # Rust build output (M111 desktop harness)
 test/desktop/harness/virtual-input/target/
 test/desktop/harness/electron-fixture/node_modules/
+# Rust workspace build output (M111 lane CP); the lockfile stays tracked.
+desktop/target/

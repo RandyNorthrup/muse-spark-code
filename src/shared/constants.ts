@@ -12083,3 +12083,11 @@ export const DESKTOP_QUICK_OPEN_SCORES = {
 } as const
 export const DESKTOP_QUICK_OPEN_MAX_RESULTS = 20
 export const DESKTOP_STATUS_HASH_CHARS = 16
+// M111 lane CP (D91.15): live desktop thumbnails capture at most this often,
+// and pause unless the M107 governor reports normal pressure. Mirrors
+// THUMBNAIL_FPS in desktop/crates/compositor/src/port.rs; the desktop suite
+// fails if the two drift apart.
+export const DESKTOP_THUMBNAIL_FPS = 10
+// M111 lane CP (D91.15): where a headed app opens when the person never
+// chose (`desktop.placement`): a new desktop of its own.
+export const DESKTOP_PLACEMENT_DEFAULT = 'new-desktop'
