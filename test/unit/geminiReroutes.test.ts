@@ -7,6 +7,7 @@ import {
   applyGeminiReroute,
   resolveGeminiReroute,
 } from '../../src/core/providers/geminiReroutes'
+import type { NativeModelMetadata } from '../../src/core/providers/modelMetadata'
 import { cataloguePriceCard } from '../../src/core/providers/priceCard'
 import {
   createConfiguredProviderServices,
@@ -17,13 +18,13 @@ const SNAPSHOT = new URL('../../vendor/models-dev/snapshot.json', import.meta.ur
 
 function geminiSection(): {
   fetchedAt: string
-  models: Record<string, { name?: unknown; cost?: unknown }>
+  models: Record<string, NativeModelMetadata>
 } {
   // The sealed snapshot, read as JSON data (the sync's own reader owns
   // its validation; these tests pin the reroute join, not the seal).
   const document = JSON.parse(readFileSync(SNAPSHOT, 'utf8')) as {
     fetchedAt: string
-    providers: Record<string, { models: Record<string, { name?: unknown; cost?: unknown }> }>
+    providers: Record<string, { models: Record<string, NativeModelMetadata> }>
   }
   return { fetchedAt: document.fetchedAt, models: document.providers['gemini']?.models ?? {} }
 }
@@ -72,6 +73,7 @@ describe('Gemini reroutes', () => {
     const active = applyGeminiReroute(models, 'gemini-3.5-flash', fetchedAt)
     expect(active.row).toMatchObject({ id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash' })
     expect(active.reroute).toEqual({
+      requested: 'gemini-3.5-flash',
       serves: 'gemini-3.6-flash',
       servesLabel: 'Gemini 3.6 Flash',
       active: true,
@@ -79,6 +81,7 @@ describe('Gemini reroutes', () => {
     const future = applyGeminiReroute(models, 'gemini-2.5-pro', fetchedAt)
     expect(future.row).toBeUndefined()
     expect(future.reroute).toEqual({
+      requested: 'gemini-2.5-pro',
       serves: 'gemini-3.8-flash',
       servesLabel: 'Gemini 3.8 Flash',
       active: false,
@@ -93,8 +96,8 @@ describe('Gemini reroutes', () => {
   it('prices an active reroute as the serving model', () => {
     const { models } = geminiSection()
     const { row } = applyGeminiReroute(models, 'gemini-3.5-flash', '2026-11-02')
-    const served = cataloguePriceCard('gemini', row?.cost)
-    const stale = cataloguePriceCard('gemini', models['gemini-3.5-flash']?.cost)
+    const served = cataloguePriceCard('gemini', row?.['cost'])
+    const stale = cataloguePriceCard('gemini', models['gemini-3.5-flash']?.['cost'])
     if (served === undefined || stale === undefined) throw new Error('expected priced cards')
     // Cards price per token: the serving row at $0.75/$3.75 per million
     // against the stale requested row at $1.50/$9.
@@ -137,6 +140,7 @@ describe('Gemini reroutes', () => {
     expect(rerouted?.inputUsdPerMTokens).toBe(0.75)
     expect(rerouted?.outputUsdPerMTokens).toBe(3.75)
     expect(rerouted?.reroute).toEqual({
+      requested: 'gemini-3.5-flash',
       serves: 'gemini-3.6-flash',
       servesLabel: 'Gemini 3.6 Flash',
       active: true,
@@ -145,13 +149,18 @@ describe('Gemini reroutes', () => {
     expect(future?.displayLabel).toBe('Gemini 2.5 Pro')
     expect(future?.inputUsdPerMTokens).toBe(1.25)
     expect(future?.reroute).toEqual({
+      requested: 'gemini-2.5-pro',
       serves: 'gemini-3.8-flash',
       servesLabel: 'Gemini 3.8 Flash',
       active: false,
       from: '2026-12-01',
     })
     const lite = rows.find((row) => row.modelId === 'gemini/gemini-2.5-flash')
-    expect(lite?.reroute).toMatchObject({ serves: 'gemini-3.5-flash-lite', active: false })
+    expect(lite?.reroute).toMatchObject({
+      requested: 'gemini-2.5-flash',
+      serves: 'gemini-3.5-flash-lite',
+      active: false,
+    })
   })
 
   it('labels scan rows as the serving model with the reroute named', () => {
@@ -160,6 +169,7 @@ describe('Gemini reroutes', () => {
     ).toBe('models/gemini-2.5-flash')
     expect(
       rerouteScanLabel('gemini-3.5-flash', 'models/gemini-3.5-flash', 'Gemini 3.5 Flash', {
+        requested: 'gemini-3.5-flash',
         serves: 'gemini-3.6-flash',
         servesLabel: 'Gemini 3.6 Flash',
         active: true,
@@ -167,6 +177,7 @@ describe('Gemini reroutes', () => {
     ).toBe('Gemini 3.6 Flash (gemini-3.5-flash)')
     expect(
       rerouteScanLabel('gemini-2.5-pro', 'models/gemini-2.5-pro', 'Gemini 2.5 Pro', {
+        requested: 'gemini-2.5-pro',
         serves: 'gemini-3.8-flash',
         servesLabel: 'Gemini 3.8 Flash',
         active: false,
