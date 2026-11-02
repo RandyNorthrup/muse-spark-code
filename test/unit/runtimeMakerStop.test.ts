@@ -293,11 +293,33 @@ describe('independent runtime Stop', () => {
           JSON.stringify(claim.record),
         )
         expect(await lease.processStartTime(claim.record.pid)).toBe(claim.record.startedAt)
-        // Through the same stopRuntimeMachines the entry calls, like every
-        // sibling: the CLI entry hard-wires the production LAN policy, which
-        // refuses the loopback simulator, so the registered printer can only
-        // stop through the fixture's LAN.
-        await expect(stopRuntimeMachines(f.deps)).rejects.toThrow(devicesFailed())
+        // Through the CLI entry with the fixture's LAN: the entry takes the
+        // LAN policy its deps carry (CC-WINFIX2), so the registered printer
+        // stops and only the unconfirmable owner fails the run.
+        const command = parseMakerCommand(['stop-machine', '--all'])
+        if (command === undefined) throw new Error('command')
+        const printed: string[] = []
+        const failures: string[] = []
+        expect(
+          await runRuntimeMaker(command, {
+            ...f.deps,
+            workspace: f.root,
+            distDirectory: '',
+            env: process.env,
+            readSecret: () => Promise.resolve(undefined),
+            print: (line) => {
+              printed.push(line)
+            },
+            reportFailure: (line) => {
+              failures.push(line)
+            },
+            done: new AbortController().signal,
+            table: EN,
+            locale: 'en',
+          }),
+        ).toBe(1)
+        expect(failures).toEqual([devicesFailed()])
+        expect(printed).not.toContain(UI_TEXT.makerSoftwareStopWarning)
         expect(f.stops()).toHaveLength(1)
         expect(stops).toBe(0)
       } finally {
