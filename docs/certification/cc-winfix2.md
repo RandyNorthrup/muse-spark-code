@@ -29,8 +29,8 @@ PSModuleAnalysisCachePath (speedup first powershell invocation by 20s)`, set mac
   and more into Windows PowerShell's Program Files folder. The run's log names the image: Windows Server 2025,
   `windows-2025-vs2026`, release 20261021.278.
 - **Why every start pays.** A cmdlet not yet loaded is found by module auto-loading, which analyses every module on the
-  path unless a cache is reached, and a short process exits before it saves what it learned. Here a saved cache took a
-  process that lived past about 8 s.
+  path unless a cache is reached, and a short process exits before it saves what it learned. Here one process that slept
+  9 s after its search saved nothing, and two others saved within 12 s.
 - **The riddle CC-CIFIXW left.** `projectIoWindows`' module path looked the smallest of all, yet it stalled. 5.1 adds Program
   Files' folder to any path it is given:
 
@@ -56,13 +56,13 @@ commands, so a warm cache stays small (64,850 bytes) as the hosted one does. One
 `windowsPowerShellModulePath` at the folder with a temporary edit, restored byte-exact by hash and never committed. The
 first simulation run, before that was found, made nothing heavy and measured nothing; it is not counted below.
 
-| State                                                                   | Result                                                                                                        |
-| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| The reader with `Add-Type`, no cache reached                            | 2 of 2 cases killed at the 10 s bound, exit 1: what the hosted log shows                                      |
-| The reader through the CLR, the same shape                              | 30 passed, 1 skipped, exit 0; 19.8 s for the file                                                             |
-| The guard with `ConvertTo-Json` again, the agent carrying no variable   | **6 of 7 red, `refuses widening` 41,937 ms** against the hosted log's 48,147 ms, exit 1 (drill C1)            |
-| Cause C's suites as committed, warm variable in the parent              | 7 files, 121 passed, 1 skipped, exit 0; `refuses widening` 2,218 ms; the same durations as without the weight |
-| The runtime maker and hardware suites, their narrow fixture env weighty | 12 files, 215 passed, 2 skipped, no stall; the one red was the file-link `EPERM` of section 6, fixed since    |
+| State                                                                    | Result                                                                                                        |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| The reader with `Add-Type`, no cache reached                             | 2 of 2 cases killed at the 10 s bound, exit 1: what the hosted log shows                                      |
+| The reader through the CLR, the same shape                               | 30 passed, 1 skipped, exit 0; 19.8 s for the file                                                             |
+| The guard with `ConvertTo-Json` again, the agent carrying no variable    | **6 of 7 red, `refuses widening` 41,937 ms** against the hosted log's 48,147 ms, exit 1 (drill C1)            |
+| Cause C's suites, warm variable in the parent, before section 4's change | 7 files, 121 passed, 1 skipped, exit 0; `refuses widening` 2,218 ms; the same durations as without the weight |
+| The runtime maker and hardware suites, their narrow fixture env weighty  | 12 files, 215 passed, 2 skipped, no stall; the one red was the file-link `EPERM` of section 6, fixed since    |
 
 **What this cannot show.** A start with no module path at all (`{}`, `{ PATH }`) reads the real Program Files, so those
 shapes are not heavy here. By reading, none of these suites has a cmdlet left under such a start. The log never prints
@@ -176,7 +176,7 @@ Node 22.23.4, on `81e8820e25` (this record's commit adds only documents):
 
 That last row: **39 files, 672 passed, 9 skipped.** It includes what RLF-CIFIXA fixed for Windows too (`teamEnginePorts`,
 `teamLandingKilled`, `teamLandingPause`, `acpServeHandshake`, `providerSpend`, `nodeImageArchive`, `devicesPhase2Harness`). The
-skips: `osImageBuild` 3 and `nodeImageArchive` 2 (named tool skips), `runtimeMakerStop` 1 (POSIX only), `nodeOsMuseSetup` 1, and
+skips: `osImageBuild` 3 and `nodeImageArchive` 2 (existing named skips), `runtimeMakerStop` 1 (POSIX only), `nodeOsMuseSetup` 1, and
 one file-link case each in `projectKinds` and `runtimeMakerHost`, with `makerLease`'s left out of its list here.
 
 Not run: the whole unit suite, the packed product's real-life run (it spends money, and the brief makes no provider request)
