@@ -3497,6 +3497,8 @@
   "unpinConstraintLabel": "Sabitlenen kısıtı kaldır: {constraint}",
   "pinnedConstraintRemoved": "Sabitlenen kısıt kaldırıldı: {constraint}",
   "pinnedConstraintsUnsupported": "Sabitlenen kısıtlar bu arka uçta kullanılamıyor.",
+  "pinnedConstraintsName": "Sabitlenen kısıtlar",
+  "referencePinnedConstraints": "Belirttiğiniz yan kısıtlar, sıkıştırma sonrasında kelimesi kelimesine korunur; bunları sıkıştırma kartında görebilir ve herhangi birinin sabitini kaldırabilirsiniz.",
   "referenceManualCompaction": "Konuşmayı /compact ile özetleyin ve son mesajları değiştirmeden koruyun.",
   "autoCompactionName": "Otomatik sıkıştırma",
   "paidConfirmAutoCompaction": "Otomatik sıkıştırma, seçilen modeli {price} fiyatıyla kullanır. Abonelik bu ücreti karşılamaz.",

@@ -4287,6 +4287,9 @@ export const EN = {
   unpinConstraintLabel: 'Unpin the pinned constraint: {constraint}',
   pinnedConstraintRemoved: 'Pinned constraint removed: {constraint}',
   pinnedConstraintsUnsupported: 'Pinned constraints are not available on this backend.',
+  pinnedConstraintsName: 'Pinned constraints',
+  referencePinnedConstraints:
+    'Side constraints you state are carried word for word past compaction; see them on the compaction card and unpin any of them.',
   referenceManualCompaction:
     'Summarize the conversation with /compact and keep recent turns verbatim.',
   autoCompactionName: 'Automatic compaction',

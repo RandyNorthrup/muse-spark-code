@@ -3625,6 +3625,8 @@
   "unpinConstraintLabel": "Odepnout připnuté omezení: {constraint}",
   "pinnedConstraintRemoved": "Připnuté omezení odebráno: {constraint}",
   "pinnedConstraintsUnsupported": "Připnutá omezení nejsou na tomto backendu k dispozici.",
+  "pinnedConstraintsName": "Připnutá omezení",
+  "referencePinnedConstraints": "Vedlejší omezení, která uvedete, se přenášejí slovo od slova přes kompakci; najdete je na kartě kompakce a kterékoli můžete odepnout.",
   "referenceManualCompaction": "Shrňte konverzaci pomocí /compact a zachovejte poslední výměny beze změny.",
   "autoCompactionName": "Automatická kompakce",
   "paidConfirmAutoCompaction": "Automatické zhuštění používá vybraný model za {price}. Předplatné tuto službu nehradí.",

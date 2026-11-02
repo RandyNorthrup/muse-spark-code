@@ -3561,6 +3561,8 @@
   "unpinConstraintLabel": "Désépingler la contrainte épinglée : {constraint}",
   "pinnedConstraintRemoved": "Contrainte épinglée retirée : {constraint}",
   "pinnedConstraintsUnsupported": "Les contraintes épinglées ne sont pas disponibles sur ce backend.",
+  "pinnedConstraintsName": "Contraintes épinglées",
+  "referencePinnedConstraints": "Les contraintes secondaires que vous énoncez sont conservées mot pour mot malgré le compactage ; retrouvez-les sur la carte de compactage et désépinglez-en n’importe laquelle.",
   "referenceManualCompaction": "Résumez la conversation avec /compact et conservez les échanges récents tels quels.",
   "autoCompactionName": "Compaction automatique",
   "paidConfirmAutoCompaction": "La compression automatique utilise le modèle sélectionné au tarif de {price}. L’abonnement ne couvre pas ce coût.",

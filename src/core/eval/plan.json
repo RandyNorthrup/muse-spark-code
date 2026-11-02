@@ -13,6 +13,26 @@
       "callBudget": 14
     },
     {
+      "id": "accept-pinned-var-long-compaction",
+      "measuredAttempts": [0, 0, 0, 0],
+      "callBudget": 14
+    },
+    {
+      "id": "accept-pinned-file-long-compaction",
+      "measuredAttempts": [0, 0, 0, 0],
+      "callBudget": 14
+    },
+    {
+      "id": "heldout-pinned-interval-long-compaction",
+      "measuredAttempts": [0, 0, 0, 0],
+      "callBudget": 14
+    },
+    {
+      "id": "heldout-pinned-exports-long-compaction",
+      "measuredAttempts": [0, 0, 0, 0],
+      "callBudget": 14
+    },
+    {
       "id": "accept-long-middle-value",
       "measuredAttempts": [9, 6, 6, 6],
       "callBudget": 14

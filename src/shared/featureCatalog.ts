@@ -787,6 +787,17 @@ export function featureCatalog(): readonly Feature[] {
       details: [{ setting: 'modelApiAutoCompaction' }],
     },
     feature(
+      'pinned-constraints',
+      { ui: 'pinnedConstraintsName' },
+      { ui: 'referencePinnedConstraints' },
+      [],
+      [],
+      'agent-loop-guarantees',
+      ['modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
       'argument-preview',
       { ui: 'toolArgumentPreviewLabel' },
       { ui: 'toolArgumentPreviewDescription' },

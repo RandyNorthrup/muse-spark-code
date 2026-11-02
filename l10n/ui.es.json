@@ -3561,6 +3561,8 @@
   "unpinConstraintLabel": "Desfijar la restricción fijada: {constraint}",
   "pinnedConstraintRemoved": "Restricción fijada eliminada: {constraint}",
   "pinnedConstraintsUnsupported": "Las restricciones fijadas no están disponibles en este backend.",
+  "pinnedConstraintsName": "Restricciones fijadas",
+  "referencePinnedConstraints": "Las restricciones secundarias que indiques se conservan palabra por palabra tras la compactación; míralas en la tarjeta de compactación y desfija cualquiera de ellas.",
   "referenceManualCompaction": "Resume la conversación con /compact y conserva los turnos recientes sin cambios.",
   "autoCompactionName": "Compactación automática",
   "paidConfirmAutoCompaction": "La compactación automática utiliza el modelo seleccionado a {price}. La suscripción no cubre este coste.",

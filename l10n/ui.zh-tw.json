@@ -3433,6 +3433,8 @@
   "unpinConstraintLabel": "取消釘選此約束：{constraint}",
   "pinnedConstraintRemoved": "已移除釘選的約束：{constraint}",
   "pinnedConstraintsUnsupported": "此後端不支援釘選的約束。",
+  "pinnedConstraintsName": "釘選的約束",
+  "referencePinnedConstraints": "你提出的附加約束會一字不差地跨壓縮保留；在壓縮卡片上查看它們，並可取消釘選其中任何一條。",
   "referenceManualCompaction": "使用 /compact 摘要對話，並原樣保留最近的回合。",
   "autoCompactionName": "自動壓縮",
   "paidConfirmAutoCompaction": "自動壓縮以 {price} 的費率使用所選模型。訂閱不承擔此費用。",

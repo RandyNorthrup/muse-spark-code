@@ -327,11 +327,23 @@ function sum(results: readonly EvalTaskResult[], pick: (result: EvalTaskResult) 
 function summarize(split: EvalSplit, results: readonly EvalTaskResult[]): EvalSplitSummary {
   const sliced = results.filter((result) => result.split === split)
   const passed = sliced.filter((result) => result.passed).length
+  // RLF-PINNED: the constraint-kept rate over this split's side-constraint
+  // tasks; their verifiers assert the stated rule, so a pass kept it.
+  const constraintIds = new Set(
+    EVAL_TASKS.filter((task) => task.isSideConstraint === true).map((task) => task.id),
+  )
+  const constraintResults = sliced.filter((result) => constraintIds.has(result.taskId))
+  const constraintKept = constraintResults.filter((result) => result.passed).length
   return {
     split,
     tasks: sliced.length,
     passed,
     passRate: sliced.length === 0 ? 0 : passed / sliced.length,
+    ...(constraintResults.length > 0 && {
+      constraintTasks: constraintResults.length,
+      constraintKept,
+      constraintKeptRate: constraintKept / constraintResults.length,
+    }),
     attempts: sum(sliced, (result) => result.attempts),
     requests: sum(sliced, (result) => result.requests),
     inputTokens: sum(sliced, (result) => result.inputTokens),

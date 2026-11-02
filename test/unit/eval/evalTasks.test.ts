@@ -83,16 +83,26 @@ function probeTask(verify: string, files = [{ path: 'a.js', content: 'export con
 }
 
 describe('eval task set', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, () => {
-  it('holds nine accept and seven held-out tasks: a long output, a long context and a multi-edit per split (M73, M101)', () => {
-    expect(evalTasksOfSplit('accept')).toHaveLength(9)
-    expect(evalTasksOfSplit('heldout')).toHaveLength(7)
-    expect(EVAL_TASKS).toHaveLength(16)
+  it('holds eleven accept and nine held-out tasks: a long output, long contexts and a multi-edit per split (M73, M101, RLF-PINNED)', () => {
+    expect(evalTasksOfSplit('accept')).toHaveLength(11)
+    expect(evalTasksOfSplit('heldout')).toHaveLength(9)
+    expect(EVAL_TASKS).toHaveLength(20)
     expect(
       EVAL_TASKS.filter((task) => task.isLongOutput === true).map((task) => task.split),
     ).toEqual(['accept', 'heldout'])
     expect(EVAL_TASKS.filter((task) => task.isLongContext === true).map((task) => task.id)).toEqual(
-      ['accept-long-compaction', 'heldout-long-compaction'],
+      [
+        'accept-long-compaction',
+        'heldout-long-compaction',
+        'accept-pinned-var-long-compaction',
+        'accept-pinned-file-long-compaction',
+        'heldout-pinned-interval-long-compaction',
+        'heldout-pinned-exports-long-compaction',
+      ],
     )
+    expect(
+      EVAL_TASKS.filter((task) => task.isSideConstraint === true).map((task) => task.split),
+    ).toEqual(['accept', 'accept', 'heldout', 'heldout'])
   })
 
   it('has unique ids, complete definitions and safe paths', () => {
