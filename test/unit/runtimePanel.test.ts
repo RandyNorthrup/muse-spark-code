@@ -234,6 +234,12 @@ describe('panel --stdio', () => {
   it('refuses to start without a transport', async () => {
     const host = serve(['panel'])
     expect(await host.exited).toBe(2)
-    expect(host.stderr()).toContain(EN.hostService.needsStdio)
+    expect(host.stderr()).toContain(EN.hostService.needsTransport)
+  })
+
+  it('refuses to start with both transports', async () => {
+    const host = serve(['panel', '--stdio', '--companion'])
+    expect(await host.exited).toBe(2)
+    expect(host.stderr()).toContain(EN.hostService.needsTransport)
   })
 })

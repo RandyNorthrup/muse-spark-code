@@ -61,11 +61,12 @@ import {
   CONNECTOR_BUNDLE_FILE,
   LSP_BUNDLE_FILE,
   RUNTIME_PANEL_BUNDLE_FILE,
+  RUNTIME_PANEL_COMPANION_BUNDLE_FILE,
   MODEL_API_BASE_URL,
   MODEL_API_BUNDLE_FILE,
   SUPERVISE_BUNDLE_FILE,
   CONNECTOR_REMOTE_BUNDLE_FILE,
-  USAGE_PAGE_OPEN_TIMEOUT_MS,
+  COMPANION_PAGE_OPEN_TIMEOUT_MS,
   CONNECTOR_FOLDER,
   CONNECTOR_STORE_GUARD_BUNDLE_FILE,
   NODE_BUNDLE_FILE,
@@ -162,7 +163,8 @@ import { runSecretScan } from './exec/scanSecrets'
 import { loadLegalScanner } from './legal/legalScanner'
 import { runLegalCommand } from './legal/runLegal'
 
-import { lazyUsageAdapter, usageCompanionUrl, type UsageAdapter } from './usage/usageAdapter'
+import { lazyUsageAdapter, type UsageAdapter } from './usage/usageAdapter'
+import { companionLaunchUrl } from './companion/launchUrl'
 
 import {
   createUsageRecording,
@@ -198,7 +200,8 @@ import type { createRuntimeReports } from './reporting/reportsEntry'
 import { runtimeSchedulesBinding, type RuntimeSchedulesBinding } from './schedules/binding'
 import { connectorLoader } from './connector/connectorBundle'
 import { lspLoader } from './lsp/lspBundle'
-import { panelLoader } from './panel/panelBundle'
+import { panelCompanionLoader, panelLoader } from './panel/panelBundle'
+import type { PanelRuntimeDeps } from './panel/panelEntry'
 import { superviseLoader } from './supervise/superviseBundle'
 import { connectorRemoteLoader } from './connector/remoteBundle'
 import { storageGuardLoader } from './connector/storageGuardBundle'
@@ -1405,8 +1408,7 @@ function usageFor(
   })
 }
 
-async function openUsageBrowser(input: string): Promise<void> {
-  const url = usageCompanionUrl(input)
+async function openOsBrowser(url: string, timeoutMs: number): Promise<void> {
   let executable = 'xdg-open'
   if (process.platform === 'darwin') executable = 'open'
   else if (process.platform === 'win32') executable = 'rundll32.exe'
@@ -1420,13 +1422,21 @@ async function openUsageBrowser(input: string): Promise<void> {
       env: process.env,
       workspaceRoot: process.cwd(),
       ...(process.platform === 'linux' && { until: 'spawn' as const }),
-      timeoutMs: USAGE_PAGE_OPEN_TIMEOUT_MS,
+      timeoutMs,
     })
   } catch (error: unknown) {
     if (isResourcePaused(error)) throw error
     // Opener output goes to the null device; only fixed words are reported.
     throw new Error(UI_TEXT.actionFailed, { cause: error })
   }
+}
+
+async function openUsageBrowser(input: string): Promise<void> {
+  await openOsBrowser(companionLaunchUrl(input), COMPANION_PAGE_OPEN_TIMEOUT_MS)
+}
+
+async function openPanelBrowser(input: string): Promise<void> {
+  await openOsBrowser(companionLaunchUrl(input), COMPANION_PAGE_OPEN_TIMEOUT_MS)
 }
 
 function runtimeRecording(
@@ -2824,31 +2834,40 @@ async function main(processResources: ProcessResources): Promise<number> {
       return await runLanguageServer(command.options, log)
     }
     case 'panel': {
-      // M104 lane B: dist/runtimePanel.js serves one MHP host on standard I/O.
-      return await panelLoader(path.join(distDir, RUNTIME_PANEL_BUNDLE_FILE), log)().runPanel(
-        command.options,
-        {
-          stdin: process.stdin,
-          stdout: process.stdout,
-          table: UI_TEXT,
-          locale: uiLocale(),
-          log,
-          dataFolder: agentDataFolder({
-            platform: process.platform,
-            env: process.env,
-            homeDir: homedir(),
-          }),
-          distDir,
-          createRuntime: (serveOptions, questions, unsavedFiles) =>
-            runtimeFor(serveOptions, log, questions, undefined, unsavedFiles),
-          runGit: processGitRunner(),
-          github: {
-            secrets,
-            fetch: globalThis.fetch.bind(globalThis),
-            userAgent: `${EXTENSION_NAME}/${packageVersion()}`,
-          },
+      // M104 lanes B and C: dist/runtimePanel.js serves one MHP host on
+      // standard I/O; dist/runtimePanelCompanion.js serves one browser window.
+      const panelDeps: PanelRuntimeDeps = {
+        stdin: process.stdin,
+        stdout: process.stdout,
+        table: UI_TEXT,
+        locale: uiLocale(),
+        log,
+        dataFolder: agentDataFolder({
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+        }),
+        distDir,
+        createRuntime: (serveOptions, questions, unsavedFiles) =>
+          runtimeFor(serveOptions, log, questions, undefined, unsavedFiles),
+        runGit: processGitRunner(),
+        github: {
+          secrets,
+          fetch: globalThis.fetch.bind(globalThis),
+          userAgent: `${EXTENSION_NAME}/${packageVersion()}`,
         },
-      )
+        openBrowser: openPanelBrowser,
+        version: packageVersion(),
+      }
+      return command.options.transport === 'companion'
+        ? await panelCompanionLoader(
+            path.join(distDir, RUNTIME_PANEL_COMPANION_BUNDLE_FILE),
+            log,
+          )().runPanelCompanion(command.options, panelDeps)
+        : await panelLoader(path.join(distDir, RUNTIME_PANEL_BUNDLE_FILE), log)().runPanel(
+            command.options,
+            panelDeps,
+          )
     }
     case 'supervise': {
       return await superviseLoader(path.join(distDir, SUPERVISE_BUNDLE_FILE), log)().runSupervise(

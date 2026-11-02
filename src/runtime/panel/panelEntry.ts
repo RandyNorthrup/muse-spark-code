@@ -44,6 +44,10 @@ export interface PanelRuntimeDeps extends Pick<
   readonly dataFolder: string
   /** The folder holding the shipped bundles (dist/). */
   readonly distDir: string
+  /** M104 lane C: opens the companion window's launch URL in the person's browser. */
+  readonly openBrowser: (url: string) => Promise<void>
+  /** M104 lane C: the agent's own version, for the companion host's handshake. */
+  readonly version: string
 }
 
 /** A store refusal as the MHP failure the host gets: its contract code and the stable message. */
@@ -154,8 +158,28 @@ function readLines(stdin: Readable, onLine: (line: string) => void, onOversized:
   })
 }
 
-/** Serves one host until it shuts down (exit 0) or the connection ends otherwise (exit 1). */
-export async function runPanel(options: PanelOptions, deps: PanelRuntimeDeps): Promise<number> {
+export interface PanelHostHooks {
+  /** The transport stops its own input when the connection ends. */
+  readonly onClosed?: () => void
+}
+
+export interface PanelHost {
+  readonly connection: PanelConnection
+  readonly workspace: string
+  /** Resolves with the process exit code when the connection ends. */
+  readonly closed: Promise<number>
+}
+
+/**
+The store, the connection and the conversations behind every panel
+transport: stdio and the companion window share this host; only the
+bytes differ.
+*/
+export async function createPanelHost(
+  options: Pick<PanelOptions, 'workspace' | 'isVerbose'>,
+  deps: PanelRuntimeDeps,
+  hooks: PanelHostHooks = {},
+): Promise<PanelHost> {
   setUiText(deps.table, deps.locale)
   const { log } = deps
   const workspace = await realpath(path.resolve(options.workspace))
@@ -170,86 +194,102 @@ export async function runPanel(options: PanelOptions, deps: PanelRuntimeDeps): P
     log,
   )
   let session: PanelSession | undefined
-  return await new Promise<number>((resolve) => {
-    const connection: PanelConnection = new PanelConnection(
-      {
-        // The runtime answers the host's handshake and its settings and storage.
-        capabilities: ['lifecycle', 'settings', 'storage'],
-        initialize: async (params, signal) => {
-          await boundWorkspace(params.folders, workspace)
-          signal.throwIfAborted()
-          // The conversations load once the handshake has named the workspace.
-          const created = loadSession().createPanelSession({
-            connection,
-            store,
-            workspace,
-            dataFolder: deps.dataFolder,
-            distDir: deps.distDir,
-            isVerbose: options.isVerbose,
-            createRuntime: deps.createRuntime,
-            runGit: deps.runGit,
-            github: deps.github,
-            log,
-            table: deps.table,
-            locale: deps.locale,
-            stopped: () => {
-              connection.close(true)
-            },
-          })
-          session = created
-          await created.initialize(params, signal)
-        },
-        initialized: () => {
-          session?.initialized()
-        },
-        request: async (method, value) => {
-          try {
-            return await answerState(store, method, value)
-          } catch (error: unknown) {
-            // NARROW: a store refusal answers with its contract code; anything else is reported as failed.
-            if (error instanceof RuntimeStateError) throw stateFailure(error)
-            throw error
-          }
-        },
-        notify: (method, value) => {
-          if (session === undefined) log.warn(`MHP_NOTIFICATION_UNSUPPORTED ${method}`)
-          else session.notify(method, value)
-        },
-        view: (binding) => session?.view(binding),
-        closed: (isFatal) => {
-          // The connection is over, whatever the host still sends: stop
-          // reading, or an open pipe would keep the process alive.
-          deps.stdin.destroy()
-          const code = isFatal ? 1 : 0
-          // The conversations stop first, within the grace Muse Code is given to close (10 s, five times
-          // vscode-languageclient's 2 s for a language server): a backend that hangs must not keep the process alive.
-          const grace = delay(RESOURCE_MUSE_CLOSE_GRACE_MS, undefined, { ref: false })
-          void Promise.race([session?.close(), grace])
-            .catch((error: unknown) => {
-              // REPORTED: a conversation that did not stop cleanly is logged; the process ends anyway.
-              log.warn(`The panel did not stop cleanly: ${failureForLog(error)}`)
-            })
-            .finally(() => {
-              resolve(code)
-            })
-        },
-      },
-      log,
-    )
-    connection.delivery.connect(streamWriter(connection.delivery, deps.stdout))
-    readLines(
-      deps.stdin,
-      (line) => {
-        connection.receive(line)
-      },
-      () => {
-        log.error('MHP_PANEL_TOO_LARGE')
-        connection.close(true)
-      },
-    )
-    deps.stdin.once('end', () => {
-      // The host went away: after shutdown the connection already ended (exit 0).
-      connection.close(!connection.hasShutDown)
-    })
+  let resolveClosed: (code: number) => void
+  // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- Node 20 (VS Code 1.99's host, PLAN.md M62) lacks Promise.withResolvers (PLAN.md §8); the executor assigns the resolver synchronously, so the closed port always settles the host.
+  const closed = new Promise<number>((resolve) => {
+    resolveClosed = resolve
   })
+  const connection: PanelConnection = new PanelConnection(
+    {
+      // The runtime answers the host's handshake and its settings and storage.
+      capabilities: ['lifecycle', 'settings', 'storage'],
+      initialize: async (params, signal) => {
+        await boundWorkspace(params.folders, workspace)
+        signal.throwIfAborted()
+        // The conversations load once the handshake has named the workspace.
+        const created = loadSession().createPanelSession({
+          connection,
+          store,
+          workspace,
+          dataFolder: deps.dataFolder,
+          distDir: deps.distDir,
+          isVerbose: options.isVerbose,
+          createRuntime: deps.createRuntime,
+          runGit: deps.runGit,
+          github: deps.github,
+          log,
+          table: deps.table,
+          locale: deps.locale,
+          stopped: () => {
+            connection.close(true)
+          },
+        })
+        session = created
+        await created.initialize(params, signal)
+      },
+      initialized: () => {
+        session?.initialized()
+      },
+      request: async (method, value) => {
+        try {
+          return await answerState(store, method, value)
+        } catch (error: unknown) {
+          // NARROW: a store refusal answers with its contract code; anything else is reported as failed.
+          if (error instanceof RuntimeStateError) throw stateFailure(error)
+          throw error
+        }
+      },
+      notify: (method, value) => {
+        if (session === undefined) log.warn(`MHP_NOTIFICATION_UNSUPPORTED ${method}`)
+        else session.notify(method, value)
+      },
+      view: (binding) => session?.view(binding),
+      closed: (isFatal) => {
+        // The connection is over, whatever the host still sends: stop
+        // reading, or an open pipe would keep the process alive.
+        hooks.onClosed?.()
+        const code = isFatal ? 1 : 0
+        // The conversations stop first, within the grace Muse Code is given to close (10 s, five times
+        // vscode-languageclient's 2 s for a language server): a backend that hangs must not keep the process alive.
+        const grace = delay(RESOURCE_MUSE_CLOSE_GRACE_MS, undefined, { ref: false })
+        void Promise.race([session?.close(), grace])
+          .catch((error: unknown) => {
+            // REPORTED: a conversation that did not stop cleanly is logged; the process ends anyway.
+            log.warn(`The panel did not stop cleanly: ${failureForLog(error)}`)
+          })
+          .finally(() => {
+            resolveClosed(code)
+          })
+      },
+    },
+    log,
+  )
+  return { connection, workspace, closed }
+}
+
+/** Serves one host until it shuts down (exit 0) or the connection ends otherwise (exit 1). */
+export async function runPanel(options: PanelOptions, deps: PanelRuntimeDeps): Promise<number> {
+  const host = await createPanelHost(options, deps, {
+    onClosed: () => {
+      deps.stdin.destroy()
+    },
+  })
+  const { connection } = host
+  const { log } = deps
+  connection.delivery.connect(streamWriter(connection.delivery, deps.stdout))
+  readLines(
+    deps.stdin,
+    (line) => {
+      connection.receive(line)
+    },
+    () => {
+      log.error('MHP_PANEL_TOO_LARGE')
+      connection.close(true)
+    },
+  )
+  deps.stdin.once('end', () => {
+    // The host went away: after shutdown the connection already ended (exit 0).
+    connection.close(!connection.hasShutDown)
+  })
+  return await host.closed
 }

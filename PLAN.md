@@ -32086,6 +32086,19 @@ harness plus 4 tests are green; those shim suites do not start
 still has no in-editor harness. Peer HTML shown by JetBrains or
 Eclipse is sealed to the host page policy. Record:
 `docs/certification/rvhosts.md`.
+Lane C on int/recovery (RLF-M104LC, 2026-11-01): the companion MHP routes
+(`/panel/message`, `/panel/surface`, `/panel/events`, `/host/message`,
+`/host/events`) on int's companion server, and `panel --companion`, which
+serves the portable panel to a browser window over a one-use launch code
+exchanged for a per-window bearer. The companion's guards (loopback-only
+bind, the window's bearer, Host/Origin/Fetch-Metadata, the panel header,
+size bounds) hold on every route; the page server refuses manifest and
+graph escapes, oversize graphs, unlisted scripts and surfaces the window
+cannot show. Proven by the routes suite over a real server (15), the packed
+suite over the real agent (8), the page-boundary suite (31), companion
+guard unit cases, and the portable page in real Chromium over the real
+routes (2, settling on the honest unsigned state); a red drill for each
+guard. Record: `docs/certification/rlf-m104lc.md`.
 
 **Warning for the POSIX trusted-path verifier (INT0180, 2026-10-11).** A real
 POSIX verifier that refuses a group-writable unit search directory would

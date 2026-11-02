@@ -6376,11 +6376,12 @@ export const ORPHAN_SWEEP_ROUNDS = 5
 // covers admission plus the adapter run.
 export const RESOURCE_HANDOFF_TIMEOUT_MS = 10_000
 /**
-The usage-page opener's own wait bound (D121): the terminal must not wait on
-a stuck OS opener past this; the page, once handed off, is the OS's. Other
-hand-offs name their own deadline, or the safety default above applies.
+The companion-page opener's own wait bound (D121): the terminal must not
+wait on a stuck OS opener past this; the page, once handed off, is the
+OS's. Other hand-offs name their own deadline, or the safety default
+above applies.
 */
-export const USAGE_PAGE_OPEN_TIMEOUT_MS = 10_000
+export const COMPANION_PAGE_OPEN_TIMEOUT_MS = 10_000
 export const OUTPUT_REF_PREFIX = 'tool_patch-'
 // The stored output the transcript can page (`item/readOutput` parity).
 export const MODEL_API_OUTPUT_MEDIA_TYPE = 'application/json'
@@ -7781,6 +7782,8 @@ export const JSON_RPC_ERRORS = {
 export const HTTP_STATUS = {
   ok: 200,
   accepted: 202,
+  /** M104 lane C: the MHP routes answer 204; they return no body. */
+  noContent: 204,
   partialContent: 206,
   /** A 2xx answer ends below this (M95 lane K: the local probe). */
   multipleChoices: 300,
@@ -7789,9 +7792,13 @@ export const HTTP_STATUS = {
   forbidden: 403,
   notFound: 404,
   methodNotAllowed: 405,
+  /** M104 lane C: the MHP sequence and readiness refusals. */
+  conflict: 409,
   requestTooLarge: 413,
   unsupportedMediaType: 415,
   unprocessable: 422,
+  /** M104 lane C: MHP's backpressure refusal. */
+  tooManyRequests: 429,
   internalServerError: 500,
   serviceUnavailable: 503,
 } as const
@@ -11757,6 +11764,8 @@ export const LSP_BUNDLE_FILE = 'lsp.js'
 export const SUPERVISE_BUNDLE_FILE = 'supervise.js'
 // M104 lane B: the runtime panel, loaded only by `panel`.
 export const RUNTIME_PANEL_BUNDLE_FILE = 'runtimePanel.js'
+// M104 lane C: the panel's loopback browser companion, loaded only by `panel --companion`.
+export const RUNTIME_PANEL_COMPANION_BUNDLE_FILE = 'runtimePanelCompanion.js'
 // Its conversations (the controller's host, the backend and the editor's ports), loaded when the handshake is done.
 export const RUNTIME_PANEL_SESSION_BUNDLE_FILE = 'runtimePanelSession.js'
 // Its heavier ports (saved plans), required the first time one is used.
@@ -11929,6 +11938,28 @@ export const CONNECTOR_REMOTE_PATHS = {
 /** The one account every sign-in belongs to: the person at this PC. */
 export const CONNECTOR_REMOTE_OWNER_ACCOUNT = 'owner'
 
+/**
+M104 lane C: `panel --companion` serves the portable panel over the
+companion server's MHP routes. The body and stream bounds are the MHP
+contract's own (an envelope is refused before it is parsed); the timeouts
+follow the companion family (the connector's idle and code TTLs, RLM104's
+panel request timeout); a panel window outlives a glance, so its bearer
+lives a day (RLM104's panel session TTL); one window is live at a time,
+with room for its replacement arriving (the connector's shape).
+*/
+export const PANEL_COMPANION_LIMITS = {
+  /** MHP's envelope bound. */
+  maxBodyBytes: MHP_PANEL.maximumEnvelopeBytes,
+  /** MHP's queue bound. */
+  maxEventBytes: MHP_PANEL.maximumQueuedBytes,
+  requestTimeoutMs: 30_000,
+  /** 30 minutes. */
+  idleTimeoutMs: 1_800_000,
+  launchCodeTtlMs: 120_000,
+  /** 24 hours. */
+  sessionTtlMs: 86_400_000,
+  maxSessions: 2,
+} as const
 export const CONNECTOR_FOLDER = 'connector'
 export const CONNECTOR_FILE_MODE = 0o600
 export const CONNECTOR_FOLDER_MODE = 0o700
