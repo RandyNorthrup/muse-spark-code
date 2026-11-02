@@ -31331,6 +31331,20 @@ process starts stand in int's spawn inventory. The VS Code maker host, its
 commands and the preview panel have no activation caller on the lane's tip or
 on int: open in the record. Record: `docs/certification/cc-int6.md`.
 
+**Status 2026-11-02 (Windows inventory, CC-CIFIXW on `cc/cifixw`): building.**
+Design 5's "Windows discovery conservatively latches and refuses agent shells
+until independently qualified" made every Windows machine a hardware workspace:
+every Model API shell command refused and every Muse Code turn refused (hosted
+run 41214393586, seven suites). Windows now reads its serial ports from
+`HKLM\HARDWARE\DEVICEMAP\SERIALCOMM` through System32's `reg.exe`, opening no
+port. The machine's own UART and Bluetooth's virtual ports are no board; any
+other driver's name is. A failed read stays unknown and refuses, as a missing
+`/dev` does elsewhere, and an unknown inventory is no positive evidence. Open:
+no USB board has been attached to this reader
+(`docs/real-life/unproven.md`), Windows mass-storage boards are not read
+(`boardRoots` stays empty), and a board swapped on one port keeps its
+`connectionId`. Record: `docs/certification/cc-cifixw.md`.
+
 **Q-M103a–h resolved 2026-10-05 (lead, under the owner's standing
 authorization: "any recommendation you come up with you are authorized").**
 (a) Plain HTTP on the LAN only for a machine the user registered by command,

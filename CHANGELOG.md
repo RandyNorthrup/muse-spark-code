@@ -401,6 +401,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Windows machines no longer read as hardware workspaces. Discovery there
+  answered "unknown" every time, which refused every shell command on the
+  Model API and every turn on Muse Code. Windows now reads its serial ports
+  from the registry without opening one, and the machine's own port and
+  Bluetooth's virtual ports are no board.
+- Maker storage accepts a folder spelled through an 8.3 name or another letter
+  case. A link anywhere on the path still refuses it.
+- Maker project detection on Windows treats a folder named like a marker as
+  nothing to read, instead of failing on an empty answer.
+- The connector's storage check starts faster on Windows, and no longer depends
+  on PowerShell's module cache: its JSON goes through .NET, not a cmdlet.
 - A vault policy that is a link, that another account can read, or that has
   a second name is ignored, and saving a policy can no longer be aimed at
   another file. The ceiling stays "none" and the refusal is the same words
