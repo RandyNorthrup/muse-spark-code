@@ -1,6 +1,8 @@
 // E3's validated MHP attachment-method projection. M104 lane 0 supplies the
 // outer RPC envelope and native bridges; no browser reads a native file here.
 import * as z from 'zod/mini'
+import { errorNameForLog } from '../../core/logging'
+import type { Logger } from '../../host/logger'
 import { UI_TEXT } from '../../shared/constants'
 import {
   attachmentsAttachParamsSchema,
@@ -63,6 +65,7 @@ export class NativeAttachmentRefusal extends Error {
 export function nativeAttachments(
   port: NativeAttachmentPort,
   context: NativeAttachmentContext,
+  log?: Logger,
 ): (request: unknown) => Promise<AttachmentsResult> {
   let tail = Promise.resolve()
   return async (raw) => {
@@ -111,11 +114,9 @@ export function nativeAttachments(
     try {
       return { ok: true, value: await pending }
     } catch (error: unknown) {
-      return {
-        ok: false,
-        reason:
-          error instanceof NativeAttachmentRefusal ? error.message : UI_TEXT.attachmentUnreadable,
-      }
+      if (error instanceof NativeAttachmentRefusal) return { ok: false, reason: error.message }
+      log?.error(`NATIVE_ATTACHMENT_FAILED: ${errorNameForLog(error)}`)
+      return { ok: false, reason: UI_TEXT.attachmentUnreadable }
     }
   }
 }

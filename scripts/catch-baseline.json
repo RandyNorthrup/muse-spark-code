@@ -23,7 +23,7 @@
     },
     "runtime": {
       "SWALLOW": 30,
-      "GENERIC": 168,
+      "GENERIC": 167,
       "CLEANUP": 130
     },
     "shared": {
@@ -3997,11 +3997,6 @@
       "file": "src/runtime/companion/nativeAttachments.ts",
       "identity": "08fdc73c1af9289ab9cced6f3139eb9c2441f423493faf2cb04117af3774b6e6",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/runtime/companion/nativeAttachments.ts",
-      "identity": "b20a94cebd27ae1ae0ec8442c5e42ff1d9252b3921f8b7f7e557f336a15977d0",
-      "class": "GENERIC"
     },
     {
       "file": "src/runtime/companion/server.ts",

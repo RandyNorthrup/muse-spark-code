@@ -6,6 +6,7 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { FileAccess, PickedFile } from '../../host/conversation/conversationController'
+import { errorNameForLog } from '../../core/logging'
 import type { Logger } from '../../host/logger'
 import { mediaBundleLoader } from '../../host/media/mediaBundle'
 import {
@@ -185,7 +186,10 @@ export function createPanelMedia(options: PanelMediaOptions): {
       let fsPath: string
       try {
         fsPath = fileURLToPath(uri)
-      } catch {
+      } catch (error: unknown) {
+        if (error instanceof TypeError)
+          throw new NativeAttachmentRefusal(UI_TEXT.attachmentUnreadable)
+        options.log.error(`MHP_ATTACH_PICK_FAILED: ${errorNameForLog(error)}`)
         throw new NativeAttachmentRefusal(UI_TEXT.attachmentUnreadable)
       }
       return {
@@ -230,13 +234,17 @@ export function createPanelMedia(options: PanelMediaOptions): {
       ),
   }
   return {
-    dispatch: nativeAttachments(portCalls, {
-      isCurrent: options.isCurrent,
-      // Every call arrives over the panel's own bridge, which only the
-      // interactive host drives; tools and headless callers have no route
-      // here, and recording refuses regardless.
-      isInteractiveUser: () => true,
-    }),
+    dispatch: nativeAttachments(
+      portCalls,
+      {
+        isCurrent: options.isCurrent,
+        // Every call arrives over the panel's own bridge, which only the
+        // interactive host drives; tools and headless callers have no route
+        // here, and recording refuses regardless.
+        isInteractiveUser: () => true,
+      },
+      options.log,
+    ),
     release: () => {
       port?.clear()
       port = undefined

@@ -136,7 +136,6 @@ export const githubLeaseResultSchema = z.strictObject({
 /**
 When a lease granted at `grantedAt` stops being used: the editor's
 `expiresAt`, but never later than GITHUB_LEASE_TTL_MS after the grant.
-@unwired M123 GitHub lease expiry
 */
 export function leaseExpiresAt(grantedAt: number, expiresAt: number | undefined): number {
   const limit = grantedAt + GITHUB_LEASE_TTL_MS

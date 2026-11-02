@@ -11,7 +11,7 @@ import type { RuntimeBackend } from './backends'
 import { runtimeScheduleSessionFactory } from './schedules/sessionFactory'
 import { runtimeSchedulesBinding, type RuntimeSchedulesBinding } from './schedules/binding'
 
-export { createPanelScheduleHold, type PanelScheduleHold } from './panel/panelSchedules'
+export { createPanelScheduleHold } from './panel/panelSchedules'
 
 export interface PanelSchedulesBindingInput {
   readonly distDir: string

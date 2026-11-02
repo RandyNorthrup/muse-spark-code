@@ -21,6 +21,7 @@ import {
 } from '../../src/shared/questions'
 import { questionFixture } from './helpers/questions/fixtures'
 import { installGerman, restoreEnglish } from './helpers/kindGermanTable'
+import { collectingLogger } from './helpers/collectingLogger'
 
 const CANARY = 'canary-question-text-rlf-m104c'
 
@@ -38,10 +39,7 @@ async function until(isReady: () => boolean): Promise<void> {
 
 function recordingLog() {
   const lines: string[] = []
-  const record = (message: string) => {
-    lines.push(message)
-  }
-  return { trace: record, info: record, warn: record, error: record, lines }
+  return { ...collectingLogger(lines), lines }
 }
 
 async function rig() {
