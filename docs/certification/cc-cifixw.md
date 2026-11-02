@@ -27,6 +27,8 @@ hosted `runneradmin`), and a slow fresh VM.
 
 ## 2. Cause C: what was measured, and what was not settled
 
+Settled since, in `cc-winfix2.md` section 2: M51 had measured it on the runner.
+
 The hosted log separates the two shapes:
 
 | Shape                                                                                          | Hosted run 41214393586                                                                               |
