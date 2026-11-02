@@ -11768,6 +11768,20 @@ forged refusal (vitest exit 1, reason `network`) and passes on Linux
 after the restore (vitest exit 0). Windows does not run that branch.
 Evidence: `docs/certification/rvint4.md`.
 
+**Status 2026-11-02 (RLF-M125): built.** Every lane and acceptance row
+was inventoried against int/recovery `0a5ebd7189` (evidence
+`docs/certification/rlf-m125.md`): lanes 0, R, M, C, P, F1b and the
+F1a Linux core, H's scan/setup/wizard, K's gate, L's schema and
+families, U's usage and panel, V's wired-but-unrun measurement and
+D's docs stand; the engine runtime (E/K dispatch), fitted profiles,
+the hold wiring, the B2 run path, V-report persistence and the MHP
+editor mapping stay open with their waits recorded. Built here: the
+macOS B1 `stat` report from the walked operands, matching Linux
+(D217), with five C variants and seven cases sharing one assertion
+module with the Linux suite; and lane D's PRIVACY and SECURITY rows.
+No download, install, live call or enabling: the hold stays off on
+every platform, and the two live checks stay with the lead.
+
 - **Goal.** D107: the judge is our own Jev. A batched, calibrated decision
   engine makes the agent faster (decisions the big model spends a turn or
   a round-trip on) and more accurate (checks on its own work), works out
