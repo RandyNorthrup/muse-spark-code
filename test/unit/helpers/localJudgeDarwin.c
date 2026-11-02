@@ -41,12 +41,45 @@ static int reuse_drill(void) {
     kill(original, SIGKILL);
     waitpid(original, NULL, 0);
     // Bounded fork/wait cycle; no process pile-up, installs, credentials or inference.
+    // Reuse needs the kernel counter to wrap the whole PID space (about
+    // 100k allocations) and land back on `original`. One sequential loop
+    // forks about 1k/s under CI load, past the caller's 110 s bound
+    // (run 41516831678), so burner children advance the same counter in
+    // parallel until this loop's own candidates near the target, where
+    // a burner landing the exact PID would waste the cycle.
+    const int burner_count = 4;
+    const pid_t near_zone = 4000;
+    pid_t burners[4] = {0, 0, 0, 0};
+    for (int index = 0; index < burner_count; index++) {
+        pid_t burner = fork();
+        if (burner < 0) return 1;
+        if (burner == 0) {
+            for (int spin = 0;; spin++) {
+                pid_t burnt = fork();
+                if (burnt == 0) _exit(0);
+                if (burnt > 0) waitpid(burnt, NULL, 0);
+                if (spin % 64 == 0 && getppid() != parent) _exit(0);
+            }
+        }
+        burners[index] = burner;
+    }
     const int ceiling = 200000;
+    int burners_live = 1;
     for (int attempt = 1; attempt <= ceiling; attempt++) {
         pid_t candidate = fork();
         if (candidate < 0) return 1;
         if (candidate == 0) { while (getppid() == parent) usleep(100000); _exit(0); }
+        if (burners_live && candidate < original && candidate >= original - near_zone) {
+            for (int index = 0; index < burner_count; index++) kill(burners[index], SIGKILL);
+            for (int index = 0; index < burner_count; index++) waitpid(burners[index], NULL, 0);
+            burners_live = 0;
+        }
         if (candidate == original) {
+            if (burners_live) {
+                for (int index = 0; index < burner_count; index++) kill(burners[index], SIGKILL);
+                for (int index = 0; index < burner_count; index++) waitpid(burners[index], NULL, 0);
+                burners_live = 0;
+            }
             int different = read_identity(candidate, &after) == 0 && !same_identity(&before, &after);
             int invalid = !watch_alive(queue);
             int checked = different && invalid;
@@ -64,6 +97,10 @@ static int reuse_drill(void) {
         }
         kill(candidate, SIGKILL);
         waitpid(candidate, NULL, 0);
+    }
+    if (burners_live) {
+        for (int index = 0; index < burner_count; index++) kill(burners[index], SIGKILL);
+        for (int index = 0; index < burner_count; index++) waitpid(burners[index], NULL, 0);
     }
     puts("{\"reused\":false}");
     return 1;
