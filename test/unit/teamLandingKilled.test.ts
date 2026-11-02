@@ -294,7 +294,11 @@ describe.runIf(process.platform === 'win32')('a held file stops a Windows landin
       expect(await hasFile(lockFile)).toBe(false)
       expect(await landingRecords(storage)).toMatchObject([{ status: 'recovered', conflicts: [] }])
     } finally {
-      holderProcess.kill()
+      // Gone before its folder goes: Windows refuses to remove a file it holds.
+      if (holderProcess.exitCode === null) {
+        holderProcess.kill()
+        await once(holderProcess, 'exit')
+      }
       await fixture.dispose()
     }
     // A PowerShell start, the rename's retries, and two recoveries.
