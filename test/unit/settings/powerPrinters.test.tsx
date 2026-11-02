@@ -4,8 +4,13 @@
 
 /** @vitest-environment jsdom */
 /** @vitest-environment-options {"pretendToBeVisual": true} */
-import { fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { fireEvent, screen } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
+import {
+  confirmSettingsDialog,
+  renderSettingsPage,
+  trackSettingsRenders,
+} from '../helpers/settingsPages'
 import { UI_TEXT } from '../../../src/shared/constants'
 import type { PowerState, PrintersState, StorageState } from '../../../src/shared/desktop/sysd'
 import { fill } from '../../../src/shared/l10n/text'
@@ -17,14 +22,7 @@ import {
 } from '../../../src/webview/settings/system/PrintersPage'
 import { StoragePage, type StorageChange } from '../../../src/webview/settings/system/StoragePage'
 
-const cleanups: (() => void)[] = []
-afterEach(() => {
-  for (const cleanup of cleanups.splice(0)) cleanup()
-})
-
-function confirmDialog(): void {
-  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.settingsSystem.confirmApply }))
-}
+trackSettingsRenders()
 
 const POWER: PowerState = {
   batteries: [{ percent: 55, state: 'discharging', minutesLeft: 125 }],
@@ -36,7 +34,7 @@ const POWER: PowerState = {
 }
 
 function renderPower(applied: PowerChange[]): void {
-  const host = render(
+  renderSettingsPage(
     <PowerPage
       data={POWER}
       onApply={(change) => {
@@ -44,7 +42,6 @@ function renderPower(applied: PowerChange[]): void {
       }}
     />,
   )
-  cleanups.push(host.unmount)
 }
 
 describe('Power page', () => {
@@ -62,7 +59,7 @@ describe('Power page', () => {
         }),
       ),
     ).toBeDefined()
-    confirmDialog()
+    confirmSettingsDialog()
     expect(applied).toEqual([{ kind: 'profile', profile: 'performance' }])
   })
 
@@ -77,7 +74,7 @@ describe('Power page', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.settingsSystem.apply }))
     expect(screen.getByText(UI_TEXT.settingsSystem.powerConfirmTimeouts)).toBeDefined()
-    confirmDialog()
+    confirmSettingsDialog()
     expect(applied).toEqual([{ kind: 'timeouts', displayOffMinutes: 5, sleepMinutes: 0 }])
   })
 
@@ -88,7 +85,7 @@ describe('Power page', () => {
       target: { value: 'lock' },
     })
     expect(screen.getByText(UI_TEXT.settingsSystem.powerConfirmActions)).toBeDefined()
-    confirmDialog()
+    confirmSettingsDialog()
     expect(applied).toEqual([{ kind: 'actions', onLidClose: 'lock', onPowerButton: 'prompt' }])
   })
 })
@@ -100,61 +97,48 @@ const PRINTERS: PrintersState = {
   ],
 }
 
+function renderPrinters(data: PrintersState, applied: PrintersChange[]): void {
+  renderSettingsPage(
+    <PrintersPage
+      data={data}
+      onApply={(change) => {
+        applied.push(change)
+      }}
+    />,
+  )
+}
+
 describe('Printers page', () => {
   it('asks before switching the default printer', () => {
     const applied: PrintersChange[] = []
-    const host = render(
-      <PrintersPage
-        data={PRINTERS}
-        onApply={(change) => {
-          applied.push(change)
-        }}
-      />,
-    )
-    cleanups.push(host.unmount)
+    renderPrinters(PRINTERS, applied)
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.settingsSystem.useAsDefault }))
     expect(
       screen.getByText(fill(UI_TEXT.settingsSystem.printersConfirmDefault, { name: 'Home' })),
     ).toBeDefined()
-    confirmDialog()
+    confirmSettingsDialog()
     expect(applied).toEqual([{ kind: 'default', id: 'pr-2' }])
   })
 
   it('adds by address only after confirmation, trimmed', () => {
     const applied: PrintersChange[] = []
-    const host = render(
-      <PrintersPage
-        data={{ printers: [] }}
-        onApply={(change) => {
-          applied.push(change)
-        }}
-      />,
-    )
-    cleanups.push(host.unmount)
+    renderPrinters({ printers: [] }, applied)
     expect(screen.getByText(UI_TEXT.settingsSystem.printersNoPrinters)).toBeDefined()
     fireEvent.change(screen.getByLabelText(UI_TEXT.settingsSystem.printersUri), {
       target: { value: '  ipp://printer.local  ' },
     })
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.settingsSystem.printersAdd }))
-    confirmDialog()
+    confirmSettingsDialog()
     expect(applied).toEqual([{ kind: 'add', uri: 'ipp://printer.local' }])
   })
 
   it('asks before removing a printer', () => {
     const applied: PrintersChange[] = []
-    const host = render(
-      <PrintersPage
-        data={PRINTERS}
-        onApply={(change) => {
-          applied.push(change)
-        }}
-      />,
-    )
-    cleanups.push(host.unmount)
+    renderPrinters(PRINTERS, applied)
     fireEvent.click(
       screen.getAllByRole('button', { name: UI_TEXT.settingsSystem.printersRemove })[1]!,
     )
-    confirmDialog()
+    confirmSettingsDialog()
     expect(applied).toEqual([{ kind: 'remove', id: 'pr-2' }])
   })
 })
@@ -185,7 +169,7 @@ const STORAGE: StorageState = {
 describe('Storage page', () => {
   it('asks before ejecting, and offers eject only for ejectable volumes', () => {
     const applied: StorageChange[] = []
-    const host = render(
+    renderSettingsPage(
       <StoragePage
         data={STORAGE}
         onApply={(change) => {
@@ -193,7 +177,6 @@ describe('Storage page', () => {
         }}
       />,
     )
-    cleanups.push(host.unmount)
     expect(
       screen.getAllByRole('button', { name: UI_TEXT.settingsSystem.storageEject }),
     ).toHaveLength(1)
@@ -201,7 +184,7 @@ describe('Storage page', () => {
     expect(
       screen.getByText(fill(UI_TEXT.settingsSystem.storageConfirmEject, { name: 'Backup stick' })),
     ).toBeDefined()
-    confirmDialog()
+    confirmSettingsDialog()
     expect(applied).toEqual([{ kind: 'eject', id: 'vol-2' }])
   })
 })

@@ -13,7 +13,7 @@ import type {
 import { fill, formatList, formatNumber, formatPercent } from '../../../shared/l10n/text'
 import type { PageBinding } from './binding'
 import { parseDraftInt } from './numbers'
-import { ConfirmChangeDialog } from './dialog'
+import { PendingChangeDialog } from './dialog'
 import { SettingRow, SettingsEmpty, SettingsSection, SettingsSwitch } from './rows'
 import { usePendingChange } from './usePendingChange'
 
@@ -193,14 +193,7 @@ function OutputCard({
           </div>
         </>
       ) : null}
-      {pending.pending === null ? null : (
-        <ConfirmChangeDialog
-          title={text.confirmTitle}
-          description={pending.pending.description}
-          onConfirm={pending.confirm}
-          onCancel={pending.cancel}
-        />
-      )}
+      <PendingChangeDialog title={text.confirmTitle} handle={pending} />
     </div>
   )
 }

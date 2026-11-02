@@ -4,8 +4,13 @@
 
 /** @vitest-environment jsdom */
 /** @vitest-environment-options {"pretendToBeVisual": true} */
-import { fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { fireEvent, screen, within } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
+import {
+  confirmSettingsDialog,
+  renderSettingsPage,
+  trackSettingsRenders,
+} from '../helpers/settingsPages'
 import { UI_TEXT } from '../../../src/shared/constants'
 import type { BluetoothState, CellularState, NetworkState } from '../../../src/shared/desktop/sysd'
 import { fill } from '../../../src/shared/l10n/text'
@@ -19,14 +24,7 @@ import {
 } from '../../../src/webview/settings/system/CellularPage'
 import { NetworkPage, type NetworkChange } from '../../../src/webview/settings/system/NetworkPage'
 
-const cleanups: (() => void)[] = []
-afterEach(() => {
-  for (const cleanup of cleanups.splice(0)) cleanup()
-})
-
-function confirmDialog(): void {
-  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.settingsSystem.confirmApply }))
-}
+trackSettingsRenders()
 
 function cancelDialog(): void {
   fireEvent.click(
@@ -55,7 +53,7 @@ const NETWORK: NetworkState = {
 }
 
 function renderNetwork(applied: NetworkChange[]): void {
-  const host = render(
+  renderSettingsPage(
     <NetworkPage
       data={NETWORK}
       onApply={(change) => {
@@ -63,7 +61,6 @@ function renderNetwork(applied: NetworkChange[]): void {
       }}
     />,
   )
-  cleanups.push(host.unmount)
 }
 
 describe('Network page', () => {
@@ -73,7 +70,7 @@ describe('Network page', () => {
     fireEvent.click(screen.getByRole('switch', { name: UI_TEXT.settingsSystem.networkWifi }))
     expect(applied).toEqual([])
     expect(screen.getByText(UI_TEXT.settingsSystem.networkConfirmWifiOff)).toBeDefined()
-    confirmDialog()
+    confirmSettingsDialog()
     expect(applied).toEqual([{ kind: 'wifiEnabled', enabled: false }])
   })
 
@@ -103,7 +100,7 @@ describe('Network page', () => {
       ],
     }
     const applied: NetworkChange[] = []
-    const host = render(
+    renderSettingsPage(
       <NetworkPage
         data={offline}
         onApply={(change) => {
@@ -111,7 +108,6 @@ describe('Network page', () => {
         }}
       />,
     )
-    cleanups.push(host.unmount)
     const connects = screen.getAllByRole('button', { name: UI_TEXT.desktop.connect })
     fireEvent.click(connects[0]!)
     fireEvent.change(screen.getByLabelText(UI_TEXT.desktop.wifiPassword), {
@@ -133,7 +129,7 @@ describe('Network page', () => {
     const applied: NetworkChange[] = []
     renderNetwork(applied)
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.settingsSystem.networkForget }))
-    confirmDialog()
+    confirmSettingsDialog()
     expect(applied).toEqual([{ kind: 'forget', ssid: 'home' }])
   })
 
@@ -145,7 +141,7 @@ describe('Network page', () => {
     expect(
       screen.getByText(fill(UI_TEXT.settingsSystem.networkConfirmVpnOn, { name: 'Office' })),
     ).toBeDefined()
-    confirmDialog()
+    confirmSettingsDialog()
     expect(applied).toEqual([{ kind: 'vpn', id: 'vpn-1', connected: true }])
   })
 })
@@ -167,7 +163,7 @@ const BLUETOOTH: BluetoothState = {
 
 function renderBluetooth(applied: BluetoothChange[], passkey: string | null): string[] {
   const started: string[] = []
-  const host = render(
+  renderSettingsPage(
     <BluetoothPage
       data={BLUETOOTH}
       startPairing={(id) => {
@@ -179,7 +175,6 @@ function renderBluetooth(applied: BluetoothChange[], passkey: string | null): st
       }}
     />,
   )
-  cleanups.push(host.unmount)
   return started
 }
 
@@ -210,7 +205,7 @@ describe('Bluetooth page', () => {
     const applied: BluetoothChange[] = []
     renderBluetooth(applied, null)
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.settingsSystem.bluetoothRemove }))
-    confirmDialog()
+    confirmSettingsDialog()
     expect(applied).toEqual([{ kind: 'remove', id: 'dev-1' }])
   })
 })
@@ -227,7 +222,7 @@ const CELLULAR: CellularState = {
 describe('Cellular page', () => {
   it('asks before disconnecting mobile data', () => {
     const applied: CellularChange[] = []
-    const host = render(
+    renderSettingsPage(
       <CellularPage
         data={{ ...CELLULAR, connected: true }}
         onApply={(change) => {
@@ -235,15 +230,14 @@ describe('Cellular page', () => {
         }}
       />,
     )
-    cleanups.push(host.unmount)
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.settingsSystem.networkDisconnect }))
-    confirmDialog()
+    confirmSettingsDialog()
     expect(applied).toEqual([{ kind: 'connected', connected: false }])
   })
 
   it('says so when the machine has no modem', () => {
     const applied: CellularChange[] = []
-    const host = render(
+    renderSettingsPage(
       <CellularPage
         data={{ present: false, enabled: false, connected: false }}
         onApply={(change) => {
@@ -251,7 +245,6 @@ describe('Cellular page', () => {
         }}
       />,
     )
-    cleanups.push(host.unmount)
     expect(screen.getByText(UI_TEXT.settingsSystem.cellularNoModem)).toBeDefined()
     expect(applied).toEqual([])
   })

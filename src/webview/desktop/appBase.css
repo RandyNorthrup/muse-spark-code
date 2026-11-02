@@ -1,0 +1,9 @@
+/* Muse Desktop (M111): the page base every desktop app shares. Token-only
+   paint and logical properties. */
+
+body {
+  margin: 0;
+  background-color: var(--ms-surface);
+  color: var(--ms-text);
+  font: var(--ms-font-size) / var(--ms-line-ui) var(--ms-font-ui);
+}

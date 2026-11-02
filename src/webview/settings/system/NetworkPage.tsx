@@ -9,7 +9,7 @@ import { UI_TEXT } from '../../../shared/constants'
 import type { NetworkState, WifiNetwork } from '../../../shared/desktop/sysd'
 import { fill, formatPercent } from '../../../shared/l10n/text'
 import type { PageBinding } from './binding'
-import { ConfirmChangeDialog, SettingsDialog } from './dialog'
+import { PendingChangeDialog, SettingsDialog } from './dialog'
 import { SettingRow, SettingsEmpty, SettingsSection, SettingsSwitch } from './rows'
 import { usePendingChange } from './usePendingChange'
 
@@ -168,14 +168,7 @@ function NetworkRow({
           }}
         />
       ) : null}
-      {pending.pending === null ? null : (
-        <ConfirmChangeDialog
-          title={text.confirmTitle}
-          description={pending.pending.description}
-          onConfirm={pending.confirm}
-          onCancel={pending.cancel}
-        />
-      )}
+      <PendingChangeDialog title={text.confirmTitle} handle={pending} />
     </div>
   )
 }
@@ -261,14 +254,7 @@ export function NetworkPage({
           ))
         )}
       </SettingsSection>
-      {pending.pending === null ? null : (
-        <ConfirmChangeDialog
-          title={text.confirmTitle}
-          description={pending.pending.description}
-          onConfirm={pending.confirm}
-          onCancel={pending.cancel}
-        />
-      )}
+      <PendingChangeDialog title={text.confirmTitle} handle={pending} />
     </div>
   )
 }

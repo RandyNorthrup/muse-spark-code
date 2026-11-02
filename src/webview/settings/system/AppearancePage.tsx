@@ -8,7 +8,7 @@ import { UI_TEXT } from '../../../shared/constants'
 import { APPEARANCE_OVERRIDES, type AppearanceOverride } from '../../../shared/desktop/settings'
 import { fill } from '../../../shared/l10n/text'
 import type { PageBinding } from './binding'
-import { ConfirmChangeDialog } from './dialog'
+import { PendingChangeDialog } from './dialog'
 import { SettingsSection } from './rows'
 import { usePendingChange } from './usePendingChange'
 
@@ -55,14 +55,7 @@ export function AppearancePage({
         </div>
         <p className="muse-settings-note">{text.appearanceThemeNote}</p>
       </SettingsSection>
-      {pending.pending === null ? null : (
-        <ConfirmChangeDialog
-          title={text.confirmTitle}
-          description={pending.pending.description}
-          onConfirm={pending.confirm}
-          onCancel={pending.cancel}
-        />
-      )}
+      <PendingChangeDialog title={text.confirmTitle} handle={pending} />
     </div>
   )
 }

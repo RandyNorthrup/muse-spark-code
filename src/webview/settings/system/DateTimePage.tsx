@@ -8,7 +8,7 @@ import { UI_TEXT } from '../../../shared/constants'
 import type { DateTimeState } from '../../../shared/desktop/sysd'
 import { fill, formatDateTime } from '../../../shared/l10n/text'
 import type { PageBinding } from './binding'
-import { ConfirmChangeDialog } from './dialog'
+import { PendingChangeDialog } from './dialog'
 import { SettingRow, SettingsSection, SettingsSwitch } from './rows'
 import { usePendingChange } from './usePendingChange'
 
@@ -137,14 +137,7 @@ export function DateTimePage({
           </div>
         </SettingsSection>
       )}
-      {pending.pending === null ? null : (
-        <ConfirmChangeDialog
-          title={text.confirmTitle}
-          description={pending.pending.description}
-          onConfirm={pending.confirm}
-          onCancel={pending.cancel}
-        />
-      )}
+      <PendingChangeDialog title={text.confirmTitle} handle={pending} />
     </div>
   )
 }
