@@ -5930,7 +5930,9 @@
     "recommended": "Recommandé",
     "cheapestCapable": "Le moins cher capable",
     "largestContext": "Plus grand contexte",
-    "newBadge": "Nouveau"
+    "newBadge": "Nouveau",
+    "deprecated": "Obsolète",
+    "beta": "Bêta"
   },
   "modelToolCallingUnavailable": "L’appel d’outils n’a pas été vérifié pour ce modèle.",
   "paidProviderPrice": "Par million de jetons : entrée {input}, lecture du cache {cached}, écriture du cache {write}, écriture pour une heure {write1h}, écriture pour douze heures {write12h}, sortie {output}. Par requête {request} ; par image {image}.",
@@ -5979,6 +5981,9 @@
   "pickerPinnedGroup": "Favoris épinglés",
   "pickerMetaGroup": "Muse Spark",
   "pickerPricePair": "{input} en entrée · {output} en sortie (par million de jetons)",
+  "pickerRetiresOn": "Retiré le {date}",
+  "pickerRerouteServes": "Répond aux requêtes {id}",
+  "modelReroutesOn": "Bascule vers {model} le {date}",
   "usageKeyUsage": "Utilisation de la clé API",
   "usageLimit": "Limite",
   "usageRemaining": "Restant",
@@ -6186,6 +6191,9 @@
       "zdr": "Aucune conservation : seuls les points de terminaison ne stockant aucune donnée peuvent répondre.",
       "no-training": "Aucun entraînement : seuls les fournisseurs qui n’entraînent pas leurs modèles sur vos données peuvent répondre.",
       "any": "Tout fournisseur : la réponse la moins chère ou la plus rapide l’emporte, y compris les fournisseurs pouvant conserver des données."
+    },
+    "privacyNotes": {
+      "geminiStore": "Chaque requête envoyée d’ici comporte store=false : Google ne conserve donc pas vos prompts ni vos réponses, même sur un projet qui conserve par défaut."
     },
     "suggest": {
       "recommended": "Recommandé et le modèle avec appels d’outils le moins cher disposant d’assez de contexte pour l’environnement d’exécution ({ref}).",
