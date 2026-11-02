@@ -78,6 +78,12 @@ Real-code suites, repository timeouts, `--maxWorkers=3`:
 - `test/unit/providerOutputCap.test.ts` (4) — pins
   `modelPolicyFor('muse-spark-1.3-contributor').output.maxTokens` at
   131,072 and `undefined` for an unrecorded model.
+- `test/unit/localServerCaptures.test.ts` (18) — the LM Studio
+  `09-max-completion-tokens` capture (request
+  `max_completion_tokens: 32`, stream ending `finish_reason: length`
+  at exactly 32 completion tokens) decodes to status `incomplete`
+  with `incomplete_details.reason: max_output_tokens` and one
+  `response.incomplete` terminal event. No live calls.
 - `vitest related` for the exec pair: 48/49 files green (806 tests).
   The one file is `providerHeadersStore.test.ts` (3 tests), which this
   brief forbids running on the MacBook — it fails here with
@@ -104,27 +110,29 @@ xcodebuild` errors — this rig's `xcode-select` points at the missing
    restored → 4/4 green.
 3. Re-added a `> 32768` parse refusal: exit 1, `execArgs.test.ts`
    fails 1 (the model-ceiling test), restored → 67/67 green.
+4. Broke the chat decoder's length mapping (`reason: 'stream_ended'`):
+   exit 1, `localServerCaptures.test.ts` fails 1 (the new
+   incomplete-reason test), restored → 18/18 green.
 
 ## 4. The `response.incomplete(max_output_tokens)` proof item
 
-Searched every captured fixture in the tree for a `response.incomplete`
-event or a non-null `incomplete_details` reason: all captured
-`incomplete_details` are null (`m106/u9-*`, `responses-codec/*`), and
-the codec `max_output_tokens` mapping tests use shaped frames, not
-captures. No existing captured fixture covers a genuine incomplete
-stop, so the brief's "else" applies: capture on
-`muse-spark-1.3-contributor` in an empty workspace with attempts
-counted. That capture needs the lead's key on stdin
-(`scripts/capture-m106-meta.mjs`; `META_API_KEY` is unset here, and the
-capture script takes the key only from the lead) — it cannot run in
-this lane. What stands without it: the provider's own
-`max_output_tokens` answer path is covered by the existing 2026-10-10
-capture (`test/fixtures/m106/output-incomplete.json`, the `>= 16`
-400 receipt, asserted in `m106CaptureFixtures.test.ts`) and the
-minimum-sentence tests (`providerOutputCap.test.ts`); the capture
-plan's `output-incomplete` entry is already shaped to observe a genuine
-stop (`max_output_tokens: 16` with a prompt needing far more), so the
-lead run is one request. Open item for the lead in `LANE DONE`.
+Satisfied by an existing captured fixture — no live calls were needed
+or made. `docs/certification/m95-captures/lmstudio/09-max-completion-tokens.json`
+is a real recorded exchange (captured 2026-10-10T18:29:56Z, unbilled
+local run): its request sets `max_completion_tokens: 32` and its
+32-event stream ends `finish_reason: length` at exactly 32 completion
+tokens. The new test in `localServerCaptures.test.ts` feeds the
+capture's own frames through the real `decodeChatStream` and asserts
+status `incomplete`, `incomplete_details.reason: max_output_tokens`,
+and exactly one `response.incomplete` terminal event. The brief's
+"else" (a fresh capture on `muse-spark-1.3-contributor`) does not
+trigger. Notes: no Meta Responses capture in the tree ends in a
+genuine incomplete stop (all captured `incomplete_details` there are
+null), and no model key exists in this lane (`META_API_KEY` unset, the
+environment carries no key, and the OS store is off-limits on this
+machine) — but the clause's first branch holds, so nothing is open.
+The `>= 16` minimum stays covered by its own 2026-10-10 400 receipt
+(`test/fixtures/m106/output-incomplete.json`).
 
 ## 5. Gates (final tree)
 

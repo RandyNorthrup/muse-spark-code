@@ -390,6 +390,31 @@ describe('LM Studio captures (llmster 0.0.25-1)', () => {
     expect(JSON.stringify(errors[0])).toContain('exceed_context_size_error')
   })
 
+  it('maps the output-limit stop to response.incomplete with reason max_output_tokens', () => {
+    // D121 (RSCH-MUSE-D): when the provider stops at the output limit, the
+    // product carries response.incomplete with the documented reason, so a
+    // reply cut at a raised ceiling still continues. The capture's own
+    // request sets max_completion_tokens: 32; its stream ends
+    // finish_reason length at exactly 32 completion tokens.
+    const frame = recordField(
+      captureFile('lmstudio', '09-max-completion-tokens.json'),
+      'capped reply',
+    )
+    const request = recordField(frame['request'], 'request')
+    expect(recordField(request['body'], 'body')['max_completion_tokens']).toBe(32)
+    const decoded = decodeChatStream(
+      payloadsOf('lmstudio', '09-max-completion-tokens.json'),
+      'qwen3-0.6b',
+      LMSTUDIO,
+      CHAT_LIMITS,
+    )
+    expect(decoded.response.status).toBe('incomplete')
+    expect(decoded.response.incomplete_details).toEqual({ reason: 'max_output_tokens' })
+    expect(decoded.response.usage?.output_tokens).toBe(32)
+    const terminal = decoded.events.filter((event) => event.type === 'response.incomplete')
+    expect(terminal).toHaveLength(1)
+  })
+
   it('maps the string-form 400 to the server’s words', () => {
     const frame = recordField(captureFile('lmstudio', '11-toolchoice-object.json'), 'object choice')
     const response = recordField(frame['response'], 'response')
