@@ -13,6 +13,7 @@ import {
 } from '../../src/shared/makerProtocol'
 import { machineSimulator, makerLimits } from './helpers/makerMachineSimulator'
 import { makerTempRoot, makePrivateFolder, runtimeMakerNative } from './helpers/makerTemp'
+import { allowOnceConfirm } from '../e2e/helpers/makerEmulators'
 
 const roots: string[] = []
 const closers: (() => Promise<void>)[] = []
@@ -121,19 +122,7 @@ async function harness(options?: {
       isInteractive: () => interactive.value,
       confirm: (request, review) => {
         confirms.push(request)
-        review({
-          v: 1,
-          type: 'makerPayloadReviewed',
-          id: request.id,
-          digest: request.digest,
-          isComplete: true,
-        })
-        return Promise.resolve({
-          id: request.id,
-          digest: request.digest,
-          target: request.target,
-          decision: 'allow_once',
-        })
+        return allowOnceConfirm(request, review)
       },
       notify: (notice) => {
         notices.push(notice)
@@ -193,6 +182,20 @@ function registration(endpoint: string, limits: unknown = {}) {
     },
     allowPlainHttp: true,
   })
+}
+
+async function registerPrinter(
+  fixture: EngineHarness,
+  server: Pick<Awaited<ReturnType<typeof machineSimulator>>, 'endpoint'>,
+  key: string | undefined,
+): Promise<void> {
+  const message = registration(server.endpoint)
+  if (message.type !== 'makerAddMachine') throw new Error('registration misparsed')
+  await fixture.engine.registerMachine(message, key)
+}
+
+function expectLastNotice(fixture: EngineHarness, message: string): void {
+  expect(fixture.notices.at(-1)).toEqual({ type: 'makerNotice', level: 'warning', message })
 }
 
 function statusMessage(machineId: string) {
@@ -307,9 +310,7 @@ describe('window maker engine registry', () => {
     const fixture = await harness()
     const server = await machineSimulator()
     closers.push(server.close)
-    const message = registration(server.endpoint)
-    if (message.type !== 'makerAddMachine') throw new Error('registration misparsed')
-    await fixture.engine.registerMachine(message, 'pasted-key')
+    await registerPrinter(fixture, server, 'pasted-key')
     const machines = await fixture.engine.listMachines()
     expect(machines).toHaveLength(1)
     expect(machines[0]).toMatchObject({ id: 'printer', endpoint: server.endpoint })
@@ -379,20 +380,12 @@ describe('window maker engine OctoPrint enrollment', () => {
     if (denied.type !== 'makerAddMachine') throw new Error('registration misparsed')
     await fixture.engine.registerOctoprintReadOnly(denied)
     expect(await fixture.engine.listMachines()).toHaveLength(0)
-    expect(fixture.notices.at(-1)).toEqual({
-      type: 'makerNotice',
-      level: 'warning',
-      message: UI_TEXT.makerAppKeysDenied,
-    })
+    expectLastNotice(fixture, UI_TEXT.makerAppKeysDenied)
     server.setAppkeysDecision('granted')
     server.setAppkeysProbe(false)
     await fixture.engine.registerOctoprintReadOnly(denied)
     expect(await fixture.engine.listMachines()).toHaveLength(0)
-    expect(fixture.notices.at(-1)).toEqual({
-      type: 'makerNotice',
-      level: 'warning',
-      message: UI_TEXT.makerAppKeysUnsupported,
-    })
+    expectLastNotice(fixture, UI_TEXT.makerAppKeysUnsupported)
   })
   it('refuses a cross-origin auth dialog before the first poll', async () => {
     const fixture = await harness()
@@ -471,9 +464,7 @@ describe('window maker engine tools', () => {
     const fixture = await harness()
     const server = await machineSimulator()
     closers.push(server.close)
-    const message = registration(server.endpoint)
-    if (message.type !== 'makerAddMachine') throw new Error('registration misparsed')
-    await fixture.engine.registerMachine(message, undefined)
+    await registerPrinter(fixture, server, undefined)
     const off = makerHostMessageSchema.parse(await fixture.engine.listDevices())
     if (off.type !== 'makerState') throw new Error('state misparsed')
     expect(off.hardwareEnabled).toBe(false)
@@ -510,9 +501,7 @@ describe('window maker engine Stop', () => {
     await fixture.engine.stop()
     const server = await machineSimulator()
     closers.push(server.close)
-    const message = registration(server.endpoint)
-    if (message.type !== 'makerAddMachine') throw new Error('registration misparsed')
-    await fixture.engine.registerMachine(message, undefined)
+    await registerPrinter(fixture, server, undefined)
     await fixture.engine.stop('printer')
     expect(server.requests.some((request) => request.path === '/printer/emergency_stop')).toBe(true)
     await fixture.engine.stop()
@@ -539,9 +528,7 @@ describe('window maker engine Stop', () => {
     await fixture.engine.registerMachine(link, undefined)
     await fixture.engine.stop('prusa')
     expect(fixture.notices.at(-1)).toMatchObject({ level: 'warning' })
-    const message = registration(server.endpoint)
-    if (message.type !== 'makerAddMachine') throw new Error('registration misparsed')
-    await fixture.engine.registerMachine(message, undefined)
+    await registerPrinter(fixture, server, undefined)
     server.reply({ status: 500, body: 'broken' })
     await expect(fixture.engine.stop('printer')).rejects.toThrow('Bench printer')
     server.reply(undefined)

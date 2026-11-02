@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { once } from 'node:events'
+import { isErrno } from '../../core/fs/errno'
 import { runSerialAction, type SerialActionInput } from '../../core/maker/serial/session'
 import { listSerialPorts } from '../../core/maker/serial/listPorts'
 import { startSerialProcess } from '../../core/maker/serial/process'
@@ -57,7 +58,9 @@ function isHelperFile(filePath: string): boolean {
   try {
     return statSync(filePath).isFile()
   } catch (error: unknown) {
-    if (error instanceof Error && 'code' in error && typeof error.code === 'string') return false
+    // A stat failure (missing, unreachable, unreadable) means the candidate
+    // is not a usable helper; anything else stays loud.
+    if (isErrno(error)) return false
     throw error
   }
 }

@@ -9,25 +9,23 @@ import {
   type MachineRecord,
   type MakerLanPolicy,
 } from '../../core/maker/registry'
-import { MachineHttp } from '../../core/maker/machines/http'
-import { createMoonrakerMachine } from '../../core/maker/machines/moonraker'
-import { createOctoprintMachine } from '../../core/maker/machines/octoprint'
-import {
-  createPrusalinkMachine,
-  type PrusaLinkTransport,
-} from '../../core/maker/machines/prusalink'
+import type { PrusaLinkTransport } from '../../core/maker/machines/prusalink'
 import type { MakerSecrets } from '../../core/maker/ports'
 import type { Machine, MachineDeps, MachineSendResult } from '../../core/maker/machines/machine'
 import { DeviceLog } from '../../core/maker/deviceLog'
-import { claimHardwareLease } from '../../core/maker/lease'
 import {
-  RUNTIME_MAKER_APPROVAL_MS,
+  leaseGuardedSend,
+  machineEngineFor,
+  makerSendResultMessage,
+  makerSerialInput,
+  makerSerialResultMessage,
+  serialAuditAppender,
+  summarizeMachines,
+} from '../../core/maker/machineEngines'
+import {
   RUNTIME_MAKER_LOG_BYTES,
   RUNTIME_MAKER_MAX_BYTES,
-  RUNTIME_MAKER_MAX_LINES,
-  RUNTIME_MAKER_MM_PER_INCH,
   RUNTIME_MAKER_MODEL_TEXT,
-  RUNTIME_MAKER_TIMEOUT_MS,
   SECRET_KEYS,
   UI_TEXT,
   ADDRESS_FAMILIES,
@@ -37,7 +35,6 @@ import {
   makerSurfaceMessageSchema,
   type MakerSurfaceMessage,
 } from '../../shared/makerProtocol'
-import { fill } from '../../shared/l10n/text'
 import type { McpTool } from '../../core/mcp'
 import { RuntimeMakerHost, type RuntimeMakerHostDeps } from './runtimeMakerHost'
 import { createUserPresence } from './userPresence'
@@ -129,17 +126,7 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
     workspace: deps.workspace,
     host,
     refreshAdmission: () => host.refresh(),
-    audit: ({ request, outcome }) =>
-      deviceLog().append({
-        machine: request.target.port,
-        action: request.action,
-        payload:
-          request.payload.encoding === 'hex'
-            ? Buffer.from(request.payload.value, 'hex')
-            : request.payload.value,
-        approval: request.id,
-        outcome: outcome === 'rejected' || outcome === 'changed' ? 'refused' : outcome,
-      }),
+    audit: serialAuditAppender(() => deviceLog()),
   })
   const machines = new Map<string, Machine>()
   const leased = new Set<string>()
@@ -148,70 +135,18 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
     const record = await registry.get(id)
     const previous = machines.get(record.registrationId)
     if (previous !== undefined) return previous
-    const engineDeps: MachineDeps = {
+    const engine = await machineEngineFor(record, id, {
       host,
       log: deviceLog(),
-      isLeaseHeld: () => leased.has(record.registrationId),
-      policy: {
-        gcode: {
-          maxBytes: RUNTIME_MAKER_MAX_BYTES,
-          maxLines: RUNTIME_MAKER_MAX_LINES,
-          mmPerInch: RUNTIME_MAKER_MM_PER_INCH,
-        },
-        approvalTtlMs: RUNTIME_MAKER_APPROVAL_MS,
-        stopDeadlineMs: RUNTIME_MAKER_TIMEOUT_MS,
-        requestDeadlineMs: RUNTIME_MAKER_TIMEOUT_MS,
-        maxStateChanges: 2,
-        now: Date.now,
-      },
-    }
-    const secrets = {
-      ...host.secrets,
-      get: async (name: string) => {
-        const current = await registry.get(id)
-        if (current.registrationId !== record.registrationId)
-          throw new MachineError('machineTargetChanged')
-        return await host.secrets.get(name)
-      },
-    }
-    const http = new MachineHttp(record, deps.lan ?? runtimeMakerLan, secrets, {
-      timeoutMs: RUNTIME_MAKER_TIMEOUT_MS,
-      maxResponseBytes: RUNTIME_MAKER_MAX_BYTES,
-      onGuardedDispatch: () => {
-        dispatched.add(record.registrationId)
-      },
-      beforeGuardedDispatch: async () => {
-        await host.refresh()
-        const current = await registry.get(id)
-        if (current.registrationId !== record.registrationId)
-          throw new MachineError('machineTargetChanged')
-      },
+      isLeaseHeld: (registrationId) => leased.has(registrationId),
+      secrets: host.secrets,
+      registryGet: (machineId) => registry.get(machineId),
+      lan: deps.lan ?? runtimeMakerLan,
+      refresh: () => host.refresh(),
+      dispatched,
+      prusalinkTransport: deps.prusalinkTransport,
+      serialMachine: deps.serialMachine,
     })
-    let engine: Machine
-    switch (record.kind) {
-      case 'moonraker': {
-        engine = createMoonrakerMachine(record, http, engineDeps)
-        break
-      }
-      case 'octoprint': {
-        engine = createOctoprintMachine(record, http, engineDeps)
-        break
-      }
-      case 'prusalink': {
-        if (deps.prusalinkTransport === undefined)
-          throw new MachineError('prusalink-transport-required')
-        engine = createPrusalinkMachine(
-          record,
-          deps.prusalinkTransport(record, secrets),
-          engineDeps,
-        )
-        break
-      }
-      default: {
-        if (deps.serialMachine === undefined) throw new MachineError('serial-session-required')
-        engine = await deps.serialMachine(record, engineDeps)
-      }
-    }
     machines.set(record.registrationId, engine)
     return engine
   }
@@ -244,60 +179,26 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
     await host.refresh()
     signal.throwIfAborted()
     const engine = await machine(id)
-    const generation = engine.record.registrationId
-    const claim = await claimHardwareLease(
-      serial.lease,
-      `machine:${generation}`,
-      'Muse Spark runtime',
-      async () => {
-        await engine.stop()
+    return await leaseGuardedSend({
+      lease: serial.lease,
+      holder: 'Muse Spark runtime',
+      engine,
+      payload,
+      signal,
+      cancelApprovals: () => {
+        host.cancelApprovals()
       },
-    )
-    if (claim.status !== 'acquired') throw new MachineError('machineBusy')
-    dispatched.delete(generation)
-    leased.add(generation)
-    const cancel = () => {
-      host.cancelApprovals()
-      // Revoke the final write guard. Cancelling an unsent permission is not a machine Stop.
-      leased.delete(generation)
-      if (dispatched.has(generation))
-        void (async () => {
-          const [attempt] = await Promise.allSettled([engine.stop()])
-          if (attempt.status === 'rejected') {
-            host.notify({
-              type: 'makerNotice',
-              level: 'error',
-              message: fill(UI_TEXT.makerStopFailed, { machine: engine.record.name }),
-            })
-          }
-        })()
-    }
-    signal.addEventListener('abort', cancel, { once: true })
-    try {
-      signal.throwIfAborted()
-      const result = await engine.send(payload)
-      return { outcome: result.outcome, logRecorded: result.logRecorded }
-    } finally {
-      signal.removeEventListener('abort', cancel)
-      leased.delete(generation)
-      dispatched.delete(generation)
-      await claim.release()
-    }
+      notify: (notice) => {
+        host.notify(notice)
+      },
+      leased,
+      dispatched,
+    })
   }
   async function state(): Promise<unknown> {
     await host.refresh()
     const registered = await registry.list()
-    const summaries = registered
-      .filter((record) => record.credentialPendingRemoval !== true)
-      .map(({ registrationId, id, name, kind, category, endpoint, limits }) => ({
-        registrationId,
-        id,
-        name,
-        kind,
-        category,
-        endpoint,
-        limits,
-      }))
+    const summaries = summarizeMachines(registered)
     const discovered = host.hardwareEnabled() ? await serial.ports() : []
     const ports = discovered.map((identity) => ({ ...identity, kind: 'serial' as const }))
     host.updatePorts(ports)
@@ -341,53 +242,11 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
       }
       case 'makerSend': {
         const result = await send(message.machineId, message.payload, signal)
-        const text = {
-          sent: UI_TEXT.execStatus.completed,
-          sentWithUnrecordedAudit: UI_TEXT.makerAuditUnrecorded,
-          sentOutcomeUnknown: UI_TEXT.makerSentOutcomeUnknown,
-        }[result.outcome]
-        return makerHostMessageSchema.parse({
-          v: 1,
-          type: 'makerResult',
-          id: message.id,
-          outcome: result.outcome,
-          message: text,
-        })
+        return makerSendResultMessage(result.outcome, message.id)
       }
       case 'makerSerial': {
-        const { kind: _kind, ...identity } = message.target
-        const { operation, baud, durationMs, dtr, rts, payloadHex } = message
-        const result = await serial.execute(
-          { operation, baud, durationMs, dtr, rts, payloadHex, identity },
-          signal,
-        )
-        let outcome: 'refused' | 'stopped' | 'failed' | 'sent' = 'refused'
-        let text = UI_TEXT.toolRejected
-        if (result.status === 'complete') {
-          switch (result.capture.reason) {
-            case 'stopped': {
-              outcome = 'stopped'
-              text = UI_TEXT.toolStopped
-              break
-            }
-            case 'failed': {
-              outcome = 'failed'
-              text = UI_TEXT.toolFailed
-              break
-            }
-            default: {
-              outcome = 'sent'
-              text = UI_TEXT.execStatus.completed
-            }
-          }
-        }
-        return makerHostMessageSchema.parse({
-          v: 1,
-          type: 'makerResult',
-          id: message.id,
-          outcome,
-          message: text,
-        })
+        const result = await serial.execute(makerSerialInput(message), signal)
+        return makerSerialResultMessage(result, message.id)
       }
       case 'makerAddMachine': {
         await host.requirePresence(UI_TEXT.makerAddMachine, message, message.machine.name)
