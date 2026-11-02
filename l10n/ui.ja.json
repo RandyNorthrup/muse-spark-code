@@ -1618,6 +1618,7 @@
   "composerPlaceholderWithShortcut": "Museに質問…（フォーカスは{shortcut}）",
   "composerQueuePlaceholder": "別のメッセージをキューに追加…",
   "queuedLabel": "キュー入り",
+  "sentOnSchedule": "スケジュールどおりに送信",
   "queuedMenuLabel": "キュー内のメッセージの操作",
   "queuedEdit": "編集",
   "queuedEditTitle": "メッセージをキューから取り出し、プロンプト欄に戻す",

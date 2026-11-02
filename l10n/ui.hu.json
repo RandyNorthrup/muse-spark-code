@@ -1628,6 +1628,7 @@
   "composerPlaceholderWithShortcut": "Kérdezz Muse-tól… ({shortcut} a fókuszhoz)",
   "composerQueuePlaceholder": "Újabb üzenet sorba állítása…",
   "queuedLabel": "Sorba állítva",
+  "sentOnSchedule": "Ütemezetten elküldve",
   "queuedMenuLabel": "Sorba állított üzenetek műveletei",
   "queuedEdit": "Szerkesztés",
   "queuedEditTitle": "Vegye ki az üzenetet a sorból, és tegye vissza a prompt mezőbe",

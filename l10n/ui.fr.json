@@ -1638,6 +1638,7 @@
   "composerPlaceholderWithShortcut": "Demandez à Muse… ({shortcut} pour cibler)",
   "composerQueuePlaceholder": "Mettre un autre message en file d’attente…",
   "queuedLabel": "En file d’attente",
+  "sentOnSchedule": "Envoyé comme prévu",
   "queuedMenuLabel": "Actions des messages en file d’attente",
   "queuedEdit": "Modifier",
   "queuedEditTitle": "Sort le message de la file d’attente pour le remettre dans la zone de saisie",

@@ -1638,6 +1638,7 @@
   "composerPlaceholderWithShortcut": "Pregunta a Muse… ({shortcut} para enfocar)",
   "composerQueuePlaceholder": "Poner otro mensaje en cola…",
   "queuedLabel": "En cola",
+  "sentOnSchedule": "Enviado según lo programado",
   "queuedMenuLabel": "Acciones de los mensajes en cola",
   "queuedEdit": "Editar",
   "queuedEditTitle": "Saca el mensaje de la cola y devuélvelo al cuadro de texto",

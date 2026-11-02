@@ -603,6 +603,11 @@ const UserCard = memo(function UserCard({
           <span className="badge">{UI_TEXT.queuedLabel}</span>
         </div>
       ) : null}
+      {entry.scheduled === true ? (
+        <div className="message-queued-badge">
+          <span className="badge">{UI_TEXT.sentOnSchedule}</span>
+        </div>
+      ) : null}
       {entry.status === 'failed' ? <div className="message-error">{entry.reason}</div> : null}
       {entry.atMs === undefined ? null : (
         <MessageTime

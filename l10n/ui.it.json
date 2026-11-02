@@ -1638,6 +1638,7 @@
   "composerPlaceholderWithShortcut": "Chiedi a Muse… ({shortcut} per focalizzare)",
   "composerQueuePlaceholder": "Accoda un altro messaggio…",
   "queuedLabel": "In coda",
+  "sentOnSchedule": "Inviato come programmato",
   "queuedMenuLabel": "Azioni dei messaggi in coda",
   "queuedEdit": "Modifica",
   "queuedEditTitle": "Togli il messaggio dalla coda e rimettilo nella casella del prompt",

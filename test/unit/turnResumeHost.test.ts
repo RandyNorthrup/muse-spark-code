@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { AgentEvent } from '../../src/shared/agentEvents'
+import type { AgentSession } from '../../src/core/agent/agentBackend'
 import {
   continueTurnRefusal,
   type ConversationDeps,
@@ -18,6 +19,7 @@ import { createSchedulesBridge } from '../../src/host/schedules/schedulesBridge'
 import { CONVERSATION_MODEL_TEXT } from '../../src/shared/constants'
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
+import { scheduleRunContextSchema } from '../../src/shared/scheduleV2'
 import { Usd } from '../../src/shared/usd'
 import { initialUiState, uiReducer } from '../../src/webview/state/uiState'
 import {
@@ -74,6 +76,7 @@ async function panelWithSession(
   options?: {
     schedulesBridge?: ConversationDeps['schedulesBridge']
     runHostAction?: ConversationDeps['runHostAction']
+    onSessionAttached?: ConversationDeps['onSessionAttached']
   },
 ) {
   const live = await savedSession(rig, directory, 'Continue me')
@@ -84,6 +87,9 @@ async function panelWithSession(
     isNamespaceKnown: true,
     ...(options?.schedulesBridge !== undefined && { schedulesBridge: options.schedulesBridge }),
     ...(options?.runHostAction !== undefined && { runHostAction: options.runHostAction }),
+    ...(options?.onSessionAttached !== undefined && {
+      onSessionAttached: options.onSessionAttached,
+    }),
   })
   await panel.controller.handle({
     type: 'resumeSession',
@@ -243,6 +249,41 @@ describe('resume host flow', () => {
     expect(surfaces).toHaveLength(2)
     expect(surfaces[0]?.seedFromComposer).toBe(true)
     expect(surfaces[1]?.seedFromComposer).toBeUndefined()
+  })
+
+  it('marks a scheduled fire’s user card as sent on schedule', async () => {
+    let live: AgentSession | undefined
+    const panel = await panelWithSession(failingKeyRig(directory), directory, {
+      onSessionAttached: (session) => {
+        live = session
+        return Promise.resolve()
+      },
+    })
+    if (live === undefined) throw new TypeError('no session attached')
+    // A real run context, parsed by the contract: only its run id names
+    // the card, but an invalid shape fails here instead of standing in.
+    const context = scheduleRunContextSchema.parse({
+      unattended: true,
+      scheduleId: 'sched-1',
+      runId: 'run-1',
+      grant: { rules: [], destinationIds: [], paidCapUsd: Usd.from(1).toAmount() },
+      creator: { kind: 'user' },
+      mode: 'manual',
+      depth: 0,
+      allowAgentReschedule: false,
+    })
+    panel.controller.scheduledSubmission(live, context, 'Water the plants', {
+      turnId: 't9',
+      disposition: 'queued',
+    })
+    const brief = panel.posted.find(
+      (message): message is Extract<HostToWebviewMessage, { type: 'briefSubmitted' }> =>
+        message.type === 'briefSubmitted',
+    )
+    expect(brief?.scheduled).toBe(true)
+    const card = shownTranscript(panel, []).find((entry) => entry.kind === 'user')
+    if (card?.kind !== 'user') throw new TypeError('no user card in the transcript')
+    expect(card.scheduled).toBe(true)
   })
 
   it('deep-links the budget setting through the host action query', async () => {

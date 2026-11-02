@@ -1628,6 +1628,7 @@
   "composerPlaceholderWithShortcut": "Muse’a sor… (odaklanmak için {shortcut})",
   "composerQueuePlaceholder": "Başka bir mesajı kuyruğa ekle…",
   "queuedLabel": "Kuyrukta",
+  "sentOnSchedule": "Zamanlandığı gibi gönderildi",
   "queuedMenuLabel": "Kuyruktaki ileti işlemleri",
   "queuedEdit": "Düzenle",
   "queuedEditTitle": "İletiyi kuyruktan çıkarıp istem kutusuna geri al",

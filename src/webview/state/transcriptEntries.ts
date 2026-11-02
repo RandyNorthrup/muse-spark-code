@@ -189,6 +189,11 @@ const userEntrySchema = z.object({
   recordedItemId: z.optional(z.string()),
   /** Sent from this panel in Plan mode (M79): the reply it gets may be a plan. */
   isPlanTurn: z.optional(z.boolean()),
+  /**
+  Sent on its schedule (M88, D67 item 15): the live transcript marks
+  the card, so a timed send never reads as sent by hand.
+  */
+  scheduled: z.optional(z.boolean()),
 })
 
 const assistantEntrySchema = z.object({

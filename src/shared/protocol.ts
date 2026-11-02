@@ -1396,12 +1396,14 @@ export const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('judgeUsage'), usage: judgePanelSnapshotSchema }),
   // A message the host sent itself (M79: a plan's brief): the pending card,
   // as the composer's own Send would have made it. `turnAccepted` or
-  // `sendFailed` follows with the same `localId`.
+  // `sendFailed` follows with the same `localId`. `scheduled` (M88, D67
+  // item 15) marks a timed send's card, sent on its schedule.
   z.object({
     type: z.literal('briefSubmitted'),
     localId: stringSchema.check(z.minLength(1)),
     text: stringSchema,
     attachments: z.array(attachmentSchema),
+    scheduled: z.optional(booleanSchema),
   }),
   // The host accepted a sendMessage. Model API also returns its durable user-item ID.
   // `disposition` (M87, PLAN.md D66) is the backend's word for what became

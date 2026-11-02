@@ -2084,12 +2084,10 @@ function resumeOfferOf(
   if (event.errorKind === MODEL_API_BUDGET_ERROR_KIND) {
     return { kind: 'budget', turnId: event.turnId }
   }
-  const liftsAtMs =
-    event.quota === undefined
-      ? event.errorKind === RATE_LIMITED_ERROR_KIND
-        ? at + (event.rateLimit?.retryAfterMs ?? RESUME_LIMIT_DEFAULT_DELAY_MS)
-        : undefined
-      : event.quota.resetsAtMs
+  let liftsAtMs = event.quota?.resetsAtMs
+  if (liftsAtMs === undefined && event.errorKind === RATE_LIMITED_ERROR_KIND) {
+    liftsAtMs = at + (event.rateLimit?.retryAfterMs ?? RESUME_LIMIT_DEFAULT_DELAY_MS)
+  }
   if (liftsAtMs === undefined || !Number.isFinite(liftsAtMs) || liftsAtMs < 0) {
     return undefined
   }
@@ -2648,6 +2646,7 @@ function withPendingCard(
     readonly referenceLabel?: string | undefined
     readonly isPlanTurn?: boolean
     readonly at?: number | undefined
+    readonly scheduled?: boolean | undefined
   },
 ): UiState {
   const shownReference =
@@ -2672,6 +2671,7 @@ function withPendingCard(
         ...(shownReference !== undefined && { referenceLabel: shownReference }),
         ...(card.isPlanTurn === true && { isPlanTurn: true }),
         ...(card.at !== undefined && { atMs: card.at }),
+        ...(card.scheduled === true && { scheduled: true }),
       },
     ],
   }
