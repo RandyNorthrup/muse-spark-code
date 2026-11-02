@@ -10,8 +10,8 @@ mod commands;
 mod keys;
 
 use std::collections::HashSet;
-use std::fs::File;
-use std::io::{self, BufRead, Write};
+use std::fs::{File, OpenOptions};
+use std::io::{self, BufRead, Seek, SeekFrom, Write};
 use std::os::fd::AsFd;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
@@ -237,9 +237,19 @@ impl Driver {
 fn keymap_file() -> io::Result<File> {
     let name = format!("muse-virtual-input-{}", std::process::id());
     let path = PathBuf::from("/dev/shm").join(name);
-    let mut file = File::create(&path)?;
+    // The compositor receives this descriptor and mmaps it PROT_READ,
+    // so it must be opened for reading as well as writing. (File::create
+    // is write-only; its fd makes the compositor's mmap fail EACCES,
+    // which wlroots and Hyprland report only as wl_display no_memory.)
+    let mut file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(&path)?;
     file.write_all(KEYMAP.as_bytes())?;
     file.sync_all()?;
+    file.seek(SeekFrom::Start(0))?;
     std::fs::remove_file(&path)?;
     Ok(file)
 }
@@ -351,5 +361,20 @@ fn main() {
     if let Err(error) = run(socket) {
         eprintln!("muse-virtual-input: {error}");
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Read;
+
+    #[test]
+    fn staged_keymap_fd_reads_back_from_the_start() {
+        let mut file = keymap_file().expect("keymap staging should succeed");
+        let mut staged = String::new();
+        file.read_to_string(&mut staged)
+            .expect("the compositor mmaps this fd for reading");
+        assert_eq!(staged, KEYMAP);
     }
 }
