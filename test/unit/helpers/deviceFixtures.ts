@@ -222,11 +222,16 @@ export async function reparseAlias(target: string, at: string): Promise<void> {
   const folder = info.isDirectory() ? target : path.dirname(target)
   await symlink(folder, at, 'junction')
 }
+// FileSystemRights.FullControl, and InheritanceFlags ContainerInherit | ObjectInherit.
+const WINDOWS_FULL_CONTROL = 0x1f_01_ff
+const WINDOWS_CONTAINER_AND_OBJECT_INHERIT = 3
 /**
 Each OS's independent reading of owner-only access: POSIX mode bits, or
-.NET's SDDL through Windows PowerShell (owner and one explicit, protected
-full-control rule). .NET, not Get-Acl: a runner's PowerShell 7 module path
-can stop Windows PowerShell autoloading its security module.
+.NET's descriptor through Windows PowerShell (owner and one explicit,
+protected full-control rule). .NET, not Get-Acl: a runner's PowerShell 7
+module path can stop Windows PowerShell autoloading its security module. SIDs,
+not the SDDL text: the text spells a built-in Administrator (a hosted runner's
+account) as `LA`, and the SID is the same account however it is spelled.
 */
 export async function ownerOnlyEvidence(target: string, isDirectory: boolean): Promise<string> {
   if (process.platform !== 'win32') {
@@ -241,10 +246,14 @@ export async function ownerOnlyEvidence(target: string, isDirectory: boolean): P
       '-NoProfile',
       '-NonInteractive',
       '-Command',
-      String.raw`$sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value; $sddl = [IO.${reader}]::GetAccessControl($env:MUSE_TEST_TARGET).GetSecurityDescriptorSddlForm('Owner, Access'); if ($sddl -match ('^O:' + $sid + 'D:PA?I?\(A;' + $env:MUSE_TEST_FLAGS + ';FA;;;' + $sid + '\)$')) { 'owner-only' } else { 'not owner-only: ' + $sddl }`,
+      `$me = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value; $type = [Security.Principal.SecurityIdentifier]; $acl = [IO.${reader}]::GetAccessControl($env:MUSE_TEST_TARGET); $rules = @($acl.GetAccessRules($true, $true, $type)); $rule = $rules[0]; if ($rules.Count -eq 1 -and $acl.AreAccessRulesProtected -and $acl.GetOwner($type).Value -eq $me -and $rule.IdentityReference.Value -eq $me -and $rule.AccessControlType -eq 'Allow' -and [int]$rule.FileSystemRights -eq ${String(WINDOWS_FULL_CONTROL)} -and [int]$rule.InheritanceFlags -eq $env:MUSE_TEST_INHERIT -and -not $rule.IsInherited) { 'owner-only' } else { 'not owner-only: ' + $acl.GetSecurityDescriptorSddlForm('Owner, Access') }`,
     ],
     {
-      env: { ...process.env, MUSE_TEST_TARGET: target, MUSE_TEST_FLAGS: isDirectory ? 'OICI' : '' },
+      env: {
+        ...process.env,
+        MUSE_TEST_TARGET: target,
+        MUSE_TEST_INHERIT: isDirectory ? String(WINDOWS_CONTAINER_AND_OBJECT_INHERIT) : '0',
+      },
     },
   )
   return stdout.trim() === 'owner-only' ? (isDirectory ? '700' : '600') : stdout.trim()

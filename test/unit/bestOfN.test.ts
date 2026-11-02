@@ -116,6 +116,10 @@ describe('best-of-N with real Git worktrees', () => {
     })
     try {
       await git(['init', '-b', 'main', root], folder)
+      // A runner has no global identity: Linux and macOS git make one from the
+      // host name, and Windows git refuses the commit.
+      await git(['config', 'user.name', 'Best-of-N Suite'], root)
+      await git(['config', 'user.email', 'best-of-n@example.invalid'], root)
       const original = await readFile(new URL('../../src/shared/bestOfN.ts', import.meta.url))
       const changed = await readFile(new URL('../../src/core/bestOfN/bestOfN.ts', import.meta.url))
       const binary = await readFile(new URL('../../media/icon.png', import.meta.url))
