@@ -31621,6 +31621,22 @@ process starts stand in int's spawn inventory. The VS Code maker host, its
 commands and the preview panel have no activation caller on the lane's tip or
 on int: open in the record. Record: `docs/certification/cc-int6.md`.
 
+**Status 2026-11-02 (recovery lane RLF-MAKERFENCE on `rec/rlf-makerfence`,
+from `rv/int9` `72d8d5003`): building.** The hardware fence no longer
+refuses work it has no proof about: only a marker at the workspace root
+makes a hardware project (read in one fixed name order on every OS); an
+unknown inventory reports no board and never refuses a whole turn; a
+Muse Code turn starts in a hardware project with its approval mode
+secured per command, and only a board-volume root still refuses at turn
+start; an unknown scan or inventory no longer fences ordinary shell work
+on either backend (device actions, and unreadable commands while the
+inventory is unknown, stay asked or refused); a refused start reaches
+the ACP client in its own sentence. Proven live through the tree's ACP
+agent on Muse Code 1.4.14 in a 4,105-file workspace past the scan
+budget (`pwd` allowed and run; `esptool write_flash` offered only
+reject), 7 requests on `muse-spark-1.3-contributor`. Record:
+`docs/certification/rlf-makerfence.md`.
+
 **Q-M103a–h resolved 2026-10-05 (lead, under the owner's standing
 authorization: "any recommendation you come up with you are authorized").**
 (a) Plain HTTP on the LAN only for a machine the user registered by command,
