@@ -233,6 +233,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly isFastPathOff?: (() => boolean) | undefined
   /** `museSpark.modelApiMaxToolOutputBytes`, read on every bound (TOOLCAP). */
   readonly maxToolOutputBytes?: (() => number | undefined) | undefined
+  /** D261: `museSpark.modelApiFallbackModel`, read live at every refusal. */
+  readonly fallbackModel?: (() => string | undefined) | undefined
   /** `museSpark.modelApiShellKeepsDirectory`, read per shell call (M91 lane S). */
   readonly isShellKeepsDirectoryOn?: (() => boolean) | undefined
   /** Muse Code's memory, shared with the Memory view (M49, PLAN.md D41). */
@@ -636,6 +638,7 @@ export class ModelApiBackendManager {
         observationPacking: this.deps.isObservationPackingOn,
         fastPathOff: this.deps.isFastPathOff,
         maxToolOutputBytes: this.deps.maxToolOutputBytes,
+        fallbackModel: this.deps.fallbackModel,
         autoCompaction: this.deps.isAutoCompactionOn,
         autoCompactionEvaluated: this.deps.autoCompactionEvaluated,
         shellKeepsDirectory: this.deps.isShellKeepsDirectoryOn,

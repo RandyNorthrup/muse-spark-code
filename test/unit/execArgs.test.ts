@@ -452,3 +452,58 @@ describe('M80 args (A1–A10, F1)', () => {
     expect(parseCommandLine(['--output', 'json'])).toMatchObject({ command: 'invalid' })
   })
 })
+
+describe('exec --fallback-model (D261)', () => {
+  const base = { backend: 'modelApi', 'max-budget-usd': '1' }
+
+  it('is off when absent and carries the named model when set', () => {
+    const plain = parseExec(base, ['hi'])
+    if (!plain.ok) throw new Error(plain.reason)
+    expect(plain.options.fallbackModel).toBeUndefined()
+    const named = parseExec({ ...base, 'fallback-model': 'zenith-1.0' }, ['hi'])
+    expect(named.ok && named.options.fallbackModel).toBe('zenith-1.0')
+  })
+
+  it('reads blank as off, as when absent', () => {
+    const blank = parseExec({ ...base, 'fallback-model': ' '.repeat(3) }, ['hi'])
+    if (!blank.ok) throw new Error(blank.reason)
+    expect(blank.options.fallbackModel).toBeUndefined()
+  })
+
+  it('qualifies a bare model with --provider like --model', () => {
+    const qualified = parseExec(
+      { ...base, provider: 'openrouter', 'fallback-model': 'deepseek-v4' },
+      ['hi'],
+    )
+    expect(qualified.ok && qualified.options.fallbackModel).toBe('openrouter/deepseek-v4')
+    const already = parseExec(
+      { ...base, provider: 'openrouter', 'fallback-model': 'openrouter/deepseek-v4' },
+      ['hi'],
+    )
+    expect(already.ok && already.options.fallbackModel).toBe('openrouter/deepseek-v4')
+  })
+
+  it('is Model API only', () => {
+    expect(parseExec({ backend: 'museCode', 'fallback-model': 'zenith-1.0' }, ['hi'])).toEqual({
+      ok: false,
+      reason: fill(UI_TEXT.execModelApiOnly, { options: '--fallback-model' }),
+    })
+  })
+
+  it('parses end to end through the real command line', () => {
+    const argv = [
+      'exec',
+      '--backend',
+      'modelApi',
+      '--max-budget-usd',
+      '1',
+      '--fallback-model',
+      'zenith-1.0',
+      'hi',
+    ]
+    expect(parseCommandLine(argv)).toMatchObject({
+      command: 'exec',
+      options: { fallbackModel: 'zenith-1.0' },
+    })
+  })
+})

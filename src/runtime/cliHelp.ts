@@ -336,6 +336,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       { name: 'backend', shape: '', fact: factFor('backend') },
       { name: 'provider', shape: '<id>' },
       { name: 'model', shape: '<model>' },
+      { name: 'fallback-model', shape: '<model>' },
       { name: 'effort', shape: '', fact: factFor('effort') },
       { name: 'fast', shape: '' },
       { name: 'permission-mode', shape: '', fact: factFor('permission-mode') },
