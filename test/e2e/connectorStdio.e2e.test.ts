@@ -7,6 +7,7 @@ import { mkdtempSync, realpathSync } from 'node:fs'
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import { getDefaultEnvironment } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
@@ -25,7 +26,12 @@ const directory = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'm124-connecto
 const agent = path.join(directory, 'dist', 'acp.js')
 const data = path.join(directory, 'data')
 const CANARY = 'sk-proj-canary0123456789abcdefghijklmnop'
+// What the official MCP SDK hands a server it starts, as a real client's launch
+// does, then this run's own home. Fewer variables than that is no client's
+// launch, and Windows PowerShell's start ran past this suite's budget on every
+// hosted Windows case of run 41214393586 without them.
 const env = {
+  ...getDefaultEnvironment(),
   SystemRoot: process.env['SystemRoot'],
   LANG: 'en_US.UTF-8',
   LC_ALL: '',
