@@ -1499,6 +1499,12 @@
       "title": "The ACP agent ends when its client leaves, even while Muse Code is starting",
       "summary": "Closing the editor, stopping the agent or a crashed editor ends the agent and the Muse Code it started in every state, with no process left behind.",
       "area": "platform"
+    },
+    {
+      "id": "RLFOUTPUTCAP",
+      "title": "Output-token ceilings follow the provider and the person",
+      "summary": "Headless --max-output-tokens, session budgets and judge reservations use the model's own documented output maximum, and the 32,768 legacy cap stays a default only.",
+      "area": "chat"
     }
   ]
 }

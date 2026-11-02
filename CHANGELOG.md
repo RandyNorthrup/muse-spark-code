@@ -440,6 +440,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Headless `--max-output-tokens` now follows the model's own limit. A run
+  accepts up to the selected model's documented output maximum (131,072
+  tokens for Meta models) instead of stopping at 32,768; a larger value is
+  refused naming that maximum. Session budgets and judge reservations fit
+  against the same model maximum, so a budget that covers more output no
+  longer caps the reply at 32,768.
 - A vault policy that is a link, that another account can read, or that has
   a second name is ignored, and saving a policy can no longer be aimed at
   another file. The ceiling stays "none" and the refusal is the same words

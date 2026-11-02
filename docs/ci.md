@@ -286,10 +286,10 @@ With W=1,048,576 and M=max_output_tokens, context liability is
 then rounds each reservation and priced liability **up** to integer micro-USD
 (EXEC_USD_UNITS=1,000,000; F1 supersedes v4's earlier nanodollar text).
 
-| Tier, M=32,768 | Exact context liability | Admitted reservation/minimum | Minimum with images |
-| -------------- | ----------------------: | ---------------------------: | ------------------: |
-| Contributor    |              $0.1081344 |                    $0.108135 |           $0.118135 |
-| Standard       |               $1.409024 |                    $1.409024 |           $1.419024 |
+| Tier, M=131,072 | Exact context liability | Admitted reservation/minimum | Minimum with images |
+| --------------- | ----------------------: | ---------------------------: | ------------------: |
+| Contributor     |              $0.1179648 |                    $0.117965 |           $0.127965 |
+| Standard        |               $1.703936 |                    $1.703936 |           $1.713936 |
 
 Standard recipes use $2.00; contributor recipes explicitly opt in and use $1.00.
 Cached input is priced at its lower tariff, reasoning is already part of output.

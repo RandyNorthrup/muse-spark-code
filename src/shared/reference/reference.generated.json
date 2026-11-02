@@ -8174,7 +8174,6 @@
         "type": "string",
         "repeatable": false,
         "minimum": 1,
-        "maximum": 32768,
         "unit": "tokens",
         "purpose": "max-output-tokens"
       }
