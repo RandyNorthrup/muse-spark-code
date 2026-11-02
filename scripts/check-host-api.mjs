@@ -184,9 +184,16 @@ function resolveRelative(fromFile, specifier) {
   throw new Error(`${fromFile}: cannot resolve "${specifier}"`)
 }
 
-/** Each source file's relative imports (resolved) and package or built-in imports. */
+/**
+Each source file's relative imports (resolved) and package or built-in
+imports, plus the webview's host calls. Each parsed file is dropped as
+soon as its facts are out: the type-checked program below parses the
+host files again, and keeping both copies of the whole tree's syntax
+trees outgrew the heap of CI's macOS runners (RLF-CIFIXA).
+*/
 function importGraph(files) {
   const graph = new Map()
+  const hostCalls = new Map()
   for (const file of files) {
     const text = readFileSync(file, 'utf8')
     const sourceFile = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true)
@@ -202,9 +209,18 @@ function importGraph(files) {
         external.add(specifier)
       }
     }
-    graph.set(file, { local, external, sourceFile })
+    if (file.startsWith(`${WEBVIEW_ROOT}/`)) {
+      const visit = (node) => {
+        if (ts.isIdentifier(node) && node.text === WEBVIEW_HOST_CALL) {
+          addTo(hostCalls, WEBVIEW_HOST_CALL, file)
+        }
+        ts.forEachChild(node, visit)
+      }
+      visit(sourceFile)
+    }
+    graph.set(file, { local, external })
   }
-  return graph
+  return { graph, hostCalls }
 }
 
 /** The import chain from `root` to a file that imports `vscode`, or undefined. */
@@ -473,23 +489,6 @@ function vsCodeApiUses(program, files) {
 
 // --- the webview ---------------------------------------------------------------
 
-function webviewHostCalls(graph) {
-  const calls = new Map()
-  for (const [file, { sourceFile }] of graph) {
-    if (!file.startsWith(`${WEBVIEW_ROOT}/`)) {
-      continue
-    }
-    const visit = (node) => {
-      if (ts.isIdentifier(node) && node.text === WEBVIEW_HOST_CALL) {
-        addTo(calls, WEBVIEW_HOST_CALL, file)
-      }
-      ts.forEachChild(node, visit)
-    }
-    visit(sourceFile)
-  }
-  return calls
-}
-
 function themeVariables() {
   return collectThemeVariables([
     ...listFiles(WEBVIEW_ROOT, SCRIPT_FILE),
@@ -636,7 +635,7 @@ function renderRecord({ manifest, apis, adapterFiles, builtins, hostCalls, varia
 // --- main --------------------------------------------------------------------------
 
 const sourceFiles = listFiles(SOURCE_ROOT, SCRIPT_FILE)
-const graph = importGraph(sourceFiles)
+const { graph, hostCalls } = importGraph(sourceFiles)
 const hostFiles = sourceFiles.filter((file) => !file.startsWith(`${WEBVIEW_ROOT}/`))
 
 const problems = []
@@ -696,7 +695,6 @@ for (const file of hostFiles) {
     }
   }
 }
-const hostCalls = webviewHostCalls(graph)
 const variables = themeVariables()
 const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8'))
 
