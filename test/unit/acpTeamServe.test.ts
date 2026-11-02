@@ -21,6 +21,11 @@ import { writeEditorChatProvidersFile } from './helpers/editorChatRig'
 import { removeFolder } from './helpers/temporaryFolders'
 import { stageAgentBundle } from './helpers/stageAgentBundle'
 
+// Staging builds four real bundles with esbuild before any case runs.
+const STAGE_BUNDLES_TIMEOUT_MS = 60_000
+// Each case spawns the real agent process and creates a real session in it.
+const SERVED_SESSION_TIMEOUT_MS = 30_000
+
 const staged = { root: mkdtempSync(path.join(tmpdir(), 'acp-team-serve-')), agent: '' }
 const directory = staged.root
 const config = path.join(directory, 'config')
@@ -64,7 +69,7 @@ beforeAll(async () => {
   const providers = JSON.parse(readFileSync(configFile, 'utf8')) as Record<string, unknown>
   providers['defaultModel'] = 'probe-custom/custom-model'
   writeFileSync(configFile, JSON.stringify(providers))
-})
+}, STAGE_BUNDLES_TIMEOUT_MS)
 
 afterAll(async () => {
   await removeFolder(directory)
@@ -139,51 +144,59 @@ async function newSessionRefusal(
 }
 
 describe('serve --team over real stdio', () => {
-  it('refuses a new session when no team is stored', async () => {
-    await served(async (ctx) => {
-      expect(await newSessionRefusal(ctx)).toContain(UI_TEXT.teamNeedsSecondModel)
-    })
-  })
-
-  it('opens a team session for the stored team and shows its state', async () => {
-    const dataFolder = agentDataFolder({
-      platform: process.platform,
-      env: { XDG_DATA_HOME: data },
-      homeDir: directory,
-    })
-    const file = storedTeamSnapshotFile(dataFolder, workspace)
-    mkdirSync(path.dirname(file), { recursive: true })
-    writeFileSync(
-      file,
-      JSON.stringify({
-        roles: [
-          {
-            role: 'engineering',
-            workspace: 'own-branch',
-            pool: [
-              {
-                id: 'e1',
-                concurrent: 1,
-                caps: [],
-                agent: {
-                  kind: 'engine',
-                  agentId: 'probe-offable:offable-model',
-                  model: 'probe-offable/offable-model',
-                  pays: 'local',
-                },
-              },
-            ],
-          },
-        ],
-        intensity: 'balanced',
-      }),
-    )
-    await served(async (ctx) => {
-      const created = await ctx.request('session/new', { cwd: workspace, mcpServers: [] })
-      expect(created.configOptions?.find((row) => row.id === 'team')).toMatchObject({
-        currentValue: 'on',
+  it(
+    'refuses a new session when no team is stored',
+    async () => {
+      await served(async (ctx) => {
+        expect(await newSessionRefusal(ctx)).toContain(UI_TEXT.teamNeedsSecondModel)
       })
-      await ctx.request('session/close', { sessionId: created.sessionId })
-    })
-  })
+    },
+    SERVED_SESSION_TIMEOUT_MS,
+  )
+
+  it(
+    'opens a team session for the stored team and shows its state',
+    async () => {
+      const dataFolder = agentDataFolder({
+        platform: process.platform,
+        env: { XDG_DATA_HOME: data },
+        homeDir: directory,
+      })
+      const file = storedTeamSnapshotFile(dataFolder, workspace)
+      mkdirSync(path.dirname(file), { recursive: true })
+      writeFileSync(
+        file,
+        JSON.stringify({
+          roles: [
+            {
+              role: 'engineering',
+              workspace: 'own-branch',
+              pool: [
+                {
+                  id: 'e1',
+                  concurrent: 1,
+                  caps: [],
+                  agent: {
+                    kind: 'engine',
+                    agentId: 'probe-offable:offable-model',
+                    model: 'probe-offable/offable-model',
+                    pays: 'local',
+                  },
+                },
+              ],
+            },
+          ],
+          intensity: 'balanced',
+        }),
+      )
+      await served(async (ctx) => {
+        const created = await ctx.request('session/new', { cwd: workspace, mcpServers: [] })
+        expect(created.configOptions?.find((row) => row.id === 'team')).toMatchObject({
+          currentValue: 'on',
+        })
+        await ctx.request('session/close', { sessionId: created.sessionId })
+      })
+    },
+    SERVED_SESSION_TIMEOUT_MS,
+  )
 })
