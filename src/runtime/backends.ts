@@ -8,6 +8,7 @@ import { ModelApiClient } from '../core/backends/modelapi/client'
 import { failureForLog } from '../core/backends/musecode/logText'
 import type { AccountRequestPort } from '../core/accounts/requestWriter'
 import type { PaidBilling } from '../core/paid/accountPaidRoute'
+import type { ReservePaidExtra } from '../core/voice/voiceBatchSeams'
 import type { ModelPolicy } from '../core/backends/modelapi/modelPolicy'
 import type { HardwareContext } from '../core/maker/guard/httpCommands'
 import { createHardwareContexts } from '../core/maker/hardwareContext'
@@ -149,6 +150,13 @@ export interface ExecRuntimeOptions {
   readonly responseAccounting?: RuntimeAccountingEntry.RuntimeResponseAccounting
   readonly isEphemeral: boolean
   readonly headlessPaid: HeadlessPaidPolicy
+  /**
+  Batch transcription's exact reservation against the run's own ledger
+  (M105): present only where the run's ledger-bound transport carries
+  the POST, so a headless transcription can never spend outside the
+  run budget. Absent in exec, the reservation refuses in words.
+  */
+  readonly reserveTranscription?: ReservePaidExtra | undefined
   readonly streamIdleMs: number
   /**
   D243: the vault exec service over the run's headless registration,
@@ -780,7 +788,15 @@ function modelApiManager(
     // D78's exact reservation for Muse Voice's batch transcription (lane V
     // seam 4): the runtime's own daily ledger, estimate-checked and settled
     // after (D208). With no daily limit there is nothing to enforce.
+    // Headless runs admit the same spend against the run ledger instead
+    // (M105): without the run's ledger-bound reservation it refuses,
+    // never silently spends on the daily file or nothing.
     reservePaidExtra: async (costUsd, signal) => {
+      if (deps.exec !== undefined) {
+        if (deps.exec.reserveTranscription === undefined)
+          throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+        return await deps.exec.reserveTranscription(costUsd, signal)
+      }
       const budget = await dailyBudget()
       return paidExtraAdmission(await budget.reserve(costUsd, signal), costUsd, signal)
     },

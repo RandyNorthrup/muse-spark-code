@@ -1019,6 +1019,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           // The flag is safe here; paid images remain separately dollar-billed.
           planBilling: options.subscription,
           imageGeneration: options.paidFeatures.includes('imageGeneration'),
+          voiceTranscription: options.paidFeatures.includes('voice'),
           responsesThroughEngine: options.team,
           lifecycle,
           onLatch: (cause, message) => {
@@ -1213,10 +1214,14 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               request,
               requiresAsking,
             )
-            if (!isAllowed && !isFinishing && request.feature === 'imageGeneration')
+            if (
+              !isAllowed &&
+              !isFinishing &&
+              (request.feature === 'imageGeneration' || request.feature === 'voice')
+            )
               sink.emit({
                 type: 'paid_use',
-                feature: 'imageGeneration',
+                feature: request.feature,
                 n: null,
                 phase: 'refused',
                 units: 1,
@@ -1225,6 +1230,106 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               })
             return Promise.resolve(isAllowed)
           },
+          // Batch transcription's exact reservation against this run's
+          // ledger (M105): present only on the ledger-bound Meta
+          // transport, so the spend is admitted like every other paid
+          // use and settles from the receipt. Provider and plan runs
+          // supply none and the reservation refuses in words there.
+          ...(ledger !== undefined &&
+            providerRun === undefined &&
+            !isPlanRun && {
+              reserveTranscription: (costUsd, signal) => {
+                try {
+                  signal.throwIfAborted()
+                } catch (error: unknown) {
+                  return Promise.reject(error instanceof Error ? error : new Error(String(error)))
+                }
+                const ticket = ledger.admitTranscription(costUsd)
+                if ('refused' in ticket) {
+                  if (!isFinishing)
+                    sink.emit({
+                      type: 'paid_use',
+                      feature: 'voice',
+                      n: null,
+                      phase: 'refused',
+                      units: 1,
+                      usd: Usd.from(0).toAmount(),
+                      reason: ticket.refused,
+                    })
+                  latch({ kind: ticket.refused === 'closed' ? 'internal' : ticket.refused })
+                  return Promise.reject(new Error(UI_TEXT.execBudgetRefused))
+                }
+                sink.emit({
+                  type: 'attempt',
+                  n: ticket.n,
+                  endpoint: 'transcribe',
+                  phase: 'admitted',
+                  reservedUsd: ticket.reserveUsd,
+                  totals: ledger.totals(),
+                })
+                sink.emit({
+                  type: 'paid_use',
+                  feature: 'voice',
+                  n: ticket.n,
+                  phase: 'admitted',
+                  units: 1,
+                  usd: ticket.reserveUsd,
+                })
+                let isSettled = false
+                const secondsBefore = ledger.totals().paid.transcribedSeconds
+                return Promise.resolve({
+                  reservedUsd: ticket.reserveUsd,
+                  check: () => {
+                    signal.throwIfAborted()
+                    if (isSettled || lifecycle.signal.aborted)
+                      throw new Error(UI_TEXT.execInterrupted)
+                  },
+                  settle: (amountUsd, hasUnknownCost) => {
+                    if (isSettled) return Promise.resolve()
+                    isSettled = true
+                    const isRefunded =
+                      hasUnknownCost !== true && Usd.from(amountUsd).compare(Usd.from(0)) === 0
+                    const result = ledger.settleTranscription(
+                      ticket,
+                      hasUnknownCost === true
+                        ? { kind: 'unknown' }
+                        : isRefunded
+                          ? { kind: 'refunded' }
+                          : { kind: 'returned', costUsd: amountUsd },
+                    )
+                    const totals = ledger.totals()
+                    sink.emit({
+                      type: 'paid_use',
+                      feature: 'voice',
+                      n: ticket.n,
+                      phase:
+                        result.outcome === 'full-reservation'
+                          ? 'uncertain'
+                          : isRefunded
+                            ? 'refunded'
+                            : 'returned',
+                      units:
+                        !isRefunded && result.outcome === 'priced'
+                          ? totals.paid.transcribedSeconds - secondsBefore
+                          : 1,
+                      usd: result.chargedUsd,
+                    })
+                    sink.emit({
+                      type: 'attempt',
+                      n: ticket.n,
+                      endpoint: 'transcribe',
+                      phase: 'settled',
+                      reservedUsd: ticket.reserveUsd,
+                      outcome: result.outcome,
+                      chargedUsd: result.chargedUsd,
+                      totals,
+                    })
+                    if (result.latch !== undefined) latch({ kind: result.latch })
+                    return Promise.resolve()
+                  },
+                })
+              },
+            }),
         },
       }
       let accounts: AccountsSessionPort | undefined
@@ -1845,6 +1950,11 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           imagesReturned: 0,
           imagesRefunded: 0,
           imagesUncertain: 0,
+          transcriptionAttempts: 0,
+          transcriptionsReturned: 0,
+          transcriptionsRefunded: 0,
+          transcriptionsUncertain: 0,
+          transcribedSeconds: 0,
           settledUsd: Usd.from(0).toAmount(),
           uncertainUsd: Usd.from(0).toAmount(),
         },
