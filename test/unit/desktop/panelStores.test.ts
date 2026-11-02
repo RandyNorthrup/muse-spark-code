@@ -12,6 +12,24 @@ import {
   DIAGNOSTICS_MAX_ENTRIES,
 } from '../../../src/shared/constants'
 
+function collectingOutputStore(): {
+  store: OutputStore
+  appended: unknown[]
+  cleared: unknown[]
+} {
+  const appended: unknown[] = []
+  const cleared: unknown[] = []
+  const store = new OutputStore({
+    onAppended: (frame) => {
+      appended.push(frame)
+    },
+    onCleared: (frame) => {
+      cleared.push(frame)
+    },
+  })
+  return { store, appended, cleared }
+}
+
 describe('M111 lane BP panel stores', () => {
   it('problems replace the whole list and refuse malformed rows by name', () => {
     const seen: unknown[] = []
@@ -44,16 +62,7 @@ describe('M111 lane BP panel stores', () => {
   })
 
   it('output appends per channel, clips to the megabyte, clears one or all', () => {
-    const appended: unknown[] = []
-    const cleared: unknown[] = []
-    const store = new OutputStore({
-      onAppended: (frame) => {
-        appended.push(frame)
-      },
-      onCleared: (frame) => {
-        cleared.push(frame)
-      },
-    })
+    const { store, appended, cleared } = collectingOutputStore()
     expect(store.snapshot()).toEqual({ channels: [] })
     store.append('vite', 'ready in 300 ms\n')
     store.append('vite', 'hmm connected\n')
@@ -77,16 +86,7 @@ describe('M111 lane BP panel stores', () => {
   })
 
   it('output refuses overlong names and chunks, and counts the clipped tail', () => {
-    const appended: unknown[] = []
-    const cleared: unknown[] = []
-    const store = new OutputStore({
-      onAppended: (frame) => {
-        appended.push(frame)
-      },
-      onCleared: (frame) => {
-        cleared.push(frame)
-      },
-    })
+    const { store, appended, cleared } = collectingOutputStore()
     const nameBound = new RegExp(`1 to ${String(DESKTOP_OUTPUT_CHANNEL_NAME_MAX_CHARS)} characters`)
     const chunkBound = new RegExp(`at most ${String(DESKTOP_OUTPUT_APPEND_MAX_CHARS)} characters`)
     expect(() => {

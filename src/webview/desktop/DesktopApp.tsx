@@ -34,6 +34,7 @@ import {
   type OutputSnapshot,
   type PanelProblem,
   type SplitNode,
+  type TerminalPlacement,
   type TerminalSessionInfo,
   type TerminalSlot,
   type WorkbenchLayoutV2,
@@ -122,6 +123,35 @@ function sessionToTab(session: TerminalSessionInfo, slot: TerminalSlot): BottomP
     agent: session.agent,
     exitCode: undefined,
   }
+}
+
+/**
+The bridge's own refusal (fixed words, said on main's stderr) or a
+nonsense answer (a schema refusal). Anything else a create throws is
+a bug, not a failed create.
+*/
+function isBridgeRefusal(error: unknown): error is Error {
+  return error instanceof Error && (error.name === 'Error' || error.name === 'ZodError')
+}
+
+/** A hidden or footer-collapsed panel comes back to the dock. */
+function revealPlacement(placement: TerminalPlacement): TerminalPlacement {
+  return placement === 'hidden' || placement === 'footer' ? 'docked' : placement
+}
+
+/** Brings a hidden or footer-collapsed panel back for a focus request. */
+function recallPanel(placement: TerminalPlacement, movePanel: (move: TerminalMove) => void): void {
+  if (placement === 'hidden') movePanel('show')
+  else if (placement === 'footer') movePanel('expand')
+}
+
+/** A person's terminal at the default size, rooted at the workspace. */
+async function createPersonTerminal(root: string): Promise<TerminalSessionInfo> {
+  return await desktopBridge().createTerminal({
+    cwd: root,
+    cols: DESKTOP_TERMINAL_DEFAULT_COLS,
+    rows: DESKTOP_TERMINAL_DEFAULT_ROWS,
+  })
 }
 
 export function DesktopApp() {
@@ -386,15 +416,28 @@ export function DesktopApp() {
     setTerminalCreateError(UI_TEXT.desktop.panelTerminalCreateFailed)
   }, [])
 
+  const attemptTerminalCreate = useCallback(
+    async (task: () => Promise<void>): Promise<void> => {
+      // The one catch for terminal creates: the bridge's refusal shows
+      // the fixed failure sentence, anything else is a bug and rethrows.
+      try {
+        await task()
+      } catch (error_: unknown) {
+        if (isBridgeRefusal(error_)) {
+          createFailed()
+        } else {
+          throw error_
+        }
+      }
+    },
+    [createFailed],
+  )
+
   const newTerminal = useCallback(
     async (slot: 'dock' | 'window') => {
       if (workspace === null) return
-      try {
-        const created = await desktopBridge().createTerminal({
-          cwd: workspace.root,
-          cols: DESKTOP_TERMINAL_DEFAULT_COLS,
-          rows: DESKTOP_TERMINAL_DEFAULT_ROWS,
-        })
+      await attemptTerminalCreate(async () => {
+        const created = await createPersonTerminal(workspace.root)
         // The opened event adds the tab too; both add-if-missing, so the
         // race either way lands one tab.
         setTabs((previous) =>
@@ -405,20 +448,15 @@ export function DesktopApp() {
         const current = layoutRef.current
         await persistLayout({
           ...current,
-          terminalPlacement:
-            current.terminalPlacement === 'hidden' || current.terminalPlacement === 'footer'
-              ? 'docked'
-              : current.terminalPlacement,
+          terminalPlacement: revealPlacement(current.terminalPlacement),
           tabSlots: { ...current.tabSlots, [created.id]: slot },
           activeTerminalId: created.id,
           activePaneId: created.id,
         })
         setTerminalCreateError(null)
-      } catch {
-        createFailed()
-      }
+      })
     },
-    [createFailed, persistLayout, workspace],
+    [attemptTerminalCreate, persistLayout, workspace],
   )
 
   const doClose = useCallback(
@@ -469,9 +507,13 @@ export function DesktopApp() {
           children = await desktopBridge().hasTerminalChildren(id)
         } catch (error: unknown) {
           // The probe cannot tell (the session raced its exit): ask, as
-          // the exit question's unknown-means-ask rule requires.
-          if (!(error instanceof Error)) throw error
-          children = null
+          // the exit question's unknown-means-ask rule requires. The
+          // bridge refuses as an Error; anything else is a bug.
+          if (error instanceof Error && error.name === 'Error') {
+            children = null
+          } else {
+            throw error
+          }
         }
         if (children !== null && !shouldConfirmTerminalClose(false, children.hasChildren)) {
           await doClose(id)
@@ -671,8 +713,7 @@ export function DesktopApp() {
       if (tab.slot === 'footer') {
         moveTab(id, current.terminalPlacement === 'floating' ? 'window' : 'dock')
       }
-      if (current.terminalPlacement === 'hidden') movePanel('show')
-      else if (current.terminalPlacement === 'footer') movePanel('expand')
+      recallPanel(current.terminalPlacement, movePanel)
       if (current.panelView !== 'terminal') selectView('terminal')
       selectTab(id)
     },
@@ -703,8 +744,7 @@ export function DesktopApp() {
       if (tab.slot === 'footer') {
         moveTab(target, current.terminalPlacement === 'floating' ? 'window' : 'dock')
       }
-      if (current.terminalPlacement === 'hidden') movePanel('show')
-      else if (current.terminalPlacement === 'footer') movePanel('expand')
+      recallPanel(current.terminalPlacement, movePanel)
       if (current.panelView !== 'terminal') selectView('terminal')
       selectTab(target)
     },
@@ -722,8 +762,7 @@ export function DesktopApp() {
       pendingFocus.current = null
       return
     }
-    if (current.terminalPlacement === 'hidden') movePanel('show')
-    else if (current.terminalPlacement === 'footer') movePanel('expand')
+    recallPanel(current.terminalPlacement, movePanel)
     if (current.panelView !== 'problems') selectView('problems')
     pendingFocus.current = { kind: 'problems' }
   }, [movePanel, selectView])
@@ -739,8 +778,7 @@ export function DesktopApp() {
       pendingFocus.current = null
       return
     }
-    if (current.terminalPlacement === 'hidden') movePanel('show')
-    else if (current.terminalPlacement === 'footer') movePanel('expand')
+    recallPanel(current.terminalPlacement, movePanel)
     if (current.panelView !== 'output') selectView('output')
     pendingFocus.current = { kind: 'output' }
   }, [movePanel, selectView])
@@ -748,12 +786,8 @@ export function DesktopApp() {
   const splitPane = useCallback(
     async (id: string) => {
       if (workspace === null) return
-      try {
-        const created = await desktopBridge().createTerminal({
-          cwd: workspace.root,
-          cols: DESKTOP_TERMINAL_DEFAULT_COLS,
-          rows: DESKTOP_TERMINAL_DEFAULT_ROWS,
-        })
+      await attemptTerminalCreate(async () => {
+        const created = await createPersonTerminal(workspace.root)
         const current = layoutRef.current
         // Splits live in the dock: the split tab joins it, and splitting
         // outside the split view starts a new split there (the old
@@ -771,21 +805,16 @@ export function DesktopApp() {
         })
         await persistLayout({
           ...current,
-          terminalPlacement:
-            current.terminalPlacement === 'hidden' || current.terminalPlacement === 'footer'
-              ? 'docked'
-              : current.terminalPlacement,
+          terminalPlacement: revealPlacement(current.terminalPlacement),
           splits: grown,
           tabSlots: { ...current.tabSlots, [created.id]: 'dock', [id]: 'dock' },
           activeTerminalId: created.id,
           activePaneId: created.id,
         })
         setTerminalCreateError(null)
-      } catch {
-        createFailed()
-      }
+      })
     },
-    [createFailed, persistLayout, workspace],
+    [attemptTerminalCreate, persistLayout, workspace],
   )
 
   const adjustPanelHeight = useCallback(
