@@ -1335,6 +1335,9 @@ set|status|clear --provider <id> --admin` stores the separate admin
 - The release's CI lookup scans every page for a reusable build instead
   of stopping at 3, and waits for the API instead of rebuilding on a
   timeout.
+- The judge delivery suite runs its guard checks in batches (18 gate runs
+  instead of 282) with every wait bounded, so it finishes in about ten
+  minutes instead of ninety and fails loudly instead of hanging.
 
 ### MCP connector
 
