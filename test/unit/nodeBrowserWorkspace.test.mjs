@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto'
 import { readFileSync, existsSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, inject, it } from 'vitest'
 import { chromium } from 'playwright-core'
+import { assertCurrentProductionBuild } from './productionBuild'
 import { buildNodeWorkspace } from '../harness/build-node.mjs'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
 import { serveRepo } from '../../scripts/lib/harnessServer.mjs'
@@ -28,6 +29,9 @@ async function warmBrowser(browser) {
 
 const state = { pages: [] }
 beforeAll(async () => {
+  // The harness page links the production webview stylesheet: refuse a run
+  // whose shared build is missing or stale instead of measuring unstyled bytes.
+  assertCurrentProductionBuild(inject('productionBuildGeneration'), process.cwd())
   const dependencies = path.resolve('temp/u1-deps/node_modules')
   await buildNodeWorkspace(undefined, existsSync(dependencies) ? dependencies : undefined)
   const locale = await loadL10n(process.cwd())
