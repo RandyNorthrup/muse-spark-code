@@ -1,0 +1,6 @@
+{
+  "capturedAt": "2026-11-02",
+  "machine": "Windows 11 Pro 10.0.26200, no board attached",
+  "command": "reg.exe query HKLM\\HARDWARE\\DEVICEMAP\\SERIALCOMM",
+  "stdout": "\r\nHKEY_LOCAL_MACHINE\\HARDWARE\\DEVICEMAP\\SERIALCOMM\r\n    \\Device\\Serial0    REG_SZ    COM1\r\n    \\Device\\BthModem1    REG_SZ    COM11\r\n    \\Device\\BthModem2    REG_SZ    COM5\r\n    \\Device\\BthModem0    REG_SZ    COM4\r\n\r\n"
+}
