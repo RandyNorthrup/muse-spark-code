@@ -162,9 +162,15 @@ const KNOWN: Record<string, KnownSpawn> = {
   },
   'src/core/maker/detect/projectIoWindows.ts': {
     kind: 'reviewed',
-    anchor: 'WINDOWS_PSMODULEPATH_SEGMENTS',
+    anchor: 'windowsPowerShell',
     reason:
-      'absolute SystemRoot Windows PowerShell 5.1 only, an env of nothing but PSModulePath set to the system module folder, argument array, no shell, hidden window, timeout and bounded output (M103)',
+      "absolute SystemRoot powershell only (windowsPowerShell: guarded, credential-free, 5.1's own module path), a script that names no cmdlet, argument array, no shell, hidden window, timeout and bounded output (M103)",
+  },
+  'src/core/maker/hardwareContext.ts': {
+    kind: 'reviewed',
+    anchor: "'reg.exe'",
+    reason:
+      "System32's reg.exe by the system root's absolute path, an env of nothing but SystemRoot, argument array, no shell, hidden window, timeout (Windows' SERIALCOMM read, opening no port)",
   },
   'src/core/maker/serial/nativeLease.ts': {
     kind: 'reviewed',
