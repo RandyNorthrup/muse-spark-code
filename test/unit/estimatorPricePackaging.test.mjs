@@ -34,6 +34,19 @@ function strings(expression, values, seen = new Set()) {
     value = next
   }
   if (ts.isStringLiteralLike(value)) return [normalize(value.text)]
+  // A template joins its head, each substitution and each literal tail.
+  // Lane D's portable loader outfile (`${PORTABLE_OUTDIR}/loader.js`) is
+  // statically known, so it resolves; anything dynamic resolves to no
+  // path and fails loud at the call site, as before.
+  if (ts.isTemplateExpression(value)) {
+    let text = value.head.text
+    for (const span of value.templateSpans) {
+      const resolved = strings(span.expression, values, new Set(seen))
+      if (resolved.length !== 1) return []
+      text += resolved[0] + span.literal.text
+    }
+    return [normalize(text)]
+  }
   return ts.isArrayLiteralExpression(value)
     ? value.elements.flatMap((element) => strings(element, values, new Set(seen)))
     : []
