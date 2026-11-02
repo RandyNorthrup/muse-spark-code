@@ -30171,6 +30171,17 @@ stage moved, and a stage that still waits is offered again. Live drills
 still refuse a model that is not contributor-tier.
 `museCodeApprovalPersistence` (2) passed. Record:
 `docs/certification/rvint7.md`.
+**Status 2026-10-31 (recovery lane RLF-M115T): building.** C-M115-8 owns
+role/team targets on int/recovery: a scheduled prompt to a role lands on
+the board under that role's charter, a prompt to a team lands under the
+stored team's first role, and key-billed entries quote from the
+schedule's own consent and cap, never the popup path. Proven by
+`test/unit/scheduleBoardDelivery.test.ts` (23 tests over the real engine,
+team host and window scheduler), `test/unit/scheduleBoardClaim.test.ts`
+(two real processes race one due fire; the dispatch lease admits exactly
+one), and byte-exact red drills D1-D3. C-M115-9 (the native editors'
+rows) waits for the native-hosts re-land. The certification switch stays
+off. Record: `docs/certification/rlf-m115t.md`.
 
 - **Goal.** A user, or an orchestrating agent within the user's limits,
   schedules any number of prompts to fire once, repeatedly, on a cron

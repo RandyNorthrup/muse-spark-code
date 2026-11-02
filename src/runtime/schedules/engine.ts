@@ -7,6 +7,7 @@ import * as z from 'zod/mini'
 import { createScheduleStore, type ScheduleRunIntent } from '../../core/schedules/store'
 import { createScheduler } from '../../core/schedules/scheduler'
 import { ScheduleDelivery, type ScheduleDeliveryDeps } from '../../core/schedules/delivery'
+import { ScheduleBoardDelivery, type ScheduleTeamBoards } from '../../core/schedules/boardDelivery'
 import { ScheduleReportActionRunner } from '../../core/schedules/reportAction'
 import { createScheduleReportPort } from '../../core/schedules/reportAdapter'
 import { createReportOccurrencePort } from '../../core/schedules/reportOccurrences'
@@ -83,6 +84,18 @@ export interface ScheduleEngineOptions {
   ) =>
     | Pick<ScheduleDeliveryDeps, 'targets' | 'runs' | 'prompt'>
     | Promise<Pick<ScheduleDeliveryDeps, 'targets' | 'runs' | 'prompt'>>
+  /**
+  The host's team core for role/team targets (C-M115-8). Absent, those
+  targets refuse targetUnavailable; the certification switch drops the
+  whole delivery, boards with it.
+  */
+  readonly boards?: ScheduleTeamBoards
+  /**
+  The board prompt's event fence. Required with boards; the delivery
+  bundle supplies it beside the schedule model text, so this bundle
+  never carries that text.
+  */
+  readonly eventFence?: string
   readonly fs: ScheduleFsPort
   /**
   D121: the person's pause-after-failures count (0 never pauses), read
@@ -170,6 +183,10 @@ function deferredEventRetryDelayMs(failures: number): number {
 
 function unavailableTarget(): Promise<never> {
   throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable)
+}
+
+function missingBoardEventFence(): never {
+  throw new Error('schedule board delivery needs its event fence')
 }
 
 /** Production composition of S admission/claims/polling with D/U delivery ledgers. */
@@ -285,6 +302,15 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
       deliver: (schedule, context, occurrenceMs, event) =>
         reportRunner.run(schedule, context, occurrenceMs, event),
     },
+    ...(options.boards !== undefined && {
+      board: new ScheduleBoardDelivery({
+        boards: options.boards,
+        authority,
+        log: options.log,
+        now,
+        eventFence: options.eventFence ?? missingBoardEventFence(),
+      }),
+    }),
     ...((await options.delivery?.(authority)) ??
       runtimeDelivery?.delivery ?? {
         targets: {
