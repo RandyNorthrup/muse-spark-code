@@ -2165,7 +2165,7 @@
     "axe-core": "4.14.0",
     "codemirror": "6.0.2",
     "dpdm": "4.3.0",
-    "electron": "45.0.0",
+    "electron": "45.2.1",
     "esbuild": "0.28.2",
     "eslint": "10.14.0",
     "eslint-plugin-react-hooks": "7.1.1",
