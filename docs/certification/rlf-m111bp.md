@@ -57,6 +57,44 @@ Gates.
    events). Each fix went in with the assertion that caught it.
 4. The bundle-size drill runs with the build gate below (the new
    budgets fail on purpose, then pass).
+5. (2026-11-02) The dead-code gate fired for real on the lane's own
+   leftovers: the proof file without an entry, the `pgrep`/`node-gyp`
+   binaries without ignores, the dead floating-default constant, the
+   unwired `FooterTab`/`TerminalSource`/opened-schema alias, and the
+   engine export reached only through a namespace. Fixed as designed
+   (entry and ignores, removals, the base tab's source field, the
+   destructured lazy import): `npm run deadcode` exits 0.
+
+## Landed: recovery gates, proof rerun (2026-11-02)
+
+- Every brief gate exits 0: prettier and eslint on the touched
+  files, `typecheck`, `check-l10n`, `check:reference`,
+  `check:host-api`, `check:plan`, `check:roadmap`, `check:catches`,
+  `duplication` (0 clones), `cycles`, `deadcode`.
+- `vitest related` on the four changed sources: 33 of 33 pass. The
+  full `test:unit` was also attempted (1338 of 1339 files finished;
+  one hung): none of the failing or hung files imports anything
+  this lane changed (verified by import search over all 32). Sampled
+  causes, all pre-existing and environmental on linuxlt: the
+  private-store guard refuses the device suites because `/` and
+  `/home` are owned by `nobody` (the guard requires uid 0 or the
+  euid on every ancestor); `inspectNative` fails 17 on
+  `{"refused":"systemFile"}`; `judgeP2Delivery` hangs in isolation
+  too (no output in 280 s, killed at the bound); `runtimeLsp` took
+  731 s in-suite (timing/load). The remaining failing files were
+  not sampled individually. Hosted CI is their proof ground.
+- `npm run build`: every desktop budget the lane owns holds (main,
+  preload, renderer, both engine chunks), and the split, lazy,
+  host-globals, notices and legal record checks exit 0 — but the
+  size gate reports shared `dist/uiText.js` OVER by 1 byte (128,001
+  measured against 128,000). None of it is this lane's: the lane's
+  `desktop.*` strings ride the `surfaces` region (under its own
+  cap) and its `referenceDesktop*` keys are excluded from the Node
+  bundles entirely. Per the brief the cap is reported, never
+  raised: raising shared `uiText.js` 125 → 150 KiB is the lead's
+  call.
+- Final rerun against the repackaged app (2026-11-02, linuxlt):
+  `electron-panel.mjs` PASS and `electron-smoke.mjs` PASS.
 
 ## Landed: real-Electron proof, look, renderer fixes (2026-11-01)
 
