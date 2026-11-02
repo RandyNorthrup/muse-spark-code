@@ -10,7 +10,7 @@
 import { randomUUID } from 'node:crypto'
 import type * as z from 'zod/mini'
 import { failureForLog } from '../../core/backends/musecode/logText'
-import type { AgentHost, AgentSession } from '../../core/agent/agentBackend'
+import type { AgentHost, AgentSession, HostExit } from '../../core/agent/agentBackend'
 import type * as ConversationBundle from '../../host/conversation/conversationEntry'
 import type {
   ConversationController,
@@ -441,7 +441,7 @@ export class RuntimeConversation implements SessionController, PanelView {
   }
 
   /** The backend went away: the carrier closes first, then the conversation is released. */
-  public hostExited(_description: string): void {
+  public hostExited(_exit: HostExit): void {
     this.isHostStopped = true
     this.options.stopped()
   }
