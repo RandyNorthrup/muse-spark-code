@@ -67,6 +67,15 @@ describe('the Linux portal recorder without its helper', () => {
     )
   })
 
+  it('names the helper file, not a folder above the product ending in .app', async () => {
+    const product = await folder(path.join('Outer.app', 'portal-nested'))
+    const failure = await helperFailure(portFor(product).hasPortal())
+    expect(failure.fault).toBe('missing')
+    expect(failure.message).toBe(
+      fill(UI_TEXT.nativeHelper.missingInstalled, { helper: 'muse-portal-record' }),
+    )
+  })
+
   it('names the build command in a source checkout', async () => {
     const checkout = await folder('portal-checkout')
     await mkdir(path.join(checkout, 'scripts'), { recursive: true })

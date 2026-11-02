@@ -25,7 +25,11 @@ const CAUSE_DEPTH = 16
 /** The name a person knows the helper by: its signed app on macOS, else its file. */
 function helperName(file: string): string {
   const parts = file.split(/[\\/]/u)
-  return parts.findLast((part) => part.endsWith('.app')) ?? path.basename(file)
+  // Only the helper's own bundle counts: a folder above the product (an
+  // install path, a test root) may itself end in `.app`.
+  const shipped = parts.lastIndexOf('native')
+  const own = shipped === -1 ? [] : parts.slice(shipped + 1)
+  return own.findLast((part) => part.endsWith('.app')) ?? path.basename(file)
 }
 
 /** The product's folder (the one holding `native/`) for a helper's file, if it sits in one. */
