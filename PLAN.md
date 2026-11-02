@@ -15589,6 +15589,13 @@ has been made through the packed product yet, so their README and
 CHANGELOG sentences stay held (§2.3 of the record). Record:
 `docs/certification/cc-int9.md`.
 
+**Status 2026-11-02 (RVINT9): building.** Independent read of the merged
+round. Muse Desktop and an external agent's file requests refuse a path
+that leaves the workspace through a symlink or a Windows junction, including
+a file that is not there yet. The stdio team bridge posts only to literal
+loopback HTTP and says so otherwise. No packed team run. Record:
+`docs/certification/rvint9.md`.
+
 Status detail retained: first parts (role charters, tools, pools, limits)
 shipped in 0.15.0; team creation and worker dispatch remain (no team can be
 created: the teamWorkers paid gate has no production availability). Planned on `feature/m96-agent-roles` from main
@@ -27927,6 +27934,12 @@ group, TH the desktop theme from M114's tokens, IN languages, pseudo-RTL,
 font coverage and IME flags), each with its own budgets, none raised. Muse
 Desktop itself has not been run here (no GUI on the rig; the Electron
 suites are listed for hosted CI). Record: `docs/certification/cc-int9.md`.
+
+**Status 2026-11-02 (RVINT9): building.** Independent read. The workbench
+file bridge refuses a symlink or junction that leaves the workspace,
+including a file that is not there yet; a link that stays inside is the
+file it names. The renderer still has no Node. Record:
+`docs/certification/rvint9.md`.
 
 Status detail retained: planned, documentation only. Nothing is implemented,
 and no lane is launched by this record. The research is

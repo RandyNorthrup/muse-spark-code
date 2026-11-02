@@ -1,11 +1,18 @@
 {
   // Muse Desktop (M111) Electron main/preload project: Node with Electron's
-  // types; shares src/shared/** only. Never imports vscode or src/webview.
+  // types; shares src/shared/** and the workspace confine walk
+  // (src/core/fs/confine.ts, src/core/fs/errno.ts). Never imports vscode
+  // or src/webview.
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ES2024"],
     "types": ["node"]
   },
-  "include": ["./app/**/*.ts", "../src/shared/**/*.ts"],
+  "include": [
+    "./app/**/*.ts",
+    "../src/shared/**/*.ts",
+    "../src/core/fs/confine.ts",
+    "../src/core/fs/errno.ts"
+  ],
   "exclude": ["../src/shared/modelApiBoundariesEntry.ts", "../src/shared/vaultBoundariesEntry.ts"]
 }

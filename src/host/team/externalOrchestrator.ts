@@ -25,8 +25,7 @@
 
 import type { ChildProcess } from 'node:child_process'
 import { realpathSync } from 'node:fs'
-import { readFile, realpath, writeFile } from 'node:fs/promises'
-import path from 'node:path'
+import { readFile, writeFile } from 'node:fs/promises'
 import * as z from 'zod/mini'
 import type { AuthMethod, McpServer } from '@agentclientprotocol/sdk'
 import {
@@ -62,6 +61,7 @@ import { fill } from '../../shared/l10n/text'
 import { withoutCredentials } from '../../core/credentialEnvironment'
 import { workspaceChildEnvironment } from '../../core/execGuard'
 import { spawnGuarded } from '../../core/guardedChildProcess'
+import { confineToRoot } from '../../core/fs/confine'
 import { isProtectedPath } from '../../core/protectedPaths'
 import { assertWorkerRoot, WORKER_NATIVE_IO } from '../../core/team/workers/workerFence'
 import { failureForLog } from '../../core/backends/musecode/logText'
@@ -669,7 +669,7 @@ export class ExternalOrchestratorSession implements AgentSession {
         })),
         isJudgeEscalated: false,
         isProtectedWrite: (toolCall.locations ?? []).some((location) =>
-          isProtectedPath(location.path),
+          isExternalAgentProtectedWrite(location.path),
         ),
         ...(this.runningTurn !== undefined && { turnId: this.runningTurn }),
       })
@@ -1131,7 +1131,7 @@ export class ExternalOrchestratorHost implements AgentHost {
   ): Promise<{ readonly ok: true } | { readonly error: string }> {
     const confined = await this.confine(given, root)
     if (confined === undefined) return { error: 'outside the workspace' }
-    if (isProtectedPath(confined)) return { error: 'protected path' }
+    if (isExternalAgentProtectedWrite(confined)) return { error: 'protected path' }
     try {
       await writeFile(confined, content, 'utf8')
       return { ok: true }
@@ -1141,21 +1141,9 @@ export class ExternalOrchestratorHost implements AgentHost {
     }
   }
 
-  /** The real path under `root`, or undefined when it escapes (links followed). */
+  /** The path under `root`, or undefined when it leaves (a link that leaves is refused). */
   private async confine(given: string, root: string): Promise<string | undefined> {
-    const realRoot = await realpath(root)
-    const absolute = path.isAbsolute(given) ? given : path.resolve(realRoot, given)
-    let real = absolute
-    try {
-      real = await realpath(absolute)
-    } catch (error: unknown) {
-      // A path that does not exist yet has no real path: confine lexically.
-      // Any other failure keeps its kind for the caller.
-      if (!isMissingPath(error)) throw error
-    }
-    const rel = path.relative(realRoot, real)
-    const isEscapes = rel.startsWith(`..${path.sep}`) || rel === '..' || path.isAbsolute(rel)
-    return isEscapes ? undefined : real
+    return await confineToRoot(root, given)
   }
 
   /**
@@ -1454,6 +1442,15 @@ export class ExternalOrchestratorHost implements AgentHost {
     child.kill()
     return Promise.resolve()
   }
+}
+
+/**
+Whether an external agent's write of an already-resolved path is protected.
+The path may use either separator; the check is the slash-separated form,
+so a Windows path still names `.git` and the other protected segments.
+*/
+export function isExternalAgentProtectedWrite(absolute: string): boolean {
+  return isProtectedPath(absolute.replaceAll('\\', '/'))
 }
 
 /** A Node `ENOENT`/`ESRCH` (a path or process already gone). */
