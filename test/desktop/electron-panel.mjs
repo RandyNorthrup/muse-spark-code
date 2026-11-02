@@ -338,6 +338,72 @@ await poll(
 )
 console.log('panel-proof: exit landed the exited tab and its sentence')
 
+// The modes on a fresh terminal (the exited tab stays): split panes,
+// collapse into the footer and back (the shells remount with their
+// transcripts), detach into the floating window and back, pin toggled.
+await evaluate(
+  `document.querySelector('.muse-panel-toolbar button[aria-label="New terminal"]').click()`,
+)
+await poll("document.querySelectorAll('.muse-panel-tab').length === 2", 'the second tab', 120_000)
+await evaluate(
+  `document.querySelector('.muse-panel-toolbar button[aria-label="Split terminal"]').click()`,
+)
+await poll("document.querySelectorAll('[data-shell-id]').length === 2", 'the split', 120_000)
+console.log('panel-proof: split panes render side by side')
+await evaluate(
+  `document.querySelector('.muse-panel-toolbar button[aria-label="Collapse into footer"]').click()`,
+)
+await poll(
+  `document.querySelector('footer.muse-desktop-footer') !== null &&
+    document.querySelector('section.muse-desktop-terminal') === null`,
+  'the footer collapse',
+  120_000,
+)
+await evaluate(`document.querySelector('footer.muse-desktop-footer .muse-panel-foot-tab').click()`)
+await poll(
+  `document.querySelector('section.muse-desktop-terminal .muse-panel-terminal-host .xterm') !==
+    null`,
+  'the dock back with its emulator',
+  120_000,
+)
+console.log('panel-proof: collapse and expand round-trip the dock')
+await evaluate(
+  `document.querySelector(
+    'section.muse-desktop-terminal .muse-panel-toolbar button[aria-label="Detach terminal"]',
+  ).click()`,
+)
+await poll(
+  `document.querySelector('[role="dialog"][aria-label="Floating panel"]') !== null`,
+  'the floating window',
+  120_000,
+)
+await evaluate(
+  `document.querySelector('[role="dialog"] button[aria-label="Dock terminal"]').click()`,
+)
+await poll(
+  `document.querySelector('section.muse-desktop-terminal') !== null &&
+    document.querySelector('[role="dialog"]') === null`,
+  'the dock back',
+  120_000,
+)
+console.log('panel-proof: detach and dock round-trip the floating window')
+const pinSelector =
+  'section.muse-desktop-terminal .muse-panel-toolbar button[aria-label="Pin panel"]'
+const pinBefore = await evaluate(`document.querySelector('${pinSelector}').ariaPressed`)
+await evaluate(`document.querySelector('${pinSelector}').click()`)
+await poll(
+  `document.querySelector('${pinSelector}').ariaPressed === '${pinBefore === 'true' ? 'false' : 'true'}'`,
+  'the pin toggle',
+  60_000,
+)
+await evaluate(`document.querySelector('${pinSelector}').click()`)
+await poll(
+  `document.querySelector('${pinSelector}').ariaPressed === '${pinBefore}'`,
+  'the pin restore',
+  60_000,
+)
+console.log('panel-proof: pin toggles and restores')
+
 await evaluate(`document.querySelector('button[data-tab-id="problems"]').click()`)
 const problemsEmpty = await poll(
   "document.querySelector('.muse-panel-empty')?.textContent ?? null",

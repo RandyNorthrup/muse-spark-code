@@ -55,11 +55,15 @@ Drills and gates.
   back to canvas); per-character keys reach `bash -i` and
   `bp-proof-7147` streams back through the bridge (printf's format
   keeps the input echo from containing it); `exit` lands the exited
-  tab, exit code 0 and the exit sentence; Problems and Output show
-  their honest empty states; the status snapshot carries the
-  workbench items. Every phase has its own bound (120–180 s; a
-  shared rig answers slowly) and says which phase failed with the
-  page's state.
+  tab, exit code 0 and the exit sentence; split panes render side by
+  side, collapse and expand round-trip the footer (shells remount
+  with their transcripts), detach and dock round-trip the floating
+  window, pin toggles and restores; Problems and Output show their
+  honest empty states; the status snapshot carries the workbench
+  items. Every phase has its own bound (60–180 s; a shared rig
+  answers slowly) and says which phase failed with the page's state.
+  The kept shots show the split panes (the envman read-only noise in
+  them is the rig's sandboxed HOME in the shells' own startup).
 - The look found and fixed three real defects: (1) xterm's Unicode
   11 addon needs `allowProposedApi` (the pane showed the chunk
   failure until the flag landed); (2) the CSP blocked xterm's
