@@ -5604,7 +5604,7 @@ async function activateWindow(
               attach: () => Promise.resolve(false),
             }
           },
-          isHardwareWorkspace: () => hardware.current().isHardwareWorkspace === true,
+          isHardwareWorkspace: () => hardware.isPositivelyHardware(),
           isHardwareApprovalPresent: () =>
             vscode.window.state.focused && surface.isApprovalPresent?.() === true,
           isRemoteWindow: vscode.env.remoteName !== undefined,
@@ -5885,8 +5885,7 @@ async function activateWindow(
       toSettingsSnapshot({
         ...currentSettings(),
         allowDangerouslySkipPermissions:
-          currentSettings().allowDangerouslySkipPermissions &&
-          hardware.current().isHardwareWorkspace !== true,
+          currentSettings().allowDangerouslySkipPermissions && !hardware.isPositivelyHardware(),
       }),
     onInputFocusChanged: (surface, isFocused) => {
       isInputFocused = isFocused

@@ -17,6 +17,7 @@ import {
   type HardwareContext,
 } from './httpCommands'
 import type { ActionClass } from './actionClass'
+import { isPositivelyHardwareWorkspace } from './modes'
 import type { TargetIdentity } from '../ports'
 
 type HardwareRule = readonly [action: ActionClass, command: RegExp]
@@ -198,7 +199,9 @@ function classifyCommand(
 }
 
 function hasDeviceSignal(command: string, context: HardwareContext): boolean {
-  if (context.isHardwareWorkspace === true) return true
+  // Only a proven hardware workspace makes every opaque command a device
+  // signal; a latched-but-unproven one (an unscannable folder) does not.
+  if (isPositivelyHardwareWorkspace(context)) return true
   const text = command.replaceAll(/["'\\`^]/g, '')
   return (
     /\b(?:pio|platformio|idf(?:\.py)?|esptool|espefuse|avrdude|arduino-cli|west|stm32_programmer_cli|stty|screen|minicom|picocom|cu|picotool|mpremote|ampy|dfu-util|st-flash|openocd|nrfjprog|esphome|espota|gpioset|pinctrl|raspi-gpio|ros2|System\.IO\.Ports|cncjs|socket\.io)\b|\/dev\/(?:tty|cu\.|serial|gpiochip)|\bCOM\d+\b|CIRCUITPY|RPI-RP2|\/media\/|\/Volumes\/|\/sys\/(?:class|devices)\/|\/(?:printer|machine)\/|\/server\/jsonrpc|\/fs\//i.test(
@@ -303,9 +306,9 @@ export function hardwareAction(
   dialect: GuardDialect = 'bash',
   context: HardwareContext = {},
 ): ActionClass | undefined {
-  // In latched hardware mode this is only a card annotation, including opaque wrappers.
+  // In a proven hardware workspace this is only a card annotation, including opaque wrappers.
   if (
-    context.isHardwareWorkspace === true &&
+    isPositivelyHardwareWorkspace(context) &&
     HARDWARE_RULES.some(([action, rule]) => action === 'refused' && rule.test(command))
   )
     return 'refused'
@@ -327,7 +330,17 @@ export function hardwareAction(
   }
   const action = strongest(actions)
   if (action === 'refused') return action
-  if (parsed.isUnknown && (action !== undefined || hasDeviceSignal(command, context)))
+  // A command the classifier cannot read is actuate (D83.2) wherever a
+  // board may be reached: a proven hardware workspace, a device signal
+  // in the text, or an inventory that could not say whether a board is
+  // connected. With a known-empty inventory and no signal it is
+  // ordinary work, even in a folder the scan could not read.
+  if (
+    parsed.isUnknown &&
+    (action !== undefined ||
+      context.isInventoryKnown === false ||
+      hasDeviceSignal(command, context))
+  )
     return 'actuate'
   return isHardwareStop(command, dialect, context) ? 'observe' : action
 }
@@ -341,7 +354,9 @@ export function hardwareArgvAction(
   const action = classifyCommand(command, context)
   if (action === 'refused') return action
   return literalShellBody(command) !== undefined &&
-    (action !== undefined || context.isHardwareWorkspace === true)
+    (action !== undefined ||
+      context.isInventoryKnown === false ||
+      isPositivelyHardwareWorkspace(context))
     ? 'actuate'
     : action
 }

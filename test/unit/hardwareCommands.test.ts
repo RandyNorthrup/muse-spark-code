@@ -185,7 +185,6 @@ describe('hardware command table (M103-G)', () => {
     'mpremote connect list',
     'pio device list',
     'arduino-cli board list',
-    'python -m serial.tools.list_ports',
     'ls /dev/serial/by-id',
     'curl https://printer.local/printer/objects/query',
     'curl https://printer.local/printer/info',
@@ -206,6 +205,16 @@ describe('hardware command table (M103-G)', () => {
     'curl -X POST https://printer.local/printer/emergency_stop',
   ])('leaves ordinary/observe/stop policy intact: %s', (command) => {
     expect(isDeviceAction(hardwareAction(command))).toBe(false)
+  })
+
+  it('an interpreter-wrapped port listing is opaque only where machines are registered', () => {
+    // Listing ports opens nothing (observe), but the `python -m` wrapper
+    // is opaque to the classifier; with registered targets (positive
+    // evidence) it labels actuate, as both backends' workspace
+    // escalation already treated it. In an ordinary workspace it stays
+    // unclassified (RLF-MAKERFENCE).
+    expect(hardwareAction('python -m serial.tools.list_ports')).toBe('actuate')
+    expect(classifyHardware('python -m serial.tools.list_ports', 'bash', {})).toBeUndefined()
   })
 
   it('scans every chain member, wrappers and both shell dialects', () => {

@@ -9,7 +9,7 @@ hardware evidence. An unscannable workspace or an unknown inventory
 keeps the person's chosen mode; every shell command is still classified
 by the guard table and asked through the fail-safe latch.
 */
-export function isPositivelyHardwareWorkspace(context: HardwareContext): boolean {
+export function isPositivelyHardwareWorkspace(context: HardwareContext = {}): boolean {
   return context.hardwareOwner === undefined
     ? hasPositiveHardwareEvidence(context)
     : context.hardwareOwner.isPositivelyHardware()
