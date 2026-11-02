@@ -2248,6 +2248,7 @@
   "gitHubFailed": "GitHub 요청이 실패했습니다",
   "gitHubAnswered": "GitHub 응답: {status}",
   "gitHubResponseInvalid": "GitHub가 예상하지 못한 형식의 응답을 반환했습니다.",
+  "gitHubLeaseRefused": "이 GitHub 로그인은 이 창에서 유효하지 않습니다.",
   "gitHubCommitInvalid": "커밋 ID가 아닙니다: {sha}",
   "gitDestinationBaseUnavailable": "대상 저장소의 기준 브랜치를 찾을 수 없습니다. 가져오기용 원격 저장소를 추가하고 기준 브랜치를 가져온 다음 다시 시도하세요.",
   "gitPullRequestExists": "이 분기에 대한 끌어오기 요청 #{number}이(가) 이미 열려 있습니다. 이제 이 대화에 연결되었습니다.",

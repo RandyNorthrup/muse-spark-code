@@ -2317,6 +2317,7 @@
   "gitHubFailed": "Zapytanie do serwisu GitHub nie powiodło się",
   "gitHubAnswered": "GitHub odpowiedział {status}",
   "gitHubResponseInvalid": "GitHub zwrócił odpowiedź w nieoczekiwanym formacie.",
+  "gitHubLeaseRefused": "To logowanie do GitHub nie jest ważne dla tego okna.",
   "gitHubCommitInvalid": "To nie jest identyfikator commitu: {sha}",
   "gitDestinationBaseUnavailable": "Nie znaleziono gałęzi bazowej repozytorium docelowego. Dodaj jego zdalne repozytorium do pobierania i pobierz gałąź bazową, a następnie spróbuj ponownie.",
   "gitPullRequestExists": "Żądanie ściągnięcia #{number} jest już otwarte dla tej gałęzi; zostało teraz powiązane z tą rozmową.",

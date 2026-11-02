@@ -2317,6 +2317,7 @@
   "gitHubFailed": "Запрос к GitHub завершился ошибкой",
   "gitHubAnswered": "GitHub ответил {status}",
   "gitHubResponseInvalid": "GitHub вернул ответ в неожиданном формате.",
+  "gitHubLeaseRefused": "Этот вход в GitHub недействителен для этого окна.",
   "gitHubCommitInvalid": "Это не идентификатор коммита: {sha}",
   "gitDestinationBaseUnavailable": "Базовая ветка целевого репозитория не найдена. Добавьте его удалённый репозиторий для получения данных и получите базовую ветку, затем повторите попытку.",
   "gitPullRequestExists": "Запрос на вытягивание #{number} для этой ветви уже открыт; теперь он связан с этой беседой.",

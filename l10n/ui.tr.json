@@ -2271,6 +2271,7 @@
   "gitHubFailed": "GitHub isteği başarısız oldu",
   "gitHubAnswered": "GitHub yanıtı: {status}",
   "gitHubResponseInvalid": "GitHub beklenmeyen biçimde bir yanıt döndürdü.",
+  "gitHubLeaseRefused": "Bu GitHub oturumu bu pencere için geçerli değil.",
   "gitHubCommitInvalid": "Commit kimliği değil: {sha}",
   "gitDestinationBaseUnavailable": "Hedef deponun temel dalı bulunamadı. Veri alma uzak deposunu ekleyip temel dalı alın, sonra yeniden deneyin.",
   "gitPullRequestExists": "Bu dal için #{number} numaralı çekme isteği zaten açık; artık bu konuşmaya bağlandı.",

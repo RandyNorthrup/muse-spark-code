@@ -2248,6 +2248,7 @@
   "gitHubFailed": "GitHub 要求失敗",
   "gitHubAnswered": "GitHub 回傳了 {status}",
   "gitHubResponseInvalid": "GitHub 回傳了格式異常的回應。",
+  "gitHubLeaseRefused": "此 GitHub 登入對這個視窗無效。",
   "gitHubCommitInvalid": "不是提交 ID：{sha}",
   "gitDestinationBaseUnavailable": "找不到目標儲存庫的基準分支。請新增其用於擷取的遠端儲存庫並擷取基準分支，然後重試。",
   "gitPullRequestExists": "此分支已有開啟中的提取要求 #{number}；現在已將它連結至此對話。",

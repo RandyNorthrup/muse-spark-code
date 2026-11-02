@@ -2294,6 +2294,7 @@
   "gitHubFailed": "La solicitud a GitHub falló",
   "gitHubAnswered": "GitHub respondió {status}",
   "gitHubResponseInvalid": "GitHub devolvió una respuesta con un formato inesperado.",
+  "gitHubLeaseRefused": "Este inicio de sesión de GitHub no es válido para esta ventana.",
   "gitHubCommitInvalid": "No es un ID de commit: {sha}",
   "gitDestinationBaseUnavailable": "No se encontró la rama base del repositorio de destino. Añada su remoto de descarga y descargue la rama base; después, inténtelo de nuevo.",
   "gitPullRequestExists": "El pull request #{number} ya está abierto para esta rama; ahora está vinculado a esta conversación.",

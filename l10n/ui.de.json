@@ -2271,6 +2271,7 @@
   "gitHubFailed": "Die GitHub-Anfrage ist fehlgeschlagen",
   "gitHubAnswered": "GitHub antwortete mit {status}",
   "gitHubResponseInvalid": "GitHub hat eine Antwort in einem unerwarteten Format zurückgegeben.",
+  "gitHubLeaseRefused": "Diese GitHub-Anmeldung gilt für dieses Fenster nicht.",
   "gitHubCommitInvalid": "Keine Commit-ID: {sha}",
   "gitDestinationBaseUnavailable": "Die Basisbranch des Zielrepositorys wurde nicht gefunden. Fügen Sie dessen Abruf-Remote hinzu und rufen Sie die Basisbranch ab. Versuchen Sie es dann erneut.",
   "gitPullRequestExists": "Pull Request #{number} ist für diesen Branch bereits geöffnet; er ist jetzt mit dieser Unterhaltung verknüpft.",
