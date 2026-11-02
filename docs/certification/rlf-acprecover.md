@@ -206,7 +206,16 @@ test/unit/acpTurnFailure.test.ts --maxWorkers=3`: green (repo
   names its kind") needs the refused stop to settle inside the
   release's `listModels` flush, and the guard's extra `await` in
   `stopAllTasks` pushed it past; `stopAllTasks` now returns the
-  guard's promise directly (7/7 three times).
+  guard's promise directly (7/7 three times). For `en.ts` the full
+  transitive related set hangs on this rig (stuck after
+  `legalTemplateSlots2.test.ts`, zero CPU, in an unrelated legal
+  suite); the direct table dependents are green (`l10nPacked`,
+  `hostL10nTerminal` 6/6), the partial run's sampled failures are
+  load flakes or pre-existing environment (`acpShutdown` green
+  alone; `acpServeHandshake` CLI-missing fails identically on
+  base), and the 3-key addition itself is proven by `check-l10n`,
+  the 15-language words test, `typecheck` and `build`. The full
+  unit suite runs in hosted CI.
 
 ## 7. Not proven, and open questions for the lead
 
@@ -234,4 +243,4 @@ test/unit/acpTurnFailure.test.ts --maxWorkers=3`: green (repo
 - `176991ebc` — the shared serve rig both suites use.
 - `9c051c676` — Suite B (9 agent-level tests).
 - `0e1180e6c` — shared resume-open, bundle fit, release-flush fix.
-- (records) — this file, CHANGELOG, PLAN §6 + roadmap entry.
+- `0d940e929` — this file, CHANGELOG, PLAN §6 + roadmap entry.
