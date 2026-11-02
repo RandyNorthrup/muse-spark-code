@@ -1,9 +1,14 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { createHardwareContexts, readHardwareInventory } from '../../src/core/maker/hardwareContext'
+import { z } from 'zod'
+import {
+  createHardwareContexts,
+  readHardwareInventory,
+  readWindowsSerialComm,
+} from '../../src/core/maker/hardwareContext'
 import { hardwareApprovalMode, prepareHardwareTurn } from '../../src/core/maker/guard/modes'
 import { SessionHardwareGuard } from '../../src/core/maker/sessionGuard'
 import type { HardwareContext } from '../../src/core/maker/guard/httpCommands'
@@ -17,13 +22,14 @@ afterEach(() => {
 it('Design 5 review P2.5 special marker file cannot block scanning', () => {
   const root = workspace()
   const marker = path.join(root, 'pipe.yaml')
-  // A real FIFO blocks a plain open forever; a directory stands in on Windows,
-  // where named pipes are not filesystem entries. Both are non-regular files
-  // the scan must skip without reading.
+  // A real FIFO blocks a plain open forever: the scan answers "cannot say"
+  // without opening it, and the latch fails safe. Windows has no such entry
+  // (named pipes are not filesystem entries). A folder named like a marker is
+  // the nearest thing, walked and never read, so that workspace scans clean.
   if (process.platform === 'win32') mkdirSync(marker)
   else execFileSync('/usr/bin/mkfifo', [marker])
   const owner = createHardwareContexts(() => ({}))(root)
-  expect(owner.current().isHardwareWorkspace).toBe(true)
+  expect(owner.current().isHardwareWorkspace).toBe(process.platform !== 'win32')
 })
 function workspace() {
   const root = mkdtempSync(path.join(tmpdir(), 'muse-owner-'))
@@ -113,6 +119,27 @@ describe('single composition-root hardware owner', () => {
     })
     expect(prepared).toBe(1)
   })
+  it('a machine whose inventory cannot be read keeps the mode and sends the turn, commands still fail-safe', async () => {
+    // The real reader's answer after a failed read: it reports a connected
+    // board so commands fail safe, and that proves no hardware.
+    const missing = path.join(workspace(), 'missing')
+    for (const read of [
+      () => readHardwareInventory('win32', '', [], () => readWindowsSerialComm(missing)),
+      () => readHardwareInventory('linux', missing, []),
+    ]) {
+      const owner = createHardwareContexts(read)(workspace())
+      expect(read()).toEqual({ hasConnectedBoard: true, isInventoryKnown: false })
+      expect(owner.current().isHardwareWorkspace).toBe(true)
+      expect(owner.isPositivelyHardware()).toBe(false)
+      expect(hardwareApprovalMode('onRequest', owner.current())).toBe('onRequest')
+      let prepared = 0
+      await prepareHardwareTurn(owner.current(), () => {
+        prepared += 1
+        return Promise.resolve()
+      })
+      expect(prepared).toBe(0)
+    }
+  })
   it('Windows separators share one owner instead of separate latches', () => {
     const contexts = createHardwareContexts(() => ({ hardwareSessionLatched: false }))
     expect(contexts(String.raw`C:\boards\fixture`)).toBe(contexts('C:/boards/fixture'))
@@ -137,7 +164,53 @@ it('native inventory simulator detects connected ports, replacement generations 
   expect(readHardwareInventory('linux', path.join(devices, 'missing'), []).hasConnectedBoard).toBe(
     true,
   )
-  expect(readHardwareInventory('win32', devices, []).hasConnectedBoard).toBe(true)
+})
+
+describe('Windows serial inventory', () => {
+  // A real machine's answer with no board attached: its own UART and Bluetooth's
+  // virtual ports, which every laptop has and which must not latch every shell.
+  const capture = z
+    .object({
+      capturedAt: z.string(),
+      machine: z.string(),
+      command: z.string(),
+      stdout: z.string(),
+    })
+    .parse(
+      JSON.parse(
+        readFileSync(new URL('../fixtures/maker/windows-serialcomm.json', import.meta.url), 'utf8'),
+      ),
+    )
+
+  it('reads a machine without a board as known and empty, so shells stay ordinary', () => {
+    const inventory = readHardwareInventory('win32', '', [], () => capture.stdout)
+    expect(inventory).toEqual({ isInventoryKnown: true, hasConnectedBoard: false, targets: [] })
+    const owner = createHardwareContexts(() => inventory)(workspace())
+    expect(owner.current().isHardwareWorkspace).toBe(false)
+    expect(owner.isPositivelyHardware()).toBe(false)
+  })
+
+  it('reads an answer of another shape as unknown, never as empty', () => {
+    const shifted = capture.stdout.replaceAll('REG_SZ', 'REG_BINARY')
+    expect(readHardwareInventory('win32', '', [], () => shifted)).toEqual({
+      hasConnectedBoard: true,
+      isInventoryKnown: false,
+    })
+  })
+
+  describe.runIf(process.platform === 'win32')('through the real registry', () => {
+    const systemRoot = process.env['SystemRoot'] ?? ''
+
+    it('answers this machine without opening a port', () => {
+      const inventory = readHardwareInventory('win32', '', [])
+      expect(inventory.isInventoryKnown).toBe(true)
+      expect(inventory.hasConnectedBoard).toBe((inventory.targets?.length ?? 0) > 0)
+    })
+
+    it('reads an absent key as no rows: no serial driver has started', () => {
+      expect(readWindowsSerialComm(systemRoot, 'MUSE_NO_SUCH_KEY')).toBe('')
+    })
+  })
 })
 
 it('unknown native inventory cannot be cleared by an idle UI reset', () => {

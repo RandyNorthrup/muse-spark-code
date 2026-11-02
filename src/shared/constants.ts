@@ -1142,6 +1142,7 @@ export const RUNTIME_MAKER_MODEL_TEXT = {
 export const MAKER_DETECT_MAX_BYTES = 8 * 1024
 export const MAKER_DETECT_MAX_DEPTH = 4
 export const MAKER_DETECT_IO_TIMEOUT_MS = 10_000
+export const MAKER_WINDOWS_INVENTORY_REFRESH_MS = 2000
 export const MAKER_PI_MODEL_PATH = '/proc/device-tree/model'
 export const MAKER_PI_COMMAND_PATHS = ['/usr/bin/vcgencmd', '/opt/vc/bin/vcgencmd'] as const
 export const MAKER_PI_COMMAND_TIMEOUT_MS = 2000
