@@ -898,6 +898,16 @@ happened, not what was planned; superseded entries are kept.
   and restricts its DLL loads to its own folder and the system folder. A
   program or DLL planted under a trusted name on `PATH` or in the workspace
   is never run or loaded.
+- **A file path that leaves the workspace through a symlink or a Windows
+  junction is refused.** Muse Desktop's file bridge and an external agent's
+  file requests both refuse it, including a file that does not exist yet
+  under that link. A link that stays inside the workspace is the file it
+  names.
+- **The team bridge posts only to this computer.** The stdio bridge an
+  external agent uses for team tools forwards only to the loopback team
+  endpoint (`127.0.0.1` or `[::1]`), and says so when the address is
+  anything else. The address is not repeated, because it can carry the
+  conversation's token.
 
 ### Added
 

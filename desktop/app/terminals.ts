@@ -1,8 +1,9 @@
 // Muse Desktop (M111, D91.13) lane WB: terminal sessions for the bottom
 // panel. Lane BP owns the xterm.js surface; this module owns the processes
-// behind the bridge's terminal channels. Credentials never reach a child:
-// every *_API_KEY variable is removed from the environment first, as the
-// ACP agent does (AGENTS rule 8).
+// behind the bridge's terminal channels. This is the person's own shell:
+// every *_API_KEY variable is removed, and other credential names stay so
+// the tools they start from it keep working. An external agent's child is
+// scrubbed by withoutCredentials instead.
 
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { randomUUID } from 'node:crypto'

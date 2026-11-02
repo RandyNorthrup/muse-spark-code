@@ -124,6 +124,24 @@ describe('the team HTTP bridge', () => {
     }
   })
 
+  it('refuses to forward anywhere but the loopback team endpoint, and does not repeat the URL', async () => {
+    const bridge = startBridge(
+      // eslint-disable-next-line unicorn/prefer-https -- the refusal under test is this plain-http URL; rewriting it to https would not reach the loopback check
+      'http://example.com/mcp?token=sekret',
+      { Authorization: 'Bearer sekret' },
+    )
+    try {
+      const refused = await bridge.ask({ jsonrpc: '2.0', id: 1, method: 'tools/list' })
+      const error = refused['error'] as { message: string } | undefined
+      expect(error?.message).toBe('the team bridge only forwards to the loopback team endpoint')
+      expect(JSON.stringify(refused)).not.toContain('example.com')
+      expect(JSON.stringify(refused)).not.toContain('sekret')
+      expect(refused['result']).toBeUndefined()
+    } finally {
+      bridge.close()
+    }
+  })
+
   it('answers a down endpoint with an error naming why, and stays up for the next call', async () => {
     // A port that was open a moment ago and is closed now: a real refusal.
     const closed = await new Promise<number>((resolvePort, rejectPort) => {
