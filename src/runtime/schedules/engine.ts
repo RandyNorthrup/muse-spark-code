@@ -12,6 +12,10 @@ import { createScheduleReportPort } from '../../core/schedules/reportAdapter'
 import { createReportOccurrencePort } from '../../core/schedules/reportOccurrences'
 import type { ScheduleAuthorityStore } from '../../core/schedules/grantAudit'
 import { ScheduleEventEngine } from '../../core/schedules/events/engine'
+import {
+  checkMuseCodeBinding,
+  type MuseCodeBindingPorts,
+} from '../../host/schedules/museCodeBinding'
 import { createEventClaimStore } from '../../core/schedules/events/claimStore'
 import { ScheduleEventIntake } from '../../core/schedules/events/intake'
 import { hostEventHub } from '../../core/schedules/events/hostHub'
@@ -24,7 +28,7 @@ import type { ScheduleEventSource } from '../../shared/scheduleEvents'
 import { createNodeFileWatcher } from './fileWatcher'
 import { RuntimeScheduleHost } from './host'
 import { ScheduleRuntime } from './runtime'
-import { ScheduleSurface } from './surface'
+import { ScheduleSurface, museCodeBindingChannel } from './surface'
 import { ScheduleBackgroundCoordinator } from './background'
 import { NativeScheduleBackground } from './nativeBackground'
 import { nodeBackgroundFiles, backgroundProcessRunner } from './nodeBackgroundIo'
@@ -113,6 +117,8 @@ export interface ScheduleEngineOptions {
   readonly locale?: string
   /** Failures the person gets as fixed sentences keep their kind here. */
   readonly log: CoreLogger
+  /** The window's Muse Code timed-send binding (M88 lane C); absent stays unbound. */
+  readonly museCodeBinding?: MuseCodeBindingPorts
 }
 
 /** The conservative failed accounting for a delivery round that produced no
@@ -633,6 +639,8 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
     notice: (reason: string) => {
       process.stderr.write(`${reason}\n`)
     },
+    ...(options.museCodeBinding !== undefined && { museCode: options.museCodeBinding }),
+    reportError: report,
   })
   const watched = new Map<string, number>()
   const polling = new Map<string, Promise<void>>()
@@ -660,6 +668,25 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
   const watchWorkspace = async (cwd: string): Promise<() => Promise<void>> => {
     const key = workspaceKey(path.resolve(cwd))
     await registry.add(key, path.resolve(cwd))
+    // At start, a seen sign-out or sign-in clears the workspace's Muse
+    // Code once-schedules (M88 lane C). A failed sweep never fails the
+    // hold: admission guards every dispatch, and the report keeps why.
+    if (options.museCodeBinding !== undefined) {
+      const binding = options.museCodeBinding
+      try {
+        const control = await controlFor(cwd)
+        await checkMuseCodeBinding({
+          workspaceKey: key,
+          currentSignIn: binding.currentSignIn,
+          seen: binding.seen,
+          notice: binding.notice,
+          nowMs: now(),
+          ...museCodeBindingChannel((input) => control.request(input)),
+        })
+      } catch (error: unknown) {
+        report(error)
+      }
+    }
     watched.set(key, (watched.get(key) ?? 0) + 1)
     // The tick below polls this workspace's intake; subscribed sources
     // stay subscribed while the workspace is watched.

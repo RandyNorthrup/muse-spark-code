@@ -1639,6 +1639,13 @@
   "composerQueuePlaceholder": "Mettre un autre message en file d’attente…",
   "queuedLabel": "En file d’attente",
   "sentOnSchedule": "Envoyé comme prévu",
+  "museCodeOnceEnvKeyRefused": "Les envois planifiés de Muse Code sont indisponibles tant que META_API_KEY est défini dans cette fenêtre : un envoi serait facturé à cette clé, pas au compte connecté.",
+  "museCodeOnceAccountChanged": "La connexion Muse Code a changé depuis la planification de cet envoi, qui a donc été refusé. Planifiez-le à nouveau pour l’envoyer avec la connexion actuelle.",
+  "museCodeOnceCleared": {
+    "one": "La connexion Muse Code a changé depuis la planification de {count} envoi, qui a donc été supprimé. Planifiez-le à nouveau pour l’envoyer avec la connexion actuelle.",
+    "other": "La connexion Muse Code a changé depuis la planification de {count} envois, qui ont donc été supprimés. Planifiez-les à nouveau pour les envoyer avec la connexion actuelle.",
+    "many": "La connexion Muse Code a changé depuis la planification de {count} envois, qui ont donc été supprimés. Planifiez-les à nouveau pour les envoyer avec la connexion actuelle."
+  },
   "queuedMenuLabel": "Actions des messages en file d’attente",
   "queuedEdit": "Modifier",
   "queuedEditTitle": "Sort le message de la file d’attente pour le remettre dans la zone de saisie",

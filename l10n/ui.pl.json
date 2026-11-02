@@ -1649,6 +1649,14 @@
   "composerQueuePlaceholder": "Dodaj kolejną wiadomość do kolejki…",
   "queuedLabel": "W kolejce",
   "sentOnSchedule": "Wysłano zgodnie z harmonogramem",
+  "museCodeOnceEnvKeyRefused": "Zaplanowane wysyłki Muse Code są niedostępne, dopóki w tym oknie ustawiono META_API_KEY: wysyłka obciążyłaby ten klucz, a nie zalogowane konto.",
+  "museCodeOnceAccountChanged": "Logowanie Muse Code zmieniło się od zaplanowania tej wysyłki, więc wysyłkę odrzucono. Zaplanuj ją ponownie, aby wysłać przy obecnym logowaniu.",
+  "museCodeOnceCleared": {
+    "one": "Logowanie Muse Code zmieniło się od zaplanowania wysyłki, więc wysyłkę usunięto. Zaplanuj ją ponownie, aby wysłać przy obecnym logowaniu.",
+    "other": "Logowanie Muse Code zmieniło się od zaplanowania {count} wysyłek, więc wysyłki usunięto. Zaplanuj je ponownie, aby wysłać przy obecnym logowaniu.",
+    "few": "Logowanie Muse Code zmieniło się od zaplanowania {count} wysyłek, więc wysyłki usunięto. Zaplanuj je ponownie, aby wysłać przy obecnym logowaniu.",
+    "many": "Logowanie Muse Code zmieniło się od zaplanowania {count} wysyłek, więc wysyłki usunięto. Zaplanuj je ponownie, aby wysłać przy obecnym logowaniu."
+  },
   "queuedMenuLabel": "Działania wiadomości w kolejce",
   "queuedEdit": "Edytuj",
   "queuedEditTitle": "Wyjmij wiadomość z kolejki i przenieś ją z powrotem do pola promptu",
