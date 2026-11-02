@@ -35,6 +35,14 @@ happened, not what was planned; superseded entries are kept.
   VS Code keys and a layout that is remembered per folder. It is built
   and run on the development machines; the installable desktop arrives
   with the M111 installer, so nothing about the extension changes yet.
+- **Muse Desktop's bottom panel (M111, in development).** The workbench
+  window's terminal panel now runs real shells: several terminals as
+  tabs, split panes, a panel that docks, floats, collapses into the
+  footer or hides, terminal find, a screen-reader tree and keyboard
+  resizing, with Problems and Output beside it. Agents' commands show
+  in labelled read-only tabs with Stop. It is proven in the packaged
+  app on the development machines; the installable desktop arrives
+  with the M111 installer, so nothing about the extension changes yet.
 - **`muse-spark-code-acp watchdog` keeps a watch list of GitHub repositories
   in a terminal.** `watchdog list` and `status` show the watched
   repositories, `pause` and `resume` stop and restart watching, and `policy`

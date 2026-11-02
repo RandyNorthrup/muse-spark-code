@@ -26567,6 +26567,23 @@ security` threshold; the OS images' QEMU boot test and their reproducibility
 
 ### M111 — Muse Desktop: the host edition's own shell (D91)
 
+**Status 2026-11-01 (RLF-M111BP): building.** Lane BP landed on lane WB.
+The bottom panel runs the person's real shell on a real PTY (node-pty,
+staged for Electron's ABI) behind xterm.js with the WebGL, search, links
+and Unicode 11 addons: docked and pinned, unpinned, detached and
+floating, collapsed into the footer, hidden or exited; tabs, split
+panes, keyboard resize and the screen-reader tree; Problems (M68's
+shapes) and Output (channel logs). Proven in the packaged app under
+Xvfb through CDP (typed keys reach bash, output streams back, exit
+lands the tab and its sentence, split/collapse/detach/pin round-trip,
+both empty states honest) with light and dark looks. Agents' tabs are
+labelled read-only with Stop and carry the run id SB2's Live peek will
+key on; Problems/Output suppliers (ED's checks, WS's dev servers, task
+runners) are later lanes', so the empty states are the honest ones. The
+record, the red/green drills and the looks are in
+`docs/certification/rlf-m111bp.md`. SH1, SH2, ED, SB1 and the settings
+lanes have not started; nothing is installable yet (M111i owns that).
+
 **Status 2026-10-30 (RLF-M111WB): building.** Lane WB landed. The Electron
 workbench shell is built and proven on linuxlt: single instance, one window
 per workspace, the sandboxed bridge, the D91.13 layout with the terminal
