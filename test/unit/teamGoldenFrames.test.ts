@@ -38,6 +38,15 @@ function frame(name: string): Frame {
   return { params, servers: config['mcpServers'] as Record<string, unknown> }
 }
 
+/** The team frame's parameters with the team server entry removed. */
+function withoutTeamServer(parsed: Frame): Record<string, unknown> {
+  const withoutTeam = structuredClone(parsed.params)
+  const config = withoutTeam['config'] as Record<string, unknown>
+  const servers = config['mcpServers'] as Record<string, unknown>
+  Reflect.deleteProperty(servers, TEAM_MCP_SERVER_NAME)
+  return withoutTeam
+}
+
 describe('M96 golden session frames', () => {
   it('start frames differ only by the team server entry, under the production names', () => {
     const single = frame('musecode-session-start-single.json')
@@ -57,11 +66,7 @@ describe('M96 golden session frames', () => {
     // denyUnmatched selects no native profile, so no frame carries one.
     expect(single.params['approvalMode']).toBe('denyUnmatched')
     expect(mspPermissionProfile('denyUnmatched')).toBeUndefined()
-    const withoutTeam = structuredClone(team.params)
-    const config = withoutTeam['config'] as Record<string, unknown>
-    const servers = config['mcpServers'] as Record<string, unknown>
-    Reflect.deleteProperty(servers, TEAM_MCP_SERVER_NAME)
-    expect(withoutTeam).toEqual(single.params)
+    expect(withoutTeamServer(team)).toEqual(single.params)
   })
 
   it('resume frames differ only by the team server entry and keep the snapshot history', () => {
@@ -74,10 +79,6 @@ describe('M96 golden session frames', () => {
     }
     expect(Object.keys(single.servers)).toEqual([IDE_MCP_SERVER_NAME])
     expect(Object.keys(team.servers)).toEqual([IDE_MCP_SERVER_NAME, TEAM_MCP_SERVER_NAME])
-    const withoutTeam = structuredClone(team.params)
-    const config = withoutTeam['config'] as Record<string, unknown>
-    const servers = config['mcpServers'] as Record<string, unknown>
-    Reflect.deleteProperty(servers, TEAM_MCP_SERVER_NAME)
-    expect(withoutTeam).toEqual(single.params)
+    expect(withoutTeamServer(team)).toEqual(single.params)
   })
 })
