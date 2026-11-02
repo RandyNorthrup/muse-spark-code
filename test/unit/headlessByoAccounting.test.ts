@@ -171,7 +171,13 @@ async function runOnce(
   const client = withRuntimeAccounting(services.client, daily, accounting)
   const body = makeTurnBody({
     model: MODEL_REF,
-    input: [{ role: 'user', content: [{ type: 'input_text', text: 'What time is it?' }] }],
+    input: [
+      {
+        type: 'message',
+        role: 'user',
+        content: [{ type: 'input_text', text: 'What time is it?' }],
+      },
+    ],
     instructions: 'You are a coding agent.',
     toolName: 'read_file',
     effort: 'medium',
