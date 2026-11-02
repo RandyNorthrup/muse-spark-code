@@ -176,10 +176,11 @@ export function recoverThrottleStep(
   nowMs: number,
   throttleRecoverMs: number,
 ): TeamThrottleState {
-  if (state.throttledAtMs === undefined || state.runningCap >= state.configuredCap) {
-    return state
-  }
-  if (nowMs - state.throttledAtMs < throttleRecoverMs) {
+  if (
+    state.throttledAtMs === undefined ||
+    state.runningCap >= state.configuredCap ||
+    nowMs - state.throttledAtMs < throttleRecoverMs
+  ) {
     return state
   }
   return {

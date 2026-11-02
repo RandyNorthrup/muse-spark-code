@@ -370,6 +370,7 @@ export function compileOutputSchema(bytes: Uint8Array): OutputSchema {
         // refusals and the schema parser fails as $ZodError (zod/mini,
         // verified); anything else is not this answer's verdict to give.
         if (error instanceof SyntaxError) return { ok: false, detail: 'JSON' }
+        // eslint-disable-next-line unicorn/prefer-combined-guards -- separate guards keep this catch NARROW for check:catches; the combined guard classifies GENERIC (PLAN §8, RLF-UNICORN79).
         if (error instanceof RangeError) return { ok: false, detail: 'JSON' }
         if (error instanceof Error) {
           if (error.message === 'forbidden record key')

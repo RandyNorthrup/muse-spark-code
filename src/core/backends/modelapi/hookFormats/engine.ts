@@ -203,7 +203,7 @@ function isMatched(match: OutputMatch, output: Readonly<Record<string, unknown>>
   })
 }
 
-function inputHolds(condition: InputCondition | undefined, options: AdapterOptions | undefined) {
+function doesInputHold(condition: InputCondition | undefined, options: AdapterOptions | undefined) {
   if (condition === undefined) return true
   const input = options?.input
   if (input === undefined) return false
@@ -243,7 +243,11 @@ function vetoOf(
   stderr: string,
 ): ForeignHookAnswer | undefined {
   for (const rule of spec.rules) {
-    if (rule.kind !== 'veto' || !isMatched(rule.match, output) || !inputHolds(rule.when, options))
+    if (
+      rule.kind !== 'veto' ||
+      !isMatched(rule.match, output) ||
+      !doesInputHold(rule.when, options)
+    )
       continue
     const followup = rule.nonEmpty === undefined ? undefined : nonEmptyText(output, rule.nonEmpty)
     if (followup === undefined && rule.nonEmpty !== undefined) continue
@@ -282,7 +286,7 @@ function collect(
     else if (rule.kind === 'updatedInput') {
       const updated = pathValue(output, rule.field)
       if (isRecord(updated)) answer = { ...answer, updatedInput: updated }
-    } else if (rule.kind === 'replacement' && inputHolds(rule.when, options)) {
+    } else if (rule.kind === 'replacement' && doesInputHold(rule.when, options)) {
       const found = pathValue(output, rule.field)
       const replaced = rule.textPath === undefined ? found : pathValue(found, rule.textPath)
       if (typeof replaced === 'string' || isRecord(replaced))
@@ -377,7 +381,7 @@ export function parseResult(
     return spec.unparseableIsEmpty === true ? { status: 'completed' } : invalid(spec, isFailClosed)
   const veto = vetoOf(spec, value, options, '')
   if (veto !== undefined) return veto
-  return spec.schema !== undefined && !spec.schema.safeParse(value).success
-    ? invalid(spec, isFailClosed)
-    : collect(spec, value, options)
+  return spec.schema === undefined || spec.schema.safeParse(value).success
+    ? collect(spec, value, options)
+    : invalid(spec, isFailClosed)
 }

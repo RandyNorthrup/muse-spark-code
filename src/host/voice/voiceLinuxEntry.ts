@@ -47,10 +47,15 @@ export async function removeLinuxDictationModel(directory: string): Promise<void
       await driver.reset()
     }),
   )
-  const never = (): Promise<boolean> => Promise.resolve(false)
+  const isConsentGiven = (): Promise<boolean> => Promise.resolve(false)
   // OFF removes the helper and the model with their partial downloads alike.
-  await new LinuxDictationHelper({ directory, fetch, consent: never, arch: process.arch }).remove()
-  await new LinuxDictationModel({ directory, fetch, consent: never }).remove()
+  await new LinuxDictationHelper({
+    directory,
+    fetch,
+    consent: isConsentGiven,
+    arch: process.arch,
+  }).remove()
+  await new LinuxDictationModel({ directory, fetch, consent: isConsentGiven }).remove()
   // The setup keys its pending state off the directory itself: remove it
   // once its managed files are gone, or every reload re-runs cleanup.
   // Anything unexpected left inside keeps failing loudly instead.

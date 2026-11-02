@@ -278,9 +278,9 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
   // own deferred bundle (dist/productionMedia.js, D85.13): the Model API
   // bundle never carries it, nor transcription or conversion.
   const productionMedia =
-    mediaDirectory !== undefined && filesClient !== undefined && mediaAccountId !== undefined
-      ? await import('./productionMediaEntry.js')
-      : undefined
+    mediaDirectory === undefined || filesClient === undefined || mediaAccountId === undefined
+      ? undefined
+      : await import('./productionMediaEntry.js')
   productionMedia?.setUiText(deps.uiText, deps.uiLocale)
   // Attached video and audio (lane V seam 1): the host's registry resolves a
   // `media` part to its record and its reverifying source; a tool-read file

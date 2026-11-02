@@ -109,9 +109,11 @@ export class MakerPendingApproval {
   public answer(input: MakerApprovalAnswer | null): MakerAnswerVerdict {
     if (this.isSettled) return { ok: false, reason: 'approval-rejected' }
     this.isSettled = true
-    if (input === null) return { ok: false, reason: 'approval-rejected' }
-    if (input.decision !== 'send') return { ok: false, reason: 'approval-rejected' }
-    if (input.requestId !== this.prompt.requestId || input.digest !== this.prompt.digest)
+    if (
+      input?.decision !== 'send' ||
+      input.requestId !== this.prompt.requestId ||
+      input.digest !== this.prompt.digest
+    )
       return { ok: false, reason: 'approval-rejected' }
     const at = this.now()
     if (this.prompt.expiresAt !== undefined && at >= this.prompt.expiresAt)

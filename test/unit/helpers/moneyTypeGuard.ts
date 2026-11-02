@@ -334,10 +334,10 @@ export function analyzeFixtures(
   const virtual = new Map(entries)
   const host = ts.createCompilerHost(options)
   const readFile = host.readFile.bind(host)
-  const fileExists = host.fileExists.bind(host)
+  const doesFileExist = host.fileExists.bind(host)
   const getSourceFile = host.getSourceFile.bind(host)
   host.readFile = (file) => virtual.get(file.replaceAll('\\', '/')) ?? readFile(file)
-  host.fileExists = (file) => virtual.has(file.replaceAll('\\', '/')) || fileExists(file)
+  host.fileExists = (file) => virtual.has(file.replaceAll('\\', '/')) || doesFileExist(file)
   // The fixture folder exists only in memory; module resolution between
   // fixtures asks for it first.
   const fixtureFolder = folder.replaceAll('\\', '/')

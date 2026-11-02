@@ -17,8 +17,6 @@ import {
   groupedDataset,
 } from '../judgeEmbeddingFixtures'
 
-type JudgeUseRequest = Extract<PaidUseRequest, { feature: 'judge' }>
-
 /** The stdin body for an `ask` or MCP judge call over the same request. */
 export function surfaceInput(action: string): string {
   return action === 'ask'
@@ -70,6 +68,7 @@ export function recordingLedger() {
 
 /** A command binding with a capable embedding transport, paid or verified-local. */
 export function embeddedBinding(locality: 'same-provider' | 'verified-local', consentDelayMs = 0) {
+  type JudgeUseRequest = Extract<PaidUseRequest, { feature: 'judge' }>
   const fixture = phase2Binding('same')
   const value = { ...fixture.value, attemptCostUsd: () => Usd.from(0).toAmount() }
   const dataset = groupedDataset(200)
@@ -106,7 +105,7 @@ export function embeddedBinding(locality: 'same-provider' | 'verified-local', co
   })
   // The judge's own request, so the consent answers with its boolean verdict.
   const allowsCalls: JudgeUseRequest[] = []
-  const allowsPaidUse = (request: JudgeUseRequest) => {
+  const isPaidUseAllowed = (request: JudgeUseRequest) => {
     allowsCalls.push(request)
     return consent.allows(request)
   }
@@ -142,7 +141,7 @@ export function embeddedBinding(locality: 'same-provider' | 'verified-local', co
     isEnabled: () => true,
     priceFingerprint: 'fixture-verified-price',
     consentEpoch: () => 'epoch-1',
-    allowsPaidUse,
+    allowsPaidUse: isPaidUseAllowed,
     dailyBudgetUsd: () => 1,
     ledger,
   }

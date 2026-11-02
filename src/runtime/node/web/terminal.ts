@@ -17,8 +17,6 @@ import { nodeActionDigest } from '../listenerMethods'
 import { guardNodeMethod, NodeListenerError } from '../listenerGuard'
 import type { NodeTerminalSubscription } from '../listenerSocket'
 
-type TerminalMethod = Extract<NodeMethodName, `node/terminal/${string}`>
-
 /** The audit detail for one terminal session's start or end (hash-chained by N). */
 type TerminalAuditDetails = Omit<
   Extract<NodeAudit, { kind: 'terminal' }>,
@@ -55,6 +53,7 @@ interface TerminalRecord {
 /** One session's terminal methods. N binds the caller's session id; a null
 session opens nothing (dispatch refuses unauthenticated callers first). */
 export function createNodeTerminalMethods(port: NodeTerminalPagePort, sessionId: string | null) {
+  type TerminalMethod = Extract<NodeMethodName, `node/terminal/${string}`>
   const terminals = new Map<string, TerminalRecord>()
 
   const envelope = (
@@ -70,14 +69,16 @@ export function createNodeTerminalMethods(port: NodeTerminalPagePort, sessionId:
       nodeId: port.nodeId,
       terminalId,
     }
-    return event.type === 'terminalOutput'
-      ? nodeEventSchema.parse({ ...fields, type: 'terminalOutput', data: event.data })
-      : nodeEventSchema.parse({
-          ...fields,
-          type: 'terminalEnded',
-          exitCode: event.exitCode,
-          reason: event.reason,
-        })
+    return nodeEventSchema.parse(
+      event.type === 'terminalOutput'
+        ? { ...fields, type: 'terminalOutput', data: event.data }
+        : {
+            ...fields,
+            type: 'terminalEnded',
+            exitCode: event.exitCode,
+            reason: event.reason,
+          },
+    )
   }
 
   const deliver = async (

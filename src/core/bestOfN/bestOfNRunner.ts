@@ -476,10 +476,9 @@ export class BestOfNRunner {
             admitRequest: Object.assign(
               (keyDigest: string | undefined) => {
                 this.requireCurrent(run)
-                if (keyDigest === undefined || keyDigest !== run.accountId) {
-                  throw new BestOfNError('contextChanged')
-                }
                 if (
+                  keyDigest === undefined ||
+                  keyDigest !== run.accountId ||
                   run.budgetScope?.isStillAllowed(payerCredentialSchema.parse(keyDigest)) === false
                 )
                   throw new BestOfNError('contextChanged')
@@ -931,10 +930,7 @@ export class BestOfNRunner {
       }
       const accountId = await this.deps.getAccountId()
       this.requireCurrent(run)
-      if (accountId !== run.accountId) {
-        throw new BestOfNError('contextChanged')
-      }
-      if (run.budgetScope?.isStillAllowed(accountId) === false)
+      if (accountId !== run.accountId || run.budgetScope?.isStillAllowed(accountId) === false)
         throw new BestOfNError('contextChanged')
       await this.deps.validateWorktree(repositoryRoot)
       this.requireCurrent(run)

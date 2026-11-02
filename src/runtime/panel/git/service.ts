@@ -1071,10 +1071,7 @@ export class NativeGitService {
         // A swapped ancestor or a lost owner refuses the prompt; an
         // unreadable file (missing, permissions) only stays out of it, and
         // any other read failure is not this prompt's answer to give.
-        if (refusalOf(error) !== undefined) {
-          throw error
-        }
-        if (!isUnreadableStoreError(error)) throw error
+        if (refusalOf(error) !== undefined || !isUnreadableStoreError(error)) throw error
         start = undefined
       }
       guard.check()

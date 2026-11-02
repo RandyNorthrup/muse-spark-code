@@ -419,7 +419,7 @@ export function authSetProviderId(
       : undefined
   }
   const provider = command.provider
-  return provider !== undefined && provider !== 'meta' ? provider : undefined
+  return provider === undefined || provider === 'meta' ? undefined : provider
 }
 
 /** `auth set|status|clear`: the key's three commands (D61). */
@@ -686,7 +686,7 @@ export function parseCommandLine<T>(
         }
         words.push(word)
       }
-      const rest = words[1] === 'problem' ? words.slice(2) : words.slice(1)
+      const rest = words.slice(words[1] === 'problem' ? 2 : 1)
       route = rest.length === 0 ? 'report' : `reports ${rest.join(' ')}`
     } else if (argv[0] === 'usage' && argv[1] === 'resources') route = 'resources'
     else if (argv[0] === 'providers')
@@ -1421,7 +1421,7 @@ function parseUsage(argv: readonly string[]): RuntimeCommand {
       })
       .safeParse({
         range:
-          values.range ?? (values.from !== undefined || values.to !== undefined ? 'custom' : '30d'),
+          values.range ?? (values.from === undefined && values.to === undefined ? '30d' : 'custom'),
         groupBy: values.by ?? (action === 'models' ? 'model' : 'provider'),
         metric: 'cost',
         ...(values.from !== undefined && { from: values.from }),
@@ -1450,6 +1450,7 @@ function parseUsage(argv: readonly string[]): RuntimeCommand {
       return fail('--from --to')
     // Narrow the validated subcommand without a cast, keeping invalid actions out.
     if (
+      // eslint-disable-next-line unicorn/prefer-includes-over-repeated-comparisons -- the !== chain narrows string to the usage-action union for options below; includes() does not narrow (the rule doc's own exception) (PLAN §8, RLF-UNICORN79).
       action !== 'summary' &&
       action !== 'daily' &&
       action !== 'models' &&
@@ -1470,10 +1471,13 @@ function parseUsage(argv: readonly string[]): RuntimeCommand {
   } catch (error: unknown) {
     // Only the option parser fails here (unknown option, invalid value);
     // anything else is not this parse's answer to give.
-    if (error instanceof Error && 'code' in error) {
-      if (error.code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION') return usageRefusal('usage', error)
-      if (error.code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE') return usageRefusal('usage', error)
-    }
+    if (
+      error instanceof Error &&
+      'code' in error &&
+      (error.code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION' ||
+        error.code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE')
+    )
+      return usageRefusal('usage', error)
     throw error
   }
 }
@@ -1609,17 +1613,20 @@ function parseResources(argv: readonly string[]): RuntimeCommand {
     if (values.help === true) return { command: 'helpTopic', topic: 'resources' }
     const action = positionals[0] ?? 'status'
     return positionals.length > 1 ||
+      // eslint-disable-next-line unicorn/prefer-includes-over-repeated-comparisons -- the !== chain narrows string to ResourceCommandAction for the command below; includes() does not narrow (the rule doc's own exception) (PLAN §8, RLF-UNICORN79).
       (action !== 'status' && action !== 'history' && action !== 'resume')
       ? invalid(`resources ${positionals.join(' ')}`)
       : { command: 'resources', action, json: values.json === true }
   } catch (error: unknown) {
     // Only the option parser fails here (unknown option, invalid value);
     // anything else is not this parse's answer to give.
-    if (error instanceof Error && 'code' in error) {
-      if (error.code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION') return usageRefusal('resources', error)
-      if (error.code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE')
-        return usageRefusal('resources', error)
-    }
+    if (
+      error instanceof Error &&
+      'code' in error &&
+      (error.code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION' ||
+        error.code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE')
+    )
+      return usageRefusal('resources', error)
     throw error
   }
 }
@@ -1658,6 +1665,7 @@ function parseReport(argv: readonly string[], canUseNamed = true): RuntimeComman
       if (error instanceof Error && 'code' in error) {
         if (error.code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION')
           return { command: 'reports', args: argv }
+        // eslint-disable-next-line unicorn/prefer-combined-guards -- separate guards keep this catch NARROW for check:catches; the combined guard classifies GENERIC (PLAN §8, RLF-UNICORN79).
         if (error.code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE')
           return { command: 'reports', args: argv }
       }
@@ -1690,6 +1698,7 @@ function parseReport(argv: readonly string[], canUseNamed = true): RuntimeComman
     if (error instanceof Error && 'code' in error) {
       if (error.code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION')
         return { command: 'invalid', reason: reportUsage(), exitCode: 2 }
+      // eslint-disable-next-line unicorn/prefer-combined-guards -- separate guards keep this catch NARROW for check:catches; the combined guard classifies GENERIC (PLAN §8, RLF-UNICORN79).
       if (error.code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE')
         return { command: 'invalid', reason: reportUsage(), exitCode: 2 }
     }

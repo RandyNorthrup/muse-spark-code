@@ -122,11 +122,10 @@ function urlTarget(url: string): string {
 
 function commandTarget(command: unknown): string {
   const first: unknown = Array.isArray(command) ? command[0] : command
-  if (typeof first !== 'string' || first === '') {
-    return UI_TEXT.mcpNoCommand
-  }
   // A Windows path's separators are read on every platform.
-  return path.win32.basename(path.posix.basename(first))
+  return typeof first !== 'string' || first === ''
+    ? UI_TEXT.mcpNoCommand
+    : path.win32.basename(path.posix.basename(first))
 }
 
 function serverView(name: string, entry: JsonObject): McpServerView {

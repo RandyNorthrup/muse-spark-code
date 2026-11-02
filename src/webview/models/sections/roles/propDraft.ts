@@ -75,8 +75,11 @@ function applyReply(previous: unknown, arrived: unknown, draft: object, sent: re
           value.length === local.length))
     )
       applyReply(before, value, local, pending)
-    else if (!isObject(arrived) || !Object.hasOwn(arrived, key)) Reflect.deleteProperty(draft, key)
-    else Reflect.set(draft, key, value)
+    else if (isObject(arrived) && Object.hasOwn(arrived, key)) {
+      Reflect.set(draft, key, value)
+    } else {
+      Reflect.deleteProperty(draft, key)
+    }
   }
 }
 
@@ -106,12 +109,12 @@ export function usePropDraft<T extends object | undefined>(
         draft: state.draft,
         sent: echoed === -1 ? [] : state.sent.slice(echoed + 1),
       })
-    } else if (state.draft !== undefined && !Array.isArray(state.draft)) {
+    } else if (state.draft === undefined || Array.isArray(state.draft)) {
+      setState({ prop, draft: prop, sent: [] })
+    } else {
       const draft = structuredClone(state.draft)
       applyReply(state.prop, prop, draft, state.sent)
       setState({ prop, draft, sent: state.sent })
-    } else {
-      setState({ prop, draft: prop, sent: [] })
     }
   }
   const update = (next: (previous: T) => T): T => {

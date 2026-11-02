@@ -410,16 +410,6 @@ function program(
   })
 }
 
-type PreparationOutcome =
-  | { kind: 'ready' | 'notGui' }
-  | { kind: 'broken'; error: DeviceWorkerHostError }
-  | { kind: 'retry'; error: DeviceWorkerHostError }
-type PreparationState =
-  | { kind: 'unknown' }
-  | { kind: 'preparing'; result: Promise<PreparationOutcome> }
-  | { kind: 'ready' | 'notGui' }
-  | { kind: 'broken'; error: DeviceWorkerHostError }
-
 type ReadyMembership = z.infer<typeof readySchema>
 type AttemptProgress =
   | { kind: 'allocated' }
@@ -512,6 +502,15 @@ export function escapeXml(value: string): string {
 
 /** No GUI domain, compiler, coalition ABI or assertion means unsupported-host. */
 export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDriver {
+  type PreparationOutcome =
+    | { kind: 'ready' | 'notGui' }
+    | { kind: 'broken'; error: DeviceWorkerHostError }
+    | { kind: 'retry'; error: DeviceWorkerHostError }
+  type PreparationState =
+    | { kind: 'unknown' }
+    | { kind: 'preparing'; result: Promise<PreparationOutcome> }
+    | { kind: 'ready' | 'notGui' }
+    | { kind: 'broken'; error: DeviceWorkerHostError }
   const env = workerEnvironment(deps.environment, 'darwin')
   const invoke = async (
     file: string,

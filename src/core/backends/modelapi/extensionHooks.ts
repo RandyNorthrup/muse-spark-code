@@ -1112,9 +1112,9 @@ export function parseExtensionHookAnswer(
     }
     if (decision.behavior === 'deny') {
       const reason =
-        decision.message !== undefined && decision.message.trim() !== ''
-          ? decision.message
-          : 'denied by hook'
+        decision.message === undefined || decision.message.trim() === ''
+          ? 'denied by hook'
+          : decision.message
       return {
         status: event === 'TeammateIdle' ? 'keepWorking' : 'refused',
         reason,
@@ -1128,9 +1128,9 @@ export function parseExtensionHookAnswer(
   }
   if (result.continue === false) {
     const reason =
-      result.stopReason !== undefined && result.stopReason.trim() !== ''
-        ? result.stopReason
-        : 'kept working by hook'
+      result.stopReason === undefined || result.stopReason.trim() === ''
+        ? 'kept working by hook'
+        : result.stopReason
     return { status: 'keepWorking', reason, hasAnswer: false, output }
   }
   if (result.stopReason !== undefined) {

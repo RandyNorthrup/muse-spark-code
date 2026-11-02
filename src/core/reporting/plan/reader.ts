@@ -165,9 +165,7 @@ function deliveryOrder(
     const match = /^(\d+)\. \*\*(.+?)\*\*(?: \([^]*?\))? — (.+?)\s+Needs: (.+)\.$/.exec(
       compact(text),
     )
-    if (!match?.[2] || !match[3] || !match[4] || Number(match[1]) !== expected) {
-      drift.push({ code: 'delivery-form', line: row.line, detail: compact(text) })
-    } else {
+    if (match?.[2] && match[3] && match[4] && Number(match[1]) === expected) {
       const label = match[2]
       // A versioned release train is one entry; its component milestones remain in the reason.
       const id = /^(?:M\d+[a-z\d]*|\d+\.\d+\.\d+)/i.exec(label)?.[0] ?? label
@@ -175,6 +173,8 @@ function deliveryOrder(
       const needs = deliveryNeeds(primaryNeeds, knownIds)
       if (needs === null) drift.push({ code: 'delivery-needs', line: row.line, detail: match[4] })
       else result.push({ id, needs, reason: `${match[3]} Needs: ${match[4]}.` })
+    } else {
+      drift.push({ code: 'delivery-form', line: row.line, detail: compact(text) })
     }
     expected += 1
   }

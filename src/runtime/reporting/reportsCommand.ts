@@ -115,10 +115,10 @@ function usageExit(deps: ReportsCommandDeps, error: unknown): number {
 
 /** The failure the surface shows: the real reason, scrubbed, or the plain sentence when aborted. */
 function failureText(deps: ReportsCommandDeps, error: unknown): string {
-  if (deps.signal?.aborted) return deps.text.reportUi.generationFailed
   // A syntax failure quotes its input: never shown, so a damaged saved
   // file cannot echo its bytes back (the --from contract).
-  if (error instanceof SyntaxError) return deps.text.reportUi.generationFailed
+  if (deps.signal?.aborted || error instanceof SyntaxError)
+    return deps.text.reportUi.generationFailed
   const reason =
     error instanceof Error && error.message !== ''
       ? reportScrubber(deps.redaction)(error.message)

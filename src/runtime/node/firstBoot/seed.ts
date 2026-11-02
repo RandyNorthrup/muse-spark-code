@@ -93,7 +93,7 @@ function parseNetworkDoc(text: string): SeedNetwork {
   if (network['version'] !== 2) throw new SeedFailure('seed-network-version')
   const ignored: string[] = []
   for (const key of Object.keys(network)) {
-    if (key !== 'version' && key !== 'ethernets' && key !== 'wifis') ignored.push(key)
+    if (!['version', 'ethernets', 'wifis'].includes(key)) ignored.push(key)
   }
   const ethernets = network['ethernets']
   if (ethernets !== undefined && !isRecord(ethernets)) throw new SeedFailure('seed-network-invalid')
@@ -106,7 +106,7 @@ function parseNetworkDoc(text: string): SeedNetwork {
     for (const [id, def] of Object.entries(ethernets)) {
       if (!isRecord(def)) throw new SeedFailure('seed-network-invalid')
       for (const key of Object.keys(def)) {
-        if (key !== 'dhcp4' && key !== 'dhcp6' && key !== 'addresses') ignored.push(`${id}.${key}`)
+        if (!['dhcp4', 'dhcp6', 'addresses'].includes(key)) ignored.push(`${id}.${key}`)
       }
       if (isTruthy(def['dhcp4'])) hasDhcp = true
       else if (def['addresses'] !== undefined) isStaticOnly = true
@@ -190,7 +190,7 @@ function parseUserDoc(text: string): SeedUserData {
     }
   }
   for (const key of Object.keys(doc)) {
-    if (key !== 'hostname' && key !== 'ssh_authorized_keys' && key !== 'users') ignored.push(key)
+    if (!['hostname', 'ssh_authorized_keys', 'users'].includes(key)) ignored.push(key)
   }
   return { hostname, sshKeys, ignored }
 }

@@ -37,8 +37,7 @@ export async function registerPosixVaultHost(
   hostSession: string,
 ): Promise<() => void> {
   const identity = await vaultProcessIdentity(helper, process.pid)
-  if (identity === null) throw new Error(UI_TEXT.vault.noAccess)
-  if (identity.userId !== String(process.getuid?.())) throw new Error(UI_TEXT.vault.noAccess)
+  if (identity?.userId !== String(process.getuid?.())) throw new Error(UI_TEXT.vault.noAccess)
   const record = hostRecordFor(identity, hostId, hostSession)
   const files = new UnixVaultPrivateFiles()
   const directory = path.join(runDirectory, 'hosts')

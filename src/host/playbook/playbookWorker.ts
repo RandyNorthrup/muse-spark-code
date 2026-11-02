@@ -41,8 +41,6 @@ export interface PlaybookWorkerPort {
   on(event: 'message', listener: (raw: unknown) => void): unknown
 }
 
-type DispatchStep = 'effect' | 'completion'
-
 function isUiText(table: unknown, locale: string): table is UiText {
   return tableProblems(EN, table, { locale, isStrict: false }).length === 0
 }
@@ -106,6 +104,7 @@ interface TeamRounds {
 
 /** Serves one window until its thread ends. */
 export function servePlaybook(port: PlaybookWorkerPort, data: PlaybookWorkerData): void {
+  type DispatchStep = 'effect' | 'completion'
   if (isUiText(data.table, data.locale)) setUiText(data.table, data.locale)
   const send = (message: FromPlaybookWorker): void => {
     port.postMessage(message)

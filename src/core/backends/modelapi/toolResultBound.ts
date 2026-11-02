@@ -165,8 +165,7 @@ export function validateToolResultCap(
   value: number | undefined,
   windowTokens: number | undefined,
 ): { readonly bytes: number } | { readonly refused: ToolResultCapRefusal } {
-  if (value === undefined) return { bytes: Infinity }
-  if (value === 0) return { bytes: Infinity }
+  if (value === undefined || value === 0) return { bytes: Infinity }
   if (!Number.isSafeInteger(value) || value < TOOL_RESULT_MIN_BYTES) {
     return { refused: { kind: 'below-floor' } }
   }

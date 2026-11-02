@@ -150,11 +150,11 @@ function runInJob(
       // The launcher's end closes the job, and kill-on-close ends the encoder's tree.
       if (!hasClosed) child.kill()
     }
-    const checkOutput = () => isOutputWithinCap(options)
+    const isOutputWithinCapNow = () => isOutputWithinCap(options)
     const requestCheck = () => {
       if (check !== undefined || hasClosed || hasFailed) return
       check = (async () => {
-        if (!(await checkOutput())) stop()
+        if (!(await isOutputWithinCapNow())) stop()
         check = undefined
       })()
     }
@@ -172,7 +172,7 @@ function runInJob(
         // Both checks are bounded: a stalled stat cannot hold the run open.
         await check
         // A successful exit still answers for its final output.
-        if (!hasFailed && code === 0 && !(await checkOutput())) hasFailed = true
+        if (!hasFailed && code === 0 && !(await isOutputWithinCapNow())) hasFailed = true
         if (hasFailed || code !== 0) reject(conversionJobFailure(M50_LAUNCHER_LIMITS))
         else resolve()
       })()

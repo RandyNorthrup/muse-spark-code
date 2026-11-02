@@ -263,10 +263,14 @@ export class DeviceDiscoverySwitch {
         this.active.failure = 'storage'
       }
     }
-    if (operation === undefined || this.active !== operation) return
     // A blocked verdict queued a later OFF write. Its completion owns the
     // result, so the older ON write cannot start a replacement session.
-    if (this.writes.some((write) => write.operation === operation)) return
+    if (
+      operation === undefined ||
+      this.active !== operation ||
+      this.writes.some((write) => write.operation === operation)
+    )
+      return
     if (operation.phase === 'settle' || event.failed) {
       this.finish(operation.failure)
       return

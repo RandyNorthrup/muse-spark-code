@@ -80,15 +80,14 @@ export function isBeneathSyncRoot(
 ): boolean {
   const normal = platform === 'win32' ? path.win32 : path.posix
   const resolved = normal.resolve(storeDirectory)
-  if (
-    syncRoots(platform, home).some(
-      (root) => resolved === root || resolved.startsWith(`${root}${normal.sep}`),
-    )
-  )
-    return true
   // OneDrive for Business appends the tenant: `OneDrive - Tenant`. A
   // folder that merely shares the prefix refuses too: the safe direction.
-  return platform === 'win32' && resolved.startsWith(`${normal.join(home, 'OneDrive')} - `)
+  return (
+    syncRoots(platform, home).some(
+      (root) => resolved === root || resolved.startsWith(`${root}${normal.sep}`),
+    ) ||
+    (platform === 'win32' && resolved.startsWith(`${normal.join(home, 'OneDrive')} - `))
+  )
 }
 
 function linuxFilesystemKind(type: number | bigint): CoordinatorFilesystem {

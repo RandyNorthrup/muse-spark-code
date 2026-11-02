@@ -78,11 +78,8 @@ export function FilterBar({
 }: FilterBarProps) {
   const labels = UI_TEXT.modelFilterLabels
   const toggle = (facet: 'toolCalling' | 'vision' | 'reasoning' | 'freeOrLocal'): void => {
-    if (filter[facet] === true) {
-      onChange({ ...filter, [facet]: undefined })
-    } else {
-      onChange({ ...filter, [facet]: true })
-    }
+    const toggled = filter[facet] === true ? undefined : true
+    onChange({ ...filter, [facet]: toggled })
   }
   return (
     <div className="models-filter-bar">

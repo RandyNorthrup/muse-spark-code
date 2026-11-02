@@ -35,10 +35,10 @@ function args() {
       index += 1
     } else if (flag === '--compare') {
       values.compare = true
-    } else if (flag !== undefined && !flag.startsWith('--')) {
-      positionals.push(flag)
-    } else {
+    } else if (flag === undefined || flag.startsWith('--')) {
       return { error: `unknown flag: ${flag ?? '(missing)'}` }
+    } else {
+      positionals.push(flag)
     }
   }
   return { values, positionals }

@@ -115,9 +115,9 @@ export function comparePlanText(left: string, right: string): number {
 export function milestoneHeading(text: string): { id: string; title: string } | null {
   const match =
     /^### (M\d+[a-z\d]*(?:[–-]M\d+[a-z\d]*)?(?: follow-up)?|[A-Z]{2}[A-Z\d]*) — (.+)$/.exec(text)
-  return !match?.[1] || !match[2]
-    ? null
-    : { id: match[1].replace(' follow-up', '-follow-up'), title: match[2] }
+  return match?.[1] && match[2]
+    ? { id: match[1].replace(' follow-up', '-follow-up'), title: match[2] }
+    : null
 }
 
 export function milestoneIds(text: string, knownIds: ReadonlyMap<string, string>): string[] {

@@ -30,12 +30,7 @@ function args() {
   for (let index = 0; index < flags.length; index += 1) {
     const flag = flags[index]
     if (flag === '--help') return { help: true }
-    if (
-      flag !== '--keyring' &&
-      flag !== '--transcript' &&
-      flag !== '--fingerprints' &&
-      flag !== '--gpg'
-    ) {
+    if (!['--keyring', '--transcript', '--fingerprints', '--gpg'].includes(flag)) {
       return { error: `unknown flag: ${flag ?? '(missing)'}` }
     }
     const value = flags[index + 1]

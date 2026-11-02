@@ -393,8 +393,7 @@ export async function writeProvidersFileAtomic(
       } catch (error) {
         // Windows readers briefly deny replacement; retry the same complete
         // file a bounded number of times, then keep the failure's kind.
-        if (attempt >= ATOMIC_RENAME_ATTEMPTS) throw error
-        if (!isRenameRetryCode(error)) throw error
+        if (attempt >= ATOMIC_RENAME_ATTEMPTS || !isRenameRetryCode(error)) throw error
         await pause(ATOMIC_RENAME_DELAY_MS * 2 ** (attempt - 1))
       }
     }

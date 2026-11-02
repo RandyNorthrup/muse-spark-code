@@ -125,5 +125,5 @@ export function redispatchVerdict(options: {
   readonly uncertain: boolean
 }): RedispatchVerdict {
   if (options.uncertain) return 'uncertain-needs-person'
-  return !options.leaseExpired || !options.fencedSinceCheckpoint ? 'wait' : 'ready'
+  return options.leaseExpired && options.fencedSinceCheckpoint ? 'ready' : 'wait'
 }

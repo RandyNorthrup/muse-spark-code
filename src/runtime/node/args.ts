@@ -60,6 +60,7 @@ export function parseNodeArgs(argv: readonly string[]): NodeCommand {
     }
   }
   if (
+    // eslint-disable-next-line unicorn/prefer-includes-over-repeated-comparisons -- the !== chain narrows string to NodeAction for the command below; includes() does not narrow (the rule doc's own exception) (PLAN §8, RLF-UNICORN79).
     action !== 'init' &&
     action !== 'serve' &&
     action !== 'status' &&

@@ -569,9 +569,9 @@ export class ModelApiPacing implements RequestPacer {
       if (kind === 'foreground' || (pause === 0 && !bucket.observed)) {
         this.charge(bucket, tokens)
         if (provider === 'azure') bucket.admissions.push(now)
-        return concurrency !== undefined && model !== undefined
-          ? this.hold(account, model)
-          : undefined
+        return concurrency === undefined || model === undefined
+          ? undefined
+          : this.hold(account, model)
       }
       // Keep one request for the foreground. A one-RPM key can still run
       // background work once full; foreground always bypasses this check.
@@ -605,9 +605,9 @@ export class ModelApiPacing implements RequestPacer {
       if (delay === 0) {
         this.charge(bucket, tokens)
         if (provider === 'azure') bucket.admissions.push(now)
-        return concurrency !== undefined && model !== undefined
-          ? this.hold(account, model)
-          : undefined
+        return concurrency === undefined || model === undefined
+          ? undefined
+          : this.hold(account, model)
       }
       // The wait names the provider-documented limit when one binds it; a
       // headroom or 429 wait keeps the established reason.

@@ -305,10 +305,15 @@ function extractFiles(cells: string): string[] {
   const files = new Set<string>()
   for (const match of cells.matchAll(/`([^`]+)`/g)) {
     const token = (match[1] ?? '').trim().replaceAll('\\', '/')
-    if (!/[/.]/.test(token) || token.includes(' ') || token.startsWith('-')) continue
     // Absolute paths and parent climbs never enter the snapshot, before
     // segment filtering can hide what they were.
-    if (/^(?:\/|[a-z]:)/i.test(token.replaceAll(/^(?:\.\/)+/g, ''))) continue
+    if (
+      !/[/.]/.test(token) ||
+      token.includes(' ') ||
+      token.startsWith('-') ||
+      /^(?:\/|[a-z]:)/i.test(token.replaceAll(/^(?:\.\/)+/g, ''))
+    )
+      continue
     const normalized = token
       .replaceAll(/^(?:\.\/)+/g, '')
       .split('/')

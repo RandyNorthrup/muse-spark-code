@@ -304,8 +304,8 @@ export function decodeVaultMaterial(bytes: Buffer): VaultItem['material'] {
       throw new VaultError('invalid')
     let offset = width + headerLength
     while (offset < bytes.length) {
-      if (fields.length >= VAULT_LIMITS.names) throw new VaultError('invalid')
-      if (bytes.length - offset < width) throw new VaultError('invalid')
+      if (fields.length >= VAULT_LIMITS.names || bytes.length - offset < width)
+        throw new VaultError('invalid')
       const length = bytes.readUInt32BE(offset)
       offset += width
       if (length === 0 || length > VAULT_LIMITS.valueBytes || length > bytes.length - offset)

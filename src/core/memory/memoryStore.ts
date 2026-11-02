@@ -638,6 +638,7 @@ export class MemoryStore {
       }
     } catch (error: unknown) {
       rethrowOwner(assertCurrent)
+      // eslint-disable-next-line unicorn/prefer-ternary -- the if keeps this catch NARROW for check:catches; the ternary classifies GENERIC (PLAN §8, RLF-UNICORN79).
       if (isTaken(error)) {
         // A taken name refuses in fixed words.
         return failed(MODEL_TEXT.memoryNoteExists)

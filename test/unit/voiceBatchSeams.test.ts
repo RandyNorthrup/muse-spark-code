@@ -90,7 +90,7 @@ function transcribe(seams: ReturnType<typeof voiceBatchSeams>) {
 describe('Muse Voice batch consent and reserve adapters (M105 lane V seam 4)', () => {
   it('asks through the host question for this session and counts on the tally', async () => {
     const asked: unknown[][] = []
-    const allowsPaidUse = (...args: unknown[]) => {
+    const isPaidUseAllowed = (...args: unknown[]) => {
       asked.push(args)
       return Promise.resolve(true as const)
     }
@@ -100,7 +100,7 @@ describe('Muse Voice batch consent and reserve adapters (M105 lane V seam 4)', (
     }
     const daily = ledger()
     const seams = voiceBatchSeams(
-      deps({ allowsPaidUse, notePaidUse, reservePaidExtra: daily.reserve }),
+      deps({ allowsPaidUse: isPaidUseAllowed, notePaidUse, reservePaidExtra: daily.reserve }),
     )
     const { run, sends } = transcribe(seams)
     const prepared = await run

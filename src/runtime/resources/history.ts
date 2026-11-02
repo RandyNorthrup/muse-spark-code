@@ -152,9 +152,9 @@ export function resourceHistoryRecorder(
       typeof cause.code === 'string'
         ? cause.code
         : undefined
-    return code !== undefined && !(cause instanceof SyntaxError)
-      ? `unreadable:${code}`
-      : `invalid:${fingerprintChoiceContent()}`
+    return code === undefined || cause instanceof SyntaxError
+      ? `invalid:${fingerprintChoiceContent()}`
+      : `unreadable:${code}`
   }
   const choiceNoter = new DamageNoter(fileDamageMarkers(settingsFile), (identity) => {
     const damage = identity.startsWith('unreadable:') ? 'unreadable' : 'invalid'

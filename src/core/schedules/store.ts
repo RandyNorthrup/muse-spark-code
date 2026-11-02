@@ -499,9 +499,9 @@ export function createScheduleStore(
           (raw) => reservationSchema.parse(raw),
           call,
         )
-        if (reservation?.removedAtMs !== undefined) return { value, result: false }
-        if (value.schedules[intent.schedule.id] === undefined) return { value, result: false }
         if (
+          reservation?.removedAtMs !== undefined ||
+          value.schedules[intent.schedule.id] === undefined ||
           value.pending[intent.runId] !== undefined ||
           (await fs.read(`${fenceFolder(intent.runId)}.json`, call)) !== undefined
         )

@@ -148,11 +148,10 @@ function markablePartIndex(item: InputItem): number {
     : -1
 }
 
-/** A part carrying the breakpoint: the reference's own field beside the part's. */
-type MarkedPart<Part> = Part & { readonly prompt_cache_breakpoint: typeof CACHE_BREAKPOINT }
-
 /** The item with a breakpoint on the part at `index` (a fresh copy; the input is not touched). */
 function withBreakpoint(item: InputItem, index: number): InputItem {
+  /** A part carrying the breakpoint: the reference's own field beside the part's. */
+  type MarkedPart<Part> = Part & { readonly prompt_cache_breakpoint: typeof CACHE_BREAKPOINT }
   if (item.type === 'message') {
     const content = [...item.content]
     const part = content[index]
@@ -303,9 +302,10 @@ function shouldKeepReplayCallId(
   origins: Readonly<Record<string, string>> | undefined,
 ): boolean {
   const id = item.id
-  return id?.startsWith(RESPONSES_CALL_ID_PREFIX)
-    ? (origins?.[item.call_id] ?? model) === model
-    : false
+  return (
+    id?.startsWith(RESPONSES_CALL_ID_PREFIX) === true &&
+    (origins?.[item.call_id] ?? model) === model
+  )
 }
 
 function replayTextPart(text: string): { readonly text: string } | undefined {

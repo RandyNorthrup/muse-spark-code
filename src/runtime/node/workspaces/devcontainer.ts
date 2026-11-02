@@ -191,9 +191,7 @@ export function gateMount(
       (paths.isAbsolute(source) || source.includes('/') || source.includes('\\'))
     return { ok: !isPathSource }
   }
-  if (parsed.type !== 'bind') return { ok: false }
-  if (parsed.source === undefined) return { ok: false }
-  if (!parsed.target) return { ok: false }
+  if (parsed.type !== 'bind' || parsed.source === undefined || !parsed.target) return { ok: false }
   const resolved = paths.isAbsolute(parsed.source)
     ? paths.normalize(parsed.source)
     : paths.resolve(configDir, parsed.source)

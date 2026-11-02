@@ -9,9 +9,10 @@ function restoreSettingsRegistry(content, settings) {
   const tree = ts.createSourceFile('settingsAvailability.ts', content, ts.ScriptTarget.Latest, true)
   const keys = new Set(settings.flatMap((key) => [key, `museSpark.${key}`]))
   const hasKey = (node) => {
-    return (ts.isStringLiteral(node) || ts.isIdentifier(node)) && keys.has(node.text)
-      ? true
-      : ts.forEachChild(node, hasKey) === true
+    return (
+      ((ts.isStringLiteral(node) || ts.isIdentifier(node)) && keys.has(node.text)) ||
+      ts.forEachChild(node, hasKey) === true
+    )
   }
   let hasRegistry = false
   const result = ts.transform(tree, [

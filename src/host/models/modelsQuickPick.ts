@@ -253,11 +253,11 @@ export async function runAddProviderQuickPick(
         ui.showError(fill(UI_TEXT.providerTestFailed, { detail: tested.detail }))
         return undefined
       }
-      if (tested.kind === 'paid') {
-        ui.showNotice(fill(UI_TEXT.providerTestPaid, { cost: tested.cost }))
-      } else {
-        ui.showNotice(plural(UI_TEXT.providerKeyWorks, tested.models))
-      }
+      ui.showNotice(
+        tested.kind === 'paid'
+          ? fill(UI_TEXT.providerTestPaid, { cost: tested.cost })
+          : plural(UI_TEXT.providerKeyWorks, tested.models),
+      )
     }
     // The models: the scan fills the table, the suggestion ticks the default.
     const scanned = await providers.scanDraft(entry, credential)

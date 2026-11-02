@@ -28,7 +28,7 @@ export function createReportsHost(
           : fill(deps.text.reportUi.generationReason, { reason }),
     }
   }
-  const redacted = (value: object) => {
+  const isRedacted = (value: object) => {
     // Scrub decoded values, not serialized JSON: escaping introduces
     // backslashes that read as secret shapes around already-safe marks.
     const clean = structuredClone(value)
@@ -93,7 +93,7 @@ export function createReportsHost(
           result.entries.some(
             ({ id, header: { contentHash: _contentHash, ...header } }) =>
               header.kind !== kind ||
-              !redacted({ ...(!/^[a-f0-9]{64}$/.test(id) && { id }), header }),
+              !isRedacted({ ...(!/^[a-f0-9]{64}$/.test(id) && { id }), header }),
           )
         )
           return failed(new Error('report history entries do not match the requested kind'))
@@ -134,7 +134,7 @@ export function createReportsHost(
         return result.status === 'compared' &&
           (JSON.stringify(result.diff.from) !== JSON.stringify(before.header) ||
             JSON.stringify(result.diff.to) !== JSON.stringify(after.header) ||
-            !redacted(result.diff.sections))
+            !isRedacted(result.diff.sections))
           ? failed(new Error('the compared report changed during the comparison'))
           : result
       } catch (error) {

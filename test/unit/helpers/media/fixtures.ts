@@ -43,9 +43,9 @@ export function videoFixture(options: VideoFixtureOptions = {}): Uint8Array {
   const media = box('mdat', Buffer.alloc(16))
   const fragment = options.fragmented === true ? box('moof', Buffer.alloc(8)) : Buffer.alloc(0)
   return Uint8Array.from(
-    options.moovLast === true
-      ? Buffer.concat([ftyp, media, fragment, moov])
-      : Buffer.concat([ftyp, moov, fragment, media]),
+    Buffer.concat(
+      options.moovLast === true ? [ftyp, media, fragment, moov] : [ftyp, moov, fragment, media],
+    ),
   )
 }
 

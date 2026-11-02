@@ -23,8 +23,9 @@ export function inputBoundInfoLine(ticket: {
   if (ticket.inputBound === 'bytes-over-length') return UI_TEXT.execCountBytesOverLength
   if (ticket.inputBound !== 'bytes-after-failure') return undefined
   const failure = ticket.countFailure
-  if (failure === undefined) return UI_TEXT.execCountBytesFallback
   // The status is a protocol identifier, not a quantity: plain digits, so
   // no locale's grouping or digits can corrupt a line the person pastes back.
-  return fill(UI_TEXT.execCountBytesFailed, { status: String(failure.status), type: failure.kind })
+  return failure === undefined
+    ? UI_TEXT.execCountBytesFallback
+    : fill(UI_TEXT.execCountBytesFailed, { status: String(failure.status), type: failure.kind })
 }

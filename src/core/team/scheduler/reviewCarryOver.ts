@@ -64,9 +64,11 @@ export function selectChangedByPatchId(
   for (const path of paths) {
     const before = hints?.before.get(path)
     const after = hints?.after.get(path)
-    if (before !== undefined && after !== undefined && before !== after)
+    if (before === undefined || after === undefined || before === after) {
+      needsCompare.push(path)
+    } else {
       definitelyChanged.push(path)
-    else needsCompare.push(path)
+    }
   }
   return { definitelyChanged, needsCompare }
 }
