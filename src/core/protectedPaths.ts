@@ -12,7 +12,11 @@
 // never answer one and its card offers no standing rule (2026-10-04).
 
 import type { ApprovalSubject } from '../shared/agentEvents'
-import { PROTECTED_FILE_NAMES, PROTECTED_PATH_SEGMENTS } from '../shared/constants'
+import {
+  PROTECTED_FILE_NAMES,
+  PROTECTED_FILE_SUFFIXES,
+  PROTECTED_PATH_SEGMENTS,
+} from '../shared/constants'
 import { normalWindowsPath, windowsPathProblem } from './windowsPathSpelling'
 import { resolvedLongPath, SHORT_NAME_SHAPE } from './pathIdentity'
 
@@ -27,7 +31,10 @@ protected write. Case is ignored: Windows and macOS file systems fold it.
 export function isProtectedPath(canonicalRelative: string): boolean {
   const segments = canonicalRelative.toLowerCase().split('/')
   const name = segments.at(-1) ?? ''
-  if (PROTECTED_FILE_NAMES.has(name)) {
+  if (
+    PROTECTED_FILE_NAMES.has(name) ||
+    PROTECTED_FILE_SUFFIXES.some((suffix) => name.endsWith(suffix))
+  ) {
     return true
   }
   // The run may sit anywhere (a nested repository's `.git`) and may be the
