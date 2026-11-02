@@ -57,7 +57,7 @@
   "conventions": {
     "transport": "one bounded UTF-8 NDJSON stream multiplexes JSON-RPC and MHP 1.5 envelopes",
     "positions": "zero-based UTF-16 line and character",
-    "initialize": "hostToRuntime; select mhp/1.5.0 only when offered; every incompatible range receives MHP_INCOMPATIBLE_VERSION",
+    "initialize": "hostToRuntime; select mhp/1.5.1 only when offered; every incompatible range receives MHP_INCOMPATIBLE_VERSION",
     "requiredCapability": "lifecycle",
     "versioning": "breaking schema or semantic changes require a new protocol version and snapshot",
     "edits": "reject stale versions, dirty buffers and invalid/overlapping ranges before any side effect; apply atomically with one undo transaction",
@@ -30476,7 +30476,7 @@
       "maximumQueuedMessages": 128
     },
     "invariants": [
-      "Panel frames require negotiated mhp/1.5.0. Validate shared payload and bound surface kind before delivery.",
+      "Panel frames require negotiated mhp/1.5.1. Validate shared payload and bound surface kind before delivery.",
       "One immutable session binding per surface; unknown/closed surfaces produce typed errors and no delivery.",
       "Sequence starts at 1 per surface and direction; reject duplicates and gaps without advancing.",
       "Reload retains binding and sequence, suspends delivery until ready, then replays stateRequest once.",
