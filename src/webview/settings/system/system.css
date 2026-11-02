@@ -1,0 +1,327 @@
+/* Muse Desktop (M111, D91.16) lane ST1: the system pages. Every value is a
+   --ms-* token from M114's generated sheet; logical properties keep the
+   pages RTL-ready (D91.20). No motion: nothing here animates. */
+
+.muse-settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-space-24);
+  max-inline-size: var(--ms-column-max-width);
+}
+
+.muse-settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-space-8);
+  background: var(--ms-raised);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-lg);
+  padding: var(--ms-space-16);
+}
+
+.muse-settings-section-title {
+  margin: 0;
+  font-size: var(--ms-font-size);
+  font-weight: var(--ms-weight-medium);
+  color: var(--ms-text);
+}
+
+.muse-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ms-space-16);
+  padding-block: var(--ms-space-8);
+  border-block-start: 1px solid var(--ms-divider);
+}
+
+.muse-settings-row:first-of-type {
+  border-block-start: 0;
+}
+
+.muse-settings-row-label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-space-4);
+  min-inline-size: 0;
+}
+
+.muse-settings-row-name {
+  color: var(--ms-text);
+}
+
+.muse-settings-row-hint {
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
+}
+
+.muse-settings-row-control {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--ms-space-8);
+}
+
+.muse-settings-empty {
+  margin: 0;
+  color: var(--ms-muted);
+}
+
+.muse-settings-note {
+  margin: 0;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
+}
+
+.muse-settings-button {
+  min-block-size: var(--ms-button-height);
+  padding-inline: var(--ms-space-12);
+  border-radius: var(--ms-radius-md);
+  border: 1px solid var(--ms-control-border);
+  background: var(--ms-secondary-surface);
+  color: var(--ms-secondary-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.muse-settings-button:hover {
+  background: var(--ms-secondary-hover);
+}
+
+.muse-settings-button-primary {
+  border-color: transparent;
+  background: var(--ms-accent);
+  color: var(--ms-on-accent);
+}
+
+.muse-settings-button-primary:hover {
+  background: var(--ms-pressed);
+}
+
+.muse-settings-button:disabled {
+  cursor: default;
+  color: var(--ms-disabled);
+  background: var(--ms-secondary-surface);
+}
+
+.muse-settings-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ms-space-8);
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--ms-text);
+  cursor: pointer;
+}
+
+.muse-settings-switch-track {
+  inline-size: var(--ms-control-size);
+  block-size: var(--ms-space-16);
+  border-radius: var(--ms-radius-pill);
+  background: var(--ms-muted);
+  opacity: 55%;
+  display: inline-flex;
+  align-items: center;
+  padding-inline: var(--ms-space-4);
+}
+
+.muse-settings-switch[data-on='true'] .muse-settings-switch-track {
+  background: var(--ms-accent);
+  opacity: 100%;
+}
+
+.muse-settings-switch-thumb {
+  inline-size: var(--ms-space-12);
+  block-size: var(--ms-space-12);
+  border-radius: var(--ms-radius-circle);
+  background: var(--ms-on-accent);
+}
+
+.muse-settings-switch-word {
+  min-inline-size: 3ch;
+  text-align: start;
+}
+
+.muse-settings-input,
+.muse-settings-select {
+  min-block-size: var(--ms-button-height);
+  border: 1px solid var(--ms-input-border);
+  border-radius: var(--ms-radius-md);
+  background: var(--ms-input-surface);
+  color: var(--ms-input-text);
+  padding-inline: var(--ms-space-8);
+  font: inherit;
+  max-inline-size: 100%;
+}
+
+.muse-settings-input::placeholder {
+  color: var(--ms-input-placeholder);
+}
+
+.muse-settings-select {
+  max-inline-size: 20rem;
+}
+
+.muse-settings-slider {
+  accent-color: var(--ms-accent);
+}
+
+.muse-settings-button:focus-visible,
+.muse-settings-switch:focus-visible,
+.muse-settings-input:focus-visible,
+.muse-settings-select:focus-visible,
+.muse-settings-slider:focus-visible,
+.muse-settings-nav-button:focus-visible {
+  outline: var(--ms-focus-width) solid var(--ms-focus);
+  outline-offset: var(--ms-focus-offset);
+}
+
+.muse-settings-badge {
+  display: inline-block;
+  border-radius: var(--ms-radius-pill);
+  background: var(--ms-selection);
+  color: var(--ms-on-selection);
+  font-size: var(--ms-font-small);
+  padding-inline: var(--ms-space-8);
+  padding-block: var(--ms-space-4);
+  white-space: nowrap;
+}
+
+.muse-settings-device {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-space-8);
+  border-block-start: 1px solid var(--ms-divider);
+  padding-block: var(--ms-space-8);
+}
+
+.muse-settings-device:first-of-type {
+  border-block-start: 0;
+}
+
+.muse-settings-device-head {
+  display: flex;
+  align-items: center;
+  gap: var(--ms-space-8);
+  flex-wrap: wrap;
+}
+
+.muse-settings-device-name {
+  font-weight: var(--ms-weight-medium);
+  color: var(--ms-text);
+  overflow-wrap: anywhere;
+}
+
+.muse-settings-device-sub {
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
+}
+
+.muse-settings-device-actions {
+  display: flex;
+  gap: var(--ms-space-8);
+  flex-wrap: wrap;
+}
+
+.muse-settings-meter {
+  inline-size: 100%;
+  block-size: var(--ms-space-8);
+  accent-color: var(--ms-progress);
+}
+
+.muse-settings-scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--ms-modal-scrim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ms-space-16);
+  z-index: 1;
+}
+
+.muse-settings-dialog {
+  inline-size: min(28rem, 100%);
+  background: var(--ms-raised);
+  color: var(--ms-text);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-lg);
+  box-shadow: var(--ms-shadow);
+  padding: var(--ms-space-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-space-12);
+}
+
+.muse-settings-dialog-title {
+  margin: 0;
+  font-size: var(--ms-font-size);
+  font-weight: var(--ms-weight-medium);
+}
+
+.muse-settings-dialog-body {
+  margin: 0;
+}
+
+.muse-settings-dialog-passkey {
+  margin: 0;
+  font-family: var(--ms-font-code);
+  font-size: var(--ms-font-large);
+  text-align: center;
+  letter-spacing: 0.2ch;
+}
+
+.muse-settings-dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-space-4);
+}
+
+.muse-settings-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--ms-space-8);
+}
+
+.muse-settings-radio-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-space-4);
+}
+
+.muse-settings-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ms-space-8);
+  padding-block: var(--ms-space-4);
+}
+
+.muse-settings-radio input {
+  inline-size: var(--ms-space-16);
+  block-size: var(--ms-space-16);
+  accent-color: var(--ms-accent);
+  margin: 0;
+}
+
+.muse-settings-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ms-space-8);
+}
+
+.muse-settings-check input {
+  inline-size: var(--ms-space-16);
+  block-size: var(--ms-space-16);
+  accent-color: var(--ms-accent);
+}
+
+.muse-settings-apply-error {
+  margin: 0;
+  border: 1px solid var(--ms-error-border);
+  border-radius: var(--ms-radius-md);
+  background: var(--ms-error-surface);
+  color: var(--ms-error-text);
+  padding: var(--ms-space-8) var(--ms-space-12);
+}

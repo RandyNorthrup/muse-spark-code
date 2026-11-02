@@ -4119,6 +4119,8 @@ These are defaults; editor customizations take precedence.
 - `desktop.quickOpen`: `Enter / Escape`; when `desktop.quickOpen`; Navigate items, choose or complete a selection, or close the list.
 - `desktop.terminal`: `Enter`; when `desktop.terminal`; Run the typed line in the Muse Desktop terminal.
 - `editor.group`: `ArrowRight / ArrowLeft / Home / End / Enter / Space / Escape / Ctrl+PageDown / Cmd+PageDown / Ctrl+PageUp / Cmd+PageUp / Ctrl+1 / Cmd+1 / Ctrl+2 / Cmd+2 / Ctrl+3 / Cmd+3 / Ctrl+4 / Cmd+4 / Ctrl+5 / Cmd+5 / Ctrl+6 / Cmd+6 / Ctrl+7 / Cmd+7 / Ctrl+8 / Cmd+8 / Ctrl+9 / Cmd+9`; when `editor.group`; Move between tabs, cycle tabs, focus a group by number, or close the menu.
+- `settings.nav`: `ArrowDown / ArrowUp / Home / End / Enter / Space`; when `settings.nav`; Move through settings pages, open one, move focus in a dialog, or close it.
+- `settings.dialog`: `Escape`; when `settings.dialog`; Move through settings pages, open one, move focus in a dialog, or close it.
 
 ## ACP / CLI commands
 

@@ -260,9 +260,11 @@ export type PowerProfile = (typeof POWER_PROFILES)[number]
 
 export const LID_CLOSE_ACTIONS = ['sleep', 'lock', 'nothing'] as const
 export type LidCloseAction = (typeof LID_CLOSE_ACTIONS)[number]
+export const lidCloseActionSchema = z.enum(LID_CLOSE_ACTIONS)
 
 export const POWER_BUTTON_ACTIONS = ['prompt', 'sleep', 'shutdown'] as const
 export type PowerButtonAction = (typeof POWER_BUTTON_ACTIONS)[number]
+export const powerButtonActionSchema = z.enum(POWER_BUTTON_ACTIONS)
 
 export const batterySchema = z.strictObject({
   percent: percent,
@@ -291,8 +293,8 @@ export const powerSetTimeoutsSchema = z.strictObject({
 export type PowerSetTimeouts = z.infer<typeof powerSetTimeoutsSchema>
 
 export const powerSetActionsSchema = z.strictObject({
-  onLidClose: z.enum(LID_CLOSE_ACTIONS),
-  onPowerButton: z.enum(POWER_BUTTON_ACTIONS),
+  onLidClose: lidCloseActionSchema,
+  onPowerButton: powerButtonActionSchema,
 })
 export type PowerSetActions = z.infer<typeof powerSetActionsSchema>
 
