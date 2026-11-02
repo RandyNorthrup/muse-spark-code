@@ -4,7 +4,14 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
-import { DEFAULT_OUTPUTS, hyprlandConfig } from '../../../test/desktop/harness/lib/compositor.mjs'
+import {
+  DEFAULT_OUTPUTS,
+  describeMonitors,
+  hyprlandConfig,
+  missingOutputs,
+  outputsAtSizes,
+  startCompositorSession,
+} from '../../../test/desktop/harness/lib/compositor.mjs'
 import { parseHarnessArgs } from '../../../test/desktop/harness/lib/harnessCli.mjs'
 import { runCapture, stopProcessGroup } from '../../../test/desktop/harness/lib/proc.mjs'
 import {
@@ -24,12 +31,51 @@ afterAll(async () => {
 describe('the generated harness config', () => {
   it('pins the two headless outputs, disables the rest, and turns effects off', () => {
     const config = hyprlandConfig(DEFAULT_OUTPUTS)
-    expect(config).toContain('output = "HEADLESS-1", mode = "1920x1080@60"')
-    expect(config).toContain('output = "HEADLESS-2", mode = "1280x800@60"')
+    expect(config).toContain('output = "MUSE-HEADLESS-1", mode = "1920x1080@60"')
+    expect(config).toContain('output = "MUSE-HEADLESS-2", mode = "1280x800@60"')
     expect(config).toContain('hl.monitor({ output = "", disabled = true })')
     expect(config).toContain('animations = { enabled = false }')
     expect(config).toContain('disable_hyprland_logo = true')
     expect(config).toContain('not the product config')
+  })
+})
+
+describe('monitor listings captured from the guest proof', () => {
+  // Captured 2026-11-01 from the Debian guest's `hyprctl monitors all -j`
+  // summary in session-out/run.log. Hyprland 0.55.2 had claimed the
+  // requested HEADLESS-1 as its internal fallback, leaving only the
+  // requested HEADLESS-2 visible beside the disabled physical output.
+  const allMonitors = [
+    { name: 'Virtual-1', width: 0, height: 0, disabled: true },
+    { name: 'HEADLESS-2', width: 1280, height: 800, disabled: false },
+  ]
+  const wanted = [
+    { name: 'MUSE-HEADLESS-1', width: 1920, height: 1080 },
+    { name: 'HEADLESS-2', width: 1280, height: 800 },
+  ]
+
+  it('names a visible output that still has to be created', () => {
+    expect(missingOutputs(allMonitors, wanted)).toEqual([wanted[0]])
+    expect(outputsAtSizes(allMonitors, wanted)).toBe(false)
+    expect(outputsAtSizes(allMonitors, [wanted[1]])).toBe(true)
+    expect(describeMonitors(allMonitors)).toBe('Virtual-1 0x0 (disabled), HEADLESS-2 1280x800')
+  })
+
+  it('refuses Hyprland fallback names before looking for tools', async () => {
+    await expect(
+      startCompositorSession({
+        workDir: path.join(root, 'temp', 'unused-compositor-session'),
+        outputs: [{ name: 'HEADLESS-1', width: 1920, height: 1080 }],
+        env: {},
+      }),
+    ).rejects.toThrow('reserved by Hyprland')
+    await expect(
+      startCompositorSession({
+        workDir: path.join(root, 'temp', 'unused-compositor-session'),
+        outputs: [{ name: 'FALLBACK', width: 1920, height: 1080 }],
+        env: {},
+      }),
+    ).rejects.toThrow('reserved by Hyprland')
   })
 })
 
@@ -85,7 +131,7 @@ describe('harness arguments', () => {
       '--out',
       'temp/x',
       '--outputs',
-      'HEADLESS-1:1920x1080',
+      'MUSE-HEADLESS-1:1920x1080',
       '--',
       'foot',
       'sh',
@@ -93,7 +139,7 @@ describe('harness arguments', () => {
     expect(parsed).toMatchObject({
       command: 'session',
       out: 'temp/x',
-      outputs: [{ name: 'HEADLESS-1', width: 1920, height: 1080 }],
+      outputs: [{ name: 'MUSE-HEADLESS-1', width: 1920, height: 1080 }],
       client: ['foot', 'sh'],
     })
   })
