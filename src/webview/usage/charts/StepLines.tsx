@@ -1,7 +1,7 @@
 import { USAGE_TEXT } from '../../../shared/l10n/usageTable'
 import { fill, formatDateTime, formatPercent } from '../../../shared/l10n/text'
 import type { UsageLimitSnapshot } from '../../../shared/usageJournal'
-import { ChartFrame, CHART_PALETTE, type ChartSeries } from './ChartFrame'
+import { ChartFrame, CHART_PALETTE, SeriesLines, type ChartSeries } from './ChartFrame'
 
 /** Separate provider figures avoid adding unrelated quota percentages together. */
 export function StepLines({ snapshots }: { readonly snapshots: readonly UsageLimitSnapshot[] }) {
@@ -32,6 +32,38 @@ export function StepLines({ snapshots }: { readonly snapshots: readonly UsageLim
     100,
     ...points.flatMap((point) => point.values.filter((value) => value !== undefined)),
   )
+  const glyphs = series.map((item, seriesIndex) => {
+    // Missing snapshots and resets start a new segment, never a made-up continuation.
+    const segments: string[] = []
+    let segment = ''
+    let previous: number | undefined
+    for (const point of points) {
+      const value = point.values[seriesIndex]
+      if (value === undefined) {
+        if (segment !== '') segments.push(segment)
+        segment = ''
+        previous = undefined
+        continue
+      }
+      const x = point.x
+      const y = 100 - (value / max) * 100
+      if (previous !== undefined && value >= previous)
+        segment += ` ${String(x)},${String(100 - (previous / max) * 100)}`
+      else if (segment !== '') {
+        segments.push(segment)
+        segment = ''
+      }
+      segment += ` ${String(x)},${String(y)}`
+      previous = value
+    }
+    if (segment !== '') segments.push(segment)
+    const dots: { id: string; x: number; y: number }[] = []
+    for (const point of points) {
+      const value = point.values[seriesIndex]
+      if (value !== undefined) dots.push({ id: point.id, x: point.x, y: 100 - (value / max) * 100 })
+    }
+    return { id: item.id, colour: item.colour, segments, dots }
+  })
   const summary = fill(USAGE_TEXT.chartSummary, {
     metric: USAGE_TEXT.providerWindows,
     from: points[0]?.label ?? USAGE_TEXT.unknown,
@@ -47,65 +79,7 @@ export function StepLines({ snapshots }: { readonly snapshots: readonly UsageLim
       format={(value) => (value === undefined ? USAGE_TEXT.unknown : formatPercent(value))}
     >
       {(active, pattern) => (
-        <>
-          {series.map((item, seriesIndex) => {
-            // Missing snapshots and resets start a new segment, never a made-up continuation.
-            const segments: string[] = []
-            let segment = ''
-            let previous: number | undefined
-            for (const point of points) {
-              const value = point.values[seriesIndex]
-              if (value === undefined) {
-                if (segment !== '') segments.push(segment)
-                segment = ''
-                previous = undefined
-                continue
-              }
-              const x = point.x
-              const y = 100 - (value / max) * 100
-              if (previous !== undefined && value >= previous)
-                segment += ` ${String(x)},${String(100 - (previous / max) * 100)}`
-              else if (segment !== '') {
-                segments.push(segment)
-                segment = ''
-              }
-              segment += ` ${String(x)},${String(y)}`
-              previous = value
-            }
-            if (segment !== '') segments.push(segment)
-            return (
-              <g key={item.id}>
-                {segments.map((coordinates, index) => (
-                  <polyline
-                    key={index}
-                    className={`usage-line usage-series-${item.colour}`}
-                    points={coordinates.trim()}
-                  />
-                ))}
-                {points.map((point) => {
-                  const value = point.values[seriesIndex]
-                  return value === undefined ? null : (
-                    <circle
-                      key={point.id}
-                      className={`usage-series-${item.colour}`}
-                      fill={pattern(item.colour)}
-                      cx={point.x}
-                      cy={100 - (value / max) * 100}
-                      r={2}
-                    />
-                  )
-                })}
-              </g>
-            )
-          })}
-          <line
-            className="usage-chart-active"
-            x1={points[active]?.x ?? 0}
-            x2={points[active]?.x ?? 0}
-            y1={0}
-            y2={100}
-          />
-        </>
+        <SeriesLines glyphs={glyphs} activeX={points[active]?.x ?? 0} pattern={pattern} />
       )}
     </ChartFrame>
   )

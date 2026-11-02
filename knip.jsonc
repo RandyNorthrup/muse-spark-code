@@ -57,6 +57,9 @@
     // The pack index verifier, built as dist/packsVerify.js (M110t TP2),
     // loaded on the first pack fetch.
     "src/runtime/node/packs/verifyEntry.ts",
+    // The node crash hook, built as dist/nodeCrashHook.js (M111 lane OB),
+    // loaded at node CLI startup.
+    "src/runtime/o11y/crashHookEntry.ts",
     // Its loader (M110t TP2): built, pending the ACP pack fetch that
     // calls it (A0/transport); declared, not hidden, not deleted.
     "src/runtime/node/packs/verifyBundle.ts",

@@ -27957,6 +27957,19 @@ at 1920×1080 and 1280×800, a foot client typed into by the virtual
 `ok: true` marker verdict—the way upstream Hyprland tests itself.
 SH1, SH2, WB, CP and AX run under this rig from here.
 
+**Status 2026-11-02 (RLF-M111OB): lane OB built.** The shared observability
+layer is landed (`docs/certification/rlf-m111ob.md`): the OTLP/HTTP ingest
+shapes, ring store and rollups (`src/core/o11y/**`), the loopback-only
+receiver, `node/diagnostics/read`, the Node crash hook and the opt-in TLS
+exporter (`src/runtime/o11y/**`), the desktop readiness shapes behind
+`/readyz` (`src/runtime/node/health.ts`), the Diagnostics page in the
+node's web UI (`src/webview/diagnostics/**`), the desktop facts in M93's
+report builder, and the `muse-spark-otel` Rust crate
+(`desktop/crates/otel/**`). Still with other lanes: each desktop
+component's own probes and wiring (CP, SH1, SH2, SY, WB), serving the
+receiver and the desktop `/readyz` block (lane N), and a CI job that
+builds the Rust crate (local `cargo test`, clippy and fmt are the proof
+until then).
 **Status 2026-10-23 (RLF-M111L0): planned.** Mockups approved; lane 0 landed. The
 owner approved the lead's 18-screen mockups on 2026-10-23 ("looks great"),
 closing Q-M111 item 6 and unblocking lanes SH1, SH2, WB and ST. The sources
@@ -34455,9 +34468,14 @@ No new escape hatch is introduced.
 | `test/unit/nodeOsAddons.test.ts` (manifest nav)      | `as Record<string, unknown>`, 2 sites                    | Navigation over parsed manifest fixtures the test constructed; each cast follows a throwing shape assertion. Inline-reasoned; no rule change.                                   | 2026-10-23 |
 | `os/addons/lib/checkAddon.mjs` (release unescaper)   | `eslint-disable-next-line unicorn/prefer-string-raw`     | Escape pairs read clearest as escapes in the `\"`/`\\` unescaper. Inline-reasoned; no rule change.                                                                              | 2026-10-23 |
 
-| RLF-NODESERVE location                    | Escape hatch                                  | Reason                                                                                                                                                                                                                                                                                                 | Date       |
-| ----------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
-| `src/runtime/node/serve.ts` (method port) | `result.parse(result) as NodeMethodResult<M>` | The catalog lookup is generic over M; zod has already parsed the value against the exact method's result schema, so the cast restates what validation proved. Narrowing cannot retain the generic method-to-result correlation. The serve binding tests assert each method's parsed result end to end. | 2026-10-23 |
+| RLF-NODESERVE location                              | Escape hatch                                                | Reason                                                                                                                                                                                                                                                                                                 | Date                                       |
+| --------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------ |
+| `src/runtime/node/serve.ts` (method port)           | `result.parse(result) as NodeMethodResult<M>`               | The catalog lookup is generic over M; zod has already parsed the value against the exact method's result schema, so the cast restates what validation proved. Narrowing cannot retain the generic method-to-result correlation. The serve binding tests assert each method's parsed result end to end. | 2026-10-23                                 |
+| RLF-M111OB location                                 | Escape hatch                                                | Reason                                                                                                                                                                                                                                                                                                 | Date                                       |
+| --------------------------------------------------- | ----------------------------------------------------------- | -----------------------------------------------------------------------------------------------------------------------------------------------------------------                                                                                                                                      | ------------------------------------------ |
+| `src/core/o11y/export.ts` (`groupByComponent`)      | `eslint-disable-next-line unicorn/prefer-group-by`, 1 site  | `Map.groupBy` does not resolve under this repo's TS lib (as RLM96D records for `advisories.ts`); the explicit grouping loop stays. Inline-reasoned.                                                                                                                                                    | A TS lib that resolves `Map.groupBy`.      |
+| `src/core/o11y/ringStore.ts` (map spreads, 2 sites) | `eslint-disable-next-line unicorn/prefer-iterator-to-array` | `Iterator.toArray` does not resolve under this repo's TS lib (as RLM96D records); the spreads stay (`Array.from` trips `prefer-spread` instead). Inline-reasoned.                                                                                                                                      | A TS lib that resolves `Iterator.toArray`. |
+| `src/runtime/o11y/store.ts` (`groupRecordsBy`)      | `eslint-disable-next-line unicorn/prefer-group-by`, 1 site  | `Map.groupBy` does not resolve under this repo's TS lib (as `src/core/o11y/export.ts` records); the explicit grouping loop stays. Inline-reasoned.                                                                                                                                                     | A TS lib that resolves `Map.groupBy`.      |
 
 ## 9. Security assumptions and accepted residual risk
 

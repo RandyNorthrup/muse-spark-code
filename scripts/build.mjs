@@ -524,6 +524,10 @@ const RUNTIME_ACCOUNTS_OUTFILE = 'dist/runtimeAccounts.js'
 // loaded on the first pack fetch.
 const PACKS_VERIFY_ENTRY = 'src/runtime/node/packs/verifyEntry.ts'
 const PACKS_VERIFY_OUTFILE = 'dist/packsVerify.js'
+// M111 lane OB: the node crash hook and its record builder, loaded at
+// node CLI startup so the CLI never carries zod (PLAN.md D6).
+const CRASH_HOOK_ENTRY = 'src/runtime/o11y/crashHookEntry.ts'
+const CRASH_HOOK_OUTFILE = 'dist/nodeCrashHook.js'
 // C-M109-1 (lead decision 5): the vault for the CLI, the ACP agent and
 // headless runs, loaded on the first vault need; no `vscode` import.
 const VAULT_RUNTIME_ENTRY = 'src/runtime/vault/vaultRuntimeEntry.ts'
@@ -2059,6 +2063,11 @@ const packsVerifyOptions = {
   entryPoints: [PACKS_VERIFY_ENTRY],
   outfile: PACKS_VERIFY_OUTFILE,
 }
+const crashHookOptions = {
+  ...acpQuestionsOptions,
+  entryPoints: [CRASH_HOOK_ENTRY],
+  outfile: CRASH_HOOK_OUTFILE,
+}
 const vaultRuntimeOptions = {
   ...acpQuestionsOptions,
   plugins: [...acpQuestionsOptions.plugins, sharedVaultStore, sharedVaultPosix, sharedVaultWindows],
@@ -2789,6 +2798,7 @@ if (isWatch) {
     esbuild.context(nodeServeOptions),
     esbuild.context(nodeAuthOptions),
     esbuild.context(runtimePanelCompanionOptions),
+    esbuild.context(crashHookOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -3055,6 +3065,7 @@ if (isWatch) {
     ['watchdog', () => esbuild.build(watchdogOptions)],
     ['runtimeAccounts', () => esbuild.build(runtimeAccountsOptions)],
     ['packsVerify', () => esbuild.build(packsVerifyOptions)],
+    ['crashHook', () => esbuild.build(crashHookOptions)],
     ['vaultRuntime', () => esbuild.build(vaultRuntimeOptions)],
     ['node', () => esbuild.build(nodeOptions)],
     ['nodeSetup', () => esbuild.build(nodeSetupOptions)],
@@ -3085,6 +3096,7 @@ if (isWatch) {
   let watchdog
   let runtimeAccounts
   let packsVerify
+  let crashHook
   let vaultRuntime
   let node
   let nodeSetup
@@ -3113,6 +3125,7 @@ if (isWatch) {
       watchdog,
       runtimeAccounts,
       packsVerify,
+      crashHook,
       vaultRuntime,
       node,
       nodeSetup,
@@ -3162,7 +3175,12 @@ if (isWatch) {
     const { metafile: watchdogMetafile } = await watchdog
     const { metafile: runtimeAccountsMetafile } = await runtimeAccounts
     const { metafile: packsVerifyMetafile } = await packsVerify
+    const { metafile: crashHookMetafile } = await crashHook
     const { metafile: vaultRuntimeMetafile } = await vaultRuntime
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'nodeCrashHook.json'),
+      JSON.stringify(crashHookMetafile, null, 2),
+    )
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'vaultRuntime.json'),
       JSON.stringify(vaultRuntimeMetafile, null, 2),
@@ -3370,4 +3388,5 @@ if (isWatch) {
   reportSize(NODE_AUTH_OUTFILE)
   reportSize(RUNTIME_PANEL_COMPANION_OUTFILE)
   reportSize(PACKS_VERIFY_OUTFILE)
+  reportSize(CRASH_HOOK_OUTFILE)
 }

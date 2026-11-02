@@ -748,6 +748,9 @@ const BUDGETS = [
   // host port, loaded on the first headless vault use. Measured
   // 34.0 KiB; plus 15%, rounded up.
   { path: 'dist/vaultExecHost.js', budgetKiB: 40 },
+  // M111 lane OB: the node crash hook and its record builder, loaded at
+  // node CLI startup. Measured 12.2 KiB; plus 15%, rounded up to 25 KiB.
+  { path: 'dist/nodeCrashHook.js', budgetKiB: 25 },
 ]
 
 // DIET1: independently emitted optional surfaces, measured on main, each plus

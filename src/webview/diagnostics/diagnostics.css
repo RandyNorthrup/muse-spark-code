@@ -1,0 +1,87 @@
+@import url('../tokens.css');
+@import url('../charts/chart.css');
+
+/* Diagnostics page: health and log tables, trace waterfalls. Chart figures
+   reuse the shared chart frame; the foreground/background aliases below
+   map it onto the host theme (the usage surface defines these globally,
+   the node page does not). Fallbacks are system colours, never raw paint,
+   so the page holds on a bare browser canvas too. */
+.diagnostics-page,
+.diagnostics-page * {
+  box-sizing: border-box;
+}
+
+.diagnostics-page {
+  --ms-foreground: var(--vscode-foreground, canvastext);
+  --ms-background: var(--vscode-sideBar-background, canvas);
+
+  max-width: 1200px;
+  min-width: 0;
+  margin: 0 auto;
+  padding: var(--ms-space-16);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.diagnostics-page table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: var(--ms-space-8) 0 var(--ms-space-16);
+}
+
+.diagnostics-page th,
+.diagnostics-page td {
+  text-align: left;
+  padding: var(--ms-space-4) var(--ms-space-8);
+  border-bottom: 1px solid var(--vscode-panel-border, canvastext);
+  vertical-align: top;
+}
+
+.diagnostics-page section {
+  margin-bottom: var(--ms-space-24);
+}
+
+.diagnostics-traces {
+  list-style: none;
+  margin: var(--ms-space-8) 0;
+  padding: 0;
+}
+
+.diagnostics-traces > li {
+  margin-bottom: var(--ms-space-8);
+}
+
+.diagnostics-waterfall,
+.diagnostics-waterfall ul {
+  list-style: none;
+  margin: var(--ms-space-4) 0;
+  padding: 0;
+}
+
+.diagnostics-waterfall ul {
+  margin-left: var(--ms-space-16);
+}
+
+.diagnostics-waterfall > li,
+.diagnostics-waterfall ul > li {
+  margin-bottom: var(--ms-space-4);
+}
+
+.diagnostics-span-head {
+  font-size: 12px;
+}
+
+.diagnostics-span-track {
+  position: relative;
+  height: 10px;
+  background: var(--vscode-input-background);
+  border-radius: 2px;
+}
+
+.diagnostics-span-bar {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  border-radius: 2px;
+  min-width: 2px;
+}

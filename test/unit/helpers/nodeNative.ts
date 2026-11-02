@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
+import type { Server } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, it } from 'vitest'
@@ -47,4 +48,16 @@ export async function nodeTempRoot(prefix: string): Promise<string> {
 /** A loopback port nothing listens on right now. */
 export async function vacantPort(): Promise<number> {
   return await vacantLoopbackPort()
+}
+
+// Bind a test server to a free loopback port: the bound port, or a throw
+// when no TCP address results. Plain and TLS servers alike (both are
+// `node:net` servers).
+export async function listenLoopback(server: Server): Promise<number> {
+  await new Promise<void>((resolve) => {
+    server.listen(0, '127.0.0.1', resolve)
+  })
+  const address = server.address()
+  if (typeof address === 'object' && address !== null) return address.port
+  throw new Error('no test address')
 }

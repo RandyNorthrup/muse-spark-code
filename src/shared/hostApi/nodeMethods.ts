@@ -15,6 +15,7 @@ import {
 import {
   nodeAuditSchema,
   nodeDashboardSchema,
+  nodeDiagnosticsSchema,
   nodeFileListSchema,
   nodeFileTextSchema,
   nodeGitDestinationSchema,
@@ -249,6 +250,7 @@ export const nodeMethods = {
   'node/git/pull': { access: 'stepUp', params: networkGit, result: gitResult },
   'node/git/push': { access: 'stepUp', params: networkGit, result: gitResult },
   'node/dashboard/read': { access: 'session', params: empty, result: nodeDashboardSchema },
+  'node/diagnostics/read': { access: 'session', params: empty, result: nodeDiagnosticsSchema },
   'node/audit/list': {
     access: 'session',
     params: z.strictObject({ cursor }),
