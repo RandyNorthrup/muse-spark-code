@@ -178,6 +178,21 @@ export interface TranscriptProps {
   with Retry. Rows offer it only while they carry the waiting turn.
   */
   readonly onStopRetry?: ((entryId: string, turnId: string) => void) | undefined
+  /**
+  Resume later after a limit (M88, D67 item 16): opens the schedule
+  editor with the fixed resume prompt seeded at the offer's default
+  minute. Rows offer it only while they carry a timed offer.
+  */
+  readonly onResumeLater?:
+    ((entryId: string, turnId: string, defaultAtMs: number) => void) | undefined
+  /**
+  Continue after a spent session budget (M88, D67 item 16): resends the
+  turn's own message. Rows offer it only while they carry the budget
+  failure and this panel holds its user card.
+  */
+  readonly onContinueTurn?: ((entryId: string, turnId: string) => void) | undefined
+  /** The budget setting, offered beside Continue on a budget failure. */
+  readonly onOpenBudgetSetting?: (() => void) | undefined
   /** The turns whose user card this panel holds, so Retry can resend it. */
   readonly resendableTurnIds?: ReadonlySet<string> | undefined
   /** Why the menu offers no file restore (Restricted Mode, the setting), or none. */
@@ -1028,6 +1043,105 @@ function RetryTurnButton({
 }
 
 /**
+Resume later after a limit (M88, D67 item 16): the error row's button
+opens the schedule editor with the fixed resume prompt seeded at the
+offer's default minute. Nothing renders without a handler or a timed
+offer; opening an editor starts no turn, so the button never waits.
+*/
+function ResumeLaterButton({
+  entryId,
+  resume,
+  onResumeLater,
+}: {
+  readonly entryId: string
+  readonly resume:
+    { readonly turnId: string; readonly defaultAtMs?: number | undefined } | undefined
+  readonly onResumeLater:
+    ((entryId: string, turnId: string, defaultAtMs: number) => void) | undefined
+}) {
+  const defaultAtMs = resume?.defaultAtMs
+  return onResumeLater === undefined || resume === undefined || defaultAtMs === undefined ? null : (
+    <button
+      type="button"
+      className="notice-action chat-control"
+      onClick={() => {
+        onResumeLater(entryId, resume.turnId, defaultAtMs)
+      }}
+    >
+      {UI_TEXT.resumeLaterAction}
+    </button>
+  )
+}
+
+/**
+A limit lifting more than six days out gets no resume timer (M88, D67
+item 16): the error row says when it lifts instead. Nothing renders
+without the lift instant, or beside a timed offer.
+*/
+function ResumeLiftsLine({
+  liftsAtMs,
+  defaultAtMs,
+}: {
+  readonly liftsAtMs: number | undefined
+  readonly defaultAtMs: number | undefined
+}) {
+  return liftsAtMs === undefined || defaultAtMs !== undefined ? null : (
+    <div>{fill(UI_TEXT.resumeLimitLifts, { time: formatDateTime(liftsAtMs) })}</div>
+  )
+}
+
+/**
+Continue and the budget setting after a spent session budget (M88, D67
+item 16): the row offers the setting, then Continue, never a timer.
+Continue resubmits the turn's own message, so it needs the turn's card
+and waits while a turn runs, as Retry does; the setting opens alone.
+*/
+function BudgetOfferButtons({
+  entryId,
+  resume,
+  canContinue,
+  isDisabled,
+  onContinueTurn,
+  onOpenBudgetSetting,
+}: {
+  readonly entryId: string
+  readonly resume: { readonly kind: string; readonly turnId: string } | undefined
+  readonly canContinue: boolean
+  readonly isDisabled: boolean
+  readonly onContinueTurn: ((entryId: string, turnId: string) => void) | undefined
+  readonly onOpenBudgetSetting: (() => void) | undefined
+}) {
+  if (resume?.kind !== 'budget') return null
+  return (
+    <>
+      {onOpenBudgetSetting === undefined ? null : (
+        <button
+          type="button"
+          className="notice-action chat-control"
+          onClick={() => {
+            onOpenBudgetSetting()
+          }}
+        >
+          {UI_TEXT.budgetSettingAction}
+        </button>
+      )}
+      {onContinueTurn === undefined || !canContinue ? null : (
+        <button
+          type="button"
+          className="notice-action chat-control"
+          disabled={isDisabled}
+          onClick={() => {
+            onContinueTurn(entryId, resume.turnId)
+          }}
+        >
+          {UI_TEXT.fallbackContinue}
+        </button>
+      )}
+    </>
+  )
+}
+
+/**
 Stop on a retry wait's row (D228): ends the wait the row names. Nothing
 renders without a handler or a waiting turn; stopping is the turn's own
 Stop, so a second press while the host answers is harmless.
@@ -1061,6 +1175,10 @@ function OtherRow({
   onStopRetry,
   canRetryTurn,
   isRetryDisabled,
+  onResumeLater,
+  onContinueTurn,
+  onOpenBudgetSetting,
+  canContinueTurn,
 }: {
   readonly entry: Exclude<
     TranscriptEntry,
@@ -1083,6 +1201,10 @@ function OtherRow({
   readonly onStopRetry?: TranscriptProps['onStopRetry']
   readonly canRetryTurn?: boolean | undefined
   readonly isRetryDisabled?: boolean | undefined
+  readonly onResumeLater?: TranscriptProps['onResumeLater']
+  readonly onContinueTurn?: TranscriptProps['onContinueTurn']
+  readonly onOpenBudgetSetting?: TranscriptProps['onOpenBudgetSetting']
+  readonly canContinueTurn?: boolean | undefined
 }) {
   switch (entry.kind) {
     case 'subagent': {
@@ -1106,6 +1228,23 @@ function OtherRow({
             canRetry={canRetryTurn === true}
             isDisabled={isRetryDisabled === true}
             onRetryTurn={onRetryTurn}
+          />
+          <ResumeLaterButton
+            entryId={entry.id}
+            resume={entry.resume}
+            onResumeLater={onResumeLater}
+          />
+          <BudgetOfferButtons
+            entryId={entry.id}
+            resume={entry.resume}
+            canContinue={canContinueTurn === true}
+            isDisabled={isRetryDisabled === true}
+            onContinueTurn={onContinueTurn}
+            onOpenBudgetSetting={onOpenBudgetSetting}
+          />
+          <ResumeLiftsLine
+            liftsAtMs={entry.resume?.liftsAtMs}
+            defaultAtMs={entry.resume?.defaultAtMs}
           />
           <ReportThisButton entry={entry} onReportProblem={onReportProblem} />
         </li>
@@ -1302,6 +1441,9 @@ function TranscriptList(props: TranscriptProps) {
     onNoticeAction,
     onReportProblem,
     onRetryTurn,
+    onResumeLater,
+    onContinueTurn,
+    onOpenBudgetSetting,
     onStopRetry,
     resendableTurnIds,
     restoreNote,
@@ -1474,6 +1616,13 @@ function TranscriptList(props: TranscriptProps) {
               (resendableTurnIds?.has(entry.retryTurnId) ?? false)
             }
             isRetryDisabled={activeTurnId !== undefined}
+            onResumeLater={onResumeLater}
+            onContinueTurn={onContinueTurn}
+            onOpenBudgetSetting={onOpenBudgetSetting}
+            canContinueTurn={
+              entry.resume?.kind === 'budget' &&
+              (resendableTurnIds?.has(entry.resume.turnId) ?? false)
+            }
           />
         )
       }

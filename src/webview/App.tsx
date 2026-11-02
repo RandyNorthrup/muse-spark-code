@@ -71,6 +71,7 @@ import { MoneyUnavailable, usePriceOf } from './money'
 import { usePaidFeaturePrices } from './moneyHooks'
 import type * as PaletteRegistryModule from '../shared/paletteRegistry'
 import type * as SchedulePromptModule from './schedules/prompt'
+import { seedScheduleDraft } from './schedules/seedDraft'
 import type { PaletteAction } from '../shared/palette'
 import type { scheduleChannel } from './schedules/channel'
 import type { ScheduleRequest } from '../shared/scheduleV2'
@@ -2477,6 +2478,51 @@ export function App({
     },
     [store, dispatch, newLocalId, now, postMessage],
   )
+  // Continue after a spent session budget (M88, D67 item 16): the
+  // error row resends the turn's own message, as a retry does, for the
+  // budget the person just raised.
+  const onContinueTurn = useCallback(
+    (_entryId: string, turnId: string) => {
+      const current = store.getState()
+      const source = current.transcript.find(
+        (entry) => entry.kind === 'user' && entry.turnId === turnId,
+      )
+      if (source?.kind !== 'user') {
+        return
+      }
+      const localId = newLocalId()
+      dispatch({
+        type: 'retried',
+        localId,
+        text: source.text,
+        attachments: source.attachments,
+        contextLabel: source.contextLabel,
+        referenceLabel: source.referenceLabel,
+        at: now(),
+      })
+      postMessage({ type: 'continueTurn', localId, turnId })
+      setIsPinnedToEnd(true)
+    },
+    [store, dispatch, newLocalId, now, postMessage],
+  )
+  // Resume later after a limit (M88, D67 item 16): the error row's press
+  // opens the schedule editor with the fixed resume prompt seeded at
+  // the offer's default minute. No optimistic card: the editor answers.
+  const onResumeLater = useCallback(
+    (_entryId: string, turnId: string, defaultAtMs: number) => {
+      postMessage({ type: 'resumeLater', turnId, defaultAtMs })
+    },
+    [postMessage],
+  )
+  // The budget setting, offered beside Continue on a budget failure: it
+  // deep-links to the setting itself, not our whole section.
+  const onOpenBudgetSetting = useCallback(() => {
+    postMessage({
+      type: 'hostAction',
+      action: 'openSettings',
+      query: '@id:museSpark.modelApiSessionBudgetUsd',
+    })
+  }, [postMessage])
   // The turns whose user card this panel holds, so an error row offers
   // Retry only where pressing it has a message to resend.
   const resendableTurnIds = useMemo(() => {
@@ -3215,6 +3261,15 @@ export function App({
           onReportProblem={onReportProblem}
           onRetryTurn={state.isImported || state.sessionId === undefined ? undefined : onRetryTurn}
           onStopRetry={state.isImported || state.sessionId === undefined ? undefined : onStop}
+          onResumeLater={
+            state.isImported || state.sessionId === undefined ? undefined : onResumeLater
+          }
+          onContinueTurn={
+            state.isImported || state.sessionId === undefined ? undefined : onContinueTurn
+          }
+          onOpenBudgetSetting={
+            state.isImported || state.sessionId === undefined ? undefined : onOpenBudgetSetting
+          }
           resendableTurnIds={resendableTurnIds}
           restoreNote={restoreNoteOf(state)}
           conversationNote={
@@ -3815,20 +3870,20 @@ export function App({
         )}
         {/* Scheduled prompts v2 (M115): the deferred surface over this
             workspace. A new view remounts it; `/schedule add` pre-fills the
-            opening editor once, then the stash clears. */}
+            opening editor once, then the stash clears. Schedule This Prompt
+            (M88, D67 item 15) seeds the composer's own draft the same way,
+            read live at render: the editor snapshots its draft on mount. */}
         {state.schedulesSurface === undefined ? null : (
           <ScheduleSurfaceView
             key={`${state.schedulesSurface.workspaceKey}:${state.schedulesSurface.initialView}`}
             surface={{
               workspaceKey: state.schedulesSurface.workspaceKey,
               targets: state.schedulesSurface.targets,
-              defaultDraft:
-                pendingSchedulePrompt === undefined
-                  ? state.schedulesSurface.defaultDraft
-                  : {
-                      ...state.schedulesSurface.defaultDraft,
-                      action: { kind: 'prompt', prompt: pendingSchedulePrompt.prompt },
-                    },
+              defaultDraft: seedScheduleDraft(
+                state.schedulesSurface.defaultDraft,
+                pendingSchedulePrompt?.prompt,
+                state.schedulesSurface.seedFromComposer === true ? state.draft : undefined,
+              ),
               nowMs: state.schedulesSurface.nowMs,
               initialView: state.schedulesSurface.initialView,
               isInert: isModalOpen,
