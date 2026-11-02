@@ -90,10 +90,15 @@
                                  (setq received (concat received chunk))))))
           (unwind-protect
               (progn
-                ;; No credential reaches the real child (Linux /proc).
+                ;; No credential reaches the real child (Linux /proc), and
+                ;; the live argv is this tree's dist/acp.js, not another node.
                 (when (eq system-type 'gnu/linux)
                   (dolist (entry (muse-test--environ child))
-                    (should-not (string-prefix-p "M104_API_KEY=" entry))))
+                    (should-not (string-prefix-p "M104_API_KEY=" entry)))
+                  (with-temp-buffer
+                    (insert-file-contents (format "/proc/%d/cmdline" (process-id child)))
+                    (should (member (expand-file-name "dist/acp.js" muse-test--root)
+                                    (split-string (buffer-string) "\0" t)))))
                 (let* ((body (json-serialize
                               `((jsonrpc . "2.0") (id . 1) (method . "initialize")
                                 (params . ((processId . ,(emacs-pid))

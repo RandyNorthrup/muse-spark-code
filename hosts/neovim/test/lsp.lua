@@ -34,6 +34,18 @@ assert(vim.wait(30000, function()
 end, 100), "native initialize")
 local client = vim.lsp.get_client_by_id(id)
 assert(client.server_capabilities.completionProvider, "invoked completion offered")
+if vim.fn.has("linux") == 1 then
+  local saw_agent = false
+  for _, pid in ipairs(vim.api.nvim_get_proc_children(vim.fn.getpid())) do
+    local handle = io.open("/proc/" .. pid .. "/cmdline", "rb")
+    if handle then
+      local raw = handle:read("*a") or ""
+      handle:close()
+      if raw:find(agent, 1, true) then saw_agent = true end
+    end
+  end
+  assert(saw_agent, "a live child argv is this tree's dist/acp.js")
+end
 local commands = client.server_capabilities.executeCommandProvider.commands
 assert(vim.tbl_contains(commands, "muse.stop"), "workspace commands offered")
 
