@@ -3855,7 +3855,9 @@
             permissionMode: 'manual',
             isHardwareWorkspace: true,
           })
-          later(50, () => click('Permission mode: Manual'))
+          whenFound(`button[aria-label="${shown('Permission Mode: Manual')}"]`, (mode) =>
+            mode.click(),
+          )
         },
         'modes-bypass': () => {
           send({
