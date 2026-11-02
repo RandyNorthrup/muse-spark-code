@@ -3,7 +3,6 @@
 import * as z from 'zod/mini'
 import {
   IMAGE_MEDIA_TYPES,
-  MEDIA_CALIBRATION_VIDEO_MAX_SECONDS,
   META_DOCUMENT_MAX_BYTES,
   META_IMAGE_MAX_BYTES,
   MODEL_API_MEDIA_PER_REQUEST,
@@ -14,6 +13,7 @@ import {
   PROMPT_CACHE_RETENTIONS,
 } from '../../shared/constants'
 import { outputTokenMinimumMessage } from '../../shared/providerRouting'
+import { metaMediaCapture } from '../media/metaMediaEvidence'
 import { effortLevelsFor } from '../../shared/effort'
 
 const sourceSchema = z.strictObject({
@@ -405,6 +405,12 @@ export function metaCapabilityRecord(nativeModel: string): ModelCapabilityRecord
     ref: 'https://dev.meta.ai/docs/file-handling',
   }
   const pdfYes = <T>(value: T) => ({ state: 'yes' as const, value, source: pdfSource })
+  const mediaSource: CapabilitySource = {
+    kind: 'capture',
+    ref: 'docs/certification/m105-captures.md',
+  }
+  const mediaYes = <T>(value: T) => ({ state: 'yes' as const, value, source: mediaSource })
+  const mediaCapture = metaMediaCapture(nativeModel)
   return resolveModelCapabilities({ provider: 'meta', nativeModel, format: 'responses' }, [
     {
       source,
@@ -467,55 +473,33 @@ export function metaCapabilityRecord(nativeModel: string): ModelCapabilityRecord
       source: { kind: 'capture', ref: 'docs/certification/min-output-cap.md' },
       fields: { output: { minTokens: MODEL_API_MIN_OUTPUT_TOKENS } },
     },
-    // D85.1 captures (docs/certification/m105-captures.md): the two
-    // contributor models take mp4 and mov video; 1.2 hears the soundtrack
-    // and 1.3 does not (U4); `fps` 1 and 2 were accepted and billed
-    // (U17b) and 600 seconds is the longest measured turn (U17b
-    // R05/R06/R14/R15). `input_audio` is accepted and silently ignored on
+    // D85.1 captures (docs/certification/m105-captures.md, the shared
+    // evidence in core/media/metaMediaEvidence): the two contributor
+    // models take mp4 and mov video; 1.2 hears the soundtrack and 1.3
+    // does not (U4). `input_audio` is accepted and silently ignored on
     // both (U7), so standalone audio is 'no': sound routes to
     // transcription, never to an unheard part. A Meta model with no
     // captures keeps unknown video and audio, which the gate refuses.
-    ...(nativeModel === 'muse-spark-1.2-contributor' || nativeModel === 'muse-spark-1.3-contributor'
-      ? [
+    ...(mediaCapture === undefined
+      ? []
+      : [
           {
-            source: { kind: 'capture', ref: 'docs/certification/m105-captures.md' } as const,
+            source: mediaSource,
             fields: {
               modalities: {
-                video: {
-                  state: 'yes' as const,
-                  value: {
-                    mimes: ['video/mp4', 'video/quicktime'],
-                    maxDurationSeconds: MEDIA_CALIBRATION_VIDEO_MAX_SECONDS,
-                    fps: { min: 1, max: 2 },
-                    hearsSoundtrack:
-                      nativeModel === 'muse-spark-1.2-contributor'
-                        ? {
-                            state: 'yes' as const,
-                            value: true as const,
-                            source: {
-                              kind: 'capture',
-                              ref: 'docs/certification/m105-captures.md',
-                            } as const,
-                          }
-                        : {
-                            state: 'no' as const,
-                            source: {
-                              kind: 'capture',
-                              ref: 'docs/certification/m105-captures.md',
-                            } as const,
-                          },
-                  },
-                  source: { kind: 'capture', ref: 'docs/certification/m105-captures.md' } as const,
-                },
-                audio: {
-                  state: 'no' as const,
-                  source: { kind: 'capture', ref: 'docs/certification/m105-captures.md' } as const,
-                },
+                video: mediaYes({
+                  mimes: [...mediaCapture.videoFormats],
+                  maxDurationSeconds: mediaCapture.maxDurationSeconds,
+                  fps: { ...mediaCapture.fps },
+                  hearsSoundtrack: mediaCapture.hearsSoundtrack
+                    ? mediaYes(true as const)
+                    : { state: 'no' as const, source: mediaSource },
+                }),
+                audio: { state: 'no' as const, source: mediaSource },
               },
             },
           },
-        ]
-      : []),
+        ]),
   ])
 }
 /** Native effort names for the picker, without manufacturing Meta tiers. */

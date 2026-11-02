@@ -53,16 +53,14 @@ export function mediaCapabilitiesFromRecord(
           ...(uploadBound !== undefined && { uploadMaxBytes: uploadBound }),
         }
       : { support: supportOf(modalities.pdf.state), formats: [] }
+  const videoUploadBound =
+    modalities.video.state === 'yes' ? (modalities.video.value.maxBytes ?? uploadBound) : undefined
   const video: MediaModalityCapability =
     modalities.video.state === 'yes'
       ? {
           support: 'yes',
           formats: modalities.video.value.mimes,
-          ...(modalities.video.value.maxBytes === undefined
-            ? uploadBound === undefined
-              ? {}
-              : { uploadMaxBytes: uploadBound }
-            : { uploadMaxBytes: modalities.video.value.maxBytes }),
+          ...(videoUploadBound !== undefined && { uploadMaxBytes: videoUploadBound }),
           ...(modalities.video.value.maxDurationSeconds !== undefined && {
             maxDurationSeconds: modalities.video.value.maxDurationSeconds,
           }),

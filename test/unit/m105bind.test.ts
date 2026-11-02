@@ -21,7 +21,7 @@ import { createModelApiAudioContext } from '../../src/core/voice/transcribeBatch
 import { createRunLedger } from '../../src/runtime/exec/runLedger'
 import { isHeadlessPaidUseAllowed, parseExec } from '../../src/runtime/exec/execArgs'
 import { execFetch } from '../../src/runtime/exec/execFetch'
-import { createLifecycle } from '../../src/runtime/exec/execLimits'
+import { createExecTestLifecycle, ignoreExecEvent } from './helpers/execLifecycle'
 import type { ExecEventBody } from '../../src/runtime/exec/execProtocol'
 import type { MediaInfo } from '../../src/shared/media'
 
@@ -33,11 +33,6 @@ const VIDEO: MediaInfo = {
   hasSoundtrack: true,
 }
 const SHA = 'a'.repeat(64)
-
-/** A listener the test never triggers. */
-function ignore(): void {
-  // Nothing to observe on this path.
-}
 
 function replayFor(recordFor?: (modelId: string) => ReturnType<typeof resolveModelCapabilities>) {
   return new ReplayMedia('session-1', {
@@ -60,27 +55,14 @@ const TRANSCRIBE_URL = `${MODEL_API_BASE_URL}/asr/transcribe?sessionId=123e4567-
 
 function harness(hasVoice: boolean) {
   const events: ExecEventBody[] = []
-  const lifecycle = createLifecycle({
-    processStartMs: Date.now(),
-    timeoutMs: 30_000,
-    now: () => Date.now(),
-    setTimer: (ms, run) => {
-      const timer = setTimeout(run, ms)
-      return () => {
-        clearTimeout(timer)
-      }
-    },
-    onSignal: () => ignore,
-    forceFinish: ignore,
-    exit: (code): never => {
-      throw new Error(`exit ${String(code)}`)
-    },
-  })
+  const lifecycle = createExecTestLifecycle()
   const ledger = createRunLedger({ capUsd: Usd.from(10).toAmount(), maxRequests: 5 })
   const seen: string[] = []
   const transport = execFetch({
     fetch: (url) => {
-      seen.push(typeof url === 'string' ? url : url instanceof URL ? url.href : url.url)
+      if (typeof url === 'string') seen.push(url)
+      else if (url instanceof URL) seen.push(url.href)
+      else seen.push(url.url)
       return Promise.resolve(
         Response.json(
           { transcript: 'hello', audioDurationMs: 1000 },
@@ -96,12 +78,12 @@ function harness(hasVoice: boolean) {
     imageGeneration: false,
     voiceTranscription: hasVoice,
     lifecycle,
-    onLatch: ignore,
+    onLatch: ignoreExecEvent,
     emit: (event) => {
       events.push(event)
     },
-    onResponseStart: ignore,
-    onResponseSettled: ignore,
+    onResponseStart: ignoreExecEvent,
+    onResponseSettled: ignoreExecEvent,
   })
   return { transport, events, lifecycle, ledger, seen }
 }
@@ -197,7 +179,7 @@ describe('the replay prepares through the session record, not the table alone', 
   it('admits the part while the selected record takes video', () => {
     const media = replayFor((modelId) => metaCapabilityRecord(modelId))
     const part = media.content(
-      { type: 'media', token: 't1', name: 'clip.mp4' },
+      { type: 'media', token: 't1', name: 'clip.mp4', info: VIDEO, sha256: SHA },
       { type: 'input_text', text: 'clip' },
       'muse-spark-1.3-contributor',
       new MediaBudget(),
@@ -222,7 +204,7 @@ describe('the replay prepares through the session record, not the table alone', 
     const media = replayFor(() => noVideo)
     expect(() =>
       media.content(
-        { type: 'media', token: 't1', name: 'clip.mp4' },
+        { type: 'media', token: 't1', name: 'clip.mp4', info: VIDEO, sha256: SHA },
         { type: 'input_text', text: 'clip' },
         'muse-spark-1.3-contributor',
         new MediaBudget(),
@@ -307,7 +289,7 @@ describe('headless admission: the flag is the D48 answer (exec)', () => {
       'do it',
     ])
     expect(parsed.ok).toBe(false)
-    if (!parsed.ok) expect(parsed.reason).toBe(UI_TEXT.execPaidNeedsEdits)
+    if (!parsed.ok) expect(parsed.reason).toBe(UI_TEXT.execVoiceNeedsEdits)
   })
   it('refuses --muse-voice on the Muse Code backend, naming the flag', () => {
     const parsed = parseExec(

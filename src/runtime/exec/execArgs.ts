@@ -368,11 +368,10 @@ export function parseExec(
     return invalid(fill(UI_TEXT.execMuseCodeOnly, { options: museCodeOnly }))
   if (values['key-stdin'] === true && values['subscription'] === true)
     return invalid(UI_TEXT.execSubscriptionStdin)
-  if (
-    mode !== 'acceptEdits' &&
-    (values['image-generation'] === true || values['muse-voice'] === true)
-  )
+  if (mode !== 'acceptEdits' && values['image-generation'] === true)
     return invalid(UI_TEXT.execPaidNeedsEdits)
+  if (mode !== 'acceptEdits' && values['muse-voice'] === true)
+    return invalid(UI_TEXT.execVoiceNeedsEdits)
   const files = values['untrusted-file']
   const untrustedFiles = Array.isArray(files)
     ? files.filter((file: unknown): file is string => typeof file === 'string')
@@ -478,18 +477,18 @@ export function isHeadlessPaidUseAllowed(
 ): boolean {
   if (requiresAsking || isAborted) return false
   const remaining = Usd.from(remainingUsd).units(EXEC_USD_DECIMALS)
-  const isAdmitted =
-    request.feature === 'autoCompaction'
-      ? options.paidFeatures.includes('autoCompaction') && remaining > NO_REMAINING_UNITS
-      : request.feature === 'voice'
-        ? options.paidFeatures.includes('voice') &&
-          options.mode === 'acceptEdits' &&
-          remaining > NO_REMAINING_UNITS
-        : request.feature === 'imageGeneration' &&
-          options.paidFeatures.includes('imageGeneration') &&
-          options.mode === 'acceptEdits' &&
-          remaining >= Usd.from(PAID_PRICES_USD.imageGeneration).units(EXEC_USD_DECIMALS)
-  return isAdmitted
+  const isVoiceOrImageAdmitted =
+    request.feature === 'voice'
+      ? options.paidFeatures.includes('voice') &&
+        options.mode === 'acceptEdits' &&
+        remaining > NO_REMAINING_UNITS
+      : request.feature === 'imageGeneration' &&
+        options.paidFeatures.includes('imageGeneration') &&
+        options.mode === 'acceptEdits' &&
+        remaining >= Usd.from(PAID_PRICES_USD.imageGeneration).units(EXEC_USD_DECIMALS)
+  return request.feature === 'autoCompaction'
+    ? options.paidFeatures.includes('autoCompaction') && remaining > NO_REMAINING_UNITS
+    : isVoiceOrImageAdmitted
 }
 
 export function serveOptionsFor(options: ExecOptions): ServeOptions {

@@ -48,6 +48,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Headless runs can transcribe attached sound.** `exec --muse-voice`
+  (with `--permission-mode acceptEdits` and the run budget) transcribes
+  an attached recording or soundtrack before sending: the bounded cost
+  is reserved against the run budget first and settled from the receipt,
+  tallied per use like image generation. Without the flag, attached
+  sound a model cannot hear refuses in words, unspent.
 - **Maker tools with a person at every physical action.** Shell commands
   that flash a board, open a device or move a machine ask every time, in
   every permission mode, and no remembered rule, hook or automatic reviewer
