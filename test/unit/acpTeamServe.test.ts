@@ -21,14 +21,14 @@ import { writeEditorChatProvidersFile } from './helpers/editorChatRig'
 import { removeFolder } from './helpers/temporaryFolders'
 import { stageAgentBundle } from './helpers/stageAgentBundle'
 
-const directory = mkdtempSync(path.join(tmpdir(), 'acp-team-serve-'))
-const agent = path.join(directory, 'dist', 'acp.js')
+const staged = { root: mkdtempSync(path.join(tmpdir(), 'acp-team-serve-')), agent: '' }
+const directory = staged.root
 const config = path.join(directory, 'config')
 const data = path.join(directory, 'data')
 const workspace = path.join(directory, 'workspace')
 
 beforeAll(async () => {
-  await stageAgentBundle(directory)
+  staged.agent = await stageAgentBundle(directory)
   // The Model API route loads its account services from the sibling
   // bundle beside the agent, as the packed layout ships it.
   const { build } = await import('esbuild')
@@ -71,7 +71,7 @@ afterAll(async () => {
 })
 
 function launch(): ChildProcessWithoutNullStreams {
-  return spawn(process.execPath, [agent, '--team', '--backend', 'modelApi'], {
+  return spawn(process.execPath, [staged.agent, '--team', '--backend', 'modelApi'], {
     env: {
       PATH: process.env['PATH'] ?? '',
       HOME: directory,

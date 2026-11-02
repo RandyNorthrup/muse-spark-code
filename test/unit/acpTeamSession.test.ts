@@ -8,15 +8,14 @@
 // (a start that cannot complete is the worker's real failure), and the
 // merge case restores a finished task the real end-of-task sequence
 // committed, as a restart would find it.
-import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as acp from '@agentclientprotocol/sdk/unstable'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { createAcpTeam, type AcpTeamDeps } from '../../src/acp/acpTeamEntry'
-import { createAcpAgent } from '../../src/acp/agent'
-import type { AcpTeamPort, AcpTeamPrepared, AcpTeamSessionHandler } from '../../src/acp/teamPort'
+import type { createAcpAgent } from '../../src/acp/agent'
+import type { AcpTeamPort, AcpTeamSessionHandler } from '../../src/acp/teamPort'
 import {
   commitTaskBranch,
   publishTaskRef,
@@ -30,10 +29,8 @@ import { storedTeamSnapshotFile } from '../../src/runtime/teamSnapshotFile'
 import { stderrLogger } from '../../src/runtime/stderrLog'
 import { ACP_TEAM_BOARD_FILE, UI_TEXT } from '../../src/shared/constants'
 import type { TeamSnapshot } from '../../src/shared/team'
-import { acpLocalAgentDeps } from './helpers/acpLocalAgentDeps'
-import { modelApiRig } from './helpers/conversationPanel'
-import { createEditorChatServices, writeEditorChatProvidersFile } from './helpers/editorChatRig'
-import { realTeamGit } from './helpers/realTeamGit'
+import { createLocalAcpAgent } from './helpers/acpLocalAgentDeps'
+import { realTeamGit, scratchTeamRepo } from './helpers/realTeamGit'
 
 const log = stderrLogger(() => undefined, 'warn')
 const ORCHESTRATOR = 'probe-custom/custom-model'
@@ -133,47 +130,22 @@ function agentWithTeam(snapshot: TeamSnapshot | undefined, hasTeam: boolean) {
   const folder = scratch('acp-team-workspace-')
   const dataFolder = scratch('acp-team-data-')
   if (snapshot !== undefined) writeStoredTeam(dataFolder, folder, snapshot)
-  const { configFile, catalogFile } = writeEditorChatProvidersFile(folder)
-  const { models } = createEditorChatServices(configFile, catalogFile).client
-  const rig = modelApiRig(folder, undefined, undefined, {
-    ...(models !== undefined && { models }),
-  })
-  const deps = acpLocalAgentDeps(folder, log)
-  const team: AcpTeamPort | undefined = hasTeam
-    ? createAcpTeam(
-        teamDeps(dataFolder, {
-          listWorkerModels: async () => {
-            const listed = await rig.host.listModels()
-            return listed.map((model) => model.modelId)
-          },
-          paid: () => deps.paid,
-        }),
-        UI_TEXT,
-        'en',
-      )
-    : undefined
-  const agent = createAcpAgent({
-    backend: {
-      kind: 'modelApi',
-      readiness: () => Promise.resolve({ state: 'ready' }),
-      hostFor: () => Promise.resolve(rig.host),
-    },
-    version: '0.19.0',
-    options: {
-      canBypass: false,
-      allowsContributorModels: false,
-      initialMode: 'manual',
-      initialModelId: ORCHESTRATOR,
-    },
-    signIn: {
-      id: 'auth-set',
-      name: 'Model API key',
-      description: 'Model API key',
-      args: [],
-      command: 'muse-spark-code-acp auth set',
-    },
-    ...deps,
-    ...(team !== undefined && { team }),
+  let team: AcpTeamPort | undefined
+  const { agent } = createLocalAcpAgent(folder, log, (rig, deps) => {
+    team = hasTeam
+      ? createAcpTeam(
+          teamDeps(dataFolder, {
+            listWorkerModels: async () => {
+              const listed = await rig.host.listModels()
+              return listed.map((model) => model.modelId)
+            },
+            paid: () => deps.paid,
+          }),
+          UI_TEXT,
+          'en',
+        )
+      : undefined
+    return team === undefined ? {} : { team }
   })
   return { agent, folder, team }
 }
@@ -194,31 +166,33 @@ async function withEditor(
 }
 
 describe('ACP team admission over the real agent', () => {
-  it('refuses a new session with no stored team (no second usable model)', async () => {
-    const { agent, folder, team } = agentWithTeam(undefined, true)
+  // The first admitted session loads the team service and probes its
+  // entries; pay that once here so no case carries the cold start.
+  beforeAll(async () => {
+    const { agent, folder, team } = agentWithTeam(storedTeam(WORKER), true)
     try {
       await withEditor(agent, async (editor) => {
-        const refusal = await errorOf(
-          editor.request('session/new', { cwd: folder, mcpServers: [] }),
-        )
-        expect(refusal).toContain(UI_TEXT.teamNeedsSecondModel)
+        const created = await editor.request('session/new', { cwd: folder, mcpServers: [] })
+        await editor.request('session/close', { sessionId: created.sessionId })
       })
     } finally {
       await team?.dispose()
     }
   })
 
-  it('refuses a stored team whose only entry is the session model', async () => {
-    const { agent, folder, team } = agentWithTeam(storedTeam(ORCHESTRATOR), true)
-    try {
-      await withEditor(agent, async (editor) => {
-        const refusal = await errorOf(
-          editor.request('session/new', { cwd: folder, mcpServers: [] }),
-        )
-        expect(refusal).toContain(UI_TEXT.teamNeedsSecondModel)
-      })
-    } finally {
-      await team?.dispose()
+  it('refuses a new session without a second usable model', async () => {
+    for (const snapshot of [undefined, storedTeam(ORCHESTRATOR)]) {
+      const { agent, folder, team } = agentWithTeam(snapshot, true)
+      try {
+        await withEditor(agent, async (editor) => {
+          const refusal = await errorOf(
+            editor.request('session/new', { cwd: folder, mcpServers: [] }),
+          )
+          expect(refusal).toContain(UI_TEXT.teamNeedsSecondModel)
+        })
+      } finally {
+        await team?.dispose()
+      }
     }
   })
 
@@ -256,35 +230,37 @@ describe('ACP team admission over the real agent', () => {
     const { agent, folder } = agentWithTeam(undefined, false)
     await withEditor(agent, async (editor) => {
       const created = await editor.request('session/new', { cwd: folder, mcpServers: [] })
-      expect(created.configOptions.some((row) => row.id === 'team')).toBe(false)
+      expect((created.configOptions ?? []).some((row) => row.id === 'team')).toBe(false)
       await editor.request('session/close', { sessionId: created.sessionId })
     })
   })
 })
 
 /** A real repository with one committed file on `main`. */
-function gitRepo(): string {
-  const root = scratch('acp-team-repo-')
-  execFileSync('git', ['init', '-b', 'main'], { cwd: root })
+async function gitRepo(): Promise<string> {
+  const root = scratchTeamRepo('acp-team-repo-')
   writeFileSync(path.join(root, 'a.ts'), 'const value = 1\n')
-  execFileSync(
-    'git',
-    ['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'add', '--all', '--'],
-    { cwd: root },
-  )
-  execFileSync(
-    'git',
-    ['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-m', 'base'],
-    { cwd: root },
-  )
+  await realTeamGit(['add', 'a.ts'], root)
+  await realTeamGit(['commit', '-m', 'a'], root)
   return root
 }
 
-type Update = acp.SessionUpdate
+/** One held delegation: the stored team, its port, and the attached editor. */
+async function heldTeam() {
+  const repo = await gitRepo()
+  const dataFolder = scratch('acp-team-data-')
+  writeStoredTeam(dataFolder, repo, storedTeam(WORKER))
+  const held = heldStarts()
+  const port = createAcpTeam(teamDeps(dataFolder, { startWorker: held.startWorker }), UI_TEXT, 'en')
+  const prepared = await port.prepareNew(repo, ORCHESTRATOR)
+  const editor = editorHandler(() => 'discard')
+  const session = await prepared.attach('team-session', editor.handler)
+  return { repo, held, port, prepared, editor, session }
+}
 
 /** The editor's side of one attached session: its updates and its answers. */
 function editorHandler(answer: (request: acp.RequestPermissionRequest) => string) {
-  const updates: Update[] = []
+  const updates: acp.SessionUpdate[] = []
   const requests: acp.RequestPermissionRequest[] = []
   const handler: AcpTeamSessionHandler = {
     mode: () => 'manual',
@@ -325,7 +301,7 @@ async function delegateOne(port: AcpTeamPort, cwd: string): Promise<string> {
 
 /** A finished task restored from the board, its copy made by the real sequence. */
 async function restoredMerge(answer: string) {
-  const repo = gitRepo()
+  const repo = await gitRepo()
   const dataFolder = scratch('acp-team-data-')
   const snapshot = storedTeam(WORKER)
   writeStoredTeam(dataFolder, repo, snapshot)
@@ -408,6 +384,17 @@ async function restoredMerge(answer: string) {
   return { repo, port, editor, session, agentsRef: workspace.agentsRef }
 }
 
+/** A restored merge asked of the editor, ready for its answer's effect. */
+async function askRestoredMerge(answer: string) {
+  const rig = await restoredMerge(answer)
+  const result = await rig.port
+    .seamsFor(rig.repo)
+    .teamRunner.merge({ task_id: 'task-merge' }, context())
+  expect(result.output).not.toContain('Error:')
+  await eventually(() => rig.editor.requests.length === 1, 'the merge permission request')
+  return rig
+}
+
 describe('ACP team progress, cancel and merge over the real team host', () => {
   // The engine's git is governed: configure the process governor as the
   // agent process does, so admission answers and copies are real.
@@ -426,20 +413,9 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
   })
 
   it('announces a delegated task over the plan and its tool call, then completes its failure', async () => {
-    const repo = gitRepo()
-    const dataFolder = scratch('acp-team-data-')
-    writeStoredTeam(dataFolder, repo, storedTeam(WORKER))
-    const held = heldStarts()
-    const port = createAcpTeam(
-      teamDeps(dataFolder, { startWorker: held.startWorker }),
-      UI_TEXT,
-      'en',
-    )
+    const { repo, held, port, prepared, editor, session } = await heldTeam()
     try {
-      const prepared: AcpTeamPrepared = await port.prepareNew(repo, ORCHESTRATOR)
       expect(prepared.isTeam).toBe(true)
-      const editor = editorHandler(() => 'discard')
-      const session = await prepared.attach('team-session', editor.handler)
       const taskId = await delegateOne(port, repo)
       await eventually(() => held.gates.length === 1, 'the worker start')
       const plan = editor.updates.find(
@@ -482,19 +458,8 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
   })
 
   it('stops every worker of the session on cancel', async () => {
-    const repo = gitRepo()
-    const dataFolder = scratch('acp-team-data-')
-    writeStoredTeam(dataFolder, repo, storedTeam(WORKER))
-    const held = heldStarts()
-    const port = createAcpTeam(
-      teamDeps(dataFolder, { startWorker: held.startWorker }),
-      UI_TEXT,
-      'en',
-    )
+    const { repo, held, port, editor, session } = await heldTeam()
     try {
-      const prepared = await port.prepareNew(repo, ORCHESTRATOR)
-      const editor = editorHandler(() => 'discard')
-      const session = await prepared.attach('team-session', editor.handler)
       await delegateOne(port, repo)
       await eventually(() => held.gates.length === 1, 'the worker start')
       const before = editor.updates.length
@@ -522,13 +487,8 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
   })
 
   it('asks for a merge with the real diff and discards on refusal', async () => {
-    const { repo, port, editor, session } = await restoredMerge('discard')
+    const { repo, port, editor, session } = await askRestoredMerge('discard')
     try {
-      const result = await port
-        .seamsFor(repo)
-        .teamRunner.merge({ task_id: 'task-merge' }, context())
-      expect(result.output).not.toContain('Error:')
-      await eventually(() => editor.requests.length === 1, 'the merge permission request')
       await eventually(
         () =>
           editor.updates.some(
@@ -554,13 +514,8 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
   })
 
   it('lands the change on the editor’s approval', async () => {
-    const { repo, port, editor, session } = await restoredMerge('merge')
+    const { repo, port, session } = await askRestoredMerge('merge')
     try {
-      const result = await port
-        .seamsFor(repo)
-        .teamRunner.merge({ task_id: 'task-merge' }, context())
-      expect(result.output).not.toContain('Error:')
-      await eventually(() => editor.requests.length === 1, 'the merge permission request')
       await eventually(
         () => readFileSync(path.join(repo, 'a.ts'), 'utf8') === 'const value = 2\n',
         'the landed change',
@@ -573,7 +528,7 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
   })
 
   it('serves the team tools to a Muse Code orchestrator and refuses other tokens', async () => {
-    const repo = gitRepo()
+    const repo = await gitRepo()
     const dataFolder = scratch('acp-team-data-')
     writeStoredTeam(dataFolder, repo, storedTeam(WORKER))
     const port = createAcpTeam(teamDeps(dataFolder, { backendKind: 'museCode' }), UI_TEXT, 'en')
@@ -585,12 +540,10 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
         throw new Error('test: a Muse Code team session carries its endpoint')
       const editor = editorHandler(() => 'discard')
       const session = await prepared.attach('team-session', editor.handler)
-      const call = async (body: unknown, headers: Record<string, string>) =>
-        await fetch(endpoint.url, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json', ...headers },
-          body: JSON.stringify(body),
-        })
+      const call = async (body: unknown, extra: Record<string, string>) => {
+        const headers = new Headers({ 'content-type': 'application/json', ...extra })
+        return await fetch(endpoint.url, { method: 'POST', headers, body: JSON.stringify(body) })
+      }
       const listed = await call({ jsonrpc: '2.0', id: 1, method: 'tools/list' }, endpoint.headers)
       expect(listed.status).toBe(200)
       const tools = (await listed.json()) as { result: { tools: { name: string }[] } }
