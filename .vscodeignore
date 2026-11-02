@@ -103,6 +103,7 @@
 !dist/makerContracts.js
 !dist/makerPreviewHost.js
 !dist/makerHost.js
+!dist/makerEngine.js
 !dist/whatsNew.js
 !dist/whatsNew.json
 !dist/uiText.js

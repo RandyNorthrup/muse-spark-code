@@ -184,6 +184,8 @@ const VERIFY_EDITOR_ENTRY = 'src/host/vscode/editor/verifyEditor.ts'
 const VERIFY_EDITOR_OUTFILE = 'dist/verifyEditor.js'
 const MAKER_HOST_ENTRY = 'src/host/maker/makerEntry.ts'
 const MAKER_HOST_OUTFILE = 'dist/makerHost.js'
+const MAKER_ENGINE_ENTRY = 'src/host/maker/makerEngineEntry.ts'
+const MAKER_ENGINE_OUTFILE = 'dist/makerEngine.js'
 // One immutable English fallback shared by Node bundles; each keeps its own
 // mutable installed-language state. The browser keeps its fallback bundled.
 const SHARING_RUNTIME_ENTRY = 'src/runtime/sharing/sharingEntry.ts'
@@ -607,6 +609,18 @@ const makerPreviewHostOptions = {
   ...hostOptions,
   entryPoints: ['src/host/maker/makerPreviewEntry.ts'],
   outfile: 'dist/makerPreviewHost.js',
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const makerEngineOptions = {
+  ...hostOptions,
+  // Like the runtime maker bundle: the engine uses the maker ports for real
+  // (approvals, target checks), so only the shell parser stays behind a proxy.
+  plugins: hostOptions.plugins.map((plugin) =>
+    plugin === hardwareGuardSplit ? hardwareShellSplit : plugin,
+  ),
+  entryPoints: [MAKER_ENGINE_ENTRY],
+  outfile: MAKER_ENGINE_OUTFILE,
 }
 const sharingRuntimeOptions = {
   ...common,
@@ -2573,6 +2587,7 @@ if (isWatch) {
     esbuild.context(verifyEditorOptions),
     esbuild.context(makerHostOptions),
     esbuild.context(makerPreviewHostOptions),
+    esbuild.context(makerEngineOptions),
     esbuild.context(promptsOptions),
     esbuild.context(sharingRuntimeOptions),
     esbuild.context(connectorOptions),
@@ -2813,6 +2828,7 @@ if (isWatch) {
     verifyEditor: recorded('verifyEditor', verifyEditorOptions),
     makerHost: recorded('makerHost', makerHostOptions),
     makerPreviewHost: recorded('makerPreviewHost', makerPreviewHostOptions),
+    makerEngine: recorded('makerEngine', makerEngineOptions),
     hardwareGuard: recorded('hardwareGuard', hardwareGuardOptions),
     hardwareShell: recorded('hardwareShell', hardwareShellOptions),
     runtimeMaker: recorded('runtimeMaker', runtimeMakerOptions),
@@ -3236,6 +3252,7 @@ if (isWatch) {
   reportSize(TAB_OUTFILE)
   reportSize(MAKER_HOST_OUTFILE)
   reportSize('dist/makerPreviewHost.js')
+  reportSize(MAKER_ENGINE_OUTFILE)
   reportSize(PROMPTS_OUTFILE)
   reportSize(SHARING_RUNTIME_OUTFILE)
   reportSize(CONNECTOR_OUTFILE)

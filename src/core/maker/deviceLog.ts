@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import { constants } from 'node:fs'
-import { lstat, mkdir, open, realpath, unlink } from 'node:fs/promises'
+import { lstat, mkdir, open, realpath, unlink, type FileHandle } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { redactSecrets } from '../../shared/redact'
@@ -47,21 +47,28 @@ export class DeviceLog implements DeviceLogPort {
   private readonly file: string
   constructor(
     private readonly directory: string,
-    private readonly workspace: string,
+    /**
+    No folder open in the window: the exclusion is vacuous, so the checks
+    below are skipped (RLF-M103WIRE). The directory still stays absolute.
+    */
+    private readonly workspace: string | undefined,
     private readonly policy: DeviceLogPolicy,
   ) {
     if (
       !path.isAbsolute(directory) ||
-      isWithinWorkspace(path.resolve(directory), path.resolve(workspace))
+      (workspace !== undefined &&
+        isWithinWorkspace(path.resolve(directory), path.resolve(workspace)))
     )
       throw new MachineError('deviceLogInWorkspace')
     this.file = path.join(directory, 'device-log.jsonl')
   }
   private async checkDirectory(): Promise<void> {
     const resolvedDirectory = await realpath(this.directory)
-    const resolvedWorkspace = await realpath(this.workspace)
-    if (isWithinWorkspace(resolvedDirectory, resolvedWorkspace))
-      throw new MachineError('deviceLogInWorkspace')
+    if (this.workspace !== undefined) {
+      const resolvedWorkspace = await realpath(this.workspace)
+      if (isWithinWorkspace(resolvedDirectory, resolvedWorkspace))
+        throw new MachineError('deviceLogInWorkspace')
+    }
     const directoryStat = await lstat(this.directory)
     if (directoryStat.isSymbolicLink()) throw new MachineError('deviceLogSymlink')
   }
@@ -136,11 +143,19 @@ export class DeviceLog implements DeviceLogPort {
   }
   async read(): Promise<readonly DeviceLogEntry[]> {
     await this.pending
-    await this.checkDirectory()
-    const handle = await open(
-      this.file,
-      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
-    )
+    let handle: FileHandle
+    try {
+      await this.checkDirectory()
+      handle = await open(
+        this.file,
+        constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+      )
+    } catch (error: unknown) {
+      // A log never appended to is empty, not broken (RLF-M103WIRE): the
+      // window and the runtime both show the empty state instead of failing.
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return []
+      throw error
+    }
     try {
       const stat = await handle.stat()
       if (!stat.isFile() || stat.nlink !== 1 || stat.size > this.policy.maxBytes)

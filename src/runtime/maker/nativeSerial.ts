@@ -56,8 +56,9 @@ export interface NativeSerialDeps {
 function isHelperFile(filePath: string): boolean {
   try {
     return statSync(filePath).isFile()
-  } catch {
-    return false
+  } catch (error: unknown) {
+    if (error instanceof Error && 'code' in error && typeof error.code === 'string') return false
+    throw error
   }
 }
 

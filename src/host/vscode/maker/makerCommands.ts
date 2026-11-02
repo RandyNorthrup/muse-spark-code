@@ -1,6 +1,5 @@
 import * as vscode from 'vscode'
 import {
-  MAKER_COMMANDS,
   MAKER_PROTOCOL_MAX_ID_CHARS,
   MAKER_PROTOCOL_VERSION,
   UI_TEXT,
@@ -11,7 +10,6 @@ import {
   type MakerSurfaceMessage,
 } from '../../../shared/makerProtocol'
 import type { VscodeMakerHost } from './vscodeMakerHost'
-import type { Logger } from '../../logger'
 
 type Registration = Extract<MakerSurfaceMessage, { type: 'makerAddMachine' }>
 type Removal = Extract<MakerSurfaceMessage, { type: 'makerRemoveMachine' }>
@@ -20,7 +18,6 @@ export interface MakerCommandsDeps {
     VscodeMakerHost,
     'isTrusted' | 'isInteractive' | 'notify' | 'cancelApprovals' | 'stop'
   >
-  readonly log: Logger
   /** G4's latch and audit; persists through host.storage.workspace, never settings. */
   readonly changeHardware: (isEnabled: boolean, reason?: string) => Promise<void>
   readonly listMachines: () => Promise<readonly MakerMachineSummary[]>
@@ -38,50 +35,13 @@ function isAttended(host: MakerCommandsDeps['host']): boolean {
   return host.isTrusted() && host.isInteractive()
 }
 
-/** Host-owned UI: no tool arguments can enable hardware or carry a credential. */
-export class MakerCommands implements vscode.Disposable {
-  private readonly subscriptions: vscode.Disposable[]
-  constructor(private readonly deps: MakerCommandsDeps) {
-    const handlers: readonly (readonly [string, () => Promise<void>])[] = [
-      [MAKER_COMMANDS.enableHardware, () => this.enableHardware()],
-      [
-        MAKER_COMMANDS.disableHardware,
-        async () => {
-          deps.host.cancelApprovals()
-          await deps.changeHardware(false)
-        },
-      ],
-      [
-        MAKER_COMMANDS.addMachine,
-        async () => {
-          if (isAttended(deps.host)) await deps.openDevices()
-        },
-      ],
-      [MAKER_COMMANDS.removeMachine, () => this.removeMachine()],
-      [
-        MAKER_COMMANDS.stopMachine,
-        async () => {
-          await deps.host.stop()
-        },
-      ],
-      [
-        MAKER_COMMANDS.openDeviceLog,
-        async () => {
-          await deps.openDeviceLog()
-        },
-      ],
-    ]
-    this.subscriptions = handlers.map(([name, handler]) =>
-      vscode.commands.registerCommand(name, async () => {
-        try {
-          await handler()
-        } catch {
-          deps.log.error('Maker command failed')
-          await vscode.window.showErrorMessage(UI_TEXT.makerUnavailable)
-        }
-      }),
-    )
-  }
+/**
+Host-owned UI: no tool arguments can enable hardware or carry a credential.
+Activation registers the six commands and calls one method per command; the
+surface funnel addMachine stays for the panel wizard.
+*/
+export class MakerCommands {
+  constructor(private readonly deps: MakerCommandsDeps) {}
   async enableHardware(): Promise<void> {
     if (!isAttended(this.deps.host)) {
       await this.deps.host.notify({
@@ -110,6 +70,13 @@ export class MakerCommands implements vscode.Disposable {
     })
     if (message.type !== 'makerHardware') return
     await this.deps.changeHardware(true, message.reason)
+  }
+  async disableHardware(): Promise<void> {
+    this.deps.host.cancelApprovals()
+    await this.deps.changeHardware(false)
+  }
+  async openDevices(): Promise<void> {
+    if (isAttended(this.deps.host)) await this.deps.openDevices()
   }
   async addMachine(raw: unknown): Promise<void> {
     const message = makerSurfaceMessageSchema.parse(raw)
@@ -169,7 +136,10 @@ export class MakerCommands implements vscode.Disposable {
     })
     if (message.type === 'makerRemoveMachine') await this.deps.removeMachine(message)
   }
-  dispose(): void {
-    for (const subscription of this.subscriptions) subscription.dispose()
+  async stopMachine(): Promise<void> {
+    await this.deps.host.stop()
+  }
+  async openDeviceLog(): Promise<void> {
+    await this.deps.openDeviceLog()
   }
 }

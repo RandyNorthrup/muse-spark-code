@@ -1,23 +1,21 @@
-// Separate lazy host bundle. W supplies protected engine callbacks and U's UI.
+// dist/makerHost.js entry: the window's maker assembly (RLF-M103WIRE),
+// required on the first maker UI or device tool. The engine loads behind it
+// in dist/makerEngine.js, the preview panel in dist/makerPreviewHost.js.
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
-import { createVscodeMakerHost, type VscodeMakerDeps } from '../vscode/maker/vscodeMakerHost'
-import type { MakerPreviewPanelDeps } from '../vscode/maker/makerPreviewPanel'
-import { MakerCommands, type MakerCommandsDeps } from '../vscode/maker/makerCommands'
 import { ideMakerTools, type IdeMakerToolsDeps } from '../ide/makerTools'
 
-export async function createMakerHost(deps: VscodeMakerDeps, table: UiText, locale: string) {
-  setUiText(table, locale)
-  return await createVscodeMakerHost(deps)
-}
-export async function createMakerPreviewPanel(deps: MakerPreviewPanelDeps) {
-  const preview = await import('./makerPreviewEntry')
-  return preview.createPreviewPanel(deps)
-}
-export function createMakerCommands(deps: MakerCommandsDeps, table: UiText, locale: string) {
-  setUiText(table, locale)
-  return new MakerCommands(deps)
-}
+export {
+  createMakerAssembly,
+  type MakerAssembly,
+  type MakerAssemblyDeps,
+} from '../vscode/maker/makerAssembly'
+
+/**
+The `ide` tools, built synchronously: the MCP list cannot await the async
+assembly, so the activation shim builds these behind a sync require with
+lazy engine delegates.
+*/
 export function createMakerTools(deps: IdeMakerToolsDeps, table: UiText, locale: string) {
   setUiText(table, locale)
   return ideMakerTools(deps)

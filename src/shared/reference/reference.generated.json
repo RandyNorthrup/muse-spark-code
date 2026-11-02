@@ -1020,7 +1020,14 @@
       "name": { "ui": "makerTitle" },
       "summary": { "ui": "referenceMakers" },
       "description": { "ui": "referenceMakers" },
-      "commands": [],
+      "commands": [
+        "museSpark.enableHardware",
+        "museSpark.disableHardware",
+        "museSpark.addMachine",
+        "museSpark.removeMachine",
+        "museSpark.stopMachine",
+        "museSpark.openDeviceLog"
+      ],
       "settings": [],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#makers",
       "backends": ["museCode", "modelApi"],
@@ -2394,6 +2401,66 @@
       "categoryKey": "command.category",
       "description": "Open the Devices tab to link this editor with your other devices.",
       "text": { "ui": "referenceDevices" },
+      "canRun": true
+    },
+    {
+      "id": "museSpark.enableHardware",
+      "name": "Enable Hardware for This Workspace",
+      "nameKey": "command.enableHardware.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Enable Hardware for This Workspace",
+      "text": { "command": "museSpark.enableHardware" },
+      "canRun": false
+    },
+    {
+      "id": "museSpark.disableHardware",
+      "name": "Disable Hardware for This Workspace",
+      "nameKey": "command.disableHardware.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Disable Hardware for This Workspace",
+      "text": { "command": "museSpark.disableHardware" },
+      "canRun": true
+    },
+    {
+      "id": "museSpark.addMachine",
+      "name": "Add Machine",
+      "nameKey": "command.addMachine.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Add Machine",
+      "text": { "command": "museSpark.addMachine" },
+      "canRun": false
+    },
+    {
+      "id": "museSpark.removeMachine",
+      "name": "Remove Machine",
+      "nameKey": "command.removeMachine.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Remove Machine",
+      "text": { "command": "museSpark.removeMachine" },
+      "canRun": false
+    },
+    {
+      "id": "museSpark.stopMachine",
+      "name": "Stop Machine",
+      "nameKey": "command.stopMachine.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Stop Machine",
+      "text": { "command": "museSpark.stopMachine" },
+      "canRun": true
+    },
+    {
+      "id": "museSpark.openDeviceLog",
+      "name": "Open Device Log",
+      "nameKey": "command.openDeviceLog.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Open Device Log",
+      "text": { "command": "museSpark.openDeviceLog" },
       "canRun": true
     },
     {
