@@ -32441,6 +32441,20 @@ ceiling stays the industry 8 s cap (D228). A 401 or 403 from a provider
 probe still forgets only that stored key. Record:
 `docs/certification/rvint7.md`.
 
+### RLFJUDGEP2 — the judge delivery suite's 90 minutes and hang, fixed (2026-11-02)
+
+**Status 2026-11-02: built.** `test/unit/judgeP2Delivery.test.ts` runs 18
+batched gate runs instead of 282 (one per mutated file; the split gate
+reports every violation per run) and 2 VSIX listings instead of 9, every
+child wait bounded (collection has no Vitest deadline, so an unbounded
+wait hung the suite silent), the green assertions scoped to judge
+artifacts and the last case proving byte-identical restoration: 103
+passed in 8–11 minutes on the macmini rig, against 101 of 103 in 5,340 s
+before, and it fits CI's 20-minute unit shard. The two known failures
+were test scope (the suite asserted a global size-gate green the shared
+build cannot give — desktop is never built there). No product change.
+Record: `docs/certification/rlf-judgep2.md`.
+
 ---
 
 ## 7. Gates
