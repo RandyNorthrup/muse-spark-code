@@ -32454,6 +32454,20 @@ ceiling stays the industry 8 s cap (D228). A 401 or 403 from a provider
 probe still forgets only that stored key. Record:
 `docs/certification/rvint7.md`.
 
+### RLFEMPTYCAT — A signed-in host that serves zero models is said, not obeyed (RSCH-MUSE-F, 2026-11-02)
+
+**Status 2026-11-02: built.** When `muse serve` answers `model/list`
+with zero rows for a signed-in account
+(meta-models/muse-code-sdk#115), the panel keeps the last good
+catalogue for display, says one sentence that Meta's list came back
+empty and is asked again, retries on Meta's documented backoff (500 ms
+doubling, jitter, five listings), and recovers without a restart when
+the list returns; nothing of ours tells the person they lack access on
+that evidence. Proven by the real CLI driven to the served shape in a
+throwaway home (captured with zero model calls) and real-code
+red/green suites over the catalogue path. Record:
+`docs/certification/rlf-emptycat.md`.
+
 ---
 
 ## 7. Gates
