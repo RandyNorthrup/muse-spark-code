@@ -29,7 +29,7 @@ describe('resume offers on failed turns', () => {
         turnId: 't1',
         terminal: 'failed',
         errorKind: 'rateLimited',
-        rateLimit: { retryAfterMs: 5000 },
+        retryAfterMs: 5000,
         retryable: true,
       }),
     )
@@ -47,7 +47,6 @@ describe('resume offers on failed turns', () => {
         turnId: 't1',
         terminal: 'failed',
         errorKind: 'rateLimited',
-        rateLimit: {},
         retryable: true,
       }),
     )

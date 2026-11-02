@@ -2096,7 +2096,7 @@ function resumeOfferOf(
   }
   let liftsAtMs = event.quota?.resetsAtMs
   if (liftsAtMs === undefined && event.errorKind === RATE_LIMITED_ERROR_KIND) {
-    liftsAtMs = at + (event.rateLimit?.retryAfterMs ?? RESUME_LIMIT_DEFAULT_DELAY_MS)
+    liftsAtMs = at + (event.retryAfterMs ?? RESUME_LIMIT_DEFAULT_DELAY_MS)
   }
   if (liftsAtMs === undefined || !Number.isFinite(liftsAtMs) || liftsAtMs < 0) {
     return undefined

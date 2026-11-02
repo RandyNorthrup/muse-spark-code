@@ -22,6 +22,7 @@ import {
   admitMuseCodeOnce,
   bindingTransition,
   checkMuseCodeBinding,
+  type MuseCodeBindingCheckDeps,
   type MuseCodeOnceAdmitDeps,
   type MuseCodeScheduleSignIn,
   type MuseCodeSeen,
@@ -48,7 +49,8 @@ import {
 } from '../../src/shared/scheduleProtocol'
 import { AUTH_SET_FILE, LOGOUT_SHELL } from './helpers/credentialShapes'
 import { scheduleFixture } from './helpers/scheduleFixtures'
-import { removeFolder, temporaryDir } from './helpers/temporaryFolders'
+import { closeSharedScheduleEngine } from './helpers/schedules/scheduleTestRig'
+import { temporaryDir } from './helpers/temporaryFolders'
 
 const silentLog = {
   trace: () => undefined,
@@ -81,6 +83,16 @@ async function caughtError(work: () => Promise<unknown>): Promise<unknown> {
   }
 }
 
+function memorySeen(seen: Map<string, MuseCodeSeen>): MuseCodeBindingCheckDeps['seen'] {
+  return {
+    load: (workspace: string) => Promise.resolve(seen.get(workspace)),
+    save: (workspace: string, value: MuseCodeSeen) => {
+      seen.set(workspace, value)
+      return Promise.resolve()
+    },
+  }
+}
+
 function admitRig() {
   const seen = new Map<string, MuseCodeSeen>()
   const signIn: MuseCodeScheduleSignIn = 'signedIn'
@@ -96,13 +108,7 @@ function admitRig() {
     deps: {
       hasEnvironmentKey: () => rig.hasEnvironmentKey,
       currentSignIn: () => rig.signIn,
-      seen: {
-        load: (workspace: string) => Promise.resolve(seen.get(workspace)),
-        save: (workspace: string, value: MuseCodeSeen) => {
-          seen.set(workspace, value)
-          return Promise.resolve()
-        },
-      },
+      seen: memorySeen(seen),
       nowMs: 1_700_000_100_000,
     },
   }
@@ -294,7 +300,11 @@ async function listedIds(context: BindingShared, workspace: string): Promise<rea
   return jobs.map((job) => job.id)
 }
 
-describe('museCode binding against a real engine', () => {
+// Each case lists and sweeps through the real engine over the fsync'd
+// journal store: a loaded rig needs more than the five-second default.
+const DURABLE_COMMITS_TIMEOUT_MS = 30_000
+
+describe('museCode binding against a real engine', { timeout: DURABLE_COMMITS_TIMEOUT_MS }, () => {
   beforeAll(async () => {
     const root = await temporaryDir('schedules-muse-binding-')
     const reported: unknown[] = []
@@ -361,14 +371,7 @@ describe('museCode binding against a real engine', () => {
   })
 
   afterAll(async () => {
-    const current = sharedBox.current
-    sharedBox.current = undefined
-    if (current === undefined) return
-    try {
-      await current.engine.runtime.close()
-    } finally {
-      await removeFolder(current.root)
-    }
+    await closeSharedScheduleEngine(sharedBox)
   })
 
   it('sweeps a seen sign-out before the surface lists, and says why', async () => {
@@ -649,13 +652,7 @@ describe('checkMuseCodeBinding', () => {
     const deps = {
       workspaceKey: 'workspace-1',
       currentSignIn: () => signedOut,
-      seen: {
-        load: (workspace: string) => Promise.resolve(seen.get(workspace)),
-        save: (workspace: string, value: MuseCodeSeen) => {
-          seen.set(workspace, value)
-          return Promise.resolve()
-        },
-      },
+      seen: memorySeen(seen),
       list: () =>
         Promise.resolve([
           scheduleFixture({

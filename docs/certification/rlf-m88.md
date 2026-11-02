@@ -97,12 +97,111 @@ claim/journal or delivery binding.
 
 ## Build log
 
-(Commits land here as they go.)
+Base cc/int9 `5ec754534`, branch `rec/rlf-m88`, ten commits, each
+green on its own suites before landing (real code only; no live or
+paid model call anywhere in the lane):
+
+- `84f4cea78` C1: constants (`TIMED_SEND_MIN_LEAD_MS`,
+  `RESUME_LIMIT_DEFAULT_DELAY_MS`, `RESUME_OFFER_MAX_LIFT_MS`,
+  `RATE_LIMITED_ERROR_KIND`, `MODEL_API_BUDGET_ERROR_KIND`) and the
+  `resumeOfferFor` fitter (`test/unit/resumeOffer.test.ts`, 5).
+- `b7a575719` C2: limit signals on `turnCompleted` — the
+  `rateLimited` error kind carrying the last Retry-After, and the
+  `budget` kind for a spent session budget
+  (`test/unit/modelApiLimitFailure.test.ts`, 3).
+- `cce8841b4` C3: resume offers on failed turns' error entries, with
+  the row strings in English and all 14 tables
+  (`test/unit/turnResumeOffer.test.ts`, 6).
+- `f26700e05` C4: host `continueTurn` and `resumeLater`, the seeded
+  schedule editor and the budget-setting deep link
+  (`test/unit/turnResumeHost.test.ts`, 8).
+- `0ed2d22a0` C5: error-row buttons and the composer seed
+  (`test/unit/turnResumeButtons.test.tsx`, 5;
+  `test/unit/seedScheduleDraft.test.ts`, 3).
+- `091e0f6d1` C6: the once picker in local time, whole minutes, with
+  the one-minute lead and the too-soon refusal
+  (`test/unit/scheduleOnceLead.test.tsx`, 4).
+- `5c4db336c` C7: the sent-on-schedule mark on scheduled user cards
+  (`test/unit/scheduledMark.test.tsx`, 2).
+- `f31d58b78` C8: the Muse Code timed-send account binding on the v2
+  path — `META_API_KEY` refusal, the credential-structure verdict,
+  the sweep at start/list/admission, the branded dispatch refusal
+  (`test/unit/museCodeBinding.test.ts`, 24;
+  `test/unit/museCodeDispatchRefusal.test.ts`, 5).
+- `0de8d8354` C9: once outcome notices — a refused, skipped or missed
+  send is said by name with its reason in every live conversation,
+  with M82's background notice while unfocused
+  (`test/unit/onceOutcome.test.ts`, 7).
+- `360f6b87b` C10: the `usage_limited` goal and the usage-read offer
+  path — `usageForResume`/`resumeUsage`, a 100 % window fitting a
+  report-based offer, anything else leaving the row ordinary
+  (`test/unit/turnResumeUsage.test.ts`, 12;
+  `test/unit/turnResumeUsageView.test.tsx`, 3).
+- C11 (this change): the reference covers the three new host
+  actions; PLAN.md §6 carries the lane's status;
+  `docs/real-life/unproven.md` lists what the packed run still has
+  to prove. No CHANGELOG or README line until that run. C11 also
+  clears the two gates the lane tripped: the duplication gate (13
+  clones: Retry/Continue share one host resubmit and one card
+  resend; the suites share Transcript rows, turn ends, the schedule
+  bridge and the engine teardown through `test/unit/helpers/`) and
+  the wire budget (the lane's schemas put `dist/wire.js` 235 bytes
+  over its 75 KiB cap: the rate-limit detail flattens to
+  `retryAfterMs`, new ids stay plain strings, and wire shares
+  scheduleProtocol, media and questions by name, dropping the four
+  exports with no Node reader; `wireEntry.test.ts` pins the lists).
+  The narrowing exposed one dead source type (`QuestionKey`, zero
+  readers), deleted with its import. The real-engine binding suite
+  carries the repo's named durable timeout, as its M115 siblings do.
+
+87 lane tests in all, every one over real code. 16 new UI strings,
+each in English and all 14 tables with the desktop tables
+regenerated (`node scripts/check-l10n.mjs`: 0 problems). No new
+command, setting or surface of the lane's own: the once editor is
+M115's surface (lane C only seeds it), and
+`museSpark.syncPromptsAndBookmarks` arrived on another lane.
 
 ## Red/green drills
 
-(Each: break on purpose, non-zero exit, restore, green.)
+- C7 (2026-11-02, on the C7 tree): broke the scheduled mark at its
+  real `card.scheduled` read; `scheduledMark` red, exit 1;
+  restored; green, exit 0. (A first attempt broke the wrong
+  identifiers and stayed green, exit 0 — redone on the real line.)
+- C10 (2026-11-02, on the final tree): raised the usage-offer bar in
+  `applyHostMessage` from `usedPercent < 100` to `< 101`, so a full
+  window fits no offer. `npx vitest run
+test/unit/turnResumeUsage.test.ts --maxWorkers=3` red: exit 1, 2
+  failed (`offers a full window at its reset minute`, and the flip
+  case that answers at 100 %), 10 passed. Restored; the C10 pair
+  green: exit 0, 15 passed.
 
 ## Gates
 
-(Exit codes on the final tree.)
+Exit codes on the final tree (2026-11-02, rig `macbook`):
+
+- `prettier --check` (every touched file): 0.
+- `eslint --max-warnings 0` (every touched file): 0.
+- `npm run typecheck`: 0.
+- `node scripts/check-l10n.mjs`: 0 problems.
+- `npm run check:reference`: 0.
+- `npm run check:host-api`: 0 problems.
+- `npm run check:plan`: 0 drift.
+- `npm run check:roadmap`: current.
+- `npm run check:catches`: baseline matches.
+- `npm run duplication`: 0 clones.
+- `npm run cycles`: none found.
+- `npm run deadcode`: 0.
+- `npm run build`: 0; `dist/wire.js` 76,669 bytes against the
+  76,800-byte cap.
+- Touched suites, each green at the repo's own timeouts: the 87
+  lane tests (13 files), `turnRetryButton`, `turnRetryResubmit`,
+  `scheduleDeferredRetry`, `wireEntry` (+3 pin cases),
+  `questionContracts`, `mediaContracts`, `acpUpdateNotSent`.
+- `vitest related` over the 8 changed sources: 4,228 passed, 44
+  failed, all 44 proven pre-existing or environmental: the same
+  files fail identically on base `5ec754534` (team git/process
+  suites under the rig's broken Xcode git, the keychain suite with
+  no keychain, storage-guard trust, the documented schedule
+  flakes, one timing case green alone on both trees), and every
+  lane suite passed inside the run. No live or paid call anywhere:
+  the agent-start cases failed at git before any agent launched.

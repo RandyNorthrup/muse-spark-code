@@ -3507,3 +3507,52 @@ editor run proves it:
   not on this branch. Lane C's `attachments/*` methods are not on the
   native hosts. Lane A's `src/runtime/panel/git/gitEntry.ts` is not on
   this branch.
+
+## Lane RLF-M88 (2026-11-02, branch rec/rlf-m88)
+
+M88 lane C — timed sends with resume after a limit (D67 items
+15–16) — is built on M115's v2 store and delivery path and proven by
+real-code unit suites (`docs/certification/rlf-m88.md`); nothing below
+has been used through the packed product. No CHANGELOG or README line
+ships until the packed run proves it.
+
+- A Model API timed send goes at its minute in the packed extension:
+  the once schedule fires unattended under its consent, and the live
+  transcript's user card carries the sent-on-schedule mark. Unproven
+  until a packed run schedules one a few minutes out on
+  `muse-spark-1.3-contributor` and the card shows the mark.
+- A Muse Code timed send goes the same way on the Muse Code backend.
+  Unproven until the same run on that backend.
+- While `META_API_KEY` is set in the window's environment, Muse Code
+  offers no timed send: creation and admission refuse in words.
+  Unproven until a packed run with the variable set sees both
+  refusals.
+- A sign-out/sign-in the host sees removes the workspace's Muse Code
+  once-schedules, and the transcript says why with the count; a send
+  scheduled under a changed sign-in refuses at admission in words.
+  Unproven until a packed run signs out and back with a pending Muse
+  Code send.
+- A Model API rate limit offers Resume later at the Retry-After
+  minute (five minutes after the failure without one); the once
+  schedule fires at that minute, never before it. Unproven until a
+  packed run on a rate-limited key sees the offer and the send.
+- A spent Model API session budget offers the budget setting
+  (deep-linked) and Continue, never a timer. Unproven until a packed
+  run with an exhausted budget sees both.
+- A spent Muse Code window (D252's typed quota detail) waits for the
+  reset under the person's opt-in and resubmits once, or offers
+  Resume later at the reset with the opt-in off. Unproven until a
+  packed run against a full window sees each path.
+- A failed Muse Code turn at a `usage_limited` goal with no typed
+  detail gains a report-based offer when the window reads 100%, saying
+  it rests on the usage report; anything else stays ordinary. Unproven
+  until a packed run sees the offer row.
+- A refused, skipped or missed once-send is said by name with its
+  reason in every live conversation, with the background notice while
+  unfocused. Unproven until a packed run forces each of the three
+  settlements.
+- D67's day-of-ordinary-use capture (the mtime/size signature that
+  would tell a token refresh from a sign-out) is still open: the
+  structure binding ships per D67's own fallback. Unproven until a day
+  of ordinary use records the credential file across a refresh and
+  across a sign-out.

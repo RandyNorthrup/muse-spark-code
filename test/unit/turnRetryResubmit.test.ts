@@ -14,16 +14,17 @@ import { describeExit } from '../../src/core/backends/musecode/MuseCodeHost'
 import { retryTurnRefusal } from '../../src/host/conversation/conversationController'
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
-import type { AgentEvent } from '../../src/shared/agentEvents'
-import { initialUiState, uiReducer } from '../../src/webview/state/uiState'
 import {
   awaitPosts,
   conversationPanel,
+  endedTurn,
   modelApiRig,
   savedSession,
+  shownTranscript,
   turnAcceptances,
   turnCompletions,
   type PanelRig,
+  type TurnCompleted,
 } from './helpers/conversationPanel'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -107,37 +108,6 @@ function retryRefusals(panel: PanelRig): string[] {
 
 function sessionInfos(posted: readonly HostToWebviewMessage[]) {
   return posted.flatMap((message) => (message.type === 'sessionInfo' ? [message] : []))
-}
-
-type TurnCompleted = Extract<AgentEvent, { type: 'turnCompleted' }>
-
-async function awaitTurnEnd(panel: PanelRig, count: number): Promise<readonly TurnCompleted[]> {
-  return await awaitPosts(panel, turnCompletions, count, 'turns ended')
-}
-
-/** The turn that ended at `index` (0-based) once `count` turns ended. */
-async function endedTurn(panel: PanelRig, count: number, index: number): Promise<TurnCompleted> {
-  const ended = await awaitTurnEnd(panel, count)
-  const turn = ended[index]
-  if (turn === undefined) throw new Error(`turn ${String(index + 1)} never ended`)
-  return turn
-}
-
-function shownTranscript(panel: PanelRig, sends: readonly { localId: string; text: string }[]) {
-  let state = initialUiState
-  for (const send of sends) {
-    state = uiReducer(state, {
-      type: 'submitted',
-      localId: send.localId,
-      text: send.text,
-      attachments: [],
-      contextLabel: undefined,
-    })
-  }
-  for (const message of panel.posted) {
-    state = uiReducer(state, { type: 'hostMessage', message, at: 0 })
-  }
-  return state.transcript
 }
 
 describe('turn retry resubmission', () => {

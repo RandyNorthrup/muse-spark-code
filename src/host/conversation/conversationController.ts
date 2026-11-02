@@ -8520,56 +8520,12 @@ export class ConversationController implements DeferredSend {
   send — nothing remembered restarts no host.
   */
   private async retryTurn(localId: string, turnId: string): Promise<void> {
-    const remembered = this.retryableTurns.get(turnId)
-    if (remembered?.failedRetryable !== true) {
-      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.turnRetryUnavailable })
-      return
-    }
-    if (this.activeTurnId !== undefined) {
-      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.turnRetryBusy })
-      return
-    }
-    let session = this.session
-    if (session === undefined) {
-      session = await this.sessionForAction(localId)
-      if (session === undefined) {
-        // That step refused with its own reason already.
-        return
-      }
-    }
-    const refusal = retryTurnRefusal({
-      sessionId: session.sessionId,
-      rememberedSessionId: remembered.sessionId,
-      failedRetryable: remembered.failedRetryable,
-      // A turn may have started while the session re-established above,
-      // so the live read is load-bearing; the rule sees only the
-      // pre-await narrowing (PLAN.md §8).
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- activeTurnId is reassigned by concurrent sends across the await above
-      turnRunning: this.activeTurnId !== undefined,
+    await this.resubmitFailedTurn(localId, turnId, {
+      flag: 'failedRetryable',
+      unavailableReason: UI_TEXT.turnRetryUnavailable,
+      busyReason: UI_TEXT.turnRetryBusy,
+      verb: 'Retrying',
     })
-    if (refusal === 'unavailable') {
-      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.turnRetryUnavailable })
-      return
-    }
-    if (refusal === 'busy') {
-      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.turnRetryBusy })
-      return
-    }
-    await this.resubmitRememberedTurn(
-      session,
-      {
-        parts: remembered.parts,
-        displayText: remembered.displayText,
-        shownText: remembered.shownText,
-        localId,
-        // A manual retry starts its chain over at zero.
-        resendsUsed: 0,
-      },
-      (error) => {
-        this.deps.log.warn(`Retrying turn ${turnId} failed: ${failureForLog(error)}`)
-        this.post({ type: 'sendFailed', localId, reason: describe(error) })
-      },
-    )
   }
 
   /**
@@ -8579,13 +8535,41 @@ export class ConversationController implements DeferredSend {
   failure named the budget may continue; every refusal is said.
   */
   private async continueTurn(localId: string, turnId: string): Promise<void> {
+    await this.resubmitFailedTurn(localId, turnId, {
+      flag: 'failedBudget',
+      unavailableReason: UI_TEXT.turnContinueUnavailable,
+      busyReason: UI_TEXT.turnContinueBusy,
+      verb: 'Continuing',
+    })
+  }
+
+  /**
+  A failed turn's manual resubmit, shared by Retry and Continue: only a
+  turn the backend's judgment (or the named budget failure) admits, in
+  its own session, while no turn runs. Answered `turnAccepted` or
+  `sendFailed` for the webview's optimistic card; every refusal is
+  said. The host may have died under the turn and dropped the session:
+  the resubmit re-establishes it like any send (restarts on send,
+  D25), but only for a press that can send — nothing remembered
+  restarts no host.
+  */
+  private async resubmitFailedTurn(
+    localId: string,
+    turnId: string,
+    script: {
+      readonly flag: 'failedRetryable' | 'failedBudget'
+      readonly unavailableReason: string
+      readonly busyReason: string
+      readonly verb: 'Retrying' | 'Continuing'
+    },
+  ): Promise<void> {
     const remembered = this.retryableTurns.get(turnId)
-    if (remembered?.failedBudget !== true) {
-      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.turnContinueUnavailable })
+    if (remembered?.[script.flag] !== true) {
+      this.post({ type: 'sendFailed', localId, reason: script.unavailableReason })
       return
     }
     if (this.activeTurnId !== undefined) {
-      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.turnContinueBusy })
+      this.post({ type: 'sendFailed', localId, reason: script.busyReason })
       return
     }
     let session = this.session
@@ -8596,22 +8580,31 @@ export class ConversationController implements DeferredSend {
         return
       }
     }
-    const refusal = continueTurnRefusal({
-      sessionId: session.sessionId,
-      rememberedSessionId: remembered.sessionId,
-      failedBudget: remembered.failedBudget,
-      // A turn may have started while the session re-established above,
-      // so the live read is load-bearing; the rule sees only the
-      // pre-await narrowing (PLAN.md §8).
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- activeTurnId is reassigned by concurrent sends across the await above
-      turnRunning: this.activeTurnId !== undefined,
-    })
+    // A turn may have started while the session re-established above,
+    // so the live read is load-bearing; the rule sees only the
+    // pre-await narrowing (PLAN.md §8).
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- activeTurnId is reassigned by concurrent sends across the await above
+    const isTurnRunning = this.activeTurnId !== undefined
+    const refusal =
+      script.flag === 'failedRetryable'
+        ? retryTurnRefusal({
+            sessionId: session.sessionId,
+            rememberedSessionId: remembered.sessionId,
+            failedRetryable: remembered.failedRetryable,
+            turnRunning: isTurnRunning,
+          })
+        : continueTurnRefusal({
+            sessionId: session.sessionId,
+            rememberedSessionId: remembered.sessionId,
+            failedBudget: remembered.failedBudget,
+            turnRunning: isTurnRunning,
+          })
     if (refusal === 'unavailable') {
-      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.turnContinueUnavailable })
+      this.post({ type: 'sendFailed', localId, reason: script.unavailableReason })
       return
     }
     if (refusal === 'busy') {
-      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.turnContinueBusy })
+      this.post({ type: 'sendFailed', localId, reason: script.busyReason })
       return
     }
     await this.resubmitRememberedTurn(
@@ -8621,11 +8614,11 @@ export class ConversationController implements DeferredSend {
         displayText: remembered.displayText,
         shownText: remembered.shownText,
         localId,
-        // A manual continue starts its chain over at zero.
+        // A manual resubmit starts its chain over at zero.
         resendsUsed: 0,
       },
       (error) => {
-        this.deps.log.warn(`Continuing turn ${turnId} failed: ${failureForLog(error)}`)
+        this.deps.log.warn(`${script.verb} turn ${turnId} failed: ${failureForLog(error)}`)
         this.post({ type: 'sendFailed', localId, reason: describe(error) })
       },
     )
