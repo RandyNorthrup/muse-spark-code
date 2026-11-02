@@ -339,6 +339,11 @@ happened, not what was planned; superseded entries are kept.
   including tree-shaken inputs and virtual modules behind real dependencies.
 - Headless exec says plainly that it offers no subagent tools, so
   built-in and custom agents cannot run there.
+- **Hidden M125 B1 macOS stat report (no visible change).** The macOS
+  inspect helper reports `stat` from the walked operands instead of
+  starting the system `stat`, matching Linux (D217): same default
+  report shape, numeric owners, UTC times. No approval path uses it;
+  the B1 hold stays off on every platform.
 
 ### Fixed
 
