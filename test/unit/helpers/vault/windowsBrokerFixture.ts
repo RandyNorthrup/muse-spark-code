@@ -23,6 +23,7 @@ import { expect, vi } from 'vitest'
 import { processesNaming } from '../browserProcesses'
 import { expectEnded, isRunning } from '../processes'
 import { removeFolder } from '../temporaryFolders'
+import { awaitFirstBrokerAnswer } from './brokerFirstAnswer'
 import { removeVaultStoreRecords } from './storeCleanup'
 
 /** How long the fixture's own processes may take to end once stopped (a process table read is slow). */
@@ -65,11 +66,21 @@ export interface WindowsBrokerFixture {
 /**
 Stage the package layout, configure the governor as the extension host
 configures it at activation and build the client platform (the helper
-builds, with the person's own C# compiler, happen here).
+builds, with the person's own C# compiler, happen here). `osStore` gives the
+broker this checkout's keyring binding, for the one suite that proves what a
+vault writes to the OS store: a staged package has none, so its broker keeps
+its records in owner-only files and that suite would read an empty store.
 */
-export async function startWindowsBrokerFixture(prefix: string): Promise<WindowsBrokerFixture> {
+export async function startWindowsBrokerFixture(
+  prefix: string,
+  options: { readonly osStore?: boolean } = {},
+): Promise<WindowsBrokerFixture> {
   const root = await mkdtemp(path.join(tmpdir(), prefix))
   const dist = path.join(root, 'dist')
+  const keyringBinding =
+    options.osStore === true
+      ? path.resolve('node_modules', '@napi-rs', 'keyring', 'index.js')
+      : path.join(root, 'node_modules', '@napi-rs', 'keyring', 'index.js')
   // The client reads the slot and pipe sources beside dist exactly as the
   // package lays them out, and the broker reads the job helpers' sources
   // there, so the fixture stages those real sources.
@@ -87,10 +98,8 @@ export async function startWindowsBrokerFixture(prefix: string): Promise<Windows
         // Bind that optional import to its own absent package entry: Node
         // must never walk up from an in-checkout TEMP into the developer's
         // node_modules and open the person's native rollback anchor.
-        alias: {
-          '@napi-rs/keyring': path.join(root, 'node_modules', '@napi-rs', 'keyring', 'index.js'),
-        },
-        external: [path.join(root, 'node_modules', '@napi-rs', 'keyring', 'index.js')],
+        alias: { '@napi-rs/keyring': keyringBinding },
+        external: [keyringBinding],
         platform: 'node',
         format: 'cjs',
       }),
@@ -122,19 +131,11 @@ export async function startWindowsBrokerFixture(prefix: string): Promise<Windows
   // broker launch (the C# serve spawn on a loaded runner) can exceed the
   // launch budget, and the flow's first open would then report the slow
   // start as failure toasts (RLVAULTCI: capacity run 39703535342, Windows
-  // shard 6 — `uncreated` with two `operationFailed` toasts). Connect
-  // until the broker answers; the hook has no time limit of ours (owner
-  // 2026-10-16), and each attempt stays inside the product's own budget.
-  const warm = new VaultManageSession(connect)
-  for (;;) {
-    try {
-      await warm.snapshot()
-      break
-    } catch {
-      // Cold broker still starting; retry until it answers.
-    }
-  }
-  return {
+  // shard 6 — `uncreated` with two `operationFailed` toasts). So the fixture
+  // connects until the broker answers, and a broker that never does fails the
+  // suite with words: the helper builds above take as long as the machine
+  // needs (owner 2026-10-16), this wait does not hold a shard.
+  const fixture: WindowsBrokerFixture = {
     root,
     dataDir,
     hostId,
@@ -171,6 +172,18 @@ export async function startWindowsBrokerFixture(prefix: string): Promise<Windows
       await removeFolder(root)
     },
   }
+  const warm = new VaultManageSession(connect)
+  try {
+    await awaitFirstBrokerAnswer(() => warm.snapshot())
+  } catch (error: unknown) {
+    try {
+      await fixture.dispose()
+    } catch {
+      // The start's own failure is what this reports; a teardown that also fails adds nothing to it.
+    }
+    throw error
+  }
+  return fixture
 }
 
 /** The process the broker claim names, or null once an orderly shutdown removed it. */

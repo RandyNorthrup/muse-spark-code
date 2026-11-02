@@ -416,6 +416,9 @@ happened, not what was planned; superseded entries are kept.
   modules are installed. Each read named a cmdlet, so PowerShell analysed the
   whole module folder first and the read could run past its 10 s bound. It now
   goes through .NET alone.
+- The vault works on Windows again. Since the feeder's parent check, the pipe
+  helper's answer about the broker's pipe carried a field its contract does not
+  name, so every client refused the answer and could never reach the broker.
 - Team copies, the connector's first start and the home node's private
   folders work when their path is spelled through a system link (macOS
   `/var` for `/private/var`). Each fence judged the spelled path against
