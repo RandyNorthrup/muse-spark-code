@@ -42,16 +42,16 @@ const SHIM_HARNESSES = {
     tools: ['nvim'],
     runs: [
       ['nvim', ['--headless', '-i', 'NONE', '-u', 'NONE', '-l', 'hosts/neovim/test/check.lua']],
+      ['nvim', ['--headless', '-i', 'NONE', '-u', 'NONE', '-l', 'hosts/neovim/test/lsp.lua']],
     ],
     version: ['nvim', ['--version']],
   },
   qtcreator: {
-    tools: ['nvim', 'python3'],
-    runs: [
-      ['nvim', ['--headless', '-i', 'NONE', '-u', 'NONE', '-l', 'hosts/qtcreator/test/check.lua']],
-      ['python3', ['-m', 'unittest', 'discover', '-s', 'hosts/qtcreator/test']],
-    ],
-    version: ['nvim', ['--version']],
+    // The Lua API-double suite was deleted (RLF-HOSTS2); the bootstrap
+    // qualifies against the real agent, the Lua half in-editor.
+    tools: ['python3'],
+    runs: [['python3', ['-m', 'unittest', 'discover', '-s', 'hosts/qtcreator/test']]],
+    version: ['python3', ['--version']],
   },
   zed: {
     tools: ['python3'],
@@ -59,11 +59,10 @@ const SHIM_HARNESSES = {
     version: ['python3', ['--version']],
   },
   sublime: {
-    // The suite ran on a hand-written sublime module double and is deleted
-    // (docs/real-life/unproven.md); the plugin qualifies inside Sublime Text.
-    tools: [],
-    runs: [],
-    need: 'MHP_CONFORMANCE_PENDING: a run inside Sublime Text (the offline suite used a module double and is deleted)',
+    // The in-editor suite (RLF-HOSTS2): the real editor under Xvfb drives
+    // the shipped package against the real agent.
+    tools: ['python3', 'subl', 'xvfb-run'],
+    runs: [['python3', ['-m', 'unittest', 'discover', '-s', 'hosts/sublime/test']]],
     version: ['subl', ['--version']],
   },
   emacs: {

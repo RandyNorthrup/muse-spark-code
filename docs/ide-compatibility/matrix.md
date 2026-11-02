@@ -26,10 +26,10 @@ disagreed with the contract.
 
 ## Shim
 
-| Editor       | Version        | Status   | Legs               | Waiting / need                                                                                             | Evidence                                             |
-| ------------ | -------------- | -------- | ------------------ | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| Neovim       | NVIM v0.12.6   | Excepted | — (no MHP surface) | 19 PASS                                                                                                    | [m104-neovim](../certification/m104-neovim.md)       |
-| Emacs        | GNU Emacs 30.1 | Excepted | — (no MHP surface) | EPANEL_STOP                                                                                                | [m104-emacs](../certification/m104-emacs.md)         |
-| Sublime Text | —              | Pending  | —                  | MHP_CONFORMANCE_PENDING: a run inside Sublime Text (the offline suite used a module double and is deleted) | [m104-sublime](../certification/m104-sublime.md)     |
-| Zed          | Python 3.13.7  | Excepted | — (no MHP surface) | 6 tests OK                                                                                                 | [m104-zed](../certification/m104-zed.md)             |
-| Qt Creator   | NVIM v0.12.6   | Excepted | — (no MHP surface) | 19 PASS; 4 tests OK                                                                                        | [m104-qtcreator](../certification/m104-qtcreator.md) |
+| Editor       | Version                 | Status   | Legs               | Waiting / need | Evidence                                             |
+| ------------ | ----------------------- | -------- | ------------------ | -------------- | ---------------------------------------------------- |
+| Neovim       | NVIM v0.12.6            | Excepted | — (no MHP surface) | 9 PASS; 1 PASS | [m104-neovim](../certification/m104-neovim.md)       |
+| Emacs        | GNU Emacs 30.1          | Excepted | — (no MHP surface) | EPANEL_STOP    | [m104-emacs](../certification/m104-emacs.md)         |
+| Sublime Text | Sublime Text Build 4200 | Excepted | — (no MHP surface) | 1 tests OK     | [m104-sublime](../certification/m104-sublime.md)     |
+| Zed          | Python 3.13.7           | Excepted | — (no MHP surface) | 8 tests OK     | [m104-zed](../certification/m104-zed.md)             |
+| Qt Creator   | Qt Creator 18.0.2       | Excepted | — (no MHP surface) | 6 tests OK     | [m104-qtcreator](../certification/m104-qtcreator.md) |

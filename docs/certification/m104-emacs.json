@@ -9,7 +9,7 @@
     "summary": "EPANEL_STOP"
   },
   "provenance": {
-    "observedAt": "2026-10-31T01:35:55.388Z",
+    "observedAt": "2026-11-02T13:39:21.016Z",
     "observedOn": "randy-lt (linux)",
     "command": "emacs --batch -Q -L hosts/emacs -l hosts/emacs/test/muse-spark-test.el -f ert-run-tests-batch-and-exit"
   }
