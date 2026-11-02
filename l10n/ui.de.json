@@ -1628,6 +1628,7 @@
   "composerPlaceholderWithShortcut": "Frag Muse… ({shortcut} zum Fokussieren)",
   "composerQueuePlaceholder": "Weitere Nachricht einreihen…",
   "queuedLabel": "Eingereiht",
+  "sentOnSchedule": "Nach Zeitplan gesendet",
   "queuedMenuLabel": "Aktionen für eingereihte Nachrichten",
   "queuedEdit": "Bearbeiten",
   "queuedEditTitle": "Die Nachricht aus der Warteschlange zurück in das Nachrichtenfeld holen",

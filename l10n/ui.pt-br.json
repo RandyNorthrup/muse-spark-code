@@ -1638,6 +1638,7 @@
   "composerPlaceholderWithShortcut": "Pergunte ao Muse… ({shortcut} para focar)",
   "composerQueuePlaceholder": "Enfileirar outra mensagem…",
   "queuedLabel": "Na fila",
+  "sentOnSchedule": "Enviado conforme agendado",
   "queuedMenuLabel": "Ações das mensagens na fila",
   "queuedEdit": "Editar",
   "queuedEditTitle": "Tira a mensagem da fila e devolve-a à caixa de texto",

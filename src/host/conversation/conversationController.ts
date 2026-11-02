@@ -14220,7 +14220,13 @@ export class ConversationController implements DeferredSend {
   ): void {
     if (this.session !== session || this.isDisposed) return
     if (!this.acceptedUserCards.has(context.runId))
-      this.post({ type: 'briefSubmitted', localId: context.runId, text, attachments: [] })
+      this.post({
+        type: 'briefSubmitted',
+        localId: context.runId,
+        text,
+        attachments: [],
+        scheduled: true,
+      })
     this.noteQueuedMessage(this.session, context.runId, submission)
     this.acceptSubmission(context.runId, text, submission)
   }

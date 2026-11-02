@@ -1648,6 +1648,7 @@
   "composerPlaceholderWithShortcut": "Спросите Muse… ({shortcut} для фокуса)",
   "composerQueuePlaceholder": "Добавить в очередь еще одно сообщение…",
   "queuedLabel": "В очереди",
+  "sentOnSchedule": "Отправлено по расписанию",
   "queuedMenuLabel": "Действия сообщений в очереди",
   "queuedEdit": "Изменить",
   "queuedEditTitle": "Забрать сообщение из очереди обратно в поле ввода",

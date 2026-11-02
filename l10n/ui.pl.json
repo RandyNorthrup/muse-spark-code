@@ -1648,6 +1648,7 @@
   "composerPlaceholderWithShortcut": "Zapytaj Muse… ({shortcut}, aby ustawić fokus)",
   "composerQueuePlaceholder": "Dodaj kolejną wiadomość do kolejki…",
   "queuedLabel": "W kolejce",
+  "sentOnSchedule": "Wysłano zgodnie z harmonogramem",
   "queuedMenuLabel": "Działania wiadomości w kolejce",
   "queuedEdit": "Edytuj",
   "queuedEditTitle": "Wyjmij wiadomość z kolejki i przenieś ją z powrotem do pola promptu",

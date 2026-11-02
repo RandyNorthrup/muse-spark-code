@@ -1618,6 +1618,7 @@
   "composerPlaceholderWithShortcut": "問 Muse…（按 {shortcut} 聚焦）",
   "composerQueuePlaceholder": "將另一則訊息排入佇列…",
   "queuedLabel": "排入佇列",
+  "sentOnSchedule": "已按計劃傳送",
   "queuedMenuLabel": "佇列中訊息的動作",
   "queuedEdit": "編輯",
   "queuedEditTitle": "將訊息從佇列取出，放回提示詞方塊",

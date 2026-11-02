@@ -282,6 +282,8 @@ export interface PanelOptions {
   readonly schedulesBridge?: ConversationDeps['schedulesBridge']
   /** The editor's answer to a host action (M88); absent, the path fails closed. */
   readonly runHostAction?: ConversationDeps['runHostAction']
+  /** Told with the live session object when the controller attaches one. */
+  readonly onSessionAttached?: ConversationDeps['onSessionAttached']
 }
 
 export interface PanelRig {
@@ -489,6 +491,9 @@ export function conversationPanel(options: PanelOptions): PanelRig {
     }),
     ...(options.schedulesBridge !== undefined && { schedulesBridge: options.schedulesBridge }),
     ...(options.runHostAction !== undefined && { runHostAction: options.runHostAction }),
+    ...(options.onSessionAttached !== undefined && {
+      onSessionAttached: options.onSessionAttached,
+    }),
   }
   return { controller: new ConversationController(deps), posted, logged, backendErrors }
 }

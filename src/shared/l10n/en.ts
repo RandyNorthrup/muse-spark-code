@@ -2026,6 +2026,9 @@ export const EN = {
   // Shown while a turn runs: Enter then steers the running turn.
   composerQueuePlaceholder: 'Queue another message…',
   queuedLabel: 'Queued',
+  // A timed send's user card (M88, D67 item 15): marked, so the live
+  // transcript shows the message went on its schedule, not by hand.
+  sentOnSchedule: 'Sent on schedule',
   queuedMenuLabel: 'Queued Message Actions',
   queuedEdit: 'Edit',
   queuedEditTitle: 'Take the message out of the queue and back into the prompt box',

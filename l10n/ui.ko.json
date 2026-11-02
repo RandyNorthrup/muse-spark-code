@@ -1618,6 +1618,7 @@
   "composerPlaceholderWithShortcut": "Muse에게 질문…({shortcut}로 포커스)",
   "composerQueuePlaceholder": "다른 메시지를 대기열에 추가…",
   "queuedLabel": "대기 중",
+  "sentOnSchedule": "예약대로 전송됨",
   "queuedMenuLabel": "대기 중인 메시지 작업",
   "queuedEdit": "편집",
   "queuedEditTitle": "메시지를 대기열에서 꺼내 프롬프트 상자로 되돌리기",

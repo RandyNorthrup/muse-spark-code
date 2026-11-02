@@ -1618,6 +1618,7 @@
   "composerPlaceholderWithShortcut": "问 Muse…（按 {shortcut} 聚焦）",
   "composerQueuePlaceholder": "排队发送另一条消息…",
   "queuedLabel": "排队中",
+  "sentOnSchedule": "已按计划发送",
   "queuedMenuLabel": "排队消息的操作",
   "queuedEdit": "编辑",
   "queuedEditTitle": "将消息从队列中取出，放回提示词框",

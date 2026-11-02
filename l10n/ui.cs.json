@@ -1648,6 +1648,7 @@
   "composerPlaceholderWithShortcut": "Zeptej se Muse… ({shortcut} pro zaměření)",
   "composerQueuePlaceholder": "Zařadit do fronty další zprávu…",
   "queuedLabel": "Ve frontě",
+  "sentOnSchedule": "Odesláno podle plánu",
   "queuedMenuLabel": "Akce zpráv ve frontě",
   "queuedEdit": "Upravit",
   "queuedEditTitle": "Vzít zprávu z fronty zpět do pole promptu",
