@@ -154,10 +154,10 @@ function isParseFailure(error: unknown): boolean {
 }
 
 function isStartTimeFailure(error: unknown): boolean {
-  return (
-    isFsError(error) ||
-    (error instanceof Error && (error.message.startsWith('lease-') || error.name === '$ZodError'))
-  )
+  // The query's contract (leaseIdentity): undefined proves the pid absent or
+  // a zombie; any doubt throws — the runner's codeless wrap, an fs failure,
+  // a lease- refusal, an unparseable answer. None can prove the holder died.
+  return error instanceof Error
 }
 
 function isAbsentAfter(error: unknown, pid: number): boolean {
