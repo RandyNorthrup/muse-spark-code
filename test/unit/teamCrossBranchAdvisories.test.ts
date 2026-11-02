@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { describe, expect, it, onTestFinished } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vitest'
 import {
   CrossBranchAdvisor,
   type CrossBranchAdvisory,
@@ -30,11 +30,13 @@ function gitBytes(args: readonly string[], cwd: string): Buffer {
   return execFileSync(GIT, [...args], { cwd, encoding: 'buffer', stdio: ['pipe', 'pipe', 'pipe'] })
 }
 
-function scratchRepo(): string {
+function scratchRepo(shouldRegisterCleanup = true): string {
   const root = mkdtempSync(path.join(tmpdir(), 'm96d-advise-'))
-  onTestFinished(() => {
-    rmSync(root, { recursive: true, force: true })
-  })
+  if (shouldRegisterCleanup) {
+    onTestFinished(() => {
+      rmSync(root, { recursive: true, force: true })
+    })
+  }
   git(['init', '-b', 'main'], root)
   git(['config', 'user.name', 'Advise'], root)
   git(['config', 'user.email', 'advise@example.invalid'], root)
@@ -169,12 +171,14 @@ interface AdviseRepo {
 }
 
 /** Two real branches over one base, with conflicting and clean changes. */
-function adviseRepo(): AdviseRepo {
-  const root = scratchRepo()
+function adviseRepo(shouldRegisterCleanup = true): AdviseRepo {
+  const root = scratchRepo(shouldRegisterCleanup)
   const scratch = mkdtempSync(path.join(tmpdir(), 'm96d-advise-merge-'))
-  onTestFinished(() => {
-    rmSync(scratch, { recursive: true, force: true })
-  })
+  if (shouldRegisterCleanup) {
+    onTestFinished(() => {
+      rmSync(scratch, { recursive: true, force: true })
+    })
+  }
   writeFileSync(path.join(root, 'shared.txt'), lines(1, 10))
   writeFileSync(path.join(root, 'clean.txt'), lines(1, 10))
   writeFileSync(path.join(root, 'notes.txt'), 'notes\n')
@@ -227,8 +231,19 @@ function windowReport(
 }
 
 describe('M96d cross-branch advisories on real branches', () => {
+  // The two-branch fixture is built once for the case: building it inside
+  // the test body pushed the real-git work past the 5 s per-test deadline
+  // on a loaded rig (RLF-M96CREC: 5,767 ms measured).
+  let sharedRepo: ReturnType<typeof adviseRepo>
+  beforeAll(() => {
+    sharedRepo = adviseRepo(false)
+  })
+  afterAll(() => {
+    rmSync(sharedRepo.root, { recursive: true, force: true })
+    rmSync(sharedRepo.scratch, { recursive: true, force: true })
+  })
   it('advises exactly the conflicts the landing routine proves', async () => {
-    const repo = adviseRepo()
+    const repo = sharedRepo
     const shared = new SharedFiles()
     const seen: CrossBranchAdvisory[] = []
     const mergeBases = new Map<string, string>()
