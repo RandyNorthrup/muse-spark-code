@@ -9,6 +9,7 @@ import { desktopKeybindingSchema } from '../../../src/shared/desktop/compositor.
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(here, '..', '..', '..')
 const hyprDir = path.join(repoRoot, 'os', 'desktop', 'hyprland')
+const byBinding = (a, b) => a.localeCompare(b, 'en')
 
 async function readJson(file) {
   return JSON.parse(await readFile(path.join(repoRoot, file), 'utf8'))
@@ -146,6 +147,38 @@ describe('generated configs', () => {
     expect(full).toContain('local function muse_send_new()')
     const pin = await readJson('os/desktop/hyprland/pin.json')
     expect(full).toContain(`Hyprland pin: ${pin.version} (${pin.suite})`)
+  })
+})
+
+describe('recorded binds', () => {
+  // The modmask is XKB's modifier mask (Shift 1<<0, Control 1<<2,
+  // Alt/Mod1 1<<3, Super/Mod4 1<<6); the recording's six masks land
+  // exactly on the six modifier sets of keybindings.json.
+  const MOD_BITS = [
+    ['SUPER', 64],
+    ['CTRL', 4],
+    ['ALT', 8],
+    ['SHIFT', 1],
+  ]
+  const KNOWN_BITS = 64 | 4 | 8 | 1
+
+  it('matches the generated key table bind for bind', async () => {
+    const recorded = JSON.parse(
+      await readFile(
+        path.join(repoRoot, 'test', 'fixtures', 'm111cp', 'binds-0.55.2.json'),
+        'utf8',
+      ),
+    )
+    const keys = JSON.parse(await readFile(path.join(hyprDir, 'keys.json'), 'utf8'))
+    expect(recorded).toHaveLength(keys.length)
+    const decoded = recorded.map((row) => {
+      expect(row.modmask & ~KNOWN_BITS).toBe(0)
+      expect(row.dispatcher).toBe('__lua')
+      expect(row.submap).toBe('')
+      const mods = MOD_BITS.filter(([, bit]) => row.modmask & bit).map(([name]) => name)
+      return [...mods, row.key].join(' + ')
+    })
+    expect(decoded.toSorted(byBinding)).toEqual(keys.map((row) => row.binding).toSorted(byBinding))
   })
 })
 
