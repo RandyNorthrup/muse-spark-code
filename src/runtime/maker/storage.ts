@@ -12,6 +12,23 @@ import {
   CHECKPOINT_STORAGE_MODE,
 } from '../../shared/constants'
 
+/**
+Whether the spelled path crosses a link at any level (a junction is one).
+Comparing it with its canonical form cannot say: an 8.3 alias or another
+letter case spells the same folder with no link anywhere (a hosted Windows
+runner's TEMP is under `RUNNER~1`).
+*/
+async function hasLinkOnPath(directory: string): Promise<boolean> {
+  let current = path.resolve(directory)
+  for (;;) {
+    const info = await lstat(current)
+    if (info.isSymbolicLink()) return true
+    const parent = path.dirname(current)
+    if (parent === current) return false
+    current = parent
+  }
+}
+
 /** One atomic file per key; no repository file can enable hardware. */
 export class RuntimeMakerStorage implements MakerStorage {
   static async create(directory: string, workspace: string): Promise<RuntimeMakerStorage> {
@@ -24,7 +41,7 @@ export class RuntimeMakerStorage implements MakerStorage {
       (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
     )
       throw new Error('maker-storage-in-workspace')
-    if (canonical !== path.resolve(directory)) throw new Error('maker-storage-symlink')
+    if (await hasLinkOnPath(directory)) throw new Error('maker-storage-symlink')
     return new RuntimeMakerStorage(canonical)
   }
   private constructor(readonly directory: string) {}

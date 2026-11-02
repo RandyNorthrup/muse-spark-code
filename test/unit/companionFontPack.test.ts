@@ -1,4 +1,3 @@
-import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { mkdtemp, mkdir, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -10,24 +9,8 @@ import {
 import { createUsageAccess } from '../../src/runtime/usage/usageServiceEntry'
 import { EN } from '../../src/shared/l10n/en'
 import { recordingLogger } from './helpers/recordingLogger'
-import { removeFolder } from './helpers/temporaryFolders'
+import { canLinkFiles, removeFolder } from './helpers/temporaryFolders'
 
-// Whether this account may make a file symbolic link: Linux and macOS
-// always, Windows only with the symbolic-link privilege (an elevated or
-// Developer Mode account). Probed once by making one.
-function canLinkFiles(): boolean {
-  const folder = mkdtempSync(path.join(tmpdir(), 'companion-link-probe-'))
-  try {
-    writeFileSync(path.join(folder, 'target'), '')
-    symlinkSync(path.join(folder, 'target'), path.join(folder, 'link'), 'file')
-    return true
-  } catch (error: unknown) {
-    if (error instanceof Error && 'code' in error && error.code === 'EPERM') return false
-    throw error
-  } finally {
-    rmSync(folder, { recursive: true, force: true })
-  }
-}
 const CAN_LINK_FILES = canLinkFiles()
 
 const roots: string[] = []

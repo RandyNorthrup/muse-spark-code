@@ -4,7 +4,7 @@
 // suite: that is how a process a test leaves behind shows (the tree kill's
 // orphans, PLAN.md M27, sat in `toolIo.test.ts`'s folder this way).
 
-import { readdirSync, realpathSync } from 'node:fs'
+import { mkdtempSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { mkdir, mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -21,6 +21,25 @@ export function removeFolder(folder: string): Promise<void> {
     maxRetries: REMOVE_RETRIES,
     retryDelay: REMOVE_RETRY_DELAY_MS,
   })
+}
+
+/**
+Whether this account may make a file symbolic link: Linux and macOS always,
+Windows only with the symbolic-link privilege (an elevated or Developer Mode
+account). Probed by making one. A folder link needs no privilege: a junction.
+*/
+export function canLinkFiles(): boolean {
+  const folder = mkdtempSync(path.join(tmpdir(), 'file-link-probe-'))
+  try {
+    writeFileSync(path.join(folder, 'target'), '')
+    symlinkSync(path.join(folder, 'target'), path.join(folder, 'link'), 'file')
+    return true
+  } catch (error: unknown) {
+    if (error instanceof Error && 'code' in error && error.code === 'EPERM') return false
+    throw error
+  } finally {
+    rmSync(folder, { recursive: true, force: true })
+  }
 }
 
 /**
