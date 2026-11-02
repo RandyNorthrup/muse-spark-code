@@ -43,6 +43,62 @@ export function ColumnBucket({
   )
 }
 
+/** One plotted dot: the caller's y, already mapped to the 0–100 box. */
+export interface ChartDot {
+  readonly id: string
+  readonly x: number
+  readonly y: number
+}
+
+/** One series' plotted data: the caller's segments and dots, in its colour. */
+export interface ChartGlyph {
+  readonly id: string
+  readonly colour: string
+  readonly segments: readonly string[]
+  readonly dots: readonly ChartDot[]
+}
+
+// Every step-line chart's plotted half: one `<g>` per series (its
+// polyline segments, then a circle per dot) and the active point's
+// line. The segment rule (gap handling) and the y mapping stay the
+// caller's; they arrive here as data.
+export function SeriesLines({
+  glyphs,
+  activeX,
+  pattern,
+}: {
+  readonly glyphs: readonly ChartGlyph[]
+  readonly activeX: number
+  readonly pattern: (colour: string) => string
+}): ReactNode {
+  return (
+    <>
+      {glyphs.map((glyph) => (
+        <g key={glyph.id}>
+          {glyph.segments.map((coordinates, index) => (
+            <polyline
+              key={index}
+              className={`usage-line usage-series-${glyph.colour}`}
+              points={coordinates.trim()}
+            />
+          ))}
+          {glyph.dots.map((dot) => (
+            <circle
+              key={dot.id}
+              className={`usage-series-${glyph.colour}`}
+              fill={pattern(glyph.colour)}
+              cx={dot.x}
+              cy={dot.y}
+              r={2}
+            />
+          ))}
+        </g>
+      ))}
+      <line className="usage-chart-active" x1={activeX} x2={activeX} y1={0} y2={100} />
+    </>
+  )
+}
+
 /** The frame's own sentences; usage callers leave the default. */
 export interface ChartFrameText {
   readonly keyboard: string

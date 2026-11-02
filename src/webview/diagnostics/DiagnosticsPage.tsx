@@ -17,6 +17,7 @@ import type { NodeDiagnostics } from '../../shared/node'
 import {
   CHART_PALETTE,
   ChartFrame,
+  SeriesLines,
   type ChartFrameText,
   type ChartSeries,
 } from '../usage/charts/ChartFrame'
@@ -202,6 +203,28 @@ function MetricChart({
     rowHeading: strings.logTime,
     bucket: (date: string, values: string) => fill(strings.chartBucket, { date, values }),
   }
+  const glyphs = lines.map((line) => {
+    // A missing minute starts a new segment, never a made-up line
+    // across the gap.
+    const segments: string[] = []
+    let segment = ''
+    let previousMinute: number | undefined
+    for (const point of points) {
+      if (previousMinute !== undefined && point.minute - previousMinute > MILLISECONDS_PER_MINUTE) {
+        if (segment !== '') segments.push(segment)
+        segment = ''
+      }
+      segment += ` ${String(point.x)},${String(heightOf(point[line.key]))}`
+      previousMinute = point.minute
+    }
+    if (segment !== '') segments.push(segment)
+    const dots = points.map((point) => ({
+      id: point.id,
+      x: point.x,
+      y: heightOf(point[line.key]),
+    }))
+    return { id: line.id, colour: line.colour, segments, dots }
+  })
   return (
     <ChartFrame
       title={title}
@@ -212,55 +235,7 @@ function MetricChart({
       text={frameText}
     >
       {(active, pattern) => (
-        <>
-          {lines.map((line) => {
-            // A missing minute starts a new segment, never a made-up line
-            // across the gap.
-            const segments: string[] = []
-            let segment = ''
-            let previousMinute: number | undefined
-            for (const point of points) {
-              if (
-                previousMinute !== undefined &&
-                point.minute - previousMinute > MILLISECONDS_PER_MINUTE
-              ) {
-                if (segment !== '') segments.push(segment)
-                segment = ''
-              }
-              segment += ` ${String(point.x)},${String(heightOf(point[line.key]))}`
-              previousMinute = point.minute
-            }
-            if (segment !== '') segments.push(segment)
-            return (
-              <g key={line.id}>
-                {segments.map((coordinates, index) => (
-                  <polyline
-                    key={index}
-                    className={`usage-line usage-series-${line.colour}`}
-                    points={coordinates.trim()}
-                  />
-                ))}
-                {points.map((point) => (
-                  <circle
-                    key={point.id}
-                    className={`usage-series-${line.colour}`}
-                    fill={pattern(line.colour)}
-                    cx={point.x}
-                    cy={heightOf(point[line.key])}
-                    r={2}
-                  />
-                ))}
-              </g>
-            )
-          })}
-          <line
-            className="usage-chart-active"
-            x1={points[active]?.x ?? 0}
-            x2={points[active]?.x ?? 0}
-            y1={0}
-            y2={100}
-          />
-        </>
+        <SeriesLines glyphs={glyphs} activeX={points[active]?.x ?? 0} pattern={pattern} />
       )}
     </ChartFrame>
   )

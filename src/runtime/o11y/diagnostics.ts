@@ -5,11 +5,11 @@
 // endpoint shows as origin only: userinfo never reaches the page.
 
 import {
+  MILLISECONDS_PER_DAY,
   O11Y_DIAGNOSTICS_MAX_CRASHES,
   O11Y_DIAGNOSTICS_MAX_LOGS,
   O11Y_DIAGNOSTICS_MAX_SERIES,
   O11Y_DIAGNOSTICS_MAX_TRACES,
-  O11Y_DIAGNOSTICS_WINDOW_MS,
 } from '../../shared/constants'
 import {
   nodeMethods,
@@ -65,7 +65,7 @@ export function createNodeDiagnosticsMethods(port: NodeDiagnosticsPort) {
     signal.throwIfAborted()
     const now = port.now()
     const metrics = await port.store.readMetricWindow(
-      now - O11Y_DIAGNOSTICS_WINDOW_MS,
+      now - MILLISECONDS_PER_DAY,
       now,
       O11Y_DIAGNOSTICS_MAX_SERIES,
     )
@@ -120,15 +120,14 @@ export function createNodeDiagnosticsMethods(port: NodeDiagnosticsPort) {
     })
   }
 
-  // Every handler crosses the typed boundary: no raw TypeError or Error
-  // escapes. Unexpected failures are reported to the serve log before the
-  // typed `unavailable` refusal reaches the person.
-  const guard = <I, O>(work: (input: I, signal: AbortSignal) => Promise<O>) =>
-    guardNodeMethod(work, (error) => {
-      port.report(error)
-    })
+  // The read crosses the typed boundary: no raw TypeError or Error
+  // escapes. An unexpected failure reaches the serve log before the typed
+  // `unavailable` refusal reaches the person.
+  const report = (error: unknown): void => {
+    port.report(error)
+  }
 
   return {
-    read: guard(read),
+    read: guardNodeMethod(read, report),
   }
 }

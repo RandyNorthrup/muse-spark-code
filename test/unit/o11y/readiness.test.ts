@@ -4,15 +4,11 @@
 import { describe, expect, it } from 'vitest'
 import { O11Y_COMPOSITOR_PING_MAX_MS } from '../../../src/shared/constants'
 import { evaluateDesktopReadiness } from '../../../src/core/o11y/readiness'
+import { o11yReadyProbes } from '../helpers/o11y'
 
 describe('desktop readiness', () => {
   it('is ready when every probe is ready and the ping lands in time', () => {
-    const readiness = evaluateDesktopReadiness([
-      { component: 'compositor', ready: true, detail: 'ping-ok', pingMs: 12 },
-      { component: 'shell', ready: true, detail: 'surfaces-mapped' },
-      { component: 'app', ready: true, detail: 'windows-responsive' },
-      { component: 'sysd', ready: true, detail: 'services-connected' },
-    ])
+    const readiness = evaluateDesktopReadiness(o11yReadyProbes())
     expect(readiness.ready).toBe(true)
     expect(readiness.components.map((item) => item.component)).toEqual([
       'compositor',
@@ -23,12 +19,7 @@ describe('desktop readiness', () => {
   })
 
   it('is not ready on a slow ping, a failing probe, or a missing probe', () => {
-    const probes = [
-      { component: 'compositor', ready: true, detail: 'ping-ok', pingMs: 12 },
-      { component: 'shell', ready: true, detail: 'surfaces-mapped' },
-      { component: 'app', ready: true, detail: 'windows-responsive' },
-      { component: 'sysd', ready: true, detail: 'services-connected' },
-    ] as const
+    const probes = o11yReadyProbes()
     expect(
       evaluateDesktopReadiness([
         { ...probes[0], pingMs: O11Y_COMPOSITOR_PING_MAX_MS + 1 },

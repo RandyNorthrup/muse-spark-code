@@ -10016,8 +10016,7 @@ export const O11Y_TRACES_RETENTION_MS = 3 * MILLISECONDS_PER_DAY
 // is kept regardless. A sampler's bound against disk fill, like the byte
 // caps above.
 export const O11Y_TRACE_SAMPLE_KEEP_EVERY = 10
-// The ring files' directory under the data root, and their private mode.
-export const O11Y_STORE_DIR = 'o11y'
+// The ring files' private mode, for files the crash hook creates.
 export const O11Y_STORE_FILE_MODE = 0o600
 // Export (opt-in, off until the person names their collector): TLS only,
 // the collector's certificate verified, auth headers from the vault. The
@@ -10053,8 +10052,6 @@ export const O11Y_DIAGNOSTICS_MAX_TRACES = 100
 export const O11Y_DIAGNOSTICS_MAX_CRASHES = 50
 export const O11Y_DIAGNOSTICS_MAX_SERIES = 20
 export const O11Y_DIAGNOSTICS_MAX_POINTS = 300
-// The Diagnostics page's metric window: the trailing day, rolled to minutes.
-export const O11Y_DIAGNOSTICS_WINDOW_MS = MILLISECONDS_PER_DAY
 // OpenTelemetry's severity numbers run 1-24 in bands of four (TRACE,
 // DEBUG, INFO, WARN, ERROR, FATAL); the Diagnostics page maps a number to
 // its band word and shows any other number raw.

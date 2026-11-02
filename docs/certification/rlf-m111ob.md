@@ -20,11 +20,11 @@ the person turns it on (D91.22). The local receiver binds loopback only.
 - [x] Strings in English + 14 tables, constants (`O11Y_*`), §8 rows
 - [x] Runtime `src/runtime/o11y/**`: OTLP receiver, diagnostics method, crash hook, TLS exporter
 - [x] `src/runtime/node/health.ts`: desktop readiness components (with N's owner)
-- [ ] Diagnostics page `src/webview/diagnostics/**` + node web UI page (app mount waits for WB)
-- [ ] M93 bundle desktop files (with M93's owner)
-- [ ] `desktop/crates/otel/**` Rust wiring
-- [ ] Reference/host-api records
-- [ ] Red/green drills, gates, CHANGELOG, PLAN status
+- [x] Diagnostics page `src/webview/diagnostics/**` + node web UI page (app mount waits for WB)
+- [x] M93 bundle desktop facts (with M93's owner)
+- [x] `desktop/crates/otel/**` Rust wiring
+- [x] Reference/host-api records
+- [x] Red/green drills, gates, CHANGELOG, PLAN status
 
 ## What is done
 
@@ -44,8 +44,10 @@ entries, §8 rows for the two TS-lib disables. Suites:
 
 ## What is next
 
-The Diagnostics page (`src/webview/diagnostics/**` + the node web UI
-page), then M93's bundle desktop files, then the Rust crate.
+Lane OB is done. Still with other lanes: each desktop component's own
+probes and wiring (CP, SH1, SH2, SY, WB), serving the receiver and the
+desktop `/readyz` block (lane N), and a CI job that builds the Rust
+crate.
 
 ## Part 2 (runtime)
 
@@ -176,10 +178,104 @@ resourceSpans`; Resource → Scope → records. Retryable: 429/502/503/504
 - Next: reference/host-api records, CHANGELOG, PLAN status, red/green
   drills, full gates, LANE DONE.
 
+## Part 6 (2026-11-02): records, drills, gates
+
+- `docs/ide-compatibility/host-api.md` regenerated (`check:host-api`
+  `--write`): the receiver/exporter Node built-in counts and the two new
+  stylesheets' theme variables. `check:reference` passes unchanged: no
+  new command, setting or catalogued feature.
+- CHANGELOG `[Unreleased]` entry (the node web UI's Diagnostics page,
+  in the person's words); PLAN.md M111 status `lane OB built` with the
+  reviewed `STATUS_PHRASES` entry; ROADMAP.md regenerated (M111 moves
+  from Planned to Being built).
+
+## Part 7 (2026-11-02): the gates the lane had never run
+
+The resume run found three gates red that earlier parts never ran; all
+three are fixed in code, none weakened:
+
+- `check:catches`: two new GENERIC sites in `src/runtime/o11y/store.ts`
+  (skip-and-count reads). Restructured to the file's own NARROW idiom
+  (`isReadError` brand guard, rethrow past it), behaviour unchanged,
+  plus the smallest maintained test the behaviour lacked (an unreadable
+  day file is skipped, counted, and left by prune).
+- `duplication`: 17 clones, every one touching a lane file. Fixed by
+  sharing: `scrubFramePath` in new `src/shared/framePath.ts` (M93's
+  journal keeps its package-membership check first, outcome identical);
+  the diagnostics method binds `guardNodeMethod` directly; the
+  step-line charts plot through the new shared `SeriesLines` renderer
+  (each chart keeps its own segment rule and y mapping as data);
+  `listenLoopback` in `test/unit/helpers/nodeNative.ts`; one-record
+  and one-attempt locals in the exchange and exporter suites; shared
+  `test/unit/helpers/o11y.ts` fixtures (state root, ready probes,
+  seeded signals, span). `ChartFrame`/`StepLines` render
+  byte-identical DOM; the a11y scene re-run proves the page. 0 clones.
+- `deadcode` (knip): the crash hook file was production-dead (its test
+  reaches it only through an esbuild entry string), two lane constants
+  unused, one alias duplicated. The hook is now wired for real:
+  `installNodeCrashHook` appends the store's crashes day file (0600 at
+  creation) and the node CLI installs it at startup; a child-process
+  test proves the record lands where the store reads it. `O11Y_STORE_DIR`
+  and the `O11Y_DIAGNOSTICS_WINDOW_MS` alias are removed (the window is
+  `MILLISECONDS_PER_DAY` at the one use).
+- `vitest related` over every changed source file: 1126 files green, 32
+  red. One was lane-caused and is fixed (`nodeMethods` 32→33 for the new
+  method, the sanctioned one-line reason; the access loop covers the new
+  method). One was rig load (`reportJoinAccounts` times out in the
+  1197-file run, green alone on the lane tree). The other 30 fail
+  identically on the untouched base (measured file by file in a base
+  worktree, since removed): the MHP lock drift, the workspace UI and
+  files-page failures, and the sandbox/timeout failures far from this
+  lane. No lane suite fails anywhere.
+
 ## Drills (red/green)
 
-None yet.
+Each drill: break on purpose, non-zero exit, restore byte-identical
+(`git diff` clean on the file), green. 2026-11-02, linuxlt.
+
+1. Export off-by-default: `src/core/o11y/export.ts` returned `ok` for
+   an unset endpoint. `npx vitest run test/unit/o11y/exporter.test.ts`
+   → exit 1, 1 failed (`stays off without an https endpoint`) / 3
+   passed. Restored → exit 0, 4 passed.
+2. Receiver loopback bind: `src/runtime/o11y/receiver.ts`
+   `isLoopback` forced true. `test/unit/o11y/receiver.test.ts` →
+   exit 1, 1 failed (`binds loopback and refuses anything else`) / 1
+   passed. Restored → exit 0, 2 passed.
+3. Severity bands: `O11Y_SEVERITY_BAND` 4 → 5 in
+   `src/shared/constants.ts`. `test/unit/o11y/diagnosticsPage.test.tsx`
+   → exit 1, 1 failed (`shows severity bands as words and unknown
+numbers raw`) / 8 passed. Restored → exit 0, 9 passed.
+4. Rust endpoint validation: `endpoint_ok` in
+   `desktop/crates/otel/src/lib.rs` forced true. `cargo test
+--locked` (lane-local `CARGO_HOME`/`CARGO_TARGET_DIR` under the
+   worktree's `temp/`; the shared `~/.cargo` registry is read-only
+   in the lane sandbox) → exit 101, 2 failed
+   (`refuses_endpoints_off_the_box`, `init_names_its_refusals`) / 6
+   passed. Restored → exit 0, 8 + 1 + 1 passed.
+5. a11y scene fire: the trace toggle button's label replaced with
+   `null` in `DiagnosticsPage.tsx`. `TMPDIR=$PWD/temp node
+scripts/a11y.mjs node-diagnostics` → exit 1, `button-name`
+   violated on 4 elements (4 themes). Restored → exit 0, 0
+   violations.
 
 ## Gates
 
-None yet.
+Final tree, 2026-11-02, linuxlt. Exit codes:
+
+- prettier (touched files): 0
+- eslint --max-warnings 0 (touched files): 0
+- typecheck (all projects): 0
+- check-l10n: 0 (0 problems)
+- check:reference: 0
+- check:host-api: 0
+- check:plan: 0 (0 drift)
+- check:roadmap: 0
+- check:catches: 0 (matches baseline)
+- duplication: 0 (0 clones)
+- cycles: 0
+- deadcode: 0 (only pre-existing hints)
+- build: (runs next)
+- security:sast, security:audit: (run next)
+- a11y node-diagnostics scene: (re-run next)
+- vitest related (changed sources): 1126 files green; 32 red, all
+  classified above (1 fixed, 1 load, 30 pre-existing on base)

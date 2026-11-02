@@ -13,6 +13,7 @@ import {
   REPORT_FRAME_PATH_MAX_CHARS,
   REPORT_STACK_MAX_FRAMES,
 } from '../../shared/constants'
+import { scrubFramePath } from '../../shared/framePath'
 import { redactSecrets } from '../../shared/redact'
 import { O11Y_COMPONENTS, type O11yComponent } from './signals'
 
@@ -20,10 +21,6 @@ import { O11Y_COMPONENTS, type O11yComponent } from './signals'
 export const O11Y_CRASH_KINDS = ['signal', 'panic', 'uncaught', 'oom', 'renderer-killed'] as const
 export type O11yCrashKind = (typeof O11Y_CRASH_KINDS)[number]
 
-/** A URI scheme prefix (`https:`, `file:`): never a crash frame path. */
-const URI_SCHEME = /^[A-Za-z][A-Za-z0-9+.-]*:/
-/** A Windows drive root (`C:/`): never a crash frame path. */
-const DRIVE_ROOT = /^[A-Za-z]:\//
 /** A signal name or error class: a short token, never a sentence. */
 const CODE_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/u
 /**
@@ -85,23 +82,6 @@ function isComponent(component: string): component is O11yComponent {
 
 function isKind(kind: string): kind is O11yCrashKind {
   return KNOWN_KINDS.has(kind)
-}
-
-/**
-A frame path the store may hold: relative, with no empty, dot or dot-dot
-segments, no backslashes, no drive root and no URI scheme. A path the
-redactor changes (a secret-shaped value) never lands: the frame is
-dropped, not repaired.
-*/
-function scrubFramePath(path: string): string | undefined {
-  const scrubbed = redactSecrets(path)
-  if (scrubbed !== path) return undefined
-  if (scrubbed.length === 0 || scrubbed.length > REPORT_FRAME_PATH_MAX_CHARS) return undefined
-  if (scrubbed.includes('\\')) return undefined
-  if (scrubbed.startsWith('/')) return undefined
-  if (DRIVE_ROOT.test(scrubbed) || URI_SCHEME.test(scrubbed)) return undefined
-  const segments = scrubbed.split('/')
-  return segments.some((segment) => ['', '.', '..'].includes(segment)) ? undefined : scrubbed
 }
 
 function scrubSymbol(symbol: string): string | undefined {

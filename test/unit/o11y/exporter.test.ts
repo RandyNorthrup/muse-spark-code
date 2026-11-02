@@ -14,9 +14,11 @@ import {
   exportO11yMetrics,
   exportO11yTraces,
   type O11yExporterPorts,
+  type O11yExportOutcome,
 } from '../../../src/runtime/o11y/exporter'
 import type { OtelSettings } from '../../../src/runtime/node/ops/metrics'
-import { nodeNativeTest, nodeTempRoot } from '../helpers/nodeNative'
+import type { O11yMetricPoint } from '../../../src/core/o11y/signals'
+import { listenLoopback, nodeNativeTest, nodeTempRoot } from '../helpers/nodeNative'
 
 const built: { dir: string; ca: string; key: string; cert: string } = {
   dir: '',
@@ -88,12 +90,7 @@ async function collector(
       response.end('{}')
     })
   })
-  await new Promise<void>((resolve) => {
-    server.listen(0, '127.0.0.1', resolve)
-  })
-  const address = server.address()
-  if (address === null || typeof address === 'string') throw new Error('no test address')
-  const port = address.port
+  const port = await listenLoopback(server)
   return {
     server,
     url: `https://localhost:${String(port)}`,
@@ -181,26 +178,29 @@ describe('o11y exporter', () => {
 
   nodeNativeTest('stays off without an https endpoint', async () => {
     const target = await collector(() => 200)
+    const attempt = (
+      points: readonly O11yMetricPoint[],
+      endpoint: string | undefined,
+    ): Promise<O11yExportOutcome> =>
+      exportO11yMetrics(
+        points,
+        ports({ endpoint }, () => NOW),
+      )
+    const point: O11yMetricPoint = {
+      at: NOW,
+      component: 'node',
+      name: 'cpu.percent',
+      value: 1,
+      attributes: [],
+    }
     try {
       // The gate decides first, even with nothing to send.
-      expect(
-        await exportO11yMetrics(
-          [],
-          ports({ endpoint: undefined }, () => NOW),
-        ),
-      ).toEqual({ ok: false, reason: 'off' })
-      expect(
-        await exportO11yMetrics(
-          [{ at: NOW, component: 'node', name: 'cpu.percent', value: 1, attributes: [] }],
-          ports({ endpoint: undefined }, () => NOW),
-        ),
-      ).toEqual({ ok: false, reason: 'off' })
-      expect(
-        await exportO11yMetrics(
-          [{ at: NOW, component: 'node', name: 'cpu.percent', value: 1, attributes: [] }],
-          ports({ endpoint: 'http://localhost:4318' }, () => NOW),
-        ),
-      ).toEqual({ ok: false, reason: 'not-https' })
+      expect(await attempt([], undefined)).toEqual({ ok: false, reason: 'off' })
+      expect(await attempt([point], undefined)).toEqual({ ok: false, reason: 'off' })
+      expect(await attempt([point], 'http://localhost:4318')).toEqual({
+        ok: false,
+        reason: 'not-https',
+      })
       expect(target.seen).toHaveLength(0)
     } finally {
       await target.close()

@@ -6,7 +6,11 @@
 // supervisor restarts it with backoff (D90.19). The write is synchronous:
 // the process is dying and nothing async would finish.
 
+import { appendFileSync } from 'node:fs'
+import path from 'node:path'
 import { buildCrashRecord, serializeCrashRecord } from '../../core/o11y/crash'
+import { dayFileName } from '../../core/o11y/ringStore'
+import { O11Y_STORE_FILE_MODE } from '../../shared/constants'
 
 export interface O11yCrashHookOptions {
   /** The crashing component, from the fixed vocabulary. */
@@ -59,4 +63,21 @@ export function installO11yCrashHook(options: O11yCrashHookOptions): () => void 
     process.off('uncaughtException', onUncaught)
     process.off('unhandledRejection', onRejection)
   }
+}
+
+/**
+The node's own crash hook: the installer above, writing the store's
+crashes day file under the data root. The file mode holds only at
+creation; earlier appends already own the file.
+*/
+export function installNodeCrashHook(root: string, report?: (error: unknown) => void): () => void {
+  return installO11yCrashHook({
+    component: 'node',
+    writeLine: (line) => {
+      appendFileSync(path.join(root, dayFileName('crashes', Date.now())), line, {
+        mode: O11Y_STORE_FILE_MODE,
+      })
+    },
+    ...(report !== undefined && { report }),
+  })
 }
