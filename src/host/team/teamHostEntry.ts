@@ -40,7 +40,7 @@ export async function createTeamHost(
   let createScheduler = deps.createScheduler
   if (createScheduler === undefined) {
     const { createTeamWindowRuntime } = await import('../../core/team/scheduler/teamWindowEntry')
-    const runtime = createTeamWindowRuntime(table, locale)
+    const runtime = await createTeamWindowRuntime(table, locale)
     createScheduler = (scheduling) => runtime.createWindowTeamScheduler(scheduling)
   }
   const settings =
@@ -78,8 +78,9 @@ export {
 // (dist/teamEngine.js, loaded through teamEngineEntry as the editor loads it).
 export { createTeamHostService } from '../../core/team/teamHost'
 // Checked, journalled landing and owner-store recovery (M96c K/I/X2) load
-// with their own bundle (dist/teamLanding.js) on first use; the engine entry
-// binds them to the merges port.
+// with their own bundle (dist/teamLanding.js) on first use. Nothing in the
+// product calls them yet: the engine's merges port still merges in place
+// (docs/certification/cc-winteam.md, its first decision for the lead).
 export async function landTeamTask(
   ...args: Parameters<typeof landingImpl.landTeamTask>
 ): ReturnType<typeof landingImpl.landTeamTask> {

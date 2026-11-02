@@ -22,12 +22,7 @@ import type {
   TeamUsage,
 } from '../../shared/team'
 import type { TeamCapacityPort } from './scheduler/slots'
-import type {
-  TeamSchedulingFactory,
-  TeamSchedulingOwnerBirth,
-  TeamSchedulingPort,
-  TeamSchedulingProbeOwner,
-} from './teamScheduling'
+import type { TeamSchedulingFactory, TeamSchedulingPort } from './teamScheduling'
 import type { TeamTreeData } from '../../shared/teamView'
 import type {
   TeamDecisionSource,
@@ -427,10 +422,6 @@ export interface TeamHostServiceDeps {
   readonly createScheduler?: TeamSchedulingFactory | undefined
   readonly workspaceId?: string | undefined
   readonly windowInstanceId?: string | undefined
-  /** Forwarded to the window scheduler: this window's birth and process lease. */
-  readonly ownerBirth?: TeamSchedulingOwnerBirth | undefined
-  /** Forwarded to the window scheduler: prove a foreign board owner gone. */
-  readonly probeOwner?: TeamSchedulingProbeOwner | undefined
   readonly hooks?:
     | {
         readonly relativePath: (folder: string) => string | undefined
