@@ -17,12 +17,17 @@ import path from 'node:path'
 import { runCapture, sleep, stopProcessGroup, waitFor } from './proc.mjs'
 import { findExecutable, findKmsDevices } from './tools.mjs'
 
+// Hyprland 0.55 claims an output named HEADLESS-1 as its internal
+// fallback and renames it FALLBACK, so neither name can ever be a
+// scene output there. The harness names its own outputs clear of both.
 export const DEFAULT_OUTPUTS = [
-  { name: 'HEADLESS-1', width: 1920, height: 1080 },
-  { name: 'HEADLESS-2', width: 1280, height: 800 },
+  { name: 'MUSE-HEADLESS-1', width: 1920, height: 1080 },
+  { name: 'MUSE-HEADLESS-2', width: 1280, height: 800 },
 ]
+export const RESERVED_OUTPUT_NAMES = ['FALLBACK', 'HEADLESS-1']
 export const SESSION_READY_MS = 30_000
 export const CLIENT_READY_MS = 15_000
+const OUTPUT_CREATE_RETRY_MS = 1000
 
 /**
 The harness's Hyprland Lua config: the headless outputs at their sizes,
@@ -48,6 +53,42 @@ hl.config({
   misc = { disable_hyprland_logo = true, force_default_wallpaper = 0 },
 })
 `
+}
+
+/**
+True when every wanted output is present in a `hyprctl monitors -j`
+listing at exactly its size. Kept apart from the session so the guest
+proof's captured listing can pin the rule (see harnessCompositor tests).
+*/
+export function outputsAtSizes(monitors, outputs) {
+  return outputs.every((output) =>
+    monitors.some(
+      (monitor) =>
+        monitor.name === output.name &&
+        monitor.width === output.width &&
+        monitor.height === output.height,
+    ),
+  )
+}
+
+/** The wanted outputs absent by name from a monitors listing. */
+export function missingOutputs(monitors, outputs) {
+  return monitors === undefined
+    ? [...outputs]
+    : outputs.filter((output) => monitors.every((monitor) => monitor.name !== output.name))
+}
+
+/** One line naming what a monitors listing actually holds, for refusals. */
+export function describeMonitors(monitors) {
+  if (monitors !== undefined && monitors.length > 0) {
+    return monitors
+      .map(
+        (monitor) =>
+          `${String(monitor.name)} ${String(monitor.width)}x${String(monitor.height)}${monitor.disabled === true ? ' (disabled)' : ''}`,
+      )
+      .join(', ')
+  }
+  return monitors === undefined ? 'no monitors listing was ever read' : 'no monitors'
 }
 
 /** Runs `Hyprland --verify-config`; true only when it prints `config ok`. */
@@ -91,6 +132,12 @@ export async function startCompositorSession({
   readyTimeoutMs = SESSION_READY_MS,
   env: parentEnv = process.env,
 }) {
+  const reserved = outputs.filter((output) => RESERVED_OUTPUT_NAMES.includes(output.name))
+  if (reserved.length > 0) {
+    throw new Error(
+      `the compositor session cannot start: output name ${reserved.map((output) => output.name).join(', ')} is reserved by Hyprland for its fallback output; choose another name`,
+    )
+  }
   const hyprland = await findExecutable(hyprlandCommand, parentEnv)
   const hyprctl = await findExecutable(hyprctlCommand, parentEnv)
   const grim = await findExecutable(grimCommand, parentEnv)
@@ -235,6 +282,7 @@ export async function startCompositorSession({
     return result.stdout
   }
   session.monitors = async () => JSON.parse(await session.hyprctl(['monitors', '-j']))
+  session.allMonitors = async () => JSON.parse(await session.hyprctl(['monitors', 'all', '-j']))
   session.clients = async () => JSON.parse(await session.hyprctl(['clients', '-j']))
 
   try {
@@ -249,34 +297,64 @@ export async function startCompositorSession({
       },
       { timeoutMs: readyTimeoutMs, description: 'hyprctl answering monitors' },
     )
-    for (const output of outputs) {
-      await session.hyprctl(['output', 'create', 'headless', output.name])
+    let lastMonitors
+    let lastAllMonitors
+    let lastCreateRefusal
+    let lastCreateAt = 0
+    try {
+      await waitFor(
+        async () => {
+          if (exitInfo !== undefined) {
+            throw new Error(
+              `Hyprland exited during startup (code ${String(exitInfo.code)}, signal ${String(exitInfo.signal)})`,
+            )
+          }
+          try {
+            lastMonitors = await session.monitors()
+            if (outputsAtSizes(lastMonitors, outputs)) return true
+
+            // A creation request can land while Hyprland is still
+            // settling its fallback output, and an output created then
+            // can vanish with it. Re-create only the outputs that are
+            // absent from the full listing until the deadline; outputs
+            // that exist at the wrong size are left for their monitor
+            // rule to finish applying.
+            const now = Date.now()
+            if (now - lastCreateAt >= OUTPUT_CREATE_RETRY_MS) {
+              lastCreateAt = now
+              lastAllMonitors = await session.allMonitors()
+              for (const output of missingOutputs(lastAllMonitors, outputs)) {
+                // hyprctl exits 0 even when the reply refuses; the reply
+                // text is the verdict (upstream's tester checks it too).
+                const created = await session.hyprctl(['output', 'create', 'headless', output.name])
+                const reply = created.trim()
+                if (reply !== 'ok' && reply !== 'Name already taken') {
+                  lastCreateRefusal = `${output.name}: ${reply}`
+                }
+              }
+            }
+            return false
+          } catch {
+            // IPC can drop a reply while outputs come and go; only the
+            // deadline (or the process exiting above) ends the wait.
+            return false
+          }
+        },
+        { timeoutMs: readyTimeoutMs, description: 'the headless outputs at their sizes' },
+      )
+    } catch (error) {
+      try {
+        lastAllMonitors = await session.allMonitors()
+      } catch {
+        // The session is already failing; the last full listing stands.
+      }
+      const refusal =
+        lastCreateRefusal === undefined ? '' : `; last creation refusal: ${lastCreateRefusal}`
+      throw new Error(
+        `${error.message}; enabled: ${describeMonitors(lastMonitors)}; all: ${describeMonitors(lastAllMonitors)}${refusal}`,
+        { cause: error },
+      )
     }
-    await waitFor(
-      async () => {
-        if (exitInfo !== undefined) {
-          throw new Error(
-            `Hyprland exited during startup (code ${String(exitInfo.code)}, signal ${String(exitInfo.signal)})`,
-          )
-        }
-        try {
-          const monitors = await session.monitors()
-          return outputs.every((output) =>
-            monitors.some(
-              (monitor) =>
-                monitor.name === output.name &&
-                monitor.width === output.width &&
-                monitor.height === output.height,
-            ),
-          )
-        } catch {
-          // IPC can drop a reply while outputs come and go; only the
-          // deadline (or the process exiting above) ends the wait.
-          return false
-        }
-      },
-      { timeoutMs: readyTimeoutMs, description: 'the headless outputs at their sizes' },
-    )
     const sockets = await waylandSockets(runtimeDir)
     session.waylandDisplay = sockets.find((name) => name !== nestDisplay) ?? sockets[0]
     if (session.waylandDisplay === undefined) {

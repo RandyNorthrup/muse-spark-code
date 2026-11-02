@@ -38,7 +38,7 @@ export const HARNESS_USAGE = `Usage: desktop-harness <command> [options]
       Serve the scenes on loopback until interrupted (for a manual look).
   shot <scene> [--theme dark|light|hc-dark|hc-light] [--lang en] [--out dir]
       Capture one review screenshot with Chrome. Never compared by a test.
-  session --out <dir> [--outputs HEADLESS-1:1920x1080,HEADLESS-2:1280x800]
+  session --out <dir> [--outputs MUSE-HEADLESS-1:1920x1080,MUSE-HEADLESS-2:1280x800]
           [--nest-display wayland-0] [--input <script file>]
           [-- <client command...>]
       Start headless Hyprland on llvmpipe, create the outputs, run the
