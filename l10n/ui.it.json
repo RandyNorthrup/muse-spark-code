@@ -4917,7 +4917,6 @@
   "providerModelNoPrice": "{ref} non può essere eseguito: non ha una scheda prezzo, quindi nessuna esecuzione può prenotare per lui.",
   "execProviderNeedsModelApi": "--provider richiede --backend modelApi.",
   "execProviderModelRequired": "Questa esecuzione del provider richiede --model provider/model.",
-  "execProviderNotReady": "Le esecuzioni dei provider richiedono il livello di trasporto dei provider; il controllo della richiesta per {provider} è riuscito.",
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin] [--timeout <seconds>]",
   "scanSecretsExits": "Esce con 0 se pulito, 10 se trova un segreto, 2 per uso errato.",

@@ -4729,7 +4729,6 @@
   "providerModelNoPrice": "{ref} は実行できません: 価格カードがないため、実行の予約ができません。",
   "execProviderNeedsModelApi": "--provider には --backend modelApi が必要です。",
   "execProviderModelRequired": "このプロバイダー実行には --model provider/model が必要です。",
-  "execProviderNotReady": "プロバイダーの実行にはプロバイダー転送層が必要です。{provider} のリクエスト検証は成功しました。",
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin] [--timeout <seconds>]",
   "scanSecretsExits": "クリーンなら 0、シークレット検出で 10、誤用で 2 で終了します。",

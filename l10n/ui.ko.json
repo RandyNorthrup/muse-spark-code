@@ -4729,7 +4729,6 @@
   "providerModelNoPrice": "{ref}을(를) 실행할 수 없습니다: 가격 카드가 없어 실행 예약을 할 수 없습니다.",
   "execProviderNeedsModelApi": "--provider에는 --backend modelApi가 필요합니다.",
   "execProviderModelRequired": "이 제공자 실행에는 --model provider/model이 필요합니다.",
-  "execProviderNotReady": "공급자 실행에는 공급자 전송 계층이 필요합니다. {provider} 요청 검사는 통과했습니다.",
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin] [--timeout <seconds>]",
   "scanSecretsExits": "정상일 때 0, 비밀 발견 시 10, 오용 시 2로 종료됩니다.",

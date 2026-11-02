@@ -4917,7 +4917,6 @@
   "providerModelNoPrice": "{ref} ne peut pas s’exécuter : sans carte tarifaire, aucune exécution ne peut réserver pour lui.",
   "execProviderNeedsModelApi": "--provider nécessite --backend modelApi.",
   "execProviderModelRequired": "Cette exécution de fournisseur nécessite --model provider/model.",
-  "execProviderNotReady": "Les exécutions de fournisseur nécessitent la couche de transport des fournisseurs ; la vérification de la demande pour {provider} a réussi.",
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin] [--timeout <seconds>]",
   "scanSecretsExits": "Sortie 0 si propre, 10 si un secret est trouvé, 2 en cas de mauvais usage.",
