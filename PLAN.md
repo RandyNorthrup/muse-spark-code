@@ -262,8 +262,9 @@ temp/planfix0190/d2-summary.txt Full record:
 | `@vscode/vsce`                                                                                       | 4.0.0                             |
 | `react` / `react-dom` / `@types/react` / `@types/react-dom`                                          | 19.3.0                            |
 | `zod`                                                                                                | 4.6.7                             |
-| `@muse-code/sdk`                                                                                     | 1.4.4                             |
-| `@agentclientprotocol/sdk`                                                                           | 1.7.0                             |
+| `@muse-code/sdk`                                                                                     | 1.4.14                            |
+| `@agentclientprotocol/sdk`                                                                           | 2.4.0                             |
+| `@modelcontextprotocol/sdk` (test-only client, M124 remote)                                          | 1.32.2                            |
 | `husky` / `lint-staged`                                                                              | 9.1.7 / 17.5.1                    |
 | `jscpd`                                                                                              | 5.4.0                             |
 | `npm-run-all2`                                                                                       | 9.0.3                             |
@@ -323,9 +324,9 @@ temp/planfix0190/d2-summary.txt Full record:
 
 **`zod`** — Runtime validation of every webview ⇄ extension message and every HTTP/MSP boundary.
 
-**`@muse-code/sdk`** — Official MSP client. Developer Preview: "minor releases may alter APIs before 1.0" → exact pin, adapter isolated in one module, schema fingerprint checked at handshake. Installed with a one-off `--min-release-age=0` on 2026-09-22 (published 2026-09-18, inside the 7-day window); the lockfile pins it so `npm ci` is unaffected. Only its `Connection`/`spawnMspConnection` surface is used; `Connection.onNotification` holds a single handler, so the facade (`MuseClient`) is not composed. **1.4.4 (SDK144):** Installed with a one-off `--min-release-age=0` on 2026-10-09 (published 2026-10-08, inside the 7-day window); owner approved 2026-10-09; the lockfile pins it. Peer range unchanged (`@types/node >=20`). Re-checked against 1.4.4 on 2026-10-09: `onNotification` still holds one handler, still needed (`docs/certification/sdk144.md`).
+**`@muse-code/sdk`** — Official MSP client. Developer Preview: "minor releases may alter APIs before 1.0" → exact pin, adapter isolated in one module, schema fingerprint checked at handshake. Installed with a one-off `--min-release-age=0` on 2026-09-22 (published 2026-09-18, inside the 7-day window); the lockfile pins it so `npm ci` is unaffected. Only its `Connection`/`spawnMspConnection` surface is used; `Connection.onNotification` holds a single handler, so the facade (`MuseClient`) is not composed. **1.4.4 (SDK144):** Installed with a one-off `--min-release-age=0` on 2026-10-09 (published 2026-10-08, inside the 7-day window); owner approved 2026-10-09; the lockfile pins it. Peer range unchanged (`@types/node >=20`). Re-checked against 1.4.4 on 2026-10-09: `onNotification` still holds one handler, still needed (`docs/certification/sdk144.md`). **1.4.14 (RLF-UPSDK, 2026-11-02; D260 removes the release-age wait, so no one-off override is needed or used):** published 2026-10-27; peer `@types/node >=20` unchanged; zero runtime dependencies. The schema fingerprint pin moves `sha256:cfdb6d25…b4e0` (1.4.12) → `sha256:c94c3d1f…49c6` (1.4.14), so a Muse Code 1.4.14 host (the rigs' pinned 1.4.14-R7309.1) matches exactly and stops logging the mismatch warning at every `muse serve` start. What moved in the schema between the pins is additive-optional MSP surface (the 1.4.12→1.4.14 tarball diff in `docs/research/agents-sdks-2026-10-30.md` §1: `reviewerReason`, `held`/`heldFor`, `earlierHistory` items, `queuedInputs`, session `worktree`/`spawnedBy`, CUA `data` mask facts, on top of 1.4.12's `cuaCardFacts`, `backgroundTerminalCompletion`, `blockedPrompt`, `checkpointBoundary`, `Task.executionMode`); our wire schemas keep unknown kinds and fields visible (D36), so nothing breaks on an older host. Per-version took/not-took: `docs/certification/rlf-upsdk.md`.
 
-**`@agentclientprotocol/sdk`** — The ACP agent, headless `exec` and the team host's ACP children (Q61). **1.7.0 (SDK144):** Installed with a one-off `--min-release-age=0` on 2026-10-09 (published 2026-10-02, inside the 7-day window); owner approved 2026-10-09; the lockfile pins it. Peer `zod ^3.25.0 || ^4.0.0` accepts 4.6.5. Same ACP v1 (`PROTOCOL_VERSION` 1); 1.6.0 moves the schemas to ACP v1.24.1, 1.6.1 types `AgentProtocolRouter.connect().closed`, 1.7.0 checks v2 union values (v2 is unused here). Its connection, stream and JSON-RPC files are byte-identical to 1.5.1.
+**`@agentclientprotocol/sdk`** — The ACP agent, headless `exec` and the team host's ACP children (Q61). **1.7.0 (SDK144):** Installed with a one-off `--min-release-age=0` on 2026-10-09 (published 2026-10-02, inside the 7-day window); owner approved 2026-10-09; the lockfile pins it. Peer `zod ^3.25.0 || ^4.0.0` accepts 4.6.5. Same ACP v1 (`PROTOCOL_VERSION` 1); 1.6.0 moves the schemas to ACP v1.24.1, 1.6.1 types `AgentProtocolRouter.connect().closed`, 1.7.0 checks v2 union values (v2 is unused here). Its connection, stream and JSON-RPC files are byte-identical to 1.5.1. **2.4.0 (RLF-UPSDK, 2026-11-02; D260):** published 2026-11-02, taken the same day. The 2.0 line (RLSDKMUSE) already moved us to `agent()`/`client()` apps with stable v1 by default and `/unstable` where we parse ACP-transport MCP servers; 2.0.2→2.4.0 adds no breaking change to those entrypoints (upstream `CHANGELOG.md`, read 2026-11-02). The stable v1 method table is byte-identical 2.0.1→2.4.0 (tarball diff, 2026-11-02) and typecheck passes unchanged, so nothing we send or serve breaks. What we take by pinning: 2.0.2's CR line-ending fix in the stdio line buffer and per-request HTTP failure isolation, 2.1.0's Rust-matching parsing (null lists, elicitation scope, 64-bit integers) and its refusal to print raw invalid messages, the pre-`initialize` request gate (`-32600`), schema v1.27→v1.29.1, and 2.4.0's stop-waiting-for-a-cancelled-request. Named, not taken here (each with its reason in `docs/certification/rlf-upsdk.md`): the MCP-over-ACP caller/provider and HTTP bridge (2.1.0, `dist/mcp/`, `/unstable`) — serving ACP-transport MCP servers stays its own lane (research brief B3) because it needs a real editor handing us such a server as proof; the new experimental unstable methods `session/archive`, `session/unarchive`, `session/status`, `session/set_title`, `auth/status` and the `auth/status_update` notification, plus `RequestError.sessionNotFound` (`-32002`) — all capability-gated, none advertised by our agent, so conforming clients never call them and older hosts see no change; `PROXY_METHODS` (`proxy/initialize`, `proxy/successor`), which the SDK itself does not route through the agent or client APIs; the experimental v2 entrypoints stay unused, as no editor requires ACP v2. Peer `zod` range still accepts 4.6.7.
 
 **`husky` / `lint-staged`** — Pre-commit gates.
 
@@ -462,9 +463,10 @@ as a test-only client for `test/unit/connectorRemote.test.ts` (no shipped
 bundle imports it; the connector's server stays our own core). Exact
 pins; the SDK's transitive `body-parser` is lock-bumped to the fixed
 2.4.0 (GHSA-27r3-jxmh-p828, within `express`'s `^2.3.0` range), so the
-new packages add no high advisory. Newer releases (SDK 1.32.2,
-2026-10-23; oidc-provider 9.13.3, 2026-10-29) wait for `.npmrc`'s
-seven-day release-age rule like the SDK142 pin above.
+new packages add no high advisory. SDK 1.32.2 (2026-10-23) is taken by
+RLF-UPSDK (2026-11-02) under D260, which removes the release-age wait;
+`oidc-provider` is not an agent SDK and its next bump rides the general
+dependency lane (RLF-UPDEPS2).
 
 DEP138 dependency review (2026-10-07): PR #138 proposes ACP SDK 1.5.1,
 Vitest and V8 coverage 5.0.3 together, jscpd 5.4.0, knip 6.39.0 and
@@ -9796,6 +9798,34 @@ unchanged. Fixture:
 `test/fixtures/musecode-quota/observed-acp-error.json`. Full record:
 `docs/certification/rlf-quota.md`.
 
+### D260 — No release-age wait while planned features are being built; agent SDKs, adapters and CLIs never wait (owner, 2026-11-02; lane RLF-UPSDK)
+
+The owner, 2026-11-02: "remove the 7 day wait that will be reserved for
+after we get all of the planned features implimented and this should
+never be the case for the agent sdk as these directly effect bugs and
+features and usibility." The rule in force from this decision:
+`min-release-age=7` is removed from `.npmrc`; there is no release wait
+of any length while planned features are being built. When every
+planned feature is in, a release wait may return for non-agent
+dependencies only, by a new decision that says so. It never applies —
+then or now — to agent SDKs, adapters and CLIs (`@muse-code/sdk`,
+`@agentclientprotocol/sdk` and its adapters, `@modelcontextprotocol/*`,
+the Muse Code CLI and the external agents' CLIs): a new release of
+one of those is taken at once, read in full, and tested accurately
+(the owner's bleeding-edge standing rule). Everything else in rule 9
+is unchanged: exact pins, peer-range checks, `npm audit`, and the
+reason recorded in D3 before a dependency is added or moved.
+
+Dated records that describe the old window (the one-off `--min-release-age=0`
+installs, pins that waited for a date) stay as history; no sentence
+states the wait as current after this decision, and no gate or test
+enforces it (none did: the wait lived only in `.npmrc`). First
+application, same lane: `@muse-code/sdk` 1.4.12 → 1.4.14,
+`@agentclientprotocol/sdk` 2.0.1 → 2.4.0, `@modelcontextprotocol/sdk`
+1.32.1 → 1.32.2 (D3). Full record: `docs/certification/rlf-upsdk.md`;
+the dated currency table the next round diffs against is
+`docs/research/agents-sdks-2026-11-02.md`.
+
 ## 3. Open questions (need the owner)
 
 <a id="q-cc-licence"></a>
@@ -11495,6 +11525,22 @@ real-CLI cases skip by name, with the reason, where the CLI is not installed
   then a forced end, and never touches a Muse Code it did not start.
 
 ### M127 — Muse Code at its latest release (2026-10-17)
+
+**Status 2026-11-02 (RLF-UPSDK): building.** D260 removed the
+release-age wait, and the pins moved, installed and ran the same
+day (resumed after the first run's shell block): `@muse-code/sdk`
+1.4.14, `@agentclientprotocol/sdk` 2.4.0,
+`@modelcontextprotocol/sdk` 1.32.2 (D3). The pinned CLI
+1.4.14-R7309.1 serves fingerprint `c94c3d1f…49c6` over the echo
+provider (`test/fixtures/m127/initialize-1.4.14.json`, provenance
+`upsdk1414`), exactly the SDK 1.4.14 pin, so that host starts
+silent; typecheck and the MSP/ACP/MCP suites pass at the new pins
+(`docs/certification/rlf-upsdk.md`). The B2 rendering items
+(`cuaCardFacts` and the other new payloads) and assessing
+`muse usage` / `serve --preset` as product surfaces still wait
+for their own captures and designs — named, not taken, in the
+certification record. Currency:
+`docs/research/agents-sdks-2026-11-02.md`.
 
 **Status 2026-10-30 (RLF-UPAGENT): building.** The SDK rides 1.4.12
 (published 2026-10-22, past the 7-day window, no override): a 1.4.12

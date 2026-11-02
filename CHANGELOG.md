@@ -520,6 +520,15 @@ happened, not what was planned; superseded entries are kept.
   fingerprint warning; the versions now match, the warning is gone, and
   1.4.12's session-protocol fixes come with it. Muse Code 1.4.11 keeps
   working exactly as before.
+- Muse Spark Code now rides Muse Code 1.4.14 and the newest editor
+  protocol libraries. If your Muse Code had already updated to 1.4.14,
+  every session start logged the schema fingerprint warning again; the
+  versions match once more, and 1.4.13's and 1.4.14's session fixes
+  come with it. Older Muse Code versions keep working, and editors
+  that connect through the terminal agent get the protocol libraries'
+  latest framing and error fixes. New agent releases are now taken as
+  soon as they publish instead of after a seven-day wait, so their
+  fixes reach you in the next update, not the one after.
 - Provider models and prices are current again (checked 2026-10-30):
   GPT-6.1 Terra is listed, retired Mistral and OpenRouter models are
   gone, and changed prices (Mistral Large 4 halved, DeepSeek V4)
@@ -533,8 +542,8 @@ happened, not what was planned; superseded entries are kept.
   editor's side-by-side alignment, the macOS credential store's signed
   binaries, the terminal UI's rendering and input fixes, and six
   security advisories in build-time libraries are in. One moderate
-  advisory (`qs`, build-time only) waits for its fix to clear the
-  seven-day window on 2026-11-03 (`docs/certification/rlf-updeps.md`).
+  advisory (`qs`, build-time only) is not yet in
+  (`docs/certification/rlf-updeps.md`).
 - Approving a multi-step command no longer errors as if your choice had
   not been taken when Muse Code is slow to save the decision. Muse Code
   sometimes answers an approval with its own "approval persistence timed
