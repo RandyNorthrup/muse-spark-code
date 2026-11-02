@@ -27,6 +27,23 @@ export function runWindowsTool(name: string, args: readonly string[]): Promise<s
   })
 }
 
+async function windowsUserSid(): Promise<string> {
+  const user = await runWindowsTool('whoami.exe', ['/user', '/fo', 'csv', '/nh'])
+  const [, sid] = /"(S-[\d-]+)"/.exec(user) ?? []
+  if (sid === undefined) throw new Error('test-user-sid-unavailable')
+  return sid
+}
+
+/**
+Makes this account the owner on Windows, where an elevated account's new
+objects can belong to Administrators (Windows Server's default for its
+members). POSIX has no such case to put right.
+*/
+export async function takeOwnership(directory: string): Promise<void> {
+  if (process.platform !== 'win32') return
+  await runWindowsTool('icacls.exe', [directory, '/setowner', `*${await windowsUserSid()}`])
+}
+
 /**
 Creates `directory` as a private lease folder: 0700 on POSIX; on Windows an
 owner-only protected ACL, so a host's extra inherited entries (sandbox
@@ -38,10 +55,7 @@ export async function makePrivateFolder(directory: string): Promise<void> {
     await chmod(directory, 0o700)
     return
   }
-  const user = await runWindowsTool('whoami.exe', ['/user', '/fo', 'csv', '/nh'])
-  const [, sid] = /"(S-[\d-]+)"/.exec(user) ?? []
-  if (sid === undefined) throw new Error('test-user-sid-unavailable')
-  // Elevated Windows fixtures can otherwise inherit Administrators as owner.
+  const sid = await windowsUserSid()
   await runWindowsTool('icacls.exe', [directory, '/setowner', `*${sid}`])
   await runWindowsTool('icacls.exe', [directory, '/inheritance:r', '/grant:r', `*${sid}:(OI)(CI)F`])
 }
