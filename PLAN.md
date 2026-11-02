@@ -12748,6 +12748,22 @@ waits on RLM104; M66 assessed; `docs/certification/rlhosts.md`).
 so no Xcode session is possible here;
 `docs/certification/rlf-hosts2.md`).
 
+**Status 2026-11-02 (RVHOSTS2): built**
+(Independent review of that branch on `rv/hosts2`. A path that only starts
+in the recording folder and then leaves it is refused in words
+(`41a2734c7`). A GitHub lease this window did not grant, or one past the
+local lifetime, is refused in words (`2659811ed`). Host LSP checks require
+the live argv to be this tree's `dist/acp.js` (`2f4306725`), and the Emacs
+supervised handshake keeps the agent log off the protocol pipe
+(`6d9f95839`). Unreleased notes no longer say native hosts attach screen
+captures or that a shipped editor signs the panel in with a held token
+(`615f7ee89`). The lazy registry names the panel media and schedule
+bundles the build emits (`bbbb55bba`). MHP stays `mhp/1.6.0`. The merge
+with int must make 1.6.0 a
+superset of int's 1.5.1 (quota on `turnCompleted` and `turnRetry`, and the
+`external` host kind) without dropping theme or attachments. int was not
+merged here. `docs/certification/rvhosts2.md`).
+
 | Milestone | Phase | What it delivers                                                                                                                                             |
 | --------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | M60       | A     | The host API inventory: every VS Code API, Node built-in, webview host call and theme variable the extension uses, recorded and gated; the `vscode` boundary |
