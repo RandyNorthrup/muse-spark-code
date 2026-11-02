@@ -20,6 +20,8 @@ const NONE: PermissionSettings = {
   profiles: {},
   profile: '',
   repositoryRules: {},
+  sensitiveReads: null,
+  memoryAfterUntrustedAsk: true,
 }
 
 function settings(overrides: Partial<PermissionSettings>): PermissionSettings {
@@ -191,6 +193,63 @@ describe('compilePolicy: what a repository adds can only tighten (M78)', () => {
 
   it('reads an absent repository setting as nothing', () => {
     expect(compilePolicy(settings({ repositoryRules: undefined }), 'linux').problems).toEqual([])
+  })
+})
+
+describe('compilePolicy: sensitive reads and memory after untrusted reads (D261)', () => {
+  it('unset uses the built-in set, judged on the names given', () => {
+    const policy = compilePolicy(settings({}), 'linux')
+    expect(policy.files.sensitiveGlobs).toBeNull()
+    expect(policy.files.isSensitive(['.env'])).toBe(true)
+    expect(policy.files.isSensitive(['app/.env.example'])).toBe(false)
+    expect(policy.files.isSensitive(['src/index.ts'])).toBe(false)
+    expect(policy.memoryAfterUntrustedAsk).toBe(true)
+    expect(policy.problems).toEqual([])
+  })
+
+  it('an empty list empties the set: nothing asks and search excludes nothing', () => {
+    const policy = compilePolicy(settings({ sensitiveReads: [] }), 'linux')
+    expect(policy.files.sensitiveGlobs).toEqual([])
+    expect(policy.files.isSensitive(['.env'])).toBe(false)
+    expect(policy.files.isSensitive(['certs/server.pem'])).toBe(false)
+    expect(policy.problems).toEqual([])
+  })
+
+  it('a list the person sets replaces the built-in set', () => {
+    const policy = compilePolicy(settings({ sensitiveReads: ['**/*.secret', 'keys/**'] }), 'linux')
+    expect(policy.files.sensitiveGlobs).toEqual(['**/*.secret', 'keys/**'])
+    expect(policy.files.isSensitive(['app/token.secret'])).toBe(true)
+    expect(policy.files.isSensitive(['keys/anything.txt'])).toBe(true)
+    // Replaced, not extended: the built-in names no longer apply.
+    expect(policy.files.isSensitive(['.env'])).toBe(false)
+    expect(policy.problems).toEqual([])
+  })
+
+  it('a value that cannot be read keeps the built-in set and says so', () => {
+    for (const sensitiveReads of ['.env', [42], [`*.${'x'.repeat(300)}`]]) {
+      const policy = compilePolicy(settings({ sensitiveReads }), 'linux')
+      expect(policy.files.sensitiveGlobs).toBeNull()
+      expect(policy.files.isSensitive(['.env'])).toBe(true)
+      expect(policy.problems[0]).toMatchObject({ kind: 'sensitiveInvalid' })
+      expect(describePolicyProblem(policy.problems[0]!)).toContain(
+        'museSpark.modelApiSensitiveReads',
+      )
+    }
+  })
+
+  it('the memory switch is the person’s, off means off', () => {
+    expect(
+      compilePolicy(settings({ memoryAfterUntrustedAsk: false }), 'linux').memoryAfterUntrustedAsk,
+    ).toBe(false)
+  })
+
+  it('a repository cannot widen or empty the sensitive set: its setting has no such key', () => {
+    const policy = compilePolicy(
+      settings({ repositoryRules: { sensitiveReads: [], denyRead: [] } }),
+      'linux',
+    )
+    expect(policy.files.isSensitive(['.env'])).toBe(true)
+    expect(policy.problems).toEqual([])
   })
 })
 

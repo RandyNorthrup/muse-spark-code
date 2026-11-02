@@ -477,6 +477,12 @@ export interface ToolContext {
   dispatcher judges those names again under the policy as it stands.
   */
   readonly files?: FileRules
+  /**
+  Sensitive files are left out of `search` (D261): set by the host in
+  every mode but Bypass, which is unchanged. `read_file` of one asks at
+  dispatch instead; a listing only ever names files, so it keeps them.
+  */
+  readonly shouldExcludeSensitive?: boolean
   /** The shell's time limit, lifted when the command moves to the background (M46). */
   readonly limit?: ShellTimeLimit
   /**
