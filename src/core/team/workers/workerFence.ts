@@ -18,6 +18,7 @@ import {
   UI_TEXT,
 } from '../../../shared/constants'
 import { uiLocale } from '../../../shared/l10n/text'
+import { isWonderTierModel, wonderTierRefusal } from '../../../shared/wonderTier'
 import type { WorkerRolePolicy } from './workerTypes'
 import { noWorkspaceChildEnvironment } from '../../execGuard'
 import { lstat, open, realpath } from 'node:fs/promises'
@@ -1045,6 +1046,10 @@ export function acpSpawnArgs(input: {
   readonly modelId?: string
   readonly extraArgs?: readonly string[]
 }): readonly string[] {
+  // A Wonder-tier id named by the pool is refused before the agent starts
+  // (RLF-WONDER): no request is sent for it as a standard Muse Code model.
+  if (input.modelId !== undefined && isWonderTierModel(input.modelId))
+    throw new Error(wonderTierRefusal(input.modelId))
   const { withoutUserServersSwitch: presetSwitch, withoutUserServersMeta: presetMeta } =
     input.preset
   const hasSwitch = presetSwitch !== undefined && presetSwitch.length > 0

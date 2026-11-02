@@ -5335,6 +5335,7 @@
   "teamTasksQueued": "Tarefas da equipe na fila: {count}",
   "teamMergeRework": "A mesclagem encontrou conflitos: a tarefa voltou para retrabalho.",
   "teamTaskUnknown": "Essa tarefa da equipe não está aberta nesta janela.",
+  "teamWonderTierRefused": "{model} não pode ser executado em uma equipe como modelo padrão do Muse Code: é um modelo Wonder, com a tarifa Wonder, não um nível padrão do Muse Code, portanto nenhuma solicitação foi enviada para ele.",
   "teamWaitingUnknown": "Nada mais está aguardando esta resposta.",
   "teamBudgetUnavailable": "Uma tarefa da equipe não pode começar sob um orçamento de sessão até poder compartilhar o orçamento desta conversa.",
   "teamTaskNoDiff": "Essa tarefa da equipe não tem um branch para comparar.",

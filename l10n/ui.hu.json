@@ -5223,6 +5223,7 @@
   "teamTasksQueued": "Sorba állított csapatfeladatok: {count}",
   "teamMergeRework": "Az egyesítés ütközésekbe ütközött: a feladat átdolgozásra visszakerült.",
   "teamTaskUnknown": "Ez a csapatfeladat nincs megnyitva ebben az ablakban.",
+  "teamWonderTierRefused": "{model} csapatban nem futhat szabványos Muse Code modellként: Wonder modell, a Wonder díjszabással, nem szabványos Muse Code szint, ezért nem ment el érte kérés.",
   "teamWaitingUnknown": "Már semmi sem vár erre a válaszra.",
   "teamBudgetUnavailable": "Egy csapatfeladat munkamenet-költségkeret mellett csak akkor indulhat, ha megoszthatja ennek a beszélgetésnek a keretét.",
   "teamTaskNoDiff": "Ennek a csapatfeladatnak nincs összehasonlítható ága.",

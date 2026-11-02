@@ -5223,6 +5223,7 @@
   "teamTasksQueued": "Sıradaki ekip görevleri: {count}",
   "teamMergeRework": "Birleştirme çakışmalarla karşılaştı: görev yeniden çalışma için geri döndü.",
   "teamTaskUnknown": "Bu ekip görevi bu pencerede açık değil.",
+  "teamWonderTierRefused": "{model} bir ekipte standart bir Muse Code modeli olarak çalışamaz: bu, Wonder tarifesine sahip bir Wonder modelidir, standart bir Muse Code kademesi değildir, bu nedenle onun için hiçbir istek gönderilmedi.",
   "teamWaitingUnknown": "Artık bu yanıtı bekleyen bir şey yok.",
   "teamBudgetUnavailable": "Bir ekip görevi, bu konuşmanın bütçesini paylaşabilene kadar oturum bütçesi altında başlayamaz.",
   "teamTaskNoDiff": "Bu ekip görevinin karşılaştırılacak bir dalı yok.",

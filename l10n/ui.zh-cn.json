@@ -5111,6 +5111,7 @@
   "teamTasksQueued": "已排队的团队任务：{count}",
   "teamMergeRework": "合并遇到冲突：任务已退回返工。",
   "teamTaskUnknown": "该团队任务未在此窗口中打开。",
+  "teamWonderTierRefused": "{model} 无法作为标准 Muse Code 模型在团队中运行：它是 Wonder 模型，采用 Wonder 费率，而不是标准 Muse Code 级别，因此未为其发送任何请求。",
   "teamWaitingUnknown": "已没有内容在等待此回答。",
   "teamBudgetUnavailable": "在会话预算下，团队任务要能共享此对话的预算才能开始。",
   "teamTaskNoDiff": "该团队任务没有可比较的分支。",

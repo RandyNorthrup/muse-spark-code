@@ -5223,6 +5223,7 @@
   "teamTasksQueued": "Teamaufgaben in der Warteschlange: {count}",
   "teamMergeRework": "Beim Zusammenführen gab es Konflikte: Die Aufgabe ging zur Überarbeitung zurück.",
   "teamTaskUnknown": "Diese Teamaufgabe ist in diesem Fenster nicht offen.",
+  "teamWonderTierRefused": "{model} kann in einem Team nicht als Standardmodell von Muse Code laufen: Es ist ein Wonder-Modell mit dem Wonder-Tarif, keine Standardstufe von Muse Code, daher wurde keine Anfrage dafür gesendet.",
   "teamWaitingUnknown": "Auf diese Antwort wartet nichts mehr.",
   "teamBudgetUnavailable": "Eine Teamaufgabe kann unter einem Sitzungsbudget erst starten, wenn sie das Budget dieser Unterhaltung teilen kann.",
   "teamTaskNoDiff": "Diese Teamaufgabe hat keinen Branch zum Vergleichen.",
