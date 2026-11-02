@@ -70,6 +70,11 @@
     (insert-file-contents (format "/proc/%d/environ" (process-id process)))
     (split-string (buffer-string) "\0" t)))
 
+(defun muse-test--stderr-buffer ()
+  "A buffer for the child's log. Stdout stays the protocol: a nil stderr
+mixes the log into it, and the first line is then not JSON."
+  (generate-new-buffer " *muse-test-stderr*"))
+
 (ert-deftest muse-lsp-real-agent-lifecycle ()
   "The host's lsp argv starts the real server; it answers and exits 0."
   (pcase-let ((`(,home ,workspace) (muse-test--scratch)))
@@ -81,11 +86,12 @@
                                       (muse-spark--environment)))
                (default-directory workspace)
                (received "")
+               (stderr (muse-test--stderr-buffer))
                (child (make-process
                        :name "muse-test-lsp"
                        :command (append (muse-spark--argv "lsp")
                                         (list "--workspace" workspace))
-                       :connection-type 'pipe :noquery t
+                       :connection-type 'pipe :noquery t :stderr stderr
                        :filter (lambda (_process chunk)
                                  (setq received (concat received chunk))))))
           (unwind-protect
@@ -128,7 +134,8 @@
                 (should (muse-test--wait-for
                          child (lambda () (not (process-live-p child)))))
                 (should (= (process-exit-status child) 0)))
-            (when (process-live-p child) (delete-process child))))
+            (when (process-live-p child) (delete-process child))
+            (when (buffer-live-p stderr) (kill-buffer stderr))))
       (delete-directory home t)
       (delete-directory workspace t))))
 
@@ -170,10 +177,11 @@ sandbox whose / is neither (uid 65534 on this rig) refuses every run."
                (process-environment (muse-test--environment home))
                (default-directory workspace)
                (lines nil)
+               (stderr (muse-test--stderr-buffer))
                (child (make-process
                        :name "muse-test-acp"
                        :command (muse-spark--argv nil t)
-                       :connection-type 'pipe :noquery t
+                       :connection-type 'pipe :noquery t :stderr stderr
                        :filter (lambda (_process chunk)
                                  (setq lines (append lines (split-string chunk "\n" t)))))))
           (unwind-protect
@@ -207,6 +215,7 @@ sandbox whose / is neither (uid 65534 on this rig) refuses every run."
                 (process-send-eof child)
                 (should (muse-test--wait-for
                          child (lambda () (not (process-live-p child))))))
-            (when (process-live-p child) (delete-process child))))
+            (when (process-live-p child) (delete-process child))
+            (when (buffer-live-p stderr) (kill-buffer stderr))))
       (delete-directory home t)
       (delete-directory workspace t))))
