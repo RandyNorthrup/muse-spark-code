@@ -286,8 +286,13 @@ async function openSession(): Promise<void> {
     process.pid,
   )
   state.taints = createHeadlessVaultTaintSource()
-  state.service = createHeadlessVaultExecService({
-    broker: state.session.execBroker(),
+  state.service = serviceOver(state.session.execBroker())
+}
+
+/** The exec service over the fixture install root, reading the run's taint source. */
+function serviceOver(broker: ReturnType<ExecVaultSession['execBroker']>): VaultExecService {
+  return createHeadlessVaultExecService({
+    broker,
     distDir: path.join(state.root, 'dist'),
     dataDir: state.data,
     nodePath: process.execPath,
@@ -436,26 +441,15 @@ describe.skipIf(shouldSkipBroker)(
         ).rejects.toThrow()
         // A delegation to the wrong process identity is refused by the broker.
         const inner = state.session.execBroker()
-        const foreign = createHeadlessVaultExecService({
-          broker: {
-            authorize: inner.authorize,
-            list: inner.list,
-            delegate: async (ticketId, feeder, digest) => {
-              await inner.delegate(
-                ticketId,
-                { processId: process.pid, startedAt: feeder.startedAt },
-                digest,
-              )
-            },
-          },
-          distDir: path.join(state.root, 'dist'),
-          dataDir: state.data,
-          nodePath: process.execPath,
-          env: process.env,
-          platform: process.platform,
-          taint: () => {
-            if (!state.taints) throw new Error('missing taint source')
-            return state.taints.current()
+        const foreign = serviceOver({
+          authorize: inner.authorize,
+          list: inner.list,
+          delegate: async (ticketId, feeder, digest) => {
+            await inner.delegate(
+              ticketId,
+              { processId: process.pid, startedAt: feeder.startedAt },
+              digest,
+            )
           },
         })
         const refused = await foreign.run(
