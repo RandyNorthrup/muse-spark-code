@@ -99,6 +99,24 @@ Releases and npm.
   introduced. See [Judge](docs/judge.md) and its
   [certification record](docs/certification/m98.md).
 
+- **Fast-judge approval paths (M125 lanes F1 and F2).** Present but inert:
+  no session supplies a helper path, so the hold's bundle never loads; no
+  platform is certified (`JUDGE_FAST_B1_READY_PLATFORMS` is empty); and no
+  confinement helper ships with the product. Every approval runs today's
+  reviewer unchanged. The B1 inspect boundary itself is proven outside the
+  product: on Linux the helper confines each open with Landlock per-file
+  read grants plus a seccomp filter, and on macOS with a generated Seatbelt
+  profile, and on both `stat` is reported from the walked operands without
+  starting a program (D217). The B2 check core (command grammar, definition
+  closure, owner baseline over git, frozen snapshot, the capture-verified
+  system-call allow-list) is built and tested, but its contained run path
+  does not exist yet: nothing executes a check in confinement. Proofs:
+  [F1a](docs/certification/m125-f1a.md),
+  [F1b](docs/certification/m125-f1.md),
+  [F2](docs/certification/m125-f2.md),
+  [macOS parity](docs/certification/paritymac.md) and
+  [RLF-M125](docs/certification/rlf-m125.md).
+
 - **Accounts and local profiles (M108).** Account credentials use separate
   origin-bound slots in SecretStorage or the runtime's OS credential store;
   metadata contains no credential. Removal fences pending reads and queued
