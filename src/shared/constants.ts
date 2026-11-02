@@ -11470,6 +11470,10 @@ export const DESKTOP_FILE_SCAN_IGNORED = [
 export const DESKTOP_LOG_TEXT = {
   permissionDenied: 'permission denied by the desktop shell',
   navigationDenied: 'navigation outside the workbench was blocked',
+  // Lane BP (D91.13): the app scheme's read failed past missing-file.
+  appFileFailed: 'the workbench window could not read its own file',
+  // Lane BP (D91.13): the PTY spawn or the native load refused.
+  terminalCreateFailed: 'the terminal could not be started',
 } as const
 export const DESKTOP_LAYOUT_BOUNDS = {
   chatWidthMinPx: 200,
@@ -11508,3 +11512,10 @@ export const DESKTOP_TERMINAL_DEFAULT_ROWS = 24
 // way, and the sash's arrow keys move a twentieth at a time.
 export const DESKTOP_SPLIT_MIN_FRACTION = 0.1
 export const DESKTOP_SPLIT_KEYBOARD_STEP = 0.05
+// Lane BP (D91.13): the workbench window's own scheme. ES module chunks
+// (the lazy terminal engine first, every M111b lane's after it) cannot
+// load over file://, so main serves its folder over this privileged,
+// same-origin scheme instead — the standard Electron answer, as VS Code's
+// own schemes are. Only this host answers, from the app folder only.
+export const DESKTOP_APP_SCHEME = 'muse-desktop'
+export const DESKTOP_APP_HOST = 'app'

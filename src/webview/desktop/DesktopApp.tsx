@@ -69,7 +69,8 @@ import {
 } from '../../shared/desktop/workbench'
 import { webviewKey } from '../../shared/keybindings'
 import { desktopBridge } from '../bridges/desktop'
-import { releasePersistentTerminal, type IsWorkbenchChord } from './panel/terminalEngine'
+import { releasePersistentTerminal } from './panel/terminalRegistry'
+import type { IsWorkbenchChord } from './panel/terminalEngine'
 import type { TerminalPaneHandle } from './panel/TerminalView'
 import {
   BottomPanel,
@@ -379,12 +380,10 @@ export function DesktopApp() {
     [persistLayout],
   )
 
-  const createFailed = useCallback((error: unknown) => {
-    setTerminalCreateError(
-      error instanceof Error
-        ? `${UI_TEXT.desktop.panelTerminalCreateFailed}: ${error.message}`
-        : UI_TEXT.desktop.panelTerminalCreateFailed,
-    )
+  const createFailed = useCallback(() => {
+    // The failure's own text never reaches the sentence (AGENTS rule
+    // 18): main says the cause on its stderr, the panel says the fact.
+    setTerminalCreateError(UI_TEXT.desktop.panelTerminalCreateFailed)
   }, [])
 
   const newTerminal = useCallback(
@@ -415,8 +414,8 @@ export function DesktopApp() {
           activePaneId: created.id,
         })
         setTerminalCreateError(null)
-      } catch (error: unknown) {
-        createFailed(error)
+      } catch {
+        createFailed()
       }
     },
     [createFailed, persistLayout, workspace],
@@ -782,8 +781,8 @@ export function DesktopApp() {
           activePaneId: created.id,
         })
         setTerminalCreateError(null)
-      } catch (error: unknown) {
-        createFailed(error)
+      } catch {
+        createFailed()
       }
     },
     [createFailed, persistLayout, workspace],

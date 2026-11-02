@@ -4,17 +4,73 @@
 // transcript); the shell appends the persistent host, binds the find
 // bar's listener and fits. Tab close releases the emulator through
 // DesktopApp's tab effect, never here: this shell unmounts on every move.
+//
+// The shell rides the startup chunk; the engine loads lazily through
+// use(), so the pane suspends on the panel's loading fallback until the
+// chunk arrives, and a failed chunk reaches the panel's retry boundary.
+// The engine shares nothing with this chunk (every bridge call, sentence
+// and size arrives through the acquire hooks), so the bundler keeps it
+// whole in its own file.
 
-import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
+import { type KeyboardEvent, use, useEffect, useRef, useState } from 'react'
 import type { ISearchOptions } from '@xterm/addon-search'
-import { UI_TEXT } from '../../../shared/constants'
+import {
+  DESKTOP_TERMINAL_DEFAULT_COLS,
+  DESKTOP_TERMINAL_DEFAULT_ROWS,
+  UI_TEXT,
+} from '../../../shared/constants'
 import { webviewKey } from '../../../shared/keybindings'
 import { fill } from '../../../shared/l10n/text'
-import {
-  acquirePersistentTerminal,
-  type IsWorkbenchChord,
-  type PersistentTerminal,
+import { desktopBridge } from '../../bridges/desktop'
+import type {
+  IsWorkbenchChord,
+  PersistentTerminal,
+  PersistentTerminalHooks,
 } from './terminalEngine'
+import { registerPersistentTerminal, unregisterPersistentTerminal } from './terminalRegistry'
+
+/** The lazy chunk's surface, restated structurally. */
+interface TerminalEngineModule {
+  readonly acquirePersistentTerminal: (
+    tabId: string,
+    title: string,
+    isReadOnly: boolean,
+    hooks: PersistentTerminalHooks,
+  ) => PersistentTerminal
+}
+
+/** An exit code for the exit sentence; a missing code reads as a dash. */
+function exitCodeText(code: number | null): string | number {
+  switch (code) {
+    case null: {
+      return '—'
+    }
+    default: {
+      return code
+    }
+  }
+}
+
+/**
+The lazy chunk's stylesheet, loaded once beside its script: esbuild
+splits the xterm CSS into `renderer.terminalEngine.css` next to the
+lazy chunk, and the same-origin link below is covered by the app's
+`style-src 'self'` policy.
+*/
+function ensureTerminalCss(): void {
+  if (document.querySelector('link[data-muse-terminal-css]') !== null) return
+  const link = document.createElement('link')
+  link.rel = 'stylesheet'
+  link.href = './renderer.terminalEngine.css'
+  link.dataset['museTerminalCss'] = 'true'
+  document.head.append(link)
+}
+
+async function loadEngine(): Promise<TerminalEngineModule> {
+  const module = await import('./terminalEngine')
+  ensureTerminalCss()
+  return module
+}
 
 export interface TerminalPaneHandle {
   openSearch(): void
@@ -45,6 +101,10 @@ function searchOptions(
 
 export function TerminalView(properties: TerminalViewProps) {
   const { tabId, title, isReadOnly, isWorkbenchChord, onFocusPane, registerPane } = properties
+  // One load per mount: the boundary's retry remounts, so the chunk
+  // fetch runs again without sharing a rejected promise.
+  const [enginePromise] = useState(loadEngine)
+  const engineModule = use(enginePromise)
   const shell = useRef<HTMLDivElement>(null)
   const engine = useRef<PersistentTerminal | null>(null)
   const input = useRef<HTMLInputElement>(null)
@@ -80,7 +140,26 @@ export function TerminalView(properties: TerminalViewProps) {
   useEffect(() => {
     const wrapper = shell.current
     if (wrapper === null) return
-    const acquired = acquirePersistentTerminal(tabId, title, isReadOnly, isWorkbenchChord)
+    const bridge = desktopBridge()
+    const hooks: PersistentTerminalHooks = {
+      isWorkbenchChord,
+      initialCols: DESKTOP_TERMINAL_DEFAULT_COLS,
+      initialRows: DESKTOP_TERMINAL_DEFAULT_ROWS,
+      register: registerPersistentTerminal,
+      unregister: unregisterPersistentTerminal,
+      writeTerminal: (id, data) => {
+        bridge.writeTerminal(id, data)
+      },
+      resizeTerminal: (id, cols, rows) => {
+        bridge.resizeTerminal(id, cols, rows)
+      },
+      openExternal: (uri) => bridge.openExternal(uri),
+      onTerminalData: (listener) => bridge.onTerminalData(listener),
+      onTerminalExit: (listener) => bridge.onTerminalExit(listener),
+      formatExit: (code) =>
+        fill(UI_TEXT.desktop.workbenchTerminalExited, { code: exitCodeText(code) }),
+    }
+    const acquired = engineModule.acquirePersistentTerminal(tabId, title, isReadOnly, hooks)
     engine.current = acquired
     wrapper.append(acquired.host)
     acquired.setSearchListener((resultIndex, resultCount) => {
@@ -99,7 +178,7 @@ export function TerminalView(properties: TerminalViewProps) {
       acquired.setSearchListener(null)
       acquired.clearSearch()
     }
-  }, [isReadOnly, isWorkbenchChord, tabId, title])
+  }, [engineModule, isReadOnly, isWorkbenchChord, tabId, title])
 
   const runSearch = (
     next: string,

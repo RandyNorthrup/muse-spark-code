@@ -15,7 +15,6 @@ import {
   type RefObject,
   Component,
   Suspense,
-  lazy,
   useRef,
   useState,
 } from 'react'
@@ -52,14 +51,7 @@ import './panel.css'
 import { OutputView } from './OutputView'
 import { ProblemsView } from './ProblemsView'
 import type { IsWorkbenchChord } from './terminalEngine'
-import { type TerminalPaneHandle, type TerminalViewProps } from './TerminalView'
-
-async function loadTerminalView(): Promise<{
-  default: (properties: TerminalViewProps) => ReactNode
-}> {
-  const { TerminalView } = await import('./TerminalView')
-  return { default: TerminalView }
-}
+import { TerminalView, type TerminalPaneHandle } from './TerminalView'
 
 /** A tab as the workbench knows it, plus the exit the renderer last saw. */
 export type BottomPanelTab = PanelTerminalTab & {
@@ -213,8 +205,8 @@ function TabStrip(properties: {
 }
 
 // The lazy chunk's honest failure: what went wrong and a retry that
-// remounts the loader, so the chunk fetch runs again (a remount of the
-// same lazy component would reuse its rejected promise).
+// remounts the shell, so the chunk fetch runs again (the shell clears
+// its rejected load for the retry).
 class TerminalChunkBoundary extends Component<
   { readonly title: string; readonly onRetry: () => void; readonly children: ReactNode },
   { readonly failed: boolean }
@@ -248,11 +240,6 @@ class TerminalChunkBoundary extends Component<
   }
 }
 
-function TerminalViewLoader(properties: TerminalViewProps): ReactNode {
-  const [View] = useState(() => lazy(loadTerminalView))
-  return <View {...properties} />
-}
-
 function TerminalPaneShell(properties: {
   readonly tab: BottomPanelTab
   readonly registerPane: (id: string, handle: TerminalPaneHandle | null) => void
@@ -276,7 +263,7 @@ function TerminalPaneShell(properties: {
             </p>
           }
         >
-          <TerminalViewLoader
+          <TerminalView
             key={attempt}
             tabId={tab.id}
             title={tabText(tab)}
