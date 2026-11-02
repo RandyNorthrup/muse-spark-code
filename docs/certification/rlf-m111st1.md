@@ -19,11 +19,14 @@ base `5ec754534`.
   (22 tests).
 - Strings: the `settingsSystem` group, 152 keys in `en.ts` plus the
   confirmation and pairing follow-ups, in English and all 14 tables
-  (`node scripts/check-l10n.mjs`: 0 problems). They ride the
-  `surfaces` English region (`settingsSystem$` in
-  `scripts/lib/uiTextRegions.mjs`) so `dist/uiText.js`, at its
-  limit, does not grow; the Rust and QML tables were regenerated
-  (`npm run desktop:l10n`).
+  (`node scripts/check-l10n.mjs`: 0 problems). They ride their own
+  desktop English chunk (`dist/uiTextSettings.js`, the `settings`
+  region in `scripts/lib/uiTextRegions.mjs`, measured 2.2 KiB
+  against a 25 KiB budget) so neither `dist/uiText.js` nor
+  `dist/uiTextSurfaces.js` grows: with the settings keys the
+  surfaces chunk stood at 26.2 KiB against its 25 KiB cap, and an
+  existing budget is never raised (D6). The Rust and QML tables
+  were regenerated (`npm run desktop:l10n`).
 - The eleven pages under `src/webview/settings/system/` with shared
   primitives (page frame, rows, the bound loader, the confirm
   dialog, localized number parsing): `AppearancePage`,
@@ -85,21 +88,26 @@ the regression test fails without the fix and passes with it.
 
 ## Drills
 
-(Done after the docs commit; the numbers below are the formal
-record.)
-
-1. _Confirm gate._ Break: the dialog stops rendering its Apply
-   change button. The Bluetooth confirm test fails red
-   (exit non-zero); restore; the settings suites go green.
+1. _Confirm gate._ Break: the Apply change button calls
+   `onCancel` instead of `onConfirm` (`dialog.tsx`). Red:
+   `npx vitest run test/unit/settings/networkPages.test.tsx`
+   exits 1 with 5 failed / 5 passed. Restore (tree clean);
+   green: exit 0, 10 passed.
 2. _Page-frame loader binding._ Break: revert the
-   `snapshot.load !== load` guard. The regression test fails red
-   (exit non-zero); restore; green.
-3. _Localization._ Break: drop one `settingsSystem` key from one
-   translated table. `node scripts/check-l10n.mjs` fails red
-   (exit non-zero); restore; 0 problems.
-4. _Bundle budget._ Break: lower the `settings.js` budget below
-   the measured size. `node scripts/check-bundle-size.mjs` fails
-   red (exit non-zero); restore; budgets hold.
+   `snapshot.load !== load` guard (`frame.tsx`). Red:
+   `npx vitest run test/unit/settings/shell.test.tsx` exits 1
+   with "never renders one loader's data for another loader"
+   failing. Restore (tree clean); green: exit 0, 10 passed.
+3. _Localization._ Break: delete
+   `settingsSystem.navDisplays` from `l10n/ui.de.json`. Red:
+   `node scripts/check-l10n.mjs` exits 1 with 4 problems
+   (missing key, order, two stale generated tables). Restore
+   (tree clean); green: exit 0, 0 problems.
+4. _Bundle budget._ Break: lower the `settings.js` budget to
+   700 KiB. Red: `node scripts/check-bundle-size.mjs` exits 1
+   with `OVER dist/desktop/settings.js: 754.9 KiB (budget 700
+KiB)`. Restore (tree clean); green: settings 754.9 KiB /
+   875 KiB, settings.css 7.3 KiB / 25 KiB, both `ok`.
 
 ## What is next
 
