@@ -5,22 +5,19 @@
 // serves ephemeral sessions); signed-in runs take the person's real home
 // so the CLI signs in on its own, exactly as for the product, and the
 // test never runs a turn on a model provider there.
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 import { Connection } from '@muse-code/sdk'
 import { ChildStdioTransport } from '@muse-code/sdk/dist/src/connection/spawn.js'
+import * as z from 'zod/mini'
 import type { HostExit } from '../../../src/core/agent/agentBackend'
 import type { CoreLogger } from '../../../src/core/logging'
 import { MuseCodeHost } from '../../../src/core/backends/musecode/MuseCodeHost'
 import { resolveMuseLaunch } from '../../../src/core/backends/musecode/launch'
 import { credentialFilePath } from '../../../src/core/backends/musecode/credentialPath'
-import {
-  credentialFileVerdict,
-  isSignedInByStructure,
-} from '../../../src/core/backends/musecode/credentialFile'
 import { withoutCredentials } from '../../../src/runtime/credentialVariables'
 import { isolatedRuntimeEnvironment } from './isolatedRuntimeEnvironment'
 import { MSP_CLIENT_NAME, MSP_REQUESTED_CAPABILITIES } from '../../../src/shared/constants'
@@ -55,21 +52,100 @@ export function museOrThrow(): string {
   return MUSE
 }
 
+/** What one `muse serve` answers about itself: durability and catalogue size. */
+export interface CliServeAbilities {
+  readonly isDurable: boolean
+  readonly catalogue: number
+}
+
+// A genuinely long operation's ceiling: a cold CLI start plus two
+// round trips. Past it the probe reads as nothing served and the agent
+// suites skip, so a slow rig skips instead of failing.
+const SERVE_PROBE_TIMEOUT_MS = 20_000
+
+const mspResponseSchema = z.looseObject({
+  id: z.union([z.number(), z.string()]),
+  result: z.optional(z.unknown()),
+})
+
 /**
-Whether the CLI is signed in, by the credential file's structure alone
-(values never read): the suites that need a catalogue and durable
-sessions skip without it.
+One synchronous `muse serve` that answers initialize and model/list, so
+a suite gates on what the CLI serves instead of guessing from files: a
+file can name a credential the CLI will not honor (inline, yet
+ephemeral on the 2026-11-02 rig), and only durable sessions re-attach.
+No session starts, no model is named. Anything unreadable reads as
+nothing served, so the suites skip instead of failing.
 */
-export function isCliSignedIn(): boolean {
-  const file = credentialFilePath({
-    platform: process.platform,
-    homeDir: homedir(),
-    xdgConfigHome: process.env['XDG_CONFIG_HOME'],
+export function cliServeAbilities(muse: string): CliServeAbilities {
+  const none: CliServeAbilities = { isDurable: false, catalogue: 0 }
+  let version: string
+  try {
+    version = (
+      JSON.parse(readFileSync(new URL('../../../package.json', import.meta.url), 'utf8')) as {
+        version: string
+      }
+    ).version
+  } catch {
+    return none
+  }
+  const requestFrame = (id: number, method: string, params: unknown): string =>
+    `${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`
+  const input =
+    requestFrame(1, 'initialize', {
+      clientInfo: { name: MSP_CLIENT_NAME, version },
+      capabilities: {
+        userInputDialogs: true,
+        requestedCapabilities: [...MSP_REQUESTED_CAPABILITIES],
+        experimentalApi: true,
+      },
+    }) +
+    `${JSON.stringify({ jsonrpc: '2.0', method: 'initialized' })}\n` +
+    requestFrame(2, 'model/list', {})
+  const run = spawnSync(muse, ['serve', '--no-session-log'], {
+    input,
+    timeout: SERVE_PROBE_TIMEOUT_MS,
+    encoding: 'utf8',
+    env: { ...withoutCredentials(process.env), MUSE_NO_AUTO_UPDATE: '1' },
   })
-  return (
-    existsSync(file) &&
-    isSignedInByStructure(credentialFileVerdict(readFileSync(file, 'utf8'), process.platform))
-  )
+  if (run.error !== undefined) {
+    return none
+  }
+  let isDurable = false
+  let catalogue = 0
+  for (const line of run.stdout.split('\n')) {
+    let frame: unknown
+    try {
+      frame = JSON.parse(line)
+    } catch {
+      continue
+    }
+    const parsed = mspResponseSchema.safeParse(frame)
+    if (!parsed.success) {
+      continue
+    }
+    const id = parsed.data.id
+    if (id !== 1 && id !== 2) {
+      continue
+    }
+    if (id === 1) {
+      // Absent reads as durable (msp.d.ts); `ephemeral` does not.
+      const init = z
+        .looseObject({ sessionDurability: z.optional(z.string()) })
+        .safeParse(parsed.data.result)
+      if (init.success) {
+        isDurable =
+          init.data.sessionDurability === undefined || init.data.sessionDurability === 'durable'
+      }
+    } else {
+      const listed = z
+        .looseObject({ models: z.optional(z.array(z.unknown())) })
+        .safeParse(parsed.data.result)
+      if (listed.success) {
+        catalogue = listed.data.models?.length ?? 0
+      }
+    }
+  }
+  return { isDurable, catalogue }
 }
 
 export interface LoggedLine {
