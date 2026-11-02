@@ -15,7 +15,6 @@ import {
 import {
   nodeAuditSchema,
   nodeDashboardSchema,
-  nodeDiagnosticsSchema,
   nodeFileListSchema,
   nodeFileTextSchema,
   nodeGitDestinationSchema,
@@ -23,6 +22,7 @@ import {
   nodeTerminalSizeSchema,
   nodeTerminalInputSchema,
 } from '../node'
+import { nodeDiagnosticsSchema } from '../nodeDiagnosticsEntry'
 import {
   nodeAssertionSchema,
   nodeChallengeTokenSchema,

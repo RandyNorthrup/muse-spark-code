@@ -11,7 +11,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { build } from 'esbuild'
 import { O11Y_STORE_FILE_MODE } from '../../../src/shared/constants'
 import { parseCrashLine } from '../../../src/core/o11y/crash'
-import { NodePrivateFiles } from '../../../src/runtime/node/privateFiles'
+import { NodeJournalFiles } from '../../../src/runtime/node/journalFiles'
 import { O11yRingStore } from '../../../src/runtime/o11y/store'
 import { nodeTempRoot } from '../helpers/nodeNative'
 
@@ -111,7 +111,7 @@ throw new TypeError('node boom');\n`,
     if (process.platform === 'win32') return
     const info = await stat(file)
     expect(info.mode & 0o777).toBe(O11Y_STORE_FILE_MODE)
-    const store = new O11yRingStore(new NodePrivateFiles(root), Date.now)
+    const store = new O11yRingStore(new NodeJournalFiles(root), Date.now)
     const crashes = await store.readRecentCrashes(10)
     expect(crashes.records).toHaveLength(1)
     expect(crashes.records[0]).toMatchObject({ component: 'node', code: 'TypeError' })

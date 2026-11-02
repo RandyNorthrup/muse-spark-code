@@ -1,9 +1,9 @@
-import { NODE_HEALTH_OK, NODE_HEALTH_UNREADY } from '../../shared/constants'
 import {
-  evaluateDesktopReadiness,
-  type DesktopReadiness,
-  type DesktopReadinessPort,
-} from '../../core/o11y/readiness'
+  DESKTOP_READINESS_COMPONENTS,
+  NODE_HEALTH_OK,
+  NODE_HEALTH_UNREADY,
+} from '../../shared/constants'
+import type { DesktopReadiness, DesktopReadinessPort } from '../../core/o11y/readiness'
 import type { NodeStateStore } from './state'
 
 export interface NodeHealthPorts {
@@ -32,10 +32,17 @@ async function desktopReadiness(
   try {
     // Readiness probes are fast local reads by contract; the compositor's
     // own 250 ms bound judges the measured ping, not this call.
-    return evaluateDesktopReadiness(await port.probe(new AbortController().signal))
+    return await port.probe(new AbortController().signal)
   } catch (error: unknown) {
     if (!isStorageFailure(error)) throw error
-    return evaluateDesktopReadiness([])
+    return {
+      ready: false,
+      components: DESKTOP_READINESS_COMPONENTS.map((component) => ({
+        component,
+        ready: false,
+        detail: 'no-probe',
+      })),
+    }
   }
 }
 

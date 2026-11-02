@@ -1,6 +1,6 @@
 // Desktop observability (M111 lane OB, PLAN.md D91.22): the file-backed
 // ring store. JSONL day files under the node's owner-only root (through
-// `NodePrivateFiles`, so every read, append and delete keeps its
+// `NodeJournalFiles`, so every read, append and delete keeps its
 // owner, mode and link checks): metrics, logs, sampled traces and crash
 // records. Appends fsync per batch; pruning deletes whole day files past
 // retention and compacts over-cap files to their newest lines. Malformed
@@ -31,7 +31,8 @@ import {
 } from '../../core/o11y/ringStore'
 import { parseCrashLine, serializeCrashRecord, type O11yCrashRecord } from '../../core/o11y/crash'
 import type { O11yLogRecord, O11yMetricPoint, O11ySpan } from '../../core/o11y/signals'
-import { isMissingFile, type NodePrivateFiles } from '../node/privateFiles'
+import { isMissingFile } from '../node/privateFiles'
+import type { NodeJournalFiles } from '../node/journalFiles'
 
 /** One metric series as the Diagnostics page charts it. */
 export interface O11yStoreSeries {
@@ -98,7 +99,7 @@ export class O11yRingStore {
   private sampledOutSpans = 0
 
   constructor(
-    private readonly files: NodePrivateFiles,
+    private readonly files: NodeJournalFiles,
     private readonly now: () => number = Date.now,
   ) {}
 

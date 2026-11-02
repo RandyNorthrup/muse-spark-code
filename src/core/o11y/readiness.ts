@@ -7,10 +7,12 @@
 // 0's contracts.
 
 import * as z from 'zod/mini'
-import { O11Y_COMPOSITOR_PING_MAX_MS, REPORT_ERROR_CODE_MAX_CHARS } from '../../shared/constants'
+import {
+  DESKTOP_READINESS_COMPONENTS,
+  O11Y_COMPOSITOR_PING_MAX_MS,
+  REPORT_ERROR_CODE_MAX_CHARS,
+} from '../../shared/constants'
 
-/** The desktop's readiness components, in `/readyz` order. */
-export const DESKTOP_READINESS_COMPONENTS = ['compositor', 'shell', 'app', 'sysd'] as const
 export type DesktopReadinessComponent = (typeof DESKTOP_READINESS_COMPONENTS)[number]
 
 /** One component's probe result: a word and a fixed detail, never a sentence. */
@@ -51,7 +53,14 @@ export function evaluateDesktopReadiness(probes: readonly DesktopProbe[]): Deskt
   }
 }
 
-/** The probes the desktop lanes supply; the node calls this for `/readyz`. */
+/**
+The readiness the desktop lanes supply, already evaluated with
+`evaluateDesktopReadiness` over their probes; the node calls this for
+`/readyz`. Evaluation stays with the supplier (CC-INT10's join moved it
+out of the node's health path so dist/node.js keeps its budget, D6).
+*/
 export interface DesktopReadinessPort {
-  probe(signal: AbortSignal): Promise<readonly DesktopProbe[]>
+  probe(signal: AbortSignal): Promise<DesktopReadiness>
 }
+
+export { DESKTOP_READINESS_COMPONENTS } from '../../shared/constants'

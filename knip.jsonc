@@ -60,6 +60,9 @@
     // The node crash hook, built as dist/nodeCrashHook.js (M111 lane OB),
     // loaded at node CLI startup.
     "src/runtime/o11y/crashHookEntry.ts",
+    // The Diagnostics payload schema, built as dist/nodeDiagnostics.js
+    // (CC-INT10, D6), required by the node bundles through the catalog.
+    "src/shared/nodeDiagnosticsEntry.ts",
     // Its loader (M110t TP2): built, pending the ACP pack fetch that
     // calls it (A0/transport); declared, not hidden, not deleted.
     "src/runtime/node/packs/verifyBundle.ts",

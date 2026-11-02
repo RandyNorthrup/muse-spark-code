@@ -7,7 +7,7 @@ import { afterEach, describe, expect } from 'vitest'
 import { O11Y_RECEIVER_MAX_BODY_BYTES } from '../../../src/shared/constants'
 import { startO11yReceiver } from '../../../src/runtime/o11y/receiver'
 import { O11yRingStore } from '../../../src/runtime/o11y/store'
-import { NodePrivateFiles } from '../../../src/runtime/node/privateFiles'
+import { NodeJournalFiles } from '../../../src/runtime/node/journalFiles'
 import { nodeNativeTest, nodeTempRoot } from '../helpers/nodeNative'
 
 const NOW = Date.UTC(2026, 9, 31, 12, 0, 0)
@@ -42,7 +42,7 @@ describe('o11y receiver', () => {
   nodeNativeTest('stores a valid batch and refuses the rest in fixed words', async () => {
     const dir = await nodeTempRoot('m111-ob-receiver-')
     directories.push(dir)
-    const store = new O11yRingStore(new NodePrivateFiles(dir), () => NOW)
+    const store = new O11yRingStore(new NodeJournalFiles(dir), () => NOW)
     const receiver = await startO11yReceiver({ store, port: 0 })
     try {
       const ok = await fetch(`${receiver.url}/v1/metrics`, {
@@ -88,7 +88,7 @@ describe('o11y receiver', () => {
   nodeNativeTest('binds loopback and refuses anything else', async () => {
     const dir = await nodeTempRoot('m111-ob-receiver-bind-')
     directories.push(dir)
-    const store = new O11yRingStore(new NodePrivateFiles(dir), () => NOW)
+    const store = new O11yRingStore(new NodeJournalFiles(dir), () => NOW)
     await expect(startO11yReceiver({ store, host: '0.0.0.0', port: 0 })).rejects.toThrow(RangeError)
     const receiver = await startO11yReceiver({ store, port: 0 })
     try {
