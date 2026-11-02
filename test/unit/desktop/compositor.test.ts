@@ -1,10 +1,11 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, expectTypeOf, it } from 'vitest'
 import { DESKTOP_PLACEMENT_DEFAULT, DESKTOP_THUMBNAIL_FPS } from '../../../src/shared/constants'
 import {
   DESKTOP_TOOLS,
+  DESKTOP_TOOL_CLASS,
   compositorEventSchema,
   desktopBindingSchema,
   desktopInfoSchema,
@@ -29,7 +30,15 @@ import {
   windowInfoSchema,
   windowSelectorSchema,
   workspaceBindingsSchema,
+  type CompositorPort,
+  type DesktopKeybinding,
+  type DesktopMergeArgs,
+  type DesktopOpenArgs,
   type DesktopOwner,
+  type DesktopSendArgs,
+  type DesktopToolName,
+  type WindowSelector,
+  type WorkspaceBindings,
 } from '../../../src/shared/desktop/compositor'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -135,10 +144,17 @@ describe('desktop tools', () => {
       send: 'desktop_send',
       merge: 'desktop_merge',
     })
+    const names: DesktopToolName[] = Object.values(DESKTOP_TOOLS)
+    expect(names).toHaveLength(3)
+  })
+
+  it('asks under the edit class', () => {
+    expect(DESKTOP_TOOL_CLASS).toBe('edit')
   })
 
   it('takes a command with an optional desktop and focus', () => {
-    expect(desktopOpenArgsSchema.parse({ command: 'foot' })).toEqual({ command: 'foot' })
+    const bare: DesktopOpenArgs = desktopOpenArgsSchema.parse({ command: 'foot' })
+    expect(bare).toEqual({ command: 'foot' })
     expect(desktopOpenArgsSchema.parse({ command: 'foot', desktop: '2', focus: false })).toEqual({
       command: 'foot',
       desktop: '2',
@@ -149,9 +165,8 @@ describe('desktop tools', () => {
   })
 
   it('sends a neutral window selector, never compositor syntax', () => {
-    expect(desktopSendArgsSchema.parse({ window: { kind: 'active' } })).toEqual({
-      window: { kind: 'active' },
-    })
+    const active: DesktopSendArgs = desktopSendArgsSchema.parse({ window: { kind: 'active' } })
+    expect(active).toEqual({ window: { kind: 'active' } })
     expect(
       desktopSendArgsSchema.parse({ window: { kind: 'class', value: 'foot' }, desktop: '2' }),
     ).toEqual({ window: { kind: 'class', value: 'foot' }, desktop: '2' })
@@ -162,11 +177,23 @@ describe('desktop tools', () => {
   })
 
   it('merges two named desktops', () => {
-    expect(desktopMergeArgsSchema.parse({ source: '2', target: '1' })).toEqual({
-      source: '2',
-      target: '1',
-    })
+    const merge: DesktopMergeArgs = desktopMergeArgsSchema.parse({ source: '2', target: '1' })
+    expect(merge).toEqual({ source: '2', target: '1' })
     expect(desktopMergeArgsSchema.safeParse({ source: '', target: '1' }).success).toBe(false)
+  })
+})
+
+describe('port contract', () => {
+  it('locks the agent-facing call signatures for the bridge lanes', () => {
+    expectTypeOf<CompositorPort['openOnDesktop']>().toEqualTypeOf<
+      (command: string, desktop: string, shouldFocus: boolean) => Promise<void>
+    >()
+    expectTypeOf<CompositorPort['mergeDesktops']>().toEqualTypeOf<
+      (source: string, target: string) => Promise<number>
+    >()
+    expectTypeOf<CompositorPort['moveWindow']>().toEqualTypeOf<
+      (window: WindowSelector, desktop: string, shouldFollow: boolean) => Promise<void>
+    >()
   })
 })
 
@@ -256,21 +283,19 @@ describe('port shapes', () => {
   })
 
   it('keeps project bindings on absolute paths', () => {
-    expect(workspaceBindingsSchema.parse({ 2: '/home/person/proj' })).toEqual({
-      2: '/home/person/proj',
-    })
+    const bindings: WorkspaceBindings = workspaceBindingsSchema.parse({ 2: '/home/person/proj' })
+    expect(bindings).toEqual({ 2: '/home/person/proj' })
     expect(workspaceBindingsSchema.safeParse({ 2: 'relative/path' }).success).toBe(false)
   })
 
   it('parses a key table row for the desktop only', () => {
-    expect(
-      desktopKeybindingSchema.parse({
-        binding: 'SUPER + 1',
-        action: 'desktop.switch',
-        command: 'hl.dsp.focus({ workspace = "1" })',
-        applies: 'desktop',
-      }).action,
-    ).toBe('desktop.switch')
+    const row: DesktopKeybinding = desktopKeybindingSchema.parse({
+      binding: 'SUPER + 1',
+      action: 'desktop.switch',
+      command: 'hl.dsp.focus({ workspace = "1" })',
+      applies: 'desktop',
+    })
+    expect(row.action).toBe('desktop.switch')
     expect(
       desktopKeybindingSchema.safeParse({
         binding: 'SUPER + 1',
