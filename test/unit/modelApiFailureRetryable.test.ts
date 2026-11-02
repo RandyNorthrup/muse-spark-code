@@ -8,7 +8,7 @@ import {
   SessionBudgetExceededError,
   ModelCallLimitError,
 } from '../../src/core/backends/modelapi/sessionBudget'
-import { MissingApiKeyError, ModelApiError } from '../../src/core/backends/modelapi/transport'
+import { MissingApiKeyError, ModelApiError } from '../../src/core/backends/modelapi/modelApiError'
 import { SpendLedgerError } from '../../src/core/paid/spendLedgerError'
 import { CHATGPT_PLAN_LIMIT_ERROR_KIND } from '../../src/shared/constants'
 

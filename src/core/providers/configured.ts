@@ -60,13 +60,11 @@ import {
 } from '../backends/modelapi/providerClient'
 import {
   RequestTransport,
-  abortableSleep,
   parseJsonResponse,
   readBoundedText,
-  ModelApiError,
   assertConfirmedAllowed,
-  isModelApiError,
 } from '../backends/modelapi/transport'
+import { isModelApiError, ModelApiError } from '../backends/modelapi/modelApiError'
 import { isUserRefusal, UserRefusalError } from '../refusal'
 import { failureForLog } from '../backends/musecode/logText'
 import {
@@ -112,7 +110,7 @@ import {
 import { isConnectionFailure, networkFailureCodes } from '../networkFailure'
 import type { CoreLogger } from '../logging'
 import { wireWordForLog } from '../logging'
-import { withDeadline, unlessAborted } from '../timeouts'
+import { abortableSleep, withDeadline, unlessAborted } from '../timeouts'
 import { Usd, type UsdAmount } from '../../shared/usd'
 import { fill } from '../../shared/l10n/text'
 import {

@@ -15,7 +15,6 @@ import {
   RequestTransport,
   assertConfirmedAllowed,
   ignoreClosingError,
-  ModelApiError,
   parseJsonResponse,
   readBoundedText,
   redactStreamDiagnostics,
@@ -26,12 +25,15 @@ import {
   type RetryNotice,
   providerWaitMs,
 } from './transport'
+import { ModelApiError } from './modelApiError'
 import type { SpendClaim } from '../../paid/spendClaim'
 export {
   MissingApiKeyError,
   ModelApiError,
   isModelApiError,
   isMissingApiKeyError,
+} from './modelApiError'
+export {
   retryAfterMs,
   type ConfirmedModelRequest,
   type ResponseAttemptGuard,

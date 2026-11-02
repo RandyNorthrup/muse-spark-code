@@ -16,7 +16,7 @@ import {
   OPENAI_CACHE_TTL_MIN_MINOR,
   type PromptCacheTtl,
 } from '../../../../shared/constants'
-import { isModelApiError } from '../transport'
+import { isModelApiError } from '../modelApiError'
 export { parseNativeModelsList as parseResponsesModelsList } from '../../../providers/modelMetadata'
 import {
   type CreateResponseBody,

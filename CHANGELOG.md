@@ -440,6 +440,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The terminal agent starts faster. Its `--version`, `--help` and every other
+  start no longer load the Model API engine just to read a few small helpers
+  (about a fifth off the start's CPU time, measured before and after); only
+  a session on that backend loads it now.
 - A vault policy that is a link, that another account can read, or that has
   a second name is ignored, and saving a policy can no longer be aimed at
   another file. The ceiling stays "none" and the refusal is the same words

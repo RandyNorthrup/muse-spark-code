@@ -32,8 +32,6 @@ import {
 // gate now reads the built bundles and fails on a member this list lacks.
 export {
   RequestTransport,
-  ModelApiError,
-  isModelApiError,
   rateLimitHeaders,
   parseJsonResponse,
   readBoundedText,
@@ -49,19 +47,23 @@ export {
   // built product (HOTFIX0181).
   UNBOUNDED_RETRIES,
   noRetryBudget,
-  // Lane PR225FIX2: read by dist/configuredProviders.js, dist/extension.js
-  // and dist/acp.js (the production retry-wait sleep), same rule.
-  abortableSleep,
   redactSecrets,
   assertConfirmedAllowed,
   isStaleConfirmedError,
   noteConfirmedRequestStarted,
   canRetryWithinBudget,
   whenAborted,
-  // Lane RLACP: read by dist/runtimeEngine.js (the ACP agent's failure
-  // log), same rule.
-  isMissingApiKeyError,
 } from '../../core/backends/modelapi/transport'
+// The request-error shapes and the production retry-wait sleep, re-exported
+// from their leaf homes (same HOTFIX0181 rule as above): read by
+// dist/configuredProviders.js, dist/runtimeEngine.js, dist/extension.js and
+// dist/acp.js, which must not require this bundle for them.
+export {
+  ModelApiError,
+  isModelApiError,
+  isMissingApiKeyError,
+} from '../../core/backends/modelapi/modelApiError'
+export { abortableSleep } from '../../core/timeouts'
 import { noRetryBudget } from '../../core/backends/modelapi/transport'
 export { parseSse, boundedChunks, streamLimitError } from '../../core/backends/modelapi/sse'
 export { parseNdjson } from '../../core/backends/modelapi/ndjson'
@@ -77,8 +79,8 @@ export {
   parseRefusalError,
   refusalOf,
   refusalSentence,
-  scrubRefusalLeak,
 } from '../../core/backends/modelapi/providerRefusal'
+export { scrubRefusalLeak } from '../../core/redact'
 export { streamEventSchema, usageSchema } from '../../core/backends/modelapi/schemas'
 export { pinnedHttpsRequest, pinnedPostRequest } from '../web/pinnedRequest'
 import type { ExtensionHookDefinition } from '../../core/backends/modelapi/extensionHooks'

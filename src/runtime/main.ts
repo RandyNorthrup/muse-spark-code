@@ -2,7 +2,7 @@ import type { SourceReadContext } from '../core/reporting/sources/types'
 import { legalScanLoader } from '../host/ide/legalScanBundle'
 import { failureForLog } from '../core/backends/musecode/logText'
 import { isErrno } from '../core/fs/errno'
-import { abortableSleep } from '../core/backends/modelapi/transport'
+import { abortableSleep } from '../core/timeouts'
 // `muse-spark-code-acp` (PLAN.md D62): the Muse Spark agent for editors that
 // speak the Agent Client Protocol, and the sign-in commands their terminal
 // sign-ins run (D61). stdout carries the protocol; everything the user or

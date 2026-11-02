@@ -19,13 +19,13 @@ import { PLAN_KEY_PRESETS, PRESETS, presetById, quirksOf } from '../../src/core/
 import { emptyProvidersFile } from '../../src/core/providers/providersFile'
 import { createSubscriptionClient } from '../../src/core/providers/subscriptions/registry'
 import {
-  abortableSleep,
-  ModelApiError,
   noRetryBudget,
   RequestTransport,
   UNBOUNDED_RETRIES,
   type RetryNotice,
 } from '../../src/core/backends/modelapi/transport'
+import { ModelApiError } from '../../src/core/backends/modelapi/modelApiError'
+import { abortableSleep } from '../../src/core/timeouts'
 import { stderrLogger } from '../../src/runtime/stderrLog'
 import {
   MODEL_API_BASE_URL,

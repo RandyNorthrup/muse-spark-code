@@ -10,9 +10,7 @@ import {
   assertConfirmedAllowed,
   canRetryWithinBudget,
   ignoreClosingError,
-  isModelApiError,
   redactModelApiError,
-  ModelApiError,
   parseJsonResponse,
   type TransportDeps,
   type ConfirmedModelRequest,
@@ -20,6 +18,7 @@ import {
   type RetryBudget,
   type RetryNotice,
 } from './transport'
+import { isModelApiError, ModelApiError } from './modelApiError'
 import type { AuthSource } from './authSource'
 import { isRefusalRetryable, isRetryableStreamFailure } from './providerRefusal'
 import { isUserRefusal } from '../../refusal'

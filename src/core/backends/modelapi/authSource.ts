@@ -5,7 +5,8 @@ import type { AuthHeader } from '../../providers/presets'
 import { credentialRecord } from '../../../host/backend/providersEntry'
 import { UI_TEXT } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
-import { ModelApiError, redactSecrets } from './transport'
+import { ModelApiError } from './modelApiError'
+import { redactSecrets } from './transport'
 
 export interface AuthHeaders {
   readonly values: Readonly<Record<string, string>>
