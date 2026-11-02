@@ -11417,12 +11417,19 @@ reproduced without a credential (see the record). (2) The Linux portal
 recorder, the Mac trusted-path group check and the macOS judge peer say that
 their helper is missing or will not run; the judge's refusal vocabulary is
 frozen with the MHP lock, so the judge peer reads as unverified, not as an
-engine failure. (3) `museSpark.serialPythonPath` (machine-scoped;
-`serialPythonPath` in the agent's settings.json) names the serial helper's
-Python, resolved by SMALLFIX1's resolver, used as given, refused inside the
-workspace; absent changes nothing. (4) The VS Code maker host's activation
-wiring is not built: nothing in the product references the host, its six
-commands are in no manifest, and it has no engine in the VS Code process; the
+engine failure. The helper sentence names the helper's own app or file: a
+folder above the product ending in `.app` no longer lends its name (resume
+2026-11-01). (3) `serialPythonPath` in the agent's settings.json
+(machine-scoped; `museSpark.serialPythonPath` in VS Code for the same) names
+the serial helper's Python, resolved by SMALLFIX1's resolver, used as given,
+refused inside the workspace; absent changes nothing. It takes effect where
+the serial helper runs today, in the agent; the VS Code side follows item 4.
+(4) The VS Code maker host's activation wiring is not built: nothing in the
+product references the host, its six commands are in no manifest, and its
+engine deps (the machine registry's `registerMachine`/`listMachines`, the
+hardware latch, the approval previews) have no supplier in the VS Code
+process — the portable registry is only assembled into the ACP/headless
+runtime service — so wiring is M103's VS Code piece, not a small fix; the
 options and a recommendation are in the record. Found on the way: the macOS
 helper has no `private-group` mode, so the group check's Mac branch starts
 its dictation mode. Status evidence: `docs/certification/rlf-smallfix2.md`.
