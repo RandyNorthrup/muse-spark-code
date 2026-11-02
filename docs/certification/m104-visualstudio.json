@@ -185,7 +185,7 @@
     }
   ],
   "provenance": {
-    "observedAt": "2026-11-02T19:56:24.754Z",
+    "observedAt": "2026-11-02T20:43:38.051Z",
     "observedOn": "MINI-DT (win32)",
     "command": "node test/hostApi/run.mjs visualstudio"
   }

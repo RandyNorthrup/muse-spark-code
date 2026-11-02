@@ -351,7 +351,7 @@ import { systemPath } from './host/backend/memoryIo'
 import { type ShellJobDeps, shellJobAssembly } from './host/backend/shellJob'
 import { pluginContainment } from './host/backend/pluginContainment'
 import { EditorContextTracker } from './host/editor/editorContextTracker'
-import { createRevertIo } from './host/editor/revertIo'
+import { vscodeReviewPorts } from './host/vscode/editor/reviewPorts'
 import { createVerifyEditor } from './host/vscode/editor/verifyEditor'
 import { IdeMcpServer } from './host/ide/ideMcpServer'
 import { loadRulesFileBundle } from './host/commands/rulesFileBundle'
@@ -2959,21 +2959,7 @@ async function activateWindow(
         const check = backend.workspaceActionGuard(nativeStarts.signal)
         return await withCheckpointEdit(checkpoints, log, check, async () => await work(check))
       },
-      io: createRevertIo({
-        io: toolIo,
-        platform: process.platform,
-        trash: async (fsPath) => {
-          await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { useTrash: true })
-        },
-      }),
-      openDiff: async (beforeUri, fsPath, title) => {
-        await vscode.commands.executeCommand(
-          VSCODE_COMMANDS.diff,
-          vscode.Uri.parse(beforeUri),
-          vscode.Uri.file(fsPath),
-          title,
-        )
-      },
+      ...vscodeReviewPorts(toolIo),
       log,
     },
   })

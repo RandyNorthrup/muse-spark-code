@@ -18,24 +18,20 @@ import type { Owner } from '../../src/core/checkpoints/toolWrites'
 import { canonicalPath } from '../../src/host/canonicalPath'
 import { createCheckpointStore } from '../../src/host/checkpoints/checkpointStoreEntry'
 import { isProcessAlive } from '../../src/host/checkpoints/windowPresence'
-import { createOwnerIo, createTurnRecording } from '../../src/host/checkpoints/writeRecorder'
+import { createTurnRecording } from '../../src/host/checkpoints/writeRecorder'
 import { EditReview } from '../../src/host/editor/editReview'
-import { createRevertIo } from '../../src/host/editor/revertIo'
 import { processGitProcess } from '../../src/host/git'
 import { createLogger, type Logger } from '../../src/host/logger'
 import { readSettings } from '../../src/host/settings'
+import { vscodeReviewPorts } from '../../src/host/vscode/editor/reviewPorts'
 import { createVerifyEditor } from '../../src/host/vscode/editor/verifyEditor'
 import { PanelDelivery } from '../../src/runtime/panel/delivery'
 import { PanelSurfaces, type PanelView } from '../../src/runtime/panel/surfaces'
-import {
-  MHP_PANEL,
-  SETTING_DEFAULTS,
-  SETTINGS_SECTION,
-  VSCODE_COMMANDS,
-} from '../../src/shared/constants'
+import { MHP_PANEL, SETTING_DEFAULTS, SETTINGS_SECTION } from '../../src/shared/constants'
 import { MhpPanelError } from '../../src/shared/hostApi/panelError'
 import { EN } from '../../src/shared/l10n/en'
 import { resolveWorkingGit } from '../unit/helpers/fixtureGit'
+import { writeAsOwner } from '../unit/helpers/ownerWrite'
 import { reviewDriverBase, scenarioDiffPatchJson } from '../unit/helpers/reviewDriver'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
 import { createIntegrationToolIo } from './helpers/testToolIo'
@@ -129,21 +125,7 @@ async function runDiffHunks(backend: Backend, folder: string, log: Logger): Prom
   await toolIo.writeFile(file, 'l1c\nl2c\nl3\n', await canonicalPath(file))
   const review = new EditReview({
     ...reviewDriverBase(toolIo, folder),
-    io: createRevertIo({
-      io: toolIo,
-      platform: process.platform,
-      trash: async (fsPath) => {
-        await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { useTrash: true })
-      },
-    }),
-    openDiff: async (beforeUri, fsPath, title) => {
-      await vscode.commands.executeCommand(
-        VSCODE_COMMANDS.diff,
-        vscode.Uri.parse(beforeUri),
-        vscode.Uri.file(fsPath),
-        title,
-      )
-    },
+    ...vscodeReviewPorts(toolIo),
     log,
   })
   const rejected = await review.revertHunk('m104g-diff-hunks', scenarioDiffPatchJson(), 0, 1)
@@ -251,21 +233,12 @@ async function runCheckpoint(backend: Backend, folder: string, log: Logger): Pro
       unitId: randomUUID(),
     }
     await store.startUnit(owner)
-    const ownerIo = createOwnerIo(createIntegrationToolIo(folder, log), {
-      journal: recording.journal,
-      lanes: recording.lanes,
-      owner,
-      workspaceRoot: root,
-      platform: process.platform,
-      canonicalPath,
-      newId: () => randomUUID(),
-      log,
-    })
-    try {
-      await ownerIo.writeFile(file, 'changed', await canonicalPath(file), () => undefined)
-    } finally {
-      await ownerIo.drain()
-    }
+    await writeAsOwner(
+      createIntegrationToolIo(folder, log),
+      { journal: recording.journal, lanes: recording.lanes, owner, workspaceRoot: root, log },
+      file,
+      'changed',
+    )
     await store.endUnit(owner, { ranProcesses: false })
     assert.equal(readFileSync(file, 'utf8'), 'changed')
     const outcome = await store.restore({

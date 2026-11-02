@@ -163,7 +163,7 @@
     }
   ],
   "provenance": {
-    "observedAt": "2026-11-02T20:01:49.553Z",
+    "observedAt": "2026-11-02T20:39:55.189Z",
     "observedOn": "MINI-DT (win32)",
     "command": "npx vscode-test --grep M104g (labels stable and minimum)"
   }

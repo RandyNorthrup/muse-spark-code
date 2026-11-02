@@ -725,6 +725,9 @@
   "ignoreBinaries": [
     // The TUI suite probes the real terminfo database for its tier table.
     "tput",
+    // Windows' own process list: the Visual Studio runner refuses while the
+    // harness would end a named process (hosts/visualstudio/run.mjs).
+    "tasklist",
     "gitleaks",
     "muse",
     "mkfifo",
