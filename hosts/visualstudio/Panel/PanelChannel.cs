@@ -51,9 +51,9 @@ namespace MuseSpark.VisualStudio.Panel
     })();";
     public string DocumentBootstrap => Bootstrap + themeScript;
 
-    public PanelChannel(MhpPeer peer, SchemaContract contract, string surface, string session, string kind, JObject? theme = null)
+    public PanelChannel(MhpPeer peer, string surface, string session, string kind, JObject? theme = null)
     {
-      this.peer = peer; this.contract = contract;
+      this.peer = peer; contract = peer.Contract;
       binding = new JObject { ["surface"] = surface, ["sessionId"] = session, ["surfaceKind"] = kind };
       contract.ValidatePanel(binding, "binding");
       themeScript = theme == null ? "" : ThemeBootstrap(contract, theme);

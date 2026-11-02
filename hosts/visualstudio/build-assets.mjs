@@ -41,13 +41,19 @@ for (const locale of ['en', ...TABLE_LOCALES]) {
       : JSON.parse(await readFile(path.join(root, `package.nls.${locale}.json`), 'utf8'))
   await writeFile(path.join(assets, 'l10n', `ui.${locale}.json`), JSON.stringify(table))
   await writeFile(path.join(assets, 'l10n', `package.nls.${locale}.json`), JSON.stringify(manifest))
+  const nonce = createNonce()
   const html = buildWebviewHtml({
     scriptUri: `${origin}/webview/portable/main.js`,
     styleUri: `${origin}/webview/portable/main.css`,
     cspSource: origin,
-    nonce: createNonce(),
+    nonce,
     l10n: { locale, table },
   })
+    .replace(
+      '</head>',
+      () =>
+        `<link rel="stylesheet" href="${origin}/webview/portable/theme.css" nonce="${nonce}">\n</head>`,
+    )
     .replace('<html lang=', '<html data-theme="dark" lang=')
     .replace('<body>', '<body data-host="embedded">')
     .replace(

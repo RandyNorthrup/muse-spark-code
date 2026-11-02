@@ -72,6 +72,8 @@ async function mount(): Promise<void> {
     },
     { once: true },
   )
+  // The page's own nonce: a strict style-src refuses the theme's <style> element without it.
+  const nonce = document.querySelector<HTMLScriptElement>('script[nonce]')?.nonce
   await loadThemeBridge(
     document.documentElement,
     panelThemePort(host.messages, window.matchMedia('(prefers-color-scheme: dark)').matches),
@@ -79,6 +81,7 @@ async function mount(): Promise<void> {
       reportBridgeFailure(new Error('MHP_PANEL_THEME_INVALID'))
     },
     page.signal,
+    nonce === undefined || nonce === '' ? undefined : { nonce },
   )
   if (isTasks) {
     const tableError = installEmbeddedTable(document)
