@@ -30,6 +30,11 @@ import {
 } from '../../shared/constants'
 import { panelMediaLoader } from './panelBundle'
 import type { AttachmentDispatch, PanelMediaHost } from './panelMedia'
+import {
+  createQuestionsStatusPublisher,
+  type QuestionsStatusHost,
+  type QuestionsStatusPublisher,
+} from './questionsStatus'
 import type { MhpPanelBinding } from '../../shared/hostApi/panel'
 import { MhpPanelError } from '../../shared/hostApi/panelError'
 import { uiLocale } from '../../shared/l10n/text'
@@ -102,6 +107,8 @@ export interface RuntimeConversationOptions {
   readonly settled: (conversation: RuntimeConversation) => Promise<void>
   /** The backend this conversation runs on ended: the connection ends with it. */
   readonly stopped: () => void
+  /** The host surface the open-questions count is published to (M112). */
+  readonly statusHost: QuestionsStatusHost
   /** M105 delivery d: what this conversation's `attachments/*` dispatch is built from. */
   readonly attachments: {
     /** The folder holding the agent's bundles (the media bundle loads on first attach). */
@@ -150,6 +157,7 @@ export class RuntimeConversation implements SessionController, PanelView {
   private isDisposed = false
   private isHostStopped = false
   private releaseMedia: (() => void) | undefined
+  private readonly questionsStatus: QuestionsStatusPublisher
   private readonly tasksTab: RuntimeTasksTab
 
   /** M105 delivery d: this conversation's `attachments/*` dispatch, if bound. */
@@ -157,6 +165,7 @@ export class RuntimeConversation implements SessionController, PanelView {
 
   public constructor(private readonly options: RuntimeConversationOptions) {
     const { surfaces } = options
+    this.questionsStatus = createQuestionsStatusPublisher(options.statusHost, options.log)
     this.tasksTab = new RuntimeTasksTab({
       openSurfaces: () => surfaces.idsOf(this.currentId, 'tasks'),
       openSurface: async () => {
@@ -210,6 +219,7 @@ export class RuntimeConversation implements SessionController, PanelView {
     if (this.isDisposed) return
     const parsed = hostToWebviewMessageSchema.parse(message)
     if (parsed.type === 'authState') this.authMessage = parsed
+    else if (parsed.type === 'openQuestions') this.questionsStatus.update(parsed.snapshot)
     for (const listener of this.listeners) listener(parsed)
   }
 
@@ -243,8 +253,10 @@ export class RuntimeConversation implements SessionController, PanelView {
           this.currentSession = session
           this.currentId = session.sessionId
           try {
-            if (session.sessionId !== previousId)
+            if (session.sessionId !== previousId) {
               await this.options.sessionChanged(previousId, session, this)
+              this.questionsStatus.releaseSession(previousId)
+            }
             this.ensureLive()
           } catch (error: unknown) {
             // REPORTED: the conversation stays on what it had; the controller disposes the session it was refused.
@@ -377,6 +389,7 @@ export class RuntimeConversation implements SessionController, PanelView {
   }
 
   private async releaseController(): Promise<void> {
+    this.questionsStatus.close()
     // Cancel on the actual session, including a start not yet acknowledged.
     const cancelled = await Promise.allSettled([
       this.isHostStopped ? this.currentHost?.close() : this.currentSession?.cancel(),

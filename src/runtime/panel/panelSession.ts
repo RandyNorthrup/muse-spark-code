@@ -400,6 +400,9 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
         if (awaitingSurface.delete(conversation)) await openSurface(conversation.sessionId)
       },
       stopped: deps.stopped,
+      statusHost: {
+        request: async (method, params) => await connection.request(method, params),
+      },
       attachments: {
         distDir: deps.distDir,
         dataRoot: deps.dataFolder,
