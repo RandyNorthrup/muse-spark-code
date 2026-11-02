@@ -13,13 +13,14 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { noWorkspaceChildEnvironment } from '../../src/core/execGuard'
+import { nativeHelperError } from '../../src/core/nativeHelper'
 import {
   macosScreenRecordingDriver,
   MACOS_RECORDING_HELPER_MAX_BYTES,
 } from '../../src/core/media/record/macos'
 import { createMacosRecorderDeps } from '../../src/host/media/macosRecorderDeps'
 import { runProgram } from '../../src/host/processTree'
-import { UI_TEXT } from '../../src/shared/constants'
+import { UI_TEXT, darwinDictationApp } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { darwinProcessHelper } from './helpers/darwinProcessHelper'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -100,7 +101,9 @@ describe.skipIf(process.platform !== 'darwin')('M105 macOS recorder host deps', 
     const outcome = await macosScreenRecordingDriver(depsFor(copy)).available()
     expect(outcome).toEqual({
       ok: false,
-      reason: fill(UI_TEXT.media.recordingUnavailable, { reason: 'helperIntegrity' }),
+      reason: fill(UI_TEXT.media.recordingUnavailable, {
+        reason: nativeHelperError('unloadable', changed, 'darwin').message,
+      }),
     })
   })
 
@@ -112,7 +115,32 @@ describe.skipIf(process.platform !== 'darwin')('M105 macOS recorder host deps', 
     expect(outcome).toEqual({
       ok: false,
       reason: fill(UI_TEXT.media.recordingUnavailable, {
-        reason: `native/darwin/muse-dictate-screen-${process.arch}.app`,
+        reason: fill(UI_TEXT.nativeHelper.missingInstalled, {
+          helper: `muse-dictate-screen-${process.arch}.app`,
+        }),
+      }),
+    })
+  })
+
+  it('says the signed app cannot run on this Mac when it is built for the other processor', async () => {
+    const other = process.arch === 'arm64' ? 'x64' : 'arm64'
+    const copy = path.join(scratch, 'wrong-processor')
+    await cp(
+      path.join(extensionPath, 'native', 'darwin', darwinDictationApp(other)),
+      path.join(copy, 'native', 'darwin', darwinDictationApp(process.arch)),
+      { recursive: true },
+    )
+    const deps = depsFor(copy)
+    const run = await macosScreenRecordingDriver(deps).start(
+      { maxSeconds: 1, microphone: false, systemAudio: false },
+      () => {
+        /* No countdown: the helper never starts. */
+      },
+    )
+    await expect(run.result).resolves.toEqual({
+      ok: false,
+      reason: fill(UI_TEXT.media.recordingUnavailable, {
+        reason: nativeHelperError('unloadable', deps.helperPath, 'darwin').message,
       }),
     })
   })

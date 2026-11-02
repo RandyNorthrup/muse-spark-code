@@ -1499,6 +1499,12 @@
       "title": "The ACP agent ends when its client leaves, even while Muse Code is starting",
       "summary": "Closing the editor, stopping the agent or a crashed editor ends the agent and the Muse Code it started in every state, with no process left behind.",
       "area": "platform"
+    },
+    {
+      "id": "RLFSMALLFIX1",
+      "title": "A missing native helper says what is missing; the serial helper starts a python3 found by its full path",
+      "summary": "A shipped helper that is missing or will not run is named with the way out (reinstall, or the build command), and serial access no longer runs a python3 planted in the project.",
+      "area": "platform"
     }
   ]
 }

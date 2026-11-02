@@ -52,7 +52,10 @@ import {
 import { probeChildEnvironment } from '../executables'
 import { windowsJobHost } from '../execGuard'
 import { runTreeProgram } from './trees/run'
-import { darwinDictationHelperSegments } from '../../shared/constants'
+import { UI_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
+import { NativeHelperError } from '../../shared/nativeHelperError'
+import { createdHelperFile, runNativeHelper } from '../nativeHelper'
 
 import { isErrno } from '../fs/errno'
 
@@ -153,25 +156,32 @@ export function createdPathCommands(
   windowsJob: (() => Promise<ResourceWindowsJob | undefined>) | undefined,
   platform: NodeJS.Platform = process.platform,
 ): (args: readonly string[]) => Promise<string> {
-  if (platform === 'linux')
+  const helper = createdHelperFile(nativeRoot, platform, process.arch)
+  if (helper !== undefined)
     return (args) =>
-      runTreeProgram(
-        path.join(nativeRoot, 'linux', process.arch, 'muse-created'),
-        args,
-        probeChildEnvironment({ LC_ALL: 'C' }),
+      runNativeHelper(
+        helper,
+        () =>
+          runTreeProgram(
+            helper,
+            platform === 'darwin' ? ['--created-directory', ...args] : args,
+            probeChildEnvironment({ LC_ALL: 'C' }),
+          ),
+        platform,
       )
-  if (platform === 'darwin')
-    return (args) =>
-      runTreeProgram(
-        path.join(nativeRoot, ...darwinDictationHelperSegments(process.arch)),
-        ['--created-directory', ...args],
-        probeChildEnvironment({ LC_ALL: 'C' }),
+  if (platform !== 'win32')
+    return () =>
+      Promise.reject(
+        new NativeHelperError(
+          'missing',
+          fill(UI_TEXT.nativeHelper.unsupported, { platform, arch: process.arch }),
+        ),
       )
   return async (args) => {
     const systemRoot = process.env['SystemRoot']
     const job = await windowsJob?.()
-    if (systemRoot === undefined || job === undefined || platform !== 'win32')
-      throw new Error('Native creation directory helper is required')
+    if (systemRoot === undefined || job === undefined)
+      throw new NativeHelperError('missing', UI_TEXT.nativeHelper.windowsJob)
     const host = windowsJobHost(job.assemblyPath, systemRoot)
     return await runTreeProgram(host.file, ['created', ...args], host.env, host.cwd)
   }
