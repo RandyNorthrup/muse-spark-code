@@ -428,6 +428,12 @@ const turnQuotaSchema = z.object({
   resetsAtMs: numberSchema,
 })
 export type TurnQuota = z.infer<typeof turnQuotaSchema>
+// M88 lane C (PLAN.md D67, item 16): a rate limit that ended the turn,
+// with the last Retry-After's wait in ms when the provider named one.
+const turnRateLimitSchema = z.object({
+  retryAfterMs: z.optional(numberSchema),
+})
+export type TurnRateLimit = z.infer<typeof turnRateLimitSchema>
 
 const agentEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('turnStarted'), turnId: stringSchema }),
@@ -475,6 +481,11 @@ const agentEventSchema = z.discriminatedUnion('type', [
     // instant. Its own outcome downstream — never internal, never
     // transient — whatever `retryable` says.
     quota: z.optional(turnQuotaSchema),
+    // A rate limit that ended the turn (M88, D67 item 16): present only
+    // with errorKind 'rateLimited', carrying the last Retry-After's
+    // wait when the provider named one. Quota and balance refusals
+    // carry nothing and stay ordinary failures.
+    rateLimit: z.optional(turnRateLimitSchema),
   }),
   z.object({
     type: z.literal('turnRetry'),
