@@ -1,0 +1,83 @@
+# The desktop checks (PLAN.md M111): Hyprland's own --verify-config over the
+# generated configs, on the pinned release and the second verified one.
+# Lane CP owns the verify-config job; lane QA owns this file and joins its
+# harness jobs here at merge (the QA row names this path).
+#
+# Pull requests and pushes to main that touch the compositor inputs, every
+# Monday (a backports drift that moves the pin must go loud), and by hand.
+# Every job has a timeout and leaves no token in the git config; none
+# pushes, none calls a model, none spends anything.
+name: Desktop
+
+on:
+  pull_request:
+    paths:
+      - 'os/desktop/**'
+      - 'desktop/crates/compositor/**'
+      - 'desktop/shell/theme/hyprland-theme.json'
+      - 'scripts/build-tokens-desktop.mjs'
+      - 'test/unit/desktop/**'
+      - 'test/fixtures/m111cp/**'
+      - '.github/workflows/desktop.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'os/desktop/**'
+      - 'desktop/crates/compositor/**'
+      - 'desktop/shell/theme/hyprland-theme.json'
+      - 'scripts/build-tokens-desktop.mjs'
+      - 'test/unit/desktop/**'
+      - 'test/fixtures/m111cp/**'
+      - '.github/workflows/desktop.yml'
+  schedule:
+    - cron: '23 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-config:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - leg: pinned
+            image: debian:trixie
+          - leg: verified
+            image: archlinux:latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: install the pinned Hyprland (trixie-backports)
+        if: matrix.leg == 'pinned'
+        run: |
+          echo "deb http://deb.debian.org/debian trixie-backports main" > /etc/apt/sources.list.d/backports.list
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -t trixie-backports hyprland nodejs
+          useradd -m tester
+      - name: install current Hyprland (arch)
+        if: matrix.leg == 'verified'
+        run: |
+          pacman -Syu --noconfirm hyprland nodejs
+          useradd -m tester
+      - name: verify the generated configs
+        # Hyprland refuses superuser (rightly) and aborts without a runtime
+        # dir, even for --version: the check runs as the tester user.
+        run: |
+          mkdir -p /tmp/hl-verify
+          chown tester /tmp/hl-verify
+          if [ "${{ matrix.leg }}" = "pinned" ]; then
+            su tester -s /bin/sh -c 'export XDG_RUNTIME_DIR=/tmp/hl-verify; Hyprland --version && node os/desktop/hyprland/verify-config.mjs --expect-pin'
+          else
+            su tester -s /bin/sh -c 'export XDG_RUNTIME_DIR=/tmp/hl-verify; Hyprland --version && node os/desktop/hyprland/verify-config.mjs'
+          fi

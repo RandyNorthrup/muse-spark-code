@@ -1,10 +1,12 @@
 // Muse Desktop (M111, D91.3) lane CP: the compositor gate. Runs Hyprland's
 // own --verify-config over the generated configs and passes only when it
-// prints `config ok`. QA's desktop workflow calls this with the pinned
-// Hyprland installed.
-// Usage: node os/desktop/hyprland/verify-config.mjs [--binary <path>] [files...]
+// prints `config ok`. The desktop workflow calls this with Hyprland
+// installed; --expect-pin additionally refuses any Hyprland whose
+// --version does not contain the pinned version from pin.json.
+// Usage: node os/desktop/hyprland/verify-config.mjs [--binary <path>] [--expect-pin] [files...]
 
 import { execFile } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -18,6 +20,20 @@ function run(binary, args) {
       else resolve({ ran: true, output: `${stdout}\n${stderr}` })
     })
   })
+}
+
+export function pinnedVersion() {
+  const pin = JSON.parse(
+    readFileSync(path.join(REPO_ROOT, 'os', 'desktop', 'hyprland', 'pin.json'), 'utf8'),
+  )
+  return String(pin.version).split('+', 1)[0]
+}
+
+export async function checkPinnedVersion(binary, expected) {
+  const { ran, output } = await run(binary, ['--version'])
+  return ran
+    ? { binaryFound: true, match: output.includes(expected), output: output.trim() }
+    : { binaryFound: false, match: false, output: '' }
 }
 
 export async function verifyConfigs(binary, files) {
@@ -34,16 +50,34 @@ export async function verifyConfigs(binary, files) {
 async function main() {
   const args = process.argv.slice(2)
   let binary = 'Hyprland'
+  let shouldCheckPin = false
   const files = []
   for (let i = 0; i < args.length; i += 1) {
     if (args[i] === '--binary') {
       i += 1
       binary = args[i] ?? fail('missing --binary path')
+    } else if (args[i] === '--expect-pin') {
+      shouldCheckPin = true
     } else {
       files.push(args[i])
     }
   }
   const targets = files.length > 0 ? files : DEFAULT_FILES
+  if (shouldCheckPin) {
+    const expected = pinnedVersion()
+    const checked = await checkPinnedVersion(binary, expected)
+    if (!checked.binaryFound) {
+      console.error(`hyprland verify: no ${binary} on PATH (install the pinned Hyprland first)`)
+      process.exitCode = 1
+      return
+    }
+    if (!checked.match) {
+      console.error(`hyprland verify: ${binary} is not the pinned ${expected}:\n${checked.output}`)
+      process.exitCode = 1
+      return
+    }
+    console.log(`hyprland verify: pinned ${expected} confirmed (${binary})`)
+  }
   const { binaryFound, failures } = await verifyConfigs(binary, targets)
   if (!binaryFound) {
     console.error(`hyprland verify: no ${binary} on PATH (install the pinned Hyprland first)`)
