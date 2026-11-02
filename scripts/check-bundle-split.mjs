@@ -718,7 +718,8 @@ const PAGE_WORKER = { output: 'dist/pageWorker.js', metafile: 'dist/meta/pageWor
 // What loads only on the page converter's worker, by path prefix.
 const CONVERTER_ONLY = [
   'node_modules/parse5/',
-  'node_modules/entities/',
+  // parse5 8.1's entities 9 nests under it while unicorn 77 holds top-level entities 8.
+  'node_modules/parse5/node_modules/entities/',
   'node_modules/html-encoding-sniffer/',
   'node_modules/@exodus/bytes/',
   'src/core/web/htmlToMarkdown.ts',

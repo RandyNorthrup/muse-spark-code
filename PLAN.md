@@ -27838,6 +27838,16 @@ IME flags captured under Xvfb. Proof: `docs/certification/rlf-m111in.md`
 with red/green drills. Text-input-v3 behaviour under Hyprland with
 fcitx5 and the desktop CI wiring belong to M111os IM/QA.
 
+**Status 2026-11-02 (RLF-UPDEPS2): building.** Electron 45.0.0 → 45.2.1
+(Chromium 156.0.8078.75, Node 24.22.1): preload-script filtering, the
+Linux D-Bus crash fix, asar handling fixes and Chromium backports, no
+breaking API change. Lane WB's proof re-ran on linuxlt: the desktop
+suites green, the real-Electron smoke passing under Xvfb (the status
+snapshot published, the second launch handing off), `package:desktop`
+assembling with the fuses reading back as WB set them, and the IME
+flags re-captured (`test/desktop/l10n/ime-flags.json`). Record:
+`docs/certification/rlf-updeps2.md`.
+
 **Status 2026-10-23 (RLF-M111L0): planned.** Mockups approved; lane 0 landed. The
 owner approved the lead's 18-screen mockups on 2026-10-23 ("looks great"),
 closing Q-M111 item 6 and unblocking lanes SH1, SH2, WB and ST. The sources
