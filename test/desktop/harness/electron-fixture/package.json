@@ -1,0 +1,11 @@
+{
+  "name": "muse-desktop-electron-fixture",
+  "version": "0.1.0",
+  "description": "A disposable real Electron app for the M111 QA harness driver tests. Not the workbench (lane WB) and never shipped.",
+  "type": "module",
+  "main": "main.mjs",
+  "private": true,
+  "devDependencies": {
+    "electron": "45.0.0"
+  }
+}
