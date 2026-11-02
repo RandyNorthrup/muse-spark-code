@@ -6212,6 +6212,17 @@ export const EN = {
   // A retry pressed while a turn runs: the row's button is disabled
   // then, so this answers only the race.
   turnRetryBusy: 'Wait for the reply to finish, or stop it, before retrying.',
+  // Continue after a spent session budget (M88, D67 item 16): the
+  // refusals mirror retry's. Unavailable when the turn's message is
+  // gone, its failure named no budget, or the conversation moved on.
+  turnContinueUnavailable: 'That turn can no longer be continued. Send your message again.',
+  // A continue pressed while a turn runs: the row's button is disabled
+  // then, so this answers only the race.
+  turnContinueBusy: 'Wait for the reply to finish, or stop it, before continuing.',
+  // Resume later after a limit (M88, D67 item 16): the turn is gone or
+  // the conversation moved on, so no timer can name it.
+  turnResumeUnavailable:
+    'That turn can no longer be resumed. Schedule the prompt from the message box instead.',
   turnRetrying: 'Retrying in {seconds} s (attempt {attempt} of {maxAttempts}).',
   // A retry notice with no stated ceiling (an older CLI's own retry
   // loop, which names none): the wait and the attempt still show.

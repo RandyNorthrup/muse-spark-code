@@ -11227,6 +11227,11 @@ export const CONVERSATION_MODEL_TEXT = {
     "Your todo list has been set to the handoff's open items, in this order:\n{steps}\nKeep it current with todo_write as you work, sending the whole list each time.",
   handoffTodosAsk:
     "Start by putting the handoff's open items on your todo list, and keep it current as you work.",
+  // M88 (PLAN.md D67, item 16): Resume later after a limit schedules this
+  // fixed prompt in the failed turn's session. The key lives in the
+  // conversation's block (not MODEL_TEXT) because only the conversation's
+  // bundle reads it (the split gate's rule); the words are D67's.
+  resumePrompt: 'Continue where you left off.',
   // M84 (PLAN.md D49): an imported conversation reaches the model as data.
   // The note leads the first imported turn; every imported turn is one
   // user-role message that starts with the turn lead and holds the turn's

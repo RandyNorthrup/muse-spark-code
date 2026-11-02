@@ -4541,10 +4541,15 @@ async function activateWindow(
       ),
   }
 
-  const runHostAction = async (action: HostAction): Promise<void> => {
+  const runHostAction = async (action: HostAction, query?: string): Promise<void> => {
     switch (action) {
       case 'openSettings': {
-        await vscode.commands.executeCommand(VSCODE_COMMANDS.openSettings, SETTINGS_SECTION)
+        // The failed row's budget button (M88, D67 item 16) deep-links to
+        // the budget setting itself; anything else opens our section.
+        await vscode.commands.executeCommand(
+          VSCODE_COMMANDS.openSettings,
+          query ?? SETTINGS_SECTION,
+        )
         break
       }
       case 'openKeybindings': {
@@ -6091,9 +6096,13 @@ async function activateWindow(
     isReady: (surface) => readyPromptSurfaces.has(surface),
     isEnabled: () => OPTIONAL_RUNTIME_AVAILABILITY.schedules && currentSettings().schedules,
     openConversation,
-    open: async (surface, view) => {
+    open: async (surface, view, seed) => {
       surface.reveal()
-      await controllerFor(surface).handle({ type: 'openSchedules', view })
+      await controllerFor(surface).handle({
+        type: 'openSchedules',
+        view,
+        ...(seed !== undefined && { seed }),
+      })
     },
   })
   context.subscriptions.push(...scheduleCommands.commands)

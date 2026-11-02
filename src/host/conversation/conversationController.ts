@@ -148,6 +148,7 @@ import {
   ALLOWED_LINK_SCHEMES,
   AUTH_REQUIRED_ERROR_KIND,
   AUTO_REVIEWER_RECENT_CALLS,
+  MODEL_API_BUDGET_ERROR_KIND,
   CONTRIBUTOR_MODEL_SUFFIX,
   DEFAULT_EFFORT,
   DEFAULT_MODEL_ID,
@@ -541,7 +542,7 @@ export interface ConversationDeps {
   readonly isConfidentialWorkspace: () => boolean
   /** One explicit yes before a contributor-tier model is used (M7). */
   readonly confirmContributor: (modelId: string) => Promise<boolean>
-  readonly runHostAction: (action: HostAction) => Promise<void>
+  readonly runHostAction: (action: HostAction, query?: string) => Promise<void>
   /** Code block "Copy": the system clipboard. */
   readonly copyText: (text: string) => Promise<void>
   /** Code block "Insert at Cursor"; false when no text editor is active. */
@@ -964,6 +965,10 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   'confirmHandoff',
   'withdrawQueued',
   'retryTurn',
+  // Continue resubmits a turn and Resume later seeds a schedule for one
+  // (M88, D67 item 16); both need an admitted session.
+  'continueTurn',
+  'resumeLater',
   // A sequence's first step is a turn (M88); its stop and library are local.
   'sequenceStart',
 ])
@@ -1353,6 +1358,28 @@ export function retryTurnRefusal(input: {
 }
 
 /**
+Whether Continue may resubmit a budget-failed turn (M88, D67 item 16):
+only in the turn's own session, only when its failure named the spent
+session budget, and only while no turn runs.
+*/
+export function continueTurnRefusal(input: {
+  readonly sessionId: string | undefined
+  readonly rememberedSessionId: string | undefined
+  readonly failedBudget: boolean | undefined
+  readonly turnRunning: boolean
+}): 'unavailable' | 'busy' | undefined {
+  if (
+    input.sessionId === undefined ||
+    input.rememberedSessionId === undefined ||
+    input.rememberedSessionId !== input.sessionId ||
+    input.failedBudget !== true
+  ) {
+    return 'unavailable'
+  }
+  return input.turnRunning ? 'busy' : undefined
+}
+
+/**
 A plan as a conversation's brief (M79): the plan file attached, what to do
 with it for the model, and its steps as the todo list. Where the backend
 lets the extension set that list, the note says what it was set to (the
@@ -1548,7 +1575,9 @@ export class ConversationController implements DeferredSend {
   /**
   Plain sends kept for Retry (RLF-ACPTURNS), by their turn: a failed turn
   the backend judged retryable resubmits these parts. `failedRetryable`
-  arms once the turn ends failed; steers never replace their starter.
+  arms once the turn ends failed; `failedBudget` arms when the failure
+  named the spent session budget, for Continue (M88, D67 item 16);
+  steers never replace their starter.
   */
   private readonly retryableTurns = new Map<
     string,
@@ -1560,6 +1589,7 @@ export class ConversationController implements DeferredSend {
       readonly localId: string
       readonly resendsUsed: number
       failedRetryable: boolean | undefined
+      failedBudget: boolean | undefined
     }
   >()
   /**
@@ -3685,10 +3715,13 @@ export class ConversationController implements DeferredSend {
         this.finishedTurns.add(event.turnId)
         // A failure the backend judged retryable arms this turn's Retry
         // (RLF-ACPTURNS): only then may the error row's press resubmit.
+        // A failure that named the spent session budget arms Continue
+        // instead (M88, D67 item 16): raising the budget may admit it.
         if (event.terminal === 'failed') {
           const remembered = this.retryableTurns.get(event.turnId)
           if (remembered !== undefined) {
             remembered.failedRetryable = event.retryable === true
+            remembered.failedBudget = event.errorKind === MODEL_API_BUDGET_ERROR_KIND
           }
         }
         // A review turn's end puts the user's mode back (M70).
@@ -8537,6 +8570,91 @@ export class ConversationController implements DeferredSend {
   }
 
   /**
+  Continue after a spent session budget (M88, D67 item 16): the error
+  row's press resubmits the budget-failed turn's own parts, as a retry
+  does, for the budget the person just raised. Only a turn whose
+  failure named the budget may continue; every refusal is said.
+  */
+  private async continueTurn(localId: string, turnId: string): Promise<void> {
+    const remembered = this.retryableTurns.get(turnId)
+    if (remembered?.failedBudget !== true) {
+      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.turnContinueUnavailable })
+      return
+    }
+    if (this.activeTurnId !== undefined) {
+      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.turnContinueBusy })
+      return
+    }
+    let session = this.session
+    if (session === undefined) {
+      session = await this.sessionForAction(localId)
+      if (session === undefined) {
+        // That step refused with its own reason already.
+        return
+      }
+    }
+    const refusal = continueTurnRefusal({
+      sessionId: session.sessionId,
+      rememberedSessionId: remembered.sessionId,
+      failedBudget: remembered.failedBudget,
+      // A turn may have started while the session re-established above,
+      // so the live read is load-bearing; the rule sees only the
+      // pre-await narrowing (PLAN.md §8).
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- activeTurnId is reassigned by concurrent sends across the await above
+      turnRunning: this.activeTurnId !== undefined,
+    })
+    if (refusal === 'unavailable') {
+      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.turnContinueUnavailable })
+      return
+    }
+    if (refusal === 'busy') {
+      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.turnContinueBusy })
+      return
+    }
+    await this.resubmitRememberedTurn(
+      session,
+      {
+        parts: remembered.parts,
+        displayText: remembered.displayText,
+        shownText: remembered.shownText,
+        localId,
+        // A manual continue starts its chain over at zero.
+        resendsUsed: 0,
+      },
+      (error) => {
+        this.deps.log.warn(`Continuing turn ${turnId} failed: ${failureForLog(error)}`)
+        this.post({ type: 'sendFailed', localId, reason: describe(error) })
+      },
+    )
+  }
+
+  /**
+  Resume later after a limit (M88, D67 item 16): the failed turn's row
+  offers it at the offer's default minute, and the press opens the
+  schedule editor with the fixed resume prompt seeded at that minute in
+  the turn's own session. A turn the host no longer remembers, or a
+  session that moved on, is said instead of seeded.
+  */
+  private async resumeLater(turnId: string, defaultAtMs: number): Promise<void> {
+    const remembered = this.retryableTurns.get(turnId)
+    const session = this.session
+    if (
+      remembered?.sessionId === undefined ||
+      remembered.sessionId !== session?.sessionId ||
+      !Number.isFinite(defaultAtMs)
+    ) {
+      this.notice('warning', UI_TEXT.turnResumeUnavailable)
+      return
+    }
+    const surfaces = await this.scheduleSurfaces()
+    surfaces.openResumeScheduleOf(
+      this.scheduleSnapshot(),
+      defaultAtMs,
+      CONVERSATION_MODEL_TEXT.resumePrompt,
+    )
+  }
+
+  /**
   Resubmits a remembered turn's own message in its session (RLF-ACPTURNS,
   D228): a Retry press and the automatic resend share these steps, and
   only their failure answers differ. The resubmission's own turn may
@@ -8916,6 +9034,7 @@ export class ConversationController implements DeferredSend {
       localId,
       resendsUsed,
       failedRetryable: undefined,
+      failedBudget: undefined,
     })
     if (this.retryableTurns.size <= RETRYABLE_TURNS_KEPT) {
       return
@@ -10310,9 +10429,12 @@ export class ConversationController implements DeferredSend {
   }
 
   /** A schedule command's panel: the v2 surface over this workspace. */
-  private async openSchedules(initialView: 'list' | 'timeline' | 'editor'): Promise<void> {
+  private async openSchedules(
+    initialView: 'list' | 'timeline' | 'editor',
+    seed?: 'composer',
+  ): Promise<void> {
     const surfaces = await this.scheduleSurfaces()
-    surfaces.openSchedulesOf(this.scheduleSnapshot(), initialView)
+    surfaces.openSchedulesOf(this.scheduleSnapshot(), initialView, seed)
   }
 
   private async runSchedule(id: string, occurrenceMs: number): Promise<void> {
@@ -11452,7 +11574,7 @@ export class ConversationController implements DeferredSend {
     }
   }
 
-  private async runHostAction(action: HostAction): Promise<void> {
+  private async runHostAction(action: HostAction, query?: string): Promise<void> {
     if (action === 'reload') {
       // The webview's error boundary asked for a fresh document (M11).
       this.deps.surface.reload()
@@ -11484,7 +11606,7 @@ export class ConversationController implements DeferredSend {
     const restartedFault =
       action === 'restartMuseCode' ? this.faultKey('approvalReplay') : undefined
     try {
-      await this.deps.runHostAction(action)
+      await this.deps.runHostAction(action, query)
     } catch (error: unknown) {
       this.deps.log.warn(`A host action failed: ${failureForLog(error)}`)
       this.notice(
@@ -12836,6 +12958,14 @@ export class ConversationController implements DeferredSend {
           })
           break
         }
+        case 'continueTurn': {
+          this.post({
+            type: 'sendFailed',
+            localId: message.localId,
+            reason: UI_TEXT.notSignedInReason,
+          })
+          break
+        }
         case 'previewFeedback': {
           // Without admission there is no host scrub: the dialog falls back
           // to its local pattern detector over the unchanged note.
@@ -12879,6 +13009,14 @@ export class ConversationController implements DeferredSend {
       }
       case 'retryTurn': {
         await this.retryTurn(message.localId, message.turnId)
+        break
+      }
+      case 'continueTurn': {
+        await this.continueTurn(message.localId, message.turnId)
+        break
+      }
+      case 'resumeLater': {
+        await this.resumeLater(message.turnId, message.defaultAtMs)
         break
       }
       case 'runManualHook': {
@@ -13235,7 +13373,7 @@ export class ConversationController implements DeferredSend {
         break
       }
       case 'openSchedules': {
-        await this.openSchedules(message.view)
+        await this.openSchedules(message.view, message.seed)
         break
       }
       case 'exportConversation': {
@@ -13315,7 +13453,7 @@ export class ConversationController implements DeferredSend {
         break
       }
       case 'hostAction': {
-        await this.runHostAction(message.action)
+        await this.runHostAction(message.action, message.query)
         break
       }
       case 'openUsagePage': {
