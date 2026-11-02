@@ -454,15 +454,21 @@ export function connectorStorageGuard(root: string): ConnectorStorageGuard {
       if (!isMissing(error)) throw error
     }
     if (resolvedRoot === undefined) {
-      // Nothing created yet: the chain above is still read as the system
-      // resolves it (macOS's /var is a link), or as given while the anchor is
-      // missing too, where the creations below are secured.
+      // No root yet (a first start): the anchor chain is still judged in
+      // canonical space, so a spelled system link above it (macOS spells
+      // its temporary folders under `/var`, a link to `/private/var`) is
+      // the normal link the comment above allows, never a refusal. An
+      // anchor that does not exist either keeps the spelled pair: the
+      // verify walk skips the missing levels it creates nothing through.
+      let resolvedAnchor: string | undefined
       try {
-        return { root, anchor: await realpath(anchor) }
+        resolvedAnchor = await realpath(anchor)
       } catch (error: unknown) {
-        if (isMissing(error)) return { root, anchor }
-        throw error
+        if (!isMissing(error)) throw error
       }
+      return resolvedAnchor === undefined
+        ? { root, anchor }
+        : { root: path.join(resolvedAnchor, path.basename(root)), anchor: resolvedAnchor }
     }
     const resolvedAnchor = await resolveAnchor(anchor)
     const expected = path.join(resolvedAnchor, path.basename(root))

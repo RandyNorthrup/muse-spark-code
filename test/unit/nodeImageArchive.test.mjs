@@ -19,6 +19,16 @@ function refuseSignature() {
   throw new Error('signature rejected')
 }
 
+/** The CLI scanner spawns `gitleaks` by name; a machine without it cannot run that one case. */
+function hasGitleaks() {
+  try {
+    execFileSync('gitleaks', ['version'], { stdio: 'pipe' })
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** GNU tar crafts the hostile archives below; bsdtar cannot, so those two tests need it. */
 function hasGnuTar() {
   try {
@@ -160,7 +170,7 @@ describe('OCI release gates', () => {
     expect(receipt.images[0]).toMatchObject({ platform: 'linux/amd64', digest: image.digest })
     expect(receipt.images[0].sbom.packages).toEqual([{ name: 'bash' }])
   })
-  it('passes the actual CLI scanner on a clean OCI fixture', () => {
+  it.runIf(hasGitleaks())('passes the actual CLI scanner on a clean OCI fixture', () => {
     writeIndex()
     const archive = path.join(fixture.root, 'clean.tar')
     const receipt = path.join(fixture.root, 'receipt.json')

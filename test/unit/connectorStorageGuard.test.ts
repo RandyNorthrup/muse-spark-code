@@ -6,7 +6,7 @@
 // refuses to serve or report on untrusted storage while revoke and kill
 // still narrow it.
 import { execFile } from 'node:child_process'
-import { link, lstat, mkdir, stat, symlink, writeFile } from 'node:fs/promises'
+import { chmod, link, lstat, mkdir, stat, symlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { PassThrough } from 'node:stream'
@@ -142,6 +142,19 @@ async function securedRoot(data: string) {
   return { root, guard }
 }
 
+/**
+A grant planted without the guard. On POSIX the unbound store's mode flags
+already leave the tree mode-private, so the plant also loosens the grant
+file to the group/other-readable mode any writer that does not mind the
+flags leaves behind: storage the guard did not secure, refused either way.
+*/
+async function plantLegacy(data: string): Promise<void> {
+  expect(await grant(new ConnectorStore(data))).toBe(0)
+  if (process.platform !== 'win32') {
+    await chmod(path.join(data, CONNECTOR_FOLDER, 'grants', 'default.json'), 0o644)
+  }
+}
+
 async function refusalOf(work: () => Promise<unknown>): Promise<{ reason: string }> {
   try {
     await work()
@@ -179,7 +192,7 @@ describe('M124 connector storage guard', () => {
   it('refuses storage planted the legacy way', async () => {
     await usingPrivateDir('m124-guard-legacy-', async (data) => {
       // A real grant through an unbound store: byte-real pre-fix storage.
-      expect(await grant(new ConnectorStore(data))).toBe(0)
+      await plantLegacy(data)
       const guard = connectorStorageGuard(path.join(data, CONNECTOR_FOLDER))
       const refusal = await refusalOf(() => guard.verify())
       expect(refusal.reason).toBe('access')
@@ -243,7 +256,7 @@ describe('M124 connector storage guard', () => {
 
   it('refuses to serve untrusted storage, silently on stdout', async () => {
     await usingPrivateDir('m124-guard-serve-', async (data) => {
-      expect(await grant(new ConnectorStore(data))).toBe(0)
+      await plantLegacy(data)
       const root = path.join(data, CONNECTOR_FOLDER)
       const ran = await runEntry(data, root, [])
       expect(ran.exit).toBe(1)
@@ -254,7 +267,7 @@ describe('M124 connector storage guard', () => {
 
   it('reports the refusal instead of the grants on untrusted storage', async () => {
     await usingPrivateDir('m124-guard-status-', async (data) => {
-      expect(await grant(new ConnectorStore(data))).toBe(0)
+      await plantLegacy(data)
       const root = path.join(data, CONNECTOR_FOLDER)
       const ran = await runEntry(data, root, ['status'])
       expect(ran.exit).toBe(1)

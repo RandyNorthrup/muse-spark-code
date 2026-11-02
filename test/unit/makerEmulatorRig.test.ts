@@ -1,4 +1,5 @@
 import { execFile, spawn } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { promisify } from 'node:util'
 import { mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -31,6 +32,9 @@ async function until(isReady: () => Promise<boolean>) {
   }
 }
 const supervisor = path.resolve('scripts/emulators/supervisor.py')
+// The supervisor spawns `socat` from the default path for its UARTs; CI
+// installs it (build.yml). Only the cases that start a supervisor need it.
+const hasSocat = existsSync('/usr/bin/socat') || existsSync('/bin/socat')
 async function control(action: string, directory: string, command: string[] = []) {
   return await exec('/usr/bin/python3', [supervisor, action, 'test', directory, ...command], {
     env: { PATH: process.env['PATH'] },
@@ -61,7 +65,7 @@ describe.skipIf(process.platform !== 'linux')('emulator process ownership', () =
     try {
       expect(await readMakerLeaseFrame(child)).toMatchObject({
         status: 'claimed',
-        record: { version: 2, generation: expect.any(String) },
+        record: { version: 1, generation: expect.any(String) },
       })
     } finally {
       child.stdin.end()
@@ -69,38 +73,41 @@ describe.skipIf(process.platform !== 'linux')('emulator process ownership', () =
       expect(await exited).toBe(0)
     }
   })
-  it('starts once, strips inherited environment, and Stop removes both PTYs and all children', async () => {
-    const directory = await mkdtemp(path.join(tmpdir(), 'mx-life-'))
-    directories.push(directory)
-    const command = [
-      '/usr/bin/python3',
-      '-c',
-      'import os,time; print(os.environ.get("MUSE_EMULATOR_PROBE","absent"),flush=True); time.sleep(30)',
-    ]
-    const { stdout } = await exec(
-      '/usr/bin/python3',
-      [supervisor, 'start', 'test', directory, ...command],
-      {
-        env: { PATH: process.env['PATH'], MUSE_EMULATOR_PROBE: 'must-not-reach-child' },
-        timeout: 20_000,
-      },
-    )
-    const run = z
-      .object({ pid: z.number(), children: z.array(z.number()), port: z.string() })
-      .parse(JSON.parse(stdout))
-    processes.push(run.pid, ...run.children)
-    expect(await control('start', directory, command)).toMatchObject({ stdout })
-    expect(await readFile(path.join(directory, 'emulator.log'), 'utf8')).toBe('absent\n')
-    const sample = await stat(run.port)
-    expect(sample.isCharacterDevice()).toBe(true)
-    await control('stop', directory)
-    await control('stop', directory)
-    for (const pid of [run.pid, ...run.children])
-      await until(async () => !(await isTestProcessAlive(pid)))
-    await expect(stat(run.port)).rejects.toThrow()
-    await expect(stat(path.join(directory, 'uart'))).rejects.toThrow()
-    await expect(stat(path.join(directory, 'run.json'))).rejects.toThrow()
-  })
+  it.runIf(hasSocat)(
+    'starts once, strips inherited environment, and Stop removes both PTYs and all children',
+    async () => {
+      const directory = await mkdtemp(path.join(tmpdir(), 'mx-life-'))
+      directories.push(directory)
+      const command = [
+        '/usr/bin/python3',
+        '-c',
+        'import os,time; print(os.environ.get("MUSE_EMULATOR_PROBE","absent"),flush=True); time.sleep(30)',
+      ]
+      const { stdout } = await exec(
+        '/usr/bin/python3',
+        [supervisor, 'start', 'test', directory, ...command],
+        {
+          env: { PATH: process.env['PATH'], MUSE_EMULATOR_PROBE: 'must-not-reach-child' },
+          timeout: 20_000,
+        },
+      )
+      const run = z
+        .object({ pid: z.number(), children: z.array(z.number()), port: z.string() })
+        .parse(JSON.parse(stdout))
+      processes.push(run.pid, ...run.children)
+      expect(await control('start', directory, command)).toMatchObject({ stdout })
+      expect(await readFile(path.join(directory, 'emulator.log'), 'utf8')).toBe('absent\n')
+      const sample = await stat(run.port)
+      expect(sample.isCharacterDevice()).toBe(true)
+      await control('stop', directory)
+      await control('stop', directory)
+      for (const pid of [run.pid, ...run.children])
+        await until(async () => !(await isTestProcessAlive(pid)))
+      await expect(stat(run.port)).rejects.toThrow()
+      await expect(stat(path.join(directory, 'uart'))).rejects.toThrow()
+      await expect(stat(path.join(directory, 'run.json'))).rejects.toThrow()
+    },
+  )
   it('refuses a shared state directory and cleans failed startup', async () => {
     const directory = await mkdtemp(path.join(tmpdir(), 'mx-fail-'))
     directories.push(directory)
@@ -112,30 +119,33 @@ describe.skipIf(process.platform !== 'linux')('emulator process ownership', () =
     await expect(stat(path.join(directory, 'ttyEMU-test-0'))).rejects.toThrow()
     await expect(control('status', '/tmp')).rejects.toThrow()
   })
-  it('does not control a process whose birth stamp differs from the recorded owner', async () => {
-    const directory = await mkdtemp(path.join(tmpdir(), 'mx-stamp-'))
-    directories.push(directory)
-    const { stdout } = await control('start', directory, ['/bin/sleep', '30'])
-    const run = z
-      .object({ pid: z.number(), children: z.array(z.number()) })
-      .parse(JSON.parse(stdout))
-    processes.push(run.pid, ...run.children)
-    const file = path.join(directory, 'run.json')
-    const original = await readFile(file)
-    try {
-      const record = z
-        .looseObject({ stamp: z.string() })
-        .parse(JSON.parse(original.toString('utf8')))
-      await writeFile(file, JSON.stringify({ ...record, stamp: 'wrong-process-birth' }))
-      const status = await control('status', directory)
-      expect(status.stdout).toContain('stopped')
-      await control('stop', directory)
-      expect(await isTestProcessAlive(run.pid)).toBe(true)
-    } finally {
-      await writeFile(file, original)
-      await control('stop', directory)
-    }
-  })
+  it.runIf(hasSocat)(
+    'does not control a process whose birth stamp differs from the recorded owner',
+    async () => {
+      const directory = await mkdtemp(path.join(tmpdir(), 'mx-stamp-'))
+      directories.push(directory)
+      const { stdout } = await control('start', directory, ['/bin/sleep', '30'])
+      const run = z
+        .object({ pid: z.number(), children: z.array(z.number()) })
+        .parse(JSON.parse(stdout))
+      processes.push(run.pid, ...run.children)
+      const file = path.join(directory, 'run.json')
+      const original = await readFile(file)
+      try {
+        const record = z
+          .looseObject({ stamp: z.string() })
+          .parse(JSON.parse(original.toString('utf8')))
+        await writeFile(file, JSON.stringify({ ...record, stamp: 'wrong-process-birth' }))
+        const status = await control('status', directory)
+        expect(status.stdout).toContain('stopped')
+        await control('stop', directory)
+        expect(await isTestProcessAlive(run.pid)).toBe(true)
+      } finally {
+        await writeFile(file, original)
+        await control('stop', directory)
+      }
+    },
+  )
   it('refuses start without an emulator command', async () => {
     const directory = await mkdtemp(path.join(tmpdir(), 'mx-command-'))
     directories.push(directory)

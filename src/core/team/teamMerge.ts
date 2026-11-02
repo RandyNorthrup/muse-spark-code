@@ -260,37 +260,46 @@ async function confinedRelative(
       { cause: error },
     )
   }
-  if (!isSameTeamPath(root, realRoot, platform)) {
+  const lexicalRoot = p.resolve(root)
+  const rootStat = await linkOf(lexicalRoot)
+  if (rootStat?.isSymbolicLink() === true) {
     throw new TeamMergeError('linkEscape', `The team merge has a linked root ${file}`, [file])
   }
   // Check every ancestor, even when the leaf already exists. A leaf-only
   // realpath check misses an ancestor link to another in-workspace folder.
+  // The root's spelling may cross a system link above it that both sides
+  // share (macOS spells temporary folders under `/var`, a link to
+  // `/private/var`): what must hold is no link at or below the root and a
+  // canonical place inside the root's canonical path.
   let current = textual.absolute
+  let nearestExisting: string | undefined
   for (;;) {
     const stat = await linkOf(current)
-    if (
-      stat !== undefined &&
-      (stat.isSymbolicLink() || !isSameTeamPath(await io.realPath(current), current, platform))
-    ) {
-      throw new TeamMergeError(
-        'linkEscape',
-        `The team merge refused a path through a link ${file}`,
-        [file],
-      )
+    if (stat !== undefined) {
+      nearestExisting ??= current
+      if (stat.isSymbolicLink()) {
+        throw new TeamMergeError(
+          'linkEscape',
+          `The team merge refused a path through a link ${file}`,
+          [file],
+        )
+      }
     }
-    if (isSameTeamPath(current, realRoot, platform)) {
-      return textual.relative
+    if (isSameTeamPath(current, lexicalRoot, platform)) {
+      break
     }
     current = p.dirname(current)
-    if (
-      !isSameTeamPath(current, realRoot, platform) &&
-      !isBelow(p.relative(p.toNamespacedPath(realRoot), p.toNamespacedPath(current)), p)
-    ) {
+  }
+  if (nearestExisting !== undefined) {
+    const canonical = await io.realPath(nearestExisting)
+    const relative = p.relative(p.toNamespacedPath(realRoot), p.toNamespacedPath(canonical))
+    if (relative !== '' && !isBelow(relative, p)) {
       throw new TeamMergeError('linkEscape', `The team merge refused an outside ancestor ${file}`, [
         file,
       ])
     }
   }
+  return textual.relative
 }
 
 function isWithinWritePaths(relative: string, writePaths: readonly string[]): boolean {

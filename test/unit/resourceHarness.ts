@@ -5,9 +5,12 @@
 // retired helper child is really gone. Everything observed here is real:
 // live OS counters, real child processes, real pgrep reads.
 import { execFile, execFileSync } from 'node:child_process'
-import { mkdtemp } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { DarwinMemoryReader } from '../../src/core/resources/sampler/darwinMemory'
+import type { ResourceProbeLimits } from '../../src/core/resources/sampler/system'
+import { RESOURCE_DARWIN_HEADROOM_LIBUV_MIN_MINOR } from '../../src/shared/constants'
 import type { ResourceClock } from '../../src/shared/resources'
 
 /** The clock the governor suites hold manually; advancing it moves windows. */
@@ -88,6 +91,32 @@ export async function compileHelper(prefix: string): Promise<{ folder: string; b
   )
   execFileSync('/usr/bin/codesign', ['--force', '--sign', '-', binary], { env: {} })
   return { folder, binary }
+}
+
+/**
+The memory reader a live sampler needs on macOS before libuv 1.52 (Node
+22, CI's runtime): `process.availableMemory` there reports free pages
+alone, so the product reads headroom from its packaged helper, which a
+suite running from source must compile and pass explicitly — one reader
+per sampler, made by `reader` (a sampler disposes its reader). Undefined
+where libuv reports headroom itself or off macOS; `remove` deletes the
+compiled fixture once every sampler is disposed.
+*/
+export async function darwinSamplerMemory(limits: ResourceProbeLimits): Promise<{
+  reader: () => DarwinMemoryReader | undefined
+  remove: () => Promise<void>
+}> {
+  const [major = 0, minor = 0] = process.versions.uv.split('.').map(Number)
+  const requiresHelper =
+    process.platform === 'darwin' && major === 1 && minor < RESOURCE_DARWIN_HEADROOM_LIBUV_MIN_MINOR
+  if (!requiresHelper) return { reader: () => undefined, remove: () => Promise.resolve() }
+  const { folder, binary } = await compileHelper('resource-darwin-memory-')
+  return {
+    reader: () => new DarwinMemoryReader(limits, binary),
+    remove: async () => {
+      await rm(folder, { recursive: true, force: true })
+    },
+  }
 }
 
 /** PIDs whose full command line names this run's helper binary. */

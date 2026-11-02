@@ -47,13 +47,19 @@ export class NodePrivateFiles {
   async prepare(): Promise<void> {
     await mkdir(this.root, { recursive: true, mode: NODE_DIRECTORY_MODE })
     const info = await this.identity.lstatIdentity(this.root)
+    if (!info.isDirectory() || info.isSymbolicLink()) throw new Error(UI_TEXT.nodeErrors.forbidden)
+    // Root-owned OS aliases above the root (/var -> /private/var on macOS)
+    // are immutable to other users; a user-owned link above owner-only
+    // state could redirect it, so only those refuse (trustedPath.ts).
     const resolved = await realpath(this.root)
-    if (
-      !info.isDirectory() ||
-      info.isSymbolicLink() ||
-      path.resolve(resolved).replaceAll('\\', '/') !== path.resolve(this.root).replaceAll('\\', '/')
-    )
-      throw new Error(UI_TEXT.nodeErrors.forbidden)
+    if (path.resolve(resolved) !== path.resolve(this.root)) {
+      for (let next = path.resolve(this.root); ; next = path.dirname(next)) {
+        const ancestor = await this.identity.lstatIdentity(next)
+        if (ancestor.isSymbolicLink() && ancestor.uid !== NODE_BIGINT_ZERO)
+          throw new Error(UI_TEXT.nodeErrors.forbidden)
+        if (next === path.dirname(next)) break
+      }
+    }
     this.checkOwner(info.uid, info.mode)
   }
 

@@ -13,6 +13,8 @@ import { EN } from '../../src/shared/l10n/en'
 import { removeFolder } from './helpers/temporaryFolders'
 
 describe('one-shot resources status', () => {
+  // The status waits one full 5 s sample interval for its second reading by
+  // design, so the case cannot fit the suite's 5 s default.
   it('reports a CPU reading on a fresh sampler', async () => {
     const machineDir = await mkdtemp(path.join(tmpdir(), 'muse-status-cpu-'))
     try {
@@ -41,5 +43,5 @@ describe('one-shot resources status', () => {
     } finally {
       await removeFolder(machineDir)
     }
-  })
+  }, 15_000)
 })

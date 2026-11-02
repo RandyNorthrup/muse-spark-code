@@ -428,6 +428,20 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Team copies, the connector's first start and the home node's private
+  folders work when their path is spelled through a system link (macOS
+  `/var` for `/private/var`). Each fence judged the spelled path against
+  the resolved one and refused its own storage; each now judges where
+  the folder really is, and a link inside the storage still refuses.
+- `supervise` starts when the data folder's path is too long for a Unix
+  control socket: the socket is then created in the temporary folder
+  under its unguessable name, still answers only with the run's token,
+  and `stop` finds it through the run's record as before.
+- A hardware lease whose holder's start identity cannot be queried is
+  held, as the identity contract always said, instead of the query's
+  error escaping and the device looking free.
+- Provider spend names the price catalogue it uses by its true snapshot
+  date (2026-10-30); the constant had stayed on the previous snapshot's.
 - A vault policy that is a link, that another account can read, or that has
   a second name is ignored, and saving a policy can no longer be aimed at
   another file. The ceiling stays "none" and the refusal is the same words
