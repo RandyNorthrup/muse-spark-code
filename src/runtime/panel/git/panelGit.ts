@@ -5,8 +5,9 @@
 // terminal for a push that needs typed credentials and GitHub's pages are
 // MHP requests (`ui/confirm`, `ui/pick`, `terminal/create`, `ui/openExternal`),
 // so a person answers them in their editor. The GitHub sign-in is one object
-// for the connection, over the device flow and the opt-in `gh` login (there is
-// no editor session to borrow), so every conversation's card shows one account.
+// for the connection, over D104's sources in order: the editor's own lease
+// first (lane A's panel assembly, RLF-HOSTS2), then the device flow and the
+// opt-in `gh` login, so every conversation's card shows one account.
 //
 // - No `git` on the absolute entries of PATH, or a workspace in no
 //   repository, is no Git for the panel: it shows none, and each press says why.
@@ -20,10 +21,12 @@
 // - Pull request links are the connection's workspace storage, read when the
 //   panel opens and kept by session id.
 
+import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { withoutCredentials } from '../../../core/credentialEnvironment'
 import { GitHubSignIn } from '../../../core/git/githubSignIn'
+import { leaseExpiresAt, type GitHubTokenSource } from '../../../core/git/tokenSource'
 import { pushConfirmationText } from '../../../core/git/pushConfirmation'
 import type { RuntimeGitDeps } from '../../../core/git/runtimeGit'
 import type { SecretStore } from '../../../host/auth/credentialStore'
@@ -39,13 +42,75 @@ import {
   type LinkMemento,
 } from '../../../host/git/pullRequestLinks'
 import type { Logger } from '../../../host/logger'
-import { GIT_PUSH_CREDENTIAL_VARIABLES, UI_TEXT } from '../../../shared/constants'
+import { GIT_PUSH_CREDENTIAL_VARIABLES, MHP_ERROR_CODES, UI_TEXT } from '../../../shared/constants'
 import type { HostServices } from '../../../shared/hostApi/methods'
 import type { UiText } from '../../../shared/l10n/en'
 import { setUiText } from '../../../shared/l10n/text'
+import { createNativeGitHub } from '../nativeGitHub'
 import { githubAccountLogin, runtimeGitHubSources } from '../../github/githubSources'
 import { unavailableGit } from '../../features/unavailableGit'
 import { createRuntimeGit } from './adapter'
+
+/** A peer without leases (or without the offered `auth` capability): no proxying here. */
+function isLeaseAbsence(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    (error.code === MHP_ERROR_CODES.methodNotFound ||
+      error.code === MHP_ERROR_CODES.unsupportedCapability)
+  )
+}
+
+/**
+Source (a): the host's editor lease. The lease id crosses MHP, never
+the token; GitHub reads go through the host's `github/request` proxy.
+A host without leases is quietly absent for this window.
+*/
+function panelLeaseSource(deps: {
+  readonly host: HostServices
+  readonly workspaceUri: string
+  readonly ownerId: string
+  readonly userAgent: string
+  readonly signal: AbortSignal
+  readonly log: Logger
+}): GitHubTokenSource {
+  const native = createNativeGitHub({
+    host: deps.host,
+    workspaceUri: deps.workspaceUri,
+    ownerId: deps.ownerId,
+    userAgent: deps.userAgent,
+    signal: deps.signal,
+    log: deps.log,
+  })
+  let isUnsupported = false
+  return {
+    kind: 'editorLease',
+    credential: async (mode, signal) => {
+      if (isUnsupported) return
+      signal.throwIfAborted()
+      let leaseId: string | undefined
+      try {
+        leaseId = await native.githubToken(mode)
+      } catch (error: unknown) {
+        if (isLeaseAbsence(error)) {
+          isUnsupported = true
+          return
+        }
+        throw error
+      }
+      if (leaseId === undefined) return
+      return {
+        source: 'editorLease',
+        bearer: leaseId,
+        fetch: (url, init) => native.proxyFetch(url, init),
+        expiresAt: leaseExpiresAt(Date.now(), undefined),
+      }
+    },
+    // The editor keeps its own session; a refused lease is simply not retried.
+    rejected: () => Promise.resolve(),
+    signOut: () => Promise.resolve(),
+  }
+}
 
 export interface PanelGitPorts {
   readonly host: HostServices
@@ -129,9 +194,18 @@ export async function openPanelGit(
   const openExternal = async (url: string): Promise<void> => {
     await host.request('ui/openExternal', { uri: url }, signal)
   }
+  const ownerId = randomUUID()
   const github = new GitHubSignIn({
-    sources: (present) =>
-      runtimeGitHubSources(
+    sources: (present) => [
+      panelLeaseSource({
+        host,
+        workspaceUri: pathToFileURL(ports.workspaceRoot).href,
+        ownerId,
+        userAgent: ports.userAgent,
+        signal,
+        log,
+      }),
+      ...runtimeGitHubSources(
         {
           store: ports.secrets,
           fetch: ports.fetch,
@@ -141,6 +215,7 @@ export async function openPanelGit(
         },
         present,
       ),
+    ],
     now: Date.now,
     login: githubAccountLogin(ports),
     log,
