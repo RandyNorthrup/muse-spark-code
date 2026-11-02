@@ -1,20 +1,31 @@
 // E3's validated MHP attachment-method projection. M104 lane 0 supplies the
 // outer RPC envelope and native bridges; no browser reads a native file here.
 import * as z from 'zod/mini'
-import { MEDIA_ID_MAX_CHARS, MEDIA_PATH_TOKEN_MAX_CHARS, UI_TEXT } from '../../shared/constants'
-import { companionMediaUploadSchema, screenRecordingOptionsSchema } from '../../shared/media'
+import { UI_TEXT } from '../../shared/constants'
+import {
+  attachmentsAttachParamsSchema,
+  attachmentsPickParamsSchema,
+  attachmentsRecordParamsSchema,
+  attachmentsRemoveParamsSchema,
+  type AttachmentsResult,
+} from '../../shared/hostApi/attachments'
+import { companionMediaUploadSchema } from '../../shared/media'
 import type { ScreenRecordingOptions } from '../../core/media/record/driver'
 
-const token = z.string().check(z.minLength(1), z.maxLength(MEDIA_PATH_TOKEN_MAX_CHARS))
-const id = z.string().check(z.minLength(1), z.maxLength(MEDIA_ID_MAX_CHARS))
 const requestSchema = z.discriminatedUnion('method', [
-  z.strictObject({ method: z.literal('attachments/pick'), params: z.strictObject({}) }),
+  z.strictObject({ method: z.literal('attachments/pick'), params: attachmentsPickParamsSchema }),
   z.strictObject({
     method: z.literal('attachments/attach'),
-    params: z.strictObject({ pathToken: token }),
+    params: attachmentsAttachParamsSchema,
   }),
-  z.strictObject({ method: z.literal('attachments/remove'), params: z.strictObject({ id }) }),
-  z.strictObject({ method: z.literal('attachments/record'), params: screenRecordingOptionsSchema }),
+  z.strictObject({
+    method: z.literal('attachments/remove'),
+    params: attachmentsRemoveParamsSchema,
+  }),
+  z.strictObject({
+    method: z.literal('attachments/record'),
+    params: attachmentsRecordParamsSchema,
+  }),
 ])
 const resultSchema = z.strictObject({
   // D121: no attach count of ours — the native side lists any number.
@@ -36,16 +47,23 @@ export interface NativeAttachmentContext {
   readonly isInteractiveUser: () => boolean
 }
 
+/**
+A port's explicit refusal, with the words the user reads. The dispatch
+preserves these reasons; every other thrown failure still refuses with
+the generic unreadable text, never its own words.
+*/
+export class NativeAttachmentRefusal extends Error {
+  public constructor(reason: string) {
+    super(reason)
+    this.name = 'NativeAttachmentRefusal'
+  }
+}
+
 /** One serialized owner per panel; stale picker/recorder replies never reach a new session. */
 export function nativeAttachments(
   port: NativeAttachmentPort,
   context: NativeAttachmentContext,
-): (
-  request: unknown,
-) => Promise<
-  | { readonly ok: true; readonly value: z.infer<typeof resultSchema> }
-  | { readonly ok: false; readonly reason: string }
-> {
+): (request: unknown) => Promise<AttachmentsResult> {
   let tail = Promise.resolve()
   return async (raw) => {
     const request = requestSchema.safeParse(raw)
@@ -92,8 +110,12 @@ export function nativeAttachments(
 
     try {
       return { ok: true, value: await pending }
-    } catch {
-      return { ok: false, reason: UI_TEXT.attachmentUnreadable }
+    } catch (error: unknown) {
+      return {
+        ok: false,
+        reason:
+          error instanceof NativeAttachmentRefusal ? error.message : UI_TEXT.attachmentUnreadable,
+      }
     }
   }
 }

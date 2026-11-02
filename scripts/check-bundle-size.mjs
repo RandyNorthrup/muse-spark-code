@@ -619,6 +619,10 @@ const BUDGETS = [
   // store joins), loaded on first use: 22.6 KiB measured (2026-10-24,
   // production build on the Mac mini) +15% = 26.0 KiB, rounded up to 30 KiB.
   { path: 'dist/runtimePanelPorts.js', budgetKiB: 30 },
+  // M105 delivery d (RLF-HOSTS2): the native panel's attachments route and
+  // port: 38,929 bytes (38.0 KiB) measured (2026-11-01, production build on
+  // linuxlt) +15% = 43.7 KiB, rounded up to 44 KiB.
+  { path: 'dist/runtimePanelMedia.js', budgetKiB: 44 },
   // M96b: run-owned team policy with its cleanup ledger, stale-run sweep,
   // denied-merge holds and marker gate, loaded only for --team. Measured
   // 46,823 bytes (45.73 KiB, production build on macbook, 2026-10-22)

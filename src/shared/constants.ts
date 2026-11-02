@@ -11363,6 +11363,8 @@ export const RUNTIME_PANEL_BUNDLE_FILE = 'runtimePanel.js'
 export const RUNTIME_PANEL_SESSION_BUNDLE_FILE = 'runtimePanelSession.js'
 // Its heavier ports (saved plans), required the first time one is used.
 export const RUNTIME_PANEL_PORTS_BUNDLE_FILE = 'runtimePanelPorts.js'
+// M105 delivery d: its attachments route and port, loaded on the first attachments call.
+export const RUNTIME_PANEL_MEDIA_BUNDLE_FILE = 'runtimePanelMedia.js'
 /** Each workspace's keyed Tab Always record (RVM94KR2), in the agent's data folder. */
 export const LSP_TAB_CONSENT_FOLDER = 'tab-consent'
 /** A header block past this is malformed input (the common 8 KiB HTTP header bound). */

@@ -6,6 +6,7 @@ import type { Logger } from '../../host/logger'
 import { UI_TEXT } from '../../shared/constants'
 import type * as Entry from './panelEntry'
 import type * as SessionEntry from './sessionEntry'
+import type * as PanelMediaBundle from '../panelMediaEntry'
 
 interface PanelBundle {
   readonly runPanel: typeof Entry.runPanel
@@ -52,6 +53,34 @@ export function panelSessionLoader(bundlePath: string, log: Logger): () => Panel
     log,
     isBundle: isPanelSessionBundle,
     label: 'runtime panel session',
+    unavailable: () => UI_TEXT.hostService.unavailable,
+  })
+}
+
+interface PanelMedia {
+  readonly createPanelMedia: typeof PanelMediaBundle.createPanelMedia
+  readonly routeAttachmentMethod: typeof PanelMediaBundle.routeAttachmentMethod
+}
+
+/** Same-build signature, trusted after checking the exported functions (PLAN §8). */
+function isPanelMediaBundle(value: unknown): value is PanelMedia {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'createPanelMedia' in value &&
+    typeof value.createPanelMedia === 'function' &&
+    'routeAttachmentMethod' in value &&
+    typeof value.routeAttachmentMethod === 'function'
+  )
+}
+
+/** The panel's attachments route and port, loaded on the first attachments call (M105 delivery d). */
+export function panelMediaLoader(bundlePath: string, log: Logger): () => PanelMedia {
+  return lazyBundleLoader({
+    bundlePath,
+    log,
+    isBundle: isPanelMediaBundle,
+    label: 'runtime panel media',
     unavailable: () => UI_TEXT.hostService.unavailable,
   })
 }
