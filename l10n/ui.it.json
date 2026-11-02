@@ -1639,6 +1639,13 @@
   "composerQueuePlaceholder": "Accoda un altro messaggio…",
   "queuedLabel": "In coda",
   "sentOnSchedule": "Inviato come programmato",
+  "museCodeOnceEnvKeyRefused": "Gli invii programmati di Muse Code non sono disponibili mentre META_API_KEY è impostato in questa finestra: un invio verrebbe addebitato a tale chiave, non all’account collegato.",
+  "museCodeOnceAccountChanged": "L’accesso a Muse Code è cambiato da quando è stato programmato questo invio, che è stato quindi rifiutato. Programmalo di nuovo per inviarlo con l’accesso attuale.",
+  "museCodeOnceCleared": {
+    "one": "L’accesso a Muse Code è cambiato da quando è stato programmato un invio, che è stato quindi rimosso. Programmalo di nuovo per inviarlo con l’accesso attuale.",
+    "other": "L’accesso a Muse Code è cambiato da quando sono stati programmati {count} invii, che sono stati quindi rimossi. Programmali di nuovo per inviarli con l’accesso attuale.",
+    "many": "L’accesso a Muse Code è cambiato da quando sono stati programmati {count} invii, che sono stati quindi rimossi. Programmali di nuovo per inviarli con l’accesso attuale."
+  },
   "queuedMenuLabel": "Azioni dei messaggi in coda",
   "queuedEdit": "Modifica",
   "queuedEditTitle": "Togli il messaggio dalla coda e rimettilo nella casella del prompt",

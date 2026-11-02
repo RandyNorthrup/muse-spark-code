@@ -37,6 +37,8 @@ export interface ScheduleEditorDeliveryPorts {
   generation?(): number
   readonly host: ScheduleBackgroundTargetDeps['host']
   readonly options: ScheduleBackgroundTargetDeps['options']
+  /** A host's per-fire admission (M88 lane C); absent admits. */
+  readonly admit?: ScheduleBackgroundTargetDeps['admit']
   readonly bindSession?: ScheduleBackgroundTargetDeps['bindSession']
   readonly releaseOptions?: ScheduleBackgroundTargetDeps['releaseOptions']
   readonly publish: ScheduleBackgroundTargetDeps['publish']
@@ -252,6 +254,7 @@ export function createScheduleDeliveryBinding(
     contexts,
     host: (backend, key) => ports.host(backend, key),
     options: (schedule) => ports.options(schedule),
+    ...(ports.admit !== undefined && { admit: ports.admit }),
     ...(ports.bindSession !== undefined && {
       bindSession: (session: BackendSession, options) => ports.bindSession?.(session, options),
     }),

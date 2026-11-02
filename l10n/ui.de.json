@@ -1629,6 +1629,12 @@
   "composerQueuePlaceholder": "Weitere Nachricht einreihen…",
   "queuedLabel": "Eingereiht",
   "sentOnSchedule": "Nach Zeitplan gesendet",
+  "museCodeOnceEnvKeyRefused": "Muse Code-Timerversand ist nicht verfügbar, solange in diesem Fenster META_API_KEY gesetzt ist: Eine Sendung würde diesem Schlüssel belastet, nicht dem angemeldeten Konto.",
+  "museCodeOnceAccountChanged": "Die Muse Code-Anmeldung hat sich seit der Planung dieser Sendung geändert, daher wurde die Sendung abgelehnt. Plane sie erneut, um sie mit der aktuellen Anmeldung zu senden.",
+  "museCodeOnceCleared": {
+    "one": "Die Muse Code-Anmeldung hat sich seit der Planung eines Timerversands geändert, daher wurde die Sendung entfernt. Plane sie erneut, um sie mit der aktuellen Anmeldung zu senden.",
+    "other": "Die Muse Code-Anmeldung hat sich seit der Planung von {count} Timersendungen geändert, daher wurden die Sendungen entfernt. Plane sie erneut, um sie mit der aktuellen Anmeldung zu senden."
+  },
   "queuedMenuLabel": "Aktionen für eingereihte Nachrichten",
   "queuedEdit": "Bearbeiten",
   "queuedEditTitle": "Die Nachricht aus der Warteschlange zurück in das Nachrichtenfeld holen",

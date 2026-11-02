@@ -1619,6 +1619,11 @@
   "composerQueuePlaceholder": "別のメッセージをキューに追加…",
   "queuedLabel": "キュー入り",
   "sentOnSchedule": "スケジュールどおりに送信",
+  "museCodeOnceEnvKeyRefused": "このウィンドウで META_API_KEY が設定されている間、Muse Code の予約送信は利用できません。送信はサインイン中のアカウントではなく、そのキーに課金されるためです。",
+  "museCodeOnceAccountChanged": "この送信の予約後に Muse Code のサインインが変更されたため、送信は拒否されました。現在のサインインで送信するには、もう一度予約してください。",
+  "museCodeOnceCleared": {
+    "other": "予約後に Muse Code のサインインが変更されたため、{count} 件の予約送信は削除されました。現在のサインインで送信するには、もう一度予約してください。"
+  },
   "queuedMenuLabel": "キュー内のメッセージの操作",
   "queuedEdit": "編集",
   "queuedEditTitle": "メッセージをキューから取り出し、プロンプト欄に戻す",

@@ -2029,6 +2029,22 @@ export const EN = {
   // A timed send's user card (M88, D67 item 15): marked, so the live
   // transcript shows the message went on its schedule, not by hand.
   sentOnSchedule: 'Sent on schedule',
+  // Muse Code timed sends while META_API_KEY is set in the window (M88,
+  // D67 item 15): creation and admission refuse, since a send would bill
+  // that key instead of the signed-in account.
+  museCodeOnceEnvKeyRefused:
+    'Muse Code timed sends are unavailable while META_API_KEY is set in this window: a send would bill that key, not the signed-in account.',
+  // A Muse Code timed send refused at admission (M88, D67 item 15): the
+  // sign-in changed since it was scheduled.
+  museCodeOnceAccountChanged:
+    "Muse Code's sign-in changed since this send was scheduled, so the send was refused. Schedule it again to send under the current sign-in.",
+  // Timed sends removed after a sign-in change (M88, D67 item 15): the
+  // transcript says why, with the count.
+  museCodeOnceCleared: forms({
+    one: "Muse Code's sign-in changed since a timed send was scheduled, so the send was removed. Schedule it again to send under the current sign-in.",
+    other:
+      "Muse Code's sign-in changed since {count} timed sends were scheduled, so the sends were removed. Schedule them again to send under the current sign-in.",
+  }),
   queuedMenuLabel: 'Queued Message Actions',
   queuedEdit: 'Edit',
   queuedEditTitle: 'Take the message out of the queue and back into the prompt box',

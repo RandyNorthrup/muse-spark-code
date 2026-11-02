@@ -1,5 +1,6 @@
 import { Usd } from '../../shared/usd'
 import { isSteerRefusedError } from '../agent/agentBackend'
+import { isScheduleDispatchRefusal } from './dispatchRefusal'
 import { UI_TEXT } from '../../shared/constants'
 import { scheduleEventSchema, type ScheduleEvent } from '../../shared/scheduleEvents'
 import {
@@ -209,7 +210,16 @@ export class ScheduleDelivery implements ScheduleHostPort {
           lease = await this.deps.targets.open(schedule)
         }
       }
-    } catch {
+    } catch (error: unknown) {
+      // A host's admission refusal (M88 lane C) settles as refused with
+      // the host's own sentence; anything else stays a generic failure.
+      if (isScheduleDispatchRefusal(error)) {
+        return this.record(schedule, context, occurrenceMs, event, {
+          ...notSent,
+          outcome: 'refused',
+          reason: error.sentence,
+        })
+      }
       return this.record(schedule, context, occurrenceMs, event, {
         ...notSent,
         outcome: 'failed',

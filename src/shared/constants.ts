@@ -2351,6 +2351,8 @@ export const WORKSPACE_STATE_KEYS = {
   paidWorkspaceGrants: 'museSpark.paidWorkspaceGrants',
   /** The pull request each conversation opened, by session id (M71). */
   pullRequestLinks: 'museSpark.pullRequestLinks',
+  /** What each workspace last saw of the CLI's sign-in, by workspace key (M88 lane C). */
+  museCodeScheduleBinding: 'museSpark.museCodeScheduleBinding',
 } as const
 
 // Webview bundle layout produced by scripts/build.mjs.
