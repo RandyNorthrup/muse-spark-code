@@ -13,7 +13,7 @@ import { probeChildEnvironment } from '../../core/executables'
 import { VaultExecService, type VaultExecHostPort } from '../../core/vault/exec/service'
 import { vaultExecEnvelopeDigest } from '../../core/vault/exec/envelopeDigest'
 import { VaultTaintSession } from '../../core/vault/taint'
-import type { VaultTaint } from '../../shared/vault'
+import { vaultTaintSchema, type VaultTaint } from '../../shared/vault'
 import { spawnVaultFeeder } from '../../host/vault/vaultExecSpawn'
 import { killTree, treeSpawnOptions, type ProcessTreeDeps } from '../../host/processTree'
 import { type HeadlessVaultBroker } from './execVault'
@@ -50,16 +50,25 @@ One taint source per exec run. The engine notes the provenance of each
 request's context; those notes are observations for the run's life and
 are never cleared by a later clean snapshot, because the headless run
 has no person to answer the ask a tainted use would need (D89.7): the
-session denies it instead, in words, through its denial record. The
-workspace is the operator's own chosen folder for the run, so the
-source starts trusted and only the engine's notes add taint.
+session denies it instead, in words, through its denial record. Headless
+exec refuses workspace trust, so every request snapshot names
+`restrictedWorkspace` even when the run touched no tainted content.
+That flag is the engine's trust bit, not content the run consumed, and
+is dropped here. A note that is tainted and names no reason stays
+tainted: the cause was already discarded and is not assumed clean.
 */
 export function createHeadlessVaultTaintSource(): HeadlessVaultTaintSource {
   const taints = new VaultTaintSession('museCode')
   taints.beginRequest([], true)
   return {
     note: (_sessionId, taint) => {
-      taints.observe(taint)
+      const parsed = vaultTaintSchema.parse(taint)
+      const reasons = parsed.reasons.filter((reason) => reason.source !== 'restrictedWorkspace')
+      const content: VaultTaint =
+        reasons.length > 0
+          ? { tainted: true, reasons }
+          : { tainted: parsed.tainted && parsed.reasons.length === 0, reasons: [] }
+      taints.observe(content)
     },
     current: () => taints.current(),
   }

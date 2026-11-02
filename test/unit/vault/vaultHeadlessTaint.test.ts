@@ -25,6 +25,38 @@ describe('headless vault taint source (RLF-M109H)', () => {
     expect(source.current().tainted).toBe(true)
   })
 
+  it('does not treat the headless workspace flag as content the run consumed', () => {
+    const source = createHeadlessVaultTaintSource()
+    source.note('run-session', vaultProvenance('restrictedWorkspace', 'workspace'))
+    expect(source.current()).toEqual({ tainted: false, reasons: [] })
+    source.note('run-session', vaultProvenance('search', 'web_search_call'))
+    expect(source.current()).toEqual({
+      tainted: true,
+      reasons: [{ source: 'search', label: 'web_search_call' }],
+    })
+  })
+
+  it('keeps content reasons from a snapshot that also names the workspace', () => {
+    const source = createHeadlessVaultTaintSource()
+    source.note('run-session', {
+      tainted: true,
+      reasons: [
+        { source: 'restrictedWorkspace', label: 'workspace' },
+        { source: 'web', label: 'example page' },
+      ],
+    })
+    expect(source.current()).toEqual({
+      tainted: true,
+      reasons: [{ source: 'web', label: 'example page' }],
+    })
+  })
+
+  it('stays tainted when a note is tainted and names no reason', () => {
+    const source = createHeadlessVaultTaintSource()
+    source.note('run-session', { tainted: true, reasons: [] })
+    expect(source.current().tainted).toBe(true)
+  })
+
   it('keeps every noted reason and stays per-source', () => {
     const first = createHeadlessVaultTaintSource()
     const second = createHeadlessVaultTaintSource()
