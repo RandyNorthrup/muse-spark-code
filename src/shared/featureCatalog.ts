@@ -973,7 +973,7 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'makerTitle' },
       { ui: 'referenceMakers' },
       [],
-      [],
+      ['serialPythonPath'],
       'makers',
       undefined,
       false,

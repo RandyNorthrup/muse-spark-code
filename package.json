@@ -1838,6 +1838,13 @@
           "description": "%config.mediaConverterPath.description%",
           "scope": "machine"
         },
+        "museSpark.serialPythonPath": {
+          "type": "string",
+          "default": "",
+          "maxLength": 4096,
+          "description": "%config.serialPythonPath.description%",
+          "scope": "machine"
+        },
         "museSpark.accountSwap": {
           "type": "boolean",
           "default": true,

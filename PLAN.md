@@ -11523,6 +11523,45 @@ Status evidence: `docs/certification/rlf-smallfix1.md`.
   said where it is started, with the way out; the serial helper's Python
   is never chosen by a bare name on a PATH a project can write to.
 
+### RLFSMALLFIX2 — A session that cannot start, a missing portal helper, group-check helper or judge peer say why; the serial Python is a machine setting (2026-10-31)
+
+**Status 2026-10-31 (lane RLF-SMALLFIX2, macmini): built.** Three of the brief's
+four items are built; the fourth is open for the lead. (1) ACP session start: run on the built agent
+and on the installed packed agent through the states reachable without a Muse
+request. Muse Code's sign-in file malformed, a folder, unreadable or of an
+unsupported schema version, and a Muse Code the computer will not run or that
+stops while starting, each now say what happened and what to do (the CLI's
+stderr is never forwarded: only lines recorded from a real `muse serve` choose
+one of our sentences, and its exit status chooses the rest); a folder to open
+that is missing, a file or closed, and one not given as a full path, are
+said; "no model" now names the sign-in, key and network checks; every other
+start failure leaves as the "could not be started (cause)" sentence instead
+of "That did not work". A signed-in Muse Code with a dead proxy could not be
+reproduced without a credential (see the record). (2) The Linux portal
+recorder, the Mac trusted-path group check and the macOS judge peer say that
+their helper is missing or will not run; the judge's refusal vocabulary is
+frozen with the MHP lock, so the judge peer reads as unverified, not as an
+engine failure. The helper sentence names the helper's own app or file: a
+folder above the product ending in `.app` no longer lends its name (resume
+2026-11-01). (3) `serialPythonPath` in the agent's settings.json
+(machine-scoped; `museSpark.serialPythonPath` in VS Code for the same) names
+the serial helper's Python, resolved by SMALLFIX1's resolver, used as given,
+refused inside the workspace; absent changes nothing. It takes effect where
+the serial helper runs today, in the agent; the VS Code side follows item 4.
+(4) The VS Code maker host's activation wiring is not built: nothing in the
+product references the host, its six commands are in no manifest, and its
+engine deps (the machine registry's `registerMachine`/`listMachines`, the
+hardware latch, the approval previews) have no supplier in the VS Code
+process — the portable registry is only assembled into the ACP/headless
+runtime service — so wiring is M103's VS Code piece, not a small fix; the
+options and a recommendation are in the record. Found on the way: the macOS
+helper has no `private-group` mode, so the group check's Mac branch starts
+its dictation mode. Status evidence: `docs/certification/rlf-smallfix2.md`.
+
+- **Goal.** A failed start, a missing shipped helper and a serial Python the
+  person chose are said or honoured where they happen, in the person's language,
+  with the way out; no project can choose the Python the machine runs.
+
 ### M127 — Muse Code at its latest release (2026-10-17)
 
 **Status 2026-10-30 (RLF-UPAGENT): building.** The SDK rides 1.4.12

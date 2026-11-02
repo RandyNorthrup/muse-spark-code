@@ -4475,7 +4475,9 @@
     "macos": "macOS Anahtar Zinciri",
     "linux": "Secret Service anahtarlığı"
   },
-  "acpNoModels": "Arka uç, bu aracının kullanabileceği bir model sunmuyor.",
+  "acpNoModels": "Arka uç, bu aracının kullanabileceği bir model sunmuyor. Oturum açtığınızdan veya bir anahtar kaydettiğinizden ve bu bilgisayarın sağlayıcının sunucusuna ulaşabildiğinden emin olun, sonra yeniden deneyin.",
+  "acpFolderNotAbsolute": "Düzenleyici, açılacak klasörü tam yol olarak vermelidir.",
+  "acpFolderMissing": "Açılacak klasör kullanılamıyor: yok, klasör değil veya bu hesap onu açamaz. Yolu kontrol edin ve yeniden açın.",
   "acpPromptBusy": "Bu oturumda zaten bir istem çalışıyor.",
   "acpUserMcpServersConfigured": "--no-user-mcp-servers ile başlatıldı, ancak Muse Code ayarlarınız MCP sunucularını açıyor ve Muse Code’un bunları tek bir çalıştırma için dışarıda bırakan bir anahtarı yok. Bu dosyada kapatın (enabled: false) ya da --no-user-mcp-servers olmadan başlatın.",
   "acpUserMcpServersUnreadable": "--no-user-mcp-servers ile başlatıldı, ancak Muse Code ayar dosyası okunamıyor; bu nedenle bu ajan MCP sunucularını açıp açmadığını bilemiyor. Dosyayı onarın ya da --no-user-mcp-servers olmadan başlatın.",
@@ -4496,6 +4498,12 @@
     "unloadableSource": "{helper} yerel yardımcısı derlenmiş, ancak bu bilgisayar onu çalıştıramıyor (hasarlı, sistem tarafından engellenmiş veya başka bir işlemci için derlenmiş olabilir), bu yüzden bu başlatılamadı. “{command}” komutuyla yeniden derleyin ve yeniden deneyin.",
     "unsupported": "Muse Spark Code, {arch} üzerindeki {platform} için yerel yardımcı içermiyor, bu yüzden bu başlatılamadı.",
     "windowsJob": "Windows iş yardımcısı hazırlanamadı, bu yüzden bu başlatılamadı. Muse Spark Code onu ilk kullanımda, native/windows klasöründeki dosyalardan Windows PowerShell 5.1 ile derler: Muse Spark Code’u yeniden kurun ve Windows PowerShell’in başladığını, güvenlik yazılımının onu engellemediğini denetleyin."
+  },
+  "museStart": {
+    "authFile": "Muse Code oturum dosyasını (yapılandırma klasöründeki muse/auth.json) okuyamadı, bu yüzden başlamadı. Dosyayı onarın veya silin, sonra yeniden oturum açın.",
+    "authSchema": "Muse Code'un oturum dosyası bu Muse Code'un desteklemediği bir biçimde ({version} sürümü), bu yüzden başlamadı. Dosyayı (yapılandırma klasöründeki muse/auth.json) silip yeniden oturum açın veya Muse Code'u güncelleyin.",
+    "cannotRun": "Bu bilgisayar Muse Code'u çalıştırmadı (çıkış durumu {code}), bu yüzden bu başlatılamadı. Dosyanın Muse Code programı olduğunu ve çalıştırma izniniz olduğunu kontrol edin veya yeniden kurun.",
+    "exited": "Muse Code başlarken durdu (çıkış durumu {code}), bu yüzden bu başlatılamadı. Ayrıntılar Muse Spark günlüğünde; bir terminalde “muse serve” çalıştırmak Muse Code'un ne dediğini gösterir."
   },
   "acpQuestionFormMessage": "Muse'un size bir sorusu var.",
   "acpQuestionAsked": "Muse'un bir sorusu var; bu düzenleyici soruyu form olarak gösteremiyor, bu yüzden bir sonraki iletinizde yanıtlayın:",
@@ -7578,6 +7586,8 @@
   "makerStopPhysicalRequired": "{machine} makinesi fiziksel acil durdurma gerektirir; yazılımla durdurma kullanılamıyor.",
   "makerTrustRequired": "Donanımı etkinleştirmeden önce bu çalışma alanına güvenin.",
   "makerSerialPythonMissing": "Seri erişim, pyserial paketli Python 3 (python3) gerektirir ve PATH’inizde bu çalışma alanının dışında python3 bulunamadı. Python 3’ü kurun, “python3 -m pip install pyserial” komutunu çalıştırın ve yeniden deneyin.",
+  "makerSerialPythonSetMissing": "Seri erişim için ayarladığınız Python (museSpark.serialPythonPath veya aracının settings.json dosyasındaki serialPythonPath) var olan bir dosyanın tam yolu değil. pyserial paketli bir Python 3’ün tam yolunu ayarlayın ya da PATH’inizdeki python3’ün kullanılması için ayarı temizleyin.",
+  "makerSerialPythonSetInWorkspace": "Seri erişim için ayarladığınız Python bu çalışma alanının içinde; bir proje onun yerine çalışacak bir program sağlayabilir. Çalışma alanının dışındaki bir Python’u, örneğin ana klasörünüzdeki bir sanal ortamdakini ayarlayın.",
   "makerEnableHardware": "Bu çalışma alanında donanımı etkinleştir",
   "makerCliUsage": "Terminalden maker donanımı: bir çalışma alanı için donanımı etkinleştirin veya devre dışı bırakın, makineleri kaydedip listeleyin, bir makineyi durdurun veya maker panelini açın. machines add, --registration değerini ve --key-stdin ile makine anahtarını standart girdiden okur. Fiziksel eylemler işletim sisteminizde oturum açmanızı ister ve asla gözetimsiz çalışmaz.",
   "makerDisableHardware": "Bu çalışma alanında donanımı devre dışı bırak",

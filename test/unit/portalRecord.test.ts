@@ -183,9 +183,12 @@ describe.skipIf(process.platform !== 'linux')('M105 R3 portal recorder (native)'
       ).rejects.toMatchObject({ name: 'NotFoundError' })
     })
 
-    it('offers no portal when the helper is not shipped', async () => {
+    it('says the helper is missing, not that the desktop has no portal, when it is not shipped', async () => {
       const empty = await mkdtemp(path.join(root, 'empty-'))
-      await expect(portFor(empty, { DISPLAY: ':0' }).hasPortal()).resolves.toBe(false)
+      await expect(portFor(empty, { DISPLAY: ':0' }).hasPortal()).rejects.toMatchObject({
+        name: 'NativeHelperError',
+        fault: 'missing',
+      })
     })
   })
 

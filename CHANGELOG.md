@@ -48,6 +48,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Choose the Python for serial access.** On macOS and Linux the serial
+  helper needs a Python 3 with `pyserial`, and it used to take whichever
+  `python3` came first on your PATH outside the project. The new machine-scoped
+  setting `serialPythonPath` in the agent's `settings.json` (the VS Code
+  setting `museSpark.serialPythonPath` for the same) names the one to start,
+  for example the `python3` of a virtual environment that has `pyserial`. A
+  project cannot set it, and a path inside the project is refused with the
+  reason. Left empty, nothing changes. It takes effect where the serial
+  helper runs today, in the agent; the VS Code side follows with the maker
+  host's activation wiring.
 - **Maker tools with a person at every physical action.** Shell commands
   that flash a board, open a device or move a machine ask every time, in
   every permission mode, and no remembered rule, hook or automatic reviewer
@@ -528,6 +538,30 @@ happened, not what was planned; superseded entries are kept.
   place. It now starts one `python3` found by its full path outside the
   workspace. When there is none, it says that serial access needs Python 3
   with the pyserial package and the command that installs it.
+- **A session that cannot start now says why, in the editor.** Starting a
+  session through the agent when Muse Code could not read its sign-in file
+  (`muse/auth.json` malformed, a folder, or not readable by you) or when the file
+  was written for a newer Muse Code ended in "That did not work", or in a
+  bare "Internal error". It now says that Muse Code could not read the file
+  (or does not support its version) and what to do: repair or delete the file
+  and sign in again. A Muse Code that the computer will not run, or that stops
+  while starting, says its exit status. A folder the editor asks to open that
+  does not exist, is a file, or that this account may not open says so,
+  instead of "That did not work"; a folder not given as a full path says that.
+  When Muse Code lists no model, the message now tells you to check your
+  sign-in or key and that this computer can reach the provider. Any other
+  start failure now arrives as "The session could not be started (…)" with its
+  fixed cause, and the Muse Spark log has the details.
+- **Three more missing helpers are said, not hidden.** On Linux, screen
+  recording used to say "xdg-desktop-portal ScreenCast" is unavailable when its
+  own helper (`muse-portal-record`) was not installed or could not run; it now
+  says the helper is missing or cannot run and to reinstall (or, in a source
+  checkout, to run `npm run build:dev`). On a Mac, the check that lets a tool
+  in a folder your own group can write be trusted (a media converter, for
+  example) used to refuse with "group/other writable ancestor" when the Mac
+  helper it asks was missing; it now says the helper is missing. The local
+  judge on a Mac whose `muse-local-judge-peer` is not built or not signed now
+  reads as an unverified local endpoint, not as an engine failure.
 - A pack index is accepted only when the signature covers those exact bytes
   and the signer is the pack workflow on `main`, exactly. A signature for a
   branch whose name merely begins with `main`, or a signed statement that

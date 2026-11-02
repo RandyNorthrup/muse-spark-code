@@ -4392,7 +4392,9 @@
     "macos": "macOS 鑰匙圈",
     "linux": "Secret Service 金鑰圈"
   },
-  "acpNoModels": "後端未提供此代理程式可使用的模型。",
+  "acpNoModels": "後端未提供此代理程式可使用的模型。請檢查是否已登入或已儲存金鑰，以及此電腦能否連線到供應商的伺服器，然後再試一次。",
+  "acpFolderNotAbsolute": "編輯器必須以完整路徑提供要開啟的資料夾。",
+  "acpFolderMissing": "無法使用要開啟的資料夾：它不存在、不是資料夾，或此帳戶無權開啟。請檢查路徑後重新開啟。",
   "acpPromptBusy": "此工作階段已有提示正在執行。",
   "acpUserMcpServersConfigured": "已使用 --no-user-mcp-servers 啟動，但您的 Muse Code 設定啟用了 MCP 伺服器，而 Muse Code 沒有可在單次執行中排除它們的開關。請在該檔案中將其關閉（enabled: false），或不使用 --no-user-mcp-servers 啟動。",
   "acpUserMcpServersUnreadable": "已使用 --no-user-mcp-servers 啟動，但無法讀取您的 Muse Code 設定檔，因此此代理程式無法判斷其中是否啟用了 MCP 伺服器。請修復該檔案，或不使用 --no-user-mcp-servers 啟動。",
@@ -4413,6 +4415,12 @@
     "unloadableSource": "原生輔助程式 {helper} 已建置，但此電腦無法執行它（它可能已損毀、被系統封鎖，或是為其他處理器建置的），因此無法啟動。請用「{command}」重新建置它，然後再試一次。",
     "unsupported": "Muse Spark Code 未提供適用於 {arch} 上 {platform} 的原生輔助程式，因此無法啟動。",
     "windowsJob": "無法準備 Windows 工作輔助程式，因此無法啟動。Muse Spark Code 會在第一次使用時以 Windows PowerShell 5.1 從其 native/windows 資料夾中的檔案編譯它：請重新安裝 Muse Spark Code，並檢查 Windows PowerShell 能否啟動、安全軟體是否封鎖了它。"
+  },
+  "museStart": {
+    "authFile": "Muse Code 無法讀取其登入檔案（其設定資料夾中的 muse/auth.json），因此未啟動。請修復或刪除該檔案，然後重新登入。",
+    "authSchema": "Muse Code 的登入檔案格式（版本 {version}）不受此 Muse Code 支援，因此未啟動。請刪除該檔案（其設定資料夾中的 muse/auth.json）並重新登入，或更新 Muse Code。",
+    "cannotRun": "此電腦未執行 Muse Code（結束狀態 {code}），因此無法啟動。請檢查該檔案是否為 Muse Code 程式，以及您是否有權執行它，或重新安裝。",
+    "exited": "Muse Code 在啟動時停止（結束狀態 {code}），因此無法啟動。詳細資料在 Muse Spark 記錄中；在終端機執行「muse serve」可查看 Muse Code 的輸出。"
   },
   "acpQuestionFormMessage": "Muse 有個問題要問你。",
   "acpQuestionAsked": "Muse 有個問題；此編輯器無法以表單顯示，請在下一則訊息中回答：",
@@ -7391,6 +7399,8 @@
   "makerStopPhysicalRequired": "機器 {machine} 需要實體緊急停止；軟體停止無法使用。",
   "makerTrustRequired": "啟用硬體前，請信任此工作區。",
   "makerSerialPythonMissing": "序列存取需要附有 pyserial 套件的 Python 3（python3），但在此工作區以外的 PATH 中找不到 python3。請安裝 Python 3，執行「python3 -m pip install pyserial」，然後再試一次。",
+  "makerSerialPythonSetMissing": "您為序列存取設定的 Python（museSpark.serialPythonPath，或代理程式 settings.json 中的 serialPythonPath）不是現有檔案的完整路徑。請設定為附有 pyserial 套件的 Python 3 的完整路徑，或清除該設定以使用 PATH 中的 python3。",
+  "makerSerialPythonSetInWorkspace": "您為序列存取設定的 Python 位於此工作區內，專案可能提供一個程式來取代它執行。請設定工作區以外的 Python，例如主資料夾中虛擬環境裡的 Python。",
   "makerEnableHardware": "為此工作區啟用硬體",
   "makerCliUsage": "從終端使用創客硬體: 為工作區啟用或停用硬體、註冊和列出機器、停止機器或開啟創客面板。machines add 讀取 --registration，並在使用 --key-stdin 時從標準輸入讀取機器金鑰。實體操作會要求您登入作業系統，且絕不在無人值守時執行。",
   "makerDisableHardware": "為此工作區停用硬體",

@@ -6,6 +6,7 @@ import {
   isCreatedRegistrySaveError,
   type CreatedRegistrySaveReason,
 } from '../shared/createdRegistrySaveError'
+import { isMuseStartError } from '../shared/museStartError'
 import { isNativeHelperError } from '../shared/nativeHelperError'
 import { UI_TEXT } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
@@ -41,7 +42,8 @@ function registryText(reason: CreatedRegistrySaveReason): string {
 What a failed start says: the session or turn could not start, with the
 failure's fixed-vocabulary cause. A refused registry save names itself and
 why; a native helper that is missing or cannot start says which and what to
-do; sentences our own layers threw when they knew what happened pass
+do; Muse Code ending while it starts says why (its sign-in file, its exit)
+and what to do; sentences our own layers threw when they knew what happened pass
 through untouched (they span layers, so any installed sentence passes
 rather than a fixed allowlist); wrappers are walked past to their cause.
 */
@@ -50,9 +52,10 @@ export function startFailureText(error: unknown, site: StartSite): string {
   let current: unknown = error
   while (current instanceof Error) {
     if (isCreatedRegistrySaveError(current)) return registryText(current.reason)
-    // A native helper that is missing or cannot start: its message is the whole
-    // sentence (what is missing, what to do) and holds no path.
-    if (isNativeHelperError(current)) return current.message
+    // A native helper that is missing or cannot start, or Muse Code ending while it
+    // starts: the message is the whole sentence (what happened, what to do) and holds
+    // no path.
+    if (isNativeHelperError(current) || isMuseStartError(current)) return current.message
     if (isOwnSentence(current.message)) return current.message
     if (current.cause === undefined) return fill(template, { detail: causeForLog(current) })
     current = current.cause

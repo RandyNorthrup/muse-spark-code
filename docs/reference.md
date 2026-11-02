@@ -746,7 +746,7 @@ Review the exact payload behind one SHA-256 digest, then Send once or Reject. En
 
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#makers)
+Commands: —. Settings: `museSpark.serialPythonPath`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#makers)
 
 ### Code Intelligence
 
@@ -3993,6 +3993,20 @@ Type: `"string"`. Default: `"transcribe"`. Scope: `machine`.
 ### museSpark.mediaConverterPath
 
 Absolute path to the ffmpeg this machine uses to convert attached audio and video for transcription. Empty by default: only documented install locations are used (Program Files and winget on Windows, Homebrew and MacPorts on macOS, /usr/bin and /usr/local/bin on Linux), never PATH. A path set here is the only candidate: it must pass the trusted-path check, or conversion is refused with the reason. Launcher shims are refused. Only this machine’s setting is used.
+
+Type: `"string"`. Default: `""`. Scope: `machine`.
+
+```json
+{
+  "type": "string",
+  "default": "",
+  "maxLength": 4096
+}
+```
+
+### museSpark.serialPythonPath
+
+Absolute path to the Python 3 this machine uses for serial access to boards (macOS and Linux), for example the python3 of a virtual environment that has the pyserial package. Empty by default: python3 is found on your PATH, outside the workspace. A path set here is the only candidate: it must be a file that exists and must not be inside the workspace. Only this machine’s setting is used, never a workspace’s.
 
 Type: `"string"`. Default: `""`. Scope: `machine`.
 

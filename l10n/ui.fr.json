@@ -4558,7 +4558,9 @@
     "macos": "Trousseau macOS",
     "linux": "trousseau Secret Service"
   },
-  "acpNoModels": "Le backend ne propose aucun modèle que cet agent puisse utiliser.",
+  "acpNoModels": "Le backend ne propose aucun modèle que cet agent puisse utiliser. Vérifiez que vous êtes connecté ou que vous avez enregistré une clé, et que cet ordinateur peut joindre le serveur du fournisseur, puis réessayez.",
+  "acpFolderNotAbsolute": "L’éditeur doit indiquer le dossier à ouvrir sous forme de chemin complet.",
+  "acpFolderMissing": "Le dossier à ouvrir est inutilisable : il n’existe pas, n’est pas un dossier, ou ce compte n’a pas le droit de l’ouvrir. Vérifiez le chemin et rouvrez-le.",
   "acpPromptBusy": "Un prompt est déjà en cours dans cette session.",
   "acpUserMcpServersConfigured": "Démarré avec --no-user-mcp-servers, mais vos paramètres Muse Code activent des serveurs MCP, et Muse Code n’a aucun commutateur pour les omettre le temps d’une exécution. Désactivez-les dans ce fichier (enabled: false) ou démarrez sans --no-user-mcp-servers.",
   "acpUserMcpServersUnreadable": "Démarré avec --no-user-mcp-servers, mais le fichier de paramètres de Muse Code est illisible : cet agent ne peut pas savoir s’il active des serveurs MCP. Réparez le fichier ou démarrez sans --no-user-mcp-servers.",
@@ -4579,6 +4581,12 @@
     "unloadableSource": "L’assistant natif {helper} est compilé, mais cet ordinateur ne peut pas l’exécuter (il est peut-être endommagé, bloqué par le système ou compilé pour un autre processeur), donc cela n’a pas pu démarrer. Recompilez-le avec « {command} », puis réessayez.",
     "unsupported": "Muse Spark Code ne fournit aucun assistant natif pour {platform} sur {arch}, donc cela n’a pas pu démarrer.",
     "windowsJob": "L’assistant de tâches Windows n’a pas pu être préparé, donc cela n’a pas pu démarrer. Muse Spark Code le compile à la première utilisation avec Windows PowerShell 5.1 à partir des fichiers de son dossier native/windows : réinstallez Muse Spark Code, puis vérifiez que Windows PowerShell démarre et qu’aucun logiciel de sécurité ne le bloque."
+  },
+  "museStart": {
+    "authFile": "Muse Code n’a pas pu lire son fichier de connexion (muse/auth.json dans son dossier de configuration) et ne s’est donc pas lancé. Réparez ou supprimez ce fichier, puis reconnectez-vous.",
+    "authSchema": "Le fichier de connexion de Muse Code est dans un format que ce Muse Code ne prend pas en charge (version {version}) ; il ne s’est donc pas lancé. Supprimez le fichier (muse/auth.json dans son dossier de configuration) et reconnectez-vous, ou mettez Muse Code à jour.",
+    "cannotRun": "Cet ordinateur n’a pas voulu exécuter Muse Code (code de sortie {code}), donc cela n’a pas pu démarrer. Vérifiez que le fichier est bien le programme Muse Code et que vous avez le droit de l’exécuter, ou réinstallez-le.",
+    "exited": "Muse Code s’est arrêté pendant son démarrage (code de sortie {code}), donc cela n’a pas pu démarrer. Le journal de Muse Spark contient les détails ; exécuter « muse serve » dans un terminal montre ce que Muse Code indique."
   },
   "acpQuestionFormMessage": "Muse a une question pour vous.",
   "acpQuestionAsked": "Muse a une question ; cet éditeur ne peut pas l’afficher sous forme de formulaire, répondez donc dans votre prochain message :",
@@ -7765,6 +7773,8 @@
   "makerStopPhysicalRequired": "La machine {machine} nécessite un arrêt d’urgence physique ; l’arrêt logiciel n’est pas disponible.",
   "makerTrustRequired": "Accordez votre confiance à cet espace de travail avant d’activer le matériel.",
   "makerSerialPythonMissing": "L’accès série nécessite Python 3 (python3) avec le paquet pyserial, et aucun python3 n’a été trouvé dans votre PATH en dehors de cet espace de travail. Installez Python 3, exécutez « python3 -m pip install pyserial », puis réessayez.",
+  "makerSerialPythonSetMissing": "Le Python que vous avez défini pour l’accès série (museSpark.serialPythonPath, ou serialPythonPath dans le settings.json de l’agent) n’est pas le chemin complet d’un fichier existant. Indiquez le chemin complet d’un Python 3 avec le paquet pyserial, ou videz le réglage pour utiliser python3 de votre PATH.",
+  "makerSerialPythonSetInWorkspace": "Le Python que vous avez défini pour l’accès série se trouve dans cet espace de travail, où un projet pourrait fournir un programme exécuté à sa place. Indiquez un Python en dehors de l’espace de travail, par exemple celui d’un environnement virtuel dans votre dossier personnel.",
   "makerEnableHardware": "Activer le matériel pour cet espace de travail",
   "makerCliUsage": "Matériel maker depuis le terminal : activez ou désactivez le matériel pour un espace de travail, enregistrez et listez les machines, arrêtez une machine ou ouvrez le panneau maker. machines add lit --registration et, avec --key-stdin, la clé de la machine depuis l’entrée standard. Les actions physiques demandent la connexion à votre système d’exploitation et ne s’exécutent jamais sans surveillance.",
   "makerDisableHardware": "Désactiver le matériel pour cet espace de travail",

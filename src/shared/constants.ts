@@ -1614,6 +1614,10 @@ export const SETTING_DEFAULTS = {
   screenRecordingMaxSeconds: 0,
   mediaAudioAction: 'transcribe',
   mediaConverterPath: '',
+  // RLF-SMALLFIX2: the Python 3 (with pyserial) the serial helper starts. Empty finds
+  // python3 on PATH outside the workspace; machine scoped, since a repository must not
+  // choose a program the machine runs.
+  serialPythonPath: '',
   // The Auto reviewer on Muse Code (M90, PLAN.md D69): in Auto on the Muse
   // Code backend, an approval Muse Code raises goes to one short turn of a
   // hidden side session before the user. On until turned off; machine scoped,
@@ -1858,6 +1862,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   'mediaAudioAction',
   // M105 lane V: the converter the product launches is the machine's choice.
   'mediaConverterPath',
+  // RLF-SMALLFIX2: so is the Python the serial helper starts.
+  'serialPythonPath',
   // M109 (PLAN.md D89): the vault's protection, fence and locks, all
   // machine-scoped, so no workspace can change them.
   'vault.enabled',
@@ -2608,6 +2614,8 @@ export const MEDIA_CONVERTER_TRUST_TIMEOUT_MS = 15_000
 export const MEDIA_CONVERTER_PROBE_MAX_BYTES = 16 * 1024
 /** The machine's configured converter path (`museSpark.mediaConverterPath`), at most this long. */
 export const MEDIA_CONVERTER_PATH_MAX_CHARS = 4096
+/** The machine's configured serial Python (`museSpark.serialPythonPath`), at most this long (a path's own bound). */
+export const SERIAL_PYTHON_PATH_MAX_CHARS = 4096
 /** An attached file's digest and upload reread, one bounded chunk at a time. */
 export const MEDIA_ATTACHED_READ_CHUNK_BYTES = 1024 * 1024
 // D121: the attached registry holds any number of registrations (RVMEDIAV 7:
@@ -7963,12 +7971,25 @@ How a source checkout builds the native helpers its platform starts, and the
 file that tells a checkout from an installed product (the build script is not
 shipped). Windows compiles its job helper on first use: nothing to build by hand.
 */
-export const NATIVE_HELPER_BUILD: Readonly<
-  Partial<Record<string, { readonly script: string; readonly command: string }>>
-> = {
+export interface NativeHelperBuild {
+  readonly script: string
+  readonly command: string
+}
+export const NATIVE_HELPER_BUILD: Readonly<Partial<Record<string, NativeHelperBuild>>> = {
   darwin: { script: 'native/darwin/build.sh', command: 'bash native/darwin/build.sh' },
   linux: { script: 'scripts/build.mjs', command: 'npm run build:dev' },
 }
+/** The macOS local judge peer is its own build output, made by its own script. */
+export const LOCAL_JUDGE_PEER_BUILD: NativeHelperBuild = {
+  script: 'native/darwin/build-local-judge.sh',
+  command: 'bash native/darwin/build-local-judge.sh',
+}
+/**
+The exit statuses of the shell that starts `muse serve` on POSIX: 126 for a
+program it may not run, 127 for one it cannot find (POSIX.1-2017, shell
+exit status).
+*/
+export const SHELL_EXIT_CANNOT_RUN: ReadonlySet<number> = new Set([126, 127])
 /** This Mac's vault peer helper beside the .apps. */
 export function darwinVaultPeerFile(arch: string): string {
   if (arch === 'arm64') return 'muse-vault-peer-arm64'
