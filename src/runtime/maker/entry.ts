@@ -12,6 +12,16 @@ import { createAcpMakerRuntime } from './acpRuntime'
 import { runtimeSerialPythonPath } from '../runtimeSerialPython'
 import type { AcpMakerRuntime } from '../../acp/makerTools'
 
+/** The native serial deps both maker entries build the same way. */
+function makerNative(deps: RuntimeMakerEntryDeps) {
+  return {
+    platform: deps.platform,
+    env: deps.env,
+    packageRoot: path.dirname(deps.distDirectory),
+    serialPython: () => runtimeSerialPythonPath(deps.dataDirectory),
+  }
+}
+
 export function runtimeMakerAcp(deps: RuntimeMakerEntryDeps, isTrusted: boolean): AcpMakerRuntime {
   setUiText(deps.table, deps.locale)
   return createAcpMakerRuntime({
@@ -20,12 +30,7 @@ export function runtimeMakerAcp(deps: RuntimeMakerEntryDeps, isTrusted: boolean)
     ...(deps.presence !== undefined && { presence: deps.presence }),
     trusted: () => isTrusted,
     flagged: () => true,
-    native: {
-      platform: deps.platform,
-      env: deps.env,
-      packageRoot: path.dirname(deps.distDirectory),
-      serialPython: () => runtimeSerialPythonPath(deps.dataDirectory),
-    },
+    native: makerNative(deps),
   })
 }
 
@@ -79,12 +84,7 @@ export async function runRuntimeMaker(
     trusted: () => command.trusted,
     flagged: () => true,
     interactive: () => RUNTIME_MAKER_AGENT_MARKERS.every((key) => (deps.env[key] ?? '') === ''),
-    native: {
-      platform: deps.platform,
-      env: deps.env,
-      packageRoot: path.dirname(deps.distDirectory),
-      serialPython: () => runtimeSerialPythonPath(deps.dataDirectory),
-    },
+    native: makerNative(deps),
   })
   try {
     return await runMakerCommand(command, {
