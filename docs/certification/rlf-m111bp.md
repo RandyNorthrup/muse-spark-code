@@ -40,7 +40,23 @@ slots and bridge; never a second layout.
 
 ## What is next
 
-Drills and gates.
+Gates.
+
+## Red/green drills (2026-11-01)
+
+1. Served `.mjs` from the app scheme: `appScheme.test.ts` failed 1
+   of 4 (unserved extensions). Restored byte-identical: 4 of 4 pass.
+2. Dropped the `release()` call from the terminal registry:
+   `terminalRegistry.test.ts` failed 1 of 2 (release counting).
+   Restored byte-identical: 2 of 2 pass.
+3. The panel proof fired for real three times during development:
+   the chunk-failure alert on the missing `allowProposedApi` flag,
+   the permanent loading state on React `use()` suspension (rebuilt
+   as the explicit loader), and the shell-output wait on insertText
+   keys the helper textarea never kept (now per-character key
+   events). Each fix went in with the assertion that caught it.
+4. The bundle-size drill runs with the build gate below (the new
+   budgets fail on purpose, then pass).
 
 ## Landed: real-Electron proof, look, renderer fixes (2026-11-01)
 
