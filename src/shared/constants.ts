@@ -3758,6 +3758,10 @@ export const MODEL_API_MAX_OUTPUT_TOKENS = 32_768
 export const NO_COMPACTABLE_HISTORY = 'no_compactable_history'
 export const COMPACTION_TAIL_MAX_TOKENS = 20_000
 export const COMPACTION_TAIL_WINDOW_FRACTION = 0.08
+// R2 (Pi v1.4.0, Pi #9512/#9075): the summary request's output budget is
+// the selected model's own output limit, so this fixed cap survives only
+// where the capability record states no output limit
+// (`compactionSummaryBudget`) and as the economics estimate's ceiling.
 export const COMPACTION_SUMMARY_MAX_TOKENS = 8192
 export const COMPACTION_SUMMARY_WINDOW_FRACTION = 0.05
 // Lane E flips this only with a current passing M75 pair and D78 wiring.
