@@ -203,6 +203,8 @@
   "savings": "キャッシュとパッキングの節約",
   "cacheSavings": "キャッシュ節約額",
   "packedAvoided": "パックにより回避されたトークンの推定値",
+  "definitionTokens": "送信された推定ツール定義トークン",
+  "rulesTokens": "送信された推定ルールトークン",
   "searches": "検索",
   "images": "画像",
   "audioSeconds": "音声時間",

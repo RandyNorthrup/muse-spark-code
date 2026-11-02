@@ -1791,6 +1791,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiRepoMap',
   'modelApiObservationPacking',
   'modelApiMaxToolOutputBytes',
+  // 4-H4: the defer threshold decides how many definition tokens are billed.
+  'modelApiMcpDeferTokens',
   // Lane RETRYLIMITS: the person's retry ceiling chooses billed retries, so
   // a repository must not set it (PLAN.md D15). D228: its Muse Code
   // sibling chooses billed resends the same way.

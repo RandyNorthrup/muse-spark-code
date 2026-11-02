@@ -229,6 +229,8 @@
   "savings": "Ahorro de caché y empaquetado",
   "cacheSavings": "Ahorro de caché",
   "packedAvoided": "Estimación de tokens empaquetados evitados",
+  "definitionTokens": "Tokens de definición de herramientas enviados (estimado)",
+  "rulesTokens": "Tokens de reglas enviados (estimado)",
   "searches": "Búsquedas",
   "images": "Imágenes",
   "audioSeconds": "Duración de audio",

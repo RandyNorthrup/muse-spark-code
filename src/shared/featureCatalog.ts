@@ -201,6 +201,7 @@ const SETTING_CONDITIONS: Readonly<
 
   modelApiObservationPacking: 'conversationStart',
   modelApiMaxToolOutputBytes: 'conversationStart',
+  modelApiMcpDeferTokens: 'conversationStart',
   modelApiAutoCompaction: 'conversationStart&modelPricing',
   modelApiStrictTools: 'conversationStart&tools.strict',
   modelApiParallelReads: 'conversationStart',
@@ -1214,7 +1215,7 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'mcpItem' },
       { ui: 'referenceMcp' },
       ['mcpServers'],
-      [],
+      ['modelApiMcpDeferTokens'],
       'rules-skills-and-memory',
     ),
     feature(
