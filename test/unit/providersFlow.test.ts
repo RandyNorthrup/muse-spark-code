@@ -575,6 +575,19 @@ describe('modelFilters', () => {
       serverless: false,
     })
     expect(badgesFor(dedicated, [...rows, dedicated]).cheapestCapable).toBe(false)
+    // Lifecycle honesty (PROV-HONEST): deprecated and retired lifecycles
+    // badge deprecated, the catalogue's beta badges beta, and an active
+    // row badges neither.
+    const retired = row({
+      ref: 'openai/gpt-4',
+      providerId: 'openai',
+      modelId: 'gpt-4',
+      lifecycle: 'retired',
+    })
+    expect(badgesFor(flagship, rows)).toMatchObject({ deprecated: false, beta: false })
+    expect(badgesFor({ ...oss, lifecycle: 'deprecated' }, rows).deprecated).toBe(true)
+    expect(badgesFor(retired, [...rows, retired]).deprecated).toBe(true)
+    expect(badgesFor({ ...local, beta: true }, rows).beta).toBe(true)
   })
 
   it('recommends only callable serverless models', () => {
