@@ -1601,6 +1601,12 @@ export const SETTING_DEFAULTS = {
   // (M82): 0 is no cap. Kept by reservation (sessionBudget.ts); machine
   // scoped, since a repository must not set what is billed.
   modelApiSessionBudgetUsd: 0,
+  // 4-H4: MCP tool-definition tokens (estimated at 4 chars per token)
+  // above which MCP schemas load on discovery through tool_search
+  // instead of riding every request. A display/load preference the
+  // person sets, never a work cap (D121): 0 never defers. 10,000 is
+  // Anthropic's published tool-search guidance (harness-science 1.4).
+  modelApiMcpDeferTokens: 10_000,
   // C-M95-SUB: drive the Model API backend from the Muse Code subscription
   // instead of a pay-as-you-go key. Off until the user turns it on; machine
   // scoped, since a repository must not choose what is billed.
@@ -4117,6 +4123,9 @@ export const MODEL_API_TOOLS = {
   // M73 (PLAN.md D49): pages a packed tool output back. Offered only while
   // the session packs observations.
   recallOutput: 'recall_output',
+  // 4-H4: finds deferred MCP tools in the local catalogue; offered only
+  // while the person's defer threshold defers MCP schemas this session.
+  toolSearch: 'tool_search',
   // M69 (PLAN.md D49, M44b): one public HTTPS page, read by the extension itself.
   webFetch: 'web_fetch',
   // M81 (PLAN.md D49): a local page in a headless browser, seen as it renders.
@@ -9666,6 +9675,14 @@ export const MODEL_API_MODEL_TEXT = {
     "(This tool's argument schema is beyond what the Model API accepts; send the arguments its description names, as a JSON object.)",
   mcpTextAndImagesOnly: 'the Model API backend passes text and images only',
   mcpNoContent: '(the tool returned no content)',
+  // 4-H4: deferred MCP loading. The search asks nothing of any server;
+  // it only reveals schemas the session already holds locally.
+  toolSearchFound:
+    '{count} matching tool(s) are now available to call. Their full schemas ride the next request:',
+  toolSearchNone:
+    'No deferred MCP tool matches "{query}". Search again with other words from a tool name, description or argument name.',
+  toolSearchNotDeferred: 'tool_search is not available: no MCP tools are deferred in this session',
+  toolSearchBadQuery: 'tool_search needs a non-empty query string',
 
   // M75 (PLAN.md D49): the paired evaluation's answer to a question the
   // model asks mid-task; nobody is there to choose.
