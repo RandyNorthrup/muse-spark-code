@@ -327,6 +327,7 @@ export const SCENARIOS = [
   'models-errors',
   'models-credential',
   'models-credential-gemini',
+  'models-table',
   'models-test',
   'models-test-cost',
   'models-test-failed',

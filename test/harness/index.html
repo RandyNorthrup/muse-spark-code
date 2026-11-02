@@ -2457,6 +2457,10 @@
               blockers: [],
             })
           }
+          case 'models-table': {
+            // No wizard: the Models section's table with its badges.
+            return { ...base }
+          }
           case 'models-test': {
             return wizard('test', {
               keyPresent: true,
@@ -7399,6 +7403,21 @@
         },
         'models-credential-gemini': () => {
           clickText('Pick a Provider')
+          // The look centers the credential step and its privacy note.
+          whenFound('.models-wizard-step', (step) => {
+            step.scrollIntoView()
+          })
+        },
+        'models-table': () => {
+          // The look centers the Models table and its badges.
+          const tab = [...document.querySelectorAll('.models-nav-item')].find((candidate) =>
+            candidate.textContent.includes('Models'),
+          )
+          if (tab === undefined) throw new Error('never rendered: the Models tab')
+          tab.click()
+          whenFound('.models-table', (table) => {
+            table.scrollIntoView()
+          })
         },
         'models-test': () => {
           clickText('Pick a Provider')
