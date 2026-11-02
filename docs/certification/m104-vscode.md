@@ -39,3 +39,6 @@ The earlier macOS note (5 identical Electron stalls in a headless agent session)
 does not apply on this PC: Electron runs here. `Error mutex already exists` on the
 floor run is VS Code's own line, from the owner's VS Code running beside it. The
 owner's VS Code and its settings were not touched.
+
+The same legs in VSCodium, Devin Desktop and Positron on this PC:
+[`cc-m104gw.md`](cc-m104gw.md).

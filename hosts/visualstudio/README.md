@@ -83,12 +83,17 @@ and moved the code into dotnet/roslyn, so hosted-runner reliability is unmeasure
 They install the VSIX into an experimental instance under the root suffix
 `MuseConf`, open the panel through the real command, wait for the real page's
 handshake with the real runtime, and drive `test/hostApi/scenarios/contract.json`
-through the production `VisualStudioHost`. Run them with
+through the production `VisualStudioHost`. A page that shows its fatal card
+(`MHP_PANEL_FATAL_CARD`) or paints nothing a person could read
+(`MHP_PANEL_UNREADABLE`) fails the run, and the Output panes and Error List of each
+run go to `temp/vs-ide-logs/ide-state.txt`. Run them with
 `node test/hostApi/run.mjs visualstudio`, which refuses while a Visual Studio
 window or a named debugger is open: the harness installs with `VSIXInstaller
 /shutdownprocesses` and ends `VsJITDebugger`, `DbgCLR` and `dexplore` by name. On a
 failure the harness writes a desktop screenshot; `conformance.ps1` keeps its log
-folder under the ignored `temp/` and removes every picture after the run.
+folder under the ignored `temp/` and removes every picture after the run. Each
+launch takes a minute or more, so pure logic belongs in `Test/`, where a break shows
+in seconds.
 
 ## Marketplace listing
 
