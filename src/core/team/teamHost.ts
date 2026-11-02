@@ -2989,7 +2989,9 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       ])
       return { admitted: true, taskId: task.taskId, roleId: role.role }
     } catch (error: unknown) {
-      // As runScheduledDelegate: drop only a record the board never took.
+      // As runScheduledDelegate: the record keeps the kind, then only a
+      // record the board never took is dropped.
+      deps.log.warn(failureForLog(error))
       const raced = board.snapshot().tasks.find((candidate) => candidate.key === input.boardKey)
       if (raced !== undefined && raced.id !== task.taskId) {
         tasks.delete(task.taskId)

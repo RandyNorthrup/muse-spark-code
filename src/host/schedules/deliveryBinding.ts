@@ -97,6 +97,10 @@ interface PendingRun {
   consent?: ScheduleV2['paidConsent']
 }
 
+/** The board prompt's event fence (C-M115-8): the delivery bundle supplies
+the schedule model text's sentence, so the schedules bundle never carries it. */
+export const scheduleBoardEventFence = SCHEDULE_MODEL_TEXT.eventUntrusted
+
 /** Lazy host composition. The scheduler owns claims and ordering; the backend
 owns unattended safety and the final turn. No ordinary send can bypass it. */
 export function createScheduleDeliveryBinding(

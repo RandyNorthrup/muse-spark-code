@@ -400,6 +400,7 @@ export const scheduleFireRecordSchema = z.strictObject({
   report: z.optional(scheduleReportResultsSchema),
 })
 export type ScheduleFireRecord = z.infer<typeof scheduleFireRecordSchema>
+export type ScheduleReportResults = z.infer<typeof scheduleReportResultsSchema>
 
 export function noScheduleCost(): ScheduleFireRecord['cost'] {
   return scheduleFireRecordSchema.shape.cost.parse({

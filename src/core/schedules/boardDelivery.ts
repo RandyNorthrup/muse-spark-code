@@ -4,23 +4,18 @@
 // No team import: the host installs its team core through the port below,
 // so the schedules bundle never carries the team runtime.
 import { createHash } from 'node:crypto'
-import { SCHEDULE_MODEL_TEXT, UI_TEXT } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
+import { UI_TEXT } from '../../shared/constants'
 import { minUsd, type UsdAmount } from '../../shared/usd'
-import { errorNameForLog } from '../logging'
-import { scheduleEventSchema, type ScheduleEvent } from '../../shared/scheduleEvents'
+import { wireWordForLog, type CoreLogger } from '../logging'
+import type { ScheduleEvent } from '../../shared/scheduleEvents'
 import {
-  noScheduleCost,
-  scheduleFireRecordSchema,
-  scheduleRunContextSchema,
-  scheduleV2Schema,
   type ScheduleDeliveryResult,
   type ScheduleRunContext,
   type ScheduleV2,
 } from '../../shared/scheduleV2'
+import { parseDeliveryCall } from './deliveryRequest'
 import type { ScheduleAuthorityStore } from './grantAudit'
 import type { ScheduleExternalDelivery } from './delivery'
-import { isRunContextOf } from './runIdentity'
 
 /** One fire's admission to a team's board. The shapes mirror
 ScheduledBoardTaskInput/Outcome in core/team/teamHostService.ts; the
@@ -64,7 +59,11 @@ export function scheduleBoardParent(scheduleId: string): string {
 export interface ScheduleBoardDeliveryDeps {
   readonly boards: ScheduleTeamBoards
   readonly authority: ScheduleAuthorityStore
+  /** Failures the person gets as fixed sentences keep their kind here. */
+  readonly log: CoreLogger
   readonly now: () => number
+  /** The event fence sentence, supplied by the delivery bundle beside the schedule model text. */
+  readonly eventFence: string
 }
 
 export class ScheduleBoardDelivery implements ScheduleExternalDelivery {
@@ -76,34 +75,19 @@ export class ScheduleBoardDelivery implements ScheduleExternalDelivery {
     occurrenceMs: number,
     event?: ScheduleEvent,
   ): Promise<ScheduleDeliveryResult> {
-    const s = scheduleV2Schema.parse(schedule)
-    const c = scheduleRunContextSchema.parse(context)
-    if (
-      s.action.kind !== 'prompt' ||
-      !Number.isSafeInteger(occurrenceMs) ||
-      occurrenceMs < 0 ||
-      !isRunContextOf(s, c)
-    )
-      throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
-    const e = event === undefined ? undefined : scheduleEventSchema.parse(event)
-    const settle = (
-      outcome: ScheduleDeliveryResult['outcome'],
-      reason?: string,
-    ): ScheduleDeliveryResult =>
-      scheduleFireRecordSchema.parse({
-        runId: c.runId,
-        scheduleId: s.id,
-        workspaceKey: s.workspaceKey,
-        occurrenceMs,
-        observedAtMs: this.deps.now(),
-        target: s.target,
-        delivery: s.delivery,
-        outcome,
-        ...(reason !== undefined && { reason }),
-        refusedActions: [],
-        cost: noScheduleCost(),
-        ...(e !== undefined && { event: e }),
-      })
+    const {
+      schedule: s,
+      context: c,
+      event: e,
+      settle,
+    } = parseDeliveryCall({
+      schedule,
+      context,
+      occurrenceMs,
+      ...(event !== undefined && { event }),
+      action: 'prompt',
+      now: this.deps.now,
+    })
     // G/M110 bind workers/nodes; this delivery owns role/team only.
     if (s.target.kind !== 'role' && s.target.kind !== 'team')
       return settle('refused', UI_TEXT.scheduleV2.messages.targetUnavailable)
@@ -135,7 +119,7 @@ export class ScheduleBoardDelivery implements ScheduleExternalDelivery {
     const brief =
       e === undefined
         ? s.action.prompt
-        : `${s.action.prompt}\n\n${SCHEDULE_MODEL_TEXT.eventUntrusted}\n\`\`\`json\n${JSON.stringify({ trust: 'untrusted', event: e })}\n\`\`\``
+        : `${s.action.prompt}\n\n${this.deps.eventFence}\n\`\`\`json\n${JSON.stringify({ trust: 'untrusted', event: e })}\n\`\`\``
     let admission: ScheduleBoardAdmissionOutcome
     try {
       admission = await team.admit({
@@ -150,10 +134,11 @@ export class ScheduleBoardDelivery implements ScheduleExternalDelivery {
         paidConsented: consent !== undefined,
       })
     } catch (error: unknown) {
-      return settle(
-        'failed',
-        fill(UI_TEXT.scheduleV2.messages.deliveryFailed, { reason: errorNameForLog(error) }),
-      )
+      if (!(error instanceof Error)) throw error
+      // Admission errors may name paths or accounts: the record keeps
+      // the kind, never the words.
+      this.deps.log.warn(`The schedule board run failed: ${wireWordForLog(error.name)}`)
+      return settle('failed', UI_TEXT.scheduleV2.messages.scheduleTeamFailed)
     }
     return admission.admitted ? settle('ran') : settle('refused', admission.reason)
   }

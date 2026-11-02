@@ -4,7 +4,8 @@
 // and reports what it admitted. Two of these race one due role fire; the
 // dispatch lease admits exactly one. Knip does not trace the esbuild
 // bundle, so this file is a declared entry in knip.jsonc.
-import { readFile, writeFile } from 'node:fs/promises'
+import { writeFile } from 'node:fs/promises'
+import { readChildPlan } from './helpers/childPlan'
 import { boardRig, boardTasks, closeRig, QUEUE_CAPS } from './helpers/scheduleBoardRig'
 
 interface ChildPlan {
@@ -25,10 +26,7 @@ function isChildPlan(value: unknown): value is ChildPlan {
   )
 }
 
-const planFile = process.argv[2]
-if (planFile === undefined) throw new Error('plan file argument missing')
-const parsed: unknown = JSON.parse(await readFile(planFile, 'utf8'))
-if (!isChildPlan(parsed)) throw new Error('plan file is not a board claim child plan')
+const parsed = await readChildPlan(process.argv[2], isChildPlan, 'board claim child')
 // Holding the workspace starts the engine's immediate poll tick; awaiting
 // the workspace poll joins it, so this process attempts the due fire
 // exactly once through the real claim path.

@@ -7,7 +7,11 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createTeamHostService } from '../../../src/core/team/teamHost'
-import type { TeamHostService, TeamTaskSpec } from '../../../src/core/team/teamHostService'
+import type {
+  TeamHostService,
+  TeamHostServiceDeps,
+  TeamTaskSpec,
+} from '../../../src/core/team/teamHostService'
 import {
   createWindowTeamScheduler,
   TEAM_BOARD_STATE_KEY,
@@ -20,6 +24,7 @@ import {
   createNodeScheduleFs,
   createNodeScheduleQueue,
 } from '../../../src/runtime/schedules/nodeScheduleFs'
+import { SCHEDULE_MODEL_TEXT } from '../../../src/shared/constants'
 import { teamBoardSchema, type TeamCap, type TeamSnapshot } from '../../../src/shared/team'
 import { TEAM_WORKSPACE_KEYS } from '../../../src/shared/teamConversation'
 import { silentCoreLog } from './memoryLogs'
@@ -45,6 +50,38 @@ function teamSnapshot(entryCaps: readonly TeamCap[], pays: 'local' | 'key'): Tea
     ],
     intensity: 'balanced',
     orchestrator: { agent: { kind: 'engine', agentId: 'slot', model: ORCHESTRATOR, pays } },
+  }
+}
+
+export function queuedIds(service: TeamHostService, roleId: string): string[] {
+  const role = service.tree()?.roles.find((item) => item.id === roleId)
+  return role?.queued.map((worker) => worker.taskId) ?? []
+}
+
+/** The state, settings and orchestrator every team-service rig shares. */
+export function teamServiceCore(
+  state: Map<string, unknown>,
+  pays: 'local' | 'key',
+): Pick<TeamHostServiceDeps, 'state' | 'settings' | 'orchestrator'> {
+  return {
+    state: {
+      get: (stateKey) => state.get(stateKey),
+      update: async (stateKey, value) => {
+        state.set(stateKey, value)
+        await Promise.resolve()
+      },
+    },
+    settings: {
+      isTeamOn: () => true,
+      isTeamWorkersOn: () => true,
+      maxWorkers: () => 4,
+      isTrusted: () => true,
+    },
+    orchestrator: {
+      modelId: () => ORCHESTRATOR,
+      backend: () => 'modelApi',
+      defaultAgent: (model) => ({ kind: 'engine', agentId: 'default', model, pays }),
+    },
   }
 }
 
@@ -118,24 +155,7 @@ export async function boardRig(options: {
   ])
   const runs: TeamTaskSpec[] = []
   const service = createTeamHostService({
-    state: {
-      get: (stateKey) => state.get(stateKey),
-      update: async (stateKey, value) => {
-        state.set(stateKey, value)
-        await Promise.resolve()
-      },
-    },
-    settings: {
-      isTeamOn: () => true,
-      isTeamWorkersOn: () => true,
-      maxWorkers: () => 4,
-      isTrusted: () => true,
-    },
-    orchestrator: {
-      modelId: () => ORCHESTRATOR,
-      backend: () => 'modelApi',
-      defaultAgent: (model) => ({ kind: 'engine', agentId: 'default', model, pays: options.pays }),
-    },
+    ...teamServiceCore(state, options.pays),
     createScheduler: (scheduling) => createWindowTeamScheduler(scheduling),
     workers: {
       ...ports.workers,
@@ -195,7 +215,10 @@ export async function boardRig(options: {
           throw tripwireError('conversation prompt')
         },
       }),
-    ...(options.boards !== false && { boards }),
+    ...(options.boards !== false && {
+      boards,
+      eventFence: SCHEDULE_MODEL_TEXT.eventUntrusted,
+    }),
   })
   const hold = await engine.runtime.holdWorkspace(cwd)
   return { root, cwd, storage, key, engine, service, runs, state, calls, hold, owned }

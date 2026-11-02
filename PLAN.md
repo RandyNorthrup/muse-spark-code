@@ -28928,6 +28928,18 @@ closing and the lock around those calls are still proven only by a real
 run with the person's GitHub sign-in, which has not been made. Records:
 `docs/certification/rvint5.md`, `docs/certification/cc-int4.md`.
 
+**Status 2026-10-31 (recovery lane RLF-M115T): building.** C-M115-8 owns
+role/team targets on int/recovery: a scheduled prompt to a role lands on
+the board under that role's charter, a prompt to a team lands under the
+stored team's first role, and key-billed entries quote from the
+schedule's own consent and cap, never the popup path. Proven by
+`test/unit/scheduleBoardDelivery.test.ts` (23 tests over the real engine,
+team host and window scheduler), `test/unit/scheduleBoardClaim.test.ts`
+(two real processes race one due fire; the dispatch lease admits exactly
+one), and byte-exact red drills D1-D3. C-M115-9 (the native editors'
+rows) waits for the native-hosts re-land. The certification switch stays
+off. Record: `docs/certification/rlf-m115t.md`.
+
 - **Goal.** A user, or an orchestrating agent within the user's limits,
   schedules any number of prompts to fire once, repeatedly, on a cron
   expression or on an event (a pull request merged, a milestone certified),

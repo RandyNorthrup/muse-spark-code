@@ -4,7 +4,8 @@
 // and the index lock is held, before any user-tree rename — until the
 // parent kills it. Knip does not trace the esbuild bundle, so this file is
 // a declared entry in knip.jsonc.
-import { readFile, writeFile } from 'node:fs/promises'
+import { writeFile } from 'node:fs/promises'
+import { readChildPlan } from './helpers/childPlan'
 import { landTeamTask } from '../../src/host/team/teamLandingEntry'
 import type { WindowIdentity } from '../../src/host/team/windowIdentity'
 import { EN } from '../../src/shared/l10n/en'
@@ -47,10 +48,7 @@ function isChildPlan(value: unknown): value is ChildPlan {
   )
 }
 
-const planFile = process.argv[2]
-if (planFile === undefined) throw new Error('plan file argument missing')
-const parsed: unknown = JSON.parse(await readFile(planFile, 'utf8'))
-if (!isChildPlan(parsed)) throw new Error('plan file is not a landing child plan')
+const parsed = await readChildPlan(process.argv[2], isChildPlan, 'landing child')
 const fixture: LandingFixture = {
   root: parsed.root,
   storage: parsed.storage,
