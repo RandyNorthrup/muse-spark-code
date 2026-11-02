@@ -17,12 +17,12 @@ disagreed with the contract.
 
 ## Native
 
-| Editor                        | Version | Status  | Legs           | Waiting / need                                                                                               | Evidence                                                   |
-| ----------------------------- | ------- | ------- | -------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
-| JetBrains (IntelliJ platform) | —       | Waiting | 9/9 legs green | 13 waits (approval, atomic-edit, checkpoint, conversation, dirty-buffer, session-reload, tab-completion)     | [m104-jetbrains](../certification/m104-jetbrains.md)       |
-| Visual Studio (Windows)       | —       | Pending | —              | MHP_CONFORMANCE_PENDING: Windows with Visual Studio 2022/2026 (VSSDK workload) and the experimental instance | [m104-visualstudio](../certification/m104-visualstudio.md) |
-| Eclipse                       | —       | Waiting | 9/9 legs green | 13 waits (approval, atomic-edit, checkpoint, conversation, dirty-buffer, session-reload, tab-completion)     | [m104-eclipse](../certification/m104-eclipse.md)           |
-| Xcode                         | —       | Pending | —              | MHP_CONFORMANCE_PENDING: macOS with Xcode (XCTest harness)                                                   | [m104-xcode](../certification/m104-xcode.md)               |
+| Editor                        | Version                               | Status  | Legs             | Waiting / need                                                                                           | Evidence                                                   |
+| ----------------------------- | ------------------------------------- | ------- | ---------------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| JetBrains (IntelliJ platform) | —                                     | Waiting | 9/9 legs green   | 13 waits (approval, atomic-edit, checkpoint, conversation, dirty-buffer, session-reload, tab-completion) | [m104-jetbrains](../certification/m104-jetbrains.md)       |
+| Visual Studio (Windows)       | Visual Studio Community 2022 17.14.25 | Waiting | 13/13 legs green | 9 waits (approval, checkpoint, conversation, session-reload, tab-completion)                             | [m104-visualstudio](../certification/m104-visualstudio.md) |
+| Eclipse                       | —                                     | Waiting | 9/9 legs green   | 13 waits (approval, atomic-edit, checkpoint, conversation, dirty-buffer, session-reload, tab-completion) | [m104-eclipse](../certification/m104-eclipse.md)           |
+| Xcode                         | —                                     | Pending | —                | MHP_CONFORMANCE_PENDING: macOS with Xcode (XCTest harness)                                               | [m104-xcode](../certification/m104-xcode.md)               |
 
 ## Shim
 
