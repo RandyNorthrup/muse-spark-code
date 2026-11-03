@@ -27,7 +27,7 @@ import {
 } from '../../core/maker/registry'
 import { MachineHttp } from '../../core/maker/machines/http'
 import type { Machine, MachineDeps, MachineSendResult } from '../../core/maker/machines/machine'
-import { requestOctoprintAppKey } from '../../core/maker/machines/octoprint'
+import { requestOctoprintAppKey } from '../../core/maker/machines/octoprintAppKeys'
 import type { PrusaLinkTransport } from '../../core/maker/machines/prusalink'
 import type { MakerHost, MakerSecrets } from '../../core/maker/ports'
 import type { SerialIdentity } from '../../core/maker/serial/identity'
@@ -186,9 +186,9 @@ export class MakerEngine {
     const engine = await machineEngineFor(record, id, {
       host: this.deps.host,
       log: this.deviceLog(),
-      isLeaseHeld: (registrationId) => this.leased.has(registrationId),
+      leased: this.leased,
       secrets: this.deps.secrets,
-      registryGet: (machineId) => this.registry.get(machineId),
+      registry: this.registry,
       lan: this.lan,
       refresh: () => this.refresh(),
       dispatched: this.dispatched,
@@ -215,12 +215,7 @@ export class MakerEngine {
       engine,
       payload,
       signal,
-      cancelApprovals: () => {
-        this.deps.host.cancelApprovals()
-      },
-      notify: (notice) => {
-        void this.deps.host.notify(notice)
-      },
+      host: this.deps.host,
       leased: this.leased,
       dispatched: this.dispatched,
     })
