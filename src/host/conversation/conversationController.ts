@@ -116,6 +116,11 @@ import type { BoardSession, PendingPrompts } from '../../core/sessionBoard'
 import { failureForLog, isMspFailure, stderrForLog } from '../../core/backends/musecode/logText'
 import { feedbackClassificationSchema } from '../../core/backends/musecode/feedback'
 import { resolveResumedModel } from '../../core/backends/musecode/resumedModel'
+import {
+  emptyCatalogueMaxRetries,
+  emptyCatalogueRetryDelayMs,
+  isEmptyCatalogueEpisode,
+} from '../../core/backends/musecode/emptyCatalogue'
 import { signInLossText } from '../../core/backends/musecode/signInLoss'
 import { chatReferenceText } from '../../core/chatReference'
 import type {
@@ -768,6 +773,14 @@ export interface ConversationDeps {
   readonly resendSleep?: (ms: number, signal: AbortSignal) => Promise<void>
   /** The resend wait's jitter draw, 0 ≤ n < 1 (D228); Math.random in production. */
   readonly resendRandom?: () => number
+  /**
+  The empty-catalogue retry's clock (RLF-EMPTYCAT): resolves after the
+  wait unless the signal aborts first. Production sleeps for real; tests
+  record the asked waits and resolve at once.
+  */
+  readonly catalogueRetrySleep?: (ms: number, signal: AbortSignal) => Promise<void>
+  /** The empty-catalogue retry's jitter draw, 0 ≤ n < 1; Math.random in production. */
+  readonly catalogueRetryRandom?: () => number
   /** Approvals and questions waiting on the user, shared by every surface (M77). */
   readonly pendingPrompts: PendingPrompts
   readonly boardSessions?: () => readonly BoardSession[]
@@ -1547,6 +1560,18 @@ export class ConversationController implements DeferredSend {
   private modelListingStop: AbortController | undefined
   /** The backend the model catalogue was listed from; a new backend or sign-in starts a new one. */
   private modelGeneration = 0
+  /**
+  The last non-empty Muse Code listing, unfiltered (RLF-EMPTYCAT): what
+  the panel shows while Meta's list comes back empty. Outlives the
+  forgotten generation (a backend restart mid-fault still shows it);
+  only an account boundary clears it. Re-filtered on every post, so a
+  confidential workspace never shows rows it refuses.
+  */
+  private lastGoodModels: readonly ModelSummary[] | undefined
+  /** The empty-catalogue episode is open: the sentence is said, the burst or later listings own recovery. */
+  private catalogueEmpty = false
+  /** Stops the empty-catalogue burst: a forgotten generation, a recovered list, the chat closing. */
+  private catalogueRetryStop: AbortController | undefined
   private skills: readonly SkillOption[] | undefined
   private skillsRefresh: Promise<void> | undefined
   private readonly attachments: AttachmentStore
@@ -4845,6 +4870,14 @@ export class ConversationController implements DeferredSend {
     const didHaveModels = this.models !== undefined
     this.modelGeneration += 1
     this.models = undefined
+    // The empty-catalogue episode belongs to the forgotten generation: a
+    // new generation lists afresh and starts its own episode when that
+    // list comes back empty. The last good rows outlive it (only an
+    // account boundary clears them): they are what the next episode
+    // shows (RLF-EMPTYCAT).
+    this.catalogueEmpty = false
+    this.catalogueRetryStop?.abort()
+    this.catalogueRetryStop = undefined
     this.trainingModelIds.clear()
     this.modelListing = undefined
     if (didHaveModels && !this.isDisposed) {
@@ -4852,9 +4885,14 @@ export class ConversationController implements DeferredSend {
     }
   }
 
-  /** One `model/list` at a time: the warm-up and the first send may overlap (M15). */
+  /**
+  One `model/list` at a time: the warm-up and the first send may overlap (M15).
+  While the empty-catalogue episode is open the listing runs again instead
+  of short-circuiting: a later listing is what recovers without a restart
+  (RLF-EMPTYCAT).
+  */
   private async ensureModels(host: AgentHost): Promise<void> {
-    if (this.models !== undefined) {
+    if (this.models !== undefined && !this.catalogueEmpty) {
       return
     }
     const stop = (this.modelListingStop ??= new AbortController())
@@ -4879,14 +4917,97 @@ export class ConversationController implements DeferredSend {
     this.modelListingStop = undefined
   }
 
+  /**
+  RLF-EMPTYCAT: the empty list asked again at once, on Meta's documented
+  backoff (500 ms doubling, jitter, five listings). One burst per
+  episode: only the false-to-true transition starts it. The burst stops
+  after the last attempt with the sentence staying — later listings
+  still recover — and ends quietly on a forgotten generation, a
+  recovered list, a sign-out, a failed re-list, or the chat closing.
+  */
+  private async retryCatalogue(host: AgentHost, generation: number): Promise<void> {
+    const stop = (this.catalogueRetryStop ??= new AbortController())
+    const max = emptyCatalogueMaxRetries()
+    for (let attempt = 0; attempt < max; attempt += 1) {
+      const delayMs = emptyCatalogueRetryDelayMs(
+        attempt,
+        (this.deps.catalogueRetryRandom ?? Math.random)(),
+      )
+      try {
+        await this.catalogueSleep(delayMs, stop.signal)
+      } catch (error: unknown) {
+        // The wait ends without re-listing. An abort (a forgotten
+        // generation, a recovered list, the chat closing) is the
+        // ordinary end; anything else is a clock fault worth one line.
+        // NARROW: only a non-abort rejection is reported.
+        if (!stop.signal.aborted) {
+          this.deps.log.warn(`The catalogue retry wait failed: ${failureForLog(error)}`)
+        }
+        return
+      }
+      // No episode check before the listing: when the episode ended
+      // meanwhile the shared listing short-circuits (models set) or the
+      // generation moved (forgotten), and the check below ends the burst.
+      if (this.isDisposed || this.modelGeneration !== generation || !this.isAuthAdmitted()) {
+        return
+      }
+      try {
+        // Joins the one shared listing (M15): a demand re-list already
+        // running answers this retry too.
+        await this.ensureModels(host)
+      } catch (error: unknown) {
+        // A failed re-list stops the burst with one line: the sentence
+        // stays, and later listings still recover.
+        this.deps.log.warn(`The catalogue re-list failed: ${failureForLog(error)}`)
+        return
+      }
+      if (this.modelGeneration !== generation || !this.catalogueEmpty) {
+        return
+      }
+    }
+  }
+
   private async listModels(
     host: AgentHost,
     generation: number,
     signal: AbortSignal,
   ): Promise<void> {
-    const listed = await host.listModels(undefined, signal)
+    const served = await host.listModels(undefined, signal)
     if (this.isDisposed || this.modelGeneration !== generation) {
       return
+    }
+    // RLF-EMPTYCAT: a signed-in host that serves zero models is said, not
+    // obeyed. The empty list never reaches the picker as truth: the last
+    // good rows stay on display (or nothing posts when none exist yet),
+    // one sentence says the list came back empty and is asked again, and
+    // a bounded burst asks again at once. A list that comes back ends the
+    // episode: later listings recover without a restart.
+    let listed = served
+    if (
+      isEmptyCatalogueEpisode({
+        servedCount: served.length,
+        backendKind: host.info.kind,
+        signedIn: this.isAuthAdmitted(),
+      })
+    ) {
+      if (!this.catalogueEmpty) {
+        this.catalogueEmpty = true
+        this.notice('warning', UI_TEXT.metaCatalogueEmptyRetrying)
+        void this.retryCatalogue(host, generation)
+      }
+      if (this.lastGoodModels === undefined) {
+        return
+      }
+      listed = this.lastGoodModels
+    } else {
+      if (host.info.kind === 'museCode' && served.length > 0) {
+        this.lastGoodModels = served
+      }
+      if (this.catalogueEmpty) {
+        this.catalogueEmpty = false
+        this.catalogueRetryStop?.abort()
+        this.catalogueRetryStop = undefined
+      }
     }
     // A confidential workspace hides the contributor tier and any BYO model
     // whose provider or route may train on the content (M95, PLAN.md D74).
@@ -8983,14 +9104,28 @@ export class ConversationController implements DeferredSend {
     )
   }
 
-  /**
-  The resend wait's clock: the injected one in tests, a real abortable
-  wait in production. Waits stay under one timer (8 s ceiling with
-  jitter), so a single timer holds them.
-  */
+  /** The resend wait's clock: the injected one in tests, a real abortable wait in production. */
   private resendSleep(ms: number, signal: AbortSignal): Promise<void> {
-    if (this.deps.resendSleep !== undefined) {
-      return this.deps.resendSleep(ms, signal)
+    return this.injectedSleep(this.deps.resendSleep, ms, signal)
+  }
+
+  /** The empty-catalogue retry's clock (RLF-EMPTYCAT): the injected one in tests, a real abortable wait in production. */
+  private catalogueSleep(ms: number, signal: AbortSignal): Promise<void> {
+    return this.injectedSleep(this.deps.catalogueRetrySleep, ms, signal)
+  }
+
+  /**
+  An abortable wait on the injected clock, or a real timer in
+  production. Waits stay under one timer (8 s ceiling with jitter), so
+  a single timer holds them.
+  */
+  private injectedSleep(
+    injected: ((ms: number, signal: AbortSignal) => Promise<void>) | undefined,
+    ms: number,
+    signal: AbortSignal,
+  ): Promise<void> {
+    if (injected !== undefined) {
+      return injected(ms, signal)
     }
     return new Promise<void>((resolve, reject) => {
       if (signal.aborted) {
@@ -13068,6 +13203,8 @@ export class ConversationController implements DeferredSend {
       case 'signOut': {
         this.dropSession()
         this.forgetModels()
+        // A signed-out account's catalogue is not last-good for the next one (RLF-EMPTYCAT).
+        this.lastGoodModels = undefined
         await this.deps.auth.signOut()
         break
       }
@@ -14485,6 +14622,11 @@ export class ConversationController implements DeferredSend {
         this.finishedTurns.add(waiting.turnId)
       }
       this.forgetModels()
+      // An ending conversation is an account boundary: the next account
+      // lists afresh, never on this one's last good rows (RLF-EMPTYCAT).
+      if (isConversationEnding) {
+        this.lastGoodModels = undefined
+      }
       this.listWatch.forget()
       this.usageWatch.forget()
       this.usageHost = undefined

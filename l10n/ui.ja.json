@@ -1762,6 +1762,7 @@
   "sessionContinued": "再起動後に会話を続行しました。",
   "sessionNotContinued": "再起動後に会話を続行できなかったため、このメッセージで新しい会話を開始します",
   "modelNotKeptAfterRestart": "Muse Codeによると、この会話は{wanted}ではなく{active}で実行されているため、メッセージは送信されませんでした。モデルを選び直して再送信すると続行できます。",
+  "metaCatalogueEmptyRetrying": "Metaのモデル一覧が空で返ってきたため、既に表示されているモデルはそのままにして、一覧を再度要求しています。",
   "surfaceClosed": "パネルが閉じられました",
   "hostStartFailed": "バックエンドを起動できませんでした",
   "decisionErrorNotice": "Muse Code がこの判断に対してエラーを報告しました (ツールは実行された可能性があります)",
