@@ -15,7 +15,6 @@ import type {
   OAuthClientMetadata,
   OAuthTokens,
 } from '@modelcontextprotocol/sdk/shared/auth.js'
-import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
 import { browse, type Answer, type BrowserResult, type RunningRemote } from './connectorRemote'
 
 export const CLIENT_REDIRECT = 'http://127.0.0.1:8765/callback'
@@ -88,10 +87,7 @@ function newTransport(url: string, session: SdkSession): StreamableHTTPClientTra
 export async function tryConnect(url: string, session: SdkSession): Promise<Client | undefined> {
   const client = new Client({ name: 'sdk-suite', version: '0.0.0' })
   try {
-    // The SDK's own transport: its `sessionId` getter is `string | undefined`
-    // where its `Transport` interface declares `sessionId?: string`, which
-    // exactOptionalPropertyTypes will not assign (PLAN.md §8, RLF-M124RO).
-    await client.connect(newTransport(url, session) as Transport)
+    await client.connect(newTransport(url, session))
     return client
   } catch (error: unknown) {
     if (!(error instanceof UnauthorizedError)) throw error
