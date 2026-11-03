@@ -96,3 +96,15 @@ the gates showed, both from this branch:
 ## Not proven
 
 A live refusal: see `docs/real-life/unproven.md`. The CHANGELOG line waits.
+
+## Gates of the finishing run (2026-11-02, linuxlt, repository timeouts)
+
+| Gate                                        | Exit |
+| ------------------------------------------- | ---- |
+| `node scripts/gen-reference.mjs`            | 0    |
+| `node scripts/check-l10n.mjs`               | 0    |
+| `npm run check:reference`                   | 0    |
+| `npm run build` (first run: bundle split)   | 1    |
+| `npm run build` (after the reader fix)      | 0    |
+| `npm run security:sast` (699 rules, 0 hits) | 0    |
+| `npm run typecheck`                         | 0    |
