@@ -300,3 +300,44 @@ the shards like any suite. Its run on this tree: 102 passed, 2 failed, both from
    m109h-reviewed's delegated broker suite and Linux `/proc` case, `npm run test:integration`.
 5. ACP `canRunKind` (merge 2): engine-only stays; a lane after round 11 runs Muse Code and external workers in ACP
    sessions (D250), `exec --team` stays engine-only (M96b).
+
+## Batch A2 (rig randy-lt): making the head buildable
+
+Commits `6c8968e23` (D6) and `08942de56` (typecheck), each `fix(int):`.
+
+- **D6, `dist/runtimePanelSession.js`:** the session imported MHP's whole method table (`methods.ts`, 10.8 KB)
+  only to check six host notifications. `runtimePanel.js` already has the table for the handshake and now
+  passes it in as `methods`; the session imports only its type. 125,985 → 114,625 B of 122,880. No budget raised.
+- **D6, `dist/runtimeMaker.js`:** maker storage now reuses code the bundle already carries: deviceLog's
+  `isWithinWorkspace` (the same check), `isErrno` for the missing file, the key's file computed once, and
+  the service's own LAN default passed as is. 129,095 → 128,923 B of 129,024. No budget raised.
+- **Typecheck:** `m104Conformance.test.ts` passes `redact: redactSecrets`, the same redactor the product's
+  verify bundle uses.
+- **Red/green:** `npm run build` exit 1 before (both budgets OVER), exit 0 after. `npm run typecheck`
+  exit 1 (TS2345) before, exit 0 after. The Emacs suite (exit 1, `muse-panel-real-agent-refusal-cleans-up`
+  waited 30 s for the refusal) and `check.lua` (exit 1 at line 76, "real companion refusal is visible") are
+  red on this head, as expected now that int has `panel --companion`.
+- Suites: `makerRegistryLog`, `runtimeMakerHost`, `runtimePanelSessions` 86/86;
+  `runtimePanelConversation`, `mhpPanelContract`, `runtimePanel` 41/41;
+  `judgeP2Delivery` 104/104 (`umask 022`, repository timeout). All exit 0.
+
+| Gate                          | Exit |
+| ----------------------------- | ---- |
+| `npm run build`               | 0    |
+| `npm run typecheck`           | 0    |
+| `npm run lint`                | 0    |
+| `npm run check:mhp`           | 0    |
+| `npm run check:plan`          | 0    |
+| `npm run check:reference`     | 0    |
+| `node scripts/check-l10n.mjs` | 0    |
+
+### Still open after batch A2
+
+1. Item 3 is not done: the lane's $3 budget ran out. The cases that pin `panel --companion` as refused
+   still need to expect the live page: Emacs `muse-panel-real-agent-refusal-cleans-up`, Neovim
+   `check.lua` lines 68–80, Zed `test_custom_agent_and_companion_task`, Qt Creator `test_launch.py` near line 126,
+   and Sublime `muse_harness.py` (refused child exit). The live companion prints its launch URL as the first
+   line on stdout, and the shims discard stdout. Each case should therefore prove a live child that keeps
+   serving, then Stop that clears ownership, rather than a non-zero exit. The companion also runs the OS
+   opener itself (`openOsBrowser`), so on a machine with a display it opens a browser; give the run no display.
+2. Items 4 and 5 of batch A's list stand unchanged.
