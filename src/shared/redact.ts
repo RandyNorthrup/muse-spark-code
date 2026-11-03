@@ -138,6 +138,17 @@ export interface SecretRule {
   readonly replace: (match: string, lead: string, quote: string) => string
 }
 
+// The names the any-case and quoted name rules below match, each compound
+// joined, with `_` and with `-` (RSCH-SECURITY).
+const SECRET_NAME_LITERALS = [
+  'token',
+  'secret',
+  'passw',
+  'passphrase',
+  ...['api', 'access', 'private', 'encryption', 'signing', 'master', 'session', 'recovery'].flatMap(
+    (word) => [`${word}key`, `${word}_key`, `${word}-key`],
+  ),
+]
 // The fields `QUOTED_SECRET_FIELD` and `SECRET_FIELD` name.
 const SECRET_FIELD_LITERALS = ['token', 'secret', 'apikey', 'api_key', 'password']
 // A PEM private key, its body to the END line. The one rule whose match runs
@@ -282,37 +293,7 @@ export const SECRET_RULES: readonly SecretRule[] = [
   {
     pattern:
       /(\b(?:[A-Za-z][\w-]{0,60}?)?(?:token|secret|passwd|password|passphrase|api[_-]?key|secret[_-]?key|access[_-]?key|private[_-]?key|encryption[_-]?key|signing[_-]?key|master[_-]?key|session[_-]?key|recovery[_-]?key|credentials?)\s{0,5}[:=]\s{0,5}["']?)(?=[^\s"'&,;}]{0,4096}?[\d_./+=-])[^\s"'&,;}]{8,4096}/gi,
-    literals: [
-      'token',
-      'secret',
-      'passw',
-      'passphrase',
-      'apikey',
-      'api_key',
-      'api-key',
-      'accesskey',
-      'access_key',
-      'access-key',
-      'privatekey',
-      'private_key',
-      'private-key',
-      'encryptionkey',
-      'encryption_key',
-      'encryption-key',
-      'signingkey',
-      'signing_key',
-      'signing-key',
-      'masterkey',
-      'master_key',
-      'master-key',
-      'sessionkey',
-      'session_key',
-      'session-key',
-      'recoverykey',
-      'recovery_key',
-      'recovery-key',
-      'credential',
-    ],
+    literals: [...SECRET_NAME_LITERALS, 'credential'],
     replace: markAfter,
   },
   {
@@ -361,36 +342,7 @@ export const SECRET_RULES: readonly SecretRule[] = [
   {
     pattern:
       /(["'][\w-]{0,40}(?:token|secret|passw(?:or)?d|passphrase|api[_-]?key|secret[_-]?key|access[_-]?key|private[_-]?key|encryption[_-]?key|signing[_-]?key|master[_-]?key|session[_-]?key|recovery[_-]?key)["']\s{0,5}:\s{0,5}["'])[^"'\r\n]{1,4096}/gi,
-    literals: [
-      'token',
-      'secret',
-      'passw',
-      'passphrase',
-      'apikey',
-      'api_key',
-      'api-key',
-      'accesskey',
-      'access_key',
-      'access-key',
-      'privatekey',
-      'private_key',
-      'private-key',
-      'encryptionkey',
-      'encryption_key',
-      'encryption-key',
-      'signingkey',
-      'signing_key',
-      'signing-key',
-      'masterkey',
-      'master_key',
-      'master-key',
-      'sessionkey',
-      'session_key',
-      'session-key',
-      'recoverykey',
-      'recovery_key',
-      'recovery-key',
-    ],
+    literals: SECRET_NAME_LITERALS,
     replace: markAfter,
   },
   {
