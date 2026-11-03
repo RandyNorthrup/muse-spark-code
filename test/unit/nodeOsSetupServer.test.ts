@@ -15,11 +15,14 @@ import {
   type SetupServer,
 } from '../../src/runtime/node/firstBoot/server'
 import { resolveMuseInstallDir } from '../../src/runtime/node/firstBoot/installMuseCode'
+import { isRealMuseAsked } from './helpers/realMuse'
 
 const servers: SetupServer[] = []
 
 const PROBE_TIMEOUT_MS = 30_000
+// Meta's real installer, then the CLI it installed: only a run that asks.
 const CAN_INSTALL =
+  isRealMuseAsked() &&
   process.platform !== 'win32' &&
   hasTool('bash', ['--version']) &&
   hasTool('curl', ['--version']) &&

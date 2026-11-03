@@ -25,10 +25,12 @@ import { resolveMuseLaunch } from '../../../src/core/backends/musecode/launch'
 import { credentialFilePath } from '../../../src/core/backends/musecode/credentialPath'
 import { withoutCredentials } from '../../../src/runtime/credentialVariables'
 import { isolatedRuntimeEnvironment } from './isolatedRuntimeEnvironment'
+import { isRealMuseAsked } from './realMuse'
 import { MSP_CLIENT_NAME, MSP_REQUESTED_CAPABILITIES } from '../../../src/shared/constants'
 
-/** The product's own CLI resolution; undefined where Muse Code is not installed. */
+/** The product's own CLI resolution; undefined where it is not installed, or no run asked for it. */
 export function museCommand(): string | undefined {
+  if (!isRealMuseAsked()) return undefined
   const resolution = resolveMuseLaunch({
     platform: process.platform,
     configuredPath: '',

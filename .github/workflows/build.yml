@@ -175,6 +175,10 @@ jobs:
     # capacity repository (part `org`), and part `all` runs them here.
     if: ${{ inputs.part != 'home' }}
     runs-on: ${{ matrix.os }}
+    # This run asks for the real Muse Code cases: a runner holds nobody's Muse, and Meta's
+    # installer is real here. Off a run that names it, no suite starts or installs one.
+    env:
+      MUSE_TEST_REAL_CLI: '1'
     # The warm limit stays 20 minutes (the shard history is in the matrix
     # comment below). An `org` run starts cold: a cache restores only from
     # the current or the default branch (the dependency-caching reference),

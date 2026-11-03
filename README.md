@@ -7104,7 +7104,9 @@ files. `.env.example` documents `META_API_KEY`, which the Muse Code CLI
 inherits untouched if you export it yourself (and prefers over its sign-in,
 as Meta documents); the extension never sets it. The tooling also reads
 `MUSE_LIVE_E2E`, `MUSE_LIVE_MODEL_API`, `MUSE_EVAL_TASKS`,
-`MUSE_EVAL_REPORT` and `CHROME_PATH`, as described above.
+`MUSE_EVAL_REPORT` and `CHROME_PATH`, as described above. `MUSE_TEST_REAL_CLI=1`
+asks the unit suites to start the real Muse Code CLI they find and to run Meta's
+installer; without it they do neither, whatever the machine holds.
 
 **Deferred-bundle drills.** `test/unit/deferredBundles.test.ts` builds its
 checked Node entries once in memory. It shares the production plugins,
