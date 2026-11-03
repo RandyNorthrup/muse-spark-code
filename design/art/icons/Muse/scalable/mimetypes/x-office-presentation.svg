@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- x-office-presentation (mimetypes). -->
+  <g fill="none" stroke="#e5c34b" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6 3.5 L13.5 3.5 L18 8 L18 20.5 L6 20.5 Z M13.5 3.5 L13.5 8 L18 8"/>
+  </g>
+  <g fill="none" stroke="#e5c34b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="8.5" y="11" width="7" height="4.5" rx="0.75"/>
+    <path d="M12 15.5 L12 17.5 M10 17.5 L14 17.5"/>
+  </g>
+</svg>

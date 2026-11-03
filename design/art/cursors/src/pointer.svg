@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- pointer: the pointing hand. Hotspot 16,3 (the fingertip). -->
+  <path d="M13.8 12 L13.8 5 C13.8 3.5 14.6 2.5 15.9 2.5 C17.2 2.5 18 3.5 18 5 L18 12 L20.5 12 C21.7 12 22.5 12.8 22.5 14 L22.5 18.5 C22.5 21.5 20 24 17 24 L10 24 C8.6 24 7.6 22.8 7.9 21.4 L9.4 13.9 C9.6 12.8 10.5 12 11.6 12 Z" fill="%%FILL%%" stroke="%%OUTLINE%%" stroke-width="2" stroke-linejoin="round"/>
+  <circle cx="8.6" cy="17.5" r="2.4" fill="%%FILL%%" stroke="%%OUTLINE%%" stroke-width="2"/>
+</svg>

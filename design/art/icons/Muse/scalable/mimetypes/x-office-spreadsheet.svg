@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- x-office-spreadsheet (mimetypes). -->
+  <g fill="none" stroke="#3fb950" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6 3.5 L13.5 3.5 L18 8 L18 20.5 L6 20.5 Z M13.5 3.5 L13.5 8 L18 8"/>
+  </g>
+  <g fill="none" stroke="#3fb950" stroke-width="1.25" stroke-linecap="round">
+    <path d="M9 11.5 L15 11.5 L15 17.5 L9 17.5 Z M9 13.5 L15 13.5 M9 15.5 L15 15.5 M11 11.5 L11 17.5 M13 11.5 L13 17.5"/>
+  </g>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- x-office-calendar (mimetypes). -->
+  <g fill="none" stroke="#252932" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="4" y="5.5" width="16" height="15" rx="2"/>
+    <path d="M4 10 L20 10 M8.5 3.5 L8.5 7 M15.5 3.5 L15.5 7"/>
+  </g>
+  <g fill="#ac1721">
+    <circle cx="12" cy="15" r="1.6"/>
+  </g>
+</svg>

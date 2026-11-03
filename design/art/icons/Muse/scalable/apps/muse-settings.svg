@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- muse-settings (apps). -->
+  <g fill="none" stroke="#e4e7ed" stroke-width="1.75" stroke-linecap="round">
+    <circle cx="12" cy="12" r="6"/>
+    <circle cx="12" cy="12" r="2.2"/>
+    <path d="M12 3.5 L12 5.5 M12 18.5 L12 20.5 M3.5 12 L5.5 12 M18.5 12 L20.5 12 M6 6 L7.4 7.4 M16.6 16.6 L18 18 M18 6 L16.6 7.4 M7.4 16.6 L6 18"/>
+  </g>
+</svg>

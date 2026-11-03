@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- software-update-urgent (status): the same download, danger-coloured. -->
+  <g fill="none" stroke="#ac1721" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 4 L12 13 M8.5 9.5 L12 13 L15.5 9.5"/>
+    <path d="M4.5 15 L4.5 18.5 C4.5 19.3 5.2 20 6 20 L18 20 C18.8 20 19.5 19.3 19.5 18.5 L19.5 15"/>
+  </g>
+</svg>

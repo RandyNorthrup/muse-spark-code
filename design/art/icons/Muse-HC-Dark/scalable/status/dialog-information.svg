@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- dialog-information (status). -->
+  <g fill="none" stroke="#7fffff" stroke-width="2.63" stroke-linecap="round">
+    <circle cx="12" cy="12" r="8.5"/>
+    <path d="M12 11 L12 16 M12 7.5 L12 7.6"/>
+  </g>
+</svg>

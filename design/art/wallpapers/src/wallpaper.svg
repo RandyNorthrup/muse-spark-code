@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <!-- M111 lane AR (D91.11): the desktop wallpaper. The wash runs the
+       recipe's base (top) into its deep (bottom); the brand glow is a radial
+       gradientFrom wash centred just above middle; the squiggle-m watermark
+       is the approved mockups' mark (viewBox -14 -14 228 128, stroke 16,
+       round caps and joins) at the mockups' 0.07 opacity, 486 px tall and
+       centred. scripts/build-desktop-art.mjs fills the placeholders
+       from desktop/shell/theme/wallpapers.json; no colour is chosen here. -->
+  <defs>
+    <linearGradient id="wash" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="%%BASE%%" />
+      <stop offset="1" stop-color="%%DEEP%%" />
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.42" r="0.65">
+      <stop offset="0" stop-color="%%GRADIENT_FROM%%" stop-opacity="%%GLOW_OPACITY%%" />
+      <stop offset="0.6" stop-color="%%GRADIENT_TO%%" stop-opacity="%%GLOW_MID_OPACITY%%" />
+      <stop offset="1" stop-color="%%GRADIENT_TO%%" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#wash)" />
+  <rect width="1920" height="1080" fill="url(#glow)" />
+  <g transform="translate(960,540) scale(3.8) translate(-98.5,-50)" opacity="%%MARK_OPACITY%%">
+    <path d="M0 100C18 78 52 2 75 0C84 0 84 90 94 90C108 90 140 10 165 10C176 10 178 79 190 79L197 77" fill="none" stroke="%%GLOW%%" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+</svg>

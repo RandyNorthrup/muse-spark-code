@@ -1,0 +1,175 @@
+# Muse Desktop boot splash (M111, D91.11) lane AR: TH's progress and
+# message core (every value from desktop/shell/theme/boot/boot.json) plus
+# the brand logo, the passphrase dialog, and quit and message hiding, after
+# upstream themes/script/script.script (Plymouth b79b1786). The logo stays
+# static: the progress bar is the motion, so reduced motion needs no
+# special case. "Inter 13" follows TH: the initramfs carries Inter.
+
+Window.SetBackgroundTopColor (0.0941, 0.0941, 0.0941);
+Window.SetBackgroundBottomColor (0.1412, 0.1569, 0.1961);
+
+# The brand mark, centred above the progress bar.
+logo.image = Image ("logo.png");
+logo.sprite = Sprite (logo.image);
+logo.sprite.SetX (Window.GetX () + Window.GetWidth () / 2 - logo.image.GetWidth () / 2);
+logo.sprite.SetY (Window.GetY () + Window.GetHeight () * 0.28 - logo.image.GetHeight () / 2);
+logo.sprite.SetZ (0);
+
+# TH's progress core: the bar is a quarter of the screen wide, the track
+# and fill are 1px art scaled to the bar.
+barWidth = Window.GetWidth () / 4;
+barX = Window.GetX () + Window.GetWidth () / 2 - barWidth / 2;
+barY = Window.GetY () + Window.GetHeight () * 0.72;
+
+trackImage = Image ("progress-track.png");
+trackImage = trackImage.Scale (barWidth, 8);
+trackSprite = Sprite (trackImage);
+trackSprite.SetX (barX);
+trackSprite.SetY (barY);
+trackSprite.SetZ (0);
+
+fillSource = Image ("progress-fill.png");
+fillSource = fillSource.Scale (barWidth, 8);
+fillSprite = Sprite ();
+fillSprite.SetX (barX);
+fillSprite.SetY (barY);
+fillSprite.SetZ (1);
+
+messageSprite = Sprite ();
+messageSprite.SetX (barX);
+messageSprite.SetY (barY + 24);
+messageSprite.SetZ (0);
+
+fun progress_callback (duration, progress) {
+  if (progress > 1)
+    progress = 1;
+  fillWidth = barWidth * progress;
+  if (fillWidth < 1)
+    fillWidth = 1;
+  fillSprite.SetImage (fillSource.Crop (0, 0, Math.Int (fillWidth), 8));
+}
+
+fun message_callback (text) {
+  messageSprite.SetImage (Image.Text (text, 0.8941, 0.9059, 0.9294, 1, "Inter 13"));
+}
+
+fun hide_message_callback () {
+  messageSprite.SetImage (Image.Text ("", 0.8941, 0.9059, 0.9294, 1, "Inter 13"));
+}
+
+Plymouth.SetBootProgressFunction (progress_callback);
+Plymouth.SetDisplayMessageFunction (message_callback);
+Plymouth.SetHideMessageFunction (hide_message_callback);
+
+# The passphrase dialog, after the upstream reference: a box with a lock
+# and an entry field, one bullet sprite per entered character, and the
+# keyboard layout under the box.
+status = "normal";
+
+fun dialog_setup () {
+  local.box;
+  local.lock;
+  local.entry;
+  local.layout;
+
+  box.image = Image ("box.png");
+  lock.image = Image ("lock.png");
+  entry.image = Image ("entry.png");
+
+  box.sprite = Sprite (box.image);
+  box.x = Window.GetX () + Window.GetWidth () / 2 - box.image.GetWidth () / 2;
+  box.y = Window.GetY () + Window.GetHeight () / 2 - box.image.GetHeight () / 2;
+  box.z = 10000;
+  box.sprite.SetPosition (box.x, box.y, box.z);
+
+  lock.sprite = Sprite (lock.image);
+  lock.x = box.x + box.image.GetWidth () / 2 - (lock.image.GetWidth () + entry.image.GetWidth ()) / 2;
+  lock.y = box.y + box.image.GetHeight () / 2 - lock.image.GetHeight () / 2;
+  lock.z = box.z + 1;
+  lock.sprite.SetPosition (lock.x, lock.y, lock.z);
+
+  entry.sprite = Sprite (entry.image);
+  entry.x = lock.x + lock.image.GetWidth ();
+  entry.y = box.y + box.image.GetHeight () / 2 - entry.image.GetHeight () / 2;
+  entry.z = box.z + 1;
+  entry.sprite.SetPosition (entry.x, entry.y, entry.z);
+
+  layout.sprite = Sprite ();
+  layout.y = box.y + box.image.GetHeight ();
+  layout.z = box.z + 1;
+
+  global.dialog.box = box;
+  global.dialog.lock = lock;
+  global.dialog.entry = entry;
+  global.dialog.layout = layout;
+  global.dialog.bullet_image = Image ("bullet.png");
+  dialog_opacity (1);
+}
+
+fun dialog_opacity (opacity) {
+  dialog.box.sprite.SetOpacity (opacity);
+  dialog.lock.sprite.SetOpacity (opacity);
+  dialog.entry.sprite.SetOpacity (opacity);
+  dialog.layout.sprite.SetOpacity (opacity);
+  for (index = 0; dialog.bullet[index]; index++) {
+    dialog.bullet[index].sprite.SetOpacity (opacity);
+  }
+}
+
+fun dialog_update_keyboard_layout () {
+  layout = Plymouth.GetKeyboardLayout ();
+  if (layout && layout != dialog.layout.text) {
+    dialog.layout.text = layout;
+    dialog.layout.image = Image.Text (layout, 0.8941, 0.9059, 0.9294, 1, "Inter 13");
+    dialog.layout.x = dialog.box.x + dialog.box.image.GetWidth () / 2 - dialog.layout.image.GetWidth () / 2;
+    dialog.layout.sprite.SetImage (dialog.layout.image);
+    dialog.layout.sprite.SetPosition (dialog.layout.x, dialog.layout.y, dialog.layout.z);
+  }
+}
+
+fun display_normal_callback () {
+  global.status = "normal";
+  if (global.dialog)
+    dialog_opacity (0);
+}
+
+fun display_password_callback (prompt, bullets) {
+  global.status = "password";
+  if (!global.dialog)
+    dialog_setup ();
+  else
+    dialog_opacity (1);
+  for (index = 0; dialog.bullet[index] || index < bullets; index++) {
+    if (!dialog.bullet[index]) {
+      dialog.bullet[index].sprite = Sprite (dialog.bullet_image);
+      dialog.bullet[index].x = dialog.entry.x + index * dialog.bullet_image.GetWidth ();
+      dialog.bullet[index].y = dialog.entry.y + dialog.entry.image.GetHeight () / 2 - dialog.bullet_image.GetHeight () / 2;
+      dialog.bullet[index].z = dialog.entry.z + 1;
+      dialog.bullet[index].sprite.SetPosition (dialog.bullet[index].x, dialog.bullet[index].y, dialog.bullet[index].z);
+    }
+    if (index < bullets)
+      dialog.bullet[index].sprite.SetOpacity (1);
+    else
+      dialog.bullet[index].sprite.SetOpacity (0);
+  }
+}
+
+Plymouth.SetDisplayNormalFunction (display_normal_callback);
+Plymouth.SetDisplayPasswordFunction (display_password_callback);
+
+# The refresh loop only tracks the keyboard layout while prompting: the
+# logo and bar need no per-frame work.
+fun refresh_callback () {
+  if (status == "password")
+    dialog_update_keyboard_layout ();
+}
+
+Plymouth.SetRefreshFunction (refresh_callback);
+
+# On quit the dialog hides so the handoff shows the mark and bar only.
+fun quit_callback () {
+  if (global.dialog)
+    dialog_opacity (0);
+}
+
+Plymouth.SetQuitFunction (quit_callback);
