@@ -2095,6 +2095,9 @@
   "mcpStateUnoffered": {
     "other": "ほかに {count} 個は提供されません"
   },
+  "mcpStateHeldBack": {
+    "other": "保留中のツール {count} 個: テキストが変更されました"
+  },
   "mcpStateFailed": "実行されていません: {reason}",
   "mcpStateRestricted": "起動していません: このワークスペースは制限モードです",
   "mcpStateNotLoaded": "読み込まれていません: 警告を参照してください",
@@ -2111,6 +2114,20 @@
   "mcpNoServersKeys": "MCP サーバーは読み込まれていません: Muse Code の設定に “mcpServers” と “mcp_servers” の両方があります。キーは 1 つだけにしてください。",
   "mcpNoServersMode": "MCP サーバーは読み込まれていません: {servers} で “required” と “mode” の両方が設定されています。“mode” だけを残してください。",
   "mcpNoServersUnreadable": "MCP サーバーは読み込まれていません: Muse Code の設定ファイルを読み取れませんでした ({reason})。",
+  "mcpToolsHeldBack": "MCP サーバー {server} がこれらのツールの説明や受け付ける内容を変更したため、保留され、提供されません: {tools}。MCP サーバーを開き、{server} を選んで新しいテキストを確認して承認するか、ツールの拒否を続けてください。",
+  "mcpShowToolDescriptions": "ツールの説明を表示",
+  "mcpShowToolDescriptionsDetail": "各ツールの全文を、サーバーが送信したそのままの形で表示します",
+  "mcpReviewHeldBack": "保留中のツールを確認",
+  "mcpReviewHeldBackDetail": "変更されたテキストを読んで、承認するか、ツールの拒否を続けてください",
+  "mcpReviewHeldBackPlaceholder": "新しい全文が横に開いています。期待する内容のままの場合にのみ承認してください。",
+  "mcpAcceptHeldBack": "新しいテキストを承認",
+  "mcpKeepRefusing": "拒否を続ける",
+  "mcpHeldBackAccepted": "{server} の新しいツールテキストが承認され、そのツールが再び提供されます。",
+  "mcpHeldBackKept": "{server} の変更されたツールは拒否されたままで、提供されません。",
+  "mcpToolDescriptionsTitle": "MCP サーバー {server} のツール",
+  "mcpToolDescriptionsNone": "このサーバーはまだツールを一覧にしていません。",
+  "mcpToolHeldBackMark": "保留中: このテキストはピン留め以降に変更されており、提供されません。",
+  "mcpToolNoDescription": "（サーバーはこのツールの説明を送信していません。）",
   "acpTeamPermissionTitle": "{role} · {agent}: {detail}",
   "acpTeamFixedForSession": "チームの使用はセッション開始時に決まります。変更するには新しいセッションを開始してください。",
   "acpTeamRolesUnavailable": "このエディターには Roles セクションがありません。ACP ガイドに記載された保存済みチームファイルを編集してください。",
@@ -2224,6 +2241,7 @@
   "elicitationDecline": "拒否",
   "elicitationCancel": "キャンセル",
   "elicitationRequired": "必須",
+  "elicitationSecretField": "これは {server} 用のシークレットを求めています。入力はマスクされます。",
   "elicitationInvalid": "{field} が {server} の求める内容に合っていません。",
   "elicitationDeclinedByHook": "フックが {server} からのこの要求を拒否しました: {reason}",
   "elicitationAnsweredByHook": "ユーザーのフックの 1 つが {server} からのこの要求に回答しました。",

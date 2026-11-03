@@ -409,6 +409,8 @@
     "test/unit/reportKindRenderFixtures.ts",
     // Tab's configured hook flow starts this real fake-hook process by path.
     "test/fixtures/tabHooks/completion.mjs",
+    // SEC-MCP-PIN: the pool pin suite starts this real MCP server by path.
+    "test/fixtures/mcpPins/server.mjs",
     // D250: the external orchestrator suite starts this real ACP agent
     // process by path.
     "test/fixtures/external-orchestrator/agent.mjs",

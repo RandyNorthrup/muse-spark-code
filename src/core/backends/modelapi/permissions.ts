@@ -28,8 +28,13 @@
 // An MCP server's tool (M50, PLAN.md D42) is arbitrary code: it asks like a
 // shell command, "always allow in this session" included, and Plan refuses
 // it. A tool its server marks read-only (`annotations.readOnlyHint`) runs
-// without a card in Auto, as Muse Code runs it under on-request approvals
-// (its 1.2.1 changelog), and asks in Plan instead of being refused.
+// without a card in Auto and asks in Plan instead of being refused — but
+// only while its definition is pinned and unchanged under the launch
+// identity the person accepted (SEC-MCP-PIN/HINT): the MCP specification
+// says a client MUST NOT trust a hint from an untrusted server, so an
+// unpinned or drifted tool's hint is ignored (Auto asks, Plan refuses).
+// The caller carries that settled fact as `isPinnedReadOnly`; the engine
+// itself reads no pins.
 //
 // A memory write (M49, D41: `add_memory`, `edit_memory`) is an edit, never
 // a protected one, although the project's notes sit under `.agents`: the
@@ -95,17 +100,21 @@ export function isKnownChoice(choiceId: string): boolean {
   return KNOWN_CHOICE_IDS.has(choiceId)
 }
 
-/** An MCP server's tool: a shell command's rules, eased for one its server marks read-only. */
-function mcpVerdict(mode: ApprovalMode, isReadOnly: boolean): PermissionVerdict {
+/**
+An MCP server's tool: a shell command's rules, eased only for a read-only
+claim its pin earns (SEC-MCP-HINT): `isPinnedReadOnly` already says both
+the server claims read-only and the claimed definition is the pinned one.
+*/
+function mcpVerdict(mode: ApprovalMode, isPinnedReadOnly: boolean): PermissionVerdict {
   switch (mode) {
     case 'allowAll': {
       return 'allow'
     }
     case 'onRequest': {
-      return isReadOnly ? 'allow' : 'ask'
+      return isPinnedReadOnly ? 'allow' : 'ask'
     }
     case 'denyUnmatched': {
-      return isReadOnly ? 'ask' : 'deny'
+      return isPinnedReadOnly ? 'ask' : 'deny'
     }
     case 'promptUnmatched': {
       return 'ask'
@@ -129,18 +138,25 @@ function networkVerdict(mode: ApprovalMode): PermissionVerdict {
   }
 }
 
-/** What the mode says about a tool of this class, before session rules. */
+/**
+What the mode says about a tool of this class, before session rules. For
+an MCP tool, `isReadOnly` is the server's claim and `isPinnedReadOnly`
+says the claimed definition is pinned and unchanged; the claim eases the
+verdict only with both (SEC-MCP-HINT), so a caller that cannot say pinned
+gets no easing.
+*/
 export function verdictFor(
   mode: ApprovalMode,
   toolClass: ToolClass,
   isProtected = false,
   isReadOnly = false,
+  isPinnedReadOnly = false,
 ): PermissionVerdict {
   if (toolClass === 'device' || toolClass === 'paid') {
     return mode === 'denyUnmatched' ? 'deny' : 'ask'
   }
   if (toolClass === 'mcp') {
-    return mcpVerdict(mode, isReadOnly)
+    return mcpVerdict(mode, isReadOnly && isPinnedReadOnly)
   }
   if (toolClass === 'spawn') {
     return mode === 'denyUnmatched' ? 'deny' : 'ask'
@@ -219,8 +235,14 @@ export interface PermissionQuery {
   readonly dialect?: GuardDialect | undefined
   /** An edit whose target is a protected path (D24). */
   readonly isProtected?: boolean
-  /** An MCP tool its server marks read-only (M50). */
+  /** An MCP tool its server marks read-only (M50): the server's claim alone. */
   readonly isReadOnly?: boolean
+  /**
+  An MCP tool whose read-only claim its pin earns (SEC-MCP-HINT): its
+  definition is pinned and unchanged under the launch identity the person
+  accepted. Only this eases the verdict; the claim alone never does.
+  */
+  readonly isPinnedReadOnly?: boolean
   /** A host-owned physical MCP marking; never an MCP annotation or argument. */
   readonly isPhysical?: boolean
   /** Child/worker/candidate/remote/headless callers cannot operate devices. */
@@ -399,6 +421,15 @@ export class PermissionEngine {
   }
 
   /**
+  Drops a session rule (SEC-MCP-PIN): a tool whose definition drifted from
+  its pin loses every "always allow in this session" the person gave the
+  old text, so accepting the new text never resurrects it.
+  */
+  public forgetForSession(toolName: string, command?: string): void {
+    this.allowed.delete(ruleKey(toolName, command))
+  }
+
+  /**
   Whether the user chose "always allow" for this call on a card in this
   session, whatever the mode says: what widens a browser check beyond
   loopback when no card is shown (M81), since Bypass alone never does.
@@ -436,7 +467,13 @@ export class PermissionEngine {
     const isProtected = query.isProtected === true
     const isMcp = query.toolClass === 'mcp'
     const isShell = query.toolClass === 'shell'
-    const byMode = verdictFor(this.mode, query.toolClass, isProtected, query.isReadOnly === true)
+    const byMode = verdictFor(
+      this.mode,
+      query.toolClass,
+      isProtected,
+      query.isReadOnly === true,
+      query.isPinnedReadOnly === true,
+    )
     if (
       isMcp &&
       byMode !== 'deny' &&

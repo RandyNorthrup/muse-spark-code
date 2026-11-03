@@ -67,6 +67,8 @@ export interface CliFeatureDeps {
   runs on that backend (M50); undefined on Muse Code.
   */
   readonly modelApiMcp: () => (() => McpPoolSnapshot | undefined) | undefined
+  /** Accepts a server's held-back tool text when this window runs Model API (SEC-MCP-PIN). */
+  readonly modelApiMcpAccept: () => ((server: string) => Promise<boolean>) | undefined
   /** Undefined on Muse Code; current machine hook setting on Model API. */
   readonly modelApiHooks: () => boolean | undefined
   /** Shows the extension's log, where an MCP server's stderr goes. */
@@ -180,6 +182,8 @@ export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
       },
       showWarning: loggedPopups(deps.log).showWarning,
       modelApiServers: deps.modelApiMcp(),
+      openReadOnlyText: deps.openPreview,
+      acceptHeldBackTools: deps.modelApiMcpAccept(),
       modelApiHooks: deps.modelApiHooks() === undefined ? undefined : () => deps.modelApiHooks(),
       openModelApiHooksSetting: async () => {
         await vscode.commands.executeCommand(

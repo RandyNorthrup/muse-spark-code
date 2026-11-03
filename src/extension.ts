@@ -2456,6 +2456,8 @@ async function activateWindow(
     // window runs them (M50).
     modelApiMcp: () =>
       auth.current.backend === 'modelApi' ? () => modelApi.mcpSnapshot() : undefined,
+    modelApiMcpAccept: () =>
+      auth.current.backend === 'modelApi' ? (server) => modelApi.acceptMcpTools(server) : undefined,
     modelApiHooks: () =>
       auth.current.backend === 'modelApi' ? currentSettings().modelApiHooks : undefined,
     openLog: () => {

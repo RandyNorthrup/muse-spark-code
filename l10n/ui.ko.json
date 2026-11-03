@@ -2095,6 +2095,9 @@
   "mcpStateUnoffered": {
     "other": "{count}개는 제공되지 않음"
   },
+  "mcpStateHeldBack": {
+    "other": "보류된 도구 {count}개: 텍스트가 변경되었습니다"
+  },
   "mcpStateFailed": "실행 중이 아님: {reason}",
   "mcpStateRestricted": "시작되지 않음: 이 작업 영역은 제한 모드임",
   "mcpStateNotLoaded": "로드되지 않음: 경고 참조",
@@ -2111,6 +2114,20 @@
   "mcpNoServersKeys": "MCP 서버가 로드되지 않음: Muse Code 설정에 “mcpServers”와 “mcp_servers”가 모두 있습니다. 키를 하나만 유지하세요.",
   "mcpNoServersMode": "MCP 서버가 로드되지 않음: {servers}에서 “required”와 “mode”를 모두 설정했습니다. “mode”만 유지하세요.",
   "mcpNoServersUnreadable": "MCP 서버가 로드되지 않음: Muse Code의 설정 파일을 읽을 수 없습니다({reason}).",
+  "mcpToolsHeldBack": "MCP 서버 {server}가 이 도구들이 말하거나 받는 내용을 변경했으므로, 보류되어 제공되지 않습니다: {tools}. MCP 서버를 열고 {server}를 선택한 뒤 새 텍스트를 검토하여 수락하거나, 도구를 계속 거부하세요.",
+  "mcpShowToolDescriptions": "도구 설명 표시",
+  "mcpShowToolDescriptionsDetail": "서버가 보낸 그대로의 각 도구 전체 텍스트",
+  "mcpReviewHeldBack": "보류된 도구 검토",
+  "mcpReviewHeldBackDetail": "변경된 텍스트를 읽은 뒤 수락하거나 도구를 계속 거부하세요",
+  "mcpReviewHeldBackPlaceholder": "새 전문이 옆에 열려 있습니다. 여전히 기대하는 내용일 때만 수락하세요.",
+  "mcpAcceptHeldBack": "새 텍스트 수락",
+  "mcpKeepRefusing": "계속 거부",
+  "mcpHeldBackAccepted": "{server}의 새 도구 텍스트가 수락되어 도구가 다시 제공됩니다.",
+  "mcpHeldBackKept": "{server}의 변경된 도구는 거부 상태로 유지되며 제공되지 않습니다.",
+  "mcpToolDescriptionsTitle": "MCP 서버 {server}의 도구",
+  "mcpToolDescriptionsNone": "이 서버는 아직 도구를 나열하지 않았습니다.",
+  "mcpToolHeldBackMark": "보류됨: 이 텍스트는 고정된 이후 변경되어 제공되지 않습니다.",
+  "mcpToolNoDescription": "(서버가 이 도구에 대한 설명을 보내지 않았습니다.)",
   "acpTeamPermissionTitle": "{role} · {agent}: {detail}",
   "acpTeamFixedForSession": "팀 사용은 세션이 시작될 때 정해집니다. 변경하려면 새 세션을 시작하세요.",
   "acpTeamRolesUnavailable": "이 편집기에는 Roles 섹션이 없습니다. ACP 안내서에 나온 저장된 팀 파일을 편집하세요.",
@@ -2224,6 +2241,7 @@
   "elicitationDecline": "거절",
   "elicitationCancel": "취소",
   "elicitationRequired": "필수",
+  "elicitationSecretField": "이것은 {server}용 비밀을 요구합니다. 입력이 마스킹됩니다.",
   "elicitationInvalid": "{field}이(가) {server}에서 요청한 내용에 맞지 않습니다.",
   "elicitationDeclinedByHook": "후크가 {server}의 이 요청을 거절했습니다: {reason}",
   "elicitationAnsweredByHook": "사용자 후크 중 하나가 {server}의 이 요청에 응답했습니다.",

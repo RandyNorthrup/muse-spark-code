@@ -2630,6 +2630,10 @@ export const EN = {
     one: '{count} more not offered',
     other: '{count} more not offered',
   }),
+  mcpStateHeldBack: forms({
+    one: '{count} tool held back: its text changed',
+    other: '{count} tools held back: their text changed',
+  }),
   mcpStateFailed: 'Not running: {reason}',
   mcpStateRestricted: 'Not started: this workspace is in Restricted Mode',
   mcpStateNotLoaded: 'Not loaded: see the warning',
@@ -2654,6 +2658,24 @@ export const EN = {
     'No MCP server is loaded: {servers} set both “required” and “mode”. Keep only “mode”.',
   mcpNoServersUnreadable:
     'No MCP server is loaded: Muse Code’s settings file could not be read ({reason}).',
+  // Tool-definition pins (SEC-MCP-PIN, D42). {server}: the MCP server's
+  // name; {tools}: the held-back tool names, joined.
+  mcpToolsHeldBack:
+    'MCP server {server} changed what these tools say or accept, so they are held back and not offered: {tools}. Open MCP Servers, pick {server}, and review the new text to accept it, or keep refusing the tools.',
+  mcpShowToolDescriptions: 'Show Tool Descriptions',
+  mcpShowToolDescriptionsDetail: 'Every tool’s full text, exactly as the server sent it',
+  mcpReviewHeldBack: 'Review Held-Back Tools',
+  mcpReviewHeldBackDetail: 'Read the changed text, then accept it or keep refusing the tools',
+  mcpReviewHeldBackPlaceholder:
+    'The full new text is open beside this. Accept it only if it still says what you expect.',
+  mcpAcceptHeldBack: 'Accept the New Text',
+  mcpKeepRefusing: 'Keep Refusing',
+  mcpHeldBackAccepted: 'The new tool text from {server} is accepted; its tools are offered again.',
+  mcpHeldBackKept: 'The changed tools from {server} stay refused and are not offered.',
+  mcpToolDescriptionsTitle: 'Tools of MCP server {server}',
+  mcpToolDescriptionsNone: 'This server has listed no tools yet.',
+  mcpToolHeldBackMark: 'Held back: this text changed since it was pinned, and is not offered.',
+  mcpToolNoDescription: '(The server sent no description for this tool.)',
   // Shared resources (M96 lane B, D75): the registry, the leases and the bridge.
   // M96b (PLAN.md D75): a worker approval's title starts with the role and
   // the agent. {role}: the worker's role; {agent}: the agent running it;
@@ -2828,6 +2850,7 @@ export const EN = {
   elicitationDecline: 'Decline',
   elicitationCancel: 'Cancel',
   elicitationRequired: 'Required',
+  elicitationSecretField: 'This asks for a secret for {server}. It is typed masked.',
   // {field}: the field's title, or its name when it has none.
   elicitationInvalid: '{field} does not fit what {server} asked for.',
   elicitationDeclinedByHook: 'A hook declined this request from {server}: {reason}',

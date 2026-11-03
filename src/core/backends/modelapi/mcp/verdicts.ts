@@ -42,6 +42,34 @@ export function isSameVerdict(a: KeptVerdict, b: KeptVerdict): boolean {
   return a.era === b.era && (a.era === 'legacy' || (b.era === 'modern' && a.version === b.version))
 }
 
+/**
+One kept JSON file read (the verdicts', the tool pins'): missing on a
+first run, unreadable with its failure when the read or the parse fails
+(never with its text), or read with the parsed value for the caller's
+schema. Shared so both stores judge a kept file the same way.
+*/
+export type KeptFileRead =
+  | { readonly kind: 'missing' }
+  | { readonly kind: 'unreadable'; readonly error?: unknown }
+  | { readonly kind: 'read'; readonly raw: unknown }
+
+export async function readKeptJsonFile(dir: string, file: string): Promise<KeptFileRead> {
+  let text: string
+  try {
+    text = await readFile(path.join(dir, file), 'utf8')
+  } catch (error: unknown) {
+    return isErrno(error) && error.code === 'ENOENT'
+      ? { kind: 'missing' }
+      : { kind: 'unreadable', error }
+  }
+  try {
+    return { kind: 'read', raw: JSON.parse(text) }
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
+    return { kind: 'unreadable' }
+  }
+}
+
 export class McpVerdictStore {
   /** Writes in order, so two servers settling together do not lose one. */
   private writing: Promise<void> = Promise.resolve()
@@ -53,27 +81,20 @@ export class McpVerdictStore {
 
   /** Every kept verdict; none when the file is missing or cannot be read. */
   private async readAll(): Promise<Readonly<Record<string, KeptVerdict>>> {
-    let text: string
-    try {
-      text = await readFile(path.join(this.dir, MCP_ERA_VERDICTS_FILE), 'utf8')
-    } catch (error: unknown) {
-      // A missing file is a first run; any other failure keeps no verdict.
-      if (isErrno(error) && error.code === 'ENOENT') {
-        return {}
-      }
+    const read = await readKeptJsonFile(this.dir, MCP_ERA_VERDICTS_FILE)
+    if (read.kind === 'missing') {
+      return {}
+    }
+    if (read.kind === 'unreadable') {
+      // A read failure names its kind; a parse failure names nothing.
       this.log.warn(
-        `The kept MCP era verdicts could not be read; every server is probed: ${failureForLog(error)}`,
+        read.error === undefined
+          ? 'The kept MCP era verdicts are not readable; every server is probed'
+          : `The kept MCP era verdicts could not be read; every server is probed: ${failureForLog(read.error)}`,
       )
       return {}
     }
-    let raw: unknown
-    try {
-      raw = JSON.parse(text)
-    } catch (error: unknown) {
-      if (!(error instanceof SyntaxError)) throw error
-      raw = undefined
-    }
-    const parsed = verdictsFileSchema.safeParse(raw)
+    const parsed = verdictsFileSchema.safeParse(read.raw)
     if (!parsed.success) {
       this.log.warn('The kept MCP era verdicts are not readable; every server is probed')
       return {}

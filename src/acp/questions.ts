@@ -12,6 +12,7 @@ import type {
 import * as z from 'zod/mini'
 import type { ElicitationField, Question, QuestionAnswer } from '../shared/agentEvents'
 import { UI_TEXT } from '../shared/constants'
+import { fill } from '../shared/l10n/text'
 
 const MULTIPLE_SELECTION = 'multiple'
 const LINE = '\n'
@@ -163,10 +164,21 @@ export function questionCommand(
 
 // --- MCP elicitation through the client's form (M91 lane M) ---
 
-function elicitationProperty(field: ElicitationField): ElicitationPropertySchema {
+function elicitationProperty(
+  field: ElicitationField,
+  server: string | undefined,
+): ElicitationPropertySchema {
+  // ACP's form vocabulary has no secret marker (SEC-MCP-PIN): the warning
+  // rides in the description the client shows, naming the server.
+  const secretNote =
+    server !== undefined && field.isSecret === true
+      ? fill(UI_TEXT.elicitationSecretField, { server })
+      : undefined
+  const parts = [field.description, secretNote].filter((part) => part !== undefined)
+  const description = parts.length === 0 ? undefined : parts.join('\n')
   const titled = {
     ...(field.title !== undefined && { title: field.title }),
-    ...(field.description !== undefined && { description: field.description }),
+    ...(description !== undefined && { description }),
   }
   switch (field.type) {
     case 'string': {
@@ -212,10 +224,15 @@ An MCP server's validated fields as the ACP client's `elicitation/create`
 takes them, retaining every supported constraint. The session validates
 the client's answer before it reaches the server.
 */
-export function elicitationSchema(fields: readonly ElicitationField[]): ElicitationSchema {
+export function elicitationSchema(
+  fields: readonly ElicitationField[],
+  server?: string,
+): ElicitationSchema {
   return {
     type: 'object',
-    properties: Object.fromEntries(fields.map((field) => [field.name, elicitationProperty(field)])),
+    properties: Object.fromEntries(
+      fields.map((field) => [field.name, elicitationProperty(field, server)]),
+    ),
     required: fields.filter((field) => field.required).map((field) => field.name),
   }
 }
