@@ -613,6 +613,13 @@ happened, not what was planned; superseded entries are kept.
 - When a session or turn start is refused, an editor now shows the
   reason in its own sentence (for example the hardware fence's)
   with a fitting error, instead of "That did not work".
+- A Wonder model can no longer be picked for a team as a standard Muse
+  Code model. `muse-wonder-1.0` is priced at its own Wonder tariff, not
+  the standard tier, so team setup no longer offers it on the
+  subscription, a saved team that names it for a Muse Code or external
+  worker is refused in words before any request is sent, and on the
+  Model API its team offer now shows the Wonder prices instead of the
+  standard ones.
 - A vault policy that is a link, that another account can read, or that has
   a second name is ignored, and saving a policy can no longer be aimed at
   another file. The ceiling stays "none" and the refusal is the same words

@@ -5450,6 +5450,7 @@
   "teamTasksQueued": "Tâches d’équipe en file d’attente : {count}",
   "teamMergeRework": "La fusion a rencontré des conflits : la tâche est renvoyée pour reprise.",
   "teamTaskUnknown": "Cette tâche d’équipe n’est pas ouverte dans cette fenêtre.",
+  "teamWonderTierRefused": "{model} ne peut pas fonctionner en équipe comme un modèle Muse Code standard : c’est un modèle Wonder, au tarif Wonder, et non un niveau Muse Code standard ; aucune requête n’a donc été envoyée pour lui.",
   "teamWaitingUnknown": "Plus rien n’attend cette réponse.",
   "teamBudgetUnavailable": "Une tâche d’équipe ne peut pas démarrer sous un budget de session tant qu’elle ne peut pas partager le budget de cette conversation.",
   "teamTaskNoDiff": "Cette tâche d’équipe n’a pas de branche à comparer.",

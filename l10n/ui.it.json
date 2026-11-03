@@ -5450,6 +5450,7 @@
   "teamTasksQueued": "Attività del team in coda: {count}",
   "teamMergeRework": "L’unione ha trovato conflitti: l’attività è tornata in rielaborazione.",
   "teamTaskUnknown": "Questa attività del team non è aperta in questa finestra.",
+  "teamWonderTierRefused": "{model} non può funzionare in un team come modello Muse Code standard: è un modello Wonder, con la tariffa Wonder, non un livello Muse Code standard, quindi nessuna richiesta è stata inviata per esso.",
   "teamWaitingUnknown": "Nulla attende più questa risposta.",
   "teamBudgetUnavailable": "Un’attività del team non può partire con un budget di sessione finché non può condividere il budget di questa conversazione.",
   "teamTaskNoDiff": "Questa attività del team non ha un branch da confrontare.",

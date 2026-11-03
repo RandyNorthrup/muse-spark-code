@@ -6823,6 +6823,11 @@ export const EN = {
   teamTasksQueued: 'Team tasks queued: {count}',
   teamMergeRework: 'The merge met conflicts: the task went back for rework.',
   teamTaskUnknown: 'That team task is not open in this window.',
+  // A Wonder-tier id named for a Muse Code team worker (RLF-WONDER): its
+  // known tariff is the Wonder Model API tariff, not a standard Muse Code
+  // tier, so the request is never sent. {model}: the id the pool named.
+  teamWonderTierRefused:
+    '{model} cannot run as a standard Muse Code model in a team: it is a Wonder model, priced at the Wonder tariff, not a standard Muse Code tier, so no request was sent for it.',
   teamWaitingUnknown: 'Nothing is waiting for this answer any more.',
   teamBudgetUnavailable:
     "A team task cannot start under a session budget until it can share this conversation's budget.",

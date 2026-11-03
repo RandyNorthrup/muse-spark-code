@@ -5566,6 +5566,7 @@
   "teamTasksQueued": "Zadania zespołu w kolejce: {count}",
   "teamMergeRework": "Scalanie napotkało konflikty: zadanie wróciło do poprawki.",
   "teamTaskUnknown": "To zadanie zespołu nie jest otwarte w tym oknie.",
+  "teamWonderTierRefused": "{model} nie może działać w zespole jako standardowy model Muse Code: to model Wonder z taryfą Wonder, a nie standardowa warstwa Muse Code, więc żadne żądanie nie zostało dla niego wysłane.",
   "teamWaitingUnknown": "Nic już nie czeka na tę odpowiedź.",
   "teamBudgetUnavailable": "Zadanie zespołu nie może się rozpocząć przy budżecie sesji, dopóki nie może dzielić budżetu tej rozmowy.",
   "teamTaskNoDiff": "To zadanie zespołu nie ma gałęzi do porównania.",

@@ -20,6 +20,7 @@ import {
   MUSE_TRUST_WORKSPACE_ARG,
 } from '../../../shared/constants'
 import { reportForStop, type WorkerReportOutcome } from './report'
+import { isWonderTierModel, wonderTierRefusal } from '../../../shared/wonderTier'
 import {
   assertWorkerRoot,
   recheckWorkerRoot,
@@ -152,6 +153,9 @@ export async function buildWorkerSessionConfig(input: {
   readonly approvalMode: ApprovalMode
   readonly mcpServers: Readonly<Record<string, SessionMcpServer>>
 }> {
+  // A Wonder-tier id named by the pool is refused before any session
+  // starts (RLF-WONDER): no request is sent for it as a standard model.
+  if (isWonderTierModel(input.modelId)) throw new Error(wonderTierRefusal(input.modelId))
   const grant = await assertWorkerRoot({ ...input, folder: input.task.folder })
   userServerExclusion(input.exclusiveUserServers)
   return {
