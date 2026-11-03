@@ -119,6 +119,28 @@ export async function darwinSamplerMemory(limits: ResourceProbeLimits): Promise<
   }
 }
 
+/**
+One suite's compiled memory fixture: `install` in `beforeAll`, `remove`
+in `afterAll`, `reader` makes the fresh reader each sampler needs (a
+sampler disposes its reader), and `limits` is what the sampler is
+created with. One copy here so the relocation suites share no clone.
+*/
+export function darwinMemoryFixture() {
+  const limits: ResourceProbeLimits = { timeoutMs: 1000, maxOutputBytes: 64 * 1024 }
+  let compiled:
+    { reader: () => DarwinMemoryReader | undefined; remove: () => Promise<void> } | undefined
+  return {
+    limits,
+    install: async () => {
+      compiled = await darwinSamplerMemory(limits)
+    },
+    reader: () => compiled?.reader(),
+    remove: async () => {
+      await compiled?.remove()
+    },
+  }
+}
+
 /** PIDs whose full command line names this run's helper binary. */
 export function helperPids(binary: string): Promise<number[]> {
   return new Promise((resolve) => {

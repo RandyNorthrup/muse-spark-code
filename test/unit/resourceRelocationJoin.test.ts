@@ -13,34 +13,23 @@ import {
 import { ResourceEvents } from '../../src/core/resources/events'
 import { ResourceGovernor } from '../../src/core/resources/governor'
 import { resourceGovernorHost } from '../../src/core/resources/resourceGovernorEntry'
-import type { DarwinMemoryReader } from '../../src/core/resources/sampler/darwinMemory'
 import { createMachineResourceSampler } from '../../src/core/resources/sampler/system'
 import { RESOURCE_ESCALATE_MS, RESOURCE_MIN_DWELL_MS } from '../../src/shared/constants'
 import { resourceSettingsSchema, type ResourceSettings } from '../../src/shared/resources'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
-import { darwinSamplerMemory, manualClock } from './resourceHarness'
+import { darwinMemoryFixture, manualClock } from './resourceHarness'
 
 setUiText(EN, 'en')
 
-const PROBE_LIMITS = { timeoutMs: 1000, maxOutputBytes: 64 * 1024 }
-const memoryFixture: {
-  reader: (() => DarwinMemoryReader | undefined) | undefined
-  remove: (() => Promise<void>) | undefined
-} = { reader: undefined, remove: undefined }
+const memory = darwinMemoryFixture()
+const PROBE_LIMITS = memory.limits
 
-beforeAll(async () => {
-  const compiled = await darwinSamplerMemory(PROBE_LIMITS)
-  memoryFixture.reader = compiled.reader
-  memoryFixture.remove = compiled.remove
-})
-
-afterAll(async () => {
-  await memoryFixture.remove?.()
-})
+beforeAll(memory.install)
+afterAll(memory.remove)
 
 function liveSampler(settings: () => ResourceSettings) {
-  return createMachineResourceSampler(settings, PROBE_LIMITS, undefined, memoryFixture.reader?.())
+  return createMachineResourceSampler(settings, PROBE_LIMITS, undefined, memory.reader())
 }
 
 const disposers: (() => void)[] = []
