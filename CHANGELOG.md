@@ -9,6 +9,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Highlights
 
+- **An MCP server cannot quietly change its tools.** The first time a
+  server's tools are listed, what each tool says and accepts is pinned. If
+  a later listing changes a tool's text — or adds a tool — the changed
+  tools are held back and not offered, any "always allow in this session"
+  for them ends, and a notice names the server and the tools. In MCP
+  Servers you can read the full new text (hidden characters spelled out)
+  and accept it, or keep refusing the tools; each server's full tool
+  descriptions are there to read at any time. A tool's "read-only" claim
+  now counts only while its pinned text is unchanged: an unpinned claim
+  asks in Auto and is refused in Plan, as the MCP specification requires.
+  An MCP form field that asks for a secret is now typed masked and says so.
+
 - **Retries follow the industry standard, and say so.**
   Only connection errors, timeouts, 408, 409, 429, 5xx and overload signals
   retry — never a refusal, an auth error or a bad request — with exponential
