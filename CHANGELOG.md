@@ -21,6 +21,20 @@ happened, not what was planned; superseded entries are kept.
   asks in Auto and is refused in Plan, as the MCP specification requires.
   An MCP form field that asks for a secret is now typed masked and says so.
 
+- **Claude Agent never bills a Claude plan (D262).** Claude's preset is now
+  named Claude Agent and is paid only by your own Anthropic API key or Console
+  account, as Anthropic's terms require of other apps. When it refuses, it
+  says so in your language and offers the key or the Console sign-in, never
+  your plan's login. A Claude plan token in your environment
+  (`CLAUDE_CODE_OAUTH_TOKEN` and its kin) is never passed to an agent or a
+  command, even where a setting lists it. An adapter older than 0.74.0 is not
+  started, with the update command. With `ANTHROPIC_API_KEY` set, Claude Agent
+  runs with its own empty configuration, out of reach of your plan login.
+  The team counts Claude Agent as paid by your key, so it asks your spend
+  consent before using it, as it does for any key.
+  Your own external agent that starts Claude without `--hide-claude-auth`
+  shows Anthropic's terms before you pick it, and moving to another Anthropic
+  API account on a limit now asks you first, quoting Anthropic's policy.
 - **Retries follow the industry standard, and say so.**
   Only connection errors, timeouts, 408, 409, 429, 5xx and overload signals
   retry — never a refusal, an auth error or a bad request — with exponential

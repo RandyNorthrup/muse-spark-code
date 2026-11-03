@@ -214,6 +214,7 @@ import {
   USER_SHELL_SANDBOX_FAILURE_MARKER,
   TEAM_MCP_SERVER_NAME,
   RETRYABLE_TURNS_KEPT,
+  CLAUDE_AGENT_LABEL,
 } from '../../shared/constants'
 // M96 lane T (LANE-T-SEAM, lane 0): from shared constants at integration.
 
@@ -5518,7 +5519,16 @@ export class ConversationController implements DeferredSend {
       this.notice('info', UI_TEXT.modelApiBackendNotice)
     } else if (host.info.kind === 'external') {
       // Who pays for the orchestrator, said where the person reads it (D75, D250).
-      this.notice('info', fill(UI_TEXT.teamExternalLeaderNotice, { agent: host.info.serverName }))
+      // D262: Claude's preset is paid by a key or a Console account only.
+      this.notice(
+        'info',
+        fill(
+          host.info.serverName === CLAUDE_AGENT_LABEL
+            ? UI_TEXT.teamExternalLeaderNoticeClaude
+            : UI_TEXT.teamExternalLeaderNotice,
+          { agent: host.info.serverName },
+        ),
+      )
     } else {
       this.noteShellSandbox()
       void this.offerBundledSkills()

@@ -54,7 +54,7 @@ describe('M108 account policy consent', () => {
   it('allows an on row without asking, and binds the grant to the exact record', async () => {
     const harness = await setup()
     const gate = new AccountPolicyGate(harness.confirmations)
-    const policy = row('anthropic', 'api')
+    const policy = row('mistral', 'api')
     const decision = await gate.authorize({
       policy: () => policy,
       trigger: USER_CAP,
