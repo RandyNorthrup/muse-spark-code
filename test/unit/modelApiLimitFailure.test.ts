@@ -4,7 +4,7 @@ import {
   ModelCallLimitError,
   SessionBudgetExceededError,
 } from '../../src/core/backends/modelapi/sessionBudget'
-import { ModelApiError } from '../../src/core/backends/modelapi/transport'
+import { ModelApiError } from '../../src/core/backends/modelapi/modelApiError'
 import { MODEL_API_BUDGET_ERROR_KIND, RATE_LIMITED_ERROR_KIND } from '../../src/shared/constants'
 
 // M88 lane C (PLAN.md D67, item 16): a failed Model API turn names its
