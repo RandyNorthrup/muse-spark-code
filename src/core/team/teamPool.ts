@@ -96,7 +96,7 @@ export interface TeamOrchestratorSlot {
 
 /** Why selection moved: D75's `TeamAgentSwitch` reasons. */
 export type TeamSwitchReason =
-  'cap' | 'concurrency' | 'rateLimited' | 'usageLimit' | 'unavailable' | 'reset'
+  'cap' | 'concurrency' | 'rateLimited' | 'usageLimit' | 'unavailable' | 'reset' | 'refused'
 
 /** One recorded switch: the transcript row's data and the hook's payload. */
 export interface TeamSwitch {
@@ -250,6 +250,9 @@ export function switchReasonText(
     }
     case 'unavailable': {
       return UI_TEXT.teamSwitchReasonUnavailable
+    }
+    case 'refused': {
+      return UI_TEXT.teamSwitchReasonRefused
     }
     case 'reset': {
       return UI_TEXT.teamSwitchReasonReset
@@ -534,6 +537,48 @@ function reasonFromRefusal(refusal: TeamEntryExhaustion | undefined): {
       return { kind: 'unavailable' }
     }
   }
+}
+
+/** One entry as a refusal move reads it: its id, model and who pays. */
+export interface RefusalMoveEntry {
+  readonly id: string
+  readonly agent: { readonly model: string; readonly pays: TeamBilling }
+}
+
+/** What a refused task does next (D261). */
+export type RefusalMovePlan<T extends RefusalMoveEntry> =
+  | { readonly kind: 'move'; readonly entry: T; readonly isAskNeeded: boolean }
+  | { readonly kind: 'cannotAsk'; readonly entry: T }
+  | { readonly kind: 'exhausted' }
+
+/**
+D261: who answers a refused task next, in the role's own order (D103's
+list): the first entry this task has not tried whose live headroom holds
+and, for a review, whose model wrote none of the reviewed work. A paid
+entry the task holds no consent for must ask D48's question first; an
+unattended run cannot ask, so the move stops there. No entry left: the
+refusal stands, as it always did.
+*/
+export function planRefusalMove<T extends RefusalMoveEntry>(input: {
+  readonly entries: readonly T[]
+  readonly tried: ReadonlySet<string>
+  readonly authorModels: readonly string[]
+  readonly hasHeadroom: (entry: T) => boolean
+  readonly isSameModel: (left: string, right: string) => boolean
+  readonly isConsented: (entry: T) => boolean
+  readonly isUnattended: boolean
+}): RefusalMovePlan<T> {
+  const next = input.entries.find(
+    (entry) =>
+      !input.tried.has(entry.id) &&
+      input.hasHeadroom(entry) &&
+      input.authorModels.every((model) => !input.isSameModel(entry.agent.model, model)),
+  )
+  if (next === undefined) return { kind: 'exhausted' }
+  const isAskNeeded = next.agent.pays === 'key' && !input.isConsented(next)
+  return isAskNeeded && input.isUnattended
+    ? { kind: 'cannotAsk', entry: next }
+    : { kind: 'move', entry: next, isAskNeeded }
 }
 
 /** What the exhausted policy answers for a role whose every entry refused. */

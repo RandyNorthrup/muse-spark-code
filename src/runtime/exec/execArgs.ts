@@ -59,10 +59,10 @@ export interface ExecOptions {
   */
   readonly provider: string | undefined
   readonly model: string | undefined
-  /** D261: the model a refused turn continues on for this run only; absent is off. */
-  readonly fallbackModel: string | undefined
   /** M96b: explicit opt-in to bounded, in-process headless engine teams. */
   readonly team: boolean
+  /** D261: a refused team task moves to its role's next candidate (`--team` only). */
+  readonly refusalFallback: boolean
   /**
   The requested tier, or `none` for Thinking off (lane REASONSHAPESR2:
   the terminal agent can be told to send none; the record decides what
@@ -107,6 +107,7 @@ const BOOLEAN_OPTIONS = new Set([
   'allow-contributor-models',
   'fast',
   'team',
+  'refusal-fallback',
   'image-generation',
   'auto-compaction',
   'no-auto-compaction',
@@ -128,7 +129,6 @@ const STRING_OPTIONS = new Set([
   'prompt-file',
   'permission-mode',
   'model',
-  'fallback-model',
   'effort',
   'output',
   'output-schema',
@@ -353,7 +353,6 @@ export function parseExec(
     'max-requests',
     'max-tool-output-bytes',
     'max-output-tokens',
-    'fallback-model',
     'ephemeral',
     'key-stdin',
     'subscription',
@@ -408,27 +407,14 @@ export function parseExec(
     // provider. The sentence names both, and the command listing the entry.
     return invalid(unknownProviderModelText(rawModel, provider, listModelsRemedy()))
   }
-  // D261: --fallback-model names the model a refused turn continues on,
-  // qualified by --provider like --model. Blank means off, as when absent.
-  const rawFallback = stringValue('fallback-model')
-  const fallbackModel =
-    rawFallback === undefined || rawFallback.trim() === ''
-      ? undefined
-      : qualifyProviderModel(provider, rawFallback)
-  if (
-    fallbackModel === undefined &&
-    provider !== undefined &&
-    rawFallback !== undefined &&
-    rawFallback.trim() !== ''
-  ) {
-    return invalid(unknownProviderModelText(rawFallback, provider, listModelsRemedy()))
-  }
   // Team admission follows the prompt, provider and hard-budget checks.
   // D227: no availability switch stands before it; the two-model rule at
   // run start refuses a team run without a second runnable model.
   if (values['team'] === true) {
     const admission = teamExecAdmission({ mode, backend })
     if (!admission.ok) return invalid(admission.reason)
+  } else if (values['refusal-fallback'] === true) {
+    return invalid(UI_TEXT.execRefusalFallbackNeedsTeam)
   }
   return {
     ok: true,
@@ -437,13 +423,13 @@ export function parseExec(
       ...(values['account-pool'] === true && { accountPool: true }),
       backend,
       team: values['team'] === true,
+      refusalFallback: values['refusal-fallback'] === true,
       cwd: stringValue('cwd'),
       prompt,
       untrustedFiles,
       mode,
       provider,
       model,
-      fallbackModel,
       effort,
       fast: values['fast'] === true,
       allowsContributorModels: values['allow-contributor-models'] === true,

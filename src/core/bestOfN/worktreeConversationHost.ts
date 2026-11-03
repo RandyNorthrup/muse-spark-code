@@ -23,6 +23,8 @@ export type WorktreeSessionEvent =
       readonly reason?: string
       /** A completed turn that reached the model-call limit carries this. */
       readonly errorKind?: string
+      /** D261: the provider refused the reply that ended the turn. */
+      readonly refused?: boolean
     }
   | { readonly type: 'modelRequestCompleted' }
   | {
@@ -62,6 +64,8 @@ export interface WorktreeAttemptOutcome {
   readonly requestsMade: number
   /** True when the ceiling, not the model, ended the attempt. */
   readonly ceilingReached: boolean
+  /** D261: the provider refused the reply that ended the attempt's turn. */
+  readonly refused?: boolean
   /** Approval cards and questions declined: no surface could ask. */
   readonly approvalsDenied: number
 }
@@ -228,6 +232,7 @@ export class WorktreeConversationHost {
               requestsMade: counts?.requestsMade ?? requestsMade,
               ceilingReached: isCeilingReached || counts?.ceilingReached === true,
               approvalsDenied,
+              ...(event.refused === true && { refused: true }),
             })
             break
           }

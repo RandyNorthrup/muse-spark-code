@@ -1,0 +1,43 @@
+diff --git a/package.json b/package.json
+index 4180cae21..06de99f02 100644
+--- a/package.json
++++ b/package.json
+@@ -1127,12 +1127,6 @@
+           "description": "%config.modelApiMaxToolOutputBytes.description%",
+           "scope": "machine"
+         },
+-        "museSpark.modelApiFallbackModel": {
+-          "type": "string",
+-          "default": "",
+-          "description": "%config.modelApiFallbackModel.description%",
+-          "scope": "machine"
+-        },
+         "museSpark.turnCheckpoints": {
+           "type": "boolean",
+           "default": true,
+@@ -1715,6 +1709,12 @@
+           "scope": "machine",
+           "deprecationMessage": "%config.modelApiTeamWorkers.description%"
+         },
++        "museSpark.teamRefusalFallback": {
++          "type": "boolean",
++          "default": false,
++          "description": "%config.teamRefusalFallback.description%",
++          "scope": "machine"
++        },
+         "museSpark.usageHistory": {
+           "type": "boolean",
+           "default": true,
+diff --git a/scripts/check-bundle-split.mjs b/scripts/check-bundle-split.mjs
+index 2d379c685..a4e7bbd0b 100644
+--- a/scripts/check-bundle-split.mjs
++++ b/scripts/check-bundle-split.mjs
+@@ -320,8 +320,6 @@ const LAZY_ONLY = [
+   // through. The providers, configured-providers and report bundles require
+   // its API from this bundle (deferredCohort) instead of carrying a copy.
+   'providerRefusal.ts',
+-  // D261: the refusal-fallback decision, read only by the turn loop.
+-  'refusalFallback.ts',
+   // M106: side answers load with the backend, reviewer, judge or Git action.
+   'structuredOutput.ts',
+   'modelCapabilities.ts',

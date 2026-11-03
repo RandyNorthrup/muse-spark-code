@@ -397,13 +397,6 @@ export const EN = {
   toolArgumentPreviewPending: 'Waiting for complete arguments…',
   toolArgumentPreviewPreparing: 'Preparing arguments…',
   modelApiContinuing: 'The output limit was reached. Continuing (part {count})…',
-  // D261: a refused turn continues on the fallback model; `{model}` is the
-  // model id it continues on.
-  modelApiFallbackContinuing: 'The reply was refused. Continuing on {model}…',
-  // D261: the fallback switch failed; `{model}` is the model id that was
-  // not used. The turn ends with the refusal's own sentence.
-  modelApiFallbackNotUsed:
-    'Could not continue on the fallback model ({model}). The refused reply stands.',
   modelApiToolRepeating:
     'The model is repeating the same {tool} call with an unchanged result ({count} in a row). The call runs again — Stop ends the turn.',
   structuredOutputRepair:
@@ -1041,8 +1034,6 @@ export const EN = {
     record: 'Refused for headless runs: nobody is there to preview a recording.',
     'permission-mode': 'Choose how Muse asks before it acts.',
     model: 'Choose the model for this run.',
-    // D261: `exec --fallback-model`.
-    'fallback-model': 'Continue a refused turn on this model.',
     engine: 'Which judge answers: auto, same, separate or both.',
     separate: 'The separate source id, without a credential.',
     'budget-usd': 'Run cap in USD, exact to nine decimals.',
@@ -1061,6 +1052,9 @@ export const EN = {
     output: 'Choose the result format: text, json or jsonl.',
     'max-budget-usd': 'Set the spending reservation limit in USD for this run.',
     team: '--team: Run engine teams with Model API, acceptEdits and a hard budget shared by every worker; prompts deny, merges enter the run working tree.',
+    // D261: `exec --refusal-fallback`.
+    'refusal-fallback':
+      '--refusal-fallback: With --team, a task an agent refuses moves to the next agent in its role; a paid one this run would have to ask about stops it instead.',
     'max-requests':
       'Set the maximum number of model requests; without it, there is no request limit.',
     'max-tool-output-bytes': 'Raise the per-tool-result byte guard for this run.',
@@ -2256,8 +2250,6 @@ export const EN = {
   paletteSkillTip: 'Run the {name} skill.',
   groupContext: 'Context',
   groupModel: 'Model',
-  // D261: the ACP session option naming the model a refused turn continues on.
-  fallbackModelName: 'Fallback model',
   groupCustomize: 'Customize',
   groupAccount: 'Account & Usage',
   groupSkills: 'Skills',
@@ -5733,6 +5725,7 @@ export const EN = {
   // {options}: the refused command-line options as typed, joined by commas.
   execModelApiOnly: 'These options require the Model API backend (--backend modelApi): {options}.',
   execTeamNeedsEdits: '--team needs --permission-mode acceptEdits.',
+  execRefusalFallbackNeedsTeam: '--refusal-fallback needs --team.',
   execTeamWorkerUnsupported: 'Headless teams run only engine workers; {kind} cannot run in CI.',
   execTeamConfigInvalid: 'Headless team configuration is invalid: {reason}.',
   execTeamConfigNotJson: 'team.json is not JSON.',
@@ -6369,6 +6362,15 @@ export const EN = {
   teamSwitchReasonUsageLimit: 'subscription usage limit reached',
   teamSwitchReasonUnavailable: 'agent unavailable',
   teamSwitchReasonReset: 'headroom back after reset',
+  // D261: the earlier agent in the role refused the task, so the next one
+  // in the role's order took it over.
+  teamSwitchReasonRefused: 'the earlier agent refused the task',
+  // D261: a refused task did not move. {from}: the model that refused;
+  // {to}: the role's next model; {role}: the role.
+  teamRefusalPaidDeclined:
+    '{from} refused this task. {to} is next in the {role} role, but its paid use was not allowed, so the task ends with the refusal.',
+  teamRefusalUnattended:
+    '{from} refused this task. {to} is next in the {role} role, but it is paid and this run cannot ask, so the task ends with the refusal.',
   teamPoolNotStaffed: 'Role {role} has no entries in its pool: it is not staffed.',
   teamCapExceeded: '{entry} has no {measure}/{window} headroom left ({used} of {amount} used).',
   teamRouteReason: 'Task matches the {role} area ({areas}).',

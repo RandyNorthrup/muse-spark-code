@@ -138,7 +138,6 @@ import {
 import { fill, formatBytes, formatUnit, uiLocale } from '../shared/l10n/text'
 import type { AcpAttachment, AcpMediaFactory, AcpMediaPort } from './media'
 import { MediaRefusal } from './media'
-import { fallbackConfigOption, resolveFallbackConfigValue } from './fallbackOption'
 import { UserRefusalError } from '../shared/refusal'
 import { quotaTurnFailureText, transientTurnFailureText } from '../shared/turnFailure'
 import { parseSkillInvocation, slashCommandText } from '../shared/mentions'
@@ -270,8 +269,6 @@ export interface AcpAgentOptions {
   readonly allowsContributorModels: boolean
   readonly initialMode: PermissionMode
   readonly initialModelId?: string
-  /** D261: a headless run's fallback model (`exec --fallback-model`); sessions without it stay off. */
-  readonly initialFallbackModelId?: string
   readonly questionsDeferAfterSeconds?: number
   readonly scheduleAuthorization?: {
     readonly scheduledPrompts: boolean
@@ -862,8 +859,6 @@ class AcpSession {
   private isEffortChosen = false
   /** The conversation's Fast switch; off by default, reset on model change. */
   private fast = false
-  /** D261: the session's fallback model; undefined is off. */
-  private fallbackModelId: string | undefined
   private modelChangeRevision = 0
   private effortChangeRevision = 0
   /** Let go (closed, loaded again, or never set up): the editor's late answers decide nothing. */
@@ -2506,13 +2501,6 @@ class AcpSession {
     ]
   }
 
-  /** D261: the fallback model, on the Model API backend only. Off by default. */
-  private fallbackOption(): SessionConfigOption[] {
-    return this.deps.backend.kind !== 'modelApi' || this.session.setFallbackModel === undefined
-      ? []
-      : [fallbackConfigOption(this.models, this.fallbackModelId)]
-  }
-
   /**
   The effort the model runs: the wanted tier where it serves it, else
   the model's own default, else the highest tier it serves.
@@ -2897,7 +2885,6 @@ class AcpSession {
       },
       ...this.effortOption(),
       ...this.fastOption(),
-      ...this.fallbackOption(),
       // The same modes `session/set_mode` takes, as the category the
       // protocol prefers (G05): editors on config options stop needing
       // the dedicated method before it is removed.
@@ -2967,18 +2954,6 @@ class AcpSession {
     if (this.effortChangeRevision === revision) {
       this.effort = served
     }
-  }
-
-  /**
-  D261: the run's fallback model, as a headless run sets it on a new
-  session. Sessions without the session method (never the Model API
-  backend's) stay off.
-  */
-  public async applyFallbackModel(modelId: string): Promise<void> {
-    if (this.session.setFallbackModel === undefined) return
-    this.ensureHeld()
-    await this.session.setFallbackModel(modelId)
-    this.fallbackModelId = modelId
   }
 
   /** The model and effort the editor chose for this session, for a later load. */
@@ -3112,24 +3087,6 @@ class AcpSession {
       } catch (error) {
         throw accountRequestError(error)
       }
-      return
-    }
-    if (configId === ACP_CONFIG_IDS.fallbackModel) {
-      // D261: the value is a string past the guard above. Unknown ids and
-      // agent-limited models refuse with the model picker's sentences; off
-      // clears back to the standing setting.
-      if (this.session.setFallbackModel === undefined)
-        throw RequestError.internalError(undefined, UI_TEXT.actionFailed)
-      const resolved = resolveFallbackConfigValue(value, this.models)
-      if (!resolved.ok) {
-        throw RequestError.invalidParams(
-          undefined,
-          resolved.unknown ? fill(UI_TEXT.modelNotInSession, { model: value }) : resolved.limit,
-        )
-      }
-      this.ensureHeld()
-      await this.session.setFallbackModel(resolved.modelId)
-      this.fallbackModelId = resolved.modelId
       return
     }
     if (configId === ACP_CONFIG_IDS.model) {
@@ -4426,12 +4383,7 @@ class AgentState {
         client,
         models,
         claim,
-        async (started) => {
-          await started.applyEffort(startingEffort(models, modelId, this.deps.backend.kind))
-          // D261: a headless run's fallback model rides the session it starts.
-          const fallback = this.deps.options.initialFallbackModelId
-          if (fallback !== undefined) await started.applyFallbackModel(fallback)
-        },
+        (started) => started.applyEffort(startingEffort(models, modelId, this.deps.backend.kind)),
         false,
         undefined,
         makerTools,

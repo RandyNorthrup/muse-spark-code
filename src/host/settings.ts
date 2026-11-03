@@ -118,6 +118,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiBestOfN: boolean
   /** Team tasks billed to a key (M96 lane A, PLAN.md D75): on only with the price accepted too. */
   readonly modelApiTeamWorkers: boolean
+  /** D261: a refused team task moves to its role's next candidate; off by default. */
+  readonly teamRefusalFallback: boolean
   /** Configured hooks are enabled by default (D78), in trusted workspaces only. */
   readonly modelApiHooks: boolean
   /** The Model API shell keeps its directory between calls (M91 lane S): on until turned off. */
@@ -174,8 +176,6 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiObservationPacking: boolean
   /** TOOLCAP: the per-result byte guard. Validated where used; unusable values fall back. */
   readonly modelApiMaxToolOutputBytes: number
-  /** D261: the model a refused turn continues on; blank leaves the refusal standing. */
-  readonly modelApiFallbackModel: string
   readonly modelApiAutoCompaction: boolean
   readonly modelApiStrictTools: boolean
   readonly modelApiParallelReads: boolean
@@ -308,6 +308,7 @@ const settingSchemas = {
   modelApiSubagents: z.boolean(),
   modelApiBestOfN: z.boolean(),
   modelApiTeamWorkers: z.boolean(),
+  teamRefusalFallback: z.boolean(),
   modelApiHooks: z.boolean(),
   modelApiShellKeepsDirectory: z.boolean(),
   modelApiHookModels: z.boolean(),
@@ -352,8 +353,6 @@ const settingSchemas = {
   modelApiRepoMap: z.boolean(),
   modelApiObservationPacking: z.boolean(),
   modelApiMaxToolOutputBytes: z.number().check(z.int(), z.gte(0)),
-  // D261: any string; blank (the default) leaves refusals standing.
-  modelApiFallbackModel: z.string(),
   modelApiAutoCompaction: z.boolean(),
   modelApiStrictTools: z.boolean(),
   modelApiParallelReads: z.boolean(),
@@ -544,6 +543,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiSubagents: readSetting(config, 'modelApiSubagents', log),
     modelApiBestOfN: readSetting(config, 'modelApiBestOfN', log),
     modelApiTeamWorkers: SETTING_DEFAULTS.modelApiTeamWorkers,
+    teamRefusalFallback: readSetting(config, 'teamRefusalFallback', log),
     modelApiHooks: readSetting(config, 'modelApiHooks', log),
     modelApiShellKeepsDirectory: readSetting(config, 'modelApiShellKeepsDirectory', log),
     modelApiHookModels: readSetting(config, 'modelApiHookModels', log),
@@ -554,7 +554,6 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiRepoMap: readSetting(config, 'modelApiRepoMap', log),
     modelApiObservationPacking: readSetting(config, 'modelApiObservationPacking', log),
     modelApiMaxToolOutputBytes: readSetting(config, 'modelApiMaxToolOutputBytes', log),
-    modelApiFallbackModel: readSetting(config, 'modelApiFallbackModel', log),
     modelApiAutoCompaction: readSetting(config, 'modelApiAutoCompaction', log),
     modelApiStrictTools: readSetting(config, 'modelApiStrictTools', log),
     modelApiParallelReads: readSetting(config, 'modelApiParallelReads', log),

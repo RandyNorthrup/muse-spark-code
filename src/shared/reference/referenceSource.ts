@@ -89,7 +89,6 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['effort', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['voice', ['vscode:museCode', 'vscode:modelApi']],
   ['output-schema', ['acp:modelApi']],
-  ['refusal-fallback', ['vscode:modelApi', 'acp:modelApi']],
   ['fast-tier', ['vscode:modelApi', 'acp:modelApi']],
   // CM80CI: the four non-GitHub CI templates run headless Model API turns.
   ['ci-other-systems', ['acp:modelApi']],
@@ -103,6 +102,9 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['legal-explanation', ['vscode:museCode', 'vscode:modelApi']],
   ['team-workers', []],
   ['team-configuration', ['vscode:modelApi', 'vscode:museCode']],
+  // D261: a refused team task moves down its role; teams run in the editor
+  // (and headless exec --team), never in an ACP session.
+  ['refusal-fallback', ['vscode:modelApi', 'vscode:museCode']],
   // M110t TA: admitted nowhere yet; the read-only model tool runs, but no
   // surface claims it until the questionnaire/packs UX lands to link to.
   ['toolchains', []],
