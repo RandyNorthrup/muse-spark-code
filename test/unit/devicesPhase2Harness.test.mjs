@@ -36,6 +36,7 @@ const HARNESS_PREPARE_TIMEOUT_MS = 120_000
 // with every case green, so the removal carries its own named budget.
 const FIXTURE_REMOVAL_TIMEOUT_MS = 60_000
 const READY_TIMEOUT_MS = 2000
+const COLD_PAGES = 2
 beforeAll(async () => {
   rig.folder = mkdtempSync(path.join(tmpdir(), 'muse-devices-harness-'))
   buildProductionPackage(process.cwd(), rig.folder, inject(PRODUCTION_BUILD_KEY))
@@ -48,6 +49,19 @@ beforeAll(async () => {
   rig.server = serving.server
   rig.origin = `http://127.0.0.1:${serving.port}`
   rig.browser = await chromium.launch({ executablePath: findChrome(), headless: true })
+  // A fresh Chrome's first pages of this harness pay the disk and the browser's
+  // first work once: run 41516831678's Windows shard 5 took 5.4 and 5.0 s for the
+  // first two scenes, and 1.1 s for each one after, so the first spent all of its
+  // readiness wait. Those two pages open here; every case keeps READY_TIMEOUT_MS.
+  for (const scenario of SCENES.slice(0, COLD_PAGES)) {
+    const page = await rig.browser.newPage({ viewport: { width: 320, height: 760 } })
+    try {
+      await page.goto(`${rig.origin}/test/harness/index.html?scenario=${scenario}&theme=dark`)
+      await page.locator('[data-devices-ready]').waitFor()
+    } finally {
+      await page.close()
+    }
+  }
   const qr = await build({
     stdin: {
       contents: `import React from 'react'; import { createRoot } from 'react-dom/client';
