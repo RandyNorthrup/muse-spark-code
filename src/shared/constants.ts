@@ -2002,6 +2002,8 @@ export const CREDENTIAL_ENV_ALLOWED_NAMES: ReadonlySet<string> = new Set([
   'TOKENIZERS_PARALLELISM',
   'KEY_PATH',
 ])
+// D262: Claude's preset's name, as Anthropic's Agent SDK branding asks.
+export const CLAUDE_AGENT_LABEL = 'Claude Agent'
 // D262: the Claude plan's routes, from Anthropic's env-var page (2026-11-02)
 // and claude-agent-acp's auth-status.ts: a `claude setup-token` token, its
 // descriptor form, and the refresh token `claude auth login` exchanges with

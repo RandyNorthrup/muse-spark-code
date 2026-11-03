@@ -60,9 +60,6 @@ import { BROWSER_RUNTIME_MODES, type BrowserRuntimeMode } from '../shared/browse
 import type { PermissionSettings } from '../core/permissionSettings'
 import { type SettingsSnapshot, settingsSnapshotShape } from '../shared/protocol'
 import type { Logger } from './logger'
-import { isClaudePlanVariable } from '../shared/credentialEnvironment'
-import { fill } from '../shared/l10n/text'
-import { UI_TEXT } from '../shared/constants'
 
 export interface ExtensionSettings extends SettingsSnapshot {
   readonly usageHistory: boolean
@@ -489,17 +486,6 @@ export function readSetting<K extends SettingKey>(
   return fallback
 }
 
-/** D262: a Claude plan route is never passed to a command, and the person reads why. */
-function withoutClaudePlanRoutes(names: readonly string[], log: Logger): readonly string[] {
-  const kept: string[] = []
-  for (const name of names) {
-    if (isClaudePlanVariable(name))
-      warnOnce(log, `planRoute=${name}`, fill(UI_TEXT.claudePlanVariableRefused, { name }))
-    else kept.push(name)
-  }
-  return kept
-}
-
 /** A setting's name under the section; the runtime's settings store keys by it (M104 lane B). */
 export type SettingName = SettingKey
 
@@ -530,10 +516,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     archiveInactiveSessions: readSetting(config, 'archiveInactiveSessions', log),
     museBinaryPath: readSetting(config, 'museBinaryPath', log),
     environmentVariables: readSetting(config, 'environmentVariables', log),
-    'shell.passEnvironmentVariables': withoutClaudePlanRoutes(
-      readSetting(config, 'shell.passEnvironmentVariables', log),
-      log,
-    ),
+    'shell.passEnvironmentVariables': readSetting(config, 'shell.passEnvironmentVariables', log),
     syncPromptsAndBookmarks: readSetting(config, 'syncPromptsAndBookmarks', log),
     'questions.deferAfterSeconds': readSetting(config, 'questions.deferAfterSeconds', log),
     'reports.network': readSetting(config, 'reports.network', log),
