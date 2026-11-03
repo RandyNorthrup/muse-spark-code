@@ -245,6 +245,22 @@ Interactions:
   real-parts rig (RLF-TEAMWORKERS, `test/unit/helpers/teamRealRig.ts`) still picked them (TS2344). `fix(int)`: the
   rig no longer passes them.
 
+### Merge 9 — `lanes/rlf-judgep2` (1668253ef)
+
+judgeP2Delivery made to fit a shard (103/103 in about 10 minutes, from 5,340 s and excluded).
+
+Conflicts:
+
+- `test/unit/judgeP2Delivery.test.ts`: int's (cc-winfix6) kept whole, as at merge 7: it keeps every case, 104 with
+  cc-winfix6's added one, on 5 gate runs (this lane's runs a gate per mutation family, about 10 minutes). On this
+  tree it ran in 190 s (exit 1, see below).
+- `ROADMAP.md`: regenerated (`gen-roadmap`, exit 0); the lane's entry and CHANGELOG/PLAN lines merged clean.
+
+Back in the shards: the repository has no exclusion list (CI's forty unit shards collect every file); the suite was
+left out of CC-INT10's own merge-round run because it hung there (cc-int10.md §4). From this round on it is run with
+the shards like any suite. Its run on this tree: 102 passed, 2 failed, both from the tree's build state
+("bundle size budget exceeded or a bundle is missing"), read with the batch's build below.
+
 ### Red/green drills (batch A)
 
 - Merge 1, terminal cwd through a link: `confineTerminalCwd` made lexical-only for in-root names →
