@@ -59,8 +59,6 @@ export function realServiceDeps(input: {
   | 'createScheduler'
   | 'workspaceId'
   | 'windowInstanceId'
-  | 'ownerBirth'
-  | 'probeOwner'
   | 'newId'
   | 'now'
   | 'log'
@@ -84,8 +82,6 @@ export function realServiceDeps(input: {
     createScheduler: (scheduling) => createWindowTeamScheduler(scheduling),
     workspaceId: 'ws',
     windowInstanceId: 'window-a',
-    ownerBirth: { windowStartedAt: Date.now(), pid: process.pid, processStart: 'rig-start' },
-    probeOwner: () => Promise.resolve(false),
     newId: () => {
       counter += 1
       return `task-${String(counter)}`
