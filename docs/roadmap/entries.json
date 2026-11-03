@@ -1522,6 +1522,12 @@
       "title": "Output-token ceilings follow the provider and the person",
       "summary": "Headless --max-output-tokens, session budgets and judge reservations use the model's own documented output maximum, and the 32,768 legacy cap stays a default only.",
       "area": "chat"
+    },
+    {
+      "id": "RLFEDITFUZZ",
+      "title": "Fuzzy edit parity plus overflow and strict-tool error sync",
+      "summary": "Edits land when quotes, dashes or spacing differ slightly; over-long requests read as full context windows, including LiteLLM and 413 answers; a strict-tool-limit refusal is sent once more with plain schemas.",
+      "area": "chat"
     }
   ]
 }

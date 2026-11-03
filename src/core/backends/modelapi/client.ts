@@ -52,6 +52,7 @@ import {
 } from './modelPolicy'
 import {
   type PaidFeature,
+  HTTP_STATUS,
   MODEL_API_BASE_URL,
   MODEL_API_MIN_OUTPUT_TOKENS,
   MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
@@ -66,7 +67,9 @@ import {
   type EditImageBody,
   type CreateResponseBody,
   hasDeclaredTools,
+  isStrictToolLimitErrorMessage,
   omitToolShape,
+  withoutStrictTools,
   eventTypeSchema,
   type ImagesResponse,
   imagesResponseSchema,
@@ -737,36 +740,59 @@ export class ModelApiClient implements TransportProviderClient {
       // The Meta-direct wire exit: a tool-less request omits tools and tool
       // choice alike (see `hasDeclaredTools`), the same omitted shape the
       // Responses codec sends configured providers. Estimates above keep
-      // reading the canonical body; only these sent bytes change.
-      const wireBody = hasDeclaredTools(body.tools) ? body : omitToolShape(body)
-      const { response, redact, redactContent, eventParsed } = await this.transport.streamRequest(
-        '/responses',
-        {
-          billingRoute: await resolveAttemptBillingRoute({
-            feature: feature ?? 'ordinary',
-            paidFeature: admitAttempt?.paidFeature,
-            isMetaDirect: true,
-            snapshot: admitAttempt?.billingRoute,
-            resolve: this.deps.getBillingRoute,
-            readCredential: (isPaid) =>
-              isPaid && this.deps.paidApiKey !== undefined
-                ? this.deps.paidApiKey()
-                : this.deps.apiKey(),
-          }),
-          body: wireBody,
-          accept: EVENT_STREAM_MEDIA_TYPE,
-          modelId: body.model,
-          pacingClass: admitAttempt?.pacingClass ?? fanOutPacingClass(feature),
-          estimatedTokens: estimatedStreamTokens(body, admitAttempt),
-          ...(paid !== undefined && { paid }),
-        },
-        signal,
-        onRetry,
-        budget,
-        admitAttempt,
-        confirmed,
-        this.deps.streamIdleMs,
-      )
+      // reading the canonical body; only these sent bytes change. The
+      // attempt rides one frozen billing route, the fallback resend too.
+      const billingRoute = await resolveAttemptBillingRoute({
+        feature: feature ?? 'ordinary',
+        paidFeature: admitAttempt?.paidFeature,
+        isMetaDirect: true,
+        snapshot: admitAttempt?.billingRoute,
+        resolve: this.deps.getBillingRoute,
+        readCredential: (isPaid) =>
+          isPaid && this.deps.paidApiKey !== undefined
+            ? this.deps.paidApiKey()
+            : this.deps.apiKey(),
+      })
+      const send = (sent: CreateResponseBody) =>
+        this.transport.streamRequest(
+          '/responses',
+          {
+            billingRoute,
+            body: hasDeclaredTools(sent.tools) ? sent : omitToolShape(sent),
+            accept: EVENT_STREAM_MEDIA_TYPE,
+            modelId: body.model,
+            pacingClass: admitAttempt?.pacingClass ?? fanOutPacingClass(feature),
+            estimatedTokens: estimatedStreamTokens(body, admitAttempt),
+            ...(paid !== undefined && { paid }),
+          },
+          signal,
+          onRetry,
+          budget,
+          admitAttempt,
+          confirmed,
+          this.deps.streamIdleMs,
+        )
+      let stream: Awaited<ReturnType<typeof send>>
+      try {
+        stream = await send(body)
+      } catch (error: unknown) {
+        // NARROW: a provider strict-limit refusal is sent once more with
+        // the preferred-strict tools non-strict (Pi #11416); one fallback
+        // retry, then the refusal stands. Everything else rethrows.
+        if (
+          signal.aborted ||
+          !(error instanceof ModelApiError) ||
+          error.status !== HTTP_STATUS.badRequest ||
+          !isStrictToolLimitErrorMessage(error.message) ||
+          body.tools.every((tool) => tool.type !== 'function' || !tool.strict)
+        )
+          throw error
+        this.deps.log.warn(
+          'The provider refused strict tool schemas; sending the request again with non-strict tools',
+        )
+        stream = await send({ ...body, tools: withoutStrictTools(body.tools) })
+      }
+      const { response, redact, redactContent, eventParsed } = stream
       if (response.body === null) {
         throw new ModelApiError('The response had no body', response.status, undefined, undefined)
       }
