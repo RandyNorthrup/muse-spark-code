@@ -8448,6 +8448,26 @@
                     {
                       "type": "object",
                       "properties": {
+                        "type": { "type": "string", "const": "continueTurn" },
+                        "localId": { "type": "string" },
+                        "turnId": { "type": "string" }
+                      },
+                      "required": ["type", "localId", "turnId"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "resumeLater" },
+                        "turnId": { "type": "string" },
+                        "defaultAtMs": { "type": "number" }
+                      },
+                      "required": ["type", "turnId", "defaultAtMs"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
                         "type": { "type": "string", "const": "runManualHook" },
                         "name": { "type": "string", "minLength": 1 }
                       },
@@ -8566,6 +8586,15 @@
                       "type": "object",
                       "properties": { "type": { "type": "string", "const": "compact" } },
                       "required": ["type"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "unpinConstraint" },
+                        "text": { "type": "string" }
+                      },
+                      "required": ["type", "text"],
                       "additionalProperties": false
                     },
                     {
@@ -11227,7 +11256,8 @@
                       "type": "object",
                       "properties": {
                         "type": { "type": "string", "const": "openSchedules" },
-                        "view": { "type": "string", "enum": ["list", "timeline", "editor"] }
+                        "view": { "type": "string", "enum": ["list", "timeline", "editor"] },
+                        "seed": { "type": "string", "const": "composer" }
                       },
                       "required": ["type", "view"],
                       "additionalProperties": false
@@ -11396,7 +11426,8 @@
                             "showPlans",
                             "openPlaybook"
                           ]
-                        }
+                        },
+                        "query": { "type": "string" }
                       },
                       "required": ["type", "action"],
                       "additionalProperties": false
@@ -12481,6 +12512,15 @@
                       "type": "object",
                       "properties": { "type": { "type": "string", "const": "readUsage" } },
                       "required": ["type"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "usageForResume" },
+                        "turnId": { "type": "string" }
+                      },
+                      "required": ["type", "turnId"],
                       "additionalProperties": false
                     },
                     {
@@ -13999,6 +14039,10 @@
                                 "additionalProperties": false
                               },
                               "fallbackText": { "type": "string" },
+                              "pinnedConstraints": {
+                                "type": "array",
+                                "items": { "type": "string" }
+                              },
                               "attachments": {
                                 "type": "array",
                                 "items": {
@@ -14598,6 +14642,43 @@
                         "imported": { "type": "boolean", "const": true }
                       },
                       "required": ["type", "sessionId", "items", "todos"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "resumeUsage" },
+                        "turnId": { "type": "string" },
+                        "usage": {
+                          "type": "object",
+                          "properties": {
+                            "observedAtMs": { "type": "number" },
+                            "tier": { "type": "string" },
+                            "window": {
+                              "type": "object",
+                              "properties": {
+                                "usedPercent": { "type": "number" },
+                                "resetsAtMs": { "type": "number" },
+                                "windowDurationMins": { "type": "number" }
+                              },
+                              "required": ["usedPercent", "resetsAtMs", "windowDurationMins"],
+                              "additionalProperties": false
+                            },
+                            "weekly": {
+                              "type": "object",
+                              "properties": {
+                                "usedPercent": { "type": "number" },
+                                "resetsAtMs": { "type": "number" }
+                              },
+                              "required": ["usedPercent", "resetsAtMs"],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": ["observedAtMs", "tier", "window", "weekly"],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": ["type", "turnId"],
                       "additionalProperties": false
                     },
                     {
@@ -15355,6 +15436,10 @@
                                 "additionalProperties": false
                               },
                               "fallbackText": { "type": "string" },
+                              "pinnedConstraints": {
+                                "type": "array",
+                                "items": { "type": "string" }
+                              },
                               "attachments": {
                                 "type": "array",
                                 "items": {
@@ -16045,6 +16130,10 @@
                                 "additionalProperties": false
                               },
                               "fallbackText": { "type": "string" },
+                              "pinnedConstraints": {
+                                "type": "array",
+                                "items": { "type": "string" }
+                              },
                               "attachments": {
                                 "type": "array",
                                 "items": {
@@ -17600,7 +17689,8 @@
                             "required": ["id", "name", "mediaType", "sizeBytes"],
                             "additionalProperties": false
                           }
-                        }
+                        },
+                        "scheduled": { "type": "boolean" }
                       },
                       "required": ["type", "localId", "text", "attachments"],
                       "additionalProperties": false
@@ -17776,6 +17866,10 @@
                                       "additionalProperties": false
                                     },
                                     "fallbackText": { "type": "string" },
+                                    "pinnedConstraints": {
+                                      "type": "array",
+                                      "items": { "type": "string" }
+                                    },
                                     "attachments": {
                                       "type": "array",
                                       "items": {
@@ -18414,6 +18508,10 @@
                                       "additionalProperties": false
                                     },
                                     "fallbackText": { "type": "string" },
+                                    "pinnedConstraints": {
+                                      "type": "array",
+                                      "items": { "type": "string" }
+                                    },
                                     "attachments": {
                                       "type": "array",
                                       "items": {
@@ -18790,6 +18888,10 @@
                                       "additionalProperties": false
                                     },
                                     "fallbackText": { "type": "string" },
+                                    "pinnedConstraints": {
+                                      "type": "array",
+                                      "items": { "type": "string" }
+                                    },
                                     "attachments": {
                                       "type": "array",
                                       "items": {
@@ -19428,6 +19530,10 @@
                                       "additionalProperties": false
                                     },
                                     "fallbackText": { "type": "string" },
+                                    "pinnedConstraints": {
+                                      "type": "array",
+                                      "items": { "type": "string" }
+                                    },
                                     "attachments": {
                                       "type": "array",
                                       "items": {
@@ -20033,7 +20139,8 @@
                                   },
                                   "required": ["limitKind", "resetsAtMs"],
                                   "additionalProperties": false
-                                }
+                                },
+                                "retryAfterMs": { "type": "number" }
                               },
                               "required": ["type", "turnId", "terminal"],
                               "additionalProperties": false
@@ -20769,6 +20876,7 @@
                                     "type": "object",
                                     "properties": {
                                       "name": { "type": "string" },
+                                      "isSecret": { "type": "boolean" },
                                       "title": { "type": "string" },
                                       "description": { "type": "string" },
                                       "type": {
@@ -24160,7 +24268,8 @@
                           "additionalProperties": false
                         },
                         "nowMs": { "type": "number" },
-                        "initialView": { "type": "string", "enum": ["list", "timeline", "editor"] }
+                        "initialView": { "type": "string", "enum": ["list", "timeline", "editor"] },
+                        "seedFromComposer": { "type": "boolean" }
                       },
                       "required": [
                         "type",
@@ -25702,6 +25811,26 @@
                                           {
                                             "type": "object",
                                             "properties": {
+                                              "type": { "type": "string", "const": "continueTurn" },
+                                              "localId": { "type": "string" },
+                                              "turnId": { "type": "string" }
+                                            },
+                                            "required": ["type", "localId", "turnId"],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "type": { "type": "string", "const": "resumeLater" },
+                                              "turnId": { "type": "string" },
+                                              "defaultAtMs": { "type": "number" }
+                                            },
+                                            "required": ["type", "turnId", "defaultAtMs"],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
                                               "type": {
                                                 "type": "string",
                                                 "const": "runManualHook"
@@ -25861,6 +25990,18 @@
                                               "type": { "type": "string", "const": "compact" }
                                             },
                                             "required": ["type"],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "type": {
+                                                "type": "string",
+                                                "const": "unpinConstraint"
+                                              },
+                                              "text": { "type": "string" }
+                                            },
+                                            "required": ["type", "text"],
                                             "additionalProperties": false
                                           },
                                           {
@@ -28987,7 +29128,8 @@
                                               "view": {
                                                 "type": "string",
                                                 "enum": ["list", "timeline", "editor"]
-                                              }
+                                              },
+                                              "seed": { "type": "string", "const": "composer" }
                                             },
                                             "required": ["type", "view"],
                                             "additionalProperties": false
@@ -29212,7 +29354,8 @@
                                                   "showPlans",
                                                   "openPlaybook"
                                                 ]
-                                              }
+                                              },
+                                              "query": { "type": "string" }
                                             },
                                             "required": ["type", "action"],
                                             "additionalProperties": false
@@ -30675,6 +30818,18 @@
                                             "properties": {
                                               "type": {
                                                 "type": "string",
+                                                "const": "usageForResume"
+                                              },
+                                              "turnId": { "type": "string" }
+                                            },
+                                            "required": ["type", "turnId"],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "type": {
+                                                "type": "string",
                                                 "const": "deleteUploadedFile"
                                               },
                                               "fileId": { "type": "string" }
@@ -31562,6 +31717,26 @@
               {
                 "type": "object",
                 "properties": {
+                  "type": { "type": "string", "const": "continueTurn" },
+                  "localId": { "type": "string" },
+                  "turnId": { "type": "string" }
+                },
+                "required": ["type", "localId", "turnId"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "resumeLater" },
+                  "turnId": { "type": "string" },
+                  "defaultAtMs": { "type": "number" }
+                },
+                "required": ["type", "turnId", "defaultAtMs"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
                   "type": { "type": "string", "const": "runManualHook" },
                   "name": { "type": "string", "minLength": 1 }
                 },
@@ -31680,6 +31855,15 @@
                 "type": "object",
                 "properties": { "type": { "type": "string", "const": "compact" } },
                 "required": ["type"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "unpinConstraint" },
+                  "text": { "type": "string" }
+                },
+                "required": ["type", "text"],
                 "additionalProperties": false
               },
               {
@@ -34200,7 +34384,8 @@
                 "type": "object",
                 "properties": {
                   "type": { "type": "string", "const": "openSchedules" },
-                  "view": { "type": "string", "enum": ["list", "timeline", "editor"] }
+                  "view": { "type": "string", "enum": ["list", "timeline", "editor"] },
+                  "seed": { "type": "string", "const": "composer" }
                 },
                 "required": ["type", "view"],
                 "additionalProperties": false
@@ -34369,7 +34554,8 @@
                       "showPlans",
                       "openPlaybook"
                     ]
-                  }
+                  },
+                  "query": { "type": "string" }
                 },
                 "required": ["type", "action"],
                 "additionalProperties": false
@@ -35388,6 +35574,15 @@
                 "type": "object",
                 "properties": { "type": { "type": "string", "const": "readUsage" } },
                 "required": ["type"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "usageForResume" },
+                  "turnId": { "type": "string" }
+                },
+                "required": ["type", "turnId"],
                 "additionalProperties": false
               },
               {
@@ -36825,6 +37020,7 @@
                           "additionalProperties": false
                         },
                         "fallbackText": { "type": "string" },
+                        "pinnedConstraints": { "type": "array", "items": { "type": "string" } },
                         "attachments": {
                           "type": "array",
                           "items": {
@@ -37408,6 +37604,43 @@
                   "imported": { "type": "boolean", "const": true }
                 },
                 "required": ["type", "sessionId", "items", "todos"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "resumeUsage" },
+                  "turnId": { "type": "string" },
+                  "usage": {
+                    "type": "object",
+                    "properties": {
+                      "observedAtMs": { "type": "number" },
+                      "tier": { "type": "string" },
+                      "window": {
+                        "type": "object",
+                        "properties": {
+                          "usedPercent": { "type": "number" },
+                          "resetsAtMs": { "type": "number" },
+                          "windowDurationMins": { "type": "number" }
+                        },
+                        "required": ["usedPercent", "resetsAtMs", "windowDurationMins"],
+                        "additionalProperties": false
+                      },
+                      "weekly": {
+                        "type": "object",
+                        "properties": {
+                          "usedPercent": { "type": "number" },
+                          "resetsAtMs": { "type": "number" }
+                        },
+                        "required": ["usedPercent", "resetsAtMs"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": ["observedAtMs", "tier", "window", "weekly"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["type", "turnId"],
                 "additionalProperties": false
               },
               {
@@ -38147,6 +38380,7 @@
                           "additionalProperties": false
                         },
                         "fallbackText": { "type": "string" },
+                        "pinnedConstraints": { "type": "array", "items": { "type": "string" } },
                         "attachments": {
                           "type": "array",
                           "items": {
@@ -38821,6 +39055,7 @@
                           "additionalProperties": false
                         },
                         "fallbackText": { "type": "string" },
+                        "pinnedConstraints": { "type": "array", "items": { "type": "string" } },
                         "attachments": {
                           "type": "array",
                           "items": {
@@ -40334,7 +40569,8 @@
                       "required": ["id", "name", "mediaType", "sizeBytes"],
                       "additionalProperties": false
                     }
-                  }
+                  },
+                  "scheduled": { "type": "boolean" }
                 },
                 "required": ["type", "localId", "text", "attachments"],
                 "additionalProperties": false
@@ -40507,6 +40743,10 @@
                                 "additionalProperties": false
                               },
                               "fallbackText": { "type": "string" },
+                              "pinnedConstraints": {
+                                "type": "array",
+                                "items": { "type": "string" }
+                              },
                               "attachments": {
                                 "type": "array",
                                 "items": {
@@ -41121,6 +41361,10 @@
                                 "additionalProperties": false
                               },
                               "fallbackText": { "type": "string" },
+                              "pinnedConstraints": {
+                                "type": "array",
+                                "items": { "type": "string" }
+                              },
                               "attachments": {
                                 "type": "array",
                                 "items": {
@@ -41482,6 +41726,10 @@
                                 "additionalProperties": false
                               },
                               "fallbackText": { "type": "string" },
+                              "pinnedConstraints": {
+                                "type": "array",
+                                "items": { "type": "string" }
+                              },
                               "attachments": {
                                 "type": "array",
                                 "items": {
@@ -42096,6 +42344,10 @@
                                 "additionalProperties": false
                               },
                               "fallbackText": { "type": "string" },
+                              "pinnedConstraints": {
+                                "type": "array",
+                                "items": { "type": "string" }
+                              },
                               "attachments": {
                                 "type": "array",
                                 "items": {
@@ -42680,7 +42932,8 @@
                             },
                             "required": ["limitKind", "resetsAtMs"],
                             "additionalProperties": false
-                          }
+                          },
+                          "retryAfterMs": { "type": "number" }
                         },
                         "required": ["type", "turnId", "terminal"],
                         "additionalProperties": false
@@ -43357,6 +43610,7 @@
                               "type": "object",
                               "properties": {
                                 "name": { "type": "string" },
+                                "isSecret": { "type": "boolean" },
                                 "title": { "type": "string" },
                                 "description": { "type": "string" },
                                 "type": {
@@ -46567,7 +46821,8 @@
                     "additionalProperties": false
                   },
                   "nowMs": { "type": "number" },
-                  "initialView": { "type": "string", "enum": ["list", "timeline", "editor"] }
+                  "initialView": { "type": "string", "enum": ["list", "timeline", "editor"] },
+                  "seedFromComposer": { "type": "boolean" }
                 },
                 "required": [
                   "type",
@@ -48005,6 +48260,26 @@
                                     {
                                       "type": "object",
                                       "properties": {
+                                        "type": { "type": "string", "const": "continueTurn" },
+                                        "localId": { "type": "string" },
+                                        "turnId": { "type": "string" }
+                                      },
+                                      "required": ["type", "localId", "turnId"],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": { "type": "string", "const": "resumeLater" },
+                                        "turnId": { "type": "string" },
+                                        "defaultAtMs": { "type": "number" }
+                                      },
+                                      "required": ["type", "turnId", "defaultAtMs"],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
                                         "type": { "type": "string", "const": "runManualHook" },
                                         "name": { "type": "string", "minLength": 1 }
                                       },
@@ -48152,6 +48427,15 @@
                                         "type": { "type": "string", "const": "compact" }
                                       },
                                       "required": ["type"],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": { "type": "string", "const": "unpinConstraint" },
+                                        "text": { "type": "string" }
+                                      },
+                                      "required": ["type", "text"],
                                       "additionalProperties": false
                                     },
                                     {
@@ -51131,7 +51415,8 @@
                                         "view": {
                                           "type": "string",
                                           "enum": ["list", "timeline", "editor"]
-                                        }
+                                        },
+                                        "seed": { "type": "string", "const": "composer" }
                                       },
                                       "required": ["type", "view"],
                                       "additionalProperties": false
@@ -51338,7 +51623,8 @@
                                             "showPlans",
                                             "openPlaybook"
                                           ]
-                                        }
+                                        },
+                                        "query": { "type": "string" }
                                       },
                                       "required": ["type", "action"],
                                       "additionalProperties": false
@@ -52608,6 +52894,15 @@
                                         "type": { "type": "string", "const": "readUsage" }
                                       },
                                       "required": ["type"],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": { "type": "string", "const": "usageForResume" },
+                                        "turnId": { "type": "string" }
+                                      },
+                                      "required": ["type", "turnId"],
                                       "additionalProperties": false
                                     },
                                     {
