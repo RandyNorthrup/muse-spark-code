@@ -31,6 +31,7 @@ export const EXTERNAL_PRESET_LAUNCH: Readonly<
       readonly defaultArgs: readonly string[]
       readonly label: string
       readonly signInCommand: string
+      readonly pays: TeamAgentPays
     }
   >
 > = {
@@ -39,25 +40,35 @@ export const EXTERNAL_PRESET_LAUNCH: Readonly<
     defaultArgs: ['--hide-claude-auth'],
     label: CLAUDE_AGENT_LABEL,
     signInCommand: 'claude auth login --console',
+    pays: 'key',
   },
-  codex: { command: 'codex-acp', defaultArgs: [], label: 'Codex', signInCommand: 'codex' },
+  codex: {
+    command: 'codex-acp',
+    defaultArgs: [],
+    label: 'Codex',
+    signInCommand: 'codex',
+    pays: 'subscription',
+  },
   gemini: {
     command: 'gemini',
     defaultArgs: ['--acp'],
     label: 'Gemini CLI',
     signInCommand: 'gemini',
+    pays: 'subscription',
   },
   copilot: {
     command: 'copilot',
     defaultArgs: ['--acp'],
     label: 'Copilot',
     signInCommand: 'copilot',
+    pays: 'subscription',
   },
   own: {
     command: 'muse-spark-code-acp',
     defaultArgs: [],
     label: 'Muse Spark Code',
     signInCommand: 'muse-spark-code-acp',
+    pays: 'subscription',
   },
 }
 
@@ -87,8 +98,8 @@ export interface ExternalAgent {
 The five presets as offerable agents, in D250's order. None spends our key
 (D75: "paid however that CLI is paid"): Claude's preset is paid only by the
 person's own Anthropic API key or Console account, never a Claude plan
-(D262); the others by their own plan or key. `pays` keeps `subscription`
-for all five: it says the team does not meter them, not who pays.
+(D262), so it carries `key` and the team's spend consent applies to it, as
+an API key spends real money; the others by their own plan, `subscription`.
 */
 export function externalAgentPresets(): readonly ExternalAgent[] {
   return (Object.keys(EXTERNAL_PRESET_LAUNCH) as ExternalPresetId[]).map((id) => {
@@ -100,7 +111,7 @@ export function externalAgentPresets(): readonly ExternalAgent[] {
       args: launch.defaultArgs,
       signInCommand: launch.signInCommand,
       model: id,
-      pays: 'subscription',
+      pays: launch.pays,
       preset: id,
     }
   })
@@ -141,6 +152,17 @@ export function allExternalAgents(rawCustom: unknown): readonly ExternalAgent[] 
 /** The stored ref an offer of this agent carries. */
 export function externalAgentRef(agent: ExternalAgent): TeamAgentRef {
   return { kind: 'external', agentId: agent.agentId, model: agent.model, pays: agent.pays }
+}
+
+/**
+A stored ref to a preset pays as the preset does now: a Claude ref saved
+while its preset said `subscription` reads as `key`, so no team saved
+before D262 runs Claude past the spend consent.
+*/
+export function withPresetPays(ref: TeamAgentRef): TeamAgentRef {
+  if (ref.kind !== 'external' || !Object.hasOwn(EXTERNAL_PRESET_LAUNCH, ref.agentId)) return ref
+  const { pays } = EXTERNAL_PRESET_LAUNCH[ref.agentId as ExternalPresetId]
+  return ref.pays === pays ? ref : { ...ref, pays }
 }
 
 /** The offer ref for an external agent: `external:<agentId>`. */

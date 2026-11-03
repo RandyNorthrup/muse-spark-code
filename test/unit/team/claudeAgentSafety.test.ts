@@ -18,12 +18,19 @@ import {
   isClaudeKeyRefusal,
   isClaudeOnPlan,
 } from '../../../src/core/team/claudeAgentSafety'
-import { customExternalAgents, externalAgentPresets } from '../../../src/core/team/externalAgents'
+import {
+  customExternalAgents,
+  externalAgentPresets,
+  withPresetPays,
+} from '../../../src/core/team/externalAgents'
+import { readStoredTeam } from '../../../src/core/team/teamHost'
 import { AcpAuthRequiredError } from '../../../src/core/team/workers/acpWorker'
 import { workerEnvironment } from '../../../src/core/team/workers/workerEnv'
 import { vaultFenceEnvironment } from '../../../src/core/vault/exec/fence'
 import { ACP_PRESET_INSTALLS, asAcpSdkError } from '../../../src/host/team/acpProcess'
 import { CLAUDE_PLAN_ENV_NAMES, UI_TEXT } from '../../../src/shared/constants'
+import type { TeamAgentRef } from '../../../src/shared/team'
+import { TEAM_WORKSPACE_KEYS } from '../../../src/shared/teamConversation'
 import { isCredentialVariable } from '../../../src/shared/credentialEnvironment'
 
 const PLAN_ENV = Object.fromEntries([...CLAUDE_PLAN_ENV_NAMES].map((name) => [name, 'plan-value']))
@@ -173,5 +180,47 @@ describe('Anthropic accounts (D262)', () => {
     expect(api?.sources[0]?.url).toBe('https://www.anthropic.com/legal/aup')
     expect(api?.checkedAt).toBe('2026-11-02')
     expect(accountPolicyFor('anthropic', 'claude-plan')?.pooling).toBe('notOffered')
+  })
+})
+
+describe("Claude's preset meets the team's spend consent (D262)", () => {
+  it('pays by key, and a Claude ref saved as a subscription reads as a key', () => {
+    const pays = Object.fromEntries(externalAgentPresets().map((row) => [row.agentId, row.pays]))
+    expect(pays).toEqual({
+      claude: 'key',
+      codex: 'subscription',
+      gemini: 'subscription',
+      copilot: 'subscription',
+      own: 'subscription',
+    })
+    const saved: TeamAgentRef = {
+      kind: 'external',
+      agentId: 'claude',
+      model: 'claude',
+      pays: 'subscription',
+    }
+    const codex: TeamAgentRef = { ...saved, agentId: 'codex', model: 'codex' }
+    const engine: TeamAgentRef = { ...saved, kind: 'engine' }
+    expect(withPresetPays(saved)).toEqual({ ...saved, pays: 'key' })
+    expect(withPresetPays(codex)).toBe(codex)
+    expect(withPresetPays(engine)).toBe(engine)
+    expect(withPresetPays({ ...saved, agentId: 'mine' }).pays).toBe('subscription')
+    const stored = {
+      intensity: 'balanced',
+      roles: [
+        {
+          role: 'coder',
+          pool: [
+            { id: 'a', agent: saved, concurrent: 1, caps: [] },
+            { id: 'b', concurrent: 1, caps: [] },
+          ],
+        },
+      ],
+    }
+    const team = readStoredTeam({
+      get: (key) => (key === TEAM_WORKSPACE_KEYS.team ? stored : undefined),
+      update: async () => {},
+    })
+    expect(team?.roles[0]?.pool.map((entry) => entry.agent?.pays)).toEqual(['key', undefined])
   })
 })

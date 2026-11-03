@@ -62,6 +62,7 @@ import {
   type TeamEntryExhaustion,
 } from './teamPool'
 import { builtinRoles, type BuiltinRole } from './builtInRoles'
+import { withPresetPays } from './externalAgents'
 import { isSameTeamModel } from './sameModel'
 import type { TeamPlaybookStart } from './teamPlaybookBoard'
 import { cancelArgs, collectArgs, delegateArgs, mergeArgs, type DelegateArgs } from './teamTools'
@@ -209,10 +210,22 @@ const ZERO_USAGE: TeamUsage = {
   estimated: false,
 }
 
-/** The stored team, parsed; anything that does not parse is no team. */
+/**
+The stored team, parsed; anything that does not parse is no team. A preset's
+ref pays as its preset does now (D262: Claude's key meets the spend consent).
+*/
 export function readStoredTeam(state: TeamStatePort): TeamSnapshot | undefined {
   const parsed = teamSnapshotSchema.safeParse(state.get(TEAM_WORKSPACE_KEYS.team))
-  return parsed.success ? parsed.data : undefined
+  if (!parsed.success) return undefined
+  return {
+    ...parsed.data,
+    roles: parsed.data.roles.map((role) => ({
+      ...role,
+      pool: role.pool.map((entry) =>
+        entry.agent === undefined ? entry : { ...entry, agent: withPresetPays(entry.agent) },
+      ),
+    })),
+  }
 }
 
 function builtinRole(roleId: string): BuiltinRole | undefined {
