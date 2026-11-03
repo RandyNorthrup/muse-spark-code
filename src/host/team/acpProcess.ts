@@ -8,6 +8,7 @@
 // job object on Windows); this module's contract is the scrubbed
 // environment with the launch marker, and never passing a credential.
 
+import { mkdir } from 'node:fs/promises'
 import type { Readable, Writable } from 'node:stream'
 import * as acp from '@agentclientprotocol/sdk'
 import * as z from 'zod/mini'
@@ -34,6 +35,14 @@ export { AcpUserServersSwitchError } from '../../core/team/workers/workerFence'
 import { boundedAcpStream } from '../../shared/acpStream'
 import { WORKER_CANCEL_GRACE_MS } from '../../shared/constants'
 import { scrubWorkerEnv } from '../../core/team/workers/workerEnv'
+import { isClaudePlanVariable } from '../../shared/credentialEnvironment'
+import { fill } from '../../shared/l10n/text'
+import { UI_TEXT } from '../../shared/constants'
+import {
+  CLAUDE_AGENT_ACP_PACKAGE,
+  CLAUDE_AGENT_ACP_VERSION,
+  claudeAgentEnvironment,
+} from '../../core/team/claudeAgentSafety'
 
 /** The launch marker lane K's journal records; every team child carries it. */
 const LAUNCH_ID_ENV = 'MUSE_SPARK_LAUNCH_ID'
@@ -87,6 +96,8 @@ export function findAcpPresetCommand(
 export interface AcpPresetInstall {
   /** The exact command the modal shows: `npx` with the registry-pinned version. */
   readonly package: string
+  /** The pinned release, where this product pins one. */
+  readonly version?: string
   readonly termsUrl: string
 }
 
@@ -97,7 +108,10 @@ the user installs those CLIs themselves, or the extension bundles ours.
 */
 export const ACP_PRESET_INSTALLS: Readonly<Record<AcpPresetId, AcpPresetInstall | undefined>> = {
   claude: {
-    package: '@agentclientprotocol/claude-agent-acp',
+    package: CLAUDE_AGENT_ACP_PACKAGE,
+    // D262: the newest release; the floor below which the preset refuses to
+    // start is CLAUDE_AGENT_ACP_MIN_VERSION.
+    version: CLAUDE_AGENT_ACP_VERSION,
     termsUrl: 'https://code.claude.com/docs/en/legal-and-compliance',
   },
   codex: {
@@ -129,8 +143,13 @@ export interface SpawnAcpAgentInput {
   readonly io: WorkerFenceIo
   readonly baseEnv: NodeJS.ProcessEnv
   readonly platform: NodeJS.Platform
-  /** Profile-declared names the agent may receive, and nothing else. */
+  /** Profile-declared names the agent may receive, and nothing else; never a Claude plan route (D262). */
   readonly passthrough?: readonly string[]
+  /**
+  Claude's preset's own configuration folder under our storage: with the
+  person's ANTHROPIC_API_KEY set, it runs there, empty of any plan login (D262).
+  */
+  readonly claudeConfigDir?: string | undefined
   /** Lane K's launch id, carried in the environment for recovery. */
   readonly launchId: string
   readonly launcher: TeamChildLauncher
@@ -140,16 +159,28 @@ export interface SpawnAcpAgentInput {
 Spawns the agent through lane K's launcher with the scrubbed environment:
 no credential variable except the profile's passthrough names, and the
 launch marker. The per-preset switch for leaving out the user's own MCP
-servers is appended only once step 1 has captured it.
+servers is appended only once step 1 has captured it. A profile that lists
+a Claude plan route is refused in words (D262); Claude's preset with the
+person's key runs in its own empty configuration folder.
 */
 export async function spawnAcpAgent(input: SpawnAcpAgentInput): Promise<TeamChildProcess> {
+  const planRoute = input.passthrough?.find((name) => isClaudePlanVariable(name))
+  if (planRoute !== undefined)
+    throw new Error(fill(UI_TEXT.claudePlanVariableRefused, { name: planRoute }))
   const grant = await assertWorkerRoot({ ...input, folder: input.cwd })
   const args = acpSpawnArgs(input)
-  const env = scrubWorkerEnv({
-    platform: input.platform,
+  const env = claudeAgentEnvironment({
+    agent: { preset: input.preset.id },
+    scrubbed: scrubWorkerEnv({
+      platform: input.platform,
+      baseEnv: input.baseEnv,
+      passthrough: input.passthrough,
+    }),
     baseEnv: input.baseEnv,
-    passthrough: input.passthrough,
+    configDir: input.claudeConfigDir,
   })
+  if (env['CLAUDE_CONFIG_DIR'] !== undefined)
+    await mkdir(env['CLAUDE_CONFIG_DIR'], { recursive: true, mode: 0o700 })
   env[LAUNCH_ID_ENV] = input.launchId
   const cwd = await recheckWorkerRoot({ ...input, folder: input.cwd }, grant)
   return await input.launcher.spawn({ command: input.command, args, cwd, env })
@@ -420,7 +451,11 @@ export function asAcpSdkError(
         (error.message === 'Authentication required' ||
           error.message.startsWith('Authentication required: ')))
     ) {
-      return new AcpAuthRequiredError(authMethods)
+      const reason =
+        data !== undefined && 'reason' in data && typeof data.reason === 'string'
+          ? data.reason
+          : undefined
+      return new AcpAuthRequiredError(authMethods, reason, error.message)
     }
   }
   return error

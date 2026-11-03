@@ -33,7 +33,7 @@ describe('external agent presets', () => {
       expect(preset.pays).toBe('subscription')
       expect(isExternalDefaultModel(preset)).toBe(true)
     }
-    expect(presets[0]?.signInCommand).toBe('claude')
+    expect(presets[0]?.signInCommand).toBe('claude auth login --console')
   })
 
   it('reads the person’s own agents by command and drops broken rows', () => {
@@ -88,7 +88,7 @@ describe('external offers', () => {
     expect(offers).toHaveLength(5)
     expect(offers[0]).toMatchObject({
       ref: 'external:claude',
-      label: 'Claude Code',
+      label: 'Claude Agent',
       worker: false,
       agent: { kind: 'external', agentId: 'claude', model: 'claude', pays: 'subscription' },
       controls: [],
@@ -123,7 +123,7 @@ describe('the panel’s reading of an external lead', () => {
       ...teamOffers(),
       {
         ref: 'external:claude',
-        label: 'Claude Code',
+        label: 'Claude Agent',
         agent: {
           kind: 'external' as const,
           agentId: 'claude',
@@ -169,7 +169,7 @@ describe('the panel’s reading of an external lead', () => {
       [],
     )
     // The lead stands; the pool entry on the same agent refuses, naming it.
-    expect(slice.issues.some((line) => line.includes('Claude Code'))).toBe(true)
+    expect(slice.issues.some((line) => line.includes('Claude Agent'))).toBe(true)
     expect(slice.issues.some((line) => line.includes('second model'))).toBe(false)
     // And the lead itself is accepted: no "invalid" for the external pick.
     expect(slice.issues).not.toContain(UI_TEXT.teamEditor.invalid)

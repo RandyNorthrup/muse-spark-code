@@ -1,5 +1,7 @@
 // Leaf policy shared by the ref fence and every engine/ACP worker.
 
+import { CLAUDE_PLAN_ENV_NAMES } from '../../../shared/constants'
+
 export interface ScrubWorkerEnvInput {
   readonly platform: NodeJS.Platform
   readonly baseEnv: NodeJS.ProcessEnv
@@ -34,7 +36,8 @@ const WORKER_ENV_BLOCKED = /^(?:GIT_|SSH_|LD_|DYLD_|NODE_|BASH_ENV$|ENV$|.*ASKPA
 The environment a worker process starts with: no git credentials (no
 helper, no prompt, no askpass, no agent socket, an `ssh` that refuses, no
 user or system configuration that could name credentials), and no
-credential variable except the names the agent's profile passes through.
+credential variable except the names the agent's profile passes through,
+and never a Claude plan route (D262).
 Returns a fresh object; the input is never mutated.
 */
 export function workerEnvironment(
@@ -50,6 +53,8 @@ export function workerEnvironment(
     if (
       value !== undefined &&
       !WORKER_ENV_BLOCKED.test(upper) &&
+      // D262: a Claude plan route never reaches a worker, whatever its profile passes.
+      !CLAUDE_PLAN_ENV_NAMES.has(upper) &&
       (WORKER_ENV_ALLOWLIST.has(upper) || kept.has(upper))
     ) {
       out[name] = value

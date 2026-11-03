@@ -146,7 +146,14 @@ export function RolesSection({ panelState, post, highlightedItem }: SectionProps
               fill(UI_TEXT.teamDefaultResolves, { model: slice.defaultRef })}
           </p>
           {orchestratorOffer?.agent.kind === 'external' ? (
-            <p>{fill(UI_TEXT.teamExternalLeaderNotice, { agent: orchestratorOffer.label })}</p>
+            <p>
+              {fill(
+                orchestratorOffer.agent.agentId === 'claude'
+                  ? UI_TEXT.teamExternalLeaderNoticeClaude
+                  : UI_TEXT.teamExternalLeaderNotice,
+                { agent: orchestratorOffer.label },
+              )}
+            </p>
           ) : null}
           <SearchableSelect
             label={UI_TEXT.teamOrchestratorSlot}

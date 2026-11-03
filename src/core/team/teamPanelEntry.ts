@@ -21,3 +21,4 @@ export { tryTeam, teamTryConfirmation } from './teamTry'
 
 export { buildTeamModelOffers } from './teamModelRegistry'
 export { allExternalAgents, resolveExternalAgent } from './externalAgents'
+export { externalAgentPickNotice } from './claudeAgentSafety'

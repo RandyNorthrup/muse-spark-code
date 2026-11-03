@@ -1,5 +1,5 @@
 import { EXEC_CHILD_ENV_DROP } from '../../../shared/constants'
-import { isCredentialVariable } from '../../credentialEnvironment'
+import { isClaudePlanVariable, isCredentialVariable } from '../../credentialEnvironment'
 
 export interface VaultFenceOptions {
   /** Supplied only by the trusted launcher, never read from an agent frame. */
@@ -37,6 +37,8 @@ export function vaultFenceEnvironment<T extends NodeJS.ProcessEnv>(
   for (const [name, value] of Object.entries(source)) {
     const upper = name.toUpperCase()
     if (
+      // D262: a Claude plan route never passes, a listed name or Muse Code's child included.
+      isClaudePlanVariable(upper) ||
       upper === 'SSH_AUTH_SOCK' ||
       upper === 'SSH_AGENT_PID' ||
       upper.startsWith('GIT_CONFIG_') ||

@@ -5433,7 +5433,8 @@ async function activateWindow(
                       model: override.modelId,
                     }),
                   )
-                const { resolveExternalAgent } = await import('./core/team/teamPanelEntry')
+                const { externalAgentPickNotice, resolveExternalAgent } =
+                  await import('./core/team/teamPanelEntry')
                 const picked =
                   override.agentId === undefined
                     ? undefined
@@ -5445,7 +5446,8 @@ async function activateWindow(
                 if (
                   host.info.kind !== 'external' &&
                   (await vscode.window.showWarningMessage(
-                    fill(UI_TEXT.teamExternalSwitchNotice, { agent: picked.label }),
+                    // D262: who pays, true per agent, and Anthropic's terms before a custom Claude on a plan.
+                    externalAgentPickNotice(picked),
                     { modal: true },
                     UI_TEXT.wizardContinue,
                     UI_TEXT.wizardCancel,
@@ -5473,6 +5475,7 @@ async function activateWindow(
                     log,
                     platform: process.platform,
                     baseEnv: process.env,
+                    storageRoot: context.globalStorageUri.fsPath,
                     newId: () => crypto.randomUUID(),
                     now: () => Date.now(),
                   })
@@ -6416,7 +6419,8 @@ async function activateWindow(
                 if (ref.startsWith('external:')) {
                   // D250: who pays is confirmed where the pick is made,
                   // with the agent named; its sign-in stays its own.
-                  const { resolveExternalAgent } = await import('./core/team/teamPanelEntry')
+                  const { externalAgentPickNotice, resolveExternalAgent } =
+                    await import('./core/team/teamPanelEntry')
                   const picked = resolveExternalAgent(
                     {
                       agentId: ref.slice('external:'.length),
@@ -6427,7 +6431,7 @@ async function activateWindow(
                   if (picked === undefined) throw new Error(UI_TEXT.teamEditor.invalid)
                   if (
                     (await vscode.window.showWarningMessage(
-                      fill(UI_TEXT.teamExternalSwitchNotice, { agent: picked.label }),
+                      externalAgentPickNotice(picked),
                       { modal: true },
                       UI_TEXT.wizardContinue,
                       UI_TEXT.wizardCancel,

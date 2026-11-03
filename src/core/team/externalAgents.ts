@@ -17,8 +17,10 @@ export type ExternalPresetId = 'claude' | 'codex' | 'gemini' | 'copilot' | 'own'
 The presets' launch facts: the command the host finds on the PATH and the
 arguments it starts with (lane W's captured table, research §4.6), the
 vendor's own name, and the agent's own CLI the person signs in with.
-Claude's adapter starts with `--hide-claude-auth`, so its sign-in stays
-Claude Code's own `claude`.
+Claude's adapter starts with `--hide-claude-auth`, so it refuses a Claude
+plan and bills an Anthropic API key or a Console account only (D262); its
+sign-in is Claude Code's own Console login, never the plan's, and its name
+is "Claude Agent", as Anthropic's Agent SDK branding asks.
 */
 export const EXTERNAL_PRESET_LAUNCH: Readonly<
   Record<
@@ -34,8 +36,8 @@ export const EXTERNAL_PRESET_LAUNCH: Readonly<
   claude: {
     command: 'claude-agent-acp',
     defaultArgs: ['--hide-claude-auth'],
-    label: 'Claude Code',
-    signInCommand: 'claude',
+    label: 'Claude Agent',
+    signInCommand: 'claude auth login --console',
   },
   codex: { command: 'codex-acp', defaultArgs: [], label: 'Codex', signInCommand: 'codex' },
   gemini: {
@@ -62,7 +64,7 @@ export const EXTERNAL_PRESET_LAUNCH: Readonly<
 export interface ExternalAgent {
   /** Stable per agent: a preset id, or the person's name for their own entry. */
   readonly agentId: string
-  /** Display only, e.g. "Claude Code". */
+  /** Display only, e.g. "Claude Agent". */
   readonly label: string
   /** The command the host finds on the PATH. */
   readonly command: string
@@ -80,7 +82,13 @@ export interface ExternalAgent {
   readonly preset?: ExternalPresetId
 }
 
-/** The five presets as offerable agents, in D250's order. Every preset spends its own plan's limits, never our key (D75: "paid however that CLI is paid"). */
+/**
+The five presets as offerable agents, in D250's order. None spends our key
+(D75: "paid however that CLI is paid"): Claude's preset is paid only by the
+person's own Anthropic API key or Console account, never a Claude plan
+(D262); the others by their own plan or key. `pays` keeps `subscription`
+for all five: it says the team does not meter them, not who pays.
+*/
 export function externalAgentPresets(): readonly ExternalAgent[] {
   return (Object.keys(EXTERNAL_PRESET_LAUNCH) as ExternalPresetId[]).map((id) => {
     const launch = EXTERNAL_PRESET_LAUNCH[id]
