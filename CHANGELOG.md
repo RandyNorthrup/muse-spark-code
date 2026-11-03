@@ -74,6 +74,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Two windows starting together share the created-resources registry.** When
+  one published just as the other read it, the second could fail with "a safety
+  check on the saved registry failed". That was a lost race, not a fault: it now
+  merges and saves again, and a truly unsafe registry is still refused.
 - **A Muse Code that cannot run says so, every time.** When Muse Code ended while
   it was starting, our first message to it could fail before the end was noticed,
   and the chat showed `write EPIPE` instead of what happened and what to do. Both
