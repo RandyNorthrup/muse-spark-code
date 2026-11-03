@@ -1347,6 +1347,8 @@ export function featureCatalog(): readonly Feature[] {
         'modelApiPermissionProfiles',
         'modelApiPermissionProfile',
         'modelApiRepositoryRules',
+        'modelApiSensitiveReads',
+        'modelApiMemoryAfterUntrustedAsk',
       ],
       'auto-rules-and-permission-profiles-model-api',
       ['modelApi'],

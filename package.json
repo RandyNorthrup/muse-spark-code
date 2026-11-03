@@ -1359,6 +1359,25 @@
             }
           }
         },
+        "museSpark.modelApiSensitiveReads": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 200,
+          "default": null,
+          "markdownDescription": "%config.modelApiSensitiveReads.markdownDescription%",
+          "scope": "machine"
+        },
+        "museSpark.modelApiMemoryAfterUntrustedAsk": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.modelApiMemoryAfterUntrustedAsk.description%",
+          "scope": "machine"
+        },
         "museSpark.modelApiAutoReviewer": {
           "type": "boolean",
           "default": true,

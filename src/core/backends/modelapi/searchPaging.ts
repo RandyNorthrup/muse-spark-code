@@ -112,15 +112,26 @@ export function listPastEnd(offset: number, total: number): string {
 export async function listMatching(
   context: ToolContext,
   glob: string | undefined,
-): Promise<readonly string[]> {
+  shouldExcludeSensitive = false,
+): Promise<{ readonly files: readonly string[]; readonly sensitiveExcluded: number }> {
   // Compiled before the listing, so a refused glob costs no file walk.
   const matches = glob === undefined ? undefined : compileGlob(glob)
   const files = await context.io.listFiles(context.signal)
   context.signal?.throwIfAborted()
   // What the permission settings deny is neither listed nor searched (M78).
-  return files.filter(
+  const listed = files.filter(
     (file) => (matches === undefined || matches(file)) && context.files?.isDenied([file]) !== true,
   )
+  // A search reads contents, so sensitive files stay out of it (D261)
+  // and are counted for its note; a listing only names files and keeps
+  // them. The listed names are workspace-relative as the host spells
+  // them, not canonical: a link into the set under another name is the
+  // one gap, and read_file of it still asks on the canonical path.
+  if (!shouldExcludeSensitive || context.files === undefined) {
+    return { files: listed, sensitiveExcluded: 0 }
+  }
+  const kept = listed.filter((file) => context.files?.isSensitive([file]) !== true)
+  return { files: kept, sensitiveExcluded: listed.length - kept.length }
 }
 
 export async function search(args: SearchCallArgs, context: ToolContext): Promise<ToolOutcome> {
@@ -131,8 +142,11 @@ export async function search(args: SearchCallArgs, context: ToolContext): Promis
   const limit = Math.max(Math.min(args.max_results ?? SEARCH_MAX_RESULTS, SEARCH_MAX_RESULTS), 1)
   const p = context.platform === 'win32' ? path.win32 : path.posix
   let candidates: readonly string[]
+  let sensitiveExcluded: number
   try {
-    candidates = await listMatching(context, args.glob)
+    const listed = await listMatching(context, args.glob, context.shouldExcludeSensitive === true)
+    candidates = listed.files
+    sensitiveExcluded = listed.sensitiveExcluded
   } catch (error: unknown) {
     context.signal?.throwIfAborted()
     return failure(errorMessage(error))
@@ -176,6 +190,13 @@ export async function search(args: SearchCallArgs, context: ToolContext): Promis
     }
   }
   const notes = [
+    // Said, never silent (D261): the sensitive files left out can still
+    // be read one at a time, which asks the user.
+    ...(sensitiveExcluded > 0
+      ? [
+          `[${String(sensitiveExcluded)} sensitive file${sensitiveExcluded === 1 ? ' was' : 's were'} not searched; read one with read_file to ask the user]`,
+        ]
+      : []),
     ...(searched.length < candidates.length
       ? [
           `[searched the first ${String(searched.length)} of ${String(candidates.length)} files; narrow the search with glob]`,
@@ -212,7 +233,8 @@ export async function listFiles(
   const limit = Math.max(args.limit ?? LIST_FILES_DEFAULT_LIMIT, 1)
   let files: readonly string[]
   try {
-    files = await listMatching(context, args.glob)
+    const listed = await listMatching(context, args.glob)
+    files = listed.files
   } catch (error: unknown) {
     context.signal?.throwIfAborted()
     return failure(errorMessage(error))

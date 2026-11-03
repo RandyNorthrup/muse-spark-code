@@ -2703,7 +2703,9 @@ validates, reads and writes notes by Muse Code's rules, and a note written on
 one backend is read on the other. The Model API memory tools are Muse Code's
 and are offered in a trusted workspace only. Approval is like an edit, not
 like Muse Code: a write asks in Manual, runs in Auto and Edit automatically,
-and is refused in Plan, and a read never asks. The extension keeps the index
+and is refused in Plan, and a read never asks. Amended by D261: in Auto, a
+write in a turn that read the web or an MCP result asks, showing the exact
+text, while its switch is on. The extension keeps the index
 true: a note the Model API tool or the Memory view creates gets its line in
 its scope's `MEMORY.md`. A path through any link below the workspace or
 data-home anchor is refused. Without proven interoperation, the extension does
@@ -9844,6 +9846,64 @@ First application, same lane: `@muse-code/sdk` 1.4.12 → 1.4.14,
 pinned install. Full record:
 [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
+### D261 — Sensitive reads ask; a memory after untrusted reads asks in Auto (lane RLF-SECDEFAULTS, SEC-DEFAULT-DENY brief D of the 2026-11-02 agent-security research; numbered D261 on its branch because the brief names D260 as already taken)
+
+Two default postures on the Model API backend, both the person's to
+change and neither a cap (D121). (1) A small sensitive set asks before
+`read_file` sends it to the model: `.env` and `.env.*` (never
+`.env.example`), `*.pem`, `*.key`, the SSH private-key names
+(`id_rsa`, `id_ed25519`, `id_dsa`, `id_ecdsa` and the `_sk` pair),
+`.npmrc`, and the `.aws/credentials` shape, in any folder, judged on
+the canonical path (links resolved, case ignored, Windows spellings
+included) and kept in constants beside `PROTECTED_FILE_NAMES`
+(`SENSITIVE_READ_*`, `isSensitiveReadPath` in
+`src/core/protectedPaths.ts`). Manual, Edit automatically and Auto
+ask; Plan asks instead of reading silently; Bypass reads as before.
+The card is a plain tool subject — never a `fileWrite`, so Edit
+automatically cannot answer it — names the file and that its contents
+will be sent to the model (`UI_TEXT.approvalSensitiveReadNote`), and
+its Allow for This Session is keyed on that one file, never the tool;
+in Auto an allow once records the same grant (`allowedOnce`), so Auto
+asks once per file per session. No hook allow,
+Auto reviewer or command rule settles it (`settledBy: 'sensitiveRead'`
+in the permission engine), and a profile's `denyRead` still refuses
+such a file outright before any ask. `search` reads contents, so it
+leaves sensitive files out in every mode but Bypass and says how many
+(`searchPaging.ts`), judged on the listed names — a link into the set
+under another listed name is the one named gap, and `read_file` of it
+still asks on the canonical path. A hook handler's own agent turn can
+show no card, so it simply does not read a sensitive file; sensitive
+reads never run in a parallel read group. The repeat witness needs no
+guard: it only fingerprints in-process and every call still dispatches
+and asks as run. In an unattended scheduled run both asks are
+requires-asking and refuse. `museSpark.modelApiSensitiveReads`
+(machine) is the person's set: unset (`null`) is the built-in one, a
+workspace-relative glob list replaces it, an empty list empties it,
+and a value that cannot be read keeps the built-in set and says so
+once (`sensitiveInvalid`). It can only be the user's: no repository
+rule reaches it. (2) Memory stays D41's edit, except in Auto a write
+in a turn that read the web (`web_fetch`, the browser check, hosted
+search) or an MCP tool result asks first, showing the exact text it
+would save (`UI_TEXT.approvalUntrustedMemoryNote`), with no session
+choice and no reviewer (`settledBy: 'untrustedMemory'`); each such
+write asks once. Until SEC-PROVENANCE tracks copied spans, the
+turn-level fact is the trigger, as the brief prescribes; the host's
+own compaction flush is host data and never asks.
+`museSpark.modelApiMemoryAfterUntrustedAsk` (machine, on) is the
+switch. Scope kept honest: the Muse Code backend is unchanged (its
+own file reads and memory are the CLI's); an approved shell can still
+print any file in the asking modes, as before; runtime and ACP
+surfaces that build a session without permission settings get the
+product defaults (both postures on), as they do for D78 today. The
+brief's open decision — the lead on default-on for (1) — is taken as
+the brief states it (on); the setting is the person's either way.
+Proof: `test/unit/permissions.test.ts` (the set over real and Windows
+paths, engine verdicts per mode, per-file session grants),
+`test/unit/permissionPolicy.test.ts` (unset, emptied, replaced,
+unreadable, repository cannot reach it) and
+`test/unit/toolPaging.test.ts` (search exclusion and count over real
+files); see `docs/certification/rlf-secdefaults.md`.
+
 ## 3. Open questions (need the owner)
 
 <a id="q-cc-licence"></a>
@@ -11439,6 +11499,26 @@ and the shared `resubmitRememberedTurn` ride int's conversation deps through
 `providerRetryLimits` (real refused sends), `turnRetryCeiling`,
 `turnRetryResubmit` and `acpTranslate` pass on the merged tree; no provider
 request was made. Record: `docs/certification/cc-int5.md`.
+
+### RLFSECDEFAULTS — Sensitive reads ask; a memory after untrusted reads asks in Auto (D261)
+
+**Status 2026-11-02 (lane RLF-SECDEFAULTS, macmini): built, pending
+integration.** Real use is still to run. On the Model API backend the permission
+engine asks before `read_file` sends a sensitive file to the model
+(`.env` and `.env.*` but `.env.example`, `*.pem`, `*.key`, the SSH
+private-key names, `.npmrc`, `.aws/credentials`, judged on the
+canonical path, Windows spellings included) in Manual, Auto and Plan,
+allows it in Bypass, and in Auto asks once per file per session;
+`search` leaves the set out and says how many. In Auto, a memory write
+in a turn that read the web or an MCP result asks. Both are the
+person's (`museSpark.modelApiSensitiveReads`, emptied turns the ask off;
+`museSpark.modelApiMemoryAfterUntrustedAsk`). Proven by the engine,
+policy and search suites over real paths and seven red/green drills.
+The host wiring (the card's text, Edit automatically's tool card, the
+scheduled-run and hook-turn refusals, the turn's web/MCP mark) needs a
+model turn and has no real-code test; the packed-product real use did
+not run (no Muse request in this lane) and stays with the lead. Record:
+`docs/certification/rlf-secdefaults.md`.
 
 ### RLFQUOTA — A spent subscription window is said honestly, with its reset time (D252)
 

@@ -1154,6 +1154,9 @@ const NO_PERMISSION_SETTINGS: PermissionSettings = {
   profiles: {},
   profile: '',
   repositoryRules: undefined,
+  // D261: the product defaults, as the settings' own defaults read.
+  sensitiveReads: null,
+  memoryAfterUntrustedAsk: true,
 }
 
 /** A request before its prompt-cache fields are added (M56). */
@@ -2436,8 +2439,22 @@ interface B1SkipOutput {
 }
 
 /** Why a card asks beyond the mode, as the card says under the command (M78). */
-function cardNote(judgement: PermissionJudgement | undefined): string | undefined {
+function cardNote(
+  judgement: PermissionJudgement | undefined,
+  query: PermissionQuery,
+  call: FunctionCallItem,
+): string | undefined {
   if (judgement?.settledBy === 'hardwareDetected') return UI_TEXT.approvalHardwareNote
+  // D261: the card names the file and that its contents go to the model.
+  if (judgement?.settledBy === 'sensitiveRead') {
+    return fill(UI_TEXT.approvalSensitiveReadNote, { path: query.command ?? '' })
+  }
+  // D261: the exact text the memory write would save, as the model wrote it.
+  if (judgement?.settledBy === 'untrustedMemory') {
+    const args = argumentsOf(call)
+    const note = pick(args, 'content') ?? pick(args, 'new_str') ?? ''
+    return fill(UI_TEXT.approvalUntrustedMemoryNote, { note })
+  }
   if (judgement?.settledBy === 'profile') {
     return UI_TEXT.approvalProfileNote
   }
@@ -3010,6 +3027,15 @@ export class ModelApiSession implements ScheduledAgentSession {
   private readonly policies: PolicyCache
   /** The Auto reviewer's circuit breaker, reset by each message the user sends (M78). */
   private readonly reviewBreaker = new ReviewBreaker()
+  /**
+  Whether this turn has read the web or an MCP result (D261): set as
+  each such call completes, cleared as each turn starts. Until
+  SEC-PROVENANCE tracks spans, this turn-level fact is what makes a
+  memory write ask in Auto.
+  */
+  private turnReadUntrusted = false
+  /** The host's own last compaction memory flush call (D261): exempt. */
+  private flushCallId: string | undefined
   /** The rules, skills and memory of the workspace (PLAN.md D13). */
   private readonly context: WorkspaceContext
   /** The git facts of the prompt's environment section (D15), read on the first turn. */
@@ -7480,6 +7506,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       ...(isFailed && { failureReason: UI_TEXT.webSearchFailed }),
     }
     entry.isCompleted = true
+    // A hosted search read the web this turn (D261).
+    if (!isFailed) {
+      this.turnReadUntrusted = true
+    }
     this.emit({ type: 'itemCompleted', item: completed })
     this.recordTranscript(turnId, completed)
     // Legacy unbounded requests retain their old tally; bounded requests count returned calls.
@@ -8837,18 +8867,36 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
     }
     if (this.active?.scheduleRun !== undefined) {
+      // D261: an unattended run has nobody to ask, so a sensitive read
+      // and an untrusted-memory write are requiresAsking there and are
+      // refused, as a protected path is.
       const decision = await this.active.scheduleRun.decide(
-        this.scheduledAction(itemId, call, query, requiresUserApproval || hook.forceApproval),
+        this.scheduledAction(
+          itemId,
+          call,
+          query,
+          requiresUserApproval ||
+            hook.forceApproval ||
+            judgement.settledBy === 'sensitiveRead' ||
+            judgement.settledBy === 'untrustedMemory',
+        ),
       )
       return { isApproved: decision.allowed, feedback: decision.reason }
     }
     // M92e (PLAN.md D71): a settled secret ask is not an allow a hook may
-    // take: the card asks with the value redacted.
+    // take: the card asks with the value redacted. A sensitive read and an
+    // untrusted-memory write (D261) are settled the same way.
     const isSettledAsk =
       judgement.settledBy !== undefined &&
-      ['askRule', 'profile', 'complexCommand', 'secretDetected', 'hardwareDetected'].includes(
-        judgement.settledBy,
-      )
+      [
+        'askRule',
+        'profile',
+        'complexCommand',
+        'secretDetected',
+        'hardwareDetected',
+        'sensitiveRead',
+        'untrustedMemory',
+      ].includes(judgement.settledBy)
     if (
       !requiresUserApproval &&
       !isSettledAsk &&
@@ -8927,7 +8975,8 @@ export class ModelApiSession implements ScheduledAgentSession {
             hardwareAction(query.command ?? '', query.dialect, query.hardware),
             hardwareTargets(query.command ?? '', query.dialect, query.hardware),
           )
-        : (cardNote(judgement) ?? (review?.decision === 'ask' ? review.note : undefined))
+        : (cardNote(judgement, query, call) ??
+          (review?.decision === 'ask' ? review.note : undefined))
     const approvalId = this.deps.newId()
     const hardware =
       judgement.settledBy === 'hardwareDetected'
@@ -9036,6 +9085,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     ) {
       this.permissions.allowForSession(query.toolName, query.command)
     }
+    if (isStillPermitted && isOffered && decision.choiceId === APPROVAL_CHOICE_IDS.allowOnce)
+      this.permissions.allowedOnce(query)
     // Only the two allow choices this card offered approve; anything else refuses.
     const hardwareBinding =
       hardware !== undefined && isStillPermitted && isOffered
@@ -10749,6 +10800,53 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /**
+  The name a sensitive `read_file` asks under (D261): the file's canonical
+  workspace name, or its absolute name under a profile's extra root, as
+  the tool itself names it. Undefined when the call is no sensitive read:
+  no path, a path confinement refuses (the tool refuses it before any
+  card, as an edit's does), a file the policy denies outright (the
+  profile already decided: denied, never asked), or no sensitive name.
+  Judged on the canonical path only, so a link into the set asks and a
+  link out of it does not.
+  */
+  private async sensitiveReadName(
+    argsJson: string,
+    policy: PermissionPolicy,
+  ): Promise<string | undefined> {
+    const given = pick(parsedArguments(argsJson), 'path')
+    if (given === undefined) {
+      return undefined
+    }
+    const ask = (
+      confined: { readonly canonical: string },
+      names: readonly string[],
+      display: string,
+    ): string | undefined =>
+      policy.files.isDenied(names) || !policy.files.isSensitive([confined.canonical])
+        ? undefined
+        : display
+    const inWorkspace = await confineWorkspacePath(
+      this.deps.workspaceRoot,
+      given,
+      this.deps.platform,
+      this.deps.io,
+    )
+    if (inWorkspace.ok) {
+      return ask(inWorkspace, [inWorkspace.relative, inWorkspace.canonical], inWorkspace.canonical)
+    }
+    const p = pathModule(this.deps.platform)
+    for (const root of policy.files.extraRoots) {
+      const underRoot = await confineWorkspacePath(root, given, this.deps.platform, this.deps.io)
+      if (!underRoot.ok) {
+        continue
+      }
+      const absolute = underRoot.absolute.replaceAll(p.sep, '/')
+      return ask(underRoot, [absolute, underRoot.canonical], absolute)
+    }
+    return undefined
+  }
+
+  /**
   A tool that named a path may have entered a directory with its own rules
   file (M91 lane E): newly loaded rules run InstructionsLoaded, with the
   workspace-relative path and a reason, never content.
@@ -11346,6 +11444,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       seen: this.seenFiles,
       provisionalSeen,
       files: this.policy().files,
+      // Bypass is unchanged (D261); every other mode leaves sensitive
+      // files out of search, as read_file asks before one.
+      shouldExcludeSensitive: this.permissions.currentMode !== 'allowAll',
       ...(media === undefined &&
         this.getScheduledRun() !== undefined && {
           media: { reason: UI_TEXT.scheduledMediaSupport },
@@ -11395,6 +11496,14 @@ export class ModelApiSession implements ScheduledAgentSession {
         signal,
       )
       return outcome.output
+    }
+    // No card can be shown inside a hook handler's own turn, so a
+    // sensitive file is simply not read there (D261), Bypass aside.
+    if (name === MODEL_API_TOOLS.readFile && this.permissions.currentMode !== 'allowAll') {
+      const sensitive = await this.sensitiveReadName(argsJson, this.policy())
+      if (sensitive !== undefined) {
+        return `Error: ${sensitive} ${MODEL_API_MODEL_TEXT.sensitiveReadRefused}`
+      }
     }
     const { executeTool } = await this.toolRun()
     // A hook agent's private reads never authorize the conversation's writes.
@@ -13962,6 +14071,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       files.denyGlobs,
       files.isDenyAll,
       files.extraRoots,
+      // A sensitive-set change moves the revision too (D261), so work
+      // whose touched files cannot be named fails closed across it.
+      files.sensitiveGlobs,
       this.deps.isWorkspaceTrusted(),
     ]
     return createHash('sha256').update(JSON.stringify(facts)).digest('hex')
@@ -14117,6 +14229,25 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /**
+  Whether a placed memory call is a write that asks in Auto (D261): this
+  turn read the web or an MCP result, the person's switch is on, and the
+  call is not the host's own compaction flush (its text is the session's
+  todos, goal and file lists, not the model's words).
+  */
+  private isUntrustedMemoryWrite(
+    call: FunctionCallItem,
+    placed: PlacedMemoryCall,
+    policy: PermissionPolicy,
+  ): boolean {
+    return (
+      placed.call.tool !== 'read' &&
+      this.turnReadUntrusted &&
+      call.call_id !== this.flushCallId &&
+      policy.memoryAfterUntrustedAsk
+    )
+  }
+
+  /**
   An add may update its index; check both possible targets without an
   existence shortcut. The refusal, or the fence the call's reads and
   writes must still pass: every name checked here, under this judgement.
@@ -14163,6 +14294,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const query: PermissionQuery = {
       toolName: call.name,
       toolClass: placed.call.tool === 'read' ? 'read' : 'edit',
+      ...(this.isUntrustedMemoryWrite(call, placed, policy) && { isUntrustedMemory: true }),
     }
     const judgement = this.permissions.judge(query, policy)
     return judgement.verdict === 'deny'
@@ -14209,7 +14341,14 @@ export class ModelApiSession implements ScheduledAgentSession {
         itemId,
         call,
         signal,
-        { toolName: call.name, toolClass, isProtected: false },
+        {
+          toolName: call.name,
+          toolClass,
+          isProtected: false,
+          ...(this.isUntrustedMemoryWrite(call, placed.value, this.policy()) && {
+            isUntrustedMemory: true,
+          }),
+        },
         subject,
         shouldForceApproval,
       )
@@ -14967,6 +15106,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (target?.ok === true && policy.files.isDenied([target.relative, target.canonical])) {
       return { outcome: deniedPath(target.relative), isRejected: true }
     }
+    // A sensitive file asks before read_file sends it to the model (D261),
+    // judged on its canonical name under the policy as it stands.
+    const sensitiveName =
+      call.name === MODEL_API_TOOLS.readFile
+        ? await this.sensitiveReadName(call.arguments, policy)
+        : undefined
     // A follow-up that starts a new task is a paid child task like a spawn.
     const childTask = this.childTaskFor(call, undefined)
     const query: PermissionQuery = {
@@ -14977,7 +15122,10 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.deps.isUnattended?.() === true ||
         this.active?.confirmedRequest !== undefined ||
         this.active?.isGoalWake === true,
-      command: toolClass === 'shell' ? pick(argumentsOf(call), 'command') : undefined,
+      // A shell's session rule is its command line; a sensitive read's is
+      // the file (D261), so one grant never answers another file.
+      command: toolClass === 'shell' ? pick(argumentsOf(call), 'command') : sensitiveName,
+      ...(sensitiveName !== undefined && { isSensitiveRead: true }),
       hardware: this.hardwareGuard.current(),
       // The shell tool runs the platform's shell, whatever the call is named.
       dialect: this.deps.platform === 'win32' ? 'powershell' : 'bash',
@@ -15035,7 +15183,14 @@ export class ModelApiSession implements ScheduledAgentSession {
         signal,
         query,
         paid === undefined
-          ? { card: subjectFor(call, this.deps.platform, toolClass === 'mcp') }
+          ? {
+              // A sensitive read is a tool, never a `fileWrite`: Edit
+              // automatically answers those itself (D261, D24's rule).
+              card:
+                query.isSensitiveRead === true
+                  ? { kind: 'tool', toolName: call.name }
+                  : subjectFor(call, this.deps.platform, toolClass === 'mcp'),
+            }
           : { paid },
         // A protected write never happens without a question (D24), even
         // when its feature is allowed always.
@@ -15754,7 +15909,19 @@ export class ModelApiSession implements ScheduledAgentSession {
   private canParallelCall(prepared: PreparedToolCall): boolean {
     const { effectiveCall, pre } = prepared
     const external = this.externalTool(effectiveCall.name)
+    // A sensitive read may need its card, so it never runs in a read
+    // group (D261): judged here on the given spelling, and again at
+    // dispatch on the canonical path, which a link can only add asks to.
+    const given =
+      effectiveCall.name === MODEL_API_TOOLS.readFile
+        ? pick(argumentsOf(effectiveCall), 'path')?.replaceAll('\\', '/')
+        : undefined
+    const isSensitiveGiven =
+      given !== undefined &&
+      this.permissions.currentMode !== 'allowAll' &&
+      this.policy().files.isSensitive([given])
     return (
+      !isSensitiveGiven &&
       isParallelRead(effectiveCall.name) &&
       (external === undefined || external.kind === 'ide') &&
       pre.blockedReason === undefined &&
@@ -15888,6 +16055,18 @@ export class ModelApiSession implements ScheduledAgentSession {
       result = { outcome: thrownToolOutcome(error), isRejected: false }
     }
     if (result.outcome.refusalCode !== undefined) result = { ...result, isRejected: true }
+    // D261: a web, browser or MCP result this turn taints its memory
+    // writes in Auto. Set on any outcome that was not refused before it
+    // ran: a result the policy fence later replaces over-taints once,
+    // toward asking, which is the safe direction.
+    if (
+      !result.isRejected &&
+      (effectiveCall.name === MODEL_API_TOOLS.webFetch ||
+        effectiveCall.name === MODEL_API_TOOLS.browserCheck ||
+        this.externalTool(effectiveCall.name)?.kind === 'mcp')
+    ) {
+      this.turnReadUntrusted = true
+    }
     if (signal.aborted || result.isRejected || result.outcome.failureReason !== undefined)
       prepared.provisionalSeen.clear()
     if (isParallelRead(effectiveCall.name) && this.externalTool(effectiveCall.name)?.kind !== 'mcp')
@@ -17407,6 +17586,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     // What a stopped turn left for its round is not checked in this one (M68).
     this.verifyState().ledger.beginTurn()
+    // A new turn has read nothing untrusted yet (D261).
+    this.turnReadUntrusted = false
     this.active = turn
     if (!queued.isGoalWake) this.autoCompact.newUserTask()
     // A message of the user's puts them back in the loop: the Auto reviewer
@@ -18336,6 +18517,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       }),
     }
     this.replay.push({ turnId: turn.turnId, item: call })
+    // The flush is host data, not a memory the model chose (D261): the
+    // untrusted-memory ask never applies to it.
+    this.flushCallId = call.call_id
     const result = await unlessStopped(
       this.runCall(turn.turnId, call, turn.abort.signal, this.goalCommandRevision),
       turn.abort.signal,

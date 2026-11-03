@@ -110,6 +110,22 @@ happened, not what was planned; superseded entries are kept.
   tokens beside the provider's cached tokens, and a prompt-cache miss
   in the log now names whether the model, the instructions or the
   tools changed.
+- **Sensitive files ask before they reach the model.** On the Model API
+  backend, reading `.env` files (not `.env.example`), `*.pem`, `*.key`,
+  SSH private keys, `.npmrc` or `.aws/credentials` now shows a card
+  naming the file and that its contents will be sent to the model —
+  in Manual, Edit automatically and Auto, and in Plan instead of
+  reading silently; Bypass permissions is unchanged. Auto asks once for
+  each file in a session, and Allow for This Session covers that one
+  file. Search leaves these files out
+  and says how many. The set is yours: `museSpark.modelApiSensitiveReads`
+  replaces it with your own globs, and an empty list turns the ask off.
+- **A memory written after reading the web asks first in Auto.** If a
+  turn read a web page, a hosted search or an MCP result and then
+  writes a memory, Auto now shows the exact text it would save and
+  asks, so words copied from untrusted content do not become a
+  standing memory without your word. Turn it off with
+  `museSpark.modelApiMemoryAfterUntrustedAsk`.
 - **Maker tools with a person at every physical action.** Shell commands
   that flash a board, open a device or move a machine ask every time, in
   every permission mode, and no remembered rule, hook or automatic reviewer

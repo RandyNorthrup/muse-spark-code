@@ -1529,6 +1529,16 @@ export const SETTING_DEFAULTS = {
   modelApiPermissionProfiles: {} as Readonly<Record<string, unknown>>,
   modelApiPermissionProfile: '',
   modelApiRepositoryRules: {} as unknown,
+  // SEC-DEFAULT-DENY (D261): workspace-relative globs for files read_file
+  // asks before sending to the model (and search leaves out). Unset (null)
+  // uses the built-in sensitive set beside PROTECTED_FILE_NAMES; a list
+  // replaces it, and an empty list turns the ask off. Machine scoped, like
+  // the profiles: a repository must not widen what leaves the machine.
+  modelApiSensitiveReads: null as readonly string[] | null,
+  // SEC-DEFAULT-DENY (D261): in Auto, a memory write in a turn that read
+  // the web or an MCP result asks once, showing the exact text. On until
+  // turned off; machine scoped with the other permission settings.
+  modelApiMemoryAfterUntrustedAsk: true,
   modelApiAutoReviewer: true,
   // The verify loop (M68, PLAN.md D49): the edited files' errors and warnings
   // after each round of edits, on by default; the check commands and the
@@ -1747,6 +1757,8 @@ export const RUNTIME_PANEL_RECONFIGURE_SETTINGS: readonly string[] = [
   'museSpark.modelApiPermissionProfiles',
   'museSpark.modelApiPermissionProfile',
   'museSpark.modelApiRepositoryRules',
+  'museSpark.modelApiSensitiveReads',
+  'museSpark.modelApiMemoryAfterUntrustedAsk',
   'museSpark.modelApiRepoMap',
   'museSpark.modelApiObservationPacking',
 ]
@@ -1800,6 +1812,10 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiCommandRules',
   'modelApiPermissionProfiles',
   'modelApiPermissionProfile',
+  // D261: what asks before it reaches the model is the user's choice,
+  // never a repository's, like the profiles above.
+  'modelApiSensitiveReads',
+  'modelApiMemoryAfterUntrustedAsk',
   'modelApiAutoReviewer',
   'diagnosticsAfterEdits',
   'checkCommands',
@@ -6019,6 +6035,30 @@ export const PROTECTED_FILE_NAMES: ReadonlySet<string> = new Set([
 // A VS Code workspace file carries tasks and folder settings by suffix,
 // under any name (RSCH-SECURITY, 2026-11-02).
 export const PROTECTED_FILE_SUFFIXES: readonly string[] = ['.code-workspace']
+// Sensitive reads (SEC-DEFAULT-DENY, D261): the small built-in set the
+// Model API file tools ask before reading to the model, judged on the
+// canonical path in any folder, case ignored. `museSpark.modelApiSensitiveReads`
+// replaces it when set, and an empty list empties it; unset (null) is this
+// set. Environment files and private keys are its core; `.env.example`
+// names and public keys (`id_rsa.pub`, by name) stay out.
+export const SENSITIVE_READ_FILE_NAMES: ReadonlySet<string> = new Set([
+  '.env',
+  '.npmrc',
+  'id_rsa',
+  'id_ed25519',
+  'id_dsa',
+  'id_ecdsa',
+  'id_ecdsa_sk',
+  'id_ed25519_sk',
+])
+export const SENSITIVE_READ_EXTENSIONS: ReadonlySet<string> = new Set(['.pem', '.key'])
+/** `.env.local` and its kin are sensitive too; `.env.example` is not. */
+export const SENSITIVE_READ_ENV_PREFIX = '.env.'
+export const SENSITIVE_READ_EXEMPT_NAMES: ReadonlySet<string> = new Set(['.env.example'])
+/** Path shapes sensitive wherever they sit: AWS's shared credentials file. */
+export const SENSITIVE_READ_PATH_SEGMENTS: readonly (readonly string[])[] = [
+  ['.aws', 'credentials'],
+]
 export const LIST_FILES_DEFAULT_LIMIT = 500
 // Backstop waits owned by other rows (checks, the verify loop, the judge
 // harness, media conversion, the vault service default): the shell tool
@@ -9803,6 +9843,9 @@ export const MODEL_API_MODEL_TEXT = {
   policyChangeKeptWrite: '; the change it had already written stays in place',
   pathDeniedByPolicy:
     'is refused: the user’s permission settings deny the file tools this path; do not try to read it another way',
+  // D261: after the file's name, where no card can be shown (a hook
+  // handler's own agent turn): the sensitive file was not read.
+  sensitiveReadRefused: 'is a sensitive file and was not read',
   // M45 (PLAN.md D38): the goal tools' refusals.
   goalUnfinishedExists:
     'cannot create a new goal because this session has an unfinished goal; complete the existing goal first',

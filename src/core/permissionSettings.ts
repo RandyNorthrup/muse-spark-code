@@ -59,7 +59,7 @@ export const repositoryRulesSchema = z.object({
   denyRead: z.optional(z.array(z.string()).check(z.maxLength(PERMISSION_PROFILE_MAX_GLOBS))),
 })
 
-/** The four settings as read, each value kept whole for the bundle to parse. */
+/** The settings as read, each value kept whole for the bundle to parse. */
 export interface PermissionSettings {
   /** `museSpark.modelApiCommandRules` (machine). */
   readonly commandRules: readonly unknown[]
@@ -69,4 +69,13 @@ export interface PermissionSettings {
   readonly profile: unknown
   /** `museSpark.modelApiRepositoryRules` (any scope; it can only tighten). */
   readonly repositoryRules: unknown
+  /**
+  `museSpark.modelApiSensitiveReads` (machine, D261), kept whole: null
+  (unset) is the built-in sensitive set, an empty list empties it, and a
+  list of workspace-relative globs replaces it. Anything else is said
+  once and the built-in set applies (permissionPolicy.ts).
+  */
+  readonly sensitiveReads: unknown
+  /** `museSpark.modelApiMemoryAfterUntrustedAsk` (machine, D261). */
+  readonly memoryAfterUntrustedAsk: boolean
 }
