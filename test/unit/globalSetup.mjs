@@ -5,7 +5,7 @@
 // assertions and deadlines.
 
 import { spawnSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import {
   BROWSER_ENGLISH,
@@ -14,7 +14,11 @@ import {
   buildBrowserEnglish,
   buildRegionalEnglish,
 } from './helpers/l10nBuilds.mjs'
-import { WINDOWS_POWERSHELL_RELATIVE_PATH } from '../../src/shared/constants'
+import { findChrome } from '../../scripts/lib/chrome.mjs'
+import {
+  WINDOWS_FRAMEWORK_RELATIVE_PATH,
+  WINDOWS_POWERSHELL_RELATIVE_PATH,
+} from '../../src/shared/constants'
 import { removeFolder } from './helpers/temporaryFolders'
 import { MODELS_FIRST_PAINT_KEY, buildModelsFirstPaint } from './helpers/modelsFirstPaintBuild.mjs'
 import { startReviewBrowser } from './helpers/reviewBrowser.mjs'
@@ -34,23 +38,57 @@ modules the suites read and its time printed. A start that never answers is ende
 and said, and the suites that need one report for themselves.
 */
 const COLD_START_HUNG_MS = 180_000
+function coldStart(label, file, args) {
+  const started = Date.now()
+  // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- each file is Windows' own under SystemRoot or the Chrome findChrome located
+  const result = spawnSync(file, args, {
+    stdio: 'ignore',
+    timeout: COLD_START_HUNG_MS,
+    windowsHide: true,
+  })
+  const ended = result.error === undefined ? `exit ${String(result.status)}` : result.error.message
+  process.stdout.write(`${label} cold start: ${String(Date.now() - started)} ms (${ended})\n`)
+}
+// CimCmdlets is a module of its own, and WMI's first query is a cost of its own: the port
+// list and the process table read them (makerWindowEngine and m96dCoordinatorEndpoint passed
+// 15 s on run 41677635406, with the PowerShell start above already paid).
 function warmWindowsPowerShell() {
   if (process.platform !== 'win32') return
-  const started = Date.now()
-  const result = spawnSync(
+  coldStart(
+    'Windows PowerShell',
     path.win32.join(process.env['SystemRoot'] ?? '', WINDOWS_POWERSHELL_RELATIVE_PATH),
     [
       '-NoProfile',
       '-NonInteractive',
       '-Command',
-      "$null = Get-Acl -LiteralPath $env:SystemRoot; $null = '{}' | ConvertFrom-Json",
+      "$null = Get-Acl -LiteralPath $env:SystemRoot; $null = '{}' | ConvertFrom-Json; $null = Get-CimInstance Win32_Process -Filter 'ProcessId=0'",
     ],
-    { stdio: 'ignore', timeout: COLD_START_HUNG_MS, windowsHide: true },
   )
-  const ended = result.error === undefined ? `exit ${String(result.status)}` : result.error.message
-  process.stdout.write(
-    `Windows PowerShell cold start: ${String(Date.now() - started)} ms (${ended})\n`,
+}
+/**
+The compiler each process builds its birth reader with (processOwner.ts), and Chrome: the same
+first start, in whichever suite reaches it first (runtimePullRequestRecords' first lease passed
+15 s and feedbackBrowser's launch passed its 30 s hook on run 41677635406). Chrome runs on a
+profile of this run's own, so a person's Chrome is never asked.
+*/
+function warmWindowsFirstStarts(root) {
+  if (process.platform !== 'win32') return
+  const source = path.join(root, 'cold-start.cs')
+  writeFileSync(source, 'static class ColdStart { static void Main() {} }\n')
+  coldStart(
+    'Windows C# compiler',
+    path.win32.join(process.env['SystemRoot'] ?? '', WINDOWS_FRAMEWORK_RELATIVE_PATH, 'csc.exe'),
+    ['/nologo', `/out:${path.join(root, 'cold-start.exe')}`, source],
   )
+  const chrome = findChrome()
+  if (chrome === undefined) return
+  coldStart('Chrome', chrome, [
+    '--headless=new',
+    '--disable-gpu',
+    `--user-data-dir=${path.join(root, 'cold-start-chrome')}`,
+    '--dump-dom',
+    'about:blank',
+  ])
 }
 
 export default async function setup(project) {
@@ -59,6 +97,7 @@ export default async function setup(project) {
   // imports source by a relative path, which another drive's TEMP would break.
   mkdirSync('temp', { recursive: true })
   const root = mkdtempSync(path.resolve('temp', 'l10n-builds-'))
+  warmWindowsFirstStarts(root)
   // Vitest registers this run's selected paths before global setup. A fresh
   // glob would include unselected suites and compile for every native test.
   const testFiles = project.vitest.state.getPaths()

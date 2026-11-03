@@ -15,6 +15,7 @@ import { isBoardVolumeWorkspace } from '../../src/core/maker/guard/modes'
 import {
   createHardwareContexts,
   readHardwareInventory,
+  readWindowsSerialComm,
   type HardwareWorkspace,
 } from '../../src/core/maker/hardwareContext'
 import { SessionHardwareGuard } from '../../src/core/maker/sessionGuard'
@@ -278,9 +279,10 @@ const isRoot = typeof process.getuid === 'function' && process.getuid() === 0
 describe('the inventory read', () => {
   it('the win32 path latches without becoming positive evidence', () => {
     const devices = workspace()
-    const owner = createHardwareContexts(() => readHardwareInventory('win32', devices, []))(
-      workspace(),
-    )
+    const missing = path.join(devices, 'no-such-system-root')
+    const owner = createHardwareContexts(() =>
+      readHardwareInventory('win32', devices, [], () => readWindowsSerialComm(missing)),
+    )(workspace())
     expect(owner.current().isHardwareWorkspace).toBe(true)
     expect(owner.isPositivelyHardware()).toBe(false)
   })
