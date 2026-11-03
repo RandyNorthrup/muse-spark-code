@@ -32910,6 +32910,31 @@ red/green suites over the catalogue path. Record:
 
 ---
 
+### RLFFIRSTRUN — First-run dead-ends leave flight-recorder facts (RSCH-MUSE-G, #157, 2026-11-02)
+
+**Status 2026-11-02 (lane RLF-FIRSTRUN): built.** Behind
+muse-spark-code#157 (0.18.2, win32: the not-installed screen, then a
+report with 0 recent events): every first-run dead-end now writes one
+flight-recorder fact in the existing vocabulary. Verified on current
+main: the not-installed screen records `cliProbe`/`cliMissing` plus
+`backendResolved`/`noneCliMissing`, and a signed-out CLI records
+`cliProbe`/`cliSignedOut` plus `backendResolved`/`noneCliSignedOut`
+(the offer the gate shows). Added: pressing Install forces a
+`cliProbe`/`cliMissing` start row; the install re-check forces its
+outcome row (`cliMissing` on timeout, `unknown` when the installer
+never started); dismissing the key prompt records
+`signInFailed`/`cancelled`, as a browser cancel does. No new kinds, no
+new codes, no builder change: the draft's start/outcome pairs and
+their ages separate "never tried" from "tried and failed", and an
+immediate failure from a timed-out wait. Proof: five real-code tests
+over the real AuthService, recorder, journal and builder, and a real
+extension-host run with the CLI absent (throwaway profile, PATH and
+HOME) whose journal and draft carry the new facts. Reply text for
+#157 is drafted for the owner, not posted. Evidence:
+`docs/certification/rlf-firstrun.md`.
+
+---
+
 ## 7. Gates
 
 **RLM95 plan-archive deferral (2026-10-22, macmini).** `npm run check:plan`
