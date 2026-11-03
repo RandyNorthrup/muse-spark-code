@@ -3,11 +3,30 @@
 // Native entry access is deferred until the owner enables the live test.
 
 import { Usd } from '../../src/shared/usd'
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
+import { format, resolveConfig } from 'prettier'
 import * as z from 'zod/mini'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
-import type { EvalReport } from '../../src/core/eval/report'
+import type { CoreLogger } from '../../src/core/logging'
+import type { FrozenEvalHarness } from '../../src/core/eval/mechanisms'
+import {
+  formatEvalReportJson,
+  formatEvalReportMarkdown,
+  type EvalReport,
+} from '../../src/core/eval/report'
+import { runPairedEval, type EvalArm } from '../../src/core/eval/runner'
 import { EVAL_TASKS, type EvalTask } from '../../src/core/eval/tasks'
+import { fileContextIo } from '../../src/host/backend/contextIo'
+import { shellJobAssembly } from '../../src/host/backend/shellJob'
+import { liveFetch } from '../../src/host/networkPosture'
+import { stderrLogger } from '../../src/runtime/stderrLog'
+import { MODEL_API_BASE_URL, SEARCH_WORKER_FILE } from '../../src/shared/constants'
+import { readJobSource } from '../unit/helpers/jobSource'
+import { filesUnder, removeFolder } from '../unit/helpers/temporaryFolders'
 import { listWorkspaceFiles } from '../../src/core/eval/workspace'
 import {
   CredentialStore,
@@ -380,6 +399,129 @@ export function withCompactionEngagement(
     },
     verdict: engagementVerdict(report.verdict, isHeld, longTasks.length),
   }
+}
+
+/**
+The agent's own logger (src/runtime/stderrLog.ts) with its lines kept, so
+a live entry can scan them for the stored key before anything prints.
+*/
+export function liveEvalLog(): { readonly logged: string[]; readonly log: CoreLogger } {
+  const logged: string[] = []
+  const log = stderrLogger((line) => {
+    logged.push(line)
+  }, 'trace')
+  return { logged, log }
+}
+
+/**
+One live paired run's shared scaffolding (M75, RLF-PINNED): the frozen
+search worker in its own storage, the Windows job helper compiled once
+outside every task's folder, the paired run itself, and the key scan of
+each task folder before it is removed. Returns the report and where the
+stored key leaked, if anywhere; each live entry keeps its own
+engagement wrapping and verdict assertions.
+*/
+export async function runLivePairedEval(options: {
+  readonly tasks: readonly EvalTask[]
+  readonly arms: readonly [EvalArm, ...EvalArm[]]
+  readonly frozenHarness: FrozenEvalHarness
+  readonly credentials: EvalLiveCredentials
+  readonly log: CoreLogger
+  readonly maxAttempts: number | undefined
+  readonly storagePrefix: string
+}): Promise<{ readonly result: EvalReport; readonly leaks: string[] }> {
+  const leaks: string[] = []
+  const storage = mkdtempSync(path.join(tmpdir(), options.storagePrefix))
+  const searchWorker = path.join(storage, SEARCH_WORKER_FILE)
+  const jobAssembly =
+    process.platform === 'win32'
+      ? shellJobAssembly({
+          readJobSource,
+          storageDir: storage,
+          systemRoot: process.env['SystemRoot'] ?? '',
+          log: (message) => {
+            options.log.warn(message)
+          },
+        })
+      : undefined
+  try {
+    writeFileSync(searchWorker, options.frozenHarness.searchWorker.code)
+    const result = await runPairedEval(options.tasks, options.arms, {
+      frozenHarness: options.frozenHarness,
+      fetch: liveFetch,
+      client: {
+        baseUrl: MODEL_API_BASE_URL,
+        apiKey: options.credentials.apiKey,
+        sleep: (ms) => delay(ms),
+        now: Date.now,
+        random: Math.random,
+        log: options.log,
+      },
+      toolIo: (workspace) =>
+        liveToolIo({
+          workspace,
+          env: () => process.env,
+          searchWorkerPath: searchWorker,
+          log: (message) => {
+            options.log.warn(message)
+          },
+          shellJobAssembly: jobAssembly,
+        }),
+      contextIo: fileContextIo,
+      platform: process.platform,
+      accountId: options.credentials.accountId,
+      log: options.log,
+      now: Date.now,
+      newId: () => randomUUID(),
+      generatedAt: new Date().toISOString(),
+      ...(options.maxAttempts !== undefined && { maxAttempts: options.maxAttempts }),
+      inspect: (root) => {
+        for (const file of filesUnder(root)) {
+          if (options.credentials.contains(readFileSync(file))) {
+            leaks.push(path.relative(root, file))
+          }
+        }
+        return Promise.resolve()
+      },
+    })
+    return { result, leaks }
+  } finally {
+    await removeFolder(storage)
+  }
+}
+
+/**
+Print and (where asked) write a live report, after scanning the log and
+both artifacts for the stored key. Returns every place it leaked.
+*/
+export async function publishLiveEvalReport(options: {
+  readonly report: EvalReport
+  readonly credentials: EvalLiveCredentials
+  readonly logged: readonly string[]
+  readonly reportPath: string | undefined
+}): Promise<string[]> {
+  const leaks: string[] = []
+  const markdown = formatEvalReportMarkdown(options.report)
+  if (options.logged.some((line) => options.credentials.contains(line))) {
+    leaks.push('the log')
+  }
+  if (options.credentials.contains(`${formatEvalReportJson(options.report)}${markdown}`)) {
+    leaks.push('the report')
+  }
+  process.stderr.write(`${options.credentials.redact(markdown)}\n`)
+  if (options.reportPath !== undefined) {
+    const target = path.resolve(options.reportPath)
+    mkdirSync(path.dirname(target), { recursive: true })
+    for (const [extension, parser, text] of [
+      ['.json', 'json', formatEvalReportJson(options.report)],
+      ['.md', 'markdown', markdown],
+    ] as const) {
+      const file = `${target}${extension}`
+      const config = (await resolveConfig(file)) ?? {}
+      writeFileSync(file, await format(text, { ...config, parser }))
+    }
+  }
+  return leaks
 }
 
 /** Outer deadline covers every task/arm run; each turn and verifier keeps its own limit. */

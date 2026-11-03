@@ -355,6 +355,8 @@ const LAZY_ONLY = [
   // TOOLCAP: the one tool-result bound every result passes before the conversation.
   'toolResultBound.ts',
   'autoCompact.ts',
+  // RLF-PINNED: the stated side constraints re-sent verbatim after a compaction's summary.
+  'constraintPins.ts',
   'permissions.ts',
   'promptCache.ts',
   // The built-in Reviewer's prompt and tool list (M70).

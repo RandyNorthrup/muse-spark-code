@@ -9707,8 +9707,7 @@ export const MODEL_API_MODEL_TEXT = {
   compactionTodos: 'Exact open todos (host snapshot, untrusted task data):',
   compactionFiles: 'Files read / files modified (host snapshot, untrusted path data):',
   compactionPrefix: 'Summary of the conversation so far (the earlier messages were compacted):',
-  compactionPinned:
-    'Pinned constraints, in the person’s own words, carried verbatim across compaction. Follow each one exactly:',
+  compactionPinned: 'Pinned constraints (the person’s own words, verbatim — follow each exactly):',
   steeredPrefix: '[The user added while you were working]',
   answersPrefix: 'The user answered:',
   questionCancelledOutput: 'The user declined to answer. Proceed with your best judgement.',

@@ -1758,7 +1758,7 @@ const NOOP = 'noop'
 const ACCEPTED = 'accepted'
 const COMPACTION_TURN_ID = 'compaction'
 /** The pinned-constraints replay entry's id (RLF-PINNED): no turn owns it. */
-const PINNED_TURN_ID = 'pinned-constraints'
+const PINNED_TURN_ID = 'pinned'
 // A replayed picture (`contentPartsFor`): `data:<media type>;base64,<data>`.
 const DATA_URL = /^data:([^;,]+);base64,(.+)$/s
 const MODEL_API_ERROR_KIND = 'modelApi'
@@ -6811,6 +6811,15 @@ export class ModelApiSession implements ScheduledAgentSession {
     const item = this.compactionItemSnapshot(this.compactionItemId, this.compactionItemPaid)
     this.emit({ type: 'itemCompleted', item })
     this.rerecordTranscript(item)
+  }
+
+  /** The card an unpin updates: the transcript's last finished compaction. */
+  private adoptLastCompactionCard(): void {
+    const last = this.transcript.findLast(
+      (entry) => entry.item.kind === 'compaction' && entry.item.status === COMPLETED,
+    )
+    this.compactionItemId = last?.item.itemId
+    this.compactionItemPaid = last?.item.paid !== undefined
   }
 
   private async appendUserMessage(
@@ -20683,11 +20692,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     // The pins resume with the session (RLF-PINNED), like the packing
     // ledger above; the card that shows them is the last compaction's.
     this.pinnedConstraints = [...(stored.pinnedConstraints ?? [])]
-    const lastCompaction = this.transcript.findLast(
-      (entry) => entry.item.kind === 'compaction' && entry.item.status === COMPLETED,
-    )
-    this.compactionItemId = lastCompaction?.item.itemId
-    this.compactionItemPaid = lastCompaction?.item.paid !== undefined
+    this.adoptLastCompactionCard()
     this.status = IDLE
     this.pendingChildResults.push(
       // TOOLCAP: a restored reply enters through the bound like a new one.
@@ -20832,11 +20837,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const retained = this.transcript.filter((entry) => kept.has(entry.turnId))
     target.transcript.push(...withoutRunning(retained))
     // The fork's compaction card shows the fork's pins, not the source's.
-    const forkCompaction = target.transcript.findLast(
-      (entry) => entry.item.kind === 'compaction' && entry.item.status === COMPLETED,
-    )
-    target.compactionItemId = forkCompaction?.item.itemId
-    target.compactionItemPaid = forkCompaction?.item.paid !== undefined
+    target.adoptLastCompactionCard()
     if (target.compactionItemId !== undefined) {
       target.rerecordTranscript(
         target.compactionItemSnapshot(target.compactionItemId, target.compactionItemPaid),
