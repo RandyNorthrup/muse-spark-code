@@ -93,6 +93,13 @@ jobs:
       - name: D-Bus test tools
         run: sudo apt-get install -y --no-install-recommends dbus python3-gi libglib2.0-bin
       - run: npm ci
+      # GitHub's arm64 Ubuntu image has no Chrome and Google builds none for Linux on arm64:
+      # the Chromium this lockfile's Playwright pins. The scene suite throws without one.
+      - name: Chromium for the scene suite
+        if: matrix.arch == 'arm64'
+        run: |
+          npx playwright-core install --with-deps chromium
+          node --input-type=module -e "import { chromium } from 'playwright-core'; console.log('CHROME_PATH=' + chromium.executablePath())" >> "$GITHUB_ENV"
       - name: harness suites
         run: >-
           npx vitest run
@@ -359,12 +366,15 @@ jobs:
         with:
           name: muse-virtual-input-amd64
           path: temp/virtual-input
+      # download-artifact drops the exec bit.
+      - run: chmod +x temp/virtual-input/muse-virtual-input
       - name: guest session in the Debian 13 container
         run: |
           docker run --rm -v "$PWD:/repo" -w /repo debian:trixie sh -c '
+            set -e
             apt-get update -qq
-            apt-get install -y -qq --no-install-recommends qemu-system-x86 swtpm nodejs curl e2fsprogs genisoimage qemu-utils >/dev/null
-            curl -sL -o /tmp/cloud.qcow2 https://cloud.debian.org/images/cloud/trixie/latest/debian-13-genericcloud-amd64.qcow2
+            apt-get install -y -qq --no-install-recommends qemu-system-x86 swtpm nodejs curl ca-certificates e2fsprogs genisoimage qemu-utils >/dev/null
+            curl -fSL -o /tmp/cloud.qcow2 https://cloud.debian.org/images/cloud/trixie/latest/debian-13-genericcloud-amd64.qcow2
             sh test/desktop/harness/guest/build-session-share.sh /repo /tmp/share /repo/temp/virtual-input/muse-virtual-input
             cp /tmp/cloud.qcow2 /tmp/cloud-run.qcow2
             qemu-img resize /tmp/cloud-run.qcow2 12G

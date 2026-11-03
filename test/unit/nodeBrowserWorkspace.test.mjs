@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { readFileSync, existsSync, mkdirSync } from 'node:fs'
+import { readFileSync, existsSync, mkdirSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, inject, it } from 'vitest'
 import { chromium } from 'playwright-core'
@@ -27,13 +27,16 @@ async function warmBrowser(browser) {
   }
 }
 
+// This suite's own build, under the folder the harness server serves. It never writes
+// dist/webview/node: other suites read the shared production build while this one runs.
+const BUILD = `temp/node-browser-${String(process.pid)}`
 const state = { pages: [] }
 beforeAll(async () => {
   // The harness page links the production webview stylesheet: refuse a run
   // whose shared build is missing or stale instead of measuring unstyled bytes.
   assertCurrentProductionBuild(inject('productionBuildGeneration'), process.cwd())
   const dependencies = path.resolve('temp/u1-deps/node_modules')
-  await buildNodeWorkspace(undefined, existsSync(dependencies) ? dependencies : undefined)
+  await buildNodeWorkspace(BUILD, existsSync(dependencies) ? dependencies : undefined)
   const locale = await loadL10n(process.cwd())
   state.text = locale.EN
   const chrome = findChrome()
@@ -52,12 +55,13 @@ afterEach(async () => {
 afterAll(async () => {
   await state.browser?.close()
   if (state.server !== undefined) await new Promise((resolve) => state.server.close(resolve))
+  rmSync(BUILD, { recursive: true, force: true })
 })
 async function pageFor(scenario = 'node-editor', language, width = 690) {
   const page = await state.browser.newPage({ viewport: { width, height: 760 } })
   state.pages.push(page)
   await page.goto(
-    `http://127.0.0.1:${String(state.port)}/test/harness/node.html?scenario=${scenario}&theme=dark${language === undefined ? '' : `&lang=${language}`}`,
+    `http://127.0.0.1:${String(state.port)}/test/harness/node.html?build=../../${BUILD}&scenario=${scenario}&theme=dark${language === undefined ? '' : `&lang=${language}`}`,
   )
   await page.locator('body[data-node-ready="true"]').waitFor()
   return page
