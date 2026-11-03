@@ -6224,7 +6224,9 @@
     "recommended": "Doporučeno",
     "cheapestCapable": "Nejlevnější vhodný",
     "largestContext": "Největší kontext",
-    "newBadge": "Novinka"
+    "newBadge": "Novinka",
+    "deprecated": "Zastaralé",
+    "beta": "Beta"
   },
   "modelToolCallingUnavailable": "Volání nástrojů nebylo u tohoto modelu ověřeno.",
   "paidProviderPrice": "Za milion tokenů: vstup {input}, čtení mezipaměti {cached}, zápis mezipaměti {write}, hodinový zápis {write1h}, dvanáctihodinový zápis {write12h}, výstup {output}. Za požadavek {request}; za obrázek {image}.",
@@ -6273,6 +6275,10 @@
   "pickerPinnedGroup": "Připnuté oblíbené",
   "pickerMetaGroup": "Muse Spark",
   "pickerPricePair": "{input} vstup · {output} výstup (za milion tokenů)",
+  "pickerRetiresOn": "Končí {date}",
+  "pickerRerouteServes": "Obsluhuje požadavky na {id}",
+  "modelReroutesOn": "Od {date} směruje na {model}",
+  "referenceProviderLifecycle": "Požadavky na Gemini nesou store=false, takže Google vaše výzvy a odpovědi neukládá. Výběr modelu a tabulka Modely označují zastaralé a beta modely a výběr modelu uvádí ohlášený den ukončení; zastaralý model zůstává k výběru, dokud ho poskytovatel neodmítne. Id Gemini, které Google přesměrovává, je oceněno a označeno jako model, který ho obsluhuje.",
   "usageKeyUsage": "Využití klíče API",
   "usageLimit": "Limit",
   "usageRemaining": "Zbývá",
@@ -6480,6 +6486,9 @@
       "zdr": "Žádné uchovávání dat: odpovídat smějí pouze koncové body, které neukládají žádná data.",
       "no-training": "Žádné trénování: odpovídat smějí pouze poskytovatelé, kteří netrénují na vašich datech.",
       "any": "Libovolný poskytovatel: vyhrává nejlevnější nebo nejrychlejší odpověď, včetně poskytovatelů, kteří mohou uchovávat data."
+    },
+    "privacyNotes": {
+      "geminiStore": "Každý požadavek odsud nese store=false, takže Google neukládá vaše výzvy ani odpovědi, ani v projektu, který ukládá ve výchozím nastavení."
     },
     "suggest": {
       "recommended": "Doporučený a nejlevnější model s voláním nástrojů a dostatečným prostorem pro běhové prostředí ({ref}).",

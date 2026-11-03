@@ -169,6 +169,7 @@ export function createModelsPanelSeam(options: {
       format: preset.format,
       auth: preset.auth,
       keyHint: preset.keyHint,
+      ...(preset.privacyNote !== undefined && { privacyNote: preset.privacyNote }),
       keyPage: preset.keyPage ?? '',
       freeTest: preset.keyTest.kind === 'models-list' ? 'modelsList' : 'none',
       localProbes:

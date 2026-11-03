@@ -191,7 +191,7 @@ describe('M105 lane V vendor video refusals', () => {
     )
     const gemini = encodeGeminiRequest(geminiBody(content), 'gemini-2.5-flash')
     expect(JSON.stringify(gemini.body)).toBe(
-      '{"systemInstruction":{"parts":[{"text":"be brief"}]},"contents":[{"role":"user","parts":[{"text":"hi"},{"inlineData":{"mimeType":"image/png","data":"iVBOR"}}]}],"generationConfig":{"maxOutputTokens":1024,"thinkingConfig":{"thinkingBudget":0,"includeThoughts":true}}}',
+      '{"systemInstruction":{"parts":[{"text":"be brief"}]},"contents":[{"role":"user","parts":[{"text":"hi"},{"inlineData":{"mimeType":"image/png","data":"iVBOR"}}]}],"store":false,"generationConfig":{"maxOutputTokens":1024,"thinkingConfig":{"thinkingBudget":0,"includeThoughts":true}}}',
     )
     // A video part refuses instead of encoding: this fails when either
     // refusal above is removed (the request would encode in its place).

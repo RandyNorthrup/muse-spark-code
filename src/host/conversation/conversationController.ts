@@ -227,7 +227,7 @@ import {
   type SubagentOrigin,
   type TodoItem,
 } from '../../shared/agentEvents'
-import { fill, plural, uiLocale } from '../../shared/l10n/text'
+import { fill, formatProviderDate, plural, uiLocale } from '../../shared/l10n/text'
 import { INDUSTRY_RETRY_LIMITS, retryDelayMs } from '../../shared/retryPolicy'
 import { sessionTitle } from '../../shared/sessions'
 import { bestOfNTakenNotice } from '../../shared/bestOfNAttemptText'
@@ -1212,7 +1212,40 @@ The webview's model row for one host summary (C-M106-3R3): everything the
 picker shows plus the served catalogue's tiers, so the sliders render the
 catalogue the host sent instead of the static family table (RVCM1063 #3).
 */
+/**
+A row's lifecycle and reroute marks (PROV-HONEST), composed where the
+record lives: the shutdown day where one is announced (else the
+lifecycle word; retired reads as deprecated), the beta mark, and the
+serving or upcoming reroute. Nothing here blocks selecting the model.
+*/
+function pickerMarks(model: ModelSummary): string[] {
+  const marks: string[] = []
+  if (model.retiresAt !== undefined) {
+    marks.push(fill(UI_TEXT.pickerRetiresOn, { date: formatProviderDate(model.retiresAt) }))
+  } else if (model.lifecycle !== undefined) {
+    marks.push(UI_TEXT.modelBadges.deprecated)
+  }
+  if (model.beta === true) marks.push(UI_TEXT.modelBadges.beta)
+  const reroute = model.reroute
+  if (reroute !== undefined) {
+    if (reroute.active) {
+      // The row is labelled as the serving model; the mark names the
+      // configured native id it serves requests for.
+      marks.push(fill(UI_TEXT.pickerRerouteServes, { id: reroute.requested }))
+    } else if (reroute.from !== undefined) {
+      marks.push(
+        fill(UI_TEXT.modelReroutesOn, {
+          model: reroute.servesLabel,
+          date: formatProviderDate(reroute.from),
+        }),
+      )
+    }
+  }
+  return marks
+}
+
 export function toModelOption(model: ModelSummary): ModelOption {
+  const marks = pickerMarks(model)
   return {
     modelId: model.modelId,
     displayLabel: model.displayLabel,
@@ -1263,6 +1296,7 @@ export function toModelOption(model: ModelSummary): ModelOption {
     ...(model.defaultReasoningEffort !== undefined && {
       defaultReasoningEffort: model.defaultReasoningEffort,
     }),
+    ...(marks.length > 0 && { marks }),
   }
 }
 

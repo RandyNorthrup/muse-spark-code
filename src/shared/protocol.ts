@@ -386,6 +386,14 @@ const modelOptionSchema = z.object({
     z.array(z.object({ tier: stringSchema, description: z.optional(stringSchema) })),
   ),
   defaultReasoningEffort: z.optional(stringSchema),
+  /**
+  Lifecycle and reroute marks the picker names after the detail
+  (PROV-HONEST): the shutdown day where one is announced (else the
+  lifecycle word), the beta mark, and the reroute served. The host
+  composes them where the record lives, so the webview carries no
+  date formatter for them; nothing here blocks selecting the model.
+  */
+  marks: z.optional(z.array(stringSchema)),
 })
 export type ModelOption = z.infer<typeof modelOptionSchema>
 

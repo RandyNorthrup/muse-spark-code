@@ -8,7 +8,10 @@ import {
   type CapabilityOverrides,
   type CapabilityEvidence,
 } from '../../src/core/providers/capabilities'
-import { nativeCapabilityEvidence } from '../../src/core/providers/modelMetadata'
+import {
+  nativeCapabilityEvidence,
+  parseNativeModelsList,
+} from '../../src/core/providers/modelMetadata'
 import { capturedCapabilities } from '../../src/core/providers/capturedCapabilities'
 import { providersFileSchema, readProvidersFile } from '../../src/core/providers/providersFile'
 import {
@@ -924,5 +927,75 @@ describe('M101-GENERATION-RECORD: the catalog carries the Gemini generation', ()
     expect(subset[0]).toHaveProperty('parameters')
     const full = declarationsOf('gemini-3.5-flash-lite', {})
     expect(full[0]).toHaveProperty('parametersJsonSchema')
+  })
+})
+
+describe('PROV-HONEST lifecycle honesty', () => {
+  it('leaves the record silent on the recorded OpenAI row (shutdown_date null)', () => {
+    // docs/certification/m95-captures/openai/01-models-list.json (captured
+    // 2026-10-04): the recorded row carries shutdown_date: null, so nothing
+    // is announced and the record stays silent.
+    const [row] = parseNativeModelsList(samples('openai'))
+    expect(row).toMatchObject({ id: 'gpt-5.6-luna' })
+    const resolved = resolveModelCapabilities(
+      { provider: 'openai', nativeModel: 'gpt-5.6-luna', format: 'responses' },
+      [nativeCapabilityEvidence('openai', row, { kind: 'models-list', ref: 'test' })],
+    )
+    expect(resolved.identity.lifecycle).toBeUndefined()
+    expect(resolved.identity.retiresAt).toBeUndefined()
+  })
+
+  it('reads an announced OpenAI shutdown day as deprecated with its date', () => {
+    // gpt-4o-2024-08-06 shuts down 2027-01-14, and an announced model
+    // "immediately becomes deprecated" (developers.openai.com/api/docs/deprecations,
+    // read 2026-11-02). The row follows the list's documented shape.
+    const resolved = resolveModelCapabilities(
+      { provider: 'openai', nativeModel: 'gpt-4o-2024-08-06', format: 'responses' },
+      [
+        nativeCapabilityEvidence(
+          'openai',
+          { id: 'gpt-4o-2024-08-06', shutdown_date: '2027-01-14' },
+          { kind: 'models-list', ref: 'test' },
+        ),
+      ],
+    )
+    expect(resolved.identity).toMatchObject({ lifecycle: 'deprecated', retiresAt: '2027-01-14' })
+  })
+
+  it('reads the sealed snapshot status word into lifecycle and beta', () => {
+    // vendor/models-dev/snapshot.json (sealed 2026-11-02): o3-mini carries
+    // status deprecated and mistral-large-4 status beta. A re-sync that
+    // moves either word fails here first, by design.
+    const deprecated = resolveModelCapabilities(
+      { provider: 'openai', nativeModel: 'o3-mini', format: 'responses' },
+      [
+        nativeCapabilityEvidence('openai', catalogueModel('openai', 'o3-mini'), {
+          kind: 'catalogue',
+        }),
+      ],
+    )
+    expect(deprecated.identity.lifecycle).toBe('deprecated')
+    expect(deprecated.identity.beta).toBeUndefined()
+    const beta = resolveModelCapabilities(
+      { provider: 'mistral', nativeModel: 'mistral-large-4', format: 'chat' },
+      [
+        nativeCapabilityEvidence('mistral', catalogueModel('mistral', 'mistral-large-4'), {
+          kind: 'catalogue',
+        }),
+      ],
+    )
+    expect(beta.identity.lifecycle).toBeUndefined()
+    expect(beta.identity.beta).toBe(true)
+  })
+
+  it('opts every Gemini request out of provider storage', () => {
+    // store: false rides the native body top-level, beside the
+    // generation config (aistudio.google.com/api-reference/generate-content/stream-generate-content,
+    // read 2026-11-02); the canonical body carries store: false always.
+    const encoded = encodeGeminiRequest(body, 'gemini-2.5-flash')
+    expect(encoded.body['store']).toBe(false)
+    // The plain-text body carries nothing else: contents, the opt-out,
+    // and the generation config, in that order.
+    expect(Object.keys(encoded.body)).toEqual(['contents', 'store', 'generationConfig'])
   })
 })

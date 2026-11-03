@@ -1335,6 +1335,11 @@
       "note": "recovery: hidden-character warnings on rules and skills load, fresh review fences, flag-aware rm forbids"
     },
     {
+      "id": "RLFGEMPRIVACY",
+      "public": false,
+      "note": "recovery: Gemini store opt-out, shutdown dates, status badges, reroute pricing"
+    },
+    {
       "id": "SDK142",
       "public": false,
       "note": "Muse Code CLI fingerprint and documentation update"

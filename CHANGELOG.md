@@ -135,6 +135,18 @@ happened, not what was planned; superseded entries are kept.
   token usage like any message. The mechanism is built and proven
   offline; it turns on only when its counted live evaluation passes,
   and this entry will say so when it does.
+- **The model picker and the Models table say when a model is going
+  away.** Deprecated and Beta badges come from the provider catalogue and
+  from OpenAI's model list, and the picker names an announced shutdown
+  day ("Retires" and the date). A deprecated model stays selectable until its
+  provider refuses it; you are warned, never blocked.
+- **A Gemini id that Google reroutes is priced as the model that answers
+  it.** `gemini-3.5-flash` (served by `gemini-3.6-flash`) and
+  `gemini-3.7-flash` (served by `gemini-3.8-flash`) today, and
+  `gemini-2.5-pro` and `gemini-2.5-flash` from 1 December 2026, show the
+  serving model's name and price, with the reroute named in the picker.
+  The facts come from a dated table citing Google's changelog, checked
+  again on every catalogue sync.
 - **Maker tools with a person at every physical action.** Shell commands
   that flash a board, open a device or move a machine ask every time, in
   every permission mode, and no remembered rule, hook or automatic reviewer
@@ -536,6 +548,10 @@ happened, not what was planned; superseded entries are kept.
   an index mapping the whole backlog to its scenario, manual steps, or
   hosted receipt. Nothing is marked proven until the lead's run proves
   it.
+- **Gemini requests opt out of Google's storage.** Every Gemini request
+  sends `store=false`, so Google does not keep your prompts and responses,
+  even on a new paid project that stores them by default (since 26 October
+  2026). The step where you enter the Gemini key says so in one sentence.
 - Three bundle budgets are back to their original caps with the bundles
   fitting by weight and no behavior change. The team runners read their
   schemas from the already-loaded team bundle instead of carrying second

@@ -6224,7 +6224,9 @@
     "recommended": "Polecany",
     "cheapestCapable": "Najtańszy odpowiedni",
     "largestContext": "Największy kontekst",
-    "newBadge": "Nowy"
+    "newBadge": "Nowy",
+    "deprecated": "Przestarzały",
+    "beta": "Beta"
   },
   "modelToolCallingUnavailable": "Wywoływanie narzędzi nie zostało zweryfikowane dla tego modelu.",
   "paidProviderPrice": "Za milion tokenów: wejście {input}, odczyt pamięci podręcznej {cached}, zapis pamięci podręcznej {write}, zapis na godzinę {write1h}, zapis na 12 godzin {write12h}, wyjście {output}. Za żądanie {request}; za obraz {image}.",
@@ -6273,6 +6275,10 @@
   "pickerPinnedGroup": "Przypięte ulubione",
   "pickerMetaGroup": "Muse Spark",
   "pickerPricePair": "{input} na wejściu · {output} na wyjściu (za mln tokenów)",
+  "pickerRetiresOn": "Wycofany {date}",
+  "pickerRerouteServes": "Obsługuje żądania {id}",
+  "modelReroutesOn": "Od {date} kieruje do {model}",
+  "referenceProviderLifecycle": "Żądania do Gemini zawierają store=false, więc Google nie przechowuje Twoich promptów ani odpowiedzi. Wybór modelu i tabela Modele oznaczają modele wycofywane i beta, a wybór modelu podaje ogłoszony dzień wycofania; wycofywany model pozostaje do wyboru, dopóki dostawca go nie odrzuci. Identyfikator Gemini, który Google przekierowuje, ma cenę i etykietę modelu, który go obsługuje.",
   "usageKeyUsage": "Użycie klucza API",
   "usageLimit": "Limit",
   "usageRemaining": "Pozostało",
@@ -6480,6 +6486,9 @@
       "zdr": "Bez przechowywania danych: odpowiadają tylko punkty końcowe, które nie zapisują żadnych danych.",
       "no-training": "Bez trenowania: odpowiadają tylko dostawcy, którzy nie trenują na Twoich danych.",
       "any": "Dowolny dostawca: wygrywa najtańsza lub najszybsza odpowiedź, także od dostawców mogących przechowywać dane."
+    },
+    "privacyNotes": {
+      "geminiStore": "Każde żądanie wysłane stąd zawiera store=false, więc Google nie przechowuje podpowiedzi ani odpowiedzi, nawet w projekcie, który domyślnie przechowuje."
     },
     "suggest": {
       "recommended": "Polecany i najtańszy model wywołujący narzędzia z miejscem na środowisko wykonawcze ({ref}).",

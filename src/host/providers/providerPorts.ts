@@ -11,6 +11,7 @@
 // Each interface names the plan section that defines its contract, so lane
 // P's merge reconciles names instead of behaviour.
 
+import type { ModelReroute } from '../../core/providers/geminiReroutes'
 import type { CustomCompat } from '../../core/providers/providersFile'
 import type { PresetCard } from '../../shared/modelsPanel'
 
@@ -166,6 +167,8 @@ export interface PresetInfo {
   readonly auth: ProviderAuthMode
   /** Where the key comes from, shown in the password box (never a shape check). */
   readonly keyHint: string
+  /** One honest sentence about what the provider keeps, shown where the key is entered. */
+  readonly privacyNote?: string | undefined
   /** The provider's key page (Get a key). */
   readonly keyPage: string
   /** Whether a free check exists, or a one-token request must be asked first. */
@@ -210,6 +213,14 @@ export interface ProviderModelRow {
   readonly cachedPerMillion?: number | undefined
   readonly recommended?: boolean | undefined
   readonly serverless?: boolean | undefined
+  /** The record's lifecycle word where it is not active (PROV-HONEST). */
+  readonly lifecycle?: 'deprecated' | 'retired' | undefined
+  /** The announced shutdown day where one is known. */
+  readonly retiresAt?: string | undefined
+  /** The catalogue calls this model beta. */
+  readonly beta?: boolean | undefined
+  /** Google serves this id with another model, active or future. */
+  readonly reroute?: ModelReroute | undefined
 }
 
 /**

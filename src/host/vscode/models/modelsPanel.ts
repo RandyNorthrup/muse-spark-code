@@ -699,6 +699,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         auth: preset.auth,
         connectOAuth: preset.connectLabel !== undefined,
         keyHint: preset.keyHint,
+        ...(preset.privacyNote !== undefined && { privacyNote: preset.privacyNote }),
         keyPage: preset.keyPage,
       })
       if (!card.success) {
@@ -849,6 +850,11 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             cheapestCapable: false,
             largestContext: false,
             isNew: false,
+            // Deprecated and Beta come straight from the scan row's
+            // lifecycle honesty (PROV-HONEST); the loop below only fills
+            // the peer-relative badges and keeps these two as pushed.
+            deprecated: model.lifecycle === 'deprecated' || model.lifecycle === 'retired',
+            beta: model.beta === true,
           },
         })
       }
@@ -864,11 +870,14 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       capable.length === 0 ? undefined : Math.min(...capable.map((row) => row.inputPerMillion ?? 0))
     const widest = Math.max(0, ...all.map((row) => row.contextTokens ?? 0))
     for (const row of all) {
+      const { deprecated, beta } = row.badges
       row.badges = {
         recommended: row.recommended === true,
         cheapestCapable: capable.includes(row) && row.inputPerMillion === cheapest,
         largestContext: (row.contextTokens ?? 0) > 0 && row.contextTokens === widest,
         isNew: row.isNew === true,
+        deprecated,
+        beta,
       }
     }
     state.totalModels = all.length

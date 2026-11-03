@@ -5813,7 +5813,9 @@
     "recommended": "推薦",
     "cheapestCapable": "可用最便宜",
     "largestContext": "最大上下文",
-    "newBadge": "新增"
+    "newBadge": "新增",
+    "deprecated": "已棄用",
+    "beta": "測試版"
   },
   "modelToolCallingUnavailable": "此模型的工具呼叫尚未驗證。",
   "paidProviderPrice": "每百萬詞元：輸入 {input}、快取讀取 {cached}、快取寫入 {write}、一小時寫入 {write1h}、十二小時寫入 {write12h}、輸出 {output}。每次請求 {request}；每張圖片 {image}。",
@@ -5862,6 +5864,10 @@
   "pickerPinnedGroup": "置頂收藏",
   "pickerMetaGroup": "Muse Spark",
   "pickerPricePair": "輸入 {input} · 輸出 {output}（每百萬 token 計）",
+  "pickerRetiresOn": "{date}停用",
+  "pickerRerouteServes": "處理{id}的請求",
+  "modelReroutesOn": "自{date}起改由{model}提供",
+  "referenceProviderLifecycle": "Gemini 請求會帶上 store=false，因此 Google 不會儲存你的提示與回覆。模型選擇器與「模型」表會標示已淘汰與 Beta 模型，模型選擇器還會寫明已公布的停用日期；已淘汰的模型在提供者拒絕之前仍可選擇。Google 改道的 Gemini id 會依實際提供服務的模型計價與標示。",
   "usageKeyUsage": "API 金鑰用量",
   "usageLimit": "上限",
   "usageRemaining": "剩餘",
@@ -6069,6 +6075,9 @@
       "zdr": "不保留資料：只有完全不儲存資料的端點可以回應。",
       "no-training": "不用於訓練：只有不使用您的資料進行訓練的提供者可以回應。",
       "any": "任何提供者：選擇最便宜或最快的回應，包括可能保留資料的提供者。"
+    },
+    "privacyNotes": {
+      "geminiStore": "從這裡發出的每個請求都帶有 store=false，因此即使在預設會儲存的專案中，Google 也不會儲存您的提示和回應。"
     },
     "suggest": {
       "recommended": "建議模型，也是具有足夠上下文供執行環境使用的最便宜工具呼叫模型（{ref}）。",

@@ -176,7 +176,8 @@
       "settingsSystem.printersError",
       "settingsSystem.storageVolumes",
       "settingsSystem.datetimeDate",
-      "settingsSystem.localeRegion"
+      "settingsSystem.localeRegion",
+      "modelBadges.beta"
     ],
     "cs": [
       "groupModel",
