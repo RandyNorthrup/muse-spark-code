@@ -17,7 +17,7 @@
 
 import { MODEL_API_TOOLS } from '../../../../shared/constants'
 import type { FunctionToolDefinition } from '../schemas'
-import { estimatePackTokens } from '../toolResultBound'
+import { estimateDefinitionTokens } from '../requestMeters'
 import { mcpFunctionDefinition, mcpFunctionName } from './functions'
 import type { McpToolInfo } from './protocol'
 
@@ -105,15 +105,6 @@ export function argumentNamesOf(definition: FunctionToolDefinition): readonly st
   return typeof properties !== 'object' || properties === null || Array.isArray(properties)
     ? []
     : Object.keys(properties).toSorted(compareText)
-}
-
-/**
-Estimated tokens of tool definitions as they ride a request: the JSON
-bytes the request carries, at the product's chars-per-token rule
-(`estimatePackTokens`).
-*/
-export function estimateDefinitionTokens(definitions: readonly object[]): number {
-  return estimatePackTokens(JSON.stringify(definitions).length)
 }
 
 /** What one request declares of the MCP catalogue. */
