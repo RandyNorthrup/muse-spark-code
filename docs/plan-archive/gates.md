@@ -7236,3 +7236,192 @@ paid-call fence is weakened. Final scoped gate results are recorded in
 `docs/certification/m106-r.md`.
 
 <!-- plan-archive:end id="gates-2bd7a2093-34560" -->
+
+## Gate records (archived 2026-11-03, CC-INT11 batch B)
+
+<!-- plan-archive:begin id="gates-531be9dbe-33704" lines="33704-33885" at="531be9dbe" bytes="12034" sha256="6b654e1e0e302cf97c085b3ab6ba4bb0735645330e7059efad0962c364db6e37" -->
+
+**FIXM100L0 contract/review repair (2026-10-06).** The rig brief forbids
+aggregate quality/full unit runs, merges and edits outside this lane. Run
+owning Vitest files (at most three files/workers), static checks and the
+production build directly on macmini; no unchanged gate is waived. The
+inherited `DEVICE_MODEL_TEXT` missing split-reader registration remains
+I-owned and must be fixed on the joined tree before full quality or release.
+Regressions and six red/restored receipts for all three RVM100L0 P2 repairs
+are in `docs/certification/m100-0.md`. The lead retains the full quality,
+coverage, packaged-host and security gates.
+
+**FIXM100P pairing/storage review repair (2026-10-06).** The rig brief
+requires direct owning-file tests and byte-exact red/restored drills, normal
+hooks and no merges or aggregate quality. All RVM100P findings (two P2s,
+one P3) are repaired with no deferred review finding. Scoped static/build
+receipts are in `docs/certification/m100-p.md`. P's inherited generated host
+API record and `DEVICE_MODEL_TEXT` split registration remain I-owned;
+neither guard is weakened or bypassed. The lead must regenerate/review the
+joined host record, register the actual lazy bundle readers and pass full
+quality/coverage before proposing a product commit or release.
+
+**FIXM100T transport/review repair (2026-10-06).** The rig brief requires
+direct Kubuntu owning-file runs (at most three files/workers), scoped static
+checks, normal-hook local commits and no aggregate quality, merge or push.
+The three RVM100T P2s and one P3 are repaired and have named regressions and
+byte-exact red/restored receipts in `docs/certification/m100-t.md`. No gate is
+weakened. The inherited host-API record and `DEVICE_MODEL_TEXT` split-reader
+registration stay I-owned; §9 names that joined-tree handoff. Full quality,
+coverage, installed-host/firewall/multicast, security and packaging evidence
+remain the lead's exact integrated-tree prerequisites.
+
+**FIXM100E execution/control review repair (2026-10-06).** The rig brief
+requires local scoped checks, hooks-on commits, no merges and no aggregate
+quality run. Both RVM100E P2s, all four RVM100E2 P2s and RVM100E3's P2 are repaired with
+owning regressions, completion-order permutations and byte-exact red/restored receipts in `docs/certification/m100-e.md`. Full
+quality, installed physical-device/UI qualification and the inherited
+host-API/split-reader handoffs remain the lead's joined-tree prerequisites;
+no existing gate, timeout or permission boundary is weakened.
+
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
+
+W's final `npm run quality` exits 0 on Windows (2026-10-05), and integration
+passes 34 tests each at VS Code 1.99.0 and stable 1.140.0. The local VSIX
+passes 2,176,052 / 2,252,800 bytes and includes `dist/tab.js`; the rig lacks
+the built macOS helper, so universal release-size certification remains
+with the lead. The SAST receipt records one rule timeout in the existing
+`ModelApiHost.ts` despite its successful zero-finding exit. These limits
+and the complete gate/failure-drill receipts are recorded in M94's
+certification; acceptance 19 and final live certification stay open.
+
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
+
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
+
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
+
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
+
+**M98P2INT round-4 bounded integration (2026-10-05).** The explicit rig
+brief authorizes four ordered no-ff merges (J2fix, J3-linux, J3-macos, FUfix),
+lazy J/FU assembly and native packaging, owning unit/native files in batches
+of at most three, and the scoped gates named in the brief. No main merge,
+push, aggregate quality/full suite or local/live/paid model call is authorized.
+The local source remains opt-in; each use remains inactive without its own
+paired and borrowed-golden evidence. Existing bundle and VSIX caps remain
+unchanged; record the known package overage for the lead/VSIXDIET2. Full
+quality, coverage, installed-source and release receipts remain lead gates.
+
+**FIXM100U2 scoped gate record (2026-10-06).** Both second-review P2s
+are repaired with 122 restored owning tests, repository-default timeouts and
+13 named red/byte-exact-restored drills. All five compiler projects, plain
+knip, zero-duplication and localization pass. The brief still delegates full
+quality/coverage and integration-owned registrations to the lead. Production
+assets emit; the unchanged deferred pool fails at **77.327/50 KiB**, including
+**27.630 KiB** for the exact DevicesApp entry. Excluding that closure leaves
+**49.697/50 KiB**. The two split findings (Devices surface and lane-0 model
+text) and generated CSS source-list update are unchanged I obligations, not
+gate waivers. Every other existing size cap passes. I retains the joined
+README/CHANGELOG/reference updates; this repair adds no command or setting
+and does not advertise the planned feature as shipped. Final native/scoped
+checks and the physical qualification limit are in `docs/certification/m100-u.md`.
+
+**FIXM100U scoped gate record (2026-10-06).** The rig brief prohibits full
+quality/coverage and reserves integration-owned registrations for I. Run the
+four owning UI/bridge/contract suites with repository-default timeouts,
+scoped static checks and native/axe checks; the lead runs aggregate quality.
+The unchanged production build still refuses the unregistered Devices lazy
+closure: **76.045/50 KiB** deferred JS, of which **26.348 KiB** belongs to
+`src/webview/models/sections/agents/DevicesApp.tsx`; registering that measured
+closure leaves **49.697/50 KiB**. No budget or split guard is widened. I must
+also register lane 0's `DEVICE_MODEL_TEXT` readers and refresh the generated
+host-API CSS source list. These named integration obligations, and final
+scoped results, are recorded in `docs/certification/m100-u.md`.
+
+**M98P2INT round-4 package-budget receipt (2026-10-05).** Four ordered
+J/FU merges and their lazy libraries pass the named bounded source/unit/native
+gates and every JavaScript/shared/CSS cap. The real universal VSIX is
+2,418,240 bytes, 165,440 over the unchanged 2,252,800-byte cap (36,219
+above the final round-3 archive); its real size gate exits 1 after packaging.
+Both actual archive inventories, all ten new missing-entry controls,
+extracted factories and signed universal Mac helpers pass. Production ACP is
+1,280,879 bytes. No cap is raised, package optimization is not widened into
+this lane, and the lead/VSIXDIET2 owns recovery. Source controls, platform
+limitations, the two discarded command overlaps and their serial green reruns,
+all final hashes/bytes and $0 / zero new inference attempts are recorded in
+`docs/certification/m98-p2int-round4.md` and its adjacent JSON receipts.
+
+**M98P2INT round-3 package-budget deferral (2026-10-05).** The required
+H/GH merges and their M91 ancestry fit all existing JavaScript bundle caps
+with H/GH in separate lazy children. The actual universal VSIX, using the
+exact signed universal helper from the prior 0.13.0 archive, exceeds the
+unchanged 2,252,800-byte cap. The first measurement is 2,379,314 bytes;
+a lossless level-9 ZIP experiment preserves every decompressed entry but
+still measures 2,367,882 bytes. The final default package is 2,382,021 bytes,
+129,221 over the unchanged cap. No member, translation or behavior is removed
+and no cap is raised. Stop package optimization at this hard boundary under
+the shared lane rule; the final exact bytes and inventories are recorded in
+`docs/certification/m98-p2int-round3.md`. This private integration is not
+release-certified; the lead owns the cumulative package reduction/decision,
+full quality, coverage, a11y and installed/live receipts. No supported H/GH
+installed CLI command or inference source is claimed by the factory wiring.
+
+**M98P2INT bounded integration gates (2026-10-05).** The explicit rig brief
+authorizes only the three named branch merges, local hook-on commits and
+direct macmini lane checks: every merged owning unit file (at most three per
+run), typecheck, lint/format, dead-code, duplication, localization, cycles,
+host inventory, production build and caps. No aggregate quality/full suite,
+push, main merge, rebase or model call is authorized. Full quality/coverage,
+hosted and installed-product certification remains with the lead after the
+remaining phase-2 lanes merge. New integration guards require named red
+controls, byte-exact restoration and whole-file green reruns.
+
+**M98P2INT host-inventory refresh (2026-10-05).** Regenerated by
+`node scripts/check-host-api.mjs --write`, closing the inherited FIXM98J,
+P0/B/D and CS snapshot deferrals on this integrated tree. Reviewed changes:
+paidHost 11 → 12 and its `WorkspaceConfiguration.get` row; Node buffer
+27 → 29, crypto 32 → 35 (including inherited J), fs 24 → 25,
+fs/promises 34 → 35, http 2 → 3 and path 65 → 66. The 271 VS Code API
+identifiers and 18 direct adapter files are unchanged. The historical lane
+failure receipts below remain intact; the exact-tree regenerated gate is
+required green here.
+
+**FIXM98B bounded-lane gate delegation (2026-10-05).** The rig brief and
+shared rules prohibit aggregate quality/full tests and reserve them for the
+lead. Run owning regression files (at most three per run), red drills,
+typecheck, scoped lint/format, dead-code, duplication, localization, host API
+and production build directly on win11, with hooks enabled. The brief
+authorizes only the P0 merge; do not merge main or the common release
+candidate. Full quality, coverage, a11y and installed/package certification
+remain lead gates on the integrated tree. Existing host-API snapshot
+deferrals remain visible; no gate or threshold is weakened.
+
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
+
+**FIXM98CS bounded repair delegation (2026-10-05).** The rig brief
+prohibits aggregate quality/full-suite runs, merges, rebases and pushes.
+Run owning files directly on macmini, at most three per invocation, plus
+scoped lint/format, typechecks and the named lane gates; commit locally
+with hooks on. The lead retains aggregate quality and generated/shared
+document refreshes. No gate, threshold, ignore or timeout is weakened.
+
+- **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
+  **FIXM98G2 merged-lane checks (2026-10-05).** The bounded repair brief
+  delegates full quality/coverage/installed-host certification to Z/lead.
+  Owning CLI/MCP regressions and red drills run on Mac mini; scoped lint,
+  format, five-project typecheck, dead-code, duplication, localization,
+  host API and production build remain required lane checks. The merge of
+  origin/main retains both branches' translated keys and paid startup rules.
+  The shared Node validation runtime deliberately excludes its large
+  JSON-schema converter: MCP carries the canonical generated request schema
+  in its existing file, with exact generated-schema parity enforced by the
+  owning test. Runtime request validation remains the original zod parser.
+  No budget, rule, boundary or dependency is weakened or added. Receipts:
+  `docs/certification/m98-g2.md`.
+
+**FIXM98G2 host-API snapshot deferral.** The merged source produces the
+already delegated judge additions: paidHost 11 → 12 configuration calls,
+that file added to WorkspaceConfiguration.get, node:crypto 36 → 37,
+node:stream 12 → 13 and node:util 4 → 5. The gate exits 1 until Z regenerates
+and reviews its owned `docs/ide-compatibility/host-api.md`. No new VS Code
+API is introduced by these repairs; this stale documentation gate is
+explicitly deferred, not claimed green. Follow-up: run
+`npm run check:host-api -- --write`, review these rows, rerun the check.
+
+<!-- plan-archive:end id="gates-531be9dbe-33704" -->
