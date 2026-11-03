@@ -201,6 +201,14 @@ function expectFired(result: Control, message: string) {
   expect(result.restored).toBe(true)
 }
 
+// The gate counts its problems before it lists them. One gate run holds a whole
+// family's mutations, so its report runs to 230 lines, and each case below asserts
+// lines of it: a report cut short would read as those cases' guards not firing.
+function expectWholeReport({ output }: Control, planted: number) {
+  expect(output).toContain(`bundle split: ${String(planted)} problem(s)`)
+  expect(output.split(/\r?\n/u).filter((line) => line.startsWith('  '))).toHaveLength(planted)
+}
+
 function leakInto(file: string, name: string, source: string) {
   return () => {
     const { meta, result } = output(file, name)
@@ -418,6 +426,12 @@ describe('phase-2 judge production delivery', () => {
     const listing = vsixListing()
     for (const name of ['judgeP2', ...children.map((child) => child.name)])
       expect(listing).toContain(`dist/${name}.js`)
+  })
+
+  it('reports exactly the problems each shared gate run planted, every one of them', () => {
+    expectWholeReport(judgeSplit, leakControls.length + missingControls.length)
+    expectWholeReport(childSplit, childControls.length * (childParents.length + 1))
+    expectWholeReport(englishSplit, englishControls.length * 2)
   })
 
   it.each(leakControls)(
