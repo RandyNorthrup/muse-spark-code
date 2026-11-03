@@ -238,6 +238,11 @@ describe.skipIf(process.platform !== 'linux')('M105 R3 portal recorder (native)'
     })
 
     it('sends CreateSession as the ScreenCast interface documents it and ends unavailable', async () => {
+      // Only this case's traffic counts: earlier cases already put a
+      // ServiceUnknown on the monitored bus (run 41516831678 read that
+      // stale text as this call's answer and sliced before the real
+      // call was ever waited for).
+      const seenBefore = monitored().length
       const portal = runHelper(
         [
           '--portal',
@@ -255,16 +260,20 @@ describe.skipIf(process.platform !== 'linux')('M105 R3 portal recorder (native)'
         code: 1,
         stdout: '{"type":"error","code":"unavailable"}\n',
       })
-      // The bus answered the call with its own error; the monitor saw both.
+      // The bus answered the call with its own error; wait until the
+      // monitor has printed this case's call and that answer.
       await vi.waitFor(() => {
-        expect(monitored()).toContain('error_name=org.freedesktop.DBus.Error.ServiceUnknown')
+        const traffic = monitored().slice(seenBefore)
+        expect(traffic).toContain('member=CreateSession')
+        expect(traffic).toContain('error_name=org.freedesktop.DBus.Error.ServiceUnknown')
       })
-      const call = monitored().slice(monitored().indexOf('member=CreateSession'))
+      const traffic = monitored().slice(seenBefore)
+      const call = traffic.slice(traffic.indexOf('member=CreateSession'))
       // a{sv} with both tokens, as dbus-monitor decodes the wire message.
       expect(call).toMatch(
         /^member=CreateSession\n\s+array \[\n\s+dict entry\(\n\s+string "handle_token"\n\s+variant\s+string "muse_spark_\d+_\d+"\n\s+\)\n\s+dict entry\(\n\s+string "session_handle_token"\n\s+variant\s+string "muse_spark_\d+_\d+"/u,
       )
-      expect(monitored()).toContain('destination=org.freedesktop.portal.Desktop')
+      expect(traffic).toContain('destination=org.freedesktop.portal.Desktop')
     })
   })
 })

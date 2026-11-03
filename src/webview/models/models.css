@@ -17,7 +17,7 @@
   max-width: 880px;
 }
 
-.models-panel :where(button, input, select, textarea) {
+:where(.models-panel) :where(button, input, select, textarea) {
   font: inherit;
   color: inherit;
 }

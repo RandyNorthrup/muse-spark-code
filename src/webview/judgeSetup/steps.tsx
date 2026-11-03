@@ -56,23 +56,23 @@ function AdvancedBlock({
       <div className="js-advanced-body">
         <label className="js-field" htmlFor="js-advanced-model">
           {text.advancedModel}
+          <select
+            id="js-advanced-model"
+            value={snapshot.model ?? ''}
+            disabled={snapshot.fitting.length === 0}
+            onChange={(event) => {
+              const model = event.target.value
+              if (model !== '') post({ command: 'chooseModel', model })
+            }}
+          >
+            {snapshot.model === undefined ? <option value="" /> : null}
+            {snapshot.fitting.map((model) => (
+              <option key={model} value={model}>
+                {model}
+              </option>
+            ))}
+          </select>
         </label>
-        <select
-          id="js-advanced-model"
-          value={snapshot.model ?? ''}
-          disabled={snapshot.fitting.length === 0}
-          onChange={(event) => {
-            const model = event.target.value
-            if (model !== '') post({ command: 'chooseModel', model })
-          }}
-        >
-          {snapshot.model === undefined ? <option value="" /> : null}
-          {snapshot.fitting.map((model) => (
-            <option key={model} value={model}>
-              {model}
-            </option>
-          ))}
-        </select>
         <label className="js-check" htmlFor="js-cpu-only">
           <input
             id="js-cpu-only"
