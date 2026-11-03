@@ -109,6 +109,7 @@
 !dist/uiTextRuntime.js
 !dist/uiTextHooks.js
 !dist/uiTextSurfaces.js
+!dist/uiTextDesktop.js
 !dist/validation.js
 !dist/validationSchema.js
 !dist/runtime.bundles.json.br
