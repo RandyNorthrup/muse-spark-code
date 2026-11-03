@@ -105,23 +105,55 @@ storage`: the encoded `gemini-2.5-flash` body is exactly
 
 ## Gates (final tree)
 
-| Gate                                                   | Exit    |
-| ------------------------------------------------------ | ------- |
-| `prettier --check` (60 lane-touched files)             | 0       |
-| `eslint --max-warnings 0` (lane-touched code)          | 0       |
-| `npm run typecheck`                                    | 0       |
-| `node scripts/check-l10n.mjs`                          | 0       |
-| `npm run check:reference`                              | 0       |
-| `npm run check:host-api`                               | 0       |
-| `npm run check:plan`                                   | 0       |
-| `npm run check:roadmap`                                | 0       |
-| `npm run check:catches`                                | 0       |
-| `npm run duplication` (0 clones)                       | 0       |
-| `npm run cycles`                                       | 0       |
-| `npm run deadcode`                                     | 0       |
-| `npm run build` (every budget; Palette 24.8 of 25 KiB) | 0       |
-| `node scripts/sync-provider-catalog.mjs --check`       | 0       |
-| `npx vitest related <29 changed sources> --run`        | running |
+| Gate                                                                                      | Exit         |
+| ----------------------------------------------------------------------------------------- | ------------ |
+| `prettier --check` (60 lane-touched files)                                                | 0            |
+| `eslint --max-warnings 0` (lane-touched code)                                             | 0            |
+| `npm run typecheck`                                                                       | 0            |
+| `node scripts/check-l10n.mjs`                                                             | 0            |
+| `npm run check:reference`                                                                 | 0            |
+| `npm run check:host-api`                                                                  | 0            |
+| `npm run check:plan`                                                                      | 0            |
+| `npm run check:roadmap`                                                                   | 0            |
+| `npm run check:catches`                                                                   | 0            |
+| `npm run duplication` (0 clones)                                                          | 0            |
+| `npm run cycles`                                                                          | 0            |
+| `npm run deadcode`                                                                        | 0            |
+| `npm run build` (every budget; Palette 24.8 of 25 KiB)                                    | 0            |
+| `node scripts/sync-provider-catalog.mjs --check`                                          | 0            |
+| `npx vitest related <29 changed sources> --run` (whole unit suite; incomplete, see below) | not finished |
+
+## Related run (`vitest related`, repository timeouts, 3 workers)
+
+`en.ts` and `text.ts` reach nearly every suite, so "related" is the whole
+unit suite. A first run was lost mid-way (its detached process was reaped);
+the second ran about 35 minutes on a rig shared with seven other lanes'
+runs and had not finished when this lane's budget ran out. Up to then, 15
+files had failures. Three were this lane's and are fixed:
+
+- `providerSpend.test.ts` › pins the catalogue date: `MODELS_DEV_CATALOGUE_DATE`
+  still read 2026-10-22 (red at base too, against 2026-10-30) → 2026-11-02
+  (`d1be08ae3`; 28 passed, exit 0).
+- `vendorMediaCodecs.test.ts` › byte-identical Gemini wire: now includes
+  `"store":false` (`1fcfdffd1`; 38 passed, exit 0).
+- `mhpContract.test.ts` › MHP v1.1 lock: the picker's optional `marks`
+  array re-frozen at mhp/1.5.1 as m104d did (`a45b54b9b`; 34 passed, exit 0).
+
+Open, not shown to be this lane's and not compared against base:
+
+- `vault/vaultPanelBuild.test.ts` › the migration chunk is 45.35 KiB
+  against `VAULT_MIGRATION_BUDGET_KIB` 45 (still red run alone). The
+  production build's `dist/vaultMigration.js` is 41.33 KiB and its only
+  lane-touched input is `text.ts`; moving the lane's `formatProviderDate`
+  out of `text.ts` left the measured size byte-identical, so that move was
+  reverted. The cap was not raised.
+- Process, OS and storage suites: `makerLease` (PID reuse,
+  `test-query-denied`) and `runtimeMakerStop` (both still red run alone),
+  `vault/vaultStoreScope`, `vault/chatgptSubscriptionMigration` (7 of 7),
+  `teamProcessWorkers` (two 60 s timeouts), `runtimeLsp`,
+  `connectorStorageGuard`, `makerEmulatorRig`, `createdRegistrySpaces`,
+  `createdRegistrySaveErrors`, `acpServeHandshake`. None of them imports
+  the provider code the lane changed except through the l10n tables.
 
 ## Not run here
 
