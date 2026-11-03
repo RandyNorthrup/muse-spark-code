@@ -487,6 +487,29 @@ describe('maker device log', () => {
     await expect(linked.append(entry)).rejects.toThrow('deviceLogInWorkspace')
     await expect(linked.read()).rejects.toThrow('deviceLogInWorkspace')
   })
+  it('reads a never-appended log as empty rather than failing', async () => {
+    const { storage, workspace } = await logFixture()
+    const log = new DeviceLog(path.join(storage, 'fresh'), workspace, {
+      maxBytes: 20_000,
+      maxEntryBytes: 2000,
+      now: () => 1,
+      secretValues: () => Promise.resolve([]),
+    })
+    expect(await log.read()).toEqual([])
+  })
+  it('logs without a folder open, where the repository exclusion is vacuous', async () => {
+    const { storage } = await logFixture()
+    const log = new DeviceLog(storage, undefined, {
+      maxBytes: 20_000,
+      maxEntryBytes: 2000,
+      now: () => 1,
+      secretValues: () => Promise.resolve([]),
+    })
+    await log.append(entry)
+    const entries = await log.read()
+    expect(entries).toHaveLength(1)
+    expect(entries[0]?.machine).toBe('virtual')
+  })
   it('refuses hard-linked log files rather than writing another file', async () => {
     const { log, storage, directory } = await logFixture()
     await mkdir(storage)

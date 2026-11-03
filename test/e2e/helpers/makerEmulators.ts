@@ -7,7 +7,31 @@ import { listSerialPorts } from '../../../src/core/maker/serial/listPorts'
 import { serialAdapterCommand, serialSttyCommand } from '../../../src/core/maker/serial/adapters'
 import { startSerialProcess } from '../../../src/core/maker/serial/process'
 import type { SerialSessionDependencies } from '../../../src/core/maker/serial/session'
+import type { ApprovalAnswer, ApprovalRequest } from '../../../src/shared/makerProtocol'
 import { makerLeaseDeps, makerProcessDeps } from '../../unit/helpers/makerSerial'
+
+/**
+The unattended allow-once answer: the emulator sessions and the window
+engine suite share it, so the reviewed-bytes handshake stays identical.
+*/
+export function allowOnceConfirm(
+  request: Pick<ApprovalRequest, 'id' | 'digest' | 'target'>,
+  didReview: (raw: unknown) => boolean,
+): Promise<ApprovalAnswer> {
+  didReview({
+    v: 1,
+    type: 'makerPayloadReviewed',
+    id: request.id,
+    digest: request.digest,
+    isComplete: true,
+  })
+  return Promise.resolve({
+    id: request.id,
+    digest: request.digest,
+    target: request.target,
+    decision: 'allow_once',
+  })
+}
 
 const exec = promisify(execFile)
 export const BOARDS = [
@@ -148,21 +172,7 @@ export async function sessionDependencies(
     canUseHardware: () => true,
     // P's injection seam only; G's classifier is absent on the lane P base.
     classify: (input) => Promise.resolve(input.operation === 'read' ? 'connect' : 'actuate'),
-    confirm: (request, review) => {
-      review({
-        v: 1,
-        type: 'makerPayloadReviewed',
-        id: request.id,
-        digest: request.digest,
-        isComplete: true,
-      })
-      return Promise.resolve({
-        id: request.id,
-        digest: request.digest,
-        target: request.target,
-        decision: 'allow_once',
-      })
-    },
+    confirm: (request, review) => allowOnceConfirm(request, review),
     identityNow: () => Promise.resolve(identity),
     isPortBusy: () => Promise.resolve(false),
     log: () => Promise.resolve(),

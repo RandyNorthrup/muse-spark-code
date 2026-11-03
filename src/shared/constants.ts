@@ -654,6 +654,12 @@ export const COMMAND_IDS = {
   openInNewTab: 'museSpark.openInNewTab',
   openTasks: 'museSpark.openTasks',
   openDevices: 'museSpark.openDevices',
+  enableHardware: 'museSpark.enableHardware',
+  disableHardware: 'museSpark.disableHardware',
+  addMachine: 'museSpark.addMachine',
+  removeMachine: 'museSpark.removeMachine',
+  stopMachine: 'museSpark.stopMachine',
+  openDeviceLog: 'museSpark.openDeviceLog',
   focusInput: 'museSpark.focusInput',
   insertMentionReference: 'museSpark.insertMentionReference',
   toggleFocusView: 'museSpark.toggleFocusView',
@@ -1120,10 +1126,20 @@ export const MAKER_LEASE_SOCKET_PATH_BYTES = 103
 export const MAKER_LEASE_SOCKET_NAME_CHARS = 8
 export const RUNTIME_MAKER_MAX_PORT = 65_535
 export const RUNTIME_MAKER_TIMEOUT_MS = 15_000
+// OctoPrint's application-keys flow (RLF-M103WIRE; docs.octoprint.org appkeys):
+// probe, request, then poll every second (a request polled for nothing within
+// 5 s goes stale server-side) until the person approves in OctoPrint's UI or
+// two minutes pass. The app name is what OctoPrint's dialog shows the person.
+export const OCTOPRINT_APPKEYS_APP = 'Muse Spark Code (Unofficial)'
+export const OCTOPRINT_APPKEYS_POLL_MS = 1000
+export const OCTOPRINT_APPKEYS_TIMEOUT_MS = 120_000
 export const RUNTIME_MAKER_APPROVAL_MS = 60_000
 export const RUNTIME_MAKER_MAX_ITEMS = 256
 export const RUNTIME_MAKER_LOG_BYTES = 4 * 1024 * 1024
 export const RUNTIME_MAKER_STATE_KEY = 'hardware'
+// The window latch in the workspace mementos (RLF-M103WIRE): same grant shape
+// as the runtime's key, in the window's own store.
+export const MAKER_HOST_STATE_KEY = 'hardware'
 export const RUNTIME_MAKER_AGENT_SHELL = 'MUSE_SPARK_AGENT_SHELL'
 export const RUNTIME_MAKER_AGENT_MARKERS = [
   'CI',
@@ -1172,14 +1188,6 @@ export const MAKER_PREVIEW_SCRIPT_FILE = 'makerPreview.js'
 export const MAKER_PREVIEW_STYLE_FILE = 'makerPreview.css'
 export const MAKER_MODAL_MAX_LINES = 32
 export const MAKER_MODAL_MAX_CHARS = 8192
-export const MAKER_COMMANDS = {
-  enableHardware: 'museSpark.enableHardware',
-  disableHardware: 'museSpark.disableHardware',
-  addMachine: 'museSpark.addMachine',
-  removeMachine: 'museSpark.removeMachine',
-  stopMachine: 'museSpark.stopMachine',
-  openDeviceLog: 'museSpark.openDeviceLog',
-} as const
 // Only the deferred VS Code adapter reads these descriptions. W reuses the
 // portable engine operations; these wrappers never classify hardware commands.
 export const MAKER_HOST_MODEL_TEXT = {
@@ -4021,6 +4029,8 @@ export const BYTES_PER_MIB = 1024 * 1024
 export const TOOL_FILE_MAX_MIB = 10
 export const TOOL_FILE_MAX_BYTES = TOOL_FILE_MAX_MIB * BYTES_PER_MIB
 export const BOUNDED_FILE_READ_CHUNK_BYTES = 64 * 1024
+export const HTTP_OK = 200
+export const HTTP_NOT_FOUND = 404
 export const HTTP_UNAUTHORIZED = 401
 // Refused before any work was done: the one status a per-call-billed request retries (M34).
 export const HTTP_TOO_MANY_REQUESTS = 429
@@ -6621,6 +6631,9 @@ export const MAKER_PERMISSION_OPTIONS = {
 // The maker executors' lazy bundle beside dist/devices.js, required on the
 // first maker execution; the devices bundle keeps only the panel surface.
 export const MAKER_BUNDLE_FILE = 'maker.js'
+// The window's maker assembly beside the activation bundle (RLF-M103WIRE),
+// required on the first maker UI or device tool.
+export const MAKER_HOST_BUNDLE_FILE = 'makerHost.js'
 // One session-list page the agent reads for the editor's cursor; the editor
 // pages through every one, so no session is hidden past the page.
 export const ACP_SESSION_LIST_LIMIT = 50

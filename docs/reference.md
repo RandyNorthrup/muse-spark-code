@@ -747,7 +747,7 @@ Review the exact payload behind one SHA-256 digest, then Send once or Reject. En
 
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: —. Settings: `museSpark.serialPythonPath`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#makers)
+Commands: `museSpark.enableHardware`, `museSpark.disableHardware`, `museSpark.addMachine`, `museSpark.removeMachine`, `museSpark.stopMachine`, `museSpark.openDeviceLog`. Settings: `museSpark.serialPythonPath`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#makers)
 
 ### Code Intelligence
 
@@ -1921,6 +1921,30 @@ Availability depends on the backend. Installed skills also add their own slash c
 ### Muse Spark: Open Devices in a Tab
 
 `museSpark.openDevices` — Open the Devices tab to link this editor with your other devices.
+
+### Muse Spark: Enable Hardware for This Workspace
+
+`museSpark.enableHardware` — Enable Hardware for This Workspace
+
+### Muse Spark: Disable Hardware for This Workspace
+
+`museSpark.disableHardware` — Disable Hardware for This Workspace
+
+### Muse Spark: Add Machine
+
+`museSpark.addMachine` — Add Machine
+
+### Muse Spark: Remove Machine
+
+`museSpark.removeMachine` — Remove Machine
+
+### Muse Spark: Stop Machine
+
+`museSpark.stopMachine` — Stop Machine
+
+### Muse Spark: Open Device Log
+
+`museSpark.openDeviceLog` — Open Device Log
 
 ### Muse Spark: Insert @-Mention for Selection
 

@@ -109,6 +109,36 @@
         "category": "%command.category%"
       },
       {
+        "command": "museSpark.enableHardware",
+        "title": "%command.enableHardware.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.disableHardware",
+        "title": "%command.disableHardware.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.addMachine",
+        "title": "%command.addMachine.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.removeMachine",
+        "title": "%command.removeMachine.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.stopMachine",
+        "title": "%command.stopMachine.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.openDeviceLog",
+        "title": "%command.openDeviceLog.title%",
+        "category": "%command.category%"
+      },
+      {
         "command": "museSpark.insertMentionReference",
         "title": "%command.insertMentionReference.title%",
         "category": "%command.category%"

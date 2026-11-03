@@ -1099,6 +1099,8 @@ export const ON_FIRST_USE = [
       'src/host/maker/makerEntry.ts',
       'src/host/vscode/maker/vscodeMakerHost.ts',
       'src/host/vscode/maker/makerCommands.ts',
+      'src/host/vscode/maker/makerAssembly.ts',
+      'src/host/vscode/maker/makerDevicesUi.ts',
       'src/host/ide/makerTools.ts',
     ],
   },
@@ -1107,6 +1109,12 @@ export const ON_FIRST_USE = [
     metafile: 'dist/meta/makerPreviewHost.json',
     use: 'the first maker preview',
     files: ['src/host/maker/makerPreviewEntry.ts', 'src/host/vscode/maker/makerPreviewPanel.ts'],
+  },
+  {
+    output: 'dist/makerEngine.js',
+    metafile: 'dist/meta/makerEngine.json',
+    use: 'the first maker command or device tool call',
+    files: ['src/host/maker/makerEngineEntry.ts', 'src/host/maker/makerEngine.ts'],
   },
   {
     output: 'dist/verifyEditor.js',
@@ -1600,6 +1608,12 @@ export function checkDeferredBundles(inputsOf, metafileOf) {
         `dist/makerHost.js carries ${file}, which loads only on the first maker preview`,
       )
   }
+  for (const file of ['src/host/maker/makerEngineEntry.ts', 'src/host/maker/makerEngine.ts']) {
+    if (makerHost.has(file))
+      problems.push(
+        `dist/makerHost.js carries ${file}, which loads only on the first maker command or device tool call`,
+      )
+  }
   for (const [names, owner] of [
     [CONFIGURED_TRANSPORT_ONLY, BUNDLES.configured],
     [SHARED_TRANSPORT_ONLY, BUNDLES.modelApi],
@@ -2044,6 +2058,7 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/backends/musecode/approvalModesEntry.ts'), 'dist/approvalModes.js'],
   [path.resolve('src/host/maker/makerEntry.ts'), 'dist/makerHost.js'],
   [path.resolve('src/host/maker/makerPreviewEntry.ts'), 'dist/makerPreviewHost.js'],
+  [path.resolve('src/host/maker/makerEngineEntry.ts'), 'dist/makerEngine.js'],
   [path.resolve('src/core/backends/modelapi/mcpPoolEntry.ts'), 'dist/mcpPool.js'],
   [path.resolve('src/runtime/exec/execEntry.ts'), 'dist/exec.js'],
   [path.resolve('src/shared/nodeDiagnosticsEntry.ts'), 'dist/nodeDiagnostics.js'],
@@ -2254,7 +2269,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:makerEntry|makerPreviewEntry|mcpPoolEntry|execEntry|nodeDiagnosticsEntry|providerListEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|accountPaidEntry|modelEffortsEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|modelApiB1Entry|modelApiToolRunEntry|modelApiFastEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|reportFallbackEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|modelApiAcpEntry|modelApiShellEntry|teamEntry|teamSchedulerEntry|teamWindowEntry|teamLandingEntry|externalOrchestratorEntry|teamRunnersEntry|teamTrafficEntry|teamPanelEntry|teamHostEntry|teamMcpEntry|teamProcessEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|execTeamEntry|acpTeamEntry|execLedgerLeaseEntry|workerCreateEntry|workerOpsEntry|usageAcp|usageExportEntry|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|subscriptionCommandsEntry|configuredProvidersEntry|chatGptProviderCommands|grokProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|recordingDriverEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry|estimateActionsEntry|windowsEntry)(?:\.[jt]s)?$/,
+          /\/(?:makerEntry|makerPreviewEntry|makerEngineEntry|mcpPoolEntry|execEntry|nodeDiagnosticsEntry|providerListEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|accountPaidEntry|modelEffortsEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|modelApiB1Entry|modelApiToolRunEntry|modelApiFastEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|reportFallbackEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|modelApiAcpEntry|modelApiShellEntry|teamEntry|teamSchedulerEntry|teamWindowEntry|teamLandingEntry|externalOrchestratorEntry|teamRunnersEntry|teamTrafficEntry|teamPanelEntry|teamHostEntry|teamMcpEntry|teamProcessEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|execTeamEntry|acpTeamEntry|execLedgerLeaseEntry|workerCreateEntry|workerOpsEntry|usageAcp|usageExportEntry|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|subscriptionCommandsEntry|configuredProvidersEntry|chatGptProviderCommands|grokProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|recordingDriverEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry|estimateActionsEntry|windowsEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
