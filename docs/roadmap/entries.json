@@ -1320,6 +1320,11 @@
       "note": "recovery: older stub-style test seams rewritten over real parts"
     },
     {
+      "id": "RLFGEMPRIVACY",
+      "public": false,
+      "note": "recovery: Gemini store opt-out, shutdown dates, status badges, reroute pricing"
+    },
+    {
       "id": "SDK142",
       "public": false,
       "note": "Muse Code CLI fingerprint and documentation update"

@@ -32454,6 +32454,28 @@ ceiling stays the industry 8 s cap (D228). A 401 or 403 from a provider
 probe still forgets only that stored key. Record:
 `docs/certification/rvint7.md`.
 
+### RLFGEMPRIVACY — Gemini storage opt-out and lifecycle honesty (2026-11-02)
+
+**Status 2026-11-02: built.** Every Gemini request carries `store=false`,
+so Google does not store prompts and responses even on a project that
+stores by default (AI Studio changelog 10-26-2026, read 2026-11-02); one
+honest sentence says so where the Gemini key is entered. OpenAI's
+`shutdown_date` reaches the record like Anthropic's dates do, and the
+picker names the retirement day; the catalogue sync keeps `status`
+(deprecated/beta, 81 of 710 kept rows on 2026-11-02) and the picker and
+Models table badge it; a Gemini id Google reroutes is priced and
+labelled as the serving model with the reroute named, from a dated
+cited table re-checked on each sync. A deprecated model stays
+selectable; the lane warns, never blocks. The providers reference names
+all of it (14 tables). Proof: eight red/green drills, the touched
+suites, the sync drill (status kept through the real filter, cap holds
+at 314,208 bytes, `--check` green), the golden `store=false` request,
+and the picker/table/key looks in light and dark. Not run: a live
+Gemini call confirming Google accepts `store` (paid; at most 2 calls on
+the cheapest Gemini model) and real use through the packed product
+(Muse's week kept for merging). Record:
+`docs/certification/rlf-gemprivacy.md`.
+
 ---
 
 ## 7. Gates
