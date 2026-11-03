@@ -22,16 +22,15 @@ import org.junit.*;
 // MUSE_CONFORMANCE_CONTRACT, MUSE_CONFORMANCE_RUNTIME and
 // MUSE_CONFORMANCE_OBSERVATIONS; without them the suite runs standalone
 // against the checkout and writes target/conformance-observations.json.
-// The handshake below proves the session and the runtime live. The runtime
-// then exits: its initial surfaces/open cannot be satisfied in the
-// view-less test workbench (the panel view needs a browser engine, and
-// this rig has no WebKitGTK), and an unsatisfied initial surface is a
-// fatal panel error by design. Host-owned legs therefore drive the
-// session's local production operations directly (the same code the MHP
-// entry routes to, without its liveness guard); the runtime-owned legs
-// (checkpoint, diff-hunks, settings) spawn the node drivers in
-// test/unit/hostDrivers. The runner validates the observations. No leg
-// loads a page, so this suite needs no WebKitGTK.
+// The handshake below proves the session and the runtime live, and the
+// panel leg then looks at the real page the runtime's initial
+// surfaces/open raises in the test workbench (WebKitGTK under Xvfb):
+// the suite fails on the panel's fatal card (MHP_PANEL_FATAL_CARD) or an
+// unreadable page (MHP_PANEL_UNREADABLE), as the Visual Studio suite
+// does. Host-owned legs drive the session's local production operations
+// directly (the same code the MHP entry routes to); the runtime-owned
+// legs (checkpoint, diff-hunks, settings) spawn the node drivers in
+// test/unit/hostDrivers. The runner validates the observations.
 public class ConformanceIT {
     private static final long DRIVER_SECONDS = 120;
     private WindowSession session;
@@ -86,6 +85,7 @@ public class ConformanceIT {
         String observationsPath = System.getenv("MUSE_CONFORMANCE_OBSERVATIONS");
         Path observationsFile = observationsPath != null ? Path.of(observationsPath) : Path.of(System.getProperty("user.dir"), "target", "conformance-observations.json");
         if (observationsFile.getParent() != null) Files.createDirectories(observationsFile.getParent());
+        panelShowsTheRealPage();
         JsonObject contract = Json.parse(Files.readString(contractFile)).getAsJsonObject();
         // The harness schema keys observations "backend/scenario" under one
         // "observations" object; a missing or extra leg fails the harness.
@@ -106,6 +106,48 @@ public class ConformanceIT {
         }
         assertTrue("the contract has no runnable eclipse legs", ranAny);
         Files.writeString(observationsFile, Json.GSON.toJson(Map.of("observations", observed)));
+    }
+
+    // The runtime opens its chat surface; the real WebKit page shakes
+    // hands, takes the runtime's first frames (theme first) and renders
+    // the chat page for the sign-in state this machine really has (the
+    // Muse Code sign-in lives outside the scratch data home). A page
+    // that shows
+    // its fatal card, or text painted in its own surface colour, fails
+    // the suite even when every leg below would pass.
+    private void panelShowsTheRealPage() {
+        MuseView[] opened = new MuseView[1];
+        pump(() -> {
+            IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
+            for (IViewReference reference : page.getViewReferences()) {
+                if (reference.getPart(false) instanceof MuseView view && view.binding() != null) { opened[0] = view; return true; }
+            }
+            return false;
+        });
+        MuseView view = opened[0];
+        assertNotNull("MHP_PANEL_NOT_READY", view);
+        pump(() -> view.binding().isReady());
+        assertTrue("MHP_PANEL_NOT_READY", runtime.isAlive());
+        String[] shown = {""};
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60);
+        pump(() -> {
+            try { Object text = view.evaluate("return document.body ? document.body.innerText : '';"); shown[0] = text == null ? "" : text.toString(); } catch (RuntimeException ex) { shown[0] = ""; }
+            return shown[0].contains("Muse Spark") || System.nanoTime() >= deadline;
+        });
+        assertTrue("MHP_PANEL_NOT_RENDERED: " + shown[0], shown[0].contains("Muse Spark"));
+        long settle = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+        pump(() -> System.nanoTime() >= settle);
+        Object text = view.evaluate("return document.body ? document.body.innerText : '';"); shown[0] = text == null ? "" : text.toString();
+        if (shown[0].contains("The Panel Hit an Error")) fail("MHP_PANEL_FATAL_CARD");
+        // This host's page is the shared chat entry over the museHost
+        // adapter: it paints from the tokens baked into the page, so
+        // readability is the editor tokens against each other and the
+        // body's own computed text against its background.
+        Object paint = view.evaluate("return JSON.stringify((() => { const root = document.documentElement, style = getComputedStyle(root), bodyStyle = getComputedStyle(document.body); const probe = document.createElement('span'); probe.style.color = style.getPropertyValue('--muse-editor-foreground'); probe.style.backgroundColor = style.getPropertyValue('--muse-editor-background'); document.body.append(probe); const probeStyle = getComputedStyle(probe); const facts = { foreground: style.getPropertyValue('--muse-editor-foreground').trim(), text: bodyStyle.color, surface: bodyStyle.backgroundColor, tokenText: probeStyle.color, tokenSurface: probeStyle.backgroundColor }; probe.remove(); return facts; })());");
+        JsonObject facts = Json.parse(paint.toString()).getAsJsonObject();
+        boolean unreadable = facts.get("foreground").getAsString().isEmpty() || facts.get("tokenText").getAsString().equals(facts.get("tokenSurface").getAsString()) || (!facts.get("surface").getAsString().equals("rgba(0, 0, 0, 0)") && facts.get("text").getAsString().equals(facts.get("surface").getAsString()));
+        if (unreadable) fail("MHP_PANEL_UNREADABLE " + facts);
+        assertTrue("MHP_PANEL_NOT_READY", runtime.isAlive());
     }
 
     private static boolean waiting(JsonObject contract, String backend, String scenario) {

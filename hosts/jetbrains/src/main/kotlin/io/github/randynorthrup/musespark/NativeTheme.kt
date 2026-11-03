@@ -9,23 +9,27 @@ import java.awt.Color
 import javax.swing.UIManager
 
 object NativeTheme {
-  fun css(): String {
-    val scheme = EditorColorsManager.getInstance().globalScheme
-    val palette = ThemeColors(scheme)
-    val values = mutableMapOf<String, String>()
-    uiColors(values, palette)
-    editorColors(values, palette)
-    values["diffEditor-insertedLineBackground"] = color(palette.success, DIFF_ALPHA)
-    values["diffEditor-removedLineBackground"] = color(palette.error, DIFF_ALPHA)
-    values["widget-shadow"] = "transparent"
-    val font = UIManager.getFont("Label.font")
-    values["font-family"] = quote(font?.family ?: scheme.editorFontName) + ", system-ui, sans-serif"
-    values["font-size"] = "${font?.size ?: scheme.editorFontSize}px"
-    values["editor-font-family"] = quote(scheme.editorFontName) + ", ui-monospace, monospace"
-    values["editor-font-size"] = "${scheme.editorFontSize}px"
-    return ":root{" + values.entries.joinToString("") { (key, value) -> "--muse-$key:$value;--vscode-$key:$value;" } +
-      "}"
-  }
+  fun css(): String =
+    ":root{" + painted.entries.joinToString("") { (key, value) -> "--muse-$key:$value;--vscode-$key:$value;" } + "}"
+
+  // Every value this host paints, by its VS Code name.
+  private val painted: Map<String, String>
+    get() {
+      val scheme = EditorColorsManager.getInstance().globalScheme
+      val palette = ThemeColors(scheme)
+      val values = mutableMapOf<String, String>()
+      uiColors(values, palette)
+      editorColors(values, palette)
+      values["diffEditor-insertedLineBackground"] = color(palette.success, DIFF_ALPHA)
+      values["diffEditor-removedLineBackground"] = color(palette.error, DIFF_ALPHA)
+      values["widget-shadow"] = "transparent"
+      val font = UIManager.getFont("Label.font")
+      values["font-family"] = quote(font?.family ?: scheme.editorFontName) + ", system-ui, sans-serif"
+      values["font-size"] = "${font?.size ?: scheme.editorFontSize}px"
+      values["editor-font-family"] = quote(scheme.editorFontName) + ", ui-monospace, monospace"
+      values["editor-font-size"] = "${scheme.editorFontSize}px"
+      return values
+    }
 
   private fun uiColors(
     values: MutableMap<String, String>,
@@ -153,13 +157,35 @@ object NativeTheme {
     )
   }
 
+  // The theme frame's tokens. The panel's theme port reads only role tokens
+  // (`--muse-text` for colour.text, design/tokens/generated/consumers.json),
+  // and its bridge then points every VS Code alias at its role: a frame that
+  // names no role leaves the page's text unpainted. Each role takes the value
+  // of the first of its VS Code aliases this host paints.
   val tokens: com.google.gson.JsonObject
     get() =
       json().also { tokens ->
-        Regex("(--muse-[a-zA-Z][\\w-]*):([^;]+);").findAll(css()).forEach { match ->
-          tokens.addProperty(match.groupValues[1], match.groupValues[2])
-        }
+        val values = painted
+        values.forEach { (key, value) -> tokens.addProperty("--muse-$key", value) }
+        for ((token, aliases) in roles) aliases.firstNotNullOfOrNull(values::get)?.let { tokens.addProperty(token, it) }
       }
+
+  /** The MHP theme: the IDE's kind and the tokens above. */
+  val theme: com.google.gson.JsonObject
+    get() = json("kind" to if (dark()) "dark" else "light", "tokens" to tokens)
+
+  private val roles: List<Pair<String, List<String>>> by lazy {
+    JsonBoundary
+      .parse(JsonBoundary.resource("/theme/consumers.json"))
+      .asJsonObject["hostRoles"]
+      .asJsonObject
+      .entrySet()
+      .map { (_, role) ->
+        val entry = role.asJsonObject
+        "--muse-" + entry["variable"].asString.removePrefix("--ms-") to
+          entry["vscode"].asJsonArray.map { it.asString.removePrefix("--vscode-") }
+      }
+  }
 
   fun dark(): Boolean = !JBColor.isBright()
 

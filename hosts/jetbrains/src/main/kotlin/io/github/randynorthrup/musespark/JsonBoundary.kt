@@ -64,6 +64,18 @@ class JsonBoundary {
         .getAsJsonObject("properties")["payload"]
         .asJsonObject
     val branches = branch.getAsJsonArray("anyOf")
+    // The theme frame (MHP 1.6) is the last toPanel group and reaches every surface kind.
+    val type =
+      value
+        .takeIf { it.isJsonObject }
+        ?.asJsonObject
+        ?.get("type")
+        ?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }
+        ?.asString
+    if (direction == "toPanel" && type == "theme") {
+      validate(branches[branches.size() - 1], value)
+      return
+    }
     val index =
       when (kind) {
         "tasks" -> 1

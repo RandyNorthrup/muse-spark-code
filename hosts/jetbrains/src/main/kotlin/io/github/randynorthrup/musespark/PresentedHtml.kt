@@ -28,14 +28,14 @@ internal object PresentedHtml {
 
   fun admit(html: String): String {
     var document = script.replace(html, "")
-    if (scriptOpen.containsMatchIn(document)) throw IllegalArgumentException("MHP_INVALID_HTML")
+    require(!scriptOpen.containsMatchIn(document)) { "MHP_INVALID_HTML" }
     document = cspMeta.replace(document, "")
     document = refresh.replace(document, "")
     document = framed.replace(document, "")
     document = link.replace(document, "")
     document = handler.replace(document, "")
     document = scriptUrl.replace(document) { match -> match.groupValues[1] + "\"\"" }
-    if (!Regex("(?i)</head>").containsMatchIn(document)) throw IllegalArgumentException("MHP_INVALID_HTML")
+    require(Regex("(?i)</head>").containsMatchIn(document)) { "MHP_INVALID_HTML" }
     return document
   }
 
@@ -46,7 +46,7 @@ internal object PresentedHtml {
   ): String {
     val meta = "<meta http-equiv=\"Content-Security-Policy\" content=\"$csp\">"
     val stripped = cspMeta.replace(html, "")
-    if (!Regex("(?i)<head>").containsMatchIn(stripped)) throw IllegalArgumentException("MHP_INVALID_HTML")
+    require(Regex("(?i)<head>").containsMatchIn(stripped)) { "MHP_INVALID_HTML" }
     return stripped.replaceFirst(Regex("(?i)<head>"), "<head>$meta")
   }
 }

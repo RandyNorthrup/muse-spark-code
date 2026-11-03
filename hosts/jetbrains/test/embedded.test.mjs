@@ -29,6 +29,7 @@ function setup(kind = 0, toHost = contract.panel.envelope.oneOf[0].properties.pa
     {
       toHost,
       toPanel: contract.panel.envelope.oneOf[1].properties.payload.anyOf[kind],
+      theme: contract.panel.envelope.oneOf[1].properties.payload.anyOf.at(-1),
       stateSchema: contract.embeddedBridge.setState.state,
       limits: contract.panel.limits,
     },
@@ -128,6 +129,19 @@ test('preserves listener order, isolates mutations, and unsubscribes one listene
     [1, 2],
   )
   assert.throws(() => receive({ type: 'invented' }, 3), /MHP_PANEL_INVALID_PAYLOAD/)
+})
+
+test('admits the theme frame on chat and tasks and refuses a malformed one', () => {
+  for (const kind of [0, 1]) {
+    const { api, receive } = setup(kind)
+    const shown = []
+    api.onMessage((value) => {
+      shown.push(value.type)
+    })
+    receive({ type: 'theme', theme: { kind: 'dark', tokens: {} } }, 1)
+    assert.deepEqual(shown, ['theme'])
+    assert.throws(() => receive({ type: 'theme', theme: {} }, 2), /MHP_PANEL_INVALID_PAYLOAD/)
+  }
 })
 
 test('enforces Tasks vocabulary and JSON-only state', () => {

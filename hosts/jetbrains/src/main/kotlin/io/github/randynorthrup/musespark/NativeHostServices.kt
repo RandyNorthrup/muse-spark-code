@@ -84,7 +84,7 @@ class NativeHostServices(
               .getDefault()
               .toLanguageTag(),
           ),
-        "theme" to json("kind" to if (NativeTheme.dark()) "dark" else "light", "tokens" to NativeTheme.tokens),
+        "theme" to NativeTheme.theme,
         "folders" to folders(),
         "trusted" to TrustedProjects.isProjectTrusted(project),
       )

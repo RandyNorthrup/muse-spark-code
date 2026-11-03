@@ -32626,6 +32626,21 @@ run here), Visual Studio's trust adapter and `workspace` group, Visual Studio
 2026, and Arduino IDE 2, which waits for M103f's VSIX (not on this tree). Record:
 `docs/certification/cc-m104gw.md`.
 
+JetBrains and Eclipse panels, looked at (RLF-HOSTFRAME, 2026-11-02, linuxlt):
+both real panels ran on this tree's `panel --stdio` (JCEF and WebKitGTK under
+Xvfb). Both payload checks refused the MHP 1.6 theme frame, as read; fixed.
+JetBrains then rendered with unpainted text: its theme frame named no role the
+theme port reads, so every VS Code alias pointed at an empty role (black on
+black in a dark IDE); its tokens now carry the roles from consumers.json. Both
+conformance suites now fail on the fatal card (`MHP_PANEL_FATAL_CARD`) or an
+unreadable page (`MHP_PANEL_UNREADABLE`), green runs too, with red/green
+drills. The JetBrains plugin's own declared build passes detekt again, and the
+receipts were rewritten by running (JetBrains 9 legs plus the panel, Eclipse
+its legs plus the page). Open: Eclipse paints Muse's own palette, not the
+IDE's; the shims' `panel --companion` is refused (said as `EPANEL_EXIT`,
+transport not built); `npm run build` is over budget on three team bundles on
+this base. Record: `docs/certification/rlf-hostframe.md`.
+
 **Warning for the POSIX trusted-path verifier (INT0180, 2026-10-11).** A real
 POSIX verifier that refuses a group-writable unit search directory would
 refuse registration on stock Ubuntu with umask 0002. The native schedule
