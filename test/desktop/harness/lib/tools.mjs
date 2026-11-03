@@ -30,9 +30,16 @@ export const TOOL_GROUPS = {
   qemu: ['swtpm'],
 }
 
+/** The names a program goes by in a folder: Windows finds one through its extension. */
+function programNames(command, env) {
+  return process.platform === 'win32' && path.extname(command) === ''
+    ? (env.PATHEXT ?? '.EXE;.CMD;.BAT').split(';').map((extension) => `${command}${extension}`)
+    : [command]
+}
+
 /** The absolute path of an executable on PATH, or undefined when absent. */
 export async function findExecutable(command, env = process.env) {
-  if (command.includes('/')) {
+  if (command.includes('/') || path.isAbsolute(command)) {
     try {
       await access(command, constants.X_OK)
       return path.resolve(command)
@@ -40,15 +47,17 @@ export async function findExecutable(command, env = process.env) {
       return undefined
     }
   }
-  const dirs = (env.PATH ?? '').split(path.delimiter)
+  const dirs = (env.PATH ?? env.Path ?? '').split(path.delimiter)
   for (const dir of dirs) {
     if (dir === '') continue
-    const candidate = path.join(dir, command)
-    try {
-      await access(candidate, constants.X_OK)
-      return candidate
-    } catch {
-      // Not in this directory; the search continues down PATH.
+    for (const name of programNames(command, env)) {
+      const candidate = path.join(dir, name)
+      try {
+        await access(candidate, constants.X_OK)
+        return candidate
+      } catch {
+        // Not in this directory; the search continues down PATH.
+      }
     }
   }
   return undefined

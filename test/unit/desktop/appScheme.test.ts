@@ -1,5 +1,6 @@
 // The workbench window's own scheme (desktop/app/scheme.ts): which URLs
 // answer, which file each serves, and what each denial refuses.
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { mimeForAppFile, resolveAppFile } from '../../../desktop/app/scheme'
 import { DESKTOP_APP_HOST, DESKTOP_APP_SCHEME } from '../../../src/shared/constants'
@@ -14,7 +15,7 @@ describe('M111 lane BP app scheme', () => {
   it('serves the window files from inside the app folder', () => {
     for (const name of ['index.html', 'renderer.js', 'renderer.TerminalView.js', 'renderer.css']) {
       const resolved = resolveAppFile(APP_DIR, appUrl(`/${name}`))
-      expect(resolved).toEqual({ outcome: 'serve', file: `${APP_DIR}/${name}` })
+      expect(resolved).toEqual({ outcome: 'serve', file: path.resolve(APP_DIR, name) })
     }
   })
 
@@ -36,7 +37,7 @@ describe('M111 lane BP app scheme', () => {
     // A backslash escape normalises to the same in-folder file, never out.
     expect(resolveAppFile(APP_DIR, appUrl('/..%5crenderer.js'))).toEqual({
       outcome: 'serve',
-      file: `${APP_DIR}/renderer.js`,
+      file: path.resolve(APP_DIR, 'renderer.js'),
     })
     expect(resolveAppFile(APP_DIR, appUrl('/main.mjs')).outcome).toBe('denied')
     expect(resolveAppFile(APP_DIR, appUrl('/renderer.js.map')).outcome).toBe('denied')

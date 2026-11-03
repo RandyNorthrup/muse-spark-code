@@ -1,4 +1,5 @@
 import { mkdir, readFile, realpath, symlink, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { confineToRoot } from '../../src/core/fs/confine'
@@ -70,6 +71,18 @@ describe('confineToRoot', () => {
     expect(resolved).toBeDefined()
     if (resolved === undefined) return
     expect(await readFile(resolved, 'utf8')).toBe('export {}')
+  })
+
+  // Hosted Windows' TEMP goes through a short name (RUNNER~1), and so does this
+  // spelling there: it was refused as outside its own root.
+  it('keeps an absolute path the way the temporary folder spells it', async () => {
+    const root = await scratch()
+    const real = await realpath(root)
+    const spelled = path.join(tmpdir(), path.basename(root))
+    expect(await confineToRoot(root, spelled)).toBe(real)
+    expect(await confineToRoot(root, path.join(spelled, 'new.txt'))).toBe(
+      path.join(real, 'new.txt'),
+    )
   })
 
   it('refuses a link whose target is not there', async () => {

@@ -23,7 +23,7 @@ describe('electron resolution', () => {
     // In a checkout where an Electron is already installed somewhere the
     // resolver finds it; the refusal path is what this case can promise.
     if (resolved.path === undefined) {
-      expect(resolved.missing.join(' ')).toContain('node_modules/electron')
+      expect(resolved.missing.join(' ')).toContain(path.join('node_modules', 'electron'))
       await expect(
         launchElectronApp({
           repoRoot: path.join(root, 'temp'),
