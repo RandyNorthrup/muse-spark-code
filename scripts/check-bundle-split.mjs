@@ -421,6 +421,22 @@ function backendFiles() {
 }
 
 const problems = []
+/**
+Reports every problem, then exits 1. `console.error` line by line outruns a reader
+that has fallen behind, and on POSIX `process.exit` drops what a pipe has not taken
+yet: run 41578891657's report said 230 problems and stopped at the 197th. So the
+report is one write, and the exit waits until it has gone.
+*/
+async function reportProblemsAndExit() {
+  const lines = [
+    `bundle split: ${String(problems.length)} problem(s); see PLAN.md D6 and M57`,
+    ...problems.map((problem) => `  ${problem}`),
+  ]
+  await new Promise((resolve) => {
+    process.stderr.write(`${lines.join('\n')}\n`, resolve)
+  })
+  process.exit(1)
+}
 const EXTRA_ONLY = new Set(['modelApiHooksEntry.ts', 'modelApiMcpEntry.ts', 'modelApiAcpEntry.ts'])
 const CONFIGURED_ONLY = ['authSource.ts', 'providerClient.ts']
 const PROVIDER_ONLY = []
@@ -1592,11 +1608,7 @@ const resourceProblems = checkResourceBundles(inputsOf, SHIPPED)
 problems.push(...resourceProblems)
 // Refuse an invalid boundary before the expensive source-reader scans. All
 // successful runs still execute every check below, with the same thresholds.
-if (resourceProblems.length > 0) {
-  console.error(`bundle split: ${String(problems.length)} problem(s); see PLAN.md D6 and M57`)
-  for (const problem of problems) console.error(`  ${problem}`)
-  process.exit(1)
-}
+if (resourceProblems.length > 0) await reportProblemsAndExit()
 const CONSTANTS = 'src/shared/constants.ts'
 // The chat ESM graph carries the review template in a shared chunk. Models
 // is a separate graph and may also use constants, but never this template.
@@ -2657,13 +2669,7 @@ const crossBundle = siblingExportProblems(
 // (scripts/lib/bundleExports.mjs holds the two lists and the reasons).
 for (const failure of crossBundleFailures(crossBundle, CROSS_BUNDLE_TARGETS, COMPUTED_LOADS))
   problems.push(`dist: ${failure}`)
-if (problems.length > 0) {
-  console.error(`bundle split: ${String(problems.length)} problem(s); see PLAN.md D6 and M57`)
-  for (const problem of problems) {
-    console.error(`  ${problem}`)
-  }
-  process.exit(1)
-}
+if (problems.length > 0) await reportProblemsAndExit()
 const BYTES_PER_KIB = 1024
 const carried = [...activation]
   .filter(([input]) => input.startsWith(`${MODEL_API_DIR}/`))
