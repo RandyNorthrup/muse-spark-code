@@ -7332,6 +7332,7 @@
     "internal": "Dahili kayıt",
     "labelWarning": "Ajanlar adları ve etiketleri görür. Bunlara gizli değerler koymayın.",
     "processWarning": "Bu program ve alt süreçleri kimlik bilgisini görecek ve başka yere gönderebilecektir.",
+    "environmentWarning": "Değer, bu program çalışırken ortamına yerleştirilir. Hesabınızla çalışan başka bir program değeri orada yine okuyabilir; Linux, macOS ve Windows’ta bir yönetici de okuyabilir. Komut macOS ve Linux’ta bellek dökümü kapalı olarak başlar. Program değeri bunun yerine standart girişinden okuyabiliyorsa değer ortamın dışında kalır.",
     "disclosureWarning": "Varlığınızı doğruladıktan sonra bu değeri yalnızca siz göreceksiniz. Açıklanan değer geri alınamaz; daha sonra değiştirin.",
     "taintWarning": "Bu istek güvenilmeyen içerikten sonra geldi: {content}. Mevcut izinlere rağmen onay gerekir.",
     "presenceWarning": "İşletim sisteminiz bu belirli kullanımı onaylamanızı isteyecektir.",

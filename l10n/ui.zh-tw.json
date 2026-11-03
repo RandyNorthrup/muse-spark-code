@@ -7150,6 +7150,7 @@
     "internal": "內部記錄",
     "labelWarning": "代理可以看到名稱和標籤。請勿在其中包含機密。",
     "processWarning": "此程式及其子處理程序將看到憑證，並可將其傳送至其他地方。",
+    "environmentWarning": "該值會在此程式執行期間進入其環境。以你的身分執行的另一個程式在 Linux、macOS 和 Windows 上仍能在那裡讀取它，管理員也可以。命令在 macOS 和 Linux 上啟動時關閉核心傾印。如果程式改為從標準輸入讀取該值，它就不會進入環境。",
     "disclosureWarning": "確認本人在場後，只有您能看到此值。已公開的值無法收回；請隨後更換。",
     "taintWarning": "此要求發生在不可信內容之後：{content}。即使已有授權，也需要核准。",
     "presenceWarning": "作業系統將要求您確認這項具體使用。",

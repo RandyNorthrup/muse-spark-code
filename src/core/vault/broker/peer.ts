@@ -28,6 +28,64 @@ export interface VaultPeerVerifier {
   /** OS credentials and pinned process start/image identity; never a claimed token or pid. */
   verify(socket: Duplex): Promise<VaultProcessIdentity>
 }
+/** Kernel identity reads for the feeder ancestry walk; null proves the process gone. */
+export interface VaultAncestryPort {
+  processIdentity(pid: number): Promise<VaultProcessIdentity | null>
+  /**
+  The parent of `pid`, only when that process's start time is still
+  `expectedStartedAt`. A recycled pid has a different start time.
+  */
+  parentIdentity(pid: number, expectedStartedAt: number): Promise<VaultProcessIdentity | null>
+}
+/**
+D243 feeder ancestry, bound against pid recycling. The feeder is
+re-read live, then every step re-reads the current process and asks the
+parent helper for that exact recorded start time. The helper refuses
+unless the process it reads, both before and after the parent read,
+still has that start time, so a pid recycled between this re-read and
+the helper cannot answer. The requester is re-read at the end. Linux
+birth is a clock tick, so two processes that started in the same tick
+can still collide.
+*/
+export async function hasVaultFeederAncestry(
+  feeder: VaultProcessIdentity,
+  requesterProcessId: number,
+  port: VaultAncestryPort,
+): Promise<boolean> {
+  const live = await port.processIdentity(feeder.processId)
+  if (
+    live?.startedAt !== feeder.startedAt ||
+    live.userId !== feeder.userId ||
+    live.executable !== feeder.executable
+  )
+    return false
+  const host = await port.processIdentity(requesterProcessId)
+  if (host?.userId !== feeder.userId) return false
+  const births = new Map<number, number>([[feeder.processId, feeder.startedAt]])
+  let current = feeder.processId
+  for (;;) {
+    const expectedBirth = births.get(current)
+    const currentLive = await port.processIdentity(current)
+    if (
+      expectedBirth === undefined ||
+      currentLive?.startedAt !== expectedBirth ||
+      currentLive.userId !== feeder.userId
+    )
+      return false
+    const parent = await port.parentIdentity(current, expectedBirth)
+    if (!parent || births.has(parent.processId)) return false
+    if (parent.processId === host.processId) {
+      const hostNow = await port.processIdentity(host.processId)
+      return (
+        parent.startedAt === host.startedAt &&
+        hostNow?.startedAt === host.startedAt &&
+        parent.userId === feeder.userId
+      )
+    }
+    births.set(parent.processId, parent.startedAt)
+    current = parent.processId
+  }
+}
 /**
 The Windows client's pipe dialer (lane C-M109-1c): a raw pipe socket
 carries no inspectable server end, so the client platform verifies the

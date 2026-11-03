@@ -216,8 +216,11 @@ export interface WindowsBrokerPlatform {
   readonly files: VaultPrivateFilesPort
   readonly ownerSid: string
   identify(pid: number): Promise<VaultProcessIdentity | null>
-  /** D243: the parent process's identity, for the feeder ancestry walk. */
-  parentIdentify(pid: number): Promise<VaultProcessIdentity | null>
+  /**
+  D243: the parent process's identity, only when `pid` still has
+  `expectedStartedAt` after the parent is read.
+  */
+  parentIdentify(pid: number, expectedStartedAt: number): Promise<VaultProcessIdentity | null>
   isHost(
     runDirectory: string,
     identity: VaultProcessIdentity,
@@ -324,11 +327,20 @@ export function windowsBrokerPlatform(
     const found = await windowsProcessIdentity(relay, pid)
     return found === null ? null : windowsIdentityShape(found)
   }
-  const parentIdentify = async (pid: number): Promise<VaultProcessIdentity | null> => {
+  const parentIdentify = async (
+    pid: number,
+    expectedStartedAt: number,
+  ): Promise<VaultProcessIdentity | null> => {
     const found = await windowsProcessIdentity(relay, pid)
-    if (found === null || found.process.parentProcessId === 0) return null
-    const parent = await windowsProcessIdentity(relay, found.process.parentProcessId)
-    return parent === null ? null : windowsIdentityShape(parent)
+    const parentPid = found?.process.parentProcessId
+    if (!parentPid || found.process.startedAt !== expectedStartedAt) return null
+    const parent = await windowsProcessIdentity(relay, parentPid)
+    const again = await windowsProcessIdentity(relay, pid)
+    return parent !== null &&
+      again?.process.startedAt === expectedStartedAt &&
+      again.process.parentProcessId === parentPid
+      ? windowsIdentityShape(parent)
+      : null
   }
   return {
     relay,

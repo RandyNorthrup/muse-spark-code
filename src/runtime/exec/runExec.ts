@@ -119,6 +119,7 @@ function loadVaultExecHost(distDir: string): typeof VaultExecHostModule {
   ) as typeof VaultExecHostModule
   if (
     typeof loaded.createHeadlessVaultExecService !== 'function' ||
+    typeof loaded.createHeadlessVaultTaintSource !== 'function' ||
     typeof loaded.setUiText !== 'function'
   )
     throw new TypeError(UI_TEXT.vault.brokerBlocked)
@@ -489,6 +490,15 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let transport: ExecTransport | undefined
   let vaultSession: ExecVaultSession | undefined
   let vaultExecService: { session: ExecVaultSession; service: VaultExecService } | undefined
+  // RLF-M109H: one taint source for the whole run, created on the first
+  // engine note or vault use, so provenance noted by any request of the
+  // run is what every later vault use is authorized against.
+  let vaultTaintSource:
+    ReturnType<typeof VaultExecHostModule.createHeadlessVaultTaintSource> | undefined
+  const vaultTaint = (): NonNullable<typeof vaultTaintSource> => {
+    vaultTaintSource ??= loadVaultExecHost(deps.distDir).createHeadlessVaultTaintSource()
+    return vaultTaintSource
+  }
   let vaultDenial: string | undefined
   const setup: { sessionId: string | null; isUsageError: boolean } = {
     sessionId: null,
@@ -1181,6 +1191,12 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           // only called by a tool run, which is later still.
           ...(options.vault &&
             deps.vault !== undefined && {
+              // RLF-M109H: the engine's provenance notes land in the
+              // run's one taint source, the same source the vault
+              // service below reads at every authorize.
+              noteVaultTaint: (sessionId, taint) => {
+                vaultTaint().note(sessionId, taint)
+              },
               vaultExec: () => {
                 const vaultPort = deps.vault
                 if (vaultPort === undefined || vaultSession === undefined)
@@ -1197,6 +1213,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                   nodePath: process.execPath,
                   env: deps.env,
                   platform: deps.platform,
+                  taint: () => vaultTaint().current(),
                 })
                 vaultExecService = { session: vaultSession, service }
                 return Promise.resolve(service)

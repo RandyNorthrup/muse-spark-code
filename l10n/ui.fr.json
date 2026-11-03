@@ -7514,6 +7514,7 @@
     "internal": "Enregistrement interne",
     "labelWarning": "Les agents voient les noms et les libellés. N’y mettez aucun secret.",
     "processWarning": "Ce programme et ses sous-processus verront l’identifiant et pourront le transmettre ailleurs.",
+    "environmentWarning": "La valeur est placée dans l’environnement de ce programme pendant son exécution. Un autre programme lancé sous votre compte peut encore la lire là, sous Linux, macOS et Windows, et un administrateur le peut aussi. La commande démarre sans fichiers core sous macOS et Linux. Lorsque le programme peut lire la valeur depuis son entrée standard, elle reste hors de l’environnement.",
     "disclosureWarning": "Vous seul verrez cette valeur après confirmation de votre présence. Une valeur divulguée ne peut pas être rappelée ; remplacez-la ensuite.",
     "taintWarning": "Cette demande suit un contenu non fiable : {content}. Une approbation est requise malgré les autorisations existantes.",
     "presenceWarning": "Votre système d’exploitation vous demandera de confirmer cette utilisation exacte.",

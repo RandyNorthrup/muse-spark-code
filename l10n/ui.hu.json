@@ -7332,6 +7332,7 @@
     "internal": "Belső rekord",
     "labelWarning": "Az ügynökök látják a neveket és címkéket. Ne írjon beléjük titkokat.",
     "processWarning": "Ez a program és gyermekfolyamatai látni fogják a hitelesítő adatot, és máshová küldhetik.",
+    "environmentWarning": "Az érték a program futása közben a program környezetébe kerül. Egy másik, a fiókjával futó program ott továbbra is elolvashatja, Linuxon, macOS-en és Windowson is, és egy rendszergazda szintén. A parancs macOS-en és Linuxon memóriakép nélkül indul. Ha a program az értéket ehelyett a szabványos bemenetéről tudja olvasni, az kívül marad a környezeten.",
     "disclosureWarning": "Csak Ön láthatja ezt az értéket jelenlétének igazolása után. A kiadott érték nem vonható vissza; utána cserélje le.",
     "taintWarning": "A kérést nem megbízható tartalom előzte meg: {content}. A meglévő engedélyek ellenére jóváhagyás szükséges.",
     "presenceWarning": "Az operációs rendszer ennek a pontos használatnak a megerősítését kéri.",
