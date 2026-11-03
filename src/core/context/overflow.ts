@@ -106,12 +106,12 @@ export function classifyContextOverflow(input: {
   const { error, response, contextTokens, format } = input
   if (error !== undefined) {
     if (
+      format === undefined ||
       error.status === HTTP_TOO_MANY_REQUESTS ||
       RATE_LIMIT.test(`${error.code ?? ''} ${error.kind ?? ''} ${error.message}`) ||
       QUOTA_OR_BILLING.test(`${error.code ?? ''} ${error.kind ?? ''} ${error.message}`)
     )
       return undefined
-    if (format === undefined) return undefined
     const text = `${error.code ?? ''} ${error.message}`
     if (PATTERNS[format].some((pattern) => pattern.test(text))) return 'error'
     // A 413 with a large-body shape is the request outgrowing the
