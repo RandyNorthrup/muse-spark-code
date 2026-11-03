@@ -4,6 +4,7 @@ import os
 import re
 import subprocess
 import sys
+import threading
 
 import sublime
 import sublime_plugin
@@ -162,20 +163,25 @@ class MuseStopCommand(sublime_plugin.WindowCommand):
     """Terminate only this window's companion runtime."""
 
     def run(self):
-        window_id = self.window.id()
-        running = _processes.get(window_id)
+        # Ownership clears at once. The verb ends the supervised run, so this
+        # window's companion gets TERM only after it: a race would fail the
+        # verb. A plain thread, since the async thread waits on the child.
+        running = _processes.pop(self.window.id(), None)
+
         def control():
+            failed = False
             try:
                 stop_workspace(self.window)
             except (OSError, ValueError, subprocess.TimeoutExpired):
+                failed = True
+            try:
+                if running is not None and running.poll() is None:
+                    running.terminate()
+            except OSError:
+                failed = True
+            if failed:
                 sublime.set_timeout(lambda: sublime.error_message("EPANEL_STOP"))
-        sublime.set_timeout_async(control)
-        try:
-            if running is not None and running.poll() is None:
-                running.terminate()
-            _processes.pop(window_id, None)
-        except OSError:
-            sublime.error_message("EPANEL_STOP")
+        threading.Thread(target=control, daemon=True).start()
 
 
 class MuseLifecycle(sublime_plugin.EventListener):

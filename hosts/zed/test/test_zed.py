@@ -7,14 +7,17 @@ where the machine refuses that root (this lane's sandbox: `/` is uid
 65534), those legs skip with the reason instead of pretending.
 """
 
+import http.client
 import importlib.util
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 
@@ -34,6 +37,7 @@ launch = module("launch")
 ROOT = Path(__file__).parents[3]
 AGENT = ROOT / "dist" / "acp.js"
 NODE = shutil.which("node")
+LAUNCH_URL = re.compile(r"http://127\.0\.0\.1:(\d+)/#k=[0-9a-f]+")
 
 
 def supervision_possible():
@@ -95,24 +99,55 @@ class ZedTests(unittest.TestCase):
             self.assertEqual(child.stderr.strip(), "EPANEL_LAUNCH")
             self.assertFalse(marker.exists())
 
-    def test_task_shell_reaches_the_real_agent(self):
+    @unittest.skipUnless(supervision_possible(),
+                         "supervision's owner-only root refused on this machine")
+    def test_task_shell_companion_serves_until_stop_task(self):
         if sys.platform == "win32":
             self.skipTest("the PowerShell task form is qualified on Windows")
         with tempfile.TemporaryDirectory() as directory:
             workspace = Path(directory) / "ws"
             workspace.mkdir()
-            task = register.configuration(NODE, sys.executable, str(AGENT))["tasks"][0]
-            command = " ".join([task["command"], *task["args"]])
-            child = subprocess.run(
-                ["/bin/sh", "-c", command], text=True, capture_output=True,
-                check=False, timeout=60, cwd=workspace,
-                env=self.scratch_env(directory),
+            # No display: the companion runs the OS opener itself.
+            env = self.scratch_env(directory)
+            for name in ("DISPLAY", "WAYLAND_DISPLAY"):
+                env.pop(name, None)
+            panel, stop = [
+                " ".join([task["command"], *task["args"]])
+                for task in register.configuration(NODE, sys.executable, str(AGENT))["tasks"]
+            ]
+            # Correct quoting execs the real agent's companion: its first
+            # stdout line is the launch URL and its page answers.
+            child = subprocess.Popen(
+                ["/bin/sh", "-c", panel], stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+                cwd=workspace, env=env,
             )
-            # Correct quoting execs the real agent, whose own refusal of
-            # the companion start is what answers — not EPANEL_LAUNCH,
-            # which would mean the launcher never reached it.
-            self.assertNotEqual(child.returncode, 0, child.stdout)
-            self.assertNotEqual(child.stderr.strip(), "EPANEL_LAUNCH")
+            try:
+                lines = []
+                reader = threading.Thread(
+                    target=lambda: lines.append(child.stdout.readline()), daemon=True)
+                reader.start()
+                reader.join(60)
+                match = LAUNCH_URL.fullmatch(lines[0].strip()) if lines else None
+                self.assertIsNotNone(match, lines)
+                page = http.client.HTTPConnection("127.0.0.1", int(match[1]), timeout=30)
+                try:
+                    page.request("GET", "/")
+                    self.assertEqual(page.getresponse().status, 200)
+                finally:
+                    page.close()
+                self.assertIsNone(child.poll(), "the companion keeps serving")
+                stopped = subprocess.run(
+                    ["/bin/sh", "-c", stop], capture_output=True, text=True,
+                    check=False, timeout=60, cwd=workspace, env=env,
+                )
+                self.assertEqual(stopped.returncode, 0, stopped.stdout + stopped.stderr)
+                child.wait(timeout=30)
+            finally:
+                if child.poll() is None:
+                    child.kill()
+                    child.wait(timeout=30)
+                child.stdout.close()
 
     def test_cli_emits_only_authored_configuration(self):
         output = subprocess.check_output(

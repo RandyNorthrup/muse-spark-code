@@ -341,3 +341,32 @@ Commits `6c8968e23` (D6) and `08942de56` (typecheck), each `fix(int):`.
    serving, then Stop that clears ownership, rather than a non-zero exit. The companion also runs the OS
    opener itself (`openOsBrowser`), so on a machine with a display it opens a browser; give the run no display.
 2. Items 4 and 5 of batch A's list stand unchanged.
+
+## Batch B (rig randy-lt): the shim suites, then groups 1–7
+
+### The five shim suites expect the live companion
+
+int's `panel --companion` serves, so each case that pinned its refusal now proves a live child that keeps
+serving its page, then a Stop that ends it and clears ownership. Every case runs its children with no
+`DISPLAY`/`WAYLAND_DISPLAY` (the companion runs the OS opener itself). The page is found by the launch URL
+where the test can read stdout (Emacs, Zed, Qt Creator) and by the supervised child's own loopback listener
+in `/proc` where the shim discards it (Neovim, Sublime); `GET /` with the page's own `Host` answers 200.
+
+- Emacs `muse-panel-real-agent-serves-until-stop`, Neovim `check.lua` (the companion block), Zed
+  `test_task_shell_companion_serves_until_stop_task` (the brief's `test_custom_agent_and_companion_task` is a
+  pure configuration case; the refusal lived in `test_task_shell_reaches_the_real_agent`), Qt Creator
+  `test_panel_serves_until_stop`, Sublime `muse_harness.py` (`observe`).
+- **Shim defect found and fixed (Emacs, Neovim, Sublime):** Stop sent its own kill to the companion at the
+  same moment as the `stop` verb. Emacs's `delete-process` is a KILL, which orphaned the supervised
+  `panel --companion` (still serving, measured: 200 after Stop). In all three the race also made the verb find
+  no run and fail (`EPANEL_STOP` after Stop that worked; Sublime's verb even waited behind the exit watcher).
+  Now ownership clears at once, the verb ends the supervised run, and only then does the shim send TERM to
+  whatever is left (Emacs falls back to `delete-process` when TERM cannot be sent).
+- Open, not this batch: a TERM to `supervise` in its first moments (before its child is set up) can still
+  leave the child running; the Neovim case waits for the second companion's listener before its Stop.
+  macOS: the shims' cases there would let `open` start a browser (no display variable governs it).
+- Runs (`umask 022`): Emacs 5/5 (exit 0), `check.lua` 9 PASS (exit 0), Zed 8 OK (exit 0), Qt Creator 6 OK
+  (exit 0), Sublime in-editor under `xvfb-run` 1 OK (exit 0). No `panel` process left after any of them.
+- Red/green: Emacs shim reverted to its KILL-first Stop → exit 1 (`(= (process-exit-status stop) 0)`,
+  `(= 1 0)`), restored → exit 0. Qt Creator's launcher given `--stdio` instead of `--companion` → exit 1
+  (`test_panel_serves_until_stop`: no launch URL), restored → exit 0.

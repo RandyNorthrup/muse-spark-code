@@ -138,10 +138,22 @@ function M.open_companion(url)
 end
 
 function M.stop()
+  -- Ownership clears at once. The verb ends the supervised run, so this
+  -- companion gets TERM only after it: a race would fail the verb.
+  local running = process
+  process = nil
+  local function terminate()
+    if running and not running:is_closing() then
+      return pcall(function()
+        running:kill("sigterm")
+      end)
+    end
+    return true
+  end
   -- This independent command reaches all supervised owners of the workspace.
-  vim.system(command_for("stop", false), { cwd = workspace(), env = environment(),
+  local started = pcall(vim.system, command_for("stop", false), { cwd = workspace(), env = environment(),
     clear_env = true, stdout = false, stderr = false }, vim.schedule_wrap(function(result)
-    if result.code ~= 0 then vim.notify("EPANEL_STOP", vim.log.levels.ERROR) end
+    if not terminate() or result.code ~= 0 then vim.notify("EPANEL_STOP", vim.log.levels.ERROR) end
   end))
   local cancelled = pcall(function()
     local ok, companion = pcall(require, "codecompanion")
@@ -152,17 +164,10 @@ function M.stop()
       end
     end
   end)
-  local killed = true
-  if process then
-    local running = process
-    killed = pcall(function()
-      running:kill("sigterm")
-    end)
-    if killed and process == running then
-      process = nil
-    end
+  if not started then
+    terminate()
   end
-  if not cancelled or not killed then
+  if not cancelled or not started then
     vim.notify("EPANEL_STOP", vim.log.levels.ERROR)
   end
 end

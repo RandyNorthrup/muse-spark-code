@@ -139,25 +139,66 @@ mixes the log into it, and the first line is then not JSON."
       (delete-directory home t)
       (delete-directory workspace t))))
 
-(ert-deftest muse-panel-real-agent-refusal-cleans-up ()
-  "The companion launch meets the real agent and its refusal is surfaced.
-The runtime's one panel transport is --stdio on this contract, so the
-supervised --companion child exits; the shim must clear its ownership."
+(ert-deftest muse-panel-real-agent-serves-until-stop ()
+  "The companion launch meets the real agent, which keeps serving its page.
+The shim discards the child's output; this case reads the launch URL
+beside it, fetches the page, then Stop ends the child and its ownership."
+  (skip-unless (muse-test--supervision-possible-p))
   (pcase-let ((`(,home ,workspace) (muse-test--scratch)))
     (unwind-protect
         (let ((muse-spark-command (muse-test--agent-command))
               (muse-spark--process nil)
-              (process-environment (muse-test--environment home))
-              (default-directory workspace))
+              ;; No display: the companion runs the OS opener itself.
+              (process-environment
+               (cl-remove-if (lambda (entry)
+                               (string-match-p "\\`\\(?:DISPLAY\\|WAYLAND_DISPLAY\\)=" entry))
+                             (muse-test--environment home)))
+              (default-directory workspace)
+              (output "")
+              (reply "")
+              (port nil))
           (muse-spark-panel)
           (let ((child muse-spark--process))
             (should (processp child))
+            ;; Output is read only when Emacs accepts it, so no line is missed.
+            (set-process-filter child (lambda (_process chunk)
+                                        (setq output (concat output chunk))))
             (should (muse-test--wait-for
-                     child (lambda () (not muse-spark--process))))
-            (should-not (= (process-exit-status child) 0))
-            (should-not (process-live-p (get-process "muse-spark-stderr")))
+                     child (lambda () (string-match-p "\n" output))))
+            (should (string-match
+                     "\\`http://127\\.0\\.0\\.1:\\([0-9]+\\)/#k=[0-9a-f]+\n" output))
+            (setq port (match-string 1 output))
+            (let ((page (make-network-process
+                         :name "muse-test-page" :host "127.0.0.1"
+                         :service (string-to-number port)
+                         :noquery t :buffer nil
+                         :filter (lambda (_process chunk)
+                                   (setq reply (concat reply chunk))))))
+              (unwind-protect
+                  (progn
+                    ;; The page answers only its own loopback Host.
+                    (process-send-string
+                     page (format "GET / HTTP/1.0\r\nHost: 127.0.0.1:%s\r\n\r\n" port))
+                    (should (muse-test--wait-for
+                             page (lambda () (string-match-p "\r\n" reply))))
+                    (should (string-match-p "\\`HTTP/1\\.[01] 200 " reply)))
+                (delete-process page)))
+            (should (process-live-p child))
+            (should (eq muse-spark--process child))
             (muse-spark-stop)
-            (should-not muse-spark--process)))
+            (should-not muse-spark--process)
+            ;; Stop's verb ends the supervised run and says so (exit 0);
+            ;; then the companion child ends and its page no longer answers.
+            (let ((stop (get-process "muse-stop")))
+              (should (muse-test--wait-for
+                       stop (lambda () (not (process-live-p stop)))))
+              (should (= (process-exit-status stop) 0)))
+            (should (muse-test--wait-for
+                     child (lambda () (not (process-live-p child)))))
+            (should-error (make-network-process
+                           :name "muse-test-closed" :host "127.0.0.1"
+                           :service (string-to-number port) :noquery t :buffer nil)
+                          :type 'file-error)))
       (delete-directory home t)
       (delete-directory workspace t))))
 

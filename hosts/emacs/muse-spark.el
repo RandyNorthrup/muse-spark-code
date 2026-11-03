@@ -162,7 +162,12 @@ Without URL, let the installed panel runtime open its own browser."
   "Cancel the active agent-shell turn and terminate this companion."
   (interactive)
   (let ((process-environment (muse-spark--environment))
-        (default-directory (muse-spark--workspace)) failed)
+        (default-directory (muse-spark--workspace))
+        (companion muse-spark--process) failed)
+    ;; Ownership clears at once; the verb ends the supervised run, so the
+    ;; companion is signalled only after it, and with TERM: a KILL would
+    ;; leave its supervised page serving, and a race would fail the verb.
+    (setq muse-spark--process nil)
     (condition-case nil
         (let ((stderr (make-pipe-process :name "muse-stop-stderr"
                                         :buffer nil :filter #'ignore :noquery t)))
@@ -174,6 +179,7 @@ Without URL, let the installed panel runtime open its own browser."
                        (unless (process-live-p child)
                          (let ((pipe (process-get child 'muse-stderr)))
                            (when (processp pipe) (delete-process pipe)))
+                         (muse-spark--terminate companion)
                          (when (/= (process-exit-status child) 0)
                            (message "EPANEL_STOP")))))))
             (process-put child 'muse-stderr stderr))
@@ -183,13 +189,17 @@ Without URL, let the installed panel runtime open its own browser."
         (when (and muse-spark--owned-shell (derived-mode-p 'agent-shell-mode))
           (agent-shell-interrupt))
       (error (setq failed t)))
-    (condition-case nil
-        (progn
-          (when (process-live-p muse-spark--process)
-            (delete-process muse-spark--process))
-          (setq muse-spark--process nil))
-      (error (setq failed t)))
-    (when failed (message "EPANEL_STOP"))))
+    (when failed
+      (condition-case nil
+          (muse-spark--terminate companion)
+        (error nil))
+      (message "EPANEL_STOP"))))
+
+(defun muse-spark--terminate (process)
+  "Ask PROCESS to end with TERM, so supervise ends its run; else delete it."
+  (when (and (processp process) (process-live-p process)
+             (not (eq (signal-process process 'SIGTERM) 0)))
+    (delete-process process)))
 
 (add-hook 'kill-emacs-hook #'muse-spark-stop)
 (provide 'muse-spark)
