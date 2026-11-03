@@ -219,7 +219,7 @@ describe("Claude's preset meets the team's spend consent (D262)", () => {
     }
     const team = readStoredTeam({
       get: (key) => (key === TEAM_WORKSPACE_KEYS.team ? stored : undefined),
-      update: async () => {},
+      update: () => Promise.resolve(),
     })
     expect(team?.roles[0]?.pool.map((entry) => entry.agent?.pays)).toEqual(['key', undefined])
   })

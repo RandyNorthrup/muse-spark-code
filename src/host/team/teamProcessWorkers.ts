@@ -856,10 +856,12 @@ export function createProcessTeamPorts(deps: TeamProcessWorkersDeps): ProcessTea
     workers,
     dispose: async () => {
       const started = lifetime
-      const closing: Promise<void>[] = Array.from(hosts.values(), pending => (async () => {
-            const host = await pending
-            await host.close()
-          })());
+      const closing: Promise<void>[] = Array.from(hosts.values(), (pending) =>
+        (async () => {
+          const host = await pending
+          await host.close()
+        })(),
+      )
       hosts.clear()
       await Promise.allSettled(closing)
       await Promise.allSettled(launches)

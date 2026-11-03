@@ -109,6 +109,21 @@ taken out; final growth 3064 (green). The budget was not raised.
 - The packed product's real use with a real Anthropic key (no key on this rig,
   no paid call allowed).
 
-## Gates
+## Gates (2026-11-02, rig `linuxlt`, against `git merge-base HEAD 9e25295f5` = `9e25295f5`)
 
-Recorded with exit codes in the lane's final message.
+| Gate                           | Exit      | Note                                                                                                                                                                                         |
+| ------------------------------ | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run -s typecheck`         | 0         |                                                                                                                                                                                              |
+| prettier on the branch's files | 0         | after formatting `src/host/team/teamProcessWorkers.ts`; the `.qml` and `.rs` tables have no parser                                                                                           |
+| eslint on the branch's code    | 0         | after moving the D262 check in `fence.ts` behind the simple conditions and a non-empty `update` in the test                                                                                  |
+| `node scripts/check-l10n.mjs`  | 0         |                                                                                                                                                                                              |
+| `check:reference`              | 0         |                                                                                                                                                                                              |
+| `check:host-api`               | 0         | after `--write`: the branch's added `node:fs/promises` import                                                                                                                                |
+| `check:plan`                   | 0         |                                                                                                                                                                                              |
+| `check:roadmap`                | 0         |                                                                                                                                                                                              |
+| `check:catches`                | 1         | reproduces on the base (`ModelApiHost.ts:15627`, `execTeamRecovery.ts:593`, neither on this branch); left                                                                                    |
+| `duplication`                  | 1         | reproduces on the base (`resourceRelocationDevices`/`Join` tests, not on this branch); left                                                                                                  |
+| `cycles`                       | 0         |                                                                                                                                                                                              |
+| `deadcode`                     | 0         |                                                                                                                                                                                              |
+| `npm run build`                | 1         | **this branch's**: `dist/runtimeMaker.js` 129,194 B (budget 129,024; base 128,975) and `dist/teamPanel.js` 102,868 B (budget 102,400; base 101,534) are over D6; not raised, not yet trimmed |
+| `npx vitest related`           | see below |                                                                                                                                                                                              |
