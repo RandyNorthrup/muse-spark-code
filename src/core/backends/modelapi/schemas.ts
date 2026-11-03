@@ -525,6 +525,51 @@ export function withStrictTools(
     : tools
 }
 
+/**
+Claude rejects (on the Anthropic API and on Bedrock) a request whose
+strict tools exceed its limits with one of these messages (Pi #11416,
+`constrained-sampling.ts`): 20 strict tools, 16 union-typed parameters.
+*/
+const STRICT_TOOL_LIMIT_ERROR_MESSAGES: readonly string[] = [
+  'The compiled grammar is too large',
+  'Too many strict tools (',
+  'Schemas contains too many parameters with union types (',
+]
+
+/** Whether a provider error message says the request's strict tools exceed the provider's limits. */
+export function isStrictToolLimitErrorMessage(message: string): boolean {
+  return STRICT_TOOL_LIMIT_ERROR_MESSAGES.some((limit) => message.includes(limit))
+}
+
+/**
+Preferred-strict tools back to the declarations the session built (Pi
+#11416's retry shape): the strict rewrite's original parameters with
+`strict: false`, so a provider strict-limit refusal is sent again
+without constrained decoding. Tools that never went strict pass
+through untouched; there is no require tier, every strict tool here is
+preferred. The preserved original rides along, still absent from JSON.
+*/
+export function withoutStrictTools(
+  tools: readonly FunctionToolDefinition[],
+): FunctionToolDefinition[]
+export function withoutStrictTools(tools: readonly ToolDefinition[]): ToolDefinition[]
+export function withoutStrictTools(tools: readonly ToolDefinition[]): ToolDefinition[] {
+  return tools.map((tool) => {
+    if (tool.type !== 'function' || !tool.strict) return tool
+    const restored: FunctionToolDefinition = {
+      ...tool,
+      parameters: tool[ORIGINAL_TOOL_PARAMETERS] ?? tool.parameters,
+      strict: false,
+    }
+    // Host tools curate even an absent field list. Spreading drops this
+    // nonenumerable descriptor and wrongly admits schema-derived fields.
+    const preview = Object.getOwnPropertyDescriptor(tool, 'previewFields')
+    return preview === undefined
+      ? restored
+      : Object.defineProperty(restored, 'previewFields', preview)
+  })
+}
+
 /** Strict optional properties are nullable on the wire; restore omission for tool parsers. */
 export function restoreOptionalToolArguments(json: string, tool: FunctionToolDefinition): string {
   if (tool[NON_STRICT_TOOL] === true) return json
