@@ -5953,8 +5953,8 @@ export const EN = {
   // its own reason the byte bound is used instead.
   execCountBytesOverLength:
     'The provider input count exceeded the request size, so the byte bound reserves this request instead.',
-  // A --max-output-tokens value above the policy cap is refused at parsing.
-  // {cap} is the absolute ceiling every policy cap sits at or below.
+  // A --max-output-tokens value above the selected model's own maximum is
+  // refused where the model is known. {cap} is that maximum in tokens.
   execOutputCapExceeded: '--max-output-tokens exceeds the output cap of {cap} tokens.',
   // EXECPROV round 5 (5a): a missing price is not a budget stop. {model} is
   // the requested ref; {file} is the runner's own providers file, where a

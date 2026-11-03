@@ -34,7 +34,7 @@ import { modelApiPaidTier } from '../../../shared/paid'
 import { Usd, multiplyUsd, usdAmountSchema, type UsdAmount } from '../../../shared/usd'
 import { SpendLedgerError } from '../../paid/spendLedgerError'
 import { formatUsd, estimateCostUsd } from '../../usage/insights'
-import { type ModelPricePolicy, modelPricedUsage } from './modelPolicy'
+import { type ModelPricePolicy, modelPolicyFor, modelPricedUsage } from './modelPolicy'
 
 import type { CreateResponseBody, Usage } from './schemas'
 
@@ -206,7 +206,11 @@ export function fitRequest(request: {
   readonly modelId: string
   readonly maxToolCalls?: number
   readonly searchPriceUsd?: UsdAmount | undefined
-  /** Selected model's output allowance. Omitted callers keep the Model API maximum. */
+  /**
+  Selected model's output allowance. Omitted callers fit up to the model
+  policy's maximum (D121: the provider's own limit is the only ceiling);
+  the legacy default binds only where the record names no maximum.
+  */
   readonly maxOutputTokens?: number
   /** The selected provider's smallest accepted output cap; unknown keeps 1. */
   readonly minOutputTokens?: number | undefined
@@ -246,7 +250,10 @@ export function fitRequest(request: {
       }),
     )
   }
-  const outputCap = request.maxOutputTokens ?? MODEL_API_MAX_OUTPUT_TOKENS
+  const outputCap =
+    request.maxOutputTokens ??
+    modelPolicyFor(request.modelId).output.maxTokens ??
+    MODEL_API_MAX_OUTPUT_TOKENS
   if (!Number.isSafeInteger(outputCap) || outputCap < 1)
     throw new RangeError('invalid output.maxTokens')
   const maxOutputTokens = Number(
@@ -340,7 +347,10 @@ function fitProviderRequest(request: {
   }
   const leftUsd = Usd.from(request.capUsd).subtract(Usd.from(request.spentUsd))
   let low = 0
-  let high = request.maxOutputTokens ?? MODEL_API_MAX_OUTPUT_TOKENS
+  let high =
+    request.maxOutputTokens ??
+    modelPolicyFor(request.modelId).output.maxTokens ??
+    MODEL_API_MAX_OUTPUT_TOKENS
   while (low < high) {
     const tokens = Math.ceil((low + high) / 2)
     const cost = request.price.reserve({ ...usage, outputTokens: tokens })

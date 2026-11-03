@@ -6,7 +6,10 @@ import {
   fitRequest,
   SessionBudgetExceededError,
 } from '../../src/core/backends/modelapi/sessionBudget'
-import { DEFAULT_MODEL_ID } from '../../src/shared/constants'
+import {
+  DEFAULT_MODEL_ID,
+  MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
+} from '../../src/shared/constants'
 import { Usd } from '../../src/shared/usd'
 
 describe('fitting a request into a session limit', () => {
@@ -32,6 +35,18 @@ describe('fitting a request into a session limit', () => {
       maxOutputTokens: 2000,
     })
     expect(fit.maxOutputTokens).toBe(2000)
+  })
+
+  it('fits an omitted allowance up to the model policy maximum', () => {
+    // D121: with no explicit allowance the fit may use the provider's own
+    // maximum (131,072 for a Meta model), never the legacy 32,768 default.
+    const fit = fitRequest({
+      capUsd: Usd.from('1000').toAmount(),
+      spentUsd: Usd.from(0).toAmount(),
+      estimatedInputTokens: 1000,
+      modelId: DEFAULT_MODEL_ID,
+    })
+    expect(fit.maxOutputTokens).toBe(MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS)
   })
 
   it('refuses a request whose smallest estimate passes the limit, in plain words', () => {

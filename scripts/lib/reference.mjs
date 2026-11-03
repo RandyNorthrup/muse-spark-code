@@ -878,11 +878,12 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     'max-requests': {
       minimum: 1,
     },
+    // D121: the selected model's own maximum is the only ceiling (refused
+    // where the model is known, naming that maximum); parsing sets none.
     // The parse floor stays 1; the selected model's own provider minimum
     // applies at admission and at the send.
     'max-output-tokens': {
       minimum: 1,
-      maximum: source.MODEL_API_MAX_OUTPUT_TOKENS,
       unit: 'tokens',
     },
     // No default: without `--timeout` a run has no deadline of ours.

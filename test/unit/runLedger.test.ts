@@ -14,10 +14,13 @@ import { isExecEvent } from '../../action/lib/result.mjs'
 import { modelPolicyFor } from '../../src/core/backends/modelapi/modelPolicy'
 import {
   MODEL_API_MAX_OUTPUT_TOKENS,
+  MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
   MODEL_API_PRICES_PER_MILLION,
   TOKENS_PER_MILLION,
   EXEC_USD_DECIMALS,
+  UI_TEXT,
 } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 
 function tierPrice(isStandard = false) {
   const values = MODEL_API_PRICES_PER_MILLION[isStandard ? 'standard' : 'contributor']
@@ -133,6 +136,30 @@ describe('M80 ledger integer admission and retained liability', () => {
       reserveUsd: Usd.from(0.108135).toAmount(),
     })
     expect(small.totals().requests).toBe(0)
+  })
+  it('reserves the policy-maximum request at the documented worst case', () => {
+    // D121: a Meta run's default request carries the model's documented
+    // maximum (131,072), so the worst-case reservation is the full-window
+    // charge at that M — the figures docs/ci.md and the README state.
+    for (const [model, isStandard, expected] of [
+      ['muse-spark-1.3-contributor', false, '0.117965'],
+      ['muse-spark-1.3', true, '1.703936'],
+    ] as const) {
+      const cap = createExecOutputCap({ model: () => model, maxOutputTokens: undefined })
+      const l = createRunLedger({
+        capUsd: Usd.from(10).toAmount(),
+        maxRequests: 30,
+        outputCap: cap,
+      })
+      cap(modelPolicyFor(model))
+      const ticket = l.admitResponse({
+        model,
+        maxOutputTokens: MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
+        price: isStandard ? tierPrice(true) : price,
+      })
+      if ('refused' in ticket) throw new Error(ticket.refused)
+      expect(ticket.reserveUsd).toBe(Usd.from(expected).toAmount())
+    }
   })
   it('L2 prices cached/uncached/output exactly before upward micro rounding', () => {
     const l = createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests: 30 })
@@ -407,6 +434,7 @@ describe('M80 ledger integer admission and retained liability', () => {
 })
 
 const providerPolicy = () => modelPolicyFor('testprovider/testmodel', { maxOutputTokens: 16_384 })
+const metaContributorPolicy = () => modelPolicyFor('muse-spark-1.3-contributor')
 
 describe('exec output cap across model resolution', () => {
   // A headless --provider run reads the cap before the model resolves, when
@@ -426,6 +454,45 @@ describe('exec output cap across model resolution', () => {
     const outputCap = createExecOutputCap({ model: () => null, maxOutputTokens: 4096 })
     expect(outputCap(providerPolicy())).toBe(4096)
     expect(outputCap()).toBe(4096)
+  })
+
+  it('resolves a Meta model to its documented maximum and refuses a flag above it', () => {
+    const metaPolicy = metaContributorPolicy
+    // No flag: the model's own maximum, not the legacy default — both at
+    // the model bind and from the model name before it.
+    expect(
+      createExecOutputCap({ model: () => null, maxOutputTokens: undefined })(metaPolicy()),
+    ).toBe(MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS)
+    expect(
+      createExecOutputCap({
+        model: () => 'muse-spark-1.3-contributor',
+        maxOutputTokens: undefined,
+      })(),
+    ).toBe(MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS)
+    // The flag at the maximum rides through; above it refuses with the
+    // sentence naming that maximum.
+    const atMax = createExecOutputCap({
+      model: () => 'muse-spark-1.3-contributor',
+      maxOutputTokens: MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
+    })
+    expect(atMax(metaPolicy())).toBe(MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS)
+    const overMax = createExecOutputCap({
+      model: () => 'muse-spark-1.3-contributor',
+      maxOutputTokens: MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS + 1,
+    })
+    expect(() => overMax(metaPolicy())).toThrow(
+      fill(UI_TEXT.execOutputCapExceeded, { cap: String(MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS) }),
+    )
+  })
+
+  it('refuses a flag above a lower provider maximum once the policy binds', () => {
+    const outputCap = createExecOutputCap({ model: () => null, maxOutputTokens: 20_000 })
+    // Before resolution the flag only lowers the cached global; the bind
+    // refuses with the provider's own maximum named.
+    expect(outputCap()).toBe(20_000)
+    expect(() => outputCap(providerPolicy())).toThrow(
+      fill(UI_TEXT.execOutputCapExceeded, { cap: '16384' }),
+    )
   })
   it('accepts a set budget past 20 USD with no maximum', () => {
     // No provider publishes a run budget, so the product sets none.
