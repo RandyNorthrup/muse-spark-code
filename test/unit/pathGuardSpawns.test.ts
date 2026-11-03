@@ -164,13 +164,13 @@ const KNOWN: Record<string, KnownSpawn> = {
     kind: 'reviewed',
     anchor: 'windowsPowerShell',
     reason:
-      "absolute SystemRoot powershell only (windowsPowerShell: guarded, credential-free, 5.1's own module path), a script that names no cmdlet, argument array, no shell, hidden window, timeout and bounded output (M103)",
+      "absolute System32 powershell only (windowsPowerShell: guarded, credential-free, 5.1's own module path; the reader itself names no cmdlet, CC-WINFIX2), argument array, no shell, hidden window, timeout and bounded output (M103)",
   },
   'src/core/maker/hardwareContext.ts': {
     kind: 'reviewed',
-    anchor: "'reg.exe'",
+    anchor: "'System32', 'reg.exe'",
     reason:
-      "System32's reg.exe by the system root's absolute path, an env of nothing but SystemRoot, argument array, no shell, hidden window, timeout (Windows' SERIALCOMM read, opening no port)",
+      'absolute SystemRoot System32 reg.exe only for the SERIALCOMM inventory read, an env of nothing but SystemRoot, argument array, no shell, hidden window, timeout (M103)',
   },
   'src/core/maker/serial/nativeLease.ts': {
     kind: 'reviewed',

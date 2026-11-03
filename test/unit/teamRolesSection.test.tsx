@@ -300,7 +300,7 @@ describe('M96 U1 Roles UI', () => {
   })
   it('posts Alt+Up reordering and exposes only supported settings', async () => {
     const rig = await sectionRig('pair')
-    const defaultButton = screen.getByRole('button', { name: 'Default (main/main)' })
+    const defaultButton = screen.getByRole('button', { name: '2 · Default (main/main)' })
     fireEvent.keyDown(defaultButton, { key: 'ArrowUp', altKey: true })
     await waitFor(() => {
       expect(

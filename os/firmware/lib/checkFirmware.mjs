@@ -89,6 +89,36 @@ export function parseSnapshotResponse(text) {
   return { ok: true, source, versions }
 }
 
+const FETCH_DEADLINE_MS = 10_000
+const FETCH_ATTEMPTS = 3
+const FETCH_BACKOFF_MS = 1000
+
+/**
+One snapshot read with a deadline, retried on transport failure.
+snapshot.debian.org tarpits under load: in hosted CI (run 41516831678)
+one unanswered fetch held the check for 100 s before the socket gave
+up. Each attempt ends at the deadline; three attempts with backoff
+follow the usual idempotent-GET practice, then the failure is the
+caller's to report. An HTTP answer, even an error one, is never
+retried: it is the service's answer.
+*/
+async function fetchSnapshot(url) {
+  let lastError
+  for (let attempt = 1; attempt <= FETCH_ATTEMPTS; attempt += 1) {
+    try {
+      return await fetch(url, { signal: globalThis.AbortSignal.timeout(FETCH_DEADLINE_MS) })
+    } catch (error) {
+      lastError = error
+      if (attempt < FETCH_ATTEMPTS) {
+        await new Promise((resolve) => {
+          setTimeout(resolve, FETCH_BACKOFF_MS * attempt)
+        })
+      }
+    }
+  }
+  throw lastError
+}
+
 /**
 Resolve one package: read its recorded transcript, or fetch the live
 snapshot response. A 404 or an empty listing means the package is
@@ -109,7 +139,7 @@ export async function resolvePackage(name, { snapshotBase, transcriptDir }) {
   }
   let response
   try {
-    response = await fetch(`${snapshotBase}/mr/binary/${name}/`)
+    response = await fetchSnapshot(`${snapshotBase}/mr/binary/${name}/`)
   } catch (error) {
     return { ok: false, kind: 'tool', error: `snapshot fetch failed: ${String(error)}` }
   }

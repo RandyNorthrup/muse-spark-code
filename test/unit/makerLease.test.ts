@@ -41,6 +41,8 @@ import {
 
 const directories: string[] = []
 const releases: (() => Promise<void>)[] = []
+/** One parent-death chain: holder ready (5 s deps bound) + parent + waiter death wait (5 s). */
+const WAITER_PARENT_DEATH_MS = 20_000
 afterEach(async () => {
   await Promise.allSettled(releases.splice(0).map((release) => release()))
   for (const directory of directories.splice(0))
@@ -652,66 +654,76 @@ socket.once('end', () => process.exit(0));`,
     expect(stops).toBe(0)
   })
 
-  it('ends a native mutex waiter when its parent dies, while the other holder stays alive', async () => {
-    const deps = await fixture()
-    const helper = await makerNativeHelper(deps.directory)
-    const entered = new AbortController()
-    const release = new AbortController()
-    const waiting = new Promise<void>((resolve) => {
-      entered.signal.addEventListener(
-        'abort',
-        () => {
-          resolve()
-        },
-        { once: true },
+  // Three real process starts in sequence (holder helper, node parent,
+  // waiter helper) plus the waiter's EOF poll: 753 ms here, past the 5 s
+  // default on the 3-vCPU hosted runner, whose case also holds the deps'
+  // own 5 s ready bound and a 5 s death wait (run 41516831678).
+  it(
+    'ends a native mutex waiter when its parent dies, while the other holder stays alive',
+    async () => {
+      const deps = await fixture()
+      const helper = await makerNativeHelper(deps.directory)
+      const entered = new AbortController()
+      const release = new AbortController()
+      const waiting = new Promise<void>((resolve) => {
+        entered.signal.addEventListener(
+          'abort',
+          () => {
+            resolve()
+          },
+          { once: true },
+        )
+      })
+      const file = path.join(deps.directory, 'waiter.mutex')
+      const holder = withNativeLeaseMutex(
+        helper,
+        file,
+        () =>
+          new Promise<void>((resolve) => {
+            release.signal.addEventListener(
+              'abort',
+              () => {
+                resolve()
+              },
+              { once: true },
+            )
+            entered.abort()
+          }),
       )
-    })
-    const file = path.join(deps.directory, 'waiter.mutex')
-    const holder = withNativeLeaseMutex(
-      helper,
-      file,
-      () =>
-        new Promise<void>((resolve) => {
-          release.signal.addEventListener(
-            'abort',
-            () => {
-              resolve()
-            },
-            { once: true },
-          )
-          entered.abort()
-        }),
-    )
-    await waiting
-    try {
-      const script = `
+      // A holder that never becomes ready must fail as itself, not pend on
+      // `waiting` until the case deadline hides which wait gave up.
+      await Promise.race([waiting, holder])
+      try {
+        const script = `
 const child = require('node:child_process').spawn(process.argv[1], JSON.parse(process.argv[2]), { detached: true, windowsHide: true, stdio: ['pipe', 'ignore', 'ignore'] });
 process.stdout.write(String(child.pid));
 setTimeout(() => process.exit(0), 100);`
-      const parent = await startSerialProcess(
-        {
-          file: process.execPath,
-          args: ['-e', script, helper.file, JSON.stringify([...helper.prefix, 'mutex', file])],
-          writable: false,
-        },
-        makerProcessDeps(),
-      )
-      const capture = await parent.result
-      const pid = Number(capture.bytes.toString('utf8'))
-      expect(pid).toBeGreaterThan(0)
-      await vi.waitFor(
-        async () => {
-          expect(await isTestProcessAlive(pid)).toBe(false)
-        },
-        {
-          timeout: 5000,
-        },
-      )
-    } finally {
-      release.abort()
-      await holder
-    }
-  })
+        const parent = await startSerialProcess(
+          {
+            file: process.execPath,
+            args: ['-e', script, helper.file, JSON.stringify([...helper.prefix, 'mutex', file])],
+            writable: false,
+          },
+          makerProcessDeps(),
+        )
+        const capture = await parent.result
+        const pid = Number(capture.bytes.toString('utf8'))
+        expect(pid).toBeGreaterThan(0)
+        await vi.waitFor(
+          async () => {
+            expect(await isTestProcessAlive(pid)).toBe(false)
+          },
+          {
+            timeout: 5000,
+          },
+        )
+      } finally {
+        release.abort()
+        await holder
+      }
+    },
+    WAITER_PARENT_DEATH_MS,
+  )
 
   it('echoes the native Stop call id so one reply cannot settle another', async () => {
     const script = String.raw`

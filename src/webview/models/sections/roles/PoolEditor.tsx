@@ -108,21 +108,20 @@ function OrderButton({
   index,
   count,
   label,
-  name,
   onMove,
 }: {
   readonly id: string
   readonly index: number
   readonly count: number
   readonly label: string
-  readonly name?: string | undefined
   readonly onMove: (id: string, to: number) => void
 }) {
+  // No aria-label: the accessible name is the visible "position · label"
+  // itself, the text a voice user says (WCAG 2.5.3 label-in-name).
   return (
     <button
       type="button"
       className="team-editor-order"
-      aria-label={name}
       onKeyDown={(event) => {
         const action = webviewKey('team.pool', event)
         if (action === undefined) return
@@ -370,7 +369,6 @@ export function PoolEditor({
                   index={index}
                   count={role.pool.length}
                   label={label}
-                  name={label}
                   onMove={move}
                 />
                 <button

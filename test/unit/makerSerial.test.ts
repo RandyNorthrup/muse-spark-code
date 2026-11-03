@@ -441,6 +441,13 @@ if (process.platform !== 'win32') {
               await delay(20)
             }
           }
+          // Hold the device side open for the whole case, as real hardware
+          // stays present: on macOS the relay's master reads EOF when the
+          // last slave close lands (the stty setup below), socat ends the
+          // relay, and every later byte goes nowhere (run 41516831678,
+          // macOS shard 8; the peer side was already held and survived).
+          // The holder never reads: the session under test owns the input.
+          const held = await open(left, constants.O_RDWR | constants.O_NONBLOCK)
           const peer = await open(right, constants.O_RDWR | constants.O_NONBLOCK)
           try {
             const settings = {
@@ -522,6 +529,7 @@ if (process.platform !== 'win32') {
             expect(isProcessGone(session.pid)).toBe(true)
           } finally {
             await peer.close()
+            await held.close()
           }
         } finally {
           await killTree(relay, tree, Date.now())

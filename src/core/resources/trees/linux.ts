@@ -198,7 +198,12 @@ class LinuxTreeSource implements PosixTreeSource {
   private async stat(pid: number): Promise<ProcessSample | null> {
     try {
       const { hz, page } = await this.getUnits()
-      const row = parseLinuxStat(await this.read(`/proc/${String(pid)}/stat`), hz, page)
+      const text = await this.read(`/proc/${String(pid)}/stat`)
+      // A process that dies between the open and the read leaves an empty
+      // file, not ENOENT: it is gone, not invalid (run 41516831678, where
+      // one flooding member vanishing mid-kill refused the whole stop).
+      if (text === '') return null
+      const row = parseLinuxStat(text, hz, page)
       if (row?.pid !== pid) throw new Error('Invalid process stat')
       return row
     } catch (error: unknown) {
@@ -547,8 +552,16 @@ class LinuxTreeSource implements PosixTreeSource {
         current?.startTime === identity.startTime &&
         !current.exited &&
         !(await this.containsNow(ticket, identity, true))
-      )
-        return 'refused'
+      ) {
+        // Uncontained at the second read: refused only while the same
+        // process is still alive there. One that died between the reads
+        // (the normal end of a flooding member another signal reached
+        // first) is classified from the fresh read, as on macOS.
+        const latest = await this.stat(identity.pid)
+        return latest?.startTime !== identity.startTime || latest.exited
+          ? signalVerifiedPosix(identity, latest, signal, isRegistered, this.deps.sendSignal)
+          : 'refused'
+      }
       const latest = current === null || current.exited ? current : await this.stat(identity.pid)
       if (
         ticket.scope.type === 'cgroup' &&

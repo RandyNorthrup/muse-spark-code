@@ -208,6 +208,22 @@ Conflicts:
 
 Not run here: `teamModelsFirstPaint` (real Chrome) and the vault suites; hosted CI on the three systems decides them.
 
+### Merge 7 — `lanes/rlf-cifixc` (777490540)
+
+The hosted CI reds (makerReviewBrowser and accessibility's maker scenarios, teamModelsFirstPaint, pathGuardSpawns,
+resourceForkProtection and others; record `docs/certification/rlf-cifixc.md`).
+
+Conflicts:
+
+- `test/unit/pathGuardSpawns.test.ts`: the lane's reviewed rows (the stricter `'System32', 'reg.exe'` anchor, which
+  is the code's spelling at `hardwareContext.ts:271`, and its powershell reason).
+- `test/unit/judgeP2Delivery.test.ts` (10 hunks): three versions meet here (cc-winfix6 on int, this lane, and
+  rlf-judgep2 at merge 9). int's (cc-winfix6) is kept whole: it keeps every per-source case (`vitest list`: 13 case
+  groups, each per source, with its 104th case) on 5 gate runs and fails a hung gate (`GATE_HUNG_MS`); this lane's
+  folds the per-source cases into one case per family ("for every child source"), which drops cases.
+
+`pathGuardSpawns` exit 0; host and unit typecheck exit 0.
+
 ### Red/green drills (batch A)
 
 - Merge 1, terminal cwd through a link: `confineTerminalCwd` made lexical-only for in-root names →

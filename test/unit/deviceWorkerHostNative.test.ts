@@ -420,10 +420,22 @@ function hasQualifiedUserManager(): boolean {
       ],
       { stdio: 'pipe', timeout: 10_000 },
     )
-    execFileSync('/usr/bin/systemd-inhibit', ['--list', '--no-legend'], {
-      stdio: 'pipe',
-      timeout: 10_000,
-    })
+    // Listing inhibitors answers without logind granting one; the launch
+    // takes a block sleep:idle inhibitor, so the probe takes one the same
+    // way (run 41516831678: the list answered on the Ubuntu runner, the
+    // grant never came, and every launch died at the ready wait).
+    execFileSync(
+      '/usr/bin/systemd-inhibit',
+      [
+        '--no-ask-password',
+        '--what=sleep:idle',
+        '--mode=block',
+        '--who=m100-host-probe',
+        '--why=probe',
+        '/bin/true',
+      ],
+      { stdio: 'pipe', timeout: 10_000 },
+    )
     return true
   } catch {
     return false
