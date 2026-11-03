@@ -379,6 +379,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- In JetBrains IDEs the Muse panel's text now takes the IDE's colours. It
+  used to lose its colour, which showed as black on black under a dark
+  theme, and the panel no longer closes on the editor theme it is sent when
+  it opens, in JetBrains IDEs and in Eclipse.
 - **A GitHub sign-in this window did not grant, or one that has expired, is refused in words.** The panel says that sign-in is not valid for this window and does not send it on. The sign-in name is not written to the log.
 - **A path that only starts inside the recording folder cannot attach a file outside it.** The panel says that private file cannot be attached and does not read it. A video that really is in the recording folder still attaches.
 - A pack index is accepted only when the signature covers those exact bytes
