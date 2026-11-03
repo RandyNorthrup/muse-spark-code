@@ -4793,8 +4793,8 @@ cost tens of thousands of tokens before any work starts. Tools are
 always offered in one sorted order (server, then tool name), and a
 server that changes its tools mid-conversation applies at your next
 message, never mid-turn. Past `museSpark.modelApiMcpDeferTokens`
-estimated definition tokens (10,000 by default; 0 always loads every
-schema; machine-scoped; `exec --mcp-defer-tokens` sets it for one
+estimated definition tokens (0, the default, always loads every schema;
+10,000 is a good starting point; machine-scoped; `exec --mcp-defer-tokens` sets it for one
 headless run), MCP schemas load on demand instead: the model gets a
 Find Tools search over the local catalogue, a tool it finds stays
 loaded for the session, and built-in tools always load. Account &

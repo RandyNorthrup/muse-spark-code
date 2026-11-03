@@ -357,6 +357,8 @@ const LAZY_ONLY = [
   'autoCompact.ts',
   'permissions.ts',
   'promptCache.ts',
+  // 4-H4: every request's definition and rules token meters.
+  'requestMeters.ts',
   // The built-in Reviewer's prompt and tool list (M70).
   'reviewer.ts',
   // A playback's instructions and refusal (D203): the Model API backend's no-tools turn.

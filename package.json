@@ -1129,7 +1129,7 @@
         },
         "museSpark.modelApiMcpDeferTokens": {
           "type": "integer",
-          "default": 10000,
+          "default": 0,
           "minimum": 0,
           "description": "%config.modelApiMcpDeferTokens.description%",
           "scope": "machine"

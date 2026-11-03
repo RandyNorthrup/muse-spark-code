@@ -77,6 +77,10 @@ export const MODEL_API_OPTIONAL_ONLY = [
   'mcp/servers.ts',
   'mcp/stdio.ts',
   'mcp/verdicts.ts',
+  // 4-H4: the catalogue order, deferral and tool_search load with the
+  // pool that builds a session's declarations; the host keeps only types.
+  'mcp/declarations.ts',
+  'mcp/deferredTools.ts',
 ]
 export const SCHEDULES_ONLY = ['schedulesEntry.ts', 'schedules.ts']
 const RUNTIME_SCHEDULES_DIR = 'src/runtime/schedules'

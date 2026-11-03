@@ -52,7 +52,7 @@ happened, not what was planned; superseded entries are kept.
   are always offered in one sorted order, and a server that changes its
   tools applies at your next message instead of mid-turn. When the
   definitions pass `museSpark.modelApiMcpDeferTokens` estimated tokens
-  (10,000 by default, 0 always loads everything), their schemas load
+  (off by default; 10,000 is a good starting point), their schemas load
   through a Find Tools search and stay loaded for the session, so a
   person with many MCP servers pays for a tool only when the model
   needs it. Headless runs take `--mcp-defer-tokens`.
