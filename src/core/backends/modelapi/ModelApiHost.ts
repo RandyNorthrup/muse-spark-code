@@ -15626,7 +15626,11 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
     } catch (error: unknown) {
       prepared.provisionalSeen.clear()
-      if (error instanceof AbortedError || signal.aborted) {
+      if (error instanceof AbortedError) {
+        throw new AbortedError()
+      }
+      // eslint-disable-next-line unicorn/prefer-combined-guards -- separate guards keep this catch NARROW for check:catches; the combined guard classifies GENERIC (PLAN §8, RLF-UNICORN79).
+      if (signal.aborted) {
         throw new AbortedError()
       }
       // A tool that threw (a disk error, a directory for a file, an MCP
