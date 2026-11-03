@@ -1,4 +1,4 @@
-import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
@@ -35,7 +35,10 @@ beforeAll(async () => {
   // The packaged install stages outside the workspace, as production's
   // installed location is: main's path guard refuses a helper planted
   // inside the workspace, and the package's own copy is that helper here.
-  state.folder = await mkdtemp(path.join(tmpdir(), 'team-packaged-'))
+  // Its canonical path, as the product's team copies have (teamWorkspaces.ts): a
+  // temporary folder spelled through an 8.3 name, as on a hosted runner, is not the
+  // copy's own spelling, and the fence refuses that as outside.
+  state.folder = await realpath(await mkdtemp(path.join(tmpdir(), 'team-packaged-')))
   const options = {
     bundle: true,
     platform: 'node',
