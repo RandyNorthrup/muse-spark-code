@@ -190,6 +190,11 @@ export function recordSchemaWith<V extends number, C extends CostSchema>(version
       retryDelayMs: z.optional(usageAmountSchema),
       session: z.optional(usageIdSchema),
       packedAvoided: z.optional(usageCountSchema),
+      // 4-H4: estimated fixed-prefix costs of the request (definition
+      // and rules tokens at the chars-per-token rule); absent on
+      // records written before the meters and on backends without them.
+      definitionTokens: z.optional(usageCountSchema),
+      rulesTokens: z.optional(usageCountSchema),
       headers: z.optional(usageHeadersSchema),
     })
     .check(z.refine(isWithinRecordCap))

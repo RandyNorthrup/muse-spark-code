@@ -214,6 +214,8 @@ export const USAGE_EN = {
   savings: 'Cache & Packing Savings',
   cacheSavings: 'Cache Savings',
   packedAvoided: 'Estimated Packed Tokens Avoided',
+  definitionTokens: 'Estimated Tool Definition Tokens Sent',
+  rulesTokens: 'Estimated Rules Tokens Sent',
   searches: 'Searches',
   images: 'Images',
   audioSeconds: 'Audio Duration',

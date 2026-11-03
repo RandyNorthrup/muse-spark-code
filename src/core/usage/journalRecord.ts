@@ -319,6 +319,8 @@ export function createUsageRecord(
     retryDelayMs: wholeMs(context.retryDelayMs),
     session: context.session,
     packedAvoided: context.packedAvoided,
+    definitionTokens: context.definitionTokens,
+    rulesTokens: context.rulesTokens,
     headers: context.headers,
   })
 }

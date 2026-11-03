@@ -216,6 +216,8 @@
   "savings": "Cache- & Packing-Ersparnis",
   "cacheSavings": "Cache-Ersparnis",
   "packedAvoided": "Geschätzte vermiedene Packing-Token",
+  "definitionTokens": "Geschätzte gesendete Tool-Definitionstoken",
+  "rulesTokens": "Geschätzte gesendete Regel-Token",
   "searches": "Suchen",
   "images": "Bilder",
   "audioSeconds": "Audiodauer",

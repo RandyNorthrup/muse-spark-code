@@ -1560,6 +1560,12 @@
       "title": "Faster agent startup, measured against the alternatives",
       "summary": "The terminal agent starts without loading the Model API engine, and a performance survey records measured startup, memory, token and disk figures beside six rival CLIs.",
       "area": "platform"
+    },
+    {
+      "id": "M128",
+      "title": "Deferred MCP loading and prefix meters",
+      "summary": "MCP tools are always offered in one sorted, cache-stable order, and past a threshold you set their schemas load on demand through tool search instead of riding every request; Account & usage shows what tool definitions and rules files cost per request.",
+      "area": "models-providers"
     }
   ]
 }

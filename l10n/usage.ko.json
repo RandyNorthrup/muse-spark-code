@@ -203,6 +203,8 @@
   "savings": "캐시 및 패킹 절감액",
   "cacheSavings": "캐시 절감액",
   "packedAvoided": "패킹으로 절약된 토큰 추정치",
+  "definitionTokens": "전송된 추정 도구 정의 토큰",
+  "rulesTokens": "전송된 추정 규칙 토큰",
   "searches": "검색",
   "images": "이미지",
   "audioSeconds": "오디오 시간",
