@@ -82,3 +82,38 @@ after; the slow cases fell from 5 to 8 s to 6 to 35 ms.
 
 Drill: before the change, artCursors and artIcons → exit 1 (timeouts);
 after → exit 0, with no timeout raised.
+
+## teamCheckSlotsGoverned, teamWorkerChecks, governedTeamSlotsPoll — one cause, test fault with a small product seam
+
+Hosted macOS: `expected null to be 1` (the governor's check capacity), a
+check that should have waited started (`[ 'start next', 'end next' ]`), and
+the window-governed slot cases failed the same way. Cause (reproduced): the
+hosted runtime is Node 22.23.4, whose libuv (1.51.0) is older than 1.52, so
+on macOS the live sampler reads memory headroom only through the signed
+helper (`DarwinMemoryReader`), which sits beside `dist` in an installed
+product and nowhere in a source checkout. The machine's memory reads as
+unknown, a 0% memory limit never moves the governor to throttle, and every
+case that relies on throttle's one place fails. The product is right:
+unknown memory is not pressure, and it never substitutes free pages.
+
+Fix: the suites lend the governor the real helper compiled from
+`native/darwin/MuseSparkCreated.c` (`liveSamplerSuite`, already used by the
+relocation suites; a no-op off macOS and on libuv 1.52+).
+`teamCheckSlotsGoverned` passes it to `createMachineResourceSampler`; the two
+window suites pass it through `governorWindow`, for which the window host's
+settings gain an optional `darwinMemory` reader
+(`src/core/resources/resourceGovernorEntry.ts`; undefined keeps the
+packaged helper, as an installed product has). `dist/resourceGovernor.js`
+stays inside its unchanged budget (124.6 of 125 KiB).
+
+A second, rig-only cause in `teamCheckSlotsGoverned`: its disk floor was
+the free space plus 10 GiB. With this Mac's 9.6 GiB free that floor (20 GiB)
+put free space at half the floor or less, which pauses all background work
+(`disk.ts`) instead of holding disk-heavy work, so the check was refused as
+paused. The floor is now one and a half times the free space: above it,
+under twice it, on any machine with more than a gigabyte free.
+
+Drills, with Node 22.23.4 (libuv 1.51.0, downloaded and checksum-verified
+into the lane's temp folder): the old three files → exit 1, 6 of 13 failed
+(the five hosted failures plus the disk floor case); the fixed files →
+exit 0, 13 of 13. Node 24.21.0 (libuv 1.52.1): fixed files → exit 0.
