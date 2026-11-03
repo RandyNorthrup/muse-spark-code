@@ -3,7 +3,7 @@
 // No Node, DOM or editor API; Q implements the registry and key function.
 
 import * as z from 'zod/mini'
-import { answerSchema, questionSchema, type Question } from './agentEvents'
+import { answerSchema, questionSchema } from './agentEvents'
 import {
   OPEN_QUESTIONS_MAX,
   QUESTION_ID_MAX_CHARS,
@@ -160,9 +160,6 @@ export const attentionDockStateSchema = z
     }),
   )
 export type AttentionDockState = z.infer<typeof attentionDockStateSchema>
-
-/** Q's questionKey: NFC, trim, folded whitespace, toLowerCase; sorted option-label sets. */
-export type QuestionKey = (questions: readonly Question[]) => string
 
 export interface QuestionStore {
   /** Missing session returns []; malformed storage rejects, never an empty success. */

@@ -13373,6 +13373,13 @@ run. Certification record:
 **Status 2026-10-22 (RLM88): M87 built and joined (its status below);
 M88 sequences and bookmarks built on main (lanes 0, P, A, B, W), timed
 sends with resume stay M115's; evidence docs/certification/rlm88.md.**
+
+**Status 2026-11-02 (RLF-M88): built, pending integration**
+(lane C: timed sends with resume after a limit, both backends, on
+M115's v2 store and delivery path with no fork; real-code unit suites
+green; `docs/certification/rlf-m88.md`). Packed real-life proof stays
+open (`docs/real-life/unproven.md`); nothing in CHANGELOG or README
+until it lands.
 These are the owner's sixteen requests of
 2026-10-03, which came with screenshots of the Codex app as inspiration. The design decisions are D66 (M87) and D67 (M88); the
 owner's answers to their questions (2026-10-03) are in §3 and applied in D66
@@ -34072,6 +34079,14 @@ crosses the await (e.g. establishment returning the live turn state).
 RLF-ACPTURNS, 2026-10-22: `// eslint-disable-next-line
 @typescript-eslint/no-unnecessary-condition` on the `turnRunning` read in
 `retryTurn` (`src/host/conversation/conversationController.ts`). A turn may
+start while `sessionForAction` re-establishes the dropped session, so the
+live `activeTurnId` read after the await is load-bearing; the rule sees
+only the pre-await narrowing. Removal guard: restructure so no narrowing
+crosses the await (e.g. establishment returning the live turn state).
+
+RLF-M88, 2026-11-02: `// eslint-disable-next-line
+@typescript-eslint/no-unnecessary-condition` on the `turnRunning` read in
+`continueTurn` (`src/host/conversation/conversationController.ts`). A turn may
 start while `sessionForAction` re-establishes the dropped session, so the
 live `activeTurnId` read after the await is load-bearing; the rule sees
 only the pre-await narrowing. Removal guard: restructure so no narrowing

@@ -12,6 +12,7 @@ import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { expect } from 'vitest'
 import type { AgentHost, BackendKind } from '../../../src/core/agent/agentBackend'
+import type { AgentEvent } from '../../../src/shared/agentEvents'
 import { BestOfNCoordinator } from '../../../src/core/bestOfN/bestOfNCoordinator'
 import { PendingPrompts } from '../../../src/core/sessionBoard'
 import type { AuthPort, AuthSnapshot } from '../../../src/host/auth/authService'
@@ -48,7 +49,7 @@ import {
   MODEL_API_BASE_URL,
   SETTING_DEFAULTS,
 } from '../../../src/shared/constants'
-import { Usd } from '../../../src/shared/usd'
+import { Usd, type UsdAmount } from '../../../src/shared/usd'
 import { initialUiState, uiReducer, type UiState } from '../../../src/webview/state/uiState'
 
 // The spend ledger only serves key-digest accounts (`ACCOUNT_ID` in the
@@ -101,6 +102,8 @@ export function modelApiRig(
     apiKey?: () => Promise<string | undefined>
     /** Configured providers' models (a real providers file), listed with no Meta key. */
     models?: ModelResolver
+    /** The session's spend cap (M82); zero (no cap) unless the suite sets one. */
+    sessionBudgetUsd?: () => UsdAmount
   },
 ): ModelApiRig {
   let ids = 0
@@ -165,7 +168,7 @@ export function modelApiRig(
     noteSubagentUsage: () => undefined,
     noteReviewerUsage: () => undefined,
     promptCacheRetention: () => SETTING_DEFAULTS.modelApiPromptCacheRetention,
-    sessionBudgetUsd: () => Usd.from(0).toAmount(),
+    sessionBudgetUsd: options?.sessionBudgetUsd ?? (() => Usd.from(0).toAmount()),
     showReplyUsage: () => false,
     memory: undefined,
     getAccountId: () => Promise.resolve(TEST_ACCOUNT_ID),
@@ -276,6 +279,14 @@ export interface PanelOptions {
   readonly museCodeQuotaContinue?: () => boolean
   /** The controller's clock; Date.now absent. A suite pins it to read a recorded instant. */
   readonly now?: () => number
+  /** This window's schedule bridge (M115); absent, the controller refuses schedule messages. */
+  readonly schedulesBridge?: ConversationDeps['schedulesBridge']
+  /** The editor's answer to a host action (M88); absent, the path fails closed. */
+  readonly runHostAction?: ConversationDeps['runHostAction']
+  /** Told with the live session object when the controller attaches one. */
+  readonly onSessionAttached?: ConversationDeps['onSessionAttached']
+  /** Captures background attention notices; absent, they are dropped. */
+  readonly notifyAttention?: ConversationDeps['notifyAttention']
 }
 
 export interface PanelRig {
@@ -466,7 +477,7 @@ export function conversationPanel(options: PanelOptions): PanelRig {
     notePaidUse: () => undefined,
     buildAttemptHost: unused('buildAttemptHost'),
     realPath: unused('realPath'),
-    notifyAttention: () => undefined,
+    notifyAttention: options.notifyAttention ?? (() => undefined),
     now: options.now ?? (() => Date.now()),
     log: { trace: record, info: record, warn: record, error: record },
     ...(options.estimator !== undefined && { estimator: options.estimator }),
@@ -480,6 +491,11 @@ export function conversationPanel(options: PanelOptions): PanelRig {
     ...(options.resendRandom !== undefined && { resendRandom: options.resendRandom }),
     ...(options.museCodeQuotaContinue !== undefined && {
       museCodeQuotaContinue: options.museCodeQuotaContinue,
+    }),
+    ...(options.schedulesBridge !== undefined && { schedulesBridge: options.schedulesBridge }),
+    ...(options.runHostAction !== undefined && { runHostAction: options.runHostAction }),
+    ...(options.onSessionAttached !== undefined && {
+      onSessionAttached: options.onSessionAttached,
     }),
   }
   return { controller: new ConversationController(deps), posted, logged, backendErrors }
@@ -543,4 +559,42 @@ export function shownState(posted: readonly HostToWebviewMessage[]): UiState {
     if (parsed.ok) state = uiReducer(state, { type: 'hostMessage', message: parsed.message, at: 0 })
   }
   return state
+}
+
+export type TurnCompleted = Extract<AgentEvent, { type: 'turnCompleted' }>
+
+/** The turn that ended at `index` (0-based) once `count` turns ended. */
+export async function endedTurn(
+  panel: PanelRig,
+  count: number,
+  index: number,
+): Promise<TurnCompleted> {
+  const ended = await awaitPosts(panel, turnCompletions, count, 'turns ended')
+  const turn = ended[index]
+  if (turn === undefined) throw new Error(`turn ${String(index + 1)} never ended`)
+  return turn
+}
+
+/**
+The transcript the person sees: the optimistic sends first, then every
+posted message, each folded through the webview reducer.
+*/
+export function shownTranscript(
+  panel: PanelRig,
+  sends: readonly { localId: string; text: string }[],
+): UiState['transcript'] {
+  let state = initialUiState
+  for (const send of sends) {
+    state = uiReducer(state, {
+      type: 'submitted',
+      localId: send.localId,
+      text: send.text,
+      attachments: [],
+      contextLabel: undefined,
+    })
+  }
+  for (const message of panel.posted) {
+    state = uiReducer(state, { type: 'hostMessage', message, at: 0 })
+  }
+  return state.transcript
 }

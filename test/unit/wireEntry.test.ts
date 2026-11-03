@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import * as media from '../../src/shared/media'
 import * as protocol from '../../src/shared/protocol'
+import * as questions from '../../src/shared/questions'
+import * as scheduleProtocol from '../../src/shared/scheduleProtocol'
 import * as wire from '../../src/shared/wireEntry'
 
 // Every lazy Node bundle that imports protocol.ts resolves it to dist/wire.js
@@ -21,4 +24,34 @@ describe('dist/wire.js shares protocol.ts by name', () => {
     expect(wire.parseWebviewToHostMessage({ type: 'ready' }).ok).toBe(true)
     expect(wire.parseWebviewToHostMessage({ type: 'not-a-message' }).ok).toBe(false)
   })
+})
+
+// scheduleProtocol, media and questions are shared by name: only what a
+// Node bundle reads rides in dist/wire.js. A name added to one of these
+// modules fails here until its lane proves the Node reader and shares it,
+// or names it below as webview- and contract-test-only.
+describe('dist/wire.js shares three modules by name', () => {
+  const cases: {
+    readonly module: Record<string, unknown>
+    readonly dropped: ReadonlySet<string>
+  }[] = [
+    { module: scheduleProtocol, dropped: new Set(['parseScheduleWebviewMessage']) },
+    { module: media, dropped: new Set(['mediaAttachmentUpdateSchema']) },
+    {
+      module: questions,
+      dropped: new Set(['questionReplySchema', 'attentionDockStateSchema']),
+    },
+  ]
+  for (const { module, dropped } of cases) {
+    it(`shares ${String(Object.keys(module).length - dropped.size)} names, drops ${String(dropped.size)}`, () => {
+      const shared = new Map<string, unknown>(Object.entries(wire))
+      for (const [name, value] of Object.entries(module)) {
+        if (dropped.has(name)) {
+          expect(shared.has(name), name).toBe(false)
+        } else {
+          expect(shared.get(name), name).toBe(value)
+        }
+      }
+    })
+  }
 })

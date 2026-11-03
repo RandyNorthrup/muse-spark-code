@@ -189,6 +189,11 @@ const userEntrySchema = z.object({
   recordedItemId: z.optional(z.string()),
   /** Sent from this panel in Plan mode (M79): the reply it gets may be a plan. */
   isPlanTurn: z.optional(z.boolean()),
+  /**
+  Sent on its schedule (M88, D67 item 15): the live transcript marks
+  the card, so a timed send never reads as sent by hand.
+  */
+  scheduled: z.optional(z.boolean()),
 })
 
 const assistantEntrySchema = z.object({
@@ -428,6 +433,14 @@ const teamReportEntrySchema = z.object({
   ...teamReportFields,
 })
 
+const errorResumeOfferSchema = z.object({
+  kind: z.enum(['rateLimit', 'quota', 'usage', 'budget']),
+  turnId: z.string(),
+  defaultAtMs: z.optional(z.number()),
+  liftsAtMs: z.optional(z.number()),
+})
+export type ErrorResumeOffer = z.infer<typeof errorResumeOfferSchema>
+
 const errorEntrySchema = z.object({
   kind: z.literal('error'),
   id: z.string(),
@@ -444,6 +457,13 @@ const errorEntrySchema = z.object({
   judged it retryable. The row offers Retry only while it is present.
   */
   retryTurnId: z.optional(z.string()),
+  /**
+  The failed turn's resume offer (M88, D67 item 16): set when the turn
+  ended at a limit the row can answer. `defaultAtMs` opens Resume later
+  at that minute; `liftsAtMs` alone says when the limit lifts instead;
+  `budget` offers the budget setting and Continue, never a timer.
+  */
+  resume: z.optional(errorResumeOfferSchema),
 })
 
 export type NoticeLevel = (typeof NOTICE_LEVELS)[number]

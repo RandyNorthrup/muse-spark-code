@@ -31,6 +31,10 @@ import {
   type CheckpointRestoreBlocker,
   CHECKPOINT_INITIAL_AVAILABILITY,
   DEFAULT_EFFORT,
+  GOAL_STATUS,
+  MODEL_API_BUDGET_ERROR_KIND,
+  RATE_LIMITED_ERROR_KIND,
+  RESUME_LIMIT_DEFAULT_DELAY_MS,
   type DictationEngine,
   type DictationUiStatus,
   type EffortLevel,
@@ -105,9 +109,11 @@ import {
   withSendFailed,
 } from './gitState'
 import { backgroundRun } from '../toolDetails'
+import { resumeOfferFor } from '../../shared/resumeOffer'
 import {
   type ChildTranscript,
   type ContextSummary,
+  type ErrorResumeOffer,
   hasImageAttachment,
   type NoticeLevel,
   type OutputRef,
@@ -549,6 +555,12 @@ export interface UiState {
   readonly todos: readonly TodoItem[]
   /** The session goal (M45, PLAN.md D38): the strip above the composer while there is one. */
   readonly goal: SessionGoal | undefined
+  /**
+  Resume offers read from usage (M88, D67 item 16): failed turns whose
+  offer waits on the host's usage read. `pending` waits for the App to
+  send the request, `requested` for the host's answer.
+  */
+  readonly usageResume: Record<string, 'pending' | 'requested'>
   /** Extension-owned Model API schedules for this session (M52). */
   readonly schedules: readonly ScheduleView[]
   /** The v2 schedules surface (M115); posted when a schedule command opens it. */
@@ -654,6 +666,8 @@ export type UiAction =
   | { readonly type: 'schedulesSurfaceClosed' }
   | { readonly type: 'insertRequested'; readonly text: string }
   | { readonly type: 'insertApplied' }
+  /** The App sent the host's usage read for one failed turn (M88, D67 item 16). */
+  | { readonly type: 'usageResumeSent'; readonly turnId: string }
   | { readonly type: 'focusRequested' }
   | {
       readonly type: 'submitted'
@@ -865,6 +879,7 @@ export const initialUiState: UiState = {
   paid: { features: [], tally: EMPTY_PAID_TALLY, isKeyStored: false, alwaysAllowed: [] },
   todos: [],
   goal: undefined,
+  usageResume: {},
   schedules: [],
   schedulesSurface: undefined,
   estimator: { status: 'idle' },
@@ -2065,6 +2080,34 @@ function admitQueued(
     : transcript
 }
 
+/**
+The failed turn's resume offer (M88, D67 item 16): a spent budget offers
+its setting and Continue, never a timer; a rate limit or a spent window
+offers Resume later at the fitted default, or says when the limit lifts
+when it lifts more than six days out. Anything else offers nothing.
+*/
+function resumeOfferOf(
+  event: Extract<AgentEvent, { type: 'turnCompleted' }>,
+  at: number,
+): ErrorResumeOffer | undefined {
+  if (event.terminal !== 'failed') return undefined
+  if (event.errorKind === MODEL_API_BUDGET_ERROR_KIND) {
+    return { kind: 'budget', turnId: event.turnId }
+  }
+  let liftsAtMs = event.quota?.resetsAtMs
+  if (liftsAtMs === undefined && event.errorKind === RATE_LIMITED_ERROR_KIND) {
+    liftsAtMs = at + (event.retryAfterMs ?? RESUME_LIMIT_DEFAULT_DELAY_MS)
+  }
+  if (liftsAtMs === undefined || !Number.isFinite(liftsAtMs) || liftsAtMs < 0) {
+    return undefined
+  }
+  const kind = event.quota === undefined ? 'rateLimit' : 'quota'
+  const offer = resumeOfferFor(at, liftsAtMs)
+  return offer.kind === 'timer'
+    ? { kind, turnId: event.turnId, defaultAtMs: offer.defaultAtMs }
+    : { kind, turnId: event.turnId, liftsAtMs: offer.liftsAtMs }
+}
+
 /** A turn of the conversation ended (M25 settles the rows it left behind). */
 function completeTurn(
   state: UiState,
@@ -2077,6 +2120,19 @@ function completeTurn(
     // A subagent's own turn ended: its transcript settles, the conversation runs on.
     return mapChildEntries(state, child.childSessionId, (entries) => settleAll(entries, at))
   }
+  const resume = resumeOfferOf(event, at)
+  // A failed Muse Code turn at a usage-limited goal, with no typed
+  // offer (M88, D67 item 16): the host reads the usage for a
+  // report-based offer. Any other failure stays ordinary, even at
+  // 100%.
+  const usageResume =
+    resume === undefined &&
+    event.terminal === 'failed' &&
+    state.auth.backend === 'museCode' &&
+    state.usageResume[event.turnId] === undefined &&
+    state.goal?.status === GOAL_STATUS.usageLimited
+      ? { ...state.usageResume, [event.turnId]: 'pending' as const }
+      : state.usageResume
   const failure: readonly TranscriptEntry[] =
     event.terminal === 'failed'
       ? [
@@ -2092,6 +2148,7 @@ function completeTurn(
             ...(reportRef !== undefined && { reportRef }),
             ...(event.errorKind !== undefined && { errorKind: event.errorKind }),
             ...(event.retryable === true && { retryTurnId: event.turnId }),
+            ...(resume !== undefined && { resume }),
           },
         ]
       : []
@@ -2100,6 +2157,7 @@ function completeTurn(
       ...state,
       activeTurnId: undefined,
       lastCompletedTurnId: event.turnId,
+      usageResume,
       dismissedPlanTurnId: event.terminal === 'completed' ? undefined : state.dismissedPlanTurnId,
       strayItems: without(state.strayItems, event.turnId),
       transcript: [
@@ -2495,8 +2553,29 @@ function applyAgentEvent(
     }
     case 'goalChanged': {
       const goal = event.goal ?? undefined
+      // The goal flipped to usage-limited after the turn failed (M88,
+      // D67 item 16): the latest failure gets the usage read, when it
+      // has no typed offer of its own.
+      const failedTurnId = state.lastCompletedTurnId
+      const failedEntry =
+        failedTurnId === undefined
+          ? undefined
+          : state.transcript.find(
+              (entry) =>
+                entry.kind === 'error' &&
+                entry.id === `error:${failedTurnId}` &&
+                entry.resume === undefined,
+            )
+      const usageResume =
+        failedTurnId !== undefined &&
+        failedEntry !== undefined &&
+        state.auth.backend === 'museCode' &&
+        state.usageResume[failedTurnId] === undefined &&
+        goal?.status === GOAL_STATUS.usageLimited
+          ? { ...state.usageResume, [failedTurnId]: 'pending' as const }
+          : state.usageResume
       return announce(
-        { ...state, goal, ...goalEditorFor(state, goal) },
+        { ...state, goal, usageResume, ...goalEditorFor(state, goal) },
         goalAnnouncement(state.goal, goal),
       )
     }
@@ -2611,6 +2690,7 @@ function withPendingCard(
     readonly referenceLabel?: string | undefined
     readonly isPlanTurn?: boolean
     readonly at?: number | undefined
+    readonly scheduled?: boolean | undefined
   },
 ): UiState {
   const shownReference =
@@ -2635,6 +2715,7 @@ function withPendingCard(
         ...(shownReference !== undefined && { referenceLabel: shownReference }),
         ...(card.isPlanTurn === true && { isPlanTurn: true }),
         ...(card.at !== undefined && { atMs: card.at }),
+        ...(card.scheduled === true && { scheduled: true }),
       },
     ],
   }
@@ -2718,6 +2799,7 @@ function clearedConversation(state: UiState): UiState {
     context: undefined,
     todos: [],
     goal: undefined,
+    usageResume: {},
     schedules: [],
     estimator: { status: 'idle' },
     estimatorStartRequestId: undefined,
@@ -3376,6 +3458,43 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           providers: message.providers === undefined ? undefined : [...message.providers],
           plans: message.plans,
         },
+      }
+    }
+    case 'resumeUsage': {
+      // The host's usage read for one failed turn's resume offer (M88,
+      // D67 item 16): a window at 100% gives the reset the offer rests
+      // on, said as a usage report's. Anything else leaves the row
+      // ordinary. An answer nobody waits for changes nothing.
+      if (state.usageResume[message.turnId] === undefined) return state
+      const usageResume = Object.fromEntries(
+        Object.entries(state.usageResume).filter(([turnId]) => turnId !== message.turnId),
+      )
+      const resetsAtMs = message.usage?.window.resetsAtMs
+      const usedPercent = message.usage?.window.usedPercent
+      if (
+        usedPercent === undefined ||
+        resetsAtMs === undefined ||
+        usedPercent < 100 ||
+        resetsAtMs < 0 ||
+        !Number.isFinite(resetsAtMs)
+      ) {
+        return { ...state, usageResume }
+      }
+      const fitted = resumeOfferFor(at, resetsAtMs)
+      const resume: ErrorResumeOffer =
+        fitted.kind === 'timer'
+          ? { kind: 'usage', turnId: message.turnId, defaultAtMs: fitted.defaultAtMs }
+          : { kind: 'usage', turnId: message.turnId, liftsAtMs: fitted.liftsAtMs }
+      return {
+        ...state,
+        usageResume,
+        transcript: state.transcript.map((entry) =>
+          entry.kind === 'error' &&
+          entry.id === `error:${message.turnId}` &&
+          entry.resume === undefined
+            ? { ...entry, resume }
+            : entry,
+        ),
       }
     }
     case 'uploadedFilesReport': {
@@ -4113,6 +4232,13 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
 
     case 'hostMessage': {
       return applyHostMessage(state, action.message, action.at)
+    }
+    case 'usageResumeSent': {
+      if (state.usageResume[action.turnId] !== 'pending') return state
+      return {
+        ...state,
+        usageResume: { ...state.usageResume, [action.turnId]: 'requested' as const },
+      }
     }
     case 'draftChanged': {
       return { ...state, draft: action.draft, draftRevision: state.draftRevision + 1 }

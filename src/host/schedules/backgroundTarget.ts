@@ -265,6 +265,12 @@ interface BackgroundEntry {
 }
 
 export interface ScheduleBackgroundTargetDeps {
+  /**
+  A host's per-fire admission (M88 lane C): runs before any live
+  session is borrowed or any host opens, and throws the branded
+  dispatch refusal the delivery settles as refused. Absent admits.
+  */
+  admit?(schedule: ScheduleV2): Promise<void>
   /** Existing panel/ACP sessions are borrowed, never disposed by this host. */
   findLive(schedule: ScheduleV2): Promise<ScheduleTargetLease | undefined>
   host(
@@ -327,6 +333,7 @@ export class ScheduleBackgroundTargets implements ScheduleConversationTargets {
   }
 
   private async load(schedule: ScheduleV2, occurrenceMs?: number): Promise<BackgroundEntry> {
+    await this.deps.admit?.(schedule)
     if (schedule.target.kind !== 'conversation' && schedule.target.kind !== 'newConversation') {
       throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable)
     }
@@ -394,6 +401,7 @@ export class ScheduleBackgroundTargets implements ScheduleConversationTargets {
   }
 
   async find(schedule: ScheduleV2): Promise<ScheduleTargetLease | undefined> {
+    await this.deps.admit?.(schedule)
     const live = await this.deps.findLive(schedule)
     if (live !== undefined) return live
     const key = this.key(schedule)

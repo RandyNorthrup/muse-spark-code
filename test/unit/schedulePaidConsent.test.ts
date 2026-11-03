@@ -58,6 +58,7 @@ function surface(): ScheduleSurface {
     }),
     askBackground: neverReached('askBackground'),
     notice: neverReached('notice'),
+    reportError: neverReached('reportError'),
   })
 }
 

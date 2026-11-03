@@ -2358,6 +2358,8 @@ export const WORKSPACE_STATE_KEYS = {
   paidWorkspaceGrants: 'museSpark.paidWorkspaceGrants',
   /** The pull request each conversation opened, by session id (M71). */
   pullRequestLinks: 'museSpark.pullRequestLinks',
+  /** What each workspace last saw of the CLI's sign-in, by workspace key (M88 lane C). */
+  museCodeScheduleBinding: 'museSpark.museCodeScheduleBinding',
 } as const
 
 // Webview bundle layout produced by scripts/build.mjs.
@@ -4064,6 +4066,13 @@ export const ERROR_CAUSE_MAX_DEPTH = 5
 // The turn error kind both backends report when the credential is refused;
 // the controller turns it into the signed-out gate.
 export const AUTH_REQUIRED_ERROR_KIND = 'authRequired'
+// M88 lane C (PLAN.md D67, item 16): the limit kinds the failed row reads
+// for its offers. `rateLimited` is a Model API 429 past the client's
+// retries that the refusal classifier still calls a rate limit (quota
+// and balance refusals keep their own sentences and stay ordinary);
+// `budget` is M82's spent session budget, which no timer refills.
+export const RATE_LIMITED_ERROR_KIND = 'rateLimited'
+export const MODEL_API_BUDGET_ERROR_KIND = 'budget'
 // OS-store reads are request-local (D89).
 export const CREDENTIAL_STORE_ERROR_KIND = 'credential_store_unavailable'
 export const ACP_ERROR_CODES = {
@@ -6682,6 +6691,14 @@ export const SCHEDULE_MAX_PROMPT_CHARS = 4000
 export const SCHEDULE_POLL_INTERVAL_MS = 60 * 1000
 export const SCHEDULE_CLAIM_RETENTION_MS = 8 * MILLISECONDS_PER_DAY
 export const SCHEDULE_MAX_JOBS_PER_SESSION = 100
+// M88 lane C (PLAN.md D67, items 15-16): a timed send goes at the earliest
+// a minute ahead, in whole minutes; a rate limit's default resume without
+// a Retry-After is five minutes after the failure; a limit lifting more
+// than six days out gets no resume timer (the row says when it lifts
+// instead). No horizon caps a send the person times themselves (D121).
+export const TIMED_SEND_MIN_LEAD_MS = 60 * 1000
+export const RESUME_LIMIT_DEFAULT_DELAY_MS = 5 * 60 * 1000
+export const RESUME_OFFER_MAX_LIFT_MS = 6 * MILLISECONDS_PER_DAY
 // M115's editor-independent schedule contracts. M52's limits above remain
 // intact for reading and migrating its v1 jobs.
 export const SCHEDULE_MAX_PER_WORKSPACE = 200
@@ -11338,6 +11355,11 @@ export const CONVERSATION_MODEL_TEXT = {
     "Your todo list has been set to the handoff's open items, in this order:\n{steps}\nKeep it current with todo_write as you work, sending the whole list each time.",
   handoffTodosAsk:
     "Start by putting the handoff's open items on your todo list, and keep it current as you work.",
+  // M88 (PLAN.md D67, item 16): Resume later after a limit schedules this
+  // fixed prompt in the failed turn's session. The key lives in the
+  // conversation's block (not MODEL_TEXT) because only the conversation's
+  // bundle reads it (the split gate's rule); the words are D67's.
+  resumePrompt: 'Continue where you left off.',
   // M84 (PLAN.md D49): an imported conversation reaches the model as data.
   // The note leads the first imported turn; every imported turn is one
   // user-role message that starts with the turn lead and holds the turn's

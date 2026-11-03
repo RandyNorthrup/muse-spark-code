@@ -40,6 +40,10 @@ export interface ScheduleEditorDeliveryPorts {
   generation?(): number
   readonly host: ScheduleBackgroundTargetDeps['host']
   readonly options: ScheduleBackgroundTargetDeps['options']
+  /** A host's per-fire admission (M88 lane C); absent admits. */
+  readonly admit?: ScheduleBackgroundTargetDeps['admit']
+  /** Told with every final settlement (M88 lane C); must never throw. */
+  readonly settled?: ScheduleDeliveryDeps['settled']
   readonly bindSession?: ScheduleBackgroundTargetDeps['bindSession']
   readonly releaseOptions?: ScheduleBackgroundTargetDeps['releaseOptions']
   readonly publish: ScheduleBackgroundTargetDeps['publish']
@@ -107,7 +111,7 @@ export function createScheduleDeliveryBinding(
   ports: ScheduleEditorDeliveryPorts,
   authority: ScheduleAuthorityStore,
   billing?: ReturnType<typeof createScheduleBilling>,
-): Pick<ScheduleDeliveryDeps, 'targets' | 'runs' | 'prompt'> {
+): Pick<ScheduleDeliveryDeps, 'targets' | 'runs' | 'prompt' | 'settled'> {
   const pending = new Map<string, PendingRun>()
   const contexts: ScheduleContextSubmitter = {
     async submit(agent, context, dispatch): Promise<TurnSubmission> {
@@ -259,6 +263,7 @@ export function createScheduleDeliveryBinding(
     contexts,
     host: (backend, key) => ports.host(backend, key),
     options: (schedule) => ports.options(schedule),
+    ...(ports.admit !== undefined && { admit: ports.admit }),
     ...(ports.bindSession !== undefined && {
       bindSession: (session: BackendSession, options) => ports.bindSession?.(session, options),
     }),
@@ -290,6 +295,7 @@ export function createScheduleDeliveryBinding(
   })
   return {
     targets,
+    ...(ports.settled !== undefined && { settled: ports.settled }),
     prompt: (schedule, event) => {
       if (schedule.action.kind !== 'prompt')
         throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)

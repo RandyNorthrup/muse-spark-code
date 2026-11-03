@@ -16,6 +16,12 @@ import type { ScheduleBackgroundCoordinator } from './background'
 import type { ScheduleCallerContext } from './args'
 import { scheduleLauncherReason } from './registration'
 import { scheduleStoredUnreadableReason } from './consent'
+import {
+  checkMuseCodeBinding,
+  isMuseCodeOnceTarget,
+  type MuseCodeBindingCheckDeps,
+  type MuseCodeBindingPorts,
+} from '../../host/schedules/museCodeBinding'
 
 export interface ScheduleSurfaceDeps {
   readonly request: (request: ScheduleRequest, caller?: ScheduleCallerContext) => Promise<unknown>
@@ -25,6 +31,34 @@ export interface ScheduleSurfaceDeps {
   /** Only interactive creation invokes the first-schedule question. */
   readonly askBackground: () => Promise<unknown>
   readonly notice: (reason: string) => void
+  /** The window's Muse Code timed-send binding (M88 lane C); absent stays unbound. */
+  readonly museCode?: MuseCodeBindingPorts
+  /** A binding sweep's failure lands here; the list still answers. */
+  readonly reportError: (error: unknown) => void
+}
+
+/**
+The binding sweep's store side over a control request path (M88 lane
+C): list rows arrive parsed, a removal answers whether it landed.
+*/
+export function museCodeBindingChannel(
+  request: (input: ScheduleRequest) => Promise<unknown>,
+): Pick<MuseCodeBindingCheckDeps, 'list' | 'remove'> {
+  return {
+    list: async (workspaceKey: string) => {
+      const parsed = scheduleResponseSchema.parse(
+        await request({ method: 'schedules/list', workspaceKey }),
+      )
+      if (parsed.kind !== 'list') throw new Error(UI_TEXT.scheduleV2.runtime.invalidResponse)
+      return parsed.schedules
+    },
+    remove: async (workspaceKey: string, id: string) => {
+      const parsed = scheduleResponseSchema.parse(
+        await request({ method: 'schedules/remove', workspaceKey, id }),
+      )
+      return parsed.kind === 'accepted'
+    },
+  }
 }
 
 function isResponseFor(
@@ -95,6 +129,33 @@ export class ScheduleSurface {
         ) < 0)
     )
       return { kind: 'refused', reason: UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired }
+    // While the window's environment carries META_API_KEY, Muse Code
+    // offers no timed send (M88 lane C): the draft would bill that key.
+    if (
+      r.method === 'schedules/create' &&
+      this.deps.museCode?.hasEnvironmentKey() === true &&
+      isMuseCodeOnceTarget(r.draft.target, r.draft.trigger)
+    )
+      return { kind: 'refused', reason: UI_TEXT.museCodeOnceEnvKeyRefused }
+    // Before the surface lists, a seen sign-out or sign-in clears the
+    // workspace's Muse Code once-schedules (M88 lane C). The list still
+    // answers when the sweep fails: admission guards every dispatch,
+    // and the report keeps why the sweep did not run.
+    if (r.method === 'schedules/list' && this.deps.museCode !== undefined) {
+      const binding = this.deps.museCode
+      try {
+        await checkMuseCodeBinding({
+          workspaceKey: r.workspaceKey,
+          currentSignIn: binding.currentSignIn,
+          seen: binding.seen,
+          notice: binding.notice,
+          nowMs: Date.now(),
+          ...museCodeBindingChannel((input) => forward(input, caller)),
+        })
+      } catch (error: unknown) {
+        this.deps.reportError(error)
+      }
+    }
     let raw: unknown
     try {
       switch (r.method) {

@@ -9,6 +9,7 @@ import type { ScheduleMigrationSource } from '../../core/schedules/migrate'
 import type { ScheduleCommandResult } from './settle'
 import type { AcpSchedulePort } from '../../acp/schedules'
 import type { ScheduleEditorDeliveryPorts } from '../../host/schedules/deliveryBinding'
+import type { MuseCodeBindingPorts } from '../../host/schedules/museCodeBinding'
 import type { RuntimeScheduleDeliveryPorts, RuntimeScheduleEngineModule } from './delivery'
 import type { AcpScheduleSession } from '../../acp/schedules'
 
@@ -41,6 +42,10 @@ type RuntimeSchedulesTail = [
   // Hosts whose workspace trust can refuse git observation (VS Code).
   // Absent trusts the process's own machine (the CLI, ACP).
   isWorkspaceTrusted?: (root: string) => boolean,
+  // The window's Muse Code timed-send binding (M88 lane C, D67 item
+  // 15); absent hosts stay unbound. Last, so earlier callers keep
+  // their positions.
+  museCodeBinding?: MuseCodeBindingPorts,
 ]
 
 export type CreateRuntimeSchedulesArgs = [
@@ -78,6 +83,7 @@ export function runtimeSchedulesBinding(
     pauseAfterFailures,
     signal,
     isWorkspaceTrusted,
+    museCodeBinding,
   ] = tail
   let delivery = deliveryArg
   let runtimeDelivery = runtimeDeliveryArg
@@ -102,7 +108,8 @@ export function runtimeSchedulesBinding(
           migration === undefined &&
           pauseAfterFailures === undefined &&
           signal === undefined &&
-          isWorkspaceTrusted === undefined
+          isWorkspaceTrusted === undefined &&
+          museCodeBinding === undefined
             ? load().createRuntimeSchedules(UI_TEXT, uiLocale(), log)
             : load().createRuntimeSchedules(
                 UI_TEXT,
@@ -115,6 +122,7 @@ export function runtimeSchedulesBinding(
                 pauseAfterFailures,
                 signal,
                 isWorkspaceTrusted,
+                museCodeBinding,
               )
       } else
         binding = load().createRuntimeSchedules(
@@ -128,6 +136,7 @@ export function runtimeSchedulesBinding(
           pauseAfterFailures,
           signal,
           isWorkspaceTrusted,
+          museCodeBinding,
         )
     }
     try {

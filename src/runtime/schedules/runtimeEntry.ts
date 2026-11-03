@@ -27,6 +27,7 @@ export async function createRuntimeSchedules(
     pauseAfterFailures,
     callerSignal,
     isWorkspaceTrusted,
+    museCodeBinding,
   ] = args
   // The engine module lives on the ACP side (main.ts installs it); the
   // schedules bundle never loads it from VS Code, so the VSIX need not
@@ -134,6 +135,7 @@ export async function createRuntimeSchedules(
         eventFence: deliveryModule.scheduleBoardEventFence,
       }),
     ...(migration !== undefined && { migration }),
+    ...(museCodeBinding !== undefined && { museCodeBinding }),
   })
   return runtime
 }

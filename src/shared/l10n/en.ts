@@ -1571,6 +1571,12 @@ export const EN = {
       stateUnknown: 'State unknown — Retry',
       retry: 'Retry',
       dateTimeUtc: 'Date and Time (UTC)',
+      // A timed send's moment (M88, D67 item 15): the once trigger reads
+      // in the person's own time, whole minutes, at least a minute ahead.
+      dateTimeLocal: 'Date and Time',
+      // Saving a once trigger less than a minute ahead is refused: the
+      // send could never go on time.
+      onceTooSoon: 'A one-shot send goes at least a minute ahead.',
       anchorDate: 'Anchor Date (in the Schedule’s Time Zone)',
       minutes: 'Interval in Minutes',
       everyDays: 'Every N Days',
@@ -2083,6 +2089,35 @@ export const EN = {
   // Shown while a turn runs: Enter then steers the running turn.
   composerQueuePlaceholder: 'Queue another message…',
   queuedLabel: 'Queued',
+  // A timed send's user card (M88, D67 item 15): marked, so the live
+  // transcript shows the message went on its schedule, not by hand.
+  sentOnSchedule: 'Sent on schedule',
+  // Muse Code timed sends while META_API_KEY is set in the window (M88,
+  // D67 item 15): creation and admission refuse, since a send would bill
+  // that key instead of the signed-in account.
+  museCodeOnceEnvKeyRefused:
+    'Muse Code timed sends are unavailable while META_API_KEY is set in this window: a send would bill that key, not the signed-in account.',
+  // A Muse Code timed send refused at admission (M88, D67 item 15): the
+  // sign-in changed since it was scheduled.
+  museCodeOnceAccountChanged:
+    "Muse Code's sign-in changed since this send was scheduled, so the send was refused. Schedule it again to send under the current sign-in.",
+  // A timed send refused at its fire (M88, D67 item 15): said in the
+  // conversation with the schedule's name, never silent.
+  timedSendRefused: 'Timed send “{name}” was refused: {reason}',
+  // A timed send skipped before it was sent (M88, D67 item 15).
+  timedSendSkipped: 'Timed send “{name}” was skipped: {reason}',
+  // A timed send whose moment passed unsent (M88, D67 item 15).
+  timedSendMissed: 'Timed send “{name}” was missed: {reason}',
+  // A resume offer built from the usage report, not a typed limit
+  // signal (M88, D67 item 16): the row says what it rests on.
+  resumeUsageReportNote: 'Based on the latest usage report.',
+  // Timed sends removed after a sign-in change (M88, D67 item 15): the
+  // transcript says why, with the count.
+  museCodeOnceCleared: forms({
+    one: "Muse Code's sign-in changed since a timed send was scheduled, so the send was removed. Schedule it again to send under the current sign-in.",
+    other:
+      "Muse Code's sign-in changed since {count} timed sends were scheduled, so the sends were removed. Schedule them again to send under the current sign-in.",
+  }),
   queuedMenuLabel: 'Queued Message Actions',
   queuedEdit: 'Edit',
   queuedEditTitle: 'Take the message out of the queue and back into the prompt box',
@@ -6304,12 +6339,33 @@ export const EN = {
   // Retry on a failed turn the backend judged retryable (RLF-ACPTURNS):
   // the error row's button resends the turn's own message.
   turnRetryAction: 'Retry',
+  // Resume after a limit (M88, D67 item 16): the error row's button
+  // schedules the fixed resume prompt at the offer's default minute.
+  resumeLaterAction: 'Resume later…',
+  // A limit lifting more than six days out gets no resume timer (D67):
+  // the error row says when it lifts instead. `{time}` is the Intl
+  // date-time of the lift.
+  resumeLimitLifts: 'The limit lifts {time}.',
+  // A spent Model API session budget (D67): no timer refills it, so the
+  // error row offers the budget setting, then Continue.
+  budgetSettingAction: 'Budget setting',
   // The retry was refused: the turn's message is gone, it failed beyond
   // retrying, or the conversation moved on. Sending again still works.
   turnRetryUnavailable: 'That turn can no longer be retried. Send your message again.',
   // A retry pressed while a turn runs: the row's button is disabled
   // then, so this answers only the race.
   turnRetryBusy: 'Wait for the reply to finish, or stop it, before retrying.',
+  // Continue after a spent session budget (M88, D67 item 16): the
+  // refusals mirror retry's. Unavailable when the turn's message is
+  // gone, its failure named no budget, or the conversation moved on.
+  turnContinueUnavailable: 'That turn can no longer be continued. Send your message again.',
+  // A continue pressed while a turn runs: the row's button is disabled
+  // then, so this answers only the race.
+  turnContinueBusy: 'Wait for the reply to finish, or stop it, before continuing.',
+  // Resume later after a limit (M88, D67 item 16): the turn is gone or
+  // the conversation moved on, so no timer can name it.
+  turnResumeUnavailable:
+    'That turn can no longer be resumed. Schedule the prompt from the message box instead.',
   turnRetrying: 'Retrying in {seconds} s (attempt {attempt} of {maxAttempts}).',
   // A retry notice with no stated ceiling (an older CLI's own retry
   // loop, which names none): the wait and the attempt still show.

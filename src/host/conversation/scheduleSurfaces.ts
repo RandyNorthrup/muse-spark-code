@@ -9,7 +9,8 @@ import type { BackendSession } from '../schedules/backgroundTarget'
 import type { ScheduleEditorDeliveryPorts } from '../schedules/deliveryBinding'
 import type { SchedulesBridge } from '../schedules/schedulesBridge'
 import type { AgentEvent } from '../../shared/agentEvents'
-import { SCHEDULE_PROTOCOL_VERSION, UI_TEXT } from '../../shared/constants'
+import { SCHEDULE_PROTOCOL_VERSION, TIMED_SEND_MIN_LEAD_MS, UI_TEXT } from '../../shared/constants'
+import { ceilToMinuteMs } from '../../shared/resumeOffer'
 import { fill } from '../../shared/l10n/text'
 import type { NoticeLevel } from './conversationCheckpoints'
 import type { QuestionRegistry } from '../../core/questions/registry'
@@ -266,6 +267,41 @@ export async function runScheduleOf(
 export function openSchedulesOf(
   snapshot: ScheduleSnapshot,
   initialView: 'list' | 'timeline' | 'editor',
+  seed?: 'composer',
+): void {
+  postSchedulesSurface(snapshot, initialView, undefined, seed)
+}
+
+/**
+Resume later after a limit (M88, D67 item 16): the failed turn's row
+offers it at the offer's default minute, and the press opens the
+schedule editor with the fixed resume prompt seeded at that minute in
+the same session. The host re-fits the minute (the panel's clock may
+lag), so the seed is always a whole minute at least a minute ahead.
+*/
+export function openResumeScheduleOf(
+  snapshot: ScheduleSnapshot,
+  defaultAtMs: number,
+  resumePrompt: string,
+): void {
+  const nowMs = snapshot.now()
+  postSchedulesSurface(snapshot, 'editor', {
+    action: { kind: 'prompt', prompt: resumePrompt },
+    trigger: {
+      kind: 'once',
+      atMs: ceilToMinuteMs(Math.max(defaultAtMs, nowMs + TIMED_SEND_MIN_LEAD_MS)),
+    },
+  })
+}
+
+function postSchedulesSurface(
+  snapshot: ScheduleSnapshot,
+  initialView: 'list' | 'timeline' | 'editor',
+  seed?: {
+    readonly action: { kind: 'prompt'; prompt: string }
+    readonly trigger: { kind: 'once'; atMs: number }
+  },
+  composerSeed?: 'composer',
 ): void {
   const bridge = snapshot.bridge
   const workspaceRoot = snapshot.workspaceRoot
@@ -287,19 +323,21 @@ export function openSchedulesOf(
           label: UI_TEXT.scheduleV2.targets.conversation,
         }
   const nowMs = snapshot.now()
+  // The session's backend first; 'modelApi' only before any session, for
+  // the fallback target the draft needs when no conversation is open.
+  const defaultDraft = bridge.defaultDraft(
+    nowMs,
+    session,
+    session?.backend ?? snapshot.authBackend ?? 'modelApi',
+  )
   snapshot.post({
     type: 'schedulesSurface',
     workspaceKey: bridge.keyFor(workspaceRoot),
     targets: [...bridge.targets(session)],
-    // The session's backend first; 'modelApi' only before any session, for
-    // the fallback target the draft needs when no conversation is open.
-    defaultDraft: bridge.defaultDraft(
-      nowMs,
-      session,
-      session?.backend ?? snapshot.authBackend ?? 'modelApi',
-    ),
+    defaultDraft: seed === undefined ? defaultDraft : { ...defaultDraft, ...seed },
     nowMs,
     initialView,
+    ...(composerSeed !== undefined && { seedFromComposer: true as const }),
   })
 }
 
