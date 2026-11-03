@@ -21393,7 +21393,13 @@ auto-compaction before its receipt, the mechanism is dormant behind
 side-constraint tasks plus the two long-context tasks, report carrying
 the constraint-kept rate) passes its counted live run on
 `muse-spark-1.3-contributor`; the verdict rule is fixed in the
-certification record.
+certification record. Still true on 2026-11-02 (Claude Code resume): a
+fork of a compacted session now keeps every pin its pinned block
+carries (a section-only pin was dropped before; red/green drill
+recorded), and the counted live pair has **not** run: the lane made no
+Muse request (the week's allowance is reserved for merging) and
+linuxlt's credential store holds no Model API key, so the latch stays
+off and no win is claimed.
 
 **CM1013R4 review repair plan (2026-10-11, kubuntu).** Fix all three
 RVCM1013C P2 classes offline. Every one of the sixteen frozen verifiers
