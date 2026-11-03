@@ -30,7 +30,7 @@ import {
   decodeGeminiStream,
   encodeGeminiRequest,
 } from '../../src/core/backends/modelapi/codecs/gemini'
-import { ModelApiError } from '../../src/core/backends/modelapi/transport'
+import { ModelApiError } from '../../src/core/backends/modelapi/modelApiError'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import {
   restoreOptionalToolArguments,

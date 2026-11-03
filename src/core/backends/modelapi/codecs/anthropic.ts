@@ -67,7 +67,7 @@ import {
 } from '../../../../shared/constants'
 import { isEffortLevel } from '../../../../shared/effort'
 import { fill, formatBytes, formatNumber, UI_TEXT } from '../../../../shared/l10n/text'
-import { ModelApiError } from '../transport'
+import { ModelApiError } from '../modelApiError'
 import { parseRefusalError } from '../providerRefusal'
 import {
   ChatCodecError,

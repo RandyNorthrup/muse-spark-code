@@ -89,7 +89,7 @@ import {
   type LinuxSandboxReadiness,
 } from '../core/backends/musecode/sandbox'
 import { DeadlineError, unlessAborted } from '../core/timeouts'
-import { isMissingApiKeyError, isModelApiError } from '../core/backends/modelapi/transport'
+import { isMissingApiKeyError, isModelApiError } from '../core/backends/modelapi/modelApiError'
 import { isErrno } from '../core/fs/errno'
 import { CAUSE_SLOT_VALUE, isFilledSentence } from '../core/filledSentence'
 import { isNativeHelperSentence } from '../core/nativeHelper'

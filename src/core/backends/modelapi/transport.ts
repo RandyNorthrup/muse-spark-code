@@ -52,11 +52,11 @@ import {
   type NetworkAdvice,
   networkFailureMessage,
 } from '../../networkFailure'
-import { redactSecrets } from '../../redact'
+import { redactSecrets, scrubRefusalLeak } from '../../redact'
 import { scrubSecrets, secretRedactor, type SecretScrubPort } from '../../../shared/redact'
 export { redactSecrets } from '../../redact'
 import { errorBodySchema, type StreamEvent } from './schemas'
-import { scrubRefusalLeak } from './providerRefusal'
+import { isModelApiError, MissingApiKeyError, ModelApiError } from './modelApiError'
 import type { UnattendedRun } from '../../schedules/unattended'
 import type { ModelApiClientDeps } from './client'
 
@@ -66,7 +66,13 @@ import {
   type UsageHeaders,
 } from '../../../shared/usageJournal'
 import type { AuthHeaders, AuthSource } from './authSource'
-import { DeadlineError, startStillWaiting, stillWaitingText, withDeadline } from '../../timeouts'
+import {
+  abortableSleep,
+  DeadlineError,
+  startStillWaiting,
+  stillWaitingText,
+  withDeadline,
+} from '../../timeouts'
 
 export interface TransportDeps {
   readonly isCredentialCurrent?: () => boolean
@@ -211,43 +217,6 @@ export async function readBoundedText(response: Response): Promise<string> {
   }
 }
 
-export class ModelApiError extends Error {
-  /** The provider's request id, when its answer carried one (lane PROVERR). */
-  public requestId: string | undefined
-  /** The answer's parsed `Retry-After`, when it carried one (lane PROVERR). */
-  public retryAfterMs: number | undefined
-  public constructor(
-    message: string,
-    /** HTTP status, or 0 when the request never got a response. */
-    public readonly status: number,
-    /** The envelope's `error.type` (`rate_limit_error`, …), when any. */
-    public readonly kind: string | undefined,
-    /** The envelope's `error.code` (`invalid_api_key`, …), when any. */
-    public readonly code: string | undefined,
-  ) {
-    super(message)
-    this.name = 'ModelApiError'
-  }
-}
-
-/** The providers and Model API bundles have separate constructors (D6). */
-export function isModelApiError(value: unknown): value is ModelApiError {
-  return (
-    value instanceof ModelApiError ||
-    (typeof value === 'object' &&
-      value !== null &&
-      'name' in value &&
-      (value.name === 'ModelApiError' || value.name === 'CredentialOriginError') &&
-      'message' in value &&
-      typeof value.message === 'string' &&
-      'status' in value &&
-      typeof value.status === 'number' &&
-      Number.isFinite(value.status) &&
-      (!('kind' in value) || value.kind === undefined || typeof value.kind === 'string') &&
-      (!('code' in value) || value.code === undefined || typeof value.code === 'string'))
-  )
-}
-
 /** Diagnostics cross the privacy boundary; executable/model content stays intact. */
 export function redactStreamDiagnostics(
   event: StreamEvent,
@@ -317,26 +286,6 @@ export async function rethrowStreamError(
   if (isUserRefusal(error) && !isModelApiError(error) && redact(error.message) === error.message)
     throw error
   throw redactModelApiError(error, redact, status)
-}
-
-/** Thrown when the key is absent: the caller decides how to prompt. */
-export class MissingApiKeyError extends Error {
-  public constructor() {
-    super('No Model API key is stored')
-    this.name = 'MissingApiKeyError'
-  }
-}
-
-/** Lazy Node bundles have distinct constructors; use the shared error shape. */
-export function isMissingApiKeyError(error: unknown): error is MissingApiKeyError {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'name' in error &&
-    error.name === 'MissingApiKeyError' &&
-    'message' in error &&
-    typeof error.message === 'string'
-  )
 }
 
 const JSON_MEDIA_TYPE = 'application/json'
@@ -785,33 +734,6 @@ export function whenAborted(signal: AbortSignal): {
       }
     },
   }
-}
-
-/**
-Production `TransportDeps.sleep` (lane PR225FIX2): a real timer cleared
-the moment `signal` aborts, so a retry wait a Stop abandons leaves no
-timer behind (deliberately still referenced while it runs: an unaborted
-wait holds the process exactly as before, only an abandoned one is
-gone). Resolves early on abort; the caller observes the abort itself
-(`pause`'s race rejects with the turn's cancellation, registered before
-this listener).
-*/
-export function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
-  return new Promise<void>((done) => {
-    if (signal?.aborted === true) {
-      done()
-      return
-    }
-    const timer = setTimeout(() => {
-      signal?.removeEventListener('abort', onAbort)
-      done()
-    }, ms)
-    const onAbort = () => {
-      clearTimeout(timer)
-      done()
-    }
-    signal?.addEventListener('abort', onAbort, { once: true })
-  })
 }
 
 const ownerPacers = new WeakMap<object, RequestPacer>()

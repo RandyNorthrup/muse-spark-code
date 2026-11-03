@@ -1,6 +1,6 @@
 // A send-level failure, shared by the spend reports and the provider
 // probe: leaf-ward only, so the light probe chunk carries no reporter.
-import { isModelApiError } from './backends/modelapi/transport'
+import { isModelApiError } from './backends/modelapi/modelApiError'
 import { isRequestNotSent } from './refusal'
 
 /**

@@ -585,22 +585,6 @@ export function parseRefusalError(
   }
 }
 
-/**
-A provider's sentence with the pieces that identify the person's account
-removed (round 2, finding 5): a masked-key remnant (OpenAI repeats the
-key's first 8 and last 4 characters, DeepSeek its last 4), a team id (xAI
-names it) or a user id (OpenRouter sends one). Request ids are provider
-support's handle and are kept. The person still reads their own provider's
-full sentence on screen; the stored form (report bundles, and any later
-sink beyond the screen) carries this instead.
-*/
-export function scrubRefusalLeak(text: string): string {
-  return text
-    .replaceAll(/[^\s]*\*{2,}[^\s]*/g, '[key]')
-    .replaceAll(/\bteam\s+[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}/gi, 'team [account]')
-    .replaceAll(/\buser_id["']?\s*[:=]\s*["']?[A-Za-z0-9_-]+/g, 'user_id [account]')
-}
-
 /** One sentence built from the kind: the provider named, what to do, then
 the provider's own words as theirs, and the provider's request id when its
 answer carried one (lane PROVERRORS, research anthropic.md §4.1: support

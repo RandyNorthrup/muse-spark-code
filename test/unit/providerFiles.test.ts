@@ -17,7 +17,7 @@ import {
 } from '../../src/core/providers/capabilityRecord'
 import { presetFilesEvidence } from '../../src/core/providers/modelMetadata'
 import { projectMediaCapabilities } from '../../src/host/media/mediaProviders'
-import { ModelApiError } from '../../src/core/backends/modelapi/transport'
+import { ModelApiError } from '../../src/core/backends/modelapi/modelApiError'
 
 function recordFor(preset: string, nativeModel: string, format: 'responses' | 'anthropic') {
   return resolveModelCapabilities(
