@@ -15,6 +15,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import * as vscode from 'vscode'
 import type { Owner } from '../../src/core/checkpoints/toolWrites'
+import { redactSecrets } from '../../src/core/redact'
 import { canonicalPath } from '../../src/host/canonicalPath'
 import { createCheckpointStore } from '../../src/host/checkpoints/checkpointStoreEntry'
 import { isProcessAlive } from '../../src/host/checkpoints/windowPresence'
@@ -163,6 +164,7 @@ async function runDiagnostics(backend: Backend, created: string, log: Logger): P
     const verify = createVerifyEditor({
       platform: process.platform,
       log,
+      redact: redactSecrets,
       workspaceRoot: folder,
       realPath: canonicalPath,
       settle: VERIFY_SETTLE,
