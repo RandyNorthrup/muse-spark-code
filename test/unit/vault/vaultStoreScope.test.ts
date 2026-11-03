@@ -31,6 +31,7 @@ import { FileVaultAnchor, vaultAnchorFile } from '../../../src/runtime/vault/fil
 import { KeyringVaultAnchor } from '../../../src/runtime/vault/keyringAnchor'
 import { OsStoreVaultSlot } from '../../../src/runtime/vault/slots/osStoreVaultSlot'
 import { windowsVaultContainerSchema } from '../../../src/runtime/vault/slots/windowsVaultProtocol'
+import { openOsStoreSlot } from '../../../src/runtime/vault/slots/slotEntries'
 import {
   VAULT_ANCHOR_ACCOUNT,
   legacyVaultAuditAccount,
@@ -574,12 +575,10 @@ describe.skipIf(!hasStore())('vault store record adoption', () => {
               keyReference: legacyReference,
               wrappedKey: Buffer.from(legacyReference, 'ascii').toString('base64'),
             })
-            const legacySlot = new OsStoreVaultSlot(
-              context(legacyVaultId, legacySlotId),
-              process.platform,
-              undefined,
-              root,
-            )
+            // Opened from the record, as production opens every slot: a
+            // freshly built context would carry a new createdAt the stored
+            // record cannot match, and unwrap rightly refuses it.
+            const legacySlot = openOsStoreSlot(legacyRecord, process.platform, undefined, root)
             const legacyRestored = await legacySlot.unwrap(legacyRecord, 'use')
             try {
               expect(Buffer.from(legacyRestored)).toEqual(legacyKey)
