@@ -99,6 +99,24 @@ export function mcpFunctionName(server: string, tool: string, taken: ReadonlySet
   return `${plain.slice(0, MCP_FUNCTION_NAME_MAX_CHARS - suffix.length)}${suffix}`
 }
 
+/** The held-back rows of a pool snapshot, as this reading needs them. */
+interface HeldBackRows {
+  readonly servers: readonly {
+    readonly heldBack: readonly { readonly functionName: string }[]
+  }[]
+}
+
+/**
+Every held-back tool's function name in a snapshot (SEC-MCP-PIN): the
+session-rule keys a host drops the moment it sees drift, and again before
+accepting, so the new text never inherits the old text's "always allow".
+Here, not in the pool, so a host reads it without loading the pool's
+bundle. Pure.
+*/
+export function heldBackFunctionNames(snapshot: HeldBackRows): readonly string[] {
+  return snapshot.servers.flatMap((server) => server.heldBack.map((held) => held.functionName))
+}
+
 // --- parameters ---
 
 /** Keys whose value is one subschema. */

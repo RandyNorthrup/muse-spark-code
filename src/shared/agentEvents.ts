@@ -353,6 +353,8 @@ export type QuestionAnswer = z.infer<typeof answerSchema>
 /** One field of an MCP elicitation form (M91 lane M): the schema, never values. */
 export const elicitationFieldSchema = z.object({
   name: z.string(),
+  /** The field's name asks for a secret (SEC-MCP-PIN): it renders masked, named as one. */
+  isSecret: z.optional(z.boolean()),
   title: z.optional(z.string()),
   description: z.optional(z.string()),
   type: z.enum(['string', 'number', 'integer', 'boolean']),

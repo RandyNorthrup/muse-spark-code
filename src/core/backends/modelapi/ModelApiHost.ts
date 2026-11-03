@@ -503,7 +503,7 @@ import type { MediaReplayPort, MediaReplaySession } from '../../media/replayMedi
 import type { AttachedMediaPort, MediaClaim } from '../../media/attachedMedia'
 import type { ReservePaidExtra } from '../../voice/voiceBatchSeams'
 import type { UploadedMediaRef } from '../../../shared/media'
-import { mcpFunctionDefinition, mcpFunctionName } from './mcp/functions'
+import { heldBackFunctionNames, mcpFunctionDefinition, mcpFunctionName } from './mcp/functions'
 import {
   ALLOW_ELICITATION_SEAM,
   describeElicitationForLog,
@@ -2793,17 +2793,32 @@ function mcpNotices(snapshot: McpPoolSnapshot): readonly { key: string; text: st
     }
   }
   // A required server's failure fails the turn and says why there.
-  return snapshot.servers.flatMap((server) =>
-    server.state.status === 'failed' && !server.isRequired
-      ? {
-          key: `server:${server.name}:${server.state.reason}`,
-          text: fill(UI_TEXT.mcpServerUnavailable, {
-            name: server.name,
-            reason: server.state.reason,
-          }),
-        }
-      : [],
-  )
+  return snapshot.servers.flatMap((server) => [
+    ...(server.state.status === 'failed' && !server.isRequired
+      ? [
+          {
+            key: `server:${server.name}:${server.state.reason}`,
+            text: fill(UI_TEXT.mcpServerUnavailable, {
+              name: server.name,
+              reason: server.state.reason,
+            }),
+          },
+        ]
+      : []),
+    // One notice per held-back set (SEC-MCP-PIN): an unchanged relist
+    // repeats the same key, so it is said once and never again.
+    ...(server.heldBack.length > 0
+      ? [
+          {
+            key: `heldback:${server.name}:${server.heldBack.map((held) => held.tool).join(',')}`,
+            text: fill(UI_TEXT.mcpToolsHeldBack, {
+              server: server.name,
+              tools: server.heldBack.map((held) => held.tool).join(', '),
+            }),
+          },
+        ]
+      : []),
+  ])
 }
 
 /**
@@ -6283,6 +6298,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     await unlessStopped(servers.start(), signal)
     const snapshot = servers.snapshot()
+    // A drifted tool loses the session rules its old text earned the
+    // moment the drift is seen (SEC-MCP-PIN), before anything can call it.
+    for (const functionName of heldBackFunctionNames(snapshot)) {
+      this.permissions.forgetForSession(functionName)
+    }
     for (const notice of mcpNotices(snapshot)) {
       if (this.announcedMcp.has(notice.key)) {
         continue
@@ -8924,7 +8944,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           network: query.toolClass === 'network',
           paid: query.toolClass === 'paid',
           spawn: query.toolClass === 'spawn',
-          mcpWrite: query.toolClass === 'mcp' && query.isReadOnly !== true,
+          mcpWrite: query.toolClass === 'mcp' && query.isPinnedReadOnly !== true,
         },
         // The hold cannot see the judge engine's locality from here, so a
         // confidential workspace always floors: fail closed (§9.3.2).
@@ -10845,6 +10865,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       toolName: candidate,
       toolClass: 'mcp',
       isReadOnly: ref.isReadOnly,
+      isPinnedReadOnly: ref.isPinnedReadOnly,
     }
     const judgement = this.permissions.judge(query, this.policy())
     if (judgement.verdict === 'deny') return { kind: 'denied' }
@@ -12633,7 +12654,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       capability: classifyTool(name),
       isExternalWriter:
         external?.kind === 'mcp'
-          ? !external.ref.isReadOnly
+          ? !external.ref.isPinnedReadOnly
           : external?.kind === 'ide' && external.tool.annotations?.['readOnlyHint'] !== true,
       isUnknownMcp: external === undefined && name.startsWith('mcp__'),
       detail: UI_TEXT.teamInPlaceOrchestratorRefused,
@@ -14742,6 +14763,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           ? isProtectedPath(target.canonical)
           : approvedImagePlan !== undefined && isProtectedPath(approvedImagePlan.target.canonical),
       isReadOnly: external?.kind === 'mcp' && external.ref.isReadOnly,
+      isPinnedReadOnly: external?.kind === 'mcp' && external.ref.isPinnedReadOnly,
     }
     const judgement = this.judgementWithHook(query, shouldForceApproval, policy)
     if (judgement.verdict === 'deny') {
@@ -20857,6 +20879,14 @@ export class ModelApiSession implements ScheduledAgentSession {
   public toolNames(): readonly string[] {
     return this.offeredToolNames()
   }
+
+  /** Drops session rules by tool name (SEC-MCP-PIN: a drifted tool's old text). */
+  public forgetSessionRules(toolNames: readonly string[]): void {
+    for (const toolName of toolNames) {
+      this.sessionPermissions.forgetForSession(toolName)
+      this.permissions.forgetForSession(toolName)
+    }
+  }
 }
 
 /**
@@ -21741,6 +21771,27 @@ export class ModelApiHost implements AgentHost {
   /** The MCP servers' live state, for the MCP servers view (M50). */
   public mcpSnapshot(): McpPoolSnapshot | undefined {
     return this.deps.mcpServers?.snapshot()
+  }
+
+  /**
+  The person accepted one server's held-back tool text (SEC-MCP-PIN): the
+  old text's session rules are dropped first, then the pool re-pins and
+  re-offers. False when nothing was held back.
+  */
+  public async acceptMcpTools(server: string): Promise<boolean> {
+    const servers = this.deps.mcpServers
+    if (servers?.acceptTools === undefined) {
+      return false
+    }
+    const drop = (names: readonly string[]) => {
+      for (const session of this.sessions.values()) {
+        session.forgetSessionRules(names)
+      }
+    }
+    drop(heldBackFunctionNames(servers.snapshot()))
+    const accepted = await servers.acceptTools(server)
+    drop(accepted)
+    return accepted.length > 0
   }
 
   public async listSessions(options: ListSessionsOptions): Promise<SessionPage> {
