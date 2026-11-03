@@ -81,7 +81,9 @@ describe('monitor listings captured from the guest proof', () => {
 
 describe('tool and KMS probing on real directories', () => {
   it('finds this machine node and reports an absent tool without a path', async () => {
-    const tools = await probeTools()
+    // Only node's own folder on PATH: this case owns neither the compositor's nor
+    // qemu's version probes, which took hosted runners past its 5 s one after another.
+    const tools = await probeTools({ ...process.env, PATH: path.dirname(process.execPath) })
     const node = tools.find((tool) => tool.name === 'node')
     expect(node.path).toBeDefined()
     expect(node.version).toMatch(/^v\d+\./)

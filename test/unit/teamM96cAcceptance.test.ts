@@ -27,7 +27,10 @@ import {
   TEAM_STALL_MS,
   TEAM_STALL_RATE_LIMIT_MS,
   TEAM_START_STAGGER_MS,
+  WINDOWS_POWERSHELL_COMMAND_ARGS,
+  WINDOWS_POWERSHELL_UTF8_PREAMBLE,
 } from '../../src/shared/constants'
+import { windowsPowerShell } from '../../src/core/execGuard'
 import { BoardRefusal } from '../../src/core/team/scheduler/board'
 import { inheritedPriorities, TaskPicker } from '../../src/core/team/scheduler/pick'
 import { SchedulerSlots, type SlotRequest } from '../../src/core/team/scheduler/slots'
@@ -63,6 +66,8 @@ import {
   schedulerEntry,
   submission,
 } from './helpers/teamFixtures'
+
+const IS_WINDOWS = process.platform === 'win32'
 
 function tempRoot(prefix: string): string {
   const root = mkdtempSync(path.join(tmpdir(), prefix))
@@ -904,18 +909,28 @@ describe('M96c acceptance 25-26: check slots and runners', () => {
       repositoryRoot: repo,
       platform: process.platform,
       count: 1,
-      setupCommand: `printf x >> '${setups.replaceAll("'", String.raw`'\''`)}'`,
+      setupCommand: IS_WINDOWS
+        ? `[IO.File]::AppendAllText('${setups.replaceAll("'", "''")}', 'x')`
+        : `printf x >> '${setups.replaceAll("'", String.raw`'\''`)}'`,
       cacheKey: 'm96c',
       installPaths: [],
-      shell: '/bin/sh',
-      shellArgs: (command) => ['-c', command],
+      // The shell a check runs in on each OS (teamProcessWorkers.ts).
+      ...(IS_WINDOWS
+        ? {
+            shell: windowsPowerShell(process.env['SystemRoot'] ?? '', process.env).file,
+            shellArgs: (command: string) => [
+              ...WINDOWS_POWERSHELL_COMMAND_ARGS,
+              WINDOWS_POWERSHELL_UTF8_PREAMBLE + command,
+            ],
+          }
+        : { shell: '/bin/sh', shellArgs: (command: string) => ['-c', command] }),
       isTrusted: () => true,
       isHostBusy: () => false,
     })
     const job = (runId: string) => ({
       runId,
       cwd: copy,
-      command: 'cat check.txt',
+      command: IS_WINDOWS ? 'Get-Content check.txt' : 'cat check.txt',
       timeoutMs: 30_000,
       commandClass: 'tests' as const,
       labels: [],

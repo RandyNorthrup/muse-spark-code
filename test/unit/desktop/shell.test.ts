@@ -155,7 +155,7 @@ describe('M111 lane WB desktop shell services', () => {
     })
     const root = await scratch()
     const created = sessions.create({ cwd: root, cols: 80, rows: 24 })
-    sessions.write(created.id, 'echo muse-wb-smoke\nexit\n')
+    sessions.write(created.id, 'echo muse-wb-smoke\rexit\r')
     const deadline = Date.now() + 4000
     while (exited === undefined && Date.now() < deadline) {
       await new Promise((resolve) => setTimeout(resolve, 50))

@@ -48,6 +48,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **A Windows folder reached through its short name stays inside itself.** A
+  path spelled with a short name (`RUNNER~1`) was refused as outside the
+  workspace, so a desktop terminal could not open in that folder and an
+  external orchestrator's file request could be refused.
 - **An ACP team session keeps its own work.** Another session in the
   same folder no longer sees that session's tasks. Cancelling or
   closing the session drops a merge that is still waiting and removes

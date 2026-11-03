@@ -9,6 +9,8 @@ import { lstat, realpath } from 'node:fs/promises'
 import path from 'node:path'
 import { isErrno } from './errno'
 
+const SHORT_NAME = /~\d/u
+
 function isOutsideRoot(root: string, candidate: string): boolean {
   const relative = path.relative(root, candidate).replaceAll('\\', '/')
   return (
@@ -74,7 +76,9 @@ export async function confineToRoot(root: string, given: string): Promise<string
       continue
     }
     if (index < parts.length - 1 && !info.isDirectory()) return undefined
-    current = next
+    // A Windows short name (`RUNNER~1`) is no link, and the same folder as its
+    // long name: only the real path says it is inside the root.
+    current = process.platform === 'win32' && SHORT_NAME.test(part) ? await realpath(next) : next
   }
   return isOutsideRoot(realRoot, current) ? undefined : current
 }

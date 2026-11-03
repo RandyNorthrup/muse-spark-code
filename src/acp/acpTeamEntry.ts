@@ -309,7 +309,7 @@ class WorkspaceTeam {
       },
       openRoles: () => Promise.reject(new Error(UI_TEXT.acpTeamRolesUnavailable)),
       showDiff: (taskId, diff) => {
-        const owner = this.binding.taskSession(taskId)
+        const owner = this.binding.loaded()?.taskSession?.(taskId)
         const handler = owner === undefined ? undefined : this.handlers.get(owner)
         handler?.sendUpdate({
           sessionUpdate: 'agent_message_chunk',
@@ -381,7 +381,7 @@ class WorkspaceTeam {
     // One folder has one team. A session sees only the tasks it delegated,
     // so another client in the same folder never receives their briefs or diffs.
     const workers = (tree === undefined ? [] : treeWorkers(tree)).filter(
-      (row) => this.binding.taskSession(row.worker.taskId) === sessionId,
+      (row) => this.binding.loaded()?.taskSession?.(row.worker.taskId) === sessionId,
     )
     if (workers.length === 0 && (this.announced.get(sessionId)?.size ?? 0) === 0) return
     const running = workers.filter((row) => !isFinishedStatus(row.worker.status))
@@ -456,7 +456,7 @@ class WorkspaceTeam {
       this.finishTask(
         handler,
         taskId,
-        this.binding.taskReport(taskId)?.status === 'done' ? 'done' : 'failed',
+        this.binding.loaded()?.taskReport?.(taskId)?.status === 'done' ? 'done' : 'failed',
       )
     }
   }
@@ -468,7 +468,7 @@ class WorkspaceTeam {
   worker is never told as finished.
   */
   private acpFinishStatus(taskId: string, treeStatus: string): 'completed' | 'failed' {
-    const report = this.binding.taskReport(taskId)?.status
+    const report = this.binding.loaded()?.taskReport?.(taskId)?.status
     if (report !== undefined && report !== 'done') return 'failed'
     return treeStatus === 'done' || treeStatus === 'merged' ? 'completed' : 'failed'
   }
@@ -476,7 +476,7 @@ class WorkspaceTeam {
   /** A finished task's completion: its report, then its diffs re-sent with it. */
   private finishTask(handler: AcpTeamSessionHandler, taskId: string, status: string): void {
     void (async () => {
-      const report = this.binding.taskReport(taskId)
+      const report = this.binding.loaded()?.taskReport?.(taskId)
       const summary = report?.summary ?? status
       let diffs: ToolCallContent[] = []
       try {
@@ -506,7 +506,9 @@ class WorkspaceTeam {
 
   /** A finished task's whole-file diffs as ACP `diff` content (binary files named, not faked). */
   private async diffContents(taskId: string): Promise<ToolCallContent[]> {
-    const files = await this.binding.taskDiffFiles(taskId)
+    const service = this.binding.loaded()
+    if (service?.taskDiffFiles === undefined) throw new Error(UI_TEXT.teamTaskUnknown)
+    const files = await service.taskDiffFiles(taskId)
     const contents: ToolCallContent[] = []
     const binary: string[] = []
     for (const file of files) {
@@ -837,7 +839,7 @@ class WorkspaceTeam {
     // Before any await, so a permission answer that arrives during the stop
     // cannot land.
     this.bumpCards(sessionId)
-    await this.binding.stopSessionTasks(sessionId)
+    await this.binding.loaded()?.stopSessionTasks?.(sessionId)
   }
 
   public async close(sessionId: string): Promise<void> {
@@ -845,7 +847,7 @@ class WorkspaceTeam {
     this.handlers.delete(sessionId)
     this.announced.delete(sessionId)
     this.plans.delete(sessionId)
-    await this.binding.stopSessionTasks(sessionId)
+    await this.binding.loaded()?.stopSessionTasks?.(sessionId)
   }
   public async dispose(): Promise<void> {
     if (this.isDisposed) return
@@ -858,7 +860,7 @@ class WorkspaceTeam {
     this.handlers.clear()
     this.announced.clear()
     this.plans.clear()
-    for (const sessionId of sessions) await this.binding.stopSessionTasks(sessionId)
+    for (const sessionId of sessions) await this.binding.loaded()?.stopSessionTasks?.(sessionId)
     await this.binding.dispose()
     await this.writes
   }

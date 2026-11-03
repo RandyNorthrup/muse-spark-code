@@ -20,8 +20,10 @@ const TEAM_ENTRIES = {
   'dist/teamRunners.js': 'src/host/runners/teamRunnersEntry.ts',
   'dist/teamHost.js': 'src/host/team/teamHostEntry.ts',
   // RLF-TEAMFIT: the editor window loads the `team` MCP server directly
-  // (extension.ts), so it is a VSIX team entry of its own, never an ACP one.
+  // (extension.ts), so it is a VSIX team entry of its own. In the ACP package
+  // the team entry below reaches it (RLF-ACPTEAM).
   'dist/teamMcp.js': 'src/host/team/teamMcpEntry.ts',
+  'dist/acpTeam.js': 'src/acp/acpTeamEntry.ts',
   // RLF-TEAMWORKERS: the team host loads the process-worker ports on the
   // first Muse Code or external task.
   'dist/teamProcess.js': 'src/host/team/teamProcessEntry.ts',
@@ -47,12 +49,15 @@ const VSIX_TEAM_ENTRIES = [
 // host). Everything else under dist/team*.js still has to be reached.
 const SPAWNED_TEAM_BUNDLES = new Set(['dist/teamHttpBridge.js'])
 // M96b: headless --team enters through dist/execTeam.js, which reaches the
-// team host and its engine, create, file and merge chunks.
+// team host and its engine, create, file and merge chunks. `serve --team`
+// enters through dist/acpTeam.js, which alone loads the `team` MCP server for
+// a Muse Code orchestrator.
 const ACP_TEAM_ENTRIES = [
   'dist/team.js',
   'dist/teamRunners.js',
   'dist/teamScheduler.js',
   'dist/execTeam.js',
+  'dist/acpTeam.js',
 ]
 // Six separate production-shaped builds, once: each entry on its own, so a
 // shared chunk cannot hide which entry loads it.
