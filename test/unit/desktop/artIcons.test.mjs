@@ -249,7 +249,12 @@ describe('committed icon themes', () => {
 })
 
 async function paintedPixels(svg, theme, name) {
-  const png = new Resvg(svg, { fitTo: { mode: 'width', value: 48 } }).render().asPng()
+  const png = new Resvg(svg, {
+    fitTo: { mode: 'width', value: 48 },
+    font: { loadSystemFonts: false },
+  })
+    .render()
+    .asPng()
   const { data } = PNG.sync.read(Buffer.from(png))
   let painted = 0
   for (let pixel = 3; pixel < data.length; pixel += 4) {

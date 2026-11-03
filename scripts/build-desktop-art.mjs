@@ -35,8 +35,8 @@ export const BOOT_SOURCES = 'design/art/boot/src'
 export const BOOT_JSON = 'desktop/shell/theme/boot/boot.json'
 export const BOOT_PROGRESS_TRACK = 'desktop/shell/theme/boot/progress-track.png'
 export const BOOT_PROGRESS_FILL = 'desktop/shell/theme/boot/progress-fill.png'
-export const PLYMOUTH_DIR = 'os/desktop/plymouth/muse'
-export const GRUB_THEME_DIR = 'os/desktop/grub-theme/muse'
+export const PLYMOUTH_DIR = 'os/desktop/plymouth/muse-desktop'
+export const GRUB_THEME_DIR = 'os/desktop/grub-theme/muse-desktop'
 // Source SVG, output path and render size for each painted boot file. The
 // dialog set keeps upstream's proportions; the logo is the mark at 342 px
 // wide; the class icon is square because GRUB stretches to icon size.
@@ -166,7 +166,13 @@ export function greeterSvg(template, palette) {
 /** Render one SVG to PNG bytes at exactly width x height (resvg, pinned). */
 export function renderWallpaper(svg, width, height) {
   const png = Buffer.from(
-    new Resvg(svg, { fitTo: { mode: 'width', value: width } }).render().asPng(),
+    new Resvg(svg, {
+      fitTo: { mode: 'width', value: width },
+      // No art has text, and scanning the machine's fonts per render costs seconds on Windows and macOS.
+      font: { loadSystemFonts: false },
+    })
+      .render()
+      .asPng(),
   )
   const decoded = PNG.sync.read(png)
   if (decoded.width !== width || decoded.height !== height) {

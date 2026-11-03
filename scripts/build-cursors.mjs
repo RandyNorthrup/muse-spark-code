@@ -162,7 +162,13 @@ export function shapeFrames(svg, shape, rotors, frames) {
 
 /** Render one themed SVG to RGBA pixels at one size (resvg, pinned). */
 export function renderCursor(svg, size) {
-  const png = new Resvg(svg, { fitTo: { mode: 'width', value: size } }).render().asPng()
+  const png = new Resvg(svg, {
+    fitTo: { mode: 'width', value: size },
+    // No art has text, and scanning the machine's fonts per render costs seconds on Windows and macOS.
+    font: { loadSystemFonts: false },
+  })
+    .render()
+    .asPng()
   const decoded = PNG.sync.read(Buffer.from(png))
   if (decoded.width !== size || decoded.height !== size) {
     fail(`resvg rendered ${String(decoded.width)}x${String(decoded.height)}, not ${String(size)}`)

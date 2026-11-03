@@ -114,7 +114,7 @@ interface KnownForeignPaths {
 }
 
 /**
-The three files that name foreign paths on purpose. Anything else that
+The files that name foreign paths on purpose. Anything else that
 names one is a new reader of another application's storage.
 */
 const KNOWN: Record<string, KnownForeignPaths> = {
@@ -126,6 +126,13 @@ const KNOWN: Record<string, KnownForeignPaths> = {
   'src/core/reporting/sources/agentUsage.ts': {
     anchors: ["? '.codex' : '.claude'"],
     reason: "usage reporting resolves the other agents' session files under their home folders",
+  },
+  // Read at the site (D262): it reads nothing of Claude's. It drops an inherited value and
+  // points a keyed preset's child at our own empty folder, so the adapter cannot reach `~/.claude`.
+  'src/core/team/claudeAgentSafety.ts': {
+    anchors: ['CLAUDE_CONFIG_DIR_VARIABLE'],
+    reason:
+      "writes a child's config-folder variable to our own folder, so a keyed Claude preset never reads the person's plan sign-in",
   },
   'src/runtime/reporting/sources.ts': {
     anchors: ["? '.codex' : '.claude'"],

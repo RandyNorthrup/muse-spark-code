@@ -173,6 +173,11 @@ export function claudeAgentEnvironment<T extends NodeJS.ProcessEnv>(input: {
   return out as T
 }
 
+/** The folder `claudeAgentEnvironment` chose for this child, to make before it starts. */
+export function claudeConfigFolderOf(env: NodeJS.ProcessEnv): string | undefined {
+  return env[CLAUDE_CONFIG_DIR_VARIABLE]
+}
+
 /** The bare program name of a command: no folder, no Windows extension, lowercased. */
 function programName(command: string): string {
   const base = command.replaceAll('\\', '/').split('/').pop() ?? command

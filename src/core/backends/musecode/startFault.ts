@@ -46,6 +46,18 @@ export function museExitOf(value: unknown): MuseExit | undefined {
 }
 
 /**
+The handshake found the host gone: its answer never came (the SDK's protocol error), or the
+host ended before its request could be written (the pipe's EPIPE). Which of the two a person
+meets is a race between our write and the host's exit, so both say the same.
+*/
+function isHandshakeEnded(error: unknown): error is Error {
+  return (
+    error instanceof Error &&
+    (error.name === PROTOCOL_ERROR || (error as NodeJS.ErrnoException).code === 'EPIPE')
+  )
+}
+
+/**
 The sentence for a start that failed because the host ended, or the failure
 itself when that is not what happened: a stop the caller asked for, a host
 that answered and was then refused, and a close that our own signal ended are
@@ -57,7 +69,7 @@ export function museStartFailure(
   exit: MuseExit | undefined,
   platform: NodeJS.Platform = process.platform,
 ): unknown {
-  if (!(error instanceof Error) || error.name !== PROTOCOL_ERROR) return error
+  if (!isHandshakeEnded(error)) return error
   const text = UI_TEXT.museStart
   const cause = { cause: error }
   if (fault?.fault === 'authFile') return new MuseStartError('authFile', text.authFile, cause)

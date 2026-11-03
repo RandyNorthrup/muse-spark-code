@@ -184,7 +184,7 @@ import {
   type AccountsSessionPort,
 } from './accounts'
 import { isInvalidProvidersFileError } from './accountText'
-import { startFailure, type StartSite } from './startText'
+import { registrySaveSentences, startFailure, type StartSite } from './startText'
 import { runUploadsCommand, type AcpUploadsPort } from './uploads'
 import {
   acpQuestionClock,
@@ -5549,6 +5549,8 @@ function outboundSentences(): ReadonlySet<string> {
     // `--no-user-mcp-servers`: the settings the person turns off or repairs.
     UI_TEXT.acpUserMcpServersConfigured,
     UI_TEXT.acpUserMcpServersUnreadable,
+    // A refused registry save names one of its fixed clauses (startText.ts).
+    ...registrySaveSentences(),
     UI_TEXT.acpChatGpt.states['signed-out'],
     UI_TEXT.acpChatGpt.failure,
     UI_TEXT.planUi.copilotTerminalGrant,
@@ -5709,13 +5711,6 @@ function outboundTemplates(): readonly { readonly prefix: string; readonly suffi
     [UI_TEXT.execTeamConfigLowersOnly, '{entry}'],
     [UI_TEXT.execTeamReviewerUnsupported, '{entry}'],
     [UI_TEXT.teamRunnerUnavailable, '{tool}'],
-    // A failed start's own sentence (startText.ts): the detail slot
-    // carries causeForLog's fixed vocabulary (an error name, an errno
-    // code, an MSP kind) and the reason slot one of the registry's
-    // fixed clauses — never a path, a prompt or a backend message.
-    [UI_TEXT.acpSessionStartFailed, '{detail}'],
-    [UI_TEXT.acpTurnStartFailed, '{detail}'],
-    [UI_TEXT.createdRegistrySave.failed, '{reason}'],
   ]
   const found: { prefix: string; suffix: string }[] = []
   for (const [template, slot] of templates) {

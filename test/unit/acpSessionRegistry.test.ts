@@ -15,7 +15,9 @@ import { stderrLogger } from '../../src/runtime/stderrLog'
 import { createLocalAcpAgent } from './helpers/acpLocalAgentDeps'
 
 const log = stderrLogger(() => undefined, 'warn')
-// The protocol's own code for a session the agent does not hold.
+// The protocol's own code for a session the agent does not hold. The SDK's client treats
+// this code on `session/close` as success (ACP's advice: the same end state), so a prompt
+// is what shows the registry holds nothing.
 const RESOURCE_NOT_FOUND = acp.RequestError.resourceNotFound().code
 const folders: string[] = []
 afterEach(() => {
@@ -54,6 +56,16 @@ async function newSession(
   return sessionId
 }
 
+/** What a prompt on this id answers; the agent refuses it before it reaches a host. */
+async function promptCodeOf(
+  editor: Parameters<Parameters<ReturnType<typeof acp.client>['connectWith']>[1]>[0],
+  sessionId: string,
+): Promise<number | undefined> {
+  return await codeOf(
+    editor.request('session/prompt', { sessionId, prompt: [{ type: 'text', text: 'hi' }] }),
+  )
+}
+
 describe('ACP sessions in the runtime’s controller registry', () => {
   it('holds a new session, lets it go on close, and finds nothing after', async () => {
     const { agent, folder, rig } = agentOverModelApi()
@@ -62,13 +74,9 @@ describe('ACP sessions in the runtime’s controller registry', () => {
       expect(rig.host.sessionCount).toBe(1)
       expect(await codeOf(editor.request('session/close', { sessionId }))).toBeUndefined()
       // Closed: the registry holds nothing under the id, so a second close
-      // and a prompt both answer resource-not-found, and no turn is sent.
-      expect(await codeOf(editor.request('session/close', { sessionId }))).toBe(RESOURCE_NOT_FOUND)
-      expect(
-        await codeOf(
-          editor.request('session/prompt', { sessionId, prompt: [{ type: 'text', text: 'hi' }] }),
-        ),
-      ).toBe(RESOURCE_NOT_FOUND)
+      // ends the same way and a prompt answers resource-not-found: no turn is sent.
+      expect(await codeOf(editor.request('session/close', { sessionId }))).toBeUndefined()
+      expect(await promptCodeOf(editor, sessionId)).toBe(RESOURCE_NOT_FOUND)
       expect(rig.errors).toEqual([])
     })
   })
@@ -78,7 +86,7 @@ describe('ACP sessions in the runtime’s controller registry', () => {
     await acp.client({ name: 'registry' }).connectWith(agent, async (editor) => {
       const sessionId = await newSession(editor, folder)
       await editor.request('logout', {})
-      expect(await codeOf(editor.request('session/close', { sessionId }))).toBe(RESOURCE_NOT_FOUND)
+      expect(await promptCodeOf(editor, sessionId)).toBe(RESOURCE_NOT_FOUND)
     })
   })
 })

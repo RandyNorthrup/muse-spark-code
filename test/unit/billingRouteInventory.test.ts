@@ -12,6 +12,23 @@ it('keeps conversation ownership distinct from the credential paying an attempt'
   expectTypeOf<PayerCredential>().not.toExtend<ConversationOwner>()
 })
 
+/** The initializer of `const billingRoute` in a block around this call, nearest first. */
+function routeConstAround(from: ts.Node, source: ts.SourceFile): ts.Expression | undefined {
+  let at = from
+  while (!ts.isSourceFile(at)) {
+    if (ts.isBlock(at)) {
+      for (const statement of at.statements) {
+        if (!ts.isVariableStatement(statement)) continue
+        for (const declaration of statement.declarationList.declarations) {
+          if (declaration.name.getText(source) === 'billingRoute') return declaration.initializer
+        }
+      }
+    }
+    at = at.parent
+  }
+  return undefined
+}
+
 it('inventories every transport entry and requires the single route resolver', () => {
   const root = path.resolve('src')
   const sites: string[] = []
@@ -57,15 +74,20 @@ it('inventories every transport entry and requires the single route resolver', (
             } else {
               const field = init.properties.find(
                 (entry) =>
-                  ts.isPropertyAssignment(entry) && entry.name.getText(source) === 'billingRoute',
+                  (ts.isPropertyAssignment(entry) || ts.isShorthandPropertyAssignment(entry)) &&
+                  entry.name.getText(source) === 'billingRoute',
               )
+              // Inline, or the one route an attempt freezes for its resend: a const of that
+              // name in a function around the call, resolved the same way.
+              let route: ts.Expression | undefined
+              if (field && ts.isPropertyAssignment(field)) route = field.initializer
+              else if (field && ts.isShorthandPropertyAssignment(field))
+                route = routeConstAround(node, source)
               expect(
-                field &&
-                  ts.isPropertyAssignment(field) &&
-                  ts.isAwaitExpression(field.initializer) &&
-                  ts.isCallExpression(field.initializer.expression) &&
-                  field.initializer.expression.expression.getText(source) ===
-                    'resolveAttemptBillingRoute',
+                route &&
+                  ts.isAwaitExpression(route) &&
+                  ts.isCallExpression(route.expression) &&
+                  route.expression.expression.getText(source) === 'resolveAttemptBillingRoute',
                 normalized,
               ).toBe(true)
             }
