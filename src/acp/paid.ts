@@ -80,6 +80,8 @@ export interface AcpPaidUseDeps {
   readonly autoCompactionOff?: boolean
   /** The features whose flags the editor gave. */
   readonly flagged: readonly AcpPaidFeature[]
+  /** RLF-ACPTEAM: `teamWorkers` answers to `serve --team`, not a paid flag of its own. */
+  readonly teamWorkersOn?: (() => boolean) | undefined
   readonly scheduleAuthorization?: {
     readonly scheduledPrompts: boolean
     readonly maxBudgetUsd?: UsdAmount
@@ -313,6 +315,7 @@ export class AcpPaidUse {
     }
     if (feature === 'scheduledPrompts')
       return this.deps.scheduleAuthorization?.scheduledPrompts === true
+    if (feature === 'teamWorkers') return this.deps.teamWorkersOn?.() === true
     const flagged: readonly PaidFeature[] = this.deps.flagged
     return flagged.includes(feature)
   }

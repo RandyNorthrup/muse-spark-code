@@ -22,6 +22,7 @@ import type { SessionMcpHttpServer } from '../core/agent/agentBackend'
 import type {
   ScheduledBoardTaskInput,
   ScheduledBoardTaskOutcome,
+  TeamDiffFile,
   TeamHostSeams,
   TeamHostService,
 } from '../core/team/teamHostService'
@@ -375,6 +376,28 @@ export class TeamHostBinding implements TeamSurfacePort {
     return service === undefined || this.closed() || service.tree() === undefined
       ? undefined
       : await service.delegateScheduled(input)
+  }
+
+  /** A finished task's change as whole files (RLF-ACPTEAM: ACP's `diff` content). */
+  public async taskDiffFiles(taskId: string): Promise<readonly TeamDiffFile[]> {
+    const service = this.service
+    if (service?.taskDiffFiles === undefined) throw new Error(UI_TEXT.teamTaskUnknown)
+    return await service.taskDiffFiles(taskId)
+  }
+
+  /** A finished task's report, where the service has one (RLF-ACPTEAM). */
+  public taskReport(taskId: string) {
+    return this.service?.taskReport?.(taskId)
+  }
+
+  /** The conversation that owns the task, where the service knows it. */
+  public taskSession(taskId: string): string | undefined {
+    return this.service?.taskSession?.(taskId)
+  }
+
+  /** Stops every task one conversation delegated (RLF-ACPTEAM: cancel and close). */
+  public async stopSessionTasks(sessionId: string): Promise<number> {
+    return (await this.service?.stopSessionTasks?.(sessionId)) ?? 0
   }
 
   public async handle(message: TeamSurfaceMessage): Promise<void> {

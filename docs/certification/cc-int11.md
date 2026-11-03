@@ -41,6 +41,48 @@ Interactions:
 
 `shell.test.ts` 7/7 after `npm rebuild node-pty` (exit 0).
 
+### Merge 2 — `lanes/acpteam-reviewed` (1739998fe)
+
+ACP teams (RLF-ACPTEAM) with RVACPTEAM's fixes (one session saw another's tasks; cancel/close left a waiting merge and
+its copy; a capped worker reported done; an unanswered permission now says so). Its 5 P3s stay open for the small lane
+after the round (lead's notes). `rlf-acpteam` is not merged.
+
+Conflicts:
+
+- `src/acp/agent.ts`: int's maker tools (`makerTools`, `muse_spark_maker` server) and the lane's team preparation
+  (`teamPrepared`, `withTeamMcp`) both kept: `adopt` takes both, new and resumed sessions pass the maker server
+  through `withTeamMcp`; `outboundTemplates` takes the lane's list (the stored-team refusals) and int's
+  `quotaOutboundSentence` stays after it.
+- `src/host/teamHostBinding.ts`: int's `admitScheduledBoardTask` (C-M115-8) and the lane's `taskDiffFiles`,
+  `taskReport`, `taskSession`, `stopSessionTasks` all kept; imports joined.
+- `src/runtime/backends.ts`: int's `isHardwareWorkspace` and the lane's `listTeamWorkerModels` both kept;
+  `startTeamWorker` takes the lane's guard (an ACP Muse Code orchestrator's engine workers run on the Model API host).
+- `src/runtime/main.ts`: `runtimeFor` takes int's `maker` then the lane's `teamFor`; the ACP agent gets int's
+  `userMcpServersRefusal` and the lane's `team`.
+- `scripts/lib/deferredBundles.mjs`: int's external-entry list plus the lane's `acpTeamEntry`.
+- `docs/acp.md`: int's table (no-limit `--questions-defer-after`, `--no-user-mcp-servers`, "When the editor leaves")
+  plus the lane's `--team` row. `CHANGELOG.md`: both. `test/unit/execTeamFlags.test.ts`: int's (same assertions,
+  RLF-M96CERT's comment).
+- `docs/roadmap/entries.json` M96b: one summary carrying int's headless facts and the lane's ACP fact, cut to the
+  260-character limit `gen-roadmap` enforces.
+- Generated, regenerated: `ROADMAP.md` (`gen-roadmap`), `docs/ide-compatibility/host-api.md`, the three
+  `reference*.generated.ts` (`gen-reference`, which also rewrote `docs/devices-reference.md`'s count).
+
+Interactions:
+
+- `src/acp/acpTeamEntry.ts` loaded `TeamMcpServer`/`teamRosterAnswer` from `teamHostEntry`; int (RLF-TEAMFIT) moved
+  them to their own bundle, `teamMcpEntry` (`dist/teamMcp.js`), with `createTeamMcpRuntime(table, locale)`.
+  Typecheck exit 1 (TS2339 ×2). `fix(int)`: the ACP team loads `teamMcpEntry` the way the extension does.
+
+Decision asked by the lead — ACP's `canRunKind` stays engine-only at this merge. D250 says the team slots offer
+engine, Muse Code and external agents on every surface, and M96b's "Muse Code, external and subscription workers
+never start" is the headless `exec --team` rule, not the interactive ACP session's. So engine-only in an ACP session
+is a gap against D250, not a design: the ACP agent has the person in the editor to answer, but it does not yet carry
+the team's process-worker bundle or its credential scrub for children. Recommended: a lane after round 11 that runs
+Muse Code and external workers from the ACP agent through the same `teamProcess`/`externalOrchestrator` bundles,
+with the editor's permission prompt, and keeps `exec --team` engine-only. `dist/acpTeam.js` budget is checked at the
+batch's build.
+
 ### Red/green drills (batch A)
 
 - Merge 1, terminal cwd through a link: `confineTerminalCwd` made lexical-only for in-root names →

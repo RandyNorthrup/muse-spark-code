@@ -160,6 +160,8 @@ export interface ExecRuntimeOptions {
 
 export interface RuntimeBackendDeps {
   readonly team?: TeamHostSeams | undefined
+  /** RLF-ACPTEAM: one workspace's team seams (the ACP agent's per-folder team). */
+  readonly teamFor?: ((cwd: string) => TeamHostSeams | undefined) | undefined
   readonly hostKind?: 'acp' | 'cli'
   readonly usageRecording?: UsageRecording | undefined
   readonly usageScope?: UsageScopeReader | undefined
@@ -208,6 +210,8 @@ export interface RuntimeBackend {
     input: Parameters<EngineTeamPortsDeps['startWorker']>[0],
   ) => ReturnType<EngineTeamPortsDeps['startWorker']>
   readonly isHardwareWorkspace: (cwd: string) => boolean
+  /** RLF-ACPTEAM: the engine's models for a folder (the team setup probe's list). */
+  readonly listTeamWorkerModels: (cwd: string) => Promise<readonly string[]>
   readonly readUsageBudgets: () => Promise<readonly UsageBudgetRead[]>
   readonly backend: AcpBackend
   /** Muse Code's launch and environment, for `login`. */
@@ -606,7 +610,7 @@ function modelApiManager(
       : undefined
   const providerRun = deps.exec?.providerRun
   return new ModelApiBackendManager({
-    team: deps.team,
+    team: deps.teamFor?.(storedWorkspaceRoot) ?? deps.team,
     log,
     // The ready line names the provider a run actually uses (RLTESTDRIVE
     // item 3); without a provider run it names the Meta backend.
@@ -725,7 +729,10 @@ function modelApiManager(
           },
         })
         client = headlessProviders.client
-      } else if (deps.team !== undefined && existsSync(providerConfigFile)) {
+      } else if (
+        (deps.team !== undefined || deps.teamFor !== undefined) &&
+        existsSync(providerConfigFile)
+      ) {
         // A Meta orchestrator may delegate to a configured keyless local engine.
         // Only the user's provider file supplies origins; the repository cannot.
         const entry = await import('../host/backend/configuredProvidersEntry')
@@ -991,6 +998,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   })
   const paid = new AcpPaidUse({
     flagged: deps.options.paidFeatures,
+    teamWorkersOn: () => deps.options.team === true,
     scheduleAuthorization: {
       scheduledPrompts:
         deps.options.backend === 'modelApi' && deps.options.scheduledPrompts === true,
@@ -1259,10 +1267,12 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   // not workspace trust, admits their delegate/merge tools. Set on each host
   // after construction (ModelApiHost.setTeamTrusted), never through the
   // always-loaded backend manager, so activation carries none of it.
-  const isTeamTrusted = (): boolean => deps.team?.teamDecisionSource()?.teamSwitchOn === true
-  const withTeamTrust = async (manager: ModelApiBackendManager) => {
+  const seamsFor = (cwd: string): TeamHostSeams | undefined => deps.teamFor?.(cwd) ?? deps.team
+  const isTeamTrusted = (cwd: string): boolean =>
+    seamsFor(cwd)?.teamDecisionSource()?.teamSwitchOn === true
+  const withTeamTrust = async (manager: ModelApiBackendManager, cwd: string) => {
     const host = await manager.ensureHost()
-    if (deps.team !== undefined) host.setTeamTrusted(isTeamTrusted)
+    if (seamsFor(cwd) !== undefined) host.setTeamTrusted(() => isTeamTrusted(cwd))
     return host
   }
 
@@ -1277,7 +1287,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       if (existing.identity !== key) {
         throw new Error(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
       }
-      return await withTeamTrust(existing.manager)
+      return await withTeamTrust(existing.manager, cwd)
     }
     const assertWorkspaceCurrent = () => {
       if (!identity.isCurrent()) {
@@ -1306,7 +1316,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       hardware,
     )
     modelApiHosts.set(cwd, { manager, identity: key })
-    return await withTeamTrust(manager)
+    return await withTeamTrust(manager, cwd)
   }
 
   const hostFor = (cwd: string): Promise<AgentHost> => {
@@ -1365,7 +1375,10 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   let isClosed = false
   return {
     startTeamWorker: async (cwd, input) => {
-      if (deps.options.backend !== 'modelApi')
+      // Headless teams stay Model API only (their admission refuses
+      // first); an ACP Muse Code orchestrator's engine workers run on
+      // the Model API host beside it, as the panel's do.
+      if (deps.options.backend !== 'modelApi' && deps.teamFor === undefined)
         throw new Error(fill(UI_TEXT.execModelApiOnly, { options: '--team' }))
       await modelApiHostFor(cwd)
       const manager = modelApiHosts.get(cwd)?.manager
@@ -1378,10 +1391,15 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         budgetScope,
         input.fenceIo,
       )
-      if (deps.team !== undefined) host.setTeamTrusted(isTeamTrusted)
+      if (seamsFor(cwd) !== undefined) host.setTeamTrusted(() => isTeamTrusted(cwd))
       return await openTeamWorkerSession(host, input)
     },
     isHardwareWorkspace: (cwd) => hardware(cwd).current().isHardwareWorkspace === true,
+    listTeamWorkerModels: async (cwd) => {
+      const host = await modelApiHostFor(cwd)
+      const models = await host.listModels()
+      return models.map((model) => model.modelId)
+    },
     readUsageBudgets: async () => {
       // The shared daily paid budget first, then the live session budgets:
       // the same pair VS Code passes (RVCM1132B finding 3). The ledger read

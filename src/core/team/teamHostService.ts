@@ -110,6 +110,29 @@ export interface TeamHostService extends TeamHostSeams {
   readonly decideMerge: (taskId: string, decision: TeamMergeDecision) => Promise<void>
   /** A finished task's branch against its base, as a unified diff (the tree's Review diff). */
   readonly taskDiff: (taskId: string) => Promise<string>
+  /**
+  The same change as whole files, where the merge port can read them
+  (RLF-ACPTEAM: ACP's `diff` content is whole-file). Absent where the port
+  has no such read; a surface then falls back to `taskDiff`.
+  */
+  readonly taskDiffFiles?: ((taskId: string) => Promise<readonly TeamDiffFile[]>) | undefined
+  /**
+  Stops one conversation's running and queued tasks, and drops a merge
+  that is still waiting plus any copy that conversation still holds.
+  Returns how many stopped (an ACP session's cancel, close and shutdown).
+  */
+  readonly stopSessionTasks?: ((sessionId: string) => Promise<number>) | undefined
+  /**
+  A finished task's report (RLF-ACPTEAM: a task's ACP tool call carries its
+  report as content, which the tree does not). Undefined while the task
+  has no outcome yet or is unknown.
+  */
+  readonly taskReport?: ((taskId: string) => TeamReport | undefined) | undefined
+  /**
+  The conversation that delegated the task. Undefined when the task is
+  unknown. An ACP surface uses it so one session cannot read another's.
+  */
+  readonly taskSession?: ((taskId: string) => string | undefined) | undefined
   /** Clears one entry's meters; the ledger keeps the record (acceptance 11). */
   readonly resetEntry: (entryId: string) => Promise<void>
   /**
@@ -382,6 +405,24 @@ export interface TeamMergePort {
   }) => Promise<void>
   /** The task branch against its base, as a unified diff (Review diff). */
   readonly diff: (outcome: TeamWorkerOutcome) => Promise<string>
+  /**
+  The same change as whole files (RLF-ACPTEAM): each changed file's text at
+  the base (`null` when the task added it) and at its head (empty when the
+  task deleted it), so a surface whose diff shape is whole-file (ACP's
+  `diff` content) shows the real change. Binary files carry no text.
+  */
+  readonly diffFiles?:
+    ((outcome: TeamWorkerOutcome) => Promise<readonly TeamDiffFile[]>) | undefined
+}
+
+/** One changed file as whole texts at the task's base and head. */
+export interface TeamDiffFile {
+  readonly path: string
+  /** The file at the base, or `null` when the task added it. Empty for a binary file. */
+  readonly oldText: string | null
+  /** The file at the head; empty when the task deleted it or it is binary. */
+  readonly newText: string
+  readonly isBinary: boolean
 }
 
 /**
