@@ -14,6 +14,7 @@ import path from 'node:path'
 import * as acp from '@agentclientprotocol/sdk/unstable'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { createAcpTeam, type AcpTeamDeps } from '../../src/acp/acpTeamEntry'
+import { normalizeTeamPath } from '../../src/acp/teamContracts'
 import type { createAcpAgent } from '../../src/acp/agent'
 import type { AcpTeamPort, AcpTeamSessionHandler } from '../../src/acp/teamPort'
 import {
@@ -248,7 +249,12 @@ async function gitRepo(): Promise<string> {
   const root = scratchTeamRepo('acp-team-repo-')
   writeFileSync(path.join(root, 'a.ts'), 'const value = 1\n')
   await realTeamGit(['add', 'a.ts'], root)
-  await realTeamGit(['commit', '-m', 'a'], root)
+  // The scratch repository's own commit names its author the same way: a
+  // hosted runner has no identity of its own.
+  await realTeamGit(
+    ['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-m', 'a'],
+    root,
+  )
   return root
 }
 
@@ -532,7 +538,7 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
       const content = editor.requests[0]?.toolCall.content ?? []
       expect(content).toContainEqual({
         type: 'diff',
-        path: path.join(repo, 'a.ts'),
+        path: normalizeTeamPath(path.join(repo, 'a.ts')),
         oldText: 'const value = 1\n',
         newText: 'const value = 2\n',
       })

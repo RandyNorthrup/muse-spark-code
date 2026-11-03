@@ -80,6 +80,8 @@ function launch(): ChildProcessWithoutNullStreams {
     env: {
       PATH: process.env['PATH'] ?? '',
       HOME: directory,
+      // Where a Windows agent's home and data folder come from.
+      USERPROFILE: directory,
       XDG_CONFIG_HOME: config,
       XDG_DATA_HOME: data,
       NODE_PATH: path.resolve('node_modules'),
