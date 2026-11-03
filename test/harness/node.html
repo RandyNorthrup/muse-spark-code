@@ -5,7 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Muse Node workspace harness</title>
     <link rel="stylesheet" href="../../dist/webview/main.css" />
-    <link rel="stylesheet" href="../../dist/webview/node/files/main.css" />
+    <script>
+      // A suite that builds its own copy names it (?build=); the release build otherwise.
+      globalThis.nodeBuild =
+        new URLSearchParams(location.search).get('build') ?? '../../dist/webview/node'
+      document.head.insertAdjacentHTML(
+        'beforeend',
+        `<link rel="stylesheet" href="${globalThis.nodeBuild}/files/main.css" />`,
+      )
+    </script>
     <style>
       html,
       body {
@@ -52,7 +60,7 @@
           document.documentElement.dir = 'rtl'
         }
       }
-      const { mountNodeWorkspace } = await import('../../dist/webview/node/files/main.js')
+      const { mountNodeWorkspace } = await import(`${globalThis.nodeBuild}/files/main.js`)
       const encode = (text) => new TextEncoder().encode(text)
       const hash = async (text) =>
         Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', encode(text))), (byte) =>
