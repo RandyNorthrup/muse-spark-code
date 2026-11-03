@@ -886,6 +886,12 @@ happened, not what was planned; superseded entries are kept.
   with which bound fired and its number instead of dying silently, and
   supervised runs are governed like every other launch, so ordinary
   supervised use is never stopped.
+- A problem report filed from the install screen now says what happened
+  on the way there. Pressing Install, the install's re-check running
+  out or never starting, and dismissing the key prompt each leave one
+  line in the report's recent events, so "never tried it" reads
+  differently from "tried it and it failed". Nothing else in the
+  report changed.
 
 ### Security
 
