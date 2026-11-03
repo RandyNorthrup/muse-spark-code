@@ -320,8 +320,6 @@ const LAZY_ONLY = [
   // through. The providers, configured-providers and report bundles require
   // its API from this bundle (deferredCohort) instead of carrying a copy.
   'providerRefusal.ts',
-  // D261: the refusal-fallback decision, read only by the turn loop.
-  'refusalFallback.ts',
   // M106: side answers load with the backend, reviewer, judge or Git action.
   'structuredOutput.ts',
   'modelCapabilities.ts',

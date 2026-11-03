@@ -233,6 +233,21 @@
       "editors": ["vscode"]
     },
     {
+      "id": "refusal-fallback",
+      "name": { "setting": "teamRefusalFallback" },
+      "summary": { "setting": "teamRefusalFallback" },
+      "description": { "setting": "teamRefusalFallback" },
+      "commands": [],
+      "settings": ["museSpark.teamRefusalFallback"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#team-configuration",
+      "backends": ["modelApi", "museCode"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "vscode:museCode"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode"]
+    },
+    {
       "id": "legal",
       "name": { "ui": "legalScanTitle" },
       "summary": { "ui": "legalScanReceiptHelp" },
@@ -4736,6 +4751,17 @@
       "schema": { "type": "boolean", "default": false }
     },
     {
+      "id": "museSpark.teamRefusalFallback",
+      "name": "museSpark.teamRefusalFallback",
+      "description": "A team task an agent refuses moves to the next available agent in its role's preference list, across accounts and providers; each agent gets one try, and a review never goes to the agent or model that wrote the work. A paid agent asks first, naming its model and price. Off by default: a refused task ends with its refusal. Machine-scoped; exec --refusal-fallback turns it on for one headless --team run.",
+      "descriptionKey": "config.teamRefusalFallback.description",
+      "type": "boolean",
+      "default": false,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": false }
+    },
+    {
       "id": "museSpark.usageHistory",
       "name": "museSpark.usageHistory",
       "description": "Record model usage locally on this machine. Turning this off stops new records; live limits and budgets remain visible.",
@@ -8102,6 +8128,18 @@
         "repeatable": false,
         "default": false,
         "purpose": "account-pool"
+      }
+    },
+    {
+      "route": "exec",
+      "name": "exec: --refusal-fallback",
+      "description": "--refusal-fallback: With --team, a task an agent refuses moves to the next agent in its role; a paid one this run would have to ask about stops it instead.",
+      "text": { "cli": "refusal-fallback" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "refusal-fallback"
       }
     },
     {

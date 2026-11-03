@@ -1127,12 +1127,6 @@
           "description": "%config.modelApiMaxToolOutputBytes.description%",
           "scope": "machine"
         },
-        "museSpark.modelApiFallbackModel": {
-          "type": "string",
-          "default": "",
-          "description": "%config.modelApiFallbackModel.description%",
-          "scope": "machine"
-        },
         "museSpark.turnCheckpoints": {
           "type": "boolean",
           "default": true,
@@ -1714,6 +1708,12 @@
           "description": "%config.modelApiTeamWorkers.description%",
           "scope": "machine",
           "deprecationMessage": "%config.modelApiTeamWorkers.description%"
+        },
+        "museSpark.teamRefusalFallback": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.teamRefusalFallback.description%",
+          "scope": "machine"
         },
         "museSpark.usageHistory": {
           "type": "boolean",
