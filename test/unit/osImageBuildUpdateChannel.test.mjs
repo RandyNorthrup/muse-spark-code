@@ -725,7 +725,9 @@ describe('M110-OS2 TUF update channel', () => {
     const targetsKeyid = liedRoot.signed.roles.targets.keyids[0]
     const targetsKey = liedRoot.signed.keys[targetsKeyid]
     // The correct entry stays filed too, inert: the lied one refuses.
-    const wrongKeyid = `00${targetsKeyid.slice(2)}`
+    // One digit always differs: a fixed "00" prefix was this key's own id whenever
+    // the throwaway key's id began with 00, and that rotation is simply valid.
+    const wrongKeyid = `${targetsKeyid.startsWith('0') ? '1' : '0'}${targetsKeyid.slice(1)}`
     liedRoot.signed.keys[wrongKeyid] = targetsKey
     liedRoot.signed.roles.targets.keyids = [wrongKeyid]
     resignRoot(dir, 'lied', path.join(lied.metaDir, '2.root.json'), liedRoot)

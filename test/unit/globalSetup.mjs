@@ -4,6 +4,7 @@
 // worker starts; suites read the result through inject(), unchanged
 // assertions and deadlines.
 
+import { spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, mkdtempSync } from 'node:fs'
 import path from 'node:path'
 import {
@@ -13,6 +14,7 @@ import {
   buildBrowserEnglish,
   buildRegionalEnglish,
 } from './helpers/l10nBuilds.mjs'
+import { WINDOWS_POWERSHELL_RELATIVE_PATH } from '../../src/shared/constants'
 import { removeFolder } from './helpers/temporaryFolders'
 import { startReviewBrowser } from './helpers/reviewBrowser.mjs'
 import {
@@ -22,7 +24,36 @@ import {
   buildProductionPackage,
 } from './helpers/productionPackage'
 
+/**
+Windows PowerShell's first start on a fresh hosted runner belongs to the disk, not
+to a suite: it has passed a case's 15 s (PR 165; runs 41516831678 and 41561620943,
+shards 5 and 15), in whichever suite a shard happens to reach first, and each start
+after takes under two seconds. So it happens here, before any worker, with the
+modules the suites read and its time printed. A start that never answers is ended
+and said, and the suites that need one report for themselves.
+*/
+const COLD_START_HUNG_MS = 180_000
+function warmWindowsPowerShell() {
+  if (process.platform !== 'win32') return
+  const started = Date.now()
+  const result = spawnSync(
+    path.win32.join(process.env['SystemRoot'] ?? '', WINDOWS_POWERSHELL_RELATIVE_PATH),
+    [
+      '-NoProfile',
+      '-NonInteractive',
+      '-Command',
+      "$null = Get-Acl -LiteralPath $env:SystemRoot; $null = '{}' | ConvertFrom-Json",
+    ],
+    { stdio: 'ignore', timeout: COLD_START_HUNG_MS, windowsHide: true },
+  )
+  const ended = result.error === undefined ? `exit ${String(result.status)}` : result.error.message
+  process.stdout.write(
+    `Windows PowerShell cold start: ${String(Date.now() - started)} ms (${ended})\n`,
+  )
+}
+
 export default async function setup(project) {
+  warmWindowsPowerShell()
   // Under the repository, as uiTextRegions always built: its vault probe
   // imports source by a relative path, which another drive's TEMP would break.
   mkdirSync('temp', { recursive: true })
