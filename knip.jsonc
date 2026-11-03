@@ -306,6 +306,7 @@
     "src/core/questions/deferralEntry.ts",
     // M103 R: required by path only for explicit runtime maker commands/--hardware.
     "src/runtime/maker/entry.ts",
+    "src/runtime/maker/runtimeMakerPanelEntry.ts",
     "src/runtime/fonts/fontsEntry.ts",
     "src/runtime/judge/judgeEntry.ts",
     "src/runtime/judge/judgeSourcesEntry.ts",
