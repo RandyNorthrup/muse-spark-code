@@ -68,9 +68,12 @@ describe.skipIf(!isPosix)('vault peer run mode (RLF-M109H)', () => {
   })
 
   it('closes descriptors above 2 before the command runs', async () => {
+    // The probe writes to descriptor 3 in a subshell: a POSIX shell such as
+    // dash (Ubuntu's /bin/sh) exits on a redirection error of the special
+    // builtin `:`, where the subshell's exit only takes the `else` branch.
     const child = spawn(
       state.helper,
-      ['run', '/bin/sh', '-c', 'if : >&3; then echo open; else echo closed; fi'],
+      ['run', '/bin/sh', '-c', 'if (: >&3) 2>/dev/null; then echo open; else echo closed; fi'],
       { stdio: ['ignore', 'pipe', 'pipe', 'pipe'] },
     )
     const stdout = child.stdout
