@@ -21,6 +21,7 @@ import {
 } from '../../src/core/team/scheduler/slots'
 import { RESOURCE_LAUNCH_POLL_MS } from '../../src/shared/constants'
 import { governorWindow } from './helpers/governorWindow'
+import { liveSamplerSuite } from './resourceHarness'
 
 /** The asks before the first worker ends: two waits sit between three asks. */
 const ASKS_BEFORE_THE_WORKER_ENDS = 3
@@ -38,6 +39,7 @@ const FIRST: SlotRequest = {
 }
 const SECOND: SlotRequest = { ...FIRST, taskId: 'second' }
 
+const { memoryReader } = liveSamplerSuite()
 const disposers: (() => void)[] = []
 afterAll(() => {
   for (const dispose of disposers.splice(0)) dispose()
@@ -45,7 +47,7 @@ afterAll(() => {
 
 describe('a governed team slot while the scheduler and the queue disagree', () => {
   it('waits between asks, and is admitted once the scheduler’s place is free', async () => {
-    const { window, errors, dispose } = await governorWindow({ isLimited: true })
+    const { window, errors, dispose } = await governorWindow({ isLimited: true, memoryReader })
     disposers.push(dispose)
     const ports = window.port.teamSlotPorts()
     expect(ports.governor.capacity('worker')).toBe(1)

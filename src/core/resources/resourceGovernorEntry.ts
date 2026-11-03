@@ -25,6 +25,7 @@ import { ResourceGovernor } from './governor'
 import { ResourceEvents } from './events'
 import { ResourceLaunchHost } from './launchHost'
 import type { ResourceProcessLaunch, ResourceTreeBinding } from './launch'
+import type { DarwinMemoryReader } from './sampler/darwinMemory'
 import { createMachineResourceSampler } from './sampler/system'
 import { LinuxResourceTreeReader } from './trees/linux'
 import type { WindowsResourceTreeReader } from './trees/windows'
@@ -88,6 +89,12 @@ export interface ResourceHostSettings {
   readonly createdDirectories?: CreatedPathProof['directories']
   /** W supplies a per-harness persisted manifest in app data for recovery. */
   readonly registryFile?: string | undefined
+  /**
+  The macOS memory reader before libuv 1.52, for a caller that owns its helper
+  binary (a suite running from source compiles it); undefined reads through the
+  packaged helper beside `dist`, as an installed product does.
+  */
+  readonly darwinMemory?: (() => DarwinMemoryReader | undefined) | undefined
   readonly onCleanup?: ((result: CreatedCleanup) => void) | undefined
   readonly localization?: { readonly table: UiText; readonly locale: string } | undefined
   /** M107 J/M102: record this window's samples into the machine journal, with usage consent. */
@@ -295,6 +302,7 @@ export function resourceGovernorHost(
           maxOutputBytes: BOUNDED_FILE_READ_CHUNK_BYTES,
         },
         disks,
+        options.darwinMemory?.(),
       ),
       // R: the join switch (resourceRunnerRoutesJoin) and the M100/M96c
       // bindings decide whether a relocation route exists; without one,
