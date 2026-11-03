@@ -1,4 +1,5 @@
 import { cpus, freemem } from 'node:os'
+import { RESOURCE_DARWIN_HEADROOM_LIBUV_MIN_MINOR } from '../../shared/constants'
 
 interface CpuTimes {
   readonly user: number
@@ -8,10 +9,26 @@ interface CpuTimes {
   readonly irq: number
 }
 
+/**
+The memory a new process can have, or undefined when this machine cannot say, which is not
+pressure. macOS's free pages leave out all it can reclaim, so a healthy Mac reads as short of
+memory; only libuv 1.52's headroom answers there, as the machine governor reads it too.
+*/
+export function machineFreeMemory(
+  platform: NodeJS.Platform = process.platform,
+  uv: string = process.versions.uv,
+): number | undefined {
+  if (platform !== 'darwin') return freemem()
+  const [major = 0, minor = 0] = uv.split('.').map(Number)
+  const hasHeadroom =
+    major > 1 || (major === 1 && minor >= RESOURCE_DARWIN_HEADROOM_LIBUV_MIN_MINOR)
+  return hasHeadroom ? process.availableMemory() : undefined
+}
+
 export interface TeamLoadSample {
   readonly at: number
   readonly cpuUsage: number | undefined
-  readonly freeMemory: number
+  readonly freeMemory: number | undefined
   readonly isHostBusy: boolean
 }
 
@@ -25,11 +42,11 @@ export function createLoadGuard(options: {
   /** Elapsed admission time is independent of the wall clock used in the sample. */
   readonly monotonicNow?: () => number
   readonly readCpuTimes?: () => readonly CpuTimes[]
-  readonly readFreeMemory?: () => number
+  readonly readFreeMemory?: () => number | undefined
   readonly changed: (sample: TeamLoadSample) => void
 }) {
   const cpuTimes = options.readCpuTimes ?? (() => cpus().map((cpu) => cpu.times))
-  const freeMemory = options.readFreeMemory ?? freemem
+  const freeMemory = options.readFreeMemory ?? machineFreeMemory
   const monotonicNow = options.monotonicNow ?? (() => performance.now())
   let previous: readonly CpuTimes[] | undefined
   let previousAt: number | undefined
@@ -72,7 +89,7 @@ export function createLoadGuard(options: {
       cpuUsage,
       freeMemory: available,
       isHostBusy:
-        available < options.freeMemoryMin ||
+        (available !== undefined && available < options.freeMemoryMin) ||
         (highSince !== undefined && elapsedAt - highSince >= options.windowMs),
     }
     previous = current
