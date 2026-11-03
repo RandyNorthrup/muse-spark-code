@@ -1549,6 +1549,11 @@
       "id": "RLFFIRSTRUN",
       "public": false,
       "note": "recovery: first-run dead-ends leave flight-recorder facts"
+    },
+    {
+      "id": "RLFUNPROVEN",
+      "public": false,
+      "note": "recovery: the unproven backlog as run-ready real-life scenarios plus the scenario index"
     }
   ]
 }

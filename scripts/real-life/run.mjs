@@ -108,8 +108,13 @@ if (options.isList) {
   for (const scenario of scenarios) {
     const surfaces = ['exec', 'acp'].filter((surface) => scenario[surface] !== undefined)
     const claimed = surfaces.flatMap((surface) => scenario[surface].claims)
+    const budgets = surfaces.map((surface) => {
+      const steps = scenario[surface]
+      const cap = steps.maxUsd === undefined ? '' : `, cap $${steps.maxUsd}`
+      return `${surface} ${String(steps.requests)} req${cap}`
+    })
     console.log(
-      `  ${scenario.id}: ${scenario.title} [${surfaces.join(', ')}] ${claimed.join(', ')}`,
+      `  ${scenario.id}: ${scenario.title} [${surfaces.join(', ')}] ${claimed.join(', ')} (${budgets.join('; ')})`,
     )
   }
   process.exit(0)
@@ -597,6 +602,20 @@ async function runCell(cell, key) {
       'a scenario exceeded its declared request allowance: no further scenario is admitted',
     )
   }
+  // A surface may also name its own dollar cap (settled dollars): the
+  // unproven-backlog scenarios all do. Absent, only the run's stops apply.
+  // A malformed cap fails the cell: a bound nobody can read is no bound.
+  if (steps.maxUsd !== undefined) {
+    const cap = microUsd(steps.maxUsd)
+    see(
+      'it spent no more than its declared dollar cap',
+      !Number.isNaN(cap) && used.micro <= cap,
+      `$${usdText(used.micro)} of at most $${String(steps.maxUsd)}`,
+    )
+    if (Number.isNaN(cap) || used.micro > cap) {
+      budget.end('a scenario exceeded its declared dollar cap: no further scenario is admitted')
+    }
+  }
   // Money the run cannot read is not zero: it is unknown, and the run ends.
   const unread = [...person.made.unread, ...journal.unread]
   if (unread.length > 0) {
@@ -612,6 +631,7 @@ async function runCell(cell, key) {
     route,
     surface,
     claims: steps.claims,
+    ...(steps.maxUsd !== undefined && { maxUsd: steps.maxUsd }),
     outcome: isPassed ? 'passed' : 'failed',
     observed,
     requests: used.requests,
@@ -633,6 +653,7 @@ const notRun = (cell, reason) => ({
   route: cell.route,
   surface: cell.surface,
   claims: cell.steps.claims,
+  ...(cell.steps.maxUsd !== undefined && { maxUsd: cell.steps.maxUsd }),
   outcome: 'notRun',
   observed: [],
   reason: `not run: ${reason}`,
@@ -849,6 +870,7 @@ const resultOf = (cell) => ({
   route: tableRoute(cell.route),
   model: modelText(cell.route),
   surface: cell.surface,
+  ...(cell.maxUsd !== undefined && { maxUsd: cell.maxUsd }),
   outcome: cell.outcome === 'passed' ? 'pass' : 'fail',
   observed: observedText(cell.observed),
   requests: cell.requests,
@@ -872,6 +894,7 @@ const skipped = cells
     model: modelText(cell.route),
     vendor: cell.route.id,
     surface: cell.surface,
+    ...(cell.maxUsd !== undefined && { maxUsd: cell.maxUsd }),
     reason: cell.reason,
   }))
 const record = {

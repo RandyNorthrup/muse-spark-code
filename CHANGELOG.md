@@ -461,6 +461,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- **The unproven backlog is now real-life scenarios.** Every behaviour
+  whose fake test was deleted has a run that proves it: 23 new scenarios
+  grouped by milestone, each naming its deleted titles, its request
+  allowance and its own dollar cap (which the runner now enforces), plus
+  an index mapping the whole backlog to its scenario, manual steps, or
+  hosted receipt. Nothing is marked proven until the lead's run proves
+  it.
 - Three bundle budgets are back to their original caps with the bundles
   fitting by weight and no behavior change. The team runners read their
   schemas from the already-loaded team bundle instead of carrying second
