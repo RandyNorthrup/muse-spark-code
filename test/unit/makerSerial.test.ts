@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { constants, existsSync } from 'node:fs'
 import { open, access, mkdtemp, readFile, writeFile, rm, type FileHandle } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -408,8 +408,43 @@ describe('serial framing and adapters', () => {
   })
 })
 
-/** The rig's relay binary at its fixed system path; CI installs it (build.yml). */
-const SOCAT = process.platform === 'darwin' ? '/opt/homebrew/bin/socat' : '/usr/bin/socat'
+/** The rig's relay binary at its fixed system path; CI installs it (build.yml). Intel Macs' Homebrew is /usr/local. */
+const SOCAT =
+  process.platform === 'darwin'
+    ? (['/opt/homebrew/bin/socat', '/usr/local/bin/socat'].find((file) => existsSync(file)) ?? '')
+    : '/usr/bin/socat'
+
+/**
+What a failed rig case says beyond its assertion. Two hosted macOS runs could not tell a relay
+that had ended from a helper that had (RLF-CIMAC, CC-INT11FIX4): the relay's exit and its own
+log, whether its device is still there, and the raw helper run once more by hand, its exit and
+its stderr, which the product keeps from its logs.
+*/
+function serialRigEvidence(relay: ChildProcess, relayLog: string, device: string): string {
+  const helper = spawnSync(
+    '/usr/bin/python3',
+    [
+      '-I',
+      path.resolve('native/posix/serial.py'),
+      'raw',
+      device,
+      '115200',
+      '200',
+      '128',
+      '32',
+      '20',
+      '0',
+      '0',
+    ],
+    { encoding: 'utf8', input: '', timeout: 3000, env: makerProcessDeps().env },
+  )
+  return [
+    `socat exit ${String(relay.exitCode)} signal ${String(relay.signalCode)}, device ${existsSync(device) ? 'there' : 'gone'}`,
+    `socat log:\n${relayLog.slice(-4000)}`,
+    `raw helper by hand: status ${String(helper.status)} signal ${String(helper.signal)} error ${String(helper.error?.message)}`,
+    `raw helper stderr:\n${helper.stderr.slice(-2000)}`,
+  ].join('\n')
+}
 
 if (process.platform !== 'win32') {
   describe.skipIf(!existsSync(SOCAT))('socat data path on the rig', () => {
@@ -422,9 +457,13 @@ if (process.platform !== 'win32') {
         const right = path.join(directory, 'right')
         const relay = spawn(
           SOCAT,
-          [`PTY,link=${left},raw,echo=0`, `PTY,link=${right},raw,echo=0`],
-          { detached: true, stdio: 'ignore', env: makerProcessDeps().env },
+          ['-d', '-d', `PTY,link=${left},raw,echo=0`, `PTY,link=${right},raw,echo=0`],
+          { detached: true, stdio: ['ignore', 'ignore', 'pipe'], env: makerProcessDeps().env },
         )
+        let relayLog = ''
+        relay.stderr.on('data', (chunk: Buffer) => {
+          relayLog += chunk.toString('utf8')
+        })
         const relayEnded = new Promise<void>((resolve) =>
           relay.once('close', () => {
             resolve()
@@ -527,6 +566,11 @@ if (process.platform !== 'win32') {
             const capture = await session.result
             expect(capture.bytes).toEqual(inbound)
             expect(isProcessGone(session.pid)).toBe(true)
+          } catch (error: unknown) {
+            const told = error instanceof Error ? error.message : String(error)
+            throw new Error(`${told}\n${serialRigEvidence(relay, relayLog, left)}`, {
+              cause: error,
+            })
           } finally {
             await peer.close()
             await held.close()
