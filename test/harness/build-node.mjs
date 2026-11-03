@@ -56,6 +56,9 @@ function packageLicence(input) {
   throw new Error(`missing package manifest: ${input}`)
 }
 
+/** What globalSetup provides: the folder, relative to the repository, of a suite's own build. */
+export const NODE_WORKSPACE_KEY = 'nodeWorkspace'
+
 export async function buildNodeWorkspace(output = 'dist/webview/node', dependencyRoot) {
   // Resolve the approved pins from the requested install, rather than allowing
   // an unrelated shared install to override the isolated dependency graph.
