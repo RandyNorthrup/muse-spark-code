@@ -37,10 +37,10 @@ export function vaultFenceEnvironment<T extends NodeJS.ProcessEnv>(
   for (const [name, value] of Object.entries(source)) {
     const upper = name.toUpperCase()
     if (
-      // D262: a Claude plan route never passes, a listed name or Muse Code's child included.
-      isClaudePlanVariable(upper) ||
       upper === 'SSH_AUTH_SOCK' ||
       upper === 'SSH_AGENT_PID' ||
+      // D262: a Claude plan route never passes, a listed name or Muse Code's child included.
+      isClaudePlanVariable(upper) ||
       upper.startsWith('GIT_CONFIG_') ||
       [
         'GIT_ASKPASS',
