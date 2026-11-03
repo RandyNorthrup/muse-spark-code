@@ -11,11 +11,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as acp from '@agentclientprotocol/sdk/unstable'
 import { afterEach, describe, expect, it } from 'vitest'
-import { createAcpAgent } from '../../src/acp/agent'
 import { stderrLogger } from '../../src/runtime/stderrLog'
-import { acpLocalAgentDeps } from './helpers/acpLocalAgentDeps'
-import { modelApiRig } from './helpers/conversationPanel'
-import { createEditorChatServices, writeEditorChatProvidersFile } from './helpers/editorChatRig'
+import { createLocalAcpAgent } from './helpers/acpLocalAgentDeps'
 
 const log = stderrLogger(() => undefined, 'warn')
 // The protocol's own code for a session the agent does not hold.
@@ -29,34 +26,7 @@ afterEach(() => {
 function agentOverModelApi() {
   const folder = mkdtempSync(path.join(tmpdir(), 'acp-registry-'))
   folders.push(folder)
-  const { configFile, catalogFile } = writeEditorChatProvidersFile(folder)
-  const { models } = createEditorChatServices(configFile, catalogFile).client
-  const rig = modelApiRig(folder, undefined, undefined, {
-    ...(models !== undefined && { models }),
-  })
-  const agent = createAcpAgent({
-    backend: {
-      kind: 'modelApi',
-      readiness: () => Promise.resolve({ state: 'ready' }),
-      hostFor: () => Promise.resolve(rig.host),
-    },
-    version: '0.19.0',
-    // A provider run starts on the model it names: the rig's local provider.
-    options: {
-      canBypass: false,
-      allowsContributorModels: false,
-      initialMode: 'manual',
-      initialModelId: 'probe-custom/custom-model',
-    },
-    signIn: {
-      id: 'auth-set',
-      name: 'Model API key',
-      description: 'Model API key',
-      args: [],
-      command: 'muse-spark-code-acp auth set',
-    },
-    ...acpLocalAgentDeps(folder, log),
-  })
+  const { agent, rig } = createLocalAcpAgent(folder, log)
   return { agent, folder, rig }
 }
 

@@ -346,6 +346,7 @@ export function parseExec(
       .map((key) => `--${key}`)
       .join(', ')
   const modelApiOnly = given([
+    'team',
     'max-budget-usd',
     'max-requests',
     'max-tool-output-bytes',

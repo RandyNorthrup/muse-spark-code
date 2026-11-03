@@ -3141,6 +3141,26 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       for (const task of open) await stop(task)
       return open.length
     },
+    stopSessionTasks: async (sessionId) => {
+      // Running and queued work stops, and so does a finished task that is
+      // still waiting to merge or still holds its copy. Leaving that copy
+      // would let a late Merge answer land after the session had ended.
+      // A merge already applying is left to finish. Merged and discarded
+      // tasks are already settled.
+      const open = allTasks().filter((task) => {
+        if (task.sessionId !== sessionId || task.phase === 'merged' || task.phase === 'discarded')
+          return false
+        if (isActive(task.phase) || task.phase === 'queued') return true
+        const hasOpenWork =
+          task.awaiting !== undefined ||
+          task.mergePhase === 'reviewing' ||
+          task.mergePhase === 'awaiting-decision' ||
+          hasCopy(task)
+        return SETTLED_PHASES.has(task.phase) && task.mergePhase !== 'merging' && hasOpenWork
+      })
+      for (const task of open) await stop(task)
+      return open.length
+    },
     answerWaiting: async (waitingId, choice) => {
       const resolve = waiting.get(waitingId)
       if (resolve === undefined) throw new Error(UI_TEXT.teamWaitingUnknown)
@@ -3182,6 +3202,14 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       const outcome = known(taskId).outcome
       if (outcome?.head === undefined) throw new Error(UI_TEXT.teamTaskNoDiff)
       return await deps.merges.diff(outcome)
+    },
+    taskReport: (taskId) => tasks.get(taskId)?.outcome?.report,
+    taskSession: (taskId) => tasks.get(taskId)?.sessionId,
+    taskDiffFiles: async (taskId) => {
+      const outcome = known(taskId).outcome
+      if (outcome?.head === undefined || deps.merges.diffFiles === undefined)
+        throw new Error(UI_TEXT.teamTaskNoDiff)
+      return await deps.merges.diffFiles(outcome)
     },
     resetEntry: async (entryId) => {
       if (saveFailure !== undefined) throw saveFailure

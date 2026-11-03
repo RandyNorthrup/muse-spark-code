@@ -1,3 +1,5 @@
+import type { AcpTeamPort } from '../acp/teamPort'
+import type { TeamHostSeams } from '../core/team/teamHostService'
 import type { SourceReadContext } from '../core/reporting/sources/types'
 import { legalScanLoader } from '../host/ide/legalScanBundle'
 import { failureForLog } from '../core/backends/musecode/logText'
@@ -804,10 +806,12 @@ async function runtimeFor(
   accounts?: RuntimeAccountServices,
   unsavedFiles?: () => readonly string[],
   maker?: AcpMakerRuntime,
+  teamFor?: (cwd: string) => TeamHostSeams | undefined,
 ) {
   const engine = await import('./runtimeEngineEntry')
   engine.setUiText(UI_TEXT, uiLocale())
   return engine.createRuntimeBackend({
+    ...(teamFor !== undefined && { teamFor }),
     hostKind: questions === undefined ? 'cli' : 'acp',
     ...(maker !== undefined && { makerTools: (cwd: string) => maker.toolsFor(cwd) }),
     options,
@@ -1541,6 +1545,40 @@ async function serve(
     const loadWatchdog = watchdogLoader(path.join(distDir, WATCHDOG_BUNDLE_FILE), log)
     const registries: { flush(): Promise<void>; dispose(): void }[] = []
     const accountServices = options.backend === 'modelApi' ? loadAccounts() : undefined
+    // RLF-ACPTEAM (M96b): the team in this agent's sessions, only under
+    // `--team` (dist/acpTeam.js on this first use). Its worker starter
+    // and paid gate read the runtime this serve is about to build, the
+    // same late binding headless teams use.
+    const teamRuntime: { current?: Awaited<ReturnType<typeof runtimeFor>> } = {}
+    let teamPort: AcpTeamPort | undefined
+    if (options.team === true) {
+      const teamEntry = await import('../acp/acpTeamEntry')
+      teamEntry.setUiText(UI_TEXT, uiLocale())
+      teamPort = teamEntry.createAcpTeam(
+        {
+          dataFolder: agentDataFolder({
+            platform: process.platform,
+            env: process.env,
+            homeDir: homedir(),
+          }),
+          platform: process.platform,
+          log,
+          backendKind: options.backend,
+          isTrusted: () => options.trustWorkspace,
+          listWorkerModels: async (cwd) => {
+            if (teamRuntime.current === undefined) throw new Error(UI_TEXT.teamBudgetUnavailable)
+            return await teamRuntime.current.listTeamWorkerModels(cwd)
+          },
+          startWorker: async (cwd, input) => {
+            if (teamRuntime.current === undefined) throw new Error(UI_TEXT.teamBudgetUnavailable)
+            return await teamRuntime.current.startTeamWorker(cwd, input)
+          },
+          paid: () => teamRuntime.current?.paid,
+        },
+        UI_TEXT,
+        uiLocale(),
+      )
+    }
     const runtime = await runtimeFor(
       options,
       log,
@@ -1550,7 +1588,9 @@ async function serve(
       accountServices,
       undefined,
       maker,
+      teamPort === undefined ? undefined : (folder) => teamPort.seamsFor(folder),
     )
+    teamRuntime.current = runtime
     const isUsageHistoryOn = options.usageHistory ?? true
     // H–C1: the process's one governor records the agent's samples and launches.
     const resources = processResources.configure({ isRecordingHistory: () => isUsageHistoryOn })
@@ -1642,6 +1682,7 @@ async function serve(
               ),
             ),
         }),
+      ...(teamPort !== undefined && { team: teamPort }),
       accounting: createAcpAccounting({
         recording,
         runtime,
@@ -1949,9 +1990,13 @@ async function serve(
               resources.dispose()
             } finally {
               try {
-                await runtime.close()
+                await teamPort?.dispose()
               } finally {
-                await journal.shutdown()
+                try {
+                  await runtime.close()
+                } finally {
+                  await journal.shutdown()
+                }
               }
             }
           }
