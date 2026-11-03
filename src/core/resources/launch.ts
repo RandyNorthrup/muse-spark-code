@@ -288,6 +288,14 @@ export interface ResourceWindowsJob {
   readonly executablePath: string
   /** Throws ResourceHelperChangedError when the sealed launcher bytes changed. */
   readonly verify: () => Promise<void>
+  /**
+  Narrower caps for the jobs it starts. As ResourceLaunchHost's forkCaps: production
+  leaves this unset and enforces the shared constants; narrowed only to prove the
+  mechanism fires on a machine that cannot start processes fast enough to reach them
+  (tests, drills).
+  */
+  readonly forkCaps?:
+    { readonly activeProcessLimit?: number; readonly spawnLimit?: number } | undefined
 }
 /** One attested tree's final usage; usage null when the record never arrived. */
 export interface ResourceSettlement {

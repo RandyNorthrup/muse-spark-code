@@ -9,7 +9,16 @@ import { chmod, mkdir, mkdtemp, realpath, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+} from 'vitest'
 import { configureResources, loadResourceWindow } from '../../src/core/resources/admission'
 import { ResourceEvents } from '../../src/core/resources/events'
 import { isErrno } from '../../src/core/fs/errno'
@@ -451,22 +460,34 @@ describe.runIf(canBindTrees())('fork protection on bound trees', () => {
   })
 })
 
+// More births than the narrowed bound by far: the flood can only end by being stopped.
+const FLOOD_SPAWN_LIMIT = 100
+const FLOOD_BIRTHS = 5000
+// More children than the narrowed cap, alive together: ping sleeps through the run.
+const CAP_PROCESS_LIMIT = 32
+const CAP_CHILDREN = 64
+
 describe.runIf(process.platform === 'win32')('fork protection on the attested job', () => {
   let base = ''
   let folder = ''
   let disposeResources: (() => void) | undefined
+  const narrowed: { forkCaps?: { activeProcessLimit?: number; spawnLimit?: number } } = {}
 
   beforeAll(async () => {
     base = await mkdtemp(path.join(tmpdir(), 'gfp-'))
     // The job helpers compile on first use, as CI builds them; one build
     // serves every test in this file.
+    const jobs = runtimeWindowsJob(
+      await mkdtemp(path.join(tmpdir(), 'gfp-jobs-')),
+      path.resolve('.'),
+    )
     disposeResources = configureResources({
       inspect: () => ({}),
       onError: () => undefined,
-      windowsJob: runtimeWindowsJob(
-        await mkdtemp(path.join(tmpdir(), 'gfp-jobs-')),
-        path.resolve('.'),
-      ),
+      windowsJob: async () => {
+        const job = await jobs()
+        return job === undefined ? undefined : { ...job, forkCaps: narrowed.forkCaps }
+      },
     })
     if ((await loadResourceWindow()) === undefined)
       throw new Error('the Windows job helpers did not build')
@@ -525,10 +546,18 @@ describe.runIf(process.platform === 'win32')('fork protection on the attested jo
     expect(existsSync(marker)).toBe(true)
   })
 
-  // 513 real Windows spawns plus the attested settle are genuinely long.
-  it('refuses children past 512 while the job survives', { timeout: 30_000 }, async () => {
+  // The count narrows here too: a Windows runner starts about 30 processes a second
+  // (run 41516831678: 200 in 6.9 s; 13.4 s on this PC), so 513 of them plus the settle
+  // pass 30 s on a busy machine. The refusal is the kernel's own at any count.
+  it('refuses children past its process cap while the job survives', async () => {
+    narrowed.forkCaps = { activeProcessLimit: CAP_PROCESS_LIMIT }
+    onTestFinished(() => {
+      Reflect.deleteProperty(narrowed, 'forkCaps')
+    })
     const systemRoot = process.env['SystemRoot'] ?? String.raw`C:\Windows`
-    const sleeper = path.join(systemRoot, 'System32', 'timeout.exe')
+    // ping's one echo a second is the sleep: timeout.exe refuses a stdin that is no
+    // console and exits at once, so its children never added up to the cap.
+    const sleeper = path.join(systemRoot, 'System32', 'PING.EXE')
     const marker = path.join(folder, 'marker.txt')
     const entry = path.join(folder, 'flood.mjs')
     await writeFile(
@@ -536,14 +565,17 @@ describe.runIf(process.platform === 'win32')('fork protection on the attested jo
       'import { spawn } from "node:child_process"\n' +
         'import { writeFileSync } from "node:fs"\n' +
         'const sleeper = process.argv[2]\n' +
-        'const total = Number(process.argv[3] ?? "513")\n' +
+        'const total = Number(process.argv[3])\n' +
         'let started = 0\n' +
         'let refused = 0\n' +
         'async function one() {\n' +
         '  await new Promise((resolve) => {\n' +
-        '    const child = spawn(sleeper, ["/t", "12", "/nobreak"], { stdio: "ignore" })\n' +
-        '    child.once("error", () => { refused += 1; resolve() })\n' +
-        '    child.once("spawn", () => { started += 1; resolve() })\n' +
+        // The job's refusal is ENOMEM, which Node throws from spawn instead of emitting.
+        '    try {\n' +
+        '      const child = spawn(sleeper, ["-n", "31", "127.0.0.1"], { stdio: "ignore" })\n' +
+        '      child.once("error", () => { refused += 1; resolve() })\n' +
+        '      child.once("spawn", () => { started += 1; resolve() })\n' +
+        '    } catch { refused += 1; resolve() }\n' +
         '  })\n' +
         '}\n' +
         'const workers = []\n' +
@@ -554,14 +586,22 @@ describe.runIf(process.platform === 'win32')('fork protection on the attested jo
         '}\n' +
         'await Promise.all(workers)\n' +
         'await new Promise((resolve) => { setTimeout(resolve, 3000) })\n' +
-        `writeFileSync(${JSON.stringify(marker)}, \`started=\${started} refused=\${refused}\\n\`)\n`,
+        `writeFileSync(${JSON.stringify(marker)}, \`started=\${started} refused=\${refused}\\n\`)\n` +
+        // Its live children would hold this process for their whole sleep; the job
+        // ends them with its root.
+        'process.exit(0)\n',
     )
     let failure: unknown
     try {
-      await execResourceFile('contained', process.execPath, [entry, sleeper, '513'], {
-        cwd: folder,
-        encoding: 'utf8',
-      })
+      await execResourceFile(
+        'contained',
+        process.execPath,
+        [entry, sleeper, String(CAP_CHILDREN)],
+        {
+          cwd: folder,
+          encoding: 'utf8',
+        },
+      )
     } catch (error: unknown) {
       failure = error
     }
@@ -572,8 +612,16 @@ describe.runIf(process.platform === 'win32')('fork protection on the attested jo
     expect(existsSync(marker)).toBe(true)
   })
 
-  // 25,000 real Windows spawns are a genuinely long flood to run.
-  it('ends a spawn flood past 16,384 births in 15 s', { timeout: 60_000 }, async () => {
+  // The rate narrows here, as the POSIX case's does: 16,384 births in 15 s is 1,092 a
+  // second, which neither a hosted Windows runner nor a workstation starts (run
+  // 41516831678 and this PC: past 60 s with the flood still running). The bound a
+  // machine this size can reach is one it is given, and the whole road is real: the
+  // helper, the kernel's count, the flood and the typed stop.
+  it('ends a spawn flood past its rate bound', async () => {
+    narrowed.forkCaps = { spawnLimit: FLOOD_SPAWN_LIMIT }
+    onTestFinished(() => {
+      Reflect.deleteProperty(narrowed, 'forkCaps')
+    })
     const systemRoot = process.env['SystemRoot'] ?? String.raw`C:\Windows`
     const helper = path.join(systemRoot, 'System32', 'hostname.exe')
     const marker = path.join(folder, 'marker.txt')
@@ -583,7 +631,7 @@ describe.runIf(process.platform === 'win32')('fork protection on the attested jo
       'import { spawn } from "node:child_process"\n' +
         'import { writeFileSync } from "node:fs"\n' +
         'const helper = process.argv[2]\n' +
-        'const total = Number(process.argv[3] ?? "25000")\n' +
+        'const total = Number(process.argv[3])\n' +
         'let done = 0\n' +
         'async function one() {\n' +
         '  await new Promise((resolve) => {\n' +
@@ -603,7 +651,7 @@ describe.runIf(process.platform === 'win32')('fork protection on the attested jo
     )
     let failure: unknown
     try {
-      await execResourceFile('contained', process.execPath, [entry, helper, '25000'], {
+      await execResourceFile('contained', process.execPath, [entry, helper, String(FLOOD_BIRTHS)], {
         cwd: folder,
         encoding: 'utf8',
       })
