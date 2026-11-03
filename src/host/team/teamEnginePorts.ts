@@ -76,6 +76,8 @@ export interface EngineTeamPortsDeps {
   readonly isTrusted: () => boolean
   /** The engine's model list: the declared setup probe reads it. */
   readonly rates?: TeamWorkerPort['rates']
+  /** D261: the service each provider record was added from. */
+  readonly providerService?: TeamWorkerPort['providerService']
   readonly listModels: () => Promise<readonly string[]>
   /**
   The entry model's current capability record for pre-dispatch
@@ -418,6 +420,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
 
   const workers: TeamWorkerPort = {
     ...(deps.rates !== undefined && { rates: deps.rates }),
+    ...(deps.providerService !== undefined && { providerService: deps.providerService }),
     canRun: (agent) => agent.kind === 'engine',
     probe: async (agent) => {
       const listed = await deps.listModels()

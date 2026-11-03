@@ -619,10 +619,10 @@ export function featureCatalog(): readonly Feature[] {
     ),
     feature(
       'refusal-fallback',
-      { setting: 'teamRefusalFallback' },
-      { setting: 'teamRefusalFallback' },
+      { setting: 'refusalFallback' },
+      { setting: 'refusalFallback' },
       [],
-      ['teamRefusalFallback'],
+      ['refusalFallback'],
       'team-configuration',
       ['modelApi', 'museCode'],
     ),

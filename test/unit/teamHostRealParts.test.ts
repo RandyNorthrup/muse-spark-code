@@ -29,6 +29,7 @@ import type {
 } from '../../src/core/team/teamHostService'
 import { TEAM_TASKS_STATE_KEY } from '../../src/core/team/teamTaskState'
 import { TEAM_HANDOFF_MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 import {
   commitTaskBranch,
   publishTaskRef,
@@ -105,6 +106,8 @@ interface RealRig {
   readonly plans: Map<string, WorkPlan>
   readonly runs: WorkerRun[]
   trusted: boolean
+  /** D261's toggle, read live by the host. */
+  refusalFallback: boolean
   dispose(): Promise<void>
 }
 
@@ -242,6 +245,8 @@ async function makeRig(
     readonly onStateUpdate?: (rig: RealRig, key: string, value: unknown) => void
     readonly team?: TeamSnapshot
     readonly refusalFallback?: boolean
+    /** D261: the service each provider record was added from. */
+    readonly providerService?: (record: string) => string | undefined
   } = {},
 ): Promise<RealRig> {
   // Resolved: the team copy must be inside canonical storage, and macOS's /var is a link.
@@ -265,6 +270,7 @@ async function makeRig(
     plans,
     runs,
     trusted: true,
+    refusalFallback: options.refusalFallback === true,
     dispose: async () => {
       await rig.service.dispose()
       await rm(root, { recursive: true, force: true })
@@ -285,8 +291,11 @@ async function makeRig(
   })
   const deps: TeamHostServiceDeps = {
     ...real,
-    settings: { ...real.settings, isRefusalFallbackOn: () => options.refusalFallback === true },
-    workers: processWorkers({ repo, storage, plans, started, runs }),
+    settings: { ...real.settings, isRefusalFallbackOn: () => rig.refusalFallback },
+    workers: {
+      ...processWorkers({ repo, storage, plans, started, runs }),
+      providerService: options.providerService,
+    },
     merges: engine.merges,
     paid: { allowKeyTasks: () => Promise.reject(tripwireError('paid.allowKeyTasks')) },
   }
@@ -403,8 +412,8 @@ describe('final admission (real host, real scheduler, real processes)', () => {
   }, 60_000)
 })
 
-/** D261: one engine entry of the refusal role, on its own model. */
-function refusalEntry(id: string) {
+/** D261: one engine entry of the refusal role, on its own model (`<record>/` names its provider). */
+function refusalEntry(id: string, record?: string) {
   return {
     id,
     concurrent: 1,
@@ -412,24 +421,39 @@ function refusalEntry(id: string) {
     agent: {
       kind: 'engine' as const,
       agentId: `agent-${id}`,
-      model: `model-${id}`,
+      model: record === undefined ? `model-${id}` : `${record}/model-${id}`,
       pays: 'local' as const,
     },
   }
 }
 
 /** D261: one engineering role whose list is r1, r2, r3, each on its own model. */
-function refusalTeam(): TeamSnapshot {
+function refusalTeam(records: readonly (string | undefined)[] = []): TeamSnapshot {
   return {
     roles: [
       {
         role: 'engineering',
         workspace: 'own-branch',
-        pool: [refusalEntry('r1'), refusalEntry('r2'), refusalEntry('r3')],
+        pool: ['r1', 'r2', 'r3'].map((id, index) => refusalEntry(id, records[index])),
       },
     ],
     intensity: 'balanced',
   }
+}
+
+/** D261: a solo chat on `modelId` hands its refused turn ("fix the chat bug") to the team's move. */
+function takeOver(rig: RealRig, modelId: string) {
+  const takeOverRefused = rig.service.teamRunner.takeOverRefused
+  if (takeOverRefused === undefined) throw new Error('the host offers no chat takeover')
+  return takeOverRefused(
+    {
+      modelId,
+      refusal: "I can't help with that.",
+      request: 'fix the chat bug',
+      work: ['read: {"path":"a.ts"}'],
+    },
+    toolContext(modelId),
+  )
 }
 
 function claimedInputByEntry(rig: RealRig, taskId: string): Record<string, number> {
@@ -486,6 +510,68 @@ describe('a refused task moves down its role (D261, real host, real scheduler)',
     expect(rig.runs.map((run) => run.entryId)).toEqual(['r1'])
     expect(rig.cards.some((card) => card.kind === 'teamSwitch')).toBe(false)
     expect(storedTask(rig, taskId)?.outcome?.report.summary).toBe("r1: I can't help with that.")
+  }, 60_000)
+})
+
+describe('a refused solo chat turn moves down the main role of its agent (D261, real host)', () => {
+  it('stands while off or with no role, then the next agent answers from the handoff', async () => {
+    const rig = await makeRig({ team: refusalTeam() })
+    rig.plans.set('fix the chat bug', { files: { 'chat.ts': 'export const fixed = true\n' } })
+    // Off: the refusal stands, as before; nothing runs.
+    expect(await takeOver(rig, 'model-r1')).toEqual({ kind: 'stands' })
+    rig.refusalFallback = true
+    // No role holds the chat's agent: the refusal stands.
+    expect(await takeOver(rig, 'model-x')).toEqual({ kind: 'stands' })
+    expect(rig.runs).toEqual([])
+    const answer = await takeOver(rig, 'model-r1')
+    // The chat's own agent never runs again; the next in its main role does.
+    expect(rig.runs.map((run) => run.entryId)).toEqual(['r2'])
+    const brief = rig.runs[0]?.brief ?? ''
+    expect(brief.startsWith(TEAM_HANDOFF_MODEL_TEXT.handoff)).toBe(true)
+    expect(brief).toContain(
+      `${TEAM_HANDOFF_MODEL_TEXT.handoffDataOpen}I can't help with that.\nread: {"path":"a.ts"}${TEAM_HANDOFF_MODEL_TEXT.handoffDataClose}`,
+    )
+    expect(brief.endsWith('\nfix the chat bug')).toBe(true)
+    if (answer.kind !== 'answered') throw new Error(`no takeover: ${JSON.stringify(answer)}`)
+    expect(answer.model).toBe('model-r2')
+    expect(answer.text).toBe(storedTask(rig, answer.taskId)?.outcome?.report.summary)
+    // The team path's own words name who refused and who took over.
+    expect(rig.cards.find((card) => card.kind === 'teamSwitch')?.teamSwitch).toEqual({
+      roleId: 'engineering',
+      fromEntry: 'r1',
+      toEntry: 'r2',
+      reason: UI_TEXT.teamSwitchReasonRefused,
+    })
+    // Real git and a real worker process exceed the 5 s default on this rig class.
+  }, 60_000)
+
+  it('never moves to another account of the refusing provider, and says so', async () => {
+    const services: Record<string, string> = { acme: 'acme', 'acme-two': 'acme' }
+    const rig = await makeRig({
+      team: refusalTeam(['acme', 'acme-two', undefined]),
+      refusalFallback: true,
+      providerService: (record) => services[record],
+    })
+    rig.plans.set('fix the chat bug', { files: { 'chat.ts': 'export const fixed = true\n' } })
+    const answer = await takeOver(rig, 'acme/model-r1')
+    // r2 runs on the same provider under another account: passed over for r3.
+    expect(rig.runs.map((run) => run.entryId)).toEqual(['r3'])
+    expect(answer).toMatchObject({ kind: 'answered', model: 'model-r3' })
+    // With no other provider left, the refusal stands and the sentence says why.
+    const lone = await makeRig({
+      team: refusalTeam(['acme', 'acme-two', 'acme-two']),
+      refusalFallback: true,
+      providerService: (record) => services[record],
+    })
+    expect(await takeOver(lone, 'acme/model-r1')).toEqual({
+      kind: 'declined',
+      text: fill(UI_TEXT.refusalOtherAccountSkipped, {
+        from: 'acme/model-r1',
+        models: 'acme-two/model-r2, acme-two/model-r3',
+      }),
+    })
+    expect(lone.runs).toEqual([])
+    // Real git and a real worker process exceed the 5 s default on this rig class.
   }, 60_000)
 })
 
