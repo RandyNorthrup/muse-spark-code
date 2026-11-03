@@ -1554,6 +1554,12 @@
       "id": "RLFUNPROVEN",
       "public": false,
       "note": "recovery: the unproven backlog as run-ready real-life scenarios plus the scenario index"
+    },
+    {
+      "id": "RSCHPERF",
+      "title": "Faster agent startup, measured against the alternatives",
+      "summary": "The terminal agent starts without loading the Model API engine, and a performance survey records measured startup, memory, token and disk figures beside six rival CLIs.",
+      "area": "platform"
     }
   ]
 }

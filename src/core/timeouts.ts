@@ -201,3 +201,30 @@ export async function unlessAborted<T>(
     signal.removeEventListener('abort', onAbort)
   }
 }
+
+/**
+Production `TransportDeps.sleep` (lane PR225FIX2): a real timer cleared
+the moment `signal` aborts, so a retry wait a Stop abandons leaves no
+timer behind (deliberately still referenced while it runs: an unaborted
+wait holds the process exactly as before, only an abandoned one is
+gone). Resolves early on abort; the caller observes the abort itself
+(`pause`'s race rejects with the turn's cancellation, registered before
+this listener).
+*/
+export function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise<void>((done) => {
+    if (signal?.aborted === true) {
+      done()
+      return
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort)
+      done()
+    }, ms)
+    const onAbort = () => {
+      clearTimeout(timer)
+      done()
+    }
+    signal?.addEventListener('abort', onAbort, { once: true })
+  })
+}

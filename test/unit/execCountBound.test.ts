@@ -5,7 +5,7 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import { inputBoundInfoLine } from '../../src/runtime/exec/inputBoundLine'
 import { countFailureDetail } from '../../src/runtime/runtimeAccountingEntry'
-import { ModelApiError } from '../../src/core/backends/modelapi/transport'
+import { ModelApiError } from '../../src/core/backends/modelapi/modelApiError'
 import { createRunLedger } from '../../src/runtime/exec/runLedger'
 import { Usd } from '../../src/shared/usd'
 import { EN } from '../../src/shared/l10n/en'
