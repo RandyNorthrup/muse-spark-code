@@ -135,16 +135,7 @@ class JetBrainsPanelHost(
     NativeTheme.install(project, lifetime) {
       if (!disposed) {
         panels.values.forEach(EmbeddedPanel::updateTheme)
-        owner.notify(
-          "window/didChangeTheme",
-          json(
-            "theme" to
-              json(
-                "kind" to if (NativeTheme.dark()) "dark" else "light",
-                "tokens" to NativeTheme.tokens,
-              ),
-          ),
-        )
+        owner.notify("window/didChangeTheme", json("theme" to NativeTheme.theme))
       }
     }
     owner =

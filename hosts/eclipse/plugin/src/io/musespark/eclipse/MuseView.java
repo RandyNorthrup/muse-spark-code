@@ -148,6 +148,11 @@ public final class MuseView extends ViewPart {
         loaded = false;
         if (!browser.setUrl(page.toUri().toASCIIString())) throw new IOException("MHP_PAGE_FAILURE");
     }
+    /** Reads one fact from the loaded page; the conformance suite looks at what the person sees. */
+    public Object evaluate(String script) {
+        if (browser == null || browser.isDisposed()) throw new IllegalStateException("MHP_PANEL_NOT_READY");
+        return browser.evaluate(script);
+    }
     public void deliverPayload(JsonElement payload) {
         if (browser.isDisposed() || !browser.execute("window.__museDeliver(" + Assets.scriptSafe(payload.toString()) + ");")) throw new IllegalStateException("MHP_PANEL_NOT_READY");
     }

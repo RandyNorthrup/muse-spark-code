@@ -10,11 +10,11 @@
         "backend": "musecode",
         "scenario": "diff-hunks",
         "observations": {
+          "text": "l1c\nl2\nl3\n",
           "hunks": {
-            "two": "reject",
-            "one": "accept"
-          },
-          "text": "l1c\nl2\nl3\n"
+            "one": "accept",
+            "two": "reject"
+          }
         },
         "skipped": false
       },
@@ -38,8 +38,8 @@
         "backend": "musecode",
         "scenario": "panel-order",
         "observations": {
-          "refusals": ["MHP_PANEL_OUT_OF_ORDER", "MHP_PANEL_OUT_OF_ORDER"],
-          "deliveredSequences": [1, 2]
+          "deliveredSequences": [1, 2],
+          "refusals": ["MHP_PANEL_OUT_OF_ORDER", "MHP_PANEL_OUT_OF_ORDER"]
         },
         "skipped": false
       },
@@ -47,11 +47,11 @@
         "backend": "modelapi",
         "scenario": "diff-hunks",
         "observations": {
+          "text": "l1c\nl2\nl3\n",
           "hunks": {
-            "two": "reject",
-            "one": "accept"
-          },
-          "text": "l1c\nl2\nl3\n"
+            "one": "accept",
+            "two": "reject"
+          }
         },
         "skipped": false
       },
@@ -67,8 +67,8 @@
         "backend": "modelapi",
         "scenario": "checkpoint",
         "observations": {
-          "text": "original",
-          "checkpoints": 1
+          "checkpoints": 1,
+          "text": "original"
         },
         "skipped": false
       },
@@ -84,8 +84,8 @@
         "backend": "modelapi",
         "scenario": "panel-order",
         "observations": {
-          "refusals": ["MHP_PANEL_OUT_OF_ORDER", "MHP_PANEL_OUT_OF_ORDER"],
-          "deliveredSequences": [1, 2]
+          "deliveredSequences": [1, 2],
+          "refusals": ["MHP_PANEL_OUT_OF_ORDER", "MHP_PANEL_OUT_OF_ORDER"]
         },
         "skipped": false
       }
@@ -163,7 +163,7 @@
     }
   ],
   "provenance": {
-    "observedAt": "2026-11-02T13:39:14.833Z",
+    "observedAt": "2026-11-03T01:43:43.441Z",
     "observedOn": "randy-lt (linux)",
     "command": "node test/hostApi/run.mjs eclipse"
   }

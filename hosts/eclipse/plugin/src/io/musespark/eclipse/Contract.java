@@ -55,6 +55,8 @@ public final class Contract {
         int index = direction.equals("toHost") ? 0 : 1;
         JsonElement union = envelope.getAsJsonArray("oneOf").get(index).getAsJsonObject().getAsJsonObject("properties").get("payload");
         JsonArray choices = union.getAsJsonObject().getAsJsonArray("anyOf");
+        // The theme frame (MHP 1.6) is the last toPanel group and reaches every surface kind.
+        if (direction.equals("toPanel") && value.isJsonObject() && value.getAsJsonObject().has("type") && value.getAsJsonObject().get("type").isJsonPrimitive() && value.getAsJsonObject().get("type").getAsJsonPrimitive().isString() && value.getAsJsonObject().get("type").getAsString().equals("theme")) { validate(choices.get(choices.size() - 1), value); return; }
         int branch = kind.equals("tasks") ? 1 : kind.equals("whatsNew") ? 2 : 0;
         if (branch >= choices.size()) throw new IllegalArgumentException("MHP_PANEL_INVALID_PAYLOAD");
         validate(choices.get(branch), value);

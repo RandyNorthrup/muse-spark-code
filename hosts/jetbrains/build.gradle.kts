@@ -84,6 +84,7 @@ val sharedResources by tasks.registering(Sync::class) {
   dependsOn(renderPages)
   from(repositoryRoot.resolve("src/shared/hostApi/mhp-v1.1.schema.json")) { into("mhp") }
   from(repositoryRoot.resolve("src/shared/hostApi/mhp-v1.1.lock.json")) { into("mhp") }
+  from(repositoryRoot.resolve("design/tokens/generated/consumers.json")) { into("theme") }
   from(repositoryRoot.resolve("dist/webview")) {
     into("webview")
     include("*.css", "portable/**")
@@ -118,6 +119,9 @@ tasks.test {
   val nativeUi = providers.gradleProperty("nativeUi").map(String::toBooleanStrict).getOrElse(false)
   systemProperty("java.awt.headless", (!nativeUi).toString())
   systemProperty("muse.nativeUi", nativeUi.toString())
+  // Ubuntu's AppArmor userns restriction otherwise kills cef_server (exit 133);
+  // this is IntelliJ's own registry switch for that machine state, tests only.
+  if (nativeUi) systemProperty("ide.browser.jcef.sandbox.enable", "false")
   testLogging { events("passed", "failed", "skipped") }
 }
 tasks.named<VerifyPluginTask>("verifyPlugin") {
