@@ -27,8 +27,8 @@ function request(): ApprovalRequest {
     payload: 'payload',
   }
 }
-type PresenceResult = 'approved' | 'denied' | 'unavailable'
 function presencePort() {
+  type PresenceResult = 'approved' | 'denied' | 'unavailable'
   const port = {
     calls: [] as UserPresenceRequest[],
     once: [] as Promise<PresenceResult>[],

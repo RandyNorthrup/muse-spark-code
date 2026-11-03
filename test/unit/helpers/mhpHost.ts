@@ -75,7 +75,10 @@ export function connectMhpHost(input: Writable, output: Readable): MhpWire {
       if (id !== undefined && method === undefined && answer !== undefined) {
         waiting.delete(id)
         answer(frame)
-      } else if (id !== undefined && method !== undefined) {
+      } else if (id === undefined || method === undefined) {
+        if (method !== undefined) asked.push({ method, params: frame['params'] })
+        deliver(frame)
+      } else {
         // The runtime asks the host for a service.
         asked.push({ method, params: frame['params'] })
         const service = services.get(method)
@@ -89,9 +92,6 @@ export function connectMhpHost(input: Writable, output: Readable): MhpWire {
           void Promise.resolve(service(frame['params'])).then((result) => {
             send({ jsonrpc: MHP.jsonRpcVersion, id: frame['id'], result })
           })
-      } else {
-        if (method !== undefined) asked.push({ method, params: frame['params'] })
-        deliver(frame)
       }
     }
   })

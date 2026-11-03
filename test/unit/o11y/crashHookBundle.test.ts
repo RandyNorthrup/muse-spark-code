@@ -114,7 +114,7 @@ describe('node crash hook bundle', () => {
   it('writes the word to stderr without a print port', () => {
     const empty = mkdtempSync(path.join(tmpdir(), 'muse-crash-hook-stderr-'))
     const writes: string[] = []
-    const stderr = process.stderr.write
+    const savedStderr = { write: process.stderr.write }
     process.stderr.write = (chunk: unknown): boolean => {
       writes.push(String(chunk))
       return true
@@ -129,7 +129,7 @@ describe('node crash hook bundle', () => {
       expect(uninstall).toBeUndefined()
       expect(writes).toEqual([`${UI_TEXT.nodeErrors.unavailable}\n`])
     } finally {
-      process.stderr.write = stderr
+      process.stderr.write = savedStderr.write
       rmSync(empty, { recursive: true, force: true })
     }
   })

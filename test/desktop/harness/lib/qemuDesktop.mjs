@@ -67,7 +67,7 @@ export function composeDesktopQemu(options) {
   if (!Number.isSafeInteger(options.cpus) || options.cpus <= 0) {
     errors.push('cpus must be a positive integer')
   }
-  if (options.kvm !== 'auto' && options.kvm !== 'on' && options.kvm !== 'off') {
+  if (!['auto', 'on', 'off'].includes(options.kvm)) {
     errors.push('kvm must be auto, on or off')
   }
   if (!isText(options.outDir)) errors.push('outDir is required')
