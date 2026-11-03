@@ -46,6 +46,66 @@ function asSession(live: unknown): ModelApiSession {
   return live
 }
 
+function message(role: 'user' | 'assistant', text: string): InputItem {
+  return {
+    type: 'message',
+    role,
+    content: [{ type: role === 'user' ? 'input_text' : 'output_text', text }],
+  }
+}
+
+function compactionCard(pins: readonly string[]): StoredSession['transcript'][number] {
+  return {
+    turnId: 'compaction',
+    item: {
+      itemId: 'compaction-item',
+      kind: 'compaction',
+      status: 'completed',
+      pinnedConstraints: pins,
+      fallbackText: 'Context compacted',
+    },
+  }
+}
+
+/** A stored session as the file store holds it, with this test's own turns. */
+function storedSession(
+  dir: string,
+  fields: Pick<StoredSession, 'sessionId' | 'turnIds' | 'pinnedConstraints' | 'replay'> &
+    Partial<StoredSession>,
+): StoredSession {
+  return {
+    version: 1,
+    accountId: TEST_ACCOUNT_ID,
+    workspaceRoot: dir,
+    modelId: DEFAULT_MODEL_ID,
+    approvalMode: 'promptUnmatched',
+    effort: 'high',
+    createdAt: '2026-11-02T10:00:00.000Z',
+    lastActivityAt: '2026-11-02T10:05:00.000Z',
+    todos: [],
+    transcript: [],
+    outputs: {},
+    usage: { inputTokens: 10, outputTokens: 5, cachedTokens: 0, reasoningTokens: 0 },
+    ...fields,
+  }
+}
+
+/** Each session parsed and saved through the real file store, then a host loaded over them. */
+async function storedRig(
+  dir: string,
+  sessions: readonly StoredSession[],
+): Promise<Awaited<ReturnType<typeof loadedModelApiRig>>> {
+  const writer = modelApiRig(dir)
+  for (const stored of sessions) {
+    const parsed = parseStoredSession(structuredClone(stored))
+    if (!parsed.ok) throw new Error(parsed.reason)
+    await writer.store.save(parsed.session)
+  }
+  const rig = await loadedModelApiRig(dir)
+  for (const stored of sessions) await awaitSaved(rig, stored.sessionId)
+  return rig
+}
+
 describe('constraint capture (RLF-PINNED)', () => {
   it('captures an explicit Constraints section, bullet and numbered lines alike', () => {
     const text = [
@@ -207,64 +267,25 @@ describe('pinned constraints in a real session (RLF-PINNED)', () => {
     const pins = ['Never use var anywhere', 'Always run the tests before you finish']
     const pinned = pinnedConstraintsItem(pins)
     if (pinned === undefined) throw new Error('no pinned item')
-    const stored: StoredSession = {
-      version: 1,
+    const stored = storedSession(dir, {
       sessionId: 'pinned-session',
-      accountId: TEST_ACCOUNT_ID,
-      workspaceRoot: dir,
-      modelId: DEFAULT_MODEL_ID,
-      approvalMode: 'promptUnmatched',
-      effort: 'high',
-      createdAt: '2026-11-02T10:00:00.000Z',
-      lastActivityAt: '2026-11-02T10:05:00.000Z',
       turnIds: ['t1'],
       compactedThroughTurnId: 't1',
-      todos: [],
       pinnedConstraints: pins,
       replay: [
-        {
-          turnId: 'compaction',
-          item: {
-            type: 'message',
-            role: 'user',
-            content: [{ type: 'input_text', text: 'summary of earlier turns' }],
-          },
-        },
+        { turnId: 'compaction', item: message('user', 'summary of earlier turns') },
         { turnId: 'pinned', item: pinned },
-        {
-          turnId: 't1',
-          item: {
-            type: 'message',
-            role: 'assistant',
-            content: [{ type: 'output_text', text: 'working on it' }],
-          },
-        },
+        { turnId: 't1', item: message('assistant', 'working on it') },
       ],
-      transcript: [
-        {
-          turnId: 'compaction',
-          item: {
-            itemId: 'compaction-item',
-            kind: 'compaction',
-            status: 'completed',
-            pinnedConstraints: pins,
-            fallbackText: 'Context compacted',
-          },
-        },
-      ],
-      outputs: {},
-      usage: { inputTokens: 10, outputTokens: 5, cachedTokens: 0, reasoningTokens: 0 },
-    }
+      transcript: [compactionCard(pins)],
+    })
     const parsed = parseStoredSession(structuredClone(stored))
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) throw new Error(parsed.reason)
     expect(JSON.stringify(parsed.session.pinnedConstraints)).toBe(JSON.stringify(pins))
     expect(JSON.stringify(parsed.session.replay[1]?.item)).toBe(JSON.stringify(pinned))
 
-    const writer = modelApiRig(dir)
-    await writer.store.save(parsed.session)
-    const rig = await loadedModelApiRig(dir)
-    await awaitSaved(rig, 'pinned-session')
+    const rig = await storedRig(dir, [stored])
     const loaded = await rig.host.resumeSession('pinned-session', DEFAULT_MODEL_ID)
     const live = asSession(loaded.session)
     expect(live.pinnedConstraintList()).toEqual(pins)
@@ -284,6 +305,60 @@ describe('pinned constraints in a real session (RLF-PINNED)', () => {
     const cleared = live.snapshot()
     expect(cleared.replay.some((entry) => entry.turnId === 'pinned')).toBe(false)
     expect(cleared.pinnedConstraints).toBeUndefined()
+    await rig.host.flush()
+  })
+
+  it('a fork keeps the pins its kept turns stated, and every pin a compaction carries', async () => {
+    const dir = folder()
+    // A section line with no must/never/always: only the section makes it a pin.
+    const tabs = 'Use tabs for indentation'
+    const noVar = 'Never use var anywhere'
+    const pinned = pinnedConstraintsItem([tabs, noVar])
+    if (pinned === undefined) throw new Error('no pinned item')
+    const rig = await storedRig(dir, [
+      storedSession(dir, {
+        sessionId: 'uncompacted',
+        turnIds: ['t1', 't2'],
+        pinnedConstraints: [tabs, noVar],
+        replay: [
+          { turnId: 't1', item: message('user', `Constraints:\n- ${tabs}`) },
+          { turnId: 't1', item: message('assistant', 'done') },
+          { turnId: 't2', item: message('user', noVar) },
+          { turnId: 't2', item: message('assistant', 'done') },
+        ],
+      }),
+      // After a compaction, t1's words survive only in the pinned block.
+      storedSession(dir, {
+        sessionId: 'compacted',
+        turnIds: ['t1', 't2'],
+        compactedThroughTurnId: 't1',
+        pinnedConstraints: [tabs, noVar],
+        replay: [
+          { turnId: 'compaction', item: message('user', 'summary of earlier turns') },
+          { turnId: 'pinned', item: pinned },
+          { turnId: 't2', item: message('user', noVar) },
+          { turnId: 't2', item: message('assistant', 'done') },
+        ],
+        transcript: [compactionCard([tabs, noVar])],
+      }),
+    ])
+    const fork = async (sessionId: string, lastTurnId?: string): Promise<ModelApiSession> => {
+      const loaded = await rig.host.forkSession(sessionId, DEFAULT_MODEL_ID, lastTurnId)
+      return asSession(loaded.session)
+    }
+
+    // A rewind to t1 drops the pin only t2 stated; a whole fork keeps both.
+    const rewound = await fork('uncompacted', 't1')
+    expect(rewound.pinnedConstraintList()).toEqual([tabs])
+    const whole = await fork('uncompacted')
+    expect(whole.pinnedConstraintList()).toEqual([tabs, noVar])
+
+    const compacted = await fork('compacted')
+    expect(compacted.pinnedConstraintList()).toEqual([tabs, noVar])
+    const snapshot = compacted.snapshot()
+    expect(JSON.stringify(snapshot.replay[1]?.item)).toBe(JSON.stringify(pinned))
+    const card = snapshot.transcript.find((entry) => entry.item.kind === 'compaction')
+    expect(card?.item.pinnedConstraints).toEqual([tabs, noVar])
     await rig.host.flush()
   })
 })

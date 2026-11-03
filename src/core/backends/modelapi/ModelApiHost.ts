@@ -20817,18 +20817,23 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
     target.restoredPackedCallIds = packedIds.filter((id) => keptOutputIds.has(id))
     // A fork (and with it a rewind) keeps the pins its kept turns stated
-    // (RLF-PINNED), as it keeps the sticky ids above: the ones the copied
-    // user words — or the copied pinned block — still carry.
+    // (RLF-PINNED), as it keeps the sticky ids above. After a compaction
+    // the summarised turns' words live only in the pinned block, which
+    // every fork copies (a cut never precedes the compaction, D46): its
+    // pins all stay, since re-reading its text would drop a pin that only
+    // a "Constraints:" section made one. In doubt a pin stays; the person
+    // can unpin it.
     const keptPins = new Set(
-      boundedCopied.flatMap((entry) =>
-        entry.item.type === 'message' && entry.item.role === 'user'
+      boundedCopied.flatMap((entry) => {
+        if (entry.turnId === PINNED_TURN_ID) return this.pinnedConstraints
+        return entry.item.type === 'message' && entry.item.role === 'user'
           ? extractPinnedConstraints(
               entry.item.content
                 .flatMap((part) => (part.type === 'input_text' ? part.text : []))
                 .join('\n'),
             )
-          : [],
-      ),
+          : []
+      }),
     )
     target.pinnedConstraints = this.pinnedConstraints.filter((pin) => keptPins.has(pin))
     target.refreshPinnedReplayEntry()
