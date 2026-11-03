@@ -2019,6 +2019,12 @@ export const CREDENTIAL_ENV_EXACT_NAMES: ReadonlySet<string> = new Set([
   'PGPASSWORD',
   'MYSQL_PWD',
   'REDISCLI_AUTH',
+  // Connection strings, whose user-info carries the password
+  // (RSCH-SECURITY, 2026-11-02).
+  'DATABASE_URL',
+  'REDIS_URL',
+  'MONGODB_URI',
+  'AMQP_URL',
 ])
 // M91 lane W (PLAN.md D70): the formats lane P's adapters translate, Cline's
 // v1 scripts among them (lane X's contract). A spark-hooks.json group names one
@@ -5939,6 +5945,12 @@ export const PROTECTED_PATH_SEGMENTS: readonly (readonly string[])[] = [
   ['.idea'],
   ['.devcontainer'],
   ['.github', 'workflows'],
+  // Composite actions, other CI systems' folders and Zed's settings and
+  // tasks run code the same way (RSCH-SECURITY, 2026-11-02).
+  ['.github', 'actions'],
+  ['.circleci'],
+  ['.buildkite'],
+  ['.zed'],
   ['.agents'],
   ['.muse'],
   ['.claude'],
@@ -5973,7 +5985,26 @@ export const PROTECTED_FILE_NAMES: ReadonlySet<string> = new Set([
   'opencode.jsonc',
   '.envrc',
   '.gitmodules',
+  // CI definitions and commit-hook configs run code on push or commit;
+  // `.npmrc` names a script shell and registry credentials, `.yarnrc.yml`
+  // a yarnPath to execute, and `pnpm-workspace.yaml` approves which
+  // dependencies' install scripts run (RSCH-SECURITY, 2026-11-02).
+  '.gitlab-ci.yml',
+  'bitbucket-pipelines.yml',
+  'azure-pipelines.yml',
+  'jenkinsfile',
+  '.travis.yml',
+  '.pre-commit-config.yaml',
+  '.pre-commit-config.yml',
+  'lefthook.yml',
+  'lefthook.yaml',
+  '.npmrc',
+  '.yarnrc.yml',
+  'pnpm-workspace.yaml',
 ])
+// A VS Code workspace file carries tasks and folder settings by suffix,
+// under any name (RSCH-SECURITY, 2026-11-02).
+export const PROTECTED_FILE_SUFFIXES: readonly string[] = ['.code-workspace']
 export const LIST_FILES_DEFAULT_LIMIT = 500
 // Backstop waits owned by other rows (checks, the verify loop, the judge
 // harness, media conversion, the vault service default): the shell tool

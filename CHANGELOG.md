@@ -1186,6 +1186,24 @@ happened, not what was planned; superseded entries are kept.
 
 ### Security
 
+- **Secrets are scrubbed in more of the shapes they arrive in**
+  (RSCH-SECURITY). A secret field written in lower or mixed case without
+  quotes (`token: …`, `apiToken: …`, `secret_key = …`) is now redacted from
+  logs, exports, problem reports and the staged-patch scan, as the
+  upper-case and JSON forms already were; a Google API key longer than the
+  common shape no longer keeps its tail; and DigitalOcean, PyPI and age
+  keys are recognised. Environment variables that carry a credential by
+  their meaning — spelled `APIKEY`, ending in `_KEY`, a DSN, a cookie, a
+  webhook URL, or a database connection string such as `DATABASE_URL` —
+  are now kept out of hooks and child processes like the other credential
+  names.
+- **More files that run code ask before the agent writes them**
+  (RSCH-SECURITY). Composite GitHub actions, GitLab, CircleCI, Bitbucket,
+  Azure and Travis pipeline files, Jenkinsfiles, Buildkite pipelines,
+  pre-commit and lefthook configs, Zed settings, `*.code-workspace`
+  files, `.npmrc`, `.yarnrc.yml` and `pnpm-workspace.yaml` are protected
+  writes like GitHub workflows and `.vscode` tasks already were: they ask
+  in every mode but Bypass, and Plan refuses them.
 - **The native Windows job helper no longer reads the workspace or `PATH`
   for programs or DLLs.** The compiled helper the resource governor runs on
   Windows (its tree reads and created-directory registry, proven in a packed

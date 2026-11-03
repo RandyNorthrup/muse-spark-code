@@ -29,10 +29,14 @@
 //     organization, project and workspace id headers, and a UUID after
 //     "team", "account", "organization" or "project" in prose
 //   - Secrets named by their key, the value replaced and the name kept: an
-//     upper-case environment name that says so (`GITHUB_TOKEN=`), an
+//     upper-case environment name that says so (`GITHUB_TOKEN=`), the same
+//     names in any case unquoted with a secret-shaped value (`token: …`,
+//     `apiToken: …`; RSCH-SECURITY, 2026-11-02), an
 //     `api-key` header, `Authorization: token …`, a quoted JSON field, a URL
 //     parameter, `~/.aws/credentials` lines in any case, an Azure connection
 //     string's `AccountKey=`, and `.npmrc`'s `_authToken=`
+//   - DigitalOcean (`dop_v1_`), PyPI (`pypi-`) and age
+//     (`AGE-SECRET-KEY-1…`) tokens, wherever they appear (2026-11-02)
 //
 // Every pattern scans in linear time (no nested quantifiers; each run is
 // bounded or anchored on a literal): the session export runs them over
@@ -212,8 +216,9 @@ export const SECRET_RULES: readonly SecretRule[] = [
   { pattern: /\bglpat-[\w-]{20,255}/g, literals: ['glpat-'], replace: mark },
   { pattern: /\bnpm_[A-Za-z0-9]{36,255}/g, literals: ['npm_'], replace: mark },
   { pattern: GADGET_SDK_TOKEN_PATTERN, literals: ['mgst_'], replace: mark },
-  // Google API keys: `AIza` and 35 more.
-  { pattern: /\bAIza[\w-]{35}/g, literals: ['aiza'], replace: mark },
+  // Google API keys: `AIza` and 35 more; a longer one is replaced whole,
+  // never leaving its tail (RSCH-SECURITY, 2026-11-02).
+  { pattern: /\bAIza[\w-]{35,255}/g, literals: ['aiza'], replace: mark },
   // AWS access key ids, Slack tokens, and `sk-` / `sk_live_` style API keys.
   { pattern: /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g, literals: ['akia', 'asia'], replace: mark },
   { pattern: /\bxox[abeposr]-[A-Za-z0-9-]{10,}/g, literals: ['xox'], replace: mark },
@@ -239,6 +244,16 @@ export const SECRET_RULES: readonly SecretRule[] = [
     literals: ['bedrock-api-key-'],
     replace: mark,
   },
+  // More whole-token shapes a tool's output or a config file carries
+  // (RSCH-SECURITY, 2026-11-02): DigitalOcean personal access tokens,
+  // PyPI upload tokens and age secret keys.
+  { pattern: /\bdop_v1_[\da-f]{64}\b/g, literals: ['dop_v1_'], replace: mark },
+  { pattern: /\bpypi-[\w-]{16,255}/g, literals: ['pypi-'], replace: mark },
+  {
+    pattern: /\bAGE-SECRET-KEY-1[QPZRY9X8GF2TVDW0S3JN54KHCE6MUA7L]{58}\b/g,
+    literals: ['age-secret-key-'],
+    replace: mark,
+  },
   // Secrets named by their key: the value after the name is replaced, the
   // name stays. This one is upper case only, so ordinary words
   // (`inputTokens: 12`) keep their values; the AWS file's lower-case names
@@ -254,6 +269,48 @@ export const SECRET_RULES: readonly SecretRule[] = [
       'apikey',
       'access_key',
       'private_key',
+      'credential',
+    ],
+    replace: markAfter,
+  },
+  // The same names in any case, unquoted (`token: …`, `apiToken: …`,
+  // `secret_key = …`), which the upper-case rule above and the quoted
+  // JSON rule below both miss (RSCH-SECURITY, 2026-11-02). The value
+  // must look like a secret — at least eight characters holding a digit
+  // or a separator — so counts and code (`inputTokens: 12`,
+  // `token: string`, `secret: true`) keep their text.
+  {
+    pattern:
+      /(\b(?:[A-Za-z][\w-]{0,60}?)?(?:token|secret|passwd|password|passphrase|api[_-]?key|secret[_-]?key|access[_-]?key|private[_-]?key|encryption[_-]?key|signing[_-]?key|master[_-]?key|session[_-]?key|recovery[_-]?key|credentials?)\s{0,5}[:=]\s{0,5}["']?)(?=[^\s"'&,;}]{0,4096}?[\d_./+=-])[^\s"'&,;}]{8,4096}/gi,
+    literals: [
+      'token',
+      'secret',
+      'passw',
+      'passphrase',
+      'apikey',
+      'api_key',
+      'api-key',
+      'accesskey',
+      'access_key',
+      'access-key',
+      'privatekey',
+      'private_key',
+      'private-key',
+      'encryptionkey',
+      'encryption_key',
+      'encryption-key',
+      'signingkey',
+      'signing_key',
+      'signing-key',
+      'masterkey',
+      'master_key',
+      'master-key',
+      'sessionkey',
+      'session_key',
+      'session-key',
+      'recoverykey',
+      'recovery_key',
+      'recovery-key',
       'credential',
     ],
     replace: markAfter,
@@ -303,17 +360,36 @@ export const SECRET_RULES: readonly SecretRule[] = [
   },
   {
     pattern:
-      /(["'][\w-]{0,40}(?:token|secret|passw(?:or)?d|api[_-]?key|private[_-]?key)["']\s{0,5}:\s{0,5}["'])[^"'\r\n]{1,4096}/gi,
+      /(["'][\w-]{0,40}(?:token|secret|passw(?:or)?d|passphrase|api[_-]?key|secret[_-]?key|access[_-]?key|private[_-]?key|encryption[_-]?key|signing[_-]?key|master[_-]?key|session[_-]?key|recovery[_-]?key)["']\s{0,5}:\s{0,5}["'])[^"'\r\n]{1,4096}/gi,
     literals: [
       'token',
       'secret',
       'passw',
+      'passphrase',
       'apikey',
       'api_key',
       'api-key',
+      'accesskey',
+      'access_key',
+      'access-key',
       'privatekey',
       'private_key',
       'private-key',
+      'encryptionkey',
+      'encryption_key',
+      'encryption-key',
+      'signingkey',
+      'signing_key',
+      'signing-key',
+      'masterkey',
+      'master_key',
+      'master-key',
+      'sessionkey',
+      'session_key',
+      'session-key',
+      'recoverykey',
+      'recovery_key',
+      'recovery-key',
     ],
     replace: markAfter,
   },
@@ -361,7 +437,7 @@ export function isSecretFieldName(key: string): boolean {
 // scan instead of one scan each (RV84 #9). Kept as a literal pattern; a rule
 // whose literal this misses would never run.
 export const MAY_HOLD_SECRET =
-  /LLM|bearer|basic|eyJ|token|secret|passw|api_?key|api-key|private|credential|access_?key|accountkey|_auth|aws_|:\/\/|gh[pousr]_|github_pat_|glpat-|npm_|mgst_|AIza|AKIA|ASIA|xox|_live_|_test_|sk-|[?&](?:key|sig|signature|auth)=|gsk_|xai-|fw_|hf_|tgp_v1_|absk|bedrock-api-key|user_id|workspace|team|account|organization|organisation|project/i
+  /LLM|bearer|basic|eyJ|token|secret|passw|passphrase|api_?key|api-key|private|credential|access_?key|access-key|encryption[_-]?key|signing[_-]?key|master[_-]?key|session[_-]?key|recovery[_-]?key|accountkey|_auth|aws_|:\/\/|gh[pousr]_|github_pat_|glpat-|npm_|mgst_|AIza|AKIA|ASIA|xox|_live_|_test_|sk-|[?&](?:key|sig|signature|auth)=|gsk_|xai-|fw_|hf_|tgp_v1_|absk|bedrock-api-key|dop_v1_|pypi-|age-secret-key-|user_id|workspace|team|account|organization|organisation|project/i
 
 interface SliceCut {
   /** Offset in the text being redacted, adjusted after each rule. */

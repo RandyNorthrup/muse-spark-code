@@ -9,9 +9,15 @@ export function isCredentialVariable(name: string): boolean {
   const upper = name.toUpperCase()
   return (
     !CREDENTIAL_ENV_ALLOWED_NAMES.has(upper) &&
-    (/(?:^|_)(?:API_KEY|ACCESS_KEY|PRIVATE_KEY|SECRET_KEY|SECRET|PASSWORD|PASSPHRASE|TOKEN|CREDENTIALS|AUTH|PAT)$/.test(
+    // A credential by its meaning, spelled with or without the underscore
+    // (`APIKEY`), as a bare key (`SSH_KEY`), a DSN, a cookie or a webhook
+    // URL whose path carries its token (RSCH-SECURITY, 2026-11-02). The
+    // long words need no separator at all (`APPSECRET`, `AUTHTOKEN`);
+    // `KEY` keeps its boundary, so `MONKEY` is still an ordinary name.
+    (/(?:^|_)(?:API_KEY|APIKEY|ACCESS_KEY|PRIVATE_KEY|PRIVATEKEY|SECRET_KEY|SECRETKEY|SECRET|PASSWORD|PASSPHRASE|TOKEN|CREDENTIALS|AUTH|PAT|KEY|DSN|COOKIE|WEBHOOK_URL|WEBHOOK)$/.test(
       upper,
     ) ||
+      /(?:SECRET|PASSWORD|PASSPHRASE|TOKEN)$/.test(upper) ||
       /^AZURE_.*(?:KEY|CREDENTIALS|CONNECTION_STRING|CERTIFICATE_PATH)$/.test(upper) ||
       upper.startsWith('TF_TOKEN_') ||
       CREDENTIAL_ENV_EXACT_NAMES.has(upper) ||
