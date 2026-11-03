@@ -24,7 +24,7 @@
 // `fs/*` methods confined to the workspace.
 
 import type { ChildProcess } from 'node:child_process'
-import { realpathSync } from 'node:fs'
+import { mkdirSync, realpathSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import * as z from 'zod/mini'
 import type { AuthMethod, McpServer } from '@agentclientprotocol/sdk'
@@ -59,6 +59,12 @@ import type { CoreLogger } from '../../core/logging'
 import { UI_TEXT, CONTEXT_PRESSURE_HIGH, CONTEXT_PRESSURE_MEDIUM } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { withoutCredentials } from '../../core/credentialEnvironment'
+import {
+  claudeAdapterVersionRefusal,
+  claudeAgentEnvironment,
+  claudeNeedsKeySentence,
+  isClaudeKeyRefusal,
+} from '../../core/team/claudeAgentSafety'
 import { workspaceChildEnvironment } from '../../core/execGuard'
 import { spawnGuarded } from '../../core/guardedChildProcess'
 import { confineToRoot } from '../../core/fs/confine'
@@ -92,6 +98,8 @@ export interface ExternalOrchestratorDeps {
   readonly log: CoreLogger
   readonly platform: NodeJS.Platform
   readonly baseEnv: NodeJS.ProcessEnv
+  /** Claude's preset's own configuration folder under our storage (D262). */
+  readonly claudeConfigDir?: string | undefined
   readonly newId: () => string
   readonly now: () => number
 }
@@ -109,8 +117,12 @@ const NO_UNSUBSCRIBE = (): undefined => undefined
 const BRIDGE_URL_ENV = 'MUSE_TEAM_BRIDGE_URL'
 const BRIDGE_HEADERS_ENV = 'MUSE_TEAM_BRIDGE_HEADERS'
 
-/** The sign-in sentence for this agent, in the installed language. */
-function signInSentence(agent: ExternalAgent): string {
+/**
+The sign-in sentence for this agent, in the installed language. Claude's
+refusal asks for a key or a Console account, never a plan login (D262).
+*/
+function signInSentence(agent: ExternalAgent, error: AcpAuthRequiredError): string {
+  if (isClaudeKeyRefusal(agent, error)) return claudeNeedsKeySentence(agent, error.methods)
   return fill(UI_TEXT.teamExternalSignIn, {
     agent: agent.label,
     command: agent.signInCommand,
@@ -268,7 +280,7 @@ function turnFailure(
   error: unknown,
 ): { readonly kind: string; readonly message: string } {
   if (error instanceof AcpAuthRequiredError)
-    return { kind: AUTH_KIND, message: signInSentence(agent) }
+    return { kind: AUTH_KIND, message: signInSentence(agent, error) }
   return {
     kind: 'backend',
     message: error instanceof Error ? error.message : stoppedSentence(agent),
@@ -1002,12 +1014,20 @@ export class ExternalOrchestratorHost implements AgentHost {
     const { agent, command, platform, baseEnv } = this.deps
     // The agent and whatever it starts by bare name never resolve to a program
     // planted in the workspace: the guarded child environment for this cwd.
-    const child = spawnGuarded(command, [...agent.args], {
-      cwd,
-      env: workspaceChildEnvironment(platform, withoutCredentials({ ...baseEnv }), {
+    const env = claudeAgentEnvironment({
+      agent,
+      scrubbed: workspaceChildEnvironment(platform, withoutCredentials({ ...baseEnv }), {
         workspaceRoot: cwd,
         realpath: realpathSync,
       }),
+      baseEnv,
+      configDir: this.deps.claudeConfigDir,
+    })
+    if (env['CLAUDE_CONFIG_DIR'] !== undefined && agent.preset === 'claude')
+      mkdirSync(env['CLAUDE_CONFIG_DIR'], { recursive: true, mode: 0o700 })
+    const child = spawnGuarded(command, [...agent.args], {
+      cwd,
+      env,
       detached: platform !== 'win32',
       windowsHide: true,
     })
@@ -1083,6 +1103,14 @@ export class ExternalOrchestratorHost implements AgentHost {
       for (const listener of this.exitListeners) listener(exit)
     })
     const initialized = await connection.initialize()
+    // D262: Claude's adapter starts no session below the release that refuses a plan.
+    const refusal =
+      agent.preset === 'claude' ? claudeAdapterVersionRefusal(initialized.agent.version) : undefined
+    if (refusal !== undefined) {
+      connection.close()
+      endAgentProcess(child, this.deps.platform)
+      throw new Error(refusal)
+    }
     return {
       child,
       connection,
@@ -1270,7 +1298,7 @@ export class ExternalOrchestratorHost implements AgentHost {
       started = await live.connection.sessionNew({ cwd, mcpServers, grant })
     } catch (error: unknown) {
       if (error instanceof AcpAuthRequiredError)
-        throw new Error(signInSentence(this.deps.agent), { cause: error })
+        throw new Error(signInSentence(this.deps.agent, error), { cause: error })
       throw error
     }
     const session = this.makeSession(started.sessionId, cwd, this.deps.agent.model)
@@ -1329,7 +1357,7 @@ export class ExternalOrchestratorHost implements AgentHost {
     } catch (error: unknown) {
       if (error instanceof AcpMethodNotFoundError) throw new SessionNotFoundError(sessionId)
       if (error instanceof AcpAuthRequiredError)
-        throw new Error(signInSentence(this.deps.agent), { cause: error })
+        throw new Error(signInSentence(this.deps.agent, error), { cause: error })
       throw error
     } finally {
       session.setLoading(false)
@@ -1429,17 +1457,7 @@ export class ExternalOrchestratorHost implements AgentHost {
     for (const session of this.sessions.values()) session.dispose()
     if (live === undefined) return Promise.resolve()
     live.connection.close()
-    const { child } = live
-    if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve()
-    if (this.deps.platform !== 'win32' && child.pid !== undefined) {
-      try {
-        process.kill(-child.pid, 'SIGTERM')
-        return Promise.resolve()
-      } catch (error: unknown) {
-        if (!isMissingPath(error)) throw error
-      }
-    }
-    child.kill()
+    endAgentProcess(live.child, this.deps.platform)
     return Promise.resolve()
   }
 }
@@ -1458,4 +1476,18 @@ function isMissingPath(error: unknown): boolean {
   return (
     error instanceof Error && 'code' in error && (error.code === 'ENOENT' || error.code === 'ESRCH')
   )
+}
+
+/** Ends the agent with its process tree (its group off Windows). */
+function endAgentProcess(child: ChildProcess, platform: NodeJS.Platform): void {
+  if (child.exitCode !== null || child.signalCode !== null) return
+  if (platform !== 'win32' && child.pid !== undefined) {
+    try {
+      process.kill(-child.pid, 'SIGTERM')
+      return
+    } catch (error: unknown) {
+      if (!isMissingPath(error)) throw error
+    }
+  }
+  child.kill()
 }

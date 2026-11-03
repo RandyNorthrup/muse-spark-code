@@ -12,7 +12,7 @@ const expected = [
   ['meta', 'muse-code', 'confirm'],
   ['openai', 'api', 'confirm'],
   ['openai', 'chatgpt-plan', 'confirm'],
-  ['anthropic', 'api', 'on'],
+  ['anthropic', 'api', 'confirm'],
   ['anthropic', 'claude-plan', 'notOffered'],
   ['google', 'gemini-api', 'confirm'],
   ['google', 'vertex', 'confirm'],
@@ -48,7 +48,7 @@ describe('M108 bundled vendor account policy', () => {
     expect(identities.size).toBe(expected.length)
     for (const row of ACCOUNT_POLICIES) {
       expect(row.recordVersion).not.toBe('')
-      expect(row.checkedAt).toBe('2026-10-05')
+      expect(row.checkedAt).toBe(row.provider === 'anthropic' ? '2026-11-02' : '2026-10-05')
       expect(row.limitScopes.length).toBeGreaterThan(0)
       for (const source of row.sources) {
         expect(source.quote.length).toBeGreaterThan(0)

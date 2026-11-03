@@ -13,9 +13,16 @@ import { UI_TEXT } from '../../shared/constants'
 import type { ExternalAgent } from '../../core/team/externalAgents'
 import { ExternalOrchestratorHost, type ExternalOrchestratorDeps } from './externalOrchestrator'
 import { findAcpPresetCommand } from './acpProcess'
+import { CLAUDE_AGENT_CONFIG_FOLDER } from '../../core/team/claudeAgentSafety'
 
 /** What the extension supplies: the pick, and this window's own facts (the host resolves the command). */
-export type ExternalOrchestratorEntryDeps = Omit<ExternalOrchestratorDeps, 'command'>
+export type ExternalOrchestratorEntryDeps = Omit<
+  ExternalOrchestratorDeps,
+  'command' | 'claudeConfigDir'
+> & {
+  /** The extension's own storage; Claude's preset's configuration folder lives under it (D262). */
+  readonly storageRoot?: string | undefined
+}
 
 function isMissingCandidate(error: unknown): boolean {
   return (
@@ -75,7 +82,7 @@ export function createExternalOrchestrator(
         command: deps.agent.command,
       }),
     )
-  const { agent, bridge, log, platform, baseEnv, newId, now } = deps
+  const { agent, bridge, log, platform, baseEnv, newId, now, storageRoot } = deps
   return new ExternalOrchestratorHost({
     agent,
     command,
@@ -83,6 +90,8 @@ export function createExternalOrchestrator(
     log,
     platform,
     baseEnv,
+    claudeConfigDir:
+      storageRoot === undefined ? undefined : path.join(storageRoot, CLAUDE_AGENT_CONFIG_FOLDER),
     newId,
     now,
   })

@@ -1,8 +1,8 @@
 // D89.5: one credential-name rule for editor, ACP/headless and plugin children.
-import { isCredentialVariable } from '../shared/credentialEnvironment'
-export { isCredentialVariable } from '../shared/credentialEnvironment'
+import { isClaudePlanVariable, isCredentialVariable } from '../shared/credentialEnvironment'
+export { isClaudePlanVariable, isCredentialVariable } from '../shared/credentialEnvironment'
 
-/** Explicit names are honored only by callers that admit an interactive shell. */
+/** Explicit names are honored only by callers that admit an interactive shell; a Claude plan route never (D262). */
 export function withoutCredentials<T extends NodeJS.ProcessEnv>(
   env: T,
   passNames: readonly string[] = [],
@@ -14,7 +14,9 @@ export function withoutCredentials<T extends NodeJS.ProcessEnv>(
   return Object.fromEntries(
     Object.entries(env).filter(
       ([name]) =>
-        !isCredentialVariable(name) || names.has(platform === 'win32' ? name.toUpperCase() : name),
+        !isCredentialVariable(name) ||
+        (names.has(platform === 'win32' ? name.toUpperCase() : name) &&
+          !isClaudePlanVariable(name)),
     ),
   ) as T
 }
