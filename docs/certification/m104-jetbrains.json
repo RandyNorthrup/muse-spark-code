@@ -163,7 +163,7 @@
     }
   ],
   "provenance": {
-    "observedAt": "2026-11-02T13:39:14.832Z",
+    "observedAt": "2026-11-03T01:47:46.820Z",
     "observedOn": "randy-lt (linux)",
     "command": "node test/hostApi/run.mjs jetbrains"
   }
