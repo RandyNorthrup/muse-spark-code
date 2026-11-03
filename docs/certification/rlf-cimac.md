@@ -145,3 +145,25 @@ refused`, the hosted failure's own text; restored → exit 0. Both suites →
 exit 0, 25 of 25, with `native/darwin/build.sh` run here so nativeHelper's
 case runs rather than skips. Next hosted log must show both cases skipped
 with the Rosetta title.
+
+## feederAncestry — test fault (a race the hosted runner loses)
+
+Hosted macOS: `accepts a real leaf whose ancestry reaches this process`
+got `false`. It passes here. Cause (inferred from the log and the code,
+mechanism measured here): the chain's leaf was `/bin/sh -c 'sleep 60'`,
+and a shell given one simple command replaces itself with it after its pid
+is already known (macOS's `/bin/sh` first replaces itself with bash). The
+test records the leaf's identity, executable included, as soon as it has
+the pid; when that reading lands before the replacement (a slow runner) it
+names the shell, and the walk's later reading of the same pid names
+`sleep`, so `hasVaultFeederAncestry` rightly refuses a process whose
+executable changed. Measured here: a `sh -c 'sleep 60'` child read at once
+was `/bin/sh` and 200 ms later `sleep`, 20 times of 20. Fix: the leaf (and
+the stranger) is `/bin/sleep 60` spawned directly; Node returns the pid only
+after that exec, so nothing replaces itself later. The chain is still this
+process → a real node child → a real leaf, read by the compiled helper.
+It never touches a keychain.
+
+Run: exit 0, 6 of 6. No deterministic red: the hosted ordering cannot be
+forced here without a stand-in. The next hosted log must show this case
+passing on macOS.
