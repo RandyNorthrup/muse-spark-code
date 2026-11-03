@@ -174,6 +174,11 @@ export interface TranscriptProps {
   */
   readonly onRetryTurn?: ((entryId: string, turnId: string) => void) | undefined
   /**
+  Unpin on a compaction's pinned constraint (RLF-PINNED): drops that one
+  pin, named by its verbatim text. Rows offer it only while they carry pins.
+  */
+  readonly onUnpinConstraint?: ((text: string) => void) | undefined
+  /**
   Stop on a retry wait's row (D228): ends the wait and shows the failure
   with Retry. Rows offer it only while they carry the waiting turn.
   */
@@ -1177,6 +1182,7 @@ function OtherRow({
   entry,
   onReportProblem,
   onRetryTurn,
+  onUnpinConstraint,
   onStopRetry,
   canRetryTurn,
   isRetryDisabled,
@@ -1203,6 +1209,7 @@ function OtherRow({
   >
   readonly onReportProblem?: TranscriptProps['onReportProblem']
   readonly onRetryTurn?: TranscriptProps['onRetryTurn']
+  readonly onUnpinConstraint?: TranscriptProps['onUnpinConstraint']
   readonly onStopRetry?: TranscriptProps['onStopRetry']
   readonly canRetryTurn?: boolean | undefined
   readonly isRetryDisabled?: boolean | undefined
@@ -1220,6 +1227,30 @@ function OtherRow({
         <li className="activity" data-status={entry.status}>
           <span className="activity-kind">{entry.itemKind}</span>
           <span className="activity-status">{entry.text ?? entry.status}</span>
+          {entry.pinnedConstraints === undefined || entry.pinnedConstraints.length === 0 ? null : (
+            <span className="pinned-constraints">
+              <span className="pinned-constraints-heading">{UI_TEXT.pinnedAcrossCompaction}</span>
+              <ul>
+                {entry.pinnedConstraints.map((pin) => (
+                  <li key={pin}>
+                    <span>{pin}</span>
+                    {onUnpinConstraint === undefined ? null : (
+                      <button
+                        type="button"
+                        className="pinned-unpin"
+                        aria-label={fill(UI_TEXT.unpinConstraintLabel, { constraint: pin })}
+                        onClick={() => {
+                          onUnpinConstraint(pin)
+                        }}
+                      >
+                        {UI_TEXT.unpinConstraint}
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </span>
+          )}
         </li>
       )
     }
@@ -1450,6 +1481,7 @@ function TranscriptList(props: TranscriptProps) {
     onResumeLater,
     onContinueTurn,
     onOpenBudgetSetting,
+    onUnpinConstraint,
     onStopRetry,
     resendableTurnIds,
     restoreNote,
@@ -1608,7 +1640,14 @@ function TranscriptList(props: TranscriptProps) {
       }
       case 'subagent':
       case 'item': {
-        return <MemoOtherRow key={entry.id} entry={entry} onReportProblem={onReportProblem} />
+        return (
+          <MemoOtherRow
+            key={entry.id}
+            entry={entry}
+            onReportProblem={onReportProblem}
+            onUnpinConstraint={onUnpinConstraint}
+          />
+        )
       }
       case 'error': {
         return (

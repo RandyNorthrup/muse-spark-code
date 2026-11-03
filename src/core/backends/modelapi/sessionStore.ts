@@ -172,6 +172,13 @@ export interface StoredSession {
   readonly hookTokensAdded?: number
   /** Sticky packing swaps (M101), with originals retained in replay; absent on old files. */
   readonly packedCallIds?: readonly string[]
+  /**
+  The person's pinned side constraints (RLF-PINNED, M101), verbatim and
+  in stated order, like `packedCallIds`: a resume, fork or rewind keeps
+  them, and an accepted compaction re-sends them after its summary.
+  Absent on files saved before pinning and where nothing is pinned.
+  */
+  readonly pinnedConstraints?: readonly string[]
   /** Children are nested in the parent's file; they do not appear in History. */
   readonly children?: readonly StoredChild[]
   /** Completed children whose results have not entered the next model request. */
@@ -415,6 +422,7 @@ const storedSessionFields = {
   packedTokensAvoided: z.optional(z.int().check(z.nonnegative())),
   hookTokensAdded: z.optional(z.int().check(z.nonnegative())),
   packedCallIds: z.optional(z.array(z.string())),
+  pinnedConstraints: z.optional(z.array(z.string())),
 } as const
 
 export const storedSessionSchema = z.object({
@@ -589,6 +597,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     packedTokensAvoided,
     hookTokensAdded,
     packedCallIds,
+    pinnedConstraints,
     promptDate,
     ...rest
   } = result.data
@@ -665,6 +674,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
       ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),
       ...(hookTokensAdded !== undefined && { hookTokensAdded }),
       ...(packedCallIds !== undefined && { packedCallIds }),
+      ...(pinnedConstraints !== undefined && { pinnedConstraints }),
       ...(promptDate !== undefined && { promptDate }),
     },
   }

@@ -654,6 +654,21 @@
       "editors": ["vscode", "acp"]
     },
     {
+      "id": "pinned-constraints",
+      "name": { "ui": "pinnedConstraintsName" },
+      "summary": { "ui": "referencePinnedConstraints" },
+      "description": { "ui": "referencePinnedConstraints" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
       "id": "argument-preview",
       "name": { "ui": "toolArgumentPreviewLabel" },
       "summary": { "ui": "toolArgumentPreviewDescription" },

@@ -5,7 +5,10 @@
 // mechanism for long outputs has something to act on. Two more (M101) carry
 // their long log in the prompt itself, so the first request already fills
 // the auto-compaction arm's window, and two carry two defects in one file
-// for the multi-edit pair.
+// for the multi-edit pair. Four more (RLF-PINNED) state a side constraint
+// before that same long log — two as a "Constraints:" section, two as an
+// imperative line — and their verifiers assert the rule beside the
+// behaviour, so the pinned arm pair can measure what summarisation keeps.
 //
 // A verifier is a Node ES module run after the turn, outside the workspace,
 // so the model never sees it. It imports the fixed files and asserts what
@@ -64,6 +67,12 @@ export const evalTaskSchema = z.object({
   auto-compaction arm must engage on it.
   */
   isLongContext: z.optional(z.literal(true)),
+  /**
+  Built with a side constraint stated before the long log (RLF-PINNED):
+  the verifier asserts the rule beside the behaviour, so a run that
+  passes kept the constraint through its compaction.
+  */
+  isSideConstraint: z.optional(z.literal(true)),
 })
 export type EvalTask = z.infer<typeof evalTaskSchema>
 
@@ -195,6 +204,100 @@ export const EVAL_TASKS: readonly EvalTask[] = [
       'assert.equal(transform(8), 72)',
     ].join('\n'),
     isLongContext: true,
+  },
+  {
+    id: 'accept-pinned-var-long-compaction',
+    title: 'Apply a rule from a long log in the legacy declaration style',
+    split: 'accept',
+    assertions: 5,
+    prompt: `Constraints:\n- Always declare variables with var in transform.js (this codebase keeps its legacy style).\n\n${LONG_CONTEXT_PROMPT} create transform.js exporting transform(value), which applies the record's mapping. Do not write transform.js before recovering the record.\n\n${compactBulk('required mapping: multiply the input by 3, then subtract 5')}`,
+    files: [PACKAGE_JSON],
+    verify: [
+      "const { transform } = await load('transform.js')",
+      'assert.equal(transform(-3), -14)',
+      'assert.equal(transform(0), -5)',
+      'assert.equal(transform(2), 1)',
+      'assert.equal(transform(8), 19)',
+      "assert.equal(read('transform.js').includes('var '), true)",
+    ].join('\n'),
+    isLongContext: true,
+    isSideConstraint: true,
+  },
+  {
+    id: 'accept-pinned-file-long-compaction',
+    title: 'Round an average by a rule from a long log, leaving a shared file alone',
+    split: 'accept',
+    assertions: 4,
+    prompt: `Never modify helper.js; it is shared and already correct.\n\n${LONG_CONTEXT_PROMPT} fix calc.js so average(values) returns the record's rounding of the mean, and 0 when values is empty. Do not write the fix before recovering the record.\n\n${compactBulk('required rounding: round the mean to the nearest whole number')}`,
+    files: [
+      PACKAGE_JSON,
+      {
+        path: 'calc.js',
+        content:
+          'export function average(values) {\n  const sum = values.reduce((a, b) => a + b, 0)\n  return sum / values.length\n}\n',
+      },
+      {
+        path: 'helper.js',
+        content: 'export function double(value) {\n  return value * 2\n}\n',
+      },
+    ],
+    verify: [
+      "const { average } = await load('calc.js')",
+      'assert.equal(average([2, 4, 9]), 5)',
+      'assert.equal(average([1, 2]), 2)',
+      'assert.equal(average([]), 0)',
+      String.raw`assert.equal(read('helper.js'), 'export function double(value) {\n  return value * 2\n}\n')`,
+    ].join('\n'),
+    isLongContext: true,
+    isSideConstraint: true,
+  },
+  {
+    id: 'heldout-pinned-interval-long-compaction',
+    title: 'Stop polling at a status from a long log, on the interval timer',
+    split: 'heldout',
+    assertions: 4,
+    prompt: `Constraints:\n- Never use setTimeout in poll.js; keep the interval timer.\n\n${LONG_CONTEXT_PROMPT} fix poll.js so polling stops once fetchStatus reports the record's status, calling onDone once with that status. Do not write the fix before recovering the record.\n\n${compactBulk("required status: 'done'")}`,
+    files: [
+      PACKAGE_JSON,
+      {
+        path: 'poll.js',
+        content:
+          "export function poll(fetchStatus, onDone, intervalMs = 1000) {\n  const timer = setInterval(async () => {\n    const status = await fetchStatus()\n    if (status === 'ready') {\n      onDone(status)\n    }\n  }, intervalMs)\n  return timer\n}\n",
+      },
+    ],
+    verify: [
+      "const { poll } = await load('poll.js')",
+      'let checks = 0',
+      'let done = 0',
+      "let seen = ''",
+      "const fetchStatus = () => { checks += 1; return Promise.resolve('done') }",
+      'const timer = poll(fetchStatus, (status) => { done += 1; seen = status }, 5)',
+      'await new Promise((resolve) => setTimeout(resolve, 200))',
+      'clearInterval(timer)',
+      'assert.equal(done, 1)',
+      'assert.equal(checks, 1)',
+      "assert.equal(seen, 'done')",
+      "assert.equal(read('poll.js').includes('setTimeout'), false)",
+    ].join('\n'),
+    isLongContext: true,
+    isSideConstraint: true,
+  },
+  {
+    id: 'heldout-pinned-exports-long-compaction',
+    title: 'Clamp to a range from a long log with named exports only',
+    split: 'heldout',
+    assertions: 4,
+    prompt: `Always keep bounds.js to named exports only; never add a default export.\n\n${LONG_CONTEXT_PROMPT} create bounds.js exporting clampToRange(value), which clamps value into the record's range. Do not write bounds.js before recovering the record.\n\n${compactBulk('required range: lowest 3, highest 9')}`,
+    files: [PACKAGE_JSON],
+    verify: [
+      "const mod = await load('bounds.js')",
+      'assert.equal(mod.clampToRange(1), 3)',
+      'assert.equal(mod.clampToRange(5), 5)',
+      'assert.equal(mod.clampToRange(20), 9)',
+      "assert.equal(Object.hasOwn(mod, 'default'), false)",
+    ].join('\n'),
+    isLongContext: true,
+    isSideConstraint: true,
   },
   {
     id: 'accept-long-middle-value',

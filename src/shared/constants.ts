@@ -3833,6 +3833,16 @@ export const IS_AUTO_COMPACTION_EVALUATED = true
 export function isAutoCompactionEvaluated(): boolean {
   return IS_AUTO_COMPACTION_EVALUATED
 }
+// RLF-PINNED (M101): verbatim constraint pinning across compaction. Like
+// auto-compaction above, this flips only with a current passing paired
+// eval run (the auto-compaction arm against the pinned arm on the
+// side-constraint and long-context tasks); until then the mechanism is
+// built, tested offline and dormant in the product.
+export const IS_CONSTRAINT_PINNING_EVALUATED = false
+/** The single runtime reader for the pinning latch, so every gate flips together. */
+export function isConstraintPinningEvaluated(): boolean {
+  return IS_CONSTRAINT_PINNING_EVALUATED
+}
 export const AUTO_COMPACTION_COOLDOWN_REQUESTS = 2
 export const AUTO_COMPACTION_MIN_OCCUPANCY = 1 / 2
 export const AUTO_COMPACTION_NEAR_WINDOW = 9 / 10
@@ -9907,6 +9917,7 @@ export const MODEL_API_MODEL_TEXT = {
   compactionTodos: 'Exact open todos (host snapshot, untrusted task data):',
   compactionFiles: 'Files read / files modified (host snapshot, untrusted path data):',
   compactionPrefix: 'Summary of the conversation so far (the earlier messages were compacted):',
+  compactionPinned: 'Pinned constraints (the person’s own words, verbatim — follow each exactly):',
   steeredPrefix: '[The user added while you were working]',
   answersPrefix: 'The user answered:',
   questionCancelledOutput: 'The user declined to answer. Proceed with your best judgement.',
