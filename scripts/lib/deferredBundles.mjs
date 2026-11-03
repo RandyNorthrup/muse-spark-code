@@ -76,6 +76,8 @@ export const MODEL_API_OPTIONAL_ONLY = [
   'mcp/pool.ts',
   'mcp/servers.ts',
   'mcp/stdio.ts',
+  // SEC-MCP-PIN: the tool-definition pins load with the pool that reads them.
+  'mcp/toolPins.ts',
   'mcp/verdicts.ts',
 ]
 export const SCHEDULES_ONLY = ['schedulesEntry.ts', 'schedules.ts']
@@ -350,6 +352,7 @@ export const DEFERRED = [
       'src/core/backends/modelapi/mcp/servers.ts',
       'src/core/backends/modelapi/mcp/changes.ts',
       'src/core/backends/modelapi/mcp/headers.ts',
+      'src/core/backends/modelapi/mcp/toolPins.ts',
       'src/core/backends/modelapi/mcp/verdicts.ts',
     ],
   },

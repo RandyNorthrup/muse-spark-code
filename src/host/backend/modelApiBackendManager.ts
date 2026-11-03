@@ -978,6 +978,11 @@ export class ModelApiBackendManager {
     return this.host?.mcpSnapshot()
   }
 
+  /** Accepts one server's held-back tool text on the running host (SEC-MCP-PIN). */
+  public async acceptMcpTools(server: string): Promise<boolean> {
+    return (await this.host?.acceptMcpTools(server)) ?? false
+  }
+
   /** A skill file changed: the running host re-reads its catalogue. */
   public async refreshSkills(): Promise<void> {
     await this.host?.refreshSkills()

@@ -65,9 +65,14 @@ export function ElicitationCard({ form, onAccept, onDecline, onCancel }: Elicita
       ? undefined
       : fill(UI_TEXT.elicitationInvalid, { field: label, server: form.server })
     const descriptionId = field.description === undefined ? undefined : `${inputId}-description`
+    const secretId = field.isSecret === true ? `${inputId}-secret` : undefined
     const errorId = error === undefined ? undefined : `${inputId}-error`
     const describedBy =
-      [descriptionId, errorId].filter((id) => id !== undefined).join(' ') || undefined
+      [descriptionId, secretId, errorId].filter((id) => id !== undefined).join(' ') || undefined
+    const isMasked = field.isSecret === true && field.type === 'string' && field.enum === undefined
+    let inputType = 'text'
+    if (field.type === 'boolean') inputType = 'checkbox'
+    else if (isMasked) inputType = 'password'
     return (
       <fieldset key={field.name} className="question-block elicitation-field" disabled={isLocked}>
         <legend className="question-header" dir="auto">
@@ -79,11 +84,16 @@ export function ElicitationCard({ form, onAccept, onDecline, onCancel }: Elicita
             {field.description}
           </div>
         )}
+        {secretId === undefined ? null : (
+          <div id={secretId} className="elicitation-note" dir="auto">
+            {fill(UI_TEXT.elicitationSecretField, { server: form.server })}
+          </div>
+        )}
         {field.enum === undefined ? (
           <input
             id={inputId}
             className={field.type === 'boolean' ? undefined : 'question-input elicitation-input'}
-            type={field.type === 'boolean' ? 'checkbox' : 'text'}
+            type={inputType}
             dir="auto"
             inputMode={field.type === 'number' || field.type === 'integer' ? 'decimal' : undefined}
             aria-label={label}

@@ -302,6 +302,10 @@ const ACTIVATION_ALLOWED = new Map([
     'subscriptionKey.ts',
     'the subscription key source activation reads for the opt-in readiness gate (C-M95-SUB)',
   ],
+  // SEC-MCP-PIN: the canonical tool text and its hidden-character escaping.
+  // Activation reads the escaping for the MCP servers view's review
+  // document; the pool's lazy bundles carry their own copy for the pins.
+  ['mcp/toolText.ts', "the MCP servers view's tool-text review at activation (SEC-MCP-PIN)"],
 ])
 
 // The files that load only with the backend: the host, its tools, hooks,
