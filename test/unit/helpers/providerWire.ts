@@ -21,6 +21,7 @@ import type { CreateResponseBody } from '../../../src/core/backends/modelapi/sch
 import type { providerEntrySchema } from '../../../src/core/providers/providersFile'
 import { memorySecretStoreFor } from '../../../src/runtime/exec/keyInput'
 import { PROVIDERS_FILE_VERSION } from '../../../src/shared/constants'
+import { readIncomingBody } from './incomingBody'
 import { listenOnLoopback } from './loopbackPort'
 
 /** One request as it reached the socket (Node lowercases header names). */
@@ -42,12 +43,7 @@ export interface RecordingSocket {
 export async function recordingSocket(): Promise<RecordingSocket> {
   const requests: WireRequest[] = []
   const server = createServer((request, response) => {
-    const chunks: Buffer[] = []
-    request.on('data', (chunk: Buffer) => {
-      chunks.push(chunk)
-    })
-    request.on('end', () => {
-      const text = Buffer.concat(chunks).toString('utf8')
+    void readIncomingBody(request).then((text) => {
       const headers = Object.fromEntries(
         Object.entries(request.headers).flatMap(([name, value]) =>
           typeof value === 'string' ? [[name, value]] : [],
