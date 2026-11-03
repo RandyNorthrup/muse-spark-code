@@ -207,7 +207,14 @@ describe('modelsPanel schemas', () => {
       ticked: true,
       pinned: false,
       priceNote: 'priced',
-      badges: { recommended: false, cheapestCapable: false, largestContext: false, isNew: false },
+      badges: {
+        recommended: false,
+        cheapestCapable: false,
+        largestContext: false,
+        isNew: false,
+        deprecated: false,
+        beta: false,
+      },
     }
     expect(modelRowSchema.safeParse({ ...row, editorChat: true }).success).toBe(true)
     expect(modelRowSchema.safeParse({ ...row, editorChat: false }).success).toBe(true)

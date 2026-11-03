@@ -191,16 +191,20 @@ function modelDetail(
   const { contextLimit } = model
   const price = priceText(model, formatPrice)
   const tier = modelTier(model)
+  // Lifecycle and reroute marks (PROV-HONEST): the host composes them
+  // where the record lives; the picker names them after the tier.
+  const marks = model.marks ?? []
+  const suffix = tier === undefined ? marks : [tier, ...marks]
   if (contextLimit === undefined) {
-    return appendTier(price, tier)
+    return appendMarks(price, suffix)
   }
   if (price === undefined) {
-    return appendTier(contextWindowLabel(contextLimit), tier)
+    return appendMarks(contextWindowLabel(contextLimit), suffix)
   }
   // The template names the unit itself, so the window goes in bare (M95).
-  return appendTier(
+  return appendMarks(
     fill(UI_TEXT.pickerModelDetail, { window: formatTokenWindow(contextLimit), price }),
-    tier,
+    suffix,
   )
 }
 
@@ -217,12 +221,12 @@ function modelTier(model: ModelOption): string | undefined {
     : undefined
 }
 
-/** The detail with the tier named after it, either half alone, or nothing to say. */
-function appendTier(detail: string | undefined, tier: string | undefined): string | undefined {
+/** The detail with the tier and marks named after it, each half alone, or nothing to say. */
+function appendMarks(detail: string | undefined, suffix: readonly string[]): string | undefined {
   if (detail === undefined) {
-    return tier
+    return suffix.length === 0 ? undefined : suffix.join(' · ')
   }
-  return tier === undefined ? detail : `${detail} · ${tier}`
+  return suffix.length === 0 ? detail : `${detail} · ${suffix.join(' · ')}`
 }
 
 /** One provider's models in the picker's models view, in first-seen order. */

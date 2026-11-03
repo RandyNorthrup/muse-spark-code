@@ -5813,7 +5813,9 @@
     "recommended": "추천",
     "cheapestCapable": "사용 가능한 최저가",
     "largestContext": "최대 컨텍스트",
-    "newBadge": "신규"
+    "newBadge": "신규",
+    "deprecated": "지원 중단",
+    "beta": "베타"
   },
   "modelToolCallingUnavailable": "이 모델의 도구 호출은 검증되지 않았습니다.",
   "paidProviderPrice": "100만 토큰당: 입력 {input}, 캐시 읽기 {cached}, 캐시 쓰기 {write}, 1시간 쓰기 {write1h}, 12시간 쓰기 {write12h}, 출력 {output}. 요청당 {request}, 이미지당 {image}.",
@@ -5862,6 +5864,10 @@
   "pickerPinnedGroup": "고정된 즐겨찾기",
   "pickerMetaGroup": "Muse Spark",
   "pickerPricePair": "입력 {input} · 출력 {output}(100만 토큰당)",
+  "pickerRetiresOn": "{date} 지원 종료",
+  "pickerRerouteServes": "{id} 요청을 처리",
+  "modelReroutesOn": "{date}부터 {model}(으)로 전환",
+  "referenceProviderLifecycle": "Gemini 요청에는 store=false가 포함되므로 Google은 프롬프트와 응답을 저장하지 않습니다. 모델 선택기와 모델 표는 지원 중단 모델과 베타 모델을 표시하고, 모델 선택기는 발표된 지원 종료일을 알려 줍니다. 지원 중단 모델은 공급자가 거부할 때까지 선택할 수 있습니다. Google이 다른 모델로 전환하는 Gemini id는 실제로 응답하는 모델의 가격과 이름으로 표시됩니다.",
   "usageKeyUsage": "API 키 사용량",
   "usageLimit": "한도",
   "usageRemaining": "남음",
@@ -6069,6 +6075,9 @@
       "zdr": "데이터 보관 안 함: 데이터를 전혀 저장하지 않는 엔드포인트만 응답할 수 있습니다.",
       "no-training": "학습 안 함: 사용자의 데이터로 학습하지 않는 공급자만 응답할 수 있습니다.",
       "any": "모든 공급자: 데이터를 보관할 수 있는 공급자를 포함해 가장 저렴하거나 빠른 응답을 선택합니다."
+    },
+    "privacyNotes": {
+      "geminiStore": "여기서 보내는 모든 요청에는 store=false가 포함되므로, 기본적으로 저장하는 프로젝트에서도 Google이 프롬프트와 응답을 저장하지 않습니다."
     },
     "suggest": {
       "recommended": "권장 모델이며 실행 환경에 충분한 컨텍스트를 가진 가장 저렴한 도구 호출 모델입니다 ({ref}).",

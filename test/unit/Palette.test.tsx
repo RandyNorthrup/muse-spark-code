@@ -363,6 +363,76 @@ describe('Palette (models view)', () => {
     expect(calls.actions).toContainEqual({ type: 'manageModels' })
   })
 
+  it('names lifecycle, retirement, beta and the serving model in the detail', async () => {
+    renderPalette({
+      view: 'models',
+      currentModelId: 'gemini/gemini-3.5-flash',
+      models: [
+        {
+          modelId: 'gemini/gemini-3.5-flash',
+          displayLabel: 'Gemini 3.6 Flash',
+          contextLimit: 1_048_576,
+          isDefault: false,
+          providerId: 'gemini',
+          providerLabel: 'Google Gemini',
+          pricing: 'priced',
+          inputUsdPerMTokens: 0.75,
+          outputUsdPerMTokens: 3.75,
+          marks: ['Serves gemini-3.5-flash requests'],
+        },
+        {
+          modelId: 'gemini/gemini-2.5-pro',
+          displayLabel: 'Gemini 2.5 Pro',
+          contextLimit: 1_048_576,
+          isDefault: false,
+          providerId: 'gemini',
+          providerLabel: 'Google Gemini',
+          pricing: 'priced',
+          inputUsdPerMTokens: 1.25,
+          outputUsdPerMTokens: 10,
+          marks: ['Routes to Gemini 3.8 Flash on Dec 1, 2026'],
+        },
+        {
+          modelId: 'openai/gpt-4o-2024-08-06',
+          displayLabel: 'GPT-4o',
+          contextLimit: 128_000,
+          isDefault: false,
+          providerId: 'openai',
+          providerLabel: 'OpenAI',
+          pricing: 'priced',
+          inputUsdPerMTokens: 2.5,
+          outputUsdPerMTokens: 10,
+          marks: ['Retires Jan 14, 2027'],
+        },
+        {
+          modelId: 'mistral/mistral-large-4',
+          displayLabel: 'Mistral Large 4',
+          contextLimit: 128_000,
+          isDefault: false,
+          providerId: 'mistral',
+          providerLabel: 'Mistral',
+          pricing: 'priced',
+          inputUsdPerMTokens: 2,
+          outputUsdPerMTokens: 6,
+          marks: ['Beta'],
+        },
+      ],
+    })
+    // Priced rows read without prices until the lazy money chunk arrives.
+    await screen.findByText(/\$0\.7500 in · \$3\.75 out/)
+    const details = screen
+      .getAllByRole('option')
+      .map((node) => node.querySelector('.palette-item-detail')?.textContent)
+    expect(details).toEqual(
+      expect.arrayContaining([
+        '1M context · $0.7500 in · $3.75 out (per M tokens) · Serves gemini-3.5-flash requests',
+        '1M context · $1.25 in · $10.00 out (per M tokens) · Routes to Gemini 3.8 Flash on Dec 1, 2026',
+        '128K context · $2.50 in · $10.00 out (per M tokens) · Retires Jan 14, 2027',
+        '128K context · $2.00 in · $6.00 out (per M tokens) · Beta',
+      ]),
+    )
+  })
+
   it('marks unpriced models and filters by provider', () => {
     const { filter } = renderPalette({
       view: 'models',

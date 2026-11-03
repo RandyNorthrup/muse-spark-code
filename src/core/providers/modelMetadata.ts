@@ -50,6 +50,7 @@ export function nativeCapabilityEvidence(
     lifecycle?: 'active' | 'deprecated' | 'retired'
     deprecatedAt?: string
     retiresAt?: string
+    beta?: boolean
   } = {}
   const tools: NonNullable<CapabilityOverrides['tools']> = {}
   const reasoning: NonNullable<CapabilityOverrides['reasoning']> = {}
@@ -309,6 +310,30 @@ export function nativeCapabilityEvidence(
     const structured = read(z.boolean(), 'capabilities', 'structured_outputs', 'supported')
     if (structured !== undefined)
       output.formats = yes(structured ? ['text', 'json_schema'] : ['text'])
+  }
+  if (preset !== 'anthropic') {
+    // OpenAI's models list carries the shutdown day per model
+    // (`shutdown_date`, `YYYY-MM-DD` or null; the deprecations page says
+    // to monitor shutdowns through it, and that an announced model
+    // "immediately becomes deprecated":
+    // developers.openai.com/api/docs/deprecations, read 2026-11-02).
+    // Azure and xAI serve the same list shape, so the read is generic:
+    // a set date sets both the retirement instant and the lifecycle.
+    const shutdown = read(z.nullable(z.string()), 'shutdown_date')
+    if (typeof shutdown === 'string' && shutdown !== '') {
+      identity.retiresAt = shutdown
+      identity.lifecycle = 'deprecated'
+    }
+  }
+  if (source.kind === 'catalogue') {
+    // models.dev's own status word (live api.json, measured 2026-11-02:
+    // `deprecated` or `beta` on the synced sections). A deprecated
+    // catalogue row is deprecated; beta rides beside the lifecycle, since
+    // a beta model is active-but-beta. Catalogue evidence loses to the
+    // live list where the list speaks (capabilityRecord PRIORITY).
+    const status = read(z.enum(['deprecated', 'beta']), 'status')
+    if (status === 'deprecated') identity.lifecycle = 'deprecated'
+    else if (status === 'beta') identity.beta = true
   }
   return {
     source,

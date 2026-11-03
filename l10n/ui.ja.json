@@ -5813,7 +5813,9 @@
     "recommended": "おすすめ",
     "cheapestCapable": "対応可能な最安",
     "largestContext": "最大コンテキスト",
-    "newBadge": "新着"
+    "newBadge": "新着",
+    "deprecated": "非推奨",
+    "beta": "ベータ"
   },
   "modelToolCallingUnavailable": "このモデルではツール呼び出しが検証されていません。",
   "paidProviderPrice": "100万トークンあたり：入力 {input}、キャッシュ読み取り {cached}、キャッシュ書き込み {write}、1時間の書き込み {write1h}、12時間の書き込み {write12h}、出力 {output}。リクエストあたり {request}、画像あたり {image}。",
@@ -5862,6 +5864,10 @@
   "pickerPinnedGroup": "ピン留めのお気に入り",
   "pickerMetaGroup": "Muse Spark",
   "pickerPricePair": "入力 {input} · 出力 {output}（100 万トークンあたり）",
+  "pickerRetiresOn": "{date}に提供終了",
+  "pickerRerouteServes": "{id}へのリクエストに応答",
+  "modelReroutesOn": "{date}から{model}に切り替わり",
+  "referenceProviderLifecycle": "Gemini へのリクエストには store=false が付くため、Google はプロンプトと応答を保存しません。モデルピッカーとモデル表は非推奨モデルとベータ版モデルに印を付け、モデルピッカーは発表された提供終了日を示します。非推奨モデルはプロバイダーが拒否するまで選択できます。Google が転送する Gemini の id は、実際に応答するモデルとして価格と名前が表示されます。",
   "usageKeyUsage": "API キーの使用量",
   "usageLimit": "上限",
   "usageRemaining": "残量",
@@ -6069,6 +6075,9 @@
       "zdr": "データを保持しない: データを一切保存しないエンドポイントだけが応答できます。",
       "no-training": "トレーニングに使用しない: データをトレーニングに使用しないプロバイダーだけが応答できます。",
       "any": "すべてのプロバイダー: データを保持する可能性があるプロバイダーも含め、最も安いか最も速い応答を選びます。"
+    },
+    "privacyNotes": {
+      "geminiStore": "ここからのすべてのリクエストにはstore=falseが付与されるため、デフォルトで保存するプロジェクトであっても、Googleがプロンプトや応答を保存することはありません。"
     },
     "suggest": {
       "recommended": "推奨モデルで、実行環境に十分なコンテキストを持つ最も安いツール呼び出し対応モデルです（{ref}）。",

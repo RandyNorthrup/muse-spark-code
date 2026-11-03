@@ -211,6 +211,8 @@ export const modelRowSchema = z.strictObject({
     cheapestCapable: z.boolean(),
     largestContext: z.boolean(),
     isNew: z.boolean(),
+    deprecated: z.boolean(),
+    beta: z.boolean(),
   }),
 })
 export type ModelRow = z.infer<typeof modelRowSchema>

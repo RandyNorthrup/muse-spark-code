@@ -5950,7 +5950,9 @@
     "recommended": "Ajánlott",
     "cheapestCapable": "Legolcsóbb alkalmas",
     "largestContext": "Legnagyobb kontextus",
-    "newBadge": "Új"
+    "newBadge": "Új",
+    "deprecated": "Elavult",
+    "beta": "Béta"
   },
   "modelToolCallingUnavailable": "Az eszközhívás nincs ellenőrizve ennél a modellnél.",
   "paidProviderPrice": "Millió tokenenként: bemenet {input}, gyorsítótár-olvasás {cached}, gyorsítótár-írás {write}, egyórás írás {write1h}, tizenkét órás írás {write12h}, kimenet {output}. Kérésenként {request}; képenként {image}.",
@@ -5999,6 +6001,10 @@
   "pickerPinnedGroup": "Rögzített kedvencek",
   "pickerMetaGroup": "Muse Spark",
   "pickerPricePair": "{input} bemenet · {output} kimenet (millió tokenenként)",
+  "pickerRetiresOn": "Kivezetés: {date}",
+  "pickerRerouteServes": "Kiszolgálja a(z) {id} kéréseit",
+  "modelReroutesOn": "{date}-tól {model} szolgálja ki",
+  "referenceProviderLifecycle": "A Gemini-kérések store=false értéket küldenek, így a Google nem tárolja a promptjait és a válaszait. A modellválasztó és a Modellek táblázat jelöli az elavult és béta modelleket, a modellválasztó pedig megnevezi a bejelentett kivezetési napot; az elavult modell választható marad, amíg a szolgáltatója el nem utasítja. Az a Gemini-azonosító, amelyet a Google átirányít, annak a modellnek az árán és nevén szerepel, amely kiszolgálja.",
   "usageKeyUsage": "API-kulcs használata",
   "usageLimit": "Limit",
   "usageRemaining": "Maradék",
@@ -6206,6 +6212,9 @@
       "zdr": "Nincs adatmegőrzés: csak adatot egyáltalán nem tároló végpontok válaszolhatnak.",
       "no-training": "Nincs betanítás: csak olyan szolgáltatók válaszolhatnak, amelyek nem tanítanak az adataival.",
       "any": "Bármely szolgáltató: a legolcsóbb vagy leggyorsabb válasz nyer, beleértve az adatot esetleg megőrző szolgáltatókat."
+    },
+    "privacyNotes": {
+      "geminiStore": "Az innen küldött minden kérés store=false jelzéssel megy, így a Google nem tárolja a kéréseit és a válaszokat, még olyan projektben sem, amely alapértelmezés szerint tárol."
     },
     "suggest": {
       "recommended": "Ajánlott, és a legolcsóbb eszközhívó modell, elegendő hellyel a futtatókörnyezethez ({ref}).",

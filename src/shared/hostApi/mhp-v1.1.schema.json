@@ -21011,7 +21011,8 @@
                                   "additionalProperties": false
                                 }
                               },
-                              "defaultReasoningEffort": { "type": "string" }
+                              "defaultReasoningEffort": { "type": "string" },
+                              "marks": { "type": "array", "items": { "type": "string" } }
                             },
                             "required": ["modelId", "displayLabel", "isDefault"],
                             "additionalProperties": false
@@ -43572,7 +43573,8 @@
                             "additionalProperties": false
                           }
                         },
-                        "defaultReasoningEffort": { "type": "string" }
+                        "defaultReasoningEffort": { "type": "string" },
+                        "marks": { "type": "array", "items": { "type": "string" } }
                       },
                       "required": ["modelId", "displayLabel", "isDefault"],
                       "additionalProperties": false

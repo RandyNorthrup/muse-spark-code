@@ -14,6 +14,7 @@ import { fill } from '../../shared/l10n/text'
 import { TOKENS_PER_MILLION, UI_TEXT } from '../../shared/constants'
 import { isEffortLevel } from '../../shared/effort'
 import type { ModelCapabilityRecord } from './capabilityRecord'
+import type { ModelReroute } from './geminiReroutes'
 import { parseModelRef, sanitizeModelLabel } from '../../shared/modelRef'
 import { reserveRequestAmount, settleUsageAmount, type ModelPricing } from './priceCard'
 import { unknownModelRefText } from '../unknownModel'
@@ -26,6 +27,8 @@ export interface RegistryModel {
   readonly pricing: ModelPricing
   /** The joined capability record, when the owning lane resolved one. */
   readonly record?: ModelCapabilityRecord | undefined
+  /** A Gemini id Google serves with another model, active or future. */
+  readonly reroute?: ModelReroute | undefined
   readonly displayLabel?: string | undefined
   readonly providerLabel?: string | undefined
   readonly contextTokens?: number | undefined
@@ -49,6 +52,7 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
     async list() {
       const models = await deps.models()
       return models.flatMap((model) => {
+        const identity = model.record?.identity
         const policy = modelPolicyFor(model.ref, { ...model.evidence, pricing: model.pricing })
         // A model without confirmed tool calling stays listed with its
         // limit stated, never hidden without a reason (F83).
@@ -87,6 +91,15 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
           isPinned: model.isPinned,
           trainsOnContent: model.trainsOnContent,
           planLimitsUrl: model.planLimitsUrl,
+          // The record's lifecycle honesty rides the row for the picker
+          // (PROV-HONEST): active stays silent, and a set reroute names
+          // the serving model whether it serves already or from its day.
+          ...((identity?.lifecycle === 'deprecated' || identity?.lifecycle === 'retired') && {
+            lifecycle: identity.lifecycle,
+          }),
+          ...(identity?.retiresAt !== undefined && { retiresAt: identity.retiresAt }),
+          ...(identity?.beta === true && { beta: true }),
+          ...(model.reroute !== undefined && { reroute: model.reroute }),
           ...(agentLimit !== undefined && { agentLimit }),
           ...(pricing.kind === 'priced' && {
             inputUsdPerMTokens: pricing.card.input * TOKENS_PER_MILLION,
