@@ -48,6 +48,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Maker commands in the editor.** Enable and disable hardware per
+  workspace, add and remove machines, Stop, and the scrubbed device log
+  are commands in VS Code now, loading only when first used; Stop is
+  never gated.
+- **OctoPrint joins without a pasted key.** Adding an OctoPrint machine
+  asks you to approve once in OctoPrint's own application dialog
+  instead of copying an API key; a refused or unanswered request says
+  so and registers nothing.
 - **Maker tools with a person at every physical action.** Shell commands
   that flash a board, open a device or move a machine ask every time, in
   every permission mode, and no remembered rule, hook or automatic reviewer
