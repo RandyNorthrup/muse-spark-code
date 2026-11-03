@@ -7425,3 +7425,161 @@ explicitly deferred, not claimed green. Follow-up: run
 `npm run check:host-api -- --write`, review these rows, rerun the check.
 
 <!-- plan-archive:end id="gates-531be9dbe-33704" -->
+
+## Gate records (archived 2026-11-03, CC-INT11 batch B, part 2)
+
+<!-- plan-archive:begin id="gates-ae58e644e-33413" lines="33413-33563" at="ae58e644e" bytes="9467" sha256="b1dc33233537421d74e389003167e562bfbfd448d2338c53c8a3b024d3cc6a88" -->
+
+Round-two cause fixes use a fixed Z.ai key pattern and localized plain-text
+OAuth callbacks instead of dynamic regex compilation/manual HTML escaping.
+Chat reasoning fragments merge with data-property copies, preserving native
+future fields without target setters. The SAST launcher scans serially:
+287 unchanged rules across 947 targets complete with zero findings and no
+warnings at the unchanged default five-second rule deadline. No suppression,
+exception or timeout change. Existing M/U selection colors and focused
+persistent browser workers close the two round-one Models failures; red
+drills reproduce the exact 4.41:1 contrast and named readiness errors.
+The complete duplication gate also finds the routing schema repeated in
+provider-file and host-import boundaries, and a test copying panel state.
+Extract the identical routing shape to a small shared module (so the host
+does not load provider core), and use the existing test-state builder.
+No ignore or threshold changes.
+The current tree still exceeds Models host and chat caps. The brief's
+additional-deferral instruction authorizes independently adopting the release
+pattern: Node bundles share the used mini-validation API, and Account & usage
+loads its optional dialog on demand with a dismissible modal loading state.
+Count every static browser chunk in the unchanged startup budget; keep Models
+as a separate browser build. Require parser API completeness, deferred/reachable
+chunks and package membership, prove these guards red, and retain all caps.
+The panel publisher also consumes its own setup-message schema, shared with
+the chat protocol, so it does not initialize unrelated chat/agent schemas.
+This is build scope only; it does not merge or implement the absent release.
+The local S/C ref lacks the brief's claimed release commit `928a9200`;
+clarification is pending before a separate exact-release merge. The real
+universal macOS helper is absent; its approved source is also pending.
+
+Section 7's frozen 2026-10-04/05 M95 gate view (status, spec, acceptance
+record with the STAR, FIXM95T and round receipts) moved to the archive,
+superseded by the live section-6 M95 record (Status 2026-10-17, MSM95
+complete). Nothing open is lost: remaining lanes, composition, release
+acceptance and open checklist boxes are the section-6 record's; W's gates stay
+in the B-W-host-api deferral above and the M95-K summary below; the
+ledger-format deferral stays in the STAR receipt; T-finding 5 stays a named
+section-9 residual; full quality stays the lead's gate. Full record:
+[docs/plan-archive/gates.md](docs/plan-archive/gates.md).
+
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
+
+R4's sole aggregate quality invocation exits 1 at lint; its four findings are
+repaired and whole-tree lint passes. The individual continuation completes the
+563-file coverage invocation with 545 passing files, 11 failing files and 7
+skipped files (39 failed, 12,049 passed, 118 skipped tests). Five unchanged
+checkpoint files contribute nine failures. Package/report allowlists, lazy
+account assertions, plan price expectations, CLI help expectations and the
+production-build hook receive scoped repairs; their final receipts are in the
+certificate. The full history scan reports one unclassified finding at
+`0bffa2de1f7ac8929b3417a79beeda63230cb459:docs/certification/m95-x.md:73`.
+Only redacted metadata was inspected. No history rewrite or scanner ignore is
+authorized. SAST passes 529 rules on 1,382 files. Release certification remains
+open: the original brief permits one aggregate run and 150 minutes; the request
+for a recovery run/time extension has no answer. These local review checkpoints
+do not propose a release or claim green quality/coverage.
+The scoped App and report files then pass all 217 cases; the package file still
+fails because GNU tar interprets a Windows drive letter as a remote host. Pin
+native Windows tar in the owning export checker. Its final rerun, the new
+archive-member assertions and the tariff/help/build-hook reruns are deferred
+at the original time-box boundary, explicitly unproven rather than green.
+
+The preflight audit also reports newly reviewed high advisory
+GHSA-68fv-2mgg-jv7q in development-only `source-map-js` 1.2.1. Upstream fixes
+it in 1.2.2; pin that exact transitive override and regenerate the lockfile
+with `--package-lock-only --ignore-scripts`, then require the unchanged audit
+gate to pass. No exception is added. The rig's immutable shared install
+remains 1.2.1; clean installs from this lock use 1.2.2. No shipped bundle or
+notice imports this development dependency. Peer-dependency metadata is empty.
+The first lock-only resolution correctly refuses the patch under the seven-day
+release-age filter. For this audited security fix, exempt only `source-map-js`
+on that single lock-only command with `--min-release-age-exclude=source-map-js`;
+the repository's age policy and all other dependency filters stay unchanged.
+
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
+
+- **Phase 2 sections.** Planned, not dropped. Each starts after its
+  dependency and the evidence it names.
+  - **2a — Cascade, `both`, and `auto` → `both`.**
+    - **Design:** the separate judge first; the same model under the entropy
+      `JUDGE_CASCADE_CONFIDENCE` or for a high-stakes family;
+      profile-weighted combination; disagreement only adds caution.
+    - **Needs:** 2b, a verified separate judge (2c or 2j), and M75's
+      families. The round-2 numbers are offline prototypes.
+  - **2b — Calibration fitting and the report.**
+    - Platt first, isotonic at 200 or more labels.
+    - Per-family targets with independent labels; outcome signals kept
+      apart.
+    - Disjoint grouped splits; metrics from the evaluation set only.
+  - **2c — SystemOne adapters and `judge serve`** (M85).
+    - **Adapters:** OpenRouter Jev (tested), TypeSafe (untested), Clef
+      (after a key), over M95's keys.
+    - **`serve`:** an IP-literal bind, a per-start token in a user-only file
+      deleted on exit, Host and `Origin` refusal (an absent `Origin` never
+      skips the token), 64 KiB, per-request admission.
+  - **2d — Sampling and contrastive framing,** under the cost gate,
+    measured first.
+  - **2e — BYO providers** after M95, with per-model capability blocks from
+    captures.
+  - **2f — The other uses, the Judge panel section and pre-execution
+    fences.**
+    - **Uses:** skill suggestion, relevance and grading, M96's hints, M90's
+      signal, and the three testing uses, each measured first.
+    - **Fences:** a deadline-bounded or hook-based fence for immediate
+      allows, only with a captured pre-execution hook (M91) and a measured
+      ready rate.
+    - **The panel section** sits in M95's panel.
+  - **2g — The CLI and MCP.** `judge ask`, `calibrate`, `report` and `mcp`,
+    plus `judge hook` after M91; exit codes 0, 2 and 4; `--budget-usd`
+    defaults to 0; hooks emit caution only.
+  - **2h — Lint,** within D77's declared limits: a strict, pinned
+    `jevlint.json`; a separate Muse config; Tree-sitter for the kinds
+    symbols cannot cover; a "not checked" coverage report; the first-party
+    pack.
+  - **2i — The embedding fast path,** after a measurement with hundreds of
+    labels.
+  - **2j — The local judge.** First, a design spike answering C1 and C2
+    (D77): verified local inference checked per connection, against the
+    named fixtures, or else only a user-configured, unverified endpoint
+    that is never confidential and never auto-selected. The build follows
+    the spike's verdict, starting from D77's carried design: the pinned
+    `node:net` transport, provenance, consented pulls and `tev1:4b`.
+- **Gates.**
+  - The lead runs the full `npm run quality` and the required CI checks on
+    the final integrated tree. Lane tests and builds run on the rigs; local
+    work is limited to changed-file formatting and lint.
+  - All existing budgets are preserved.
+  - New external shapes need counted captures before their parsers: for
+    phase 1, Muse Code's hidden-session frames and the CLI's user-settings
+    allow-rule format.
+  - This planning lane authorizes no paid or live call beyond its recorded
+    probes.
+- **Security.**
+  - Inputs are bounded by named constants.
+  - State is data, and the judge can only add caution.
+  - Keys stay in SecretStorage or the OS store.
+  - Muse Code's judge session carries M90's recorded residual (§9), with
+    the narrowed claim.
+  - No local endpoint is contacted in phase 1.
+- **Docs and owner steps.** None for phase 1. The owner-only keys (TypeSafe,
+  Cloudflare) are needed only for 2c. Each surface is documented only after
+  a real successful run.
+- **Certification checklist.**
+  - [ ] Step 1 captures recorded, with server versions and counted calls.
+  - [ ] Meta goldens recorded at `1e93c67c` and unchanged at the end.
+  - [ ] Acceptance 1–19 with tests and drills (`docs/certification/m95.md`).
+  - [x] Step 13's wire captures for the twelve keyed cloud presets
+        (2026-10-04, `docs/certification/m95-captures.md`).
+  - [ ] Each listed preset's capture (step 13): Azure and the local servers,
+        and one live turn per preset through the built codec.
+  - [ ] Bundles within D6, measured.
+  - [ ] README, PRIVACY, SECURITY, AGENTS.md, CHANGELOG, `docs/acp.md`,
+        `docs/ci.md` and this record updated.
+
+<!-- plan-archive:end id="gates-ae58e644e-33413" -->
