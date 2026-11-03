@@ -628,6 +628,15 @@ export function featureCatalog(): readonly Feature[] {
       ['modelApi', 'museCode'],
     ),
     feature(
+      'refusal-fallback',
+      { setting: 'refusalFallback' },
+      { setting: 'refusalFallback' },
+      [],
+      ['refusalFallback'],
+      'team-configuration',
+      ['modelApi', 'museCode'],
+    ),
+    feature(
       'team-workers',
       { ui: 'paidTeamWorkersName' },
       { ui: 'referenceTeamFiles' },

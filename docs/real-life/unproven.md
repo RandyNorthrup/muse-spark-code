@@ -3733,3 +3733,39 @@ ships until the packed run proves it.
   structure binding ships per D67's own fallback. Unproven until a day
   of ordinary use records the credential file across a refresh and
   across a sign-out.
+- MHP on this branch is 1.5.0. Lane B's 1.6 theme message and its extra
+  editors (`hosts/mhp-python`, Jupyter, NetBeans, Spyder, RStudio) are
+  not on this branch. Lane C's `attachments/*` methods are not on the
+  native hosts. Lane A's `src/runtime/panel/git/gitEntry.ts` is not on
+  this branch.
+
+## Lane RLF-FALLBACK (2026-11-02; D261)
+
+A refusal cannot be ordered on demand, and no recorded refusal exchange
+exists (PROVERRR2's capture plan is not captured). A real run must still
+show, on the packed product with a team whose role lists two agents and
+`museSpark.refusalFallback` on (renamed from `museSpark.teamRefusalFallback`
+before it shipped): a Model API worker on an Anthropic model whose reply
+stops with `refusal` ends its turn with `turnCompleted.refused` and the
+refused report; the task moves to the role's next agent (from another
+provider, or another model on the same account), with the switch row
+"the earlier agent refused the task"; the new worker's request is valid
+for its provider; each agent's spend shows on its own entry; with a paid
+next agent, the D48 popup names its model and price first; `exec --team
+--refusal-fallback` stops with its sentence instead of asking; and with
+the toggle off the task ends on the refusal.
+
+Solo chats (same lane, second pass): a Model API chat on a model that
+sits in a role's list, whose turn is refused, shows the switch row from
+its own entry to the role's next agent, then that agent's answer in the
+same turn; the chat's model picker still shows the person's model and the
+next message goes to it; usage shows the refused turn on the chat's model
+and the takeover on the next entry; a chat on a model no role holds ends
+on its refusal. With two records of one provider preset in the role (two
+accounts), the refused turn never goes to the other account's record, and
+when nothing else is left the sentence names the skipped models. The
+session's hand-over (`handOverRefusedTurn` in `ModelApiHost.ts`) has no
+automated test: no recorded refusal exists to drive a real session, so
+only this run proves it.
+
+Not run: no Muse request and no paid provider call in this lane.

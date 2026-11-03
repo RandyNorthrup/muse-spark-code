@@ -42,7 +42,7 @@ import {
 import { isTeamGitError, type TeamGit } from '../../core/team/teamGit'
 import { runEngineWorker } from '../../core/team/workers/engineWorker'
 import { WORKER_NATIVE_IO } from '../../core/team/workers/workerFence'
-import type { WorkerReportOutcome } from '../../core/team/workers/report'
+import { isRefusedReport, type WorkerReportOutcome } from '../../core/team/workers/report'
 import type {
   TeamDiffFile,
   TeamHostServiceDeps,
@@ -77,6 +77,8 @@ export interface EngineTeamPortsDeps {
   readonly isTrusted: () => boolean
   /** The engine's model list: the declared setup probe reads it. */
   readonly rates?: TeamWorkerPort['rates']
+  /** D261: the service each provider record was added from. */
+  readonly providerService?: TeamWorkerPort['providerService']
   readonly listModels: () => Promise<readonly string[]>
   /**
   The entry model's current capability record for pre-dispatch
@@ -393,7 +395,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
       }
       await meterWrites
       signal.throwIfAborted()
-      return await endTaskCopy(copyDeps, storage, {
+      const ended = await endTaskCopy(copyDeps, storage, {
         spec,
         copy,
         signal,
@@ -401,6 +403,8 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
         isCeilingReached: result.outcome.ceilingReached,
         usage,
       })
+      // D261: the refusal rides beside the report, which keeps its status.
+      return isRefusedReport(result.report) ? { ...ended, isRefused: true } : ended
     } catch (error: unknown) {
       // A copy this task made and never handed back is removed; a reopened
       // task's copy stays with the finished task it came from.
@@ -417,6 +421,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
 
   const workers: TeamWorkerPort = {
     ...(deps.rates !== undefined && { rates: deps.rates }),
+    ...(deps.providerService !== undefined && { providerService: deps.providerService }),
     canRun: (agent) => agent.kind === 'engine',
     probe: async (agent) => {
       const listed = await deps.listModels()

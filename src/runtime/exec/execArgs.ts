@@ -60,6 +60,8 @@ export interface ExecOptions {
   readonly model: string | undefined
   /** M96b: explicit opt-in to bounded, in-process headless engine teams. */
   readonly team: boolean
+  /** D261: a refused team task moves to its role's next candidate (`--team` only). */
+  readonly refusalFallback: boolean
   /**
   The requested tier, or `none` for Thinking off (lane REASONSHAPESR2:
   the terminal agent can be told to send none; the record decides what
@@ -107,6 +109,7 @@ const BOOLEAN_OPTIONS = new Set([
   'allow-contributor-models',
   'fast',
   'team',
+  'refusal-fallback',
   'image-generation',
   'muse-voice',
   'auto-compaction',
@@ -425,6 +428,8 @@ export function parseExec(
   if (values['team'] === true) {
     const admission = teamExecAdmission({ mode, backend })
     if (!admission.ok) return invalid(admission.reason)
+  } else if (values['refusal-fallback'] === true) {
+    return invalid(UI_TEXT.execRefusalFallbackNeedsTeam)
   }
   return {
     ok: true,
@@ -433,6 +438,7 @@ export function parseExec(
       ...(values['account-pool'] === true && { accountPool: true }),
       backend,
       team: values['team'] === true,
+      refusalFallback: values['refusal-fallback'] === true,
       cwd: stringValue('cwd'),
       prompt,
       untrustedFiles,

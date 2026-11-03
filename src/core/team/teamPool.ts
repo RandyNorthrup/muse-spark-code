@@ -8,6 +8,7 @@ import type {
 } from '../../shared/teamPreference'
 import { Usd, type UsdAmount } from '../../shared/usd'
 import { UI_TEXT, TEAM_SCHED_TICK_MS } from '../../shared/constants'
+import { isProviderId, RESERVED_PROVIDER_ID } from '../../shared/modelRef'
 import { detectStall } from './scheduler/stalls'
 import { fill, formatNumber } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
@@ -96,7 +97,7 @@ export interface TeamOrchestratorSlot {
 
 /** Why selection moved: D75's `TeamAgentSwitch` reasons. */
 export type TeamSwitchReason =
-  'cap' | 'concurrency' | 'rateLimited' | 'usageLimit' | 'unavailable' | 'reset'
+  'cap' | 'concurrency' | 'rateLimited' | 'usageLimit' | 'unavailable' | 'reset' | 'refused'
 
 /** One recorded switch: the transcript row's data and the hook's payload. */
 export interface TeamSwitch {
@@ -250,6 +251,9 @@ export function switchReasonText(
     }
     case 'unavailable': {
       return UI_TEXT.teamSwitchReasonUnavailable
+    }
+    case 'refused': {
+      return UI_TEXT.teamSwitchReasonRefused
     }
     case 'reset': {
       return UI_TEXT.teamSwitchReasonReset
@@ -534,6 +538,151 @@ function reasonFromRefusal(refusal: TeamEntryExhaustion | undefined): {
       return { kind: 'unavailable' }
     }
   }
+}
+
+/** One entry as a refusal move reads it: its id, model and who pays. */
+export interface RefusalMoveEntry {
+  readonly id: string
+  readonly agent: { readonly model: string; readonly pays: TeamBilling }
+}
+
+/**
+Who holds an agent, as a refusal move reads it (D261): the provider whose
+usage terms bind every account on it, and the account the agent runs under.
+*/
+export interface RefusalAccount {
+  readonly provider: string
+  readonly account: string
+}
+
+/** Why a refusal move passed an entry over (D261). */
+export type RefusalSkipReason = 'tried' | 'otherAccount' | 'author' | 'noHeadroom'
+
+/** One entry a refusal move passed over, and why. */
+export interface RefusalSkip {
+  readonly entryId: string
+  readonly reason: RefusalSkipReason
+}
+
+/** What a refused task does next (D261), with every entry passed over before it. */
+export type RefusalMovePlan<T extends RefusalMoveEntry> =
+  | {
+      readonly kind: 'move'
+      readonly entry: T
+      readonly isAskNeeded: boolean
+      readonly skipped: readonly RefusalSkip[]
+    }
+  | { readonly kind: 'cannotAsk'; readonly entry: T; readonly skipped: readonly RefusalSkip[] }
+  | { readonly kind: 'exhausted'; readonly skipped: readonly RefusalSkip[] }
+
+/**
+D261: who answers a refused task next, in the role's own order (D103's
+list): the first entry this task has not tried, not on the refusing
+agent's provider under another account, whose live headroom holds and,
+for a review, whose model wrote none of the reviewed work. A provider's
+usage terms bind all its accounts, so a refused turn never moves to
+another account of the same provider; another provider, or another model
+on the same account, may take it. A paid entry the task holds no consent
+for must ask D48's question first; an unattended run cannot ask, so the
+move stops there. No entry left: the refusal stands, as it always did.
+*/
+export function planRefusalMove<T extends RefusalMoveEntry>(input: {
+  readonly entries: readonly T[]
+  readonly tried: ReadonlySet<string>
+  readonly authorModels: readonly string[]
+  readonly hasHeadroom: (entry: T) => boolean
+  readonly isSameModel: (left: string, right: string) => boolean
+  readonly isConsented: (entry: T) => boolean
+  readonly isUnattended: boolean
+  /** The refusing agent's provider and account; undefined when it cannot be told. */
+  readonly refusedAccount: RefusalAccount | undefined
+  readonly accountOf: (entry: T) => RefusalAccount | undefined
+}): RefusalMovePlan<T> {
+  const refused = input.refusedAccount
+  const skipReason = (entry: T): RefusalSkipReason | undefined => {
+    if (input.tried.has(entry.id)) return 'tried'
+    const held = input.accountOf(entry)
+    if (
+      held !== undefined &&
+      held.provider === refused?.provider &&
+      held.account !== refused.account
+    )
+      return 'otherAccount'
+    if (input.authorModels.some((model) => input.isSameModel(entry.agent.model, model)))
+      return 'author'
+    return input.hasHeadroom(entry) ? undefined : 'noHeadroom'
+  }
+  const skipped: RefusalSkip[] = []
+  const next = input.entries.find((entry) => {
+    const reason = skipReason(entry)
+    if (reason !== undefined) skipped.push({ entryId: entry.id, reason })
+    return reason === undefined
+  })
+  if (next === undefined) return { kind: 'exhausted', skipped }
+  const isAskNeeded = next.agent.pays === 'key' && !input.isConsented(next)
+  return isAskNeeded && input.isUnattended
+    ? { kind: 'cannotAsk', entry: next, skipped }
+    : { kind: 'move', entry: next, isAskNeeded, skipped }
+}
+
+/**
+D261: who holds an agent. An engine runs under the provider record its
+model names (`<provider>/<model>`; a bare model is the built-in provider's),
+and that record's service is its provider, `serviceOf` reading what the
+record was added from. A subscription or an agent CLI runs under its own
+sign-in.
+*/
+export function refusalAccountOf(
+  agent: {
+    readonly kind: string
+    readonly agentId: string
+    readonly model: string
+    readonly provider?: string | undefined
+  },
+  serviceOf: (record: string) => string | undefined,
+): RefusalAccount {
+  if (agent.kind !== 'engine') return { provider: agent.agentId, account: agent.agentId }
+  const slash = agent.model.indexOf('/')
+  const named = slash > 0 ? agent.model.slice(0, slash) : agent.provider
+  const record = named !== undefined && isProviderId(named) ? named : RESERVED_PROVIDER_ID
+  return { provider: serviceOf(record) ?? record, account: record }
+}
+
+/** One role as a chat's refusal reads it: its id and its entries in order. */
+export interface RefusalRole<T extends RefusalMoveEntry> {
+  readonly role: string
+  readonly entries: readonly T[]
+}
+
+/**
+D261 for a solo chat: the role the chat's agent holds as its main role
+(D212), and every entry in it that is that same agent, so none of them
+answers the turn it refused. An agent's main role is its assignment's
+when one names it, else the role whose list holds it; an entry naming the
+agent outright is chosen before Default, which runs whatever the chat
+runs. No role holds the agent: undefined, and the refusal stands.
+*/
+export function chatRefusalRole<T extends RefusalMoveEntry>(input: {
+  readonly roles: readonly RefusalRole<T>[]
+  readonly mainRoleOf: (entryId: string) => string | undefined
+  /** Whether the entry is the refusing agent; `isDefault` marks the slot that runs the chat's own model. */
+  readonly isRefuser: (entry: T) => { readonly isDefault: boolean } | undefined
+}):
+  | { readonly role: RefusalRole<T>; readonly refuser: T; readonly tried: ReadonlySet<string> }
+  | undefined {
+  const holders = input.roles.flatMap((role) =>
+    role.entries
+      .map((entry) => ({ role, entry, match: input.isRefuser(entry) }))
+      .filter((item) => item.match !== undefined)
+      .map((item) => ({ role, entry: item.entry, isDefault: item.match?.isDefault === true })),
+  )
+  const holder = holders.find((item) => !item.isDefault) ?? holders[0]
+  if (holder === undefined) return undefined
+  const named = input.mainRoleOf(holder.entry.id)
+  const role = input.roles.find((item) => item.role === named) ?? holder.role
+  const held = role.entries.filter((entry) => input.isRefuser(entry) !== undefined)
+  const refuser = held[0] ?? holder.entry
+  return { role, refuser, tried: new Set([refuser.id, ...held.map((entry) => entry.id)]) }
 }
 
 /** What the exhausted policy answers for a role whose every entry refused. */

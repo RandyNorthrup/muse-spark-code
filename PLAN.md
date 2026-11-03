@@ -9904,6 +9904,109 @@ unreadable, repository cannot reach it) and
 `test/unit/toolPaging.test.ts` (search exclusion and count over real
 files); see `docs/certification/rlf-secdefaults.md`.
 
+### D261 — A refused team task or solo chat turn moves to the next agent in its role (owner, 2026-11-02; closes Q-REFUSAL-FALLBACK)
+
+Q-REFUSAL-FALLBACK (lane PROVERRR2): an Anthropic reply stopped with
+`refusal` offered no fallback, and a refused turn ended with its true
+sentence. The owner: "anthopic model flag fallback is a toggle in claude
+code so that should be your answer", then, correcting the first build:
+"falling back to agents in a designated role was the design even if they
+are from a different account or provider". The first build's one-model
+setting (`museSpark.modelApiFallbackModel`, `exec --fallback-model`, the
+ACP `fallbackModel` option and its in-turn model switch) is withdrawn: it
+was a second mechanism beside D103's lists. Asked whether a solo chat
+falls back too, the owner said "you choose"; the lead (2026-11-02): it
+does, because Claude Code's fallback flag works in a solo session and
+ours must not do less.
+
+- **Who answers next.** A team task whose worker's turn ends refused (the
+  Model API's `refusal` stop, carried on `turnCompleted.refused`; a Muse
+  Code or ACP worker's `refusal` stop reason) moves to the next entry in
+  the order of the role it runs in: D75's pool, which D103's preference
+  list extends, and the borrowing role for a D212 loan, across accounts
+  and providers. Claude Code's other fallback triggers (overload, an
+  unavailable model, server errors) are not refusals and stay on the
+  request's own retry path (D228). The choice is `planRefusalMove`
+  (`src/core/team/teamPool.ts`) over the host's own live check
+  (`hasHeadroom`: runnable, not limited, key entries only with team
+  workers on, probed ready, a free slot, room under every cap): no second
+  list and no setting naming a model. A review never moves to an entry
+  whose model wrote the reviewed work (D103).
+- **A solo chat.** A Model API chat turn that ends refused goes, with the
+  toggle on, to the next candidate in the list of the role its agent
+  holds as its **main role** (D212): the assignment's main role when the
+  editor stored one, else the role whose list holds the agent, an entry
+  naming the agent outright before Default. The same `planRefusalMove`
+  and live checks choose (`chatRefusalRole`, `takeOverRefused` in
+  `src/core/team/teamHost.ts`); every entry in that role that is the
+  chat's own agent counts as tried. The next agent runs as that role's
+  task through the delegation's own path (its workspace mode, admission,
+  caps, budget and D48 question), so its run, cost and switch row are the
+  team path's. The chat's model never changes: that agent answers for the
+  refused turn only, and the next message goes to the person's chosen
+  agent. A subagent's refusal is its parent's; a team worker's is the
+  team path's.
+- **Never around a safety refusal on another account.** A provider's
+  usage terms bind all its accounts (Anthropic's Usage Policy, effective
+  2026-11-12, forbids creating "multiple accounts, to avoid detection,
+  circumvent product guardrails" and intentionally bypassing
+  "capabilities, restrictions, or guardrails"), so `planRefusalMove`
+  skips every candidate on the refusing agent's provider under a
+  different account, skip reason `otherAccount`, team and chat alike.
+  Another provider may take the turn, and so may another model on the
+  same account. The provider is the service a record was added from (its
+  preset; a custom server is its own), the account the record; when the
+  list runs out with such skips, the sentence names them
+  (`refusalOtherAccountSkipped`). The owner's "even across accounts"
+  stands for every other reason D103 moves work.
+- **The toggle.** `museSpark.refusalFallback` (renamed from
+  `museSpark.teamRefusalFallback` before it shipped, as it now covers
+  solo chats), off by default and
+  machine-scoped (it can move work to a paid agent), and `exec --team
+--refusal-fallback` for one headless run (without `--team` it is
+  refused with its sentence). ACP sessions run no team, so no ACP option
+  is offered (an option there would control nothing); the lead
+  (2026-11-02): kept out for now, and merge round 11 brings ACP teams,
+  which then get this toggle. Off, nothing changes from before.
+- **Money.** A key-billed next entry the task holds no consent for asks
+  D48's question first (the team popup naming its model and price); Deny
+  ends the task with the refusal and a sentence naming both models. An
+  unattended run (`exec`) cannot ask and stops there, saying so. Every
+  run is admitted and settled as before (caps, the team budget, the
+  run's hard budget), and each run's usage is claimed on its own entry.
+- **What the person sees.** The transcript's switch row ("engineering:
+  model-a → model-b, the earlier agent refused the task"; the
+  `TeamAgentSwitch` hook carries `refused`), each entry's own claims in
+  usage, and on a stop the sentence naming who refused, who was next and
+  why it did not take over. A solo chat shows the same row (its agent's
+  entry to the next), then the next agent's answer in the refused turn.
+- **Where.** The Model API backend reports a refusal and moves both a
+  chat turn and a team task. Muse Code and ACP workers report their
+  `refusal` stop, so their team tasks move. A Muse Code chat runs its
+  turn in the CLI's own loop and is not wired to the move, and an ACP
+  session runs no team (merge round 11), so their refused chat turns end
+  as before.
+- **No loops.** Each entry gets one try per task; when the list runs
+  out the task ends with the last refusal's own words, as before.
+- **The switch.** D103's safe-point handoff, in place: the refused turn
+  has ended with its in-flight calls answered, never run (M101 item 8);
+  the task keeps its lease and attempt, a dispatch claim lands on the new
+  entry, and the next worker starts its own conversation on its own
+  provider from the handoff instruction, the refusal as untrusted data,
+  the original brief and the refused run's copy when it made one. No
+  history crosses providers, so what is sent is valid for the receiver
+  by construction. The stall reassign's retire-then-retry route was not
+  reused: it waits on a worker retirement proof the engine port never
+  gives, so Model API workers would never move.
+- **No role.** A chat whose agent holds no main role, or whose main role
+  has no other candidate left, ends its refused turn with its true
+  sentence, as before; so does a Model API subagent and an ACP session.
+  With no team at all nothing is swapped (D103, D212).
+
+Record: `docs/certification/rlf-fallback.md`. A live refusal cannot be
+ordered: what a real run must still show is in `docs/real-life/unproven.md`,
+and the CHANGELOG line waits for it.
+
 ## 3. Open questions (need the owner)
 
 <a id="q-cc-licence"></a>
@@ -10152,12 +10255,19 @@ owner answers, the launcher keeps the key to the D65-named exec reader with
 every steps-file field validated before key intake, and the workflow is not
 dispatched. Record: `docs/certification/real-use-pr232w2.md`.
 
-**Q-REFUSAL-FALLBACK (lane PROVERRR2, 2026-10-13).** GAPANTH-G11's scan row
-notes that an Anthropic reply stopped with `refusal` offers no fallback
-model. No model-fallback mechanism exists in the product; building one (when
-to offer, which model, whose money) is a product decision. Until the owner
-answers, a refused or paused turn ends with its true sentence and its tool
-calls answered, never continued. Record: `docs/certification/proverrr2.md`.
+**Q-REFUSAL-FALLBACK (lane PROVERRR2, 2026-10-13; closed by D261, 2026-11-02).**
+GAPANTH-G11's scan row notes that an Anthropic reply stopped with `refusal`
+offers no fallback model. **Resolved by the owner: "anthopic model flag
+fallback is a toggle in claude code so that should be your answer", and
+"falling back to agents in a designated role was the design even if they
+are from a different account or provider".** D261: with
+`museSpark.refusalFallback` on (off by default) a refused team task
+moves to the next agent in its role's list, one try each, D48 asking
+before a paid one; a solo chat's refused turn goes to its agent's main
+role the same way, and with no role it still ends with its true sentence
+and its tool calls answered. Record:
+`docs/certification/proverrr2.md`; decision record:
+`docs/certification/rlf-fallback.md`.
 
 **CM109JOINB native resource receipt resolved (2026-10-11, Kubuntu).**
 An exploratory copy identified `Resource root membership not proven` only for
@@ -11537,6 +11647,31 @@ stay red and are reported, not raised: `build` (5 budgets OVER —
 `vitest related` runs (65/64 environmental failures: sandbox denials
 and base-tree issues, zero in this lane's area). Record:
 `docs/certification/rlf-quota.md`.
+
+### RLFFALLBACK — A refused team task or solo chat turn moves to the next agent in its role (D261)
+
+**Status 2026-11-02 (lane RLF-FALLBACK, rework): built.** The first build's fallback-model setting, flag, ACP
+option and in-turn switch are removed. A refused worker turn is reported
+(`turnCompleted.refused`; Muse Code and ACP workers' `refusal` stop) and,
+with `museSpark.refusalFallback` or `exec --team --refusal-fallback`,
+the task moves down its role's order: one try per entry, live headroom,
+review never to the authoring model, D48 asked before an unconsented paid
+entry (an unattended run stops and says why), a switch row naming the
+refusal, usage claimed per entry; words in English plus 14 tables.
+Real-code tests drive the selection guards and the host moving a refused
+task through a real scheduler and real git. The setting is in the
+manifest and the reference (finishing run, same day); no ACP option until
+merge round 11 brings ACP teams. Not yet true: the live refusal still
+needs its real run (`docs/real-life/unproven.md`), and the CHANGELOG line
+waits for it.
+**Status 2026-11-02 (lane RLF-FALLBACK, solo chats): built.** A refused
+Model API chat turn moves to its agent's main role (D212) through the
+same move, the setting is renamed `museSpark.refusalFallback`, and no
+refusal moves to another account of the refusing provider (team and
+chat). Not yet true: `exec --team` reads each provider record as its own
+provider (its account guard has no preset lookup), and the live refusal
+still needs its real run.
+Record: `docs/certification/rlf-fallback.md`.
 
 ### TOOLROUNDS — Preserve answers at the model-call turn limit (D109)
 

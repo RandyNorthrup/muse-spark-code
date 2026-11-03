@@ -984,6 +984,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               provider: options.provider,
               defaultPays: providerRun?.provider.entry.auth === 'none' ? 'local' : 'key',
               budgetUsd: options.budgetUsd,
+              refusalFallback: options.refusalFallback,
               signal: lifecycle.signal,
               now: deps.now,
               log,

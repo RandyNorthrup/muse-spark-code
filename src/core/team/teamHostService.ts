@@ -157,6 +157,14 @@ export interface TeamSettingsPort {
   readonly isTeamOn: () => boolean
   /** `museSpark.modelApiTeamWorkers`: the paid feature `teamWorkers`. */
   readonly isTeamWorkersOn: () => boolean
+  /**
+  D261, `museSpark.refusalFallback` (or `exec --refusal-fallback`): a refused
+  task, or a solo chat's refused turn, moves to its role's next candidate. Absent or false: the refusal
+  ends the task, as before.
+  */
+  readonly isRefusalFallbackOn?: () => boolean
+  /** No person can answer a question here (`exec`): a move D48 would ask about stops instead. */
+  readonly isUnattended?: () => boolean
   /** `museSpark.teamMaxWorkers`: workers at once in this window. */
   readonly maxWorkers: () => number
   /** The workspace's scheduler settings (M96c): the integration flow, stall policy and shared files. */
@@ -245,6 +253,8 @@ export interface TeamTaskSpec {
 /** What a finished worker hands back. */
 export interface TeamWorkerOutcome {
   readonly isCeilingReached?: boolean | undefined
+  /** D261: the provider refused the worker's turn (its `refusal` stop). */
+  readonly isRefused?: boolean | undefined
   readonly report: TeamReport
   readonly usage: TeamUsage
   /** `own-branch` only: the task branch, the base it started from and its head. */
@@ -274,6 +284,12 @@ export interface TeamWorkerPort {
   readonly run: (spec: TeamTaskSpec, signal: AbortSignal) => Promise<TeamWorkerOutcome>
   /** A rate or usage limit marked the agent until its time (acceptance 8); absent marks nothing. */
   readonly isLimited?: ((agent: TeamAgentRef) => boolean) | undefined
+  /**
+  D261: the service a provider record was added from, so a refused turn
+  never moves to another account of the same provider. Absent or unknown:
+  the record is its own provider.
+  */
+  readonly providerService?: ((record: string) => string | undefined) | undefined
 }
 
 /**

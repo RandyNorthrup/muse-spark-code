@@ -477,6 +477,10 @@ const agentEventSchema = z.discriminatedUnion('type', [
     // retryable.
     retryable: optionalBoolean,
     durationMs: optionalNumber,
+    // The provider refused the reply that ended the turn (its `refusal`
+    // stop; D261): a team task may move to its role's next candidate.
+    // Absent on every other ending, including a producer that cannot say.
+    refused: optionalBoolean,
     // A spent subscription window (D252): the typed quota detail the
     // CLI's `turn/completed` carried, present only with a usable reset
     // instant. Its own outcome downstream — never internal, never

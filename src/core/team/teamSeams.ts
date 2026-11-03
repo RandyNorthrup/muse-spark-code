@@ -118,7 +118,41 @@ export interface TeamToolRunner {
   readonly merge: (args: unknown, context: TeamToolContext) => Promise<TeamToolResult>
   /** M96c: reorder, hold or release queued work on the scheduler's board. */
   readonly reschedule: (args: unknown, context: TeamToolContext) => Promise<TeamToolResult>
+  /**
+  D261: a solo chat's refused turn goes to the next agent in its agent's
+  main role (D212), behind the same toggle and checks as a refused team
+  task. Absent: the refusal stands.
+  */
+  readonly takeOverRefused?:
+    ((turn: TeamRefusedTurn, context: TeamToolContext) => Promise<TeamRefusalTakeover>) | undefined
 }
+
+/** D261: a solo chat's refused turn, as the chat hands it over. */
+export interface TeamRefusedTurn {
+  /** The chat's model, as the conversation names it. */
+  readonly modelId: string
+  /** The refusal's own words: data for the next agent, never an instruction. */
+  readonly refusal: string
+  /** The person's request the turn answered. */
+  readonly request: string
+  /** The turn's work so far: one line per tool call. */
+  readonly work: readonly string[]
+}
+
+/**
+What became of a chat's refused turn: it stands (the toggle off, no main
+role, or no other candidate), a sentence says why the next agent did not
+take it, or the next agent answered.
+*/
+export type TeamRefusalTakeover =
+  | { readonly kind: 'stands' }
+  | { readonly kind: 'declined'; readonly text: string }
+  | {
+      readonly kind: 'answered'
+      readonly taskId: string
+      readonly model: string
+      readonly text: string
+    }
 
 /** One answered team tool call, as the model and the transcript read it. */
 export interface TeamToolResult {

@@ -392,6 +392,10 @@ export async function runEngineWorker(deps: EngineWorkerDeps): Promise<EngineWor
     // wrap-up text stays as what the worker reached, never a success.
     return { outcome, report: reportForStop(lastMessage ?? '', 'max_turn_requests') }
   }
+  // D261: a refused turn is a refusal, never a report: its own words are
+  // the summary, and the host may move the task to the role's next candidate.
+  if (outcome.refused === true)
+    return { outcome, report: reportForStop(lastMessage ?? '', 'refusal') }
   return {
     outcome,
     report: resolveWorkerReport({ reportedText, lastMessage }),

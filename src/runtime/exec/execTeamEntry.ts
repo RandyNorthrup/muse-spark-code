@@ -54,6 +54,8 @@ export interface ExecTeamDeps {
   readonly provider: string | undefined
   readonly defaultPays: 'key' | 'local'
   readonly budgetUsd: UsdAmount
+  /** D261: `--refusal-fallback`; a refused task moves to its role's next candidate. */
+  readonly refusalFallback: boolean
   readonly signal: AbortSignal
   readonly now: () => number
   readonly log: CoreLogger
@@ -362,6 +364,9 @@ export async function createExecTeam(
             settings: {
               isTeamOn: () => !isClosed,
               isTeamWorkersOn: () => !isClosed,
+              isRefusalFallbackOn: () => deps.refusalFallback,
+              // D261: nobody can answer a paid question in a headless run.
+              isUnattended: () => true,
               isTrusted: () => !isClosed && !deps.signal.aborted,
               // D121: no ceiling of ours. The machine's own parallelism bounds
               // how many workers start at once; the provider's limits and

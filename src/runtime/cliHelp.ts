@@ -354,6 +354,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       { name: 'account', shape: '<id>' },
       { name: 'account-pool', shape: '' },
       { name: 'team', shape: '' },
+      { name: 'refusal-fallback', shape: '' },
       { name: 'allow-contributor-models', shape: '' },
       { name: 'muse-binary', shape: '<path>' },
       { name: 'shell-sandbox', shape: '', fact: factFor('shell-sandbox') },

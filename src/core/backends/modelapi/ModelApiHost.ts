@@ -1423,6 +1423,8 @@ export interface ActiveTurn {
   didRecoverOverflow?: boolean
   /** TOOLCAP: the turn already resent once after trimming tool results. */
   didTrimOverflow?: boolean
+  /** D261: the reply that ended the turn stopped with the provider's `refusal`. */
+  wasRefused?: boolean
   /** The terminal is selected; checkpoint cleanup cannot cancel this turn. */
   isFinalizing?: boolean
 }
@@ -9635,6 +9637,54 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
   }
 
+  /**
+  D261: a solo chat's refused turn goes to the next agent in the role its
+  agent holds as its main role, through the team's own move. The turn
+  keeps its refusal; the team's switch row says who refused and who took
+  over, the next agent's answer follows, and the chat stays on its own
+  model, so the next message goes to the person's chosen agent. Nothing of
+  this conversation's history crosses: the next agent starts from the
+  handoff, the refusal and this turn's calls as data, and the request. A
+  subagent's refusal is its parent's; a team worker has no team runner.
+  */
+  private async handOverRefusedTurn(turn: ActiveTurn, signal: AbortSignal): Promise<void> {
+    const takeOver = this.deps.teamRunner?.takeOverRefused
+    if (takeOver === undefined || this.isSubagent) return
+    const answer = await takeOver(
+      {
+        modelId: this.modelId,
+        refusal:
+          this.transcript.findLast(
+            (entry) => entry.turnId === turn.turnId && entry.item.kind === 'agentMessage',
+          )?.item.text ?? '',
+        request: this.lastUserText() ?? '',
+        work: this.recentCalls(turn.turnId).map((call) => `${call.tool}: ${call.args}`),
+      },
+      {
+        sessionId: this.sessionId,
+        approvalMode: this.approvalMode,
+        signal,
+        orchestratorModelId: this.modelId,
+      },
+    )
+    if (answer.kind === 'stands') return
+    if (answer.kind === 'declined') {
+      this.emit({ type: 'backendNotice', level: 'warning', text: answer.text })
+      return
+    }
+    const item: ItemSnapshot = {
+      itemId: this.deps.newId(),
+      kind: 'agentMessage',
+      status: COMPLETED,
+      turnId: turn.turnId,
+      text: answer.text,
+      recordedAt: this.recordedNow(),
+    }
+    this.emit({ type: 'itemStarted', item })
+    this.emit({ type: 'itemCompleted', item })
+    this.recordTranscript(turn.turnId, item)
+  }
+
   /** The user's latest message as they typed it, for the reviewer. */
   private lastUserText(): string | undefined {
     return this.transcript.findLast((entry) => entry.item.kind === 'userMessage')?.item.text
@@ -17325,6 +17375,13 @@ export class ModelApiSession implements ScheduledAgentSession {
             ),
           )
         }
+        // D261: the turn ends with the refusal's true sentence; the event
+        // says so, so a team task can move to its role's next candidate,
+        // and a solo chat hands the turn to its agent's main role.
+        if (streamed.incompleteReason === 'refusal') {
+          turn.wasRefused = true
+          await this.handOverRefusedTurn(turn, signal)
+        }
         return
       }
       if (turn.wrapUpLimit !== undefined) {
@@ -18099,6 +18156,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       ...(errorKind !== undefined && { errorKind }),
       ...(retryable !== undefined && { retryable }),
       ...(retryAfterMs !== undefined && { retryAfterMs }),
+      ...(turn.wasRefused === true && { refused: true }),
       durationMs: this.deps.now() - startedAt,
     })
     this.emit({ type: 'sessionStatus', status: IDLE })
