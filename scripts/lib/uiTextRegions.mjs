@@ -441,6 +441,16 @@ export const compactBrowserUiText = {
         const normal = file.replaceAll('\\', '/')
         return !normal.includes('/shared/reference/') && !normal.endsWith('/ReferencePage.tsx')
       })
+      // The reference model names its keys dynamically (the generated
+      // textKeys list), invisible to the UI_TEXT.<key> scan above. The
+      // ones no deferred load installs ride the Help closure below, or
+      // the Help page reads a throwing getter for them (makerTitle,
+      // run 41516831678's accessibility job).
+      const referenceTextKeys = new Set(
+        readFileSync('src/shared/reference/referenceSchema.generated.ts', 'utf8')
+          .matchAll(/^ {2}'([^']+)',$/gm)
+          .map((match) => match[1]),
+      )
       const helpKeys = deferredKeys.filter(
         (key) =>
           /^(?:reference|acp|exec|scanSecrets|reportUsage$)/.test(key) &&
@@ -610,6 +620,22 @@ export const compactBrowserUiText = {
           key !== 'devices' &&
           nonResourceKeys.has(key),
       )
+      // Reference-named keys no other deferred load installs (the maker
+      // group above all) ride the Help closure; naming every textKey
+      // there instead put the help reference budget over by 2.3 KiB.
+      const coveredByDeferredLoad = new Set([
+        ...surfaceKeys,
+        ...accountKeys,
+        ...teamKeys,
+        ...scheduleKeys,
+        ...playbookKeys,
+        ...chatGptKeys,
+        ...runnersKeys,
+        ...helpKeys,
+      ])
+      const referenceOnlyKeys = deferredKeys.filter(
+        (key) => referenceTextKeys.has(key) && !coveredByDeferredLoad.has(key),
+      )
       const readers = new Set([...keys].filter((key) => !deferredKeys.includes(key)))
       const contract = Object.fromEntries(
         Object.entries(EN).map(([key, value]) => [
@@ -636,7 +662,7 @@ export const compactBrowserUiText = {
         chatGptReaders,
         runnersKeys,
         runnersReaders,
-        helpKeys,
+        helpKeys: [...helpKeys, ...referenceOnlyKeys],
         accountKeys,
         teamKeys,
         scheduleKeys,
