@@ -14,4 +14,14 @@ class NativeThemeTest : BasePlatformTestCase() {
     }
     assertFalse(css.contains("palette."))
   }
+
+  fun testTheThemeFrameNamesThePanelRolesFromTheValuesItPaints() {
+    val tokens = NativeTheme.tokens
+    val roles = listOf("--muse-text", "--muse-surface", "--muse-editor-surface", "--muse-font-ui", "--muse-code-size")
+    for (role in roles) {
+      assertTrue("Missing $role", tokens.has(role))
+    }
+    assertEquals(tokens["--muse-foreground"], tokens["--muse-text"])
+    assertEquals(tokens["--muse-sideBar-background"], tokens["--muse-surface"])
+  }
 }
