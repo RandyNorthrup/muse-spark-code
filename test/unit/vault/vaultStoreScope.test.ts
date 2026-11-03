@@ -30,6 +30,7 @@ import {
 import { FileVaultAnchor, vaultAnchorFile } from '../../../src/runtime/vault/fileAnchor'
 import { KeyringVaultAnchor } from '../../../src/runtime/vault/keyringAnchor'
 import { OsStoreVaultSlot } from '../../../src/runtime/vault/slots/osStoreVaultSlot'
+import { windowsVaultContainerSchema } from '../../../src/runtime/vault/slots/windowsVaultProtocol'
 import {
   VAULT_ANCHOR_ACCOUNT,
   legacyVaultAuditAccount,
@@ -79,18 +80,25 @@ async function removePassword(account: string): Promise<void> {
   if ((await entry.getPassword()) != null) await entry.deletePassword()
 }
 
+/** A slot record as the broker wrote it, in the fields these cases read. */
+interface StoredSlotRecord {
+  id: string
+  tier: string
+  provider: string
+  keyReference: string | null
+  wrappedKey: string
+}
+
 /** This vault's id and slot records from the files its broker wrote, parsed with the product's peek. */
 async function readVaultFiles(brokerDataDir: string): Promise<{
   vaultId: string
-  records: { tier: string; keyReference: string | null }[]
+  records: StoredSlotRecord[]
 }> {
   const slots = await readFile(path.join(brokerDataDir, 'slots.v1'))
   try {
     const peeked = peekVaultSlotFiles(slots, null)
     if (peeked === null) throw new Error('the broker wrote no slots file')
-    const parsed = JSON.parse(slots.toString('utf8')) as {
-      records: { tier: string; keyReference: string | null }[]
-    }
+    const parsed = JSON.parse(slots.toString('utf8')) as { records: StoredSlotRecord[] }
     return { vaultId: peeked.vaultId, records: parsed.records }
   } finally {
     slots.fill(0)
@@ -195,6 +203,48 @@ async function driveScopedVault(
   }
 }
 
+/**
+What the vault's OS-store slot left in the store, and the reference disposal
+must see gone. Keychain and Secret Service hold the key itself, under a reference
+this root owns. DPAPI has no store entry: a Windows slot seals the key into its own
+record in this vault's files, bound to this vault and slot, so its reference is its
+own id and names no root.
+*/
+async function checkOsStoreSlot(
+  slot: StoredSlotRecord | undefined,
+  brokerDataDir: string,
+  vaultId: string,
+  label: string,
+): Promise<string | null> {
+  if (slot?.provider === 'windowsDpapi') {
+    expect(slot.keyReference, `${label}: a sealed slot's reference is its id`).toBe(slot.id)
+    const raw: unknown = JSON.parse(Buffer.from(slot.wrappedKey, 'base64').toString('utf8'))
+    expect(
+      windowsVaultContainerSchema.parse(raw).identity,
+      `${label}: the seal names this vault and slot`,
+    ).toEqual({ slotId: slot.id, vaultId, tier: 'osStore' })
+    for (const account of [
+      slot.id,
+      vaultSlotReference(brokerDataDir, vaultId, slot.id),
+      legacyVaultSlotReference(vaultId, slot.id),
+    ])
+      expect(
+        (await openEntry(account).getSecret()) ?? null,
+        `${label}: a sealed slot writes no store record`,
+      ).toBeNull()
+    return null
+  }
+  const reference = slot?.keyReference ?? null
+  if (reference !== null) {
+    expect(reference.startsWith(`vault.${vaultRootHash(brokerDataDir)}.`)).toBe(true)
+    expect(
+      await openEntry(reference).getSecret(),
+      `${label}: slot key under the scoped reference`,
+    ).not.toBeNull()
+  }
+  return reference
+}
+
 /** What the setup and the first audited use left, then the pre-scoping checkpoint's migration. */
 async function checkScopedRecords(
   session: VaultManageSession,
@@ -232,15 +282,12 @@ async function checkScopedRecords(
     await readPassword(legacyVaultAuditAccount(vaultId)),
     `${label}: no pre-scoping checkpoint`,
   ).toBeNull()
-  const osStore = records.find((record) => record.tier === 'osStore')
-  const osStoreReference = osStore?.keyReference ?? null
-  if (osStoreReference != null) {
-    expect(osStoreReference.startsWith(`vault.${vaultRootHash(brokerDataDir)}.`)).toBe(true)
-    expect(
-      await openEntry(osStoreReference).getSecret(),
-      `${label}: slot key under the scoped reference`,
-    ).not.toBeNull()
-  }
+  const osStoreReference = await checkOsStoreSlot(
+    records.find((record) => record.tier === 'osStore'),
+    brokerDataDir,
+    vaultId,
+    label,
+  )
   // The shared anchor reads back exactly as before, whatever it held.
   expect(await readPassword(VAULT_ANCHOR_ACCOUNT), `${label}: shared anchor untouched`).toBe(
     sharedBefore,
