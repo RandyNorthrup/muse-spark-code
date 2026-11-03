@@ -82,7 +82,7 @@ export async function runRuntimeMaker(
     dataDirectory: deps.dataDirectory,
     workspace: deps.workspace,
     secrets: deps.secrets,
-    ...(deps.lan !== undefined && { lan: deps.lan }),
+    lan: deps.lan ?? runtimeMakerLan,
     ...(deps.presence !== undefined && { presence: deps.presence }),
     trusted: () => command.trusted,
     flagged: () => true,
