@@ -3,6 +3,7 @@ import {
   estimateDiagnostic,
   estimateFailureText,
 } from '../../shared/estimateDiagnostic'
+import { EXTERNAL_PRESET_LAUNCH } from '../../core/team/externalAgents'
 import { payerCredentialSchema } from '../../core/backends/modelapi/billingRoute'
 import type { UsageRecording } from '../../core/usage/recording'
 import type { ProviderUsageRow, AccountFacts, SubscriptionUsage } from '../../shared/usage'
@@ -5326,7 +5327,16 @@ export class ConversationController implements DeferredSend {
       this.notice('info', UI_TEXT.modelApiBackendNotice)
     } else if (host.info.kind === 'external') {
       // Who pays for the orchestrator, said where the person reads it (D75, D250).
-      this.notice('info', fill(UI_TEXT.teamExternalLeaderNotice, { agent: host.info.serverName }))
+      // D262: Claude's preset is paid by a key or a Console account only.
+      this.notice(
+        'info',
+        fill(
+          host.info.serverName === EXTERNAL_PRESET_LAUNCH.claude.label
+            ? UI_TEXT.teamExternalLeaderNoticeClaude
+            : UI_TEXT.teamExternalLeaderNotice,
+          { agent: host.info.serverName },
+        ),
+      )
     } else {
       this.noteShellSandbox()
       void this.offerBundledSkills()

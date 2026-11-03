@@ -403,7 +403,13 @@ export interface AcpAgentConnection {
 
 /** The agent's `authenticate` must not run for a terminal method (research §4.1). */
 export class AcpAuthRequiredError extends Error {
-  public constructor(readonly methods: readonly AuthMethod[]) {
+  public constructor(
+    readonly methods: readonly AuthMethod[],
+    /** The agent's `data.reason`, e.g. Claude's `claude_subscription_not_supported` (D262). */
+    readonly reason?: string,
+    /** The agent's own refusal message. */
+    readonly detail?: string,
+  ) {
     super('The external agent needs a sign-in first')
     this.name = 'AcpAuthRequiredError'
   }

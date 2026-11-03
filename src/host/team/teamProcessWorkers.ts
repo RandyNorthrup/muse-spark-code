@@ -58,6 +58,13 @@ import {
   type AcpPresetId,
 } from '../../core/team/workers/acpWorker'
 import { WORKER_NATIVE_IO } from '../../core/team/workers/workerFence'
+import {
+  CLAUDE_AGENT_CONFIG_FOLDER,
+  claudeAdapterVersionRefusal,
+  claudeNeedsKeySentence,
+  isClaudeKeyRefusal,
+} from '../../core/team/claudeAgentSafety'
+import { EXTERNAL_PRESET_LAUNCH } from '../../core/team/externalAgents'
 import { buildWorkerPrompt } from '../../core/team/workers/engineWorker'
 import {
   runMuseCodeWorker,
@@ -688,6 +695,7 @@ export function createProcessTeamPorts(deps: TeamProcessWorkersDeps): ProcessTea
         io: WORKER_NATIVE_IO,
         baseEnv: deps.baseEnv(),
         platform: deps.platform,
+        claudeConfigDir: path.join(deps.storageRoot, CLAUDE_AGENT_CONFIG_FOLDER),
         launchId: randomUUID(),
         launcher: launcherFor(spec.taskId),
       })
@@ -698,7 +706,7 @@ export function createProcessTeamPorts(deps: TeamProcessWorkersDeps): ProcessTea
         platform: deps.platform,
         io: WORKER_NATIVE_IO,
       }
-      const connection = connectAcpAgent({
+      const wire = connectAcpAgent({
         stdin: child.stdin,
         stdout: child.stdout,
         supportsTerminalAuth: false,
@@ -732,6 +740,19 @@ export function createProcessTeamPorts(deps: TeamProcessWorkersDeps): ProcessTea
           },
         },
       })
+      // D262: Claude's adapter starts no session below the release that refuses a plan.
+      const connection: typeof wire =
+        preset.id === 'claude'
+          ? {
+              ...wire,
+              initialize: async () => {
+                const initialized = await wire.initialize()
+                const refusal = claudeAdapterVersionRefusal(initialized.agent.version)
+                if (refusal !== undefined) throw new Error(refusal)
+                return initialized
+              },
+            }
+          : wire
       const result = await runAcpWorker({
         task: plan.task,
         role: plan.role,
@@ -752,7 +773,15 @@ export function createProcessTeamPorts(deps: TeamProcessWorkersDeps): ProcessTea
       return { report: result.report, usage: EMPTY_USAGE }
     } catch (error: unknown) {
       if (error instanceof AcpAuthRequiredError)
-        throw new Error(TEAM_PROCESS_MODEL_TEXT.hostExternalNotSignedIn, { cause: error })
+        throw new Error(
+          isClaudeKeyRefusal({ preset: preset.id }, error)
+            ? claudeNeedsKeySentence(
+                { label: EXTERNAL_PRESET_LAUNCH[preset.id].label, command: preset.command },
+                error.methods,
+              )
+            : TEAM_PROCESS_MODEL_TEXT.hostExternalNotSignedIn,
+          { cause: error },
+        )
       if (error instanceof AcpUserServersSwitchError)
         throw new Error(
           fill(TEAM_PROCESS_MODEL_TEXT.hostExternalNoSwitch, { agent: error.preset }),
@@ -827,15 +856,10 @@ export function createProcessTeamPorts(deps: TeamProcessWorkersDeps): ProcessTea
     workers,
     dispose: async () => {
       const started = lifetime
-      const closing: Promise<void>[] = []
-      for (const pending of hosts.values()) {
-        closing.push(
-          (async () => {
+      const closing: Promise<void>[] = Array.from(hosts.values(), pending => (async () => {
             const host = await pending
             await host.close()
-          })(),
-        )
-      }
+          })());
       hosts.clear()
       await Promise.allSettled(closing)
       await Promise.allSettled(launches)

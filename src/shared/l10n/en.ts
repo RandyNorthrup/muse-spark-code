@@ -4332,7 +4332,7 @@ export const EN = {
   backendDetail: 'Which engine runs this conversation: automatic, Muse Code, or the Model API.',
   backendMuseCode: 'Muse Code (Your Muse Subscription)',
   backendModelApi: 'Meta Model API (Your Key, Pay as You Go)',
-  backendExternal: 'External Agent (Its Own Plan or Key)',
+  backendExternal: 'External Agent (Its Own Account)',
   modelApiBackendNotice:
     'This conversation runs on the Meta Model API with the extension’s own tools (read, edit, write, search, list, shell). Its sessions are kept in this workspace’s extension storage.',
   installOrKeyDetail:
@@ -8224,6 +8224,31 @@ export const EN = {
   // {agent}: its label; {command}: the agent's own sign-in command (D250).
   teamExternalSignIn:
     '{agent} is not signed in. Sign in with its own command: run {command} in a terminal, then send your message again.',
+  // D262: Claude's preset bills an Anthropic API key or a Console account only.
+  // {agent}: its label (as above).
+  teamExternalLeaderNoticeClaude:
+    'Led by {agent}, running as itself over ACP. It is paid only by your own Anthropic API key or Console account: Anthropic does not allow a Claude plan to be used through other apps.',
+  teamExternalSwitchNoticeClaude:
+    'New conversations in this workspace will be led by {agent}, an external agent running as itself over ACP. It is paid only by your own Anthropic API key or Console account: Anthropic does not allow a Claude plan to be used through other apps.',
+  // D262: the adapter refused a session or a turn. {agent}: its label;
+  // {command}: the Console sign-in command line.
+  claudeAgentNeedsKey:
+    '{agent} needs an Anthropic API key or an Anthropic Console account, because Anthropic does not allow a Claude plan to be used through other apps. Set ANTHROPIC_API_KEY in the environment the editor starts with, or sign in to a Console account by running {command} in a terminal, then send your message again.',
+  // D262: the adapter found on the PATH is older than the first release that
+  // refuses a Claude plan. {version}: what it reported; {minimum}: that
+  // release; {command}: the update command.
+  claudeAgentTooOld:
+    'Claude Agent was not started: its adapter is version {version}, and only {minimum} or later refuses to bill a Claude plan. Update it by running {command}, then send your message again.',
+  claudeAgentVersionUnknown:
+    'Claude Agent was not started: its adapter did not report its version, and only {minimum} or later refuses to bill a Claude plan. Update it by running {command}, then send your message again.',
+  // D262: {name}: the variable a setting or a profile lists.
+  claudePlanVariableRefused:
+    '{name} carries a Claude plan sign-in, so it is never passed to an agent or a command: Anthropic does not allow a Claude plan to be used through other apps. Use an Anthropic API key instead.',
+  // D262: a custom external agent that starts Claude without
+  // --hide-claude-auth. {agent}: its name; {quote}: Anthropic's sentence,
+  // verbatim in English; {url}: the page it is on.
+  externalAgentClaudePlanWarning:
+    '{agent} starts Claude without --hide-claude-auth, so it can use your Claude plan. Anthropic’s terms say: “{quote}” ({url}). Anthropic may restrict or suspend your account without notice. This setup is yours to keep; adding --hide-claude-auth to its arguments makes it bill an API key only.',
   teamExternalNotInstalled:
     '{agent} is not installed: the command {command} was not found. Install it, then send your message again.',
   teamExternalGone:

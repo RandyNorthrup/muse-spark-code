@@ -45,6 +45,11 @@ export type AccountPolicy = z.infer<typeof rowSchema>
 // Every source in this record was re-read on this date. A null pageDate means
 // no date was displayed; a document footer is preserved verbatim when present.
 const checkedAt = '2026-10-05'
+// D262 (lane RLF-CLAUDESAFE): Anthropic's rows were re-read on their own date;
+// the AUP shows its effective date, 2026-11-12.
+const anthropicCheckedAt = '2026-11-02'
+const anthropicAup = 'https://www.anthropic.com/legal/aup'
+const anthropicAupDate = '2026-11-12'
 const metaTerms = 'https://dev.meta.ai/legal/terms-of-service'
 const azureTerms = 'https://www.microsoft.com/licensing/terms/product/ForOnlineServices/all'
 const rows = [
@@ -117,10 +122,26 @@ const rows = [
     product: 'api',
     multipleAccounts: 'unclear',
     limitScopes: ['organisation'],
-    pooling: 'on',
+    // D262: moving to another Anthropic account because of Anthropic's limit
+    // sits close to the AUP's words, so it waits for the person's own choice,
+    // asked with the AUP's sentence first.
+    pooling: 'confirm',
     isCredentialHeld: true,
     recovery: 'none',
+    checkedAt: anthropicCheckedAt,
     sources: [
+      {
+        quote:
+          'Coordinate malicious activity across multiple accounts, or create multiple accounts, to avoid detection, circumvent product guardrails, or generate identical or similar inputs that otherwise violate our Usage Policy',
+        url: anthropicAup,
+        pageDate: anthropicAupDate,
+      },
+      {
+        quote:
+          'Intentionally bypass or interfere with capabilities, restrictions, or guardrails established within our products',
+        url: anthropicAup,
+        pageDate: anthropicAupDate,
+      },
       {
         quote: 'resell the Services except as expressly approved by Anthropic',
         url: 'https://www.anthropic.com/legal/commercial-terms',
@@ -136,12 +157,19 @@ const rows = [
     pooling: 'notOffered',
     isCredentialHeld: false,
     recovery: 'none',
+    checkedAt: anthropicCheckedAt,
     sources: [
       {
         quote:
-          'Anthropic does not permit third-party developers to offer Claude.ai login into their own applications',
+          'Anthropic does not permit third-party developers to offer Claude.ai login into their own applications, or to route requests through Free, Pro, Max, or Ultra plan credentials on behalf of their users.',
         url: 'https://code.claude.com/docs/en/legal-and-compliance',
         pageDate: null,
+      },
+      {
+        quote:
+          'Resell, proxy, or otherwise provide access to Claude through unauthorized means, including services that route requests through consumer subscriptions',
+        url: anthropicAup,
+        pageDate: anthropicAupDate,
       },
     ],
   },
@@ -444,7 +472,7 @@ const rows = [
 ]
 
 export const ACCOUNT_POLICIES: readonly AccountPolicy[] = rows.map((row) =>
-  rowSchema.parse({ ...row, checkedAt, recordVersion: ACCOUNT_POLICY_VERSION }),
+  rowSchema.parse({ checkedAt, ...row, recordVersion: ACCOUNT_POLICY_VERSION }),
 )
 
 /** Unknown providers/products have no implicit permission to pool. */

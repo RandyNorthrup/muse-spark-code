@@ -2002,6 +2002,18 @@ export const CREDENTIAL_ENV_ALLOWED_NAMES: ReadonlySet<string> = new Set([
   'TOKENIZERS_PARALLELISM',
   'KEY_PATH',
 ])
+// D262: the Claude plan's routes, from Anthropic's env-var page (2026-11-02)
+// and claude-agent-acp's auth-status.ts: a `claude setup-token` token, its
+// descriptor form, and the refresh token `claude auth login` exchanges with
+// its scopes. Claude's adapter lets any of them pay past
+// `--hide-claude-auth`, so no child we start receives one, whatever a
+// setting or a profile lists.
+export const CLAUDE_PLAN_ENV_NAMES: ReadonlySet<string> = new Set([
+  'CLAUDE_CODE_OAUTH_TOKEN',
+  'CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR',
+  'CLAUDE_CODE_OAUTH_REFRESH_TOKEN',
+  'CLAUDE_CODE_OAUTH_SCOPES',
+])
 // Credential routes whose names do not end in a standard credential suffix.
 export const CREDENTIAL_ENV_EXACT_NAMES: ReadonlySet<string> = new Set([
   'SYSTEM_ACCESSTOKEN',
