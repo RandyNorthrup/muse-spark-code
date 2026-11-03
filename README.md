@@ -3141,7 +3141,8 @@ in any folder, judged on the resolved path — asks before `read_file`
 sends it to the model: the card names the file and that its contents
 will be sent. Manual, Edit automatically and Auto ask, Plan asks
 instead of reading silently, and Bypass permissions reads as before;
-Allow for This Session answers that one file only, and nothing else —
+Allow for This Session answers that one file only, in Auto an allow
+once does too (Auto asks once per file per session), and nothing else —
 no hook, reviewer or command rule — can answer it. `search` leaves
 sensitive files out and says how many; a listing only names them. A
 profile's `denyRead` still refuses outright without asking.

@@ -53,8 +53,9 @@ happened, not what was planned; superseded entries are kept.
   SSH private keys, `.npmrc` or `.aws/credentials` now shows a card
   naming the file and that its contents will be sent to the model —
   in Manual, Edit automatically and Auto, and in Plan instead of
-  reading silently; Bypass permissions is unchanged, and Allow for
-  This Session covers that one file. Search leaves these files out
+  reading silently; Bypass permissions is unchanged. Auto asks once for
+  each file in a session, and Allow for This Session covers that one
+  file. Search leaves these files out
   and says how many. The set is yours: `museSpark.modelApiSensitiveReads`
   replaces it with your own globs, and an empty list turns the ask off.
 - **A memory written after reading the web asks first in Auto.** If a

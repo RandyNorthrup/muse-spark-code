@@ -1455,6 +1455,12 @@
       "area": "chat"
     },
     {
+      "id": "RLFSECDEFAULTS",
+      "title": "Sensitive files ask before they reach the model",
+      "summary": "Reading .env files, keys, .npmrc or AWS credentials asks first, naming the file, and Auto asks before saving a memory after reading the web or an MCP result; both are the person's settings.",
+      "area": "security"
+    },
+    {
       "id": "RLFQUOTA",
       "title": "A spent subscription window is said with its reset time",
       "summary": "A subscription window that ran out ends the turn as its own outcome, never an internal error, with the reset time in words on every surface; continuing at the reset is the person's opt-in.",
