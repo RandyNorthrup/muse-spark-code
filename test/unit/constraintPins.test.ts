@@ -13,7 +13,6 @@ import {
   mergePinnedConstraints,
   pinnedConstraintsItem,
   pinnedConstraintsText,
-  pinnedConstraintsTokens,
   withoutPinnedConstraints,
 } from '../../src/core/backends/modelapi/constraintPins'
 import { ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
@@ -108,8 +107,6 @@ describe('constraint capture (RLF-PINNED)', () => {
       content: [{ type: 'input_text', text: pinnedConstraintsText([pin]) }],
     })
     expect(pinnedConstraintsItem([])).toBeUndefined()
-    expect(pinnedConstraintsTokens([])).toBe(0)
-    expect(pinnedConstraintsTokens([pin])).toBeGreaterThan(0)
   })
 
   it('folds duplicates in stated order when turns repeat a pin', () => {
@@ -233,7 +230,7 @@ describe('pinned constraints in a real session (RLF-PINNED)', () => {
             content: [{ type: 'input_text', text: 'summary of earlier turns' }],
           },
         },
-        { turnId: 'pinned-constraints', item: pinned },
+        { turnId: 'pinned', item: pinned },
         {
           turnId: 't1',
           item: {
@@ -272,7 +269,7 @@ describe('pinned constraints in a real session (RLF-PINNED)', () => {
     const live = asSession(loaded.session)
     expect(live.pinnedConstraintList()).toEqual(pins)
     const snapshot = live.snapshot()
-    expect(snapshot.replay[1]?.turnId).toBe('pinned-constraints')
+    expect(snapshot.replay[1]?.turnId).toBe('pinned')
     expect(JSON.stringify(snapshot.replay[1]?.item)).toBe(JSON.stringify(pinned))
 
     // Unpinning rebuilds the very block the next request re-sends.
@@ -285,7 +282,7 @@ describe('pinned constraints in a real session (RLF-PINNED)', () => {
     // Unpinning the last pin takes the entry out of the replay entirely.
     expect(live.unpinConstraint('Always run the tests before you finish')).toBe(true)
     const cleared = live.snapshot()
-    expect(cleared.replay.some((entry) => entry.turnId === 'pinned-constraints')).toBe(false)
+    expect(cleared.replay.some((entry) => entry.turnId === 'pinned')).toBe(false)
     expect(cleared.pinnedConstraints).toBeUndefined()
     await rig.host.flush()
   })

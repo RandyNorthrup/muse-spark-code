@@ -36,18 +36,7 @@
 //
 // All three are read inside the enabled test only (`liveEvalSelection`).
 
-import { randomUUID } from 'node:crypto'
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import path from 'node:path'
-import { setTimeout as delay } from 'node:timers/promises'
-import { format, resolveConfig } from 'prettier'
 import { describe, expect, it } from 'vitest'
-import {
-  formatEvalReportJson,
-  formatEvalReportMarkdown,
-  type EvalReport,
-} from '../../src/core/eval/report'
 import {
   assertEvalHarnessDigest,
   freezeEvalHarness,
@@ -57,25 +46,16 @@ import {
   OBSERVATION_PACKING_ARM,
   STRICT_TOOLS_ARM,
 } from '../../src/core/eval/mechanisms'
-import { runPairedEval } from '../../src/core/eval/runner'
 import { EVAL_TASKS } from '../../src/core/eval/tasks'
-import { fileContextIo } from '../../src/host/backend/contextIo'
-import { shellJobAssembly } from '../../src/host/backend/shellJob'
-import { stderrLogger } from '../../src/runtime/stderrLog'
-import { liveFetch } from '../../src/host/networkPosture'
-import {
-  EVAL_REPORT_VERSION,
-  MODEL_API_BASE_URL,
-  SEARCH_WORKER_FILE,
-} from '../../src/shared/constants'
-import { readJobSource } from '../unit/helpers/jobSource'
-import { filesUnder, removeFolder } from '../unit/helpers/temporaryFolders'
+import { EVAL_REPORT_VERSION } from '../../src/shared/constants'
 import {
   assertNoLiveKeyEnvironment,
   evalRunTimeoutMs,
+  liveEvalLog,
   liveEvalSelection,
-  liveToolIo,
   loadEvalLiveCredentials,
+  publishLiveEvalReport,
+  runLivePairedEval,
   withCompactionEngagement,
   withPackingEngagement,
   withStrictToolsEngagement,
@@ -86,18 +66,6 @@ assertNoLiveKeyEnvironment(process.env, IS_ENABLED)
 
 // Room beyond each run's own limits for the harness to start and stop.
 const RUN_MARGIN_MS = 60_000
-
-async function writeReport(result: EvalReport, target: string): Promise<void> {
-  mkdirSync(path.dirname(target), { recursive: true })
-  for (const [extension, parser, text] of [
-    ['.json', 'json', formatEvalReportJson(result)],
-    ['.md', 'markdown', formatEvalReportMarkdown(result)],
-  ] as const) {
-    const file = `${target}${extension}`
-    const options = (await resolveConfig(file)) ?? {}
-    writeFileSync(file, await format(text, { ...options, parser }))
-  }
-}
 
 describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', () => {
   // The four frozen arms, in run order: the control first, then one mechanism each.
@@ -112,71 +80,16 @@ describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', (
       const frozenHarness =
         tasks.length === EVAL_TASKS.length ? certified : freezeEvalHarness(arms, tasks)
       const credentials = await loadEvalLiveCredentials(IS_ENABLED)
-      // The agent's own logger (src/runtime/stderrLog.ts), its lines kept here.
-      const logged: string[] = []
-      const log = stderrLogger((line) => {
-        logged.push(line)
-      }, 'trace')
-      const leaks: string[] = []
-      // Each Windows command in a job object of its own (M27), as in activate;
-      // the helper is compiled once for the run, outside every task's folder.
-      const storage = mkdtempSync(path.join(tmpdir(), 'muse-eval-storage-'))
-      const searchWorker = path.join(storage, SEARCH_WORKER_FILE)
-      const jobAssembly =
-        process.platform === 'win32'
-          ? shellJobAssembly({
-              readJobSource,
-              storageDir: storage,
-              systemRoot: process.env['SystemRoot'] ?? '',
-              log: (message) => {
-                log.warn(message)
-              },
-            })
-          : undefined
-      let result: EvalReport
-      try {
-        writeFileSync(searchWorker, frozenHarness.searchWorker.code)
-        result = await runPairedEval(tasks, arms, {
-          frozenHarness,
-          fetch: liveFetch,
-          client: {
-            baseUrl: MODEL_API_BASE_URL,
-            apiKey: credentials.apiKey,
-            sleep: (ms) => delay(ms),
-            now: Date.now,
-            random: Math.random,
-            log,
-          },
-          toolIo: (workspace) =>
-            liveToolIo({
-              workspace,
-              env: () => process.env,
-              searchWorkerPath: searchWorker,
-              log: (message) => {
-                log.warn(message)
-              },
-              shellJobAssembly: jobAssembly,
-            }),
-          contextIo: fileContextIo,
-          platform: process.platform,
-          accountId: credentials.accountId,
-          log,
-          now: Date.now,
-          newId: () => randomUUID(),
-          generatedAt: new Date().toISOString(),
-          ...(maxAttempts !== undefined && { maxAttempts }),
-          inspect: (root) => {
-            for (const file of filesUnder(root)) {
-              if (credentials.contains(readFileSync(file))) {
-                leaks.push(path.relative(root, file))
-              }
-            }
-            return Promise.resolve()
-          },
-        })
-      } finally {
-        await removeFolder(storage)
-      }
+      const { logged, log } = liveEvalLog()
+      const { result, leaks } = await runLivePairedEval({
+        tasks,
+        arms,
+        frozenHarness,
+        credentials,
+        log,
+        maxAttempts,
+        storagePrefix: 'muse-eval-storage-',
+      })
       // Every mechanism's acceptance goes into the report before it
       // is printed or written, so no artifact says pass for a run whose
       // packing arm never packed, whose auto-compaction arm never
@@ -195,18 +108,8 @@ describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', (
         certifiedDigest,
         computedDigest: certifiedDigest,
       }
-      const markdown = formatEvalReportMarkdown(report)
-      if (logged.some((line) => credentials.contains(line))) {
-        leaks.push('the log')
-      }
-      if (credentials.contains(`${formatEvalReportJson(report)}${markdown}`)) {
-        leaks.push('the report')
-      }
+      leaks.push(...(await publishLiveEvalReport({ report, credentials, logged, reportPath })))
       expect(leaks).toEqual([])
-      process.stderr.write(`${credentials.redact(markdown)}\n`)
-      if (reportPath !== undefined) {
-        await writeReport(report, path.resolve(reportPath))
-      }
       // Only `pass` counts: a narrowed selection is `incomplete` (R2),
       // and a truncated run stops `incomplete` too — neither may arm the latch.
       const isSmoke = process.env['MUSE_EVAL_SMOKE'] === '1'

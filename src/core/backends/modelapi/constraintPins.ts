@@ -7,14 +7,13 @@
 // summary can never rewrite it (the faithful-compaction rule: carry
 // verbatim or drop, never re-summarise). When in doubt capture: the person
 // sees what is pinned and can unpin an item.
-import { Buffer } from 'node:buffer'
-import { MODEL_API_CONTEXT_BYTES_PER_TOKEN, MODEL_API_MODEL_TEXT } from '../../../shared/constants'
+import { MODEL_API_MODEL_TEXT } from '../../../shared/constants'
 import type { InputItem } from './schemas'
 
 const SECTION_START = /^\s*(?:#{1,6}\s*)?constraints\s*:\s*(.*)$/iu
 const HEADING = /^\s*#{1,6}\s/u
 const BULLET = /^(?:[-*•]|\d+[.)])\s+/u
-const IMPERATIVE_START = /^(?:must\s+not|must|never|always|do\s+not|don't|do\s+not\s+ever)\b/iu
+const IMPERATIVE_START = /^(?:must\s+not|must|never|always|do\s+not|don't)\b/iu
 const IMPERATIVE_WORD = /\b(?:must|never|always)\b/iu
 const FENCE = /^\s*(?:```|~~~)/u
 
@@ -70,11 +69,7 @@ export function mergePinnedConstraints(
   existing: readonly string[],
   found: readonly string[],
 ): string[] {
-  const merged = [...existing]
-  for (const pin of found) {
-    if (!merged.includes(pin)) merged.push(pin)
-  }
-  return merged
+  return [...new Set([...existing, ...found])]
 }
 
 /** The block as the model reads it after a compaction summary: heading plus each pin verbatim. */
@@ -102,12 +97,4 @@ export function withoutPinnedConstraints(
   if (pinned === undefined) return [...items]
   const bytes = JSON.stringify(pinned)
   return items.filter((item) => JSON.stringify(item) !== bytes)
-}
-
-/** The block's dispatched size in the compaction ledger's own lower estimate. */
-export function pinnedConstraintsTokens(pins: readonly string[]): number {
-  const item = pinnedConstraintsItem(pins)
-  return item === undefined
-    ? 0
-    : Math.ceil(Buffer.byteLength(JSON.stringify(item)) / MODEL_API_CONTEXT_BYTES_PER_TOKEN)
 }

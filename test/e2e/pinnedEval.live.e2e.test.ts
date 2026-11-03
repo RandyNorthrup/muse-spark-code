@@ -22,18 +22,7 @@
 //   MUSE_EVAL_REPORT      a path without extension for .json and .md
 //   MUSE_EVAL_MAX_ATTEMPTS the run's hard call ceiling
 
-import { randomUUID } from 'node:crypto'
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import path from 'node:path'
-import { setTimeout as delay } from 'node:timers/promises'
-import { format, resolveConfig } from 'prettier'
 import { describe, expect, it } from 'vitest'
-import {
-  formatEvalReportJson,
-  formatEvalReportMarkdown,
-  type EvalReport,
-} from '../../src/core/eval/report'
 import {
   assertEvalHarnessDigest,
   AUTO_COMPACTION_ARM,
@@ -41,24 +30,15 @@ import {
   freezeEvalHarness,
   PINNED_EVAL_ARMS,
 } from '../../src/core/eval/mechanisms'
-import { runPairedEval } from '../../src/core/eval/runner'
 import { EVAL_TASKS } from '../../src/core/eval/tasks'
-import { fileContextIo } from '../../src/host/backend/contextIo'
-import { shellJobAssembly } from '../../src/host/backend/shellJob'
-import { liveFetch } from '../../src/host/networkPosture'
-import { stderrLogger } from '../../src/runtime/stderrLog'
-import {
-  EVAL_REPORT_VERSION,
-  MODEL_API_BASE_URL,
-  SEARCH_WORKER_FILE,
-} from '../../src/shared/constants'
-import { readJobSource } from '../unit/helpers/jobSource'
-import { filesUnder, removeFolder } from '../unit/helpers/temporaryFolders'
+import { EVAL_REPORT_VERSION } from '../../src/shared/constants'
 import {
   assertNoLiveKeyEnvironment,
   evalRunTimeoutMs,
-  liveToolIo,
+  liveEvalLog,
   loadEvalLiveCredentials,
+  publishLiveEvalReport,
+  runLivePairedEval,
   withCompactionEngagement,
 } from './evalLiveSupport'
 
@@ -75,18 +55,6 @@ const PAIR_TASKS = EVAL_TASKS.filter(
     task.id === 'accept-long-compaction' ||
     task.id === 'heldout-long-compaction',
 )
-
-async function writeReport(result: EvalReport, target: string): Promise<void> {
-  mkdirSync(path.dirname(target), { recursive: true })
-  for (const [extension, parser, text] of [
-    ['.json', 'json', formatEvalReportJson(result)],
-    ['.md', 'markdown', formatEvalReportMarkdown(result)],
-  ] as const) {
-    const file = `${target}${extension}`
-    const options = (await resolveConfig(file)) ?? {}
-    writeFileSync(file, await format(text, { ...options, parser }))
-  }
-}
 
 function maxAttemptsOf(): number | undefined {
   const ceiling = process.env['MUSE_EVAL_MAX_ATTEMPTS']
@@ -111,68 +79,16 @@ describe.skipIf(!IS_ENABLED)(
         const certifiedDigest = assertEvalHarnessDigest(undefined, certified)
         const frozenHarness = freezeEvalHarness(PINNED_EVAL_ARMS, PAIR_TASKS)
         const credentials = await loadEvalLiveCredentials(IS_ENABLED)
-        const logged: string[] = []
-        const log = stderrLogger((line) => {
-          logged.push(line)
-        }, 'trace')
-        const leaks: string[] = []
-        const storage = mkdtempSync(path.join(tmpdir(), 'muse-pinned-eval-storage-'))
-        const searchWorker = path.join(storage, SEARCH_WORKER_FILE)
-        const jobAssembly =
-          process.platform === 'win32'
-            ? shellJobAssembly({
-                readJobSource,
-                storageDir: storage,
-                systemRoot: process.env['SystemRoot'] ?? '',
-                log: (message) => {
-                  log.warn(message)
-                },
-              })
-            : undefined
-        let result: EvalReport
-        try {
-          writeFileSync(searchWorker, frozenHarness.searchWorker.code)
-          result = await runPairedEval(PAIR_TASKS, PINNED_EVAL_ARMS, {
-            frozenHarness,
-            fetch: liveFetch,
-            client: {
-              baseUrl: MODEL_API_BASE_URL,
-              apiKey: credentials.apiKey,
-              sleep: (ms) => delay(ms),
-              now: Date.now,
-              random: Math.random,
-              log,
-            },
-            toolIo: (workspace) =>
-              liveToolIo({
-                workspace,
-                env: () => process.env,
-                searchWorkerPath: searchWorker,
-                log: (message) => {
-                  log.warn(message)
-                },
-                shellJobAssembly: jobAssembly,
-              }),
-            contextIo: fileContextIo,
-            platform: process.platform,
-            accountId: credentials.accountId,
-            log,
-            now: Date.now,
-            newId: () => randomUUID(),
-            generatedAt: new Date().toISOString(),
-            ...(maxAttempts !== undefined && { maxAttempts }),
-            inspect: (root) => {
-              for (const file of filesUnder(root)) {
-                if (credentials.contains(readFileSync(file))) {
-                  leaks.push(path.relative(root, file))
-                }
-              }
-              return Promise.resolve()
-            },
-          })
-        } finally {
-          await removeFolder(storage)
-        }
+        const { logged, log } = liveEvalLog()
+        const { result, leaks } = await runLivePairedEval({
+          tasks: PAIR_TASKS,
+          arms: PINNED_EVAL_ARMS,
+          frozenHarness,
+          credentials,
+          log,
+          maxAttempts,
+          storagePrefix: 'muse-pinned-eval-storage-',
+        })
         // The pinned arm must have compacted on every long-context task it
         // ran, or the pair proves nothing about pinning past compaction.
         const report = {
@@ -185,18 +101,8 @@ describe.skipIf(!IS_ENABLED)(
           certifiedDigest,
           computedDigest: certifiedDigest,
         }
-        const markdown = formatEvalReportMarkdown(report)
-        if (logged.some((line) => credentials.contains(line))) {
-          leaks.push('the log')
-        }
-        if (credentials.contains(`${formatEvalReportJson(report)}${markdown}`)) {
-          leaks.push('the report')
-        }
+        leaks.push(...(await publishLiveEvalReport({ report, credentials, logged, reportPath })))
         expect(leaks).toEqual([])
-        process.stderr.write(`${credentials.redact(markdown)}\n`)
-        if (reportPath !== undefined) {
-          await writeReport(report, path.resolve(reportPath))
-        }
         expect(
           report.version === EVAL_REPORT_VERSION
             ? report.compactionEngagement?.unengaged

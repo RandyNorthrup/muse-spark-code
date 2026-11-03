@@ -18,7 +18,7 @@ tasks were authored here, as the brief's fallback directs.
 - **Never summarised, re-sent verbatim.** The summariser's request input
   is built with the pinned item removed (`withoutPinnedConstraints` in
   `runCompaction.makeBody`), and at acceptance the block is rebuilt from
-  session state as its own replay entry (`pinned-constraints`) directly
+  session state as its own replay entry (turn id `pinned`) directly
   after the summary entry, so every post-compaction request re-sends it
   word for word. This is the faithful-compaction rule the brief points
   at (carry verbatim or drop, never a summary of a summary): the pin is
@@ -30,8 +30,7 @@ tasks were authored here, as the brief's fallback directs.
   request estimates and the provider's reported usage count them. In the
   auto-compaction economics its tokens are _retained_ context (the kept
   set in `maybeAutoCompact`), never part of what a compaction is
-  credited with removing. `pinnedConstraintsTokens` measures the block
-  in the compaction ledger's own lower byte estimate.
+  credited with removing.
 - **Visibility and Unpin.** The compaction item carries
   `pinnedConstraints` verbatim; its fallback text lists them under
   "Pinned across compaction:" for every surface, and the panel renders
