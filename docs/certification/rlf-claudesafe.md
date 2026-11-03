@@ -66,6 +66,8 @@ issue text: `docs/research/claude-account-safety-2026-11-02.md`.
 | 3     | `withoutCredentials` honours a listed plan route              | exit 1 | exit 0 |
 | 4     | custom-entry detection always false                           | exit 1 | exit 0 |
 | 5     | `anthropic/api` pooling back to `on`                          | exit 1 | exit 0 |
+| 6     | Claude's preset `pays` back to `subscription`                 | exit 1 | exit 0 |
+| 7     | `readStoredTeam` returns a saved Claude ref unchanged         | exit 1 | exit 0 |
 
 ## Real use with no model request
 
@@ -97,8 +99,13 @@ taken out; final growth 3064 (green). The budget was not raised.
   the route never passes, but saying so costs activation bytes the lane K
   budget does not have; a lazily loaded place (the setting's own validation
   in the Settings panel) is the follow-up.
-- `pays: 'subscription'` stays on all five presets; whether Claude's preset
-  should carry `key` (so the team's spend consent applies) is an open question.
+- Settled by the lead (2026-11-02): Claude's preset carries `pays: 'key'`, so
+  the team's spend consent applies, as an API key spends real money; the other
+  four keep `subscription`. A pool entry saved before with Claude as
+  `subscription` reads as `key` (`withPresetPays` in `readStoredTeam`). Not
+  normalised: the orchestrator slot's stored ref
+  (`readOrchestratorOverride`; no spend consent reads its `pays`) and the
+  CLI's `exec` team path (it runs engine entries only).
 - The packed product's real use with a real Anthropic key (no key on this rig,
   no paid call allowed).
 

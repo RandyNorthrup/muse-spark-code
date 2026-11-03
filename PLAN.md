@@ -9822,7 +9822,9 @@ the person's own `ANTHROPIC_API_KEY` in the editor's environment, Claude's
 preset gets that key and its own empty `CLAUDE_CONFIG_DIR` under our storage,
 so no plan login can be reached (the person's user-level Claude Code settings
 and skills are not in that worker; the project's are); (5) the preset is
-named "Claude Agent" and who pays is said true per agent; (6) a custom entry
+named "Claude Agent" and who pays is said true per agent, and it carries
+`pays: 'key'` so the team's spend consent applies, a saved Claude ref read the
+same way (lead, 2026-11-02); (6) a custom entry
 that starts Claude without `--hide-claude-auth` is warned about at its pick
 with Anthropic's sentence and link, detected by command and arguments only;
 (7) moving to another Anthropic API account on a limit waits for the

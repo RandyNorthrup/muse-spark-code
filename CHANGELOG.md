@@ -18,6 +18,8 @@ happened, not what was planned; superseded entries are kept.
   command, even where a setting lists it. An adapter older than 0.74.0 is not
   started, with the update command. With `ANTHROPIC_API_KEY` set, Claude Agent
   runs with its own empty configuration, out of reach of your plan login.
+  The team counts Claude Agent as paid by your key, so it asks your spend
+  consent before using it, as it does for any key.
   Your own external agent that starts Claude without `--hide-claude-auth`
   shows Anthropic's terms before you pick it, and moving to another Anthropic
   API account on a limit now asks you first, quoting Anthropic's policy.

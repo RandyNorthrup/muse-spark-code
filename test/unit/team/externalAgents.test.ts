@@ -30,7 +30,7 @@ describe('external agent presets', () => {
       const worker = ACP_PRESETS[preset.preset!]
       expect(preset.command).toBe(worker.command)
       expect(preset.args).toEqual(worker.defaultArgs)
-      expect(preset.pays).toBe('subscription')
+      expect(preset.pays).toBe(preset.agentId === 'claude' ? 'key' : 'subscription')
       expect(isExternalDefaultModel(preset)).toBe(true)
     }
     expect(presets[0]?.signInCommand).toBe('claude auth login --console')
@@ -90,7 +90,7 @@ describe('external offers', () => {
       ref: 'external:claude',
       label: 'Claude Agent',
       worker: false,
-      agent: { kind: 'external', agentId: 'claude', model: 'claude', pays: 'subscription' },
+      agent: { kind: 'external', agentId: 'claude', model: 'claude', pays: 'key' },
       controls: [],
     })
   })
