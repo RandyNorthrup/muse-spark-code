@@ -5,29 +5,17 @@
 // derives each counterpart from the served reading while its `serve` runs
 // with `--contributor-mode on`. The provider, not the product, decides
 // whether the person may use one.
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   contributorModelSummaries,
-  modelListResultSchema,
   toContributorSummary,
-  toModelSummary,
 } from '../../src/core/backends/musecode/MuseCodeHost'
 import { workerServeArgs } from '../../src/core/team/workers/museCodeWorker'
-
-function recordedModels() {
-  const raw: unknown = JSON.parse(
-    readFileSync(
-      new URL('../fixtures/muse-contributor/model-list-1.4.10.json', import.meta.url),
-      'utf8',
-    ),
-  )
-  return modelListResultSchema.parse(raw).models.map((row) => toModelSummary(row))
-}
+import { recordedMuseCodeModels } from './helpers/recordedMuseCodeModels'
 
 describe('contributorModelSummaries', () => {
   it('derives one -contributor counterpart per served base, carrying its limits', () => {
-    const base = recordedModels()
+    const base = recordedMuseCodeModels()
     expect(base.map((model) => model.modelId)).toEqual([
       'muse-wonder-1.0',
       'muse-wonder-full-1.0',
@@ -68,7 +56,7 @@ describe('contributorModelSummaries', () => {
   })
 
   it('never doubles a tier the catalogue already serves', () => {
-    const base = recordedModels()
+    const base = recordedMuseCodeModels()
     const withServed = [...base, toContributorSummary(base[2]!)]
     expect(contributorModelSummaries(withServed).map((model) => model.modelId)).toEqual([
       'muse-wonder-1.0-contributor',

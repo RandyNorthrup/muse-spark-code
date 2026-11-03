@@ -15759,6 +15759,17 @@ a file that is not there yet. The stdio team bridge posts only to literal
 loopback HTTP and says so otherwise. No packed team run. Record:
 `docs/certification/rvint9.md`.
 
+**Status 2026-11-02 (RLF-WONDER): building.** RVINT9's P3 is closed in the
+registry: a Wonder-tier id (`muse-wonder-1.0`, the one id whose verified
+Model API tariff is `wonder`) is no longer offered as a standard Muse Code
+team model, a pool that names it for a Muse Code or external ACP worker is
+refused in words before the worker starts, and a Meta engine offer carries
+its own verified tariff's rates (Wonder at the Wonder rates; no verified
+tariff, no guessed rates). Its team ceiling keeps the standard row, whose
+documented 3,000 RPM / 4,000,000 TPM is Wonder's own documented limit
+(RLSDKMUSE, 2026-10-22). No Muse session was started and no packed team
+run is claimed. Record: `docs/certification/rlf-wonder.md`.
+
 Status detail retained: first parts (role charters, tools, pools, limits)
 shipped in 0.15.0; team creation and worker dispatch remain (no team can be
 created: the teamWorkers paid gate has no production availability). Planned on `feature/m96-agent-roles` from main

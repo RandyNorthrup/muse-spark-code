@@ -13,6 +13,7 @@ import type { TeamPanelOffer, TeamSettingControl } from '../../shared/teamPanel'
 import type { UsageLimitSnapshot } from '../../shared/usageJournal'
 import { computeTeamCeiling, metaTeamLimits } from './teamCeilings'
 import { modelApiPaidTier } from '../../shared/paid'
+import { isWonderTierModel } from '../../shared/wonderTier'
 import { externalAgentRef, externalOfferRef, type ExternalAgent } from './externalAgents'
 
 export interface TeamEngineModel {
@@ -22,7 +23,7 @@ export interface TeamEngineModel {
 }
 export interface TeamDiscoveryAbsence {
   readonly provider: string
-  readonly reason: 'capture' | 'limits' | 'worker' | 'discovery' | 'unavailable'
+  readonly reason: 'capture' | 'limits' | 'worker' | 'discovery' | 'unavailable' | 'wonderTier'
 }
 function billingForPricing(pricing: ModelSummary['pricing']): 'subscription' | 'key' {
   return pricing === 'plan' ? 'subscription' : 'key'
@@ -146,11 +147,13 @@ export function buildTeamModelOffers(input: {
       .toSorted((a, b) => b.observedAt - a.observedAt)
       .at(0)
     const observedLimits = observedTeamLimits(preset, observed?.raw)
+    const paidTier = modelApiPaidTier(model.modelId)
+    // Wonder's documented per-team limits are the standard row's (3,000
+    // RPM / 4,000,000 TPM, RLSDKMUSE 2026-10-22), so the ceiling shares
+    // that row; its rates below stay the Wonder tariff's own.
     const limits =
       provider === 'meta'
-        ? metaTeamLimits(
-            modelApiPaidTier(model.modelId) === 'contributor' ? 'contributor' : 'standard',
-          )
+        ? metaTeamLimits(paidTier === 'contributor' ? 'contributor' : 'standard')
         : (observedLimits ??
           (preset !== 'openai' &&
           preset !== 'anthropic' &&
@@ -174,8 +177,13 @@ export function buildTeamModelOffers(input: {
       absent.push({ provider, reason: 'limits' })
       continue
     }
-    const tier = modelApiPaidTier(model.modelId) === 'contributor' ? 'contributor' : 'standard'
-    const metaRates = provider === 'meta' ? MODEL_API_PRICES_PER_MILLION[tier] : undefined
+    // The model's own verified tariff, never a neighbouring tier's: a
+    // Wonder model on this backend is priced at the Wonder rates, and a
+    // Meta model with no verified tariff carries no guessed rates.
+    const metaRates =
+      provider === 'meta' && paidTier !== undefined
+        ? MODEL_API_PRICES_PER_MILLION[paidTier]
+        : undefined
     const billing = isLocal ? 'local' : billingForPricing(model.pricing)
     offers.push({
       ref: `engine:${model.modelId}`,
@@ -205,6 +213,13 @@ export function buildTeamModelOffers(input: {
   for (const model of input.museCode) {
     if (!input.canRunKind('museCode') && !canLead('museCode')) {
       absent.push({ provider: 'museCode', reason: 'worker' })
+      continue
+    }
+    // A Wonder-tier id is not a standard Muse Code model (RLF-WONDER):
+    // never offered on the subscription. A pool that already names one is
+    // refused in words at the worker start (wonderTier.ts).
+    if (isWonderTierModel(model.modelId)) {
+      absent.push({ provider: 'museCode', reason: 'wonderTier' })
       continue
     }
     if (modelApiPaidTier(model.modelId) === undefined) {
