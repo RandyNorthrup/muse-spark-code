@@ -153,6 +153,7 @@ import {
   MuseCodeFaultError,
   PromptSettledError,
   type PromptSettledReason,
+  SessionNotFoundError,
   SessionNotLoadedError,
   SteerRefusedError,
 } from '../../agent/agentBackend'
@@ -928,6 +929,21 @@ function settledOr(error: unknown): unknown {
   }
   const reason = PROMPT_SETTLED_KINDS.get(error.kind)
   return reason === undefined ? error : new PromptSettledError(reason, error.message)
+}
+
+/**
+A resume the store cannot serve as a `SessionNotFoundError`; anything else
+unchanged. Two wire kinds, both meaning the history cannot come back: the
+store's own `sessionNotFound` (the binary's exported error table names it,
+-32020, not retryable), and `methodNotFound` from a host that serves no
+store at all (an ephemeral host unserves `session/read` and
+`session/resume`; measured 2026-11-02 on CLI 1.4.14).
+*/
+function refusedOr(error: unknown, sessionId: string): unknown {
+  return error instanceof MspError &&
+    (error.kind === 'sessionNotFound' || error.kind === 'methodNotFound')
+    ? new SessionNotFoundError(sessionId)
+    : error
 }
 
 const FAULT_MARKERS: Readonly<Record<MuseCodeFault, string>> = {
@@ -1979,6 +1995,43 @@ export class MuseSession implements ScheduledAgentSession {
     }
   }
 
+  /**
+  A stop call (cancel, interrupt, stop-all) on a dead host is already done:
+  nothing runs there to stop, so the call is skipped and the state is named,
+  never sent into a log line that says only `Error`. The pre-check covers a
+  processed exit; the catch covers the exit that lands, or landed
+  unprocessed, during the call. A failure that names a dead host (the
+  channel, a broken pipe, the SDK's closed-connection refusal) skips;
+  anything else still throws.
+  */
+  private async ifLive(verb: 'turn/cancel' | 'turn/interrupt' | 'task/stopAll'): Promise<void> {
+    if (this.channel.signal.aborted) {
+      this.log.info(`session ${this.sessionId} ${verb} skipped: host exited`)
+      return
+    }
+    try {
+      await this.command(verb, {})
+    } catch (error: unknown) {
+      // Read fresh: the exit can land while the call is in flight, past
+      // the pre-check above. A broken pipe names a dead host: over the
+      // stdio transport the host only ever closes stdin on its way out.
+      // So does the SDK's own closed-connection refusal (its two local
+      // wordings; every other ProtocolError keeps its report).
+      const signal = this.channel.signal
+      if (
+        !signal.aborted &&
+        !(error instanceof Error && 'code' in error && error.code === 'EPIPE') &&
+        !(
+          error instanceof ProtocolError &&
+          (error.message === 'connection is closed' || error.message === 'connection closed')
+        )
+      ) {
+        throw error
+      }
+      this.log.info(`session ${this.sessionId} ${verb} skipped: host exited`)
+    }
+  }
+
   /** The single wire decision whose outcome every caller of this stage sees. */
   private async sendApprovalDecision(decision: ApprovalDecision): Promise<void> {
     const { approvalId, requirementId } = decision
@@ -2755,7 +2808,7 @@ export class MuseSession implements ScheduledAgentSession {
       (scheduledOwner !== undefined && !this.owner.canCancel(token, scheduledOwner))
     )
       return
-    await this.command('turn/cancel', {})
+    await this.ifLive('turn/cancel')
   }
 
   /** Stop the running turn immediately. */
@@ -2763,7 +2816,7 @@ export class MuseSession implements ScheduledAgentSession {
     const token = this.owner.token()
     await this.rejectPartlyDecided()
     if (!this.owner.matches(token)) return
-    await this.command('turn/interrupt', {})
+    await this.ifLive('turn/interrupt')
   }
 
   /** Durable model selection; applies from the next model call. */
@@ -2933,8 +2986,8 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /** `task/stopAll` (M46): every background task; accepted over none too. */
-  public async stopAllTasks(): Promise<void> {
-    await this.command('task/stopAll', {})
+  public stopAllTasks(): Promise<void> {
+    return this.ifLive('task/stopAll')
   }
 
   /**
@@ -4192,9 +4245,13 @@ export class MuseCodeHost implements AgentHost {
     options?: { readonly requireSideChat?: boolean; readonly permissionProfile?: string },
   ): Promise<LoadedSession> {
     // `session/read` does not attach or restart queued turns (captured M6 envelope).
-    const stored = sessionEnvelopeSchema.parse(
-      await this.command('session/read', { sessionId, excludeItems: true }),
-    )
+    let read: unknown
+    try {
+      read = await this.command('session/read', { sessionId, excludeItems: true })
+    } catch (error: unknown) {
+      throw refusedOr(error, sessionId)
+    }
+    const stored = sessionEnvelopeSchema.parse(read)
     const owner = this.hardwareOwner(stored.session.workspaceRoot ?? undefined)
     owner.startSession()
     const assertCanResume = () => {
@@ -4206,8 +4263,9 @@ export class MuseCodeHost implements AgentHost {
     }
     assertCanResume()
     const { loaded, hasPending } = await this.opened(async () => {
-      const envelope = sessionEnvelopeSchema.parse(
-        await this.command(
+      let resumed: unknown
+      try {
+        resumed = await this.command(
           'session/resume',
           {
             sessionId,
@@ -4221,8 +4279,11 @@ export class MuseCodeHost implements AgentHost {
           },
           undefined,
           assertCanResume,
-        ),
-      )
+        )
+      } catch (error: unknown) {
+        throw refusedOr(error, sessionId)
+      }
+      const envelope = sessionEnvelopeSchema.parse(resumed)
       return {
         loaded: this.loaded(envelope, modelId),
         hasPending: (envelope.pendingRequests ?? []).length > 0,

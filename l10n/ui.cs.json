@@ -4742,6 +4742,9 @@
   "acpUserMcpServersConfigured": "Spuštěno s --no-user-mcp-servers, ale vaše nastavení Muse Code zapíná servery MCP a Muse Code nemá žádný přepínač, který by je pro jedno spuštění vynechal. Vypněte je v tomto souboru (enabled: false) nebo spusťte bez --no-user-mcp-servers.",
   "acpUserMcpServersUnreadable": "Spuštěno s --no-user-mcp-servers, ale soubor nastavení Muse Code nelze přečíst, takže tento agent nepozná, zda zapíná servery MCP. Soubor opravte nebo spusťte bez --no-user-mcp-servers.",
   "acpSessionStartFailed": "Relaci se nepodařilo spustit ({detail}). Podrobnosti najdete v protokolu Muse Spark.",
+  "acpBackendRestartCliGone": "Muse Code se zastavil a nelze jej znovu spustit. Nic nebylo odesláno a konverzace je nezměněna; opravte instalaci Muse Code a zkuste to znovu.",
+  "acpBackendRestartSessionLost": "Muse Code se restartoval, ale tato konverzace tam již není, takže její historie je ztracena. Pokračujte zahájením nové relace.",
+  "acpBackendRestartGaveUp": "Muse Code se zastavil a po několika pokusech jej nebylo možné restartovat. Nic nebylo odesláno a konverzace je nezměněna; zkontrolujte instalaci Muse Code a zkuste to znovu.",
   "acpTurnStartFailed": "Kolo se nepodařilo spustit ({detail}). Podrobnosti najdete v protokolu Muse Spark.",
   "createdRegistrySave": {
     "failed": "Registr vytvořených prostředků se nepodařilo uložit ({reason}). Podrobnosti najdete v protokolu Muse Spark.",

@@ -32933,6 +32933,26 @@ HOME) whose journal and draft carry the new facts. Reply text for
 #157 is drafted for the owner, not posted. Evidence:
 `docs/certification/rlf-firstrun.md`.
 
+### RLFACPRECOVER — The ACP agent after Muse Code dies under it (2026-11-02)
+
+**Status 2026-11-02 (lane RLF-ACPRECOVER, macmini): built.** RLF-M111AX
+saw a SIGKILLed `muse serve` answered with `Internal error`, then
+`-32002 Resource not found: <uuid>` on every next prompt, with bare
+`Error` log lines. Now the agent records the detached session, and
+the next prompt, config set or load brings the backend back and
+re-attaches it with its history; a restart that cannot work answers
+in words in all 15 languages (what stopped, loss, what to do); the
+in-flight turn ends with the exit's words, never finished; the
+restart loop keeps the D228 industry bounds with a notice per wait
+and answers `cancelled` on stop; stops on the dead host skip naming
+the state. The panel backend shares the one seam (the whole exit
+crosses `hostExited`). Proven by two real-CLI suites (host/registry
+5/5; agent 6 passed with 3 durable-only skipped on this ephemeral
+rig, words in 15/15), red/green drills on base sources, and the
+targeted darwin ACP package built; the packed kill-by-hand run and
+the durable three await a durable CLI in the lead env. Evidence:
+`docs/certification/rlf-acprecover.md`.
+
 ---
 
 ## 7. Gates

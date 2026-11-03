@@ -4655,6 +4655,9 @@
   "acpUserMcpServersConfigured": "Iniciado com --no-user-mcp-servers, mas as configurações do Muse Code ativam servidores MCP, e o Muse Code não tem nenhuma chave que os deixe de fora em uma execução. Desative-os nesse arquivo (enabled: false) ou inicie sem --no-user-mcp-servers.",
   "acpUserMcpServersUnreadable": "Iniciado com --no-user-mcp-servers, mas o arquivo de configurações do Muse Code não pode ser lido, então este agente não sabe se ele ativa servidores MCP. Repare o arquivo ou inicie sem --no-user-mcp-servers.",
   "acpSessionStartFailed": "Não foi possível iniciar a sessão ({detail}). O log do Muse Spark tem os detalhes.",
+  "acpBackendRestartCliGone": "O Muse Code parou e não pode ser iniciado novamente. Nada foi enviado e a conversa está inalterada; repare a instalação do Muse Code e tente novamente.",
+  "acpBackendRestartSessionLost": "O Muse Code foi reiniciado, mas esta conversa não está mais lá, então seu histórico foi perdido. Inicie uma nova sessão para continuar.",
+  "acpBackendRestartGaveUp": "O Muse Code parou e não pôde ser reiniciado após várias tentativas. Nada foi enviado e a conversa está inalterada; verifique a instalação do Muse Code e tente novamente.",
   "acpTurnStartFailed": "Não foi possível iniciar o turno ({detail}). O log do Muse Spark tem os detalhes.",
   "createdRegistrySave": {
     "failed": "Não foi possível salvar o registro de recursos criados ({reason}). O log do Muse Spark tem os detalhes.",

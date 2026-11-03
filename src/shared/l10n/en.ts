@@ -5645,6 +5645,15 @@ export const EN = {
   // {detail}: the failure's fixed-vocabulary cause (an error name, code or kind).
   acpSessionStartFailed:
     'The session could not be started ({detail}). The Muse Spark log has the details.',
+  // A prompt (or a session setting) arrives for a session whose backend
+  // died, and bringing the backend back fails: what stopped, whether
+  // anything was lost, what to do. Never a request id or a path.
+  acpBackendRestartCliGone:
+    'Muse Code stopped and cannot be started again. Nothing was sent and the conversation is unchanged; repair the Muse Code installation, then try again.',
+  acpBackendRestartSessionLost:
+    'Muse Code restarted, but this conversation is no longer there, so its history is lost. Start a new session to continue.',
+  acpBackendRestartGaveUp:
+    'Muse Code stopped and could not be restarted after several tries. Nothing was sent and the conversation is unchanged; check the Muse Code installation, then try again.',
   // {detail}: the failure's fixed-vocabulary cause (an error name, code or kind).
   acpTurnStartFailed:
     'The turn could not be started ({detail}). The Muse Spark log has the details.',

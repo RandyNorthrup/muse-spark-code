@@ -158,10 +158,35 @@ describe('outboundError wire contract', () => {
 })
 
 describe('hostExitError', () => {
-  it('says a dead backend is never retryable in its session', () => {
-    const error = hostExitError('Muse Code was stopped by SIGKILL')
+  it('says a crashed backend is retryable in its session: the resend re-attaches it', () => {
+    const error = hostExitError({
+      description: 'Muse Code was stopped by SIGKILL',
+      isExpected: false,
+      isFailure: true,
+      isPersistent: false,
+    })
     expect(error.code).toBe(ACP_ERROR_CODES.unavailable)
-    expect(error.data).toEqual({ retryable: false })
+    expect(error.data).toEqual({ retryable: true })
     expect(error.message).toContain('SIGKILL')
+  })
+  it('says an expected or persistent exit is not retryable in its session', () => {
+    for (const exit of [
+      {
+        description: 'Muse Code exited as asked (exit code 0)',
+        isExpected: true,
+        isFailure: false,
+        isPersistent: false,
+      },
+      {
+        description: 'Muse Code exited with code 3',
+        isExpected: false,
+        isFailure: true,
+        isPersistent: true,
+      },
+    ]) {
+      const error = hostExitError(exit)
+      expect(error.code).toBe(ACP_ERROR_CODES.unavailable)
+      expect(error.data).toEqual({ retryable: false })
+    }
   })
 })

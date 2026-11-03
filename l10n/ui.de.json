@@ -4568,6 +4568,9 @@
   "acpUserMcpServersConfigured": "Mit --no-user-mcp-servers gestartet, aber Ihre Muse-Code-Einstellungen schalten MCP-Server ein, und Muse Code hat keinen Schalter, der sie für einen Lauf auslässt. Schalten Sie sie in dieser Datei aus (enabled: false) oder starten Sie ohne --no-user-mcp-servers.",
   "acpUserMcpServersUnreadable": "Mit --no-user-mcp-servers gestartet, aber Ihre Muse-Code-Einstellungsdatei kann nicht gelesen werden, daher kann dieser Agent nicht feststellen, ob sie MCP-Server einschaltet. Reparieren Sie die Datei oder starten Sie ohne --no-user-mcp-servers.",
   "acpSessionStartFailed": "Die Sitzung konnte nicht gestartet werden ({detail}). Details stehen im Muse Spark-Protokoll.",
+  "acpBackendRestartCliGone": "Muse Code wurde beendet und kann nicht erneut gestartet werden. Es wurde nichts gesendet und die Unterhaltung ist unverändert; reparieren Sie die Muse-Code-Installation und versuchen Sie es dann erneut.",
+  "acpBackendRestartSessionLost": "Muse Code wurde neu gestartet, aber diese Unterhaltung ist nicht mehr vorhanden, daher ist ihr Verlauf verloren. Beginnen Sie eine neue Sitzung, um fortzufahren.",
+  "acpBackendRestartGaveUp": "Muse Code wurde beendet und konnte nach mehreren Versuchen nicht neu gestartet werden. Es wurde nichts gesendet und die Unterhaltung ist unverändert; prüfen Sie die Muse-Code-Installation und versuchen Sie es dann erneut.",
   "acpTurnStartFailed": "Der Durchgang konnte nicht gestartet werden ({detail}). Details stehen im Muse Spark-Protokoll.",
   "createdRegistrySave": {
     "failed": "Die Registrierung erstellter Ressourcen konnte nicht gespeichert werden ({reason}). Details stehen im Muse Spark-Protokoll.",

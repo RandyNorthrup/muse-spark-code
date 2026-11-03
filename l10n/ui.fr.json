@@ -4655,6 +4655,9 @@
   "acpUserMcpServersConfigured": "Démarré avec --no-user-mcp-servers, mais vos paramètres Muse Code activent des serveurs MCP, et Muse Code n’a aucun commutateur pour les omettre le temps d’une exécution. Désactivez-les dans ce fichier (enabled: false) ou démarrez sans --no-user-mcp-servers.",
   "acpUserMcpServersUnreadable": "Démarré avec --no-user-mcp-servers, mais le fichier de paramètres de Muse Code est illisible : cet agent ne peut pas savoir s’il active des serveurs MCP. Réparez le fichier ou démarrez sans --no-user-mcp-servers.",
   "acpSessionStartFailed": "La session n’a pas pu démarrer ({detail}). Le journal de Muse Spark contient les détails.",
+  "acpBackendRestartCliGone": "Muse Code s’est arrêté et ne peut pas redémarrer. Rien n’a été envoyé et la conversation est inchangée ; réparez l’installation de Muse Code, puis réessayez.",
+  "acpBackendRestartSessionLost": "Muse Code a redémarré, mais cette conversation n’y est plus, donc son historique est perdu. Démarrez une nouvelle session pour continuer.",
+  "acpBackendRestartGaveUp": "Muse Code s’est arrêté et n’a pas pu redémarrer après plusieurs tentatives. Rien n’a été envoyé et la conversation est inchangée ; vérifiez l’installation de Muse Code, puis réessayez.",
   "acpTurnStartFailed": "Le tour n’a pas pu démarrer ({detail}). Le journal de Muse Spark contient les détails.",
   "createdRegistrySave": {
     "failed": "Le registre des ressources créées n’a pas pu être enregistré ({reason}). Le journal de Muse Spark contient les détails.",
