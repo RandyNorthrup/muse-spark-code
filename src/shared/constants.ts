@@ -9685,6 +9685,8 @@ export const MODEL_API_MODEL_TEXT = {
     'No deferred MCP tool matches "{query}". Search again with other words from a tool name, description or argument name.',
   toolSearchNotDeferred: 'tool_search is not available: no MCP tools are deferred in this session',
   toolSearchBadQuery: 'tool_search needs a non-empty query string',
+  toolSearchServersAway:
+    'These MCP servers are not connected now, so their tools are not in the catalogue: {servers}.',
   toolSearchLoadFirst:
     'is a deferred MCP tool and is not loaded yet: call tool_search to load it before calling it',
 
