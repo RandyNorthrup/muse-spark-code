@@ -15,6 +15,7 @@ import {
   buildRegionalEnglish,
 } from './helpers/l10nBuilds.mjs'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
+import { NODE_WORKSPACE_KEY, buildNodeWorkspace } from '../harness/build-node.mjs'
 import {
   WINDOWS_FRAMEWORK_RELATIVE_PATH,
   WINDOWS_POWERSHELL_RELATIVE_PATH,
@@ -66,25 +67,45 @@ function warmWindowsPowerShell() {
   )
 }
 /**
-The compiler each process builds its birth reader with (processOwner.ts), and Chrome: the same
-first start, in whichever suite reaches it first (runtimePullRequestRecords' first lease passed
-15 s and feedbackBrowser's launch passed its 30 s hook on run 41677635406). Chrome runs on a
-profile of this run's own, so a person's Chrome is never asked.
+The rest of each system's first starts, in whichever suite reaches them first. Windows: the
+compiler each process builds its birth reader with (processOwner.ts), and the port list's WMI
+class, its own provider (makerWindowEngine still passed 15 s on run 41723994114 with
+Win32_Process already warm). macOS: the /usr/bin/python3 shim the serial helpers run under
+(makerSerialAdapters passed 5 s there).
 */
-function warmWindowsFirstStarts(root) {
+function warmSystemFirstStarts(root) {
+  if (process.platform === 'darwin') {
+    coldStart('macOS python3', '/usr/bin/python3', ['-I', '-c', 'pass'])
+    return
+  }
   if (process.platform !== 'win32') return
+  const systemRoot = process.env['SystemRoot'] ?? ''
   const source = path.join(root, 'cold-start.cs')
   writeFileSync(source, 'static class ColdStart { static void Main() {} }\n')
   coldStart(
     'Windows C# compiler',
-    path.win32.join(process.env['SystemRoot'] ?? '', WINDOWS_FRAMEWORK_RELATIVE_PATH, 'csc.exe'),
+    path.win32.join(systemRoot, WINDOWS_FRAMEWORK_RELATIVE_PATH, 'csc.exe'),
     ['/nologo', `/out:${path.join(root, 'cold-start.exe')}`, source],
   )
+  coldStart('Windows port list', path.win32.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH), [
+    '-NoProfile',
+    '-NonInteractive',
+    '-Command',
+    'Get-CimInstance Win32_PnPEntity -Filter "PNPClass=\'Ports\'" | Out-Null',
+  ])
+}
+/**
+Chrome's first start, on every system: it passed feedbackBrowser's hook on Windows (30 s, run
+41677635406) and on Ubuntu (10 s, run 41723994114). On a profile of this run's own, so a person's
+Chrome is never asked.
+*/
+function warmChrome(root) {
   const chrome = findChrome()
   if (chrome === undefined) return
   coldStart('Chrome', chrome, [
     '--headless=new',
     '--disable-gpu',
+    '--no-sandbox',
     `--user-data-dir=${path.join(root, 'cold-start-chrome')}`,
     '--dump-dom',
     'about:blank',
@@ -97,7 +118,8 @@ export default async function setup(project) {
   // imports source by a relative path, which another drive's TEMP would break.
   mkdirSync('temp', { recursive: true })
   const root = mkdtempSync(path.resolve('temp', 'l10n-builds-'))
-  warmWindowsFirstStarts(root)
+  warmSystemFirstStarts(root)
+  warmChrome(root)
   // Vitest registers this run's selected paths before global setup. A fresh
   // glob would include unselected suites and compile for every native test.
   const testFiles = project.vitest.state.getPaths()
@@ -147,6 +169,16 @@ export default async function setup(project) {
     const models = path.join(root, 'models-first-paint')
     await buildModelsFirstPaint(models)
     project.provide(MODELS_FIRST_PAINT_KEY, models)
+  }
+  // The node workspace, for the same reason: its build plus a Chrome launch passed the suite's
+  // 10 s hook on macOS (run 41723994114). Under the folder the harness server serves.
+  if (
+    testFiles.some((file) => file.replaceAll('\\', '/').endsWith('/nodeBrowserWorkspace.test.mjs'))
+  ) {
+    const workspace = path.join(root, 'node-workspace')
+    const dependencies = path.resolve('temp/u1-deps/node_modules')
+    await buildNodeWorkspace(workspace, existsSync(dependencies) ? dependencies : undefined)
+    project.provide(NODE_WORKSPACE_KEY, path.relative('.', workspace).replaceAll('\\', '/'))
   }
   let browser
   try {

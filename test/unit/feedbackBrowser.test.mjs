@@ -52,6 +52,12 @@ beforeAll(async () => {
 beforeAll(async () => {
   await warmBrowser(runtime.browser)
 })
+// The first real page compiles the webview bundle: a hook's deadline, not the first case's (over
+// 5 s on macOS, run 41723994114; the later cases take about 3 s there).
+beforeAll(async () => {
+  const page = await open(scenes[0], themes[0])
+  await page.close()
+})
 afterAll(async () => {
   await runtime.browser?.close()
   await new Promise((resolve) => runtime.server?.close(resolve) ?? resolve())

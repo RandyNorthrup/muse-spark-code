@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto'
-import { readFileSync, existsSync, mkdirSync, rmSync } from 'node:fs'
+import { readFileSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, inject, it } from 'vitest'
 import { chromium } from 'playwright-core'
 import { assertCurrentProductionBuild } from './productionBuild'
-import { buildNodeWorkspace } from '../harness/build-node.mjs'
+import { NODE_WORKSPACE_KEY } from '../harness/build-node.mjs'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
 import { serveRepo } from '../../scripts/lib/harnessServer.mjs'
 import { loadL10n } from '../../scripts/lib/l10nSource.mjs'
@@ -27,27 +27,33 @@ async function warmBrowser(browser) {
   }
 }
 
-// This suite's own build, under the folder the harness server serves. It never writes
-// dist/webview/node: other suites read the shared production build while this one runs.
-const BUILD = `temp/node-browser-${String(process.pid)}`
 const state = { pages: [] }
 beforeAll(async () => {
   // The harness page links the production webview stylesheet: refuse a run
   // whose shared build is missing or stale instead of measuring unstyled bytes.
   assertCurrentProductionBuild(inject('productionBuildGeneration'), process.cwd())
-  const dependencies = path.resolve('temp/u1-deps/node_modules')
-  await buildNodeWorkspace(BUILD, existsSync(dependencies) ? dependencies : undefined)
+  // Global setup built this suite's own copy: it never writes dist/webview/node, which other
+  // suites read while this one runs.
+  state.build = inject(NODE_WORKSPACE_KEY)
   const locale = await loadL10n(process.cwd())
   state.text = locale.EN
-  const chrome = findChrome()
-  if (chrome === undefined) throw new Error('Chrome is required for the real node browser fixture')
   const served = await serveRepo(process.cwd())
   state.server = served.server
   state.port = served.port
+})
+// Chrome's start and first pages each take a hook of their own, as feedbackBrowser's do.
+beforeAll(async () => {
+  const chrome = findChrome()
+  if (chrome === undefined) throw new Error('Chrome is required for the real node browser fixture')
   state.browser = await chromium.launch({ executablePath: chrome })
 })
 beforeAll(async () => {
   await warmBrowser(state.browser)
+})
+// The first real page compiles the bundle: a hook's deadline, not the first case's (5 s on macOS).
+beforeAll(async () => {
+  await pageFor()
+  for (const page of state.pages.splice(0)) await page.close()
 })
 afterEach(async () => {
   for (const page of state.pages.splice(0)) await page.close()
@@ -55,13 +61,12 @@ afterEach(async () => {
 afterAll(async () => {
   await state.browser?.close()
   if (state.server !== undefined) await new Promise((resolve) => state.server.close(resolve))
-  rmSync(BUILD, { recursive: true, force: true })
 })
 async function pageFor(scenario = 'node-editor', language, width = 690) {
   const page = await state.browser.newPage({ viewport: { width, height: 760 } })
   state.pages.push(page)
   await page.goto(
-    `http://127.0.0.1:${String(state.port)}/test/harness/node.html?build=../../${BUILD}&scenario=${scenario}&theme=dark${language === undefined ? '' : `&lang=${language}`}`,
+    `http://127.0.0.1:${String(state.port)}/test/harness/node.html?build=../../${state.build}&scenario=${scenario}&theme=dark${language === undefined ? '' : `&lang=${language}`}`,
   )
   await page.locator('body[data-node-ready="true"]').waitFor()
   return page
