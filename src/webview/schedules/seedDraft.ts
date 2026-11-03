@@ -13,6 +13,6 @@ export function seedScheduleDraft(
 ): ScheduleDraft {
   const seed =
     pendingPrompt ??
-    (composerDraft !== undefined && composerDraft.trim() !== '' ? composerDraft : undefined)
+    (composerDraft === undefined || composerDraft.trim() === '' ? undefined : composerDraft)
   return seed === undefined ? draft : { ...draft, action: { kind: 'prompt', prompt: seed } }
 }
