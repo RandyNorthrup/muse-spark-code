@@ -31967,6 +31967,8 @@ host bindings stay open for RLM104. Receipt:
 
 **Status 2026-10-23 (RLF-JUDGEFIX: the phase-2 gate and suite regressions on int/recovery fixed in the judge code — catches narrowed/reported, spawns guarded, money exact, CLI help, plan/packaging corrections; evidence `docs/certification/rlf-judgefix.md`; follow-up: devices money/spawns exact and guarded, backend log text out of the judge bundles, every split whistleblower proven firing; the 7 over-budget non-judge bundles investigated byte by byte with no in-scope fat found, triaged to release): built.**
 
+**Status 2026-11-02 (RLF-M98BIND: the phase-2 production binding's offline half assembled and recorded — the real C/E/J sides, adoption receipts and fitted-profile loading verified file by file against the binding seam in host and CLI, a profile-less surface keeping phase-1 behaviour with its named gap, L98P2-EMBED's live labels and any paid dispatch listed out with counts and ceilings; evidence `docs/certification/rlf-m98bind.md`; resume run: 8 binding suites green, every recovery gate green, three red drills firing and restored, roadmap current): built.**
+
 - **Goal.** Small, calibrated, advisory decisions, on out of the box (D78),
   from the user's own chat model first, with separate judges later. The Muse
   model, or a deterministic rule, still decides.
