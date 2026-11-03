@@ -132,7 +132,7 @@ export interface TeamSettingsPort {
   readonly isTeamWorkersOn: () => boolean
   /**
   D261, `museSpark.refusalFallback` (or `exec --refusal-fallback`): a refused
-  task moves to its role's next candidate. Absent or false: the refusal
+  task, or a solo chat's refused turn, moves to its role's next candidate. Absent or false: the refusal
   ends the task, as before.
   */
   readonly isRefusalFallbackOn?: () => boolean
@@ -257,6 +257,12 @@ export interface TeamWorkerPort {
   readonly run: (spec: TeamTaskSpec, signal: AbortSignal) => Promise<TeamWorkerOutcome>
   /** A rate or usage limit marked the agent until its time (acceptance 8); absent marks nothing. */
   readonly isLimited?: ((agent: TeamAgentRef) => boolean) | undefined
+  /**
+  D261: the service a provider record was added from, so a refused turn
+  never moves to another account of the same provider. Absent or unknown:
+  the record is its own provider.
+  */
+  readonly providerService?: ((record: string) => string | undefined) | undefined
 }
 
 /**

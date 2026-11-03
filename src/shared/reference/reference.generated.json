@@ -234,11 +234,11 @@
     },
     {
       "id": "refusal-fallback",
-      "name": { "setting": "teamRefusalFallback" },
-      "summary": { "setting": "teamRefusalFallback" },
-      "description": { "setting": "teamRefusalFallback" },
+      "name": { "setting": "refusalFallback" },
+      "summary": { "setting": "refusalFallback" },
+      "description": { "setting": "refusalFallback" },
       "commands": [],
-      "settings": ["museSpark.teamRefusalFallback"],
+      "settings": ["museSpark.refusalFallback"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#team-configuration",
       "backends": ["modelApi", "museCode"],
       "paid": false,
@@ -4751,10 +4751,10 @@
       "schema": { "type": "boolean", "default": false }
     },
     {
-      "id": "museSpark.teamRefusalFallback",
-      "name": "museSpark.teamRefusalFallback",
-      "description": "A team task an agent refuses moves to the next available agent in its role's preference list, across accounts and providers; each agent gets one try, and a review never goes to the agent or model that wrote the work. A paid agent asks first, naming its model and price. Off by default: a refused task ends with its refusal. Machine-scoped; exec --refusal-fallback turns it on for one headless --team run.",
-      "descriptionKey": "config.teamRefusalFallback.description",
+      "id": "museSpark.refusalFallback",
+      "name": "museSpark.refusalFallback",
+      "description": "A team task or solo chat turn an agent refuses moves to the next available agent in its role's preference list (a chat goes to its agent's main role), across providers and to other models on the same account, never to another account of the refusing provider; each agent gets one try, and a review never goes to the agent or model that wrote the work. A paid agent asks first, naming its model and price. Off by default: a refusal ends with its own words. Machine-scoped; exec --refusal-fallback turns it on for one headless --team run.",
+      "descriptionKey": "config.refusalFallback.description",
       "type": "boolean",
       "default": false,
       "scope": "machine",
@@ -8133,7 +8133,7 @@
     {
       "route": "exec",
       "name": "exec: --refusal-fallback",
-      "description": "--refusal-fallback: With --team, a task an agent refuses moves to the next agent in its role; a paid one this run would have to ask about stops it instead.",
+      "description": "--refusal-fallback: With --team, a task or chat turn an agent refuses moves to the next agent in its role; a paid one this run would have to ask about stops it instead.",
       "text": { "cli": "refusal-fallback" },
       "contract": {
         "type": "boolean",

@@ -13,6 +13,7 @@
 import {
   MILLISECONDS_PER_SECOND,
   stopContinuationLimitFor,
+  TEAM_BRIEF_MAX_CHARS,
   TEAM_EXHAUSTED_DEFAULT,
   TEAM_HANDOFF_MODEL_TEXT,
   TEAM_MERGE_PAUSE_STATE_KEY,
@@ -20,6 +21,7 @@ import {
   TEAM_PLAYBOOK_MODEL_TEXT,
   TEAM_ROLE_TOOLSETS,
   TEAM_ROLE_WHEN_TO_USE_MAX_CHARS,
+  TEAM_REFUSAL_TAKEOVER_WAIT_MS,
   TEAM_SCHED_TEXT_MAX_CHARS,
   UI_TEXT,
 } from '../../shared/constants'
@@ -54,8 +56,10 @@ import {
 } from '../../shared/teamConversation'
 import { teamAgentSwitchFields, teammateIdleFields } from '../backends/modelapi/extensionHooks'
 import {
+  chatRefusalRole,
   planRefusalMove,
   recordTeamSwitch,
+  refusalAccountOf,
   switchReasonText,
   switchHookPayload,
   teamSubagentStartFields,
@@ -69,10 +73,13 @@ import type { TeamPlaybookStart } from './teamPlaybookBoard'
 import { cancelArgs, collectArgs, delegateArgs, mergeArgs, type DelegateArgs } from './teamTools'
 import type {
   TeamDecisionSource,
+  TeamRefusalTakeover,
+  TeamRefusedTurn,
   TeamStableRole,
   TeamToolContext,
   TeamToolResult,
 } from './teamSeams'
+import { teamRoleAssignmentSchema, type TeamRoleAssignment } from '../../shared/teamPreference'
 import type {
   TeamHostService,
   TeamHostServiceDeps,
@@ -1623,6 +1630,47 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       }
     }
   }
+  /** D212: each agent's main role as the team editor stored it beside the roles. */
+  const storedAssignments = (): readonly TeamRoleAssignment[] => {
+    const stored: unknown = deps.state.get(TEAM_WORKSPACE_KEYS.team)
+    const rows =
+      typeof stored === 'object' && stored !== null && 'assignments' in stored
+        ? stored.assignments
+        : undefined
+    return Array.isArray(rows)
+      ? rows.flatMap((row: unknown) => {
+          const parsed = teamRoleAssignmentSchema.safeParse(row)
+          return parsed.success ? [parsed.data] : []
+        })
+      : []
+  }
+  /** D261: who holds an agent, by the service its provider record was added from. */
+  const accountOf = (agent: Pick<TeamAgentRef, 'kind' | 'agentId' | 'model' | 'provider'>) =>
+    refusalAccountOf(agent, (record) => deps.workers.providerService?.(record))
+  /**
+  D261: when the list ran out with entries left on the refusing agent's
+  provider under another account, the sentence that says so; otherwise
+  undefined, and the refusal ends the task with its own words.
+  */
+  const otherAccountText = (
+    skipped: readonly { readonly entryId: string; readonly reason: string }[],
+    refuser: StaffedEntry,
+  ): string | undefined => {
+    const models = skipped.flatMap((skip) =>
+      skip.reason === 'otherAccount'
+        ? customEntries()
+            .filter((entry) => entry.id === skip.entryId)
+            .slice(0, 1)
+            .map((entry) => entry.agent.model)
+        : [],
+    )
+    return models.length === 0
+      ? undefined
+      : fill(UI_TEXT.refusalOtherAccountSkipped, {
+          from: refuser.agent.model,
+          models: models.join(', '),
+        })
+  }
   /**
   D261: a refused run picks who answers next, in the role's own order: the
   first entry this task has not tried whose live headroom holds and, for a
@@ -1645,8 +1693,13 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       isSameModel: isSameTeamModel,
       isConsented: (candidate) => task.consented.has(paidScope(candidate.agent)),
       isUnattended: deps.settings.isUnattended?.() === true,
+      refusedAccount: accountOf(entry.agent),
+      accountOf: (candidate) => accountOf(candidate.agent),
     })
-    if (plan.kind === 'exhausted') return {}
+    if (plan.kind === 'exhausted') {
+      const declined = otherAccountText(plan.skipped, entry)
+      return declined === undefined ? {} : { declined }
+    }
     const next = plan.entry
     const words = { from: entry.agent.model, to: next.agent.model, role: task.role.role }
     if (plan.kind === 'cannotAsk') return { declined: fill(UI_TEXT.teamRefusalUnattended, words) }
@@ -2431,7 +2484,278 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     return task.mergeCompletion
   }
 
+  const delegateWith = async (
+    args: unknown,
+    context: TeamToolContext,
+    seed?: (task: TeamTaskRecord) => void,
+  ): Promise<TeamToolResult> => {
+    if (!deps.settings.isTrusted()) return refusal(TEAM_MODEL_TEXT.hostUntrusted)
+    const initial = plan(args, context)
+    if (initial === undefined) return refusal(TEAM_MODEL_TEXT.hostInvalidArguments)
+    const settledSteps = await settle(initial, context)
+    if (isClosed()) return refusal(TEAM_MODEL_TEXT.hostStopped)
+    if (scheduler !== undefined) {
+      const parsedScheduled = delegateArgs.parse(args)
+      const scheduledGroup = `${context.sessionId}:delegate:${String(++delegateOrdinal)}`
+      const scheduledPipeline = parsedScheduled.pipeline ?? scheduledGroup
+      return await runScheduledDelegate(settledSteps, context, {
+        scheduler,
+        deps,
+        allTasks,
+        pool,
+        isUsable,
+        confirmationFor,
+        isClosed,
+        record: (role, item, sessionId, phase) => {
+          const task = record(role, item, sessionId, phase)
+          task.delegateGroup = scheduledGroup
+          task.pipelineId = scheduledPipeline
+          seed?.(task)
+          return task
+        },
+        paidScope,
+        persist,
+        taskView,
+        answer,
+        refusal,
+        describeError,
+        forget: (id) => {
+          tasks.delete(id)
+        },
+      })
+    }
+    const placedCount = settledSteps.filter((step) => 'entry' in step).length
+    if (running() + placedCount > deps.settings.maxWorkers()) {
+      return refusal(
+        fill(TEAM_MODEL_TEXT.hostMaxWorkers, { max: String(deps.settings.maxWorkers()) }),
+      )
+    }
+    // NOLIMITS4: the queue itself is unbounded; every task waits for headroom.
+    const parsedGroup = delegateArgs.parse(args)
+    const delegateGroup = `${context.sessionId}:delegate:${String(++delegateOrdinal)}`
+    const pipelineId = parsedGroup.pipeline ?? delegateGroup
+    const reserved = new Map<PlanStep, TeamTaskRecord>()
+    let hasStarted = false
+    try {
+      // Every launch path uses admit; the source copy is owned across consent.
+      const steps = settledSteps.map((step): PlanStep => {
+        if (!('entry' in step)) return step
+        const entry =
+          step.isRaised === true
+            ? step.entry
+            : pool(step.role).find(
+                (candidate) =>
+                  (step.item.entry === undefined || candidate.id === step.item.entry) &&
+                  hasHeadroom(candidate),
+              )
+        if (entry === undefined)
+          return {
+            item: step.item,
+            refused: fill(TEAM_MODEL_TEXT.hostExhausted, { role: step.item.role }),
+          }
+        const task = record(step.role, step.item, context.sessionId, 'starting')
+        task.delegateGroup = delegateGroup
+        task.pipelineId = pipelineId
+        seed?.(task)
+        task.continueFrom = step.continueFrom
+        task.isRaised = step.isRaised === true
+        try {
+          admit(task, entry)
+          reserved.set(step, task)
+          return step
+        } catch (error: unknown) {
+          deps.log.warn(failureForLog(error))
+          tasks.delete(task.taskId)
+          return { item: step.item, refused: describeError(error) }
+        }
+      })
+      await persist()
+      const named = new Map<PlanStep, readonly StaffedEntry[]>()
+      for (const step of steps) {
+        const task = reserved.get(step)
+        if (task?.entry?.agent.pays === 'key') named.set(step, [task.entry])
+        if ('queue' in step)
+          named.set(
+            step,
+            pool(step.role).filter((entry) => entry.agent.pays === 'key' && isUsable(entry)),
+          )
+      }
+      const confirmations = [...named].flatMap(([step, entries]) =>
+        entries.map((entry) =>
+          confirmationFor(step.item.role, entry, deps.workers.rates?.(entry.agent)),
+        ),
+      )
+      context.signal.throwIfAborted()
+      if (
+        confirmations.length > 0 &&
+        !(await deps.paid.allowKeyTasks(confirmations, undefined, context))
+      )
+        return refusal(TEAM_MODEL_TEXT.hostPaidDeclined)
+      if (isClosed() || context.signal.aborted) return refusal(TEAM_MODEL_TEXT.hostStopped)
+      const started = []
+      for (const step of steps) {
+        if ('refused' in step) {
+          started.push({ role: step.item.role, refused: step.refused })
+          continue
+        }
+        const task = reserved.get(step)
+        if (task?.entry !== undefined) {
+          task.consented = new Set([paidScope(task.entry.agent)])
+          const governed = await startPlaybookWork(task)
+          if ('refused' in governed) {
+            task.lease?.release()
+            if (task.continueFrom !== undefined) task.continueFrom.phase = 'done'
+            tasks.delete(task.taskId)
+            reserved.delete(step)
+            await persist()
+            started.push({ role: step.item.role, refused: governed.refused })
+            continue
+          }
+          await launch(task)
+          reserved.delete(step)
+          started.push(taskView(task))
+        } else if ('queue' in step) {
+          const queued = record(step.role, step.item, context.sessionId, 'queued')
+          queued.delegateGroup = delegateGroup
+          queued.pipelineId = pipelineId
+          seed?.(queued)
+          queued.consented = new Set((named.get(step) ?? []).map((entry) => paidScope(entry.agent)))
+          await persist()
+          started.push(taskView(queued))
+        }
+      }
+      hasStarted = true
+      await pump()
+      changed()
+      return answer(
+        { tasks: started },
+        fill(UI_TEXT.teamTasksStarted, {
+          count: String(started.filter((step) => 'task_id' in step).length),
+        }),
+      )
+    } catch (error: unknown) {
+      return refusal(describeError(error))
+    } finally {
+      for (const task of reserved.values()) {
+        task.lease?.release()
+        if (task.continueFrom !== undefined) task.continueFrom.phase = 'done'
+        tasks.delete(task.taskId)
+      }
+      if (!hasStarted) {
+        try {
+          await persist()
+        } catch (error: unknown) {
+          deps.log.warn(failureForLog(error))
+        }
+        changed()
+      }
+    }
+  }
+
+  /**
+  D261 for a solo chat: its refused turn goes to the next agent in the
+  role its agent holds as its main role (D212), chosen by the same
+  `planRefusalMove` over the same live checks as a refused task. The next
+  agent runs as that role's task from the handoff instruction, the refusal
+  and the turn's work as data and the person's request, so no history
+  crosses providers; the task's switch row names the refusal, D48 asks
+  before a paid agent through the delegation's own question (an unattended
+  run stops first, saying why), and the task's own entry is charged. A
+  further refusal moves the task on, never back to the chat's agent.
+  */
+  const takeOverRefusedChat = async (
+    turn: TeamRefusedTurn,
+    context: TeamToolContext,
+  ): Promise<TeamRefusalTakeover> => {
+    if (deps.settings.isRefusalFallbackOn?.() !== true || !deps.settings.isTrusted())
+      return { kind: 'stands' }
+    lastModel = turn.modelId
+    const chatAccount = accountOf({ kind: 'engine', agentId: 'default', model: turn.modelId })
+    const start = chatRefusalRole({
+      roles: roles().map((role) => ({ role: role.role, entries: pool(role) })),
+      mainRoleOf: (entryId) =>
+        storedAssignments().find((assignment) => assignment.candidateId === entryId)?.mainRole,
+      isRefuser: (entry) => {
+        if (entry.isDefault) return { isDefault: true }
+        return isSameTeamModel(entry.agent.model, turn.modelId) &&
+          accountOf(entry.agent).account === chatAccount.account
+          ? { isDefault: false }
+          : undefined
+      },
+    })
+    const role = roles().find((item) => item.role === start?.role.role)
+    if (start === undefined || role === undefined) return { kind: 'stands' }
+    const plan = planRefusalMove({
+      entries: start.role.entries,
+      tried: start.tried,
+      authorModels: [],
+      hasHeadroom: (candidate) => hasHeadroom(candidate),
+      isSameModel: isSameTeamModel,
+      // A chat holds no team consent: a paid next agent is always asked.
+      isConsented: () => false,
+      isUnattended: deps.settings.isUnattended?.() === true,
+      refusedAccount: chatAccount,
+      accountOf: (candidate) => accountOf(candidate.agent),
+    })
+    if (plan.kind === 'exhausted') {
+      const text = otherAccountText(plan.skipped, start.refuser)
+      return text === undefined ? { kind: 'stands' } : { kind: 'declined', text }
+    }
+    const next = plan.entry
+    const words = { from: turn.modelId, to: next.agent.model, role: role.role }
+    if (plan.kind === 'cannotAsk')
+      return { kind: 'declined', text: fill(UI_TEXT.teamRefusalUnattended, words) }
+    const said = turn.refusal.slice(0, TEAM_SCHED_TEXT_MAX_CHARS)
+    const work = turn.work.join('\n').slice(0, TEAM_SCHED_TEXT_MAX_CHARS)
+    const data = work === '' ? said : `${said}\n${work}`
+    const brief = `${TEAM_HANDOFF_MODEL_TEXT.handoff}\n${TEAM_HANDOFF_MODEL_TEXT.handoffDataOpen}${data}${TEAM_HANDOFF_MODEL_TEXT.handoffDataClose}\n${turn.request}`
+    let taken: TeamTaskRecord | undefined
+    const result = await delegateWith(
+      {
+        tasks: [
+          {
+            role: role.role,
+            brief: brief.slice(0, TEAM_BRIEF_MAX_CHARS),
+            entry: next.id,
+            reason: { code: 'different_model', detail: UI_TEXT.teamSwitchReasonRefused },
+          },
+        ],
+      },
+      { ...context, orchestratorModelId: turn.modelId },
+      (task) => {
+        taken = task
+        // One try per agent per refused turn: the chat's own agent is tried.
+        task.refusedBy = [...start.tried]
+        // The switch row reads the refusing agent as the role's last entry.
+        selectedEntries.set(`${task.sessionId}:${role.role}`, start.refuser)
+      },
+    )
+    const task = taken
+    if (task === undefined || result.output.startsWith('Error: '))
+      return {
+        kind: 'declined',
+        text:
+          result.visibleOutput === TEAM_MODEL_TEXT.hostPaidDeclined
+            ? fill(UI_TEXT.teamRefusalPaidDeclined, words)
+            : result.visibleOutput,
+      }
+    while (
+      (task.phase === 'queued' || isActive(task.phase)) &&
+      !context.signal.aborted &&
+      !isClosed()
+    )
+      await waitForChange(TEAM_REFUSAL_TAKEOVER_WAIT_MS, context.signal)
+    return {
+      kind: 'answered',
+      taskId: task.taskId,
+      model: task.entry?.agent.model ?? next.agent.model,
+      text: task.outcome?.report.summary ?? task.failure ?? '',
+    }
+  }
+
   const runner: TeamHostService['teamRunner'] = {
+    delegate: (args, context) => delegateWith(args, context),
+    takeOverRefused: takeOverRefusedChat,
     preview: (args, context) => {
       const planned = plan(args, context)
       return Promise.resolve(
@@ -2440,169 +2764,6 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
           : answer({ dry_run: true, plan: describePlan(planned) }, UI_TEXT.teamPlanShown),
       )
     },
-    delegate: async (args, context) => {
-      if (!deps.settings.isTrusted()) return refusal(TEAM_MODEL_TEXT.hostUntrusted)
-      const initial = plan(args, context)
-      if (initial === undefined) return refusal(TEAM_MODEL_TEXT.hostInvalidArguments)
-      const settledSteps = await settle(initial, context)
-      if (isClosed()) return refusal(TEAM_MODEL_TEXT.hostStopped)
-      if (scheduler !== undefined) {
-        const parsedScheduled = delegateArgs.parse(args)
-        const scheduledGroup = `${context.sessionId}:delegate:${String(++delegateOrdinal)}`
-        const scheduledPipeline = parsedScheduled.pipeline ?? scheduledGroup
-        return await runScheduledDelegate(settledSteps, context, {
-          scheduler,
-          deps,
-          allTasks,
-          pool,
-          isUsable,
-          confirmationFor,
-          isClosed,
-          record: (role, item, sessionId, phase) => {
-            const task = record(role, item, sessionId, phase)
-            task.delegateGroup = scheduledGroup
-            task.pipelineId = scheduledPipeline
-            return task
-          },
-          paidScope,
-          persist,
-          taskView,
-          answer,
-          refusal,
-          describeError,
-          forget: (id) => {
-            tasks.delete(id)
-          },
-        })
-      }
-      const placedCount = settledSteps.filter((step) => 'entry' in step).length
-      if (running() + placedCount > deps.settings.maxWorkers()) {
-        return refusal(
-          fill(TEAM_MODEL_TEXT.hostMaxWorkers, { max: String(deps.settings.maxWorkers()) }),
-        )
-      }
-      // NOLIMITS4: the queue itself is unbounded; every task waits for headroom.
-      const parsedGroup = delegateArgs.parse(args)
-      const delegateGroup = `${context.sessionId}:delegate:${String(++delegateOrdinal)}`
-      const pipelineId = parsedGroup.pipeline ?? delegateGroup
-      const reserved = new Map<PlanStep, TeamTaskRecord>()
-      let hasStarted = false
-      try {
-        // Every launch path uses admit; the source copy is owned across consent.
-        const steps = settledSteps.map((step): PlanStep => {
-          if (!('entry' in step)) return step
-          const entry =
-            step.isRaised === true
-              ? step.entry
-              : pool(step.role).find(
-                  (candidate) =>
-                    (step.item.entry === undefined || candidate.id === step.item.entry) &&
-                    hasHeadroom(candidate),
-                )
-          if (entry === undefined)
-            return {
-              item: step.item,
-              refused: fill(TEAM_MODEL_TEXT.hostExhausted, { role: step.item.role }),
-            }
-          const task = record(step.role, step.item, context.sessionId, 'starting')
-          task.delegateGroup = delegateGroup
-          task.pipelineId = pipelineId
-          task.continueFrom = step.continueFrom
-          task.isRaised = step.isRaised === true
-          try {
-            admit(task, entry)
-            reserved.set(step, task)
-            return step
-          } catch (error: unknown) {
-            deps.log.warn(failureForLog(error))
-            tasks.delete(task.taskId)
-            return { item: step.item, refused: describeError(error) }
-          }
-        })
-        await persist()
-        const named = new Map<PlanStep, readonly StaffedEntry[]>()
-        for (const step of steps) {
-          const task = reserved.get(step)
-          if (task?.entry?.agent.pays === 'key') named.set(step, [task.entry])
-          if ('queue' in step)
-            named.set(
-              step,
-              pool(step.role).filter((entry) => entry.agent.pays === 'key' && isUsable(entry)),
-            )
-        }
-        const confirmations = [...named].flatMap(([step, entries]) =>
-          entries.map((entry) =>
-            confirmationFor(step.item.role, entry, deps.workers.rates?.(entry.agent)),
-          ),
-        )
-        context.signal.throwIfAborted()
-        if (
-          confirmations.length > 0 &&
-          !(await deps.paid.allowKeyTasks(confirmations, undefined, context))
-        )
-          return refusal(TEAM_MODEL_TEXT.hostPaidDeclined)
-        if (isClosed() || context.signal.aborted) return refusal(TEAM_MODEL_TEXT.hostStopped)
-        const started = []
-        for (const step of steps) {
-          if ('refused' in step) {
-            started.push({ role: step.item.role, refused: step.refused })
-            continue
-          }
-          const task = reserved.get(step)
-          if (task?.entry !== undefined) {
-            task.consented = new Set([paidScope(task.entry.agent)])
-            const governed = await startPlaybookWork(task)
-            if ('refused' in governed) {
-              task.lease?.release()
-              if (task.continueFrom !== undefined) task.continueFrom.phase = 'done'
-              tasks.delete(task.taskId)
-              reserved.delete(step)
-              await persist()
-              started.push({ role: step.item.role, refused: governed.refused })
-              continue
-            }
-            await launch(task)
-            reserved.delete(step)
-            started.push(taskView(task))
-          } else if ('queue' in step) {
-            const queued = record(step.role, step.item, context.sessionId, 'queued')
-            queued.delegateGroup = delegateGroup
-            queued.pipelineId = pipelineId
-            queued.consented = new Set(
-              (named.get(step) ?? []).map((entry) => paidScope(entry.agent)),
-            )
-            await persist()
-            started.push(taskView(queued))
-          }
-        }
-        hasStarted = true
-        await pump()
-        changed()
-        return answer(
-          { tasks: started },
-          fill(UI_TEXT.teamTasksStarted, {
-            count: String(started.filter((step) => 'task_id' in step).length),
-          }),
-        )
-      } catch (error: unknown) {
-        return refusal(describeError(error))
-      } finally {
-        for (const task of reserved.values()) {
-          task.lease?.release()
-          if (task.continueFrom !== undefined) task.continueFrom.phase = 'done'
-          tasks.delete(task.taskId)
-        }
-        if (!hasStarted) {
-          try {
-            await persist()
-          } catch (error: unknown) {
-            deps.log.warn(failureForLog(error))
-          }
-          changed()
-        }
-      }
-    },
-
     collect: async (args, context) => {
       const parsed = collectArgs.safeParse(args)
       if (!parsed.success) return refusal(TEAM_MODEL_TEXT.hostInvalidArguments)
