@@ -2,7 +2,7 @@
 // real shell on a real PTY. Every test spawns real shells through the
 // compiled node-pty binding and, for rendering, feeds captured bytes to a
 // real headless xterm.js emulator.
-import { mkdtemp, realpath, rm, symlink } from 'node:fs/promises'
+import { mkdtemp, realpath, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -10,6 +10,7 @@ import { Terminal } from '@xterm/headless'
 import { confineTerminalCwd } from '../../../desktop/app/files'
 import { processTreeProbeArgs, processTreeWindowsScript } from '../../../desktop/app/processTree'
 import { TerminalSessions } from '../../../desktop/app/terminals'
+import { removeFolder } from '../helpers/temporaryFolders'
 
 const scratchRoots: string[] = []
 const liveSessions: TerminalSessions[] = []
@@ -57,9 +58,10 @@ async function withIsolatedHome(
 
 afterEach(async () => {
   for (const all of liveSessions.splice(0)) all.closeAll()
+  // A killed Windows shell holds its working folder for a moment after the kill.
   await Promise.all(
     scratchRoots.splice(0).map(async (dir) => {
-      await rm(dir, { recursive: true, force: true })
+      await removeFolder(dir)
     }),
   )
 })
@@ -78,7 +80,7 @@ describe('M111 lane BP terminal sessions', () => {
     const root = await scratch()
     const created = all.create({ cwd: root, cols: 80, rows: 24 })
     all.resize(created.id, 100, 40)
-    all.write(created.id, 'stty size\nexit\n')
+    all.write(created.id, 'stty size\rexit\r')
     await waitFor(() => events.chunks.join('').includes('40 100'))
     await waitFor(() => events.exits.length === 1)
     expect(events.exits).toEqual([0])
@@ -109,14 +111,18 @@ describe('M111 lane BP terminal sessions', () => {
       agent: { label: 'web-eng', runId: 'run-1', command: 'exit 3' },
     })
     const person = all.create({ cwd: root, cols: 80, rows: 24 })
-    all.write(agent.id, 'echo agent-marker-never-typed\n')
-    all.write(person.id, 'echo person-marker-typed\nexit\n')
+    all.write(agent.id, 'echo agent-marker-never-typed\r')
+    all.write(person.id, 'echo person-marker-typed\r')
     await waitFor(() => events.chunks.join('').includes('person-marker-typed'))
     const output = events.chunks.join('')
     expect(output).not.toContain('agent-marker-never-typed')
-    // Closing drops the session at once; both exits emit, either order.
+    // Its command ends by itself. A session closed first would report no exit at all,
+    // and on Windows the exit arrives after the person's echo, so it is waited for.
+    await waitFor(() => events.exits.includes(3))
     all.close(agent.id)
     expect(all.list().map((session) => session.id)).toEqual([person.id])
+    // Its own exit drops the person's session too, so it waits for the list above.
+    all.write(person.id, 'exit\r')
     await waitFor(() => events.exits.length === 2)
     expect(events.exits).toHaveLength(2)
     expect(events.exits).toContain(0)
@@ -129,12 +135,12 @@ describe('M111 lane BP terminal sessions', () => {
       const created = all.create({ cwd: root, cols: 80, rows: 24 })
       // Echo is a builtin: when its marker returns the shell is truly
       // idle at its prompt, not merely still starting.
-      all.write(created.id, 'echo bp-prompt-ready\n')
+      all.write(created.id, 'echo bp-prompt-ready\r')
       await waitFor(() => events.chunks.join('').includes('bp-prompt-ready'))
       expect(all.hasChildren(created.id)).toBe(false)
       all.write(
         created.id,
-        process.platform === 'win32' ? 'ping -n 30 127.0.0.1 > NUL\n' : 'sleep 27\n',
+        process.platform === 'win32' ? 'ping -n 30 127.0.0.1 > NUL\r' : 'sleep 27\r',
       )
       await waitFor(() => all.hasChildren(created.id))
       all.close(created.id)
@@ -147,7 +153,7 @@ describe('M111 lane BP terminal sessions', () => {
     const { spawnSync } = await import('node:child_process')
     await withIsolatedHome(async ({ events, all, root }) => {
       const created = all.create({ cwd: root, cols: 80, rows: 24 })
-      all.write(created.id, 'sleep 28 & echo bp-sleep-pid-$!\n')
+      all.write(created.id, 'sleep 28 & echo bp-sleep-pid-$!\r')
       await waitFor(() => /bp-sleep-pid-\d+/.test(events.chunks.join('')))
       const pid = Number(/bp-sleep-pid-(\d+)/.exec(events.chunks.join(''))?.[1])
       expect(pid).toBeGreaterThan(0)
@@ -165,8 +171,8 @@ describe('M111 lane BP terminal sessions', () => {
       const created = all.create({ cwd: root, cols: 80, rows: 24 })
       const probe =
         process.platform === 'win32'
-          ? 'echo MARKER_START & set | findstr BP_PROBE_MARKER & echo MARKER_END & exit\n'
-          : 'echo MARKER_START; env | grep BP_PROBE_MARKER; echo MARKER_END; exit\n'
+          ? 'echo MARKER_START & set | findstr BP_PROBE_MARKER & echo MARKER_END & exit\r'
+          : 'echo MARKER_START; env | grep BP_PROBE_MARKER; echo MARKER_END; exit\r'
       all.write(created.id, probe)
       await waitFor(
         () =>
