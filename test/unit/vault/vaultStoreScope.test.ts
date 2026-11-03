@@ -52,8 +52,8 @@ import { startWindowsBrokerFixture } from '../helpers/vault/windowsBrokerFixture
 // broker cases launch the real broker and run setup through fresh helpers,
 // which takes minutes on a busy rig.
 const TEST_TIMEOUT_MS = 180_000
-// The broker appends audit rows beside the read that caused them, so the
-// checkpoint settles after the read returns; polls below wait for it.
+// The broker appends audit rows beside the use that caused them, so the
+// checkpoint settles around the use's answer; polls below wait for it.
 const AUDIT_SETTLE_TIMEOUT_MS = 60_000
 // The checkpoint must read back identical across this window before the
 // test relocates it, so no append lands mid-move.
@@ -98,6 +98,57 @@ async function readVaultFiles(brokerDataDir: string): Promise<{
 }
 
 /**
+A requester on its own connection, whose refused uses are what the audit
+records. A first-party read writes no row: D89 keeps those uses out of the
+agents' reach, the record's kinds name none, and the broker releases one without
+an audit step. A use of a handle no item has is the smallest a requester can make,
+and it is refused and recorded whatever the person's policy says.
+*/
+async function openRefusedRequester(
+  connect: () => ReturnType<VaultBrokerProcess['connect']>,
+  hostId: string,
+): Promise<{ refuseAUse(): Promise<void>; close(): void }> {
+  const client = await connect()
+  const clean = { tainted: false, reasons: [] }
+  expect(
+    await client.send({
+      kind: 'registerRequester',
+      requester: {
+        id: randomBytes(16).toString('hex'),
+        hostId,
+        conversationId: null,
+        taskId: null,
+        role: { kind: 'orchestrator' },
+        workspaceId: null,
+        deviceId: null,
+        peerProcessId: process.pid,
+        sessionId: null,
+        unattended: false,
+        source: 'conversation',
+      },
+    }),
+  ).toEqual({ kind: 'ok' })
+  expect(await client.send({ kind: 'reportProvenance', taint: clean })).toEqual({ kind: 'ok' })
+  return {
+    refuseAUse: async () => {
+      expect(
+        await client.send({
+          kind: 'requestUse',
+          proposal: {
+            handle: 'secret://scope-probe-absent',
+            use: { kind: 'disclosure', recipient: 'person' },
+            taint: clean,
+          },
+        }),
+      ).toMatchObject({ kind: 'denied', reason: 'scope' })
+    },
+    close: () => {
+      client.close()
+    },
+  }
+}
+
+/**
 Sets up for real, proves the vault's records live under its own root's
 accounts while the shared anchor reads back byte-identical, migrates a
 checkpoint moved to the pre-scoping account, and returns what disposal
@@ -106,9 +157,9 @@ must remove.
 async function driveScopedVault(
   connect: () => ReturnType<VaultBrokerProcess['connect']>,
   clientDataDir: string,
+  hostId: string,
   label: string,
 ): Promise<{ brokerDataDir: string; vaultId: string; osStoreReference: string | null }> {
-  const brokerDataDir = vaultBrokerDataDir(clientDataDir)
   const sharedBefore = await readPassword(VAULT_ANCHOR_ACCOUNT)
   const session = new VaultManageSession(connect, encodeVaultMaterial)
   const fresh = await session.snapshot()
@@ -135,6 +186,24 @@ async function driveScopedVault(
   const first = await readBack()
   expect(first.equals(Buffer.from('scope-probe-value'))).toBe(true)
   first.fill(0)
+  const requester = await openRefusedRequester(connect, hostId)
+  try {
+    await requester.refuseAUse()
+    return await checkScopedRecords(session, requester, clientDataDir, label, sharedBefore)
+  } finally {
+    requester.close()
+  }
+}
+
+/** What the setup and the first audited use left, then the pre-scoping checkpoint's migration. */
+async function checkScopedRecords(
+  session: VaultManageSession,
+  requester: { refuseAUse(): Promise<void> },
+  clientDataDir: string,
+  label: string,
+  sharedBefore: string | null,
+): Promise<{ brokerDataDir: string; vaultId: string; osStoreReference: string | null }> {
+  const brokerDataDir = vaultBrokerDataDir(clientDataDir)
   const { vaultId, records } = await readVaultFiles(brokerDataDir)
 
   // The vault's own accounts hold its records, bound to this vault.
@@ -153,7 +222,7 @@ async function driveScopedVault(
       checkpointRaw = before ?? ''
       expect(
         (JSON.parse(checkpointRaw) as { generation: number }).generation,
-        `${label}: the read audited`,
+        `${label}: the use audited`,
       ).toBeGreaterThanOrEqual(1)
     },
     { timeout: AUDIT_SETTLE_TIMEOUT_MS, interval: 100 },
@@ -178,13 +247,11 @@ async function driveScopedVault(
   )
 
   // A checkpoint moved to the pre-scoping account is adopted and migrated
-  // by the next audited read: the bytes are the settled checkpoint above,
+  // by the next audited use: the bytes are the settled checkpoint above,
   // the product's own, relocated.
   await openEntry(legacyVaultAuditAccount(vaultId)).setPassword(checkpointRaw)
   await openEntry(vaultAuditAccount(brokerDataDir, vaultId)).deletePassword()
-  const second = await readBack()
-  expect(second.equals(Buffer.from('scope-probe-value'))).toBe(true)
-  second.fill(0)
+  await requester.refuseAUse()
   await vi.waitFor(
     async () => {
       const migratedRaw = await readPassword(vaultAuditAccount(brokerDataDir, vaultId))
@@ -228,7 +295,7 @@ describe.skipIf(process.platform === 'win32' || !hasBrokerSocketFit() || !hasSto
     // The broker staging takes as long as the machine needs: no time limit
     // of ours on this setup (owner 2026-10-16).
     beforeAll(async () => {
-      fixture.current = await startPosixPanelFixture('vs-scope-')
+      fixture.current = await startPosixPanelFixture('vs-scope-', { osStore: true })
     }, 0)
     afterAll(async () => {
       await fixture.current?.dispose()
@@ -244,7 +311,12 @@ describe.skipIf(process.platform === 'win32' || !hasBrokerSocketFit() || !hasSto
           // Inside the guarded region: every store touch below can throw,
           // and the client must be disposed on any of them.
           const sharedBefore = await readPassword(VAULT_ANCHOR_ACCOUNT)
-          const driven = await driveScopedVault(client.connect, client.dataDir, 'posix')
+          const driven = await driveScopedVault(
+            client.connect,
+            client.dataDir,
+            client.hostId,
+            'posix',
+          )
           await client.dispose()
           await expectVaultRecordsRemoved(driven)
           expect(await readPassword(VAULT_ANCHOR_ACCOUNT)).toBe(sharedBefore)
@@ -267,7 +339,12 @@ describe.skipIf(process.platform !== 'win32')('Windows vault store scope', () =>
       // case timeout above covers them.
       const fixture = await startWindowsBrokerFixture('vs-scope-', { osStore: true })
       try {
-        const driven = await driveScopedVault(fixture.connect, fixture.dataDir, 'windows')
+        const driven = await driveScopedVault(
+          fixture.connect,
+          fixture.dataDir,
+          fixture.hostId,
+          'windows',
+        )
         await fixture.dispose()
         await expectVaultRecordsRemoved(driven)
         expect(await readPassword(VAULT_ANCHOR_ACCOUNT)).toBe(sharedBefore)
@@ -404,13 +481,16 @@ describe.skipIf(!hasStore())('vault store record adoption', () => {
       if (!usable.current) context.skip()
       const root = await mkdtemp(path.join(tmpdir(), 'vs-slot-'))
       try {
+        // One time for both slots: a slot's record binds its creation time, and the
+        // pre-scoping record below is this one's shape with another id.
+        const createdAt = Date.now()
         const context = (vaultId: string, slotId: string) => ({
           id: slotId,
           vaultId,
           lastGeneration: 0,
           auditGeneration: 0,
           auditHead: '0'.repeat(64),
-          createdAt: Date.now(),
+          createdAt,
         })
         // A fresh wrap lives under this root's scoped reference and round-trips.
         const vaultId = randomBytes(16).toString('hex')

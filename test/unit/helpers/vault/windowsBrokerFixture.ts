@@ -7,7 +7,7 @@
 // (randomBytes(16).toString('hex')): the registrar parses them as such,
 // and shorter names throw before connect.
 
-import { copyFile, mkdir, mkdtemp, readFile, symlink, unlink } from 'node:fs/promises'
+import { copyFile, mkdir, mkdtemp, readFile, rm, symlink } from 'node:fs/promises'
 import { randomBytes } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -18,6 +18,7 @@ import { VaultManageSession } from '../../../../src/core/vault/broker/manageClie
 import { VaultBrokerProcess } from '../../../../src/host/vault/brokerProcess'
 import { configureResources } from '../../../../src/core/resources/admission'
 import { runtimeWindowsJob } from '../../../../src/runtime/resources/jobs'
+import { VAULT_POLICY_BUNDLE_FILE } from '../../../../src/shared/constants'
 import { vaultBrokerLockSchema } from '../../../../src/shared/vaultProtocol'
 import { expect, vi } from 'vitest'
 import { processesNaming } from '../browserProcesses'
@@ -47,6 +48,7 @@ const BROKER_ENTRIES: readonly (readonly [string, string])[] = [
   ['src/core/resources/resourceGovernorEntry.ts', 'resourceGovernor.js'],
   ['src/runtime/vault/vaultRuntimeEntry.ts', 'vaultRuntime.js'],
   ['src/runtime/vault/brokerBindings.ts', 'vaultBrokerBindings.js'],
+  ['src/runtime/vault/vaultPolicyEntry.ts', VAULT_POLICY_BUNDLE_FILE],
 ]
 
 export interface WindowsBrokerFixture {
@@ -87,7 +89,8 @@ export async function startWindowsBrokerFixture(
     await symlink(path.resolve('node_modules', '@napi-rs', 'keyring'), keyringFolder, 'junction')
   }
   const removeStage = async (): Promise<void> => {
-    if (options.osStore === true) await unlink(keyringFolder)
+    // A case's own failure path disposes a second time: gone already is fine.
+    if (options.osStore === true) await rm(keyringFolder, { force: true })
     await removeFolder(root)
   }
   // The client reads the slot and pipe sources beside dist exactly as the

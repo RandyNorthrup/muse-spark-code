@@ -419,6 +419,9 @@ happened, not what was planned; superseded entries are kept.
 - The vault works on Windows again. Since the feeder's parent check, the pipe
   helper's answer about the broker's pipe carried a field its contract does not
   name, so every client refused the answer and could never reach the broker.
+- A vault whose audit checkpoint predates per-vault store records keeps recording
+  uses. The first use after that change compared its new head with an empty
+  checkpoint instead of the old one, so the use failed.
 - The local judge's hardware scan reads the graphics card on Windows where large
   PowerShell modules are installed, and on a machine with one card. The read named
   cmdlets, which ran past its bound there, and one card came back in a shape the
