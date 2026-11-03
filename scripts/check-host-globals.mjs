@@ -36,6 +36,7 @@ const HOST_BUNDLES = [
   'dist/verifyEditor.js',
   'dist/makerHost.js',
   'dist/makerPreviewHost.js',
+  'dist/makerEngine.js',
   'dist/runtimeMaker.js',
   'dist/usageService.js',
   'dist/usageExport.js',

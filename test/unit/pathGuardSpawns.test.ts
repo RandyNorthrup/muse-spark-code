@@ -182,7 +182,7 @@ const KNOWN: Record<string, KnownSpawn> = {
     kind: 'reviewed',
     anchor: 'deps.env',
     reason:
-      'the serial helper the runtime prepared, started with the env nativeSerial makes by workspaceChildEnvironment (no workspace on PATH, credentials and keyring routes removed), argument array, no shell, own process group on POSIX, byte and time bounds (M103)',
+      'the serial helper the runtime prepared (POSIX: the absolute python3 resolveSerialInterpreter found outside the workspace), started with the env nativeSerial makes by workspaceChildEnvironment (no workspace on PATH, credentials and keyring routes removed), argument array, no shell, own process group on POSIX, byte and time bounds (M103)',
   },
   'src/runtime/maker/userPresence.ts': {
     kind: 'reviewed',
@@ -203,7 +203,7 @@ const KNOWN_WRAPPER: Record<string, KnownSpawn> = {
     kind: 'guarded',
     anchor: 'noWorkspaceChildEnvironment',
     reason:
-      'serial port listing and ownership probes (fixed absolute programs, the system root PowerShell through windowsPowerShell) with the no-workspace guarded child env (M103)',
+      'serial port listing and ownership probes (fixed absolute programs, the system root PowerShell through windowsPowerShell) with the no-workspace guarded child env, and the POSIX helper interpreter found by resolveSerialInterpreter outside the workspace (M103)',
   },
   'src/host/estimator/planSnapshotSource.ts': {
     kind: 'guarded',

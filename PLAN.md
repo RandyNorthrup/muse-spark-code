@@ -32020,6 +32020,29 @@ budget (`pwd` allowed and run; `esptool write_flash` offered only
 reject), 7 requests on `muse-spark-1.3-contributor`. Record:
 `docs/certification/rlf-makerfence.md`.
 
+**Status 2026-11-02 (recovery lane RLF-M103WIRE on `rec/rlf-m103wire`;
+not yet released): building.** M103 has an activation caller: the six
+maker commands register at activation behind the lazy bundles (new
+`dist/makerEngine.js` at 90.5/125 KiB; makerHost 21.0/25, preview host
+12.1/25, extension 540.6/600, runtimeMaker 125.9/126 KiB; no budget
+raised), the window engine mirrors the runtime service on window
+storage and secrets with machine-engine construction shared in
+`src/core/maker/machineEngines.ts`, the serial helper's `python3`
+resolves through the pinned governed lookup, OctoPrint enrolls over
+application keys without a pasted key, and the lease/serial suites run
+here: makerLease 31/31, makerSerial* 44/44,
+makerLeaseCrashes/Identity green (2 Windows-only tests skip). Fixed on
+the way: the lease held only fs/lease-coded query failures (a codeless
+runner doubt escaped; every query Error holds now) and the storage
+guard pinned the `file` URI scheme (current VS Code hands
+`vscode-userdata`). Proved in the real Extension Host (registration,
+disable, Stop, the empty device log). Still open: the installed
+Arduino IDE 2 run, lane E's one counted live call, and the owner's
+Pi/ESP32 session; three base failures unrelated to this lane (two
+runtimeMakerStop Stop-index cases, one emulator-rig lease-worker
+case, identical on pristine base `72d8d5003`). Record:
+`docs/certification/rlf-m103wire.md`.
+
 **Q-M103a–h resolved 2026-10-05 (lead, under the owner's standing
 authorization: "any recommendation you come up with you are authorized").**
 (a) Plain HTTP on the LAN only for a machine the user registered by command,

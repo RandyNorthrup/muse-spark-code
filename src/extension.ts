@@ -122,6 +122,7 @@ import {
   MUSE_INIT_ARGS,
   MUSE_INIT_TIMEOUT_MS,
   MUSE_INSTALL_COMMANDS,
+  MAKER_HOST_BUNDLE_FILE,
   RULES_FILE_BUNDLE_FILE,
   NATIVE_GIT_BUNDLE_FILE,
   OUTPUT_DOCUMENT_SCHEME,
@@ -481,6 +482,7 @@ import { ChatViewProvider, SIDEBAR_SURFACE_ID } from './host/vscode/views/ChatVi
 import { openChatPanel, restoreChatPanel } from './host/vscode/views/chatPanel'
 import { TasksPanel } from './host/vscode/views/tasksPanel'
 import { deviceExecutionHost, devicesWindow } from './host/vscode/views/devicesPanelTab'
+import { makerLoader } from './host/vscode/maker/makerLoader'
 import { DEVICES_BUNDLE_FILE, DEVICES_HELPER_DIR, DEVICES_STORAGE_DIR } from './shared/constants'
 import { SurfaceRegistry } from './host/vscode/views/surfaceRegistry'
 import { loadUiTable, readUiTableFile } from './host/l10n'
@@ -1132,6 +1134,17 @@ async function activateWindow(
   // directory and memory have always been keyed by. Only the checkpoint store
   // uses the canonical root (below), and it accepts both spellings.
   const workspaceRoot = firstFolderPath()
+  // M103: the window's maker assembly loads on the first maker command or
+  // `ide` tools request; activation carries only this loader. The hardware
+  // guard latch below stays independent of the maker's enable switch.
+  const maker = makerLoader({
+    context,
+    log,
+    l10n,
+    workspaceRoot,
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MAKER_HOST_BUNDLE_FILE).fsPath,
+  })
+  context.subscriptions.push(maker)
   const hardwareContexts = createHardwareContexts()
   const hardware = hardwareContexts(workspaceRoot)
   const hardwareContext = (root = workspaceRoot) => hardwareContexts(root).current()
@@ -3082,6 +3095,9 @@ async function activateWindow(
         },
         log,
       }),
+      // M103: the maker tools require dist/makerHost.js on the first request;
+      // trust and the hardware switch gate them, Stop never is.
+      ...maker.ideTools(),
     ],
     log,
   )
@@ -7127,6 +7143,31 @@ async function activateWindow(
     ),
     registerLoggedCommand(log, COMMAND_IDS.openDevices, () => {
       devices.open()
+    }),
+    // M103: each maker command loads the assembly on its first run.
+    registerLoggedCommand(log, COMMAND_IDS.enableHardware, async () => {
+      const made = await maker.assembly()
+      await made.commands.enableHardware()
+    }),
+    registerLoggedCommand(log, COMMAND_IDS.disableHardware, async () => {
+      const made = await maker.assembly()
+      await made.commands.disableHardware()
+    }),
+    registerLoggedCommand(log, COMMAND_IDS.addMachine, async () => {
+      const made = await maker.assembly()
+      await made.commands.openDevices()
+    }),
+    registerLoggedCommand(log, COMMAND_IDS.removeMachine, async () => {
+      const made = await maker.assembly()
+      await made.commands.removeMachine()
+    }),
+    registerLoggedCommand(log, COMMAND_IDS.stopMachine, async () => {
+      const made = await maker.assembly()
+      await made.commands.stopMachine()
+    }),
+    registerLoggedCommand(log, COMMAND_IDS.openDeviceLog, async () => {
+      const made = await maker.assembly()
+      await made.commands.openDeviceLog()
     }),
     ...Object.entries(RECORDING_COMMAND_IDS).map(([kind, id]) =>
       registerLoggedCommand(

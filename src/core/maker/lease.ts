@@ -160,6 +160,9 @@ raises leaves the holder unproven dead; only a non-Error throwable,
 which no port here produces, is not a query outcome.
 */
 function isStartTimeFailure(error: unknown): boolean {
+  // The query's contract (leaseIdentity): undefined proves the pid absent or
+  // a zombie; any doubt throws — the runner's codeless wrap, an fs failure,
+  // a lease- refusal, an unparseable answer. None can prove the holder died.
   return error instanceof Error
 }
 
