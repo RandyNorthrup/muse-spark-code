@@ -1320,6 +1320,11 @@
       "note": "recovery: older stub-style test seams rewritten over real parts"
     },
     {
+      "id": "RLFJUDGEP2",
+      "public": false,
+      "note": "recovery: the judge delivery suite batched and bounded, green in minutes"
+    },
+    {
       "id": "SDK142",
       "public": false,
       "note": "Muse Code CLI fingerprint and documentation update"
