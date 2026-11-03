@@ -17809,6 +17809,27 @@ their budgets (`npm run build` exit 0). Still open: the live team
 run, throughput, the Traffic harness (red on this tree), three rows
 with no owning suite (no-preemption, hygiene, team log lines), and
 the Windows/Linux legs.
+**CC-WINTEAM — the pause-before-rename, killed-lander and crash-recovery legs on
+Windows (2026-11-02, Windows 11, cc/winpath d696cd1284).** Hosted run 41214393586
+failed `teamLandingPause` and `teamLandingKilled` on macOS and Windows for one
+cause: the workspace and storage came by another spelling (`RUNNER~1`, `/var`), so
+the merge applier refused the staging copy as a linked root; with a canonical
+storage it wedged the repository. `landTeamTask` and `recoverOpenLandings` now
+resolve both once, first (D24). Recovery removes what a killed write staged, only
+while it holds that landing's bytes. The window scheduler's process lease and owner
+probe had no product binding, so no window could ever take a dead window's board:
+`createTeamWindowRuntime` now binds them (`boardOwner.ts`). A proved retirement now
+reaches the board in a reassign. The killed-lander suite never killed anything (the
+child ended by itself); it now asserts the kill landed. New real-process cases: a
+lander paused at its rename against `git add` and another window's Retry, a batch
+killed before its third rename, a recovery killed in its turn, a held file, a real
+window process killed with its worker in a job. Each landing case runs with the
+folders as created, through a link and by short names. Green here with `TEMP` spelled
+three ways; macOS, Linux and the hosted Windows run are CI's, so the checklist's
+three-platform box stays open. **`landTeamTask` and `recoverOpenLandings` still have
+no product caller** (the engine's merges port merges in place), so nothing is claimed
+until a real team run goes through a packed build. Record:
+`docs/certification/cc-winteam.md`.
 
 **M96CINT round 2 integration (2026-10-05).** Finish the existing partial
 integration by merging reviewed C (`52d04b69`) and then O (`19bb0703`) with

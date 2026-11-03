@@ -2,7 +2,9 @@
 // the retirement assembly. Its own bundle (dist/teamWindow.js), loaded only
 // for a workspace that stores a team, so the scheduler-tools bundle does
 // not carry the window binding (D6).
+import { windowBoardOwner } from './boardOwner'
 import { createWindowTeamScheduler } from './window'
+import type { TeamSchedulingDeps } from '../teamScheduling'
 import { setUiText } from '../../../shared/l10n/text'
 import type { UiText } from '../../../shared/l10n/en'
 
@@ -12,7 +14,12 @@ import type { UiText } from '../../../shared/l10n/en'
 export { SharedFiles } from '../sharedFiles'
 export { expandWriteSet, writeSetOverlap } from '../writeSets'
 
-export function createTeamWindowRuntime(table: UiText, locale: string) {
+/** Every scheduler this window makes holds the board under this process's lease. */
+export async function createTeamWindowRuntime(table: UiText, locale: string) {
   setUiText(table, locale)
-  return { createWindowTeamScheduler }
+  const owner = await windowBoardOwner(() => Date.now())
+  return {
+    createWindowTeamScheduler: (deps: TeamSchedulingDeps) =>
+      createWindowTeamScheduler({ ...deps, ...owner }),
+  }
 }
