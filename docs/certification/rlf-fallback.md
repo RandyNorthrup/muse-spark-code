@@ -254,6 +254,5 @@ works in a solo session and ours must not do less.
 | `npm run security:sast`                                              | 0    |
 | vitest: teamRefusalMove, teamHostRealParts, execTeamFlags (23 tests) | 0    |
 
-Not run in the lane (budget): manifest, featureCatalogDetails and
-runtimeSettingsStore suites, which read the renamed setting; the merge
-round runs them with the rest.
+The suites that read the renamed setting (manifest, featureCatalogDetails,
+runtimeSettingsStore; 63 tests) ran after the record's first commit: exit 0.
