@@ -533,6 +533,22 @@ body {
   align-items: baseline;
 }
 
+.pinned-unpin {
+  min-width: var(--ms-space-24);
+  min-height: var(--ms-space-24);
+  padding: 1px calc(var(--ms-space-12) / 2);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-xs);
+  color: var(--ms-muted);
+  font: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.pinned-unpin:hover {
+  color: var(--ms-text);
+}
+
 /* --- sequence run row (M88): above the composer while a run goes --- */
 .sequence-run {
   display: flex;

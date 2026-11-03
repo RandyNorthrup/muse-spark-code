@@ -121,6 +121,8 @@ export const SCENARIOS = [
   'mention',
   'chips',
   'transcript',
+  // RLF-PINNED: the compaction card with its pinned constraints and Unpin.
+  'pinned-constraints',
   'chat-menu',
   'chat-menu-narrow',
   'chat-tool-menu',

@@ -1110,6 +1110,7 @@ function OtherRow({
                     {onUnpinConstraint === undefined ? null : (
                       <button
                         type="button"
+                        className="pinned-unpin"
                         aria-label={fill(UI_TEXT.unpinConstraintLabel, { constraint: pin })}
                         onClick={() => {
                           onUnpinConstraint(pin)
