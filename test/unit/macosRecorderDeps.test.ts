@@ -23,6 +23,7 @@ import { runProgram } from '../../src/host/processTree'
 import { UI_TEXT, darwinDictationApp } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { darwinProcessHelper } from './helpers/darwinProcessHelper'
+import { OTHER_PROCESSOR, canRunOtherProcessor } from './helpers/otherProcessor'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const MP3_FIXTURE = path.resolve('test/fixtures/voice/tone-2s.mp3')
@@ -122,28 +123,31 @@ describe.skipIf(process.platform !== 'darwin')('M105 macOS recorder host deps', 
     })
   })
 
-  it('says the signed app cannot run on this Mac when it is built for the other processor', async () => {
-    const other = process.arch === 'arm64' ? 'x64' : 'arm64'
-    const copy = path.join(scratch, 'wrong-processor')
-    await cp(
-      path.join(extensionPath, 'native', 'darwin', darwinDictationApp(other)),
-      path.join(copy, 'native', 'darwin', darwinDictationApp(process.arch)),
-      { recursive: true },
-    )
-    const deps = depsFor(copy)
-    const run = await macosScreenRecordingDriver(deps).start(
-      { maxSeconds: 1, microphone: false, systemAudio: false },
-      () => {
-        /* No countdown: the helper never starts. */
-      },
-    )
-    await expect(run.result).resolves.toEqual({
-      ok: false,
-      reason: fill(UI_TEXT.media.recordingUnavailable, {
-        reason: nativeHelperError('unloadable', deps.helperPath, 'darwin').message,
-      }),
-    })
-  })
+  // Where Rosetta runs the x64 app it starts and records: no start fault to show.
+  it.skipIf(canRunOtherProcessor())(
+    'says the signed app cannot run on this Mac when it is built for the other processor',
+    async () => {
+      const copy = path.join(scratch, 'wrong-processor')
+      await cp(
+        path.join(extensionPath, 'native', 'darwin', darwinDictationApp(OTHER_PROCESSOR)),
+        path.join(copy, 'native', 'darwin', darwinDictationApp(process.arch)),
+        { recursive: true },
+      )
+      const deps = depsFor(copy)
+      const run = await macosScreenRecordingDriver(deps).start(
+        { maxSeconds: 1, microphone: false, systemAudio: false },
+        () => {
+          /* No countdown: the helper never starts. */
+        },
+      )
+      await expect(run.result).resolves.toEqual({
+        ok: false,
+        reason: fill(UI_TEXT.media.recordingUnavailable, {
+          reason: nativeHelperError('unloadable', deps.helperPath, 'darwin').message,
+        }),
+      })
+    },
+  )
 
   it('refuses a byte bound the helper cannot hold before it spawns anything', async () => {
     const driver = macosScreenRecordingDriver({

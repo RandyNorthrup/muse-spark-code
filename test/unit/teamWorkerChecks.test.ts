@@ -33,6 +33,7 @@ import { fill, setUiText } from '../../src/shared/l10n/text'
 import { checkProcessProvedByExit } from './helpers/checkProcessProvedByExit'
 import { fixtureGitEnvironment } from './helpers/fixtureGit'
 import { governorWindow } from './helpers/governorWindow'
+import { liveSamplerSuite } from './resourceHarness'
 import { silentCoreLog } from './helpers/memoryLogs'
 import { resolveGitBinary } from './helpers/realGit'
 import { realTeamGit } from './helpers/realTeamGit'
@@ -40,6 +41,7 @@ import { initRigFolders } from './helpers/teamRealRig'
 import { fixtureGit } from './helpers/teamLandingFixture'
 
 setUiText(EN, 'en')
+const { memoryReader } = liveSamplerSuite()
 
 // Real clones, a real governor window and processes that pause on purpose.
 const LONG_MS = 60_000
@@ -165,7 +167,10 @@ describe.skipIf(process.platform === 'win32')('a team worker’s run_checks', ()
     readonly isLimited: boolean
     readonly checks: () => readonly CheckCommandSetting[]
   }) {
-    const { window, errors, dispose } = await governorWindow({ isLimited: options.isLimited })
+    const { window, errors, dispose } = await governorWindow({
+      isLimited: options.isLimited,
+      memoryReader,
+    })
     disposers.push(dispose)
     counter += 1
     const slots: CheckSlots = await createTeamRunnersRuntime(EN, 'en').createGovernedCheckSlots({
