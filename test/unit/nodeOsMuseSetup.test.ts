@@ -11,13 +11,16 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { MUSE_INSTALL_SCRIPT_URL } from '../../src/shared/constants'
 import { canReachUrl, hasTool, scratch } from './helpers/nodeOs'
+import { isRealMuseAsked } from './helpers/realMuse'
 import {
   installMuseCode,
   resolveMuseInstallDir,
 } from '../../src/runtime/node/firstBoot/installMuseCode'
 
 const PROBE_TIMEOUT_MS = 30_000
+// Meta's real installer: only a run that asks.
 const CAN_INSTALL =
+  isRealMuseAsked() &&
   process.platform !== 'win32' &&
   hasTool('bash', ['--version']) &&
   hasTool('curl', ['--version']) &&

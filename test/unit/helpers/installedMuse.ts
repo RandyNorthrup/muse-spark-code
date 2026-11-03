@@ -5,11 +5,13 @@ import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import { resolveMuseLaunch } from '../../../src/core/backends/musecode/launch'
+import { isRealMuseAsked, REAL_MUSE_VARIABLE } from './realMuse'
 
 export function resolveInstalledMuse(options: {
   readonly localAppData: string | undefined
   readonly workspaceRoot: string
 }): { readonly command: string } | { readonly missing: string } {
+  if (!isRealMuseAsked()) return { missing: `this run did not set ${REAL_MUSE_VARIABLE}=1` }
   const found = resolveMuseLaunch({
     platform: process.platform,
     configuredPath: '',

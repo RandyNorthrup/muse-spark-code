@@ -25,6 +25,7 @@ import {
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { isMuseStartError, type MuseStartError } from '../../src/shared/museStartError'
+import { isRealMuseAsked } from './helpers/realMuse'
 
 const RECORDED = {
   malformed:
@@ -169,7 +170,7 @@ describe('a real handshake that ends before it answers', () => {
 
 /** The real Muse Code CLI, if this computer has it: found the way the product finds it. */
 function museCli(): string | undefined {
-  if (process.platform === 'win32') return undefined
+  if (process.platform === 'win32' || !isRealMuseAsked()) return undefined
   const probe = spawnSync('/bin/sh', ['-c', 'command -v muse || true'], { encoding: 'utf8' })
   const found = probe.stdout.trim()
   if (found !== '') return found

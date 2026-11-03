@@ -99,7 +99,12 @@ beforeAll(async () => {
   await stageAgentBundle(staged.directory)
   // The worker environment drops NODE_PATH: the packed agent finds its native
   // keyring module the way an installed one does, from its own folder.
-  await symlink(path.resolve('node_modules'), path.join(staged.directory, 'node_modules'), 'dir')
+  // A junction on Windows, which needs no privilege; the type means nothing elsewhere.
+  await symlink(
+    path.resolve('node_modules'),
+    path.join(staged.directory, 'node_modules'),
+    'junction',
+  )
 })
 
 // Each rig stops a real Muse Code host and its contained children, so the
