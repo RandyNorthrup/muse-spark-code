@@ -9,11 +9,23 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { agentDataFolder } from '../../../src/runtime/dataFolder'
+import { RuntimeSettingsStore } from '../../../src/runtime/settingsStore'
+import { stderrLogger } from '../../../src/runtime/stderrLog'
 import { MHP } from '../../../src/shared/constants'
 import type { MhpParams } from '../../../src/shared/hostApi/methods'
 import { isolatedRuntimeEnvironment } from './isolatedRuntimeEnvironment'
 import { startMhpHost, type MhpHost } from './mhpHost'
 import { removeFolder } from './temporaryFolders'
+
+/** The runtime's own settings store, over the files the panel this run starts reads. */
+export function panelSettingsStore(run: PanelRun): RuntimeSettingsStore {
+  return new RuntimeSettingsStore({
+    dataFolder: run.dataFolder,
+    workspaceRoot: run.workspace,
+    log: stderrLogger(() => undefined, 'warn'),
+    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  })
+}
 
 export interface PanelRun {
   readonly folder: string

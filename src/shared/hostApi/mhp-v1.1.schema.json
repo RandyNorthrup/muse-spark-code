@@ -20131,6 +20131,7 @@
                                 "errorKind": { "type": "string" },
                                 "retryable": { "type": "boolean" },
                                 "durationMs": { "type": "number" },
+                                "refused": { "type": "boolean" },
                                 "quota": {
                                   "type": "object",
                                   "properties": {
@@ -42924,6 +42925,7 @@
                           "errorKind": { "type": "string" },
                           "retryable": { "type": "boolean" },
                           "durationMs": { "type": "number" },
+                          "refused": { "type": "boolean" },
                           "quota": {
                             "type": "object",
                             "properties": {

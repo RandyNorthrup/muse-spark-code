@@ -36,6 +36,15 @@
     "src/host/backend/providerPolicyEntry.ts",
     "src/core/backends/modelapi/modelApiHooksEntry.ts",
     "src/core/backends/modelapi/modelApiMcpEntry.ts",
+    // D6 (SPLIT_PARTS): parts split out of bundles over their budgets, each built by
+    // scripts/build.mjs and required beside its parents.
+    "src/core/backends/modelapi/modelApiInstructionsEntry.ts",
+    "src/core/backends/modelapi/mcp/mcpHeadersEntry.ts",
+    "src/core/team/teamAutofillEntry.ts",
+    "src/core/team/workers/workerFenceEntry.ts",
+    "src/shared/wireLegalFixEntry.ts",
+    // D6: the estimator's fleet binding, loaded by name on an estimate.
+    "src/host/estimator/estimateFleetEntry.ts",
     "src/host/backend/productionMediaEntry.ts",
     "src/host/backend/productionAudioEntry.ts",
     "src/runtime/runtimeMediaEntry.ts",
