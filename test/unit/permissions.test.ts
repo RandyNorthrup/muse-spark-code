@@ -91,11 +91,44 @@ describe('verdictFor', () => {
     expect(verdictFor('denyUnmatched', 'edit', true)).toBe('deny')
   })
 
-  it('eases an MCP tool its server marks read-only: runs in Auto, asks in Plan (M50)', () => {
-    expect(verdictFor('allowAll', 'mcp', false, true)).toBe('allow')
-    expect(verdictFor('onRequest', 'mcp', false, true)).toBe('allow')
-    expect(verdictFor('promptUnmatched', 'mcp', false, true)).toBe('ask')
-    expect(verdictFor('denyUnmatched', 'mcp', false, true)).toBe('ask')
+  it('eases a pinned read-only MCP tool: runs in Auto, asks in Plan (M50, SEC-MCP-HINT)', () => {
+    expect(verdictFor('allowAll', 'mcp', false, true, true)).toBe('allow')
+    expect(verdictFor('onRequest', 'mcp', false, true, true)).toBe('allow')
+    expect(verdictFor('promptUnmatched', 'mcp', false, true, true)).toBe('ask')
+    expect(verdictFor('denyUnmatched', 'mcp', false, true, true)).toBe('ask')
+  })
+
+  // SEC-MCP-HINT: the MCP spec's MUST — a hint from an unpinned (untrusted)
+  // definition is ignored in every mode; only hint × pin eases anything.
+  it('ignores an unpinned read-only hint in every mode (SEC-MCP-HINT)', () => {
+    const eased: Record<string, string> = {
+      allowAll: 'allow',
+      onRequest: 'allow',
+      promptUnmatched: 'ask',
+      denyUnmatched: 'ask',
+    }
+    const plain: Record<string, string> = {
+      allowAll: 'allow',
+      onRequest: 'ask',
+      promptUnmatched: 'ask',
+      denyUnmatched: 'deny',
+    }
+    for (const mode of APPROVAL_MODES) {
+      // hint × pin: eased. The other three combinations: never eased.
+      expect(verdictFor(mode, 'mcp', false, true, true), `${mode} hint+pin`).toBe(eased[mode])
+      expect(verdictFor(mode, 'mcp', false, true, false), `${mode} hint only`).toBe(plain[mode])
+      expect(verdictFor(mode, 'mcp', false, false, true), `${mode} pin only`).toBe(plain[mode])
+      expect(verdictFor(mode, 'mcp', false, false, false), `${mode} neither`).toBe(plain[mode])
+      const engine = new PermissionEngine(mode)
+      const base = { toolName: 'mcp__docs__search', toolClass: 'mcp' } as const
+      expect(
+        engine.verdict({ ...base, isReadOnly: true, isPinnedReadOnly: true }),
+        `${mode} engine hint+pin`,
+      ).toBe(eased[mode])
+      expect(engine.verdict({ ...base, isReadOnly: true }), `${mode} engine hint only`).toBe(
+        plain[mode],
+      )
+    }
   })
 
   it('remembers "always allow" for an MCP tool, and not for another (M50)', () => {
@@ -107,7 +140,23 @@ describe('verdictFor', () => {
     expect(engine.verdict({ ...query, toolName: 'mcp__docs__write' })).toBe('ask')
     engine.setMode('denyUnmatched')
     expect(engine.verdict(query)).toBe('deny')
-    expect(engine.verdict({ ...query, isReadOnly: true })).toBe('allow')
+    // Only a pinned read-only tool reaches the ask a session rule answers.
+    expect(engine.verdict({ ...query, isReadOnly: true })).toBe('deny')
+    expect(engine.verdict({ ...query, isReadOnly: true, isPinnedReadOnly: true })).toBe('allow')
+  })
+
+  it('drops a session rule on request, and only that rule (SEC-MCP-PIN)', () => {
+    const engine = new PermissionEngine('promptUnmatched')
+    const search = { toolName: 'mcp__docs__search', toolClass: 'mcp' } as const
+    const write = { toolName: 'mcp__docs__write', toolClass: 'mcp' } as const
+    engine.allowForSession('mcp__docs__search')
+    engine.allowForSession('mcp__docs__write')
+    expect(engine.verdict(search)).toBe('allow')
+    engine.forgetForSession('mcp__docs__search')
+    expect(engine.verdict(search)).toBe('ask')
+    expect(engine.verdict(write)).toBe('allow')
+    engine.forgetForSession('mcp__docs__never_allowed')
+    expect(engine.verdict(write)).toBe('allow')
   })
 })
 
@@ -695,7 +744,17 @@ describe('PermissionEngine.judge: what the Auto reviewer may answer (M78)', () =
       engine.judge(query).isReviewable
     expect(isReviewable(shell('npm test'))).toBe(true)
     expect(isReviewable({ toolName: 'mcp__x__y', toolClass: 'mcp' })).toBe(true)
-    expect(isReviewable({ toolName: 'mcp__x__y', toolClass: 'mcp', isReadOnly: true })).toBe(false)
+    // An unpinned hint no longer settles the ask (SEC-MCP-HINT); a pinned
+    // read-only tool runs, so there is nothing to review.
+    expect(isReviewable({ toolName: 'mcp__x__y', toolClass: 'mcp', isReadOnly: true })).toBe(true)
+    expect(
+      isReviewable({
+        toolName: 'mcp__x__y',
+        toolClass: 'mcp',
+        isReadOnly: true,
+        isPinnedReadOnly: true,
+      }),
+    ).toBe(false)
     expect(isReviewable({ toolName: 'write_file', toolClass: 'edit', isProtected: true })).toBe(
       false,
     )
