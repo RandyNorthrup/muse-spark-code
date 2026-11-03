@@ -1072,6 +1072,12 @@ happened, not what was planned; superseded entries are kept.
   with which bound fired and its number instead of dying silently, and
   supervised runs are governed like every other launch, so ordinary
   supervised use is never stopped.
+- When Meta's model list comes back empty, the models already shown stay
+  in place instead of the picker going empty, with one sentence saying
+  the list came back empty and is being asked again. The list is asked
+  again on Meta's own backoff, and the panel picks up the returned list
+  without a restart; nobody is told they lack access because the list
+  was empty.
 
 ### Security
 

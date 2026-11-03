@@ -1,0 +1,26 @@
+{
+  "capturedAt": "2026-11-02T21:28:55.451Z",
+  "cli": "Muse Code 1.4.14 (1.4.14-R7309.1)",
+  "commands": [
+    "muse serve --disable-sandbox (child process; initialize with clientInfo emptycat_probe and experimentalApi, then account/read and model/list, over @muse-code/sdk 1.4.12 from node temp/emptycat-capture.mjs)"
+  ],
+  "emptyState": {
+    "accountRead": {
+      "credentialRequired": true,
+      "state": "loggedOut"
+    },
+    "environment": "throwaway HOME with throwaway XDG_CONFIG_HOME, XDG_DATA_HOME, XDG_CACHE_HOME and XDG_STATE_HOME; MUSE_AUTH_PATH, META_API_KEY and TBH_CREDENTIAL_BACKEND removed (RLF-MACCRED isolation); the machine's own sign-in untouched, no token read, no sign-in or sign-out made"
+  },
+  "healthyState": {
+    "account": "the machine's signed-in account (its label and avatar never kept, per AGENTS rule 8)",
+    "environment": "default environment"
+  },
+  "modelAttempts": "0 by construction: only initialize, account/read and model/list were sent, never session/start or turn/start",
+  "notes": [
+    "the isolated serve answers model/list with {\"models\": [], \"source\": \"bundledCatalog\"}: the meta-models/muse-code-sdk#115 shape, served by the real CLI, not simulated",
+    "session/start, session/setModel and turn/start all succeed against that empty catalogue over MSP (probed 2026-11-02); the refusal reporters see arrives later, not in these answers",
+    "a throwaway HOME alone does not isolate on macOS: the earlier probe without XDG isolation still served the signed-in catalogue from the real config home (the Keychain note in docs/research/muse-code-2026-11-02.md)"
+  ],
+  "platform": "darwin (Mac mini, arm64)",
+  "sdk": "@muse-code/sdk 1.4.12"
+}

@@ -470,6 +470,11 @@ export const modelListResultSchema = z.object({
       isActive: z.optional(z.boolean()),
     }),
   ),
+  // The catalogue's provenance (CLI 1.4.14, captured 2026-11-02,
+  // test/fixtures/muse-empty-catalogue/): `bundledCatalog` with zero rows
+  // is the #115 shape. Absent on older hosts; read loose, logged as a
+  // wire word on an empty serve, never branched on (RLF-EMPTYCAT).
+  source: z.optional(z.string()),
 })
 
 /**
@@ -4306,7 +4311,16 @@ export class MuseCodeHost implements AgentHost {
       },
       signal,
     )
-    const models = modelListResultSchema.parse(result).models.map((model) => {
+    const parsed = modelListResultSchema.parse(result)
+    // An empty serve is evidence, kept in the log with its provenance
+    // for every consumer (the panel says its own sentence on top):
+    // `bundledCatalog` with zero rows is the #115 shape (RLF-EMPTYCAT).
+    if (parsed.models.length === 0) {
+      this.log.warn(
+        `model/list served an empty catalogue (source: ${parsed.source === undefined ? 'not served' : wireWordForLog(parsed.source)})`,
+      )
+    }
+    const models = parsed.models.map((model) => {
       try {
         return toModelSummary(model, this.features.modelEfforts)
       } catch (error: unknown) {

@@ -275,6 +275,10 @@ export interface PanelOptions {
   readonly resendSleep?: (ms: number, signal: AbortSignal) => Promise<void>
   /** The resend wait's jitter draw (D228); Math.random absent. */
   readonly resendRandom?: () => number
+  /** The catalogue retry's clock (RLF-EMPTYCAT); the product's real wait absent. */
+  readonly catalogueRetrySleep?: ConversationDeps['catalogueRetrySleep']
+  /** The catalogue retry's jitter draw (RLF-EMPTYCAT); Math.random absent. */
+  readonly catalogueRetryRandom?: ConversationDeps['catalogueRetryRandom']
   /** The person's quota-continue opt-in (D252); absent or false shows quota failures at once. */
   readonly museCodeQuotaContinue?: () => boolean
   /** The controller's clock; Date.now absent. A suite pins it to read a recorded instant. */
@@ -489,6 +493,12 @@ export function conversationPanel(options: PanelOptions): PanelRig {
     }),
     ...(options.resendSleep !== undefined && { resendSleep: options.resendSleep }),
     ...(options.resendRandom !== undefined && { resendRandom: options.resendRandom }),
+    ...(options.catalogueRetrySleep !== undefined && {
+      catalogueRetrySleep: options.catalogueRetrySleep,
+    }),
+    ...(options.catalogueRetryRandom !== undefined && {
+      catalogueRetryRandom: options.catalogueRetryRandom,
+    }),
     ...(options.museCodeQuotaContinue !== undefined && {
       museCodeQuotaContinue: options.museCodeQuotaContinue,
     }),
