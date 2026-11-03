@@ -446,8 +446,14 @@ export const compactBrowserUiText = {
       // ones no deferred load installs ride the Help closure below, or
       // the Help page reads a throwing getter for them (makerTitle,
       // run 41516831678's accessibility job).
+      const referenceSchemaText = readFileSync(
+        'src/shared/reference/referenceSchema.generated.ts',
+        'utf8',
+      )
+      const textKeysStart = referenceSchemaText.indexOf('export const textKeys = [')
       const referenceTextKeys = new Set(
-        readFileSync('src/shared/reference/referenceSchema.generated.ts', 'utf8')
+        referenceSchemaText
+          .slice(textKeysStart, referenceSchemaText.indexOf('\n]', textKeysStart))
           .matchAll(/^ {2}'([^']+)',$/gm)
           .map((match) => match[1]),
       )
@@ -633,8 +639,14 @@ export const compactBrowserUiText = {
         ...runnersKeys,
         ...helpKeys,
       ])
+      // 'vault'/'devices' keep their own surfaces' installers (as in
+      // surfaceKeys above): the Help closure never carries them.
       const referenceOnlyKeys = deferredKeys.filter(
-        (key) => referenceTextKeys.has(key) && !coveredByDeferredLoad.has(key),
+        (key) =>
+          key !== 'vault' &&
+          key !== 'devices' &&
+          referenceTextKeys.has(key) &&
+          !coveredByDeferredLoad.has(key),
       )
       const readers = new Set([...keys].filter((key) => !deferredKeys.includes(key)))
       const contract = Object.fromEntries(
