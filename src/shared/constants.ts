@@ -10411,6 +10411,10 @@ export const TEAM_PROCESS_MODEL_TEXT = {
   hostCheckTimedOut: 'the check stopped at its time limit',
   hostChecksNoShell: 'the checks need a shell this window could not find, so none was run',
   hostJournalForeign: 'this window cannot take over another window’s team records',
+  hostBusy:
+    'this computer is short of memory or processor time, so no new team agent was started: run the task again when it has eased',
+  hostLaunchFailed:
+    'the team agent’s process could not be started ({code}); the Muse Spark log has the details',
 } as const
 
 // The `team` MCP server's instructions (D250): how any orchestrator — ours or

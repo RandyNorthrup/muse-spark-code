@@ -113,6 +113,20 @@ import {
 } from './taskCopy'
 
 /** A resolved `muse serve` launch: the editor's own CLI resolution. */
+/**
+What a failed launch tells a person. The lifetime's own failures are bare codes, kept for its
+suites and the log; a sentence from anywhere else passes as it is.
+*/
+export function launchFailureInWords(error: unknown): unknown {
+  if (!(error instanceof Error) || !/^TEAM_[A-Z_]+$/u.test(error.message)) return error
+  return new Error(
+    error.message === 'TEAM_HOST_BUSY'
+      ? TEAM_PROCESS_MODEL_TEXT.hostBusy
+      : fill(TEAM_PROCESS_MODEL_TEXT.hostLaunchFailed, { code: error.message }),
+    { cause: error },
+  )
+}
+
 export interface TeamMuseServeLaunch {
   readonly command: string
   /** Arguments before the `serve …` part (empty for the CLI's own binary). */
@@ -630,14 +644,22 @@ export function createProcessTeamPorts(deps: TeamProcessWorkersDeps): ProcessTea
   const launcherFor = (taskId: string): TeamChildLauncher => ({
     spawn: async (input) => {
       const started = await ensureLifetime()
-      const contained = await started.launch({
-        command: input.command,
-        args: input.args,
-        cwd: input.cwd,
-        env: input.env,
-        taskId,
-        priority: 'belowNormal',
-      })
+      const launchInWords = async () => {
+        try {
+          return await started.launch({
+            command: input.command,
+            args: input.args,
+            cwd: input.cwd,
+            env: input.env,
+            taskId,
+            priority: 'belowNormal',
+          })
+        } catch (error: unknown) {
+          deps.log.warn(`A team process did not start: ${failureForLog(error)}`)
+          throw launchFailureInWords(error)
+        }
+      }
+      const contained = await launchInWords()
       // The proof is the container's: a bare process group never proves its descendants ended.
       const retire = async (): Promise<void> => {
         try {
