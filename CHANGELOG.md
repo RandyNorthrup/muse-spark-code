@@ -1137,6 +1137,17 @@ happened, not what was planned; superseded entries are kept.
   endpoint (`127.0.0.1` or `[::1]`), and says so when the address is
   anything else. The address is not repeated, because it can carry the
   conversation's token.
+- **A rules file or skill with hidden characters says so when it loads.**
+  When a workspace rules file (`AGENTS.md`, `CLAUDE.md`) or a skill holds
+  characters that do not show as the model reads them — text-direction
+  controls, zero-width characters outside emoji, or tag characters — you
+  get one warning naming the file and the kind, once per session, in your
+  language. The file still loads unchanged; ordinary tabs and emoji warn
+  on nothing.
+- **A rule forbidding `rm -rf` now also stops `rm -fr` and `rm -r -f`.**
+  The forbid reads every spelling of rm's combined recursive-and-force
+  flags the same, in every mode, Bypass included. Anything else keeps
+  today's matching and still asks.
 
 ### Added
 

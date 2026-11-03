@@ -32971,6 +32971,27 @@ the durable three await a durable CLI in the lead env. Evidence:
 
 ---
 
+### RLFSECTEXT — Hidden-character warnings on rules/skills load; fresh review fences; flag-aware rm forbids (2026-11-02)
+
+**Status 2026-11-02: built.** Lane `rec/rlf-sectext` on rig `macmini`,
+base `72d8d5003`: research §6 briefs E (SEC-HIDDEN-TEXT) and H
+(SEC-REVIEWER-FENCE). A rules file or skill body holding bidirectional
+controls, zero-width spaces/joiners outside emoji sequences, or tag
+characters warns once per file per session through the context warning
+path, names the file and the class (one new sentence in English plus
+all 14 tables), and loads unchanged; a tab, a joiner inside an emoji
+sequence and anything else Cc/Cf warn on nothing. The Auto reviewer
+and the judge's standalone turn fence their data between fresh random
+markers per request, breaking literal marker text inside the data
+first; answer parsing is unchanged. Forbid matching normalises rm's
+combined -r/-f shorts (bash only), so `rm -fr` and `rm -r -f` read as
+the `rm -rf` forbid in Bypass and in Auto; a lone flag, a filename
+past `--` and long flags keep today's word matching. Proof: real-code
+suites over real files and a red/green drill per behavior. Evidence:
+`docs/certification/rlf-sectext.md`.
+
+---
+
 ## 7. Gates
 
 **RLM95 plan-archive deferral (2026-10-22, macmini).** `npm run check:plan`

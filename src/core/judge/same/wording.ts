@@ -5,6 +5,7 @@
 
 import { JUDGE_MODEL_TEXT } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
+import { breakMarkerOccurrences } from '../../../shared/markerFence'
 import type { JudgePromptWording } from '../prompt'
 
 /**
@@ -28,12 +29,19 @@ export function judgePromptWording(): JudgePromptWording {
 
 /**
 The standalone turn for a Muse Code judge batch: the instructions with the
-judged request fenced as data, on its own (an earlier turn was another
-batch and does not bear on it), using no tools.
+judged request fenced as data between fresh random markers, on its own
+(an earlier turn was another batch and does not bear on it), using no
+tools. Any literal marker text inside the request is broken up before
+fencing, so the judged text cannot close its own block (RLF-SECTEXT).
 */
-export function judgeStandaloneTurn(request: string): string {
+export function judgeStandaloneTurn(request: string, newMarker: () => string): string {
+  const marker = newMarker()
   return fill(JUDGE_MODEL_TEXT.judgeStandaloneTurn, {
     instructions: JUDGE_MODEL_TEXT.judgeSystemInstruction,
-    request,
+    request: [
+      fill(JUDGE_MODEL_TEXT.judgeRequestOpen, { marker }),
+      breakMarkerOccurrences(request, marker),
+      fill(JUDGE_MODEL_TEXT.judgeRequestClose, { marker }),
+    ].join('\n'),
   })
 }

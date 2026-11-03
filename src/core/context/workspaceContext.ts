@@ -16,9 +16,11 @@ import {
   type ContentRead,
 } from './recordingReader'
 import type { ContentSource } from '../schedules/provenance'
-import { RULES_PREAMBLE } from '../../shared/constants'
+import { RULES_PREAMBLE, SKILL_FILE_NAME, UI_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import type { MemoryScopeSnapshot } from '../memory/memoryStore'
 import type { ContextIo } from './contextFiles'
+import { findHiddenCharacters, type HiddenCharacterClass } from './hiddenCharacters'
 import { isCodedError } from '../workspaceRoot'
 import {
   type AgentCatalogue,
@@ -91,9 +93,26 @@ function catalogueKey(skills: readonly SkillDefinition[]): string {
   return JSON.stringify(skills)
 }
 
+/** The warned class in the display language, read when the warning fires. */
+function hiddenClassWord(found: HiddenCharacterClass): string {
+  switch (found) {
+    case 'bidi': {
+      return UI_TEXT.contextHiddenBidi
+    }
+    case 'zeroWidth': {
+      return UI_TEXT.contextHiddenZeroWidth
+    }
+    case 'tag': {
+      return UI_TEXT.contextHiddenTag
+    }
+  }
+}
+
 export class WorkspaceContext {
   private readonly rules: RuleFile[] = []
   private readonly checkedDirectories = new Set<string>()
+  /** The context files a hidden-character warning already named, once per session. */
+  private readonly hiddenWarned = new Set<string>()
   private skills: readonly SkillDefinition[] = []
   private agents: AgentCatalogue = NO_AGENTS
   private memory: readonly MemoryScopeSnapshot[] = []
@@ -207,7 +226,26 @@ export class WorkspaceContext {
     }
     this.deps.recordDerived?.(load.file.text.trim(), recorded.scope)
     this.rules.push(load.file)
+    // A rules file with hidden characters loads unchanged: the warning
+    // names it once per session and the person decides (RLF-SECTEXT).
+    this.warnHiddenCharacters(`rules:${load.file.path}`, load.file.path, load.file.text)
     return true
+  }
+
+  /**
+  Warns when a loaded context file holds hidden characters, once per
+  file per session; the file itself loads unchanged.
+  */
+  private warnHiddenCharacters(key: string, file: string, text: string): void {
+    if (this.hiddenWarned.has(key)) {
+      return
+    }
+    const found = findHiddenCharacters(text)
+    if (found === undefined) {
+      return
+    }
+    this.hiddenWarned.add(key)
+    this.deps.warn(fill(UI_TEXT.contextHiddenFile, { file, class: hiddenClassWord(found) }))
   }
 
   /** A store read that fails (permissions, encoding) warns and falls back, never a failed turn. */
@@ -351,6 +389,15 @@ export class WorkspaceContext {
     }
     const isChanged = catalogueKey(load.skills) !== catalogueKey(this.skills)
     this.skills = load.skills
+    // A skill whose body or description holds hidden characters loads
+    // unchanged: the warning names it once per session (RLF-SECTEXT).
+    for (const skill of this.skills) {
+      this.warnHiddenCharacters(
+        `skill:${skill.source}:${skill.id}`,
+        `${skill.source} skill ${skill.id} (${SKILL_FILE_NAME})`,
+        `${skill.description}\n${skill.body}`,
+      )
+    }
     return isChanged
   }
 
