@@ -28199,6 +28199,18 @@ record, the red/green drills and the looks are in
 `docs/certification/rlf-m111bp.md`. SH1, SH2, ED, SB1 and the settings
 lanes have not started; nothing is installable yet (M111i owns that).
 
+**Status 2026-11-02 (RLF-M111ST1): building.** Lane ST1 is built: the
+Settings app's eleven system pages (D91.16) as a React app over lane 0's
+sysd contract (`src/webview/settings/system/**`, the shell in
+`src/webview/settings/shell/`, the contract in
+`src/shared/desktop/`), with every system change confirmed, Bluetooth
+pairing's two-step passkey check, and the honest unavailable screen
+until lane SY's transport lands. Strings in English and all 14 tables,
+riding the desktop chunk so `dist/uiText.js` does not grow; budgets
+`settings.js` 875 KiB / `settings.css` 25 KiB hold. Proof:
+`docs/certification/rlf-m111st1.md` with red/green drills and the
+light/dark looks.
+
 **Status 2026-10-30 (RLF-M111WB): building.** Lane WB landed. The Electron
 workbench shell is built and proven on linuxlt: single instance, one window
 per workspace, the sandboxed bridge, the D91.13 layout with the terminal

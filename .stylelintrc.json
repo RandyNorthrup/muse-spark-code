@@ -91,7 +91,8 @@
         "desktop/**/*.css",
         "src/webview/desktop/**/*.css",
         "src/webview/editor/**/*.css",
-        "src/webview/node/**/*.css"
+        "src/webview/node/**/*.css",
+        "src/webview/settings/**/*.css"
       ],
       "rules": {
         "csstools/use-logical": [

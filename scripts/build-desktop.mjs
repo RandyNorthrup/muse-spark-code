@@ -56,8 +56,18 @@ await Promise.all([
     platform: 'browser',
     jsx: 'automatic',
   }),
+  // M111 lane ST1: the settings app's renderer, beside the workbench's.
+  esbuild.build({
+    ...shared,
+    entryPoints: ['src/webview/settings/main.tsx'],
+    outfile: `${outdir}/settings.js`,
+    format: 'iife',
+    platform: 'browser',
+    jsx: 'automatic',
+  }),
 ])
 
 cpSync('desktop/app/index.html', `${outdir}/index.html`)
+cpSync('desktop/app/settings.html', `${outdir}/settings.html`)
 cpSync('design/tokens/generated/muse.css', `${outdir}/muse.css`)
 console.log(`desktop: built ${outdir} (${production ? 'production' : 'dev'})`)

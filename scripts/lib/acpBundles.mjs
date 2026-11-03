@@ -263,6 +263,7 @@ export const ACP_BUNDLES = [
   'uiTextSurfaces.js',
   'uiTextDesktop.js',
   'uiTextMedia.js',
+  'uiTextSettings.js',
   'extensionHooks.js',
   'validation.js',
   'validationSchema.js',

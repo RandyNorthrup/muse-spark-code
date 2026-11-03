@@ -194,6 +194,14 @@ happened, not what was planned; superseded entries are kept.
   the editor carrying the diff (no answer discards; Bypass shows the
   completed call), and cancel and close stop the session's workers.
   See "Teams in ACP sessions" in the ACP guide.
+- **Muse Desktop's Settings system pages (M111, in development).**
+  Appearance, Displays, Sound, Network, Bluetooth, Cellular, Power and
+  sleep, Printers, Storage, Date and time, and Language and region are
+  built as the Settings app's system pages: every system change asks
+  you first, Bluetooth pairing checks its passkey, and until the
+  system-service lane lands the app says plainly that the service is
+  unavailable. Built and run on the development machines; nothing
+  about the extension changes yet.
 - **`muse-spark-code-acp watchdog` keeps a watch list of GitHub repositories
   in a terminal.** `watchdog list` and `status` show the watched
   repositories, `pause` and `resume` stop and restart watching, and `policy`
