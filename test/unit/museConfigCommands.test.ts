@@ -31,7 +31,11 @@ interface HarnessOptions {
   readonly hasCli?: boolean
   readonly projectHooksPath?: string | undefined
   /** The window runs the Model API backend (M50): its servers' snapshot, undefined before they start. */
-  readonly modelApi?: { readonly snapshot: McpPoolSnapshot | undefined }
+  readonly modelApi?: {
+    readonly snapshot: McpPoolSnapshot | undefined
+    /** What accepting held-back tools answers (SEC-MCP-PIN); true by default. */
+    readonly acceptResult?: boolean
+  }
   readonly modelApiHooks?: boolean | undefined
   /** The hook files' texts by path, read for the spark-hooks.json rows (M91); an Error throws on read. */
   readonly files?: Readonly<Record<string, string | Error>>
@@ -43,6 +47,8 @@ function harness(options: HarnessOptions = {}) {
   const terminal: [McpAction, string][] = []
   const information: string[] = []
   const warnings: string[] = []
+  const documents: { title: string; content: string }[] = []
+  const accepted: string[] = []
   let docs = 0
   let restarts = 0
   let logs = 0
@@ -99,6 +105,14 @@ function harness(options: HarnessOptions = {}) {
     },
     ...(options.modelApi !== undefined && {
       modelApiServers: () => options.modelApi?.snapshot,
+      openReadOnlyText: (title: string, content: string) => {
+        documents.push({ title, content })
+        return Promise.resolve()
+      },
+      acceptHeldBackTools: (server: string) => {
+        accepted.push(server)
+        return Promise.resolve(options.modelApi?.acceptResult ?? true)
+      },
       openLog: () => {
         logs += 1
       },
@@ -115,6 +129,8 @@ function harness(options: HarnessOptions = {}) {
     deps,
     picks,
     opened,
+    documents,
+    accepted,
     terminal,
     information,
     warnings,
@@ -286,20 +302,40 @@ const LIVE: McpPoolSnapshot = {
       name: 'docs',
       isRequired: true,
       state: { status: 'connected', toolCount: 1, unofferedCount: 0 },
+      heldBack: [],
+      tools: [{ name: 'search', title: undefined, description: 'Searches.', isHeldBack: false }],
     },
     {
       name: 'local',
       isRequired: false,
       state: { status: 'connected', toolCount: 3, unofferedCount: 2 },
+      heldBack: [{ tool: 'write', functionName: 'mcp__local__write', isNew: false }],
+      tools: [
+        { name: 'write', title: undefined, description: 'Writes, changed.', isHeldBack: true },
+      ],
     },
     {
       name: 'broken',
       isRequired: true,
       state: { status: 'failed', reason: 'it exited with code 1' },
+      heldBack: [],
+      tools: [],
     },
-    { name: 'off', isRequired: true, state: { status: 'disabled' } },
-    { name: 'waiting', isRequired: true, state: { status: 'starting' } },
-    { name: 'locked', isRequired: true, state: { status: 'restricted' } },
+    { name: 'off', isRequired: true, state: { status: 'disabled' }, heldBack: [], tools: [] },
+    {
+      name: 'waiting',
+      isRequired: true,
+      state: { status: 'starting' },
+      heldBack: [],
+      tools: [],
+    },
+    {
+      name: 'locked',
+      isRequired: true,
+      state: { status: 'restricted' },
+      heldBack: [],
+      tools: [],
+    },
   ],
 }
 
@@ -310,7 +346,10 @@ describe('showMcpServers on the Model API backend (M50)', () => {
     expect(t.picks[0]?.title).toBe('MCP Servers on the Model API Backend')
     expect(t.picks[0]?.items.map((item) => [item.id, item.detail])).toEqual([
       ['server:docs', 'Connected: 1 tool · required (a message stops if it is not running)'],
-      ['server:local', 'Connected: 3 tools · 2 more not offered · optional'],
+      [
+        'server:local',
+        'Connected: 3 tools · 1 tool held back: its text changed · 1 more not offered · optional',
+      ],
       [
         'server:broken',
         'Not running: it exited with code 1 · required (a message stops if it is not running)',
@@ -382,6 +421,7 @@ describe('showMcpServers on the Model API backend (M50)', () => {
     })
     await showMcpServers(log.deps)
     expect(log.picks[1]?.items.map((item) => item.id)).toEqual([
+      'action:descriptions',
       'action:log',
       'action:openSettings',
     ])
@@ -404,6 +444,55 @@ describe('showMcpServers on the Model API backend (M50)', () => {
     })
     await showMcpServers(dismissed.deps)
     expect(dismissed.opened.length + dismissed.logs()).toBe(0)
+  })
+
+  it('shows a server’s full tool descriptions from its row (SEC-MCP-PIN)', async () => {
+    const t = harness({
+      settings: FIVE_SERVERS,
+      modelApi: { snapshot: LIVE },
+      answers: ['server:docs', 'action:descriptions'],
+    })
+    await showMcpServers(t.deps)
+    expect(t.documents).toHaveLength(1)
+    expect(t.documents[0]?.title).toContain('docs')
+    expect(t.documents[0]?.content).toContain('## search')
+    expect(t.documents[0]?.content).toContain('Searches.')
+  })
+
+  it('reviews held-back tools: full text first, then accept or keep refusing (SEC-MCP-PIN)', async () => {
+    const accept = harness({
+      settings: FIVE_SERVERS,
+      modelApi: { snapshot: LIVE },
+      answers: ['server:local', 'action:reviewHeldBack', 'action:acceptHeldBack'],
+    })
+    await showMcpServers(accept.deps)
+    expect(accept.picks[1]?.items[0]?.id).toBe('action:reviewHeldBack')
+    expect(accept.documents[0]?.content).toContain('Writes, changed.')
+    expect(accept.documents[0]?.content).toContain(
+      'Held back: this text changed since it was pinned, and is not offered.',
+    )
+    expect(accept.accepted).toEqual(['local'])
+    expect(accept.information).toEqual([
+      'The new tool text from local is accepted; its tools are offered again.',
+    ])
+    const refuse = harness({
+      settings: FIVE_SERVERS,
+      modelApi: { snapshot: LIVE },
+      answers: ['server:local', 'action:reviewHeldBack', 'action:keepRefusing'],
+    })
+    await showMcpServers(refuse.deps)
+    expect(refuse.accepted).toEqual([])
+    expect(refuse.information).toEqual([
+      'The changed tools from local stay refused and are not offered.',
+    ])
+    const dismissed = harness({
+      settings: FIVE_SERVERS,
+      modelApi: { snapshot: LIVE },
+      answers: ['server:local', 'action:reviewHeldBack', undefined],
+    })
+    await showMcpServers(dismissed.deps)
+    expect(dismissed.accepted).toEqual([])
+    expect(dismissed.information).toEqual([])
   })
 
   it('does nothing for the built-in server, and restarts the servers', async () => {

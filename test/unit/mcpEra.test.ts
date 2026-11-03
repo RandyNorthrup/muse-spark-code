@@ -196,6 +196,30 @@ describe('result readings', () => {
     const parsed = parseElicitationParams(request.params)
     const schema = validateElicitationSchema(parsed.requestedSchema)
     expect(schema.ok).toBe(true)
+    // The recorded field asks for a nickname, not a secret (SEC-MCP-PIN).
+    if (schema.ok) {
+      expect(schema.fields[0]?.isSecret).toBeUndefined()
+    }
+  })
+
+  it('marks a field whose name asks for a secret (SEC-MCP-PIN)', () => {
+    // The recorded legacy schema, its one property renamed to a key name:
+    // the marking reads names, so the renamed field is the proof's input.
+    const request = incomingMessageSchema.parse(wire('elicitation-create-legacy.json'))
+    const parsed = parseElicitationParams(request.params)
+    const recorded = parsed.requestedSchema as {
+      readonly properties: Readonly<Record<string, unknown>>
+    }
+    const renamed = {
+      type: 'object',
+      properties: { api_key: recorded.properties['nickname'] },
+      required: ['api_key'],
+    }
+    const schema = validateElicitationSchema(renamed)
+    expect(schema.ok).toBe(true)
+    if (schema.ok) {
+      expect(schema.fields[0]).toMatchObject({ name: 'api_key', isSecret: true })
+    }
   })
 })
 
