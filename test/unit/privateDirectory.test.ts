@@ -3,7 +3,7 @@ import { realpathSync } from 'node:fs'
 import * as fs from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { noWorkspaceChildEnvironment, windowsPowerShell } from '../../src/core/execGuard'
 import { runProgram } from '../../src/host/processTree'
@@ -16,6 +16,7 @@ import {
   type WindowsAclReader,
 } from '../../src/runtime/privateDirectory'
 import { secureOwnerOnly, type TokenWindowsAcl } from '../../src/runtime/tokenFile'
+import { FIXTURE_HOOK_TIMEOUT_MS } from './helpers/fixtureBudget'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const SID = 'S-1-5-21-100-200-300-1001'
@@ -454,6 +455,13 @@ async function privateArea(parent = tmpdir()): Promise<string> {
 }
 
 describe.skipIf(process.platform !== 'win32')('the private root on real Windows ACLs', () => {
+  // This describe's first Windows PowerShell start is cold on a fresh hosted runner:
+  // run 41561620943's shard 15 spent its first case past 15 s, and each later one took
+  // 1 to 2.2 s. Cold costs belong in a hook, and every case keeps the repository's budget.
+  beforeAll(async () => {
+    await readAcls([await privateArea()])
+  }, FIXTURE_HOOK_TIMEOUT_MS)
+
   async function expectOwnerOnly(parent: string): Promise<void> {
     const root = await openPrivateRoot(path.join(parent, 'media'))
     expect(path.dirname(root.path)).toBe(await fs.realpath(parent))
