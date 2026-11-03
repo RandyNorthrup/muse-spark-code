@@ -5028,7 +5028,6 @@
   "providerModelNoPrice": "{ref} não pode executar: não tem tabela de preços, então nenhuma execução pode reservar para ele.",
   "execProviderNeedsModelApi": "--provider requer --backend modelApi.",
   "execProviderModelRequired": "Esta execução de provedor precisa de --model provider/model.",
-  "execProviderNotReady": "As execuções de provedor precisam da camada de transporte de provedores; a verificação do pedido para {provider} passou.",
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin] [--timeout <seconds>]",
   "scanSecretsExits": "Sai com 0 se limpo, 10 se um segredo for encontrado, 2 por uso indevido.",

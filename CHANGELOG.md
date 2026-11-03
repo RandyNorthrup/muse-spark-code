@@ -660,6 +660,14 @@ happened, not what was planned; superseded entries are kept.
   and the desktop shell's newer Electron with its Linux crash and archive
   fixes. Two moderate advisories stay open with no upstream fix to take
   (`docs/certification/rlf-updeps2.md`).
+- A headless run on your own provider (`exec --provider`) now settles
+  what it spent. Its cost used to stay unrecorded — the run result
+  showed $0 settled with the full amount still held, and the run
+  ended as accounting unverified. The run's cost, its tokens and
+  your shared daily total now record the exact amount the
+  provider reported; a request that went out without a usage
+  report counts as cost unknown, never as spend, and a request the
+  provider refused outright records nothing.
 - A vault policy that is a link, that another account can read, or that has
   a second name is ignored, and saving a policy can no longer be aimed at
   another file. The ceiling stays "none" and the refusal is the same words

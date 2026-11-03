@@ -4832,7 +4832,6 @@
   "providerModelNoPrice": "{ref} 無法執行：沒有價格卡，因此任何執行都無法為其預留。",
   "execProviderNeedsModelApi": "--provider 需要 --backend modelApi。",
   "execProviderModelRequired": "此提供商執行需要 --model provider/model。",
-  "execProviderNotReady": "提供者執行需要提供者傳輸層；{provider} 的要求驗證已通過。",
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin] [--timeout <seconds>]",
   "scanSecretsExits": "乾淨時結束 0，發現機密時結束 10，誤用時結束 2。",

@@ -10325,6 +10325,11 @@ INT0170B integration question (2026-10-07), narrowed by LEFT017 (2026-10-08): th
   a cap decision belongs to the owner. Production headless BYO accounting
   and ACP/headless shared paid-daily admission also remain open after the
   shared two-failed-fixes stop; they need a separately scoped follow-up.
+  **BYO half resolved 2026-11-02 (RLF-M102BYO):** the accounting
+  wrapper discarded its run-ledger ticket, so provider runs never
+  settled; kept now, with exact-money, liability and shared-daily
+  proof in `docs/certification/rlf-m102byo.md`. The package-cap half
+  stays the owner's.
 
 - **Q-M95-I transport prerequisite (2026-10-05):** which completed lane T
   commit supplies ProviderClient/transport/authSource for this checkout?
@@ -22604,7 +22609,18 @@ platform receipt remains lead-owned; no gate or Meta fixture was changed.
 
 ### M102 — Usage & cost in every editor (D82)
 
-**Status 2026-10-22: waiting.** RLUSAGE landed source 01 (the
+**Status 2026-11-02: waiting.** RLF-M102BYO landed production headless
+BYO accounting on rv/int9: the runtime accounting wrapper had admitted
+each provider request against the run ledger and discarded the ticket,
+so no BYO (or plan-model/team) exec run ever settled — the M102INT3
+generic failure. The ticket is kept now; a priced BYO run settles
+exactly in the run ledger and the shared ACP/headless daily total, a
+sent request without terminal usage stays liability never spend, a
+provider refusal books nothing, and the person's daily limit stops a
+second process before dispatch (D208; no limit set, no check). Proven
+by `test/unit/headlessByoAccounting.test.ts` over recorded provider
+exchanges with red/green drills; receipts:
+`docs/certification/rlf-m102byo.md`. RLUSAGE landed source 01 (the
 usage-trace read) onto 0.19.0: trace snapshots stream complete lines
 through a held descriptor with unchanged-file reuse, no app-owned count,
 byte, age or retry ceiling, and journal and trace reads settle
@@ -22617,8 +22633,8 @@ agent's turns journal again, and a rejected record names its failing
 fields; the journal schemas ride the shared boundaries chunk, holding
 `dist/reportInputs.js` at 82.8 KiB against its unchanged 100 KiB while
 the service sits at 98.9 KiB. Proven by real-code suites, red/green
-drills and the production build chain. Headless BYO accounting and checklist
-reconciliation remain; packed `usage` ran 2026-10-24 (empty journal). Receipts:
+drills and the production build chain. Checklist reconciliation remains;
+packed `usage` ran 2026-10-24 (empty journal). Receipts:
 `docs/certification/rlusage.md`.
 
 **M102INT3 (2026-10-06, Win11).** The rig brief authorizes the no-ff
