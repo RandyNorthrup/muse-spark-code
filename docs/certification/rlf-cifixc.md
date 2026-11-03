@@ -226,19 +226,27 @@ CIFIXM moved the Models bundle build into global setup. Green
 here after the merge (10 tests across its run with the vault
 file; the file itself passed).
 
-### vaultStoreScope (macOS shard 16) — CIFIXM fixes verified as far as the rig lets
+### vaultStoreScope (macOS shard 16) — CIFIXM fixes verified; gate now probes the store (test wrong)
 
 Pre-CIFIXM CI died in `beforeAll` (keyring binding unstaged:
-`unsupported-binding`). Post-merge here the fixture passes that
-whole stage (setup + snapshot) and fails later, at client start:
-`probeVaultIdentity → No access`. The sibling
-`posixVaultPanelFlow` — green in run 415 — fails identically on
-this rig with a short TMPDIR, while the `muse-vault-peer`
-binary answers correctly from a shell. That is this lane
-sandbox's governed-exec boundary, not the suite: with the lane's
-152-char TMPDIR both suites skip by name (socket fit), which is
-how CIFIXM saw them. Hosted CI decides the POSIX broker case;
-the Windows 180 s case in CC-WINFIX2's record is the same
+`unsupported-binding`). Post-merge the fixture passes that whole
+stage for real. Two local mirages had to be separated first: with
+this lane's `TMPDIR` inside the worktree, the client died at
+`probeVaultIdentity → No access` — the governed launcher rightly
+refuses a workspace-internal helper binary, and the fixture had
+staged its broker under that temp. That was my invocation, not
+the sandbox and not the suite (an earlier draft of this record
+said sandbox; the outside-temp run disproved it). With temp
+outside the repo the fixture completes setup and snapshot, and
+the case then reached the OS store and failed with `A default
+keychain could not be found` — `hasStore()` assumed darwin
+always has one, but a headless lane session has none
+(`security default-keychain` exits 1, measured). Darwin now
+probes the real store the way Linux probes the session bus, so
+the suite skips by name where there is no store and runs where
+there is (CI's runners, like its green panel-flow sibling in run
+415). Green here after: 1 passed / 4 skipped in both temp forms.
+The Windows 180 s case in CC-WINFIX2's record is the same
 fixture family as the cancelled shards below.
 
 Also seen and left: connectorServe and devicesPhase2Harness
@@ -330,8 +338,9 @@ committed before each was read):
   makerReviewBrowser green on re-run (first concurrent attempt
   under load 50+ failed 7 across the three heaviest files, then
   passed whole); judgeLocalDarwinPid (e2e) + nodeOsAddons 14
-  passed; vaultStoreScope 1 failed (sandbox identity probe,
-  above) / 1 passed / 3 skipped.
+  passed; vaultStoreScope green after its keychain gate
+  (1 passed / 4 skipped; its earlier red in this lane was the
+  in-worktree temp plus the missing default keychain, both above).
 - `npx vitest related` for the changed sources
   (`trees/linux.ts`, `PoolEditor.tsx`, `judgeSetup/steps.tsx`):
   the graph is effectively the whole suite (1472 files, 30,967
@@ -370,11 +379,12 @@ committed before each was read):
   devicesPhase2Harness, makerReviewBrowser's Windows CR case,
   vaultStoreScope's Windows case → CC-WINFIX3 (lead's PC).
 - Linux-only proofs (deviceWorkerHostNative, portalRecord,
-  resourceForkProtection, makerSerial socat cases,
-  vaultStoreScope POSIX broker case) → hosted CI on this branch;
-  local blocks were: Docker declined at approval, Homebrew
-  refused by the lane sandbox, governed-exec identity probe
-  refused by the lane sandbox. Docker Desktop was started on the
+  resourceForkProtection, makerSerial socat cases) → hosted CI
+  on this branch; local blocks were: Docker declined at
+  approval, Homebrew refused by the lane sandbox.
+  vaultStoreScope is resolved above (its remaining store case
+  needs a host with a default keychain, which is CI).
+  Docker Desktop was started on the
   Mac mini while attempting a Linux reproduction and could not
   be quit from the sandbox (AppleScript privilege violation);
   it is still running for the lead to close.
