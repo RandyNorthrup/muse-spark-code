@@ -40,6 +40,7 @@ import type {
   ElicitationOutcome,
   McpElicitationHandler as ConnectionElicitationHandler,
 } from './elicitation'
+import { McpDeclarations } from './declarations'
 import { confirmModern, type EraVerdict, probeEra } from './era'
 import { type McpCallOutcome, mcpCallOutcome } from './functions'
 import {
@@ -153,6 +154,12 @@ export interface McpToolSource {
   `tool_search` plan from. `definitions()` is its definitions.
   */
   catalog(): readonly McpCatalogEntry[]
+  /**
+  One session's MCP declarations over this pool (4-H4): the per-turn
+  catalogue, deferral and `tool_search`. Built here so that code loads
+  with the pool's lazy bundle, never in the main Model API bundle (D6).
+  */
+  declarations(threshold: () => number): McpDeclarations
   find(functionName: string): McpToolRef | undefined
   /**
   Calls the tool; rejects on a Stop, a deadline, a JSON-RPC error or a
@@ -756,6 +763,10 @@ export class McpServerPool implements McpToolSource {
 
   public definitions(): readonly FunctionToolDefinition[] {
     return this.catalog().map((entry) => entry.definition)
+  }
+
+  public declarations(threshold: () => number): McpDeclarations {
+    return new McpDeclarations(this, threshold)
   }
 
   public find(functionName: string): BridgeToolRef | undefined {

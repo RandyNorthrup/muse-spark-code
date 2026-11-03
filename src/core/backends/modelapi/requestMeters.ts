@@ -5,9 +5,17 @@
 // usage journal, so Account & usage shows what tool surface and rules
 // files cost beside the provider's own cached-token count. Pure.
 
-import { estimateDefinitionTokens } from './mcp/deferredTools'
 import type { ToolDefinition } from './schemas'
 import { estimatePackTokens } from './toolResultBound'
+
+/**
+Estimated tokens of tool definitions as they ride a request: the JSON
+bytes the request carries, at the product's chars-per-token rule
+(`estimatePackTokens`).
+*/
+export function estimateDefinitionTokens(definitions: readonly object[]): number {
+  return estimatePackTokens(JSON.stringify(definitions).length)
+}
 
 /** The estimated fixed-prefix costs of one request. */
 export interface RequestMeters {

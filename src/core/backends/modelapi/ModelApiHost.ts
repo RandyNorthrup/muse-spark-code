@@ -463,7 +463,7 @@ import {
 import type { ImagePlan } from './imageGeneration'
 import type * as ModelApiImage from './modelApiImageEntry'
 import type * as ModelApiToolRun from './modelApiToolRunEntry'
-import { McpDeclarations, type McpTurnStart, unconnectedMcpServers } from './mcp/declarations'
+import type { McpDeclarations, McpTurnStart } from './mcp/declarations'
 import {
   cacheMissTokens,
   changedComponents,
@@ -3327,10 +3327,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   turn, so the prefix changes once), the defer threshold read with it,
   and the tools `tool_search` discovered, kept for the session.
   */
-  private readonly mcpDeclarations = new McpDeclarations(
-    () => this.deps.mcpServers?.catalog() ?? [],
-    () => this.deps.mcpDeferThresholdTokens?.() ?? SETTING_DEFAULTS.modelApiMcpDeferTokens,
-  )
+  private sessionMcpDeclarations: McpDeclarations | undefined
   private approvedSearchQuote: PaidQuote | undefined
   private sendingSearchQuote: PaidQuote | undefined
   private sendingSearchBound: number | undefined
@@ -6099,9 +6096,10 @@ export class ModelApiSession implements ScheduledAgentSession {
     })
     // 4-H4: past the person's defer threshold, `tool_search` and the
     // discovered tools; else the whole sorted catalogue of this turn.
+    const declarations = this.mcpDeclarations()
     const mcp =
-      hasShell && this.deps.mcpServers !== undefined
-        ? this.mcpDeclarations.definitions(this.isToolSearchAllowed())
+      hasShell && declarations !== undefined
+        ? declarations.definitions(this.isToolSearchAllowed())
         : []
     const offered = [...own, ...this.ideDefinitions(), ...mcp]
     const withSearch: readonly ToolDefinition[] = this.isWebSearchOffered()
@@ -6332,7 +6330,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       return
     }
     await unlessStopped(servers.start(), signal)
-    this.sayMcpTurnStart(this.mcpDeclarations.beginTurn())
+    const start = this.mcpDeclarations()?.beginTurn()
+    if (start !== undefined) {
+      this.sayMcpTurnStart(start)
+    }
     const snapshot = servers.snapshot()
     for (const notice of mcpNotices(snapshot)) {
       if (this.announcedMcp.has(notice.key)) {
@@ -6354,29 +6355,24 @@ export class ModelApiSession implements ScheduledAgentSession {
   and a notice in the transcript, never silent).
   */
   private sayMcpTurnStart(start: McpTurnStart): void {
-    if (start.changed !== undefined) {
-      this.deps.log.info(
-        `MCP tool catalogue changed for the next request prefix: ${String(start.changed.toolCount)} tools, about ${String(start.changed.definitionTokens)} definition tokens`,
-      )
+    for (const line of start.log) {
+      this.deps.log.info(line)
     }
-    const plan = start.deferral
-    if (plan === undefined) {
-      return
+    if (start.notice !== undefined) {
+      this.emit({ type: 'backendNotice', level: 'info', text: start.notice })
     }
+  }
 
-    const total = plan.deferredCount + plan.declared.length
-    this.deps.log.info(
-      `MCP tools deferred: ${String(plan.deferredCount)} of ${String(total)} tools load through tool_search (about ${String(plan.definitionTokens)} definition tokens over the person's threshold; set museSpark.modelApiMcpDeferTokens to 0 to always load them)`,
+  /** 4-H4: this session's MCP declarations, built by the pool on first use. */
+  private mcpDeclarations(): McpDeclarations | undefined {
+    const servers = this.deps.mcpServers
+    if (servers === undefined) {
+      return undefined
+    }
+    this.sessionMcpDeclarations ??= servers.declarations(
+      () => this.deps.mcpDeferThresholdTokens?.() ?? SETTING_DEFAULTS.modelApiMcpDeferTokens,
     )
-    this.emit({
-      type: 'backendNotice',
-      level: 'info',
-      text: fill(UI_TEXT.mcpToolsDeferred, {
-        deferred: formatNumber(plan.deferredCount),
-        total: formatNumber(total),
-        tokens: formatNumber(plan.definitionTokens),
-      }),
-    })
+    return this.sessionMcpDeclarations
   }
 
   /** 4-H4: whether the allowlists in force leave `tool_search` reachable. */
@@ -10385,40 +10381,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (!parsed.success || parsed.data.query.trim() === '') {
       return toolFailure(MODEL_API_MODEL_TEXT.toolSearchBadQuery)
     }
-    const query = parsed.data.query
-    const result = this.mcpDeclarations.search(query)
-    if (result.kind === 'notDeferred') {
+    const answer = this.mcpDeclarations()?.search(parsed.data.query)
+    if (answer === undefined || answer.kind === 'notDeferred') {
       return toolFailure(MODEL_API_MODEL_TEXT.toolSearchNotDeferred)
     }
-    const { matches, loaded } = result
-    if (matches.length === 0) {
-      this.deps.log.info('tool_search matched no deferred MCP tool')
-      // R1: a search that finds nothing says which servers are not
-      // connected now, so a missing tool is never silently absent.
-      const away = unconnectedMcpServers(this.deps.mcpServers?.snapshot())
-      return {
-        output:
-          away === ''
-            ? fill(MODEL_API_MODEL_TEXT.toolSearchNone, { query })
-            : `${fill(MODEL_API_MODEL_TEXT.toolSearchNone, { query })} ${fill(MODEL_API_MODEL_TEXT.toolSearchServersAway, { servers: away })}`,
-        visibleOutput: UI_TEXT.toolSearchLoadedNone,
-      }
-    }
-    this.deps.log.info(
-      `tool_search matched ${String(matches.length)} MCP tool(s): ${String(loaded.length)} newly loaded, ${String(matches.length - loaded.length)} already loaded`,
-    )
-    const lines = matches.map(
-      (entry) =>
-        `- ${entry.functionName} (${entry.server}): ${entry.description} Arguments: ${entry.argumentNames.length === 0 ? '(none)' : entry.argumentNames.join(', ')}`,
-    )
-    const names = matches.map((entry) => entry.functionName).join(', ')
-    return {
-      output: `${fill(MODEL_API_MODEL_TEXT.toolSearchFound, { count: String(matches.length) })}\n${lines.join('\n')}`,
-      visibleOutput:
-        loaded.length === 0
-          ? fill(UI_TEXT.toolSearchAlreadyLoaded, { names })
-          : fill(UI_TEXT.toolSearchLoaded, { count: formatNumber(loaded.length), names }),
-    }
+    this.deps.log.info(answer.log)
+    return { output: answer.output, visibleOutput: answer.visibleOutput }
   }
 
   /**
@@ -14740,7 +14708,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const external = this.externalTool(call.name)
     if (
       external?.kind === 'mcp' &&
-      this.mcpDeclarations.isUndiscovered(call.name, this.isToolSearchAllowed())
+      this.mcpDeclarations()?.isUndiscovered(call.name, this.isToolSearchAllowed()) === true
     ) {
       // 4-H4: a deferred tool is callable only after tool_search loads
       // it; naming it is not loading it.
@@ -14765,7 +14733,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       // has since stopped or relisted is unavailable, not unknown.
       return {
         outcome: toolFailure(
-          this.mcpDeclarations.wasDeclared(call.name)
+          this.mcpDeclarations()?.wasDeclared(call.name) === true
             ? `${call.name} ${MCP_POOL_MODEL_TEXT.mcpToolUnavailable}`
             : `unknown tool ${call.name}`,
         ),

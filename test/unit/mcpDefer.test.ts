@@ -1,7 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
-  estimateDefinitionTokens,
   fitCatalogEntries,
   type McpCatalogEntry,
   planDeferral,
@@ -23,7 +22,11 @@ import {
   prefixComponentHashes,
   promptCacheKey,
 } from '../../src/core/backends/modelapi/promptCache'
-import { meterRequestPrefix } from '../../src/core/backends/modelapi/requestMeters'
+import {
+  estimateDefinitionTokens,
+  meterRequestPrefix,
+} from '../../src/core/backends/modelapi/requestMeters'
+import type { McpPoolSnapshot } from '../../src/core/backends/modelapi/mcp/pool'
 import { estimatePackTokens } from '../../src/core/backends/modelapi/toolResultBound'
 import { toolDefinitions } from '../../src/core/backends/modelapi/tools'
 import { MODEL_API_TOOLS } from '../../src/shared/constants'
@@ -256,18 +259,23 @@ describe('request meters (4-H4)', () => {
 // then what McpDeclarations declares. `live` plays the pool's
 // catalogue at each moment, built from the captured frames.
 describe('session declarations across turns (4-H4)', () => {
+  const ALL_CONNECTED: McpPoolSnapshot = { isStarted: true, fault: undefined, servers: [] }
   const core = toolDefinitions('linux', { hasShell: true, hasSkills: false })
   const request = (declarations: McpDeclarations) => [...core, ...declarations.definitions(true)]
 
   it('declares tool_search alone past the threshold, then appends what a search loads', () => {
     const catalog = twoServerCatalog()
     const declarations = new McpDeclarations(
-      () => catalog,
+      { catalog: () => catalog, snapshot: () => ALL_CONNECTED },
       () => 1,
     )
     const start = declarations.beginTurn()
     expect(start.changed).toBeUndefined()
     expect(start.deferral?.deferredCount).toBe(catalog.length)
+    // Said, never silent: one log line and one transcript notice.
+    expect(start.log).toHaveLength(1)
+    expect(start.log[0]).toMatch(/^MCP tools deferred: 30 of 30 tools load through tool_search/)
+    expect(start.notice).toMatch(/^30 of 30 MCP tools now load on demand through Find Tools/)
     const first = request(declarations)
     expect(first.map((tool) => tool.name)).toEqual([
       ...core.map((tool) => tool.name),
@@ -280,7 +288,10 @@ describe('session declarations across turns (4-H4)', () => {
     // A deferred tool the model never loaded is not callable.
     expect(declarations.isUndiscovered(sum.functionName, true)).toBe(true)
     const found = declarations.search('sum of two numbers')
-    expect(found).toEqual({ kind: 'searched', matches: [sum], loaded: [sum] })
+    expect(found).toMatchObject({ kind: 'searched', matches: [sum], loaded: [sum] })
+    expect(found.kind === 'searched' && found.visibleOutput).toBe(
+      `Loaded 1 MCP tool(s) for the next request: ${sum.functionName}`,
+    )
     expect(declarations.isUndiscovered(sum.functionName, true)).toBe(false)
     expect(declarations.isUndiscovered(echo.functionName, true)).toBe(true)
     // Without tool_search reachable, nothing is held back.
@@ -291,14 +302,20 @@ describe('session declarations across turns (4-H4)', () => {
     expect(JSON.stringify(second).startsWith(firstBytes.slice(0, -1))).toBe(true)
     expect(second.at(-1)).toEqual(sum.definition)
     // A repeat search loads nothing new and the bytes stay.
-    expect(declarations.search('get-sum')).toEqual({
+    expect(declarations.search('get-sum')).toMatchObject({
       kind: 'searched',
       matches: [sum],
       loaded: [],
+      visibleOutput: `Already loaded: ${sum.functionName}`,
     })
     expect(JSON.stringify(request(declarations))).toBe(JSON.stringify(second))
     // The next user turn keeps the discovery and says deferral only once.
-    expect(declarations.beginTurn()).toEqual({ changed: undefined, deferral: undefined })
+    expect(declarations.beginTurn()).toEqual({
+      changed: undefined,
+      deferral: undefined,
+      log: [],
+      notice: undefined,
+    })
     expect(JSON.stringify(request(declarations))).toBe(JSON.stringify(second))
   })
 
@@ -306,7 +323,7 @@ describe('session declarations across turns (4-H4)', () => {
     const listed = capturedTools('everything-tools-list.json', 'toolsList')
     let live = catalogOf([[EVERYTHING, listed]])
     const declarations = new McpDeclarations(
-      () => live,
+      { catalog: () => live, snapshot: () => ALL_CONNECTED },
       () => 0,
     )
     const cacheKey = () =>
@@ -320,7 +337,12 @@ describe('session declarations across turns (4-H4)', () => {
     const turnOneBytes = JSON.stringify(request(declarations))
     // A no-op refresh (the captured second tools/list) changes nothing.
     live = catalogOf([[EVERYTHING, capturedTools('everything-tools-list.json', 'toolsListAgain')]])
-    expect(declarations.beginTurn()).toEqual({ changed: undefined, deferral: undefined })
+    expect(declarations.beginTurn()).toEqual({
+      changed: undefined,
+      deferral: undefined,
+      log: [],
+      notice: undefined,
+    })
     expect(cacheKey()).toBe(turnOneKey)
     // The server drops a tool mid-turn: this turn's requests keep their bytes.
     live = catalogOf([[EVERYTHING, listed.filter((tool) => tool.name !== 'echo')]])
@@ -330,12 +352,14 @@ describe('session declarations across turns (4-H4)', () => {
     const echoName = catalogOf([[EVERYTHING, listed]]).find((entry) => entry.tool === 'echo')!
     expect(declarations.wasDeclared(echoName.functionName)).toBe(true)
     // The next user turn applies it, once, with counts only.
+    const tokens = estimateDefinitionTokens(live.map((entry) => entry.definition))
     expect(declarations.beginTurn()).toEqual({
-      changed: {
-        toolCount: 15,
-        definitionTokens: estimateDefinitionTokens(live.map((entry) => entry.definition)),
-      },
+      changed: { toolCount: 15, definitionTokens: tokens },
       deferral: undefined,
+      log: [
+        `MCP tool catalogue changed for the next request prefix: 15 tools, about ${String(tokens)} definition tokens`,
+      ],
+      notice: undefined,
     })
     expect(cacheKey()).not.toBe(turnOneKey)
     expect(JSON.stringify(request(declarations))).toBe(
@@ -348,7 +372,7 @@ describe('session declarations across turns (4-H4)', () => {
   it('declares the whole catalogue and loads nothing at threshold 0', () => {
     const catalog = twoServerCatalog()
     const declarations = new McpDeclarations(
-      () => catalog,
+      { catalog: () => catalog, snapshot: () => ALL_CONNECTED },
       () => 0,
     )
     expect(declarations.beginTurn().deferral).toBeUndefined()
@@ -357,27 +381,33 @@ describe('session declarations across turns (4-H4)', () => {
     expect(declarations.isUndiscovered(catalog[0]!.functionName, true)).toBe(false)
   })
 
-  it('names the servers that are not connected, leaving out the disabled one', () => {
-    expect(
-      unconnectedMcpServers({
-        isStarted: true,
-        fault: undefined,
-        servers: [
-          {
-            name: 'everything',
-            isRequired: false,
-            state: { status: 'connected', toolCount: 16, unofferedCount: 0 },
-          },
-          {
-            name: 'github',
-            isRequired: false,
-            state: { status: 'failed', reason: 'exited with code 1' },
-          },
-          { name: 'slack', isRequired: false, state: { status: 'starting' } },
-          { name: 'off', isRequired: false, state: { status: 'disabled' } },
-        ],
-      }),
-    ).toBe('github (failed), slack (starting)')
-    expect(unconnectedMcpServers(undefined)).toBe('')
+  it('names the servers not connected when a search finds nothing, leaving out a disabled one', () => {
+    const catalog = twoServerCatalog()
+    const snapshot: McpPoolSnapshot = {
+      isStarted: true,
+      fault: undefined,
+      servers: [
+        {
+          name: EVERYTHING,
+          isRequired: false,
+          state: { status: 'connected', toolCount: 16, unofferedCount: 0 },
+        },
+        { name: 'github', isRequired: false, state: { status: 'failed', reason: 'exited' } },
+        { name: 'slack', isRequired: false, state: { status: 'starting' } },
+        { name: 'off', isRequired: false, state: { status: 'disabled' } },
+      ],
+    }
+    expect(unconnectedMcpServers(snapshot)).toBe('github (failed), slack (starting)')
+    const declarations = new McpDeclarations(
+      { catalog: () => catalog, snapshot: () => snapshot },
+      () => 1,
+    )
+    declarations.beginTurn()
+    const answer = declarations.search('pull request review')
+    expect(answer).toMatchObject({ kind: 'searched', matches: [], loaded: [] })
+    expect(answer.kind === 'searched' && answer.output).toBe(
+      'No deferred MCP tool matches "pull request review". Search again with other words from a tool name, description or argument name. These MCP servers are not connected now, so their tools are not in the catalogue: github (failed), slack (starting).',
+    )
+    expect(unconnectedMcpServers(ALL_CONNECTED)).toBe('')
   })
 })
