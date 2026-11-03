@@ -9,6 +9,7 @@
 
 import type { TeamAgentPays, TeamAgentRef } from '../../shared/team'
 import { teamExternalAgentSettingSchema } from '../../shared/externalAgentSetting'
+import { CLAUDE_AGENT_LABEL } from '../../shared/constants'
 
 /** An external agent preset (D75's list, D250's offers). */
 export type ExternalPresetId = 'claude' | 'codex' | 'gemini' | 'copilot' | 'own'
@@ -36,7 +37,7 @@ export const EXTERNAL_PRESET_LAUNCH: Readonly<
   claude: {
     command: 'claude-agent-acp',
     defaultArgs: ['--hide-claude-auth'],
-    label: 'Claude Agent',
+    label: CLAUDE_AGENT_LABEL,
     signInCommand: 'claude auth login --console',
   },
   codex: { command: 'codex-acp', defaultArgs: [], label: 'Codex', signInCommand: 'codex' },

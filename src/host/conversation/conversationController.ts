@@ -3,7 +3,6 @@ import {
   estimateDiagnostic,
   estimateFailureText,
 } from '../../shared/estimateDiagnostic'
-import { EXTERNAL_PRESET_LAUNCH } from '../../core/team/externalAgents'
 import { payerCredentialSchema } from '../../core/backends/modelapi/billingRoute'
 import type { UsageRecording } from '../../core/usage/recording'
 import type { ProviderUsageRow, AccountFacts, SubscriptionUsage } from '../../shared/usage'
@@ -209,6 +208,7 @@ import {
   USER_SHELL_SANDBOX_FAILURE_MARKER,
   TEAM_MCP_SERVER_NAME,
   RETRYABLE_TURNS_KEPT,
+  CLAUDE_AGENT_LABEL,
 } from '../../shared/constants'
 // M96 lane T (LANE-T-SEAM, lane 0): from shared constants at integration.
 
@@ -5331,7 +5331,7 @@ export class ConversationController implements DeferredSend {
       this.notice(
         'info',
         fill(
-          host.info.serverName === EXTERNAL_PRESET_LAUNCH.claude.label
+          host.info.serverName === CLAUDE_AGENT_LABEL
             ? UI_TEXT.teamExternalLeaderNoticeClaude
             : UI_TEXT.teamExternalLeaderNotice,
           { agent: host.info.serverName },

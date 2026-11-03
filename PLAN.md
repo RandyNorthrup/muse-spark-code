@@ -9802,6 +9802,39 @@ unchanged. Fixture:
 `test/fixtures/musecode-quota/observed-acp-error.json`. Full record:
 `docs/certification/rlf-quota.md`.
 
+### D262 — No Claude account is put at risk: Claude's preset bills a key or a Console account only (owner, 2026-11-02; lane RLF-CLAUDESAFE)
+
+The owner, verbatim: "make sure ... we are including the claude cli in such
+a way that will not get a user account banned". The design stays: Claude's
+preset runs `claude-agent-acp --hide-claude-auth`, bills the API only, and we
+never read `~/.claude` credentials, offer a plan sign-in or store a token.
+The rules in force: (1) the Claude plan routes (`CLAUDE_CODE_OAUTH_TOKEN`,
+its `_FILE_DESCRIPTOR` form, `CLAUDE_CODE_OAUTH_REFRESH_TOKEN`,
+`CLAUDE_CODE_OAUTH_SCOPES`) never reach any child we start, even where a
+setting or a profile lists them, and a profile that lists one is refused in
+words; (2)
+Claude's adapter found on the PATH starts no session unless it reports
+0.74.0 or later (the first release that refuses a plan; upstream `da9f7e5`),
+and the install pin is the newest release (0.100.0 on 2026-11-02, D260); (3)
+the adapter's refusal is read and said as "an Anthropic API key or an
+Anthropic Console account", never a plan login, in all 15 languages; (4) with
+the person's own `ANTHROPIC_API_KEY` in the editor's environment, Claude's
+preset gets that key and its own empty `CLAUDE_CONFIG_DIR` under our storage,
+so no plan login can be reached (the person's user-level Claude Code settings
+and skills are not in that worker; the project's are); (5) the preset is
+named "Claude Agent" and who pays is said true per agent; (6) a custom entry
+that starts Claude without `--hide-claude-auth` is warned about at its pick
+with Anthropic's sentence and link, detected by command and arguments only;
+(7) moving to another Anthropic API account on a limit waits for the
+person's choice with the AUP quoted (`confirm`), and plan pooling stays
+`notOffered`. The tension between the legal page ("may not remove, disable,
+or restrict any authentication method") and the Agent SDK page (no
+"claude.ai login" for third parties) is recorded, not settled; the lead takes
+it to Anthropic. Rules, quotes, proof and the upstream issue:
+`docs/research/claude-account-safety-2026-11-02.md`; the lane record:
+`docs/certification/rlf-claudesafe.md`. Re-read by 2027-01-31 (the account
+policy's 90-day recheck).
+
 ## 3. Open questions (need the owner)
 
 <a id="q-cc-licence"></a>

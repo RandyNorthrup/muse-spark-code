@@ -3314,7 +3314,7 @@ Runtime: `valid:host`.
 
 ### museSpark.teamExternalAgents
 
-External ACP agents of your own, offered beside the built-in presets (Claude Code, Codex, Gemini CLI, Copilot and Muse Spark Code) as team agents and as the orchestrator. Each entry names the agent (name) and the command that starts it speaking ACP (command, with optional args); model names the model it should run where you choose one, and pays says who pays for it: key, subscription or local. An agent runs as itself, with its own sign-in: this app never signs in for it and never reads its credentials. Only you can add these, never the model, and a repository’s settings cannot.
+External ACP agents of your own, offered beside the built-in presets (Claude Agent, Codex, Gemini CLI, Copilot and Muse Spark Code) as team agents and as the orchestrator. Each entry names the agent (name) and the command that starts it speaking ACP (command, with optional args); model names the model it should run where you choose one, and pays says who pays for it: key, subscription or local. An agent runs as itself, with its own sign-in: this app never signs in for it and never reads its credentials. Only you can add these, never the model, and a repository’s settings cannot.
 
 Type: `"array"`. Default: `[]`. Scope: `machine`.
 
