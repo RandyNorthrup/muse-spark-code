@@ -9,14 +9,12 @@
 import { copyFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
-import { stderrLogger } from '../../src/runtime/stderrLog'
-import { RuntimeSettingsStore } from '../../src/runtime/settingsStore'
 import { ACP_AGENT_NAME } from '../../src/shared/constants'
 import { panelInitializeResultSchema } from '../../src/shared/hostApi/panel'
 import { parseMhpResult } from '../../src/shared/hostApi/protocol'
 import path from 'node:path'
 import { panelEditor } from './helpers/panelEditor'
-import { createPanelRun } from './helpers/panelRun'
+import { createPanelRun, panelSettingsStore } from './helpers/panelRun'
 import { assertCurrentProductionBuild } from './productionBuild'
 
 const ROOT = process.cwd()
@@ -36,12 +34,7 @@ afterAll(async () => {
 
 /** The person's settings, written where the runtime reads them. */
 async function writeSettings(values: Readonly<Record<string, string>>): Promise<void> {
-  const store = new RuntimeSettingsStore({
-    dataFolder: run.dataFolder,
-    workspaceRoot: run.workspace,
-    log: stderrLogger(() => undefined, 'warn'),
-    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-  })
+  const store = panelSettingsStore(run)
   for (const [key, value] of Object.entries(values))
     await store.updateSetting(`museSpark.${key}`, value, 'user')
 }

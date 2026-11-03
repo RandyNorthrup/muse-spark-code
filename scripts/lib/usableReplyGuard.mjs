@@ -47,6 +47,10 @@ const ALLOW_LIST = new Map([
     'src/core/backends/modelapi/ModelApiHost.ts:compactedThrough',
     'the last completed compaction row bounds compaction in transcript order',
   ],
+  [
+    'src/core/backends/modelapi/ModelApiHost.ts:adoptLastCompactionCard',
+    "an item's own status: an unpin updates the transcript's last finished compaction card",
+  ],
   // The judge stream's wire response status proves a response exists; an
   // incomplete stream throws instead of judging, and the collected text
   // returns only through usableReply (src/host/judge/museCodeSameJudge.ts).
@@ -215,7 +219,7 @@ const ALLOW_LIST = new Map([
     'a deleted session disposes its record once deletion completes',
   ],
   [
-    'src/core/backends/musecode/MuseCodeHost.ts:onTerminal',
+    'src/core/backends/musecode/approvalModesEntry.ts:onTerminal',
     'the deletion handshake validates the completed-or-failed terminal event',
   ],
   // Transcript export suffixes an item with its own status, never a reply.

@@ -17,8 +17,6 @@ import { createRuntimeBackend } from '../../src/runtime/backends'
 import type { ServeOptions } from '../../src/runtime/cliArgs'
 import { createRuntimeCheckpoints } from '../../src/runtime/features/checkpoints'
 import { conversationCheckpoints } from '../../src/runtime/panel/runtimeFeatures'
-import { RuntimeSettingsStore } from '../../src/runtime/settingsStore'
-import { stderrLogger } from '../../src/runtime/stderrLog'
 import { StoreUnavailableError } from '../../src/runtime/keyStore'
 import { canonicalPath } from '../../src/host/canonicalPath'
 import * as checkpointStoreEntry from '../../src/host/checkpoints/checkpointStoreEntry'
@@ -31,7 +29,7 @@ import { resolveWorkingGit } from './helpers/fixtureGit'
 import { headlessToolIo } from './helpers/headlessToolIo'
 import { writeAsOwner } from './helpers/ownerWrite'
 import { panelEditor } from './helpers/panelEditor'
-import { createPanelRun } from './helpers/panelRun'
+import { createPanelRun, panelSettingsStore } from './helpers/panelRun'
 import { removeFolder } from './helpers/temporaryFolders'
 import { assertCurrentProductionBuild } from './productionBuild'
 
@@ -280,7 +278,6 @@ describe('the runtime conversation checkpoints', () => {
 
 describe('the packed agent in panel --stdio', () => {
   const run = createPanelRun('muse-checkpoints-')
-  const log = stderrLogger(() => undefined, 'warn')
 
   beforeAll(() => {
     assertCurrentProductionBuild(inject('productionBuildGeneration'), ROOT)
@@ -293,12 +290,7 @@ describe('the packed agent in panel --stdio', () => {
 
   /** The availability the chat's page is told, in a runtime whose backend is not ready. */
   async function availabilityShown(isTrusted: boolean, isSettingOn: boolean): Promise<unknown> {
-    const store = new RuntimeSettingsStore({
-      dataFolder: run.dataFolder,
-      workspaceRoot: run.workspace,
-      log,
-      sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-    })
+    const store = panelSettingsStore(run)
     await store.updateSetting('museSpark.backend', 'museCode', 'user')
     await store.updateSetting(
       'museSpark.museBinaryPath',
