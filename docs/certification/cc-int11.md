@@ -275,3 +275,28 @@ the shards like any suite. Its run on this tree: 102 passed, 2 failed, both from
   carry it"); carried in `acpBundles.mjs` → exit 0.
 - Merge 8, real-parts rig: `ownerBirth`/`probeOwner` still passed → unit typecheck exit 1 (TS2344); removed → exit 0.
   `teamHostRealParts`, `teamLandingKilled`, `teamLandingPause` 14 passed, 1 skipped (exit 0).
+
+### Batch A gates on the merged head (after merge 9)
+
+| Gate                          | Exit | Note                                                                                                                                                                                                                                                                                                                                |
+| ----------------------------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run build`               | 1    | D6: `dist/runtimeMaker.js` 129,095 B of 129,024 (126 KiB; rlf-cifixc's maker storage link walk and LAN policy, merge 7) and `dist/runtimePanelSession.js` 123.0 of 120 KiB (merge 3's panel media/schedules/lease wiring beside int's companion). Not fixed: the batch's budget ran out. Never raise them: move words or lazy-load. |
+| `npm run typecheck`           | 1    | `test/integration/m104Conformance.test.ts:163` (cc-m104gw) builds `VerifyEditorDeps` without a field int's deferred verify editor requires (TS2345). Every other project 0.                                                                                                                                                         |
+| `npm run lint`                | 0    |                                                                                                                                                                                                                                                                                                                                     |
+| `npm run check:mhp`           | 0    | MHP 1.6.0 (merge 3).                                                                                                                                                                                                                                                                                                                |
+| `npm run check:plan`          | 0    |                                                                                                                                                                                                                                                                                                                                     |
+| `npm run check:reference`     | 0    |                                                                                                                                                                                                                                                                                                                                     |
+| `node scripts/check-l10n.mjs` | 0    |                                                                                                                                                                                                                                                                                                                                     |
+
+`judgeP2Delivery` on this head: 102/104, the two failures are the build's budget state above.
+
+### Open for the next batch (in this order)
+
+1. The two D6 budgets above, then `npm run build` exit 0 (which also makes `judgeP2Delivery` 104/104).
+2. `m104Conformance.test.ts:163` against int's `VerifyEditorDeps`, then `npm run typecheck` exit 0.
+3. Merge 3's pending proof: the shim suites (Emacs, Neovim, Zed, Qt Creator, Sublime) pin `supervise panel
+--companion` as refused; int now has `panel --companion`, so those cases must flip to the live page and be run.
+4. Not run here: the whole unit suite (the lead's hosted CI), vault and broker suites, `teamModelsFirstPaint`,
+   m109h-reviewed's delegated broker suite and Linux `/proc` case, `npm run test:integration`.
+5. ACP `canRunKind` (merge 2): engine-only stays; a lane after round 11 runs Muse Code and external workers in ACP
+   sessions (D250), `exec --team` stays engine-only (M96b).
