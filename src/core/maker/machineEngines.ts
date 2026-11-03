@@ -6,7 +6,12 @@
 import { Buffer } from 'node:buffer'
 import type { DeviceLog } from './deviceLog'
 import { claimHardwareLease, type LeaseDependencies } from './lease'
-import { MachineError, type MachineRecord, type MakerLanPolicy } from './registry'
+import {
+  MachineError,
+  type MachineRecord,
+  type MachineRegistry,
+  type MakerLanPolicy,
+} from './registry'
 import { MachineHttp } from './machines/http'
 import type { Machine, MachineDeps, MachineSendResult } from './machines/machine'
 import { createMoonrakerMachine } from './machines/moonraker'
@@ -26,7 +31,6 @@ import {
 import {
   makerHostMessageSchema,
   type MakerMachineSummary,
-  type MakerNotice,
   type MakerSurfaceMessage,
 } from '../../shared/makerProtocol'
 import { fill } from '../../shared/l10n/text'
@@ -72,9 +76,9 @@ export function summarizeMachines(
 export interface MachineEngineContext {
   readonly host: MachineDeps['host']
   readonly log: DeviceLog
-  readonly isLeaseHeld: (registrationId: string) => boolean
+  readonly leased: Set<string>
   readonly secrets: MakerSecrets
-  readonly registryGet: (id: string) => Promise<MachineRecord>
+  readonly registry: Pick<MachineRegistry, 'get'>
   readonly lan: MakerLanPolicy
   readonly refresh: () => Promise<void>
   readonly dispatched: Set<string>
@@ -93,7 +97,7 @@ export async function machineEngineFor(
   const engineDeps: MachineDeps = {
     host: ctx.host,
     log: ctx.log,
-    isLeaseHeld: () => ctx.isLeaseHeld(record.registrationId),
+    isLeaseHeld: () => ctx.leased.has(record.registrationId),
     policy: {
       gcode: {
         maxBytes: RUNTIME_MAKER_MAX_BYTES,
@@ -110,7 +114,7 @@ export async function machineEngineFor(
   const secrets = {
     ...ctx.secrets,
     get: async (name: string) => {
-      const current = await ctx.registryGet(id)
+      const current = await ctx.registry.get(id)
       if (current.registrationId !== record.registrationId)
         throw new MachineError('machineTargetChanged')
       return await ctx.secrets.get(name)
@@ -124,7 +128,7 @@ export async function machineEngineFor(
     },
     beforeGuardedDispatch: async () => {
       await ctx.refresh()
-      const current = await ctx.registryGet(id)
+      const current = await ctx.registry.get(id)
       if (current.registrationId !== record.registrationId)
         throw new MachineError('machineTargetChanged')
     },
@@ -159,8 +163,7 @@ export interface LeaseGuardedSend {
   readonly engine: Machine
   readonly payload: string
   readonly signal: AbortSignal
-  readonly cancelApprovals: () => void
-  readonly notify: (notice: MakerNotice) => void | Promise<void>
+  readonly host: MachineDeps['host'] & { cancelApprovals(): void }
   readonly leased: Set<string>
   readonly dispatched: Set<string>
 }
@@ -182,7 +185,7 @@ export async function leaseGuardedSend(
   args.dispatched.delete(generation)
   args.leased.add(generation)
   const cancel = () => {
-    args.cancelApprovals()
+    args.host.cancelApprovals()
     // Revoke the final write guard. Cancelling an unsent permission is not a machine Stop.
     args.leased.delete(generation)
     if (args.dispatched.has(generation))
@@ -190,7 +193,7 @@ export async function leaseGuardedSend(
         const [attempt] = await Promise.allSettled([args.engine.stop()])
         if (attempt.status === 'rejected') {
           // The notice itself never rejects: the host swallows delivery failures.
-          void args.notify({
+          void args.host.notify({
             type: 'makerNotice',
             level: 'error',
             message: fill(UI_TEXT.makerStopFailed, { machine: args.engine.record.name }),

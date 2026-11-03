@@ -138,9 +138,9 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
     const engine = await machineEngineFor(record, id, {
       host,
       log: deviceLog(),
-      isLeaseHeld: (registrationId) => leased.has(registrationId),
+      leased,
       secrets: host.secrets,
-      registryGet: (machineId) => registry.get(machineId),
+      registry,
       lan: deps.lan ?? runtimeMakerLan,
       refresh: () => host.refresh(),
       dispatched,
@@ -185,12 +185,7 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
       engine,
       payload,
       signal,
-      cancelApprovals: () => {
-        host.cancelApprovals()
-      },
-      notify: (notice) => {
-        host.notify(notice)
-      },
+      host,
       leased,
       dispatched,
     })
