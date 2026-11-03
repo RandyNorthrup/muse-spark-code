@@ -1,4 +1,4 @@
-# RLF-SECDEFAULTS — Sensitive reads ask; a memory after untrusted reads asks in Auto (D261, 2026-11-02, macmini)
+# RLF-SECDEFAULTS — Sensitive reads ask; a memory after untrusted reads asks in Auto (D263, 2026-11-02, macmini)
 
 Recovery lane, brief D of the 2026-11-02 agent-security research
 (SEC-DEFAULT-DENY). Branch `rec/rlf-secdefaults` from main 0.19.0 at

@@ -1529,13 +1529,13 @@ export const SETTING_DEFAULTS = {
   modelApiPermissionProfiles: {} as Readonly<Record<string, unknown>>,
   modelApiPermissionProfile: '',
   modelApiRepositoryRules: {} as unknown,
-  // SEC-DEFAULT-DENY (D261): workspace-relative globs for files read_file
+  // SEC-DEFAULT-DENY (D263): workspace-relative globs for files read_file
   // asks before sending to the model (and search leaves out). Unset (null)
   // uses the built-in sensitive set beside PROTECTED_FILE_NAMES; a list
   // replaces it, and an empty list turns the ask off. Machine scoped, like
   // the profiles: a repository must not widen what leaves the machine.
   modelApiSensitiveReads: null as readonly string[] | null,
-  // SEC-DEFAULT-DENY (D261): in Auto, a memory write in a turn that read
+  // SEC-DEFAULT-DENY (D263): in Auto, a memory write in a turn that read
   // the web or an MCP result asks once, showing the exact text. On until
   // turned off; machine scoped with the other permission settings.
   modelApiMemoryAfterUntrustedAsk: true,
@@ -1812,7 +1812,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiCommandRules',
   'modelApiPermissionProfiles',
   'modelApiPermissionProfile',
-  // D261: what asks before it reaches the model is the user's choice,
+  // D263: what asks before it reaches the model is the user's choice,
   // never a repository's, like the profiles above.
   'modelApiSensitiveReads',
   'modelApiMemoryAfterUntrustedAsk',
@@ -6035,7 +6035,7 @@ export const PROTECTED_FILE_NAMES: ReadonlySet<string> = new Set([
 // A VS Code workspace file carries tasks and folder settings by suffix,
 // under any name (RSCH-SECURITY, 2026-11-02).
 export const PROTECTED_FILE_SUFFIXES: readonly string[] = ['.code-workspace']
-// Sensitive reads (SEC-DEFAULT-DENY, D261): the small built-in set the
+// Sensitive reads (SEC-DEFAULT-DENY, D263): the small built-in set the
 // Model API file tools ask before reading to the model, judged on the
 // canonical path in any folder, case ignored. `museSpark.modelApiSensitiveReads`
 // replaces it when set, and an empty list empties it; unset (null) is this
@@ -9843,7 +9843,7 @@ export const MODEL_API_MODEL_TEXT = {
   policyChangeKeptWrite: '; the change it had already written stays in place',
   pathDeniedByPolicy:
     'is refused: the user’s permission settings deny the file tools this path; do not try to read it another way',
-  // D261: after the file's name, where no card can be shown (a hook
+  // D263: after the file's name, where no card can be shown (a hook
   // handler's own agent turn): the sensitive file was not read.
   sensitiveReadRefused: 'is a sensitive file and was not read',
   // M45 (PLAN.md D38): the goal tools' refusals.

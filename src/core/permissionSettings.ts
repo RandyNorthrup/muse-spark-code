@@ -70,12 +70,12 @@ export interface PermissionSettings {
   /** `museSpark.modelApiRepositoryRules` (any scope; it can only tighten). */
   readonly repositoryRules: unknown
   /**
-  `museSpark.modelApiSensitiveReads` (machine, D261), kept whole: null
+  `museSpark.modelApiSensitiveReads` (machine, D263), kept whole: null
   (unset) is the built-in sensitive set, an empty list empties it, and a
   list of workspace-relative globs replaces it. Anything else is said
   once and the built-in set applies (permissionPolicy.ts).
   */
   readonly sensitiveReads: unknown
-  /** `museSpark.modelApiMemoryAfterUntrustedAsk` (machine, D261). */
+  /** `museSpark.modelApiMemoryAfterUntrustedAsk` (machine, D263). */
   readonly memoryAfterUntrustedAsk: boolean
 }

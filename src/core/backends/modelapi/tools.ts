@@ -478,7 +478,7 @@ export interface ToolContext {
   */
   readonly files?: FileRules
   /**
-  Sensitive files are left out of `search` (D261): set by the host in
+  Sensitive files are left out of `search` (D263): set by the host in
   every mode but Bypass, which is unchanged. `read_file` of one asks at
   dispatch instead; a listing only ever names files, so it keeps them.
   */

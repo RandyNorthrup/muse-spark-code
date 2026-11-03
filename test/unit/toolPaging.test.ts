@@ -129,7 +129,7 @@ describe('list_files end to end', () => {
   })
 })
 
-describe('sensitive files in search (D261)', () => {
+describe('sensitive files in search (D263)', () => {
   // Real files through the real policy and listing: a search reads
   // contents, so sensitive files stay out (and are counted for its
   // note), while an emptied set searches everything again.

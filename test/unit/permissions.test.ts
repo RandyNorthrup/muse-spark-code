@@ -342,9 +342,9 @@ describe('isProtectedPath: other coding agents’ files', () => {
   })
 })
 
-// SEC-DEFAULT-DENY (D261): the small sensitive set the file tools ask
+// SEC-DEFAULT-DENY (D263): the small sensitive set the file tools ask
 // before reading to the model, judged on the canonical path.
-describe('isSensitiveReadPath (D261)', () => {
+describe('isSensitiveReadPath (D263)', () => {
   it('names the sensitive set at any depth and in any case', () => {
     for (const path of [
       '.env',
@@ -408,7 +408,7 @@ describe('isSensitiveReadPath (D261)', () => {
   })
 })
 
-describe('PermissionEngine: sensitive reads and untrusted memory (D261)', () => {
+describe('PermissionEngine: sensitive reads and untrusted memory (D263)', () => {
   it('asks in Auto, Manual and Plan, and runs in Bypass', () => {
     for (const mode of ['onRequest', 'promptUnmatched', 'denyUnmatched'] as const) {
       expect(new PermissionEngine(mode).judge(sensitive('.env')), mode).toMatchObject({

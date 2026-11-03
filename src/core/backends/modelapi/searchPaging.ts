@@ -122,7 +122,7 @@ export async function listMatching(
   const listed = files.filter(
     (file) => (matches === undefined || matches(file)) && context.files?.isDenied([file]) !== true,
   )
-  // A search reads contents, so sensitive files stay out of it (D261)
+  // A search reads contents, so sensitive files stay out of it (D263)
   // and are counted for its note; a listing only names files and keeps
   // them. The listed names are workspace-relative as the host spells
   // them, not canonical: a link into the set under another name is the
@@ -190,7 +190,7 @@ export async function search(args: SearchCallArgs, context: ToolContext): Promis
     }
   }
   const notes = [
-    // Said, never silent (D261): the sensitive files left out can still
+    // Said, never silent (D263): the sensitive files left out can still
     // be read one at a time, which asks the user.
     ...(sensitiveExcluded > 0
       ? [

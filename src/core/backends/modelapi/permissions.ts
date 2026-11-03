@@ -40,12 +40,12 @@
 // a protected one, although the project's notes sit under `.agents`: the
 // tools write only Markdown notes under a memory root, so Manual asks, Auto
 // and Edit automatically write, and Plan refuses, as for any edit. One
-// exception (SEC-DEFAULT-DENY, D261): in Auto, a memory write in a turn
+// exception (SEC-DEFAULT-DENY, D263): in Auto, a memory write in a turn
 // that read the web or an MCP result (`isUntrustedMemory`, set by the
 // host while its switch is on) asks, showing the exact text; no session
 // rule or reviewer answers it.
 //
-// A sensitive read (D261: `isSensitiveRead`, the small set in constants
+// A sensitive read (D263: `isSensitiveRead`, the small set in constants
 // beside `PROTECTED_FILE_NAMES`, or the person's own globs) asks before
 // its contents go to the model: in Manual and Auto like an edit that
 // prompts, in Plan as an ask instead of a silent read, and in Bypass it
@@ -250,14 +250,14 @@ export interface PermissionQuery {
   /** An edit whose target is a protected path (D24). */
   readonly isProtected?: boolean
   /**
-  A read of a sensitive file (D261), judged by the host on the canonical
+  A read of a sensitive file (D263), judged by the host on the canonical
   path under the policy in force; `command` carries that file's name, as
   its session rule and its card say.
   */
   readonly isSensitiveRead?: boolean
   /**
   A memory write in a turn that read the web or an MCP result, while the
-  person's switch is on (D261); only Auto changes for it.
+  person's switch is on (D263); only Auto changes for it.
   */
   readonly isUntrustedMemory?: boolean
   /** An MCP tool its server marks read-only (M50): the server's claim alone. */
@@ -285,9 +285,9 @@ export type SettledBy =
   /** M92e (PLAN.md D71): the command holds a detected secret, so it always asks. */
   | 'secretDetected'
   | 'hardwareDetected'
-  /** D261: the file is sensitive, so reading it to the model asks first. */
+  /** D263: the file is sensitive, so reading it to the model asks first. */
   | 'sensitiveRead'
-  /** D261: a memory write after a web or MCP result in its turn, in Auto. */
+  /** D263: a memory write after a web or MCP result in its turn, in Auto. */
   | 'untrustedMemory'
 
 /** The verdict on a call, and what the card and the Auto reviewer may do about an ask. */
@@ -462,7 +462,7 @@ export class PermissionEngine {
   }
 
   /**
-  A card's "allow once" decision (D261): Auto asks once per file per
+  A card's "allow once" decision (D263): Auto asks once per file per
   session for a sensitive read, so the approval answers that file's later
   reads too. Every other mode and call keeps "once" to this call.
   */
@@ -510,7 +510,7 @@ export class PermissionEngine {
         'hardwareDetected',
       )
     }
-    // D261: a sensitive read asks in every mode but Bypass (Plan asks
+    // D263: a sensitive read asks in every mode but Bypass (Plan asks
     // rather than reading silently), keyed on the file in `command`. A
     // session grant for that exact file answers it; the tool's, never.
     if (query.isSensitiveRead === true && query.toolClass === 'read') {
@@ -524,7 +524,7 @@ export class PermissionEngine {
             hasSessionChoice: query.command !== undefined,
           }
     }
-    // D261: in Auto a memory write after untrusted results asks; every
+    // D263: in Auto a memory write after untrusted results asks; every
     // other mode keeps the edit's own word below.
     if (
       query.isUntrustedMemory === true &&

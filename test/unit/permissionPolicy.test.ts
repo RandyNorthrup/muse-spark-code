@@ -196,7 +196,7 @@ describe('compilePolicy: what a repository adds can only tighten (M78)', () => {
   })
 })
 
-describe('compilePolicy: sensitive reads and memory after untrusted reads (D261)', () => {
+describe('compilePolicy: sensitive reads and memory after untrusted reads (D263)', () => {
   it('unset uses the built-in set, judged on the names given', () => {
     const policy = compilePolicy(settings({}), 'linux')
     expect(policy.files.sensitiveGlobs).toBeNull()
