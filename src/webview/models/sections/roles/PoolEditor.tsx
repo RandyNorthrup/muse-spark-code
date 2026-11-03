@@ -122,7 +122,9 @@ function OrderButton({
     <button
       type="button"
       className="team-editor-order"
-      aria-label={name}
+      // The visible "position · label" is the name a voice user says, so
+      // the accessible name carries it whole (WCAG 2.5.3 label-in-name).
+      aria-label={name === undefined ? undefined : `${formatNumber(index + 1)} · ${name}`}
       onKeyDown={(event) => {
         const action = webviewKey('team.pool', event)
         if (action === undefined) return
