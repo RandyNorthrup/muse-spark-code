@@ -119,6 +119,19 @@ async function takeTurn(run: Run) {
   return { session, events, done }
 }
 
+/** What `ask` answers when it is called from the turn's own listener, the moment the turn ends. */
+async function askedAsTheTurnFails<answer>(
+  session: Awaited<ReturnType<typeof start>>,
+  ask: () => Promise<answer>,
+): Promise<answer> {
+  const answered = Promise.withResolvers<answer>()
+  session.onEvent((event) => {
+    if (event.type === 'turnCompleted') answered.resolve(ask())
+  })
+  await session.sendTurn([{ type: 'text', text: 'go' }])
+  return await answered.promise
+}
+
 async function teamEndpoint() {
   if (state.binding === undefined) throw new Error('binding not open')
   const endpoint = await state.binding.teamMcp.endpointForConversation()
@@ -349,6 +362,38 @@ describe('an external ACP agent as orchestrator', () => {
       expect(texts).toContain('earlier answer')
       const rows = await run.record()
       expect(rows.some((row) => row['kind'] === 'session/load')).toBe(true)
+      session.dispose()
+    } finally {
+      await run.host.close()
+    }
+  })
+
+  // Windows reports a child's stdout ending about 2 ms before its exit, and the failed turn comes
+  // from the first of those. A resume right then used to answer from what this host held, without
+  // the agent's history (run 41723994114, by chance; the turn's own listener makes it certain).
+  it('starts the agent again for a new session asked the moment the failed turn is told', async () => {
+    const run = makeHost('die', true)
+    try {
+      const session = await start(run, 'fixture')
+      const next = await askedAsTheTurnFails(session, () => start(run, 'fixture'))
+      expect(next.sessionId).toBe('fixture-session')
+      next.dispose()
+    } finally {
+      await run.host.close()
+    }
+  })
+
+  it('resumes through session/load when asked the moment the failed turn is told', async () => {
+    const run = makeHost('die', true)
+    try {
+      const session = await start(run, 'fixture')
+      const { history } = await askedAsTheTurnFails(session, () =>
+        run.host.resumeSession(session.sessionId, 'm1'),
+      )
+      if (history.mode !== 'inline') throw new Error('the history is read inline')
+      const texts = history.items.map((item) => item.text)
+      expect(texts).toContain('earlier ask')
+      expect(texts).toContain('earlier answer')
       session.dispose()
     } finally {
       await run.host.close()
