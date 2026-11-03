@@ -31,14 +31,14 @@ import io.github.randynorthrup.musespark.PanelSurface
 import io.github.randynorthrup.musespark.RequestCancellation
 import io.github.randynorthrup.musespark.RuntimeProcess
 import io.github.randynorthrup.musespark.json
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import java.awt.GraphicsEnvironment
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 
 data class ConformanceLeg(
   val backend: String,
@@ -77,8 +77,11 @@ data class ConformanceLayout(
         listOfNotNull(
           runCatching { Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize() }.getOrNull(),
           runCatching {
-            Path.of(ConformanceLayout::class.java.protectionDomain.codeSource.location.toURI())
-              .toAbsolutePath()
+            Path
+              .of(
+                ConformanceLayout::class.java.protectionDomain.codeSource.location
+                  .toURI(),
+              ).toAbsolutePath()
               .normalize()
           }.getOrNull(),
         )
@@ -303,7 +306,8 @@ private fun diagnosticsLeg(context: LegContext): Map<String, Any?> {
   // through the editor's own channel. The settled read-back below observes
   // it through production code only.
   val info =
-    HighlightInfo.newHighlightInfo(HighlightInfoType.ERROR)
+    HighlightInfo
+      .newHighlightInfo(HighlightInfoType.ERROR)
       .range(0, document.textLength)
       .descriptionAndTooltip("fixture error")
       .create()
@@ -326,7 +330,9 @@ private fun diagnosticsLeg(context: LegContext): Map<String, Any?> {
     )
   require(settled.isJsonObject) { "MHP_DIAGNOSTICS_UNAVAILABLE" }
   val errors =
-    settled.asJsonObject.getAsJsonArray("diagnostics").map { it.asJsonObject }
+    settled.asJsonObject
+      .getAsJsonArray("diagnostics")
+      .map { it.asJsonObject }
       .filter { it["severity"].asString == "error" }
       .map { it["message"].asString }
   return mapOf("verifyErrors" to errors)
@@ -363,6 +369,15 @@ private fun checkpointLeg(
   }
 }
 
+// Replaces a line's first two characters ("l1" in "l1\nl2\nl3\n").
+private fun lineStartEdit(
+  line: Int,
+  newText: String,
+) = json(
+  "range" to json("start" to json("line" to line, "character" to 0), "end" to json("line" to line, "character" to 2)),
+  "newText" to newText,
+)
+
 private fun hunksLeg(context: LegContext): Map<String, Any?> {
   TrustedProjects.setProjectTrusted(context.project, true)
   // A real file on disk: the node half of this leg reverts through the
@@ -394,25 +409,7 @@ private fun hunksLeg(context: LegContext): Map<String, Any?> {
       "uri" to uri,
       "expectedVersion" to document.modificationStamp,
       "undoLabel" to "Conformance forward edit",
-      "edits" to
-        listOf(
-          json(
-            "range" to
-              json(
-                "start" to json("line" to 0, "character" to 0),
-                "end" to json("line" to 0, "character" to 2),
-              ),
-            "newText" to "l1c",
-          ),
-          json(
-            "range" to
-              json(
-                "start" to json("line" to 1, "character" to 0),
-                "end" to json("line" to 1, "character" to 2),
-              ),
-            "newText" to "l2c",
-          ),
-        ),
+      "edits" to listOf(lineStartEdit(0, "l1c"), lineStartEdit(1, "l2c")),
     ),
     RequestCancellation(),
   )
