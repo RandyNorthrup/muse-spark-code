@@ -9796,49 +9796,69 @@ unchanged. Fixture:
 `test/fixtures/musecode-quota/observed-acp-error.json`. Full record:
 `docs/certification/rlf-quota.md`.
 
-### D261 — A refused Model API turn continues on the person's fallback model, when they named one (owner, 2026-11-02; closes Q-REFUSAL-FALLBACK)
+### D261 — A refused team task moves to the next agent in its role (owner, 2026-11-02; closes Q-REFUSAL-FALLBACK)
 
 Q-REFUSAL-FALLBACK (lane PROVERRR2): an Anthropic reply stopped with
-`refusal` offered no fallback model, and a refused turn ended with its
-true sentence. The owner answered: "anthopic model flag fallback is a
-toggle in claude code so that should be your answer". Researched
-2026-11-02 from Claude Code's current docs (model-config: fallback model
-chains and automatic model fallback; cli-reference: `--fallback-model`)
-and Anthropic's refusals-and-fallback API page, and matched where it
-applies.
+`refusal` offered no fallback, and a refused turn ended with its true
+sentence. The owner: "anthopic model flag fallback is a toggle in claude
+code so that should be your answer", then, correcting the first build:
+"falling back to agents in a designated role was the design even if they
+are from a different account or provider". The first build's one-model
+setting (`museSpark.modelApiFallbackModel`, `exec --fallback-model`, the
+ACP `fallbackModel` option and its in-turn model switch) is withdrawn: it
+was a second mechanism beside D103's lists.
 
-The setting names one fallback model and is off by default: blank names
-nothing. It lives everywhere settings live: `museSpark.modelApiFallbackModel`
-(machine scope, blank default), `exec --fallback-model` for one headless
-run, and the ACP session's `fallbackModel` select (off plus the session's
-models, Model API backend only). Nothing falls back unless the person
-named a model: the opt-in is the consent, so no new way to spend money
-unseen. Like Claude Code, nothing is confirmed at startup: an
-unresolvable name is revealed by the first refusal it meets.
+- **Who answers next.** A team task whose worker's turn ends refused (the
+  Model API's `refusal` stop, carried on `turnCompleted.refused`; a Muse
+  Code or ACP worker's `refusal` stop reason) moves to the next entry in
+  the order of the role it runs in: D75's pool, which D103's preference
+  list extends, and the borrowing role for a D212 loan, across accounts
+  and providers. Claude Code's other fallback triggers (overload, an
+  unavailable model, server errors) are not refusals and stay on the
+  request's own retry path (D228). The choice is `planRefusalMove`
+  (`src/core/team/teamPool.ts`) over the host's own live check
+  (`hasHeadroom`: runnable, not limited, key entries only with team
+  workers on, probed ready, a free slot, room under every cap): no second
+  list and no setting naming a model. A review never moves to an entry
+  whose model wrote the reviewed work (D103).
+- **The toggle.** `museSpark.teamRefusalFallback`, off by default and
+  machine-scoped (it can move work to a paid agent), and `exec --team
+--refusal-fallback` for one headless run (without `--team` it is
+  refused with its sentence). ACP sessions run no team, so no ACP option
+  is offered (an option there would control nothing). Off, nothing
+  changes from before.
+- **Money.** A key-billed next entry the task holds no consent for asks
+  D48's question first (the team popup naming its model and price); Deny
+  ends the task with the refusal and a sentence naming both models. An
+  unattended run (`exec`) cannot ask and stops there, saying so. Every
+  run is admitted and settled as before (caps, the team budget, the
+  run's hard budget), and each run's usage is claimed on its own entry.
+- **What the person sees.** The transcript's switch row ("engineering:
+  model-a → model-b, the earlier agent refused the task"; the
+  `TeamAgentSwitch` hook carries `refused`), each entry's own claims in
+  usage, and on a stop the sentence naming who refused, who was next and
+  why it did not take over.
+- **No loops.** Each entry gets one try per task; when the list runs
+  out the task ends with the last refusal's own words, as before.
+- **The switch.** D103's safe-point handoff, in place: the refused turn
+  has ended with its in-flight calls answered, never run (M101 item 8);
+  the task keeps its lease and attempt, a dispatch claim lands on the new
+  entry, and the next worker starts its own conversation on its own
+  provider from the handoff instruction, the refusal as untrusted data,
+  the original brief and the refused run's copy when it made one. No
+  history crosses providers, so what is sent is valid for the receiver
+  by construction. The stall reassign's retire-then-retry route was not
+  reused: it waits on a worker retirement proof the engine port never
+  gives, so Model API workers would never move.
+- **No role.** A plain chat (the orchestrator's own conversation, an ACP
+  session, a Model API subagent) has no designated role and no list: by
+  D103's and D212's defaults ("with no team and no custom preference,
+  nothing is swapped"), its refused turn ends with its true sentence,
+  whatever the toggle says.
 
-Only the `refusal` stop switches: the turn continues on the named model,
-once per turn, and the session then stays on it (as Claude Code's
-automatic fallback and Anthropic's manual-retry guidance both do; the
-person switches back with the model picker). The person sees the switch
-in the transcript (a notice naming the model) and in usage (every
-request settles at the model that ran it, as itself); the same budgets,
-dollar caps and consent bound the retry. Claude Code's availability-chain
-triggers (overload, unavailable, non-retryable server errors) never
-switch here: those stay on the request's own retry path (D228), as
-Anthropic's own server-side fallback likewise never fires on them.
-
-When off, blank, naming the running model, unresolvable, kept by a
-PreModelSwitch hook, or refused again on the fallback, the turn ends
-with its true sentence, as today; no loop, one fallback per refusal. The
-switch lives in the turn loop only: in-flight tool calls are answered,
-never executed, before it, and the next request replays that answered
-history through the fallback model's own codec, exactly as a mid-session
-model switch does. Subagents inherit the setting (their own turns fall
-back at most once each); compaction and hook model calls never switch.
-Muse Code's CLI keeps its own behaviour (no option there), external
-agents keep theirs, and team engine workers are not ModelApiSession
-turns and are unaffected. Full record:
-`docs/certification/rlf-fallback.md`.
+Record: `docs/certification/rlf-fallback.md`. A live refusal cannot be
+ordered: what a real run must still show is in `docs/real-life/unproven.md`,
+and the CHANGELOG line waits for it.
 
 ## 3. Open questions (need the owner)
 
@@ -10091,11 +10111,13 @@ dispatched. Record: `docs/certification/real-use-pr232w2.md`.
 **Q-REFUSAL-FALLBACK (lane PROVERRR2, 2026-10-13; closed by D261, 2026-11-02).**
 GAPANTH-G11's scan row notes that an Anthropic reply stopped with `refusal`
 offers no fallback model. **Resolved by the owner: "anthopic model flag
-fallback is a toggle in claude code so that should be your answer".**
-D261 builds it as a person-set fallback model, off by default: when named
-and a reply stops with `refusal`, the turn continues on the named model,
-once per turn; otherwise a refused or paused turn still ends with its
-true sentence and its tool calls answered. Record:
+fallback is a toggle in claude code so that should be your answer", and
+"falling back to agents in a designated role was the design even if they
+are from a different account or provider".** D261: with
+`museSpark.teamRefusalFallback` on (off by default) a refused team task
+moves to the next agent in its role's list, one try each, D48 asking
+before a paid one; a plain chat has no role, so its refused turn still
+ends with its true sentence and its tool calls answered. Record:
 `docs/certification/proverrr2.md`; decision record:
 `docs/certification/rlf-fallback.md`.
 
@@ -11412,20 +11434,25 @@ stay red and are reported, not raised: `build` (5 budgets OVER —
 and base-tree issues, zero in this lane's area). Record:
 `docs/certification/rlf-quota.md`.
 
-### RLFFALLBACK — A refused Model API turn continues on the person's fallback model (D261)
+### RLFFALLBACK — A refused team task moves to the next agent in its role (D261)
 
-**Status 2026-11-02 (lane RLF-FALLBACK): built and certified.**
-The opt-in fallback model is implemented on the Model API backend in
-every settings surface (the `museSpark.modelApiFallbackModel` setting,
-`exec --fallback-model`, the ACP `fallbackModel` option; English + 14
-tables): a reply stopped with `refusal` continues on the named model,
-once per turn, with a transcript notice and per-model usage, and the
-session then stays on it; anything else ends with its true sentence.
-Real-code tests cover the decision, the flag, the option and the setting
-shape (5 red/green drills); the live refusal switch still needs its
-real run (see `docs/real-life/unproven.md`), and the CHANGELOG and
-README lines wait for it. Record:
-`docs/certification/rlf-fallback.md`.
+**Status 2026-11-02 (lane RLF-FALLBACK, rework): built.** The setting's
+manifest entry waits on the lead (below). The first build's fallback-model setting, flag, ACP
+option and in-turn switch are removed. A refused worker turn is reported
+(`turnCompleted.refused`; Muse Code and ACP workers' `refusal` stop) and,
+with `museSpark.teamRefusalFallback` or `exec --team --refusal-fallback`,
+the task moves down its role's order: one try per entry, live headroom,
+review never to the authoring model, D48 asked before an unconsented paid
+entry (an unattended run stops and says why), a switch row naming the
+refusal, usage claimed per entry; words in English plus 14 tables.
+Real-code tests drive the selection guards and the host moving a refused
+task through a real scheduler and real git. Not yet true: `package.json`
+and `scripts/` are read-only in the lane, so the setting's manifest entry
+and one stale bundle-split line wait in
+`docs/certification/rlf-fallback/lead-readonly.patch`, and the generated
+reference is regenerated after it; the live refusal still needs its real
+run (`docs/real-life/unproven.md`), and the CHANGELOG line waits for it.
+Record: `docs/certification/rlf-fallback.md`.
 
 ### TOOLROUNDS — Preserve answers at the model-call turn limit (D109)
 

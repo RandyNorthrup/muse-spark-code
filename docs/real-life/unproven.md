@@ -3510,22 +3510,16 @@ editor run proves it:
 
 ## Lane RLF-FALLBACK (2026-11-02; D261)
 
-The refusal fallback is built with real-code tests over the decision, the
-flag, the option and the setting shape, but a live refusal cannot be
-ordered on demand (no provider refuses to order), so no test or real run
-has yet watched a turn switch models. A real run still has to prove, on
-an Anthropic-shaped provider with a fallback model named:
-
-- a reply stopped with `refusal` continues on the named model, with the
-  transcript notice naming it and the session staying on it afterwards;
-- each model's cost counts on the usage record as itself, and the
-  person's budgets and dollar caps still bound the retry;
-- a fallback that is refused too, unresolvable, or kept by a
-  PreModelSwitch hook ends the turn with its true sentence, with the
-  notice naming the model that was not used;
-- in-flight tool calls are answered, never executed, at the switch, and
-  the history the fallback receives is valid for its provider.
-
-Until that run, the CHANGELOG line, the README paragraph and the
-docs/acp.md paragraph drafted in `docs/certification/rlf-fallback.md`
-stay out of those files.
+A refusal cannot be ordered on demand, and no recorded refusal exchange
+exists (PROVERRR2's capture plan is not captured). A real run must still
+show, on the packed product with a team whose role lists two agents and
+`museSpark.teamRefusalFallback` on: a Model API worker on an Anthropic
+model whose reply stops with `refusal` ends its turn with
+`turnCompleted.refused` and the refused report; the task moves to the
+role's next agent (from another provider or account), with the switch row
+"the earlier agent refused the task"; the new worker's request is valid
+for its provider; each agent's spend shows on its own entry; with a paid
+next agent, the D48 popup names its model and price first; `exec --team
+--refusal-fallback` stops with its sentence instead of asking; and with
+the toggle off the task ends on the refusal. Not run: no Muse request and
+no paid provider call in this lane.

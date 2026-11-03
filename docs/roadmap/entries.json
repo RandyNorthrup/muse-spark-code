@@ -1462,8 +1462,8 @@
     },
     {
       "id": "RLFFALLBACK",
-      "title": "A refused turn continues on the fallback model",
-      "summary": "When you name a fallback model, a Model API turn the provider refuses continues on it, once per turn, with a notice naming it and each request billed at the model that ran it; with nothing named, a refused turn ends with the refusal.",
+      "title": "A refused team task moves to the next agent in its role",
+      "summary": "Turn it on and a team task an agent refuses moves to the next agent in its role, across accounts and providers: one try each, a paid agent asks first, and the transcript says who refused and who took over; off, it ends with the refusal.",
       "area": "models-providers"
     },
     {
