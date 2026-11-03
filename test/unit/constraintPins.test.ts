@@ -61,7 +61,7 @@ function compactionCard(pins: readonly string[]): StoredSession['transcript'][nu
       itemId: 'compaction-item',
       kind: 'compaction',
       status: 'completed',
-      pinnedConstraints: pins,
+      pinnedConstraints: [...pins],
       fallbackText: 'Context compacted',
     },
   }
