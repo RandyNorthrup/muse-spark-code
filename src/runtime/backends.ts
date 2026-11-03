@@ -102,6 +102,7 @@ import { type GuardedChildEnv, NO_WORKSPACE } from '../core/executables'
 import { buildChildEnvironment, environmentValue } from '../core/execGuard'
 import { createHardwareStopRunner, createToolIo } from '../host/backend/toolIo'
 import type { VaultExecService } from '../core/vault/exec/service'
+import type { VaultTaint } from '../shared/vault'
 import { resolveExecOutputCap } from './exec/runLedger'
 import { Usd } from '../shared/usd'
 import { loadLegalScanner } from './legal/legalScanner'
@@ -156,6 +157,12 @@ export interface ExecRuntimeOptions {
   authorizes. Only the headless exec path supplies it.
   */
   readonly vaultExec?: (() => Promise<VaultExecService>) | undefined
+  /**
+  RLF-M109H: where the engine's per-request vault provenance notes go
+  in this run, so a later `vault_run` is authorized against the taint
+  the run actually accumulated. Only the headless exec path supplies it.
+  */
+  readonly noteVaultTaint?: ((sessionId: string, taint: VaultTaint) => void) | undefined
 }
 
 export interface RuntimeBackendDeps {
@@ -612,6 +619,9 @@ function modelApiManager(
   return new ModelApiBackendManager({
     team: deps.teamFor?.(storedWorkspaceRoot) ?? deps.team,
     log,
+    ...(deps.exec?.noteVaultTaint !== undefined && {
+      noteVaultTaint: deps.exec.noteVaultTaint,
+    }),
     // The ready line names the provider a run actually uses (RLTESTDRIVE
     // item 3); without a provider run it names the Meta backend.
     ...(providerRun !== undefined && {

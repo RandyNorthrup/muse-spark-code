@@ -288,6 +288,31 @@ async function main(): Promise<void> {
     const run = vaultExecProcessRunner(tree, timeoutMs, async (child) => {
       await killTree(child, tree, runStartedAt)
     })
+    // RLF-M109H, corrected by RVM109H: the delegated command starts
+    // through the peer helper's `run` mode, which zeroes its core limit
+    // before exec so an ordinary crash writes no core file, and closes
+    // descriptors above 2. On Linux the helper also clears dumpable for
+    // its own process until exec; the kernel sets that back for a
+    // normal command, so another program running as the same user can
+    // still read the command's environment. The helper is the installed
+    // one this feeder already trusts for peer identity; the approved
+    // executable was realpath-verified by the feeder core before this
+    // port runs. Windows has no core limit to set here and keeps its
+    // named job containment instead.
+    const runGuarded: typeof run =
+      process.platform === 'win32'
+        ? run
+        : async (invocation, signal, stdout, stderr) =>
+            await run(
+              {
+                ...invocation,
+                file: vaultPeerExecutable(installRoot),
+                args: ['run', invocation.file, ...invocation.args],
+              },
+              signal,
+              stdout,
+              stderr,
+            )
     const port: VaultExecFeederPort = {
       platform: process.platform,
       redeem: async (approval, signal) => await feederBroker.redeem(approval, signal),
@@ -301,7 +326,7 @@ async function main(): Promise<void> {
       helpers: () => Promise.reject(new Error(UI_TEXT.vault.noAccess)),
       run: async (invocation, signal, stdout, stderr) => {
         runStartedAt = Date.now()
-        return await run(invocation, signal, stdout, stderr)
+        return await runGuarded(invocation, signal, stdout, stderr)
       },
     }
     const result = await runVaultFeeder(envelope, process.env, port, controller.signal)

@@ -7332,6 +7332,7 @@
     "internal": "Interner Eintrag",
     "labelWarning": "Agenten sehen Namen und Bezeichnungen. Tragen Sie dort keine Geheimnisse ein.",
     "processWarning": "Dieses Programm und seine Unterprozesse sehen die Zugangsdaten und können sie weitergeben.",
+    "environmentWarning": "Der Wert wird während der Ausführung in die Umgebung dieses Programms gelegt. Ein anderes Programm, das unter Ihrem Konto läuft, kann ihn dort weiterhin lesen, unter Linux, macOS und Windows, und ein Administrator ebenfalls. Der Befehl startet unter macOS und Linux ohne Speicherabbilder. Wenn das Programm den Wert stattdessen aus seiner Standardeingabe lesen kann, bleibt er außerhalb der Umgebung.",
     "disclosureWarning": "Nur Sie sehen diesen Wert nach Bestätigung Ihrer Anwesenheit. Ein freigegebener Wert kann nicht zurückgerufen werden; ersetzen Sie ihn danach.",
     "taintWarning": "Diese Anfrage folgt auf nicht vertrauenswürdige Inhalte: {content}. Trotz bestehender Berechtigungen ist eine Zustimmung nötig.",
     "presenceWarning": "Ihr Betriebssystem fordert Sie auf, genau diese Nutzung zu bestätigen.",

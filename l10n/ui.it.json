@@ -7514,6 +7514,7 @@
     "internal": "Record interno",
     "labelWarning": "Gli agenti vedono nomi ed etichette. Non inserirvi segreti.",
     "processWarning": "Questo programma e i suoi processi figli vedranno la credenziale e potranno inviarla altrove.",
+    "environmentWarning": "Il valore viene inserito nell’ambiente di questo programma mentre è in esecuzione. Un altro programma in esecuzione con il tuo account può ancora leggerlo lì, su Linux, macOS e Windows, e può farlo anche un amministratore. Il comando parte senza dump di memoria su macOS e Linux. Quando il programma può leggere il valore dal suo input standard, il valore resta fuori dall’ambiente.",
     "disclosureWarning": "Solo tu vedrai questo valore dopo aver confermato la presenza. Un valore divulgato non può essere ritirato; sostituirlo in seguito.",
     "taintWarning": "Questa richiesta segue contenuti non attendibili: {content}. Serve l’approvazione anche con autorizzazioni esistenti.",
     "presenceWarning": "Il sistema operativo ti chiederà di confermare questo utilizzo preciso.",

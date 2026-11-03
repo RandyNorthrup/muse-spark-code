@@ -149,6 +149,24 @@ Interactions (`fix(int)` commits after the merge):
 Suites after the merge: `runtimePanelGit`, `runtimePanelGitLease`, `mhpPanelContract` 38/38; `mhpContract`,
 `runtimePanel`, `runtimePanelSchedules` 46/46 (exit 0).
 
+### Merge 4 — `lanes/m109h-reviewed` (cafc74231)
+
+Vault hardening on POSIX (core limit, dumpable off on Linux, ancestry bound to start times, headless taint real) with
+RVM109H's four fixes. `rlf-m109h` is not merged. Its delegated broker suite and the Linux `/proc` case could not run in
+its sandbox; they are not run here either (budget, and the brief keeps the unit suite for hosted CI): hosted CI and
+the lead's linuxlt run decide them before they are claimed.
+
+Conflicts:
+
+- `docs/real-life/unproven.md`: int's 1.6.0/HOSTS2 passage kept (the lane's "MHP on this branch is 1.5.0" bullet is
+  stale) and the lane's "Lane RLF-M109H named, not fixed" section added after it.
+- `desktop/crates/l10n/qml/UiText.qml`: generated; `npm run desktop:l10n` (exit 0) rewrote it and
+  `desktop/crates/l10n/src/tables.rs`. tables.rs had been stale since merge 2: acpteam-reviewed's keys
+  (`acpTeamFixedForSession`, `acpTeamRolesUnavailable`, `acpTeamUnanswered`, the `serve --team` reference row) were
+  in en.ts and the tables but not in the desktop's generated tables; the lane adds `vault.environmentWarning`.
+
+Interactions: none beyond the regenerated desktop tables.
+
 ### Red/green drills (batch A)
 
 - Merge 1, terminal cwd through a link: `confineTerminalCwd` made lexical-only for in-root names →

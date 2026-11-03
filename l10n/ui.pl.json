@@ -7696,6 +7696,7 @@
     "internal": "Wpis wewnętrzny",
     "labelWarning": "Agenci widzą nazwy i etykiety. Nie umieszczaj w nich sekretów.",
     "processWarning": "Ten program i jego procesy potomne zobaczą poświadczenie i mogą je wysłać gdzie indziej.",
+    "environmentWarning": "Wartość trafia do środowiska tego programu na czas jego działania. Inny program działający na Twoim koncie nadal może ją tam odczytać, w systemach Linux, macOS i Windows, a administrator również. Polecenie uruchamia się w systemach macOS i Linux bez zrzutów pamięci. Gdy program może zamiast tego odczytać wartość ze standardowego wejścia, pozostaje ona poza środowiskiem.",
     "disclosureWarning": "Tylko ty zobaczysz tę wartość po potwierdzeniu obecności. Ujawnionej wartości nie można cofnąć; następnie ją zmień.",
     "taintWarning": "To żądanie następuje po niezaufanej treści: {content}. Mimo istniejących uprawnień wymagana jest zgoda.",
     "presenceWarning": "System operacyjny poprosi o potwierdzenie tego konkretnego użycia.",

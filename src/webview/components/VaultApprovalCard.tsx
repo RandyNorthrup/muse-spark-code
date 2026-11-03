@@ -46,6 +46,7 @@ export function VaultApprovalCard({ request, onAnswer, onManage }: VaultApproval
         SHA-256: <code>{request.digest}</code>
       </p>
       {isProcessUse && <p>{UI_TEXT.vault.processWarning}</p>}
+      {request.use.kind === 'environment' && <p>{UI_TEXT.vault.environmentWarning}</p>}
       {request.requester.deviceId !== null && <p>{UI_TEXT.vault.remoteWarning}</p>}
       {request.use.kind === 'disclosure' && <p>{UI_TEXT.vault.disclosureWarning}</p>}
       {request.use.kind === 'ssh' && request.use.hostKeyFingerprint === null && (

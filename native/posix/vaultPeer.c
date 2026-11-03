@@ -8,10 +8,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <dirent.h>
 #include <limits.h>
 #include <stdint.h>
 #include <sys/stat.h>
 #include <sys/file.h>
+#include <sys/resource.h>
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif
 #ifdef __APPLE__
 #include <sys/un.h>
 #include <libproc.h>
@@ -54,6 +59,8 @@ static int read_identity(pid_t pid, unsigned long *uid_out, uint64_t *birth_out,
   close(root);
   if (count <= 0) return 1;
   latest[count] = '\0';
+  /* comm sits inside parentheses and may hold spaces or ')'. The last
+   * ')' closes it; the fields after that are space-separated. */
   char *fields = strrchr(raw, ')'), *other = strrchr(latest, ')');
   if (!fields || !other) return 1;
   /* Field 3 is state, field 4 the parent pid, field 22 the birth tick. */
@@ -113,16 +120,114 @@ static int identity(pid_t pid) {
   return print_identity(pid, uid, birth, image);
 }
 
-/* D243: the parent process's identity, for the broker's ancestry walk. */
-static int parent_identity(pid_t pid) {
-  unsigned long uid;
-  uint64_t birth;
-  pid_t ppid;
-  char image[PATH_MAX];
+/* D243: the parent process's identity, for the broker's ancestry walk.
+ * expected_birth is the start time the walk already recorded for pid.
+ * Both the first read and the re-read after the parent must still be
+ * that birth, so a pid recycled between the walk's own re-read and this
+ * helper cannot answer. The parent is read twice with the same birth.
+ * A parent that died and whose pid was recycled inside the window
+ * changes one of those facts (a dead parent also reparents the child). */
+static int parent_identity(pid_t pid, uint64_t expected_birth) {
+  unsigned long uid, parent_uid, again_uid, child_uid;
+  uint64_t birth, parent_birth, again_birth, child_birth;
+  pid_t ppid, parent_ppid, again_ppid, child_ppid;
+  char image[PATH_MAX], parent_image[PATH_MAX], again_image[PATH_MAX], child_image[PATH_MAX];
   int result = read_identity(pid, &uid, &birth, image, &ppid);
   if (result != 0) return result;
+  if (birth != expected_birth) return 1;
   if (ppid <= 0) return 2;
-  return identity(ppid);
+  result = read_identity(ppid, &parent_uid, &parent_birth, parent_image, &parent_ppid);
+  if (result != 0) return result;
+  result = read_identity(ppid, &again_uid, &again_birth, again_image, &again_ppid);
+  if (result != 0) return result;
+  if (again_uid != parent_uid || again_birth != parent_birth) return 1;
+  result = read_identity(pid, &child_uid, &child_birth, child_image, &child_ppid);
+  if (result != 0) return result;
+  if (child_birth != expected_birth || child_uid != uid || child_ppid != ppid) return 1;
+  return print_identity(ppid, again_uid, again_birth, again_image);
+}
+
+/* The secret sits in this process's environment until exec. A refusal
+ * zeroes those bytes before returning. The pointers stay; nothing here
+ * is read again. Identity and parent modes never carry the secret. */
+extern char **environ;
+
+static void wipe_bytes(void *pointer, size_t length) {
+  volatile unsigned char *bytes = pointer;
+  for (size_t index = 0; index < length; index++) bytes[index] = 0;
+}
+
+static void wipe_environment(void) {
+  if (environ == NULL) return;
+  for (char **entry = environ; *entry != NULL; entry++) wipe_bytes(*entry, strlen(*entry));
+}
+
+static int refuse_run(void) {
+  wipe_environment();
+  return 1;
+}
+
+/* Close every inherited descriptor above 2. The command keeps standard
+ * input, output and error. More than 256 extras, a read error, or no
+ * /dev/fd refuses before exec rather than handing an unknown descriptor
+ * to the command. */
+static int close_extra_descriptors(void) {
+  DIR *table = opendir("/dev/fd");
+  if (table == NULL) return 1;
+  int self = dirfd(table);
+  int extras[256];
+  int count = 0;
+  int failed = 0;
+  for (;;) {
+    errno = 0;
+    struct dirent *entry = readdir(table);
+    if (entry == NULL) {
+      if (errno != 0) failed = 1;
+      break;
+    }
+    if (entry->d_name[0] == '.') continue;
+    char *end = NULL;
+    errno = 0;
+    long descriptor = strtol(entry->d_name, &end, 10);
+    if (errno != 0 || end == entry->d_name || *end != '\0' || descriptor < 0 ||
+        descriptor > INT_MAX) {
+      failed = 1;
+      break;
+    }
+    if (descriptor < 3 || descriptor == (long)self) continue;
+    if (count == 256) {
+      failed = 1;
+      break;
+    }
+    extras[count++] = (int)descriptor;
+  }
+  if (closedir(table) != 0) failed = 1;
+  if (failed) return 1;
+  for (int index = 0; index < count; index++) {
+    if (close(extras[index]) != 0 && errno != EBADF) return 1;
+  }
+  return 0;
+}
+
+/* `run <file> [args...]` becomes the delegated command. The core limit
+ * is zeroed first and does survive exec of an ordinary command, so an
+ * ordinary crash writes no core file. On Linux, dumpable is cleared for
+ * this process until exec: the kernel sets it back to 1 for a normal
+ * command (a setuid or file-capability target follows suid_dumpable
+ * instead), so this does not hide the command's environment. A failure
+ * to set either fact, to close an extra descriptor, or to exec refuses
+ * before the command exists and wipes the environment. */
+static int run_command(char **argv) {
+  struct rlimit no_core;
+  no_core.rlim_cur = 0;
+  no_core.rlim_max = 0;
+  if (setrlimit(RLIMIT_CORE, &no_core) != 0) return refuse_run();
+#ifdef __linux__
+  if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) != 0) return refuse_run();
+#endif
+  if (close_extra_descriptors() != 0) return refuse_run();
+  execv(argv[0], argv);
+  return refuse_run();
 }
 
 #define main vault_peer
@@ -137,12 +242,23 @@ int main(int argc, char **argv) {
     if (errno || *end || pid <= 0 || pid > INT_MAX) return 1;
     return identity((pid_t)pid);
   }
-  if (argc == 3 && strcmp(argv[1], "parent") == 0) {
+  if (argc == 4 && strcmp(argv[1], "parent") == 0) {
     char *end;
     errno = 0;
     long pid = strtol(argv[2], &end, 10);
     if (errno || *end || pid <= 0 || pid > INT_MAX) return 1;
-    return parent_identity((pid_t)pid);
+    errno = 0;
+    unsigned long long birth = strtoull(argv[3], &end, 10);
+    if (errno || end == argv[3] || *end || birth == 0 || birth > UINT64_C(9007199254740991))
+      return 1;
+    return parent_identity((pid_t)pid, (uint64_t)birth);
+  }
+  if (argc >= 3 && strcmp(argv[1], "run") == 0) {
+    if (argv[2][0] != '/') {
+      wipe_environment();
+      return 1;
+    }
+    return run_command(argv + 2);
   }
   if (argc == 2 && (strcmp(argv[1], "lock") == 0 || strcmp(argv[1], "lock-wait") == 0)) {
     struct stat info;
