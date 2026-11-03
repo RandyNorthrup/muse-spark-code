@@ -116,3 +116,58 @@ required. Result: 537,581 bytes against 537,600, `npm run build` exit 0.
   - keeping sensitive reads out of parallel read groups.
 
   The real use above covers the first and the mark.
+
+## 6. Gates (2026-11-02, macmini, at `7f9e34b8b`)
+
+| Gate                                                                                        | Exit                                                                                     |
+| ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `prettier --check`, the lane's changed files                                                | 0 (2 when the list keeps `UiText.qml` and `tables.rs`, which prettier has no parser for) |
+| `eslint --max-warnings 0`, the lane's changed `.ts`/`.mjs` files (generated files left out) | 0                                                                                        |
+| `npm run typecheck`                                                                         | 0                                                                                        |
+| `node scripts/check-l10n.mjs`                                                               | 0                                                                                        |
+| `npm run check:reference`                                                                   | 0                                                                                        |
+| `npm run check:host-api`                                                                    | 0                                                                                        |
+| `npm run check:plan`                                                                        | 0 (251 milestones, 0 drift)                                                              |
+| `npm run check:roadmap`                                                                     | 0                                                                                        |
+| `npm run check:catches`                                                                     | 0                                                                                        |
+| `npm run duplication`                                                                       | 0 (0 clones)                                                                             |
+| `npm run cycles`                                                                            | 0                                                                                        |
+| `npm run deadcode`                                                                          | 0                                                                                        |
+| `npm run build`                                                                             | 0 (every budget holds; `dist/modelApi.js` 537,581 of 537,600 bytes)                      |
+| `npm run security:sast`                                                                     | 0 (699 rules, 6,021 files, 0 findings)                                                   |
+| touched suites (`permissions`, `permissionPolicy`, `toolPaging`)                            | 0 (130 tests)                                                                            |
+| full unit suite, `npx vitest run --maxWorkers=3`, the repository's own timeouts             | 1                                                                                        |
+
+The full unit suite replaces `vitest related`. `src/shared/constants.ts`
+changed, and nearly every test depends on it, so the related set is
+almost the whole suite.
+
+Result: 1,412 files passed, 41 failed and 43 skipped; 94 of 31,716 tests
+failed. None of the 41 failing files imports a module this lane changed
+(`permissions`, `permissionPolicy`, `searchPaging`, `ModelApiHost`,
+`tools`, `protectedPaths`, `permissionSettings`, `host/settings`). By
+their errors, they fall into these groups:
+
+- **A native helper not built in this worktree.** The broker `.app`
+  for the seven vault suites; `muse-dictate` ENOENT for the node,
+  resource and devcontainer suites.
+- **No Chrome on macOS lanes.** `devicesPhase2Harness`,
+  `feedbackBrowser`.
+- **No keychain store.** `providerHeadersStore`.
+- **zopfli not installed.** `vsixCompression`.
+- **Process-timing and child tests under the lane sandbox.** The judge
+  Darwin PID and deadline tests, `makerSerial`, `makerLease`,
+  `resourceStatusCpu`, the team landing, process and playbook tests,
+  `createdRegistry*`, `execTeamSweep`, `connectorStorageGuard`,
+  `runtimeLsp`, `acpServeHandshake`.
+- **Content unrelated to this lane.**
+  - `providerSpend`: the vendored catalogue date is 2026-10-22, and the
+    test expects 2026-10-30.
+  - `playbookGovernor`: `src/core/schedules/clock.ts`.
+  - `judgeP2Delivery`: a file read.
+  - `runtimeMakerStop`: a device name in the stop message.
+  - `vaultPanelBuild`: the test's own migration build measures 45.35
+    KiB against 45. The shipped `dist/vaultMigration.js` is 41.3 KiB,
+    and none of the lane's keys are in it.
+
+These failures were not re-run on the untouched base.
