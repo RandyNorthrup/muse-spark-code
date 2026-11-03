@@ -9845,6 +9845,9 @@ First application, same lane: `@muse-code/sdk` 1.4.12 → 1.4.14,
 (D3), each installed the day its newest release was checked with a plain
 pinned install. Full record:
 [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
+The registry's semgrep rule `npm-missing-minimum-release-age` asks for the
+wait this decision removes: `.npmrc` suppresses that one rule with this
+decision as the reason, and the job stays on (CC-INT11FIX2).
 
 ### D263 — Sensitive reads ask; a memory after untrusted reads asks in Auto (lane RLF-SECDEFAULTS, SEC-DEFAULT-DENY brief D of the 2026-11-02 agent-security research; numbered D263 on its branch because the brief names D260 as already taken)
 
