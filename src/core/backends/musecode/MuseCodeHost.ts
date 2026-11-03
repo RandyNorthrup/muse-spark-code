@@ -2009,12 +2009,11 @@ export class MuseSession implements ScheduledAgentSession {
   anything else still throws.
   */
   private async ifLive(verb: 'turn/cancel' | 'turn/interrupt' | 'task/stopAll'): Promise<void> {
-    if (this.channel.signal.aborted) {
-      this.log.info(`session ${this.sessionId} ${verb} skipped: host exited`)
-      return
-    }
     try {
-      await this.command(verb, {})
+      if (!this.channel.signal.aborted) {
+        await this.command(verb, {})
+        return
+      }
     } catch (error: unknown) {
       // Read fresh: the exit can land while the call is in flight, past
       // the pre-check above. A broken pipe names a dead host: over the
@@ -2032,8 +2031,8 @@ export class MuseSession implements ScheduledAgentSession {
       ) {
         throw error
       }
-      this.log.info(`session ${this.sessionId} ${verb} skipped: host exited`)
     }
+    this.log.info(`session ${this.sessionId} ${verb} skipped: host exited`)
   }
 
   /** The single wire decision whose outcome every caller of this stage sees. */
@@ -2708,7 +2707,7 @@ export class MuseSession implements ScheduledAgentSession {
       throw new Error(UI_TEXT.hardwareBindingUnavailable)
     if (!this.owner.start(token, scheduledOwner)) throw new Error(UI_TEXT.scheduleBusy)
     try {
-      await prepareHardwareTurn(this.hardwareGuard.current(), (mode) => this.setApprovalMode(mode))
+      await this.prepareHardware()
     } catch (error: unknown) {
       this.owner.startFailed(token)
       throw error
@@ -2845,10 +2844,6 @@ export class MuseSession implements ScheduledAgentSession {
   /** The session's standing reasoning-effort default (wire vocabulary). */
   public async setReasoningEffort(reasoningEffort: string): Promise<void> {
     await this.command('session/setReasoningEffort', { reasoningEffort })
-  }
-
-  public hardwareState(): HardwareContext {
-    return this.hardwareGuard.current()
   }
 
   /**
@@ -3030,9 +3025,13 @@ export class MuseSession implements ScheduledAgentSession {
     }
     // A resumed child runs commands without a new turn of its own, so the
     // session's approval mode is secured first, as sendTurn secures it.
-    if (action === 'resume')
-      await prepareHardwareTurn(this.hardwareGuard.current(), (mode) => this.setApprovalMode(mode))
+    if (action === 'resume') await this.prepareHardware()
     await this.command(`subagent/${action}`, { subagentId })
+  }
+
+  /** The hardware fence's approval mode, secured before work this session starts. */
+  public prepareHardware(): Promise<void> {
+    return prepareHardwareTurn(this.hardwareGuard.current(), (mode) => this.setApprovalMode(mode))
   }
 
   /** `subagent/sendMessage` (a note while it runs) or `subagent/followupTask` (M18). */
@@ -3043,7 +3042,7 @@ export class MuseSession implements ScheduledAgentSession {
   ): Promise<void> {
     // A follow-up task wakes the child without a new turn of this session,
     // so the approval mode is secured first, as sendTurn secures it.
-    await prepareHardwareTurn(this.hardwareGuard.current(), (mode) => this.setApprovalMode(mode))
+    await this.prepareHardware()
     await this.command(isFollowup ? 'subagent/followupTask' : 'subagent/sendMessage', {
       subagentId,
       body,
@@ -4161,43 +4160,17 @@ export class MuseCodeHost implements AgentHost {
     const reader = this.features.lifecycle
     if (!isDeleteCapableReader(reader))
       throw new Error(fill(UI_TEXT.sessionDeleteUnsupported, { version: this.info.serverVersion }))
-    const signal = this.deletionStopped.signal
-    signal.throwIfAborted()
+    this.deletionStopped.signal.throwIfAborted()
     const commandId = this.channel.connection.mintCommandId()
-    const deletion: {
-      state:
-        | { phase: 'pending' }
-        | { phase: 'terminalValidated'; event: MuseCodeLifecycleEvent }
-        | { phase: 'reported' }
-    } = { state: { phase: 'pending' } }
-    // Arm before dispatch: the notification can be in the same read as admission.
-    let onTerminal: ((event: MuseCodeLifecycleEvent) => void) | undefined
-    const terminal = new Promise<MuseCodeLifecycleEvent>((resolve) => {
-      onTerminal = (event) => {
-        if (
-          deletion.state.phase !== 'pending' ||
-          event.type !== 'deleteCompleted' ||
-          event.sessionId !== sessionId ||
-          event.commandId !== commandId ||
-          (event.outcome !== 'completed' && event.outcome !== 'failed')
-        ) {
-          return
-        }
-        deletion.state = { phase: 'terminalValidated', event }
-        resolve(event)
-      }
-      this.deletionTerminalListeners.add(onTerminal)
-    })
-    let onAbort: (() => void) | undefined
-    const stopped = new Promise<never>((_resolve, reject) => {
-      onAbort = () => {
-        const reason: unknown = signal.reason
-        reject(reason instanceof Error ? reason : new Error(UI_TEXT.sessionDeleteHostClosed))
-      }
-      signal.addEventListener('abort', onAbort, { once: true })
-    })
-    const raced = Promise.race([
-      (async () => {
+    // Deferred with the modes chunk: a delete is rare and never at activation.
+    const { deleteHostSession } = await import('./approvalModesEntry')
+    await deleteHostSession({
+      sessionId,
+      commandId,
+      signal: this.deletionStopped.signal,
+      listeners: this.deletionTerminalListeners,
+      log: this.log,
+      admit: async () => {
         reader.parseDeleteAdmission(
           await commandWithin(
             this.channel,
@@ -4209,34 +4182,8 @@ export class MuseCodeHost implements AgentHost {
           ),
           commandId,
         )
-        return await terminal
-      })(),
-      stopped,
-    ])
-    // The deletion is waited on until it is confirmed or the wait is
-    // stopped, saying so out loud (owner 2026-10-16); no test names this
-    // wait, so it names no deadline at all.
-    const stopNoticing = startStillWaiting((elapsedMs) => {
-      this.log.info(stillWaitingText({ key: 'sessionDeletion' }, elapsedMs))
+      },
     })
-    try {
-      await raced
-      return
-    } catch (error: unknown) {
-      // Dispatch validated the terminal before shutdown; async admission may still be resuming.
-      if (deletion.state.phase === 'terminalValidated') {
-        this.log.info(
-          `session/delete for session ${sessionId} failed after its terminal was validated (${failureForLog(error)}); the validated terminal stands`,
-        )
-        return
-      }
-      throw error
-    } finally {
-      stopNoticing()
-      deletion.state = { phase: 'reported' }
-      if (onTerminal !== undefined) this.deletionTerminalListeners.delete(onTerminal)
-      if (onAbort !== undefined) signal.removeEventListener('abort', onAbort)
-    }
   }
 
   /** Captured item/readOutput also reads a child without loading its session. */
@@ -4326,8 +4273,7 @@ export class MuseCodeHost implements AgentHost {
       // approvals are presented or a queued turn can be steered, as
       // sendTurn secures it before a new turn.
       const session = this.sessions.get(sessionId)
-      if (session !== undefined)
-        await prepareHardwareTurn(session.hardwareState(), (mode) => session.setApprovalMode(mode))
+      if (session !== undefined) await session.prepareHardware()
       if (hasPending) await this.presentPending(sessionId)
       let history = loaded.history
       if (history.goal === undefined) {

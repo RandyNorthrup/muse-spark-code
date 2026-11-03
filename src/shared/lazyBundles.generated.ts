@@ -81,6 +81,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     requestedBy: [
       {
         importer: 'src/core/backends/musecode/MuseCodeHost.ts',
+        symbol: 'MuseCodeHost.deleteSession',
+        side: ['acp', 'vscode'],
+      },
+      {
+        importer: 'src/core/backends/musecode/MuseCodeHost.ts',
         symbol: 'MuseSession.admitScheduled',
         side: ['acp', 'vscode'],
       },

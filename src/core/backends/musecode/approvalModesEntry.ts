@@ -16,6 +16,9 @@ import { UI_TEXT } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import { failureForLog } from './logText'
 import { wireWordForLog } from '../../logging'
+import type { CoreLogger } from '../../logging'
+import { startStillWaiting, stillWaitingText } from '../../timeouts'
+import type { MuseCodeLifecycleEvent } from './mapNotification'
 
 /**
 What the deferred mode sync needs from its session (built once per session
@@ -265,5 +268,85 @@ export async function restoreScheduleEffect(
   } catch (error: unknown) {
     ops.owner.quarantine()
     throw error
+  }
+}
+
+/**
+A host's `session/delete`: the admission, then the validated
+terminal, raced against the host closing. The listener is in place before
+the command goes, so a quick terminal is never missed.
+*/
+export async function deleteHostSession(input: {
+  readonly sessionId: string
+  readonly commandId: string
+  readonly signal: AbortSignal
+  readonly listeners: Set<(event: MuseCodeLifecycleEvent) => void>
+  readonly log: CoreLogger
+  readonly admit: () => Promise<void>
+}): Promise<void> {
+  const { sessionId, commandId, signal } = input
+  signal.throwIfAborted()
+  const deletion: {
+    state:
+      | { phase: 'pending' }
+      | { phase: 'terminalValidated'; event: MuseCodeLifecycleEvent }
+      | { phase: 'reported' }
+  } = { state: { phase: 'pending' } }
+  // Arm before dispatch: the notification can be in the same read as admission.
+  let onTerminal: ((event: MuseCodeLifecycleEvent) => void) | undefined
+  const terminal = new Promise<MuseCodeLifecycleEvent>((resolve) => {
+    onTerminal = (event) => {
+      if (
+        deletion.state.phase !== 'pending' ||
+        event.type !== 'deleteCompleted' ||
+        event.sessionId !== sessionId ||
+        event.commandId !== commandId ||
+        (event.outcome !== 'completed' && event.outcome !== 'failed')
+      ) {
+        return
+      }
+      deletion.state = { phase: 'terminalValidated', event }
+      resolve(event)
+    }
+    input.listeners.add(onTerminal)
+  })
+  let onAbort: (() => void) | undefined
+  const stopped = new Promise<never>((_resolve, reject) => {
+    onAbort = () => {
+      const reason: unknown = signal.reason
+      reject(reason instanceof Error ? reason : new Error(UI_TEXT.sessionDeleteHostClosed))
+    }
+    signal.addEventListener('abort', onAbort, { once: true })
+  })
+  const raced = Promise.race([
+    (async () => {
+      await input.admit()
+      return await terminal
+    })(),
+    stopped,
+  ])
+  // The deletion is waited on until it is confirmed or the wait is
+  // stopped, saying so out loud (owner 2026-10-16); no test names this
+  // wait, so it names no deadline at all.
+  const stopNoticing = startStillWaiting((elapsedMs) => {
+    input.log.info(stillWaitingText({ key: 'sessionDeletion' }, elapsedMs))
+  })
+  try {
+    await raced
+    return
+  } catch (error: unknown) {
+    // Dispatch validated the terminal before shutdown; async admission may still be resuming.
+    if (deletion.state.phase === 'terminalValidated') {
+      input.log.info(
+        `session/delete for session ${sessionId} failed after its terminal was validated (${failureForLog(error)}); the validated terminal stands`,
+      )
+      return
+    }
+    throw error
+  } finally {
+    stopNoticing()
+    deletion.state = { phase: 'reported' }
+    if (onTerminal !== undefined) input.listeners.delete(onTerminal)
+    if (onAbort !== undefined) signal.removeEventListener('abort', onAbort)
   }
 }
