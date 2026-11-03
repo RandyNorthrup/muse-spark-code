@@ -64,6 +64,7 @@ import {
   CONVERSATION_BUNDLE_FILE,
   BUNDLED_SKILLS_BUNDLE_FILE,
   ESTIMATE_PRICES_BUNDLE_FILE,
+  ESTIMATE_FLEET_BUNDLE_FILE,
   ESTIMATE_HISTORY_BUNDLE_FILE,
   ESTIMATE_PRICE_CATALOG_URLS,
   ESTIMATE_PRICE_MAX_AGE_MS,
@@ -310,7 +311,7 @@ import {
 import { voiceOnceOutcome } from './host/schedules/onceOutcome'
 import { notify } from './core/events/notify'
 import { agentDataFolder, workspaceKey } from './runtime/dataFolder'
-import { requireFile } from './host/lazyBundle'
+import { namedBundleLoader, requireFile } from './host/lazyBundle'
 import { isJudgeEngineOn } from './core/judge/engine'
 import { promptBundleLoader } from './host/prompts/promptBundle'
 import { BookmarkStore } from './core/prompts/bookmarkStore'
@@ -426,12 +427,7 @@ import {
   type EstimatorRun,
   type EstimatorSourcePorts,
 } from './host/estimator/estimatorBundle'
-import {
-  extensionFleetSources,
-  fleetIoFromSources,
-  ownedSubscriptionUsage,
-} from './host/estimator/fleetBinding'
-import { estimatorSourcePorts } from './host/estimator/localFleet'
+import type * as EstimateFleetEntry from './host/estimator/estimateFleetEntry'
 import { estimateHistoryDirectory } from './host/estimator/historyDirectory'
 import type { FileHistoryPorts } from './host/estimator/historyStore'
 import { lazyHistoryPorts } from './host/estimator/historyBundle'
@@ -3236,10 +3232,30 @@ async function activateWindow(
         }),
       ),
     })
+  // The fleet binding loads with the estimate, in dist/estimateFleet.js (D6).
+  const estimateFleet = namedBundleLoader<typeof EstimateFleetEntry>({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', ESTIMATE_FLEET_BUNDLE_FILE)
+      .fsPath,
+    log,
+    names: [
+      'estimatorSourcePorts',
+      'extensionFleetSources',
+      'fleetIoFromSources',
+      'ownedSubscriptionUsage',
+    ],
+    label: 'estimate fleet',
+    unavailable: () => UI_TEXT.estimateUnavailable,
+  })
   const estimatorPortsFor = (
     history: FileHistoryPorts,
     readProviderId?: () => string,
   ): EstimatorSourcePorts => {
+    const {
+      estimatorSourcePorts,
+      extensionFleetSources,
+      fleetIoFromSources,
+      ownedSubscriptionUsage,
+    } = estimateFleet()
     let signedInRevision = -1
     const networkPolicy = estimatorNetworkPolicy({
       settings: currentSettings,

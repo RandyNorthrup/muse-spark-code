@@ -244,6 +244,59 @@ const RESOURCE_JOURNAL_BUNDLE = {
     'src/runtime/usage/resourceResetFile.ts',
   ],
 }
+/**
+D6: parts split out of a bundle over its budget. Each loads beside its parents as a
+sibling file: the parents' static imports of `sources` become a require of it, and
+no other bundle changes. Only modules with no class a second copy could disagree
+about go here, or a class only the part's own readers see.
+*/
+export const SPLIT_PARTS = [
+  {
+    name: 'modelApiInstructions',
+    entry: 'src/core/backends/modelapi/modelApiInstructionsEntry.ts',
+    parents: ['dist/modelApi.js'],
+    sources: ['src/core/backends/modelapi/instructions.ts', 'src/core/context/workspaceContext.ts'],
+  },
+  {
+    name: 'mcpHeaders',
+    entry: 'src/core/backends/modelapi/mcp/mcpHeadersEntry.ts',
+    parents: ['dist/mcpPool.js', 'dist/modelApiMcp.js'],
+    sources: ['src/core/backends/modelapi/mcp/headers.ts'],
+    // Plain functions over headers: no words of its own to read.
+    uiText: false,
+  },
+  {
+    name: 'teamAutofill',
+    entry: 'src/core/team/teamAutofillEntry.ts',
+    parents: ['dist/teamPanel.js'],
+    sources: ['src/core/team/autofill.ts'],
+  },
+  {
+    name: 'teamWorkerFence',
+    entry: 'src/core/team/workers/workerFenceEntry.ts',
+    parents: ['dist/teamHost.js'],
+    sources: ['src/core/team/workers/workerFence.ts'],
+  },
+  {
+    name: 'wireLegalFix',
+    entry: 'src/shared/wireLegalFixEntry.ts',
+    parents: ['dist/wire.js'],
+    sources: ['src/shared/legalFix.ts'],
+  },
+]
+
+const SPLIT_PARTS_DEFERRED = SPLIT_PARTS.map((part) => ({
+  output: `dist/${part.name}.js`,
+  metafile: `dist/meta/${part.name}.json`,
+  use: 'its parent bundle (D6)',
+  parents: part.parents.map((parent) => ({
+    output: parent,
+    metafile: `dist/meta/${parent.slice('dist/'.length, -'.js'.length)}.json`,
+  })),
+  ...(part.uiText === false && { uiText: false }),
+  files: [part.entry, ...part.sources],
+}))
+
 export const DEFERRED = [
   RESOURCE_JOURNAL_BUNDLE,
   {
@@ -363,7 +416,6 @@ export const DEFERRED = [
       'src/core/backends/modelapi/mcp/stdio.ts',
       'src/core/backends/modelapi/mcp/servers.ts',
       'src/core/backends/modelapi/mcp/changes.ts',
-      'src/core/backends/modelapi/mcp/headers.ts',
       'src/core/backends/modelapi/mcp/toolPins.ts',
       'src/core/backends/modelapi/mcp/verdicts.ts',
     ],
@@ -375,6 +427,15 @@ export const DEFERRED = [
       'src/core/backends/modelapi/modelApiAcpEntry.ts',
       'src/core/backends/modelapi/acpAssist.ts',
     ],
+  },
+  ...SPLIT_PARTS_DEFERRED,
+  {
+    output: 'dist/estimateFleet.js',
+    metafile: 'dist/meta/estimateFleet.json',
+    use: 'the first estimate',
+    // The ACP agent keeps its own copy of the binding; activation may not (the
+    // split gate checks that by name).
+    files: ['src/host/estimator/estimateFleetEntry.ts'],
   },
   {
     output: 'dist/modelApiShell.js',
@@ -2519,6 +2580,27 @@ export const sharedExecGuard = {
 // Share captured Model API validators, native path identity and team admission across Node
 // consumers; browser validators retain their original inline implementation.
 /** @type {import('esbuild').Plugin} */
+/** @type {import('esbuild').Plugin} */
+export const splitParts = {
+  name: 'split-parts',
+  setup(build) {
+    const outfile = path.resolve(build.initialOptions.outfile ?? '')
+    const sources = new Map(
+      SPLIT_PARTS.filter((part) =>
+        part.parents.some((parent) => path.resolve(parent) === outfile),
+      ).flatMap((part) => part.sources.map((source) => [path.resolve(source), part.name])),
+    )
+    if (sources.size === 0) return
+    build.onResolve({ filter: /^\.\.?\// }, (args) => {
+      if (args.kind === 'entry-point') return
+      const name = sources.get(
+        path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts')),
+      )
+      return name === undefined ? undefined : { path: `./${name}.js`, external: true }
+    })
+  },
+}
+
 export const sharedModelApiBoundaries = {
   name: 'shared-model-api-boundaries',
   setup(build) {

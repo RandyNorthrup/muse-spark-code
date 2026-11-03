@@ -83,6 +83,7 @@ SERVE_MEMBERS="$SERVE_MEMBERS package/dist/execGuard.js package/dist/vaultBounda
 SERVE_MEMBERS="$SERVE_MEMBERS package/dist/uiTextHooks.js package/dist/uiTextMedia.js"
 SERVE_MEMBERS="$SERVE_MEMBERS package/dist/uiTextRuntime.js package/dist/uiTextSurfaces.js"
 SERVE_MEMBERS="$SERVE_MEMBERS package/dist/uiTextDesktop.js package/dist/nodeDiagnostics.js"
+SERVE_MEMBERS="$SERVE_MEMBERS package/dist/uiTextSettings.js"
 SERVE_MEMBERS="$SERVE_MEMBERS package/dist/validation.js package/dist/modelApiBoundaries.js package/package.json"
 for member in $SERVE_MEMBERS; do
   echo "$members" | grep -q -x -F "$member" || die "tarball has no ${member#package/}"

@@ -338,6 +338,7 @@ const LAZY_ONLY = [
   'previewFields.ts',
   // M78: command policy and the paid, read-only Auto reviewer load with the backend.
   'autoReviewer.ts',
+  'mediaBudget.ts',
   // commandRules.ts and shellSyntax.ts load with dist/modelApiShell.js (MODEL_API_SHELL_ONLY).
   'globLimits.ts',
   'permissionPolicy.ts',
@@ -348,10 +349,8 @@ const LAZY_ONLY = [
   'hookNames.ts',
 
   'extensionHooks.ts',
-  'instructions.ts',
   // M97: the native `legal_scan` tool's Model API side (read-only, like the
   // code intelligence reads above): offered only with lane S's scanner.
-  'mediaBudget.ts',
   'memoryTools.ts',
   // MODELAPIDIET: the hook call fields load with dist/modelApiTools.js (MODEL_API_TOOLS_ONLY).
   // M95-I: policy stays out of activation/ACP; the provider/reviewer bundles also read it.
@@ -449,7 +448,15 @@ async function reportProblemsAndExit() {
   })
   process.exit(1)
 }
-const EXTRA_ONLY = new Set(['modelApiHooksEntry.ts', 'modelApiMcpEntry.ts', 'modelApiAcpEntry.ts'])
+const EXTRA_ONLY = new Set([
+  'modelApiHooksEntry.ts',
+  'modelApiMcpEntry.ts',
+  'modelApiAcpEntry.ts',
+  // D6 (SPLIT_PARTS): each loads beside the backend, in dist/modelApiInstructions.js.
+  'modelApiInstructionsEntry.ts',
+  'instructions.ts',
+  'mcp/mcpHeadersEntry.ts',
+])
 const CONFIGURED_ONLY = ['authSource.ts', 'providerClient.ts']
 const PROVIDER_ONLY = []
 const onDisk = new Set(backendFiles())
@@ -636,6 +643,10 @@ for (const bundle of [BUNDLES.activation, BUNDLES.acp]) {
     problems.push(`${bundle.output} carries the Model API session's model text`)
   }
 }
+// M117 (D6): the estimate's fleet loads with the estimate, never at activation.
+for (const file of ['src/host/estimator/fleetBinding.ts', 'src/host/estimator/localFleet.ts'])
+  if (inputsOf(BUNDLES.activation).has(file))
+    problems.push(`${BUNDLES.activation.output} carries ${file}, which loads only with an estimate`)
 for (const bundle of DEFERRED) {
   const inputs = inputsOf(bundle)
   for (const file of bundle.files) {
@@ -1898,6 +1909,7 @@ const TEXT_BLOCKS = [
     // sidecar, its verify sidecar and its tool-run chunk each bundle.
     readers: [
       'dist/modelApi.js',
+      'dist/modelApiInstructions.js',
       'dist/modelApiCodeIntel.js',
       'dist/modelApiVerify.js',
       'dist/modelApiToolRun.js',
@@ -2003,6 +2015,7 @@ const TEXT_BLOCKS = [
     // RLM95: productionMedia read only the media omission sentences, now
     // MEDIA_MODEL_TEXT's own block below.
     readers: [
+      'dist/modelApiInstructions.js',
       BUNDLES.modelApi.output,
       'dist/mcpPool.js',
       'dist/modelApiMcp.js',

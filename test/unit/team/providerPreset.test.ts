@@ -84,10 +84,10 @@ describe('the account rule over the providers file (D261, D262)', () => {
   it('exec --team: two records of one preset are one provider, so another account is skipped', async () => {
     const read = await readProvidersFile(twoAccounts())
     expect(read.ok).toBe(true)
-    expect(presetFromRead(read, 'home')).toBe('openrouter')
     expect(moveAfterRefusal((record) => presetFromRead(read, record))).toMatchObject(
       SKIPPED_OTHER_ACCOUNT,
     )
+    expect(presetFromRead(read, 'home')).toBe('openrouter')
   })
 
   it('the window: the same answer from the same file', () => {

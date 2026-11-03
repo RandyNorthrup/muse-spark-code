@@ -8,6 +8,7 @@ import {
   sharedUiText,
   sharedValidation,
   sharedWire,
+  splitParts,
 } from '../../scripts/lib/deferredBundles.mjs'
 import { ACP_BUNDLES } from '../../scripts/lib/acpBundles.mjs'
 
@@ -94,6 +95,7 @@ function closure(entries, reachable) {
 
 beforeAll(async () => {
   const plugins = [
+    splitParts,
     sharedUiText,
     sharedValidation,
     deferredCohort,

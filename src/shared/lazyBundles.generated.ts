@@ -204,6 +204,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       { importer: 'src/runtime/backends.ts', symbol: 'modelApiManager', side: ['acp'] },
       { importer: 'src/runtime/exec/providerList.ts', symbol: 'getProviderJson', side: ['acp'] },
       { importer: 'src/runtime/exec/runExec.ts', symbol: 'providerModelRefusal', side: ['acp'] },
+      { importer: 'src/runtime/exec/runExec.ts', symbol: 'runExec', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'openRouterApi', side: ['acp'] },
       { importer: 'src/runtime/providersCommands.ts', symbol: 'probeWithTransport', side: ['acp'] },
       { importer: 'src/runtime/providersSpend.ts', symbol: 'spendFetcherFor', side: ['acp'] },
@@ -335,6 +336,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   { file: 'estimateContracts.js', side: 'both', requestedBy: [] },
+  {
+    file: 'estimateFleet.js',
+    side: 'vscode',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'ESTIMATE_FLEET_BUNDLE_FILE',
+        side: ['vscode'],
+      },
+    ],
+  },
   {
     file: 'estimateHistory.js',
     side: 'vscode',
@@ -650,6 +662,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
     ],
   },
+  { file: 'mcpHeaders.js', side: 'both', requestedBy: [] },
   { file: 'mcpPool.js', side: 'both', requestedBy: [] },
   {
     file: 'mcpVault.js',
@@ -784,6 +797,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
     ],
   },
+  { file: 'modelApiInstructions.js', side: 'both', requestedBy: [] },
   {
     file: 'modelApiMcp.js',
     side: 'both',
@@ -1085,6 +1099,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
       { importer: 'src/runtime/authCommands.ts', symbol: 'authSetProvider', side: ['acp'] },
       { importer: 'src/runtime/authCommands.ts', symbol: 'providerLabel', side: ['acp'] },
+      { importer: 'src/runtime/exec/execTeamEntry.ts', symbol: 'createExecTeam', side: ['acp'] },
       { importer: 'src/runtime/exec/runExec.ts', symbol: 'providerModelRefusal', side: ['acp'] },
       { importer: 'src/runtime/exec/runExec.ts', symbol: 'runExec', side: ['acp'] },
       { importer: 'src/runtime/providersSpend.ts', symbol: 'providersUsage', side: ['acp'] },
@@ -1628,6 +1643,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       { importer: 'src/host/teamViewBundle.ts', symbol: 'schemas', side: ['acp', 'vscode'] },
     ],
   },
+  { file: 'teamAutofill.js', side: 'vscode', requestedBy: [] },
   {
     file: 'teamCreate.js',
     side: 'both',
@@ -1778,6 +1794,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
     ],
   },
+  { file: 'teamWorkerFence.js', side: 'both', requestedBy: [] },
   {
     file: 'teamWorkerOps.js',
     side: 'both',
@@ -2115,4 +2132,5 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   { file: 'wire.js', side: 'both', requestedBy: [] },
+  { file: 'wireLegalFix.js', side: 'both', requestedBy: [] },
 ]

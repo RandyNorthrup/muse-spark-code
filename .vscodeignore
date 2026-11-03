@@ -190,6 +190,11 @@
 !dist/modelApiFast.js
 !dist/modelApiAcp.js
 !dist/modelApiShell.js
+!dist/modelApiInstructions.js
+!dist/mcpHeaders.js
+!dist/teamAutofill.js
+!dist/teamWorkerFence.js
+!dist/wireLegalFix.js
 
 !dist/reporting.js
 !dist/reportingPanel.js
@@ -217,6 +222,7 @@
 !dist/planSnapshot.js
 !dist/estimatePrices.js
 !dist/estimateHistory.js
+!dist/estimateFleet.js
 !dist/native/darwin/muse-vault-arm64
 !dist/native/darwin/muse-vault-x64
 !native/windows/MuseSparkVault.cs
