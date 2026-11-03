@@ -8,7 +8,7 @@ import {
   verdictFor,
 } from '../../src/core/backends/modelapi/permissions'
 import { compilePolicy } from '../../src/core/backends/modelapi/permissionPolicy'
-import { isProtectedPath } from '../../src/core/protectedPaths'
+import { isProtectedPath, isSensitiveReadPath } from '../../src/core/protectedPaths'
 import { confineWorkspacePath, resolveWorkspacePath } from '../../src/core/workspacePath'
 import { APPROVAL_MODES, type ApprovalMode } from '../../src/shared/permissionModes'
 
@@ -27,6 +27,11 @@ const CLASSES: readonly ToolClass[] = [
 /** One PowerShell call as the engine judges it. */
 function shell(command: string) {
   return { toolName: 'powershell', toolClass: 'shell', command } as const
+}
+
+/** One sensitive read as the engine judges it: its rule is the file. */
+function sensitive(path: string) {
+  return { toolName: 'read_file', toolClass: 'read', command: path, isSensitiveRead: true } as const
 }
 
 describe('verdictFor', () => {
@@ -337,6 +342,152 @@ describe('isProtectedPath: other coding agents’ files', () => {
   })
 })
 
+// SEC-DEFAULT-DENY (D261): the small sensitive set the file tools ask
+// before reading to the model, judged on the canonical path.
+describe('isSensitiveReadPath (D261)', () => {
+  it('names the sensitive set at any depth and in any case', () => {
+    for (const path of [
+      '.env',
+      'app/.env',
+      '.env.local',
+      'services/api/.ENV.production',
+      'certs/server.pem',
+      'certs/server.key',
+      'keys/PRIVATE.PEM',
+      '.ssh/id_rsa',
+      'home/id_ed25519',
+      'id_ecdsa',
+      '.npmrc',
+      'packages/app/.npmrc',
+      '.aws/credentials',
+      'home/.aws/credentials',
+    ]) {
+      expect(isSensitiveReadPath(path), path).toBe(true)
+    }
+  })
+
+  it('leaves examples, public keys and ordinary files alone', () => {
+    for (const path of [
+      '.env.example',
+      'app/.ENV.EXAMPLE',
+      'src/index.ts',
+      'id_rsa.pub',
+      'id_ed25519.pub',
+      'certs/server.crt',
+      'docs/env.md',
+      'environment.ts',
+      'my.env.ts',
+      '.npmrc.bak',
+      'npmrc',
+      'aws/credentials.md',
+      '.aws/config',
+      'credentials',
+      'keys/notes.key.txt',
+    ]) {
+      expect(isSensitiveReadPath(path), path).toBe(false)
+    }
+  })
+
+  it('judges a Windows spelling as the tools resolve it', () => {
+    const windows = resolveWorkspacePath(String.raw`C:\ws`, String.raw`app\.env.local`, 'win32')
+    expect(windows).toMatchObject({ ok: true, canonical: 'app/.env.local' })
+    expect(windows.ok && isSensitiveReadPath(windows.canonical)).toBe(true)
+    const example = resolveWorkspacePath(String.raw`C:\ws`, String.raw`app\.env.example`, 'win32')
+    expect(example.ok && isSensitiveReadPath(example.canonical)).toBe(false)
+  })
+
+  it('judges the file a link leads to, not the name written', async () => {
+    const linked = await confineWorkspacePath('/ws', 'cfg/app.txt', 'linux', {
+      realPath: (absolute) => Promise.resolve(absolute.replace('/ws/cfg', '/ws/.aws')),
+    })
+    expect(linked).toMatchObject({ ok: true, relative: 'cfg/app.txt', canonical: '.aws/app.txt' })
+    const named = await confineWorkspacePath('/ws', 'cfg/credentials', 'linux', {
+      realPath: (absolute) => Promise.resolve(absolute.replace('/ws/cfg', '/ws/.aws')),
+    })
+    expect(named.ok && isSensitiveReadPath(named.canonical)).toBe(true)
+  })
+})
+
+describe('PermissionEngine: sensitive reads and untrusted memory (D261)', () => {
+  it('asks in Auto, Manual and Plan, and runs in Bypass', () => {
+    for (const mode of ['onRequest', 'promptUnmatched', 'denyUnmatched'] as const) {
+      expect(new PermissionEngine(mode).judge(sensitive('.env')), mode).toMatchObject({
+        verdict: 'ask',
+        settledBy: 'sensitiveRead',
+        isReviewable: false,
+        hasSessionChoice: true,
+      })
+    }
+    expect(new PermissionEngine('allowAll').verdict(sensitive('.env'))).toBe('allow')
+    // An ordinary read keeps the mode's word in every mode.
+    for (const mode of APPROVAL_MODES) {
+      expect(
+        new PermissionEngine(mode).verdict({ toolName: 'read_file', toolClass: 'read' }),
+        mode,
+      ).toBe('allow')
+    }
+  })
+
+  it('remembers "always allow" per file, never for the tool', () => {
+    const engine = new PermissionEngine('onRequest')
+    engine.allowForSession('read_file', '.env')
+    expect(engine.verdict(sensitive('.env'))).toBe('allow')
+    expect(engine.verdict(sensitive('certs/server.pem'))).toBe('ask')
+    // A session rule on the tool alone (Manual's edit-style grant) does not
+    // answer for a sensitive file.
+    const byTool = new PermissionEngine('onRequest')
+    byTool.allowForSession('read_file')
+    expect(byTool.verdict(sensitive('.env'))).toBe('ask')
+    // A session grant made in Plan answers the same file in Plan.
+    const plan = new PermissionEngine('denyUnmatched')
+    plan.allowForSession('read_file', '.env')
+    expect(plan.verdict(sensitive('.env'))).toBe('allow')
+    expect(plan.verdict(sensitive('.env.local'))).toBe('ask')
+  })
+
+  it('asks once per file per session in Auto, and every time elsewhere', () => {
+    const auto = new PermissionEngine('onRequest')
+    auto.allowedOnce(sensitive('.env'))
+    expect(auto.verdict(sensitive('.env'))).toBe('allow')
+    expect(auto.verdict(sensitive('.env.local'))).toBe('ask')
+    // An ordinary read's or a write's "allow once" stays once in Auto.
+    auto.allowedOnce({ toolName: 'write_file', toolClass: 'edit', command: '.env.local' })
+    expect(auto.verdict(sensitive('.env.local'))).toBe('ask')
+    for (const mode of ['promptUnmatched', 'denyUnmatched'] as const) {
+      const engine = new PermissionEngine(mode)
+      engine.allowedOnce(sensitive('.env'))
+      expect(engine.verdict(sensitive('.env')), mode).toBe('ask')
+    }
+  })
+
+  it('asks in Auto for a memory write after untrusted reads, with no session choice', () => {
+    const memory = { toolName: 'add_memory', toolClass: 'edit', isUntrustedMemory: true } as const
+    expect(new PermissionEngine('onRequest').judge(memory)).toMatchObject({
+      verdict: 'ask',
+      settledBy: 'untrustedMemory',
+      isReviewable: false,
+      hasSessionChoice: false,
+    })
+    // A session rule on the tool never answers it.
+    const engine = new PermissionEngine('onRequest')
+    engine.allowForSession('add_memory')
+    expect(engine.verdict(memory)).toBe('ask')
+    // Outside Auto the flag changes nothing: Manual already asks for the
+    // edit, Edit automatically and Bypass write, Plan refuses.
+    expect(new PermissionEngine('promptUnmatched').verdict(memory)).toBe('ask')
+    expect(new PermissionEngine('allowAll').verdict(memory)).toBe('allow')
+    expect(new PermissionEngine('denyUnmatched').verdict(memory)).toBe('deny')
+    // A memory read is never an untrusted write.
+    expect(
+      new PermissionEngine('onRequest').verdict({
+        toolName: 'read_memory',
+        toolClass: 'read',
+        isUntrustedMemory: true,
+      }),
+    ).toBe('allow')
+  })
+})
+
 describe('PermissionEngine', () => {
   it('applies session rules only where the mode would ask', () => {
     const engine = new PermissionEngine('promptUnmatched')
@@ -481,6 +632,8 @@ function policyOf(profile = '') {
       profiles: { locked: { denyRead: ['**/.env'] } },
       profile,
       repositoryRules: {},
+      sensitiveReads: null,
+      memoryAfterUntrustedAsk: true,
     },
     'linux',
   )
@@ -511,6 +664,8 @@ describe('M103-G physical-action settle', () => {
       profiles: {},
       profile: '',
       repositoryRules: {},
+      sensitiveReads: null,
+      memoryAfterUntrustedAsk: true,
     },
     'linux',
   )
@@ -688,6 +843,8 @@ describe('secret-bearing shell commands (M92e, PLAN.md D71)', () => {
       profiles: {},
       profile: '',
       repositoryRules: {},
+      sensitiveReads: null,
+      memoryAfterUntrustedAsk: true,
     },
     'linux',
   )
@@ -731,6 +888,8 @@ describe('secret-bearing shell commands (M92e, PLAN.md D71)', () => {
         profiles: {},
         profile: '',
         repositoryRules: {},
+        sensitiveReads: null,
+        memoryAfterUntrustedAsk: true,
       },
       'linux',
     )

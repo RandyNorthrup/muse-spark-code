@@ -16,6 +16,11 @@ import {
   PROTECTED_FILE_NAMES,
   PROTECTED_FILE_SUFFIXES,
   PROTECTED_PATH_SEGMENTS,
+  SENSITIVE_READ_ENV_PREFIX,
+  SENSITIVE_READ_EXEMPT_NAMES,
+  SENSITIVE_READ_EXTENSIONS,
+  SENSITIVE_READ_FILE_NAMES,
+  SENSITIVE_READ_PATH_SEGMENTS,
 } from '../shared/constants'
 import { normalWindowsPath, windowsPathProblem } from './windowsPathSpelling'
 import { resolvedLongPath, SHORT_NAME_SHAPE } from './pathIdentity'
@@ -23,6 +28,40 @@ import { resolvedLongPath, SHORT_NAME_SHAPE } from './pathIdentity'
 // MSP's file-access subject (Muse Code; the Model API sends `fileWrite`).
 const FILE_ACCESS_SUBJECT = 'fileAccess'
 const READ_ACCESS = 'read'
+
+/** The name's final dot suffix, or '' where the name has none but its first dot. */
+function sensitiveExtensionOf(name: string): string {
+  const dot = name.lastIndexOf('.')
+  return dot <= 0 ? '' : name.slice(dot)
+}
+
+/**
+Whether a workspace-relative canonical path (forward slashes, links
+resolved) is in the built-in sensitive set the file tools ask before
+reading to the model (D261): environment files but their examples, key
+material by name and extension, `.npmrc`, and the AWS credentials shape,
+in any folder. Backslashes split too, so a Windows spelling a caller has
+not yet normalized judges the same; case is ignored, as for protected
+writes. A person's own `museSpark.modelApiSensitiveReads` list replaces
+this judgement in the permission policy (permissionPolicy.ts).
+*/
+export function isSensitiveReadPath(canonicalRelative: string): boolean {
+  const segments = canonicalRelative.replaceAll('\\', '/').toLowerCase().split('/')
+  const name = segments.at(-1) ?? ''
+  return (
+    !SENSITIVE_READ_EXEMPT_NAMES.has(name) &&
+    (SENSITIVE_READ_FILE_NAMES.has(name) ||
+      SENSITIVE_READ_EXTENSIONS.has(sensitiveExtensionOf(name)) ||
+      name.startsWith(SENSITIVE_READ_ENV_PREFIX) ||
+      segments.some((_segment, index) =>
+        SENSITIVE_READ_PATH_SEGMENTS.some(
+          (sensitiveSegments) =>
+            sensitiveSegments.length <= segments.length - index &&
+            sensitiveSegments.every((part, offset) => segments[index + offset] === part),
+        ),
+      ))
+  )
+}
 
 /**
 Whether a workspace-relative path (forward slashes, links resolved) is a

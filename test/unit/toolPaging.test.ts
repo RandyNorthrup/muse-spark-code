@@ -5,7 +5,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { executeTool, type ToolContext } from '../../src/core/backends/modelapi/tools'
-import { pageNote, searchPage } from '../../src/core/backends/modelapi/searchPaging'
+import { listMatching, pageNote, searchPage } from '../../src/core/backends/modelapi/searchPaging'
+import { compilePolicy } from '../../src/core/backends/modelapi/permissionPolicy'
 import type { SearchHit } from '../../src/core/backends/modelapi/tools'
 import { createToolIo } from '../../src/host/backend/toolIo'
 
@@ -14,6 +15,19 @@ const HITS: SearchHit[] = Array.from({ length: 5 }, (_, index) => ({
   line: index + 1,
   text: `hit ${String(index + 1)}`,
 }))
+
+/** The real tool IO over a fixed listing, as a host hands it to the tools. */
+function toolIoFor(names: readonly string[]) {
+  return createToolIo({
+    platform: process.platform,
+    listFiles: () => Promise.resolve([...names]),
+    systemRoot: undefined,
+    env: () => ({}),
+    searchWorkerPath: '',
+    log: () => undefined,
+    unsavedFiles: () => [],
+  })
+}
 
 describe('search paging', () => {
   it('pages content hits with the total kept', () => {
@@ -62,15 +76,7 @@ describe('list_files end to end', () => {
   function contextFor(): {
     run: (args: unknown) => Promise<{ output: string; failure: string | undefined }>
   } {
-    const io = createToolIo({
-      platform: process.platform,
-      listFiles: () => Promise.resolve([...names]),
-      systemRoot: undefined,
-      env: () => ({}),
-      searchWorkerPath: '',
-      log: () => undefined,
-      unsavedFiles: () => [],
-    })
+    const io = toolIoFor(names)
     const ctx: ToolContext = {
       workspaceRoot: root,
       platform: process.platform,
@@ -120,5 +126,61 @@ describe('list_files end to end', () => {
     expect(only.output).toContain('b.ts')
     expect(only.output).not.toContain('a.ts')
     expect(only.output).not.toContain('c.ts')
+  })
+})
+
+describe('sensitive files in search (D261)', () => {
+  // Real files through the real policy and listing: a search reads
+  // contents, so sensitive files stay out (and are counted for its
+  // note), while an emptied set searches everything again.
+  const root = mkdtempSync(path.join(tmpdir(), 'rlf-secdefaults-'))
+  const names = ['.env', '.env.example', 'cert.pem', 'index.ts']
+
+  function contextWith(sensitiveReads: unknown): ToolContext {
+    const io = toolIoFor(names)
+    return {
+      workspaceRoot: root,
+      platform: process.platform,
+      io,
+      seen: new Map(),
+      provisionalSeen: new Map(),
+      files: compilePolicy(
+        {
+          commandRules: [],
+          profiles: {},
+          profile: '',
+          repositoryRules: {},
+          sensitiveReads,
+          memoryAfterUntrustedAsk: true,
+        },
+        process.platform,
+      ).files,
+    }
+  }
+
+  beforeAll(() => {
+    for (const name of names) writeFileSync(path.join(root, name), 'needle\n')
+  })
+
+  afterAll(() => {
+    rmSync(root, { recursive: true, force: true })
+  })
+
+  it('leaves sensitive contents out of a search, keeps the example, counts the rest', async () => {
+    const excluded = await listMatching(contextWith(null), undefined, true)
+    expect(excluded.files).toEqual(['.env.example', 'index.ts'])
+    expect(excluded.sensitiveExcluded).toBe(2)
+    const listed = await listMatching(contextWith(null), undefined, false)
+    expect(listed.files).toEqual(names)
+    expect(listed.sensitiveExcluded).toBe(0)
+  })
+
+  it('searches everything with the setting emptied, and only the person’s list when set', async () => {
+    const emptied = await listMatching(contextWith([]), undefined, true)
+    expect(emptied.files).toEqual(names)
+    expect(emptied.sensitiveExcluded).toBe(0)
+    const custom = await listMatching(contextWith(['**/*.ts']), undefined, true)
+    expect(custom.files).toEqual(['.env', '.env.example', 'cert.pem'])
+    expect(custom.sensitiveExcluded).toBe(1)
   })
 })
