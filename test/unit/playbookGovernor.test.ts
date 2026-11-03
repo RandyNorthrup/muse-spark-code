@@ -661,10 +661,11 @@ describe('which file a path names', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () =
       [upper],
       [{ ...CHILD, files: [PANEL_FILES.clock] }],
     )
-    // The resolved identity exists: on Windows the two spellings are one file.
-    expect(changes.map((change) => change.file)).toEqual(
-      process.platform === 'win32' ? [PANEL_FILES.clock] : [],
-    )
+    // The resolved identity exists where the two spellings are one file:
+    // Windows and macOS's default volume ignore case, Linux's do not, so the
+    // file system itself is asked rather than the platform's name.
+    const doesIgnoreCase = existsSync(path.join(setup.repository.workspace, upper))
+    expect(changes.map((change) => change.file)).toEqual(doesIgnoreCase ? [PANEL_FILES.clock] : [])
   })
 })
 
