@@ -3398,9 +3398,16 @@
           ],
         })
         if (view === 'approval' || view === 'serial') {
+          // The dialog binds consent to the payload's SHA-256 and rejects
+          // on sight when its own digest of the rendered bytes differs, so
+          // the digests are the real ones the host sends (makerPayloadDigest:
+          // 'M104 S190' and the 00ff bytes), not placeholders.
           const common = {
             id: '954e0cdb-0f0a-4be0-80f2-fd0e47a93d61',
-            digest: 'a'.repeat(64),
+            digest:
+              view === 'serial'
+                ? '06eb7d6a69ee19e5fbdf749018d3d2abfa04bcbd1365db312eb86dc7169389b8'
+                : '6dc6daf7dfcff3c49a2cf9a641a715734724ed279aed3dc7482f3429f8aa7241',
             expiresAt: Date.now() + 120_000,
             action: 'actuate',
           }
@@ -3459,15 +3466,23 @@
                 machine: 'Bench printer',
                 action: 'actuate',
                 payload: 'M104 S190',
-                digest: 'a'.repeat(64),
+                digest: '6dc6daf7dfcff3c49a2cf9a641a715734724ed279aed3dc7482f3429f8aa7241',
                 approval: null,
                 outcome: 'sentOutcomeUnknown',
               },
             ],
           })
-          whenFound('.maker-toolbar', (bar) => bar.querySelectorAll('button')[1].click())
+          // The toolbar's fixed pair comes after the Stop slot's
+          // per-machine buttons: Devices second from the end, Log last.
+          whenFound('.maker-toolbar', (bar) => {
+            const buttons = bar.querySelectorAll('button')
+            buttons[buttons.length - 1].click()
+          })
         } else {
-          whenFound('.maker-toolbar', (bar) => bar.querySelector('button').click())
+          whenFound('.maker-toolbar', (bar) => {
+            const buttons = bar.querySelectorAll('button')
+            buttons[buttons.length - 2].click()
+          })
           if (view === 'wizard')
             whenFound('#maker-devices-title', (title) => {
               const buttons = title.closest('[role="dialog"]').querySelectorAll('button')
