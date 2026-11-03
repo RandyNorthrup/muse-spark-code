@@ -249,12 +249,12 @@ function installIpc(): void {
     const request = statusPublishRequestSchema.parse(raw)
     await writeStatusSnapshot(app.getPath('userData'), request.workspaceRoot, request.items)
   })
-  ipcMain.handle('muse-desktop:terminal:create', (event, raw: unknown) => {
+  ipcMain.handle('muse-desktop:terminal:create', async (event, raw: unknown) => {
     const request = terminalCreateRequestSchema.parse(raw)
     const record = recordFor(event)
     try {
       const created = record.terminals.create({
-        cwd: confineTerminalCwd(record.workspace.root, request.cwd),
+        cwd: await confineTerminalCwd(record.workspace.root, request.cwd),
         cols: request.cols,
         rows: request.rows,
         ...(request.agent !== undefined && { agent: request.agent }),
