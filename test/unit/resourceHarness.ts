@@ -8,9 +8,12 @@ import { execFile, execFileSync } from 'node:child_process'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { afterAll, beforeAll } from 'vitest'
 import { DarwinMemoryReader } from '../../src/core/resources/sampler/darwinMemory'
 import type { ResourceProbeLimits } from '../../src/core/resources/sampler/system'
 import { RESOURCE_DARWIN_HEADROOM_LIBUV_MIN_MINOR } from '../../src/shared/constants'
+import { EN } from '../../src/shared/l10n/en'
+import { setUiText } from '../../src/shared/l10n/text'
 import type { ResourceClock } from '../../src/shared/resources'
 
 /** The clock the governor suites hold manually; advancing it moves windows. */
@@ -102,7 +105,7 @@ per sampler, made by `reader` (a sampler disposes its reader). Undefined
 where libuv reports headroom itself or off macOS; `remove` deletes the
 compiled fixture once every sampler is disposed.
 */
-export async function darwinSamplerMemory(limits: ResourceProbeLimits): Promise<{
+async function darwinSamplerMemory(limits: ResourceProbeLimits): Promise<{
   reader: () => DarwinMemoryReader | undefined
   remove: () => Promise<void>
 }> {
@@ -120,25 +123,23 @@ export async function darwinSamplerMemory(limits: ResourceProbeLimits): Promise<
 }
 
 /**
-One suite's compiled memory fixture: `install` in `beforeAll`, `remove`
-in `afterAll`, `reader` makes the fresh reader each sampler needs (a
-sampler disposes its reader), and `limits` is what the sampler is
-created with. One copy here so the relocation suites share no clone.
+What a suite of live samplers starts with: the UI text, its probe limits, and
+`darwinSamplerMemory` compiled before its first case and removed after its last.
 */
-export function darwinMemoryFixture() {
-  const limits: ResourceProbeLimits = { timeoutMs: 1000, maxOutputBytes: 64 * 1024 }
-  let compiled:
-    { reader: () => DarwinMemoryReader | undefined; remove: () => Promise<void> } | undefined
-  return {
-    limits,
-    install: async () => {
-      compiled = await darwinSamplerMemory(limits)
-    },
-    reader: () => compiled?.reader(),
-    remove: async () => {
-      await compiled?.remove()
-    },
-  }
+export function liveSamplerSuite(): {
+  readonly limits: ResourceProbeLimits
+  readonly memoryReader: () => DarwinMemoryReader | undefined
+} {
+  setUiText(EN, 'en')
+  const limits = { timeoutMs: 1000, maxOutputBytes: 64 * 1024 }
+  let compiled: Awaited<ReturnType<typeof darwinSamplerMemory>> | undefined
+  beforeAll(async () => {
+    compiled = await darwinSamplerMemory(limits)
+  })
+  afterAll(async () => {
+    await compiled?.remove()
+  })
+  return { limits, memoryReader: () => compiled?.reader() }
 }
 
 /** PIDs whose full command line names this run's helper binary. */

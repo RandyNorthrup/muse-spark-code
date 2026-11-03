@@ -37,12 +37,17 @@ const scenes = ['feedback-narrow', 'feedback-preview-narrow', 'feedback-sent-nar
 beforeAll(async () => {
   runtime.root = inject(PRODUCTION_BUILD_KEY)
   await prepareLang(runtime.root, 'pseudo')
-  const chrome = findChrome()
-  if (!chrome) throw new Error('Chrome is required for feedback verification')
-  runtime.browser = await chromium.launch({ executablePath: path.resolve(chrome) })
   const served = await serveRepo(runtime.root)
   runtime.server = served.server
   runtime.port = served.port
+})
+// Chrome's first start on a fresh runner is the slow step, so it is a hook of its
+// own: run 41516831678's Windows shard 9 passed the 30 s of the hook that also wrote
+// the pseudo table and started the server, and its line could not say which of them.
+beforeAll(async () => {
+  const chrome = findChrome()
+  if (!chrome) throw new Error('Chrome is required for feedback verification')
+  runtime.browser = await chromium.launch({ executablePath: path.resolve(chrome) })
 })
 beforeAll(async () => {
   await warmBrowser(runtime.browser)

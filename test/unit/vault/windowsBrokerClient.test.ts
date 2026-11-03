@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { setTimeout as delay } from 'node:timers/promises'
 import { windowsVaultPipeNameSchema } from '../../../src/core/vault/broker/windowsPipe'
+import { WINDOWS_VAULT_HOOK_TIMEOUT_MS } from '../helpers/fixtureBudget'
 import {
   startWindowsBrokerFixture,
   type WindowsBrokerFixture,
@@ -13,14 +14,11 @@ import {
 // helper and the broker. Skipped elsewhere with this reason.
 const fixture = { current: undefined as WindowsBrokerFixture | undefined }
 describe.skipIf(process.platform !== 'win32')('Windows vault broker end to end', () => {
-  // The native helper builds and broker starts take as long as the machine
-  // needs (a slow hosted Windows runner passed the 30 s hook budget, PR #258):
-  // no time limit of ours on this setup (owner 2026-10-16).
   beforeAll(async () => {
     // Helper builds (the person's own C# compiler) happen here, inside the
     // hook budget; the test below stays a fast launch plus round trip.
     fixture.current = await startWindowsBrokerFixture('vs-wbroker-')
-  }, 0)
+  }, WINDOWS_VAULT_HOOK_TIMEOUT_MS)
   afterAll(async () => {
     await fixture.current?.dispose()
   })

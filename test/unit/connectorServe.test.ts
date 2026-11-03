@@ -15,7 +15,7 @@ import { createConnection } from 'node:net'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
 import { setTimeout as sleep } from 'node:timers/promises'
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { PROMPT_SCHEMA_VERSION } from '../../src/shared/constants'
 import { EN, type UiText } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
@@ -27,6 +27,7 @@ import { startApprovalPage } from '../../src/runtime/connector/approvalPage'
 import { parseConnectorCommand, runConnectorCommand } from '../../src/runtime/connector/command'
 import { runConnector, type ConnectorRuntimeDeps } from '../../src/runtime/connector/entry'
 import { ConnectorStore } from '../../src/runtime/connector/store'
+import { FIXTURE_HOOK_TIMEOUT_MS } from './helpers/fixtureBudget'
 import { usingPrivateDir } from './helpers/temporaryFolders'
 import { connectorCall, connectorHeaders, connectorLogin } from './helpers/connectorLoopback'
 import { OWNER_COMMAND_IO } from './helpers/connectorRemote'
@@ -273,6 +274,14 @@ async function waitForTerminalReceipt(data: string, operationId: string): Promis
 }
 
 describe('M124 connector serving (real store, page and pipes)', () => {
+  // A grant is this file's first Windows PowerShell start, and on a fresh hosted
+  // runner that start is cold: run 41516831678's shard 5 spent this suite's first
+  // case past its 15 s on it, and each later case took about 2 s. Cold costs belong
+  // in a hook, and every case keeps the repository's budget.
+  beforeAll(async () => {
+    await usingPrivateDir('m124-cold-', (data) => granted(data, ['prompts:read']))
+  }, FIXTURE_HOOK_TIMEOUT_MS)
+
   it('serves granted reads scrubbed and writes nothing of them to the audit', async () => {
     await usingPrivateDir('m124-serve-', async (data) => {
       await granted(data, ['prompts:read', 'content:read'])

@@ -515,6 +515,31 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Windows machines no longer read as hardware workspaces. Discovery there
+  answered "unknown" every time, which refused every shell command on the
+  Model API and every turn on Muse Code. Windows now reads its serial ports
+  from the registry without opening one, and the machine's own port and
+  Bluetooth's virtual ports are no board.
+- Maker storage accepts a folder spelled through an 8.3 name or another letter
+  case. A link anywhere on the path still refuses it.
+- Maker project detection on Windows treats a folder named like a marker as
+  nothing to read, instead of failing on an empty answer.
+- The connector's storage check starts faster on Windows, and no longer depends
+  on PowerShell's module cache: its JSON goes through .NET, not a cmdlet.
+- Maker project detection on Windows no longer gives up where large PowerShell
+  modules are installed. Each read named a cmdlet, so PowerShell analysed the
+  whole module folder first and the read could run past its 10 s bound. It now
+  goes through .NET alone.
+- The vault works on Windows again. Since the feeder's parent check, the pipe
+  helper's answer about the broker's pipe carried a field its contract does not
+  name, so every client refused the answer and could never reach the broker.
+- A vault whose audit checkpoint predates per-vault store records keeps recording
+  uses. The first use after that change compared its new head with an empty
+  checkpoint instead of the old one, so the use failed.
+- The local judge's hardware scan reads the graphics card on Windows where large
+  PowerShell modules are installed, and on a machine with one card. The read named
+  cmdlets, which ran past its bound there, and one card came back in a shape the
+  parser refused. Both read as an unknown card; it now goes through .NET alone.
 - Team copies, the connector's first start and the home node's private
   folders work when their path is spelled through a system link (macOS
   `/var` for `/private/var`). Each fence judged the spelled path against

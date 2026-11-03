@@ -3,7 +3,7 @@
 // check to it through the real governor, host and relocator, and the
 // teams binding completes the join so registration succeeds. Refusal
 // anywhere keeps the check local.
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import {
   hasDeviceLinkOffer,
   ResourceRunnerRouter,
@@ -31,17 +31,10 @@ import { deviceOfferSchema, type DeviceOffer } from '../../src/shared/devices'
 import { RESOURCE_ESCALATE_MS, RESOURCE_MIN_DWELL_MS } from '../../src/shared/constants'
 import { resourceSettingsSchema, type ResourceSettings } from '../../src/shared/resources'
 import { EN } from '../../src/shared/l10n/en'
-import { setUiText } from '../../src/shared/l10n/text'
-import { darwinMemoryFixture, manualClock } from './resourceHarness'
+import { liveSamplerSuite, manualClock } from './resourceHarness'
 import { launchHostOver } from './helpers/resourceRig'
 
-setUiText(EN, 'en')
-
-const memory = darwinMemoryFixture()
-const PROBE_LIMITS = memory.limits
-
-beforeAll(memory.install)
-afterAll(memory.remove)
+const { limits: PROBE_LIMITS, memoryReader } = liveSamplerSuite()
 
 const PAIR_ID = 'a'.repeat(32)
 const DEVICE_ID = 'b'.repeat(32)
@@ -199,7 +192,7 @@ async function pressuredHost(
     clock,
     events,
     settings,
-    sampler: createMachineResourceSampler(() => settings, PROBE_LIMITS, undefined, memory.reader()),
+    sampler: createMachineResourceSampler(() => settings, PROBE_LIMITS, undefined, memoryReader()),
     // R binds approved availability; the test binds a route below.
     hasRelocationTarget: () => hasResourceRunnerRoutes(),
     onError: (error) => {

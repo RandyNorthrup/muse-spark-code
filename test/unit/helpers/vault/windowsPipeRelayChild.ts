@@ -166,6 +166,11 @@ void (async () => {
     cause = cause.cause
   }
   const trail = causes.length > 0 ? ` <- ${causes.join(' <- ')}` : ''
-  process.stderr.write(`relay fixture refused: ${String(error)}${trail}\n`)
-  process.exitCode = 1
+  // This process ends here: the serve helper's pipes keep it alive, and a child
+  // that only sets an exit code never ends, so the parent's case waited out its
+  // budget and reported a timeout instead of these words. The helper's stdin
+  // closes with it, and that ends the helper.
+  process.stderr.write(`relay fixture refused: ${String(error)}${trail}\n`, () => {
+    process.kill(process.pid)
+  })
 })

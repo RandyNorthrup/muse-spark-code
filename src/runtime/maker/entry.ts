@@ -1,6 +1,7 @@
 import type { UserPresence } from '../../core/maker/userPresence'
 import path from 'node:path'
 import type { MakerSecrets } from '../../core/maker/ports'
+import type { MakerLanPolicy } from '../../core/maker/registry'
 import type { MakerCommand } from './commandArgs'
 import { createRuntimeMakerService, runtimeMakerLan } from './service'
 import { stopRuntimeMachines, stopResultText } from './stop'
@@ -41,6 +42,7 @@ export interface RuntimeMakerEntryDeps {
   readonly platform: NodeJS.Platform
   readonly env: NodeJS.ProcessEnv
   readonly secrets: MakerSecrets
+  readonly lan?: MakerLanPolicy
   readonly presence?: UserPresence
   readonly readSecret: () => Promise<string | undefined>
   readonly print: (line: string) => void
@@ -61,7 +63,7 @@ export async function runRuntimeMaker(
           dataDirectory: deps.dataDirectory,
           platform: deps.platform,
           secrets: deps.secrets,
-          lan: runtimeMakerLan,
+          lan: deps.lan ?? runtimeMakerLan,
         },
         command.operation,
       ),
@@ -80,6 +82,7 @@ export async function runRuntimeMaker(
     dataDirectory: deps.dataDirectory,
     workspace: deps.workspace,
     secrets: deps.secrets,
+    ...(deps.lan !== undefined && { lan: deps.lan }),
     ...(deps.presence !== undefined && { presence: deps.presence }),
     trusted: () => command.trusted,
     flagged: () => true,

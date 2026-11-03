@@ -294,6 +294,8 @@ internal static class MuseSparkVaultPipe
         long parent = information.InheritedFromUniqueProcessId.ToInt64();
         return parent < 0 || parent > int.MaxValue ? -1 : parent;
     }
+    // The facts both identity answers share. Only a process answer carries the
+    // parent (OnProcess): a server answer is the client record's exact shape.
     private static Dictionary<string, object> ProcessRecord(uint processId)
     {
         IntPtr process = OpenProcess(ProcessQueryLimitedInformation, false, processId);
@@ -303,13 +305,11 @@ internal static class MuseSparkVaultPipe
             string user = TokenUserSid(process);
             long startedAt = StartedAtMillis(process);
             string executable = ImagePath(process);
-            long parentProcessId = ParentProcessId(process);
-            if (user == null || startedAt < 0 || executable == null || parentProcessId < 0) return null;
+            if (user == null || startedAt < 0 || executable == null) return null;
             return new Dictionary<string, object>
             {
                 { "processId", (int)processId }, { "userId", user },
                 { "startedAt", startedAt }, { "executable", executable },
-                { "parentProcessId", (int)parentProcessId },
             };
         }
         finally { CloseHandle(process); }
@@ -643,7 +643,13 @@ internal static class MuseSparkVaultPipe
             try
             {
                 var record = ProcessRecord(processId);
-                if (record != null) { process = record; result = "ok"; }
+                long parentProcessId = ParentProcessId(handle);
+                if (record != null && parentProcessId >= 0)
+                {
+                    record["parentProcessId"] = (int)parentProcessId;
+                    process = record;
+                    result = "ok";
+                }
             }
             finally { CloseHandle(handle); }
         }

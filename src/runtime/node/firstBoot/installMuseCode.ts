@@ -89,11 +89,11 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-/** Where Meta's installer puts the launcher: its knob, else $HOME/.local/bin. */
+/** Where Meta's POSIX installer puts the launcher: its knob, else $HOME/.local/bin. */
 export function resolveMuseInstallDir(homeDir: string, env: NodeJS.ProcessEnv): string {
   const override = env[MUSE_INSTALL_DIR_VARIABLE]
   return override === undefined || override === ''
-    ? path.join(homeDir, ...MUSE_POSIX_INSTALL_SEGMENTS)
+    ? path.posix.join(homeDir, ...MUSE_POSIX_INSTALL_SEGMENTS)
     : override
 }
 
@@ -276,7 +276,10 @@ export async function installMuseCode(
     await runInstaller(script, options.homeDir, env, remainingAfterFetch)
     const remainingAfterInstall = deadline - Date.now()
     if (remainingAfterInstall <= 0) return { ok: false, reason: 'timed-out' }
-    const musePath = path.join(resolveMuseInstallDir(options.homeDir, env), MUSE_POSIX_EXECUTABLE)
+    const musePath = path.posix.join(
+      resolveMuseInstallDir(options.homeDir, env),
+      MUSE_POSIX_EXECUTABLE,
+    )
     const version = await verifyInstall(musePath, env, remainingAfterInstall)
     return { ok: true, version }
   } catch (error: unknown) {

@@ -34,7 +34,7 @@ import {
   type WindowsRecorderMechanicalDeps,
 } from '../../src/host/media/windowsRecorderDeps'
 import { MEDIA_FILE_ID_MIN_BYTES, MEDIA_MAX_UPLOAD_MIB, UI_TEXT } from '../../src/shared/constants'
-import { denyWrites } from './helpers/deniedAccess'
+import { denyRemoval } from './helpers/deniedAccess'
 import { usingTempDir } from './helpers/temporaryFolders'
 
 const runFile = promisify(execFile)
@@ -271,7 +271,7 @@ filesystem so a lock can hold it.
 async function startLockedRun(
   folder: string,
   base: WindowsRecorderMechanicalDeps,
-): Promise<ScreenRecordingRun> {
+): Promise<{ run: ScreenRecordingRun; directory: string }> {
   const { recorder, reserved } = await ownedRecorder(
     folder,
     base,
@@ -280,8 +280,9 @@ async function startLockedRun(
   )
   const run = await recorder.start(recordOptions, noopCountdown)
   expect(reserved).toHaveLength(1)
-  await mkdir(reserved[0] ?? '', { recursive: true })
-  return run
+  const directory = reserved[0] ?? ''
+  await mkdir(directory, { recursive: true })
+  return { run, directory }
 }
 
 describe('windows screen recorder removal', () => {
@@ -312,8 +313,8 @@ describe('windows screen recorder removal', () => {
       const { base, attempts } = mechanical(folder, async (count) => {
         if (count === 1) await restoreOnce()
       })
-      const run = await startLockedRun(folder, base)
-      lock.restore = await denyWrites(path.join(folder, 'temp'))
+      const { run, directory } = await startLockedRun(folder, base)
+      lock.restore = await denyRemoval(path.join(folder, 'temp'), directory)
       try {
         await expect(run.result).resolves.toEqual({ ok: false, reason: expect.any(String) })
         expect(attempts).toHaveLength(2)
@@ -326,8 +327,8 @@ describe('windows screen recorder removal', () => {
   it('stops a never-clearing scanner lock after three attempts, keeping its kind', async () => {
     await usingTempDir('win-record-', async (folder) => {
       const { base, attempts } = mechanical(folder)
-      const run = await startLockedRun(folder, base)
-      const restore = await denyWrites(path.join(folder, 'temp'))
+      const { run, directory } = await startLockedRun(folder, base)
+      const restore = await denyRemoval(path.join(folder, 'temp'), directory)
       try {
         // Unbounded code would retry here past the suite's own timeout; the
         // bound surfaces the lock error after three attempts (~400 ms of
@@ -364,8 +365,9 @@ describe('windows screen recorder removal', () => {
       const run = await recorder.start(recordOptions, noopCountdown)
       expect(launched).toHaveLength(1)
       expect(reserved).toHaveLength(1)
-      await mkdir(reserved[0] ?? '', { recursive: true })
-      const restore = await denyWrites(path.join(folder, 'temp'))
+      const directory = reserved[0] ?? ''
+      await mkdir(directory, { recursive: true })
+      const restore = await denyRemoval(path.join(folder, 'temp'), directory)
       try {
         const cancelled = run.cancel()
         let surfaced: unknown

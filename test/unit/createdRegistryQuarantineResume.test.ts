@@ -20,7 +20,7 @@ import {
 import { RESOURCE_TEMP_KEEP_MS } from '../../src/shared/constants'
 import { nativeCreated, useCreatedNative } from './helpers/createdNative'
 import { createdRegistryProof } from './helpers/resources/registryProof'
-import { removeFolder } from './helpers/temporaryFolders'
+import { canLinkFiles, removeFolder } from './helpers/temporaryFolders'
 
 useCreatedNative()
 
@@ -157,14 +157,18 @@ describe('created registry quarantine resume (RVTEMPLEAK)', () => {
     // Real native helper spawns: genuinely long.
   }, 30_000)
 
-  it('does not follow a symlink standing at the tree name', async () => {
-    const tree = await makeTree('symlink')
-    const held = path.join(tree.dir, 'held-aside')
-    await rename(tree.root, held)
-    await symlink(held, tree.root)
-    await expectRefused(tree, path.join(held, 'payload.txt'))
-    // Real native helper spawns: genuinely long.
-  }, 30_000)
+  it.runIf(canLinkFiles())(
+    'does not follow a symlink standing at the tree name',
+    async () => {
+      const tree = await makeTree('symlink')
+      const held = path.join(tree.dir, 'held-aside')
+      await rename(tree.root, held)
+      await symlink(held, tree.root)
+      await expectRefused(tree, path.join(held, 'payload.txt'))
+      // Real native helper spawns: genuinely long.
+    },
+    30_000,
+  )
 
   it('does not reclaim a dead creator that has no exact process evidence', async () => {
     const tree = await makeTree('unproven')

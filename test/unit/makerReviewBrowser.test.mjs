@@ -200,6 +200,20 @@ beforeAll(async () => {
     rig.browser = await chromium.launch({ executablePath: findChrome() })
   }
 })
+// A fresh Chrome's first page pays its renderer's start and the first paint once:
+// run 41516831678's Windows shard 4 took 5.4 s to reach this file's first approval,
+// then spent that case's 3 s on its first scroll, while each later case took about
+// 1.3 s. So the first page opens here, and every case keeps its 3 s.
+beforeAll(async () => {
+  const first = await rig.browser.newPage({ viewport: { width: 320, height: 760 } })
+  try {
+    await first.goto(`http://127.0.0.1:${rig.port}/`)
+    await first.waitForFunction(() => globalThis.emit !== undefined)
+    await openApproval(first, 'G1 X1\r')
+  } finally {
+    await first.close()
+  }
+})
 afterEach(async () => {
   await rig.page?.close()
   rig.failed = undefined

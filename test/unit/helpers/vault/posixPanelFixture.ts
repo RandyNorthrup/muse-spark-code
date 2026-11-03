@@ -8,7 +8,7 @@
 // toString('hex')): the registrar parses them as such, and shorter names
 // throw before connect.
 
-import { chmod, copyFile, mkdir, mkdtemp, realpath } from 'node:fs/promises'
+import { chmod, copyFile, mkdir, mkdtemp, realpath, rm, symlink } from 'node:fs/promises'
 import { randomBytes } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -19,7 +19,7 @@ import { VaultBrokerProcess } from '../../../../src/host/vault/brokerProcess'
 import type { VaultBrokerLocation } from '../../../../src/core/vault/broker/discovery'
 import { configureResources } from '../../../../src/core/resources/admission'
 import { createdPathCommands } from '../../../../src/core/resources/resourceGovernorEntry'
-import { darwinVaultSlotFile } from '../../../../src/shared/constants'
+import { VAULT_POLICY_BUNDLE_FILE, darwinVaultSlotFile } from '../../../../src/shared/constants'
 import { expectEnded, isRunning } from '../processes'
 import { removeFolder } from '../temporaryFolders'
 import { buildBrokerChildren } from './sessionBrokerBuild'
@@ -42,6 +42,7 @@ const BROKER_ENTRIES: readonly (readonly [string, string])[] = [
   ['src/runtime/vault/brokerBindings.ts', 'vaultBrokerBindings.js'],
   ['src/core/resources/admissionEntry.ts', 'resourceAdmission.js'],
   ['src/runtime/vault/storeEntry.ts', 'vaultStore.js'],
+  ['src/runtime/vault/vaultPolicyEntry.ts', VAULT_POLICY_BUNDLE_FILE],
 ]
 
 export interface PosixPanelClient {
@@ -118,8 +119,15 @@ Stage the package layout: the peer and created helpers the real product
 ships, the installed broker entries the real client platform launches, and
 the macOS slot helper `native/darwin/build.sh` produces (the Secure Enclave
 probe runs it; the install root carries it under dist like the package).
+`osStore` gives the broker this checkout's keyring binding, for the one suite
+that proves what a vault writes to the OS store: a staged package has none, so
+its broker keeps its records in owner-only files and that suite would read an
+empty store (run 41516831678's `posix: scoped anchor exists`).
 */
-export async function startPosixPanelFixture(prefix: string): Promise<PosixPanelFixture> {
+export async function startPosixPanelFixture(
+  prefix: string,
+  options: { readonly osStore?: boolean } = {},
+): Promise<PosixPanelFixture> {
   // Canonical spelling: macOS spells its temporary root through /var or
   // /tmp, both symlinks, and the store refuses symlink-spelled ancestors, so
   // the generated root resolves to its real path first (same directory).
@@ -130,6 +138,13 @@ export async function startPosixPanelFixture(prefix: string): Promise<PosixPanel
   const packed = process.env[PACKED_ROOT_ENV]
   const root = packed === undefined || packed === '' ? scratch : await realpath(packed)
   if (root === scratch) await stageFromSource(root)
+  // Where a package that ships the binding has it, and the bundles' own bare
+  // import finds it. It goes first when the folder goes.
+  const keyringLink = path.join(scratch, 'node_modules', '@napi-rs', 'keyring')
+  if (options.osStore === true) {
+    await mkdir(path.dirname(keyringLink), { recursive: true })
+    await symlink(path.resolve('node_modules', '@napi-rs', 'keyring'), keyringLink)
+  }
   const clients: (() => Promise<void>)[] = []
   return {
     root,
@@ -199,6 +214,7 @@ export async function startPosixPanelFixture(prefix: string): Promise<PosixPanel
     },
     dispose: async () => {
       for (const dispose of clients.splice(0)) await dispose()
+      if (options.osStore === true) await rm(keyringLink, { force: true })
       await removeFolder(scratch)
     },
   }
