@@ -6,10 +6,11 @@ import { execFile } from 'node:child_process'
 import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { build } from 'esbuild'
-import { O11Y_STORE_FILE_MODE } from '../../../src/shared/constants'
+import { NODE_DIRECTORY_MODE, O11Y_STORE_FILE_MODE } from '../../../src/shared/constants'
 import { parseCrashLine } from '../../../src/core/o11y/crash'
 import { NodeJournalFiles } from '../../../src/runtime/node/journalFiles'
 import { O11yRingStore } from '../../../src/runtime/o11y/store'
@@ -58,7 +59,7 @@ async function crashChild(
 ): Promise<{ code: number; record: string }> {
   const code = await runDriver(
     `import { appendFileSync } from 'node:fs';
-import { installO11yCrashHook } from ${JSON.stringify(built.hook)};
+import { installO11yCrashHook } from ${JSON.stringify(pathToFileURL(built.hook).href)};
 installO11yCrashHook({ component: 'node', writeLine: (line) => appendFileSync(${JSON.stringify(recordFile)}, line) });
 ${script}\n`,
   )
@@ -92,9 +93,10 @@ describe('o11y crash hook', () => {
 
   it('writes the node hook record to the store crashes day file, owner-only', async () => {
     const root = path.join(built.dir, 'node-root')
-    await mkdir(root, { recursive: true })
+    // Owner-only, as the node makes its data root: the store reads no other.
+    await mkdir(root, { recursive: true, mode: NODE_DIRECTORY_MODE })
     const code = await runDriver(
-      `import { installNodeCrashHook } from ${JSON.stringify(built.hook)};
+      `import { installNodeCrashHook } from ${JSON.stringify(pathToFileURL(built.hook).href)};
 installNodeCrashHook(${JSON.stringify(root)});
 throw new TypeError('node boom');\n`,
     )
