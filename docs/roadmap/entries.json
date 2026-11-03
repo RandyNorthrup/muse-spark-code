@@ -748,7 +748,7 @@
     {
       "id": "M101",
       "title": "Long-task context upgrades",
-      "summary": "Ships cache-stable prompts, packed-output recall and manual ACP compaction; automatic compaction evaluated and on after the binding run passed, while remaining upstream ports are in progress.",
+      "summary": "Ships cache-stable prompts, packed-output recall and manual ACP compaction; automatic compaction evaluated and on, summaries use each model's own output limit in its window, while remaining upstream ports are in progress.",
       "area": "agents",
       "release": "0.15.0"
     },
