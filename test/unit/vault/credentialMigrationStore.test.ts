@@ -30,6 +30,7 @@ import {
   openMigrationSession,
   pooledAccountSeeds,
 } from '../helpers/vault/subscriptionMigrationFlow'
+import { WINDOWS_VAULT_HOOK_TIMEOUT_MS } from '../helpers/fixtureBudget'
 import {
   startWindowsBrokerFixture,
   type WindowsBrokerFixture,
@@ -52,12 +53,9 @@ function currentFixture(): WindowsBrokerFixture {
 describe.skipIf(process.platform !== 'win32')(
   'credential migration through the real broker',
   () => {
-    // As in the two other suites on this fixture: the native helper builds and
-    // the broker's start take as long as the machine needs, with no time limit
-    // of ours on this setup (owner 2026-10-16).
     beforeAll(async () => {
       fixture.current = await startWindowsBrokerFixture('vs-wmigration-')
-    }, 0)
+    }, WINDOWS_VAULT_HOOK_TIMEOUT_MS)
     afterAll(async () => {
       await fixture.current?.dispose()
     })

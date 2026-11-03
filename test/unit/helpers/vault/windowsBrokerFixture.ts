@@ -7,7 +7,7 @@
 // (randomBytes(16).toString('hex')): the registrar parses them as such,
 // and shorter names throw before connect.
 
-import { copyFile, mkdir, mkdtemp, readFile } from 'node:fs/promises'
+import { copyFile, mkdir, mkdtemp, readFile, symlink, unlink } from 'node:fs/promises'
 import { randomBytes } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -77,10 +77,19 @@ export async function startWindowsBrokerFixture(
 ): Promise<WindowsBrokerFixture> {
   const root = await mkdtemp(path.join(tmpdir(), prefix))
   const dist = path.join(root, 'dist')
-  const keyringBinding =
-    options.osStore === true
-      ? path.resolve('node_modules', '@napi-rs', 'keyring', 'index.js')
-      : path.join(root, 'node_modules', '@napi-rs', 'keyring', 'index.js')
+  const keyringFolder = path.join(root, 'node_modules', '@napi-rs', 'keyring')
+  const absentKeyring = path.join(keyringFolder, 'index.js')
+  // A package that ships the binding has it in node_modules beside dist, where
+  // the bundles' own bare import finds it: here, a junction to this checkout's.
+  // It goes first when the folder goes, so nothing can walk through it.
+  if (options.osStore === true) {
+    await mkdir(path.dirname(keyringFolder), { recursive: true })
+    await symlink(path.resolve('node_modules', '@napi-rs', 'keyring'), keyringFolder, 'junction')
+  }
+  const removeStage = async (): Promise<void> => {
+    if (options.osStore === true) await unlink(keyringFolder)
+    await removeFolder(root)
+  }
   // The client reads the slot and pipe sources beside dist exactly as the
   // package lays them out, and the broker reads the job helpers' sources
   // there, so the fixture stages those real sources.
@@ -98,8 +107,9 @@ export async function startWindowsBrokerFixture(
         // Bind that optional import to its own absent package entry: Node
         // must never walk up from an in-checkout TEMP into the developer's
         // node_modules and open the person's native rollback anchor.
-        alias: { '@napi-rs/keyring': keyringBinding },
-        external: [keyringBinding],
+        ...(options.osStore === true
+          ? { external: ['@napi-rs/keyring'] }
+          : { alias: { '@napi-rs/keyring': absentKeyring }, external: [absentKeyring] }),
         platform: 'node',
         format: 'cjs',
       }),
@@ -121,7 +131,7 @@ export async function startWindowsBrokerFixture(
     platform = await vaultClientPlatform({ dataDir, distDir: dist, hostId, hostSession })
   } catch (error: unknown) {
     disposeAdmission()
-    await removeFolder(root)
+    await removeStage()
     throw error
   }
   const broker = new VaultBrokerProcess(platform.discovery, platform.process)
@@ -133,8 +143,7 @@ export async function startWindowsBrokerFixture(
   // start as failure toasts (RLVAULTCI: capacity run 39703535342, Windows
   // shard 6 — `uncreated` with two `operationFailed` toasts). So the fixture
   // connects until the broker answers, and a broker that never does fails the
-  // suite with words: the helper builds above take as long as the machine
-  // needs (owner 2026-10-16), this wait does not hold a shard.
+  // suite with words, well inside the hook's WINDOWS_VAULT_HOOK_TIMEOUT_MS.
   const fixture: WindowsBrokerFixture = {
     root,
     dataDir,
@@ -169,7 +178,7 @@ export async function startWindowsBrokerFixture(
       // files do, so a rerun starts clean and the person's store keeps no
       // fixture vault behind.
       await removeVaultStoreRecords(dataDir)
-      await removeFolder(root)
+      await removeStage()
     },
   }
   const warm = new VaultManageSession(connect)

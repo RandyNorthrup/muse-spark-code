@@ -570,7 +570,7 @@ describe.runIf(process.platform === 'win32')('fork protection on the attested jo
         'let refused = 0\n' +
         'async function one() {\n' +
         '  await new Promise((resolve) => {\n' +
-        // The job's refusal is ENOMEM, which Node throws from spawn instead of emitting.
+        // Node throws the job's refusal from spawn instead of emitting it.
         '    try {\n' +
         '      const child = spawn(sleeper, ["-n", "31", "127.0.0.1"], { stdio: "ignore" })\n' +
         '      child.once("error", () => { refused += 1; resolve() })\n' +
