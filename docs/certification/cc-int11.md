@@ -167,6 +167,25 @@ Conflicts:
 
 Interactions: none beyond the regenerated desktop tables.
 
+### Merge 5 — `lanes/cc-winfix6` (c694aad72, contains cc-winfix2..5, rlf-cifixa, cc-cifixw)
+
+The Windows CI fixes: vault pipe helper (D216 `parentProcessId` against the helper's strict schema), DPAPI slot
+reference, `prepare()` in `brokerBindings.ts`, `check-bundle-split` report written whole, `teamModelsFirstPaint`'s
+bundle in global setup, `judgeP2Delivery` cut from 282 gate runs to 5 with its 104th case, Windows vault hooks bounded
+at 300 s (the lead reports that narrowing to the owner). None of its contained lanes is merged separately.
+
+Conflicts:
+
+- `src/runtime/node/firstBoot/installMuseCode.ts`: the lane's `path.posix.join` (the node's install path is POSIX on
+  every runner) in int's guard shape (int's unicorn 79 `no-negated-condition` refused the lane's).
+- `test/unit/resourceHarness.ts` and the two relocation suites: CC-INT10's `darwinMemoryFixture` and the lane's
+  `liveSamplerSuite` solved the same duplication; the lane's helper is kept (its hooks live in the helper), int's
+  `launchHostOver` import in the devices suite stays. Both suites 16/16 (exit 0).
+- `docs/real-life/unproven.md`: both (int's ORCHEXT/HOSTSLAND/M109H passages, the lane's CC-CIFIXW section).
+- `host-api.md`: regenerated (exit 0).
+
+Interactions: none found by unit typecheck (exit 0); the batch's build and lint follow at the end.
+
 ### Red/green drills (batch A)
 
 - Merge 1, terminal cwd through a link: `confineTerminalCwd` made lexical-only for in-root names →

@@ -13,3 +13,12 @@
 // real-git hooks already use (REAL_GIT_TIMEOUT_MS). Cases keep their own
 // deadlines and no assertion depends on it. PLAN.md §8.
 export const FIXTURE_HOOK_TIMEOUT_MS = 120_000
+
+// The Windows suites that build the native vault helpers: the builds and the
+// broker's start take as long as the machine needs, past the 30 s hook budget on a
+// slow hosted runner (PR #258), so these hooks had no limit at all (owner
+// 2026-10-16). With none, anything on that road that never ends holds a shard to
+// its job's limit, with no line in the log (run 41516831678). This is the harness,
+// not a limit on the person's vault: far past those builds, and it leaves the shard
+// time to report.
+export const WINDOWS_VAULT_HOOK_TIMEOUT_MS = 300_000

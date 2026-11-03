@@ -105,10 +105,12 @@ const metaSchema = z.looseObject({
     }),
   ),
 })
-// Real bundle-split gate rereads every production metafile (2.2s on this tree); a child case runs it five times.
-const REAL_SPLIT_CASE_MS = 60_000
-// `vsce ls` walks the real package tree; each distinct allowlist needs one real listing.
-const REAL_VSIX_CASE_MS = 60_000
+// The last case runs three real gates; the bundle-split gate rereads every production metafile.
+const REAL_GATES_CASE_MS = 60_000
+// A gate takes 2 to 18 s and `vsce ls` up to a minute. Their real runs happen while
+// the file is collected, where no case's deadline reaches, so one that has not
+// ended by now is hung: the file fails naming it, instead of holding the shard.
+const GATE_HUNG_MS = 300_000
 
 const targets = [
   ['extension', 'dist/meta/extension.json'],
@@ -130,7 +132,15 @@ function output(file: string, bundle: string) {
 }
 
 function gate(script: string) {
-  return spawnSync(process.execPath, [`scripts/${script}.mjs`], { encoding: 'utf8' })
+  const result = spawnSync(process.execPath, [`scripts/${script}.mjs`], {
+    encoding: 'utf8',
+    timeout: GATE_HUNG_MS,
+  })
+  if (result.error !== undefined)
+    throw new Error(`scripts/${script}.mjs did not end: ${result.error.message}`, {
+      cause: result.error,
+    })
+  return result
 }
 
 function digest(file: string): string {
@@ -147,7 +157,7 @@ function vsixListing(): string[] {
   const listing = execFileSync(
     process.execPath,
     ['node_modules/@vscode/vsce/vsce', 'ls', '--no-dependencies'],
-    { encoding: 'utf8' },
+    { encoding: 'utf8', timeout: GATE_HUNG_MS },
   ).split(/\r?\n/)
   vsixListings.set(key, listing)
   return listing
@@ -159,28 +169,44 @@ interface Control {
   readonly restored: boolean
 }
 
-// One mutation control: mutate, run the real gate, restore byte-exact.
-function control(file: string, mutate: () => void, script: string): Control {
-  const original = readFileSync(file)
-  const hash = digest(file)
+type Mutation = readonly [file: string, mutate: () => void]
+
+// Every mutation at once, one run of the real gate, every file restored
+// byte-exact. A gate reports every problem it finds, so each case below still
+// asserts its own message from that run.
+function controlAll(mutations: readonly Mutation[], script: string): Control {
+  const originals = new Map(mutations.map(([file]) => [file, readFileSync(file)]))
+  const hashes = new Map(mutations.map(([file]) => [file, digest(file)]))
   let red
   try {
-    mutate()
+    for (const [, mutate] of mutations) mutate()
     red = gate(script)
   } finally {
-    writeFileSync(file, original)
+    for (const [file, original] of originals) writeFileSync(file, original)
   }
   return {
     status: red.status,
     output: `${red.stdout}${red.stderr}`,
-    restored: digest(file) === hash,
+    restored: mutations.every(([file]) => digest(file) === hashes.get(file)),
   }
+}
+
+function control(file: string, mutate: () => void, script: string): Control {
+  return controlAll([[file, mutate]], script)
 }
 
 function expectFired(result: Control, message: string) {
   expect(result.status, result.output).toBe(1)
   expect(result.output).toContain(message)
   expect(result.restored).toBe(true)
+}
+
+// The gate counts its problems before it lists them. One gate run holds a whole
+// family's mutations, so its report runs to 230 lines, and each case below asserts
+// lines of it: a report cut short would read as those cases' guards not firing.
+function expectWholeReport({ output }: Control, planted: number) {
+  expect(output).toContain(`bundle split: ${String(planted)} problem(s)`)
+  expect(output.split(/\r?\n/u).filter((line) => line.startsWith('  '))).toHaveLength(planted)
 }
 
 function leakInto(file: string, name: string, source: string) {
@@ -199,27 +225,31 @@ function dropFrom(file: string, name: string, source: string) {
   }
 }
 
-// The default-deadline controls run here, once, while the file is collected:
-// each spawns a real gate (check-bundle-split rereads every production
-// metafile, 2.6 s idle on kubuntu), so a loaded runner pushed a single control
-// past its 5 s test deadline (RVM98P2R3 10). Collection has no deadline; each
-// case below still asserts its own control's exit, message and restoration.
+// The controls run here, once, while the file is collected: each spawns a real
+// gate (check-bundle-split rereads every production metafile: 2.6 s idle on
+// kubuntu, 9 to 18 s on a loaded Windows workstation), so a loaded runner pushed
+// a single control past its test deadline (RVM98P2R3 10). One gate run per
+// mutation was 282 of them, which no shard can finish inside its job's limit:
+// runs 41214393586 and 41516831678 lost a shard on all three OSes here, with no
+// line in the log. So one run proves all the mutations of its kind, and each
+// case below still asserts its own message, the run's exit and the restoration.
 const greenSplit = gate('check-bundle-split')
-const leakControls = targets.flatMap(([name, file]) =>
-  [...judgeFiles].map((source) => ({
-    name,
-    source,
-    result: control(file, leakInto(file, name, source), 'check-bundle-split'),
-  })),
+const leakControls = targets.flatMap(([name]) =>
+  [...judgeFiles].map((source) => ({ name, source })),
 )
-const missingControls = [...judgeFiles].map((source) => ({
-  source,
-  result: control(
-    'dist/meta/judgeP2.json',
-    dropFrom('dist/meta/judgeP2.json', 'judgeP2', source),
-    'check-bundle-split',
-  ),
-}))
+const judgeSplit = controlAll(
+  [
+    ...targets.flatMap(([name, file]) =>
+      [...judgeFiles].map((source): Mutation => [file, leakInto(file, name, source)]),
+    ),
+    ...[...judgeFiles].map((source): Mutation => [
+      'dist/meta/judgeP2.json',
+      dropFrom('dist/meta/judgeP2.json', 'judgeP2', source),
+    ]),
+  ],
+  'check-bundle-split',
+)
+const missingControls = [...judgeFiles].map((source) => ({ source }))
 const JUDGE_BUNDLE = 'dist/judgeP2.js'
 const judgeOversize = control(
   JUDGE_BUNDLE,
@@ -249,36 +279,33 @@ const judgeMissing = (() => {
   return { size, pack, restored: digest(JUDGE_BUNDLE) === hash, green: gate('check-bundle-size') }
 })()
 
-// The cases that ran several real gates or a real `vsce ls` each run their
-// controls here as well, for the same reason: on a Windows workstation one
-// bundle-split gate took 11 to 18 s (2.2 s where the cases' 60 s deadlines
-// were measured), so a case running five passed its deadline. Every case
-// below still asserts each of its own controls' exit, message and
-// restoration.
+const childParents = [...targets, ['judgeP2', 'dist/meta/judgeP2.json'] as const]
+const childSplit = controlAll(
+  children.flatMap(({ name, sources }) =>
+    sources.flatMap((source): Mutation[] => [
+      ...childParents.map(([parent, file]): Mutation => [file, leakInto(file, parent, source)]),
+      [`dist/meta/${name}.json`, dropFrom(`dist/meta/${name}.json`, name, source)],
+    ]),
+  ),
+  'check-bundle-split',
+)
 const childControls = children.flatMap(({ name, sources }) =>
-  sources.map((source) => ({
-    name,
-    source,
-    leaks: [...targets, ['judgeP2', 'dist/meta/judgeP2.json'] as const].map(([parent, file]) =>
-      control(file, leakInto(file, parent, source), 'check-bundle-split'),
-    ),
-    missing: control(
-      `dist/meta/${name}.json`,
-      dropFrom(`dist/meta/${name}.json`, name, source),
-      'check-bundle-split',
-    ),
-  })),
+  sources.map((source) => ({ name, source })),
 )
 
-/** The real VSIX list before, without and after a file's allowlist entry. */
-function allowlistControl(file: string) {
+/** The real VSIX list before, without and after the files' allowlist entries (two real listings). */
+function allowlistControl(files: readonly string[]) {
   const listing = '.vscodeignore'
   const original = readFileSync(listing)
   const hash = digest(listing)
   const before = vsixListing()
   let without: string[]
   try {
-    writeFileSync(listing, original.toString('utf8').replace(`!${file}\n`, ''))
+    const entries = original.toString('utf8').split('\n')
+    writeFileSync(
+      listing,
+      entries.filter((entry) => files.every((file) => entry !== `!${file}`)).join('\n'),
+    )
     without = vsixListing()
   } finally {
     writeFileSync(listing, original)
@@ -316,35 +343,37 @@ const sizeControls = (
       },
       'check-host-globals',
     ),
-    allowlist: allowlistControl(file),
   }
 })
-const judgeAllowlist = allowlistControl(JUDGE_BUNDLE)
+const judgeAllowlist = allowlistControl([JUDGE_BUNDLE, ...sizeControls.map(({ file }) => file)])
 
-const englishControls = ['judgeP2', ...children.map((child) => child.name)].map((name) => {
-  const file = `dist/meta/${name}.json`
-  return {
-    name,
-    duplicate: control(
-      file,
-      () => {
-        const { meta, result } = output(file, name)
-        result.inputs['src/shared/l10n/en.ts'] = { bytesInOutput: 1 }
-        writeFileSync(file, JSON.stringify(meta))
-      },
-      'check-bundle-split',
-    ),
-    unloaded: control(
-      file,
-      () => {
-        const { meta, result } = output(file, name)
-        result.imports = result.imports.filter((entry) => entry.path !== './uiText.js')
-        writeFileSync(file, JSON.stringify(meta))
-      },
-      'check-bundle-split',
-    ),
-  }
-})
+const englishControls = ['judgeP2', ...children.map((child) => child.name)].map((name) => ({
+  name,
+}))
+const englishSplit = controlAll(
+  englishControls.flatMap(({ name }): Mutation[] => {
+    const file = `dist/meta/${name}.json`
+    return [
+      [
+        file,
+        () => {
+          const { meta, result } = output(file, name)
+          result.inputs['src/shared/l10n/en.ts'] = { bytesInOutput: 1 }
+          writeFileSync(file, JSON.stringify(meta))
+        },
+      ],
+      [
+        file,
+        () => {
+          const { meta, result } = output(file, name)
+          result.imports = result.imports.filter((entry) => entry.path !== './uiText.js')
+          writeFileSync(file, JSON.stringify(meta))
+        },
+      ],
+    ]
+  }),
+  'check-bundle-split',
+)
 
 // The Muse Code backend's log text is a backend detail: judge code reports
 // through errorNameForLog (src/core/logging.ts), so no judge child bundle
@@ -393,60 +422,65 @@ describe('phase-2 judge production delivery', () => {
     expect(judgeChildrenCarryingLogText()).toEqual([])
   })
 
-  it(
-    'lists every phase-2 production member in the real VSIX inventory',
-    () => {
-      const listing = vsixListing()
-      for (const name of ['judgeP2', ...children.map((child) => child.name)])
-        expect(listing).toContain(`dist/${name}.js`)
-    },
-    REAL_VSIX_CASE_MS,
-  )
+  it('lists every phase-2 production member in the real VSIX inventory', () => {
+    const listing = vsixListing()
+    for (const name of ['judgeP2', ...children.map((child) => child.name)])
+      expect(listing).toContain(`dist/${name}.js`)
+  })
+
+  it('reports exactly the problems each shared gate run planted, every one of them', () => {
+    expectWholeReport(judgeSplit, leakControls.length + missingControls.length)
+    expectWholeReport(childSplit, childControls.length * (childParents.length + 1))
+    expectWholeReport(englishSplit, englishControls.length * 2)
+  })
 
   it.each(leakControls)(
     'fires the phase-2 leak guard in $name for $source with byte-exact restoration',
-    ({ source, result }) => {
-      expectFired(result, `carries ${source}, which belongs to the lazy judge bundle`)
+    ({ name, source }) => {
+      expectFired(
+        judgeSplit,
+        `dist/${name}.js carries ${source}, which belongs to the lazy judge bundle`,
+      )
     },
   )
 
   it.each(missingControls)(
     'fires the missing implementation guard for $source with byte-exact restoration',
-    ({ source, result }) => {
-      expectFired(result, `dist/judgeP2.js no longer carries ${source}`)
+    ({ source }) => {
+      expectFired(judgeSplit, `dist/judgeP2.js no longer carries ${source}`)
     },
   )
 
   it.each(childControls)(
     'fires each $name child split guard for $source with byte-exact restoration',
-    ({ name, source, leaks, missing }) => {
-      for (const result of leaks)
-        expectFired(result, `carries ${source}, which belongs to dist/${name}.js`)
-      expectFired(missing, `dist/${name}.js no longer carries ${source}`)
+    ({ name, source }) => {
+      for (const [parent] of childParents)
+        expectFired(
+          childSplit,
+          `dist/${parent}.js carries ${source}, which belongs to dist/${name}.js`,
+        )
+      expectFired(childSplit, `dist/${name}.js no longer carries ${source}`)
     },
-    REAL_SPLIT_CASE_MS,
   )
 
   it.each(sizeControls)(
     'fires $name size, globals and actual package allowlist guards',
-    ({ file, oversize, global, allowlist }) => {
+    ({ file, oversize, global }) => {
       expectFired(oversize, `OVER ${file}`)
       expectFired(global, `FAIL ${file}`)
-      expect(allowlist.before).toContain(file)
-      expect(allowlist.without).not.toContain(file)
-      expect(allowlist.restored).toBe(true)
-      expect(allowlist.after).toContain(file)
+      expect(judgeAllowlist.before).toContain(file)
+      expect(judgeAllowlist.without).not.toContain(file)
+      expect(judgeAllowlist.restored).toBe(true)
+      expect(judgeAllowlist.after).toContain(file)
     },
-    REAL_VSIX_CASE_MS,
   )
 
   it.each(englishControls)(
     'refuses $name duplicated English fallback and a missing shared-table import',
-    ({ name, duplicate, unloaded }) => {
-      expectFired(duplicate, `dist/${name}.js duplicates src/shared/l10n/en.ts`)
-      expectFired(unloaded, `dist/${name}.js no longer loads the shared English table`)
+    ({ name }) => {
+      expectFired(englishSplit, `dist/${name}.js duplicates src/shared/l10n/en.ts`)
+      expectFired(englishSplit, `dist/${name}.js no longer loads the shared English table`)
     },
-    REAL_SPLIT_CASE_MS,
   )
 
   it('fires the new size and host-global guards without changing caps', () => {
@@ -461,16 +495,12 @@ describe('phase-2 judge production delivery', () => {
     expect(green.status).toBe(0)
   })
 
-  it(
-    'includes the new member in the actual VSIX list and excludes it when its allowlist entry is removed',
-    () => {
-      expect(judgeAllowlist.before).toContain(JUDGE_BUNDLE)
-      expect(judgeAllowlist.without).not.toContain(JUDGE_BUNDLE)
-      expect(judgeAllowlist.restored).toBe(true)
-      expect(judgeAllowlist.after).toContain(JUDGE_BUNDLE)
-    },
-    REAL_VSIX_CASE_MS,
-  )
+  it('includes the new member in the actual VSIX list and excludes it when its allowlist entry is removed', () => {
+    expect(judgeAllowlist.before).toContain(JUDGE_BUNDLE)
+    expect(judgeAllowlist.without).not.toContain(JUDGE_BUNDLE)
+    expect(judgeAllowlist.restored).toBe(true)
+    expect(judgeAllowlist.after).toContain(JUDGE_BUNDLE)
+  })
 
   it('lists judgeP2.js as required in both CI package inventories', () => {
     const workflow = readFileSync('.github/workflows/build.yml', 'utf8')
@@ -491,6 +521,6 @@ describe('phase-2 judge production delivery', () => {
         expect(green.status, green.stderr).toBe(0)
       }
     },
-    REAL_SPLIT_CASE_MS,
+    REAL_GATES_CASE_MS,
   )
 })

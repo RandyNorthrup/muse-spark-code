@@ -1,4 +1,5 @@
 import { fileIdentityKey, statIdentitySync } from '../fs/fileIdentity'
+import { execFileSync } from 'node:child_process'
 import {
   closeSync,
   constants,
@@ -9,8 +10,18 @@ import {
   readdirSync,
 } from 'node:fs'
 import path from 'node:path'
-import { MAKER_DETECT_MAX_BYTES, MAKER_DETECT_MAX_FILES, UI_TEXT } from '../../shared/constants'
+import {
+  MAKER_DETECT_IO_TIMEOUT_MS,
+  MAKER_DETECT_MAX_BYTES,
+  MAKER_DETECT_MAX_FILES,
+  MAKER_WINDOWS_INVENTORY_REFRESH_MS,
+  UI_TEXT,
+} from '../../shared/constants'
 import type { HardwareContext } from './guard/httpCommands'
+import type { TargetIdentity } from './ports'
+
+const WINDOWS_DEVICE_MAP_KEY = String.raw`HKLM\HARDWARE\DEVICEMAP`
+const WINDOWS_SERIAL_COMM_KEY = 'SERIALCOMM'
 
 function isScanFailure(error: unknown): boolean {
   return error instanceof Error && 'code' in error && typeof error.code === 'string'
@@ -52,7 +63,8 @@ export function hasPositiveHardwareEvidence(context: HardwareContext): boolean {
     context.isHardwareWorkspace === true ||
     context.isMakerEnabled === true ||
     context.isHardwareProject === true ||
-    context.hasConnectedBoard === true ||
+    // An unknown inventory reports a connected board only to keep commands fail-safe.
+    (context.hasConnectedBoard === true && context.isInventoryKnown !== false) ||
     (context.targets?.length ?? 0) > 0 ||
     (context.boardRoots?.length ?? 0) > 0
   )
@@ -254,16 +266,70 @@ function mountedBoards(platform: NodeJS.Platform, roots: readonly string[]): rea
   return boards
 }
 
+/** One `reg query`: System32's own program, with nothing of ours in its environment. */
+function queryRegistry(systemRoot: string, key: string): string {
+  return execFileSync(path.win32.join(systemRoot, 'System32', 'reg.exe'), ['query', key], {
+    encoding: 'utf8',
+    env: { SystemRoot: systemRoot },
+    stdio: ['ignore', 'pipe', 'pipe'],
+    timeout: MAKER_DETECT_IO_TIMEOUT_MS,
+    windowsHide: true,
+  })
+}
+
+/**
+What Windows lists under SERIALCOMM, without opening a port. Empty when the
+key is absent: it exists only once a serial driver has started. Any failed
+read throws, and an inventory that cannot be read is unknown.
+*/
+export function readWindowsSerialComm(
+  systemRoot: string,
+  key: string = WINDOWS_SERIAL_COMM_KEY,
+): string {
+  const suffix = `\\${key}`.toLowerCase()
+  return queryRegistry(systemRoot, WINDOWS_DEVICE_MAP_KEY)
+    .split(/\r?\n/u)
+    .some((line) => line.trim().toLowerCase().endsWith(suffix))
+    ? queryRegistry(systemRoot, `${WINDOWS_DEVICE_MAP_KEY}\\${key}`)
+    : ''
+}
+
+/**
+The boards among SERIALCOMM's rows: everything but the machine's own UART and
+Bluetooth's virtual ports, whose driver names are fixed. USB serial drivers
+name their devices freely, so an unrecognised name counts as a board. The
+name and port identify the connection; Windows gives no replacement generation.
+*/
+function windowsBoardTargets(rows: string): readonly TargetIdentity[] {
+  const targets: TargetIdentity[] = []
+  for (const line of rows.split(/\r?\n/u)) {
+    if (!/^\s+\S/u.test(line)) continue
+    const [, device, address] = /^\s+(.+?)\s+REG_SZ\s+(\S+)\s*$/u.exec(line) ?? []
+    if (device === undefined || address === undefined) throw new Error(UI_TEXT.hardwareRefused)
+    if (!/^\\Device\\(?:Serial|BthModem)\d+$/iu.test(device))
+      targets.push({ address, connectionId: `${device}:${address}` })
+  }
+  return targets
+}
+
+function defaultSerialComm(): string {
+  const systemRoot = process.env['SystemRoot']
+  if (systemRoot === undefined) throw new Error(UI_TEXT.hardwareRefused)
+  return readWindowsSerialComm(systemRoot)
+}
+
 export function readHardwareInventory(
   platform: NodeJS.Platform,
   deviceRoot: string,
   mountRoots: readonly string[],
+  serialComm: () => string = defaultSerialComm,
 ): HardwareContext {
   try {
     if (platform === 'win32') {
-      // Windows discovery is not qualified yet. Unknown inventory is hardware,
-      // never an empty inventory that permits an opaque command to actuate.
-      return { hasConnectedBoard: true, isInventoryKnown: false }
+      // Mass-storage boards are not read here: a drive's label takes a process
+      // per letter, and a CircuitPython board shows its serial port as well.
+      const targets = windowsBoardTargets(serialComm())
+      return { isInventoryKnown: true, hasConnectedBoard: targets.length > 0, targets }
     }
     const ports = readdirSync(deviceRoot).filter((name) =>
       /^(?:ttyUSB|ttyACM|cu\.(?:usb|wch|SLAB|UART))/i.test(name),
@@ -290,7 +356,22 @@ export function readHardwareInventory(
   }
 }
 
+const windowsInventory: { at: number; context: HardwareContext } = {
+  at: -Infinity,
+  context: {},
+}
+
 function connectedBoards(): HardwareContext {
+  // The guard reads the inventory several times per command; on Windows each
+  // read starts a process, which /dev's directory listing elsewhere does not.
+  if (process.platform === 'win32') {
+    const now = Date.now()
+    if (now - windowsInventory.at >= MAKER_WINDOWS_INVENTORY_REFRESH_MS) {
+      windowsInventory.at = now
+      windowsInventory.context = readHardwareInventory('win32', '', [])
+    }
+    return windowsInventory.context
+  }
   return readHardwareInventory(
     process.platform,
     '/dev',

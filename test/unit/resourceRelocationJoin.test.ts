@@ -3,7 +3,7 @@
 // registration until the teams wiring binds one, admission keeps work local
 // with no route, and a governor left at relocate steps down to pause the
 // moment its last route is lost. The governor samples this machine live.
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import {
   admitResource,
   configureResources,
@@ -16,20 +16,12 @@ import { resourceGovernorHost } from '../../src/core/resources/resourceGovernorE
 import { createMachineResourceSampler } from '../../src/core/resources/sampler/system'
 import { RESOURCE_ESCALATE_MS, RESOURCE_MIN_DWELL_MS } from '../../src/shared/constants'
 import { resourceSettingsSchema, type ResourceSettings } from '../../src/shared/resources'
-import { EN } from '../../src/shared/l10n/en'
-import { setUiText } from '../../src/shared/l10n/text'
-import { darwinMemoryFixture, manualClock } from './resourceHarness'
+import { liveSamplerSuite, manualClock } from './resourceHarness'
 
-setUiText(EN, 'en')
-
-const memory = darwinMemoryFixture()
-const PROBE_LIMITS = memory.limits
-
-beforeAll(memory.install)
-afterAll(memory.remove)
+const { limits: PROBE_LIMITS, memoryReader } = liveSamplerSuite()
 
 function liveSampler(settings: () => ResourceSettings) {
-  return createMachineResourceSampler(settings, PROBE_LIMITS, undefined, memory.reader())
+  return createMachineResourceSampler(settings, PROBE_LIMITS, undefined, memoryReader())
 }
 
 const disposers: (() => void)[] = []

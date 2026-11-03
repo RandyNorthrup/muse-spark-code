@@ -1,12 +1,13 @@
 // The issuer is the one public name. A request must not be able to make
 // discovery advertise a different token, key or revocation address: the
 // real `serve-http` process, on loopback, with the request a stranger sends.
-import { rm, stat } from 'node:fs/promises'
+import { rm } from 'node:fs/promises'
 import { connect } from 'node:net'
 import path from 'node:path'
 import tls from 'node:tls'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { CONNECTOR_FILE_MODE, CONNECTOR_FOLDER } from '../../src/shared/constants'
+import { CONNECTOR_FOLDER } from '../../src/shared/constants'
+import { expectPrivate } from './helpers/connectorPrivacy'
 import {
   TLS_ARGUMENTS,
   dataFolder,
@@ -129,8 +130,8 @@ describe('M124 remote: discovery names only the configured issuer', () => {
     expect(absolute['authorization_endpoint']).toBe(`${remote.origin}/authorize`)
     expect(absolute['jwks_uri']).toBe(`${remote.origin}/jwks.json`)
     expect(JSON.stringify(absolute)).not.toContain('evil.example')
-    const info = await stat(path.join(data, CONNECTOR_FOLDER, 'oauth', 'default.json'))
-    expect(info.mode & 0o777).toBe(CONNECTOR_FILE_MODE)
+    // The issuer's signing key: private to this account, on every OS.
+    await expectPrivate([path.join(data, CONNECTOR_FOLDER, 'oauth', 'default.json')])
   })
 
   it('refuses a Host or Origin that is not this connector', async () => {

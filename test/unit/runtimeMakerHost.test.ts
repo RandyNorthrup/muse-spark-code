@@ -1,6 +1,7 @@
 import { performance } from 'node:perf_hooks'
 import { mkdtemp, mkdir, readFile, rm, link, symlink, rename } from 'node:fs/promises'
 import { makerTempRoot } from './helpers/makerTemp'
+import { canLinkFiles } from './helpers/temporaryFolders'
 import path from 'node:path'
 import { randomUUID, createHash } from 'node:crypto'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -169,6 +170,18 @@ describe('runtime maker host', () => {
     await expect(RuntimeMakerHost.create({ ...deps, dataDirectory: workspace })).rejects.toThrow(
       'maker-storage-in-workspace',
     )
+  })
+  it('cannot keep authority behind a link, however far up the path', async () => {
+    const { deps } = await fixture()
+    const real = path.join(path.dirname(deps.workspace), 'real')
+    await mkdir(real)
+    const linked = path.join(path.dirname(deps.workspace), 'linked')
+    await symlink(real, linked, 'junction')
+    for (const dataDirectory of [linked, path.join(linked, 'below')]) {
+      await expect(RuntimeMakerHost.create({ ...deps, dataDirectory })).rejects.toThrow(
+        'maker-storage-symlink',
+      )
+    }
   })
   it('flag and current admission refuse confirmations; Stop controls still update', async () => {
     let isInteractive = true
@@ -588,17 +601,20 @@ describe('runtime maker host', () => {
       host.stopControls([])
     }).not.toThrow()
   })
-  it('refuses a symbolic link to a grant before reading its authority', async () => {
-    const { host } = await fixture()
-    await host.setHardware(true, 'bench')
-    const file = grantFile(host)
-    const target = path.join(host.storage.workspace.directory, 'moved.json')
-    await rename(file, target)
-    await symlink(target, file, 'file')
-    await expect(host.storage.workspace.get('hardware')).rejects.toThrow()
-    await host.refresh()
-    expect(host.hardwareEnabled()).toBe(false)
-  })
+  it.runIf(canLinkFiles())(
+    'refuses a symbolic link to a grant before reading its authority',
+    async () => {
+      const { host } = await fixture()
+      await host.setHardware(true, 'bench')
+      const file = grantFile(host)
+      const target = path.join(host.storage.workspace.directory, 'moved.json')
+      await rename(file, target)
+      await symlink(target, file, 'file')
+      await expect(host.storage.workspace.get('hardware')).rejects.toThrow()
+      await host.refresh()
+      expect(host.hardwareEnabled()).toBe(false)
+    },
+  )
   it('caps grant storage before writing oversized authority', async () => {
     const { host } = await fixture()
     await expect(host.storage.workspace.update('oversized', 'x'.repeat(70_000))).rejects.toThrow(

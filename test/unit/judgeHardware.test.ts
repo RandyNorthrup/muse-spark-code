@@ -35,10 +35,12 @@ import {
   probeOllama,
   readPciVendor,
   runProbe,
+  WINDOWS_VIDEO_SCRIPT,
 } from '../../src/core/judge/hardware/probes'
 import { scanHardware } from '../../src/core/judge/hardware/scan'
 import type { HardwareSummary } from '../../src/core/judge/hardware/types'
 import { FIXTURE_HOOK_TIMEOUT_MS } from './helpers/fixtureBudget'
+import { withoutModuleAutoLoading } from './helpers/noModuleAutoLoading'
 
 const helperRoot = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -328,6 +330,14 @@ describe('judge hardware scan', () => {
     expect(Date.now() - started).toBeLessThan(10_000)
     expect(result.ratePerSec).toBeGreaterThan(0)
   })
+
+  it.runIf(process.platform === 'win32')(
+    'reads the video controllers through .NET alone, always as an array',
+    async () => {
+      const rows: unknown = JSON.parse(await withoutModuleAutoLoading(WINDOWS_VIDEO_SCRIPT))
+      expect(Array.isArray(rows)).toBe(true)
+    },
+  )
 
   it('scans this machine with sane portable readings', async () => {
     const summary = await scanHardware({ installPath: path.join(scratch, 'judge') })

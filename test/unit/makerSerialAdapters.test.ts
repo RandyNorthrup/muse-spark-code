@@ -8,13 +8,13 @@ import { prepareWindowsSerialHelper } from '../../src/core/maker/serial/windowsH
 import { makerProcessDeps } from './helpers/makerSerial'
 
 const directories: string[] = []
+/** One tiny program, started by this Node; one that never started is never "free". */
 function runForResult(file: string, args: readonly string[]) {
-  return new Promise<{ code: number; stdout: string }>((resolveRun) => {
-    execFile(file, [...args], { windowsHide: true }, (error, stdout) => {
-      let code = 1
-      if (error === null) code = 0
-      else if (typeof error.code === 'number') code = error.code
-      resolveRun({ code, stdout })
+  return new Promise<{ code: number; stdout: string }>((resolveRun, rejectRun) => {
+    execFile(process.execPath, [file, ...args], { windowsHide: true }, (error, stdout) => {
+      if (error === null) resolveRun({ code: 0, stdout })
+      else if (typeof error.code === 'number') resolveRun({ code: error.code, stdout })
+      else rejectRun(new Error('test-program-did-not-start', { cause: error }))
     })
   })
 }
@@ -89,21 +89,24 @@ print(json.dumps(scenarios))`
   it('reports existing users without opening the port and fails closed on unknown results', async () => {
     const directory = await mkdtemp(path.join(tmpdir(), 'm103-portuse-'))
     directories.push(directory)
-    // Real tiny programs stand in for fuser/lsof: each records its argv and
-    // answers with the exit code and output of its case.
+    // Real tiny programs stand in for fuser/lsof, started by this Node so the
+    // case holds on every OS (Windows does not start a shebang script): each
+    // records its argv and answers with the exit code and output of its case.
     const program = async (name: string, body: string) => {
-      const file = path.join(directory, name)
-      await writeFile(file, `#!/bin/sh\nprintf '%s' "$@" > "${file}.args"\n${body}\n`, {
-        mode: 0o755,
-      })
+      const file = path.join(directory, `${name}.cjs`)
+      const argv = `process.argv.slice(2).join('')`
+      await writeFile(
+        file,
+        `require('node:fs').writeFileSync(${JSON.stringify(`${file}.args`)}, ${argv})\n${body}\n`,
+      )
       return file
     }
     const run = runForResult
-    const busy = await program('busy', String.raw`printf ' 1234 4567\n'`)
+    const busy = await program('busy', String.raw`process.stdout.write(' 1234 4567\n')`)
     const deps = { platform: 'linux', executable: busy, maxBytes: 128, run } as const
     expect(await querySerialPortUse({ port: '/dev/ttyACM0' }, deps)).toBe('busy')
     expect(await readFile(`${busy}.args`, 'utf8')).toBe('--/dev/ttyACM0')
-    const free = await program('free', 'exit 1')
+    const free = await program('free', 'process.exitCode = 1')
     expect(
       await querySerialPortUse(
         { port: '/dev/cu.test' },
@@ -111,14 +114,18 @@ print(json.dumps(scenarios))`
       ),
     ).toBe('free')
     expect(await readFile(`${free}.args`, 'utf8')).toBe('-t--/dev/cu.test')
-    const unknownBodies = ['exit 2', "printf 'permission error'", "printf '1234'; exit 1"]
+    const unknownBodies = [
+      'process.exitCode = 2',
+      `process.stdout.write('permission error')`,
+      `process.stdout.write('1234'); process.exitCode = 1`,
+    ]
     for (const [index, body] of unknownBodies.entries()) {
       const executable = await program(`unknown${String(index)}`, body)
       await expect(
         querySerialPortUse({ port: '/dev/ttyACM0' }, { ...deps, executable }),
       ).rejects.toThrow('serial-port-use-unknown')
     }
-    const oversize = await program('oversize', `printf '%0129d' 1`)
+    const oversize = await program('oversize', `process.stdout.write('1'.repeat(129))`)
     await expect(
       querySerialPortUse({ port: '/dev/ttyACM0' }, { ...deps, executable: oversize }),
     ).rejects.toThrow('serial-port-use-oversize')

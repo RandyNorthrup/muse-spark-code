@@ -4,13 +4,21 @@ import path from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { detectProjectKinds, type ProjectDetectIo } from '../../src/core/maker/detect/projectKinds'
-import { nodeProjectDetectIo } from '../../src/core/maker/detect/projectIo'
+import {
+  nodeProjectDetectIo,
+  windowsVolumeLabelScript,
+} from '../../src/core/maker/detect/projectIo'
+import { windowsProjectIoScript } from '../../src/core/maker/detect/projectIoWindows'
+import { windowsPowerShell } from '../../src/core/execGuard'
+import { runProgram } from '../../src/host/processTree'
 import {
   MAKER_DETECT_MAX_BYTES,
   MAKER_DETECT_MAX_DEPTH,
   MAKER_DETECT_MAX_FILES,
   MAKER_PROJECT_KINDS,
 } from '../../src/shared/constants'
+import { withoutModuleAutoLoading } from './helpers/noModuleAutoLoading'
+import { canLinkFiles } from './helpers/temporaryFolders'
 
 const fixtureSchema = z.array(
   z.object({
@@ -95,21 +103,27 @@ describe('maker project detection on fixture workspaces', () => {
     expect(reads).not.toContain('sdkconfig')
   })
 
-  it('does not follow linked marker files or directories, even within the workspace', async () => {
-    const root = await workspace({
-      'vendor/linked.scad': 'cube(1);',
-      'outside/CMakeLists.txt': 'include($ENV{IDF_PATH}/tools/cmake/project.cmake)',
-    })
-    await symlink(path.join(root, 'vendor/linked.scad'), path.join(root, 'part.scad'))
-    await symlink(path.join(root, 'outside'), path.join(root, 'linked'), 'dir')
+  it.runIf(canLinkFiles())('does not follow a linked marker file', async () => {
+    const root = await workspace({ 'vendor/linked.scad': 'cube(1);' })
+    await symlink(path.join(root, 'vendor/linked.scad'), path.join(root, 'part.scad'), 'file')
     const names: string[] = await Array.fromAsync(
       nodeProjectDetectIo.files(root, MAKER_DETECT_MAX_FILES),
     )
     expect(names).not.toContain('part.scad')
-    expect(names).not.toContain('linked/CMakeLists.txt')
     expect(
       await nodeProjectDetectIo.read(root, 'part.scad', MAKER_DETECT_MAX_BYTES),
     ).toBeUndefined()
+  })
+
+  it('does not follow a linked directory, even within the workspace', async () => {
+    const root = await workspace({
+      'outside/CMakeLists.txt': 'include($ENV{IDF_PATH}/tools/cmake/project.cmake)',
+    })
+    await symlink(path.join(root, 'outside'), path.join(root, 'linked'), 'junction')
+    const names: string[] = await Array.fromAsync(
+      nodeProjectDetectIo.files(root, MAKER_DETECT_MAX_FILES),
+    )
+    expect(names).not.toContain('linked/CMakeLists.txt')
     expect(
       await nodeProjectDetectIo.read(root, '../package.json', MAKER_DETECT_MAX_BYTES),
     ).toBeUndefined()
@@ -229,9 +243,54 @@ describe('maker project detection on fixture workspaces', () => {
   it('refuses a regular file behind a directory link outside the workspace', async () => {
     const root = await workspace({})
     const outside = await workspace({ 'main.py': 'import board' })
-    await symlink(outside, path.join(root, 'linked'), 'dir')
+    await symlink(outside, path.join(root, 'linked'), 'junction')
     expect(
       await nodeProjectDetectIo.read(root, 'linked/main.py', MAKER_DETECT_MAX_BYTES),
     ).toBeUndefined()
+  })
+})
+
+describe.runIf(process.platform === 'win32')('maker detection names no cmdlet on Windows', () => {
+  it('the project reader lists and reads', async () => {
+    const root = await workspace({ 'platformio.ini': '[env:board]', 'src/main.cpp': 'int main;' })
+    const listed = z
+      .array(z.string())
+      .parse(
+        JSON.parse(
+          await withoutModuleAutoLoading(
+            windowsProjectIoScript(root, undefined, MAKER_DETECT_MAX_FILES),
+          ),
+        ),
+      )
+    expect(listed.toSorted((left, right) => left.localeCompare(right))).toEqual([
+      'platformio.ini',
+      'src/main.cpp',
+    ])
+    const read = z
+      .string()
+      .parse(
+        JSON.parse(
+          await withoutModuleAutoLoading(
+            windowsProjectIoScript(root, 'platformio.ini', MAKER_DETECT_MAX_BYTES),
+          ),
+        ),
+      )
+    expect(Buffer.from(read, 'base64').toString('utf8')).toBe('[env:board]')
+  })
+
+  it('the drive label', async () => {
+    const root = path.parse(process.cwd()).root
+    const { file, env } = windowsPowerShell(process.env['SystemRoot'] ?? '')
+    const independent = await runProgram(
+      file,
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        `[Console]::Write(([wmi]"Win32_LogicalDisk.DeviceID='${root.slice(0, 2)}'").VolumeName)`,
+      ],
+      env,
+    )
+    expect(await withoutModuleAutoLoading(windowsVolumeLabelScript(root))).toBe(independent)
   })
 })

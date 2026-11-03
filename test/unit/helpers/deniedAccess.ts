@@ -60,3 +60,21 @@ export async function denyWrites(folder: string): Promise<() => Promise<void>> {
     await icacls([folder, '/remove:d', `*${sid}`])
   }
 }
+
+/**
+Refuse the current user new entries in `parent` and the removal of `child`,
+which lies in it: what a scanner's lock does to a folder being removed. POSIX
+has both from the read-only parent. On Windows denying new entries leaves
+removal allowed, since removing takes DELETE on the child or delete-child on
+the parent, so both of those are denied too. Resolves to the undo.
+*/
+export async function denyRemoval(parent: string, child: string): Promise<() => Promise<void>> {
+  if (process.platform !== 'win32') return await denyWrites(parent)
+  const sid = await windowsUserSid()
+  await icacls([parent, '/deny', `*${sid}:(WD,AD,DC)`])
+  await icacls([child, '/deny', `*${sid}:(DE)`])
+  return async () => {
+    await icacls([child, '/remove:d', `*${sid}`])
+    await icacls([parent, '/remove:d', `*${sid}`])
+  }
+}

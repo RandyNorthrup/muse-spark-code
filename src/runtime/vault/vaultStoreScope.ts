@@ -10,7 +10,9 @@
 // - the rollback anchor: `vault-anchor-v1:<sha256 of the canonical root>`
 // - the audit checkpoint and pending intent: `vault-audit-v1:<root>:<vaultId>`
 //   and `vault-audit-pending-v1:<root>:<vaultId>`
-// - an OS-store slot key: `vault.<root>.<vaultId>.<slotId>`
+// - an OS-store slot key: `vault.<root>.<vaultId>.<slotId>` (Keychain and
+//   Secret Service; a Windows slot seals its key with DPAPI into its own
+//   record in the vault's files, so it writes no store record and names no root)
 //
 // A vault at the person's own root keeps reading and writing the pre-scoping
 // names (`vault-anchor-v1`, `vault-audit-v1:<vaultId>`, `vault.<vaultId>.<slotId>`)
@@ -33,8 +35,12 @@ export function vaultBrokerDataDir(clientDataDir: string): string {
 
 /**
 The canonical spelling of a vault root for store scoping: resolved, with
-`/` separators on every platform (Windows spellings compare equal), and
-lower-cased where the file system is case-insensitive.
+`/` separators on every platform, and lower-cased where the file system is
+case-insensitive, so Windows' separator, letter-case and dot spellings compare
+equal. It reads no file system, on purpose. Every client takes the root from
+`agentDataFolder`, so one environment gives one spelling, and resolving a link
+or a short name here would rename the records of a vault whose folder is reached
+through one: that vault would then refuse to open (`rollback`).
 */
 export function canonicalVaultRoot(brokerDataDir: string): string {
   const resolved = path.resolve(brokerDataDir).replaceAll('\\', '/')

@@ -25,6 +25,7 @@ import {
   MEDIA_PRIVATE_ROOT_TRUSTED_SIDS,
   POSIX_GROUP_OTHER_WRITE_BITS,
   POSIX_STICKY_BIT,
+  WINDOWS_JSON_ASSEMBLY,
   WINDOWS_WRITE_CLASS_RIGHTS,
 } from '../../shared/constants'
 import {
@@ -83,14 +84,16 @@ function windowsShell(): { readonly file: string; readonly env: GuardedChildEnv 
 // ever interpolated into the script. Protection on, every grant removed,
 // the current user set as owner with full control, then the live descriptor
 // is read back. A reparse point is reported, never secured. It uses the CLR
-// alone, like the tree read below: the Get-Acl and Set-Acl cmdlets load their
-// module on first use, about 0.2 s of every start.
+// alone, like the tree read below and the JSON around both: every cmdlet that
+// has to load its module makes PowerShell analyse the module path first where
+// no analysis cache is reached, and an agent a client started carries no
+// PSModuleAnalysisCachePath (20 s and more a start on the hosted runner, M51).
 const WINDOWS_SECURE_SCRIPT = `
 $ErrorActionPreference = 'Stop'
 $me = [Security.Principal.WindowsIdentity]::GetCurrent().User
 $seen = [IO.File]::GetAttributes($inputPath.path)
 if (($seen -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
-  @{ reparse = $true } | ConvertTo-Json -Compress
+  $json.Serialize(@{ reparse = $true })
   return
 }
 if ($inputPath.directory) { $acl = [IO.Directory]::GetAccessControl($inputPath.path) } else { $acl = [IO.File]::GetAccessControl($inputPath.path) }
@@ -103,7 +106,7 @@ $grant = [Security.AccessControl.FileSystemAccessRule]::new($me, [Security.Acces
 $acl.AddAccessRule($grant)
 if ($inputPath.directory) { [IO.Directory]::SetAccessControl($inputPath.path, $acl); $read = [IO.Directory]::GetAccessControl($inputPath.path) } else { [IO.File]::SetAccessControl($inputPath.path, $acl); $read = [IO.File]::GetAccessControl($inputPath.path) }
 $grants = @($read.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]) | ForEach-Object { @{ sid = $_.IdentityReference.Value; inherited = $_.IsInherited; allow = ($_.AccessControlType -eq 'Allow'); full = ($_.FileSystemRights -eq 'FullControl'); rights = [int]$_.FileSystemRights } })
-@{ reparse = $false; owner = $read.GetOwner([Security.Principal.SecurityIdentifier]).Value; me = $me.Value; locked = $read.AreAccessRulesProtected; grants = $grants } | ConvertTo-Json -Compress -Depth 5
+$json.Serialize(@{ reparse = $false; owner = $read.GetOwner([Security.Principal.SecurityIdentifier]).Value; me = $me.Value; locked = $read.AreAccessRulesProtected; grants = $grants })
 `
 
 // Every path arrives as base64 JSON in $inputPaths; one spawn reads the
@@ -120,14 +123,20 @@ $scanned = @(foreach ($candidate in $inputPaths.paths) {
   $grants = @($acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]) | ForEach-Object { @{ sid = $_.IdentityReference.Value; inherited = $_.IsInherited; allow = ($_.AccessControlType -eq 'Allow'); full = ($_.FileSystemRights -eq 'FullControl'); rights = [int]$_.FileSystemRights } })
   @{ owner = $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value; folder = $folder; reparse = $reparse; grants = $grants }
 })
-@{ me = $me; scanned = $scanned } | ConvertTo-Json -Compress -Depth 6
+$json.Serialize(@{ me = $me; scanned = $scanned })
 `
 
-async function runWindowsScript(body: string, payload: unknown): Promise<unknown> {
-  const { file, env } = windowsShell()
-  const envelope = `$inputPath = $null; $inputPaths = $null; $staged = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${Buffer.from(JSON.stringify(payload), 'utf8').toString('base64')}')) | ConvertFrom-Json
+/** One guard call's whole script, its payload inside. */
+export function windowsGuardScript(kind: 'secure' | 'read', payload: unknown): string {
+  const body = kind === 'secure' ? WINDOWS_SECURE_SCRIPT : WINDOWS_READ_SCRIPT
+  return `[void][Reflection.Assembly]::Load('${WINDOWS_JSON_ASSEMBLY}'); $json = [System.Web.Script.Serialization.JavaScriptSerializer]::new(); $json.MaxJsonLength = [int]::MaxValue
+$inputPath = $null; $inputPaths = $null; $staged = $json.DeserializeObject([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${Buffer.from(JSON.stringify(payload), 'utf8').toString('base64')}')))
 if ($staged.paths) { $inputPaths = $staged } else { $inputPath = $staged }
 ${body}`
+}
+
+async function runWindowsScript(kind: 'secure' | 'read', payload: unknown): Promise<unknown> {
+  const { file, env } = windowsShell()
   const stdout = await runFixed(
     file,
     [
@@ -135,7 +144,7 @@ ${body}`
       '-NoProfile',
       '-NonInteractive',
       '-EncodedCommand',
-      Buffer.from(envelope, 'utf16le').toString('base64'),
+      Buffer.from(windowsGuardScript(kind, payload), 'utf16le').toString('base64'),
     ],
     env,
   )
@@ -268,7 +277,7 @@ function windowsAnchorVerdict(scanned: WindowsScanned, me: string): void {
 
 async function windowsSecure(file: string, isDirectory: boolean): Promise<void> {
   const receipt = asWindowsSecured(
-    await runWindowsScript(WINDOWS_SECURE_SCRIPT, { path: file, directory: isDirectory }),
+    await runWindowsScript('secure', { path: file, directory: isDirectory }),
   )
   if (receipt.owner !== receipt.me || !receipt.locked) throw refused('access')
   windowsLeafVerdict(
@@ -294,7 +303,7 @@ async function windowsVerify(root: string, anchor: string): Promise<void> {
     else throw error
   }
   if (entries === undefined) {
-    const tree = asWindowsTree(await runWindowsScript(WINDOWS_READ_SCRIPT, { paths: [anchor] }), 1)
+    const tree = asWindowsTree(await runWindowsScript('read', { paths: [anchor] }), 1)
     const [scannedAnchor] = tree.scanned
     if (scannedAnchor?.folder !== true) throw refused('kind')
     windowsAnchorVerdict(scannedAnchor, tree.me)
@@ -307,7 +316,7 @@ async function windowsVerify(root: string, anchor: string): Promise<void> {
       return left < right ? -1 : 1
     })
   const tree = asWindowsTree(
-    await runWindowsScript(WINDOWS_READ_SCRIPT, { paths: [root, anchor, ...below] }),
+    await runWindowsScript('read', { paths: [root, anchor, ...below] }),
     below.length + 2,
   )
   const [scannedRoot, scannedAnchor, ...scannedBelow] = tree.scanned

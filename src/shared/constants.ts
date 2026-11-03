@@ -1154,6 +1154,7 @@ export const RUNTIME_MAKER_MODEL_TEXT = {
 export const MAKER_DETECT_MAX_BYTES = 8 * 1024
 export const MAKER_DETECT_MAX_DEPTH = 4
 export const MAKER_DETECT_IO_TIMEOUT_MS = 10_000
+export const MAKER_WINDOWS_INVENTORY_REFRESH_MS = 2000
 export const MAKER_PI_MODEL_PATH = '/proc/device-tree/model'
 export const MAKER_PI_COMMAND_PATHS = ['/usr/bin/vcgencmd', '/opt/vc/bin/vcgencmd'] as const
 export const MAKER_PI_COMMAND_TIMEOUT_MS = 2000
@@ -8557,6 +8558,10 @@ export const WINDOWS_POWERSHELL_RELATIVE_PATH = 'System32\\WindowsPowerShell\\v1
 // hook's narrow environment does not carry).
 export const WINDOWS_POWERSHELL_UTF8_PREAMBLE =
   '$OutputEncoding = [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false); '
+// .NET Framework's JSON serializer, which a script that names no cmdlet loads
+// in place of ConvertTo-Json and ConvertFrom-Json.
+export const WINDOWS_JSON_ASSEMBLY =
+  'System.Web.Extensions, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'
 // Windows PowerShell running one inline script (the UAC relaunch for the
 // sandbox setup); `-NonInteractive` turns any prompt into an error.
 export const WINDOWS_POWERSHELL_COMMAND_ARGS = [

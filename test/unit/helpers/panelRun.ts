@@ -32,7 +32,9 @@ export interface PanelRun {
 }
 
 export function createPanelRun(prefix: string, root = process.cwd()): PanelRun {
-  const folder = realpathSync(mkdtempSync(path.join(tmpdir(), prefix)))
+  // `.native`: the plain call keeps an 8.3 name (a hosted Windows runner's TEMP
+  // is under RUNNER~1), and the runtime answers with the long one.
+  const folder = realpathSync.native(mkdtempSync(path.join(tmpdir(), prefix)))
   const home = path.join(folder, 'home')
   const workspace = path.join(folder, 'workspace')
   const started = new Set<ChildProcessWithoutNullStreams>()

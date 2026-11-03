@@ -591,6 +591,7 @@ describe('M110-OS1 immutable image inputs', () => {
   it('ships the firewall and the kernel knobs from their one source with the right modes', () => {
     const dir = directory()
     const result = python(`
+import os
 import sys
 from pathlib import Path
 sys.path.insert(0, ${JSON.stringify(root)})
@@ -603,7 +604,8 @@ for source, shipped in (
 ):
     copy = overlay / shipped
     assert copy.read_bytes() == (build.ROOT / source).read_bytes(), shipped
-    assert copy.stat().st_mode & 0o777 == 0o644, shipped
+    if os.name == 'posix':
+        assert copy.stat().st_mode & 0o777 == 0o644, shipped
 print('hardening shipped')
 `)
     expect(result.status).toBe(0)
