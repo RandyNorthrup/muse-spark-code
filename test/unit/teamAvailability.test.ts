@@ -116,6 +116,7 @@ function teamRunDeps(dataFolder: string, cwd: string): ExecTeamDeps {
     defaultPays: 'key',
     budgetUsd: Usd.from(1).toAmount(),
     refusalFallback: false,
+    providersFile: path.join(dataFolder, 'no-providers.json'),
     signal: new AbortController().signal,
     now: () => Date.now(),
     log,

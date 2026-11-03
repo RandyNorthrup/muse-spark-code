@@ -628,46 +628,6 @@ function readTextFileSync(fsPath: string): string | undefined {
   }
 }
 
-/**
-D261: the preset a provider record was added from, read from the providers
-file when a refusal needs it (rare, so read then, never cached stale). A
-missing file, an unreadable one or an unknown record answers undefined:
-the record is then its own provider.
-*/
-function providerPresetOf(configFile: string, record: string): string | undefined {
-  let text: string | undefined
-  try {
-    text = readTextFileSync(configFile)
-  } catch {
-    return undefined
-  }
-  if (text === undefined) return undefined
-  let value: unknown
-  try {
-    value = JSON.parse(text)
-  } catch {
-    return undefined
-  }
-  const providers =
-    typeof value === 'object' && value !== null && 'providers' in value
-      ? value.providers
-      : undefined
-  if (!Array.isArray(providers)) return undefined
-  for (const entry of providers as unknown[]) {
-    if (
-      typeof entry === 'object' &&
-      entry !== null &&
-      'id' in entry &&
-      entry.id === record &&
-      'preset' in entry &&
-      typeof entry.preset === 'string' &&
-      entry.preset !== 'custom'
-    )
-      return entry.preset
-  }
-  return undefined
-}
-
 /** A file's modification time in epoch ms; undefined when it does not exist. */
 function modifiedAt(fsPath: string): number | undefined {
   try {
@@ -3709,7 +3669,7 @@ async function activateWindow(
         rates: (agent) => teamModelRates.get(agent.model),
         // D261: a refused turn never moves to another account of its
         // provider, so each record's preset is read where it is kept.
-        providerService: (record) => providerPresetOf(providerConfigFile, record),
+        providersConfigFile: providerConfigFile,
         listModels: async () => {
           const host = await modelApi.ensureHost()
           const models = await host.listModels()

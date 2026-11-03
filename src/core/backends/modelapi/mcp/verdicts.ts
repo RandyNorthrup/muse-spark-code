@@ -50,7 +50,7 @@ schema. Shared so both stores judge a kept file the same way.
 */
 export type KeptFileRead =
   | { readonly kind: 'missing' }
-  | { readonly kind: 'unreadable'; readonly error?: unknown }
+  | { readonly kind: 'unreadable'; readonly cause?: unknown }
   | { readonly kind: 'read'; readonly raw: unknown }
 
 export async function readKeptJsonFile(dir: string, file: string): Promise<KeptFileRead> {
@@ -60,7 +60,7 @@ export async function readKeptJsonFile(dir: string, file: string): Promise<KeptF
   } catch (error: unknown) {
     return isErrno(error) && error.code === 'ENOENT'
       ? { kind: 'missing' }
-      : { kind: 'unreadable', error }
+      : { kind: 'unreadable', cause: error }
   }
   try {
     return { kind: 'read', raw: JSON.parse(text) }
@@ -88,9 +88,9 @@ export class McpVerdictStore {
     if (read.kind === 'unreadable') {
       // A read failure names its kind; a parse failure names nothing.
       this.log.warn(
-        read.error === undefined
+        read.cause === undefined
           ? 'The kept MCP era verdicts are not readable; every server is probed'
-          : `The kept MCP era verdicts could not be read; every server is probed: ${failureForLog(read.error)}`,
+          : `The kept MCP era verdicts could not be read; every server is probed: ${failureForLog(read.cause)}`,
       )
       return {}
     }

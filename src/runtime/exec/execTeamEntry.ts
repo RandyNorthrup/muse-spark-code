@@ -1,4 +1,5 @@
 // M96b headless policy loads only for --team, after exec preflight.
+import { presetFromRead } from '../../host/team/providerPreset'
 import { randomUUID } from 'node:crypto'
 import { availableParallelism, tmpdir } from 'node:os'
 import { mkdtemp, rename, rm, writeFile } from 'node:fs/promises'
@@ -143,19 +144,15 @@ export async function createExecTeam(
   setUiText(table, locale)
   deps.signal.throwIfAborted()
   // D262: the providers file's presets, read once for the run with the
-  // product's own reader; a missing or invalid file leaves every record its
-  // own provider, as in the window.
+  // product's own reader. A missing file leaves every record its own provider;
+  // one that cannot be read keeps the account rule (providerPreset.ts).
   const { providersFile } = await import('../../host/backend/providersEntry')
   const providersRead = await providersFile.readProvidersFile(deps.providersFile, async (file) =>
     new TextDecoder('utf-8', { fatal: true }).decode(
       await deps.readFile(file, EXEC_PROMPT_MAX_BYTES, deps.signal),
     ),
   )
-  const presetOf = (record: string): string | undefined => {
-    if (!providersRead.ok) return undefined
-    const preset = providersRead.file.providers.find((entry) => entry.id === record)?.preset
-    return preset === 'custom' ? undefined : preset
-  }
+  const presetOf = (record: string): string | undefined => presetFromRead(providersRead, record)
   const stateData: Record<string, unknown> = {}
   let requiredReviews: ReadonlySet<string> = new Set()
   const stored = await readStoredTeamSnapshot({

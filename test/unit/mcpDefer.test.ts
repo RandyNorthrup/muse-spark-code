@@ -391,10 +391,30 @@ describe('session declarations across turns (4-H4)', () => {
           name: EVERYTHING,
           isRequired: false,
           state: { status: 'connected', toolCount: 16, unofferedCount: 0 },
+          heldBack: [],
+          tools: [],
         },
-        { name: 'github', isRequired: false, state: { status: 'failed', reason: 'exited' } },
-        { name: 'slack', isRequired: false, state: { status: 'starting' } },
-        { name: 'off', isRequired: false, state: { status: 'disabled' } },
+        {
+          name: 'github',
+          isRequired: false,
+          state: { status: 'failed', reason: 'exited' },
+          heldBack: [],
+          tools: [],
+        },
+        {
+          name: 'slack',
+          isRequired: false,
+          state: { status: 'starting' },
+          heldBack: [],
+          tools: [],
+        },
+        {
+          name: 'off',
+          isRequired: false,
+          state: { status: 'disabled' },
+          heldBack: [],
+          tools: [],
+        },
       ],
     }
     expect(unconnectedMcpServers(snapshot)).toBe('github (failed), slack (starting)')
