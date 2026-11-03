@@ -3,6 +3,7 @@
 // Only flat primitive forms are offered. No values enter logs or events.
 import * as z from 'zod/mini'
 import type { ElicitationField } from '../../../../shared/agentEvents'
+import { isSecretFieldName } from '../../../../shared/redact'
 import { McpError } from './protocol'
 
 const annotations = { title: z.optional(z.string()), description: z.optional(z.string()) }
@@ -105,7 +106,14 @@ export function validateElicitationSchema(schema: unknown): ElicitationSchemaChe
     if (!checked.success) {
       return { ok: false, reason: `field ${name} is not a supported primitive schema` }
     }
-    const field: ElicitationField = { ...checked.data, name, required: required.includes(name) }
+    // A field whose name asks for a secret is marked here (SEC-MCP-PIN),
+    // where the name is known, so every surface renders it masked.
+    const field: ElicitationField = {
+      ...checked.data,
+      name,
+      required: required.includes(name),
+      ...(isSecretFieldName(name) && { isSecret: true }),
+    }
     if (field.enumNames !== undefined && field.enumNames.length !== field.enum?.length) {
       return { ok: false, reason: `field ${name} has enum labels that do not fit its options` }
     }

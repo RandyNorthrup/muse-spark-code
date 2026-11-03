@@ -2720,7 +2720,16 @@ Windows, if the M50 job executable cannot be compiled or started, stdio fails
 closed instead of starting without containment. An MCP tool is arbitrary code:
 it runs in Bypass, asks in Auto, Manual and Edit automatically and is refused
 in Plan, while a tool its server marks read-only runs in Auto and asks in
-Plan. Resources, prompts, sampling, roots and elicitation are not done. Full
+Plan — but only while that tool's definition is pinned and unchanged
+(SEC-MCP-PIN/HINT, 2026-11-02): the first listing of a server, by its launch
+identity, records a SHA-256 of each offered tool's canonical definition
+beside the era verdicts, and any later listing holds a changed or new tool
+back — unoffered, its session rules dropped, its old pin kept — until the
+person reads the full new text (hidden characters spelled out) and accepts
+it; an unpinned tool's `readOnlyHint` is ignored (Auto asks, Plan refuses).
+Parity with Muse Code's read-only easing ends where the MCP specification's
+MUST begins: a client must not trust a hint from an untrusted server.
+Resources, prompts, sampling, roots and elicitation are not done. Full
 record: [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ### D43 — Enterprise network and posture (2026-09-25)

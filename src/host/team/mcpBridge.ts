@@ -220,7 +220,7 @@ export class TeamMcpBridge {
     return this.deps.pool
       .bridgeTools()
       .filter((offered) => allowed.has(offered.server))
-      .filter((offered) => !caller.readOnly || offered.isReadOnly)
+      .filter((offered) => !caller.readOnly || offered.isPinnedReadOnly)
       .map((offered) => ({
         name: offered.functionName,
         ...(offered.tool.description !== undefined && { description: offered.tool.description }),
@@ -245,7 +245,7 @@ export class TeamMcpBridge {
     ) {
       return this.refused(`Unknown tool: ${functionName}`)
     }
-    if (caller.readOnly && !ref.isReadOnly) {
+    if (caller.readOnly && !ref.isPinnedReadOnly) {
       return this.refused(`Not offered to a read-only role: ${functionName}`)
     }
     // Validate before any pending record exists; M50 accepts JSON objects only.

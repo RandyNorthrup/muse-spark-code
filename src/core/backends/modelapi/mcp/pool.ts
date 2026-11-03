@@ -11,8 +11,13 @@
 // `ttlMs` lapsed, when its tools are next offered. Each server's protocol
 // era is kept across restarts when the host names a folder for it: a known
 // server opens in its kept era without a probe, and is probed again only
-// when it no longer answers as that era. Pure over the spawner, `fetch`
-// and the verdict folder.
+// when it no longer answers as that era. Each server's tool definitions
+// are pinned in the same folder (SEC-MCP-PIN, toolPins.ts): the first
+// listing records a hash of each offered tool's definition, and any later
+// listing — the first of a start, a changed list, a stale one, a header
+// mismatch — holds a changed or new tool back, unpinned text unoffered,
+// until the person accepts it. Pure over the spawner, `fetch` and the
+// verdict folder.
 
 import path from 'node:path'
 import {
@@ -58,6 +63,7 @@ import {
   planMcpServers,
 } from './servers'
 import { type McpChildProcess, McpStdioTransport } from './stdio'
+import { McpToolPinStore, partitionByPins, repinned, type ToolPins } from './toolPins'
 import { isSameVerdict, type KeptVerdict, McpVerdictStore, verdictKey } from './verdicts'
 
 /**
@@ -88,10 +94,33 @@ export type McpServerState =
   | { readonly status: 'disabled' }
   | { readonly status: 'restricted' }
 
+/** One tool held back by its pin (SEC-MCP-PIN): listed, but not offered. */
+export interface McpHeldBackTool {
+  /** The tool's name on its server. */
+  readonly tool: string
+  /** The function name it was, or would be, offered under: its session-rule key. */
+  readonly functionName: string
+  /** True when the server never had a pin for it; false when its text changed. */
+  readonly isNew: boolean
+}
+
+/** One tool's text as the server last listed it, for the person's review. */
+export interface McpToolDescription {
+  readonly name: string
+  readonly title: string | undefined
+  readonly description: string | undefined
+  /** Held back by its pin: listed, but not offered until accepted. */
+  readonly isHeldBack: boolean
+}
+
 export interface McpServerStatus {
   readonly name: string
   readonly isRequired: boolean
   readonly state: McpServerState
+  /** The tools held back by their pins, newest listing first in listed order. */
+  readonly heldBack: readonly McpHeldBackTool[]
+  /** Every tool the entry keeps, as last listed: its full text, for review at any time. */
+  readonly tools: readonly McpToolDescription[]
 }
 
 export interface McpPoolSnapshot {
@@ -106,7 +135,14 @@ export interface McpPoolSnapshot {
 export interface McpToolRef {
   readonly server: string
   readonly tool: string
+  /** The server's claim (`annotations.readOnlyHint`), nothing more. */
   readonly isReadOnly: boolean
+  /**
+  The claim with its pin behind it (SEC-MCP-HINT): the tool claims
+  read-only and the offered definition is the pinned one for the launch
+  identity the person accepted. Only this may ease a permission verdict.
+  */
+  readonly isPinnedReadOnly: boolean
 }
 
 /** The bridge pins an admission to this server's current offered catalogue. */
@@ -124,6 +160,8 @@ export interface BridgeOfferedTool {
   readonly server: string
   readonly tool: McpToolInfo
   readonly isReadOnly: boolean
+  /** The read-only claim with its pin behind it (SEC-MCP-HINT), as on `McpToolRef`. */
+  readonly isPinnedReadOnly: boolean
 }
 
 /** A server's `elicitation/create`, answered with the form (M91, form mode only). */
@@ -158,6 +196,13 @@ export interface McpToolSource {
     onElicitation?: McpElicitationHandler,
   ): Promise<McpCallOutcome>
   close(): Promise<void>
+  /**
+  Accepts every tool of one server held back by its pin (SEC-MCP-PIN):
+  re-pins each to the text last listed and offers it again. Answers the
+  accepted tools' function names, so the caller can drop the session
+  rules the old text earned before any of them is called.
+  */
+  acceptTools?(server: string): Promise<readonly string[]>
   /**
   Answers `elicitation/create` for servers connected afterwards (M91):
   the capability is declared at each connection's init, so it stays
@@ -198,6 +243,7 @@ interface OfferedTool {
   readonly tool: McpToolInfo
   readonly definition: FunctionToolDefinition
   readonly isReadOnly: boolean
+  readonly isPinnedReadOnly: boolean
 }
 
 interface LiveServer {
@@ -207,6 +253,14 @@ interface LiveServer {
   state: McpServerState
   connection: McpConnection | undefined
   tools: readonly OfferedTool[]
+  /** The newest raw listing, kept so accepting held-back tools re-offers from it. */
+  listed: readonly McpToolInfo[]
+  /** The server's pins (SEC-MCP-PIN); undefined while never pinned. */
+  pins: ToolPins | undefined
+  /** Whether the kept pins were read (or a first listing recorded them). */
+  isPinsLoaded: boolean
+  /** The newest listing's tools held back by their pins. */
+  heldBack: readonly McpHeldBackTool[]
   /** A listing re-read because its `ttlMs` lapsed, while one runs. */
   refreshing?: Promise<void> | undefined
 }
@@ -288,10 +342,17 @@ export class McpServerPool implements McpToolSource {
   >()
   /** The kept era verdicts, when the host names their folder. */
   private readonly verdicts: McpVerdictStore | undefined
+  /**
+  The kept tool pins, in the verdict folder when the host names one;
+  absent, pins still hold in memory for this run (SEC-MCP-PIN).
+  */
+  private readonly pinStore: McpToolPinStore | undefined
 
   public constructor(private readonly deps: McpPoolDeps) {
     this.verdicts =
       deps.verdictsDir === undefined ? undefined : new McpVerdictStore(deps.verdictsDir, deps.log)
+    this.pinStore =
+      deps.verdictsDir === undefined ? undefined : new McpToolPinStore(deps.verdictsDir, deps.log)
   }
 
   private plan(): McpServerPlan {
@@ -319,6 +380,10 @@ export class McpServerPool implements McpToolSource {
       state: initialState(spec, isTrusted),
       connection: undefined,
       tools: [],
+      listed: [],
+      pins: undefined,
+      isPinsLoaded: false,
+      heldBack: [],
     }))
     for (const server of this.servers) {
       if (server.state.status === 'failed') {
@@ -535,7 +600,7 @@ export class McpServerPool implements McpToolSource {
     if (this.isClosed || server.connection !== connection) {
       throw new McpError('the servers were closed while it started')
     }
-    this.offer(server, tools)
+    await this.offer(server, tools)
     this.deps.log.info(
       `MCP server ${spec.name} connected (${launch.transport}, MCP ${version}): ${String(server.tools.length)} tools offered`,
     )
@@ -582,15 +647,33 @@ export class McpServerPool implements McpToolSource {
       this.byFunction.delete(offered.functionName)
     }
     server.tools = []
+    server.heldBack = []
   }
 
-  /** The server's tools, filtered by its entry, under their function names. */
-  private offer(server: LiveServer, listed: readonly McpToolInfo[]): void {
+  /**
+  The server's tools, filtered by its entry and its pins, under their
+  function names (SEC-MCP-PIN): a first listing records the pins; a later
+  one offers only what still matches them, and holds a changed or new
+  tool back — logged by server and tool name only, never its text — with
+  its old pin kept, until `acceptTools` re-pins it. An offered tool is by
+  construction the pinned text, so its read-only claim is pinned too.
+  */
+  private async offer(server: LiveServer, listed: readonly McpToolInfo[]): Promise<void> {
     this.withdraw(server)
     const { spec } = server
+    server.listed = listed
+    if (!server.isPinsLoaded) {
+      server.pins = await this.pinStore?.read(spec.identity)
+      server.isPinsLoaded = true
+    }
     const kept = offeredTools(listed, spec)
+    const partition = partitionByPins(kept, server.pins)
+    if (partition.isFirstListing) {
+      server.pins = partition.pins
+      await this.pinStore?.keep(spec.identity, partition.pins)
+    }
     const taken = new Set(this.byFunction.keys())
-    server.tools = kept.map((tool) => {
+    server.tools = partition.offered.map((tool) => {
       const functionName = mcpFunctionName(spec.name, tool.name, taken)
       taken.add(functionName)
       const { definition, notes } = mcpFunctionDefinition(functionName, tool)
@@ -599,16 +682,28 @@ export class McpServerPool implements McpToolSource {
           `MCP tool ${tool.name} of ${spec.name}: its schema was fitted to the Model API (${notes.join('; ')})`,
         )
       }
+      const isReadOnly = tool.annotations?.readOnlyHint === true
       return {
         functionName,
         tool,
         definition,
-        isReadOnly: tool.annotations?.readOnlyHint === true,
+        isReadOnly,
+        isPinnedReadOnly: isReadOnly,
       }
     })
     for (const offered of server.tools) {
       this.byFunction.set(offered.functionName, { server, offered })
     }
+    server.heldBack = partition.heldBack.map(({ tool, isNew }) => {
+      const functionName = mcpFunctionName(spec.name, tool.name, taken)
+      taken.add(functionName)
+      this.deps.log.warn(
+        isNew
+          ? `MCP server ${spec.name} tool ${tool.name} is new and held back until its text is accepted`
+          : `MCP server ${spec.name} tool ${tool.name} changed since it was pinned and is held back`,
+      )
+      return { tool: tool.name, functionName, isNew }
+    })
     server.state = {
       status: 'connected',
       toolCount: server.tools.length,
@@ -632,7 +727,7 @@ export class McpServerPool implements McpToolSource {
       // close rejects whatever still waits); a failure is logged below.
       const tools = await connection.listTools(undefined)
       if (!this.isClosed && server.connection === connection) {
-        this.offer(server, tools)
+        await this.offer(server, tools)
         this.deps.log.info(
           `MCP server ${server.spec.name} ${lines.done}: ${String(server.tools.length)} offered`,
         )
@@ -714,15 +809,53 @@ export class McpServerPool implements McpToolSource {
     return this.starting
   }
 
+  /**
+  The person accepted one server's held-back tools (SEC-MCP-PIN): each is
+  re-pinned to the text last listed and offered from that listing.
+  Answers the accepted tools' function names; an unknown server, or one
+  holding nothing back, answers none.
+  */
+  public async acceptTools(serverName: string): Promise<readonly string[]> {
+    const server = this.servers.find((candidate) => candidate.spec.name === serverName)
+    if (server === undefined || server.heldBack.length === 0) {
+      return []
+    }
+    const heldNames = new Set(server.heldBack.map((held) => held.tool))
+    const accepted = offeredTools(server.listed, server.spec).filter((tool) =>
+      heldNames.has(tool.name),
+    )
+    server.pins = repinned(server.pins ?? new Map(), accepted)
+    await this.pinStore?.keep(server.spec.identity, server.pins)
+    await this.offer(server, server.listed)
+    this.deps.log.info(
+      `MCP server ${serverName}: accepted tools offered again (${accepted
+        .map((tool) => tool.name)
+        .join(', ')})`,
+    )
+    return server.tools
+      .filter((offered) => heldNames.has(offered.tool.name))
+      .map((offered) => offered.functionName)
+  }
+
   public snapshot(): McpPoolSnapshot {
     return {
       isStarted: this.starting !== undefined,
       fault: this.fault,
-      servers: this.servers.map((server) => ({
-        name: server.spec.name,
-        isRequired: server.spec.isRequired,
-        state: server.state,
-      })),
+      servers: this.servers.map((server) => {
+        const heldNames = new Set(server.heldBack.map((held) => held.tool))
+        return {
+          name: server.spec.name,
+          isRequired: server.spec.isRequired,
+          state: server.state,
+          heldBack: server.heldBack,
+          tools: offeredTools(server.listed, server.spec).map((tool) => ({
+            name: tool.name,
+            title: tool.title,
+            description: tool.description,
+            isHeldBack: heldNames.has(tool.name),
+          })),
+        }
+      }),
     }
   }
 
@@ -742,6 +875,7 @@ export class McpServerPool implements McpToolSource {
           catalogueGeneration: found.server.catalogueGeneration,
           tool: found.offered.tool.name,
           isReadOnly: found.offered.isReadOnly,
+          isPinnedReadOnly: found.offered.isPinnedReadOnly,
         }
   }
 
@@ -826,6 +960,7 @@ export class McpServerPool implements McpToolSource {
       server: server.spec.name,
       tool: offered.tool,
       isReadOnly: offered.isReadOnly,
+      isPinnedReadOnly: offered.isPinnedReadOnly,
     }))
   }
 

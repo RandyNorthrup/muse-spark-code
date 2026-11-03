@@ -59,6 +59,30 @@ describe('the ACP elicitation form (M91 lane M)', () => {
     expect(parseElicitationResult(undefined)).toBeUndefined()
   })
 
+  // SEC-MCP-PIN: ACP has no secret marker, so the warning naming the
+  // server rides in the description the client shows.
+  it('names a secret field in its description for the client', () => {
+    const schema = elicitationSchema(
+      [
+        { name: 'api_key', type: 'string', required: true, isSecret: true },
+        { name: 'region', type: 'string', required: false, description: 'Where it runs' },
+      ],
+      'vaults',
+    )
+    expect(schema.properties?.['api_key']).toMatchObject({
+      description: expect.stringContaining('vaults'),
+    })
+    expect(schema.properties?.['region']).toEqual({
+      type: 'string',
+      description: 'Where it runs',
+    })
+    // Without the server there is nothing honest to name: no warning is added.
+    expect(
+      elicitationSchema([{ name: 'api_key', type: 'string', required: true, isSecret: true }])
+        .properties?.['api_key'],
+    ).toEqual({ type: 'string' })
+  })
+
   it('texts the message with its fields where there are no forms', () => {
     expect(elicitationText('Who goes there?', [NAME])).toBe(
       `${UI_TEXT.acpQuestionAsked}\nWho goes there?\n- Name`,

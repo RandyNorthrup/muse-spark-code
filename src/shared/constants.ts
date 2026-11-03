@@ -7542,6 +7542,15 @@ export const MCP_META_SUBSCRIPTION_ID = 'io.modelcontextprotocol/subscriptionId'
 export const MCP_ERA_VERDICTS_DIR = 'mcp-era-verdicts'
 export const MCP_ERA_VERDICTS_FILE = 'verdicts.json'
 export const MCP_ERA_VERDICTS_FORMAT = 1
+// Each server's tool-definition pins (SEC-MCP-PIN, PLAN.md D42): one JSON
+// file beside the era verdicts, in this format. A pin is the SHA-256 of a
+// tool's canonical definition; the file stores hashes only, never a
+// description, a launch or a value from the environment.
+export const MCP_TOOL_PINS_FILE = 'tool-pins.json'
+export const MCP_TOOL_PINS_FORMAT = 1
+// The radix a hidden character's `\u{XXXX}` escape is written in, on the
+// review surface that spells server text out (SEC-MCP-PIN).
+export const MCP_TOOL_TEXT_HEX_RADIX = 16
 // The spec's own JSON-RPC error codes (`basic/index#error-codes`): a server
 // answering with one of these is modern, whatever the transport said.
 export const MCP_ERROR_HEADER_MISMATCH = -32_020
