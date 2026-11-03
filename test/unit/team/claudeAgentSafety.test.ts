@@ -32,7 +32,7 @@ const LISTED = [...CLAUDE_PLAN_ENV_NAMES]
 describe('Claude plan routes never reach a child (D262)', () => {
   it('is a credential everywhere and stays out even where a setting or a profile lists it', () => {
     for (const name of LISTED) expect(isCredentialVariable(name)).toBe(true)
-    const base = { ...PLAN_ENV, PATH: '/bin', ANTHROPIC_API_KEY: 'k' }
+    const base: NodeJS.ProcessEnv = { ...PLAN_ENV, PATH: '/bin', ANTHROPIC_API_KEY: 'k' }
     expect(Object.keys(withoutCredentials(base, LISTED, 'linux'))).toEqual(['PATH'])
     expect(Object.keys(withoutCredentials(base, ['ANTHROPIC_API_KEY'], 'linux'))).toEqual([
       'PATH',
@@ -86,7 +86,7 @@ describe("Claude's refusal asks for a key, never a plan login (D262)", () => {
       [],
     )
     if (!(plain instanceof AcpAuthRequiredError)) throw new Error('expected a sign-in refusal')
-    const custom = { preset: undefined }
+    const custom = {}
     expect(isClaudeKeyRefusal(custom, plan)).toBe(true)
     expect(isClaudeKeyRefusal(custom, plain)).toBe(true)
     expect(isClaudeKeyRefusal(custom, new AcpAuthRequiredError([]))).toBe(false)
