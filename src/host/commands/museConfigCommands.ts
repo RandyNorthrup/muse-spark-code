@@ -11,7 +11,12 @@
 // has a row too; a server opens the log (its stderr) instead of a sign-in,
 // since `muse mcp login` signs in Muse Code only.
 
-import type { McpPoolSnapshot } from '../../core/backends/modelapi/mcp/pool'
+import type {
+  McpPoolSnapshot,
+  McpServerStatus,
+  McpToolDescription,
+} from '../../core/backends/modelapi/mcp/pool'
+import { escapeHiddenChars } from '../../core/backends/modelapi/mcp/toolText'
 import {
   type HookFileView,
   type McpServerView,
@@ -63,6 +68,10 @@ export interface MuseConfigDeps {
   function answers undefined until they have been started.
   */
   readonly modelApiServers?: (() => McpPoolSnapshot | undefined) | undefined
+  /** Opens text as a read-only document: a server's tool descriptions (SEC-MCP-PIN). */
+  readonly openReadOnlyText?: ((title: string, content: string) => Promise<void>) | undefined
+  /** Accepts a server's held-back tool text (SEC-MCP-PIN); true when tools were re-offered. */
+  readonly acceptHeldBackTools?: ((server: string) => Promise<boolean>) | undefined
   /** The extension's log, where a server's stderr goes. */
   readonly openLog?: (() => void) | undefined
   /** Present only on the Model API backend; false means no hook can run. */
@@ -74,6 +83,10 @@ const OPEN_SETTINGS = 'action:openSettings'
 const RESTART = 'action:restart'
 const DOCS = 'action:docs'
 const SHOW_LOG = 'action:log'
+const SHOW_DESCRIPTIONS = 'action:descriptions'
+const REVIEW_HELD_BACK = 'action:reviewHeldBack'
+const ACCEPT_HELD_BACK = 'action:acceptHeldBack'
+const KEEP_REFUSING = 'action:keepRefusing'
 const SERVER_PREFIX = 'server:'
 const BUILT_IN_PREFIX = 'builtin:'
 const PROJECT_HOOKS = 'hooks:project'
@@ -126,7 +139,8 @@ function liveState(server: McpServerView, snapshot: McpPoolSnapshot | undefined)
   if (snapshot.fault !== undefined) {
     return UI_TEXT.mcpStateNotLoaded
   }
-  const state = snapshot.servers.find((candidate) => candidate.name === server.name)?.state
+  const live = snapshot.servers.find((candidate) => candidate.name === server.name)
+  const state = live?.state
   switch (state?.status) {
     case undefined: {
       return UI_TEXT.mcpStateNotStarted
@@ -135,10 +149,16 @@ function liveState(server: McpServerView, snapshot: McpPoolSnapshot | undefined)
       return UI_TEXT.mcpStateStarting
     }
     case 'connected': {
-      const connected = plural(UI_TEXT.mcpStateConnected, state.toolCount)
-      return state.unofferedCount > 0
-        ? `${connected}${DETAIL_SEPARATOR}${plural(UI_TEXT.mcpStateUnoffered, state.unofferedCount)}`
-        : connected
+      const heldBack = live?.heldBack.length ?? 0
+      const parts = [plural(UI_TEXT.mcpStateConnected, state.toolCount)]
+      if (heldBack > 0) {
+        parts.push(plural(UI_TEXT.mcpStateHeldBack, heldBack))
+      }
+      const filteredOut = state.unofferedCount - heldBack
+      if (filteredOut > 0) {
+        parts.push(plural(UI_TEXT.mcpStateUnoffered, filteredOut))
+      }
+      return parts.join(DETAIL_SEPARATOR)
     }
     case 'failed': {
       return fill(UI_TEXT.mcpStateFailed, { reason: redactSecrets(state.reason) })
@@ -234,10 +254,104 @@ async function openSettings(deps: MuseConfigDeps): Promise<void> {
   deps.showInformation(fill(UI_TEXT.museSettingsMissing, { path: deps.settingsPath }))
 }
 
-/** A server the Model API backend runs: its log, or its entry (M50). */
-async function modelApiServerActions(deps: MuseConfigDeps, server: McpServerView): Promise<void> {
+/**
+One server's tools as a read-only review document (SEC-MCP-PIN): every
+tool's full text exactly as the server sent it, hidden characters spelled
+out as escapes so nothing invisible steers what the person reads. Pure.
+*/
+export function mcpToolDescriptionsText(
+  server: string,
+  tools: readonly McpToolDescription[],
+): string {
+  const lines = [fill(UI_TEXT.mcpToolDescriptionsTitle, { server }), '']
+  if (tools.length === 0) {
+    lines.push(UI_TEXT.mcpToolDescriptionsNone)
+    return lines.join('\n')
+  }
+  for (const tool of tools) {
+    lines.push(`## ${escapeHiddenChars(tool.name)}`)
+    if (tool.isHeldBack) {
+      lines.push(UI_TEXT.mcpToolHeldBackMark)
+    }
+    if (tool.title !== undefined) {
+      lines.push(escapeHiddenChars(tool.title))
+    }
+    lines.push(
+      tool.description === undefined
+        ? UI_TEXT.mcpToolNoDescription
+        : escapeHiddenChars(tool.description),
+      '',
+    )
+  }
+  return lines.join('\n')
+}
+
+/** The live row of one server, when this window runs it. */
+function liveServer(deps: MuseConfigDeps, name: string): McpServerStatus | undefined {
+  return deps.modelApiServers?.()?.servers.find((candidate) => candidate.name === name)
+}
+
+/**
+The held-back review (SEC-MCP-PIN): the full new text first, read-only,
+then the choice — accept it (re-pin and offer) or keep refusing. Nothing
+is accepted by dismissing either surface.
+*/
+async function reviewHeldBack(deps: MuseConfigDeps, server: McpServerView): Promise<void> {
+  const live = liveServer(deps, server.name)
+  if (live === undefined || deps.openReadOnlyText === undefined) {
+    return
+  }
+  await deps.openReadOnlyText(
+    fill(UI_TEXT.mcpToolDescriptionsTitle, { server: server.name }),
+    mcpToolDescriptionsText(
+      server.name,
+      live.tools.filter((tool) => tool.isHeldBack),
+    ),
+  )
   const choice = await deps.pick(
     [
+      { id: ACCEPT_HELD_BACK, label: UI_TEXT.mcpAcceptHeldBack },
+      { id: KEEP_REFUSING, label: UI_TEXT.mcpKeepRefusing },
+    ],
+    server.name,
+    UI_TEXT.mcpReviewHeldBackPlaceholder,
+  )
+  if (choice === ACCEPT_HELD_BACK) {
+    const isAccepted = (await deps.acceptHeldBackTools?.(server.name)) ?? false
+    deps.showInformation(
+      fill(isAccepted ? UI_TEXT.mcpHeldBackAccepted : UI_TEXT.mcpHeldBackKept, {
+        server: server.name,
+      }),
+    )
+  } else if (choice === KEEP_REFUSING) {
+    deps.showInformation(fill(UI_TEXT.mcpHeldBackKept, { server: server.name }))
+  }
+}
+
+/** A server the Model API backend runs: its log, its tool text, or its entry (M50). */
+async function modelApiServerActions(deps: MuseConfigDeps, server: McpServerView): Promise<void> {
+  const live = liveServer(deps, server.name)
+  const hasHeldBack = (live?.heldBack.length ?? 0) > 0
+  const choice = await deps.pick(
+    [
+      ...(hasHeldBack && deps.openReadOnlyText !== undefined
+        ? [
+            {
+              id: REVIEW_HELD_BACK,
+              label: UI_TEXT.mcpReviewHeldBack,
+              detail: UI_TEXT.mcpReviewHeldBackDetail,
+            },
+          ]
+        : []),
+      ...(deps.openReadOnlyText === undefined
+        ? []
+        : [
+            {
+              id: SHOW_DESCRIPTIONS,
+              label: UI_TEXT.mcpShowToolDescriptions,
+              detail: UI_TEXT.mcpShowToolDescriptionsDetail,
+            },
+          ]),
       ...(deps.openLog === undefined
         ? []
         : [{ id: SHOW_LOG, label: UI_TEXT.mcpShowLog, detail: UI_TEXT.mcpShowLogDetail }]),
@@ -246,10 +360,29 @@ async function modelApiServerActions(deps: MuseConfigDeps, server: McpServerView
     server.name,
     UI_TEXT.mcpModelApiPlaceholder,
   )
-  if (choice === SHOW_LOG) {
-    deps.openLog?.()
-  } else if (choice === OPEN_SETTINGS) {
-    await openSettings(deps)
+  switch (choice) {
+    case SHOW_LOG: {
+      deps.openLog?.()
+      break
+    }
+    case SHOW_DESCRIPTIONS: {
+      await deps.openReadOnlyText?.(
+        fill(UI_TEXT.mcpToolDescriptionsTitle, { server: server.name }),
+        mcpToolDescriptionsText(server.name, liveServer(deps, server.name)?.tools ?? []),
+      )
+      break
+    }
+    case REVIEW_HELD_BACK: {
+      await reviewHeldBack(deps, server)
+      break
+    }
+    case OPEN_SETTINGS: {
+      await openSettings(deps)
+      break
+    }
+    default: {
+      break
+    }
   }
 }
 

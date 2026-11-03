@@ -1932,7 +1932,7 @@ class AcpSession {
           sessionId: this.sessionId,
           mode: 'form',
           message,
-          requestedSchema: elicitationSchema(event.fields),
+          requestedSchema: elicitationSchema(event.fields, event.server),
         }
         const response = await this.client.request(
           'elicitation/create',
