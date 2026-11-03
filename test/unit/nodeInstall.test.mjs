@@ -32,6 +32,7 @@ const SERVE_FILES = [
   'dist/uiTextMedia.js',
   'dist/uiTextRuntime.js',
   'dist/uiTextSurfaces.js',
+  'dist/uiTextSettings.js',
   'dist/validation.js',
   'dist/modelApiBoundaries.js',
   'dist/resourceAdmission.js',
