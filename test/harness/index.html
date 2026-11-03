@@ -3561,6 +3561,7 @@
               ],
             })
           })
+        },
         'prompt-menu': () => promptMenuScene(),
         'prompt-menu-narrow': () => promptMenuScene(),
         'prompt-menu-toolbar': () => promptMenuScene(true),
@@ -3819,6 +3820,25 @@
         'assistant-menu': () => {
           transcriptFixture({ isDone: true })
           whenFound('.message-assistant .row-actions-button', (control) => control.click())
+        },
+        // RLF-PINNED: the compaction card listing what is pinned across it,
+        // each pin with its Unpin button.
+        'pinned-constraints': () => {
+          window.harnessSilent = true
+          send({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 'pinned-harness' })
+          setDraft('Constraints:\n- Never use var anywhere\n- Keep each file under 300 lines')
+          key({ key: 'Enter' })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'pinned-compaction',
+              kind: 'compaction',
+              status: 'completed',
+              text: 'Context compacted',
+              pinnedConstraints: ['Never use var anywhere', 'Keep each file under 300 lines'],
+              fallbackText: 'Context compacted',
+            },
+          })
         },
         'chat-menu': () => {
           steps.rewind()
