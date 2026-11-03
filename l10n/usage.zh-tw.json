@@ -203,6 +203,8 @@
   "savings": "快取與打包節省",
   "cacheSavings": "快取節省",
   "packedAvoided": "預估避免的打包 Token 數",
+  "definitionTokens": "已傳送的估算工具定義權杖",
+  "rulesTokens": "已傳送的估算規則權杖",
   "searches": "搜尋",
   "images": "圖片",
   "audioSeconds": "音訊時長",

@@ -242,6 +242,8 @@
   "savings": "Úspory mezipaměti a balení",
   "cacheSavings": "Úspora mezipaměti",
   "packedAvoided": "Odhad ušetřených zabalených tokenů",
+  "definitionTokens": "Odhadované odeslané tokeny definic nástrojů",
+  "rulesTokens": "Odhadované odeslané tokeny pravidel",
   "searches": "Hledání",
   "images": "Obrázky",
   "audioSeconds": "Délka zvuku",

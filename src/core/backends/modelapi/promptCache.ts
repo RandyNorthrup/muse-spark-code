@@ -29,6 +29,40 @@ export function promptCacheKey(prefix: CachedPrefix): string {
   return `${PROMPT_CACHE_KEY_PREFIX}${digest}`
 }
 
+/** One cached-prefix component a cache miss can be attributed to (4-H4). */
+export type PrefixComponent = 'model' | 'instructions' | 'tools'
+
+/**
+A short digest per prefix component (hashes only, never content), so a
+reported cache miss can name which component changed since the
+previous request without logging what it says.
+*/
+export type PrefixComponentHashes = Readonly<Record<PrefixComponent, string>>
+
+function componentDigest(value: unknown): string {
+  return createHash(PROMPT_CACHE_KEY_HASH)
+    .update(JSON.stringify(value))
+    .digest('hex')
+    .slice(0, PROMPT_CACHE_KEY_DIGEST_CHARS)
+}
+
+export function prefixComponentHashes(prefix: CachedPrefix): PrefixComponentHashes {
+  return {
+    model: componentDigest(prefix.model),
+    instructions: componentDigest(prefix.instructions),
+    tools: componentDigest(prefix.tools),
+  }
+}
+
+/** The components whose digest moved from `previous` to `current`, in prefix order. */
+export function changedComponents(
+  previous: PrefixComponentHashes,
+  current: PrefixComponentHashes,
+): readonly PrefixComponent[] {
+  const components: readonly PrefixComponent[] = ['model', 'instructions', 'tools']
+  return components.filter((component) => previous[component] !== current[component])
+}
+
 /** Report a cache miss only for a format that exposes cache usage (M101; log only). */
 export function cacheMissTokens(
   previous: number | undefined,

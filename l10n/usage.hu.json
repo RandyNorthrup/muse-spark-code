@@ -216,6 +216,8 @@
   "savings": "Gyorsítótár- és csomagolási megtakarítás",
   "cacheSavings": "Gyorsítótár-megtakarítás",
   "packedAvoided": "Elkerült csomagolt tokenek becsült száma",
+  "definitionTokens": "Becsült elküldött eszközdefiníciós tokenek",
+  "rulesTokens": "Becsült elküldött szabálytokenek",
   "searches": "Keresések",
   "images": "Képek",
   "audioSeconds": "Hangidő",

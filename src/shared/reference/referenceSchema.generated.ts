@@ -383,6 +383,7 @@ export const textKeys = [
   'serve-team',
   'max-requests',
   'max-tool-output-bytes',
+  'mcp-defer-tokens',
   'max-output-tokens',
   'timeout',
   'fail-on-denial',
@@ -548,6 +549,7 @@ const plainTextSchema = z.union([
       textKeys[426],
       textKeys[427],
       textKeys[428],
+      textKeys[429],
     ]),
   }),
   z.object({

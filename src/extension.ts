@@ -4181,6 +4181,7 @@ async function activateWindow(
     isObservationPackingOn: () => currentSettings().modelApiObservationPacking,
     isFastPathOff: () => currentSettings()['judge.fastPathOff'],
     maxToolOutputBytes: () => currentSettings().modelApiMaxToolOutputBytes,
+    mcpDeferThresholdTokens: () => currentSettings().modelApiMcpDeferTokens,
     pacingOwner: requestPacingOwner,
     isAutoCompactionOn: () => currentSettings().modelApiAutoCompaction,
     autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,

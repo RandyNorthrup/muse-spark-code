@@ -45,13 +45,16 @@ import type {
   ElicitationOutcome,
   McpElicitationHandler as ConnectionElicitationHandler,
 } from './elicitation'
+import { McpDeclarations } from './declarations'
 import { confirmModern, type EraVerdict, probeEra } from './era'
+import { type McpCallOutcome, mcpCallOutcome, mcpFunctionName } from './functions'
 import {
-  type McpCallOutcome,
-  mcpCallOutcome,
-  mcpFunctionDefinition,
-  mcpFunctionName,
-} from './functions'
+  argumentNamesOf,
+  compareText,
+  fitCatalogEntries,
+  type McpCatalogEntry,
+  sortedCatalog,
+} from './deferredTools'
 import { McpHttpTransport } from './http'
 import { type CallToolResult, McpError, type McpToolInfo } from './protocol'
 import {
@@ -183,6 +186,18 @@ export interface McpToolSource {
   snapshot(): McpPoolSnapshot
   /** The functions offered now: the connected servers' tools. */
   definitions(): readonly FunctionToolDefinition[]
+  /**
+  The offered tools as a catalogue in deterministic order (server
+  id, then tool name; 4-H4), with the metadata deferred loading and
+  `tool_search` plan from. `definitions()` is its definitions.
+  */
+  catalog(): readonly McpCatalogEntry[]
+  /**
+  One session's MCP declarations over this pool (4-H4): the per-turn
+  catalogue, deferral and `tool_search`. Built here so that code loads
+  with the pool's lazy bundle, never in the main Model API bundle (D6).
+  */
+  declarations(threshold: () => number): McpDeclarations
   find(functionName: string): McpToolRef | undefined
   /**
   Calls the tool; rejects on a Stop, a deadline, a JSON-RPC error or a
@@ -657,6 +672,9 @@ export class McpServerPool implements McpToolSource {
   tool back — logged by server and tool name only, never its text — with
   its old pin kept, until `acceptTools` re-pins it. An offered tool is by
   construction the pinned text, so its read-only claim is pinned too.
+  Sorted by tool name first (4-H4): the order a server lists in must never
+  reach a request, and function-name collision resolution reads the same
+  order every time.
   */
   private async offer(server: LiveServer, listed: readonly McpToolInfo[]): Promise<void> {
     this.withdraw(server)
@@ -673,22 +691,18 @@ export class McpServerPool implements McpToolSource {
       await this.pinStore?.keep(spec.identity, partition.pins)
     }
     const taken = new Set(this.byFunction.keys())
-    server.tools = partition.offered.map((tool) => {
-      const functionName = mcpFunctionName(spec.name, tool.name, taken)
-      taken.add(functionName)
-      const { definition, notes } = mcpFunctionDefinition(functionName, tool)
-      if (notes.length > 0) {
+    server.tools = fitCatalogEntries(spec.name, partition.offered, taken).map((fitted) => {
+      if (fitted.notes.length > 0) {
         this.deps.log.info(
-          `MCP tool ${tool.name} of ${spec.name}: its schema was fitted to the Model API (${notes.join('; ')})`,
+          `MCP tool ${fitted.tool.name} of ${spec.name}: its schema was fitted to the Model API (${fitted.notes.join('; ')})`,
         )
       }
-      const isReadOnly = tool.annotations?.readOnlyHint === true
       return {
-        functionName,
-        tool,
-        definition,
-        isReadOnly,
-        isPinnedReadOnly: isReadOnly,
+        functionName: fitted.entry.functionName,
+        tool: fitted.tool,
+        definition: fitted.entry.definition,
+        isReadOnly: fitted.entry.isReadOnly,
+        isPinnedReadOnly: fitted.entry.isReadOnly,
       }
     })
     for (const offered of server.tools) {
@@ -859,11 +873,31 @@ export class McpServerPool implements McpToolSource {
     }
   }
 
-  public definitions(): readonly FunctionToolDefinition[] {
+  public catalog(): readonly McpCatalogEntry[] {
     for (const server of this.servers) {
       this.refreshIfStale(server)
     }
-    return this.servers.flatMap((server) => server.tools.map((offered) => offered.definition))
+    return sortedCatalog(
+      this.servers.flatMap((server) =>
+        server.tools.map((offered) => ({
+          server: server.spec.name,
+          tool: offered.tool.name,
+          functionName: offered.functionName,
+          definition: offered.definition,
+          description: offered.definition.description,
+          argumentNames: argumentNamesOf(offered.definition),
+          isReadOnly: offered.isReadOnly,
+        })),
+      ),
+    )
+  }
+
+  public definitions(): readonly FunctionToolDefinition[] {
+    return this.catalog().map((entry) => entry.definition)
+  }
+
+  public declarations(threshold: () => number): McpDeclarations {
+    return new McpDeclarations(this, threshold)
   }
 
   public find(functionName: string): BridgeToolRef | undefined {
@@ -961,7 +995,12 @@ export class McpServerPool implements McpToolSource {
       tool: offered.tool,
       isReadOnly: offered.isReadOnly,
       isPinnedReadOnly: offered.isPinnedReadOnly,
-    }))
+    })).toSorted(
+      (a, b) =>
+        compareText(a.server, b.server) ||
+        compareText(a.tool.name, b.tool.name) ||
+        compareText(a.functionName, b.functionName),
+    )
   }
 
   /** Every server stopped (a stdio one's process tree killed); nothing is offered afterwards. */

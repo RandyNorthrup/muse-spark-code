@@ -242,6 +242,8 @@
   "savings": "Oszczędności pamięci podręcznej i pakowania",
   "cacheSavings": "Oszczędności pamięci podręcznej",
   "packedAvoided": "Szacowana liczba unikniętych spakowanych tokenów",
+  "definitionTokens": "Szacowane wysłane tokeny definicji narzędzi",
+  "rulesTokens": "Szacowane wysłane tokeny reguł",
   "searches": "Wyszukiwania",
   "images": "Obrazy",
   "audioSeconds": "Długość dźwięku",

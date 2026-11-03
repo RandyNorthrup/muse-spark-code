@@ -1009,7 +1009,7 @@ MCP servers: Muse Code runs its own servers; on Model API this window runs confi
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: `museSpark.mcpServers`. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#rules-skills-and-memory)
+Commands: `museSpark.mcpServers`. Settings: `museSpark.modelApiMcpDeferTokens`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#rules-skills-and-memory)
 
 ### Hooks…
 
@@ -3024,6 +3024,20 @@ Type: `"integer"`. Default: `0`. Scope: `machine`.
 }
 ```
 
+### museSpark.modelApiMcpDeferTokens
+
+conversationStart: When your MCP servers' tool definitions pass this many estimated tokens, their schemas load on demand instead of riding every request: the model gets a Find Tools search over the local catalogue, and a tool it finds stays loaded for the session. Built-in tools always load. 0 always loads every MCP schema up front. This only changes what each request carries; it never limits your work.
+
+Type: `"integer"`. Default: `0`. Scope: `machine`.
+
+```json
+{
+  "type": "integer",
+  "default": 0,
+  "minimum": 0
+}
+```
+
 ### museSpark.turnCheckpoints
 
 On by default: keeps the model’s own file, image, workspace memory and symbol-rename tool writes for Restore files and Redo in a connected Model API session, while files still hold exactly what the model left. Never undoes changes by commands, hooks, MCP tools, you or other windows; copies stay in extension storage, outside the workspace’s .git. Needs git on PATH and a trusted workspace.
@@ -4485,6 +4499,7 @@ These are defaults; editor customizations take precedence.
 - `exec: --max-budget-usd <value>`: Set the spending reservation limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"decimals":6,"required":"modelApi","unit":"USD","purpose":"max-budget-usd"}`
 - `exec: --max-requests <value>`: Set the maximum number of model requests; without it, there is no request limit. `{"type":"string","repeatable":false,"minimum":1,"purpose":"maxRequests"}`
 - `exec: --max-tool-output-bytes <value>`: Raise the per-tool-result byte guard for this run. `{"type":"string","repeatable":false,"purpose":"max-tool-output-bytes"}`
+- `exec: --mcp-defer-tokens <value>`: Defer MCP tool schemas past this many estimated definition tokens, loading them through tool search; 0 always loads every schema. `{"type":"string","repeatable":false,"purpose":"mcp-defer-tokens"}`
 - `exec: --max-output-tokens <value>`: Lower the run’s output cap in tokens; absent is the model’s policy cap, never above it. `{"type":"string","repeatable":false,"minimum":1,"unit":"tokens","purpose":"max-output-tokens"}`
 - `exec: --timeout <value>`: Set the run deadline in seconds (any positive integer); without it the run has no deadline of its own. `{"type":"string","repeatable":false,"minimum":1,"unit":"seconds","purpose":"timeoutMs"}`
 - `exec: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false,"purpose":"muse-binary"}`

@@ -459,6 +459,7 @@ export const REFERENCE_TOOL_FEATURES: Readonly<Record<string, string>> = {
   add_memory: 'memory',
   edit_memory: 'memory',
   recall_output: 'code-output',
+  tool_search: 'mcp',
   web_fetch: 'web-fetch',
   browser_check: 'browser',
   subagent_spawn: 'subagents',

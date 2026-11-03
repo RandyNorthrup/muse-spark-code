@@ -1110,6 +1110,8 @@ export const EN = {
     'max-requests':
       'Set the maximum number of model requests; without it, there is no request limit.',
     'max-tool-output-bytes': 'Raise the per-tool-result byte guard for this run.',
+    'mcp-defer-tokens':
+      'Defer MCP tool schemas past this many estimated definition tokens, loading them through tool search; 0 always loads every schema.',
     'max-output-tokens':
       'Lower the run’s output cap in tokens; absent is the model’s policy cap, never above it.',
     timeout:
@@ -3813,6 +3815,12 @@ export const EN = {
   packRecalled: 'Recalled characters {start} to {end} of {total} from packed output {id}',
   packRecallNotFound: 'No literal match in packed output {id} from character {offset}.',
   promptCacheMiss: 'Prompt cache missed {tokens} reusable input tokens.',
+  // 4-H4: the tool_search row and the deferral notice say what loaded.
+  toolSearchLoaded: 'Loaded {count} MCP tool(s) for the next request: {names}',
+  toolSearchLoadedNone: 'No deferred MCP tool matches that search.',
+  toolSearchAlreadyLoaded: 'Already loaded: {names}',
+  mcpToolsDeferred:
+    '{deferred} of {total} MCP tools now load on demand through Find Tools instead of riding every request (about {tokens} definition tokens). Set museSpark.modelApiMcpDeferTokens to 0 to always load them.',
   packRecallInvalid: 'The recall request was malformed, so nothing was read back.',
   packRecallUnknownId:
     'No packed output in this conversation has the id {id}, so nothing was read back.',

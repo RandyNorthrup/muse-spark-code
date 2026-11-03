@@ -229,6 +229,8 @@
   "savings": "Économies de cache et de packing",
   "cacheSavings": "Économies de cache",
   "packedAvoided": "Estimation des jetons packés évités",
+  "definitionTokens": "Jetons de définition d’outils envoyés (estimation)",
+  "rulesTokens": "Jetons de règles envoyés (estimation)",
   "searches": "Recherches",
   "images": "Images",
   "audioSeconds": "Durée audio",
