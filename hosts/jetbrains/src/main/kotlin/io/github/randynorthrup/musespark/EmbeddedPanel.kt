@@ -27,6 +27,7 @@ class EmbeddedPanel(
 ) : Disposable {
   private val browser: JBCefBrowser
   private val query: JBCefJSQuery
+  internal val inspector: PageInspector
   private val nonce = UUID.randomUUID().toString().replace("-", "")
   private var themeCss = NativeTheme.css()
   private val subscribed =
@@ -48,6 +49,7 @@ class EmbeddedPanel(
     browser = JBCefBrowser()
     val queryBrowser: com.intellij.ui.jcef.JBCefBrowserBase = browser
     query = JBCefJSQuery.create(queryBrowser)
+    inspector = PageInspector(queryBrowser, ::evaluate)
     query.addHandler { text ->
       try {
         if (!policy.navigationAllowed(browser.cefBrowser.url ?: "")) {
@@ -111,6 +113,7 @@ class EmbeddedPanel(
       browser.loadHTML(prepareHtml(), policy.page)
       readiness.start()
     }.onFailure {
+      inspector.dispose()
       query.dispose()
       browser.dispose()
     }.getOrThrow()
@@ -325,6 +328,7 @@ class EmbeddedPanel(
   override fun dispose() {
     readiness.stop()
     runCatching(surface::close).onFailure { diagnostic("MHP_PANEL_CLOSE_FAILED") }
+    inspector.dispose()
     query.dispose()
     browser.dispose()
   }
