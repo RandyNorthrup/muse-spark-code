@@ -1404,7 +1404,10 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       if (seamsFor(cwd) !== undefined) host.setTeamTrusted(() => isTeamTrusted(cwd))
       return await openTeamWorkerSession(host, input)
     },
-    isHardwareWorkspace: (cwd) => hardware(cwd).current().isHardwareWorkspace === true,
+    // Proven hardware only: an unscannable folder or unknown inventory
+    // latches the command guard fail-safe but never loses Bypass or the
+    // reviewer (RLF-MAKERFENCE).
+    isHardwareWorkspace: (cwd) => hardware(cwd).isPositivelyHardware(),
     listTeamWorkerModels: async (cwd) => {
       const host = await modelApiHostFor(cwd)
       const models = await host.listModels()

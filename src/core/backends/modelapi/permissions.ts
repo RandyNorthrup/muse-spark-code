@@ -67,7 +67,7 @@ import { UI_TEXT } from '../../../shared/constants'
 import type { ApprovalMode } from '../../../shared/permissionModes'
 import { countSecretMatches } from '../../redact'
 import { hardwareAction, isHardwareStop } from '../../maker/guard/hardwareCommands'
-import { isHardwareWorkspace } from '../../maker/guard/shellPolicy'
+import { isHardwareWorkspace, isPositivelyHardwareWorkspace } from '../../maker/guard/shellPolicy'
 import type { HardwareContext } from '../../maker/guard/httpCommands'
 import { isDeviceAction, isPhysicalTool } from '../../maker/guard/actionClass'
 import type { CommandRule } from './commandRules'
@@ -303,13 +303,22 @@ export class PermissionEngine {
       countSecretMatches(query.command, []) === 0
     )
       return settled('allow', 'hardwareDetected')
-    if (query.hardware?.isInventoryKnown === false) return settled('deny', 'hardwareDetected')
+    const action = hardwareAction(query.command, query.dialect, query.hardware)
+    // An unknown inventory cannot support an actuation binding, so a
+    // device action (opaque commands included, by hardwareAction) and
+    // every shell of a proven hardware workspace refuse here. Ordinary
+    // commands the table clears are judged by the mode below: unknown
+    // evidence alone never refuses ordinary work.
+    if (
+      query.hardware?.isInventoryKnown === false &&
+      (isDeviceAction(action) || isPositivelyHardwareWorkspace(query.hardware))
+    )
+      return settled('deny', 'hardwareDetected')
     const { decision, rule } = judgeCommand(policy.commandRules, query.command, policyDialect)
     if (decision === 'forbid') {
       return settled('deny', 'forbidRule', rule)
     }
-    const action = hardwareAction(query.command, query.dialect, query.hardware)
-    if (isHardwareWorkspace(query.hardware)) {
+    if (isPositivelyHardwareWorkspace(query.hardware)) {
       return settled(
         query.isUnattended === true ||
           query.hardware?.isUnattended === true ||
@@ -367,7 +376,9 @@ export class PermissionEngine {
         hasSessionChoice: true,
       }
     }
-    return unsettledAsk(this.mode === REVIEWED_MODE && !isHardwareWorkspace(query.hardware))
+    return unsettledAsk(
+      this.mode === REVIEWED_MODE && !isPositivelyHardwareWorkspace(query.hardware),
+    )
   }
 
   public setMode(mode: ApprovalMode): void {
@@ -394,7 +405,7 @@ export class PermissionEngine {
   */
   public isAllowedForSession(query: PermissionQuery): boolean {
     return (
-      !(query.toolClass === 'shell' && isHardwareWorkspace(query.hardware)) &&
+      !(query.toolClass === 'shell' && isPositivelyHardwareWorkspace(query.hardware)) &&
       this.allowed.has(ruleKey(query.toolName, query.command))
     )
   }

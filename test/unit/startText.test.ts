@@ -8,7 +8,7 @@ import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { startFailureText } from '../../src/acp/startText'
+import { startFailure, startFailureText } from '../../src/acp/startText'
 import { nativeHelperError } from '../../src/core/nativeHelper'
 import {
   CreatedRegistrySaveError,
@@ -106,6 +106,24 @@ describe('startFailureText', () => {
     } finally {
       await rm(folder, { recursive: true, force: true })
     }
+  })
+
+  it('marks refusals our layers named, and only those (RLF-MAKERFENCE item 4)', () => {
+    // A refusal sentence (the hardware fence, a busy schedule) answers as
+    // invalidRequest with its own words; a failure we cannot name stays an
+    // internal error behind the site sentence.
+    expect(startFailure(new Error(UI_TEXT.scheduleBusy), 'turn')).toEqual({
+      text: UI_TEXT.scheduleBusy,
+      isRefusal: true,
+    })
+    expect(startFailure(new CreatedRegistrySaveError('refused'), 'session').isRefusal).toBe(true)
+    expect(startFailure(new Error('start failed'), 'turn').isRefusal).toBe(false)
+    expect(
+      startFailure(
+        new MspError({ code: -32_042, message: 'nope', data: { kind: 'sessionNotLoaded' } }),
+        'turn',
+      ).isRefusal,
+    ).toBe(false)
   })
 
   it('walks wrappers past to their cause', () => {

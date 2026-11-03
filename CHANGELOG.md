@@ -594,6 +594,25 @@ happened, not what was planned; superseded entries are kept.
   error. A turn that was running when the program died ends as failed,
   never as finished; bringing the program back retries briefly with a
   notice each time, and you can stop it.
+- One firmware file anywhere in a repository no longer refuses every
+  Muse Code turn in it. Only a marker at the workspace root makes a
+  folder a hardware project (a test fixture or a vendored example no
+  longer does), the check ends at the same file on every system, and
+  a folder the check cannot fully read — or a machine whose device
+  list cannot be read, as on Windows — starts its turns again. A
+  turn in a real hardware project starts too; each device command
+  is still asked or refused on its own. Only a mounted board
+  opened as the workspace itself still refuses at the start,
+  because editing its files already programs the board.
+- In a folder whose hardware check cannot finish, shell commands
+  are no longer refused or offered only "reject". Ordinary
+  commands run as they do in any workspace, Bypass and the Auto
+  reviewer included; commands that flash, move or power a device
+  are still asked exactly or refused, and a command whose effect
+  cannot be read still waits while the device list is unknown.
+- When a session or turn start is refused, an editor now shows the
+  reason in its own sentence (for example the hardware fence's)
+  with a fitting error, instead of "That did not work".
 - A vault policy that is a link, that another account can read, or that has
   a second name is ignored, and saving a policy can no longer be aimed at
   another file. The ceiling stays "none" and the refusal is the same words

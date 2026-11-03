@@ -44,6 +44,7 @@ export function setHardwareText(
 
 export {
   hardwareApprovalMode,
+  isBoardVolumeWorkspace,
   isPositivelyHardwareWorkspace,
   prepareHardwareTurn,
 } from './guard/modes'

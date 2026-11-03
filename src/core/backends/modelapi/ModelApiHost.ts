@@ -26,7 +26,11 @@ import {
   isHardwareStop,
   hardwareStop,
 } from '../../maker/guard/hardwareCommands'
-import { isHardwareWorkspace, hardwareShellNote } from '../../maker/guard/shellPolicy'
+import {
+  isHardwareWorkspace,
+  isPositivelyHardwareWorkspace,
+  hardwareShellNote,
+} from '../../maker/guard/shellPolicy'
 import { parseShell } from '../../maker/guard/shellParse'
 import type { HardwareContext } from '../../maker/guard/httpCommands'
 import { StorageRefusalError } from '../../checkpoints/storageRefusal'
@@ -3507,7 +3511,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     // first load (ensureVerify), never here: the chunk is not loaded yet.
     this.modelId = modelId
     this.sessionPermissions = new PermissionEngine(
-      approvalMode === 'allowAll' && isHardwareWorkspace(deps.hardwareContext?.())
+      approvalMode === 'allowAll' && isPositivelyHardwareWorkspace(deps.hardwareContext?.())
         ? 'promptUnmatched'
         : approvalMode,
     )
@@ -3534,7 +3538,10 @@ export class ModelApiSession implements ScheduledAgentSession {
           })
       },
     )
-    if (parentSession !== undefined && isHardwareWorkspace(parentSession.hardwareGuard.current()))
+    if (
+      parentSession !== undefined &&
+      isPositivelyHardwareWorkspace(parentSession.hardwareGuard.current())
+    )
       this.hardwareGuard.observe({ isHardwareWorkspace: true })
     this.searchMaxPerRequest = deps.webSearchMaxPerRequest?.() ?? WEB_SEARCH_MAX_PER_REQUEST
     // The hook and subagent counts as settings (M127), captured once for
@@ -4447,7 +4454,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         ? {}
         : {
             runHook: async (...args: Parameters<typeof runHook>) => {
-              if (isHardwareWorkspace(this.hardwareGuard.current()))
+              if (isPositivelyHardwareWorkspace(this.hardwareGuard.current()))
                 throw new Error(UI_TEXT.hardwareUnattended)
               this.noteProcessRan()
               const [command, payload, cwd, timeoutMs, hookSignal, extraEnvNames] = args
@@ -4459,7 +4466,7 @@ export class ModelApiSession implements ScheduledAgentSession {
                 hookSignal,
                 extraEnvNames,
                 () => {
-                  if (isHardwareWorkspace(this.hardwareGuard.current()))
+                  if (isPositivelyHardwareWorkspace(this.hardwareGuard.current()))
                     throw new Error(UI_TEXT.hardwareUnattended)
                 },
               )
@@ -13085,7 +13092,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       dialect: this.deps.platform === 'win32' ? 'powershell' : 'bash',
       hardware: this.hardwareGuard.current(),
       isUnattended:
-        isHardwareWorkspace(this.hardwareGuard.current()) ||
+        isPositivelyHardwareWorkspace(this.hardwareGuard.current()) ||
         this.isSubagent ||
         this.deps.isUnattended?.() === true ||
         this.active?.confirmedRequest !== undefined ||
@@ -13446,7 +13453,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           assertCanRun?.()
           const hardware = this.hardwareGuard.current()
           if (
-            isHardwareWorkspace(hardware) &&
+            isPositivelyHardwareWorkspace(hardware) &&
             !isHardwareStop(line, this.deps.platform === 'win32' ? 'powershell' : 'bash', hardware)
           )
             throw new Error(UI_TEXT.hardwareUnattended)
@@ -13866,7 +13873,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (
       judged.verdict === 'allow' &&
       query.toolClass === 'shell' &&
-      isHardwareWorkspace(query.hardware)
+      isPositivelyHardwareWorkspace(query.hardware)
     )
       return {
         verdict: 'ask',
@@ -19798,7 +19805,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   public setApprovalMode(mode: string): Promise<void> {
-    if (mode === 'allowAll' && isHardwareWorkspace(this.hardwareGuard.current()))
+    if (mode === 'allowAll' && isPositivelyHardwareWorkspace(this.hardwareGuard.current()))
       return Promise.reject(new Error(UI_TEXT.hardwareBypassNotice))
     if (this.owner.run() !== undefined) return Promise.reject(new Error(UI_TEXT.scheduleBusy))
     if (mode !== 'denyUnmatched' && this.isSideChat) {
@@ -21779,7 +21786,10 @@ export class ModelApiHost implements AgentHost {
 
   public async startSession(options: StartSessionOptions): Promise<AgentSession> {
     this.deps.hardwareContext?.().hardwareOwner?.startSession()
-    if (options.approvalMode === 'allowAll' && isHardwareWorkspace(this.deps.hardwareContext?.()))
+    if (
+      options.approvalMode === 'allowAll' &&
+      isPositivelyHardwareWorkspace(this.deps.hardwareContext?.())
+    )
       throw new Error(UI_TEXT.hardwareBypassNotice)
     if (!(APPROVAL_MODES as readonly string[]).includes(options.approvalMode)) {
       throw new Error(`unknown approval mode ${options.approvalMode}`)
