@@ -26,6 +26,8 @@ const SERVE_FILES = [
   'dist/nodeServe.js',
   'dist/nodeAuth.js',
   'dist/uiText.js',
+  'dist/uiTextDesktop.js',
+  'dist/nodeDiagnostics.js',
   'dist/uiTextHooks.js',
   'dist/uiTextMedia.js',
   'dist/uiTextRuntime.js',
