@@ -127,6 +127,14 @@ Surfaces: vscode:modelApi, vscode:museCode. Paid: no extra feature charge; model
 
 Commands: `museSpark.modelsAndAgents`. Settings: `museSpark.teamExternalAgents`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#team-configuration)
 
+### museSpark.teamRefusalFallback
+
+A team task an agent refuses moves to the next available agent in its role's preference list, across accounts and providers; each agent gets one try, and a review never goes to the agent or model that wrote the work. A paid agent asks first, naming its model and price. Off by default: a refused task ends with its refusal. Machine-scoped; exec --refusal-fallback turns it on for one headless --team run.
+
+Surfaces: vscode:modelApi, vscode:museCode. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: `museSpark.teamRefusalFallback`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#team-configuration)
+
 ### Legal Scan
 
 Local licence scan; optional licence-review.json receipts bind a reviewed SPDX licence to its package, exact version and SHA-256, with a reason. Changed bytes or versions require review again.
@@ -3803,6 +3811,19 @@ Type: `"boolean"`. Default: `false`. Scope: `machine`.
 }
 ```
 
+### museSpark.teamRefusalFallback
+
+A team task an agent refuses moves to the next available agent in its role's preference list, across accounts and providers; each agent gets one try, and a review never goes to the agent or model that wrote the work. A paid agent asks first, naming its model and price. Off by default: a refused task ends with its refusal. Machine-scoped; exec --refusal-fallback turns it on for one headless --team run.
+
+Type: `"boolean"`. Default: `false`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": false
+}
+```
+
 ### museSpark.usageHistory
 
 Record model usage locally on this machine. Turning this off stops new records; live limits and budgets remain visible.
@@ -4434,6 +4455,7 @@ These are defaults; editor customizations take precedence.
 - `exec: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":false,"purpose":"model"}`
 - `exec: --account <value>`: --account &lt;id&gt; The account to use (auth set, exec). `{"type":"string","repeatable":false,"purpose":"account"}`
 - `exec: --account-pool`: --account-pool Model API: pool at request boundaries; existing budgets still bind. Excludes key-stdin in CI. `{"type":"boolean","repeatable":false,"default":false,"purpose":"account-pool"}`
+- `exec: --refusal-fallback`: --refusal-fallback: With --team, a task an agent refuses moves to the next agent in its role; a paid one this run would have to ask about stops it instead. `{"type":"boolean","repeatable":false,"default":false,"purpose":"refusal-fallback"}`
 - `exec: --effort <value>`: Choose how much effort Muse puts into each reply. `{"type":"string","repeatable":false,"enum":["minimal","low","medium","high","xhigh","max","ultra","none"],"purpose":"effort"}`
 - `exec: --fast`: --fast: Use the plan catalogue’s Fast tier (2x speed, increased usage). Off by default: it uses more of your plan allowance. `{"type":"boolean","repeatable":false,"default":false,"purpose":"fast"}`
 - `exec: --output <value>`: Choose the result format: text, json or jsonl. `{"type":"string","repeatable":false,"enum":["text","json","jsonl"],"default":"text","purpose":"output"}`
