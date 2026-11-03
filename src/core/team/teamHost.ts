@@ -2605,8 +2605,6 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     sharedFiles: () => deps.settings.scheduler?.().sharedFiles ?? [],
     workspaceId: deps.workspaceId ?? 'workspace',
     windowInstanceId: myWindowId,
-    ...(deps.ownerBirth !== undefined && { ownerBirth: deps.ownerBirth }),
-    ...(deps.probeOwner !== undefined && { probeOwner: deps.probeOwner }),
     onStallDetected,
     state: deps.state,
     now: deps.now,

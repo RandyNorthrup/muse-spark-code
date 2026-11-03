@@ -13,14 +13,14 @@ import {
 import { isSamePath } from '../../core/paths'
 import {
   CHECKPOINT_JOURNAL_FILE_MODE,
-  TEAM_RETIRE_WAIT_MS,
+  TEAM_LANDING_LOCK_WAIT_MS,
   TEAM_SCHED_TICK_MS,
   TEAM_SCHED_TEXT_MAX_CHARS,
 } from '../../shared/constants'
 import { isMissingPath } from '../canonicalPath'
 import { isOwnedFile } from '../fsAtomic'
 
-const DEFAULT_LOCK_CLOCK = { now: Date.now, sleep: delay, waitMs: TEAM_RETIRE_WAIT_MS }
+const DEFAULT_LOCK_CLOCK = { now: Date.now, sleep: delay, waitMs: TEAM_LANDING_LOCK_WAIT_MS }
 const ownerSchema = z.strictObject({
   landingId: z.string(),
   windowInstanceId: z.string(),

@@ -224,6 +224,27 @@ Conflicts:
 
 `pathGuardSpawns` exit 0; host and unit typecheck exit 0.
 
+### Merge 8 — `lanes/cc-winteam` (375a42d86)
+
+The Windows crash legs of M96c: a landing holds under any spelling of its folders, recovery removes what a killed
+write staged, the window scheduler's process lease and owner probe get their product binding (`boardOwner.ts`),
+pause and kill proved by real processes. `landTeamTask`/`recoverOpenLandings` still have no product caller (lead's
+decision 2026-11-02: lane CC-WINLAND after round 11).
+
+Conflicts:
+
+- `knip.jsonc`: both child entries (int's `scheduleBoardClaimChild.entry.ts`, the lane's `teamWindowChild.entry.ts`).
+- `test/unit/teamLandingChild.entry.ts`: the lane's child (its plan schema carries the stop file, the stop-at-rename
+  point and the recovery mode its pause and kill cases need); int's shared `readChildPlan` stays for the other
+  children.
+- `PLAN.md` M96c: both statuses.
+
+Interactions:
+
+- The lane moved `ownerBirth`/`probeOwner` out of `TeamHostServiceDeps` into the window runtime's own binding; int's
+  real-parts rig (RLF-TEAMWORKERS, `test/unit/helpers/teamRealRig.ts`) still picked them (TS2344). `fix(int)`: the
+  rig no longer passes them.
+
 ### Red/green drills (batch A)
 
 - Merge 1, terminal cwd through a link: `confineTerminalCwd` made lexical-only for in-root names →
