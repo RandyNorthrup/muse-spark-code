@@ -2107,7 +2107,7 @@
     "package:node-image": "node scripts/package-node-image.mjs",
     "check:node-image": "node scripts/check-node-image.mjs",
     "images": "node scripts/render-images.mjs",
-    "prepare": "node scripts/install-git-hooks.mjs",
+    "prepare": "node scripts/install-git-hooks.mjs && node scripts/node-pty-helper-mode.mjs",
     "security:sast": "node scripts/sast.mjs",
     "schema:exec": "node scripts/exec-schema.mjs",
     "test:legal-a11y": "node scripts/legal-a11y.mjs",
