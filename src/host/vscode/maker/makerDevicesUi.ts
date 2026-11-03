@@ -127,25 +127,24 @@ async function addMachineFlow(deps: MakerDevicesDeps): Promise<void> {
   await deps.addMachine(message)
 }
 
-type DevicesItem = vscode.QuickPickItem &
-  (
-    | { readonly pick: 'add' }
-    | { readonly pick: 'machine'; readonly detailLine: string }
-    | { readonly pick: 'port'; readonly detailLine: string }
-  )
-
 function machineDetail(machine: MakerMachineSummary): string {
   return `${machine.name} (${machine.id}): ${machine.endpoint}`
 }
 
 function portDetail(port: SerialIdentity): string {
-  const usb = port.vid !== undefined && port.pid !== undefined ? ` ${port.vid}:${port.pid}` : ''
+  const usb = port.vid === undefined || port.pid === undefined ? '' : ` ${port.vid}:${port.pid}`
   const description = port.description === undefined ? '' : ` ${port.description}`
   return `${port.port}${usb}${description}`
 }
 
 /** The Devices list: registered machines, live serial ports, and the Add flow. */
 export async function openMakerDevices(deps: MakerDevicesDeps): Promise<void> {
+  type DevicesItem = vscode.QuickPickItem &
+    (
+      | { readonly pick: 'add' }
+      | { readonly pick: 'machine'; readonly detailLine: string }
+      | { readonly pick: 'port'; readonly detailLine: string }
+    )
   const [machines, ports] = await Promise.all([deps.listMachines(), deps.listPorts()])
   const items: DevicesItem[] = [
     { label: `$(add) ${UI_TEXT.makerAddMachine}`, pick: 'add' },
