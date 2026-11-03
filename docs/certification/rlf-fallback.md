@@ -108,3 +108,5 @@ A live refusal: see `docs/real-life/unproven.md`. The CHANGELOG line waits.
 | `npm run build` (after the reader fix)      | 0    |
 | `npm run security:sast` (699 rules, 0 hits) | 0    |
 | `npm run typecheck`                         | 0    |
+
+`npx vitest related` on the branch's changed files (against `git merge-base HEAD 72d8d5003`, `--maxWorkers=3`, repository timeout) did not finish inside the lane's budget: after about 90 minutes it had about 31,200 passing tests and a few `x` marks in the dot output whose tests the lane could not name, with one worker still in `test/unit/judgeP2Delivery.test.ts` (it reruns `check-bundle-split.mjs`). The run was stopped; the related suites need a full run before merge.
