@@ -21596,6 +21596,16 @@ M63b real conversations in Zed, Neovim and Emacs are recorded there.
 
 ### M101 — Upstream sync: Pi and SoL-Pi ports, automatic compaction (D81)
 
+**Status 2026-11-02 (RLF-COMPACTCAP, research R2): building.** The
+compaction summary request's output budget is the selected model's own
+output limit, clamped so summary input plus output fit the model's
+context window (Pi v1.4.0, Pi #9512/#9075); records without an output
+limit keep 8192, and a person-set output cap still binds. Real-code
+unit tests pin all three, and the two manual-compaction goldens
+re-baseline request 1 from 8192 to 131072. Record:
+`docs/certification/rlf-compactcap.md`. The remaining upstream port
+items stay open.
+
 **Status 2026-10-22 (RLFINISH): building.** Lanes C2, O, T and E and
 the three signature and replay blockers landed with real-code tests;
 the lane's duplication pass folds the codec tests' first-turn bodies

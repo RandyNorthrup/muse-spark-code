@@ -487,6 +487,7 @@ import { MediaBudget } from './mediaBudget'
 import { classifyContextOverflow } from '../../context/overflow'
 import {
   AutoCompact,
+  compactionSummaryBudget,
   measureAutoCompactRequest,
   type AutoCompactModel,
   type AutoCompactDecision,
@@ -5698,6 +5699,21 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (!Number.isSafeInteger(cap) || cap < 1) throw new RangeError('invalid output.maxTokens')
     this.outputCaps.set(resolved, cap)
     return cap
+  }
+
+  /**
+  A person-set output cap for this model (R2): the explicit setting first,
+  then the host seam, each validated as turns validate it. Undefined when
+  the person set none, so the summary request's own model budget governs
+  instead of the turn's default cap.
+  */
+  private personOutputCap(resolved: ResolvedModel): number | undefined {
+    const explicit = this.explicitOutputCaps.get(resolved.ref)
+    if (explicit !== undefined) return explicit
+    const requested = this.deps.modelOutputMaxTokens?.(resolved.ref, resolved)
+    if (requested === undefined) return undefined
+    if (!Number.isSafeInteger(requested)) throw new RangeError('invalid output.maxTokens')
+    return outputLimitFor(resolved.policy, requested)
   }
 
   /** The wrap-up note, with its count noun in the singular when the limit is 1. */
@@ -18421,15 +18437,6 @@ export class ModelApiSession implements ScheduledAgentSession {
         shouldKeepTools &&
         (prefix === undefined ||
           prefix.body.tools.every((tool) => tool.type !== MODEL_API_WEB_SEARCH_TOOL))
-      // A summary cap below the provider minimum is a rejected request:
-      // floor at what this request's record accepts before budgeting it.
-      const summaryBudget = Math.max(
-        minOutputTokensForPolicy(resolved.policy),
-        Math.min(
-          COMPACTION_SUMMARY_MAX_TOKENS,
-          Math.floor(windowTokens * COMPACTION_SUMMARY_WINDOW_FRACTION),
-        ),
-      )
       const { text: _answerFormat, ...current } = this.body(resolved, false)
       // Compaction owns its format, including the unformatted text fallback.
       // The last POST supplies cache metadata only. Stop, fitting and hook
@@ -18455,11 +18462,25 @@ export class ModelApiSession implements ScheduledAgentSession {
         include: ['reasoning.encrypted_content'],
       })
       const formatted = this.keyed(sideCallBody(body, attempt, this.deps.forceSideCallTool))
-      const fitted = this.budgeted(
-        { ...formatted, max_output_tokens: Math.min(formatted.max_output_tokens, summaryBudget) },
-        resolved,
-      )
-      return { ...fitted, max_output_tokens: Math.min(fitted.max_output_tokens, summaryBudget) }
+      // R2 (Pi v1.4.0, Pi #9512/#9075): the summary request's output
+      // budget is the selected model's own output limit, clamped so the
+      // request's own input plus output fit the model's context window.
+      // A person-set output cap still binds; the turn's default cap never
+      // shrinks a summary below what the model's record allows.
+      const summaryInputTokens = estimateInput(
+        this.media?.budgetParts(formatted) ?? requestParts(formatted),
+        undefined,
+      ).inputTokens
+      const summaryBudget = compactionSummaryBudget({
+        policy: resolved.policy,
+        windowTokens,
+        summaryInputTokens,
+      })
+      const personCap = this.personOutputCap(resolved)
+      const outputTokens =
+        personCap === undefined ? summaryBudget : Math.min(personCap, summaryBudget)
+      const fitted = this.budgeted({ ...formatted, max_output_tokens: outputTokens }, resolved)
+      return { ...fitted, max_output_tokens: Math.min(fitted.max_output_tokens, outputTokens) }
     }
     const postContexts: string[] = []
     // The accepted attempt's exact request is the summary's provenance.

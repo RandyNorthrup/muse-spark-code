@@ -4,12 +4,15 @@ import {
   AUTO_COMPACTION_COOLDOWN_REQUESTS,
   AUTO_COMPACTION_MIN_OCCUPANCY,
   AUTO_COMPACTION_NEAR_WINDOW,
+  COMPACTION_SUMMARY_MAX_TOKENS,
   HANDOFF_OPEN_TODO_STATUSES,
   MODEL_API_CONTEXT_BYTES_PER_TOKEN,
 } from '../../../shared/constants'
 import { Buffer } from 'node:buffer'
 import type { TodoItem } from '../../../shared/agentEvents'
 import type { ModelPricing } from '../../providers/priceCard'
+import type { ModelPolicy } from './modelPolicy'
+import { minOutputTokensForPolicy } from './modelPolicy'
 import type { CreateResponseBody } from './schemas'
 import { requestParts } from './sessionBudget'
 
@@ -31,6 +34,27 @@ export function measureAutoCompactRequest(
       removableTokens += dispatchedTokens(JSON.stringify(item))
   }
   return { contextTokens, removableTokens }
+}
+
+/**
+R2 (Pi v1.4.0, Pi #9512/#9075): the summary request's output budget is the
+selected model's own output limit, clamped so summary input + output fit the
+model's context window. Only a capability record that states no output limit
+keeps the legacy fixed cap; a budget below the provider's minimum is a
+rejected request, so the minimum floors it as the send path always has.
+*/
+export function compactionSummaryBudget(options: {
+  readonly policy: Pick<ModelPolicy, 'output'>
+  readonly windowTokens: number
+  readonly summaryInputTokens: number
+}): number {
+  return Math.max(
+    minOutputTokensForPolicy(options.policy),
+    Math.min(
+      options.policy.output.maxTokens ?? COMPACTION_SUMMARY_MAX_TOKENS,
+      options.windowTokens - options.summaryInputTokens,
+    ),
+  )
 }
 
 export interface AutoCompactModel {

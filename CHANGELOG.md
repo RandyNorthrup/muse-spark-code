@@ -512,6 +512,11 @@ happened, not what was planned; superseded entries are kept.
   starting the system `stat`, matching Linux (D217): same default
   report shape, numeric owners, UTC times. No approval path uses it;
   the B1 hold stays off on every platform.
+- Compacting a long conversation gives the summary the model's own output
+  allowance instead of a fixed 8,192-token cap, so summaries on capable
+  models are no longer cut short; the allowance still fits inside the
+  model's context window, and a model without a stated output limit keeps
+  the previous cap.
 
 ### Fixed
 
