@@ -6,6 +6,14 @@ import { sumUsd } from '../shared/usd'
 import { providersFilePath } from './providerPaths'
 import { ModelApiClient } from '../core/backends/modelapi/client'
 import { failureForLog } from '../core/backends/musecode/logText'
+import { canonicalPath } from '../host/canonicalPath'
+import { createCheckpointedMemory } from '../host/backend/checkpointedMemory'
+import {
+  finishCheckpointTurn,
+  prepareCheckpointTurn,
+  withCheckpointStorageGuard,
+} from '../host/checkpoints/checkpointHost'
+import type { RuntimeCheckpoints } from './features/checkpoints'
 import type { AccountRequestPort } from '../core/accounts/requestWriter'
 import type { PaidBilling } from '../core/paid/accountPaidRoute'
 import type { ReservePaidExtra } from '../core/voice/voiceBatchSeams'
@@ -183,6 +191,11 @@ export interface RuntimeBackendDeps {
   readonly questions?: { remove(sessionId: string): Promise<void> }
   readonly makerTools?: (cwd: string) => readonly McpTool[]
   readonly hardwareInventory?: () => HardwareContext
+  /**
+  One folder's turn checkpoints, for a runtime an editor's panel drives. Without it (`serve`,
+  `exec`) nothing records a turn and the panel's conversation reports no namespace.
+  */
+  readonly checkpoints?: (workspaceRoot: string) => Promise<RuntimeCheckpoints>
   readonly exec?: ExecRuntimeOptions
   readonly options: ServeOptions
   readonly version: string
@@ -259,6 +272,8 @@ export interface RuntimeBackend {
   upload storage (ephemeral runs say so and delete nothing).
   */
   readonly uploads?: AcpUploadsPort
+  /** The folder's checkpoints the tools write through; the backend owns their lifetime. */
+  readonly checkpointsFor?: (workspaceRoot: string) => Promise<RuntimeCheckpoints>
   readonly close: () => Promise<void>
 }
 
@@ -449,6 +464,7 @@ function modelApiManager(
     readonly onIo: (io: ToolIo) => void
   },
   hardware: ReturnType<typeof createHardwareContexts>,
+  checkpoints: RuntimeCheckpoints | undefined,
 ): ModelApiBackendManager {
   const { options, log, platform } = deps
   const providerConfigFile = path.join(
@@ -509,7 +525,7 @@ function modelApiManager(
       log,
     })
   const listFiles = filesIn(workspaceRoot)
-  const io = createToolIo({
+  const rawIo = createToolIo({
     hardwareContext: () => hardware(workspaceRoot).current(),
     platform,
     listFiles,
@@ -538,20 +554,45 @@ function modelApiManager(
     hookMaxRunningCommands: () => SETTING_DEFAULTS.hooksMaxRunningCommands,
     ...(deps.exec?.vaultExec !== undefined && { vault: deps.exec.vaultExec }),
   })
-  media.onIo(io)
   // Muse Code's memory (M49, PLAN.md D41), in the data home `muse serve` sees.
   const warnMemory = (message: string) => {
     warn(`Memory: ${message}`)
   }
-  const memory = new MemoryStore({
-    io: createMemoryIo(io, { warn: warnMemory, assertCanWrite: assertWorkspaceCurrent }),
+  const memoryDeps = {
     platform,
     dataRoot: () =>
       memoryDataRoot({ platform, homeDir: deps.homeDir, xdgDataHome: homes.xdgDataHome }),
     workspaceRoot,
     systemPath,
     warn: warnMemory,
-  })
+  }
+  // A panel's turns record what their tools and memory write, for a restore (M86, D63).
+  const checkpointedMemory =
+    checkpoints === undefined
+      ? undefined
+      : createCheckpointedMemory(rawIo, checkpoints.port, {
+          ...memoryDeps,
+          captureGuard: () => assertWorkspaceCurrent,
+        })
+  const io = checkpoints === undefined ? rawIo : withCheckpointStorageGuard(rawIo, checkpoints.port)
+  media.onIo(io)
+  const memory =
+    checkpointedMemory?.store ??
+    new MemoryStore({
+      ...memoryDeps,
+      io: createMemoryIo(io, { warn: warnMemory, assertCanWrite: assertWorkspaceCurrent }),
+    })
+  const recorder =
+    checkpoints === undefined || checkpointedMemory === undefined
+      ? undefined
+      : checkpoints.recording.recorder({
+          io,
+          memory: checkpointedMemory.turnWrites,
+          workspaceRoot,
+          canonicalPath,
+          newId: randomUUID,
+          log,
+        })
   // The runtime's own Files-capable client for the session store's upload
   // binding: the stored key over the pinned transport, read per use and
   // never handed to a child process.
@@ -678,6 +719,12 @@ function modelApiManager(
     assertWorkspaceCurrent,
     workspaceEdits,
     io,
+    ...(checkpoints !== undefined && {
+      beforeTurnRuns: (sessionId, turnId, top) =>
+        prepareCheckpointTurn(checkpoints.port, recorder, sessionId, turnId, log, top),
+      afterTurnRuns: (sessionId, turnId, end) =>
+        finishCheckpointTurn(checkpoints.port, recorder, sessionId, turnId, end),
+    }),
     listAttemptFiles: (attemptRoot, signal) => filesIn(attemptRoot)(signal),
     contextIo: fileContextIo,
     webFetch: createWebFetcher(log, pageConverter(path.join(deps.distDir, PAGE_WORKER_FILE), log)),
@@ -984,6 +1031,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     { readonly manager: ModelApiBackendManager; readonly identity: string }
   >()
   const workspaceEdits = new Map<string, WorkspaceEdits>()
+  const checkpointHosts = new Map<string, Promise<RuntimeCheckpoints>>()
   // Lane V seam 5: one attached-media registry for the runtime, and each
   // folder's confined reads for its media port.
   // The registry itself loads with dist/runtimeMedia.js on the first media
@@ -1304,12 +1352,40 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     return host
   }
 
+  const checkpointsFor = async (root: string): Promise<RuntimeCheckpoints> => {
+    if (isClosed || deps.checkpoints === undefined)
+      throw new Error('MHP_CHECKPOINT_NAMESPACE_UNAVAILABLE')
+    let pending = checkpointHosts.get(root)
+    if (pending === undefined) {
+      pending = deps.checkpoints(root)
+      checkpointHosts.set(root, pending)
+    }
+    try {
+      return await pending
+    } catch (error: unknown) {
+      if (checkpointHosts.get(root) === pending) checkpointHosts.delete(root)
+      throw error
+    }
+  }
+  // A folder whose namespace cannot be established still runs: its turns record nothing, and
+  // its conversation reports no namespace and offers no restore.
+  const hostCheckpoints = async (cwd: string): Promise<RuntimeCheckpoints | undefined> => {
+    if (deps.checkpoints === undefined) return undefined
+    try {
+      return await checkpointsFor(cwd)
+    } catch (error: unknown) {
+      deps.log.warn(`Turn checkpoints are off for this folder: ${failureForLog(error)}`)
+      return undefined
+    }
+  }
+
   const modelApiHostFor = async (cwd: string) => {
     const identity = await captureWorkspaceIdentity(cwd)
     if (identity === undefined) {
       throw new Error(UI_TEXT.modelApiNeedsFolder)
     }
     const { canonical, key } = identity
+    const checkpoints = await hostCheckpoints(cwd)
     const existing = modelApiHosts.get(cwd)
     if (existing !== undefined) {
       if (existing.identity !== key) {
@@ -1342,18 +1418,22 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         },
       },
       hardware,
+      checkpoints,
     )
     modelApiHosts.set(cwd, { manager, identity: key })
     return await withTeamTrust(manager, cwd)
   }
 
-  const hostFor = (cwd: string): Promise<AgentHost> => {
+  const hostFor = async (cwd: string): Promise<AgentHost> => {
     if (deps.options.backend === 'modelApi') {
-      return modelApiHostFor(cwd)
+      return await modelApiHostFor(cwd)
     }
+    // Muse Code writes on its own: this folder's restores stop being safe (M86).
+    const checkpoints = await hostCheckpoints(cwd)
+    await checkpoints?.port.markNativeBackend()
     const manager = museCodeHosts.get(cwd) ?? museCodeManager(deps, cwd, hardware)
     museCodeHosts.set(cwd, manager)
-    return manager.ensureHost()
+    return await manager.ensureHost()
   }
 
   // M105 lane F: the /uploads port over the account ledger in the agent
@@ -1541,6 +1621,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         }
       }
     },
+    ...(deps.checkpoints !== undefined && { checkpointsFor }),
     close: async () => {
       isClosed = true
       // A probe still waiting on its short-lived host ends with the agent.
@@ -1549,9 +1630,23 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         ...museCodeHosts.values(),
         ...Array.from(modelApiHosts.values(), ({ manager }) => manager),
       ]
-      await Promise.all(managers.map((manager) => manager.dispose()))
-      // Every attached source, embedded bytes included, ends with the runtime.
-      registry?.clear()
+      try {
+        await Promise.all(managers.map((manager) => manager.dispose()))
+      } finally {
+        // The turns have ended: each folder's store and journal close after them.
+        const released = await Promise.allSettled(
+          Array.from(checkpointHosts.values(), async (pending) => {
+            const services = await pending
+            await services.dispose()
+          }),
+        )
+        checkpointHosts.clear()
+        for (const result of released)
+          if (result.status === 'rejected')
+            deps.log.warn(`Turn checkpoints did not close: ${failureForLog(result.reason)}`)
+        // Every attached source, embedded bytes included, ends with the runtime.
+        registry?.clear()
+      }
     },
   }
 }

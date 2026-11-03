@@ -32876,6 +32876,13 @@ versions); Emacs, Neovim, Zed and Qt Creator are excepted shims with
 green real harnesses; Sublime, Visual Studio and Xcode wait for their
 machines. Record: `docs/certification/rlf-hostsland.md`; matrix:
 `docs/ide-compatibility/matrix.md`.
+The rest of RLF-M104GL (CC-INT11C2, 2026-11-03): the runtime's backend owns
+each folder's checkpoints (`checkpointsFor`), its tools record through them
+and the panel's conversation restores through them, in place of a port with
+no store; `check:editor-matrix` joins the static job. A real model
+turn through this path waits for the release's real conversations. Its
+conformance, receipts and fixture were already superseded here. Record:
+`docs/certification/cc-int11.md`.
 Independent check (RVHOSTS, 2026-10-30): JetBrains and Eclipse
 conformance were re-run on linuxlt against this tree's `dist/acp.js
 panel --stdio` (9 legs each, 13 waiting, both runners exit 0). Emacs

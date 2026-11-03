@@ -1,6 +1,7 @@
 // Load the ACP engine only after headless arguments, input and budgets are admitted.
 export { createAcpAgent } from '../acp/agent'
 export { createRuntimeBackend } from './backends'
+export { createRuntimeCheckpoints } from './features/checkpoints'
 export { createExecClient } from './exec/execClient'
 export { PROTOCOL_VERSION, ndJsonStream, RequestError } from '@agentclientprotocol/sdk/unstable'
 export { setUiText } from '../shared/l10n/text'

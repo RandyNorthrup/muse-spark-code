@@ -49,3 +49,7 @@ test/desktop/harness/electron-fixture/node_modules/
 desktop/target/
 # The standalone otel crate's build output (M111 lane OB); its lockfile stays tracked.
 desktop/crates/otel/target/
+
+# Conformance runs write these beside each host (M104).
+hosts/*/conformance-observations.json
+hosts/*/conformance-contract.json

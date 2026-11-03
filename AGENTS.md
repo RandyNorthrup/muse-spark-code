@@ -683,28 +683,29 @@ media/                icons, banner, social preview, README screenshots
 
 ## Commands
 
-| Task                           | Command                                              |
-| ------------------------------ | ---------------------------------------------------- |
-| Every local gate in one run    | `npm run quality`                                    |
-| The gates CI runs everywhere   | `npm run quality:gates`                              |
-| Accessibility gate             | `npm run test:a11y` (merge and release, not PRs)     |
-| Token generation / gate        | `npm run build:tokens` / `npm run check:tokens`      |
-| Local UI look                  | `npm run ui:look -- <scene>`                         |
-| Reference gate                 | `npm run check:reference`                            |
-| Roadmap generation / gate      | `npm run roadmap:generate` / `npm run check:roadmap` |
-| Localization gate              | `npm run check:l10n`                                 |
-| Host API record (D60)          | `npm run check:host-api` (`-- --write`)              |
-| Panel in the pseudo-locale     | `npm run ui:look -- <scene> --lang=pseudo`           |
-| Unit tests (no coverage gate)  | `npm run test:unit`                                  |
-| Integration tests              | `npm run test:integration`                           |
-| Dev build / watch              | `npm run build:dev` / `npm run watch`                |
-| Production build + size budget | `npm run build`                                      |
-| Package `.vsix`                | `npm run package`                                    |
-| Package the ACP agent (D62)    | `npm run package:acp`                                |
-| The real-life run              | `npm run real-life -- --list` (docs/testing)         |
-| Exec schemas (M80)             | `npm run schema:exec` (`-- --check`)                 |
-| Scan staged text (M80)         | `muse-spark-code-acp scan-secrets <file>`            |
-| Host checks (hosts.yml)        | `sh test/hosts/<script>.sh`                          |
+| Task                            | Command                                                          |
+| ------------------------------- | ---------------------------------------------------------------- |
+| Every local gate in one run     | `npm run quality`                                                |
+| The gates CI runs everywhere    | `npm run quality:gates`                                          |
+| Accessibility gate              | `npm run test:a11y` (merge and release, not PRs)                 |
+| Token generation / gate         | `npm run build:tokens` / `npm run check:tokens`                  |
+| Local UI look                   | `npm run ui:look -- <scene>`                                     |
+| Reference gate                  | `npm run check:reference`                                        |
+| Roadmap generation / gate       | `npm run roadmap:generate` / `npm run check:roadmap`             |
+| Editor-matrix generation / gate | `npm run editor-matrix:generate` / `npm run check:editor-matrix` |
+| Localization gate               | `npm run check:l10n`                                             |
+| Host API record (D60)           | `npm run check:host-api` (`-- --write`)                          |
+| Panel in the pseudo-locale      | `npm run ui:look -- <scene> --lang=pseudo`                       |
+| Unit tests (no coverage gate)   | `npm run test:unit`                                              |
+| Integration tests               | `npm run test:integration`                                       |
+| Dev build / watch               | `npm run build:dev` / `npm run watch`                            |
+| Production build + size budget  | `npm run build`                                                  |
+| Package `.vsix`                 | `npm run package`                                                |
+| Package the ACP agent (D62)     | `npm run package:acp`                                            |
+| The real-life run               | `npm run real-life -- --list` (docs/testing)                     |
+| Exec schemas (M80)              | `npm run schema:exec` (`-- --check`)                             |
+| Scan staged text (M80)          | `muse-spark-code-acp scan-secrets <file>`                        |
+| Host checks (hosts.yml)         | `sh test/hosts/<script>.sh`                                      |
 
 M80's lanes are integrated; their fake-only suites were deleted on 2026-10-17
 (no fakes). Do not call exec, the scanner or the Action supported until the

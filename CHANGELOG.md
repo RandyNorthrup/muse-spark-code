@@ -87,6 +87,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Turn checkpoints in the native editors' panels.** A Model API conversation in
+  a panel on `panel --stdio` (JetBrains, Eclipse, Visual Studio, Xcode) now
+  records what each turn writes and offers Restore, as VS Code does, under the
+  same `turnCheckpoints` setting; it used to offer none. An untrusted folder
+  stays restricted, and a folder Muse Code has run in offers no restore. A real
+  model turn through this path is still to be run with the release's real
+  conversations.
 - **Choose the Python for serial access.** On macOS and Linux the serial
   helper needs a Python 3 with `pyserial`, and it used to take whichever
   `python3` came first on your PATH outside the project. The new machine-scoped
