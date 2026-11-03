@@ -22,17 +22,19 @@ import {
   modelListResultSchema,
   pluginListResultSchema,
   sessionLeaveResultSchema,
-  skillImportResultSchema,
   skillListResultSchema,
   skillSetActivationResultSchema,
   toBackgroundTaskSummary,
-  toForeignSkillImport,
   toModelSummary,
   toSessionHookRow,
   toSessionPluginRow,
   toSkillSummary,
   workflowControlResultSchema,
 } from '../../src/core/backends/musecode/MuseCodeHost'
+import {
+  skillImportResultSchema,
+  toForeignSkillImport,
+} from '../../src/core/backends/musecode/approvalModesEntry'
 import {
   BranchObservationFilter,
   branchObservationOf,

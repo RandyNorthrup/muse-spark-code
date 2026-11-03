@@ -638,52 +638,6 @@ export function toSessionPluginRow(
   return { id: plugin.id, version: plugin.version, enabled: plugin.enabled, source: plugin.source }
 }
 
-const skillImportFailureSchema = z.object({
-  id: z.nullable(z.string()),
-  reason: z.string(),
-})
-
-const skillImportQuarantineSchema = z.object({
-  id: z.string(),
-  reasons: z.array(z.string()),
-})
-
-/** Exported for the M127 capture tests. */
-export const skillImportResultSchema = z.object({
-  source: z.string(),
-  dryRun: z.boolean(),
-  status: z.string(),
-  counts: z.object({
-    installed: z.number(),
-    quarantined: z.number(),
-    skipped: z.number(),
-    failed: z.number(),
-  }),
-  installed: z.array(z.string()),
-  skipped: z.array(z.string()),
-  quarantined: z.array(skillImportQuarantineSchema),
-  failed: z.array(skillImportFailureSchema),
-})
-
-/** A recorded `skill/import` receipt as readers get it. */
-export function toForeignSkillImport(
-  result: z.infer<typeof skillImportResultSchema>,
-): ForeignSkillImport {
-  return {
-    source: result.source,
-    dryRun: result.dryRun,
-    status: result.status,
-    counts: result.counts,
-    installed: result.installed,
-    skipped: result.skipped,
-    quarantined: result.quarantined.map((entry) => ({
-      id: entry.id,
-      reasons: entry.reasons,
-    })),
-    failed: result.failed.map((entry) => ({ id: entry.id, reason: entry.reason })),
-  }
-}
-
 const recapRequestResultSchema = z.object({
   commandId: z.string(),
   status: z.string(),
@@ -2009,11 +1963,12 @@ export class MuseSession implements ScheduledAgentSession {
   anything else still throws.
   */
   private async ifLive(verb: 'turn/cancel' | 'turn/interrupt' | 'task/stopAll'): Promise<void> {
+    if (this.channel.signal.aborted) {
+      this.log.info(`session ${this.sessionId} ${verb} skipped: host exited`)
+      return
+    }
     try {
-      if (!this.channel.signal.aborted) {
-        await this.command(verb, {})
-        return
-      }
+      await this.command(verb, {})
     } catch (error: unknown) {
       // Read fresh: the exit can land while the call is in flight, past
       // the pre-check above. A broken pipe names a dead host: over the
@@ -2031,8 +1986,8 @@ export class MuseSession implements ScheduledAgentSession {
       ) {
         throw error
       }
+      this.log.info(`session ${this.sessionId} ${verb} skipped: host exited`)
     }
-    this.log.info(`session ${this.sessionId} ${verb} skipped: host exited`)
   }
 
   /** The single wire decision whose outcome every caller of this stage sees. */
@@ -2363,6 +2318,25 @@ export class MuseSession implements ScheduledAgentSession {
     this.fastReply = undefined
     this.fastTurns.newEpisode()
     return texts
+  }
+
+  private async workflowControl(
+    verb: 'workflow/pause' | 'workflow/cancel' | 'workflow/childControl',
+    params: Record<string, unknown>,
+  ): Promise<string> {
+    return workflowControlResultSchema.parse(await this.workflowCommand(verb, params)).status
+  }
+
+  /** One workflow command under its own id; a workflow refusal keeps its words. */
+  private async workflowCommand(
+    verb: 'workflow/resume' | 'workflow/pause' | 'workflow/cancel' | 'workflow/childControl',
+    params: Record<string, unknown>,
+  ): Promise<unknown> {
+    try {
+      return await this.command(verb, params, this.channel.connection.mintCommandId())
+    } catch (error: unknown) {
+      throw workflowRefusalOr(error)
+    }
   }
 
   /** Merge captured native attempt history for both live updates and local inspection. */
@@ -3127,6 +3101,9 @@ export class MuseSession implements ScheduledAgentSession {
     source: string,
     options?: { readonly dryRun?: boolean; readonly force?: boolean },
   ): Promise<ForeignSkillImport> {
+    // The receipt's reader is deferred with the other rare session commands;
+    // it loads before the import runs, so a missing chunk imports nothing.
+    const { parseSkillImport } = await import('./approvalModesEntry')
     const commandId = this.channel.connection.mintCommandId()
     const result = await this.command(
       'skill/import',
@@ -3137,7 +3114,7 @@ export class MuseSession implements ScheduledAgentSession {
       },
       commandId,
     )
-    return toForeignSkillImport(skillImportResultSchema.parse(result))
+    return parseSkillImport(result)
   }
 
   /**
@@ -3148,14 +3125,9 @@ export class MuseSession implements ScheduledAgentSession {
   public async resumeWorkflowRun(
     workflowRunId: string,
   ): Promise<{ readonly status: string; readonly turnId: string }> {
-    const commandId = this.channel.connection.mintCommandId()
-    let result: unknown
-    try {
-      result = await this.command('workflow/resume', { workflowRunId }, commandId)
-    } catch (error: unknown) {
-      throw workflowRefusalOr(error)
-    }
-    const parsed = workflowResumeResultSchema.parse(result)
+    const parsed = workflowResumeResultSchema.parse(
+      await this.workflowCommand('workflow/resume', { workflowRunId }),
+    )
     return { status: parsed.status, turnId: parsed.turnId }
   }
 
@@ -3165,14 +3137,7 @@ export class MuseSession implements ScheduledAgentSession {
   shows runs; driving one from it is an owner UI decision.
   */
   public async pauseWorkflowRun(workflowRunId: string): Promise<string> {
-    const commandId = this.channel.connection.mintCommandId()
-    let result: unknown
-    try {
-      result = await this.command('workflow/pause', { workflowRunId }, commandId)
-    } catch (error: unknown) {
-      throw workflowRefusalOr(error)
-    }
-    return workflowControlResultSchema.parse(result).status
+    return await this.workflowControl('workflow/pause', { workflowRunId })
   }
 
   /**
@@ -3180,14 +3145,7 @@ export class MuseSession implements ScheduledAgentSession {
   the pause above.
   */
   public async cancelWorkflowRun(workflowRunId: string): Promise<string> {
-    const commandId = this.channel.connection.mintCommandId()
-    let result: unknown
-    try {
-      result = await this.command('workflow/cancel', { workflowRunId }, commandId)
-    } catch (error: unknown) {
-      throw workflowRefusalOr(error)
-    }
-    return workflowControlResultSchema.parse(result).status
+    return await this.workflowControl('workflow/cancel', { workflowRunId })
   }
 
   /**
@@ -3197,23 +3155,12 @@ export class MuseSession implements ScheduledAgentSession {
   the item and re-key, never guess.
   */
   public async controlWorkflowChild(control: WorkflowChildControl): Promise<string> {
-    const commandId = this.channel.connection.mintCommandId()
-    let result: unknown
-    try {
-      result = await this.command(
-        'workflow/childControl',
-        {
-          action: control.action,
-          attempt: control.attempt,
-          childId: control.childId,
-          workflowRunId: control.workflowRunId,
-        },
-        commandId,
-      )
-    } catch (error: unknown) {
-      throw workflowRefusalOr(error)
-    }
-    return workflowControlResultSchema.parse(result).status
+    return await this.workflowControl('workflow/childControl', {
+      action: control.action,
+      attempt: control.attempt,
+      childId: control.childId,
+      workflowRunId: control.workflowRunId,
+    })
   }
 
   /**

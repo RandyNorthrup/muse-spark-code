@@ -91,6 +91,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
       {
         importer: 'src/core/backends/musecode/MuseCodeHost.ts',
+        symbol: 'MuseSession.importForeignSkills',
+        side: ['acp', 'vscode'],
+      },
+      {
+        importer: 'src/core/backends/musecode/MuseCodeHost.ts',
         symbol: 'MuseSession.restoreScheduleMode',
         side: ['acp', 'vscode'],
       },

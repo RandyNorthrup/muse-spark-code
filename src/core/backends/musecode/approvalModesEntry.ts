@@ -1,9 +1,11 @@
 // The Muse Code session's approval-mode effect and reviewer-profile sync,
 // deferred (dist/approvalModes.js, loaded on the first mode change, schedule
-// admission or restore): nothing here runs at activation. `MuseSession` keeps
+// admission or restore), with the rare session commands (delete, the
+// skill-import receipt): nothing here runs at activation. `MuseSession` keeps
 // thin shells that build the ops below and delegate here, so the branch adds
 // no bytes to activation beyond main's figure.
 import { MspError } from '@muse-code/sdk'
+import * as z from 'zod/mini'
 import {
   isPermissionReviewerError,
   ModeKeptError,
@@ -19,6 +21,7 @@ import { wireWordForLog } from '../../logging'
 import type { CoreLogger } from '../../logging'
 import { startStillWaiting, stillWaitingText } from '../../timeouts'
 import type { MuseCodeLifecycleEvent } from './mapNotification'
+import type { ForeignSkillImport } from '../../agent/agentBackend'
 
 /**
 What the deferred mode sync needs from its session (built once per session
@@ -349,4 +352,55 @@ export async function deleteHostSession(input: {
     if (onTerminal !== undefined) input.listeners.delete(onTerminal)
     if (onAbort !== undefined) signal.removeEventListener('abort', onAbort)
   }
+}
+
+const skillImportFailureSchema = z.object({
+  id: z.nullable(z.string()),
+  reason: z.string(),
+})
+
+const skillImportQuarantineSchema = z.object({
+  id: z.string(),
+  reasons: z.array(z.string()),
+})
+
+/** Exported for the M127 capture tests. */
+export const skillImportResultSchema = z.object({
+  source: z.string(),
+  dryRun: z.boolean(),
+  status: z.string(),
+  counts: z.object({
+    installed: z.number(),
+    quarantined: z.number(),
+    skipped: z.number(),
+    failed: z.number(),
+  }),
+  installed: z.array(z.string()),
+  skipped: z.array(z.string()),
+  quarantined: z.array(skillImportQuarantineSchema),
+  failed: z.array(skillImportFailureSchema),
+})
+
+/** A recorded `skill/import` receipt as readers get it. */
+export function toForeignSkillImport(
+  result: z.infer<typeof skillImportResultSchema>,
+): ForeignSkillImport {
+  return {
+    source: result.source,
+    dryRun: result.dryRun,
+    status: result.status,
+    counts: result.counts,
+    installed: result.installed,
+    skipped: result.skipped,
+    quarantined: result.quarantined.map((entry) => ({
+      id: entry.id,
+      reasons: entry.reasons,
+    })),
+    failed: result.failed.map((entry) => ({ id: entry.id, reason: entry.reason })),
+  }
+}
+
+/** A `skill/import` answer, parsed and read (MuseSession.importForeignSkills). */
+export function parseSkillImport(result: unknown): ForeignSkillImport {
+  return toForeignSkillImport(skillImportResultSchema.parse(result))
 }
