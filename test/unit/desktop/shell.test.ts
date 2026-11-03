@@ -1,5 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { mkdir, readFile, symlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
@@ -15,21 +14,16 @@ import {
   DEFAULT_WORKBENCH_LAYOUT,
   DEFAULT_WORKBENCH_LAYOUT_V2,
 } from '../../../src/shared/desktop/bridge'
+import { removeScratchDirs, trackScratch } from '../helpers/scratchDir'
 
 const scratchRoots: string[] = []
 
-async function scratch(): Promise<string> {
-  const dir = await mkdtemp(path.join(tmpdir(), 'muse-desktop-wb-'))
-  scratchRoots.push(dir)
-  return dir
+function scratch(): Promise<string> {
+  return trackScratch(scratchRoots, 'muse-desktop-wb-')
 }
 
 afterEach(async () => {
-  await Promise.all(
-    scratchRoots.splice(0).map(async (dir) => {
-      await rm(dir, { recursive: true, force: true })
-    }),
-  )
+  await removeScratchDirs(scratchRoots)
 })
 
 describe('M111 lane WB desktop shell services', () => {
@@ -54,6 +48,38 @@ describe('M111 lane WB desktop shell services', () => {
     await expect(readWorkspaceFile(root, '../outside.txt')).rejects.toBeInstanceOf(DesktopFileError)
     await writeFile(path.join(root, 'bin.dat'), Buffer.from([1, 0, 2]))
     await expect(readWorkspaceFile(root, 'bin.dat')).rejects.toMatchObject({ kind: 'not-text' })
+  })
+
+  it('refuses a symlink or junction that leaves the workspace, and follows one that stays', async () => {
+    const parent = await scratch()
+    const root = path.join(parent, 'ws')
+    const outside = path.join(parent, 'outside')
+    await mkdir(path.join(root, 'src'), { recursive: true })
+    await mkdir(outside, { recursive: true })
+    await writeFile(path.join(root, 'src', 'a.ts'), 'export {}')
+    await writeFile(path.join(outside, 'secret.txt'), 'top-secret')
+    const linkKind = process.platform === 'win32' ? 'junction' : 'dir'
+    await symlink(outside, path.join(root, 'linked'), linkKind)
+    await symlink(path.join(root, 'src'), path.join(root, 'alias'), linkKind)
+
+    await expect(readWorkspaceFile(root, 'linked/secret.txt')).rejects.toBeInstanceOf(
+      DesktopFileError,
+    )
+    await expect(writeWorkspaceFile(root, 'linked/planted.txt', 'nope')).rejects.toBeInstanceOf(
+      DesktopFileError,
+    )
+    await expect(readFile(path.join(outside, 'planted.txt'), 'utf8')).rejects.toMatchObject({
+      code: 'ENOENT',
+    })
+    const listed = await listWorkspaceFiles(root)
+    expect(listed.map((entry) => entry.path)).toEqual(['src/a.ts'])
+
+    expect(await readWorkspaceFile(root, 'alias/a.ts')).toEqual({
+      path: 'alias/a.ts',
+      text: 'export {}',
+    })
+    await writeWorkspaceFile(root, 'alias/a.ts', 'changed-via-alias')
+    expect(await readFile(path.join(root, 'src', 'a.ts'), 'utf8')).toBe('changed-via-alias')
   })
 
   it('persists layouts per workspace and per compositor workspace', async () => {
@@ -105,12 +131,14 @@ describe('M111 lane WB desktop shell services', () => {
       PATH: '/bin',
       META_API_KEY: 'never-in-a-child',
       OPENAI_API_KEY: 'never-in-a-child',
+      GITHUB_TOKEN: 'stays-for-the-persons-shell',
       HOME: '/home/dev',
     })
     expect(cleaned['PATH']).toBe('/bin')
     expect(cleaned['HOME']).toBe('/home/dev')
     expect('META_API_KEY' in cleaned).toBe(false)
     expect('OPENAI_API_KEY' in cleaned).toBe(false)
+    expect(cleaned['GITHUB_TOKEN']).toBe('stays-for-the-persons-shell')
     expect(cleaned['TERM']).toBe('xterm-256color')
   })
 

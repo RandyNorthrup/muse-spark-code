@@ -1,10 +1,11 @@
 // Muse Desktop (M111, D91.13) lanes WB and BP: terminal sessions for the
 // bottom panel. Lane BP runs the person's real shell on a real
 // pseudoterminal (node-pty, the module VS Code's terminal uses), on the
-// same bridge channels WB's pipe sessions used. Credentials never reach a
-// child: every *_API_KEY variable is removed from the environment first,
-// as the ACP agent does (AGENTS rule 8). Agents' sessions are read-only:
-// main refuses every write to one (H13).
+// same bridge channels WB's pipe sessions used. This is the person's own
+// shell: every *_API_KEY variable is removed, and other credential names
+// stay so the tools they start from it keep working. An external agent's
+// child is scrubbed by withoutCredentials instead. Agents' sessions are
+// read-only: main refuses every write to one (H13).
 
 import { randomUUID } from 'node:crypto'
 import { createRequire } from 'node:module'
