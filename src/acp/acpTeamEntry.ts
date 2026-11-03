@@ -294,9 +294,13 @@ class WorkspaceTeam {
         const { createTeamHost } = await import('../host/team/teamHostEntry')
         return createTeamHost
       },
+      // The `team` MCP server has its own bundle (dist/teamMcp.js,
+      // RLF-TEAMFIT), loaded with this session's language as the
+      // extension loads it.
       loadTeamMcp: async () => {
-        const { TeamMcpServer, teamRosterAnswer } = await import('../host/team/teamHostEntry')
-        return { server: new TeamMcpServer(this.deps.log), rosterAnswer: teamRosterAnswer }
+        const { createTeamMcpRuntime } = await import('../host/team/teamMcpEntry')
+        const mcp = createTeamMcpRuntime(this.table, this.locale)
+        return { server: new mcp.TeamMcpServer(this.deps.log), rosterAnswer: mcp.teamRosterAnswer }
       },
       uiText: () => this.table,
       uiLocale: () => this.locale,
