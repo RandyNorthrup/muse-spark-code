@@ -142,10 +142,49 @@ constraints, ship only the UI visibility and say so. Either way the
 receipt (report `.json`/`.md` beside this file) is the record; until
 then the latch stays off and no win is claimed.
 
-## Gates
+## Gates (2026-11-02, Claude Code resume, linuxlt, repository timeouts)
 
-Recorded at the end of the lane run; see the lane's final message for
-each exit code. One pre-existing busy-rig failure is recorded there:
-`test/unit/eval/evalJudgeArms.test.ts`' first test times out at the
-repository's 5 s on this rig, identically on untouched base code
-(verified in a clean worktree of the base commit).
+| Gate                                                                                                                 | Exit              |
+| -------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| prettier --check, eslint --max-warnings 0 (touched files)                                                            | 0, 0              |
+| npm run typecheck                                                                                                    | 0                 |
+| node scripts/check-l10n.mjs (0 problems)                                                                             | 0                 |
+| npm run check:reference / check:host-api                                                                             | 0 / 0             |
+| npm run check:plan / check:roadmap                                                                                   | 0 / 0             |
+| npm run check:catches (baseline unchanged)                                                                           | 0                 |
+| npm run duplication (0 clones) / cycles / deadcode                                                                   | 0 / 0 / 0         |
+| npm run lint:css                                                                                                     | 0                 |
+| node scripts/m101-e.mjs --check-freeze (after --freeze)                                                              | 0                 |
+| npm run ui:look -- pinned-constraints (light, dark; looked at)                                                       | 0                 |
+| npm run build                                                                                                        | **1**, see below  |
+| touched suites: constraintPins (10), evalPinnedArms + evalTasks + evalPlan (63), feedbackScenes (2), invariants (42) | 0                 |
+| npx vitest related (every changed source)                                                                            | **not completed** |
+
+- **Build.** Every budget holds (`dist/modelApi.js` 537,584 of
+  537,600 bytes; nothing raised), and the bundle split, lazy registry,
+  host globals, notices and legal build records (0 problems) all pass.
+  The last step, the legal repository scan, reports 11 incomplete
+  checks: exactly the agent sandbox's untracked placeholders in the
+  worktree root (`.bash_profile`, `.bashrc`, `.gitconfig`, `.idea`,
+  `.mcp.json`, `.profile`, `.ripgreprc`, `.zprofile`, `.zshrc` as
+  `/dev/null` mounts; empty `yarn.lock` and `pnpm-lock.yaml`). None is
+  in git; the build needs a run outside the sandbox.
+- **vitest related.** Since `constants.ts` and `en.ts` changed, the
+  related set is nearly the whole suite. The run was stopped after
+  about 65 minutes for the lane's budget, before its summary; 40 files
+  had failures by then. Three were checked: `invariants.test.ts` (the
+  eval task digest, which this lane's four tasks changed; re-recorded,
+  now 42/42), `mhpContract.test.ts` (this lane's protocol additions
+  change the frozen MHP v1.1 wire contract: an open question, below)
+  and `providerSpend.test.ts` (catalogue date `2026-10-22` against the
+  vendored `2026-10-30`; code this lane does not touch). The other 37
+  are in areas this lane does not touch (device journal, loopback
+  connectors, vault, team workers, maker, native inspect,
+  private-directory leases, LSP runtime, git runner, media convert, CPU
+  sampler). That matches the sandbox limits the rig note names, but it
+  was **not** verified against the base here.
+- **Open: MHP v1.1 lock.** `scripts/mhp-schema.mjs --check` fails with
+  `MHP_VERSION_LOCK: v1.1 frozen wire contract changed` because the
+  panel protocol gained `unpinConstraint` and the item's
+  `pinnedConstraints`. Re-locking a frozen contract means adopting a
+  new MHP version (`--adopt-version=…`), which is the lead's call.
