@@ -1490,6 +1490,8 @@ export const SETTING_DEFAULTS = {
   modelApiBestOfN: true,
   // D78: inert without a hooks file; Restricted Mode loads and runs none.
   modelApiTeamWorkers: true,
+  // D261: a refused team task or chat turn ends with its refusal unless the person turns this on.
+  refusalFallback: false,
   modelApiHooks: true,
   // M127: the hook and subagent counts as settings. D121: no limit unless
   // the person sets one, so Stop continuations and concurrent subagents are
@@ -1794,6 +1796,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiSubagents',
   'modelApiBestOfN',
   'modelApiTeamWorkers',
+  // D261: a refused task or chat turn may move to another, possibly paid, candidate.
+  'refusalFallback',
   'modelApiHooks',
   'modelApiShellKeepsDirectory',
   'modelApiHookModels',
@@ -11231,6 +11235,10 @@ export const TEAM_MIN_REQUEST_TOKENS = 2048
 // characters, and small text files are inlined up to this many bytes, under
 // M54's private-path and protected-path checks.
 export const TEAM_BRIEF_MAX_CHARS = 8000
+// D261: how often a chat that handed its refused turn to a role's next agent
+// rechecks the task between change wakes. A recheck, never a limit: the wait
+// lasts until the task ends or the person stops it.
+export const TEAM_REFUSAL_TAKEOVER_WAIT_MS = 60_000
 
 /** Dispatch argument bounds shared by declarations and validators. */
 export const TEAM_IDENTIFIER_MAX_CHARS = 256

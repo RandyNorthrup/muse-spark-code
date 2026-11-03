@@ -1487,6 +1487,12 @@
       "area": "chat"
     },
     {
+      "id": "RLFFALLBACK",
+      "title": "A refused team task moves to the next agent in its role",
+      "summary": "Turn it on and a team task an agent refuses moves to the next agent in its role, across accounts and providers: one try each, a paid agent asks first, and the transcript says who refused and who took over; off, it ends with the refusal.",
+      "area": "models-providers"
+    },
+    {
       "id": "ACPDOG",
       "public": false,
       "note": "implementation complete; dependent validation pending"

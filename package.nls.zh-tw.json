@@ -296,5 +296,6 @@
   "config.reports.agentSources.description": "選擇讀取您自己的 Claude Code 或 Codex 用量和限制檔案。預設不啟用任何來源。絕不將對話本文與認證資料檔案作為報告來源讀取。",
   "config.reports.planMaxBytes.description": "報告讀取的最大計畫檔案（位元組）。除非您自行設定，否則不限：0（預設值）表示無論多大都讀取整個計畫，超過設定值的計畫將以註明您的限制的 input-size 偏差被拒絕。僅使用本機的設定。",
   "config.linuxDictationModel.description": "在本機 Linux x64/arm64 上啟用免費離線英語聽寫。首次下載 74 MiB 模型前會詢問。關閉將停止聽寫並刪除模型和未完成的下載；再次開啟並重新載入視窗即可啟用。Windows/macOS 不變。",
-  "config.editorChatModels.description": "明確提供給編輯器聊天的模型參照。任何已安裝的擴充功能都可透過這些模型使用您的供應商金鑰產生費用。預設關閉；需要已知價格或本機模型。請在模型與代理程式中設定。"
+  "config.editorChatModels.description": "明確提供給編輯器聊天的模型參照。任何已安裝的擴充功能都可透過這些模型使用您的供應商金鑰產生費用。預設關閉；需要已知價格或本機模型。請在模型與代理程式中設定。",
+  "config.refusalFallback.description": "代理拒絕的團隊任務或單獨聊天輪次會轉到其角色偏好清單中的下一個可用代理（聊天轉到其代理的主要角色），可轉到其他提供者以及同一帳戶的其他模型，但絕不會轉到拒絕方提供者的另一個帳戶；每個代理只嘗試一次，審查絕不會交給撰寫該工作的代理或模型。付費代理會先詢問，並說明其模型與價格。預設關閉：拒絕以其自身的原話結束。作用於整台電腦；exec --refusal-fallback 會為一次無介面 --team 執行開啟它。"
 }

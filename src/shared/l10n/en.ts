@@ -1107,6 +1107,9 @@ export const EN = {
     team: '--team: Run engine teams with Model API, acceptEdits and a hard budget shared by every worker; prompts deny, merges enter the run working tree.',
     'serve-team':
       '--team: Offer the stored team in ACP sessions: the orchestrator can delegate to its workers, and merges ask in the editor.',
+    // D261: `exec --refusal-fallback`.
+    'refusal-fallback':
+      '--refusal-fallback: With --team, a task or chat turn an agent refuses moves to the next agent in its role; a paid one this run would have to ask about stops it instead.',
     'max-requests':
       'Set the maximum number of model requests; without it, there is no request limit.',
     'max-tool-output-bytes': 'Raise the per-tool-result byte guard for this run.',
@@ -5922,6 +5925,7 @@ export const EN = {
   // {options}: the refused command-line options as typed, joined by commas.
   execModelApiOnly: 'These options require the Model API backend (--backend modelApi): {options}.',
   execTeamNeedsEdits: '--team needs --permission-mode acceptEdits.',
+  execRefusalFallbackNeedsTeam: '--refusal-fallback needs --team.',
   execTeamWorkerUnsupported: 'Headless teams run only engine workers; {kind} cannot run in CI.',
   execTeamConfigInvalid: 'Headless team configuration is invalid: {reason}.',
   execTeamConfigNotJson: 'team.json is not JSON.',
@@ -6383,7 +6387,7 @@ export const EN = {
   // message again continues it. The CLI's own detail follows in parentheses
   // where the turn carried one (RLWINFIX2 item 3).
   turnTransientFailed:
-    'MuseΓÇÖs service could not finish the turn. The turn kept its work; send the message again to continue.',
+    'Muse’s service could not finish the turn. The turn kept its work; send the message again to continue.',
   // A spent subscription window (D252): the CLI's typed quota detail
   // said the usage window ran out. Every surface says this with the
   // reset in the person's local time; `{resetTime}` is the Intl
@@ -6576,6 +6580,19 @@ export const EN = {
   teamSwitchReasonUsageLimit: 'subscription usage limit reached',
   teamSwitchReasonUnavailable: 'agent unavailable',
   teamSwitchReasonReset: 'headroom back after reset',
+  // D261: the earlier agent in the role refused the task, so the next one
+  // in the role's order took it over.
+  teamSwitchReasonRefused: 'the earlier agent refused the task',
+  // D261: a refused task did not move. {from}: the model that refused;
+  // {to}: the role's next model; {role}: the role.
+  teamRefusalPaidDeclined:
+    '{from} refused this task. {to} is next in the {role} role, but its paid use was not allowed, so the task ends with the refusal.',
+  teamRefusalUnattended:
+    '{from} refused this task. {to} is next in the {role} role, but it is paid and this run cannot ask, so the task ends with the refusal.',
+  // D261: a refusal never moves to another account of the refusing agent's
+  // provider. {from}: the model that refused; {models}: the skipped models.
+  refusalOtherAccountSkipped:
+    '{from} refused this task. {models} run on the same provider under another account, and a refused turn never moves to another account of its provider, so the task ends with the refusal.',
   teamPoolNotStaffed: 'Role {role} has no entries in its pool: it is not staffed.',
   teamCapExceeded: '{entry} has no {measure}/{window} headroom left ({used} of {amount} used).',
   teamRouteReason: 'Task matches the {role} area ({areas}).',

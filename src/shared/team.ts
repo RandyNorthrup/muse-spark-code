@@ -248,8 +248,8 @@ export const teamTaskSchema = /* @__PURE__ */ z.object({
 export type TeamTask = z.infer<typeof teamTaskSchema>
 
 // Why the runner moved a role to another entry (D75): a spent cap, no free
-// slot, a rate or usage limit, an unavailable entry, or a return after a
-// reset or a new day.
+// slot, a rate or usage limit, an unavailable entry, a return after a
+// reset or a new day, or (D261) the earlier agent refused the task.
 export const teamSwitchReasons = [
   'cap',
   'concurrency',
@@ -257,6 +257,7 @@ export const teamSwitchReasons = [
   'usageLimit',
   'unavailable',
   'reset',
+  'refused',
 ] as const
 export const teamSwitchReasonSchema = /* @__PURE__ */ z.enum(teamSwitchReasons)
 export type TeamSwitchReason = z.infer<typeof teamSwitchReasonSchema>

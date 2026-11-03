@@ -1765,6 +1765,12 @@
           "scope": "machine",
           "deprecationMessage": "%config.modelApiTeamWorkers.description%"
         },
+        "museSpark.refusalFallback": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.refusalFallback.description%",
+          "scope": "machine"
+        },
         "museSpark.usageHistory": {
           "type": "boolean",
           "default": true,
