@@ -4161,6 +4161,8 @@ These are defaults; editor customizations take precedence.
 - `desktop.panelTabs`: `ArrowRight / ArrowDown / ArrowUp / ArrowLeft / Home / End / Ctrl+ArrowUp / Cmd+ArrowUp / Ctrl+ArrowDown / Cmd+ArrowDown`; when `desktop.panelTabs`; Move between the bottom panel tabs.
 - `desktop.panelResize`: `ArrowUp / ArrowDown / ArrowRight / ArrowLeft / Home / End`; when `desktop.panelResize`; Make the panel taller or shorter.
 - `editor.group`: `ArrowRight / ArrowLeft / Home / End / Enter / Space / Escape / Ctrl+PageDown / Cmd+PageDown / Ctrl+PageUp / Cmd+PageUp / Ctrl+1 / Cmd+1 / Ctrl+2 / Cmd+2 / Ctrl+3 / Cmd+3 / Ctrl+4 / Cmd+4 / Ctrl+5 / Cmd+5 / Ctrl+6 / Cmd+6 / Ctrl+7 / Cmd+7 / Ctrl+8 / Cmd+8 / Ctrl+9 / Cmd+9`; when `editor.group`; Move between tabs, cycle tabs, focus a group by number, or close the menu.
+- `settings.nav`: `ArrowDown / ArrowUp / Home / End / Enter / Space`; when `settings.nav`; Move through settings pages, open one, move focus in a dialog, or close it.
+- `settings.dialog`: `Escape`; when `settings.dialog`; Move through settings pages, open one, move focus in a dialog, or close it.
 
 ## ACP / CLI commands
 

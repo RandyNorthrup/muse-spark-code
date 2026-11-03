@@ -87,6 +87,13 @@ const BUDGETS = [
   { path: 'dist/desktop/renderer.terminalEngine.js', budgetKiB: 625 },
   { path: 'dist/desktop/renderer.terminalEngine.css', budgetKiB: 25 },
   { path: 'dist/desktop/renderer.chunk.js', budgetKiB: 25 },
+  // M111 ST1 (D91.16): the settings app's renderer. New bundles, measured
+  // +15% rounded to the next 25 KiB (D6): settings 754.1 KiB
+  // (re-measured after the duplication-gate dedup),
+  // settings.css 7.3 KiB. Like the workbench renderer it carries the full
+  // English table; regionalising desktop text is TH/J follow-up work.
+  { path: 'dist/desktop/settings.js', budgetKiB: 875 },
+  { path: 'dist/desktop/settings.css', budgetKiB: 25 },
   { path: 'dist/extension.js', budgetKiB: 600 },
   // M100: measured 74.8 KiB + 15%, rounded to the next 25 KiB (D6). Re-measured
   // with the Windows storage binding (P-I-WINDOWS-STORAGE, its C# shipped
@@ -648,6 +655,9 @@ const BUDGETS = [
   { path: 'dist/uiTextDesktop.js', budgetKiB: 25 },
   // M105: media English on first use; measured region +15%, rounded to 25 KiB.
   { path: 'dist/uiTextMedia.js', budgetKiB: 25 },
+  // M111 ST1: the desktop's system settings English; measured region
+  // +15%, rounded to 25 KiB.
+  { path: 'dist/uiTextSettings.js', budgetKiB: 25 },
   // TRAIN13B: used Node mini-parser API, 39.5 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/validation.js', budgetKiB: 50 },
   // Shared existing Node boundary schemas: 41.3 KB plus 15%, rounded to 25

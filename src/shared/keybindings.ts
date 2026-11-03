@@ -320,6 +320,20 @@ export const WEBVIEW_KEYBINDINGS = {
       text: { ui: 'referenceEditorGroupKeys' },
     },
   },
+  // M111 lane ST1: the settings app's page list and its confirmation dialog.
+  'settings.nav': {
+    next: { keys: [{ key: 'ArrowDown' }], text: { ui: 'referenceSettingsKeys' } },
+    previous: { keys: [{ key: 'ArrowUp' }], text: { ui: 'referenceSettingsKeys' } },
+    first: { keys: [{ key: 'Home' }], text: { ui: 'referenceSettingsKeys' } },
+    last: { keys: [{ key: 'End' }], text: { ui: 'referenceSettingsKeys' } },
+    accept: {
+      keys: [{ key: 'Enter' }, { key: ' ' }],
+      text: { ui: 'referenceSettingsKeys' },
+    },
+  },
+  'settings.dialog': {
+    close: { keys: [{ key: 'Escape' }], text: { ui: 'referenceSettingsKeys' } },
+  },
 } as const satisfies Readonly<Record<string, Readonly<Record<string, KeyBinding>>>>
 
 interface KeyEvent {

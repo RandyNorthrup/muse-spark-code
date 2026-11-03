@@ -63,6 +63,14 @@ export const UI_TEXT_REGIONS = [
     output: 'dist/uiTextDesktop.js',
     keys: /^(?:desktop$|editorGroup$)/,
   },
+  // M111 ST1 (D91.16): the desktop's system settings pages. Their own
+  // chunk: with them the surfaces chunk stood at 26.2 KiB against its
+  // 25 KiB cap, and an existing budget is never raised (D6).
+  {
+    name: 'settings',
+    output: 'dist/uiTextSettings.js',
+    keys: /^settingsSystem$/,
+  },
 ]
 
 /** The canonical object, parsed rather than searched through strings/comments. */

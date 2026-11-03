@@ -159,7 +159,24 @@
       "desktop.pin",
       "referenceEditorGroupKeys",
       "nodeDiagnostics.traceName",
-      "nodeDiagnostics.chartBucket"
+      "nodeDiagnostics.chartBucket",
+      "referenceSettingsKeys",
+      "settingsSystem.navBluetooth",
+      "settingsSystem.networkWifi",
+      "settingsSystem.networkVpn",
+      "settingsSystem.displaysResolutionValue",
+      "settingsSystem.displaysRefreshHz",
+      "settingsSystem.soundVolume",
+      "settingsSystem.bluetoothKindAudio",
+      "settingsSystem.bluetoothKindComputer",
+      "settingsSystem.cellularStatus",
+      "settingsSystem.cellularSignal",
+      "settingsSystem.powerProfilePerformance",
+      "settingsSystem.printersOffline",
+      "settingsSystem.printersError",
+      "settingsSystem.storageVolumes",
+      "settingsSystem.datetimeDate",
+      "settingsSystem.localeRegion"
     ],
     "cs": [
       "groupModel",
@@ -452,7 +469,10 @@
       "nodeDiagnostics.logTrace",
       "nodeDiagnostics.logInfo",
       "nodeDiagnostics.logFatal",
-      "desktop.panelSeverity.information"
+      "desktop.panelSeverity.information",
+      "settingsSystem.powerTimeoutMinutes.one",
+      "settingsSystem.powerTimeoutMinutes.other",
+      "settingsSystem.powerTimeoutMinutes.many"
     ],
     "it": [
       "usageAccount",

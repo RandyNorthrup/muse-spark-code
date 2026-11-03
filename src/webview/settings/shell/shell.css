@@ -1,0 +1,93 @@
+/* Muse Desktop (M111, D91.16) lane ST1: the settings shell. Token-only
+   paint and logical properties, like the pages. */
+
+@import url('../../desktop/appBase.css');
+
+.muse-settings {
+  display: flex;
+  block-size: 100vh;
+}
+
+.muse-settings-nav {
+  flex: none;
+  inline-size: 16rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-space-8);
+  border-inline-end: 1px solid var(--ms-border);
+  background: var(--ms-raised);
+  padding: var(--ms-space-16);
+  overflow-y: auto;
+}
+
+.muse-settings-nav-title {
+  font-weight: var(--ms-weight-medium);
+  padding-inline: var(--ms-space-8);
+  padding-block-end: var(--ms-space-8);
+}
+
+.muse-settings-nav [role='listbox'] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-space-4);
+}
+
+.muse-settings-nav-button {
+  border: 0;
+  border-radius: var(--ms-radius-md);
+  background: none;
+  color: var(--ms-text);
+  font: inherit;
+  text-align: start;
+  padding: var(--ms-space-8) var(--ms-space-12);
+  cursor: pointer;
+}
+
+.muse-settings-nav-button:hover {
+  background: var(--ms-hover);
+}
+
+.muse-settings-nav-button[data-active='true'] {
+  background: var(--ms-selection);
+  color: var(--ms-on-selection);
+}
+
+.muse-settings-main {
+  flex: 1;
+  min-inline-size: 0;
+  overflow-y: auto;
+  padding: var(--ms-space-24);
+}
+
+.muse-settings-page-title {
+  margin-block: 0 var(--ms-space-16);
+  font-size: var(--ms-font-large);
+  font-weight: var(--ms-weight-medium);
+}
+
+.muse-settings-page-frame {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-space-16);
+}
+
+.muse-settings-unavailable {
+  margin: auto;
+  max-inline-size: 28rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-space-8);
+  padding: var(--ms-space-24);
+}
+
+.muse-settings-unavailable-title {
+  margin: 0;
+  font-size: var(--ms-font-large);
+  font-weight: var(--ms-weight-medium);
+}
+
+.muse-settings-unavailable-detail {
+  margin: 0;
+  color: var(--ms-muted);
+}
