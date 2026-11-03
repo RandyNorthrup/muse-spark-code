@@ -114,9 +114,11 @@ export const hardwareShellSplit = guardSplit(
         source,
         names.filter(
           (name) =>
-            name !== 'hardwareApprovalMode' &&
-            name !== 'prepareHardwareTurn' &&
-            name !== 'isPositivelyHardwareWorkspace',
+            ![
+              'hardwareApprovalMode',
+              'prepareHardwareTurn',
+              'isPositivelyHardwareWorkspace',
+            ].includes(name),
         ),
       ]),
   ),

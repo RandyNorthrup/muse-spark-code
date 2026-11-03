@@ -111,8 +111,10 @@ function keyFromCode(code: string): string | undefined {
   if (named !== undefined) return named
   if (/^Key[A-Z]$/.test(code)) return code.slice('Key'.length).toLowerCase()
   if (/^Digit[0-9]$/.test(code)) return code.slice('Digit'.length)
-  if (/^Arrow(Up|Down|Left|Right)$/.test(code)) return code.toLowerCase()
-  if (/^(PageUp|PageDown|Home|End|Enter|Escape|Tab|Delete|Insert)$/.test(code)) {
+  if (
+    /^Arrow(Up|Down|Left|Right)$/.test(code) ||
+    /^(PageUp|PageDown|Home|End|Enter|Escape|Tab|Delete|Insert)$/.test(code)
+  ) {
     return code.toLowerCase()
   }
   return /^F([1-9]|1[0-9]|2[0-4])$/.test(code) ? code.toLowerCase() : undefined

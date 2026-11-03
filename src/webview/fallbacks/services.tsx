@@ -12,15 +12,14 @@ import { StatusStrip } from './StatusStrip'
 import { OpenExternal } from './OpenExternal'
 import './fallbacks.css'
 
-type Handlers = {
-  readonly [M in FallbackUiMethod]: (
-    params: MhpParams<M>,
-    signal?: AbortSignal,
-  ) => Promise<MhpResult<M>>
-}
-
 /** Browser-side HostServices adapter. The carrier owns RPC and result delivery. */
 export function createFallbackUi(element: Element, onCommand: (id: string) => void) {
+  type Handlers = {
+    readonly [M in FallbackUiMethod]: (
+      params: MhpParams<M>,
+      signal?: AbortSignal,
+    ) => Promise<MhpResult<M>>
+  }
   const root = createRoot(element)
   const prompts: { id: number; render(): ReactNode; cancel(): void }[] = []
   const notifications: (MhpParams<'ui/notify'> & { id: string })[] = []

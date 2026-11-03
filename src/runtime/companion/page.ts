@@ -72,10 +72,11 @@ export function renderCompanionPage(nonce: string, content: CompanionPageContent
       throw new Error('EPANEL_PAGE')
   }
   const panel = content.panel
-  if (panel !== undefined) {
-    if (!MODULE_PATTERN.test(panel.entry)) throw new Error('EPANEL_PAGE')
-    if (!SURFACE_PATTERN.test(panel.surface)) throw new Error('EPANEL_PAGE')
-  }
+  if (
+    panel !== undefined &&
+    (!MODULE_PATTERN.test(panel.entry) || !SURFACE_PATTERN.test(panel.surface))
+  )
+    throw new Error('EPANEL_PAGE')
   const links = content.stylesheets
     .map((sheet) => `<link rel="stylesheet" href="${sheet}">`)
     .join('')

@@ -138,7 +138,6 @@ function severityWord(severity: number, strings: DiagnosticsPageText): string {
 }
 
 type DiagnosticsSeries = NodeDiagnostics['metrics'][number]
-type DiagnosticsBucket = DiagnosticsSeries['buckets'][number]
 type DiagnosticsSpan = NodeDiagnostics['traces'][number]['spans'][number]
 
 interface MetricPoint {
@@ -163,6 +162,7 @@ function MetricChart({
   readonly series: DiagnosticsSeries
   readonly strings: DiagnosticsPageText
 }) {
+  type DiagnosticsBucket = DiagnosticsSeries['buckets'][number]
   const buckets: readonly DiagnosticsBucket[] = series.buckets
   const first = buckets[0]?.minute ?? 0
   const last = buckets.at(-1)?.minute ?? first

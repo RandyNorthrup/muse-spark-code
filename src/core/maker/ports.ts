@@ -145,10 +145,10 @@ export class MakerApproval<Request extends ApprovalRequest = ApprovalRequest> {
   private payloadDigest(): string {
     const payload =
       this.request.kind === 'serial' ? this.request.payload.value : this.request.payload
-    const bytes =
-      this.request.kind === 'serial' && this.request.payload.encoding === 'hex'
-        ? Buffer.from(payload, 'hex')
-        : Buffer.from(payload, 'utf8')
+    const bytes = Buffer.from(
+      payload,
+      this.request.kind === 'serial' && this.request.payload.encoding === 'hex' ? 'hex' : 'utf8',
+    )
     return createHash('sha256').update(bytes).digest('hex')
   }
   /** Host replay revokes the old document's review and keeps the exact frozen request. */

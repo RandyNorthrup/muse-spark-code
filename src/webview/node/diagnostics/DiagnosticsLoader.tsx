@@ -4,8 +4,6 @@ import type { NodeMethodPort, NodeMethodResult } from '../../../shared/hostApi/n
 import { DiagnosticsPage } from '../../diagnostics/DiagnosticsPage'
 import { RefreshButton } from '../RefreshButton'
 
-type Diagnostics = NodeMethodResult<'node/diagnostics/read'>
-
 // The node web UI's diagnostics surface: this loader owns the one
 // `node/diagnostics/read` snapshot (a refresh re-reads it) and the shared
 // Diagnostics page renders it. Failures reach the workspace's alert
@@ -19,6 +17,7 @@ export function DiagnosticsLoader({
   readonly run: (work: (signal: AbortSignal) => Promise<void>) => void
   readonly busy: boolean
 }) {
+  type Diagnostics = NodeMethodResult<'node/diagnostics/read'>
   const [page, setPage] = useState<Diagnostics>()
   const refresh = useCallback(
     async (signal: AbortSignal) => {

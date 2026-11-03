@@ -102,11 +102,11 @@ function validValue(named: Named, value: unknown): JsonValue {
 }
 
 function defaultValue(named: Named): JsonValue {
-  return named.kind === 'resource'
-    ? jsonValueSchema.parse(resourceSettingsSchema.parse({})[named.field])
-    : jsonValueSchema.parse(
-        Object.entries(SETTING_DEFAULTS).find(([name]) => name === named.name)?.[1],
-      )
+  return jsonValueSchema.parse(
+    named.kind === 'resource'
+      ? resourceSettingsSchema.parse({})[named.field]
+      : Object.entries(SETTING_DEFAULTS).find(([name]) => name === named.name)?.[1],
+  )
 }
 
 /** `apiKey`, `access-token`, `client.secret`: a field name as an environment variable spells it. */
@@ -270,7 +270,7 @@ export class RuntimeSettingsStore {
     const source: SettingsSource = {
       get: (name) => {
         const key = runtimeSettingFileKey(name)
-        return !machineNames.has(name) && workspace[key] !== undefined ? workspace[key] : user[key]
+        return machineNames.has(name) || workspace[key] === undefined ? user[key] : workspace[key]
       },
     }
     return readSettings(source, this.options.log)

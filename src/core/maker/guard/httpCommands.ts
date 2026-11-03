@@ -66,9 +66,9 @@ export function isRegisteredTarget(text: string, context: HardwareContext): bool
   return (
     context.targets?.some((target) => {
       const known = urlOf(target.address)
-      return url !== undefined && known !== undefined
-        ? url.origin === known.origin
-        : text.toLowerCase() === target.address.toLowerCase()
+      return url === undefined || known === undefined
+        ? text.toLowerCase() === target.address.toLowerCase()
+        : url.origin === known.origin
     }) === true
   )
 }

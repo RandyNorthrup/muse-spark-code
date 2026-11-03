@@ -92,9 +92,9 @@ function sleep(ms: number): Promise<void> {
 /** Where Meta's installer puts the launcher: its knob, else $HOME/.local/bin. */
 export function resolveMuseInstallDir(homeDir: string, env: NodeJS.ProcessEnv): string {
   const override = env[MUSE_INSTALL_DIR_VARIABLE]
-  return override !== undefined && override !== ''
-    ? override
-    : path.join(homeDir, ...MUSE_POSIX_INSTALL_SEGMENTS)
+  return override === undefined || override === ''
+    ? path.join(homeDir, ...MUSE_POSIX_INSTALL_SEGMENTS)
+    : override
 }
 
 function redirectTarget(response: Response): string | undefined {

@@ -1489,6 +1489,7 @@ if (isEntryPoint(import.meta.url)) {
     const problems = await checkDesktop()
     for (const problem of problems) console.error(problem)
     console.log(`desktop tokens: ${problems.length} problems`)
+    // eslint-disable-next-line unicorn/no-top-level-side-effects -- the main-guard runs this only when the file is the program, never on import; the rule does not prove reachability (PLAN §8, RLF-UNICORN79).
     if (problems.length > 0) process.exitCode = 1
   } else {
     const input = JSON.parse(await readFile(path.join(REPO_ROOT, DESKTOP_CONSUMERS), 'utf8'))

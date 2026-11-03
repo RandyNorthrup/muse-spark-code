@@ -198,8 +198,11 @@ export class HardwareWorkspace {
     }
   }
   public reset(): void {
-    if (this.source().isInventoryKnown === false) throw new Error(UI_TEXT.hardwareRefused)
-    if ([...this.activity].some((isActive) => isActive())) throw new Error(UI_TEXT.hardwareRefused)
+    if (
+      this.source().isInventoryKnown === false ||
+      [...this.activity].some((isActive) => isActive())
+    )
+      throw new Error(UI_TEXT.hardwareRefused)
     this.isLatched = false
     this.hasPositiveEvidence = false
     this.observation = this.signature(this.source())

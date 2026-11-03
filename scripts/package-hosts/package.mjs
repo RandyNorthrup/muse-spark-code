@@ -181,6 +181,7 @@ if (isEntryPoint(import.meta.url)) {
       )
   } catch (error) {
     console.error(error instanceof Error ? error.message : 'MHP_HOST_PACKAGE_FAILED')
+    // eslint-disable-next-line unicorn/no-top-level-side-effects -- the main-guard runs this only when the file is the program, never on import; the rule does not prove reachability (PLAN §8, RLF-UNICORN79).
     process.exitCode = 1
   }
 }

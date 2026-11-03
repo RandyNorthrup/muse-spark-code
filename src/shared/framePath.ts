@@ -16,11 +16,16 @@ const DRIVE_ROOT = /^[A-Za-z]:\//
 // files) check membership themselves first.
 export function scrubFramePath(path: string): string | undefined {
   const scrubbed = redactSecrets(path)
-  if (scrubbed !== path) return undefined
-  if (scrubbed.length === 0 || scrubbed.length > REPORT_FRAME_PATH_MAX_CHARS) return undefined
-  if (scrubbed.includes('\\')) return undefined
-  if (scrubbed.startsWith('/')) return undefined
-  if (DRIVE_ROOT.test(scrubbed) || URI_SCHEME.test(scrubbed)) return undefined
+  if (
+    scrubbed !== path ||
+    scrubbed.length === 0 ||
+    scrubbed.length > REPORT_FRAME_PATH_MAX_CHARS ||
+    scrubbed.includes('\\') ||
+    scrubbed.startsWith('/') ||
+    DRIVE_ROOT.test(scrubbed) ||
+    URI_SCHEME.test(scrubbed)
+  )
+    return undefined
   const segments = scrubbed.split('/')
   return segments.some((segment) => ['', '.', '..'].includes(segment)) ? undefined : scrubbed
 }

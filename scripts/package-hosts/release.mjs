@@ -274,6 +274,7 @@ if (isEntryPoint(import.meta.url)) {
         appendFileSync(process.env.GITHUB_STEP_SUMMARY, result.markdown)
       if (process.env.GITHUB_OUTPUT)
         appendFileSync(process.env.GITHUB_OUTPUT, `all-published=${String(result.allPublished)}\n`)
+      // eslint-disable-next-line unicorn/no-top-level-side-effects -- the main-guard runs this only when the file is the program, never on import; the rule does not prove reachability (PLAN §8, RLF-UNICORN79).
       if (result.failed) process.exitCode = 1
     } else {
       const task = new Map([
@@ -300,6 +301,7 @@ if (isEntryPoint(import.meta.url)) {
   } catch {
     // Native CLI output can contain credential material; never print it.
     console.error('MHP_HOST_RELEASE_FAILED: verification or trusted channel command failed')
+    // eslint-disable-next-line unicorn/no-top-level-side-effects -- the main-guard runs this only when the file is the program, never on import; the rule does not prove reachability (PLAN §8, RLF-UNICORN79).
     process.exitCode = 1
   }
 }
