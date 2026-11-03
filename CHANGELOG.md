@@ -634,6 +634,11 @@ happened, not what was planned; superseded entries are kept.
   worker is refused in words before any request is sent, and on the
   Model API its team offer now shows the Wonder prices instead of the
   standard ones.
+- Every bundled library is current with its upstream fixes, including the
+  pack verifier's metadata and signature checks, the query parser's fix,
+  and the desktop shell's newer Electron with its Linux crash and archive
+  fixes. Two moderate advisories stay open with no upstream fix to take
+  (`docs/certification/rlf-updeps2.md`).
 - A vault policy that is a link, that another account can read, or that has
   a second name is ignored, and saving a policy can no longer be aimed at
   another file. The ceiling stays "none" and the refusal is the same words
