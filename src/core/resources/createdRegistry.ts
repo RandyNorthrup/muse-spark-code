@@ -130,6 +130,13 @@ interface LiveManifest {
   readonly parentIdentity: string
 }
 
+/** The manifest kept being replaced between its sample and its open: other processes publishing. */
+class ManifestKeptChanging extends Error {
+  public constructor() {
+    super('Creation manifest identity changed')
+  }
+}
+
 /** A publish attempt: landed, or the helper's refusal to judge a race by. */
 type PublishAttempt = { readonly output: string } | { readonly refusal: unknown }
 
@@ -144,6 +151,9 @@ export class CreatedRegistry {
     now: () => number,
     proof: CreatedPathProof,
     base = path.join(path.dirname(file), 'trees'),
+    // How the manifest is sampled before its open. A suite wraps the real read to make a
+    // real second publish land at that moment.
+    sampleManifest: typeof lstatIdentity = lstatIdentity,
   ): Promise<CreatedRegistry> {
     if (!path.isAbsolute(file) || !path.isAbsolute(base))
       throw new Error('Creation registry must be absolute')
@@ -161,7 +171,7 @@ export class CreatedRegistry {
     }
     // Initial OS aliases (macOS /var, Windows spelling) resolve once; later checks
     // bind only the verified canonical base, never the supplied ancestor alias.
-    const registry = new CreatedRegistry(file, await realpath(base), now, proof)
+    const registry = new CreatedRegistry(file, await realpath(base), now, proof, sampleManifest)
     const sample = await lstatIdentity(base)
     registry.checkPrivate(sample, true)
     registry.baseIdentity = fileIdentityKey(sample)
@@ -199,6 +209,7 @@ export class CreatedRegistry {
     readonly base: string,
     private readonly now: () => number,
     private readonly proof: CreatedPathProof,
+    private readonly sampleManifest: typeof lstatIdentity,
   ) {}
 
   private isUnsafe(
@@ -250,24 +261,33 @@ export class CreatedRegistry {
     return entries
   }
 
+  /**
+  The manifest, read only from a file that passes every check and is the one sampled. A
+  different file behind the sampled name is another process's publish, a lost race and no
+  safety fault: nothing was read from it, so sample again, at the save's own bound. Whatever
+  is read in the end has passed the same checks.
+  */
   private async checkManifest(): Promise<string> {
-    const sample = await lstatIdentity(this.file)
-    this.checkPrivate(sample, false)
-    const handle = await open(
-      this.file,
-      constants.O_RDONLY | (process.platform === 'win32' ? 0 : constants.O_NOFOLLOW),
-    )
-    try {
-      const current = await handle.stat({ bigint: true })
-      this.checkPrivate(current, false)
-      if (fileIdentityKey(current) !== fileIdentityKey(sample))
-        throw new Error('Creation manifest identity changed')
-      const contents = await handle.readFile('utf8')
-      this.manifestIdentity = fileIdentityKey(current)
-      if (this.manifestIdentity === undefined) throw new Error('Unsafe manifest identity')
-      return contents
-    } finally {
-      await handle.close()
+    for (let attempt = 1; ; attempt += 1) {
+      const sample = await this.sampleManifest(this.file)
+      this.checkPrivate(sample, false)
+      const handle = await open(
+        this.file,
+        constants.O_RDONLY | (process.platform === 'win32' ? 0 : constants.O_NOFOLLOW),
+      )
+      try {
+        const current = await handle.stat({ bigint: true })
+        this.checkPrivate(current, false)
+        if (fileIdentityKey(current) === fileIdentityKey(sample)) {
+          const contents = await handle.readFile('utf8')
+          this.manifestIdentity = fileIdentityKey(current)
+          if (this.manifestIdentity === undefined) throw new Error('Unsafe manifest identity')
+          return contents
+        }
+        if (attempt >= CREATED_REGISTRY_SAVE_ATTEMPTS) throw new ManifestKeptChanging()
+      } finally {
+        await handle.close()
+      }
     }
   }
 
@@ -521,7 +541,7 @@ export class CreatedRegistry {
     }
   }
 
-  /** The live manifest behind one save attempt; a safety fault throws unsafe. */
+  /** The live manifest behind one save attempt; a safety fault throws unsafe, a lost race contended. */
   private async readLiveForSave(): Promise<LiveManifest> {
     try {
       await this.verifyBase()
@@ -538,7 +558,10 @@ export class CreatedRegistry {
       }
       return { contents, previous, isFresh, parent, parentIdentity }
     } catch (error: unknown) {
-      throw new CreatedRegistrySaveError('unsafe', { cause: error })
+      throw new CreatedRegistrySaveError(
+        error instanceof ManifestKeptChanging ? 'contended' : 'unsafe',
+        { cause: error },
+      )
     }
   }
 
