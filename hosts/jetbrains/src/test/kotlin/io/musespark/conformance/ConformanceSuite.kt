@@ -11,13 +11,13 @@ import io.github.randynorthrup.musespark.NativeHostServices
 import io.github.randynorthrup.musespark.NativeWidgets
 import io.github.randynorthrup.musespark.QueueBudget
 import io.github.randynorthrup.musespark.RuntimeProcess
+import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import org.junit.Assert.assertTrue
-import org.junit.Assert.fail
 
 // Drives test/hostApi/scenarios/contract.json against the production runtime
 // (dist/acp.js) through the production bridge (RuntimeProcess, MhpPipe,
@@ -45,6 +45,23 @@ class ConformanceSuite : BasePlatformTestCase() {
     driveAll(layout, boundary, services, legs)
   }
 
+  // The production runtime's panel route, on a scratch data home.
+  private fun startRuntime(
+    node: Path,
+    runtimeScript: Path,
+  ): RuntimeProcess {
+    require(Files.isRegularFile(runtimeScript)) { "MHP_CONFORMANCE_RUNTIME_MISSING" }
+    val dataHome = Files.createTempDirectory("muse-jb-conformance-data")
+    val workspace = requireNotNull(project.basePath) { "MHP_WORKSPACE_NOT_FOUND" }
+    // A previous suite's fixture teardown can delete this directory first.
+    Files.createDirectories(Path.of(workspace))
+    return RuntimeProcess.start(
+      listOf(node.toString(), runtimeScript.toString(), "panel", "--stdio"),
+      Path.of(workspace),
+      dataIsolatedEnvironment(dataHome),
+    )
+  }
+
   private fun driveAll(
     layout: ConformanceLayout,
     boundary: JsonBoundary,
@@ -57,25 +74,8 @@ class ConformanceSuite : BasePlatformTestCase() {
     // handshake; the background collection inside start() then observes
     // the same values through production code.
     services.metadata
-    val node =
-      requireNotNull(
-        RuntimeProcess.executable(
-          System.getenv("PATH") ?: "",
-          "node",
-        ),
-      ) { "MHP_RUNTIME_NOT_FOUND" }
-    val runtimeScript = layout.runtimeFile
-    require(Files.isRegularFile(runtimeScript)) { "MHP_CONFORMANCE_RUNTIME_MISSING" }
-    val dataHome = Files.createTempDirectory("muse-jb-conformance-data")
-    val workspace = requireNotNull(project.basePath) { "MHP_WORKSPACE_NOT_FOUND" }
-    // A previous suite's fixture teardown can delete this directory first.
-    Files.createDirectories(Path.of(workspace))
-    val runtime =
-      RuntimeProcess.start(
-        listOf(node.toString(), runtimeScript.toString(), "panel", "--stdio"),
-        Path.of(workspace),
-        dataIsolatedEnvironment(dataHome),
-      )
+    val node = nodeExecutable()
+    val runtime = startRuntime(node, layout.runtimeFile)
     val executor = Executors.newSingleThreadExecutor()
     try {
       lateinit var pipe: MhpPipe
@@ -154,3 +154,6 @@ class ConformanceSuite : BasePlatformTestCase() {
     }
   }
 }
+
+private fun nodeExecutable(): Path =
+  requireNotNull(RuntimeProcess.executable(System.getenv("PATH") ?: "", "node")) { "MHP_RUNTIME_NOT_FOUND" }

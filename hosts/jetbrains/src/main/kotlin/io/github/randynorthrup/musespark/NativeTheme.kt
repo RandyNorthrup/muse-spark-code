@@ -170,6 +170,10 @@ object NativeTheme {
         for ((token, aliases) in roles) aliases.firstNotNullOfOrNull(values::get)?.let { tokens.addProperty(token, it) }
       }
 
+  /** The MHP theme: the IDE's kind and the tokens above. */
+  val theme: com.google.gson.JsonObject
+    get() = json("kind" to if (dark()) "dark" else "light", "tokens" to tokens)
+
   private val roles: List<Pair<String, List<String>>> by lazy {
     JsonBoundary
       .parse(JsonBoundary.resource("/theme/consumers.json"))
