@@ -20,7 +20,6 @@ import {
   panelEnvelopeSchema,
   type MhpPanelBinding,
 } from '../../src/shared/hostApi/panel'
-import { hostToWebviewMessageSchema } from '../../src/shared/protocol'
 import {
   call,
   envelope,
@@ -219,13 +218,15 @@ describe('packed panel --companion (real agent, real session)', () => {
         body: envelope(binding.surface, { type: 'ready' }),
       })
       expect(asked.status).toBe(HTTP_STATUS.noContent)
-      await waitFor(stream.frames, 6)
+      // The latest theme paints before any state replay (M114), then the session's six.
+      await waitFor(stream.frames, 7)
       const states = stream.frames.map((frame) => {
         const parsed = panelEnvelopeSchema.parse(frame)
         if (parsed.direction !== 'toPanel') throw new Error('the session wrote back upstream')
-        return hostToWebviewMessageSchema.parse(parsed.payload).type
+        return parsed.payload.type
       })
-      expect(states.at(0)).toBe('init')
+      expect(states.at(0)).toBe('theme')
+      expect(states.at(1)).toBe('init')
       for (const type of [
         'init',
         'authState',
@@ -277,11 +278,12 @@ describe('packed panel --companion (real agent, real session)', () => {
     expectPanelRefusal(refused, HTTP_STATUS.notFound, 'MHP_PANEL_UNKNOWN_SURFACE')
   })
 
-  // Last: stops the shared child, so nothing after it may use the panel.
+  // Last: stops the shared child, so nothing after it may use the panel. Windows
+  // has no SIGTERM to handle: Node ends the process there, and reports no exit code.
   it('exits 0 on SIGTERM', async () => {
     const { child, folder } = use()
     panel = undefined
-    expect(await stopPacked(child)).toBe(0)
+    expect(await stopPacked(child)).toBe(process.platform === 'win32' ? null : 0)
     await removeFolder(folder)
   })
 })
