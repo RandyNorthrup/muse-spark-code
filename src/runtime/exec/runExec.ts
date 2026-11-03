@@ -975,6 +975,12 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       }
       if (ledger !== undefined && options.budgetUsd !== undefined && options.team) {
         const { createExecTeam } = await import('./execTeamEntry')
+        const { providersFilePath } = await import('../../host/backend/configuredProvidersEntry')
+        const providersFile = providersFilePath({
+          platform: deps.platform,
+          homeDir: deps.homeDir,
+          xdgConfigHome: deps.env['XDG_CONFIG_HOME'],
+        })
         team = await lifecycle.race(
           createExecTeam(
             {
@@ -985,6 +991,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               defaultPays: providerRun?.provider.entry.auth === 'none' ? 'local' : 'key',
               budgetUsd: options.budgetUsd,
               refusalFallback: options.refusalFallback,
+              providersFile,
               signal: lifecycle.signal,
               now: deps.now,
               log,
