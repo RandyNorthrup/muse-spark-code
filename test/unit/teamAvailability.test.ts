@@ -115,6 +115,7 @@ function teamRunDeps(dataFolder: string, cwd: string): ExecTeamDeps {
     provider: undefined,
     defaultPays: 'key',
     budgetUsd: Usd.from(1).toAmount(),
+    refusalFallback: false,
     signal: new AbortController().signal,
     now: () => Date.now(),
     log,
