@@ -44,6 +44,8 @@ Each chosen model needs its context window and longest reply before saving.
 
 Enter the context window loaded on the local server. Manual values override scanned limits.
 
+Gemini requests carry store=false, so Google does not store your prompts and responses. The model picker and the Models table mark deprecated and beta models, and the picker names an announced retirement day; a deprecated model stays selectable until its provider refuses it. A Gemini id that Google reroutes is priced and labelled as the model that serves it.
+
 --add &lt;model&gt;: Offer this model on the entry; repeat the option for more models.
 
 --remove &lt;model&gt;: Stop offering this model on the entry; repeat the option for more models.

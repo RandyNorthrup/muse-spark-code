@@ -5720,6 +5720,7 @@
   "pickerRetiresOn": "{date} 지원 종료",
   "pickerRerouteServes": "{id} 요청을 처리",
   "modelReroutesOn": "{date}부터 {model}(으)로 전환",
+  "referenceProviderLifecycle": "Gemini 요청에는 store=false가 포함되므로 Google은 프롬프트와 응답을 저장하지 않습니다. 모델 선택기와 모델 표는 지원 중단 모델과 베타 모델을 표시하고, 모델 선택기는 발표된 지원 종료일을 알려 줍니다. 지원 중단 모델은 공급자가 거부할 때까지 선택할 수 있습니다. Google이 다른 모델로 전환하는 Gemini id는 실제로 응답하는 모델의 가격과 이름으로 표시됩니다.",
   "usageKeyUsage": "API 키 사용량",
   "usageLimit": "한도",
   "usageRemaining": "남음",

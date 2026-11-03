@@ -7497,6 +7497,9 @@ export const EN = {
   // {model}: the serving model's name; {date}: the reroute's first day.
   // Shared by the composer picker and the Models table.
   modelReroutesOn: 'Routes to {model} on {date}',
+  // The providers reference's lifecycle and storage paragraph (RLF-GEMPRIVACY).
+  referenceProviderLifecycle:
+    'Gemini requests carry store=false, so Google does not store your prompts and responses. The model picker and the Models table mark deprecated and beta models, and the picker names an announced retirement day; a deprecated model stays selectable until its provider refuses it. A Gemini id that Google reroutes is priced and labelled as the model that serves it.',
   // Account & usage's rows per provider.
   usageKeyUsage: 'API Key Usage',
   usageLimit: 'Limit',

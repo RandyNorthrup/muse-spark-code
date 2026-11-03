@@ -6116,6 +6116,7 @@
   "pickerRetiresOn": "Končí {date}",
   "pickerRerouteServes": "Obsluhuje požadavky na {id}",
   "modelReroutesOn": "Od {date} směruje na {model}",
+  "referenceProviderLifecycle": "Požadavky na Gemini nesou store=false, takže Google vaše výzvy a odpovědi neukládá. Výběr modelu a tabulka Modely označují zastaralé a beta modely a výběr modelu uvádí ohlášený den ukončení; zastaralý model zůstává k výběru, dokud ho poskytovatel neodmítne. Id Gemini, které Google přesměrovává, je oceněno a označeno jako model, který ho obsluhuje.",
   "usageKeyUsage": "Využití klíče API",
   "usageLimit": "Limit",
   "usageRemaining": "Zbývá",

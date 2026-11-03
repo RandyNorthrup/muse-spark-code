@@ -87,6 +87,7 @@
         },
         { "ui": "customLimitsMissing" },
         { "ui": "localContextWindowHint" },
+        { "ui": "referenceProviderLifecycle" },
         { "cli": "add" },
         { "cli": "remove" },
         { "cli": "force" }

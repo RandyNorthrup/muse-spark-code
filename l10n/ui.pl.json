@@ -6116,6 +6116,7 @@
   "pickerRetiresOn": "Wycofany {date}",
   "pickerRerouteServes": "Obsługuje żądania {id}",
   "modelReroutesOn": "Od {date} kieruje do {model}",
+  "referenceProviderLifecycle": "Żądania do Gemini zawierają store=false, więc Google nie przechowuje Twoich promptów ani odpowiedzi. Wybór modelu i tabela Modele oznaczają modele wycofywane i beta, a wybór modelu podaje ogłoszony dzień wycofania; wycofywany model pozostaje do wyboru, dopóki dostawca go nie odrzuci. Identyfikator Gemini, który Google przekierowuje, ma cenę i etykietę modelu, który go obsługuje.",
   "usageKeyUsage": "Użycie klucza API",
   "usageLimit": "Limit",
   "usageRemaining": "Pozostało",

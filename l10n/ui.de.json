@@ -5852,6 +5852,7 @@
   "pickerRetiresOn": "Wird {date} abgeschaltet",
   "pickerRerouteServes": "Bedient Anfragen an {id}",
   "modelReroutesOn": "Wechselt am {date} zu {model}",
+  "referenceProviderLifecycle": "Gemini-Anfragen tragen store=false, daher speichert Google Ihre Prompts und Antworten nicht. Die Modellauswahl und die Tabelle „Modelle“ kennzeichnen veraltete und Beta-Modelle, und die Modellauswahl nennt einen angekündigten Abschalttag; ein veraltetes Modell bleibt wählbar, bis sein Anbieter es ablehnt. Eine Gemini-ID, die Google umleitet, wird als das Modell bepreist und beschriftet, das sie bedient.",
   "usageKeyUsage": "API-Schlüsselnutzung",
   "usageLimit": "Limit",
   "usageRemaining": "Übrig",

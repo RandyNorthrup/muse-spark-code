@@ -1669,6 +1669,7 @@ const REFERENCE_DETAILS: Readonly<
     'referenceOutputCapMinimum',
     'customLimitsMissing',
     'localContextWindowHint',
+    'referenceProviderLifecycle',
   ],
   acp: ['referenceBriefHelp'],
   // The estimator also exposes the exclusive whole-plan check in ESTIMATE_OPTIONS;
