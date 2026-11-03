@@ -401,6 +401,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Help & Reference opens again before any maker surface has loaded: on the
+  built-in English wording it stopped on a word that only the maker surface
+  installs. The words the reference names now travel with Help itself.
+- Primary buttons in Models & Agents and the judge setup keep their white
+  wording on the blue button: a panel-wide reset was painting them in body
+  colour (dark on blue in light themes). The pool order buttons also say
+  their whole visible "position · label" to voice control.
 - Windows machines no longer read as hardware workspaces. Discovery there
   answered "unknown" every time, which refused every shell command on the
   Model API and every turn on Muse Code. Windows now reads its serial ports
