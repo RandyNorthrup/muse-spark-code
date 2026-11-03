@@ -160,6 +160,11 @@ const ALLOW_LIST = new Map([
     'src/host/conversation/conversationController.ts:showTeamCard',
     "an item display gate: a team card's own status picks its started/completed event",
   ],
+  // The same card in an ACP session: a completed card closes its tool call.
+  [
+    'src/acp/acpTeamEntry.ts:showCard',
+    "an item display gate: a team card's own status closes its ACP tool call",
+  ],
   // The prompt sequence runner (M88) only decides whether to send the next
   // step when a turn ends: it never reads the reply, so there is no reply
   // to gate. A turn that did not complete ends the run.
