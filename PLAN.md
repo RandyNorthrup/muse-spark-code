@@ -9814,8 +9814,9 @@ ask; Plan asks instead of reading silently; Bypass reads as before.
 The card is a plain tool subject — never a `fileWrite`, so Edit
 automatically cannot answer it — names the file and that its contents
 will be sent to the model (`UI_TEXT.approvalSensitiveReadNote`), and
-its Allow for This Session is keyed on that one file, never the tool:
-Auto asks once per file per session after that choice. No hook allow,
+its Allow for This Session is keyed on that one file, never the tool;
+in Auto an allow once records the same grant (`allowedOnce`), so Auto
+asks once per file per session. No hook allow,
 Auto reviewer or command rule settles it (`settledBy: 'sensitiveRead'`
 in the permission engine), and a profile's `denyRead` still refuses
 such a file outright before any ask. `search` reads contents, so it
@@ -11404,6 +11405,26 @@ and the shared `resubmitRememberedTurn` ride int's conversation deps through
 `providerRetryLimits` (real refused sends), `turnRetryCeiling`,
 `turnRetryResubmit` and `acpTranslate` pass on the merged tree; no provider
 request was made. Record: `docs/certification/cc-int5.md`.
+
+### RLFSECDEFAULTS — Sensitive reads ask; a memory after untrusted reads asks in Auto (D261)
+
+**Status 2026-11-02 (lane RLF-SECDEFAULTS, macmini): built, pending
+integration.** Real use is still to run. On the Model API backend the permission
+engine asks before `read_file` sends a sensitive file to the model
+(`.env` and `.env.*` but `.env.example`, `*.pem`, `*.key`, the SSH
+private-key names, `.npmrc`, `.aws/credentials`, judged on the
+canonical path, Windows spellings included) in Manual, Auto and Plan,
+allows it in Bypass, and in Auto asks once per file per session;
+`search` leaves the set out and says how many. In Auto, a memory write
+in a turn that read the web or an MCP result asks. Both are the
+person's (`museSpark.modelApiSensitiveReads`, emptied turns the ask off;
+`museSpark.modelApiMemoryAfterUntrustedAsk`). Proven by the engine,
+policy and search suites over real paths and seven red/green drills.
+The host wiring (the card's text, Edit automatically's tool card, the
+scheduled-run and hook-turn refusals, the turn's web/MCP mark) needs a
+model turn and has no real-code test; the packed-product real use did
+not run (no Muse request in this lane) and stays with the lead. Record:
+`docs/certification/rlf-secdefaults.md`.
 
 ### RLFQUOTA — A spent subscription window is said honestly, with its reset time (D252)
 
