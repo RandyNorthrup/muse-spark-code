@@ -5,7 +5,7 @@
     "everything": "@modelcontextprotocol/server-everything 2.1.0, `node dist/index.js stdio`",
     "filesystem": "@modelcontextprotocol/server-filesystem 2026.7.4, `node dist/index.js <allowed-dir>`"
   },
-  "harness": "temp/mcp-capture/capture.mjs and capture-fs.mjs (lane scratch, not shipped): spawn the server over stdio with HOME pointed at a throwaway folder, send initialize at protocol 2025-06-18, notifications/initialized, then tools/list (twice for everything, to record a no-op refresh). Node v24.21.0 on the linuxlt rig. No account, no model call.",
+  "harness": "The capture steps are in docs/certification/h-mcp-defer.md (Captures). A lane-scratch Node script spawned the server over stdio with HOME pointed at a throwaway folder and sent initialize at protocol 2025-06-18, notifications/initialized, then tools/list (twice for everything, to record a no-op refresh). Node v24.21.0 on the linuxlt rig. No account, no model call.",
   "files": {
     "everything-tools-list.json": "initialize + two identical tools/list replies (16 tools) from server-everything",
     "filesystem-tools-list.json": "initialize + tools/list reply (14 tools) from server-filesystem"
