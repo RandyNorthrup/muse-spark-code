@@ -4481,6 +4481,9 @@
   "acpUserMcpServersConfigured": "已使用 --no-user-mcp-servers 啟動，但您的 Muse Code 設定啟用了 MCP 伺服器，而 Muse Code 沒有可在單次執行中排除它們的開關。請在該檔案中將其關閉（enabled: false），或不使用 --no-user-mcp-servers 啟動。",
   "acpUserMcpServersUnreadable": "已使用 --no-user-mcp-servers 啟動，但無法讀取您的 Muse Code 設定檔，因此此代理程式無法判斷其中是否啟用了 MCP 伺服器。請修復該檔案，或不使用 --no-user-mcp-servers 啟動。",
   "acpSessionStartFailed": "工作階段無法啟動（{detail}）。詳細資料請見 Muse Spark 記錄。",
+  "acpBackendRestartCliGone": "Muse Code 已停止，無法重新啟動。未傳送任何內容，對話保持不變；請修復 Muse Code 安裝，然後重試。",
+  "acpBackendRestartSessionLost": "Muse Code 已重新啟動，但此對話已不存在，因此其歷史記錄已遺失。請開始新工作階段以繼續。",
+  "acpBackendRestartGaveUp": "Muse Code 已停止，經過多次嘗試仍無法重新啟動。未傳送任何內容，對話保持不變；請檢查 Muse Code 安裝，然後重試。",
   "acpTurnStartFailed": "此回合無法啟動（{detail}）。詳細資料請見 Muse Spark 記錄。",
   "createdRegistrySave": {
     "failed": "已建立資源登錄無法儲存（{reason}）。詳細資料請見 Muse Spark 記錄。",

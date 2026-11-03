@@ -1325,6 +1325,11 @@
       "note": "recovery: the judge delivery suite batched and bounded, green in minutes"
     },
     {
+      "id": "RLFACPRECOVER",
+      "public": false,
+      "note": "recovery: the ACP agent re-attaches after Muse Code dies under it, or says so in words"
+    },
+    {
       "id": "SDK142",
       "public": false,
       "note": "Muse Code CLI fingerprint and documentation update"

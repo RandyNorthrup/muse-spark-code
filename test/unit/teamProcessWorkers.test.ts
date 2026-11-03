@@ -8,9 +8,9 @@
 // a host, an agent, a store or git. The first real model turn through either
 // worker kind is the lead's live run (docs/certification/rlf-teamworkers.md).
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
-import { homedir, tmpdir } from 'node:os'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createTeamHostService } from '../../src/core/team/teamHost'
@@ -21,7 +21,6 @@ import type {
 } from '../../src/core/team/teamHostService'
 import { createCompositeTeamWorkerPort } from '../../src/core/team/workers/compositeWorkerPort'
 import { ACP_PRESETS, type AcpPreset } from '../../src/core/team/workers/acpWorker'
-import { resolveMuseLaunch } from '../../src/core/backends/musecode/launch'
 import {
   createProcessTeamPorts,
   museStopReason,
@@ -51,6 +50,7 @@ import {
 import { enginePortsWithoutWorker, realTeamGit } from './helpers/realTeamGit'
 import { isolatedRuntimeEnvironment } from './helpers/isolatedRuntimeEnvironment'
 import { stageAgentBundle } from './helpers/stageAgentBundle'
+import { MUSE } from './helpers/acpRecoverRig'
 
 const ORCHESTRATOR = 'orchestrator-model'
 const MUSE_AGENT: TeamAgentRef = {
@@ -73,25 +73,6 @@ const ECHOED_REPORT =
 // session and a turn, then git, on a shared rig.
 const WORKER_TEST_TIMEOUT_MS = 60_000
 
-/** The product's own CLI resolution; undefined where Muse Code is not installed. */
-function museCommand(): string | undefined {
-  const resolution = resolveMuseLaunch({
-    platform: process.platform,
-    configuredPath: '',
-    pathEntries: (process.env['PATH'] ?? '').split(path.delimiter),
-    homeDir: homedir(),
-    localAppData: process.env['LOCALAPPDATA'],
-    fileExists: existsSync,
-    readTextFile: (file) => (existsSync(file) ? readFileSync(file, 'utf8') : undefined),
-    listDirectory: (directory) => (existsSync(directory) ? readdirSync(directory) : []),
-    serveArgs: ['serve'],
-    // The test's own workspace is a scratch folder: no PATH entry sits inside it.
-    scope: { workspaceRoot: tmpdir(), realpath: realpathSync },
-  })
-  return resolution.ok ? resolution.launch.command : undefined
-}
-
-const MUSE = museCommand()
 const roots: string[] = []
 const rigs: Rig[] = []
 /** Where the packed agent was staged for this file. */

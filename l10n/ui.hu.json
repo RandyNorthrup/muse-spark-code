@@ -4568,6 +4568,9 @@
   "acpUserMcpServersConfigured": "A --no-user-mcp-servers kapcsolóval indult, de a Muse Code beállításai MCP-kiszolgálókat kapcsolnak be, és a Muse Code-nak nincs olyan kapcsolója, amely egyetlen futtatásra kihagyná őket. Kapcsolja ki őket ebben a fájlban (enabled: false), vagy indítsa a --no-user-mcp-servers nélkül.",
   "acpUserMcpServersUnreadable": "A --no-user-mcp-servers kapcsolóval indult, de a Muse Code beállításfájlja nem olvasható, ezért ez az ügynök nem tudja megállapítani, hogy bekapcsol-e MCP-kiszolgálókat. Javítsa ki a fájlt, vagy indítsa a --no-user-mcp-servers nélkül.",
   "acpSessionStartFailed": "A munkamenetet nem sikerült elindítani ({detail}). A részletek a Muse Spark naplójában vannak.",
+  "acpBackendRestartCliGone": "A Muse Code leállt, és nem indítható újra. Semmi nem lett elküldve, és a beszélgetés változatlan; javítsa meg a Muse Code telepítését, majd próbálja újra.",
+  "acpBackendRestartSessionLost": "A Muse Code újraindult, de ez a beszélgetés már nincs meg, ezért az előzményei elvesztek. A folytatáshoz indítson új munkamenetet.",
+  "acpBackendRestartGaveUp": "A Muse Code leállt, és több próbálkozás után sem sikerült újraindítani. Semmi nem lett elküldve, és a beszélgetés változatlan; ellenőrizze a Muse Code telepítését, majd próbálja újra.",
   "acpTurnStartFailed": "A kört nem sikerült elindítani ({detail}). A részletek a Muse Spark naplójában vannak.",
   "createdRegistrySave": {
     "failed": "A létrehozott erőforrások nyilvántartását nem sikerült menteni ({reason}). A részletek a Muse Spark naplójában vannak.",

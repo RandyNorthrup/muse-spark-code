@@ -4,7 +4,7 @@
 // an older one only after the old one stopped, and a backend that exits
 // retires every session on it. It was the ACP agent's own bookkeeping
 // (AgentState's maps), moved here unchanged; each view keeps its own turns.
-import type { AgentHost, AgentSession } from '../../core/agent/agentBackend'
+import type { AgentHost, AgentSession, HostExit } from '../../core/agent/agentBackend'
 
 /** Identity of the latest load or resume; kept while earlier releases finish. */
 export interface ControllerClaim {
@@ -17,15 +17,19 @@ export interface SessionController {
   readonly host: AgentHost | undefined
   readonly isReleased: boolean
   release(): Promise<unknown>
-  /** The backend went away: the view ends what it runs with the reason. */
-  hostExited(description: string): void
+  /**
+  The backend went away: the view ends what it runs with the reason. The
+  whole exit travels (expected or not, failure or not), as the panel's own
+  controller takes it, so the view judges what may resume.
+  */
+  hostExited(exit: HostExit): void
 }
 
 export interface ControllerRegistryOptions {
   /** The error a request for a session no one holds (or may hold) answers. */
   readonly missing: (sessionId: string) => Error
   /** A watched backend stopped, before its sessions are retired. */
-  readonly hostStopped: (host: AgentHost, description: string) => void
+  readonly hostStopped: (host: AgentHost, exit: HostExit) => void
   /** A session left the registry: the view's own per-session state goes with it. */
   readonly released?: (sessionId: string) => void
 }
@@ -204,12 +208,12 @@ export class ControllerRegistry<C extends SessionController> {
     this.watchedHosts.add(host)
     host.onExit((exit) => {
       this.exitedHosts.add(host)
-      this.options.hostStopped(host, exit.description)
+      this.options.hostStopped(host, exit)
       for (const [sessionId, controller] of [...this.sessions, ...this.adopting]) {
         if (controller.host !== host) {
           continue
         }
-        controller.hostExited(exit.description)
+        controller.hostExited(exit)
         this.claims.delete(sessionId)
         void this.releaseAll(sessionId)
       }

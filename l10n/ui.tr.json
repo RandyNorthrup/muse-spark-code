@@ -4568,6 +4568,9 @@
   "acpUserMcpServersConfigured": "--no-user-mcp-servers ile başlatıldı, ancak Muse Code ayarlarınız MCP sunucularını açıyor ve Muse Code’un bunları tek bir çalıştırma için dışarıda bırakan bir anahtarı yok. Bu dosyada kapatın (enabled: false) ya da --no-user-mcp-servers olmadan başlatın.",
   "acpUserMcpServersUnreadable": "--no-user-mcp-servers ile başlatıldı, ancak Muse Code ayar dosyası okunamıyor; bu nedenle bu ajan MCP sunucularını açıp açmadığını bilemiyor. Dosyayı onarın ya da --no-user-mcp-servers olmadan başlatın.",
   "acpSessionStartFailed": "Oturum başlatılamadı ({detail}). Ayrıntılar Muse Spark günlüğünde.",
+  "acpBackendRestartCliGone": "Muse Code durdu ve yeniden başlatılamıyor. Hiçbir şey gönderilmedi ve konuşma değişmedi; Muse Code kurulumunu onarın, ardından yeniden deneyin.",
+  "acpBackendRestartSessionLost": "Muse Code yeniden başlatıldı ancak bu konuşma artık orada yok, bu nedenle geçmişi kayboldu. Devam etmek için yeni bir oturum başlatın.",
+  "acpBackendRestartGaveUp": "Muse Code durdu ve birkaç denemeden sonra yeniden başlatılamadı. Hiçbir şey gönderilmedi ve konuşma değişmedi; Muse Code kurulumunu denetleyin, ardından yeniden deneyin.",
   "acpTurnStartFailed": "Tur başlatılamadı ({detail}). Ayrıntılar Muse Spark günlüğünde.",
   "createdRegistrySave": {
     "failed": "Oluşturulan kaynakların kayıt defteri kaydedilemedi ({reason}). Ayrıntılar Muse Spark günlüğünde.",

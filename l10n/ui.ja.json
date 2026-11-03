@@ -4481,6 +4481,9 @@
   "acpUserMcpServersConfigured": "--no-user-mcp-servers で起動しましたが、Muse Code の設定で MCP サーバーが有効になっており、Muse Code には 1 回の実行だけそれらを除外するスイッチがありません。そのファイルで無効にする（enabled: false）か、--no-user-mcp-servers なしで起動してください。",
   "acpUserMcpServersUnreadable": "--no-user-mcp-servers で起動しましたが、Muse Code の設定ファイルを読み取れないため、このエージェントは MCP サーバーが有効かどうかを判断できません。ファイルを修復するか、--no-user-mcp-servers なしで起動してください。",
   "acpSessionStartFailed": "セッションを開始できませんでした ({detail})。詳細は Muse Spark のログを参照してください。",
+  "acpBackendRestartCliGone": "Muse Code が停止し、再起動できません。何も送信されず、会話は変更されていません。Muse Code のインストールを修復してから、もう一度お試しください。",
+  "acpBackendRestartSessionLost": "Muse Code は再起動しましたが、この会話はもう存在しないため、履歴は失われました。続行するには新しいセッションを開始してください。",
+  "acpBackendRestartGaveUp": "Muse Code が停止し、数回の試行でも再起動できませんでした。何も送信されず、会話は変更されていません。Muse Code のインストールを確認してから、もう一度お試しください。",
   "acpTurnStartFailed": "ターンを開始できませんでした ({detail})。詳細は Muse Spark のログを参照してください。",
   "createdRegistrySave": {
     "failed": "作成済みリソースのレジストリを保存できませんでした ({reason})。詳細は Muse Spark のログを参照してください。",

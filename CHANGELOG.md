@@ -582,6 +582,18 @@ happened, not what was planned; superseded entries are kept.
   themselves.
 - A request the provider refused over strict tool limits is sent once more
   with plain tool schemas instead of failing.
+- An editor session survives Muse Code dying under it. When the program
+  behind your session stops unexpectedly, your next prompt or session load
+  brings it back and re-attaches your conversation, with your history, in
+  every editor — instead of answering `Resource not found` with a raw id
+  and losing the session until you start over.
+- When the program cannot come back, you are told in plain words. If Muse
+  Code cannot be started again, or the restarted program no longer has
+  your conversation, the answer says what stopped, whether anything was
+  lost, and what to do — in your language — instead of a request-shaped
+  error. A turn that was running when the program died ends as failed,
+  never as finished; bringing the program back retries briefly with a
+  notice each time, and you can stop it.
 - A vault policy that is a link, that another account can read, or that has
   a second name is ignored, and saving a policy can no longer be aimed at
   another file. The ceiling stays "none" and the refusal is the same words
