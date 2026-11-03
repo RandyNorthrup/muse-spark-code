@@ -34146,9 +34146,8 @@ recorded digest before extraction, and extraction passes `filter='data'`,
 which strips absolute paths, parent traversal and device entries. Removal
 guard: the digest check and the data filter on the same lines.
 
-| RLF-M124RO location                       | Escape hatch                     | Reason                                                                                                                                                                                                                                                                                    |
-| ----------------------------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `test/unit/helpers/connectorSdkClient.ts` | `newTransport(...) as Transport` | The MCP SDK's own `StreamableHTTPClientTransport.sessionId` getter is `string \| undefined` where its `Transport` interface declares `sessionId?: string`; `exactOptionalPropertyTypes` will not assign the SDK's class to its own interface. Test-only; remove when the SDK types agree. |
+| RLF-M124RO location | Escape hatch | Reason |
+| ------------------- | ------------ | ------ |
 
 | RLM123 location                      | Escape hatch                             | Reason                                                                                                                                                                                                                                   |
 | ------------------------------------ | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
