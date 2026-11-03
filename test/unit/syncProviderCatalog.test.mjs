@@ -11,8 +11,11 @@ import { describe, expect, it } from 'vitest'
 import {
   MAX_SNAPSHOT_BYTES,
   assertReroutesCurrent,
+  filterCatalog,
   parseCatalogSnapshot,
   readRerouteTable,
+  snapshotDocument,
+  snapshotText,
   verifyVendorFiles,
 } from '../../scripts/sync-provider-catalog.mjs'
 
@@ -32,6 +35,24 @@ describe('provider catalogue sync', () => {
       Object.values(provider.models).filter((model) => model.status !== undefined),
     )
     expect(kept.length).toBeGreaterThan(0)
+  })
+
+  it('keeps the status word when the sync filters a recorded download', () => {
+    const sealedText = readFileSync(snapshotFile, 'utf8')
+    const sealed = parseCatalogSnapshot(sealedText)
+    // The sealed rows are the 2026-11-02 download's own rows, trimmed by
+    // this same filter: fed back as a download, the real filter must
+    // return them byte for byte, status words included, under the cap.
+    const download = Object.fromEntries(
+      Object.values(sealed.providers).map(({ catalog, name, api, models }) => [
+        catalog,
+        { name, ...(api !== undefined && { api }), models },
+      ]),
+    )
+    const providers = filterCatalog(download)
+    expect(providers['openai'].models['o3-mini'].status).toBe('deprecated')
+    expect(providers['mistral'].models['mistral-large-4'].status).toBe('beta')
+    expect(snapshotText(snapshotDocument(providers, sealed.fetchedAt))).toBe(sealedText)
   })
 
   it('verifies the cited reroutes against the sealed snapshot', () => {
