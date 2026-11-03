@@ -156,3 +156,8 @@ Suites after the merge: `runtimePanelGit`, `runtimePanelGitLease`, `mhpPanelCont
 - Merge 2, ACP team MCP loader: `acpTeamEntry.ts` back to the lane's `teamHostEntry` import →
   `acpTeamSession.test.ts -t 'serves the team tools'` exit 1 (and typecheck TS2339 ×2); the fix restored → exit 0.
   The three ACP team suites 69/69 (exit 0).
+- Merge 3, schedule hold type: lane's `BackendKind` parameter → `npm run typecheck` exit 1 (TS2322); typed to the
+  schedule backends → exit 0. Lane's lease case: `repositoryRun()` → TS2554; int's helper call → typecheck exit 0
+  and the case passes on int's lease source.
+- Merge 2/3, ACP package without `teamMcp.js`: `node scripts/gen-lazy-registry.mjs` exit 1 ("its package does not
+  carry it"); carried in `acpBundles.mjs` → exit 0.

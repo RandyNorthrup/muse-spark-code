@@ -12,6 +12,9 @@ import { UI_TEXT } from '../../shared/constants'
 
 export type PanelSchedulesBindingLoader = () => Promise<RuntimeSchedulesBinding>
 
+/** The backends a scheduled prompt runs on (scheduleV2); never an external agent. */
+type ScheduledBackend = Exclude<BackendKind, 'external'>
+
 type PanelScheduleOwner = Pick<ConversationController, 'scheduleNotice' | 'settleScheduledQuestion'>
 
 export interface PanelScheduleHold {
@@ -19,7 +22,7 @@ export interface PanelScheduleHold {
   hold(
     root: string,
     session: AgentSession,
-    backend: BackendKind,
+    backend: ScheduledBackend,
     controller: PanelScheduleOwner,
   ): Promise<void>
   close(): Promise<void>
@@ -45,7 +48,7 @@ export function createPanelScheduleHold(input: {
   const holdOne = async (
     root: string,
     session: AgentSession,
-    backend: BackendKind,
+    backend: ScheduledBackend,
     controller: PanelScheduleOwner,
   ): Promise<void> => {
     if (handle === session) return

@@ -191,7 +191,7 @@ describe('git in the runtime panel', () => {
   })
 
   it('signs in through the editor’s own GitHub lease first (lane A)', async () => {
-    const { run } = repositoryRun()
+    const { run } = repositoryRun(runs, 'muse-panel-git-')
     const leaseId = '11111111-1111-4111-8111-111111111111'
     const proxied: { url?: unknown; leaseId?: unknown }[] = []
     const { host, editor, exit } = await connectedPanel(run, {
