@@ -87,3 +87,6 @@ batch's build.
 
 - Merge 1, terminal cwd through a link: `confineTerminalCwd` made lexical-only for in-root names →
   `panelSessions.test.ts` exit 1 ("promise resolved … instead of rejecting"); reverted → exit 0.
+- Merge 2, ACP team MCP loader: `acpTeamEntry.ts` back to the lane's `teamHostEntry` import →
+  `acpTeamSession.test.ts -t 'serves the team tools'` exit 1 (and typecheck TS2339 ×2); the fix restored → exit 0.
+  The three ACP team suites 69/69 (exit 0).
