@@ -69,7 +69,8 @@ async function compose(options: ComposeOptions = {}) {
     options: {
       backend: backendKind,
       trustWorkspace: trusted,
-      museBinary: path.join(scope, 'no-such-muse'),
+      // Relative: the launch refuses before it searches, so no CLI on this machine ever starts.
+      museBinary: 'no-such-muse',
       shellSandbox: 'off',
       canBypass: false,
       allowsContributorModels: false,
@@ -230,8 +231,10 @@ describe('the runtime conversation checkpoints', () => {
     const session = await compose({ backend: 'museCode' })
     try {
       expect(session.port.isNativeUnsafe()).toBe(false)
-      // The host is built and never started: there is no Muse Code on this path.
-      await session.backend.backend.hostFor(session.workspace)
+      await expect(session.backend.backend.hostFor(session.workspace)).rejects.toThrow(
+        EN.cliPathNotAbsolute,
+      )
+      // The mark stands whatever the host does next.
       expect(session.port.isNativeUnsafe()).toBe(true)
     } finally {
       await session.close()
@@ -292,11 +295,7 @@ describe('the packed agent in panel --stdio', () => {
   async function availabilityShown(isTrusted: boolean, isSettingOn: boolean): Promise<unknown> {
     const store = panelSettingsStore(run)
     await store.updateSetting('museSpark.backend', 'museCode', 'user')
-    await store.updateSetting(
-      'museSpark.museBinaryPath',
-      path.join(run.folder, 'no-such-muse'),
-      'user',
-    )
+    await store.updateSetting('museSpark.museBinaryPath', 'no-such-muse', 'user')
     await store.updateSetting(TURN_CHECKPOINTS_SETTING, isSettingOn, 'user')
     const host = run.serve(['panel', '--stdio'])
     const editor = panelEditor(host)
