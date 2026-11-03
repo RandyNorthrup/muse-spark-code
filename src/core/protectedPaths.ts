@@ -12,7 +12,11 @@
 // never answer one and its card offers no standing rule (2026-10-04).
 
 import type { ApprovalSubject } from '../shared/agentEvents'
-import { PROTECTED_FILE_NAMES, PROTECTED_PATH_SEGMENTS } from '../shared/constants'
+import {
+  PROTECTED_FILE_NAMES,
+  PROTECTED_FILE_SUFFIXES,
+  PROTECTED_PATH_SEGMENTS,
+} from '../shared/constants'
 import { normalWindowsPath, windowsPathProblem } from './windowsPathSpelling'
 import { resolvedLongPath, SHORT_NAME_SHAPE } from './pathIdentity'
 
@@ -31,6 +35,7 @@ export function isProtectedPath(canonicalRelative: string): boolean {
   // file itself (a `.git` file points git at another directory).
   return (
     PROTECTED_FILE_NAMES.has(name) ||
+    PROTECTED_FILE_SUFFIXES.some((suffix) => name.endsWith(suffix)) ||
     segments.some((_segment, index) =>
       PROTECTED_PATH_SEGMENTS.some(
         (protectedSegments) =>
