@@ -50,7 +50,7 @@ tasks were authored here, as the brief's fallback directs.
 
 ## Offline proof (real code only)
 
-`test/unit/constraintPins.test.ts` (9 tests) over the real capture, the
+`test/unit/constraintPins.test.ts` (10 tests) over the real capture, the
 real `ModelApiHost` and the real file session store:
 
 - capture: section (bullet/numbered/inline), imperative lines, fenced
@@ -67,6 +67,12 @@ real `ModelApiHost` and the real file session store:
 - a stored accepted-compaction layout (summary entry, pinned entry,
   tail) parses and resumes byte-for-byte, and unpinning rebuilds — then
   removes — the very replay entry the next request re-sends.
+- a fork through the real host's `forkSession`: a rewind to an earlier
+  turn drops the pin only a later turn stated, a whole fork keeps every
+  pin, and a fork of a compacted session keeps the pins the copied
+  pinned block carries — including a section-only pin (no
+  must/never/always) whose stating turn the summary replaced — with the
+  block byte-for-byte and the fork's compaction card showing them.
 
 An accepted live compaction cannot be driven offline without inventing
 a provider answer, which this repository forbids; the acceptance splice
@@ -85,6 +91,18 @@ npx vitest run test/unit/constraintPins.test.ts --maxWorkers=3 -t "takes the pin
 
 Restore: `git checkout HEAD -- src/core/backends/modelapi/constraintPins.ts`
 (byte-exact, no diff), same command → 1 passed.
+
+Second drill (Claude Code resume, 2026-11-02): the fork path first
+re-read pins out of the copied pinned block's text, which dropped a pin
+only a `Constraints:` section made one (its turn was summarised away).
+The fork test above was written against that code and failed
+(`expected [ 'Never use var anywhere' ] to deeply equal [ 'Use tabs for
+indentation', …(1) ]`); the fix keeps every pin the copied block
+carries. Break: the line `if (entry.turnId === PINNED_TURN_ID) return
+this.pinnedConstraints` deleted from `copyInto` →
+`npx vitest run test/unit/constraintPins.test.ts --maxWorkers=3 -t "a fork keeps"`
+exit 1 (1 failed, the same assertion). Restore: the saved copy put back
+(`cmp` byte-exact) → same command exit 0 (1 passed).
 
 ## Live evaluation — not run on this rig (outside item)
 
