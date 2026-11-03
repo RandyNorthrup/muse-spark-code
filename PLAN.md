@@ -2703,7 +2703,7 @@ validates, reads and writes notes by Muse Code's rules, and a note written on
 one backend is read on the other. The Model API memory tools are Muse Code's
 and are offered in a trusted workspace only. Approval is like an edit, not
 like Muse Code: a write asks in Manual, runs in Auto and Edit automatically,
-and is refused in Plan, and a read never asks. Amended by D261: in Auto, a
+and is refused in Plan, and a read never asks. Amended by D263: in Auto, a
 write in a turn that read the web or an MCP result asks, showing the exact
 text, while its switch is on. The extension keeps the index
 true: a note the Model API tool or the Memory view creates gets its line in
@@ -9846,7 +9846,7 @@ First application, same lane: `@muse-code/sdk` 1.4.12 → 1.4.14,
 pinned install. Full record:
 [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
-### D261 — Sensitive reads ask; a memory after untrusted reads asks in Auto (lane RLF-SECDEFAULTS, SEC-DEFAULT-DENY brief D of the 2026-11-02 agent-security research; numbered D261 on its branch because the brief names D260 as already taken)
+### D263 — Sensitive reads ask; a memory after untrusted reads asks in Auto (lane RLF-SECDEFAULTS, SEC-DEFAULT-DENY brief D of the 2026-11-02 agent-security research; numbered D263 on its branch because the brief names D260 as already taken)
 
 Two default postures on the Model API backend, both the person's to
 change and neither a cap (D121). (1) A small sensitive set asks before
@@ -11500,7 +11500,7 @@ and the shared `resubmitRememberedTurn` ride int's conversation deps through
 `turnRetryResubmit` and `acpTranslate` pass on the merged tree; no provider
 request was made. Record: `docs/certification/cc-int5.md`.
 
-### RLFSECDEFAULTS — Sensitive reads ask; a memory after untrusted reads asks in Auto (D261)
+### RLFSECDEFAULTS — Sensitive reads ask; a memory after untrusted reads asks in Auto (D263)
 
 **Status 2026-11-02 (lane RLF-SECDEFAULTS, macmini): built, pending
 integration.** Real use is still to run. On the Model API backend the permission
@@ -33623,239 +33623,7 @@ restored-source check results: `docs/certification/m109-b.md`.
 
 ### M95 K repair residuals (2026-10-05)
 
-K22 proved the activation size (608,089 bytes against 605,188 at ad916bc,
-growth 2,901 under the 3,072 cap, closed by fixing misplaced K15 recovery
-callbacks; all total bundle caps pass); full composed certification still
-belongs to the lead. K-contract: lane M supplies the shared Models schema and
-lane U supplies chat setupComplete, while K tests use M's exact temporary
-source dependency which is not committed; M must adopt strict providers/edit
-and scoped prefill variants, with the follow-up to certify the final composed
-protocol/editor flow. K-recovery (superseded by PROVWIZ9 on 2026-10-09):
-same-host snapshot comparisons remain, cross-window provider/key serialization
-awaits PROVSTORE-LOCKLIB after M123, and shared-store crash atomicity remains
-follow-up. The K-release-base merge was aborted (local origin/main at a95f24cf
-conflicts in release/build files, every manifest translation, extension and
-constants); the lead must reconcile the release base on integration,
-preserving the lane and both sides' behavior, and full certification stays
-open. K-hook verification regenerated the local sh -e Husky wrapper with the
-same configured hook path and no bypass was used; it requires the closing
-commit's positive lint/Gitleaks receipt. K-final-runtime leaves live
-setup/OAuth/discovery, unsaved-draft scan cancellation, four themes,
-pseudo-locale and 320px as integration gates, with final evidence and merge
-status in docs/certification/m95-k.md. M95MU-HOST-API-RECORD (integration
-prerequisite): the composed M/U tree's host API record still describes 30
-commands rather than the 33 from lane 0 and names only the chat stylesheet,
-with the 271 API names and 59 theme variables unchanged; lane W and the lead
-must regenerate and review it on the fully integrated tree where lane K also
-contributes APIs, and the full quality gate remains required before
-integration is proposed. M95-H fixed all seven RVM95RH codec/test findings
-with none deferred; follow-up: lane W registers Chat, lane I supplies its
-caller's vision capability and tools-retaining compaction body, then the lead
-runs full integrated quality and live acceptance. FIXM95O rebuilt the native
-Ollama codec against nine counted local Ollama 0.35.1 receipts with no
-dependency, model pull, cloud call or paid call (proof and any remaining
-acceptance limits in docs/certification/m95-o.md); O-INTEGRATION remains an
-integration acceptance limit since the codec is currently imported only by its
-owned test, with the follow-up that lane T/I inject a stable, session-unique
-response ID and wire the lazy codec bundle while the lead proves the complete
-provider turn/reload/resume flow and full quality on the final joined tree;
-O-SPLIT follow-up is lane W enforcing the planned separate codec bundle
-without exemptions or weakened guards; O-HOST-API follow-up is lane W
-regenerating and reviewing the record before milestone certification; both are
-observed gate failures, not green gates. The RVM95SC-R-host-api-record
-documentation residual leaves the host API gate red (five stale generated
-Node-import counts, source/API membership unchanged, actual counts retained in
-the failed gate receipt); aggregate certification stays open and lane W with
-the lead must regenerate, inspect and recheck the record. The
-RVM95SC-R-shell-env integration item is an open gate, not newly accepted risk:
-the inherited shell environment still forwards the user's HF_TOKEN,
-ANTHROPIC_AUTH_TOKEN and AWS_BEARER_TOKEN_BEDROCK while hooks and ACP strip
-them; lane I/X/W must decide intended inheritance versus stripping and test
-the shell boundary before broader provider security certification (see
-docs/certification/m95-s.md). Full record:
-[docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-- Code intelligence (M67) shows what VS Code's language services say. A
-  result located outside the workspace is left out and a hover defined only
-  there is held back, but a language service also infers: a workspace
-  symbol whose type comes from an imported file outside the workspace (a
-  `../` import, a `tsconfig` path) carries that type, a literal type
-  included, into its hover and into diagnostics, as the editor shows it.
-  Accepted: it is the language's own view of the workspace the user opened,
-  the same text the Problems panel (`getDiagnostics`) already sends.
-
-- The `muse` CLI is closed source; we trust its stdio protocol as documented
-  by Meta's SDK and validate every message shape at our boundary. Residual
-  risk: a compromised or malicious CLI binary on the user's PATH; mitigated
-  by honouring an explicit `museBinaryPath` and logging the resolved path.
-- Muse Spark's tool execution semantics (which commands it runs, how approvals
-  are enforced) are the CLI's responsibility in the MSP backend. Our UI never
-  auto-approves outside the mode the user selected; the one automatic answer
-  is "Edit automatically" allowing a plain file write once (D24), never a
-  protected write, an escalation or a command.
-- The Model API backend (M7) executes tools in-process. The controls (D24):
-  path confinement by canonical path (links and junctions resolved, Windows
-  reinterpreted names refused), protected writes that always ask, per-call
-  approval in Manual, session rules keyed on the exact command, and
-  "Bypass permissions" opt-in via a setting exactly as in Claude Code,
-  confirmed once in a remote window. Residual risk: a file swapped for a link
-  between the check and the write (a local attacker already inside the
-  workspace); the check runs immediately before each operation.
-- Programs are started by absolute path (D24): git, bash and PowerShell from
-  absolute `PATH` entries, the CLI from its install layout or an absolute
-  `museBinaryPath`; git never runs in Restricted Mode.
-- Ending a stopped command on Windows (M27): each command runs in a job
-  object, so everything it starts ends with it. Residual risk where no job
-  can be made (Constrained Language Mode, which forbids `Add-Type`; the log
-  says so at the first command): the fallback cannot reach a process whose
-  launcher started it during the kill and exited before the sweep (no
-  parent link is left), and its identity check and kill are microseconds
-  apart in one PowerShell run rather than one atomic call. A process that
-  breaks away from a job on purpose (`CREATE_BREAKAWAY_FROM_JOB` is refused
-  without a limit this job does not set) is not a residual.
-- Memory (M49, D41): the Model API backend and the Memory view write Muse
-  Code's notes without taking its native `.muse-memory.lock` (the memory
-  writer's use of the observed Windows locking helper, hold lifetime and
-  portable protocol have not been proved; a stale PID file remains
-  after the owner exits). Each write replaces the
-  file whole, so no note is ever half written; residual risk: Muse Code and
-  the extension writing the same note in the same instant keep only one of
-  the two writes. Notes reach every later session, the personal scope every
-  project, so a model's write asks in Manual (Muse Code's does not). Under
-  turn checkpoints (M72) the memory tools' and the view's writes keep a copy
-  of an ignored project note first, and the view's create and trash hold the
-  restore lease (personal notes outside the workspace take none).
-- Turn checkpoints (M72, D51) copy the workspace's files into the
-  extension's workspace storage, and an ignored file (a `.env`) only when
-  the extension's own tools are about to write it or a restore overwrites
-  or deletes it (for Redo). The copies never enter the workspace's `.git`,
-  stay on the machine in a folder that is 0700 on POSIX, and go with the
-  conversation, the retention bounds (applied at every window open) or the
-  storage directory. Residual risk: whoever can read VS Code's storage
-  directory as the user can read them, as they can the workspace itself. A
-  restore refuses any path with a link or junction on the way and
-  re-checks each file's content just before changing it; a file swapped
-  for a link between that check and the write is the same residual as the
-  Model API tools'.
-- Opening files for their diagnostics (M68): VS Code's language servers
-  report only on shown files, and showing a file can make an extension load
-  its configuration as code. The verify loop never shows or formats a
-  code-loading file (`CODE_LOADING_FILE_PATTERNS`, `node_modules`) and,
-  once the Model API conversation wrote one, shows and formats nothing more
-  until the user's next message. Residual risk: the extension does not see
-  Muse Code's own writes, so after Muse Code writes, say, `eslint.config.js`
-  (with its own approval), a later `getDiagnostics` request for an ordinary
-  file still shows that file, and the ESLint extension may then load the new
-  config. The pattern list is also a named list, not every tool's
-  convention; a config an extension loads under another name is not
-  covered. Check paths on Windows are refused by character, a deny list
-  over PowerShell 5.1's and `cmd.exe`'s syntax as measured, with only
-  existing workspace files passed.
-  Every act the verify loop takes on a file after an await (format on
-  edit's open and write-back, `then_run`, the diagnostics' show and read,
-  `getDiagnostics`, a check's path arguments) uses the real path and
-  canonical name confinement found and checks the file just before (the
-  Codex review of PR #54; the sites are listed in the M68 certification).
-  Residual risk: a moment remains between that check and the act (no
-  compare-and-swap on the file system; an atomic rename cannot be
-  conditional), and a folder on the real path swapped for a link in that
-  moment is not caught. Format on edit's write-back goes through the one
-  conditional write (`fsAtomic.writeFileIfUnchanged`, PR #54's third
-  review), which compares the target's bytes first and again immediately
-  before each rename attempt. No file system offers a conditional rename.
-  On POSIX the rename replaces the name whoever has the file open: a change
-  saved between the last comparison and the rename is replaced, and a
-  program still writing through its open handle to the old file writes
-  into a file that no longer has a name. On Windows the rename is refused
-  while another program holds the file without sharing delete, and each
-  retry compares again; a change saved and closed between the last
-  comparison and the rename is still replaced. A Revert's removal of a
-  file Muse created (`fsAtomic.deleteFileIfUnchanged`, M70) has the same
-  kind of gap: the bytes, the canonical path and the file's identity are
-  checked last, then the file moves to the trash; a change saved between
-  that check and the move goes with it, into the trash. The verify ledger knows a
-  file by its real path: two hard links to one file are two files there,
-  so an edit through one does not make a run over the other stale.
-
-- M50's Windows stdio server inherits the extension's three binary pipes
-  unchanged. A hidden helper creates it suspended, assigns it to a fresh
-  kill-on-close job and resumes it only after a nonce READY/GO exchange over
-  a separate private pipe proves the creating Node process still lives after
-  its real process handle was bound. The handle is checked again immediately
-  before resume. Normal exit, Stop, batch launch, detached-child, parent-death
-  and withheld-GO fixtures passed; assignment-off and confirmation-off red
-  drills failed as intended.
-  When the job executable cannot run, stdio fails closed rather than using the
-  taskkill fallback. After the initial binding, all waits and cleanup use
-  handles; a recycled PID cannot authorize a launch because it has no GO
-  pipe. The private nonce and launch payload never reach the MCP server's
-  environment or protocol streams. On POSIX, an exited parent causes its original process
-  group to be signalled; descendants that form a new process group can
-  escape it.
-- The pasted Model API key is used only by the Model API backend and is
-  never handed to the Muse Code CLI (D1 amendment): subscription work is
-  never billed to the key, and the key never reaches another process.
-- MCP servers on the Model API backend (M50, D42) are the user's own code,
-  unsandboxed, as they are under Muse Code: the controls are that none runs
-  in Restricted Mode, every call asks in Manual and Auto (a tool its server
-  marks read-only runs in Auto, as Muse Code runs it) and Plan refuses all
-  but read-only tools, a stdio server inherits only an allowlist of the
-  extension host's environment (never the key, which is in SecretStorage,
-  not the environment), and remote servers get only their entry's headers,
-  never across a redirect. Residual risk: a server's own `readOnlyHint` is
-  trusted, as Muse Code trusts it; a result's text reaches the model as
-  data it may be steered by (prompt injection), as a web page's would.
-- Web fetch (M69, D49) reaches the internet from the user's machine. The
-  controls: `https:` only; every DNS answer checked against the non-public
-  ranges and the connection pinned to a checked address (through a proxy,
-  the tunnel is asked for that address, and only a TLS answer is read);
-  same-host redirects checked and pinned again, another host's handed back;
-  size, time and type bounds; per-host approval in every mode but Bypass,
-  Plan and Restricted Mode refusing; on Muse Code the extension's modal
-  before every call. Residual risks: (1) an intranet service on a public
-  address, or a split-horizon name that answers public addresses here,
-  looks like the internet; (2) the URL is model-written and reaches the
-  host the user approved, so it can carry conversation text there (the
-  card and the modal name it whole; a session rule covers one host); (3)
-  the page's text steers the model like any tool output (the markers and
-  the notice are a signal, not a guarantee); (4) on a network where only
-  the proxy can resolve names, the local check refuses every fetch, which
-  fails closed; (5) the proxy decision (`http.noProxy`, a PAC file) sees the
-  pinned address, not the host name, so a rule written for a name does not
-  apply; (6) NAT64 discovery takes the prefix from answers either the
-  system resolver (as the page's name was looked up) or a DNS query of its
-  own (c-ares) returns, and only the DNS query's NXDOMAIN or NODATA means no
-  DNS64 (getaddrinfo's ENOTFOUND proves nothing); any other outcome uses no
-  IPv6 answer, so what remains is a DNS server that answers NODATA while the
-  system resolver's path synthesizes nothing for `ipv4only.arpa` but does
-  for other names; (7) VS Code cannot close a modal, so the extension's
-  question for a Muse Code call that was stopped stays open until answered,
-  and its answer then fetches nothing; (8) the model reads a page's text as
-  served, which can include text a browser would not show (hidden by a
-  stylesheet, an attribute or a script), all of it marked untrusted: the
-  converter emulates no rendering and leaves out only what is never page
-  text by structure; (9) parse5 is quadratic on hostile
-  nesting, so such a page costs up to 10 seconds of one worker thread before
-  it is refused.
-- Contributor-tier models send content Meta may train on; guarded by opt-in
-  dialog and `confidentialWorkspace` setting.
-- The Marketplace token (M28, 2026-09-23): the publish job runs in the
-  `marketplace` environment, whose only deployment policy is the `v*` tag
-  pattern, and the token is that environment's `VSCE_PAT` secret, not a
-  repository secret: no branch run can reach it, and on a tag only the
-  publish job, in its one step. It is a Marketplace-Manage PAT scoped to
-  the `securecoast` organisation (Azure DevOps stops all-organisation PATs
-  on 2026-12-01).
-- Repository protection (GitHub rulesets, 2026-09-23): `main` cannot be
-  deleted or force-pushed and takes changes through pull requests with the
-  seven CI checks green (the three quality jobs, gitleaks, semgrep, the
-  macOS helper, the package); `v*` tags cannot be deleted or moved. The
-  repository admin bypasses both for direct pushes and releases, and every
-  bypass is logged by GitHub. A moved tag, as with 0.5.2, is then a
-  deliberate bypass rather than a habit.
-
-**M95INT round-one whole-chain receipt — historical 120-minute rig brief.**
-The browser and SAST failures below are historical and repaired in round two.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
