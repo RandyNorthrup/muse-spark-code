@@ -30,6 +30,8 @@ import {
   JUDGE_SCOPE_SKIPPED_LOG,
   JUDGE_TEMP_PREFIX,
   MODEL_API_MAX_OUTPUT_TOKENS,
+  MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
+  isModelApiModelId,
 } from '../../shared/constants'
 import type { TokenUsage } from '../../shared/agentEvents'
 import type { UiText } from '../../shared/l10n/en'
@@ -614,12 +616,22 @@ export function createWindowJudge(
               signal.throwIfAborted()
               if (Buffer.byteLength(JSON.stringify(parts)) > limit)
                 throw new Error('Judge request exceeds the loaded context limit')
+              // D121: the reservation's worst case is the model policy's
+              // maximum (modelPolicy.ts: a Meta model resolves to the
+              // recommended 131,072 there), never the legacy default below
+              // it; the legacy default binds only where the record names no
+              // maximum. Mirrors modelPolicyFor's Meta check without
+              // importing the Model API bundle's policy module.
+              const isJudgeModelMeta =
+                !initial.modelId.includes('/') && isModelApiModelId(initial.modelId)
               const admitted = await admitJudgeCall({
                 binding: binding(signal),
                 currentBinding: () => binding(signal),
                 billing: { kind: 'subscription' },
                 estimatedInputTokens: Buffer.byteLength(JSON.stringify(parts)),
-                maxOutputTokens: MODEL_API_MAX_OUTPUT_TOKENS,
+                maxOutputTokens: isJudgeModelMeta
+                  ? MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS
+                  : MODEL_API_MAX_OUTPUT_TOKENS,
               })
               if (!admitted.admitted)
                 throw new Error(`Judge admission refused: ${admitted.refusal}`)

@@ -2473,10 +2473,11 @@ declared field remain outside that scrubber's contract.
 
 VS Code and interactive ACP use the selected record’s documented output
 maximum (131,072 tokens for Muse Spark), clamped by their budget. Headless
-`exec` requests at most 32,768 output tokens, or the record’s smaller maximum:
-its run ledger reserves the worst case before dispatch, so raising that cap
-would change what existing headless money budgets can run. Headless exec
-records completed tools and does not display live argument previews.
+`exec` requests up to the same record maximum: its run ledger reserves the
+worst case before dispatch, so a money budget must cover the larger worst
+case, and `--max-output-tokens` lowers the request — and its reservation —
+where less is needed. Headless exec records completed tools and does not
+display live argument previews.
 
 <!-- /reference: streamed-argument-previews -->
 
@@ -5862,9 +5863,9 @@ Budgets are positive ASCII decimals with at most six fractional
 digits, parsed straight into integer micro-USD; the person sets the amount
 with no ceiling of ours. Each request reserves its conservative input estimate
 plus the resolved output cap (1024 by default), including cache-write premiums.
-The refusal shows the input and output arithmetic. At 32,768 output tokens the
-minimum reservation is $0.108135 for the contributor model ($0.118135 with
-images) and $1.409024 for standard ($1.419024). The contributor model needs
+The refusal shows the input and output arithmetic. At 131,072 output tokens the
+minimum reservation is $0.117965 for the contributor model ($0.127965 with
+images) and $1.703936 for standard ($1.713936). The contributor model needs
 `--allow-contributor-models`; its content may be used for training under
 Meta's contributor terms. `--image-generation` also needs
 `--permission-mode acceptEdits`; images are off by default and tallied per

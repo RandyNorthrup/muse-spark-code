@@ -1516,6 +1516,12 @@
       "title": "A session that cannot start says why; more missing helpers are said; the serial Python is a machine setting",
       "summary": "Editors hear why a session could not start (Muse Code's sign-in file, its exit, the folder), the Linux portal helper, the Mac group check and the judge peer say when they are missing, and museSpark.serialPythonPath names the Python for serial access.",
       "area": "platform"
+    },
+    {
+      "id": "RLFOUTPUTCAP",
+      "title": "Output-token ceilings follow the provider and the person",
+      "summary": "Headless --max-output-tokens, session budgets and judge reservations use the model's own documented output maximum, and the 32,768 legacy cap stays a default only.",
+      "area": "chat"
     }
   ]
 }

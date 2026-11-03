@@ -11572,6 +11572,28 @@ its dictation mode. Status evidence: `docs/certification/rlf-smallfix2.md`.
   person chose are said or honoured where they happen, in the person's language,
   with the way out; no project can choose the Python the machine runs.
 
+### RLFOUTPUTCAP — Output-token ceilings follow the provider and the person (D121, RSCH-MUSE-D, 2026-11-02)
+
+**Status 2026-11-02 (lane RLF-OUTPUTCAP, macbook): built.** The 32,768
+legacy output cap is a default only: headless `exec --max-output-tokens`
+parses any positive integer and the run refuses a value above the
+selected model's own maximum where the model is known, naming that
+maximum (131,072 for a Meta model); the session budget fit and the judge
+reservation fit against the same model policy maximum, with the legacy
+default only where the record names none. The provider's >= 16 minimum
+stays. Proven by real-code tests (exec parse and output-cap resolution,
+budget fit default, policy maximum, worst-case reservation figures, and
+the output-limit stop mapping to `response.incomplete` with reason
+`max_output_tokens` from the existing 2026-10-10 LM Studio capture)
+with red/green drills, and the reservation money tables (README,
+docs/ci.md) now state the M=131,072 figures. No live calls were needed
+or made. Status evidence: `docs/certification/rlf-outputcap.md`.
+
+- **Goal.** `MODEL_API_MAX_OUTPUT_TOKENS` (32,768) binds nothing below a
+  provider's documented output maximum: exec, budget and judge paths take
+  the model policy's `maxTokens`, and only the provider's limit or a
+  value the person set stops the work.
+
 ### M127 — Muse Code at its latest release (2026-10-17)
 
 **Status 2026-10-30 (RLF-UPAGENT): building.** The SDK rides 1.4.12

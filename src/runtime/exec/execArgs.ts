@@ -9,7 +9,6 @@ import {
   THINKING_OFF_EFFORT,
   EXEC_DEFAULT_MODE,
   EXEC_DEFAULT_OUTPUT,
-  MODEL_API_MAX_OUTPUT_TOKENS,
   EXEC_MODES,
   EXEC_OUTPUTS,
   EXEC_PROMPT_MAX_BYTES,
@@ -80,9 +79,10 @@ export interface ExecOptions {
   /** TOOLCAP: raise the per-tool-result byte guard for this run only. */
   readonly maxToolOutputBytes: number | undefined
   /**
-  Optional lowering limit for the run's output cap (round 5): absent is
-  the policy cap; present never exceeds it (larger values are refused at
-  parsing). Carried into the request's output limit and its reservation.
+  Optional output cap for the run (round 5): absent is the model policy's
+  maximum; a present value above it refuses where the model is known,
+  naming that maximum. Carried into the request's output limit and its
+  reservation.
   */
   readonly maxOutputTokens?: number | undefined
   /** No deadline of ours without `--timeout`: the run ends with the turn, the person, or the provider. */
@@ -291,24 +291,20 @@ export function parseExec(
           TOOL_RESULT_MIN_BYTES,
           Number.MAX_SAFE_INTEGER,
         )
-  // An absent flag keeps the policy cap; a present one only lowers it. The
-  // parse-time ceiling is the absolute cap every policy cap sits at or
-  // below; a larger value is refused here with its own sentence. The floor
-  // stays 1 here: the selected model's own provider minimum applies later,
-  // at admission and at the send (a configured provider's minimum with its
+  // An absent flag keeps the policy cap; a present one rides to the run's
+  // output cap, where the selected model's own maximum is the only ceiling
+  // (D121): a value above it refuses there with the sentence naming that
+  // maximum, so a Meta run takes up to its model's documented maximum and
+  // a configured provider's lower maximum still binds. The floor stays 1
+  // here: the selected model's own provider minimum applies later, at
+  // admission and at the send (a configured provider's minimum with its
   // sentence, Meta's 16 through its own path), so a provider that permits
   // fewer than 16 output tokens can be capped at 1 through 15.
   const rawMaxOutput = values['max-output-tokens']
   const maxOutputTokens =
-    rawMaxOutput === undefined
-      ? undefined
-      : integer(rawMaxOutput, MODEL_API_MAX_OUTPUT_TOKENS, 1, Number.MAX_SAFE_INTEGER)
+    rawMaxOutput === undefined ? undefined : integer(rawMaxOutput, 0, 1, Number.MAX_SAFE_INTEGER)
   if (rawMaxOutput !== undefined && maxOutputTokens === undefined)
     return invalid(fill(UI_TEXT.execLimitInvalid, { flag: '--max-output-tokens' }))
-  if (maxOutputTokens !== undefined && maxOutputTokens > MODEL_API_MAX_OUTPUT_TOKENS)
-    return invalid(
-      fill(UI_TEXT.execOutputCapExceeded, { cap: String(MODEL_API_MAX_OUTPUT_TOKENS) }),
-    )
   const budgetUsd = budgetUnits(values['max-budget-usd'])
   // TOOLCAP: a present-but-below-floor guard is refused with its translated
   // sentence (the same words capRefusalReason renders where the window is

@@ -294,18 +294,20 @@ describe('M80 args (A1–A10, F1)', () => {
   ])('A4–A7 refuse unsafe/conflicting/unknown options %j', (values) => {
     expect(parseExec(values, ['hi']).ok).toBe(false)
   })
-  it('keeps the policy cap without the flag and refuses a value above it at parsing', () => {
+  it('keeps the policy cap without the flag and leaves the model ceiling to the run', () => {
     const base = { backend: 'modelApi', 'max-budget-usd': '1' }
     const plain = parseExec(base, ['hi'])
     if (!plain.ok) throw new Error(plain.reason)
     expect(plain.options.maxOutputTokens).toBeUndefined()
     const lowered = parseExec({ ...base, 'max-output-tokens': '2000' }, ['hi'])
     expect(lowered.ok && lowered.options.maxOutputTokens).toBe(2000)
-    expect(parseExec({ ...base, 'max-output-tokens': '32768' }, ['hi']).ok).toBe(true)
-    expect(parseExec({ ...base, 'max-output-tokens': '32769' }, ['hi'])).toEqual({
-      ok: false,
-      reason: fill(UI_TEXT.execOutputCapExceeded, { cap: '32768' }),
-    })
+    // D121: parsing sets no ceiling of ours — the selected model's own
+    // maximum refuses a larger value where the model is known (the run's
+    // output cap), so Meta's 131,072 and beyond all parse here.
+    for (const value of ['32768', '131072', '200000']) {
+      const parsed = parseExec({ ...base, 'max-output-tokens': value }, ['hi'])
+      expect(parsed.ok && parsed.options.maxOutputTokens).toBe(Number(value))
+    }
     for (const bad of ['0', '1.5', 'many'])
       expect(parseExec({ ...base, 'max-output-tokens': bad }, ['hi'])).toEqual({
         ok: false,

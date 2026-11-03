@@ -13,6 +13,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import type { LastResponse, LedgerTotals, Refusal, TokenTotals } from './execProtocol'
+import { fill } from '../../shared/l10n/text'
 
 export interface TierPrice {
   readonly input: UsdAmount
@@ -83,14 +84,19 @@ export interface SettlementResult {
   latch?: 'accounting_invalid' | 'breach'
 }
 /**
-The run's one resolved output cap: the policy cap by default, lowered by an
-explicit `--max-output-tokens` that never exceeds it. A resolved provider
-policy always replaces the cached value: the first no-arg call runs before
-model resolution, when `modelPolicyFor` has no provider evidence and can
-only see the global Model API cap, while the model bind (`wrap`, through
+The run's one resolved output cap: the model policy's maximum by default
+(D121: the provider's own limit is the only ceiling), the legacy default
+only where the record names no maximum. An explicit `--max-output-tokens`
+above a known model maximum refuses with the sentence naming that maximum;
+below it the flag lowers the cap. A resolved provider policy always
+replaces the cached value: the first no-arg call runs before model
+resolution, when `modelPolicyFor` has no provider evidence and can only
+see the global Model API cap, while the model bind (`wrap`, through
 `modelOutputMaxTokens`) and every request body carry the resolved policy.
 Caching that first global would pin an oversized cap — and its reservation
-— onto a model whose provider maximum is lower.
+— onto a model whose provider maximum is lower. Before the model resolves
+to a known maximum the flag only lowers the cached cap; the bind enforces
+the model's own limit.
 */
 export function createExecOutputCap(input: {
   readonly model: () => string | null
@@ -98,20 +104,32 @@ export function createExecOutputCap(input: {
 }): (policy?: ModelPolicy) => number {
   let resolved: number | undefined
   return (policy?: ModelPolicy): number => {
+    let maximum: number | undefined
     if (policy === undefined) {
-      resolved ??= resolveExecOutputCap(modelPolicyFor(input.model() ?? ''))
+      if (resolved === undefined) {
+        const pre = modelPolicyFor(input.model() ?? '')
+        maximum = pre.output.maxTokens
+        resolved = resolveExecOutputCap(pre)
+      }
     } else {
+      maximum = policy.output.maxTokens
       resolved = resolveExecOutputCap(policy)
     }
     const flag = input.maxOutputTokens
-    return flag === undefined ? resolved : Math.min(flag, resolved)
+    if (flag === undefined) return resolved
+    if (maximum !== undefined && flag > maximum)
+      throw new RangeError(fill(UI_TEXT.execOutputCapExceeded, { cap: String(maximum) }))
+    return Math.min(flag, resolved)
   }
 }
 
-/** Exec reserves the worst case before sending; its ceiling is a money policy. */
+/**
+Exec reserves the worst case before sending; its ceiling is the model
+policy's maximum where the record names one, else the legacy default.
+*/
 export function resolveExecOutputCap(policy?: Pick<ModelPolicy, 'output'>): number {
   const maximum = policy?.output.maxTokens
-  const cap = Math.min(MODEL_API_MAX_OUTPUT_TOKENS, maximum ?? MODEL_API_MAX_OUTPUT_TOKENS)
+  const cap = maximum ?? MODEL_API_MAX_OUTPUT_TOKENS
   if (!Number.isSafeInteger(maximum ?? cap) || cap < EXEC_MIN_OUTPUT_TOKENS)
     throw new RangeError(UI_TEXT.execRequestShape)
   return cap
