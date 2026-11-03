@@ -300,6 +300,13 @@ import { hookEnvironment } from './core/execGuard'
 import { processGitLocator, processGitProcess, processGitRunner } from './host/git'
 import { NO_WORKSPACE } from './core/executables'
 import { createSchedulesBridge, registerScheduleCommands } from './host/schedules/schedulesBridge'
+import {
+  admitMuseCodeOnce,
+  museCodeSignInOf,
+  type MuseCodeBindingPorts,
+  type MuseCodeSeen,
+} from './host/schedules/museCodeBinding'
+import { voiceOnceOutcome } from './host/schedules/onceOutcome'
 import { notify } from './core/events/notify'
 import { agentDataFolder, workspaceKey } from './runtime/dataFolder'
 import { requireFile } from './host/lazyBundle'
@@ -4529,10 +4536,15 @@ async function activateWindow(
       ),
   }
 
-  const runHostAction = async (action: HostAction): Promise<void> => {
+  const runHostAction = async (action: HostAction, query?: string): Promise<void> => {
     switch (action) {
       case 'openSettings': {
-        await vscode.commands.executeCommand(VSCODE_COMMANDS.openSettings, SETTINGS_SECTION)
+        // The failed row's budget button (M88, D67 item 16) deep-links to
+        // the budget setting itself; anything else opens our section.
+        await vscode.commands.executeCommand(
+          VSCODE_COMMANDS.openSettings,
+          query ?? SETTINGS_SECTION,
+        )
         break
       }
       case 'openKeybindings': {
@@ -5054,6 +5066,34 @@ async function activateWindow(
     isProjectTrusted() &&
     !schedulesLifetime.signal.aborted &&
     auth.current.status === 'signedIn'
+  // Muse Code timed sends' account binding (M88 lane C, D67 item 15):
+  // the credential file's structure as the host reads it now, what each
+  // workspace last saw of it, and the transcript the sweep speaks
+  // through. Presence only, never a value.
+  const museCodeScheduleSeen = (): Record<string, unknown> => {
+    const parsed = z
+      .record(z.string(), z.unknown())
+      .safeParse(
+        context.workspaceState.get<unknown>(WORKSPACE_STATE_KEYS.museCodeScheduleBinding) ?? {},
+      )
+    return parsed.success ? parsed.data : {}
+  }
+  const museCodeScheduleBinding: MuseCodeBindingPorts = {
+    hasEnvironmentKey: () => backend.hasEnvironmentKey(),
+    currentSignIn: () => museCodeSignInOf(backend.credentialFileVerdict()),
+    seen: {
+      load: (key: string) => Promise.resolve(museCodeScheduleSeen()[key]),
+      save: async (key: string, seen: MuseCodeSeen): Promise<void> => {
+        await context.workspaceState.update(WORKSPACE_STATE_KEYS.museCodeScheduleBinding, {
+          ...museCodeScheduleSeen(),
+          [key]: seen,
+        })
+      },
+    },
+    notice: (text: string) => {
+      for (const controller of controllers.values()) controller.scheduleNotice(undefined, text)
+    },
+  }
   const scheduleHost: ScheduleEditorDeliveryPorts['host'] = async (kind, key) => {
     if (
       workspaceRoot === undefined ||
@@ -5082,6 +5122,22 @@ async function activateWindow(
             isActive: isScheduleActive,
             admit: (input) => teamHost.admitScheduledBoardTask(input),
           }),
+          admit: (schedule) =>
+            admitMuseCodeOnce(schedule, { ...museCodeScheduleBinding, nowMs: Date.now() }),
+          // An unsent once-send's outcome (M88 lane C): said in every
+          // live conversation, and raised while unfocused through the
+          // first one. Map reads and posts only, so it never throws.
+          settled: (result, schedule) => {
+            voiceOnceOutcome(result, schedule, {
+              notice: (text) => {
+                for (const controller of controllers.values())
+                  controller.scheduleNotice(undefined, text)
+              },
+              attention: (notice) => {
+                controllers.values().next().value?.notifyScheduleOutcome(notice)
+              },
+            })
+          },
           findLive: liveSchedule,
           options: async (schedule) => {
             const options: StartSessionOptions = {
@@ -5280,6 +5336,7 @@ async function activateWindow(
     isWorkspaceTrusted: isProjectTrusted,
     ...(scheduleDelivery !== undefined && { delivery: scheduleDelivery }),
     ...(scheduleMigration !== undefined && { migration: scheduleMigration }),
+    museCodeBinding: museCodeScheduleBinding,
   })
   // Warm the deferred schedule surfaces while the wiring builds, so the
   // first delivery finds them; liveSchedule still falls back to the
@@ -6084,9 +6141,13 @@ async function activateWindow(
     isReady: (surface) => readyPromptSurfaces.has(surface),
     isEnabled: () => OPTIONAL_RUNTIME_AVAILABILITY.schedules && currentSettings().schedules,
     openConversation,
-    open: async (surface, view) => {
+    open: async (surface, view, seed) => {
       surface.reveal()
-      await controllerFor(surface).handle({ type: 'openSchedules', view })
+      await controllerFor(surface).handle({
+        type: 'openSchedules',
+        view,
+        ...(seed !== undefined && { seed }),
+      })
     },
   })
   context.subscriptions.push(...scheduleCommands.commands)

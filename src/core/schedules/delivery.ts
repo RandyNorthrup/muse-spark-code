@@ -1,5 +1,6 @@
 import { Usd } from '../../shared/usd'
 import { isSteerRefusedError } from '../agent/agentBackend'
+import { isScheduleDispatchRefusal } from './dispatchRefusal'
 import { UI_TEXT } from '../../shared/constants'
 import { scheduleEventSchema, type ScheduleEvent } from '../../shared/scheduleEvents'
 import {
@@ -71,6 +72,12 @@ export interface ScheduleDeliveryDeps {
   prompt(schedule: ScheduleV2, event?: ScheduleEvent): string
   readonly board?: ScheduleExternalDelivery
   readonly reports?: ScheduleExternalDelivery
+  /**
+  Told with every final settlement (M88 lane C: the voice for an
+  unsent once-send). Must never throw: the settlement is recorded
+  already, and a throw would reject the delivery after it.
+  */
+  readonly settled?: (result: ScheduleDeliveryResult, schedule: ScheduleV2) => void
 }
 
 /** Parsed records contain JSON values; sort every object's keys, preserving arrays. */
@@ -209,7 +216,16 @@ export class ScheduleDelivery implements ScheduleHostPort {
           lease = await this.deps.targets.open(schedule)
         }
       }
-    } catch {
+    } catch (error: unknown) {
+      // A host's admission refusal (M88 lane C) settles as refused with
+      // the host's own sentence; anything else stays a generic failure.
+      if (isScheduleDispatchRefusal(error)) {
+        return this.record(schedule, context, occurrenceMs, event, {
+          ...notSent,
+          outcome: 'refused',
+          reason: error.sentence,
+        })
+      }
       return this.record(schedule, context, occurrenceMs, event, {
         ...notSent,
         outcome: 'failed',
@@ -331,18 +347,18 @@ export class ScheduleDelivery implements ScheduleHostPort {
   ): Promise<ScheduleDeliveryResult> {
     if (schedule.catchUp === 'runOnce') return this.deliver(schedule, context, occurrenceMs, event)
     this.validate(schedule, context)
-    return Promise.resolve(
-      this.record(schedule, context, occurrenceMs, event, {
-        outcome: 'missed',
-        reason: UI_TEXT.scheduleV2.messages.catchUpSkipped,
-        refusedActions: [],
-        cost: {
-          usd: Usd.from(0).toAmount(),
-          certainty: 'exact',
-          retainedLiabilityUsd: Usd.from(0).toAmount(),
-        },
-      }),
-    )
+    const missed = this.record(schedule, context, occurrenceMs, event, {
+      outcome: 'missed',
+      reason: UI_TEXT.scheduleV2.messages.catchUpSkipped,
+      refusedActions: [],
+      cost: {
+        usd: Usd.from(0).toAmount(),
+        certainty: 'exact',
+        retainedLiabilityUsd: Usd.from(0).toAmount(),
+      },
+    })
+    this.deps.settled?.(missed, schedule)
+    return Promise.resolve(missed)
   }
 
   /** A held fire can be skipped without stopping the user's running turn. */
@@ -396,6 +412,7 @@ export class ScheduleDelivery implements ScheduleHostPort {
     this.ledger.set(context.runId, { status: 'admitted' })
     const result = await this.dispatch(schedule, context, occurrenceMs, event)
     this.ledger.set(context.runId, { status: 'settled', fire: result })
+    this.deps.settled?.(result, schedule)
     return result
   }
 }

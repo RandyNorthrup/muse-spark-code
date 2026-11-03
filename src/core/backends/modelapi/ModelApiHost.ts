@@ -120,6 +120,8 @@ import {
   AUTH_REQUIRED_ERROR_KIND,
   CREDENTIAL_STORE_ERROR_KIND,
   CHATGPT_PLAN_LIMIT_ERROR_KIND,
+  MODEL_API_BUDGET_ERROR_KIND,
+  RATE_LIMITED_ERROR_KIND,
   AUTO_REVIEW_ROW_TOOL,
   AUTO_REVIEWER_RECENT_CALLS,
   BACKGROUND_INITIATOR_USER,
@@ -359,7 +361,7 @@ import {
   type ResponseAttemptGuard,
 } from './client'
 import { canRetryWithinBudget } from './transport'
-import { scrubRefusalLeak } from './providerRefusal'
+import { refusalOf, scrubRefusalLeak } from './providerRefusal'
 import { isPersonRetryCap } from '../../../shared/retryPolicy'
 import { noRetryBudget } from './transport'
 import {
@@ -2125,6 +2127,45 @@ export function modelApiFailureRetryable(error: unknown): boolean | undefined {
     error instanceof SessionBudgetExceededError ||
     isAuthFailure(error)
   )
+}
+
+/**
+M88 (PLAN.md D67, item 16): a 429 past the client's retries that the
+refusal classifier still calls a rate limit. Quota and balance
+refusals classify as `credit` or `usageLimit` first, so they never
+read as rate limits here and stay ordinary failures.
+*/
+export function isRateLimitedRefusal(error: unknown): error is ModelApiError {
+  return (
+    isModelApiError(error) &&
+    error.status === HTTP_TOO_MANY_REQUESTS &&
+    refusalOf(error).kind === 'rateLimited'
+  )
+}
+
+export interface ModelApiLimitFailure {
+  readonly errorKind: string
+  readonly retryAfterMs?: number | undefined
+}
+
+/**
+M88 (PLAN.md D67, item 16): the limit a failed turn names, if it names
+one. A spent session budget names `budget` (a model-call limit is the
+turn's own completion, never this); a rate-limit 429 names
+`rateLimited` with the last Retry-After's wait the transport kept,
+when the provider named one. Anything else names nothing.
+*/
+export function modelApiLimitFailureOf(error: unknown): ModelApiLimitFailure | undefined {
+  if (error instanceof SessionBudgetExceededError && !(error instanceof ModelCallLimitError)) {
+    return { errorKind: MODEL_API_BUDGET_ERROR_KIND }
+  }
+  if (isRateLimitedRefusal(error)) {
+    return {
+      errorKind: RATE_LIMITED_ERROR_KIND,
+      ...(error.retryAfterMs !== undefined && { retryAfterMs: error.retryAfterMs }),
+    }
+  }
+  return undefined
 }
 
 function pressureFor(used: number, window: number): string {
@@ -17195,6 +17236,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     let reason: string | undefined
     let errorKind: string | undefined
     let retryable: boolean | undefined
+    let retryAfterMs: number | undefined
     try {
       // An unattended fire is background schedule work under the M107
       // governor, as a confirmed scheduled prompt is (runSchedule).
@@ -17456,7 +17498,18 @@ export class ModelApiSession implements ScheduledAgentSession {
           if (isModelApiError(error) && error.code === CHATGPT_PLAN_LIMIT_ERROR_KIND)
             errorKind = CHATGPT_PLAN_LIMIT_ERROR_KIND
           else if (isSpendLedgerError(error)) errorKind = `ledger_${error.kind}`
-          else errorKind = isAuthFailure(error) ? AUTH_REQUIRED_ERROR_KIND : MODEL_API_ERROR_KIND
+          else {
+            // M88 (D67 item 16): a spent budget or a rate-limit 429 names
+            // its limit for the failed row's offer; anything else keeps
+            // the existing kind.
+            const limit = modelApiLimitFailureOf(error)
+            if (limit === undefined) {
+              errorKind = isAuthFailure(error) ? AUTH_REQUIRED_ERROR_KIND : MODEL_API_ERROR_KIND
+            } else {
+              errorKind = limit.errorKind
+              retryAfterMs = limit.retryAfterMs
+            }
+          }
         }
         // Whether resubmitting may work (RLF-ACPTURNS): only durable
         // state says no. A limit completed rather than failed, so the
@@ -17568,6 +17621,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       ...(reason !== undefined && { reason }),
       ...(errorKind !== undefined && { errorKind }),
       ...(retryable !== undefined && { retryable }),
+      ...(retryAfterMs !== undefined && { retryAfterMs }),
       durationMs: this.deps.now() - startedAt,
     })
     this.emit({ type: 'sessionStatus', status: IDLE })

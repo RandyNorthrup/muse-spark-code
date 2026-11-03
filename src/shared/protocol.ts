@@ -596,6 +596,26 @@ export const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     localId: stringSchema.check(z.minLength(1)),
     turnId: stringSchema.check(z.minLength(1)),
   }),
+  // Continue after a spent session budget (M88, D67 item 16): the webview
+  // rendered the optimistic card under `localId` from the failed turn's
+  // user card, and the host resubmits that turn's own parts. Answered
+  // `turnAccepted` or `sendFailed` for `localId`, as a retry is. Only a
+  // turn whose failure named the budget may continue this way.
+  z.object({
+    type: z.literal('continueTurn'),
+    localId: stringSchema,
+    turnId: stringSchema,
+  }),
+  // Resume later after a limit (M88, D67 item 16): the failed turn's row
+  // offers it at the offer's default minute, and the host opens the
+  // schedule editor with the fixed resume prompt seeded at that minute
+  // in the same session. No optimistic card: the editor is the answer,
+  // or a notice saying why the turn can no longer be resumed.
+  z.object({
+    type: z.literal('resumeLater'),
+    turnId: stringSchema,
+    defaultAtMs: numberSchema,
+  }),
   // The user pressed Stop.
   z.object({ type: z.literal('runManualHook'), name: stringSchema.check(z.minLength(1)) }),
   z.object({ type: z.literal('cancelTurn') }),
@@ -648,9 +668,12 @@ export const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // runtime surface parses the request, the panel parses the answer.
   z.object({ type: z.literal('schedulesRequest'), message: scheduleWebviewMessageSchema }),
   // Scheduled prompts v2 (M115): open the surface over this workspace.
+  // `seed: 'composer'` (M88, D67 item 15) seeds the editor with the
+  // composer's own text: the Schedule This Prompt command's entry.
   z.object({
     type: z.literal('openSchedules'),
     view: z.enum(['list', 'timeline', 'editor']),
+    seed: z.optional(z.literal('composer')),
   }),
   // "/export" and "Export Session Log…" (M30): Markdown, or Muse Code's JSON log.
   z.object({ type: z.literal('exportConversation'), format: z.enum(EXPORT_FORMATS) }),
@@ -683,7 +706,13 @@ export const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('removeAttachment'), id: stringSchema }),
   // Editor resources dropped onto the composer (`text/uri-list`).
   z.object({ type: z.literal('droppedUris'), uris: z.array(stringSchema) }),
-  z.object({ type: z.literal('hostAction'), action: z.enum(HOST_ACTIONS) }),
+  z.object({
+    type: z.literal('hostAction'),
+    action: z.enum(HOST_ACTIONS),
+    // A settings search for `openSettings` (M88, D67 item 16): the failed
+    // row's budget button deep-links to the budget setting itself.
+    query: z.optional(stringSchema),
+  }),
   // M107 U–C1: the chip's popover controls; the host runs each through its command.
   z.strictObject({
     type: z.literal('resourceAction'),
@@ -1014,6 +1043,9 @@ export const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('renameSession'), name: stringSchema }),
   // Account & usage (M8): ask for the subscription window; answered by usageReport.
   z.object({ type: z.literal('readUsage') }),
+  // Resume after a spent window without typed detail (M88, D67 item 16):
+  // read the usage for one failed turn's offer; answered by resumeUsage.
+  z.object({ type: z.literal('usageForResume'), turnId: stringSchema }),
   // The usage dialog's uploaded-files section (M105 lane F): delete one
   // file or all of ours; answered by a fresh uploadedFilesReport.
   z.object({ type: z.literal('deleteUploadedFile'), fileId: stringSchema }),
@@ -1262,6 +1294,14 @@ export const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     // blocks offer Copy only, as a share file's do.
     imported: z.optional(z.literal(true)),
   }),
+  // Resume after a spent window without typed detail (M88, D67 item
+  // 16): the usage read for one failed turn's offer, or none when the
+  // read found nothing. Answered for usageForResume, always.
+  z.object({
+    type: z.literal('resumeUsage'),
+    turnId: stringSchema,
+    usage: z.optional(subscriptionUsageSchema),
+  }),
   // Account & usage (M8): the backend this window runs on and the
   // subscription window the CLI last observed (absent on a key, or before
   // the first turn). Sent for readUsage and again on every usage/changed.
@@ -1367,12 +1407,14 @@ export const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('judgeUsage'), usage: judgePanelSnapshotSchema }),
   // A message the host sent itself (M79: a plan's brief): the pending card,
   // as the composer's own Send would have made it. `turnAccepted` or
-  // `sendFailed` follows with the same `localId`.
+  // `sendFailed` follows with the same `localId`. `scheduled` (M88, D67
+  // item 15) marks a timed send's card, sent on its schedule.
   z.object({
     type: z.literal('briefSubmitted'),
     localId: stringSchema.check(z.minLength(1)),
     text: stringSchema,
     attachments: z.array(attachmentSchema),
+    scheduled: z.optional(booleanSchema),
   }),
   // The host accepted a sendMessage. Model API also returns its durable user-item ID.
   // `disposition` (M87, PLAN.md D66) is the backend's word for what became
@@ -1474,6 +1516,9 @@ export const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     defaultDraft: scheduleDraftSchema,
     nowMs: z.number(),
     initialView: z.enum(['list', 'timeline', 'editor']),
+    // Seed the editor with the composer's own text (M88, D67 item 15):
+    // the panel answers only while its composer holds a draft.
+    seedFromComposer: z.optional(booleanSchema),
   }),
   // The session's user-invocable skills (palette "Skills" group).
   z.object({ type: z.literal('skillList'), skills: z.array(skillOptionSchema) }),
