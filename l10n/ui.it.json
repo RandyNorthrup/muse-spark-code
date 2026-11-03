@@ -5984,6 +5984,7 @@
   "pickerRetiresOn": "Ritirato il {date}",
   "pickerRerouteServes": "Serve le richieste {id}",
   "modelReroutesOn": "Passa a {model} il {date}",
+  "referenceProviderLifecycle": "Le richieste a Gemini portano store=false, quindi Google non memorizza i tuoi prompt e le tue risposte. Il selettore dei modelli e la tabella Modelli segnalano i modelli deprecati e beta, e il selettore indica il giorno di ritiro annunciato; un modello deprecato resta selezionabile finché il suo provider non lo rifiuta. Un id Gemini che Google reindirizza è prezzato ed etichettato come il modello che lo serve.",
   "usageKeyUsage": "Utilizzo della chiave API",
   "usageLimit": "Limite",
   "usageRemaining": "Rimanente",

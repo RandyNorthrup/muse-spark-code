@@ -5720,6 +5720,7 @@
   "pickerRetiresOn": "{date}停用",
   "pickerRerouteServes": "處理{id}的請求",
   "modelReroutesOn": "自{date}起改由{model}提供",
+  "referenceProviderLifecycle": "Gemini 請求會帶上 store=false，因此 Google 不會儲存你的提示與回覆。模型選擇器與「模型」表會標示已淘汰與 Beta 模型，模型選擇器還會寫明已公布的停用日期；已淘汰的模型在提供者拒絕之前仍可選擇。Google 改道的 Gemini id 會依實際提供服務的模型計價與標示。",
   "usageKeyUsage": "API 金鑰用量",
   "usageLimit": "上限",
   "usageRemaining": "剩餘",

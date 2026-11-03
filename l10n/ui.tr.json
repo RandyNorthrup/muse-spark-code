@@ -5852,6 +5852,7 @@
   "pickerRetiresOn": "Kaldırılıyor: {date}",
   "pickerRerouteServes": "{id} isteklerini karşılar",
   "modelReroutesOn": "{date} tarihinden itibaren {model} kullanılır",
+  "referenceProviderLifecycle": "Gemini istekleri store=false taşır, bu yüzden Google istemlerinizi ve yanıtlarınızı saklamaz. Model seçici ve Modeller tablosu kullanımdan kaldırılan ve beta modelleri işaretler, model seçici ise duyurulan kaldırılma gününü gösterir; kullanımdan kaldırılan bir model, sağlayıcısı reddedene kadar seçilebilir kalır. Google’ın yönlendirdiği bir Gemini kimliği, ona yanıt veren modelin fiyatı ve adıyla gösterilir.",
   "usageKeyUsage": "API anahtarı kullanımı",
   "usageLimit": "Limit",
   "usageRemaining": "Kalan",

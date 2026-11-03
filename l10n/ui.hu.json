@@ -5852,6 +5852,7 @@
   "pickerRetiresOn": "Kivezetés: {date}",
   "pickerRerouteServes": "Kiszolgálja a(z) {id} kéréseit",
   "modelReroutesOn": "{date}-tól {model} szolgálja ki",
+  "referenceProviderLifecycle": "A Gemini-kérések store=false értéket küldenek, így a Google nem tárolja a promptjait és a válaszait. A modellválasztó és a Modellek táblázat jelöli az elavult és béta modelleket, a modellválasztó pedig megnevezi a bejelentett kivezetési napot; az elavult modell választható marad, amíg a szolgáltatója el nem utasítja. Az a Gemini-azonosító, amelyet a Google átirányít, annak a modellnek az árán és nevén szerepel, amely kiszolgálja.",
   "usageKeyUsage": "API-kulcs használata",
   "usageLimit": "Limit",
   "usageRemaining": "Maradék",

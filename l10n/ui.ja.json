@@ -5720,6 +5720,7 @@
   "pickerRetiresOn": "{date}に提供終了",
   "pickerRerouteServes": "{id}へのリクエストに応答",
   "modelReroutesOn": "{date}から{model}に切り替わり",
+  "referenceProviderLifecycle": "Gemini へのリクエストには store=false が付くため、Google はプロンプトと応答を保存しません。モデルピッカーとモデル表は非推奨モデルとベータ版モデルに印を付け、モデルピッカーは発表された提供終了日を示します。非推奨モデルはプロバイダーが拒否するまで選択できます。Google が転送する Gemini の id は、実際に応答するモデルとして価格と名前が表示されます。",
   "usageKeyUsage": "API キーの使用量",
   "usageLimit": "上限",
   "usageRemaining": "残量",
