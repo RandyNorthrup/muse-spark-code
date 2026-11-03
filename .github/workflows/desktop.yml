@@ -381,6 +381,14 @@ jobs:
             node scripts/qemu-desktop-test.mjs --arch x86_64 --out /repo/temp/guest-boot --timeout 1500 --memory 3072 --cpus 2 --image /tmp/cloud-run.qcow2 --target /tmp/share/share.img --seed /tmp/share/seed.iso --marker M111QA-SESSION-OK
             cat /repo/temp/guest-boot/result.json
           '
+      # The container runs as root and swtpm keeps its log private, so the upload could not read
+      # the folder. This step does not change how the session above ended.
+      - name: give the runner the guest's files
+        if: always()
+        run: test ! -d temp/guest-boot || sudo chown -R "$(id -u):$(id -g)" temp/guest-boot
+      - name: what the guest said
+        if: failure()
+        run: test ! -f temp/guest-boot/serial.log || tail -n 200 temp/guest-boot/serial.log
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:

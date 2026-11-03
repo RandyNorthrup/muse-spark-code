@@ -87,9 +87,9 @@ jobs:
         os: ${{ fromJSON(inputs.part == 'home' && '["ubuntu-latest"]' || inputs.part == 'org' && '["windows-latest","macos-latest"]' || inputs.fast && '["ubuntu-latest"]' || '["ubuntu-latest","windows-latest","macos-latest"]') }}
         part:
           - name: lint
-            gates: 'format:check lint:js:main lint:js:tests lint:css lint:ps'
+            gates: 'lint:js:main lint:css lint:ps'
           - name: unit lint
-            gates: 'lint:js:unit'
+            gates: 'format:check lint:js:unit lint:js:tests'
           - name: build
             gates: 'typecheck check:badges check:tokens check:art check:l10n check:reference check:host-api check:mhp check:plan check:roadmap check:editor-matrix check:catches check:usable-reply check:wrap-up-request check:no-output-cap check:no-round-cap check:workflow-scripts deadcode cycles duplication build security:audit'
     steps:
