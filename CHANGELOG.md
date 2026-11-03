@@ -74,6 +74,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Team agents start on a Mac with plenty of memory.** macOS keeps little memory
+  strictly free, so a healthy Mac read as short of memory and each team agent was
+  refused. And a refused agent said only `TEAM_HOST_BUSY`; it now says what
+  happened and what to do.
+- **An external agent that just stopped comes back with its history.** Resuming the
+  moment its turn failed could show only your last message, without what the agent
+  held. On Windows it now waits for the agent to be gone, starts it again and loads
+  the conversation.
 - **Two windows starting together share the created-resources registry.** When
   one published just as the other read it, the second could fail with "a safety
   check on the saved registry failed". That was a lost race, not a fault: it now

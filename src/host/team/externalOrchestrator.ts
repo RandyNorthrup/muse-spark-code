@@ -973,6 +973,7 @@ function mspModeForAgent(agent: ExternalAgent, agentMode: string): string | unde
 
 interface LiveProcess {
   readonly child: ChildProcess
+  readonly exited: Promise<HostExit>
   readonly connection: AcpAgentConnection
   readonly mcpHttp: boolean
   readonly loadSession: boolean
@@ -998,7 +999,21 @@ export class ExternalOrchestratorHost implements AgentHost {
     }
   }
 
+  /**
+  An agent whose output has ended is gone, whatever it does next, and Windows reports its exit
+  after that end: a failed turn can reach the person first. Waits for the exit, so the next step
+  starts the agent again instead of talking to a closed connection, and a resume loads the
+  agent's own history instead of answering with only what this host held.
+  */
+  private async settleEndedProcess(): Promise<void> {
+    const live = this.live
+    if (live?.child.stdout?.readableEnded !== true) return
+    endAgentProcess(live.child, this.deps.platform)
+    await live.exited
+  }
+
   private async ensureProcess(cwd: string): Promise<LiveProcess> {
+    await this.settleEndedProcess()
     if (this.live !== undefined) return this.live
     if (this.starting !== undefined) return await this.starting
     const starting = this.startProcess(cwd)
@@ -1115,6 +1130,7 @@ export class ExternalOrchestratorHost implements AgentHost {
     }
     return {
       child,
+      exited,
       connection,
       mcpHttp: initialized.agent.mcpHttp,
       loadSession: initialized.agent.loadSession,
@@ -1337,6 +1353,7 @@ export class ExternalOrchestratorHost implements AgentHost {
   ): Promise<LoadedSession> {
     const session = this.sessions.get(sessionId)
     if (session === undefined) throw new SessionNotFoundError(sessionId)
+    await this.settleEndedProcess()
     if (this.live !== undefined)
       return {
         session,
