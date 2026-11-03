@@ -200,7 +200,11 @@ function auditLog(
     },
     prepare: async (record) => {
       const parsed = auditAnchorSchema.parse(record)
-      const previous = checkpoint(await readProtected(account))
+      // The same base read() verified: a vault that has not yet published its
+      // scoped checkpoint still stands on its pre-scoping one.
+      const previous = checkpoint(
+        (await readProtected(account)) ?? (await readProtected(legacyAccount)),
+      )
       const pending = pendingSchema.parse({ previous, next: parsed })
       // Protected intent precedes both physical append and the store update.
       try {
