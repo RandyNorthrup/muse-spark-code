@@ -120,15 +120,15 @@ describe('single composition-root hardware owner', () => {
     expect(prepared).toBe(1)
   })
   it('a machine whose inventory cannot be read keeps the mode and sends the turn, commands still fail-safe', async () => {
-    // The real reader's answer after a failed read: it reports a connected
-    // board so commands fail safe, and that proves no hardware.
+    // The real reader's answer after a failed read: unknown, no board. Commands
+    // still fail safe through `isInventoryKnown`, and it proves no hardware.
     const missing = path.join(workspace(), 'missing')
     for (const read of [
       () => readHardwareInventory('win32', '', [], () => readWindowsSerialComm(missing)),
       () => readHardwareInventory('linux', missing, []),
     ]) {
       const owner = createHardwareContexts(read)(workspace())
-      expect(read()).toEqual({ hasConnectedBoard: true, isInventoryKnown: false })
+      expect(read()).toEqual({ hasConnectedBoard: false, isInventoryKnown: false })
       expect(owner.current().isHardwareWorkspace).toBe(true)
       expect(owner.isPositivelyHardware()).toBe(false)
       expect(hardwareApprovalMode('onRequest', owner.current())).toBe('onRequest')
