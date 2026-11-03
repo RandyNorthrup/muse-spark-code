@@ -19,6 +19,7 @@ import { failureForLog } from '../../core/backends/musecode/logText'
 import { teamSnapshotSchema } from '../../shared/team'
 import { TEAM_WORKSPACE_KEYS, hasRunnableTeamEntry } from '../../shared/teamConversation'
 import {
+  EXEC_PROMPT_MAX_BYTES,
   EXEC_TEAM_GIT_OUTPUT_BYTES,
   EXEC_TEAM_RUN_PREFIX,
   EXEC_TEAM_BOARD_FILE,
@@ -56,6 +57,12 @@ export interface ExecTeamDeps {
   readonly budgetUsd: UsdAmount
   /** D261: `--refusal-fallback`; a refused task moves to its role's next candidate. */
   readonly refusalFallback: boolean
+  /**
+  D262: the providers file. Its presets name the service each record was
+  added from, read as the window reads them, so a refused task never moves
+  to another account of the same provider.
+  */
+  readonly providersFile: string
   readonly signal: AbortSignal
   readonly now: () => number
   readonly log: CoreLogger
@@ -135,6 +142,20 @@ export async function createExecTeam(
 ): Promise<ExecTeam> {
   setUiText(table, locale)
   deps.signal.throwIfAborted()
+  // D262: the providers file's presets, read once for the run with the
+  // product's own reader; a missing or invalid file leaves every record its
+  // own provider, as in the window.
+  const { providersFile } = await import('../../host/backend/providersEntry')
+  const providersRead = await providersFile.readProvidersFile(deps.providersFile, async (file) =>
+    new TextDecoder('utf-8', { fatal: true }).decode(
+      await deps.readFile(file, EXEC_PROMPT_MAX_BYTES, deps.signal),
+    ),
+  )
+  const presetOf = (record: string): string | undefined => {
+    if (!providersRead.ok) return undefined
+    const preset = providersRead.file.providers.find((entry) => entry.id === record)?.preset
+    return preset === 'custom' ? undefined : preset
+  }
   const stateData: Record<string, unknown> = {}
   let requiredReviews: ReadonlySet<string> = new Set()
   const stored = await readStoredTeamSnapshot({
@@ -348,6 +369,7 @@ export async function createExecTeam(
             isTrusted: () => !isClosed && !deps.signal.aborted,
             listModels: deps.listModels,
             startWorker: deps.startWorker,
+            providerService: presetOf,
             now: deps.now,
             log: deps.log,
           })
