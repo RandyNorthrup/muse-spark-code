@@ -121,6 +121,22 @@ describe('a real handshake that ends before it answers', () => {
     expect(failure).toHaveProperty('message', fill(UI_TEXT.museStart.exited, { code: '3' }))
   })
 
+  it('says the same when the handshake write lost the race with the exit (EPIPE)', () => {
+    const pipe = Object.assign(new Error('write EPIPE'), { code: 'EPIPE' })
+    expect(museStartFailure(pipe, undefined, { code: 3, signal: null })).toHaveProperty(
+      'message',
+      fill(UI_TEXT.museStart.exited, { code: '3' }),
+    )
+    expect(museStartFailure(pipe, undefined, { code: 126, signal: null }, 'linux')).toHaveProperty(
+      'fault',
+      'cannotRun',
+    )
+    // Our own close, and any other failure of the write, stay what they were.
+    expect(museStartFailure(pipe, undefined, { code: 0, signal: null })).toBe(pipe)
+    const other = Object.assign(new Error('write EIO'), { code: 'EIO' })
+    expect(museStartFailure(other, undefined, { code: 3, signal: null })).toBe(other)
+  })
+
   it('keeps the failure as it was when the program ended with status 0', async () => {
     const { error, exit } = await handshakeThatEnds(process.execPath, ['-e', ''])
     expect(exit).toEqual({ code: 0, signal: null })
@@ -271,6 +287,14 @@ describe('what leaves the ACP boundary for a failed start', () => {
       )
       expect(wire.message).toBe(UI_TEXT.actionFailed)
     }
+    // The registry's sentence holds only its own clauses.
+    const registrySlot = fill(UI_TEXT.createdRegistrySave.failed, {
+      reason: String.raw`C:\Users\someone\auth.json`,
+    })
+    expect(
+      outboundError(toOutbound(RequestError.invalidRequest(undefined, registrySlot)).failure)
+        .message,
+    ).toBe(UI_TEXT.actionFailed)
     const museSlot = fill(UI_TEXT.museStart.exited, { code: String.raw`C:\Users\someone` })
     expect(
       outboundError(toOutbound(RequestError.internalError(undefined, museSlot)).failure).message,

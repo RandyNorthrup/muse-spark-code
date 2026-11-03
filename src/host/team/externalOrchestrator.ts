@@ -62,6 +62,7 @@ import { withoutCredentials } from '../../core/credentialEnvironment'
 import {
   claudeAdapterVersionRefusal,
   claudeAgentEnvironment,
+  claudeConfigFolderOf,
   claudeNeedsKeySentence,
   isClaudeKeyRefusal,
 } from '../../core/team/claudeAgentSafety'
@@ -1023,8 +1024,9 @@ export class ExternalOrchestratorHost implements AgentHost {
       baseEnv,
       configDir: this.deps.claudeConfigDir,
     })
-    if (env['CLAUDE_CONFIG_DIR'] !== undefined && agent.preset === 'claude')
-      mkdirSync(env['CLAUDE_CONFIG_DIR'], { recursive: true, mode: 0o700 })
+    const claudeFolder = claudeConfigFolderOf(env)
+    if (claudeFolder !== undefined && agent.preset === 'claude')
+      mkdirSync(claudeFolder, { recursive: true, mode: 0o700 })
     const child = spawnGuarded(command, [...agent.args], {
       cwd,
       env,

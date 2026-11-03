@@ -42,6 +42,7 @@ import {
   CLAUDE_AGENT_ACP_PACKAGE,
   CLAUDE_AGENT_ACP_VERSION,
   claudeAgentEnvironment,
+  claudeConfigFolderOf,
 } from '../../core/team/claudeAgentSafety'
 
 /** The launch marker lane K's journal records; every team child carries it. */
@@ -179,8 +180,8 @@ export async function spawnAcpAgent(input: SpawnAcpAgentInput): Promise<TeamChil
     baseEnv: input.baseEnv,
     configDir: input.claudeConfigDir,
   })
-  if (env['CLAUDE_CONFIG_DIR'] !== undefined)
-    await mkdir(env['CLAUDE_CONFIG_DIR'], { recursive: true, mode: 0o700 })
+  const claudeFolder = claudeConfigFolderOf(env)
+  if (claudeFolder !== undefined) await mkdir(claudeFolder, { recursive: true, mode: 0o700 })
   env[LAUNCH_ID_ENV] = input.launchId
   const cwd = await recheckWorkerRoot({ ...input, folder: input.cwd }, grant)
   return await input.launcher.spawn({ command: input.command, args, cwd, env })

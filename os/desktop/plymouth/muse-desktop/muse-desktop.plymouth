@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Muse
+Description=Muse Desktop boot splash (M111, D91.11).
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/muse-desktop
+ScriptFile=/usr/share/plymouth/themes/muse-desktop/muse-desktop.script

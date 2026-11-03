@@ -27,8 +27,8 @@ const readRoot = (name) => readFile(path.join(root, name))
 const readText = (name) => readFile(path.join(root, name), 'utf8')
 
 const boot = JSON.parse(await readText(BOOT_JSON))
-const script = await readText(`${PLYMOUTH_DIR}/muse.script`)
-const descriptor = await readText(`${PLYMOUTH_DIR}/muse.plymouth`)
+const script = await readText(`${PLYMOUTH_DIR}/muse-desktop.script`)
+const descriptor = await readText(`${PLYMOUTH_DIR}/muse-desktop.plymouth`)
 const theme = await readText(`${GRUB_THEME_DIR}/theme.txt`)
 const sources = new Map()
 for (const { source } of BOOT_ART) {
@@ -146,8 +146,10 @@ describe('plymouth theme', () => {
       ).resolves.toBeDefined()
     }
     expect(descriptor).toContain('ModuleName=script')
-    expect(descriptor).toContain('ScriptFile=/usr/share/plymouth/themes/muse/muse.script')
-    expect(descriptor).toContain('ImageDir=/usr/share/plymouth/themes/muse')
+    expect(descriptor).toContain(
+      'ScriptFile=/usr/share/plymouth/themes/muse-desktop/muse-desktop.script',
+    )
+    expect(descriptor).toContain('ImageDir=/usr/share/plymouth/themes/muse-desktop')
   })
 
   it('paints boot.json colours in Inter 13', () => {

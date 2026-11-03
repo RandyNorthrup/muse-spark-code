@@ -544,6 +544,7 @@ describe('team schemas', () => {
       'usageLimit',
       'unavailable',
       'reset',
+      'refused',
     ])
     const switched: TeamAgentSwitch = {
       roleId: 'research',

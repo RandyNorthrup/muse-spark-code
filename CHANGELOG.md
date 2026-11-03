@@ -74,6 +74,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **A Muse Code that cannot run says so, every time.** When Muse Code ended while
+  it was starting, our first message to it could fail before the end was noticed,
+  and the chat showed `write EPIPE` instead of what happened and what to do. Both
+  orders now say the same.
 - **A Windows folder reached through its short name stays inside itself.** A
   path spelled with a short name (`RUNNER~1`) was refused as outside the
   workspace, so a desktop terminal could not open in that folder and an

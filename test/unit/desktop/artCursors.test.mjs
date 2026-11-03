@@ -318,6 +318,7 @@ describe('committed Xcursor files', () => {
     ]) {
       const source = await readFile(path.join(root, CURSOR_SOURCES, `${shape}.svg`), 'utf8')
       const fresh = new Resvg(themeSvg(source, shape, palette, 1), {
+        font: { loadSystemFonts: false },
         fitTo: { mode: 'width', value: 32 },
       })
         .render()

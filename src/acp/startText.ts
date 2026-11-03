@@ -38,6 +38,13 @@ function registryText(reason: CreatedRegistrySaveReason): string {
   return fill(UI_TEXT.createdRegistrySave.failed, { reason: registryReasonText(reason) })
 }
 
+/** Every sentence a refused registry save can say; nothing else in that shape may leave. */
+export function registrySaveSentences(): readonly string[] {
+  return (['refused', 'unsafe', 'invalid', 'io', 'contended'] as const).map((reason) =>
+    registryText(reason),
+  )
+}
+
 /** What a failed start says, and whether it is a refusal we can name. */
 export interface StartFailure {
   readonly text: string
