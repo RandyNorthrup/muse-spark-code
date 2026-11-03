@@ -11640,7 +11640,7 @@ live call or a stand-in, and both are out. Record:
 
 ### RLFUNPROVEN — The unproven backlog as run-ready real-life scenarios (2026-11-02)
 
-**Status 2026-11-02 (lane RLF-UNPROVEN, macmini): built and gated, pending integration.**
+**Status 2026-11-02 (lane RLF-UNPROVEN, macmini): built.**
 `docs/real-life/unproven.md` is converted to 23 run-ready scenarios under
 `scripts/real-life/scenarios/` (`m<milestone>-<what>.mjs`), each naming its
 deleted titles, its packed-product steps, its expected model attempts and
