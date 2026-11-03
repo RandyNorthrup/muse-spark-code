@@ -7,13 +7,16 @@ that proves is recorded in docs/real-life/unproven.md. Supervised modes
 skip where the machine refuses supervision's owner-only root.
 """
 
+import http.client
 import importlib.util
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -25,6 +28,7 @@ launch = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(launch)
 
 ROOT = Path(__file__).parents[3]
+LAUNCH_URL = re.compile(r"http://127\.0\.0\.1:(\d+)/#k=[0-9a-f]+")
 AGENT = ROOT / "dist" / "acp.js"
 NODE = shutil.which("node")
 
@@ -113,20 +117,52 @@ class LauncherTests(unittest.TestCase):
                     child.kill()
                     child.wait(timeout=30)
 
-    def test_panel_reaches_the_real_agent(self):
+    @unittest.skipUnless(supervision_possible(),
+                         "supervision's owner-only root refused on this machine")
+    def test_panel_serves_until_stop(self):
         with tempfile.TemporaryDirectory() as directory:
             workspace = Path(directory) / "ws"
             workspace.mkdir()
-            child = subprocess.run(
-                [sys.executable, "-I", launch.__file__, "panel", NODE,
-                 "--agent-script", str(AGENT)],
-                capture_output=True, text=True, check=False, timeout=60,
-                cwd=workspace, env=self.scratch_env(directory),
+            # No display: the companion runs the OS opener itself.
+            env = self.scratch_env(directory)
+            for name in ("DISPLAY", "WAYLAND_DISPLAY"):
+                env.pop(name, None)
+
+            def run(mode):
+                return [sys.executable, "-I", launch.__file__, mode, NODE,
+                        "--agent-script", str(AGENT)]
+
+            child = subprocess.Popen(
+                run("panel"), stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL, text=True, cwd=workspace, env=env,
             )
-            # The agent's own companion refusal answers, not the
-            # launcher's EPANEL_LAUNCH (which would mean never execed).
-            self.assertNotEqual(child.returncode, 0)
-            self.assertNotEqual(child.stderr.strip(), "EPANEL_LAUNCH")
+            try:
+                # The live companion's first stdout line is its launch URL.
+                lines = []
+                reader = threading.Thread(
+                    target=lambda: lines.append(child.stdout.readline()), daemon=True)
+                reader.start()
+                reader.join(60)
+                match = LAUNCH_URL.fullmatch(lines[0].strip()) if lines else None
+                self.assertIsNotNone(match, lines)
+                page = http.client.HTTPConnection("127.0.0.1", int(match[1]), timeout=30)
+                try:
+                    page.request("GET", "/")
+                    self.assertEqual(page.getresponse().status, 200)
+                finally:
+                    page.close()
+                self.assertIsNone(child.poll(), "the companion keeps serving")
+                stopped = subprocess.run(
+                    run("stop"), capture_output=True, text=True, check=False,
+                    timeout=60, cwd=workspace, env=env,
+                )
+                self.assertEqual(stopped.returncode, 0, stopped.stdout + stopped.stderr)
+                child.wait(timeout=30)
+            finally:
+                if child.poll() is None:
+                    child.kill()
+                    child.wait(timeout=30)
+                child.stdout.close()
 
     @unittest.skipUnless(supervision_possible(),
                          "supervision's owner-only root refused on this machine")

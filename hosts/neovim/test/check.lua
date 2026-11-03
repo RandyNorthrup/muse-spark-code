@@ -65,25 +65,86 @@ for _, bad in ipairs({ "https://127.0.0.1:41234/#k=test-launch", "http://127.0.0
   end, "refuses unsafe launch URL at open")
 end
 
--- The companion start reaches the real agent, which refuses on this
--- contract (its one panel transport is --stdio): EPANEL_EXIT is said,
--- ownership clears, and a later start is allowed again.
-vim.cmd("MusePanel")
+-- The companion start reaches the real agent, which serves its page; Stop's
+-- verb ends that supervised run (no EPANEL_STOP) and ownership clears.
+-- No display: the companion runs the OS opener itself.
+vim.env.DISPLAY = nil
+vim.env.WAYLAND_DISPLAY = nil
+local companion = muse.open_companion()
 refuses(function()
-  muse.open_companion()
+  vim.cmd("MusePanel")
 end, "duplicate companion refused while owned")
 print("PASS duplicate companion refused while owned")
+
+-- The shim discards the launch URL, so the page is found by the supervised
+-- child's own loopback listener (Linux /proc; this check runs on Linux).
+local function listening_port(pid)
+  local inodes = {}
+  local children = io.open("/proc/" .. pid .. "/task/" .. pid .. "/children")
+  for child in (children and children:read("*a") or ""):gmatch("%d+") do
+    for _, fd in ipairs(vim.fn.glob("/proc/" .. child .. "/fd/*", false, true)) do
+      local inode = (vim.uv.fs_readlink(fd) or ""):match("^socket:%[(%d+)%]$")
+      if inode then
+        inodes[inode] = true
+      end
+    end
+  end
+  if children then
+    children:close()
+  end
+  for line in io.lines("/proc/net/tcp") do
+    local port, state, inode = line:match("^%s*%d+: 0100007F:(%x+) %x+:%x+ (%x+)" .. ("%s+%S+"):rep(5) .. "%s+(%d+)")
+    if state == "0A" and inodes[inode] then
+      return tonumber(port, 16)
+    end
+  end
+end
+
+local function page_status(port)
+  local reply, done = "", false
+  local tcp = vim.uv.new_tcp()
+  tcp:connect("127.0.0.1", port, function(failed)
+    if failed then
+      done = true
+      return
+    end
+    -- The page answers only its own loopback Host.
+    tcp:write(("GET / HTTP/1.0\r\nHost: 127.0.0.1:%d\r\n\r\n"):format(port))
+    tcp:read_start(function(_, chunk)
+      reply = reply .. (chunk or "")
+      done = done or not chunk
+    end)
+  end)
+  vim.wait(30000, function()
+    return done or reply:find("\r\n", 1, true) ~= nil
+  end, 50)
+  tcp:close()
+  return tonumber(reply:match("^HTTP/1%.[01] (%d+) "))
+end
+
+local port
 assert(
   vim.wait(30000, function()
-    return messages():find("EPANEL_EXIT", 1, true) ~= nil
+    port = listening_port(companion.pid)
+    return port ~= nil
   end, 100),
-  "real companion refusal is visible"
+  "the companion listens on loopback"
 )
-print("PASS real companion refusal is visible as EPANEL_EXIT")
-local second = muse.open_companion()
-assert(second, "start allowed after the refused child exited")
+assert(page_status(port) == 200, "the companion serves its page")
+assert(not companion:is_closing(), "the companion keeps serving")
+print("PASS real companion serves its page")
 vim.cmd("MuseStop")
+assert(companion:wait(30000).code ~= nil, "Stop ends the companion")
+assert(page_status(port) == nil, "the page no longer answers after Stop")
+assert(not messages():find("EPANEL_", 1, true), "Stop's verb ended the run: " .. messages())
+local second = muse.open_companion()
+assert(second, "start allowed after Stop cleared ownership")
+-- Stop it once it serves, so no supervised child outlives this check.
+assert(vim.wait(30000, function()
+  return listening_port(second.pid) ~= nil
+end, 100), "the second companion listens on loopback")
 muse.stop()
+second:wait(30000)
 print("PASS Stop runs against the real agent and clears ownership")
 
 -- The URL route spawns the real opener child, which itself asserts the
