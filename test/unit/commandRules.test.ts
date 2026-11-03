@@ -37,7 +37,9 @@ const USER_RULES = compileCommandRules(
       decision: 'forbid',
       justification: 'never delete trees',
       match: ['rm -rf build', 'sudo rm -rf /', 'bash -c "rm -rf /"', '/bin/rm -rf x'],
-      notMatch: ['rm -r build'],
+      // Split flags match only in bash (RLF-SECTEXT); the table's
+      // examples hold in every dialect, so they live in the test below.
+      notMatch: ['rm -r build', 'rm -- -rf'],
     },
     {
       pattern: ['Remove-Item'],
@@ -87,12 +89,40 @@ describe('compileCommandRules: each rule checked against its own examples (M78)'
   })
 
   it('keeps a forbid or ask rule whose example fails: it can only tighten', () => {
+    // Long flags stay word-matched (RLF-SECTEXT normalises only rm's
+    // combined -r/-f shorts), so this example still fails — and the
+    // rule is still kept, since it can only tighten.
     const compiled = compileCommandRules(
-      [{ pattern: ['rm', '-rf'], decision: 'forbid', match: ['rm -r -f x'] }],
+      [{ pattern: ['rm', '-rf'], decision: 'forbid', match: ['rm --recursive --force x'] }],
       'user',
     )
     expect(compiled.rules.map((rule) => rule.decision)).toEqual(['forbid'])
-    expect(compiled.problems[0]).toMatchObject({ kind: 'exampleFailedKept', detail: 'rm -r -f x' })
+    expect(compiled.problems[0]).toMatchObject({
+      kind: 'exampleFailedKept',
+      detail: 'rm --recursive --force x',
+    })
+  })
+
+  it('reads rm -rf, rm -fr and split -r -f as the same forbid (RLF-SECTEXT)', () => {
+    const compiled = compileCommandRules(
+      [{ pattern: ['rm', '-rf'], decision: 'forbid', match: ['rm -rf x'] }],
+      'user',
+    )
+    for (const line of [
+      'rm -rf x',
+      'rm -fr x',
+      'rm -r -f x',
+      'rm -f -r x',
+      'sudo rm -r -f x',
+      '/bin/rm -fr x',
+    ]) {
+      expect(judgeCommand(compiled.rules, line, 'bash').decision, line).toBe('forbid')
+    }
+    // A lone flag, a filename past `--`, and long flags keep today's
+    // word matching: no forbid.
+    for (const line of ['rm -r x', 'rm -f x', 'rm -- -rf', 'rm --recursive --force x']) {
+      expect(judgeCommand(compiled.rules, line, 'bash').decision, line).toBeUndefined()
+    }
   })
 
   it('keeps an invalid forbid rule by its readable pattern, and drops an invalid allow rule', () => {

@@ -1330,6 +1330,11 @@
       "note": "recovery: the ACP agent re-attaches after Muse Code dies under it, or says so in words"
     },
     {
+      "id": "RLFSECTEXT",
+      "public": false,
+      "note": "recovery: hidden-character warnings on rules and skills load, fresh review fences, flag-aware rm forbids"
+    },
+    {
       "id": "SDK142",
       "public": false,
       "note": "Muse Code CLI fingerprint and documentation update"

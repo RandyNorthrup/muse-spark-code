@@ -27,6 +27,7 @@
 // The verdict text is never executed. What follows a review (the allow-once
 // answer, the card and its note) is reviewedApprovals.ts.
 
+import { randomBytes } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import type { AgentHost, AgentSession, TurnSubmission } from '../../core/agent/agentBackend'
@@ -43,6 +44,7 @@ import { unlessAborted, withDeadline } from '../../core/timeouts'
 import type { AgentEvent } from '../../shared/agentEvents'
 import { usableReply } from '../../core/turns/usableReply'
 import {
+  AUTO_REVIEWER_MARKER_BYTES,
   AUTO_REVIEWER_MODEL_TEXT,
   MUSE_CODE_REVIEW_TIMEOUT_MS,
   MUSE_CODE_REVIEWER_TURNS_PER_SESSION,
@@ -230,7 +232,9 @@ export class MuseCodeReviewer {
     }
     const text = fill(AUTO_REVIEWER_MODEL_TEXT.museCodeReviewerTurn, {
       instructions: AUTO_REVIEWER_MODEL_TEXT.autoReviewerInstructions,
-      request: reviewerInput(job.request),
+      request: reviewerInput(job.request, () =>
+        randomBytes(AUTO_REVIEWER_MARKER_BYTES).toString('hex'),
+      ),
     })
     let submission: TurnSubmission
     try {
