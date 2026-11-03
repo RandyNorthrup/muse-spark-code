@@ -59,6 +59,14 @@ export async function buildJobs(storageDir: string, packageRoot: string): Promis
   }
 }
 
+/** A failed create in words: the save error's reason and its cause too, so a hosted log names them. */
+function failureLine(error: unknown): string {
+  if (!(error instanceof Error)) return String(error)
+  const reason = 'reason' in error ? ` (${String(error.reason)})` : ''
+  const cause = error.cause instanceof Error ? `; cause: ${error.cause.message}` : ''
+  return `${error.name}: ${error.message}${reason}${cause}`
+}
+
 /** This worker's creates and failures as one JSON line. Never throws. */
 export async function runWorker(planJson: string): Promise<string> {
   const created: string[] = []
@@ -78,9 +86,7 @@ export async function runWorker(planJson: string): Promise<string> {
             const { id } = await registry.createTemp(`race-${String(plan.worker)}`)
             created.push(id)
           } catch (error: unknown) {
-            failures.push(
-              error instanceof Error ? `${error.name}: ${error.message}` : String(error),
-            )
+            failures.push(failureLine(error))
           }
         }
       }
