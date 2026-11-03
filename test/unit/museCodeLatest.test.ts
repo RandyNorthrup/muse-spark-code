@@ -987,23 +987,53 @@ describe('hook and subagent setting defaults', () => {
   })
 })
 
-// RLF-UPAGENT (M127 currency, 2026-10-30): the SDK rides 1.4.12
-// (published 2026-10-22; the fingerprint below is the published
-// tarball's own `EXPECTED_SCHEMA_FINGERPRINT`, read 2026-10-30). A
-// 1.4.12 host then matches the pin exactly and logs nothing, and a
+// RLF-UPSDK (M127 currency, 2026-11-02; supersedes the RLF-UPAGENT
+// 1.4.12 block of 2026-10-30): the SDK rides 1.4.14 (published
+// 2026-10-27; the fingerprint below is the published tarball's own
+// `EXPECTED_SCHEMA_FINGERPRINT` — read from the SDK repository's
+// `clients/sdk-ts/src/fingerprint.ts` on 2026-11-02 and cross-checked
+// against the 1.4.14 tarball diff in
+// docs/research/agents-sdks-2026-10-30.md §1, which recorded the same
+// value's head and tail). A 1.4.14 host (the rigs' pinned CLI
+// 1.4.14-R7309.1) then matches the pin exactly and logs nothing, and a
 // 1.4.11 host still resolves to its build name through
 // MSP_KNOWN_SCHEMA_FINGERPRINTS, which is the info line
 // `logFingerprint` prints instead of the mismatch warning. The served
 // 1.4.11 fingerprint is the map's own captured value
-// (test/fixtures/session-titles/msp-1.4.11-echo-titles.json); a served
-// 1.4.12 capture joins the map when the lead's 1.4.12+ capture exists.
-describe('schema fingerprint at SDK 1.4.12 (RLF-UPAGENT)', () => {
+// (test/fixtures/session-titles/msp-1.4.11-echo-titles.json). No
+// 1.4.12/1.4.13 build enters the map here: the map names builds only
+// from a served capture, and none exists for those builds yet, so
+// their hosts keep the visible mismatch warning until one is captured.
+describe('schema fingerprint at SDK 1.4.14 (RLF-UPSDK)', () => {
+  const SDK_1_4_14_FINGERPRINT =
+    'sha256:c94c3d1f2f51e6424074b9ec43eac3eedcf532d3dcd77351ec1383a87d3049c6'
   const SDK_1_4_12_FINGERPRINT =
     'sha256:cfdb6d2525601b9bac76584ccb0610ab3a5539b5e4f51141f079b99b39fcb4e0'
 
-  it('pins the 1.4.12 schema, so a 1.4.12 host is silent', () => {
-    expect(EXPECTED_SCHEMA_FINGERPRINT).toBe(SDK_1_4_12_FINGERPRINT)
-    expect(checkServedFingerprint(SDK_1_4_12_FINGERPRINT)).toBeUndefined()
+  it('pins the 1.4.14 schema, so a 1.4.14 host is silent', () => {
+    expect(EXPECTED_SCHEMA_FINGERPRINT).toBe(SDK_1_4_14_FINGERPRINT)
+    expect(checkServedFingerprint(SDK_1_4_14_FINGERPRINT)).toBeUndefined()
+  })
+
+  it('matches the fingerprint the pinned 1.4.14 CLI actually serves', () => {
+    // Recorded 2026-11-02 from muse-bin-1.4.14-R7309.1 over the echo
+    // provider (provenance.json `upsdk1414`); 0 model attempts.
+    const init = fixture('initialize-1.4.14.json') as {
+      serverInfo: { version: string }
+      schema: { fingerprint: string }
+      sessionDurability: string
+    }
+    expect(init.serverInfo.version).toBe('1.4.14')
+    expect(init.schema.fingerprint).toBe(SDK_1_4_14_FINGERPRINT)
+    expect(checkServedFingerprint(init.schema.fingerprint)).toBeUndefined()
+    expect(init.sessionDurability).toBe('ephemeral')
+  })
+
+  it('moved off the 1.4.12 pin, whose hosts warn until a served capture names their build', () => {
+    const warning = checkServedFingerprint(SDK_1_4_12_FINGERPRINT)
+    expect(warning?.served).toBe(SDK_1_4_12_FINGERPRINT)
+    expect(warning?.pinned).toBe(SDK_1_4_14_FINGERPRINT)
+    expect(MSP_KNOWN_SCHEMA_FINGERPRINTS[SDK_1_4_12_FINGERPRINT]).toBeUndefined()
   })
 
   it('needs no known-build name of its own while it is the pin', () => {
