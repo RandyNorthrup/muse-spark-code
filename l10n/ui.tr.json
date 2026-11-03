@@ -2154,6 +2154,8 @@
   "mcpToolNoDescription": "(Sunucu bu araç için açıklama göndermedi.)",
   "acpTeamPermissionTitle": "{role} · {agent}: {detail}",
   "acpTeamFixedForSession": "Ekip kullanımı oturum başlarken seçilir. Değiştirmek için yeni bir oturum başlatın.",
+  "acpRefusalFallback": "Reddedilen işi sonraki ajana geçir",
+  "acpRefusalFallbackDetail": "Bir ajan bir görevi veya sohbet turunu reddederse, rolündeki sonraki uygun ajan devralır. Ücretli bir ajandan önce sorulur.",
   "acpTeamRolesUnavailable": "Bu düzenleyicide Roles bölümü yok. ACP kılavuzunda adı geçen kayıtlı ekip dosyasını düzenleyin.",
   "acpTeamUnanswered": "Düzenleyici yanıt vermediği için bu ekip adımı reddedildi.",
   "teamResourcesTitle": "Araçlar ve cihazlar",

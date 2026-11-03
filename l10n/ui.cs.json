@@ -2198,6 +2198,8 @@
   "mcpToolNoDescription": "(Server k tomuto nástroji neposlal žádný popis.)",
   "acpTeamPermissionTitle": "{role} · {agent}: {detail}",
   "acpTeamFixedForSession": "Použití týmu se volí při zahájení relace. Chcete-li je změnit, začněte novou relaci.",
+  "acpRefusalFallback": "Předat odmítnutou práci dalšímu agentovi",
+  "acpRefusalFallbackDetail": "Když agent odmítne úlohu nebo tah chatu, převezme je další dostupný agent z jeho role. U placeného agenta se nejprve zeptá.",
   "acpTeamRolesUnavailable": "V tomto editoru není sekce Roles. Upravte uložený soubor týmu uvedený v průvodci ACP.",
   "acpTeamUnanswered": "Editor neodpověděl, takže tento týmový krok byl odmítnut.",
   "teamResourcesTitle": "Nástroje a zařízení",

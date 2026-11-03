@@ -718,7 +718,8 @@ help / --help / -h: ACP / CLI. help &lt;command&gt; / &lt;command&gt; --help: Us
     "account": "account",
     "mode": "mode",
     "paidAllowAlways": "paidAllowAlways",
-    "team": "team"
+    "team": "team",
+    "refusalFallback": "refusalFallback"
   },
   "permissionModes": ["manual", "acceptEdits", "plan", "auto", "bypassPermissions"],
   "bypassFlag": "--allow-dangerously-skip-permissions",

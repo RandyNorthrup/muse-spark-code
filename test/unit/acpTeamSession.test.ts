@@ -235,6 +235,85 @@ describe('ACP team admission over the real agent', () => {
     })
   })
 
+  // D261: the refusal fallback as a session's own option, off until it says so.
+  it('offers the refusal fallback on a team session, off by default, and takes on and off', async () => {
+    await admissionCase(storedTeam(WORKER), true, async (editor, folder) => {
+      const created = await editor.request('session/new', { cwd: folder, mcpServers: [] })
+      expect(created.configOptions?.find((row) => row.id === 'refusalFallback')).toMatchObject({
+        type: 'select',
+        name: UI_TEXT.acpRefusalFallback,
+        currentValue: 'off',
+      })
+      const turnedOn = await editor.request('session/set_config_option', {
+        sessionId: created.sessionId,
+        configId: 'refusalFallback',
+        value: 'on',
+      })
+      expect(turnedOn.configOptions.find((row) => row.id === 'refusalFallback')).toMatchObject({
+        currentValue: 'on',
+      })
+      await expect(
+        editor.request('session/set_config_option', {
+          sessionId: created.sessionId,
+          configId: 'refusalFallback',
+          value: 'maybe',
+        }),
+      ).rejects.toThrow()
+      await editor.request('session/close', { sessionId: created.sessionId })
+    })
+  })
+
+  it('hands a refused chat turn on only for the session that turned the fallback on', async () => {
+    const repo = await gitRepo()
+    const dataFolder = scratch('acp-team-data-')
+    // The chat's own model first in the role, then the agent that takes over.
+    const stored = storedTeam(WORKER)
+    const role = stored.roles[0]
+    if (role === undefined) throw new Error('the stored team has no role')
+    const worker = role.pool[0]
+    if (worker === undefined) throw new Error('the stored role has no entry')
+    writeStoredTeam(dataFolder, repo, {
+      ...stored,
+      roles: [
+        {
+          ...role,
+          pool: [{ ...worker, id: 'e0', agent: { ...worker.agent, model: ORCHESTRATOR } }, worker],
+        },
+      ],
+    })
+    const held = heldStarts()
+    const port = createAcpTeam(
+      teamDeps(dataFolder, { startWorker: held.startWorker }),
+      UI_TEXT,
+      'en',
+    )
+    try {
+      const prepared = await port.prepareNew(repo, ORCHESTRATOR)
+      const session = await prepared.attach('team-session', editorHandler(() => 'discard').handler)
+      const other = await prepared.attach('other-session', editorHandler(() => 'discard').handler)
+      const takeOver = port.seamsFor(repo).teamRunner.takeOverRefused
+      if (takeOver === undefined) throw new Error('the team offers no chat takeover')
+      const turn = { modelId: ORCHESTRATOR, refusal: 'No.', request: 'fix it', work: [] }
+      expect(await takeOver(turn, context())).toEqual({ kind: 'stands' })
+      session.setRefusalFallback(true)
+      expect(session.isRefusalFallbackOn()).toBe(true)
+      expect(other.isRefusalFallbackOn()).toBe(false)
+      expect(await takeOver(turn, { ...context(), sessionId: 'other-session' })).toEqual({
+        kind: 'stands',
+      })
+      expect(held.gates).toEqual([])
+      const answer = takeOver(turn, context())
+      await eventually(() => held.gates.length === 1, 'the next agent starting')
+      held.gates[0]?.reject(new Error('no worker conversation in this suite'))
+      expect(await answer).toMatchObject({ kind: 'answered', model: WORKER })
+      await session.close()
+      const reopened = await prepared.attach('team-session', editorHandler(() => 'discard').handler)
+      expect(reopened.isRefusalFallbackOn()).toBe(false)
+    } finally {
+      await port.dispose()
+    }
+  })
+
   it('offers no team option and no admission without the team port', async () => {
     await admissionCase(undefined, false, async (editor, folder) => {
       const created = await editor.request('session/new', { cwd: folder, mcpServers: [] })

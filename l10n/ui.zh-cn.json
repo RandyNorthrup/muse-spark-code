@@ -2132,6 +2132,8 @@
   "mcpToolNoDescription": "（服务器未发送此工具的说明。）",
   "acpTeamPermissionTitle": "{role} · {agent}: {detail}",
   "acpTeamFixedForSession": "是否使用团队在会话开始时选定。如需更改，请开始新会话。",
+  "acpRefusalFallback": "将被拒绝的工作转给下一个代理",
+  "acpRefusalFallbackDetail": "代理拒绝任务或聊天轮次时，由其角色中下一个可用代理接手。转给付费代理前会先询问。",
   "acpTeamRolesUnavailable": "此编辑器没有 Roles 部分。请编辑 ACP 指南中提到的已保存团队文件。",
   "acpTeamUnanswered": "编辑器没有回答，因此这个团队步骤已被拒绝。",
   "teamResourcesTitle": "工具与设备",

@@ -6706,6 +6706,8 @@ export const ACP_CONFIG_IDS = {
   paidAllowAlways: 'paidAllowAlways',
   /** RLF-ACPTEAM (M96b): the session's team state, chosen when it starts. */
   team: 'team',
+  /** D261: a team session's `museSpark.refusalFallback`, for that session. */
+  refusalFallback: 'refusalFallback',
 } as const
 /** RLF-ACPTEAM: the team config option's two values, as the wire spells them. */
 export const ACP_TEAM_VALUES = { on: 'on', off: 'off' } as const

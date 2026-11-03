@@ -214,6 +214,8 @@ class WorkspaceTeam {
   private readonly handlers = new Map<string, AcpTeamSessionHandler>()
   private readonly announced = new Map<string, Map<string, AnnouncedTask>>()
   private readonly plans = new Map<string, string>()
+  /** The sessions that turned the refusal fallback on (D261); the setting's default is off. */
+  private readonly fallbackSessions = new Set<string>()
   /** Bumped when a session's cards must no longer be answered. */
   private readonly cardEpoch = new Map<string, number>()
   private orchestratorModel = ''
@@ -237,6 +239,7 @@ class WorkspaceTeam {
           // surface's switch, and the two-model rule does the rest.
           isTeamOn: () => true,
           isTeamWorkersOn: () => this.deps.paid()?.isOn('teamWorkers') ?? false,
+          isRefusalFallbackOn: (sessionId) => this.isRefusalFallbackOn(sessionId),
           maxWorkers: () => availableParallelism(),
           isTrusted: this.deps.isTrusted,
         },
@@ -842,9 +845,19 @@ class WorkspaceTeam {
     await this.binding.loaded()?.stopSessionTasks?.(sessionId)
   }
 
+  public isRefusalFallbackOn(sessionId: string): boolean {
+    return this.fallbackSessions.has(sessionId)
+  }
+
+  public setRefusalFallback(sessionId: string, isOn: boolean): void {
+    if (isOn) this.fallbackSessions.add(sessionId)
+    else this.fallbackSessions.delete(sessionId)
+  }
+
   public async close(sessionId: string): Promise<void> {
     this.bumpCards(sessionId)
     this.handlers.delete(sessionId)
+    this.fallbackSessions.delete(sessionId)
     this.announced.delete(sessionId)
     this.plans.delete(sessionId)
     await this.binding.loaded()?.stopSessionTasks?.(sessionId)
@@ -891,6 +904,10 @@ export function createAcpTeam(deps: AcpTeamDeps, table: UiText, locale: string):
       await team.attach(sessionId, handler, isTeam, remember)
       return {
         isTeamOn: () => isTeam,
+        isRefusalFallbackOn: () => team.isRefusalFallbackOn(sessionId),
+        setRefusalFallback: (isOn) => {
+          team.setRefusalFallback(sessionId, isOn)
+        },
         cancel: () => team.cancel(sessionId),
         close: () => team.close(sessionId),
       }

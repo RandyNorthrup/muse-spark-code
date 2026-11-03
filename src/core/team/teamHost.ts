@@ -1867,7 +1867,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         let declined: string | undefined
         while (
           outcome.isRefused === true &&
-          deps.settings.isRefusalFallbackOn?.() === true &&
+          deps.settings.isRefusalFallbackOn?.(task.sessionId) === true &&
           !task.controller.signal.aborted
         ) {
           await noteUsage(task, ownUsage(outcome.usage))
@@ -2701,7 +2701,10 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     turn: TeamRefusedTurn,
     context: TeamToolContext,
   ): Promise<TeamRefusalTakeover> => {
-    if (deps.settings.isRefusalFallbackOn?.() !== true || !deps.settings.isTrusted())
+    if (
+      deps.settings.isRefusalFallbackOn?.(context.sessionId) !== true ||
+      !deps.settings.isTrusted()
+    )
       return { kind: 'stands' }
     lastModel = turn.modelId
     const chatAccount = accountOf({ kind: 'engine', agentId: 'default', model: turn.modelId })

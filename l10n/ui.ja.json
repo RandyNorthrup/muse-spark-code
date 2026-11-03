@@ -2132,6 +2132,8 @@
   "mcpToolNoDescription": "（サーバーはこのツールの説明を送信していません。）",
   "acpTeamPermissionTitle": "{role} · {agent}: {detail}",
   "acpTeamFixedForSession": "チームの使用はセッション開始時に決まります。変更するには新しいセッションを開始してください。",
+  "acpRefusalFallback": "拒否された作業を次のエージェントに渡す",
+  "acpRefusalFallbackDetail": "エージェントがタスクまたはチャットのターンを拒否すると、そのロールで次に利用可能なエージェントが引き継ぎます。有料のエージェントの前には確認します。",
   "acpTeamRolesUnavailable": "このエディターには Roles セクションがありません。ACP ガイドに記載された保存済みチームファイルを編集してください。",
   "acpTeamUnanswered": "エディターが応答しなかったため、このチームの手順は拒否されました。",
   "teamResourcesTitle": "ツールとデバイス",
