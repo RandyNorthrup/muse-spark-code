@@ -21846,6 +21846,30 @@ onto one shared builder. Record: `docs/certification/rlfinish.md`.
 Anything the brief still needs beyond that (hosted rows, live model
 rows) stays with the lead.
 
+**RLF-PINNED — verbatim constraint pinning (2026-11-02).** The person's
+stated side constraints (a "Constraints:" section and imperative
+must/never/always lines, captured deterministically in
+`src/core/backends/modelapi/constraintPins.ts`) are host-owned session
+state beside `packedCallIds`: stored with the session, kept on
+resume/fork/rewind, never sent through the summariser, and re-sent
+verbatim after the summary entry on every post-compaction request; the
+compaction card shows them with a per-item Unpin. Proven offline over
+the real host and file store (`test/unit/constraintPins.test.ts`,
+break/restore drill in `docs/certification/h-constraint-pin.md`). Like
+auto-compaction before its receipt, the mechanism is dormant behind
+`IS_CONSTRAINT_PINNING_EVALUATED` until the frozen pair
+(auto-compaction vs auto-compaction-pinned, on the four new
+side-constraint tasks plus the two long-context tasks, report carrying
+the constraint-kept rate) passes its counted live run on
+`muse-spark-1.3-contributor`; the verdict rule is fixed in the
+certification record. Still true on 2026-11-02 (Claude Code resume): a
+fork of a compacted session now keeps every pin its pinned block
+carries (a section-only pin was dropped before; red/green drill
+recorded), and the counted live pair has **not** run: the lane made no
+Muse request (the week's allowance is reserved for merging) and
+linuxlt's credential store holds no Model API key, so the latch stays
+off and no win is claimed.
+
 **CM1013R4 review repair plan (2026-10-11, kubuntu).** Fix all three
 RVCM1013C P2 classes offline. Every one of the sixteen frozen verifiers
 must report a fresh private-input token and its declared successful assertion

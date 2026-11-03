@@ -87,6 +87,34 @@ export const EVAL_CANONICAL_FIXES: Readonly<Record<string, readonly EvalFix[]>> 
   'heldout-long-compaction': [
     { path: 'transform.js', content: 'export const transform = (value) => (value + 4) * 6\n' },
   ],
+  'accept-pinned-var-long-compaction': [
+    {
+      path: 'transform.js',
+      content:
+        'export function transform(value) {\n  var result = value * 3\n  return result - 5\n}\n',
+    },
+  ],
+  'accept-pinned-file-long-compaction': [
+    {
+      path: 'calc.js',
+      content:
+        'export function average(values) {\n  if (values.length === 0) {\n    return 0\n  }\n  const sum = values.reduce((a, b) => a + b, 0)\n  return Math.round(sum / values.length)\n}\n',
+    },
+  ],
+  'heldout-pinned-interval-long-compaction': [
+    {
+      path: 'poll.js',
+      content:
+        "export function poll(fetchStatus, onDone, intervalMs = 1000) {\n  const timer = setInterval(async () => {\n    const status = await fetchStatus()\n    if (status === 'done') {\n      clearInterval(timer)\n      onDone(status)\n    }\n  }, intervalMs)\n  return timer\n}\n",
+    },
+  ],
+  'heldout-pinned-exports-long-compaction': [
+    {
+      path: 'bounds.js',
+      content:
+        'export function clampToRange(value) {\n  if (value < 3) {\n    return 3\n  }\n  return value > 9 ? 9 : value\n}\n',
+    },
+  ],
   'accept-multi-edit': [
     {
       path: 'voice.js',
@@ -194,6 +222,34 @@ export const EVAL_OTHER_FIXES: Readonly<Record<string, readonly EvalFix[]>> = {
     {
       path: 'transform.js',
       content: 'export function transform(value) {\n  return 6 * (4 + value)\n}\n',
+    },
+  ],
+  'accept-pinned-var-long-compaction': [
+    {
+      path: 'transform.js',
+      content:
+        'var scale = 3\n\nexport const transform = (value) => {\n  var result = value * scale - 5\n  return result\n}\n',
+    },
+  ],
+  'accept-pinned-file-long-compaction': [
+    {
+      path: 'calc.js',
+      content:
+        'export function average(values) {\n  let sum = 0\n  for (const value of values) {\n    sum += value\n  }\n  return values.length === 0 ? 0 : Math.round(sum / values.length)\n}\n',
+    },
+  ],
+  'heldout-pinned-interval-long-compaction': [
+    {
+      path: 'poll.js',
+      content:
+        "export function poll(fetchStatus, onDone, intervalMs = 1000) {\n  const timer = setInterval(async () => {\n    const status = await fetchStatus()\n    if (status !== 'done') {\n      return\n    }\n    clearInterval(timer)\n    onDone(status)\n  }, intervalMs)\n  return timer\n}\n",
+    },
+  ],
+  'heldout-pinned-exports-long-compaction': [
+    {
+      path: 'bounds.js',
+      content:
+        'const LOW = 3\nconst HIGH = 9\n\nexport const clampToRange = (value) => Math.min(HIGH, Math.max(LOW, value))\n',
     },
   ],
   'accept-multi-edit': [

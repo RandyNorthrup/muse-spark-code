@@ -377,6 +377,9 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
     // arms, and every settled attempt would fail its task as a paid use.
     autoCompaction: () => false,
     autoCompactionEvaluated: () => false,
+    // RLF-PINNED records pinning as off in the base the same way: only the
+    // pinned arm's frozen change turns it on, so the pair isolates it.
+    constraintPinning: () => false,
     notePaidUse: (_feature, units) => {
       counts.paidUses += units
     },

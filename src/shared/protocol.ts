@@ -636,6 +636,9 @@ export const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('clearConversation'), attachmentEpoch: z.optional(numberSchema) }),
   // "/compact": ask the host to summarise older context.
   z.object({ type: z.literal('compact') }),
+  // The compaction card's Unpin (RLF-PINNED): drop one pinned constraint,
+  // named by its verbatim text.
+  z.object({ type: z.literal('unpinConstraint'), text: stringSchema }),
   // "/handoff …": distil this conversation into a brief for a fresh one
   // (M74). `requestId` correlates the brief's dialog; `goal` is the text
   // after the command. The host cards the accepted request itself.

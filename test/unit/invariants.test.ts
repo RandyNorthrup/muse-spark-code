@@ -707,8 +707,9 @@ describe('invariant 6: the eval stays comparable', () => {
     const payload = JSON.stringify({ prelude: EVAL_VERIFY_PRELUDE, tasks: EVAL_TASKS })
     // TRAINFIX: the release train measures its own task set (M101/M75 arms
     // main simplified away); e613f70a is main's digest for main's set.
+    // RLF-PINNED added the four side-constraint tasks (re-recorded).
     expect(createHash('sha256').update(payload).digest('hex')).toBe(
-      '2606a640921fdec49b0c38a623892fee5c6026c1a24780dd5c4ef75e84854895',
+      '9af8a9e8dd7dda9b91bf9fb0abb0b56bbfff131157e1bd876295f99644be5268',
     )
     const accept = evalTasksOfSplit('accept')
     const heldout = evalTasksOfSplit('heldout')

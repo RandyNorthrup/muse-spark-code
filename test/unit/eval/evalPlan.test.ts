@@ -41,10 +41,12 @@ describe('the lane E call plan', () => {
     expect(plan.plannedCalls).toBe(
       plan.tasks.reduce((sum, task) => sum + task.callBudget * plan.arms.length, 0),
     )
-    expect(plan.plannedCalls).toBe(588)
+    // 588 for the M75 sixteen, plus RLF-PINNED's four unrun long-context
+    // tasks at 14 calls on each of the four arms (224).
+    expect(plan.plannedCalls).toBe(812)
     expect(plan.callCeiling).toBe(plan.plannedCalls)
     expect(plan.budgetUsd).toBe(EVAL_BUDGET_USD)
-    expect(plan.measuredCostEstimateUsd).toBeCloseTo((588 * 0.026384174) / 198, 10)
+    expect(plan.measuredCostEstimateUsd).toBeCloseTo((812 * 0.026384174) / 198, 10)
     for (const task of plan.tasks) {
       const prior = task.id.includes('compaction') ? 6 : 3
       const observed = Math.max(...task.measuredAttempts)
@@ -107,6 +109,8 @@ import(${JSON.stringify(new URL('../../../scripts/m101-e.mjs', import.meta.url).
     expect(plan.selection).toBe('narrowed selection')
     expect(plan.tasks).toHaveLength(6)
     expect(plan.callCeiling).toBe(plan.tasks.reduce((sum, task) => sum + task.callBudget * 4, 0))
-    expect(plan.callCeiling).toBe(264)
+    // The first four tasks are now all long-context at 14 (RLF-PINNED's
+    // two accept tasks joined the M101 pair): (6 + 6 + 14 * 4) * 4 arms.
+    expect(plan.callCeiling).toBe(272)
   })
 })

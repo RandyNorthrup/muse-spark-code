@@ -388,6 +388,8 @@ const itemEntrySchema = z.object({
   itemKind: z.string(),
   status: z.string(),
   text: z.optional(z.string()),
+  /** A compaction's pinned constraints, verbatim (RLF-PINNED). */
+  pinnedConstraints: z.optional(z.array(z.string())),
 })
 
 /**

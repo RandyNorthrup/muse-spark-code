@@ -941,6 +941,7 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   'setThinking',
   'setPermissionMode',
   'compact',
+  'unpinConstraint',
   'goalCommand',
   'scheduleCreate',
   'scheduleList',
@@ -11054,6 +11055,33 @@ export class ConversationController implements DeferredSend {
     this.post({ type: 'attachmentsCleared' })
   }
 
+  /**
+  The compaction card's Unpin (RLF-PINNED): the session drops the pin and
+  re-shows its card; a backend without pins says so instead of agreeing.
+  */
+  private async unpinConstraint(text: string): Promise<void> {
+    const generation = this.sendInvalidationEpoch
+    const session = await this.sessionForAction()
+    if (!this.isCurrentSessionAction(session, generation)) {
+      return
+    }
+    try {
+      if (session.unpinConstraint === undefined) {
+        this.notice('info', UI_TEXT.pinnedConstraintsUnsupported)
+        return
+      }
+      if (session.unpinConstraint(text)) {
+        this.notice('info', fill(UI_TEXT.pinnedConstraintRemoved, { constraint: text }))
+      }
+    } catch (error: unknown) {
+      this.deps.log.warn(`A pinned constraint could not be removed: ${failureForLog(error)}`)
+      if (!this.isCurrentSessionAction(session, generation)) {
+        return
+      }
+      this.notice('error', describe(error), undefined, error)
+    }
+  }
+
   private async compact(): Promise<void> {
     const generation = this.sendInvalidationEpoch
     const session = await this.sessionForAction()
@@ -13477,6 +13505,10 @@ export class ConversationController implements DeferredSend {
       }
       case 'compact': {
         await this.compact()
+        break
+      }
+      case 'unpinConstraint': {
+        await this.unpinConstraint(message.text)
         break
       }
       case 'requestHandoff': {

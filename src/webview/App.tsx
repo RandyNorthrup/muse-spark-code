@@ -2244,6 +2244,12 @@ export function App({
   const onCompact = useCallback(() => {
     postMessage({ type: 'compact' })
   }, [postMessage])
+  const onUnpinConstraint = useCallback(
+    (text: string) => {
+      postMessage({ type: 'unpinConstraint', text })
+    },
+    [postMessage],
+  )
   const onDismissBanner = useCallback(() => {
     dispatch({ type: 'bannerDismissed' })
   }, [dispatch])
@@ -3267,6 +3273,9 @@ export function App({
           onNoticeAction={onNoticeAction}
           onReportProblem={onReportProblem}
           onRetryTurn={state.isImported || state.sessionId === undefined ? undefined : onRetryTurn}
+          onUnpinConstraint={
+            state.isImported || state.sessionId === undefined ? undefined : onUnpinConstraint
+          }
           onStopRetry={state.isImported || state.sessionId === undefined ? undefined : onStop}
           onResumeLater={
             state.isImported || state.sessionId === undefined ? undefined : onResumeLater

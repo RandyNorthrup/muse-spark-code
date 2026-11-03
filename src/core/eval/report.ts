@@ -114,6 +114,14 @@ export const evalSplitSummarySchema = z.object({
   tasks: z.number(),
   passed: z.number(),
   passRate: z.number(),
+  /**
+  RLF-PINNED: of the side-constraint tasks in this split, how many the
+  arm passed — the verifier asserts the stated rule, so a pass is a
+  constraint kept through compaction. Absent where none ran.
+  */
+  constraintTasks: z.optional(z.number()),
+  constraintKept: z.optional(z.number()),
+  constraintKeptRate: z.optional(z.number()),
   ...evalCountFields,
 })
 export type EvalSplitSummary = z.infer<typeof evalSplitSummarySchema>
@@ -383,6 +391,11 @@ function armLines(arm: ReportArm): string[] {
         ? `${summary.split}: not run.`
         : `${summary.split}: ${String(summary.passed)}/${String(summary.tasks)} passed (${formatRate(summary.passRate)}), ${String(summary.attempts)} attempts in ${String(summary.requests)} requests, ${String(summary.inputTokens)} input (${String(summary.cachedTokens)} cached) + ${String(summary.outputTokens)} output tokens, ${formatCost(summary.costUsd)}.`,
     )
+    if (summary.constraintTasks !== undefined && summary.constraintKeptRate !== undefined) {
+      lines.push(
+        `${summary.split} constraints kept: ${String(summary.constraintKept ?? 0)}/${String(summary.constraintTasks)} (${formatRate(summary.constraintKeptRate)}).`,
+      )
+    }
   }
   lines.push(``)
   for (const result of arm.results) {

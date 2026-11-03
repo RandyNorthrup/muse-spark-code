@@ -19,6 +19,17 @@ export function run(name: string): unknown {
         evaluationAdmission: true,
       }
     }
+    // RLF-PINNED: auto-compaction as today plus verbatim constraint
+    // pinning; its pair against 'auto-compaction' differs by pinning alone.
+    case 'auto-compaction-pinned': {
+      return {
+        name,
+        autoCompaction: true,
+        autoCompactionEvaluated: true,
+        evaluationAdmission: true,
+        constraintPinning: true,
+      }
+    }
     case 'strict-tools': {
       return {
         name,
