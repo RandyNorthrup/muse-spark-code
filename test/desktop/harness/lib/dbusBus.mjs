@@ -4,9 +4,9 @@
 // stop that ends the whole tree. Test-only: nothing on this bus pretends
 // to be a system service, and the daemon's socket dies with the process.
 
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { createWriteStream } from 'node:fs'
+import { createWriteStream, readFileSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -63,6 +63,34 @@ async function readFirstLine(child, description, timeoutMs) {
   )
 }
 
+/** The distribution's interpreter, where its python3-gi package installs `gi`. */
+const SYSTEM_PYTHON3 = '/usr/bin/python3'
+
+/**
+The interpreter the services run on: the PATH's `python3` when it imports
+PyGObject (`gi`), else the distribution's. A CI job's setup-python puts a
+standalone CPython first on PATH, which cannot import the distribution's
+python3-gi. Undefined when neither can.
+*/
+function pythonWithGi(found) {
+  const candidates = new Set([found, SYSTEM_PYTHON3])
+  for (const candidate of candidates) {
+    const probe = spawnSync(candidate, ['-c', 'import gi'], { stdio: 'ignore' })
+    if (probe.status === 0) return candidate
+  }
+  return undefined
+}
+
+/** The last line a service wrote to its log, so a failed start names its cause. */
+function lastLogLine(logFile) {
+  try {
+    const lines = readFileSync(logFile, 'utf8').trim().split('\n')
+    return lines.at(-1) ?? ''
+  } catch {
+    return ''
+  }
+}
+
 async function stopQuietly(child) {
   try {
     await stopProcessGroup(child)
@@ -100,7 +128,13 @@ export async function startTestBus({
   env: parentEnv = process.env,
 }) {
   const dbusDaemon = await findExecutable(daemonCommand, parentEnv)
-  const python3 = await findExecutable(pythonCommand, parentEnv)
+  const foundPython3 = await findExecutable(pythonCommand, parentEnv)
+  const python3 = foundPython3 === undefined ? undefined : pythonWithGi(foundPython3)
+  if (foundPython3 !== undefined && python3 === undefined) {
+    throw new Error(
+      `the test bus cannot start: neither ${foundPython3} nor ${SYSTEM_PYTHON3} imports gi (install python3-gi)`,
+    )
+  }
   const missing = [
     ['dbus-daemon', dbusDaemon],
     ['python3', python3],
@@ -154,8 +188,9 @@ export async function startTestBus({
             )
           }
           if (child.exitCode !== null) {
+            const logFile = path.join(workDir, `${name}.log`)
             throw new Error(
-              `the ${name} service exited with code ${String(child.exitCode)} before owning ${service.busName} (log: ${path.join(workDir, `${name}.log`)})`,
+              `the ${name} service exited with code ${String(child.exitCode)} before owning ${service.busName} (log: ${logFile}: ${lastLogLine(logFile)})`,
             )
           }
           return false
