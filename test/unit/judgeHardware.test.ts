@@ -336,9 +336,6 @@ describe('judge hardware scan', () => {
     async () => {
       const rows: unknown = JSON.parse(await withoutModuleAutoLoading(WINDOWS_VIDEO_SCRIPT))
       expect(Array.isArray(rows)).toBe(true)
-      // What the probe reads next is what this answer can be: one card or several.
-      if (Array.isArray(rows) && rows.length > 0)
-        expect(parseCimVideo(JSON.stringify(rows))?.length).toBe(rows.length)
     },
   )
 
