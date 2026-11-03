@@ -44,6 +44,7 @@ import { confirmModern, type EraVerdict, probeEra } from './era'
 import { type McpCallOutcome, mcpCallOutcome } from './functions'
 import {
   argumentNamesOf,
+  compareText,
   fitCatalogEntries,
   type McpCatalogEntry,
   sortedCatalog,
@@ -852,9 +853,9 @@ export class McpServerPool implements McpToolSource {
       isReadOnly: offered.isReadOnly,
     })).toSorted(
       (a, b) =>
-        (a.server < b.server ? -1 : a.server > b.server ? 1 : 0) ||
-        (a.tool.name < b.tool.name ? -1 : a.tool.name > b.tool.name ? 1 : 0) ||
-        (a.functionName < b.functionName ? -1 : a.functionName > b.functionName ? 1 : 0),
+        compareText(a.server, b.server) ||
+        compareText(a.tool.name, b.tool.name) ||
+        compareText(a.functionName, b.functionName),
     )
   }
 

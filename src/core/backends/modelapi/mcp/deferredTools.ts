@@ -37,8 +37,12 @@ export interface McpCatalogEntry {
   readonly isReadOnly: boolean
 }
 
-function compareText(a: string, b: string): number {
-  return a < b ? -1 : a > b ? 1 : 0
+/** Code-unit order (never locale order, which differs by machine). */
+export function compareText(a: string, b: string): number {
+  if (a < b) {
+    return -1
+  }
+  return a > b ? 1 : 0
 }
 
 /** The one catalogue order: server id, then tool name, then function name. */
@@ -203,22 +207,49 @@ export function searchCatalog(
   })
 }
 
-/** `tool_search`, declared only while MCP tools are deferred. */
-export const TOOL_SEARCH_DEFINITION: FunctionToolDefinition = {
+/**
+Each server in the catalogue with its tool count, in catalogue order
+(`everything (16 tools), filesystem (14 tools)`): what a deferred
+request tells the model exists. One entry per server, so it stays
+small however many tools a server lists.
+*/
+export function catalogServers(catalog: readonly McpCatalogEntry[]): string {
+  const counts = new Map<string, number>()
+  for (const entry of catalog) {
+    counts.set(entry.server, (counts.get(entry.server) ?? 0) + 1)
+  }
+  return [...counts]
+    .map(([server, count]) => `${server} (${String(count)} ${count === 1 ? 'tool' : 'tools'})`)
+    .join(', ')
+}
+
+const TOOL_SEARCH_BASE: FunctionToolDefinition = {
   type: 'function',
   name: MODEL_API_TOOLS.toolSearch,
   description:
-    'Find MCP tools whose schemas are not loaded yet. Searches the local tool catalogue by words from a tool name, its description or its argument names; matching tools become callable from the next request and stay loaded for the session. It runs nothing: call it before calling a tool you cannot see yet.',
+    'Find MCP tools whose schemas are not loaded yet. Searches the local tool catalogue by words from a server name, a tool name, its description or its argument names; matching tools become callable from the next request and stay loaded for the session. It runs nothing: call it before calling a tool you cannot see yet.',
   parameters: {
     type: 'object',
     properties: {
       query: {
         type: 'string',
-        description: 'Words from a tool name, description or argument name',
+        description: 'Words from a server name, tool name, description or argument name',
       },
     },
     required: ['query'],
     additionalProperties: false,
   },
   strict: false,
+}
+
+/**
+`tool_search`, declared only while MCP tools are deferred. Its
+description names the frozen catalogue's servers, so it changes only
+when the catalogue does (at a user turn), never on a discovery.
+*/
+export function toolSearchDefinition(catalog: readonly McpCatalogEntry[]): FunctionToolDefinition {
+  return {
+    ...TOOL_SEARCH_BASE,
+    description: `${TOOL_SEARCH_BASE.description} MCP servers with tools to load: ${catalogServers(catalog)}.`,
+  }
 }
