@@ -11246,8 +11246,9 @@ server's tools are sorted (server id, then tool name) before they enter
 any Model API request, and a `tools/list` change applies at the next
 user turn from a frozen per-turn catalogue, so the cached prefix
 changes once and the change is logged with counts only. Past the
-person's `museSpark.modelApiMcpDeferTokens` (default 10,000 estimated
-definition tokens; 0 never defers — a display/load preference under
+person's `museSpark.modelApiMcpDeferTokens` (estimated definition
+tokens; default 0, never defer, until the live pair below; 10,000 is
+the documented suggestion — a display/load preference under
 D121, never a work cap), MCP schemas load through the local
 `tool_search` tool (server, name, description and argument-name
 search over the frozen catalogue; it executes nothing; its
@@ -11270,7 +11271,7 @@ turn; red drills A–E in the record. Record:
 `docs/certification/h-mcp-defer.md`. Open: the counted live pair
 (full vs deferred, 16 eval tasks; no Muse request in the finishing
 run) that the brief requires before deferral ships default-suggested,
-so the 10,000 default awaits the lead's decision; the packed-product
+so the default stays 0 until it holds the floors; the packed-product
 real use; a per-server always-load opt-out (RSCH-CC R1); and
 Anthropic's native `defer_loading` wire (providers P6), which needs
 its own capture; this lane ships the provider-neutral local search

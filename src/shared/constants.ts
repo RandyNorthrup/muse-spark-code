@@ -1605,8 +1605,11 @@ export const SETTING_DEFAULTS = {
   // above which MCP schemas load on discovery through tool_search
   // instead of riding every request. A display/load preference the
   // person sets, never a work cap (D121): 0 never defers. 10,000 is
-  // Anthropic's published tool-search guidance (harness-science 1.4).
-  modelApiMcpDeferTokens: 10_000,
+  // Anthropic's published tool-search guidance (harness-science 1.4),
+  // but the 4-H4 brief ships deferral on by default only once the
+  // counted live pair (full vs deferred, 16 eval tasks) holds the
+  // floors; until then every schema loads and 10,000 is the suggestion.
+  modelApiMcpDeferTokens: 0,
   // C-M95-SUB: drive the Model API backend from the Muse Code subscription
   // instead of a pay-as-you-go key. Off until the user turns it on; machine
   // scoped, since a repository must not choose what is billed.

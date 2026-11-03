@@ -3003,12 +3003,12 @@ Type: `"integer"`. Default: `0`. Scope: `machine`.
 
 conversationStart: When your MCP servers' tool definitions pass this many estimated tokens, their schemas load on demand instead of riding every request: the model gets a Find Tools search over the local catalogue, and a tool it finds stays loaded for the session. Built-in tools always load. 0 always loads every MCP schema up front. This only changes what each request carries; it never limits your work.
 
-Type: `"integer"`. Default: `10000`. Scope: `machine`.
+Type: `"integer"`. Default: `0`. Scope: `machine`.
 
 ```json
 {
   "type": "integer",
-  "default": 10000,
+  "default": 0,
   "minimum": 0
 }
 ```
