@@ -186,6 +186,28 @@ Conflicts:
 
 Interactions: none found by unit typecheck (exit 0); the batch's build and lint follow at the end.
 
+### Merge 6 — `lanes/rlf-cifixm` (13147dfbb)
+
+macOS CI re-earned on Node 22: a global-setup build replaces the 60 s setup hook, three real-deadline timeouts kept
+with reasons, the vault scope case opens its legacy slot from the record.
+
+Conflicts:
+
+- `test/unit/teamModelsFirstPaint.test.mjs` (the lead's "decide at the merge"): cc-winfix6's hook kept whole — the
+  bundle from global setup, Chrome's first page warmed in the hook, the `step` the teardown names when the hook
+  never finished (the failing-with-words behaviour), and its `60_000` hook deadline (run 41578891657's Windows VM
+  took this hook past 60 s; a test deadline, not a limit on the person). The lane's version drops the step, the warm
+  page and the deadline.
+- `test/unit/helpers/vault/posixPanelFixture.ts`: two fixes for the same macOS red (run 41516831678, "posix: scoped
+  anchor exists"). The lane copied the keyring binding into every staged root and failed fast without it; int
+  (cc-winfix4) links it only for the suite that passes `osStore: true`, because a staged package has none and other
+  suites need it absent. Taking both would make the `osStore` link fail with EEXIST after the copy. int's opt-in link
+  is kept and the lane's copy and fail-fast are not taken (the file is int's byte for byte).
+- `test/unit/vault/vaultStoreScope.test.ts` (imports): both (`windowsVaultContainerSchema` for int's Windows case,
+  the lane's `openOsStoreSlot`).
+
+Not run here: `teamModelsFirstPaint` (real Chrome) and the vault suites; hosted CI on the three systems decides them.
+
 ### Red/green drills (batch A)
 
 - Merge 1, terminal cwd through a link: `confineTerminalCwd` made lexical-only for in-root names →

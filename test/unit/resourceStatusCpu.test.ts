@@ -12,36 +12,42 @@ import { createResources } from '../../src/runtime/resources/entry'
 import { EN } from '../../src/shared/l10n/en'
 import { removeFolder } from './helpers/temporaryFolders'
 
+// The status waits one full 5 s sample interval for its second reading by
+// design, so the case cannot fit the suite's 5 s default and carries this
+// named timeout.
+const CPU_SAMPLE_TIMEOUT_MS = 15_000
 describe('one-shot resources status', () => {
-  // The status waits one full 5 s sample interval for its second reading by
-  // design, so the case cannot fit the suite's 5 s default.
-  it('reports a CPU reading on a fresh sampler', async () => {
-    const machineDir = await mkdtemp(path.join(tmpdir(), 'muse-status-cpu-'))
-    try {
-      const errors: unknown[] = []
-      const host = await createResources(
-        {
-          machineDir,
-          sleep: async (ms) => {
-            await sleep(ms)
-          },
-          onError: (error) => {
-            errors.push(error)
-          },
-        },
-        EN,
-        'en',
-      )
+  it(
+    'reports a CPU reading on a fresh sampler',
+    async () => {
+      const machineDir = await mkdtemp(path.join(tmpdir(), 'muse-status-cpu-'))
       try {
-        const text = await host.command('status', false)
-        const cpuLine = text.split('\n').find((line) => line.startsWith('CPU Use:'))
-        expect(cpuLine).toMatch(/\d/)
-        expect(errors).toEqual([])
+        const errors: unknown[] = []
+        const host = await createResources(
+          {
+            machineDir,
+            sleep: async (ms) => {
+              await sleep(ms)
+            },
+            onError: (error) => {
+              errors.push(error)
+            },
+          },
+          EN,
+          'en',
+        )
+        try {
+          const text = await host.command('status', false)
+          const cpuLine = text.split('\n').find((line) => line.startsWith('CPU Use:'))
+          expect(cpuLine).toMatch(/\d/)
+          expect(errors).toEqual([])
+        } finally {
+          host.dispose()
+        }
       } finally {
-        host.dispose()
+        await removeFolder(machineDir)
       }
-    } finally {
-      await removeFolder(machineDir)
-    }
-  }, 15_000)
+    },
+    CPU_SAMPLE_TIMEOUT_MS,
+  )
 })
