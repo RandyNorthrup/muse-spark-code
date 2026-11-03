@@ -1534,6 +1534,11 @@
       "title": "An empty model list is said, not obeyed",
       "summary": "When Meta’s list comes back empty, the last known models stay on display with one plain sentence, retries ask again on Meta’s backoff, and the panel recovers without a restart when the list returns.",
       "area": "chat"
+    },
+    {
+      "id": "RLFFIRSTRUN",
+      "public": false,
+      "note": "recovery: first-run dead-ends leave flight-recorder facts"
     }
   ]
 }

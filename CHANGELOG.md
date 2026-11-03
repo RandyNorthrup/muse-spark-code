@@ -1078,6 +1078,12 @@ happened, not what was planned; superseded entries are kept.
   again on Meta's own backoff, and the panel picks up the returned list
   without a restart; nobody is told they lack access because the list
   was empty.
+- A problem report filed from the install screen now says what happened
+  on the way there. Pressing Install, the install's re-check running
+  out or never starting, and dismissing the key prompt each leave one
+  line in the report's recent events, so "never tried it" reads
+  differently from "tried it and it failed". Nothing else in the
+  report changed.
 
 ### Security
 
