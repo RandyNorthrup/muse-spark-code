@@ -2015,6 +2015,9 @@
   "mcpStateUnoffered": {
     "other": "另有 {count} 個未提供"
   },
+  "mcpStateHeldBack": {
+    "other": "已暫扣 {count} 個工具：其文字已變更"
+  },
   "mcpStateFailed": "未執行：{reason}",
   "mcpStateRestricted": "未啟動：此工作區處於限制模式",
   "mcpStateNotLoaded": "未載入：請參閱警告",
@@ -2031,6 +2034,20 @@
   "mcpNoServersKeys": "未載入任何 MCP 伺服器：Muse Code 的設定同時包含「mcpServers」和「mcp_servers」。請只保留一個索引鍵。",
   "mcpNoServersMode": "未載入任何 MCP 伺服器：{servers} 同時設定了「required」和「mode」。請只保留「mode」。",
   "mcpNoServersUnreadable": "未載入任何 MCP 伺服器：無法讀取 Muse Code 的設定檔（{reason}）。",
+  "mcpToolsHeldBack": "MCP 伺服器 {server} 變更了這些工具說明或接受的內容，因此它們被暫扣且不會提供：{tools}。開啟 MCP 伺服器，選擇 {server}，閱讀新文字以接受它，或繼續拒絕這些工具。",
+  "mcpShowToolDescriptions": "顯示工具說明",
+  "mcpShowToolDescriptionsDetail": "每個工具的完整文字，與伺服器傳送的完全一致",
+  "mcpReviewHeldBack": "查看被暫扣的工具",
+  "mcpReviewHeldBackDetail": "閱讀變更後的文字，然後接受它或繼續拒絕這些工具",
+  "mcpReviewHeldBackPlaceholder": "完整的新文字已在旁邊開啟。僅當它仍與您的預期一致時才接受。",
+  "mcpAcceptHeldBack": "接受新文字",
+  "mcpKeepRefusing": "繼續拒絕",
+  "mcpHeldBackAccepted": "{server} 的新工具文字已被接受；其工具將再次提供。",
+  "mcpHeldBackKept": "{server} 中已變更的工具仍被拒絕，且不會提供。",
+  "mcpToolDescriptionsTitle": "MCP 伺服器 {server} 的工具",
+  "mcpToolDescriptionsNone": "此伺服器尚未列出任何工具。",
+  "mcpToolHeldBackMark": "已暫扣：此文字自固定以來已變更，且不會提供。",
+  "mcpToolNoDescription": "（伺服器未傳送此工具的說明。）",
   "acpTeamPermissionTitle": "{role} · {agent}: {detail}",
   "teamResourcesTitle": "工具與裝置",
   "teamResourcesDetail": "團隊共用哪些 MCP 伺服器和裝置，以及誰可以使用它們",
@@ -2141,6 +2158,7 @@
   "elicitationDecline": "拒絕",
   "elicitationCancel": "取消",
   "elicitationRequired": "必填",
+  "elicitationSecretField": "這是在向 {server} 索取機密。輸入將被遮罩。",
   "elicitationInvalid": "{field} 不符合 {server} 的要求。",
   "elicitationDeclinedByHook": "鉤子拒絕了來自 {server} 的此要求：{reason}",
   "elicitationAnsweredByHook": "您的一個鉤子回答了來自 {server} 的此要求。",
