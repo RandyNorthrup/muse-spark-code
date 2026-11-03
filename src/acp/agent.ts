@@ -3038,6 +3038,24 @@ class AcpSession {
               ],
             },
           ]),
+      // D261: `museSpark.refusalFallback`, per team session.
+      ...(this.teamOn && this.teamSession !== undefined
+        ? [
+            {
+              id: ACP_CONFIG_IDS.refusalFallback,
+              name: UI_TEXT.acpRefusalFallback,
+              description: UI_TEXT.acpRefusalFallbackDetail,
+              type: 'select' as const,
+              currentValue: this.teamSession.isRefusalFallbackOn()
+                ? ACP_TEAM_VALUES.on
+                : ACP_TEAM_VALUES.off,
+              options: [
+                { value: ACP_TEAM_VALUES.on, name: UI_TEXT.toggleOn },
+                { value: ACP_TEAM_VALUES.off, name: UI_TEXT.toggleOff },
+              ],
+            },
+          ]
+        : []),
       // The only boolean: offering "Allow always" costs a stored grant,
       // so a session can refuse to offer it (G06). Sent only where the
       // client says it renders booleans.
@@ -3185,6 +3203,13 @@ class AcpSession {
       if ((value === ACP_TEAM_VALUES.on) !== this.teamOn) {
         throw refusalError(UI_TEXT.acpTeamFixedForSession)
       }
+      return
+    }
+    if (configId === ACP_CONFIG_IDS.refusalFallback) {
+      if ((value !== ACP_TEAM_VALUES.on && value !== ACP_TEAM_VALUES.off) || !this.teamOn) {
+        throw RequestError.invalidParams(undefined, configId)
+      }
+      this.teamSession?.setRefusalFallback(value === ACP_TEAM_VALUES.on)
       return
     }
     if (configId === ACP_CONFIG_IDS.fast) {

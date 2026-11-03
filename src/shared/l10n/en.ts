@@ -2690,6 +2690,10 @@ export const EN = {
   // as the panel's conversation mode is (the tools are declared then).
   acpTeamFixedForSession:
     'Team use is chosen when the session starts. Start a new session to change it.',
+  // D261: the refusal fallback as a team session's config option.
+  acpRefusalFallback: 'Move Refused Work to the Next Agent',
+  acpRefusalFallbackDetail:
+    'When an agent refuses a task or a chat turn, the next available agent in its role takes it. A paid agent is asked about first.',
   acpTeamRolesUnavailable:
     'There is no Roles section in this editor. Edit the stored team file named in the ACP guide.',
   // The editor has no permission prompt (or the prompt failed). The step is

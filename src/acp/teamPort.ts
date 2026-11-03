@@ -29,6 +29,9 @@ export interface AcpTeamSessionHandler {
 export interface AcpTeamSession {
   /** This session runs as a team conversation (its tools are declared). */
   readonly isTeamOn: () => boolean
+  /** D261: this session's refused work moves to the next agent. Off until it says so. */
+  readonly isRefusalFallbackOn: () => boolean
+  readonly setRefusalFallback: (isOn: boolean) => void
   /** The editor cancelled: every worker this session delegated stops. */
   readonly cancel: () => Promise<void>
   /** The session closed: its workers stop and its handler lets go. */

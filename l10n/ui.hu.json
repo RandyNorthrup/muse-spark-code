@@ -2154,6 +2154,8 @@
   "mcpToolNoDescription": "(A kiszolgáló nem küldött leírást ehhez az eszközhöz.)",
   "acpTeamPermissionTitle": "{role} · {agent}: {detail}",
   "acpTeamFixedForSession": "A csapat használatát a munkamenet indításakor kell kiválasztani. A módosításhoz indítson új munkamenetet.",
+  "acpRefusalFallback": "Az elutasított munka átadása a következő ügynöknek",
+  "acpRefusalFallbackDetail": "Ha egy ügynök elutasít egy feladatot vagy csevegési kört, a szerepköre következő elérhető ügynöke veszi át. Fizetős ügynök előtt előbb rákérdez.",
   "acpTeamRolesUnavailable": "Ebben a szerkesztőben nincs Roles szakasz. Szerkessze az ACP-útmutatóban megnevezett mentett csapatfájlt.",
   "acpTeamUnanswered": "A szerkesztő nem válaszolt, ezért ezt a csapatlépést elutasítottuk.",
   "teamResourcesTitle": "Eszközök és készülékek",

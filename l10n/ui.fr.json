@@ -2176,6 +2176,8 @@
   "mcpToolNoDescription": "(Le serveur n’a envoyé aucune description pour cet outil.)",
   "acpTeamPermissionTitle": "{role} · {agent}: {detail}",
   "acpTeamFixedForSession": "L’utilisation de l’équipe est choisie au démarrage de la session. Démarrez une nouvelle session pour la modifier.",
+  "acpRefusalFallback": "Passer le travail refusé à l’agent suivant",
+  "acpRefusalFallbackDetail": "Quand un agent refuse une tâche ou un tour de chat, l’agent disponible suivant de son rôle le reprend. Pour un agent payant, la question est posée d’abord.",
   "acpTeamRolesUnavailable": "Cet éditeur n’a pas de section Roles. Modifiez le fichier d’équipe enregistré indiqué dans le guide ACP.",
   "acpTeamUnanswered": "L’éditeur n’a pas répondu, donc cette étape de l’équipe a été refusée.",
   "teamResourcesTitle": "Outils et appareils",

@@ -2132,6 +2132,8 @@
   "mcpToolNoDescription": "(서버가 이 도구에 대한 설명을 보내지 않았습니다.)",
   "acpTeamPermissionTitle": "{role} · {agent}: {detail}",
   "acpTeamFixedForSession": "팀 사용은 세션이 시작될 때 정해집니다. 변경하려면 새 세션을 시작하세요.",
+  "acpRefusalFallback": "거부된 작업을 다음 에이전트로 넘기기",
+  "acpRefusalFallbackDetail": "에이전트가 작업이나 채팅 턴을 거부하면 해당 역할에서 다음으로 사용 가능한 에이전트가 이어받습니다. 유료 에이전트로 넘기기 전에는 먼저 묻습니다.",
   "acpTeamRolesUnavailable": "이 편집기에는 Roles 섹션이 없습니다. ACP 안내서에 나온 저장된 팀 파일을 편집하세요.",
   "acpTeamUnanswered": "편집기가 답하지 않아 이 팀 단계는 거부되었습니다.",
   "teamResourcesTitle": "도구 및 장치",

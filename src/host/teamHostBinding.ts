@@ -137,6 +137,9 @@ export class TeamHostBinding implements TeamSurfacePort {
         (await this.service?.teamRunner.merge(args, context)) ?? unavailable('merge'),
       reschedule: async (args, context) =>
         (await this.service?.teamRunner.reschedule(args, context)) ?? unavailable('reschedule'),
+      // D261: a solo chat's refused turn. Without it the host never hears of one.
+      takeOverRefused: async (turn, context) =>
+        (await this.service?.teamRunner.takeOverRefused?.(turn, context)) ?? { kind: 'stands' },
     },
   }
 

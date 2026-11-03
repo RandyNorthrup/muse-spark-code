@@ -2154,6 +2154,8 @@
   "mcpToolNoDescription": "(Der Server hat für dieses Tool keine Beschreibung gesendet.)",
   "acpTeamPermissionTitle": "{role} · {agent}: {detail}",
   "acpTeamFixedForSession": "Die Teamnutzung wird beim Start der Sitzung festgelegt. Beginnen Sie eine neue Sitzung, um sie zu ändern.",
+  "acpRefusalFallback": "Abgelehnte Arbeit an den nächsten Agenten geben",
+  "acpRefusalFallbackDetail": "Lehnt ein Agent eine Aufgabe oder einen Chat-Zug ab, übernimmt der nächste verfügbare Agent seiner Rolle. Bei einem kostenpflichtigen Agenten wird zuerst gefragt.",
   "acpTeamRolesUnavailable": "Dieser Editor hat keinen Bereich „Roles“. Bearbeiten Sie die gespeicherte Teamdatei aus dem ACP-Leitfaden.",
   "acpTeamUnanswered": "Der Editor hat nicht geantwortet, daher wurde dieser Teamschritt abgelehnt.",
   "teamResourcesTitle": "Werkzeuge und Geräte",

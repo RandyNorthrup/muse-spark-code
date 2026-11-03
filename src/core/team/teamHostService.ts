@@ -160,9 +160,10 @@ export interface TeamSettingsPort {
   /**
   D261, `museSpark.refusalFallback` (or `exec --refusal-fallback`): a refused
   task, or a solo chat's refused turn, moves to its role's next candidate. Absent or false: the refusal
-  ends the task, as before.
+  ends the task, as before. Asked of the conversation that owns the work: an ACP
+  session sets its own.
   */
-  readonly isRefusalFallbackOn?: () => boolean
+  readonly isRefusalFallbackOn?: (sessionId: string) => boolean
   /** No person can answer a question here (`exec`): a move D48 would ask about stops instead. */
   readonly isUnattended?: () => boolean
   /** `museSpark.teamMaxWorkers`: workers at once in this window. */
