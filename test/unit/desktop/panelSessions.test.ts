@@ -2,7 +2,7 @@
 // real shell on a real PTY. Every test spawns real shells through the
 // compiled node-pty binding and, for rendering, feeds captured bytes to a
 // real headless xterm.js emulator.
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, realpath, rm, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -215,11 +215,20 @@ describe('M111 lane BP terminal sessions', () => {
     const root = await scratch()
     expect(processTreeProbeArgs(4242)).toEqual(['-P', '4242'])
     expect(processTreeWindowsScript(4242)).toContain('ParentProcessId=4242')
-    expect(confineTerminalCwd(root, root)).toBe(path.resolve(root))
-    expect(confineTerminalCwd(root, 'sub/dir')).toBe(path.resolve(root, 'sub/dir'))
-    expect(() => confineTerminalCwd(root, path.join(tmpdir(), '..', 'outside-bp'))).toThrow(
+    const realRoot = await realpath(root)
+    await expect(confineTerminalCwd(root, root)).resolves.toBe(realRoot)
+    await expect(confineTerminalCwd(root, 'sub/dir')).resolves.toBe(path.join(realRoot, 'sub/dir'))
+    await expect(confineTerminalCwd(root, path.join(tmpdir(), '..', 'outside-bp'))).rejects.toThrow(
       /outside the workspace/,
     )
-    expect(() => confineTerminalCwd(root, '../outside-bp')).toThrow(/outside the workspace/)
+    await expect(confineTerminalCwd(root, '../outside-bp')).rejects.toThrow(/outside the workspace/)
+    // A link inside the workspace that leaves it is refused like `..`.
+    const outside = await scratch()
+    await symlink(
+      outside,
+      path.join(root, 'linked'),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    )
+    await expect(confineTerminalCwd(root, 'linked')).rejects.toThrow(/outside the workspace/)
   })
 })

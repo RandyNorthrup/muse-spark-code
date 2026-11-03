@@ -47,7 +47,7 @@ A terminal's working directory, confined to the workspace root like
 every path the renderer names. Absolute or root-relative; anything
 outside is refused by name.
 */
-export function confineTerminalCwd(root: string, cwd: string): string {
+export function confineTerminalCwd(root: string, cwd: string): Promise<string> {
   return confinedPath(root, cwd)
 }
 

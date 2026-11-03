@@ -40,3 +40,8 @@ Interactions:
   creating the terminal, `panelSessions.test.ts` awaits it and adds a symlink leaving the workspace as a refused cwd.
 
 `shell.test.ts` 7/7 after `npm rebuild node-pty` (exit 0).
+
+### Red/green drills (batch A)
+
+- Merge 1, terminal cwd through a link: `confineTerminalCwd` made lexical-only for in-root names →
+  `panelSessions.test.ts` exit 1 ("promise resolved … instead of rejecting"); reverted → exit 0.
