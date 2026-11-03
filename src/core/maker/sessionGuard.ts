@@ -155,10 +155,14 @@ export class SessionHardwareGuard {
         : event,
       this.current(),
     )
+    // This adapter cannot bind a target at process start, so a device
+    // action can only be rejected. approvalHardwareAction escalates a
+    // proven hardware workspace (every shell) and opaque commands under
+    // an unknown inventory; ordinary work in an unproven workspace
+    // keeps its ordinary card.
     if (
       !isStop(scrubbed.subject, this.current()) &&
-      (isDeviceAction(approvalHardwareAction(scrubbed.subject, this.current())) ||
-        (scrubbed.subject.kind === 'shell' && isHardwareWorkspace(this.current())))
+      isDeviceAction(approvalHardwareAction(scrubbed.subject, this.current()))
     )
       return {
         ...scrubbed,
@@ -175,9 +179,12 @@ export class SessionHardwareGuard {
     const context = this.current()
     // Stop goes straight back to the CLI, before unattended or approval admission.
     if (isStop(event.subject, context)) return true
+    const action = approvalHardwareAction(event.subject, context)
+    // Nothing physical runs unattended or under Bypass (D83.4, D83.8):
+    // a device action — every shell of a proven hardware workspace
+    // included — is rejected before any card in those states.
     if (
-      isHardwareWorkspace(context) &&
-      event.subject.kind === 'shell' &&
+      isDeviceAction(action) &&
       (context.isUnattended === true ||
         ('permissionMode' in event && event.permissionMode === 'bypassPermissions'))
     ) {
@@ -185,12 +192,8 @@ export class SessionHardwareGuard {
       return false
     }
     const key = this.key(event.approvalId, event.requirementId.sourceIndex)
-    const action = approvalHardwareAction(event.subject, context)
     let approval = this.approvals.get(key)
-    if (
-      approval === undefined &&
-      (isDeviceAction(action) || (event.subject.kind === 'shell' && isHardwareWorkspace(context)))
-    ) {
+    if (approval === undefined && isDeviceAction(action)) {
       approval = new HardwareApproval(
         event.approvalId,
         this.payload(event),
@@ -244,9 +247,7 @@ export class SessionHardwareGuard {
     const context = this.current()
     if (
       subject !== undefined &&
-      (isDeviceAction(approvalHardwareAction(subject, context)) ||
-        isStop(subject, context) ||
-        (subject.kind === 'shell' && isHardwareWorkspace(context)))
+      (isDeviceAction(approvalHardwareAction(subject, context)) || isStop(subject, context))
     )
       throw new Error(
         context.isUnattended === true && !isStop(subject, context)

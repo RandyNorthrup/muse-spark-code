@@ -184,7 +184,7 @@ import {
   type AccountsSessionPort,
 } from './accounts'
 import { isInvalidProvidersFileError } from './accountText'
-import { startFailureText, type StartSite } from './startText'
+import { startFailure, type StartSite } from './startText'
 import { runUploadsCommand, type AcpUploadsPort } from './uploads'
 import {
   acpQuestionClock,
@@ -648,11 +648,17 @@ export async function isOpenableFolder(folder: string): Promise<boolean> {
 A failed start as the ACP answer: a RequestError already carries the
 client's words and passes through; anything else becomes words naming the
 failure, never a bare "Internal error" with the cause buried in its data.
+A start a layer refused in its own sentence (the hardware fence, a busy
+schedule, a refused registry save) is an invalid request in this state
+with that sentence, never -32603: the client shows the reason we know
+instead of a generic failure (RLF-MAKERFENCE item 4).
 */
 function startRequestError(error: unknown, site: StartSite): RequestError {
-  return error instanceof RequestError
-    ? error
-    : RequestError.internalError(undefined, startFailureText(error, site))
+  if (error instanceof RequestError) return error
+  const failure = startFailure(error, site)
+  return failure.isRefusal
+    ? refusalError(failure.text)
+    : RequestError.internalError(undefined, failure.text)
 }
 
 /**
@@ -5530,6 +5536,16 @@ function outboundSentences(): ReadonlySet<string> {
     UI_TEXT.execTeamStateUnreadable,
     UI_TEXT.execTeamConfigNotJson,
     UI_TEXT.execTeamConfigNotObject,
+    // Session and turn start refusals (startText.ts): a start our own
+    // layers refused reaches the client in its own sentence with the
+    // refusal's code, never as the generic failure (RLF-MAKERFENCE).
+    UI_TEXT.hardwareBindingUnavailable,
+    UI_TEXT.hardwareBypassNotice,
+    UI_TEXT.hardwareUnattended,
+    UI_TEXT.scheduleBusy,
+    UI_TEXT.permissionReviewerMissing,
+    UI_TEXT.surfaceClosed,
+    UI_TEXT.museCodeNotAnswering,
     UI_TEXT.subscriptionKey.signInAgain,
     UI_TEXT.subscriptionKey.cannotRead,
     UI_TEXT.subscriptionKey.keychainBacked,
@@ -5668,6 +5684,13 @@ function outboundTemplates(): readonly { readonly prefix: string; readonly suffi
     [UI_TEXT.execTeamConfigLowersOnly, '{entry}'],
     [UI_TEXT.execTeamReviewerUnsupported, '{entry}'],
     [UI_TEXT.teamRunnerUnavailable, '{tool}'],
+    // A failed start's own sentence (startText.ts): the detail slot
+    // carries causeForLog's fixed vocabulary (an error name, an errno
+    // code, an MSP kind) and the reason slot one of the registry's
+    // fixed clauses — never a path, a prompt or a backend message.
+    [UI_TEXT.acpSessionStartFailed, '{detail}'],
+    [UI_TEXT.acpTurnStartFailed, '{detail}'],
+    [UI_TEXT.createdRegistrySave.failed, '{reason}'],
   ]
   const found: { prefix: string; suffix: string }[] = []
   for (const [template, slot] of templates) {

@@ -161,9 +161,12 @@ it('native inventory simulator detects connected ports, replacement generations 
   expect(readHardwareInventory('darwin', devices, [mounts]).targets?.[0]?.connectionId).not.toBe(
     before.targets?.[0]?.connectionId,
   )
-  expect(readHardwareInventory('linux', path.join(devices, 'missing'), []).hasConnectedBoard).toBe(
-    true,
-  )
+  // An unreadable or unqualified inventory reports no board: unknown stays
+  // fail-safe for commands through isInventoryKnown alone and is never
+  // positive evidence against a whole turn (RLF-MAKERFENCE item 3).
+  const unreadable = readHardwareInventory('linux', path.join(devices, 'missing'), [])
+  expect(unreadable.hasConnectedBoard).toBe(false)
+  expect(unreadable.isInventoryKnown).toBe(false)
 })
 
 describe('Windows serial inventory', () => {
@@ -193,7 +196,7 @@ describe('Windows serial inventory', () => {
   it('reads an answer of another shape as unknown, never as empty', () => {
     const shifted = capture.stdout.replaceAll('REG_SZ', 'REG_BINARY')
     expect(readHardwareInventory('win32', '', [], () => shifted)).toEqual({
-      hasConnectedBoard: true,
+      hasConnectedBoard: false,
       isInventoryKnown: false,
     })
   })

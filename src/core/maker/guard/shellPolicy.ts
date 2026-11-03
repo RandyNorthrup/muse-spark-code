@@ -45,4 +45,9 @@ export function isHardwareWorkspace(context: HardwareContext = {}): boolean {
   return hasHardwareEvidence(context)
 }
 
-export { hardwareApprovalMode, isPositivelyHardwareWorkspace, prepareHardwareTurn } from './modes'
+export {
+  hardwareApprovalMode,
+  isBoardVolumeWorkspace,
+  isPositivelyHardwareWorkspace,
+  prepareHardwareTurn,
+} from './modes'

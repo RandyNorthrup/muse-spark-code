@@ -19,8 +19,8 @@ import { SessionHardwareGuard } from '../../maker/sessionGuard'
 import { isHardwareStop, hardwareStop, type HardwareStop } from '../../maker/guard/hardwareCommands'
 import {
   hardwareApprovalMode,
+  isBoardVolumeWorkspace,
   prepareHardwareTurn,
-  isPositivelyHardwareWorkspace,
 } from '../../maker/guard/shellPolicy'
 import type { HardwareContext } from '../../maker/guard/httpCommands'
 import { observeAgentItem, observeChildReceipt } from '../../agent/agentObservation'
@@ -1878,11 +1878,15 @@ export class MuseSession implements ScheduledAgentSession {
         run,
         () => {
           // Recheck at every wire attempt: preparation and refusal retries can await.
+          // Only a board-volume workspace refuses here, where a file edit
+          // programs the board and no approval event exists for the guard
+          // to scrub; every other hardware workspace starts its turn and
+          // the guard holds per command (scrub, validate, the secured
+          // approval mode sendTurn set before the turn).
           if (
             [
               'turn/start',
               'turn/steer',
-              'session/userShell',
               'subagent/sendMessage',
               'subagent/followupTask',
               'subagent/resume',
@@ -1892,7 +1896,7 @@ export class MuseSession implements ScheduledAgentSession {
               'userInput/answer',
               'userInput/clarify',
             ].includes(method) &&
-            isPositivelyHardwareWorkspace(this.hardwareGuard.current())
+            isBoardVolumeWorkspace(this.hardwareGuard.current())
           )
             throw new Error(UI_TEXT.hardwareBindingUnavailable)
           if (method !== 'approval/decide' || typeof params['approvalId'] !== 'string') return
@@ -2692,10 +2696,23 @@ export class MuseSession implements ScheduledAgentSession {
     if (this.owner.quarantined)
       throw new Error(this.owner.quarantineCause ?? UI_TEXT.permissionReviewerMissing)
     if (scheduledOwner !== undefined) await scheduledOwner.checkParts(parts)
-    if (!this.owner.start(token, scheduledOwner)) throw new Error(UI_TEXT.scheduleBusy)
-    if (isPositivelyHardwareWorkspace(this.hardwareGuard.current()))
+    // A turn that touches no hardware starts, in a hardware project too:
+    // D83 asks or refuses each device action, it does not refuse the
+    // turn. prepareHardwareTurn secures the approval mode first (no
+    // Bypass, no simple-command shortcut), so every shell command of
+    // the turn reaches the guard's scrub and validate. Only a
+    // board-volume root stays refused at its start, where this
+    // adapter's file edits would program the board with no approval
+    // event to scrub.
+    if (isBoardVolumeWorkspace(this.hardwareGuard.current()))
       throw new Error(UI_TEXT.hardwareBindingUnavailable)
-    await prepareHardwareTurn(this.hardwareGuard.current(), (mode) => this.setApprovalMode(mode))
+    if (!this.owner.start(token, scheduledOwner)) throw new Error(UI_TEXT.scheduleBusy)
+    try {
+      await prepareHardwareTurn(this.hardwareGuard.current(), (mode) => this.setApprovalMode(mode))
+    } catch (error: unknown) {
+      this.owner.startFailed(token)
+      throw error
+    }
     let ack: unknown
     try {
       ack = await this.command(
@@ -3011,6 +3028,10 @@ export class MuseSession implements ScheduledAgentSession {
     if (action === 'reopen' || action === 'readResult') {
       throw new Error(`subagent/${action}`)
     }
+    // A resumed child runs commands without a new turn of its own, so the
+    // session's approval mode is secured first, as sendTurn secures it.
+    if (action === 'resume')
+      await prepareHardwareTurn(this.hardwareGuard.current(), (mode) => this.setApprovalMode(mode))
     await this.command(`subagent/${action}`, { subagentId })
   }
 
@@ -3020,6 +3041,9 @@ export class MuseSession implements ScheduledAgentSession {
     body: string,
     isFollowup: boolean,
   ): Promise<void> {
+    // A follow-up task wakes the child without a new turn of this session,
+    // so the approval mode is secured first, as sendTurn secures it.
+    await prepareHardwareTurn(this.hardwareGuard.current(), (mode) => this.setApprovalMode(mode))
     await this.command(isFollowup ? 'subagent/followupTask' : 'subagent/sendMessage', {
       subagentId,
       body,
@@ -3033,6 +3057,9 @@ export class MuseSession implements ScheduledAgentSession {
   `session/goalChanged`.
   */
   public async controlGoal(command: GoalCommand): Promise<GoalCommandOutcome> {
+    // A goal set, edit or resume wakes unattended turns, which D83
+    // refuses in a hardware workspace; pause and clear always pass.
+    await prepareHardwareTurn(this.hardwareGuard.current(), command.verb)
     let ack: unknown
     try {
       ack = await this.command(
@@ -4256,10 +4283,15 @@ export class MuseCodeHost implements AgentHost {
     owner.startSession()
     const assertCanResume = () => {
       owner.startSession()
-      // Attach refuses only on positive hardware evidence: an unknown
-      // inventory or an unscannable folder is fail-safe for commands
-      // (the per-turn fences still apply), never proof of hardware.
-      if (owner.isPositivelyHardware()) throw new Error(UI_TEXT.hardwareBindingUnavailable)
+      // Attach refuses only on a board-volume root, where a turn the
+      // resume restarts could edit the board with no approval event.
+      // Every other hardware workspace attaches: pending approvals are
+      // scrubbed as they are presented, the mode is secured below
+      // before they are shown, and each new turn secures it again. An
+      // unknown inventory or an unscannable folder is fail-safe for
+      // commands, never proof of hardware.
+      if (isBoardVolumeWorkspace(owner.current()))
+        throw new Error(UI_TEXT.hardwareBindingUnavailable)
     }
     assertCanResume()
     const { loaded, hasPending } = await this.opened(async () => {
@@ -4290,6 +4322,12 @@ export class MuseCodeHost implements AgentHost {
       }
     })
     try {
+      // Secure the resumed session's approval mode before its pending
+      // approvals are presented or a queued turn can be steered, as
+      // sendTurn secures it before a new turn.
+      const session = this.sessions.get(sessionId)
+      if (session !== undefined)
+        await prepareHardwareTurn(session.hardwareState(), (mode) => session.setApprovalMode(mode))
       if (hasPending) await this.presentPending(sessionId)
       let history = loaded.history
       if (history.goal === undefined) {

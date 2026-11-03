@@ -8,7 +8,9 @@ import {
   type TurnCompleted,
 } from '../../src/acp/agent'
 import { mapNotification } from '../../src/core/backends/musecode/mapNotification'
+import { startFailureText } from '../../src/acp/startText'
 import { ACP_ERROR_CODES, CREDENTIAL_STORE_ERROR_KIND, UI_TEXT } from '../../src/shared/constants'
+import { CreatedRegistrySaveError } from '../../src/shared/createdRegistrySaveError'
 import { fill } from '../../src/shared/l10n/text'
 import { quotaTurnFailureText } from '../../src/shared/turnFailure'
 import { QUOTA_MESSAGE, QUOTA_RESETS_AT_MS, quotaTurnParams } from './helpers/musecodeQuota'
@@ -143,6 +145,49 @@ describe('outboundError wire contract', () => {
       resetsAt: new Date(QUOTA_RESETS_AT_MS).toISOString(),
       retryable: false,
     })
+  })
+
+  // RLF-MAKERFENCE item 4: a session or turn start our layers refused
+  // reaches the client in its own sentence with the refusal's code,
+  // never as -32603 with the generic failure.
+  it.each([
+    UI_TEXT.hardwareBindingUnavailable,
+    UI_TEXT.hardwareBypassNotice,
+    UI_TEXT.scheduleBusy,
+    UI_TEXT.permissionReviewerMissing,
+  ])('carries a start refusal to the wire in its own sentence: %s', (sentence) => {
+    const built = RequestError.invalidRequest(undefined, sentence)
+    const error = wire(built)
+    expect(error.code).toBe(built.code)
+    expect(error.code).not.toBe(ACP_ERROR_CODES.internal)
+    expect(error.message).toBe(built.message)
+    expect(error.message).toContain(sentence)
+    expect(error.data).toEqual({ kind: 'invalid_request' })
+  })
+
+  it('carries a failed start behind its site sentence and a registry refusal', () => {
+    const started = RequestError.internalError(
+      undefined,
+      fill(UI_TEXT.acpTurnStartFailed, { detail: 'Error EPIPE' }),
+    )
+    const turn = wire(started)
+    expect(turn.code).toBe(ACP_ERROR_CODES.internal)
+    expect(turn.message).toBe(started.message)
+
+    const registry = RequestError.invalidRequest(
+      undefined,
+      startFailureText(new CreatedRegistrySaveError('refused'), 'session'),
+    )
+    const saved = wire(registry)
+    expect(saved.code).toBe(registry.code)
+    expect(saved.message).toBe(registry.message)
+  })
+
+  it('still replaces unlisted text with the generic failure', () => {
+    const built = RequestError.invalidRequest(undefined, 'failed at /Users/someone/secret.txt')
+    const error = wire(built)
+    expect(error.message).toBe(UI_TEXT.actionFailed)
+    expect(error.message).not.toContain('someone')
   })
 
   it('drops an unparseable reset instant', () => {
