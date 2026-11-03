@@ -2378,16 +2378,16 @@ interface B1SkipOutput {
 /** Why a card asks beyond the mode, as the card says under the command (M78). */
 function cardNote(
   judgement: PermissionJudgement | undefined,
-  query?: PermissionQuery,
-  call?: FunctionCallItem,
+  query: PermissionQuery,
+  call: FunctionCallItem,
 ): string | undefined {
   if (judgement?.settledBy === 'hardwareDetected') return UI_TEXT.approvalHardwareNote
   // D261: the card names the file and that its contents go to the model.
   if (judgement?.settledBy === 'sensitiveRead') {
-    return fill(UI_TEXT.approvalSensitiveReadNote, { path: query?.command ?? '' })
+    return fill(UI_TEXT.approvalSensitiveReadNote, { path: query.command ?? '' })
   }
   // D261: the exact text the memory write would save, as the model wrote it.
-  if (call !== undefined && judgement?.settledBy === 'untrustedMemory') {
+  if (judgement?.settledBy === 'untrustedMemory') {
     const args = argumentsOf(call)
     const note = pick(args, 'content') ?? pick(args, 'new_str') ?? ''
     return fill(UI_TEXT.approvalUntrustedMemoryNote, { note })
@@ -2956,8 +2956,8 @@ export class ModelApiSession implements ScheduledAgentSession {
   memory write ask in Auto.
   */
   private turnReadUntrusted = false
-  /** The host's own compaction memory flush is in flight (D261): exempt. */
-  private isCompactionFlush = false
+  /** The host's own last compaction memory flush call (D261): exempt. */
+  private flushCallId: string | undefined
   /** The rules, skills and memory of the workspace (PLAN.md D13). */
   private readonly context: WorkspaceContext
   /** The git facts of the prompt's environment section (D15), read on the first turn. */
@@ -8886,6 +8886,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     ) {
       this.permissions.allowForSession(query.toolName, query.command)
     }
+    if (isStillPermitted && isOffered && decision.choiceId === APPROVAL_CHOICE_IDS.allowOnce)
+      this.permissions.allowedOnce(query)
     // Only the two allow choices this card offered approve; anything else refuses.
     const hardwareBinding =
       hardware !== undefined && isStillPermitted && isOffered
@@ -10588,10 +10590,10 @@ export class ModelApiSession implements ScheduledAgentSession {
   link out of it does not.
   */
   private async sensitiveReadName(
-    call: FunctionCallItem,
+    argsJson: string,
     policy: PermissionPolicy,
   ): Promise<string | undefined> {
-    const given = pick(argumentsOf(call), 'path')
+    const given = pick(parsedArguments(argsJson), 'path')
     if (given === undefined) {
       return undefined
     }
@@ -11277,10 +11279,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     // No card can be shown inside a hook handler's own turn, so a
     // sensitive file is simply not read there (D261), Bypass aside.
     if (name === MODEL_API_TOOLS.readFile && this.permissions.currentMode !== 'allowAll') {
-      const sensitive = await this.sensitiveReadName(
-        { type: 'function_call', call_id: this.deps.newId(), name, arguments: argsJson },
-        this.policy(),
-      )
+      const sensitive = await this.sensitiveReadName(argsJson, this.policy())
       if (sensitive !== undefined) {
         return `Error: ${sensitive} ${MODEL_API_MODEL_TEXT.sensitiveReadRefused}`
       }
@@ -14011,11 +14010,15 @@ export class ModelApiSession implements ScheduledAgentSession {
   call is not the host's own compaction flush (its text is the session's
   todos, goal and file lists, not the model's words).
   */
-  private isUntrustedMemoryWrite(placed: PlacedMemoryCall, policy: PermissionPolicy): boolean {
+  private isUntrustedMemoryWrite(
+    call: FunctionCallItem,
+    placed: PlacedMemoryCall,
+    policy: PermissionPolicy,
+  ): boolean {
     return (
       placed.call.tool !== 'read' &&
       this.turnReadUntrusted &&
-      !this.isCompactionFlush &&
+      call.call_id !== this.flushCallId &&
       policy.memoryAfterUntrustedAsk
     )
   }
@@ -14067,7 +14070,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const query: PermissionQuery = {
       toolName: call.name,
       toolClass: placed.call.tool === 'read' ? 'read' : 'edit',
-      ...(this.isUntrustedMemoryWrite(placed, policy) && { isUntrustedMemory: true }),
+      ...(this.isUntrustedMemoryWrite(call, placed, policy) && { isUntrustedMemory: true }),
     }
     const judgement = this.permissions.judge(query, policy)
     return judgement.verdict === 'deny'
@@ -14118,7 +14121,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           toolName: call.name,
           toolClass,
           isProtected: false,
-          ...(this.isUntrustedMemoryWrite(placed.value, this.policy()) && {
+          ...(this.isUntrustedMemoryWrite(call, placed.value, this.policy()) && {
             isUntrustedMemory: true,
           }),
         },
@@ -14863,7 +14866,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     // judged on its canonical name under the policy as it stands.
     const sensitiveName =
       call.name === MODEL_API_TOOLS.readFile
-        ? await this.sensitiveReadName(call, policy)
+        ? await this.sensitiveReadName(call.arguments, policy)
         : undefined
     // A follow-up that starts a new task is a paid child task like a spawn.
     const childTask = this.childTaskFor(call, undefined)
@@ -18251,16 +18254,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.replay.push({ turnId: turn.turnId, item: call })
     // The flush is host data, not a memory the model chose (D261): the
     // untrusted-memory ask never applies to it.
-    this.isCompactionFlush = true
-    try {
-      const result = await unlessStopped(
-        this.runCall(turn.turnId, call, turn.abort.signal, this.goalCommandRevision),
-        turn.abort.signal,
-      )
-      return result.stopReason
-    } finally {
-      this.isCompactionFlush = false
-    }
+    this.flushCallId = call.call_id
+    const result = await unlessStopped(
+      this.runCall(turn.turnId, call, turn.abort.signal, this.goalCommandRevision),
+      turn.abort.signal,
+    )
+    return result.stopReason
   }
 
   /** Inside the active turn only; economics never prevent near-window protection. */

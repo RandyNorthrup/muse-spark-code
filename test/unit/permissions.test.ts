@@ -396,6 +396,21 @@ describe('PermissionEngine: sensitive reads and untrusted memory (D261)', () => 
     expect(plan.verdict(sensitive('.env.local'))).toBe('ask')
   })
 
+  it('asks once per file per session in Auto, and every time elsewhere', () => {
+    const auto = new PermissionEngine('onRequest')
+    auto.allowedOnce(sensitive('.env'))
+    expect(auto.verdict(sensitive('.env'))).toBe('allow')
+    expect(auto.verdict(sensitive('.env.local'))).toBe('ask')
+    // An ordinary read's or a write's "allow once" stays once in Auto.
+    auto.allowedOnce({ toolName: 'write_file', toolClass: 'edit', command: '.env.local' })
+    expect(auto.verdict(sensitive('.env.local'))).toBe('ask')
+    for (const mode of ['promptUnmatched', 'denyUnmatched'] as const) {
+      const engine = new PermissionEngine(mode)
+      engine.allowedOnce(sensitive('.env'))
+      expect(engine.verdict(sensitive('.env')), mode).toBe('ask')
+    }
+  })
+
   it('asks in Auto for a memory write after untrusted reads, with no session choice', () => {
     const memory = { toolName: 'add_memory', toolClass: 'edit', isUntrustedMemory: true } as const
     expect(new PermissionEngine('onRequest').judge(memory)).toMatchObject({
