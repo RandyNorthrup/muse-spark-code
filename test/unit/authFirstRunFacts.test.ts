@@ -25,6 +25,7 @@ import { reportPanelStateOf } from '../../src/core/support/reportContext'
 import type { ReportEventKind } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import type { AuthStatus, HostToWebviewMessage } from '../../src/shared/protocol'
+import { cliAccountBackendFacts } from './helpers/cliAccountBackendFacts'
 
 const silent = (): undefined => undefined
 const log: Logger = { trace: silent, info: silent, warn: silent, error: silent }
@@ -75,26 +76,15 @@ function firstRun(options: {
     probe: () => Promise.resolve(undefined),
     log,
   })
-  const backend: AuthBackendFacts = {
-    resolveCli: () =>
+  const backend: AuthBackendFacts = cliAccountBackendFacts(
+    account,
+    credentialFile,
+    () =>
       options.cliPresent
         ? { ok: true, cliPath: '/bin/muse' }
         : { ok: false, reason: CLI_ABSENT_REASON },
-    cliSignIn: (isUserAction) => account.signIn(isUserAction),
-    peekCliSignIn: () => account.peekFile(),
-    abandonCliProbe: () => {
-      account.abandonProbe()
-    },
-    forgetCliAnswers: () => {
-      account.forgetAnswers()
-    },
-    credentialFilePath: () => credentialFile,
-    credentialFileModifiedAt: () => undefined,
-    hasEnvironmentKey: () => false,
-    getBackendMode: () => 'auto',
-    restartBackend: () => Promise.resolve(),
-    logOutCli: () => Promise.resolve(false),
-  }
+    () => Promise.resolve(),
+  )
   const secrets: SecretStore = {
     get: () => Promise.resolve(undefined),
     store: () => Promise.resolve(),

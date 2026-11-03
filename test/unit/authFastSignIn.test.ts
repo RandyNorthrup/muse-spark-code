@@ -12,6 +12,7 @@ import { CliAccount } from '../../src/host/auth/cliAccount'
 import { CredentialStore, type SecretStore } from '../../src/host/auth/credentialStore'
 import type { Logger } from '../../src/host/logger'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
+import { cliAccountBackendFacts } from './helpers/cliAccountBackendFacts'
 
 const silent = (): undefined => undefined
 const log: Logger = { trace: silent, info: silent, warn: silent, error: silent }
@@ -36,25 +37,12 @@ function backendFor(
   file: string,
   restartBackend: () => Promise<unknown>,
 ): AuthBackendFacts {
-  return {
-    resolveCli: () => ({ ok: true, cliPath: '/bin/muse' }),
-    cliSignIn: (isUserAction) => account.signIn(isUserAction),
-    peekCliSignIn: () => account.peekFile(),
-    abandonCliProbe: () => {
-      account.abandonProbe()
-    },
-    forgetCliAnswers: () => {
-      account.forgetAnswers()
-    },
-    credentialFilePath: () => file,
-    credentialFileModifiedAt: () => undefined,
-    hasEnvironmentKey: () => false,
-    getBackendMode: () => 'auto',
-    restartBackend: async () => {
-      await restartBackend()
-    },
-    logOutCli: () => Promise.resolve(false),
-  }
+  return cliAccountBackendFacts(
+    account,
+    file,
+    () => ({ ok: true, cliPath: '/bin/muse' }),
+    restartBackend,
+  )
 }
 
 function serviceFor(
