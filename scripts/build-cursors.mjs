@@ -20,6 +20,7 @@ import process from 'node:process'
 import { PNG } from 'pngjs'
 import { Resvg } from '@resvg/resvg-js'
 import { isEntryPoint } from './lib/entryPoint.mjs'
+import { RESVG_FONTS } from './lib/resvgFonts.mjs'
 
 const REPO_ROOT = path.resolve(import.meta.dirname, '..')
 
@@ -162,7 +163,9 @@ export function shapeFrames(svg, shape, rotors, frames) {
 
 /** Render one themed SVG to RGBA pixels at one size (resvg, pinned). */
 export function renderCursor(svg, size) {
-  const png = new Resvg(svg, { fitTo: { mode: 'width', value: size } }).render().asPng()
+  const png = new Resvg(svg, { fitTo: { mode: 'width', value: size }, font: RESVG_FONTS })
+    .render()
+    .asPng()
   const decoded = PNG.sync.read(Buffer.from(png))
   if (decoded.width !== size || decoded.height !== size) {
     fail(`resvg rendered ${String(decoded.width)}x${String(decoded.height)}, not ${String(size)}`)
