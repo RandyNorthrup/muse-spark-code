@@ -1,47 +1,64 @@
 // Real production-plugin entry: ordinary Models first paint stays independent
 // of team English; validated enabled-team navigation waits for that loader.
 import path from 'node:path'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { pathToFileURL } from 'node:url'
-import { build } from 'esbuild'
 import { chromium } from 'playwright-core'
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
-import { compactBrowserUiText } from '../../scripts/lib/uiTextRegions.mjs'
-import { teamPanelBrowserValidation } from '../../scripts/lib/webviewBundles.mjs'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
 import { BROWSER_ENGLISH, L10N_BUILDS_KEY } from './helpers/l10nBuilds.mjs'
+import { MODELS_FIRST_PAINT_KEY } from './helpers/modelsFirstPaintBuild.mjs'
 import { makeState } from './modelsPanelFixtures'
 import { panelRig } from './helpers/teamPanelRig'
 import { EN } from '../../src/shared/l10n/en'
 
-const runtime = { files: [], browser: undefined, server: undefined, url: '', state: undefined }
-// A cold production bundle build plus a Chrome launch: slow on a cold runner.
+const runtime = {
+  files: [],
+  browser: undefined,
+  server: undefined,
+  url: '',
+  state: undefined,
+  // Where the start hook is, for the line its teardown prints if it never finished.
+  step: 'the bundle',
+}
+/** The global-setup bundle as the in-memory files the server and cases read. */
+function readBundle(folder) {
+  const files = []
+  const walk = (directory) => {
+    const entries = readdirSync(directory, { withFileTypes: true })
+    for (const entry of entries) {
+      const full = path.join(directory, entry.name)
+      if (entry.isDirectory()) walk(full)
+      else {
+        const contents = readFileSync(full)
+        files.push({ path: full, contents, text: contents.toString('utf8') })
+      }
+    }
+  }
+  walk(folder)
+  return files
+}
+// The bundle builds once in global setup, outside every hook's deadline, and the
+// hook only reads it into memory. What is left is Chrome's cold start, in the
+// launch and in its first page, on a runner that can stall: run 41578891657's
+// Windows VM took this hook past 60 s, with its neighbours up to 16 times slower.
 beforeAll(async () => {
-  const result = await build({
-    entryPoints: [path.resolve('src/webview/models/models.tsx')],
-    bundle: true,
-    platform: 'browser',
-    format: 'esm',
-    target: 'chrome128',
-    splitting: true,
-    outdir: 'out',
-    write: false,
-    metafile: true,
-    logLevel: 'silent',
-    define: { 'process.env.NODE_ENV': '"production"' },
-    plugins: [compactBrowserUiText, teamPanelBrowserValidation],
-  })
-  runtime.files = result.outputFiles ?? []
+  const folder = inject(MODELS_FIRST_PAINT_KEY)
+  if (folder === undefined) throw new Error('Models first-paint build missing from global setup')
+  runtime.files = readBundle(folder)
+  runtime.step = 'the team panel rig'
   const rig = panelRig()
   await rig.read()
   await rig.controller.handle({ type: 'roles/template', template: 'pair' })
   runtime.state = makeState({ roles: await rig.read(), agents: {} })
+  runtime.step = 'the Chrome launch'
   const chrome = findChrome()
   if (chrome === undefined) throw new Error('Chrome unavailable')
   runtime.browser = await chromium.launch(
     path.isAbsolute(chrome) ? { executablePath: chrome } : { channel: 'chrome' },
   )
+  runtime.step = 'the page server'
   runtime.server = createServer((req, res) => {
     if (req.url === '/') {
       res.setHeader('content-type', 'text/html')
@@ -60,10 +77,24 @@ beforeAll(async () => {
   const address = runtime.server.address()
   if (address === null || typeof address === 'string') throw new Error('No server address')
   runtime.url = `http://127.0.0.1:${String(address.port)}`
+  // One-time cold costs belong in the hook, never in a case. Chrome's first page
+  // costs more than any later one on every OS, and on hosted macOS it has passed a
+  // case's 5 s in every run since 41516831678, while the pages after it took 2 to 4 s.
+  runtime.step = "Chrome's first page"
+  const first = await openPanel()
+  first.setDefaultTimeout(0)
+  await first.goto(runtime.url)
+  await first.getByRole('button', { name: EN.teamEditor.agents, exact: true }).waitFor()
+  await first.close()
+  runtime.step = 'finished'
 }, 60_000)
 afterAll(async () => {
+  if (runtime.step !== 'finished')
+    process.stderr.write(`the start hook did not finish: it was at ${runtime.step}\n`)
   await runtime.browser?.close()
-  await new Promise((resolve) => runtime.server?.close(resolve))
+  // With no server, a promise nothing settles would hold this hook to its own
+  // deadline: a second red for one fault, as in run 41578891657.
+  if (runtime.server !== undefined) await new Promise((resolve) => runtime.server.close(resolve))
 })
 
 async function openPanel(table) {
