@@ -281,6 +281,7 @@ temp/planfix0190/d2-summary.txt Full record:
 | `string-width` / `wrap-ansi`                                                                         | 8.3.0 / 10.0.2                    |
 | `ink` / `ink-testing-library`                                                                        | 6.3.1 / 4.0.0                     |
 | `sigstore`                                                                                           | 5.0.0                             |
+| `@resvg/resvg-js`                                                                                    | 2.6.2                             |
 
 **`typescript`** — Registry latest is 7.0.2, but `typescript-eslint@8.70.1` declares `peerDependencies.typescript: ">=4.8.4 <6.1.0"`. TS 7 installs cleanly and silently disables every type-aware lint rule. 6.0.3 is the highest release inside the supported range.
 
@@ -497,6 +498,8 @@ the complete file set under the unchanged 6144 MiB heap, against the
 5,518,508 KiB release-base peak, before accepting it. Otherwise revisit only
 when a measured configuration preserves every rule/file and passes clean CI.
 The shipped lint configuration and 6144 MiB flag remain release-base values.
+
+**`@resvg/resvg-js`** — M111 lane AR (D91.11): the SVG rasterizer behind `scripts/build-cursors.mjs` and `scripts/build-desktop-art.mjs`, which render the cursor, wallpaper, boot and greeter PNGs from the committed SVG sources. Chosen over headless Chrome (the repo's `scripts/render-images.mjs` path: a browser launch per file, version-dependent pixels, unavailable on some CI runners) and over a hand-written renderer: resvg is the reference SVG engine, deterministic byte-for-byte on one version (verified in `docs/certification/rlf-m111ar.md`), and its napi binaries run on every CI platform so `--check` gates hold everywhere. Build-time devDependency only, never bundled (the notices gate reads bundle metafiles, so it is unaffected). MPL-2.0. No dependencies, no peers; `npm audit` clean for it (2026-11-02, the 24 advisories are pre-existing moderates in other trees). 2.6.2 published 2024-03-26, past the seven-day window.
 
 ### D4 — Security posture
 
@@ -28397,6 +28400,20 @@ file bridge refuses a symlink or junction that leaves the workspace,
 including a file that is not there yet; a link that stays inside is the
 file it names. The renderer still has no Node. Record:
 `docs/certification/rvint9.md`.
+
+**Status 2026-11-02 (RLF-M111AR): building.** Lane AR is built: the pointer
+themes (Muse, Large, HighContrast; hyprcursor and Xcursor, 34 shapes plus
+aliases), the icon themes (dark, light, HC-dark, HC-light; 89 sources), the
+image fonts (Inter and JetBrains Mono with CJK and emoji, slot-59
+fontconfig, OFL notices), the wallpapers (four modes plus the greeter at
+three sizes), the Plymouth theme (descriptor, script, dialog art) and the
+GRUB theme (theme.txt, background, class icon; the .pf2 bakes at assembly),
+and the companion's 2×, HC and still sets with `variants.json` (still
+frames, display scales, WCAG 2.3.1 flash verdicts: all twelve compliant)
+and the provenance note. Freshness is gated (`check:art` runs all four
+builders). Not proven here: QEMU boot (M111os/IQ's, per the plan), the
+owner's aesthetic approval, and the mirrored-walk visual check (both at
+release). Record: `docs/certification/rlf-m111ar.md` with the look sheet.
 
 Status detail retained: planned, documentation only. Nothing is implemented,
 and no lane is launched by this record. The research is

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- wait: the spinner. Frame 0; the build rotates #rotor for the rest. Hotspot 16,16. -->
+  <g id="rotor">
+    <path d="M16 6 A10 10 0 1 1 7.34 21" fill="none" stroke="%%OUTLINE%%" stroke-width="6" stroke-linecap="round"/>
+    <path d="M16 6 A10 10 0 1 1 7.34 21" fill="none" stroke="%%ACCENT%%" stroke-width="3" stroke-linecap="round"/>
+  </g>
+</svg>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="228" height="128" viewBox="-14 -14 228 128">
+  <!-- M111 lane AR (D91.11): the Plymouth logo. The approved squiggle-m in
+       the boot gradient (brandFrom to brandTo). Rendered at 384 px wide. -->
+  <defs>
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="%%BRAND_FROM%%" />
+      <stop offset="1" stop-color="%%BRAND_TO%%" />
+    </linearGradient>
+  </defs>
+  <path d="M0 100C18 78 52 2 75 0C84 0 84 90 94 90C108 90 140 10 165 10C176 10 178 79 190 79L197 77" fill="none" stroke="url(#brand)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

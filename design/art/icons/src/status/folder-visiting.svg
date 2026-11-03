@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- folder-visiting (status): the folder with an eye. -->
+  <g fill="none" stroke="%%ACCENT%%" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 6.5 C3 5.7 3.7 5 4.5 5 L10 5 L12 7.5 L19.5 7.5 C20.3 7.5 21 8.2 21 9 L21 18 C21 18.8 20.3 19.5 19.5 19.5 L4.5 19.5 C3.7 19.5 3 18.8 3 18 Z"/>
+  </g>
+  <g fill="none" stroke="%%FOREGROUND%%" stroke-width="1.5" stroke-linecap="round">
+    <path d="M7.5 13.5 C9 12 10.5 12 12 13.5 C13.5 12 15 12 16.5 13.5"/>
+    <circle cx="12" cy="13.8" r="0.9" fill="%%FOREGROUND%%" stroke="none"/>
+  </g>
+</svg>

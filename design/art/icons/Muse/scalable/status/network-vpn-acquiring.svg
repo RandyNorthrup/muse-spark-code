@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- network-vpn-acquiring (status). -->
+  <g fill="none" stroke="#e4e7ed" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 3.5 L18.5 6.5 L18.5 11 C18.5 15.5 15.5 18.7 12 20.5 C8.5 18.7 5.5 15.5 5.5 11 L5.5 6.5 Z"/>
+  </g>
+  <g fill="none" stroke="#7fb2ff" stroke-width="1.75" stroke-linecap="round">
+    <path d="M12 8.5 A3.5 3.5 0 1 1 8.6 14.6"/>
+    <path d="M8.6 12.4 L8.6 14.6 L10.8 14.6"/>
+  </g>
+</svg>

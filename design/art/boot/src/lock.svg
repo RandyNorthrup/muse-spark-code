@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="41" height="44" viewBox="0 0 41 44">
+  <!-- M111 lane AR (D91.11): the Plymouth dialog lock. Upstream's 41x44
+       slot, drawn in the mockups' stroke language in the message colour. -->
+  <g fill="none" stroke="%%LOCK%%" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="8" y="19" width="25" height="18" rx="3" />
+    <path d="M13.5 19 L13.5 14.5 A7 7 0 0 1 27.5 14.5 L27.5 19" />
+    <path d="M20.5 26.5 L20.5 30" />
+  </g>
+</svg>
