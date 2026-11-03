@@ -382,7 +382,7 @@ async function spawnPiped(
       resource,
       authorize,
       jobMemoryLimit: jobMemoryBytes,
-      attestation: ATTESTED_JOB,
+      attestation: { ...ATTESTED_JOB, ...job.forkCaps },
       log: () => {
         /* Callers report fixed failure words. */
       },
