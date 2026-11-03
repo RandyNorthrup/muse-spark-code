@@ -25,8 +25,10 @@ export const checkProcess: CheckProcess = (request) =>
       [...request.args],
       { cwd: request.cwd, env: request.env, timeout: request.timeoutMs },
       (error: ExecFileException | null, stdout: string, stderr: string) => {
+        const failedCode = typeof error?.code === 'number' ? error.code : 1
+        const exitCode = error === null ? 0 : failedCode
         resolve({
-          exitCode: error === null ? 0 : typeof error.code === 'number' ? error.code : 1,
+          exitCode,
           output: stdout,
           descendantsEnded: error === null,
           stderr,
