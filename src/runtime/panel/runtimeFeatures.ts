@@ -14,7 +14,7 @@ import { confineWorkspacePath } from '../../core/workspacePath'
 import { isProtectedPath } from '../../core/protectedPaths'
 import { PendingPrompts } from '../../core/sessionBoard'
 import { failureForLog } from '../../core/backends/musecode/logText'
-import { createCheckpointPort } from '../../host/checkpoints/checkpointHost'
+import { createCheckpointPort, type CheckpointPort } from '../../host/checkpoints/checkpointHost'
 import {
   composeConversationDeps,
   type ConversationCompositionPorts,
@@ -94,6 +94,35 @@ const SIGN_IN = {
   museCode: { methods: ['browser'] as const, command: { browser: ['login'] } },
   modelApi: { methods: ['apiKey'] as const, command: { apiKey: ['auth', 'set'] } },
 } as const
+
+/**
+The conversation restores through the backend's own checkpoints for this folder, the port and
+recorder its tools write through, so a restore here sees the turns the tools recorded. The
+backend owns their lifetime. A namespace the backend cannot establish, or a runtime with no
+checkpoints at all, reads as no namespace, as a folder-less window does.
+*/
+export async function conversationCheckpoints(
+  runtime: Pick<RuntimeBackend, 'checkpointsFor'>,
+  workspaceRoot: string,
+  isTrusted: () => boolean,
+  log: Logger,
+): Promise<CheckpointPort> {
+  try {
+    const shared = await runtime.checkpointsFor?.(workspaceRoot)
+    if (shared !== undefined) return shared.port
+  } catch (error: unknown) {
+    log.warn(`Checkpoint namespace unavailable: ${failureForLog(error)}`)
+  }
+  // No store reads as `noFolder`. The namespace stays known: an unknown one refuses every send,
+  // and this folder's turns are outside the checkpoint fence as an independent editor's are.
+  return createCheckpointPort({
+    isNamespaceKnown: () => true,
+    store: undefined,
+    isWorkspaceTrusted: isTrusted,
+    isEnabled: () => false,
+    hasGit: () => false,
+  })
+}
 
 export async function runtimeConversationDeps(
   ports: RuntimeConversationPorts,
@@ -396,13 +425,7 @@ export async function runtimeConversationDeps(
     onForegroundTasksChanged: () => {
       log.trace('MHP_FOREGROUND_TASKS_CHANGED')
     },
-    checkpoints: createCheckpointPort({
-      isNamespaceKnown: () => true,
-      store: undefined,
-      isWorkspaceTrusted: isTrusted,
-      isEnabled: () => false,
-      hasGit: () => false,
-    }),
+    checkpoints: await conversationCheckpoints(runtime, workspaceRoot, isTrusted, log),
     pendingPrompts: new PendingPrompts(),
     bestOfNCoordinator: new BestOfNCoordinator(),
     runGit: ports.runGit,

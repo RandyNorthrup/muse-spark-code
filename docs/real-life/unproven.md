@@ -3769,3 +3769,16 @@ automated test: no recorded refusal exists to drive a real session, so
 only this run proves it.
 
 Not run: no Muse request and no paid provider call in this lane.
+
+## RLF-M104GL: scripted LSP stdio suite (2026-10-23)
+
+`test/unit/runtimeLspStdio.test.ts` spawned `test/unit/helpers/fakeLsp.ts`, a scripted server with canned services over the real transport: completion always answered `completion🙂`, a `busy` document hung forever, and `muse.stop` echoed. Deleted on the same terms as the overhaul. The real-client check (`hosts/neovim/test/lsp.lua`) now runs against the real `lsp` service; what only the fake answered waits for real use: completion is paid Tab over a live model stream with consent, and commands execute real workspace operations.
+
+### test/unit/runtimeLspStdio.test.ts
+
+- `M104L scripted client over real stdio > completes negotiated inline=false Unicode exchange and stops during a blocked request`
+- `M104L scripted client over real stdio > completes negotiated inline=true Unicode exchange and stops during a blocked request`
+
+### test/unit/helpers/fakeLsp.ts
+
+- Helper only: the scripted server the two tests above spawned.

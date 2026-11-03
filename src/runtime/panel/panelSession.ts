@@ -35,6 +35,7 @@ import type { MhpPanelBinding } from '../../shared/hostApi/panel'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import type { RuntimeBackend } from '../backends'
+import type { PanelCheckpoints } from '../features/checkpoints'
 import type { ServeOptions } from '../cliArgs'
 import { runtimeEditorContext } from '../features/editorContext'
 import { createRuntimeDocuments } from '../features/documents'
@@ -67,6 +68,8 @@ export interface PanelSessionDeps {
     questions: { remove(sessionId: string): Promise<void> },
     /** The files the editor holds with unsaved changes. */
     unsavedFiles: () => readonly string[],
+    /** What this panel's turn checkpoints read; a runtime without them records no turn. */
+    checkpoints?: PanelCheckpoints,
   ) => Promise<RuntimeBackend>
   readonly runGit: (args: readonly string[], cwd: string) => Promise<string>
   /** What the connection's GitHub sign-in is made of: its credential store, network and name. */
@@ -506,7 +509,15 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
   async function createBackend(): Promise<void> {
     const flagged = paid.flagged()
     const options = serveOptions(currentSettings(), () => isTrusted, deps.isVerbose, flagged)
-    const created = await deps.createRuntime(options, questionStore, unsavedPaths)
+    const created = await deps.createRuntime(options, questionStore, unsavedPaths, {
+      isTrusted: () => isTrusted,
+      isEnabled: () => currentSettings().turnCheckpoints,
+      retentionDays: () => currentSettings().cleanupPeriodDays,
+      onAvailabilityChanged: () => {
+        for (const controller of controllersOf(registry.controllers()))
+          controller.checkpointAvailabilityChanged()
+      },
+    })
     runtime = created
     flaggedAtBuild = flagged
     // The backend asks the editor before every paid use; until it is attached every use is denied.

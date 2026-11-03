@@ -118,6 +118,7 @@ import {
 } from './estimator/ports'
 import { lazyEstimator } from '../host/estimator/estimatorBundle'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
+import type { PanelCheckpoints } from './features/checkpoints'
 import type { ReportJournal } from '../host/support/reportJournal'
 import { reportEventsOf } from '../core/support/journalEvents'
 import {
@@ -807,6 +808,7 @@ async function runtimeFor(
   unsavedFiles?: () => readonly string[],
   maker?: AcpMakerRuntime,
   teamFor?: (cwd: string) => TeamHostSeams | undefined,
+  checkpoints?: PanelCheckpoints,
 ) {
   const engine = await import('./runtimeEngineEntry')
   engine.setUiText(UI_TEXT, uiLocale())
@@ -827,6 +829,26 @@ async function runtimeFor(
     log,
     ...(questions !== undefined && { questions }),
     ...(unsavedFiles !== undefined && { unsavedFiles }),
+    ...(checkpoints !== undefined && {
+      checkpoints: (workspaceRoot: string) =>
+        engine.createRuntimeCheckpoints(
+          {
+            workspaceRoot,
+            dataRoot: agentDataFolder({
+              platform: process.platform,
+              env: process.env,
+              homeDir: homedir(),
+            }),
+            distDir,
+            platform: process.platform,
+            env: process.env,
+            log,
+            ...checkpoints,
+          },
+          UI_TEXT,
+          uiLocale(),
+        ),
+    }),
     ...(accounts !== undefined && {
       accountRequests: (client) => accounts.requests(client),
       accountBilling: accounts.billing,
@@ -2893,8 +2915,17 @@ async function main(processResources: ProcessResources): Promise<number> {
           homeDir: homedir(),
         }),
         distDir,
-        createRuntime: (serveOptions, questions, unsavedFiles) =>
-          runtimeFor(serveOptions, log, questions, undefined, unsavedFiles),
+        createRuntime: (serveOptions, questions, unsavedFiles, checkpoints) =>
+          runtimeFor(
+            serveOptions,
+            log,
+            questions,
+            undefined,
+            unsavedFiles,
+            undefined,
+            undefined,
+            checkpoints,
+          ),
         runGit: processGitRunner(),
         github: {
           secrets,

@@ -158,12 +158,12 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   },
   {
     file: 'checkpointStore.js',
-    side: 'vscode',
+    side: 'both',
     requestedBy: [
       {
         importer: 'src/shared/constants.ts',
         symbol: 'CHECKPOINT_STORE_BUNDLE_FILE',
-        side: ['vscode'],
+        side: ['acp', 'vscode'],
       },
     ],
   },

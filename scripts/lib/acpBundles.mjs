@@ -164,6 +164,8 @@ export const ACP_BUNDLES = [
   'modelApiMcp.js',
   'modelApiAcp.js',
   'modelApiShell.js',
+  // The panel's turn checkpoints: the store every runtime conversation restores through.
+  'checkpointStore.js',
   'modelApiInstructions.js',
   'mcpHeaders.js',
   'teamWorkerFence.js',

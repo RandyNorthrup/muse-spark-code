@@ -29,6 +29,12 @@ export interface RuntimeCheckpointDeps {
   readonly loadBundle?: (file: string) => unknown
 }
 
+/** What a panel's own session knows of its checkpoints; the runtime knows the rest. */
+export type PanelCheckpoints = Pick<
+  RuntimeCheckpointDeps,
+  'isTrusted' | 'isEnabled' | 'retentionDays' | 'onAvailabilityChanged'
+>
+
 export interface RuntimeCheckpoints {
   readonly port: CheckpointPort
   readonly recording: WindowRecording

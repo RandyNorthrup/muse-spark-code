@@ -271,7 +271,7 @@ describe('ACP team admission over the real agent', () => {
     const role = stored.roles[0]
     if (role === undefined) throw new Error('the stored team has no role')
     const worker = role.pool[0]
-    if (worker === undefined) throw new Error('the stored role has no entry')
+    if (worker?.agent === undefined) throw new Error('the stored role has no entry')
     writeStoredTeam(dataFolder, repo, {
       ...stored,
       roles: [

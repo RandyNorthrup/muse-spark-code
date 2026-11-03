@@ -34,6 +34,8 @@ const PRODUCTION_BUILD_SUITES: ReadonlySet<string> = new Set([
   'test/unit/acpShutdown.test.ts',
   // M104 lane B: the runtime panel runs from dist/acp.js and dist/runtimePanel.js.
   'test/unit/runtimePanel.test.ts',
+  // RLF-M104GL: the panel's turn checkpoints, told to the page by the packed agent.
+  'test/unit/runtimeConversationCheckpoints.test.ts',
   // M104 lane B: the chat in the runtime panel runs the conversation controller from dist/acp.js.
   'test/unit/runtimePanelConversation.test.ts',
   // M104 lane B: conversations in the runtime panel load the controller and the session bundle from dist/.
