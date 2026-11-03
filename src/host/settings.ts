@@ -135,9 +135,9 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiPermissionProfiles: Readonly<Record<string, unknown>>
   readonly modelApiPermissionProfile: unknown
   readonly modelApiRepositoryRules: unknown
-  /** D261: sensitive-read globs kept whole; null is the built-in set. */
+  /** D263: sensitive-read globs kept whole; null is the built-in set. */
   readonly modelApiSensitiveReads: unknown
-  /** D261: in Auto, a memory write after a web or MCP result asks first. */
+  /** D263: in Auto, a memory write after a web or MCP result asks first. */
   readonly modelApiMemoryAfterUntrustedAsk: boolean
   /** Paid Auto reviewer availability (M78, D78); each use needs consent. */
   readonly modelApiAutoReviewer: boolean

@@ -38,7 +38,7 @@ function sensitiveExtensionOf(name: string): string {
 /**
 Whether a workspace-relative canonical path (forward slashes, links
 resolved) is in the built-in sensitive set the file tools ask before
-reading to the model (D261): environment files but their examples, key
+reading to the model (D263): environment files but their examples, key
 material by name and extension, `.npmrc`, and the AWS credentials shape,
 in any folder. Backslashes split too, so a Windows spelling a caller has
 not yet normalized judges the same; case is ignored, as for protected

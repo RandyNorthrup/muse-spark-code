@@ -9,7 +9,7 @@
 //   write; its extra roots are folders outside the workspace `read_file` may
 //   read by absolute path. The shell runs unconfined, so while a profile is
 //   on every shell command asks (permissions.ts).
-// - **Sensitive reads (D261).** `museSpark.modelApiSensitiveReads` chooses
+// - **Sensitive reads (D263).** `museSpark.modelApiSensitiveReads` chooses
 //   the files `read_file` asks before sending to the model and `search`
 //   leaves out: unset (null) is the built-in set in constants beside
 //   `PROTECTED_FILE_NAMES` (`isSensitiveReadPath`), an empty list empties
@@ -58,7 +58,7 @@ export interface FileRules {
   */
   isDenied(relativePaths: readonly string[]): boolean
   /**
-  The sensitive globs the person set, lower case (D261): null for the
+  The sensitive globs the person set, lower case (D263): null for the
   built-in set, empty for none. Part of the file policy's revision.
   */
   readonly sensitiveGlobs: readonly string[] | null
@@ -84,7 +84,7 @@ export interface PermissionPolicy {
   /** The profile in force, if any: every shell command asks while it is on. */
   readonly profileName: string | undefined
   readonly files: FileRules
-  /** In Auto, a memory write after a web or MCP result asks first (D261). */
+  /** In Auto, a memory write after a web or MCP result asks first (D263). */
   readonly memoryAfterUntrustedAsk: boolean
   readonly problems: readonly PolicyProblem[]
 }
@@ -113,7 +113,7 @@ interface SensitiveParts {
   readonly isSensitive: (relativePaths: readonly string[]) => boolean
 }
 
-/** The built-in sensitive set (D261): each name judged on its own path. */
+/** The built-in sensitive set (D263): each name judged on its own path. */
 const BUILT_IN_SENSITIVE: SensitiveParts = {
   globs: null,
   isSensitive: (paths) => paths.some((path) => isSensitiveReadPath(path)),
@@ -122,7 +122,7 @@ const BUILT_IN_SENSITIVE: SensitiveParts = {
 const sensitiveReadsSchema = z.array(z.string()).check(z.maxLength(PERMISSION_PROFILE_MAX_GLOBS))
 
 /**
-The sensitive set the settings choose (D261): unset is the built-in set,
+The sensitive set the settings choose (D263): unset is the built-in set,
 an empty list is none, a list replaces it. A value that cannot be read
 keeps the built-in set and is said once: the ask must never turn itself
 off by mistake. The problem names no part of the value, which can hold
