@@ -20,6 +20,7 @@ import {
 import { UI_TEXT, darwinDictationApp } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { isNativeHelperError, NativeHelperError } from '../../src/shared/nativeHelperError'
+import { OTHER_PROCESSOR, canRunOtherProcessor } from './helpers/otherProcessor'
 
 const run = promisify(execFile)
 const folders: string[] = []
@@ -149,20 +150,22 @@ describe.skipIf(process.platform === 'win32')('a native helper that is there', (
     },
   )
 
-  const other = process.arch === 'arm64' ? 'x64' : 'arm64'
   const otherBuild = path.join(
     process.cwd(),
     'native',
     'darwin',
-    darwinDictationApp(other),
+    darwinDictationApp(OTHER_PROCESSOR),
     'Contents',
     'MacOS',
     'muse-dictate',
   )
-  it.skipIf(process.platform !== 'darwin' || !existsSync(otherBuild))(
-    process.platform === 'darwin' && !existsSync(otherBuild)
-      ? 'that is built for the other processor says so (SKIPPED: native/darwin/build.sh has not been run here)'
-      : 'that is built for the other processor says so',
+  const isTranslated = canRunOtherProcessor()
+  let otherSkip = ''
+  if (process.platform === 'darwin' && !existsSync(otherBuild))
+    otherSkip = ' (SKIPPED: native/darwin/build.sh has not been run here)'
+  else if (isTranslated) otherSkip = ' (SKIPPED: Rosetta runs the x64 build on this Mac)'
+  it.skipIf(process.platform !== 'darwin' || !existsSync(otherBuild) || isTranslated)(
+    `that is built for the other processor says so${otherSkip}`,
     async () => {
       const root = await product()
       const helper = path.join(
