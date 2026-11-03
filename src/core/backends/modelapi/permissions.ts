@@ -136,8 +136,7 @@ export function verdictFor(
   isProtected = false,
   isReadOnly = false,
 ): PermissionVerdict {
-  if (toolClass === 'device') return mode === 'denyUnmatched' ? 'deny' : 'ask'
-  if (toolClass === 'paid') {
+  if (toolClass === 'device' || toolClass === 'paid') {
     return mode === 'denyUnmatched' ? 'deny' : 'ask'
   }
   if (toolClass === 'mcp') {

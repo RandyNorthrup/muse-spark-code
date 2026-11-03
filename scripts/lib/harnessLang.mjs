@@ -74,12 +74,9 @@ function pseudoString(text) {
 }
 
 function pseudoRtlString(text) {
-  if (text.trim() === '') {
-    return text
-  }
   // A right-to-left override (U+202E) with its pop (U+202C), Android
   // ar-XB style; the bidi algorithm mirrors brackets itself.
-  return `\u{202E}${text}\u{202C}`
+  return text.trim() === '' ? text : `\u{202E}${text}\u{202C}`
 }
 
 function shapedTable(table, isPluralForms, kept, shape, prefix = '') {

@@ -244,8 +244,8 @@ export function protectMachine(
           if (!deps.host.isInteractive()) throw new MachineError('unattendedHardware')
           if (generation !== started) throw new MachineError('machineStopped')
           const binding = approvalCheck.answer(supplied)
-          if (binding === undefined || hasExpired()) throw new MachineError('approvalRejected')
-          if (hasExpired()) throw new MachineError('approvalRejected')
+          if (binding === undefined || hasExpired() || hasExpired())
+            throw new MachineError('approvalRejected')
           approval = request.id
           await audit(payload, 'attempt', approval)
           if (!deps.host.isInteractive()) throw new MachineError('unattendedHardware')

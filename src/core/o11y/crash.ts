@@ -86,8 +86,8 @@ function isKind(kind: string): kind is O11yCrashKind {
 
 function scrubSymbol(symbol: string): string | undefined {
   const scrubbed = redactSecrets(symbol)
-  if (scrubbed !== symbol) return undefined
-  if (scrubbed.length === 0 || scrubbed.length > O11Y_CRASH_SYMBOL_MAX_CHARS) return undefined
+  if (scrubbed !== symbol || scrubbed.length === 0 || scrubbed.length > O11Y_CRASH_SYMBOL_MAX_CHARS)
+    return undefined
   return SYMBOL_PATTERN.test(scrubbed) ? scrubbed : undefined
 }
 

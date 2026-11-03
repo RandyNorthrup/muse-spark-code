@@ -101,8 +101,7 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
   try {
     host = await RuntimeMakerHost.create(hostDeps)
   } catch (error) {
-    if (!isHostUnavailable(error)) throw error
-    if (deps.stopOnlyFallback !== true) throw error
+    if (!isHostUnavailable(error) || deps.stopOnlyFallback !== true) throw error
     host = RuntimeMakerHost.stopOnly(hostDeps)
   }
   const registry = new MachineRegistry(

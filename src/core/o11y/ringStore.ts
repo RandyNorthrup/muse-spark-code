@@ -209,7 +209,7 @@ export function downsamplePoints<T>(points: readonly T[], maxPoints: number): re
   const stride = Math.ceil(points.length / maxPoints)
   const thinned = points.filter((_, index) => index % stride === 0)
   const last = points.at(-1)
-  return last !== undefined && thinned.at(-1) !== last ? [...thinned, last] : thinned
+  return last === undefined || thinned.at(-1) === last ? thinned : [...thinned, last]
 }
 
 /**

@@ -118,9 +118,12 @@ export class SessionHardwareGuard {
     liveTargets: () => readonly TargetIdentity[],
     now: () => number,
   ): HardwareBinding | undefined {
-    if (this.current().isUnattended === true || this.current().isInventoryKnown === false)
+    if (
+      this.current().isUnattended === true ||
+      this.current().isInventoryKnown === false ||
+      !approval.accept(answer, liveTargets(), now())
+    )
       return undefined
-    if (!approval.accept(answer, liveTargets(), now())) return undefined
     let isConsumed = false
     return Object.freeze({
       request: approval.request,

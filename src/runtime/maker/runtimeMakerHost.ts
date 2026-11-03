@@ -206,10 +206,10 @@ export class RuntimeMakerHost implements MakerHost {
       !this.isTrusted() ||
       !this.hardwareEnabled() ||
       !this.isInteractive() ||
-      Date.now() >= request.expiresAt
+      Date.now() >= request.expiresAt ||
+      this.pending.has(request.id)
     )
       return undefined
-    if (this.pending.has(request.id)) return undefined
     const reject = {
       id: request.id,
       digest: request.digest,

@@ -178,7 +178,7 @@ export function normalizeSplitSizes(sizes: readonly number[], count: number): nu
   const kept = sizes.slice(0, count)
   while (kept.length < count) kept.push(1)
   const total = kept.reduce((sum, size) => sum + size, 0)
-  return total > 0 ? kept.map((size) => size / total) : kept.map(() => 1 / count)
+  return kept.map(total > 0 ? (size) => size / total : () => 1 / count)
 }
 
 /**

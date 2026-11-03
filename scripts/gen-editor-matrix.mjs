@@ -247,9 +247,9 @@ function recordForVscode(previous) {
   const observed = loaded.provenance ?? {}
   const waiting = waitingLegs().filter((leg) => waitsOn(leg, 'vscode'))
   const editorVersion =
-    previous !== undefined && previous.editorVersion !== ''
-      ? previous.editorVersion
-      : (observed?.vscodeVersion ?? '')
+    previous === undefined || previous.editorVersion === ''
+      ? (observed?.vscodeVersion ?? '')
+      : previous.editorVersion
   return {
     host: 'vscode',
     outcome: outcomeFor(waiting),

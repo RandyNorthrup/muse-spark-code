@@ -118,7 +118,7 @@ function signInSentence(agent: ExternalAgent): string {
 }
 
 /** The refusal for what this agent runs itself, in the installed language. */
-function doesItselfSentence(agent: ExternalAgent): string {
+function itselfSentence(agent: ExternalAgent): string {
   return fill(UI_TEXT.teamExternalDoesItself, { agent: agent.label })
 }
 
@@ -724,7 +724,7 @@ export class ExternalOrchestratorSession implements AgentSession {
 
   public steer(): Promise<never> {
     // ACP has no steer: nothing is taken, so the caller sends a new turn.
-    throw new SteerRefusedError(doesItselfSentence(this.deps.agent))
+    throw new SteerRefusedError(itselfSentence(this.deps.agent))
   }
 
   public setModelCallAllowance(): void {
@@ -828,46 +828,46 @@ export class ExternalOrchestratorSession implements AgentSession {
   }
 
   public moveToBackground(): Promise<void> {
-    throw new Error(doesItselfSentence(this.deps.agent))
+    throw new Error(itselfSentence(this.deps.agent))
   }
 
   public stopTask(): Promise<void> {
-    throw new Error(doesItselfSentence(this.deps.agent))
+    throw new Error(itselfSentence(this.deps.agent))
   }
 
   public stopAllTasks(): Promise<void> {
-    throw new Error(doesItselfSentence(this.deps.agent))
+    throw new Error(itselfSentence(this.deps.agent))
   }
 
   public runUserShell(): Promise<void> {
-    throw new Error(doesItselfSentence(this.deps.agent))
+    throw new Error(itselfSentence(this.deps.agent))
   }
 
   public controlSubagent(): Promise<void> {
-    throw new Error(doesItselfSentence(this.deps.agent))
+    throw new Error(itselfSentence(this.deps.agent))
   }
 
   public messageSubagent(): Promise<void> {
-    throw new Error(doesItselfSentence(this.deps.agent))
+    throw new Error(itselfSentence(this.deps.agent))
   }
 
   public controlGoal(): Promise<never> {
-    throw new GoalRefusedError('noGoal', doesItselfSentence(this.deps.agent))
+    throw new GoalRefusedError('noGoal', itselfSentence(this.deps.agent))
   }
 
   public compact(): Promise<{ status: string; reason: string | undefined }> {
     return Promise.resolve({
       status: 'unsupported',
-      reason: doesItselfSentence(this.deps.agent),
+      reason: itselfSentence(this.deps.agent),
     })
   }
 
   public rename(): Promise<undefined> {
-    throw new Error(doesItselfSentence(this.deps.agent))
+    throw new Error(itselfSentence(this.deps.agent))
   }
 
   public readOutput(): Promise<never> {
-    throw new Error(doesItselfSentence(this.deps.agent))
+    throw new Error(itselfSentence(this.deps.agent))
   }
 
   /** The items this session holds, in order (host read/fork source). */
@@ -1291,7 +1291,10 @@ export class ExternalOrchestratorHost implements AgentHost {
     // The stored pick's model: the agent's own default (marker), or a model
     // the person named, which the agent must confirm or nothing starts.
     const wanted = options.modelId
-    if (!isExternalDefaultModel(this.deps.agent) && wanted !== this.deps.agent.agentId) {
+    if (isExternalDefaultModel(this.deps.agent) || wanted === this.deps.agent.agentId) {
+      const actual = session.advertisedModel()
+      if (actual !== undefined) session.modelId = actual
+    } else {
       try {
         await session.setModel(wanted)
       } catch (error: unknown) {
@@ -1304,9 +1307,6 @@ export class ExternalOrchestratorHost implements AgentHost {
           { cause: error },
         )
       }
-    } else {
-      const actual = session.advertisedModel()
-      if (actual !== undefined) session.modelId = actual
     }
     await session.applyStartMode(options.approvalMode)
     return session
@@ -1412,18 +1412,18 @@ export class ExternalOrchestratorHost implements AgentHost {
   }
 
   public readSessionOutput(): Promise<OutputPage> {
-    throw new Error(doesItselfSentence(this.deps.agent))
+    throw new Error(itselfSentence(this.deps.agent))
   }
 
   public forkSession(): Promise<LoadedSession> {
-    throw new Error(doesItselfSentence(this.deps.agent))
+    throw new Error(itselfSentence(this.deps.agent))
   }
 
   public deleteSession(sessionId: string): Promise<void> {
     if (!this.sessions.has(sessionId)) throw new SessionNotFoundError(sessionId)
     // The agent owns its stored sessions; ending ours deletes nothing of
     // its, so refuse rather than pretend (canDeleteSessions stays unset).
-    throw new Error(doesItselfSentence(this.deps.agent))
+    throw new Error(itselfSentence(this.deps.agent))
   }
 
   public onUsageChanged(): () => void {

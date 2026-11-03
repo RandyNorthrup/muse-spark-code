@@ -16,8 +16,11 @@ const DEFAULT_FILES = ['os/desktop/hyprland/hyprland.lua', 'os/desktop/hyprland/
 function run(binary, args) {
   return new Promise((resolve) => {
     execFile(binary, args, { timeout: 60_000 }, (error, stdout, stderr) => {
-      if (error && error.code === 'ENOENT') resolve({ ran: false, output: '' })
-      else resolve({ ran: true, output: `${stdout}\n${stderr}` })
+      resolve(
+        error && error.code === 'ENOENT'
+          ? { ran: false, output: '' }
+          : { ran: true, output: `${stdout}\n${stderr}` },
+      )
     })
   })
 }

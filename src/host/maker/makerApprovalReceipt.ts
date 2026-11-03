@@ -16,8 +16,11 @@ export class MakerApprovalReceipt {
 
   rendered(id: string, digest: string): void {
     if (this.current === 'decided' || this.current === 'revoked') return
-    if (id !== this.id || digest !== this.digest) this.revoke()
-    else this.current = 'rendered'
+    if (id === this.id && digest === this.digest) {
+      this.current = 'rendered'
+    } else {
+      this.revoke()
+    }
   }
 
   canSend(id: string, digest: string): boolean {

@@ -1279,9 +1279,9 @@ export class RequestTransport {
   public explicitMaxRetries(): number | undefined {
     const personCap = this.deps.personCap?.()
     const providerMaxRetries = documentedLimits(this.deps).maxRetries
-    return personCap !== undefined && providerMaxRetries !== undefined
-      ? Math.min(personCap, providerMaxRetries)
-      : (personCap ?? providerMaxRetries)
+    return personCap === undefined || providerMaxRetries === undefined
+      ? (personCap ?? providerMaxRetries)
+      : Math.min(personCap, providerMaxRetries)
   }
 
   /**
