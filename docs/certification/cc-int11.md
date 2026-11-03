@@ -257,3 +257,5 @@ Interactions:
   and the case passes on int's lease source.
 - Merge 2/3, ACP package without `teamMcp.js`: `node scripts/gen-lazy-registry.mjs` exit 1 ("its package does not
   carry it"); carried in `acpBundles.mjs` → exit 0.
+- Merge 8, real-parts rig: `ownerBirth`/`probeOwner` still passed → unit typecheck exit 1 (TS2344); removed → exit 0.
+  `teamHostRealParts`, `teamLandingKilled`, `teamLandingPause` 14 passed, 1 skipped (exit 0).
