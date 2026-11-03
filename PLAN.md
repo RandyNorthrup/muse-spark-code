@@ -11638,6 +11638,30 @@ no test can show it a live provider strict-limit refusal without a
 live call or a stand-in, and both are out. Record:
 `docs/certification/rlf-editfuzz.md`.
 
+### RLFUNPROVEN — The unproven backlog as run-ready real-life scenarios (2026-11-02)
+
+**Status 2026-11-02 (lane RLF-UNPROVEN, macmini): built and gated, pending integration.**
+`docs/real-life/unproven.md` is converted to 23 run-ready scenarios under
+`scripts/real-life/scenarios/` (`m<milestone>-<what>.mjs`), each naming its
+deleted titles, its packed-product steps, its expected model attempts and
+its dollar cap; `docs/real-life/scenario-index.md` maps every backlog
+section to its scenario, an older scenario, lead-only manual steps, or
+hosted receipts. The runner enforces an optional per-surface `maxUsd`
+exactly as it enforces `requests`, prints allowances in `--list`, and keeps
+declared caps in the record. Nothing is marked proven: a behaviour leaves
+`unproven.md` only when the lead's run proves it. The first pass ran with
+the shell denied, so the resume run gated it all here (prettier, eslint,
+typecheck, l10n, reference, host-api, plan, roadmap, catches, duplication,
+cycles, deadcode, build: every exit 0; `ROADMAP.md` regenerated; `--list`
+proves the 23 files load and the glob selects exactly them; two red/green
+drills observed) and committed. The scenario set itself still needs the
+lead's keyed run before anything merges — no live call was made here.
+Record: `docs/certification/rlf-unproven.md`.
+
+- **Goal.** Every behaviour in the unproven backlog has a run that proves
+  it: a scenario file, an older scenario, exact manual steps, or the
+  hosted receipt that alone can.
+
 ### M127 — Muse Code at its latest release (2026-10-17)
 
 **Status 2026-11-02 (RLF-UPSDK): building.** D260 removed the
