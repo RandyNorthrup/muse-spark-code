@@ -28,16 +28,6 @@ const { EN, TABLE_LOCALES, buildWebviewHtml, createNonce } = await import(
 
 await mkdir(path.join(assets, 'l10n'), { recursive: true })
 await mkdir(path.join(assets, 'runtime'), { recursive: true })
-await esbuild.build({
-  entryPoints: [path.join(plugin, 'Panel/embedded-bridge.mjs')],
-  outfile: path.join(assets, 'embedded-bridge.js'),
-  bundle: true,
-  minify: true,
-  format: 'iife',
-  globalName: 'MuseVisualStudio',
-  platform: 'browser',
-  target: 'chrome132',
-})
 await cp(path.join(root, 'dist/webview'), path.join(assets, 'webview'), { recursive: true })
 const englishManifest = JSON.parse(await readFile(path.join(root, 'package.nls.json'), 'utf8'))
 for (const locale of ['en', ...TABLE_LOCALES]) {
@@ -51,13 +41,19 @@ for (const locale of ['en', ...TABLE_LOCALES]) {
       : JSON.parse(await readFile(path.join(root, `package.nls.${locale}.json`), 'utf8'))
   await writeFile(path.join(assets, 'l10n', `ui.${locale}.json`), JSON.stringify(table))
   await writeFile(path.join(assets, 'l10n', `package.nls.${locale}.json`), JSON.stringify(manifest))
+  const nonce = createNonce()
   const html = buildWebviewHtml({
     scriptUri: `${origin}/webview/portable/main.js`,
     styleUri: `${origin}/webview/portable/main.css`,
     cspSource: origin,
-    nonce: createNonce(),
+    nonce,
     l10n: { locale, table },
   })
+    .replace(
+      '</head>',
+      () =>
+        `<link rel="stylesheet" href="${origin}/webview/portable/theme.css" nonce="${nonce}">\n</head>`,
+    )
     .replace('<html lang=', '<html data-theme="dark" lang=')
     .replace('<body>', '<body data-host="embedded">')
     .replace(
@@ -78,7 +74,7 @@ await cp(
   path.join(root, 'src/shared/hostApi/mhp-v1.1.schema.json'),
   path.join(assets, 'mhp-v1.1.schema.json'),
 )
-await cp(path.join(root, 'LICENSE'), path.join(assets, 'LICENSE'))
+await cp(path.join(root, 'LICENSE'), path.join(assets, 'LICENSE.txt'))
 await cp(path.join(root, 'THIRD_PARTY_NOTICES.txt'), path.join(assets, 'THIRD_PARTY_NOTICES.txt'))
 const nativeNotices = [
   ['microsoft.web.webview2/1.0.4258.31', 'LICENSE.txt', 'NOTICE.txt'],

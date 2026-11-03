@@ -302,12 +302,12 @@ class MhpConnection(
   }
 
   companion object {
-    // Frozen MHP 1.5 range: mirrors MHP.minimumVersion/maximumVersionExclusive
-    // in src/shared/constants.ts (lane A). Only the reviewed 1.5 contract is served.
-    const val PANEL_VERSION = "mhp/1.5.1"
+    // Frozen MHP 1.6 range: mirrors MHP.minimumVersion/maximumVersionExclusive
+    // in src/shared/constants.ts (lane A). Only the reviewed 1.6 contract is served.
+    const val PANEL_VERSION = "mhp/1.6.0"
     private const val METADATA_TIMEOUT_SECONDS = 2L
     private const val INITIALIZE_TIMEOUT_SECONDS = 100L
-    private const val MAXIMUM_VERSION = "mhp/1.6.0"
+    private const val MAXIMUM_VERSION = "mhp/1.7.0"
 
     fun technicalCode(failure: Throwable): String = MhpErrors.technicalCode(failure)
   }

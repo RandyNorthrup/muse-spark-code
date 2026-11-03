@@ -1,11 +1,16 @@
 {
   "host": "sublime",
-  "outcome": "pending",
-  "editorVersion": "",
-  "need": "MHP_CONFORMANCE_PENDING: a run inside Sublime Text (the offline suite used a module double and is deleted)",
+  "outcome": "excepted",
+  "editorVersion": "Sublime Text Build 4200",
+  "reason": "no MHP surface: the shim is excepted from MHP scenarios and qualifies via its own harness",
+  "harness": {
+    "command": "python3 -m unittest discover -s hosts/sublime/test",
+    "exitCode": 0,
+    "summary": "1 tests OK"
+  },
   "provenance": {
-    "observedAt": "2026-10-31T01:35:53.155Z",
+    "observedAt": "2026-11-02T13:39:20.283Z",
     "observedOn": "randy-lt (linux)",
-    "command": ""
+    "command": "python3 -m unittest discover -s hosts/sublime/test"
   }
 }

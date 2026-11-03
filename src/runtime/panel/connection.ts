@@ -1,4 +1,4 @@
-// The runtime's side of one MHP 1.5 connection (M104 lane B, D84, D226): the
+// The runtime's side of one MHP 1.6 connection (M104 lane B, D84, D226): the
 // handshake, the host's requests and notifications with their cancellation,
 // the runtime's own requests to the host (correlated by id, cancelled by
 // `$/cancelRequest`, with no deadline of ours: a consent question waits for

@@ -99,14 +99,40 @@ happened, not what was planned; superseded entries are kept.
   subscription quota waits until the provider's reset instant, however long,
   then resends its message, with Stop. Without it, the failure shows at once,
   with Retry when that turn can be retried.
+- **In the editor hosts, the panel follows your editor's theme.**
+  Switching the editor's theme re-colours the panel immediately in
+  the JetBrains and Eclipse plugins (the Visual Studio and Xcode
+  hosts send the same message when they run on their machines).
+- **The panel status item shows how many questions wait for you** in
+  the native editor hosts, updating as questions arrive and are
+  answered.
+- **The panel asks the editor for a GitHub lease before device
+  sign-in or `gh`.** When the editor answers, that lease is what the
+  panel uses, and the token stays in the editor. No plugin in this
+  tree answers the lease yet.
+- **Scheduled prompts loaded for a native window stay tied to that
+  window's workspace.** While schedule delivery is not yet certified,
+  a failure to hold them shows a warning and a notice.
+- **The native panel can attach a video a workspace path or the
+  editor's file chooser names**, with the same checks as VS Code, and
+  it says why when it refuses. Recording says it is not available on
+  this panel yet. The JetBrains and Eclipse plugins do not send an
+  attachment yet.
 - **Editor hosts for JetBrains IDEs and Eclipse, plus shims for Emacs,
   Neovim, Zed and Qt Creator.** The JetBrains and Eclipse plugins carry
   the panel in the editor over the real runtime; their conformance
   suites pass 9 checks each (diff hunks, diagnostics, settings, panel
   order, checkpoints), with live-conversation checks still to run. The
   Emacs, Neovim, Zed and Qt Creator shims launch the agent with
-  credentials stripped. Sublime Text, Visual Studio and Xcode hosts
-  are in the tree but not yet run in their editors.
+  credentials stripped. Sublime Text and Xcode hosts are in the tree
+  but not yet run in their editors.
+- **The panel opens in Visual Studio 2022.** In an experimental instance
+  of Community 17.14 the extension installs without the
+  extension-development workload, opens the panel from the View menu on
+  the agent you installed, and passes 13 conformance checks (diff hunks,
+  dirty and changed buffers, diagnostics, settings, panel order,
+  checkpoints) with live-conversation checks still to run. It is not on
+  the Marketplace, and Visual Studio 2026 has not been tried.
 - **A page the agent asks JetBrains or Eclipse to show cannot bring its
   own script or a looser security policy.** The editor keeps the page
   rules it loaded, and a message from any other page is refused.
@@ -613,6 +639,7 @@ happened, not what was planned; superseded entries are kept.
   helper it asks was missing; it now says the helper is missing. The local
   judge on a Mac whose `muse-local-judge-peer` is not built or not signed now
   reads as an unverified local endpoint, not as an engine failure.
+- **A path that only starts inside the recording folder cannot attach a file outside it.** The panel says that private file cannot be attached and does not read it. A video that really is in the recording folder still attaches.
 - A pack index is accepted only when the signature covers those exact bytes
   and the signer is the pack workflow on `main`, exactly. A signature for a
   branch whose name merely begins with `main`, or a signed statement that

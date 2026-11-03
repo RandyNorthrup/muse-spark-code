@@ -29,7 +29,7 @@ namespace MuseSpark.VisualStudio.Panel
     {
       if (!Path.IsPathRooted(node) || !Path.IsPathRooted(entry) || !File.Exists(node) || !File.Exists(entry))
         throw new InvalidOperationException("MHP_RUNTIME_NOT_INSTALLED");
-      var info = new ProcessStartInfo(node, Quote(entry) + " panel --stdio --host visual-studio")
+      var info = new ProcessStartInfo(node, Quote(entry) + " panel --stdio")
       {
         UseShellExecute = false,
         CreateNoWindow = true,

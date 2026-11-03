@@ -45,6 +45,7 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
     private final IResourceChangeListener problems;
     private final IPartListener2 parts;
     private final IWindowListener windows;
+    private final org.eclipse.jface.util.IPropertyChangeListener themeChanges;
     private final ExecutorService stderr = Executors.newSingleThreadExecutor();
     private String chatSession;
     private boolean trusted;
@@ -108,6 +109,11 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
             @Override public void windowOpened(IWorkbenchWindow opened) { }
         };
         PlatformUI.getWorkbench().addWindowListener(windows);
+        themeChanges = event -> display.asyncExec(() -> {
+            if (disposed) return;
+            try { notify("window/didChangeTheme", Json.object("theme", theme())); } catch (Exception ex) { log.accept("MHP_THEME_FAILURE"); }
+        });
+        PlatformUI.getWorkbench().getThemeManager().addPropertyChangeListener(themeChanges);
         documents.list();
         process.onExit().thenRun(() -> { if (!display.isDisposed()) display.asyncExec(() -> { if (!disposed) close(); }); });
         JsonObject metadata = hostContext();
@@ -149,7 +155,7 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
             });
         } catch (RuntimeException ex) {
             String code = ex.getMessage(); if (code == null || !code.startsWith("MHP_PANEL_")) code = "MHP_PANEL_INVALID_PAYLOAD";
-            JsonObject error = Json.object("mhp", "1.5", "kind", "panelError", "surface", frame.get("surface"), "seq", frame.get("seq"), "code", code);
+            JsonObject error = Json.object("mhp", "1.6", "kind", "panelError", "surface", frame.get("surface"), "seq", frame.get("seq"), "code", code);
             contract.panel("error", error); peer.send(error); log.accept(code);
         }
     }
@@ -167,7 +173,7 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
             }
             JsonObject error = null;
             try { delivery.view.deliverPayload(delivery.payload); } catch (RuntimeException ex) {
-                error = Json.object("mhp", "1.5", "kind", "panelError", "surface", delivery.view.binding().id, "seq", delivery.sequence, "code", "MHP_PANEL_NOT_READY");
+                error = Json.object("mhp", "1.6", "kind", "panelError", "surface", delivery.view.binding().id, "seq", delivery.sequence, "code", "MHP_PANEL_NOT_READY");
                 contract.panel("error", error); log.accept("MHP_PANEL_NOT_READY");
             }
             finally { peer.releaseBrowser(delivery.bytes); }
@@ -367,9 +373,12 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
         requireDisplay();
         org.osgi.framework.Bundle platform = Platform.getBundle("org.eclipse.platform");
         String version = platform == null ? Platform.getBundle("org.eclipse.ui").getVersion().toString() : platform.getVersion().toString();
+        return Json.object("host", Json.object("id", "eclipse", "version", version), "protocolRange", Json.object("minimum", "mhp/1.6.0", "maximumExclusive", "mhp/1.7.0"), "capabilities", Json.GSON.toJsonTree(CAPABILITIES), "locale", Assets.locale(Platform.getNL()), "theme", theme(), "folders", folders(), "trusted", trusted);
+    }
+    public JsonObject theme() {
         boolean dark = PlatformUI.getWorkbench().getThemeManager().getCurrentTheme().getId().toLowerCase(Locale.ROOT).contains("dark");
         String kind = Display.getDefault().getHighContrast() ? dark ? "highContrastDark" : "highContrastLight" : dark ? "dark" : "light";
-        return Json.object("host", Json.object("id", "eclipse", "version", version), "protocolRange", Json.object("minimum", "mhp/1.5.1", "maximumExclusive", "mhp/1.6.0"), "capabilities", Json.GSON.toJsonTree(CAPABILITIES), "locale", Assets.locale(Platform.getNL()), "theme", Json.object("kind", kind, "tokens", tokens()), "folders", folders(), "trusted", trusted);
+        return Json.object("kind", kind, "tokens", tokens());
     }
     public static JsonObject tokens() {
         RGB background = Display.getDefault().getSystemColor(SWT.COLOR_LIST_BACKGROUND).getRGB(); RGB foreground = Display.getDefault().getSystemColor(SWT.COLOR_LIST_FOREGROUND).getRGB();
@@ -403,6 +412,7 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
         cleanup("MHP_SELECTION_CLEANUP_FAILURE", () -> window.getSelectionService().removePostSelectionListener(selections));
         cleanup("MHP_PART_CLEANUP_FAILURE", () -> window.getPartService().removePartListener(parts));
         cleanup("MHP_WINDOW_CLEANUP_FAILURE", () -> PlatformUI.getWorkbench().removeWindowListener(windows));
+        cleanup("MHP_THEME_CLEANUP_FAILURE", () -> PlatformUI.getWorkbench().getThemeManager().removePropertyChangeListener(themeChanges));
         cleanup("MHP_RESOURCE_CLEANUP_FAILURE", () -> ResourcesPlugin.getWorkspace().removeResourceChangeListener(problems));
     }
     @Override public void close() {

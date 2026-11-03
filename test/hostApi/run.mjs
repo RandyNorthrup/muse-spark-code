@@ -14,6 +14,8 @@ import {
 export const contract = JSON.parse(
   readFileSync(new URL('scenarios/contract.json', import.meta.url), 'utf8'),
 )
+// The reference editor: it runs the contract in-process and is no packaged host.
+const REFERENCE_HOST = 'vscode'
 const reportSchema = z.strictObject({
   protocol: z.literal(MHP_VERSION),
   host: z.string(),
@@ -52,7 +54,7 @@ export function waitingLegs(loaded = contract) {
     const names = leg.hosts ?? []
     for (const name of names)
       assert.ok(
-        Object.hasOwn(HOSTS, name),
+        Object.hasOwn(HOSTS, name) || name === REFERENCE_HOST,
         `MHP_CONFORMANCE_WAITING_HOST:${leg.backend}:${leg.scenario}:${name}`,
       )
     const key = `${leg.backend}:${leg.scenario}:${names.join(',')}`

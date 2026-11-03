@@ -8,8 +8,10 @@ and its acp.el dependency separately for the native chat route.
 configuration uses the actual agent-shell 0.77.4 client-maker interface.
 `muse-spark-command` is an argv list, so paths with spaces stay intact.
 
-`M-x muse-spark-panel` starts `panel --companion` in `default-directory`;
-the runtime opens its browser. For an existing ACP session, pass its fresh
+`M-x muse-spark-panel` starts `panel --companion` in `default-directory`.
+The current runtime's one panel transport is `--stdio`, so until the
+loopback companion transport ships this start is refused and shown as
+`EPANEL_EXIT`; the ACP and LSP routes below work today. For an existing ACP session, pass its fresh
 `/panel` link to `(muse-spark-panel url)`. An Emacs build with xwidgets opens
 that same-session page using `xwidget-webkit-browse-url`; other builds use
 `browse-url`. No key or URL is saved in customization or a file. The page
@@ -36,9 +38,14 @@ From the repository root:
 emacs --batch -Q -L hosts/emacs -l hosts/emacs/test/muse-spark-test.el -f ert-run-tests-batch-and-exit
 ```
 
-ERT uses test-only agent-shell/browser doubles and a real companion-process
-cleanup check. These tests do not claim the pending shared controller's
-F1–F56 conformance; see `docs/certification/m104-h.md`.
+ERT starts this tree's real `dist/acp.js` (run `npm run build` first)
+through the shim's own argv and environment functions: an LSP
+initialize/shutdown round trip with the child's live environment checked
+for credentials, the companion start's refusal and cleanup, and a
+supervised ACP initialize (skipped where the machine refuses
+supervision's owner-only root). These tests do not claim the pending
+shared controller's F1–F56 conformance; see
+`docs/certification/m104-h.md`.
 
 ## LSP and independent workspace Stop
 

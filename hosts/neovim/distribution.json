@@ -4,8 +4,12 @@
     {
       "args": ["--headless", "-i", "NONE", "-u", "NONE", "-l", "test/check.lua"],
       "command": "nvim"
+    },
+    {
+      "args": ["--headless", "-i", "NONE", "-u", "NONE", "-l", "test/lsp.lua"],
+      "command": "nvim"
     }
   ],
   "conformance": { "args": ["run.mjs"], "command": "node" },
-  "mhp": "mhp/1.5.1"
+  "mhp": "mhp/1.6.0"
 }

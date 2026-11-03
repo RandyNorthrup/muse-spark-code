@@ -1,33 +1,34 @@
-# MHP 1.5.1 panel carrier
+# MHP 1.6.0 panel carrier
 
-MHP 1.5 restores the native closed-shape policy after the 1.4 input export.
+MHP 1.6 adds the host window theme message and the attachments
+methods to the 1.5 closed-shape policy.
 Named object shapes refuse unknown fields before dispatch; records and
 explicit catchalls retain their declared entries. The exporter still describes
 inputs before Zod transforms, including exact-money normalization. Arbitrary
-JSON bridge state remains recursive and open. The 1.4 locks are superseded
+JSON bridge state remains recursive and open. The 1.5 locks are superseded
 through explicit version adoption, never rewritten at the same version.
 
 Reviewed replacement contract for Muse Spark Code (Unofficial), lead decision
 2026-10-06 (M104PA), joined with 0.17 on 2026-10-09 (M104INT), with closed input shapes restored by M104 F1.
-No native plugin has shipped; 1.0/1.1/1.2/1.3/1.4 are not negotiated
+No native plugin has shipped; 1.0/1.1/1.2/1.3/1.4/1.5 are not negotiated
 or supported. Native D/E/F adoption and assembled-editor qualification remain
 required; this document does not promote editor support.
 
 ## Compatibility and negotiation
 
 Both legacy-named native build inputs, `mhp-v1.schema.json` and
-`mhp-v1.1.schema.json`, now advertise `mhp/1.5.1` and range
-`[mhp/1.5.1, mhp/1.6.0)`. Their locks pin the current shared payloads as a
+`mhp-v1.1.schema.json`, now advertise `mhp/1.6.0` and range
+`[mhp/1.6.0, mhp/1.7.0)`. Their locks pin the current shared payloads as a
 reviewed version change. The first exports editor methods; the second also
 exports panel/bridge/lifecycle schemas. The filenames retain native build
-references; their headers and validators do not retain 1.0/1.1/1.2/1.3/1.4.
+references; their headers and validators do not retain 1.0/1.1/1.2/1.3/1.4/1.5.
 
 The editor spawns the runtime and sends `initialize` with its host id/version,
 locale, theme tokens, folders, trust and supported capability groups. The
-runtime answers with `protocolVersion: "mhp/1.5.1"` and its capabilities.
+runtime answers with `protocolVersion: "mhp/1.6.0"` and its capabilities.
 `shutdown` is also host-to-runtime; cancellation is bidirectional. A range
-containing 1.5.1 selects only that version. Every incompatible range receives
-`MHP_INCOMPATIBLE_VERSION`; 1.0/1.1/1.2/1.3/1.4 and speculative future versions are refused.
+containing 1.6.0 selects only that version. Every incompatible range receives
+`MHP_INCOMPATIBLE_VERSION`; 1.0/1.1/1.2/1.3/1.4/1.5 and speculative future versions are refused.
 The earlier runtime-initiated hostMetadata/surfaceHtml proposals are dropped.
 
 `workspace/didChangeTrust` supplies both trust grant and revocation;
@@ -46,7 +47,7 @@ retire old bindings before opening replacement surfaces.
 
 ```json
 {
-  "mhp": "1.5",
+  "mhp": "1.6",
   "kind": "panel",
   "surface": "opaque-id",
   "direction": "toHost",
@@ -99,7 +100,7 @@ then parse the envelope and check contextual admission before dispatch.
 
 ## Surface lifecycle
 
-Lifecycle notifications have `mhp: "1.5", `kind: "surface"`, the full
+Lifecycle notifications have `mhp: "1.6", `kind: "surface"`, the full
 binding (`surface`, `sessionId`, `surfaceKind`) and an `event`. They travel
 host/editor-to-runtime, separately from the editor-service method table.
 
@@ -205,9 +206,15 @@ surface purges its pending frames, reports their exact count, and never reports
 an undelivered message as delivered. These rules are implementation requirements,
 not a claim that this contract-only lane implements the queues.
 
-## MHP 1.5 native services and auxiliary actions
+## MHP 1.6 native services and auxiliary actions
 
-This reviewed adoption replaces 1.2; both snapshots and locks change together.
+This reviewed adoption replaces 1.5; both snapshots and locks change together.
+The host sends `window/didChangeTheme` (capability `window`) with its
+complete theme whenever the window theme changes; `initialize` carries the
+first one. The runtime relays the latest theme to each surface as the
+`theme` panel payload when it becomes ready and on every change. Both
+are full replacements, never patches; the panel's M114 theme binding maps the
+`--muse-*` tokens onto semantic roles and drops tokens no role claims.
 Native service results acknowledge actual acceptance: `ui/openFile` returns a
 chosen URI or null, `ui/saveText` returns whether export completed, and
 `surfaces/presentHtml` resolves only after the owning surface accepts its HTML.

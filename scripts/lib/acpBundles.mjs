@@ -98,6 +98,12 @@ export const ACP_BUNDLES = [
   'nativeGit.js',
   // M104 lane B: saved plans in the runtime panel (their port, the Markdown reader, and the Plans… list in the commands chunk).
   'runtimePanelPorts.js',
+  // M105 delivery d: the native panel's attachments route and port, loaded
+  // on the first attachments call.
+  'runtimePanelMedia.js',
+  // C-M115-9: the native panel's schedules binding, loaded on the first
+  // native schedule hold.
+  'runtimePanelSchedules.js',
   'planMarkdown.js',
   'commands.js',
   // M124 remote (D240): the HTTPS endpoint and its OAuth server, loaded by `mcp serve-http` and `mcp client`.

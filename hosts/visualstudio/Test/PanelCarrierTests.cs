@@ -15,38 +15,48 @@ namespace MuseSpark.VisualStudio.Test
   [TestClass]
   public sealed class PanelCarrierTests
   {
+    // These tests run the real peer and the real channel on the frozen contract. The host services are never
+    // asked for anything: RejectsServiceAdmission... proves the peer refuses before reaching them.
     private sealed class Host : IHostServices
     {
       public IReadOnlyCollection<string> Capabilities { get; } = new[] { "lifecycle", "documents" };
       public int Calls { get; private set; }
-      public Task<JToken> InvokeAsync(string method, JObject parameters, CancellationToken cancellation) { Calls++; return Task.FromResult<JToken>(new JArray()); }
+      public Task<JToken> InvokeAsync(string method, JObject parameters, CancellationToken cancellation) { Calls++; throw new InvalidOperationException("MHP_UNEXPECTED_SERVICE_CALL"); }
     }
-    internal static JObject Initialize(string minimum = "mhp/1.5.1", string maximum = "mhp/1.6.0") => new JObject
+
+    // The runtime's real answer, captured 2026-11-02 from this tree's dist/acp.js panel --stdio
+    // (Windows 11, a scratch home, no credential, no model call; docs/certification/cc-m104gw.md has the probe).
+    private const string RecordedInitializeAnswer = "{\"jsonrpc\":\"2.0\",\"id\":\"vs:1\",\"result\":{\"protocolVersion\":\"mhp/1.6.0\",\"capabilities\":[\"lifecycle\",\"settings\",\"storage\"]}}";
+
+    internal static JObject InitializeParameters(string minimum = "mhp/1.6.0", string maximum = "mhp/1.7.0") => new JObject
     {
-      ["jsonrpc"] = "2.0",
-      ["id"] = "init",
-      ["method"] = "initialize",
-      ["params"] = new JObject
-      {
-        ["host"] = new JObject { ["id"] = "visual-studio", ["version"] = "17.14" },
-        ["protocolRange"] = new JObject { ["minimum"] = minimum, ["maximumExclusive"] = maximum },
-        ["capabilities"] = new JArray("lifecycle", "documents"),
-        ["locale"] = "en",
-        ["theme"] = new JObject { ["kind"] = "dark", ["tokens"] = new JObject() },
-        ["folders"] = new JArray(),
-        ["trusted"] = false
-      }
+      ["host"] = new JObject { ["id"] = "visual-studio", ["version"] = "17.14" },
+      ["protocolRange"] = new JObject { ["minimum"] = minimum, ["maximumExclusive"] = maximum },
+      ["capabilities"] = new JArray("lifecycle", "documents"),
+      ["locale"] = "en",
+      ["theme"] = new JObject { ["kind"] = "dark", ["tokens"] = new JObject() },
+      ["folders"] = new JArray(),
+      ["trusted"] = false
     };
+
+    private static async Task HandshakeAsync(MhpPeer peer)
+    {
+      var started = peer.InitializeAsync(InitializeParameters(), CancellationToken.None);
+      await peer.ReceiveAsync(RecordedInitializeAnswer);
+      await started;
+    }
+
     private static JObject Envelope(string surface, long seq, string direction = "toPanel", string type = "focusInput") => new JObject
     {
-      ["mhp"] = "1.5",
+      ["mhp"] = "1.6",
       ["kind"] = "panel",
       ["surface"] = surface,
       ["seq"] = seq,
       ["direction"] = direction,
       ["payload"] = new JObject { ["type"] = type }
     };
-    private static JObject Last(StringWriter writer) => SchemaContract.ParseObject(writer.ToString().Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Last());
+    private static JObject[] Frames(StringWriter writer) => writer.ToString().Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(SchemaContract.ParseObject).ToArray();
+    private static JObject Last(StringWriter writer) => Frames(writer).Last();
     private static Task SendAsync(MhpPeer peer, JObject frame) => peer.ReceiveAsync(frame.ToString(Formatting.None));
 
     private sealed class ObservedReader : TextReader
@@ -63,8 +73,8 @@ namespace MuseSpark.VisualStudio.Test
       using (var reader = new ObservedReader())
       using (var peer = new MhpPeer(SchemaContract.Load(true), new Host(), output))
       {
-        output.Drain.Set(); await SendAsync(peer, Initialize()); output.Drain.Reset();
-        var writes = Enumerable.Range(0, 128).Select(i => peer.WritePanelAsync(Envelope("surface", i + 1))).ToArray();
+        output.Drain.Set(); await HandshakeAsync(peer); output.Drain.Reset();
+        var writes = Enumerable.Range(0, 128).Select(i => peer.PostPanelAsync(Envelope("surface", i + 1))).ToArray();
         var reading = peer.RunAsync(reader);
         try { Assert.AreEqual(0, reader.Reads); Assert.IsFalse(reading.IsCompleted); }
         finally { output.Drain.Set(); reader.End.Set(); }
@@ -81,14 +91,14 @@ namespace MuseSpark.VisualStudio.Test
       using (var output = new StringWriter())
       using (var peer = new MhpPeer(SchemaContract.Load(true), new Host(), output))
       {
-        await SendAsync(peer, Initialize());
+        await HandshakeAsync(peer);
         await SendAsync(peer, Envelope("unbound", 1)); Assert.AreEqual("MHP_PANEL_UNKNOWN_SURFACE", Last(output).Value<string>("code"));
         var malformed = Envelope("unbound", 1); malformed["kind"] = new JObject();
         await SendAsync(peer, malformed); Assert.AreEqual("MHP_PANEL_INVALID_ENVELOPE", Last(output).Value<string>("code"));
         SchemaContract.Validate(Last(output), peer.Contract.Export["panel"]?["error"] ?? throw new InvalidOperationException());
-        await SendAsync(peer, new JObject { ["mhp"] = "1.5", ["kind"] = "surface" });
+        await SendAsync(peer, new JObject { ["mhp"] = "1.6", ["kind"] = "surface" });
         Assert.AreEqual("MHP_PANEL_WRONG_DIRECTION", Last(output).Value<string>("code"));
-        var refusal = new JObject { ["mhp"] = "1.5", ["kind"] = "panelError", ["surface"] = null, ["seq"] = null, ["code"] = "MHP_PANEL_INVALID_ENVELOPE" };
+        var refusal = new JObject { ["mhp"] = "1.6", ["kind"] = "panelError", ["surface"] = null, ["seq"] = null, ["code"] = "MHP_PANEL_INVALID_ENVELOPE" };
         var before = output.ToString(); await SendAsync(peer, refusal); Assert.AreEqual(before, output.ToString());
         refusal["extra"] = true;
         await Assert.ThrowsExceptionAsync<MhpException>(() => SendAsync(peer, refusal));
@@ -96,144 +106,218 @@ namespace MuseSpark.VisualStudio.Test
     }
 
     [TestMethod]
-    public async Task SelectsCurrentVersionOnlyWithinAnExplicitOffer()
+    public async Task OffersTheHandshakeOnlyWithinARangeHoldingTheCurrentVersion()
     {
-      foreach (var range in new[] { ("mhp/1.5.1", "mhp/1.6.0"), ("mhp/1.0.0", "mhp/2.0.0") })
+      foreach (var range in new[] { ("mhp/1.6.0", "mhp/1.7.0"), ("mhp/1.0.0", "mhp/2.0.0") })
       {
         using (var output = new StringWriter())
         using (var peer = new MhpPeer(SchemaContract.Load(true), new Host(), output))
         {
-          await SendAsync(peer, Initialize(range.Item1, range.Item2));
-          Assert.AreEqual("mhp/1.5.1", Last(output)["result"]?.Value<string>("protocolVersion"));
-          await peer.WritePanelAsync(Envelope("s", 1));
+          var started = peer.InitializeAsync(InitializeParameters(range.Item1, range.Item2), CancellationToken.None);
+          await peer.ReceiveAsync(RecordedInitializeAnswer);
+          await started;
+          Assert.AreEqual("mhp/1.6.0", peer.ProtocolVersion);
+          await peer.PostPanelAsync(Envelope("s", 1));
         }
       }
-      foreach (var range in new[] { ("mhp/1.0.0", "mhp/1.5.1"), ("mhp/1.6.0", "mhp/2.0.0"), ("mhp/1.0.0", "mhp/1.2.0") })
+      foreach (var range in new[] { ("mhp/1.0.0", "mhp/1.6.0"), ("mhp/1.7.0", "mhp/2.0.0"), ("mhp/1.0.0", "mhp/1.2.0") })
       {
         using (var output = new StringWriter())
         using (var peer = new MhpPeer(SchemaContract.Load(true), new Host(), output))
         {
-          await SendAsync(peer, Initialize(range.Item1, range.Item2));
-          Assert.AreEqual("MHP_INCOMPATIBLE_VERSION", Last(output)["error"]?.Value<string>("message"));
-          await Assert.ThrowsExceptionAsync<MhpException>(() => peer.WritePanelAsync(Envelope("s", 1)));
+          var refused = await Assert.ThrowsExceptionAsync<MhpException>(() => peer.InitializeAsync(InitializeParameters(range.Item1, range.Item2), CancellationToken.None));
+          Assert.AreEqual("MHP_INCOMPATIBLE_VERSION", refused.Message);
+          Assert.AreEqual("", output.ToString());
+          await Assert.ThrowsExceptionAsync<MhpException>(() => peer.PostPanelAsync(Envelope("s", 1)));
         }
       }
     }
 
     [TestMethod]
-    public async Task BindsReadyReloadHiddenAndCloseToOneSessionAndNeverReusesIds()
+    public async Task BindsReadyReloadHiddenAndCloseToOneSession()
     {
       using (var output = new StringWriter())
       using (var peer = new MhpPeer(SchemaContract.Load(true), new Host(), output))
       {
-        await SendAsync(peer, Initialize());
-        string surface;
-        using (var channel = new MhpPanelChannel(peer, "conversation", "chat", "script", _ => { }))
+        await HandshakeAsync(peer);
+        using (var channel = new PanelChannel(peer, "surface", "conversation", "chat"))
         {
-          surface = channel.Surface; await channel.OpenAsync();
+          await channel.OpenAsync();
           Assert.AreEqual("opened", Last(output).Value<string>("event"));
           Assert.AreEqual("conversation", Last(output).Value<string>("sessionId"));
-          await Assert.ThrowsExceptionAsync<MhpException>(() => channel.PostAsync(Envelope(surface, 1, "toHost", "ready"), CancellationToken.None));
-          await channel.ReadyAsync(); await channel.PostAsync(Envelope(surface, 1, "toHost", "ready"), CancellationToken.None);
-          channel.SaveState(JObject.Parse("{\"history\":[1,{\"text\":\"saved\"}]}"));
+          // Nothing but the kind's own ready opens the channel for the page's messages.
+          await Assert.ThrowsExceptionAsync<MhpException>(() => channel.PostAsync(new JObject { ["type"] = "focusInput" }, CancellationToken.None));
+          await channel.PostAsync(new JObject { ["type"] = "ready" }, CancellationToken.None);
+          var frames = Frames(output);
+          Assert.AreEqual("ready", frames[frames.Length - 2].Value<string>("event"));
+          Assert.AreEqual(1, Last(output).Value<int>("seq"));
+          Assert.AreEqual("ready", Last(output)["payload"]?.Value<string>("type"));
           await channel.ReloadAsync();
           Assert.AreEqual("ready", Last(output)["stateRequest"]?.Value<string>("type"));
-          StringAssert.Contains(channel.DocumentBootstrap, "\"outgoing\":2");
-          StringAssert.Contains(channel.DocumentBootstrap, "saved");
-          await channel.ReceiveAsync(Envelope(surface, 1));
-          Assert.AreEqual("MHP_PANEL_NOT_READY", Last(output).Value<string>("code"));
-          await channel.ReadyAsync(); await channel.HiddenAsync();
+          // The reload frame carried the state request: the page's ready reopens the surface and is not sent twice.
+          await channel.PostAsync(new JObject { ["type"] = "ready" }, CancellationToken.None);
+          Assert.AreEqual("ready", Last(output).Value<string>("event"));
+          await channel.HiddenAsync();
+          Assert.AreEqual("hidden", Last(output).Value<string>("event"));
           var received = 0; channel.MessageReceived += (_, __) => received++;
-          await channel.ReceiveAsync(Envelope(surface, 1)); Assert.AreEqual(1, received);
+          await SendAsync(peer, Envelope(channel.SurfaceId, 1)); Assert.AreEqual(1, received);
           await channel.CloseAsync();
+          Assert.AreEqual("closed", Last(output).Value<string>("event"));
           Assert.AreEqual(0, Last(output).Value<int>("droppedMessages"));
-          Assert.IsFalse(channel.DocumentBootstrap.Contains("saved"));
-          await channel.ReceiveAsync(Envelope(surface, 2));
+          await SendAsync(peer, Envelope(channel.SurfaceId, 2));
           Assert.AreEqual("MHP_PANEL_UNKNOWN_SURFACE", Last(output).Value<string>("code"));
           Assert.AreEqual(1, received);
         }
-        using (var next = new MhpPanelChannel(peer, "other-conversation", "chat", "script", _ => { })) Assert.AreNotEqual(surface, next.Surface);
       }
     }
 
     [TestMethod]
-    public async Task RefusesForeignDirectionsSequencesAndKindsBeforeDeliveryOrAdvancing()
+    public async Task ARefusedFrameClosesOnlyItsOwnChannelWithItsFrozenCodeBeforeDelivery()
     {
+      var contract = SchemaContract.Load(true);
       using (var output = new StringWriter())
-      using (var peer = new MhpPeer(SchemaContract.Load(true), new Host(), output))
+      using (var peer = new MhpPeer(contract, new Host(), output))
       {
-        await SendAsync(peer, Initialize());
-        using (var channel = new MhpPanelChannel(peer, "session", "tasks", "script", _ => { }))
+        await HandshakeAsync(peer);
+        var bad = new (Func<string, JObject> Frame, string Code)[]
         {
-          await channel.OpenAsync(); await channel.ReadyAsync(); var received = 0; channel.MessageReceived += (_, __) => received++;
-          var badFrames = new[] { Envelope("foreign", 1), Envelope(channel.Surface, 2), Envelope(channel.Surface, 1, "toHost", "tasksReady"), Envelope(channel.Surface, 1) };
-          var codes = new[] { "MHP_PANEL_UNKNOWN_SURFACE", "MHP_PANEL_OUT_OF_ORDER", "MHP_PANEL_WRONG_DIRECTION", "MHP_PANEL_INVALID_PAYLOAD" };
-          for (var i = 0; i < badFrames.Length; i++)
+          (surface => Envelope(surface, 2), "MHP_PANEL_OUT_OF_ORDER"),
+          (surface => Envelope(surface, 1, "toHost", "tasksReady"), "MHP_PANEL_WRONG_DIRECTION"),
+          (surface => Envelope(surface, 1), "MHP_PANEL_INVALID_PAYLOAD"),
+          (surface => { var frame = Envelope(surface, 1); frame["extra"] = true; return frame; }, "MHP_PANEL_INVALID_ENVELOPE"),
+        };
+        for (var i = 0; i < bad.Length; i++)
+        {
+          using (var neighbour = new PanelChannel(peer, "neighbour-" + i, "session", "chat"))
+          using (var channel = new PanelChannel(peer, "surface-" + i, "session", "tasks"))
           {
-            await SendAsync(peer, badFrames[i]); Assert.AreEqual(codes[i], Last(output).Value<string>("code")); Assert.AreEqual(0, received);
+            await channel.OpenAsync(); await channel.PostAsync(new JObject { ["type"] = "tasksReady" }, CancellationToken.None);
+            await neighbour.OpenAsync(); await neighbour.PostAsync(new JObject { ["type"] = "ready" }, CancellationToken.None);
+            var received = 0; channel.MessageReceived += (_, __) => received++;
+            await SendAsync(peer, bad[i].Frame(channel.SurfaceId));
+            var frames = Frames(output);
+            Assert.AreEqual(bad[i].Code, frames[frames.Length - 2].Value<string>("code"), bad[i].Code);
+            Assert.AreEqual("closed", frames.Last().Value<string>("event"));
+            Assert.AreEqual(bad[i].Code, channel.FaultCode);
+            Assert.AreEqual(0, received);
+            Assert.IsNull(neighbour.FaultCode);
+            var delivered = 0; neighbour.MessageReceived += (_, __) => delivered++;
+            await SendAsync(peer, Envelope(neighbour.SurfaceId, 1));
+            Assert.AreEqual(1, delivered);
           }
-          var malformed = Envelope(channel.Surface, 1); malformed["extra"] = true;
-          await SendAsync(peer, malformed); Assert.AreEqual("MHP_PANEL_INVALID_ENVELOPE", Last(output).Value<string>("code"));
-          malformed = Envelope("", -1); await SendAsync(peer, malformed);
-          SchemaContract.Validate(Last(output), peer.Contract.Export["panel"]?["error"] ?? throw new InvalidOperationException());
-          Assert.AreEqual(JTokenType.Null, Last(output)["surface"]?.Type); Assert.AreEqual(JTokenType.Null, Last(output)["seq"]?.Type);
-          Assert.AreEqual(0, received);
-          malformed = Envelope(channel.Surface, 1); malformed["direction"] = new JObject();
-          await SendAsync(peer, malformed); Assert.AreEqual("MHP_PANEL_INVALID_ENVELOPE", Last(output).Value<string>("code"));
-          var valid = Envelope(channel.Surface, 1);
-          valid["payload"] = JObject.Parse("{\"type\":\"tasksState\",\"conversation\":\"session\",\"items\":[],\"ended\":false,\"canMoveToWindow\":true}");
-          await SendAsync(peer, valid); Assert.AreEqual(1, received);
-          await SendAsync(peer, valid); Assert.AreEqual("MHP_PANEL_OUT_OF_ORDER", Last(output).Value<string>("code")); Assert.AreEqual(1, received);
-          await channel.ReloadAsync(); Assert.AreEqual("tasksReady", Last(output)["stateRequest"]?.Value<string>("type"));
         }
       }
     }
 
     [TestMethod]
-    public async Task ClosingReportsAndWarnsForExactlyThePendingSurfaceFrames()
+    public async Task ClosingCountsExactlyThePendingSurfaceFrames()
     {
       using (var output = new WriterTests.BlockedWriter())
       using (var peer = new MhpPeer(SchemaContract.Load(true), new Host(), output))
       {
-        output.Drain.Set(); await SendAsync(peer, Initialize());
-        var warnings = new List<string>();
-        using (var channel = new MhpPanelChannel(peer, "session", "chat", "script", warnings.Add))
+        output.Drain.Set(); await HandshakeAsync(peer);
+        using (var channel = new PanelChannel(peer, "surface", "session", "chat"))
         {
-          await channel.OpenAsync(); await channel.ReadyAsync(); output.Drain.Reset();
-          var first = channel.PostAsync(Envelope(channel.Surface, 1, "toHost", "ready"), CancellationToken.None);
-          var second = channel.PostAsync(Envelope(channel.Surface, 2, "toHost", "ready"), CancellationToken.None);
-          var third = channel.PostAsync(Envelope(channel.Surface, 3, "toHost", "ready"), CancellationToken.None);
+          await channel.OpenAsync(); output.Drain.Reset();
+          var first = peer.PostPanelAsync(Envelope(channel.SurfaceId, 1));
+          var second = peer.PostPanelAsync(Envelope(channel.SurfaceId, 2));
+          var third = peer.PostPanelAsync(Envelope(channel.SurfaceId, 3));
           var closing = channel.CloseAsync(); output.Drain.Set();
           await first; await closing;
           Assert.IsTrue(second.IsFaulted && third.IsFaulted);
           Assert.AreEqual("MHP_PANEL_DROPPED", second.Exception?.GetBaseException().Message);
           Assert.AreEqual("MHP_PANEL_DROPPED", third.Exception?.GetBaseException().Message);
           Assert.AreEqual(2, Last(output).Value<int>("droppedMessages"));
-          CollectionAssert.AreEqual(new[] { "MHP_PANEL_DROPPED 2" }, warnings);
         }
       }
     }
 
     [TestMethod]
-    public async Task ValidatesNativeBrowserControlsStateAndPrivateDrainNeverEntersMhp()
+    public async Task ThePageSpeaksOnlyTheFrozenVocabularyOfItsSurface()
     {
       using (var output = new StringWriter())
       using (var peer = new MhpPeer(SchemaContract.Load(true), new Host(), output))
       {
-        await SendAsync(peer, Initialize());
-        using (var channel = new MhpPanelChannel(peer, "session", "chat", "script", _ => { }))
+        await HandshakeAsync(peer);
+        using (var channel = new PanelChannel(peer, "surface", "session", "chat"))
         {
-          channel.ParseWebviewMessage("{\"bridge\":\"subscribed\"}");
-          channel.ParseWebviewMessage("{\"bridge\":\"state\",\"state\":[1,{\"a\":null}]}");
-          foreach (var invalid in new[] { "{\"bridge\":\"subscribed\",\"extra\":true}", "{\"bridge\":\"drained\"}", "{\"bridge\":\"state\"}", "{\"bridge\":{}}" }) Assert.ThrowsException<MhpException>(() => channel.ParseWebviewMessage(invalid));
-          Assert.ThrowsException<MhpException>(() => channel.SaveState(new JValue(DateTime.UtcNow)));
-          Assert.IsFalse(output.ToString().Contains("bridge"));
+          Assert.AreEqual("ready", channel.ParseWebviewMessage("{\"type\":\"ready\"}").Value<string>("type"));
+          foreach (var invalid in new[] { "{\"bridge\":\"subscribed\"}", "{\"type\":\"tasksReady\"}", "{\"type\":\"ready\",\"extra\":true}", "[]" }) Assert.ThrowsException<MhpException>(() => channel.ParseWebviewMessage(invalid));
+          Assert.AreEqual("focusInput", channel.ParseRuntimeMessage(new JObject { ["type"] = "focusInput" }).Value<string>("type"));
+          Assert.ThrowsException<MhpException>(() => channel.ParseRuntimeMessage(new JObject { ["type"] = "ready" }));
         }
       }
     }
 
     [TestMethod]
-    public void ExportActuallyAllowsAllAbsoluteExternalUrisWhileTheHostOffersNoUiGroup()
+    public async Task ServesTheRuntimesRequestsOnWhatThisHostOfferedNotOnWhatTheRuntimeOffersBack()
+    {
+      using (var output = new StringWriter())
+      {
+        var host = new Host();
+        using (var peer = new MhpPeer(SchemaContract.Load(true), host, output))
+        {
+          await HandshakeAsync(peer);
+          // The runtime's answer names lifecycle, settings and storage; this host offered documents and reaches it.
+          await SendAsync(peer, new JObject { ["jsonrpc"] = "2.0", ["id"] = "runtime-1", ["method"] = "documents/list", ["params"] = new JObject() });
+          Assert.AreEqual(1, host.Calls);
+          Assert.AreEqual("MHP_HOST_FAILED", Last(output)["error"]?.Value<string>("message"));
+          // Not offered: refused by name, and the host is never asked.
+          await SendAsync(peer, new JObject { ["jsonrpc"] = "2.0", ["id"] = "runtime-2", ["method"] = "ui/notify", ["params"] = new JObject { ["severity"] = "error", ["message"] = "fixture" } });
+          Assert.AreEqual(1, host.Calls);
+          Assert.AreEqual("MHP_UNSUPPORTED_CAPABILITY", Last(output)["error"]?.Value<string>("message"));
+        }
+      }
+    }
+
+    [TestMethod]
+    public async Task AdmitsTheThemeFrameOnEverySurfaceKindAndRefusesAMalformedOne()
+    {
+      using (var output = new StringWriter())
+      using (var peer = new MhpPeer(SchemaContract.Load(true), new Host(), output))
+      {
+        await HandshakeAsync(peer);
+        // The runtime's real first frame, captured with the handshake above.
+        var theme = JObject.Parse("{\"type\":\"theme\",\"theme\":{\"kind\":\"dark\",\"tokens\":{}}}");
+        foreach (var kind in new[] { "chat", "tasks" })
+          using (var channel = new PanelChannel(peer, "surface-" + kind, "session", kind))
+          {
+            Assert.AreEqual("theme", channel.ParseRuntimeMessage(theme).Value<string>("type"));
+            Assert.ThrowsException<MhpException>(() => channel.ParseRuntimeMessage(JObject.Parse("{\"type\":\"theme\",\"theme\":{}}")));
+          }
+      }
+    }
+
+    [TestMethod]
+    public async Task AdmitsTheRuntimesFirstFramesWhileItsReadyIsStillBeingWritten()
+    {
+      using (var output = new WriterTests.BlockedWriter())
+      using (var peer = new MhpPeer(SchemaContract.Load(true), new Host(), output))
+      {
+        output.Drain.Set(); await HandshakeAsync(peer);
+        using (var channel = new PanelChannel(peer, "surface", "session", "chat"))
+        {
+          await channel.OpenAsync();
+          var received = 0; channel.MessageReceived += (_, __) => received++;
+          output.Drain.Reset();
+          // The real page's ready: the runtime answers it before this write returns here.
+          var posting = channel.PostAsync(new JObject { ["type"] = "ready" }, CancellationToken.None);
+          var answering = SendAsync(peer, Envelope(channel.SurfaceId, 1));
+          // Read before the writer drains: a refusal here queues its own error frame behind the blocked write.
+          try
+          {
+            Assert.AreEqual(1, received);
+            Assert.IsNull(channel.FaultCode);
+          }
+          finally { output.Drain.Set(); }
+          await answering;
+          await posting;
+        }
+      }
+    }
+
+    [TestMethod]
+    public void ExportAllowsAnyAbsoluteExternalUriAndRefusesARelativeOne()
     {
       var contract = SchemaContract.Load(true);
       foreach (var uri in new[] { "https://example.com/", "file:///C:/private", "javascript:alert(1)", "mailto:person@example.com" })
@@ -249,10 +333,10 @@ namespace MuseSpark.VisualStudio.Test
         var host = new Host();
         using (var peer = new MhpPeer(SchemaContract.Load(true), host, output))
         {
-          output.Drain.Set(); await SendAsync(peer, Initialize()); output.Drain.Reset();
+          output.Drain.Set(); await HandshakeAsync(peer); output.Drain.Reset();
           var large = Envelope("surface", 1, "toHost");
           large["payload"] = new JObject { ["type"] = "sendMessage", ["localId"] = "fixture", ["text"] = new string('é', 7000000), ["attachmentIds"] = new JArray() };
-          var first = peer.WritePanelAsync(large); var second = peer.WritePanelAsync(large);
+          var first = peer.PostPanelAsync(large); var second = peer.PostPanelAsync(large);
           var request = SendAsync(peer, new JObject { ["jsonrpc"] = "2.0", ["id"] = 2, ["method"] = "documents/list", ["params"] = new JObject() });
           output.Drain.Set(); await first; await second; await request;
           Assert.AreEqual(0, host.Calls);

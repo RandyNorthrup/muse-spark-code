@@ -1,6 +1,6 @@
 {
-  "protocol": "mhp/1.5.1",
-  "range": { "minimum": "mhp/1.5.1", "maximumExclusive": "mhp/1.6.0" },
+  "protocol": "mhp/1.6.0",
+  "range": { "minimum": "mhp/1.6.0", "maximumExclusive": "mhp/1.7.0" },
   "capabilities": [
     "lifecycle",
     "workspace",
@@ -57,7 +57,7 @@
   "conventions": {
     "transport": "JSON-RPC 2.0, one UTF-8 JSON object per line over stdio; no batches",
     "positions": "zero-based UTF-16 line and character",
-    "initialize": "hostToRuntime; editor sends host metadata, locale, theme, folders, trust and capabilities; runtime returns mhp/1.5.1 and its capabilities",
+    "initialize": "hostToRuntime; editor sends host metadata, locale, theme, folders, trust and capabilities; runtime returns mhp/1.6.0 and its capabilities",
     "requiredCapability": "lifecycle",
     "versioning": "breaking schema or semantic changes require a new protocol version and snapshot",
     "edits": "reject stale versions, dirty buffers and invalid/overlapping ranges before any side effect; apply atomically with one undo transaction",
@@ -278,7 +278,7 @@
           "result": {
             "type": "object",
             "properties": {
-              "protocolVersion": { "type": "string", "const": "mhp/1.5.1" },
+              "protocolVersion": { "type": "string", "const": "mhp/1.6.0" },
               "capabilities": {
                 "type": "array",
                 "items": {
@@ -4736,6 +4736,893 @@
         "additionalProperties": false
       }
     },
+    "attachments/pick": {
+      "kind": "request",
+      "direction": "hostToRuntime",
+      "capability": "ui",
+      "fallback": "react-ui",
+      "call": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "method": { "type": "string", "const": "attachments/pick" },
+          "params": { "type": "object", "properties": {}, "additionalProperties": false },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          }
+        },
+        "required": ["jsonrpc", "method", "params", "id"],
+        "additionalProperties": false
+      },
+      "result": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "ok": { "type": "boolean", "const": true },
+                  "value": {
+                    "type": "object",
+                    "properties": {
+                      "attachments": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "requestId": { "type": "string", "minLength": 1, "maxLength": 256 },
+                            "uploadToken": { "type": "string", "minLength": 1, "maxLength": 256 },
+                            "name": { "type": "string", "minLength": 1, "maxLength": 256 },
+                            "info": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": { "type": "string", "const": "image" },
+                                    "mediaType": {
+                                      "type": "string",
+                                      "enum": [
+                                        "image/png",
+                                        "image/jpeg",
+                                        "image/gif",
+                                        "image/webp",
+                                        "image/x-icon"
+                                      ]
+                                    },
+                                    "sizeBytes": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "width": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "height": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": ["kind", "mediaType", "sizeBytes"],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": { "type": "string", "const": "document" },
+                                    "mediaType": { "type": "string", "const": "application/pdf" },
+                                    "sizeBytes": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "pageCount": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": ["kind", "mediaType", "sizeBytes"],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": { "type": "string", "const": "text" },
+                                    "mediaType": { "type": "string", "const": "text/plain" },
+                                    "sizeBytes": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": ["kind", "mediaType", "sizeBytes"],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": { "type": "string", "const": "video" },
+                                    "mediaType": {
+                                      "type": "string",
+                                      "enum": [
+                                        "video/mp4",
+                                        "video/quicktime",
+                                        "video/webm",
+                                        "video/x-matroska"
+                                      ]
+                                    },
+                                    "sizeBytes": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "width": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "height": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "durationSeconds": {
+                                      "anyOf": [
+                                        { "type": "number", "exclusiveMinimum": 0 },
+                                        { "type": "null" }
+                                      ]
+                                    },
+                                    "hasSoundtrack": { "type": ["boolean", "null"] }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "mediaType",
+                                    "sizeBytes",
+                                    "durationSeconds",
+                                    "hasSoundtrack"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": { "type": "string", "const": "audio" },
+                                    "mediaType": {
+                                      "type": "string",
+                                      "enum": ["audio/wav", "audio/mpeg", "audio/mp4"]
+                                    },
+                                    "sizeBytes": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "durationSeconds": {
+                                      "anyOf": [
+                                        { "type": "number", "exclusiveMinimum": 0 },
+                                        { "type": "null" }
+                                      ]
+                                    }
+                                  },
+                                  "required": ["kind", "mediaType", "sizeBytes", "durationSeconds"],
+                                  "additionalProperties": false
+                                }
+                              ]
+                            }
+                          },
+                          "required": ["requestId", "uploadToken", "name", "info"],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": ["attachments"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["ok", "value"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "ok": { "type": "boolean", "const": false },
+                  "reason": { "type": "string" }
+                },
+                "required": ["ok", "reason"],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "required": ["jsonrpc", "id", "result"],
+        "additionalProperties": false
+      }
+    },
+    "attachments/attach": {
+      "kind": "request",
+      "direction": "hostToRuntime",
+      "capability": "ui",
+      "fallback": "react-ui",
+      "call": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "method": { "type": "string", "const": "attachments/attach" },
+          "params": {
+            "type": "object",
+            "properties": { "pathToken": { "type": "string", "minLength": 1, "maxLength": 4096 } },
+            "required": ["pathToken"],
+            "additionalProperties": false
+          },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          }
+        },
+        "required": ["jsonrpc", "method", "params", "id"],
+        "additionalProperties": false
+      },
+      "result": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "ok": { "type": "boolean", "const": true },
+                  "value": {
+                    "type": "object",
+                    "properties": {
+                      "attachments": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "requestId": { "type": "string", "minLength": 1, "maxLength": 256 },
+                            "uploadToken": { "type": "string", "minLength": 1, "maxLength": 256 },
+                            "name": { "type": "string", "minLength": 1, "maxLength": 256 },
+                            "info": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": { "type": "string", "const": "image" },
+                                    "mediaType": {
+                                      "type": "string",
+                                      "enum": [
+                                        "image/png",
+                                        "image/jpeg",
+                                        "image/gif",
+                                        "image/webp",
+                                        "image/x-icon"
+                                      ]
+                                    },
+                                    "sizeBytes": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "width": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "height": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": ["kind", "mediaType", "sizeBytes"],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": { "type": "string", "const": "document" },
+                                    "mediaType": { "type": "string", "const": "application/pdf" },
+                                    "sizeBytes": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "pageCount": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": ["kind", "mediaType", "sizeBytes"],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": { "type": "string", "const": "text" },
+                                    "mediaType": { "type": "string", "const": "text/plain" },
+                                    "sizeBytes": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": ["kind", "mediaType", "sizeBytes"],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": { "type": "string", "const": "video" },
+                                    "mediaType": {
+                                      "type": "string",
+                                      "enum": [
+                                        "video/mp4",
+                                        "video/quicktime",
+                                        "video/webm",
+                                        "video/x-matroska"
+                                      ]
+                                    },
+                                    "sizeBytes": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "width": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "height": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "durationSeconds": {
+                                      "anyOf": [
+                                        { "type": "number", "exclusiveMinimum": 0 },
+                                        { "type": "null" }
+                                      ]
+                                    },
+                                    "hasSoundtrack": { "type": ["boolean", "null"] }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "mediaType",
+                                    "sizeBytes",
+                                    "durationSeconds",
+                                    "hasSoundtrack"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": { "type": "string", "const": "audio" },
+                                    "mediaType": {
+                                      "type": "string",
+                                      "enum": ["audio/wav", "audio/mpeg", "audio/mp4"]
+                                    },
+                                    "sizeBytes": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "durationSeconds": {
+                                      "anyOf": [
+                                        { "type": "number", "exclusiveMinimum": 0 },
+                                        { "type": "null" }
+                                      ]
+                                    }
+                                  },
+                                  "required": ["kind", "mediaType", "sizeBytes", "durationSeconds"],
+                                  "additionalProperties": false
+                                }
+                              ]
+                            }
+                          },
+                          "required": ["requestId", "uploadToken", "name", "info"],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": ["attachments"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["ok", "value"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "ok": { "type": "boolean", "const": false },
+                  "reason": { "type": "string" }
+                },
+                "required": ["ok", "reason"],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "required": ["jsonrpc", "id", "result"],
+        "additionalProperties": false
+      }
+    },
+    "attachments/remove": {
+      "kind": "request",
+      "direction": "hostToRuntime",
+      "capability": "ui",
+      "fallback": "react-ui",
+      "call": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "method": { "type": "string", "const": "attachments/remove" },
+          "params": {
+            "type": "object",
+            "properties": { "id": { "type": "string", "minLength": 1, "maxLength": 256 } },
+            "required": ["id"],
+            "additionalProperties": false
+          },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          }
+        },
+        "required": ["jsonrpc", "method", "params", "id"],
+        "additionalProperties": false
+      },
+      "result": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "ok": { "type": "boolean", "const": true },
+                  "value": {
+                    "type": "object",
+                    "properties": {
+                      "attachments": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "requestId": { "type": "string", "minLength": 1, "maxLength": 256 },
+                            "uploadToken": { "type": "string", "minLength": 1, "maxLength": 256 },
+                            "name": { "type": "string", "minLength": 1, "maxLength": 256 },
+                            "info": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": { "type": "string", "const": "image" },
+                                    "mediaType": {
+                                      "type": "string",
+                                      "enum": [
+                                        "image/png",
+                                        "image/jpeg",
+                                        "image/gif",
+                                        "image/webp",
+                                        "image/x-icon"
+                                      ]
+                                    },
+                                    "sizeBytes": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "width": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "height": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": ["kind", "mediaType", "sizeBytes"],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": { "type": "string", "const": "document" },
+                                    "mediaType": { "type": "string", "const": "application/pdf" },
+                                    "sizeBytes": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "pageCount": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": ["kind", "mediaType", "sizeBytes"],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": { "type": "string", "const": "text" },
+                                    "mediaType": { "type": "string", "const": "text/plain" },
+                                    "sizeBytes": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": ["kind", "mediaType", "sizeBytes"],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": { "type": "string", "const": "video" },
+                                    "mediaType": {
+                                      "type": "string",
+                                      "enum": [
+                                        "video/mp4",
+                                        "video/quicktime",
+                                        "video/webm",
+                                        "video/x-matroska"
+                                      ]
+                                    },
+                                    "sizeBytes": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "width": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "height": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "durationSeconds": {
+                                      "anyOf": [
+                                        { "type": "number", "exclusiveMinimum": 0 },
+                                        { "type": "null" }
+                                      ]
+                                    },
+                                    "hasSoundtrack": { "type": ["boolean", "null"] }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "mediaType",
+                                    "sizeBytes",
+                                    "durationSeconds",
+                                    "hasSoundtrack"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": { "type": "string", "const": "audio" },
+                                    "mediaType": {
+                                      "type": "string",
+                                      "enum": ["audio/wav", "audio/mpeg", "audio/mp4"]
+                                    },
+                                    "sizeBytes": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "durationSeconds": {
+                                      "anyOf": [
+                                        { "type": "number", "exclusiveMinimum": 0 },
+                                        { "type": "null" }
+                                      ]
+                                    }
+                                  },
+                                  "required": ["kind", "mediaType", "sizeBytes", "durationSeconds"],
+                                  "additionalProperties": false
+                                }
+                              ]
+                            }
+                          },
+                          "required": ["requestId", "uploadToken", "name", "info"],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": ["attachments"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["ok", "value"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "ok": { "type": "boolean", "const": false },
+                  "reason": { "type": "string" }
+                },
+                "required": ["ok", "reason"],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "required": ["jsonrpc", "id", "result"],
+        "additionalProperties": false
+      }
+    },
+    "attachments/record": {
+      "kind": "request",
+      "direction": "hostToRuntime",
+      "capability": "ui",
+      "fallback": "react-ui",
+      "call": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "method": { "type": "string", "const": "attachments/record" },
+          "params": {
+            "type": "object",
+            "properties": {
+              "maxSeconds": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+              "microphone": { "type": "boolean" },
+              "systemAudio": { "type": "boolean" }
+            },
+            "required": ["maxSeconds", "microphone", "systemAudio"],
+            "additionalProperties": false
+          },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          }
+        },
+        "required": ["jsonrpc", "method", "params", "id"],
+        "additionalProperties": false
+      },
+      "result": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "ok": { "type": "boolean", "const": true },
+                  "value": {
+                    "type": "object",
+                    "properties": {
+                      "attachments": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "requestId": { "type": "string", "minLength": 1, "maxLength": 256 },
+                            "uploadToken": { "type": "string", "minLength": 1, "maxLength": 256 },
+                            "name": { "type": "string", "minLength": 1, "maxLength": 256 },
+                            "info": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": { "type": "string", "const": "image" },
+                                    "mediaType": {
+                                      "type": "string",
+                                      "enum": [
+                                        "image/png",
+                                        "image/jpeg",
+                                        "image/gif",
+                                        "image/webp",
+                                        "image/x-icon"
+                                      ]
+                                    },
+                                    "sizeBytes": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "width": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "height": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": ["kind", "mediaType", "sizeBytes"],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": { "type": "string", "const": "document" },
+                                    "mediaType": { "type": "string", "const": "application/pdf" },
+                                    "sizeBytes": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "pageCount": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": ["kind", "mediaType", "sizeBytes"],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": { "type": "string", "const": "text" },
+                                    "mediaType": { "type": "string", "const": "text/plain" },
+                                    "sizeBytes": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": ["kind", "mediaType", "sizeBytes"],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": { "type": "string", "const": "video" },
+                                    "mediaType": {
+                                      "type": "string",
+                                      "enum": [
+                                        "video/mp4",
+                                        "video/quicktime",
+                                        "video/webm",
+                                        "video/x-matroska"
+                                      ]
+                                    },
+                                    "sizeBytes": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "width": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "height": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "durationSeconds": {
+                                      "anyOf": [
+                                        { "type": "number", "exclusiveMinimum": 0 },
+                                        { "type": "null" }
+                                      ]
+                                    },
+                                    "hasSoundtrack": { "type": ["boolean", "null"] }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "mediaType",
+                                    "sizeBytes",
+                                    "durationSeconds",
+                                    "hasSoundtrack"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": { "type": "string", "const": "audio" },
+                                    "mediaType": {
+                                      "type": "string",
+                                      "enum": ["audio/wav", "audio/mpeg", "audio/mp4"]
+                                    },
+                                    "sizeBytes": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "durationSeconds": {
+                                      "anyOf": [
+                                        { "type": "number", "exclusiveMinimum": 0 },
+                                        { "type": "null" }
+                                      ]
+                                    }
+                                  },
+                                  "required": ["kind", "mediaType", "sizeBytes", "durationSeconds"],
+                                  "additionalProperties": false
+                                }
+                              ]
+                            }
+                          },
+                          "required": ["requestId", "uploadToken", "name", "info"],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": ["attachments"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["ok", "value"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "ok": { "type": "boolean", "const": false },
+                  "reason": { "type": "string" }
+                },
+                "required": ["ok", "reason"],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "required": ["jsonrpc", "id", "result"],
+        "additionalProperties": false
+      }
+    },
     "commands/execute": {
       "kind": "notification",
       "direction": "hostToRuntime",
@@ -5382,6 +6269,45 @@
         "required": ["jsonrpc", "id", "result"],
         "additionalProperties": false
       }
+    },
+    "window/didChangeTheme": {
+      "kind": "notification",
+      "direction": "hostToRuntime",
+      "capability": "window",
+      "fallback": "companion-notification",
+      "call": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "method": { "type": "string", "const": "window/didChangeTheme" },
+          "params": {
+            "type": "object",
+            "properties": {
+              "theme": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": ["light", "dark", "highContrastLight", "highContrastDark"]
+                  },
+                  "tokens": {
+                    "type": "object",
+                    "propertyNames": { "type": "string", "pattern": "^--muse-[a-zA-Z][\\w-]*$" },
+                    "additionalProperties": { "type": "string" }
+                  }
+                },
+                "required": ["kind", "tokens"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["theme"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["jsonrpc", "method", "params"],
+        "additionalProperties": false
+      }
     }
   },
   "editors": [
@@ -5943,9 +6869,14 @@
     {
       "id": "F16",
       "name": "attachments",
-      "methods": [],
-      "capabilities": [],
-      "fallback": "shared-controller",
+      "methods": [
+        "attachments/pick",
+        "attachments/attach",
+        "attachments/remove",
+        "attachments/record"
+      ],
+      "capabilities": ["ui"],
+      "fallback": "react-ui",
       "editors": {
         "vscode": { "status": "M", "evidence": [] },
         "cursor": { "status": "M", "evidence": [] },
@@ -7055,7 +7986,8 @@
         "ui/openExternal",
         "ui/clipboard",
         "window/state",
-        "window/attention"
+        "window/attention",
+        "window/didChangeTheme"
       ],
       "capabilities": ["ui", "window"],
       "fallback": "react-ui",

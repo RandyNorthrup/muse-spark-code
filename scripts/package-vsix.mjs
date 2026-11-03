@@ -198,9 +198,9 @@ export async function stageVsix(root, stage, target) {
     exclude: new Set([
       'voiceCompanion.js',
       'voiceCompanion.css',
-      ...listTextMembers(webviewSource).filter(
-        (file) => file.endsWith('.map') || file.startsWith('portable/'),
-      ),
+      ...listTextMembers(webviewSource).filter((file) => file.endsWith('.map')),
+      // The native plugins carry the portable bundle; the VSIX does not (PLAN.md M104).
+      ...listTextMembers(webviewSource).filter((file) => file.startsWith('portable/')),
     ]),
   })
   const webviewMembers = new Set(

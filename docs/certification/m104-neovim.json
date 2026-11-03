@@ -4,13 +4,13 @@
   "editorVersion": "NVIM v0.12.6",
   "reason": "no MHP surface: the shim is excepted from MHP scenarios and qualifies via its own harness",
   "harness": {
-    "command": "nvim --headless -i NONE -u NONE -l hosts/neovim/test/check.lua",
+    "command": "nvim --headless -i NONE -u NONE -l hosts/neovim/test/check.lua && nvim --headless -i NONE -u NONE -l hosts/neovim/test/lsp.lua",
     "exitCode": 0,
-    "summary": "19 PASS"
+    "summary": "9 PASS; 1 PASS"
   },
   "provenance": {
-    "observedAt": "2026-10-31T01:35:52.467Z",
+    "observedAt": "2026-11-02T13:39:15.629Z",
     "observedOn": "randy-lt (linux)",
-    "command": "nvim --headless -i NONE -u NONE -l hosts/neovim/test/check.lua"
+    "command": "nvim --headless -i NONE -u NONE -l hosts/neovim/test/check.lua && nvim --headless -i NONE -u NONE -l hosts/neovim/test/lsp.lua"
   }
 }

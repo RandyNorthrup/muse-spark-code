@@ -13,8 +13,10 @@ require("codecompanion").setup({
 })
 ```
 
-`MusePanel` starts `panel --companion` in Neovim's current workspace. The
-runtime opens the shared panel. `MusePanel URL` opens a **fresh**,
+`MusePanel` starts `panel --companion` in Neovim's current workspace.
+The current runtime's one panel transport is `--stdio`, so until the
+loopback companion transport ships this start is refused and shown as
+`EPANEL_EXIT`; the ACP and LSP routes work today. `MusePanel URL` opens a **fresh**,
 runtime-issued ACP `/panel` link, preserving its session. The command removes
 entries containing that link from Ex history before launch so ShaDa does
 not persist the code, including modified/abbreviated commands, Lua calls
@@ -47,10 +49,16 @@ From the repository root, the offline test command is:
 nvim --headless -i NONE -u NONE -l hosts/neovim/test/check.lua
 ```
 
-The tests use editor APIs and test-only CodeCompanion/process doubles, plus
-a real sanitized child. They certify launch and cancellation, not the
-pending shared controller's F1–F56 end-to-end conformance. That qualification
-is recorded in `docs/certification/m104-h.md`.
+The tests start this tree's real `dist/acp.js` (run `npm run build`
+first) through the shim's own functions: the companion start, its said
+refusal and Stop, the opener child with its credential-free
+environment, and the launch-code history scrub. `test/lsp.lua` runs
+the native LSP client against the real `lsp` service. They certify
+launch and cancellation, not the pending shared controller's F1–F56
+end-to-end conformance. That qualification is recorded in
+`docs/certification/m104-h.md`. The CodeCompanion adapter is not
+covered here (the plugin is a separate install); what only a
+CodeCompanion run proves is listed in `docs/real-life/unproven.md`.
 
 ## LSP and independent workspace Stop
 
@@ -71,8 +79,8 @@ credential-free `stop` command at the same project root, so it reaches busy
 runtimes and the shared LSP broker. Panel/review features require B's absent
 controller; the production LSP refuses those routes explicitly.
 
-The real-client offline check (`hosts/neovim/test/lsp.lua`) stays
-unrunnable: its fake-only service (`test/unit/helpers/fakeLsp.ts`) was
-deleted under the no-stand-ins rule (RLF-M104GL; behaviours recorded
-in `docs/real-life/unproven.md`). It runs again once a real stdio
-service exists to test against.
+The real-client check (`hosts/neovim/test/lsp.lua`) now runs against
+the real `lsp` service; its former fake-only service
+(`test/unit/helpers/fakeLsp.ts`) stays deleted under the no-stand-ins
+rule (RLF-M104GL). Behaviours only the fake answered (invented
+completion text) are not asserted.

@@ -24,7 +24,9 @@ import {
   WORKSPACE_STATE_KEYS,
   type AcpBackendKind,
   type AcpPaidFeature,
+  RUNTIME_PANEL_MEDIA_BUNDLE_FILE,
   RUNTIME_PANEL_RECONFIGURE_SETTINGS,
+  RUNTIME_PANEL_SCHEDULES_BUNDLE_FILE,
   UI_TEXT,
 } from '../../shared/constants'
 import type { MhpNotificationMethod, MhpParams } from '../../shared/hostApi/methods'
@@ -44,6 +46,9 @@ import type { RuntimeSettingsStore } from '../settingsStore'
 import type { PanelConnection } from './connection'
 import { ControllerRegistry } from './controllerRegistry'
 import type { PanelGit } from './git/panelGit'
+import { panelMediaLoader, panelSchedulesLoader } from './panelBundle'
+import type { PanelScheduleHold } from './panelSchedules'
+import type { RuntimeSchedulesBinding } from '../schedules/binding'
 import { RuntimeConversation } from './runtimeConversation'
 import { runtimeConversationDeps } from './runtimeFeatures'
 import type { PanelView } from './surfaces'
@@ -83,6 +88,8 @@ export interface PanelSession {
   initialize(params: MhpParams<'initialize'>, signal: AbortSignal): Promise<void>
   /** The handshake was answered: the first chat surface opens. */
   initialized(): void
+  /** M105 delivery d: the host's `attachments/*` call, answered by the one live conversation. */
+  attachments(raw: unknown): Promise<unknown>
   notify(method: MhpNotificationMethod, value: unknown): void
   view(binding: MhpPanelBinding): PanelView | undefined
   /** Ends every conversation and the backend. */
@@ -286,6 +293,14 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
       signalFor: (sessionId) => registry.heldOrAdopting(sessionId)?.signal,
     },
   )
+  const loadPanelMedia = panelMediaLoader(
+    path.join(deps.distDir, RUNTIME_PANEL_MEDIA_BUNDLE_FILE),
+    log,
+  )
+  const loadPanelSchedules = panelSchedulesLoader(
+    path.join(deps.distDir, RUNTIME_PANEL_SCHEDULES_BUNDLE_FILE),
+    log,
+  )
   const outputs = createRuntimeDocuments({
     host: connection,
     dataFolder: deps.dataFolder,
@@ -320,6 +335,24 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
     for (const binding of connection.surfaces.retireSession(sessionId)) {
       if (!connection.offers('surfaces')) break
       await connection.request('surfaces/close', { surfaceId: binding.surface }, ending.signal)
+    }
+  }
+
+  /** The hold state itself rides the lazy schedules bundle, created on first hold. */
+  function scheduleHold(load: () => Promise<RuntimeSchedulesBinding>): PanelScheduleHold {
+    let hold: PanelScheduleHold | undefined
+    const loaded = (): PanelScheduleHold =>
+      (hold ??= loadPanelSchedules().createPanelScheduleHold({ log, load }))
+    return {
+      get isHeld() {
+        return hold?.isHeld ?? false
+      },
+      hold: async (...args) => {
+        await loaded().hold(...args)
+      },
+      close: async () => {
+        await hold?.close()
+      },
     }
   }
 
@@ -393,6 +426,42 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
         if (awaitingSurface.delete(conversation)) await openSurface(conversation.sessionId)
       },
       stopped: deps.stopped,
+      statusHost: {
+        request: async (method, params) => await connection.request(method, params),
+      },
+      schedules: scheduleHold(async () => {
+        const current = runtime
+        if (current === undefined) throw new Error('MHP_NOT_INITIALIZED')
+        return await loadPanelSchedules().loadPanelSchedulesBinding({
+          distDir: deps.distDir,
+          dataDir: deps.dataFolder,
+          log,
+          allowsContributorModels: true,
+          current,
+          create: async (kind) =>
+            await deps.createRuntime(
+              {
+                ...serveOptions(currentSettings(), () => isTrusted, deps.isVerbose, paid.flagged()),
+                backend: kind,
+              },
+              questionStore,
+              unsavedPaths,
+            ),
+        })
+      }),
+      attachments: {
+        distDir: deps.distDir,
+        dataRoot: deps.dataFolder,
+        workspaceRoot: workspace,
+        settings: () => currentSettings(),
+        host: {
+          request: async <M extends 'ui/openFile' | 'ui/confirm'>(
+            method: M,
+            params: MhpParams<M>,
+          ) => await connection.request(method, params),
+        },
+        backendKind: () => runtime?.backend.kind ?? backendKind(currentSettings()),
+      },
     })
   }
 
@@ -509,6 +578,8 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
   return {
     initialize: async (params, signal) => {
       isTrusted = params.trusted
+      // Held until each surface is ready, then relayed (M114, MHP 1.6).
+      connection.surfaces.setTheme(params.theme)
       settings = await store.readAll()
       configured = await store.configuredSettings()
       isGhLoginAllowed = (await store.getSetting('museSpark.github.useGhLogin')) === true
@@ -547,6 +618,12 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
           .catch(logRejection(log, 'panel start notice'))
       })
     },
+    attachments: async (raw) =>
+      await loadPanelMedia().routeAttachmentMethod(
+        registry.controllers(),
+        (controller) => registry.held(controller.sessionId) === controller,
+        raw,
+      ),
     notify: (method, value) => {
       switch (method) {
         case 'settings/didChange': {
@@ -577,6 +654,10 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
         }
         case 'documents/didClose': {
           documents.delete(MHP_METHODS[method].params.parse(value).uri)
+          break
+        }
+        case 'window/didChangeTheme': {
+          connection.surfaces.setTheme(MHP_METHODS[method].params.parse(value).theme)
           break
         }
         default: {

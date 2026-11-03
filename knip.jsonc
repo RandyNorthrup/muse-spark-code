@@ -358,6 +358,12 @@
     "test/harness/usageHost.mjs",
     // Native loader regression child, run by both package scripts after build.
     "test/packaging/moduleExports.test.mjs",
+    // M104g conformance runners, started by path (`node hosts/<host>/run.mjs`
+    // from test/hostApi/run.mjs), and the node drivers their native suites
+    // spawn (`node test/unit/hostDrivers/runDriver.mjs`, which bundles cli.ts).
+    "hosts/*/run.mjs",
+    "test/unit/hostDrivers/runDriver.mjs",
+    "test/unit/hostDrivers/cli.ts",
     // The badge Worker; wrangler deploys worker.js by path (lane STANDINS:
     // its only in-repo importer was the deleted KV-stand-in test).
     "infra/marketplace-hook/worker.js",
@@ -819,6 +825,9 @@
     "tput",
     // M111 lane QA: the QEMU desktop runner creates install targets.
     "qemu-img",
+    // Windows' own process list: the Visual Studio runner refuses while the
+    // harness would end a named process (hosts/visualstudio/run.mjs).
+    "tasklist",
     "gitleaks",
     "muse",
     "mkfifo",

@@ -23,7 +23,7 @@
     },
     "runtime": {
       "SWALLOW": 26,
-      "GENERIC": 168,
+      "GENERIC": 167,
       "CLEANUP": 130
     },
     "shared": {
@@ -3245,7 +3245,7 @@
     },
     {
       "file": "src/host/media/mediaProviders.ts",
-      "identity": "078fae9846fec34194d7d64cac0192852f0a658599c6cfd58d67e57fb3292e7c",
+      "identity": "ce576d274c011e78ffa9c36b2babebc3bf0042b79e72b42e4bc3276d7f593fe0",
       "class": "CLEANUP"
     },
     {
@@ -3942,11 +3942,6 @@
       "file": "src/runtime/companion/nativeAttachments.ts",
       "identity": "08fdc73c1af9289ab9cced6f3139eb9c2441f423493faf2cb04117af3774b6e6",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/runtime/companion/nativeAttachments.ts",
-      "identity": "b20a94cebd27ae1ae0ec8442c5e42ff1d9252b3921f8b7f7e557f336a15977d0",
-      "class": "GENERIC"
     },
     {
       "file": "src/runtime/companion/server.ts",

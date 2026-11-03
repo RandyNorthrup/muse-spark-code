@@ -9499,20 +9499,24 @@ written. Record: `docs/certification/cc-rlm116.md`.
 
 ### D226 — One MHP version in every native host (lead, lane RLM104, 2026-10-22; numbered D212 on its branch until the cc/rlm104 re-land of 2026-10-24)
 
-Every native host negotiates `MHP.version` (`mhp/1.5.1`, wire `1.5`, range
-to exclusive `mhp/1.6.0`) or refuses with `MHP_INCOMPATIBLE_VERSION`; no
+Every native host negotiates `MHP.version` (`mhp/1.6.0`, wire `1.6`, range
+to exclusive `mhp/1.7.0`) or refuses with `MHP_INCOMPATIBLE_VERSION`; no
 older route, tag, schema or test survives. Both legacy-named snapshots and
-locks advertise 1.5.1; a new revision regenerates every schema, lock and
+locks advertise 1.6.0; a new revision regenerates every schema, lock and
 host together. 1.5.1 (lane RLF-QUOTA, D252) carries the quota detail on
-`turnCompleted` and `turnRetry`. Neither 1.5.0 (on int since 2026-10-24,
-after 0.19.0) nor 1.5.1 has shipped, so the lock was re-frozen on the
-CC-INT8 join (2026-10-31), through the adoption route, at 1.5.1
-(`docs/certification/cc-int8.md` names every change since the 1.5.0 lock),
-and a second time on the CC-INT9 join (2026-10-31), through the same route,
-for the one change since: RLF-ORCHEXT's third conversation host kind
-`external` (D250), the `backend` enum of the panel payloads
-(`docs/certification/cc-int9.md`); the nine native hosts name 1.5.1 too.
-From the release that ships 1.5.1 the lock is frozen for real. Record:
+`turnCompleted` and `turnRetry`, and RLF-ORCHEXT's third conversation host
+kind `external` (D250) joined the `backend` enum of the panel payloads at
+1.5.1 (re-frozen on the CC-INT8 and CC-INT9 joins, 2026-10-31,
+`docs/certification/cc-int8.md`, `docs/certification/cc-int9.md`).
+RLF-HOSTS2 adopted 1.6.0 from a base at 1.5.0 (`window/didChangeTheme` and
+`attachments/*`, 2026-11-01, `docs/certification/rlf-hosts2.md`). None of
+1.5.0, 1.5.1 or 1.6.0 has shipped, so the CC-INT11 join (2026-11-03)
+re-froze 1.6.0 once, through the adoption route, as a superset of 1.5.1:
+the quota detail and the `external` kind, nothing dropped
+(`docs/certification/cc-int11.md`); the nine native hosts name 1.6.0.
+Round 11's later lanes fold their additions into the same 1.6.0 before
+anything ships, and that still counts as one version. From the release
+that ships 1.6.0 the lock is frozen for real. Record of 1.5.0:
 `docs/certification/cc-rlm104.md`.
 
 ### D227 — Teams stay off until the person sets up a second model (RLF-TEAMGATE, 2026-10-23; numbered D217 on its branch until the int/recovery join of 2026-10-30, when that number was found shared with the judge fast path's `stat`)
@@ -13430,6 +13434,30 @@ RLF-HOSTS2 Vim live drill is green live, 4/4;
 Recorded with `-s ours` (the lane's two lineage merges are int's own re-lands)
 and its four own commits applied on top: the ACP usage read on Muse Code and
 the journal rig two suites share. Record: `docs/certification/cc-int6.md`.
+
+**Status 2026-11-02 (RVHOSTS2): built**
+(Independent review of that branch on `rv/hosts2`. A path that only starts
+in the recording folder and then leaves it is refused in words
+(`41a2734c7`). A GitHub lease this window did not grant, or one past the
+local lifetime, is refused in words (`2659811ed`). Host LSP checks require
+the live argv to be this tree's `dist/acp.js` (`2f4306725`), and the Emacs
+supervised handshake keeps the agent log off the protocol pipe
+(`6d9f95839`). Unreleased notes no longer say native hosts attach screen
+captures or that a shipped editor signs the panel in with a held token
+(`615f7ee89`). The lazy registry names the panel media and schedule
+bundles the build emits (`bbbb55bba`). MHP stays `mhp/1.6.0`. The merge
+with int must make 1.6.0 a
+superset of int's 1.5.1 (quota on `turnCompleted` and `turnRetry`, and the
+`external` host kind) without dropping theme or attachments. int was not
+merged here. `docs/certification/rvhosts2.md`).
+
+**Status 2026-11-03 (CC-INT11, merge 3): built.** MHP 1.6.0 re-frozen on
+the join as a superset of int's 1.5.1 (D226). int's M123 editor lease
+(`editorLeaseSource`, gated on the editor offering `auth`) stays the one
+source (a): the branch's second implementation (`createNativeGitHub` with
+its own foreign/expired refusal) is not taken, since a lease id never
+enters from outside in int's design and an expired lease is dropped with
+its credential and asked again. Record: `docs/certification/cc-int11.md`.
 
 | Milestone | Phase | What it delivers                                                                                                                                             |
 | --------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -21475,6 +21503,18 @@ activates in 674 ms clean, container renders. Theia 1.76.0 (from npm):
 plugin deploys, chat webview renders, no page errors. No conversations
 (no backend credentials here). Firebase Studio, Che and Codespaces wait
 on accounts.
+
+**Status 2026-11-02 (CC-M104GW, M62b on the owner's Windows PC): built.**
+VSCodium 1.99.32846 (the floor) and 1.143.17232, Devin 3.11.238 and Positron
+2026.10.2, each from its portable Windows archive with its own data folders: the
+0.19.0 VSIX installs and lists with the editor's CLI, and the 9 M104g legs pass on
+the development extension. code-server 4.144.0's Windows archive: the VSIX installs,
+activates in 196 ms and the panel's sign-in page renders with 0 page errors. No
+conversations. Cursor (its Windows feed gives only an installer) and Kiro (its feed
+answered 403) did not run, so their records stay `forks.yml`'s; Theia keeps
+2026-10-22's; Firebase Studio, Che and Codespaces wait on accounts; Arduino IDE 2
+waits for M103f's VSIX (M104g).
+Record: `docs/certification/cc-m104gw.md`.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
@@ -32216,6 +32256,47 @@ suite over the real agent (8), the page-boundary suite (31), companion
 guard unit cases, and the portable page in real Chromium over the real
 routes (2, settling on the honest unsigned state); a red drill for each
 guard. Record: `docs/certification/rlf-m104lc.md`.
+Second native-hosts pass (RLF-HOSTS2, 2026-11-02): the Emacs, Neovim,
+Zed and Qt Creator suites now start this tree's real `dist/acp.js`
+through each host's real launch path (every stand-in child deleted;
+what only a live editor, a GUI run or a model call proves is recorded
+in `docs/real-life/unproven.md`), Sublime Text gains an in-editor
+harness against the real editor (Build 4200) and agent, and Zed's
+Rust extension builds (wasm32-wasip1). MHP moves 1.5.0 → 1.6.0 in one
+revision (D226): lane B's `window/didChangeTheme` and lane C's
+`attachments/*` join the wire; attachments bind to the native panel
+runtime, the panel status item publishes the open-questions count, a
+native window's scheduled-prompt hold resolves in its workspace
+(delivery still degrades to a warning while the M115 delivery
+certification reads not-ready), and the editor's GitHub lease signs
+the panel in first. Eclipse (62 tests, WebKitGTK present) and
+JetBrains (53 tests) re-conform at 1.6.0. Remaining: the companion
+`panel --companion` transport, the held pull request checkout
+(no adapter consumer yet), lane B's extra editors, and the Visual
+Studio and Xcode suites on their machines. Record:
+`docs/certification/rlf-hosts2.md`.
+Visual Studio and the VS Code rows on the owner's PC (CC-M104GW,
+2026-11-02): the Visual Studio host builds, installs into an experimental
+instance and opens its panel on the packed agent, with no VSSDK workload
+(NuGet's build tools are enough; adding the workload takes a UAC prompt, the
+owner's). Its first real run found what no earlier lane could: the package did
+not compile, every launch was refused (`--host`), no runtime request was served,
+and the real page opened on its fatal card (a theme `<style>` without the page's
+nonce, in `src/webview/portable.tsx`, shared with every native page). 13 of 13
+runnable legs green at 17.14.25, 9 waiting; 26 plain `dotnet test` cases need no
+editor. VS Code: the driver runs on stable and on the 1.99 floor against the
+modules VS Code really runs, 9 legs each; its dirty-buffer and atomic-edit legs
+wait for the in-process MHP adapter (lane A's `hostServices`, not landed).
+VSCodium, Devin Desktop and Positron ran the same legs on Windows (M62). New
+dependency, in the conformance project only and never in the VSIX:
+`Microsoft.VisualStudio.Extensibility.Testing.Xunit` 0.1.800-beta, pinned, from
+Microsoft's public `vssdk` feed with source mapping to its own ids: no other
+harness runs a test inside a real experimental instance. Upstream archived it (the
+code moved to dotnet/roslyn), so its hosted-runner reliability is unmeasured. Open:
+the JetBrains and Eclipse payload check refuses the theme frame by reading (not
+run here), Visual Studio's trust adapter and `workspace` group, Visual Studio
+2026, and Arduino IDE 2, which waits for M103f's VSIX (not on this tree). Record:
+`docs/certification/cc-m104gw.md`.
 
 **Warning for the POSIX trusted-path verifier (INT0180, 2026-10-11).** A real
 POSIX verifier that refuses a group-writable unit search directory would

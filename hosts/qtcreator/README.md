@@ -3,8 +3,11 @@
 Copy `musespark/` to a Qt Creator Lua plugin search directory. Enable the
 Lua plugin and **Muse Spark Code (Unofficial)** in About Plugins. The plugin
 uses the current Id/Name/Version Lua manifest and the documented Action,
-Process, Utils, Project and async modules. Actual Qt Creator 20 GUI
-qualification remains pending; the API tests here use source-checked doubles.
+Process, Utils, Project and async modules. Actual Qt Creator GUI
+qualification remains pending: Qt Creator offers no headless way to drive
+a Lua plugin's actions, so the Lua half is unproven in the real editor
+(`docs/real-life/unproven.md`); the Python bootstrap below is proven
+against the real agent.
 
 Install Python 3 and `muse-spark-code-acp` separately. `config.lua` names
 those installed executables. For an npm Windows installation whose `.cmd`
@@ -42,16 +45,16 @@ launch codes. The browser bootstrap discards opener output and reports only
 reserves a runtime before executable lookup yields. Stop cancels pending
 lookups and attempts runtime cleanup even when an independent opener fails.
 
-From the repository root, run the offline Lua API stub and bootstrap tests:
+From the repository root, run the bootstrap tests (they start this
+tree's real `dist/acp.js`; run `npm run build` first):
 
 ```sh
-nvim --headless -i NONE -u NONE -l hosts/qtcreator/test/check.lua
 python3 -m unittest discover -s hosts/qtcreator/test -v
 ```
 
-The Lua stub runs in Neovim's real Lua VM; it is not a native Qt Creator
-receipt. The Python tests include a real credential-free runtime child.
-F1–F56 shared-panel qualification is tracked in `docs/certification/m104-h.md`.
+The former Lua suite doubled Qt Creator's Lua API in Neovim and was
+deleted under the no-stand-ins rule. F1–F56 shared-panel qualification
+is tracked in `docs/certification/m104-h.md`.
 
 ## LSP and independent workspace Stop
 

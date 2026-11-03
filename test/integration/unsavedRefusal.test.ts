@@ -11,13 +11,12 @@ import { mkdir, mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as vscode from 'vscode'
-import { createToolIo } from '../../src/host/backend/toolIo'
 import { createMemoryIo, systemPath } from '../../src/host/backend/memoryIo'
 import { MemoryStore } from '../../src/core/memory/memoryStore'
-import { FILE_REFUSAL_MODEL_TEXT, MENTION_INDEX_LIMIT } from '../../src/shared/constants'
-import { walkFiles } from '../../src/runtime/fileWalk'
+import { FILE_REFUSAL_MODEL_TEXT } from '../../src/shared/constants'
 import type { Logger } from '../../src/host/logger'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
+import { createIntegrationToolIo } from './helpers/testToolIo'
 
 const silentLog: Logger = {
   trace: () => undefined,
@@ -50,19 +49,7 @@ suite('unsaved buffers refuse memory writes (D27)', () => {
     // The product's own ToolIo construction, wired as src/extension.ts
     // wires it: the editors open with unsaved changes, as VS Code names
     // them, compared with the product's isSamePath.
-    const toolIo = createToolIo({
-      platform: process.platform,
-      listFiles: (signal) => walkFiles(workspace, MENTION_INDEX_LIMIT, silentLog, signal),
-      workspaceRoot: workspace,
-      systemRoot: process.env['SystemRoot'],
-      env: () => process.env,
-      searchWorkerPath: '',
-      log: () => undefined,
-      unsavedFiles: () =>
-        vscode.workspace.textDocuments
-          .filter((document) => document.isDirty && document.uri.scheme === 'file')
-          .map((document) => document.uri.fsPath),
-    })
+    const toolIo = createIntegrationToolIo(workspace, silentLog)
     const memoryIo = createMemoryIo(toolIo, { warn: () => undefined })
     const store = new MemoryStore({
       io: memoryIo,
