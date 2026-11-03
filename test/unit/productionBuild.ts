@@ -38,6 +38,8 @@ const PRODUCTION_BUILD_SUITES: ReadonlySet<string> = new Set([
   'test/unit/runtimePanelConversation.test.ts',
   // M104 lane B: conversations in the runtime panel load the controller and the session bundle from dist/.
   'test/unit/runtimePanelSessions.test.ts',
+  // M104 lane LC: the packed panel's companion runs from dist/acp.js.
+  'test/unit/runtimePanelCompanion.test.ts',
   // M104 lane B: git in the runtime panel loads dist/nativeGit.js.
   'test/unit/runtimePanelGit.test.ts',
   // M123 (D104 §2): the editor's GitHub lease loads dist/nativeGit.js.
@@ -56,9 +58,10 @@ const PRODUCTION_BUILD_SUITES: ReadonlySet<string> = new Set([
 ])
 // A hung build fails the run with its output instead of holding it open.
 const PRODUCTION_BUILD_TIMEOUT_MS = 600_000
-// What scripts/build.mjs reads: these tracked folders and root files.
+// What the two build scripts read: these tracked folders and root files.
 const BUILD_INPUT_FOLDERS: ReadonlySet<string> = new Set([
   'src',
+  'desktop',
   'scripts',
   'l10n',
   'vendor',
@@ -146,11 +149,13 @@ interface BuildPorts {
 }
 const realBuild: BuildPorts = {
   build: (root) => {
-    execFileSync(process.execPath, ['scripts/build.mjs', '--production'], {
-      cwd: root,
-      stdio: 'pipe',
-      timeout: PRODUCTION_BUILD_TIMEOUT_MS,
-    })
+    // What `npm run build` builds: the bundle-size gate's budgets name dist/desktop too.
+    for (const script of ['scripts/build.mjs', 'scripts/build-desktop.mjs'])
+      execFileSync(process.execPath, [script, '--production'], {
+        cwd: root,
+        stdio: 'pipe',
+        timeout: PRODUCTION_BUILD_TIMEOUT_MS,
+      })
   },
   generation: (root) => buildGeneration(root),
 }
