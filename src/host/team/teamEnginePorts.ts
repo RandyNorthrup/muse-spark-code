@@ -6,6 +6,7 @@
 // the `agents/` ref; only the orchestrator's `merge` writes the user's tree.
 // Loads with dist/team.js; the host supplies the conversation and the paths.
 
+import { providerPresetOf } from './providerPreset'
 import {
   UI_TEXT,
   PERMISSION_MODES,
@@ -79,6 +80,8 @@ export interface EngineTeamPortsDeps {
   readonly rates?: TeamWorkerPort['rates']
   /** D261: the service each provider record was added from. */
   readonly providerService?: TeamWorkerPort['providerService']
+  /** The window's providers file, read for the same answer when a refusal needs it. */
+  readonly providersConfigFile?: string
   readonly listModels: () => Promise<readonly string[]>
   /**
   The entry model's current capability record for pre-dispatch
@@ -422,6 +425,10 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
   const workers: TeamWorkerPort = {
     ...(deps.rates !== undefined && { rates: deps.rates }),
     ...(deps.providerService !== undefined && { providerService: deps.providerService }),
+    ...(deps.providersConfigFile !== undefined && {
+      providerService: (record: string) =>
+        providerPresetOf(deps.providersConfigFile ?? '', record, deps.log),
+    }),
     canRun: (agent) => agent.kind === 'engine',
     probe: async (agent) => {
       const listed = await deps.listModels()

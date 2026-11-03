@@ -53,9 +53,9 @@ export class McpToolPinStore {
     }
     if (read.kind === 'unreadable') {
       this.log.warn(
-        read.error === undefined
+        read.cause === undefined
           ? 'The kept MCP tool pins are not readable; every server pins its tools afresh'
-          : `The kept MCP tool pins could not be read; every server's tools are pinned afresh: ${failureForLog(read.error)}`,
+          : `The kept MCP tool pins could not be read; every server's tools are pinned afresh: ${failureForLog(read.cause)}`,
       )
       return {}
     }
