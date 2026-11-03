@@ -115,7 +115,11 @@ const port = (): VaultAncestryPort => ({ processIdentity, parentIdentity })
 async function startChain(): Promise<void> {
   const script = [
     "const { spawn } = require('node:child_process')",
-    "const leaf = spawn('/bin/sh', ['-c', 'sleep 60'], { stdio: 'ignore' })",
+    // The leaf is sleep itself, never a shell that starts it: `sh -c`
+    // replaces itself with sleep (macOS's /bin/sh first with bash) after its
+    // pid is known, so an identity read in between names the shell, and the
+    // walk's later reading of the same pid no longer matches it.
+    "const leaf = spawn('/bin/sleep', ['60'], { stdio: 'ignore' })",
     String.raw`process.stdout.write(String(leaf.pid) + '\n')`,
     'setTimeout(() => {}, 60_000)',
   ].join('\n')
@@ -139,7 +143,7 @@ async function startChain(): Promise<void> {
   const leaf = await processIdentity(state.leafPid)
   if (!leaf) throw new Error('the leaf has no kernel identity')
   state.leaf = leaf
-  state.stranger = spawn('/bin/sh', ['-c', 'sleep 60'], { stdio: 'ignore' })
+  state.stranger = spawn('/bin/sleep', ['60'], { stdio: 'ignore' })
   if (state.stranger.pid === undefined) throw new Error('the stranger did not start')
   const stranger = await processIdentity(state.stranger.pid)
   if (!stranger) throw new Error('the stranger has no kernel identity')

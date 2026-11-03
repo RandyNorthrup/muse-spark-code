@@ -190,7 +190,10 @@ describe('M111 lane BP terminal sessions', () => {
     const { events, all } = sessions()
     const root = await scratch()
     const created = all.create({ cwd: root, cols: 80, rows: 24 })
-    all.write(created.id, "printf '\\e[31mred\\e[0m \\u2713\\n'; exit\n")
+    // Octal escapes only: bash 3.2 (macOS /bin/bash) prints `\u2713` as text, and zsh
+    // refuses it outside a UTF-8 locale and drops the rest of the line; every
+    // shell's printf writes octal bytes as they are (`\342\234\223` is ✓ in UTF-8).
+    all.write(created.id, "printf '\\033[31mred\\033[0m \\342\\234\\223\\n'; exit\n")
     await waitFor(() => events.exits.length === 1)
     const terminal = new Terminal({ cols: 80, rows: 24, allowProposedApi: true })
     try {

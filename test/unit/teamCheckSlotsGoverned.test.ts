@@ -24,19 +24,18 @@ import {
   type ResourceSettings,
 } from '../../src/shared/resources'
 import { RESOURCE_GIB_BYTES } from '../../src/shared/constants'
-import { EN } from '../../src/shared/l10n/en'
-import { setUiText } from '../../src/shared/l10n/text'
 import { resolveGitBinary } from './helpers/realGit'
 import { checkProcessProvedByExit } from './helpers/checkProcessProvedByExit'
 import { launchHostOver } from './helpers/resourceRig'
-import { manualClock } from './resourceHarness'
+import { liveSamplerSuite, manualClock } from './resourceHarness'
 import { initRigFolders } from './helpers/teamRealRig'
 import { fixtureGit } from './helpers/teamLandingFixture'
 import { fixtureGitEnvironment } from './helpers/fixtureGit'
 
-setUiText(EN, 'en')
-
-const SAMPLE_LIMITS = { timeoutMs: 1000, maxOutputBytes: 64 * 1024 }
+// The live sampler's limits and, on macOS before libuv 1.52 (Node 22, CI's
+// runtime), the memory reader it needs: without it the machine's memory reads
+// as unknown there and a memory limit never holds the governor at throttle.
+const { limits: SAMPLE_LIMITS, memoryReader } = liveSamplerSuite()
 /** The command that ends without the container's proof. */
 const UNPROVED = 'process.exit(0) // unproved'
 /** A check long enough that a second one is surely started while it runs when nothing holds it back. */
@@ -72,7 +71,7 @@ async function throttledHost(
     clock,
     events,
     settings,
-    sampler: createMachineResourceSampler(() => settings, SAMPLE_LIMITS, disks),
+    sampler: createMachineResourceSampler(() => settings, SAMPLE_LIMITS, disks, memoryReader()),
     hasRelocationTarget: null,
     onError: (error) => {
       errors.push(error)
@@ -98,12 +97,17 @@ async function throttledHost(
   }
 }
 
-/** The person's disk floor sits above the free space here: the governor holds disk-heavy work. */
+/**
+The person's disk floor sits above the free space here, so the governor holds
+disk-heavy work, but below twice it: free space at half the floor or less
+pauses all background work instead (disk.ts), which a machine with little
+free space would otherwise reach.
+*/
 async function diskHeldHost(errors: unknown[]): Promise<Governed> {
   const stats = await statfs(process.cwd(), { bigint: true })
   const freeGiB = Number(stats.bsize * stats.bavail) / RESOURCE_GIB_BYTES
   return await throttledHost(
-    resourceSettingsSchema.parse({ diskMinFreeGiB: Math.ceil(freeGiB) + 10 }),
+    resourceSettingsSchema.parse({ diskMinFreeGiB: Math.ceil(freeGiB * 1.5) }),
     errors,
     1,
   )
