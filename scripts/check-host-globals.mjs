@@ -39,6 +39,7 @@ const HOST_BUNDLES = [
   'dist/makerPreviewHost.js',
   'dist/makerEngine.js',
   'dist/runtimeMaker.js',
+  'dist/runtimeMakerPanel.js',
   'dist/usageService.js',
   'dist/usageExport.js',
   'dist/usageCompanion.js',

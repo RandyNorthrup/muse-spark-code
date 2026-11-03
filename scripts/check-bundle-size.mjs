@@ -68,6 +68,8 @@ const BUDGETS = [
   // M103R: 107.0 KiB + 15%, rounded to 25 KiB. RLM103: 125.4 KiB measured
   // on 0.19.0; capped at measured.
   { path: 'dist/runtimeMaker.js', budgetKiB: 126 },
+  // CC-INT11: its companion page and Thonny bridge, 18.1 KiB when split out, +15% rounded up.
+  { path: 'dist/runtimeMakerPanel.js', budgetKiB: 21 },
   // PORTM103: shared first-use maker schemas; 12.6 KiB plus 15%, rounded to 25 KiB.
   { path: 'dist/makerContracts.js', budgetKiB: 25 },
   // M111 WB (D91.12): the Electron workbench bundles. New bundles, measured

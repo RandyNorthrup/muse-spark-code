@@ -1352,6 +1352,13 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'runtimeMakerPanel.js',
+    side: 'acp',
+    requestedBy: [
+      { importer: 'src/runtime/maker/panelLoader.ts', symbol: 'loadMakerPanel', side: ['acp'] },
+    ],
+  },
+  {
     file: 'runtimeMedia.js',
     side: 'acp',
     requestedBy: [
