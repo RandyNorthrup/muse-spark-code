@@ -42,8 +42,8 @@ was the design even if they are from a different account or provider".
   brief and the captured copy; nothing crosses providers.
 - **No ACP option.** ACP sessions run no team role (`src/runtime/backends.ts`
   takes team seams only from `exec`), so an option there would control
-  nothing. Open for the lead: offer it anyway, or keep it off until ACP
-  sessions run teams (recommended: off).
+  nothing. The lead (2026-11-02): keep it out for now; merge round 11
+  brings ACP teams, which then get this toggle.
 - **No role.** A plain chat has no list; by D103 and D212 defaults its
   refusal ends the turn with its true sentence whatever the toggle says.
 
@@ -74,16 +74,24 @@ was the design even if they are from a different account or provider".
 A first toggle drill (`=== true` to `!== false`) stayed green because the
 harness answers `false`; it was redone by removing the condition.
 
-## Blocked in the lane
+## Blocked in the lane, then finished (2026-11-02)
 
-`package.json` and `scripts/` are read-only mounts here. The manifest
-entry (`museSpark.teamRefusalFallback`, removing
-`museSpark.modelApiFallbackModel`) and the stale `refusalFallback.ts` line
-in `scripts/check-bundle-split.mjs` are in
-`docs/certification/rlf-fallback/lead-readonly.patch` (`git apply --check`
-passes). Until it is applied, `check:l10n` reports exactly those two
-manifest problems and `node scripts/gen-reference.mjs` stops on the stale
-`modelApiFallbackModel` default; after it, regenerate the reference.
+The rework's run had `package.json` and `scripts/` read-only (a launcher
+bug, since fixed). The finishing run applied the lead's patch
+(`museSpark.teamRefusalFallback` in the manifest,
+`museSpark.modelApiFallbackModel` gone, the stale `refusalFallback.ts` line
+out of `scripts/check-bundle-split.mjs`) and deleted it. Two more fixes
+the gates showed, both from this branch:
+
+- The catalogue lint (`scripts/lib/reference.mjs`) reads a description
+  opening with "When" as conditional state, so `gen-reference` stopped on
+  the setting and its feature; the English description now opens "A team
+  task an agent refuses moves …" (same meaning; the 14 tables keep theirs).
+- `npm run build` stopped in the bundle-split gate: `dist/teamHost.js`
+  carries `TEAM_HANDOFF_MODEL_TEXT`, which the refused task's handoff brief
+  in `src/core/team/teamHost.ts` reads (the base read it only in the window,
+  engine and process bundles). The team service bundle is now a declared
+  reader of that block; no budget changed.
 
 ## Not proven
 
