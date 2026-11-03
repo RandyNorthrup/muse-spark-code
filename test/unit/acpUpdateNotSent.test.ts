@@ -31,7 +31,15 @@ describe('ACP unsent updates name their cause', () => {
       })
       const created = await editor.request('session/new', { cwd: folder, mcpServers: [] })
       // The editor is gone: everything the agent sends from here fails.
+      // Wait for the close to land first: a write in the same turn as
+      // `destroy()` is still accepted into the dead stream's buffer by
+      // Node's web adapter, so only a settled close makes the next
+      // update fail the way a real editor exit does (CC-INT10).
+      const closed = new Promise<void>((resolve) => {
+        toClient.once('close', resolve)
+      })
       toClient.destroy()
+      await closed
       const pending = editor.request('session/set_mode', {
         sessionId: created.sessionId,
         modeId: 'plan',
