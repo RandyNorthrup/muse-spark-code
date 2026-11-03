@@ -33,7 +33,8 @@ export function payloadDigest(payload: string | Uint8Array): string {
   return createHash('sha256').update(payload).digest('hex')
 }
 
-function isWithinWorkspace(directory: string, workspace: string): boolean {
+/** Whether the directory is the workspace or inside it (both already resolved). */
+export function isWithinWorkspace(directory: string, workspace: string): boolean {
   const relative = path.relative(workspace, directory)
   return (
     relative === '' ||

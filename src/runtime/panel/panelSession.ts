@@ -29,8 +29,7 @@ import {
   RUNTIME_PANEL_SCHEDULES_BUNDLE_FILE,
   UI_TEXT,
 } from '../../shared/constants'
-import type { MhpNotificationMethod, MhpParams } from '../../shared/hostApi/methods'
-import { MHP_METHODS } from '../../shared/hostApi/methods'
+import type { MHP_METHODS, MhpNotificationMethod, MhpParams } from '../../shared/hostApi/methods'
 import { jsonValueSchema } from '../../shared/hostApi/data'
 import type { MhpPanelBinding } from '../../shared/hostApi/panel'
 import type { UiText } from '../../shared/l10n/en'
@@ -82,6 +81,12 @@ export interface PanelSessionDeps {
   readonly locale: string
   /** The conversations cannot go on (the backend stopped): the connection ends. */
   readonly stopped: () => void
+  /**
+  MHP's method table, which checks a host notification's params. It comes from
+  dist/runtimePanel.js, which has it for the handshake, so this bundle does
+  not carry it again (PLAN.md D6).
+  */
+  readonly methods: typeof MHP_METHODS
 }
 
 export interface PanelSession {
@@ -632,32 +637,32 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
         }
         case 'workspace/didChangeTrust':
         case 'workspace/didGrantTrust': {
-          trustChanged(MHP_METHODS[method].params.parse(value).trusted)
+          trustChanged(deps.methods[method].params.parse(value).trusted)
           break
         }
         case 'editor/didChangeSelection': {
-          selection = MHP_METHODS[method].params.parse(value).selection
+          selection = deps.methods[method].params.parse(value).selection
           editorContext.update(() =>
             runtimeEditorContext(selection, workspace, process.platform, files.admits),
           )
           break
         }
         case 'documents/didChange': {
-          const { document } = MHP_METHODS[method].params.parse(value)
+          const { document } = deps.methods[method].params.parse(value)
           documents.set(document.uri, { uri: document.uri, dirty: document.dirty })
           break
         }
         case 'documents/didSave': {
-          const document = MHP_METHODS[method].params.parse(value)
+          const document = deps.methods[method].params.parse(value)
           documents.set(document.uri, { uri: document.uri, dirty: document.dirty })
           break
         }
         case 'documents/didClose': {
-          documents.delete(MHP_METHODS[method].params.parse(value).uri)
+          documents.delete(deps.methods[method].params.parse(value).uri)
           break
         }
         case 'window/didChangeTheme': {
-          connection.surfaces.setTheme(MHP_METHODS[method].params.parse(value).theme)
+          connection.surfaces.setTheme(deps.methods[method].params.parse(value).theme)
           break
         }
         default: {

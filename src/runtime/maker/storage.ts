@@ -3,7 +3,9 @@ import { constants } from 'node:fs'
 import { lstat, mkdir, open, realpath, rename, rm } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
+import { isWithinWorkspace } from '../../core/maker/deviceLog'
 import type { MakerStorage } from '../../core/maker/ports'
+import { isErrno } from '../../core/fs/errno'
 import { handleIdentity, lstatIdentity, sameFile } from '../../core/fs/fileIdentity'
 import {
   RUNTIME_MAKER_MAX_BYTES,
@@ -35,12 +37,7 @@ export class RuntimeMakerStorage implements MakerStorage {
     await mkdir(directory, { recursive: true, mode: CHECKPOINT_STORAGE_MODE })
     const canonical = await realpath(directory)
     const root = await realpath(workspace)
-    const relative = path.relative(root, canonical)
-    if (
-      relative === '' ||
-      (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
-    )
-      throw new Error('maker-storage-in-workspace')
+    if (isWithinWorkspace(canonical, root)) throw new Error('maker-storage-in-workspace')
     if (await hasLinkOnPath(directory)) throw new Error('maker-storage-symlink')
     return new RuntimeMakerStorage(canonical)
   }
@@ -59,20 +56,21 @@ export class RuntimeMakerStorage implements MakerStorage {
   }
   async get(key: string): Promise<unknown> {
     await this.checkDirectory()
+    const file = this.file(key)
     let handle
     try {
-      handle = await open(this.file(key), constants.O_RDONLY | constants.O_NOFOLLOW)
+      handle = await open(file, constants.O_RDONLY | constants.O_NOFOLLOW)
     } catch (error) {
-      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return undefined
+      if (isErrno(error) && error.code === 'ENOENT') return undefined
       throw error
     }
     try {
       const info = await handleIdentity(handle)
-      const entry = await lstatIdentity(this.file(key))
+      const entry = await lstatIdentity(file)
       const isSameFile =
         entry.isFile() &&
         !entry.isSymbolicLink() &&
-        (await realpath(this.file(key))) === this.file(key) &&
+        (await realpath(file)) === file &&
         sameFile(entry, info)
       if (
         !isSameFile ||

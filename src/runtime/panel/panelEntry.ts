@@ -223,6 +223,7 @@ export async function createPanelHost(
           stopped: () => {
             connection.close(true)
           },
+          methods: MHP_METHODS,
         })
         session = created
         await created.initialize(params, signal)
