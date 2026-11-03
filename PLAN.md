@@ -9825,8 +9825,9 @@ was a second mechanism beside D103's lists.
   machine-scoped (it can move work to a paid agent), and `exec --team
 --refusal-fallback` for one headless run (without `--team` it is
   refused with its sentence). ACP sessions run no team, so no ACP option
-  is offered (an option there would control nothing). Off, nothing
-  changes from before.
+  is offered (an option there would control nothing); the lead
+  (2026-11-02): kept out for now, and merge round 11 brings ACP teams,
+  which then get this toggle. Off, nothing changes from before.
 - **Money.** A key-billed next entry the task holds no consent for asks
   D48's question first (the team popup naming its model and price); Deny
   ends the task with the refusal and a sentence naming both models. An
@@ -11436,8 +11437,7 @@ and base-tree issues, zero in this lane's area). Record:
 
 ### RLFFALLBACK — A refused team task moves to the next agent in its role (D261)
 
-**Status 2026-11-02 (lane RLF-FALLBACK, rework): built.** The setting's
-manifest entry waits on the lead (below). The first build's fallback-model setting, flag, ACP
+**Status 2026-11-02 (lane RLF-FALLBACK, rework): built.** The first build's fallback-model setting, flag, ACP
 option and in-turn switch are removed. A refused worker turn is reported
 (`turnCompleted.refused`; Muse Code and ACP workers' `refusal` stop) and,
 with `museSpark.teamRefusalFallback` or `exec --team --refusal-fallback`,
@@ -11446,12 +11446,11 @@ review never to the authoring model, D48 asked before an unconsented paid
 entry (an unattended run stops and says why), a switch row naming the
 refusal, usage claimed per entry; words in English plus 14 tables.
 Real-code tests drive the selection guards and the host moving a refused
-task through a real scheduler and real git. Not yet true: `package.json`
-and `scripts/` are read-only in the lane, so the setting's manifest entry
-and one stale bundle-split line wait in
-`docs/certification/rlf-fallback/lead-readonly.patch`, and the generated
-reference is regenerated after it; the live refusal still needs its real
-run (`docs/real-life/unproven.md`), and the CHANGELOG line waits for it.
+task through a real scheduler and real git. The setting is in the
+manifest and the reference (finishing run, same day); no ACP option until
+merge round 11 brings ACP teams. Not yet true: the live refusal still
+needs its real run (`docs/real-life/unproven.md`), and the CHANGELOG line
+waits for it.
 Record: `docs/certification/rlf-fallback.md`.
 
 ### TOOLROUNDS — Preserve answers at the model-call turn limit (D109)
