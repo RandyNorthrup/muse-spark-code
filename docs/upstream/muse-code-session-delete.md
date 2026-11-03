@@ -1,7 +1,10 @@
 # `session/delete` is method-not-found on Muse Code 1.4.14
 
-Status: **duplicate**. Do not open a new issue. Comment on
-<https://github.com/meta-models/muse-code-sdk/issues/51>.
+Status: **duplicate (comment)**. Do not open a new issue. The comment below
+is already on
+<https://github.com/meta-models/muse-code-sdk/issues/51>
+(posted 2026-11-02). Do not post it again. `session/delete` is still
+method-not-found on 1.4.14. The workaround stays; see `followups.md`.
 
 A second measurement from the same check, the stdio "one client" line, is
 recorded below and should stay unfiled.
@@ -88,10 +91,10 @@ gate, not evidence about the method.
 
 Restore `session/delete`, or reply on #51 that the 1.4.3 removal is final.
 
-## Recommended comment
+## Comment already posted
 
-The CLI template is the SDK bug form. #51 is already the open request, so
-this belongs on that issue:
+Posted on #51 on 2026-11-02. Kept here so a later pass can see that the
+thread already has it. Do not post it again.
 
 ```text
 Checked on Muse Code 1.4.14 (1.4.14-R7309.1), macOS 15.7.4 (24G517),
@@ -128,7 +131,7 @@ error. The 2026-10-02 comment on this issue said the method was in the
 
 ## Template fields
 
-Do not submit a new issue. The comment above is the payload.
+Do not submit a new issue. The comment above is already on #51.
 
 - Where is the problem? The MSP protocol declarations or schema
 - What happened, and what did you expect instead? See Actual and Expected.

@@ -1,8 +1,13 @@
 # `muse serve` refuses `-c mcpServers.<name>.enabled=false` for a configured server
 
-Status: **ready**. File a new bug. No duplicate found.
+Status: **duplicate (comment)**. Already filed. Do not file a second issue
+and do not comment. The issue has no comments, and none is recommended.
 
-Target: <https://github.com/meta-models/muse-code-sdk/issues/new?template=bug_report.yml>
+Filed: <https://github.com/meta-models/muse-code-sdk/issues/134>
+(2026-11-02). The title and body match this report.
+
+Target, for the record:
+<https://github.com/meta-models/muse-code-sdk/issues/new?template=bug_report.yml>
 
 Title: `muse serve` refuses `-c mcpServers.<name>.enabled=false` when that server is already configured
 

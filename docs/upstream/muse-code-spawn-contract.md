@@ -1,52 +1,75 @@
-# Draft: bind MSP shell approval to the process Muse Code starts
+# Bind shell approval to the process Muse Code starts
 
-Target: [meta-models/muse-code-sdk](https://github.com/meta-models/muse-code-sdk).
-Draft for the lead to file; no upstream issue has been submitted.
+Status: **duplicate (comment)**. Do not open a new issue. Do not post a
+comment. The open issue is this draft, filed 2026-10-06, and it has no
+comments.
 
-Our unofficial editor harness requires fresh human approval for every shell
-command in a hardware session. It must reject a pending answer or process
-start if the run becomes unattended or the observed device identity changes.
-We can enforce those checks for processes our Model API backend owns. Muse
-Code owns its shell spawn after the editor sends `approval/decide`, so the
-editor cannot perform the equivalent final check.
+Target: <https://github.com/meta-models/muse-code-sdk/issues/90>
 
-The captured MSP approval subject includes command text and staged argv, and
-the editor sends a once-only decision for its requirement. That evidence
-does not bind the actual executable, argv, cwd or environment at spawn, and
-provides no final process-entry callback. A standing CLI grant or silent
-command also need not produce an editor approval card. We do not infer a
-new wire field or claim these captures describe every current CLI path.
+Title on #90: bind shell approval to the exact process Muse Code starts
+(approval-time execution-plan binding or a blocking pre-exec hook)
 
-Please provide either an approval-time binding of the exact execution plan
-or a blocking pre-exec hook. It should cover the resolved executable, exact
-argv, cwd and effective environment, including shell initialization and
-inherited functions that can change what a bare command executes. Environment
-values may contain secrets: use an opaque binding or private comparison;
-do not expose credentials in model context, logs or approval-card text.
+## Version and OS
 
-The integration needs these guarantees:
+- The filed report's capture is Muse Code 1.4.2-R4684.1, 2026-10-02, against
+  a loopback stand-in. This pass did not repeat that capture.
+- Schema check, 2026-11-02: Muse Code 1.4.14 (1.4.14-R7309.1). macOS 15.7.4
+  (24G517). `uname -mprs` prints `Darwin 24.6.0 x86_64 i386`.
+- Offline `muse schema generate-json-schema` and `generate-ts` on that
+  binary. No model request.
 
-- A host-required fresh approval/pre-exec check applies to every shell spawn,
-  including commands otherwise accepted by Auto or a standing CLI rule.
-- The decision is single-use, expires, and is invalidated by any execution
-  plan change. Cancellation, hook failure or a missing response starts no
-  process; failed delivery cannot replay an accepted decision.
-- Immediately before native spawn, the host can synchronously reject on its
-  live unattended state or changed device identity. No asynchronous work or
-  execution-plan mutation occurs between that check and spawn.
-- A registered canonical Stop can proceed through an explicit host-owned
-  exception without a human approval prompt. Arbitrary stop-looking shell
-  text cannot select that exception.
+## Steps
 
-A reproduction needs no hardware or paid call: hold shell preparation after
-an editor approves, change the fake host's device identity or unattended
-state, and release preparation. The host must be able to prevent spawn.
-Also test an inherited printing-only `ls` function and a standing command
-rule: both must reach the fresh approval/pre-exec path.
+The behavioural repro is the one already on #90: hold shell preparation
+after an approval, change the host's device identity or unattended state,
+and release preparation. The host needs a way to stop the spawn.
 
-Existing evidence: Muse Code 1.4.2-R4684.1, captured 2026-10-02 in an isolated
-home and empty temporary workspace against a loopback fake Responses API,
-zero external model attempts. See
-[the approval capture record](../certification/approval-decisions.md),
-`test/unit/helpers/stageRaceCapture.ts`, and
-[the guard continuation record](../certification/m103-g.md).
+The schema check is:
+
+```sh
+muse schema generate-json-schema --out <scratch>/schema
+muse schema generate-ts --out <scratch>/schema-ts
+```
+
+## Expected
+
+An approval-time binding of the exact execution plan, or a blocking
+pre-exec check, covering the resolved executable, argv, cwd and effective
+environment. A changed plan or a failed check starts no process.
+
+## Actual
+
+#90 is still open. The 1.4.14 changelog page
+(<https://dev.meta.ai/docs/muse-code/changelog>, read 2026-11-02, newest
+published section 1.4.13) has no pre-exec or execution-plan entry.
+
+The 1.4.14 stable schema has no method for a pre-exec check or an
+execution plan. `ApprovalSubject` is an open union whose `kind` values are
+`shell`, `fileAccess`, `network`, `unixSocket`, `process` and `tool`. None
+of those is a spawn-admission or pre-exec kind. The schema text contains
+no `pre-exec`, `preExec` or execution-plan method.
+
+This pass did not re-measure the 2026-10-02 spawn race on 1.4.14.
+
+## Ask
+
+Leave #90 as the request. No second issue and no new comment until a live
+1.4.14 capture shows a change.
+
+## Duplicate search
+
+2026-11-02, public issue search on `meta-models/muse-code-sdk`, open and
+closed, for pre-exec:
+
+- #90 is this text.
+- #96 is a Windows sandbox ACL lock that makes shell calls time out. It is
+  not this request.
+
+## Template fields
+
+Do not submit a new issue.
+
+## Workaround
+
+Nothing in this note is cleared by the 1.4.14 schema. The local guard stays
+until a capture shows the binding or the pre-exec check.
