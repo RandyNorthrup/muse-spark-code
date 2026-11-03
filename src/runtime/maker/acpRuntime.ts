@@ -6,7 +6,8 @@ import { makerSurfaceMessageSchema, type ApprovalRequest } from '../../shared/ma
 import { RUNTIME_MAKER_AGENT_MARKERS, UI_TEXT } from '../../shared/constants'
 import { createRuntimeMakerService, runtimeMakerLan, type RuntimeMakerServiceDeps } from './service'
 import { stopRuntimeMachines, stopResultText } from './stop'
-import { startCompanion } from './companionServer'
+import type { startCompanion } from './companionServer'
+import { loadMakerPanel } from './panelLoader'
 
 /** Workspace authority is lazy. Stop needs neither authority nor a writable workspace. */
 function isServiceUnavailable(error: unknown): boolean {
@@ -75,7 +76,8 @@ export function createAcpMakerRuntime(
         }
       }
       const id = randomUUID()
-      const server = await startCompanion({
+      const panel = await loadMakerPanel()
+      const server = await panel.startCompanion({
         dispatch: () => {
           throw new Error('maker-mcp-only')
         },

@@ -139,6 +139,7 @@ export const ACP_BUNDLES = [
   // M103 (D83): the runtime maker host, its hardware guard and shell, and
   // the shared maker schemas the companion page validates with.
   'runtimeMaker.js',
+  'runtimeMakerPanel.js',
   'hardwareGuard.js',
   'makerContracts.js',
   'hardwareShell.js',

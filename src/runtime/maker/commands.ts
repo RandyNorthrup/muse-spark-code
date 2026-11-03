@@ -2,9 +2,7 @@ import type { MakerCommand } from './commandArgs'
 import type { createRuntimeMakerService } from './service'
 import { makerSurfaceMessageSchema } from '../../shared/makerProtocol'
 import { UI_TEXT } from '../../shared/constants'
-import { startThonnyServer } from './thonnyServer'
-import { startCompanion } from './companionServer'
-import { companionAssets } from './assets'
+import { loadMakerPanel } from './panelLoader'
 import { stopResultText } from './stop'
 import { runProgram } from '../../host/processTree'
 import { WINDOWS_POWERSHELL_COMMAND_ARGS } from '../../shared/constants'
@@ -85,6 +83,7 @@ export async function runMakerCommand(
       return 0
     }
     case 'panel': {
+      const { companionAssets, startCompanion, startThonnyServer } = await loadMakerPanel()
       const assets = await companionAssets(deps.distDirectory)
       const thonny = await startThonnyServer(service.serial)
       try {

@@ -2024,6 +2024,13 @@ const runtimeMakerOptions = {
   format: 'cjs',
   target: AGENT_NODE_TARGET,
 }
+// CC-INT11 (D6): the companion page and Thonny bridge, loaded by
+// dist/runtimeMaker.js on the first maker panel or ACP companion.
+const runtimeMakerPanelOptions = {
+  ...runtimeMakerOptions,
+  entryPoints: ['src/runtime/maker/runtimeMakerPanelEntry.ts'],
+  outfile: 'dist/runtimeMakerPanel.js',
+}
 const mcpPoolOptions = {
   ...modelApiOptions,
   entryPoints: ['src/core/backends/modelapi/mcpPoolEntry.ts'],
@@ -2804,6 +2811,7 @@ if (isWatch) {
     esbuild.context(whatsNewOptions),
     esbuild.context(judgeOptions),
     esbuild.context(runtimeMakerOptions),
+    esbuild.context(runtimeMakerPanelOptions),
     esbuild.context(scheduleBackgroundOptions),
     esbuild.context(judgeP2Options),
     esbuild.context(judgeSourcesOptions),
@@ -2889,6 +2897,7 @@ if (isWatch) {
     hardwareGuard: recorded('hardwareGuard', hardwareGuardOptions),
     hardwareShell: recorded('hardwareShell', hardwareShellOptions),
     runtimeMaker: recorded('runtimeMaker', runtimeMakerOptions),
+    runtimeMakerPanel: recorded('runtimeMakerPanel', runtimeMakerPanelOptions),
     makerPreview: recorded('makerPreview', makerPreviewOptions),
     questionNotes: recorded('questionNotes', {
       ...modelApiOptions,
@@ -3455,6 +3464,7 @@ if (isWatch) {
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.css`))
   reportSize(ACP_OUTFILE)
   reportSize('dist/runtimeMaker.js')
+  reportSize('dist/runtimeMakerPanel.js')
   reportSize('dist/headless.js')
   reportSize(SCHEDULE_BACKGROUND_OUTFILE)
   reportSize(NODE_OUTFILE)

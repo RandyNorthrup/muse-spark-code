@@ -607,8 +607,18 @@ export const DEFERRED = [
       'src/runtime/maker/service.ts',
       'src/runtime/maker/nativeSerial.ts',
       'src/runtime/maker/runtimeMakerHost.ts',
+    ],
+  },
+  {
+    // CC-INT11 (D6): the runtime maker's companion page and Thonny bridge.
+    output: 'dist/runtimeMakerPanel.js',
+    metafile: 'dist/meta/runtimeMakerPanel.json',
+    use: 'the first maker panel or ACP companion',
+    files: [
+      'src/runtime/maker/runtimeMakerPanelEntry.ts',
       'src/runtime/maker/companionServer.ts',
       'src/runtime/maker/thonnyServer.ts',
+      'src/runtime/maker/assets.ts',
     ],
   },
   {
@@ -2059,6 +2069,7 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/host/maker/makerEntry.ts'), 'dist/makerHost.js'],
   [path.resolve('src/host/maker/makerPreviewEntry.ts'), 'dist/makerPreviewHost.js'],
   [path.resolve('src/host/maker/makerEngineEntry.ts'), 'dist/makerEngine.js'],
+  [path.resolve('src/runtime/maker/runtimeMakerPanelEntry.ts'), 'dist/runtimeMakerPanel.js'],
   [path.resolve('src/core/backends/modelapi/mcpPoolEntry.ts'), 'dist/mcpPool.js'],
   [path.resolve('src/runtime/exec/execEntry.ts'), 'dist/exec.js'],
   [path.resolve('src/shared/nodeDiagnosticsEntry.ts'), 'dist/nodeDiagnostics.js'],
@@ -2269,7 +2280,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:makerEntry|makerPreviewEntry|makerEngineEntry|mcpPoolEntry|execEntry|nodeDiagnosticsEntry|providerListEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|accountPaidEntry|modelEffortsEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|modelApiB1Entry|modelApiToolRunEntry|modelApiFastEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|reportFallbackEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|modelApiAcpEntry|modelApiShellEntry|teamEntry|teamSchedulerEntry|teamWindowEntry|teamLandingEntry|externalOrchestratorEntry|teamRunnersEntry|teamTrafficEntry|teamPanelEntry|teamHostEntry|teamMcpEntry|teamProcessEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|execTeamEntry|acpTeamEntry|execLedgerLeaseEntry|workerCreateEntry|workerOpsEntry|usageAcp|usageExportEntry|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|subscriptionCommandsEntry|configuredProvidersEntry|chatGptProviderCommands|grokProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|recordingDriverEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry|estimateActionsEntry|windowsEntry)(?:\.[jt]s)?$/,
+          /\/(?:makerEntry|makerPreviewEntry|makerEngineEntry|runtimeMakerPanelEntry|mcpPoolEntry|execEntry|nodeDiagnosticsEntry|providerListEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|accountPaidEntry|modelEffortsEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|modelApiB1Entry|modelApiToolRunEntry|modelApiFastEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|reportFallbackEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|modelApiAcpEntry|modelApiShellEntry|teamEntry|teamSchedulerEntry|teamWindowEntry|teamLandingEntry|externalOrchestratorEntry|teamRunnersEntry|teamTrafficEntry|teamPanelEntry|teamHostEntry|teamMcpEntry|teamProcessEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|execTeamEntry|acpTeamEntry|execLedgerLeaseEntry|workerCreateEntry|workerOpsEntry|usageAcp|usageExportEntry|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|subscriptionCommandsEntry|configuredProvidersEntry|chatGptProviderCommands|grokProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|recordingDriverEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry|estimateActionsEntry|windowsEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
