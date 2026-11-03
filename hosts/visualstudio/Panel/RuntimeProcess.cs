@@ -24,6 +24,7 @@ namespace MuseSpark.VisualStudio.Panel
     private readonly JoinableTaskFactory taskFactory;
     private readonly NamedPipeServerStream control;
     public MhpPeer Peer { get; }
+    internal int ProcessId => process.Id;
     private bool disposed;
 
     public RuntimeProcess(string node, string entry, string workspace, IHostServices host, JoinableTaskFactory taskFactory, string? helperPath = null)
@@ -45,7 +46,7 @@ namespace MuseSpark.VisualStudio.Panel
       var config = new JObject
       {
         ["file"] = node,
-        ["args"] = new JArray(entry, "panel", "--stdio", "--host", "visual-studio"),
+        ["args"] = new JArray(entry, "panel", "--stdio"),
         ["cwd"] = workspace,
         ["env"] = environment,
         ["parentPid"] = Process.GetCurrentProcess().Id,

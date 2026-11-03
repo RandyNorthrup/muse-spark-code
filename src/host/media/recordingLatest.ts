@@ -34,14 +34,56 @@ function withoutTrailingSlash(normal: string): string {
 }
 
 /**
+Collapse `.` and `..` after separators are `/`. A Windows drive prefix stays,
+so the same spelling compares on Linux and on Windows. `..` above an absolute
+root or a drive is dropped; a relative path may keep a leading `..`.
+*/
+function collapsedPath(fsPath: string): string {
+  const normal = normalPath(fsPath)
+  const drive = /^[A-Za-z]:/u.exec(normal)?.[0] ?? ''
+  const rest = drive === '' ? normal : normal.slice(drive.length)
+  const isAbsolute = rest.startsWith('/')
+  const stack: string[] = []
+  for (const part of rest.split('/')) {
+    if (part === '' || part === '.') continue
+    if (part === '..') {
+      const top = stack.at(-1)
+      if (top !== undefined && top !== '..') stack.pop()
+      else if (!isAbsolute) stack.push('..')
+      continue
+    }
+    stack.push(part)
+  }
+  const body = stack.join('/')
+  if (drive !== '') return body === '' ? `${drive}/` : `${drive}/${body}`
+  if (isAbsolute) return body === '' ? '/' : `/${body}`
+  return body
+}
+
+/**
+The collapsed path when `fsPath` stays inside the recording temp root, else
+undefined. Callers open this spelling: a `..` that only starts with the root,
+or a symlink hop beside `..`, must not select a different file.
+*/
+export function recordingTempAbsolute(
+  recordingTempRoot: string,
+  fsPath: string,
+): string | undefined {
+  const root = withoutTrailingSlash(collapsedPath(recordingTempRoot))
+  // An empty root, or a bare drive (`C:`), would match every absolute path.
+  if (root === '' || !root.includes('/')) return undefined
+  const normal = collapsedPath(fsPath)
+  return normal === root || normal.startsWith(`${root}/`) ? normal : undefined
+}
+
+/**
 Whether a recorder-produced file may bypass workspace confinement in the
 media open hook. Only the host's own recording temp root qualifies; a
-workspace file never takes this path.
+workspace file never takes this path. `.` and `..` collapse before the
+prefix check, so a path that leaves the root is confined like any other.
 */
 export function isRecordingTempPath(recordingTempRoot: string, fsPath: string): boolean {
-  const root = withoutTrailingSlash(normalPath(recordingTempRoot))
-  const normal = normalPath(fsPath)
-  return normal === root || normal.startsWith(`${root}/`)
+  return recordingTempAbsolute(recordingTempRoot, fsPath) !== undefined
 }
 
 export interface LatestRecordingHost {

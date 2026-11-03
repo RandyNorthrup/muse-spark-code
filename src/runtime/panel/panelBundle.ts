@@ -7,6 +7,8 @@ import { UI_TEXT } from '../../shared/constants'
 import type * as CompanionEntry from './companionEntry'
 import type * as Entry from './panelEntry'
 import type * as SessionEntry from './sessionEntry'
+import type * as PanelMediaBundle from '../panelMediaEntry'
+import type * as PanelSchedulesBundle from '../panelSchedulesEntry'
 
 interface PanelBundle {
   readonly runPanel: typeof Entry.runPanel
@@ -78,6 +80,62 @@ export function panelCompanionLoader(bundlePath: string, log: Logger): () => Pan
     log,
     isBundle: isPanelCompanionBundle,
     label: 'runtime panel companion',
+    unavailable: () => UI_TEXT.hostService.unavailable,
+  })
+}
+
+interface PanelMedia {
+  readonly createPanelMedia: typeof PanelMediaBundle.createPanelMedia
+  readonly routeAttachmentMethod: typeof PanelMediaBundle.routeAttachmentMethod
+}
+
+/** Same-build signature, trusted after checking the exported functions (PLAN §8). */
+function isPanelMediaBundle(value: unknown): value is PanelMedia {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'createPanelMedia' in value &&
+    typeof value.createPanelMedia === 'function' &&
+    'routeAttachmentMethod' in value &&
+    typeof value.routeAttachmentMethod === 'function'
+  )
+}
+
+/** The panel's attachments route and port, loaded on the first attachments call (M105 delivery d). */
+export function panelMediaLoader(bundlePath: string, log: Logger): () => PanelMedia {
+  return lazyBundleLoader({
+    bundlePath,
+    log,
+    isBundle: isPanelMediaBundle,
+    label: 'runtime panel media',
+    unavailable: () => UI_TEXT.hostService.unavailable,
+  })
+}
+
+interface PanelSchedules {
+  readonly loadPanelSchedulesBinding: typeof PanelSchedulesBundle.loadPanelSchedulesBinding
+  readonly createPanelScheduleHold: typeof PanelSchedulesBundle.createPanelScheduleHold
+}
+
+/** Same-build signature, trusted after checking the exported functions (PLAN §8). */
+function isPanelSchedulesBundle(value: unknown): value is PanelSchedules {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'loadPanelSchedulesBinding' in value &&
+    typeof value.loadPanelSchedulesBinding === 'function' &&
+    'createPanelScheduleHold' in value &&
+    typeof value.createPanelScheduleHold === 'function'
+  )
+}
+
+/** The panel's schedules binding, loaded on the first native schedule hold (C-M115-9). */
+export function panelSchedulesLoader(bundlePath: string, log: Logger): () => PanelSchedules {
+  return lazyBundleLoader({
+    bundlePath,
+    log,
+    isBundle: isPanelSchedulesBundle,
+    label: 'runtime panel schedules',
     unavailable: () => UI_TEXT.hostService.unavailable,
   })
 }

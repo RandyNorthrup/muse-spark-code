@@ -6,10 +6,10 @@
   "harness": {
     "command": "python3 -m unittest discover -s hosts/zed/test",
     "exitCode": 0,
-    "summary": "6 tests OK"
+    "summary": "8 tests OK"
   },
   "provenance": {
-    "observedAt": "2026-10-31T01:35:53.155Z",
+    "observedAt": "2026-11-02T13:39:17.384Z",
     "observedOn": "randy-lt (linux)",
     "command": "python3 -m unittest discover -s hosts/zed/test"
   }

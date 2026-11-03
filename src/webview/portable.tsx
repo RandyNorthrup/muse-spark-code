@@ -75,14 +75,21 @@ async function mount(): Promise<void> {
     },
     { once: true },
   )
-  const themeNonce = document.querySelector<HTMLElement>(`#${WEBVIEW_ROOT_ELEMENT_ID}`)?.dataset[
+  // The page's own nonce: a strict style-src refuses the theme's <style>
+  // element without it. The companion page names it on the root element
+  // and must; a native host's page carries it on its scripts.
+  const rootNonce = document.querySelector<HTMLElement>(`#${WEBVIEW_ROOT_ELEMENT_ID}`)?.dataset[
     'themeNonce'
   ]
   if (
     document.body.dataset['bridge'] === 'companion' &&
-    (themeNonce === undefined || themeNonce === '')
+    (rootNonce === undefined || rootNonce === '')
   )
     throw new TypeError('Missing companion theme nonce')
+  const themeNonce =
+    rootNonce === undefined || rootNonce === ''
+      ? document.querySelector<HTMLScriptElement>('script[nonce]')?.nonce
+      : rootNonce
   await loadThemeBridge(
     document.documentElement,
     panelThemePort(host.messages, window.matchMedia('(prefers-color-scheme: dark)').matches),
@@ -112,7 +119,7 @@ async function mount(): Promise<void> {
 /**
 The chat app's bridge over the MHP panel wire. The wire carries the shared
 chat payloads only: the estimator's lazy channel (M117) and team-tree
-actions are not MHP 1.5 panel payloads, so they are refused here, before
+actions are not MHP 1.6 panel payloads, so they are refused here, before
 the wire codec. An estimator request is answered at once the way VS Code
 answers when its estimator boundary is unavailable, so no run waits on a
 reply that cannot come; anything else off the wire throws as the codec does.

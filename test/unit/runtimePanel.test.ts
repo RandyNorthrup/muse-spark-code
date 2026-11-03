@@ -57,7 +57,7 @@ afterAll(async () => {
 })
 
 describe('panel --stdio', () => {
-  it('negotiates MHP 1.5, refuses a second handshake, and exits 0 after shutdown', async () => {
+  it('negotiates MHP 1.6, refuses a second handshake, and exits 0 after shutdown', async () => {
     const host = serve(['panel', '--stdio'])
     // Nothing before the handshake.
     expect(
@@ -77,14 +77,14 @@ describe('panel --stdio', () => {
     expect(await shutDown(host)).toBe(0)
   })
 
-  it('refuses a version range without MHP 1.5, and a folder that is not its workspace', async () => {
+  it('refuses a version range without MHP 1.6, and a folder that is not its workspace', async () => {
     const host = serve(['panel', '--stdio'])
     expect(
       failureOf(
         await host.request(
           'initialize',
           initializeParams({
-            protocolRange: { minimum: 'mhp/1.6.0', maximumExclusive: 'mhp/1.7.0' },
+            protocolRange: { minimum: 'mhp/1.7.0', maximumExclusive: 'mhp/2.0.0' },
           }),
         ),
       ),

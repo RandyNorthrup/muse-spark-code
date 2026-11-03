@@ -43,8 +43,9 @@ and the existing named credential variables before execing the runtime.
 That initial OS process environment is still inspectable by the same user;
 this is not a memory-zeroization claim. Stored runtime keys never enter it.
 
-The configuration and bootstrap tests use a Zed API contract stub, plus
-real process execution with test-only sentinels:
+The configuration and bootstrap tests start this tree's real
+`dist/acp.js` through `launch.py` (run `npm run build` first), with
+test-only sentinel credentials:
 
 ```sh
 python3 -m unittest discover -s hosts/zed/test -v
@@ -67,10 +68,10 @@ The shared runtime owns consent, the OS-store key and daily accounting.
 
 This is an ordinary LSP completion route. Zed's dedicated edit-prediction
 provider API does not accept extension providers according to the checked-in
-research; native ghost-text qualification is not claimed. Offline compilation
-was attempted but the rig has no cached 0.7.0 SDK, and this lane forbids
-network downloads. The source needs a reviewed SDK/native receipt before
-installation or publication.
+research; native ghost-text qualification is not claimed. The extension
+compiles against the pinned API (`cargo build --release --target
+wasm32-wasip1`, RLF-HOSTS2); it still needs a reviewed native receipt
+before installation or publication.
 
 The generator now emits a separate concurrent `stop` task, preserving shell
 quoting for every argument. ACP and panel tasks launch through `supervise`;

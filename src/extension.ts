@@ -368,7 +368,7 @@ import { systemPath } from './host/backend/memoryIo'
 import { type ShellJobDeps, shellJobAssembly } from './host/backend/shellJob'
 import { pluginContainment } from './host/backend/pluginContainment'
 import { EditorContextTracker } from './host/editor/editorContextTracker'
-import { createRevertIo } from './host/editor/revertIo'
+import { vscodeReviewPorts } from './host/vscode/editor/reviewPorts'
 import { IdeMcpServer } from './host/ide/ideMcpServer'
 import { loadRulesFileBundle } from './host/commands/rulesFileBundle'
 import { insertMentionReference } from './host/commands/insertMention'
@@ -483,7 +483,8 @@ import { dictationLoader, type DictationBundle } from './host/voice/dictationBun
 import { dialogFiltersOption } from './host/media/dialogFilters'
 import type { AttachedMedia } from './core/media/attachedMedia'
 import { lazyAttachedMedia } from './core/media/attachedMediaPort'
-import { mediaBundleLoader, mediaHostBundleLoader } from './host/media/mediaBundle'
+import { mediaBundleLoader } from './host/media/mediaBundle'
+import { mediaHostBundleLoader } from './host/vscode/media/mediaHostBundle'
 import { RECORDING_COMMAND_IDS, screenRecordLoader } from './host/media/screenRecordBundle'
 import type { ScreenRecordingDriver, ScreenRecordingResult } from './core/media/record/driver'
 import { registerVaultCommands, vaultBundleLoader } from './host/vscode/vault/vaultPanelBundle'
@@ -3151,21 +3152,7 @@ async function activateWindow(
         const check = backend.workspaceActionGuard(nativeStarts.signal)
         return await withCheckpointEdit(checkpoints, log, check, async () => await work(check))
       },
-      io: createRevertIo({
-        io: toolIo,
-        platform: process.platform,
-        trash: async (fsPath) => {
-          await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { useTrash: true })
-        },
-      }),
-      openDiff: async (beforeUri, fsPath, title) => {
-        await vscode.commands.executeCommand(
-          VSCODE_COMMANDS.diff,
-          vscode.Uri.parse(beforeUri),
-          vscode.Uri.file(fsPath),
-          title,
-        )
-      },
+      ...vscodeReviewPorts(toolIo),
       log,
     },
   })

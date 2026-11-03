@@ -11,25 +11,25 @@ disagreed with the contract.
 
 ## Reference
 
-| Editor  | Version | Status  | Legs | Waiting / need                                                                    | Evidence                                       |
-| ------- | ------- | ------- | ---- | --------------------------------------------------------------------------------- | ---------------------------------------------- |
-| VS Code | —       | Pending | —    | MHP_CONFORMANCE_PENDING: vscode observations are absent; run the vscode leg first | [m104-vscode](../certification/m104-vscode.md) |
+| Editor  | Version                          | Status  | Legs           | Waiting / need                                                                                           | Evidence                                       |
+| ------- | -------------------------------- | ------- | -------------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| VS Code | 1.144.0 (stable), 1.99.0 (floor) | Waiting | 9/9 legs green | 13 waits (approval, atomic-edit, checkpoint, conversation, dirty-buffer, session-reload, tab-completion) | [m104-vscode](../certification/m104-vscode.md) |
 
 ## Native
 
-| Editor                        | Version | Status  | Legs           | Waiting / need                                                                                               | Evidence                                                   |
-| ----------------------------- | ------- | ------- | -------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
-| JetBrains (IntelliJ platform) | —       | Waiting | 9/9 legs green | 13 waits (approval, atomic-edit, checkpoint, conversation, dirty-buffer, session-reload, tab-completion)     | [m104-jetbrains](../certification/m104-jetbrains.md)       |
-| Visual Studio (Windows)       | —       | Pending | —              | MHP_CONFORMANCE_PENDING: Windows with Visual Studio 2022/2026 (VSSDK workload) and the experimental instance | [m104-visualstudio](../certification/m104-visualstudio.md) |
-| Eclipse                       | —       | Waiting | 9/9 legs green | 13 waits (approval, atomic-edit, checkpoint, conversation, dirty-buffer, session-reload, tab-completion)     | [m104-eclipse](../certification/m104-eclipse.md)           |
-| Xcode                         | —       | Pending | —              | MHP_CONFORMANCE_PENDING: macOS with Xcode (XCTest harness)                                                   | [m104-xcode](../certification/m104-xcode.md)               |
+| Editor                        | Version                               | Status  | Legs             | Waiting / need                                                                                           | Evidence                                                   |
+| ----------------------------- | ------------------------------------- | ------- | ---------------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| JetBrains (IntelliJ platform) | —                                     | Waiting | 9/9 legs green   | 13 waits (approval, atomic-edit, checkpoint, conversation, dirty-buffer, session-reload, tab-completion) | [m104-jetbrains](../certification/m104-jetbrains.md)       |
+| Visual Studio (Windows)       | Visual Studio Community 2022 17.14.25 | Waiting | 13/13 legs green | 9 waits (approval, checkpoint, conversation, session-reload, tab-completion)                             | [m104-visualstudio](../certification/m104-visualstudio.md) |
+| Eclipse                       | —                                     | Waiting | 9/9 legs green   | 13 waits (approval, atomic-edit, checkpoint, conversation, dirty-buffer, session-reload, tab-completion) | [m104-eclipse](../certification/m104-eclipse.md)           |
+| Xcode                         | —                                     | Pending | —                | MHP_CONFORMANCE_PENDING: macOS with Xcode (XCTest harness)                                               | [m104-xcode](../certification/m104-xcode.md)               |
 
 ## Shim
 
-| Editor       | Version        | Status   | Legs               | Waiting / need                                                                                             | Evidence                                             |
-| ------------ | -------------- | -------- | ------------------ | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| Neovim       | NVIM v0.12.6   | Excepted | — (no MHP surface) | 19 PASS                                                                                                    | [m104-neovim](../certification/m104-neovim.md)       |
-| Emacs        | GNU Emacs 30.1 | Excepted | — (no MHP surface) | EPANEL_STOP                                                                                                | [m104-emacs](../certification/m104-emacs.md)         |
-| Sublime Text | —              | Pending  | —                  | MHP_CONFORMANCE_PENDING: a run inside Sublime Text (the offline suite used a module double and is deleted) | [m104-sublime](../certification/m104-sublime.md)     |
-| Zed          | Python 3.13.7  | Excepted | — (no MHP surface) | 6 tests OK                                                                                                 | [m104-zed](../certification/m104-zed.md)             |
-| Qt Creator   | NVIM v0.12.6   | Excepted | — (no MHP surface) | 19 PASS; 4 tests OK                                                                                        | [m104-qtcreator](../certification/m104-qtcreator.md) |
+| Editor       | Version                 | Status   | Legs               | Waiting / need | Evidence                                             |
+| ------------ | ----------------------- | -------- | ------------------ | -------------- | ---------------------------------------------------- |
+| Neovim       | NVIM v0.12.6            | Excepted | — (no MHP surface) | 9 PASS; 1 PASS | [m104-neovim](../certification/m104-neovim.md)       |
+| Emacs        | GNU Emacs 30.1          | Excepted | — (no MHP surface) | EPANEL_STOP    | [m104-emacs](../certification/m104-emacs.md)         |
+| Sublime Text | Sublime Text Build 4200 | Excepted | — (no MHP surface) | 1 tests OK     | [m104-sublime](../certification/m104-sublime.md)     |
+| Zed          | Python 3.13.7           | Excepted | — (no MHP surface) | 8 tests OK     | [m104-zed](../certification/m104-zed.md)             |
+| Qt Creator   | Qt Creator 18.0.2       | Excepted | — (no MHP surface) | 6 tests OK     | [m104-qtcreator](../certification/m104-qtcreator.md) |

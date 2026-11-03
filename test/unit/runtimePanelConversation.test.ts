@@ -6,6 +6,7 @@
 // panel envelopes the frozen contract defines. The person's settings are
 // written through the runtime's own settings store, into the files the
 // runtime reads. No provider, key or network is touched.
+import { copyFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
 import { stderrLogger } from '../../src/runtime/stderrLog'
@@ -97,7 +98,7 @@ describe('the chat in panel --stdio', () => {
       expect(frame).toMatchObject({ code })
       return frame
     }
-    const envelope = { mhp: '1.5', kind: 'panel', surface: chat.surface, direction: 'toHost' }
+    const envelope = { mhp: '1.6', kind: 'panel', surface: chat.surface, direction: 'toHost' }
     // A sequence that skips ahead, a surface nobody opened, and a frame the wrong way round.
     host.send({ ...envelope, seq: 7, payload: { type: 'inputFocusChanged', focused: true } })
     expect(await refusal('MHP_PANEL_OUT_OF_ORDER')).toMatchObject({ surface: chat.surface, seq: 7 })
@@ -112,7 +113,7 @@ describe('the chat in panel --stdio', () => {
     await refusal('MHP_PANEL_WRONG_DIRECTION')
     // A surface for a session the runtime does not hold.
     host.send({
-      mhp: '1.5',
+      mhp: '1.6',
       kind: 'surface',
       event: 'opened',
       surface: 'stranger',
@@ -122,6 +123,81 @@ describe('the chat in panel --stdio', () => {
     await refusal('MHP_PANEL_UNKNOWN_SURFACE')
     // The surface it does hold still works after the refusals.
     chat.say({ type: 'inputFocusChanged', focused: true })
+    parseMhpResult('shutdown', await host.request('shutdown', {}))
+    expect(await host.exited).toBe(0)
+  })
+
+  it('relays the editor theme on ready and on every window theme change (MHP 1.6)', async () => {
+    await writeSettings({
+      backend: 'museCode',
+      museBinaryPath: path.join(run.folder, 'no-such-muse'),
+    })
+    const host = run.serve(['panel', '--stdio'])
+    const editor = panelEditor(host)
+    const first = { kind: 'dark' as const, tokens: { '--muse-editor-background': '#101010' } }
+    panelInitializeResultSchema.parse(
+      await host.request(
+        'initialize',
+        run.initializeParams({ capabilities: [...OFFERED], theme: first }),
+      ),
+    )
+    const chat = await editor.nextSurface()
+    // The initialize theme reaches the surface once it is ready.
+    expect(await chat.shown('theme')).toEqual({ type: 'theme', theme: first })
+    const second = { kind: 'light' as const, tokens: { '--muse-editor-background': '#f8f8f8' } }
+    host.send({
+      jsonrpc: '2.0',
+      method: 'window/didChangeTheme',
+      params: { theme: second },
+    })
+    expect(await chat.shown('theme')).toEqual({ type: 'theme', theme: second })
+    parseMhpResult('shutdown', await host.request('shutdown', {}))
+    expect(await host.exited).toBe(0)
+  })
+
+  it('routes attachments/* to the live conversation, whose gate answers in words (M105 d)', async () => {
+    await writeSettings({
+      backend: 'museCode',
+      museBinaryPath: path.join(run.folder, 'no-such-muse'),
+    })
+    // A real image from this repository, sniffed by the real pipeline.
+    const picked = path.join(run.workspace, 'icon.png')
+    await copyFile(path.resolve('media/icon.png'), picked)
+    const host = run.serve(['panel', '--stdio'])
+    const editor = panelEditor(host)
+    host.serve('ui/openFile', () => pathToFileURL(picked).href)
+    host.serve('ui/confirm', () => 'send')
+    panelInitializeResultSchema.parse(
+      await host.request('initialize', run.initializeParams({ capabilities: [...OFFERED] })),
+    )
+    await editor.nextSurface()
+    const result = parseMhpResult(
+      'attachments/pick',
+      await host.request('attachments/pick', {}),
+    ).result
+    // The call reached the live conversation's dispatch: the chooser was
+    // asked, and the media gate's own words answer (image attach runs on
+    // the Model API backend; the success path is runtimePanelMedia's).
+    expect(host.asked.some((entry) => entry.method === 'ui/openFile')).toBe(true)
+    expect(result.ok).toBe(false)
+    if (result.ok) throw new Error('expected the backend gate to refuse')
+    expect(result.reason).toContain('Model API')
+    // A token escaping the workspace is confined to a refusal, not opened.
+    const escaped = parseMhpResult(
+      'attachments/attach',
+      await host.request('attachments/attach', { pathToken: '../outside.png' }),
+    ).result
+    expect(escaped.ok).toBe(false)
+    // Recording has no recorder on the native panel: a wired refusal.
+    const recorded = parseMhpResult(
+      'attachments/record',
+      await host.request('attachments/record', {
+        maxSeconds: 5,
+        microphone: false,
+        systemAudio: false,
+      }),
+    ).result
+    expect(recorded.ok).toBe(false)
     parseMhpResult('shutdown', await host.request('shutdown', {}))
     expect(await host.exited).toBe(0)
   })

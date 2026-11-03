@@ -699,6 +699,14 @@ const BUDGETS = [
   // `panel --companion`: 118,679 bytes (115.9 KiB) measured (2026-10-30,
   // production build on the Mac mini) +15% = 133.3 KiB, rounded up to 134 KiB.
   { path: 'dist/runtimePanelCompanion.js', budgetKiB: 134 },
+  // M105 delivery d (RLF-HOSTS2): the native panel's attachments route and
+  // port: 38,929 bytes (38.0 KiB) measured (2026-11-01, production build on
+  // linuxlt) +15% = 43.7 KiB, rounded up to 44 KiB.
+  { path: 'dist/runtimePanelMedia.js', budgetKiB: 44 },
+  // C-M115-9 (RLF-HOSTS2): the native panel's schedules binding and hold
+  // state: 11,013 bytes (10.8 KiB) measured (2026-11-01, production
+  // build on linuxlt) +15%, rounded up to 13 KiB.
+  { path: 'dist/runtimePanelSchedules.js', budgetKiB: 13 },
   // M96b: run-owned team policy with its cleanup ledger, stale-run sweep,
   // denied-merge holds and marker gate, loaded only for --team. Measured
   // 46,823 bytes (45.73 KiB, production build on macbook, 2026-10-22)

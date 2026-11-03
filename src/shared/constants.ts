@@ -11241,11 +11241,13 @@ export const HANDOFF_NOTE =
 // credential is a protocol value.
 export const MHP_ZERO_VERSION_COMPONENT = 0n
 export const MHP = {
-  // RLF-QUOTA (D252): 1.5.1 carries the quota detail on turnCompleted and
-  // turnRetry; one version everywhere (D226), so the minimum moves with it.
-  version: 'mhp/1.5.1',
-  minimumVersion: 'mhp/1.5.1',
-  maximumVersionExclusive: 'mhp/1.6.0',
+  // RLF-HOSTS2 at 1.6.0 (the theme message, attachments), a superset of
+  // 1.5.1: RLF-QUOTA's quota detail on turnCompleted and turnRetry (D252)
+  // and the `external` host kind (D250). One version everywhere (D226),
+  // so the minimum moves with it.
+  version: 'mhp/1.6.0',
+  minimumVersion: 'mhp/1.6.0',
+  maximumVersionExclusive: 'mhp/1.7.0',
   jsonRpcVersion: '2.0',
   // Number.MAX_SAFE_INTEGER as a literal: a property read on a global keeps
   // this whole block in every bundle that imports this module (M104 join).
@@ -11268,7 +11270,7 @@ export const MHP_ERROR_CODES = {
   permissionDenied: -32_006,
 } as const
 
-// MHP 1.5 is the sole supported contract; editor hosts initiate initialization.
+// MHP 1.6 is the sole supported contract; editor hosts initiate initialization.
 export const MHP_PRESENTATION = {
   maximumIdChars: 256,
   maximumTextChars: 16_384,
@@ -11280,10 +11282,10 @@ export const MHP_PRESENTATION = {
 export const PRESENTATION_REQUEST_TIMEOUT_MS = 30_000
 
 export const MHP_PANEL = {
-  version: 'mhp/1.5.1',
-  wireVersion: '1.5',
-  minimumVersion: 'mhp/1.5.1',
-  maximumVersionExclusive: 'mhp/1.6.0',
+  version: 'mhp/1.6.0',
+  wireVersion: '1.6',
+  minimumVersion: 'mhp/1.6.0',
+  maximumVersionExclusive: 'mhp/1.7.0',
   maximumEnvelopeBytes: 16_777_216,
   maximumQueuedBytes: 33_554_432,
   maximumQueuedMessages: 128,
@@ -11850,6 +11852,10 @@ export const RUNTIME_PANEL_COMPANION_BUNDLE_FILE = 'runtimePanelCompanion.js'
 export const RUNTIME_PANEL_SESSION_BUNDLE_FILE = 'runtimePanelSession.js'
 // Its heavier ports (saved plans), required the first time one is used.
 export const RUNTIME_PANEL_PORTS_BUNDLE_FILE = 'runtimePanelPorts.js'
+// M105 delivery d: its attachments route and port, loaded on the first attachments call.
+export const RUNTIME_PANEL_MEDIA_BUNDLE_FILE = 'runtimePanelMedia.js'
+// C-M115-9: its schedules binding, loaded on the first native schedule hold.
+export const RUNTIME_PANEL_SCHEDULES_BUNDLE_FILE = 'runtimePanelSchedules.js'
 /** Each workspace's keyed Tab Always record (RVM94KR2), in the agent's data folder. */
 export const LSP_TAB_CONSENT_FOLDER = 'tab-consent'
 /** A header block past this is malformed input (the common 8 KiB HTTP header bound). */

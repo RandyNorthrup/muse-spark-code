@@ -151,7 +151,7 @@ public class ConformanceIT {
         surface.ready();
         for (long seq : new long[] {1, 1, 3, 2}) {
             try {
-                surface.receive(Json.object("mhp", "1.5", "kind", "panel", "surface", "surface", "direction", "toPanel", "seq", seq, "payload", Json.object("type", "attachmentsCleared")));
+                surface.receive(Json.object("mhp", "1.6", "kind", "panel", "surface", "surface", "direction", "toPanel", "seq", seq, "payload", Json.object("type", "attachmentsCleared")));
                 delivered.add(seq);
             } catch (IllegalArgumentException refused) {
                 refusals.add(refused.getMessage());

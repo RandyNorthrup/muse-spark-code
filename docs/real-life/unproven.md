@@ -3502,8 +3502,111 @@ editor run proves it:
   target needs the Mac mini. Zed's Rust extension is unbuilt (no Rust
   toolchain on this rig). Live conversation, approval, session-reload and
   tab-completion legs were not run.
-- MHP on this branch is 1.5.0. Lane B's 1.6 theme message and its extra
-  editors (`hosts/mhp-python`, Jupyter, NetBeans, Spyder, RStudio) are
-  not on this branch. Lane C's `attachments/*` methods are not on the
-  native hosts. Lane A's `src/runtime/panel/git/gitEntry.ts` is not on
-  this branch.
+- MHP on this branch was then 1.5.0 (RLF-HOSTS2 moved it to 1.6.0;
+  see the section below). Lane B's extra editors (`hosts/mhp-python`,
+  Jupyter, NetBeans, Spyder, RStudio) are still not on this branch,
+  and lane A's held pull request checkout has no runtime adapter
+  consumer yet.
+
+### After the second native-hosts pass (RLF-HOSTS2, 2026-11-01)
+
+The shim suites now start this tree's real `dist/acp.js`; what only the
+deleted stand-ins claimed, and what no suite here can yet prove:
+
+- The loopback companion panel transport (`panel --companion`, M104
+  lane C) is not on int's contracts: every shim's Panel start is
+  refused and shown as `EPANEL_EXIT`. A working companion page (launch
+  URL exchange, session pairing, F1–F56 in the browser) stays unproven
+  until that transport lands.
+- Supervised legs (`supervise`, `stop`) refuse in this lane's agent
+  sandbox (`PrivateRootRefused`: `/` is uid 65534, and the owner-only
+  root admits only root or the caller above it). The suites carry
+  them for a normal machine; the lead runs them outside the sandbox.
+- Emacs: `muse-spark-start` through agent-shell's ACP client (the
+  package is a separate install; nothing here drives it), and the
+  xwidget-versus-browser preference for a supplied `/panel` link.
+- Neovim: the CodeCompanion adapter (credential blanking, chat
+  cancellation, preserving other agents' chats) and failed-kill or
+  late-exit ownership, which only a real CodeCompanion install and a
+  failing process prove; the Windows explicit-opener refusal, which
+  only Windows proves. Inline (Tab) completion needs `--tab`, a stored
+  key and consent, none of which a headless run here supplies.
+- Zed: the generated settings and tasks inside Zed itself (the Agent
+  Panel run, `task::Spawn`), and the compiled extension installed
+  (its LSP command against a live worktree). The WASM builds here;
+  no Zed GUI test harness exists upstream.
+- Qt Creator: the Lua plugin inside Qt Creator (menu actions, Process
+  ownership, pending-lookup cancellation, stop retries) — formerly
+  claimed by an API-double suite in Neovim's Lua VM, now deleted.
+  Qt Creator 18.0.2 runs on this rig (extracted `.deb`, offscreen)
+  and carries the Lua plugin, but no headless entry point drives a
+  Lua plugin's actions, so an interactive in-editor run must prove
+  it. The Python bootstrap is proven against the real agent.
+- Sublime: the refusal dialogs themselves (duplicate start, unsafe
+  launch URL, stop failure, unexpected-exit notice) — each shows a
+  `sublime.error_message` dialog that holds the editor's main thread
+  until a person dismisses it, so the headless in-editor suite
+  proves the launch, the opener route and the exit cleanup but not
+  the dialogs; the shipped Python 3.14 plugin host (build 4205+),
+  the LSP package route, and window-close/package-unload cleanup
+  also wait for an interactive run. The same package code ran here
+  under build 4200's 3.8 host.
+- MHP 1.6 in a live native host: the theme relay, the `attachments/*`
+  binding, the questions count, the schedule hold and the GitHub
+  lease are each proven by committed suites over the real runtime
+  and, for JetBrains and Eclipse, by the hosts' own builds and the
+  conformance runs at `mhp/1.6.0`; no packed-product run through a
+  real IDE window has shown the theme re-colour, attached a file
+  picked in an IDE, or used a lease from a signed-in editor. A live
+  screenshot attach also needs XDG Desktop Portal and a DBus
+  session, which this rig lacks (the refusal is said and asserted).
+- Scheduled-prompt delivery onto a native window stays uncertified:
+  `SCHEDULE_EDITOR_DELIVERY_CERTIFICATION` reads not-ready, so the
+  native hold degrades to a warning and a notice like the bridge.
+- The Visual Studio and Xcode hosts carry the 1.6 pins and the theme
+  senders but were not compiled here; their suites run on the lead's
+  Windows PC and the Mac mini.
+- Lane A's held pull request checkout (records, holds, trust card)
+  is not ported: this branch's runtime pull-request adapter has no
+  checkout action to consume it. Lane B's extra editors
+  (`hosts/mhp-python`, Jupyter, NetBeans/`mhp-java`, Spyder,
+  RStudio) wait on the companion transport above.
+
+### After Visual Studio's first real run (CC-M104GW, 2026-11-02)
+
+The Visual Studio host now builds, installs into an experimental instance and
+opens its panel on the packed agent; the page shows what the runtime sends and
+the 13 runnable contract legs pass (`docs/certification/cc-m104gw.md`). What
+that run does not prove:
+
+- The modal dialogs (`ui/confirm`, `ui/input`, `ui/pick`, `ui/notify`,
+  `ui/openFile`, `ui/saveText`): each waits for a person, and no stand-in may
+  answer one. Paid consent's popup in this host is the same dialog.
+- Tab ghost text (`tab-completion` waits for live generation), the theme
+  re-colour on a theme switch, the panel's reload path in a real page, `commands/*`
+  from a real registration, What's New and the other presentation surfaces
+  (refused by name), accessibility and high contrast.
+- A real conversation, an approval or a session reload through this panel: no
+  model call was made; the legs wait in the contract.
+- Solution trust: the host always offers `trusted: false`. A trust adapter and
+  the `workspace` group are owed, so the panel runs as in an untrusted folder.
+- Visual Studio 2026: not installed on this PC, so the manifest's `[17.0,19.0)`
+  range is proven only at 17.14.25. The installed Marketplace VSIX is the owner's
+  upload and has not happened.
+- The Error List "settled" read is a quiet window (the same entries for 1.5 s at
+  one version), because the Error List gives no finished signal; the runtime has
+  no caller for `diagnostics/settled` on this tree yet.
+- The JetBrains and Eclipse chat surfaces: by reading, `JsonBoundary.payload` and
+  `Contract.payload` choose the payload group by surface kind, as this host did,
+  and the runtime's first frame is the theme frame, which only the last group
+  admits. This host failed on exactly that in its real page
+  (`MHP_PANEL_INVALID_PAYLOAD`); their suites open no real surface, so nothing
+  here has run those two. They wait for a real page on a machine with their
+  toolchains.
+- The VS Code family on Windows covers the editors with a portable archive
+  (VSCodium, Devin Desktop, Positron), and its legs run the development
+  extension, as the fork runners do: the installed VSIX is proven to install and
+  list, not to run those legs. No conversation ran in any of them. Cursor and Kiro
+  offer no portable Windows archive (Cursor's feed gives an installer, which changes
+  the machine; Kiro's answered 403), so their records stay the Linux runs of
+  `forks.yml`.

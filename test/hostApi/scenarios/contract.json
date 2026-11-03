@@ -1,5 +1,5 @@
 {
-  "protocol": "mhp/1.5.1",
+  "protocol": "mhp/1.6.0",
   "backends": ["musecode", "modelapi"],
   "scenarios": [
     {
@@ -173,6 +173,30 @@
       "scenario": "atomic-edit",
       "hosts": ["jetbrains", "eclipse"],
       "need": "per-document 1-based versions (unbuilt; the natives report platform modification stamps)"
+    },
+    {
+      "backend": "musecode",
+      "scenario": "dirty-buffer",
+      "hosts": ["vscode"],
+      "need": "the in-process MHP adapter for VS Code (lane A hostServices, not landed; cc-rlm104.md remainder 1): VS Code refuses with its own words, no MHP code exists there"
+    },
+    {
+      "backend": "modelapi",
+      "scenario": "dirty-buffer",
+      "hosts": ["vscode"],
+      "need": "the in-process MHP adapter for VS Code (lane A hostServices, not landed; cc-rlm104.md remainder 1): VS Code refuses with its own words, no MHP code exists there"
+    },
+    {
+      "backend": "musecode",
+      "scenario": "atomic-edit",
+      "hosts": ["vscode"],
+      "need": "the in-process MHP adapter for VS Code (lane A hostServices, not landed; cc-rlm104.md remainder 1): VS Code refuses with its own words, no MHP code exists there"
+    },
+    {
+      "backend": "modelapi",
+      "scenario": "atomic-edit",
+      "hosts": ["vscode"],
+      "need": "the in-process MHP adapter for VS Code (lane A hostServices, not landed; cc-rlm104.md remainder 1): VS Code refuses with its own words, no MHP code exists there"
     }
   ]
 }

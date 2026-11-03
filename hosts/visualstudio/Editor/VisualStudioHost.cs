@@ -38,10 +38,11 @@ namespace MuseSpark.VisualStudio.Editor
     private readonly DocumentTable<ITextBuffer, ITextDocument> tracked = new DocumentTable<ITextBuffer, ITextDocument>(document => document.FilePath);
     private readonly uint cookie;
     private readonly HashSet<IWpfTextView> views = new HashSet<IWpfTextView>();
+    private static readonly TimeSpan SettleQuiet = TimeSpan.FromMilliseconds(1500);
+    private SettlingRead? settling;
     public MhpPeer? Peer { private get; set; }
-    // 1.3 adds settled diagnostics, command execution and file/settings UI.
-    // Keep existing component drivers; partial groups use the reviewed runtime fallback.
-    public IReadOnlyCollection<string> Capabilities => new[] { "lifecycle", "documents", "editor", "tab", "window" };
+    // What the runtime may ask of this editor. A method of an offered group with no native route answers MHP_UNSUPPORTED_CAPABILITY.
+    public IReadOnlyCollection<string> Capabilities => new[] { "lifecycle", "documents", "editor", "diagnostics", "ui", "surfaces", "commands", "tab", "window" };
 
     public VisualStudioHost(AsyncPackage package, IComponentModel components, IVsRunningDocumentTable rdt, IVsTextManager textManager, TabCompletion completion, IVsTaskList? errors, NativeSurfaces surfaces, NativeUi ui)
     {
@@ -69,7 +70,7 @@ namespace MuseSpark.VisualStudio.Editor
       cancellation.ThrowIfCancellationRequested();
       if (method.StartsWith("surfaces/", StringComparison.Ordinal)) return await surfaces.InvokeAsync(method, parameters, cancellation);
       if (method.StartsWith("ui/", StringComparison.Ordinal)) return await ui.InvokeAsync(method, parameters, cancellation);
-      if (method == "commands/register") return await ui.InvokeAsync(method, parameters, cancellation);
+      if (method.StartsWith("commands/", StringComparison.Ordinal)) return await ui.InvokeAsync(method, parameters, cancellation);
       Refresh();
       switch (method)
       {
@@ -113,6 +114,9 @@ namespace MuseSpark.VisualStudio.Editor
         case "diagnostics/get":
           if (errors == null) throw new MhpException("unsupportedCapability", "MHP_UNSUPPORTED_CAPABILITY");
           return ErrorListDiagnostics.Read(errors, parameters.Value<string>("uri"));
+        case "diagnostics/settled":
+          if (errors == null) throw new MhpException("unsupportedCapability", "MHP_UNSUPPORTED_CAPABILITY");
+          return Settled(parameters.Value<string>("uri") ?? throw Invalid(), parameters.Value<long>("expectedVersion"));
         case "window/attention":
           if (await package.GetServiceAsync(typeof(SVsStatusbar)) is IVsStatusbar status) ErrorHandler.ThrowOnFailure(status.SetText(parameters.Value<string>("message") ?? ""));
           else throw new MhpException("internalError", "MHP_STATUSBAR_UNAVAILABLE");
@@ -121,24 +125,50 @@ namespace MuseSpark.VisualStudio.Editor
       }
     }
 
+    // The Error List has no "analysis finished" signal: a read is settled once the same entries stood for
+    // SettleQuiet at the same version. Until then, or for a buffer that moved or holds unsaved text, the answer is null.
+    private JToken Settled(string uri, long expectedVersion)
+    {
+      ThreadHelper.ThrowIfNotOnUIThread();
+      var document = Find(uri);
+      if (document.IsDirty || DocumentVersion.Of(document.TextBuffer) != expectedVersion) return JValue.CreateNull();
+      var read = ErrorListDiagnostics.Read(errors ?? throw Invalid(), uri);
+      if (settling == null || settling.Uri != uri || settling.Version != expectedVersion || !JToken.DeepEquals(settling.Entries, read))
+      {
+        settling = new SettlingRead(uri, expectedVersion, read);
+        return JValue.CreateNull();
+      }
+      if (settling.Standing.Elapsed < SettleQuiet) return JValue.CreateNull();
+      return new JObject { ["uri"] = uri, ["version"] = expectedVersion, ["diagnostics"] = read };
+    }
+
+    private sealed class SettlingRead
+    {
+      public string Uri { get; }
+      public long Version { get; }
+      public JArray Entries { get; }
+      public System.Diagnostics.Stopwatch Standing { get; } = System.Diagnostics.Stopwatch.StartNew();
+      public SettlingRead(string uri, long version, JArray entries) { Uri = uri; Version = version; Entries = entries; }
+    }
+
     private static JObject Document(ITextDocument document) => new JObject
     {
       ["uri"] = new Uri(document.FilePath).AbsoluteUri,
-      ["version"] = document.TextBuffer.CurrentSnapshot.Version.VersionNumber,
+      ["version"] = DocumentVersion.Of(document.TextBuffer),
       ["dirty"] = document.IsDirty,
       ["languageId"] = document.TextBuffer.ContentType.TypeName
     };
 
     private static void RequireVersion(ITextDocument document, long version)
     {
-      if (document.TextBuffer.CurrentSnapshot.Version.VersionNumber != version) throw new MhpException("versionConflict", "MHP_VERSION_CONFLICT");
+      if (DocumentVersion.Of(document.TextBuffer) != version) throw new MhpException("versionConflict", "MHP_VERSION_CONFLICT");
     }
 
     private JObject Apply(ITextDocument document, JObject parameters)
     {
       ThreadHelper.ThrowIfNotOnUIThread();
       var snapshot = document.TextBuffer.CurrentSnapshot;
-      var plan = EditPlan.Create(snapshot.GetText(), snapshot.Version.VersionNumber, document.IsDirty, parameters);
+      var plan = EditPlan.Create(snapshot.GetText(), DocumentVersion.Of(snapshot), document.IsDirty, parameters);
       var history = undo.RegisterHistory(document.TextBuffer);
       using (var transaction = history.CreateTransaction(parameters.Value<string>("undoLabel") ?? throw Invalid()))
       using (var edit = document.TextBuffer.CreateEdit())
@@ -207,6 +237,8 @@ namespace MuseSpark.VisualStudio.Editor
     private void Track(ITextDocument document)
     {
       if (!tracked.Track(document.TextBuffer, document)) return;
+      // The first sighting fixes this buffer's version 1, before any change the runtime could hear of.
+      DocumentVersion.Of(document.TextBuffer);
       document.TextBuffer.Changed += BufferChanged;
       document.FileActionOccurred += FileAction;
     }
@@ -249,7 +281,7 @@ namespace MuseSpark.VisualStudio.Editor
       return new JObject
       {
         ["uri"] = new Uri(document.FilePath).AbsoluteUri,
-        ["version"] = view.TextSnapshot.Version.VersionNumber,
+        ["version"] = DocumentVersion.Of(view.TextSnapshot),
         ["range"] = new JObject { ["start"] = EditPlan.Position(text, span.Start.Position), ["end"] = EditPlan.Position(text, span.End.Position) },
         ["excerpt"] = span.GetText().Substring(0, Math.Min(span.Length, limit)),
         ["truncated"] = span.Length > limit
@@ -292,7 +324,8 @@ namespace MuseSpark.VisualStudio.Editor
       view.Closed -= ViewClosed;
     }
 
-    public int OnAfterFirstDocumentLock(uint docCookie, uint lockType, uint readLocks, uint editLocks) { ThreadHelper.ThrowIfNotOnUIThread(); Refresh(); return VSConstants.S_OK; }
+    // The buffer may still be loading here: tracking starts when its window first shows, or at the runtime's next request.
+    public int OnAfterFirstDocumentLock(uint docCookie, uint lockType, uint readLocks, uint editLocks) => VSConstants.S_OK;
     public int OnBeforeLastDocumentUnlock(uint docCookie, uint lockType, uint readRemaining, uint editRemaining)
     {
       ThreadHelper.ThrowIfNotOnUIThread();

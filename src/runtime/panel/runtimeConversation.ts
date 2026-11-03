@@ -8,6 +8,7 @@
 // Any number of surfaces may show one conversation; a session change replaces
 // them all with fresh ones (MHP binds a surface to one session for good).
 import { randomUUID } from 'node:crypto'
+import path from 'node:path'
 import type * as z from 'zod/mini'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import type { AgentHost, AgentSession } from '../../core/agent/agentBackend'
@@ -20,7 +21,22 @@ import type { Logger } from '../../host/logger'
 import { composerPlaceholderFor } from '../../host/views/composerPlaceholder'
 import type { ChatSurface } from '../../host/views/chatSurface'
 import type { TasksTabPort } from '../../host/views/tasksTabPort'
-import { MHP_PANEL, UI_TEXT } from '../../shared/constants'
+import type { MediaHostSettings } from '../../host/media/mediaProviders'
+import {
+  MHP_PANEL,
+  OPTIONAL_RUNTIME_AVAILABILITY,
+  RUNTIME_PANEL_MEDIA_BUNDLE_FILE,
+  UI_TEXT,
+  type AcpBackendKind,
+} from '../../shared/constants'
+import { panelMediaLoader } from './panelBundle'
+import type { AttachmentDispatch, PanelMediaHost } from './panelMedia'
+import type { PanelScheduleHold } from './panelSchedules'
+import {
+  createQuestionsStatusPublisher,
+  type QuestionsStatusHost,
+  type QuestionsStatusPublisher,
+} from './questionsStatus'
 import type { MhpPanelBinding } from '../../shared/hostApi/panel'
 import { MhpPanelError } from '../../shared/hostApi/panelError'
 import { uiLocale } from '../../shared/l10n/text'
@@ -93,6 +109,24 @@ export interface RuntimeConversationOptions {
   readonly settled: (conversation: RuntimeConversation) => Promise<void>
   /** The backend this conversation runs on ended: the connection ends with it. */
   readonly stopped: () => void
+  /** The host surface the open-questions count is published to (M112). */
+  readonly statusHost: QuestionsStatusHost
+  /** C-M115-9: this conversation's native schedule hold, when schedules have a binding. */
+  readonly schedules?: PanelScheduleHold
+  /** M105 delivery d: what this conversation's `attachments/*` dispatch is built from. */
+  readonly attachments: {
+    /** The folder holding the agent's bundles (the media bundle loads on first attach). */
+    readonly distDir: string
+    /** The panel's data root; the recorder's future temp dir lives under it. */
+    readonly dataRoot: string
+    readonly workspaceRoot: string
+    /** The media settings, read live. */
+    readonly settings: () => MediaHostSettings
+    /** The host surface the attach flow needs: the chooser and the modal. */
+    readonly host: PanelMediaHost
+    /** The backend prepare gates against, read live per call. */
+    readonly backendKind: () => AcpBackendKind
+  }
 }
 
 /** A runtime panel is never rebuilt around a session an earlier window held (that is VS Code's D15). */
@@ -126,11 +160,17 @@ export class RuntimeConversation implements SessionController, PanelView {
   private authMessage: PanelHostMessage | undefined
   private isDisposed = false
   private isHostStopped = false
-
+  private releaseMedia: (() => void) | undefined
+  private scheduleHold: PanelScheduleHold | undefined
+  private readonly questionsStatus: QuestionsStatusPublisher
   private readonly tasksTab: RuntimeTasksTab
+
+  /** M105 delivery d: this conversation's `attachments/*` dispatch, if bound. */
+  public attachments: AttachmentDispatch | undefined
 
   public constructor(private readonly options: RuntimeConversationOptions) {
     const { surfaces } = options
+    this.questionsStatus = createQuestionsStatusPublisher(options.statusHost, options.log)
     this.tasksTab = new RuntimeTasksTab({
       openSurfaces: () => surfaces.idsOf(this.currentId, 'tasks'),
       openSurface: async () => {
@@ -184,6 +224,7 @@ export class RuntimeConversation implements SessionController, PanelView {
     if (this.isDisposed) return
     const parsed = hostToWebviewMessageSchema.parse(message)
     if (parsed.type === 'authState') this.authMessage = parsed
+    else if (parsed.type === 'openQuestions') this.questionsStatus.update(parsed.snapshot)
     for (const listener of this.listeners) listener(parsed)
   }
 
@@ -217,9 +258,12 @@ export class RuntimeConversation implements SessionController, PanelView {
           this.currentSession = session
           this.currentId = session.sessionId
           try {
-            if (session.sessionId !== previousId)
+            if (session.sessionId !== previousId) {
               await this.options.sessionChanged(previousId, session, this)
+              this.questionsStatus.releaseSession(previousId)
+            }
             this.ensureLive()
+            await this.holdSchedules(session)
           } catch (error: unknown) {
             // REPORTED: the conversation stays on what it had; the controller disposes the session it was refused.
             this.currentSession = previousSession
@@ -231,6 +275,7 @@ export class RuntimeConversation implements SessionController, PanelView {
       UI_TEXT,
       uiLocale(),
     )
+    this.bindAttachments(deps)
     if (!this.isDisposed) {
       return
     }
@@ -238,6 +283,62 @@ export class RuntimeConversation implements SessionController, PanelView {
     this.conversation.dispose()
     this.conversation = undefined
     throw unknownSurface()
+  }
+
+  /** M105 delivery d: bind this conversation's dispatch; the bundle loads on first call. */
+  private bindAttachments(deps: ConversationDeps): void {
+    const options = this.options.attachments
+    const loadMedia = panelMediaLoader(
+      path.join(options.distDir, RUNTIME_PANEL_MEDIA_BUNDLE_FILE),
+      this.options.log,
+    )
+    let media: { readonly dispatch: AttachmentDispatch; readonly release: () => void } | undefined
+    // Creation is sync, so concurrent first calls share the one port.
+    this.attachments = (raw) => {
+      media ??= loadMedia().createPanelMedia({
+        dataRoot: options.dataRoot,
+        workspaceRoot: options.workspaceRoot,
+        settings: { current: options.settings },
+        files: deps.files,
+        host: options.host,
+        model: () => ({
+          backend: options.backendKind(),
+          modelId: this.conversation?.selectedModelId ?? deps.modelId,
+        }),
+        isCurrent: () => !this.isReleased,
+        log: this.options.log,
+        table: UI_TEXT,
+        locale: uiLocale(),
+        distDir: options.distDir,
+      })
+      return media.dispatch(raw)
+    }
+    this.releaseMedia = () => {
+      media?.release()
+      media = undefined
+    }
+  }
+
+  /** C-M115-9: hold this workspace while the taken session stays live. Absent without a schedules port or certified delivery. */
+  private async holdSchedules(session: AgentSession): Promise<void> {
+    const schedules = this.options.schedules
+    const conversation = this.conversation
+    if (
+      schedules === undefined ||
+      conversation === undefined ||
+      !OPTIONAL_RUNTIME_AVAILABILITY.schedules
+    )
+      return
+    if (this.scheduleHold === undefined) {
+      this.scheduleHold = schedules
+      this.cleanups.push(() => schedules.close())
+    }
+    await schedules.hold(
+      this.options.attachments.workspaceRoot,
+      session,
+      this.options.attachments.backendKind(),
+      conversation,
+    )
   }
 
   private paidMessage(): HostToWebviewMessage {
@@ -316,6 +417,7 @@ export class RuntimeConversation implements SessionController, PanelView {
   }
 
   private async releaseController(): Promise<void> {
+    this.questionsStatus.close()
     // Cancel on the actual session, including a start not yet acknowledged.
     const cancelled = await Promise.allSettled([
       this.isHostStopped ? this.currentHost?.close() : this.currentSession?.cancel(),
@@ -329,6 +431,9 @@ export class RuntimeConversation implements SessionController, PanelView {
     const stopped = await Promise.allSettled([
       this.isHostStopped ? undefined : this.conversation?.backendStopping(true),
     ])
+    this.releaseMedia?.()
+    this.releaseMedia = undefined
+    this.attachments = undefined
     this.conversation?.dispose()
     this.conversation = undefined
     this.currentSession?.dispose()

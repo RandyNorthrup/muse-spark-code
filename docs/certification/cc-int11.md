@@ -83,6 +83,72 @@ Muse Code and external workers from the ACP agent through the same `teamProcess`
 with the editor's permission prompt, and keeps `exec --team` engine-only. `dist/acpTeam.js` budget is checked at the
 batch's build.
 
+### Merge 3 — `lanes/cc-m104gw` (94e2f3e07, contains hosts2-reviewed)
+
+Visual Studio and the VS Code family qualified on the owner's PC, on top of RLF-HOSTS2 with RVHOSTS2's fixes (MHP
+1.6.0: `window/didChangeTheme`, `attachments/*`; panel media and schedule bundles; the editor's GitHub lease; the
+recording-root `..` refusal; hosts' live-argv checks). `hosts2-reviewed` and `rlf-hosts2` are not merged separately.
+Open items carried from its records: JetBrains and Eclipse payload check by reading only; VS trust adapter and
+`workspace` group; VS 2026 not on the PC; `[IdeFact]` hosted reliability unmeasured (cc-m104gw.md "Still open").
+
+MHP — one re-freeze at 1.6.0, a superset of int's 1.5.1 (D226; rvhosts2.md "What the merge with int must carry"):
+
+- `constants.ts` `MHP`/`MHP_PANEL`, `mhp-schema.mjs` prose, the nine `hosts/*/distribution.json`, the Eclipse,
+  JetBrains and Visual Studio sources and tests, `contract.json`, the two MHP unit suites, `README.md`,
+  `host-api-panel-1.1.md`: the lane's 1.6.0 (int's side differed only by version; checked hunk by hunk, the ones
+  that differed in more were read and are below).
+- Both locks set back to `mhp/1.5.1`, `node scripts/mhp-schema.mjs --adopt-version=mhp/1.6.0` (exit 0): the v1 lock
+  came out byte-identical to the lane's (`51a84a44…`), the v1.1 lock moved from the lane's `5bf914e6…` to
+  `dae78eca…`. `npm run check:mhp` (`--check`) exit 0. Superset proof against int's 1.5.1 snapshots, every JSON path
+  compared: v1.1 has 0 int paths missing but the one invariant sentence naming `mhp/1.5.1` (now `mhp/1.6.0`), 15
+  changed (all version strings, `mhp` wire consts `1.5`→`1.6`, and F16 attachments' fallback now `react-ui` with its
+  four methods), 701 added; v1 has 0 missing, 6 changed (versions), 700 added. `"external"` occurs 18 times in v1.1
+  as on int; `quota` is in v1.1 (4). `expiresAt` was not added to `auth/githubLease`. scheduleV2/questions/
+  usageJournal keep `museCode | modelApi`: int's 18 `external` come from the panel payloads' own enum (D250), as
+  on int; the schedule hold is typed to the schedule backends (interaction below).
+- PLAN D226 rewritten for 1.6.0, naming the 1.5.1 additions and this re-freeze; round 11's later MHP additions
+  (RLF-PINNED, RLF-GEMPRIVACY, per the lead's notes) fold into this same 1.6.0 in batch C.
+
+Other conflicts:
+
+- `src/runtime/panel/nativeGitHub.ts` (add/add) and `panel/git/panelGit.ts`: two implementations of D104's source
+  (a). int's M123 `editorLeaseSource` (gated on the editor offering `auth`, covered by `runtimePanelGitLease`'s four
+  cases over real git) is kept as the one source; the lane's `createNativeGitHub`/`panelLeaseSource`, its unit suite
+  `nativeGitHubLease.test.ts` and its `gitHubLeaseRefused` text key (en.ts and 14 tables) are not taken (no duplicate
+  implementation). Its "foreign or expired lease refused in words" has no path in int's design (the lease id never
+  enters from outside; an expired credential is dropped and the editor asked again), so the lane's CHANGELOG line
+  saying so is not taken. The lane's own lease case in `runtimePanelGit.test.ts` passes on int's source.
+  PLAN §6 gets a CC-INT11 status line saying this.
+- `panelBundle.ts`, `build.mjs` (7 hunks), `check-bundle-size.mjs`, `knip.jsonc`: int's panel companion
+  (`runtimePanelCompanion.js`), node, vault and crash-hook bundles and the lane's `runtimePanelMedia.js` and
+  `runtimePanelSchedules.js` all kept, each with its own budget (none raised).
+- `panelEntry.ts`: int's companion-era structure kept, the lane's `attachments/*` request route added to it.
+- `extension.ts`: the lane's `vscodeReviewPorts` import; `createRevertIo` moved into `reviewPorts.ts` with it, and
+  int's deferred verify editor stays (the lane's eager `createVerifyEditor` import is not taken).
+- `portable.tsx`: int's companion root nonce stays required for the companion page; a native host's page falls back
+  to its script nonce (the lane's VS fix).
+- `package-vsix.mjs`: the lane's form (same exclusion of `portable/`, with its reason).
+- `CHANGELOG.md`, `PLAN.md` statuses and M104 records: both sides.
+- Generated, regenerated: `host-api.md`, `catch-baseline.json` (`--write-baseline`; swallow/generic counts equal to
+  int's but runtime GENERIC 168→167), `lazyBundles.generated.ts` (after `node scripts/build.mjs --production`,
+  exit 0).
+
+Interactions (`fix(int)` commits after the merge):
+
+- `panelSchedules.ts` passed core's `BackendKind` (now with D250's `external`) to the schedule hold, which takes
+  `museCode | modelApi` (typecheck TS2322). The hold is typed to the schedule backends; the runtime conversation's
+  `backendKind()` is already that type.
+- `runtimePanelGit.test.ts`: the lane's lease case called `repositoryRun()` with no arguments; int's shared fixture
+  helper takes `(runs, prefix)` (TS2554).
+- Merge 2's ACP team now loads `teamMcp.js`, which the ACP package did not carry (`gen-lazy-registry`: "loads
+  teamMcp.js in the agent, and its package does not carry it"): `scripts/lib/acpBundles.mjs` carries it.
+- Pending for the end of the batch: HOSTS2's shim suites (Emacs, Neovim, Zed, Qt Creator, Sublime) pin
+  `supervise panel --companion` as refused; int now has `panel --companion` (RLF-M104LC), so the refusal should go
+  away (lead's notes: prove it).
+
+Suites after the merge: `runtimePanelGit`, `runtimePanelGitLease`, `mhpPanelContract` 38/38; `mhpContract`,
+`runtimePanel`, `runtimePanelSchedules` 46/46 (exit 0).
+
 ### Red/green drills (batch A)
 
 - Merge 1, terminal cwd through a link: `confineTerminalCwd` made lexical-only for in-root names →

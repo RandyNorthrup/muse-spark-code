@@ -5,7 +5,7 @@ import { conformHost } from '../../test/hostApi/harness.mjs'
 await conformHost({
   host: 'sublime',
   tool: false,
-  need: 'no MHP surface: the shim is excepted from MHP scenarios and qualifies via its offline unittest suite (see receipt m104-sublime)',
+  need: 'no MHP surface: the shim is excepted from MHP scenarios and qualifies via its in-editor unittest suite over the real agent (see receipt m104-sublime)',
   args: [],
   directory: path.dirname(fileURLToPath(import.meta.url)),
 })

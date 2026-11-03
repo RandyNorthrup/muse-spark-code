@@ -2189,6 +2189,23 @@ const runtimePanelCompanionOptions = {
   outfile: RUNTIME_PANEL_COMPANION_OUTFILE,
   banner: {},
 }
+// M105 delivery d: the panel's attachments route and port, loaded on the
+// first attachments call, never with the panel.
+const RUNTIME_PANEL_MEDIA_OUTFILE = 'dist/runtimePanelMedia.js'
+const runtimePanelMediaOptions = {
+  ...acpOptions,
+  entryPoints: ['src/runtime/panelMediaEntry.ts'],
+  outfile: RUNTIME_PANEL_MEDIA_OUTFILE,
+  banner: {},
+}
+// C-M115-9: the panel's schedules binding, loaded on the first native hold.
+const RUNTIME_PANEL_SCHEDULES_OUTFILE = 'dist/runtimePanelSchedules.js'
+const runtimePanelSchedulesOptions = {
+  ...acpOptions,
+  entryPoints: ['src/runtime/panelSchedulesEntry.ts'],
+  outfile: RUNTIME_PANEL_SCHEDULES_OUTFILE,
+  banner: {},
+}
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
@@ -2818,6 +2835,8 @@ if (isWatch) {
     esbuild.context(runtimePanelCompanionOptions),
     esbuild.context(crashHookOptions),
     esbuild.context(nodeDiagnosticsOptions),
+    esbuild.context(runtimePanelMediaOptions),
+    esbuild.context(runtimePanelSchedulesOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -3101,6 +3120,8 @@ if (isWatch) {
     ['vaultPolicy', () => esbuild.build(vaultPolicyOptions)],
     ['vaultExecHost', () => esbuild.build(vaultExecHostOptions)],
     ['runtimePanelCompanion', () => esbuild.build(runtimePanelCompanionOptions)],
+    ['runtimePanelMedia', () => esbuild.build(runtimePanelMediaOptions)],
+    ['runtimePanelSchedules', () => esbuild.build(runtimePanelSchedulesOptions)],
   ]
   if (!isProduction || isWithIntegrationTests) {
     extraSpecs.push(['integrationTests', () => esbuild.build(integrationTestOptions)])
@@ -3133,6 +3154,8 @@ if (isWatch) {
   let vaultPolicy
   let vaultExecHost
   let runtimePanelCompanion
+  let runtimePanelMedia
+  let runtimePanelSchedules
   try {
     shipped = await runBuildPool(Object.entries(shippedSpecs), BUILD_POOL_SIZE)
     ;({
@@ -3163,6 +3186,8 @@ if (isWatch) {
       vaultPolicy,
       vaultExecHost,
       runtimePanelCompanion,
+      runtimePanelMedia,
+      runtimePanelSchedules,
     } = await runBuildPool(extraSpecs, BUILD_POOL_SIZE))
   } catch (error) {
     await esbuild.stop()
@@ -3284,6 +3309,16 @@ if (isWatch) {
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'runtimePanelCompanion.json'),
       JSON.stringify(runtimePanelCompanionMetafile),
+    )
+    const { metafile: runtimePanelMediaMetafile } = await runtimePanelMedia
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'runtimePanelMedia.json'),
+      JSON.stringify(runtimePanelMediaMetafile),
+    )
+    const { metafile: runtimePanelSchedulesMetafile } = await runtimePanelSchedules
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'runtimePanelSchedules.json'),
+      JSON.stringify(runtimePanelSchedulesMetafile),
     )
   }
   writeFileSync(BUILD_PROFILE_FILE, JSON.stringify({ ...profile, production: isProduction }))
@@ -3415,6 +3450,8 @@ if (isWatch) {
   reportSize(NODE_SERVE_OUTFILE)
   reportSize(NODE_AUTH_OUTFILE)
   reportSize(RUNTIME_PANEL_COMPANION_OUTFILE)
+  reportSize(RUNTIME_PANEL_MEDIA_OUTFILE)
+  reportSize(RUNTIME_PANEL_SCHEDULES_OUTFILE)
   reportSize(PACKS_VERIFY_OUTFILE)
   reportSize(CRASH_HOOK_OUTFILE)
   reportSize(NODE_DIAGNOSTICS_OUTFILE)

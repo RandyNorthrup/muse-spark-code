@@ -1,11 +1,170 @@
 {
   "host": "vscode",
-  "outcome": "pending",
-  "editorVersion": "",
-  "need": "MHP_CONFORMANCE_PENDING: vscode observations are absent; run the vscode leg first",
+  "outcome": "waiting",
+  "editorVersion": "1.144.0 (stable), 1.99.0 (floor)",
+  "report": {
+    "protocol": "mhp/1.6.0",
+    "host": "vscode",
+    "results": [
+      {
+        "backend": "musecode",
+        "scenario": "settings",
+        "observations": {
+          "settingValue": 5
+        },
+        "skipped": false
+      },
+      {
+        "backend": "musecode",
+        "scenario": "diff-hunks",
+        "observations": {
+          "hunks": {
+            "one": "accept",
+            "two": "reject"
+          },
+          "text": "l1c\nl2\nl3\n"
+        },
+        "skipped": false
+      },
+      {
+        "backend": "musecode",
+        "scenario": "diagnostics",
+        "observations": {
+          "verifyErrors": ["fixture error"]
+        },
+        "skipped": false
+      },
+      {
+        "backend": "musecode",
+        "scenario": "panel-order",
+        "observations": {
+          "deliveredSequences": [1, 2],
+          "refusals": ["MHP_PANEL_OUT_OF_ORDER", "MHP_PANEL_OUT_OF_ORDER"]
+        },
+        "skipped": false
+      },
+      {
+        "backend": "modelapi",
+        "scenario": "settings",
+        "observations": {
+          "settingValue": 5
+        },
+        "skipped": false
+      },
+      {
+        "backend": "modelapi",
+        "scenario": "diff-hunks",
+        "observations": {
+          "hunks": {
+            "one": "accept",
+            "two": "reject"
+          },
+          "text": "l1c\nl2\nl3\n"
+        },
+        "skipped": false
+      },
+      {
+        "backend": "modelapi",
+        "scenario": "diagnostics",
+        "observations": {
+          "verifyErrors": ["fixture error"]
+        },
+        "skipped": false
+      },
+      {
+        "backend": "modelapi",
+        "scenario": "checkpoint",
+        "observations": {
+          "text": "original",
+          "checkpoints": 1
+        },
+        "skipped": false
+      },
+      {
+        "backend": "modelapi",
+        "scenario": "panel-order",
+        "observations": {
+          "deliveredSequences": [1, 2],
+          "refusals": ["MHP_PANEL_OUT_OF_ORDER", "MHP_PANEL_OUT_OF_ORDER"]
+        },
+        "skipped": false
+      }
+    ]
+  },
+  "waiting": [
+    {
+      "backend": "musecode",
+      "scenario": "conversation",
+      "need": "lead-authorized live model calls with a named model and call count"
+    },
+    {
+      "backend": "modelapi",
+      "scenario": "conversation",
+      "need": "Meta Model API key (C2) and lead-authorized live model calls"
+    },
+    {
+      "backend": "musecode",
+      "scenario": "approval",
+      "need": "lead-authorized live model calls with a named model and call count"
+    },
+    {
+      "backend": "modelapi",
+      "scenario": "approval",
+      "need": "Meta Model API key (C2) and lead-authorized live model calls"
+    },
+    {
+      "backend": "musecode",
+      "scenario": "session-reload",
+      "need": "lead-authorized live model calls with a named model and call count"
+    },
+    {
+      "backend": "modelapi",
+      "scenario": "session-reload",
+      "need": "Meta Model API key (C2) and lead-authorized live model calls"
+    },
+    {
+      "backend": "musecode",
+      "scenario": "tab-completion",
+      "need": "lead-authorized live Tab generation with a named model and call count"
+    },
+    {
+      "backend": "modelapi",
+      "scenario": "tab-completion",
+      "need": "Meta Model API key (C2) and lead-authorized live Tab generation"
+    },
+    {
+      "backend": "musecode",
+      "scenario": "checkpoint",
+      "need": "Model-API-only checkpoint restore (the product refuses a Muse Code restore)"
+    },
+    {
+      "backend": "musecode",
+      "scenario": "dirty-buffer",
+      "hosts": ["vscode"],
+      "need": "the in-process MHP adapter for VS Code (lane A hostServices, not landed; cc-rlm104.md remainder 1): VS Code refuses with its own words, no MHP code exists there"
+    },
+    {
+      "backend": "modelapi",
+      "scenario": "dirty-buffer",
+      "hosts": ["vscode"],
+      "need": "the in-process MHP adapter for VS Code (lane A hostServices, not landed; cc-rlm104.md remainder 1): VS Code refuses with its own words, no MHP code exists there"
+    },
+    {
+      "backend": "musecode",
+      "scenario": "atomic-edit",
+      "hosts": ["vscode"],
+      "need": "the in-process MHP adapter for VS Code (lane A hostServices, not landed; cc-rlm104.md remainder 1): VS Code refuses with its own words, no MHP code exists there"
+    },
+    {
+      "backend": "modelapi",
+      "scenario": "atomic-edit",
+      "hosts": ["vscode"],
+      "need": "the in-process MHP adapter for VS Code (lane A hostServices, not landed; cc-rlm104.md remainder 1): VS Code refuses with its own words, no MHP code exists there"
+    }
+  ],
   "provenance": {
-    "observedAt": "2026-10-31T01:31:17.787Z",
-    "observedOn": "randy-lt (linux)",
+    "observedAt": "2026-11-02T20:39:55.189Z",
+    "observedOn": "MINI-DT (win32)",
     "command": "npx vscode-test --grep M104g (labels stable and minimum)"
   }
 }
