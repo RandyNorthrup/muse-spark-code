@@ -57,6 +57,11 @@ const STOP_OUTCOMES: ReadonlyMap<string, 'capped' | 'refused' | 'cancelled'> = n
   ['cancelled', 'cancelled'],
 ])
 
+/** D261: the worker's turn ended on the provider's `refusal` stop. */
+export function isRefusedReport(outcome: WorkerReportOutcome): boolean {
+  return !outcome.ok && outcome.status === 'refused'
+}
+
 /** Only a completed turn may substantiate a structured report. Unknown stops fail closed. */
 export function reportForStop(text: string, stopReason: string): WorkerReportOutcome {
   if (stopReason === 'end_turn') return extractTeamReport(text)

@@ -974,6 +974,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               provider: options.provider,
               defaultPays: providerRun?.provider.entry.auth === 'none' ? 'local' : 'key',
               budgetUsd: options.budgetUsd,
+              refusalFallback: options.refusalFallback,
               signal: lifecycle.signal,
               now: deps.now,
               log,
@@ -1270,10 +1271,6 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           initialMode: options.mode,
           isHeadless: true,
           ...(initialModelId !== undefined && { initialModelId }),
-          // D261: the run's fallback model rides the session the flag's run starts.
-          ...(options.fallbackModel !== undefined && {
-            initialFallbackModelId: options.fallbackModel,
-          }),
         },
         signIn: {
           id: 'headless',

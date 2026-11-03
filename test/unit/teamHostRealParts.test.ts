@@ -28,6 +28,7 @@ import type {
   TeamWorkerPort,
 } from '../../src/core/team/teamHostService'
 import { TEAM_TASKS_STATE_KEY } from '../../src/core/team/teamTaskState'
+import { TEAM_HANDOFF_MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
 import {
   commitTaskBranch,
   publishTaskRef,
@@ -82,7 +83,17 @@ interface WorkPlan {
   readonly files: Readonly<Record<string, string>>
   /** Changed files the outcome withholds, to prove the card reads the plan. */
   readonly omit?: readonly string[]
+  /** D261: entries whose run ends refused, as a worker's refused turn hands it back. */
+  readonly refuseOn?: readonly string[]
 }
+
+/** D261: what each run was handed: its entry and its brief. */
+interface WorkerRun {
+  readonly entryId: string
+  readonly brief: string
+}
+
+const RUN_USAGE = { ...ZERO_USAGE, input: 10, output: 5, modelCalls: 1 } as const
 
 interface RealRig {
   readonly service: TeamHostService
@@ -92,6 +103,7 @@ interface RealRig {
   readonly cards: TeamCardItem[]
   readonly started: string[]
   readonly plans: Map<string, WorkPlan>
+  readonly runs: WorkerRun[]
   trusted: boolean
   dispose(): Promise<void>
 }
@@ -137,6 +149,7 @@ function processWorkers(rig: {
   readonly storage: string
   readonly plans: Map<string, WorkPlan>
   readonly started: string[]
+  readonly runs: WorkerRun[]
 }): TeamWorkerPort {
   return {
     canRun: (agent) => agent.kind === 'engine',
@@ -149,8 +162,22 @@ function processWorkers(rig: {
       }),
     run: async (spec: TeamTaskSpec, signal: AbortSignal): Promise<TeamWorkerOutcome> => {
       signal.throwIfAborted()
-      const plan = rig.plans.get(spec.taskId) ?? rig.plans.get(spec.brief)
+      const plan =
+        rig.plans.get(spec.taskId) ??
+        [...rig.plans].find(([brief]) => spec.brief.endsWith(brief))?.[1]
       if (plan === undefined) throw new Error(`no work plan for ${spec.taskId}`)
+      rig.runs.push({ entryId: spec.entry.id, brief: spec.brief })
+      if (plan.refuseOn?.includes(spec.entry.id) === true) {
+        // A refused turn: one request spent, nothing written, the refusal's
+        // own words as the summary (the engine port's `refusal` report).
+        spec.meter.admitRequest()
+        await spec.meter.noteUsage({ ...RUN_USAGE })
+        return {
+          report: { status: 'failed', summary: `${spec.entry.id}: I can't help with that.` },
+          usage: { ...RUN_USAGE },
+          isRefused: true,
+        }
+      }
       const baseCommit = await resolveBaseCommit(realTeamGit, rig.repo)
       const workspace = await startTeamWorkspace(realTeamGit, rig.storage, process.platform, {
         repositoryRoot: rig.repo,
@@ -213,15 +240,20 @@ function processWorkers(rig: {
 async function makeRig(
   options: {
     readonly onStateUpdate?: (rig: RealRig, key: string, value: unknown) => void
+    readonly team?: TeamSnapshot
+    readonly refusalFallback?: boolean
   } = {},
 ): Promise<RealRig> {
   // Resolved: the team copy must be inside canonical storage, and macOS's /var is a link.
   const root = await realpath(await mkdtemp(path.join(tmpdir(), 'muse-teamfit-')))
   const { repo, storage } = await initRigFolders(root)
-  const stateValues = new Map<string, unknown>([[TEAM_WORKSPACE_KEYS.team, storedTeam()]])
+  const stateValues = new Map<string, unknown>([
+    [TEAM_WORKSPACE_KEYS.team, options.team ?? storedTeam()],
+  ])
   const cards: TeamCardItem[] = []
   const started: string[] = []
   const plans = new Map<string, WorkPlan>()
+  const runs: WorkerRun[] = []
   const rig: RealRig = {
     // Filled in below, before any delegate can run.
     service: undefined as unknown as TeamHostService,
@@ -231,6 +263,7 @@ async function makeRig(
     cards,
     started,
     plans,
+    runs,
     trusted: true,
     dispose: async () => {
       await rig.service.dispose()
@@ -242,16 +275,18 @@ async function makeRig(
     storageRoot: storage,
     isTrusted: () => rig.trusted,
   })
-  const deps: TeamHostServiceDeps = {
-    ...realServiceDeps({
-      orchestrator: ORCHESTRATOR,
-      isTrusted: () => rig.trusted,
-      cards,
-      state: fileState(path.join(root, 'state.json'), stateValues, (key, value) => {
-        options.onStateUpdate?.(rig, key, value)
-      }),
+  const real = realServiceDeps({
+    orchestrator: ORCHESTRATOR,
+    isTrusted: () => rig.trusted,
+    cards,
+    state: fileState(path.join(root, 'state.json'), stateValues, (key, value) => {
+      options.onStateUpdate?.(rig, key, value)
     }),
-    workers: processWorkers({ repo, storage, plans, started }),
+  })
+  const deps: TeamHostServiceDeps = {
+    ...real,
+    settings: { ...real.settings, isRefusalFallbackOn: () => options.refusalFallback === true },
+    workers: processWorkers({ repo, storage, plans, started, runs }),
     merges: engine.merges,
     paid: { allowKeyTasks: () => Promise.reject(tripwireError('paid.allowKeyTasks')) },
   }
@@ -365,6 +400,92 @@ describe('final admission (real host, real scheduler, real processes)', () => {
     expect(rig.started).toEqual(['task-1'])
     expect(existsSync(path.join(rig.storage, 'started-task-1'))).toBe(true)
     // Real git and scheduling work exceeds the 5 s default on this rig class.
+  }, 60_000)
+})
+
+/** D261: one engine entry of the refusal role, on its own model. */
+function refusalEntry(id: string) {
+  return {
+    id,
+    concurrent: 1,
+    caps: [],
+    agent: {
+      kind: 'engine' as const,
+      agentId: `agent-${id}`,
+      model: `model-${id}`,
+      pays: 'local' as const,
+    },
+  }
+}
+
+/** D261: one engineering role whose list is r1, r2, r3, each on its own model. */
+function refusalTeam(): TeamSnapshot {
+  return {
+    roles: [
+      {
+        role: 'engineering',
+        workspace: 'own-branch',
+        pool: [refusalEntry('r1'), refusalEntry('r2'), refusalEntry('r3')],
+      },
+    ],
+    intensity: 'balanced',
+  }
+}
+
+function claimedInputByEntry(rig: RealRig, taskId: string): Record<string, number> {
+  const totals: Record<string, number> = {}
+  const claims = storedTask(rig, taskId)?.claims ?? []
+  for (const claim of claims) {
+    const key = claim.entryId ?? 'none'
+    totals[key] = (totals[key] ?? 0) + claim.usage.input
+  }
+  return totals
+}
+
+describe('a refused task moves down its role (D261, real host, real scheduler)', () => {
+  it('moves once per candidate in role order, says why, and keeps each run on its own entry', async () => {
+    const rig = await makeRig({ team: refusalTeam(), refusalFallback: true })
+    rig.plans.set('write the refused file', {
+      files: { 'refused.ts': 'export const y = 2\n' },
+      refuseOn: ['r1'],
+    })
+    const [taskId = ''] = await delegate(rig, [{ brief: 'write the refused file' }])
+    await waitDone(rig, taskId)
+    expect(rig.runs.map((run) => run.entryId)).toEqual(['r1', 'r2'])
+    // D103's handoff: the taking agent reads the refusal as data, then the brief.
+    expect(rig.runs[1]?.brief.startsWith(TEAM_HANDOFF_MODEL_TEXT.handoff)).toBe(true)
+    expect(rig.runs[1]?.brief).toContain("r1: I can't help with that.")
+    const row = rig.cards.find((card) => card.kind === 'teamSwitch')
+    expect(row?.teamSwitch).toEqual({
+      roleId: 'engineering',
+      fromEntry: 'r1',
+      toEntry: 'r2',
+      reason: UI_TEXT.teamSwitchReasonRefused,
+    })
+    // Each run is counted as itself: r1's refused request stays on r1.
+    expect(claimedInputByEntry(rig, taskId)).toMatchObject({ r1: 10 })
+    // Real git and scheduling work exceeds the 5 s default on this rig class.
+  }, 60_000)
+
+  it('gives each candidate one try, then ends with the last true refusal', async () => {
+    const rig = await makeRig({ team: refusalTeam(), refusalFallback: true })
+    rig.plans.set('refuse everywhere', { files: {}, refuseOn: ['r1', 'r2', 'r3'] })
+    const [taskId = ''] = await delegate(rig, [{ brief: 'refuse everywhere' }])
+    await expect.poll(() => storedPhase(rig, taskId), { timeout: 30_000 }).toBe('failed')
+    await expect.poll(() => rig.runs.length, { timeout: 30_000 }).toBe(3)
+    expect(rig.runs.map((run) => run.entryId)).toEqual(['r1', 'r2', 'r3'])
+    expect(storedTask(rig, taskId)?.outcome?.report.summary).toBe("r3: I can't help with that.")
+    expect(claimedInputByEntry(rig, taskId)).toMatchObject({ r1: 10, r2: 10, r3: 10 })
+  }, 60_000)
+
+  it('with the toggle off, a refusal ends the task on its first agent, as before', async () => {
+    const rig = await makeRig({ team: refusalTeam() })
+    rig.plans.set('refuse once', { files: {}, refuseOn: ['r1'] })
+    const [taskId = ''] = await delegate(rig, [{ brief: 'refuse once' }])
+    await expect.poll(() => storedPhase(rig, taskId), { timeout: 30_000 }).toBe('failed')
+    expect(rig.runs.map((run) => run.entryId)).toEqual(['r1'])
+    expect(rig.cards.some((card) => card.kind === 'teamSwitch')).toBe(false)
+    expect(storedTask(rig, taskId)?.outcome?.report.summary).toBe("r1: I can't help with that.")
   }, 60_000)
 })
 

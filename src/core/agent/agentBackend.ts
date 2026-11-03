@@ -910,12 +910,6 @@ export interface AgentSession {
   */
   setServiceTier?: (serviceTier: string | undefined) => Promise<void>
   /**
-  D261: the model a refused turn continues on; undefined clears back to
-  the standing setting. Model API sessions only; sessions without it
-  never offer the switch, and their refused turns end as today.
-  */
-  setFallbackModel?: (modelId: string | undefined) => Promise<void>
-  /**
   One of the four MSP approval modes (shared/permissionModes.ts). Throws
   `PermissionReviewerError` when the mode took but its reviewer did not:
   the session is quarantined (turns refused) and `actualMode` is the wire

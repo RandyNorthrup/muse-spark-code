@@ -68,7 +68,7 @@ import {
   type MuseWorkerSessionPort,
   type TeamHostProvider,
 } from '../../core/team/workers/museCodeWorker'
-import type { WorkerReportOutcome } from '../../core/team/workers/report'
+import { isRefusedReport, type WorkerReportOutcome } from '../../core/team/workers/report'
 import {
   answerAcpPermission,
   AcpUserServersSwitchError,
@@ -809,7 +809,8 @@ export function createProcessTeamPorts(deps: TeamProcessWorkersDeps): ProcessTea
           isCeilingReached: report.status === 'capped',
           usage: ran.usage,
         })
-        return outcome
+        // D261: the refusal rides beside the report, which keeps its status.
+        return isRefusedReport(ran.report) ? { ...outcome, isRefused: true } : outcome
       } catch (error: unknown) {
         await removeUnreturnedCopy(copyDeps, storage, {
           spec,

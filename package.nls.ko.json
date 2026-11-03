@@ -103,7 +103,6 @@
   "config.modelApiRepoMap.description": "신뢰할 수 있는 작업 영역에서 Model API 백엔드의 시스템 프롬프트에 저장소 맵을 추가합니다. VS Code 언어 서비스로 순위를 매긴 작업 영역에서 가장 많이 쓰이는 파일과 정의를 대화마다 한 번, 약 1,000토큰으로 만듭니다. 기본적으로 꺼져 있습니다. 모든 요청에 해당 토큰이 추가되어 Model API 키로 청구됩니다. 어느 경우든 repo_map 도구가 요청 시 새 맵을 만듭니다.",
   "config.modelApiObservationPacking.description": "기본으로 켜집니다. 두 번의 요청 후 오래된 긴 도구 출력을 압축하며 recall_output으로 원본을 읽습니다. M75 평가를 통과했습니다. 대화를 시작하거나 재개할 때 설정을 읽습니다.",
   "config.modelApiMaxToolOutputBytes.description": "도구 결과당 바이트 상한입니다. 설정하지 않으면 무제한: 기본값 0은 모델 창 안에서 결과를 그대로 유지하며, 설정값을 초과한 결과는 개수와 함께 앞부분과 뒷부분으로 잘리고, 전체 텍스트는 페이지용으로 .muse-spark/tool-results에 남습니다. 1024 미만이거나 모델 창을 초과하면 사유와 함께 거부됩니다. 헤드리스 실행 한 번에는 exec --max-tool-output-bytes로 높이세요.",
-  "config.modelApiFallbackModel.description": "거부된 Model API 턴이 계속되는 모델입니다. 비어 있으면 (기본값) 거부가 유지됩니다. 턴은 거부로 끝납니다. 모델을 설정하면 턴마다 한 번의 거부에 응답하며, 해당 모델의 이름을 알리는 알림이 표시됩니다. 이후 세션은 해당 모델에서 계속되고, 각 요청은 이를 실행한 모델의 요금으로 청구됩니다. 세션이 확인할 수 없는 이름, 세션 자체의 모델 또는 두 번째 거부가 발생하면 턴은 거부로 끝납니다. 컴퓨터 범위입니다. exec --fallback-model을 지정하면 한 번의 헤드리스 실행에만 설정됩니다.",
   "config.modelApiScheduledPrompts.description": "명시적으로 예약한 Model API 실행에 선택한 모델의 토큰 요금이 적용됩니다. Model API에서 기본으로 제공됩니다. 결제 전에 요금과 공유 일일 예산을 표시하고 한 번 허용 / 이 작업 영역에서 항상 허용 / 거부를 묻습니다. 명시적인 false는 기능을 끕니다. 공유 일일 예산 설정: museSpark.paidDailyBudgetUsd.",
   "config.sandboxNetwork.description": "Muse Code의 셸 샌드박스가 명령에 허용하는 네트워크입니다. 명령에는 샌드박스가 켜져 있을 때만 적용되며(museSpark.shellSandbox), 샌드박스가 없으면 명령이 사용자의 네트워크를 그대로 사용합니다. 변경하면 Muse Code 호스트가 다시 시작됩니다. restricted에서는 샌드박스 여부와 관계없이 확장의 페이지 가져오기도 Muse Code에 제공되지 않습니다. Model API 백엔드의 페이지 가져오기는 해당 권한 모드를 따릅니다.",
   "config.sandboxNetwork.enumDescriptions.default": "아무것도 전달하지 않습니다. Muse Code 자체 기본값(proxy-only) 또는 관리자의 관리형 구성에서 설정한 값이 적용됩니다.",
@@ -287,5 +286,6 @@
   "config.reports.agentSources.description": "자신의 Claude Code 또는 Codex 사용량 및 한도 파일 읽기를 허용합니다. 기본값은 없음입니다. 대화 본문과 자격 증명 파일은 보고서 출처로 읽지 않습니다.",
   "config.reports.planMaxBytes.description": "보고서가 읽는 가장 큰 플랜 파일(바이트)입니다. 설정하지 않으면 제한 없음: 0(기본값)은 크기에 관계없이 전체 플랜을 읽고, 설정값을 초과하는 플랜은 사용자의 제한을 표시하는 input-size 드리프트로 거부됩니다. 이 컴퓨터의 설정만 사용됩니다.",
   "config.linuxDictationModel.description": "로컬 Linux x64/arm64에서 무료 오프라인 영어 받아쓰기를 켭니다. 74 MiB 모델의 첫 다운로드 전에 동의를 구합니다. 끄면 받아쓰기를 중지하고 모델과 부분 다운로드를 삭제합니다. 다시 켜고 창을 다시 로드하면 재사용할 수 있습니다. Windows/macOS는 그대로입니다.",
-  "config.editorChatModels.description": "편집기 채팅에 명시적으로 제공하는 모델 참조입니다. 설치된 모든 확장 기능이 이 모델을 통해 제공자 키로 비용을 발생시킬 수 있습니다. 기본적으로 꺼져 있으며 알려진 가격 또는 로컬 모델이 필요합니다. 모델 및 에이전트에서 설정하세요."
+  "config.editorChatModels.description": "편집기 채팅에 명시적으로 제공하는 모델 참조입니다. 설치된 모든 확장 기능이 이 모델을 통해 제공자 키로 비용을 발생시킬 수 있습니다. 기본적으로 꺼져 있으며 알려진 가격 또는 로컬 모델이 필요합니다. 모델 및 에이전트에서 설정하세요.",
+  "config.teamRefusalFallback.description": "에이전트가 팀 작업을 거부하면 작업이 해당 역할의 선호 목록에서 다음으로 사용 가능한 에이전트로 넘어갑니다(계정과 제공자를 가리지 않음). 각 에이전트는 한 번씩 시도하며, 리뷰는 작업을 작성한 에이전트나 모델에게 절대 가지 않습니다. 유료 에이전트는 모델과 가격을 밝히고 먼저 묻습니다. 기본값은 꺼짐이며, 거부된 작업은 거부로 끝납니다. 컴퓨터 전체에 적용되며, exec --refusal-fallback으로 헤드리스 --team 실행 한 번에 켤 수 있습니다."
 }

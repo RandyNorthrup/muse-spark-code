@@ -39,6 +39,21 @@ describe('M96b exec --team flags', () => {
       parseExec({ ...BUDGET, team: true, 'permission-mode': 'acceptEdits' }, ['task']),
     ).toMatchObject({ ok: true, options: { team: true, mode: 'acceptEdits' } })
   })
+  it('takes --refusal-fallback only with --team (D261), off when absent', () => {
+    const team = { ...BUDGET, team: true, 'permission-mode': 'acceptEdits' }
+    expect(parseExec(team, ['task'])).toMatchObject({
+      ok: true,
+      options: { refusalFallback: false },
+    })
+    expect(parseExec({ ...team, 'refusal-fallback': true }, ['task'])).toMatchObject({
+      ok: true,
+      options: { team: true, refusalFallback: true },
+    })
+    expect(parseExec({ ...BUDGET, 'refusal-fallback': true }, ['task'])).toEqual({
+      ok: false,
+      reason: UI_TEXT.execRefusalFallbackNeedsTeam,
+    })
+  })
   it('rejects a non-boolean --team', () => {
     expect(parseExec({ ...BUDGET, team: 'true' }, ['task']).ok).toBe(false)
   })

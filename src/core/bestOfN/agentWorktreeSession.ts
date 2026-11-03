@@ -72,6 +72,7 @@ export class AgentWorktreeSession implements WorktreeSession {
             ...(event.reason !== undefined && { reason: event.reason }),
             ...(event.errorKind !== undefined && { errorKind: event.errorKind }),
             ...(event.retryable !== undefined && { retryable: event.retryable }),
+            ...(event.refused === true && { refused: true }),
           })
           // Stop goals/background work synchronously before the runner's
           // asynchronous index capture can observe more attempt writes.

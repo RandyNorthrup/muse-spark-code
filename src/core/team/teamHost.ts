@@ -14,11 +14,13 @@ import {
   MILLISECONDS_PER_SECOND,
   stopContinuationLimitFor,
   TEAM_EXHAUSTED_DEFAULT,
+  TEAM_HANDOFF_MODEL_TEXT,
   TEAM_MERGE_PAUSE_STATE_KEY,
   TEAM_MODEL_TEXT,
   TEAM_PLAYBOOK_MODEL_TEXT,
   TEAM_ROLE_TOOLSETS,
   TEAM_ROLE_WHEN_TO_USE_MAX_CHARS,
+  TEAM_SCHED_TEXT_MAX_CHARS,
   UI_TEXT,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
@@ -52,6 +54,7 @@ import {
 } from '../../shared/teamConversation'
 import { teamAgentSwitchFields, teammateIdleFields } from '../backends/modelapi/extensionHooks'
 import {
+  planRefusalMove,
   recordTeamSwitch,
   switchReasonText,
   switchHookPayload,
@@ -148,6 +151,8 @@ export interface TeamTaskRecord {
   retryFrom?: TeamWorkerOutcome | undefined
   /** A stall handoff's instruction and data block, prepended once at launch. */
   handoffBrief?: string | undefined
+  /** D261: the entries that refused this task, in order; each gets one try. */
+  refusedBy?: string[] | undefined
   isRaised: boolean
   writerModels: string[]
   lease?: { release: () => void } | undefined
@@ -247,6 +252,24 @@ function roleMode(role: TeamRoleConfig): 'read-only' | 'own-branch' | 'in-place'
 function toolGroups(role: TeamRoleConfig): readonly string[] {
   const builtin = builtinRole(role.role)
   return role.tools ?? (builtin === undefined ? [] : TEAM_ROLE_TOOLSETS[builtin.id])
+}
+
+/** D261: a moved run's own usage on top of what the task had already used. */
+function plusUsage(base: TeamUsage, run: TeamUsage): TeamUsage {
+  return {
+    input: base.input + run.input,
+    cachedInput: base.cachedInput + run.cachedInput,
+    output: base.output + run.output,
+    reasoning: base.reasoning + run.reasoning,
+    modelCalls: base.modelCalls + run.modelCalls,
+    estimated: base.estimated || run.estimated,
+    ...((base.costUsd !== undefined || run.costUsd !== undefined) && {
+      costUsd: sumUsd(
+        ...(base.costUsd === undefined ? [] : [base.costUsd]),
+        ...(run.costUsd === undefined ? [] : [run.costUsd]),
+      ),
+    }),
+  }
 }
 
 /** The paid scope a consent names: the provider and the model. */
@@ -1470,12 +1493,13 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     if (previous !== undefined && previous.id !== entry.id) {
       const cap = previous.caps.find((item) => capUsed(previous, item) >= item.amount)
       let lastRefusal: TeamEntryExhaustion | undefined
+      const isRefusal = task.refusedBy?.includes(previous.id) === true
       if (cap !== undefined)
         lastRefusal = { entryId: previous.id, reason: 'cap', cap, used: capUsed(previous, cap) }
       else if (!isUsable(previous)) lastRefusal = { entryId: previous.id, reason: 'unavailable' }
       else if (running(previous.id) >= previous.concurrent)
         lastRefusal = { entryId: previous.id, reason: 'concurrent' }
-      const change = recordTeamSwitch(
+      const recorded = recordTeamSwitch(
         {
           roleId: task.role.role,
           entries: [],
@@ -1491,6 +1515,9 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         lastRefusal,
         task.taskId,
       )
+      // D261: a refused run's move says so, in the row and to the hook.
+      const change =
+        recorded !== undefined && isRefusal ? { ...recorded, reason: 'refused' as const } : recorded
       if (change !== undefined) {
         deps.cards.show(task.sessionId, {
           itemId: `team-switch-${task.taskId}`,
@@ -1596,6 +1623,75 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       }
     }
   }
+  /**
+  D261: a refused run picks who answers next, in the role's own order: the
+  first entry this task has not tried whose live headroom holds and, for a
+  review, whose model wrote none of the reviewed work (D103). A paid entry
+  this task holds no consent for asks D48's question, naming its model and
+  price; an unattended run cannot ask and stops there. The sentence it
+  returns is why the refusal stands; undefined with no move means the list
+  ran out and the refusal ends the task as it always did.
+  */
+  const chooseAfterRefusal = async (
+    task: TeamTaskRecord,
+    entry: StaffedEntry,
+  ): Promise<{ readonly next?: StaffedEntry; readonly declined?: string }> => {
+    task.refusedBy = [...(task.refusedBy ?? []), entry.id]
+    const plan = planRefusalMove({
+      entries: pool(task.role),
+      tried: new Set(task.refusedBy),
+      authorModels: task.reviewOf?.writerModels ?? [],
+      hasHeadroom: (candidate) => hasHeadroom(candidate),
+      isSameModel: isSameTeamModel,
+      isConsented: (candidate) => task.consented.has(paidScope(candidate.agent)),
+      isUnattended: deps.settings.isUnattended?.() === true,
+    })
+    if (plan.kind === 'exhausted') return {}
+    const next = plan.entry
+    const words = { from: entry.agent.model, to: next.agent.model, role: task.role.role }
+    if (plan.kind === 'cannotAsk') return { declined: fill(UI_TEXT.teamRefusalUnattended, words) }
+    if (plan.isAskNeeded) {
+      const isAllowed = await deps.paid.allowKeyTasks(
+        [confirmationFor(task.role.role, next, deps.workers.rates?.(next.agent))],
+        undefined,
+        {
+          sessionId: task.sessionId,
+          approvalMode: modeOf(task) ?? '',
+          signal: task.controller.signal,
+        },
+      )
+      if (!isAllowed) return { declined: fill(UI_TEXT.teamRefusalPaidDeclined, words) }
+      task.consented = new Set([...task.consented, paidScope(next.agent)])
+    }
+    return { next }
+  }
+
+  /**
+  D261: D103's safe-point handoff, in place. The refused run has ended (its
+  in-flight calls answered, never run), so the task's own lease and attempt
+  carry over: the entry changes, a dispatch claim lands on it (the tasks cap
+  counts it), the switch row says why, and the next run starts its own
+  conversation on its own provider from the brief, the refusal as data and
+  the captured work.
+  */
+  const takeOverRefused = async (task: TeamTaskRecord, next: StaffedEntry): Promise<void> => {
+    leases.set(task.taskId, next.id)
+    task.entry = next
+    task.claims.push({
+      ordinal: ++ordinal,
+      attempt: task.schedulerAttempt,
+      entryId: next.id,
+      atMs: deps.now(),
+      usage: ZERO_USAGE,
+      isSettled: true,
+      reported: ZERO_USAGE,
+      isDispatch: true,
+    })
+    task.writerModels = [...new Set([...task.writerModels, next.agent.model])]
+    await persist()
+    await switchEntry(task, next)
+  }
+
   const launch = async (task: TeamTaskRecord, input?: LaunchInput): Promise<void> => {
     finalAdmit(task, false)
     const entry = task.entry
@@ -1620,6 +1716,11 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     const execute = async (): Promise<void> => {
       try {
         await switchEntry(task, entry)
+        // D261: a run that took over a refused task reports its own usage
+        // from zero; the refused runs' usage stays on their own entries.
+        let usageBase: TeamUsage | undefined
+        const ownUsage = (usage: TeamUsage): TeamUsage =>
+          usageBase === undefined ? usage : plusUsage(usageBase, usage)
         const start = await deps.hooks?.fire(
           task.sessionId,
           'SubagentStart',
@@ -1659,7 +1760,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
             reserveRequest: (maximum) => reserveRequest(task, maximum),
             settleRequest: (requestOrdinal, usage, isFinal) =>
               settleRequest(task, requestOrdinal, usage, isFinal),
-            noteUsage: (usage) => noteUsage(task, usage),
+            noteUsage: (usage) => noteUsage(task, ownUsage(usage)),
             noteWorkspace: async (workspace) => {
               task.workspace = workspace
               await persist()
@@ -1668,6 +1769,30 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
           },
         }
         let outcome = await deps.workers.run(taskSpec, task.controller.signal)
+        let declined: string | undefined
+        while (
+          outcome.isRefused === true &&
+          deps.settings.isRefusalFallbackOn?.() === true &&
+          !task.controller.signal.aborted
+        ) {
+          await noteUsage(task, ownUsage(outcome.usage))
+          const answer = await chooseAfterRefusal(task, task.entry ?? entry)
+          declined = answer.declined
+          // A Stop during the paid question reaches the next run's signal.
+          if (answer.next === undefined) break
+          await takeOverRefused(task, answer.next)
+          usageBase = task.usage
+          const said = outcome.report.summary.slice(0, TEAM_SCHED_TEXT_MAX_CHARS)
+          outcome = await deps.workers.run(
+            {
+              ...taskSpec,
+              entry: answer.next,
+              brief: `${TEAM_HANDOFF_MODEL_TEXT.handoff}\n${TEAM_HANDOFF_MODEL_TEXT.handoffDataOpen}${said}${TEAM_HANDOFF_MODEL_TEXT.handoffDataClose}\n${task.brief}`,
+              continueFrom: outcome.folder === undefined ? taskSpec.continueFrom : outcome,
+            },
+            task.controller.signal,
+          )
+        }
         let continuations = 0
         while (
           deps.hooks !== undefined &&
@@ -1702,8 +1827,8 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
               team: {
                 teammateName: task.taskId,
                 roleId: task.role.role,
-                entryId: entry.id,
-                agentProfileId: agentProfile(entry).key,
+                entryId: (task.entry ?? entry).id,
+                agentProfileId: agentProfile(task.entry ?? entry).key,
                 taskId: task.taskId,
                 parentSessionId: task.sessionId,
               },
@@ -1724,10 +1849,11 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
             ? outcome
             : { ...outcome, report: { ...outcome.report, status: 'capped' } }
         if (outcome.folder === undefined) task.workspace = undefined
-        await noteUsage(task, outcome.usage)
+        await noteUsage(task, ownUsage(outcome.usage))
         await finish(
           task,
           outcome.report.status === 'failed' && outcome.folder === undefined ? 'failed' : 'done',
+          declined,
         )
       } catch (error: unknown) {
         // The failure is recorded on the task; the log carries only the

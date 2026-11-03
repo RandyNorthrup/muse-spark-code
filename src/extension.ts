@@ -3627,6 +3627,7 @@ async function activateWindow(
             vscode.workspace.getConfiguration(SETTINGS_SECTION).get<unknown>(TEAM_SWITCH_SETTING),
           ),
         isTeamWorkersOn: () => currentSettings().modelApiTeamWorkers,
+        isRefusalFallbackOn: () => currentSettings().teamRefusalFallback,
         // The machine side (D121): the machine's own parallelism,
         // never a ceiling of ours. Engines are further bound by the
         // provider's documented limits and live throttling.
@@ -4168,7 +4169,6 @@ async function activateWindow(
     isObservationPackingOn: () => currentSettings().modelApiObservationPacking,
     isFastPathOff: () => currentSettings()['judge.fastPathOff'],
     maxToolOutputBytes: () => currentSettings().modelApiMaxToolOutputBytes,
-    fallbackModel: () => currentSettings().modelApiFallbackModel,
     pacingOwner: requestPacingOwner,
     isAutoCompactionOn: () => currentSettings().modelApiAutoCompaction,
     autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,

@@ -103,7 +103,6 @@
   "config.modelApiRepoMap.description": "在受信任的工作区中，在 Model API 后端的系统提示词中加入仓库地图：用 VS Code 语言服务排序的工作区中最常用的文件和定义，每个对话生成一次，约 1,000 个令牌。默认关闭：它会在每个请求中加入这些令牌，并向您的 Model API 密钥计费。无论是否开启，repo_map 工具都可按需生成一张新地图。",
   "config.modelApiObservationPacking.description": "默认开启。两次请求后压缩旧的长工具输出；recall_output 可读取原文。M75 评估已通过。开始或恢复对话时读取此设置。",
   "config.modelApiMaxToolOutputBytes.description": "单个工具结果字节上限。除非自行设置，否则不限：默认为0，在模型窗口内保持结果完整；超出设置值的部分截断为头部和尾部并附带计数，完整文本保留在.muse-spark/tool-results中供分页读取。低于1024或超出模型窗口将被拒绝并说明原因。单次无头运行可用exec --max-tool-output-bytes提高。",
-  "config.modelApiFallbackModel.description": "被拒绝的 Model API 回合继续使用的模型。为空（默认值）时拒绝维持不变：回合以拒绝结束。设置模型后，每个回合可回应一次拒绝，并显示指明该模型的通知；此后会话在该模型上继续，每个请求按运行它的模型计费。会话无法解析的名称、会话自身的模型或第二次拒绝将使回合以拒绝结束。计算机范围；exec --fallback-model 可为单次无头运行设置。",
   "config.modelApiScheduledPrompts.description": "明确安排的 Model API 运行按所选模型的令牌价格计费。 在 Model API 上默认可用。收费前会显示价格和共享每日预算，并询问：允许一次／在此工作区始终允许／拒绝。显式 false 会关闭此功能。 共享每日预算设置：museSpark.paidDailyBudgetUsd。",
   "config.sandboxNetwork.description": "Muse Code 的 shell 沙盒给予命令的网络。对命令而言，仅在沙盒开启时适用（museSpark.shellSandbox）；没有沙盒时，命令使用你的网络。更改此设置会重启 Muse Code 宿主。设为 restricted 时，无论沙盒是否开启，Muse Code 也不会获得扩展的网页获取；Model API 后端的网页获取遵循其权限模式。",
   "config.sandboxNetwork.enumDescriptions.default": "不传递任何内容：使用 Muse Code 自身的默认值（proxy-only），或管理员的托管配置所设置的值。",
@@ -287,5 +286,6 @@
   "config.reports.agentSources.description": "选择读取您自己的 Claude Code 或 Codex 用量和限制文件。默认不启用任何来源。绝不会将会话正文和凭据文件作为报告来源读取。",
   "config.reports.planMaxBytes.description": "报告读取的最大计划文件（字节）。除非您自行设置，否则不限：0（默认值）表示无论多大都读取整个计划，超过设定值的计划将以注明您的限制的 input-size 偏差被拒绝。仅使用本机的设置。",
   "config.linuxDictationModel.description": "在本地 Linux x64/arm64 上启用免费离线英语听写。首次下载 74 MiB 模型前会询问。关闭将停止听写并删除模型和未完成的下载；再次开启并重新加载窗口即可启用。Windows/macOS 不变。",
-  "config.editorChatModels.description": "明确提供给编辑器聊天的模型引用。任何已安装的扩展都可通过这些模型使用您的提供商密钥产生费用。默认关闭；需要已知价格或本地模型。请在模型与代理中配置。"
+  "config.editorChatModels.description": "明确提供给编辑器聊天的模型引用。任何已安装的扩展都可通过这些模型使用您的提供商密钥产生费用。默认关闭；需要已知价格或本地模型。请在模型与代理中配置。",
+  "config.teamRefusalFallback.description": "当智能体拒绝团队任务时，任务会转给其角色偏好列表中下一个可用的智能体，可跨账户和提供商；每个智能体只尝试一次，审查绝不会交给编写该工作的智能体或模型。付费智能体会先询问，并说明其模型和价格。默认关闭：被拒绝的任务以拒绝结束。作用于整台计算机；exec --refusal-fallback 可为一次无界面的 --team 运行开启。"
 }

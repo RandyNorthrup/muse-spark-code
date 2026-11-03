@@ -42,7 +42,7 @@ import {
 import { isTeamGitError, type TeamGit } from '../../core/team/teamGit'
 import { runEngineWorker } from '../../core/team/workers/engineWorker'
 import { WORKER_NATIVE_IO } from '../../core/team/workers/workerFence'
-import type { WorkerReportOutcome } from '../../core/team/workers/report'
+import { isRefusedReport, type WorkerReportOutcome } from '../../core/team/workers/report'
 import type {
   TeamHostServiceDeps,
   TeamMergePort,
@@ -392,7 +392,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
       }
       await meterWrites
       signal.throwIfAborted()
-      return await endTaskCopy(copyDeps, storage, {
+      const ended = await endTaskCopy(copyDeps, storage, {
         spec,
         copy,
         signal,
@@ -400,6 +400,8 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
         isCeilingReached: result.outcome.ceilingReached,
         usage,
       })
+      // D261: the refusal rides beside the report, which keeps its status.
+      return isRefusedReport(result.report) ? { ...ended, isRefused: true } : ended
     } catch (error: unknown) {
       // A copy this task made and never handed back is removed; a reopened
       // task's copy stays with the finished task it came from.
