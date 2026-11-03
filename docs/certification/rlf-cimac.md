@@ -167,3 +167,42 @@ It never touches a keychain.
 Run: exit 0, 6 of 6. No deterministic red: the hosted ordering cannot be
 forced here without a stand-in. The next hosted log must show this case
 passing on macOS.
+
+## makerSerial — not reproduced here; the best reading of the log
+
+Hosted macOS: `socat data path on the rig` failed in both cases — posix-raw
+with `serial-helper-ended-before-ready`, stty with `expected +0 to be 4`
+(no byte the session wrote reached the peer in 2 s). The earlier run
+41516831678 failed the same two cases (posix-raw then with
+`serial-helper-unavailable`), before the case began holding the device side
+open, so that hold did not cure it. Not reproduced: this rig has no socat
+(the cases are skipped here, `/opt/homebrew/bin/socat` absent), and
+installing it would change machine-wide state. A PTY slave here accepts
+the raw helper's `flock` and `TIOCEXCL` (probed with `/usr/bin/python3`), so
+the helper's own start is not the suspect.
+
+Reading (inferred): both failures fit a socat relay (homebrew 1.8.1.3 on
+the hosted runner) that has stopped relaying by the time the session runs —
+bytes written to `left` go nowhere, and the raw helper's open of `left`
+fails once the relay's PTYs are gone. The test starts socat with
+`stdio: 'ignore'`, so the log cannot say whether or why it ended. No fix
+without that cause. The next hosted log must show socat's exit code and
+stderr (run with `-d -d`) and the raw helper's exit code and stderr at the
+moment each case fails.
+
+## Final run (repository timeouts, three files per run)
+
+| Files                                                        | Exit | Tests                               |
+| ------------------------------------------------------------ | ---- | ----------------------------------- |
+| artCursors, artIcons, artBoot                                | 0    | 73 passed                           |
+| panelSessions, governedTeamSlotsPoll, teamCheckSlotsGoverned | 0    | 15 passed                           |
+| teamWorkerChecks, playbookGovernor, macosRecorderDeps        | 0    | 45 passed                           |
+| makerSerial, nativeHelper, teamWorkerCreateBundle            | 0    | 32 passed, 2 skipped (socat absent) |
+| vault/feederAncestry                                         | 0    | 6 passed                            |
+
+Gates: prettier and eslint on every changed file 0; `typecheck:host` 0;
+`typecheck:unit` 0; `npm run check:art` 0; `check-bundle-size`: every
+built bundle ok (`dist/resourceGovernor.js` 124.6 of 125 KiB); its exit 1
+names only the desktop bundles not built here (`MISS`), none over budget.
+None of these files is downstream of the other lane's shared failures
+(`manifest`, `teamConstants`, `museStartFault`, `subscriptionForeignPaths`).
