@@ -215,6 +215,15 @@ const BUDGETS = [
   // REL0160B captured validators, team admission and exact USD: 26.0 KiB
   // measured +5%, rounded to 25 KiB (authorized brief, PLAN.md, 2026-10-07).
   { path: 'dist/modelApiBoundaries.js', budgetKiB: 50 },
+  // CC-INT11C2: parts split out of bundles over their budgets (D6, SPLIT_PARTS),
+  // each measured +15%, rounded up to 25 KiB. The parents' caps did not move.
+  { path: 'dist/modelApiInstructions.js', budgetKiB: 50 },
+  { path: 'dist/mcpHeaders.js', budgetKiB: 25 },
+  { path: 'dist/teamAutofill.js', budgetKiB: 25 },
+  { path: 'dist/teamWorkerFence.js', budgetKiB: 50 },
+  { path: 'dist/wireLegalFix.js', budgetKiB: 25 },
+  // M117: the fleet binding and its limit translators, out of activation.
+  { path: 'dist/estimateFleet.js', budgetKiB: 50 },
   // TRAIN15E joined M95: providers 128.4, subscriptions 29.3, configured
   // providers 24.9 and Models panel 90.3 KiB measured.
   // JOIN0190 features merge, measured + 15%, rounded up to 25 KiB (D6/D74):

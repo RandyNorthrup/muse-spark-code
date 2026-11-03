@@ -5916,6 +5916,8 @@ export const ESTIMATE_PRICES_BUNDLE_FILE = 'estimatePrices.js'
 // The estimator history's journal (M117 C-M117-2, PLAN.md D6), loaded the
 // first time an estimate reads its history.
 export const ESTIMATE_HISTORY_BUNDLE_FILE = 'estimateHistory.js'
+/** The window's fleet binding (M117, D6), required the first time an estimate runs. */
+export const ESTIMATE_FLEET_BUNDLE_FILE = 'estimateFleet.js'
 // Checkpoint implementation, synchronously loaded at activation's store construction (M72, D6).
 export const CHECKPOINT_STORE_BUNDLE_FILE = 'checkpointStore.js'
 // Code intelligence's answers for Muse Code's `ide` server (M67, D6), loaded

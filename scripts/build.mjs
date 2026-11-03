@@ -99,6 +99,7 @@ import {
   sharedMakerContracts,
   nodeReferenceData,
   deferredCohort,
+  splitParts,
   sharedWire,
   sharedResourceAdmission,
   sharedStructuredSchema,
@@ -674,6 +675,7 @@ const promptsOptions = { ...hostOptions, entryPoints: [PROMPTS_ENTRY], outfile: 
 const modelApiOptions = {
   ...common,
   plugins: [
+    splitParts,
     sharedUiText,
     sharedValidation,
     deferredCohort,
@@ -850,6 +852,7 @@ const approvalModesOptions = {
 const teamOptions = {
   ...modelApiOptions,
   plugins: [
+    splitParts,
     sharedUiText,
     sharedValidation,
     deferredCohort,
@@ -1235,6 +1238,47 @@ const planSnapshotOptions = {
 // time an estimate looks prices up; it reads no `vscode`, so a stray import
 // fails this build. The report redaction it scrubs with is shared with the
 // reporting bundles rather than copied in.
+/** @type {import('esbuild').BuildOptions} */
+const estimateFleetOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation],
+  entryPoints: ['src/host/estimator/estimateFleetEntry.ts'],
+  outfile: 'dist/estimateFleet.js',
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+// D6: the parts split out of bundles over their budgets (SPLIT_PARTS). Each is written
+// out: the packaging checks read every bundle's entry and output from this file.
+/** @type {import('esbuild').BuildOptions} */
+const modelApiInstructionsOptions = {
+  ...modelApiOptions,
+  entryPoints: ['src/core/backends/modelapi/modelApiInstructionsEntry.ts'],
+  outfile: 'dist/modelApiInstructions.js',
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const mcpHeadersOptions = {
+  ...modelApiOptions,
+  entryPoints: ['src/core/backends/modelapi/mcp/mcpHeadersEntry.ts'],
+  outfile: 'dist/mcpHeaders.js',
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const teamAutofillOptions = {
+  ...teamOptions,
+  entryPoints: ['src/core/team/teamAutofillEntry.ts'],
+  outfile: 'dist/teamAutofill.js',
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const teamWorkerFenceOptions = {
+  ...teamOptions,
+  entryPoints: ['src/core/team/workers/workerFenceEntry.ts'],
+  outfile: 'dist/teamWorkerFence.js',
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const estimateHistoryOptions = {
   ...common,
@@ -2325,9 +2369,16 @@ const validationSchemaOptions = {
 
 const wireOptions = {
   ...modelApiOptions,
-  plugins: [sharedUiText, sharedValidation, deferredTeamView, sharedModelApiBoundaries],
+  plugins: [splitParts, sharedUiText, sharedValidation, deferredTeamView, sharedModelApiBoundaries],
   entryPoints: ['src/shared/wireEntry.ts'],
   outfile: 'dist/wire.js',
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const wireLegalFixOptions = {
+  ...wireOptions,
+  entryPoints: ['src/shared/wireLegalFixEntry.ts'],
+  outfile: 'dist/wireLegalFix.js',
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -2806,6 +2857,12 @@ if (isWatch) {
     esbuild.context(planSnapshotOptions),
     esbuild.context(estimatePricesOptions),
     esbuild.context(estimateHistoryOptions),
+    esbuild.context(estimateFleetOptions),
+    esbuild.context(modelApiInstructionsOptions),
+    esbuild.context(mcpHeadersOptions),
+    esbuild.context(teamAutofillOptions),
+    esbuild.context(teamWorkerFenceOptions),
+    esbuild.context(wireLegalFixOptions),
     esbuild.context(recorderOptions),
     esbuild.context(credentialLeaseOptions),
     esbuild.context(whatsNewOptions),
@@ -3091,6 +3148,12 @@ if (isWatch) {
     planSnapshot: recorded('planSnapshot', planSnapshotOptions),
     estimatePrices: recorded('estimatePrices', estimatePricesOptions),
     estimateHistory: recorded('estimateHistory', estimateHistoryOptions),
+    estimateFleet: recorded('estimateFleet', estimateFleetOptions),
+    modelApiInstructions: recorded('modelApiInstructions', modelApiInstructionsOptions),
+    mcpHeaders: recorded('mcpHeaders', mcpHeadersOptions),
+    teamAutofill: recorded('teamAutofill', teamAutofillOptions),
+    teamWorkerFence: recorded('teamWorkerFence', teamWorkerFenceOptions),
+    wireLegalFix: recorded('wireLegalFix', wireLegalFixOptions),
     estimateActions: recorded('estimateActions', estimateActionsOptions),
     credentialLease: recorded('credentialLease', credentialLeaseOptions),
     ...Object.fromEntries(
