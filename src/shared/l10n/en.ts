@@ -6270,9 +6270,6 @@ export const EN = {
   providerModelNoPrice: '{ref} cannot run: it has no price card, so no run can reserve for it.',
   execProviderNeedsModelApi: '--provider needs --backend modelApi.',
   execProviderModelRequired: 'This provider run needs --model provider/model.',
-  // {provider}: the provider id the run asked for.
-  execProviderNotReady:
-    'Provider runs need the provider transport lane; request validation passed for {provider}.',
   execUsage: 'exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -',
   execScanUsage: 'scan-secrets <file> [--key-stdin] [--timeout <seconds>]',
   scanSecretsExits: 'Exits 0 when clean, 10 when a secret is found, 2 for misuse.',

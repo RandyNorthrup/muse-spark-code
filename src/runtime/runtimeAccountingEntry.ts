@@ -736,6 +736,7 @@ export function withRuntimeAccounting(
                 throw error
               }
               if (!('refused' in admission)) {
+                ticket = admission
                 return
               }
               {

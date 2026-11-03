@@ -4930,7 +4930,6 @@
   "providerModelNoPrice": "{ref} nem futtatható: nincs árkártyája, ezért egyetlen futás sem foglalhat rá.",
   "execProviderNeedsModelApi": "A --provider használatához --backend modelApi szükséges.",
   "execProviderModelRequired": "Ehhez a szolgáltatói futtatáshoz --model provider/model szükséges.",
-  "execProviderNotReady": "A szolgáltatói futásokhoz a szolgáltatói szállítási réteg kell; a(z) {provider} kérésének ellenőrzése sikerült.",
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin] [--timeout <seconds>]",
   "scanSecretsExits": "Kilépés: 0 ha tiszta, 10 ha titkot talál, 2 hibás használat esetén.",
