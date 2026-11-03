@@ -8044,6 +8044,9 @@ export const MUSE_INSTALL_SCRIPT_URL = 'https://dev.meta.ai/install.sh'
 export const MUSE_TERMS_URL = 'https://dev.meta.ai/legal/terms-of-service'
 export const MUSE_INSTALL_DIR_VARIABLE = 'MUSE_INSTALL_DIR'
 export const MUSE_NO_MODIFY_PATH_VARIABLE = 'MUSE_NO_MODIFY_PATH'
+// Meta's launcher knob: with it set to 1 the launcher runs the installed
+// binary and never forks its background self-update into the install dir.
+export const MUSE_NO_AUTO_UPDATE_VARIABLE = 'MUSE_NO_AUTO_UPDATE'
 export const MUSE_DEVICE_SIGN_IN_URL_ORIGIN = 'https://auth.meta.com'
 export const MUSE_ACCOUNT_LOGIN_START = 'account/loginStart'
 export const MUSE_ACCOUNT_LOGIN_CANCEL = 'account/loginCancel'

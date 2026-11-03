@@ -17,6 +17,7 @@ import {
   HTTP_TOO_MANY_REQUESTS,
   MUSE_INSTALL_DIR_VARIABLE,
   MUSE_INSTALL_SCRIPT_URL,
+  MUSE_NO_AUTO_UPDATE_VARIABLE,
   MUSE_NO_MODIFY_PATH_VARIABLE,
   MUSE_POSIX_EXECUTABLE,
   MUSE_POSIX_INSTALL_SEGMENTS,
@@ -228,7 +229,12 @@ async function runInstaller(
   }
 }
 
-/** The installed CLI answers --version; anything else is not installed. */
+/**
+The installed CLI answers --version; anything else is not installed. The
+launcher's first run would otherwise fork a self-update that outlives this
+bounded step and keeps rewriting the install dir after the step reports it
+done: the binary just installed answers as it is.
+*/
 async function verifyInstall(
   musePath: string,
   env: NodeJS.ProcessEnv,
@@ -243,7 +249,7 @@ async function verifyInstall(
         maxBuffer: INSTALL_OUTPUT_MAX_BYTES,
         windowsHide: true,
       },
-      env,
+      { ...env, [MUSE_NO_AUTO_UPDATE_VARIABLE]: '1' },
     )
     const first = stdout.split('\n', 1)[0]?.trim() ?? ''
     if (first === '') throw new MuseSetupFailure('verify-failed')

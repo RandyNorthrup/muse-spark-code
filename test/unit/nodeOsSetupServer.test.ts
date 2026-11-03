@@ -6,7 +6,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { MUSE_INSTALL_SCRIPT_URL } from '../../src/shared/constants'
+import { MUSE_INSTALL_SCRIPT_URL, MUSE_NO_AUTO_UPDATE_VARIABLE } from '../../src/shared/constants'
 import { canReachUrl, hasTool, scratch } from './helpers/nodeOs'
 import { fill, UI_TEXT } from '../../src/shared/l10n/text'
 import {
@@ -434,12 +434,21 @@ describe('setup server', () => {
         const done = await postForm(`${server.url}complete`, { code })
         expect(done.text).toContain(text.setupDone)
         // The installed binary answers for itself, from the install dir.
-        const muse = path.join(resolveMuseInstallDir(home, process.env), 'muse')
+        const installDir = resolveMuseInstallDir(home, process.env)
+        const muse = path.join(installDir, 'muse')
         expect(existsSync(muse)).toBe(true)
         const version =
-          execFileSync(muse, ['--version'], { encoding: 'utf8' }).trim().split('\n', 1)[0] ?? ''
+          execFileSync(muse, ['--version'], {
+            encoding: 'utf8',
+            env: { ...process.env, [MUSE_NO_AUTO_UPDATE_VARIABLE]: '1' },
+          })
+            .trim()
+            .split('\n', 1)[0] ?? ''
         expect(version.length).toBeGreaterThan(0)
         expect(done.text).toContain(version.slice(0, 100))
+        // No update check ran: the launcher stamps this file before it forks
+        // the self-update that would still be writing here when the step is done.
+        expect(existsSync(path.join(installDir, '.muse-update-checked-at'))).toBe(false)
         // Profiles stay untouched: the node manages PATH, not Meta's script.
         for (const profile of ['.bashrc', '.bash_profile', '.profile', '.zshrc']) {
           expect(existsSync(path.join(home, profile))).toBe(false)
