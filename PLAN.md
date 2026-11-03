@@ -32473,7 +32473,9 @@ at 314,208 bytes, `--check` green), the golden `store=false` request,
 and the picker/table/key looks in light and dark. Not run: a live
 Gemini call confirming Google accepts `store` (paid; at most 2 calls on
 the cheapest Gemini model) and real use through the packed product
-(Muse's week kept for merging). Record:
+(Muse's week kept for merging). Open: the whole-suite related run did
+not finish, and `vaultPanelBuild`'s migration-chunk cap reads 45.35 of
+45 KiB (not shown to be this lane's; cap not raised). Record:
 `docs/certification/rlf-gemprivacy.md`.
 
 ---
