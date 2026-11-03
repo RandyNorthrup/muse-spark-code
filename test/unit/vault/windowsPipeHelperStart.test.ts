@@ -5,6 +5,7 @@ import { rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { startWindowsPipeFiles } from '../../../src/runtime/vault/windowsPipeRelay'
 import type { WindowsVaultExecutable } from '../../../src/runtime/vault/slots/windowsVaultTransport'
+import { WINDOWS_VAULT_HOOK_TIMEOUT_MS } from '../helpers/fixtureBudget'
 import { buildWindowsVaultHelper } from '../helpers/windowsVaultHelper'
 import { UI_TEXT } from '../../../src/shared/constants'
 import { isVaultFileMissing } from '../../../src/core/vault/broker/files'
@@ -19,15 +20,12 @@ const fixture: { root: string; helper?: WindowsVaultExecutable; dispose?: () => 
   root: '',
 }
 describe.runIf(process.platform === 'win32')('Windows pipe helper start', () => {
-  // The native helper builds and broker starts take as long as the machine
-  // needs (a slow hosted Windows runner passed the 30 s hook budget, PR #258):
-  // no time limit of ours on this setup (owner 2026-10-16).
   beforeAll(async () => {
     const built = await buildWindowsVaultHelper('vs-pipestart-')
     fixture.root = built.root
     fixture.helper = built.helper
     fixture.dispose = built.dispose
-  }, 0)
+  }, WINDOWS_VAULT_HOOK_TIMEOUT_MS)
   afterAll(async () => {
     fixture.dispose?.()
     await rm(fixture.root, { recursive: true, force: true })

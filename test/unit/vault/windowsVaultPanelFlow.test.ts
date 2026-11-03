@@ -4,6 +4,7 @@ import {
   startWindowsBrokerFixture,
   type WindowsBrokerFixture,
 } from '../helpers/vault/windowsBrokerFixture'
+import { WINDOWS_VAULT_HOOK_TIMEOUT_MS } from '../helpers/fixtureBudget'
 import { drivePanelFlow } from '../helpers/vault/panelFlowDriver'
 
 // The vault exactly as the Models & Agents panel drives it on Windows (the
@@ -15,12 +16,9 @@ import { drivePanelFlow } from '../helpers/vault/panelFlowDriver'
 const fixture = { current: undefined as WindowsBrokerFixture | undefined }
 
 describe.skipIf(process.platform !== 'win32')('Windows vault through the panel', () => {
-  // The native helper builds and broker starts take as long as the machine
-  // needs (a slow hosted Windows runner passed the 30 s hook budget, PR #258):
-  // no time limit of ours on this setup (owner 2026-10-16).
   beforeAll(async () => {
     fixture.current = await startWindowsBrokerFixture('vs-wpanel-')
-  }, 0)
+  }, WINDOWS_VAULT_HOOK_TIMEOUT_MS)
   afterAll(async () => {
     await fixture.current?.dispose()
   })
