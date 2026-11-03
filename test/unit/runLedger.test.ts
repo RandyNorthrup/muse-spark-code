@@ -359,6 +359,11 @@ describe('M80 ledger integer admission and retained liability', () => {
       imagesReturned: 1,
       imagesRefunded: 2,
       imagesUncertain: 1,
+      transcriptionAttempts: 0,
+      transcriptionsReturned: 0,
+      transcriptionsRefunded: 0,
+      transcriptionsUncertain: 0,
+      transcribedSeconds: 0,
       settledUsd: Usd.from(0.01).toAmount(),
       uncertainUsd: Usd.from(0.01).toAmount(),
     })

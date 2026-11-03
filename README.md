@@ -5869,7 +5869,10 @@ images) and $1.703936 for standard ($1.713936). The contributor model needs
 `--allow-contributor-models`; its content may be used for training under
 Meta's contributor terms. `--image-generation` also needs
 `--permission-mode acceptEdits`; images are off by default and tallied per
-use. Each liability rounds upward. Missing receipts, transport loss,
+use. `--muse-voice` likewise needs acceptEdits: attached sound is then
+transcribed before sending, its bounded cost reserved against the run
+budget before dispatch and settled from the receipt, tallied per use.
+Each liability rounds upward. Missing receipts, transport loss,
 cancellation and HTTP errors keep the full reservation. Only the latest
 verified completed response plus ACP `end_turn` exits 0; unverified accounting
 exits 9. Tool output text never leaves exec, and a cut-short agent message is

@@ -1208,7 +1208,7 @@ export const EN = {
   referenceInstallSkills:
     "Copy project_setup, feature_delivery and quality_retrofit into Muse Code's configuration and link them as skills.",
   referenceExecContract:
-    'Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --subscription / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatic compaction runs only with --auto-compaction under --max-budget-usd.',
+    'Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --subscription / --image-generation / --muse-voice / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatic compaction runs only with --auto-compaction under --max-budget-usd.',
   referenceBriefHelp:
     'help / --help / -h: ACP / CLI. help <command> / <command> --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.',
   referenceJudgeUsage:
@@ -5876,6 +5876,7 @@ export const EN = {
   execModeRefused: 'Headless runs permit only plan or acceptEdits.',
   execWebSearchUnbounded: 'Hosted web search has no bounded allowance and is refused.',
   execPaidNeedsEdits: 'Image generation requires acceptEdits.',
+  execVoiceNeedsEdits: 'Muse Voice transcription requires acceptEdits.',
   // {options}: the refused command-line options as typed, joined by commas.
   execModelApiOnly: 'These options require the Model API backend (--backend modelApi): {options}.',
   execTeamNeedsEdits: '--team needs --permission-mode acceptEdits.',

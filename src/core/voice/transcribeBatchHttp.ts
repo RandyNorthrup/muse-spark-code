@@ -29,6 +29,7 @@ import {
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { sniffMediaBytes } from '../media/limits'
+import { metaMediaCapabilities } from '../media/metaMediaCapabilities'
 import { readWavFormat } from '../media/sniff/riff'
 import {
   convertToWav16kMono,
@@ -169,24 +170,18 @@ async function verifiedBytes(chunks: AsyncIterable<Uint8Array>): Promise<Uint8Ar
   return bytes
 }
 
+/** The sound router's view of the selected model's captured record, the
+same projection the media gate prepares through (D85.1): a model with
+no captures stays unknown and the router refuses it with a named reason. */
 function audioCaps(modelId: string): AudioModelCapabilities {
-  if (modelId === 'muse-spark-1.2-contributor' || modelId === 'muse-spark-1.3-contributor') {
-    return {
-      modelId,
-      video: 'yes',
-      videoFormats: ['video/mp4', 'video/quicktime'],
-      hearsSoundtrack: modelId === 'muse-spark-1.2-contributor' ? 'yes' : 'no',
-      audio: 'no',
-      audioFormats: [],
-    }
-  }
+  const captured = metaMediaCapabilities(modelId)
   return {
     modelId,
-    video: 'unknown',
-    videoFormats: [],
-    hearsSoundtrack: 'unknown',
-    audio: 'unknown',
-    audioFormats: [],
+    video: captured.modalities.video.support,
+    videoFormats: captured.modalities.video.formats,
+    hearsSoundtrack: captured.modalities.video.hearsSoundtrack ?? 'unknown',
+    audio: captured.modalities.audio.support,
+    audioFormats: captured.modalities.audio.formats,
   }
 }
 

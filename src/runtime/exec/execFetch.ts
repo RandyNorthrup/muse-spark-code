@@ -69,6 +69,8 @@ export function execFetch(input: {
   selectedModel: string
   readonly externalResponseAccounting?: boolean
   imageGeneration: boolean
+  /** Batch transcription of attached sound, admitted against the run ledger before its POST. */
+  voiceTranscription?: boolean
   /** Team engine clients own concurrent response admission; this transport still pins egress. */
   readonly responsesThroughEngine?: boolean
   /**
@@ -85,11 +87,16 @@ export function execFetch(input: {
   let barrier = Promise.resolve()
   let stopActive: (() => void) | undefined
   let isClosed = false
-  const refuse = (reason: Refusal, isImage = false, message = UI_TEXT.execRequestShape): never => {
-    if (isImage)
+  const refuse = (
+    reason: Refusal,
+    isImage = false,
+    message = UI_TEXT.execRequestShape,
+    isVoice = false,
+  ): never => {
+    if (isImage || isVoice)
       input.emit({
         type: 'paid_use',
-        feature: 'imageGeneration',
+        feature: isVoice ? 'voice' : 'imageGeneration',
         n: null,
         phase: 'refused',
         units: 1,
@@ -126,13 +133,20 @@ export function execFetch(input: {
       return refuse('request_shape')
     }
     const base = new URL(MODEL_API_BASE_URL)
+    const isTranscriptionSearch =
+      parsed.pathname === EXEC_ENDPOINTS.transcribe &&
+      /^\?sessionId=[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(
+        parsed.search,
+      )
+    const hasForeignSearch =
+      parsed.search !== '' && parsed.pathname !== EXEC_ENDPOINTS.files && !isTranscriptionSearch
     if (
+      hasForeignSearch ||
       parsed.origin !== base.origin ||
       parsed.protocol !== 'https:' ||
       parsed.username !== '' ||
       parsed.password !== '' ||
-      parsed.hash !== '' ||
-      (parsed.search !== '' && parsed.pathname !== EXEC_ENDPOINTS.files)
+      parsed.hash !== ''
     )
       return refuse('request_shape')
     const method = init?.method ?? 'GET'
@@ -166,6 +180,24 @@ export function execFetch(input: {
         refuse: () => refuse('request_shape'),
         signal: input.lifecycle.signal,
       })
+    }
+    if (parsed.pathname === EXEC_ENDPOINTS.transcribe) {
+      // The batch transcription POST (U18): its exact bounded cost was
+      // admitted against the run ledger at reserve, before dispatch, and
+      // settles from the receipt through that same claim — admitted
+      // like every other paid use. This transport only lets the POST
+      // through while that reservation is held, its flag is on and the
+      // captured route and multipart shape hold; it never admits twice.
+      const contentType = new Headers(init?.headers).get('content-type') ?? ''
+      return method !== 'POST' ||
+        !isTranscriptionSearch ||
+        input.voiceTranscription !== true ||
+        !contentType.startsWith('multipart/form-data; boundary=') ||
+        init?.body == null ||
+        typeof init.body === 'string' ||
+        !input.ledger.hasActiveTranscription()
+        ? refuse('request_shape', false, UI_TEXT.execRequestShape, true)
+        : await forward(url, init)
     }
     const isResponse = parsed.pathname === EXEC_ENDPOINTS.responses
     const endpoint =

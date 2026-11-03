@@ -6533,6 +6533,7 @@ export const EXEC_ENDPOINTS = {
   responses: '/v1/responses',
   imageGenerations: '/v1/images/generations',
   imageEdits: '/v1/images/edits',
+  transcribe: '/v1/asr/transcribe',
 } as const
 /**
 One help screen, in lines: room for the longest full-options topic plus

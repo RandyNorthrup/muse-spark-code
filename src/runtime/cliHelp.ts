@@ -358,6 +358,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       { name: 'muse-binary', shape: '<path>' },
       { name: 'shell-sandbox', shape: '', fact: factFor('shell-sandbox') },
       { name: 'image-generation', shape: '' },
+      { name: 'muse-voice', shape: '' },
       { name: 'fail-on-denial', shape: '' },
       { name: 'ephemeral', shape: '' },
       { name: 'key-stdin', shape: '' },

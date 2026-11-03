@@ -177,7 +177,7 @@
         "n": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
         "endpoint": {
           "type": "string",
-          "enum": ["responses", "images.generations", "images.edits"]
+          "enum": ["responses", "images.generations", "images.edits", "transcribe"]
         },
         "phase": { "type": "string", "enum": ["admitted", "settled"] },
         "maxOutputTokens": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
@@ -212,6 +212,31 @@
                 "imagesReturned": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
                 "imagesRefunded": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
                 "imagesUncertain": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                "transcriptionAttempts": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "transcriptionsReturned": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "transcriptionsRefunded": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "transcriptionsUncertain": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "transcribedSeconds": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
                 "settledUsd": { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
                 "uncertainUsd": {
                   "type": "string",
@@ -223,6 +248,11 @@
                 "imagesReturned",
                 "imagesRefunded",
                 "imagesUncertain",
+                "transcriptionAttempts",
+                "transcriptionsReturned",
+                "transcriptionsRefunded",
+                "transcriptionsUncertain",
+                "transcribedSeconds",
                 "settledUsd",
                 "uncertainUsd"
               ],
@@ -303,7 +333,7 @@
       "type": "object",
       "properties": {
         "type": { "type": "string", "const": "paid_use" },
-        "feature": { "type": "string", "const": "imageGeneration" },
+        "feature": { "type": "string", "enum": ["imageGeneration", "voice"] },
         "n": {
           "anyOf": [
             { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
@@ -537,6 +567,31 @@
                       "minimum": 0,
                       "maximum": 9007199254740991
                     },
+                    "transcriptionAttempts": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "transcriptionsReturned": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "transcriptionsRefunded": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "transcriptionsUncertain": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "transcribedSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
                     "settledUsd": {
                       "type": "string",
                       "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
@@ -551,6 +606,11 @@
                     "imagesReturned",
                     "imagesRefunded",
                     "imagesUncertain",
+                    "transcriptionAttempts",
+                    "transcriptionsReturned",
+                    "transcriptionsRefunded",
+                    "transcriptionsUncertain",
+                    "transcribedSeconds",
                     "settledUsd",
                     "uncertainUsd"
                   ],

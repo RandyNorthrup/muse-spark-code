@@ -38,7 +38,7 @@ import { teamExecAdmission } from '../../acp/teamAdmission'
 
 export type ExecMode = 'plan' | 'acceptEdits'
 export type ExecOutput = 'text' | 'json' | 'jsonl'
-export type ExecPaidFeature = 'imageGeneration' | 'autoCompaction'
+export type ExecPaidFeature = 'imageGeneration' | 'autoCompaction' | 'voice'
 export type PromptSource =
   | { readonly kind: 'text'; readonly text: string }
   | { readonly kind: 'file'; readonly path: string }
@@ -106,6 +106,7 @@ const BOOLEAN_OPTIONS = new Set([
   'fast',
   'team',
   'image-generation',
+  'muse-voice',
   'auto-compaction',
   'no-auto-compaction',
   'fail-on-denial',
@@ -351,6 +352,7 @@ export function parseExec(
     'key-stdin',
     'subscription',
     'image-generation',
+    'muse-voice',
     'auto-compaction',
     'output-schema',
     'output-schema-outside',
@@ -365,6 +367,8 @@ export function parseExec(
     return invalid(UI_TEXT.execSubscriptionStdin)
   if (mode !== 'acceptEdits' && values['image-generation'] === true)
     return invalid(UI_TEXT.execPaidNeedsEdits)
+  if (mode !== 'acceptEdits' && values['muse-voice'] === true)
+    return invalid(UI_TEXT.execVoiceNeedsEdits)
   const files = values['untrusted-file']
   const untrustedFiles = Array.isArray(files)
     ? files.filter((file: unknown): file is string => typeof file === 'string')
@@ -436,6 +440,7 @@ export function parseExec(
       timeoutMs: timeout === undefined ? undefined : timeout * MILLISECONDS_PER_SECOND,
       paidFeatures: [
         ...(values['image-generation'] === true ? (['imageGeneration'] as const) : []),
+        ...(values['muse-voice'] === true ? (['voice'] as const) : []),
         ...(values['auto-compaction'] === true ? (['autoCompaction'] as const) : []),
       ],
       failOnDenial: values['fail-on-denial'] === true,
@@ -456,7 +461,9 @@ export function parseExec(
 /**
 Headless paid-use admission for one feature: nobody can be asked, so
 image generation needs its flag, acceptEdits and an affordable hard run
-budget, and automatic compaction needs its flag and any remaining run
+budget; batch transcription (voice) needs its flag and acceptEdits, and
+its exact bounded cost is admitted against the run ledger at reserve;
+and automatic compaction needs its flag and any remaining run
 budget (no `--max-budget-usd` means no ledger, so no compaction). Pure,
 so the run and its tests decide identically.
 */
@@ -469,14 +476,18 @@ export function isHeadlessPaidUseAllowed(
 ): boolean {
   if (requiresAsking || isAborted) return false
   const remaining = Usd.from(remainingUsd).units(EXEC_USD_DECIMALS)
-  const isAdmitted =
-    request.feature === 'autoCompaction'
-      ? options.paidFeatures.includes('autoCompaction') && remaining > NO_REMAINING_UNITS
+  const isVoiceOrImageAdmitted =
+    request.feature === 'voice'
+      ? options.paidFeatures.includes('voice') &&
+        options.mode === 'acceptEdits' &&
+        remaining > NO_REMAINING_UNITS
       : request.feature === 'imageGeneration' &&
         options.paidFeatures.includes('imageGeneration') &&
         options.mode === 'acceptEdits' &&
         remaining >= Usd.from(PAID_PRICES_USD.imageGeneration).units(EXEC_USD_DECIMALS)
-  return isAdmitted
+  return request.feature === 'autoCompaction'
+    ? options.paidFeatures.includes('autoCompaction') && remaining > NO_REMAINING_UNITS
+    : isVoiceOrImageAdmitted
 }
 
 export function serveOptionsFor(options: ExecOptions): ServeOptions {
