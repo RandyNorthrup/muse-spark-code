@@ -28,10 +28,6 @@ import { resolvedLongPath, SHORT_NAME_SHAPE } from './pathIdentity'
 const FILE_ACCESS_SUBJECT = 'fileAccess'
 const READ_ACCESS = 'read'
 
-/**
-Whether a workspace-relative path (forward slashes, links resolved) is a
-protected write. Case is ignored: Windows and macOS file systems fold it.
-*/
 /** The name's final dot suffix, or '' where the name has none but its first dot. */
 function sensitiveExtensionOf(name: string): string {
   const dot = name.lastIndexOf('.')
@@ -66,6 +62,10 @@ export function isSensitiveReadPath(canonicalRelative: string): boolean {
   )
 }
 
+/**
+Whether a workspace-relative path (forward slashes, links resolved) is a
+protected write. Case is ignored: Windows and macOS file systems fold it.
+*/
 export function isProtectedPath(canonicalRelative: string): boolean {
   const segments = canonicalRelative.toLowerCase().split('/')
   const name = segments.at(-1) ?? ''

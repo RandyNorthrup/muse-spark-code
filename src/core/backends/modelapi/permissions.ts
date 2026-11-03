@@ -421,6 +421,20 @@ export class PermissionEngine {
   }
 
   /**
+  A card's "allow once" decision (D261): Auto asks once per file per
+  session for a sensitive read, so the approval answers that file's later
+  reads too. Every other mode and call keeps "once" to this call.
+  */
+  public allowedOnce(query: PermissionQuery): void {
+    if (
+      query.isSensitiveRead === true &&
+      query.command !== undefined &&
+      this.mode === REVIEWED_MODE
+    )
+      this.allowed.add(ruleKey(query.toolName, query.command))
+  }
+
+  /**
   Whether the user chose "always allow" for this call on a card in this
   session, whatever the mode says: what widens a browser check beyond
   loopback when no card is shown (M81), since Bypass alone never does.
@@ -465,9 +479,7 @@ export class PermissionEngine {
       return query.command !== undefined && this.allowed.has(ruleKey(query.toolName, query.command))
         ? settled('allow')
         : {
-            verdict: 'ask',
-            settledBy: 'sensitiveRead',
-            isReviewable: false,
+            ...settled('ask', 'sensitiveRead'),
             hasSessionChoice: query.command !== undefined,
           }
     }
@@ -478,12 +490,7 @@ export class PermissionEngine {
       query.toolClass === 'edit' &&
       this.mode === REVIEWED_MODE
     ) {
-      return {
-        verdict: 'ask',
-        settledBy: 'untrustedMemory',
-        isReviewable: false,
-        hasSessionChoice: false,
-      }
+      return settled('ask', 'untrustedMemory')
     }
     const isProtected = query.isProtected === true
     const isMcp = query.toolClass === 'mcp'
