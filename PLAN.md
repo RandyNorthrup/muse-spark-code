@@ -22990,6 +22990,28 @@ recording drivers' lazy bundle and the preview ride int's deferred stanzas;
 the preview and what's-new pages ship in the VSIX's webview archive rather
 than as loose files. Record: `docs/certification/cc-int6.md`.
 
+**Status 2026-11-02 (RLF-M105BIND): building.** The production
+prepare/account/consent path is bound end to end. Video and soundtrack
+hearing are evidence on the selected model's capability record (the
+contributor captures on `metaCapabilityRecord`), projected for the
+modality gate, the sound router and the session replay; while a
+session's resolution is current, its own record governs prepare over
+the static table, and the host never prepares audio without the media
+service that consumes it. Headless `exec --muse-voice` admits batch
+transcription like every other paid use: the flag plus acceptEdits is
+the D48 answer, the exact bounded cost is reserved against the run
+ledger before dispatch and settled from the receipt (refunded, priced,
+uncertain or breach, with per-use `paid_use`/`attempt` events and
+totals), and the pinned transport carries the POST only while that
+reservation is held; runs without the ledger-bound transport refuse
+the reservation in words. Refusals name the missing capability (the
+gate's model sentence), the missing converter (its discovery reason)
+or the missing recorder (the recording drivers' words). Proven by
+`test/unit/m105bind.test.ts` (15 real-code tests) with three red/green
+drills; no live or paid call was made. Owner-device receipts (one real
+recording per OS through the packed product) stay owner steps and are
+listed, not claimed. Record: `docs/certification/rlf-m105bind.md`.
+
 **MSM105 finish lane (2026-10-17, macmini).** Merged the codec-refusal line
 (`cand/MSM105/3`), the production-composition line (`cand/MSM105/2`) and the
 current main (`3d30a7321`) onto C-M105-8; overhaul GO deletions stay
@@ -37011,8 +37033,10 @@ FIXM107DK4 qualification below supersedes that earlier claim.
     encoder child and loads from the governor's bundle. It reads through M107's
     resource-policy modules, which only the governor's bundle may carry, so
     conversion refuses on macOS.
-  - `exec` has no Muse Voice: its run ledger does not admit transcription
-    spend.
+  - (Closed RLF-M105BIND.) `exec --muse-voice` admits transcription
+    spend against the run ledger, reserved before dispatch and settled
+    from the receipt; the pinned transport carries the POST only while
+    the reservation is held.
   - (Closed PORTM105R2.) Embedded contract WAV is transcribed from the
     runtime registry, without needing a filesystem path; composition proved
     the session/prompt route. Other embedded formats still need conversion.

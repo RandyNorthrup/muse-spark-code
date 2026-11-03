@@ -47,7 +47,7 @@ const EXIT_CODES = Object.freeze({
 })
 const SIGNAL_CODES = Object.freeze({ SIGINT: 130, SIGTERM: 143 })
 const REFUSALS = new Set(['budget', 'requests', 'closed', 'unpriced', 'request_shape'])
-const ENDPOINTS = new Set(['responses', 'images.generations', 'images.edits'])
+const ENDPOINTS = new Set(['responses', 'images.generations', 'images.edits', 'transcribe'])
 const LIMIT_KINDS = new Set([
   'budget',
   'requests',
@@ -166,15 +166,30 @@ function isPaid(value) {
       'imagesReturned',
       'imagesRefunded',
       'imagesUncertain',
+      'transcriptionAttempts',
+      'transcriptionsReturned',
+      'transcriptionsRefunded',
+      'transcriptionsUncertain',
+      'transcribedSeconds',
       'settledUsd',
       'uncertainUsd',
     ]) &&
-    [value.imageAttempts, value.imagesReturned, value.imagesRefunded, value.imagesUncertain].every(
-      (count) => isCounter(count),
-    ) &&
+    [
+      value.imageAttempts,
+      value.imagesReturned,
+      value.imagesRefunded,
+      value.imagesUncertain,
+      value.transcriptionAttempts,
+      value.transcriptionsReturned,
+      value.transcriptionsRefunded,
+      value.transcriptionsUncertain,
+      value.transcribedSeconds,
+    ].every((count) => isCounter(count)) &&
     isAmount(value.settledUsd) &&
     isAmount(value.uncertainUsd) &&
-    value.imagesReturned + value.imagesRefunded + value.imagesUncertain <= value.imageAttempts
+    value.imagesReturned + value.imagesRefunded + value.imagesUncertain <= value.imageAttempts &&
+    value.transcriptionsReturned + value.transcriptionsRefunded + value.transcriptionsUncertain <=
+      value.transcriptionAttempts
   )
 }
 
@@ -486,7 +501,7 @@ const EVENT_BODIES = Object.freeze({
     typeof value.sessionId === 'string' &&
     typeof value.ephemeral === 'boolean' &&
     Array.isArray(value.paidFeatures) &&
-    value.paidFeatures.every((feature) => feature === 'imageGeneration') &&
+    value.paidFeatures.every((feature) => feature === 'imageGeneration' || feature === 'voice') &&
     isLimits(value.limits),
   update: (value) =>
     isObject(value, ['type', 'update']) &&
@@ -531,7 +546,7 @@ const EVENT_BODIES = Object.freeze({
     isTotals(value.totals),
   paid_use: (value) =>
     isObject(value, ['type', 'feature', 'n', 'phase', 'units', 'usd'], ['reason']) &&
-    value.feature === 'imageGeneration' &&
+    (value.feature === 'imageGeneration' || value.feature === 'voice') &&
     (value.n === null || (isCounter(value.n) && value.n >= 1)) &&
     PAID_PHASES.has(value.phase) &&
     isCounter(value.units) &&

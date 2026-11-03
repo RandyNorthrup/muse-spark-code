@@ -9,6 +9,7 @@ import {
   MODEL_API_CONTEXT_WINDOW,
   MODEL_API_MAX_OUTPUT_TOKENS,
   PAID_PRICES_USD,
+  SECONDS_PER_HOUR,
   NON_BILLABLE_HTTP_REJECTIONS,
   UI_TEXT,
 } from '../../shared/constants'
@@ -57,6 +58,18 @@ export interface ImageTicket {
   readonly units: 1
   readonly reserveUsd: UsdAmount
 }
+/**
+One admitted batch transcription (M105): the reservation is the exact
+bounded cost the preparation computed from the file's duration upper
+bound at the voice tariff, settled from the receipt's billed seconds.
+*/
+export interface TranscriptionTicket {
+  readonly n: number
+  readonly kind: 'transcription'
+  readonly reserveUsd: UsdAmount
+}
+export type TranscriptionSettlement =
+  { kind: 'returned'; costUsd: UsdAmount } | { kind: 'refunded' } | { kind: 'unknown' }
 export type ResponseSettlement =
   | {
       kind: 'eof'
@@ -148,6 +161,9 @@ export interface RunLedger {
     readonly countFailure?: CountFailureDetail | undefined
   }): ResponseTicket | { refused: Refusal }
   admitImage(endpoint: 'images.generations' | 'images.edits'): ImageTicket | { refused: Refusal }
+  admitTranscription(costUsd: UsdAmount): TranscriptionTicket | { refused: Refusal }
+  /** Whether an admitted transcription reservation is still held (its POST may go). */
+  hasActiveTranscription(): boolean
   /** A preflight refusal has no attempt to settle but remains typed in the record. */
   reject(reason: Refusal): void
   /** Withdraw a ticket that never reached dispatch, including its request count. */
@@ -159,6 +175,10 @@ export interface RunLedger {
     observe?: (outcome: LastResponse) => void,
   ): SettlementResult
   settleImage(ticket: ImageTicket, outcome: ImageSettlement): SettlementResult
+  settleTranscription(
+    ticket: TranscriptionTicket,
+    outcome: TranscriptionSettlement,
+  ): SettlementResult
   /** A trusted engine attempt never reached dispatch: release its exact claim once. */
   releaseUnsent(ticket: ResponseTicket): void
   /** Repository team policy may only lower the worker allowance within the run cap. */
@@ -303,7 +323,7 @@ export function createRunLedger(input: {
   let requests = 0
   let settled = ZERO
   let uncertain = ZERO
-  const active = new Map<ResponseTicket | ImageTicket, bigint>()
+  const active = new Map<ResponseTicket | ImageTicket | TranscriptionTicket, bigint>()
   let reserve = ZERO
   let workerCap = cap
   let workerReserve = ZERO
@@ -323,6 +343,11 @@ export function createRunLedger(input: {
   let imagesReturned = 0
   let imagesRefunded = 0
   let imagesUncertain = 0
+  let transcriptionAttempts = 0
+  let transcriptionsReturned = 0
+  let transcriptionsRefunded = 0
+  let transcriptionsUncertain = 0
+  let transcribedSeconds = 0
   let paidSettled = ZERO
   let paidUncertain = ZERO
   const refuse = (reason: Refusal) => {
@@ -343,7 +368,7 @@ export function createRunLedger(input: {
     requests += 1
     return undefined
   }
-  const take = (ticket: ResponseTicket | ImageTicket): bigint => {
+  const take = (ticket: ResponseTicket | ImageTicket | TranscriptionTicket): bigint => {
     const amount = active.get(ticket)
     if (amount === undefined) throw new UserRefusalError(UI_TEXT.execRequestShape, 'request_shape')
     active.delete(ticket)
@@ -401,6 +426,32 @@ export function createRunLedger(input: {
       })
       active.set(ticket, amount)
       return ticket
+    },
+    admitTranscription(costUsd) {
+      let amount: bigint
+      try {
+        amount = units(costUsd)
+      } catch (error: unknown) {
+        // NARROW: an amount the exact arithmetic cannot hold is unpriced;
+        // anything else is not this conversion's failure.
+        if (!(error instanceof UserRefusalError)) throw error
+        return refuse('unpriced')
+      }
+      if (amount < ZERO) return refuse('unpriced')
+      const rejected = admit(amount)
+      if (rejected !== undefined) return rejected
+      transcriptionAttempts += 1
+      const ticket = Object.freeze({
+        kind: 'transcription' as const,
+        n: requests,
+        reserveUsd: usd(amount),
+      })
+      active.set(ticket, amount)
+      return ticket
+    },
+    hasActiveTranscription() {
+      for (const ticket of active.keys()) if (ticket.kind === 'transcription') return true
+      return false
     },
     reject(reason) {
       refuse(reason)
@@ -508,6 +559,32 @@ export function createRunLedger(input: {
       } else paidSettled += priced
       return finish(amount, priced, latch)
     },
+    settleTranscription(ticket, outcome) {
+      const amount = take(ticket)
+      let priced: bigint | undefined
+      let latch: SettlementResult['latch']
+      if (outcome.kind === 'returned') {
+        // The receipt's billed seconds at the voice tariff, computed by
+        // the preparation (`batchCost`); a bill past the reservation
+        // is a breach, as a response past its reserve is. The seconds
+        // tally reads back off that same tariff arithmetic.
+        priced = units(outcome.costUsd)
+        if (priced > amount) latch = 'breach'
+        transcriptionsReturned += 1
+        transcribedSeconds += Number(
+          (priced * BigInt(SECONDS_PER_HOUR)) /
+            units(Usd.from(PAID_PRICES_USD.voicePerHour).toAmount()),
+        )
+      } else if (outcome.kind === 'refunded') {
+        priced = ZERO
+        transcriptionsRefunded += 1
+      }
+      if (priced === undefined) {
+        transcriptionsUncertain += 1
+        paidUncertain += amount
+      } else paidSettled += priced
+      return finish(amount, priced, latch)
+    },
     close() {
       isClosed = true
     },
@@ -538,6 +615,11 @@ export function createRunLedger(input: {
           imagesReturned,
           imagesRefunded,
           imagesUncertain,
+          transcriptionAttempts,
+          transcriptionsReturned,
+          transcriptionsRefunded,
+          transcriptionsUncertain,
+          transcribedSeconds,
           settledUsd: usd(paidSettled),
           uncertainUsd: usd(paidUncertain),
         },

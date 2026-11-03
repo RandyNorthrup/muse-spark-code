@@ -37,6 +37,8 @@ import type { ResponsesMediaCodec } from '../backends/modelapi/codecs/responses'
 import type { MediaBudget } from '../backends/modelapi/mediaBudget'
 import { pinOwnerForRequest, type UploadLedger } from './uploadLedger'
 import { modalityGate, type MediaModelCapabilities, type MediaGateResult } from './modalityGate'
+import type { ModelCapabilityRecord } from '../providers/capabilityRecord'
+import { mediaCapabilitiesFromRecord } from './recordMediaCapabilities'
 
 export type { StoredMediaPart } from '../../shared/media'
 
@@ -44,6 +46,11 @@ export interface ReplayMediaDeps {
   readonly estimator?: MediaCostEstimator
 
   readonly capabilities: (modelId: string) => MediaModelCapabilities
+  /** The selected model's evidence-bearing record, when the host resolved
+  one for this request (M95): its projection governs over the static
+  `capabilities` table, so a prepared item reaches the model only
+  through the record the request itself resolved (D85.1). */
+  readonly recordFor?: (modelId: string) => ModelCapabilityRecord | undefined
   readonly codec: ResponsesMediaCodec
   readonly ledger: (
     provider: string,
@@ -159,6 +166,8 @@ function inlineVisualIdentity(part: InputContentPart): StoredMediaPart | undefin
 export interface MediaReplaySession {
   readonly isCapped: () => boolean
   readonly isClosed: () => boolean
+  /** The record this session's selected model resolved to, when it has one. */
+  readonly capabilityRecord?: (modelId: string) => ModelCapabilityRecord | undefined
 }
 
 /** Structural host seam: W can bind a lazy adapter without inheriting this implementation. */
@@ -217,7 +226,11 @@ export class ReplayMedia {
   ) {}
 
   private model(modelId: string): MediaModelCapabilities {
-    const model = this.deps.capabilities(modelId)
+    const record = this.deps.recordFor?.(modelId)
+    const model =
+      record === undefined
+        ? this.deps.capabilities(modelId)
+        : mediaCapabilitiesFromRecord(record, modelId)
     if (model.modelId !== modelId) throw new Error('Media capability model mismatch')
     return model
   }

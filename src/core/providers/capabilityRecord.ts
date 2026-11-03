@@ -13,6 +13,7 @@ import {
   PROMPT_CACHE_RETENTIONS,
 } from '../../shared/constants'
 import { outputTokenMinimumMessage } from '../../shared/providerRouting'
+import { metaMediaCapture } from '../media/metaMediaEvidence'
 import { effortLevelsFor } from '../../shared/effort'
 
 const sourceSchema = z.strictObject({
@@ -126,6 +127,19 @@ const modalitiesSchema = z.strictObject({
       maxPages: z.optional(count),
       maxBytes: z.optional(count),
       maxCount: z.optional(count),
+    }),
+  ),
+  // D85.1: video is a capability of the selected model, never of a vendor.
+  // The evidence names the formats it takes, the longest measured turn,
+  // the frame rates tried and whether it hears the soundtrack; a model
+  // with no such evidence stays unknown and the media gate refuses it.
+  video: known(
+    z.strictObject({
+      mimes: strings,
+      maxBytes: z.optional(count),
+      maxDurationSeconds: z.optional(count),
+      fps: z.optional(z.strictObject({ min: count, max: count })),
+      hearsSoundtrack: flag,
     }),
   ),
   audio: flag,
@@ -325,7 +339,7 @@ export function resolveModelCapabilities(
     cache: { mode: 'none', acceptsKey: false, retention: [], ttls: [] },
     output: { formats: unknown, acceptsLimit: unknown },
     limits: {},
-    modalities: { image: unknown, pdf: unknown, audio: unknown },
+    modalities: { image: unknown, pdf: unknown, video: unknown, audio: unknown },
     files: { upload: unknown },
     logprobs: unknown,
     sampling: { temperature: unknown, topP: unknown, nativeCandidates: unknown },
@@ -391,6 +405,12 @@ export function metaCapabilityRecord(nativeModel: string): ModelCapabilityRecord
     ref: 'https://dev.meta.ai/docs/file-handling',
   }
   const pdfYes = <T>(value: T) => ({ state: 'yes' as const, value, source: pdfSource })
+  const mediaSource: CapabilitySource = {
+    kind: 'capture',
+    ref: 'docs/certification/m105-captures.md',
+  }
+  const mediaYes = <T>(value: T) => ({ state: 'yes' as const, value, source: mediaSource })
+  const mediaCapture = metaMediaCapture(nativeModel)
   return resolveModelCapabilities({ provider: 'meta', nativeModel, format: 'responses' }, [
     {
       source,
@@ -453,6 +473,33 @@ export function metaCapabilityRecord(nativeModel: string): ModelCapabilityRecord
       source: { kind: 'capture', ref: 'docs/certification/min-output-cap.md' },
       fields: { output: { minTokens: MODEL_API_MIN_OUTPUT_TOKENS } },
     },
+    // D85.1 captures (docs/certification/m105-captures.md, the shared
+    // evidence in core/media/metaMediaEvidence): the two contributor
+    // models take mp4 and mov video; 1.2 hears the soundtrack and 1.3
+    // does not (U4). `input_audio` is accepted and silently ignored on
+    // both (U7), so standalone audio is 'no': sound routes to
+    // transcription, never to an unheard part. A Meta model with no
+    // captures keeps unknown video and audio, which the gate refuses.
+    ...(mediaCapture === undefined
+      ? []
+      : [
+          {
+            source: mediaSource,
+            fields: {
+              modalities: {
+                video: mediaYes({
+                  mimes: [...mediaCapture.videoFormats],
+                  maxDurationSeconds: mediaCapture.maxDurationSeconds,
+                  fps: { ...mediaCapture.fps },
+                  hearsSoundtrack: mediaCapture.hearsSoundtrack
+                    ? mediaYes(true as const)
+                    : { state: 'no' as const, source: mediaSource },
+                }),
+                audio: { state: 'no' as const, source: mediaSource },
+              },
+            },
+          },
+        ]),
   ])
 }
 /** Native effort names for the picker, without manufacturing Meta tiers. */
