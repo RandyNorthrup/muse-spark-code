@@ -30,6 +30,7 @@ import {
 } from '../../src/host/team/teamProcessWorkers'
 import { createTeamHost } from '../../src/host/team/teamHostEntry'
 import {
+  MUSE_POSIX_EXECUTABLE,
   TEAM_MODEL_TEXT,
   TEAM_PROCESS_MODEL_TEXT,
   UI_TEXT,
@@ -50,7 +51,7 @@ import {
 import { enginePortsWithoutWorker, realTeamGit } from './helpers/realTeamGit'
 import { isolatedRuntimeEnvironment } from './helpers/isolatedRuntimeEnvironment'
 import { stageAgentBundle } from './helpers/stageAgentBundle'
-import { MUSE } from './helpers/acpRecoverRig'
+import { MUSE, museOrThrow } from './helpers/acpRecoverRig'
 
 const ORCHESTRATOR = 'orchestrator-model'
 const MUSE_AGENT: TeamAgentRef = {
@@ -172,6 +173,8 @@ async function makeRig(options: {
   readonly pathEntries?: readonly string[]
   readonly withoutMuse?: boolean
   readonly checks?: () => readonly CheckCommandSetting[]
+  /** The workers' PATH in place of this process's. */
+  readonly searchPath?: string
 }): Promise<Rig> {
   const root = await realpath(await mkdtemp(path.join(tmpdir(), 'muse-team-process-')))
   roots.push(root)
@@ -182,7 +185,10 @@ async function makeRig(options: {
     [TEAM_WORKSPACE_KEYS.team, storedTeam(options.agent)],
   ])
   const cards: TeamCardItem[] = []
-  const env = isolatedRuntimeEnvironment(home, root)
+  const env = {
+    ...isolatedRuntimeEnvironment(home, root),
+    ...(options.searchPath !== undefined && { PATH: options.searchPath }),
+  }
   const state = { hasMuse: options.withoutMuse !== true, pathEntries: options.pathEntries ?? [] }
   const journal = path.join(root, 'journal')
   let isTrusted = true
@@ -318,12 +324,29 @@ function ownOnPackedAgent(agentPath: string, preload: readonly string[] = []): A
   }
 }
 
+/**
+The PATH the packed agent searches for Muse Code: with `muse`'s folder first
+where this machine has the CLI, or without any folder holding one, so the
+agent's readiness check answers the same on every machine. Its home is the
+rig's own, which holds no CLI and no credential file.
+*/
+function agentSearchPath(muse: 'found' | 'absent'): string {
+  const entries = (process.env['PATH'] ?? '').split(path.delimiter).filter((entry) => entry !== '')
+  return muse === 'found'
+    ? [path.dirname(museOrThrow()), ...entries].join(path.delimiter)
+    : entries
+        .filter((entry) => !existsSync(path.join(entry, MUSE_POSIX_EXECUTABLE)))
+        .join(path.delimiter)
+}
+
 /** A rig whose external agent is the real packed agent, started the way the product starts `own`. */
 function packedAgentRig(
   options: {
     readonly model?: string
     /** Node's own `-r` preload: a line that notes the arguments the real agent process received. */
     readonly preload?: readonly string[]
+    /** Whether the agent finds a Muse Code CLI; absent unless a test needs the sign-in step. */
+    readonly muse?: 'found' | 'absent'
   } = {},
 ): Promise<Rig> {
   const agentPath = path.join(staged.directory, 'dist', 'acp.js')
@@ -331,6 +354,7 @@ function packedAgentRig(
     agent: { ...OWN_AGENT, model: options.model ?? OWN_AGENT.model },
     presets: { ...ACP_PRESETS, own: ownOnPackedAgent(agentPath, options.preload) },
     pathEntries: [path.dirname(process.execPath)],
+    searchPath: agentSearchPath(options.muse ?? 'absent'),
   })
 }
 
@@ -584,10 +608,13 @@ describe.skipIf(process.platform === 'win32')('external agent workers', () => {
     WORKER_TEST_TIMEOUT_MS,
   )
 
-  it(
+  // The sign-in step needs a Muse Code CLI the agent finds. Its readiness check
+  // only looks for the CLI and reads the absent credential file: nothing
+  // starts the CLI.
+  it.skipIf(MUSE === undefined)(
     'tells the person to sign in with the agent’s own CLI when the real agent has no sign-in',
     async () => {
-      const rig = await packedAgentRig()
+      const rig = await packedAgentRig({ muse: 'found' })
       const task = await delegate(rig, 'engineering', 'any work')
       const end = await settled(rig, task)
       expect(end).toEqual({
@@ -625,11 +652,10 @@ describe.skipIf(process.platform === 'win32')('external agent workers', () => {
       const rig = await packedAgentRig({ model, preload: ['-r', preload] })
       const task = await delegate(rig, 'engineering', 'any work')
       const end = await settled(rig, task)
-      // The agent's own parser accepted the arguments: it got as far as asking for a sign-in.
-      expect(end).toEqual({
-        phase: 'failed',
-        failure: TEAM_PROCESS_MODEL_TEXT.hostExternalNotSignedIn,
-      })
+      // The agent's own parser accepted the arguments: it got as far as its
+      // readiness check, whose refusal reaches the person in its own words.
+      expect(end.phase).toBe('failed')
+      expect(end.failure).toContain(UI_TEXT.cliNotFound)
       const lines = readFileSync(noted, 'utf8').trim().split('\n')
       expect(lines.map((line) => JSON.parse(line) as string[])).toEqual([expectedArguments])
     },
