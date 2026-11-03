@@ -132,11 +132,10 @@ describe('M111 lane BP terminal sessions', () => {
       all.write(created.id, 'echo bp-prompt-ready\n')
       await waitFor(() => events.chunks.join('').includes('bp-prompt-ready'))
       expect(all.hasChildren(created.id)).toBe(false)
-      if (process.platform === 'win32') {
-        all.write(created.id, 'ping -n 30 127.0.0.1 > NUL\n')
-      } else {
-        all.write(created.id, 'sleep 27\n')
-      }
+      all.write(
+        created.id,
+        process.platform === 'win32' ? 'ping -n 30 127.0.0.1 > NUL\n' : 'sleep 27\n',
+      )
       await waitFor(() => all.hasChildren(created.id))
       all.close(created.id)
       expect(all.list()).toEqual([])

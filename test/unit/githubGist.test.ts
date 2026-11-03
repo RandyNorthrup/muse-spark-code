@@ -43,9 +43,7 @@ function recordingFetch(
 }
 
 function jsonResponse(status: number, body: unknown, headers?: Record<string, string>): Response {
-  return headers === undefined
-    ? Response.json(body, { status })
-    : Response.json(body, { status, headers })
+  return Response.json(body, headers === undefined ? { status } : { status, headers })
 }
 
 /** The device flow must not present before GitHub's code answer arrives. */

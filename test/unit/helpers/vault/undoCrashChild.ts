@@ -53,8 +53,13 @@ function journalUndoIntent(item: VaultItem): string | undefined {
   const text = Buffer.from(material.value).toString('utf8')
   try {
     const parsed: unknown = JSON.parse(text)
-    if (typeof parsed !== 'object' || parsed === null) return undefined
-    if (!('phase' in parsed) || !('undoIntent' in parsed)) return undefined
+    if (
+      typeof parsed !== 'object' ||
+      parsed === null ||
+      !('phase' in parsed) ||
+      !('undoIntent' in parsed)
+    )
+      return undefined
     const { phase, undoIntent } = parsed
     return phase === 'retired' && typeof undoIntent === 'string' ? undoIntent : undefined
   } catch (error: unknown) {

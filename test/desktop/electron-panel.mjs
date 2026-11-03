@@ -180,7 +180,7 @@ async function poll(expression, what, budgetMs) {
   const deadline = Date.now() + budgetMs
   while (Date.now() < deadline) {
     const value = await evaluate(expression)
-    if (value !== null && value !== undefined && value !== false && value !== '') return value
+    if (![null, undefined, false, ''].includes(value)) return value
     await new Promise((resolve) => setTimeout(resolve, 250))
   }
   let state = 'the page stopped answering'

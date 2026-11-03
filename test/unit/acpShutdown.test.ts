@@ -222,7 +222,7 @@ function keychainFacts(home: string): {
 }
 
 /** Whether nothing listens on the port: the proxy that keeps every request off Muse. */
-function nothingListensOn(port: number): Promise<boolean> {
+function isNothingListeningOn(port: number): Promise<boolean> {
   return new Promise((resolve) => {
     const socket = net.connect({ host: '127.0.0.1', port })
     socket.once('connect', () => {
@@ -262,7 +262,7 @@ async function startedAgent(start: Start): Promise<Left> {
     process.execPath,
     [
       AGENT,
-      ...(museBinary !== undefined && start.state !== 'idle' ? ['--muse-binary', museBinary] : []),
+      ...(museBinary === undefined || start.state === 'idle' ? [] : ['--muse-binary', museBinary]),
     ],
     { cwd: workspace, env, stdio: 'pipe' },
   )
@@ -438,9 +438,10 @@ describe.skipIf(process.platform === 'win32')('the served agent when its client 
     beforeAll(async () => {
       account.before = keychainFacts(process.env['HOME'] ?? homedir())
       // Every request the CLI makes goes to a proxy nothing answers: none reaches Muse.
-      expect(await nothingListensOn(DEAD_PORT), 'something listens on the dead proxy port').toBe(
-        true,
-      )
+      expect(
+        await isNothingListeningOn(DEAD_PORT),
+        'something listens on the dead proxy port',
+      ).toBe(true)
     })
 
     afterEach(() => {

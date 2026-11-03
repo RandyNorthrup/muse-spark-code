@@ -184,11 +184,8 @@ export function effectiveMaxRetries(
   documented: RetryLimits | undefined,
 ): number {
   const providerMaxRetries = documented?.maxRetries
-  return providerMaxRetries === undefined
-    ? (personCap ?? INDUSTRY_RETRY_MAX_RETRIES)
-    : personCap === undefined
-      ? providerMaxRetries
-      : Math.min(personCap, providerMaxRetries)
+  if (providerMaxRetries === undefined) return personCap ?? INDUSTRY_RETRY_MAX_RETRIES
+  return personCap === undefined ? providerMaxRetries : Math.min(personCap, providerMaxRetries)
 }
 
 /**

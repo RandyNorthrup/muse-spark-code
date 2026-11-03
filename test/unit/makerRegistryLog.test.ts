@@ -56,36 +56,6 @@ async function registry() {
     failNextDelete: undefined as string | undefined,
     deletions: [] as string[],
   }
-  const write = (expected: number, records: readonly MachineRecord[]) => {
-    writes.push([expected, records])
-    if (control.failNextWrite !== undefined) {
-      const failure = control.failNextWrite
-      control.failNextWrite = undefined
-      return Promise.reject(new Error(failure))
-    }
-    if (control.failAfterWrites !== undefined) {
-      control.failAfterWrites -= 1
-      if (control.failAfterWrites < 0) {
-        control.failAfterWrites = undefined
-        return Promise.reject(new Error('diskFull'))
-      }
-    }
-    if (control.staleAfterWrites !== undefined) {
-      control.staleAfterWrites -= 1
-      if (control.staleAfterWrites < 0) {
-        control.staleAfterWrites = undefined
-        return Promise.resolve(false)
-      }
-    }
-    if (control.staleNextWrite) {
-      control.staleNextWrite = false
-      return Promise.resolve(false)
-    }
-    if (expected !== revision) return Promise.resolve(false)
-    revision += 1
-    stored = { revision, records: structuredClone(records) }
-    return Promise.resolve(true)
-  }
   const values = new Map<string, string>()
   const secrets: MakerSecrets = {
     get: (name) => Promise.resolve(values.get(name)),
@@ -106,7 +76,40 @@ async function registry() {
   }
   return {
     registry: new MachineRegistry(
-      { directory, read: () => Promise.resolve(stored), compareAndSwap: write },
+      {
+        directory,
+        read: () => Promise.resolve(stored),
+        compareAndSwap: (expected, records) => {
+          writes.push([expected, records])
+          if (control.failNextWrite !== undefined) {
+            const failure = control.failNextWrite
+            control.failNextWrite = undefined
+            return Promise.reject(new Error(failure))
+          }
+          if (control.failAfterWrites !== undefined) {
+            control.failAfterWrites -= 1
+            if (control.failAfterWrites < 0) {
+              control.failAfterWrites = undefined
+              return Promise.reject(new Error('diskFull'))
+            }
+          }
+          if (control.staleAfterWrites !== undefined) {
+            control.staleAfterWrites -= 1
+            if (control.staleAfterWrites < 0) {
+              control.staleAfterWrites = undefined
+              return Promise.resolve(false)
+            }
+          }
+          if (control.staleNextWrite) {
+            control.staleNextWrite = false
+            return Promise.resolve(false)
+          }
+          if (expected !== revision) return Promise.resolve(false)
+          revision += 1
+          stored = { revision, records: structuredClone(records) }
+          return Promise.resolve(true)
+        },
+      },
       secrets,
       privateLan,
     ),

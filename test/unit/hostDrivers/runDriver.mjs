@@ -20,9 +20,7 @@ function fail(code) {
 }
 
 const [driver, json = ''] = process.argv.slice(2)
-if (driver !== 'checkpoint' && driver !== 'hunks' && driver !== 'settings') {
-  fail(2)
-} else {
+if (['checkpoint', 'hunks', 'settings'].includes(driver)) {
   const stage = mkdtempSync(path.join(tmpdir(), 'muse-conformance-driver-'))
   try {
     const bundle = path.join(stage, 'driver.mjs')
@@ -47,11 +45,15 @@ if (driver !== 'checkpoint' && driver !== 'hunks' && driver !== 'settings') {
         maxBuffer: 16 * 1024 * 1024,
         timeout: 10 * 60 * 1000,
       })
-      if (ran.error !== undefined || ran.status !== 0)
+      if (ran.error === undefined && ran.status === 0) {
+        process.stdout.write(ran.stdout)
+      } else {
         fail(ran.status === 0 || ran.status === null ? 1 : ran.status)
-      else process.stdout.write(ran.stdout)
+      }
     }
   } finally {
     rmSync(stage, { recursive: true, force: true })
   }
+} else {
+  fail(2)
 }
