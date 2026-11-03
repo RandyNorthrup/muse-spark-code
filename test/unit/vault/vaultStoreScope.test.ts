@@ -12,6 +12,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { randomBytes } from 'node:crypto'
 import { mkdtemp, readFile, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
+import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 import { AsyncEntry } from '@napi-rs/keyring'
 import { VaultManageSession } from '../../../src/core/vault/broker/manageClient'
@@ -60,9 +61,27 @@ const AUDIT_SETTLE_TIMEOUT_MS = 60_000
 // test relocates it, so no append lands mid-move.
 const AUDIT_QUIESCE_MS = 1000
 
-/** Linux's OS store is the Secret Service over the session bus; without one there is no store. */
+/**
+Linux's OS store is the Secret Service over the session bus; without one
+there is no store. A headless Mac session likewise has no default
+keychain (`security default-keychain` fails there, measured on the rig),
+and every store case then fails with its absence instead of its subject.
+*/
 function hasStore(): boolean {
-  return process.platform !== 'linux' || (process.env['DBUS_SESSION_BUS_ADDRESS'] ?? '') !== ''
+  switch (process.platform) {
+    case 'linux': {
+      return (process.env['DBUS_SESSION_BUS_ADDRESS'] ?? '') !== ''
+    }
+    case 'darwin': {
+      return (
+        spawnSync('/usr/bin/security', ['default-keychain'], { stdio: 'ignore', timeout: 10_000 })
+          .status === 0
+      )
+    }
+    default: {
+      return true
+    }
+  }
 }
 
 function openEntry(account: string): AsyncEntry {
