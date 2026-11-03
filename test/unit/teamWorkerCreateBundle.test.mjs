@@ -13,6 +13,7 @@ import {
   sharedWire,
 } from '../../scripts/lib/deferredBundles.mjs'
 import { EN } from '../../src/shared/l10n/en'
+import { createdHelperFile } from '../../src/core/nativeHelper'
 import { immediateResourceSettings } from './helpers/resources/fixtureAdmission.ts'
 import { nativeCreated, nativeScratch, useCreatedNative } from './helpers/createdNative'
 
@@ -128,14 +129,14 @@ beforeAll(async () => {
   // beside a shim at the installed helper path. The shim only drops the
   // '--created-directory' word the Swift entry consumes in production; the
   // worker protocol bytes after it reach the real compiled helper.
-  const directory = path.join(state.folder, 'native', 'darwin')
+  // The installed helper path is production's own (inside its architecture's .app).
+  const helper = createdHelperFile(path.join(state.folder, 'native'), 'darwin', process.arch)
+  const directory = path.dirname(helper)
   await mkdir(directory, { recursive: true })
   await copyFile(path.join(nativeScratch(), 'created'), path.join(directory, 'muse-dictate-real'))
-  await writeFile(
-    path.join(directory, 'muse-dictate'),
-    '#!/bin/sh\nshift\nexec "$(dirname "$0")/muse-dictate-real" "$@"\n',
-    { mode: 0o755 },
-  )
+  await writeFile(helper, '#!/bin/sh\nshift\nexec "$(dirname "$0")/muse-dictate-real" "$@"\n', {
+    mode: 0o755,
+  })
 }, 30_000) // Compile the real native/helper bundle graph once; test deadlines remain the repository default.
 
 afterAll(async () => {

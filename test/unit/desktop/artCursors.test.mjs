@@ -28,6 +28,7 @@ import {
   writeXcursor,
   writeZip,
 } from '../../../scripts/build-cursors.mjs'
+import { RESVG_FONTS } from '../../../scripts/lib/resvgFonts.mjs'
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 const readRoot = (name) => readFile(path.join(root, name))
@@ -319,6 +320,7 @@ describe('committed Xcursor files', () => {
       const source = await readFile(path.join(root, CURSOR_SOURCES, `${shape}.svg`), 'utf8')
       const fresh = new Resvg(themeSvg(source, shape, palette, 1), {
         fitTo: { mode: 'width', value: 32 },
+        font: RESVG_FONTS,
       })
         .render()
         .asPng()

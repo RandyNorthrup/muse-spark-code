@@ -25,6 +25,7 @@ import process from 'node:process'
 import { PNG } from 'pngjs'
 import { Resvg } from '@resvg/resvg-js'
 import { isEntryPoint } from './lib/entryPoint.mjs'
+import { RESVG_FONTS } from './lib/resvgFonts.mjs'
 
 const REPO_ROOT = path.resolve(import.meta.dirname, '..')
 
@@ -166,7 +167,7 @@ export function greeterSvg(template, palette) {
 /** Render one SVG to PNG bytes at exactly width x height (resvg, pinned). */
 export function renderWallpaper(svg, width, height) {
   const png = Buffer.from(
-    new Resvg(svg, { fitTo: { mode: 'width', value: width } }).render().asPng(),
+    new Resvg(svg, { fitTo: { mode: 'width', value: width }, font: RESVG_FONTS }).render().asPng(),
   )
   const decoded = PNG.sync.read(png)
   if (decoded.width !== width || decoded.height !== height) {

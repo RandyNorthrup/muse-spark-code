@@ -24,6 +24,7 @@ import {
   themeIcon,
   writeIcons,
 } from '../../../scripts/build-icons.mjs'
+import { RESVG_FONTS } from '../../../scripts/lib/resvgFonts.mjs'
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 const icons = JSON.parse(await readFile(path.join(root, ICON_PALETTE), 'utf8'))
@@ -249,7 +250,9 @@ describe('committed icon themes', () => {
 })
 
 async function paintedPixels(svg, theme, name) {
-  const png = new Resvg(svg, { fitTo: { mode: 'width', value: 48 } }).render().asPng()
+  const png = new Resvg(svg, { fitTo: { mode: 'width', value: 48 }, font: RESVG_FONTS })
+    .render()
+    .asPng()
   const { data } = PNG.sync.read(Buffer.from(png))
   let painted = 0
   for (let pixel = 3; pixel < data.length; pixel += 4) {
