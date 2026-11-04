@@ -9,22 +9,26 @@ function waiting(isStopAskedFirst = false) {
   if (isStopAskedFirst) controller.abort()
   const answer = Promise.withResolvers<string>()
   const told: number[] = []
+  const toldTwice = Promise.withResolvers<boolean>()
   const waited = waitForAnswer(
     answer.promise,
     controller.signal,
     stopError,
     (elapsedMs) => {
       told.push(elapsedMs)
+      if (told.length === 2) toldTwice.resolve(true)
     },
     10,
   )
-  return { controller, answer, told, waited }
+  return { controller, answer, told, toldTwice: toldTwice.promise, waited }
 }
 
 describe('handshake waits without an invented deadline (NOLIMITS2 C12)', () => {
   it('resolves with the answer and says so while waiting', async () => {
-    const { answer, told, waited } = waiting()
-    await new Promise((resolve) => setTimeout(resolve, 35))
+    const { answer, told, toldTwice, waited } = waiting()
+    // The answer comes after the second notice, not after a time: 35 ms held one 10 ms notice on a
+    // loaded Windows runner (run 41738951665), whose timers are also coarser than that.
+    await toldTwice
     answer.resolve('connected')
     await expect(waited).resolves.toBe('connected')
     // Notices on the way, minutes out: the wait said so instead of hanging silently.

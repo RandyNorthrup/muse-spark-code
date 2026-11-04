@@ -137,7 +137,7 @@ export function nativeSerial(deps: NativeSerialDeps) {
   }
   async function ports() {
     // The one rule for a Windows PowerShell child (execGuard): its own module path, whatever
-    // path the window inherited. The list alone took this file and dropped that environment.
+    // path the window inherited: the list used to take this file and drop that environment.
     const shell =
       systemRoot !== undefined && deps.platform === 'win32'
         ? windowsPowerShell(systemRoot, env)
