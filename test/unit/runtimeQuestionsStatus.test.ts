@@ -11,6 +11,7 @@ import {
   openQuestionsCount,
   questionsStatusId,
 } from '../../src/runtime/panel/questionsStatus'
+import { MHP_ERROR_CODES, UI_TEXT } from '../../src/shared/constants'
 import { idSchema } from '../../src/shared/hostApi/data'
 import { MHP_METHODS } from '../../src/shared/hostApi/methods'
 import { panelInitializeResultSchema } from '../../src/shared/hostApi/panel'
@@ -30,6 +31,12 @@ const statusCallSchema = z.strictObject({
   id: idSchema,
   method: z.literal('ui/status'),
   params: MHP_METHODS['ui/status'].params,
+})
+const notifyCallSchema = z.strictObject({
+  jsonrpc: z.literal('2.0'),
+  id: idSchema,
+  method: z.literal('ui/notify'),
+  params: MHP_METHODS['ui/notify'].params,
 })
 
 async function until(isReady: () => boolean): Promise<void> {
@@ -86,7 +93,23 @@ async function rig() {
       .map((line) => statusCallSchema.safeParse(JSON.parse(line)))
       .filter((parsed) => parsed.success)
       .map((parsed) => parsed.data)
+  const notifyCalls = () =>
+    lines
+      .map((line) => notifyCallSchema.safeParse(JSON.parse(line)))
+      .filter((parsed) => parsed.success)
+      .map((parsed) => parsed.data)
   const replied = new Set<string>()
+  /** The editor's own answer to a status it will not take. */
+  const refuseStatus = (id: z.infer<typeof idSchema>) => {
+    replied.add(JSON.stringify(id))
+    connection.receive(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id,
+        error: { code: MHP_ERROR_CODES.internalError, message: 'not taken' },
+      }),
+    )
+  }
   const settleReplies = async () => {
     for (const call of statusCalls()) {
       const key = JSON.stringify(call.id)
@@ -101,6 +124,8 @@ async function rig() {
     log,
     lines,
     statusCalls,
+    notifyCalls,
+    refuseStatus,
     settleReplies,
     publisher,
     notices,
@@ -227,6 +252,45 @@ describe('questions status count', () => {
       expect(calls).toHaveLength(1)
       expect(calls[0]?.params.text).toBe('2 offen')
       expect(rigged.log.lines).toEqual([])
+    } finally {
+      rigged.connection.close()
+    }
+  })
+
+  // RVHOSTS2's open P3: a refused status was only logged, and the count it
+  // remembered kept the next same-count update from ever trying again.
+  it('says a refused status once, and publishes again at the same count', async () => {
+    const rigged = await rig()
+    try {
+      rigged.publisher.update(snapshot('session-1', ['open']))
+      await until(() => rigged.statusCalls().length === 1)
+      rigged.refuseStatus(rigged.statusCalls()[0]!.id)
+      await until(() => rigged.notifyCalls().length === 1)
+      expect(rigged.notifyCalls()[0]?.params).toEqual({
+        severity: 'warning',
+        message: UI_TEXT.openQuestionsStatusFailed,
+      })
+      rigged.publisher.update(snapshot('session-1', ['open']))
+      await until(() => rigged.statusCalls().length === 2)
+      expect(rigged.statusCalls()[1]?.params).toEqual(rigged.statusCalls()[0]?.params)
+      // Still refused: logged again, and the person is not told twice.
+      rigged.refuseStatus(rigged.statusCalls()[1]!.id)
+      await until(
+        () => rigged.log.lines.filter((line) => line.includes('questions status')).length === 2,
+      )
+      expect(rigged.notifyCalls()).toHaveLength(1)
+      // Taken at last: the count stands, and only a new failure is said again.
+      rigged.publisher.update(snapshot('session-1', ['open']))
+      await until(() => rigged.statusCalls().length === 3)
+      await rigged.settleReplies()
+      rigged.publisher.update(snapshot('session-1', ['open']))
+      await rigged.settleReplies()
+      expect(rigged.statusCalls()).toHaveLength(3)
+      rigged.publisher.update(snapshot('session-1', ['open', 'open']))
+      await until(() => rigged.statusCalls().length === 4)
+      rigged.refuseStatus(rigged.statusCalls()[3]!.id)
+      await until(() => rigged.notifyCalls().length === 2)
+      expect(rigged.notifyCalls()).toHaveLength(2)
     } finally {
       rigged.connection.close()
     }

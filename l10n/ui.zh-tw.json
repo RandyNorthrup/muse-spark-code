@@ -2379,6 +2379,7 @@
   "gitHubOnly": "提取要求只能在 github.com 上建立，而遠端「{remote}」不在那裡。",
   "gitHubSignInDeclined": "未取得 GitHub 登入授權，因此沒有傳送任何內容至 GitHub。",
   "gitHubFailed": "GitHub 要求失敗",
+  "gitHubLeaseEndpointRefused": "未傳送任何內容：編輯器的 GitHub 登入只能存取 GitHub 自己的 API，而此要求指向其他位址。",
   "gitHubAnswered": "GitHub 回傳了 {status}",
   "gitHubResponseInvalid": "GitHub 回傳了格式異常的回應。",
   "gitHubCommitInvalid": "不是提交 ID：{sha}",
@@ -3189,6 +3190,7 @@
   "openQuestionsTabCount": {
     "other": "{count} 個待回答"
   },
+  "openQuestionsStatusFailed": "編輯器未接受未回答問題的數量，因此顯示的數量可能已過期。你的問題仍安全地保留在對話中。",
   "clarifyNotAccepted": "說明未被接受",
   "messageActions": "訊息動作",
   "rowMoreActions": "更多操作",

@@ -8,6 +8,7 @@
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import { lstat, open, type FileHandle } from 'node:fs/promises'
+import path from 'node:path'
 import {
   BYTES_PER_MIB,
   type MEDIA_AUDIO_ACTION_OPTIONS,
@@ -19,6 +20,8 @@ import { reopeningSource, type AttachedMedia } from '../../core/media/attachedMe
 import { MediaContributorConsent } from '../../core/media/contributorConsent'
 import { parseModelRef } from '../../shared/modelRef'
 import type { MediaLimits } from '../../core/media/limits'
+import { confineToRoot } from '../../core/fs/confine'
+import { isErrno } from '../../core/fs/errno'
 import { isProtectedPath } from '../../core/protectedPaths'
 import { isPrivateFileName } from '../../shared/privateFiles'
 import type { MediaAttachDeps } from './mediaAttach'
@@ -159,6 +162,25 @@ export interface MediaSourceOpenDeps {
 }
 
 /**
+The path to open for a recording spelled inside the root, or undefined when
+one of its directories leads out through a link (a same-user plant under the
+root: a spelling inside it says nothing about where a link goes). Only the
+directories walk here; the final name stays as spelled, and a link there is
+refused by the `lstat` below whether it stays inside or not.
+*/
+async function recordingOpenPath(root: string, recording: string): Promise<string | undefined> {
+  try {
+    const folder = await confineToRoot(root, path.dirname(recording))
+    return folder === undefined ? undefined : path.join(folder, path.basename(recording))
+  } catch (error: unknown) {
+    // NARROW: a folder that cannot be walked refuses the attach, as a file that
+    // is already gone does. Anything but a filesystem failure keeps its kind.
+    if (isErrno(error)) return undefined
+    throw error
+  }
+}
+
+/**
 The attach port's source opener: confinement, protected/private recheck
 and file identity on every open. No handle is a refusal; an IO failure
 throws the read failure. The fd pins the file between the sniff reads.
@@ -184,7 +206,9 @@ export function createMediaSourceOpen(deps: MediaSourceOpenDeps): MediaAttachDep
       }
       absolute = checked.checkedAbsolute
     } else {
-      absolute = recording
+      const walked = await recordingOpenPath(deps.recordingTempRoot, recording)
+      if (walked === undefined) return
+      absolute = walked
     }
     // A link, a directory or a file that is already gone refuses before any
     // handle exists; only a handle that later fails reads as unreadable.

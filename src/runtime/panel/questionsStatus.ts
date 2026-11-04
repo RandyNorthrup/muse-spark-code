@@ -6,13 +6,13 @@ import type { Logger } from '../../host/logger'
 import { logRejection } from '../../host/logger'
 import type { MhpParams, MhpResult } from '../../shared/hostApi/methods'
 
-/** The one host call the count needs. */
+/** The host calls the count needs: its status item, and a notice when that item fails. */
 export interface QuestionsStatusHost {
-  request(
-    method: 'ui/status',
-    params: MhpParams<'ui/status'>,
+  request<M extends 'ui/status' | 'ui/notify'>(
+    method: M,
+    params: MhpParams<M>,
     signal?: AbortSignal,
-  ): Promise<MhpResult<'ui/status'>>
+  ): Promise<MhpResult<M>>
 }
 import { UI_TEXT } from '../../shared/constants'
 import { plural } from '../../shared/l10n/text'
@@ -42,6 +42,8 @@ export function createQuestionsStatusPublisher(
 ): QuestionsStatusPublisher {
   const lastBySession = new Map<string, number>()
   let isClosed = false
+  let isFailureSaid = false
+  const logFailure = logRejection(log, 'questions status')
   const publish = (sessionId: string, count: number, isVisible: boolean): void => {
     void host
       .request('ui/status', {
@@ -49,7 +51,23 @@ export function createQuestionsStatusPublisher(
         text: questionsStatusText(count),
         visible: isVisible,
       })
-      .catch(logRejection(log, 'questions status'))
+      .then(() => {
+        isFailureSaid = false
+      })
+      .catch((error: unknown) => {
+        logFailure(error)
+        // What the editor shows is now stale: the next update publishes again
+        // even at this count, and the person hears it once, not per update.
+        if (lastBySession.get(sessionId) === count) lastBySession.delete(sessionId)
+        if (isClosed || isFailureSaid) return
+        isFailureSaid = true
+        void host
+          .request('ui/notify', {
+            severity: 'warning',
+            message: UI_TEXT.openQuestionsStatusFailed,
+          })
+          .catch(logFailure)
+      })
   }
   return {
     update: (snapshot) => {

@@ -2379,6 +2379,7 @@
   "gitHubOnly": "끌어오기 요청은 github.com에서만 열 수 있지만, 원격 \"{remote}\"은(는) github.com에 있지 않습니다.",
   "gitHubSignInDeclined": "GitHub 로그인이 허용되지 않았으므로 GitHub에 아무것도 보내지 않았습니다.",
   "gitHubFailed": "GitHub 요청이 실패했습니다",
+  "gitHubLeaseEndpointRefused": "아무것도 보내지 않았습니다. 편집기의 GitHub 로그인은 GitHub 자체 API에만 연결되며, 이 요청은 다른 주소로 향했습니다.",
   "gitHubAnswered": "GitHub 응답: {status}",
   "gitHubResponseInvalid": "GitHub가 예상하지 못한 형식의 응답을 반환했습니다.",
   "gitHubCommitInvalid": "커밋 ID가 아닙니다: {sha}",
@@ -3189,6 +3190,7 @@
   "openQuestionsTabCount": {
     "other": "미답변 {count}개"
   },
+  "openQuestionsStatusFailed": "편집기가 열린 질문 수를 받지 않아 표시된 수가 최신이 아닐 수 있습니다. 질문은 대화에 안전하게 남아 있습니다.",
   "clarifyNotAccepted": "설명이 받아들여지지 않았습니다",
   "messageActions": "메시지 작업",
   "rowMoreActions": "추가 작업",

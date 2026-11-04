@@ -2379,6 +2379,7 @@
   "gitHubOnly": "拉取请求只能在 github.com 上创建，而远程存储库“{remote}”不在那里。",
   "gitHubSignInDeclined": "未获得 GitHub 登录授权，因此没有向 GitHub 发送任何内容。",
   "gitHubFailed": "GitHub 请求失败",
+  "gitHubLeaseEndpointRefused": "未发送任何内容：编辑器的 GitHub 登录只能访问 GitHub 自己的 API，而此请求指向其他地址。",
   "gitHubAnswered": "GitHub 返回了 {status}",
   "gitHubResponseInvalid": "GitHub 返回了格式异常的响应。",
   "gitHubCommitInvalid": "不是提交 ID：{sha}",
@@ -3189,6 +3190,7 @@
   "openQuestionsTabCount": {
     "other": "{count} 个待回答"
   },
+  "openQuestionsStatusFailed": "编辑器未接受未回答问题的数量，因此显示的数量可能已过期。你的问题仍安全地保留在对话中。",
   "clarifyNotAccepted": "说明未被接受",
   "messageActions": "消息操作",
   "rowMoreActions": "更多操作",

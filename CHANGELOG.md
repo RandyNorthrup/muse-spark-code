@@ -74,6 +74,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **A screen recording's folder cannot lead out of the recording folder.** A link under
+  it that goes elsewhere is refused, as a final link always was; a link that stays inside
+  still works.
+- **A failed open-questions count no longer sticks.** When the editor refused the count
+  its status showed, it stayed stale until the number changed. It now tries again at the
+  next update, and you are told once that it may be out of date.
+- **A GitHub request the editor's sign-in cannot carry says so in words.** It used to
+  surface the check's raw output.
 - **The hardware Stop on a page never looks live before it is.** The Stop a chat panel
   paints before its code loads did nothing and said nothing if pressed in that moment; it
   is now disabled until it works, then answers. The status bar's Stop was never affected.

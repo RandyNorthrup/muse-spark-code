@@ -33,6 +33,7 @@ import {
 } from '../../core/git/tokenSource'
 import { UI_TEXT } from '../../shared/constants'
 import { jsonValueSchema } from '../../shared/hostApi/data'
+import { isGitHubLeaseUrl } from '../../shared/hostApi/githubLeaseUrl'
 import type { HostServices } from '../../shared/hostApi/methods'
 
 export interface EditorLeaseSourceDeps {
@@ -66,6 +67,9 @@ export function editorLeaseSource(deps: EditorLeaseSourceDeps): GitHubTokenSourc
       if (method !== 'GET' && method !== 'POST') {
         throw new TypeError(UI_TEXT.gitHubFailed)
       }
+      // In words, before the method's schema would refuse in its own: the
+      // client puts a failed fetch's message in the sentence the person reads.
+      if (!isGitHubLeaseUrl(url)) throw new TypeError(UI_TEXT.gitHubLeaseEndpointRefused)
       const answer = await deps.host.request(
         'github/request',
         {

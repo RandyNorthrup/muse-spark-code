@@ -2437,6 +2437,7 @@
   "gitHubOnly": "Los pull requests solo se abren en github.com, y el remoto “{remote}” no está allí.",
   "gitHubSignInDeclined": "No se concedió el inicio de sesión en GitHub, así que no se envió nada a GitHub.",
   "gitHubFailed": "La solicitud a GitHub falló",
+  "gitHubLeaseEndpointRefused": "No se envió nada: el inicio de sesión de GitHub del editor solo llega a la propia API de GitHub, y esta solicitud iba a otra dirección.",
   "gitHubAnswered": "GitHub respondió {status}",
   "gitHubResponseInvalid": "GitHub devolvió una respuesta con un formato inesperado.",
   "gitHubCommitInvalid": "No es un ID de commit: {sha}",
@@ -3295,6 +3296,7 @@
     "other": "{count} pendientes",
     "many": "{count} pendientes"
   },
+  "openQuestionsStatusFailed": "El editor no aceptó el recuento de preguntas abiertas, así que el que muestra puede estar desactualizado. Tus preguntas siguen a salvo en la conversación.",
   "clarifyNotAccepted": "No se aceptó la explicación",
   "messageActions": "Acciones del mensaje",
   "rowMoreActions": "Más acciones",

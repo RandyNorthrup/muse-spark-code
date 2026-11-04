@@ -603,6 +603,82 @@ describe('M105 W media source opener', () => {
     await hopped?.close()
   })
 
+  // RVHOSTS2's open P3. A spelling inside the root says nothing about where a
+  // link under it goes. A junction needs no privilege on Windows; the type is
+  // ignored everywhere else, where this is a plain symlink.
+  it('refuses a recording whose folder leads out through a link', async () => {
+    const tempRoot = await temp()
+    const outside = await temp()
+    await writeFile(path.join(outside, 'secret.mp4'), videoFixture())
+    const open = createMediaSourceOpen({
+      canonicalRelativePath: confine(await temp()),
+      recordingTempRoot: tempRoot,
+    })
+    await symlink(outside, path.join(tempRoot, 'hop'), 'junction')
+    expect(
+      await open({
+        name: 'secret.mp4',
+        fsPath: path.join(tempRoot, 'hop', 'secret.mp4'),
+        relativePath: undefined,
+      }),
+    ).toBeUndefined()
+    // Two folders down is the same walk.
+    await mkdir(path.join(tempRoot, 'a'))
+    await symlink(outside, path.join(tempRoot, 'a', 'hop'), 'junction')
+    expect(
+      await open({
+        name: 'secret.mp4',
+        fsPath: path.join(tempRoot, 'a', 'hop', 'secret.mp4'),
+        relativePath: undefined,
+      }),
+    ).toBeUndefined()
+  })
+
+  it('opens through a folder link that stays inside, and a final link stays refused', async () => {
+    const tempRoot = await temp()
+    const clip = path.join(tempRoot, 'preview', 'clip.mp4')
+    await mkdir(path.dirname(clip))
+    await writeFile(clip, videoFixture())
+    const open = createMediaSourceOpen({
+      canonicalRelativePath: confine(await temp()),
+      recordingTempRoot: tempRoot,
+    })
+    await symlink(path.dirname(clip), path.join(tempRoot, 'alias'), 'junction')
+    const opened = await open({
+      name: 'clip.mp4',
+      fsPath: path.join(tempRoot, 'alias', 'clip.mp4'),
+      relativePath: undefined,
+    })
+    expect(opened?.source.sizeBytes).toBe(videoFixture().length)
+    await opened?.close()
+    // A final file link needs a privilege Windows may not grant, so a junction
+    // to the folder stands in the final name's place: lstat sees a link either way.
+    await symlink(path.dirname(clip), path.join(tempRoot, 'final.mp4'), 'junction')
+    expect(
+      await open({
+        name: 'final.mp4',
+        fsPath: path.join(tempRoot, 'final.mp4'),
+        relativePath: undefined,
+      }),
+    ).toBeUndefined()
+  })
+
+  it('refuses without a word when the recording root is not there', async () => {
+    const parent = await temp()
+    const tempRoot = path.join(parent, 'not-made-yet')
+    const open = createMediaSourceOpen({
+      canonicalRelativePath: confine(await temp()),
+      recordingTempRoot: tempRoot,
+    })
+    expect(
+      await open({
+        name: 'clip.mp4',
+        fsPath: path.join(tempRoot, 'clip.mp4'),
+        relativePath: undefined,
+      }),
+    ).toBeUndefined()
+  })
+
   it('refuses when the path check itself fails, without a word', async () => {
     const ws = await temp()
     const tempRoot = await temp()

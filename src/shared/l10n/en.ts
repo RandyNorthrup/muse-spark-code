@@ -3022,6 +3022,8 @@ export const EN = {
   gitHubOnly: 'Pull requests open on github.com only, and the remote “{remote}” is not there.',
   gitHubSignInDeclined: 'GitHub sign-in was not given, so nothing was sent to GitHub.',
   gitHubFailed: 'The GitHub request failed',
+  gitHubLeaseEndpointRefused:
+    'Nothing was sent: the editor’s GitHub sign-in reaches only GitHub’s own API, and this request was for another address.',
   gitHubAnswered: 'GitHub answered {status}',
   gitHubResponseInvalid: 'GitHub returned a response in an unexpected format.',
   gitHubCommitInvalid: 'Not a commit ID: {sha}',
@@ -3975,6 +3977,8 @@ export const EN = {
   acpQuestionsHelp: 'List the open questions in this conversation.',
   openQuestionsCount: forms({ one: '{count} open question', other: '{count} open questions' }),
   openQuestionsTabCount: forms({ one: '{count} Open', other: '{count} Open' }),
+  openQuestionsStatusFailed:
+    'The editor did not take the open-questions count, so the one it shows may be out of date. Your questions are safe in the conversation.',
   clarifyNotAccepted: 'The explanation was not accepted',
   /** Replying to an output and quoting a highlighted passage (M17). */
   messageActions: 'Message Actions',

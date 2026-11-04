@@ -2408,6 +2408,7 @@
   "gitHubOnly": "Çekme istekleri yalnızca github.com'da açılır ve “{remote}” uzak deposu orada değil.",
   "gitHubSignInDeclined": "GitHub'da oturum açılmadı, bu yüzden GitHub'a hiçbir şey gönderilmedi.",
   "gitHubFailed": "GitHub isteği başarısız oldu",
+  "gitHubLeaseEndpointRefused": "Hiçbir şey gönderilmedi: düzenleyicinin GitHub oturumu yalnızca GitHub’ın kendi API’sine ulaşır ve bu istek başka bir adrese yönelikti.",
   "gitHubAnswered": "GitHub yanıtı: {status}",
   "gitHubResponseInvalid": "GitHub beklenmeyen biçimde bir yanıt döndürdü.",
   "gitHubCommitInvalid": "Commit kimliği değil: {sha}",
@@ -3242,6 +3243,7 @@
     "one": "{count} açık",
     "other": "{count} açık"
   },
+  "openQuestionsStatusFailed": "Düzenleyici açık soru sayısını almadı, bu nedenle gösterilen sayı güncel olmayabilir. Sorularınız konuşmada güvende.",
   "clarifyNotAccepted": "Açıklama kabul edilmedi",
   "messageActions": "Mesaj eylemleri",
   "rowMoreActions": "Diğer işlemler",

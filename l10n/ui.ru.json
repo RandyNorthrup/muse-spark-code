@@ -2466,6 +2466,7 @@
   "gitHubOnly": "Запросы на вытягивание открываются только на github.com, а удаленный репозиторий «{remote}» находится не там.",
   "gitHubSignInDeclined": "Вход в GitHub не выполнен, поэтому в GitHub ничего не отправлено.",
   "gitHubFailed": "Запрос к GitHub завершился ошибкой",
+  "gitHubLeaseEndpointRefused": "Ничего не отправлено: вход в GitHub в редакторе работает только с собственным API GitHub, а этот запрос шёл на другой адрес.",
   "gitHubAnswered": "GitHub ответил {status}",
   "gitHubResponseInvalid": "GitHub вернул ответ в неожиданном формате.",
   "gitHubCommitInvalid": "Это не идентификатор коммита: {sha}",
@@ -3348,6 +3349,7 @@
     "few": "{count} открытых",
     "many": "{count} открытых"
   },
+  "openQuestionsStatusFailed": "Редактор не принял число открытых вопросов, поэтому показанное значение может быть устаревшим. Ваши вопросы в целости остаются в беседе.",
   "clarifyNotAccepted": "Объяснение не принято",
   "messageActions": "Действия с сообщением",
   "rowMoreActions": "Другие действия",

@@ -2437,6 +2437,7 @@
   "gitHubOnly": "Les pull requests ne s’ouvrent que sur github.com, et le dépôt distant « {remote} » n’y est pas.",
   "gitHubSignInDeclined": "La connexion à GitHub n’a pas été accordée, donc rien n’a été envoyé à GitHub.",
   "gitHubFailed": "La requête GitHub a échoué",
+  "gitHubLeaseEndpointRefused": "Rien n’a été envoyé : la connexion GitHub de l’éditeur n’atteint que l’API de GitHub, et cette requête visait une autre adresse.",
   "gitHubAnswered": "GitHub a répondu {status}",
   "gitHubResponseInvalid": "GitHub a renvoyé une réponse dans un format inattendu.",
   "gitHubCommitInvalid": "Identifiant de commit non valide : {sha}",
@@ -3295,6 +3296,7 @@
     "other": "{count} en attente",
     "many": "{count} en attente"
   },
+  "openQuestionsStatusFailed": "L’éditeur n’a pas accepté le nombre de questions ouvertes ; celui qu’il affiche n’est peut-être plus à jour. Vos questions restent en sécurité dans la conversation.",
   "clarifyNotAccepted": "L’explication n’a pas été acceptée",
   "messageActions": "Actions du message",
   "rowMoreActions": "Autres actions",

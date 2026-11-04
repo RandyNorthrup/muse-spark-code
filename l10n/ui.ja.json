@@ -2379,6 +2379,7 @@
   "gitHubOnly": "プル リクエストは github.com でのみ作成できますが、リモート「{remote}」は github.com にありません。",
   "gitHubSignInDeclined": "GitHub へのサインインが許可されなかったため、GitHub には何も送信されていません。",
   "gitHubFailed": "GitHub への要求に失敗しました",
+  "gitHubLeaseEndpointRefused": "何も送信されませんでした。エディターの GitHub サインインは GitHub 自身の API にのみ接続でき、この要求は別のアドレス宛てでした。",
   "gitHubAnswered": "GitHub の応答: {status}",
   "gitHubResponseInvalid": "GitHub が予期しない形式の応答を返しました。",
   "gitHubCommitInvalid": "コミット ID ではありません: {sha}",
@@ -3189,6 +3190,7 @@
   "openQuestionsTabCount": {
     "other": "未回答 {count} 件"
   },
+  "openQuestionsStatusFailed": "エディターが未回答の質問数を受け取らなかったため、表示されている数は最新ではない可能性があります。質問は会話の中に安全に残っています。",
   "clarifyNotAccepted": "説明は受け付けられませんでした",
   "messageActions": "メッセージのアクション",
   "rowMoreActions": "その他の操作",
