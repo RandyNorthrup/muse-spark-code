@@ -24,7 +24,12 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as acp from '@agentclientprotocol/sdk/unstable'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { cardFailureText, createAcpTeam, type AcpTeamDeps } from '../../src/acp/acpTeamEntry'
+import {
+  cardFailureText,
+  createAcpTeam,
+  refusedLandingText,
+  type AcpTeamDeps,
+} from '../../src/acp/acpTeamEntry'
 import { normalizeTeamPath } from '../../src/acp/teamContracts'
 import type { createAcpAgent } from '../../src/acp/agent'
 import {
@@ -54,13 +59,16 @@ import {
 } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import type { TeamSnapshot } from '../../src/shared/team'
+import { createWindowIdentity } from '../../src/host/team/windowIdentity'
 import { createLocalAcpAgent } from './helpers/acpLocalAgentDeps'
+import { buildLander, startLander } from './helpers/teamLander'
 import { realTeamGit, scratchTeamRepo } from './helpers/realTeamGit'
 
 const log = stderrLogger(() => undefined, 'warn')
 const ORCHESTRATOR = 'probe-custom/custom-model'
 const WORKER = 'probe-offable/offable-model'
 const TWO_GIB_AND_A_BYTE = 2 ** 31 + 1
+const MODES = ['manual', 'bypassPermissions'] as const
 const folders: string[] = []
 afterEach(() => {
   for (const folder of folders.splice(0)) rmSync(folder, { recursive: true, force: true })
@@ -146,6 +154,27 @@ async function errorOf(request: Promise<unknown>): Promise<string | undefined> {
     return error instanceof Error ? error.message : String(error)
   }
   return undefined
+}
+
+/** What the person read in these updates: the session's own sentences. */
+function saidIn(updates: readonly acp.SessionUpdate[]): readonly string[] {
+  return updates.flatMap((update) =>
+    update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text'
+      ? update.content.text
+      : [],
+  )
+}
+
+/** An editor in this mode whose person answers Merge; a Bypass session is never asked. */
+function mergingEditor(mode: 'manual' | 'bypassPermissions', updates: acp.SessionUpdate[]) {
+  return {
+    mode: () => mode,
+    sendUpdate: (update: acp.SessionUpdate) => {
+      updates.push(update)
+    },
+    requestPermission: () =>
+      Promise.resolve({ outcome: { outcome: 'selected' as const, optionId: 'merge' } }),
+  }
 }
 
 /** The error a request failed with; one that succeeds fails the case. */
@@ -540,6 +569,9 @@ async function restoredMerge(
     prepared,
     editor,
     session,
+    storage,
+    baseCommit,
+    head: committed.head,
     agentsRef: workspace.agentsRef,
     copyFolder: workspace.folder,
   }
@@ -822,34 +854,148 @@ describe('ACP team progress, cancel and merge over the real team host', () => {
   // RVACPTEAM's open P3s, each on the real team host and the real filesystem.
   it('says a card that failed for real in the generic words, never a machine’s code', async () => {
     const updates: acp.SessionUpdate[] = []
+    const copy = { folder: '' }
+    const { repo, port, session, copyFolder } = await restoredMerge('merge', {
+      mode: () => 'manual',
+      sendUpdate: (update) => {
+        updates.push(update)
+      },
+      // The task's copy goes while the person decides, so the landing throws for real.
+      requestPermission: () => {
+        rmSync(copy.folder, { force: true, recursive: true })
+        return Promise.resolve({ outcome: { outcome: 'selected' as const, optionId: 'merge' } })
+      },
+    })
+    copy.folder = copyFolder
+    try {
+      const result = await port
+        .seamsFor(repo)
+        .teamRunner.merge({ task_id: 'task-merge' }, context())
+      expect(result.output).not.toContain('Error:')
+      await eventually(() => saidIn(updates).length > 0, 'the failed card’s sentence')
+      expect(saidIn(updates)).toEqual([UI_TEXT.actionFailed])
+      await session.close()
+    } finally {
+      await port.dispose()
+    }
+  })
+
+  // A held lock answers rather than throws, so nothing but these words tells the person.
+  it.each(MODES)(
+    'tells the person once, in %s mode, that a held lock kept the merge off their files',
+    async (mode) => {
+      const updates: acp.SessionUpdate[] = []
+      const { repo, port, session } = await restoredMerge('merge', mergingEditor(mode, updates))
+      const notices = UI_TEXT.teamTrafficNotices
+      try {
+        writeFileSync(path.join(repo, '.git', 'index.lock'), '')
+        const result = await port
+          .seamsFor(repo)
+          .teamRunner.merge({ task_id: 'task-merge' }, context())
+        expect(result.output).not.toContain('Error:')
+        await eventually(() => saidIn(updates).length > 0, 'the refused landing’s words')
+        const listed = await realTeamGit(
+          ['branch', '--list', 'agents/landing/*', '--format=%(refname:short)'],
+          repo,
+        )
+        const branch = new TextDecoder().decode(listed).trim()
+        expect(branch).not.toBe('')
+        const [words = ''] = saidIn(updates)
+        expect(words.startsWith(notices.heldByLock.split('{path}', 1)[0] ?? '')).toBe(true)
+        expect(words).toContain('index.lock')
+        expect(words.endsWith(fill(notices.landingBranchedThen, { branch }))).toBe(true)
+        expect(words).not.toContain('"')
+        expect(readFileSync(path.join(repo, 'a.ts'), 'utf8')).toBe('const value = 1\n')
+        rmSync(path.join(repo, '.git', 'index.lock'))
+        await session.close()
+        expect(saidIn(updates)).toHaveLength(1)
+      } finally {
+        await port.dispose()
+      }
+    },
+  )
+
+  it.each(MODES)(
+    'names the landing that holds the lock, in %s mode, when another run is mid-landing',
+    { timeout: 180_000 },
+    async (mode) => {
+      const updates: acp.SessionUpdate[] = []
+      const rig = await restoredMerge('merge', mergingEditor(mode, updates))
+      const notices = UI_TEXT.teamTrafficNotices
+      const lander = await buildLander()
+      try {
+        // A real process stands mid-landing: its record is open and git's lock is its own.
+        const running = await startLander(
+          lander,
+          {
+            root: rig.repo,
+            storage: rig.storage,
+            workerCopy: rig.copyFolder,
+            baseCommit: rig.baseCommit,
+            head: rig.head,
+            agentsRef: rig.agentsRef,
+            taskId: 'task-merge',
+            changedFiles: ['a.ts'],
+            dispose: () => Promise.resolve(),
+          },
+          createWindowIdentity(1000),
+          { file: 'a.ts', atRename: true },
+        )
+        await running.stopped()
+        const result = await rig.port
+          .seamsFor(rig.repo)
+          .teamRunner.merge({ task_id: 'task-merge' }, context())
+        expect(result.output).not.toContain('Error:')
+        await eventually(() => saidIn(updates).length > 0, 'the refused landing’s words')
+        const [words = ''] = saidIn(updates)
+        expect(words.startsWith(notices.heldByLanding.split('{path}', 1)[0] ?? '')).toBe(true)
+        expect(words).toContain('index.lock')
+        expect(words.endsWith(notices.landingBusyThen)).toBe(true)
+        expect(words).not.toContain('"')
+        await running.kill()
+      } finally {
+        await rig.port.dispose()
+        await lander.dispose()
+      }
+    },
+  )
+
+  it('says a refused landing once, and an answer of Discard after it says nothing more', async () => {
+    const updates: acp.SessionUpdate[] = []
+    const answers = ['merge', 'discard']
     const { repo, port, session } = await restoredMerge('merge', {
       mode: () => 'manual',
       sendUpdate: (update) => {
         updates.push(update)
       },
       requestPermission: () =>
-        Promise.resolve({ outcome: { outcome: 'selected' as const, optionId: 'merge' } }),
+        Promise.resolve({
+          outcome: { outcome: 'selected' as const, optionId: answers.shift() ?? 'discard' },
+        }),
     })
     try {
-      // Git's own lock stands in the way, so the landing fails for real.
       writeFileSync(path.join(repo, '.git', 'index.lock'), '')
-      const result = await port
-        .seamsFor(repo)
-        .teamRunner.merge({ task_id: 'task-merge' }, context())
-      expect(result.output).not.toContain('Error:')
-      const said = () =>
-        updates.flatMap((update) =>
-          update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text'
-            ? update.content.text
-            : [],
-        )
-      await eventually(() => said().length > 0, 'the failed card’s sentence')
-      expect(said()).toEqual([UI_TEXT.actionFailed])
+      await port.seamsFor(repo).teamRunner.merge({ task_id: 'task-merge' }, context())
+      await eventually(() => saidIn(updates).length > 0, 'the refused landing’s words')
       rmSync(path.join(repo, '.git', 'index.lock'))
+      await port.seamsFor(repo).teamRunner.merge({ task_id: 'task-merge' }, context())
+      await eventually(() => answers.length === 0, 'the second question')
       await session.close()
+      expect(saidIn(updates)).toHaveLength(1)
     } finally {
       await port.dispose()
     }
+  })
+
+  it('offers an editor no Undo Merge when a landing stopped on a changed file', () => {
+    const changed = { kind: 'changed', paths: ['b.txt', 'c.txt'] } as const
+    expect(refusedLandingText(changed)).toBe(
+      fill(UI_TEXT.teamTrafficNotices.changedDuringLandingNoUndo, { path: 'b.txt, c.txt' }),
+    )
+    expect(UI_TEXT.teamTrafficNotices.changedDuringLandingNoUndo).not.toMatch(/undo/iu)
+    // Every other kind reads as the card and Traffic read it.
+    const stale = { kind: 'stale' } as const
+    expect(refusedLandingText(stale)).toBe(UI_TEXT.teamTrafficNotices.landingStale)
   })
 
   it('lets a card’s own words through, and keeps a place on this machine out', async () => {

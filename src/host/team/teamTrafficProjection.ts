@@ -7,6 +7,7 @@ import type {
   TeamMergeRefusal,
   TeamOpenLanding,
 } from '../../core/team/teamHostService'
+import { mergeRefusalSentence } from '../../core/team/teamMergeRefusalWords'
 import { mergeQueueMetricEvents } from '../../core/team/trafficMetrics'
 import type { TeamTreeData } from '../../shared/teamView'
 import { plannedConflicts } from '../../core/team/conflictPredict'
@@ -195,38 +196,6 @@ function summarizeMetrics(
 }
 
 /** Projection contains only actions this window can actually honor. */
-/** A refusal reason in its own technical words: the kind, the holder or branch
-where there is one, and the offered rebuild/recheck action. */
-function describeMergeRefusal(refusal: TeamMergeRefusal): string {
-  switch (refusal.kind) {
-    case 'changed': {
-      return fill(UI_TEXT.teamTrafficNotices.changedDuringLanding, {
-        path: (refusal.paths ?? []).join(', '),
-      })
-    }
-    case 'held': {
-      return fill(UI_TEXT.teamTrafficNotices.fileHeld, { path: (refusal.paths ?? []).join(', ') })
-    }
-    case 'checks': {
-      return fill(UI_TEXT.teamTrafficNotices.checksFailed, { name: refusal.check ?? '' })
-    }
-    case 'stale': {
-      return 'stale (rebuild)'
-    }
-    case 'busy': {
-      return 'busy (recheck)'
-    }
-    case 'denied': {
-      return 'denied'
-    }
-    case 'branched': {
-      const where = refusal.branch ?? 'unknown'
-      return refusal.holder === undefined
-        ? `branched (${where})`
-        : `branched (${where}) held by ${JSON.stringify(refusal.holder)}`
-    }
-  }
-}
 /** One returned row: a recorded refusal with its reason and its action. */
 function returnedRow(
   taskId: string,
@@ -239,7 +208,7 @@ function returnedRow(
     taskId,
     position,
     generation,
-    reason: describeMergeRefusal(refusal),
+    reason: mergeRefusalSentence(refusal),
     state: 'returned',
     flaky: false,
     ...(refusal.kind === 'branched' &&
