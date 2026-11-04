@@ -937,7 +937,7 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   `museSpark.modelApiMcpAlwaysLoad`: the MCP servers whose tools stay
   declared while the rest defer. Read once per user turn, as the threshold is.
   */
-  readonly mcpAlwaysLoadServers?: (() => readonly string[]) | undefined
+  readonly mcpAlwaysLoadServers?: (() => readonly string[] | undefined) | undefined
   /** M106, fixed for the session. Lane W binds modelApiParallelReads in every host. */
   readonly strictTools?: () => boolean
   readonly parallelReads?: () => boolean

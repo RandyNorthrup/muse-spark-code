@@ -133,6 +133,8 @@ export interface ServeOptions {
   readonly maxToolOutputBytes?: number | undefined
   /** 4-H4: the run's MCP defer threshold in definition tokens; 0 never defers. */
   readonly mcpDeferTokens?: number | undefined
+  /** The run's MCP servers whose tools stay declared while the rest defer. */
+  readonly mcpAlwaysLoad?: readonly string[] | undefined
 }
 
 /**

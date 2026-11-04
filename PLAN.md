@@ -11533,7 +11533,7 @@ turn; red drills A–E in the record. Record:
 (full vs deferred, 16 eval tasks; no Muse request in the finishing
 run) that the brief requires before deferral ships default-suggested,
 so the default stays 0 until it holds the floors; the packed-product
-real use; a headless flag for the per-server always-load list; and
+real use; and
 Anthropic's native `defer_loading` wire (providers P6), which needs
 its own capture; this lane ships the provider-neutral local search
 the brief specifies. The per-server opt-out (RSCH-CC R1) landed
@@ -11541,7 +11541,8 @@ the brief specifies. The per-server opt-out (RSCH-CC R1) landed
 list of server names rather than a key in the MCP settings file the
 Muse Code CLI shares: those servers' tools stay declared ahead of every
 discovery, frozen per turn with the threshold (CC-SMALL3,
-`docs/certification/cc-small3.md`). Sources:
+`docs/certification/cc-small3.md`); `exec --mcp-always-load <server>`,
+repeatable, for one headless run (CC-INT12FIX). Sources:
 harness-science-2026-11-02 §1.2/§1.4, RSCH-CC R1, RSCH-PI §2.1,
 providers-2026-11-02 P6.
 

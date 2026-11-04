@@ -1049,6 +1049,7 @@ export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> 
     'max-tool-output-bytes',
     // 4-H4: same shape; the setting text carries the deferral description.
     'mcp-defer-tokens',
+    'mcp-always-load',
   ],
   // PROVSPEND: `auth set|clear --admin` is shown on the auth topic, not here.
   providersAdd: ['admin'],

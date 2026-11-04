@@ -82,6 +82,7 @@ export interface ExecOptions {
   readonly maxToolOutputBytes: number | undefined
   /** 4-H4: MCP definition-token defer threshold for this run; 0 never defers. */
   readonly mcpDeferTokens: number | undefined
+  readonly mcpAlwaysLoad: readonly string[] | undefined
   /**
   Optional output cap for the run (round 5): absent is the model policy's
   maximum; a present value above it refuses where the model is known,
@@ -146,6 +147,8 @@ const STRING_OPTIONS = new Set([
   'provider',
   'account',
 ])
+/** The options that may repeat; each value is a string. */
+const REPEATED_OPTIONS = new Set(['untrusted-file', 'mcp-always-load'])
 const DECIMAL_BUDGET = /^[0-9]+(?:\.[0-9]{1,6})?$/
 const INTEGER = /^[0-9]+$/
 
@@ -218,12 +221,12 @@ export function parseExec(
   | { readonly ok: false; readonly reason: string } {
   for (const [name, value] of Object.entries(values)) {
     const isKnown =
-      BOOLEAN_OPTIONS.has(name) || STRING_OPTIONS.has(name) || name === 'untrusted-file'
+      BOOLEAN_OPTIONS.has(name) || STRING_OPTIONS.has(name) || REPEATED_OPTIONS.has(name)
     const isValid =
       value === undefined ||
       (BOOLEAN_OPTIONS.has(name) && typeof value === 'boolean') ||
       (STRING_OPTIONS.has(name) && typeof value === 'string') ||
-      (name === 'untrusted-file' &&
+      (REPEATED_OPTIONS.has(name) &&
         Array.isArray(value) &&
         value.every((item: unknown) => typeof item === 'string'))
     if (!isKnown || !isValid)
@@ -338,6 +341,12 @@ export function parseExec(
   )
   if (mcpDeferTokens === undefined)
     return invalid(fill(UI_TEXT.execLimitInvalid, { flag: '--mcp-defer-tokens' }))
+  const alwaysLoadValues = values['mcp-always-load']
+  const mcpAlwaysLoad = Array.isArray(alwaysLoadValues)
+    ? alwaysLoadValues.filter((name: unknown): name is string => typeof name === 'string')
+    : []
+  if (mcpAlwaysLoad.some((name) => name.trim() === ''))
+    return invalid(fill(UI_TEXT.execServerNameEmpty, { flag: '--mcp-always-load' }))
   if (timeout === undefined && values['timeout'] !== undefined)
     return invalid(fill(UI_TEXT.execLimitInvalid, { flag: '--timeout' }))
   if (maxRequests === undefined && values['max-requests'] !== undefined)
@@ -363,6 +372,7 @@ export function parseExec(
     'max-requests',
     'max-tool-output-bytes',
     'mcp-defer-tokens',
+    'mcp-always-load',
     'max-output-tokens',
     'ephemeral',
     'key-stdin',
@@ -455,6 +465,7 @@ export function parseExec(
       maxRequests: backend === 'modelApi' ? maxRequests : undefined,
       maxToolOutputBytes: backend === 'modelApi' ? maxToolOutputBytes : undefined,
       mcpDeferTokens: backend === 'modelApi' ? mcpDeferTokens : undefined,
+      mcpAlwaysLoad: backend === 'modelApi' ? mcpAlwaysLoad : undefined,
       ...(backend === 'modelApi' && maxOutputTokens !== undefined && { maxOutputTokens }),
       timeoutMs: timeout === undefined ? undefined : timeout * MILLISECONDS_PER_SECOND,
       paidFeatures: [
@@ -522,6 +533,7 @@ export function serveOptionsFor(options: ExecOptions): ServeOptions {
     autoCompaction: options.autoCompaction,
     maxToolOutputBytes: options.maxToolOutputBytes,
     mcpDeferTokens: options.mcpDeferTokens,
+    mcpAlwaysLoad: options.mcpAlwaysLoad,
     ...(options.subscription && { subscription: true }),
   }
 }

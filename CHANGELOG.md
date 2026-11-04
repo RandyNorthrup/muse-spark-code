@@ -85,8 +85,15 @@ happened, not what was planned; superseded entries are kept.
 - **A team that cannot start in an editor no longer reads as a refusal.** Any unexpected
   error while preparing a team session was reported to the editor as a team refusal, with
   its raw text. Only the team's own sentences are now.
-- **One failed save of the team board no longer stops the ones after it**, and a huge
-  stored team file is refused by reading only what is needed. The agent also gives a
+- **A merge that did not land says why, in words, and what to do next.** Held up by Git's
+  lock, another landing or a Git operation in progress, overtaken by a change in the
+  workspace, or not approved: the merge card and Traffic showed technical words
+  (`branched (…) held by {…}`), and an editor's session showed nothing at all, though the
+  person had answered Merge. All three now say one sentence, naming what holds the repository
+  and the branch that keeps the change, and an editor's session says it once per refused
+  landing, in Bypass too. A bare `index.lock` is named as the person's to remove.
+- **One failed save of the team board no longer stops the ones after it**, in an editor's
+  session or a headless run, and a huge stored team file is refused by reading only what is needed. The agent also gives a
   stopped team worker up to ten seconds to finish before it exits.
 - **A screen recording's folder cannot lead out of the recording folder.** A link under
   it that goes elsewhere is refused, as a final link always was; a link that stays inside
@@ -170,7 +177,8 @@ happened, not what was planned; superseded entries are kept.
   `museSpark.modelApiMcpAlwaysLoad` lists the servers whose tools stay declared on every
   request, for one the model needs most of the time. It is ours rather than a key in the
   MCP settings file, which the Muse Code CLI reads too, and it applies from your next
-  message. Headless runs have no flag for it yet.
+  message. `exec --mcp-always-load <server>`, repeatable, says the same for one
+  headless run.
 - **Turn checkpoints in the native editors' panels.** A Model API conversation in
   a panel on `panel --stdio` (JetBrains, Eclipse, Visual Studio, Xcode) now
   records what each turn writes and offers Restore, as VS Code does, under the
