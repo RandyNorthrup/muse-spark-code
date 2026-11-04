@@ -184,6 +184,48 @@ Both reds printed all five in the failure's own message: `the five samples, in m
 
 A sample costs about 0.3 s there (205 to 328 ms, one first sample at 804); the page and the warming payload about 1.1 s. The samples on Linux, all eight passing runs: 17.4 to 25.3 ms, nowhere near 277. **Hosted, by arithmetic and not measured:** this case's one-sample time in the coordinator's logs is 1,484 to 2,217 ms on Ubuntu, 1,370 to 2,940 on macOS and 1,419 to 2,087 on Windows, and five takes about 1.7 times one here, so about 3.8 s on Ubuntu and **up to about 5 s on macOS, which is the limit**. On a loaded machine this case can now fail by time where one sample would have squeaked through at 4.8 s, and it would read as a timeout rather than a latency miss. If hosted shows that, the shape that raises nothing is the five samples in a `beforeAll` of their own, with the file's hook limit (10 s on POSIX, 30 s on Windows) and the case asserting the median; the file already moves cold starts into hooks that way. Not built: that call is the coordinator's.
 
+## CC-STOPSHAPE2: the five samples in a hook of their own, the coordinator's call
+
+The section above is what the case did inside its own 5 s. The samples now sit in a `beforeAll` of their own, under the file's hook limit: 10 s on POSIX, 30 s on Windows, neither raised. **The case asserts the median and prints all five on failure; the bound stays 100 ms.** The hook checks each sample's own facts as it is taken and says which sample and which fact: `sample 3: Stop clicks landed`. A wait that ran out, or the hook's own limit, names only itself, so an `afterAll` throws `the Stop samples stopped in sample N, after: ...`. A failed hook fails the run: the case is skipped and the exit is 1. The receipt now carries `hookMs`.
+
+**Does the hook fit its limit, where the case missed?** Not all the way. Real Linux Chromium in WSL, tests and busy loops pinned to 4 CPUs, a hosted runner's size, limit 10 s. The old one-sample case ran beside it as the yardstick of each rung.
+
+| Busy loops | Old one-sample case, ms | Hook alone, ms              | Hook in the whole file, ms | Median of five, ms  |
+| ---------- | ----------------------- | --------------------------- | -------------------------- | ------------------- |
+| 0          | 1,395 to 1,415          | 2,368 to 2,597              | 3,205                      | 21 to 23            |
+| 2          | 2,034 to 2,088          | 2,733 to 3,869              | 4,296                      | 21 to 23            |
+| 4          | 2,236 to 2,363          | 5,663 to 5,792              | 5,676                      | 24 to 29            |
+| 6          | 2,307 to 2,357          | 5,775 to 6,363              | 5,543                      | 27 to 36            |
+| 8          | 2,846 to 2,987          | 5,807 to 6,435              | 6,166                      | 31 to 38            |
+| 12         | 3,121 to 3,346          | 6,445 to 8,059              | 9,075                      | 32 to 47            |
+| 16         | 3,339 to 3,904          | 9,099, 9,727, **timed out** | **timed out**              | 44 to 50 where read |
+
+- **What moved:** at 4 loops the hook takes about 5.7 s, which the case's 5 s would have missed and the hook's 10 s does not.
+- **Where it misses:** from 16 loops. The earlier in-case misses came with the one-sample case at 4.2 to 4.8 s, heavier than any rung here, so the hook would likely miss there too. That is an inference, not a measurement.
+- **The rest of the file misses there too:** in the 16-loop whole-file run, `reload re-fetches large host payloads (JSON expansion false)` also timed out at its 5 s. An earlier pinned run with this PC near 100% from other lanes timed out the hook at sample 4 and two such cases, `worst-case search with 20000 repeated rows` and that same reload case. **The coordinator's call: failing only at a load where other cases in the file already time out is acceptable, and no limit moves.**
+- **Less headroom than one sample had:** at 16 loops the one-sample case still passed, at up to 3.9 s of its 5 s, where the hook passed up to 9.7 s of its 10 s and then timed out.
+- **The bound itself:** the median stayed under 100 ms on every rung. Only time fails.
+- **Windows, limit 30 s:** 2,546 to 2,776 ms.
+- **Left out of these runs:** the suite's global setup (cold starts, a production build), only to make room for more runs. Thrown away and not counted: pinned runs under other lanes' 100% load, one with Chrome's cold start at 180 s, apart from the one hook timeout told above.
+
+**Drills on this shape,** on Windows unless said, each written back with sha256 compared. Stalls are 150 ms in the real Stop handler at a sample's first click.
+
+| Break                                         | Exit | What it printed                                                                        |
+| --------------------------------------------- | ---- | -------------------------------------------------------------------------------------- |
+| All five stalled                              | 1    | `the five samples, in ms:` 159.6, 159.1, 158.8, 158.7, 158.6                           |
+| Three of five stalled                         | 1    | `the five samples, in ms:` 159.9, 159.5, 158.8, 20.2, 23.5                             |
+| One stalled                                   | 0    | in the receipt: 160.1, 19.8, 20.6, 21.8, 20.6, median 20.6                             |
+| None, restored                                | 0    | in the receipt: 20.9, 20.2, 20.5, 20.9, 21.5, median 20.9                              |
+| Rows not virtual                              | 1    | `sample 1: rows on the page: expected 69 to be less than 30`                           |
+| Height wrong, `+1000`                         | 1    | `sample 1: height of the rows: expected 2001000 to be 2000000`                         |
+| Stop stops landing from sample 3              | 1    | `sample 3: Stop clicks landed: expected 75 to be greater than 75`                      |
+| Sample 2 past the 3 s wait                    | 1    | `TimeoutError: locator.waitFor`, then `stopped in sample 2, after: 20.3`               |
+| The hook's own limit, Linux, 2.5 s per sample | 1    | `Hook timed out in 10000ms`, then `stopped in sample 4, after: 2511.6, 2508.6, 2508.7` |
+
+**A drill that proved nothing, redone.** The height break was `+1` at first, and it exited 0. **The height check only sees Chrome's six significant digits:** real Chrome reads `2000000px` and `2000001px` alike as `2e+06px`, and `2001000px` as `2.001e+06px`. So a height wrong by less than that passes. The check is left as it was, it has always read this way; `+1000` goes red.
+
+**The whole file on Windows, this shape:** exit 0, 17 passed, hook 2,546 ms, samples 20.6, 20.6, 19.8, 20.3, 24.0, median 20.6.
+
 ## A correction to `cc-small3.md`
 
 That record said my drill runner "keeps everything now". It did not: the patch had failed silently, as I found starting this round. The two reds it
@@ -271,9 +313,9 @@ One after another on `49471a4ea1`, status lines 0, Node 22.19.0 (CI's major), no
 
 ## Not proven, and why
 
-- **The hosted runs.** Local Windows and WSL are not hosted runners. A is for hosted CI to confirm. **B has its shape now (CC-STOPSHAPE below), and a new way to go red:** the case's own 5 s limit.
+- **The hosted runs.** Local Windows and WSL are not hosted runners. A is for hosted CI to confirm. **B has its shape now (CC-STOPSHAPE2 below), and a way to go red by time:** the hook's own 10 s on POSIX, at a load where other cases in the file already time out.
 - **The hosted Windows landing's real duration.** Only "over 3 s" is known. The case's 15 s limit still applies, and a landing past it fails by name.
-- **The 277 ms itself:** never reproduced, on Windows or on Linux Chromium. **The case on hosted macOS and Linux inside its 5 s:** arithmetic only, until hosted CI runs it.
+- **The 277 ms itself:** never reproduced, on Windows or on Linux Chromium. **The hook on hosted macOS and Linux inside its 10 s:** arithmetic only, until hosted CI runs it.
 - **The two old unread reds** above.
 - **The 26-minute figure:** arithmetic from 101 and 1,001 files, never run at 11,230, and about this base; CC-WINLAND2's fix was not run here.
 - **`--mcp-always-load` reaching the Model API host in a real run:** read and type-checked. A run that declares tools needs a model call, and none was made.

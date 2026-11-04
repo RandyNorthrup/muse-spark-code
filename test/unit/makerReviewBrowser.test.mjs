@@ -1,4 +1,4 @@
-import { beforeAll, afterAll, afterEach, expect, it } from 'vitest'
+import { beforeAll, afterAll, afterEach, describe, expect, it } from 'vitest'
 import { build } from 'esbuild'
 import { createServer } from 'node:http'
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -446,30 +446,50 @@ async function stopGapOverLargePayload(p, sample) {
 }
 // The bound is the product's promise; a single sample also reads whatever else a shared runner was
 // doing (run 41794406176, Linux, 277 ms; this machine 20 to 25 ms before and after the same code).
-// The median of five still fails anything that repeats, and ignores one hiccup.
-it(`${ENGINE}: 100,000 lines remain virtual and queued Stop input responds below 100 ms`, async () => {
-  const p = await page()
-  await emit(p, state())
-  await p.locator('.maker-surface').waitFor({ state: 'attached' })
-  await emit(p, {
-    v: 1,
-    type: 'makerPreview',
-    preview: { kind: 'payload', title: 'Warm simulator', content: 'hello' },
+// The median of five still fails anything that repeats, and ignores one hiccup. Five samples can pass
+// a POSIX case's 5 s on a loaded machine (cc-int12fix.md), so they are taken under the hook's limit.
+describe(`${ENGINE}: queued Stop, five samples over 100,000 lines`, () => {
+  const taken = { samples: [], stops: 0, reached: 0, ms: 0 }
+  beforeAll(async () => {
+    const started = Date.now()
+    const p = await page()
+    try {
+      await emit(p, state())
+      await p.locator('.maker-surface').waitFor({ state: 'attached' })
+      await emit(p, {
+        v: 1,
+        type: 'makerPreview',
+        preview: { kind: 'payload', title: 'Warm simulator', content: 'hello' },
+      })
+      await p.locator('.maker-digest').waitFor()
+      for (const sample of [1, 2, 3, 4, 5]) {
+        taken.reached = sample
+        const facts = await stopGapOverLargePayload(p, sample)
+        expect(facts.rows, `sample ${sample}: rows on the page`).toBeLessThan(30)
+        expect(facts.height, `sample ${sample}: height of the rows`).toBe(2_000_000)
+        expect(facts.stops, `sample ${sample}: Stop clicks landed`).toBeGreaterThan(taken.stops)
+        taken.stops = facts.stops
+        taken.samples.push(facts.latency)
+      }
+      taken.ms = Date.now() - started
+    } finally {
+      await p.close()
+      rig.page = undefined
+    }
   })
-  await p.locator('.maker-digest').waitFor()
-  const samples = []
-  let stops = 0
-  for (const sample of [1, 2, 3, 4, 5]) {
-    const facts = await stopGapOverLargePayload(p, sample)
-    expect(facts.rows).toBeLessThan(30)
-    expect(facts.height).toBe(2_000_000)
-    expect(facts.stops).toBeGreaterThan(stops)
-    stops = facts.stops
-    samples.push(facts.latency)
-  }
-  const median = samples.toSorted((a, b) => a - b)[2]
-  expect(median, `the five samples, in ms: ${samples.join(', ')}`).toBeLessThan(100)
-  rig.results.push({ probe: 'large-payload', latency: median, samples, stops })
+  // A wait that ran out, or the hook's own limit, names only itself: this says how far it got.
+  afterAll(() => {
+    if (taken.samples.length < 5)
+      throw new Error(
+        `the Stop samples stopped in sample ${taken.reached}, after: ${taken.samples.join(', ')}`,
+      )
+  })
+  it(`${ENGINE}: 100,000 lines remain virtual and queued Stop input responds below 100 ms`, () => {
+    const { samples, stops, ms: hookMs } = taken
+    const median = samples.toSorted((a, b) => a - b)[2]
+    expect(median, `the five samples, in ms: ${samples.join(', ')}`).toBeLessThan(100)
+    rig.results.push({ probe: 'large-payload', latency: median, samples, stops, hookMs })
+  })
 })
 it.each([10_000, 20_000])(
   `${ENGINE}: worst-case search with %s repeated rows keeps Stop below 100 ms`,
