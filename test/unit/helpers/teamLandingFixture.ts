@@ -23,6 +23,8 @@ import {
 import { HOOK_CONFIG_MAX_BYTES } from '../../../src/shared/constants'
 
 const noLog = (): void => undefined
+/** As much as the product's own runner takes: a large tree is no failure of git's. */
+const FIXTURE_GIT_MAX_BYTES = 256 * 1024 * 1024
 
 export function fixtureGit(cwd: string, args: readonly string[], input?: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -37,7 +39,7 @@ export function fixtureGit(cwd: string, args: readonly string[], input?: string)
         'core.autocrlf=false',
         ...args,
       ],
-      { cwd },
+      { cwd, maxBuffer: FIXTURE_GIT_MAX_BYTES },
       (error, stdout) => {
         if (error === null) resolve(stdout)
         else reject(new Error('git fixture command failed', { cause: error }))
@@ -62,8 +64,7 @@ export const landingRunGit: TeamGit = (args, cwd, input, env) =>
         'core.autocrlf=false',
         ...args,
       ],
-      // As much as the product's own runner takes: a large tree is no failure of git's.
-      { cwd, maxBuffer: 256 * 1024 * 1024, ...(env !== undefined && { env }) },
+      { cwd, maxBuffer: FIXTURE_GIT_MAX_BYTES, ...(env !== undefined && { env }) },
       (error, stdout, stderr) => {
         if (error === null) resolve(Buffer.from(stdout))
         else {
