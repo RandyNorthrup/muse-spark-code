@@ -245,6 +245,16 @@ excluded by the MacBook rule.
    `ESRCH`) as the proof for check commands on macOS, which the M96c text refuses as a
    PID observation; (c) leave macOS checks to SSH runners. **Recommendation:** (a) until
    the lead decides on (b); it is the owner's rule about proof, not mine to relax.
+
+   **Corrected by CC-CHECKPROOF (2026-11-04), the lead's call.** The worker no longer gets
+   that sentence on macOS or on Linux, and "a Linux systemd scope proves it, so the route works
+   there" did not hold: `--collect` removed the scope before a command that ended by itself
+   could be read (0 of 100 proved for `sleep 0.3`, measured). A scope this launch saw now
+   reads empty when its folder is gone. Where nothing can prove an end, a check takes a folder
+   used once and removed, and the permit goes back when the command's process group is gone:
+   (b)'s observation, used only for that, since nothing is reused on it. M96c's rule stands.
+   `docs/certification/cc-winland.md` §11.
+
 2. **The tool name Muse Code reports for a session MCP tool is not captured.**
    `classifyMuseWorkerApproval` matches the team's server name inside the reported
    name, so a different shape refuses the call (fail closed, said to the worker). The

@@ -167,21 +167,19 @@ an untouched line is never rewritten. Binary files never convert.
    is proved (W11), the VS Code wiring is not, here. The packed product's run is the proof.
 8. **A window killed mid-landing with no lock left**, as in exec, relies on the person having
    removed it. The extension never removes an `index.lock` it did not take.
-9. **On Linux and macOS a landing's setup command runs every time.** Its folder is used once, so it
-   has no install cache. Windows keeps the shared slots' cache.
-10. **A one-use folder gives its check permit back with no proof.** The group is signalled at
-    retirement, so what is unaccounted is only a process that left the group with `setsid`. Holding
-    the permit instead would stall the next landing for good. M96c's rule stands for everything else.
-11. **Worker `run_checks` is still refused on Linux and macOS,** as `rlf-teamworkers3.md` §7.1 records
-    for macOS. It is wider than that record says: **a Linux scope does not prove it either.** Real
-    Linux with a delegated scope, systemd 262, `checkProcessOver`: `sh -c 'sleep 0.3'` proved 0 of 10,
-    `sh -c 'sleep 1; echo done'` 0 of 1, `git --version` 30 of 30 on one run and 1 of 2 on another,
-    with `container: linuxScope` in the journal and `notOwned` on the unproved ones. `--collect` removes
-    the scope as its last process ends, and the code reads a missing `cgroup.events` as no proof. The
-    decision is the lead's: drop `--collect`, or read a cgroup that is gone as empty (the kernel will
-    not remove a populated one), or keep the rule and say so.
-12. **On POSIX each landing's check leaves its launches `uncertain` in the team journal,** about a
-    dozen a check. They are unpruned, and the next window scans them at start in one pass.
+9. **Where no container proves a command's end, a check's setup command runs every time.** Its
+   folder is used once, so it has no install cache. Windows' job and a Linux scope keep the shared
+   slots' cache.
+10. **A one-use folder's check permit goes back once the command's process group is gone,** and
+    only then (§11). A process that left the group with `setsid` goes uncounted: nothing on such a
+    system can see it. This item first said the permit went back "with no proof", and that holding
+    it would stall the next landing for good. That is no longer how it stands.
+11. **Worker `run_checks` now works on all three systems** (§11). This item first said it stayed
+    refused on Linux and macOS, and left the lead three options. The lead chose, and the measures it
+    quoted are in §11 on far more samples.
+12. **Where no container proves an end, each check leaves its launches `uncertain` in the team
+    journal,** about a dozen a check. They are unpruned, and the next window scans them at start in
+    one pass.
 13. **`mergeSpec` still reads any real git exit on the ref as absent,** as its comment says, so a
     repository git cannot read (exit 128 for another reason) says "moved ref". A launch that never ran
     no longer does.
@@ -299,9 +297,9 @@ installation now log the helper's sentence instead of "git exited with code 1".
 1. `teamProcessWorkers.ts`: on POSIX a landing's checks take `landing-checks/<uuid>`, one folder, used
    for this landing and removed. Nothing is reused, so nothing needs proving, and the verdict is the exit
    code. It still waits for the governor's check capacity, runs through the team's lifetime, snapshots the
-   merged copy into a clone, and runs setup first. Windows keeps the shared slots. Selected by platform,
-   not by asking a container, because a Linux scope's answer changes from one command to the next (§5
-   item 11). M96c's rule is untouched for worker `run_checks`.
+   merged copy into a clone, and runs setup first. Windows keeps the shared slots. Selected by platform then, because a Linux
+   scope's answer changed from one command to the next. §11 has since fixed that reading, moved this
+   folder to `one-use-checks/`, and made it the one path for a worker's check too.
 2. `workerOps.ts`: only git's own exit is a `TeamGitError`. A helper that is missing, a launch refused, a
    child stopped before it exited keep their own type and words. Callers read a TeamGitError as an answer:
    `teamWorkspaces.ts` reads exit 1 as "it differs", so a launch that never ran could read as that too.
@@ -407,3 +405,165 @@ The throwaway checkout, its Node and what the runs left in WSL's `/tmp` were rem
 **Commits.** `8942620fe5` → `c6e1a64ef8` (landing checks on POSIX, the swallow, the rig) → `50fd5c644b` (the
 snapshot) → `794d3cd` (the lazy registry) → `c91983d273` (these corrections) → `1aeb8ac571` (what
 `check:catches` and `check:host-api` asked) → the commit carrying these last lines. Not pushed.
+
+## 11. CC-CHECKPROOF: a worker's `run_checks` on Linux and macOS (2026-11-04)
+
+The lead's call: a worker refused its checks on two of three systems, with a false sentence, is a product
+fault. M96c's rule stays: **a folder whose processes are not proved ended is never reused.** What changed is
+how proof is read, and what happens where there is none. Real Linux in a fresh WSL checkout as in §10
+(Arch, Linux 6.18, systemd 262, Node 22.23.4), removed after. No model call, no real `muse`.
+
+**Reading a scope that is gone.** `--collect` removes a scope as its last process ends, and the code read the
+missing file as no proof. So the longer a command ran, the surer it was to lose its proof. Now a scope counts
+as seen only when the launch has read the held child's own `/proc/<pid>/cgroup` and found it inside, and read
+its `cgroup.events`. A scope seen and then gone is empty, because the kernel will not remove a cgroup with a
+process in it. A missing `cgroup.events` in a folder still there says nothing, nor does a hierarchy not mounted,
+nor a scope never seen. One more thing showed itself: a read while the cgroup is being removed answers
+`ENODEV`, which reached callers as a crash until it was read as going.
+
+`checkProcessOver` on real processes, one after another, all on the same code path as a worker's check:
+
+| Command                      | Samples | With a scope, before: proved | With a scope, now: proved | No scope, now: proved | No scope, now: group gone |
+| ---------------------------- | ------- | ---------------------------- | ------------------------- | --------------------- | ------------------------- |
+| `git --version`              | 300     | 297                          | **300**                   | 0                     | 300                       |
+| `sh -c true`                 | 300     | 281                          | **300**                   | 0                     | 300                       |
+| `sh -c 'sleep 0.05'`         | 200     | 2                            | **200**                   | 0                     | 200                       |
+| `sh -c 'sleep 0.3'`          | 100     | 0                            | **100**                   | 0                     | 100                       |
+| `sh -c 'sleep 1; echo done'` | 30      | 0                            | **30**                    | 0                     | 30                        |
+| All                          | 930     | 580                          | **930**                   | 0                     | 930                       |
+
+Every exit code was right in every run. `container` in the journal: `linuxScope` with a scope, `processGroup`
+without.
+
+**The escapee, against real processes.** A real `setsid sleep 300` left behind in the scope, 20 runs:
+
+| What was looked at                                           | Result                                      |
+| ------------------------------------------------------------ | ------------------------------------------- |
+| Proof when the leader ended, escapee alive                   | false, 20 of 20                             |
+| `cgroup.events` while it lived, 10 samples a run over 200 ms | `populated 1`, 200 of 200                   |
+| Ended by a hand outside, then retirement                     | proved, 10 of 10                            |
+| Retirement left to end it                                    | proved 10 of 10, and dead after it 10 of 10 |
+
+So the kernel holds the scope for as long as the escapee is in it, and the lead's reasoning holds. Retirement now
+reaches it: once the leader has exited there is no membership to read, so the unit, named for this launch, and the
+kernel's path, the one this launch saw, are what authorize the signal. **What it cannot see:** a process that moves
+itself out of the scope. `systemd-run --user --scope sleep 300` inside a check put it in `run-p<pid>-….scope`,
+by `/proc`, and the launch read `proved`. No reading of this scope can know. A `setsid` does not do that, and neither
+does a test server a check forgets; a program has to ask systemd to.
+
+**Where no proof exists** (macOS, Linux with no usable user systemd). A worker's check and a landing's now share
+`checkFolder()`: asked of the lifetime, the shared slots where a container proves ends, otherwise
+`one-use-checks/<uuid>`, used once and removed. **The cost: setup runs every time,** with no install cache.
+The verdict is the exit code. Before the permit goes back, the launch's process group is signalled (TERM, the grace,
+KILL) and confirmed gone by the kernel (`kill(-pgid, 0)`, with the table for zombies nothing reaps). The leader's
+identity is no longer there to check, so each member must be in this group and carry this launch's marker. Anything
+else is a stranger, a reused number or a program that cleared its environment: nothing is signalled, the group is not
+gone, the permit stays counted and the sentence stands. **The known limit: a process that left the group with
+`setsid` goes uncounted,** and is alive after the verdict. Nothing on such a system can see it, and the suite pins
+it (`cannot see a setsid escapee: the named limit`). macOS's marker read could not be tried here: if macOS will not
+show a member's environment, that member reads as a stranger, which errs toward the sentence, not toward a signal.
+
+**The sentence, caller by caller in `checkSlots.ts`.**
+
+| Caller                         | Before                                                                           | Now                                                                                 |
+| ------------------------------ | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `captureCheckSnapshot`'s `run` | every git call on two systems                                                    | only if a launch was not proved ended                                               |
+| `git()`                        | the same                                                                         | the same                                                                            |
+| `command()`                    | the same                                                                         | the same                                                                            |
+| `copyGuard`                    | **false: nothing had run.** It guards a check pointed at the person's repository | `teamRunners.testFailed`, the class's word for a misuse, and the folder is not held |
+
+In the shared slots "not proved" means the container says a process is still there, or, the one place the sentence
+can overstate, that a launch's scope could not be seen or its file read. Neither was seen in 930 samples. In a
+one-use folder it means the group is still there after SIGKILL, or holds a stranger. `routing.ts` and `sshRunner.ts`
+use it for remote answers, not on this route.
+
+**Also found: a reply named its checks by their place in the person's whole list.** `run_checks` with
+`names: ['fails']` answered `passes: exit code 3`. Fixed: the bridge hands over the names it ran. No earlier suite
+looked at the second check's name.
+
+**Also found: a retirement could not reach a command that exec'd after it was recorded.** While the suites ran
+together with no scope, `stops every live child on dispose` (`teamProcessLifetime`) failed once, a child alive past
+its 4 s poll. The identity a signal must match is recorded 10 ms after the gate opens. Under load the shell had not
+exec'd yet, and `sh -c 'a; exec b'` does so later, and from then on no signal was authorized and the child kept
+running. Measured with no scope: at eight at once, 3 launches in 200 recorded the shell and all 3 were alive after
+their retirement. In the first 600 launches it did not happen at all, which is why it had looked like nothing. A
+retirement now reads the program the child runs now: the same pid, start, group, owner and marker are the same
+process. Guard: `reaches a command that exec'd after its identity was recorded`, which needs no race to fail.
+
+**Not fixed, for the lead: a landing costs 27 git processes per changed file.** Measured: 93 for one file, 174 for four,
+390 for twelve. Each file's guard reads the repository's modes three times, whole, at five processes a read. A governed
+launch is about 0.5 s on Windows, so four files take 87 to 100 s here, part of it under git's lock, and thirty files would
+take about 7 minutes. **`the governed git`'s two cases hit their 180 s bound once,** when 24 files ran together on this
+PC and a 1 s neighbour took 27 s; by themselves they pass at 87 and 100 s, and I did not raise the bound. So the margin
+on a slow hosted Windows runner is thin. The fix is to keep the modes for one landing's guards, which touches M96c's
+raw-byte check, so I left it for a decision rather than folding it in here.
+
+**Not fixed, older than this lane: many launches at once with a scope time out.** Launches at once on real Linux with a
+scope, 8 rounds each, on this code and as at `a1f27facbb`: 4 and 8 at once, all confirmed; 16 at once, 96 and 90 of 128
+failed `TEAM_CONFIRMATION_TIMEOUT` at its 5 s; 24 at once, 143 and 97 of 192. Why at that number I did not find. A shared
+slot's git calls run one after another, so it takes as many checks at once to reach it, and the governor's capacity sits
+in front. The same table shows what this lane's retirement saved: a round of 4 went from 1,175 ms to 108 ms, because a
+retirement no longer waits out the grace for a scope already empty.
+
+**macOS is hosted CI's to prove.** These cover its path, and none of them skips there:
+
+- `teamCheckProof.test.ts`: `reading a scope that is gone` (2), `a bare process group` (5), `a worker's run_checks` (4),
+  `the slots' refusals` (1). Only `a real Linux scope` (3) skips, because macOS has no such container.
+- `teamLandingChecks.test.ts` (2) and `teamProcessLifetime.test.ts` (7).
+
+Hosted Linux has no user scope as far as its logs show, so it takes macOS's path too, and this PC's Linux with no scope
+ran the same cases. A real Linux scope has been proved only in WSL; no hosted runner has one.
+
+**What each system has proved.**
+
+- **Linux with a user scope, real, not hosted.** WSL's Arch at `38a160edf9`: `teamCheckProof`, `teamGitLauncher`,
+  `teamLandingSnapshot`, `teamLandingChecks`, `teamLandingSurfaces`, `teamLandingProduct`, `teamLandingKilled`,
+  `teamLandingPause`, `teamHostRealParts`, `teamEnginePorts`, `teamMergePlan`, `teamProcessWorkers`, `teamWorkerChecks`,
+  `teamProcessLifetime`, `teamCheckSlotsGoverned`, `execTeamSweep`, `execTeamLedger`, `execTeamFlags`,
+  `teamAvailability`, `acpTeamSession`: 20 files, 166 passed, 15 skipped, exit 0. The skips: `a bare process group` and
+  the stranger's sentence (6, not this path), the held-file cases (2, Windows only), worker cases needing a `muse` (7).
+  The table above was taken again on this code, with the same numbers. The distro's user manager had gone away between
+  two runs (`/run/user/1000` removed, no session), and the product took the no-scope path without complaint; for these
+  runs I started it with `systemctl start user@1000` and stopped it after, changing no setting.
+- **Linux with no scope, real, not hosted.** The same files: 169 passed, 12 skipped, exit 0. The skips: `a real Linux
+scope` (3, no such container), the same 2 and 7. The build and the built bundles' crash run: exit 0.
+- **macOS: nothing run by me; hosted CI's.** Its path is the no-scope path above, except `scan` and the marker read,
+  which go through its own Python helper there. That part has not run anywhere yet with this code.
+- **Windows.** This PC. A job proves, so nothing here changed its path but the sentence and the names: `teamCheckProof`
+  (6 passed, 10 skipped, the POSIX cases), `teamLandingChecks`, `teamLaunchWindows` and the team suites below.
+- **Hosted, any system: nothing yet.** It runs when both lanes merge.
+
+**Drills, each restored byte-exact (sha256 compared), each exit 1.** Linux, `temp/wsl/drillsp.mjs`:
+
+| #        | Broken on purpose                                                           | Mode        | Red in                                                  | What it said                        |
+| -------- | --------------------------------------------------------------------------- | ----------- | ------------------------------------------------------- | ----------------------------------- |
+| P1       | a scope that is gone reads as no proof, as before                           | scope       | proves a command that ended by itself                   | `descendantsEnded` false            |
+| P2       | a removed cgroup's `ENODEV` not read as going                               | scope       | the same                                                | `ENODEV: no such device, read`      |
+| P3       | the leader's exit reads as the scope being empty                            | scope       | keeps the proof false while a setsid escapee            | `descendants` proved, escapee alive |
+| P4       | retirement cannot reach the scope once the leader has exited                | scope       | ends what is in the scope at retirement                 | the child alive                     |
+| P6       | a missing `cgroup.events` alone reads as ended                              | none        | reads gone only from the folder gone                    | `expected true to be false`         |
+| P7       | gone is read with no hierarchy mounted                                      | none        | the same                                                | `expected true to be false`         |
+| P8       | a scope counts as seen without the child in it                              | none        | counts a scope as seen                                  | a path for `undefined`              |
+| P9       | a check takes the shared slots with no proof possible: **the fault itself** | none        | `run_checks` 3, landing checks 2, one more              | the hosted sentence                 |
+| P10      | the permit goes back with no look at the group                              | none        | says the sentence when something really has not stopped | no sentence                         |
+| P11      | a folder used once stays                                                    | none        | reuses a folder only where its end is proved            | two folders left                    |
+| P12      | the group looked at but never signalled                                     | none        | signals a member, signals a stubborn                    | the child alive                     |
+| P13      | a stranger in the group is signalled                                        | none        | signals no stranger                                     | the stranger dead                   |
+| P14      | the group reads gone on the leader's exit alone                             | none        | signals a member, signals a stubborn                    | the child alive                     |
+| P15      | a reply names its checks by their place in the whole list                   | none        | answers a check that passes                             | `passes: exit code 3`               |
+| P16      | `copyGuard` says the sentence, as before                                    | none        | do not say an attempt has not stopped                   | the sentence                        |
+| P17      | a process group is taken to prove ends                                      | none        | `run_checks`, 3                                         | the hosted sentence                 |
+| P18, P19 | a retirement trusts the program recorded at the gate                        | none, scope | reaches a command that exec'd                           | the child alive                     |
+
+They supersede L1 to L3 and W21, which broke the same choice when it was made by platform. Windows, `temp/drillsw.mjs`:
+
+| #   | Broken on purpose                                         | Red in                                | What it said                |
+| --- | --------------------------------------------------------- | ------------------------------------- | --------------------------- |
+| W27 | Windows' job taken to prove nothing                       | `run_checks`, 3                       | the sentence                |
+| W28 | a reply names its checks by their place in the whole list | answers a check that passes           | the wrong name              |
+| W29 | `copyGuard` says the sentence, as before                  | do not say an attempt has not stopped | the sentence                |
+| W30 | a missing `cgroup.events` alone reads as ended            | reads gone only from the folder gone  | `expected true to be false` |
+
+**Suites and gates on the final code.**
+
+@@GATES@@
