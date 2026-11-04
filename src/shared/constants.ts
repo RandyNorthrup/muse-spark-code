@@ -4763,6 +4763,11 @@ export const RUNNER_WINDOWS_COMMAND_MAX_CHARS = 32_767
 export const TEAM_SCHED_ID_MAX_CHARS = 128
 export const TEAM_SCHED_TEXT_MAX_CHARS = 8000
 export const TEAM_WRITE_SET_MAX = 256
+/**
+A landing's record holds one entry per changed file (D121: no bound of ours on how many). This bounds
+only reading a broken file into memory, at the most git's runner would hand back for the same tree.
+*/
+export const TEAM_LANDING_RECORD_MAX_BYTES = 256 * 1024 * 1024
 export const TEAM_SCHED_HISTORY_MAX = 256
 export const RUNNER_CONFIG_MAX = 32
 export const RUNNER_MAX_JOBS = 64
