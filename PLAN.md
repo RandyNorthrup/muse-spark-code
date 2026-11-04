@@ -16035,8 +16035,9 @@ That is proved over the MCP protocol with the real governor, real git and real
 processes, and a real `muse serve` reads the endpoint; no model turn has called
 it, and the tool name Muse Code reports in its approval is not captured. The
 governed slots' wait between asks has its own suite. Not on this route: runners
-over SSH, external agents, the per-copy install and a process proof on macOS (a
-bare process group proves nothing, so a folder stays held after a check there).
+over SSH, external agents and the per-copy install. A folder whose processes are
+not proved ended is never reused; where no container can prove it (macOS, Linux with
+no user systemd), a check takes a folder of its own, used once (CC-CHECKPROOF).
 `docs/certification/rlf-teamworkers3.md`. Teams stay off until a second model is
 set up (D227); not in a release yet.
 
@@ -18282,9 +18283,9 @@ kind `changed`, words in every table, **Undo Merge** on the merge card and in
 Traffic. A held file rolls back at once and releases the lock, refusal kind `held`;
 if the roll-back is refused too the record and lock stay for Recover. A workspace
 reached by another spelling is the same workspace. The person's check commands run
-over the staging copy, refusal kind `checks`: in a governed slot on Windows, and on
-Linux and macOS, where no container proves a command's end, in a folder of the
-landing's own, used once, so its setup runs every time. MHP 1.6.0 re-frozen
+over the staging copy, refusal kind `checks`: in a governed slot where a container
+proves a command's end (Windows' job, a Linux scope), and elsewhere in a folder of its
+own, used once, so its setup runs every time. MHP 1.6.0 re-frozen
 for `decideTeamMerge`'s `undo` and the card's `changedDuringLanding`; nothing of it
 has shipped. The merge reads a CRLF checkout over a repository that keeps LF as the
 text it is and writes it back in CRLF: every team merge on Git for Windows' default
@@ -18294,6 +18295,19 @@ session/new has answered. A real crash mid-landing through the engine port is pr
 here on Windows in all three spellings; macOS and Linux are the same suite on hosted
 CI, and the three-platform box stays open until it is green on them. Record:
 `docs/certification/cc-winland.md`.
+
+**CC-CHECKPROOF — a worker's `run_checks` on Linux and macOS (2026-11-04, the lead's
+call).** A worker was refused its checks on two of three systems, in the words "The
+earlier attempt has not stopped". M96c's rule stands: a folder whose processes are not
+proved ended is never reused. A Linux scope now proves a command's end when this launch
+saw the scope and it is empty or gone, since the kernel will not remove a cgroup with a
+process in it: 930 of 930 commands proved, up from 580, and 0 of 100 for `sleep 0.3` before. A
+`setsid` process in the scope keeps the proof false until it ends. Where nothing can
+prove it (macOS, Linux with no user systemd), a worker's check and a landing's take one
+path: a folder used once and removed, its setup every time, and the permit back only once
+the command's process group is signalled and gone. What left that group with `setsid`
+goes uncounted, the named limit. macOS is hosted CI's to prove. Record:
+`docs/certification/cc-winland.md` §11.
 
 **M96CINT round 2 integration (2026-10-05).** Finish the existing partial
 integration by merging reviewed C (`52d04b69`) and then O (`19bb0703`) with

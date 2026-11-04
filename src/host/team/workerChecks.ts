@@ -115,8 +115,7 @@ async function heldLockfiles(folder: string): Promise<readonly string[]> {
 }
 
 /** One call's result text: each check's exit code and where it ran, then its whole output. */
-function resultText(results: readonly CheckResult[], checks: readonly CheckCommandSetting[]) {
-  const names = results.map((result, index) => checks[index]?.name ?? result.runId)
+function resultText(results: readonly CheckResult[], names: readonly string[]) {
   return [
     MODEL_API_MODEL_TEXT.runChecksLead,
     ...results.map(
@@ -201,7 +200,7 @@ export function createWorkerChecks(deps: WorkerChecksDeps) {
         remote: () => Promise.reject(new Error(UI_TEXT.teamRunners.offline)),
         local: deps.localSlot,
       },
-      pack: (results) => Promise.resolve(resultText(results as CheckResult[], checks)),
+      pack: (results, names) => Promise.resolve(resultText(results as CheckResult[], names)),
     })
     return {
       name: bridge.definition.name,

@@ -131,6 +131,12 @@ happened, not what was planned; superseded entries are kept.
   A file with mixed line endings still stops the merge rather than have lines rewritten.
 - **An ACP team session asks about a dead run at its first turn.** The editor is asked
   once whether to put back a landing a dead run left half done. Keep leaves it as it is.
+- **A team worker's checks run on Linux and macOS.** A worker that asked for your check
+  commands was refused every time on those systems, told an earlier attempt had not
+  stopped when nothing was running. They run now. On macOS, and on Linux with no user
+  systemd, each check gets a folder of its own, so your setup command runs every time.
+- **A worker's check results carry the right names.** A worker that asked for one of your
+  checks by name was told the result under the name of the first one you set up.
 - **A team task whose git could not start says why.** A missing helper or a refused start
   read as a git failure, so the merge card told you a branch had moved. It now gives the
   real reason, such as to reinstall.
