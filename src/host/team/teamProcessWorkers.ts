@@ -176,6 +176,8 @@ export interface ProcessTeamPorts {
   readonly workers: TeamWorkerPort
   /** The person's checks over a landing's staging copy, each in a governed slot. */
   readonly runLandingChecks: TeamLandingPolicy['runChecks']
+  /** A Muse Code worker's `run_checks` session server, as its launch asks for it. */
+  readonly serveWorkerChecks: ReturnType<typeof createWorkerChecks>['serve']
   /** Stops every host and external agent this team started. */
   readonly dispose: () => Promise<void>
 }
@@ -525,32 +527,38 @@ export function createProcessTeamPorts(deps: TeamProcessWorkersDeps): ProcessTea
     }
   }
   /**
-  The folder a landing's checks run in. A shared slot goes back only on a container's proof that
-  the command's whole tree ended, and only a Windows job gives that every time: a process group
-  proves nothing, and a Linux scope is usually collected before a command that ended by itself can
-  be read. So on POSIX a landing takes a folder of its own, used for this landing and removed. A
-  folder never used again needs no proof, and the verdict is the exit code. Its setup runs each time.
+  The folder a check runs in, for a worker's `run_checks` and a landing's checks alike. A folder
+  whose processes are not proved ended is never reused. Where the container proves a command's end
+  (a Windows job, a Linux scope), the shared slots do that and keep their install cache. Where
+  nothing can (macOS, Linux with no user systemd), a check takes a folder of its own, used once and
+  removed, so its setup runs every time. The verdict is the exit code, and the permit goes back only
+  once the command's process group is signalled and gone. What left the group with setsid goes
+  uncounted: nothing on such a system can see it.
   */
-  const landingSlots = async (): Promise<{
+  const checkFolder = async (): Promise<{
     readonly slots: CheckSlots
     readonly done: () => Promise<void>
   }> => {
-    if (deps.platform === 'win32')
+    const running = await ensureLifetime()
+    if (running.provesEnds)
       return { slots: await (checkSlots ??= buildCheckSlots()), done: () => Promise.resolve() }
-    const run = checkProcessOver(await ensureLifetime())
-    const root = path.join(await storage(), 'landing-checks', randomUUID())
+    const run = checkProcessOver(running)
+    const root = path.join(await storage(), 'one-use-checks', randomUUID())
     return {
       slots: await governedSlots({
         root,
         count: 1,
-        run: async (request) => ({ ...(await run(request)), descendantsEnded: true }),
+        run: async (request) => {
+          const result = await run(request)
+          return { ...result, descendantsEnded: result.groupEnded === true }
+        },
       }),
       done: async () => {
         try {
           await rm(root, { recursive: true, force: true })
         } catch (error: unknown) {
-          // A folder left behind changes no verdict.
-          deps.log.warn(`A landing's check folder stayed: ${failureForLog(error)}`)
+          // A folder left behind changes no verdict, and nothing uses it again.
+          deps.log.warn(`A check's folder stayed: ${failureForLog(error)}`)
         }
       },
     }
@@ -560,8 +568,12 @@ export function createProcessTeamPorts(deps: TeamProcessWorkersDeps): ProcessTea
     isTrusted: deps.isTrusted,
     checks: deps.checks,
     localSlot: async (job) => {
-      const slots = await (checkSlots ??= buildCheckSlots())
-      return await slots.run(job)
+      const { slots, done } = await checkFolder()
+      try {
+        return await slots.run(job)
+      } finally {
+        await done()
+      }
     },
     runGit: deps.runGit,
     log: deps.log,
@@ -924,10 +936,11 @@ export function createProcessTeamPorts(deps: TeamProcessWorkersDeps): ProcessTea
 
   return {
     workers,
+    serveWorkerChecks: (task, isCurrent) => workerChecks.serve(task, isCurrent),
     runLandingChecks: async (folder, signal) => {
       const checks = deps.checks()
       if (checks.length === 0) return { passed: true }
-      const { slots, done } = await landingSlots()
+      const { slots, done } = await checkFolder()
       try {
         for (const check of checks) {
           const result = await slots.run({

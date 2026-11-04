@@ -15,7 +15,8 @@ import { resolveServerCommand, spawnLine } from '../../core/execGuard'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { spawnGuarded } from '../../core/guardedChildProcess'
 import { existsSync, realpathSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { lstat, readFile } from 'node:fs/promises'
+import path from 'node:path'
 import { createServer } from 'node:net'
 import { setTimeout as delay } from 'node:timers/promises'
 import { shellJobAssembly, type ShellJobDeps } from '../backend/shellJob'
@@ -59,6 +60,7 @@ import {
   MSP_HANDSHAKE_TIMEOUT_MS,
   MSP_REQUESTED_CAPABILITIES,
 } from '../../shared/constants'
+import { errnoCode, isMissingPath } from '../canonicalPath'
 import { createNativeOrphanDriver, createOrphanRecovery } from './orphanRecovery'
 import { createProcessOwnership } from './processOwnership'
 import { MuseCodeHost, museCodeEffortPort } from '../../core/backends/musecode/MuseCodeHost'
@@ -66,6 +68,8 @@ import type { CoreLogger } from '../../core/logging'
 
 const NATIVE_POLL_MS = 10
 const NATIVE_CONFIRM_MS = 5000
+/** How long a held child gets to show up in its scope; systemd moves it as the unit starts. */
+const SCOPE_SEEN_WAIT_MS = 1000
 const LAUNCH_GATE_FD = 3
 
 /** A separate team MSP host, never the conversation's host. W supplies the
@@ -200,6 +204,11 @@ const endSchema = z.strictObject({
   childExited: z.boolean(),
   descendants: z.enum(['proved', 'uncertain']),
   notOwned: z.optional(z.array(z.number().check(z.int(), z.positive()))),
+  /**
+  No one is left in the launch's process group. What a group can say, and never `proved`: a process
+  that left it with setsid is not in it.
+  */
+  groupGone: z.optional(z.literal(true)),
 })
 const launchSchema = z
   .strictObject({
@@ -257,6 +266,8 @@ export interface ContainedTeamChild {
 
 /** Explicit OS seam. No uncontained spawn or taskkill fallback is accepted here. */
 export interface TeamProcessDriver {
+  /** Whether this driver's container can prove a whole tree ended: a Windows job, a Linux scope. */
+  readonly provesEnds: boolean
   launch(
     request: TeamLaunchRequest,
     launchId: string,
@@ -302,6 +313,8 @@ class TeamLaunchLifecycle {
 }
 
 export interface TeamProcessLifetime {
+  /** Whether a retirement here can be `proved`, whatever one command's turns out to be. */
+  readonly provesEnds: boolean
   launch(request: TeamLaunchRequest): Promise<ContainedTeamChild & { readonly launchId: string }>
   dispose(): Promise<readonly Retirement[]>
   recoveryRecords(journal: TeamJournal, unreadable?: string[]): Promise<readonly TeamLaunchRecord[]>
@@ -328,6 +341,7 @@ export function createTeamProcessLifetime(options: {
   const save = (record: TeamLaunchRecord) =>
     options.journal.write(`launch-${record.id}`, record, launchSchema)
   return {
+    provesEnds: options.driver.provesEnds,
     async launch(request) {
       if (state.isDisposed) throw new Error('TEAM_PROCESS_LIFETIME_DISPOSED')
       if (options.isHostBusy()) throw new Error('TEAM_HOST_BUSY')
@@ -375,7 +389,7 @@ export function createTeamProcessLifetime(options: {
               if (end === undefined) throw new Error('TEAM_RETIREMENT_MISSING')
               if (previous?.descendants === 'proved') return previous
               await save({ ...record, confirmation, end })
-              if (end.descendants === 'proved') {
+              if (end.descendants === 'proved' || end.groupGone === true) {
                 lifecycle.end()
                 launches.delete(lifecycle)
               }
@@ -400,7 +414,10 @@ export function createTeamProcessLifetime(options: {
             ended,
             retire: async () => {
               lifecycle.retire()
-              return await recordEnd(await launched.retire())
+              const end = await recordEnd(await launched.retire())
+              // Nothing is left in its group: dispose has nothing to retire, and its number may be reused.
+              if (end.groupGone === true) active.delete(pending)
+              return end
             },
           }
         } catch (error: unknown) {
@@ -460,6 +477,48 @@ export function createTeamProcessLifetime(options: {
       }
       return records
     },
+  }
+}
+
+const CGROUP_ROOT = '/sys/fs/cgroup'
+const isUnreadable = (error: unknown): boolean =>
+  errnoCode(error) === 'EACCES' || errnoCode(error) === 'EPERM'
+const isNoHierarchy = (error: unknown): boolean => isUnreadable(error) || isMissingPath(error)
+/** Missing, or (ENODEV) a file of a cgroup being removed while it is read. */
+const isGoingFile = (error: unknown): boolean =>
+  isMissingPath(error) || errnoCode(error) === 'ENODEV'
+
+/** The scope's `cgroup.events`, if the held child is really in it. A scope never seen proves nothing. */
+export function seenScopeEvents(
+  group: string,
+  membership: string,
+  root = CGROUP_ROOT,
+): string | undefined {
+  return membership.split('\n').includes(`0::${group}`)
+    ? `${root}${group}/cgroup.events`
+    : undefined
+}
+
+/**
+Whether a scope this launch saw is gone. `--collect` removes a scope once its last process ends, and
+the kernel refuses to remove a cgroup with a process in it, so gone means empty. Only the folder
+being gone says so: a missing `cgroup.events` in a folder still there says nothing, and neither does
+a hierarchy that is not mounted or a folder that cannot be read.
+*/
+export async function isSeenScopeGone(eventsFile: string, root = CGROUP_ROOT): Promise<boolean> {
+  try {
+    await lstat(path.join(root, 'cgroup.controllers'))
+  } catch (error: unknown) {
+    if (isNoHierarchy(error)) return false
+    throw error
+  }
+  try {
+    await lstat(path.dirname(eventsFile))
+    return false
+  } catch (error: unknown) {
+    if (isUnreadable(error)) return false
+    if (isMissingPath(error)) return true
+    throw error
   }
 }
 
@@ -523,6 +582,7 @@ export async function createNativeTeamProcessDriver(options: {
   }
   const observer = createNativeOrphanDriver()
   return {
+    provesEnds: hasScope,
     launch(request, launchId, lifecycle = new TeamLaunchLifecycle()) {
       const unit = `muse-spark-${launchId}.scope`
       // The probes proved each tool runs; the launch resolves it outside
@@ -618,7 +678,13 @@ export async function createNativeTeamProcessDriver(options: {
       void exited.catch(() => {
         /* The confirmation and ended promises carry spawn failure. */
       })
-      const state = { cgroup: '', isExited: false, hasEmptyProof: false }
+      const state: {
+        cgroup: string
+        isExited: boolean
+        hasEmptyProof: boolean
+        /** Set only once this launch has seen its child inside the scope. */
+        scopeEvents?: string
+      } = { cgroup: '', isExited: false, hasEmptyProof: false }
       void exited
         .then(() => {
           state.isExited = true
@@ -627,8 +693,19 @@ export async function createNativeTeamProcessDriver(options: {
           // Settled either way: a failed spawn counts as exited too.
           state.isExited = true
         })
+      const canRead = async (file: string): Promise<boolean> => {
+        try {
+          await readFile(file, 'utf8')
+          return true
+        } catch (error: unknown) {
+          if (isGoingFile(error)) return false
+          throw error
+        }
+      }
       const confirmation = (async (): Promise<LaunchConfirmation> => {
         const deadline = performance.now() + NATIVE_CONFIRM_MS
+        const scopeDeadline = performance.now() + SCOPE_SEEN_WAIT_MS
+        const isScopeWaitOver = () => performance.now() >= scopeDeadline
         while (performance.now() < deadline) {
           if (child.pid === undefined) {
             await exited
@@ -649,7 +726,17 @@ export async function createNativeTeamProcessDriver(options: {
               }
               if (!group.startsWith('/') || group.includes('..'))
                 throw new Error('TEAM_SCOPE_NOT_READY')
-              state.cgroup = `/sys/fs/cgroup${group}/cgroup.events`
+              state.cgroup = `${CGROUP_ROOT}${group}/cgroup.events`
+              // Asked of the kernel, not the unit: the held child is in it and its file is there.
+              const seen = seenScopeEvents(
+                group,
+                await readFile(`/proc/${String(child.pid)}/cgroup`, 'utf8'),
+              )
+              if (seen === undefined && !state.isExited && !isScopeWaitOver()) {
+                await delay(NATIVE_POLL_MS)
+                continue
+              }
+              if (seen !== undefined && (await canRead(seen))) state.scopeEvents = seen
             }
             return confirmationSchema.parse({
               pid: child.pid,
@@ -671,13 +758,16 @@ export async function createNativeTeamProcessDriver(options: {
       })()
       const isEmpty = async () => {
         if (state.hasEmptyProof) return true
-        if (scope === undefined || state.cgroup === '') return false
+        if (state.scopeEvents === undefined) return false
         try {
-          state.hasEmptyProof = /^populated 0$/m.test(await readFile(state.cgroup, 'utf8'))
-          return state.hasEmptyProof
-        } catch {
-          return false
+          state.hasEmptyProof = /^populated 0$/m.test(await readFile(state.scopeEvents, 'utf8'))
+        } catch (error: unknown) {
+          // An unreadable file proves nothing; only a scope that is gone is empty.
+          if (isUnreadable(error)) return false
+          if (!isGoingFile(error)) throw error
+          state.hasEmptyProof = await isSeenScopeGone(state.scopeEvents)
         }
+        return state.hasEmptyProof
       }
       const ended = (async (): Promise<Retirement> => {
         await exited
@@ -695,14 +785,34 @@ export async function createNativeTeamProcessDriver(options: {
         descendants: 'uncertain',
         ...(notOwned.size > 0 && { notOwned: [...notOwned] }),
       })
+      /**
+      The program a live child runs now. The identity is recorded just after the gate opens, and a
+      command can exec after that: the shell had not yet, under load (3 launches in 200 at eight at
+      once, each then out of reach of every signal), or `sh -c 'a; exec b'` does so later. The same
+      pid, start, group, owner and marker are the same process, whatever it has become.
+      */
+      const asItRunsNow = async (known: LaunchConfirmation): Promise<LaunchConfirmation> => {
+        const current = await observer.observe(known.pid)
+        return current?.startTime === known.startTime &&
+          current.uid === known.uid &&
+          current.launchId === launchId &&
+          current.group === (scope === undefined ? known.group : String(known.pid))
+          ? { ...known, executable: current.executable }
+          : known
+      }
       const didSignal = async (name: 'SIGTERM' | 'SIGKILL'): Promise<boolean> => {
         if (recorded === undefined) return false
+        recorded = await asItRunsNow(recorded)
         let canSignalScope = scope !== undefined
         try {
           if (scope !== undefined && process.platform === 'linux') {
+            // A leader that has exited has no membership to read. The unit is this launch's by
+            // name, and the kernel's path below says it is the scope this launch saw.
             if (
-              recorded.cgroup === undefined ||
-              (await readFile(`/proc/${String(recorded.pid)}/cgroup`, 'utf8')) !== recorded.cgroup
+              !state.isExited &&
+              (recorded.cgroup === undefined ||
+                (await readFile(`/proc/${String(recorded.pid)}/cgroup`, 'utf8')) !==
+                  recorded.cgroup)
             )
               canSignalScope = false
             const rawGroup = await runProgram(
@@ -712,7 +822,7 @@ export async function createNativeTeamProcessDriver(options: {
             )
             const group = rawGroup.trim()
             if (
-              `/sys/fs/cgroup${group}/cgroup.events` !== state.cgroup ||
+              `${CGROUP_ROOT}${group}/cgroup.events` !== state.cgroup ||
               !recorded.cgroup?.split('\n').includes(`0::${group}`)
             )
               canSignalScope = false
@@ -728,7 +838,8 @@ export async function createNativeTeamProcessDriver(options: {
         if (
           canSignalScope &&
           scope !== undefined &&
-          (await ownership.isOwned({ ...recorded, group: String(recorded.pid), launchId }))
+          (state.isExited ||
+            (await ownership.isOwned({ ...recorded, group: String(recorded.pid), launchId })))
         ) {
           try {
             await runProgram(
@@ -768,11 +879,28 @@ export async function createNativeTeamProcessDriver(options: {
           await exited
           return { childExited: true, descendants: 'uncertain' }
         }
-        if (!(await isEmpty()) && !(await didSignal('SIGTERM'))) return uncertain()
+        const leader = recorded
+        // A scope is over when it is empty. A group has no such answer: its leader is what can be
+        // signalled by identity, and what is left of the group is asked after it.
+        const isOver = async () => (scope === undefined ? state.isExited : await isEmpty())
+        const settled = async (): Promise<Retirement> => {
+          if (scope === undefined) {
+            const isGone =
+              state.isExited &&
+              (await ownership.emptyGroup(leader.pid, launchId, options.killGraceMs))
+            return isGone
+              ? { childExited: true, descendants: 'uncertain', groupGone: true }
+              : uncertain()
+          }
+          return state.isExited && (await isEmpty())
+            ? { childExited: true, descendants: 'proved' }
+            : uncertain()
+        }
+        if (!(await isOver()) && !(await didSignal('SIGTERM'))) return await settled()
         const deadline = performance.now() + options.killGraceMs
-        while (performance.now() < deadline && !(await isEmpty())) await delay(NATIVE_POLL_MS)
+        while (performance.now() < deadline && !(await isOver())) await delay(NATIVE_POLL_MS)
         // A direct child's exit is never evidence that a group has no descendants.
-        if (!(await isEmpty()) && !(await didSignal('SIGKILL'))) return uncertain()
+        if (!(await isOver()) && !(await didSignal('SIGKILL'))) return await settled()
         if (
           !state.isExited &&
           (notOwned.has(recorded.pid) ||
@@ -786,12 +914,11 @@ export async function createNativeTeamProcessDriver(options: {
           return uncertain()
         }
         await withDeadline(exited, NATIVE_CONFIRM_MS, 'TEAM_RETIREMENT_TIMEOUT')
-        const descendants = (await isEmpty()) ? 'proved' : 'uncertain'
-        return {
-          childExited: true,
-          descendants,
-          ...(notOwned.size > 0 && descendants === 'uncertain' && { notOwned: [...notOwned] }),
-        }
+        // What was signalled takes a moment to leave the scope.
+        const emptied = performance.now() + options.killGraceMs
+        while (scope !== undefined && performance.now() < emptied && !(await isEmpty()))
+          await delay(NATIVE_POLL_MS)
+        return await settled()
       }
       return {
         child,
@@ -945,6 +1072,7 @@ function runTeamArgs(
 
 function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDriver {
   return {
+    provesEnds: true,
     launch(request, launchId, lifecycle = new TeamLaunchLifecycle()) {
       const nonce = randomBytes(MCP_JOB_NONCE_BYTES).toString('hex')
       const ownerPipe = `muse-team-owner-${launchId}`

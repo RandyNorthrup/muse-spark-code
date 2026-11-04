@@ -13,7 +13,7 @@
     },
     "host": {
       "SWALLOW": 18,
-      "GENERIC": 92,
+      "GENERIC": 91,
       "CLEANUP": 90
     },
     "root": {
@@ -3617,11 +3617,6 @@
       "file": "src/host/team/processLifetime.ts",
       "identity": "6c22dad2c346a5742117d2a6ed65596e96e55f26ec9edc510ad1ff94377b2d85",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/host/team/processLifetime.ts",
-      "identity": "00e5fd0125d6909b2da6bd619eb57d801864b89db099873bdb4991bd15f14ce2",
-      "class": "GENERIC"
     },
     {
       "file": "src/host/team/processLifetime.ts",
