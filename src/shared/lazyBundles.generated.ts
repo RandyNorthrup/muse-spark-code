@@ -1637,7 +1637,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
       {
         importer: 'src/host/team/teamProcessWorkers.ts',
-        symbol: 'buildCheckSlots',
+        symbol: 'governedSlots',
         side: ['acp', 'vscode'],
       },
       { importer: 'src/host/teamViewBundle.ts', symbol: 'schemas', side: ['acp', 'vscode'] },
