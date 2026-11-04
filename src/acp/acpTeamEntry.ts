@@ -265,6 +265,8 @@ class WorkspaceTeam {
           ...(this.deps.runGit !== undefined && { runGit: this.deps.runGit }),
           now: this.deps.now ?? Date.now,
           log: this.deps.log,
+          // No Traffic view here: the person answers Recover as a permission.
+          landing: { confirmTakeover: (record) => this.askRecover(record) },
         },
         paid: {
           allowKeyTasks: async (tasks, budget, context) => {
@@ -755,6 +757,37 @@ class WorkspaceTeam {
     if (isUnanswered) this.sayUnanswered(handler)
     await this.binding.handle({ type: 'decideTeamMerge', taskId: merge.taskId, decision })
   }
+  /** Another run's open landing: rolled back only on the person's own answer. */
+  private async askRecover(record: { readonly files: readonly { path: string }[] }) {
+    const [entry] = this.handlers
+    if (entry === undefined) return false
+    const [sessionId, handler] = entry
+    const title = fill(UI_TEXT.teamTrafficNotices.landingOpen, {
+      path: record.files.map((file) => file.path).join(', '),
+    })
+    try {
+      const response = await handler.requestPermission({
+        sessionId,
+        toolCall: {
+          toolCallId: `team-landing-${randomUUID()}`,
+          title,
+          kind: TEAM_TASK_TOOL_KIND,
+          status: 'pending',
+          content: [teamReportContent(title)],
+        },
+        options: [
+          { optionId: MERGE_OPTION, name: UI_TEXT.teamTraffic.recover, kind: 'allow_once' },
+          { optionId: DISCARD_OPTION, name: UI_TEXT.teamTraffic.keep, kind: 'reject_once' },
+        ],
+      })
+      return response.outcome.outcome === 'selected' && response.outcome.optionId === MERGE_OPTION
+    } catch (error: unknown) {
+      // No answer is a denial (D62): the record stays open and nothing lands over it.
+      this.deps.log.warn(`ACP team landing prompt failed: ${failureForLog(error)}`)
+      return false
+    }
+  }
+
   /** The board and the stored snapshot, read once before anything is admitted. */
   public async load(): Promise<void> {
     this.loading ??= (async () => {

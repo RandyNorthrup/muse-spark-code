@@ -90,6 +90,8 @@ import {
   type TeamChildLauncher,
 } from './acpProcess'
 import { checkProcessOver, proofOf } from './checkProcess'
+import type { TeamLandingPolicy } from './teamLandingEntry'
+import { checkTimeoutMs } from '../../core/verify/checkCommands'
 import type { CheckSlots } from './checkSlots'
 import { createLoadGuard } from './loadGuard'
 import {
@@ -171,6 +173,8 @@ export interface TeamProcessWorkersDeps {
 
 export interface ProcessTeamPorts {
   readonly workers: TeamWorkerPort
+  /** The person's checks over a landing's staging copy, each in a governed slot. */
+  readonly runLandingChecks: TeamLandingPolicy['runChecks']
   /** Stops every host and external agent this team started. */
   readonly dispose: () => Promise<void>
 }
@@ -877,6 +881,27 @@ export function createProcessTeamPorts(deps: TeamProcessWorkersDeps): ProcessTea
 
   return {
     workers,
+    runLandingChecks: async (folder, signal) => {
+      for (const check of deps.checks()) {
+        const slots = await (checkSlots ??= buildCheckSlots())
+        const result = await slots.run({
+          runId: randomUUID(),
+          cwd: folder,
+          command: check.command,
+          timeoutMs: checkTimeoutMs(check),
+          commandClass: 'declared',
+          labels: [],
+          preferredRunners: [],
+          lockfiles: [],
+          signal,
+          onOutput: () => {
+            // Only the verdict is kept: the person reads a check's output by running it.
+          },
+        })
+        if (result.exitCode !== 0) return { passed: false, failed: check.name }
+      }
+      return { passed: true }
+    },
     dispose: async () => {
       const started = lifetime
       const closing: Promise<void>[] = Array.from(hosts.values(), (pending) =>

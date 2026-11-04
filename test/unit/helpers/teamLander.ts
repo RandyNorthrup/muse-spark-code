@@ -96,7 +96,12 @@ export async function startLander(
   build: LanderBuild,
   fixture: LandingFixture,
   owner: WindowIdentity,
-  stop: { readonly file: string; readonly atRename: boolean; readonly isRecovery?: boolean },
+  stop: {
+    readonly file: string
+    readonly atRename: boolean
+    readonly isRecovery?: boolean
+    readonly viaEngine?: boolean
+  },
 ): Promise<RunningLander> {
   const name = (part: string): string =>
     path.join(fixture.storage, `lander-${randomUUID()}.${part}`)
@@ -122,6 +127,7 @@ export async function startLander(
       stopFile: stop.file,
       stopAtRename: stop.atRename,
       isRecovery: stop.isRecovery ?? false,
+      viaEngine: stop.viaEngine ?? false,
     }),
   )
   const child = spawn(process.execPath, [build.bundle, planFile], { stdio: 'ignore' })

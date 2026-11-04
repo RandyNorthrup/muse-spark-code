@@ -16,6 +16,7 @@ import {
   landingDeps,
   landingPolicy,
   landingTask,
+  productLandingPorts,
   type LandingFixture,
 } from './helpers/teamLandingFixture'
 
@@ -35,6 +36,8 @@ const planSchema = z.strictObject({
   stopFile: z.string(),
   stopAtRename: z.boolean(),
   isRecovery: z.boolean(),
+  // Through the engine's merges port and the governed git, as the product lands a task.
+  viaEngine: z.boolean(),
 })
 
 const planFile = process.argv[2]
@@ -47,6 +50,12 @@ const fixture: LandingFixture = { ...plan, dispose: () => Promise.resolve() }
 async function isStopPoint(target: string): Promise<boolean> {
   const name = path.basename(target)
   if (name !== plan.stopFile) return false
+  // The landing's own checks, under its lock: the look before it starts writes nothing.
+  try {
+    await access(path.join(plan.root, '.git', 'index.lock'))
+  } catch {
+    return false
+  }
   if (!plan.stopAtRename) return true
   const stage = `${name}.`
   const entries = await readdir(path.dirname(target))
@@ -64,24 +73,34 @@ async function isReleased(): Promise<boolean> {
 }
 
 const reached = { isStopped: false }
+const validateTarget = async (target: string): Promise<void> => {
+  if (reached.isStopped || !(await isStopPoint(target))) return
+  reached.isStopped = true
+  await writeFile(plan.readyFile, 'ready\n')
+  // The timer keeps this process alive through the pause: with nothing
+  // left to wait for, Node would end it by itself and no kill would land.
+  while (!(await isReleased())) {
+    await new Promise((resolve) => setTimeout(resolve, POLL_MS))
+  }
+}
 const deps = landingDeps(
   plan,
   landingPolicy(plan.owner, {
     confirmTakeover: () => Promise.resolve(true),
-    validateTarget: async (target) => {
-      if (reached.isStopped || !(await isStopPoint(target))) return
-      reached.isStopped = true
-      await writeFile(plan.readyFile, 'ready\n')
-      // The timer keeps this process alive through the pause: with nothing
-      // left to wait for, Node would end it by itself and no kill would land.
-      while (!(await isReleased())) {
-        await new Promise((resolve) => setTimeout(resolve, POLL_MS))
-      }
-    },
+    validateTarget,
   }),
 )
 const signal = new AbortController().signal
-const result = plan.isRecovery
-  ? { status: 'recovered', count: await recoverOpenLandings(EN, 'en', deps, signal) }
-  : await landTeamTask(EN, 'en', deps, landingTask(fixture), signal, { allowProtected: false })
+const land = async () => {
+  if (plan.viaEngine)
+    return await productLandingPorts(plan, { validateTarget }).merges.merge(
+      landingTask(fixture),
+      signal,
+      { allowProtected: false },
+    )
+  return plan.isRecovery
+    ? { status: 'recovered', count: await recoverOpenLandings(EN, 'en', deps, signal) }
+    : await landTeamTask(EN, 'en', deps, landingTask(fixture), signal, { allowProtected: false })
+}
+const result = await land()
 await writeFile(plan.resultFile, JSON.stringify(result))

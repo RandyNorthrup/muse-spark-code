@@ -54,7 +54,7 @@ const recordSchema = z
     head: z.string(),
     snapshotTree: z.string(),
     checkIdentity: z.string(),
-    status: z.enum(['open', 'landed', 'recovered']),
+    status: z.enum(['open', 'landed', 'recovered', 'changed']),
     files: z.array(fileSchema).check(z.maxLength(TEAM_WRITE_SET_MAX)),
     conflicts: z.array(z.string()).check(z.maxLength(TEAM_WRITE_SET_MAX)),
   })
@@ -169,7 +169,7 @@ export class LandingJournal {
 
   public async close(
     record: LandingIntent,
-    status: 'landed' | 'recovered',
+    status: 'landed' | 'recovered' | 'changed',
     conflicts: readonly string[],
   ): Promise<void> {
     await this.store.write(recordSchema.parse({ ...record, status, conflicts }))
@@ -207,14 +207,21 @@ export class LandingJournal {
   ): Promise<readonly string[]> {
     const parsed = recordSchema.parse(record)
     const conflicts: string[] = []
+    let isWhole = true
     for (const file of parsed.files.toReversed()) {
+      if (taskId !== null && (file.tasks.length > 1 || !file.tasks.includes(taskId)))
+        isWhole = false
       if (taskId !== null && !file.tasks.includes(taskId)) continue
+      // A file a stopped batch never reached holds its old bytes: there is nothing to put back.
+      if (isSameBlob(await access.read(file.path), file.before)) continue
       if (
         (taskId !== null && file.tasks.length > 1) ||
         !(await access.replace(file.path, file.after, file.before, canWrite))
       )
         conflicts.push(file.path)
     }
+    // Only a whole landing undone is over: another task's share of a batch stays to be undone.
+    if (isWhole) await this.close(parsed, 'recovered', conflicts)
     return conflicts
   }
 }

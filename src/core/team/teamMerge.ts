@@ -944,7 +944,7 @@ export interface LandingIntent {
   readonly head: string
   readonly snapshotTree: string
   readonly checkIdentity: string
-  readonly status: 'open' | 'landed' | 'recovered'
+  readonly status: 'open' | 'landed' | 'recovered' | 'changed'
   readonly files: readonly {
     readonly path: string
     readonly before: LandingBlob | null
@@ -968,6 +968,14 @@ export type LandingOutcome =
       readonly status: 'landed' | 'changed'
       readonly paths: readonly string[]
       readonly intent: LandingIntent
+    }
+  /** A write the system refused (on Windows, a program holding the file): what was written is back. */
+  | {
+      readonly status: 'held'
+      readonly paths: readonly string[]
+      /** Files recovery left as they are, each holding other bytes. */
+      readonly kept: readonly string[]
+      readonly cause: unknown
     }
 
 export interface LandingLock {
@@ -998,7 +1006,7 @@ export interface TeamLandingDeps {
   readonly prepare: (intent: LandingIntent) => Promise<void>
   readonly close: (
     intent: LandingIntent,
-    status: 'landed' | 'recovered',
+    status: 'landed' | 'recovered' | 'changed',
     conflicts: readonly string[],
   ) => Promise<void>
   /** Repeat M77 canonical/protected/ref checks before each conditional mutation. */
@@ -1040,6 +1048,8 @@ export class TeamLanding {
     let lock: LandingLock | null = null
     let canRelease = true
     try {
+      // Nobody is asked to take over while the repository is held: nothing could follow.
+      if ((await this.deps.knownHolder(root)) !== undefined) return { status: 'busy' }
       if (!(await this.deps.authorizeRecovery(intent))) return { status: 'denied' }
       if ((await this.deps.knownHolder(root)) !== undefined) return { status: 'busy' }
       lock = await this.deps.takeLock(root, intent.id)
@@ -1127,7 +1137,18 @@ export class TeamLanding {
       canRelease = false
       const changed = new Set<string>()
       for (const file of files) {
-        if (!(await canWrite()) || !(await this.deps.replace(canonical, file, canWrite))) {
+        let isReplaced: boolean
+        try {
+          isReplaced = (await canWrite()) && (await this.deps.replace(canonical, file, canWrite))
+        } catch (error: unknown) {
+          // This window holds the lock and knows what it wrote, so it puts that back now rather
+          // than leave the repository locked for the person. A recovery that fails too keeps the
+          // lock and the open intent, as a killed window's do, and says why it failed.
+          const kept = await this.deps.recover(intent, canWrite)
+          canRelease = true
+          return { status: 'held', paths: [file.path], kept, cause: error }
+        }
+        if (!isReplaced) {
           changed.add(file.path)
           break
         }
@@ -1140,7 +1161,8 @@ export class TeamLanding {
         if (!isSameBlob(after.blobs.get(path), admission.final.blobs.get(path))) changed.add(path)
       }
       const conflicts = [...changed]
-      await this.deps.close(intent, 'landed', conflicts)
+      // A batch something else touched did not land, whatever reached the tree.
+      await this.deps.close(intent, conflicts.length === 0 ? 'landed' : 'changed', conflicts)
       canRelease = true
       return { status: conflicts.length === 0 ? 'landed' : 'changed', paths: conflicts, intent }
     } finally {

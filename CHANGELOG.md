@@ -74,6 +74,22 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **A team task's merge is checked and journalled before it touches your tree.** It
+  used to write in place. Now it is merged and checked in a copy, written under git's own
+  lock, and a window that dies halfway no longer leaves half a batch with nobody knowing.
+  The next window shows the unfinished landing in Traffic and the lock it left; once you
+  remove the lock, Recover puts back what it wrote and names anything you changed since.
+- **A file you save while a team task lands is named, and Undo Merge is offered.** The
+  batch stops and does not count as merged. Undo Merge puts back what still holds the
+  landed bytes and keeps your file as it is.
+- **A program holding a file stops a team landing cleanly.** On Windows the landing puts
+  back what it wrote and releases git's lock at once, says which file, and lands when you
+  try again. It used to leave the lock for you to remove.
+- **Your check commands run on a team task's merged result before it lands.** If one
+  fails, nothing lands and the merge card names it. With no check commands set, the merge
+  card is the only thing that asks, as before.
+- **A team workspace opened by another spelling lands.** A short name, a junction or a
+  link above the folder no longer refuses the merge as a linked root.
 - **Editor tabs close with Delete, and a screen reader can tell a tab from its close
   control.** In the node workspace's editor the close mark sat inside the tab, one
   control nested in another. The mark stays for the pointer; a focused tab closes with
