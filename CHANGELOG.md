@@ -97,6 +97,9 @@ happened, not what was planned; superseded entries are kept.
   A file with mixed line endings still stops the merge rather than have lines rewritten.
 - **An ACP team session asks about a dead run at its first turn.** The editor is asked
   once whether to put back a landing a dead run left half done. Keep leaves it as it is.
+- **A team task whose git could not start says why.** A missing helper or a refused start
+  read as a git failure, so the merge card told you a branch had moved. It now gives the
+  real reason, such as to reinstall.
 - **Editor tabs close with Delete, and a screen reader can tell a tab from its close
   control.** In the node workspace's editor the close mark sat inside the tab, one
   control nested in another. The mark stays for the pointer; a focused tab closes with

@@ -17,6 +17,7 @@ import {
 } from '../../../shared/constants'
 import type { UiText } from '../../../shared/l10n/en'
 import { fill, setUiText } from '../../../shared/l10n/text'
+import { GOVERNED_COMMAND_FAILED } from '../../resources/launch'
 import { execResourceFile, execResourceFileBytes } from '../../resources/launcher'
 import { createdHelperFile, runNativeHelper } from '../../nativeHelper'
 import { NativeHelperError, isNativeHelperError } from '../../../shared/nativeHelperError'
@@ -612,21 +613,19 @@ export function processTeamGit(platform: NodeJS.Platform): TeamGit {
       })
       return new Uint8Array(stdout)
     } catch (error: unknown) {
-      // A governor refusal (cap, memory, admission) stays typed; a git
-      // failure becomes the TeamGitError the workspaces handle.
+      // Git's own exit is a git failure, and callers read it as an answer about the repository: no
+      // such ref, or it differs. Anything else answers nothing: a helper that is missing, a launch
+      // the governor refused, a child stopped before it exited. It keeps its own type and words.
       if (
-        error instanceof Error &&
-        (('code' in error && (error.code === 'capRefused' || error.code === 'memoryLimit')) ||
-          error.message === 'Resource admission unavailable')
+        !(error instanceof Error) ||
+        error.message !== GOVERNED_COMMAND_FAILED ||
+        !('code' in error) ||
+        typeof error.code !== 'number' ||
+        error.code < 0
       )
         throw error
-      const stderr =
-        error instanceof Error && 'stderr' in error && typeof error.stderr === 'string'
-          ? error.stderr
-          : ''
-      const code =
-        error instanceof Error && 'code' in error && typeof error.code === 'number' ? error.code : 1
-      throw new TeamGitError(code, stderr, args[0] ?? 'git')
+      const stderr = 'stderr' in error && typeof error.stderr === 'string' ? error.stderr : ''
+      throw new TeamGitError(error.code, stderr, args[0] ?? 'git')
     }
   }
 }
