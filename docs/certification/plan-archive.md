@@ -1216,3 +1216,13 @@ per-window cap against "no command-slot count of ours"; and
 `TEAM_SHARED_RESOURCE_DEFAULT_LIMIT = 2` against a shared-server limit "that
 the user sets (none by default)". The archive keeps the record as it was; the
 paragraphs state the amended rule; the code is the M96 lanes' to reconcile.
+
+## 2026-11-04: room for the next lanes (lane RLF-PLANARCH)
+
+`PLAN.md` stood at 3,565,178 bytes, 20 over the gate. One `move --batch` at
+`3d7811fc9` moved seven §2 design-record blocks, 143,142 bytes (§6 and §7: 0),
+from D49, D90, D91, D93 and D94 to `decisions.md`, with no
+`--allow-fact-change`. After: 3,432,359 bytes (81.8%), 132,799 under the gate;
+`decisions.md` 149 blocks. The proofs (reassembly, parsed facts, merge proof over
+1,202 unmerged refs, 330 file pairs with 0 worse), every passage and what stayed
+are in [`rlf-planarch.md`](rlf-planarch.md).

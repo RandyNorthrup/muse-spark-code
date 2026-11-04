@@ -7357,6 +7357,69 @@ The owner (2026-09-27):
 
 <!-- plan-archive:end id="decisions-3087b10dd-3285" -->
 
+<!-- plan-archive:begin id="decisions-3d7811fc9-2871" lines="2871-2894" at="3d7811fc9" bytes="1235" sha256="1234db5f618297edd7c9b52649f19aa38f744d4a875060a0527ba920083be03a" -->
+
+- "research the claude code harness and any upcoming features … and also
+  https://github.com/NVlabs/SoL-Pi and see if there are gaps between our
+  product and theirs that we can fill to make our product compete with the
+  claudes, and the codexes, and the open codes, and open claws, the t3
+  codes …"
+- "we are geared towards coding so thats where our focus should be the
+  strongest, but anything that could help productivity and connectivity
+  and compatibility thats fine, and maybe some of this helps on the cli
+  side as well"
+- Then: "put together the list of improvements you think will be the
+  best for this project for our users to get the highest quality and
+  value then add them to the plan".
+
+The research is in `docs/research/competitive-landscape-2026-09.md`: public
+sources, no sign-in, no spend. It found the extension at or near parity
+with Claude Code on:
+
+- subagents, hooks, MCP, skills, goals, scheduled prompts;
+- rewind, side chat, worktrees, memory, compaction;
+- permission modes and plan mode.
+
+It is ahead of most of the field on paid-use consent, languages,
+accessibility and machine-scoped settings. It is behind on the loop that
+makes an agent's code correct, and on the workflow around a change.
+
+<!-- plan-archive:end id="decisions-3d7811fc9-2871" -->
+
+<!-- plan-archive:begin id="decisions-3d7811fc9-2991" lines="2991-3019" at="3d7811fc9" bytes="6406" sha256="7e258f9393ed2fb15de7af2b356b94f97df82e3234c0cd05df9850cab265c2df" -->
+
+**The program**, in order. Size S is two days or less, M is three to five
+days, L is one to two weeks. The milestone numbers were given before the
+order was settled, so the table, not the numbers, is the order: M80 comes
+after wave 5's others because it waits for PR #32, and D50's M85 comes
+last, after M73, M75, M76 and M78 that it builds on, and after the
+owner's TypeSafe key for its capture.
+
+| Wave                       | Milestone | What                                                                                                                                       | Backends                              | Who has it                              | Size |
+| -------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------- | --------------------------------------- | ---- |
+| 1 Correct code             | M68       | Verify loop: diagnostics after edits, format on edit, check commands, edit-then-run                                                        | API full; MC diagnostics and guidance | OpenCode, Aider, Crush, SoL-Pi          | M    |
+|                            | M67       | Code intelligence tools from VS Code's language services, and a repo map                                                                   | both (MC through `ide`)               | Aider, OpenCode, Zed, Claude Code (LSP) | M    |
+|                            | M69       | Web fetch (folds in M44b)                                                                                                                  | API native; MC through `ide`          | Claude Code, Codex, OpenCode            | S    |
+| 2 Review and ship          | M70       | Review: `/review` presets, a review pane with per-hunk accept/reject and line comments to the agent, a security preset                     | both                                  | Codex, Zed, Kilo, T3 Code, Claude Code  | L    |
+|                            | M71       | Git and PRs: commit message, commit, push, open a PR, PR status per conversation, a conversation in a worktree                             | both                                  | T3 Code, OpenCode, Codex, Claude Code   | M    |
+|                            | M72       | Turn checkpoints with untracked files; restore files, conversation, or both; redo                                                          | both                                  | T3 Code, Cline, Gemini CLI, OpenCode    | M    |
+| 3 Long tasks, fewer tokens | M75       | Paired efficiency evaluation with capability floors and held-out tasks, built first                                                        | API                                   | SoL-Pi, Claude Code plugin evals        | M    |
+|                            | M73       | Observation packing with `recall_output`, and a savings ledger, once its M75 run passes                                                    | API                                   | SoL-Pi                                  | S    |
+|                            | M74       | Automatic compaction when a todo item completes, a memory flush before compaction, `/handoff` to a new conversation                        | API                                   | SoL-Pi, OpenClaw, Amp                   | M    |
+| 4 More agents, safely      | M77       | Session board across conversations and worktrees; best-of-N with diff comparison                                                           | both (best-of-N on API)               | Cursor, Kilo, T3 Code, Codex, Zed       | L    |
+|                            | M79       | Plans as files: save the approved plan, implement it in a fresh context                                                                    | both                                  | Codex, Factory, Cline                   | S    |
+|                            | M76       | Custom agents in Markdown; built-in Explore and Second-opinion agents, and M70's Reviewer in the same format                               | API; MC reads its own                 | Claude Code, Codex, OpenCode, Amp       | M    |
+|                            | M78       | Auto made safe: command rules with tests, permission profiles, an Auto reviewer                                                            | API                                   | Codex, OpenCode, Gemini CLI             | M    |
+| 5 Connect                  | M81       | Browser check: open the dev server, screenshot and console back to the model                                                               | API; MC through `ide`                 | Cursor, Codex, Claude Code              | M    |
+|                            | M82       | Notifications, usage per reply, a session budget cap, cache savings                                                                        | both (cost and cache on API)          | Claude Code, OpenClaw, T3 Code, Codex   | S    |
+|                            | M83       | Import from Claude Code, Codex and Cursor: MCP servers, hooks, agents, commands (extends M30)                                              | both                                  | Codex `/import`, Junie                  | S    |
+|                            | M84       | Session export and import as JSON, and a local share file                                                                                  | both (import resumes on API)          | OpenCode, Codex, Amp                    | S    |
+|                            | M80       | Headless run and a GitHub Action for review and fix, through the ACP agent's package                                                       | API; MC                               | Codex, Claude Code, OpenCode            | M    |
+| 6 Experimental (D50)       | M85       | TypeSafe assist: skill and agent suggestion, an advisory Auto risk score, relevance and grading once measured                              | API                                   | TypeSafe cookbook                       | M    |
+| 7 Security hardening       | M92       | Muse Gadgets SDK tokens (`mgst_…`) redacted from logs and transcripts and counted by `scan-secrets` (lane M92a; owner-approved 2026-10-04) | both (log, export, headless scan)     | muse-gadget-sdk installer pattern       | S    |
+
+<!-- plan-archive:end id="decisions-3d7811fc9-2991" -->
+
 ## ### D118 — Refusals read by shape, retried by code, stored without leaks (lanes PROVERR round 2 + PROVERRR2, 2026-10-13; numbered D109 until 2026-10-17, renumbered with D117)
 
 <!-- plan-archive:begin id="decisions-3087b10dd-14871" lines="14871-14894" at="3087b10dd" bytes="1766" sha256="62b22ce7a1668a24c46ea023a1e0ed31ceaa14d9abaa016b1afeaf27fc08533e" -->
@@ -14857,3 +14920,1738 @@ the dated currency table the next round diffs against is
 `docs/research/agents-sdks-2026-11-02.md`.
 
 <!-- plan-archive:end id="decisions-e47b91767-9819" -->
+
+## D90 — Muse Node: a headless node that works for an orchestrator, or is one (M110, 2026-10-05)
+
+<!-- plan-archive:begin id="decisions-3d7811fc9-4179" lines="4179-4208" at="3d7811fc9" bytes="1980" sha256="7e414e459cd308382a1f243b1ba13642f24b669102c5876c5c157aa266b641f2" -->
+
+- "as a side quest i would like to have a headless version of this that can
+  be installed in/as a container and is only a node for the orchestrator to
+  use to code or whatever, if that makes sense. i feel like im not explaining
+  it very good like a mini OS or something i guess. this should be planned but
+  not yet implimented that will be a future addition but i do want it fully
+  planned and roadmapped out"
+- "and the headless version i guess we should also be able to be an
+  orchestrator host as well with a web ui and terminal tui to access"
+- "the web ui can likely just be what we have currently but with a file
+  explorer and some other suff in there"
+- "plan it out better than i describe and suggest things i may be missing or
+  overlooking"
+- Later the same day: "we should also plan this to expand on our current multi
+  device setup to expand it remotely so you can have local talk to remote and
+  install on a rented server etc we need the secure password and user stuff
+  and all of the other stuff to all be fully secure e2e"
+- And: "is there a way for us to leverage web rtp or something so in the
+  agents map or tui we can view the chat and what the agent is outputting if
+  that makes sense? it should be like a link or command for each separate
+  agent to basically peek at the pipe read only" (decision 22)
+- And: "not gonna lie im so excited for the os i want to start that asap as
+  well i have some pcs around my house i would like to install it on"
+  (decision 23), and "i will be able to install this on bare bones x86 and
+  arm?" (decision 24)
+- And, after a rig's DHCP address changed and the orchestrator lost it: "our
+  os needs to make sure this cant happen between nodes and the host"
+  (decision 25), and "our os need chrome as the default browser for the host
+  version" (decision 26)
+- And: "we need a first run questionaire to ask how the user will primarily
+  use the agents so we can install all of the needed stuff …" (decision 27)
+
+<!-- plan-archive:end id="decisions-3d7811fc9-4179" -->
+
+<!-- plan-archive:begin id="decisions-3d7811fc9-5907" lines="5907-6022" at="3d7811fc9" bytes="7464" sha256="a0ff6c43b645a996543c5c52e8e1b247f56a56270053df9488690ae80452e773" -->
+
+- **The local gateway** (decision 12): the remote web UI on the user's own
+  loopback. _Reason:_ no public web port, no domain, no certificate, and the
+  browser never talks to a third party.
+- **A node can be its owner's blind relay** (decision 8). _Reason:_ two NATs
+  need a meeting point, and the user's own rented server is one that sees
+  only ciphertext, with no service of ours.
+- **Model requests relayed through the orchestrator** (decision 7). _Reason:_
+  API keys never reach a rented server, and D89.13's "values never travel"
+  still holds.
+- **Approval forwarding with per-action binding** (decision 10). _Reason:_
+  D80.8 deferred it, and a node with nobody at it cannot work without it.
+- **A commitment-based SAS, not a bare short code** (decision 9). _Reason:_
+  without a commitment, a man in the middle can try keys until two short
+  strings match.
+- **Revocation and stop from any device, subtract-only** (decisions 9 and
+  15). _Reason:_ a lost laptop has to be cut off from the phone in your hand;
+  subtract-only commands are safe to accept from any pair.
+- **Sealed at boot, unsealed from a paired device** (decision 9). _Reason:_
+  a provider that snapshots or reboots the server gets nothing usable.
+- **The metadata address blocked in every sandbox** (decision 5). _Reason:_
+  on most clouds it hands out the instance's credentials to any process.
+- **Per-workspace egress allowlists and DNS logs** (decision 5). _Reason:_
+  the cheapest limit on what a prompt injection can send out.
+- **Crypto-erase on wipe** (decision 19). _Reason:_ a provider's disk cannot
+  be trusted to erase; destroying the keys first can be.
+- **Clock checks** (decision 19). _Reason:_ certificates, TOTP and journal
+  ordering all fail quietly with a wrong clock.
+- **Retention and disk floors the person sets** (decision 19; none by
+  default, no cap of ours). _Reason:_ the GitHub Actions storage incident; a
+  node that fills its disk stops working.
+- **A native node on macOS** (decision 4). _Reason:_ Apple's GPU cannot reach
+  a Linux container.
+- **Remote actuation only from a surface within sight** (decision 14).
+  _Reason:_ a person approving motion from another city cannot see who is
+  standing next to the machine.
+- **Pi realism: 64-bit OS, 8 GB, an SSD** (decision 4). _Reason:_ SD cards
+  wear out under journals and builds, and 32-bit images cannot run the CLIs.
+- **Team mode as its own phase** (decision 16). _Reason:_ vendors' terms bind
+  subscriptions and keys to one person; sharing a node is a terms question
+  before it is a code question.
+- **Workers dial out** (decision 8). _Reason:_ the commonest setup (a laptop
+  and a rented server) then needs no listener on the laptop and no relay.
+- **Signed, reversible upgrades** (decision 15). _Reason:_ a node far away
+  that fails an upgrade must come back by itself.
+- **An optional code-server pack** (decision 17). _Reason:_ some people want a
+  full VS Code in the browser; code-server is MIT and takes our extension from
+  Open VSX, where VS Code's own server may not be hosted.
+- **Other agents' sign-in tokens never enter the vault** (decision 7).
+  _Reason:_ Anthropic, Google and OpenAI each forbid or warn against a third
+  party holding them; only API keys are brokered.
+- **Outbound connection limits per sandbox, as the hosting provider's rules
+  require** (decision 5; the person sets the numbers from those rules, none of
+  ours). _Reason:_ rented servers' providers lock servers that scan other
+  networks.
+- **The browser pairing installs the node's own certificate** (decision 23).
+  _Reason:_ browsers refuse passkeys behind a clicked-through warning, and a
+  self-signed, non-CA certificate can vouch for nothing but the node.
+- **Two users in one container for the first phase** (decision 23).
+  _Reason:_ it keeps the node's keys and sessions out of the tools' reach on
+  Docker Desktop, where nested sandboxes are not available.
+- **Chrome for Testing for agents, installed Chrome for people** (decision
+  26). _Reason:_ automation needs a pinned, verified build and a throwaway
+  profile; the user's Chrome holds their sign-ins and updates itself.
+- **A kiosk session on the host's own screen** (decision 26). _Reason:_ it
+  gives a machine with a monitor a trusted local browser, which also solves
+  browser sign-ins on a node.
+- **The skill's compatibility rule as a check before every pack install**
+  (decision 27). _Reason:_ the newest TypeScript silently disables
+  typescript-eslint's type-aware rules; a check catches it, and a habit does
+  not.
+- **Packs as shared, content-addressed layers with an offline cache**
+  (decision 27). _Reason:_ ten workspaces should not download a toolchain ten
+  times, and a re-install should work without a network.
+- **Agents ask for a pack; they never install one** (decision 27). _Reason:_
+  an install changes the machine and fetches code, which is the user's call.
+- **A capability file and a `toolchains` tool** (decision 27). _Reason:_
+  agents that guess the gate commands produce decorative gates.
+- **Experience level never touches safety** (decision 27). _Reason:_ a
+  beginner needs the same approvals and sandbox as an expert, with more
+  explanation.
+- **Per-pair rotating discovery tokens** (decision 25). _Reason:_
+  broadcasting a node's id on the LAN would let anyone there track it.
+- **The node dials home on an address change** (decision 25). _Reason:_ the
+  side whose address changed knows first; waiting for the other side to
+  rediscover it is what cost 25 minutes.
+- **Epoch-fenced gates for every effect that leaves a sandbox** (decision
+  25). _Reason:_ a lease alone cannot stop a node that comes back late; the
+  gates refuse its old epoch, so re-dispatch never runs an effect twice.
+- **Turn resilience is harness-wide, not node-only** (decision 25).
+  _Reason:_ the turn that failed that night was an ordinary agent's; every
+  editor needs the pause-and-resume.
+- **Raspberry Pi Imager's cloud-init seed for first-boot Wi-Fi** (decision
+  24). _Reason:_ a Wi-Fi-only machine has no network on which to show a setup
+  page, and people already know Imager's settings dialog.
+- **A setup code on the console, not first-come setup** (decision 24).
+  _Reason:_ the appliances we looked at let whoever reaches the page first
+  become the owner.
+- **An add-on layer of system extensions** (decision 24). _Reason:_ Chrome
+  and NVIDIA's driver cannot be in a signed, read-only image, but must still
+  update and roll back cleanly.
+- **Network-bound disk unlock from the user's own orchestrator** (decision
+  24). _Reason:_ a headless machine without a TPM otherwise waits at boot for
+  someone to type a passphrase.
+- **OS security updates staged at once, applied only when idle** (decision
+  24). _Reason:_ unattended updates must never reboot a node in the middle of
+  a task.
+- **The exact source packages published with each OS image** (decision 24).
+  _Reason:_ the images carry GPL software, and distributing binaries carries
+  the duty to offer their source.
+- **Peek's local part ships before the node** (decision 22). _Reason:_ the
+  Agent map and the TUI already run subagents and team workers on one
+  machine; nothing in a local peek needs a node.
+- **"Values never travel" amended only for "My node" pairs** (decision 10).
+  _Reason:_ the owner wants D89's modes over the channel for his own nodes,
+  and a pair with another person's device should keep D89.13's stricter
+  rule.
+
+<!-- plan-archive:end id="decisions-3d7811fc9-5907" -->
+
+## D91 — Muse Desktop: the host edition's own shell (M111, 2026-10-05)
+
+<!-- plan-archive:begin id="decisions-3d7811fc9-6026" lines="6026-7105" at="3d7811fc9" bytes="81515" sha256="160b97994952a3e94a009ab3e1a1d7bd480be524b7cfdad2e3bce709fe9fdf19" -->
+
+The owner, 2026-10-05:
+
+- "for our host version i want it to just be our interface nothing more so
+  for the os we need to design all of the gui items custom and matching our
+  theme so that means the entire ux and ui from the bottom up so that means a
+  menu bar with wifi controller, bluetooth for bluetooth network
+  connections,cellular connection stuff when applicable etc we need custom
+  mouse pointe and cursor etc custom login screen with optional gui interface
+  with our branding, the iterface should have a similar feel to vscode but we
+  will have our chat stuff on the left and on the right will be a collapsable
+  sidebar that icons that open different sections in the sidebar ie file
+  explorer, git, connections, roles, settings etc and the center section will
+  be tabbed code/text editor with minimap, and tabs and preview tabs will open
+  here as a browser prieview there can be multiple desktops as workspaces but
+  the open windows should snap and fill the space automatically like hyprland
+  and you should not be able to quit the interface we should make a spolight
+  style trigger to bring up an overlay in the center of the screen with an app
+  launcher/selector"
+- "same theme and a light and dark mode and all of the same i18n and a11y and
+  011y" (decisions 19–22: hard requirements for every M111 component and for
+  M110's web UI and TUI)
+- "i want web development to be a pleaent experience with popular view modes
+  that web developers commonly enjoy with live preview support etc"
+  (decision 23)
+- "we need a custom gui installer and it needs to have all of the steps fully
+  automated the user plugs in the flash drive boots into the image and
+  chooses live boot or install. chossing install should have a gui fully
+  polished that matches our theme with each step easy and automated with
+  advanced options available for power users, they should choose their
+  username here and password and the orchistration agent will need
+  passwordless sudo or some type of key to have full admin access, the user
+  should bbe able to connect to the internet in the installer for the
+  questionaire so the downloads and installs can happen all streamlined with
+  the install including updates" (decisions 24 and 25)
+- "the installer should have screenshots and tips in a auto rotating gallery
+  with info" (decision 24)
+- And, through the lead the same evening: the desktop's onboarding hosts
+  M110t's first-run questionnaire, with each pack's size, progress with
+  cancel, re-runnable from **Settings › Toolchains** (decision 17).
+
+This is a plan, not a shipped capability: nothing here is implemented. The
+research, with a source and a date for every outside fact, is
+`docs/research/muse-desktop-2026-10-05.md`; its §14 has the session and
+process tree. "Muse Desktop" is the working name (decision 29).
+
+**Amendments.** 2026-10-05, the owner's: GUI or TUI and the switch
+(decision 6); the terminal panel and the footer, pinned apps on the rail with
+their key labels, and the rail's flipping pages (13); an app on a desktop of its own (15); an experience for every persona
+(23). 2026-10-06, the lead's:
+the shell on Qt 6 Quick (4); the token source moves to D94 (19).
+
+1. **What it is.** The graphical edition of Muse Node OS (D90.24): the same
+   signed, read-only Debian 13 image with a `desktop` profile, booting
+   straight into our interface and nothing else. The runtime underneath is
+   the node (D90.1); the desktop is **one more surface over it** (D84), as
+   VS Code, the companion page and the TUI are. Every pixel a person sees
+   is ours: the boot menu, splash, greeter, bar, launcher, notifications,
+   dialogs, cursor, icons and the app. There is no other desktop, no app
+   store and no foreign dialog.
+2. **Builds on and amends.** Builds on D84 (MHP, the companion, the feature
+   registry), D90 (the node, its OS, its web UI pages and TUI, decision 27's
+   packs), D83 (makers), D85 (screen recordings), D87 (the governor), D88,
+   D89 (the vault and broker), D82 (usage) and D75 (roles).
+   - **D84:** the feature registry gains a **Desk** column; every registry
+     feature is W on the desktop through its own `HostBridge`, with the same
+     evidence rule.
+   - **D89.6:** the agent's admin item defaults to **Always allow** on the
+     owner's own box (decision 25), a deliberate exception to "sudo is never
+     open-ended", bounded by decision 25's rules. D89.7's taint rule is not
+     amended.
+   - **D90.24:** a `desktop` profile beside the headless one; the trial boot
+     is marked good only when the desktop is ready too (decision 7); a
+     graphical installer on the medium (decision 24) whose daemon and pages
+     the headless installer ISO also uses.
+   - **D90.26:** on the desktop edition the local screen is the desktop, not
+     `cage` with Chrome; Chrome stays the default browser.
+   - **M104 lane D:** its planned `--muse-*` names (not yet built) become
+     the one `--ms-*` prefix (decision 19).
+3. **The compositor is Hyprland, pinned, behind our port** (research §2).
+   - **Why:** it is the behaviour the owner named (dwindle and master
+     layouts that fill the screen as windows open, workspaces, gestures, the
+     strongest animation system of the candidates); BSD-3-Clause; packaged
+     for amd64 and arm64 in Debian 13's backports (0.55.2 on 2026-10-05),
+     which OS1's snapshot pinning freezes; and its 0.55 Layout API takes our
+     own layouts in configuration. niri (GPL-3.0) scrolls instead of
+     filling; Sway has neither animations nor automatic fill; an own Smithay
+     compositor is the long-term option, at thousands of lane-hours.
+   - **How we use it:** one version per image; a Lua configuration
+     generated from our settings and tokens, verified in CI, never edited on
+     a box; its own UI off (logo, splash, update news, donation nag, the ANR
+     dialog, which our shell replaces); `ecosystem:enforce_permissions` on,
+     with screencopy granted only to our shell and its portal and plugins
+     only from our read-only path; XWayland off by default (decision 18).
+   - **Its gaps, closed by us:** no `org.freedesktop.a11y.KeyboardMonitor`
+     for Orca (decision 21); a fast-moving configuration (every bump passes
+     the compositor gate first).
+   - **The `CompositorPort`** (Rust, mirrored in TypeScript): workspaces,
+     windows, layouts, monitors, input, events and health. Nothing above it
+     names Hyprland, so a later compositor replaces one adapter.
+   - **The Pi:** the Pi 4 (OpenGL ES 3.1, Vulkan 1.2) and Pi 5 (OpenGL ES
+     3.1, Vulkan 1.3) clear Hyprland's GLES 3.0 floor; a light profile (no
+     blur or shadows, shorter animations) is chosen by GPU class, and lane HW
+     measures it.
+4. **The shell's own surfaces are GTK 4 in Rust** (research §3). The bar,
+   launcher, notifications, OSD, lock screen and greeter must be layer-shell
+   or session-lock surfaces, which Electron cannot make. gtk4-rs,
+   gtk4-layer-shell and gtk4-session-lock are MIT; GTK is the toolkit Orca
+   is built against; GTK CSS reads our token CSS. Lane 0's spike S2 checks
+   Orca on a gtk4-layer-shell popup and a Quickshell window under the pinned
+   Hyprland; only if GTK fails and Quickshell (LGPL-3.0, QML) passes does
+   M111 switch before lanes SH1 and SH2 start.
+   - **Amended 2026-10-06 (the lead): the shell is Qt 6 Quick (QML).** The
+     bar, the launcher overlay, notifications and the OSD, the lock screen
+     and the greeter are our own Qt 6 Quick application. Electron stays for
+     the workbench, Hyprland stays the compositor, and the compositor port
+     and its adapter are unchanged. Research §3 records the change.
+     - **Why:** the owner's polish brief (D94: rounded corners, shadows,
+       translucency, restrained animation) suits Qt Quick's GPU scene graph
+       better than GTK 4's CSS, and polished Hyprland shells are commonly
+       written in QML.
+     - **Our own app, not Quickshell.** Layer-shell surfaces through
+       LayerShellQt (Debian 13 packages 6.3.4; the library is
+       LGPL-2.0-or-later). Quickshell is read as a reference (its services and
+       its session lock) and is never a dependency. ext-session-lock-v1, which
+       LayerShellQt does not cover, is our own Qt Wayland client extension,
+       generated from the protocol's XML; Hyprland's
+       `allow_session_lock_restore` still restarts a crashed locker with the
+       screen locked.
+     - **The greeter** is greetd with our own Qt Quick greeter, so the session
+       choice (decision 6's Desktop or Terminal) and the branded sign-in stay
+       ours. SDDM's theming is the documented fallback.
+     - **The theme** is a QML singleton generated from D94's token source, so
+       there is still one source.
+     - **Accessibility** is Qt Accessibility over AT-SPI, which Orca reads;
+       it replaces the GTK assumptions above. Lane AX's Hyprland work for
+       Orca's keys stays. Spike S2 now puts a LayerShellQt popup and a Qt
+       Quick session-lock surface under the pinned Hyprland with Orca running;
+       if Orca cannot read them or move focus into them, the lead decides
+       again before SH1 starts, with GTK 4 as the fallback.
+     - **Licences.** Qt 6 under LGPL-3.0, dynamically linked from Debian's
+       packages, with the source offer recorded beside the image's source
+       packages (D90.24). The modules used: Core, Gui, DBus, Network, Qml,
+       Quick, Quick Controls, Quick Shapes, Svg and Wayland Client. Avoided,
+       because Qt's licensing page (Qt 6.12, read 2026-10-06) lists them as
+       GPL-3.0 only: Qt Qml Compiler (`qmlcachegen` is used instead), Qt Quick
+       Timeline, Qt Lottie Animation, Qt Virtual Keyboard (the on-screen
+       keyboard is a separate program), Qt Wayland Compositor, Qt Quick 3D,
+       Qt Graphs and the rest of that list. Qt's tools are GPL-3.0 with the Qt
+       GPL exception 1.0, which does not reach what they build. Lane 0
+       re-reads the list for the Qt version Debian 13 ships and records each
+       module; polkit's agent prompt uses polkit-qt-1, whose licence lane 0
+       records too.
+     - **`muse-sysd`, `muse-admind` and `muse-installd` stay Rust** (decision
+       5); the shell reaches sysd through a small QML module over its socket.
+5. **One system bridge, `muse-sysd`** (research §7). A Rust user service on
+   zbus, the only code that speaks to NetworkManager (with the session's one
+   secret agent), BlueZ (with its one pairing agent), ModemManager, UPower,
+   power-profiles-daemon, logind, PipeWire, locale1, timedate1, hostname1,
+   udisks2, CUPS, fwupd and polkit (the session's one authentication agent,
+   so an administrator's prompt is ours). Its API is versioned JSON-RPC on an
+   owner-only socket, written once in zod (rule 7) and generated to JSON
+   Schema and Rust types, so the shell and the app validate every frame.
+6. **Session, greeter, sign-in and lock** (research §6).
+   - **greetd** with our GTK greeter, running under Hyprland's greeter
+     profile: user picker, password, PIN, FIDO2 security key (`pam_u2f`),
+     fingerprint where a reader exists, accessibility (Orca, large text, high
+     contrast, on-screen keyboard), language and keyboard pickers, and a power
+     menu (shut down, restart, sleep, **Recovery** with an administrator's
+     credentials).
+   - **The optional interface** is a text greeter: the M110 TUI's Ink code on
+     tty1, speaking the same greetd IPC, for a box without a GPU, a recovery
+     boot, or a person who prefers it.
+   - **Kiosk nodes** sign in once at boot (`initial_session`), with no lock
+     and no sign-out.
+   - **At the OS login, "passkey" means a FIDO2 key or a TPM PIN.** The
+     node's WebAuthn passkeys (D90.11) are the web sign-in; PAM has no hybrid
+     transport for a phone.
+   - **The lock screen** is ext-session-lock-v1 (gtk4-session-lock), with
+     Hyprland's `allow_session_lock_restore` so a crashed locker restarts
+     while the screen stays locked. It locks on idle (5 minutes by default,
+     the display off at 10), on lid close, on Super+L and before sleep (a
+     logind delay inhibitor). Notifications show a count only.
+   - **The Secret Service is oo7-daemon** (MIT, Fedora 45's default),
+     unlocked at login by its PAM module, for Chrome's passwords and
+     Electron's `safeStorage`; gnome-keyring would stay locked after a FIDO2
+     or fingerprint sign-in. M109's vault uses it only as its labelled
+     OS-store slot, beside its TPM slot (D89.2), so the session's sign-in is
+     what unlocks the vault, as the owner asked.
+   - **One person per box at first** (the owner), plus a kiosk account;
+     several people wait for M110h's per-person sandboxes and vault
+     namespaces.
+   - **Amended 2026-10-05: GUI or TUI, the user's choice, easy to switch.**
+     The owner: "the user need to be able to choose gui or tui mode in the os
+     and make it easy to switch".
+     - **Chosen** in the installer (a step of decision 24's flow), in the
+       first-run questionnaire (decision 17), and at the greeter, whose
+       session choice is **Desktop** or **Terminal**.
+     - **The Terminal session** is the M110 TUI full screen on the console,
+       supervised like the desktop (decision 7), with the same lock: idle,
+       Super+L and sleep lock it, and only our greeter or lock unlocks it. A
+       box without a GPU offers the Terminal session only.
+     - **Switched any time without losing work:** a hotkey (lane 0 picks one
+       that no layout or Hyprland default uses), `muse-session switch
+gui|tui`, an item in the bar's mark menu, and one in the TUI's menu.
+       Agents and sessions live in the node service (D90.13's amendment), and
+       the GUI and the TUI are both its clients, so a switch never restarts a
+       lane; open editors, terminals and drafts come back as they were.
+     - **A switch never passes the lock.** A locked session switches only
+       after it is unlocked, and the new session starts in the same state.
+     - **The remembered default is per user;** the greeter preselects it.
+       The headless editions have the TUI only (D90.13's amendment).
+7. **The interface cannot be quit, and a broken box can always recover.**
+   - **Supervised:** systemd user units under `muse-desktop.target`, each
+     `Restart=always` with a start limit. A crashed bar, app or portal comes
+     back by itself.
+   - **No way out to a bare system:** no binding or menu calls Hyprland's
+     `exit`; its sockets are the person's only, and the tools' user cannot
+     reach them; no getty on any VT (`NAutoVTs=0`, `ReserveVT=0`) and the
+     VT-switch chords swallowed; SysRq limited to sync, remount and reboot.
+     **Sign out** returns to our greeter.
+   - **Safe session:** three session failures in five minutes start it
+     (default configuration, no user layouts, software rendering if the GPU
+     is suspected), with a banner saying why.
+   - **Recovery:** two more failures, Esc or Shift held at boot, two failed
+     trial boots, or the greeter's **Recovery** boot `recovery.target`: our
+     Ink console, opened only with an administrator's credentials or OS4's
+     recovery key. It rolls back to the other slot, resets the desktop's
+     configuration, repairs the network, exports a diagnostics bundle,
+     opens an audited administrator shell, or factory-resets after a typed
+     confirmation.
+   - **Updates never brick a box:** OS2's trial boot is marked good only when
+     the node's `/readyz` passes **and** the desktop is ready (compositor,
+     shell and app healthy, or the greeter painted on a box nobody has
+     signed in to). Otherwise it rolls back by itself.
+8. **The menu bar** (top, a layer-shell surface with an exclusive zone):
+   - **Left:** our mark (opens the launcher), the workspaces, the active
+     app's name and its window menu.
+   - **Centre:** the clock and date (the calendar and the notification
+     centre open from it).
+   - **Right:** node and orchestrator status (D90; paired nodes, Live peek
+     viewers), running agents (M96), the resource meter (M107's level,
+     CPU, memory and GPU; its popover is M107's), privacy indicators
+     (microphone, camera, screen sharing), the keyboard layout or input
+     method, network, Bluetooth, sound, battery and power, notifications
+     (with Do Not Disturb), and the user and power menu.
+   - **Quick settings** gather the toggles: Wi-Fi, Bluetooth, cellular data,
+     VPN, airplane mode, Do Not Disturb, night light, dark mode, brightness,
+     volume, the power profile and **Stop everything**.
+   - **Network:** Wi-Fi (WPA2 and WPA3 personal, 802.1X enterprise with
+     certificates, hidden networks, forget, metered, hotspot), Ethernet,
+     captive portals (detected by NetworkManager's connectivity check and
+     opened in a sandboxed view), VPN (WireGuard; OpenVPN and IPsec through
+     their NetworkManager plugins; M110's overlay routes).
+   - **Bluetooth:** discovery, pairing with passkey confirmation, audio
+     devices and their profiles, input devices, battery levels, and
+     **Bluetooth PAN tethering** through NetworkManager.
+   - **Cellular, when a modem exists:** SIM PIN and PUK, APN (from the
+     provider database, or manual), signal and access technology, roaming,
+     data on and off. eSIM and SMS are not in scope.
+   - **Sound:** devices in and out, per-device and per-app volume, mute.
+   - **Power:** battery and time left, profiles, lid and button actions,
+     suspend, and hibernate only where swap and encryption allow it.
+9. **The launcher overlay.** Super (a tap) or Super+Space opens a centred
+   layer-shell overlay with exclusive keyboard focus. One fuzzy search over
+   apps (ours and Chrome), windows, workspaces, commands (the palette's,
+   from the feature registry), files (the workspace index, then recent
+   files), settings pages, conversations, agents and roles (start a task
+   with a role, jump to a running agent, **Peek**), and a calculator with
+   unit conversion (our own parser, no `eval`, no network). An emoji and
+   special-character picker is one of its modes. Web search is not a
+   result; "Search the web in Chrome" is. Keyboard first; results announced
+   to the screen reader.
+10. **Notifications, OSD, capture and clipboard.**
+    - **Notifications:** our shell is the `org.freedesktop.Notifications`
+      server: toasts, grouping per app, actions, Do Not Disturb and its
+      schedule, and the history in the centre. Agents' events (a turn
+      finished, an approval waiting) appear there. **A notification never
+      answers an approval** (D83.3, D89.7): its only action opens the card in
+      the app.
+    - **OSD** for volume, brightness, microphone mute and the keyboard
+      layout.
+    - **Screenshots and screen recording:** region, window or screen, from
+      the bar, the launcher and Print. Recording uses the ScreenCast portal
+      and PipeWire, so it is M105's Linux path (D85.10): a user action only,
+      its bounds and preview first, then **Attach to chat**.
+    - **Clipboard history** is opt-in, in memory by default, and never keeps
+      an entry marked secret (the `x-kde-passwordManagerHint` type password
+      managers set), an entry from the vault, or one M93's scrubber flags.
+11. **Pointer, icons, fonts, wallpapers and splash** (lane AR), all from our
+    SVG sources and the tokens:
+    - **The pointer theme** in hyprcursor (SVG, scaling, animated busy
+      shapes) and Xcursor (24, 32, 48, 64 and 96 px), every CSS cursor shape,
+      with large and high-contrast sets; the text caret and terminal cursor
+      styled by the same tokens.
+    - **An icon theme** to the freedesktop specification: apps, status
+      (network, Bluetooth, battery and volume levels), places and file types.
+    - **Fonts** under the OFL: a UI face and a monospace face chosen in lane
+      AR, Noto Sans CJK and Noto Color Emoji, so every table renders.
+    - **Wallpapers** (light and dark) and the **Plymouth** splash with the
+      squiggle "m" (two humps, the second smaller, a flick, no loops, bright
+      blue; never a four-point sparkle), which also asks for OS4's disk
+      passphrase where there is no TPM.
+12. **The main app runs on Electron** (research §4).
+    - **Why:** it carries Chromium, the engine of the Chrome default, of VS
+      Code's webviews and of the companion page in Chrome, so every surface
+      renders alike; it has been Wayland-native by default since Electron
+      38; `WebContentsView` gives real browser views for preview tabs and
+      `setDevToolsWebContents` docks DevTools. Tauri's WebKitGTK is another
+      engine with poor Linux performance; Chrome in `--app` mode is missing
+      until the user accepts Google's terms and cannot embed previews.
+    - **A thin main process:** an MHP client of the node over the
+      owner-only socket (D90.13's), a window and preview-view manager, and a
+      sysd client. No model client, credential or tool runs in it.
+    - **The same React app** as VS Code's panel and the companion page,
+      through a fourth `HostBridge`, `src/webview/bridges/desktop.ts`.
+    - **Hardened:** sandboxed renderers, context isolation, no Node in any
+      renderer, the webview's CSP, `@electron/fuses` (no `RunAsNode`, no
+      `NODE_OPTIONS`, no inspector flags, ASAR-only with integrity), a
+      permission handler that refuses camera, microphone, location,
+      notifications and HID unless our UI asked, and app windows that never
+      navigate.
+    - **Kept current:** Electron ships a major every eight weeks with three
+      supported; the desktop's image follows its security releases (OS2's
+      channel).
+
+13. **The workbench feels like VS Code, arranged as the owner said.**
+    - **Left: our chat and agents panel,** the existing panel unchanged, with
+      the Agent map and board.
+    - **Centre: the editor group,** tabbed (pinned, preview and dirty tabs as
+      VS Code shows them), split right or down, with breadcrumbs, the
+      minimap, and preview tabs (decision 14).
+    - **Right: a collapsible sidebar with an icon rail.** Sections:
+      Explorer, Search, Git, Connections (nodes, paired devices, M100 and
+      M110), Roles and team (M96), Usage (M102), Accounts and vault (M108,
+      M109), Makers and devices (M103), Extensions and MCP (M31, M50),
+      Settings, and Help (`/help`'s reference). Each is the page that
+      already exists for the node's web UI or the companion, mounted in the
+      rail.
+    - **Bottom panel:** Terminal (M110's xterm.js page on the tool host's
+      PTY), Problems, Output (dev servers' logs among them) and **Live peek**
+      (M110's K).
+    - **A status strip** at the foot of the workbench (D84's `StatusStrip`).
+    - **VS Code's keymap** for the editor and workbench, M38's palette,
+      quick open, and a layout that persists per workspace.
+    - **Amended 2026-10-05: the terminal panel and the footer.** The owner:
+      "we should be able to have an inline terminal that a user can pin but
+      is pinned to bottom by default between the chat panel and sidebar
+      spanning but it can be detached and dragged around the space,
+      resized, or hidden, exited, or collapsed into a tabbed footer above
+      the status bar spanning between the chat and sidebar the status bar
+      should span the entire bottom of the desktop".
+      - **The layout, from the top down:** the chat on the left, the editor
+        group in the centre, the sidebar with its icon rail on the right.
+        Under the centre column only, the **terminal panel**, docked at the
+        bottom by default, spanning exactly the width between the chat and
+        the sidebar, never under them. Under it, the **tabbed footer**:
+        collapsed terminals and panels as tabs, the same width. At the very
+        bottom, the **status bar** spans the whole desktop, under the chat
+        and the sidebar too. Since D91.30 (2026-10-06) the status bar is
+        the shell's own layer surface, owned by lane SH1, and the workbench
+        feeds it its items. The bottom panel above (Problems, Output, Live
+        peek) shares the terminal panel's dock and its states.
+      - **A terminal's states:**
+        - docked and pinned (the default);
+        - unpinned: it hides when focus leaves;
+        - detached: a floating window inside the workspace, dragged and
+          resized, snapped back to the dock on a drop target, with an
+          always-on-top option;
+        - collapsed into a footer tab;
+        - hidden, still running;
+        - exited: the process closes, after asking if a command is running.
+      - **Behaviour:** several terminals as tabs; split panes inside the
+        panel; a tab dragged between the dock, a floating window and the
+        footer.
+      - **Remembered** per workspace and per Hyprland workspace.
+      - **Keys and the launcher:** shortcuts for toggle, focus, new, split
+        and detach (VS Code's where it has one), and the same as launcher
+        commands.
+      - **Agents' commands** appear in labelled, read-only terminal tabs,
+        linked to Live peek, with **Stop** on the tab. The user's own
+        terminals stay separate, and agents never type into them.
+      - **Accessibility:** a screen-reader mode for terminal output
+        (xterm.js's), focus that moves without traps, and resizing from the
+        keyboard.
+      - **Tokens and motion:** the panel, the footer's tabs and the floating
+        window's shadow come from the design tokens (D94); docking,
+        undocking and collapsing animate, except under reduced motion.
+      - **The TUI** has the same docked, collapsed and hidden model as a
+        bottom pane and a tab strip; floating windows are GUI only.
+      - **The engine is xterm.js** with the addons VS Code uses: WebGL
+        rendering (`@xterm/addon-webgl`), search (`@xterm/addon-search`),
+        links (`@xterm/addon-web-links`) and Unicode 11 widths
+        (`@xterm/addon-unicode11`), each MIT like xterm.js itself, recorded
+        under rule 9 with its pin.
+    - **Amended 2026-10-05: pinned apps on the sidebar's rail.** The owner:
+      "the users should be able to pin apps as icons to their sidebar".
+      - **Where:** a **Pinned apps** group on the icon rail, below the built-in
+        sections. Any installed app is pinned from the launcher, a desktop
+        pill's menu, a window's menu, or by dragging its window or launcher
+        tile onto the rail; dragging reorders; the context menu unpins.
+      - **A click** opens the app, or focuses it if it is running. A new
+        instance goes to its own desktop (decision 15's amendment). Middle
+        click or Ctrl+click opens another instance. Each icon carries a
+        running dot and its desktop's number.
+      - **Web apps and links** open as a preview tab in the editor group or as
+        their own desktop window, as the user chooses per pin.
+      - **Kept per user,** exportable, and carried by settings sync once M100
+        lands. Each experience (decision 23's amendment) brings its default
+        pins: the makers' serial monitor and simulator, the web developer's
+        browser preview and DevTools.
+      - **Keys, shown on the icons.** The owner, again: "the icons on the
+        side bar should have key shortcuts to switch between and that should
+        be a label with the icon so a user can quickly switch back and forth
+        between sidebar panels or quickly launch pinned apps". Super+Alt+1…9
+        is already the merge (decision 15's amendment), so the rail's keys
+        are the workbench's own, rebindable:
+
+        | Keys                                    | Does                                                                 |
+        | --------------------------------------- | -------------------------------------------------------------------- |
+        | Ctrl+Alt+1…9                            | open built-in panel N; again on the open panel, collapse the sidebar |
+        | Ctrl+Alt+Shift+1…9                      | launch or focus pinned app N                                         |
+        | Ctrl+Alt+0                              | show or hide the sidebar                                             |
+        | Ctrl+Alt+\`                             | back to the previous panel                                           |
+        | Ctrl+Alt+R, then a number or the arrows | focus the rail for keyboard-only use (Esc leaves)                    |
+        | Ctrl+Alt+PageDown, Ctrl+Alt+PageUp      | the next and the previous rail page (below)                          |
+        | Ctrl+Alt+Shift+0                        | the default rail page                                                |
+
+        **Checked:** the desktop's keys are all on Super (decision 15's
+        table), so none collides; Ctrl+1…9 stays the editor groups', and
+        Ctrl+\` the terminal's, as in VS Code; Ctrl+Alt+R is unbound in VS
+        Code's default keymap on Linux, which lane 0 confirms. On Linux AltGr
+        is its own level, so Ctrl+Alt+digit does not type a character; were
+        the workbench ever offered on Windows, AltGr+digit on international
+        layouts would clash, and the table would change there. While a
+        terminal has focus, the rail's keys skip the shell, as VS Code's
+        `commandsToSkipShell` does. The final table is recorded in `/help`
+        and `/report keybindings`.
+
+      - **Visible key labels.** Every rail icon, built-in or pinned, shows its
+        key as a small keycap in its corner ("1", "2", "P1"), always visible
+        by default. A setting switches the labels to on hover and while the
+        modifier is held; holding Ctrl+Alt then shows every label large, in
+        the manner of Spotlight's hints. The labels come from the keybinding
+        registry, so a rebinding updates them at once; the tooltip shows the
+        name and the key; the screen reader says "Files, Ctrl Alt 1".
+      - **Accessible and themed:** every icon has a screen-reader name and a
+        tooltip with the app's name and key; icon sizes and the hover and
+        pressed states come from D94's tokens.
+      - **Agents may suggest a pin, never pin.** The suggestion is one M112
+        question with **Pin**, **Not now**, and a remembered Ask, Always or
+        Never.
+      - **The TUI** lists the pins in its command palette, and numbers its
+        sidebar and pinned menu the same way.
+    - **Amended 2026-10-05: the rail flips between pages.** The owner: "this
+      sidebar icon panel should be able to flip like the bottom bar on super
+      mario bros 3 with an animation for the flip and it should flip to tool
+      boxes or more pinned apps a user should be able to set this by default
+      there should be one or two you decide".
+      - **Two pages by default:** **Workspace** (the built-in panels and the
+        pinned apps) and **Toolbox** (the active experiences' tools: for
+        makers the serial monitor, flasher, pinout and simulator; for web the
+        preview, DevTools, Lighthouse and the responsive switcher; for data
+        the notebooks and the dataset browser). Each experience's manifest
+        names its toolbox. The user adds pages (more pinned apps, a toolbox of
+        their own), renames, reorders and deletes them, and picks the default
+        page in **Settings › Sidebar**.
+      - **The flip** is a card flip, as Super Mario Bros. 3's status bar
+        flips: the whole rail turns on its vertical axis (a 3D `rotateY` of
+        about 280 ms with a slight overshoot and a soft shadow at mid-turn)
+        and its back face is the next page; dots at the rail's foot show the
+        page. Under reduced motion it is a 120 ms crossfade. The open sidebar
+        panel stays as it is; only the rail flips. The flip's duration and
+        easing are D94 motion tokens of their own (the one motion past D94's
+        240 ms, by the owner's request).
+      - **Triggers:** a flip tab at the rail's foot; Ctrl+Alt+PageDown and
+        Ctrl+Alt+PageUp for the next and previous page, and
+        Ctrl+Alt+Shift+0 for the default page; the mouse wheel over the rail
+        with the modifier held; a two-finger horizontal swipe on a touchpad.
+        Holding the modifier shows the current page's key labels. **Checked**
+        against the rail's table above and the desktop's Super keys: no
+        collision; VS Code's Ctrl+PageUp and Ctrl+PageDown (the editor tabs)
+        stay theirs.
+      - **Numbering.** Ctrl+Alt+1…9 targets the visible page (the default);
+        a setting switches to one numbering across all pages.
+      - **Accessible:** the rail is a tablist of pages; the screen reader says
+        "Toolbox page, 2 of 2"; focus stays on the same slot after a flip.
+      - **The TUI** has page tabs at the top of its sidebar, with the same
+        keys.
+14. **The editor is CodeMirror 6, as on the node** (D90.12; research §5),
+    one editor on every surface. The minimap is ours, a CodeMirror view
+    plugin in `src/webview/editor/codemirror.ts` (lane ED, 2026-10-30):
+    `@replit/codemirror-minimap` was the first choice here, but its tarball
+    and its repository ship no licence text to reproduce in the notices, so
+    under this decision's own fork clause the minimap lives in our tree
+    (syntax-coloured blocks, the viewport overlay, click-or-drag
+    scrolling); diffs are `@codemirror/merge`; code intelligence comes from the
+    LSP broker in M110g. Monaco has a built-in minimap but a 4.2 MB main
+    chunk, workers, and no phone support; two editors would mean two of
+    everything. **Preview tabs** open in the editor group as browser views
+    (decision 23), beside or below the code. Lane ED's pins (rule 9, audit
+    clean for the new set on 2026-10-30): `@codemirror/state` 6.7.6,
+    `@codemirror/view` 6.43.15, `@codemirror/language` 6.13.1,
+    `@codemirror/commands` 6.11.1, `@codemirror/search` 6.7.2,
+    `@codemirror/autocomplete` 6.20.4 (bracket closing only; no completion
+    source until the LSP broker), `@codemirror/lang-javascript` 6.2.5,
+    `@codemirror/lang-json` 6.0.2, `@codemirror/legacy-modes` 6.5.5 and
+    `@lezer/highlight` 1.2.5, each language its own lazy chunk. The
+    catalog is sized to the node's existing 600 KiB editor budget
+    (562.9 KiB measured): `@codemirror/language-data` measured ~1.1 MiB of
+    language chunks and `@codemirror/lang-markdown` ~99 KiB with its HTML
+    and CSS parsers, so the catalog is Lezer JavaScript/TypeScript + JSON
+    plus legacy modes, Markdown opens as plain text, and lane WB widens
+    the catalog under the desktop bundle's own D6 budget. Lane 0's
+    contracts (`src/shared/desktopContracts.ts`) read `zod/mini` since
+    lane ED, like every browser-facing shared schema (classic zod measured
+    +402 KiB in the node's startup graph).
+15. **Windows tile, and workspaces are desktops.**
+    - **Every window fills the space by itself:** dwindle by default, master
+      and scrolling offered, our own Lua layouts later; gaps and ratios from
+      the tokens.
+    - **Floating exceptions:** dialogs with a parent, the portal's file
+      chooser, picture-in-picture, the launcher and every shell surface.
+    - **Workspaces** per monitor, Super+1–9, three-finger swipes, an
+      overview with window thumbnails (Hyprland's toplevel export), Alt+Tab,
+      and a key that moves focus into the bar.
+    - **A workspace can be bound to a project,** so the app's window on it
+      opens that folder.
+    - **Monitors:** arrangement, fractional scaling, refresh, rotation,
+      mirroring and ICC profiles from the settings app, applied live through
+      the port and persisted; workspaces return to a monitor that comes back.
+    - **Amended 2026-10-05: an app gets a desktop of its own.** The owner:
+      "by default any apps an agent need to use … or even when a user
+      chooses to open an app it should open in a separate desktop with
+      indicators in our header how many desktops are open …", and his
+      correction, "i meant headed".
+      - **Placement.** A headed app an agent opens (a visible window: a
+        browser preview, a simulator, an IDE tool) goes to a new desktop of
+        its own by default, labelled with the agent or session that opened
+        it. An app the user opens does too. The workbench stays on desktop 1.
+        `desktop.placement` in Settings: **New desktop** (the default),
+        **Current desktop** or **Ask**. Headless agent processes have no
+        window and no desktop; they show in the Agent map and Live peek as
+        today.
+      - **Never stealing focus.** An agent's new desktop does not take
+        focus: its pill pulses once and keeps a badge, and the user switches
+        when they want.
+      - **The bar's indicators:**
+        - one pill per desktop with its number, an app icon, and an agent
+          badge when an agent owns it; the current desktop highlighted; a
+          count when there are more than fit;
+        - hover shows a live thumbnail; a click switches; the secondary click
+          opens **Merge into…**, **Rename**, **Close** and **Move to
+          display**;
+        - pills can be multi-selected and merged: the windows of the chosen
+          desktops join the target, and the tiling re-flows.
+      - **Two overlays:** a single-desktop preview (one desktop, large and
+        live), and **All desktops**, a numbered grid of live previews whose
+        tiles list their keys (switch, preview, merge, send the window here).
+        Dragging a window between tiles moves it; dragging a tile onto
+        another merges them. Both work by keyboard and screen reader, and
+        stand still under reduced motion. The all-desktops overlay replaces
+        the overview above.
+      - **Default keys,** all rebindable, shown in the overlay, in `/help`
+        and in `/report keybindings` (D93):
+
+        | Keys                | Does                                                   |
+        | ------------------- | ------------------------------------------------------ |
+        | Super+1…9           | switch to desktop N (as planned above)                 |
+        | Super+Shift+1…9     | send the focused window to desktop N                   |
+        | Super+Ctrl+1…9      | preview desktop N                                      |
+        | Super+Tab           | the all-desktops overlay                               |
+        | Super+Alt+1…9       | merge desktop N into the current one                   |
+        | Super+Alt+M         | the merge picker                                       |
+        | Super+Shift+N       | send the focused window to a new desktop               |
+        | Super+[ and Super+] | the previous and the next desktop                      |
+        | Ctrl+Alt+Shift+1…9  | launch or focus pinned app N (decision 13's amendment) |
+
+        **Checked against what is planned:** Super+1…9 is decision 15's own;
+        Super+Tab takes the overview's place (it had no key of its own);
+        Super, Super+Space (the launcher), Super+L (the lock) and Alt+Tab
+        (windows) are unchanged and do not collide. Hyprland's stock
+        configuration is not shipped (lane CP generates ours), so its
+        defaults bind nothing; its Super+M exit is never bound (decision 7).
+        The GUI-to-TUI switch key (decision 6's amendment) is chosen outside
+        this table. Lane CP's generated configuration fails CI on any
+        duplicate binding.
+
+      - **Under the hood:** desktops are Hyprland workspaces through the
+        compositor port; a merge moves every client. Thumbnails come from
+        Hyprland's toplevel export (`hyprland-toplevel-export-v1`) or
+        `wlr-screencopy`, rate-limited (`DESKTOP_THUMBNAIL_FPS`) and paused at
+        M107's throttle.
+      - **Agents' tools:** opening an app on its own desktop, sending a window
+        and merging are agent tools with an approval class each. An agent
+        rearranges its own desktops freely and asks before touching any
+        other.
+      - **The Terminal session** (decision 6) has tmux-style windows with the
+        same numbers and keys where the terminal passes them through.
+      - **Tested** on the compositor port's fake and by an image smoke test
+        under headless Hyprland.
+
+16. **The system settings app is ours** (React in Electron, over sysd):
+    Appearance, Displays, Sound, Network, Bluetooth, Cellular, Power and
+    sleep, Keyboard (layouts, repeat, shortcuts), Input methods (fcitx5),
+    Mouse and touchpad, Accessibility, Users and sign-in (password, PIN,
+    FIDO2 keys, fingerprint, auto sign-in for kiosks), Updates (OS2's
+    channel, A/B state, roll back, schedule), Date and time, Language and
+    region, Privacy (indicators, per-app camera, microphone and screen
+    access through the portals, clipboard history, the diagnostics export),
+    Storage, Printers, Default apps, Notifications, Workspaces and windows,
+    **Toolchains** (decision 17), **Admin access** (decision 25), Node (D90's
+    settings), and About (versions, slots, licences, SBOM).
+17. **First boot and onboarding** (with M110t's owner; M110t's packs are
+    not re-planned here).
+    - **First boot happens on the screen,** before any account exists:
+      OS3's setup pages, shown locally by the app in a setup mode under the
+      greeter profile, for language, keyboard, accessibility, network, the
+      owner's account and factors, time zone, Google Chrome's terms (OS7)
+      and the update channel. A box installed by our installer (decision 24)
+      has answered most of these already, and first boot asks only what is
+      left.
+    - **After the first sign-in, onboarding** hosts M110t's questionnaire
+      (TQ's pages, the same React components): the twelve use areas
+      (several may be chosen), experience level and strictness; then the
+      pack list, each pack with its tools, versions, licences, download and
+      disk size, and source; nothing installs before **Install**.
+    - **Progress with Cancel:** per pack and overall (bytes, time left,
+      "waiting: machine busy" under M107), and a cancel that leaves no layer
+      half-installed, because each pack is one atomic layer (D90.27).
+    - **Settings › Toolchains:** the installed packs with versions and
+      sizes, updates from the signed index, **Update**, **Remove**, the
+      offline cache's size, the security-update switch D90.27 describes, and
+      **Set up for my work again** (M110t's re-run).
+    - Then a short tour: the launcher, the panels, how agents ask for
+      approval.
+18. **Platform integration** (research §8).
+    - **Portals:** Hyprland's portal for ScreenCast, Screenshot and
+      GlobalShortcuts; our `xdg-desktop-portal-muse` for FileChooser,
+      AppChooser, Settings (color-scheme, contrast, accent, reduced motion),
+      Account, Access, Print, Inhibit and Notification, so every dialog an
+      app opens is ours.
+    - **Default apps:** web links to Chrome (or Chromium, D90.26); text,
+      source, folders, images and PDFs to our app.
+    - **No third-party apps at first:** no Flatpak and no app store (the
+      owner's "just our interface"); toolchains live in sandboxes as packs.
+      XWayland is off by default, a switch turns it on for a legacy tool,
+      and the bar shows when an X11 window is open.
+    - **Printing** through CUPS with driverless IPP Everywhere; no
+      cups-browsed (CVE-2024-47176).
+    - **Removable media** mounted `nosuid,nodev,noexec`, never auto-run;
+      drag and drop between windows; Wayland's clipboard.
+19. **Theme: one token source for everything** (the owner's hard
+    requirement; research §13).
+    - **One file,** `design/tokens/muse.tokens.json` (the W3C Design Tokens
+      format): the semantic names under one `--ms-*` prefix (layout, colour,
+      type, motion, elevation, focus), the Muse palette for hosts without a
+      theme of their own (light, dark, high-contrast dark and light), and the
+      mapping onto VS Code's variables, so VS Code keeps following the user's
+      VS Code theme.
+    - **Generated for every consumer** by `scripts/build-tokens.mjs`: the
+      webview's `tokens.css`, the desktop's and the node's palette CSS, GTK
+      CSS, Rust constants, the Hyprland theme (borders, gaps, rounding,
+      animation curves), the TUI's Ink colours, xterm.js and CodeMirror
+      themes, the pointer and icon builds, Plymouth, the GRUB theme and the
+      wallpapers.
+    - **Light, dark and high contrast** follow the system's choice (the
+      portal's `org.freedesktop.appearance`), with a manual override in
+      Appearance; the node's web UI and the TUI follow it too.
+    - `check:tokens` fails a stale output or any pair below WCAG 2.2 AA in
+      any mode.
+    - **Amended 2026-10-06: the source is D94's.** The token file, its web
+      generators (the webview's `tokens.css`, the companion's, the native
+      webviews', the node's web UI's and the TUI's palettes) and the raw-colour
+      lint rule belong to M114's lane 0. Lane TH consumes them and generates
+      only the desktop's outputs: the QML theme (in place of GTK CSS), the
+      Hyprland theme, Plymouth, GRUB, the pointer and icon palettes and the
+      wallpapers. There is one source, and TH is not a second one.
+20. **Languages: the same fifteen, the same gate** (the owner's hard
+    requirement; research §10).
+    - Every string of every component (greeter, bar, launcher, settings,
+      notifications, lock screen, installer, app, node web UI, TUI) is a key
+      in `en.ts` and the fourteen tables, read at run time; native Rust code
+      reads the same generated tables through one `ui_text!` macro, and
+      `check:l10n` scans it too, with 0 problems.
+    - Dates, numbers and units through `Intl` (web) and ICU4X (Rust) from the
+      same locale.
+    - **Input methods:** fcitx5 with Pinyin, Chewing, Mozc and Hangul, on
+      input-method-v2 and text-input-v3 (Electron with
+      `--enable-wayland-ime`).
+    - **No right-to-left language is planned** (none of the fifteen is), but
+      every layout is RTL-ready (CSS logical properties, GTK's direction, the
+      bar and workbench mirrored by the locale) and a pseudo-RTL table is
+      screenshot-tested. Adding Arabic or Hebrew is the owner's call
+      (Q-M111).
+    - A font-coverage gate shapes every string with HarfBuzz and fails a
+      missing glyph.
+21. **Accessibility: WCAG 2.2 AA everywhere, enforced** (the owner's hard
+    requirement; research §9).
+    - **Web surfaces** under the existing axe gate (`test:a11y`), in the
+      desktop's light, dark and high-contrast modes and VS Code's four
+      themes, at 320 px and 1920 px.
+    - **Native surfaces** under a new AT-SPI gate: every focusable element
+      has a name, a role and its states; every action is reachable by
+      keyboard; focus is visible; a scripted Orca run speaks the expected
+      lines through a logging speech module.
+    - **Orca's keyboard on Wayland:** lane AX implements
+      `org.freedesktop.a11y.KeyboardMonitor` for Hyprland as an upstream pull
+      request and ships it as our pinned plugin until a release carries it;
+      it is served only while the screen reader is on, and only to Orca.
+    - **Also:** full keyboard operation, reduced motion from one setting
+      (CSS, GTK and Hyprland's animations), contrast, text scaling to 200%,
+      the pointer's size, Hyprland's zoom as the magnifier, sticky, slow and
+      bounce keys, colour filters (a screen shader), an on-screen keyboard,
+      and Orca's key chord from the boot menu on.
+22. **Observability, kept on the box** (the owner's hard requirement;
+    research §11).
+    - **OpenTelemetry metrics, logs and traces** from the shell, the
+      compositor's health (IPC latency, frame pacing, restarts), the app
+      runtime and the node's services.
+    - **Local by default:** an OTLP receiver in the node service on an
+      owner-only socket, with bounded ring files and rollups; an on-box
+      **Diagnostics** page in the app and the node's web UI; export to the
+      user's own collector only after they set it, over TLS. Nothing leaves
+      the machine unless the user opts in (D90.19).
+    - **Crashes stay local:** systemd-coredump with caps, Electron's crash
+      reporter with no upload, Rust panic records; each scrubbed (M93's
+      second scrub) before it is shown.
+    - **Health and readiness:** `/livez` and `/readyz` gain the desktop's
+      components (decision 7).
+    - **Diagnostics bundle:** M93's **Report a problem**, which the user
+      reviews file by file before sharing.
+23. **Web development is a pleasure** (the owner; research §12). One CDP
+    engine (`src/core/webdev/**`) drives every preview target; the toolbars
+    are the same React components everywhere.
+    - **Live preview.** The project's dev server is detected (Vite, Next.js,
+      Astro, SvelteKit, Angular, Nuxt, React Router, Storybook, Ladle, or
+      plain static files) and started on the user's click (or an agent's,
+      under the mode's approvals) as background work in the tool host, on a
+      free port, its log in Output. HMR is the framework's own; plain static
+      files get our server with live reload.
+    - **Preview tabs in the centre,** split beside or below the editor, with
+      address, back, forward, reload, **Open in Chrome**, and links to other
+      sites sent to Chrome.
+    - **View modes:** device presets (phone, tablet, laptop, desktop,
+      custom), rotate, zoom, device-pixel ratio, touch; a **multi-viewport
+      grid** of several sizes at once, with scrolling, navigation and
+      clicks kept in step.
+    - **Inspection:** Chrome DevTools in the preview (Electron's own, docked;
+      elsewhere `chrome-devtools-frontend` pinned to Chrome for Testing's
+      revision, served locally); **inspect an element to jump to its
+      source** (framework dev metadata, CSS source maps, then a text search),
+      hover highlights, and **Add element to chat**.
+    - **Checks:** emulation of `prefers-color-scheme`, reduced motion,
+      forced colours, contrast preference, vision deficiencies, locale, time
+      zone, network and CPU throttling; **axe** and **Lighthouse** from the
+      toolbar and by agents; screenshots (viewport, area, full page), a
+      visual diff against a baseline, a colour picker and a contrast
+      checker.
+    - **Components:** Storybook and Ladle detected and their stories listed;
+      a component playground (React on Vite first) for projects without
+      either.
+    - **Sharing:** a QR to open the preview on a phone on the LAN through
+      the node's authenticated proxy (the dev server stays on loopback; no
+      port opens), and a remote-review link only through M110d's routes and
+      M110e's certificates, with expiry, revocation, a viewer count and the
+      audit. Never a third-party tunnel by default.
+    - **Agents use the same tools** (preview, DevTools over CDP, audits,
+      screenshots) to see and check their own UI work, always in Chrome for
+      Testing in the sandbox with a fresh profile (D90.26, M81). They never
+      drive the user's preview tab or the user's Chrome. Lighthouse always
+      runs in a fresh Chrome for Testing, for clean scores.
+    - **The preview never shares an origin with our UI;** in the node's web
+      UI and the companion, a proxied dev server has its own origin and a
+      sandboxed frame.
+    - **Every editor:** the desktop through `WebContentsView`; JetBrains
+      through JCEF and Visual Studio through WebView2 (both Chromium, with
+      CDP); the node's web UI, the companion page and the VS Code family
+      through a Chrome for Testing screencast with input forwarded. VS
+      Code's own integrated browser (experimental since 1.109) has no
+      documented extension API; lane WD0 records what VS Code can and cannot
+      embed, and the registry's rows say so.
+    - **Amended 2026-10-05: an experience for every persona,** with web
+      development's depth (D90.27's amendment has the questionnaire, the
+      manifests, setting up later, removal and the agent's proposal). Each
+      persona's experience is a manifest: its packs, layout and sidebar
+      sections, view modes, simulators, sample project, agent role (M96's
+      charters) and skills, and checks (the capability file's gate commands).
+      Licences are re-checked by lane XE before anything is bundled; GPL
+      programs ship as separate programs with their sources published
+      (D90.24's rule), and anything under a non-free licence installs only
+      on the user's click, as Chrome does.
+
+      | Persona                                                  | Experience (layout, sections, view modes)                                                                                                                                                                 | Simulators and devices                                                                                                                                                                                                                                                                                                                                                                                                | Sample project (first boot, and the image's CI smoke test)                              | Agent role                                       | The TUI                                                                                                                                      | Needs                                      |
+      | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+      | Makers and embedded (ESP32, Raspberry Pi, Arduino, Pico) | a board picker; a virtual serial monitor and plotter; pinout and wiring diagrams beside the code; flashing from the toolbar; the Makers sidebar section (M103)                                            | M103X's emulator matrix built in: QEMU's `raspi3b`, `raspi4b` and `virt` (GPL-2.0), Espressif's QEMU for ESP32, S3 and C3 (GPL-2.0), simavr for AVR boards (GPL-3.0), rp2040js for the Pico (MIT), Renode (MIT); Wokwi only with the user's own token (D83.14). Simulated first, so no cables are needed; a virtual device becomes the real board when one is plugged in, under D83's physical-safety rules unchanged | an ESP32 blink-and-serial sketch on Espressif's QEMU; a Pi GPIO script on `raspi4b`     | a maker engineer, with D83's skills              | the serial monitor, a braille plotter, the board picker, flashing; wiring diagrams are GUI only                                              | M103 and M103X merged                      |
+      | Web                                                      | as decision 23 (M111w)                                                                                                                                                                                    | device presets and the viewport grid                                                                                                                                                                                                                                                                                                                                                                                  | a Vite and React app in a preview tab                                                   | a web engineer, with M111w's preview tools       | the dev server, its log and the phone QR; previews are GUI only                                                                              | M111w                                      |
+      | Data and ML                                              | a notebook view (Jupyter kernels through `jupyter_server`, BSD-3); Python environments (uv); a dataset browser for CSV and Parquet (DuckDB, MIT); plots inline; a GPU panel                               | GPU detection and drivers (OS5's NVIDIA add-on, AMD ROCm, Intel); a local model runtime of the Ollama class as an option (M110g's loopback sidecars)                                                                                                                                                                                                                                                                  | a notebook that loads a small CSV and plots it (CPU only in CI)                         | a data scientist                                 | cells through a terminal notebook (euporie, MIT) as an option; plots inline only on sixel or kitty-graphics terminals, else saved and linked | OS5's GPU add-ons; M110g for local models  |
+      | Mobile                                                   | the Android SDK and its emulator, device mirroring (scrcpy, Apache-2.0), Flutter (BSD-3) or React Native (MIT) packs; logcat in Output                                                                    | the Android emulator under KVM on x86-64; on ARM64 boxes, a USB device or a remote node instead, said plainly. **iOS builds need a Mac:** said plainly, and offered through a remote Mac node (M110g's native macOS node)                                                                                                                                                                                             | a Flutter counter app on the emulator                                                   | a mobile engineer                                | `adb`, logcat and builds; the emulator's screen and mirroring are GUI only                                                                   | KVM on the image (OS1, OS4); M110g for iOS |
+      | Backend and DevOps                                       | containers (Podman), a local Kubernetes (kind, Apache-2.0, or k3d, MIT), a database browser of our own over the drivers, an API client for `.http` files, a logs and metrics view (lane OB's local store) | containers and the local cluster in the workspace's sandbox                                                                                                                                                                                                                                                                                                                                                           | a small HTTP API with a database on kind; its `.http` file runs green                   | a backend and DevOps engineer                    | containers, the cluster (a k9s-class view, Apache-2.0), database shells and logs; the database browser is GUI only                           | M110b's sandboxes                          |
+      | Game and graphics                                        | Godot (MIT) and Blender (GPL-2.0 or later, a separate program); an asset preview (glTF and textures, three.js, MIT); a GPU panel                                                                          | GPU checks (`vulkaninfo`, `glxinfo`)                                                                                                                                                                                                                                                                                                                                                                                  | a Godot 2D scene exported headless                                                      | a game developer                                 | builds and exports; the editors are GUI only                                                                                                 | OS5's GPU add-ons                          |
+      | Systems (C, C++, Rust)                                   | a visual debug view over gdb's and lldb's Debug Adapter Protocol servers (breakpoints, stack, variables, watch, memory); cross toolchains (Arm, AArch64, RISC-V); sanitizer builds one click away         | QEMU user mode for the cross targets                                                                                                                                                                                                                                                                                                                                                                                  | a C program with a planted bug caught by ASan, and a Rust crate stopped at a breakpoint | a systems engineer                               | gdb's TUI and lldb; the visual debug view is GUI only                                                                                        | —                                          |
+      | Security and CTF                                         | a sandboxed toolset in an isolated virtual machine or container, never on the host network by default (egress off but for a per-workspace allowlist); a scope file naming the targets the user may test   | pwntools (MIT), Ghidra (Apache-2.0), radare2 (LGPL-3.0), binwalk (MIT); tools under non-free licences (Nmap's NPSL) only on the user's click                                                                                                                                                                                                                                                                          | a local CTF binary in the sandbox, solved by a pwntools script                          | a security researcher, limited to the scope file | all of it: the tools are terminal tools                                                                                                      | M110b's sandboxes and egress proxy         |
+      | Docs and writing                                         | a Markdown preview beside the editor; diagrams (Mermaid, MIT); spelling (cspell, MIT) and style (Vale, MIT) as checks                                                                                     | —                                                                                                                                                                                                                                                                                                                                                                                                                     | a small docs site with a Mermaid diagram that passes Vale                               | a technical writer                               | Markdown in the terminal (glow, MIT) and the checks; diagram previews are GUI only                                                           | —                                          |
+      | Learning and students                                    | guided tours; a simple mode (one column, fewer panels, larger text); explain-as-you-go agent settings (D90.27's experience level: more explanation, Plan mode first, never a safety change)               | —                                                                                                                                                                                                                                                                                                                                                                                                                     | a guided first project in Python                                                        | a tutor that explains as it goes                 | the tours and the simple mode                                                                                                                | —                                          |
+24. **The installer is ours, and it does everything** (the owner; research
+    §18).
+    - **The medium:** one image per target (x86-64 and ARM64 UEFI ISOs,
+      hybrid for flash drives; the Pi 4 and 5 images), live and installer in
+      one. GRUB's gfxmenu draws our themed boot menu (systemd-boot has no
+      themes): **Try Muse Desktop (live)**, **Install Muse Desktop**, **Safe
+      graphics**, **Recovery**, **Firmware settings**; ARM64 firmware that
+      cannot draw it gets the same entries as text. The Pi, which has no
+      firmware menu, boots into our graphical chooser.
+    - **The flow,** a React app on the live session, each step easy by
+      default with an **Advanced** panel: language; keyboard;
+      accessibility; network (Ethernet, Wi-Fi, cellular, captive portals);
+      disk (the whole disk by default, manual partitioning in Advanced, other
+      systems detected and named, BitLocker and FileVault warned about, never
+      resized); encryption (TPM-sealed by default, a passphrase otherwise, or
+      none by explicit choice); the account (full name, user name, a password
+      with a strength meter and a local breached-password check; FIDO2 keys
+      and passkeys after first boot); host name; time zone; M110t's
+      questionnaire with pack sizes; optional orchestrator pairing (M110a);
+      admin access for agents (decision 25); a summary; progress; reboot.
+    - **The gallery** on the progress step: real screenshots (chat, the
+      editor with a preview, the Agent map and Live peek, Connections, the
+      usage page, Help) with captions, and tips; a new slide every 8 seconds,
+      paused on hover or focus, previous, next and dots, a polite live
+      caption that never takes focus, a cut instead of a crossfade under
+      reduced motion; in all fifteen languages and both themes; generated by
+      the screenshot harness, with a test that fails on a missing or stale
+      shot. The same component serves M110os's first-boot web setup.
+    - **The backend, `muse-installd`** (Rust, root, D-Bus, live medium
+      only): systemd-repart with OS1's layouts, OS2's RAUC slots, the boot
+      path (EFI entries, or the Pi's `autoboot.txt`), OS4's encryption, and
+      the first-boot configuration (the account as a yescrypt hash, host
+      name, time zone, the network joined in the installer, `profile.json`,
+      the packs, the update channel, the admin mode).
+    - **Downloads during the install:** the chosen packs and the newest OS
+      bundle, in parallel with the disk work, resumable, each verified by
+      signature and digest, paused on a metered link unless the user says
+      go; first boot then needs no download. An offline install still
+      finishes, and first boot offers what is missing.
+    - **Rollback:** nothing on a disk changes before the summary is
+      confirmed; afterwards each step is journalled, and a failure restores
+      the saved partition table or marks the disk "incomplete install" with
+      **Try again** and **Recovery**, never a half-booting system.
+    - **Automation:** an optional unattended file (YAML or JSON, versioned,
+      signed with the user's own key, no plaintext password) for power users
+      and fleets; PXE and HTTP boot later.
+    - **The headless installer ISO** (D90.24) uses the same daemon and pages,
+      over the LAN in the browser.
+    - **Amended 2026-10-06: the local judge at install** (D90.27's
+      amendment). After the hardware scan, the questionnaire step offers
+      "Install the local judge" when the scan recommends it (on by default
+      then, with its size and time), with **Advanced** (another size, CPU
+      only, skip) and the model's licence accept step where its terms need
+      one. `muse-installd` downloads the pinned runtime and the model's blobs
+      beside the packs, resumable and verified, writes the `muse-judge`
+      service and the judge's registration into the target, and first boot
+      runs the health check. A failure never fails the install: Settings ›
+      Judge offers **Set up later**. The unattended file gains
+      `judge: {install: auto | <model> | skip, cpuOnly}`.
+25. **Admin access for the orchestration agent** (the owner: "passwordless
+    sudo or some type of key"; research §19).
+    - **`muse-agent`,** a system account with no password, no login shell and
+      no SSH, whose only privilege is calling **`muse-admind`**, a root D-Bus
+      helper with a typed action catalogue (network, firewall, services,
+      users, mounts, time, add-ons, packs, updates and rollback, power, logs,
+      and `run`: a root argv with a working folder and a timeout). The node
+      service starts the agent's admin client as `muse-agent`; no sandbox,
+      tool or terminal can.
+    - **M109's modes govern it:** **Always allow** by default (the owner's
+      choice), or Ask every time, an allowlist (actions and argv digests),
+      or Off. Every request carries the broker's binding (D89.7), signed by
+      an Ed25519 key held in the vault's hardware slot (TPM-backed), which
+      the helper verifies.
+    - **In every mode:** a tainted request asks (D89.7: the prompt-injection
+      path to root); the **never-allowed list** is refused (wiping or
+      repartitioning a disk outside the installer; disabling or truncating
+      the audit; changing the helper, its policy, polkit, sudoers or PAM;
+      removing the recovery entry, a slot or the update keys; Secure Boot
+      keys or the TPM policy; turning off the screen lock, Stop or Lock
+      admin; reading the vault's or the Secret Service's files; granting
+      admin to any account; opening the firewall on a public interface); and
+      the **rate limits** hold (`ADMIN_ACTIONS_PER_MINUTE` 20,
+      `ADMIN_ACTIONS_PER_HOUR` 200, fewer for service stops and user
+      changes), beyond which it asks.
+    - **Confirmed by the owner, 2026-10-06** (Q-M111 item 1): the taint ask
+      stays for admin actions that follow untrusted content.
+    - **Audited and revocable:** an append-only, hash-chained audit written
+      by the helper, mirrored to a paired device of the owner's, shown in
+      **Settings › Admin access** and on the Agent map; **Stop everything**
+      ends running admin actions; **Lock admin** (bar, lock screen, Settings,
+      and from another paired device) revokes the mode until the owner's
+      factor turns it back on.
+    - **Plain NOPASSWD sudo** is an explicit opt-in under Advanced, after a
+      page that says it removes the never-allowed list, the rate limits, the
+      binding and the taint ask, and that root can erase sudo's log.
+    - **Bounded by the image:** `/usr` is read-only under dm-verity and
+      changes only by signed bundles, so root's lasting changes are in `/etc`
+      and `/var`, which roll back and reset.
+    - Lane 0's threat model has the full table (research §19): prompt
+      injection, a sandbox reaching the helper, forged or replayed requests,
+      persistence, hidden tracks, a lost box.
+26. **Security.**
+    - Apps are sandboxed (Electron's renderer sandbox, Chrome's own; preview
+      views in their own partition with no preload privileges); AppArmor
+      profiles for the app and Chrome; every unit under the `systemd-analyze
+security` threshold where its job allows.
+    - The vault unlocks with the session (decision 6) and its presence items
+      ask in our own prompt; the screen locks on idle; no telemetry; updates
+      signed (OS2, OS7, the packs' index).
+    - Every socket is owner-only and checked by the peer's credentials;
+      polkit actions name the change; Hyprland's permissions keep screen
+      capture, new keyboards and plugins to our own processes.
+    - Threat-model rows of lane 0: a person at the keyboard (lock bypass, VT
+      switch, recovery abuse), hostile web content in a preview, a spoofed
+      shell surface or prompt, screen and clipboard snooping, the keyboard
+      monitor as a keylogger, crash dumps holding secrets, telemetry leaving,
+      the installer's medium and unattended file, and the agent's root.
+27. **Physical safety** (D83) when devices are attached: **Stop machine** is
+    in the bar, on the lock screen and in the greeter, and needs no
+    sign-in; machine approvals appear only in the app's own cards, never in
+    a notification or the launcher; D83.8's unattended refusals hold for
+    `muse-agent`'s admin actions too.
+28. **Performance targets** (measured in lanes QA and HW before shipping;
+    M111's performance section has the figures): boot to greeter, greeter
+    to a usable workbench, the session's memory on a 4 GB Pi 4 (the
+    smallest supported desktop; a 2 GB Pi 4 is a headless node only),
+    animation frame rates, launcher latency, and the installer's time on
+    each matrix machine.
+29. **Name, and what waits.**
+    - **Name:** "Muse Desktop" in the docs; in public "Muse Node OS
+      (Unofficial), desktop edition" (rule 11), until the owner names it
+      (Q-M111).
+    - **Waits:** several people per box (M110h); third-party apps and
+      Flatpak (Q-M111); right-to-left languages (Q-M111); our own
+      compositor; PXE and HTTP boot; eSIM and SMS.
+30. **The companion: an opt-in desktop pet** (added 2026-10-06). The
+    research is `docs/research/muse-companion-2026-10-06.md`; the art and
+    its provenance are in `design/companion/`. The owner, 2026-10-05 and
+    2026-10-06:
+    - "that little muse assistant thing ... i would like for you to do some
+      research and see if we can leverage that as an opt in optional desktop
+      pet that lives at the bottom of the screen inteligfently stays ouit of
+      the way but is there to answer your questions like muse the meta
+      character"
+    - "this wouls only be for in the os"
+    - "lets skip stright to just creating our own cute character"
+    - "this needs to be an animated character so you will need to generate
+      all of the walking and it doing different things and when its hidden
+      an occasional peek up fom behind the statusbar repurpose this character
+      i made"
+
+    The decisions:
+    - **Muse Desktop only.** Not the VS Code extension, the other editors
+      or the node's web UI: the owner limited it to the OS. The Terminal
+      session has no companion.
+    - **Off until chosen.** "Opt in optional" is the owner's stated reason
+      for an exception to enhancements-on-by-default. Onboarding (lane ON)
+      offers it, and the settings app turns it on or off. It never turns
+      itself on.
+    - **The character is the owner's electric penguin.** It is not Meta's
+      Muse avatar, whose art is not licensed to us. The Meta gadget SDK is
+      for personal use only, and D71's "never a gadget" stands.
+    - **Each person names it.** Turning the companion on asks for its name
+      (the owner, 2026-10-06; Q-M111 item 7). Until a name is given, the
+      interface says "the companion". The name is checked like any display
+      name (length, no control characters) and can never be "Muse"
+      (rule 11).
+    - **The art is sprite strips, not a rig.** This amends research §2's
+      recommendation of a part rig. The owner rejected the lead's hand-drawn
+      rig ("that does not look anythink alike to what i gave you"). The art
+      is now twelve strips: walk, idle, peek, talk, wave, think, hop, sleep,
+      charge, alert, turn and beam. They were cut from sheets generated from
+      his own character sheet (`design/companion/README.md`). Qt Quick's
+      own `AnimatedSprite`, part of Qt Quick under LGPL, steps the frames.
+      Lottie is out because Qt Lottie Animation is GPL-3.0 only, and Rive
+      needs a third-party plugin. The strips come at 1× and 2×, and one
+      display scale per animation keeps the character the same size on
+      screen.
+    - **The surface** (research §3) is a LayerShellQt surface on the Top
+      layer, never Overlay, with the namespace `muse-companion`.
+      - Keyboard interactivity is None, except while the ask box is open
+        (spike C5).
+      - Clicks pass through everywhere outside the sprite, through Qt's
+        input mask.
+    - **The status bar is the shell's surface.** This amends D91.13's
+      layout.
+      - The full-width status bar at the bottom is lane SH1's layer
+        surface, with an exclusive zone. It is not part of the Electron
+        window.
+      - The workbench publishes the bar's items over the desktop bridge:
+        the branch, problems, the language mode, the model, the agents and
+        the usage chip, and the footer's toggles.
+      - The bar shows on every desktop, including an app's own desktop
+        (D91.15).
+      - The companion's surface sits just above the bar, with exclusive
+        zone 0. To hide or peek, the sprite slides below its own bottom
+        edge. That edge is the bar's top edge, so the companion seems to
+        duck behind the bar.
+      - **Why:** the owner's "peek up from behind the statusbar", and his
+        status bar spanning "the entire bottom of the desktop" on every
+        desktop. An Electron window can do neither.
+    - **Behaviour.**
+      - It walks along the bar (spike C3 picks margins or a full strip),
+        idles, and sleeps after a while of inactivity.
+      - While hidden, it peeks now and then.
+      - It waves when summoned, thinks while it waits for an answer, and
+        talks while it answers.
+      - With agent reactions on:
+        - it hops when a turn finishes;
+        - it charges while a long task runs;
+        - it beams on a green check or a merge;
+        - it shows alert, pointing at a waiting approval.
+      - It only points: it never answers, approves or dismisses an
+        approval, a question or a notification.
+    - **It stays out of the way** (research §4).
+      - It never takes focus.
+      - It never covers the composer, the caret, a terminal prompt or the
+        focused window's controls. It walks away from the pointer and from
+        the active window's lower edge.
+      - It unmaps for fullscreen, Do Not Disturb, and focus or presenting
+        mode.
+      - It is hidden from every capture and screen share
+        (`no_screen_share`; spike C6).
+      - Under reduced motion it shows still poses only: no walking, no
+        peeks.
+      - At the governor's throttle level it sleeps (M107).
+    - **Cost.**
+      - Zero frames a second while idle.
+      - Walking steps at no more than 24 frames a second.
+      - Spike C4 measures it on the x86 laptop, the Pi 5 and the Pi 4,
+        against lane HW's budgets.
+    - **Answering** (research §6.2).
+      - A click or the summon key opens a small ask box.
+      - Instant answers come first from the `/help` reference.
+      - Anything else goes to a dedicated "Companion" session through the
+        person's chosen backend. It has an answers-only tool profile: no
+        edits, shells or hardware tools.
+      - That session is billed and admitted like any other, including
+        D48's ask-once for paid extras.
+      - **Continue in chat** hands the exchange to the chat panel.
+      - The local judge (D90.27) only triages; it never answers.
+    - **No audio** (the owner, 2026-10-06: "companion will have no audio").
+      There is no voice input, no speech and no sound effects: the
+      companion is text and animation only.
+    - **Accessibility.**
+      - A text-only mode: the same ask box without the character.
+      - The keyboard summon.
+      - `Accessible.announce` for answers, polite and once.
+      - A high-contrast outline.
+      - Reduced motion from the desktop's one setting.
+      - Flashes within WCAG 2.3.1's limit of three a second; the charge and
+        beam strips are checked frame by frame.
+    - **Privacy.**
+      - Through the existing `CompositorPort` it reads only the compositor
+        state it needs: fullscreen per monitor, the active window's
+        geometry, the share state, and the pointer when asked.
+      - It never uses screencopy.
+      - The Companion session is an ordinary session: owner-only and
+        deletable.
+      - Logs carry counts only.
+    - **Settings** (the settings app's Appearance → Companion, kept in
+      `desktop.json`), with defaults once the companion is on:
+      - on or off;
+      - peeking (on);
+      - tuck away while sharing (on);
+      - agent reactions (on);
+      - walking (on);
+      - size: S, M or L (M);
+      - text-only mode (off);
+      - the summon key.
+    - **Who builds it.**
+      - Lane PE builds it in M111c.
+      - Lane 0 runs research §9's spikes C1–C7 in M111a0.
+      - Lane SH1 owns the status bar surface and its item protocol.
+      - Lane AR adds the 2× strips, the high-contrast and still variants,
+        and the provenance note.
+
+<!-- plan-archive:end id="decisions-3d7811fc9-6026" -->
+
+## D93 — Deterministic reports: `/report` (M113, 2026-10-05)
+
+<!-- plan-archive:begin id="decisions-3d7811fc9-7513" lines="7513-7853" at="3d7811fc9" bytes="36490" sha256="6fdd0a2bb1fdf988ff909d856d40b28511be044d70e194497d0acc1ed0a575ff" -->
+
+1. **Deterministic means four things.**
+   - **No model call anywhere in generation.** The reporting bundle may not
+     import `src/core/backends/**` or the paid gate; the split check fails
+     it.
+   - **Same inputs, same bytes.** One `asOf` stamp, injectable (`--as-of`).
+     Collectors read no clock, random number, environment or file except
+     through the snapshot (an ESLint `no-restricted-syntax` and
+     `no-restricted-imports` block on `src/core/reporting/collect/**`).
+   - **Stable order.** Every list declares its sort key, compared by code
+     unit, never `localeCompare`. M113-S's RVM113S fixes (2026-10-06) make
+     local-source comparators total: stable record identity or path first,
+     then serialized normalized bytes for ties, including scrub collisions.
+     Exhaustive shuffled-input properties must produce identical source bytes.
+   - **Honest sources.** Each section names its sources and their freshness.
+     A missing source is an explicit row, "unavailable: {reason}", never
+     omitted and never faked.
+
+2. **One pipeline.**
+   1. **Sources** are read once into a `SourceSnapshot`: per source its id,
+      status (`ok`, `partial`, `unavailable` or `notApplicable`), reason,
+      `observedAt` and freshness against `asOf`.
+   2. **Collectors,** one per kind, are pure functions of the snapshot and
+      the options.
+   3. **`report-v1`** is a versioned JSON document (zod, with a generated
+      JSON Schema at `docs/schemas/report-v1.schema.json` and
+      `npm run schema:report -- --check`). It holds no translated text:
+      labels are keys.
+   4. **Renderers** (decision 7) are pure functions of the document, the
+      locale and the theme. `--from <file.json>` re-renders a saved report
+      byte for byte.
+
+3. **Every report has one shape.**
+   - **The header:** kind, scope, `asOf`, the generator's version and the
+     content hash (SHA-256 of the canonical JSON without `asOf`).
+   - **Needs you,** first: the plan's open questions for the owner (§3),
+     failed or lagging release channels, a failing CI run on the default
+     branch, and in a session report the agent's open questions (M112).
+   - **The kind's sections** (decision 4).
+   - **Sources:** every source with its status and freshness, including the
+     unavailable and not-applicable ones with their reasons.
+   - **The footer:** the renderer's version, the ICU version and the locale.
+   - **Short by default:** each section shows at most `REPORT_SECTION_ROWS`
+     (10) rows and "N more"; `--full` shows them all.
+
+4. **The kinds.** All are planned; the phase says when each ships (M113).
+
+   | Kind                          | Scope argument                                                                                                                                                | Sections                                                                                                                                                                                                                                                      | Sources                                                                          | Phase                         | Waits for                               |
+   | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ----------------------------- | --------------------------------------- |
+   | `project`                     | —                                                                                                                                                             | Needs you; releases and channels; milestones (in progress, blocked, the delivery order's next three); lanes; open pull requests; CI on the default branch; usage over 7 days; risks (§8 rows and §9 residuals added since the last release); next steps       | the plan, git, the changelog, certification, GitHub, the stores, the journal     | a (local), b (network)        | usage: M102                             |
+   | `milestone <id>`              | `12`, `M12`, `m103`, `M110a0`, `m91b`                                                                                                                         | status and date; goal; each dependency with its status; lanes (declared, branch, merged, pull request, certification); the certification checklist (done of total, open items verbatim); gates; residuals (§8, §9); §3 questions naming it                    | the plan, git, certification, GitHub                                             | a; pull requests b            | —                                       |
+   | `release <version>`           | `0.14.0`, `v0.14.0`, `latest`                                                                                                                                 | the changelog section; the tag (commit, date); each channel (GitHub release and assets, Marketplace, Open VSX, npm) with its version and lag; the release record (§10); CI on the tag                                                                         | the changelog, git, the plan's §10, GitHub, the stores                           | a (local), b (channels)       | —                                       |
+   | `usage [period] [--by …]`     | `today`, `7d`, `30d`, `90d`, `week`, `month`, `YYYY-MM`, `YYYY-MM-DD..YYYY-MM-DD`; `--by model`, `provider`, `kind`, `tool`, `session`, `client` or `account` | totals with certainty; the chosen breakdown; limits (plan windows, budgets); the same numbers as M102's page                                                                                                                                                  | M102's journal through its `aggregate.ts`                                        | a, once M102 has merged       | M102; `--by account`: M108              |
+   | `session`                     | the current conversation, or `--session <id>`                                                                                                                 | model and backend; turns; tokens and cost with certainty; tools by name and outcome; files changed (+ and −); approvals by decision; questions (answered, open, dismissed); checks run; paid uses                                                             | M84's export source, the session's usage, M112's registry, the check-run journal | a                             | M112's lane 0 (the registry's types)    |
+   | `changes [since <ref\|date>]` | since the last tag by default                                                                                                                                 | commits grouped by milestone (from their branches and subjects); files by area (AGENTS.md's layout table); the changelog's Unreleased; pull requests merged                                                                                                   | git, the changelog, GitHub                                                       | a; pull requests b            | —                                       |
+   | `quality`                     | —                                                                                                                                                             | the gates (`package.json`'s `quality` script, as declared); each check's last local run; CI's last runs on HEAD and the default branch; certification coverage of the newest milestones                                                                       | the check-run journal (decision 9), GitHub, certification                        | b                             | —                                       |
+   | `fleet`                       | —                                                                                                                                                             | agents now: sessions, subagents, best-of-N candidates, schedules, background tasks; team workers and lanes; paired devices; nodes                                                                                                                             | the hosts' live state; M96's team host; M100; M110                               | b (local agents), c           | M96; M100; M110a                        |
+   | `security`                    | —                                                                                                                                                             | the vault's tier; items by kind; grants, uses, denials and locks, never a value; developer options' audit (D88's amendment)                                                                                                                                   | M109's audit; the developer audit                                                | c                             | M109                                    |
+   | `accounts`                    | —                                                                                                                                                             | accounts per provider, their placement, thresholds and use, swaps and stops, confirmations (labels resolved locally)                                                                                                                                          | M108                                                                             | c                             | M108                                    |
+   | `estimate`                    | a goal (as D97.2), `--by <date>`, `--fleet current\|minimum\|optimum`                                                                                         | P50 and P90, the critical path, the limiting resource, the setups with their marginal values, the inputs and the calibration sample sizes                                                                                                                     | M117's estimator                                                                 | a, once M117 has merged       | M117                                    |
+   | `playbook`                    | `--module <glob>`, `--milestone <id>`                                                                                                                         | the three-strikes counts per module and class, the design decisions and their outcomes (`impossible`, `caught`, `remains`), the hook-verification receipts with their pass/fail results, every rule turned off with its reason, and the route-around refusals | the playbook's record (D96)                                                      | a, once M116 has merged       | M116                                    |
+   | `issues`                      | `--repo <owner/name>`                                                                                                                                         | each watched issue: its stage (acknowledged, triage, deciding, in work, verifying, replied, closed), the verdict, its pull request, what it waits for (owner-blocked first), and the day's cap                                                                | M115w's watchdog record                                                          | a, once M115w has merged      | M115w                                   |
+   | `schedules`                   | —                                                                                                                                                             | the timeline of upcoming fires and their collisions; each schedule's trigger, target, delivery, grant and who set it; recent fires with outcomes (ran, refused, missed, skipped, failed), refused actions and cost                                            | M115's store and fire record                                                     | a, once M115 has merged       | M115                                    |
+   | `keybindings`                 | —                                                                                                                                                             | every key binding in effect, with its command and where it applies: the editor's (from `package.json` and the feature catalogue), the panel's, ACP's commands, the desktop's (D91.15's amendment) and the TUI's; conflicts flagged                            | `package.json`, `featureCatalog.ts`, the desktop's generated configuration       | a (editors); c (desktop, TUI) | the desktop: M111a; the TUI: M110a0's T |
+   | `/report` alone               | —                                                                                                                                                             | the picker: every kind with its last report's age; **Report a problem…** opens M93's dialog                                                                                                                                                                   | —                                                                                | a                             | —                                       |
+
+5. **The plan reader, with a written contract (`plan-format` v1).**
+   - **What it reads.** Sections (`## <n>. <title>`); decisions
+     (`### D<n>[a-z]? — <title> (<refs>, <date>)`); milestones (`### M<n><suffix>
+— <title> (<refs>)`, and the upper-case working ids such as `CIFIX14C`);
+     the status line (`**Status <YYYY-MM-DD>[ (<note>)]: <phrase>.**`, mapped
+     to a state by a fixed phrase table: planned, building, built,
+     certified, merged, released, complete, superseded, waiting); checklist
+     items (`- [ ]`, `- [x]`); lanes tables (a header row starting `| Lane`);
+     §3's question entries (`- **Q-<id> — <title> (<date>).**` and the
+     older `### Q-<id>` form); §8's rows; §10's release records; and the
+     **Delivery order** list at §6's head (`N. **<item>** — <reason>.
+Needs: <items>.`).
+   - **Drift fails loudly.** A new gate, `check:plan`, runs the reader over
+     the whole file and fails on: an unknown heading form in §6; a milestone
+     outside §6; a duplicate section number; a milestone without a status
+     line; a status phrase outside the table; a lanes table with unknown
+     columns; a delivery-order entry not in its form. Reports show the same
+     drift as a "Plan format" row and never guess.
+   - **Today's drift is fixed, not grandfathered.** Lane P moves M98 into §6,
+     merges the two §7s, and adds the missing status lines from each
+     milestone's certification record or git history (documentation only),
+     so the gate holds over the whole file with no baseline or ignore list.
+   - **Other projects.** The reader also takes the high-quality-projects
+     skill's `quality-ledger` fence (its JSON, `schema_version` 1, parsed by
+     zod). A project with neither has "no plan", and its project report
+     still gives git, the changelog and CI.
+   - **Milestone ids** are case-insensitive with the `M` optional (`12`,
+     `M12`, `m103`, `M110a0`). An exact match only; an unknown id exits 3
+     and names the nearest ids (edit distance, ties broken by id).
+   - **Lane status comes from evidence, not prose:** the declared lane from
+     its table; its branch (a local or remote ref matching
+     `feature/m<id>-…` or `m<id>/<lane>`); whether it is merged into the
+     default branch (`git merge-base --is-ancestor`); its pull request
+     (GitHub, where allowed); its certification record
+     (`docs/certification/m<id>-<lane>.md`, or `m<id>.md`). A fixed table
+     derives the word: merged, in review, in progress or planned.
+   - **Next steps** are the first delivery-order entries not complete whose
+     **Needs** are complete.
+
+6. **Sources, and when the network is used.**
+   - **Other agents' usage and limits** (amended 2026-10-06, Q-M113 item 1,
+     the owner's yes): opt in per source in Settings › Reports
+     (`museSpark.reports.agentSources`, empty by default). The user's own
+     Claude Code and Codex usage and limit files on this machine, read-only;
+     lane S records each file and the fields read from a capture on the rigs.
+     A file that also holds conversation text is read for its usage fields
+     only, never its text. Credential and auth files (Claude Code's
+     `.credentials.json`, Codex's `auth.json` and every file matching the
+     credential patterns of AGENTS rule 8) are refused by name and pattern.
+     Each section names its file ("source: {file}"), and the reports never
+     copy the file.
+   - **Local:** the plan; git (log, tags, branches and worktrees, bounded by
+     `REPORT_GIT_MAX_COMMITS`); the changelog (Keep a Changelog sections);
+     `docs/certification/**`; M84's export source for sessions; M102's
+     journal; M112's registry; the check-run journal (decision 9).
+   - **Network, never by default in a terminal:**
+     - **GitHub** (pull requests, check runs, workflow runs, releases and
+       their assets) through VS Code's GitHub sign-in and M71's REST client;
+       or the user's own `gh api`, so no token enters our process; or the
+       unauthenticated public API.
+     - **The store channels** (the Visual Studio Marketplace, Open VSX, npm)
+       through their public endpoints, only for a project that publishes
+       there (`package.json`'s `publisher` and `engines.vscode`, or a
+       non-private package).
+   - **`museSpark.reports.network`**, machine-scoped:
+     - `whenSignedIn` (the default): GitHub only while the editor is signed
+       in to GitHub for M71 and the remote is GitHub; the stores' public
+       endpoints too;
+     - `always`;
+     - `off`.
+
+     The runtime and the CLI use the network only with `--network`, D65's
+     egress floor. _Reason it is not plainly on:_ a report must render the
+     same offline and in CI, and egress follows a consent the user already
+     gave.
+
+   - **Rate limits.** The reader honours `x-ratelimit-remaining`,
+     `x-ratelimit-reset` and `retry-after`, stops at
+     `REPORT_GITHUB_RATE_FLOOR`, and marks the rest "unavailable:
+     rate-limited until {time}". Requests are conditional (ETags) into a
+     cache under `<agentDataFolder>/reports/v1/cache/`, whose age is the
+     source's freshness. Pages are bounded.
+   - **No timeout of ours** (D121/D208, 2026-10-21): a source read runs
+     until it settles or the caller's signal (the person's cancel) aborts;
+     the former `REPORT_SOURCE_TIMEOUT_MS` is gone, and its 5-second figure
+     survives only as `REPORT_SOURCE_FRESH_MS`, which labels a source
+     `fresh` or `stale` and stops nothing. A rate-limited origin is held
+     only until the server's own Retry-After or reset. The network sources
+     sit outside the local time budget (decision 14).
+
+7. **Four formats.**
+   - **Markdown:** GitHub-flavoured tables, LF, one trailing newline.
+   - **HTML:** one static document, inline CSS from the theme tokens, no
+     script and no remote resource. The report tab shows it under the
+     webview's CSP.
+   - **Text:** 80 columns, for the TUI, the CLI and ACP clients without
+     Markdown.
+   - **JSON:** `report-v1` itself, canonical (schema key order, two-space
+     indent, LF).
+   - **Dates and times** are ISO 8601 with the report's offset in every
+     format: technical detail under rule 5's allowance, and identical across
+     ICU builds. Numbers, money and durations go through the existing `Intl`
+     helpers in the display language. The footer names the ICU version, so a
+     byte difference between two runtimes is explained, not hidden.
+     Determinism is promised for the same inputs, locale and runtime build.
+
+8. **Redaction on every renderer.** Every string from a source passes the
+   export's scrub (credential shapes, the key digest, account ids, local
+   workspace paths shown relative, outside paths redacted) once when the snapshot is
+   taken. Decoded report strings and object keys pass it again before
+   canonical serialization and hashing; saved input is decoded and re-walked
+   before verification. Text/Markdown/HTML output passes it again, but the
+   text scrub never runs on canonical JSON bytes (RVM113R, 2026-10-06). Paths are
+   workspace-relative. Commit subjects, pull request titles and changelog
+   lines are data: shown verbatim after the scrub, and escaped for each
+   format (Markdown table pipes, HTML entities).
+
+9. **A small check-run journal, so "the last gate run" exists.** The verify
+   loop's check runs (M68) and, once merged, M96c's check slots append
+   `{check, outcome, durationMs, commit, at}` (never the command line or its
+   output) to `<agentDataFolder>/reports/v1/checks/<workspaceKey>.jsonl`,
+   every run kept, unless the person sets a retention. The `quality` kind
+   reads it beside CI's runs.
+
+10. **History and diff.**
+    - **Kept.** `museSpark.reports.keepHistory` (on) keeps each generated
+      report's JSON under
+      `<agentDataFolder>/reports/v1/history/<workspaceKey>/<kind>/`, every
+      report kept, unless the person sets a retention per kind. It is listed in the
+      report tab, by `report history` and by ACP's `/report history`.
+    - **Diff with the previous report** is pure, over two `report-v1`
+      documents by section and row key: added, removed, changed (field by
+      field) and the unchanged count, rendered as a section of its own. The
+      same content hash says "No change since {asOf}".
+
+11. **Every editor** (D84):
+
+    | Surface                                          | How                                                                                                                                                                                                                                                                                                                                                     | Output                                                                                                                                                                                                                  | When                                |
+    | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+    | VS Code family                                   | `/report` and `/report <kind> …` in the composer, run by the host and never sent to the model; the palette's **Show report…**; Account & usage's **Usage report**                                                                                                                                                                                       | the report tab (a `WebviewPanel`, `dist/reportingPanel.js`): **Save as…** (md, html, json, txt, through the save dialog), **Copy as Markdown**, **Attach to message**, **History**, **Diff with previous**, **Refresh** | M113a                               |
+    | JetBrains IDEs, Visual Studio, Eclipse (M104b–d) | the embedded panel's `/report`; MHP 1.2's host-initiated `reports/run`, `reports/history`, `reports/open`, `reports/get` and `reports/compare`                                                                                                                                                                                                          | the same tab in the host's web view; saved through the host's dialog                                                                                                                                                    | contract in M113a; wired by M104b–d |
+    | The companion page                               | `/report`                                                                                                                                                                                                                                                                                                                                               | the page's report view                                                                                                                                                                                                  | M113a                               |
+    | ACP clients                                      | `/report <kind> …` in `available_commands_update`                                                                                                                                                                                                                                                                                                       | Markdown in an agent message (text for clients without Markdown); `--save` adds it to the history                                                                                                                       | M113a                               |
+    | Any terminal                                     | `muse-spark-code-acp report <kind> [args] [--format md\|html\|json\|text] [--out <file>] [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>] [--diff previous\|<file.json>] [--full] [--strict] [--fail-on <conditions>]`; `report history`. Bare `report` stays M93's problem report, unchanged, and `report problem` becomes its alias | stdout, or `--out`                                                                                                                                                                                                      | M113a                               |
+    | CI and headless runs                             | the same CLI command (`exec` is unchanged); `--fail-on` makes a report a gate                                                                                                                                                                                                                                                                           | exit codes (decision 15)                                                                                                                                                                                                | M113a                               |
+    | The TUI (M110a0 lane T)                          | a Reports view and `:report`                                                                                                                                                                                                                                                                                                                            | the text renderer                                                                                                                                                                                                       | with lane T                         |
+    | Muse Desktop (M111b)                             | the bottom panel's Reports tab; the launcher's **Report…**                                                                                                                                                                                                                                                                                              | the HTML renderer                                                                                                                                                                                                       | with M111b                          |
+
+12. **Languages and accessibility.**
+    - Labels live in a table family of their own on M102's second-table
+      mechanism (`src/shared/l10n/reportEn.ts`, `l10n/report.<lang>.json`), in
+      all 14 languages. Data stays as it came.
+    - The HTML has a heading outline, tables with `<caption>` and `scope`, and
+      a status word beside every icon or colour. It passes axe in VS Code's
+      four themes and at 320 px. The text format reads in order to a screen
+      reader.
+
+13. **Gated by capability** (the multi-vendor rule). A section that depends
+    on a provider's feature appears only where the source reports it:
+    cache columns where a provider reports cached tokens, Muse Code's plan
+    windows on Muse Code, account rows after M108. Elsewhere it is listed
+    under Sources as not applicable, with the reason; never dropped
+    silently.
+
+14. **Fast, and nothing at startup.** A local report finishes within
+    `REPORT_LOCAL_BUDGET_MS` (2,000 ms) on this repository (a 26,000-line
+    plan, its git history within the commit bound) on each rig, the network
+    excluded; the plan's parse within 200 ms. The engine is a lazy bundle,
+    `dist/reporting.js`, loaded on the first report; activation gains
+    nothing.
+
+15. **Exit codes** (the CLI):
+    - 0: generated, even with unavailable sources (they are in the report);
+    - 1: generation failed;
+    - 2: a usage error (the runtime's existing code);
+    - 3: not found (a milestone, release or session);
+    - 4: a `--fail-on` condition held: `unavailable`, `drift`, `blocked`,
+      `channelLag` or `ciFailing`. `--strict` means
+      `--fail-on unavailable,drift`.
+
+16. **What it never does:** call a model; use the network without the
+    setting or the flag; write into the workspace unless the user saves
+    there; post a report without the user's opt-in (decision 17); read
+    another agent's files except a usage or limit source the user turned on
+    (decision 6), and never a credential.
+17. **Posting, opt in** (amended 2026-10-06, Q-M113 item 2, the owner's yes).
+    A report kind can be posted to a target the user chooses: a pull request
+    comment, an issue, or a pinned status issue kept up to date (edited in
+    place). Each kind and target is turned on separately; the first post is
+    previewed in full and needs **Post**; every post carries the automated
+    note (D95.13's rule) and passes the redaction again. Nothing posts on its
+    own unless the user schedules it (an M115 schedule whose action is
+    "post report"), and the schedule's grant then names the target. Copying
+    and saving stay the defaults. GitHub's identity is the one D95.13 uses.
+18. **Scheduled reports, delivered** (amended 2026-10-06). The owner: "i would
+    also like to be able to schedule reports same method as the prompt
+    scheduling and it can either save to a destination, open in the
+    browser, or emailed to the user".
+    - **A report is a schedule's action** (D95.14): any kind, with its
+      arguments and format, on M115's time and event triggers, stacking,
+      timeline, unattended rules and missed-fire policy. A report run makes
+      no model call, so no paid budget applies; network sources follow
+      `museSpark.reports.network`. Its `asOf` is the occurrence's scheduled
+      time, so a retried fire renders the same bytes.
+    - **Destinations,** one or more per schedule:
+      1. **Save:** a folder the user picks through the save dialog (recorded
+         as that schedule's allowed root), the workspace's `reports/`
+         folder, or a node's storage (M110's data volume, shown in its web
+         UI). A name template (`{kind}`, `{scope}`, `{date}`, `{time}`,
+         `{hash8}`, `{ext}`; `{kind}-{date}-{time}.{ext}` by default, with
+         milliseconds preserved so each occurrence has its own name) and a
+         retention of the newest N that the person sets (none by default),
+         which deletes only files that destination wrote (a manifest keyed
+         by both schedule and destination).
+         Paths are canonicalised and confined to the allowed root (no link
+         or junction escapes, `canonicalPath.ts`), and every write is atomic
+         (`fsAtomic.ts`).
+      2. **Open in the browser:** the HTML report opens in the default
+         browser as a local file, or as the node's authenticated report URL
+         for a node-run schedule, only while a user session is active (a
+         focused editor window, or an unlocked desktop session); otherwise
+         it waits, with **Open when I'm back**. Never a public URL.
+      3. **Email to the user:**
+         - **Recipients:** the user's own addresses, each verified once by a
+           six-digit code sent to it (`REPORT_EMAIL_CODE_TTL_MS`, 15
+           minutes; five tries). Any other address needs its own entry in an
+           allow-list the user writes; agents never add one.
+         - **Sending:** the user's own SMTP server (its credentials a vault
+           item, M109; TLS required, certificate checked), or Gmail or
+           Outlook through OAuth the user connects (the connect click and the
+           consent are theirs; the tokens in the vault). Never a relay we
+           operate.
+         - **The first send to each recipient** asks once, showing the
+           message as it will go.
+         - **The message:** an HTML body with a text alternative, and the
+           report attached in the chosen format, after the renderer's scrub
+           (decision 8) runs on body, alternative and attachment.
+         - **Bounded:** `REPORT_EMAIL_PER_HOUR` (6) and
+           `REPORT_EMAIL_PER_DAY` (20).
+      4. **Post** (decision 17), as already planned.
+    - **Surfaces.** The schedule editor's **Action: Report** with a
+      destination picker; `/report <kind> … --schedule` opens it filled in;
+      the CLI's `schedule add --report <kind> [args] --to save:<path> |
+browser | email:<address>` (repeatable); the orchestrator's
+      `schedule_report` tool under D95.8's no-escalation rule, which may save
+      within its creator's roots and email only verified addresses.
+19. **Cloud saves and text messages: planned, after the first destinations
+    ship** (M113d). The owner: "future plans for cloud saving, and sms".
+    - **Cloud save** to providers the user connects (the connect click and
+      the consent are theirs; tokens in the vault): Google Drive, OneDrive,
+      Dropbox, and S3-compatible storage (a bucket with access keys, or the
+      provider's single sign-on).
+      - Uploads go to a chosen folder with the name template and retention,
+        resumable.
+      - Links are private by default; "anyone with the link" only when the
+        user picks it.
+      - Gated per provider by what it supports; the scrub runs before every
+        upload.
+    - **Text messages (SMS)** through the user's own messaging provider
+      account (Twilio, Vonage, AWS SNS or similar; its credentials a vault
+      item). We operate no relay.
+      - **Recipients:** the user's own numbers, each verified by a one-time
+        code; opt-in per number, with STOP and HELP handled and quiet hours.
+      - **The text is a summary,** never the report: the "Needs you" lines
+        and one or two key numbers, and a link to the full report on the
+        user's own node or storage.
+      - **Bounded:** `REPORT_SMS_PER_HOUR` (2) and `REPORT_SMS_PER_DAY` (10).
+      - **It costs money,** so the provider's per-message price is shown
+        before the first send and the paid ask-once rule (D78, D48) applies,
+        with its daily budget. It bills the user's messaging account, never
+        the Model API key: AGENTS rule 12 gains this exception beside
+        TypeSafe's.
+    - Both use the same scheduler, destination picker, CLI flags
+      (`--to cloud:<provider>:<folder>`, `--to sms:<number>`) and test
+      pattern, with fake providers. **Needs:** M109's vault; M110's node to
+      host the links.
+
+<!-- plan-archive:end id="decisions-3d7811fc9-7513" -->
+
+## D94 — Design language and polish (M114, 2026-10-06)
+
+<!-- plan-archive:begin id="decisions-3d7811fc9-7859" lines="7859-7993" at="3d7811fc9" bytes="8052" sha256="b738bb84d0ccf47fb579a73fb0249c4594ddc58b23cf9275d0ef40096885a41c" -->
+
+The owner, 2026-10-05: "all of our ui elements i want to be modern and
+polished so match the current theme and if the elements belong to vs code
+then match as much as you can from the harness as far as colors and buttons
+go to form what the other elements should look like with the rounded corners
+and shadows and transparency and comfortable fonts ones that are popular with
+coders, we should have the full treatment with hover effects and some
+animations where it makes sense and is classy".
+
+It is cross-cutting, and it comes **before** the UI-building lanes of M111
+and M110's web UI: its token lane is their prerequisite, and M111's lane TH
+consumes it (D91.19's amendment).
+
+**What exists** (read on main at `2d4d72bd3`):
+
+- `src/webview/styles.css` (3,897 lines) reads `--vscode-*` variables 359
+  times and ten `--ms-*` properties 163 times; the ten are defined at
+  `styles.css:10–34` (gap, radius at 6px, icon, control, chip, pill, button,
+  column width, inset, gutter). `whatsNew.css` defines `--ms-radius` as 4px
+  (research §13.1).
+- **Five raw colours:** `#3fb950`, `#f14c4c`, `rgb(46 160 67 / 20%)`,
+  `rgb(248 81 73 / 20%)` and `rgb(0 0 0 / 30%)`.
+- **Radii:** 36 uses of `var(--ms-radius)`, eight `999px`, seven `50%`, six
+  `3px` and one `20px`. 19 transitions or animations, and one
+  reduced-motion block (`styles.css:3866`).
+- **stylelint** (`.stylelintrc.json`) enforces the `ms-` and `vscode-`
+  custom-property names and `color-named: never`; nothing forbids a raw
+  colour.
+- **The harness** renders the panel in VS Code's four themes
+  (`test/harness/themes/{light,dark,hc-light,hc-dark}.json`) for the axe gate
+  and `scripts/readme-shots.mjs`; `src/webview/components/` has 60
+  components.
+- **The owner's rulings stand:** the gooey menu's crisp pills with no blur or
+  smudge (M87), approval buttons of equal size and emphasis (D90.13), no
+  stacked buttons when the panel is narrow.
+
+1. **One token source** (the single `--ms-*` prefix D91 chose):
+   `design/tokens/muse.tokens.json` in the W3C Design Tokens format, owned by
+   M114's lane 0. Its groups:
+   - **Colour roles** (surface, raised surface, overlay, border, text, muted
+     text, accent, text on accent, focus, selection, success, warning,
+     danger, info, badge), derived from the host's theme. Inside VS Code they
+     map onto `--vscode-*` variables, so every VS Code theme works,
+     high contrast included. Elsewhere: our light and dark palettes (and
+     high-contrast dark and light), the bright-blue brand accent and the
+     squiggle "m" mark; never the four-point sparkle.
+   - **A radius scale** (`--ms-radius-xs` to `-xl`, and `-pill`), onto which
+     today's 3px, 4px, 6px, 20px, `50%` and `999px` map.
+   - **Elevation:** four levels (flat, raised, popover, overlay), each a
+     shadow; inside VS Code built on `--vscode-widget-shadow`; in
+     high-contrast themes a contrast border in place of any shadow.
+   - **Translucent surfaces:** overlays, popovers and the launcher at an alpha
+     token. A backdrop blur only behind overlays, never on a button or a pill
+     (the owner's gooey ruling); none under high contrast or
+     `prefers-reduced-transparency`.
+   - **Motion:** `--ms-motion-fast` (120 ms), `-base` (180 ms) and `-slow`
+     (240 ms), one standard and one emphasised easing.
+   - **Spacing** on a 4-pixel scale, today's `--ms-gap` (8px) among it.
+   - **Typography:** UI and code families, sizes, weights and line heights.
+   - **Generated** by `scripts/build-tokens.mjs` for every consumer:
+     `src/webview/tokens.css` with the VS Code mapping; the companion page's
+     and the native webviews' mapping (decision 5); the node's web UI; the
+     TUI's palettes (D90.13's lane TD); and the inputs M111's lane TH turns
+     into the desktop's outputs.
+
+2. **Inside VS Code, VS Code wins.**
+   - Elements that belong to VS Code keep VS Code's look: we restyle none of
+     its views, quick picks, notifications or editors.
+   - Our own elements (the transcript's cards and rows, the attention dock,
+     the composer, chips, pills, menus, dialogs) take their colours and button
+     styles from the Claude Code panel we model on (D15's parity): rounded
+     buttons, approval buttons of equal size, subtle shadows, all adapted to
+     the active VS Code theme through the colour roles.
+   - Lane A's audit records, for each of our elements, the VS Code variable
+     each role reads.
+
+3. **Fonts.**
+   - **In editors** we follow the editor: `--vscode-font-family` for the UI
+     and `--vscode-editor-font-family` for code, with their sizes.
+   - **In our own surfaces** (Muse Desktop, the installer, the node's web UI,
+     the companion page): JetBrains Mono, Fira Code and Cascadia Code for code,
+     with ligatures as an option, and Inter for UI text; all four OFL-1.1,
+     each licence recorded by the notices gate. The user picks both in
+     Settings.
+   - **Never in the VSIX.** The node's image and Muse Desktop carry the font
+     pack. A companion page served by an npm-installed runtime uses the font
+     stack (the user's installed fonts first, then the system's) unless the
+     user installs the pack (`muse-spark-code-acp fonts install`: pinned,
+     digest-checked, on the user's click).
+
+4. **Interaction.**
+   - **Every control** has hover, focus-visible, pressed, disabled and
+     selected states from state tokens. Focus rings are at least 2 px and
+     3:1 against their neighbours (WCAG 2.2 AA's 1.4.11 and 2.4.7), and a
+     focused control is never hidden under the dock or a toast (2.4.11).
+   - **Motion where it means something:** a panel opening, a card arriving,
+     the dock folding (M112), toasts, menus and the launcher, tab switches,
+     the installer's gallery. 120 to 240 ms, the standard easing.
+   - **`prefers-reduced-motion` turns all of it off,** and nothing moves on
+     text the user is reading: streamed text never animates, shifts or
+     types itself out.
+   - CSS transitions and the Web Animations API only; no animation
+     dependency.
+
+5. **Every surface uses the same tokens:** the VS Code panel; the companion
+   page; the native hosts' webviews (JetBrains, Visual Studio, Eclipse,
+   Xcode and the rest, under the all-editors-equal rule), which pass their
+   host theme's colours through MHP's theme message onto the same roles;
+   Muse Desktop (the Qt Quick shell's generated QML theme, D91.4's amendment,
+   and the Electron app); the installer; the node's web UI; and the TUI's
+   colour map.
+
+6. **Audit first, then polish component by component.** Every component in
+   `src/webview/**` and on the other surfaces is listed and graded against the
+   tokens: raw values, radius, elevation, motion, focus, hover and pressed
+   states, high-contrast behaviour and accessibility. The polish pass then
+   goes one component at a time, with harness screenshots before and after,
+   and `scripts/readme-shots.mjs`'s media is refreshed.
+
+7. **Gates.**
+   - **Visual regression:** harness screenshots per theme (light, dark, high
+     contrast dark and light, and two popular third-party themes, One Dark Pro
+     and Dracula, their colour files captured into `test/harness/themes/`
+     with their MIT licences), compared by pixelmatch (ISC) under a recorded
+     threshold. Goldens change only in a reviewed update run.
+   - **The accessibility gate** (`test:a11y`) on every polished surface.
+   - **The bundle caps hold:** no font in the VSIX; the panel uses the
+     editor's fonts; `tokens.css` within the webview's startup cap.
+   - **Raw colours live only in the token file:** stylelint's `color-no-hex`
+     and a `function-disallowed-list` of the colour functions outside the
+     generated token files, and an ESLint `no-restricted-syntax` rule on
+     colour-shaped string literals in TypeScript outside `design/tokens/**`
+     and the generated files. Today's five raw colours move into the tokens.
+
+8. **What it never does:** restyle VS Code's own interface; blur a control;
+   move for decoration alone; download a font without the user's click.
+
+<!-- plan-archive:end id="decisions-3d7811fc9-7859" -->
