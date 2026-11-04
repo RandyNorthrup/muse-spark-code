@@ -15,7 +15,7 @@ import {
 import { UI_TEXT } from '../../shared/constants'
 import { canonicalPath, isMissingPath } from '../canonicalPath'
 import { isOwnedFile, writeFileIfUnchanged } from '../fsAtomic'
-import type { StagingCopy } from './stagingCopy'
+import { blobId, guardMode, type LandingFacts, type StagingCopy } from './stagingCopy'
 import type { JournalRead, TeamJournal } from './teamJournal'
 
 const blobSchema = z.strictObject({
@@ -55,8 +55,9 @@ const recordSchema = z
     snapshotTree: z.string(),
     checkIdentity: z.string(),
     status: z.enum(['open', 'landed', 'recovered', 'changed']),
-    files: z.array(fileSchema).check(z.maxLength(TEAM_WRITE_SET_MAX)),
-    conflicts: z.array(z.string()).check(z.maxLength(TEAM_WRITE_SET_MAX)),
+    // As many as the batch changed: no bound of ours on what one landing can carry (D121).
+    files: z.array(fileSchema),
+    conflicts: z.array(z.string()),
   })
   .check(
     z.refine(
@@ -131,6 +132,8 @@ export interface LandingJournalStore {
 }
 
 export interface LandingFileAccess {
+  /** What will be asked for: the first blob read fetches them all, in one git process. */
+  readonly expect: (blobs: readonly LandingFile['before'][]) => void
   readonly read: (file: string) => Promise<LandingFile['before']>
   /** Must compare expected bytes/mode immediately before each rename/removal. */
   readonly replace: (
@@ -183,6 +186,7 @@ export class LandingJournal {
   ): Promise<readonly string[]> {
     const conflicts: string[] = []
     const parsed = recordSchema.parse(record)
+    access.expect(parsed.files.map((file) => file.before))
     for (const file of parsed.files.toReversed()) {
       const isClear = await access.removeStages(file.path, [file.before, file.after], canWrite)
       const current = await access.read(file.path)
@@ -208,6 +212,7 @@ export class LandingJournal {
     const parsed = recordSchema.parse(record)
     const conflicts: string[] = []
     let isWhole = true
+    access.expect(parsed.files.map((file) => file.before))
     for (const file of parsed.files.toReversed()) {
       if (taskId !== null && (file.tasks.length > 1 || !file.tasks.includes(taskId)))
         isWhole = false
@@ -231,11 +236,26 @@ export function landingFileAccess(
   root: string,
   staging: StagingCopy,
   options: {
-    /** M96 lane I supplies canonical/protected/ref and unsaved-buffer admission. */
+    /** M96 lane I supplies canonical/protected and unsaved-buffer admission. */
     readonly validateTarget: (file: string) => Promise<void>
+    /** Git's modes for this one landing; the bytes are never kept, each guard reads them. */
+    readonly facts: () => Promise<LandingFacts>
     readonly rename?: (from: string, to: string) => Promise<void>
   },
 ): LandingFileAccess {
+  const held = new Map<string, Buffer>()
+  const wanted = new Set<string>()
+  const blobBytes = async (oid: string): Promise<Buffer> => {
+    const kept = held.get(oid)
+    if (kept !== undefined) return kept
+    wanted.add(oid)
+    const fetched = await staging.readBlobs(root, [...wanted])
+    for (const [id, bytes] of fetched) held.set(id, bytes)
+    wanted.clear()
+    const read = held.get(oid)
+    if (read === undefined) throw new Error(UI_TEXT.checkpointFailed)
+    return read
+  }
   const targetOf = async (file: string): Promise<string> => {
     fileSchema.shape.path.parse(file)
     const target = path.resolve(root, file)
@@ -262,13 +282,10 @@ export function landingFileAccess(
     try {
       const info = await lstat(target)
       if (!info.isFile()) throw new Error(UI_TEXT.checkpointFailed)
+      const facts = await options.facts()
       return {
-        oid: await staging.blob(root, await readFile(target)),
-        mode: staging.regularFileMode(
-          file,
-          info.mode,
-          await staging.fileModes(root, await staging.head(root)),
-        ),
+        oid: blobId(await readFile(target), facts.head),
+        mode: guardMode(file, info.mode, facts),
       }
     } catch (error: unknown) {
       if (isMissingPath(error)) return null
@@ -283,13 +300,18 @@ export function landingFileAccess(
     const bytes = await readFile(stage)
     for (const blob of blobs) {
       if (blob === null) continue
-      const landed = await staging.readBlob(root, blob.oid)
+      const landed = await blobBytes(blob.oid)
       if (bytes.length <= landed.length && landed.subarray(0, bytes.length).equals(bytes))
         return true
     }
     return false
   }
   return {
+    expect: (blobs) => {
+      for (const blob of blobs) {
+        if (blob !== null && !held.has(blob.oid)) wanted.add(blob.oid)
+      }
+    },
     read,
     removeStages: async (file, blobs, canWrite) => {
       const target = await targetOf(file)
@@ -343,7 +365,7 @@ export function landingFileAccess(
         return true
       }
       if (replacement.mode === '120000') throw new Error(UI_TEXT.checkpointFailed)
-      const bytes = await staging.readBlob(root, replacement.oid)
+      const bytes = await blobBytes(replacement.oid)
       return (
         (await writeFileIfUnchanged(
           target,

@@ -10,7 +10,7 @@ import { afterAll } from 'vitest'
 import * as z from 'zod/mini'
 import type { WindowIdentity } from '../../../src/host/team/windowIdentity'
 import { ATOMIC_TEMPORARY_SUFFIX } from '../../../src/shared/constants'
-import { makeLandingFixture, type LandingFixture } from './teamLandingFixture'
+import { makeLandingFixture, type FixtureBytes, type LandingFixture } from './teamLandingFixture'
 
 export async function hasFile(file: string): Promise<boolean> {
   try {
@@ -40,13 +40,13 @@ export async function stagesIn(root: string): Promise<readonly string[]> {
 /** A maker of fixtures in one spelling, all disposed after the suite that calls this. */
 export function landingFixturesIn(
   spelling: Parameters<typeof makeLandingFixture>[1],
-): (taskId: string, files?: readonly string[]) => Promise<LandingFixture> {
+): (taskId: string, files?: readonly string[], bytesOf?: FixtureBytes) => Promise<LandingFixture> {
   const made: LandingFixture[] = []
   afterAll(async () => {
     for (const fixture of made) await fixture.dispose()
   })
-  return async (taskId, files) => {
-    const fixture = await makeLandingFixture(taskId, spelling, files)
+  return async (taskId, files, bytesOf) => {
+    const fixture = await makeLandingFixture(taskId, spelling, files, bytesOf)
     made.push(fixture)
     return fixture
   }

@@ -322,15 +322,12 @@ function checkBlobMode(mode: number | undefined, file: string): void {
   }
 }
 
-/** One binary-safe batch of the exact immutable blobs needed by this operation. */
-async function readBlobs(
-  runGit: TeamGit,
-  root: string,
+/** What `git cat-file --batch` answered for `names`, in their order: binary-safe, and nothing else accepted. */
+export function parseBlobBatch(
+  output: Buffer,
   names: readonly string[],
-): Promise<ReadonlyMap<string, Uint8Array>> {
-  const blobs = new Map<string, Uint8Array>()
-  if (names.length === 0) return blobs
-  const output = Buffer.from(await runGit(['cat-file', '--batch'], root, names.join('\n') + '\n'))
+): ReadonlyMap<string, Buffer> {
+  const blobs = new Map<string, Buffer>()
   let offset = 0
   for (const name of names) {
     const newline = output.indexOf(LINE_FEED, offset)
@@ -354,6 +351,17 @@ async function readBlobs(
     throw new TeamMergeError('mergeFailed', 'The team merge received extra blob data')
   }
   return blobs
+}
+
+/** One binary-safe batch of the exact immutable blobs needed by this operation. */
+async function readBlobs(
+  runGit: TeamGit,
+  root: string,
+  names: readonly string[],
+): Promise<ReadonlyMap<string, Uint8Array>> {
+  if (names.length === 0) return new Map()
+  const output = Buffer.from(await runGit(['cat-file', '--batch'], root, names.join('\n') + '\n'))
+  return parseBlobBatch(output, names)
 }
 
 function areBytesEqual(left: Uint8Array | undefined, right: Uint8Array | undefined): boolean {
@@ -538,26 +546,24 @@ export async function applyTeamMerge(
         }
         await checkLiveRefs(io, spec)
         landingRoot = taskFolder
+        const binary = new Set(
+          conflicts.filter((conflict) => conflict.isBinary).map((conflict) => conflict.path),
+        )
         for (const file of undoFiles) {
           // Binary conflicts keep the worker's version intact for rework.
-          if (conflicts.some((conflict) => conflict.path === file.path && conflict.isBinary)) {
+          if (binary.has(file.path)) {
             continue
           }
           await confinedRelative(io, taskFolder, file.path, platform)
           const taskBefore = await readWorktreeFile(taskFolder, file.path)
           const taskMode = await worktreeMode(taskFolder, file.path, platform)
           const rework = { ...file, before: taskBefore, beforeMode: taskMode }
-          await landFile(
-            io,
-            taskFolder,
-            rework,
-            platform,
-            () => checkLiveRefs(io, spec),
-            () => {
-              landed.push(rework)
-            },
-          )
+          await landFile(io, taskFolder, rework, platform, () => {
+            landed.push(rework)
+          })
         }
+        // A ref that moved while they went in undoes them, as any failure here does.
+        await checkLiveRefs(io, spec)
         return {
           status: 'rework',
           written: [],
@@ -567,19 +573,15 @@ export async function applyTeamMerge(
           undo: { files: [] },
         }
       }
+      // Once before and once after the batch, whatever its size: the bytes of each file are still
+      // compared at its own write, and a ref that moved in between undoes what went in.
+      await checkLiveRefs(io, spec)
       for (const file of undoFiles) {
-        await checkLiveRefs(io, spec)
-        await landFile(
-          io,
-          spec.repositoryRoot,
-          file,
-          platform,
-          () => checkLiveRefs(io, spec),
-          () => {
-            landed.push(file)
-          },
-        )
+        await landFile(io, spec.repositoryRoot, file, platform, () => {
+          landed.push(file)
+        })
       }
+      await checkLiveRefs(io, spec)
     } finally {
       await rm(scratch, { recursive: true, force: true })
     }
@@ -607,7 +609,7 @@ export async function applyTeamMerge(
   }
 }
 
-/** Re-read the real ref after asynchronous planning and immediately before each write. */
+/** Re-read the real ref after asynchronous planning, around each batch of writes. */
 async function checkLiveRefs(io: TeamMergeIo, spec: TeamMergeSpec): Promise<void> {
   for (const agentRef of spec.agentRefs) {
     let actual: string | undefined
@@ -640,21 +642,12 @@ async function landFile(
   root: string,
   file: TeamMergeUndoFile,
   platform: NodeJS.Platform,
-  beforeWrite?: () => Promise<void>,
   onLanded?: () => void,
 ): Promise<void> {
   await confinedRelative(io, root, file.path, platform)
   const absolute = path.join(root, file.path)
   if (file.after === undefined) {
-    await verifyWorktreeFile(
-      io,
-      root,
-      file.path,
-      file.before,
-      file.beforeMode,
-      platform,
-      beforeWrite,
-    )
+    await verifyWorktreeFile(io, root, file.path, file.before, file.beforeMode, platform)
     if ((await linkOf(absolute)) !== undefined) {
       await unlink(absolute)
       onLanded?.()
@@ -671,15 +664,7 @@ async function landFile(
     if (platform !== 'win32' && file.afterMode !== undefined) {
       await chmod(staged, file.afterMode)
     }
-    await verifyWorktreeFile(
-      io,
-      root,
-      file.path,
-      file.before,
-      file.beforeMode,
-      platform,
-      beforeWrite,
-    )
+    await verifyWorktreeFile(io, root, file.path, file.before, file.beforeMode, platform)
     await rename(staged, absolute)
     onLanded?.()
   } finally {
@@ -704,10 +689,8 @@ async function verifyWorktreeFile(
   bytes: Uint8Array | undefined,
   mode: number | undefined,
   platform: NodeJS.Platform,
-  beforeWrite?: () => Promise<void>,
 ): Promise<void> {
   await confinedRelative(io, root, file, platform)
-  await beforeWrite?.()
   if (
     !areBytesEqual(await readWorktreeFile(root, file), bytes) ||
     (await worktreeMode(root, file, platform)) !== mode
@@ -1002,6 +985,8 @@ export interface LandingIntent {
   }[]
   readonly conflicts: readonly string[]
 }
+/** What the tree holds at one moment under the lock, read without writing anything. */
+export type LandingReading = Pick<LandingSnapshot, 'head' | 'blobs'>
 export interface LandingAdmission {
   readonly id: string
   readonly snapshot: LandingSnapshot
@@ -1038,7 +1023,7 @@ export interface TeamLandingDeps {
   readonly canonicalRoot: (root: string) => Promise<string>
   /** Lane K checks this window's durable journal, including explicit takeover. */
   readonly hasOpenLanding: (root: string) => Promise<boolean>
-  readonly snapshot: (root: string) => Promise<LandingSnapshot>
+  readonly snapshot: (root: string) => Promise<LandingReading>
   readonly checkIdentity: () => Promise<string>
   /** Void this admission and enqueue a fresh merge/check; Pause queue can hold it. */
   readonly invalidate: (admission: LandingAdmission) => Promise<void>
@@ -1058,7 +1043,9 @@ export interface TeamLandingDeps {
     status: 'landed' | 'recovered' | 'changed',
     conflicts: readonly string[],
   ) => Promise<void>
-  /** Repeat M77 canonical/protected/ref checks before each conditional mutation. */
+  /** After the whole batch, under the lock: throws when what it was admitted on has moved. */
+  readonly checkBatch: () => Promise<void>
+  /** Repeat M77 canonical/protected checks and the bytes on disk before each conditional mutation. */
   readonly replace: (
     root: string,
     file: LandingIntent['files'][number],
@@ -1080,6 +1067,15 @@ function isSameBlob(left: LandingBlob | undefined, right: LandingBlob | undefine
   return left === undefined || right === undefined
     ? left === right
     : left.oid === right.oid && left.mode === right.mode
+}
+
+/** The same files, the same bytes and the same modes: the one tree those can make. */
+function isSameTree(left: LandingSnapshot['blobs'], right: LandingSnapshot['blobs']): boolean {
+  if (left.size !== right.size) return false
+  for (const [name, blob] of left) {
+    if (!isSameBlob(blob, right.get(name))) return false
+  }
+  return true
 }
 
 /** One live window owns this instance. Git's own lock handles participating processes. */
@@ -1154,7 +1150,7 @@ export class TeamLanding {
         (await this.deps.knownHolder(canonical, ownedLock)) === undefined
       const fresh = await this.deps.snapshot(canonical)
       if (
-        fresh.tree !== admission.snapshot.tree ||
+        !isSameTree(fresh.blobs, admission.snapshot.blobs) ||
         fresh.head !== admission.snapshot.head ||
         (await this.deps.checkIdentity()) !== admission.checkIdentity
       ) {
@@ -1176,7 +1172,7 @@ export class TeamLanding {
         windowInstanceId: this.deps.windowInstanceId,
         root: canonical,
         head: fresh.head,
-        snapshotTree: fresh.tree,
+        snapshotTree: admission.snapshot.tree,
         checkIdentity: admission.checkIdentity,
         status: 'open',
         files,
@@ -1185,22 +1181,24 @@ export class TeamLanding {
       await this.deps.prepare(intent)
       canRelease = false
       const changed = new Set<string>()
-      for (const file of files) {
-        let isReplaced: boolean
-        try {
-          isReplaced = (await canWrite()) && (await this.deps.replace(canonical, file, canWrite))
-        } catch (error: unknown) {
-          // This window holds the lock and knows what it wrote, so it puts that back now rather
-          // than leave the repository locked for the person. A recovery that fails too keeps the
-          // lock and the open intent, as a killed window's do, and says why it failed.
-          const kept = await this.deps.recover(intent, canWrite)
-          canRelease = true
-          return { status: 'held', paths: [file.path], kept, cause: error }
+      let reached: string[] = []
+      try {
+        for (const file of files) {
+          reached = [file.path]
+          if (!(await canWrite()) || !(await this.deps.replace(canonical, file, canWrite))) {
+            changed.add(file.path)
+            break
+          }
         }
-        if (!isReplaced) {
-          changed.add(file.path)
-          break
-        }
+        reached = []
+        await this.deps.checkBatch()
+      } catch (error: unknown) {
+        // This window holds the lock and knows what it wrote, so it puts that back now rather
+        // than leave the repository locked for the person. A recovery that fails too keeps the
+        // lock and the open intent, as a killed window's do, and says why it failed.
+        const kept = await this.deps.recover(intent, canWrite)
+        canRelease = true
+        return { status: 'held', paths: reached, kept, cause: error }
       }
       // Include untouched dependencies as well as every landed blob and HEAD.
       const after = await this.deps.snapshot(canonical)

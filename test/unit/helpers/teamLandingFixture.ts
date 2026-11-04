@@ -141,15 +141,20 @@ async function spelled(
   }
 }
 
+/** What a fixture's file holds on each side; every file the same, unless a suite needs otherwise. */
+export type FixtureBytes = (file: string, side: 'before' | 'after') => string
+const SAME_BYTES: FixtureBytes = (_file, side) => `${side}\n`
+
 /** One worker's clone of `root` at its HEAD, its files at "after", published as its agents ref. */
 async function publishedWorker(
   root: string,
   workerCopy: string,
   taskId: string,
   files: readonly string[],
+  bytesOf: FixtureBytes = SAME_BYTES,
 ): Promise<Pick<LandingFixture, 'workerCopy' | 'head' | 'agentsRef' | 'taskId' | 'changedFiles'>> {
   await fixtureGit(path.dirname(workerCopy), ['clone', '--no-hardlinks', root, workerCopy])
-  for (const file of files) await writeFile(path.join(workerCopy, file), 'after\n')
+  for (const file of files) await writeFile(path.join(workerCopy, file), bytesOf(file, 'after'))
   await fixtureGit(workerCopy, ['add', '-A'])
   await fixtureGit(workerCopy, ['commit', '-m', 'work'])
   const headOut = await fixtureGit(workerCopy, ['rev-parse', 'HEAD'])
@@ -164,16 +169,23 @@ export async function makeLandingFixture(
   taskId: string,
   spelling: LandingSpelling = 'asCreated',
   files: readonly string[] = ['file.txt'],
+  bytesOf: FixtureBytes = SAME_BYTES,
 ): Promise<LandingFixture> {
   const root = await mkdtemp(path.join(tmpdir(), 'muse-m96c-landing-'))
   const storage = await mkdtemp(path.join(tmpdir(), 'muse-m96c-landing-store-'))
   await fixtureGit(root, ['init', '-b', 'main'])
-  for (const file of files) await writeFile(path.join(root, file), 'before\n')
+  for (const file of files) await writeFile(path.join(root, file), bytesOf(file, 'before'))
   await fixtureGit(root, ['add', '-A'])
   await fixtureGit(root, ['commit', '-m', 'base'])
   const baseOut = await fixtureGit(root, ['rev-parse', 'HEAD'])
   const baseCommit = baseOut.trim()
-  const worker = await publishedWorker(root, path.join(storage, 'worker-copy'), taskId, files)
+  const worker = await publishedWorker(
+    root,
+    path.join(storage, 'worker-copy'),
+    taskId,
+    files,
+    bytesOf,
+  )
   const handed = await spelled(spelling, root, storage)
   return {
     ...worker,

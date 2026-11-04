@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import type { TeamGit } from '../../src/core/team/teamGit'
-import { StagingCopy } from '../../src/host/team/stagingCopy'
+import { blobId, StagingCopy } from '../../src/host/team/stagingCopy'
 import { landingFixturesIn } from './helpers/teamLander'
 import {
   fixtureGit,
@@ -81,21 +81,78 @@ describe("a landing's snapshot of the tree", () => {
       await rm(path.join(rig.root, 'gone.txt'))
     })
     await writeFile(path.join(rig.root, 'gone.txt'), 'gone\n')
+    for (let at = 0; at < 20; at += 1)
+      await writeFile(path.join(rig.root, `extra-${String(at)}.txt`), 'extra\n')
     const snapshot = await rig.staging.snapshot(rig.root)
     expect(gone.isDone).toBe(true)
     expect(snapshot.blobs.has('gone.txt')).toBe(false)
     expect(snapshot.blobs.has('kept.txt')).toBe(true)
+    expect(snapshot.blobs.has('extra-19.txt')).toBe(true)
+    // Once more for the list, not once for each file: a tree holds thousands.
+    expect(rig.counted.hashes).toBe(2)
+  })
+
+  it('reads the tree under the lock as a snapshot does, and writes nothing to', async () => {
+    const { root, staging } = await stagedRepo()
+    await writeFile(path.join(root, 'extra.txt'), 'extra\r\n')
+    await writeFile(path.join(root, 'kept.txt'), 'edited\n')
+    const reading = await staging.reading(root)
+    // Not stored: only the ids git would give them.
+    for (const file of ['extra.txt', 'kept.txt']) {
+      const oid = reading.blobs.get(file)?.oid ?? ''
+      expect(oid).toBe(rawBlob(root, file))
+      expect(() => {
+        execFileSync('git', ['cat-file', '-e', oid], { cwd: root, stdio: 'ignore' })
+      }).toThrow()
+    }
+    const snapshot = await staging.snapshot(root)
+    expect(reading.blobs).toEqual(snapshot.blobs)
+    expect(reading.head).toBe(snapshot.head)
+  })
+
+  it('names a blob as git does, in either kind of repository', async () => {
+    for (const objectFormat of ['sha1', 'sha256']) {
+      const root = await realpath(await mkdtemp(path.join(tmpdir(), 'muse-landing-blob-')))
+      scratches.push(root)
+      await fixtureGit(root, ['init', '-b', 'main', `--object-format=${objectFormat}`])
+      await writeFile(path.join(root, 'file.txt'), 'text\r\n\0binary é')
+      await fixtureGit(root, ['add', '-A'])
+      await fixtureGit(root, ['commit', '-m', 'base'])
+      const headOut = await fixtureGit(root, ['rev-parse', 'HEAD'])
+      const bytes = await readFile(path.join(root, 'file.txt'))
+      expect(blobId(bytes, headOut.trim())).toBe(rawBlob(root, 'file.txt'))
+      expect(blobId(new Uint8Array(), headOut.trim())).toBe(
+        execFileSync('git', ['hash-object', '--stdin'], {
+          cwd: root,
+          input: '',
+          encoding: 'utf8',
+        }).trim(),
+      )
+    }
   })
 
   // Windows has no such file name, and a link there needs a privilege.
   it.skipIf(process.platform === 'win32')(
     'reads a name the list cannot carry, and a link as its target',
     async () => {
-      const { root, staging } = await stagedRepo()
+      const { root, staging, counted } = await stagedRepo()
       await writeFile(path.join(root, 'new\nline.txt'), 'newline\n')
       await writeFile(path.join(root, '"quoted".txt'), 'quoted\n')
       await symlink('kept.txt', path.join(root, 'link.txt'))
+      for (let at = 0; at < 20; at += 1) {
+        await writeFile(path.join(root, `extra-${String(at)}.txt`), 'extra\n')
+        await symlink('kept.txt', path.join(root, `link-${String(at)}.txt`))
+      }
       const snapshot = await staging.snapshot(root)
+      // The links' list, the files' list, and the one name a list cannot carry.
+      expect(counted.hashes).toBe(3)
+      expect(snapshot.blobs.get('link-19.txt')?.oid).toBe(
+        execFileSync('git', ['hash-object', '--stdin'], {
+          cwd: root,
+          input: 'kept.txt',
+          encoding: 'utf8',
+        }).trim(),
+      )
       expect(snapshot.blobs.get('new\nline.txt')?.oid).toBe(rawBlob(root, 'new\nline.txt'))
       expect(snapshot.blobs.get('"quoted".txt')?.oid).toBe(rawBlob(root, '"quoted".txt'))
       expect(snapshot.blobs.get('link.txt')?.mode).toBe('120000')
