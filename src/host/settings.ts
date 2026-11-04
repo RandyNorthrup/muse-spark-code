@@ -183,6 +183,7 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiMaxToolOutputBytes: number
   /** 4-H4: MCP definition tokens above which MCP schemas load on discovery; 0 never defers. */
   readonly modelApiMcpDeferTokens: number
+  readonly modelApiMcpAlwaysLoad: readonly string[]
   readonly modelApiAutoCompaction: boolean
   readonly modelApiStrictTools: boolean
   readonly modelApiParallelReads: boolean
@@ -365,6 +366,7 @@ const settingSchemas = {
   modelApiObservationPacking: z.boolean(),
   modelApiMaxToolOutputBytes: z.number().check(z.int(), z.gte(0)),
   modelApiMcpDeferTokens: z.number().check(z.int(), z.gte(0)),
+  modelApiMcpAlwaysLoad: z.array(z.string().check(z.minLength(1))),
   modelApiAutoCompaction: z.boolean(),
   modelApiStrictTools: z.boolean(),
   modelApiParallelReads: z.boolean(),
@@ -568,6 +570,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiObservationPacking: readSetting(config, 'modelApiObservationPacking', log),
     modelApiMaxToolOutputBytes: readSetting(config, 'modelApiMaxToolOutputBytes', log),
     modelApiMcpDeferTokens: readSetting(config, 'modelApiMcpDeferTokens', log),
+    modelApiMcpAlwaysLoad: readSetting(config, 'modelApiMcpAlwaysLoad', log),
     modelApiAutoCompaction: readSetting(config, 'modelApiAutoCompaction', log),
     modelApiStrictTools: readSetting(config, 'modelApiStrictTools', log),
     modelApiParallelReads: readSetting(config, 'modelApiParallelReads', log),

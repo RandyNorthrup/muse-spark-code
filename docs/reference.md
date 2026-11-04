@@ -1028,7 +1028,7 @@ MCP servers: Muse Code runs its own servers; on Model API this window runs confi
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: `museSpark.mcpServers`. Settings: `museSpark.modelApiMcpDeferTokens`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#rules-skills-and-memory)
+Commands: `museSpark.mcpServers`. Settings: `museSpark.modelApiMcpDeferTokens`, `museSpark.modelApiMcpAlwaysLoad`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#rules-skills-and-memory)
 
 ### Hooks…
 
@@ -3054,6 +3054,23 @@ Type: `"integer"`. Default: `0`. Scope: `machine`.
   "type": "integer",
   "default": 0,
   "minimum": 0
+}
+```
+
+### museSpark.modelApiMcpAlwaysLoad
+
+conversationStart: The MCP servers, by name, whose tools always load up front while museSpark.modelApiMcpDeferTokens keeps the rest on demand: for a server the model needs on most requests, so it never has to search for it. Applies from your next message. Empty keeps every server on demand once the threshold is passed. This only changes what each request carries; it never limits your work.
+
+Type: `"array"`. Default: `[]`. Scope: `machine`.
+
+```json
+{
+  "type": "array",
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "default": []
 }
 ```
 

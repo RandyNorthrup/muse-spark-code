@@ -263,6 +263,79 @@ describe('session declarations across turns (4-H4)', () => {
   const core = toolDefinitions('linux', { hasShell: true, hasSkills: false })
   const request = (declarations: McpDeclarations) => [...core, ...declarations.definitions(true)]
 
+  // The per-server opt-out (RSCH-CC R1): a server the person names keeps its
+  // tools declared while the rest load on demand.
+  it('keeps an always-load server declared, ahead of whatever a search loads', () => {
+    const catalog = twoServerCatalog()
+    const declarations = new McpDeclarations(
+      { catalog: () => catalog, snapshot: () => ALL_CONNECTED },
+      () => 1,
+      () => [FILESYSTEM],
+    )
+    const start = declarations.beginTurn()
+    expect(start.deferral?.deferredCount).toBe(16)
+    const filesystem = catalog.filter((entry) => entry.server === FILESYSTEM)
+    const first = request(declarations)
+    expect(first.map((tool) => tool.name)).toEqual([
+      ...core.map((tool) => tool.name),
+      MODEL_API_TOOLS.toolSearch,
+      ...filesystem.map((entry) => entry.functionName),
+    ])
+    // What is left to load is what the search tool names.
+    const search = first.find((tool) => tool.name === MODEL_API_TOOLS.toolSearch)
+    expect(search?.description).toContain('tools to load: everything (16 tools).')
+    expect(search?.description).not.toContain(FILESYSTEM)
+    // Declared up front is callable; the rest still have to be found.
+    const pinned = filesystem[0]!
+    const sum = catalog.find((entry) => entry.tool === 'get-sum')!
+    expect(declarations.isUndiscovered(pinned.functionName, true)).toBe(false)
+    expect(declarations.isUndiscovered(sum.functionName, true)).toBe(true)
+    // A search that finds one says it is loaded already, and moves nothing.
+    const repeat = declarations.search(pinned.tool)
+    expect(repeat).toMatchObject({ kind: 'searched', loaded: [] })
+    expect(request(declarations)).toEqual(first)
+    // A discovery appends behind them, so the prefix only grows.
+    expect(declarations.search('sum of two numbers')).toMatchObject({ loaded: [sum] })
+    const second = request(declarations)
+    expect(JSON.stringify(second).startsWith(JSON.stringify(first).slice(0, -1))).toBe(true)
+    expect(second.at(-1)?.name).toBe(sum.functionName)
+    expect(declarations.plan()).toMatchObject({ isDeferred: true, deferredCount: 15 })
+  })
+
+  it('has nothing to defer once every server always loads', () => {
+    const catalog = twoServerCatalog()
+    const declarations = new McpDeclarations(
+      { catalog: () => catalog, snapshot: () => ALL_CONNECTED },
+      () => 1,
+      () => [EVERYTHING, FILESYSTEM],
+    )
+    expect(declarations.beginTurn().deferral).toBeUndefined()
+    expect(declarations.plan()).toMatchObject({ isDeferred: false, deferredCount: 0 })
+    expect(declarations.definitions(true)).toEqual(catalog.map((entry) => entry.definition))
+    expect(declarations.search('sum')).toEqual({ kind: 'notDeferred' })
+  })
+
+  it('reads the list once per turn, and a name no server has changes nothing', () => {
+    const catalog = twoServerCatalog()
+    let names: readonly string[] = ['no-such-server']
+    const declarations = new McpDeclarations(
+      { catalog: () => catalog, snapshot: () => ALL_CONNECTED },
+      () => 1,
+      () => names,
+    )
+    declarations.beginTurn()
+    const held = request(declarations)
+    expect(held.map((tool) => tool.name)).toEqual([
+      ...core.map((tool) => tool.name),
+      MODEL_API_TOOLS.toolSearch,
+    ])
+    // Changed mid-turn: this turn's requests keep their bytes.
+    names = [FILESYSTEM]
+    expect(request(declarations)).toEqual(held)
+    declarations.beginTurn()
+    expect(declarations.plan()).toMatchObject({ deferredCount: 16 })
+  })
+
   it('declares tool_search alone past the threshold, then appends what a search loads', () => {
     const catalog = twoServerCatalog()
     const declarations = new McpDeclarations(

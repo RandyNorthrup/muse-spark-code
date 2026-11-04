@@ -1,6 +1,7 @@
 // One session's MCP declarations across its user turns (4-H4): the
-// frozen per-turn catalogue, the person's defer threshold, the
-// discovered tools and the `tool_search` answer. The host asks this
+// frozen per-turn catalogue, the person's defer threshold and the
+// servers they always load, the discovered tools and the `tool_search`
+// answer. The host asks this
 // for every request's MCP definitions and every admission; it logs and
 // shows the words `beginTurn` and `search` return. The pool builds it
 // (`McpToolSource.declarations`), so this code loads with the pool's
@@ -71,6 +72,7 @@ export function unconnectedMcpServers(snapshot: McpPoolSnapshot | undefined): st
 export class McpDeclarations {
   private turnCatalog: readonly McpCatalogEntry[] | undefined
   private turnThreshold = 0
+  private turnAlwaysLoad: ReadonlySet<string> = new Set()
   private readonly discovered: string[] = []
   /** The previous turn's catalogue definitions as JSON, so a real change is said once. */
   private catalogBytes: string | undefined
@@ -78,20 +80,27 @@ export class McpDeclarations {
 
   /**
   `source` is the pool (its sorted catalogue and server states now);
-  `threshold` reads the person's defer threshold now. Both are read
-  once per user turn, and before the first turn for any request made
-  outside one.
+  `threshold` reads the person's defer threshold now, `alwaysLoad` the
+  servers they always load. All are read once per user turn, and before
+  the first turn for any request made outside one.
   */
   public constructor(
     private readonly source: Pick<McpToolSource, 'catalog' | 'snapshot'>,
     private readonly threshold: () => number,
+    private readonly alwaysLoad: () => readonly string[] = () => [],
   ) {}
 
-  /** Freeze this user turn's catalogue and threshold. */
+  /** The servers a request always declares: the turn's frozen list, else the setting's now. */
+  private alwaysLoaded(): ReadonlySet<string> {
+    return this.turnCatalog === undefined ? new Set(this.alwaysLoad()) : this.turnAlwaysLoad
+  }
+
+  /** Freeze this user turn's catalogue, threshold and always-loaded servers. */
   public beginTurn(): McpTurnStart {
     const catalog = this.source.catalog()
     this.turnCatalog = catalog
     this.turnThreshold = deferThreshold(this.threshold())
+    this.turnAlwaysLoad = new Set(this.alwaysLoad())
     const definitions = catalog.map((entry) => entry.definition)
     const bytes = JSON.stringify(definitions)
     const isChanged = this.catalogBytes !== undefined && bytes !== this.catalogBytes
@@ -142,22 +151,27 @@ export class McpDeclarations {
       this.current(),
       this.turnCatalog === undefined ? deferThreshold(this.threshold()) : this.turnThreshold,
       this.discovered,
+      this.alwaysLoaded(),
     )
   }
 
   /**
   The MCP definitions a request declares. Deferred: `tool_search`
-  first, then the discovered tools in discovery order (append-only,
-  so the prefix only grows). Not deferred: the whole sorted
-  catalogue. `isSearchAllowed` false (an allowlist without
+  first, naming the servers with tools left to load, then the
+  always-loaded servers' tools and the discovered tools in discovery
+  order (append-only, so the prefix only grows). Not deferred: the
+  whole sorted catalogue. `isSearchAllowed` false (an allowlist without
   `tool_search`) declares the whole catalogue: deferral never makes an
   allowed tool unreachable.
   */
   public definitions(isSearchAllowed: boolean): readonly FunctionToolDefinition[] {
     const plan = this.plan()
-    return isSearchAllowed && plan.isDeferred
-      ? [toolSearchDefinition(this.current()), ...plan.declared.map((entry) => entry.definition)]
-      : this.current().map((entry) => entry.definition)
+    if (!isSearchAllowed || !plan.isDeferred) return this.current().map((entry) => entry.definition)
+    const alwaysLoaded = this.alwaysLoaded()
+    return [
+      toolSearchDefinition(this.current().filter((entry) => !alwaysLoaded.has(entry.server))),
+      ...plan.declared.map((entry) => entry.definition),
+    ]
   }
 
   /**
@@ -171,7 +185,8 @@ export class McpDeclarations {
       return { kind: 'notDeferred' }
     }
     const matches = searchCatalog(this.current(), query)
-    const loaded = matches.filter((entry) => !this.discovered.includes(entry.functionName))
+    const declared = new Set(this.plan().declared.map((entry) => entry.functionName))
+    const loaded = matches.filter((entry) => !declared.has(entry.functionName))
     this.discovered.push(...loaded.map((entry) => entry.functionName))
     if (matches.length === 0) {
       const away = unconnectedMcpServers(this.source.snapshot())
@@ -208,11 +223,12 @@ export class McpDeclarations {
 
   /** True for a catalogue tool a deferred request does not declare yet: it is not callable. */
   public isUndiscovered(functionName: string, isSearchAllowed: boolean): boolean {
+    const plan = this.plan()
     return (
       isSearchAllowed &&
-      !this.discovered.includes(functionName) &&
+      plan.isDeferred &&
       this.current().some((entry) => entry.functionName === functionName) &&
-      this.plan().isDeferred
+      plan.declared.every((entry) => entry.functionName !== functionName)
     )
   }
 

@@ -933,6 +933,11 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   once per user turn, with the turn's catalogue snapshot.
   */
   readonly mcpDeferThresholdTokens?: (() => number | undefined) | undefined
+  /**
+  `museSpark.modelApiMcpAlwaysLoad`: the MCP servers whose tools stay
+  declared while the rest defer. Read once per user turn, as the threshold is.
+  */
+  readonly mcpAlwaysLoadServers?: (() => readonly string[]) | undefined
   /** M106, fixed for the session. Lane W binds modelApiParallelReads in every host. */
   readonly strictTools?: () => boolean
   readonly parallelReads?: () => boolean
@@ -6510,6 +6515,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     this.sessionMcpDeclarations ??= servers.declarations(
       () => this.deps.mcpDeferThresholdTokens?.() ?? SETTING_DEFAULTS.modelApiMcpDeferTokens,
+      () => this.deps.mcpAlwaysLoadServers?.() ?? SETTING_DEFAULTS.modelApiMcpAlwaysLoad,
     )
     return this.sessionMcpDeclarations
   }

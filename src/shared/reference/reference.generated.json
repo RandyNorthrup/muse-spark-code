@@ -1473,7 +1473,7 @@
       "summary": { "ui": "referenceMcp" },
       "description": { "ui": "referenceMcp" },
       "commands": ["museSpark.mcpServers"],
-      "settings": ["museSpark.modelApiMcpDeferTokens"],
+      "settings": ["museSpark.modelApiMcpDeferTokens", "museSpark.modelApiMcpAlwaysLoad"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#rules-skills-and-memory",
       "backends": ["museCode", "modelApi"],
       "paid": false,
@@ -4000,6 +4000,22 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "integer", "default": 0, "minimum": 0 }
+    },
+    {
+      "text": {
+        "conditions": [
+          { "when": "conversationStart", "text": { "setting": "modelApiMcpAlwaysLoad" } }
+        ]
+      },
+      "id": "museSpark.modelApiMcpAlwaysLoad",
+      "name": "museSpark.modelApiMcpAlwaysLoad",
+      "description": "The MCP servers, by name, whose tools always load up front while museSpark.modelApiMcpDeferTokens keeps the rest on demand: for a server the model needs on most requests, so it never has to search for it. Applies from your next message. Empty keeps every server on demand once the threshold is passed. This only changes what each request carries; it never limits your work.",
+      "descriptionKey": "config.modelApiMcpAlwaysLoad.description",
+      "type": "array",
+      "default": [],
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] }
     },
     {
       "id": "museSpark.turnCheckpoints",
