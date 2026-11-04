@@ -212,6 +212,7 @@ class WorkspaceTeam {
   private loading: Promise<void> | undefined
   private writes: Promise<void> = Promise.resolve()
   private readonly handlers = new Map<string, AcpTeamSessionHandler>()
+  private hasAskedRecover = false
   private readonly announced = new Map<string, Map<string, AnnouncedTask>>()
   private readonly plans = new Map<string, string>()
   /** The sessions that turned the refusal fallback on (D261); the setting's default is off. */
@@ -762,6 +763,7 @@ class WorkspaceTeam {
     const [entry] = this.handlers
     if (entry === undefined) return false
     const [sessionId, handler] = entry
+    this.hasAskedRecover = true
     const title = fill(UI_TEXT.teamTrafficNotices.landingOpen, {
       path: record.files.map((file) => file.path).join(', '),
     })
@@ -871,6 +873,19 @@ class WorkspaceTeam {
     this.showTreeTo(sessionId, handler, this.binding.tree())
   }
 
+  /**
+  The person hears about a dead run once per agent run; a landing that needs the answer asks again.
+  A lock still standing asks nothing, so a later turn can still settle it once the lock has gone.
+  */
+  public async settleLandings(): Promise<void> {
+    if (this.hasAskedRecover) return
+    try {
+      await this.binding.loaded()?.recoverLandings?.(false)
+    } catch (error: unknown) {
+      this.deps.log.warn(`ACP team landing recovery failed: ${failureForLog(error)}`)
+    }
+  }
+
   public async cancel(sessionId: string): Promise<void> {
     // Before any await, so a permission answer that arrives during the stop
     // cannot land.
@@ -941,6 +956,7 @@ export function createAcpTeam(deps: AcpTeamDeps, table: UiText, locale: string):
         setRefusalFallback: (isOn) => {
           team.setRefusalFallback(sessionId, isOn)
         },
+        settleLandings: () => (isTeam ? team.settleLandings() : Promise.resolve()),
         cancel: () => team.cancel(sessionId),
         close: () => team.close(sessionId),
       }

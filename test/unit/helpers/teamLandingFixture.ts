@@ -254,6 +254,7 @@ governed git, its own identity, and only what a surface brings to the landing.
 export function productLandingPorts(
   fixture: Pick<LandingFixture, 'root' | 'storage'>,
   landing?: EngineLandingPorts,
+  runGit: TeamGit = landingRunGit,
 ) {
   return createEngineTeamPorts({
     repositoryRoot: () => fixture.root,
@@ -263,7 +264,7 @@ export function productLandingPorts(
     listModels: () => Promise.reject(new Error('no models here')),
     startWorker: () => Promise.reject(new Error('no workers here')),
     now: () => Date.now(),
-    runGit: landingRunGit,
+    runGit,
     log: { trace: noLog, info: noLog, warn: noLog, error: noLog },
     ...(landing !== undefined && { landing }),
   })
