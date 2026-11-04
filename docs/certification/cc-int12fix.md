@@ -244,9 +244,9 @@ Together those mean a real median of 200 ms or more never passes.
 **Two choices of mine, for the coordinator to overrule:**
 
 - **The control clicks nothing.** A slow Stop handler is what the real samples are there to catch, and a control clicking the same handler would subtract it away.
-- **The first assertion is not in the brief.** Subtraction alone cannot meet "a stall in the controls must not hide a stall in the real samples": real 158.8 less control 155.3 is 3.5. With it, that run is red in its own words. **The cost: if hosted macOS's controls come back at 100 ms or more, the case stays red, for a reason it names.**
+- **The first assertion is not in the brief.** Subtraction alone cannot meet "a stall in the controls must not hide a stall in the real samples": real 159.2 less control 155.2 is 4.0. With it, that run is red in its own words. **The cost: if hosted macOS's controls come back at 100 ms or more, the case stays red, for a reason it names.**
 
-**Is subtracting the wrong shape? On this data it is not wrong, and it does little.** Real Linux Chromium, tests pinned to 4 CPUs, medians in ms, the control as long as the real sample before it. Two runs of the 35 were lost to a 3 s wait.
+**Is subtracting the wrong shape? On this data it is not wrong, and it does little.** Real Linux Chromium, tests pinned to 4 CPUs, medians in ms, the control as long as the real sample before it. Two of the 33 runs were lost to the case's 3 s wait.
 
 | Condition                  | Runs | Real       | Control, full length | Control, first 250 ms | Real less control |
 | -------------------------- | ---- | ---------- | -------------------- | --------------------- | ----------------- |
@@ -287,15 +287,15 @@ Together those mean a real median of 200 ms or more never passes.
 
 **The hook against its 10 s.** Linux, the same pinned load table, the suite's global setup left out. "Before" is CC-STOPSHAPE2's. Two batches, the second with nothing else of mine running but another lane's build holding the PC at 80 to 100%.
 
-| Busy loops | Before, ms                     | With controls, alone, ms         | With controls, whole file, ms |
-| ---------- | ------------------------------ | -------------------------------- | ----------------------------- |
-| 0          | 2,368 to 3,205                 | 3,963 to 4,014                   | 4,476                         |
-| 4          | 5,663 to 5,792                 | 7,026 to 7,659                   | 8,132                         |
-| 8          | 5,807 to 6,435                 | 7,327 to 9,856                   | 7,693, 8,962                  |
-| 12         | 6,445 to 9,075                 | 7,385, 8,378, **four timed out** | 9,938, **one timed out**      |
-| 16         | 9,099 to 9,727, then timed out | **all six timed out**            | **both timed out**            |
+| Busy loops | Before, ms                     | With controls, alone, ms          | With controls, whole file, ms                                                               |
+| ---------- | ------------------------------ | --------------------------------- | ------------------------------------------------------------------------------------------- |
+| 0          | 2,368 to 3,205                 | 3,963 to 4,014                    | 4,476                                                                                       |
+| 4          | 5,663 to 5,792                 | 7,026 to 7,659                    | 8,132                                                                                       |
+| 8          | 5,807 to 6,435                 | 7,327 to 9,856                    | 7,693, 8,962                                                                                |
+| 12         | 6,445 to 9,075                 | 7,385, 8,378, **four timed out**  | 9,938, **one timed out**                                                                    |
+| 16         | 9,099 to 9,727, then timed out | **all six timed out at the hook** | 9,853 with two other cases past their 5 s; **one timed out**, with three others past theirs |
 
-**The controls move the first miss from 16 loops to 12.** At 16 other cases in the file time out too; at 12 the hook is the first to go. A hook timeout prints how far it got, for instance `stopped in sample 4, after: real 68.6, 47.3, 47.5; controls 8.5, 9.3, 9.3`.
+**The controls move the first miss from 16 loops to 12.** At 16 other cases in the file time out too, in both whole-file runs; at 12 the hook is the first to go. A hook timeout prints how far it got, for instance `stopped in sample 4, after: real 68.6, 47.3, 47.5; controls 8.5, 9.3, 9.3`.
 
 ### 2. Windows time
 
@@ -336,8 +336,8 @@ Together those mean a real median of 200 ms or more never passes.
 | Files over 1 s, ratio to the run before, median     | **0.99**             |                 |                 |
 
 - **Its CPU was not slow.** Bundling and listing were as fast as ever or faster, and the median file over a second did not move. What moved is what starts processes: `hostname.exe` two hundred times, `sh.exe`, and the cold starts before any test file ran. So the fork file's order against `teamCheckProof` was not the cause. The file just before it was `teamPanel` at 119 ms.
-- **It reads as the new runner image.** In this run all eleven shards on 20261030.294.1 cold-started PowerShell in 3.0 to 6.1 s and C# in 2.0 to 3.8 s. The five on 20261103.298.1 took 3.7 to 26.5 s and 5.6 to 18.5 s, in the same regions (`westus`: 2.3 s and 2.2 s on the old image, 18.5, 11.8 and 10.8 on the new). Its job times against the run before: shard 8, 7.2 to 16.0 minutes; 13, 9.2 to 13.3; 14, 13.2 to 20.1; 16, 7.3 to 7.9; 11, 8.2 to 6.1. The old-image shards held steady.
-- **Not one slow machine:** three of five slowed badly, and shard 11 on the same image was faster than its last run. In shard 8 the slowness faded: from about 300 s of test time, files read x0.6 to x1.3.
+- **It reads as the new runner image.** In this run all eleven shards on 20261030.294.1 cold-started PowerShell in 3.0 to 6.1 s and C# in 2.0 to 3.8 s. The five on 20261103.298.1 took 3.7 to 26.5 s and 5.6 to 18.5 s, in the same regions (`westus`: 2.3 s and 2.2 s on the old image, 18.5, 11.8 and 10.8 on the new). Its job times against the run before: shard 8, 7.2 to 16.0 minutes; 13, 9.2 to 13.3; 14, 13.2 to 20.1; 16, 7.3 to 7.9; 11, 8.2 to 6.1. The old-image shards moved by -4.1 to +3.5 minutes.
+- **Not one slow machine:** three of five slowed badly, and shard 11 on the same image was faster than its last run. In shard 8 the slowness faded: from about 300 s of test time, files mostly read x0.6 to x1.3 (`nodeOsBrowser`, x2.2, is the exception).
 - **Why that image starts processes slowly, I cannot say from a log.** A scanner, or a disk warming on first read, would both look like this. No limit was raised, and nothing here is a fix for it.
 
 ## A correction to `cc-small3.md`
