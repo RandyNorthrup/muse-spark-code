@@ -33,6 +33,7 @@ import { fill, setUiText } from '../../src/shared/l10n/text'
 import { checkProcessProvedByExit } from './helpers/checkProcessProvedByExit'
 import { fixtureGitEnvironment } from './helpers/fixtureGit'
 import { governorWindow } from './helpers/governorWindow'
+import { callRunChecks, replyText, rpc } from './helpers/workerCheckRpc'
 import { liveSamplerSuite } from './resourceHarness'
 import { silentCoreLog } from './helpers/memoryLogs'
 import { resolveGitBinary } from './helpers/realGit'
@@ -73,35 +74,6 @@ const READER: WorkerRolePolicy = {
   reportShape: 'summary',
 }
 
-interface Reply {
-  readonly status: number
-  readonly body?: {
-    result?: { content?: { text: string }[]; isError?: boolean; tools?: { name: string }[] }
-  }
-}
-
-/** The worker's side: one JSON-RPC request to its session server. */
-async function rpc(
-  endpoint: WorkerCheckEndpoint,
-  method: string,
-  params: unknown = {},
-  signal?: AbortSignal,
-): Promise<Reply> {
-  const server = endpoint.servers[TEAM_CHECKS_SERVER]
-  if (server === undefined || !('url' in server)) throw new Error('the endpoint has no server')
-  const response = await fetch(server.url, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', ...server.headers },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-    ...(signal !== undefined && { signal }),
-  })
-  const text = await response.text()
-  return {
-    status: response.status,
-    ...(text !== '' && { body: JSON.parse(text) as NonNullable<Reply['body']> }),
-  }
-}
-
 /** The log's lines: each check's start and end, in the order they happened. */
 async function lines(log: string): Promise<string[]> {
   const text = await readFile(log, 'utf8')
@@ -117,10 +89,8 @@ function check(log: string, name: string, pauseMs = PAUSE_MS): CheckCommandSetti
   }
 }
 
-const call = async (endpoint: WorkerCheckEndpoint, args: unknown = {}, signal?: AbortSignal) =>
-  await rpc(endpoint, 'tools/call', { name: 'run_checks', arguments: args }, signal)
-
-const text = (reply: Reply) => reply.body?.result?.content?.[0]?.text ?? ''
+const call = callRunChecks
+const text = replyText
 
 describe.skipIf(process.platform === 'win32')('a team worker’s run_checks', () => {
   let root: string

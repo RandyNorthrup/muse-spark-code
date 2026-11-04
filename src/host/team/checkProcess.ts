@@ -2,9 +2,10 @@
 // (M96c lane K): a check's shell, and the git calls that prepare its folder,
 // are launched contained and journalled like every team child, so the window
 // ends them with the team. `descendantsEnded` is the container's proof and
-// nothing else: a Windows job proves it and a Linux scope proves it, while a
-// bare process group (macOS, Linux without a delegated scope) proves nothing,
-// so its folder stays held until the person decides (the M96c rule).
+// nothing else: a Windows job proves it and a Linux scope proves it. A bare
+// process group (macOS, Linux without a delegated scope) proves nothing; it says
+// only `groupEnded`, enough for a folder never used again (M96c's rule stands:
+// a folder whose processes are not proved ended is never reused).
 
 import type { TeamAttempt } from '../../shared/team'
 import { TEAM_PROCESS_MODEL_TEXT } from '../../shared/constants'
@@ -97,6 +98,7 @@ export function checkProcessOver(lifetime: TeamProcessLifetime): CheckProcess {
         exitCode: code ?? EXIT_FAILED,
         output: pieces.join(''),
         descendantsEnded: proofOf(confirmation, end) !== undefined,
+        groupEnded: end.groupGone === true,
       }
     } finally {
       clearTimeout(limit)

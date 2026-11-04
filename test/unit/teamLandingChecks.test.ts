@@ -6,19 +6,13 @@ import { mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/pro
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { runProgram } from '../../src/host/processTree'
-import {
-  createProcessTeamPorts,
-  type ProcessTeamPorts,
-} from '../../src/host/team/teamProcessWorkers'
+import type { ProcessTeamPorts } from '../../src/host/team/teamProcessWorkers'
 import type { CheckCommandSetting } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import { governorWindow } from './helpers/governorWindow'
-import { readJobSource } from './helpers/jobSource'
-import { silentCoreLog } from './helpers/memoryLogs'
+import { realCheckPorts, doesSystemProveEnds } from './helpers/teamCheckPorts'
 import {
-  landingRunGit,
   landingStatuses,
   landingTask,
   makeLandingFixture,
@@ -42,7 +36,6 @@ fs.appendFileSync(path.join(__dirname, 'ran.log'), JSON.stringify({ cwd: process
 process.exit(read === refused ? 3 : 0)
 `
 const BATCH = ['a.txt', 'b.txt']
-const SYSTEM_ROOT = process.env['SystemRoot']
 
 describe("the person's check commands over a team landing", () => {
   const state: {
@@ -74,35 +67,7 @@ describe("the person's check commands over a team landing", () => {
     await writeFile(state.script, VERDICT_SCRIPT)
     state.fixture = await makeLandingFixture('task-checked', 'asCreated', BATCH)
     const { root: repo } = state.fixture
-    state.ports = createProcessTeamPorts({
-      repositoryRoot: () => repo,
-      storageRoot: path.join(state.root, 'ports'),
-      journalStorageDirectory: path.join(state.root, 'journal'),
-      platform: process.platform,
-      isTrusted: () => true,
-      extensionVersion: '0.0.0-test',
-      resolveMuseServe: () => undefined,
-      isContributorMode: () => false,
-      checks: () => state.checks,
-      checkSetup: () => ({ setupCommand: '', cacheKey: '' }),
-      baseEnv: () => process.env,
-      pathEntries: () => [],
-      // The product compiles the job's helper under its resource host; a bare test process has
-      // none, so the real execFile runner compiles it, as helpers/shellJobBuild.ts does.
-      ...(process.platform === 'win32' &&
-        SYSTEM_ROOT !== undefined && {
-          windows: {
-            storageDir: path.join(state.root, 'job'),
-            systemRoot: SYSTEM_ROOT,
-            readJobSource,
-            run: runProgram,
-            log: () => undefined,
-          },
-        }),
-      runGit: landingRunGit,
-      now: () => Date.now(),
-      log: silentCoreLog(),
-    })
+    state.ports = realCheckPorts({ root: state.root, repo, checks: () => state.checks })
   }, 180_000)
 
   afterAll(async () => {
@@ -162,10 +127,10 @@ describe("the person's check commands over a team landing", () => {
     expect(await landingStatuses(fixture.storage)).toEqual(['landed'])
     // Where no container proves an end, a landing's folder was its own and is gone with it.
     const made = await readdir(path.join(rig().root, 'ports'))
-    expect(made.includes('check-slots')).toBe(process.platform === 'win32')
+    expect(made.includes('check-slots')).toBe(await doesSystemProveEnds())
     expect(
-      made.includes('landing-checks')
-        ? await readdir(path.join(rig().root, 'ports', 'landing-checks'))
+      made.includes('one-use-checks')
+        ? await readdir(path.join(rig().root, 'ports', 'one-use-checks'))
         : [],
     ).toEqual([])
   }, 180_000)

@@ -1,5 +1,6 @@
 import * as z from 'zod/mini'
 import { noWorkspaceChildEnvironment } from '../../core/execGuard'
+import { errnoCode } from '../canonicalPath'
 import { runProgram } from '../processTree'
 import { realpathSync } from 'node:fs'
 
@@ -48,10 +49,35 @@ export async function isProcessOwned(
   return isSameProcess(await observe(expected.pid), expected)
 }
 
+const isNoSuchProcess = (error: unknown): boolean => errnoCode(error) === 'ESRCH'
+const isNotPermitted = (error: unknown): boolean => errnoCode(error) === 'EPERM'
+
+/** How often a group that was signalled is looked at again. */
+const GROUP_POLL_MS = 25
+
 /** The sole authority for K's PID/group/container signal decisions. */
 export function createProcessOwnership(driver: OwnershipDriver) {
   const isOwned = async (expected: ProcessIdentity) =>
     await isProcessOwned(driver.observe, expected)
+  /**
+  Who is left in a group: none when the kernel knows no such group, undefined when it says someone
+  is there this user may not signal. A zombie nothing reaps keeps its group on Linux and is no
+  process left, so the table has the last word.
+  */
+  const groupMembers = async (
+    group: number,
+    launchId: string,
+  ): Promise<readonly ProcessIdentity[] | undefined> => {
+    try {
+      process.kill(-group, 0)
+    } catch (error: unknown) {
+      if (isNoSuchProcess(error)) return []
+      if (isNotPermitted(error)) return undefined
+      throw error
+    }
+    const found = await driver.scan([launchId])
+    return found.filter((member) => member.group === String(group))
+  }
   const signal = async (
     expected: ProcessIdentity,
     signal: 'SIGTERM' | 'SIGKILL',
@@ -87,6 +113,35 @@ export function createProcessOwnership(driver: OwnershipDriver) {
     /** Unrecorded survivors are reported, never authorized by their marker. */
     signalLaunch: async (expected: ProcessIdentity, name: 'SIGTERM' | 'SIGKILL') =>
       await signal(expected, name, true),
+    /**
+    Ends what is left of a group whose recorded leader has exited, and says whether it is gone. The
+    leader's identity is no longer there to check, so each member must be in this group and carry
+    this launch's marker. Anything else (a reused number, a program that cleared its environment)
+    is a stranger: nothing is signalled, and the group is not gone. This says nothing about a
+    process that left the group with setsid.
+    */
+    emptyGroup: async (group: number, launchId: string, graceMs: number): Promise<boolean> => {
+      if (group <= 1) return false
+      for (const name of ['SIGTERM', 'SIGKILL'] as const) {
+        const members = await groupMembers(group, launchId)
+        if (members?.length === 0) return true
+        if (members === undefined || members.some((member) => member.launchId !== launchId))
+          return false
+        try {
+          process.kill(-group, name)
+        } catch (error: unknown) {
+          if (!isNoSuchProcess(error)) throw error
+        }
+        const deadline = performance.now() + graceMs
+        while (performance.now() < deadline) {
+          const left = await groupMembers(group, launchId)
+          if (left?.length === 0) return true
+          await new Promise((resolve) => setTimeout(resolve, GROUP_POLL_MS))
+        }
+      }
+      const left = await groupMembers(group, launchId)
+      return left?.length === 0
+    },
   }
 }
 
