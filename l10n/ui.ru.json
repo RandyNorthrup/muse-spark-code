@@ -1028,7 +1028,7 @@
   "referenceSendKeys": "Отправить черновик действием, выбранным useCtrlEnterToSend.",
   "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
   "referenceNodeEditorKeys": "Save the open file.",
-  "referenceEditorGroupKeys": "Move between tabs, cycle tabs, focus a group by number, or close the menu.",
+  "referenceEditorGroupKeys": "Move between tabs, cycle tabs, close a tab, focus a group by number, or close the menu.",
   "referenceDesktopResizeKeys": "Сделать панель выше или ниже.",
   "referenceDesktopTerminalSearchKeys": "Переходить между совпадениями поиска в терминале или закрыть панель поиска.",
   "referenceDesktopProblemsKeys": "Перемещаться по проблемам и открывать выбранную.",

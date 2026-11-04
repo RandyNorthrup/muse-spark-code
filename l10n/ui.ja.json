@@ -1007,7 +1007,7 @@
   "referenceSendKeys": "useCtrlEnterToSendで選択された操作で下書きを送信します。",
   "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
   "referenceNodeEditorKeys": "Save the open file.",
-  "referenceEditorGroupKeys": "Move between tabs, cycle tabs, focus a group by number, or close the menu.",
+  "referenceEditorGroupKeys": "Move between tabs, cycle tabs, close a tab, focus a group by number, or close the menu.",
   "referenceDesktopResizeKeys": "パネルを高くまたは低くします。",
   "referenceDesktopTerminalSearchKeys": "ターミナル検索の一致箇所間を移動する、または検索バーを閉じる。",
   "referenceDesktopProblemsKeys": "問題を移動して選択したものを開く。",

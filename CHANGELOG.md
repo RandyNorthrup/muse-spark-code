@@ -74,6 +74,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Editor tabs close with Delete, and a screen reader can tell a tab from its close
+  control.** In the node workspace's editor the close mark sat inside the tab, one
+  control nested in another. The mark stays for the pointer; a focused tab closes with
+  Delete, says so to a screen reader, and hands the focus to the tab that follows.
+- **The editor's pressed status buttons can be read in High Contrast Light.** Minimap
+  and its neighbours showed white text on a pale background (1.17:1) while pressed.
 - **Team agents start on a Mac with plenty of memory.** macOS keeps little memory
   strictly free, so a healthy Mac read as short of memory and each team agent was
   refused. And a refused agent said only `TEAM_HOST_BUSY`; it now says what

@@ -1007,7 +1007,7 @@
   "referenceSendKeys": "useCtrlEnterToSend로 선택한 동작으로 초안을 전송합니다.",
   "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
   "referenceNodeEditorKeys": "Save the open file.",
-  "referenceEditorGroupKeys": "Move between tabs, cycle tabs, focus a group by number, or close the menu.",
+  "referenceEditorGroupKeys": "Move between tabs, cycle tabs, close a tab, focus a group by number, or close the menu.",
   "referenceDesktopResizeKeys": "패널을 높이거나 낮추기.",
   "referenceDesktopTerminalSearchKeys": "터미널 찾기 일치 항목 사이를 이동하거나 찾기 막대를 닫기.",
   "referenceDesktopProblemsKeys": "문제를 이동하고 선택한 항목 열기.",

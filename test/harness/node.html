@@ -396,6 +396,9 @@
               type: 'tag',
               values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'],
             },
+            // A line number of one digit is text like any other: axe decides it instead of
+            // answering that one character is too short to tell.
+            checks: { 'color-contrast': { options: { ignoreLength: true } } },
           })
           const normalize = (findings) =>
             findings.map((finding) => ({
@@ -405,8 +408,9 @@
               nodes: finding.nodes.map((node) => ({
                 target: node.target,
                 summary: node.failureSummary ?? '',
-                reasons: [...node.any, ...node.all, ...node.none].map(
-                  (reason) => reason.messageKey,
+                // Why axe could not decide, as keys (bgOverlap, …), as the main harness reads them.
+                reasons: [...node.any, ...node.all, ...node.none].flatMap((check) =>
+                  check.data?.messageKey === undefined ? [] : [check.data.messageKey],
                 ),
               })),
             }))

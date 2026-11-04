@@ -1238,7 +1238,7 @@ export const EN = {
     'Move between files, expand or collapse a folder, or open the active file.',
   referenceNodeEditorKeys: 'Save the open file.',
   referenceEditorGroupKeys:
-    'Move between tabs, cycle tabs, focus a group by number, or close the menu.',
+    'Move between tabs, cycle tabs, close a tab, focus a group by number, or close the menu.',
   referenceDesktopResizeKeys: 'Make the panel taller or shorter.',
   referenceDesktopTerminalSearchKeys:
     'Move between the terminal find matches, or close the find bar.',

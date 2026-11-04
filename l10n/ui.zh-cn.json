@@ -1007,7 +1007,7 @@
   "referenceSendKeys": "使用useCtrlEnterToSend选择的操作发送草稿。",
   "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
   "referenceNodeEditorKeys": "Save the open file.",
-  "referenceEditorGroupKeys": "Move between tabs, cycle tabs, focus a group by number, or close the menu.",
+  "referenceEditorGroupKeys": "Move between tabs, cycle tabs, close a tab, focus a group by number, or close the menu.",
   "referenceDesktopResizeKeys": "将面板调高或调低。",
   "referenceDesktopTerminalSearchKeys": "在终端查找匹配项之间移动，或关闭查找栏。",
   "referenceDesktopProblemsKeys": "浏览问题并打开所选问题。",

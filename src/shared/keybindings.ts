@@ -275,6 +275,7 @@ export const WEBVIEW_KEYBINDINGS = {
       text: { ui: 'referenceEditorGroupKeys' },
     },
     close: { keys: [{ key: 'Escape' }], text: { ui: 'referenceEditorGroupKeys' } },
+    closeTab: { keys: [{ key: 'Delete' }], text: { ui: 'referenceEditorGroupKeys' } },
     cycleNext: {
       keys: [{ key: 'PageDown', primary: true, alt: false }],
       text: { ui: 'referenceEditorGroupKeys' },

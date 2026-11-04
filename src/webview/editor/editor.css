@@ -307,6 +307,12 @@
   cursor: pointer;
 }
 
+/* High contrast themes set the selection's background without its text, whose fallback is white. */
+:is(.vscode-high-contrast, .vscode-high-contrast-light) :is(.ms-editor-status, .ms-editor-menu) {
+  --ms-selection: var(--ms-accent);
+  --ms-on-selection: var(--ms-on-accent);
+}
+
 .ms-editor-status button[aria-pressed='true'] {
   background: var(--ms-selection, var(--vscode-editor-selectionBackground, transparent));
   color: var(--ms-on-selection, var(--vscode-editor-foreground, var(--vscode-foreground)));
@@ -333,7 +339,6 @@
 
 .ms-editor-tab:focus-visible,
 .ms-editor-tool:focus-visible,
-.ms-editor-tab-close:focus-visible,
 .ms-editor-breadcrumbs button:focus-visible,
 .ms-editor-menu button:focus-visible,
 .ms-editor-status button:focus-visible {

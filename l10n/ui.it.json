@@ -1021,7 +1021,7 @@
   "referenceSendKeys": "Inviare la bozza con il gesto scelto da useCtrlEnterToSend.",
   "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
   "referenceNodeEditorKeys": "Save the open file.",
-  "referenceEditorGroupKeys": "Move between tabs, cycle tabs, focus a group by number, or close the menu.",
+  "referenceEditorGroupKeys": "Move between tabs, cycle tabs, close a tab, focus a group by number, or close the menu.",
   "referenceDesktopResizeKeys": "Rendi il pannello più alto o più basso.",
   "referenceDesktopTerminalSearchKeys": "Spostarsi tra le occorrenze trovate nel terminale o chiudere la barra di ricerca.",
   "referenceDesktopProblemsKeys": "Spostarsi tra i problemi e aprire quello selezionato.",

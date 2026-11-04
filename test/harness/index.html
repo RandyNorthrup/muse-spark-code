@@ -551,6 +551,9 @@
       // a table it refused is reported so, and the page would otherwise be
       // checked in English as if it were translated.
       const webviewErrors = []
+      // What the webview reported on any page, for a page that ends without a result: a panel that
+      // refused its state stays on its first screen, and only the refusal names the field.
+      const webviewSaid = []
       let hasWebviewReady = false
       let hasScheduleHarnessMounted = false
       const scenarioName = new URLSearchParams(location.search).get('scenario')
@@ -1531,6 +1534,7 @@
               break
             }
             case 'webviewError': {
+              webviewSaid.push(message.message)
               if (harnessL10n.lang !== undefined) {
                 webviewErrors.push(`?lang=${harnessL10n.lang}: the webview: ${message.message}`)
               }
@@ -2638,6 +2642,7 @@
                       provider: 'meta',
                       pays: 'key',
                     },
+                    worker: true,
                     toolCalling: true,
                     contextWindow: 131072,
                     imageInput: true,
@@ -8190,7 +8195,11 @@
               writeAxeResult({ ...result, harnessErrors })
             },
             (error) => {
-              writeAxeResult({ error: String(error) })
+              writeAxeResult({
+                error: [String(error), ...webviewSaid.map((said) => `the webview said: ${said}`)].join(
+                  '; ',
+                ),
+              })
             },
           )
       }

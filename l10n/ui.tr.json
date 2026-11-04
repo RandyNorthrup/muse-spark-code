@@ -1014,7 +1014,7 @@
   "referenceSendKeys": "Taslağı useCtrlEnterToSend ile seçilen hareketle gönderin.",
   "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
   "referenceNodeEditorKeys": "Save the open file.",
-  "referenceEditorGroupKeys": "Move between tabs, cycle tabs, focus a group by number, or close the menu.",
+  "referenceEditorGroupKeys": "Move between tabs, cycle tabs, close a tab, focus a group by number, or close the menu.",
   "referenceDesktopResizeKeys": "Paneli daha uzun veya daha kısa yap.",
   "referenceDesktopTerminalSearchKeys": "Terminal bulma eşleşmeleri arasında gezin veya bulma çubuğunu kapat.",
   "referenceDesktopProblemsKeys": "Sorunlar arasında gezin ve seçiliyi aç.",
