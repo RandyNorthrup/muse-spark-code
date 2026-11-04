@@ -422,12 +422,7 @@ export function createTeamProcessLifetime(options: {
           // Confirmation/journal failure must not hide a child whose retirement is uncertain.
           failedChildren.add(launched)
           lifecycle.retire()
-          try {
-            await launched.retire()
-          } catch (error_: unknown) {
-            // Still held in failedChildren for dispose; what stopped the launch is what is said.
-            if (!isDeadlinePassed(error_)) throw error_
-          }
+          await retireInTime(launched)
           throw error
         }
       })()
@@ -492,6 +487,15 @@ const isGoingFile = (error: unknown): boolean =>
   isMissingPath(error) || errnoCode(error) === 'ENODEV'
 
 const isDeadlinePassed = (error: unknown): boolean => error instanceof DeadlineError
+
+/** A failed launch's child: one slow to go stays for dispose, and what stopped the launch is said. */
+async function retireInTime(launched: Pick<ContainedTeamChild, 'retire'>): Promise<void> {
+  try {
+    await launched.retire()
+  } catch (error: unknown) {
+    if (!isDeadlinePassed(error)) throw error
+  }
+}
 
 /** Where a process's membership cannot be read because it has gone: nothing to say about it yet. */
 const isProcessGone = (error: unknown): boolean =>
@@ -1316,10 +1320,10 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
                 // A helper already gone has nothing to stop: its close is what is waited for.
                 const stopping =
                   heldCancellation ?? (child.exitCode === null ? send?.('STOP') : undefined)
-                void stopping?.catch((error: unknown) => {
-                  if (child.exitCode === null)
-                    reject(error instanceof Error ? error : new Error(String(error)))
-                })
+                const rejectWhileRunning = (error: Error): void => {
+                  if (child.exitCode === null) reject(error)
+                }
+                void stopping?.catch(rejectWhileRunning)
               }),
               NATIVE_CONFIRM_MS,
               'TEAM_WINDOWS_RETIREMENT_TIMEOUT',

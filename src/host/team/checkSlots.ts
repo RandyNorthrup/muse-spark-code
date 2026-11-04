@@ -40,8 +40,8 @@ import { runnerEnvironment } from '../../core/runners/runnerConfig'
 import { isSamePath } from '../../core/paths'
 import {
   GIT_METADATA_OPTIONS,
+  TEAM_CHECK_HOST_BUSY,
   TEAM_LOAD_SAMPLE_MS,
-  TEAM_PROCESS_MODEL_TEXT,
   UI_TEXT,
 } from '../../shared/constants'
 import { canonicalPath, isMissingPath } from '../canonicalPath'
@@ -235,7 +235,7 @@ export class CheckSlots {
     const deadline = performance.now() + job.timeoutMs
     while (this.deps.isHostBusy()) {
       const left = deadline - performance.now()
-      if (left <= 0) throw new Error(TEAM_PROCESS_MODEL_TEXT.hostCheckBusy)
+      if (left <= 0) throw new Error(TEAM_CHECK_HOST_BUSY)
       await delay(Math.min(left, TEAM_LOAD_SAMPLE_MS), undefined, { signal: job.signal })
       this.admit(job)
     }

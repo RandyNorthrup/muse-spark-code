@@ -10,7 +10,11 @@
 import { setTimeout as delay } from 'node:timers/promises'
 import type { TeamAttempt } from '../../shared/team'
 import { fill } from '../../shared/l10n/text'
-import { TEAM_LOAD_SAMPLE_MS, TEAM_PROCESS_MODEL_TEXT } from '../../shared/constants'
+import {
+  TEAM_CHECK_HOST_BUSY,
+  TEAM_LOAD_SAMPLE_MS,
+  TEAM_PROCESS_MODEL_TEXT,
+} from '../../shared/constants'
 import type { CheckProcess } from './checkSlots'
 import type { Retirement, TeamLaunchRequest, TeamProcessLifetime } from './processLifetime'
 
@@ -23,6 +27,9 @@ const CHECK_LAUNCH_ATTEMPTS = 3
 
 const hasCode = (error: unknown, code: string): boolean =>
   error instanceof Error && error.message === code
+const isHostBusy = (error: unknown): boolean => hasCode(error, 'TEAM_HOST_BUSY')
+const isUnconfirmed = (error: unknown): boolean => hasCode(error, 'TEAM_CONFIRMATION_TIMEOUT')
+const isLoadFailure = (error: unknown): boolean => isHostBusy(error) || isUnconfirmed(error)
 
 /**
 A check's launch, on a machine under load. The command is held until its launch is confirmed, so one
@@ -40,21 +47,21 @@ async function launchUnderLoad(
   let attempts = 0
   for (;;) {
     signal?.throwIfAborted()
+    let failure: unknown
     try {
       attempts += 1
       return await lifetime.launch(launch)
     } catch (error: unknown) {
-      if (hasCode(error, 'TEAM_HOST_BUSY')) {
-        const left = deadline - performance.now()
-        if (left <= 0) throw new Error(TEAM_PROCESS_MODEL_TEXT.hostCheckBusy, { cause: error })
-        await delay(Math.min(left, TEAM_LOAD_SAMPLE_MS), undefined, { signal })
-      } else if (
-        !hasCode(error, 'TEAM_CONFIRMATION_TIMEOUT') ||
-        attempts >= CHECK_LAUNCH_ATTEMPTS
-      ) {
-        throw error
-      }
+      if (!isLoadFailure(error)) throw error
+      failure = error
     }
+    if (isUnconfirmed(failure)) {
+      if (attempts >= CHECK_LAUNCH_ATTEMPTS) throw failure
+      continue
+    }
+    const left = deadline - performance.now()
+    if (left <= 0) throw new Error(TEAM_CHECK_HOST_BUSY, { cause: failure })
+    await delay(Math.min(left, TEAM_LOAD_SAMPLE_MS), undefined, { signal })
   }
 }
 
