@@ -86,8 +86,8 @@ happened, not what was planned; superseded entries are kept.
   error while preparing a team session was reported to the editor as a team refusal, with
   its raw text. Only the team's own sentences are now.
 - **One failed save of the team board no longer stops the ones after it**, and a huge
-  stored team file is refused by reading only what is needed. The agent also waits for a
-  stopped team worker to finish before it exits.
+  stored team file is refused by reading only what is needed. The agent also gives a
+  stopped team worker up to ten seconds to finish before it exits.
 - **A screen recording's folder cannot lead out of the recording folder.** A link under
   it that goes elsewhere is refused, as a final link always was; a link that stays inside
   still works.
