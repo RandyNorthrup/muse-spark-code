@@ -226,6 +226,120 @@ The section above is what the case did inside its own 5 s. The samples now sit i
 
 **The whole file on Windows, this shape:** exit 0, 17 passed, hook 2,546 ms, samples 20.6, 20.6, 19.8, 20.3, 24.0, median 20.6.
 
+## CC-WINSHARD: a control for the Stop test, and where Windows' time went
+
+Hosted run 41848189260 on `cf7014723c`: the Stop test failed its median on hosted macOS, shard 14 was cancelled at its 20 minutes, and shard 8 took 16 minutes against 7.
+
+### 1. Stop on hosted macOS
+
+Samples 73.9, 231.8, 136.7, 169.5, 55.7, median 136.7, on a shard that runs its files one at a time. As it stood, the test could not tell a poor instrument from a slow surface.
+
+**What the case does now.** Five controls between the five real samples, in the same Chrome on the same page, nothing rendering: the same 5 ms interval and the same longest gap, 250 ms each. `Stop samples, in ms, Chrome: real ...; controls ...; hook ... ms` goes to the output on every run, passing or failing, so the next hosted run gives macOS's baseline. The case asserts two things, both printing both sets:
+
+1. **The median of the controls is below 100.** Otherwise: `the machine alone misses the bound, so nothing was measured`.
+2. **The median of the real samples less the median of the controls is below 100.** The bound stays.
+
+Together those mean a real median of 200 ms or more never passes.
+
+**Two choices of mine, for the coordinator to overrule:**
+
+- **The control clicks nothing.** A slow Stop handler is what the real samples are there to catch, and a control clicking the same handler would subtract it away.
+- **The first assertion is not in the brief.** Subtraction alone cannot meet "a stall in the controls must not hide a stall in the real samples": real 158.8 less control 155.3 is 3.5. With it, that run is red in its own words. **The cost: if hosted macOS's controls come back at 100 ms or more, the case stays red, for a reason it names.**
+
+**Is subtracting the wrong shape? On this data it is not wrong, and it does little.** Real Linux Chromium, tests pinned to 4 CPUs, medians in ms, the control as long as the real sample before it. Two runs of the 35 were lost to a 3 s wait.
+
+| Condition                  | Runs | Real       | Control, full length | Control, first 250 ms | Real less control |
+| -------------------------- | ---- | ---------- | -------------------- | --------------------- | ----------------- |
+| Quiet                      | 3    | 22 to 24   | 5                    | 5                     | 17 to 18          |
+| 4 busy loops               | 3    | 27 to 28   | 9                    | 7 to 9                | 18 to 19          |
+| 8 busy loops               | 2    | 39 to 41   | 10                   | 9 to 10               | 29 to 30          |
+| 12 busy loops              | 3    | 36 to 41   | 9 to 13              | 8 to 10               | 26 to 32          |
+| 16 busy loops              | 3    | 45 to 64   | 11 to 12             | 10 to 12              | 33 to 52          |
+| Chrome's 4x throttle       | 3    | 40 to 45   | 6 to 7               | 6                     | 33 to 39          |
+| Chrome's 6x throttle       | 3    | 55 to 57   | 7 to 12              | 6 to 8                | 43 to 49          |
+| A real 150 ms stall, quiet | 3    | 159        | 5                    | 5                     | 154               |
+| The stall, 8 loops         | 3    | 166 to 168 | 9 to 10              | 8 to 10               | 156 to 158        |
+| The stall, 4x throttle     | 3    | 162 to 164 | 7 to 10              | 6 to 7                | 154 to 156        |
+| The stall, 6x throttle     | 2    | 164 to 166 | 8 to 13              | 7                     | 153 to 156        |
+
+- **It separates cleanly:** 17 to 52 with no stall, 153 to 158 with one.
+- **The control barely moves with load, and the real samples do.** A timer that mostly sleeps wakes promptly on a busy CPU; work that has to run stretches. So subtraction removes 5 to 13 ms here and does not cancel a slow machine. **What it would rescue on macOS is timer jitter, not a slow CPU.** If macOS's controls come back low and its real samples stay high, the honest reading is that the longest task really is long there, not that the instrument is poor. Only the hosted run can say which.
+- **Length:** 250 ms reads the same as the full length here. An as-long-as-the-sample control took the hook past 10 s from 4 loops, so it is 250 ms. Spikier noise on macOS would be under-read by a window this short, which leans red, not green.
+- **On Windows my earlier 4x throttle read differently:** its quiet gap reached 61 to 137 ms (the CC-STOPSHAPE table). So the control is not low everywhere.
+
+**Drills on this shape,** real Chrome on Windows, each written back with sha256 compared. A real stall is 150 ms in `StopChip.tsx` at a sample's first click; a control's stall is in the test's control.
+
+| Break                                 | Exit  | Real, ms                          | Controls, ms                      | What it says                                             |
+| ------------------------------------- | ----- | --------------------------------- | --------------------------------- | -------------------------------------------------------- |
+| All five real stalled                 | 1     | 160.1, 159.0, 158.8, 158.9, 159.0 | 6.6, 6.5, 5.9, 6.0, 6.3           | real less control, 152.7                                 |
+| Three of five real                    | 1     | 159.8, 159.1, 158.8, 16.2, 24.0   | 6.1, 6.5, 6.0, 6.1, 6.1           | 152.7                                                    |
+| One real                              | 0     | 160.5, 18.8, 17.0, 24.6, 21.7     | 6.7, 6.1, 6.0, 6.0, 6.1           | passes                                                   |
+| None, restored                        | 0     | 21.8, 20.0, 22.2, 22.2, 20.8      | 6.1, 6.8, 6.9, 6.0, 6.1           | passes                                                   |
+| All real, two controls at 150 ms      | 1     | 160.4, 159.1, 158.8, 158.9, 158.8 | 155.3, 155.6, 6.1, 6.0, 6.1       | 152.8: **not hidden**                                    |
+| All real, three controls at 150 ms    | 1     | 160.6, 159.4, 158.8, 158.7, 158.9 | 156.3, 156.0, 155.6, 6.8, 6.0     | the machine alone: **not hidden**                        |
+| All real, five controls at 150 ms     | 1     | 160.4, 159.1, 159.2, 159.2, 158.7 | 155.3, 155.1, 155.2, 155.1, 157.0 | the machine alone: **not hidden**                        |
+| No real, five controls at 150 ms      | 1     | 23.5, 22.0, 21.4, 21.8, 23.9      | 155.5, 156.7, 156.6, 157.0, 155.2 | the machine alone: red with nothing wrong in the product |
+| No real, five controls at 60 ms       | 0     | 21.5, 21.7, 24.3, 24.0, 20.8      | 65.2, 66.8, 66.8, 65.8, 65.5      | passes                                                   |
+| **All real, five controls at 60 ms**  | **0** | 159.7, 158.6, 158.5, 158.6, 158.5 | 65.3, 65.4, 66.6, 64.9, 65.3      | **passes: hidden**                                       |
+| A real 200 ms, five controls at 90 ms | 1     | 210.3, 208.7, 208.6, 208.7, 208.6 | 97.1, 95.6, 95.4, 95.4, 95.0      | 113.3                                                    |
+
+**So what a stall in the controls does:** in up to two of five, nothing. In three or more at 100 ms or over, the case is red and says the machine alone misses. **In three or more under 100 ms it does hide a real stall, of up to 100 ms plus what the controls read: that is what subtracting is, and the row in bold shows it.** It cannot be closed while the credit stands. The printed line shows it on every run.
+
+**The hook against its 10 s.** Linux, the same pinned load table, the suite's global setup left out. "Before" is CC-STOPSHAPE2's. Two batches, the second with nothing else of mine running but another lane's build holding the PC at 80 to 100%.
+
+| Busy loops | Before, ms                     | With controls, alone, ms         | With controls, whole file, ms |
+| ---------- | ------------------------------ | -------------------------------- | ----------------------------- |
+| 0          | 2,368 to 3,205                 | 3,963 to 4,014                   | 4,476                         |
+| 4          | 5,663 to 5,792                 | 7,026 to 7,659                   | 8,132                         |
+| 8          | 5,807 to 6,435                 | 7,327 to 9,856                   | 7,693, 8,962                  |
+| 12         | 6,445 to 9,075                 | 7,385, 8,378, **four timed out** | 9,938, **one timed out**      |
+| 16         | 9,099 to 9,727, then timed out | **all six timed out**            | **both timed out**            |
+
+**The controls move the first miss from 16 loops to 12.** At 16 other cases in the file time out too; at 12 the hook is the first to go. A hook timeout prints how far it got, for instance `stopped in sample 4, after: real 68.6, 47.3, 47.5; controls 8.5, 9.3, 9.3`.
+
+### 2. Windows time
+
+**`judgeP2Delivery.test.ts`, 327 s on hosted Windows beyond its own 12 s, in both logs.** Timed spawn by spawn on this PC, while the file is collected:
+
+| Spawn                                     | Runs before | ms before   | Runs after | ms after   |
+| ----------------------------------------- | ----------- | ----------- | ---------- | ---------- |
+| `vsce ls`                                 | 2           | 93,685      | 2, staged  | 9,687      |
+| `check-bundle-split`                      | 5           | 42,487      | 3          | 26,239     |
+| `package-acp`                             | 1           | 2,199       | 1          | 1,594      |
+| `check-bundle-size`, `check-host-globals` | 20          | 2,882       | 20         | 2,536      |
+| **Total**                                 | **28**      | **141,253** | **26**     | **40,056** |
+
+- **`vsce ls` was two thirds of it.** Its `.vscodeignore` filter matches every file it walks against every line, compiling the glob each time: 12,000 files by 245 lines, 98% of its time in `minimatch`. It now lists a stage of the real `package.json`, `.vscodeignore` and `dist/`, as `scripts/gen-lazy-registry.mjs` already does; `dist/` is the only folder these cases read. The 199 `dist/` lines came out identical to the repository's. That quadratic is vsce's, worth reporting upstream; it is not reported yet.
+- **Three planted split runs are one.** The whole-report case now asserts the sum of all three families' problems, which proves no mutation hid another. Each case still asserts its own message.
+- **Not cut:** the green split run before and the one after, which are at different moments on purpose. About 3.5 of each split run's 7 s is `siblingExportProblems` parsing with TypeScript.
+- **Drills:** a family left out of the shared run, red 47 cases, green 104. `!dist/judgeP2.js` out of the real allowlist, red 2 cases, green 104. Both exit 1 then 0, restored byte-exact.
+- **Expect, by proportion and not measured:** 327 s to about 93 s on hosted Windows.
+
+**`paidMoneyStructure.test.ts`, 48 s beyond its own.** The guard walks a real TypeScript program over all of `src`, and it asked every variable's type before reading its name, though only a money-hinted name is ever judged: 10 of 23 s here. It reads the name first. **23.3 s to 12.4 s, with `flagged`, `numeric` and `files` byte-identical** (70, 201, 2,840). Drill: a money-named variable never judged, red 2 cases, green 46.
+
+**Shard 14** was cancelled at 20 minutes, after 13.2 and 18.7. The cuts take about 4 to 5 minutes off it, by the same proportion. The rest of that run's rise is below: it was on the new image.
+
+**Shard 8, 16 minutes against 7. It does not read as one slow runner, and it does not read as our code.** The evidence, from the logs of all sixteen Windows shards and the same shard on the two runs before (read-only):
+
+|                                                     | This run, shard 8    | Run 41824926474 | Run 41794406176 |
+| --------------------------------------------------- | -------------------- | --------------- | --------------- |
+| Runner image                                        | **20261103.298.1**   | 20261030.294.1  | 20261030.294.1  |
+| PowerShell, C#, Chrome cold starts, s               | **26.5, 18.5, 49.0** | 3.5, 2.3, 5.4   | 2.5, 1.6, 3.6   |
+| `passes an ordinary burst of 200 quick spawns`      | **15.0, the limit**  | 2.4             | 2.4             |
+| `refuses children past its process cap`             | **15.0, the limit**  | 3.9             | 3.7             |
+| `ends a spawn flood`                                | **15.0, the limit**  | 0.9             | 1.0             |
+| `refuses a boot dir whose path contains whitespace` | **35.3**             | 0.4             | 0.7             |
+| `runtimePanelSessions`, file                        | **28.3**             | 3.9             | 6.9             |
+| `nodeOsSetupServer`, file                           | **9.4**              | 0.3             | 0.4             |
+| In-process: required bundles, s                     | **12.1**             | 13.9            | 12.7            |
+| In-process: VSIX file list, s                       | **4.0**              | 5.2             | 5.2             |
+| Files over 1 s, ratio to the run before, median     | **0.99**             |                 |                 |
+
+- **Its CPU was not slow.** Bundling and listing were as fast as ever or faster, and the median file over a second did not move. What moved is what starts processes: `hostname.exe` two hundred times, `sh.exe`, and the cold starts before any test file ran. So the fork file's order against `teamCheckProof` was not the cause. The file just before it was `teamPanel` at 119 ms.
+- **It reads as the new runner image.** In this run all eleven shards on 20261030.294.1 cold-started PowerShell in 3.0 to 6.1 s and C# in 2.0 to 3.8 s. The five on 20261103.298.1 took 3.7 to 26.5 s and 5.6 to 18.5 s, in the same regions (`westus`: 2.3 s and 2.2 s on the old image, 18.5, 11.8 and 10.8 on the new). Its job times against the run before: shard 8, 7.2 to 16.0 minutes; 13, 9.2 to 13.3; 14, 13.2 to 20.1; 16, 7.3 to 7.9; 11, 8.2 to 6.1. The old-image shards held steady.
+- **Not one slow machine:** three of five slowed badly, and shard 11 on the same image was faster than its last run. In shard 8 the slowness faded: from about 300 s of test time, files read x0.6 to x1.3.
+- **Why that image starts processes slowly, I cannot say from a log.** A scanner, or a disk warming on first read, would both look like this. No limit was raised, and nothing here is a fix for it.
+
 ## A correction to `cc-small3.md`
 
 That record said my drill runner "keeps everything now". It did not: the patch had failed silently, as I found starting this round. The two reds it
@@ -313,7 +427,7 @@ One after another on `49471a4ea1`, status lines 0, Node 22.19.0 (CI's major), no
 
 ## Not proven, and why
 
-- **The hosted runs.** Local Windows and WSL are not hosted runners. A is for hosted CI to confirm. **B has its shape now (CC-STOPSHAPE2 below), and a way to go red by time:** the hook's own 10 s on POSIX, at a load where other cases in the file already time out.
+- **The hosted runs.** Local Windows and WSL are not hosted runners. A is for hosted CI to confirm. **B has its shape now (CC-WINSHARD below), with two ways to go red that are not the product:** the hook's own 10 s on POSIX, and a machine whose controls alone miss the bound.
 - **The hosted Windows landing's real duration.** Only "over 3 s" is known. The case's 15 s limit still applies, and a landing past it fails by name.
 - **The 277 ms itself:** never reproduced, on Windows or on Linux Chromium. **The hook on hosted macOS and Linux inside its 10 s:** arithmetic only, until hosted CI runs it.
 - **The two old unread reds** above.
