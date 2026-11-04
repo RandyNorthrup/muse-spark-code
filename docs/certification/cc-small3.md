@@ -187,7 +187,8 @@ is not a hosted runner.
 session…` at 3,920 ms. T8's first green: `asks for a merge with the real diff…` at 23,227 ms and `lands the change on the editor's
 approval` at 20,903 ms, where each takes about 0.7 s, past Windows' 15 s case limit, while other lanes were building on this PC. None of
 those cases' paths is what this lane changed, and T8's two run before the case it added. My drill runner kept only their names until then,
-so **their messages are gone and their cause is not known;** it keeps everything now. Every other run of the file, more than 30 on Windows
+so **their messages are gone and their cause is not known.** (This line first said the runner "keeps everything now". It did not: that patch
+had failed silently. It was really made in the next round, and `cc-int12fix.md` says so.) Every other run of the file, more than 30 on Windows
 and 2 on Linux, showed no failure but the one its drill asked for. A slow PC is the likely reading, not a shown one, and hosted CI is what
 will say.
 
