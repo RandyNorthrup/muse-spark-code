@@ -185,9 +185,12 @@ function declarationName(checker: ts.TypeChecker, node: ts.Node): ts.Node | unde
     ts.isGetAccessorDeclaration(node)
   )
     return node.name
+  // The name first: only a money-hinted name is ever judged, and asking every initializer's
+  // type is a whole-tree inference, 10 of this walk's 23 s here and 48 s on a hosted runner.
   if (
     ts.isVariableDeclaration(node) &&
     node.initializer !== undefined &&
+    MONEY_HINT.test(keyOf(checker, node.name) ?? '') &&
     (ts.isNumericLiteral(node.initializer) ||
       (ts.isPrefixUnaryExpression(node.initializer) &&
         ts.isNumericLiteral(node.initializer.operand)) ||
