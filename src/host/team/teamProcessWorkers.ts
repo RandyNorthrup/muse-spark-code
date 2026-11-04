@@ -12,6 +12,7 @@
 import { existsSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { availableParallelism } from 'node:os'
+import { rm } from 'node:fs/promises'
 import path from 'node:path'
 import { usableReply } from '../../core/turns/usableReply'
 import {
@@ -92,7 +93,7 @@ import {
 import { checkProcessOver, proofOf } from './checkProcess'
 import type { TeamLandingPolicy } from './teamLandingEntry'
 import { checkTimeoutMs } from '../../core/verify/checkCommands'
-import type { CheckSlots } from './checkSlots'
+import type { CheckProcess, CheckSlots } from './checkSlots'
 import { createLoadGuard } from './loadGuard'
 import {
   startNativeTeamLifetime,
@@ -483,33 +484,75 @@ export function createProcessTeamPorts(deps: TeamProcessWorkersDeps): ProcessTea
   // built on the first `run_checks`, through the runners runtime, over this
   // team's own process lifetime. The setup is read once, when they are built.
   let checkSlots: Promise<CheckSlots> | undefined
+  const governedSlots = async (place: {
+    readonly root: string
+    readonly count: number
+    readonly run: CheckProcess
+  }): Promise<CheckSlots> => {
+    const shell = checkShell(deps)
+    const { createTeamRuntime } = await import('../../core/team/teamEntry')
+    const runners = await createTeamRuntime(UI_TEXT, uiLocale()).loadRunners()
+    const setup = deps.checkSetup()
+    return await runners.createGovernedCheckSlots({
+      file: 'git',
+      run: place.run,
+      env: deps.baseEnv(),
+      root: place.root,
+      repositoryRoot: requireRepository(deps),
+      platform: deps.platform,
+      count: place.count,
+      setupCommand: setup.setupCommand,
+      cacheKey: setup.cacheKey,
+      installPaths: TEAM_CHECK_INSTALL_PATHS,
+      shell: shell.file,
+      shellArgs: shell.args,
+      isTrusted: deps.isTrusted,
+      isHostBusy: () => loadGuard?.isHostBusy() ?? false,
+    })
+  }
   const buildCheckSlots = async (): Promise<CheckSlots> => {
     try {
-      const shell = checkShell(deps)
-      const { createTeamRuntime } = await import('../../core/team/teamEntry')
-      const runners = await createTeamRuntime(UI_TEXT, uiLocale()).loadRunners()
-      const setup = deps.checkSetup()
-      return await runners.createGovernedCheckSlots({
-        file: 'git',
-        run: checkProcessOver(await ensureLifetime()),
-        env: deps.baseEnv(),
+      return await governedSlots({
         root: path.join(await storage(), 'check-slots'),
-        repositoryRoot: requireRepository(deps),
-        platform: deps.platform,
         // Folders are made on use; the machine's own parallelism is the most that can run.
         count: availableParallelism(),
-        setupCommand: setup.setupCommand,
-        cacheKey: setup.cacheKey,
-        installPaths: TEAM_CHECK_INSTALL_PATHS,
-        shell: shell.file,
-        shellArgs: shell.args,
-        isTrusted: deps.isTrusted,
-        isHostBusy: () => loadGuard?.isHostBusy() ?? false,
+        run: checkProcessOver(await ensureLifetime()),
       })
     } catch (error: unknown) {
       // A build that failed is tried again by the next check.
       checkSlots = undefined
       throw error
+    }
+  }
+  /**
+  The folder a landing's checks run in. A shared slot goes back only on a container's proof that
+  the command's whole tree ended, and only a Windows job gives that every time: a process group
+  proves nothing, and a Linux scope is usually collected before a command that ended by itself can
+  be read. So on POSIX a landing takes a folder of its own, used for this landing and removed. A
+  folder never used again needs no proof, and the verdict is the exit code. Its setup runs each time.
+  */
+  const landingSlots = async (): Promise<{
+    readonly slots: CheckSlots
+    readonly done: () => Promise<void>
+  }> => {
+    if (deps.platform === 'win32')
+      return { slots: await (checkSlots ??= buildCheckSlots()), done: () => Promise.resolve() }
+    const run = checkProcessOver(await ensureLifetime())
+    const root = path.join(await storage(), 'landing-checks', randomUUID())
+    return {
+      slots: await governedSlots({
+        root,
+        count: 1,
+        run: async (request) => ({ ...(await run(request)), descendantsEnded: true }),
+      }),
+      done: async () => {
+        try {
+          await rm(root, { recursive: true, force: true })
+        } catch (error: unknown) {
+          // A folder left behind changes no verdict.
+          deps.log.warn(`A landing's check folder stayed: ${failureForLog(error)}`)
+        }
+      },
     }
   }
   const workerChecks = createWorkerChecks({
@@ -882,25 +925,31 @@ export function createProcessTeamPorts(deps: TeamProcessWorkersDeps): ProcessTea
   return {
     workers,
     runLandingChecks: async (folder, signal) => {
-      for (const check of deps.checks()) {
-        const slots = await (checkSlots ??= buildCheckSlots())
-        const result = await slots.run({
-          runId: randomUUID(),
-          cwd: folder,
-          command: check.command,
-          timeoutMs: checkTimeoutMs(check),
-          commandClass: 'declared',
-          labels: [],
-          preferredRunners: [],
-          lockfiles: [],
-          signal,
-          onOutput: () => {
-            // Only the verdict is kept: the person reads a check's output by running it.
-          },
-        })
-        if (result.exitCode !== 0) return { passed: false, failed: check.name }
+      const checks = deps.checks()
+      if (checks.length === 0) return { passed: true }
+      const { slots, done } = await landingSlots()
+      try {
+        for (const check of checks) {
+          const result = await slots.run({
+            runId: randomUUID(),
+            cwd: folder,
+            command: check.command,
+            timeoutMs: checkTimeoutMs(check),
+            commandClass: 'declared',
+            labels: [],
+            preferredRunners: [],
+            lockfiles: [],
+            signal,
+            onOutput: () => {
+              // Only the verdict is kept: the person reads a check's output by running it.
+            },
+          })
+          if (result.exitCode !== 0) return { passed: false, failed: check.name }
+        }
+        return { passed: true }
+      } finally {
+        await done()
       }
-      return { passed: true }
     },
     dispose: async () => {
       const started = lifetime

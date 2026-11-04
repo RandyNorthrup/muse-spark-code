@@ -10,6 +10,7 @@ import {
 } from '../../shared/constants'
 import type { MergeVersion } from '../../core/team/mergeRoutine'
 import { canonicalPath, isMissingPath } from '../canonicalPath'
+import { isTeamGitError } from '../../core/team/teamGit'
 import { isGitExitError, type GitProcess } from '../git'
 
 export interface SnapshotBlob {
@@ -67,6 +68,9 @@ const NO_PROGRAMS = [
 const AUTHOR = ['-c', 'user.name=Muse Spark Code', '-c', 'user.email=team@muse-spark-code.invalid']
 const NO_CONVERSION = '* -text -eol -filter -ident -working-tree-encoding -diff -merge\n'
 
+/** Git ran and refused, through either of the runners a staging copy is given. */
+const isGitFailure = (error: unknown): boolean => isGitExitError(error) || isTeamGitError(error)
+
 /** Git plumbing only; lifecycle launchers supply the real process via injection. */
 export class StagingCopy {
   private readonly env: NodeJS.ProcessEnv
@@ -99,6 +103,39 @@ export class StagingCopy {
       env: index === undefined ? this.env : { ...this.env, GIT_INDEX_FILE: index },
       ...(input !== undefined && { input }),
     })
+  }
+
+  /**
+  Each file's blob, of its raw bytes as `blob` takes them, or undefined for one no longer there. One
+  git process for the lot: a tree holds thousands of files, and a landing takes four snapshots.
+  */
+  private async fileBlobs(
+    root: string,
+    names: readonly string[],
+  ): Promise<readonly (string | undefined)[]> {
+    if (names.length > 0 && names.every((name) => !/[\r\n]/u.test(name))) {
+      try {
+        const listed = await this.run(
+          root,
+          ['hash-object', '-w', '--no-filters', '--stdin-paths'],
+          Buffer.from(names.map((name) => `${path.resolve(root, name)}\n`).join('')),
+        )
+        return listed.toString('utf8').trim().split('\n')
+      } catch (error: unknown) {
+        // A file that went away mid-way stops the whole list: they are read one at a time below.
+        if (!isGitFailure(error)) throw error
+      }
+    }
+    const oids: (string | undefined)[] = []
+    for (const name of names) {
+      try {
+        oids.push(await this.blob(root, await readFile(path.resolve(root, name))))
+      } catch (error: unknown) {
+        if (!isMissingPath(error)) throw error
+        oids.push(undefined)
+      }
+    }
+    return oids
   }
 
   public async gitDirectory(root: string): Promise<string> {
@@ -202,32 +239,39 @@ export class StagingCopy {
         ),
       )
       const updates: string[] = []
+      const gone = (name: string) => `0 ${'0'.repeat(head.length)}\t${name}\0`
+      const kept = (name: string, oid: string, mode: MergeVersion['mode']) => {
+        blobs.set(name, { oid, mode })
+        updates.push(`${mode} ${oid}\t${name}\0`)
+      }
+      const files: { readonly name: string; readonly mode: MergeVersion['mode'] }[] = []
       for (const name of names) {
         const target = path.resolve(root, name)
         const parent = await canonicalPath(path.dirname(target))
         const relative = path.relative(canonical, parent)
         if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative))
           throw new Error(UI_TEXT.checkpointFailed)
-        let bytes: Buffer
-        let mode: MergeVersion['mode']
         try {
           const info = await lstat(target)
           if (info.isSymbolicLink()) {
-            bytes = Buffer.from(await readlink(target))
-            mode = '120000'
+            kept(name, await this.blob(root, Buffer.from(await readlink(target))), '120000')
           } else {
             if (!info.isFile()) throw new Error(UI_TEXT.checkpointFailed)
-            bytes = await readFile(target)
-            mode = this.regularFileMode(name, info.mode, retainedModes)
+            files.push({ name, mode: this.regularFileMode(name, info.mode, retainedModes) })
           }
         } catch (error: unknown) {
           if (!isMissingPath(error)) throw error
-          updates.push(`0 ${'0'.repeat(head.length)}\t${name}\0`)
-          continue
+          updates.push(gone(name))
         }
-        const oid = await this.blob(root, bytes)
-        blobs.set(name, { oid, mode })
-        updates.push(`${mode} ${oid}\t${name}\0`)
+      }
+      const oids = await this.fileBlobs(
+        root,
+        files.map((entry) => entry.name),
+      )
+      for (const [at, entry] of files.entries()) {
+        const oid = oids[at]
+        if (oid === undefined) updates.push(gone(entry.name))
+        else kept(entry.name, oid, entry.mode)
       }
       await this.run(
         root,

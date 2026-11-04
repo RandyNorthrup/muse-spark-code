@@ -2,7 +2,7 @@
 // copy to the real process ports, whose governed check slots take a snapshot of it under the
 // window's real governor and run each command in a real process. Real git, real processes, the
 // native lifetime with its Windows job. The runner is the product's own, not a test's.
-import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -146,7 +146,7 @@ describe("the person's check commands over a team landing", () => {
       .map((line) => JSON.parse(line) as { cwd: string; read: string })
     expect(ran.map((entry) => entry.read)).toEqual(['after', 'after'])
     const person = await realpath(fixture.root)
-    for (const entry of ran) expect(await realpath(entry.cwd)).not.toBe(person)
+    for (const entry of ran) expect(entry.cwd).not.toBe(person)
     for (const file of BATCH)
       expect(await readFile(path.join(fixture.root, file), 'utf8')).toBe('before\n')
     expect(await landingStatuses(fixture.storage)).toEqual([])
@@ -160,5 +160,13 @@ describe("the person's check commands over a team landing", () => {
     for (const file of BATCH)
       expect(await readFile(path.join(fixture.root, file), 'utf8')).toBe('after\n')
     expect(await landingStatuses(fixture.storage)).toEqual(['landed'])
+    // Where no container proves an end, a landing's folder was its own and is gone with it.
+    const made = await readdir(path.join(rig().root, 'ports'))
+    expect(made.includes('check-slots')).toBe(process.platform === 'win32')
+    expect(
+      made.includes('landing-checks')
+        ? await readdir(path.join(rig().root, 'ports', 'landing-checks'))
+        : [],
+    ).toEqual([])
   }, 180_000)
 })
