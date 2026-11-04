@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { MakerEngine } from '../../src/host/maker/makerEngine'
@@ -62,7 +62,6 @@ async function harness(options?: {
   trusted?: boolean
   interactive?: boolean
   workspaceRoot?: string | undefined
-  env?: NodeJS.ProcessEnv
 }): Promise<EngineHarness> {
   const root = await mkdtemp(path.join(makerTempRoot(), 'mwe-'))
   roots.push(root)
@@ -142,7 +141,7 @@ async function harness(options?: {
     },
     log: quiet,
     platform: native.platform,
-    env: { ...native.env, ...options?.env },
+    env: native.env,
     packageRoot: native.packageRoot,
     dataDirectory: path.join(root, 'data'),
     workspaceRoot: workspace,
@@ -503,23 +502,6 @@ describe('window maker engine tools', () => {
     ).rejects.toThrow(UI_TEXT.makerTrustRequired)
     fixture.trusted.value = true
   })
-  it.runIf(process.platform === 'win32')(
-    'lists ports through Windows PowerShell’s own modules, whatever path the window inherited',
-    async () => {
-      // PowerShell 7's path lists its own copies of the core modules first, as this folder does.
-      const inherited = await mkdtemp(path.join(makerTempRoot(), 'mwe-modules-'))
-      roots.push(inherited)
-      await mkdir(path.join(inherited, 'CimCmdlets'))
-      await writeFile(
-        path.join(inherited, 'CimCmdlets', 'CimCmdlets.psm1'),
-        "function Get-CimInstance { [pscustomobject]@{ Name = 'Copy (COM999)'; PNPDeviceID = 'COPY\\1' } }\nExport-ModuleMember -Function Get-CimInstance\n",
-      )
-      const fixture = await harness({ env: { PSModulePath: inherited } })
-      await fixture.engine.setHardware(true, 'bench')
-      const listed = await fixture.engine.listPorts()
-      expect(listed.map((port) => port.port)).not.toContain('COM999')
-    },
-  )
   it('refuses status for an unknown machine', async () => {
     const fixture = await harness()
     await fixture.engine.setHardware(true, 'bench')

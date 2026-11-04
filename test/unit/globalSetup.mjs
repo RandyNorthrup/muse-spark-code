@@ -71,9 +71,8 @@ function warmWindowsPowerShell() {
 }
 /**
 The rest of each system's first starts, in whichever suite reaches them first. Windows: the
-compiler each process builds its birth reader with (processOwner.ts), and the port list itself:
-the same script under the same environment as the product's child, which the first warm-up was
-not (run 41738951665 read 457 ms for the class and makerWindowEngine still passed 15 s). macOS: the /usr/bin/python3 shim the serial helpers run under
+compiler each process builds its birth reader with (processOwner.ts), and the port list itself,
+the script under the environment the suites start it with. macOS: the /usr/bin/python3 shim the serial helpers run under
 (makerSerialAdapters passed 5 s there).
 */
 function warmSystemFirstStarts(root) {
@@ -96,20 +95,6 @@ function warmSystemFirstStarts(root) {
     shell.file,
     ['-NoProfile', '-NonInteractive', '-Command', WINDOWS_PORT_LIST_SCRIPT],
     shell.env,
-  )
-  // What a command without its module's name would be looked for through, on this machine.
-  const folders = spawnSync(
-    shell.file,
-    [
-      '-NoProfile',
-      '-NonInteractive',
-      '-Command',
-      String.raw`[Environment]::ExpandEnvironmentVariables([Environment]::GetEnvironmentVariable('PSModulePath', 'Machine')) -split ';' | ForEach-Object { $_ + ' = ' + @(Microsoft.PowerShell.Management\Get-ChildItem -LiteralPath $_ -Directory -ErrorAction SilentlyContinue).Count }`,
-    ],
-    { encoding: 'utf8', timeout: COLD_START_HUNG_MS, windowsHide: true },
-  )
-  process.stdout.write(
-    `Windows machine module folders: ${String(folders.stdout).trim().replaceAll(/\r?\n/gu, '; ')}\n`,
   )
 }
 /**

@@ -136,24 +136,17 @@ export function nativeSerial(deps: NativeSerialDeps) {
     }),
   }
   async function ports() {
-    // The one rule for a Windows PowerShell child (execGuard): its own module path, whatever
-    // path the window inherited: the list used to take this file and drop that environment.
-    const shell =
-      systemRoot !== undefined && deps.platform === 'win32'
-        ? windowsPowerShell(systemRoot, env)
-        : undefined
     return await listSerialPorts({
       platform: deps.platform,
       maxBytes: RUNTIME_MAKER_MAX_BYTES,
       maxPorts: RUNTIME_MAKER_MAX_ITEMS,
       maxAncestors: RUNTIME_MAKER_MAX_ITEMS,
       run: (file, args) =>
-        runProgram(
-          file,
-          args,
-          shell?.env ?? noWorkspaceChildEnvironment(deps.platform, env, realpathSync),
-        ),
-      ...(shell !== undefined && { powershell: shell.file }),
+        runProgram(file, args, noWorkspaceChildEnvironment(deps.platform, env, realpathSync)),
+      ...(deps.platform === 'win32' &&
+        systemRoot !== undefined && {
+          powershell: windowsPowerShell(systemRoot).file,
+        }),
     })
   }
   const active = new Set<AbortController>()
