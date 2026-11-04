@@ -173,6 +173,22 @@ describe('what a landing costs in git processes', () => {
   }, 300_000)
 })
 
+describe('a landing record larger than a settings file', () => {
+  // Long names make it large with few files. Windows has no room for them under its path limit.
+  it.runIf(process.platform !== 'win32')(
+    'still lands, past the 1 MiB other records keep to',
+    async () => {
+      const long = 'n'.repeat(200)
+      const files = Array.from({ length: 3200 }, (_, at) => `${long}-${String(at)}.txt`)
+      const fixture = await fixtureFor('task-long', files)
+      const { outcome } = await land(fixture)
+      expect(outcome.status).toBe('merged')
+      expect(await bytes(fixture, files.at(-1) ?? '')).toBe('after\n')
+    },
+    300_000,
+  )
+})
+
 describe('how a git command launches', () => {
   it('is a probe only when it cannot write, whatever options come first', () => {
     const prefix = ['--no-replace-objects', '-c', 'core.fsmonitor=', '-c', 'gc.auto=0']
