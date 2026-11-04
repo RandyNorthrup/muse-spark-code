@@ -85,7 +85,11 @@ describe('transcript scanning and key combos', () => {
     expect(scanDesktopTranscript('boot\nDESKTOP-READY\n', 'DESKTOP-READY')).toEqual({
       found: true,
       panic: null,
+      said: null,
     })
+    expect(
+      scanDesktopTranscript('boot\nM111QA-SESSION-FAIL hyprctl failed\nStopping\n', 'X').said,
+    ).toBe('M111QA-SESSION-FAIL hyprctl failed')
     const panicked = scanDesktopTranscript('Kernel panic - not syncing\n', 'X')
     expect(panicked.found).toBe(false)
     expect(panicked.panic).toContain('Kernel panic')

@@ -16,6 +16,7 @@ import { clearTimeout, setTimeout } from 'node:timers'
 import { isKvmAvailable } from '../../../../scripts/lib/osBootTest.mjs'
 import { sleep, stopProcessGroup } from './proc.mjs'
 
+const SESSION_FAILED_WORD = '-SESSION-FAIL '
 const PANIC_PATTERN = /kernel panic/i
 const X86_QEMU = 'qemu-system-x86_64'
 const AARCH64_QEMU = 'qemu-system-aarch64'
@@ -324,8 +325,12 @@ export async function connectQmp(socketPath, { timeoutMs = 30_000 } = {}) {
 
 /** Scan a serial transcript for a marker and a kernel panic. */
 export function scanDesktopTranscript(text, marker) {
-  const panic = text.split('\n').find((line) => PANIC_PATTERN.test(line)) ?? null
-  return { found: marker === undefined ? false : text.includes(marker), panic }
+  const lines = text.split('\n')
+  const panic = lines.find((line) => PANIC_PATTERN.test(line)) ?? null
+  // The guest's own account of a failed session, for a verdict that would otherwise say only that
+  // the machine powered off.
+  const said = lines.findLast((line) => line.includes(SESSION_FAILED_WORD))?.trim() ?? null
+  return { found: marker === undefined ? false : text.includes(marker), panic, said }
 }
 
 async function finish(outDir, result) {
@@ -442,7 +447,7 @@ export async function runDesktopBoot({
               break
             }
             if (exitCode !== undefined) {
-              reason = `eof (qemu exit ${String(exitCode)})`
+              reason = `eof (qemu exit ${String(exitCode)})${scanned.said === null ? '' : `, the guest said: ${scanned.said}`}`
               break
             }
             if (Date.now() >= deadline) {

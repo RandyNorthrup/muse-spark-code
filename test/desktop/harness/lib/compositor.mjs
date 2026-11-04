@@ -399,6 +399,21 @@ export async function startCompositorSession({
 }
 
 /**
+The session's clients, or false while Hyprland has not answered: hyprctl gives up after its own
+few seconds (exit 6, 'Hyprland IPC didn't respond in time'), which the wait for the outputs above
+already allows, and which software rendering on two emulated processors reaches (run 41738951665).
+Any other failure is still one, and the caller's deadline ends a compositor that never answers.
+*/
+async function clientsIfAnswered(session) {
+  try {
+    return await session.clients()
+  } catch (error) {
+    if (!String(error.message).includes("IPC didn't respond in time")) throw error
+    return false
+  }
+}
+
+/**
 Runs one scene client in the session: waits for its window, lets it
 settle, captures the named output, then stops the client group.
 */
@@ -415,7 +430,10 @@ export async function runSceneClient(
     beforeScreenshot,
   },
 ) {
-  const before = await session.clients()
+  const before = await waitFor(() => clientsIfAnswered(session), {
+    timeoutMs: readyTimeoutMs,
+    description: 'hyprctl answering clients',
+  })
   const child = spawn(command, args, {
     env: session.clientEnv(env),
     detached: true,
@@ -436,8 +454,8 @@ export async function runSceneClient(
             `the scene client exited (code ${String(child.exitCode)}) before opening a window: ${clientLog.trim()}`,
           )
         }
-        const now = await session.clients()
-        return now.length > before.length ? now : false
+        const now = await clientsIfAnswered(session)
+        return now !== false && now.length > before.length ? now : false
       },
       { timeoutMs: readyTimeoutMs, description: 'the scene client window' },
     )
