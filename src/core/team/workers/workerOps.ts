@@ -598,6 +598,17 @@ export async function sweepAbandonedReservations(
 const GIT_TIMEOUT_MS = 120_000
 const GIT_MAX_BUFFER_MIB = 256
 
+/** Git ran, and this is the exit it chose. */
+function isOwnGitExit(error: unknown): error is Error & { readonly code: number } {
+  return (
+    error instanceof Error &&
+    error.message === GOVERNED_COMMAND_FAILED &&
+    'code' in error &&
+    typeof error.code === 'number' &&
+    error.code >= 0
+  )
+}
+
 /** Binary-safe git through the governed contained launcher (first use loads it here). */
 export function processTeamGit(platform: NodeJS.Platform): TeamGit {
   const fallbackEnv = workerEnvironment(process.env, platform)
@@ -616,14 +627,7 @@ export function processTeamGit(platform: NodeJS.Platform): TeamGit {
       // Git's own exit is a git failure, and callers read it as an answer about the repository: no
       // such ref, or it differs. Anything else answers nothing: a helper that is missing, a launch
       // the governor refused, a child stopped before it exited. It keeps its own type and words.
-      if (
-        !(error instanceof Error) ||
-        error.message !== GOVERNED_COMMAND_FAILED ||
-        !('code' in error) ||
-        typeof error.code !== 'number' ||
-        error.code < 0
-      )
-        throw error
+      if (!isOwnGitExit(error)) throw error
       const stderr = 'stderr' in error && typeof error.stderr === 'string' ? error.stderr : ''
       throw new TeamGitError(error.code, stderr, args[0] ?? 'git')
     }
