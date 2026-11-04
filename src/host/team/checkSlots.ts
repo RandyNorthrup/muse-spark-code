@@ -54,8 +54,13 @@ export type CheckProcess = (request: {
 }) => Promise<{
   readonly exitCode: number
   readonly output: string
-  /** True only with the window launcher's container proof, never a PID, group exit or user decision. */
+  /**
+  True with the window launcher's container proof, never a PID or a user decision. For a folder used
+  once and never again, the group's end stands in: nothing is reused on it.
+  */
   readonly descendantsEnded: boolean
+  /** No one is left in the command's process group: proof of nothing that left it. */
+  readonly groupEnded?: boolean
   /** Collected separately; never log as received. */
   readonly stderr?: string
 }>
@@ -253,8 +258,9 @@ export class CheckSlots {
     const relative = path.relative(user, storage)
     const isInside =
       relative !== '..' && !path.isAbsolute(relative) && !relative.startsWith(`..${path.sep}`)
+    // A check runs in a copy, kept outside the person's repository. Nothing has been left running.
     if (isInside || isSamePath(copy, user, this.deps.platform)) {
-      throw new Error(UI_TEXT.teamTrafficNotices.uncertainAttempt)
+      throw new Error(UI_TEXT.teamRunners.testFailed)
     }
   }
 

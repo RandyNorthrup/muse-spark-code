@@ -659,7 +659,7 @@ export interface BridgeChecksDeps extends WorkerCheckRouting {
   /** Resolve existing files inside this caller's copy; omitted paths are its edited files. */
   readonly pathsFor: (paths: readonly string[] | undefined) => Promise<readonly string[]>
   /** M73 packing after the caller's hooks; no output is silently clipped. */
-  readonly pack: (results: readonly CheckResult[]) => Promise<unknown>
+  readonly pack: (results: readonly CheckResult[], names: readonly string[]) => Promise<unknown>
 }
 
 export function bridgeRunChecks(deps: BridgeChecksDeps): {
@@ -735,7 +735,10 @@ export function bridgeRunChecks(deps: BridgeChecksDeps): {
         )
       }
       admit()
-      const packed = await deps.pack(results)
+      const packed = await deps.pack(
+        results,
+        chosen.map((check) => check.name),
+      )
       admit()
       return packed
     },
