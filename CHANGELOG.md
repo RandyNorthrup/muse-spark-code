@@ -90,6 +90,13 @@ happened, not what was planned; superseded entries are kept.
   card is the only thing that asks, as before.
 - **A team workspace opened by another spelling lands.** A short name, a junction or a
   link above the folder no longer refuses the merge as a linked root.
+- **A team task lands on a checkout with Windows line endings.** Under Git for Windows'
+  default `core.autocrlf` every file a worker changed came back as a conflict, because
+  each CRLF line looked like your own edit. Now the merge reads the text as the repository
+  keeps it and writes it back in your line endings; your own edits merge as they should.
+  A file with mixed line endings still stops the merge rather than have lines rewritten.
+- **An ACP team session asks about a dead run at its first turn.** The editor is asked
+  once whether to put back a landing a dead run left half done. Keep leaves it as it is.
 - **Editor tabs close with Delete, and a screen reader can tell a tab from its close
   control.** In the node workspace's editor the close mark sat inside the tab, one
   control nested in another. The mark stays for the pointer; a focused tab closes with

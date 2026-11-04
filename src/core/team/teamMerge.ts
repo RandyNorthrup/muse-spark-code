@@ -73,6 +73,7 @@ const OBJECT_ID = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i
 const LOSSY_DECODER = new TextDecoder('utf-8', { fatal: false })
 const NUL = 0
 const LINE_FEED = 0x0a
+const CARRIAGE_RETURN = 0x0d
 const EXECUTABLE_BIT = 0o100
 const PLAIN_FILE_MODE = 0o644
 const EXECUTABLE_MASK = 0o111
@@ -765,6 +766,49 @@ async function readWorktreeFile(root: string, relative: string): Promise<Uint8Ar
   }
 }
 
+/**
+Whether the file on disk is this text in a CRLF checkout: CRLF on every line over a repository that
+keeps LF, which is what Git for Windows' default `core.autocrlf` leaves there. The bytes differ on
+every line and none of it is the person's edit. Mixed endings are not a checkout's: they stay as they
+are and merge as they are, so a line nobody touched never changes.
+*/
+function isCrlfCheckout(
+  onDisk: Uint8Array | undefined,
+  base: Uint8Array | undefined,
+  theirs: Uint8Array | undefined,
+): onDisk is Uint8Array {
+  if (
+    onDisk === undefined ||
+    hasNul(onDisk) ||
+    base?.includes(CARRIAGE_RETURN) === true ||
+    theirs?.includes(CARRIAGE_RETURN) === true
+  )
+    return false
+  let lines = 0
+  for (const [index, byte] of onDisk.entries()) {
+    if (byte === LINE_FEED) {
+      if (onDisk[index - 1] !== CARRIAGE_RETURN) return false
+      lines += 1
+    } else if (byte === CARRIAGE_RETURN && onDisk[index + 1] !== LINE_FEED) return false
+  }
+  return lines > 0
+}
+
+function withCrlf(bytes: Uint8Array): Uint8Array {
+  const lines = bytes.filter((byte) => byte === LINE_FEED).length
+  const written = new Uint8Array(bytes.length + lines)
+  let at = 0
+  for (const byte of bytes) {
+    if (byte === LINE_FEED) {
+      written[at] = CARRIAGE_RETURN
+      at += 1
+    }
+    written[at] = byte
+    at += 1
+  }
+  return written
+}
+
 async function mergeOneFile(
   io: TeamMergeIo,
   spec: TeamMergeSpec,
@@ -775,7 +819,12 @@ async function mergeOneFile(
   const { file, change, baseBytes, theirsBytes } = prepared
   const theirsMode = change.change === 'deleted' ? undefined : change.theirsMode
   await confinedRelative(io, spec.repositoryRoot, file.path, platform)
-  const oursBytes = await readWorktreeFile(spec.repositoryRoot, file.path)
+  const onDisk = await readWorktreeFile(spec.repositoryRoot, file.path)
+  // Merged as the repository keeps the text, handed back in the line endings it stood in.
+  const isCrlf = !file.isBinary && isCrlfCheckout(onDisk, baseBytes, theirsBytes)
+  const oursBytes = isCrlf ? onDisk.filter((byte) => byte !== CARRIAGE_RETURN) : onDisk
+  const inTree = (bytes: Uint8Array | undefined): Uint8Array | undefined =>
+    isCrlf && bytes !== undefined ? withCrlf(bytes) : bytes
   const absolute = path.join(spec.repositoryRoot, file.path)
   const oursStat = await linkOf(absolute)
   const oursMode = platform === 'win32' ? undefined : oursStat?.mode
@@ -813,8 +862,8 @@ async function mergeOneFile(
     undo: [
       {
         path: file.path,
-        before: oursBytes,
-        after,
+        before: onDisk,
+        after: inTree(after),
         beforeMode,
         afterMode: isConflict ? beforeMode : afterMode,
       },

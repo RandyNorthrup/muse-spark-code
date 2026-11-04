@@ -32,6 +32,11 @@ export interface AcpTeamSession {
   /** D261: this session's refused work moves to the next agent. Off until it says so. */
   readonly isRefusalFallbackOn: () => boolean
   readonly setRefusalFallback: (isOn: boolean) => void
+  /**
+  What a dead run left half landed, asked about at this session's turn. The team host binds before
+  session/new has answered, when the editor knows no session it could answer for.
+  */
+  readonly settleLandings: () => Promise<void>
   /** The editor cancelled: every worker this session delegated stops. */
   readonly cancel: () => Promise<void>
   /** The session closed: its workers stop and its handler lets go. */

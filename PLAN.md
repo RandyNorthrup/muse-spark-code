@@ -18278,9 +18278,13 @@ if the roll-back is refused too the record and lock stay for Recover. A workspac
 reached by another spelling is the same workspace. The person's check commands run
 over the staging copy in a governed slot, refusal kind `checks`. MHP 1.6.0 re-frozen
 for `decideTeamMerge`'s `undo` and the card's `changedDuringLanding`; nothing of it
-has shipped. A real crash mid-landing through the engine port is proved here on
-Windows in all three spellings; macOS and Linux are the same suite on hosted CI, and
-the three-platform box stays open until it is green on them. Record:
+has shipped. The merge reads a CRLF checkout over a repository that keeps LF as the
+text it is and writes it back in CRLF: every team merge on Git for Windows' default
+`core.autocrlf` used to conflict on every line, in place and in the copy alike. An ACP
+session asks about a dead run at its first turn, since its host binds before
+session/new has answered. A real crash mid-landing through the engine port is proved
+here on Windows in all three spellings; macOS and Linux are the same suite on hosted
+CI, and the three-platform box stays open until it is green on them. Record:
 `docs/certification/cc-winland.md`.
 
 **M96CINT round 2 integration (2026-10-05).** Finish the existing partial
