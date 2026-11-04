@@ -1,5 +1,6 @@
 import * as z from 'zod/mini'
-import { MHP, MHP_PANEL, GITHUB_API_BASE_URL, HTTP_STATUS_MAX } from '../constants'
+import { MHP, MHP_PANEL, HTTP_STATUS_MAX } from '../constants'
+import { isGitHubLeaseUrl } from './githubLeaseUrl'
 import {
   type MhpCapability,
   type MhpFallback,
@@ -610,26 +611,7 @@ export const MHP_METHODS = {
     z.strictObject({
       leaseId: z.string().check(z.uuid()),
       ownerId: z.string().check(z.uuid()),
-      url: z.string().check(
-        z.url(),
-        z.refine((value) => {
-          let url: URL
-          try {
-            url = new URL(value)
-          } catch (error) {
-            // A malformed request URL is invalid input. Anything else keeps its kind.
-            if (error instanceof TypeError) return false
-            throw error
-          }
-          return (
-            url.origin === GITHUB_API_BASE_URL &&
-            url.username === '' &&
-            url.password === '' &&
-            url.hash === '' &&
-            (url.pathname === '/user' || url.pathname.startsWith('/repos/'))
-          )
-        }),
-      ),
+      url: z.string().check(z.url(), z.refine(isGitHubLeaseUrl)),
       method: z.enum(['GET', 'POST']),
       body: z.optional(jsonValueSchema),
     }),

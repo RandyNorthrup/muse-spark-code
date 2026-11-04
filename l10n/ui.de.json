@@ -2408,6 +2408,7 @@
   "gitHubOnly": "Pull Requests lassen sich nur auf github.com öffnen, und das Remote-Repository „{remote}“ liegt nicht dort.",
   "gitHubSignInDeclined": "Die GitHub-Anmeldung wurde nicht erteilt, daher wurde nichts an GitHub gesendet.",
   "gitHubFailed": "Die GitHub-Anfrage ist fehlgeschlagen",
+  "gitHubLeaseEndpointRefused": "Nichts wurde gesendet: Die GitHub-Anmeldung des Editors erreicht nur die eigene API von GitHub, und diese Anfrage ging an eine andere Adresse.",
   "gitHubAnswered": "GitHub antwortete mit {status}",
   "gitHubResponseInvalid": "GitHub hat eine Antwort in einem unerwarteten Format zurückgegeben.",
   "gitHubCommitInvalid": "Keine Commit-ID: {sha}",
@@ -3242,6 +3243,7 @@
     "one": "{count} offen",
     "other": "{count} offen"
   },
+  "openQuestionsStatusFailed": "Der Editor hat die Anzahl offener Fragen nicht übernommen, die angezeigte Zahl ist daher vielleicht nicht aktuell. Deine Fragen bleiben sicher in der Unterhaltung.",
   "clarifyNotAccepted": "Die Erklärung wurde nicht angenommen",
   "messageActions": "Nachrichtenaktionen",
   "rowMoreActions": "Weitere Aktionen",

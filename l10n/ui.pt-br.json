@@ -2437,6 +2437,7 @@
   "gitHubOnly": "Solicitações de pull só são abertas no github.com, e o remoto “{remote}” não está lá.",
   "gitHubSignInDeclined": "A entrada no GitHub não foi autorizada, então nada foi enviado ao GitHub.",
   "gitHubFailed": "A requisição ao GitHub falhou",
+  "gitHubLeaseEndpointRefused": "Nada foi enviado: o login do GitHub no editor alcança apenas a própria API do GitHub, e esta solicitação era para outro endereço.",
   "gitHubAnswered": "O GitHub respondeu {status}",
   "gitHubResponseInvalid": "O GitHub retornou uma resposta em um formato inesperado.",
   "gitHubCommitInvalid": "Não é um ID de commit: {sha}",
@@ -3295,6 +3296,7 @@
     "other": "{count} em aberto",
     "many": "{count} em aberto"
   },
+  "openQuestionsStatusFailed": "O editor não aceitou a contagem de perguntas abertas, então a exibida pode estar desatualizada. Suas perguntas continuam seguras na conversa.",
   "clarifyNotAccepted": "A explicação não foi aceita",
   "messageActions": "Ações da mensagem",
   "rowMoreActions": "Mais ações",

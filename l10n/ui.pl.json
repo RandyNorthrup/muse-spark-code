@@ -2466,6 +2466,7 @@
   "gitHubOnly": "Żądania ściągnięcia można otwierać tylko w serwisie github.com, a repozytorium zdalnego „{remote}” tam nie ma.",
   "gitHubSignInDeclined": "Nie udzielono zgody na logowanie do serwisu GitHub, więc nic nie zostało do niego wysłane.",
   "gitHubFailed": "Zapytanie do serwisu GitHub nie powiodło się",
+  "gitHubLeaseEndpointRefused": "Nic nie zostało wysłane: logowanie do GitHuba w edytorze sięga tylko własnego API GitHuba, a to żądanie dotyczyło innego adresu.",
   "gitHubAnswered": "GitHub odpowiedział {status}",
   "gitHubResponseInvalid": "GitHub zwrócił odpowiedź w nieoczekiwanym formacie.",
   "gitHubCommitInvalid": "To nie jest identyfikator commitu: {sha}",
@@ -3348,6 +3349,7 @@
     "few": "{count} otwarte",
     "many": "{count} otwartych"
   },
+  "openQuestionsStatusFailed": "Edytor nie przyjął liczby otwartych pytań, więc wyświetlana liczba może być nieaktualna. Twoje pytania są bezpieczne w rozmowie.",
   "clarifyNotAccepted": "Wyjaśnienie nie zostało przyjęte",
   "messageActions": "Akcje wiadomości",
   "rowMoreActions": "Więcej działań",

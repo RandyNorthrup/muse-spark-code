@@ -2408,6 +2408,7 @@
   "gitHubOnly": "Pull requestet csak a github.com oldalon lehet nyitni, és a(z) „{remote}” távoli adattár nem ott van.",
   "gitHubSignInDeclined": "A GitHub-bejelentkezés nem lett megadva, ezért semmi sem ment el a GitHubra.",
   "gitHubFailed": "A GitHub-kérés sikertelen",
+  "gitHubLeaseEndpointRefused": "Semmi sem lett elküldve: a szerkesztő GitHub-bejelentkezése csak a GitHub saját API-ját éri el, ez a kérés pedig másik címre szólt.",
   "gitHubAnswered": "A GitHub válasza: {status}",
   "gitHubResponseInvalid": "A GitHub váratlan formátumú választ adott.",
   "gitHubCommitInvalid": "Nem commitazonosító: {sha}",
@@ -3242,6 +3243,7 @@
     "one": "{count} nyitott",
     "other": "{count} nyitott"
   },
+  "openQuestionsStatusFailed": "A szerkesztő nem vette át a nyitott kérdések számát, ezért a megjelenített szám elavult lehet. A kérdéseid biztonságban vannak a beszélgetésben.",
   "clarifyNotAccepted": "A magyarázat nem lett elfogadva",
   "messageActions": "Üzenetműveletek",
   "rowMoreActions": "További műveletek",

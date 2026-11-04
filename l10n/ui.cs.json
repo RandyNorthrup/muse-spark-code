@@ -2466,6 +2466,7 @@
   "gitHubOnly": "Žádosti o přijetí změn se otevírají jen na github.com a vzdálené úložiště „{remote}“ tam není.",
   "gitHubSignInDeclined": "Přihlášení ke GitHubu nebylo uděleno, proto se na GitHub nic neodeslalo.",
   "gitHubFailed": "Požadavek na GitHub se nezdařil",
+  "gitHubLeaseEndpointRefused": "Nic nebylo odesláno: přihlášení ke GitHubu v editoru dosáhne pouze na vlastní API GitHubu a tento požadavek směřoval na jinou adresu.",
   "gitHubAnswered": "GitHub odpověděl {status}",
   "gitHubResponseInvalid": "GitHub vrátil odpověď v neočekávaném formátu.",
   "gitHubCommitInvalid": "Neplatné ID commitu: {sha}",
@@ -3348,6 +3349,7 @@
     "few": "{count} otevřené",
     "many": "{count} otevřené"
   },
+  "openQuestionsStatusFailed": "Editor nepřijal počet otevřených otázek, takže zobrazený počet nemusí být aktuální. Vaše otázky zůstávají v konverzaci v bezpečí.",
   "clarifyNotAccepted": "Vysvětlení nebylo přijato",
   "messageActions": "Akce zprávy",
   "rowMoreActions": "Další akce",
