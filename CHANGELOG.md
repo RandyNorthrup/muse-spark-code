@@ -74,6 +74,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **A supervised run ends with its supervisor, whatever ended it.** On Linux and macOS, an
+  editor's hard kill or a closed terminal could leave a `supervise panel --companion`
+  page serving with nothing left to stop it. The run now notices within a second and ends
+  itself, a closed terminal stops it in order, and a second stop request no longer cuts
+  the first one short.
 - **A failed team step in an editor says what you can use.** A merge that failed for an
   unexpected reason could put a machine's word (`unknownTask`) or a path in the session; it
   now says the step did not work and that the log has the details.

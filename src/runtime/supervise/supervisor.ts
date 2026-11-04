@@ -47,6 +47,7 @@ import {
   SUPERVISE_REPLY,
   SUPERVISE_SOCKET_PATH_MAX_BYTES,
   SUPERVISED_OWNER_VARIABLE,
+  SUPERVISOR_PID_VARIABLE,
   TREE_EXIT_WAIT_MS,
   UI_TEXT,
 } from '../../shared/constants'
@@ -272,7 +273,11 @@ async function launch(
 ): Promise<SupervisedChild> {
   const env = workspaceChildEnvironment(
     process.platform,
-    { ...deps.env, [SUPERVISED_OWNER_VARIABLE]: ownerId },
+    {
+      ...deps.env,
+      [SUPERVISED_OWNER_VARIABLE]: ownerId,
+      [SUPERVISOR_PID_VARIABLE]: String(process.pid),
+    },
     { workspaceRoot: deps.cwd, realpath: realpathSync },
   )
   const args = [deps.entry, ...deps.args]
@@ -314,6 +319,13 @@ function controlServer(record: SupervisedRecord, isStopped: () => Promise<boolea
   })
   return server
 }
+
+/**
+What asks this process to stop. A closed terminal is one of them, and each may
+arrive more than once: the first starts the stop, and a later one finds it in
+hand instead of ending this process with the stop half done.
+*/
+const STOP_SIGNALS: readonly NodeJS.Signals[] = ['SIGTERM', 'SIGINT', 'SIGHUP']
 
 /** Runs the command supervised; resolves with its exit code (0 after a stop). */
 export async function superviseRuntime(deps: SuperviseDeps): Promise<number> {
@@ -363,8 +375,7 @@ export async function superviseRuntime(deps: SuperviseDeps): Promise<number> {
   }
   try {
     await writeRecord(file, record)
-    process.once('SIGTERM', onSignal)
-    process.once('SIGINT', onSignal)
+    for (const name of STOP_SIGNALS) process.on(name, onSignal)
     launching = launch(deps, ownerId, admission.signal)
     let supervised: SupervisedChild | undefined
     try {
@@ -396,8 +407,7 @@ export async function superviseRuntime(deps: SuperviseDeps): Promise<number> {
     for (const line of words) deps.stderr.write(`${line}\n`)
     return stopping === undefined ? exitCodeOf(code, signal) : Number(!(await stopping))
   } finally {
-    process.off('SIGTERM', onSignal)
-    process.off('SIGINT', onSignal)
+    for (const name of STOP_SIGNALS) process.off(name, onSignal)
     await new Promise<void>((resolve) => {
       server.close(() => {
         resolve()
