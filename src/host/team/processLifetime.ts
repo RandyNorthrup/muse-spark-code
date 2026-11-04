@@ -389,7 +389,7 @@ export function createTeamProcessLifetime(options: {
               if (end === undefined) throw new Error('TEAM_RETIREMENT_MISSING')
               if (previous?.descendants === 'proved') return previous
               await save({ ...record, confirmation, end })
-              if (end.descendants === 'proved') {
+              if (end.descendants === 'proved' || end.groupGone === true) {
                 lifecycle.end()
                 launches.delete(lifecycle)
               }
@@ -414,7 +414,10 @@ export function createTeamProcessLifetime(options: {
             ended,
             retire: async () => {
               lifecycle.retire()
-              return await recordEnd(await launched.retire())
+              const end = await recordEnd(await launched.retire())
+              // Nothing is left in its group: dispose has nothing to retire, and its number may be reused.
+              if (end.groupGone === true) active.delete(pending)
+              return end
             },
           }
         } catch (error: unknown) {
