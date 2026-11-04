@@ -5,7 +5,7 @@
 // where nothing can (macOS, Linux with no user systemd) a check takes a folder of its own.
 import { execFileSync } from 'node:child_process'
 import { mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { availableParallelism, tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { WorkerRolePolicy } from '../../src/core/team/workers/workerTypes'
@@ -13,6 +13,7 @@ import { checkProcessOver } from '../../src/host/team/checkProcess'
 import { CheckSlots } from '../../src/host/team/checkSlots'
 import {
   isSeenScopeGone,
+  scopeGroupOf,
   seenScopeEvents,
   startNativeTeamLifetime,
   type TeamProcessLifetime,
@@ -186,7 +187,51 @@ describe.runIf(isPosix)('a retirement', () => {
   )
 })
 
+describe('which scope a process is in', () => {
+  const UNIT = 'muse-spark-one.scope'
+  const GROUP = `/user.slice/user-1000.slice/user@1000.service/app.slice/${UNIT}`
+
+  it('is what the kernel says, once it says this unit', () => {
+    expect(scopeGroupOf(UNIT, `0::${GROUP}\n`)).toBe(GROUP)
+    // Still where it started: systemd has not moved it yet.
+    expect(scopeGroupOf(UNIT, '0::/user.slice/user-1000.slice/session-1.scope\n')).toBeUndefined()
+    // Another launch's, whose name ends the same way.
+    expect(scopeGroupOf(UNIT, `0::/a/not-${UNIT}\n`)).toBeUndefined()
+    expect(scopeGroupOf(UNIT, `0::/../${UNIT}\n`)).toBeUndefined()
+    expect(scopeGroupOf(UNIT, '')).toBeUndefined()
+    // A hybrid hierarchy names it on its own line, which proves no empty cgroup.
+    const hybrid = `1:name=systemd:${GROUP}\n0::/\n`
+    expect(scopeGroupOf(UNIT, hybrid)).toBe(GROUP)
+    expect(seenScopeEvents(GROUP, hybrid)).toBeUndefined()
+  })
+})
+
 describe.runIf(process.platform === 'linux' && doesProve)('a real Linux scope', () => {
+  it(
+    'confirms every launch a team can reach at once',
+    async () => {
+      const root = await scratch('muse-proof-many-')
+      const lifetime = await realLifetime(root)
+      // A team runs a worker and a check per logical CPU, at the most.
+      const atOnce = 2 * availableParallelism()
+      const launches = await Promise.allSettled(
+        Array.from({ length: atOnce }, async () => {
+          const launched = await lifetime.launch({
+            command: process.execPath,
+            args: ['-e', 'setInterval(() => undefined, 1000)'],
+            cwd: root,
+            taskId: 'many',
+            env: { PATH: process.env['PATH'] },
+            priority: 'normal',
+          })
+          return await launched.retire()
+        }),
+      )
+      expect(launches.filter((launch) => launch.status === 'rejected')).toEqual([])
+    },
+    LONG_MS,
+  )
+
   it(
     'proves a command that ended by itself, however long it ran',
     async () => {

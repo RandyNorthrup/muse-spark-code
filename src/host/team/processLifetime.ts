@@ -68,8 +68,6 @@ import type { CoreLogger } from '../../core/logging'
 
 const NATIVE_POLL_MS = 10
 const NATIVE_CONFIRM_MS = 5000
-/** How long a held child gets to show up in its scope; systemd moves it as the unit starts. */
-const SCOPE_SEEN_WAIT_MS = 1000
 const LAUNCH_GATE_FD = 3
 
 /** A separate team MSP host, never the conversation's host. W supplies the
@@ -488,6 +486,28 @@ const isNoHierarchy = (error: unknown): boolean => isUnreadable(error) || isMiss
 const isGoingFile = (error: unknown): boolean =>
   isMissingPath(error) || errnoCode(error) === 'ENODEV'
 
+/** Where a process's membership cannot be read because it has gone: nothing to say about it yet. */
+const isProcessGone = (error: unknown): boolean =>
+  isMissingPath(error) || errnoCode(error) === 'ESRCH'
+
+async function membershipOf(pid: number): Promise<string> {
+  try {
+    return await readFile(`/proc/${String(pid)}/cgroup`, 'utf8')
+  } catch (error: unknown) {
+    if (!isProcessGone(error)) throw error
+    return ''
+  }
+}
+
+/** The path of the cgroup `unit` made, once the kernel has this process in it. */
+export function scopeGroupOf(unit: string, membership: string): string | undefined {
+  for (const line of membership.split('\n')) {
+    const group = line.slice(line.indexOf(':', line.indexOf(':') + 1) + 1)
+    if (group.startsWith('/') && group.endsWith(`/${unit}`) && !group.includes('..')) return group
+  }
+  return undefined
+}
+
 /** The scope's `cgroup.events`, if the held child is really in it. A scope never seen proves nothing. */
 export function seenScopeEvents(
   group: string,
@@ -704,8 +724,6 @@ export async function createNativeTeamProcessDriver(options: {
       }
       const confirmation = (async (): Promise<LaunchConfirmation> => {
         const deadline = performance.now() + NATIVE_CONFIRM_MS
-        const scopeDeadline = performance.now() + SCOPE_SEEN_WAIT_MS
-        const isScopeWaitOver = () => performance.now() >= scopeDeadline
         while (performance.now() < deadline) {
           if (child.pid === undefined) {
             await exited
@@ -714,28 +732,18 @@ export async function createNativeTeamProcessDriver(options: {
           const observed = await observer.observe(child.pid)
           if (observed !== undefined) {
             if (scope !== undefined) {
-              const rawGroup = await runProgram(
-                scope.systemctl,
-                ['--user', 'show', unit, '--property=ControlGroup', '--value'],
-                scopeEnv,
-              )
-              const group = rawGroup.trim()
-              if (group === '' && !state.isExited) {
+              // Asked of the kernel, not of systemd: `systemd-run` moves the held child into the
+              // scope and only then runs it. Polling `systemctl show` here, every launch at once,
+              // kept the user manager from starting the scopes it was being asked about.
+              const membership = await membershipOf(child.pid)
+              const group = scopeGroupOf(unit, membership)
+              if (group === undefined) {
+                if (state.isExited) throw new Error('TEAM_SCOPE_NOT_READY')
                 await delay(NATIVE_POLL_MS)
                 continue
               }
-              if (!group.startsWith('/') || group.includes('..'))
-                throw new Error('TEAM_SCOPE_NOT_READY')
               state.cgroup = `${CGROUP_ROOT}${group}/cgroup.events`
-              // Asked of the kernel, not the unit: the held child is in it and its file is there.
-              const seen = seenScopeEvents(
-                group,
-                await readFile(`/proc/${String(child.pid)}/cgroup`, 'utf8'),
-              )
-              if (seen === undefined && !state.isExited && !isScopeWaitOver()) {
-                await delay(NATIVE_POLL_MS)
-                continue
-              }
+              const seen = seenScopeEvents(group, membership)
               if (seen !== undefined && (await canRead(seen))) state.scopeEvents = seen
             }
             return confirmationSchema.parse({
