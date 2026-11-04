@@ -54,12 +54,13 @@ async function land(
     return await landingRunGit(args, cwd, input, env)
   }
   const task = landingTask(fixture)
-  const outcome = await productLandingPorts(fixture, ports, git).merges.merge(
+  const { merges } = productLandingPorts(fixture, ports, git)
+  const outcome = await merges.merge(
     { ...task, outcome: { ...task.outcome, folder: await realpath(fixture.workerCopy) } },
     signal,
     { allowProtected: false },
   )
-  return { outcome, calls }
+  return { outcome, calls, merges }
 }
 
 const batch = (size: number): readonly string[] =>
@@ -120,6 +121,31 @@ describe('what a landing costs in git processes', () => {
       for (const file of files) expect(await bytes(fixture, file)).toBe(`before of ${file}\n`)
       expect(await landingStatuses(fixture.storage)).toEqual(['recovered'])
       costs.set(size, calls.length)
+    }
+    expect(costs.get(30)).toBe(costs.get(2))
+  }, 120_000)
+
+  it('is the same number for Undo Merge, at any size', async () => {
+    const costs = new Map<number, number>()
+    for (const size of [2, 30]) {
+      const files = batch(size)
+      const fixture = await fixtureFor(`task-undo-${String(size)}`, files, OWN_BYTES)
+      const last = files.at(-1) ?? ''
+      const { ports } = atGuard(last, 2, async () => {
+        await writeFile(path.join(fixture.root, last), 'the person\n')
+      })
+      const calls: GitCall[] = []
+      const { outcome, merges } = await land(fixture, ports, calls)
+      expect(outcome.refusal?.kind).toBe('changed')
+      if (outcome.refusal?.kind !== 'changed') throw new Error('no changed refusal')
+      const before = calls.length
+      expect(await merges.undo?.(fixture.taskId, outcome.refusal.landingId, signal)).toMatchObject({
+        status: 'undone',
+      })
+      const others = files.slice(0, -1)
+      for (const file of others) expect(await bytes(fixture, file)).toBe(`before of ${file}\n`)
+      expect(await bytes(fixture, last)).toBe('the person\n')
+      costs.set(size, calls.length - before)
     }
     expect(costs.get(30)).toBe(costs.get(2))
   }, 120_000)
