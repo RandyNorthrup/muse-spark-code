@@ -78,6 +78,14 @@ happened, not what was planned; superseded entries are kept.
   control.** In the node workspace's editor the close mark sat inside the tab, one
   control nested in another. The mark stays for the pointer; a focused tab closes with
   Delete, says so to a screen reader, and hands the focus to the tab that follows.
+- **The serial port list on Windows answers from Windows.** The list looked through every
+  PowerShell module on the machine for its commands, so a module that exported the same
+  name answered instead, and it took the module path the window inherited, unlike every
+  other PowerShell the product starts. It now names each command's module and uses
+  PowerShell's own module path.
+- **An external agent that has just exited on a Mac no longer fails the next step.**
+  Resuming or closing it in that moment could end in `kill EPERM`. An agent that closed
+  its output and ignores the request to stop is now ended instead of waited on for ever.
 - **The editor's pressed status buttons can be read in High Contrast Light.** Minimap
   and its neighbours showed white text on a pale background (1.17:1) while pressed.
 - **Team agents start on a Mac with plenty of memory.** macOS keeps little memory
