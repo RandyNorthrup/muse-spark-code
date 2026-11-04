@@ -39,7 +39,7 @@ setUiText(EN, 'en')
 const { memoryReader } = liveSamplerSuite()
 
 const LONG_MS = 120_000
-const isProves = await doesSystemProveEnds()
+const doesProve = await doesSystemProveEnds()
 const isPosix = process.platform !== 'win32'
 
 const ENGINEERING: WorkerRolePolicy = {
@@ -159,7 +159,34 @@ describe('reading a scope that is gone', () => {
   })
 })
 
-describe.runIf(process.platform === 'linux' && isProves)('a real Linux scope', () => {
+describe.runIf(isPosix)('a retirement', () => {
+  it(
+    "reaches a command that exec'd after its identity was recorded",
+    async () => {
+      const root = await scratch('muse-proof-exec-')
+      const lifetime = await realLifetime(root)
+      const contained = await lifetime.launch({
+        command: '/bin/sh',
+        args: [
+          '-c',
+          `sleep 0.3; exec '${process.execPath}' -e 'setInterval(() => undefined, 1000)'`,
+        ],
+        cwd: root,
+        taskId: 'exec',
+        env: { PATH: process.env['PATH'] },
+        priority: 'normal',
+      })
+      const { pid } = await contained.confirmation
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      expect(isProcessAlive(pid)).toBe(true)
+      await contained.retire()
+      await untilGone(pid)
+    },
+    LONG_MS,
+  )
+})
+
+describe.runIf(process.platform === 'linux' && doesProve)('a real Linux scope', () => {
   it(
     'proves a command that ended by itself, however long it ran',
     async () => {
@@ -241,7 +268,7 @@ describe.runIf(process.platform === 'linux' && isProves)('a real Linux scope', (
 })
 
 // macOS's path, and a Linux with no user systemd: hosted CI's macOS and Linux runners both come here.
-describe.runIf(isPosix && !isProves)('a bare process group', () => {
+describe.runIf(isPosix && !doesProve)('a bare process group', () => {
   it(
     'proves nothing, and says when no one is left in it',
     async () => {
@@ -379,12 +406,12 @@ describe("a worker's run_checks", () => {
       await callRunChecks(endpoint, { names: ['passes'] })
       const folders = await logLines(path.join(root, 'ran.log'))
       expect(folders).toHaveLength(2)
-      expect(new Set(folders).size).toBe(isProves ? 1 : 2)
-      expect(await logLines(path.join(root, 'setup.log'))).toHaveLength(isProves ? 1 : 2)
+      expect(new Set(folders).size).toBe(doesProve ? 1 : 2)
+      expect(await logLines(path.join(root, 'setup.log'))).toHaveLength(doesProve ? 1 : 2)
       const made = await foldersIn()
-      expect(made.includes('check-slots')).toBe(isProves)
+      expect(made.includes('check-slots')).toBe(doesProve)
       // A folder used once does not stay.
-      if (!isProves) expect(await readdir(path.join(root, 'ports', 'one-use-checks'))).toEqual([])
+      if (!doesProve) expect(await readdir(path.join(root, 'ports', 'one-use-checks'))).toEqual([])
     },
     LONG_MS,
   )
@@ -407,7 +434,7 @@ describe("a worker's run_checks", () => {
     LONG_MS,
   )
 
-  it.runIf(isPosix && !isProves)(
+  it.runIf(isPosix && !doesProve)(
     'says the sentence when something really has not stopped, and it has not',
     async () => {
       const { root, endpoint } = await workerRoute({
